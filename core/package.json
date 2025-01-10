@@ -1,0 +1,26 @@
+{
+  "name": "@thymian/core",
+  "version": "0.0.1",
+  "files": [
+    "dist",
+    "!**/*.tsbuildinfo"
+  ],
+  "type": "module",
+  "main": "./dist/index.js",
+  "typings": "./dist/index.d.ts",
+  "nx": {
+    "sourceRoot": "core/src",
+    "projectType": "library",
+    "tags": [
+      "core"
+    ],
+    "targets": {
+      "test": {
+        "executor": "@nx/vite:test",
+        "options": {
+          "config": "core/vitest.config.ts"
+        }
+      }
+    }
+  }
+}

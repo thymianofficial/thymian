@@ -1,0 +1,3 @@
+{
+  "{plugins,core}/**/*.ts": "nx affected --targets format:check, test, lint"
+}
