@@ -21,7 +21,7 @@ describe('ThymianError', () => {
 
     expect(error.causingError).toBeDefined();
     expect(error.causingError).toBeInstanceOf(Error);
-    expect(error.causingError!.message).toBe('Causing error');
+    expect(error.causingError?.message).toBe('Causing error');
   });
 
   it('should not set causing error for non-error instance', () => {
