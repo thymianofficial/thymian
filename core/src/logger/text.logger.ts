@@ -12,14 +12,14 @@ export class TextLogger implements Logger {
 
   debug(msg: string): void {
     if (this.verbose) {
-      console.log(`${chalk.green(`DEBUG`)} [${this.name}]: ${msg}`);
+      console.log(`${chalk.blue(`DEBUG`)} [${this.name}]: ${msg}`);
     }
   }
   info(msg: string): void {
     console.log(`${chalk.green(`INFO`)} [${this.name}]: ${msg}`);
   }
   error(msg: string): void {
-    console.error(`${chalk.green(`ERROR`)} [${this.name}]: ${msg}`);
+    console.error(`${chalk.red(`ERROR`)} [${this.name}]: ${msg}`);
   }
   out(output: unknown): void {
     if (typeof output !== 'undefined') {
