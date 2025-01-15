@@ -25,7 +25,7 @@ export class ThymianEmitter {
 
   constructor(
     logger: Logger,
-    options: ThymianEmitterOptions = { timeout: 1000 },
+    options: ThymianEmitterOptions = { timeout: 3000 },
     emitter = new EventEmitter2({
       wildcard: true,
       delimiter: '.',
@@ -41,11 +41,11 @@ export class ThymianEmitter {
     this.#resetTimeout();
   }
 
-  on(event: string, listener: ThymianListerFn): void {
+  onEvent(event: string, listener: ThymianListerFn): void {
     this.#emitter.on(event, listener);
   }
 
-  onAsync<T>(
+  onHook<T>(
     event: string | ThymianEvent,
     listener: ThymianListerAsyncFn<T>
   ): void {
@@ -57,20 +57,16 @@ export class ThymianEmitter {
   }
 
   emitError(err: ThymianError): void {
-    this.emit('thymian.error', err);
+    this.emitEvent('thymian.error', err);
   }
 
-  emitExit(code: number, reason: string): void {
-    this.emit('thymian.exit', code, reason);
-  }
-
-  emit(event: string, ...args: unknown[]): void {
+  emitEvent(event: string, ...args: unknown[]): void {
     this.#resetTimeout();
     this.#logger.debug(`Emitting event "${event}".`);
     this.#emitter.emit(event, ...args);
   }
 
-  emitAsync<T = unknown>(event: string, ...args: unknown[]): Promise<T[]> {
+  runHook<T = unknown>(event: string, ...args: unknown[]): Promise<T[]> {
     this.#resetTimeout();
     this.#logger.debug(`Emitting event "${event}".`);
     return this.#emitter.emitAsync(event, ...args) as Promise<T[]>;

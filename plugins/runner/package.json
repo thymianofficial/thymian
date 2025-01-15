@@ -1,0 +1,30 @@
+{
+  "name": "@thymian/runner",
+  "version": "0.0.1",
+  "files": [
+    "dist",
+    "!**/*.tsbuildinfo"
+  ],
+  "type": "module",
+  "main": "./dist/index.js",
+  "typings": "./dist/index.d.ts",
+  "nx": {
+    "sourceRoot": "plugins/runner/src",
+    "projectType": "library",
+    "tags": [
+      "plugin"
+    ],
+    "targets": {
+      "test": {
+        "executor": "@nx/vite:test",
+        "options": {
+          "config": "core/vitest.config.ts"
+        }
+      }
+    }
+  },
+  "dependencies": {
+    "undici": "^7.2.1",
+    "@thymian/core": "*"
+  }
+}

@@ -27,7 +27,7 @@ describe('Thymian', () => {
       options: {},
       version: '',
       plugin: async (emitter) => {
-        emitter.on('thymian.register', a);
+        emitter.onEvent('thymian.register', a);
       },
     });
 
@@ -47,9 +47,9 @@ describe('Thymian', () => {
       options: {},
       version: '',
       plugin: async (emitter) => {
-        emitter.on('thymian.start', () => {
-          emitter.emit('sync-event');
-          emitter.emit('test');
+        emitter.onEvent('thymian.start', () => {
+          emitter.emitEvent('sync-event');
+          emitter.emitEvent('test');
         });
       },
     });
@@ -59,7 +59,7 @@ describe('Thymian', () => {
       options: {},
       version: '',
       plugin: async (emitter) => {
-        emitter.on('sync-event', a);
+        emitter.onEvent('sync-event', a);
       },
     });
 
@@ -69,7 +69,7 @@ describe('Thymian', () => {
         options: {},
         version: '',
         plugin: async (emitter, logger, opts) => {
-          emitter.on(opts.event, b);
+          emitter.onEvent(opts.event, b);
         },
       },
       {

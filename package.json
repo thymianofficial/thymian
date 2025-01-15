@@ -40,8 +40,5 @@
     "plugins/**",
     "core"
   ],
-  "nx": {
-    "includedScripts": [],
-    "targets": {}
-  }
+  "nx": {}
 }

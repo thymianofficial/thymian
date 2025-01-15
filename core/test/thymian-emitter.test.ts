@@ -8,7 +8,7 @@ describe('ThymianEmitter', () => {
   it('.emitError() should emit error event', () =>
     new Promise<void>((done) => {
       const emitter = new ThymianEmitter(new MockLogger());
-      emitter.on('thymian.error', (err: ThymianError) => {
+      emitter.onEvent('thymian.error', (err: ThymianError) => {
         expect(err).toStrictEqual(new ThymianError('my error'));
         done();
       });
@@ -16,30 +16,18 @@ describe('ThymianEmitter', () => {
       emitter.emitError(new ThymianError('my error'));
     }));
 
-  it('.emitExit() should emit exit event', () =>
-    new Promise<void>((done) => {
-      const emitter = new ThymianEmitter(new MockLogger());
-      emitter.on('thymian.exit', (code: number, reason) => {
-        expect(code).toBe(127);
-        expect(reason).toBe('reason');
-        done();
-      });
-
-      emitter.emitExit(127, 'reason');
-    }));
-
   it('should idle after given timout', async () => {
     const emitter = new ThymianEmitter(new MockLogger(), {
       timeout: 2000,
     });
 
-    emitter.onAsync('a', async () => {
+    emitter.onEvent('a', async () => {
       await setTimeout(1000);
-      emitter.emit('b');
+      emitter.emitEvent('b');
     });
 
     const start = performance.now();
-    emitter.emit('a');
+    emitter.emitEvent('a');
 
     await emitter.onIdle();
     const end = performance.now();
@@ -51,11 +39,11 @@ describe('ThymianEmitter', () => {
     const emitter = new ThymianEmitter(new MockLogger(), { timeout: 1000 });
     const listener = vitest.fn();
 
-    emitter.on('a', listener);
-    emitter.on('a', listener);
-    emitter.on('b', listener);
+    emitter.onEvent('a', listener);
+    emitter.onEvent('a', listener);
+    emitter.onEvent('b', listener);
 
-    emitter.emit('a');
+    emitter.emitEvent('a');
 
     await emitter.onIdle();
 
@@ -67,37 +55,37 @@ describe('ThymianEmitter', () => {
 
     const listener = vitest.fn();
 
-    emitter.on('a.**', listener);
-    emitter.on('a.*', listener);
-    emitter.on('a', listener);
-    emitter.on('b.a', listener);
-    emitter.on('**', listener);
+    emitter.onEvent('a.**', listener);
+    emitter.onEvent('a.*', listener);
+    emitter.onEvent('a', listener);
+    emitter.onEvent('b.a', listener);
+    emitter.onEvent('**', listener);
 
-    emitter.emit('a');
+    emitter.emitEvent('a');
 
     await emitter.onIdle();
 
     expect(listener.mock.calls).toHaveLength(3);
   });
 
-  it('.emitAsync() should return all results - with sync listener', async () => {
+  it('.runHook() should return all results - with sync listener', async () => {
     const emitter = new ThymianEmitter(new MockLogger());
 
-    emitter.onAsync('event', () => 1);
-    emitter.onAsync('event', () => 2);
+    emitter.onHook('hook', () => 1);
+    emitter.onHook('hook', () => 2);
 
-    const nums = await emitter.emitAsync<number>('event');
+    const nums = await emitter.runHook<number>('hook');
 
     expect(nums).toStrictEqual([1, 2]);
   });
 
-  it('.emitAsync() should return all results - with async listener', async () => {
+  it('.runHook() should return all results - with async listener', async () => {
     const emitter = new ThymianEmitter(new MockLogger());
 
-    emitter.onAsync('event', async () => 1);
-    emitter.onAsync('event', async () => 2);
+    emitter.onHook('hook', async () => 1);
+    emitter.onHook('hook', async () => 2);
 
-    const nums = await emitter.emitAsync<number>('event');
+    const nums = await emitter.runHook<number>('hook');
 
     expect(nums).toStrictEqual([1, 2]);
   });

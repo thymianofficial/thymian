@@ -1,12 +1,15 @@
 import type { Logger } from './logger/logger.js';
 import type { ThymianPlugin } from './plugin.js';
 import { ThymianEmitter } from './thymian-emitter.js';
-import type { ThymianError } from './thymian.error.js';
+import { ThymianError } from './thymian.error.js';
+import { timeoutPromise } from './utils.js';
 
 export type RegisteredPlugin<T> = {
   plugin: ThymianPlugin<T>;
   options: T;
 };
+
+export class PluginRegistrationError extends ThymianError {}
 
 export type CoreReturnType = unknown;
 
@@ -30,7 +33,7 @@ export class Thymian {
 
   async start(): Promise<CoreReturnType> {
     return new Promise((resolve, reject) => {
-      this.emitter.on('thymian.error', (error: ThymianError) => {
+      this.emitter.onEvent('thymian.error', (error: ThymianError) => {
         this.logger.error(error.message);
         reject(error);
       });
@@ -41,13 +44,13 @@ export class Thymian {
 
           await this.loadRegisteredPlugins();
 
-          await this.emitter.emitAsync('thymian.ready');
+          await this.emitter.runHook('thymian.ready');
 
-          this.emitter.emit('thymian.start');
+          this.emitter.emitEvent('thymian.start');
 
           await this.emitter.onIdle();
 
-          const results = await this.emitter.emitAsync<CoreReturnType>(
+          const results = await this.emitter.runHook<CoreReturnType>(
             'thymian.close'
           );
           resolve(results);
@@ -60,17 +63,24 @@ export class Thymian {
 
   private async loadRegisteredPlugins(): Promise<void> {
     for await (const { plugin, options } of this.plugins) {
-      this.emitter.emit('thymian.register', {
+      this.emitter.emitEvent('thymian.register', {
         name: plugin.name,
         events: plugin.events,
         options,
       });
 
-      await plugin.plugin(
-        this.emitter,
-        this.logger.child(plugin.name),
-        options
-      );
+      try {
+        await timeoutPromise(
+          plugin.plugin(this.emitter, this.logger.child(plugin.name), options),
+          5000,
+          new ThymianError('Plugin registration timed out.')
+        );
+      } catch (e) {
+        throw new PluginRegistrationError(
+          `Error while registering plugin "${plugin.name}".`,
+          e
+        );
+      }
     }
   }
 }
