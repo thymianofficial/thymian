@@ -1,14 +1,11 @@
-import { type ThymianEmitter, type ThymianPlugin } from '@thymian/core';
+import { type ThymianPlugin } from '@thymian/core';
 
 export const runnerPlugin: ThymianPlugin<{ arg: number }> = {
-  plugin: async (emitter: ThymianEmitter, _logger, { arg }) => {
-    emitter.on('thymian.start', () => {
-      emitter.emit('run', arg);
-    });
-  },
+  plugin: async () => undefined,
   name: '@thymian/runner',
   version: '*',
   options: {},
+  hooks: {},
   events: {
     emits: {},
     listens: ['thymian.start'],

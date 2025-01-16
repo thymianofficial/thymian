@@ -18,7 +18,7 @@
       "test": {
         "executor": "@nx/vite:test",
         "options": {
-          "config": "core/vitest.config.ts"
+          "config": "plugins/runner/vitest.config.ts"
         }
       }
     }
