@@ -4,11 +4,6 @@ import type { ThymianEmitter } from './thymian-emitter.js';
 // represents a valid JSON Schema
 export type Schema = Record<string, unknown>;
 
-export type Event = {
-  description?: string;
-  schema: Schema;
-};
-
 export type ThymianPluginFn<Options = unknown> = (
   emitter: ThymianEmitter,
   logger: Logger,
@@ -20,8 +15,9 @@ export type ThymianPlugin<Options = unknown> = {
   options: Schema;
   name: string;
   version: string;
+  hooks?: Record<string, Schema>;
   events?: {
-    emits?: Record<string, Event>;
+    emits?: Record<string, Schema>;
     listens?: string[];
   };
 };
