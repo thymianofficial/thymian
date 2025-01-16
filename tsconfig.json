@@ -8,6 +8,9 @@
     },
     {
       "path": "./plugins/runner"
+    },
+    {
+      "path": "./plugins/test-runner"
     }
   ]
 }
