@@ -12,7 +12,7 @@ export function encodeResponseBody(
   const parsed = parseMIMEType(contentType);
 
   if (parsed === 'failure') {
-    throw new Error();
+    throw new Error('Invalid content type.');
   }
 
   const type = parsed.type as
