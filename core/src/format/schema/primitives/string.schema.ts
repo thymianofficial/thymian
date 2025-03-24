@@ -1,5 +1,5 @@
-import { ThymianSchemaVisitor } from '../schema.visitor';
-import { PrimitiveSchema } from './primitive.schema';
+import type { ThymianSchemaVisitor } from '../schema.visitor.js';
+import { PrimitiveSchema } from './primitive.schema.js';
 
 export type StringFormat = 'date-time' | 'email' | string; // ...
 

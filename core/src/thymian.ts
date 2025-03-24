@@ -44,7 +44,7 @@ export class Thymian {
 
           await this.loadRegisteredPlugins();
 
-          await this.emitter.runHook('thymian.ready');
+          await this.emitter.runHook<void>('thymian.ready');
 
           this.emitter.emitEvent('thymian.start');
 
