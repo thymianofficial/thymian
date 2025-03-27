@@ -1,4 +1,13 @@
-import { type ThymianPlugin } from '@thymian/core';
+import { type ThymianListerAsyncFn, type ThymianPlugin } from '@thymian/core';
+
+declare module '@thymian/core' {
+  interface ThymianEmitter {
+    onHook<T>(
+      event: `beforeAll.${number}`,
+      listener: ThymianListerAsyncFn<T>
+    ): void;
+  }
+}
 
 export const runnerPlugin: ThymianPlugin<{ arg: number }> = {
   plugin: async () => undefined,

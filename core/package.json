@@ -13,15 +13,7 @@
     "projectType": "library",
     "tags": [
       "core"
-    ],
-    "targets": {
-      "test": {
-        "executor": "@nx/vite:test",
-        "options": {
-          "config": "core/vitest.config.ts"
-        }
-      }
-    }
+    ]
   },
   "dependencies": {
     "chalk": "^5.4.1",

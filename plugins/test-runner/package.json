@@ -22,5 +22,8 @@
         }
       }
     }
+  },
+  "dependencies": {
+    "deepmerge-ts": "^7.1.3"
   }
 }

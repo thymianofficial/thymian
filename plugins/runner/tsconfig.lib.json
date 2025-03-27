@@ -14,5 +14,9 @@
     "types": ["node"]
   },
   "include": ["src/**/*.ts"],
-  "references": []
+  "references": [
+    {
+      "path": "../../core/tsconfig.lib.json"
+    }
+  ]
 }

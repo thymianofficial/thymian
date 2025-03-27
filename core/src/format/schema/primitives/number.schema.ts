@@ -22,6 +22,7 @@ export class NumberSchema extends PrimitiveSchema<number> {
 
   withMaximum(value?: number, exclusive = false): this {
     if (typeof value === 'number') {
+      // eslint-disable-next-line @typescript-eslint/no-unused-expressions
       exclusive ? (this.exclusiveMaximum = value) : (this.maximum = value);
     }
     return this;
@@ -43,6 +44,7 @@ export class NumberSchema extends PrimitiveSchema<number> {
 
   withMinimum(value?: number, exclusive = false): this {
     if (typeof value === 'number') {
+      // eslint-disable-next-line @typescript-eslint/no-unused-expressions
       exclusive ? (this.exclusiveMinimum = value) : (this.minimum = value);
     }
     return this;
