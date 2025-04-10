@@ -1,0 +1,15 @@
+{
+  "name": "@thymian/http-status-codes",
+  "version": "0.0.1",
+  "files": [
+    "dist",
+    "!**/*.tsbuildinfo"
+  ],
+  "type": "module",
+  "main": "./dist/index.js",
+  "typings": "./dist/index.d.ts",
+  "nx": {
+    "sourceRoot": "libs/http-status-codes/src",
+    "projectType": "library"
+  }
+}
