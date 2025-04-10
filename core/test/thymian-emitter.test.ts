@@ -1,23 +1,38 @@
 import { describe, expect, it, vitest } from 'vitest';
 import { ThymianEmitter } from '../src/thymian-emitter.js';
-import { MockLogger } from './mock.logger.js';
 import { setTimeout } from 'node:timers/promises';
 import { ThymianError } from '../src/thymian.error.js';
+import { NoopLogger } from '../src/logger/noop.logger.js';
+
+declare module '../src/thymian-emitter.js' {
+  interface ThymianHooks {
+    [event: string]: {
+      args: unknown[];
+      returnType: unknown;
+    };
+  }
+
+  interface ThymianEvents {
+    [event: string]: unknown[];
+  }
+}
 
 describe('ThymianEmitter', () => {
   it('.emitError() should emit error event', () =>
     new Promise<void>((done) => {
-      const emitter = new ThymianEmitter(new MockLogger());
+      const emitter = new ThymianEmitter(new NoopLogger());
       emitter.onEvent('thymian.error', (err: ThymianError) => {
         expect(err).toStrictEqual(new ThymianError('my error'));
         done();
       });
 
       emitter.emitError(new ThymianError('my error'));
+
+      emitter.runHook('');
     }));
 
   it('should idle after given timout', async () => {
-    const emitter = new ThymianEmitter(new MockLogger(), {
+    const emitter = new ThymianEmitter(new NoopLogger(), {
       timeout: 2000,
     });
 
@@ -36,7 +51,7 @@ describe('ThymianEmitter', () => {
   });
 
   it('should emit to multiple listeners', async () => {
-    const emitter = new ThymianEmitter(new MockLogger(), { timeout: 1000 });
+    const emitter = new ThymianEmitter(new NoopLogger(), { timeout: 1000 });
     const listener = vitest.fn();
 
     emitter.onEvent('a', listener);
@@ -50,42 +65,24 @@ describe('ThymianEmitter', () => {
     expect(listener.mock.calls).toHaveLength(2);
   });
 
-  it('should call wildcards listeners', async () => {
-    const emitter = new ThymianEmitter(new MockLogger());
-
-    const listener = vitest.fn();
-
-    emitter.onEvent('a.**', listener);
-    emitter.onEvent('a.*', listener);
-    emitter.onEvent('a', listener);
-    emitter.onEvent('b.a', listener);
-    emitter.onEvent('**', listener);
-
-    emitter.emitEvent('a');
-
-    await emitter.onIdle();
-
-    expect(listener.mock.calls).toHaveLength(3);
-  });
-
   it('.runHook() should return all results - with sync listener', async () => {
-    const emitter = new ThymianEmitter(new MockLogger());
+    const emitter = new ThymianEmitter(new NoopLogger());
 
     emitter.onHook('hook', () => 1);
     emitter.onHook('hook', () => 2);
 
-    const nums = await emitter.runHook<number>('hook');
+    const nums = await emitter.runHook('hook');
 
     expect(nums).toStrictEqual([1, 2]);
   });
 
   it('.runHook() should return all results - with async listener', async () => {
-    const emitter = new ThymianEmitter(new MockLogger());
+    const emitter = new ThymianEmitter(new NoopLogger());
 
     emitter.onHook('hook', async () => 1);
     emitter.onHook('hook', async () => 2);
 
-    const nums = await emitter.runHook<number>('hook');
+    const nums = await emitter.runHook('hook');
 
     expect(nums).toStrictEqual([1, 2]);
   });

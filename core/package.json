@@ -18,6 +18,11 @@
   "dependencies": {
     "chalk": "^5.4.1",
     "eventemitter2": "^6.4.9",
-    "graphology": "^0.26.0"
+    "graphology": "^0.26.0",
+    "semver": "^7.7.1"
+  },
+  "devDependencies": {
+    "@types/semver": "^7.7.0",
+    "graphology-types": "^0.24.8"
   }
 }

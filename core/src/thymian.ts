@@ -3,6 +3,28 @@ import type { ThymianPlugin } from './plugin.js';
 import { ThymianEmitter } from './thymian-emitter.js';
 import { ThymianError } from './thymian.error.js';
 import { timeoutPromise } from './utils.js';
+import semver from 'semver';
+import packageJson from '../package.json' assert { type: 'json' };
+
+declare module './thymian-emitter.js' {
+  interface ThymianEvents {
+    'thymian.register': [Record<PropertyKey, unknown>];
+    'thymian.start': [];
+  }
+
+  interface ThymianHooks {
+    'thymian.close': {
+      args: [];
+      returnType: never;
+    };
+    'thymian.ready': {
+      args: [];
+      returnType: never;
+    };
+  }
+}
+
+const VERSION = packageJson.version;
 
 export type RegisteredPlugin<T> = {
   plugin: ThymianPlugin<T>;
@@ -17,13 +39,21 @@ export class Thymian {
   // eslint-disable-next-line  @typescript-eslint/no-explicit-any
   private readonly plugins: RegisteredPlugin<any>[] = [];
 
-  private readonly emitter: ThymianEmitter;
+  readonly emitter: ThymianEmitter;
+
+  public static readonly VERSION = VERSION;
 
   constructor(private readonly logger: Logger) {
     this.emitter = new ThymianEmitter(logger.child('ThymianEmitter'));
   }
 
   register<T>(plugin: ThymianPlugin<T>, options?: T): this {
+    if (!semver.satisfies(Thymian.VERSION, plugin.version)) {
+      throw new PluginRegistrationError(
+        `@thymian/core version "${VERSION}" does not match plugin version constraints "${plugin.version}" from plugin "${plugin.name}".`
+      );
+    }
+
     this.logger.debug(`Register plugin ${plugin.name}.`);
 
     this.plugins.push({ plugin: plugin, options: options });
@@ -44,15 +74,13 @@ export class Thymian {
 
           await this.loadRegisteredPlugins();
 
-          await this.emitter.runHook<void>('thymian.ready');
+          await this.emitter.runHook('thymian.ready');
 
           this.emitter.emitEvent('thymian.start');
 
           await this.emitter.onIdle();
 
-          const results = await this.emitter.runHook<CoreReturnType>(
-            'thymian.close'
-          );
+          const results = await this.emitter.runHook('thymian.close');
           resolve(results);
         } catch (e) {
           reject(e);
@@ -61,7 +89,7 @@ export class Thymian {
     });
   }
 
-  private async loadRegisteredPlugins(): Promise<void> {
+  async loadRegisteredPlugins(): Promise<void> {
     for await (const { plugin, options } of this.plugins) {
       this.emitter.emitEvent('thymian.register', {
         name: plugin.name,

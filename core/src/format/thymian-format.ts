@@ -2,15 +2,16 @@ import { ThymianSchema } from './schema/index.js';
 import { SerializationStyle } from './serialization-style/index.js';
 import { MultiDirectedGraph } from 'graphology';
 import { randomUUID } from 'node:crypto';
-import type {
-  ApiKeySecurityScheme,
-  BasicSecurityScheme,
-  BearerSecurityScheme,
-  SecurityScheme,
-  ThymianHttpRequest,
-  ThymianHttpResponse,
-  ThymianNode,
-  ThymianNodes,
+import {
+  type ApiKeySecurityScheme,
+  type BasicSecurityScheme,
+  type BearerSecurityScheme,
+  isNodeType,
+  type SecurityScheme,
+  type ThymianHttpRequest,
+  type ThymianHttpResponse,
+  type ThymianNode,
+  type ThymianNodes,
 } from './nodes.js';
 import type {
   HttpLink,
@@ -147,6 +148,20 @@ export class ThymianFormat<
     );
 
     return this.graph.getNodeAttributes(id);
+  }
+
+  httpResponsesOf(id: string): ThymianHttpResponse[] {
+    return this.graph.reduceOutNeighbors(
+      id,
+      (acc, _, attributes) => {
+        if (isNodeType<ThymianHttpResponse>(attributes, 'http-response')) {
+          acc.push(attributes);
+        }
+
+        return acc;
+      },
+      [] as ThymianHttpResponse[]
+    );
   }
 
   getNodesNodeByExtension(

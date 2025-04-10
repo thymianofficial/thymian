@@ -12,26 +12,26 @@ import {
   StringSchema,
 } from './primitives/index.js';
 
-export interface ThymianSchemaVisitor {
-  visitThymianSchema(schema: ThymianSchema, ...args: unknown[]): void;
+export interface ThymianSchemaVisitor<T = void> {
+  visitThymianSchema(schema: ThymianSchema, ...args: unknown[]): T;
 
-  visitObjectSchema(schema: ObjectSchema, ...args: unknown[]): void;
+  visitObjectSchema(schema: ObjectSchema, ...args: unknown[]): T;
 
-  visitMultiTypeSchema(schema: MultiTypeSchema, ...args: unknown[]): void;
+  visitMultiTypeSchema(schema: MultiTypeSchema, ...args: unknown[]): T;
 
-  visitEmptySchema(schema: EmptySchema, ...args: unknown[]): void;
+  visitEmptySchema(schema: EmptySchema, ...args: unknown[]): T;
 
-  visitArraySchema(schema: ArraySchema, ...args: unknown[]): void;
+  visitArraySchema(schema: ArraySchema, ...args: unknown[]): T;
 
-  visitBooleanSchema(schema: BooleanSchema, ...args: unknown[]): void;
+  visitBooleanSchema(schema: BooleanSchema, ...args: unknown[]): T;
 
-  visitIntegerSchema(schema: IntegerSchema, ...args: unknown[]): void;
+  visitIntegerSchema(schema: IntegerSchema, ...args: unknown[]): T;
 
-  visitNullSchema(schema: NullSchema, ...args: unknown[]): void;
+  visitNullSchema(schema: NullSchema, ...args: unknown[]): T;
 
-  visitNumberSchema(schema: NumberSchema, ...args: unknown[]): void;
+  visitNumberSchema(schema: NumberSchema, ...args: unknown[]): T;
 
-  visitStringSchema(schema: StringSchema, ...args: unknown[]): void;
+  visitStringSchema(schema: StringSchema, ...args: unknown[]): T;
 
-  visitIfThenElseSchema(schema: IfThenElseSchema, ...args: unknown[]): void;
+  visitIfThenElseSchema(schema: IfThenElseSchema, ...args: unknown[]): T;
 }

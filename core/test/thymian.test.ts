@@ -1,9 +1,22 @@
 import { beforeEach, describe, expect, it, vitest } from 'vitest';
-import { Thymian } from '../src/thymian.js';
-import { MockLogger } from './mock.logger.js';
+import { PluginRegistrationError, Thymian } from '../src/thymian.js';
 import { ThymianEmitter } from '../src/thymian-emitter.js';
 import { ThymianError } from '../src/thymian.error.js';
 import type { ThymianPlugin } from '../src/plugin.js';
+import { NoopLogger } from '../src/logger/noop.logger.js';
+
+declare module '../src/thymian-emitter.js' {
+  interface ThymianHooks {
+    [event: string]: {
+      args: unknown[];
+      returnType: unknown;
+    };
+  }
+
+  interface ThymianEvents {
+    [event: string]: unknown[];
+  }
+}
 
 const plugin: ThymianPlugin = {
   name: '',
@@ -16,7 +29,7 @@ describe('Thymian', () => {
   let thymian: Thymian;
 
   beforeEach(() => {
-    thymian = new Thymian(new MockLogger());
+    thymian = new Thymian(new NoopLogger());
   });
 
   it('should emit register event', async () => {
@@ -98,5 +111,19 @@ describe('Thymian', () => {
         new ThymianError('my error')
       );
     });
+  });
+
+  // TODO: make test independent from package.json version
+  it('register should throw for plugin version mismatch', () => {
+    expect(() =>
+      thymian.register({
+        name: '@thymian/test-plugin',
+        options: {},
+        async plugin(emitter: ThymianEmitter): Promise<void> {
+          emitter.emitError(new ThymianError('my error'));
+        },
+        version: '1.x',
+      })
+    ).toThrowError(PluginRegistrationError);
   });
 });

@@ -59,3 +59,10 @@ export type ThymianNodes =
   | BearerSecurityScheme
   | ApiKeySecurityScheme
   | ThymianNode;
+
+export function isNodeType<T extends ThymianNodes>(
+  node: ThymianNodes,
+  type: ThymianNodes['type']
+): node is T {
+  return node.type === type;
+}

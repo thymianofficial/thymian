@@ -3,7 +3,10 @@
   "version": "0.0.0",
   "license": "MIT",
   "type": "module",
-  "scripts": {},
+  "scripts": {
+    "test": "nx run-many -t test",
+    "format:check": "nx run-many -t format:check"
+  },
   "private": true,
   "devDependencies": {
     "@nx/eslint": "20.6.4",

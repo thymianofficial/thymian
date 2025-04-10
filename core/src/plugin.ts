@@ -15,7 +15,13 @@ export type ThymianPlugin<Options = unknown> = {
   options: Schema;
   name: string;
   version: string;
-  hooks?: Record<string, Schema>;
+  hooks?: Record<
+    string,
+    {
+      input: Schema;
+      output: Schema;
+    }
+  >;
   events?: {
     emits?: Record<string, Schema>;
     listens?: string[];
