@@ -1,5 +1,4 @@
 import type { ThymianSchemaVisitor } from './schema.visitor.js';
-import { SerializationStyle } from '../serialization-style/index.js';
 
 export class ThymianSchema {
   allOf?: ThymianSchema[];
@@ -11,6 +10,8 @@ export class ThymianSchema {
   not?: ThymianSchema;
 
   examples?: unknown[];
+
+  default?: unknown;
 
   enum?: unknown[];
 
@@ -24,18 +25,8 @@ export class ThymianSchema {
 
   contentEncoding?: string;
 
-  serializationStyle?: SerializationStyle;
-
   isEmpty(): boolean {
     return Object.keys(this).length === 0;
-  }
-
-  withSerializationStyle(style: SerializationStyle): this {
-    if (style) {
-      this.serializationStyle = style;
-    }
-
-    return this;
   }
 
   withContentMediaType(value?: string): this {
@@ -83,6 +74,14 @@ export class ThymianSchema {
       }
 
       this.enum.push(...values);
+    }
+
+    return this;
+  }
+
+  withDefault(value?: unknown): this {
+    if (typeof value !== 'undefined') {
+      this.default = value;
     }
 
     return this;

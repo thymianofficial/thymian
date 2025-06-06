@@ -4,7 +4,9 @@ import {
   type ThymianHttpResponse,
 } from '@thymian/core';
 
-import type { HttpRequest } from '../request.js';
+import type { HttpRequestTemplate } from '../rxjs/http-request-template.js';
+// eslint-disable-next-line @typescript-eslint/ban-ts-comment
+// @ts-expect-error
 import { generate200Request } from './ok.request.js';
 
 export type GenerateContext = {
@@ -15,7 +17,7 @@ export type GenerateContext = {
   format: ThymianFormat;
 };
 
-export type RequestGenerator = (ctx: GenerateContext) => HttpRequest;
+export type RequestGenerator = (ctx: GenerateContext) => HttpRequestTemplate;
 
 const generators: Record<number, RequestGenerator> = {
   200: generate200Request,

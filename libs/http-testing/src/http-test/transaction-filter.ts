@@ -4,12 +4,15 @@ import type {
   ThymianHttpResponse,
 } from '@thymian/core';
 
-export type TransactionsFilterFn = (
-  req: ThymianHttpRequest,
-  res: ThymianHttpResponse,
-  args: {
-    reqId: string;
-    resId: string;
-    format: ThymianFormat;
-  }
-) => boolean;
+import type { HttpTestContext } from './context.js';
+
+export type TransactionsFilterFn<
+  Ctx extends HttpTestContext = HttpTestContext
+> = (args: {
+  req: ThymianHttpRequest;
+  res: ThymianHttpResponse;
+  reqId: string;
+  resId: string;
+  format: ThymianFormat;
+  ctx: Ctx;
+}) => boolean;

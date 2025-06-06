@@ -1,4 +1,4 @@
-import type { HttpRequest } from '../request.js';
+import type { HttpRequestTemplate } from '../rxjs/http-request-template.js';
 import type { HttpTestContext } from './context.js';
 
 export type Override = {
@@ -10,15 +10,15 @@ export type Override = {
 
 export type OverrideHttpRequest<
   Ctx extends HttpTestContext = HttpTestContext,
-  Part extends keyof HttpRequest = keyof HttpRequest
+  Part extends keyof HttpRequestTemplate = keyof HttpRequestTemplate
 > = {
   part: Part;
-  fn: OverrideHttpRequestFn<Ctx, HttpRequest[Part]>;
+  fn: OverrideHttpRequestFn<Ctx, HttpRequestTemplate[Part]>;
 };
 
 export type OverrideHttpRequestFn<
   Ctx extends HttpTestContext,
-  T extends HttpRequest[keyof HttpRequest]
+  T extends HttpRequestTemplate[keyof HttpRequestTemplate]
 > = (original: T, ctx: Ctx) => T | undefined;
 
 export type OverrideFn<

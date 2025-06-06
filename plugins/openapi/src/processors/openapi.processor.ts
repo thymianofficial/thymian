@@ -1,5 +1,6 @@
 import type { OpenAPIV3_1 as OpenApiV31 } from 'openapi-types';
 import {
+  isNodeType,
   type Logger,
   ThymianFormat,
   type ThymianHttpRequest,
@@ -25,10 +26,6 @@ export type LinkObjectToProcess = {
   responseIds: string[];
 };
 
-function isHttpRequestNode(node: ThymianNode): node is ThymianHttpRequest {
-  return node.type === 'http-request';
-}
-
 /*
 https://swagger.io/specification/v3/
  */
@@ -53,7 +50,7 @@ export class OpenapiProcessor {
 
     const reqs = this.format.graph.filterNodes(
       (id, attributes) =>
-        isHttpRequestNode(attributes) &&
+        isNodeType<ThymianHttpRequest>(attributes, 'http-request') &&
         attributes.extensions?.openapiV3?.operationId ===
           linkObjectToProcess.linkObj.operationId
     );

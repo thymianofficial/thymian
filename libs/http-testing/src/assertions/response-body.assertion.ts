@@ -2,7 +2,6 @@ import { ThymianFormat, type ThymianHttpResponse } from '@thymian/core';
 import { Ajv2020, type ValidateFunction } from 'ajv/dist/2020.js';
 
 import type {
-  HttpTestCase,
   HttpTestTransaction,
   SingleHttpTest,
 } from '../http-test/http-test.js';
@@ -21,6 +20,8 @@ function getOrCompile(res: ThymianHttpResponse, id: string): ValidateFunction {
 }
 
 export const assertResponseBody: AssertionFn<{
+  // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+  // @ts-expect-error
   testCase: HttpTestCase;
   test: SingleHttpTest;
   format: ThymianFormat;

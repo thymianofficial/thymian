@@ -1,0 +1,22 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "files": [],
+  "include": [],
+  "references": [
+    {
+      "path": "../../core"
+    },
+    {
+      "path": "../../libs/json-data-generator-osx-arm64"
+    },
+    {
+      "path": "../json-data-generator"
+    },
+    {
+      "path": "./tsconfig.lib.json"
+    }
+  ],
+  "nx": {
+    "addTypecheckTarget": false
+  }
+}

@@ -1,3 +1,12 @@
-export type HttpTestContext = Record<PropertyKey, unknown>;
+import { ThymianFormat } from '@thymian/core';
 
-export type HttpTestContextFn = (...args: unknown[]) => unknown;
+export type HttpTestContext = Record<PropertyKey, unknown> & {
+  format: ThymianFormat;
+  skip: () => never;
+  fail: (msg?: string) => never;
+  pass: () => never;
+};
+
+export type HttpTestContextFn<Ctx extends HttpTestContext = HttpTestContext> = (
+  ctx: Ctx
+) => Record<PropertyKey, unknown>;

@@ -1,30 +1,20 @@
-import type {
-  ThymianFormat,
-  ThymianHttpRequest,
-  ThymianHttpResponse,
-} from '@thymian/core';
+import type { ThymianHttpRequest, ThymianHttpResponse } from '@thymian/core';
 
 import type { AssertionFn } from '../assertions/assertion.js';
-import type { HttpRequest } from '../request.js';
-import type { HttpResponse } from '../response.js';
+import type { HttpRequestTemplate } from '../rxjs/http-request-template.js';
+import type { HttpResponse } from '../rxjs/http-response.js';
+import type { KeysWithStringOrNumberValue } from '../utils.js';
 import type { HttpTestContext, HttpTestContextFn } from './context.js';
 import type { OverrideHttpRequest } from './override.js';
-
-export type HttpTestCaseGenerator<
-  Context extends HttpTestContext = HttpTestContext
-> = (
-  format: ThymianFormat,
-  context: Context
-) => Omit<HttpTestCase, 'response'>[];
+import type { TransactionsFilterFn } from './transaction-filter.js';
 
 export type HttpTestTransaction = {
-  req: ThymianHttpRequest;
-  redId: string;
-  res: ThymianHttpResponse;
-  resId: string;
-  actualReq: HttpRequest;
-  actualResponse: HttpResponse;
-  format: ThymianFormat;
+  thymianReq?: ThymianHttpRequest;
+  reqId?: string;
+  thymianRes?: ThymianHttpResponse;
+  resId?: string;
+  req: HttpRequestTemplate;
+  res: HttpResponse;
 };
 
 export interface HttpTestSuite {
@@ -37,7 +27,6 @@ export interface HttpTestSuite {
 export interface HttpTest {
   name: string;
   description?: string;
-  context: HttpTestContext;
   contextFns: HttpTestContextFn[];
   results: TestResult[];
   status: HttpTestStatus;
@@ -46,29 +35,25 @@ export interface HttpTest {
 
 export interface SingleHttpTest extends HttpTest {
   type: 'single';
-  generate: HttpTestCaseGenerator;
+  transactionFilter: TransactionsFilterFn<any>;
+  groupHttpRequestsBy?: KeysWithStringOrNumberValue<ThymianHttpRequest>[];
+  mapGroupsToHttpRequests?: (
+    keys: Record<string, string | number>,
+    requests: ThymianHttpRequest[]
+  ) => HttpRequestTemplate;
   override: OverrideHttpRequest[];
-  assertions: AssertionFn<{
-    testCase: HttpTestCase;
-    test: SingleHttpTest;
-    format: ThymianFormat;
-  }>[];
+  assertions: AssertionFn<any>[];
 }
 
 export interface SequenceHttpTest extends HttpTest {
   type: 'sequence';
   steps: SingleHttpTest[];
-  assertions: AssertionFn<HttpTestTransaction[]>[];
+  assertions: AssertionFn<any>[];
 }
 
-export interface HttpTestCase {
-  reqId: string;
-  resId: string;
-  request: HttpRequest;
-  response: HttpResponse;
-}
-
-export interface HttpTestResult {
+export interface SingleHttpTestResult {
+  testName: string;
+  transaction: HttpTestTransaction;
   duration: number;
   status: HttpTestStatus;
   results: TestResult[];

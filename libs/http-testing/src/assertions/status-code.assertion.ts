@@ -1,5 +1,7 @@
 import { ThymianFormat, type ThymianHttpResponse } from '@thymian/core';
 
+// eslint-disable-next-line @typescript-eslint/ban-ts-comment
+// @ts-expect-error
 import type { HttpTestCase, SingleHttpTest } from '../http-test/http-test.js';
 import type { AssertionFn } from './assertion.js';
 

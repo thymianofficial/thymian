@@ -1,0 +1,74 @@
+import type { ThymianHttpRequest, ThymianHttpResponse } from '@thymian/core';
+
+import type { HttpRequestTemplate } from './http-request-template.js';
+import type { HttpResponse } from './http-response.js';
+
+export function isSingleHttpTestCaseStep(
+  step?: HttpTestCaseStep
+): step is SingleHttpTestCaseStep {
+  return step?.type === 'single';
+}
+
+export function isGroupedHttpTestCaseStep(
+  step?: HttpTestCaseStep
+): step is GroupedHttpTestCaseStep {
+  return step?.type === 'grouped';
+}
+
+export function isCustomHttpTestCaseStep(
+  step?: HttpTestCaseStep
+): step is CustomHttpTestCaseStep {
+  return step?.type === 'custom';
+}
+
+export type HttpTestCaseResult = {
+  message: string;
+  type: 'error' | 'assertion-failure' | 'assertion-success' | 'info';
+};
+
+export type ThymianHttpTestTransaction = {
+  thymianReq: ThymianHttpRequest;
+  thymianReqId: string;
+  thymianRes: ThymianHttpResponse;
+  thymianResId: string;
+  transactionId: string;
+};
+
+export interface GroupedHttpTestCaseStep
+  extends HttpTestCaseStep<{
+    key: string;
+    transactions: ThymianHttpTestTransaction[];
+  }> {
+  type: 'grouped';
+}
+
+export interface SingleHttpTestCaseStep
+  extends HttpTestCaseStep<ThymianHttpTestTransaction> {
+  type: 'single';
+}
+
+export interface CustomHttpTestCaseStep<Source = unknown>
+  extends HttpTestCaseStep<Source> {
+  type: 'custom';
+}
+
+export type HttpTestCaseTransaction = {
+  request: HttpRequestTemplate;
+  response?: HttpResponse;
+  source?: ThymianHttpTestTransaction;
+};
+
+export interface HttpTestCaseStep<Source = unknown> {
+  type: 'single' | 'grouped' | 'custom';
+  source: Source;
+  transactions: HttpTestCaseTransaction[];
+}
+
+export type HttpTestCase<
+  Steps extends HttpTestCaseStep[] = HttpTestCaseStep[]
+> = {
+  readonly startTime: number;
+  status: 'running' | 'skipped' | 'failed' | 'passed';
+  readonly steps: Steps;
+  readonly results: HttpTestCaseResult[];
+};

@@ -3,3 +3,4 @@ export * from './serialization-style/index.js';
 export * from './schema/index.js';
 export * from './nodes.js';
 export * from './edges.js';
+export * from './parameter.js';

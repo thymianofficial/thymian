@@ -1,0 +1,83 @@
+{
+  "format": 1,
+  "restore": {
+    "/var/folders/c5/_2vvtw3x70g_0mts921wtn0r0000gn/T/tmp-81460-33L9lDC1k31c/thymian.Test.csproj": {}
+  },
+  "projects": {
+    "/var/folders/c5/_2vvtw3x70g_0mts921wtn0r0000gn/T/tmp-81460-33L9lDC1k31c/thymian.Test.csproj": {
+      "version": "1.0.0",
+      "restore": {
+        "projectUniqueName": "/var/folders/c5/_2vvtw3x70g_0mts921wtn0r0000gn/T/tmp-81460-33L9lDC1k31c/thymian.Test.csproj",
+        "projectName": "thymian.Test",
+        "projectPath": "/var/folders/c5/_2vvtw3x70g_0mts921wtn0r0000gn/T/tmp-81460-33L9lDC1k31c/thymian.Test.csproj",
+        "packagesPath": "/Users/matthias/.nuget/packages/",
+        "outputPath": "/var/folders/c5/_2vvtw3x70g_0mts921wtn0r0000gn/T/tmp-81460-33L9lDC1k31c/obj/",
+        "projectStyle": "PackageReference",
+        "configFilePaths": ["/Users/matthias/.nuget/NuGet/NuGet.Config"],
+        "originalTargetFrameworks": ["net9.0"],
+        "sources": {
+          "https://api.nuget.org/v3/index.json": {}
+        },
+        "frameworks": {
+          "net9.0": {
+            "targetAlias": "net9.0",
+            "projectReferences": {}
+          }
+        },
+        "warningProperties": {
+          "warnAsError": ["NU1605"]
+        },
+        "restoreAuditProperties": {
+          "enableAudit": "true",
+          "auditLevel": "low",
+          "auditMode": "direct"
+        },
+        "SdkAnalysisLevel": "9.0.200"
+      },
+      "frameworks": {
+        "net9.0": {
+          "targetAlias": "net9.0",
+          "dependencies": {
+            "Microsoft.NET.Test.Sdk": {
+              "target": "Package",
+              "version": "[17.12.0, )"
+            },
+            "NUnit": {
+              "target": "Package",
+              "version": "[4.2.2, )"
+            },
+            "NUnit.Analyzers": {
+              "target": "Package",
+              "version": "[4.4.0, )"
+            },
+            "NUnit3TestAdapter": {
+              "target": "Package",
+              "version": "[4.6.0, )"
+            },
+            "coverlet.collector": {
+              "target": "Package",
+              "version": "[6.0.2, )"
+            }
+          },
+          "imports": [
+            "net461",
+            "net462",
+            "net47",
+            "net471",
+            "net472",
+            "net48",
+            "net481"
+          ],
+          "assetTargetFallback": true,
+          "warn": true,
+          "frameworkReferences": {
+            "Microsoft.NETCore.App": {
+              "privateAssets": "all"
+            }
+          },
+          "runtimeIdentifierGraphPath": "/usr/local/share/dotnet/sdk/9.0.203/PortableRuntimeIdentifierGraph.json"
+        }
+      }
+    }
+  }
+}

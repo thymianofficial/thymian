@@ -1,10 +1,19 @@
 import { ThymianSchema } from './schema/index.js';
-import type { Parameter } from './thymian-format.js';
+import type { Parameter } from './parameter.js';
+import { SerializationStyle } from './serialization-style/index.js';
 
 export interface ThymianNode {
   type: string;
   extensions?: Record<PropertyKey, unknown>;
 }
+
+export type Encoding = {
+  [propertyName: string]: {
+    contentType?: string;
+    headers: Record<string, Parameter>;
+    serializationStyle: SerializationStyle;
+  };
+};
 
 export interface ThymianHttpRequest extends ThymianNode {
   type: 'http-request';
@@ -21,6 +30,7 @@ export interface ThymianHttpRequest extends ThymianNode {
   bodyRequired: boolean;
   body: ThymianSchema;
   mediaType: string;
+  encoding?: Encoding;
 }
 
 export interface SecurityScheme extends ThymianNode {

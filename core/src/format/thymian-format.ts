@@ -1,7 +1,13 @@
-import { ThymianSchema } from './schema/index.js';
-import { SerializationStyle } from './serialization-style/index.js';
-import { MultiDirectedGraph } from 'graphology';
 import { randomUUID } from 'node:crypto';
+
+import { MultiDirectedGraph } from 'graphology';
+
+import type {
+  HttpLink,
+  HttpTransaction,
+  ThymianEdge,
+  ThymianEdges,
+} from './edges.js';
 import {
   type ApiKeySecurityScheme,
   type BasicSecurityScheme,
@@ -13,21 +19,10 @@ import {
   type ThymianNode,
   type ThymianNodes,
 } from './nodes.js';
-import type {
-  HttpLink,
-  HttpTransaction,
-  ThymianEdge,
-  ThymianEdges,
-} from './edges.js';
+import { match } from 'path-to-regexp';
+import type { StringAndNumberProperties } from '../utils.js';
 
 export type PartialBy<T, K extends keyof T> = Omit<T, K> & Partial<Pick<T, K>>;
-
-export interface Parameter {
-  description?: string;
-  required: boolean;
-  schema: ThymianSchema;
-  style: SerializationStyle;
-}
 
 function isRecord(value: unknown): value is Record<PropertyKey, unknown> {
   return typeof value === 'object' && !Array.isArray(value) && value !== null;
@@ -43,6 +38,11 @@ function matchObjects(
     ([key, value]) => key in source && source[key] === value
   );
 }
+
+export type MatchResult = {
+  reqId: string;
+  parameters: Partial<Record<string, string | string[]>>;
+};
 
 export type ThymianGraph<
   Nodes extends ThymianNode,
@@ -109,18 +109,8 @@ export class ThymianFormat<
     return id;
   }
 
-  getNode(
-    id: string
-  ):
-    | ThymianHttpRequest
-    | ThymianHttpResponse
-    | SecurityScheme
-    | BasicSecurityScheme
-    | BearerSecurityScheme
-    | ApiKeySecurityScheme
-    | ThymianNode
-    | Nodes {
-    return this.graph.getNodeAttributes(id);
+  getNode<T extends ThymianNode = ThymianNodes>(id: string): T {
+    return this.graph.getNodeAttributes(id) as T;
   }
 
   getEdge(id: string): HttpLink | HttpTransaction | ThymianEdge | Edges {
@@ -164,6 +154,20 @@ export class ThymianFormat<
     );
   }
 
+  neighboursOfType(id: string, type: ThymianNodes['type']): ThymianNodes[] {
+    return this.graph.reduceNeighbors(
+      id,
+      (acc, _, attributes) => {
+        if (attributes.type === type) {
+          acc.push(attributes);
+        }
+
+        return acc;
+      },
+      [] as ThymianNodes[]
+    );
+  }
+
   getNodesNodeByExtension(
     extensionName: string,
     values: Record<PropertyKey, string | number | boolean>
@@ -187,5 +191,65 @@ export class ThymianFormat<
       }
       return acc;
     }, [] as ThymianNode[]);
+  }
+
+  getHttpTransactions(): [string, string, string][] {
+    return this.graph.reduceEdges((transactions, id, edge, source, target) => {
+      if (edge.type === 'http-transaction') {
+        transactions.push([source, target, id]);
+      }
+
+      return transactions;
+    }, [] as [string, string, string][]);
+  }
+
+  matchHtpRequestByUrl(url: string): MatchResult | undefined {
+    let urlObj: URL;
+
+    if (/^(http|https)/.test(url)) {
+      urlObj = new URL(url);
+    } else {
+      urlObj = new URL('http://localhost:8080/' + url);
+    }
+
+    const pathname = urlObj.pathname;
+
+    return this.graph.reduceNodes((result, id, node) => {
+      if (isNodeType<ThymianHttpRequest>(node, 'http-request')) {
+        const path = node.path.replaceAll(/{([^}]+)}/gi, ':$1');
+
+        const matchFn = match(path);
+
+        const r = matchFn(pathname);
+
+        if (r) {
+          result = {
+            reqId: id,
+            parameters: r.params,
+          };
+        }
+      }
+
+      return result;
+    }, undefined as MatchResult | undefined);
+  }
+
+  findNode<Type extends ThymianNodes>(
+    type: Type['type'],
+    properties: StringAndNumberProperties<Type>
+  ): Type | undefined {
+    const nodeId = this.graph.findNode(
+      (id, node) =>
+        // TODO
+        // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+        // @ts-expect-error
+        isNodeType<Type>(node, type) && matchObjects(node, properties)
+    );
+
+    if (typeof nodeId === 'undefined') {
+      return undefined;
+    }
+
+    return this.getNode<Type>(nodeId);
   }
 }

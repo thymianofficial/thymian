@@ -1,5 +1,6 @@
-import type { HttpRequest } from './request.js';
 import type { ThymianHttpResponse } from '@thymian/core';
+
+import type { HttpRequestTemplate } from '../rxjs/http-request-template.js';
 
 export type HttpTestHook = {
   id: string;
@@ -12,7 +13,7 @@ export type HttpTestHook = {
 
 export interface HttpTestHooks {
   beforeEachRequest: {
-    request: HttpRequest;
+    request: HttpRequestTemplate;
     requestId: string;
     expectedResponseId: string;
     expectedResponse?: ThymianHttpResponse;

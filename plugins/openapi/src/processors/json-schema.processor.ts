@@ -100,9 +100,9 @@ export function processSchema(schema: Draft202012SchemaObject): ThymianSchema {
 
     return baseSchema
       .withExample(schema.example)
-      .withExample(schema.default)
       .withExamples(schema.examples)
       .withEnumValues(schema.enum)
+      .withDefault(schema.default)
       .withConst(schema.const)
       .withContentMediaType(schema.contentMediaType)
       .withContentEncoding(schema.contentEncoding)

@@ -19,6 +19,7 @@
     "chalk": "^5.4.1",
     "eventemitter2": "^6.4.9",
     "graphology": "^0.26.0",
+    "path-to-regexp": "^8.2.0",
     "semver": "^7.7.1"
   },
   "devDependencies": {

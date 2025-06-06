@@ -1,8 +1,2 @@
-import type { HttpRequest } from '../request.js';
+import type { HttpRequestTemplate } from '../rxjs/http-request-template.js';
 import type { RequestGenerator } from './request-generator.js';
-
-export const generate200Request: RequestGenerator = ({ response, request }) => {
-  return {
-    protocol: 'http',
-  } as HttpRequest;
-};

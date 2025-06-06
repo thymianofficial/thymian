@@ -15,11 +15,11 @@ declare module './thymian-emitter.js' {
   interface ThymianHooks {
     'thymian.close': {
       args: [];
-      returnType: never;
+      returnType: void;
     };
     'thymian.ready': {
       args: [];
-      returnType: never;
+      returnType: void;
     };
   }
 }

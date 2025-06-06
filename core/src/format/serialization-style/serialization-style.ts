@@ -1,3 +1,4 @@
+// Currently we use the subset of RFC 6570 OpenAPI 3.x is using which is currently fine. It would be a great feature to implement RFC 6570 completely
 export class SerializationStyle<
   Style extends
     | 'matrix'

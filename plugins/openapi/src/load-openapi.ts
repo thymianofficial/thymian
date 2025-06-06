@@ -1,7 +1,8 @@
 import { openapi } from '@scalar/openapi-parser';
-import { type Logger, ThymianError, type ThymianFormat } from '@thymian/core';
-import { readFiles } from '@scalar/openapi-parser/plugins/read-files';
 import { fetchUrls } from '@scalar/openapi-parser/plugins/fetch-urls';
+import { readFiles } from '@scalar/openapi-parser/plugins/read-files';
+import { type Logger, ThymianError, type ThymianFormat } from '@thymian/core';
+
 import { OpenapiProcessor } from './processors/openapi.processor.js';
 
 export type ParseOpenApiOptions = {
