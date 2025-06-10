@@ -8,7 +8,10 @@ import {
 
 import type { HttpRequestTemplate } from './http-request-template.js';
 import type { HttpResponse } from './http-response.js';
-import type { ThymianHttpTestTransaction } from './http-test-case.js';
+import type {
+  HttpTestCaseTransaction,
+  ThymianHttpTestTransaction,
+} from './http-test-case.js';
 import {
   generateRequest as defaultRequestGenerator,
   generateRequestForTransactions as defaultTransactionGenerator,
@@ -35,7 +38,15 @@ export interface HttpTestContext {
 
   runRequest(req: HttpRequest): Promise<HttpResponse>;
 
+  runHook(
+    name: 'authorize',
+    input: HttpTestCaseTransaction
+  ): Promise<HttpTestCaseTransaction>;
   runHook<Input, Output = Input>(name: string, input: Input): Promise<Output>;
+
+  auth?: {
+    basic?: (transaction: HttpTestCaseTransaction) => Promise<[string, string]>;
+  };
 }
 
 export function createHttpTestContext<

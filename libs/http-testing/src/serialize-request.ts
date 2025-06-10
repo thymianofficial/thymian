@@ -8,6 +8,7 @@ import {
 
 function serializeBasePath(transaction: HttpTestCaseTransaction) {
   return transaction.request.path.replace(
+    // from https://github.com/scalar/scalar/blob/8165b3b1487ef38a1e97571032b0bd8c32cd9d91/packages/helpers/src/regex/regex-helpers.ts#L8
     /{{\s*([^}\s]+?)\s*}}|{\s*([^}\s]+?)\s*}|:\b[\w.]+\b/g,
     (_, __, parameterName) => {
       if (transaction.request.pathParameters[parameterName] !== undefined) {
