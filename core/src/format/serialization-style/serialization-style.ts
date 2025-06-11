@@ -15,33 +15,30 @@ export interface SerializationStyle {
 }
 
 export class SerializationStyleBuilder<T extends Style = Style> {
-  explode: boolean;
-
-  style: T;
+  readonly #result: SerializationStyle;
 
   constructor(style?: T, explode?: boolean) {
-    this.style = style ?? ('form' as T);
-    this.explode = explode ?? false;
+    this.#result = {
+      style: style ?? ('form' as T),
+      explode: explode ?? false,
+    };
   }
 
   withExplode(explode?: boolean): this {
     if (typeof explode === 'boolean') {
-      this.explode = explode;
+      this.#result.explode = explode;
     }
     return this;
   }
 
   withStyle(style?: T | string): this {
     if (typeof style === 'string') {
-      this.style = style as T;
+      this.#result.style = style as T;
     }
     return this;
   }
 
   build(): SerializationStyle {
-    return {
-      explode: this.explode,
-      style: this.style,
-    };
+    return this.#result;
   }
 }
