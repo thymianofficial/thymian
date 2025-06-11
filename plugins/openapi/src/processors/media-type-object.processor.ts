@@ -1,11 +1,13 @@
-import type { OpenAPIV3_1 as OpenApiV31 } from 'openapi-types';
 import {
   EmptySchema,
   type Encoding,
   type Parameter,
-  SerializationStyle,
+  type SerializationStyle,
+  SerializationStyleBuilder,
   ThymianSchema,
 } from '@thymian/core';
+import type { OpenAPIV3_1 as OpenApiV31 } from 'openapi-types';
+
 import { processHeadersObject } from './headers-object.processor.js';
 import {
   type Draft202012SchemaObject,
@@ -18,7 +20,10 @@ export function extractSerializationStyle(
   const style = encodingObj.style ?? 'form';
   const explode = encodingObj.explode ?? style === 'form';
 
-  return new SerializationStyle(style as SerializationStyle['style'], explode);
+  return new SerializationStyleBuilder(
+    style as SerializationStyle['style'],
+    explode
+  ).build();
 }
 
 export function processMediaTypeObject(

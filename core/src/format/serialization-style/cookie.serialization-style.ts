@@ -1,6 +1,6 @@
-import { SerializationStyle } from './serialization-style.js';
+import { SerializationStyleBuilder } from './serialization-style.js';
 
-export class CookieSerializationStyle extends SerializationStyle<'form'> {
+export class CookieSerializationStyleBuilder extends SerializationStyleBuilder<'form'> {
   constructor() {
     super('form', true);
   }

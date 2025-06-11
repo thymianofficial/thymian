@@ -99,7 +99,10 @@ export class ThymianFormat<
     );
   }
 
-  addNode(node: ThymianNode, id: string = randomUUID()): string {
+  addNode<Node extends ThymianNodes>(
+    node: Node,
+    id: string = randomUUID()
+  ): string {
     try {
       this.graph.addNode(id, node);
     } catch (e) {
@@ -109,7 +112,7 @@ export class ThymianFormat<
     return id;
   }
 
-  getNode<T extends ThymianNode = ThymianNodes>(id: string): T {
+  getNode<T extends ThymianNode = ThymianNodes>(id: string): T | undefined {
     return this.graph.getNodeAttributes(id) as T;
   }
 

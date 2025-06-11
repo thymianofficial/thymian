@@ -1,6 +1,6 @@
-import { SerializationStyle } from './serialization-style.js';
+import { SerializationStyleBuilder } from './serialization-style.js';
 
-export class HeaderSerializationStyle extends SerializationStyle<'simple'> {
+export class HeaderSerializationStyleBuilder extends SerializationStyleBuilder<'simple'> {
   constructor() {
     super('simple', false);
   }

@@ -1,6 +1,6 @@
-import { SerializationStyle } from './serialization-style.js';
+import { SerializationStyleBuilder } from './serialization-style.js';
 
-export class QuerySerializationStyle extends SerializationStyle<
+export class QuerySerializationStyleBuilder extends SerializationStyleBuilder<
   'form' | 'spaceDelimited' | 'pipeDelimited' | 'deepObject'
 > {
   override style: 'form' | 'spaceDelimited' | 'pipeDelimited' | 'deepObject' =

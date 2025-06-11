@@ -1,18 +1,19 @@
-import type { OpenAPIV3_1 as OpenApiV31 } from 'openapi-types';
 import {
-  CookieSerializationStyle,
-  HeaderSerializationStyle,
+  CookieSerializationStyleBuilder,
+  HeaderSerializationStyleBuilder,
   type Parameter,
-  PathSerializationStyle,
-  QuerySerializationStyle,
+  PathSerializationStyleBuilder,
+  QuerySerializationStyleBuilder,
   ThymianSchema,
 } from '@thymian/core';
-import { processMediaTypeObject } from './media-type-object.processor.js';
-import type { Parameters } from './utils.js';
+import type { OpenAPIV3_1 as OpenApiV31 } from 'openapi-types';
+
 import {
   type Draft202012SchemaObject,
   processSchema,
 } from './json-schema.processor.js';
+import { processMediaTypeObject } from './media-type-object.processor.js';
+import type { Parameters } from './utils.js';
 
 export function processParameterObjects(
   parameterObjects: OpenApiV31.ParameterObject[] | undefined
@@ -91,18 +92,23 @@ export function processParameterObject(
 
   const style =
     parameterObject.in === 'header'
-      ? new HeaderSerializationStyle().withExplode(parameterObject.explode)
+      ? new HeaderSerializationStyleBuilder()
+          .withExplode(parameterObject.explode)
+          .build()
       : parameterObject.in === 'query'
-      ? new QuerySerializationStyle()
+      ? new QuerySerializationStyleBuilder()
           .withStyle(parameterObject.style)
           .withExplode(parameterObject.explode)
+          .build()
       : parameterObject.in === 'path'
-      ? new PathSerializationStyle()
+      ? new PathSerializationStyleBuilder()
           .withStyle(parameterObject.style)
           .withExplode(parameterObject.explode)
-      : new CookieSerializationStyle()
+          .build()
+      : new CookieSerializationStyleBuilder()
           .withStyle(parameterObject.style)
-          .withExplode(parameterObject.explode);
+          .withExplode(parameterObject.explode)
+          .build();
 
   return [
     parameterObject.name,

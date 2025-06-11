@@ -1,6 +1,6 @@
-import { ThymianSchema } from './schema/index.js';
 import type { Parameter } from './parameter.js';
-import { SerializationStyle } from './serialization-style/index.js';
+import { ThymianSchema } from './schema/index.js';
+import type { SerializationStyle } from './serialization-style/index.js';
 
 export interface ThymianNode {
   type: string;
@@ -27,8 +27,8 @@ export interface ThymianHttpRequest extends ThymianNode {
   cookies: Record<string, Parameter>;
   pathParameters: Record<string, Parameter>;
   description?: string;
-  bodyRequired: boolean;
-  body: ThymianSchema;
+  bodyRequired?: boolean;
+  body?: ThymianSchema;
   mediaType: string;
   encoding?: Encoding;
 }

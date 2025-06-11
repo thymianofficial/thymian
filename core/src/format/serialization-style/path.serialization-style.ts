@@ -1,6 +1,6 @@
-import { SerializationStyle } from './serialization-style.js';
+import { SerializationStyleBuilder } from './serialization-style.js';
 
-export class PathSerializationStyle extends SerializationStyle<
+export class PathSerializationStyleBuilder extends SerializationStyleBuilder<
   'simple' | 'label' | 'matrix'
 > {
   constructor() {
