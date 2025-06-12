@@ -1,10 +1,10 @@
-import type { OpenAPIV3_1 as OpenApiV31 } from 'openapi-types';
 import type {
   ApiKeySecurityScheme,
   BasicSecurityScheme,
   BearerSecurityScheme,
   SecurityScheme,
 } from '@thymian/core';
+import type { OpenAPIV3_1 as OpenApiV31 } from 'openapi-types';
 
 export function processSecuritySchemes(
   schemes: Record<string, OpenApiV31.SecuritySchemeObject>

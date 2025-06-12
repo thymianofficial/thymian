@@ -1,5 +1,6 @@
-import type { OpenAPIV3_1 as OpenApiV31 } from 'openapi-types';
 import type { Parameter } from '@thymian/core';
+import type { OpenAPIV3_1 as OpenApiV31 } from 'openapi-types';
+
 import { processParameterObject } from './parameter-object.processor.js';
 
 export function processHeadersObject(

@@ -1,4 +1,4 @@
-import { ThymianSchema } from './schema/index.js';
+import type { ThymianSchema } from './thymian-schema.js';
 import type { SerializationStyle } from './serialization-style/index.js';
 
 export interface Parameter {

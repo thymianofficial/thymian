@@ -1,15 +1,15 @@
 import {
-  EmptySchema,
   type Encoding,
   type Parameter,
   type SerializationStyle,
   SerializationStyleBuilder,
-  ThymianSchema,
+  type ThymianSchema,
 } from '@thymian/core';
 import type { OpenAPIV3_1 as OpenApiV31 } from 'openapi-types';
 
 import { processHeadersObject } from './headers-object.processor.js';
 import {
+  addExampleToSchema,
   type Draft202012SchemaObject,
   processSchema,
 } from './json-schema.processor.js';
@@ -37,10 +37,10 @@ export function processMediaTypeObject(
 } {
   const schema = mediaTypeObject.schema
     ? processSchema(mediaTypeObject.schema as Draft202012SchemaObject)
-    : new EmptySchema();
+    : ({} as ThymianSchema);
 
   Object.values(mediaTypeObject.examples ?? {}).forEach((example) => {
-    schema.withExample((example as OpenApiV31.ExampleObject).value);
+    addExampleToSchema(schema, (example as OpenApiV31.ExampleObject).value);
   });
 
   let headers: Record<string, Parameter> = {};
@@ -52,7 +52,7 @@ export function processMediaTypeObject(
     });
   }
 
-  schema.withExample(mediaTypeObject.example);
+  addExampleToSchema(schema, mediaTypeObject.example);
 
   const result: {
     schema: ThymianSchema;

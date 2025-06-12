@@ -1,10 +1,7 @@
-import { describe, it, expect } from 'vitest';
+import { HeaderSerializationStyleBuilder, type Parameter } from '@thymian/core';
+import { describe, expect, it } from 'vitest';
+
 import { processHeadersObject } from '../../src/processors/headers-object.processor.js';
-import {
-  HeaderSerializationStyle,
-  type Parameter,
-  StringSchema,
-} from '@thymian/core';
 
 describe('processHeadersObject', () => {
   it('should return empty record for undefined', () => {
@@ -30,11 +27,13 @@ describe('processHeadersObject', () => {
       },
     });
 
+    console.log(JSON.stringify(result));
+
     expect(Object.keys(result)).toHaveLength(1);
     expect(result['accept']).toBeDefined();
     expect(result['accept']).toStrictEqual({
-      style: new HeaderSerializationStyle(),
-      schema: new StringSchema().withExample('application/json'),
+      style: new HeaderSerializationStyleBuilder().build(),
+      schema: { type: 'string', examples: ['application/json'] },
       required: false,
     } satisfies Parameter);
   });

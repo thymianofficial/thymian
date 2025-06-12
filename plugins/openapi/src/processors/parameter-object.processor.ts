@@ -4,11 +4,12 @@ import {
   type Parameter,
   PathSerializationStyleBuilder,
   QuerySerializationStyleBuilder,
-  ThymianSchema,
+  type ThymianSchema,
 } from '@thymian/core';
 import type { OpenAPIV3_1 as OpenApiV31 } from 'openapi-types';
 
 import {
+  addExampleToSchema,
   type Draft202012SchemaObject,
   processSchema,
 } from './json-schema.processor.js';
@@ -84,10 +85,13 @@ export function processParameterObject(
     );
   }
 
-  thymianSchema.withExample(parameterObject.example);
+  addExampleToSchema(thymianSchema, parameterObject.example);
 
   Object.values(parameterObject.examples ?? {}).forEach((example) => {
-    thymianSchema.withExample((example as OpenApiV31.ExampleObject).value);
+    addExampleToSchema(
+      thymianSchema,
+      (example as OpenApiV31.ExampleObject).value
+    );
   });
 
   const style =

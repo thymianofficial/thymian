@@ -12,6 +12,8 @@ describe('OpenApi plugin', () => {
       filePath: './test/fixtures/petstore-v3.yaml',
     });
 
+    console.log(JSON.stringify(formats));
+
     expect(formats).toHaveLength(1);
   });
 });

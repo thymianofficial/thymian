@@ -16,11 +16,13 @@
     ]
   },
   "devDependencies": {
+    "@types/traverse": "^0.6.37",
     "openapi-types": "^12.1.3"
   },
   "dependencies": {
     "@scalar/openapi-parser": "^0.10.14",
-    "@thymian/http-status-codes": "^0"
+    "@thymian/http-status-codes": "^0",
+    "traverse": "^0.6.11"
   },
   "peerDependencies": {
     "@thymian/core": "^0"

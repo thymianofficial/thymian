@@ -22,11 +22,8 @@ export function isRecord(
   return typeof value === 'object' && !Array.isArray(value) && value !== null;
 }
 
-export function matchObjects(
-  source: unknown,
-  target: Record<PropertyKey, string | number | boolean>
-): boolean {
-  if (!isRecord(source)) return false;
+export function matchObjects(source: unknown, target: unknown): boolean {
+  if (!isRecord(source) || !isRecord(target)) return false;
 
   return Object.entries(target).every(
     ([key, value]) => key in source && source[key] === value
@@ -42,3 +39,5 @@ export type KeysWithStringOrNumberValue<T> = keyof {
 export type StringAndNumberProperties<T> = Partial<{
   [key in KeysWithStringOrNumberValue<T>]: T[key];
 }>;
+
+export type PartialBy<T, K extends keyof T> = Omit<T, K> & Partial<Pick<T, K>>;

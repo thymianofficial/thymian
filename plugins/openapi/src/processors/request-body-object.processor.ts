@@ -1,5 +1,6 @@
+import { type ThymianHttpRequest } from '@thymian/core';
 import type { OpenAPIV3_1 as OpenApiV31 } from 'openapi-types';
-import { EmptySchema, type ThymianHttpRequest } from '@thymian/core';
+
 import { processMediaTypeObject } from './media-type-object.processor.js';
 import type { Parameters } from './utils.js';
 
@@ -24,8 +25,6 @@ export function processRequestBodyObjet(
         protocol: context.protocol,
         path: context.path,
         method: context.method,
-        bodyRequired: false,
-        body: new EmptySchema(),
         mediaType: '',
         extensions: {
           openapiV3: {

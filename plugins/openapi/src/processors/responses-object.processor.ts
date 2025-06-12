@@ -1,15 +1,16 @@
-import type { OpenAPIV3_1 as OpenApiV31 } from 'openapi-types';
-import type { Parameters } from './utils.js';
-import {
-  processResponseObject,
-  type ResponsesWithLinks,
-} from './response-object.processor.js';
 import type { ThymianHttpResponse } from '@thymian/core';
+import { isValidHttpStatusCode } from '@thymian/http-status-codes';
+import type { OpenAPIV3_1 as OpenApiV31 } from 'openapi-types';
+
 import {
   httpStatusCodeRanges,
   isHttpStatusCodeRange,
 } from '../http-status-code-ranges.js';
-import { isValidHttpStatusCode } from '@thymian/http-status-codes';
+import {
+  processResponseObject,
+  type ResponsesWithLinks,
+} from './response-object.processor.js';
+import type { Parameters } from './utils.js';
 
 export function processResponsesObject(
   responsesObject: OpenApiV31.ResponsesObject | undefined,

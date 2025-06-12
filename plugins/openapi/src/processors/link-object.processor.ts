@@ -1,8 +1,9 @@
 import type { HttpLink, ThymianHttpRequest } from '@thymian/core';
+
 import type { RunExpression } from '../runtime-expression.js';
 import {
-  processOpenApiRuntimeExpression,
   isOpenApiRuntimeExpression,
+  processOpenApiRuntimeExpression,
 } from './runtime-expression.processor.js';
 
 export function findPartsInRequest(

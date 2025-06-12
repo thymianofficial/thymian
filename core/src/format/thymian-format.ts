@@ -1,62 +1,51 @@
 import { randomUUID } from 'node:crypto';
 
 import { MultiDirectedGraph } from 'graphology';
-
-import type {
-  HttpLink,
-  HttpTransaction,
-  ThymianEdge,
-  ThymianEdges,
-} from './edges.js';
-import {
-  type ApiKeySecurityScheme,
-  type BasicSecurityScheme,
-  type BearerSecurityScheme,
-  isNodeType,
-  type SecurityScheme,
-  type ThymianHttpRequest,
-  type ThymianHttpResponse,
-  type ThymianNode,
-  type ThymianNodes,
-} from './nodes.js';
 import { match } from 'path-to-regexp';
-import type { StringAndNumberProperties } from '../utils.js';
 
-export type PartialBy<T, K extends keyof T> = Omit<T, K> & Partial<Pick<T, K>>;
-
-function isRecord(value: unknown): value is Record<PropertyKey, unknown> {
-  return typeof value === 'object' && !Array.isArray(value) && value !== null;
-}
-
-function matchObjects(
-  source: unknown,
-  target: Record<PropertyKey, string | number | boolean>
-): boolean {
-  if (!isRecord(source)) return false;
-
-  return Object.entries(target).every(
-    ([key, value]) => key in source && source[key] === value
-  );
-}
+import type { PartialBy } from '../utils.js';
+import { matchObjects, type StringAndNumberProperties } from '../utils.js';
+import type { HttpLink } from './edges/http-link.edge.js';
+import type { HttpTransaction } from './edges/http-transaction.edge.js';
+import type { IsSecuredWith } from './edges/is-secured-with.edge.js';
+import type { ThymianHttpRequest } from './nodes/http-request.node.js';
+import type { ThymianHttpResponse } from './nodes/http-response.node.js';
+import type { SecurityScheme } from './nodes/security-scheme.node.js';
 
 export type MatchResult = {
   reqId: string;
   parameters: Partial<Record<string, string | string[]>>;
 };
 
-export type ThymianGraph<
-  Nodes extends ThymianNode,
-  Edges extends ThymianEdge
-> = MultiDirectedGraph<ThymianNodes | Nodes, ThymianEdges | Edges>;
+export function isNodeType<T extends ThymianNode>(
+  node: ThymianNode,
+  type: keyof ThymianNodes
+): node is T {
+  return node.type === type;
+}
 
-export class ThymianFormat<
-  Nodes extends ThymianNode = ThymianNode,
-  Edges extends ThymianEdge = ThymianEdge
-> {
-  readonly graph: MultiDirectedGraph<
-    ThymianNodes | Nodes,
-    ThymianEdges | Edges
-  > = new MultiDirectedGraph();
+export interface ThymianNodes {
+  'http-request': ThymianHttpRequest;
+  'http-response': ThymianHttpResponse;
+  'security-scheme': SecurityScheme;
+}
+
+export interface ThymianEdges {
+  'http-link': HttpLink;
+  'http-transaction': HttpTransaction;
+  'is-secured': IsSecuredWith;
+}
+
+export type ThymianNode = ThymianNodes[keyof ThymianNodes];
+export type ThymianEdge = ThymianEdges[keyof ThymianEdges];
+
+export type ThymianNodeType = keyof ThymianNodes;
+export type ThymianEdgeType = keyof ThymianEdges;
+
+export type ThymianGraph = MultiDirectedGraph<ThymianNode, ThymianEdge>;
+
+export class ThymianFormat {
+  readonly graph: ThymianGraph = new MultiDirectedGraph();
 
   addEdge(source: string, target: string, edge: ThymianEdge): string {
     return this.graph.addEdge(source, target, edge);
@@ -99,40 +88,24 @@ export class ThymianFormat<
     );
   }
 
-  addNode<Node extends ThymianNodes>(
-    node: Node,
-    id: string = randomUUID()
-  ): string {
-    try {
-      this.graph.addNode(id, node);
-    } catch (e) {
-      console.log(e);
-    }
-
-    return id;
+  addNode(node: ThymianNode, id: string = randomUUID()): string {
+    return this.graph.addNode(id, node);
   }
 
-  getNode<T extends ThymianNode = ThymianNodes>(id: string): T | undefined {
+  getNode<T extends ThymianNode = ThymianNode>(id: string): T | undefined {
     return this.graph.getNodeAttributes(id) as T;
   }
 
-  getEdge(id: string): HttpLink | HttpTransaction | ThymianEdge | Edges {
-    return this.graph.getEdgeAttributes(id);
+  getEdge<T extends ThymianEdge = ThymianEdge>(
+    id: string
+  ): ThymianEdge | undefined {
+    return this.graph.getEdgeAttributes(id) as T;
   }
 
   findNodeByExtension(
     extensionName: string,
     values: Record<PropertyKey, string | number | boolean>
-  ):
-    | ThymianHttpRequest
-    | ThymianHttpResponse
-    | SecurityScheme
-    | BasicSecurityScheme
-    | BearerSecurityScheme
-    | ApiKeySecurityScheme
-    | ThymianNode
-    | Nodes
-    | undefined {
+  ): ThymianNode | undefined {
     const id = this.graph.findNode(
       (id, attributes) =>
         attributes.extensions &&
@@ -143,9 +116,9 @@ export class ThymianFormat<
     return this.graph.getNodeAttributes(id);
   }
 
-  httpResponsesOf(id: string): ThymianHttpResponse[] {
+  httpResponsesOf(reqId: string): ThymianHttpResponse[] {
     return this.graph.reduceOutNeighbors(
-      id,
+      reqId,
       (acc, _, attributes) => {
         if (isNodeType<ThymianHttpResponse>(attributes, 'http-response')) {
           acc.push(attributes);
@@ -157,33 +130,27 @@ export class ThymianFormat<
     );
   }
 
-  neighboursOfType(id: string, type: ThymianNodes['type']): ThymianNodes[] {
+  neighboursOfType<Type extends ThymianNodeType>(
+    id: string,
+    type: Type
+  ): ThymianNodes[Type][] {
     return this.graph.reduceNeighbors(
       id,
-      (acc, _, attributes) => {
-        if (attributes.type === type) {
-          acc.push(attributes);
+      (acc, _, node) => {
+        if (isNodeType<ThymianNodes[Type]>(node, type)) {
+          acc.push(node);
         }
 
         return acc;
       },
-      [] as ThymianNodes[]
+      [] as ThymianNodes[Type][]
     );
   }
 
-  getNodesNodeByExtension(
+  getNodesByExtension(
     extensionName: string,
     values: Record<PropertyKey, string | number | boolean>
-  ): (
-    | ThymianHttpRequest
-    | ThymianHttpResponse
-    | SecurityScheme
-    | BasicSecurityScheme
-    | BearerSecurityScheme
-    | ApiKeySecurityScheme
-    | ThymianNode
-    | Nodes
-  )[] {
+  ): ThymianNode[] {
     return this.graph.reduceNodes((acc, _, attributes) => {
       if (
         attributes.extensions &&
@@ -237,22 +204,20 @@ export class ThymianFormat<
     }, undefined as MatchResult | undefined);
   }
 
-  findNode<Type extends ThymianNodes>(
-    type: Type['type'],
-    properties: StringAndNumberProperties<Type>
-  ): Type | undefined {
+  findNode<Type extends ThymianNodeType>(
+    type: Type,
+    properties: StringAndNumberProperties<ThymianNodes[Type]>
+  ): ThymianNodes[Type] | undefined {
     const nodeId = this.graph.findNode(
       (id, node) =>
-        // TODO
-        // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-        // @ts-expect-error
-        isNodeType<Type>(node, type) && matchObjects(node, properties)
+        isNodeType<ThymianNodes[Type]>(node, type) &&
+        matchObjects(node, properties)
     );
 
     if (typeof nodeId === 'undefined') {
       return undefined;
     }
 
-    return this.getNode<Type>(nodeId);
+    return this.getNode<ThymianNodes[Type]>(nodeId);
   }
 }

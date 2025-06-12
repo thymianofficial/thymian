@@ -1,8 +1,9 @@
+import { type ThymianHttpResponse, type ThymianSchema } from '@thymian/core';
 import type { OpenAPIV3_1 as OpenApiV31 } from 'openapi-types';
-import { EmptySchema, type ThymianHttpResponse } from '@thymian/core';
-import type { Parameters } from './utils.js';
-import { processMediaTypeObject } from './media-type-object.processor.js';
+
 import { processHeadersObject } from './headers-object.processor.js';
+import { processMediaTypeObject } from './media-type-object.processor.js';
+import type { Parameters } from './utils.js';
 
 export type ResponsesWithLinks = {
   responses: ThymianHttpResponse[];
@@ -59,7 +60,7 @@ export function processResponseObject(
       },
       mediaType: '',
       statusCode,
-      schema: new EmptySchema(),
+      schema: {} as ThymianSchema,
     });
   }
 

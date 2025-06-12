@@ -1,18 +1,17 @@
-import type { OpenAPIV3_1 as OpenApiV31 } from 'openapi-types';
 import {
   isNodeType,
   type Logger,
   ThymianFormat,
   type ThymianHttpRequest,
-  type ThymianNode,
 } from '@thymian/core';
+import type { OpenAPIV3_1 as OpenApiV31 } from 'openapi-types';
 
 import { processLinkObjectParameters } from './link-object.processor.js';
-import { mergeParameters, type Parameters } from './utils.js';
 import { processParameterObjects } from './parameter-object.processor.js';
 import { processRequestBodyObjet } from './request-body-object.processor.js';
 import { processResponsesObject } from './responses-object.processor.js';
 import { processSecuritySchemes } from './security-scheme-object.processor.js';
+import { mergeParameters, type Parameters } from './utils.js';
 
 export type OpenapiV30ParserOptions = {
   port: number;

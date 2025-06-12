@@ -1,5 +1,6 @@
 import type { ThymianNode, ThymianPlugin } from '@thymian/core';
-import { type ParseOpenApiOptions, loadOpenapi } from './load-openapi.js';
+
+import { loadOpenapi, type ParseOpenApiOptions } from './load-openapi.js';
 
 declare module '@thymian/core' {
   interface ThymianHttpRequest {
