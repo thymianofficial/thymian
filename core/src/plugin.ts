@@ -10,20 +10,24 @@ export type ThymianPluginFn<Options = unknown> = (
   options: Options
 ) => Promise<void>;
 
+export type ThymianPluginHooks = Record<
+  string,
+  {
+    input: Schema;
+    output: Schema;
+  }
+>;
+
+export type ThymianPluginEvents = {
+  emits?: Record<string, Schema>;
+  listens?: string[];
+};
+
 export type ThymianPlugin<Options = unknown> = {
   plugin: ThymianPluginFn<Options>;
   options: Schema;
   name: string;
   version: string;
-  hooks?: Record<
-    string,
-    {
-      input: Schema;
-      output: Schema;
-    }
-  >;
-  events?: {
-    emits?: Record<string, Schema>;
-    listens?: string[];
-  };
+  hooks?: ThymianPluginHooks;
+  events?: ThymianPluginEvents;
 };

@@ -1,26 +1,28 @@
+import semver from 'semver';
+
+import packageJson from '../package.json' assert { type: 'json' };
+import type { RegisterPluginEvent } from './events/register-plugin.event.js';
+import type { EmptyHook } from './hooks/hook.js';
+import type { LoadFormatHook } from './hooks/load-format.hook.js';
 import type { Logger } from './logger/logger.js';
 import type { ThymianPlugin } from './plugin.js';
-import { ThymianEmitter } from './thymian-emitter.js';
 import { ThymianError } from './thymian.error.js';
+import { ThymianEmitter } from './thymian-emitter.js';
 import { timeoutPromise } from './utils.js';
-import semver from 'semver';
-import packageJson from '../package.json' assert { type: 'json' };
+import type { CloseHook, CloseHookResult } from './hooks/close.hook.js';
+import { ThymianFormat } from './format/index.js';
+import type { RunEvent } from './events/run.event.js';
 
 declare module './thymian-emitter.js' {
   interface ThymianEvents {
-    'thymian.register': [Record<PropertyKey, unknown>];
-    'thymian.start': [];
+    'core.register-plugin': RegisterPluginEvent;
+    'core.run': RunEvent;
   }
 
   interface ThymianHooks {
-    'thymian.close': {
-      args: [];
-      returnType: void;
-    };
-    'thymian.ready': {
-      args: [];
-      returnType: void;
-    };
+    'core.close': CloseHook;
+    'core.ready': EmptyHook;
+    'core.load-format': LoadFormatHook;
   }
 }
 
@@ -61,39 +63,36 @@ export class Thymian {
     return this;
   }
 
-  async start(): Promise<CoreReturnType> {
-    return new Promise((resolve, reject) => {
-      this.emitter.onEvent('thymian.error', (error: ThymianError) => {
-        this.logger.error(error.message);
-        reject(error);
-      });
-
-      (async () => {
-        try {
-          this.logger.debug('Load plugins.');
-
-          await this.loadRegisteredPlugins();
-
-          await this.emitter.runHook('thymian.ready');
-
-          this.emitter.emitEvent('thymian.start');
-
-          await this.emitter.onIdle();
-
-          const results = await this.emitter.runHook('thymian.close');
-          resolve(results);
-        } catch (e) {
-          reject(e);
-        }
-      })();
-    });
+  async ready(): Promise<void> {
+    await this.loadRegisteredPlugins();
   }
 
-  async loadRegisteredPlugins(): Promise<void> {
+  async run(): Promise<CloseHookResult[]> {
+    this.emitter.onError(() => {
+      // TODO error handling
+      throw new Error();
+    });
+
+    await this.ready();
+
+    const format = (await this.emitter.runHook('core.load-format')).reduce(
+      (format, serialized) => format.merge(ThymianFormat.import(serialized)),
+      new ThymianFormat()
+    );
+
+    this.emitter.emitEvent('core.run', format.export());
+
+    await this.emitter.onIdle();
+
+    return await this.emitter.runHook('core.close');
+  }
+
+  private async loadRegisteredPlugins(): Promise<void> {
     for await (const { plugin, options } of this.plugins) {
-      this.emitter.emitEvent('thymian.register', {
+      this.emitter.emitEvent('core.register', {
         name: plugin.name,
-        events: plugin.events,
+        events: plugin.events ?? {},
+        hooks: plugin.hooks ?? {},
         options,
       });
 

@@ -21,7 +21,7 @@ describe('ThymianEmitter', () => {
   it('.emitError() should emit error event', () =>
     new Promise<void>((done) => {
       const emitter = new ThymianEmitter(new NoopLogger());
-      emitter.onEvent('thymian.error', (err: ThymianError) => {
+      emitter.onEvent('core.error', (err: ThymianError) => {
         expect(err).toStrictEqual(new ThymianError('my error'));
         done();
       });

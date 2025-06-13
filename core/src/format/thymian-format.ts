@@ -1,6 +1,7 @@
 import { randomUUID } from 'node:crypto';
 
 import { MultiDirectedGraph } from 'graphology';
+import type { SerializedGraph } from 'graphology-types';
 import { match } from 'path-to-regexp';
 
 import type { PartialBy } from '../utils.js';
@@ -44,8 +45,14 @@ export type ThymianEdgeType = keyof ThymianEdges;
 
 export type ThymianGraph = MultiDirectedGraph<ThymianNode, ThymianEdge>;
 
+export type SerializedThymianFormat = SerializedGraph<ThymianNode, ThymianEdge>;
+
 export class ThymianFormat {
-  readonly graph: ThymianGraph = new MultiDirectedGraph();
+  readonly graph: ThymianGraph;
+
+  constructor(graph: ThymianGraph = new MultiDirectedGraph()) {
+    this.graph = graph;
+  }
 
   addEdge(source: string, target: string, edge: ThymianEdge): string {
     return this.graph.addEdge(source, target, edge);
@@ -219,5 +226,23 @@ export class ThymianFormat {
     }
 
     return this.getNode<ThymianNodes[Type]>(nodeId);
+  }
+
+  export(): SerializedThymianFormat {
+    return this.graph.export();
+  }
+
+  toJSON(): SerializedThymianFormat {
+    return this.export();
+  }
+
+  merge(format: ThymianFormat): ThymianFormat {
+    return this;
+  }
+
+  static import(graph: SerializedThymianFormat): ThymianFormat {
+    return new ThymianFormat(
+      new MultiDirectedGraph<ThymianNode, ThymianEdge>().import(graph)
+    );
   }
 }
