@@ -18,8 +18,7 @@
     "!**/*.tsbuildinfo"
   ],
   "dependencies": {
-    "@thymian/json-data-generator": "^0",
-    "@thymian/json-data-generator-osx-arm64": "^0",
+    "openapi-sampler": "^1.6.1",
     "sharp": "^0.34.1",
     "tslib": "^2.3.0"
   }

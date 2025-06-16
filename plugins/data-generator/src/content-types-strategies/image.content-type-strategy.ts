@@ -1,6 +1,6 @@
-import type { ThymianSchema } from '@thymian/core';
-import type { ContentTypeStrategy } from './content-type-strategy.js';
 import sharp from 'sharp';
+
+import type { ContentTypeStrategy } from './content-type-strategy.js';
 
 export type ImageContentTypeStrategyOptions = {
   width: number;
@@ -22,8 +22,8 @@ export class ImageContentTypeStrategy implements ContentTypeStrategy {
     // TODO: fill regex https://sharp.pixelplumbing.com/api-output/
     return /^image\/(jpeg|png|)/.test(contentType);
   }
-  async generate(contentType: string, schema: ThymianSchema): Promise<unknown> {
-    return await sharp(this.randomPixelsBuffer(), {
+  async generate(contentType: string): Promise<unknown> {
+    return sharp(this.randomPixelsBuffer(), {
       raw: {
         width: this.options.width,
         height: this.options.height,
@@ -31,10 +31,8 @@ export class ImageContentTypeStrategy implements ContentTypeStrategy {
       },
     })
       .png()
-      .toFile(
-        '/Users/matthias/University/2024-ma-matthias-keckl-thymian/plugins/data-generator/test/random.png'
-      );
-    // .toBuffer() // .toString('utf-8');
+      .toBuffer()
+      .toString();
   }
 
   private randomPixelsBuffer(): Buffer {

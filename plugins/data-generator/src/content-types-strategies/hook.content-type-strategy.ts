@@ -2,7 +2,7 @@ import { ThymianEmitter, type ThymianSchema } from '@thymian/core';
 
 import type { ContentTypeStrategy } from './content-type-strategy.js';
 
-export class FallbackContentTypeStrategy implements ContentTypeStrategy {
+export class HookContentTypeStrategy implements ContentTypeStrategy {
   constructor(private readonly emitter: ThymianEmitter) {}
 
   matches(): boolean {
@@ -10,12 +10,6 @@ export class FallbackContentTypeStrategy implements ContentTypeStrategy {
   }
 
   async generate(contentType: string, schema: ThymianSchema): Promise<unknown> {
-    const r = await this.emitter.runHook(
-      'data-generator.generate',
-      contentType,
-      schema
-    );
-
-    return r[0] ?? '';
+    return '';
   }
 }

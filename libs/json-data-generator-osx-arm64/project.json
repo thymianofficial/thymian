@@ -1,7 +1,0 @@
-{
-  "name": "@thymian/json-data-generator-osx-arm64",
-  "$schema": "../../node_modules/nx/schemas/project-schema.json",
-  "projectType": "library",
-  "tags": ["library"],
-  "targets": {}
-}

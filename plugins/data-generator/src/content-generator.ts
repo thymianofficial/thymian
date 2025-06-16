@@ -1,5 +1,6 @@
-import type { ContentTypeStrategy } from './content-types/content-type-strategy.js';
-import { ThymianSchema } from '@thymian/core';
+import type { ThymianSchema } from '@thymian/core';
+
+import type { ContentTypeStrategy } from './content-types-strategies/content-type-strategy.js';
 
 export class ContentGenerator {
   constructor(

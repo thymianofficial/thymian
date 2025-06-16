@@ -5,12 +5,12 @@ import type { ContentTypeStrategy } from './content-type-strategy.js';
 
 type SamplerSchema = Parameters<typeof sample>[0];
 
-export class JsonContentTypeStrategy implements ContentTypeStrategy {
+export class XmlContentTypeStrategy implements ContentTypeStrategy {
   matches(contentType: string): boolean {
-    return /^application\/[^+]*[+]?(json);?.*/.test(contentType);
+    return /^application\/[^+]*[+]?(xml);?.*/.test(contentType);
   }
 
   async generate(contentType: string, schema: ThymianSchema): Promise<unknown> {
-    return sample(schema as SamplerSchema);
+    return sample(schema as SamplerSchema, { format: 'xml' });
   }
 }

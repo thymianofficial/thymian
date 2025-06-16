@@ -80,10 +80,13 @@ export class HttpRequestSampler {
     );
 
     for await (const id of requestIds) {
-      await this.generateForRequest(
-        this.format.getNode<ThymianHttpRequest>(id),
-        id
-      );
+      const req = this.format.getNode<ThymianHttpRequest>(id);
+
+      if (!req) {
+        continue;
+      }
+
+      await this.generateForRequest(req, id);
     }
   }
 }
