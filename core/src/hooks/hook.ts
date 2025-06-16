@@ -1,6 +1,6 @@
 export type Hook<T, P> = {
-  args: T;
+  arg: T;
   returnType: P;
 };
 
-export type EmptyHook = Hook<[], void>;
+export type EmptyHook = Hook<never, void>;

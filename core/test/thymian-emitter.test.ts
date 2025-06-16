@@ -27,8 +27,6 @@ describe('ThymianEmitter', () => {
       });
 
       emitter.emitError(new ThymianError('my error'));
-
-      emitter.runHook('');
     }));
 
   it('should idle after given timout', async () => {

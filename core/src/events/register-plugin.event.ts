@@ -1,13 +1,11 @@
 import type { ThymianPluginEvents, ThymianPluginHooks } from '../plugin.js';
 
-export type RegisterPluginEvent = [
-  {
-    name: string;
-    options: Record<PropertyKey, unknown>;
-    events: ThymianPluginEvents;
-    hooks: ThymianPluginHooks;
-  }
-];
+export type RegisterPluginEvent = {
+  name: string;
+  options: Record<PropertyKey, unknown>;
+  events: ThymianPluginEvents;
+  hooks: ThymianPluginHooks;
+};
 
 export const RegisterPluginEventSchema = {
   type: 'object',

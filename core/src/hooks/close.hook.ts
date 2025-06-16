@@ -6,4 +6,4 @@ export type CloseHookResult = {
   message?: string;
 };
 
-export type CloseHook = Hook<[], CloseHookResult>;
+export type CloseHook = Hook<never, CloseHookResult>;

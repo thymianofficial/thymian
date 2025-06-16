@@ -1,4 +1,4 @@
-import { ThymianSchema } from '@thymian/core';
+import type { ThymianSchema } from '@thymian/core';
 
 export interface ContentTypeStrategy {
   matches(contentType: string): boolean;

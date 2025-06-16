@@ -1,21 +1,19 @@
-import { EventEmitter2 } from 'eventemitter2';
+import { EventEmitter2, type ListenerFn } from 'eventemitter2';
 
 import type { Logger } from './logger/logger.js';
 import type { ThymianError } from './thymian.error.js';
 
-// eslint-disable-next-line
+// eslint-disable-next-line @typescript-eslint/no-empty-interface, @typescript-eslint/no-empty-object-type
 export interface ThymianHooks {}
 
 export interface ThymianEvents {
-  'core.error': [ThymianError];
+  'core.error': ThymianError;
 }
 
-export type ThymianListerFn<Args extends unknown[]> = (
-  ...args: Args
-) => void | Promise<void>;
+export type ThymianListerFn<Arg> = (arg: Arg) => void | Promise<void>;
 
-export type ThymianListerAsyncFn<Args extends unknown[], ReturnType> = (
-  ...args: Args
+export type ThymianListerAsyncFn<Arg, ReturnType> = (
+  arg: Arg
 ) => Promise<ReturnType> | ReturnType;
 
 export type ThymianEmitterOptions = {
@@ -70,12 +68,12 @@ export class ThymianEmitter {
     event: Event,
     listener: Event extends keyof ThymianHooks
       ? ThymianListerAsyncFn<
-          ThymianHooks[Event]['args'],
+          ThymianHooks[Event]['arg'],
           ThymianHooks[Event]['returnType']
         >
       : ThymianListerAsyncFn<any, any>
   ): this {
-    this.#emitter.on(event, listener, {
+    this.#emitter.on(String(event), listener as ListenerFn, {
       async: true,
       promisify: true,
       nextTick: false,
@@ -88,24 +86,22 @@ export class ThymianEmitter {
     this.emitEvent('core.error', err);
   }
 
-  onError(fn: ThymianListerFn<[ThymianError]>): void {
+  onError(fn: ThymianListerFn<ThymianError>): void {
     this.onEvent('core.error', fn);
   }
 
   emitEvent<Event extends ThymianEvent>(
     event: Event,
-    ...args: Event extends keyof ThymianEvents ? ThymianEvents[Event] : any[]
+    arg: Event extends keyof ThymianEvents ? ThymianEvents[Event] : any
   ): void {
     this.#resetTimeout();
     this.#logger.debug(`Emitting event "${event}".`);
-    this.#emitter.emit(event, ...args);
+    this.#emitter.emit(event, arg);
   }
 
   runHook<Event extends ThymianHook>(
     event: Event,
-    ...args: Event extends keyof ThymianHooks
-      ? ThymianHooks[Event]['args']
-      : any[]
+    arg?: Event extends keyof ThymianHooks ? ThymianHooks[Event]['arg'] : any
   ): Promise<
     Event extends keyof ThymianHooks
       ? ThymianHooks[Event]['returnType'][]
@@ -113,7 +109,7 @@ export class ThymianEmitter {
   > {
     this.#resetTimeout();
     this.#logger.debug(`Emitting event "${event}".`);
-    return this.#emitter.emitAsync(event, ...args) as Promise<
+    return this.#emitter.emitAsync(String(event), arg) as Promise<
       Event extends keyof ThymianHooks
         ? ThymianHooks[Event]['returnType'][]
         : any[]

@@ -2,6 +2,9 @@ import semver from 'semver';
 
 import packageJson from '../package.json' assert { type: 'json' };
 import type { RegisterPluginEvent } from './events/register-plugin.event.js';
+import type { RunEvent } from './events/run.event.js';
+import { ThymianFormat } from './format/index.js';
+import type { CloseHook, CloseHookResult } from './hooks/close.hook.js';
 import type { EmptyHook } from './hooks/hook.js';
 import type { LoadFormatHook } from './hooks/load-format.hook.js';
 import type { Logger } from './logger/logger.js';
@@ -9,9 +12,6 @@ import type { ThymianPlugin } from './plugin.js';
 import { ThymianError } from './thymian.error.js';
 import { ThymianEmitter } from './thymian-emitter.js';
 import { timeoutPromise } from './utils.js';
-import type { CloseHook, CloseHookResult } from './hooks/close.hook.js';
-import { ThymianFormat } from './format/index.js';
-import type { RunEvent } from './events/run.event.js';
 
 declare module './thymian-emitter.js' {
   interface ThymianEvents {
