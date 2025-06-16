@@ -9,13 +9,17 @@ import { matchObjects, type StringAndNumberProperties } from '../utils.js';
 import type { HttpTestInstance } from '../http-test.js';
 import type { ThymianHttpTestTransaction } from '../http-test-case.js';
 
+export type RequestFilter =
+  | StringAndNumberProperties<ThymianHttpRequest>
+  | ((req: ThymianHttpRequest) => boolean);
+
+export type ResponseFilter =
+  | StringAndNumberProperties<ThymianHttpResponse>
+  | ((res: ThymianHttpResponse) => boolean);
+
 export function forHttpTransactions(
-  reqFilter:
-    | StringAndNumberProperties<ThymianHttpRequest>
-    | ((req: ThymianHttpRequest) => boolean) = {},
-  resFilter:
-    | StringAndNumberProperties<ThymianHttpResponse>
-    | ((res: ThymianHttpResponse) => boolean) = {}
+  reqFilter: RequestFilter = {},
+  resFilter: ResponseFilter = {}
 ): OperatorFunction<
   HttpTestInstance<ThymianFormat>,
   HttpTestInstance<ThymianHttpTestTransaction>

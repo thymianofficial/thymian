@@ -5,9 +5,13 @@ import type { HttpTestContext } from '../src/http-test-context.js';
 import type { HttpRequest } from '../src/run-requests.js';
 
 export const exampleContentGenerator: HttpTestContext['generateContent'] =
-  async (schema) => ({
-    content: schema.examples?.[0],
-  });
+  async (schema) => {
+    if (typeof schema === 'boolean') {
+      return { content: {} };
+    } else {
+      return { content: schema.examples?.[0] };
+    }
+  };
 
 export const identityHookRunner: HttpTestContext['runHook'] = async <
   Input,
@@ -25,6 +29,7 @@ export function createRequestRunner(
       url: req.origin + req.path,
       headers: req.headers,
       method: req.method as InjectOptions['method'],
+      body: req.body,
     });
 
     return {

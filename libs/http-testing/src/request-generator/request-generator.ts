@@ -2,7 +2,7 @@ import {
   type Parameter,
   type PartialBy,
   ThymianFormat,
-  ThymianSchema,
+  type ThymianSchema,
 } from '@thymian/core';
 
 import type { HttpRequestTemplate } from '../http-request-template.js';
@@ -14,6 +14,13 @@ export type GenerateContent = (
   context?: { reqId?: string; resId?: string }
 ) => Promise<{ content: unknown; encoding?: string }>;
 
+export type GenerateParameter = (
+  name: string,
+  type: 'query' | 'path' | 'header' | 'cookie',
+  parameter: Parameter,
+  context?: { reqId?: string; resId?: string }
+) => Promise<{ content: unknown; encoding?: string }>;
+
 export class RequestGenerator {
   constructor(
     protected readonly format: ThymianFormat,
@@ -21,7 +28,8 @@ export class RequestGenerator {
       ThymianHttpTestTransaction,
       'transactionId' | 'thymianRes' | 'thymianResId'
     >,
-    protected readonly generateContent: GenerateContent
+    protected readonly generateContent: GenerateContent,
+    protected readonly generateParameter: GenerateParameter
   ) {}
 
   protected shouldGenerateBody(): boolean {
@@ -29,7 +37,8 @@ export class RequestGenerator {
     const methodsWithBody = ['POST', 'PUT', 'PATCH'];
 
     return (
-      thymianReq.bodyRequired || methodsWithBody.includes(thymianReq.method)
+      !!thymianReq.body &&
+      (thymianReq.bodyRequired || methodsWithBody.includes(thymianReq.method))
     );
   }
 
@@ -39,7 +48,8 @@ export class RequestGenerator {
   }> {
     if (this.shouldGenerateBody()) {
       return this.generateContent(
-        this.transaction.thymianReq.body,
+        // in shouldGenerateBody is checked if body is defined
+        this.transaction.thymianReq.body as ThymianSchema,
         this.transaction.thymianReq.mediaType,
         {
           reqId: this.transaction.thymianReqId,
@@ -52,12 +62,13 @@ export class RequestGenerator {
   }
 
   protected async generateParameters(
-    parameters: Record<string, Parameter>
+    parameters: Record<string, Parameter>,
+    type: 'query' | 'path' | 'header' | 'cookie'
   ): Promise<Record<string, unknown>> {
     const generated = {} as Record<string, unknown>;
 
     for await (const [name, parameter] of Object.entries(parameters)) {
-      const { content } = await this.generateContent(parameter.schema);
+      const { content } = await this.generateParameter(name, type, parameter);
 
       generated[name] = content;
     }
@@ -67,7 +78,8 @@ export class RequestGenerator {
 
   protected async generateHeaders(): Promise<Record<string, unknown>> {
     const headers = await this.generateParameters(
-      this.transaction.thymianReq.headers
+      this.transaction.thymianReq.headers,
+      'header'
     );
 
     const { mediaType } = this.transaction.thymianReq;
@@ -84,11 +96,17 @@ export class RequestGenerator {
   }
 
   protected async generateQuery(): Promise<Record<string, unknown>> {
-    return this.generateParameters(this.transaction.thymianReq.queryParameters);
+    return this.generateParameters(
+      this.transaction.thymianReq.queryParameters,
+      'query'
+    );
   }
 
   protected async generatePathParameters(): Promise<Record<string, unknown>> {
-    return this.generateParameters(this.transaction.thymianReq.pathParameters);
+    return this.generateParameters(
+      this.transaction.thymianReq.pathParameters,
+      'path'
+    );
   }
 
   async generate(): Promise<HttpRequestTemplate> {
@@ -99,6 +117,7 @@ export class RequestGenerator {
       path: this.transaction.thymianReq.path,
       pathParameters: await this.generatePathParameters(),
       query: await this.generateQuery(),
+      cookies: {},
     };
 
     const { content, encoding } = await this.generateRequestBody();

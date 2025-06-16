@@ -2,18 +2,14 @@ import type { SecurityScheme } from '@thymian/core';
 import { mergeMap, type MonoTypeOperatorFunction } from 'rxjs';
 
 import type { HttpTestInstance } from '../http-test.js';
-import type {
-  HttpTestCase,
-  HttpTestCaseStep,
-  HttpTestCaseTransaction,
+import {
+  type HttpTestCase,
+  type HttpTestCaseStep,
+  type HttpTestCaseTransaction,
+  isFailedTestCase,
+  isSkippedTestCase,
 } from '../http-test-case.js';
-import { isRecord } from '../utils.js';
-
-export function hasThymianReqId(
-  value: unknown
-): value is Record<PropertyKey, unknown> & { thymianRedId: string } {
-  return isRecord(value) && 'thymianReqId' in value;
-}
+import { hasThymianReqId } from './utils.js';
 
 export async function authorizeTransaction(
   transactions: HttpTestCaseTransaction[],
@@ -26,10 +22,14 @@ export async function authorizeTransaction(
   return transactions;
 }
 
-export function authorizeRequests<
-  Steps extends HttpTestCaseStep[]
->(): MonoTypeOperatorFunction<HttpTestInstance<HttpTestCase<Steps>>> {
+export function authorizeRequests<Steps extends HttpTestCaseStep[]>(
+  validAuth = true
+): MonoTypeOperatorFunction<HttpTestInstance<HttpTestCase<Steps>>> {
   return mergeMap(async ({ curr, ctx }) => {
+    if (isSkippedTestCase(curr) || isFailedTestCase(curr)) {
+      return { curr, ctx };
+    }
+
     const step = curr.steps.at(-1);
 
     if (!step) {
@@ -55,10 +55,14 @@ export function authorizeRequests<
         if (securityScheme.scheme === 'basic' && ctx.auth?.basic) {
           fn = async (transaction) => {
             transaction.request.headers['Authorization'] = `Basic ${Buffer.from(
-              // basic auth is defined
-              // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-              // @ts-expect-error
-              (await ctx.auth.basic(transaction)).join(':')
+              (validAuth
+                ? // basic auth is defined
+                  // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+                  // @ts-expect-error
+                  await ctx.auth.basic(transaction)
+                : ['admin', 'admin']
+              ) // How should we get invalid credentials?
+                .join(':')
             ).toString('base64')}`;
 
             return transaction;

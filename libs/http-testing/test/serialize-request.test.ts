@@ -1,7 +1,6 @@
 import {
-  PathSerializationStyle,
-  QuerySerializationStyle,
-  ThymianSchema,
+  DEFAULT_PATH_SERIALIZATION_STYLE,
+  QuerySerializationStyleBuilder,
 } from '@thymian/core';
 import { describe, expect, it } from 'vitest';
 
@@ -35,22 +34,23 @@ describe('serializeRequest', () => {
           queryParameters: {
             title: {
               required: false,
-              schema: new ThymianSchema(),
-              style: new QuerySerializationStyle()
+              schema: {},
+              style: new QuerySerializationStyleBuilder()
                 .withStyle('spaceDelimited')
-                .withExplode(true),
+                .withExplode(true)
+                .build(),
             },
           },
           cookies: {},
           pathParameters: {
             userId: {
               required: false,
-              schema: new ThymianSchema(),
-              style: new PathSerializationStyle(),
+              schema: {},
+              style: DEFAULT_PATH_SERIALIZATION_STYLE,
             },
           },
           bodyRequired: false,
-          body: new ThymianSchema(),
+          body: {},
           mediaType: '',
         },
         thymianReqId: '',
@@ -59,7 +59,7 @@ describe('serializeRequest', () => {
           headers: {},
           mediaType: '',
           statusCode: 0,
-          schema: new ThymianSchema(),
+          schema: {},
         },
         thymianResId: '',
         transactionId: '',

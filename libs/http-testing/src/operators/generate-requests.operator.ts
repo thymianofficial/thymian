@@ -5,14 +5,20 @@ import {
   type HttpTestCase,
   type HttpTestCaseStep,
   isCustomHttpTestCaseStep,
+  isFailedTestCase,
   isGroupedHttpTestCaseStep,
   isSingleHttpTestCaseStep,
+  isSkippedTestCase,
 } from '../http-test-case.js';
 
 export function generateRequests<Steps extends HttpTestCaseStep[]>(
   amount = 1
 ): MonoTypeOperatorFunction<HttpTestInstance<HttpTestCase<Steps>>> {
   return mergeMap(async ({ curr, ctx }) => {
+    if (isSkippedTestCase(curr) || isFailedTestCase(curr)) {
+      return { curr, ctx };
+    }
+
     const step = curr.steps.at(-1);
 
     if (isSingleHttpTestCaseStep(step)) {

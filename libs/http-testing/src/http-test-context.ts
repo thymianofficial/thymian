@@ -1,8 +1,9 @@
-import {
-  type Logger,
-  type PartialBy,
+import type {
+  Logger,
+  Parameter,
+  PartialBy,
   ThymianFormat,
-  type ThymianHttpRequest,
+  ThymianHttpRequest,
   ThymianSchema,
 } from '@thymian/core';
 
@@ -38,6 +39,12 @@ export interface HttpTestContext {
 
   runRequest(req: HttpRequest): Promise<HttpResponse>;
 
+  generateParameterValue(
+    name: string,
+    type: 'query' | 'path' | 'header' | 'cookie',
+    parameter: Parameter
+  ): Promise<unknown>;
+
   runHook(
     name: 'authorize',
     input: HttpTestCaseTransaction
@@ -52,7 +59,7 @@ export interface HttpTestContext {
 export function createHttpTestContext<
   Context extends PartialBy<
     HttpTestContext,
-    'generateRequest' | 'generateRequestFor'
+    'generateRequest' | 'generateRequestFor' | 'generateParameterValue'
   >
 >(context: Context): HttpTestContext {
   const generateRequest =
@@ -84,9 +91,20 @@ export function createHttpTestContext<
       );
     };
 
+  const generateParameterValue =
+    context.generateParameterValue ??
+    function generateParameterValue(
+      name: string,
+      type: 'query' | 'path' | 'header' | 'cookie',
+      parameter: Parameter
+    ) {
+      return context.generateContent(parameter.schema);
+    };
+
   return {
+    ...context,
     generateRequest,
     generateRequestFor,
-    ...context,
+    generateParameterValue,
   };
 }

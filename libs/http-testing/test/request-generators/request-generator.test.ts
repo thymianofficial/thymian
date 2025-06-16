@@ -1,30 +1,27 @@
-import { describe, it } from 'vitest';
-import { RequestGenerator } from '../../src/rxjs/request-generator/request-generator.js';
 import {
-  ArraySchema,
-  EmptySchema,
-  HeaderSerializationStyle,
-  ObjectSchema,
-  QuerySerializationStyle,
-  StringSchema,
+  DEFAULT_HEADER_SERIALIZATION_STYLE,
+  DEFAULT_QUERY_SERIALIZATION_STYLE,
   ThymianFormat,
   type ThymianHttpRequest,
 } from '@thymian/core';
-import { RangeRequestGenerator } from '../../src/rxjs/request-generator/range-request-generator.js';
+import { describe, it } from 'vitest';
+
+import { RangeRequestGenerator } from '../../src/request-generator/range-request-generator.js';
 
 const format = new ThymianFormat();
 
 const req1: ThymianHttpRequest = {
-  body: new ObjectSchema()
-    .withProperty('name', new StringSchema())
-    .withExample({ name: 'matthyk' }),
+  body: {
+    type: 'object',
+    properties: { name: { type: 'string', examples: ['matthyk'] } },
+  },
   bodyRequired: true,
   cookies: {},
   description: '',
   headers: {
     'x-header': {
-      style: new HeaderSerializationStyle(),
-      schema: new StringSchema().withExample('my x-header value'),
+      style: DEFAULT_HEADER_SERIALIZATION_STYLE,
+      schema: { type: 'string', examples: ['my x-header value'] },
       required: true,
     },
   },
@@ -37,8 +34,8 @@ const req1: ThymianHttpRequest = {
   protocol: 'http',
   queryParameters: {
     search: {
-      style: new QuerySerializationStyle(),
-      schema: new ArraySchema().withExample(['1', '2']),
+      style: DEFAULT_QUERY_SERIALIZATION_STYLE,
+      schema: { type: 'array', examples: [['1', '2']] },
       required: true,
     },
   },
@@ -51,12 +48,12 @@ const res1 = format.addResponse({
   headers: {
     location: {
       required: true,
-      schema: new StringSchema(),
-      style: new HeaderSerializationStyle(),
+      schema: { type: 'string' },
+      style: DEFAULT_HEADER_SERIALIZATION_STYLE,
     },
   },
   mediaType: '',
-  schema: new EmptySchema(),
+  schema: {},
   statusCode: 201,
   type: 'http-response',
 });
@@ -72,7 +69,13 @@ describe('RequestGenerator', () => {
         thymianResId: res1,
         thymianReq: req1,
       },
-      async (schema) => ({ content: schema.examples?.[0] })
+      async (schema) => {
+        if (typeof schema === 'boolean') {
+          return { content: {} };
+        } else {
+          return { content: schema.examples?.[0] };
+        }
+      }
     );
 
     console.log(await generator.generate());

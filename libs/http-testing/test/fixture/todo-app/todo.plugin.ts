@@ -3,7 +3,7 @@ import type { FastifyInstance } from 'fastify';
 
 import type { Todo } from './todo.model.js';
 
-export default function todos(fastify: FastifyInstance) {
+export default function todos(_fastify: FastifyInstance) {
   const todos: Todo[] = [
     {
       id: '1',
@@ -87,7 +87,9 @@ export default function todos(fastify: FastifyInstance) {
     },
   ];
 
-  fastify.withTypeProvider<JsonSchemaToTsProvider>().get(
+  const fastify = _fastify.withTypeProvider<JsonSchemaToTsProvider>();
+
+  fastify.get(
     '/',
     {
       schema: {
@@ -117,10 +119,67 @@ export default function todos(fastify: FastifyInstance) {
         },
       },
     },
-    async (req) => {
+    async (req, res) => {
+      res.code(201);
+      res.header('x-custom-header', 'my value');
+
       return todos.filter((todo) =>
         todo.title.toLowerCase().includes(req.query.title.toLowerCase())
       );
+    }
+  );
+
+  fastify.post(
+    '/',
+    {
+      schema: {
+        body: {
+          type: 'object',
+          required: ['title', 'text'],
+          additionalProperties: false,
+          properties: {
+            text: {
+              type: 'string',
+            },
+            title: {
+              type: 'string',
+            },
+          },
+        },
+        // response: {
+        //   201: {
+        //     type: 'object',
+        //     additionalProperties: false,
+        //     properties: {
+        //       headers: {
+        //         location: {
+        //           type: 'string',
+        //         },
+        //       },
+        //       body: {
+        //         type: 'object',
+        //         properties: {
+        //           id: { type: 'string' },
+        //           title: { type: 'string' },
+        //           text: { type: 'string' },
+        //         },
+        //       },
+        //     },
+        //   },
+        // },
+      },
+    },
+    async (req, reply) => {
+      const todo: Todo = {
+        ...req.body,
+        id: todos.length.toString(),
+      };
+
+      todos.push(todo);
+
+      reply.status(201);
+
+      return todo;
     }
   );
 }

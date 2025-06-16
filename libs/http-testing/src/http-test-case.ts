@@ -21,6 +21,18 @@ export function isCustomHttpTestCaseStep(
   return step?.type === 'custom';
 }
 
+export function isSkippedTestCase<Steps extends HttpTestCaseStep[]>(
+  testCase: HttpTestCase<Steps>
+): testCase is HttpTestCase<Steps> & { staus: 'skipped' } {
+  return testCase.status === 'skipped';
+}
+
+export function isFailedTestCase<Steps extends HttpTestCaseStep[]>(
+  testCase: HttpTestCase<Steps>
+): testCase is HttpTestCase<Steps> & { staus: 'failed' } {
+  return testCase.status === 'failed';
+}
+
 export type HttpTestCaseResult = {
   message: string;
   type: 'error' | 'assertion-failure' | 'assertion-success' | 'info';
@@ -67,7 +79,7 @@ export interface HttpTestCaseStep<Source = unknown> {
 export type HttpTestCase<
   Steps extends HttpTestCaseStep[] = HttpTestCaseStep[]
 > = {
-  readonly startTime: number;
+  duration: number;
   status: 'running' | 'skipped' | 'failed' | 'passed';
   readonly steps: Steps;
   readonly results: HttpTestCaseResult[];

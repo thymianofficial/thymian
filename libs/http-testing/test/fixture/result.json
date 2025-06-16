@@ -1,0 +1,375 @@
+{
+  "name": "GET requests",
+  "duration": 56.03504200000009,
+  "cases": [
+    {
+      "status": "passed",
+      "duration": 32.258790999999974,
+      "results": [
+        {
+          "type": "assertion-failure",
+          "message": "Expected status code 200, but received 201."
+        }
+      ],
+      "steps": [
+        {
+          "type": "single",
+          "source": {
+            "thymianReqId": "0bac2229-7bd6-47b3-8f70-df4a7f26c96a",
+            "thymianResId": "e31a12c5-5370-4ded-a1da-48b756d7e313",
+            "transactionId": "geid_202_0",
+            "thymianReq": {
+              "cookies": {},
+              "headers": {},
+              "host": "localhost",
+              "mediaType": "",
+              "method": "GET",
+              "path": "/todos",
+              "pathParameters": {},
+              "port": 8080,
+              "protocol": "http",
+              "queryParameters": {
+                "title": {
+                  "schema": {
+                    "type": "string",
+                    "examples": [
+                      "code"
+                    ]
+                  },
+                  "style": {
+                    "style": "form",
+                    "explode": true
+                  },
+                  "required": true
+                }
+              },
+              "type": "http-request"
+            },
+            "thymianRes": {
+              "headers": {},
+              "mediaType": "",
+              "schema": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "id",
+                    "title",
+                    "text"
+                  ],
+                  "properties": {
+                    "id": {
+                      "type": "string"
+                    },
+                    "title": {
+                      "type": "string"
+                    },
+                    "text": {
+                      "type": "string"
+                    }
+                  }
+                }
+              },
+              "statusCode": 200,
+              "type": "http-response"
+            }
+          },
+          "transactions": [
+            {
+              "request": {
+                "headers": {
+                  "Authorization": "Basic bWF0dGh5azpxdXBheWE="
+                },
+                "method": "GET",
+                "origin": "http://localhost:8080",
+                "path": "/todos",
+                "pathParameters": {},
+                "query": {
+                  "title": "code"
+                },
+                "cookies": {}
+              },
+              "source": {
+                "thymianReqId": "0bac2229-7bd6-47b3-8f70-df4a7f26c96a",
+                "thymianResId": "e31a12c5-5370-4ded-a1da-48b756d7e313",
+                "transactionId": "geid_202_0",
+                "thymianReq": {
+                  "cookies": {},
+                  "headers": {},
+                  "host": "localhost",
+                  "mediaType": "",
+                  "method": "GET",
+                  "path": "/todos",
+                  "pathParameters": {},
+                  "port": 8080,
+                  "protocol": "http",
+                  "queryParameters": {
+                    "title": {
+                      "schema": {
+                        "type": "string",
+                        "examples": [
+                          "code"
+                        ]
+                      },
+                      "style": {
+                        "style": "form",
+                        "explode": true
+                      },
+                      "required": true
+                    }
+                  },
+                  "type": "http-request"
+                },
+                "thymianRes": {
+                  "headers": {},
+                  "mediaType": "",
+                  "schema": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "additionalProperties": false,
+                      "required": [
+                        "id",
+                        "title",
+                        "text"
+                      ],
+                      "properties": {
+                        "id": {
+                          "type": "string"
+                        },
+                        "title": {
+                          "type": "string"
+                        },
+                        "text": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  },
+                  "statusCode": 200,
+                  "type": "http-response"
+                }
+              },
+              "response": {
+                "statusCode": 201,
+                "duration": 0,
+                "body": "[{\"id\":\"13\",\"title\":\"Code review\",\"text\":\"Review open pull requests in the repo.\"}]",
+                "trailers": {},
+                "headers": {
+                  "x-custom-header": "my value",
+                  "content-type": "application/json; charset=utf-8",
+                  "content-length": "83",
+                  "date": "Mon, 16 Jun 2025 06:07:03 GMT",
+                  "connection": "keep-alive"
+                }
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "status": "passed",
+      "duration": 54.86008300000003,
+      "results": [
+        {
+          "type": "assertion-failure",
+          "message": "Header \"location\" is required but not included in the response."
+        }
+      ],
+      "steps": [
+        {
+          "type": "single",
+          "source": {
+            "thymianReqId": "28901c72-39fc-4963-9b3a-3a7c9d018a0f",
+            "thymianResId": "0b7df331-9b7c-489d-baf1-50b494e1a0ff",
+            "transactionId": "geid_202_1",
+            "thymianReq": {
+              "cookies": {},
+              "headers": {},
+              "host": "localhost",
+              "mediaType": "application/json",
+              "method": "POST",
+              "path": "/todos",
+              "pathParameters": {},
+              "port": 8080,
+              "protocol": "http",
+              "queryParameters": {},
+              "type": "http-request",
+              "body": {
+                "examples": [
+                  {
+                    "title": "My new todo",
+                    "text": "I should write more tests!"
+                  }
+                ],
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "title",
+                  "text"
+                ],
+                "properties": {
+                  "title": {
+                    "type": "string"
+                  },
+                  "text": {
+                    "type": "string"
+                  }
+                }
+              }
+            },
+            "thymianRes": {
+              "headers": {
+                "location": {
+                  "required": true,
+                  "style": {
+                    "style": "simple",
+                    "explode": false
+                  },
+                  "schema": {
+                    "type": "string"
+                  }
+                }
+              },
+              "mediaType": "application/json",
+              "schema": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "id",
+                  "title",
+                  "text"
+                ],
+                "properties": {
+                  "id": {
+                    "type": "string"
+                  },
+                  "title": {
+                    "type": "string"
+                  },
+                  "text": {
+                    "type": "string"
+                  }
+                }
+              },
+              "statusCode": 201,
+              "type": "http-response"
+            }
+          },
+          "transactions": [
+            {
+              "request": {
+                "headers": {
+                  "content-type": "application/json",
+                  "accept": "application/json",
+                  "Authorization": "Basic bWF0dGh5azpxdXBheWE="
+                },
+                "method": "POST",
+                "origin": "http://localhost:8080",
+                "path": "/todos",
+                "pathParameters": {},
+                "query": {},
+                "cookies": {},
+                "body": {
+                  "title": "My new todo",
+                  "text": "I should write more tests!"
+                }
+              },
+              "source": {
+                "thymianReqId": "28901c72-39fc-4963-9b3a-3a7c9d018a0f",
+                "thymianResId": "0b7df331-9b7c-489d-baf1-50b494e1a0ff",
+                "transactionId": "geid_202_1",
+                "thymianReq": {
+                  "cookies": {},
+                  "headers": {},
+                  "host": "localhost",
+                  "mediaType": "application/json",
+                  "method": "POST",
+                  "path": "/todos",
+                  "pathParameters": {},
+                  "port": 8080,
+                  "protocol": "http",
+                  "queryParameters": {},
+                  "type": "http-request",
+                  "body": {
+                    "examples": [
+                      {
+                        "title": "My new todo",
+                        "text": "I should write more tests!"
+                      }
+                    ],
+                    "type": "object",
+                    "additionalProperties": false,
+                    "required": [
+                      "title",
+                      "text"
+                    ],
+                    "properties": {
+                      "title": {
+                        "type": "string"
+                      },
+                      "text": {
+                        "type": "string"
+                      }
+                    }
+                  }
+                },
+                "thymianRes": {
+                  "headers": {
+                    "location": {
+                      "required": true,
+                      "style": {
+                        "style": "simple",
+                        "explode": false
+                      },
+                      "schema": {
+                        "type": "string"
+                      }
+                    }
+                  },
+                  "mediaType": "application/json",
+                  "schema": {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "required": [
+                      "id",
+                      "title",
+                      "text"
+                    ],
+                    "properties": {
+                      "id": {
+                        "type": "string"
+                      },
+                      "title": {
+                        "type": "string"
+                      },
+                      "text": {
+                        "type": "string"
+                      }
+                    }
+                  },
+                  "statusCode": 201,
+                  "type": "http-response"
+                }
+              },
+              "response": {
+                "statusCode": 201,
+                "duration": 0,
+                "body": "{\"title\":\"My new todo\",\"text\":\"I should write more tests!\",\"id\":\"20\"}",
+                "trailers": {},
+                "headers": {
+                  "content-type": "application/json; charset=utf-8",
+                  "content-length": "69",
+                  "date": "Mon, 16 Jun 2025 06:07:03 GMT",
+                  "connection": "keep-alive"
+                }
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

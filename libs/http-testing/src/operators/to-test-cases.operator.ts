@@ -7,7 +7,6 @@ import {
   reduce,
 } from 'rxjs';
 
-import { isRecord } from '../utils.js';
 import type { HttpTestInstance } from '../http-test.js';
 import type {
   CustomHttpTestCaseStep,
@@ -16,6 +15,7 @@ import type {
   SingleHttpTestCaseStep,
   ThymianHttpTestTransaction,
 } from '../http-test-case.js';
+import { isRecord } from '../utils.js';
 
 export function isGroupedObservable<K, T>(
   value: unknown
@@ -71,7 +71,7 @@ export function toTestCases<
             ctx,
             curr: {
               status: 'running',
-              startTime: performance.now(),
+              duration: performance.now(),
               results: [],
               steps: [
                 {
@@ -92,7 +92,7 @@ export function toTestCases<
         ctx,
         curr: {
           status: 'running',
-          startTime: performance.now(),
+          duration: performance.now(),
           results: [],
           steps: [
             {
@@ -108,7 +108,7 @@ export function toTestCases<
         ctx,
         curr: {
           status: 'running',
-          startTime: performance.now(),
+          duration: performance.now(),
           results: [],
           steps: [
             {
