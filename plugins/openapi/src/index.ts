@@ -11,13 +11,6 @@ declare module '@thymian/core' {
     };
   }
 
-  interface ThymianHooks {
-    'openapi.load': {
-      args: [Partial<ParseOpenApiOptions>];
-      returnType: ThymianFormat;
-    };
-  }
-
   interface SecurityScheme {
     extensions: {
       openapiV3: {
@@ -34,51 +27,37 @@ declare module '@thymian/core' {
   }
 }
 
-export const openApiPlugin: ThymianPlugin = {
+export const openApiPlugin: ThymianPlugin<Partial<ParseOpenApiOptions>> = {
   name: '@thymian/openapi',
   version: '0.x',
-  options: {},
-  hooks: {
-    'openapi.load': {
-      output: {},
-      input: {
-        type: 'object',
-        additionalProperties: false,
-        required: [],
-        properties: {
-          filePath: {
-            type: 'string',
-            default: 'openapi.yaml',
-          },
-          port: {
-            type: 'integer',
-            default: 8080,
-          },
-          host: {
-            type: 'string',
-            default: 'localhost',
-          },
-          protocol: {
-            type: 'string',
-            enum: ['http', 'https'],
-            default: 'http',
-          },
-          allowExternalFiles: {
-            type: 'boolean',
-            default: true,
-          },
-          fetchExternalRefs: {
-            type: 'string',
-            default: false,
-          },
-        },
+  options: {
+    type: 'object',
+    additionalProperties: false,
+    properties: {
+      filePath: {
+        type: 'string',
+      },
+      port: {
+        type: 'integer',
+      },
+      host: {
+        type: 'string',
+      },
+      protocol: {
+        type: 'string',
+        enum: ['http', 'https'],
+      },
+      allowExternalFiles: {
+        type: 'boolean',
+      },
+      fetchExternalRefs: {
+        type: 'boolean',
       },
     },
   },
-  plugin: async (emitter, logger) => {
-    emitter.onHook('openapi.load', async (opts) => {
-      console.log(opts);
-      return loadOpenapi(logger, opts);
+  plugin: async (emitter, logger, opts) => {
+    emitter.onHook('core.load-format', async () => {
+      return (await loadOpenapi(logger, opts)).export();
     });
   },
 };

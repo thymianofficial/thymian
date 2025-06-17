@@ -1,11 +1,11 @@
 import type { ThymianHttpResponse } from '@thymian/core';
 import { isValidHttpStatusCode } from '@thymian/http-status-codes';
-import type { OpenAPIV3_1 as OpenApiV31 } from 'openapi-types';
-
 import {
   httpStatusCodeRanges,
   isHttpStatusCodeRange,
-} from '../http-status-code-ranges.js';
+} from '@thymian/http-status-codes';
+import type { OpenAPIV3_1 as OpenApiV31 } from 'openapi-types';
+
 import {
   processResponseObject,
   type ResponsesWithLinks,

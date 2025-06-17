@@ -28,8 +28,6 @@ export async function loadOpenapi(
     ...opts,
   } satisfies ParseOpenApiOptions;
 
-  console.log(options);
-
   const plugins = [];
 
   if (options.allowExternalFiles) {

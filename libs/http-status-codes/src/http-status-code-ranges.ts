@@ -1,10 +1,8 @@
-import {
-  clientErrorStatusCodes,
-  informationalStatusCodes,
-  redirectionStatusCodes,
-  serverErrorStatusCodes,
-  successfulStatusCodes,
-} from '@thymian/http-status-codes';
+import { informationalStatusCodes } from './1xx/index.js';
+import { successfulStatusCodes } from './2xx/index.js';
+import { redirectionStatusCodes } from './3xx/index.js';
+import { clientErrorStatusCodes } from './4xx/index.js';
+import { serverErrorStatusCodes } from './5xx/index.js';
 
 export const httpStatusCodeRanges = {
   '1XX': informationalStatusCodes,
