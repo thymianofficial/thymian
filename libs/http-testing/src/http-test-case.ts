@@ -38,7 +38,7 @@ export type HttpTestCaseResult = {
   type: 'error' | 'assertion-failure' | 'assertion-success' | 'info';
 };
 
-export type ThymianHttpTestTransaction = {
+export type ThymianHttpTransaction = {
   thymianReq: ThymianHttpRequest;
   thymianReqId: string;
   thymianRes: ThymianHttpResponse;
@@ -49,13 +49,13 @@ export type ThymianHttpTestTransaction = {
 export interface GroupedHttpTestCaseStep
   extends HttpTestCaseStep<{
     key: string;
-    transactions: ThymianHttpTestTransaction[];
+    transactions: ThymianHttpTransaction[];
   }> {
   type: 'grouped';
 }
 
 export interface SingleHttpTestCaseStep
-  extends HttpTestCaseStep<ThymianHttpTestTransaction> {
+  extends HttpTestCaseStep<ThymianHttpTransaction> {
   type: 'single';
 }
 
@@ -67,7 +67,7 @@ export interface CustomHttpTestCaseStep<Source = unknown>
 export type HttpTestCaseTransaction = {
   request: HttpRequestTemplate;
   response?: HttpResponse;
-  source?: ThymianHttpTestTransaction;
+  source?: ThymianHttpTransaction;
 };
 
 export interface HttpTestCaseStep<Source = unknown> {
@@ -81,6 +81,7 @@ export type HttpTestCase<
 > = {
   duration: number;
   status: 'running' | 'skipped' | 'failed' | 'passed';
+  reason?: string;
   readonly steps: Steps;
   readonly results: HttpTestCaseResult[];
 };

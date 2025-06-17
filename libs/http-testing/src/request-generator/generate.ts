@@ -1,21 +1,32 @@
 import { ThymianFormat, type ThymianHttpRequest } from '@thymian/core';
 
 import type { HttpRequestTemplate } from '../http-request-template.js';
-import type { ThymianHttpTestTransaction } from '../http-test-case.js';
-import { type GenerateContent, RequestGenerator } from './request-generator.js';
+import type { ThymianHttpTransaction } from '../http-test-case.js';
+import {
+  type GenerateContent,
+  type GenerateParameter,
+  RequestGenerator,
+} from './request-generator.js';
 
 export function generateRequestForTransactions(
   format: ThymianFormat,
-  transaction: ThymianHttpTestTransaction,
-  generateContent: GenerateContent
+  transaction: ThymianHttpTransaction,
+  generateContent: GenerateContent,
+  generateParameter: GenerateParameter
 ): Promise<HttpRequestTemplate> {
-  return new RequestGenerator(format, transaction, generateContent).generate();
+  return new RequestGenerator(
+    format,
+    transaction,
+    generateContent,
+    generateParameter
+  ).generate();
 }
 
 export function generateRequest(
   format: ThymianFormat,
   reqId: string,
-  generateContent: GenerateContent
+  generateContent: GenerateContent,
+  generateParameter: GenerateParameter
 ): Promise<HttpRequestTemplate> {
   const thymianReq = format.getNode<ThymianHttpRequest>(reqId);
 
@@ -26,6 +37,7 @@ export function generateRequest(
   return new RequestGenerator(
     format,
     { thymianReqId: reqId, thymianReq },
-    generateContent
+    generateContent,
+    generateParameter
   ).generate();
 }

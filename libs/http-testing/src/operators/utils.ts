@@ -1,4 +1,5 @@
 import { isRecord } from '../utils.js';
+import type { HttpTestCase, HttpTestCaseStep } from '../http-test-case.js';
 
 export function hasOwnProperty<
   T extends Record<PropertyKey, unknown>,
@@ -17,4 +18,15 @@ export function hasThymianResId(
   value: unknown
 ): value is Record<PropertyKey, unknown> & { thymianResId: string } {
   return isRecord(value) && 'thymianResId' in value;
+}
+
+export function previousStep<Steps extends HttpTestCaseStep[]>(
+  testCase: HttpTestCase<Steps>
+): Steps extends [...HttpTestCaseStep[], infer Previous, HttpTestCaseStep]
+  ? Previous
+  : undefined {
+  // TODO
+  // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+  // @ts-expect-error
+  return testCase.steps.at(-2);
 }

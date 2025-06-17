@@ -24,7 +24,7 @@ export type DefineTestOptions = {
   validate: boolean;
 };
 
-export function defineTest(
+export function defineStep(
   options: Partial<DefineTestOptions> = {}
 ): OperatorFunction<
   HttpTestInstance<ThymianFormat>,

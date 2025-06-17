@@ -6,7 +6,7 @@ import {
 } from '@thymian/core';
 
 import type { HttpRequestTemplate } from '../http-request-template.js';
-import type { ThymianHttpTestTransaction } from '../http-test-case.js';
+import type { ThymianHttpTransaction } from '../http-test-case.js';
 
 export type GenerateContent = (
   schema: ThymianSchema,
@@ -25,7 +25,7 @@ export class RequestGenerator {
   constructor(
     protected readonly format: ThymianFormat,
     protected readonly transaction: PartialBy<
-      ThymianHttpTestTransaction,
+      ThymianHttpTransaction,
       'transactionId' | 'thymianRes' | 'thymianResId'
     >,
     protected readonly generateContent: GenerateContent,

@@ -10,14 +10,17 @@ import type {
 import type { HttpRequestTemplate } from './http-request-template.js';
 import type { HttpResponse } from './http-response.js';
 import type {
+  HttpTestCase,
+  HttpTestCaseStep,
   HttpTestCaseTransaction,
-  ThymianHttpTestTransaction,
+  ThymianHttpTransaction,
 } from './http-test-case.js';
 import {
   generateRequest as defaultRequestGenerator,
   generateRequestForTransactions as defaultTransactionGenerator,
 } from './request-generator/generate.js';
 import type { HttpRequest } from './run-requests.js';
+import type { HttpTestInstance } from './http-test.js';
 
 export interface HttpTestContext {
   format: ThymianFormat;
@@ -32,7 +35,7 @@ export interface HttpTestContext {
 
   generateRequest(
     format: ThymianFormat,
-    transaction: ThymianHttpTestTransaction
+    transaction: ThymianHttpTransaction
   ): Promise<HttpRequestTemplate>;
 
   generateRequestFor(reqId: string): Promise<HttpRequestTemplate>;
@@ -43,13 +46,23 @@ export interface HttpTestContext {
     name: string,
     type: 'query' | 'path' | 'header' | 'cookie',
     parameter: Parameter
-  ): Promise<unknown>;
+  ): Promise<{ content: unknown; encoding?: string }>;
 
   runHook(
     name: 'authorize',
     input: HttpTestCaseTransaction
   ): Promise<HttpTestCaseTransaction>;
   runHook<Input, Output = Input>(name: string, input: Input): Promise<Output>;
+
+  skip<Steps extends HttpTestCaseStep[]>(
+    testCase: HttpTestCase<Steps>,
+    reason?: string
+  ): HttpTestInstance<HttpTestCase<Steps>>;
+
+  fail<Steps extends HttpTestCaseStep[]>(
+    testCase: HttpTestCase<Steps>,
+    reason?: string
+  ): HttpTestInstance<HttpTestCase<Steps>>;
 
   auth?: {
     basic?: (transaction: HttpTestCaseTransaction) => Promise<[string, string]>;
@@ -58,21 +71,18 @@ export interface HttpTestContext {
 
 export function createHttpTestContext<
   Context extends PartialBy<
-    HttpTestContext,
+    Omit<HttpTestContext, 'skip' | 'fail'>,
     'generateRequest' | 'generateRequestFor' | 'generateParameterValue'
   >
 >(context: Context): HttpTestContext {
-  const generateRequest =
-    context.generateRequest ??
-    function generateRequest(
-      format: ThymianFormat,
-      transaction: ThymianHttpTestTransaction
-    ): Promise<HttpRequestTemplate> {
-      return defaultTransactionGenerator(
-        format,
-        transaction,
-        context.generateContent
-      );
+  const generateParameterValue =
+    context.generateParameterValue ??
+    function generateParameterValue(
+      name: string,
+      type: 'query' | 'path' | 'header' | 'cookie',
+      parameter: Parameter
+    ) {
+      return context.generateContent(parameter.schema);
     };
 
   const generateRequestFor =
@@ -87,18 +97,23 @@ export function createHttpTestContext<
       return defaultRequestGenerator(
         context.format,
         reqId,
-        context.generateContent
+        context.generateContent,
+        generateParameterValue
       );
     };
 
-  const generateParameterValue =
-    context.generateParameterValue ??
-    function generateParameterValue(
-      name: string,
-      type: 'query' | 'path' | 'header' | 'cookie',
-      parameter: Parameter
-    ) {
-      return context.generateContent(parameter.schema);
+  const generateRequest =
+    context.generateRequest ??
+    function generateRequest(
+      format: ThymianFormat,
+      transaction: ThymianHttpTransaction
+    ): Promise<HttpRequestTemplate> {
+      return defaultTransactionGenerator(
+        format,
+        transaction,
+        context.generateContent,
+        generateParameterValue
+      );
     };
 
   return {
@@ -106,5 +121,29 @@ export function createHttpTestContext<
     generateRequest,
     generateRequestFor,
     generateParameterValue,
+    skip<Steps extends HttpTestCaseStep[]>(
+      testCase: HttpTestCase<Steps>,
+      reason?: string
+    ): HttpTestInstance<HttpTestCase<Steps>> {
+      testCase.status = 'skipped';
+      testCase.reason = reason;
+
+      return {
+        ctx: this,
+        curr: testCase,
+      };
+    },
+    fail<Steps extends HttpTestCaseStep[]>(
+      testCase: HttpTestCase<Steps>,
+      reason?: string
+    ): HttpTestInstance<HttpTestCase<Steps>> {
+      testCase.status = 'failed';
+      testCase.reason = reason;
+
+      return {
+        ctx: this,
+        curr: testCase,
+      };
+    },
   };
 }

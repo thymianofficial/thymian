@@ -1,11 +1,11 @@
 import { filter, type MonoTypeOperatorFunction } from 'rxjs';
 
 import type { HttpTestInstance } from '../http-test.js';
-import type { ThymianHttpTestTransaction } from '../http-test-case.js';
+import type { ThymianHttpTransaction } from '../http-test-case.js';
 
 export function requireAuthorization(
   requireAuthorization = true
-): MonoTypeOperatorFunction<HttpTestInstance<ThymianHttpTestTransaction>> {
+): MonoTypeOperatorFunction<HttpTestInstance<ThymianHttpTransaction>> {
   return filter(({ curr, ctx }) => {
     return (
       requireAuthorization ===

@@ -5,9 +5,9 @@ import {
 } from '@thymian/core';
 import { from, mergeMap, type OperatorFunction } from 'rxjs';
 
-import { matchObjects, type StringAndNumberProperties } from '../utils.js';
 import type { HttpTestInstance } from '../http-test.js';
-import type { ThymianHttpTestTransaction } from '../http-test-case.js';
+import type { ThymianHttpTransaction } from '../http-test-case.js';
+import { matchObjects, type StringAndNumberProperties } from '../utils.js';
 
 export type RequestFilter =
   | StringAndNumberProperties<ThymianHttpRequest>
@@ -22,14 +22,14 @@ export function forHttpTransactions(
   resFilter: ResponseFilter = {}
 ): OperatorFunction<
   HttpTestInstance<ThymianFormat>,
-  HttpTestInstance<ThymianHttpTestTransaction>
+  HttpTestInstance<ThymianHttpTransaction>
 > {
   return mergeMap(({ ctx }) => {
     const { format } = ctx;
 
     const transactions = format
       .getHttpTransactions()
-      .map<ThymianHttpTestTransaction>(
+      .map<ThymianHttpTransaction>(
         ([thymianReqId, thymianResId, transactionId]) => {
           const thymianReq = format.getNode<ThymianHttpRequest>(thymianReqId);
           const thymianRes = format.getNode<ThymianHttpResponse>(thymianResId);

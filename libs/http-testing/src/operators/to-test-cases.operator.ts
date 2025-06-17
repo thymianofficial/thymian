@@ -13,7 +13,7 @@ import type {
   GroupedHttpTestCaseStep,
   HttpTestCase,
   SingleHttpTestCaseStep,
-  ThymianHttpTestTransaction,
+  ThymianHttpTransaction,
 } from '../http-test-case.js';
 import { isRecord } from '../utils.js';
 
@@ -25,7 +25,7 @@ export function isGroupedObservable<K, T>(
 
 export function isThymianHttpTestTransaction(
   value: unknown
-): value is ThymianHttpTestTransaction {
+): value is ThymianHttpTransaction {
   return (
     isRecord(value) &&
     'thymianReqId' in value &&
@@ -41,16 +41,16 @@ export function isThymianHttpTestTransaction(
 
 export function toTestCases<
   Input extends
-    | ThymianHttpTestTransaction
-    | GroupedObservable<string, ThymianHttpTestTransaction>
+    | ThymianHttpTransaction
+    | GroupedObservable<string, ThymianHttpTransaction>
     | unknown
 >(): OperatorFunction<
   HttpTestInstance<Input>,
   HttpTestInstance<
     HttpTestCase<
-      Input extends ThymianHttpTestTransaction
+      Input extends ThymianHttpTransaction
         ? [SingleHttpTestCaseStep]
-        : Input extends GroupedObservable<string, ThymianHttpTestTransaction>
+        : Input extends GroupedObservable<string, ThymianHttpTransaction>
         ? [GroupedHttpTestCaseStep]
         : [CustomHttpTestCaseStep<Input>]
     >
@@ -60,7 +60,7 @@ export function toTestCases<
   // eslint-disable-next-line @typescript-eslint/ban-ts-comment
   // @ts-expect-error
   return mergeMap(({ curr, ctx }) => {
-    if (isGroupedObservable<string, ThymianHttpTestTransaction>(curr)) {
+    if (isGroupedObservable<string, ThymianHttpTransaction>(curr)) {
       return curr.pipe(
         reduce(
           (acc, curr) => {
@@ -79,7 +79,7 @@ export function toTestCases<
                   transactions: [],
                   source: {
                     key: curr.key,
-                    transactions: [] as ThymianHttpTestTransaction[],
+                    transactions: [] as ThymianHttpTransaction[],
                   },
                 } satisfies GroupedHttpTestCaseStep,
               ],

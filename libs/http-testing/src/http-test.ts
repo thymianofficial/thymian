@@ -4,7 +4,7 @@ import { Observable, of } from 'rxjs';
 import type { HttpTestCase } from './http-test-case.js';
 import type { HttpTestContext } from './http-test-context.js';
 import {
-  defineTest,
+  defineStep,
   type DefineTestOptions,
 } from './operators/define-test.operator.js';
 
@@ -41,7 +41,7 @@ export function httpTest(
       typeof testFnOrOptions === 'function'
         ? testFnOrOptions
         : (test: Observable<HttpTestInstance<ThymianFormat>>) =>
-            test.pipe(defineTest(testFnOrOptions));
+            test.pipe(defineStep(testFnOrOptions));
 
     const start = performance.now();
 

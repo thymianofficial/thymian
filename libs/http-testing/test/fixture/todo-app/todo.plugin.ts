@@ -129,6 +129,25 @@ export default function todos(_fastify: FastifyInstance) {
     }
   );
 
+  fastify.get(
+    '/:id',
+    {
+      schema: {
+        params: {
+          type: 'object',
+          properties: {
+            id: {
+              type: 'string',
+            },
+          },
+        },
+      },
+    },
+    async (req, res) => {
+      return todos.find((todo) => todo.id === req.params.id);
+    }
+  );
+
   fastify.post(
     '/',
     {
@@ -146,36 +165,17 @@ export default function todos(_fastify: FastifyInstance) {
             },
           },
         },
-        // response: {
-        //   201: {
-        //     type: 'object',
-        //     additionalProperties: false,
-        //     properties: {
-        //       headers: {
-        //         location: {
-        //           type: 'string',
-        //         },
-        //       },
-        //       body: {
-        //         type: 'object',
-        //         properties: {
-        //           id: { type: 'string' },
-        //           title: { type: 'string' },
-        //           text: { type: 'string' },
-        //         },
-        //       },
-        //     },
-        //   },
-        // },
       },
     },
     async (req, reply) => {
       const todo: Todo = {
         ...req.body,
-        id: todos.length.toString(),
+        id: (todos.length + 10).toString(),
       };
 
       todos.push(todo);
+
+      reply.header('location', '/todos/' + todo.id);
 
       reply.status(201);
 
