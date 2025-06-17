@@ -24,6 +24,7 @@ import {
   exampleContentGenerator,
   identityHookRunner,
 } from './utils.js';
+import { expectStatusCode } from '../src/operators/expect-status-code.operator.js';
 
 describe('httpTest - todo app', () => {
   let todoApp: FastifyInstance;
@@ -125,7 +126,8 @@ describe('httpTest - todo app', () => {
               return { curr, ctx };
             }),
             authorizeRequests(),
-            runRequests()
+            runRequests(),
+            expectStatusCode('2XX')
           )
         )
       )

@@ -4,6 +4,9 @@
   "include": [],
   "references": [
     {
+      "path": "../http-status-codes"
+    },
+    {
       "path": "../../core"
     },
     {

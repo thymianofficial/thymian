@@ -19,3 +19,10 @@ export function isHttpStatusCodeRange(
 ): statusCode is HttpStatusCodeRange {
   return /^[12345]XX$/.test(statusCode);
 }
+
+export function statusCodeMatchesRange(
+  statusCode: number | string,
+  range: HttpStatusCodeRange
+): boolean {
+  return !!httpStatusCodeRanges[range].find((code) => code === +statusCode);
+}
