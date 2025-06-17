@@ -1,0 +1,23 @@
+{
+  "name": "@thymian/request-dispatcher",
+  "version": "0.0.1",
+  "files": [
+    "dist",
+    "!**/*.tsbuildinfo"
+  ],
+  "type": "module",
+  "main": "./dist/index.js",
+  "typings": "./dist/index.d.ts",
+  "nx": {
+    "sourceRoot": "plugins/request-dispatcher/src",
+    "projectType": "library",
+    "tags": [
+      "plugin"
+    ],
+    "name": "@thymian/request-dispatcher"
+  },
+  "dependencies": {
+    "async-mutex": "^0.5.0",
+    "undici": "^6.21.2"
+  }
+}
