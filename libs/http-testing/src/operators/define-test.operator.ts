@@ -17,7 +17,7 @@ import { toTestCases } from './to-test-cases.operator.js';
 import { validateResponses } from './validate-responses.operator.js';
 import { runRequests } from './run-requests.operator.js';
 
-export type DefineTestOptions = {
+export type DefineStepOptions = {
   reqFilter: RequestFilter;
   resFilter: ResponseFilter;
   authorize: boolean;
@@ -25,12 +25,12 @@ export type DefineTestOptions = {
 };
 
 export function defineStep(
-  options: Partial<DefineTestOptions> = {}
+  options: Partial<DefineStepOptions> = {}
 ): OperatorFunction<
   HttpTestInstance<ThymianFormat>,
   HttpTestInstance<HttpTestCase<[SingleHttpTestCaseStep]>>
 > {
-  const opts: DefineTestOptions = {
+  const opts: DefineStepOptions = {
     reqFilter: {},
     resFilter: {},
     authorize: true,

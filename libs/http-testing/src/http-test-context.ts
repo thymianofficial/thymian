@@ -19,7 +19,7 @@ import {
   generateRequest as defaultRequestGenerator,
   generateRequestForTransactions as defaultTransactionGenerator,
 } from './request-generator/generate.js';
-import type { HttpRequest } from './run-requests.js';
+import type { HttpRequest } from './http-request.js';
 import type { HttpTestInstance } from './http-test.js';
 
 export interface HttpTestContext {
@@ -60,6 +60,11 @@ export interface HttpTestContext {
   ): HttpTestInstance<HttpTestCase<Steps>>;
 
   fail<Steps extends HttpTestCaseStep[]>(
+    testCase: HttpTestCase<Steps>,
+    reason?: string
+  ): HttpTestInstance<HttpTestCase<Steps>>;
+
+  assertionFailure<Steps extends HttpTestCaseStep[]>(
     testCase: HttpTestCase<Steps>,
     reason?: string
   ): HttpTestInstance<HttpTestCase<Steps>>;
@@ -144,6 +149,17 @@ export function createHttpTestContext<
         ctx: this,
         curr: testCase,
       };
+    },
+    assertionFailure<Steps extends HttpTestCaseStep[]>(
+      testCase: HttpTestCase<Steps>,
+      reason: string
+    ): HttpTestInstance<HttpTestCase<Steps>> {
+      testCase.results.push({
+        type: 'assertion-failure',
+        message: reason,
+      });
+
+      return this.fail(testCase, reason);
     },
   };
 }

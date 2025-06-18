@@ -39,7 +39,7 @@ export function generateRequests<Steps extends HttpTestCaseStep[]>(
       }
     } else if (isCustomHttpTestCaseStep(step)) {
       // TODO: should be warn
-      ctx.logger.error(
+      ctx.logger.warn(
         'generateRequests was called on custom http test step which is not supported.'
       );
     }

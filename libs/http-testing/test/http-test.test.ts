@@ -13,7 +13,7 @@ import { defineStep } from '../src/operators/define-test.operator.js';
 import { forHttpTransactions } from '../src/operators/for-http-transactions.operator.js';
 import { generateRequests } from '../src/operators/generate-requests.operator.js';
 import { runRequests } from '../src/operators/run-requests.operator.js';
-import { skip } from '../src/operators/skip.operator.js';
+import { skipTestCase } from '../src/operators/skip.operator.js';
 import { step } from '../src/operators/step.operator.js';
 import { toTestCases } from '../src/operators/to-test-cases.operator.js';
 import { validateResponses } from '../src/operators/validate-responses.operator.js';
@@ -59,7 +59,7 @@ describe('httpTest - todo app', () => {
       test.pipe(
         forHttpTransactions({ method: 'GET' }),
         toTestCases(),
-        skip(),
+        skipTestCase(),
         generateRequests(),
         authorizeRequests(),
         runRequests(),

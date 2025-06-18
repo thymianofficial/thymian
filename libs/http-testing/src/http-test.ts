@@ -5,7 +5,7 @@ import type { HttpTestCase } from './http-test-case.js';
 import type { HttpTestContext } from './http-test-context.js';
 import {
   defineStep,
-  type DefineTestOptions,
+  type DefineStepOptions,
 } from './operators/define-test.operator.js';
 
 export type HttpTestResult = {
@@ -29,12 +29,7 @@ export type HttpTestRunnerFn = (
 
 export function httpTest(
   name: string,
-  options: Partial<DefineTestOptions>
-): HttpTestRunnerFn;
-export function httpTest(name: string, testFn: HttpTestFn): HttpTestRunnerFn;
-export function httpTest(
-  name: string,
-  testFnOrOptions: Partial<DefineTestOptions> | HttpTestFn = {}
+  testFnOrOptions: Partial<DefineStepOptions> | HttpTestFn = {}
 ): HttpTestRunnerFn {
   return (ctx) => {
     const testFn =

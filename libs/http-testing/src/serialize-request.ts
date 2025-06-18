@@ -1,5 +1,5 @@
 import type { HttpTestCaseTransaction } from './http-test-case.js';
-import type { HttpRequest } from './run-requests.js';
+import type { HttpRequest } from './http-request.js';
 import {
   serializeHeaderParameter,
   serializePathParameter,
