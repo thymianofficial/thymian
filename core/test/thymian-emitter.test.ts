@@ -1,8 +1,10 @@
-import { describe, expect, it, vitest } from 'vitest';
-import { ThymianEmitter } from '../src/thymian-emitter.js';
 import { setTimeout } from 'node:timers/promises';
-import { ThymianError } from '../src/thymian.error.js';
+
+import { describe, expect, it, vitest } from 'vitest';
+
 import { NoopLogger } from '../src/logger/noop.logger.js';
+import { ThymianError } from '../src/thymian.error.js';
+import { ThymianEmitter } from '../src/thymian-emitter.js';
 
 declare module '../src/thymian-emitter.js' {
   interface ThymianHooks {

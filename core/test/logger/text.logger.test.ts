@@ -1,26 +1,32 @@
+import chalk from 'chalk';
 import {
+  afterEach,
+  beforeEach,
+  describe,
   expect,
   it,
-  describe,
-  vitest,
-  beforeEach,
   type MockInstance,
-  afterEach,
+  vitest,
 } from 'vitest';
+
 import { TextLogger } from '../../src/logger/text.logger.js';
-import chalk from 'chalk';
 
 describe('TextLogger', () => {
   chalk.level = 0;
 
   let consoleMock: MockInstance<
-    [message?: unknown, ...optionalParams: unknown[]],
-    void
+    (message?: unknown, ...optionalParams: unknown[]) => void
+  >;
+  let debugMock: MockInstance<
+    (message?: unknown, ...optionalParams: unknown[]) => void
   >;
 
   beforeEach(() => {
     consoleMock = vitest
       .spyOn(console, 'log')
+      .mockImplementation(() => undefined);
+    debugMock = vitest
+      .spyOn(console, 'debug')
       .mockImplementation(() => undefined);
   });
 
@@ -48,14 +54,13 @@ describe('TextLogger', () => {
     const logger = new TextLogger('', true);
     logger.debug('should not be printed');
 
-    expect(consoleMock).toHaveBeenCalled();
+    expect(debugMock).toHaveBeenCalled();
   });
 
   it('should create child logger with new name and same verbose level', () => {
     const baseLogger = new TextLogger('BaseLogger', true);
     const childLogger = baseLogger.child('ChildLogger');
 
-    expect(childLogger.name).toBe('ChildLogger');
-    expect(childLogger.verbose).toBeTruthy();
+    expect(childLogger.namespace).toBe('ChildLogger');
   });
 });

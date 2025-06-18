@@ -137,20 +137,20 @@ export class ThymianFormat {
     );
   }
 
-  neighboursOfType<Type extends ThymianNodeType>(
+  getNeighboursOfType<Type extends ThymianNodeType>(
     id: string,
     type: Type
-  ): ThymianNodes[Type][] {
+  ): [string, ThymianNodes[Type]][] {
     return this.graph.reduceNeighbors(
       id,
-      (acc, _, node) => {
+      (acc, id, node) => {
         if (isNodeType<ThymianNodes[Type]>(node, type)) {
-          acc.push(node);
+          acc.push([id, node]);
         }
 
         return acc;
       },
-      [] as ThymianNodes[Type][]
+      [] as [string, ThymianNodes[Type]][]
     );
   }
 
@@ -186,7 +186,7 @@ export class ThymianFormat {
     if (/^(http|https)/.test(url)) {
       urlObj = new URL(url);
     } else {
-      urlObj = new URL('http://localhost:8080/' + url);
+      urlObj = new URL('http://localhost:8080' + url);
     }
 
     const pathname = urlObj.pathname;

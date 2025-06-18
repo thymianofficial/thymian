@@ -6,5 +6,7 @@ export * from './logger/text.logger.js';
 export * from './plugin.js';
 export * from './thymian.error.js';
 export * from './thymian.js';
+export * from './thymian-command.js';
 export * from './thymian-emitter.js';
 export * from './utils.js';
+export * from 'json-schema-to-ts';

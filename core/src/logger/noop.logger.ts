@@ -3,17 +3,19 @@
 import type { Logger } from './logger.js';
 
 export class NoopLogger implements Logger {
-  readonly name: string;
+  readonly namespace: string;
 
   constructor(name = '') {
-    this.name = name;
+    this.namespace = name;
   }
 
+  trace(): void {}
+  warn(): void {}
   debug(): void {}
   info(): void {}
   error(): void {}
   out(): void {}
-  child(): NoopLogger {
+  child(): Logger {
     return this;
   }
 }

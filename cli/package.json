@@ -1,0 +1,39 @@
+{
+  "name": "thymian",
+  "version": "0.0.1",
+  "main": "./dist/index.js",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "type": "module",
+  "exports": {
+    "./package.json": "./package.json",
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "!**/*.tsbuildinfo"
+  ],
+  "dependencies": {
+    "@oclif/core": "^4.3.3",
+    "tslib": "^2.3.0",
+    "@thymian/core": "^0",
+    "@thymian/openapi": "^0"
+  },
+  "bin": {
+    "thymian": "./bin/run.js"
+  },
+  "oclif": {
+    "bin": "thymian",
+    "commands": "./dist/commands",
+    "dirname": "thymian",
+    "topicSeparator": ":"
+  },
+  "devDependencies": {
+    "@types/node": "^18.19.112",
+    "tsx": "^4.20.3"
+  }
+}
