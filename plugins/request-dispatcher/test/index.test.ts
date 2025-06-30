@@ -8,6 +8,6 @@ describe('runner plugin', () => {
 
     thymian.register(dispatcherPlugin, { arg: 4 });
 
-    await thymian.start();
+    await thymian.ready();
   });
 });

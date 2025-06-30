@@ -1,0 +1,14 @@
+autoload: true
+plugins:
+  "@thymian/http-linter":
+    options:
+      rules:
+        - "@thymian/rfc-9110-rules"
+        - my-rule.mjs
+      ruleOptions: {}
+  "@thymian/openapi":
+    options:
+      filePath: test/fixtures/petstore-v2.yaml
+  "@thymian/request-dispatcher": {}
+  "@thymian/sampler": {}
+

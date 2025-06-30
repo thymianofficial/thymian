@@ -1,0 +1,22 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "files": [],
+  "include": [],
+  "references": [
+    {
+      "path": "../../core"
+    },
+    {
+      "path": "../http-testing"
+    },
+    {
+      "path": "../../plugins/http-linter"
+    },
+    {
+      "path": "./tsconfig.lib.json"
+    }
+  ],
+  "nx": {
+    "addTypecheckTarget": false
+  }
+}

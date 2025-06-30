@@ -18,8 +18,8 @@ import {
   isValidServerErrorPhrase,
   isValidServerErrorStatusCode,
 } from './5xx/index.js';
-import type { HttpStatusPhrase } from './http-status-phrase.js';
 import type { HttpStatusCode } from './http-status-code.js';
+import type { HttpStatusPhrase } from './http-status-phrase.js';
 
 export function isValidHttpStatusCode(code: unknown): code is HttpStatusCode {
   let codeNum: number | undefined;

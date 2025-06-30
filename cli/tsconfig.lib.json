@@ -16,10 +16,19 @@
   "include": ["src/**/*.ts"],
   "references": [
     {
+      "path": "../plugins/http-linter-cli-reporter/tsconfig.lib.json"
+    },
+    {
+      "path": "../plugins/http-linter/tsconfig.lib.json"
+    },
+    {
       "path": "../plugins/openapi/tsconfig.lib.json"
     },
     {
       "path": "../core/tsconfig.lib.json"
+    },
+    {
+      "path": "../libs/cli-common/tsconfig.lib.json"
     }
   ]
 }

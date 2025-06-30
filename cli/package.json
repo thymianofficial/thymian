@@ -18,10 +18,16 @@
     "!**/*.tsbuildinfo"
   ],
   "dependencies": {
-    "@oclif/core": "^4.3.3",
-    "tslib": "^2.3.0",
+    "@oclif/plugin-help": "^6.2.29",
+    "@oclif/plugin-not-found": "^3.2.57",
+    "@oclif/plugin-plugins": "^5.4.43",
+    "@oclif/plugin-version": "^2.2.30",
+    "@thymian/cli-common": "^0",
     "@thymian/core": "^0",
-    "@thymian/openapi": "^0"
+    "@thymian/http-linter": "^0",
+    "@thymian/http-linter-cli-reporter": "^0",
+    "@thymian/openapi": "^0",
+    "tslib": "^2.3.0"
   },
   "bin": {
     "thymian": "./bin/run.js"
@@ -30,7 +36,12 @@
     "bin": "thymian",
     "commands": "./dist/commands",
     "dirname": "thymian",
-    "topicSeparator": ":"
+    "topicSeparator": ":",
+    "plugins": [
+      "@oclif/plugin-help",
+      "@oclif/plugin-not-found",
+      "@oclif/plugin-version"
+    ]
   },
   "devDependencies": {
     "@types/node": "^18.19.112",

@@ -1,5 +1,14 @@
 #!/usr/bin/env node
 
-import {execute} from '@oclif/core'
+import { getPluginNames, oclif } from '@thymian/cli-common';
 
-await execute({dir: import.meta.url})
+await oclif.execute({
+  dir: import.meta.url,
+  loadOptions: {
+    pluginAdditions: {
+      core: await getPluginNames(),
+      path: process.cwd(),
+    },
+    root: import.meta.url,
+  },
+});

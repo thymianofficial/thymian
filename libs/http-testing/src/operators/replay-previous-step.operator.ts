@@ -32,7 +32,7 @@ export function replayStep<
         request: transaction.request,
         source: transaction.source,
       })),
-    };
+    } as CurrentStep;
 
     curr.steps.push(newStep);
 

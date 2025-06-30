@@ -4,10 +4,19 @@
   "include": [],
   "references": [
     {
+      "path": "../plugins/http-linter-cli-reporter"
+    },
+    {
+      "path": "../plugins/http-linter"
+    },
+    {
       "path": "../plugins/openapi"
     },
     {
       "path": "../core"
+    },
+    {
+      "path": "../libs/cli-common"
     },
     {
       "path": "./tsconfig.lib.json"

@@ -7,19 +7,22 @@ import {
 } from './serialize-parameter.js';
 
 function serializeBasePath(transaction: HttpTestCaseTransaction) {
-  return transaction.request.path.replace(
+  return transaction.requestTemplate.path.replace(
     // from https://github.com/scalar/scalar/blob/8165b3b1487ef38a1e97571032b0bd8c32cd9d91/packages/helpers/src/regex/regex-helpers.ts#L8
     /{{\s*([^}\s]+?)\s*}}|{\s*([^}\s]+?)\s*}|:\b[\w.]+\b/g,
     (_, __, parameterName) => {
-      if (transaction.request.pathParameters[parameterName] !== undefined) {
+      if (
+        transaction.requestTemplate.pathParameters[parameterName] !== undefined
+      ) {
         if (transaction.source?.thymianReq.pathParameters[parameterName]) {
           return serializePathParameter(
             parameterName,
-            transaction.request.pathParameters[parameterName],
+            transaction.requestTemplate.pathParameters[parameterName],
             transaction.source.thymianReq.pathParameters[parameterName].style
           );
         } else {
-          const type = typeof transaction.request.pathParameters[parameterName];
+          const type =
+            typeof transaction.requestTemplate.pathParameters[parameterName];
 
           if (
             type === 'string' ||
@@ -28,7 +31,9 @@ function serializeBasePath(transaction: HttpTestCaseTransaction) {
             type === 'bigint' ||
             type === 'symbol'
           ) {
-            return String(transaction.request.pathParameters[parameterName]);
+            return String(
+              transaction.requestTemplate.pathParameters[parameterName]
+            );
           } else {
             throw new Error(
               `Value of path parameter "${parameterName}" must be of type string but got "${type}".`
@@ -43,7 +48,7 @@ function serializeBasePath(transaction: HttpTestCaseTransaction) {
 }
 
 function serializeQuery(transaction: HttpTestCaseTransaction) {
-  return Object.entries(transaction.request.query)
+  return Object.entries(transaction.requestTemplate.query)
     .map(([name, value]) => {
       if (transaction.source?.thymianReq.queryParameters[name]) {
         return serializeQueryParameter(
@@ -85,7 +90,7 @@ export function serializeHeaders(
 ): Record<string, string> {
   const headers = transaction.source?.thymianReq.headers ?? {};
 
-  return Object.entries(transaction.request.headers).reduce(
+  return Object.entries(transaction.requestTemplate.headers).reduce(
     (acc, [key, value]) => {
       if (headers[key]) {
         acc[key] = serializeHeaderParameter(key, value, headers[key].style);
@@ -135,12 +140,13 @@ export function serializeBody(body: unknown): string | undefined {
 export function serializeRequest(
   transaction: HttpTestCaseTransaction
 ): HttpRequest {
+  console.log(transaction);
   return {
-    body: serializeBody(transaction.request.body),
-    bodyEncoding: transaction.request.bodyEncoding,
+    body: serializeBody(transaction.requestTemplate.body),
+    bodyEncoding: transaction.requestTemplate.bodyEncoding,
     headers: serializeHeaders(transaction),
-    method: transaction.request.method,
-    origin: transaction.request.origin,
+    method: transaction.requestTemplate.method,
+    origin: transaction.requestTemplate.origin,
     path: serializePath(transaction),
   };
 }

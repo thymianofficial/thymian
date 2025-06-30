@@ -4,10 +4,13 @@
   "include": [],
   "references": [
     {
+      "path": "../../libs/http-status-codes"
+    },
+    {
       "path": "../../core"
     },
     {
-      "path": "../../libs/http-status-codes"
+      "path": "../../libs/cli-common"
     },
     {
       "path": "./tsconfig.lib.json"

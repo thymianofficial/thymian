@@ -7,10 +7,34 @@
       "path": "./core"
     },
     {
-      "path": "./plugins/runner"
+      "path": "./plugins/request-dispatcher"
     },
     {
-      "path": "./plugins/test-runner"
+      "path": "./plugins/openapi"
+    },
+    {
+      "path": "./libs/http-status-codes"
+    },
+    {
+      "path": "./libs/http-testing"
+    },
+    {
+      "path": "./plugins/sampler"
+    },
+    {
+      "path": "./cli"
+    },
+    {
+      "path": "./plugins/http-linter"
+    },
+    {
+      "path": "./libs/rfc-9110-rules"
+    },
+    {
+      "path": "./libs/cli-common"
+    },
+    {
+      "path": "./plugins/http-linter-cli-reporter"
     }
   ]
 }

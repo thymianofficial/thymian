@@ -2,12 +2,20 @@ import eventemitter from 'eventemitter2';
 
 import type { Logger } from './logger/logger.js';
 import { ThymianError } from './thymian.error.js';
+import type { CloseHook } from './hooks/close.hook.js';
+import type { EmptyHook } from './hooks/hook.js';
+import type { LoadFormatHook } from './hooks/load-format.hook.js';
+import type { RegisterPluginEvent } from './events/register-plugin.event.js';
 
-// eslint-disable-next-line @typescript-eslint/no-empty-interface, @typescript-eslint/no-empty-object-type
-export interface ThymianHooks {}
+export interface ThymianHooks {
+  'core.close': CloseHook;
+  'core.ready': EmptyHook;
+  'core.load-format': LoadFormatHook;
+}
 
 export interface ThymianEvents {
   'core.error': ThymianError;
+  'core.register': RegisterPluginEvent;
 }
 
 export type ThymianListerFn<Arg> = (arg: Arg) => void | Promise<void>;

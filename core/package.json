@@ -15,7 +15,17 @@
       "core"
     ]
   },
+  "exports": {
+    "./package.json": "./package.json",
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    },
+    "./ajv": "./dist/ajv.js"
+  },
   "dependencies": {
+    "ajv": "^8.17.1",
     "chalk": "^5.4.1",
     "eventemitter2": "^6.4.9",
     "graphology": "^0.26.0",

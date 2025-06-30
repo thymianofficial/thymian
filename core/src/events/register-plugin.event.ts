@@ -1,4 +1,7 @@
-import type { ThymianPluginEvents, ThymianPluginHooks } from '../plugin.js';
+import type {
+  ThymianPluginEvents,
+  ThymianPluginHooks,
+} from '../thymian-plugin.js';
 
 export type RegisterPluginEvent = {
   name: string;

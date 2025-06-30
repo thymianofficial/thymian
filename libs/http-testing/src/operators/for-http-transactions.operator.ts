@@ -11,11 +11,20 @@ import { matchObjects, type StringAndNumberProperties } from '../utils.js';
 
 export type RequestFilter =
   | StringAndNumberProperties<ThymianHttpRequest>
-  | ((req: ThymianHttpRequest, responses: ThymianHttpResponse[]) => boolean);
+  | ((
+      req: ThymianHttpRequest,
+      reqId: string,
+      responses: [string, ThymianHttpResponse][]
+    ) => boolean);
 
 export type ResponseFilter =
   | StringAndNumberProperties<ThymianHttpResponse>
-  | ((res: ThymianHttpResponse, req: ThymianHttpRequest) => boolean);
+  | ((
+      res: ThymianHttpResponse,
+      resId: string,
+      req: ThymianHttpRequest,
+      reqId: string
+    ) => boolean);
 
 export function forHttpTransactions(
   reqFilter: RequestFilter = {},
@@ -54,6 +63,7 @@ export function forHttpTransactions(
           ? (transaction) =>
               reqFilter(
                 transaction.thymianReq,
+                transaction.thymianReqId,
                 ctx.format.getNeighboursOfType(
                   transaction.thymianReqId,
                   'http-response'
@@ -64,7 +74,12 @@ export function forHttpTransactions(
       .filter(
         typeof resFilter === 'function'
           ? (transaction) =>
-              resFilter(transaction.thymianRes, transaction.thymianReq)
+              resFilter(
+                transaction.thymianRes,
+                transaction.thymianResId,
+                transaction.thymianReq,
+                transaction.thymianReqId
+              )
           : (transaction) => matchObjects(transaction.thymianRes, resFilter)
       );
 

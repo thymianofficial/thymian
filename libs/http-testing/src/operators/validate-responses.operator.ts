@@ -39,7 +39,7 @@ export function validateResponses<Steps extends HttpTestCaseStep[]>(
       return { curr, ctx };
     }
 
-    for await (const transaction of step.transactions) {
+    for (const transaction of step.transactions) {
       if (!(transaction.response && hasThymianResId(transaction.source))) {
         continue;
       }

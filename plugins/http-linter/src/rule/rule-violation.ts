@@ -6,5 +6,5 @@ export type RuleViolationLocation = {
 
 export type RuleViolation = {
   message?: string;
-  location: RuleViolationLocation;
+  location?: RuleViolationLocation;
 };

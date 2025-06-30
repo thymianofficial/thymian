@@ -1,4 +1,5 @@
 import type { Dispatcher } from 'undici';
+import type { JSONSchemaType } from '@thymian/core/ajv';
 
 export type HttpRequest = {
   url: string;
@@ -9,25 +10,36 @@ export type HttpRequest = {
   timeout?: number;
 };
 
-export const httpRequestSchema = {
+export const httpRequestSchema: JSONSchemaType<HttpRequest> = {
   type: 'object',
   properties: {
-    url: { type: 'string' },
-    method: { type: 'string' },
-    body: { type: 'string' },
-    bodyEncoding: { type: 'string' },
+    url: { type: 'string', nullable: false },
+    method: { type: 'string', nullable: false },
+    body: { type: 'string', nullable: true },
+    bodyEncoding: { type: 'string', nullable: true },
     headers: {
       type: 'object',
+      required: [],
+      nullable: true,
       additionalProperties: {
-        type: ['array', 'string'],
-        items: { type: 'string' },
+        oneOf: [
+          {
+            type: 'array',
+            items: {
+              type: 'string',
+            },
+          },
+          {
+            type: 'string',
+          },
+        ],
       },
     },
-    timeout: { type: 'number' },
+    timeout: { type: 'number', nullable: true },
   },
   required: ['url', 'method'],
   additionalProperties: false,
-} as const;
+};
 
 export type HttpResponse = {
   statusCode: number;
@@ -38,24 +50,38 @@ export type HttpResponse = {
   duration: number;
 };
 
-export const httpResponseSchema = {
+export const httpResponseSchema: JSONSchemaType<HttpResponse> = {
   type: 'object',
   properties: {
-    statusCode: { type: 'number' },
+    statusCode: { type: 'integer', nullable: false },
     headers: {
       type: 'object',
+      required: [],
       additionalProperties: {
-        type: ['array', 'string'],
-        items: { type: 'string' },
+        oneOf: [
+          {
+            type: 'array',
+            items: {
+              type: 'string',
+            },
+          },
+          {
+            type: 'string',
+          },
+        ],
       },
     },
-    body: { type: 'string' },
-    bodyEncoding: { type: 'string' },
+    body: { type: 'string', nullable: false },
+    bodyEncoding: { type: 'string', nullable: true },
     trailers: {
       type: 'object',
-      additionalProperties: { type: 'string' },
+      required: [],
+      additionalProperties: {
+        type: 'string',
+        nullable: false,
+      },
     },
-    duration: { type: 'number' },
+    duration: { type: 'number', nullable: false },
   },
   required: ['statusCode', 'headers', 'body', 'trailers', 'duration'],
   additionalProperties: false,

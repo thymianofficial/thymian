@@ -28,7 +28,7 @@ export function overrideRequestWithPrevious<
 
     current.transactions = current.transactions.map((transaction) => ({
       ...transaction,
-      request: fn(transaction.request, previous),
+      requestTemplate: fn(transaction.requestTemplate, previous),
     }));
 
     return { curr, ctx };

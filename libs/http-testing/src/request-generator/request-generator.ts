@@ -67,7 +67,7 @@ export class RequestGenerator {
   ): Promise<Record<string, unknown>> {
     const generated = {} as Record<string, unknown>;
 
-    for await (const [name, parameter] of Object.entries(parameters)) {
+    for (const [name, parameter] of Object.entries(parameters)) {
       const { content } = await this.generateParameter(name, type, parameter);
 
       generated[name] = content;
@@ -109,6 +109,12 @@ export class RequestGenerator {
     );
   }
 
+  protected async authorizeRequest(
+    request: HttpRequestTemplate
+  ): Promise<HttpRequestTemplate> {
+    return request;
+  }
+
   async generate(): Promise<HttpRequestTemplate> {
     const request: HttpRequestTemplate = {
       headers: await this.generateHeaders(),
@@ -130,6 +136,6 @@ export class RequestGenerator {
       request.bodyEncoding = encoding;
     }
 
-    return request;
+    return await this.authorizeRequest(request);
   }
 }

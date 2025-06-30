@@ -1,9 +1,9 @@
-import { describe, it, expect, test } from 'vitest';
+import { describe, expect, it } from 'vitest';
+
 import {
   type Draft202012SchemaObject,
   processSchema,
 } from '../../src/processors/json-schema.processor.js';
-import {} from '@thymian/core';
 
 describe('processSchema', () => {
   it('should remove example keyword and move value to examples', () => {

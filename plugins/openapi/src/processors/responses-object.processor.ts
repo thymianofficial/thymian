@@ -50,7 +50,7 @@ export function processResponsesObject(
 
       responses[statusCode] = processResponseObject(
         responseObject as OpenApiV31.ResponseObject,
-        statusCode,
+        +statusCode,
         parameters
       );
     }

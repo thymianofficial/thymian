@@ -1,3 +1,3 @@
-import { Ajv2020 } from 'ajv/dist/2020.js';
+import { Ajv2020, type JSONSchemaType } from 'ajv/dist/2020.js';
 
 export const ajv = new Ajv2020();

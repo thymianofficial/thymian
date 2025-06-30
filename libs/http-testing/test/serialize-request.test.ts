@@ -9,7 +9,7 @@ import { serializeRequest } from '../src/serialize-request.js';
 describe('serializeRequest', () => {
   it('should serialize request with source', () => {
     const req = serializeRequest({
-      request: {
+      requestTemplate: {
         origin: 'http://localhost:8080',
         path: '/users/{userId}/posts',
         pathParameters: {

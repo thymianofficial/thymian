@@ -1,3 +1,3 @@
 @echo off
 
-tsx "%~dp0\dev" %*
+node "%~dp0\dev" %*

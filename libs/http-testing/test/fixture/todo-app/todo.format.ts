@@ -128,7 +128,7 @@ const getSingleTodoReqId = todoFormat.addRequest({
   method: 'GET',
   path: '/todos/{id}',
   pathParameters: {
-    title: {
+    id: {
       schema: { type: 'string', examples: ['1'] },
       style: new QuerySerializationStyleBuilder().build(),
       required: true,

@@ -21,10 +21,16 @@ export function generateRequests<Steps extends HttpTestCaseStep[]>(
 
     const step = curr.steps.at(-1);
 
+    console.log({ step });
+
     if (isSingleHttpTestCaseStep(step)) {
       for (let i = 0; i < amount; i++) {
+        console.log(
+          'generate request' +
+            JSON.stringify(await ctx.generateRequest(ctx.format, step.source))
+        );
         step.transactions.push({
-          request: await ctx.generateRequest(ctx.format, step.source),
+          requestTemplate: await ctx.generateRequest(ctx.format, step.source),
           source: step.source,
         });
       }
@@ -32,19 +38,19 @@ export function generateRequests<Steps extends HttpTestCaseStep[]>(
       for (let i = 0; i < amount; i++) {
         for (const transaction of step.source.transactions) {
           step.transactions.push({
-            request: await ctx.generateRequest(ctx.format, transaction),
+            requestTemplate: await ctx.generateRequest(ctx.format, transaction),
             source: transaction,
           });
         }
       }
     } else if (isCustomHttpTestCaseStep(step)) {
-      // TODO: should be warn
       ctx.logger.warn(
         'generateRequests was called on custom http test step which is not supported.'
       );
     }
-    {
-      return { curr, ctx };
-    }
+
+    console.log({ step });
+
+    return { curr, ctx };
   });
 }

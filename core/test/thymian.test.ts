@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vitest } from 'vitest';
 
 import { NoopLogger } from '../src/logger/noop.logger.js';
-import type { ThymianPlugin } from '../src/plugin.js';
+import type { ThymianPlugin } from '../src/thymian-plugin';
 import { ThymianError } from '../src/thymian.error.js';
 import { PluginRegistrationError, Thymian } from '../src/thymian.js';
 import { ThymianEmitter } from '../src/thymian-emitter.js';

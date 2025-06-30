@@ -30,6 +30,8 @@ declare module '@thymian/core' {
 export const openApiPlugin: ThymianPlugin<Partial<ParseOpenApiOptions>> = {
   name: '@thymian/openapi',
   version: '0.x',
+  // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+  // @ts-expect-error
   options: {
     type: 'object',
     additionalProperties: false,
@@ -58,6 +60,14 @@ export const openApiPlugin: ThymianPlugin<Partial<ParseOpenApiOptions>> = {
   plugin: async (emitter, logger, opts) => {
     emitter.onHook('core.load-format', async () => {
       return (await loadOpenapi(logger, opts)).export();
+    });
+
+    emitter.onHook('core.close', () => {
+      return {
+        pluginName: '@thymian/openapi',
+        message: JSON.stringify({}),
+        status: 'success',
+      };
     });
   },
 };

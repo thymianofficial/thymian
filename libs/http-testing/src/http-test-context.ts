@@ -76,7 +76,7 @@ export interface HttpTestContext {
 
 export function createHttpTestContext<
   Context extends PartialBy<
-    Omit<HttpTestContext, 'skip' | 'fail'>,
+    Omit<HttpTestContext, 'skip' | 'fail' | 'assertionFailure'>,
     'generateRequest' | 'generateRequestFor' | 'generateParameterValue'
   >
 >(context: Context): HttpTestContext {

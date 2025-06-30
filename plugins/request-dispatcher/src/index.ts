@@ -10,7 +10,7 @@ import { dispatchHttpRequest } from './dispatch.js';
 declare module '@thymian/core' {
   interface ThymianHooks {
     'request-dispatcher.http-request': {
-      args: [HttpRequest];
+      arg: HttpRequest;
       returnType: HttpResponse;
     };
   }
@@ -19,11 +19,10 @@ declare module '@thymian/core' {
 export const dispatcherPlugin: ThymianPlugin = {
   name: '@thymian/request-dispatcher',
   version: '0.x',
-  options: {},
   hooks: {
     'request-dispatcher.http-request': {
-      input: httpRequestSchema,
-      output: httpResponseSchema,
+      arg: httpRequestSchema,
+      returns: httpResponseSchema,
     },
   },
   events: {},

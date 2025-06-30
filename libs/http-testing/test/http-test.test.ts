@@ -10,6 +10,7 @@ import {
 } from '../src/http-test-context.js';
 import { authorizeRequests } from '../src/operators/authorize-requests.operator.js';
 import { defineStep } from '../src/operators/define-test.operator.js';
+import { expectStatusCode } from '../src/operators/expect-status-code.operator.js';
 import { forHttpTransactions } from '../src/operators/for-http-transactions.operator.js';
 import { generateRequests } from '../src/operators/generate-requests.operator.js';
 import { runRequests } from '../src/operators/run-requests.operator.js';
@@ -24,7 +25,6 @@ import {
   exampleContentGenerator,
   identityHookRunner,
 } from './utils.js';
-import { expectStatusCode } from '../src/operators/expect-status-code.operator.js';
 
 describe('httpTest - todo app', () => {
   let todoApp: FastifyInstance;
@@ -116,7 +116,7 @@ describe('httpTest - todo app', () => {
               };
 
               current.transactions.push({
-                request,
+                requestTemplate: request,
               });
 
               current.source = {

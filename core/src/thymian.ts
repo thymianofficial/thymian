@@ -2,33 +2,16 @@ import semver from 'semver';
 
 import packageJson from '../package.json' with { type: 'json' };
 import type { RegisterPluginEvent } from './events/register-plugin.event.js';
-import type { RunEvent } from './events/run.event.js';
-import type { CloseHook } from './hooks/close.hook.js';
+import { ThymianFormat } from './format/index.js';
+import type { CloseHook, CloseHookResult } from './hooks/close.hook.js';
 import type { EmptyHook } from './hooks/hook.js';
 import type { LoadFormatHook } from './hooks/load-format.hook.js';
 import type { Logger } from './logger/logger.js';
 import { NoopLogger } from './logger/noop.logger.js';
-import type { ThymianPlugin } from './plugin.js';
 import { ThymianError } from './thymian.error.js';
-import type { ThymianCommand } from './thymian-command.js';
 import { ThymianEmitter } from './thymian-emitter.js';
+import type { ThymianPlugin } from './thymian-plugin.js';
 import { timeoutPromise } from './utils.js';
-
-declare module './thymian-emitter.js' {
-  interface ThymianEvents {
-    'core.register-plugin': RegisterPluginEvent;
-    'core.run': RunEvent;
-  }
-
-  interface ThymianHooks {
-    'core.close': CloseHook;
-    'core.ready': EmptyHook;
-    'core.load-format': LoadFormatHook;
-    'core.exit': EmptyHook;
-  }
-}
-
-const VERSION = packageJson.version;
 
 export type RegisteredPlugin<T> = {
   plugin: ThymianPlugin<T>;
@@ -39,11 +22,13 @@ export class PluginRegistrationError extends ThymianError {}
 
 export class Thymian {
   // eslint-disable-next-line  @typescript-eslint/no-explicit-any
-  private readonly plugins: RegisteredPlugin<any>[] = [];
+  readonly plugins: RegisteredPlugin<any>[] = [];
 
   readonly emitter: ThymianEmitter;
 
-  public static readonly VERSION = VERSION;
+  #ready = false;
+
+  public static readonly VERSION = packageJson.version;
 
   constructor(private readonly logger: Logger = new NoopLogger()) {
     this.emitter = new ThymianEmitter(logger.child('ThymianEmitter'));
@@ -52,55 +37,54 @@ export class Thymian {
   register<T>(plugin: ThymianPlugin<T>, options?: T): this {
     if (!semver.satisfies(Thymian.VERSION, plugin.version)) {
       throw new PluginRegistrationError(
-        `@thymian/core version "${VERSION}" does not match plugin version constraints "${plugin.version}" from plugin "${plugin.name}".`
+        `@thymian/core version ${Thymian.VERSION} does not match plugin version constraints ${plugin.version} from plugin "${plugin.name}".`
       );
     }
 
     this.logger.debug(`Register plugin ${plugin.name}.`);
 
+    // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+    // @ts-expect-error
     this.plugins.push({ plugin: plugin, options: options });
 
     return this;
   }
 
   async ready(): Promise<void> {
+    if (this.#ready) {
+      return;
+    }
+
     await this.loadRegisteredPlugins();
+
+    await this.emitter.runHook('core.ready');
+
+    this.#ready = true;
   }
 
-  async exit(): Promise<void> {
-    await this.emitter.runHook('core.exit');
+
+  close(): Promise<CloseHookResult[]> {
+    return this.emitter.runHook('core.close')
   }
 
-  async run<T>(
-    command: new (
-      ...args: ConstructorParameters<typeof ThymianCommand<T>>
-    ) => ThymianCommand<T>
-  ): Promise<T> {
-    await this.ready();
+  async loadFormat(): Promise<ThymianFormat> {
+    const formats = await this.emitter.runHook('core.load-format');
 
-    return new command(this.emitter, this.logger).run();
+    if (formats.length === 0) {
+      return new ThymianFormat();
+    }
 
-    // this.emitter.onError(() => {
-    //   // TODO error handling
-    //   throw new Error();
-    // });
-    //
-    // await this.ready();
-    //
-    // const format = (await this.emitter.runHook('core.load-format')).reduce(
-    //   (format, serialized) => format.merge(ThymianFormat.import(serialized)),
-    //   new ThymianFormat()
-    // );
-    //
-    // this.emitter.emitEvent('core.run', format.export());
-    //
-    // await this.emitter.onIdle();
-    //
-    // return await this.emitter.runHook('core.close');
+    return formats
+      .slice(1)
+      .reduce((acc, curr) =>
+        acc.merge(ThymianFormat.import(curr)),
+        // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+        ThymianFormat.import(formats[0]!)
+      )
   }
 
   private async loadRegisteredPlugins(): Promise<void> {
-    for await (const { plugin, options } of this.plugins) {
+    for (const { plugin, options } of this.plugins) {
       this.emitter.emitEvent('core.register', {
         name: plugin.name,
         events: plugin.events ?? {},
@@ -108,18 +92,11 @@ export class Thymian {
         options,
       });
 
-      try {
-        await timeoutPromise(
-          plugin.plugin(this.emitter, this.logger.child(plugin.name), options),
-          5000,
-          new ThymianError('Plugin registration timed out.')
-        );
-      } catch (e) {
-        throw new PluginRegistrationError(
-          `Error while registering plugin "${plugin.name}".`,
-          e
-        );
-      }
+      await timeoutPromise(
+        plugin.plugin(this.emitter, this.logger.child(plugin.name), options),
+        5000,
+        new ThymianError(`Timeout while registering plugin "${plugin.name}".`)
+      );
     }
   }
 }

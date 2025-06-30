@@ -14,5 +14,21 @@
     "types": ["node"]
   },
   "include": ["src/**/*.ts"],
-  "references": []
+  "references": [
+    {
+      "path": "../sampler/tsconfig.lib.json"
+    },
+    {
+      "path": "../request-dispatcher/tsconfig.lib.json"
+    },
+    {
+      "path": "../../libs/http-testing/tsconfig.lib.json"
+    },
+    {
+      "path": "../../core/tsconfig.lib.json"
+    },
+    {
+      "path": "../../libs/cli-common/tsconfig.lib.json"
+    }
+  ]
 }

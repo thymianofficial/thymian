@@ -1,6 +1,17 @@
 import nx from '@nx/eslint-plugin';
+import eslintPluginSimpleImportSort from 'eslint-plugin-simple-import-sort';
+
 
 export default [
+  {
+    plugins: {
+      "simple-import-sort": eslintPluginSimpleImportSort,
+    },
+    rules: {
+      "simple-import-sort/imports": "error",
+      "simple-import-sort/exports": "error",
+    },
+  },
   ...nx.configs['flat/base'],
   ...nx.configs['flat/typescript'],
   ...nx.configs['flat/javascript'],

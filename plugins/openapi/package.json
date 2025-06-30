@@ -26,5 +26,14 @@
   },
   "peerDependencies": {
     "@thymian/core": "^0"
+  },
+  "optionalDependencies": {
+    "@thymian/cli-common": "^0"
+  },
+  "oclif": {
+    "commands": "./dist/commands",
+    "topics": {
+      "openapi": { "description": "Load your Swagger/OpenAPI documents into Thymian." }
+    }
   }
 }

@@ -1,9 +1,0 @@
-{
-  "name": "@thymian/data-generator",
-  "$schema": "../../node_modules/nx/schemas/project-schema.json",
-  "sourceRoot": "plugins/data-generator/src",
-  "projectType": "library",
-  "tags": ["library"],
-  "// targets": "to see all targets run: nx show project @thymian/data-generator --web",
-  "targets": {}
-}

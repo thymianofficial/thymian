@@ -5,10 +5,10 @@ export type IntermediaryRole = 'intermediary' | 'proxy' | 'gateway' | 'tunnel';
 export type HttpParticipantRole =
   | IntermediaryRole
   | 'origin server'
-  | 'user agent'
+  | 'client'
   | 'cache';
 
-export type RuleType = 'static' | 'analytics' | 'test';
+export type RuleType = 'static' | 'analytics' | 'test' | 'informational';
 
 export type RuleMeta = {
   name: string;
@@ -20,5 +20,6 @@ export type RuleMeta = {
   explanation?: string;
   description?: string;
   recommendation?: string;
+  summary?: string;
   url?: string;
 };

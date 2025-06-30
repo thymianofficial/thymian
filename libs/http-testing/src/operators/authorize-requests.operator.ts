@@ -34,7 +34,9 @@ export function extractAuthorizationScheme(
       // extend the if statement to support more security schemes
       if (securityScheme.scheme === 'basic' && ctx.auth?.basic) {
         return async (transaction) => {
-          transaction.request.headers['Authorization'] = `Basic ${Buffer.from(
+          transaction.requestTemplate.headers[
+            'Authorization'
+          ] = `Basic ${Buffer.from(
             (validAuth
               ? // basic auth is defined
                 // eslint-disable-next-line @typescript-eslint/ban-ts-comment

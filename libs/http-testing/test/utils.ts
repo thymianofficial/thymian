@@ -1,8 +1,8 @@
 import type { FastifyInstance } from 'fastify';
 import type { InjectOptions } from 'light-my-request';
 
+import type { HttpRequest } from '../src/http-request.js';
 import type { HttpTestContext } from '../src/http-test-context.js';
-import type { HttpRequest } from '../src/http-request';
 
 export const exampleContentGenerator: HttpTestContext['generateContent'] =
   async (schema) => {
