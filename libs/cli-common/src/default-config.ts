@@ -4,7 +4,7 @@ export const defaultConfig: ThymianConfig = {
   plugins: {
     '@thymian/http-linter': {
       options: {
-        rules: [],
+        rules: ['@thymian/rfc-9110-rules'],
         ruleOptions: {},
       },
     },
