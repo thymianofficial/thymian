@@ -8,7 +8,6 @@ import {
   createHttpTestContext,
   type HttpTestContext,
 } from '../src/http-test-context.js';
-import { authorizeRequests } from '../src/operators/authorize-requests.operator.js';
 import { defineStep } from '../src/operators/define-test.operator.js';
 import { expectStatusCode } from '../src/operators/expect-status-code.operator.js';
 import { forHttpTransactions } from '../src/operators/for-http-transactions.operator.js';
@@ -51,7 +50,7 @@ describe('httpTest - todo app', () => {
 
     const result = await test(context);
 
-    expect(result.cases).toHaveLength(2);
+    expect(result.cases).toHaveLength(3);
   });
 
   it('should ignore skipped test cases', async () => {
@@ -61,7 +60,6 @@ describe('httpTest - todo app', () => {
         toTestCases(),
         skipTestCase(),
         generateRequests(),
-        authorizeRequests(),
         runRequests(),
         validateResponses()
       )
@@ -69,7 +67,7 @@ describe('httpTest - todo app', () => {
 
     const result = await test(context);
 
-    expect(result.cases).toHaveLength(1);
+    expect(result.cases).toHaveLength(2);
     expect(result.cases[0]).toMatchObject({
       status: 'skipped',
       results: [],
@@ -108,7 +106,40 @@ describe('httpTest - todo app', () => {
                 return ctx.skip(curr, 'Did not find matching request.');
               }
 
-              const request = await ctx.generateRequestFor(matchResult.reqId);
+              const responses = ctx.format.httpResponsesOf(matchResult.reqId);
+              // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+              const thymianReq = ctx.format.getNode<ThymianHttpRequest>(
+                matchResult.reqId
+              )!;
+
+              if (responses.length === 0) {
+                return ctx.fail(
+                  curr,
+                  `Thymian HTTP request with id ${matchResult.reqId} does not have corresponding HTTP response.`
+                );
+              }
+              // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+              const [thymianResId, thymianRes] = responses[0]!;
+              const transactionId = ctx.format.graph.findEdge(
+                matchResult.reqId,
+                thymianResId,
+                (id, edge) => edge.type === 'http-transaction'
+              );
+
+              if (!transactionId) {
+                return ctx.fail(
+                  curr,
+                  `Missing HTTP Transaction edge for request ${matchResult.reqId} and response ${thymianResId}.`
+                );
+              }
+
+              const request = await ctx.generateRequest(ctx.format, {
+                thymianReqId: matchResult.reqId,
+                thymianReq,
+                transactionId,
+                thymianRes,
+                thymianResId,
+              });
 
               request.pathParameters = {
                 ...request.pathParameters,
@@ -125,7 +156,6 @@ describe('httpTest - todo app', () => {
 
               return { curr, ctx };
             }),
-            authorizeRequests(),
             runRequests(),
             expectStatusCode('2XX')
           )

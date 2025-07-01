@@ -1,6 +1,6 @@
-import { RequestGenerator } from './request-generator.js';
+import { BaseRequestGenerator } from './base-request-generator.js';
 
-export class RangeRequestGenerator extends RequestGenerator {
+export class RangeRequestGenerator extends BaseRequestGenerator {
   /*
   The specification is intentionally kept open for range units types.
   A logic that extracts the appropriate unit could be implemented here.
@@ -16,5 +16,9 @@ export class RangeRequestGenerator extends RequestGenerator {
     headers['range'] = `${this.extractRangeUnit()}=0-1`;
 
     return headers;
+  }
+
+  override matches(): boolean {
+    return this.transaction.thymianRes.statusCode === 205;
   }
 }

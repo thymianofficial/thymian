@@ -65,7 +65,7 @@ export interface CustomHttpTestCaseStep<Source = unknown>
   type: 'custom';
 }
 
-export type HttpTestCaseTransaction = {
+export type HttpTestCaseStepTransaction = {
   requestTemplate: HttpRequestTemplate;
   request?: HttpRequest;
   response?: HttpResponse;
@@ -75,7 +75,7 @@ export type HttpTestCaseTransaction = {
 export interface HttpTestCaseStep<Source = unknown> {
   type: 'single' | 'grouped' | 'custom';
   source: Source;
-  transactions: HttpTestCaseTransaction[];
+  transactions: HttpTestCaseStepTransaction[];
 }
 
 export type HttpTestCase<

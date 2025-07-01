@@ -21,14 +21,8 @@ export function generateRequests<Steps extends HttpTestCaseStep[]>(
 
     const step = curr.steps.at(-1);
 
-    console.log({ step });
-
     if (isSingleHttpTestCaseStep(step)) {
       for (let i = 0; i < amount; i++) {
-        console.log(
-          'generate request' +
-            JSON.stringify(await ctx.generateRequest(ctx.format, step.source))
-        );
         step.transactions.push({
           requestTemplate: await ctx.generateRequest(ctx.format, step.source),
           source: step.source,
@@ -48,8 +42,6 @@ export function generateRequests<Steps extends HttpTestCaseStep[]>(
         'generateRequests was called on custom http test step which is not supported.'
       );
     }
-
-    console.log({ step });
 
     return { curr, ctx };
   });

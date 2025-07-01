@@ -3,24 +3,20 @@ import type {
   Parameter,
   PartialBy,
   ThymianFormat,
-  ThymianHttpRequest,
   ThymianSchema,
 } from '@thymian/core';
 
+import type { HttpRequest } from './http-request.js';
 import type { HttpRequestTemplate } from './http-request-template.js';
 import type { HttpResponse } from './http-response.js';
+import type { HttpTestInstance } from './http-test.js';
 import type {
   HttpTestCase,
   HttpTestCaseStep,
-  HttpTestCaseTransaction,
+  HttpTestCaseStepTransaction,
   ThymianHttpTransaction,
 } from './http-test-case.js';
-import {
-  generateRequest as defaultRequestGenerator,
-  generateRequestForTransactions as defaultTransactionGenerator,
-} from './request-generator/generate.js';
-import type { HttpRequest } from './http-request.js';
-import type { HttpTestInstance } from './http-test.js';
+import { generateRequest as _generateRequest } from './request-generator/generate-request.js';
 
 export interface HttpTestContext {
   format: ThymianFormat;
@@ -38,8 +34,6 @@ export interface HttpTestContext {
     transaction: ThymianHttpTransaction
   ): Promise<HttpRequestTemplate>;
 
-  generateRequestFor(reqId: string): Promise<HttpRequestTemplate>;
-
   runRequest(req: HttpRequest): Promise<HttpResponse>;
 
   generateParameterValue(
@@ -50,8 +44,8 @@ export interface HttpTestContext {
 
   runHook(
     name: 'authorize',
-    input: HttpTestCaseTransaction
-  ): Promise<HttpTestCaseTransaction>;
+    input: HttpTestCaseStepTransaction
+  ): Promise<HttpTestCaseStepTransaction>;
   runHook<Input, Output = Input>(name: string, input: Input): Promise<Output>;
 
   skip<Steps extends HttpTestCaseStep[]>(
@@ -70,14 +64,16 @@ export interface HttpTestContext {
   ): HttpTestInstance<HttpTestCase<Steps>>;
 
   auth?: {
-    basic?: (transaction: HttpTestCaseTransaction) => Promise<[string, string]>;
+    basic?: (
+      transaction: HttpTestCaseStepTransaction
+    ) => Promise<[string, string]>;
   };
 }
 
 export function createHttpTestContext<
   Context extends PartialBy<
     Omit<HttpTestContext, 'skip' | 'fail' | 'assertionFailure'>,
-    'generateRequest' | 'generateRequestFor' | 'generateParameterValue'
+    'generateRequest' | 'generateParameterValue'
   >
 >(context: Context): HttpTestContext {
   const generateParameterValue =
@@ -90,41 +86,8 @@ export function createHttpTestContext<
       return context.generateContent(parameter.schema);
     };
 
-  const generateRequestFor =
-    context.generateRequestFor ??
-    function generateRequestFor(reqId: string) {
-      const req = context.format.getNode<ThymianHttpRequest>(reqId);
-
-      if (typeof req === 'undefined') {
-        throw new Error('Cannot generate request for id ' + reqId);
-      }
-
-      return defaultRequestGenerator(
-        context.format,
-        reqId,
-        context.generateContent,
-        generateParameterValue
-      );
-    };
-
-  const generateRequest =
-    context.generateRequest ??
-    function generateRequest(
-      format: ThymianFormat,
-      transaction: ThymianHttpTransaction
-    ): Promise<HttpRequestTemplate> {
-      return defaultTransactionGenerator(
-        format,
-        transaction,
-        context.generateContent,
-        generateParameterValue
-      );
-    };
-
   return {
     ...context,
-    generateRequest,
-    generateRequestFor,
     generateParameterValue,
     skip<Steps extends HttpTestCaseStep[]>(
       testCase: HttpTestCase<Steps>,
@@ -160,6 +123,16 @@ export function createHttpTestContext<
       });
 
       return this.fail(testCase, reason);
+    },
+    generateRequest(
+      format: ThymianFormat,
+      transaction: ThymianHttpTransaction
+    ) {
+      if (context.generateRequest) {
+        return context.generateRequest(format, transaction);
+      } else {
+        return _generateRequest(transaction, this);
+      }
     },
   };
 }

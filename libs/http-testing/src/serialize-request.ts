@@ -1,4 +1,4 @@
-import type { HttpTestCaseTransaction } from './http-test-case.js';
+import type { HttpTestCaseStepTransaction } from './http-test-case.js';
 import type { HttpRequest } from './http-request.js';
 import {
   serializeHeaderParameter,
@@ -6,7 +6,7 @@ import {
   serializeQueryParameter,
 } from './serialize-parameter.js';
 
-function serializeBasePath(transaction: HttpTestCaseTransaction) {
+function serializeBasePath(transaction: HttpTestCaseStepTransaction) {
   return transaction.requestTemplate.path.replace(
     // from https://github.com/scalar/scalar/blob/8165b3b1487ef38a1e97571032b0bd8c32cd9d91/packages/helpers/src/regex/regex-helpers.ts#L8
     /{{\s*([^}\s]+?)\s*}}|{\s*([^}\s]+?)\s*}|:\b[\w.]+\b/g,
@@ -47,7 +47,7 @@ function serializeBasePath(transaction: HttpTestCaseTransaction) {
   );
 }
 
-function serializeQuery(transaction: HttpTestCaseTransaction) {
+function serializeQuery(transaction: HttpTestCaseStepTransaction) {
   return Object.entries(transaction.requestTemplate.query)
     .map(([name, value]) => {
       if (transaction.source?.thymianReq.queryParameters[name]) {
@@ -77,7 +77,9 @@ function serializeQuery(transaction: HttpTestCaseTransaction) {
     .join('&');
 }
 
-export function serializePath(transaction: HttpTestCaseTransaction): string {
+export function serializePath(
+  transaction: HttpTestCaseStepTransaction
+): string {
   const path = serializeBasePath(transaction);
 
   const query = serializeQuery(transaction);
@@ -86,7 +88,7 @@ export function serializePath(transaction: HttpTestCaseTransaction): string {
 }
 
 export function serializeHeaders(
-  transaction: HttpTestCaseTransaction
+  transaction: HttpTestCaseStepTransaction
 ): Record<string, string> {
   const headers = transaction.source?.thymianReq.headers ?? {};
 
@@ -138,7 +140,7 @@ export function serializeBody(body: unknown): string | undefined {
 }
 
 export function serializeRequest(
-  transaction: HttpTestCaseTransaction
+  transaction: HttpTestCaseStepTransaction
 ): HttpRequest {
   console.log(transaction);
   return {

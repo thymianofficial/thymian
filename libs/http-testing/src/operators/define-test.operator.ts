@@ -6,7 +6,6 @@ import type {
   HttpTestCase,
   SingleHttpTestCaseStep,
 } from '../http-test-case.js';
-import { authorizeRequests } from './authorize-requests.operator.js';
 import {
   forHttpTransactions,
   type RequestFilter,
@@ -43,7 +42,6 @@ export function defineStep(
       forHttpTransactions(opts.reqFilter, opts.resFilter),
       toTestCases(),
       generateRequests(),
-      opts.authorize ? authorizeRequests() : identity,
       runRequests(),
       opts.validate ? validateResponses() : identity
     );
