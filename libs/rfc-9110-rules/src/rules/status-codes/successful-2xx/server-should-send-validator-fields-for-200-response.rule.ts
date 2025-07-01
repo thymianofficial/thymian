@@ -5,7 +5,7 @@ import { forHttpTransactions } from '@thymian/http-testing';
 
 export default httpRule('rfc9110/server-should-send-validator-fields')
   .severity('warn')
-  .type('test', 'analytics')
+  .type('static', 'test', 'analytics')
   .appliesTo('origin server')
   .url('https://datatracker.ietf.org/doc/html/rfc9110#name-200-ok')
   .description(

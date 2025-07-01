@@ -8,7 +8,7 @@ export default httpRule(
   .appliesTo('origin server')
   .url('https://datatracker.ietf.org/doc/html/rfc9110#name-205-reset-content')
   .description(
-    `In 200 responses to GET or HEAD, an origin server SHOULD send any available validator fields for the selected representation, with both a strong entity tag and a Last-Modified date being preferred.`
+    `Since the 205 status code implies that no additional content will be provided, a server MUST NOT generate content in a 205 response.`
   )
   .rule((ctx) =>
     ctx.validateCommonHttpTransactions(

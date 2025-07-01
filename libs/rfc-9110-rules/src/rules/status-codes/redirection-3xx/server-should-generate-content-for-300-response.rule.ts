@@ -13,7 +13,8 @@ export default httpRule(
   )
   .rule((ctx) =>
     ctx.validateCommonHttpTransactions(
-      (_, res) => res.statusCode === 300,
+      (req, res) =>
+        ctx.equalsIgnoreCase(req.method, 'head') && res.statusCode === 300,
       (_, res) => !res.body
     )
   )

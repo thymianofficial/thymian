@@ -2,199 +2,73 @@ import { describe, expect, it } from 'vitest';
 
 import rule from './server-should-send-validator-fields-for-200-response.rule.js';
 
+import { NoopLogger } from '@thymian/core';
+import { StaticApiContext, HttpTestApiContext } from '@thymian/http-linter';
+import { buildTodosApp, todoFormat } from '@thymian/test-utils';
+import { createHttpTestContext } from '@thymian/http-testing';
 import {
-  DEFAULT_HEADER_SERIALIZATION_STYLE,
-  NoopLogger,
-  QuerySerializationStyleBuilder,
-  TextLogger,
-  ThymianFormat,
-} from '@thymian/core';
-import { StaticApiContext } from '@thymian/http-linter';
-
-export const todoFormat = new ThymianFormat();
-
-const getTodosReqId = todoFormat.addRequest({
-  cookies: {},
-  headers: {},
-  host: 'localhost',
-  mediaType: '',
-  method: 'GEt',
-  path: '/todos',
-  pathParameters: {},
-  port: 8080,
-  protocol: 'http',
-  queryParameters: {
-    title: {
-      schema: { type: 'string', examples: ['code'] },
-      style: new QuerySerializationStyleBuilder().build(),
-      required: true,
-    },
-  },
-  type: 'http-request',
-});
-
-const getTodosResId = todoFormat.addResponse({
-  headers: {
-    etag: {
-      required: false,
-      schema: {},
-      style: DEFAULT_HEADER_SERIALIZATION_STYLE,
-    },
-  },
-  mediaType: '',
-  schema: {
-    type: 'array',
-    items: {
-      type: 'object',
-      additionalProperties: false,
-      required: ['id', 'title', 'text'],
-      properties: {
-        id: {
-          type: 'string',
-        },
-        title: {
-          type: 'string',
-        },
-        text: {
-          type: 'string',
-        },
-      },
-    },
-  },
-  statusCode: 200,
-  type: 'http-response',
-});
-
-todoFormat.addHttpTransaction(getTodosReqId, getTodosResId);
-
-const postTodosReqId = todoFormat.addRequest({
-  cookies: {},
-  headers: {},
-  host: 'localhost',
-  mediaType: 'application/json',
-  method: 'POST',
-  path: '/todos',
-  pathParameters: {},
-  port: 8080,
-  protocol: 'http',
-  queryParameters: {},
-  type: 'http-request',
-  body: {
-    examples: [
-      {
-        title: 'My new todo',
-        text: 'I should write more tests!',
-      },
-    ],
-    type: 'object',
-    additionalProperties: false,
-    required: ['title', 'text'],
-    properties: {
-      title: {
-        type: 'string',
-      },
-      text: {
-        type: 'string',
-      },
-    },
-  },
-});
-
-const postTodosResId = todoFormat.addResponse({
-  headers: {
-    location: {
-      required: true,
-      style: DEFAULT_HEADER_SERIALIZATION_STYLE,
-      schema: {
-        type: 'string',
-      },
-    },
-  },
-  mediaType: 'application/json',
-  schema: {
-    type: 'object',
-    additionalProperties: false,
-    required: ['id', 'title', 'text'],
-    properties: {
-      id: {
-        type: 'string',
-      },
-      title: {
-        type: 'string',
-      },
-      text: {
-        type: 'string',
-      },
-    },
-  },
-  statusCode: 201,
-  type: 'http-response',
-});
-
-todoFormat.addHttpTransaction(postTodosReqId, postTodosResId);
-
-const getSingleTodoReqId = todoFormat.addRequest({
-  cookies: {},
-  headers: {},
-  host: 'localhost',
-  mediaType: '',
-  method: 'GET',
-  path: '/todos/{id}',
-  pathParameters: {
-    title: {
-      schema: { type: 'string', examples: ['1'] },
-      style: new QuerySerializationStyleBuilder().build(),
-      required: true,
-    },
-  },
-  port: 8080,
-  protocol: 'http',
-  queryParameters: {},
-  type: 'http-request',
-});
-
-const getSingleTodoResId = todoFormat.addResponse({
-  headers: {},
-  mediaType: 'application/json',
-  schema: {
-    type: 'object',
-    additionalProperties: false,
-    required: ['id', 'title', 'text'],
-    properties: {
-      id: {
-        type: 'string',
-      },
-      title: {
-        type: 'string',
-      },
-      text: {
-        type: 'string',
-      },
-    },
-  },
-  statusCode: 200,
-  type: 'http-response',
-});
-
-todoFormat.addHttpTransaction(getSingleTodoReqId, getSingleTodoResId);
-
-const basicAuthId = todoFormat.addNode({
-  type: 'security-scheme',
-  scheme: 'basic',
-});
-
-todoFormat.addEdge(getTodosReqId, basicAuthId, { type: 'is-secured' });
-todoFormat.addEdge(postTodosReqId, basicAuthId, { type: 'is-secured' });
-todoFormat.addEdge(getSingleTodoReqId, basicAuthId, { type: 'is-secured' });
+  createRequestRunner,
+  exampleContentGenerator,
+  identityHookRunner,
+} from '@thymian/http-testing/test-utils';
 
 describe('server-should-send-validator-fields-for-200-response', () => {
-  it('should have error severity', () => {
-    const result = rule.rule!(
-      new StaticApiContext(todoFormat),
-      { mode: 'static' },
-      new TextLogger('rfc9110/server-should-send-validator-fields')
-    );
+  describe('static rule', () => {
+    it('should be defined', () => {
+      expect(rule.staticRule).toBeTypeOf('function');
+    });
 
-    console.log(result);
+    it('should work', () => {
+      const result = rule.staticRule!(
+        new StaticApiContext(todoFormat),
+        { mode: 'static' },
+        new NoopLogger()
+      );
+    });
+  });
+
+  /*
+  context = createHttpTestContext({
+      format: todoFormat,
+      logger: new NoopLogger(),
+      runHook: identityHookRunner,
+      runRequest: createRequestRunner(todoApp),
+      generateContent: exampleContentGenerator,
+      auth: {
+        basic: () => Promise.resolve(['matthyk', 'qupaya']),
+      },
+    });
+   */
+
+  describe('test rule', () => {
+    const context = createHttpTestContext({
+      format: todoFormat,
+      logger: new NoopLogger(),
+      runHook: identityHookRunner,
+      runRequest: createRequestRunner(buildTodosApp()),
+      generateContent: exampleContentGenerator,
+      auth: {
+        basic: () => Promise.resolve(['matthyk', 'qupaya']),
+      },
+    });
+
+    it('should be defined', () => {
+      expect(rule.testRule).toBeTypeOf('function');
+    });
+
+    it('should work', async () => {
+      const result = await rule.testRule!(
+        new HttpTestApiContext(
+          'server-should-send-validator-fields-for-200-response',
+          context
+        ),
+        { mode: 'test' },
+        new NoopLogger()
+      );
+
+      expect(result).toHaveLength(2);
+
+      console.log(JSON.stringify(result));
+    });
   });
 });
