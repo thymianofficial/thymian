@@ -1,6 +1,6 @@
-import { join } from 'node:path';
-
 import {
+  type HttpRequest,
+  type HttpResponse,
   type Logger,
   type SerializedThymianFormat,
   ThymianEmitter,
@@ -10,9 +10,7 @@ import {
 } from '@thymian/core';
 import {
   createHttpTestContext,
-  type HttpRequest,
-  type HttpResponse,
-  type HttpTestCaseTransaction,
+  type HttpTestCaseStepTransaction,
 } from '@thymian/http-testing';
 import type {} from '@thymian/request-dispatcher';
 import type {} from '@thymian/sampler';
@@ -24,6 +22,7 @@ import type { Rule } from './rule/rule.js';
 import type { RuleType } from './rule/rule-meta.js';
 import type { RuleSeverity } from './rule/rule-severity.js';
 
+export * from './api-context/http-test-api-context.js';
 export * from './api-context/static-api-context.js';
 export * from './linter/linter.js';
 export * from './rule/rule.js';
@@ -51,7 +50,7 @@ declare module '@thymian/core' {
     };
 
     'http-linter.rules': {
-      arg: {};
+      arg: never;
       returnType: Rule[];
     };
   }
@@ -109,7 +108,7 @@ export const httpLinterPlugin: ThymianPlugin<{
           }
         ): Promise<{ content: unknown; encoding?: string }> {
           return (
-            await emitter.runHook('data-generator.generate', {
+            await emitter.runHook('sampler.generate', {
               contentType: contentType ?? 'application/json',
               schema,
             })
@@ -118,16 +117,16 @@ export const httpLinterPlugin: ThymianPlugin<{
         runRequest: async function (req: HttpRequest): Promise<HttpResponse> {
           return (
             await emitter.runHook('request-dispatcher.http-request', {
-              ...req,
-              url: join(req.origin, req.path),
+              request: req,
             })
           )[0]!;
         },
         runHook: async function (
           name: string,
-          input: HttpTestCaseTransaction
-        ): Promise<HttpTestCaseTransaction> {
-          return (await emitter.runHook(name, input))[0];
+          input: HttpTestCaseStepTransaction
+        ): Promise<HttpTestCaseStepTransaction> {
+          //return (await emitter.runHook(name, input))[0];
+          return input;
         },
       });
 

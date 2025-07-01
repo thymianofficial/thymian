@@ -10,11 +10,7 @@ import {
 
 export class AnalyticsApiContext extends LiveApiContext {
   validateGroupedCommonHttpTransactions(
-    filterFn: FilterFn<
-      CommonHttpRequest,
-      CommonHttpResponse,
-      CommonHttpResponse[]
-    >,
+    filterFn: FilterFn<CommonHttpRequest, CommonHttpResponse>,
     groupByFn: (req: CommonHttpRequest, res: CommonHttpResponse) => string,
     validationFn: ValidationFn<
       string,
@@ -24,11 +20,7 @@ export class AnalyticsApiContext extends LiveApiContext {
     throw new Error('Method not implemented.');
   }
   validateCommonHttpTransactions(
-    filterFn: FilterFn<
-      CommonHttpRequest,
-      CommonHttpResponse,
-      CommonHttpResponse[]
-    >,
+    filterFn: FilterFn<CommonHttpRequest, CommonHttpResponse>,
     validationFn?: ValidationFn<CommonHttpRequest, CommonHttpResponse>
   ): Promise<RuleFnResult> | RuleFnResult {
     throw new Error('Method not implemented.');

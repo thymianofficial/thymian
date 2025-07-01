@@ -4,13 +4,16 @@
   "include": [],
   "references": [
     {
+      "path": "../libs/rfc-9110-rules"
+    },
+    {
+      "path": "../plugins/openapi"
+    },
+    {
       "path": "../plugins/http-linter-cli-reporter"
     },
     {
       "path": "../plugins/http-linter"
-    },
-    {
-      "path": "../plugins/openapi"
     },
     {
       "path": "../core"
