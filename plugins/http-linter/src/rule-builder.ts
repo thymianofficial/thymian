@@ -51,19 +51,19 @@ interface DefineRules<
       : RuleFn<ApiContextType<RuleTypes>, Options>
   ): DefineRules<RuleTypes, Options>;
 
-  analyticsRule(
+  overrideAnalyticsRule(
     ffn: RuleTypes extends ['informational']
       ? never
       : RuleFn<AnalyticsApiContext, Options>
   ): DefineRules<RuleTypes, Options>;
 
-  staticRule(
+  overrideStaticRule(
     fn: RuleTypes extends ['informational']
       ? never
       : RuleFn<StaticApiContext, Options>
   ): DefineRules<RuleTypes, Options>;
 
-  httpTest(
+  overrideTest(
     fn: RuleTypes extends ['informational']
       ? never
       : RuleFn<HttpTestApiContext, Options>
@@ -203,7 +203,7 @@ class RuleBuilder<
     return this;
   }
 
-  analyticsRule(
+  overrideAnalyticsRule(
     fn: RuleTypes extends ['informational']
       ? never
       : RuleFn<AnalyticsApiContext, Options>
@@ -217,7 +217,7 @@ class RuleBuilder<
     return this;
   }
 
-  staticRule(
+  overrideStaticRule(
     fn: RuleTypes extends ['informational']
       ? never
       : RuleFn<StaticApiContext, Options>
@@ -231,7 +231,7 @@ class RuleBuilder<
     return this;
   }
 
-  httpTest(
+  overrideTest(
     fn: RuleTypes extends ['informational']
       ? never
       : RuleFn<HttpTestApiContext, Options>

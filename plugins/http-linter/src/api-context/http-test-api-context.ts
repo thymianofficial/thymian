@@ -1,14 +1,15 @@
 import {
-  authorizeRequests,
-  type DefineStepOptions,
   filter,
   forHttpTransactions,
   generateRequests,
+  groupBy,
+  type GroupedHttpTestCaseStep,
   type HttpRequest,
   type HttpResponse,
   httpTest,
+  type HttpTestCase,
+  type HttpTestCaseStepTransaction,
   type HttpTestContext,
-  type HttpTestFn,
   runRequests,
   type ThymianHttpTransaction,
   toTestCases,
@@ -64,6 +65,14 @@ function httpResponseToCommonHttpResponse(
   };
 }
 
+function hasSource(
+  transaction: HttpTestCaseStepTransaction
+): transaction is HttpTestCaseStepTransaction & {
+  source: ThymianHttpTransaction;
+} {
+  return 'source' in transaction;
+}
+
 export class HttpTestApiContext extends LiveApiContext {
   constructor(
     private readonly name: string,
@@ -72,51 +81,88 @@ export class HttpTestApiContext extends LiveApiContext {
     super();
   }
 
-  validateGroupedCommonHttpTransactions(
-    filterFn: FilterFn<
-      CommonHttpRequest,
-      CommonHttpResponse,
-      CommonHttpResponse[]
-    >,
+  async validateGroupedCommonHttpTransactions(
+    filterFn: FilterFn<CommonHttpRequest, CommonHttpResponse>,
     groupByFn: (req: CommonHttpRequest, res: CommonHttpResponse) => string,
     validationFn: ValidationFn<
       string,
       [CommonHttpRequest, CommonHttpResponse][]
     >
-  ): Promise<RuleFnResult> | RuleFnResult {
-    return [];
-  }
-
-  async validate(fn: HttpTestFn): Promise<RuleFnResult> {
-    const result = await httpTest(this.name, fn)(this.ctx);
-
-    return [];
-  }
-
-  async validateCommonHttpTransactions(
-    filterFn: FilterFn<
-      CommonHttpRequest,
-      CommonHttpResponse,
-      CommonHttpResponse[]
-    >,
-    validationFn: ValidationFn<CommonHttpRequest, CommonHttpResponse> = filterFn
   ): Promise<RuleFnResult> {
-    console.log('validateCommonHttpTransactions' + this.name);
     const test = httpTest(this.name, (test) =>
       test.pipe(
         forHttpTransactions(),
-        filter(({ ctx, curr }) =>
+        filter(({ curr }) =>
           filterFn(
             thymianToCommonHttpRequest(curr.thymianReqId, curr.thymianReq),
-            thymianToCommonHttpResponse(curr.thymianResId, curr.thymianRes),
-            ctx.format
-              .getNeighboursOfType(curr.thymianReqId, 'http-response')
-              .map(([resId, res]) => thymianToCommonHttpResponse(resId, res))
+            thymianToCommonHttpResponse(curr.thymianResId, curr.thymianRes)
+          )
+        ),
+        groupBy(({ curr, ctx }) =>
+          groupByFn(
+            thymianToCommonHttpRequest(curr.thymianReqId, curr.thymianReq),
+            thymianToCommonHttpResponse(curr.thymianResId, curr.thymianRes)
           )
         ),
         toTestCases(),
         generateRequests(),
-        authorizeRequests(),
+        runRequests()
+      )
+    );
+
+    const testResult = await test(this.ctx);
+
+    return testResult.cases
+      .filter((testCase) => testCase.status === 'passed')
+      .reduce((violations, value) => {
+        const testCase = value as HttpTestCase<[GroupedHttpTestCaseStep]>;
+        const { source, transactions } = testCase.steps[0];
+
+        const transactionToValidate = transactions
+          .filter(hasSource)
+          .map<[CommonHttpRequest, CommonHttpResponse]>((transaction) => [
+            httpRequestToCommonHttpRequest(
+              transaction.source,
+              transaction.request!
+            ),
+            httpResponseToCommonHttpResponse(
+              transaction.source,
+              transaction.response!
+            ),
+          ]);
+
+        const validationResult = validationFn(
+          source.key,
+          transactionToValidate
+        );
+
+        if (typeof validationResult === 'boolean' && validationResult) {
+          violations.push({});
+        }
+
+        if (validationResult && typeof validationResult === 'object') {
+          violations.push(validationResult);
+        }
+
+        return violations;
+      }, [] as RuleViolation[]);
+  }
+
+  async validateCommonHttpTransactions(
+    filterFn: FilterFn<CommonHttpRequest, CommonHttpResponse>,
+    validationFn: ValidationFn<CommonHttpRequest, CommonHttpResponse> = filterFn
+  ): Promise<RuleFnResult> {
+    const test = httpTest(this.name, (test) =>
+      test.pipe(
+        forHttpTransactions(),
+        filter(({ curr }) =>
+          filterFn(
+            thymianToCommonHttpRequest(curr.thymianReqId, curr.thymianReq),
+            thymianToCommonHttpResponse(curr.thymianResId, curr.thymianRes)
+          )
+        ),
+        toTestCases(),
+        generateRequests(),
         runRequests()
       )
     );

@@ -3,7 +3,7 @@ import type { PartialBy } from '@thymian/core';
 import type { RuleFnResult } from '../rule/rule-fn.js';
 import type { RuleViolation } from '../rule/rule-violation.js';
 
-export type FilterFn<T1, T2, T3> = (x: T1, y: T2, z: T3) => boolean;
+export type FilterFn<T1, T2> = (x: T1, y: T2) => boolean;
 
 export type ValidationFn<T1, T2, Args extends unknown[] = never[]> = (
   x: T1,
@@ -34,20 +34,12 @@ export type CommonHttpResponse = {
 
 export abstract class ApiContext {
   abstract validateCommonHttpTransactions(
-    filterFn: FilterFn<
-      CommonHttpRequest,
-      CommonHttpResponse,
-      CommonHttpResponse[]
-    >,
+    filterFn: FilterFn<CommonHttpRequest, CommonHttpResponse>,
     validationFn: ValidationFn<CommonHttpRequest, CommonHttpResponse>
   ): Promise<RuleFnResult> | RuleFnResult;
 
   abstract validateGroupedCommonHttpTransactions(
-    filterFn: FilterFn<
-      CommonHttpRequest,
-      CommonHttpResponse,
-      CommonHttpResponse[]
-    >,
+    filterFn: FilterFn<CommonHttpRequest, CommonHttpResponse>,
     groupByFn: (req: CommonHttpRequest, res: CommonHttpResponse) => string,
     validationFn: ValidationFn<
       string,

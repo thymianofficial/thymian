@@ -27,41 +27,30 @@ export class StaticApiContext extends ApiContext {
   }
 
   validateCommonHttpTransactions(
-    filterFn: FilterFn<
-      CommonHttpRequest,
-      CommonHttpResponse,
-      CommonHttpResponse[]
-    >,
+    filterFn: FilterFn<CommonHttpRequest, CommonHttpResponse>,
     validationFn: ValidationFn<CommonHttpRequest, CommonHttpResponse> = filterFn
   ): RuleFnResult {
     return this.format
       .getHttpTransactions()
-      .reduce((violations, [reqId, resId, transactionId]) => {
-        const req = this.format.getNode<ThymianHttpRequest>(reqId);
-        const res = this.format.getNode<ThymianHttpResponse>(resId);
+      .map<[CommonHttpRequest, CommonHttpResponse, string]>(
+        ([reqId, resId, transactionId]) => {
+          const req = this.format.getNode<ThymianHttpRequest>(reqId);
+          const res = this.format.getNode<ThymianHttpResponse>(resId);
 
-        if (!req || !res) {
-          return violations;
+          if (!req || !res) {
+            throw new Error('Invalid HTTP transaction.');
+          }
+
+          return [
+            thymianToCommonHttpRequest(reqId, req),
+            thymianToCommonHttpResponse(resId, res),
+            transactionId,
+          ];
         }
-
-        const neighbours = this.format.getNeighboursOfType(
-          reqId,
-          'http-response'
-        );
-        const commonReq = thymianToCommonHttpRequest(reqId, req);
-        const commonRes = thymianToCommonHttpResponse(resId, res);
-
-        if (
-          !filterFn(
-            commonReq,
-            commonRes,
-            neighbours.map(([id, res]) => thymianToCommonHttpResponse(id, res))
-          )
-        ) {
-          return violations;
-        }
-
-        const validationResult = validationFn(commonReq, commonRes);
+      )
+      .filter(([req, res]) => filterFn(req, res))
+      .reduce((violations, [req, res, transactionId]) => {
+        const validationResult = validationFn(req, res);
 
         if (typeof validationResult === 'boolean' && validationResult) {
           violations.push({
@@ -89,53 +78,55 @@ export class StaticApiContext extends ApiContext {
   }
 
   validateGroupedCommonHttpTransactions(
-    filterFn: FilterFn<
-      CommonHttpRequest,
-      CommonHttpResponse,
-      CommonHttpResponse[]
-    >,
+    filterFn: FilterFn<CommonHttpRequest, CommonHttpResponse>,
     groupByFn: (req: CommonHttpRequest, res: CommonHttpResponse) => string,
     validationFn: ValidationFn<
       string,
       [CommonHttpRequest, CommonHttpResponse][]
     >
   ): RuleFnResult {
-    const grouped = this.format
+    const groups = this.format
       .getHttpTransactions()
-      .reduce((groups, [reqId, resId, transactionId]) => {
-        const req = this.format.getNode<ThymianHttpRequest>(reqId);
-        const res = this.format.getNode<ThymianHttpResponse>(resId);
+      .map<[CommonHttpRequest, CommonHttpResponse, string]>(
+        ([reqId, resId, transactionId]) => {
+          const req = this.format.getNode<ThymianHttpRequest>(reqId);
+          const res = this.format.getNode<ThymianHttpResponse>(resId);
 
-        if (!req || !res) {
-          return groups;
+          if (!req || !res) {
+            throw new Error('Invalid HTTP transaction.');
+          }
+
+          return [
+            thymianToCommonHttpRequest(reqId, req),
+            thymianToCommonHttpResponse(resId, res),
+            transactionId,
+          ];
         }
+      )
+      .filter(([req, res]) => filterFn(req, res))
+      .reduce((groups, [req, res, transactionId]) => {
+        const key = groupByFn(req, res);
 
-        const neighbours = this.format.getNeighboursOfType(
-          reqId,
-          'http-response'
-        );
-        const commonReq = thymianToCommonHttpRequest(reqId, req);
-        const commonRes = thymianToCommonHttpResponse(resId, res);
-
-        const neighbouredResponses = neighbours.map(([id, res]) =>
-          thymianToCommonHttpResponse(id, res)
-        );
-
-        if (!filterFn(commonReq, commonRes, neighbouredResponses)) {
-          return groups;
-        }
-
-        const key = groupByFn(commonReq, commonRes);
-
-        if (!Object.hasOwn(groups, key)) {
-          groups[key] = [];
-        }
-
-        groups[key]!.push([commonReq, commonRes]);
+        (groups[key] ??= []).push([req, res, transactionId]);
 
         return groups;
-      }, {} as Record<string, [CommonHttpRequest, CommonHttpResponse][]>);
+      }, {} as Record<string, [CommonHttpRequest, CommonHttpResponse, string][]>);
 
-    return [];
+    return Object.entries(groups).reduce((violations, [key, group]) => {
+      const validationResult = validationFn(
+        key,
+        group.map(([req, res]) => [req, res])
+      );
+
+      if (typeof validationResult === 'boolean' && validationResult) {
+        violations.push({});
+      }
+
+      if (validationResult && typeof validationResult === 'object') {
+        violations.push(validationResult);
+      }
+
+      return violations;
+    }, [] as RuleViolation[]);
   }
 }
