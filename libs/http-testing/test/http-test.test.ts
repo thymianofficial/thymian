@@ -1,6 +1,6 @@
 import { NoopLogger, type ThymianHttpRequest } from '@thymian/core';
 import type { FastifyInstance } from 'fastify';
-import { mergeMap } from 'rxjs';
+import { groupBy, mergeMap } from 'rxjs';
 import { beforeEach, describe, expect, it } from 'vitest';
 
 import { httpTest } from '../src/http-test.js';
@@ -106,7 +106,9 @@ describe('httpTest - todo app', () => {
                 return ctx.skip(curr, 'Did not find matching request.');
               }
 
-              const responses = ctx.format.httpResponsesOf(matchResult.reqId);
+              const responses = ctx.format.getHttpResponsesOf(
+                matchResult.reqId
+              );
               // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
               const thymianReq = ctx.format.getNode<ThymianHttpRequest>(
                 matchResult.reqId
@@ -160,6 +162,22 @@ describe('httpTest - todo app', () => {
             expectStatusCode('2XX')
           )
         )
+      )
+    );
+
+    const result = await test(context);
+
+    console.log(JSON.stringify(result));
+  });
+
+  it('groupBy', async () => {
+    const test = httpTest('groupby', (test) =>
+      test.pipe(
+        forHttpTransactions({ method: 'GET' }, { statusCode: 200 }),
+        groupBy(({ curr }) => curr.thymianReq.host),
+        toTestCases(),
+        generateRequests(),
+        runRequests()
       )
     );
 
