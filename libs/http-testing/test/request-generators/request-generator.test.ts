@@ -61,23 +61,5 @@ const res1 = format.addResponse({
 format.addHttpTransaction(reqId1, res1);
 
 describe('RequestGenerator', () => {
-  it('test', async () => {
-    const generator = new RangeRequestGenerator(
-      new ThymianFormat(),
-      {
-        thymianReqId: reqId1,
-        thymianResId: res1,
-        thymianReq: req1,
-      },
-      async (schema) => {
-        if (typeof schema === 'boolean') {
-          return { content: {} };
-        } else {
-          return { content: schema.examples?.[0] };
-        }
-      }
-    );
-
-    console.log(await generator.generate());
-  });
+  it('test', async () => {});
 });

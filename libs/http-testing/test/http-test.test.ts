@@ -1,4 +1,5 @@
 import { NoopLogger, type ThymianHttpRequest } from '@thymian/core';
+import { buildTodosApp, todoFormat } from '@thymian/test-utils';
 import type { FastifyInstance } from 'fastify';
 import { groupBy, mergeMap } from 'rxjs';
 import { beforeEach, describe, expect, it } from 'vitest';
@@ -17,12 +18,11 @@ import { skipTestCase } from '../src/operators/skip.operator.js';
 import { step } from '../src/operators/step.operator.js';
 import { toTestCases } from '../src/operators/to-test-cases.operator.js';
 import { validateResponses } from '../src/operators/validate-responses.operator.js';
-import { todoFormat, buildTodosApp } from '@thymian/test-utils';
 import {
   createRequestRunner,
   exampleContentGenerator,
   identityHookRunner,
-} from './utils.js';
+} from '../src/test-utils/index.js';
 
 describe('httpTest - todo app', () => {
   let todoApp: FastifyInstance;
