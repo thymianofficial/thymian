@@ -1,5 +1,4 @@
 export * from './are-authorized.operator.js';
-export * from './authorize-requests.operator.js';
 export * from './define-test.operator.js';
 export * from './expect-status-code.operator.js';
 export * from './fail.operator.js';

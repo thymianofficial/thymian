@@ -4,12 +4,6 @@
   "include": [],
   "references": [
     {
-      "path": "../../shared/test-utils"
-    },
-    {
-      "path": "../http-status-codes"
-    },
-    {
       "path": "../../core"
     },
     {

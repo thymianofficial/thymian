@@ -7,20 +7,10 @@
     "tsBuildInfoFile": "dist/tsconfig.lib.tsbuildinfo",
     "emitDeclarationOnly": false,
     "moduleResolution": "nodenext",
-    "forceConsistentCasingInFileNames": true,
-    "importHelpers": true,
-    "noImplicitReturns": true,
-    "noFallthroughCasesInSwitch": true,
     "types": ["node"]
   },
   "include": ["src/**/*.ts"],
   "references": [
-    {
-      "path": "../../shared/test-utils/tsconfig.lib.json"
-    },
-    {
-      "path": "../http-status-codes/tsconfig.lib.json"
-    },
     {
       "path": "../../core/tsconfig.lib.json"
     }

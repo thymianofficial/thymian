@@ -24,10 +24,7 @@
     "tslib": "^2.3.0",
     "url-template": "^3.1.1"
   },
-  "devDependencies": {
-    "@fastify/basic-auth": "^6.2.0",
-    "@fastify/type-provider-json-schema-to-ts": "^5.0.0",
-    "@thymian/core": "^0",
-    "fastify": "^5.3.3"
+  "peerDependencies": {
+    "@thymian/core": "^0"
   }
 }

@@ -39,7 +39,8 @@
     "plugins/**",
     "core",
     "libs/**",
-    "cli"
+    "cli",
+    "shared/test-utils"
   ],
   "nx": {
     "targets": {

@@ -35,6 +35,9 @@
     },
     {
       "path": "./plugins/http-linter-cli-reporter"
+    },
+    {
+      "path": "./shared/test-utils"
     }
   ]
 }

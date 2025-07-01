@@ -17,8 +17,7 @@ import { skipTestCase } from '../src/operators/skip.operator.js';
 import { step } from '../src/operators/step.operator.js';
 import { toTestCases } from '../src/operators/to-test-cases.operator.js';
 import { validateResponses } from '../src/operators/validate-responses.operator.js';
-import { buildTodosApp } from './fixture/todo-app/app.js';
-import { todoFormat } from './fixture/todo-app/todo.format.js';
+import { todoFormat, buildTodosApp } from '@thymian/test-utils';
 import {
   createRequestRunner,
   exampleContentGenerator,
