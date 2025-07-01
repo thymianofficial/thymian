@@ -10,3 +10,4 @@ export * from './thymian-emitter.js';
 export * from './utils.js';
 export * from 'json-schema-to-ts';
 export * from './ajv.js';
+export * from './http.js';

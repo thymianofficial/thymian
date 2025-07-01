@@ -123,17 +123,17 @@ export class ThymianFormat {
     return this.graph.getNodeAttributes(id);
   }
 
-  httpResponsesOf(reqId: string): ThymianHttpResponse[] {
+  getHttpResponsesOf(reqId: string): [string, ThymianHttpResponse][] {
     return this.graph.reduceOutNeighbors(
       reqId,
-      (acc, _, attributes) => {
+      (acc, id, attributes) => {
         if (isNodeType<ThymianHttpResponse>(attributes, 'http-response')) {
-          acc.push(attributes);
+          acc.push([id, attributes]);
         }
 
         return acc;
       },
-      [] as ThymianHttpResponse[]
+      [] as [string, ThymianHttpResponse][]
     );
   }
 

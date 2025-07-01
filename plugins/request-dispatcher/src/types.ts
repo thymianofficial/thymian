@@ -1,19 +1,12 @@
 import type { Dispatcher } from 'undici';
 import type { JSONSchemaType } from '@thymian/core/ajv';
-
-export type HttpRequest = {
-  url: string;
-  method: string;
-  body?: string;
-  bodyEncoding?: string;
-  headers?: Record<string, string | string[]>;
-  timeout?: number;
-};
+import type { HttpRequest, HttpResponse } from '@thymian/core';
 
 export const httpRequestSchema: JSONSchemaType<HttpRequest> = {
   type: 'object',
   properties: {
-    url: { type: 'string', nullable: false },
+    origin: { type: 'string', nullable: false },
+    path: { type: 'string', nullable: false },
     method: { type: 'string', nullable: false },
     body: { type: 'string', nullable: true },
     bodyEncoding: { type: 'string', nullable: true },
@@ -37,17 +30,8 @@ export const httpRequestSchema: JSONSchemaType<HttpRequest> = {
     },
     timeout: { type: 'number', nullable: true },
   },
-  required: ['url', 'method'],
+  required: ['origin', 'method', 'path'],
   additionalProperties: false,
-};
-
-export type HttpResponse = {
-  statusCode: number;
-  headers: Record<string, string | string[] | undefined>;
-  body: string;
-  bodyEncoding?: string;
-  trailers: Record<string, string>;
-  duration: number;
 };
 
 export const httpResponseSchema: JSONSchemaType<HttpResponse> = {

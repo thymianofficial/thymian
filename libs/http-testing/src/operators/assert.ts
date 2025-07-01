@@ -1,3 +1,4 @@
+import type { HttpResponse } from '@thymian/core';
 import { identity, type OperatorFunction } from 'rxjs';
 
 import type {
@@ -5,7 +6,6 @@ import type {
   HttpTestCaseResult,
   HttpTestCaseStep,
 } from '../http-test-case.js';
-import type { HttpResponse } from '../http-response.js';
 
 export function assertStep<Step extends HttpTestCaseStep[]>(
   fn: (step: Step) => HttpTestCaseResult[]

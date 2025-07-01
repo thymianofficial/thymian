@@ -12,9 +12,9 @@ import {
   type ResponseFilter,
 } from './for-http-transactions.operator.js';
 import { generateRequests } from './generate-requests.operator.js';
+import { runRequests } from './run-requests.operator.js';
 import { toTestCases } from './to-test-cases.operator.js';
 import { validateResponses } from './validate-responses.operator.js';
-import { runRequests } from './run-requests.operator.js';
 
 export type DefineStepOptions = {
   reqFilter: RequestFilter;

@@ -1,6 +1,8 @@
 import { request } from 'undici';
-import type { HttpMethod, HttpRequest, HttpResponse } from './types.js';
+import type { HttpMethod } from './types.js';
 import { decodeBody } from './decode-body.js';
+import type { HttpRequest, HttpResponse } from '@thymian/core';
+import { join } from 'path';
 
 export function isValidHttpMethod(method: string): method is HttpMethod {
   return [
@@ -16,21 +18,31 @@ export function isValidHttpMethod(method: string): method is HttpMethod {
   ].includes(method.toUpperCase());
 }
 
+export type HttpRequestDispatchOptions = {
+  timeout: number;
+};
+
 export async function dispatchHttpRequest(
-  httpRequest: HttpRequest
+  httpRequest: HttpRequest,
+  options: Partial<HttpRequestDispatchOptions> = {}
 ): Promise<HttpResponse> {
+  const opts = {
+    timeout: 5000,
+    ...options,
+  };
+
   if (!isValidHttpMethod(httpRequest.method)) {
     throw new Error('Invalid HTTP method.');
   }
 
   const start = performance.now();
 
-  const response = await request(httpRequest.url, {
+  const response = await request(join(httpRequest.origin, httpRequest.path), {
     method: httpRequest.method,
     headers: httpRequest.headers,
     body: decodeBody(httpRequest.body, httpRequest.bodyEncoding),
-    bodyTimeout: httpRequest.timeout,
-    headersTimeout: httpRequest.timeout,
+    bodyTimeout: opts.timeout,
+    headersTimeout: opts.timeout,
   });
 
   return {

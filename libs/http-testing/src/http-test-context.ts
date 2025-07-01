@@ -1,4 +1,6 @@
 import type {
+  HttpRequest,
+  HttpResponse,
   Logger,
   Parameter,
   PartialBy,
@@ -6,9 +8,7 @@ import type {
   ThymianSchema,
 } from '@thymian/core';
 
-import type { HttpRequest } from './http-request.js';
 import type { HttpRequestTemplate } from './http-request-template.js';
-import type { HttpResponse } from './http-response.js';
 import type { HttpTestInstance } from './http-test.js';
 import type {
   HttpTestCase,

@@ -136,12 +136,12 @@ export class BaseRequestGenerator implements RequestGenerator {
             .join(':')
         ).toString('base64')}`;
       } else {
-        return (
-          await this.ctx.runHook('authorize', {
-            requestTemplate: request,
-            source: this.transaction,
-          })
-        ).requestTemplate;
+        // return (
+        //   await this.ctx.runHook('authorize', {
+        //     requestTemplate: request,
+        //     source: this.transaction,
+        //   })
+        // ).requestTemplate;
       }
     }
 

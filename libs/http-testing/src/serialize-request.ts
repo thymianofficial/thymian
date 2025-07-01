@@ -1,5 +1,6 @@
+import type { HttpRequest } from '@thymian/core';
+
 import type { HttpTestCaseStepTransaction } from './http-test-case.js';
-import type { HttpRequest } from './http-request.js';
 import {
   serializeHeaderParameter,
   serializePathParameter,
@@ -84,7 +85,7 @@ export function serializePath(
 
   const query = serializeQuery(transaction);
 
-  return `${path}?${query}`;
+  return query ? `${path}?${query}` : path;
 }
 
 export function serializeHeaders(

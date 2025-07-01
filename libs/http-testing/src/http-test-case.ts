@@ -1,8 +1,11 @@
-import type { ThymianHttpRequest, ThymianHttpResponse } from '@thymian/core';
+import type {
+  HttpRequest,
+  HttpResponse,
+  ThymianHttpRequest,
+  ThymianHttpResponse,
+} from '@thymian/core';
 
-import type { HttpRequest } from './http-request.js';
 import type { HttpRequestTemplate } from './http-request-template.js';
-import type { HttpResponse } from './http-response.js';
 
 export function isSingleHttpTestCaseStep(
   step?: HttpTestCaseStep
