@@ -25,6 +25,7 @@
     "./ajv": "./dist/ajv.js"
   },
   "dependencies": {
+    "@fastify/deepmerge": "^3.1.0",
     "ajv": "^8.17.1",
     "chalk": "^5.4.1",
     "eventemitter2": "^6.4.9",

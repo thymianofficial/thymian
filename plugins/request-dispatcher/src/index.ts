@@ -5,7 +5,7 @@ import {
   type HttpRequest,
   type JSONSchemaType,
 } from '@thymian/core';
-import { httpRequestSchema, httpResponseSchema } from './types.js';
+import { httpResponseSchema } from './types.js';
 import {
   dispatchHttpRequest,
   type HttpRequestDispatchOptions,
@@ -90,7 +90,9 @@ export const dispatcherPlugin: ThymianPlugin = {
       'request-dispatcher.http-request',
       async ({ request, options }) => {
         try {
-          return await dispatchHttpRequest(request, options);
+          return {
+            result: await dispatchHttpRequest(request, options),
+          };
         } catch (e) {
           throw new ThymianError(
             `Error while dispatching request: ${request.method.toUpperCase()} ${

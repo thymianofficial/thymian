@@ -68,8 +68,8 @@ describe('ThymianEmitter', () => {
   it('.runHook() should return all results - with sync listener', async () => {
     const emitter = new ThymianEmitter(new NoopLogger());
 
-    emitter.onHook('hook', () => 1);
-    emitter.onHook('hook', () => 2);
+    emitter.onHook('hook', () => ({ result: 1 }));
+    emitter.onHook('hook', () => ({ result: 2 }));
 
     const nums = await emitter.runHook('hook');
 
@@ -79,11 +79,62 @@ describe('ThymianEmitter', () => {
   it('.runHook() should return all results - with async listener', async () => {
     const emitter = new ThymianEmitter(new NoopLogger());
 
-    emitter.onHook('hook', async () => 1);
-    emitter.onHook('hook', async () => 2);
+    emitter.onHook('hook', async () => ({ result: 1 }));
+    emitter.onHook('hook', async () => ({ result: 2 }));
 
     const nums = await emitter.runHook('hook');
 
     expect(nums).toStrictEqual([1, 2]);
+  });
+
+  it('.runHook() should deep merge result for deep merge strategy', async () => {
+    const emitter = new ThymianEmitter(new NoopLogger());
+
+    emitter.onHook('hook', async () => ({
+      result: {
+        a: {
+          b: 2,
+          c: 17,
+        },
+      },
+    }));
+    emitter.onHook('hook', async () => ({
+      score: 10,
+      result: {
+        a: {
+          b: 3,
+        },
+      },
+    }));
+
+    const result = await emitter.runHook('hook', undefined, {
+      type: 'deep-merge',
+    });
+
+    expect(result).toMatchObject({
+      a: {
+        b: 3,
+        c: 17,
+      },
+    });
+  });
+
+  it('.runHook() should return result with highest score for vote strategy', async () => {
+    const emitter = new ThymianEmitter(new NoopLogger());
+
+    emitter.onHook('hook', async () => ({
+      score: 9.8,
+      result: 'b',
+    }));
+    emitter.onHook('hook', async () => ({
+      score: 10,
+      result: 'a',
+    }));
+
+    const result = await emitter.runHook('hook', undefined, {
+      type: 'vote',
+    });
+
+    expect(result).toBe('a');
   });
 });

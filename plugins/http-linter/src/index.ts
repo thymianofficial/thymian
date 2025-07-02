@@ -91,9 +91,15 @@ export const httpLinterPlugin: ThymianPlugin<{
 
     emitter.onHook('http-linter.load-rules', async ({ rules }) => {
       loadedRules.push(...(await loadRules(rules)));
+
+      return {};
     });
 
-    emitter.onHook('http-linter.rules', () => loadedRules);
+    emitter.onHook('http-linter.load-rules', async ({ rules }) => {
+      loadedRules.push(...(await loadRules(rules)));
+
+      return {};
+    });
 
     emitter.onHook('http-linter.lint', async ({ format, severity, modes }) => {
       const ctx = createHttpTestContext({
@@ -138,7 +144,7 @@ export const httpLinterPlugin: ThymianPlugin<{
         ctx
       );
 
-      return linter.run(modes ?? ['static']);
+      return { result: await linter.run(modes ?? ['static']) };
     });
   },
 };

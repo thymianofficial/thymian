@@ -70,7 +70,9 @@ export const dataGeneratorPlugin: ThymianPlugin = {
 
     emitter.onHook('sampler.generate', async ({ schema, contentType }) => {
       try {
-        return await generator.generate(contentType, schema);
+        return {
+          result: await generator.generate(contentType, schema),
+        };
       } catch (e) {
         throw new ThymianError('Cannot generate data.', e);
       }

@@ -1,11 +1,20 @@
+import dm from '@fastify/deepmerge';
 import eventemitter from 'eventemitter2';
 
-import type { Logger } from './logger/logger.js';
-import { ThymianError } from './thymian.error.js';
+import type { RegisterPluginEvent } from './events/register-plugin.event.js';
+import type {
+  AggregateStrategy,
+  CollectStrategy,
+  HookStrategy,
+} from './hook-strategies.js';
 import type { CloseHook } from './hooks/close.hook.js';
 import type { EmptyHook } from './hooks/hook.js';
 import type { LoadFormatHook } from './hooks/load-format.hook.js';
-import type { RegisterPluginEvent } from './events/register-plugin.event.js';
+import type { Logger } from './logger/logger.js';
+import { NoopLogger } from './logger/noop.logger.js';
+import { ThymianError } from './thymian.error.js';
+
+const deepmerge = dm();
 
 export interface ThymianHooks {
   'core.close': CloseHook;
@@ -31,6 +40,24 @@ export type ThymianEmitterOptions = {
 export type ThymianEvent = keyof ThymianEvents | (string & {});
 
 export type ThymianHook = keyof ThymianHooks | (string & {});
+
+export type HookResult<T> = T extends undefined | never | null | void
+  ? {
+      score?: number;
+    }
+  : {
+      score?: number;
+      result: T;
+    };
+
+export type RunHookReturnType<
+  Strategy extends HookStrategy,
+  ReturnType
+> = Strategy extends CollectStrategy
+  ? ReturnType[]
+  : Strategy extends AggregateStrategy<ReturnType, infer T>
+  ? T
+  : ReturnType;
 
 export class ThymianEmitter {
   #timeoutHandler: NodeJS.Timeout | undefined;
@@ -77,9 +104,9 @@ export class ThymianEmitter {
     listener: Event extends keyof ThymianHooks
       ? ThymianListerAsyncFn<
           ThymianHooks[Event]['arg'],
-          ThymianHooks[Event]['returnType']
+          HookResult<ThymianHooks[Event]['returnType']>
         >
-      : ThymianListerAsyncFn<any, any>
+      : ThymianListerAsyncFn<any, HookResult<any>>
   ): this {
     this.#emitter.on(String(event), listener as eventemitter.ListenerFn, {
       async: true,
@@ -110,22 +137,58 @@ export class ThymianEmitter {
     }
   }
 
-  runHook<Event extends ThymianHook>(
-    event: Event,
-    arg?: Event extends keyof ThymianHooks ? ThymianHooks[Event]['arg'] : any
+  async runHook<
+    Hook extends ThymianHook,
+    Strategy extends HookStrategy = CollectStrategy
+  >(
+    event: Hook,
+    arg?: Hook extends keyof ThymianHooks ? ThymianHooks[Hook]['arg'] : any,
+    strategy?: Strategy
   ): Promise<
-    Event extends keyof ThymianHooks
-      ? ThymianHooks[Event]['returnType'][]
-      : any[]
+    RunHookReturnType<
+      Strategy,
+      Hook extends keyof ThymianHooks ? ThymianHooks[Hook]['returnType'] : any
+    >
   > {
     try {
       this.#resetTimeout();
-      this.#logger.debug(`Emitting event "${event}".`);
-      return this.#emitter.emitAsync(String(event), arg) as Promise<
-        Event extends keyof ThymianHooks
-          ? ThymianHooks[Event]['returnType'][]
-          : any[]
-      >;
+      const results = (await this.#emitter.emitAsync(
+        String(event),
+        arg
+      )) as HookResult<any>[];
+
+      const str = strategy ?? { type: 'collect' };
+
+      switch (str.type) {
+        case 'collect':
+          return results
+            .filter((r) => 'result' in r)
+            .map((r) => r.result) as RunHookReturnType<
+            Strategy,
+            Hook extends keyof ThymianHooks
+              ? ThymianHooks[Hook]['returnType']
+              : any
+          >;
+        case 'vote': {
+          const votedResult = results.reduce((max, curr) =>
+            (curr.score ?? 0) > (max.score ?? 0) ? curr : max
+          );
+
+          return 'result' in votedResult ? votedResult.result : undefined;
+        }
+        case 'aggregate':
+          return str.merger(results);
+        case 'deep-merge':
+          // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+          // @ts-expect-error
+          return (
+            results
+              .sort((a, b) => (a.score ?? 0) - (b.score ?? 0))
+              // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+              // @ts-expect-error
+              .reduce((acc, curr) => deepmerge(acc, curr.result), {})
+          );
+      }
     } catch (e) {
       throw new ThymianError(`Error while running hook ${event}.`, e);
     }
@@ -152,3 +215,7 @@ export class ThymianEmitter {
     );
   }
 }
+
+const emitter = new ThymianEmitter(new NoopLogger());
+
+const result = await emitter.runHook('core.load-format');
