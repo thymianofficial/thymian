@@ -1,8 +1,6 @@
-import type { HookResult } from './thymian-emitter.js';
-
 export type AggregateStrategy<T, R = T> = {
   type: 'aggregate';
-  merger: (results: HookResult<T>[]) => R;
+  merger: (results: T[]) => R;
 };
 
 export type CollectStrategy = {

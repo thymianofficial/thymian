@@ -137,10 +137,7 @@ export class ThymianEmitter {
     }
   }
 
-  async runHook<
-    Hook extends ThymianHook,
-    Strategy extends HookStrategy = CollectStrategy
-  >(
+  async runHook<Hook extends ThymianHook, Strategy extends HookStrategy>(
     event: Hook,
     arg?: Hook extends keyof ThymianHooks ? ThymianHooks[Hook]['arg'] : any,
     strategy?: Strategy
@@ -179,7 +176,12 @@ export class ThymianEmitter {
           return 'result' in votedResult ? votedResult.result : undefined;
         }
         case 'aggregate':
-          return str.merger(results);
+          return str.merger(
+            results
+              .sort((a, b) => (a.score ?? 0) - (b.score ?? 0))
+              .filter((r) => 'result' in r)
+              .map((r) => r.result)
+          );
         case 'deep-merge': {
           const sortedResults = results
             .sort((a, b) => (a.score ?? 0) - (b.score ?? 0))

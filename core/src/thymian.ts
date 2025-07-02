@@ -66,19 +66,14 @@ export class Thymian {
   }
 
   async loadFormat(): Promise<ThymianFormat> {
-    const formats = await this.emitter.runHook('core.load-format');
+    return await this.emitter.runHook('core.load-format', undefined, {
+      type: 'aggregate',
+      merger: (formats) =>
+        formats.length === 0
+          ? new ThymianFormat()
+          : formats.slice(1).reduce((acc, curr) => acc.merge(ThymianFormat.import(curr)), ThymianFormat.import(formats[0]))
+    });
 
-    if (formats.length === 0) {
-      return new ThymianFormat();
-    }
-
-    return formats
-      .slice(1)
-      .reduce((acc, curr) =>
-        acc.merge(ThymianFormat.import(curr)),
-        // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-        ThymianFormat.import(formats[0]!)
-      )
   }
 
   private async loadRegisteredPlugins(): Promise<void> {
