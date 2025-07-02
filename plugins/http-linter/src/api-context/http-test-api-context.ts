@@ -4,8 +4,6 @@ import {
   generateRequests,
   groupBy,
   type GroupedHttpTestCaseStep,
-  type HttpRequest,
-  type HttpResponse,
   httpTest,
   type HttpTestCase,
   type HttpTestCaseStepTransaction,
@@ -31,6 +29,20 @@ import {
   thymianToCommonHttpRequest,
   thymianToCommonHttpResponse,
 } from './utils.js';
+import type { HttpRequest, HttpResponse } from '@thymian/core';
+
+function extractMediaType(req: HttpRequest): string {
+  if (!req.headers) {
+    return '';
+  }
+
+  // TODO upper/lowercase
+  if (Array.isArray(req.headers['content-type'])) {
+    throw new Error('Content-type is a single valued field.');
+  }
+
+  return req.headers['content-type'] ?? '';
+}
 
 function httpRequestToCommonHttpRequest(
   source: ThymianHttpTransaction,
@@ -41,12 +53,12 @@ function httpRequestToCommonHttpRequest(
     origin: request.origin,
     path: request.path,
     method: request.method,
-    headers: Object.keys(request.headers),
+    headers: Object.keys(request.headers ?? {}),
     queryParameters: Array.from(
       new URLSearchParams(request.path.split('?')[1] ?? '').keys()
     ),
     cookies: [],
-    mediaType: request.headers['content-type'] ?? '',
+    mediaType: extractMediaType(request),
     body: !!request.body,
   };
 }
