@@ -25,6 +25,10 @@ declare module '@thymian/core' {
       values: { operationId: string }
     ): ThymianNode | undefined;
   }
+
+  interface HookResultMeta {
+    test: number;
+  }
 }
 
 export const openApiPlugin: ThymianPlugin<Partial<ParseOpenApiOptions>> = {

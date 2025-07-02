@@ -17,8 +17,10 @@ export const httpLinterCliReporterPlugin: ThymianPlugin = {
       console.log(results);
 
       return {
-        pluginName: '@thymian/http-linter-cli-reporter',
-        status: 'success',
+        result: {
+          pluginName: '@thymian/http-linter-cli-reporter',
+          status: 'success',
+        },
       };
     });
   },

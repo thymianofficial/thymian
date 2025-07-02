@@ -1,6 +1,6 @@
 export default {
   name: 'my-thymian-plugin',
-  version: '0.0.1',
+  version: '1.0.1',
   plugin(emitter, logger, opts) {
     console.log({ opts });
 

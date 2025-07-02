@@ -2,11 +2,7 @@ import dm from '@fastify/deepmerge';
 import eventemitter from 'eventemitter2';
 
 import type { RegisterPluginEvent } from './events/register-plugin.event.js';
-import type {
-  AggregateStrategy,
-  CollectStrategy,
-  HookStrategy,
-} from './hook-strategies.js';
+import type { CollectStrategy, HookStrategy } from './hook-strategies.js';
 import type { CloseHook } from './hooks/close.hook.js';
 import type { EmptyHook } from './hooks/hook.js';
 import type { LoadFormatHook } from './hooks/load-format.hook.js';
@@ -41,23 +37,22 @@ export type ThymianEvent = keyof ThymianEvents | (string & {});
 
 export type ThymianHook = keyof ThymianHooks | (string & {});
 
+// eslint-disable-next-line @typescript-eslint/no-empty-interface,@typescript-eslint/no-empty-object-type
+export interface HookResultMeta {}
+
 export type HookResult<T> = T extends undefined | never | null | void
   ? {
-      score?: number;
+      meta?: HookResultMeta;
     }
   : {
-      score?: number;
+      score?: HookResultMeta;
       result: T;
     };
 
 export type RunHookReturnType<
   Strategy extends HookStrategy,
   ReturnType
-> = Strategy extends CollectStrategy
-  ? ReturnType[]
-  : Strategy extends AggregateStrategy<ReturnType, infer T>
-  ? T
-  : ReturnType;
+> = Strategy extends CollectStrategy ? ReturnType[] : ReturnType;
 
 export class ThymianEmitter {
   #timeoutHandler: NodeJS.Timeout | undefined;
@@ -141,7 +136,7 @@ export class ThymianEmitter {
     Hook extends ThymianHook,
     Strategy extends HookStrategy = CollectStrategy
   >(
-    event: Hook,
+    hook: Hook,
     arg?: Hook extends keyof ThymianHooks ? ThymianHooks[Hook]['arg'] : any,
     strategy?: Strategy
   ): Promise<
@@ -153,7 +148,7 @@ export class ThymianEmitter {
     try {
       this.#resetTimeout();
       const results = (await this.#emitter.emitAsync(
-        String(event),
+        String(hook),
         arg
       )) as HookResult<
         Hook extends keyof ThymianHooks ? ThymianHooks[Hook]['returnType'] : any
@@ -163,32 +158,18 @@ export class ThymianEmitter {
 
       switch (str.type) {
         case 'collect':
-          return results
-            .filter((r) => 'result' in r)
-            .map((r) => r.result) as RunHookReturnType<
+          return results.map((r) =>
+            'result' in r ? r.result : undefined
+          ) as RunHookReturnType<
             Strategy,
             Hook extends keyof ThymianHooks
               ? ThymianHooks[Hook]['returnType']
               : any
           >;
-        case 'vote': {
-          const votedResult = results.reduce((max, curr) =>
-            (curr.score ?? 0) > (max.score ?? 0) ? curr : max
-          );
-
-          return 'result' in votedResult ? votedResult.result : undefined;
-        }
-        case 'aggregate':
-          return str.merger(
-            results
-              .sort((a, b) => (a.score ?? 0) - (b.score ?? 0))
-              .filter((r) => 'result' in r)
-              .map((r) => r.result)
-          );
         case 'deep-merge': {
-          const sortedResults = results
-            .sort((a, b) => (a.score ?? 0) - (b.score ?? 0))
-            .map((r) => ('result' in r ? r.result : undefined));
+          const sortedResults = results.map((r) =>
+            'result' in r ? r.result : undefined
+          );
 
           return deepmerge(...sortedResults) as RunHookReturnType<
             Strategy,
@@ -199,7 +180,7 @@ export class ThymianEmitter {
         }
       }
     } catch (e) {
-      throw new ThymianError(`Error while running hook ${event}.`, e);
+      throw new ThymianError(`Error while running hook ${hook}.`, e);
     }
   }
 
@@ -224,7 +205,3 @@ export class ThymianEmitter {
     );
   }
 }
-
-const emitter = new ThymianEmitter(new NoopLogger());
-
-const result = await emitter.runHook('core.load-format');

@@ -99,7 +99,6 @@ describe('ThymianEmitter', () => {
       },
     }));
     emitter.onHook('hook', async () => ({
-      score: 10,
       result: {
         a: {
           b: 3,
@@ -117,43 +116,5 @@ describe('ThymianEmitter', () => {
         c: 17,
       },
     });
-  });
-
-  it('.runHook() should return result with highest score for vote strategy', async () => {
-    const emitter = new ThymianEmitter(new NoopLogger());
-
-    emitter.onHook('hook', async () => ({
-      score: 9.8,
-      result: 'b',
-    }));
-    emitter.onHook('hook', async () => ({
-      score: 10,
-      result: 'a',
-    }));
-
-    const result = await emitter.runHook('hook', undefined, {
-      type: 'vote',
-    });
-
-    expect(result).toBe('a');
-  });
-
-  it('.runHook() should return aggregated result for aggregate strategy', async () => {
-    const emitter = new ThymianEmitter(new NoopLogger());
-
-    emitter.onHook('hook', async () => ({
-      result: -2,
-    }));
-    emitter.onHook('hook', async () => ({
-      score: -1,
-      result: 4,
-    }));
-
-    const result = await emitter.runHook('hook', undefined, {
-      type: 'aggregate',
-      merger: (nums) => nums.reduce((acc, curr) => acc - curr),
-    });
-
-    expect(result).toBe(6);
   });
 });
