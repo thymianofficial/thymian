@@ -36,13 +36,17 @@ export default class LintCommand extends BaseCliCommand<typeof LintCommand> {
       });
     }
 
-    const result = await this.thymian.emitter.runHook('http-linter.lint', {
-      format: format.export(),
-      severity: this.flags.severity as RuleSeverity,
-      modes: this.flags.mode as RuleType[],
-    });
-
-    const valid = result.every((x) => x);
+    const valid = await this.thymian.emitter.runHook(
+      'http-linter.lint',
+      {
+        format: format.export(),
+        severity: this.flags.severity as RuleSeverity,
+        modes: this.flags.mode as RuleType[],
+      },
+      {
+        type: 'deep-merge',
+      }
+    );
 
     await this.thymian.close();
 
