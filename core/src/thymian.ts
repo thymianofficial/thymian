@@ -1,17 +1,15 @@
 import semver from 'semver';
 
 import packageJson from '../package.json' with { type: 'json' };
-import type { RegisterPluginEvent } from './events/register-plugin.event.js';
 import { ThymianFormat } from './format/index.js';
-import type { CloseHook, CloseHookResult } from './hooks/close.hook.js';
-import type { EmptyHook } from './hooks/hook.js';
-import type { LoadFormatHook } from './hooks/load-format.hook.js';
+import type { CloseHookResult } from './hooks/close.hook.js';
 import type { Logger } from './logger/logger.js';
 import { NoopLogger } from './logger/noop.logger.js';
 import { ThymianError } from './thymian.error.js';
 import { ThymianEmitter } from './thymian-emitter.js';
 import type { ThymianPlugin } from './thymian-plugin.js';
 import { timeoutPromise } from './utils.js';
+import { corePlugin } from './core-plugin.js';
 
 export type RegisteredPlugin<T> = {
   plugin: ThymianPlugin<T>;
@@ -84,19 +82,25 @@ export class Thymian {
   }
 
   private async loadRegisteredPlugins(): Promise<void> {
-    for (const { plugin, options } of this.plugins) {
-      this.emitter.emitEvent('core.register', {
-        name: plugin.name,
-        events: plugin.events ?? {},
-        hooks: plugin.hooks ?? {},
-        options,
-      });
+    await this.registerPlugin({ plugin: corePlugin, options: {} })
 
-      await timeoutPromise(
-        plugin.plugin(this.emitter, this.logger.child(plugin.name), options),
-        5000,
-        new ThymianError(`Timeout while registering plugin "${plugin.name}".`)
-      );
+    for (const plugin of this.plugins) {
+      await this.registerPlugin(plugin);
     }
+  }
+
+  private async registerPlugin(registeredPlugin: RegisteredPlugin<any>): Promise<void> {
+    this.emitter.emitEvent('core.register', {
+      name:   registeredPlugin.plugin.name,
+      events:   registeredPlugin.plugin.events ?? {},
+      hooks:   registeredPlugin.plugin.hooks ?? {},
+      options: registeredPlugin.options,
+    });
+
+    await timeoutPromise(
+      registeredPlugin.plugin.plugin(this.emitter, this.logger.child(registeredPlugin.plugin.name), registeredPlugin.options),
+      5000,
+      new ThymianError(`Timeout while registering plugin "${registeredPlugin.plugin.name}".`)
+    );
   }
 }

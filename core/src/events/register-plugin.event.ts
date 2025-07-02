@@ -5,7 +5,7 @@ import type {
 
 export type RegisterPluginEvent = {
   name: string;
-  options: Record<PropertyKey, unknown>;
+  options: unknown;
   events: ThymianPluginEvents;
   hooks: ThymianPluginHooks;
 };
@@ -15,7 +15,7 @@ export const RegisterPluginEventSchema = {
   required: ['name', 'options', 'events', 'hooks'],
   properties: {
     name: { type: 'string' },
-    options: { type: 'object', additionalProperties: true },
+    options: {},
     events: {
       type: 'object',
       properties: {
