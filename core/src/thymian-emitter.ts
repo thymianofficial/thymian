@@ -14,7 +14,7 @@ import type { Logger } from './logger/logger.js';
 import { NoopLogger } from './logger/noop.logger.js';
 import { ThymianError } from './thymian.error.js';
 
-const deepmerge = dm();
+const deepmerge = dm({ all: true });
 
 export interface ThymianHooks {
   'core.close': CloseHook;
@@ -155,7 +155,9 @@ export class ThymianEmitter {
       const results = (await this.#emitter.emitAsync(
         String(event),
         arg
-      )) as HookResult<any>[];
+      )) as HookResult<
+        Hook extends keyof ThymianHooks ? ThymianHooks[Hook]['returnType'] : any
+      >[];
 
       const str = strategy ?? { type: 'collect' };
 
@@ -178,16 +180,18 @@ export class ThymianEmitter {
         }
         case 'aggregate':
           return str.merger(results);
-        case 'deep-merge':
-          // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-          // @ts-expect-error
-          return (
-            results
-              .sort((a, b) => (a.score ?? 0) - (b.score ?? 0))
-              // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-              // @ts-expect-error
-              .reduce((acc, curr) => deepmerge(acc, curr.result), {})
-          );
+        case 'deep-merge': {
+          const sortedResults = results
+            .sort((a, b) => (a.score ?? 0) - (b.score ?? 0))
+            .map((r) => ('result' in r ? r.result : undefined));
+
+          return deepmerge(...sortedResults) as RunHookReturnType<
+            Strategy,
+            Hook extends keyof ThymianHooks
+              ? ThymianHooks[Hook]['returnType']
+              : any
+          >;
+        }
       }
     } catch (e) {
       throw new ThymianError(`Error while running hook ${event}.`, e);
