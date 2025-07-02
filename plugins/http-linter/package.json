@@ -34,7 +34,7 @@
   "oclif": {
     "commands": "./dist/commands",
     "topics": {
-      "http-linter": { "description": "Check your API for HTTP conformance." }
+      "http": { "description": "Check your API for HTTP conformance." }
     }
   },
   "devDependencies": {
