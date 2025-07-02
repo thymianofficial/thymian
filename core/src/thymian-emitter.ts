@@ -137,7 +137,10 @@ export class ThymianEmitter {
     }
   }
 
-  async runHook<Hook extends ThymianHook, Strategy extends HookStrategy>(
+  async runHook<
+    Hook extends ThymianHook,
+    Strategy extends HookStrategy = CollectStrategy
+  >(
     event: Hook,
     arg?: Hook extends keyof ThymianHooks ? ThymianHooks[Hook]['arg'] : any,
     strategy?: Strategy

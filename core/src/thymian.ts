@@ -1,7 +1,7 @@
 import semver from 'semver';
 
 import packageJson from '../package.json' with { type: 'json' };
-import { ThymianFormat } from './format/index.js';
+import { type SerializedThymianFormat, ThymianFormat } from './format/index.js';
 import type { CloseHookResult } from './hooks/close.hook.js';
 import type { Logger } from './logger/logger.js';
 import { NoopLogger } from './logger/noop.logger.js';
@@ -10,6 +10,7 @@ import { ThymianEmitter } from './thymian-emitter.js';
 import type { ThymianPlugin } from './thymian-plugin.js';
 import { timeoutPromise } from './utils.js';
 import { corePlugin } from './core-plugin.js';
+import type { AggregateStrategy } from './hook-strategies.js';
 
 export type RegisteredPlugin<T> = {
   plugin: ThymianPlugin<T>;
@@ -66,7 +67,7 @@ export class Thymian {
   }
 
   async loadFormat(): Promise<ThymianFormat> {
-    return await this.emitter.runHook('core.load-format', undefined, {
+    return await this.emitter.runHook<'core.load-format', AggregateStrategy<SerializedThymianFormat, ThymianFormat>>('core.load-format', undefined, {
       type: 'aggregate',
       merger: (formats) =>
         formats.length === 0
