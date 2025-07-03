@@ -7,7 +7,6 @@ import type { CloseHook } from './hooks/close.hook.js';
 import type { EmptyHook } from './hooks/hook.js';
 import type { LoadFormatHook } from './hooks/load-format.hook.js';
 import type { Logger } from './logger/logger.js';
-import { NoopLogger } from './logger/noop.logger.js';
 import { ThymianError } from './thymian.error.js';
 
 const deepmerge = dm({ all: true });
@@ -127,8 +126,8 @@ export class ThymianEmitter {
     try {
       this.#resetTimeout();
       this.#emitter.emit(event, arg);
-    } catch (e) {
-      throw new ThymianError(`Error while emitting event ${event}.`, e);
+    } catch (cause) {
+      throw new ThymianError(`Error while emitting event ${event}.`, { cause });
     }
   }
 
@@ -179,8 +178,8 @@ export class ThymianEmitter {
           >;
         }
       }
-    } catch (e) {
-      throw new ThymianError(`Error while running hook ${hook}.`, e);
+    } catch (cause) {
+      throw new ThymianError(`Error while running hook ${hook}.`, { cause });
     }
   }
 

@@ -1,5 +1,5 @@
 import { BaseCliCommand, defaultConfig } from '@thymian/cli-common';
-import { Flags, Errors } from '@thymian/cli-common/oclif';
+import { Flags } from '@thymian/cli-common/oclif';
 import { stringify } from '@thymian/cli-common/yaml';
 
 export default class Init extends BaseCliCommand<typeof Init> {
@@ -14,13 +14,6 @@ export default class Init extends BaseCliCommand<typeof Init> {
   };
 
   public async run(): Promise<void> {
-    throw new Errors.CLIError('HAHAHA', {
-      code: 'Super cool code',
-      message: 'You should listen to me',
-      ref: 'http://localhost:8080',
-      suggestions: ['Look on github.'],
-    });
-
     if (this.flags.yaml) {
       this.log(stringify(defaultConfig));
     } else {

@@ -1,12 +1,31 @@
+export interface ThymianErrorOptions {
+  exitCode: number;
+  suggestions: string[];
+  ref: string;
+  code: string;
+  name: string;
+}
+
 export class ThymianError extends Error {
   public readonly causingError?: Error;
+  public readonly options: Partial<ThymianErrorOptions> & { cause?: Error };
 
-  public readonly exitCode;
-
-  constructor(message: string, cause?: unknown, exitCode = 1) {
+  constructor(
+    message: string,
+    options: Partial<ThymianErrorOptions> & { cause?: unknown } = {}
+  ) {
     super(message);
-    this.exitCode = exitCode;
-    this.name = this.constructor.name;
-    this.causingError = cause instanceof Error ? cause : undefined;
+    if (options.cause) {
+      if (!(options.cause instanceof Error)) {
+        delete options.cause;
+      }
+    }
+
+    // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+    // @ts-expect-error
+    this.options = {
+      ...options,
+    };
+    this.name = options.name ?? this.constructor.name;
   }
 }

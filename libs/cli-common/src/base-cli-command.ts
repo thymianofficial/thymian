@@ -9,6 +9,7 @@ import {
   type Logger,
   TextLogger,
   Thymian,
+  ThymianError,
   type ThymianPlugin,
   validate,
 } from '@thymian/core';
@@ -17,6 +18,8 @@ import { getConfig } from './get-config.js';
 import { optionFlag, optionRegexp } from './option-flag.js';
 import { safeParse } from './safe-parse.js';
 import type { ThymianConfig } from './thymian-config.js';
+import type { CommandError } from '@oclif/core/interfaces';
+import { CLIError } from '@oclif/core/errors';
 
 const require = createRequire(import.meta.url);
 
@@ -58,6 +61,13 @@ export abstract class BaseCliCommand<T extends typeof Command> extends Command {
       helpGroup: 'BASE',
     }),
     option: optionFlag(),
+    timeout: Flags.integer({
+      default: 5000,
+      charAliases: ['t'],
+      description:
+        'Set the duration in ms to wait until a plugin is registered.',
+      helpGroup: 'BASE',
+    }),
   };
 
   protected flags!: CommandFlags<T>;
@@ -78,7 +88,9 @@ export abstract class BaseCliCommand<T extends typeof Command> extends Command {
     this.flags = flags as CommandFlags<T>;
     this.args = args as CommandArgs<T>;
     this.logger = new TextLogger('CLI', this.flags.verbose);
-    this.thymian = new Thymian(this.logger.child('THYMIAN'));
+    this.thymian = new Thymian(this.logger.child('THYMIAN'), {
+      timeout: this.flags.timeout,
+    });
 
     this.thymianConfig = await getConfig(this.flags.config);
     this.overridePluginOptions();
@@ -88,6 +100,23 @@ export abstract class BaseCliCommand<T extends typeof Command> extends Command {
       await this.addPluginsToThymianConfig();
       await this.registerPluginsFromConfig();
     }
+  }
+
+  protected override catch(err: CommandError): Promise<any> {
+    if (err instanceof ThymianError) {
+      const cliError = new CLIError(err.message, {
+        suggestions: err.options.suggestions,
+        exit: err.options.exitCode,
+        code: err.options.code,
+      });
+
+      cliError.name = err.name;
+      Object.defineProperty(cliError, 'ref', { value: err.options.ref });
+
+      return super.catch(cliError);
+    }
+
+    return super.catch(err);
   }
 
   protected shouldAutoload(): boolean {
