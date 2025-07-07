@@ -34,10 +34,13 @@
       "path": "./libs/cli-common"
     },
     {
-      "path": "./plugins/http-linter-cli-reporter"
+      "path": "./shared/test-utils"
     },
     {
-      "path": "./shared/test-utils"
+      "path": "./plugins/cli-reporter"
+    },
+    {
+      "path": "./plugins/format-validator"
     }
   ]
 }
