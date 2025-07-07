@@ -1,0 +1,9 @@
+{
+  "name": "@thymian/format-validator",
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "plugins/format-validator/src",
+  "projectType": "library",
+  "tags": ["lib"],
+  "// targets": "to see all targets run: nx show project @thymian/format-validator --web",
+  "targets": {}
+}
