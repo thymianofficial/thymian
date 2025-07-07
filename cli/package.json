@@ -25,9 +25,10 @@
     "@thymian/cli-common": "^0",
     "@thymian/core": "^0",
     "@thymian/http-linter": "^0",
-    "@thymian/http-linter-cli-reporter": "^0",
     "@thymian/openapi": "^0",
     "@thymian/rfc-9110-rules": "^0",
+    "@thymian/cli-reporter": "^0",
+    "@thymian/format-validator": "^0",
     "tslib": "^2.3.0"
   },
   "bin": {

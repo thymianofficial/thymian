@@ -4,11 +4,10 @@ plugins:
     options:
       rules:
         - "@thymian/rfc-9110-rules"
-        - my-rule.mjs
       ruleOptions: {}
   "@thymian/openapi":
     options:
-      filePath: test/fixtures/petstore-v2.yaml
+      filePath: "../shared/test-utils/src/fixtures/petstore-v2.yaml"
   "@thymian/request-dispatcher": {}
   "@thymian/sampler": {}
-
+  "@thymian/cli-reporter": {}

@@ -1,5 +1,4 @@
 import { BaseCliCommand } from '@thymian/cli-common';
-import { ux } from '@thymian/cli-common/oclif';
 
 export default class ShowConfig extends BaseCliCommand<typeof ShowConfig> {
   static override description =

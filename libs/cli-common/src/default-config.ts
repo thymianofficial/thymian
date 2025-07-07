@@ -11,5 +11,7 @@ export const defaultConfig: ThymianConfig = {
     '@thymian/openapi': {},
     '@thymian/request-dispatcher': {},
     '@thymian/sampler': {},
+    '@thymian/cli-reporter': {},
+    '@thymian/format-validator': {},
   },
 };

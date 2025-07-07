@@ -68,6 +68,13 @@ export abstract class BaseCliCommand<T extends typeof Command> extends Command {
         'Set the duration in ms to wait until a plugin is registered.',
       helpGroup: 'BASE',
     }),
+    'trace-events': Flags.boolean({
+      default: false,
+      description:
+        'All events that are emitted will be logged. Must be used in debug mode.',
+      dependsOn: ['verbose'],
+      helpGroup: 'BASE',
+    }),
   };
 
   protected flags!: CommandFlags<T>;
@@ -90,6 +97,7 @@ export abstract class BaseCliCommand<T extends typeof Command> extends Command {
     this.logger = new TextLogger('CLI', this.flags.verbose);
     this.thymian = new Thymian(this.logger.child('THYMIAN'), {
       timeout: this.flags.timeout,
+      traceEvents: this.flags['trace-events'],
     });
 
     this.thymianConfig = await getConfig(this.flags.config);
