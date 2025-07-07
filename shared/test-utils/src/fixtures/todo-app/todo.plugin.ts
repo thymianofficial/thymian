@@ -93,6 +93,7 @@ export default function todos(_fastify: FastifyInstance) {
     '/',
     {
       schema: {
+        security: [{ basicAuth: [] }],
         querystring: {
           type: 'object',
           required: ['title'],
@@ -120,8 +121,9 @@ export default function todos(_fastify: FastifyInstance) {
       },
     },
     async (req, res) => {
-      res.code(201);
-      res.header('x-custom-header', 'my value');
+      res.code(200);
+      res.header('x-my-custom-header', 123);
+      res.header('x-my-custom-header-2', 'abc');
 
       return todos.filter((todo) =>
         todo.title.toLowerCase().includes(req.query.title.toLowerCase())
@@ -133,6 +135,7 @@ export default function todos(_fastify: FastifyInstance) {
     '/:id',
     {
       schema: {
+        security: [{ basicAuth: [] }],
         params: {
           type: 'object',
           properties: {
@@ -141,10 +144,26 @@ export default function todos(_fastify: FastifyInstance) {
             },
           },
         },
+        // response: {
+        //   200: {
+        //     type: 'object',
+        //     additionalProperties: false,
+        //     properties: {
+        //       id: { type: 'string' },
+        //       title: { type: 'string' },
+        //       text: { type: 'string' },
+        //     },
+        //   },
+        // },
       },
     },
     async (req, res) => {
-      return todos.find((todo) => todo.id === req.params.id);
+      res.header('etag', 'abc');
+      //return todos.find((todo) => todo.id === req.params.id);
+
+      return {
+        wow: true,
+      };
     }
   );
 
@@ -152,6 +171,7 @@ export default function todos(_fastify: FastifyInstance) {
     '/',
     {
       schema: {
+        security: [{ basicAuth: [] }],
         body: {
           type: 'object',
           required: ['title', 'text'],
@@ -165,17 +185,35 @@ export default function todos(_fastify: FastifyInstance) {
             },
           },
         },
+        response: {
+          201: {
+            headers: {
+              location: {
+                schema: {
+                  type: 'string',
+                },
+              },
+            },
+            type: 'object',
+            additionalProperties: false,
+            properties: {
+              id: { type: 'string' },
+              title: { type: 'string' },
+              text: { type: 'string' },
+            },
+          },
+        },
       },
     },
     async (req, reply) => {
       const todo: Todo = {
         ...req.body,
-        id: (todos.length + 10).toString(),
+        id: todos.length.toString(),
       };
 
       todos.push(todo);
 
-      reply.header('location', '/todos/' + todo.id);
+      //reply.header('location', '/todos/' + todo.id);
 
       reply.status(201);
 
