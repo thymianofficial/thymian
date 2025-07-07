@@ -42,11 +42,10 @@ export interface HttpTestContext {
     parameter: Parameter
   ): Promise<{ content: unknown; encoding?: string }>;
 
-  runHook(
-    name: 'authorize',
-    input: HttpTestCaseStepTransaction
-  ): Promise<HttpTestCaseStepTransaction>;
-  runHook<Input, Output = Input>(name: string, input: Input): Promise<Output>;
+  runHook<Steps extends HttpTestCaseStep[] = HttpTestCaseStep[]>(
+    name: string,
+    testCase: HttpTestCase<Steps>
+  ): Promise<HttpTestCase<Steps>>;
 
   skip<Steps extends HttpTestCaseStep[]>(
     testCase: HttpTestCase<Steps>,

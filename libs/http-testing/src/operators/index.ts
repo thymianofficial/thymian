@@ -5,7 +5,6 @@ export * from './fail.operator.js';
 export * from './filter-group.operator.js';
 export * from './for-http-transactions.operator.js';
 export * from './generate-requests.operator.js';
-export * from './hook.operator.js';
 export * from './override-with-previous.operator.js';
 export * from './replay-previous-step.operator.js';
 export * from './run-requests.operator.js';

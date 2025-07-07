@@ -15,13 +15,21 @@ export function validateJsonBody(
 
     validate(json);
 
-    return (
-      validate.errors?.map((err) => ({
-        type: 'assertion-failure' as HttpTestCaseResult['type'],
-        message: err.message ?? '',
-      })) ?? []
-    );
+    if (validate.errors) {
+      return [
+        {
+          type: 'assertion-failure' as HttpTestCaseResult['type'],
+          message: 'Invalid response body.',
+        },
+      ];
+    }
 
+    return [
+      {
+        type: 'assertion-success',
+        message: 'Valid response body.',
+      },
+    ];
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
   } catch (err) {
     return [

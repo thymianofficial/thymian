@@ -143,7 +143,6 @@ export function serializeBody(body: unknown): string | undefined {
 export function serializeRequest(
   transaction: HttpTestCaseStepTransaction
 ): HttpRequest {
-  console.log(transaction);
   return {
     body: serializeBody(transaction.requestTemplate.body),
     bodyEncoding: transaction.requestTemplate.bodyEncoding,

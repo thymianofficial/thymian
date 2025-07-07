@@ -17,13 +17,10 @@ export function runRequests<
       return { curr, ctx };
     }
 
-    console.log(JSON.stringify(curr));
-
     const step = curr.steps.at(-1);
 
     if (step) {
       for (const transaction of step.transactions) {
-        console.log({ transaction });
         transaction.request = serializeRequest(transaction);
         transaction.response = await ctx.runRequest(transaction.request);
       }

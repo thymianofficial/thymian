@@ -63,6 +63,11 @@ export function validateResponses<Steps extends HttpTestCaseStep[]>(
             type: 'assertion-failure',
             message: `Expected status code ${response.statusCode}, but received ${statusCode}.`,
           });
+        } else {
+          curr.results.push({
+            type: 'assertion-success',
+            message: `Expected and received status code ${statusCode}.`,
+          });
         }
       }
 

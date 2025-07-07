@@ -10,9 +10,9 @@ export const commonHttpHeaders = [
   'content-type',
   'connection',
   'server',
-  'cache-control',
-  'etag',
-  'last-modified',
+  //'cache-control', TODO: we should discuss about this
+  //'etag',
+  //'last-modified',
   'vary',
   'content-encoding',
   'access-control-allow-origin',
@@ -23,6 +23,7 @@ export const commonHttpHeaders = [
   'set-cookie',
   'strict-transport-security',
   'x-powered-by',
+  'keep-alive',
 ] as const;
 
 const commonHeadersSet = new Set<string>(commonHttpHeaders);
@@ -32,14 +33,21 @@ export function checkForMissingHeaders(
   headers: Record<string, string | string[] | undefined>,
   response: ThymianHttpResponse
 ): HttpTestCaseResult[] {
-  return Object.entries(response.headers)
-    .filter(
-      ([name, header]) => !Object.hasOwn(headers, name) && header.required
-    )
-    .map(([name]) => ({
-      type: 'assertion-failure',
-      message: `Header "${name}" is required but not included in the response.`,
-    }));
+  return Object.entries(response.headers).reduce((acc, [name, header]) => {
+    if (!Object.hasOwn(headers, name) && header.required) {
+      acc.push({
+        type: 'assertion-failure',
+        message: `Header "${name}" is required but not included in the response.`,
+      });
+    } else {
+      acc.push({
+        type: 'assertion-success',
+        message: `Header "${name}" is required and is included in the response.`,
+      });
+    }
+
+    return acc;
+  }, [] as HttpTestCaseResult[]);
 }
 
 // Are there headers included in the response that are not in the description format?
@@ -47,7 +55,7 @@ export function checkForAdditionalHeaders(
   headers: Record<string, string | string[] | undefined>,
   response: ThymianHttpResponse
 ): HttpTestCaseResult[] {
-  return Object.keys(headers)
+  const failures = Object.keys(headers)
     .filter(
       (headerName) =>
         !Object.hasOwn(response.headers, headerName) &&
@@ -56,7 +64,16 @@ export function checkForAdditionalHeaders(
     .map((headerName) => ({
       type: 'assertion-failure',
       message: `Response contains header "${headerName}" that is not included in the description format.`,
-    }));
+    })) as HttpTestCaseResult[];
+
+  return failures.length > 0
+    ? failures
+    : [
+        {
+          type: 'assertion-success',
+          message: `Response does not contain additional headers that are included in the description format.`,
+        },
+      ];
 }
 
 export function validateExistingHeader(
@@ -65,17 +82,22 @@ export function validateExistingHeader(
 ): HttpTestCaseResult[] {
   return Object.entries(headers)
     .filter(([name]) => Object.hasOwn(response.headers, name))
-    .flatMap(([name, value]) => {
+    .map(([name, value]) => {
       const validate = ajv.compile(response.headers[name]!.schema);
 
       validate(value);
 
-      return (
-        validate.errors?.map((err) => ({
-          type: 'assertion-failure' as HttpTestCaseResult['type'],
-          message: err.message ?? '',
-        })) ?? []
-      );
+      if (validate.errors) {
+        return {
+          type: 'assertion-failure',
+          message: `Invalid value for header ${name}.`,
+        };
+      } else {
+        return {
+          type: 'assertion-success',
+          message: `Valid header ${name}.`,
+        };
+      }
     });
 }
 

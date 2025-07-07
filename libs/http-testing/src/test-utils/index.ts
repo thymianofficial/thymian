@@ -11,10 +11,4 @@ export const exampleContentGenerator: HttpTestContext['generateContent'] =
     }
   };
 
-export const identityHookRunner: HttpTestContext['runHook'] = async <
-  Input,
-  Output
->(
-  _: string,
-  x: Input
-) => x as unknown as Output;
+export const identityHookRunner: HttpTestContext['runHook'] = async (a, b) => b;

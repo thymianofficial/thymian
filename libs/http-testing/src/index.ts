@@ -1,3 +1,19 @@
+import type { HttpTestCase } from './http-test-case.js';
+
+export type TestHook = {
+  name: string;
+  testCase: HttpTestCase;
+};
+
+declare module '@thymian/core' {
+  interface ThymianActions {
+    'http-testing.test-hook': {
+      event: TestHook;
+      response: HttpTestCase;
+    };
+  }
+}
+
 export * from './http-request-template.js';
 export * from './http-test.js';
 export * from './http-test-case.js';
