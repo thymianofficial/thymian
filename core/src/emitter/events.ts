@@ -1,9 +1,11 @@
-import type { ThymianError } from '../thymian.error.js';
 import type { RegisterPluginEvent } from '../events/register-plugin.event.js';
+import type { ReportEvent } from '../events/report.event.js';
+import type { ThymianError } from '../thymian.error.js';
 
 export interface ThymianEvents {
   'core.error': ThymianError;
   'core.register': RegisterPluginEvent;
+  'core.report': ReportEvent;
 }
 
 export type ThymianEventName = keyof ThymianEvents;

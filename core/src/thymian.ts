@@ -21,6 +21,7 @@ export class PluginRegistrationError extends ThymianBaseError {}
 
 export type ThymianOptions = {
   timeout: number
+  traceEvents: boolean
 }
 
 export class Thymian {
@@ -36,6 +37,12 @@ export class Thymian {
   public static readonly VERSION = packageJson.version;
 
   constructor(private readonly logger: Logger = new NoopLogger(), options: Partial<ThymianOptions> = {}) {
+    this.options = {
+      timeout: 5000,
+      traceEvents: false,
+      ...options
+    }
+
     this.emitter = new ThymianEmitter(logger.child('ThymianEmitter'), {
       completed: new Set(),
       errors: new Subject(),
@@ -43,11 +50,9 @@ export class Thymian {
       listeners: new Map(),
       responses: new Subject(),
       source: '@thymian/core',
+    }, {
+      traceEvents: this.options.traceEvents
     });
-    this.options = {
-      timeout: 5000,
-      ...options
-    }
   }
 
   register<T>(plugin: ThymianPlugin<T>, options?: T): this {
@@ -86,7 +91,10 @@ export class Thymian {
   }
 
   async loadFormat(): Promise<ThymianFormat> {
-    const formats = await this.emitter.emitAction('core.load-format')
+    const formats = await this.emitter.emitAction('core.load-format', undefined, {
+      timeout: 2000,
+      strategy: 'collect'
+    })
 
     return formats.length === 0
       ? new ThymianFormat()

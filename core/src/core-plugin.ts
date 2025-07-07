@@ -10,6 +10,7 @@ import {
 } from './events/register-plugin.event.js';
 import type { SerializedThymianFormat } from './format/index.js';
 import type { ThymianPlugin } from './thymian-plugin.js';
+import { thymianReportSchema } from './events/report.event.js';
 
 export const NeverSchema = {} as JSONSchemaType<never>;
 export const VoidSchema = {} as JSONSchemaType<void>;
@@ -39,9 +40,8 @@ export const corePlugin: ThymianPlugin = {
   },
   events: {
     provides: {
-      'core.register': {
-        event: RegisterPluginEventSchema as unknown as JSONSchemaType<unknown>,
-      },
+      'core.register': RegisterPluginEventSchema as unknown as JSONSchemaType<unknown>,
+      'core.report': thymianReportSchema as unknown as JSONSchemaType<unknown>,
     },
   },
 };

@@ -1,0 +1,27 @@
+{
+  "name": "@thymian/cli-reporter",
+  "version": "0.0.1",
+  "main": "./dist/index.js",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "type": "module",
+  "exports": {
+    "./package.json": "./package.json",
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "!**/*.tsbuildinfo"
+  ],
+  "dependencies": {
+    "console-table-printer": "^2.14.6",
+    "tslib": "^2.3.0"
+  },
+  "peerDependencies": {
+    "@thymian/core": "^0"
+  }
+}

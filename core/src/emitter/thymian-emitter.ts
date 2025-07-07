@@ -13,7 +13,6 @@ import {
 } from 'rxjs';
 
 import type { Logger } from '../logger/logger.js';
-import { TextLogger } from '../logger/text.logger.js';
 import { ThymianBaseError, type ThymianError } from '../thymian.error.js';
 import type {
   ActionEventPayload,
@@ -30,6 +29,7 @@ import {
   isEventWithName,
   isResponseOf,
 } from './utils.js';
+import chalk from 'chalk';
 
 const dm = deepmerge({ all: true });
 
@@ -49,6 +49,7 @@ export type ActionHandler<Name extends ThymianActionName> = (
 
 export type ThymianEmitterOptions = {
   timeout: number;
+  traceEvents: boolean;
 };
 
 export type EmitActionOptions = {
@@ -98,6 +99,7 @@ export class ThymianEmitter {
   ) {
     this.options = {
       timeout: 1000,
+      traceEvents: false,
       ...options,
     };
 
@@ -111,8 +113,29 @@ export class ThymianEmitter {
     this.#responses
       .pipe(filter((response) => this.#completed.has(response.correlationId)))
       .subscribe((response) => {
-        this.logger.error(`Got response for event ${response.name} but `);
+        this.logger.error(
+          `Got response for event ${response.name} from ${response.source} at ${response.timestamp} that will not be consumed.`
+        );
       });
+
+    this.#errors
+      .pipe(
+        filter(
+          (error) =>
+            !!error.correlationId && this.#completed.has(error.correlationId)
+        )
+      )
+      .subscribe((error) => {
+        this.logger.error(
+          `Got response for event ${error.name} from ${error.source} at ${error.timestamp} that will not be consumed.`
+        );
+      });
+
+    if (this.options.traceEvents) {
+      this.#events.subscribe(this.logEvent());
+      this.#responses.subscribe(this.logEvent());
+      this.#errors.subscribe(this.logEvent());
+    }
   }
 
   on<Name extends ThymianEventName>(
@@ -164,16 +187,26 @@ export class ThymianEmitter {
         try {
           await handler(event.payload, ctx);
         } catch (e) {
-          this.#errors.next({
-            error: new ThymianBaseError(
-              `Error while calling handler for event: ${event}.`,
-              { cause: e }
-            ),
-            name,
-            correlationId: event.correlationId,
-            timestamp: Date.now(),
-            source: this.source,
-          });
+          // TODO: do not use instanceof since the error event could also be send over TCP, etc.
+          if (e instanceof ThymianBaseError) {
+            this.#errors.next({
+              error: e,
+              name,
+              timestamp: Date.now(),
+              source: this.source,
+            });
+          } else {
+            this.#errors.next({
+              error: new ThymianBaseError(
+                `Error while calling handler for event: ${event}.`,
+                { cause: e }
+              ),
+              name,
+              correlationId: event.correlationId,
+              timestamp: Date.now(),
+              source: this.source,
+            });
+          }
         }
       });
   }
@@ -227,15 +260,26 @@ export class ThymianEmitter {
     ) as ThymianErrorEvent<Name>[];
 
     if (errors.length > 0) {
-      throw new ThymianBaseError(
-        'Received error event while waiting for response event(s) for event ' +
-          name
+      this.logger.debug(
+        `Received ${errors.length} error event${
+          errors.length > 1 ? 's' : ''
+        } from ${errors
+          .map((err) => `"${err.source}"`)
+          .join(', ')} while waiting for response event(s) for event "${name}".`
       );
+
+      const { error } = errors[0]!;
+
+      if (error instanceof ThymianBaseError) {
+        throw error;
+      } else {
+        throw new ThymianBaseError(error.message, error.options);
+      }
     }
 
     if (opts.strategy !== 'first' && results.length !== numOfListeners) {
       this.logger.debug(
-        `Expected ${numOfListeners} response events but got ${results.length}`
+        `Expected ${numOfListeners} response events for event "${name}" but got ${results.length}.`
       );
     }
 
@@ -272,7 +316,11 @@ export class ThymianEmitter {
         responses: this.#responses,
         source,
       },
-      this.options
+      {
+        ...this.options,
+        // we only have to listen to all events once
+        traceEvents: false,
+      }
     );
   }
 
@@ -299,6 +347,22 @@ export class ThymianEmitter {
           source: this.source,
         });
       },
+    };
+  }
+
+  private logEvent() {
+    return (
+      event:
+        | ThymianEvent<ThymianEventName>
+        | ThymianActionEvent<ThymianActionName>
+        | ThymianResponseEvent<ThymianActionName>
+        | ThymianErrorEvent<ErrorName>
+    ) => {
+      this.logger.trace(
+        `${chalk.bold(event.source)} with event ${event.name} at ${
+          event.timestamp
+        }`
+      );
     };
   }
 }

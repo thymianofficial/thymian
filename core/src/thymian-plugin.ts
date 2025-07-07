@@ -14,14 +14,12 @@ export type ThymianPluginFn<Options = unknown> = (
 
 export type ThymianPluginEvents = {
   provides?: {
-    [Name in ThymianEventName]?: {
-      event: JSONSchemaType<
-        Event extends keyof ThymianEvents ? ThymianEvents[Name] : unknown
-      >;
-    };
+    [Name in ThymianEventName]?: JSONSchemaType<
+      Event extends keyof ThymianEvents ? ThymianEvents[Name] : unknown
+    >;
   };
   emits?: ThymianEventName[];
-  requires?: ThymianEventName[];
+  listenOn?: ThymianEventName[];
 };
 
 export type ThymianPluginActions = {

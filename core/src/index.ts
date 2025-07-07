@@ -1,6 +1,8 @@
 export * from './ajv.js';
 export * from './constants.js';
+export * from './emitter/index.js';
 export * from './emitter/thymian-emitter.js';
+export * from './events/index.js';
 export * from './format/index.js';
 export * from './http.js';
 export * from './logger/logger.js';
@@ -10,5 +12,3 @@ export * from './thymian.error.js';
 export * from './thymian.js';
 export * from './thymian-plugin.js';
 export * from './utils.js';
-export * from 'json-schema-to-ts';
-export * from './emitter/index.js';

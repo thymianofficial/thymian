@@ -22,7 +22,8 @@
       "import": "./dist/index.js",
       "default": "./dist/index.js"
     },
-    "./ajv": "./dist/ajv.js"
+    "./ajv": "./dist/ajv.js",
+    "./chalk": "./dist/chalk.js"
   },
   "dependencies": {
     "@fastify/deepmerge": "^3.1.0",
