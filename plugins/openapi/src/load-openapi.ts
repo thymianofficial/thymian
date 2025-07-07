@@ -1,7 +1,11 @@
 import { openapi } from '@scalar/openapi-parser';
 import { fetchUrls } from '@scalar/openapi-parser/plugins/fetch-urls';
 import { readFiles } from '@scalar/openapi-parser/plugins/read-files';
-import { type Logger, ThymianError, type ThymianFormat } from '@thymian/core';
+import {
+  type Logger,
+  ThymianBaseError,
+  type ThymianFormat,
+} from '@thymian/core';
 
 import { OpenapiProcessor } from './processors/openapi.processor.js';
 
@@ -48,9 +52,11 @@ export async function loadOpenapi(
     return new OpenapiProcessor(logger, options).process(schema);
   } catch (e) {
     console.log(e);
-    throw new ThymianError(
+    throw new ThymianBaseError(
       `Cannot process OpenAPI document from path "${options.filePath}".`,
-      e
+      {
+        cause: e,
+      }
     );
   }
 }

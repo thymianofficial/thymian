@@ -3,13 +3,15 @@ import { createRequire } from 'node:module';
 import { join, parse } from 'node:path';
 
 import { Command, Errors, Flags, Interfaces } from '@oclif/core';
+import { CLIError } from '@oclif/core/errors';
+import type { CommandError } from '@oclif/core/interfaces';
 import {
   isPlugin,
   isRecord,
   type Logger,
   TextLogger,
   Thymian,
-  ThymianError,
+  ThymianBaseError,
   type ThymianPlugin,
   validate,
 } from '@thymian/core';
@@ -18,8 +20,6 @@ import { getConfig } from './get-config.js';
 import { optionFlag, optionRegexp } from './option-flag.js';
 import { safeParse } from './safe-parse.js';
 import type { ThymianConfig } from './thymian-config.js';
-import type { CommandError } from '@oclif/core/interfaces';
-import { CLIError } from '@oclif/core/errors';
 
 const require = createRequire(import.meta.url);
 
@@ -103,7 +103,7 @@ export abstract class BaseCliCommand<T extends typeof Command> extends Command {
   }
 
   protected override catch(err: CommandError): Promise<any> {
-    if (err instanceof ThymianError) {
+    if (err instanceof ThymianBaseError) {
       const cliError = new CLIError(err.message, {
         suggestions: err.options.suggestions,
         exit: err.options.exitCode,

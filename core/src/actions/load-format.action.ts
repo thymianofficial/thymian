@@ -1,7 +1,7 @@
 import type { SerializedThymianFormat } from '../format/index.js';
-import type { Hook } from './hook.js';
+import type { Action } from './action.js';
 
-export type LoadFormatHook = Hook<never, SerializedThymianFormat>;
+export type LoadFormatAction = Action<never, SerializedThymianFormat>;
 
 export const loadFormatHookSchema = {
   type: 'object',

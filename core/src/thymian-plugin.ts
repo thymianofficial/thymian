@@ -1,13 +1,9 @@
 import type { JSONSchemaType } from 'ajv/dist/2020.js';
 
+import type { ThymianActionName, ThymianActions } from './emitter/actions.js';
+import type { ThymianEventName, ThymianEvents } from './emitter/events.js';
+import type { ThymianEmitter } from './emitter/index.js';
 import type { Logger } from './logger/logger.js';
-import type {
-  ThymianEmitter,
-  ThymianEvent,
-  ThymianEvents,
-  ThymianHook,
-  ThymianHooks,
-} from './thymian-emitter.js';
 import { isRecord } from './utils.js';
 
 export type ThymianPluginFn<Options = unknown> = (
@@ -16,20 +12,35 @@ export type ThymianPluginFn<Options = unknown> = (
   options: Options
 ) => Promise<void>;
 
-export type ThymianPluginHooks = {
-  [K in keyof ThymianHooks]?: {
-    arg: JSONSchemaType<ThymianHooks[K]['arg']>;
-    returns: JSONSchemaType<ThymianHooks[K]['returnType']>;
+export type ThymianPluginEvents = {
+  provides?: {
+    [Name in ThymianEventName]?: {
+      event: JSONSchemaType<
+        Event extends keyof ThymianEvents ? ThymianEvents[Name] : unknown
+      >;
+    };
   };
+  emits?: ThymianEventName[];
+  requires?: ThymianEventName[];
 };
 
-export type ThymianPluginEvents = {
-  emits?: {
-    [K in ThymianEvent]?: JSONSchemaType<
-      K extends keyof ThymianEvents ? ThymianEvents[K] : unknown
-    >;
+export type ThymianPluginActions = {
+  provides?: {
+    [Name in ThymianActionName]?: {
+      event: JSONSchemaType<
+        Name extends keyof ThymianActions
+          ? ThymianActions[Name]['event']
+          : unknown
+      >;
+      response: JSONSchemaType<
+        Name extends keyof ThymianActions
+          ? ThymianActions[Name]['response']
+          : unknown
+      >;
+    };
   };
-  listens?: ThymianEvent[];
+  emits?: ThymianActionName[];
+  requires?: ThymianActionName[];
 };
 
 export type ThymianPlugin<Options = unknown> = {
@@ -37,8 +48,8 @@ export type ThymianPlugin<Options = unknown> = {
   options?: JSONSchemaType<Options>;
   name: string;
   version: string;
-  hooks?: ThymianPluginHooks;
   events?: ThymianPluginEvents;
+  actions?: ThymianPluginActions;
 };
 
 export function isPlugin(plugin: unknown): plugin is ThymianPlugin {

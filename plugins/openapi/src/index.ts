@@ -62,20 +62,18 @@ export const openApiPlugin: ThymianPlugin<Partial<ParseOpenApiOptions>> = {
     },
   },
   plugin: async (emitter, logger, opts) => {
-    emitter.onHook('core.load-format', async () => {
-      return {
-        result: (await loadOpenapi(logger, opts)).export(),
-      };
+    emitter.onAction('core.load-format', async (_, ctx) => {
+      const format = await loadOpenapi(logger, opts);
+
+      ctx.reply(format.export());
     });
 
-    emitter.onHook('core.close', () => {
-      return {
-        result: {
-          pluginName: '@thymian/openapi',
-          message: JSON.stringify({}),
-          status: 'success',
-        },
-      };
+    emitter.onAction('core.close', (_, ctx) => {
+      ctx.reply({
+        pluginName: '@thymian/openapi',
+        message: JSON.stringify({}),
+        status: 'success',
+      });
     });
   },
 };

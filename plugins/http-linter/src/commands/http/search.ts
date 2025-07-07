@@ -25,13 +25,13 @@ export default class SearchCommand extends BaseCliCommand<
     await this.thymian.ready();
 
     if (this.flags.rules.length > 0) {
-      await this.thymian.emitter.runHook('http-linter.load-rules', {
+      await this.thymian.emitter.emitAction('http-linter.load-rules', {
         rules: this.flags.rules.map((rule) => join(process.cwd(), rule)),
       });
     }
 
     const rules = (
-      await this.thymian.emitter.runHook('http-linter.rules')
+      await this.thymian.emitter.emitAction('http-linter.rules')
     ).flat();
 
     const fuse = new Fuse(rules, {

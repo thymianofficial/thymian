@@ -3,10 +3,10 @@ import { setTimeout } from 'node:timers/promises';
 import { describe, expect, it, vitest } from 'vitest';
 
 import { NoopLogger } from '../src/logger/noop.logger.js';
-import { ThymianError } from '../src/thymian.error.js';
-import { ThymianEmitter } from '../src/thymian-emitter.js';
+import { ThymianBaseError } from '../src/thymian.error.js';
+import { ThymianEmitter } from '../src/emitter/thymian-emitter';
 
-declare module '../src/thymian-emitter.js' {
+declare module '../src/emitter/thymian-emitter' {
   interface ThymianHooks {
     [event: string]: {
       args: unknown[];
@@ -23,12 +23,12 @@ describe('ThymianEmitter', () => {
   it('.emitError() should emit error event', () =>
     new Promise<void>((done) => {
       const emitter = new ThymianEmitter(new NoopLogger());
-      emitter.onEvent('core.error', (err: ThymianError) => {
-        expect(err).toStrictEqual(new ThymianError('my error'));
+      emitter.onEvent('core.error', (err: ThymianBaseError) => {
+        expect(err).toStrictEqual(new ThymianBaseError('my error'));
         done();
       });
 
-      emitter.emitError(new ThymianError('my error'));
+      emitter.emitError(new ThymianBaseError('my error'));
     }));
 
   it('should idle after given timout', async () => {

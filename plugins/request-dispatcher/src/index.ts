@@ -1,9 +1,9 @@
 import {
-  ThymianError,
   type ThymianPlugin,
   type HttpResponse,
   type HttpRequest,
   type JSONSchemaType,
+  ThymianBaseError,
 } from '@thymian/core';
 import { httpResponseSchema } from './types.js';
 import {
@@ -12,13 +12,13 @@ import {
 } from './dispatch.js';
 
 declare module '@thymian/core' {
-  interface ThymianHooks {
+  interface ThymianActions {
     'request-dispatcher.http-request': {
-      arg: {
+      event: {
         options?: Partial<HttpRequestDispatchOptions>;
         request: HttpRequest;
       };
-      returnType: HttpResponse;
+      response: HttpResponse;
     };
   }
 }
@@ -78,27 +78,31 @@ export const httpRequestHookSchema: JSONSchemaType<{
 export const dispatcherPlugin: ThymianPlugin = {
   name: '@thymian/request-dispatcher',
   version: '0.x',
-  hooks: {
-    'request-dispatcher.http-request': {
-      arg: httpRequestHookSchema,
-      returns: httpResponseSchema,
+  actions: {
+    provides: {
+      'request-dispatcher.http-request': {
+        event: httpRequestHookSchema,
+        response: httpResponseSchema,
+      },
     },
   },
   events: {},
   plugin: async (emitter) => {
-    emitter.onHook(
+    emitter.onAction(
       'request-dispatcher.http-request',
-      async ({ request, options }) => {
+      async ({ request, options }, ctx) => {
         try {
-          return {
-            result: await dispatchHttpRequest(request, options),
-          };
+          const result = await dispatchHttpRequest(request, options);
+
+          ctx.reply(result);
         } catch (e) {
-          throw new ThymianError(
-            `Error while dispatching request: ${request.method.toUpperCase()} ${
-              request.origin
-            }.`,
-            e
+          ctx.error(
+            new ThymianBaseError(
+              `Error while dispatching request: ${request.method.toUpperCase()} ${
+                request.origin
+              }.`,
+              { cause: e }
+            )
           );
         }
       }

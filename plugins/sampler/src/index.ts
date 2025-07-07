@@ -1,5 +1,5 @@
 import {
-  ThymianError,
+  ThymianBaseError,
   type ThymianPlugin,
   type ThymianSchema,
 } from '@thymian/core';
@@ -11,21 +11,21 @@ import { JsonContentTypeStrategy } from './content-types-strategies/json.content
 import { XmlContentTypeStrategy } from './content-types-strategies/xml.content-type-strategy.js';
 
 declare module '@thymian/core' {
-  interface ThymianHooks {
+  interface ThymianActions {
     'sampler.generate': {
-      arg: {
+      event: {
         contentType: string;
         schema: ThymianSchema;
       };
-      returnType: { content: unknown; encoding?: string };
+      response: { content: unknown; encoding?: string };
     };
 
     'sampler.unknown-type': {
-      arg: {
+      event: {
         contentType: string;
         schema: ThymianSchema;
       };
-      returnType: { content: unknown; encoding?: string };
+      response: { content: unknown; encoding?: string };
     };
   }
 }
@@ -33,26 +33,28 @@ declare module '@thymian/core' {
 export const dataGeneratorPlugin: ThymianPlugin = {
   name: '@thymian/sampler',
   version: '0.x',
-  hooks: {
-    'sampler.generate': {
-      // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-      // @ts-expect-error
-      arg: {
-        type: 'object',
-        required: ['contentType', 'schema'],
-        properties: {
-          contentType: { type: 'string' },
-          schema: {},
+  actions: {
+    provides: {
+      'sampler.generate': {
+        // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+        // @ts-expect-error
+        event: {
+          type: 'object',
+          required: ['contentType', 'schema'],
+          properties: {
+            contentType: { type: 'string' },
+            schema: {},
+          },
         },
-      },
-      // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-      // @ts-expect-error
-      returns: {
-        type: 'object',
-        required: ['contentType', 'schema'],
-        properties: {
-          contentType: { type: 'string' },
-          schema: {},
+        // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+        // @ts-expect-error
+        response: {
+          type: 'object',
+          required: ['contentType', 'schema'],
+          properties: {
+            contentType: { type: 'string' },
+            schema: {},
+          },
         },
       },
     },
@@ -68,15 +70,20 @@ export const dataGeneratorPlugin: ThymianPlugin = {
       new HookContentTypeStrategy(emitter)
     );
 
-    emitter.onHook('sampler.generate', async ({ schema, contentType }) => {
-      try {
-        return {
-          result: await generator.generate(contentType, schema),
-        };
-      } catch (e) {
-        throw new ThymianError('Cannot generate data.', e);
+    emitter.onAction(
+      'sampler.generate',
+      async ({ schema, contentType }, ctx) => {
+        try {
+          const result = await generator.generate(contentType, schema);
+
+          ctx.reply(result);
+        } catch (e) {
+          ctx.error(
+            new ThymianBaseError('Cannot generate data.', { cause: e })
+          );
+        }
       }
-    });
+    );
   },
 };
 

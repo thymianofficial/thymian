@@ -31,12 +31,12 @@ export default class LintCommand extends BaseCliCommand<typeof LintCommand> {
     const format = await this.thymian.loadFormat();
 
     if (this.flags.rules.length > 0) {
-      await this.thymian.emitter.runHook('http-linter.load-rules', {
+      await this.thymian.emitter.emitAction('http-linter.load-rules', {
         rules: this.flags.rules.map((rule) => join(process.cwd(), rule)),
       });
     }
 
-    const valid = await this.thymian.emitter.runHook(
+    const valid = await this.thymian.emitter.emitAction(
       'http-linter.lint',
       {
         format: format.export(),
@@ -44,7 +44,7 @@ export default class LintCommand extends BaseCliCommand<typeof LintCommand> {
         modes: this.flags.mode as RuleType[],
       },
       {
-        type: 'deep-merge',
+        strategy: 'deep-merge',
       }
     );
 

@@ -1,13 +1,13 @@
 import semver from 'semver';
 
 import packageJson from '../package.json' with { type: 'json' };
+import type { CloseActionResult } from './actions/close.action.js';
 import { corePlugin } from './core-plugin.js';
-import { ThymianFormat } from './format/index.js';
-import type { CloseHookResult } from './hooks/close.hook.js';
+import { ThymianEmitter } from './emitter/index.js';
+import {  ThymianFormat } from './format/index.js';
 import type { Logger } from './logger/logger.js';
 import { NoopLogger } from './logger/noop.logger.js';
-import { ThymianError } from './thymian.error.js';
-import { ThymianEmitter } from './thymian-emitter.js';
+import { ThymianBaseError } from './thymian.error.js';
 import type { ThymianPlugin } from './thymian-plugin.js';
 import { timeoutPromise } from './utils.js';
 
@@ -16,7 +16,7 @@ export type RegisteredPlugin<T> = {
   options: T;
 };
 
-export class PluginRegistrationError extends ThymianError {}
+export class PluginRegistrationError extends ThymianBaseError {}
 
 export type ThymianOptions = {
   timeout: number
@@ -46,7 +46,7 @@ export class Thymian {
     if (!semver.satisfies(Thymian.VERSION, plugin.version)) {
       throw new PluginRegistrationError(
         `@thymian/core version ${Thymian.VERSION} does not match plugin version constraints ${plugin.version} from plugin "${plugin.name}".`, {
-          suggestions: [`Install the matching plugin version for thymian version ${Thymian.VERSION}.`, 'or this'],
+          suggestions: [`Install the matching plugin version for thymian version ${Thymian.VERSION}.`],
           ref: 'http://localhost:8080'
         }
       );
@@ -68,18 +68,18 @@ export class Thymian {
 
     await this.loadRegisteredPlugins();
 
-    await this.emitter.runHook('core.ready');
+    await this.emitter.emitAction('core.ready');
 
     this.#ready = true;
   }
 
 
-  close(): Promise<CloseHookResult[]> {
-    return this.emitter.runHook('core.close')
+  close(): Promise<CloseActionResult[]> {
+    return this.emitter.emitAction('core.close')
   }
 
   async loadFormat(): Promise<ThymianFormat> {
-    const formats = await this.emitter.runHook('core.load-format');
+    const formats = await this.emitter.emitAction('core.load-format')
 
     return formats.length === 0
       ? new ThymianFormat()
@@ -97,10 +97,9 @@ export class Thymian {
   }
 
   private async registerPlugin(registeredPlugin: RegisteredPlugin<any>): Promise<void> {
-    this.emitter.emitEvent('core.register', {
+    this.emitter.emit('core.register', {
       name: registeredPlugin.plugin.name,
       events: registeredPlugin.plugin.events ?? {},
-      hooks: registeredPlugin.plugin.hooks ?? {},
       options: registeredPlugin.options,
     });
 

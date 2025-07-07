@@ -5,11 +5,11 @@ import {
   PluginRegistrationError,
   Thymian,
   ThymianEmitter,
-  ThymianError,
+  ThymianBaseError,
   type ThymianPlugin,
 } from '../src/index.js';
 
-declare module '../src/thymian-emitter.js' {
+declare module '../src/emitter/thymian-emitter' {
   interface ThymianHooks {
     [event: string]: {
       args: unknown[];
@@ -103,7 +103,7 @@ describe('Thymian', () => {
       thymian.register({
         name: '@thymian/test-plugin',
         async plugin(emitter: ThymianEmitter): Promise<void> {
-          emitter.emitError(new ThymianError('my error'));
+          emitter.emitError(new ThymianBaseError('my error'));
         },
         version: '1.x',
       })

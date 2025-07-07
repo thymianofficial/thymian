@@ -1,6 +1,6 @@
 import {
+  ThymianBaseError,
   ThymianEmitter,
-  ThymianError,
   type ThymianSchema,
 } from '@thymian/core';
 
@@ -17,13 +17,13 @@ export class HookContentTypeStrategy implements ContentTypeStrategy {
     schema: ThymianSchema,
     contentType: string
   ): Promise<{ content: unknown; encoding?: string }> {
-    const content = await this.emitter.runHook('data-generator.unknown-type', {
+    const content = await this.emitter.emitAction('sampler.unknown-type', {
       schema,
       contentType,
     });
 
     if (!content[0]) {
-      throw new ThymianError(
+      throw new ThymianBaseError(
         `Cannot sample data for content type ${contentType}.`
       );
     }

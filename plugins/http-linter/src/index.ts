@@ -34,24 +34,24 @@ export * from './rule/rule-violation.js';
 export * from './rule-builder.js';
 
 declare module '@thymian/core' {
-  interface ThymianHooks {
+  interface ThymianActions {
     'http-linter.lint': {
-      arg: {
+      event: {
         format: SerializedThymianFormat;
         severity?: RuleSeverity;
         modes?: RuleType[];
       };
-      returnType: boolean;
+      response: boolean;
     };
 
     'http-linter.load-rules': {
-      arg: { rules: string[] };
-      returnType: void;
+      event: { rules: string[] };
+      response: void;
     };
 
     'http-linter.rules': {
-      arg: never;
-      returnType: Rule[];
+      event: never;
+      response: Rule[];
     };
   }
 
@@ -89,63 +89,60 @@ export const httpLinterPlugin: ThymianPlugin<{
   ): Promise<void> {
     const loadedRules = await loadRules(options.rules);
 
-    emitter.onHook('http-linter.load-rules', async ({ rules }) => {
+    emitter.onAction('http-linter.load-rules', async ({ rules }, ctx) => {
       loadedRules.push(...(await loadRules(rules)));
 
-      return {};
+      ctx.reply();
     });
 
-    emitter.onHook('http-linter.load-rules', async ({ rules }) => {
-      loadedRules.push(...(await loadRules(rules)));
+    emitter.onAction(
+      'http-linter.lint',
+      async ({ format, severity, modes }, ctx) => {
+        const testContext = createHttpTestContext({
+          format: ThymianFormat.import(format),
+          logger,
+          generateContent: async function (
+            schema: ThymianSchema,
+            contentType?: string,
+            context?: {
+              reqId?: string;
+              resId?: string;
+            }
+          ): Promise<{ content: unknown; encoding?: string }> {
+            return (
+              await emitter.emitAction('sampler.generate', {
+                contentType: contentType ?? 'application/json',
+                schema,
+              })
+            )[0]!;
+          },
+          runRequest: async function (req: HttpRequest): Promise<HttpResponse> {
+            return (
+              await emitter.emitAction('request-dispatcher.http-request', {
+                request: req,
+              })
+            )[0]!;
+          },
+          runHook: async function (
+            name: string,
+            input: HttpTestCaseStepTransaction
+          ): Promise<HttpTestCaseStepTransaction> {
+            //return (await emitter.runHook(name, input))[0];
+            return input;
+          },
+        });
 
-      return {};
-    });
+        const linter = new Linter(
+          logger,
+          loadedRules,
+          (result) => emitter.emit('http-linter.report', result),
+          new StaticApiContext(ThymianFormat.import(format)),
+          testContext
+        );
 
-    emitter.onHook('http-linter.lint', async ({ format, severity, modes }) => {
-      const ctx = createHttpTestContext({
-        format: ThymianFormat.import(format),
-        logger,
-        generateContent: async function (
-          schema: ThymianSchema,
-          contentType?: string,
-          context?: {
-            reqId?: string;
-            resId?: string;
-          }
-        ): Promise<{ content: unknown; encoding?: string }> {
-          return (
-            await emitter.runHook('sampler.generate', {
-              contentType: contentType ?? 'application/json',
-              schema,
-            })
-          )[0]!;
-        },
-        runRequest: async function (req: HttpRequest): Promise<HttpResponse> {
-          return (
-            await emitter.runHook('request-dispatcher.http-request', {
-              request: req,
-            })
-          )[0]!;
-        },
-        runHook: async function (
-          name: string,
-          input: HttpTestCaseStepTransaction
-        ): Promise<HttpTestCaseStepTransaction> {
-          //return (await emitter.runHook(name, input))[0];
-          return input;
-        },
-      });
-
-      const linter = new Linter(
-        logger,
-        loadedRules,
-        (result) => emitter.emitEvent('http-linter.report', result),
-        new StaticApiContext(ThymianFormat.import(format)),
-        ctx
-      );
-
-      return { result: await linter.run(modes ?? ['static']) };
-    });
+        ctx.reply(await linter.run(modes ?? ['static']));
+      }
+    );
   },
 };
 

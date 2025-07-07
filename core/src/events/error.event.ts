@@ -1,9 +1,10 @@
-import type { ThymianError } from '../thymian.error.js';
 import type { JSONSchemaType } from 'ajv/dist/2020.js';
 
-export type ErrorEvent = ThymianError;
+import type { ThymianBaseError } from '../thymian.error.js';
 
-export const errorEventSchema: JSONSchemaType<ThymianError> = {
+export type ErrorEvent = ThymianBaseError;
+
+export const errorEventSchema: JSONSchemaType<ThymianBaseError> = {
   anyOf: [],
   oneOf: [],
   type: 'object',
