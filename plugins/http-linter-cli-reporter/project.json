@@ -1,9 +1,0 @@
-{
-  "name": "@thymian/http-linter-cli-reporter",
-  "$schema": "../../node_modules/nx/schemas/project-schema.json",
-  "sourceRoot": "plugins/http-linter-cli-reporter/src",
-  "projectType": "library",
-  "tags": ["lib"],
-  "// targets": "to see all targets run: nx show project @thymian/http-linter-cli-reporter --web",
-  "targets": {}
-}
