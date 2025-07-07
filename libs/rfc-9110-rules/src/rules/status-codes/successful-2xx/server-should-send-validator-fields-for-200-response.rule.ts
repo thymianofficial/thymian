@@ -1,7 +1,6 @@
 import { httpRule } from '@thymian/http-linter';
 
 import { validatorFields } from '../../validator-fields.js';
-import { forHttpTransactions } from '@thymian/http-testing';
 
 export default httpRule('rfc9110/server-should-send-validator-fields')
   .severity('warn')
