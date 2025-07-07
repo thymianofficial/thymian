@@ -7,17 +7,16 @@ import Fuse from 'fuse.js';
 export default class SearchCommand extends BaseCliCommand<
   typeof SearchCommand
 > {
-  static override args = {
-    searchText: Args.string({
-      description: 'Text to search for.',
-    }),
-  };
-
   static override flags = {
     rules: Flags.string({
       multiple: true,
       default: [],
       description: 'Rules or rule sets to include.',
+    }),
+    for: Flags.string({
+      multiple: false,
+      description: 'Search for.',
+      required: true,
     }),
   };
 
@@ -37,16 +36,19 @@ export default class SearchCommand extends BaseCliCommand<
     const fuse = new Fuse(rules, {
       keys: ['meta.description'],
       findAllMatches: true,
-      useExtendedSearch: true,
-      threshold: 0.7,
+      threshold: 0.3,
+      ignoreLocation: true,
       distance: 100,
+      minMatchCharLength: 2,
+      useExtendedSearch: false,
+      includeScore: true,
     });
-    console.log(this.args.searchText);
 
     await this.thymian.close();
 
-    console.log(
-      fuse.search(this.args.searchText ?? '').map((r) => r.item.meta.name)
-    );
+    fuse
+      .search(this.flags.for)
+      .map((r) => `${r.item.meta.name} (score: ${r.score})`)
+      .forEach((r) => console.log(r));
   }
 }

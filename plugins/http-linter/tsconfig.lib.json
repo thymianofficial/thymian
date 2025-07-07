@@ -16,13 +16,19 @@
   "include": ["src/**/*.ts"],
   "references": [
     {
+      "path": "../../libs/http-status-codes/tsconfig.lib.json"
+    },
+    {
+      "path": "../format-validator/tsconfig.lib.json"
+    },
+    {
+      "path": "../../libs/http-testing/tsconfig.lib.json"
+    },
+    {
       "path": "../sampler/tsconfig.lib.json"
     },
     {
       "path": "../request-dispatcher/tsconfig.lib.json"
-    },
-    {
-      "path": "../../libs/http-testing/tsconfig.lib.json"
     },
     {
       "path": "../../core/tsconfig.lib.json"

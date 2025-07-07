@@ -1,7 +1,7 @@
 import { join } from 'node:path';
 
 import { BaseCliCommand } from '@thymian/cli-common';
-import { Flags, ux } from '@thymian/cli-common/oclif';
+import { Flags } from '@thymian/cli-common/oclif';
 
 export default class ListCommand extends BaseCliCommand<typeof ListCommand> {
   static override description = 'List all loaded rules.';

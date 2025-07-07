@@ -11,6 +11,7 @@ import {
   runRequests,
   type ThymianHttpTransaction,
   toTestCases,
+  validateResponses,
 } from '@thymian/http-testing';
 import type { RuleFnResult } from 'src/rule/rule-fn.js';
 
