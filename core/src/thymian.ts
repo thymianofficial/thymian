@@ -46,8 +46,7 @@ export class Thymian {
     if (!semver.satisfies(Thymian.VERSION, plugin.version)) {
       throw new PluginRegistrationError(
         `@thymian/core version ${Thymian.VERSION} does not match plugin version constraints ${plugin.version} from plugin "${plugin.name}".`, {
-          suggestions: [`Install the matching plugin version for thymian version ${Thymian.VERSION}.`],
-          ref: 'http://localhost:8080'
+          suggestions: [`Install the matching plugin version for thymian version ${Thymian.VERSION}.`]
         }
       );
     }

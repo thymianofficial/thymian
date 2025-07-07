@@ -1,5 +1,6 @@
 import { randomUUID } from 'node:crypto';
 
+import deepmerge from '@fastify/deepmerge';
 import {
   filter,
   firstValueFrom,
@@ -28,7 +29,6 @@ import {
   isEventWithName,
   isResponseOf,
 } from './utils.js';
-import deepmerge from '@fastify/deepmerge';
 import { TextLogger } from '../logger/text.logger.js';
 
 const dm = deepmerge({ all: true });
@@ -63,29 +63,50 @@ export type EmitActionArgs<
   ? [name: Name, payload?: undefined, options?: Options]
   : [name: Name, payload: ThymianActions[Name]['event'], options?: Options];
 
+export type EmitterState = {
+  source: string;
+  events: Subject<
+    ThymianEvent<ThymianEventName> | ThymianActionEvent<ThymianActionName>
+  >;
+  responses: Subject<ThymianResponseEvent<ThymianActionName>>;
+  errors: Subject<ThymianErrorEvent<ErrorName>>;
+  listeners: Map<ThymianActionName, number>;
+  completed: Set<string>;
+};
+
 export class ThymianEmitter {
   private readonly options: ThymianEmitterOptions;
+
+  readonly source: string;
 
   readonly #events = new Subject<
     ThymianEvent<ThymianEventName> | ThymianActionEvent<ThymianActionName>
   >();
 
-  readonly #responses = new Subject<ThymianResponseEvent<ThymianActionName>>();
+  readonly #responses: Subject<ThymianResponseEvent<ThymianActionName>>;
 
-  readonly #errors = new Subject<ThymianErrorEvent<ErrorName>>();
+  readonly #errors: Subject<ThymianErrorEvent<ErrorName>>;
 
-  readonly #listeners = new Map<ThymianActionName, number>();
+  readonly #listeners: Map<ThymianActionName, number>;
 
-  readonly #completed = new Set<string>();
+  readonly #completed: Set<string>;
 
   constructor(
     private readonly logger: Logger,
+    state: EmitterState,
     options: Partial<ThymianEmitterOptions> = {}
   ) {
     this.options = {
       timeout: 1000,
       ...options,
     };
+
+    this.source = state.source;
+    this.#responses = state.responses;
+    this.#events = state.events;
+    this.#errors = state.errors;
+    this.#listeners = state.listeners;
+    this.#completed = state.completed;
 
     this.#responses
       .pipe(filter((response) => this.#completed.has(response.correlationId)))
@@ -111,6 +132,7 @@ export class ThymianEmitter {
             ),
             name: 'thymian.error',
             timestamp: Date.now(),
+            source: this.source,
           });
         }
       });
@@ -124,6 +146,7 @@ export class ThymianEmitter {
       name,
       payload,
       timestamp: Date.now(),
+      source: this.source,
     });
   }
 
@@ -149,6 +172,7 @@ export class ThymianEmitter {
             name,
             correlationId: event.correlationId,
             timestamp: Date.now(),
+            source: this.source,
           });
         }
       });
@@ -176,6 +200,7 @@ export class ThymianEmitter {
       name,
       payload,
       timestamp: Date.now(),
+      source: this.source,
     };
 
     const numOfListeners = this.#listeners.get(name) ?? 0;
@@ -202,6 +227,9 @@ export class ThymianEmitter {
     ) as ThymianErrorEvent<Name>[];
 
     if (errors.length > 0) {
+      this.logger.error(
+        'Received error event from plugin ' + errors[0].source + '.'
+      );
       throw new ThymianBaseError(
         'Received error event while waiting for response event(s) for event ' +
           name
@@ -236,6 +264,21 @@ export class ThymianEmitter {
     }
   }
 
+  child(source: string): ThymianEmitter {
+    return new ThymianEmitter(
+      this.logger.child(source),
+      {
+        completed: this.#completed,
+        errors: this.#errors,
+        events: this.#events,
+        listeners: this.#listeners,
+        responses: this.#responses,
+        source,
+      },
+      this.options
+    );
+  }
+
   private createActionContext<Name extends ThymianActionName>(
     name: Name,
     correlationId: string
@@ -247,6 +290,7 @@ export class ThymianEmitter {
           error: error,
           name,
           timestamp: Date.now(),
+          source: this.source,
         });
       },
       reply: (payload) => {
@@ -255,7 +299,8 @@ export class ThymianEmitter {
           name,
           payload,
           timestamp: Date.now(),
-        } as ThymianResponseEvent<Name>);
+          source: this.source,
+        });
       },
     };
   }

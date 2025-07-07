@@ -14,4 +14,5 @@ export type ThymianEvent<Event extends ThymianEventName> = {
   name: Event;
   payload: EventPayload<Event>;
   timestamp: number;
+  source: string;
 };

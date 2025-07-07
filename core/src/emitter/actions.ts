@@ -29,6 +29,7 @@ export type ThymianActionEvent<Event extends ThymianActionName> = {
   correlationId: string;
   payload: ActionEventPayload<Event>;
   timestamp: number;
+  source: string;
 };
 
 export type ThymianResponseEvent<Event extends ThymianActionName> = {
@@ -36,4 +37,5 @@ export type ThymianResponseEvent<Event extends ThymianActionName> = {
   correlationId: string;
   payload: ResponseEventPayload<Event>;
   timestamp: number;
+  source: string;
 };

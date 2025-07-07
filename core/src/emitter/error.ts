@@ -9,5 +9,5 @@ export type ThymianErrorEvent<Name extends ErrorName> = {
   error: ThymianError;
   timestamp: number;
   correlationId?: string;
-  origin?: string;
+  source: string;
 };
