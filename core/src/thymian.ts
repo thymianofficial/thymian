@@ -10,6 +10,7 @@ import { NoopLogger } from './logger/noop.logger.js';
 import { ThymianBaseError } from './thymian.error.js';
 import type { ThymianPlugin } from './thymian-plugin.js';
 import { timeoutPromise } from './utils.js';
+import { Subject } from 'rxjs';
 
 export type RegisteredPlugin<T> = {
   plugin: ThymianPlugin<T>;
@@ -35,7 +36,14 @@ export class Thymian {
   public static readonly VERSION = packageJson.version;
 
   constructor(private readonly logger: Logger = new NoopLogger(), options: Partial<ThymianOptions> = {}) {
-    this.emitter = new ThymianEmitter(logger.child('ThymianEmitter'));
+    this.emitter = new ThymianEmitter(logger.child('ThymianEmitter'), {
+      completed: new Set(),
+      errors: new Subject(),
+      events: new Subject(),
+      listeners: new Map(),
+      responses: new Subject(),
+      source: '@thymian/core',
+    });
     this.options = {
       timeout: 5000,
       ...options
@@ -103,7 +111,7 @@ export class Thymian {
     });
 
     await timeoutPromise(
-      registeredPlugin.plugin.plugin(this.emitter, this.logger.child(registeredPlugin.plugin.name), registeredPlugin.options),
+      registeredPlugin.plugin.plugin(this.emitter.child(registeredPlugin.plugin.name), this.logger.child(registeredPlugin.plugin.name), registeredPlugin.options),
       this.options.timeout,
       new PluginRegistrationError(`Timeout while registering plugin "${registeredPlugin.plugin.name}".`, {
         suggestions: [

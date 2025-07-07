@@ -13,6 +13,7 @@ import {
 } from 'rxjs';
 
 import type { Logger } from '../logger/logger.js';
+import { TextLogger } from '../logger/text.logger.js';
 import { ThymianBaseError, type ThymianError } from '../thymian.error.js';
 import type {
   ActionEventPayload,
@@ -29,7 +30,6 @@ import {
   isEventWithName,
   isResponseOf,
 } from './utils.js';
-import { TextLogger } from '../logger/text.logger.js';
 
 const dm = deepmerge({ all: true });
 
@@ -227,9 +227,6 @@ export class ThymianEmitter {
     ) as ThymianErrorEvent<Name>[];
 
     if (errors.length > 0) {
-      this.logger.error(
-        'Received error event from plugin ' + errors[0].source + '.'
-      );
       throw new ThymianBaseError(
         'Received error event while waiting for response event(s) for event ' +
           name
