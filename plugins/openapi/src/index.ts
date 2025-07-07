@@ -1,6 +1,11 @@
-import type { ThymianNode, ThymianPlugin } from '@thymian/core';
+import {
+  ThymianBaseError,
+  type ThymianNode,
+  type ThymianPlugin,
+} from '@thymian/core';
 
 import { loadOpenapi, type ParseOpenApiOptions } from './load-openapi.js';
+import { OpenApiError } from './error.js';
 
 declare module '@thymian/core' {
   interface ThymianHttpRequest {
@@ -24,10 +29,6 @@ declare module '@thymian/core' {
       extensionName: 'openapiV3',
       values: { operationId: string }
     ): ThymianNode | undefined;
-  }
-
-  interface HookResultMeta {
-    test: number;
   }
 }
 
@@ -63,9 +64,24 @@ export const openApiPlugin: ThymianPlugin<Partial<ParseOpenApiOptions>> = {
   },
   plugin: async (emitter, logger, opts) => {
     emitter.onAction('core.load-format', async (_, ctx) => {
-      const format = await loadOpenapi(logger, opts);
+      try {
+        const format = await loadOpenapi(logger, opts);
 
-      ctx.reply(format.export());
+        ctx.reply(format.export());
+      } catch (e) {
+        if (e instanceof ThymianBaseError) {
+          ctx.error(e);
+        } else {
+          ctx.error(
+            new OpenApiError(
+              'Unexpected error while loading OpenAPI document.',
+              {
+                cause: e,
+              }
+            )
+          );
+        }
+      }
     });
 
     emitter.onAction('core.close', (_, ctx) => {
