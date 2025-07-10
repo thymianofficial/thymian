@@ -18,10 +18,15 @@
     "tslib": "^2.3.0"
   },
   "devDependencies": {
+    "@fastify/autoload": "^6.3.1",
     "@fastify/basic-auth": "^6.2.0",
     "@fastify/swagger": "^9.5.1",
     "@fastify/type-provider-json-schema-to-ts": "^5.0.0",
-    "fastify": "^5.4.0"
+    "@types/etag": "^1.8.4",
+    "etag": "^1.8.1",
+    "fastify": "^5.4.0",
+    "fastify-range": "^2.0.0",
+    "fluent-json-schema": "^6.0.0"
   },
   "nx": {
     "targets": {

@@ -1,0 +1,177 @@
+openapi: 3.0.0
+info:
+  title: Example app for testing the Thymian project
+  version: 0.0.1
+servers:
+  - url: http://localhost:8080
+tags: []
+components:
+  securitySchemes:
+    basicAuth:
+      type: http
+      scheme: basic
+  schemas: {}
+paths:
+  /todos/:
+    get:
+      parameters:
+        - schema:
+            type: string
+          in: query
+          name: title
+          required: true
+      security:
+        - basicAuth: []
+      responses:
+        "200":
+          description: Default Response
+          headers:
+            etag:
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  additionalProperties: false
+                  properties:
+                    id:
+                      type: string
+                    title:
+                      type: string
+                    text:
+                      type: string
+    post:
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - title
+                - text
+              additionalProperties: false
+              properties:
+                text:
+                  type: string
+                title:
+                  type: string
+        required: true
+      security:
+        - basicAuth: []
+      responses:
+        "201":
+          description: Default Response
+          headers:
+            location:
+              schema:
+                type: string
+              required: true
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                properties:
+                  id:
+                    type: string
+                  title:
+                    type: string
+                  text:
+                    type: string
+  /todos/{id}:
+    get:
+      parameters:
+        - schema:
+            type: string
+          in: path
+          name: id
+          required: true
+          example: 1
+      security:
+        - basicAuth: []
+      responses:
+        "200":
+          description: Default Response # implementation sends etag but the API description does not include it. This problem should be also included in the report from @thymian/format-validator
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                properties:
+                  id:
+                    type: string
+                  title:
+                    type: string
+                  text:
+                    type: string
+  /video-streaming/valid:
+    get:
+      parameters:
+        - name: range
+          in: header
+          required: false
+          schema:
+            type: string
+      responses:
+        200:
+          description: Default Response
+          headers:
+            etag:
+              schema:
+                type: string
+            cache-control:
+              schema:
+                type: string
+          content:
+            application/octet-stream:
+              schema:
+                type: string
+        206:
+          description: Default Response
+          headers:
+            etag:
+              schema:
+                type: string
+            cache-control:
+              schema:
+                type: string
+            content-range:
+              schema:
+                type: string
+            accept-ranges:
+              schema:
+                type: string
+          content:
+            application/octet-stream:
+              schema:
+                type: string
+  /video-streaming/invalid:
+    get:
+      parameters:
+        - name: range
+          in: header
+          required: false
+          schema:
+            type: string
+      responses:
+        200:
+          description: Default Response
+          headers:
+            etag:
+              schema:
+                type: string
+          content:
+            application/octet-stream:
+              schema:
+                type: string
+        206:
+          description: Default Response
+          headers: {} # header etag and cache-control are missing
+          content:
+            application/octet-stream:
+              schema:
+                type: string
+

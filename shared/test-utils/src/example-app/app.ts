@@ -1,18 +1,36 @@
+import path, { dirname } from 'node:path';
+import { fileURLToPath } from 'node:url';
+
+import fastifyAutoload from '@fastify/autoload';
 import { fastifyBasicAuth } from '@fastify/basic-auth';
+import fastifySwagger from '@fastify/swagger';
 import Fastify, {
   type FastifyInstance,
   type FastifyServerOptions,
 } from 'fastify';
+// there are not type definitions for this package
+// eslint-disable-next-line @typescript-eslint/ban-ts-comment
+// @ts-expect-error
+import fastifyRange from 'fastify-range';
 
-import todos from './todo.plugin.js';
-import fastifySwagger from '@fastify/swagger';
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
 
-export function buildTodosApp(
+declare module 'fastify' {
+  interface FastifyRequest {
+    range(size: number):
+      | undefined
+      | {
+          unit: 'bytes' | (string & {});
+          ranges: { start: number; end: number }[];
+        };
+  }
+}
+
+export function buildExampleApp(
   opts: FastifyServerOptions = { ignoreTrailingSlash: true }
 ): FastifyInstance {
-  const app = Fastify(opts);
-
-  app
+  return Fastify(opts)
     .register(fastifySwagger, {
       openapi: {
         openapi: '3.0.0',
@@ -39,19 +57,13 @@ export function buildTodosApp(
     })
     .register(fastifyBasicAuth, {
       validate: async (username, password) => {
-        console.log({ username, password });
         if (!(username === 'matthyk' && password === 'qupaya')) {
           throw new Error('Wrong username or password.');
         }
       },
     })
-    .after(() => {
-      app.addHook('onRequest', app.basicAuth);
-
-      app.register(todos, {
-        prefix: '/todos',
-      });
+    .register(fastifyRange)
+    .register(fastifyAutoload, {
+      dir: path.join(__dirname, 'plugins'),
     });
-
-  return app;
 }

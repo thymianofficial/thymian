@@ -131,7 +131,8 @@
             },
             "in": "path",
             "name": "id",
-            "required": true
+            "required": true,
+            "example": 1
           }
         ],
         "security": [

@@ -1,7 +1,12 @@
 import type { JsonSchemaToTsProvider } from '@fastify/type-provider-json-schema-to-ts';
 import type { FastifyInstance } from 'fastify';
+import etag from 'etag';
 
-import type { Todo } from './todo.model.js';
+export interface Todo {
+  id: string;
+  title: string;
+  text: string;
+}
 
 export default function todos(_fastify: FastifyInstance) {
   const todos: Todo[] = [
@@ -89,11 +94,11 @@ export default function todos(_fastify: FastifyInstance) {
 
   const fastify = _fastify.withTypeProvider<JsonSchemaToTsProvider>();
 
+  // should send validator field
   fastify.get(
     '/',
     {
       schema: {
-        security: [{ basicAuth: [] }],
         querystring: {
           type: 'object',
           required: ['title'],
@@ -122,8 +127,6 @@ export default function todos(_fastify: FastifyInstance) {
     },
     async (req, res) => {
       res.code(200);
-      res.header('x-my-custom-header', 123);
-      res.header('x-my-custom-header-2', 'abc');
 
       return todos.filter((todo) =>
         todo.title.toLowerCase().includes(req.query.title.toLowerCase())
@@ -135,7 +138,6 @@ export default function todos(_fastify: FastifyInstance) {
     '/:id',
     {
       schema: {
-        security: [{ basicAuth: [] }],
         params: {
           type: 'object',
           properties: {
@@ -144,26 +146,19 @@ export default function todos(_fastify: FastifyInstance) {
             },
           },
         },
-        // response: {
-        //   200: {
-        //     type: 'object',
-        //     additionalProperties: false,
-        //     properties: {
-        //       id: { type: 'string' },
-        //       title: { type: 'string' },
-        //       text: { type: 'string' },
-        //     },
-        //   },
-        // },
       },
     },
     async (req, res) => {
-      res.header('etag', 'abc');
-      //return todos.find((todo) => todo.id === req.params.id);
+      const todo = todos.find((todo) => todo.id === req.params.id);
 
-      return {
-        wow: true,
-      };
+      if (!todo) {
+        res.status(404);
+
+        return;
+      }
+      console.log({ etag: etag(JSON.stringify(todo)) });
+      res.header('etag', etag(JSON.stringify(todo)));
+      return todo;
     }
   );
 
@@ -185,24 +180,6 @@ export default function todos(_fastify: FastifyInstance) {
             },
           },
         },
-        response: {
-          201: {
-            headers: {
-              location: {
-                schema: {
-                  type: 'string',
-                },
-              },
-            },
-            type: 'object',
-            additionalProperties: false,
-            properties: {
-              id: { type: 'string' },
-              title: { type: 'string' },
-              text: { type: 'string' },
-            },
-          },
-        },
       },
     },
     async (req, reply) => {
@@ -213,11 +190,12 @@ export default function todos(_fastify: FastifyInstance) {
 
       todos.push(todo);
 
-      //reply.header('location', '/todos/' + todo.id);
-
+      reply.header('location', '/todos/' + todo.id);
       reply.status(201);
 
       return todo;
     }
   );
 }
+
+export const autoPrefix = '/todos';
