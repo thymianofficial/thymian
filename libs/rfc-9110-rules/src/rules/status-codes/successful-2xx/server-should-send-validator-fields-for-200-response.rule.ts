@@ -15,9 +15,6 @@ export default httpRule('rfc9110/server-should-send-validator-fields')
   .rule((ctx, options, logger) =>
     ctx.validateCommonHttpTransactions(
       (req, res) => {
-        if (options.mode === 'test') {
-          console.log({ req, res });
-        }
         return (
           ctx.equalsIgnoreCase(req.method, 'get', 'head') &&
           res.statusCode === 200
