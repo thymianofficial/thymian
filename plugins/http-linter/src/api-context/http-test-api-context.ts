@@ -91,7 +91,7 @@ export class HttpTestApiContext extends LiveApiContext {
     private readonly name: string,
     private readonly ctx: HttpTestContext
   ) {
-    super();
+    super(ctx.format);
   }
 
   async validateGroupedCommonHttpTransactions(
@@ -99,7 +99,8 @@ export class HttpTestApiContext extends LiveApiContext {
     groupByFn: (req: CommonHttpRequest, res: CommonHttpResponse) => string,
     validationFn: ValidationFn<
       string,
-      [CommonHttpRequest, CommonHttpResponse][]
+      [CommonHttpRequest, CommonHttpResponse][],
+      RuleViolation
     >
   ): Promise<RuleFnResult> {
     const test = httpTest(this.name, (test) =>
@@ -111,7 +112,7 @@ export class HttpTestApiContext extends LiveApiContext {
             thymianToCommonHttpResponse(curr.thymianResId, curr.thymianRes)
           )
         ),
-        groupBy(({ curr, ctx }) =>
+        groupBy(({ curr }) =>
           groupByFn(
             thymianToCommonHttpRequest(curr.thymianReqId, curr.thymianReq),
             thymianToCommonHttpResponse(curr.thymianResId, curr.thymianRes)
@@ -149,11 +150,7 @@ export class HttpTestApiContext extends LiveApiContext {
           transactionToValidate
         );
 
-        if (typeof validationResult === 'boolean' && validationResult) {
-          violations.push({});
-        }
-
-        if (validationResult && typeof validationResult === 'object') {
+        if (validationResult) {
           violations.push(validationResult);
         }
 
@@ -181,6 +178,12 @@ export class HttpTestApiContext extends LiveApiContext {
     );
 
     const testResult = await test(this.ctx);
+
+    testResult.cases.forEach((testCase) => {
+      if (testCase.status === 'skipped' || testCase.status === 'failed') {
+        this.ctx.logger.warn(testCase.reason ?? 'Test was skipped.');
+      }
+    });
 
     return testResult.cases
       .filter((testCase) => testCase.status === 'passed')

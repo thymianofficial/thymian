@@ -1,17 +1,32 @@
+import { describe, expect, it } from 'vitest';
+
+import rule from './server-must-generate-header-fields-for-206-response.rule.js';
+
 import { NoopLogger } from '@thymian/core';
-import { HttpTestApiContext } from '@thymian/http-linter';
+import { StaticApiContext, HttpTestApiContext } from '@thymian/http-linter';
+import { buildExampleApp, exampleAppFormat } from '@thymian/test-utils';
 import { createHttpTestContext } from '@thymian/http-testing';
 import {
   createRequestRunner,
   exampleContentGenerator,
   identityHookRunner,
 } from '@thymian/http-testing/test-utils';
-import { buildTodosApp, todoFormat } from '@thymian/test-utils';
-import { describe, expect, it } from 'vitest';
-
-import rule from './server-must-generate-header-fields-for-206-response.rule.js';
 
 describe('server-must-generate-header-fields-for-206-response', () => {
+  describe('static rule', () => {
+    it('should be defined', () => {
+      expect(rule.staticRule).toBeTypeOf('function');
+    });
+
+    it('should work', () => {
+      const result = rule.staticRule!(
+        new StaticApiContext(exampleAppFormat),
+        { mode: 'static' },
+        new NoopLogger()
+      );
+    });
+  });
+
   /*
   context = createHttpTestContext({
       format: todoFormat,
@@ -27,10 +42,10 @@ describe('server-must-generate-header-fields-for-206-response', () => {
 
   describe('test rule', () => {
     const context = createHttpTestContext({
-      format: todoFormat,
+      format: exampleAppFormat,
       logger: new NoopLogger(),
       runHook: identityHookRunner,
-      runRequest: createRequestRunner(buildTodosApp()),
+      runRequest: createRequestRunner(buildExampleApp()),
       generateContent: exampleContentGenerator,
       auth: {
         basic: () => Promise.resolve(['matthyk', 'qupaya']),

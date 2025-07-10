@@ -19,6 +19,6 @@ export class RangeRequestGenerator extends BaseRequestGenerator {
   }
 
   override matches(): boolean {
-    return this.transaction.thymianRes.statusCode === 205;
+    return this.transaction.thymianRes.statusCode === 206;
   }
 }

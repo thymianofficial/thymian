@@ -22,10 +22,6 @@ import {
 } from './utils.js';
 
 export class StaticApiContext extends ApiContext {
-  constructor(readonly format: ThymianFormat) {
-    super();
-  }
-
   validateCommonHttpTransactions(
     filterFn: FilterFn<CommonHttpRequest, CommonHttpResponse>,
     validationFn: ValidationFn<CommonHttpRequest, CommonHttpResponse> = filterFn
@@ -82,7 +78,8 @@ export class StaticApiContext extends ApiContext {
     groupByFn: (req: CommonHttpRequest, res: CommonHttpResponse) => string,
     validationFn: ValidationFn<
       string,
-      [CommonHttpRequest, CommonHttpResponse][]
+      [CommonHttpRequest, CommonHttpResponse][],
+      RuleViolation
     >
   ): RuleFnResult {
     const groups = this.format
@@ -118,11 +115,7 @@ export class StaticApiContext extends ApiContext {
         group.map(([req, res]) => [req, res])
       );
 
-      if (typeof validationResult === 'boolean' && validationResult) {
-        violations.push({});
-      }
-
-      if (validationResult && typeof validationResult === 'object') {
+      if (validationResult) {
         violations.push(validationResult);
       }
 

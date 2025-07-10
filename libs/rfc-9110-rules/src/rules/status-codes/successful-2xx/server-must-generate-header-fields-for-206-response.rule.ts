@@ -7,7 +7,6 @@ export const requiredHeaders = [
   'expires',
   'content-location',
   'vary',
-  'content-range',
 ];
 
 export default httpRule(
@@ -30,22 +29,44 @@ export default httpRule(
         const okResponse = transactions.find(
           ([, res]) => res.statusCode === 200
         )?.[1];
-        const partialResponse = transactions.find(
-          ([, res]) => res.statusCode === 206
-        )?.[1];
+        const [partialRequest, partialResponse] =
+          transactions.find(([, res]) => res.statusCode === 206) ?? [];
 
-        if (okResponse && partialResponse) {
-          const partialResponseHeaders = new Set(partialResponse.headers);
-          const okResponseHeaders = new Set(okResponse.headers);
-
-          return requiredHeaders.some(
+        if (okResponse && partialResponse && partialRequest) {
+          const missingHeaders = requiredHeaders.filter(
             (headerName) =>
-              okResponseHeaders.has(headerName) !==
-              partialResponseHeaders.has(headerName)
+              ctx.equalsIgnoreCase(headerName, ...okResponse.headers) !==
+              ctx.equalsIgnoreCase(headerName, ...partialResponse.headers)
           );
+
+          if (missingHeaders.length > 0) {
+            const transactionEdge = ctx.format.graph.findEdge(
+              partialRequest.id,
+              partialResponse.id,
+              (id, attributes) => attributes.type === 'http-transaction'
+            );
+
+            if (!transactionEdge) {
+              return;
+            }
+
+            return {
+              message: `206 Partial Content response MUST contain header${
+                missingHeaders.length > 1 ? 's' : ''
+              } ${missingHeaders
+                .map((h) => `"${h}"`)
+                .join(', ')}, as the corresponding 200 OK responses contained ${
+                missingHeaders.length > 1 ? 'these headers' : 'this header'
+              }.`,
+              location: {
+                elementType: 'edge' as const,
+                elementId: transactionEdge,
+              },
+            };
+          }
         }
 
-        return false;
+        return;
       }
     )
   )

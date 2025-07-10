@@ -93,7 +93,7 @@ export class Linter {
 
     const result = await rule.staticRule(
       this.apiContext,
-      {},
+      { mode: 'static' },
       this.logger.child(rule.meta.name)
     );
 
@@ -152,10 +152,9 @@ export class Linter {
 
     const result = await rule.testRule(
       new HttpTestApiContext(rule.meta.name, this.context),
-      {},
+      { mode: 'test' },
       this.logger.child(rule.meta.name)
     );
-
     if (!result) {
       return true;
     }

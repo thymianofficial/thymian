@@ -34,8 +34,8 @@ export function validateJsonBody(
   } catch (err) {
     return [
       {
-        type: 'error',
-        message: 'Invalid JSON body.',
+        type: 'assertion-failure',
+        message: 'Response body is not valid JSON.',
       },
     ];
   }
@@ -49,5 +49,10 @@ export function validateBodyForResponse(
     return validateJsonBody(body, response);
   }
 
-  return [];
+  return [
+    {
+      type: 'info',
+      message: 'Non JSON response body cannot be validated.',
+    },
+  ];
 }

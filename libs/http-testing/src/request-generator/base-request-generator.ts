@@ -63,6 +63,10 @@ export class BaseRequestGenerator implements RequestGenerator {
     const generated = {} as Record<string, unknown>;
 
     for (const [name, parameter] of Object.entries(parameters)) {
+      if (!parameter.required) {
+        continue;
+      }
+
       const { content } = await this.ctx.generateParameterValue(
         name,
         type,

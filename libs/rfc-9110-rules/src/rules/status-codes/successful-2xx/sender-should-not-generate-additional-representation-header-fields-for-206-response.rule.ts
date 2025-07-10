@@ -32,11 +32,10 @@ export default httpRule(
         const okResponse = transactions.find(
           ([, res]) => res.statusCode === 200
         )?.[1];
-        const partialResponse = transactions.find(
-          ([, res]) => res.statusCode === 206
-        )?.[1];
+        const [partialRequest, partialResponse] =
+          transactions.find(([, res]) => res.statusCode === 206) ?? [];
 
-        if (okResponse && partialResponse) {
+        if (okResponse && partialResponse && partialRequest) {
           const okResponseHeaders = new Set(okResponse.headers);
 
           const additionalHeaders = partialResponse.headers.filter(
@@ -47,15 +46,29 @@ export default httpRule(
           );
 
           if (additionalHeaders.length > 0) {
+            const transactionEdge = ctx.format.graph.findEdge(
+              partialRequest.id,
+              partialResponse.id,
+              (id, attributes) => attributes.type === 'http-transaction'
+            );
+
+            if (!transactionEdge) {
+              return;
+            }
+
             return {
-              message: `206 (Partial Content) response SHOULD NOT contain additional headers: ${additionalHeaders.join(
+              message: `206 Partial Content response SHOULD NOT contain additional headers: ${additionalHeaders.join(
                 ', '
               )}.`,
+              location: {
+                elementType: 'edge' as const,
+                elementId: transactionEdge,
+              },
             };
           }
         }
 
-        return false;
+        return;
       }
     )
   )

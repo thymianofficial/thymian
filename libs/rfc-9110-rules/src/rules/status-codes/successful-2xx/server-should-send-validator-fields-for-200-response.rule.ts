@@ -1,7 +1,5 @@
 import { httpRule } from '@thymian/http-linter';
 
-import { validatorFields } from '../../validator-fields.js';
-
 export default httpRule('rfc9110/server-should-send-validator-fields')
   .severity('warn')
   .type('static', 'test', 'analytics')
@@ -16,10 +14,16 @@ export default httpRule('rfc9110/server-should-send-validator-fields')
   )
   .rule((ctx, options, logger) =>
     ctx.validateCommonHttpTransactions(
-      (req, res) =>
-        ctx.equalsIgnoreCase(req.method, 'get', 'head') &&
-        res.statusCode === 200,
-      (req, res) => !res.headers.some((header) => validatorFields.has(header))
+      (req, res) => {
+        if (options.mode === 'test') {
+          console.log({ req, res });
+        }
+        return (
+          ctx.equalsIgnoreCase(req.method, 'get', 'head') &&
+          res.statusCode === 200
+        );
+      },
+      (req, res) => !ctx.equalsIgnoreCase('etag', ...res.headers)
     )
   )
   .done();

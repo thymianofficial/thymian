@@ -95,11 +95,12 @@ export function serializeHeaders(
 
   return Object.entries(transaction.requestTemplate.headers).reduce(
     (acc, [key, value]) => {
-      if (headers[key]) {
-        acc[key] = serializeHeaderParameter(key, value, headers[key].style);
+      if (typeof value === 'string') {
+        acc[key] = value;
       } else {
-        if (typeof value === 'string') {
-          acc[key] = value;
+        if (headers[key]) {
+          console.log({ key, value });
+          acc[key] = serializeHeaderParameter(key, value, headers[key].style);
         } else {
           throw new Error(
             `Header value must be of type "string" but got "${typeof value}".`
