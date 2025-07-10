@@ -1,4 +1,5 @@
 import {
+  type DefineStepOptions,
   filter,
   forHttpTransactions,
   generateRequests,
@@ -8,7 +9,10 @@ import {
   type HttpTestCase,
   type HttpTestCaseStepTransaction,
   type HttpTestContext,
+  type HttpTestFn,
+  isSingleHttpTestCaseStep,
   runRequests,
+  step,
   type ThymianHttpTransaction,
   toTestCases,
   validateResponses,
@@ -228,5 +232,44 @@ export class HttpTestApiContext extends LiveApiContext {
           return violations;
         })
       );
+  }
+
+  async test(
+    testFnOrOptions: Partial<DefineStepOptions> | HttpTestFn
+  ): Promise<RuleFnResult> {
+    const testFn = httpTest(this.name, testFnOrOptions);
+
+    const testResult = await testFn(this.ctx);
+
+    const violations: RuleViolation[] = [];
+
+    for (const testCase of testResult.cases) {
+      if (testCase.status !== 'failed') {
+        continue;
+      }
+
+      const lastStep = testCase.steps.at(-1);
+
+      if (!lastStep) {
+        continue;
+      }
+
+      if (isSingleHttpTestCaseStep(lastStep)) {
+        const violation: RuleViolation = {
+          location: {
+            elementType: 'edge',
+            elementId: lastStep.source.transactionId,
+          },
+        };
+
+        if (testCase.reason) {
+          violation.message = testCase.reason;
+        }
+
+        violations.push(violation);
+      }
+    }
+
+    return violations;
   }
 }

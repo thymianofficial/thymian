@@ -12,7 +12,7 @@ export default httpRule('rfc9110/server-should-send-validator-fields')
   .summary(
     'Origin servers SHOULD send Etag or Last-Modified header in a 200 (OK) responses to GET or HEAD requests.'
   )
-  .rule((ctx, options, logger) =>
+  .rule((ctx) =>
     ctx.validateCommonHttpTransactions(
       (req, res) => {
         return (
@@ -20,7 +20,11 @@ export default httpRule('rfc9110/server-should-send-validator-fields')
           res.statusCode === 200
         );
       },
-      (req, res) => !ctx.equalsIgnoreCase('etag', ...res.headers)
+      (_, res) =>
+        !(
+          ctx.equalsIgnoreCase('etag', ...res.headers) ||
+          ctx.equalsIgnoreCase('last-modified', ...res.headers)
+        )
     )
   )
   .done();

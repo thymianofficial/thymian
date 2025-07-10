@@ -78,6 +78,12 @@ export function processParameterObject(
       isMultipart
     );
 
+    if (!schema) {
+      throw new Error(
+        'A parameter object must define either a schema or a content property.'
+      );
+    }
+
     thymianSchema = schema;
   } else {
     throw new Error(

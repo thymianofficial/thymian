@@ -1,27 +1,19 @@
 import { ThymianFormat } from '@thymian/core';
 
 export const exampleAppFormat = ThymianFormat.import({
-  options: {
-    type: 'directed',
-    multi: true,
-    allowSelfLoops: true,
-  },
+  options: { type: 'directed', multi: true, allowSelfLoops: true },
   attributes: {},
   nodes: [
     {
-      key: 'd43fd526-b15c-4c26-b451-8d26c749d495',
+      key: '03b832ae-fcae-4a85-b525-6e0d1894378f',
       attributes: {
         type: 'security-scheme',
         scheme: 'basic',
-        extensions: {
-          openapiV3: {
-            schemeName: 'basicAuth',
-          },
-        },
+        extensions: { openapiV3: { schemeName: 'basicAuth' } },
       },
     },
     {
-      key: 'f9b4d1d9-8f0e-4f73-aa44-88c1b7a666db',
+      key: '8bcf62de-a5b8-4207-9b16-376e122b4b55',
       attributes: {
         type: 'http-request',
         host: 'localhost',
@@ -30,32 +22,31 @@ export const exampleAppFormat = ThymianFormat.import({
         path: '/todos/',
         method: 'get',
         mediaType: '',
-        extensions: {
-          openapiV3: {},
-        },
+        extensions: { openapiV3: {} },
         cookies: {},
         pathParameters: {},
         queryParameters: {
           title: {
             required: true,
-            schema: {
-              type: 'string',
-            },
-            style: {
-              style: 'form',
-              explode: true,
-            },
+            schema: { type: 'string' },
+            style: { style: 'form', explode: true },
           },
         },
         headers: {},
       },
     },
     {
-      key: '5af227ab-5f00-4955-ab15-ccffc71cbffc',
+      key: '10e6d84d-383c-496c-ad3d-166ccab4291a',
       attributes: {
         type: 'http-response',
         description: 'Default Response',
-        headers: {},
+        headers: {
+          etag: {
+            required: false,
+            schema: { type: 'string' },
+            style: { style: 'simple', explode: false },
+          },
+        },
         mediaType: 'application/json',
         statusCode: 200,
         schema: {
@@ -64,22 +55,16 @@ export const exampleAppFormat = ThymianFormat.import({
             type: 'object',
             additionalProperties: false,
             properties: {
-              id: {
-                type: 'string',
-              },
-              title: {
-                type: 'string',
-              },
-              text: {
-                type: 'string',
-              },
+              id: { type: 'string' },
+              title: { type: 'string' },
+              text: { type: 'string' },
             },
           },
         },
       },
     },
     {
-      key: '968909dc-d573-4c59-93e5-93aa803da8b2',
+      key: 'd01353ee-6be5-4c67-8002-253dced79260',
       attributes: {
         type: 'http-request',
         host: 'localhost',
@@ -92,19 +77,10 @@ export const exampleAppFormat = ThymianFormat.import({
           type: 'object',
           required: ['title', 'text'],
           additionalProperties: false,
-          properties: {
-            text: {
-              type: 'string',
-            },
-            title: {
-              type: 'string',
-            },
-          },
+          properties: { text: { type: 'string' }, title: { type: 'string' } },
         },
         mediaType: 'application/json',
-        extensions: {
-          openapiV3: {},
-        },
+        extensions: { openapiV3: {} },
         queryParameters: {},
         cookies: {},
         pathParameters: {},
@@ -112,20 +88,15 @@ export const exampleAppFormat = ThymianFormat.import({
       },
     },
     {
-      key: '8c307397-f741-4ece-9f04-9f33b6ff9284',
+      key: '76340b1f-18a7-4e88-810d-d839b404a4f4',
       attributes: {
         type: 'http-response',
         description: 'Default Response',
         headers: {
           location: {
             required: true,
-            schema: {
-              type: 'string',
-            },
-            style: {
-              style: 'simple',
-              explode: false,
-            },
+            schema: { type: 'string' },
+            style: { style: 'simple', explode: false },
           },
         },
         mediaType: 'application/json',
@@ -134,21 +105,15 @@ export const exampleAppFormat = ThymianFormat.import({
           type: 'object',
           additionalProperties: false,
           properties: {
-            id: {
-              type: 'string',
-            },
-            title: {
-              type: 'string',
-            },
-            text: {
-              type: 'string',
-            },
+            id: { type: 'string' },
+            title: { type: 'string' },
+            text: { type: 'string' },
           },
         },
       },
     },
     {
-      key: '4d6f018d-038a-4e9a-83ac-b68798937855',
+      key: '406a8f94-64b4-4de2-bec4-44e68f767ebe',
       attributes: {
         type: 'http-request',
         host: 'localhost',
@@ -157,21 +122,13 @@ export const exampleAppFormat = ThymianFormat.import({
         path: '/todos/{id}',
         method: 'get',
         mediaType: '',
-        extensions: {
-          openapiV3: {},
-        },
+        extensions: { openapiV3: {} },
         cookies: {},
         pathParameters: {
           id: {
             required: true,
-            schema: {
-              type: 'string',
-              examples: [1],
-            },
-            style: {
-              style: 'simple',
-              explode: false,
-            },
+            schema: { type: 'string', examples: [1] },
+            style: { style: 'simple', explode: false },
           },
         },
         queryParameters: {},
@@ -179,7 +136,7 @@ export const exampleAppFormat = ThymianFormat.import({
       },
     },
     {
-      key: '1310293a-fc8d-48a2-a497-394601103c00',
+      key: '818c45c1-409f-4136-a8d0-eb6ef13dd763',
       attributes: {
         type: 'http-response',
         description: 'Default Response',
@@ -190,21 +147,15 @@ export const exampleAppFormat = ThymianFormat.import({
           type: 'object',
           additionalProperties: false,
           properties: {
-            id: {
-              type: 'string',
-            },
-            title: {
-              type: 'string',
-            },
-            text: {
-              type: 'string',
-            },
+            id: { type: 'string' },
+            title: { type: 'string' },
+            text: { type: 'string' },
           },
         },
       },
     },
     {
-      key: '6e8b1508-f265-4ac1-895f-f197d791dba7',
+      key: '5b6ac7b3-b425-4d3d-868b-bd239292b76e',
       attributes: {
         type: 'http-request',
         host: 'localhost',
@@ -213,72 +164,83 @@ export const exampleAppFormat = ThymianFormat.import({
         path: '/video-streaming/valid',
         method: 'get',
         mediaType: '',
-        extensions: {
-          openapiV3: {},
-        },
+        extensions: { openapiV3: {} },
         cookies: {},
         pathParameters: {},
         queryParameters: {},
         headers: {
           range: {
             required: false,
-            schema: {
-              type: 'string',
-            },
-            style: {
-              style: 'simple',
-              explode: false,
-            },
+            schema: { type: 'string' },
+            style: { style: 'simple', explode: false },
           },
         },
       },
     },
     {
-      key: 'bd23ad03-7624-42bb-b421-56f54e9406eb',
+      key: 'eafbd56e-c37f-4ccb-9fcb-1a7164c9e064',
       attributes: {
         type: 'http-response',
         description: 'Default Response',
         headers: {
           range: {
             required: false,
-            schema: {
-              type: 'string',
-            },
-            style: {
-              style: 'simple',
-              explode: false,
-            },
+            schema: { type: 'string' },
+            style: { style: 'simple', explode: false },
+          },
+          etag: {
+            required: false,
+            schema: { type: 'string' },
+            style: { style: 'simple', explode: false },
+          },
+          'cache-control': {
+            required: false,
+            schema: { type: 'string' },
+            style: { style: 'simple', explode: false },
           },
         },
         mediaType: 'application/octet-stream',
         statusCode: 200,
-        schema: {},
       },
     },
     {
-      key: '1154f889-985e-48cd-9857-376e8dff2c82',
+      key: '1bbbb8c6-6794-4654-a177-b91cc712e3a9',
       attributes: {
         type: 'http-response',
         description: 'Default Response',
         headers: {
           range: {
             required: false,
-            schema: {
-              type: 'string',
-            },
-            style: {
-              style: 'simple',
-              explode: false,
-            },
+            schema: { type: 'string' },
+            style: { style: 'simple', explode: false },
+          },
+          etag: {
+            required: false,
+            schema: { type: 'string' },
+            style: { style: 'simple', explode: false },
+          },
+          'cache-control': {
+            required: false,
+            schema: { type: 'string' },
+            style: { style: 'simple', explode: false },
+          },
+          'content-range': {
+            required: false,
+            schema: { type: 'string' },
+            style: { style: 'simple', explode: false },
+          },
+          'accept-ranges': {
+            required: false,
+            schema: { type: 'string' },
+            style: { style: 'simple', explode: false },
           },
         },
         mediaType: 'application/octet-stream',
         statusCode: 206,
-        schema: {},
       },
     },
     {
-      key: '571a676c-2468-4710-b2a2-0c5cd249dd3b',
+      key: '7d635706-686b-4f38-a712-b05a9772f7c1',
       attributes: {
         type: 'http-request',
         host: 'localhost',
@@ -287,151 +249,224 @@ export const exampleAppFormat = ThymianFormat.import({
         path: '/video-streaming/invalid',
         method: 'get',
         mediaType: '',
-        extensions: {
-          openapiV3: {},
-        },
+        extensions: { openapiV3: {} },
         cookies: {},
         pathParameters: {},
         queryParameters: {},
         headers: {
           range: {
             required: false,
-            schema: {
-              type: 'string',
-            },
-            style: {
-              style: 'simple',
-              explode: false,
-            },
+            schema: { type: 'string' },
+            style: { style: 'simple', explode: false },
           },
         },
       },
     },
     {
-      key: 'a71fb62e-f993-4684-862d-99654c372bf3',
+      key: '50edc045-86b7-465b-a4ee-050bb904b4c9',
       attributes: {
         type: 'http-response',
         description: 'Default Response',
         headers: {
           range: {
             required: false,
-            schema: {
-              type: 'string',
-            },
-            style: {
-              style: 'simple',
-              explode: false,
-            },
+            schema: { type: 'string' },
+            style: { style: 'simple', explode: false },
+          },
+          etag: {
+            required: false,
+            schema: { type: 'string' },
+            style: { style: 'simple', explode: false },
           },
         },
         mediaType: 'application/octet-stream',
         statusCode: 200,
-        schema: {},
       },
     },
     {
-      key: 'f41018e9-0721-4e18-ae0b-acd84409560e',
+      key: '3e564cb7-8ff6-48aa-b0b4-f536aa18797e',
       attributes: {
         type: 'http-response',
         description: 'Default Response',
         headers: {
           range: {
             required: false,
-            schema: {
-              type: 'string',
-            },
-            style: {
-              style: 'simple',
-              explode: false,
-            },
+            schema: { type: 'string' },
+            style: { style: 'simple', explode: false },
           },
         },
         mediaType: 'application/octet-stream',
         statusCode: 206,
-        schema: {},
+      },
+    },
+    {
+      key: '7e957f44-1c7e-4e36-abb0-c629165f23b7',
+      attributes: {
+        type: 'http-request',
+        host: 'localhost',
+        port: 8080,
+        protocol: 'http',
+        path: '/reset-content/valid',
+        method: 'post',
+        bodyRequired: false,
+        body: {
+          type: 'object',
+          required: ['name'],
+          properties: { name: { type: 'string' } },
+        },
+        mediaType: 'application/json',
+        extensions: { openapiV3: {} },
+        queryParameters: {},
+        cookies: {},
+        pathParameters: {},
+        headers: {},
+      },
+    },
+    {
+      key: '72973150-562d-44a1-81e7-ecddecc50a82',
+      attributes: {
+        type: 'http-response',
+        description: 'reset content',
+        headers: {},
+        mediaType: '',
+        statusCode: 205,
+      },
+    },
+    {
+      key: '431db9d9-bb33-4b65-b603-234b86c8dc73',
+      attributes: {
+        type: 'http-request',
+        host: 'localhost',
+        port: 8080,
+        protocol: 'http',
+        path: '/reset-content/invalid',
+        method: 'post',
+        bodyRequired: false,
+        body: {
+          type: 'object',
+          required: ['name'],
+          properties: { name: { type: 'string' } },
+        },
+        mediaType: 'application/json',
+        extensions: { openapiV3: {} },
+        queryParameters: {},
+        cookies: {},
+        pathParameters: {},
+        headers: {},
+      },
+    },
+    {
+      key: 'c8a43dfd-49e2-49b8-a518-925c7268dab9',
+      attributes: {
+        type: 'http-response',
+        description: 'reset content',
+        headers: {},
+        mediaType: 'application/json',
+        statusCode: 205,
+        schema: {
+          type: 'object',
+          required: ['name'],
+          properties: { name: { type: 'string' } },
+        },
       },
     },
   ],
   edges: [
     {
-      key: 'geid_22_0',
-      source: 'f9b4d1d9-8f0e-4f73-aa44-88c1b7a666db',
-      target: 'd43fd526-b15c-4c26-b451-8d26c749d495',
-      attributes: {
-        type: 'is-secured',
-      },
+      key: 'geid_108_0',
+      source: '8bcf62de-a5b8-4207-9b16-376e122b4b55',
+      target: '03b832ae-fcae-4a85-b525-6e0d1894378f',
+      attributes: { type: 'is-secured' },
     },
     {
-      key: 'geid_22_1',
-      source: 'f9b4d1d9-8f0e-4f73-aa44-88c1b7a666db',
-      target: '5af227ab-5f00-4955-ab15-ccffc71cbffc',
-      attributes: {
-        type: 'http-transaction',
-      },
+      key: 'geid_108_1',
+      source: '8bcf62de-a5b8-4207-9b16-376e122b4b55',
+      target: '10e6d84d-383c-496c-ad3d-166ccab4291a',
+      attributes: { type: 'http-transaction' },
     },
     {
-      key: 'geid_22_2',
-      source: '968909dc-d573-4c59-93e5-93aa803da8b2',
-      target: 'd43fd526-b15c-4c26-b451-8d26c749d495',
-      attributes: {
-        type: 'is-secured',
-      },
+      key: 'geid_108_2',
+      source: 'd01353ee-6be5-4c67-8002-253dced79260',
+      target: '03b832ae-fcae-4a85-b525-6e0d1894378f',
+      attributes: { type: 'is-secured' },
     },
     {
-      key: 'geid_22_3',
-      source: '968909dc-d573-4c59-93e5-93aa803da8b2',
-      target: '8c307397-f741-4ece-9f04-9f33b6ff9284',
-      attributes: {
-        type: 'http-transaction',
-      },
+      key: 'geid_108_3',
+      source: 'd01353ee-6be5-4c67-8002-253dced79260',
+      target: '76340b1f-18a7-4e88-810d-d839b404a4f4',
+      attributes: { type: 'http-transaction' },
     },
     {
-      key: 'geid_22_4',
-      source: '4d6f018d-038a-4e9a-83ac-b68798937855',
-      target: 'd43fd526-b15c-4c26-b451-8d26c749d495',
-      attributes: {
-        type: 'is-secured',
-      },
+      key: 'geid_108_4',
+      source: '406a8f94-64b4-4de2-bec4-44e68f767ebe',
+      target: '03b832ae-fcae-4a85-b525-6e0d1894378f',
+      attributes: { type: 'is-secured' },
     },
     {
-      key: 'geid_22_5',
-      source: '4d6f018d-038a-4e9a-83ac-b68798937855',
-      target: '1310293a-fc8d-48a2-a497-394601103c00',
-      attributes: {
-        type: 'http-transaction',
-      },
+      key: 'geid_108_5',
+      source: '406a8f94-64b4-4de2-bec4-44e68f767ebe',
+      target: '818c45c1-409f-4136-a8d0-eb6ef13dd763',
+      attributes: { type: 'http-transaction' },
     },
     {
-      key: 'geid_22_6',
-      source: '6e8b1508-f265-4ac1-895f-f197d791dba7',
-      target: 'bd23ad03-7624-42bb-b421-56f54e9406eb',
-      attributes: {
-        type: 'http-transaction',
-      },
+      key: 'geid_108_6',
+      source: '5b6ac7b3-b425-4d3d-868b-bd239292b76e',
+      target: '03b832ae-fcae-4a85-b525-6e0d1894378f',
+      attributes: { type: 'is-secured' },
     },
     {
-      key: 'geid_22_7',
-      source: '6e8b1508-f265-4ac1-895f-f197d791dba7',
-      target: '1154f889-985e-48cd-9857-376e8dff2c82',
-      attributes: {
-        type: 'http-transaction',
-      },
+      key: 'geid_108_7',
+      source: '5b6ac7b3-b425-4d3d-868b-bd239292b76e',
+      target: 'eafbd56e-c37f-4ccb-9fcb-1a7164c9e064',
+      attributes: { type: 'http-transaction' },
     },
     {
-      key: 'geid_22_8',
-      source: '571a676c-2468-4710-b2a2-0c5cd249dd3b',
-      target: 'a71fb62e-f993-4684-862d-99654c372bf3',
-      attributes: {
-        type: 'http-transaction',
-      },
+      key: 'geid_108_8',
+      source: '5b6ac7b3-b425-4d3d-868b-bd239292b76e',
+      target: '1bbbb8c6-6794-4654-a177-b91cc712e3a9',
+      attributes: { type: 'http-transaction' },
     },
     {
-      key: 'geid_22_9',
-      source: '571a676c-2468-4710-b2a2-0c5cd249dd3b',
-      target: 'f41018e9-0721-4e18-ae0b-acd84409560e',
-      attributes: {
-        type: 'http-transaction',
-      },
+      key: 'geid_108_9',
+      source: '7d635706-686b-4f38-a712-b05a9772f7c1',
+      target: '03b832ae-fcae-4a85-b525-6e0d1894378f',
+      attributes: { type: 'is-secured' },
+    },
+    {
+      key: 'geid_108_10',
+      source: '7d635706-686b-4f38-a712-b05a9772f7c1',
+      target: '50edc045-86b7-465b-a4ee-050bb904b4c9',
+      attributes: { type: 'http-transaction' },
+    },
+    {
+      key: 'geid_108_11',
+      source: '7d635706-686b-4f38-a712-b05a9772f7c1',
+      target: '3e564cb7-8ff6-48aa-b0b4-f536aa18797e',
+      attributes: { type: 'http-transaction' },
+    },
+    {
+      key: 'geid_108_12',
+      source: '7e957f44-1c7e-4e36-abb0-c629165f23b7',
+      target: '03b832ae-fcae-4a85-b525-6e0d1894378f',
+      attributes: { type: 'is-secured' },
+    },
+    {
+      key: 'geid_108_13',
+      source: '7e957f44-1c7e-4e36-abb0-c629165f23b7',
+      target: '72973150-562d-44a1-81e7-ecddecc50a82',
+      attributes: { type: 'http-transaction' },
+    },
+    {
+      key: 'geid_108_14',
+      source: '431db9d9-bb33-4b65-b603-234b86c8dc73',
+      target: '03b832ae-fcae-4a85-b525-6e0d1894378f',
+      attributes: { type: 'is-secured' },
+    },
+    {
+      key: 'geid_108_15',
+      source: '431db9d9-bb33-4b65-b603-234b86c8dc73',
+      target: 'c8a43dfd-49e2-49b8-a518-925c7268dab9',
+      attributes: { type: 'http-transaction' },
     },
   ],
 });

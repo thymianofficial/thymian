@@ -1,7 +1,8 @@
 import { join } from 'node:path';
+import { setTimeout } from 'node:timers/promises';
 
 import { BaseCliCommand } from '@thymian/cli-common';
-import { Flags } from '@thymian/cli-common/oclif';
+import { Flags, ux } from '@thymian/cli-common/oclif';
 
 import type { RuleType } from '../../rule/rule-meta.js';
 import type { RuleSeverity } from '../../rule/rule-severity.js';
@@ -32,6 +33,8 @@ export default class LintCommand extends BaseCliCommand<typeof LintCommand> {
   async run(): Promise<void> {
     await this.thymian.ready();
 
+    ux.action.start('Linting');
+
     const format = await this.thymian.loadFormat();
 
     if (this.flags.validate) {
@@ -59,6 +62,8 @@ export default class LintCommand extends BaseCliCommand<typeof LintCommand> {
     );
 
     await this.thymian.close();
+
+    ux.action.stop();
 
     if (!valid) {
       this.exit(1);

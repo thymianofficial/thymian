@@ -31,17 +31,19 @@ export function processMediaTypeObject(
   addEncodings = false,
   isMultipart = false
 ): {
-  schema: ThymianSchema;
+  schema?: ThymianSchema;
   headers: Record<string, Parameter>;
   encoding?: Encoding;
 } {
   const schema = mediaTypeObject.schema
     ? processSchema(mediaTypeObject.schema as Draft202012SchemaObject)
-    : ({} as ThymianSchema);
+    : undefined;
 
-  Object.values(mediaTypeObject.examples ?? {}).forEach((example) => {
-    addExampleToSchema(schema, (example as OpenApiV31.ExampleObject).value);
-  });
+  if (schema) {
+    Object.values(mediaTypeObject.examples ?? {}).forEach((example) => {
+      addExampleToSchema(schema, (example as OpenApiV31.ExampleObject).value);
+    });
+  }
 
   let headers: Record<string, Parameter> = {};
   if (isMultipart && mediaTypeObject.encoding) {
@@ -52,10 +54,12 @@ export function processMediaTypeObject(
     });
   }
 
-  addExampleToSchema(schema, mediaTypeObject.example);
+  if (schema) {
+    addExampleToSchema(schema, mediaTypeObject.example);
+  }
 
   const result: {
-    schema: ThymianSchema;
+    schema?: ThymianSchema;
     headers: Record<string, Parameter>;
     encoding?: Encoding;
   } = {

@@ -8,5 +8,5 @@ export interface ThymianHttpResponse extends ThymianBaseNode {
   headers: Record<string, Parameter>;
   mediaType: string;
   statusCode: number;
-  schema: ThymianSchema;
+  schema?: ThymianSchema;
 }

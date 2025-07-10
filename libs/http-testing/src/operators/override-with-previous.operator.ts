@@ -9,7 +9,10 @@ export function overrideRequestWithPrevious<
   Previous extends HttpTestCaseStep,
   Current extends HttpTestCaseStep
 >(
-  fn: (current: HttpRequestTemplate, previous: Previous) => HttpRequestTemplate
+  fn: (
+    requestTemplate: HttpRequestTemplate,
+    previous: Previous
+  ) => HttpRequestTemplate
 ): MonoTypeOperatorFunction<
   HttpTestInstance<HttpTestCase<[...Steps, Previous, Current]>>
 > {

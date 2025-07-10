@@ -60,7 +60,6 @@ export function processResponseObject(
       },
       mediaType: '',
       statusCode,
-      schema: {} as ThymianSchema,
     });
   }
 

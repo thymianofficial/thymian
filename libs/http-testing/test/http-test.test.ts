@@ -1,5 +1,5 @@
 import { NoopLogger, type ThymianHttpRequest } from '@thymian/core';
-import { buildTodosApp, todoFormat } from '@thymian/test-utils';
+import { buildExampleApp, exampleAppFormat } from '@thymian/test-utils';
 import type { FastifyInstance } from 'fastify';
 import { groupBy, mergeMap } from 'rxjs';
 import { beforeEach, describe, expect, it } from 'vitest';
@@ -29,9 +29,9 @@ describe('httpTest - todo app', () => {
   let context: HttpTestContext;
 
   beforeEach(() => {
-    todoApp = buildTodosApp();
+    todoApp = buildExampleApp();
     context = createHttpTestContext({
-      format: todoFormat,
+      format: exampleAppFormat,
       logger: new NoopLogger(),
       runHook: identityHookRunner,
       runRequest: createRequestRunner(todoApp),

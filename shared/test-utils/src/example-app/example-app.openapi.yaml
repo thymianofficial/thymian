@@ -107,8 +107,10 @@ paths:
                     type: string
                   text:
                     type: string
-  /video-streaming/valid:
+  /range-requests/valid:
     get:
+      security:
+        - basicAuth: [ ]
       parameters:
         - name: range
           in: header
@@ -148,8 +150,10 @@ paths:
             application/octet-stream:
               schema:
                 type: string
-  /video-streaming/invalid:
+  /range-requests/invalid:
     get:
+      security:
+        - basicAuth: [ ]
       parameters:
         - name: range
           in: header
@@ -174,4 +178,83 @@ paths:
             application/octet-stream:
               schema:
                 type: string
+  /range-requests/valid-if-range:
+    get:
+      security:
+        - basicAuth: [ ]
+      parameters:
+        - name: range
+          in: header
+          required: false
+          schema:
+            type: string
+        - name: if-range
+          in: header
+          required: false
+          schema:
+            type: string
+      responses:
+        200:
+          description: Default Response
+          headers:
+            etag:
+              schema:
+                type: string
+          content:
+            application/octet-stream:
+              schema:
+                type: string
+        206:
+          description: Default Response
+          headers:
+            etag:
+              schema:
+                type: string
+          content:
+            application/octet-stream:
+              schema:
+                type: string
+  /reset-content/valid:
+    post:
+      security:
+        - basicAuth: [ ]
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - name
+              properties:
+                name:
+                  type: string
+      responses:
+        205:
+          description: reset content
+  /reset-content/invalid:
+    post:
+      security:
+        - basicAuth: [ ]
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - name
+              properties:
+                name:
+                  type: string
+      responses:
+        205:
+          description: reset content
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - name
+                properties:
+                  name:
+                    type: string
 

@@ -11,6 +11,15 @@ export function validateJsonBody(
   try {
     const json = parse(body);
 
+    if (!response.schema) {
+      return [
+        {
+          type: 'info',
+          message: 'No response schema is provided.',
+        },
+      ];
+    }
+
     const validate = ajv.compile(response.schema);
 
     validate(json);

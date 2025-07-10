@@ -33,7 +33,8 @@ export class BaseRequestGenerator implements RequestGenerator {
 
     return (
       !!thymianReq.body &&
-      (thymianReq.bodyRequired || methodsWithBody.includes(thymianReq.method))
+      (thymianReq.bodyRequired ||
+        methodsWithBody.some((m) => thymianReq.method.toUpperCase() === m))
     );
   }
 

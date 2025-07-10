@@ -73,6 +73,44 @@ export default async function rangeRequests(app: FastifyInstance) {
 
     return reply.code(206).send(buffer.subarray(start, end - start));
   });
+
+  app.get('/valid-if-range', (req, reply) => {
+    const range = req.range(bufferSize);
+
+    if (!range) {
+      return reply.header('etag', etag(buffer)).status(200).send(buffer);
+    }
+
+    const singleRange = range.ranges[0]!;
+
+    const { start, end } = singleRange;
+    const finalEnd = Math.min(end, bufferSize - 1);
+    const contentLength = finalEnd - start + 1;
+
+    const partialBuffer = buffer.subarray(start, end - start);
+    const etagValue = etag(partialBuffer);
+
+    if ('if-range' in req.headers) {
+      if (req.headers['if-range'] === etagValue) {
+        return reply
+          .header('content-length', contentLength)
+          .code(206)
+          .send(partialBuffer);
+      } else {
+        return reply.header('etag', etag(buffer)).status(200).send(buffer);
+      }
+    }
+
+    return reply
+      .headers({
+        'Accept-Ranges': 'bytes',
+        'Content-Range': `bytes ${start}-${end}/${bufferSize}`,
+        'Content-Length': contentLength,
+        etag: etagValue,
+      })
+      .code(206)
+      .send(partialBuffer);
+  });
 }
 
-export const autoPrefix = '/video-streaming';
+export const autoPrefix = '/range-requests';

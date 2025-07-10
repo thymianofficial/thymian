@@ -8,6 +8,7 @@ export * from './generate-requests.operator.js';
 export * from './override-with-previous.operator.js';
 export * from './replay-previous-step.operator.js';
 export * from './run-requests.operator.js';
+export * from './single-step-for-transaction.operator.js';
 export * from './skip.operator.js';
 export * from './step.operator.js';
 export * from './to-test-cases.operator.js';
