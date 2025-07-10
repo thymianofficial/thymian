@@ -1,5 +1,4 @@
-import type { RegisterPluginEvent } from '../events/register-plugin.event.js';
-import type { ReportEvent } from '../events/report.event.js';
+import type { ReportEvent, RegisterPluginEvent } from '../events/index.js';
 import type { ThymianError } from '../thymian.error.js';
 
 export interface ThymianEvents {

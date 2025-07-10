@@ -1,6 +1,7 @@
 import { randomUUID } from 'node:crypto';
 
 import deepmerge from '@fastify/deepmerge';
+import chalk from 'chalk';
 import {
   filter,
   firstValueFrom,
@@ -33,7 +34,6 @@ import {
   isEventWithName,
   isResponseOf,
 } from './utils.js';
-import chalk from 'chalk';
 
 const dm = deepmerge({ all: true });
 

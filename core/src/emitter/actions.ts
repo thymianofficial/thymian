@@ -1,19 +1,11 @@
-import type { SerializedThymianFormat } from '../format/index.js';
-import type { CloseActionResult } from '../actions/close.action.js';
+import type { CloseAction } from '../actions/close.action.js';
+import type { LoadFormatAction } from '../actions/load-format.action.js';
+import type { ReadyAction } from '../actions/ready.action.js';
 
 export interface ThymianActions {
-  'core.ready': {
-    event: void;
-    response: void;
-  };
-  'core.close': {
-    event: void;
-    response: CloseActionResult;
-  };
-  'core.load-format': {
-    event: void;
-    response: SerializedThymianFormat;
-  };
+  'core.ready': ReadyAction;
+  'core.close': CloseAction;
+  'core.load-format': LoadFormatAction;
 }
 
 export type ThymianActionName = keyof ThymianActions;

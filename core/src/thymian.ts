@@ -1,7 +1,8 @@
+import { Subject } from 'rxjs';
 import semver from 'semver';
 
 import packageJson from '../package.json' with { type: 'json' };
-import type { CloseActionResult } from './actions/close.action.js';
+import type { CloseActionResponse } from './actions/close.action.js';
 import { corePlugin } from './core-plugin.js';
 import { ThymianEmitter } from './emitter/index.js';
 import {  ThymianFormat } from './format/index.js';
@@ -10,7 +11,6 @@ import { NoopLogger } from './logger/noop.logger.js';
 import { ThymianBaseError } from './thymian.error.js';
 import type { ThymianPlugin } from './thymian-plugin.js';
 import { timeoutPromise } from './utils.js';
-import { Subject } from 'rxjs';
 
 export type RegisteredPlugin<T> = {
   plugin: ThymianPlugin<T>;
@@ -86,7 +86,7 @@ export class Thymian {
   }
 
 
-  close(): Promise<CloseActionResult[]> {
+  close(): Promise<CloseActionResponse[]> {
     return this.emitter.emitAction('core.close')
   }
 

@@ -2,15 +2,15 @@ import type { JSONSchemaType } from 'ajv/dist/2020.js';
 
 import type { Action } from './action.js';
 
-export interface CloseActionResult {
+export interface CloseActionResponse {
   pluginName: string;
   status: 'success' | 'failed' | 'error';
   message?: string;
 }
 
-export type CloseAction = Action<never, CloseActionResult>;
+export type CloseAction = Action<void, CloseActionResponse>;
 
-export const closeHookSchema: JSONSchemaType<CloseActionResult> = {
+export const closeHookSchema: JSONSchemaType<CloseActionResponse> = {
   type: 'object',
   properties: {
     pluginName: { type: 'string', nullable: false },
