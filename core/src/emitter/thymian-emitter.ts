@@ -13,7 +13,11 @@ import {
 } from 'rxjs';
 
 import type { Logger } from '../logger/logger.js';
-import { ThymianBaseError, type ThymianError } from '../thymian.error.js';
+import {
+  isThymianError,
+  ThymianBaseError,
+  type ThymianError,
+} from '../thymian.error.js';
 import type {
   ActionEventPayload,
   ResponseEventPayload,
@@ -150,10 +154,10 @@ export class ThymianEmitter {
         } catch (e) {
           this.#errors.next({
             error: new ThymianBaseError(
-              `Error while calling handler for event: ${event}.`,
+              `Error while calling event handler for event "${event.name}" from "${event.source}".`,
               { cause: e }
             ),
-            name: 'thymian.error',
+            name,
             timestamp: Date.now(),
             source: this.source,
           });
@@ -187,7 +191,6 @@ export class ThymianEmitter {
         try {
           await handler(event.payload, ctx);
         } catch (e) {
-          // TODO: do not use instanceof since the error event could also be send over TCP, etc.
           if (e instanceof ThymianBaseError) {
             this.#errors.next({
               error: e,
@@ -195,10 +198,23 @@ export class ThymianEmitter {
               timestamp: Date.now(),
               source: this.source,
             });
+          } else if (isThymianError(e)) {
+            const error = new ThymianBaseError(e.message, {
+              ...e.options,
+              name: e.name,
+            });
+
+            this.#errors.next({
+              error,
+              name,
+              correlationId: event.correlationId,
+              timestamp: Date.now(),
+              source: this.source,
+            });
           } else {
             this.#errors.next({
               error: new ThymianBaseError(
-                `Error while calling handler for event: ${event}.`,
+                `Error while calling action handler for event "${event.name}" from "${event.source}".`,
                 { cause: e }
               ),
               name,

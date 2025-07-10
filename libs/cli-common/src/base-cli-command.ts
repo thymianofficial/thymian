@@ -2,7 +2,7 @@ import { existsSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import { join, parse } from 'node:path';
 
-import { Command, Errors, Flags, Interfaces } from '@oclif/core';
+import { Command, Errors, Flags, Interfaces, settings } from '@oclif/core';
 import { CLIError } from '@oclif/core/errors';
 import type { CommandError } from '@oclif/core/interfaces';
 import {
@@ -120,6 +120,14 @@ export abstract class BaseCliCommand<T extends typeof Command> extends Command {
 
       cliError.name = err.name;
       Object.defineProperty(cliError, 'ref', { value: err.options.ref });
+
+      if (settings.debug) {
+        if (this.jsonEnabled() && err.options.cause) {
+          this.logJson(this.toErrorJson(err.options.cause));
+        } else if (err.options.cause) {
+          console.log(err.options.cause);
+        }
+      }
 
       return super.catch(cliError);
     }

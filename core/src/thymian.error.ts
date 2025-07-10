@@ -1,3 +1,5 @@
+import { isRecord } from './utils.js';
+
 export type ThymianErrorOptions = {
   exitCode: number;
   suggestions: string[];
@@ -10,6 +12,18 @@ export interface ThymianError {
   name: string;
   message: string;
   options: Partial<ThymianErrorOptions> & { cause?: Error };
+}
+
+export function isThymianError(value: unknown): value is ThymianError {
+  // Check if all the required properties exist and are of proper type
+  return (
+    isRecord(value) &&
+    typeof value?.name === 'string' &&
+    typeof value?.message === 'string' &&
+    'options' in value &&
+    isRecord(value.options) &&
+    (value.options.cause === undefined || value.options.cause instanceof Error)
+  );
 }
 
 export class ThymianBaseError extends Error implements ThymianError {
