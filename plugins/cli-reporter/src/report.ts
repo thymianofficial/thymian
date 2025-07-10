@@ -45,10 +45,18 @@ export function formatReports(reports: ThymianReport[]): ReportRecord {
   }, {} as ReportRecord);
 }
 
+const header = `
++----------------+
+|   CLI REPORT   |
++----------------+
+`;
+
 export function report(thymianReports: ThymianReport[]): void {
   const numberOfProblems = thymianReports.filter((r) => r.isProblem).length;
   const formattedReports = formatReports(thymianReports);
   const table = new Table();
+
+  console.log(chalk.bold(header));
 
   for (const [topic, titles] of Object.entries(formattedReports)) {
     let problemCounter = 0;

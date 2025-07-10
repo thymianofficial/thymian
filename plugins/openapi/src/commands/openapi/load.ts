@@ -29,14 +29,16 @@ export default class Load extends BaseCliCommand<typeof Load> {
 
   override async run(): Promise<void> {
     console.log(
-      (
-        await loadOpenapi(this.logger, {
-          filePath: this.args.file,
-          port: this.flags.port,
-          fetchExternalRefs: this.flags.fetchExternalRefs,
-          allowExternalFiles: this.flags.allowExternalFiles,
-        })
-      ).export()
+      JSON.stringify(
+        (
+          await loadOpenapi(this.logger, {
+            filePath: this.args.file,
+            port: this.flags.port,
+            fetchExternalRefs: this.flags.fetchExternalRefs,
+            allowExternalFiles: this.flags.allowExternalFiles,
+          })
+        ).export()
+      )
     );
   }
 }

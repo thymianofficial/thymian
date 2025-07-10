@@ -84,9 +84,18 @@ export async function validate(
           subTopic: 'Successful Responses',
           isProblem: true,
         });
-      } else {
+      } else if (result.type === 'assertion-success') {
         report({
           text: `\u2705 ${result.message}`,
+          title,
+          topic: '@thymian/format-validator',
+          subTopic: 'Successful Responses',
+          isProblem: false,
+        });
+        // U+2796
+      } else if (result.type === 'info') {
+        report({
+          text: `\u2796 ${result.message}`,
           title,
           topic: '@thymian/format-validator',
           subTopic: 'Successful Responses',
