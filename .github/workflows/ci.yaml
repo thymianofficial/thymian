@@ -1,0 +1,55 @@
+name: CI
+on:
+  push:
+    branches:
+      - main
+  pull_request: {}
+  workflow_dispatch:
+
+permissions:
+  actions: read
+  contents: read
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Setup node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: install
+        run: npm i --ignore-scripts
+      - uses: nrwl/nx-set-shas@v4
+      - name: run linter
+        run: npx nx affected -t lint
+
+  targets:
+    strategy:
+      matrix:
+        version: [ 20, 22, 24 ]
+        os: [ ubuntu-latest, windows-latest, macos-latest ]
+        targets: [test, build]
+    permissions:
+      contents: read
+    runs-on: ${{ matrix.os }}
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Setup node
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.version }}
+      - name: install
+        run: npm ci
+      - uses: nrwl/nx-set-shas@v4
+      - name: run target ${{ matrix.target }}
+        run: npx nx affected -t ${{ matrix.target }}
