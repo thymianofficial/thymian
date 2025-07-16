@@ -1,7 +1,8 @@
-import { describe, it, vitest } from 'vitest';
-import { loadRules } from '../src/load-rules.js';
-
 import { createRequire } from 'node:module';
+
+import { describe, it, vitest } from 'vitest';
+
+import { loadRules } from '../src/load-rules.js';
 vitest.mock('./import-meta-resolve.ts', () => ({
   importMetaResolve: vitest
     .fn()

@@ -1,6 +1,6 @@
 import type { JsonSchemaToTsProvider } from '@fastify/type-provider-json-schema-to-ts';
-import type { FastifyInstance } from 'fastify';
 import etag from 'etag';
+import type { FastifyInstance } from 'fastify';
 
 export interface Todo {
   id: string;

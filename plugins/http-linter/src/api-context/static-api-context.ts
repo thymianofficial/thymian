@@ -143,7 +143,7 @@ export class StaticApiContext extends ApiContext {
       }
 
       const responsesWithIds = this.format.getHttpResponsesOf(id);
-      const responses = responsesWithIds.map(([_, res]) => res);
+      const responses = responsesWithIds.map(([, res]) => res);
 
       for (const [resId, res] of responsesWithIds) {
         if (filterFn(node, res, responses)) {

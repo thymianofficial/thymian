@@ -1,6 +1,5 @@
 import {
   isNodeType,
-  type JSONSchemaType,
   type Logger,
   ThymianBaseError,
   ThymianFormat,

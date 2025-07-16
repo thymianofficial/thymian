@@ -1,7 +1,6 @@
 import { join } from 'node:path';
 
 import { BaseCliRunCommand } from '@thymian/cli-common';
-import { Errors } from '@thymian/cli-common/oclif';
 import { Flags } from '@thymian/cli-common/oclif';
 
 export default class ListCommand extends BaseCliRunCommand<typeof ListCommand> {

@@ -9,14 +9,14 @@ describe('OpenApi plugin', () => {
 
     await thymian
       .register(openApiPlugin, {
-        filePath: './test/fixtures/petstore-v3.yaml',
+        filePath: '../../shared/test-utils/src/fixtures/petstore-v2.yaml',
       })
       .ready();
 
-    const formats = await thymian.emitter.runHook('core.load-format');
+    const formats = await thymian.emitter.emitAction('core.load-format');
 
     expect(formats).toHaveLength(1);
 
-    console.log(JSON.stringify(ThymianFormat.import(formats[0]).graph));
+    console.log(JSON.stringify(ThymianFormat.import(formats[0]!).graph));
   });
 });

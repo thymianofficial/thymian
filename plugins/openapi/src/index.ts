@@ -4,8 +4,8 @@ import {
   type ThymianPlugin,
 } from '@thymian/core';
 
-import { loadOpenapi, type ParseOpenApiOptions } from './load-openapi.js';
 import { OpenApiError } from './error.js';
+import { loadOpenapi, type ParseOpenApiOptions } from './load-openapi.js';
 
 declare module '@thymian/core' {
   interface ThymianHttpRequest {

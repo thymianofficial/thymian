@@ -16,12 +16,6 @@
   "include": ["src/**/*.ts"],
   "references": [
     {
-      "path": "../plugins/format-validator/tsconfig.lib.json"
-    },
-    {
-      "path": "../plugins/cli-reporter/tsconfig.lib.json"
-    },
-    {
       "path": "../libs/rfc-9110-rules/tsconfig.lib.json"
     },
     {
@@ -31,7 +25,10 @@
       "path": "../plugins/http-linter/tsconfig.lib.json"
     },
     {
-      "path": "../core/tsconfig.lib.json"
+      "path": "../plugins/format-validator/tsconfig.lib.json"
+    },
+    {
+      "path": "../plugins/cli-reporter/tsconfig.lib.json"
     },
     {
       "path": "../libs/cli-common/tsconfig.lib.json"

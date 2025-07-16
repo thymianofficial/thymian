@@ -145,10 +145,12 @@ export class HttpTestApiContext extends LiveApiContext {
           .map<[CommonHttpRequest, CommonHttpResponse]>((transaction) => [
             httpRequestToCommonHttpRequest(
               transaction.source,
+              // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
               transaction.request!
             ),
             httpResponseToCommonHttpResponse(
               transaction.source,
+              // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
               transaction.response!
             ),
           ]);

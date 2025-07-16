@@ -3,9 +3,6 @@ import { join } from 'node:path';
 import { BaseCliRunCommand } from '@thymian/cli-common';
 import { Flags, ux } from '@thymian/cli-common/oclif';
 
-import type { RuleType } from '../../rule/rule-meta.js';
-import type { RuleSeverity } from '../../rule/rule-severity.js';
-
 export default class LintCommand extends BaseCliRunCommand<typeof LintCommand> {
   static override flags = {
     rules: Flags.string({

@@ -23,6 +23,7 @@ type ApiContextType<RuleTypes extends [RuleType, ...RuleType[]]> =
     ? LiveApiContext
     : ApiContext;
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 function isInformationalRule<R extends Rule<any>>(
   rule: R
 ): rule is R & { meta: { type: ['informational'] } } {

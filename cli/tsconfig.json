@@ -4,12 +4,6 @@
   "include": [],
   "references": [
     {
-      "path": "../plugins/format-validator"
-    },
-    {
-      "path": "../plugins/cli-reporter"
-    },
-    {
       "path": "../libs/rfc-9110-rules"
     },
     {
@@ -19,7 +13,10 @@
       "path": "../plugins/http-linter"
     },
     {
-      "path": "../core"
+      "path": "../plugins/format-validator"
+    },
+    {
+      "path": "../plugins/cli-reporter"
     },
     {
       "path": "../libs/cli-common"

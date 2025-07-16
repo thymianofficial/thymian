@@ -9,14 +9,12 @@ describe('data generator plugin', () => {
 
     await thymian.ready();
 
-    const result = await thymian.emitter.runHook('sampler.generate', {
+    const result = await thymian.emitter.emitAction('sampler.generate', {
       contentType: 'application/json',
       schema: {
         type: 'integer',
       },
     });
-
-    console.log(result);
 
     expect(result).toHaveLength(1);
     expect(result[0]?.content).toBeTypeOf('number');
