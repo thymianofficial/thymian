@@ -52,6 +52,10 @@ const header = `
 `;
 
 export function report(thymianReports: ThymianReport[]): void {
+  if (thymianReports.length === 0) {
+    return;
+  }
+
   const numberOfProblems = thymianReports.filter((r) => r.isProblem).length;
   const formattedReports = formatReports(thymianReports);
   const table = new Table();

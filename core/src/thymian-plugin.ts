@@ -1,8 +1,8 @@
 import type { JSONSchemaType } from 'ajv/dist/2020.js';
 
-import type { ThymianActionName, ThymianActions } from './emitter/actions.js';
-import type { ThymianEventName, ThymianEvents } from './emitter/events.js';
-import type { ThymianEmitter } from './emitter/index.js';
+import type { ThymianActionName, ThymianActions } from './actions/index.js';
+import { ThymianEmitter } from './emitter/index.js';
+import type { ThymianEventName, ThymianEvents } from './events/index.js';
 import type { Logger } from './logger/logger.js';
 import { isRecord } from './utils.js';
 
@@ -19,7 +19,7 @@ export type ThymianPluginEvents = {
     >;
   };
   emits?: ThymianEventName[];
-  listenOn?: ThymianEventName[];
+  listensOn?: ThymianEventName[];
 };
 
 export type ThymianPluginActions = {
@@ -39,6 +39,7 @@ export type ThymianPluginActions = {
   };
   emits?: ThymianActionName[];
   requires?: ThymianActionName[];
+  listensOn?: ThymianActionName[];
 };
 
 export type ThymianPlugin<Options = unknown> = {

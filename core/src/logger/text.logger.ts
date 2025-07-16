@@ -60,7 +60,7 @@ export class TextLogger implements Logger {
       console.log(output);
     }
   }
-  child(name: string): Logger {
-    return new TextLogger(name, this.verbose);
+  child(name: string, verbose = false): Logger {
+    return new TextLogger(name, verbose ?? this.verbose);
   }
 }

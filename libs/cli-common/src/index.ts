@@ -8,9 +8,10 @@ declare module '@oclif/core/interfaces' {
   }
 }
 
-export * from './base-cli-command.js';
+export * from './base-cli-run-command.js';
 export * from './default-config.js';
 export * as oclif from './oclif.js';
+export * as prompts from './prompts.js';
 export * from './read-plugins.js';
 export * from './thymian-config.js';
 export * as yaml from './yaml.js';

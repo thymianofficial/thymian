@@ -1,6 +1,6 @@
-import { BaseCliCommand } from '@thymian/cli-common';
+import { BaseCliRunCommand } from '@thymian/cli-common';
 
-export default class ValidateFormat extends BaseCliCommand<
+export default class ValidateFormat extends BaseCliRunCommand<
   typeof ValidateFormat
 > {
   async run(): Promise<void> {

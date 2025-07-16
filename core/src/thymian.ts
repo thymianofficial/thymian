@@ -2,7 +2,6 @@ import { Subject } from 'rxjs';
 import semver from 'semver';
 
 import packageJson from '../package.json' with { type: 'json' };
-import type { CloseActionResponse } from './actions/close.action.js';
 import { corePlugin } from './core-plugin.js';
 import { ThymianEmitter } from './emitter/index.js';
 import {  ThymianFormat } from './format/index.js';
@@ -43,7 +42,7 @@ export class Thymian {
       ...options
     }
 
-    this.emitter = new ThymianEmitter(logger.child('ThymianEmitter'), {
+    this.emitter = new ThymianEmitter(logger.child('@thymian/core', this.options.traceEvents || this.logger.verbose), {
       completed: new Set(),
       errors: new Subject(),
       events: new Subject(),
@@ -85,9 +84,39 @@ export class Thymian {
     this.#ready = true;
   }
 
+  run<T>(fn: (emitter: ThymianEmitter, logger: Logger) => Promise<T> | T): Promise<T> {
+    return new Promise((resolve, reject) => {
+      this.emitter.onError((event) => {
+        if (event.error.options.severity === 'error') {
+          reject(event.error);
+        } else if (event.error.options.severity === 'warn') {
+          this.logger.warn(event.error.message);
+        } else {
+          this.logger.info(event.error.message);
+        }
+      });
 
-  close(): Promise<CloseActionResponse[]> {
-    return this.emitter.emitAction('core.close')
+      (async () => {
+        await this.ready();
+
+        const result = await fn(this.emitter, this.logger);
+
+        await this.close();
+
+        return result
+      })()
+        .then(resolve)
+        .catch((err) => {
+          this.logger.debug('Error occurred. Try closing Thymian...');
+
+          this.close().then(() => reject(err));
+        });
+    })
+  }
+
+
+  async close(): Promise<void> {
+     await this.emitter.emitAction('core.close');
   }
 
   async loadFormat(): Promise<ThymianFormat> {

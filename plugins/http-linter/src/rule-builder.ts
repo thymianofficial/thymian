@@ -1,3 +1,5 @@
+import type { JSONSchemaType } from '@thymian/core/ajv';
+
 import type { AnalyticsApiContext } from './api-context/analytics-api-context.js';
 import type { ApiContext, LiveApiContext } from './api-context/api-context.js';
 import type { HttpTestApiContext } from './api-context/http-test-api-context.js';
@@ -94,9 +96,9 @@ interface DefineOptionalRuleMetaProperties<
     explanation: string
   ): DefineOptionalRuleMetaProperties<RuleTypes, Options>;
 
-  options<Schema extends Record<PropertyKey, unknown>>(
-    schema: Schema
-  ): DefineOptionalRuleMetaProperties<RuleTypes, Schema>;
+  options<Options extends Record<PropertyKey, unknown>>(
+    schema: JSONSchemaType<Options>
+  ): DefineOptionalRuleMetaProperties<RuleTypes, Options>;
 }
 
 class RuleBuilder<
@@ -116,7 +118,7 @@ class RuleBuilder<
         tags: [],
         name,
         type: ['static', 'analytics', 'test'],
-        options: {},
+        options: {} as JSONSchemaType<Options>,
       },
     };
   }
@@ -161,15 +163,12 @@ class RuleBuilder<
     return this;
   }
 
-  options<Schema extends Record<PropertyKey, unknown>>(
-    schema: Schema
-  ): DefineOptionalRuleMetaProperties<RuleTypes, Schema> {
-    this.#rule.meta.options = schema;
+  options<Opts extends Record<PropertyKey, unknown>>(
+    schema: JSONSchemaType<Opts>
+  ): DefineOptionalRuleMetaProperties<RuleTypes, Opts> {
+    this.#rule.meta.options = schema as JSONSchemaType<Options>;
 
-    return this as unknown as DefineOptionalRuleMetaProperties<
-      RuleTypes,
-      Schema
-    >;
+    return this as unknown as DefineOptionalRuleMetaProperties<RuleTypes, Opts>;
   }
 
   severity(severity: RuleSeverity): DefineRuleType {
@@ -246,6 +245,14 @@ class RuleBuilder<
   }
 
   done(): Rule<Options> {
+    if (this.#rule.meta.description && !this.#rule.meta.summary) {
+      this.#rule.meta.summary = this.#rule.meta.description;
+    }
+
+    if (!this.#rule.meta.description && this.#rule.meta.summary) {
+      this.#rule.meta.description = this.#rule.meta.summary;
+    }
+
     return this.#rule;
   }
 }

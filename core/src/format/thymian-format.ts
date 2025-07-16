@@ -18,10 +18,10 @@ export type MatchResult = {
   parameters: Partial<Record<string, string | string[]>>;
 };
 
-export function isNodeType<T extends ThymianNode>(
+export function isNodeType<T extends ThymianNodeType>(
   node: ThymianNode,
-  type: keyof ThymianNodes
-): node is T {
+  type: T
+): node is ThymianNodes[T] {
   return node.type === type;
 }
 
@@ -123,17 +123,34 @@ export class ThymianFormat {
     return this.graph.getNodeAttributes(id);
   }
 
-  getHttpResponsesOf(reqId: string): [string, ThymianHttpResponse][] {
+  requestIsSecured(reqId: string): boolean {
+    return !!this.graph.findOutEdge(
+      reqId,
+      (_, edge) => edge.type === 'is-secured'
+    );
+  }
+
+  getHttpResponsesOf(reqId: string): [string, ThymianHttpResponse, string][] {
     return this.graph.reduceOutNeighbors(
       reqId,
       (acc, id, attributes) => {
-        if (isNodeType<ThymianHttpResponse>(attributes, 'http-response')) {
-          acc.push([id, attributes]);
+        if (isNodeType(attributes, 'http-response')) {
+          const transactionId = this.graph.findEdge(
+            reqId,
+            id,
+            (_, edge) => edge.type === 'http-transaction'
+          );
+
+          if (!transactionId) {
+            throw new Error('Invalid HTTP transaction.');
+          }
+
+          acc.push([id, attributes, transactionId]);
         }
 
         return acc;
       },
-      [] as [string, ThymianHttpResponse][]
+      [] as [string, ThymianHttpResponse, string][]
     );
   }
 
@@ -144,7 +161,7 @@ export class ThymianFormat {
     return this.graph.reduceNeighbors(
       id,
       (acc, id, node) => {
-        if (isNodeType<ThymianNodes[Type]>(node, type)) {
+        if (isNodeType(node, type)) {
           acc.push([id, node]);
         }
 
@@ -192,7 +209,7 @@ export class ThymianFormat {
     const pathname = urlObj.pathname;
 
     return this.graph.reduceNodes((result, id, node) => {
-      if (isNodeType<ThymianHttpRequest>(node, 'http-request')) {
+      if (isNodeType(node, 'http-request')) {
         const path = node.path.replaceAll(/{([^}]+)}/gi, ':$1');
 
         const matchFn = match(path);
@@ -216,9 +233,7 @@ export class ThymianFormat {
     properties: StringAndNumberProperties<ThymianNodes[Type]>
   ): ThymianNodes[Type] | undefined {
     const nodeId = this.graph.findNode(
-      (id, node) =>
-        isNodeType<ThymianNodes[Type]>(node, type) &&
-        matchObjects(node, properties)
+      (id, node) => isNodeType(node, type) && matchObjects(node, properties)
     );
 
     if (typeof nodeId === 'undefined') {

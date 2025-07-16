@@ -1,3 +1,4 @@
+import { isRecord } from '@thymian/core';
 import {
   type GroupedObservable,
   mergeMap,
@@ -15,7 +16,6 @@ import type {
   SingleHttpTestCaseStep,
   ThymianHttpTransaction,
 } from '../http-test-case.js';
-import { isRecord } from '../utils.js';
 import type { HttpTestContext } from '../http-test-context.js';
 
 export function isGroupedObservable<K, T>(

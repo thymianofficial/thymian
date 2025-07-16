@@ -10,5 +10,5 @@ export type Rule<
   staticRule?: RuleFn<StaticApiContext, Options>;
   analyticsRule?: RuleFn<AnalyticsApiContext, Options>;
   testRule?: RuleFn<HttpTestApiContext, Options>;
-  meta: RuleMeta;
+  meta: RuleMeta<Options>;
 };

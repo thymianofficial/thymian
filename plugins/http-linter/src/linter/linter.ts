@@ -1,5 +1,8 @@
 import {
+  isNodeType,
+  type JSONSchemaType,
   type Logger,
+  ThymianBaseError,
   ThymianFormat,
   type ThymianHttpRequest,
   type ThymianHttpResponse,
@@ -13,16 +16,11 @@ import type { HttpTestContext } from '@thymian/http-testing';
 import chalk from 'chalk';
 
 import { HttpTestApiContext } from '../api-context/http-test-api-context.js';
-import type { StaticApiContext } from '../api-context/static-api-context.js';
+import { StaticApiContext } from '../api-context/static-api-context.js';
 import type { Rule } from '../rule/rule.js';
-import type { RuleType } from '../rule/rule-meta.js';
+import type { RuleMeta, RuleType } from '../rule/rule-meta.js';
 import type { RuleSeverity } from '../rule/rule-severity.js';
 import type { RuleViolation } from '../rule/rule-violation.js';
-
-export type HttpLintResult = {
-  rule: string;
-  violations: RuleViolation[];
-};
 
 export function severityToColor(severity: RuleSeverity): string {
   if (severity === 'hint') {
@@ -34,28 +32,28 @@ export function severityToColor(severity: RuleSeverity): string {
   }
 }
 
-export function transactionToTitle(
-  req: ThymianHttpRequest,
-  res: ThymianHttpResponse
-): string {
+export function requestToTitle(req: ThymianHttpRequest): string {
+  const title = `${req.method.toUpperCase()} ${req.path}`;
+
+  return req.mediaType ? title + ` - ${req.mediaType}` : title;
+}
+
+export function responseToTitle(res: ThymianHttpResponse): string {
   const statusCode = res.statusCode;
   const phrase = isValidHttpStatusCode(statusCode)
     ? httpStatusCodeToPhrase[statusCode]
     : 'Invalid status code';
 
-  let title = `${req.method.toUpperCase()} ${req.path}`;
+  const title = `${statusCode} ${phrase.toUpperCase()}`;
 
-  if (req.mediaType) {
-    title += ` - ${req.mediaType} `;
-  }
+  return res.mediaType ? title + ` - ${res.mediaType}` : title;
+}
 
-  title += ` \u2192 ${res.statusCode} ${phrase.toUpperCase()}`;
-
-  if (res.mediaType) {
-    title += ` - ${res.mediaType}`;
-  }
-
-  return title;
+export function transactionToTitle(
+  req: ThymianHttpRequest,
+  res: ThymianHttpResponse
+): string {
+  return `${requestToTitle(req)} \u2192 ${responseToTitle(res)}`;
 }
 
 export class Linter {
@@ -63,9 +61,9 @@ export class Linter {
     private readonly logger: Logger,
     private readonly rules: Rule[],
     private readonly report: (report: ThymianReport) => void,
-    private readonly apiContext: StaticApiContext,
     private readonly context: HttpTestContext,
-    private readonly format: ThymianFormat
+    private readonly format: ThymianFormat,
+    private readonly ruleOptions: Record<string, unknown>
   ) {}
 
   async run(modes: RuleType[]): Promise<boolean> {
@@ -92,55 +90,19 @@ export class Linter {
     }
 
     const result = await rule.staticRule(
-      this.apiContext,
-      { mode: 'static' },
+      new StaticApiContext(this.format),
+      {
+        ...(this.ruleOptions[rule.meta.name] ?? {}),
+        mode: 'static',
+      },
       this.logger.child(rule.meta.name)
     );
 
-    if (!result) {
+    if (!result || (Array.isArray(result) && result.length === 0)) {
       return true;
     }
 
-    for (const { location, message } of Array.isArray(result)
-      ? result
-      : [result]) {
-      if (location) {
-        if (location.elementType === 'node') {
-          const node = this.format.getNode(location.elementId);
-
-          if (!node) {
-            throw new Error('Wrong element id.');
-          }
-        } else {
-          const source = this.format.graph.source(location.elementId);
-          const target = this.format.graph.target(location.elementId);
-
-          const req = this.format.getNode<ThymianHttpRequest>(source);
-          const res = this.format.getNode<ThymianHttpResponse>(target);
-
-          if (!req || !res) {
-            throw new Error('Wrong element id.');
-          }
-
-          const topic = '@thymian/http-linter';
-          const title = transactionToTitle(req, res);
-
-          let text = message ?? rule.meta.summary ?? rule.meta.description;
-
-          text =
-            `${severityToColor(rule.meta.severity)}: ` +
-            (text ? `${text}   ${chalk.dim(rule.meta.name)}` : rule.meta.name);
-
-          this.report({
-            subTopic: 'Static Checks',
-            text,
-            title,
-            topic,
-            isProblem: true,
-          });
-        }
-      }
-    }
+    this.reportRuleViolations(result, rule.meta, 'Static Checks');
 
     return false;
   }
@@ -152,54 +114,72 @@ export class Linter {
 
     const result = await rule.testRule(
       new HttpTestApiContext(rule.meta.name, this.context),
-      { mode: 'test' },
+      { ...(this.ruleOptions[rule.meta.name] ?? {}), mode: 'test' },
       this.logger.child(rule.meta.name)
     );
-    if (!result) {
+
+    if (!result || (Array.isArray(result) && result.length === 0)) {
       return true;
     }
 
-    for (const { location, message } of Array.isArray(result)
-      ? result
-      : [result]) {
-      if (location) {
-        if (location.elementType === 'node') {
-          const node = this.format.getNode(location.elementId);
-
-          if (!node) {
-            throw new Error('Wrong element id.');
-          }
-        } else {
-          const source = this.format.graph.source(location.elementId);
-          const target = this.format.graph.target(location.elementId);
-
-          const req = this.format.getNode<ThymianHttpRequest>(source);
-          const res = this.format.getNode<ThymianHttpResponse>(target);
-
-          if (!req || !res) {
-            throw new Error('Wrong element id.');
-          }
-
-          const topic = '@thymian/http-linter';
-          const title = transactionToTitle(req, res);
-
-          let text = message ?? rule.meta.summary ?? rule.meta.description;
-
-          text =
-            `${severityToColor(rule.meta.severity)}: ` +
-            (text ? `${text}   ${chalk.dim(rule.meta.name)}` : rule.meta.name);
-
-          this.report({
-            subTopic: 'HTTP Tests',
-            text,
-            title,
-            topic,
-            isProblem: true,
-          });
-        }
-      }
-    }
+    this.reportRuleViolations(result, rule.meta, 'HTTP Tests');
 
     return false;
+  }
+
+  private reportRuleViolations(
+    result: RuleViolation | RuleViolation[],
+    ruleMeta: RuleMeta<Record<PropertyKey, unknown>>,
+    subTopic: string
+  ) {
+    const violations = Array.isArray(result) ? result : [result];
+
+    for (const { location, message } of violations) {
+      const topic = '@thymian/http-linter';
+      let text = message ?? ruleMeta.summary ?? ruleMeta.description;
+      text =
+        `${severityToColor(ruleMeta.severity)}: ` +
+        (text ? `${text}   ${chalk.dim(ruleMeta.name)}` : ruleMeta.name);
+      let title = '';
+
+      if (location.elementType === 'node') {
+        const node = this.format.getNode(location.elementId);
+
+        if (!node) {
+          throw new ThymianBaseError(
+            `Invalid rule violation location for rule ${ruleMeta.name}.`
+          );
+        }
+
+        if (isNodeType(node, 'http-request')) {
+          title = requestToTitle(node);
+        } else if (isNodeType(node, 'http-response')) {
+          title = responseToTitle(node);
+        }
+      } else {
+        const [source, target] = this.format.graph.extremities(
+          location.elementId
+        );
+
+        const req = this.format.getNode<ThymianHttpRequest>(source);
+        const res = this.format.getNode<ThymianHttpResponse>(target);
+
+        if (!req || !res) {
+          throw new ThymianBaseError(
+            `Invalid rule violation location for rule ${ruleMeta.name}.`
+          );
+        }
+
+        title = transactionToTitle(req, res);
+      }
+
+      this.report({
+        subTopic,
+        text,
+        title,
+        topic,
+        isProblem: true,
+      });
+    }
   }
 }

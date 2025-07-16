@@ -25,9 +25,17 @@ export function isRecord(
 export function matchObjects(source: unknown, target: unknown): boolean {
   if (!isRecord(source) || !isRecord(target)) return false;
 
-  return Object.entries(target).every(
-    ([key, value]) => key in source && source[key] === value
-  );
+  return Object.entries(target)
+    .filter(([, value]) => Boolean(value))
+    .every(([key, value]) => {
+      if (typeof value === 'string' && typeof source[key] === 'string') {
+        return (
+          key in source && source[key].toLowerCase() === value.toLowerCase()
+        );
+      }
+
+      return key in source && source[key] === value;
+    });
 }
 
 export type KeysWithStringOrNumberValue<T> = keyof {
@@ -49,3 +57,23 @@ export function zipArrays<A, B>(as: A[], bs: B[]): [A, B][] {
 
   return bs.map((b, i) => [as[i]!, b]);
 }
+
+export function getHeader(
+  headers: Record<string, string | string[] | undefined>,
+  headerName: string
+): string | string[] | undefined {
+  const headerNames = Object.keys(headers);
+
+  const found = headerNames.find(
+    (name) => name.toLowerCase() === headerName.toLowerCase()
+  );
+
+  if (found) {
+    return headers[found];
+  }
+
+  return undefined;
+}
+
+export type PartialExceptFor<T, K extends keyof T> = Partial<Omit<T, K>> &
+  Pick<T, K>;

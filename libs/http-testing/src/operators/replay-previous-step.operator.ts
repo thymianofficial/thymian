@@ -29,7 +29,7 @@ export function replayStep<
       type: prevStep.type,
       source: prevStep.source,
       transactions: prevStep.transactions.map((transaction) => ({
-        request: transaction.request,
+        requestTemplate: transaction.requestTemplate,
         source: transaction.source,
       })),
     } as CurrentStep;

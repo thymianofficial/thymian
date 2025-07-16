@@ -1,8 +1,8 @@
-import { BaseCliCommand, defaultConfig } from '@thymian/cli-common';
+import { BaseCliRunCommand, defaultConfig } from '@thymian/cli-common';
 import { Flags } from '@thymian/cli-common/oclif';
 import { stringify } from '@thymian/cli-common/yaml';
 
-export default class Init extends BaseCliCommand<typeof Init> {
+export default class Init extends BaseCliRunCommand<typeof Init> {
   static override description = 'Generate Thymian configuration file.';
   static override examples = ['<%= config.bin %> <%= command.id %>'];
 

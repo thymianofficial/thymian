@@ -23,6 +23,9 @@
       "path": "../../core/tsconfig.lib.json"
     },
     {
+      "path": "../http-status-codes/tsconfig.lib.json"
+    },
+    {
       "path": "../http-testing/tsconfig.lib.json"
     },
     {

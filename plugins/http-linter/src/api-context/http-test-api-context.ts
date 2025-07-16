@@ -1,3 +1,4 @@
+import type { HttpRequest, HttpResponse } from '@thymian/core';
 import {
   type DefineStepOptions,
   filter,
@@ -12,10 +13,8 @@ import {
   type HttpTestFn,
   isSingleHttpTestCaseStep,
   runRequests,
-  step,
   type ThymianHttpTransaction,
   toTestCases,
-  validateResponses,
 } from '@thymian/http-testing';
 import type { RuleFnResult } from 'src/rule/rule-fn.js';
 
@@ -34,7 +33,6 @@ import {
   thymianToCommonHttpRequest,
   thymianToCommonHttpResponse,
 } from './utils.js';
-import type { HttpRequest, HttpResponse } from '@thymian/core';
 
 function extractMediaType(req: HttpRequest): string {
   if (!req.headers) {
@@ -49,7 +47,7 @@ function extractMediaType(req: HttpRequest): string {
   return req.headers['content-type'] ?? '';
 }
 
-function httpRequestToCommonHttpRequest(
+export function httpRequestToCommonHttpRequest(
   source: ThymianHttpTransaction,
   request: HttpRequest
 ): CommonHttpRequest {
@@ -68,7 +66,7 @@ function httpRequestToCommonHttpRequest(
   };
 }
 
-function httpResponseToCommonHttpResponse(
+export function httpResponseToCommonHttpResponse(
   source: ThymianHttpTransaction,
   response: HttpResponse
 ) {
@@ -91,6 +89,8 @@ function hasSource(
 }
 
 export class HttpTestApiContext extends LiveApiContext {
+  private readonly violations: RuleViolation[] = [];
+
   constructor(
     private readonly name: string,
     private readonly ctx: HttpTestContext
@@ -98,13 +98,16 @@ export class HttpTestApiContext extends LiveApiContext {
     super(ctx.format);
   }
 
+  report(violation: RuleViolation): void {
+    this.violations.push(violation);
+  }
+
   async validateGroupedCommonHttpTransactions(
-    filterFn: FilterFn<CommonHttpRequest, CommonHttpResponse>,
+    filterFn: FilterFn<[CommonHttpRequest, CommonHttpResponse, string]>,
     groupByFn: (req: CommonHttpRequest, res: CommonHttpResponse) => string,
     validationFn: ValidationFn<
-      string,
-      [CommonHttpRequest, CommonHttpResponse][],
-      RuleViolation
+      [string, [CommonHttpRequest, CommonHttpResponse][]],
+      RuleViolation | undefined
     >
   ): Promise<RuleFnResult> {
     const test = httpTest(this.name, (test) =>
@@ -113,7 +116,8 @@ export class HttpTestApiContext extends LiveApiContext {
         filter(({ curr }) =>
           filterFn(
             thymianToCommonHttpRequest(curr.thymianReqId, curr.thymianReq),
-            thymianToCommonHttpResponse(curr.thymianResId, curr.thymianRes)
+            thymianToCommonHttpResponse(curr.thymianResId, curr.thymianRes),
+            curr.transactionId
           )
         ),
         groupBy(({ curr }) =>
@@ -159,12 +163,15 @@ export class HttpTestApiContext extends LiveApiContext {
         }
 
         return violations;
-      }, [] as RuleViolation[]);
+      }, [] as RuleViolation[])
+      .concat(this.violations);
   }
 
   async validateCommonHttpTransactions(
-    filterFn: FilterFn<CommonHttpRequest, CommonHttpResponse>,
-    validationFn: ValidationFn<CommonHttpRequest, CommonHttpResponse> = filterFn
+    filterFn: FilterFn<[CommonHttpRequest, CommonHttpResponse, string]>,
+    validationFn: ValidationFn<
+      [CommonHttpRequest, CommonHttpResponse, string]
+    > = filterFn
   ): Promise<RuleFnResult> {
     const test = httpTest(this.name, (test) =>
       test.pipe(
@@ -172,7 +179,8 @@ export class HttpTestApiContext extends LiveApiContext {
         filter(({ curr }) =>
           filterFn(
             thymianToCommonHttpRequest(curr.thymianReqId, curr.thymianReq),
-            thymianToCommonHttpResponse(curr.thymianResId, curr.thymianRes)
+            thymianToCommonHttpResponse(curr.thymianResId, curr.thymianRes),
+            curr.transactionId
           )
         ),
         toTestCases(),
@@ -204,7 +212,8 @@ export class HttpTestApiContext extends LiveApiContext {
 
             const validationResult = validationFn(
               httpRequestToCommonHttpRequest(source, request),
-              httpResponseToCommonHttpResponse(source, response)
+              httpResponseToCommonHttpResponse(source, response),
+              source.transactionId
             );
 
             if (typeof validationResult === 'boolean' && validationResult) {
@@ -231,7 +240,8 @@ export class HttpTestApiContext extends LiveApiContext {
 
           return violations;
         })
-      );
+      )
+      .concat(this.violations);
   }
 
   async test(
@@ -245,7 +255,7 @@ export class HttpTestApiContext extends LiveApiContext {
 
     for (const testCase of testResult.cases) {
       if (testCase.status !== 'failed') {
-        continue;
+        this.ctx.logger.error('Test case failed.');
       }
 
       const lastStep = testCase.steps.at(-1);
@@ -270,6 +280,6 @@ export class HttpTestApiContext extends LiveApiContext {
       }
     }
 
-    return violations;
+    return violations.concat(this.violations);
   }
 }

@@ -20,7 +20,6 @@ export function expectStatusCode<Steps extends HttpTestCaseStep[]>(
     if (isSkippedTestCase(curr) || isFailedTestCase(curr)) {
       return { curr, ctx };
     }
-
     const step = curr.steps.at(-1);
 
     if (step) {
@@ -39,7 +38,7 @@ export function expectStatusCode<Steps extends HttpTestCaseStep[]>(
           ) {
             curr.results.push({
               type: 'assertion-failure',
-              message: `Expected status code ${statusCode} but got ${transaction.response.statusCode}`,
+              message: `Expected status code ${statusCode} but got ${transaction.response.statusCode}.`,
             });
             curr.status = 'failed';
           }

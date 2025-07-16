@@ -39,6 +39,20 @@ export const formatValidatorPlugin: ThymianPlugin = {
 
       ctx.reply();
     });
+
+    emitter.onAction('core.run', async (format, ctx) => {
+      const thymianFormat = ThymianFormat.import(format);
+      const context = createContext(thymianFormat, logger, emitter);
+
+      const valid = await validate(context, logger, (report) =>
+        emitter.emit('core.report', report)
+      );
+
+      ctx.reply({
+        pluginName: '@thymian/format-validator',
+        status: valid ? 'success' : 'failed',
+      });
+    });
   },
 };
 

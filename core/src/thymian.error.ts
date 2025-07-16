@@ -1,4 +1,6 @@
-import { isRecord } from './utils.js';
+import { isRecord, type PartialExceptFor } from './utils.js';
+
+export type ThymianErrorSeverity = 'info' | 'warn' | 'error';
 
 export type ThymianErrorOptions = {
   exitCode: number;
@@ -6,12 +8,13 @@ export type ThymianErrorOptions = {
   ref: string;
   code: string;
   name: string;
+  severity: ThymianErrorSeverity;
 };
 
 export interface ThymianError {
   name: string;
   message: string;
-  options: Partial<ThymianErrorOptions> & { cause?: Error };
+  options: PartialExceptFor<ThymianErrorOptions, 'severity'>;
 }
 
 export function isThymianError(value: unknown): value is ThymianError {
@@ -27,26 +30,29 @@ export function isThymianError(value: unknown): value is ThymianError {
 }
 
 export class ThymianBaseError extends Error implements ThymianError {
-  public readonly causingError?: Error;
-  public readonly options: Partial<ThymianErrorOptions> & { cause?: Error };
-
+  public readonly options: PartialExceptFor<ThymianErrorOptions, 'severity'>;
   constructor(
     message: string,
-    options: Partial<ThymianErrorOptions> & { cause?: unknown } = {}
+    options: Partial<ThymianErrorOptions> & { cause?: unknown } & {
+      severity?: ThymianErrorSeverity;
+    } = {}
   ) {
     super(message);
     if (options.cause) {
-      if (!(options.cause instanceof Error)) {
-        delete options.cause;
+      if (options.cause instanceof Error) {
+        this.cause = options.cause;
       }
     }
 
-    // we delete the "cause" property
-    // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-    // @ts-expect-error
     this.options = {
+      severity: 'error',
       ...options,
     };
-    this.name = options.name ?? this.constructor.name;
+
+    this.name =
+      options.name ??
+      (this.constructor.name === 'ThymianBaseError'
+        ? 'ThymianError'
+        : this.constructor.name);
   }
 }

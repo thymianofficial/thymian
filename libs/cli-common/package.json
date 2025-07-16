@@ -13,13 +13,15 @@
       "default": "./dist/index.js"
     },
     "./oclif": "./dist/oclif.js",
-    "./yaml": "./dist/yaml.js"
+    "./yaml": "./dist/yaml.js",
+    "./prompts": "./dist/prompts.js"
   },
   "files": [
     "dist",
     "!**/*.tsbuildinfo"
   ],
   "dependencies": {
+    "@inquirer/prompts": "^7.6.0",
     "tslib": "^2.3.0",
     "yaml": "^2.8.0"
   },

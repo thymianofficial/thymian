@@ -1,7 +1,7 @@
 import { NoopLogger, type ThymianHttpRequest } from '@thymian/core';
 import { buildExampleApp, exampleAppFormat } from '@thymian/test-utils';
 import type { FastifyInstance } from 'fastify';
-import { groupBy, mergeMap } from 'rxjs';
+import { groupBy, map, mergeMap, tap } from 'rxjs';
 import { beforeEach, describe, expect, it } from 'vitest';
 
 import { httpTest } from '../src/http-test.js';
@@ -23,6 +23,13 @@ import {
   exampleContentGenerator,
   identityHookRunner,
 } from '../src/test-utils/index.js';
+import console from 'node:console';
+import {
+  overrideHeaders,
+  overrideRequestWithPrevious,
+  replayStep,
+  replayStepButExpectResponse,
+} from '../src/index.js';
 
 describe('httpTest - todo app', () => {
   let todoApp: FastifyInstance;
@@ -177,6 +184,65 @@ describe('httpTest - todo app', () => {
         toTestCases(),
         generateRequests(),
         runRequests()
+      )
+    );
+
+    const result = await test(context);
+
+    console.log(JSON.stringify(result));
+  });
+
+  it('my rfc 9110 test', async () => {
+    const test = httpTest('test', (t) =>
+      t.pipe(
+        forHttpTransactions(
+          (req, reqId, responses) =>
+            Object.keys(req.headers).some(
+              (h) => h.toLowerCase() === 'if-range'
+            ) &&
+            responses.some(([, res]) => res.statusCode === 206) &&
+            responses.some(([, res]) => res.statusCode === 200),
+          (res) => res.statusCode === 206
+        ),
+        toTestCases(),
+        generateRequests(),
+        runRequests(),
+        replayStep((step) =>
+          step.pipe(
+            overrideRequestWithPrevious((requestTemplate, previous) => {
+              const transaction = previous.transactions[0];
+
+              if (transaction && transaction.response) {
+                const etagHeader = transaction.response.headers['etag'];
+
+                if (typeof etagHeader === 'string') {
+                  return {
+                    ...requestTemplate,
+                    headers: {
+                      ...requestTemplate.headers,
+                      'if-range': etagHeader,
+                    },
+                  };
+                }
+              }
+
+              return requestTemplate;
+            }),
+            runRequests()
+          )
+        ),
+        replayStepButExpectResponse({ statusCode: 200 }, (step) =>
+          step.pipe(
+            overrideHeaders((headers) => {
+              if ('if-range' in headers) {
+                headers['if-range'] = '"abc"';
+              }
+
+              return headers;
+            }),
+            runRequests()
+          )
+        )
       )
     );
 

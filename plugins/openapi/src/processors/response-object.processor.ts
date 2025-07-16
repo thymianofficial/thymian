@@ -1,4 +1,4 @@
-import { type ThymianHttpResponse, type ThymianSchema } from '@thymian/core';
+import { type ThymianHttpResponse } from '@thymian/core';
 import type { OpenAPIV3_1 as OpenApiV31 } from 'openapi-types';
 
 import { processHeadersObject } from './headers-object.processor.js';

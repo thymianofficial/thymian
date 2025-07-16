@@ -9,10 +9,19 @@ import {
 } from '../http-test-case.js';
 import { serializeRequest } from '../serialize-request.js';
 
-export function runRequests<
-  Steps extends HttpTestCaseStep[]
->(): MonoTypeOperatorFunction<HttpTestInstance<HttpTestCase<Steps>>> {
+export type RunRequestsOptions = {
+  checkStatusCode: boolean;
+};
+
+export function runRequests<Steps extends HttpTestCaseStep[]>(
+  opts: Partial<RunRequestsOptions> = {}
+): MonoTypeOperatorFunction<HttpTestInstance<HttpTestCase<Steps>>> {
   return mergeMap(async ({ curr, ctx }) => {
+    const options: RunRequestsOptions = {
+      checkStatusCode: true,
+      ...opts,
+    };
+
     if (isSkippedTestCase(curr) || isFailedTestCase(curr)) {
       return { curr, ctx };
     }
@@ -24,15 +33,11 @@ export function runRequests<
         transaction.request = serializeRequest(transaction);
         transaction.response = await ctx.runRequest(transaction.request);
 
-        if (transaction.source?.thymianRes) {
+        if (options.checkStatusCode && transaction.source?.thymianRes) {
           const res = transaction.source.thymianRes;
           const req = transaction.source.thymianReq;
 
           if (res.statusCode !== transaction.response.statusCode) {
-            console.log({ req: transaction.request });
-            console.log({ expectedResponse: transaction.source.thymianRes });
-            console.log('got status code ' + transaction.response.statusCode);
-
             return ctx.skip(
               curr,
               `Trying to receive a response with code ${

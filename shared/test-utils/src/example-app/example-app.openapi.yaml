@@ -23,7 +23,9 @@ paths:
       security:
         - basicAuth: []
       responses:
-        "200":
+        401:
+          description: not authorized
+        200:
           description: Default Response
           headers:
             etag:
@@ -93,8 +95,24 @@ paths:
       security:
         - basicAuth: []
       responses:
-        "200":
+        304:
+          headers: # header cache control is missing
+            etag:
+              schema:
+                type: string
+            content-range:
+              schema:
+                type: string
+          description: ''
+        200:
           description: Default Response # implementation sends etag but the API description does not include it. This problem should be also included in the report from @thymian/format-validator
+          headers:
+            cache-control:
+              schema:
+                type: string
+            etag:
+              schema:
+                type: string
           content:
             application/json:
               schema:
@@ -179,6 +197,42 @@ paths:
               schema:
                 type: string
   /range-requests/valid-if-range:
+    get:
+      security:
+        - basicAuth: [ ]
+      parameters:
+        - name: range
+          in: header
+          required: false
+          schema:
+            type: string
+        - name: if-range
+          in: header
+          required: false
+          schema:
+            type: string
+      responses:
+        200:
+          description: Default Response
+          headers:
+            etag:
+              schema:
+                type: string
+          content:
+            application/octet-stream:
+              schema:
+                type: string
+        206:
+          description: Default Response
+          headers:
+            etag:
+              schema:
+                type: string
+          content:
+            application/octet-stream:
+              schema:
+                type: string
+  /range-requests/invalid-if-range:
     get:
       security:
         - basicAuth: [ ]

@@ -1,18 +1,25 @@
+import type { JSONSchemaType } from 'ajv/dist/2020.js';
+
 import type { SerializedThymianFormat } from '../format/index.js';
 import type { Action } from './action.js';
 
 export type LoadFormatAction = Action<void, SerializedThymianFormat>;
 
-export const loadFormatActionSchema = {
+// TODO: schema is not 100% correct (but 99%)
+// eslint-disable-next-line @typescript-eslint/ban-ts-comment
+// @ts-expect-error
+export const loadFormatActionSchema: JSONSchemaType<SerializedThymianFormat> = {
   type: 'object',
   additionalProperties: false,
   required: ['options', 'attributes', 'nodes', 'edges'],
   properties: {
     options: {
       type: 'object',
+      nullable: false,
     },
     attributes: {
       type: 'object',
+      nullable: false,
     },
     nodes: {
       type: 'array',
@@ -23,9 +30,11 @@ export const loadFormatActionSchema = {
         properties: {
           key: {
             type: 'string',
+            nullable: false,
           },
           attributes: {
             type: 'object',
+            nullable: true,
           },
         },
       },

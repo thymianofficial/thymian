@@ -1,13 +1,4 @@
-import type { ReportEvent, RegisterPluginEvent } from '../events/index.js';
-import type { ThymianError } from '../thymian.error.js';
-
-export interface ThymianEvents {
-  'core.error': ThymianError;
-  'core.register': RegisterPluginEvent;
-  'core.report': ReportEvent;
-}
-
-export type ThymianEventName = keyof ThymianEvents;
+import type { ThymianEventName, ThymianEvents } from 'src/events/index.js';
 
 export type EventPayload<Event extends ThymianEventName> = ThymianEvents[Event];
 

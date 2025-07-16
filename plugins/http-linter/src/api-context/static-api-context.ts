@@ -1,5 +1,6 @@
 import {
-  ThymianFormat,
+  isNodeType,
+  type PartialBy,
   type ThymianHttpRequest,
   type ThymianHttpResponse,
 } from '@thymian/core';
@@ -23,8 +24,10 @@ import {
 
 export class StaticApiContext extends ApiContext {
   validateCommonHttpTransactions(
-    filterFn: FilterFn<CommonHttpRequest, CommonHttpResponse>,
-    validationFn: ValidationFn<CommonHttpRequest, CommonHttpResponse> = filterFn
+    filterFn: FilterFn<[CommonHttpRequest, CommonHttpResponse, string]>,
+    validationFn: ValidationFn<
+      [CommonHttpRequest, CommonHttpResponse, string]
+    > = filterFn
   ): RuleFnResult {
     return this.format
       .getHttpTransactions()
@@ -44,9 +47,9 @@ export class StaticApiContext extends ApiContext {
           ];
         }
       )
-      .filter(([req, res]) => filterFn(req, res))
+      .filter(([req, res, transactionId]) => filterFn(req, res, transactionId))
       .reduce((violations, [req, res, transactionId]) => {
-        const validationResult = validationFn(req, res);
+        const validationResult = validationFn(req, res, transactionId);
 
         if (typeof validationResult === 'boolean' && validationResult) {
           violations.push({
@@ -74,11 +77,10 @@ export class StaticApiContext extends ApiContext {
   }
 
   validateGroupedCommonHttpTransactions(
-    filterFn: FilterFn<CommonHttpRequest, CommonHttpResponse>,
+    filterFn: FilterFn<[CommonHttpRequest, CommonHttpResponse, string]>,
     groupByFn: (req: CommonHttpRequest, res: CommonHttpResponse) => string,
     validationFn: ValidationFn<
-      string,
-      [CommonHttpRequest, CommonHttpResponse][],
+      [string, [CommonHttpRequest, CommonHttpResponse][]],
       RuleViolation
     >
   ): RuleFnResult {
@@ -100,7 +102,7 @@ export class StaticApiContext extends ApiContext {
           ];
         }
       )
-      .filter(([req, res]) => filterFn(req, res))
+      .filter(([req, res, transactionId]) => filterFn(req, res, transactionId))
       .reduce((groups, [req, res, transactionId]) => {
         const key = groupByFn(req, res);
 
@@ -117,6 +119,63 @@ export class StaticApiContext extends ApiContext {
 
       if (validationResult) {
         violations.push(validationResult);
+      }
+
+      return violations;
+    }, [] as RuleViolation[]);
+  }
+
+  validateHttpTransactions(
+    filterFn: (
+      req: ThymianHttpRequest,
+      res: ThymianHttpResponse,
+      responses: ThymianHttpResponse[]
+    ) => boolean,
+    validationFn: (
+      req: ThymianHttpRequest,
+      res: ThymianHttpResponse,
+      responses: ThymianHttpResponse[]
+    ) => PartialBy<RuleViolation, 'location'> | boolean = filterFn
+  ): RuleFnResult {
+    return this.format.graph.reduceNodes((violations, id, node) => {
+      if (!isNodeType(node, 'http-request')) {
+        return violations;
+      }
+
+      const responsesWithIds = this.format.getHttpResponsesOf(id);
+      const responses = responsesWithIds.map(([_, res]) => res);
+
+      for (const [resId, res] of responsesWithIds) {
+        if (filterFn(node, res, responses)) {
+          const result = validationFn(node, res, responses);
+
+          const transactionId = this.format.graph.findEdge(
+            id,
+            resId,
+            (_, edge) => edge.type === 'http-transaction'
+          );
+
+          if (!transactionId) {
+            throw new Error('Invalid HTTP transaction ID.');
+          }
+
+          if (typeof result === 'boolean' && result) {
+            violations.push({
+              location: {
+                elementType: 'edge',
+                elementId: transactionId,
+              },
+            });
+          } else if (result) {
+            violations.push({
+              location: {
+                elementType: 'edge',
+                elementId: transactionId,
+              },
+              ...result,
+            });
+          }
+        }
       }
 
       return violations;

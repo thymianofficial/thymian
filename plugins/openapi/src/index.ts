@@ -85,11 +85,7 @@ export const openApiPlugin: ThymianPlugin<Partial<ParseOpenApiOptions>> = {
     });
 
     emitter.onAction('core.close', (_, ctx) => {
-      ctx.reply({
-        pluginName: '@thymian/openapi',
-        message: JSON.stringify({}),
-        status: 'success',
-      });
+      ctx.reply();
     });
   },
 };

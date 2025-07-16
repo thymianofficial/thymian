@@ -18,6 +18,11 @@ import type {
 } from './http-test-case.js';
 import { generateRequest as _generateRequest } from './request-generator/generate-request.js';
 
+export type GenerateRequestsOptions = {
+  authenticate?: boolean;
+  validCredentials?: boolean;
+};
+
 export interface HttpTestContext {
   format: ThymianFormat;
 
@@ -31,7 +36,8 @@ export interface HttpTestContext {
 
   generateRequest(
     format: ThymianFormat,
-    transaction: ThymianHttpTransaction
+    transaction: ThymianHttpTransaction,
+    options?: GenerateRequestsOptions
   ): Promise<HttpRequestTemplate>;
 
   runRequest(req: HttpRequest): Promise<HttpResponse>;
@@ -125,12 +131,13 @@ export function createHttpTestContext<
     },
     generateRequest(
       format: ThymianFormat,
-      transaction: ThymianHttpTransaction
+      transaction: ThymianHttpTransaction,
+      options?: GenerateRequestsOptions
     ) {
       if (context.generateRequest) {
         return context.generateRequest(format, transaction);
       } else {
-        return _generateRequest(transaction, this);
+        return _generateRequest(transaction, this, options);
       }
     },
   };

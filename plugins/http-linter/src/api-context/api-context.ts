@@ -1,18 +1,15 @@
 import { type PartialBy, ThymianFormat } from '@thymian/core';
 
+import { equalsIgnoreCase } from '../linter/utils.js';
 import type { RuleFnResult } from '../rule/rule-fn.js';
-import type {
-  RuleViolation,
-  RuleViolationLocation,
-} from '../rule/rule-violation.js';
+import type { RuleViolation } from '../rule/rule-violation.js';
 
-export type FilterFn<T1, T2> = (x: T1, y: T2) => boolean;
+export type FilterFn<Args extends unknown[]> = (...args: Args) => boolean;
 
 export type ValidationFn<
-  T1,
-  T2,
-  R = PartialBy<RuleViolation, 'location'> | boolean
-> = (x: T1, y: T2) => R | undefined;
+  Args extends unknown[],
+  R = PartialBy<RuleViolation, 'location'> | boolean | undefined
+> = (...args: Args) => R;
 
 export type CommonHttpRequest = {
   id: string;
@@ -39,24 +36,21 @@ export abstract class ApiContext {
   constructor(readonly format: ThymianFormat) {}
 
   abstract validateCommonHttpTransactions(
-    filterFn: FilterFn<CommonHttpRequest, CommonHttpResponse>,
-    validationFn: ValidationFn<CommonHttpRequest, CommonHttpResponse>
+    filterFn: FilterFn<[CommonHttpRequest, CommonHttpResponse, string]>,
+    validationFn?: ValidationFn<[CommonHttpRequest, CommonHttpResponse, string]>
   ): Promise<RuleFnResult> | RuleFnResult;
 
   abstract validateGroupedCommonHttpTransactions(
-    filterFn: FilterFn<CommonHttpRequest, CommonHttpResponse>,
+    filterFn: FilterFn<[CommonHttpRequest, CommonHttpResponse, string]>,
     groupByFn: (req: CommonHttpRequest, res: CommonHttpResponse) => string,
     validationFn: ValidationFn<
-      string,
-      [CommonHttpRequest, CommonHttpResponse][],
-      RuleViolation
+      [string, [CommonHttpRequest, CommonHttpResponse][]],
+      RuleViolation | undefined
     >
   ): Promise<RuleFnResult> | RuleFnResult;
 
   equalsIgnoreCase(a: string, ...b: string[]): boolean {
-    return b.some(
-      (str) => a.localeCompare(str, undefined, { sensitivity: 'accent' }) === 0
-    );
+    return equalsIgnoreCase(a, ...b);
   }
 }
 

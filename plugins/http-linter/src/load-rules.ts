@@ -1,17 +1,17 @@
+import { existsSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import * as path from 'node:path';
+import { join } from 'node:path';
 
-import { isRecord } from '@thymian/core';
+import { isRecord, ThymianBaseError } from '@thymian/core';
+import { validate } from '@thymian/core/ajv';
 import { glob } from 'tinyglobby';
 
 import type { Rule } from './rule/rule.js';
 import type { RuleSet } from './rule/rule-set.js';
-import { existsSync } from 'node:fs';
-import { join } from 'node:path';
+import type { RuleFilter } from './rule-filter.js';
 
 const require = createRequire(import.meta.url);
-
-export type RuleFilter = (rule: Rule) => boolean;
 
 export function areFunctionPropertiesIfDefined<Properties extends string[]>(
   obj: Record<PropertyKey, unknown>,
@@ -53,7 +53,8 @@ export function isRuleSet(ruleSet: unknown): ruleSet is RuleSet {
 export async function loadRuleSet(
   ruleSet: RuleSet,
   basePath: string,
-  filterFn: RuleFilter
+  filterFn: RuleFilter,
+  options: Record<string, unknown>
 ): Promise<Rule[]> {
   if (ruleSet.rules) {
     return ruleSet.rules.filter(filterFn);
@@ -69,7 +70,9 @@ export async function loadRuleSet(
       : [ruleSet.pattern]) {
       const files = await glob(pattern, { cwd: dirname });
       for (const file of files) {
-        rules.push(...(await loadRules(path.join(dirname, file), filterFn)));
+        rules.push(
+          ...(await loadRules(path.join(dirname, file), filterFn, options))
+        );
       }
     }
   }
@@ -79,10 +82,13 @@ export async function loadRuleSet(
 
 export async function loadRules(
   path: string | string[],
-  filterFn: RuleFilter = () => true
+  ruleFilter: RuleFilter,
+  options: Record<string, unknown>
 ): Promise<Rule[]> {
   if (Array.isArray(path)) {
-    return (await Promise.all(path.map((p) => loadRules(p)))).flat();
+    return (
+      await Promise.all(path.map((p) => loadRules(p, ruleFilter, options)))
+    ).flat();
   }
 
   let location = path;
@@ -97,17 +103,47 @@ export async function loadRules(
   const module = await import(resolved);
 
   if (!('default' in module)) {
-    throw new Error('Rule and rule sets must use default export.');
+    throw new ThymianBaseError(
+      `Rule or rule set at ${location} does not use default export.`,
+      {
+        suggestions: [
+          'Use "export default" oder "module.exports =" to export your rule (set).',
+        ],
+        name: 'RuleLoadError',
+      }
+    );
   }
 
   const ruleOrRuleSet = module.default;
 
-  if (isRule(ruleOrRuleSet) && filterFn(ruleOrRuleSet)) {
+  if (isRule(ruleOrRuleSet) && ruleFilter(ruleOrRuleSet)) {
+    const ruleOptions = options[ruleOrRuleSet.meta.name];
+
+    if (typeof ruleOptions === 'boolean') {
+      if (!ruleOptions) {
+        return [];
+      }
+    } else if (ruleOptions) {
+      if (
+        !validate(ruleOrRuleSet.meta.options, options[ruleOrRuleSet.meta.name])
+      ) {
+        throw new ThymianBaseError(
+          `Options for rule "${ruleOrRuleSet.meta.name}" does not match the schema of the rule.`,
+          {
+            suggestions: [
+              'Check the options for the rule in your Thymian config file.',
+            ],
+            name: 'InvalidRuleOptionError',
+          }
+        );
+      }
+    }
+
     return [ruleOrRuleSet];
   }
 
   if (isRuleSet(ruleOrRuleSet)) {
-    return loadRuleSet(ruleOrRuleSet, resolved, filterFn);
+    return loadRuleSet(ruleOrRuleSet, resolved, ruleFilter, options);
   }
 
   return [];

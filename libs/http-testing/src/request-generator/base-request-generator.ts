@@ -6,23 +6,24 @@ import {
 
 import type { HttpRequestTemplate } from '../http-request-template.js';
 import type { ThymianHttpTransaction } from '../http-test-case.js';
-import type { HttpTestContext } from '../http-test-context.js';
+import type {
+  GenerateRequestsOptions,
+  HttpTestContext,
+} from '../http-test-context.js';
 import type { RequestGenerator } from './request-generator.js';
-
-export type BaseRequestGeneratorOptions = {
-  validAuth: boolean;
-};
+import console from 'node:console';
 
 export class BaseRequestGenerator implements RequestGenerator {
-  protected readonly options: BaseRequestGeneratorOptions;
+  protected readonly options: GenerateRequestsOptions;
 
   constructor(
     protected readonly transaction: ThymianHttpTransaction,
     protected readonly ctx: HttpTestContext,
-    options: Partial<BaseRequestGeneratorOptions> = {}
+    options: Partial<GenerateRequestsOptions> = {}
   ) {
     this.options = {
-      validAuth: true,
+      authenticate: true,
+      validCredentials: true,
       ...options,
     };
   }
@@ -116,6 +117,10 @@ export class BaseRequestGenerator implements RequestGenerator {
   protected async authorizeRequest(
     request: HttpRequestTemplate
   ): Promise<HttpRequestTemplate> {
+    if (!this.options.authenticate) {
+      return request;
+    }
+
     const schemeNodeId = this.ctx.format.graph.findOutNeighbor(
       this.transaction.thymianReqId,
       (id, node) => node.type === 'security-scheme'
@@ -130,7 +135,7 @@ export class BaseRequestGenerator implements RequestGenerator {
       // extend the if statement to support more security schemes
       if (securityScheme.scheme === 'basic' && this.ctx.auth?.basic) {
         request.headers['Authorization'] = `Basic ${Buffer.from(
-          (this.options.validAuth
+          (this.options.validCredentials
             ? // basic auth is defined
               await this.ctx.auth.basic({
                 requestTemplate: request,

@@ -10,6 +10,9 @@
       "path": "../../core"
     },
     {
+      "path": "../http-status-codes"
+    },
+    {
       "path": "../http-testing"
     },
     {

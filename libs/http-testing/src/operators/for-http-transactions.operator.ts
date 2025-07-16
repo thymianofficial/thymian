@@ -2,12 +2,13 @@ import {
   ThymianFormat,
   type ThymianHttpRequest,
   type ThymianHttpResponse,
+  matchObjects,
 } from '@thymian/core';
 import { from, mergeMap, type OperatorFunction } from 'rxjs';
 
 import type { HttpTestInstance } from '../http-test.js';
 import type { ThymianHttpTransaction } from '../http-test-case.js';
-import { matchObjects, type StringAndNumberProperties } from '../utils.js';
+import { type StringAndNumberProperties } from '../utils.js';
 
 export type RequestFilter =
   | StringAndNumberProperties<ThymianHttpRequest>

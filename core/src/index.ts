@@ -12,3 +12,5 @@ export * from './thymian.error.js';
 export * from './thymian.js';
 export * from './thymian-plugin.js';
 export * from './utils.js';
+export * from './actions/index.js';
+export * from './events/index.js';

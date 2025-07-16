@@ -11,7 +11,7 @@ export const cliReporterPlugin: ThymianPlugin = {
   name: '@thymian/cli-reporter',
   version: '0.x',
   events: {
-    listenOn: ['core.report'],
+    listensOn: ['core.report'],
   },
   async plugin(emitter: ThymianEmitter, logger: Logger): Promise<void> {
     const reports: ThymianReport[] = [];
@@ -22,11 +22,7 @@ export const cliReporterPlugin: ThymianPlugin = {
 
     emitter.onAction('core.close', (_, ctx) => {
       report(reports);
-
-      ctx.reply({
-        pluginName: '@thymian/cli-reporter',
-        status: 'success',
-      });
+      ctx.reply();
     });
   },
 };

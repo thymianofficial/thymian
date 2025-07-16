@@ -43,7 +43,7 @@ export async function validate(
   context: HttpTestContext,
   logger: Logger,
   report: (report: ThymianReport) => void
-): Promise<void> {
+): Promise<boolean> {
   const test = httpTest('@thymian/format-validate', {
     resFilter: (res) => isValidSuccessfulStatusCode(res.statusCode),
     validate: true,
@@ -104,4 +104,6 @@ export async function validate(
       }
     });
   }
+
+  return results.cases.every((testCase) => testCase.status === 'passed');
 }

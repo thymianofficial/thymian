@@ -30,7 +30,9 @@ declare module 'fastify' {
 export function buildExampleApp(
   opts: FastifyServerOptions = { ignoreTrailingSlash: true }
 ): FastifyInstance {
-  return Fastify(opts)
+  const app = Fastify(opts);
+
+  return app
     .register(fastifySwagger, {
       openapi: {
         openapi: '3.0.0',
@@ -61,6 +63,9 @@ export function buildExampleApp(
           throw new Error('Wrong username or password.');
         }
       },
+    })
+    .after(() => {
+      app.addHook('onRequest', app.basicAuth);
     })
     .register(fastifyRange)
     .register(fastifyAutoload, {

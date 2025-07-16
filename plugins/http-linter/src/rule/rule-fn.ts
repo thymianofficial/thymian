@@ -2,7 +2,6 @@ import type { Logger } from '@thymian/core';
 
 import type { ApiContext } from '../api-context/api-context.js';
 import type { RuleViolation } from './rule-violation.js';
-import type { RuleType } from './rule-meta.js';
 
 export type RuleFnResult = undefined | RuleViolation | RuleViolation[];
 

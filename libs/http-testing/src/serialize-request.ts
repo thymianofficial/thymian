@@ -6,6 +6,7 @@ import {
   serializePathParameter,
   serializeQueryParameter,
 } from './serialize-parameter.js';
+import console from 'node:console';
 
 function serializeBasePath(transaction: HttpTestCaseStepTransaction) {
   return transaction.requestTemplate.path.replace(
@@ -92,7 +93,6 @@ export function serializeHeaders(
   transaction: HttpTestCaseStepTransaction
 ): Record<string, string> {
   const headers = transaction.source?.thymianReq.headers ?? {};
-
   return Object.entries(transaction.requestTemplate.headers).reduce(
     (acc, [key, value]) => {
       if (typeof value === 'string') {

@@ -49,7 +49,7 @@ export class OpenapiProcessor {
 
     const reqs = this.format.graph.filterNodes(
       (id, attributes) =>
-        isNodeType<ThymianHttpRequest>(attributes, 'http-request') &&
+        isNodeType(attributes, 'http-request') &&
         attributes.extensions?.openapiV3?.operationId ===
           linkObjectToProcess.linkObj.operationId
     );

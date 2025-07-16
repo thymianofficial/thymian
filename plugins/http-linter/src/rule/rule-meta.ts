@@ -1,19 +1,34 @@
+import type { JSONSchemaType } from '@thymian/core/ajv';
+
 import type { RuleSeverity } from './rule-severity.js';
 
-export type IntermediaryRole = 'intermediary' | 'proxy' | 'gateway' | 'tunnel';
+export const httpParticipantRoles = [
+  'intermediary',
+  'proxy',
+  'gateway',
+  'tunnel',
+  'origin server',
+  'server',
+  'client',
+  'user-agent',
+  'cache',
+] as const;
 
-export type HttpParticipantRole =
-  | IntermediaryRole
-  | 'origin server'
-  | 'client'
-  | 'cache';
+export type HttpParticipantRole = (typeof httpParticipantRoles)[number];
 
-export type RuleType = 'static' | 'analytics' | 'test' | 'informational';
+export const ruleTypes = [
+  'static',
+  'analytics',
+  'test',
+  'informational',
+] as const;
 
-export type RuleMeta = {
+export type RuleType = (typeof ruleTypes)[number];
+
+export type RuleMeta<Options = unknown> = {
   name: string;
   type: RuleType[];
-  options: Record<string, unknown>;
+  options: JSONSchemaType<Options>;
   severity: RuleSeverity;
   appliesTo?: HttpParticipantRole[];
   tags?: string[];

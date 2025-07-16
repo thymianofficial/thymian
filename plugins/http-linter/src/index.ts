@@ -5,21 +5,27 @@ import {
   ThymianFormat,
   type ThymianPlugin,
 } from '@thymian/core';
+import type {} from '@thymian/format-validator';
 import type {} from '@thymian/request-dispatcher';
 import type {} from '@thymian/sampler';
-import type {} from '@thymian/format-validator';
 
-import { StaticApiContext } from './api-context/static-api-context.js';
 import { createContext } from './linter/create-context.js';
 import { Linter } from './linter/linter.js';
 import { loadRules } from './load-rules.js';
 import type { Rule } from './rule/rule.js';
-import type { RuleType } from './rule/rule-meta.js';
-import type { RuleSeverity } from './rule/rule-severity.js';
+import {
+  type HttpParticipantRole,
+  httpParticipantRoles,
+  type RuleType,
+  ruleTypes,
+} from './rule/rule-meta.js';
+import { type RuleSeverity, severityLevels } from './rule/rule-severity.js';
+import { createRuleFilter } from './rule-filter.js';
 
 export * from './api-context/http-test-api-context.js';
 export * from './api-context/static-api-context.js';
 export * from './linter/linter.js';
+export * from './linter/utils.js';
 export * from './rule/rule.js';
 export * from './rule/rule-fn.js';
 export * from './rule/rule-meta.js';
@@ -33,8 +39,6 @@ declare module '@thymian/core' {
     'http-linter.lint': {
       event: {
         format: SerializedThymianFormat;
-        severity?: RuleSeverity;
-        modes?: RuleType[];
       };
       response: boolean;
     };
@@ -51,11 +55,18 @@ declare module '@thymian/core' {
   }
 }
 
-export const httpLinterPlugin: ThymianPlugin<{
+export type HttpLinterPluginOptions = {
   rules: string[];
   ruleOptions: Record<string, unknown>;
+  modes?: RuleType[];
   origin?: string;
-}> = {
+  ruleFilter?: {
+    severity?: RuleSeverity;
+    appliesTo?: HttpParticipantRole[];
+  };
+};
+
+export const httpLinterPlugin: ThymianPlugin<HttpLinterPluginOptions> = {
   name: '@thymian/http-linter',
   options: {
     type: 'object',
@@ -64,6 +75,14 @@ export const httpLinterPlugin: ThymianPlugin<{
       ruleOptions: {
         type: 'object',
         additionalProperties: true,
+      },
+      modes: {
+        nullable: true,
+        type: 'array',
+        items: {
+          type: 'string',
+          enum: ruleTypes,
+        },
       },
       rules: {
         type: 'array',
@@ -75,7 +94,30 @@ export const httpLinterPlugin: ThymianPlugin<{
         type: 'string',
         nullable: true,
       },
+      ruleFilter: {
+        type: 'object',
+        additionalProperties: false,
+        nullable: true,
+        properties: {
+          severity: {
+            type: 'string',
+            enum: severityLevels,
+            nullable: true,
+          },
+          appliesTo: {
+            type: 'array',
+            items: {
+              type: 'string',
+              enum: httpParticipantRoles,
+            },
+            nullable: true,
+          },
+        },
+      },
     },
+  },
+  actions: {
+    listensOn: ['core.run'],
   },
   version: '0.x',
   async plugin(
@@ -83,38 +125,78 @@ export const httpLinterPlugin: ThymianPlugin<{
     logger: Logger,
     options
   ): Promise<void> {
-    const loadedRules = await loadRules(options.rules);
+    const ruleFilter = createRuleFilter(options.ruleFilter);
+
+    const loadedRules = await loadRules(
+      options.rules,
+      ruleFilter,
+      options.ruleOptions
+    );
+
+    const modes = options.modes ?? ['static', 'test'];
 
     emitter.onAction('http-linter.load-rules', async ({ rules }, ctx) => {
-      loadedRules.push(...(await loadRules(rules)));
+      try {
+        const additionalLoadedRules = await loadRules(
+          rules,
+          ruleFilter,
+          options.ruleOptions
+        );
 
-      ctx.reply();
+        loadedRules.push(...additionalLoadedRules);
+
+        logger.debug(
+          `Loaded ${additionalLoadedRules.length} additional rules for @thymian/http-linter.`
+        );
+
+        ctx.reply();
+      } catch (e) {
+        ctx.error(e);
+      }
     });
 
     emitter.onAction('http-linter.rules', (_, ctx) => {
       ctx.reply(loadedRules);
     });
 
-    emitter.onAction(
-      'http-linter.lint',
-      async ({ format, severity, modes }, ctx) => {
-        const thymianFormat = ThymianFormat.import(format);
+    emitter.onAction('core.run', async (format, ctx) => {
+      const thymianFormat = ThymianFormat.import(format);
 
-        const staticContext = new StaticApiContext(thymianFormat);
-        const httpTestContext = createContext(thymianFormat, logger, emitter);
+      const httpTestContext = createContext(thymianFormat, logger, emitter);
 
-        const linter = new Linter(
-          logger,
-          loadedRules,
-          (report) => emitter.emit('core.report', report),
-          staticContext,
-          httpTestContext,
-          thymianFormat
-        );
+      const linter = new Linter(
+        logger,
+        loadedRules,
+        (report) => emitter.emit('core.report', report),
+        httpTestContext,
+        thymianFormat,
+        options.ruleOptions
+      );
 
-        ctx.reply(await linter.run(modes ?? ['static']));
-      }
-    );
+      const valid = await linter.run(modes);
+
+      ctx.reply({
+        pluginName: '@thymian/http-linter',
+        status: valid ? 'success' : 'failed',
+      });
+    });
+
+    emitter.onAction('http-linter.lint', async ({ format }, ctx) => {
+      const thymianFormat = ThymianFormat.import(format);
+
+      const httpTestContext = createContext(thymianFormat, logger, emitter);
+
+      const linter = new Linter(
+        logger,
+        loadedRules,
+        (report) => emitter.emit('core.report', report),
+        httpTestContext,
+        thymianFormat,
+        options.ruleOptions
+      );
+
+      ctx.reply(await linter.run(modes));
+    });
   },
 };
 

@@ -1,9 +1,10 @@
+import type { ThymianActionName } from '../actions/index.js';
+import type { ThymianEventName } from '../events/index.js';
 import type {
   ThymianActionEvent,
-  ThymianActionName,
   ThymianResponseEvent,
-} from './actions.js';
-import type { ThymianEvent, ThymianEventName } from './events.js';
+} from './action-event.js';
+import type { ThymianEvent } from './events.js';
 
 export function isEventWithName<Name extends ThymianEventName>(
   name: Name

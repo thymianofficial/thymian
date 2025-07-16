@@ -5,7 +5,7 @@ export const exampleAppFormat = ThymianFormat.import({
   attributes: {},
   nodes: [
     {
-      key: '03b832ae-fcae-4a85-b525-6e0d1894378f',
+      key: 'f013fb94-09e9-4187-bdf6-3614c62473da',
       attributes: {
         type: 'security-scheme',
         scheme: 'basic',
@@ -13,7 +13,7 @@ export const exampleAppFormat = ThymianFormat.import({
       },
     },
     {
-      key: '8bcf62de-a5b8-4207-9b16-376e122b4b55',
+      key: '31b32af4-5e10-4aff-bc5e-202023aad943',
       attributes: {
         type: 'http-request',
         host: 'localhost',
@@ -36,7 +36,7 @@ export const exampleAppFormat = ThymianFormat.import({
       },
     },
     {
-      key: '10e6d84d-383c-496c-ad3d-166ccab4291a',
+      key: '4df9cc4a-b2e5-4610-acd5-00fe83252906',
       attributes: {
         type: 'http-response',
         description: 'Default Response',
@@ -64,7 +64,7 @@ export const exampleAppFormat = ThymianFormat.import({
       },
     },
     {
-      key: 'd01353ee-6be5-4c67-8002-253dced79260',
+      key: 'a88725bc-a8d6-4cac-b166-34b4786dfcef',
       attributes: {
         type: 'http-request',
         host: 'localhost',
@@ -88,7 +88,7 @@ export const exampleAppFormat = ThymianFormat.import({
       },
     },
     {
-      key: '76340b1f-18a7-4e88-810d-d839b404a4f4',
+      key: 'd4aad8b6-c7bf-4834-83ec-e082a2880e51',
       attributes: {
         type: 'http-response',
         description: 'Default Response',
@@ -113,7 +113,7 @@ export const exampleAppFormat = ThymianFormat.import({
       },
     },
     {
-      key: '406a8f94-64b4-4de2-bec4-44e68f767ebe',
+      key: '6361b82b-fd52-45a3-8fa5-81f9f6dc47bb',
       attributes: {
         type: 'http-request',
         host: 'localhost',
@@ -136,7 +136,7 @@ export const exampleAppFormat = ThymianFormat.import({
       },
     },
     {
-      key: '818c45c1-409f-4136-a8d0-eb6ef13dd763',
+      key: '5d03a99c-9f98-44e1-9043-23a598e5aeea',
       attributes: {
         type: 'http-response',
         description: 'Default Response',
@@ -155,13 +155,13 @@ export const exampleAppFormat = ThymianFormat.import({
       },
     },
     {
-      key: '5b6ac7b3-b425-4d3d-868b-bd239292b76e',
+      key: '6e04167a-f7e4-4610-943f-4fd675e4effb',
       attributes: {
         type: 'http-request',
         host: 'localhost',
         port: 8080,
         protocol: 'http',
-        path: '/video-streaming/valid',
+        path: '/range-requests/valid',
         method: 'get',
         mediaType: '',
         extensions: { openapiV3: {} },
@@ -178,7 +178,7 @@ export const exampleAppFormat = ThymianFormat.import({
       },
     },
     {
-      key: 'eafbd56e-c37f-4ccb-9fcb-1a7164c9e064',
+      key: '7b4416bb-98a8-4bda-9f7a-7471615717a1',
       attributes: {
         type: 'http-response',
         description: 'Default Response',
@@ -204,7 +204,7 @@ export const exampleAppFormat = ThymianFormat.import({
       },
     },
     {
-      key: '1bbbb8c6-6794-4654-a177-b91cc712e3a9',
+      key: '08c2a4c0-d304-4c68-bc8f-07f07bf222d6',
       attributes: {
         type: 'http-response',
         description: 'Default Response',
@@ -240,13 +240,13 @@ export const exampleAppFormat = ThymianFormat.import({
       },
     },
     {
-      key: '7d635706-686b-4f38-a712-b05a9772f7c1',
+      key: '6a7f1053-48ad-48c0-8a6e-c24f45a18267',
       attributes: {
         type: 'http-request',
         host: 'localhost',
         port: 8080,
         protocol: 'http',
-        path: '/video-streaming/invalid',
+        path: '/range-requests/invalid',
         method: 'get',
         mediaType: '',
         extensions: { openapiV3: {} },
@@ -263,7 +263,7 @@ export const exampleAppFormat = ThymianFormat.import({
       },
     },
     {
-      key: '50edc045-86b7-465b-a4ee-050bb904b4c9',
+      key: '4533b83d-2082-4dc4-9429-6ec7776436d7',
       attributes: {
         type: 'http-response',
         description: 'Default Response',
@@ -284,7 +284,7 @@ export const exampleAppFormat = ThymianFormat.import({
       },
     },
     {
-      key: '3e564cb7-8ff6-48aa-b0b4-f536aa18797e',
+      key: 'ef9ee326-3e79-4da3-bd4e-2c00829dee0b',
       attributes: {
         type: 'http-response',
         description: 'Default Response',
@@ -300,7 +300,87 @@ export const exampleAppFormat = ThymianFormat.import({
       },
     },
     {
-      key: '7e957f44-1c7e-4e36-abb0-c629165f23b7',
+      key: 'ebc8d515-cfa8-4dd6-ac44-997c1d6c432d',
+      attributes: {
+        type: 'http-request',
+        host: 'localhost',
+        port: 8080,
+        protocol: 'http',
+        path: '/range-requests/valid-if-range',
+        method: 'get',
+        mediaType: '',
+        extensions: { openapiV3: {} },
+        cookies: {},
+        pathParameters: {},
+        queryParameters: {},
+        headers: {
+          range: {
+            required: false,
+            schema: { type: 'string' },
+            style: { style: 'simple', explode: false },
+          },
+          'if-range': {
+            required: false,
+            schema: { type: 'string' },
+            style: { style: 'simple', explode: false },
+          },
+        },
+      },
+    },
+    {
+      key: '90038c7e-2432-4c52-b0ce-b1c09f0bde7f',
+      attributes: {
+        type: 'http-response',
+        description: 'Default Response',
+        headers: {
+          range: {
+            required: false,
+            schema: { type: 'string' },
+            style: { style: 'simple', explode: false },
+          },
+          'if-range': {
+            required: false,
+            schema: { type: 'string' },
+            style: { style: 'simple', explode: false },
+          },
+          etag: {
+            required: false,
+            schema: { type: 'string' },
+            style: { style: 'simple', explode: false },
+          },
+        },
+        mediaType: 'application/octet-stream',
+        statusCode: 200,
+      },
+    },
+    {
+      key: 'a348b773-5e50-43c5-a555-b24120b9fa59',
+      attributes: {
+        type: 'http-response',
+        description: 'Default Response',
+        headers: {
+          range: {
+            required: false,
+            schema: { type: 'string' },
+            style: { style: 'simple', explode: false },
+          },
+          'if-range': {
+            required: false,
+            schema: { type: 'string' },
+            style: { style: 'simple', explode: false },
+          },
+          etag: {
+            required: false,
+            schema: { type: 'string' },
+            style: { style: 'simple', explode: false },
+          },
+        },
+        mediaType: 'application/octet-stream',
+        statusCode: 206,
+      },
+    },
+    {
+      key: 'cba32bbd-1666-4e39-9113-c1d5f8ac4137',
       attributes: {
         type: 'http-request',
         host: 'localhost',
@@ -323,7 +403,7 @@ export const exampleAppFormat = ThymianFormat.import({
       },
     },
     {
-      key: '72973150-562d-44a1-81e7-ecddecc50a82',
+      key: 'baf079d6-273b-4c5b-ba84-ecce44715c15',
       attributes: {
         type: 'http-response',
         description: 'reset content',
@@ -333,7 +413,7 @@ export const exampleAppFormat = ThymianFormat.import({
       },
     },
     {
-      key: '431db9d9-bb33-4b65-b603-234b86c8dc73',
+      key: 'dd8bba02-31d7-4959-b73e-4c1246a20931',
       attributes: {
         type: 'http-request',
         host: 'localhost',
@@ -356,7 +436,7 @@ export const exampleAppFormat = ThymianFormat.import({
       },
     },
     {
-      key: 'c8a43dfd-49e2-49b8-a518-925c7268dab9',
+      key: '9452a104-c650-4de3-9c2d-3295223eca7f',
       attributes: {
         type: 'http-response',
         description: 'reset content',
@@ -373,99 +453,117 @@ export const exampleAppFormat = ThymianFormat.import({
   ],
   edges: [
     {
-      key: 'geid_108_0',
-      source: '8bcf62de-a5b8-4207-9b16-376e122b4b55',
-      target: '03b832ae-fcae-4a85-b525-6e0d1894378f',
+      key: 'geid_44_0',
+      source: '31b32af4-5e10-4aff-bc5e-202023aad943',
+      target: 'f013fb94-09e9-4187-bdf6-3614c62473da',
       attributes: { type: 'is-secured' },
     },
     {
-      key: 'geid_108_1',
-      source: '8bcf62de-a5b8-4207-9b16-376e122b4b55',
-      target: '10e6d84d-383c-496c-ad3d-166ccab4291a',
+      key: 'geid_44_1',
+      source: '31b32af4-5e10-4aff-bc5e-202023aad943',
+      target: '4df9cc4a-b2e5-4610-acd5-00fe83252906',
       attributes: { type: 'http-transaction' },
     },
     {
-      key: 'geid_108_2',
-      source: 'd01353ee-6be5-4c67-8002-253dced79260',
-      target: '03b832ae-fcae-4a85-b525-6e0d1894378f',
+      key: 'geid_44_2',
+      source: 'a88725bc-a8d6-4cac-b166-34b4786dfcef',
+      target: 'f013fb94-09e9-4187-bdf6-3614c62473da',
       attributes: { type: 'is-secured' },
     },
     {
-      key: 'geid_108_3',
-      source: 'd01353ee-6be5-4c67-8002-253dced79260',
-      target: '76340b1f-18a7-4e88-810d-d839b404a4f4',
+      key: 'geid_44_3',
+      source: 'a88725bc-a8d6-4cac-b166-34b4786dfcef',
+      target: 'd4aad8b6-c7bf-4834-83ec-e082a2880e51',
       attributes: { type: 'http-transaction' },
     },
     {
-      key: 'geid_108_4',
-      source: '406a8f94-64b4-4de2-bec4-44e68f767ebe',
-      target: '03b832ae-fcae-4a85-b525-6e0d1894378f',
+      key: 'geid_44_4',
+      source: '6361b82b-fd52-45a3-8fa5-81f9f6dc47bb',
+      target: 'f013fb94-09e9-4187-bdf6-3614c62473da',
       attributes: { type: 'is-secured' },
     },
     {
-      key: 'geid_108_5',
-      source: '406a8f94-64b4-4de2-bec4-44e68f767ebe',
-      target: '818c45c1-409f-4136-a8d0-eb6ef13dd763',
+      key: 'geid_44_5',
+      source: '6361b82b-fd52-45a3-8fa5-81f9f6dc47bb',
+      target: '5d03a99c-9f98-44e1-9043-23a598e5aeea',
       attributes: { type: 'http-transaction' },
     },
     {
-      key: 'geid_108_6',
-      source: '5b6ac7b3-b425-4d3d-868b-bd239292b76e',
-      target: '03b832ae-fcae-4a85-b525-6e0d1894378f',
+      key: 'geid_44_6',
+      source: '6e04167a-f7e4-4610-943f-4fd675e4effb',
+      target: 'f013fb94-09e9-4187-bdf6-3614c62473da',
       attributes: { type: 'is-secured' },
     },
     {
-      key: 'geid_108_7',
-      source: '5b6ac7b3-b425-4d3d-868b-bd239292b76e',
-      target: 'eafbd56e-c37f-4ccb-9fcb-1a7164c9e064',
+      key: 'geid_44_7',
+      source: '6e04167a-f7e4-4610-943f-4fd675e4effb',
+      target: '7b4416bb-98a8-4bda-9f7a-7471615717a1',
       attributes: { type: 'http-transaction' },
     },
     {
-      key: 'geid_108_8',
-      source: '5b6ac7b3-b425-4d3d-868b-bd239292b76e',
-      target: '1bbbb8c6-6794-4654-a177-b91cc712e3a9',
+      key: 'geid_44_8',
+      source: '6e04167a-f7e4-4610-943f-4fd675e4effb',
+      target: '08c2a4c0-d304-4c68-bc8f-07f07bf222d6',
       attributes: { type: 'http-transaction' },
     },
     {
-      key: 'geid_108_9',
-      source: '7d635706-686b-4f38-a712-b05a9772f7c1',
-      target: '03b832ae-fcae-4a85-b525-6e0d1894378f',
+      key: 'geid_44_9',
+      source: '6a7f1053-48ad-48c0-8a6e-c24f45a18267',
+      target: 'f013fb94-09e9-4187-bdf6-3614c62473da',
       attributes: { type: 'is-secured' },
     },
     {
-      key: 'geid_108_10',
-      source: '7d635706-686b-4f38-a712-b05a9772f7c1',
-      target: '50edc045-86b7-465b-a4ee-050bb904b4c9',
+      key: 'geid_44_10',
+      source: '6a7f1053-48ad-48c0-8a6e-c24f45a18267',
+      target: '4533b83d-2082-4dc4-9429-6ec7776436d7',
       attributes: { type: 'http-transaction' },
     },
     {
-      key: 'geid_108_11',
-      source: '7d635706-686b-4f38-a712-b05a9772f7c1',
-      target: '3e564cb7-8ff6-48aa-b0b4-f536aa18797e',
+      key: 'geid_44_11',
+      source: '6a7f1053-48ad-48c0-8a6e-c24f45a18267',
+      target: 'ef9ee326-3e79-4da3-bd4e-2c00829dee0b',
       attributes: { type: 'http-transaction' },
     },
     {
-      key: 'geid_108_12',
-      source: '7e957f44-1c7e-4e36-abb0-c629165f23b7',
-      target: '03b832ae-fcae-4a85-b525-6e0d1894378f',
+      key: 'geid_44_12',
+      source: 'ebc8d515-cfa8-4dd6-ac44-997c1d6c432d',
+      target: 'f013fb94-09e9-4187-bdf6-3614c62473da',
       attributes: { type: 'is-secured' },
     },
     {
-      key: 'geid_108_13',
-      source: '7e957f44-1c7e-4e36-abb0-c629165f23b7',
-      target: '72973150-562d-44a1-81e7-ecddecc50a82',
+      key: 'geid_44_13',
+      source: 'ebc8d515-cfa8-4dd6-ac44-997c1d6c432d',
+      target: '90038c7e-2432-4c52-b0ce-b1c09f0bde7f',
       attributes: { type: 'http-transaction' },
     },
     {
-      key: 'geid_108_14',
-      source: '431db9d9-bb33-4b65-b603-234b86c8dc73',
-      target: '03b832ae-fcae-4a85-b525-6e0d1894378f',
+      key: 'geid_44_14',
+      source: 'ebc8d515-cfa8-4dd6-ac44-997c1d6c432d',
+      target: 'a348b773-5e50-43c5-a555-b24120b9fa59',
+      attributes: { type: 'http-transaction' },
+    },
+    {
+      key: 'geid_44_15',
+      source: 'cba32bbd-1666-4e39-9113-c1d5f8ac4137',
+      target: 'f013fb94-09e9-4187-bdf6-3614c62473da',
       attributes: { type: 'is-secured' },
     },
     {
-      key: 'geid_108_15',
-      source: '431db9d9-bb33-4b65-b603-234b86c8dc73',
-      target: 'c8a43dfd-49e2-49b8-a518-925c7268dab9',
+      key: 'geid_44_16',
+      source: 'cba32bbd-1666-4e39-9113-c1d5f8ac4137',
+      target: 'baf079d6-273b-4c5b-ba84-ecce44715c15',
+      attributes: { type: 'http-transaction' },
+    },
+    {
+      key: 'geid_44_17',
+      source: 'dd8bba02-31d7-4959-b73e-4c1246a20931',
+      target: 'f013fb94-09e9-4187-bdf6-3614c62473da',
+      attributes: { type: 'is-secured' },
+    },
+    {
+      key: 'geid_44_18',
+      source: 'dd8bba02-31d7-4959-b73e-4c1246a20931',
+      target: '9452a104-c650-4de3-9c2d-3295223eca7f',
       attributes: { type: 'http-transaction' },
     },
   ],

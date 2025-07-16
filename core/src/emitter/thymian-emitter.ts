@@ -13,6 +13,8 @@ import {
   toArray,
 } from 'rxjs';
 
+import type { ThymianActionName, ThymianActions } from '../actions/index.js';
+import type { ThymianEventName } from '../events/index.js';
 import type { Logger } from '../logger/logger.js';
 import {
   isThymianError,
@@ -23,12 +25,10 @@ import type {
   ActionEventPayload,
   ResponseEventPayload,
   ThymianActionEvent,
-  ThymianActionName,
-  ThymianActions,
   ThymianResponseEvent,
-} from './actions.js';
+} from './action-event.js';
 import type { ErrorName, ThymianErrorEvent } from './error.js';
-import type { EventPayload, ThymianEvent, ThymianEventName } from './events.js';
+import type { EventPayload, ThymianEvent } from './events.js';
 import {
   isActionEventWithName,
   isEventWithName,
@@ -39,7 +39,7 @@ const dm = deepmerge({ all: true });
 
 export type ActionContext<Name extends ThymianActionName> = {
   reply: (payload: ResponseEventPayload<Name>) => void;
-  error: (error: ThymianError) => void;
+  error: (error: unknown) => void;
 };
 
 export type EventHandler<Event extends ThymianEventName> = (
@@ -114,31 +114,9 @@ export class ThymianEmitter {
     this.#listeners = state.listeners;
     this.#completed = state.completed;
 
-    this.#responses
-      .pipe(filter((response) => this.#completed.has(response.correlationId)))
-      .subscribe((response) => {
-        this.logger.error(
-          `Got response for event ${response.name} from ${response.source} at ${response.timestamp} that will not be consumed.`
-        );
-      });
-
-    this.#errors
-      .pipe(
-        filter(
-          (error) =>
-            !!error.correlationId && this.#completed.has(error.correlationId)
-        )
-      )
-      .subscribe((error) => {
-        this.logger.error(
-          `Got response for event ${error.name} from ${error.source} at ${error.timestamp} that will not be consumed.`
-        );
-      });
-
     if (this.options.traceEvents) {
       this.#events.subscribe(this.logEvent());
       this.#responses.subscribe(this.logEvent());
-      this.#errors.subscribe(this.logEvent());
     }
   }
 
@@ -152,15 +130,36 @@ export class ThymianEmitter {
         try {
           await handler(event.payload);
         } catch (e) {
-          this.#errors.next({
-            error: new ThymianBaseError(
-              `Error while calling event handler for event "${event.name}" from "${event.source}".`,
-              { cause: e }
-            ),
-            name,
-            timestamp: Date.now(),
-            source: this.source,
-          });
+          if (e instanceof ThymianBaseError) {
+            this.#errors.next({
+              error: e,
+              name,
+              timestamp: Date.now(),
+              source: this.source,
+            });
+          } else if (isThymianError(e)) {
+            const error = new ThymianBaseError(e.message, {
+              ...e.options,
+              name: e.name,
+            });
+
+            this.#errors.next({
+              error,
+              name,
+              timestamp: Date.now(),
+              source: this.source,
+            });
+          } else {
+            this.#errors.next({
+              error: new ThymianBaseError(
+                `Error while calling event handler for event "${event.name}" from "${event.source}".`,
+                { cause: e }
+              ),
+              name,
+              timestamp: Date.now(),
+              source: this.source,
+            });
+          }
         }
       });
   }
@@ -214,7 +213,7 @@ export class ThymianEmitter {
           } else {
             this.#errors.next({
               error: new ThymianBaseError(
-                `Error while calling action handler for event "${event.name}" from "${event.source}".`,
+                `Error while calling action handler for action "${event.name}" from "${event.source}".`,
                 { cause: e }
               ),
               name,
@@ -346,13 +345,39 @@ export class ThymianEmitter {
   ): ActionContext<Name> {
     return {
       error: (error) => {
-        this.#errors.next({
-          correlationId,
-          error: error,
-          name,
-          timestamp: Date.now(),
-          source: this.source,
-        });
+        if (error instanceof ThymianBaseError) {
+          this.#errors.next({
+            correlationId,
+            error: error,
+            name,
+            timestamp: Date.now(),
+            source: this.source,
+          });
+        } else if (isThymianError(error)) {
+          const thymianError = new ThymianBaseError(error.message, {
+            ...error.options,
+            name: error.name,
+          });
+
+          this.#errors.next({
+            error: thymianError,
+            name,
+            correlationId,
+            timestamp: Date.now(),
+            source: this.source,
+          });
+        } else {
+          this.#errors.next({
+            error: new ThymianBaseError(
+              `Error while calling action handler for action "${name}".`,
+              { cause: error }
+            ),
+            name,
+            correlationId,
+            timestamp: Date.now(),
+            source: this.source,
+          });
+        }
       },
       reply: (payload) => {
         this.#responses.next({
@@ -366,6 +391,10 @@ export class ThymianEmitter {
     };
   }
 
+  onError(fn: (error: ThymianErrorEvent<ErrorName>) => void): void {
+    this.#errors.subscribe(fn);
+  }
+
   private logEvent() {
     return (
       event:
@@ -375,9 +404,12 @@ export class ThymianEmitter {
         | ThymianErrorEvent<ErrorName>
     ) => {
       this.logger.trace(
-        `${chalk.bold(event.source)} with event ${event.name} at ${
+        `${chalk.bold(event.source)} with event ${event.name} at ${new Date(
           event.timestamp
-        }`
+        )
+          .toISOString()
+          .replace('T', ' ')
+          .replace('Z', '')}`
       );
     };
   }

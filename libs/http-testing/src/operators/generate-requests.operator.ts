@@ -10,9 +10,11 @@ import {
   isSingleHttpTestCaseStep,
   isSkippedTestCase,
 } from '../http-test-case.js';
+import type { GenerateRequestsOptions } from '../http-test-context.js';
 
 export function generateRequests<Steps extends HttpTestCaseStep[]>(
-  amount = 1
+  amount = 1,
+  options?: GenerateRequestsOptions
 ): MonoTypeOperatorFunction<HttpTestInstance<HttpTestCase<Steps>>> {
   return mergeMap(async ({ curr, ctx }) => {
     if (isSkippedTestCase(curr) || isFailedTestCase(curr)) {
@@ -24,7 +26,11 @@ export function generateRequests<Steps extends HttpTestCaseStep[]>(
     if (isSingleHttpTestCaseStep(step)) {
       for (let i = 0; i < amount; i++) {
         step.transactions.push({
-          requestTemplate: await ctx.generateRequest(ctx.format, step.source),
+          requestTemplate: await ctx.generateRequest(
+            ctx.format,
+            step.source,
+            options
+          ),
           source: step.source,
         });
       }
@@ -32,7 +38,11 @@ export function generateRequests<Steps extends HttpTestCaseStep[]>(
       for (let i = 0; i < amount; i++) {
         for (const transaction of step.source.transactions) {
           step.transactions.push({
-            requestTemplate: await ctx.generateRequest(ctx.format, transaction),
+            requestTemplate: await ctx.generateRequest(
+              ctx.format,
+              transaction,
+              options
+            ),
             source: transaction,
           });
         }

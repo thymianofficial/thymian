@@ -1,6 +1,7 @@
+import type { ThymianActionName } from 'src/actions/index.js';
+
+import type { ThymianEventName } from '../events/index.js';
 import type { ThymianError } from '../thymian.error.js';
-import type { ThymianActionName } from './actions.js';
-import type { ThymianEventName } from './events.js';
 
 export type ErrorName = ThymianEventName | ThymianActionName | 'thymian.error';
 

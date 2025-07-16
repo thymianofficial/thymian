@@ -1,15 +1,10 @@
 import type { JSONSchemaType } from 'ajv/dist/2020.js';
 
 import packageJson from '../package.json' with { type: 'json' };
-import { closeHookSchema } from './actions/close.action.js';
-import {
-  loadFormatActionSchema,
-} from './actions/load-format.action.js';
+import { loadFormatActionSchema, runActionSchema } from './actions/index.js';
 import { RegisterPluginEventSchema,thymianReportSchema } from './events/index.js';
-import type { SerializedThymianFormat } from './format/index.js';
 import type { ThymianPlugin } from './thymian-plugin.js';
 
-export const NeverSchema = {} as JSONSchemaType<never>;
 export const VoidSchema = {} as JSONSchemaType<void>;
 
 export const corePlugin: ThymianPlugin = {
@@ -21,18 +16,22 @@ export const corePlugin: ThymianPlugin = {
   actions: {
     provides: {
       'core.close': {
-        event: NeverSchema,
-        response: closeHookSchema,
+        event: VoidSchema,
+        response: VoidSchema,
       },
       'core.ready': {
-        event: NeverSchema,
+        event: VoidSchema,
         response: VoidSchema,
       },
       'core.load-format': {
         event: {} as JSONSchemaType<never>,
         response:
-          loadFormatActionSchema as unknown as JSONSchemaType<SerializedThymianFormat>,
+          loadFormatActionSchema,
       },
+      'core.run': {
+        event: loadFormatActionSchema,
+        response: runActionSchema
+      }
     }
   },
   events: {

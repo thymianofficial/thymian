@@ -6,7 +6,6 @@ export const optionFlag = Flags.custom<string>({
   description: 'Override configuration values for plugins.',
   multiple: true,
   helpValue: 'key=value',
-  default: [],
   charAliases: ['o'],
   helpGroup: 'BASE',
   parse: async (input: string) => {

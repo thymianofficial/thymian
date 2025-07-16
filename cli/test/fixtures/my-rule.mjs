@@ -1,4 +1,4 @@
-export default {
+export const myRule = {
   meta: {
     name: 'my-rule',
     type: 'static',

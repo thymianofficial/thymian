@@ -148,17 +148,27 @@ export default function todos(_fastify: FastifyInstance) {
         },
       },
     },
-    async (req, res) => {
+    (req, res) => {
       const todo = todos.find((todo) => todo.id === req.params.id);
 
       if (!todo) {
-        res.status(404);
-
-        return;
+        return res.status(404).send();
       }
-      console.log({ etag: etag(JSON.stringify(todo)) });
-      res.header('etag', etag(JSON.stringify(todo)));
-      return todo;
+
+      const etagValue = etag(JSON.stringify(todo));
+
+      if (req.headers['if-none-match'] === etagValue) {
+        return res
+          .status(304)
+          .header('etag', etagValue)
+          .header('content-range', '0-1')
+          .send();
+      }
+
+      return res
+        .header('etag', etagValue)
+        .header('cache-control', 'private')
+        .send(todo);
     }
   );
 

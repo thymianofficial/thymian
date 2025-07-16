@@ -4,6 +4,7 @@ import type { Logger } from './logger.js';
 
 export class NoopLogger implements Logger {
   readonly namespace: string;
+  verbose = false;
 
   constructor(name = '') {
     this.namespace = name;

@@ -1,9 +1,9 @@
-import { BaseCliCommand } from '@thymian/cli-common';
+import { BaseCliRunCommand } from '@thymian/cli-common';
 import { Args, Flags } from '@thymian/cli-common/oclif';
 
 import { loadOpenapi } from '../../load-openapi.js';
 
-export default class Load extends BaseCliCommand<typeof Load> {
+export default class Load extends BaseCliRunCommand<typeof Load> {
   static override args = {
     file: Args.string({ description: 'file to read', required: true }),
   };
