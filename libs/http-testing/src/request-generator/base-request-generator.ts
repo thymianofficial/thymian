@@ -11,7 +11,6 @@ import type {
   HttpTestContext,
 } from '../http-test-context.js';
 import type { RequestGenerator } from './request-generator.js';
-import console from 'node:console';
 
 export class BaseRequestGenerator implements RequestGenerator {
   protected readonly options: GenerateRequestsOptions;

@@ -1,18 +1,15 @@
 import {
   map,
-  mergeMap,
   type MonoTypeOperatorFunction,
-  type Observable,
-  of,
   type OperatorFunction,
 } from 'rxjs';
 
+import type { HttpTestInstance } from '../http-test.js';
 import type {
   CustomHttpTestCaseStep,
   HttpTestCase,
   HttpTestCaseStep,
 } from '../http-test-case.js';
-import type { HttpTestInstance } from '../http-test.js';
 
 export function step<
   Steps extends HttpTestCaseStep[],
@@ -22,17 +19,7 @@ export function step<
     HttpTestInstance<
       HttpTestCase<[...Steps, CurrentStep, CustomHttpTestCaseStep]>
     >
-  > //(
-  //   step: Observable<
-  //     HttpTestInstance<
-  //       HttpTestCase<[...Steps, CurrentStep, CustomHttpTestCaseStep]>
-  //     >
-  //   >
-  // ) => Observable<
-  //   HttpTestInstance<
-  //     HttpTestCase<[...Steps, CurrentStep, CustomHttpTestCaseStep]>
-  //   >
-  // >
+  >
 ): OperatorFunction<
   HttpTestInstance<HttpTestCase<[...Steps, CurrentStep]>>,
   HttpTestInstance<
@@ -56,15 +43,4 @@ export function step<
       }),
       fn
     );
-  // return mergeMap(({ curr, ctx }) => {
-  //   const newStep: CustomHttpTestCaseStep = {
-  //     transactions: [],
-  //     source: {},
-  //     type: 'custom',
-  //   };
-  //
-  //   curr.steps.push(newStep);
-  //
-  //   const r = fn(of({ curr, ctx }));
-  // });
 }

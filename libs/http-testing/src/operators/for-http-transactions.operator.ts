@@ -1,8 +1,8 @@
 import {
+  matchObjects,
   ThymianFormat,
   type ThymianHttpRequest,
   type ThymianHttpResponse,
-  matchObjects,
 } from '@thymian/core';
 import { from, mergeMap, type OperatorFunction } from 'rxjs';
 

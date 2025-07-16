@@ -22,8 +22,10 @@
     "ajv": "^8.17.1",
     "rxjs": "^7.8.2",
     "secure-json-parse": "^4.0.0",
-    "tslib": "^2.3.0",
-    "url-template": "^3.1.1"
+    "url-template": "^3.1.1",
+    "@thymian/http-status-codes": "0.0.1",
+    "fastify": "5.4.0",
+    "vitest": "^3.0.9"
   },
   "peerDependencies": {
     "@thymian/core": "^0"

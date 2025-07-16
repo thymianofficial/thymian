@@ -6,7 +6,6 @@ import {
   serializePathParameter,
   serializeQueryParameter,
 } from './serialize-parameter.js';
-import console from 'node:console';
 
 function serializeBasePath(transaction: HttpTestCaseStepTransaction) {
   return transaction.requestTemplate.path.replace(
@@ -99,7 +98,6 @@ export function serializeHeaders(
         acc[key] = value;
       } else {
         if (headers[key]) {
-          console.log({ key, value });
           acc[key] = serializeHeaderParameter(key, value, headers[key].style);
         } else {
           throw new Error(

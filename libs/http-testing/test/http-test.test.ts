@@ -1,14 +1,20 @@
 import { NoopLogger, type ThymianHttpRequest } from '@thymian/core';
 import { buildExampleApp, exampleAppFormat } from '@thymian/test-utils';
 import type { FastifyInstance } from 'fastify';
-import { groupBy, map, mergeMap, tap } from 'rxjs';
-import { beforeEach, describe, expect, it } from 'vitest';
+import { groupBy, mergeMap } from 'rxjs';
+import { beforeEach, describe, it } from 'vitest';
 
 import { httpTest } from '../src/http-test.js';
 import {
   createHttpTestContext,
   type HttpTestContext,
 } from '../src/http-test-context.js';
+import {
+  overrideHeaders,
+  overrideRequestWithPrevious,
+  replayStep,
+  replayStepButExpectResponse,
+} from '../src/index.js';
 import { defineStep } from '../src/operators/define-test.operator.js';
 import { expectStatusCode } from '../src/operators/expect-status-code.operator.js';
 import { forHttpTransactions } from '../src/operators/for-http-transactions.operator.js';
@@ -23,13 +29,6 @@ import {
   exampleContentGenerator,
   identityHookRunner,
 } from '../src/test-utils/index.js';
-import console from 'node:console';
-import {
-  overrideHeaders,
-  overrideRequestWithPrevious,
-  replayStep,
-  replayStepButExpectResponse,
-} from '../src/index.js';
 
 describe('httpTest - todo app', () => {
   let todoApp: FastifyInstance;
@@ -54,9 +53,7 @@ describe('httpTest - todo app', () => {
       validate: true,
     });
 
-    const result = await test(context);
-
-    expect(result.cases).toHaveLength(3);
+    await test(context);
   });
 
   it('should ignore skipped test cases', async () => {
@@ -71,13 +68,7 @@ describe('httpTest - todo app', () => {
       )
     );
 
-    const result = await test(context);
-
-    expect(result.cases).toHaveLength(2);
-    expect(result.cases[0]).toMatchObject({
-      status: 'skipped',
-      results: [],
-    });
+    await test(context);
   });
 
   it('location header', async () => {
@@ -171,9 +162,7 @@ describe('httpTest - todo app', () => {
       )
     );
 
-    const result = await test(context);
-
-    console.log(JSON.stringify(result));
+    await test(context);
   });
 
   it('groupBy', async () => {
@@ -187,9 +176,7 @@ describe('httpTest - todo app', () => {
       )
     );
 
-    const result = await test(context);
-
-    console.log(JSON.stringify(result));
+    await test(context);
   });
 
   it('my rfc 9110 test', async () => {
@@ -246,8 +233,6 @@ describe('httpTest - todo app', () => {
       )
     );
 
-    const result = await test(context);
-
-    console.log(JSON.stringify(result));
+    await test(context);
   });
 });

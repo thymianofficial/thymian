@@ -73,7 +73,7 @@ export function toTestCases<
       return input.pipe(
         reduce(
           (acc, value) => {
-            acc.curr.steps[0]!.source.transactions.push(value.curr);
+            acc.curr.steps[0]?.source.transactions.push(value.curr);
             acc.ctx = value.ctx;
 
             return acc;

@@ -83,21 +83,28 @@ export function validateExistingHeader(
   return Object.entries(headers)
     .filter(([name]) => Object.hasOwn(response.headers, name))
     .map(([name, value]) => {
-      const validate = ajv.compile(response.headers[name]!.schema);
+      if (response.headers[name]?.schema) {
+        const validate = ajv.compile(response.headers[name]?.schema);
 
-      validate(value);
+        validate(value);
 
-      if (validate.errors) {
-        return {
-          type: 'assertion-failure',
-          message: `Invalid value for header ${name}.`,
-        };
-      } else {
-        return {
-          type: 'assertion-success',
-          message: `Valid header ${name}.`,
-        };
+        if (validate.errors) {
+          return {
+            type: 'assertion-failure',
+            message: `Invalid value for header ${name}.`,
+          };
+        } else {
+          return {
+            type: 'assertion-success',
+            message: `Valid header ${name}.`,
+          };
+        }
       }
+
+      return {
+        type: 'info',
+        message: `No schema provided for header ${name}.`,
+      };
     });
 }
 

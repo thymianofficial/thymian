@@ -1,3 +1,4 @@
+import { zipArrays } from '@thymian/core';
 import {
   type HttpStatusCodeRange,
   statusCodeMatchesRange,
@@ -11,7 +12,6 @@ import {
   isFailedTestCase,
   isSkippedTestCase,
 } from '../http-test-case.js';
-import { zipArrays } from '@thymian/core';
 
 export function expectStatusCode<Steps extends HttpTestCaseStep[]>(
   statusCode: number | HttpStatusCodeRange | (number | HttpStatusCodeRange)[]
