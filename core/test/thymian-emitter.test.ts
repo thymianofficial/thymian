@@ -1,120 +1,105 @@
 import { setTimeout } from 'node:timers/promises';
 
-import { describe, expect, it, vitest } from 'vitest';
+import { beforeEach, describe, expect, it, vitest } from 'vitest';
+import { NoopLogger, ThymianBaseError, ThymianEmitter } from '../src/index.js';
+import { Subject } from 'rxjs';
 
-import { NoopLogger } from '../src/logger/noop.logger.js';
-import { ThymianBaseError } from '../src/thymian.error.js';
-import { ThymianEmitter } from '../src/emitter/thymian-emitter';
-
-declare module '../src/emitter/thymian-emitter' {
-  interface ThymianHooks {
-    [event: string]: {
-      args: unknown[];
-      returnType: unknown;
-    };
-  }
-
+declare module '../src/events/index.js' {
   interface ThymianEvents {
-    [event: string]: unknown[];
+    a: number;
+    b: string;
+  }
+}
+
+declare module '../src/actions/index.js' {
+  interface ThymianActions {
+    action: {
+      event: string;
+      response: number;
+    };
+    forDeepMerge: {
+      event: number;
+      response: {
+        a?: number;
+        b?: number;
+      };
+    };
   }
 }
 
 describe('ThymianEmitter', () => {
-  it('.emitError() should emit error event', () =>
-    new Promise<void>((done) => {
-      const emitter = new ThymianEmitter(new NoopLogger());
-      emitter.onEvent('core.error', (err: ThymianBaseError) => {
-        expect(err).toStrictEqual(new ThymianBaseError('my error'));
-        done();
-      });
+  let emitter: ThymianEmitter;
 
-      emitter.emitError(new ThymianBaseError('my error'));
-    }));
-
-  it('should idle after given timout', async () => {
-    const emitter = new ThymianEmitter(new NoopLogger(), {
-      timeout: 2000,
+  beforeEach(() => {
+    emitter = new ThymianEmitter(new NoopLogger(), {
+      completed: new Set(),
+      errors: new Subject(),
+      events: new Subject(),
+      listeners: new Map(),
+      responses: new Subject(),
+      source: '@thymian/core',
     });
-
-    emitter.onEvent('a', async () => {
-      await setTimeout(1000);
-      emitter.emitEvent('b');
-    });
-
-    const start = performance.now();
-    emitter.emitEvent('a');
-
-    await emitter.onIdle();
-    const end = performance.now();
-
-    expect(end - start).toBeGreaterThanOrEqual(3000);
   });
 
   it('should emit to multiple listeners', async () => {
-    const emitter = new ThymianEmitter(new NoopLogger(), { timeout: 1000 });
     const listener = vitest.fn();
 
-    emitter.onEvent('a', listener);
-    emitter.onEvent('a', listener);
-    emitter.onEvent('b', listener);
+    emitter.on('a', listener);
+    emitter.on('a', listener);
+    emitter.on('b', listener);
 
-    emitter.emitEvent('a');
-
-    await emitter.onIdle();
+    emitter.emit('a', 2);
 
     expect(listener.mock.calls).toHaveLength(2);
   });
 
-  it('.runHook() should return all results - with sync listener', async () => {
-    const emitter = new ThymianEmitter(new NoopLogger());
+  it('.emitAction() should return all results - with sync listener', async () => {
+    emitter.onAction('action', (str, ctx) => {
+      ctx.reply(+str);
+    });
+    emitter.onAction('action', (str, ctx) => {
+      ctx.reply(+str + +str); // lol
+    });
 
-    emitter.onHook('hook', () => ({ result: 1 }));
-    emitter.onHook('hook', () => ({ result: 2 }));
+    const nums = await emitter.emitAction('action', '5');
 
-    const nums = await emitter.runHook('hook');
-
-    expect(nums).toStrictEqual([1, 2]);
+    expect(nums).toStrictEqual([5, 10]);
   });
 
-  it('.runHook() should return all results - with async listener', async () => {
-    const emitter = new ThymianEmitter(new NoopLogger());
+  it('.emitAction() should return all results - with async listener', async () => {
+    emitter.onAction('action', async (str, ctx) => {
+      ctx.reply(+str);
+    });
+    emitter.onAction('action', async (str, ctx) => {
+      ctx.reply(+str + +str); // lol
+    });
 
-    emitter.onHook('hook', async () => ({ result: 1 }));
-    emitter.onHook('hook', async () => ({ result: 2 }));
+    const nums = await emitter.emitAction('action', '5');
 
-    const nums = await emitter.runHook('hook');
-
-    expect(nums).toStrictEqual([1, 2]);
+    expect(nums).toStrictEqual([5, 10]);
   });
 
-  it('.runHook() should deep merge result for deep merge strategy', async () => {
-    const emitter = new ThymianEmitter(new NoopLogger());
+  it('.emitAction() should deep merge result for deep merge strategy', async () => {
+    emitter.onAction('forDeepMerge', async (num, ctx) => {
+      ctx.reply({
+        a: num,
+        b: 2,
+      });
+    });
 
-    emitter.onHook('hook', async () => ({
-      result: {
-        a: {
-          b: 2,
-          c: 17,
-        },
-      },
-    }));
-    emitter.onHook('hook', async () => ({
-      result: {
-        a: {
-          b: 3,
-        },
-      },
-    }));
+    emitter.onAction('forDeepMerge', async (num, ctx) => {
+      ctx.reply({
+        b: 42,
+      });
+    });
 
-    const result = await emitter.runHook('hook', undefined, {
-      type: 'deep-merge',
+    const result = await emitter.emitAction('forDeepMerge', 11, {
+      strategy: 'deep-merge',
     });
 
     expect(result).toMatchObject({
-      a: {
-        b: 3,
-        c: 17,
-      },
+      a: 11,
+      b: 42,
     });
   });
 });
