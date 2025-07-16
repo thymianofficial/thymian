@@ -1,8 +1,7 @@
-import { setTimeout } from 'node:timers/promises';
-
-import { beforeEach, describe, expect, it, vitest } from 'vitest';
-import { NoopLogger, ThymianBaseError, ThymianEmitter } from '../src/index.js';
 import { Subject } from 'rxjs';
+import { beforeEach, describe, expect, it, vitest } from 'vitest';
+
+import { NoopLogger, ThymianEmitter } from '../src/index.js';
 
 declare module '../src/events/index.js' {
   interface ThymianEvents {

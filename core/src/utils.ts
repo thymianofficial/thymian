@@ -55,6 +55,8 @@ export function zipArrays<A, B>(as: A[], bs: B[]): [A, B][] {
     throw new Error('as.length !== bs.length');
   }
 
+  // we did a length check before
+  // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
   return bs.map((b, i) => [as[i]!, b]);
 }
 

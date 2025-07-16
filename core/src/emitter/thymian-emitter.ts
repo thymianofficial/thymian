@@ -16,11 +16,7 @@ import {
 import type { ThymianActionName, ThymianActions } from '../actions/index.js';
 import type { ThymianEventName } from '../events/index.js';
 import type { Logger } from '../logger/logger.js';
-import {
-  isThymianError,
-  ThymianBaseError,
-  type ThymianError,
-} from '../thymian.error.js';
+import { isThymianError, ThymianBaseError } from '../thymian.error.js';
 import type {
   ActionEventPayload,
   ResponseEventPayload,
@@ -274,7 +270,7 @@ export class ThymianEmitter {
       Object.hasOwn(r, 'error')
     ) as ThymianErrorEvent<Name>[];
 
-    if (errors.length > 0) {
+    if (errors.length > 0 && typeof errors[0] !== 'undefined') {
       this.logger.debug(
         `Received ${errors.length} error event${
           errors.length > 1 ? 's' : ''
@@ -283,7 +279,7 @@ export class ThymianEmitter {
           .join(', ')} while waiting for response event(s) for event "${name}".`
       );
 
-      const { error } = errors[0]!;
+      const { error } = errors[0];
 
       if (error instanceof ThymianBaseError) {
         throw error;

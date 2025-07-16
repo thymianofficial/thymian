@@ -1,6 +1,7 @@
+import type { JSONSchemaType } from 'ajv/dist/2020.js';
+
 import type { SerializedThymianFormat } from '../format/index.js';
 import type { Action } from './action.js';
-import type { JSONSchemaType } from 'ajv/dist/2020.js';
 
 export interface RunActionResponse {
   pluginName: string;

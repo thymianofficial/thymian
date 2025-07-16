@@ -1,7 +1,7 @@
 import type { Parameter } from '../parameter.js';
 import type { SerializationStyle } from '../serialization-style/index.js';
-import type { ThymianBaseNode } from './node.js';
 import type { ThymianSchema } from '../thymian-schema.js';
+import type { ThymianBaseNode } from './node.js';
 
 export type Encoding = {
   [propertyName: string]: {

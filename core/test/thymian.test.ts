@@ -10,15 +10,15 @@ import {
 
 declare module '../src/events/index.js' {
   interface ThymianEvents {
-    [event: string]: any;
+    [event: string]: unknown;
   }
 }
 
 declare module '../src/actions/index.js' {
   interface ThymianActions {
     [action: string]: {
-      event: any;
-      response: any;
+      event: unknown;
+      response: unknown;
     };
   }
 }

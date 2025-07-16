@@ -24,8 +24,7 @@ export type ThymianOptions = {
 }
 
 export class Thymian {
-  // eslint-disable-next-line  @typescript-eslint/no-explicit-any
-  readonly plugins: RegisteredPlugin<any>[] = [];
+  readonly plugins: RegisteredPlugin<unknown>[] = [];
 
   readonly emitter: ThymianEmitter;
 
@@ -140,7 +139,7 @@ export class Thymian {
     }
   }
 
-  private async registerPlugin(registeredPlugin: RegisteredPlugin<any>): Promise<void> {
+  private async registerPlugin(registeredPlugin: RegisteredPlugin<unknown>): Promise<void> {
     this.emitter.emit('core.register', {
       name: registeredPlugin.plugin.name,
       events: registeredPlugin.plugin.events ?? {},
