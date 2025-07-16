@@ -1,3 +1,6 @@
+import assert from 'node:assert';
+
+import { getHeader, type JSONSchemaType } from '@thymian/core';
 import { equalsIgnoreCase, httpRule } from '@thymian/http-linter';
 import {
   expectHeaders,
@@ -7,9 +10,6 @@ import {
   runRequests,
   toTestCases,
 } from '@thymian/http-testing';
-import { getHeader, type JSONSchemaType } from '@thymian/core';
-import assert from 'node:assert';
-import * as console from 'node:console';
 
 type Options = {
   checkAllSecured?: boolean;
@@ -59,9 +59,7 @@ export default httpRule(
         generateRequests(1, { authenticate: false }),
         runRequests({ checkStatusCode: false }),
         expectStatusCode(401),
-        expectHeaders((headers, transaction) => {
-          console.log({ headers });
-          console.log(transaction.response?.statusCode);
+        expectHeaders((headers) => {
           const wwwAuthenticateHeader = getHeader(headers, 'www-authenticate');
 
           assert.ok(wwwAuthenticateHeader);

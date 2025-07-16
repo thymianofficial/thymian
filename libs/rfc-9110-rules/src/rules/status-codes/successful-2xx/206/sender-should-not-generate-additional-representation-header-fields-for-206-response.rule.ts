@@ -1,11 +1,13 @@
+import * as assert from 'node:assert/strict';
+
+import { ThymianFormat } from '@thymian/core';
 import {
   equalsIgnoreCase,
   httpRule,
   type RuleViolation,
 } from '@thymian/http-linter';
-
-import { requiredHeaders } from './server-must-generate-header-fields-for-206-response.rule.js';
 import {
+  expect,
   forHttpTransactions,
   generateRequests,
   overrideHeaders,
@@ -14,11 +16,10 @@ import {
   replayStepButExpectResponse,
   runRequests,
   toTestCases,
-  expect,
 } from '@thymian/http-testing';
-import * as assert from 'node:assert/strict';
-import { ThymianFormat } from '@thymian/core';
+
 import { createList } from '../../../../utils.js';
+import { requiredHeaders } from './server-must-generate-header-fields-for-206-response.rule.js';
 
 export const representationHeaderFields = [
   // 'content-length', TODO: lets discuss these two header fields later
@@ -205,6 +206,7 @@ export default httpRule(
             Object.keys(
               partialResponseStep.transactions[0].response?.headers ?? {}
             ),
+            // TODO
             partialResponseStep.transactions[0].source!.thymianReqId,
             partialResponseStep.transactions[0].source!.thymianResId,
             ctx.format

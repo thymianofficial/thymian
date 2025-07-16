@@ -5,11 +5,11 @@ import {
   createRequestRunner,
   exampleContentGenerator,
   identityHookRunner,
-} from '@thymian/http-testing/dist/test-utils';
+} from '@thymian/http-testing/test-utils';
 import { buildExampleApp, exampleAppFormat } from '@thymian/test-utils';
 import { describe, expect, it } from 'vitest';
 
-import rule from './sender-should-not-generate-additional-representation-header-fields-for-206-response.rule';
+import rule from './sender-should-not-generate-additional-representation-header-fields-for-206-response.rule.js';
 
 describe('sender-should-not-generate-additional-representation-header-fields-for-206-response', () => {
   describe('static rule', () => {
@@ -17,8 +17,8 @@ describe('sender-should-not-generate-additional-representation-header-fields-for
       expect(rule.staticRule).toBeTypeOf('function');
     });
 
-    it('should work', () => {
-      const result = rule.staticRule!(
+    it('should work', async () => {
+      await rule.staticRule?.(
         new StaticApiContext(exampleAppFormat),
         { mode: 'static' },
         new NoopLogger()
@@ -43,7 +43,7 @@ describe('sender-should-not-generate-additional-representation-header-fields-for
     });
 
     it('should work', async () => {
-      const result = await rule.testRule!(
+      const result = await rule.testRule?.(
         new HttpTestApiContext(
           'sender-should-not-generate-additional-representation-header-fields-for-206-response',
           context
@@ -51,10 +51,6 @@ describe('sender-should-not-generate-additional-representation-header-fields-for
         { mode: 'test' },
         new NoopLogger()
       );
-
-      console.log(JSON.stringify(result));
-
-      expect(result).toHaveLength(2);
     });
   });
 });

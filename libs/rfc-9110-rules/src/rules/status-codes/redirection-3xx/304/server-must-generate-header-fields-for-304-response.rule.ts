@@ -12,7 +12,6 @@ import {
 } from '@thymian/http-testing';
 
 import { createList } from '../../../../utils.js';
-import { isNodeType } from '@thymian/core';
 
 export const requiredHeadersFor304 = [
   'Content-Location',
