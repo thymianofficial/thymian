@@ -4,21 +4,22 @@ import {
   NoopLogger,
   PluginRegistrationError,
   Thymian,
-  ThymianEmitter,
-  ThymianBaseError,
+  ThymianFormat,
   type ThymianPlugin,
 } from '../src/index.js';
 
-declare module '../src/emitter/thymian-emitter' {
-  interface ThymianHooks {
-    [event: string]: {
-      args: unknown[];
-      returnType: unknown;
-    };
-  }
-
+declare module '../src/events/index.js' {
   interface ThymianEvents {
-    [event: string]: unknown[];
+    [event: string]: any;
+  }
+}
+
+declare module '../src/actions/index.js' {
+  interface ThymianActions {
+    [action: string]: {
+      event: any;
+      response: any;
+    };
   }
 }
 
@@ -42,7 +43,7 @@ describe('Thymian', () => {
       name: '',
       version: '',
       plugin: async (emitter) => {
-        emitter.onEvent('core.register', a);
+        emitter.on('core.register', a);
       },
     });
 
@@ -59,9 +60,10 @@ describe('Thymian', () => {
       name: '',
       version: '',
       plugin: async (emitter) => {
-        emitter.onEvent('run', () => {
-          emitter.emitEvent('sync-event');
-          emitter.emitEvent('test');
+        emitter.onAction('core.run', (format, ctx) => {
+          emitter.emit('test', 1);
+          emitter.emit('event', 'turing');
+          ctx.reply({ pluginName: '', status: 'success' });
         });
       },
     });
@@ -70,7 +72,7 @@ describe('Thymian', () => {
       name: '',
       version: '',
       plugin: async (emitter) => {
-        emitter.onEvent('sync-event', a);
+        emitter.on('test', a);
       },
     });
 
@@ -79,22 +81,23 @@ describe('Thymian', () => {
         name: '',
         version: '',
         plugin: async (emitter, logger, opts) => {
-          emitter.onEvent(opts.event, b);
+          emitter.on(opts.event, b);
         },
       },
       {
-        event: 'test',
+        event: 'event',
       }
     );
 
-    await thymian.ready();
-
-    thymian.emitter.emitEvent('run');
+    await thymian.run(async () => {
+      await thymian.emitter.emitAction(
+        'core.run',
+        new ThymianFormat().export()
+      );
+    });
 
     expect(a).toHaveBeenCalledTimes(1);
     expect(b).toHaveBeenCalledTimes(1);
-
-    await thymian.close();
   });
 
   // TODO: make test independent from package.json version
@@ -102,9 +105,7 @@ describe('Thymian', () => {
     expect(() =>
       thymian.register({
         name: '@thymian/test-plugin',
-        async plugin(emitter: ThymianEmitter): Promise<void> {
-          emitter.emitError(new ThymianBaseError('my error'));
-        },
+        plugin: () => Promise.resolve(),
         version: '1.x',
       })
     ).toThrowError(PluginRegistrationError);
