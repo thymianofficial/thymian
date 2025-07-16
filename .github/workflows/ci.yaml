@@ -39,10 +39,13 @@ jobs:
         uses: actions/checkout@v4
         with:
           persist-credentials: false
+          fetch-depth: 0
+          filter: tree:0
       - name: Setup node
         uses: actions/setup-node@v4
         with:
           node-version: ${{ matrix.version }}
+          cache: npm
       - name: install
         run: npm ci
       - uses: nrwl/nx-set-shas@v4
