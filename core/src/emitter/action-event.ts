@@ -1,23 +1,23 @@
 import type { ThymianActionName, ThymianActions } from '../actions/index.js';
 
-export type ActionEventPayload<Event extends ThymianActionName> =
-  ThymianActions[Event]['event'];
+export type ActionEventPayload<Action extends ThymianActionName> =
+  ThymianActions[Action]['event'];
 
-export type ResponseEventPayload<Event extends ThymianActionName> =
-  ThymianActions[Event]['response'];
+export type ResponseEventPayload<Action extends ThymianActionName> =
+  ThymianActions[Action]['response'];
 
-export type ThymianActionEvent<Event extends ThymianActionName> = {
-  name: Event;
+export type ThymianActionEvent<Action extends ThymianActionName> = {
+  name: Action;
   correlationId: string;
-  payload: ActionEventPayload<Event>;
+  payload: ActionEventPayload<Action>;
   timestamp: number;
   source: string;
 };
 
-export type ThymianResponseEvent<Event extends ThymianActionName> = {
-  name: Event;
+export type ThymianResponseEvent<Action extends ThymianActionName> = {
+  name: Action;
   correlationId: string;
-  payload: ResponseEventPayload<Event>;
+  payload: ResponseEventPayload<Action>;
   timestamp: number;
   source: string;
 };
