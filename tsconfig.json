@@ -41,9 +41,6 @@
     },
     {
       "path": "./plugins/format-validator"
-    },
-    {
-      "path": "./plugins/test-plugin"
     }
   ]
 }
