@@ -28,12 +28,11 @@ jobs:
       - name: run linter
         run: npx nx affected -t lint
 
-  targets:
+  main:
     strategy:
       matrix:
         version: [ 20, 22, 24 ]
         os: [ ubuntu-latest, windows-latest, macos-latest ]
-        targets: [test, build]
     runs-on: ${{ matrix.os }}
     steps:
       - name: Check out repository
@@ -47,5 +46,5 @@ jobs:
       - name: install
         run: npm ci
       - uses: nrwl/nx-set-shas@v4
-      - name: run target ${{ matrix.target }}
-        run: npx nx affected -t ${{ matrix.target }}
+      - name: Test and build
+        run: npx nx affected -t build, test
