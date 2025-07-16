@@ -64,7 +64,7 @@ paths:
       security:
         - basicAuth: []
       responses:
-        "201":
+        '201':
           description: Default Response
           headers:
             location:
@@ -128,7 +128,7 @@ paths:
   /range-requests/valid:
     get:
       security:
-        - basicAuth: [ ]
+        - basicAuth: []
       parameters:
         - name: range
           in: header
@@ -171,7 +171,7 @@ paths:
   /range-requests/invalid:
     get:
       security:
-        - basicAuth: [ ]
+        - basicAuth: []
       parameters:
         - name: range
           in: header
@@ -199,7 +199,7 @@ paths:
   /range-requests/valid-if-range:
     get:
       security:
-        - basicAuth: [ ]
+        - basicAuth: []
       parameters:
         - name: range
           in: header
@@ -235,7 +235,7 @@ paths:
   /range-requests/invalid-if-range:
     get:
       security:
-        - basicAuth: [ ]
+        - basicAuth: []
       parameters:
         - name: range
           in: header
@@ -271,7 +271,7 @@ paths:
   /reset-content/valid:
     post:
       security:
-        - basicAuth: [ ]
+        - basicAuth: []
       requestBody:
         content:
           application/json:
@@ -288,7 +288,7 @@ paths:
   /reset-content/invalid:
     post:
       security:
-        - basicAuth: [ ]
+        - basicAuth: []
       requestBody:
         content:
           application/json:
@@ -311,4 +311,3 @@ paths:
                 properties:
                   name:
                     type: string
-

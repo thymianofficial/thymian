@@ -11,7 +11,7 @@ export default [
           ignoredFiles: ['{projectRoot}/eslint.config.{js,cjs,mjs}'],
           ignoredDependencies: [
             'vitest',
-            'tslib', '' +
+            'tslib',
             '@oclif/plugin-help',
             '@oclif/plugin-not-found',
             '@oclif/plugin-plugins',
@@ -22,7 +22,7 @@ export default [
             '@oclif/plugin-version',
             '@thymian/rfc-9110-rules',
             '@thymian/http-linter',
-          ]
+          ],
         },
       ],
     },

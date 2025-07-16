@@ -17,13 +17,11 @@
     "dist",
     "!**/*.tsbuildinfo"
   ],
-  "dependencies": {
-    "@thymian/core": "0.0.1",
-    "@thymian/http-status-codes": "0.0.1",
-    "vitest": "^3.0.9"
-  },
   "peerDependencies": {
+    "@thymian/core": "^0",
     "@thymian/http-linter": "^0",
-    "@thymian/http-testing": "^0"
+    "@thymian/http-testing": "^0",
+    "@thymian/http-status-codes": "^0"
+
   }
 }

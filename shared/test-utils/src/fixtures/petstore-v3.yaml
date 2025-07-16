@@ -77,7 +77,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/Error"
+                $ref: '#/components/schemas/Error'
       security:
         - petstore_auth:
             - write:pets
@@ -120,7 +120,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/Error"
+                $ref: '#/components/schemas/Error'
       security:
         - petstore_auth:
             - write:pets
@@ -166,7 +166,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/Error"
+                $ref: '#/components/schemas/Error'
       security:
         - petstore_auth:
             - write:pets
@@ -209,7 +209,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/Error"
+                $ref: '#/components/schemas/Error'
       security:
         - petstore_auth:
             - write:pets
@@ -248,7 +248,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/Error"
+                $ref: '#/components/schemas/Error'
       security:
         - api_key: []
         - petstore_auth:
@@ -295,7 +295,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/Error"
+                $ref: '#/components/schemas/Error'
       security:
         - petstore_auth:
             - write:pets
@@ -330,7 +330,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/Error"
+                $ref: '#/components/schemas/Error'
       security:
         - petstore_auth:
             - write:pets
@@ -378,7 +378,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/Error"
+                $ref: '#/components/schemas/Error'
       security:
         - petstore_auth:
             - write:pets
@@ -405,7 +405,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/Error"
+                $ref: '#/components/schemas/Error'
       security:
         - api_key: []
   /store/order:
@@ -442,7 +442,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/Error"
+                $ref: '#/components/schemas/Error'
   /store/order/{orderId}:
     get:
       tags:
@@ -477,7 +477,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/Error"
+                $ref: '#/components/schemas/Error'
     delete:
       tags:
         - store
@@ -504,7 +504,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/Error"
+                $ref: '#/components/schemas/Error'
   /user:
     post:
       tags:
@@ -539,7 +539,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/Error"
+                $ref: '#/components/schemas/Error'
   /user/createWithList:
     post:
       tags:
@@ -569,7 +569,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/Error"
+                $ref: '#/components/schemas/Error'
   /user/login:
     get:
       tags:
@@ -618,7 +618,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/Error"
+                $ref: '#/components/schemas/Error'
   /user/logout:
     get:
       tags:
@@ -635,7 +635,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/Error"
+                $ref: '#/components/schemas/Error'
   /user/{username}:
     get:
       tags:
@@ -669,7 +669,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/Error"
+                $ref: '#/components/schemas/Error'
     put:
       tags:
         - user
@@ -707,7 +707,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/Error"
+                $ref: '#/components/schemas/Error'
     delete:
       tags:
         - user
@@ -733,7 +733,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/Error"
+                $ref: '#/components/schemas/Error'
 components:
   schemas:
     Order:
@@ -905,8 +905,8 @@ components:
         implicit:
           authorizationUrl: https://petstore3.swagger.io/oauth/authorize
           scopes:
-            "write:pets": modify pets in your account
-            "read:pets": read your pets
+            'write:pets': modify pets in your account
+            'read:pets': read your pets
     api_key:
       type: apiKey
       name: api_key

@@ -1,15 +1,14 @@
 import nx from '@nx/eslint-plugin';
 import eslintPluginSimpleImportSort from 'eslint-plugin-simple-import-sort';
 
-
 export default [
   {
     plugins: {
-      "simple-import-sort": eslintPluginSimpleImportSort,
+      'simple-import-sort': eslintPluginSimpleImportSort,
     },
     rules: {
-      "simple-import-sort/imports": "error",
-      "simple-import-sort/exports": "error",
+      'simple-import-sort/imports': 'error',
+      'simple-import-sort/exports': 'error',
     },
   },
   ...nx.configs['flat/base'],
@@ -20,7 +19,7 @@ export default [
       '**/dist',
       '**/vite.config.*.timestamp*',
       '**/vitest.config.*.timestamp*',
-      "node_modules"
+      'node_modules',
     ],
   },
   {
@@ -53,5 +52,4 @@ export default [
     // Override or add rules here
     rules: {},
   },
-
 ];

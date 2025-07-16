@@ -1,5 +1,4 @@
 import {
-  type Logger,
   ThymianEmitter,
   type ThymianPlugin,
   type ThymianReport,
@@ -13,7 +12,7 @@ export const cliReporterPlugin: ThymianPlugin = {
   events: {
     listensOn: ['core.report'],
   },
-  async plugin(emitter: ThymianEmitter, logger: Logger): Promise<void> {
+  async plugin(emitter: ThymianEmitter): Promise<void> {
     const reports: ThymianReport[] = [];
 
     emitter.on('core.report', (report) => {

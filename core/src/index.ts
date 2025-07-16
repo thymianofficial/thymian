@@ -1,5 +1,6 @@
 export * from './actions/index.js';
 export * from './ajv.js';
+export * as chalk from './chalk.js';
 export * from './constants.js';
 export * from './emitter/index.js';
 export * from './emitter/thymian-emitter.js';

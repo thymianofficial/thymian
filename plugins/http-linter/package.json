@@ -18,26 +18,26 @@
     "!**/*.tsbuildinfo"
   ],
   "dependencies": {
-    "@thymian/http-testing": "^0",
     "fuse.js": "^7.1.0",
     "tinyglobby": "^0.2.14",
     "tslib": "^2.3.0",
-    "@thymian/format-validator": "0.0.1",
-    "@thymian/http-status-codes": "0.0.1",
     "chalk": "4.1.2"
   },
   "peerDependencies": {
     "@thymian/core": "^0",
     "@thymian/request-dispatcher": "^0",
-    "@thymian/sampler": "^0"
-  },
-  "optionalDependencies": {
+    "@thymian/sampler": "^0",
+    "@thymian/format-validator": "^0",
+    "@thymian/http-status-codes": "^0",
+    "@thymian/http-testing": "^0",
     "@thymian/cli-common": "^0"
   },
   "oclif": {
     "commands": "./dist/commands",
     "topics": {
-      "http-linter": { "description": "Check your API for HTTP conformance." }
+      "http-linter": {
+        "description": "Check your API for HTTP conformance."
+      }
     }
   },
   "devDependencies": {

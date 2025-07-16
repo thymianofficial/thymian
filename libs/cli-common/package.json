@@ -23,10 +23,10 @@
   "dependencies": {
     "@inquirer/prompts": "^7.6.0",
     "tslib": "^2.3.0",
-    "yaml": "^2.8.0"
+    "yaml": "^2.8.0",
+    "@oclif/core": "^4.3.3"
   },
   "peerDependencies": {
-    "@oclif/core": "^4.3.3",
     "@thymian/core": "^0"
   }
 }

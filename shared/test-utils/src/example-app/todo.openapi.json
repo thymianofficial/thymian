@@ -65,10 +65,7 @@
             "application/json": {
               "schema": {
                 "type": "object",
-                "required": [
-                  "title",
-                  "text"
-                ],
+                "required": ["title", "text"],
                 "additionalProperties": false,
                 "properties": {
                   "text": {
@@ -94,7 +91,7 @@
             "headers": {
               "location": {
                 "schema": {
-                    "type": "string"
+                  "type": "string"
                 },
                 "required": true
               }

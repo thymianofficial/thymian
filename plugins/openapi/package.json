@@ -21,19 +21,19 @@
   },
   "dependencies": {
     "@scalar/openapi-parser": "^0.10.14",
-    "@thymian/http-status-codes": "^0",
     "traverse": "^0.6.11"
   },
   "peerDependencies": {
-    "@thymian/core": "^0"
-  },
-  "optionalDependencies": {
+    "@thymian/core": "^0",
+    "@thymian/http-status-codes": "^0",
     "@thymian/cli-common": "^0"
   },
   "oclif": {
     "commands": "./dist/commands",
     "topics": {
-      "openapi": { "description": "Load your Swagger/OpenAPI documents into Thymian." }
+      "openapi": {
+        "description": "Load your Swagger/OpenAPI documents into Thymian."
+      }
     }
   }
 }
