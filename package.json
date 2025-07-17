@@ -5,7 +5,8 @@
   "type": "module",
   "scripts": {
     "test": "nx run-many -t test",
-    "format:check": "nx run-many -t format:check"
+    "format:check": "nx run-many -t format:check",
+    "build": "nx run-many -t build --exclude @thymian/source"
   },
   "private": true,
   "devDependencies": {

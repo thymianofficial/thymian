@@ -53,6 +53,8 @@ const header = `
 
 export function report(thymianReports: ThymianReport[]): void {
   if (thymianReports.length === 0) {
+    console.log(chalk.green('No problems were found.'));
+
     return;
   }
 
@@ -129,5 +131,9 @@ export function report(thymianReports: ThymianReport[]): void {
     },
     { color: 'red' }
   );
+  // Table or single line output?
   table.printTable();
+  // console.log(
+  //   chalk.red(`${chalk.bold(numberOfProblems)} problems were found.`)
+  // );
 }

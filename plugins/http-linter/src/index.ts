@@ -39,6 +39,7 @@ declare module '@thymian/core' {
     'http-linter.lint': {
       event: {
         format: SerializedThymianFormat;
+        modes?: RuleType[];
       };
       response: boolean;
     };
@@ -181,7 +182,7 @@ export const httpLinterPlugin: ThymianPlugin<HttpLinterPluginOptions> = {
       });
     });
 
-    emitter.onAction('http-linter.lint', async ({ format }, ctx) => {
+    emitter.onAction('http-linter.lint', async ({ format, modes: m }, ctx) => {
       const thymianFormat = ThymianFormat.import(format);
 
       const httpTestContext = createContext(thymianFormat, logger, emitter);
@@ -195,7 +196,7 @@ export const httpLinterPlugin: ThymianPlugin<HttpLinterPluginOptions> = {
         options.ruleOptions
       );
 
-      ctx.reply(await linter.run(modes));
+      ctx.reply(await linter.run(m ?? modes));
     });
   },
 };

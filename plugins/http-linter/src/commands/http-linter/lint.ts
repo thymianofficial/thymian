@@ -1,7 +1,9 @@
 import { join } from 'node:path';
 
 import { BaseCliRunCommand } from '@thymian/cli-common';
-import { Flags, ux } from '@thymian/cli-common/oclif';
+import { Flags } from '@thymian/cli-common/oclif';
+
+import type { RuleType } from '../../rule/rule-meta.js';
 
 export default class LintCommand extends BaseCliRunCommand<typeof LintCommand> {
   static override flags = {
@@ -27,39 +29,33 @@ export default class LintCommand extends BaseCliRunCommand<typeof LintCommand> {
   };
 
   async run(): Promise<void> {
-    await this.thymian.ready();
+    const valid = await this.thymian.run(async () => {
+      const format = await this.thymian.loadFormat();
 
-    ux.action.start('Linting');
-
-    const format = await this.thymian.loadFormat();
-
-    if (this.flags.validate) {
-      await this.thymian.emitter.emitAction('format-validator.validate', {
-        format: format.export(),
-      });
-    }
-
-    if (this.flags.rules.length > 0) {
-      await this.thymian.emitter.emitAction('http-linter.load-rules', {
-        rules: this.flags.rules.map((rule) => join(process.cwd(), rule)),
-      });
-    }
-
-    const valid = await this.thymian.emitter.emitAction(
-      'http-linter.lint',
-      {
-        format: format.export(),
-        //severity: this.flags.severity as RuleSeverity,
-        // modes: this.flags.mode as RuleType[],
-      },
-      {
-        strategy: 'deep-merge',
+      if (this.flags.validate) {
+        await this.thymian.emitter.emitAction('format-validator.validate', {
+          format: format.export(),
+        });
       }
-    );
 
-    await this.thymian.close();
+      if (this.flags.rules.length > 0) {
+        await this.thymian.emitter.emitAction('http-linter.load-rules', {
+          rules: this.flags.rules.map((rule) => join(process.cwd(), rule)),
+        });
+      }
 
-    ux.action.stop();
+      return await this.thymian.emitter.emitAction(
+        'http-linter.lint',
+        {
+          format: format.export(),
+          //severity: this.flags.severity as RuleSeverity,
+          modes: this.flags.mode as RuleType[],
+        },
+        {
+          strategy: 'deep-merge',
+        }
+      );
+    });
 
     if (!valid) {
       this.exit(1);

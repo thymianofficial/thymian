@@ -124,11 +124,15 @@ export class Thymian {
       strategy: 'collect'
     })
 
-    return formats.length === 0
+    const format = formats.length === 0
       ? new ThymianFormat()
       // we know that formats.length >= 1
       // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
       : formats.slice(1).reduce((acc, curr) => acc.merge(ThymianFormat.import(curr)), ThymianFormat.import(formats[0]!))
+
+    this.logger.debug(`Merged Thymian format includes ${format.graph.order} nodes and ${format.graph.size} edges.`)
+
+    return format
   }
 
   private async loadRegisteredPlugins(): Promise<void> {

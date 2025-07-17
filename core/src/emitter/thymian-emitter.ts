@@ -111,8 +111,8 @@ export class ThymianEmitter {
     this.#completed = state.completed;
 
     if (this.options.traceEvents) {
-      this.#events.subscribe(this.logEvent());
-      this.#responses.subscribe(this.logEvent());
+      this.#events.subscribe(this.logEvent('event'));
+      this.#responses.subscribe(this.logEvent('response event'));
     }
   }
 
@@ -391,7 +391,7 @@ export class ThymianEmitter {
     this.#errors.subscribe(fn);
   }
 
-  private logEvent() {
+  private logEvent(type: 'event' | 'response event') {
     return (
       event:
         | ThymianEvent<ThymianEventName>
@@ -400,9 +400,9 @@ export class ThymianEmitter {
         | ThymianErrorEvent<ErrorName>
     ) => {
       this.logger.trace(
-        `${chalk.bold(event.source)} with event ${event.name} at ${new Date(
-          event.timestamp
-        )
+        `${chalk.bold(event.source)} with ${type} ${chalk.bold(
+          event.name
+        )} at ${new Date(event.timestamp)
           .toISOString()
           .replace('T', ' ')
           .replace('Z', '')}`

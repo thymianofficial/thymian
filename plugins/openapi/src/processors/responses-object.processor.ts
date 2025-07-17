@@ -42,7 +42,9 @@ export function processResponsesObject(
         }
       });
     } else {
-      if (!isValidHttpStatusCode(statusCode)) {
+      const statusCodeNumber = +statusCode;
+
+      if (statusCodeNumber < 100 || statusCodeNumber > 599) {
         throw new Error(
           `Invalid status code. Status code must be a valid http status code or status code range (e.g. 2XX), but is ${statusCode}.`
         );
@@ -50,7 +52,7 @@ export function processResponsesObject(
 
       responses[statusCode] = processResponseObject(
         responseObject as OpenApiV31.ResponseObject,
-        +statusCode,
+        statusCodeNumber,
         parameters
       );
     }
