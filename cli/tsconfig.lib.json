@@ -22,6 +22,9 @@
       "path": "../libs/rfc-9110-rules/tsconfig.lib.json"
     },
     {
+      "path": "../plugins/openapi/tsconfig.lib.json"
+    },
+    {
       "path": "../plugins/http-linter/tsconfig.lib.json"
     },
     {
