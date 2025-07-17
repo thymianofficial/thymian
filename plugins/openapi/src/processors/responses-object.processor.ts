@@ -1,5 +1,4 @@
 import type { ThymianHttpResponse } from '@thymian/core';
-import { isValidHttpStatusCode } from '@thymian/http-status-codes';
 import {
   httpStatusCodeRanges,
   isHttpStatusCodeRange,

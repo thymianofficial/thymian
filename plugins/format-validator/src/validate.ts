@@ -22,7 +22,7 @@ export function transactionToTitle(
   const statusCode = res.statusCode;
   const phrase = isValidHttpStatusCode(statusCode)
     ? httpStatusCodeToPhrase[statusCode]
-    : 'Invalid status code';
+    : '';
 
   let title = `${req.method.toUpperCase()} ${req.path}`;
 

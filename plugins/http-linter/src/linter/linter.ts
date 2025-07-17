@@ -41,7 +41,7 @@ export function responseToTitle(res: ThymianHttpResponse): string {
   const statusCode = res.statusCode;
   const phrase = isValidHttpStatusCode(statusCode)
     ? httpStatusCodeToPhrase[statusCode]
-    : 'Invalid status code';
+    : '';
 
   const title = `${statusCode} ${phrase.toUpperCase()}`;
 
