@@ -17,7 +17,8 @@ jobs:
       - name: Check out repository
         uses: actions/checkout@v4
         with:
-          persist-credentials: false
+          fetch-depth: 0
+          filter: tree:0
       - name: Setup node
         uses: actions/setup-node@v4
         with:
@@ -48,5 +49,7 @@ jobs:
       - name: install
         run: npm ci
       - uses: nrwl/nx-set-shas@v4
-      - name: Test and build
-        run: npx nx affected -t build, test
+      - name: Build
+        run: npx nx run-many -t build --exclude @thymian/source
+      - name: Test
+        run: npx nx affected -t test
