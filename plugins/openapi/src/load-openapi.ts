@@ -19,18 +19,8 @@ export type ParseOpenApiOptions = {
 
 export async function loadOpenapi(
   logger: Logger,
-  opts: Partial<ParseOpenApiOptions>
+  options: ParseOpenApiOptions
 ): Promise<ThymianFormat> {
-  const options = {
-    filePath: 'openapi.yml',
-    port: 8080,
-    host: 'localhost',
-    protocol: 'http',
-    allowExternalFiles: true,
-    fetchExternalRefs: false,
-    ...opts,
-  } satisfies ParseOpenApiOptions;
-
   const plugins = [];
 
   if (options.allowExternalFiles) {

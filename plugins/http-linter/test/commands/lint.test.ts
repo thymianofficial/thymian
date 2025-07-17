@@ -3,7 +3,7 @@ import { join } from 'node:path';
 import { captureOutput } from '@oclif/test';
 import { describe, it } from 'vitest';
 
-import LintCommand from '../../src/commands/http-linter/lint.js';
+import LintCommand from '../../src/cli/commands/http-linter/lint.js';
 
 process.env.OCLIF_TEST_ROOT = join(import.meta.url, '../../..');
 

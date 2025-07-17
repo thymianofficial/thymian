@@ -33,7 +33,10 @@
     "@thymian/cli-common": "^0"
   },
   "oclif": {
-    "commands": "./dist/commands",
+    "commands": "./dist/cli/commands",
+    "hooks": {
+      "thymian-plugin.init": "./dist/cli/init-hook"
+    },
     "topics": {
       "http-linter": {
         "description": "Check your API for HTTP conformance."

@@ -21,15 +21,19 @@
   },
   "dependencies": {
     "@scalar/openapi-parser": "^0.10.14",
+    "tinyglobby": "^0.2.14",
     "traverse": "^0.6.11"
   },
   "peerDependencies": {
+    "@thymian/cli-common": "^0",
     "@thymian/core": "^0",
-    "@thymian/http-status-codes": "^0",
-    "@thymian/cli-common": "^0"
+    "@thymian/http-status-codes": "^0"
   },
   "oclif": {
-    "commands": "./dist/commands",
+    "commands": "./dist/cli/commands",
+    "hooks": {
+      "thymian-plugin.init": "./dist/cli/init-hook"
+    },
     "topics": {
       "openapi": {
         "description": "Load your Swagger/OpenAPI documents into Thymian."

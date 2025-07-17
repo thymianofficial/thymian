@@ -10,8 +10,8 @@ import {
   httpParticipantRoles,
   type RuleMeta,
   type RuleType,
-} from '../../rule/rule-meta.js';
-import type { RuleSeverity } from '../../rule/rule-severity.js';
+} from '../../../rule/rule-meta.js';
+import type { RuleSeverity } from '../../../rule/rule-severity.js';
 
 export function capitalizeFirstCharacter(str: string): string {
   return str.charAt(0).toUpperCase() + str.slice(1);
