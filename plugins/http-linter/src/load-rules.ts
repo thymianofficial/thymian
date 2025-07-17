@@ -82,8 +82,8 @@ export async function loadRuleSet(
 
 export async function loadRules(
   path: string | string[],
-  ruleFilter: RuleFilter,
-  options: Record<string, unknown>
+  ruleFilter: RuleFilter = () => true,
+  options: Record<string, unknown> = {}
 ): Promise<Rule[]> {
   if (Array.isArray(path)) {
     return (
