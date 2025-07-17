@@ -52,4 +52,4 @@ jobs:
       - name: Build
         run: npx nx run-many -t build --exclude @thymian/source
       - name: Test
-        run: npx nx affected -t test
+        run: npx nx affected -t test --exclude @thymian/source
