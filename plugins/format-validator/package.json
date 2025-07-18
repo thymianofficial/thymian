@@ -31,7 +31,10 @@
     "@thymian/sampler": "0.0.1"
   },
   "oclif": {
-    "commands": "./dist/commands",
+    "commands": "./dist/cli/commands",
+    "hooks": {
+      "thymian-plugin.init": "./dist/cli/init-hook"
+    },
     "topics": {
       "validate": {
         "description": "Validate your API description against your HTTP API."

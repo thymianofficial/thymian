@@ -25,6 +25,9 @@ declare module '@thymian/core' {
 export const formatValidatorPlugin: ThymianPlugin = {
   name: '@thymian/format-validator',
   version: '0.x',
+  actions: {
+    requires: ['sampler.generate', 'request-dispatcher.http-request'],
+  },
   events: {
     emits: ['core.report'],
   },
