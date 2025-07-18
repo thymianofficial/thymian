@@ -9,7 +9,8 @@ export default class Init extends Command {
 
   static override flags = {
     yaml: Flags.boolean({
-      default: false,
+      default: true,
+      allowNo: true,
       description: 'Output configuration file in YAML format.',
     }),
     cwd: Flags.string({
