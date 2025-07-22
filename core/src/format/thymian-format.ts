@@ -25,6 +25,13 @@ export function isNodeType<T extends ThymianNodeType>(
   return node.type === type;
 }
 
+export function isEdgeType<T extends ThymianEdgeType>(
+  edge: ThymianEdge,
+  type: T
+): edge is ThymianEdges[T] {
+  return edge.type === type;
+}
+
 export interface ThymianNodes {
   'http-request': ThymianHttpRequest;
   'http-response': ThymianHttpResponse;
@@ -36,6 +43,14 @@ export interface ThymianEdges {
   'http-transaction': HttpTransaction;
   'is-secured': IsSecuredWith;
 }
+
+export type ThymianHttpTransaction = {
+  thymianReq: ThymianHttpRequest;
+  thymianReqId: string;
+  thymianRes: ThymianHttpResponse;
+  thymianResId: string;
+  transactionId: string;
+};
 
 export type ThymianNode = ThymianNodes[keyof ThymianNodes];
 export type ThymianEdge = ThymianEdges[keyof ThymianEdges];
@@ -195,6 +210,26 @@ export class ThymianFormat {
 
       return transactions;
     }, [] as [string, string, string][]);
+  }
+
+  getThymianHttpTransactions(): ThymianHttpTransaction[] {
+    return this.graph.reduceEdges((transactions, id, edge, source, target) => {
+      if (isEdgeType(edge, 'http-transaction')) {
+        transactions.push({
+          thymianReq: this.getNode<ThymianHttpRequest>(
+            source
+          ) as ThymianHttpRequest,
+          thymianReqId: source,
+          thymianRes: this.getNode<ThymianHttpResponse>(
+            target
+          ) as ThymianHttpResponse,
+          thymianResId: target,
+          transactionId: id,
+        });
+      }
+
+      return transactions;
+    }, [] as ThymianHttpTransaction[]);
   }
 
   matchHtpRequestByUrl(url: string): MatchResult | undefined {

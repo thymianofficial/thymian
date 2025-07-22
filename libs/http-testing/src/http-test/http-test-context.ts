@@ -8,13 +8,13 @@ import type {
   ThymianSchema,
 } from '@thymian/core';
 
-import type { HttpRequestTemplate } from './http-request-template.js';
+import type { HttpRequestTemplate } from '../http-request-template.js';
 import type {
   HttpTestCase,
   HttpTestCaseStep,
   HttpTestCaseStepTransaction,
 } from './http-test-case.js';
-import type { PipelineEnvelope } from './http-test-pipeline.js';
+import type { PipelineItem } from './http-test-pipeline.js';
 
 export type GenerateRequestsOptions = {
   authenticate?: boolean;
@@ -60,12 +60,12 @@ export interface HttpTestContext<
   skip<Steps extends HttpTestCaseStep[]>(
     testCase: HttpTestCase<Steps>,
     reason?: string
-  ): PipelineEnvelope<HttpTestCase<Steps>, Locals>;
+  ): PipelineItem<HttpTestCase<Steps>, Locals>;
 
   fail<Steps extends HttpTestCaseStep[]>(
     testCase: HttpTestCase<Steps>,
     reason?: string
-  ): PipelineEnvelope<HttpTestCase<Steps>, Locals>;
+  ): PipelineItem<HttpTestCase<Steps>, Locals>;
 
   auth?: {
     basic?: (

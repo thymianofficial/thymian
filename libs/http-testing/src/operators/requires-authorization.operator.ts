@@ -1,11 +1,11 @@
 import type { ThymianHttpTransaction } from '@thymian/core';
 import { filter, type MonoTypeOperatorFunction } from 'rxjs';
 
-import type { PipelineEnvelope } from '../http-test/http-test-pipeline.js';
+import type { PipelineItem } from '../http-test/http-test-pipeline.js';
 
 export function requiresAuthorization(
   requireAuthorization = true
-): MonoTypeOperatorFunction<PipelineEnvelope<ThymianHttpTransaction>> {
+): MonoTypeOperatorFunction<PipelineItem<ThymianHttpTransaction>> {
   return filter(({ current, ctx }) => {
     return (
       requireAuthorization ===

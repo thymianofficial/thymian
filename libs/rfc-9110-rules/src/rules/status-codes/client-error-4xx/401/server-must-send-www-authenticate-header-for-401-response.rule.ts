@@ -4,11 +4,10 @@ import { getHeader, type JSONSchemaType } from '@thymian/core';
 import { equalsIgnoreCase, httpRule } from '@thymian/http-linter';
 import {
   expectHeaders,
-  expectStatusCode,
-  forHttpTransactions,
   generateRequests,
   runRequests,
-  toTestCases,
+  mapToTestCase,
+  filterHttpTransactions,
 } from '@thymian/http-testing';
 
 type Options = {
@@ -47,7 +46,7 @@ export default httpRule(
   .overrideTest((testContext, options) =>
     testContext.test((t) =>
       t.pipe(
-        forHttpTransactions(
+        filterHttpTransactions(
           (req, reqId) =>
             !equalsIgnoreCase(req.method, 'head') &&
             (options.checkAllSecured
@@ -55,14 +54,23 @@ export default httpRule(
               : true),
           (res) => (options.checkAllSecured ? true : res.statusCode === 401)
         ),
-        toTestCases(),
-        generateRequests(1, { authenticate: false }),
-        runRequests({ checkStatusCode: false }),
-        expectStatusCode(401),
-        expectHeaders((headers) => {
-          const wwwAuthenticateHeader = getHeader(headers, 'www-authenticate');
+        mapToTestCase(),
+        generateRequests({ authenticate: false }),
+        runRequests({ expectStatusCode: 399, checkResponse: true }),
+        expectHeaders((headers, transaction) => {
+          assert.ok(transaction.source);
 
-          assert.ok(wwwAuthenticateHeader);
+          testContext.assertTransaction(
+            transaction.source.transactionId,
+            () => {
+              const wwwAuthenticateHeader = getHeader(
+                headers,
+                'www-authenticate'
+              );
+
+              assert.ok(wwwAuthenticateHeader);
+            }
+          );
         })
       )
     )

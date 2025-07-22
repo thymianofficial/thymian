@@ -8,14 +8,15 @@ import {
 } from '@thymian/http-linter';
 import {
   expect,
-  forHttpTransactions,
+  filter,
+  filterHttpTransactions,
   generateRequests,
+  mapToTestCase,
   overrideHeaders,
   overrideRequestWithPrevious,
   replayStep,
   replayStepButExpectResponse,
   runRequests,
-  toTestCases,
 } from '@thymian/http-testing';
 
 import { createList } from '../../../../utils.js';
@@ -116,7 +117,7 @@ export default httpRule(
   .rule((ctx) =>
     ctx.validateGroupedCommonHttpTransactions(
       (req, res) =>
-        (ctx.equalsIgnoreCase('if-range', ...req.headers) &&
+        (equalsIgnoreCase('if-range', ...req.headers) &&
           res.statusCode === 206) ||
         res.statusCode === 200,
       (req) => req.method + req.origin + req.path,
@@ -143,9 +144,9 @@ export default httpRule(
   )
   // TODO: let's think about later, if we should include this test
   .overrideTest((testContext) =>
-    testContext.test((t) =>
-      t.pipe(
-        forHttpTransactions(
+    testContext.test((transactions) =>
+      transactions.pipe(
+        filterHttpTransactions(
           (req, reqId, responses) =>
             Object.keys(req.headers).some(
               (h) => h.toLowerCase() === 'if-range'
@@ -154,7 +155,7 @@ export default httpRule(
             responses.some(([, res]) => res.statusCode === 200),
           (res) => res.statusCode === 206
         ),
-        toTestCases(),
+        mapToTestCase(),
         generateRequests(),
         runRequests(),
         replayStep((step) =>
@@ -193,10 +194,10 @@ export default httpRule(
             runRequests()
           )
         ),
-        expect(({ curr, ctx }) => {
-          assert.equal(curr.steps.length, 3, 'Must have 3 steps.');
-          const partialResponseStep = curr.steps[1];
-          const okResponseStep = curr.steps[2];
+        expect(({ current, ctx }) => {
+          assert.equal(current.steps.length, 3, 'Must have 3 steps.');
+          const partialResponseStep = current.steps[1];
+          const okResponseStep = current.steps[2];
 
           assert.ok(partialResponseStep.transactions[0]);
           assert.ok(okResponseStep.transactions[0]);
@@ -213,7 +214,7 @@ export default httpRule(
           );
 
           if (violation) {
-            testContext.report(violation);
+            testContext.reportViolation(violation);
           }
         })
       )

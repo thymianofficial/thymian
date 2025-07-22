@@ -1,58 +1,40 @@
-import type {
-  Logger,
-  ThymianHttpRequest,
-  ThymianHttpResponse,
-  ThymianReport,
+import {
+  type Logger,
+  thymianHttpTransactionToString,
+  type ThymianReport,
 } from '@thymian/core';
+import { isValidSuccessfulStatusCode } from '@thymian/http-status-codes';
 import {
-  httpStatusCodeToPhrase,
-  isValidHttpStatusCode,
-  isValidSuccessfulStatusCode,
-} from '@thymian/http-status-codes';
-import {
+  filter,
+  generateRequests,
   httpTest,
   type HttpTestContext,
   isSingleHttpTestCaseStep,
+  mapToTestCase,
+  runRequests,
+  validateResponses,
 } from '@thymian/http-testing';
-
-export function transactionToTitle(
-  req: ThymianHttpRequest,
-  res: ThymianHttpResponse
-): string {
-  const statusCode = res.statusCode;
-  const phrase = isValidHttpStatusCode(statusCode)
-    ? httpStatusCodeToPhrase[statusCode]
-    : '';
-
-  let title = `${req.method.toUpperCase()} ${req.path}`;
-
-  if (req.mediaType) {
-    title += ` - ${req.mediaType} `;
-  }
-
-  title += ` \u2192 ${res.statusCode} ${phrase.toUpperCase()}`;
-
-  if (res.mediaType) {
-    title += ` - ${res.mediaType}`;
-  }
-
-  return title;
-}
 
 export async function validate(
   context: HttpTestContext,
   logger: Logger,
   report: (report: ThymianReport) => void
 ): Promise<boolean> {
-  const test = httpTest('@thymian/format-validate', {
-    resFilter: (res) => isValidSuccessfulStatusCode(res.statusCode),
-    validate: true,
-    authorize: true,
-  });
+  const test = httpTest('@thymian/format-validate', (transactions) =>
+    transactions.pipe(
+      filter(({ current }) =>
+        isValidSuccessfulStatusCode(current.thymianRes.statusCode)
+      ),
+      mapToTestCase(),
+      generateRequests(),
+      runRequests(),
+      validateResponses()
+    )
+  );
 
   const results = await test(context);
 
-  logger.debug(`Validate Thymian format in ${results.duration}ms.`);
+  logger.debug(`Validated Thymian format in ${results.duration}ms.`);
 
   for (const testCase of results.cases) {
     const step = testCase.steps[0];
@@ -73,7 +55,10 @@ export async function validate(
       throw new Error('Step should have exactly one transaction.');
     }
 
-    const title = transactionToTitle(source.thymianReq, source.thymianRes);
+    const title = thymianHttpTransactionToString(
+      source.thymianReq,
+      source.thymianRes
+    );
 
     testCase.results.forEach((result) => {
       if (result.type === 'assertion-failure') {
@@ -92,7 +77,6 @@ export async function validate(
           subTopic: 'Successful Responses',
           isProblem: false,
         });
-        // U+2796
       } else if (result.type === 'info') {
         report({
           text: `\u2796 ${result.message}`,

@@ -1,13 +1,16 @@
 import { mergeMap, type MonoTypeOperatorFunction } from 'rxjs';
 
-import type { HttpTestInstance } from '../http-test.js';
-import type { HttpTestCase, HttpTestCaseStep } from '../http-test-case.js';
+import type {
+  HttpTestCase,
+  HttpTestCaseStep,
+} from '../http-test/http-test-case.js';
+import type { PipelineItem } from '../http-test/http-test-pipeline.js';
 
 export function hook<Steps extends HttpTestCaseStep[]>(
   name: string
-): MonoTypeOperatorFunction<HttpTestInstance<HttpTestCase<Steps>>> {
-  return mergeMap(async ({ curr, ctx }) => ({
-    curr: await ctx.runHook(name, curr),
+): MonoTypeOperatorFunction<PipelineItem<HttpTestCase<Steps>>> {
+  return mergeMap(async ({ current, ctx }) => ({
+    current: await ctx.runHook(name, current),
     ctx,
   }));
 }

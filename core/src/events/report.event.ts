@@ -8,6 +8,8 @@ export interface ThymianReport {
   isProblem: boolean;
 }
 
+export type ReportFn = (report: ThymianReport) => void;
+
 export type ReportEvent = ThymianReport;
 
 export const thymianReportSchema: JSONSchemaType<ReportEvent> = {

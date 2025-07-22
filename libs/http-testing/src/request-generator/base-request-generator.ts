@@ -1,15 +1,15 @@
 import {
   type Parameter,
   type SecurityScheme,
+  type ThymianHttpTransaction,
   type ThymianSchema,
 } from '@thymian/core';
 
 import type { HttpRequestTemplate } from '../http-request-template.js';
-import type { ThymianHttpTransaction } from '../http-test-case.js';
 import type {
   GenerateRequestsOptions,
   HttpTestContext,
-} from '../http-test-context.js';
+} from '../http-test/http-test-context.js';
 import type { RequestGenerator } from './request-generator.js';
 
 export class BaseRequestGenerator implements RequestGenerator {

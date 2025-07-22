@@ -1,6 +1,11 @@
-import { isRecord } from '@thymian/core';
+import { type HttpRequest, isRecord } from '@thymian/core';
 
-import type { HttpTestCase, HttpTestCaseStep } from '../http-test-case.js';
+import type {
+  HttpTestCase,
+  HttpTestCaseStep,
+  HttpTestCaseStepTransaction,
+  SingleHttpTestCaseStep,
+} from '../http-test/http-test-case.js';
 
 export function hasOwnProperty<
   T extends Record<PropertyKey, unknown>,

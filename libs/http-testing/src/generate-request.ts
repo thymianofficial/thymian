@@ -1,13 +1,16 @@
-import type { HttpRequestTemplate } from '../http-request-template.js';
-import type { ThymianHttpTransaction } from '../http-test-case.js';
+import type { ThymianHttpTransaction } from '@thymian/core';
+
+import type { HttpRequestTemplate } from './http-request-template.js';
 import type {
   GenerateRequestsOptions,
   HttpTestContext,
-} from '../http-test-context.js';
-import { BaseRequestGenerator } from './base-request-generator.js';
-import { RangeRequestGenerator } from './range-request-generator.js';
-import type { RequestGenerator } from './request-generator.js';
-import { UnauthorizedRequestGenerator } from './unauthorized-request-generator.js';
+} from './http-test/index.js';
+import {
+  BaseRequestGenerator,
+  RangeRequestGenerator,
+  type RequestGenerator,
+  UnauthorizedRequestGenerator,
+} from './request-generator/index.js';
 
 export function generateRequest(
   transaction: ThymianHttpTransaction,

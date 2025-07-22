@@ -1,6 +1,9 @@
-import type { HttpRequest } from '@thymian/core';
+import {
+  type HttpRequest,
+  thymianHttpTransactionToString,
+} from '@thymian/core';
 
-import type { HttpTestCaseStepTransaction } from './http-test-case.js';
+import type { HttpTestCaseStepTransaction } from './http-test/http-test-case.js';
 import {
   serializeHeaderParameter,
   serializePathParameter,
@@ -42,7 +45,18 @@ function serializeBasePath(transaction: HttpTestCaseStepTransaction) {
           }
         }
       } else {
-        throw new Error(`Missing value for path parameter "${parameterName}".`);
+        const transactionName = transaction.source
+          ? thymianHttpTransactionToString(
+              transaction.source.thymianReq,
+              transaction.source.thymianRes
+            )
+          : `${transaction.requestTemplate.method.toUpperCase()} ${
+              transaction.requestTemplate.origin
+            }${transaction.requestTemplate.path}`;
+
+        throw new Error(
+          `Missing value for path parameter "${parameterName}" of transaction "${transactionName}".`
+        );
       }
     }
   );

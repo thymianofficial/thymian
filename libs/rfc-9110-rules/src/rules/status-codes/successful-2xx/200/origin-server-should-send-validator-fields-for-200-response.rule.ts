@@ -1,4 +1,4 @@
-import { httpRule } from '@thymian/http-linter';
+import { equalsIgnoreCase, httpRule } from '@thymian/http-linter';
 
 export default httpRule('rfc9110/server-should-send-validator-fields')
   .severity('warn')
@@ -16,14 +16,13 @@ export default httpRule('rfc9110/server-should-send-validator-fields')
     ctx.validateCommonHttpTransactions(
       (req, res) => {
         return (
-          ctx.equalsIgnoreCase(req.method, 'get', 'head') &&
-          res.statusCode === 200
+          equalsIgnoreCase(req.method, 'get', 'head') && res.statusCode === 200
         );
       },
       (_, res) =>
         !(
-          ctx.equalsIgnoreCase('etag', ...res.headers) ||
-          ctx.equalsIgnoreCase('last-modified', ...res.headers)
+          equalsIgnoreCase('etag', ...res.headers) ||
+          equalsIgnoreCase('last-modified', ...res.headers)
         )
     )
   )

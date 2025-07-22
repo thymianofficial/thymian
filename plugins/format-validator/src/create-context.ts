@@ -21,6 +21,7 @@ export function createContext(
   return createHttpTestContext({
     format,
     logger,
+    locals: {},
     auth: {
       basic: async () => ['matthyk', 'qupaya'],
     },

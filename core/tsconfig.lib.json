@@ -15,5 +15,9 @@
   },
   "include": ["src/**/*.ts"],
   "exclude": ["dist", "test"],
-  "references": []
+  "references": [
+    {
+      "path": "../libs/http-status-codes/tsconfig.lib.json"
+    }
+  ]
 }

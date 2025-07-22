@@ -1,4 +1,9 @@
-import { type PartialBy, ThymianFormat } from '@thymian/core';
+import {
+  type PartialBy,
+  type ReportFn,
+  ThymianFormat,
+  type ThymianReport,
+} from '@thymian/core';
 
 import { equalsIgnoreCase } from '../linter/utils.js';
 import type { RuleFnResult } from '../rule/rule-fn.js';
@@ -33,7 +38,10 @@ export type CommonHttpResponse = {
 };
 
 export abstract class ApiContext {
-  constructor(readonly format: ThymianFormat) {}
+  constructor(
+    readonly format: ThymianFormat,
+    protected readonly report: ReportFn
+  ) {}
 
   abstract validateCommonHttpTransactions(
     filterFn: FilterFn<[CommonHttpRequest, CommonHttpResponse, string]>,
@@ -48,10 +56,6 @@ export abstract class ApiContext {
       RuleViolation | undefined
     >
   ): Promise<RuleFnResult> | RuleFnResult;
-
-  equalsIgnoreCase(a: string, ...b: string[]): boolean {
-    return equalsIgnoreCase(a, ...b);
-  }
 }
 
 //export interface LiveApiContext extends ApiContext {}

@@ -4,42 +4,8 @@ import type {
   ThymianHttpTransaction,
 } from '@thymian/core';
 
-import type { HttpRequestTemplate } from './http-request-template.js';
-
-export function isSingleHttpTestCaseStep(
-  step?: HttpTestCaseStep
-): step is SingleHttpTestCaseStep {
-  return step?.type === 'single';
-}
-
-export function isGroupedHttpTestCaseStep(
-  step?: HttpTestCaseStep
-): step is GroupedHttpTestCaseStep {
-  return step?.type === 'grouped';
-}
-
-export function isCustomHttpTestCaseStep(
-  step?: HttpTestCaseStep
-): step is CustomHttpTestCaseStep {
-  return step?.type === 'custom';
-}
-
-export function isSkippedTestCase<Steps extends HttpTestCaseStep[]>(
-  testCase: HttpTestCase<Steps>
-): testCase is HttpTestCase<Steps> & { staus: 'skipped' } {
-  return testCase.status === 'skipped';
-}
-
-export function isFailedTestCase<Steps extends HttpTestCaseStep[]>(
-  testCase: HttpTestCase<Steps>
-): testCase is HttpTestCase<Steps> & { staus: 'failed' } {
-  return testCase.status === 'failed';
-}
-
-export type HttpTestCaseResult = {
-  message: string;
-  type: 'error' | 'assertion-failure' | 'assertion-success' | 'info';
-};
+import type { HttpRequestTemplate } from '../http-request-template.js';
+import type { HttpTestCaseResult } from './http-test-case-result.js';
 
 export interface GroupedHttpTestCaseStep<
   Transactions extends HttpTestCaseStepTransaction[] = HttpTestCaseStepTransaction[]
@@ -64,17 +30,11 @@ export interface CustomHttpTestCaseStep<Source = unknown>
   type: 'custom';
 }
 
-export type HttpTestCaseStepTransaction<
-  Source extends ThymianHttpTransaction | undefined =
-    | ThymianHttpTransaction
-    | undefined,
-  Request extends HttpRequest | undefined = HttpRequest | undefined,
-  Response extends HttpResponse | undefined = HttpResponse | undefined
-> = {
+export type HttpTestCaseStepTransaction = {
   requestTemplate: HttpRequestTemplate;
-  request: Request;
-  response: Response;
-  source: Source;
+  request?: HttpRequest;
+  response?: HttpResponse;
+  source?: ThymianHttpTransaction;
 };
 
 export interface HttpTestCaseStep<
@@ -95,7 +55,7 @@ export type HttpTestCase<
   end?: number;
   status: HttpTestCaseStatus;
   reason?: string;
-  name?: string;
+  name: string;
   readonly steps: Steps;
   readonly results: HttpTestCaseResult[];
 };

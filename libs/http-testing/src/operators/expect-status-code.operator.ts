@@ -4,23 +4,22 @@ import {
   statusCodeMatchesRange,
 } from '@thymian/http-status-codes';
 import { map, type MonoTypeOperatorFunction } from 'rxjs';
-
-import type { HttpTestInstance } from '../http-test.js';
 import {
   type HttpTestCase,
   type HttpTestCaseStep,
   isFailedTestCase,
   isSkippedTestCase,
-} from '../http-test-case.js';
+  type PipelineItem,
+} from '../http-test/index.js';
 
 export function expectStatusCode<Steps extends HttpTestCaseStep[]>(
   statusCode: number | HttpStatusCodeRange | (number | HttpStatusCodeRange)[]
-): MonoTypeOperatorFunction<HttpTestInstance<HttpTestCase<Steps>>> {
-  return map(({ curr, ctx }) => {
-    if (isSkippedTestCase(curr) || isFailedTestCase(curr)) {
-      return { curr, ctx };
+): MonoTypeOperatorFunction<PipelineItem<HttpTestCase<Steps>>> {
+  return map(({ current, ctx }) => {
+    if (isSkippedTestCase(current) || isFailedTestCase(current)) {
+      return { current, ctx };
     }
-    const step = curr.steps.at(-1);
+    const step = current.steps.at(-1);
 
     if (step) {
       if (Array.isArray(statusCode)) {
@@ -36,11 +35,15 @@ export function expectStatusCode<Steps extends HttpTestCaseStep[]>(
             transaction.response &&
             !isValidStatusCode(transaction.response.statusCode)
           ) {
-            curr.results.push({
+            current.results.push({
               type: 'assertion-failure',
-              message: `Expected status code ${statusCode} but got ${transaction.response.statusCode}.`,
+              message: `Expected status code ${statusCode} but got ${transaction.response.statusCode}`,
+              timestamp: Date.now(),
+              actual: transaction.response.statusCode,
+              expected: statusCode,
+              assertion: '===',
             });
-            curr.status = 'failed';
+            current.status = 'failed';
           }
         }
       } else {
@@ -54,16 +57,20 @@ export function expectStatusCode<Steps extends HttpTestCaseStep[]>(
             transaction.response &&
             !isValidStatusCode(transaction.response.statusCode)
           ) {
-            curr.results.push({
+            current.results.push({
               type: 'assertion-failure',
               message: `Expected status code ${statusCode} but got ${transaction.response.statusCode}`,
+              timestamp: Date.now(),
+              actual: transaction.response.statusCode,
+              expected: statusCode,
+              assertion: '===',
             });
-            curr.status = 'failed';
+            current.status = 'failed';
           }
         });
       }
     }
 
-    return { curr, ctx };
+    return { current, ctx };
   });
 }

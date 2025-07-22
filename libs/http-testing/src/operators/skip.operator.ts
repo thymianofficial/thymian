@@ -1,15 +1,18 @@
 import { map, type MonoTypeOperatorFunction } from 'rxjs';
 
-import type { HttpTestInstance } from '../http-test.js';
-import type { HttpTestCase, HttpTestCaseStep } from '../http-test-case.js';
+import type {
+  HttpTestCase,
+  HttpTestCaseStep,
+} from '../http-test/http-test-case.js';
+import type { PipelineItem } from '../http-test/http-test-pipeline.js';
 
 export function skipTestCase<Steps extends HttpTestCaseStep[]>(
   fn: (testCase: HttpTestCase<Steps>) => boolean = () => true
-): MonoTypeOperatorFunction<HttpTestInstance<HttpTestCase<Steps>>> {
-  return map(({ curr, ctx }) => ({
-    curr: {
-      ...curr,
-      status: fn(curr) ? 'skipped' : curr.status,
+): MonoTypeOperatorFunction<PipelineItem<HttpTestCase<Steps>>> {
+  return map(({ current, ctx }) => ({
+    current: {
+      ...current,
+      status: fn(current) ? 'skipped' : current.status,
     },
     ctx,
   }));

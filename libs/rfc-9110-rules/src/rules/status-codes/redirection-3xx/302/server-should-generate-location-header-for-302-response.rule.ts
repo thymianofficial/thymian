@@ -1,4 +1,4 @@
-import { httpRule } from '@thymian/http-linter';
+import { equalsIgnoreCase, httpRule } from '@thymian/http-linter';
 
 export default httpRule(
   'rfc9110/server-should-generate-location-header-for-302-response'
@@ -13,7 +13,7 @@ export default httpRule(
   .rule((ctx) =>
     ctx.validateCommonHttpTransactions(
       (req, res) => res.statusCode === 302,
-      (req, res) => !ctx.equalsIgnoreCase('location', ...res.headers)
+      (req, res) => !equalsIgnoreCase('location', ...res.headers)
     )
   )
   .done();

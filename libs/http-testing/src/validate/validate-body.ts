@@ -1,8 +1,8 @@
 import type { ThymianHttpResponse } from '@thymian/core';
 import { parse } from 'secure-json-parse';
 
-import type { HttpTestCaseResult } from '../http-test-case.js';
 import { ajv } from './ajv.js';
+import type { HttpTestCaseResult } from '../http-test/index.js';
 
 export function validateJsonBody(
   body: string,
@@ -16,6 +16,8 @@ export function validateJsonBody(
         {
           type: 'info',
           message: 'No response schema is provided.',
+          details: '',
+          timestamp: Date.now(),
         },
       ];
     }
@@ -27,8 +29,9 @@ export function validateJsonBody(
     if (validate.errors) {
       return [
         {
-          type: 'assertion-failure' as HttpTestCaseResult['type'],
+          type: 'assertion-failure',
           message: 'Invalid response body.',
+          timestamp: Date.now(),
         },
       ];
     }
@@ -37,6 +40,7 @@ export function validateJsonBody(
       {
         type: 'assertion-success',
         message: 'Valid response body.',
+        timestamp: Date.now(),
       },
     ];
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
@@ -45,6 +49,7 @@ export function validateJsonBody(
       {
         type: 'assertion-failure',
         message: 'Response body is not valid JSON.',
+        timestamp: Date.now(),
       },
     ];
   }
@@ -62,6 +67,8 @@ export function validateBodyForResponse(
     {
       type: 'info',
       message: 'Non JSON response body cannot be validated.',
+      timestamp: Date.now(),
+      details: '',
     },
   ];
 }

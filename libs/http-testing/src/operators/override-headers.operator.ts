@@ -1,28 +1,31 @@
 import { map, type MonoTypeOperatorFunction } from 'rxjs';
 
-import type { HttpTestInstance } from '../http-test.js';
-import type { HttpTestCase, HttpTestCaseStep } from '../http-test-case.js';
+import type {
+  HttpTestCase,
+  HttpTestCaseStep,
+} from '../http-test/http-test-case.js';
+import type { PipelineItem } from '../http-test/http-test-pipeline.js';
 
 export function overrideHeaders<Steps extends HttpTestCaseStep[]>(
   fn: (
     headers: Record<string, unknown>,
     testCase: HttpTestCase<Steps>
   ) => Record<string, unknown>
-): MonoTypeOperatorFunction<HttpTestInstance<HttpTestCase<Steps>>> {
-  return map(({ curr, ctx }) => {
-    const current = curr.steps.at(-1);
+): MonoTypeOperatorFunction<PipelineItem<HttpTestCase<Steps>>> {
+  return map(({ current, ctx }) => {
+    const currentStep = current.steps.at(-1);
 
-    if (typeof current === 'undefined') {
+    if (typeof currentStep === 'undefined') {
       throw new Error('Current http test case step must be defined.');
     }
 
-    for (const transaction of current.transactions) {
+    for (const transaction of currentStep.transactions) {
       transaction.requestTemplate.headers = fn(
         transaction.requestTemplate.headers,
-        curr
+        current
       );
     }
 
-    return { curr, ctx };
+    return { current, ctx };
   });
 }

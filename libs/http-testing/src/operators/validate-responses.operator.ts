@@ -1,42 +1,33 @@
 import type { ThymianHttpResponse } from '@thymian/core';
 import { mergeMap, type MonoTypeOperatorFunction } from 'rxjs';
 
-import type { HttpTestInstance } from '../http-test.js';
 import {
   type HttpTestCase,
   type HttpTestCaseStep,
   isFailedTestCase,
   isSkippedTestCase,
-} from '../http-test-case.js';
-import { validateBodyForResponse } from '../validate/validate-body.js';
-import { validateHeaders } from '../validate/validate-headers.js';
+  type PipelineItem,
+} from '../http-test/index.js';
+import {
+  validateBodyForResponse,
+  validateHeaders,
+  validateResponse,
+  validateStatusCode,
+} from '../validate/index.js';
 import { hasThymianResId } from './utils.js';
 
-export type ValidateResponsesOptions = {
-  body: boolean;
-  headers: boolean;
-  statusCode: boolean;
-};
-
-export function validateResponses<Steps extends HttpTestCaseStep[]>(
-  opts: Partial<ValidateResponsesOptions> = {}
-): MonoTypeOperatorFunction<HttpTestInstance<HttpTestCase<Steps>>> {
-  return mergeMap(async ({ curr, ctx }) => {
-    if (isSkippedTestCase(curr) || isFailedTestCase(curr)) {
-      return { curr, ctx };
+export function validateResponses<
+  Steps extends HttpTestCaseStep[]
+>(): MonoTypeOperatorFunction<PipelineItem<HttpTestCase<Steps>>> {
+  return mergeMap(async ({ current, ctx }) => {
+    if (isSkippedTestCase(current) || isFailedTestCase(current)) {
+      return { current, ctx };
     }
 
-    const options = {
-      body: true,
-      headers: true,
-      statusCode: true,
-      ...opts,
-    };
-
-    const step = curr.steps.at(-1);
+    const step = current.steps.at(-1);
 
     if (!step) {
-      return { curr, ctx };
+      return { current, ctx };
     }
 
     for (const transaction of step.transactions) {
@@ -52,34 +43,18 @@ export function validateResponses<Steps extends HttpTestCaseStep[]>(
         continue;
       }
 
-      const { body, headers, statusCode } = transaction.response;
+      const result = validateResponse(
+        transaction.source.thymianRes,
+        transaction.response
+      );
 
-      let correctStatusCode = true;
+      current.results.push(...result.results);
 
-      if (options.statusCode) {
-        if (statusCode !== response.statusCode) {
-          correctStatusCode = false;
-          curr.results.push({
-            type: 'assertion-failure',
-            message: `Expected status code ${response.statusCode}, but received ${statusCode}.`,
-          });
-        } else {
-          curr.results.push({
-            type: 'assertion-success',
-            message: `Expected and received status code ${statusCode}.`,
-          });
-        }
-      }
-
-      if (options.body && correctStatusCode) {
-        curr.results.push(...validateBodyForResponse(body, response));
-      }
-
-      if (options.headers && correctStatusCode) {
-        curr.results.push(...validateHeaders(headers, response));
+      if (!result.valid) {
+        ctx.fail(current, 'Invalid response.');
       }
     }
 
-    return { curr, ctx };
+    return { current, ctx };
   });
 }

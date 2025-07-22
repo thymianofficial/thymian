@@ -1,7 +1,10 @@
 import { mergeMap, type Observable, of, type OperatorFunction } from 'rxjs';
 
-import type { HttpTestInstance } from '../http-test.js';
-import type { HttpTestCase, HttpTestCaseStep } from '../http-test-case.js';
+import type {
+  HttpTestCase,
+  HttpTestCaseStep,
+} from '../http-test/http-test-case.js';
+import type { PipelineItem } from '../http-test/http-test-pipeline.js';
 
 export function replayStep<
   Steps extends HttpTestCaseStep[],
@@ -9,17 +12,17 @@ export function replayStep<
 >(
   fn: (
     step: Observable<
-      HttpTestInstance<HttpTestCase<[...Steps, CurrentStep, CurrentStep]>>
+      PipelineItem<HttpTestCase<[...Steps, CurrentStep, CurrentStep]>>
     >
   ) => Observable<
-    HttpTestInstance<HttpTestCase<[...Steps, CurrentStep, CurrentStep]>>
+    PipelineItem<HttpTestCase<[...Steps, CurrentStep, CurrentStep]>>
   >
 ): OperatorFunction<
-  HttpTestInstance<HttpTestCase<[...Steps, CurrentStep]>>,
-  HttpTestInstance<HttpTestCase<[...Steps, CurrentStep, CurrentStep]>>
+  PipelineItem<HttpTestCase<[...Steps, CurrentStep]>>,
+  PipelineItem<HttpTestCase<[...Steps, CurrentStep, CurrentStep]>>
 > {
-  return mergeMap(({ ctx, curr }) => {
-    const prevStep = curr.steps.at(-1);
+  return mergeMap(({ ctx, current }) => {
+    const prevStep = current.steps.at(-1);
 
     if (typeof prevStep === 'undefined') {
       throw new Error('Previous step must be defined.');
@@ -34,14 +37,12 @@ export function replayStep<
       })),
     } as CurrentStep;
 
-    curr.steps.push(newStep);
+    current.steps.push(newStep);
 
     return fn(
       of({
         ctx,
-        curr: curr as unknown as HttpTestCase<
-          [...Steps, CurrentStep, CurrentStep]
-        >,
+        current: current as HttpTestCase<[...Steps, CurrentStep, CurrentStep]>,
       })
     );
   });

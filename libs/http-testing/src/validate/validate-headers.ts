@@ -1,6 +1,6 @@
 import type { ThymianHttpResponse } from '@thymian/core';
 
-import type { HttpTestCaseResult } from '../http-test-case.js';
+import type { HttpTestCaseResult } from '../http-test/index.js';
 import { ajv } from './ajv.js';
 
 export const commonHttpHeaders = [
@@ -92,11 +92,13 @@ export function validateExistingHeader(
           return {
             type: 'assertion-failure',
             message: `Invalid value for header ${name}.`,
+            timestamp: Date.now(),
           };
         } else {
           return {
             type: 'assertion-success',
             message: `Valid header ${name}.`,
+            timestamp: Date.now(),
           };
         }
       }
@@ -104,6 +106,7 @@ export function validateExistingHeader(
       return {
         type: 'info',
         message: `No schema provided for header ${name}.`,
+        timestamp: Date.now(),
       };
     });
 }

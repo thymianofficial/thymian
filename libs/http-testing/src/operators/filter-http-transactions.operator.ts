@@ -6,7 +6,7 @@ import {
 } from '@thymian/core';
 import { filter, type MonoTypeOperatorFunction } from 'rxjs';
 
-import type { PipelineEnvelope } from '../http-test-pipeline.js';
+import type { PipelineItem } from '../http-test/index.js';
 import { type StringAndNumberProperties } from '../utils.js';
 
 export type RequestFilter =
@@ -29,7 +29,7 @@ export type ResponseFilter =
 export function filterHttpTransactions(
   reqFilter: RequestFilter = {},
   resFilter: ResponseFilter = {}
-): MonoTypeOperatorFunction<PipelineEnvelope<ThymianHttpTransaction>> {
+): MonoTypeOperatorFunction<PipelineItem<ThymianHttpTransaction>> {
   return filter(({ current: transaction, ctx }) => {
     const requestFilter =
       typeof reqFilter !== 'function'

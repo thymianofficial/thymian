@@ -1,3 +1,12 @@
+import {
+  httpStatusCodeToPhrase,
+  isValidHttpStatusCode,
+} from '@thymian/http-status-codes';
+import type {
+  ThymianHttpRequest,
+  ThymianHttpResponse,
+} from './format/index.js';
+
 export function timeoutPromise<T>(
   promise: Promise<T>,
   toWait = 5000,
@@ -79,3 +88,29 @@ export function getHeader(
 
 export type PartialExceptFor<T, K extends keyof T> = Partial<Omit<T, K>> &
   Pick<T, K>;
+
+export function thymianRequestToString(req: ThymianHttpRequest): string {
+  const title = `${req.method.toUpperCase()} ${req.path}`;
+
+  return req.mediaType ? title + ` - ${req.mediaType}` : title;
+}
+
+export function thymianResponseToString(res: ThymianHttpResponse): string {
+  const statusCode = res.statusCode;
+  const phrase = isValidHttpStatusCode(statusCode)
+    ? httpStatusCodeToPhrase[statusCode]
+    : '';
+
+  const title = `${statusCode} ${phrase.toUpperCase()}`;
+
+  return res.mediaType ? title + ` - ${res.mediaType}` : title;
+}
+
+export function thymianHttpTransactionToString(
+  req: ThymianHttpRequest,
+  res: ThymianHttpResponse
+): string {
+  return `${thymianRequestToString(req)} \u2192 ${thymianResponseToString(
+    res
+  )}`;
+}

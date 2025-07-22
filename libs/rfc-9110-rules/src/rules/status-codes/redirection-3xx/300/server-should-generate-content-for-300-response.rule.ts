@@ -1,4 +1,4 @@
-import { httpRule } from '@thymian/http-linter';
+import { equalsIgnoreCase, httpRule } from '@thymian/http-linter';
 
 export default httpRule(
   'rfc9110/server-should-generate-content-for-300-response'
@@ -13,7 +13,7 @@ export default httpRule(
   .rule((ctx) =>
     ctx.validateCommonHttpTransactions(
       (req, res) =>
-        ctx.equalsIgnoreCase(req.method, 'head') && res.statusCode === 300,
+        equalsIgnoreCase(req.method, 'head') && res.statusCode === 300,
       (_, res) => !res.body
     )
   )

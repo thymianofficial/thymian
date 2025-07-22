@@ -6,10 +6,7 @@ import type {
   HttpTestContext,
   HttpTestContextLocals,
 } from './http-test-context.js';
-import type {
-  HttpTestPipeline,
-  PipelineEnvelope,
-} from './http-test-pipeline.js';
+import type { HttpTestPipeline, PipelineItem } from './http-test-pipeline.js';
 
 export type HttpTestResult = {
   name: string;
@@ -30,7 +27,7 @@ export function httpTest<
 
     const transactions = ctx.format.getThymianHttpTransactions();
     const envelopes = transactions.map<
-      PipelineEnvelope<ThymianHttpTransaction, Locals>
+      PipelineItem<ThymianHttpTransaction, Locals>
     >((transaction) => ({
       current: transaction,
       ctx,

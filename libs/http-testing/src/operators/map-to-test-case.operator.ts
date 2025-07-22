@@ -1,135 +1,189 @@
-import { isRecord } from '@thymian/core';
 import {
-  type GroupedObservable,
-  mergeMap,
-  Observable,
-  of,
-  type OperatorFunction,
-  reduce,
-} from 'rxjs';
+  type ThymianHttpTransaction,
+  thymianHttpTransactionToString,
+} from '@thymian/core';
+import { map, type OperatorFunction } from 'rxjs';
 
-import type { HttpTestInstance } from '../http-test.js';
 import type {
-  CustomHttpTestCaseStep,
-  GroupedHttpTestCaseStep,
   HttpTestCase,
   SingleHttpTestCaseStep,
-  ThymianHttpTransaction,
-} from '../http-test-case.js';
-import type { HttpTestContext } from '../http-test-context.js';
+} from '../http-test/http-test-case.js';
+import type { HttpTestContextLocals } from '../http-test/http-test-context.js';
+import type { PipelineItem } from '../http-test/http-test-pipeline.js';
 
-export function isGroupedObservable<K, T>(
-  value: unknown
-): value is GroupedObservable<K, T> {
-  return value instanceof Observable && 'key' in value;
-}
-
-export function isThymianHttpTestTransaction(
-  value: unknown
-): value is ThymianHttpTransaction {
-  return (
-    isRecord(value) &&
-    'thymianReqId' in value &&
-    typeof value.thymianReqId === 'string' &&
-    'thymianReq' in value &&
-    typeof value.thymianReq === 'object' &&
-    'thymianResId' in value &&
-    typeof value.thymianResId === 'string' &&
-    'thymianRes' in value &&
-    typeof value.thymianRes === 'object'
-  );
-}
-
-export function toTestCases<
-  T,
-  Input extends
-    | HttpTestInstance<ThymianHttpTransaction>
-    | GroupedObservable<string, HttpTestInstance<ThymianHttpTransaction>>
-    | HttpTestInstance<T>
+export function mapToTestCase<
+  Locals extends HttpTestContextLocals
 >(): OperatorFunction<
-  Input,
-  HttpTestInstance<
-    HttpTestCase<
-      Input extends HttpTestInstance<ThymianHttpTransaction>
-        ? [SingleHttpTestCaseStep]
-        : Input extends GroupedObservable<
-            string,
-            HttpTestInstance<ThymianHttpTransaction>
-          >
-        ? [GroupedHttpTestCaseStep]
-        : [CustomHttpTestCaseStep<T>]
-    >
-  >
+  PipelineItem<ThymianHttpTransaction, Locals>,
+  PipelineItem<HttpTestCase<[SingleHttpTestCaseStep]>, Locals>
 > {
-  // TODO
-  // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-  // @ts-expect-error
-  return mergeMap((input) => {
-    if (
-      isGroupedObservable<string, HttpTestInstance<ThymianHttpTransaction>>(
-        input
-      )
-    ) {
-      return input.pipe(
-        reduce(
-          (acc, value) => {
-            acc.curr.steps[0]?.source.transactions.push(value.curr);
-            acc.ctx = value.ctx;
-
-            return acc;
-          },
-          {
-            ctx: {} as HttpTestContext,
-            curr: {
-              status: 'running',
-              duration: performance.now(),
-              results: [],
-              steps: [
-                {
-                  type: 'grouped',
-                  transactions: [],
-                  source: {
-                    key: input.key,
-                    transactions: [] as ThymianHttpTransaction[],
-                  },
-                } satisfies GroupedHttpTestCaseStep,
-              ],
-            },
-          } satisfies HttpTestInstance<HttpTestCase<[GroupedHttpTestCaseStep]>>
-        )
-      );
-    } else if ('curr' in input && isThymianHttpTestTransaction(input.curr)) {
-      return of({
-        ctx: input.ctx,
-        curr: {
-          status: 'running',
-          duration: performance.now(),
-          results: [],
-          steps: [
-            {
-              type: 'single',
-              source: input.curr,
-              transactions: [],
-            },
-          ],
+  return map(({ current, ctx }) => ({
+    ctx,
+    current: {
+      name: thymianHttpTransactionToString(
+        current.thymianReq,
+        current.thymianRes
+      ),
+      status: 'running',
+      start: performance.now(),
+      results: [],
+      steps: [
+        {
+          type: 'single',
+          source: current,
+          transactions: [],
         },
-      } satisfies HttpTestInstance<HttpTestCase<[SingleHttpTestCaseStep]>>);
-    } else {
-      return of({
-        ctx: input.ctx,
-        curr: {
-          status: 'running',
-          duration: performance.now(),
-          results: [],
-          steps: [
-            {
-              type: 'custom',
-              source: input.curr as T,
-              transactions: [],
-            },
-          ],
-        },
-      } satisfies HttpTestInstance<HttpTestCase<[CustomHttpTestCaseStep<T>]>>);
-    }
-  });
+      ],
+    },
+  }));
 }
+
+// import { isRecord, type ThymianHttpTransaction } from '@thymian/core';
+// import {
+//   type GroupedObservable,
+//   map,
+//   mergeMap,
+//   Observable,
+//   of,
+//   type OperatorFunction,
+//   reduce,
+//   tap,
+//   toArray,
+// } from 'rxjs';
+//
+// import type {
+//   CustomHttpTestCaseStep,
+//   GroupedHttpTestCaseStep,
+//   HttpTestCase,
+//   HttpTestCaseStepTransaction,
+//   SingleHttpTestCaseStep,
+// } from '../http-test/http-test-case.js';
+// import type {
+//   HttpTestContext,
+//   HttpTestContextLocals,
+// } from '../http-test/http-test-context.js';
+// import type { PipelineEnvelope } from '../http-test/http-test-pipeline.js';
+//
+// export function isGroupedObservable<K, T>(
+//   value: unknown
+// ): value is GroupedObservable<K, T> {
+//   return value instanceof Observable && 'key' in value;
+// }
+//
+// export function isThymianHttpTransaction(
+//   value: unknown
+// ): value is ThymianHttpTransaction {
+//   return (
+//     isRecord(value) &&
+//     'thymianReqId' in value &&
+//     typeof value.thymianReqId === 'string' &&
+//     'thymianReq' in value &&
+//     typeof value.thymianReq === 'object' &&
+//     'thymianResId' in value &&
+//     typeof value.thymianResId === 'string' &&
+//     'thymianRes' in value &&
+//     typeof value.thymianRes === 'object'
+//   );
+// }
+//
+// export function mapToTestCase<
+//   T,
+//   Locals extends HttpTestContextLocals,
+//   Input extends
+//     | PipelineEnvelope<ThymianHttpTransaction, Locals>
+//     | GroupedObservable<
+//         string,
+//         PipelineEnvelope<ThymianHttpTransaction, Locals>
+//       >
+//     | PipelineEnvelope<T, Locals>
+// >(): OperatorFunction<
+//   Input,
+//   PipelineEnvelope<
+//     HttpTestCase<
+//       [
+//         Input extends PipelineEnvelope<ThymianHttpTransaction, Locals>
+//           ? SingleHttpTestCaseStep
+//           : Input extends GroupedObservable<
+//               string,
+//               PipelineEnvelope<ThymianHttpTransaction, Locals>
+//             >
+//           ? GroupedHttpTestCaseStep
+//           : CustomHttpTestCaseStep<T>
+//       ]
+//     >,
+//     Locals
+//   >
+// > {
+//   return mergeMap((input) => {
+//     if (
+//       isGroupedObservable<
+//         string,
+//         PipelineEnvelope<ThymianHttpTransaction, Locals>
+//       >(input)
+//     ) {
+//       return input.pipe(
+//         toArray(),
+//         map((elements) => {
+//           if (elements.length === 0) {
+//             throw new Error('Empty group');
+//           }
+//
+//           const envelope: PipelineEnvelope<
+//             HttpTestCase<[GroupedHttpTestCaseStep]>
+//           > = {
+//             ctx: elements[0]!.ctx,
+//             current: {
+//               status: 'running' as const,
+//               start: performance.now(),
+//               results: [],
+//               steps: [
+//                 {
+//                   type: 'grouped',
+//                   transactions: [] as HttpTestCaseStepTransaction[],
+//                   source: {
+//                     key: input.key,
+//                     transactions: elements.map((el) => el.current),
+//                   },
+//                 },
+//               ],
+//             },
+//           };
+//
+//           return envelope;
+//         })
+//       );
+//     } else if ('current' in input && isThymianHttpTransaction(input.current)) {
+//       return of({
+//         ctx: input.ctx,
+//         current: {
+//           status: 'running',
+//           start: performance.now(),
+//           results: [],
+//           steps: [
+//             {
+//               type: 'single',
+//               source: input.current,
+//               transactions: [],
+//             },
+//           ],
+//         },
+//       });
+//     } else {
+//       return of({
+//         ctx: input.ctx,
+//         current: {
+//           status: 'running',
+//           start: performance.now(),
+//           results: [],
+//           steps: [
+//             {
+//               type: 'custom',
+//               source: input.current as T,
+//               transactions: [],
+//             },
+//           ],
+//         },
+//       });
+//     }
+//   });
+// }

@@ -1,4 +1,4 @@
-import { httpRule } from '@thymian/http-linter';
+import { equalsIgnoreCase, httpRule } from '@thymian/http-linter';
 
 export const requiredHeaders = [
   'date',
@@ -35,8 +35,8 @@ export default httpRule(
         if (okResponse && partialResponse && partialRequest) {
           const missingHeaders = requiredHeaders.filter(
             (headerName) =>
-              ctx.equalsIgnoreCase(headerName, ...okResponse.headers) !==
-              ctx.equalsIgnoreCase(headerName, ...partialResponse.headers)
+              equalsIgnoreCase(headerName, ...okResponse.headers) !==
+              equalsIgnoreCase(headerName, ...partialResponse.headers)
           );
 
           if (missingHeaders.length > 0) {

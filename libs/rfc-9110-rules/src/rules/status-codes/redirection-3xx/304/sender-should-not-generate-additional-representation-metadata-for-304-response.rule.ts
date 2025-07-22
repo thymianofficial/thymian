@@ -4,8 +4,10 @@ import {
   type RuleViolation,
 } from '@thymian/http-linter';
 import {
-  defineStep,
   expect,
+  filter,
+  generateRequests,
+  mapToTestCase,
   overrideHeaders,
   replayStep,
   runRequests,
@@ -59,12 +61,16 @@ export default httpRule(
     )
   )
   .overrideTest((testContext) =>
-    testContext.test((test) =>
-      test.pipe(
-        defineStep({
-          reqFilter: (req) => equalsIgnoreCase(req.method, 'get', 'head'),
-          resFilter: (res) => res.statusCode === 200,
-        }),
+    testContext.test((transactions) =>
+      transactions.pipe(
+        filter(
+          ({ current }) =>
+            equalsIgnoreCase(current.thymianReq.method, 'get', 'head') &&
+            current.thymianRes.statusCode === 200
+        ),
+        mapToTestCase(),
+        generateRequests(),
+        runRequests(),
         replayStep((step) =>
           step.pipe(
             overrideHeaders((headers, testCase) => {
@@ -82,12 +88,12 @@ export default httpRule(
 
               return headers;
             }),
-            runRequests({ checkStatusCode: false })
+            runRequests({ checkResponse: false })
           )
         ),
-        expect(({ curr }) => {
-          const okTransaction = curr.steps[0].transactions[0];
-          const notModifiedTransaction = curr.steps[1].transactions[0];
+        expect(({ current }) => {
+          const okTransaction = current.steps[0].transactions[0];
+          const notModifiedTransaction = current.steps[1].transactions[0];
 
           if (
             okTransaction &&
@@ -115,7 +121,7 @@ export default httpRule(
               );
 
               if (violation) {
-                testContext.report(violation);
+                testContext.reportViolation(violation);
               }
             }
           }

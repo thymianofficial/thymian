@@ -5,12 +5,11 @@ import {
   ThymianFormat,
   type ThymianHttpRequest,
   type ThymianHttpResponse,
+  thymianHttpTransactionToString,
   type ThymianReport,
+  thymianRequestToString,
+  thymianResponseToString,
 } from '@thymian/core';
-import {
-  httpStatusCodeToPhrase,
-  isValidHttpStatusCode,
-} from '@thymian/http-status-codes';
 import type { HttpTestContext } from '@thymian/http-testing';
 import chalk from 'chalk';
 
@@ -29,30 +28,6 @@ export function severityToColor(severity: RuleSeverity): string {
   } else {
     return chalk.red(severity);
   }
-}
-
-export function requestToTitle(req: ThymianHttpRequest): string {
-  const title = `${req.method.toUpperCase()} ${req.path}`;
-
-  return req.mediaType ? title + ` - ${req.mediaType}` : title;
-}
-
-export function responseToTitle(res: ThymianHttpResponse): string {
-  const statusCode = res.statusCode;
-  const phrase = isValidHttpStatusCode(statusCode)
-    ? httpStatusCodeToPhrase[statusCode]
-    : '';
-
-  const title = `${statusCode} ${phrase.toUpperCase()}`;
-
-  return res.mediaType ? title + ` - ${res.mediaType}` : title;
-}
-
-export function transactionToTitle(
-  req: ThymianHttpRequest,
-  res: ThymianHttpResponse
-): string {
-  return `${requestToTitle(req)} \u2192 ${responseToTitle(res)}`;
 }
 
 export class Linter {
@@ -89,7 +64,7 @@ export class Linter {
     }
 
     const result = await rule.staticRule(
-      new StaticApiContext(this.format),
+      new StaticApiContext(this.format, this.report),
       {
         ...(this.ruleOptions[rule.meta.name] ?? {}),
         mode: 'static',
@@ -112,7 +87,7 @@ export class Linter {
     }
 
     const result = await rule.testRule(
-      new HttpTestApiContext(rule.meta.name, this.context),
+      new HttpTestApiContext(rule.meta.name, this.context, this.report),
       { ...(this.ruleOptions[rule.meta.name] ?? {}), mode: 'test' },
       this.logger.child(rule.meta.name)
     );
@@ -151,9 +126,9 @@ export class Linter {
         }
 
         if (isNodeType(node, 'http-request')) {
-          title = requestToTitle(node);
+          title = thymianRequestToString(node);
         } else if (isNodeType(node, 'http-response')) {
-          title = responseToTitle(node);
+          title = thymianResponseToString(node);
         }
       } else {
         const [source, target] = this.format.graph.extremities(
@@ -169,7 +144,7 @@ export class Linter {
           );
         }
 
-        title = transactionToTitle(req, res);
+        title = thymianHttpTransactionToString(req, res);
       }
 
       this.report({

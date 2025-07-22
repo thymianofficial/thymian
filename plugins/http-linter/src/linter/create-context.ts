@@ -10,17 +10,20 @@ import {
   createHttpTestContext,
   type HttpTestCase,
   type HttpTestCaseStep,
+  type HttpTestContextLocals,
 } from '@thymian/http-testing';
 
-export function createContext(
+export function createContext<Locals extends HttpTestContextLocals>(
   format: ThymianFormat,
   logger: Logger,
   emitter: ThymianEmitter,
-  origin?: string
+  origin?: string,
+  locals: Locals = {} as Locals
 ) {
   return createHttpTestContext({
     format,
     logger,
+    locals,
     auth: {
       basic: async () => ['matthyk', 'qupaya'],
     },

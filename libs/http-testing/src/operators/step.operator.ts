@@ -4,42 +4,38 @@ import {
   type OperatorFunction,
 } from 'rxjs';
 
-import type { HttpTestInstance } from '../http-test.js';
 import type {
   CustomHttpTestCaseStep,
   HttpTestCase,
   HttpTestCaseStep,
-} from '../http-test-case.js';
+} from '../http-test/http-test-case.js';
+import type { PipelineItem } from '../http-test/http-test-pipeline.js';
 
 export function step<
   Steps extends HttpTestCaseStep[],
   CurrentStep extends HttpTestCaseStep
 >(
   fn: MonoTypeOperatorFunction<
-    HttpTestInstance<
-      HttpTestCase<[...Steps, CurrentStep, CustomHttpTestCaseStep]>
-    >
+    PipelineItem<HttpTestCase<[...Steps, CurrentStep, CustomHttpTestCaseStep]>>
   >
 ): OperatorFunction<
-  HttpTestInstance<HttpTestCase<[...Steps, CurrentStep]>>,
-  HttpTestInstance<
-    HttpTestCase<[...Steps, CurrentStep, CustomHttpTestCaseStep]>
-  >
+  PipelineItem<HttpTestCase<[...Steps, CurrentStep]>>,
+  PipelineItem<HttpTestCase<[...Steps, CurrentStep, CustomHttpTestCaseStep]>>
 > {
   return (observable) =>
     observable.pipe(
-      map(({ curr, ctx }) => {
-        curr.steps.push({
+      map(({ current, ctx }) => {
+        current.steps.push({
           transactions: [],
           source: {},
           type: 'custom',
         });
 
-        const newCurr = curr as unknown as HttpTestCase<
+        const newCurr = current as unknown as HttpTestCase<
           [...Steps, CurrentStep, CustomHttpTestCaseStep]
         >;
 
-        return { curr: newCurr, ctx };
+        return { current: newCurr, ctx };
       }),
       fn
     );

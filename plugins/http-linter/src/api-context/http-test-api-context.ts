@@ -1,8 +1,11 @@
-import type { HttpRequest, HttpResponse } from '@thymian/core';
+import type {
+  HttpRequest,
+  HttpResponse,
+  ReportFn,
+  ThymianHttpTransaction,
+} from '@thymian/core';
 import {
-  type DefineStepOptions,
   filter,
-  forHttpTransactions,
   generateRequests,
   groupBy,
   type GroupedHttpTestCaseStep,
@@ -10,11 +13,12 @@ import {
   type HttpTestCase,
   type HttpTestCaseStepTransaction,
   type HttpTestContext,
-  type HttpTestFn,
-  isSingleHttpTestCaseStep,
+  type HttpTestContextLocals,
+  type HttpTestPipeline,
+  type HttpTestResult,
+  mapToGroupedTestCase,
+  mapToTestCase,
   runRequests,
-  type ThymianHttpTransaction,
-  toTestCases,
 } from '@thymian/http-testing';
 import type { RuleFnResult } from 'src/rule/rule-fn.js';
 
@@ -33,6 +37,7 @@ import {
   thymianToCommonHttpRequest,
   thymianToCommonHttpResponse,
 } from './utils.js';
+import assert from 'node:assert';
 
 function extractMediaType(req: HttpRequest): string {
   if (!req.headers) {
@@ -88,17 +93,20 @@ function hasSource(
   return 'source' in transaction;
 }
 
-export class HttpTestApiContext extends LiveApiContext {
+export class HttpTestApiContext<
+  Locals extends HttpTestContextLocals = HttpTestContextLocals
+> extends LiveApiContext {
   private readonly violations: RuleViolation[] = [];
 
   constructor(
     private readonly name: string,
-    private readonly ctx: HttpTestContext
+    private readonly ctx: HttpTestContext<Locals>,
+    report: ReportFn
   ) {
-    super(ctx.format);
+    super(ctx.format, report);
   }
 
-  report(violation: RuleViolation): void {
+  reportViolation(violation: RuleViolation): void {
     this.violations.push(violation);
   }
 
@@ -112,27 +120,40 @@ export class HttpTestApiContext extends LiveApiContext {
   ): Promise<RuleFnResult> {
     const test = httpTest(this.name, (test) =>
       test.pipe(
-        forHttpTransactions(),
-        filter(({ curr }) =>
+        filter(({ current }) =>
           filterFn(
-            thymianToCommonHttpRequest(curr.thymianReqId, curr.thymianReq),
-            thymianToCommonHttpResponse(curr.thymianResId, curr.thymianRes),
-            curr.transactionId
+            thymianToCommonHttpRequest(
+              current.thymianReqId,
+              current.thymianReq
+            ),
+            thymianToCommonHttpResponse(
+              current.thymianResId,
+              current.thymianRes
+            ),
+            current.transactionId
           )
         ),
-        groupBy(({ curr }) =>
+        groupBy(({ current }) =>
           groupByFn(
-            thymianToCommonHttpRequest(curr.thymianReqId, curr.thymianReq),
-            thymianToCommonHttpResponse(curr.thymianResId, curr.thymianRes)
+            thymianToCommonHttpRequest(
+              current.thymianReqId,
+              current.thymianReq
+            ),
+            thymianToCommonHttpResponse(
+              current.thymianResId,
+              current.thymianRes
+            )
           )
         ),
-        toTestCases(),
+        mapToGroupedTestCase(),
         generateRequests(),
         runRequests()
       )
     );
 
     const testResult = await test(this.ctx);
+
+    this.reportSkippedAndFailedTestCases(testResult);
 
     return testResult.cases
       .filter((testCase) => testCase.status === 'passed')
@@ -175,17 +196,22 @@ export class HttpTestApiContext extends LiveApiContext {
       [CommonHttpRequest, CommonHttpResponse, string]
     > = filterFn
   ): Promise<RuleFnResult> {
-    const test = httpTest(this.name, (test) =>
-      test.pipe(
-        forHttpTransactions(),
-        filter(({ curr }) =>
+    const test = httpTest(this.name, (transactions) =>
+      transactions.pipe(
+        filter(({ current }) =>
           filterFn(
-            thymianToCommonHttpRequest(curr.thymianReqId, curr.thymianReq),
-            thymianToCommonHttpResponse(curr.thymianResId, curr.thymianRes),
-            curr.transactionId
+            thymianToCommonHttpRequest(
+              current.thymianReqId,
+              current.thymianReq
+            ),
+            thymianToCommonHttpResponse(
+              current.thymianResId,
+              current.thymianRes
+            ),
+            current.transactionId
           )
         ),
-        toTestCases(),
+        mapToTestCase(),
         generateRequests(),
         runRequests()
       )
@@ -193,11 +219,7 @@ export class HttpTestApiContext extends LiveApiContext {
 
     const testResult = await test(this.ctx);
 
-    testResult.cases.forEach((testCase) => {
-      if (testCase.status === 'skipped' || testCase.status === 'failed') {
-        this.ctx.logger.warn(testCase.reason ?? 'Test was skipped.');
-      }
-    });
+    this.reportSkippedAndFailedTestCases(testResult);
 
     return testResult.cases
       .filter((testCase) => testCase.status === 'passed')
@@ -246,42 +268,55 @@ export class HttpTestApiContext extends LiveApiContext {
       .concat(this.violations);
   }
 
-  async test(
-    testFnOrOptions: Partial<DefineStepOptions> | HttpTestFn
-  ): Promise<RuleFnResult> {
-    const testFn = httpTest(this.name, testFnOrOptions);
+  private reportSkippedAndFailedTestCases(testResult: HttpTestResult) {
+    testResult.cases.forEach((testCase) => {
+      if (testCase.status === 'skipped' || testCase.status === 'failed') {
+        this.ctx.logger.debug(
+          `HTTP test case "${testCase.name}" from test "${this.name}" ${
+            testCase.status === 'failed' ? 'failed' : 'is skipped'
+          }. Reporting.`
+        );
+
+        this.report({
+          isProblem: true,
+          text: testCase.results
+            .filter(
+              (tc) => tc.type !== 'info' && tc.type !== 'assertion-success'
+            )
+            .map((tc) => tc.message)
+            .join('\n'),
+          title: testCase.name,
+          subTopic: this.name,
+          topic: 'Following test (cases) could not be run successfully:',
+        });
+      }
+    });
+  }
+
+  async test(pipeline: HttpTestPipeline<Locals>): Promise<RuleFnResult> {
+    const testFn = httpTest(this.name, pipeline);
 
     const testResult = await testFn(this.ctx);
 
-    const violations: RuleViolation[] = [];
+    this.reportSkippedAndFailedTestCases(testResult);
 
-    for (const testCase of testResult.cases) {
-      if (testCase.status !== 'failed') {
-        this.ctx.logger.error('Test case failed.');
-      }
+    return this.violations;
+  }
 
-      const lastStep = testCase.steps.at(-1);
-
-      if (!lastStep) {
-        continue;
-      }
-
-      if (isSingleHttpTestCaseStep(lastStep)) {
-        const violation: RuleViolation = {
+  assertTransaction(transactionId: string, fn: () => unknown): void {
+    try {
+      fn();
+    } catch (e) {
+      if (e instanceof assert.AssertionError) {
+        this.reportViolation({
           location: {
             elementType: 'edge',
-            elementId: lastStep.source.transactionId,
+            elementId: transactionId,
           },
-        };
-
-        if (testCase.reason) {
-          violation.message = testCase.reason;
-        }
-
-        violations.push(violation);
+        });
+      } else {
+        throw e;
       }
     }
-
-    return violations.concat(this.violations);
   }
 }

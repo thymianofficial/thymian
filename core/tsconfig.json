@@ -4,6 +4,9 @@
   "include": [],
   "references": [
     {
+      "path": "../libs/http-status-codes"
+    },
+    {
       "path": "./tsconfig.lib.json"
     }
   ]
