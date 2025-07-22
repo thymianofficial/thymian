@@ -1,3 +1,5 @@
+import assert from 'node:assert';
+
 import type {
   HttpRequest,
   HttpResponse,
@@ -37,7 +39,6 @@ import {
   thymianToCommonHttpRequest,
   thymianToCommonHttpResponse,
 } from './utils.js';
-import assert from 'node:assert';
 
 function extractMediaType(req: HttpRequest): string {
   if (!req.headers) {

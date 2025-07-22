@@ -12,7 +12,7 @@
       "import": "./dist/index.js",
       "default": "./dist/index.js"
     },
-    "./test-utils": "./dist/test-utils/index.js"
+    "./testing-utils": "./dist/testing-utils/index.js"
   },
   "files": [
     "dist",

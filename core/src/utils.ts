@@ -2,6 +2,7 @@ import {
   httpStatusCodeToPhrase,
   isValidHttpStatusCode,
 } from '@thymian/http-status-codes';
+
 import type {
   ThymianHttpRequest,
   ThymianHttpResponse,

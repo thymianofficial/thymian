@@ -1,8 +1,8 @@
 import type { JsonSchemaToTsProvider } from '@fastify/type-provider-json-schema-to-ts';
 import type { FastifyInstance } from 'fastify';
 
-import { ProjectSchema } from './project.model.js';
 import { TodoSchema } from '../todos/todo.model.js';
+import { ProjectSchema } from './project.model.js';
 
 export default async function projectsRoutes(_fastify: FastifyInstance) {
   const fastify = _fastify.withTypeProvider<JsonSchemaToTsProvider>();

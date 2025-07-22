@@ -1,7 +1,8 @@
 import type { FastifyInstance } from 'fastify';
 import fp from 'fastify-plugin';
-import type { Project } from './project.model.js';
+
 import { getRandomId } from '../../utils.js';
+import type { Project } from './project.model.js';
 
 export interface ProjectRepository {
   getAll(): Project[];

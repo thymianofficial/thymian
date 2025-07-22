@@ -1,8 +1,8 @@
 import type { ThymianHttpResponse } from '@thymian/core';
 import { parse } from 'secure-json-parse';
 
-import { ajv } from './ajv.js';
 import type { HttpTestCaseResult } from '../http-test/index.js';
+import { ajv } from './ajv.js';
 
 export function validateJsonBody(
   body: string,

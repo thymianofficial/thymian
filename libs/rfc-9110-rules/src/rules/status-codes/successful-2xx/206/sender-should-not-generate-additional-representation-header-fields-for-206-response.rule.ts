@@ -8,7 +8,6 @@ import {
 } from '@thymian/http-linter';
 import {
   expect,
-  filter,
   filterHttpTransactions,
   generateRequests,
   mapToTestCase,

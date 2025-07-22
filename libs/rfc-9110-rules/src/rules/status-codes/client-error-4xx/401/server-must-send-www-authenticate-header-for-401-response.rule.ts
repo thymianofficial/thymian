@@ -4,10 +4,10 @@ import { getHeader, type JSONSchemaType } from '@thymian/core';
 import { equalsIgnoreCase, httpRule } from '@thymian/http-linter';
 import {
   expectHeaders,
-  generateRequests,
-  runRequests,
-  mapToTestCase,
   filterHttpTransactions,
+  generateRequests,
+  mapToTestCase,
+  runRequests,
 } from '@thymian/http-testing';
 
 type Options = {

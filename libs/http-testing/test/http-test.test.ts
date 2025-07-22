@@ -17,7 +17,10 @@ import {
   runRequests,
   validateResponses,
 } from '../src/index.js';
-import { exampleContentGenerator, identityHookRunner } from './utils.js';
+import {
+  exampleContentGenerator,
+  identityHookRunner,
+} from '../src/testing-utils/index.js';
 
 describe('httpTest - todo app', () => {
   let exampleApp: FastifyInstance;

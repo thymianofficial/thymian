@@ -40,7 +40,8 @@ export type CommonHttpResponse = {
 export abstract class ApiContext {
   constructor(
     readonly format: ThymianFormat,
-    protected readonly report: ReportFn
+    // eslint-disable-next-line @typescript-eslint/no-empty-function
+    protected readonly report: ReportFn = () => {}
   ) {}
 
   abstract validateCommonHttpTransactions(

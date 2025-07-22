@@ -24,11 +24,11 @@ export default async function rangeRequests(app: FastifyInstance) {
 
     reply.header('cache-control', 'private');
 
-    if (!range) {
+    if (!range?.ranges[0]) {
       return reply.header('etag', etag(buffer)).status(200).send(buffer);
     }
 
-    const singleRange = range.ranges[0]!;
+    const singleRange = range.ranges[0];
 
     const { start, end } = singleRange;
     const finalEnd = Math.min(end, bufferSize - 1);
@@ -51,7 +51,7 @@ export default async function rangeRequests(app: FastifyInstance) {
   app.get('/invalid', async (req, reply) => {
     const range = req.range(bufferSize);
 
-    if (!range) {
+    if (!range?.ranges[0]) {
       return reply
         .status(200)
         .header('etag', etag(buffer))
@@ -59,7 +59,7 @@ export default async function rangeRequests(app: FastifyInstance) {
         .send(buffer);
     }
 
-    const singleRange = range.ranges[0]!;
+    const singleRange = range.ranges[0];
 
     const { start, end } = singleRange;
     const finalEnd = Math.min(end, bufferSize - 1);
@@ -77,11 +77,11 @@ export default async function rangeRequests(app: FastifyInstance) {
   app.get('/valid-if-range', (req, reply) => {
     const range = req.range(bufferSize);
 
-    if (!range) {
+    if (!range?.ranges[0]) {
       return reply.header('etag', etag(buffer)).status(200).send(buffer);
     }
 
-    const singleRange = range.ranges[0]!;
+    const singleRange = range.ranges[0];
 
     const { start, end } = singleRange;
     const finalEnd = Math.min(end, bufferSize - 1);
@@ -115,11 +115,11 @@ export default async function rangeRequests(app: FastifyInstance) {
   app.get('/invalid-if-range', (req, reply) => {
     const range = req.range(bufferSize);
 
-    if (!range) {
+    if (!range?.ranges[0]) {
       return reply.header('etag', etag(buffer)).status(200).send(buffer);
     }
 
-    const singleRange = range.ranges[0]!;
+    const singleRange = range.ranges[0];
 
     const { start, end } = singleRange;
     const finalEnd = Math.min(end, bufferSize - 1);

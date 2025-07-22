@@ -2,11 +2,14 @@ import { NoopLogger } from '@thymian/core';
 import { HttpTestApiContext, StaticApiContext } from '@thymian/http-linter';
 import { createHttpTestContext } from '@thymian/http-testing';
 import {
-  createRequestRunner,
   exampleContentGenerator,
   identityHookRunner,
-} from '@thymian/http-testing/test-utils';
-import { buildExampleApp, exampleAppFormat } from '@thymian/test-utils';
+} from '@thymian/http-testing/testing-utils';
+import {
+  buildExampleApp,
+  createFastifyRequestRunner,
+  exampleAppFormat,
+} from '@thymian/test-utils';
 import { describe, expect, it } from 'vitest';
 
 import rule from './sender-should-not-generate-additional-representation-header-fields-for-206-response.rule.js';
@@ -28,10 +31,11 @@ describe('sender-should-not-generate-additional-representation-header-fields-for
 
   describe('test rule', () => {
     const context = createHttpTestContext({
+      locals: {},
       format: exampleAppFormat,
       logger: new NoopLogger(),
       runHook: identityHookRunner,
-      runRequest: createRequestRunner(buildExampleApp()),
+      runRequest: createFastifyRequestRunner(buildExampleApp()),
       generateContent: exampleContentGenerator,
       auth: {
         basic: () => Promise.resolve(['matthyk', 'qupaya']),
@@ -46,7 +50,9 @@ describe('sender-should-not-generate-additional-representation-header-fields-for
       const result = await rule.testRule?.(
         new HttpTestApiContext(
           'sender-should-not-generate-additional-representation-header-fields-for-206-response',
-          context
+          context,
+          // eslint-disable-next-line @typescript-eslint/no-empty-function
+          () => {}
         ),
         { mode: 'test' },
         new NoopLogger()

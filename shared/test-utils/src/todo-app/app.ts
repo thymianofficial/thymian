@@ -2,13 +2,14 @@ import path, { dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import fastifyAutoload from '@fastify/autoload';
+import fastifySwagger from '@fastify/swagger';
 import Fastify, {
   type FastifyInstance,
   type FastifyServerOptions,
 } from 'fastify';
+
 import type { ProjectRepository } from './plugins/projects/projects.repository.js';
 import type { TodoRepository } from './plugins/todos/todo.repository.js';
-import fastifySwagger from '@fastify/swagger';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);

@@ -19,5 +19,6 @@ export * from './operators/index.js';
 export * from './request-generator/index.js';
 export * from './serialize-parameter.js';
 export * from './serialize-request.js';
+export * as testUtils from './testing-utils/index.js';
 export * from './validate/index.js';
 export * from 'rxjs';
