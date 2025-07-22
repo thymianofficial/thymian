@@ -113,7 +113,7 @@ export class Linter {
       let text = message ?? ruleMeta.summary ?? ruleMeta.description;
       text =
         `${severityToColor(ruleMeta.severity)}: ` +
-        (text ? `${text}   ${chalk.dim(ruleMeta.name)}` : ruleMeta.name);
+        (text ? `${text}\n   ${chalk.dim(ruleMeta.name)}` : ruleMeta.name);
       let title = '';
 
       if (location.elementType === 'node') {

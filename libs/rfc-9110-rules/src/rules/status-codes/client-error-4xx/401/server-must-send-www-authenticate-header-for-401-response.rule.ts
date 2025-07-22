@@ -56,7 +56,7 @@ export default httpRule(
         ),
         mapToTestCase(),
         generateRequests({ authenticate: false }),
-        runRequests({ expectStatusCode: 399, checkResponse: true }),
+        runRequests({ expectStatusCode: 401, checkResponse: true }),
         expectHeaders((headers, transaction) => {
           assert.ok(transaction.source);
 
