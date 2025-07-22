@@ -1,6 +1,4 @@
-import type { HttpTestContext } from '../http-test-context.js';
-
-export * from './create-request-runner.js';
+import type { HttpTestContext } from '../http-test/index.js';
 
 export const exampleContentGenerator: HttpTestContext['generateContent'] =
   async (schema) => {

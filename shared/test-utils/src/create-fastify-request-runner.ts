@@ -1,11 +1,9 @@
-import type { HttpRequest } from '@thymian/core';
+import type { HttpRequest, HttpResponse } from '@thymian/core';
 import type { FastifyInstance, InjectOptions } from 'fastify';
 
-import type { HttpTestContext } from '../http-test-context.js';
-
-export function createRequestRunner(
+export function createFastifyRequestRunner(
   fastify: FastifyInstance
-): HttpTestContext['runRequest'] {
+): (req: HttpRequest) => Promise<HttpResponse> {
   return async (req: HttpRequest) => {
     const response = await fastify.inject({
       url: req.origin + req.path,

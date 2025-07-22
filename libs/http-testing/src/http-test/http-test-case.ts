@@ -1,8 +1,7 @@
 import type {
   HttpRequest,
   HttpResponse,
-  ThymianHttpRequest,
-  ThymianHttpResponse,
+  ThymianHttpTransaction,
 } from '@thymian/core';
 
 import type { HttpRequestTemplate } from './http-request-template.js';
@@ -42,24 +41,21 @@ export type HttpTestCaseResult = {
   type: 'error' | 'assertion-failure' | 'assertion-success' | 'info';
 };
 
-export type ThymianHttpTransaction = {
-  thymianReq: ThymianHttpRequest;
-  thymianReqId: string;
-  thymianRes: ThymianHttpResponse;
-  thymianResId: string;
-  transactionId: string;
-};
-
-export interface GroupedHttpTestCaseStep
-  extends HttpTestCaseStep<{
-    key: string;
-    transactions: ThymianHttpTransaction[];
-  }> {
+export interface GroupedHttpTestCaseStep<
+  Transactions extends HttpTestCaseStepTransaction[] = HttpTestCaseStepTransaction[]
+> extends HttpTestCaseStep<
+    {
+      key: string;
+      transactions: ThymianHttpTransaction[];
+    },
+    Transactions
+  > {
   type: 'grouped';
 }
 
-export interface SingleHttpTestCaseStep
-  extends HttpTestCaseStep<ThymianHttpTransaction> {
+export interface SingleHttpTestCaseStep<
+  Transactions extends HttpTestCaseStepTransaction[] = HttpTestCaseStepTransaction[]
+> extends HttpTestCaseStep<ThymianHttpTransaction, Transactions> {
   type: 'single';
 }
 
@@ -68,25 +64,38 @@ export interface CustomHttpTestCaseStep<Source = unknown>
   type: 'custom';
 }
 
-export type HttpTestCaseStepTransaction = {
+export type HttpTestCaseStepTransaction<
+  Source extends ThymianHttpTransaction | undefined =
+    | ThymianHttpTransaction
+    | undefined,
+  Request extends HttpRequest | undefined = HttpRequest | undefined,
+  Response extends HttpResponse | undefined = HttpResponse | undefined
+> = {
   requestTemplate: HttpRequestTemplate;
-  request?: HttpRequest;
-  response?: HttpResponse;
-  source?: ThymianHttpTransaction;
+  request: Request;
+  response: Response;
+  source: Source;
 };
 
-export interface HttpTestCaseStep<Source = unknown> {
+export interface HttpTestCaseStep<
+  Source = unknown,
+  Transactions extends HttpTestCaseStepTransaction[] = HttpTestCaseStepTransaction[]
+> {
   type: 'single' | 'grouped' | 'custom';
   source: Source;
-  transactions: HttpTestCaseStepTransaction[];
+  transactions: Transactions;
 }
+
+export type HttpTestCaseStatus = 'running' | 'skipped' | 'failed' | 'passed';
 
 export type HttpTestCase<
   Steps extends HttpTestCaseStep[] = HttpTestCaseStep[]
 > = {
-  duration: number;
-  status: 'running' | 'skipped' | 'failed' | 'passed';
+  start: number;
+  end?: number;
+  status: HttpTestCaseStatus;
   reason?: string;
+  name?: string;
   readonly steps: Steps;
   readonly results: HttpTestCaseResult[];
 };
