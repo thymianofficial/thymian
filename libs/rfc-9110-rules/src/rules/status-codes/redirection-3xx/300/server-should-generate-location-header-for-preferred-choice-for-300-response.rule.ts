@@ -1,5 +1,5 @@
+import { not, responseHeader, statusCode } from '@thymian/http-filter';
 import { httpRule } from '@thymian/http-linter';
-import { responseHeader, not, statusCode } from '@thymian/http-filter';
 
 export default httpRule(
   'rfc9110/server-should-generate-location-header-for-preferred-choice-for-300-response'

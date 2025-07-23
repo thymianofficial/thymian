@@ -1,5 +1,5 @@
-import { httpRule } from '@thymian/http-linter';
 import { not, responseHeader, statusCode } from '@thymian/http-filter';
+import { httpRule } from '@thymian/http-linter';
 
 export default httpRule(
   'rfc9110/server-should-generate-location-header-field-for-301-response'

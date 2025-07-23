@@ -1,3 +1,5 @@
+import { equalsIgnoreCase } from '@thymian/core';
+import { and, method, or, statusCode } from '@thymian/http-filter';
 import { httpRule, type RuleViolation } from '@thymian/http-linter';
 import {
   expect,
@@ -10,8 +12,6 @@ import {
 } from '@thymian/http-testing';
 
 import { createList } from '../../../../utils.js';
-import { and, method, or, statusCode } from '@thymian/http-filter';
-import { equalsIgnoreCase } from '@thymian/core';
 
 export const requiredHeadersFor304 = [
   'Content-Location',

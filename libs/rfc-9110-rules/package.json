@@ -19,8 +19,8 @@
   ],
   "peerDependencies": {
     "@thymian/core": "^0",
+    "@thymian/http-filter": "^0",
     "@thymian/http-linter": "^0",
-    "@thymian/http-testing": "^0",
-    "@thymian/http-status-codes": "^0"
+    "@thymian/http-testing": "^0"
   }
 }

@@ -1,6 +1,7 @@
 import * as assert from 'node:assert/strict';
 
-import { getHeader, ThymianFormat, equalsIgnoreCase } from '@thymian/core';
+import { equalsIgnoreCase,getHeader, ThymianFormat } from '@thymian/core';
+import { and, or, requestHeader, statusCode } from '@thymian/http-filter';
 import { httpRule, type RuleViolation } from '@thymian/http-linter';
 import {
   expect,
@@ -16,7 +17,6 @@ import {
 
 import { createList } from '../../../../utils.js';
 import { requiredHeaders } from './server-must-generate-header-fields-for-206-response.rule.js';
-import { and, or, requestHeader, statusCode } from '@thymian/http-filter';
 
 export const representationHeaderFields = [
   // 'content-length', TODO: lets discuss these two header fields later

@@ -6,6 +6,7 @@ import type {
   ReportFn,
   ThymianHttpTransaction,
 } from '@thymian/core';
+import type { HttpFilterExpression } from '@thymian/http-filter';
 import {
   filter,
   generateRequests,
@@ -39,7 +40,6 @@ import {
   thymianToCommonHttpRequest,
   thymianToCommonHttpResponse,
 } from './utils.js';
-import type { HttpFilterExpression } from '@thymian/http-filter';
 
 function extractMediaType(req: HttpRequest): string {
   if (!req.headers) {

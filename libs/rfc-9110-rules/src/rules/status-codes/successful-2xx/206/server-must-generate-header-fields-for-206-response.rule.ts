@@ -1,6 +1,6 @@
 import { equalsIgnoreCase } from '@thymian/core';
-import { httpRule } from '@thymian/http-linter';
 import { or, statusCode } from '@thymian/http-filter';
+import { httpRule } from '@thymian/http-linter';
 
 export const requiredHeaders = [
   'date',

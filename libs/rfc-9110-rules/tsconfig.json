@@ -4,19 +4,16 @@
   "include": [],
   "references": [
     {
-      "path": "../http-filter"
-    },
-    {
       "path": "../../shared/test-utils"
-    },
-    {
-      "path": "../http-status-codes"
     },
     {
       "path": "../http-testing"
     },
     {
       "path": "../../plugins/http-linter"
+    },
+    {
+      "path": "../http-filter"
     },
     {
       "path": "../../core"

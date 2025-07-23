@@ -29,7 +29,8 @@
     "@thymian/format-validator": "^0",
     "@thymian/http-testing": "^0",
     "@thymian/request-dispatcher": "^0",
-    "@thymian/sampler": "^0"
+    "@thymian/sampler": "^0",
+    "@thymian/http-filter": "^0"
   },
   "oclif": {
     "commands": "./dist/cli/commands",
