@@ -1,7 +1,12 @@
 import assert from 'node:assert';
 
-import { getHeader, type JSONSchemaType } from '@thymian/core';
-import { equalsIgnoreCase, httpRule } from '@thymian/http-linter';
+import {
+  equalsIgnoreCase,
+  getHeader,
+  type JSONSchemaType,
+} from '@thymian/core';
+import { statusCode } from '@thymian/http-filter';
+import { httpRule } from '@thymian/http-linter';
 import {
   expectHeaders,
   filterHttpTransactions,
@@ -39,13 +44,13 @@ export default httpRule(
   .appliesTo('server')
   .rule((ctx) =>
     ctx.validateCommonHttpTransactions(
-      (_, res) => res.statusCode === 401,
+      statusCode(401),
       (_, res) => !equalsIgnoreCase('www-authenticate', ...res.headers)
     )
   )
   .overrideTest((testContext, options) =>
-    testContext.test((t) =>
-      t.pipe(
+    testContext.test((transactions) =>
+      transactions.pipe(
         filterHttpTransactions(
           (req, reqId) =>
             !equalsIgnoreCase(req.method, 'head') &&

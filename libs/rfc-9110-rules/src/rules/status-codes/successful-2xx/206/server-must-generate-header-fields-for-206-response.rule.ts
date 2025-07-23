@@ -1,4 +1,6 @@
-import { equalsIgnoreCase, httpRule } from '@thymian/http-linter';
+import { equalsIgnoreCase } from '@thymian/core';
+import { httpRule } from '@thymian/http-linter';
+import { or, statusCode } from '@thymian/http-filter';
 
 export const requiredHeaders = [
   'date',
@@ -23,7 +25,7 @@ export default httpRule(
   )
   .rule((ctx) =>
     ctx.validateGroupedCommonHttpTransactions(
-      (req, res) => res.statusCode === 200 || res.statusCode === 206,
+      or(statusCode(200), statusCode(206)),
       (req) => req.method + req.origin + req.path,
       (_, transactions) => {
         const okResponse = transactions.find(

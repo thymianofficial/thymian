@@ -1,3 +1,4 @@
+import { statusCode } from '@thymian/http-filter';
 import { httpRule } from '@thymian/http-linter';
 
 export default httpRule('rfc9110/status-code-305-is-deprecated')
@@ -8,6 +9,6 @@ export default httpRule('rfc9110/status-code-305-is-deprecated')
     'The 305 (Use Proxy) status code was defined in a previous version of this specification and is now deprecated.'
   )
   .rule((ctx) =>
-    ctx.validateCommonHttpTransactions((_, res) => res.statusCode === 305)
+    ctx.validateCommonHttpTransactions(statusCode(305), statusCode(305))
   )
   .done();

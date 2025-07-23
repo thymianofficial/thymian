@@ -31,14 +31,15 @@ import type {
 import {
   type CommonHttpRequest,
   type CommonHttpResponse,
-  type FilterFn,
   LiveApiContext,
   type ValidationFn,
 } from './api-context.js';
 import {
+  compileExpressionToFilterFn,
   thymianToCommonHttpRequest,
   thymianToCommonHttpResponse,
 } from './utils.js';
+import type { HttpFilterExpression } from '@thymian/http-filter';
 
 function extractMediaType(req: HttpRequest): string {
   if (!req.headers) {
@@ -112,13 +113,15 @@ export class HttpTestApiContext<
   }
 
   async validateGroupedCommonHttpTransactions(
-    filterFn: FilterFn<[CommonHttpRequest, CommonHttpResponse, string]>,
+    filterExpr: HttpFilterExpression,
     groupByFn: (req: CommonHttpRequest, res: CommonHttpResponse) => string,
     validationFn: ValidationFn<
       [string, [CommonHttpRequest, CommonHttpResponse][]],
       RuleViolation | undefined
     >
   ): Promise<RuleFnResult> {
+    const filterFn = compileExpressionToFilterFn(filterExpr, this.format);
+
     const test = httpTest(this.name, (test) =>
       test.pipe(
         filter(({ current }) =>
@@ -192,11 +195,17 @@ export class HttpTestApiContext<
   }
 
   async validateCommonHttpTransactions(
-    filterFn: FilterFn<[CommonHttpRequest, CommonHttpResponse, string]>,
-    validationFn: ValidationFn<
-      [CommonHttpRequest, CommonHttpResponse, string]
-    > = filterFn
+    filterExpr: HttpFilterExpression,
+    validate:
+      | ValidationFn<[CommonHttpRequest, CommonHttpResponse, string]>
+      | HttpFilterExpression
   ): Promise<RuleFnResult> {
+    const filterFn = compileExpressionToFilterFn(filterExpr, this.format);
+    const validationFn =
+      typeof validate === 'function'
+        ? validate
+        : compileExpressionToFilterFn(validate, this.format);
+
     const test = httpTest(this.name, (transactions) =>
       transactions.pipe(
         filter(({ current }) =>

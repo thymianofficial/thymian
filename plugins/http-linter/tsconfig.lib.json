@@ -16,6 +16,9 @@
   "include": ["src/**/*.ts"],
   "references": [
     {
+      "path": "../../libs/http-filter/tsconfig.lib.json"
+    },
+    {
       "path": "../sampler/tsconfig.lib.json"
     },
     {

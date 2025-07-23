@@ -1,4 +1,5 @@
 import { httpRule } from '@thymian/http-linter';
+import { responseHeader, not, statusCode } from '@thymian/http-filter';
 
 export default httpRule(
   'rfc9110/server-should-generate-location-header-for-preferred-choice-for-300-response'
@@ -12,9 +13,8 @@ export default httpRule(
   .appliesTo('server')
   .rule((ctx) =>
     ctx.validateCommonHttpTransactions(
-      (_, res) => res.statusCode === 300,
-      (_, res) =>
-        res.headers.some((header) => header.toLowerCase() === 'location')
+      statusCode(300),
+      not(responseHeader('location'))
     )
   )
   .done();

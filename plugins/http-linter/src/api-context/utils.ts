@@ -1,6 +1,16 @@
-import type { ThymianHttpRequest, ThymianHttpResponse } from '@thymian/core';
+import {
+  equalsIgnoreCase,
+  ThymianFormat,
+  type ThymianHttpRequest,
+  type ThymianHttpResponse,
+} from '@thymian/core';
+import { type HttpFilterExpression } from '@thymian/http-filter';
 
-import type { CommonHttpRequest, CommonHttpResponse } from './api-context.js';
+import type {
+  CommonHttpRequest,
+  CommonHttpResponse,
+  FilterFn,
+} from './api-context.js';
 
 export function thymianToCommonHttpRequest(
   id: string,
@@ -31,4 +41,60 @@ export function thymianToCommonHttpResponse(
     statusCode: node.statusCode,
     trailers: [],
   };
+}
+
+export function compileExpressionToFilterFn(
+  expression: HttpFilterExpression,
+  format: ThymianFormat
+): FilterFn<[CommonHttpRequest, CommonHttpResponse, string]> {
+  switch (expression.type) {
+    case 'hasResponseBody':
+      return (_, res) => res.body;
+    case 'statusCodeRange':
+      return (_, res) =>
+        Number.isInteger(res.statusCode) &&
+        res.statusCode >= expression.start &&
+        res.statusCode <= expression.end;
+    case 'hasQueryParam':
+      return (req) =>
+        equalsIgnoreCase(expression.param, ...req.queryParameters);
+    case 'hasResponses':
+      throw new Error(
+        'HTTP filter expression "hasResponse" is not supported in this mode.'
+      );
+    case 'isAuthorized':
+      return (req) => format.requestIsSecured(req.id);
+    case 'xor':
+      return (req, res, id) =>
+        expression.filters
+          .map((expr) =>
+            compileExpressionToFilterFn(expr, format)(req, res, id)
+          )
+          .reduce((acc, curr) => acc !== curr);
+    case 'method':
+      return (req) => equalsIgnoreCase(req.method, expression.method);
+    case 'hasRequestHeader':
+      return (req) => equalsIgnoreCase(expression.header, ...req.headers);
+    case 'path':
+      return (req) => req.path === expression.path;
+    case 'statusCode':
+      return (_, res) => res.statusCode === expression.code;
+    case 'responseHeader':
+      return (_, res) => equalsIgnoreCase(expression.header, ...res.headers);
+    case 'and':
+      return (req, res, id) =>
+        expression.filters.every((e) =>
+          compileExpressionToFilterFn(e, format)(req, res, id)
+        );
+    case 'or':
+      return (req, res, id) =>
+        expression.filters.some((e) =>
+          compileExpressionToFilterFn(e, format)(req, res, id)
+        );
+    case 'not':
+      return (req, res, id) =>
+        !compileExpressionToFilterFn(expression.filter, format)(req, res, id);
+    default:
+      throw new Error('Unknown filter expression');
+  }
 }

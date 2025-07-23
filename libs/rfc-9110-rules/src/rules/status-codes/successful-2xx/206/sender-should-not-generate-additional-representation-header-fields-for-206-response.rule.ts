@@ -1,11 +1,7 @@
 import * as assert from 'node:assert/strict';
 
-import { ThymianFormat } from '@thymian/core';
-import {
-  equalsIgnoreCase,
-  httpRule,
-  type RuleViolation,
-} from '@thymian/http-linter';
+import { getHeader, ThymianFormat, equalsIgnoreCase } from '@thymian/core';
+import { httpRule, type RuleViolation } from '@thymian/http-linter';
 import {
   expect,
   filterHttpTransactions,
@@ -20,6 +16,7 @@ import {
 
 import { createList } from '../../../../utils.js';
 import { requiredHeaders } from './server-must-generate-header-fields-for-206-response.rule.js';
+import { and, or, requestHeader, statusCode } from '@thymian/http-filter';
 
 export const representationHeaderFields = [
   // 'content-length', TODO: lets discuss these two header fields later
@@ -115,10 +112,13 @@ export default httpRule(
   )
   .rule((ctx) =>
     ctx.validateGroupedCommonHttpTransactions(
+      /*
       (req, res) =>
         (equalsIgnoreCase('if-range', ...req.headers) &&
           res.statusCode === 206) ||
         res.statusCode === 200,
+       */
+      or(statusCode(200), and(statusCode(206), requestHeader('if-range'))),
       (req) => req.method + req.origin + req.path,
       (_, transactions) => {
         const okResponse = transactions.find(
@@ -163,7 +163,10 @@ export default httpRule(
               const transaction = previous.transactions[0];
 
               if (transaction && transaction.response) {
-                const etagHeader = transaction.response.headers['etag'];
+                const etagHeader = getHeader(
+                  transaction.response.headers,
+                  'etag'
+                );
 
                 if (typeof etagHeader === 'string') {
                   return {

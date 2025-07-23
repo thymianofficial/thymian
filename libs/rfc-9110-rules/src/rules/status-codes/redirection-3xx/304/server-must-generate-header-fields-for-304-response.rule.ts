@@ -1,8 +1,4 @@
-import {
-  equalsIgnoreCase,
-  httpRule,
-  type RuleViolation,
-} from '@thymian/http-linter';
+import { httpRule, type RuleViolation } from '@thymian/http-linter';
 import {
   expect,
   filter,
@@ -14,6 +10,8 @@ import {
 } from '@thymian/http-testing';
 
 import { createList } from '../../../../utils.js';
+import { and, method, or, statusCode } from '@thymian/http-filter';
+import { equalsIgnoreCase } from '@thymian/core';
 
 export const requiredHeadersFor304 = [
   'Content-Location',
@@ -62,9 +60,10 @@ export default httpRule(
   .appliesTo('server')
   .rule((ctx) =>
     ctx.validateGroupedCommonHttpTransactions(
-      (req, res) =>
-        equalsIgnoreCase(req.method, 'head', 'get') &&
-        (res.statusCode === 200 || res.statusCode === 304),
+      and(
+        or(method('GET'), method('HEAD')),
+        or(statusCode(304), statusCode(200))
+      ),
       (req) => req.method + req.origin + req.path + req.mediaType,
       (_, transactions) => {
         const okResponse = transactions.find(

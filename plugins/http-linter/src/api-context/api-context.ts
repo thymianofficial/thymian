@@ -1,11 +1,6 @@
-import {
-  type PartialBy,
-  type ReportFn,
-  ThymianFormat,
-  type ThymianReport,
-} from '@thymian/core';
+import { type PartialBy, type ReportFn, ThymianFormat } from '@thymian/core';
+import type { HttpFilterExpression } from '@thymian/http-filter';
 
-import { equalsIgnoreCase } from '../linter/utils.js';
 import type { RuleFnResult } from '../rule/rule-fn.js';
 import type { RuleViolation } from '../rule/rule-violation.js';
 
@@ -45,12 +40,14 @@ export abstract class ApiContext {
   ) {}
 
   abstract validateCommonHttpTransactions(
-    filterFn: FilterFn<[CommonHttpRequest, CommonHttpResponse, string]>,
-    validationFn?: ValidationFn<[CommonHttpRequest, CommonHttpResponse, string]>
+    filterFn: HttpFilterExpression,
+    validationFn:
+      | ValidationFn<[CommonHttpRequest, CommonHttpResponse, string]>
+      | HttpFilterExpression
   ): Promise<RuleFnResult> | RuleFnResult;
 
   abstract validateGroupedCommonHttpTransactions(
-    filterFn: FilterFn<[CommonHttpRequest, CommonHttpResponse, string]>,
+    filterFn: HttpFilterExpression,
     groupByFn: (req: CommonHttpRequest, res: CommonHttpResponse) => string,
     validationFn: ValidationFn<
       [string, [CommonHttpRequest, CommonHttpResponse][]],

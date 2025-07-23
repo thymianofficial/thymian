@@ -1,5 +1,11 @@
-import { equalsIgnoreCase, httpRule } from '@thymian/http-linter';
-import { isValidClientErrorStatusCode } from '@thymian/http-status-codes';
+import {
+  and,
+  hasResponseBody,
+  method,
+  not,
+  statusCodeRange,
+} from '@thymian/http-filter';
+import { httpRule } from '@thymian/http-linter';
 
 export default httpRule(
   'rfc9110/server-should-send-error-representation-for-4xx-responses'
@@ -16,10 +22,8 @@ export default httpRule(
   .appliesTo('server')
   .rule((ctx) =>
     ctx.validateCommonHttpTransactions(
-      (req, res) =>
-        !equalsIgnoreCase(req.method, 'head') &&
-        isValidClientErrorStatusCode(res.statusCode),
-      (_, res) => res.body
+      and(not(method('HEAD')), statusCodeRange(400, 499)),
+      not(hasResponseBody())
     )
   )
   .done();

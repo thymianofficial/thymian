@@ -4,6 +4,9 @@
   "include": [],
   "references": [
     {
+      "path": "../../libs/http-filter"
+    },
+    {
       "path": "../sampler"
     },
     {

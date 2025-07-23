@@ -41,6 +41,9 @@
     },
     {
       "path": "./plugins/format-validator"
+    },
+    {
+      "path": "./libs/http-filter"
     }
   ]
 }

@@ -4,10 +4,10 @@
   "include": [],
   "references": [
     {
-      "path": "../../shared/test-utils"
+      "path": "../http-filter"
     },
     {
-      "path": "../../core"
+      "path": "../../shared/test-utils"
     },
     {
       "path": "../http-status-codes"
@@ -17,6 +17,9 @@
     },
     {
       "path": "../../plugins/http-linter"
+    },
+    {
+      "path": "../../core"
     },
     {
       "path": "./tsconfig.lib.json"

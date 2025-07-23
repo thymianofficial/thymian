@@ -4,6 +4,7 @@ import {
   type ThymianHttpRequest,
   type ThymianHttpResponse,
 } from '@thymian/core';
+import type { HttpFilterExpression } from '@thymian/http-filter';
 import type { RuleFnResult } from 'src/rule/rule-fn.js';
 
 import type {
@@ -14,21 +15,27 @@ import {
   ApiContext,
   type CommonHttpRequest,
   type CommonHttpResponse,
-  type FilterFn,
   type ValidationFn,
 } from './api-context.js';
 import {
+  compileExpressionToFilterFn,
   thymianToCommonHttpRequest,
   thymianToCommonHttpResponse,
 } from './utils.js';
 
 export class StaticApiContext extends ApiContext {
   validateCommonHttpTransactions(
-    filterFn: FilterFn<[CommonHttpRequest, CommonHttpResponse, string]>,
-    validationFn: ValidationFn<
-      [CommonHttpRequest, CommonHttpResponse, string]
-    > = filterFn
+    filter: HttpFilterExpression,
+    validate:
+      | ValidationFn<[CommonHttpRequest, CommonHttpResponse, string]>
+      | HttpFilterExpression
   ): RuleFnResult {
+    const filterFn = compileExpressionToFilterFn(filter, this.format);
+    const validationFn =
+      typeof validate === 'function'
+        ? validate
+        : compileExpressionToFilterFn(validate, this.format);
+
     return this.format
       .getHttpTransactions()
       .map<[CommonHttpRequest, CommonHttpResponse, string]>(
@@ -77,13 +84,15 @@ export class StaticApiContext extends ApiContext {
   }
 
   validateGroupedCommonHttpTransactions(
-    filterFn: FilterFn<[CommonHttpRequest, CommonHttpResponse, string]>,
+    filter: HttpFilterExpression,
     groupByFn: (req: CommonHttpRequest, res: CommonHttpResponse) => string,
     validationFn: ValidationFn<
       [string, [CommonHttpRequest, CommonHttpResponse][]],
       RuleViolation
     >
   ): RuleFnResult {
+    const filterFn = compileExpressionToFilterFn(filter, this.format);
+
     const groups = this.format
       .getHttpTransactions()
       .map<[CommonHttpRequest, CommonHttpResponse, string]>(

@@ -1,5 +1,8 @@
+import { equalsIgnoreCase } from '@thymian/core';
+import { and, method, or, statusCode } from '@thymian/http-filter';
 import {
-  equalsIgnoreCase,
+  type CommonHttpRequest,
+  type CommonHttpResponse,
   httpRule,
   type RuleViolation,
 } from '@thymian/http-linter';
@@ -55,9 +58,12 @@ export default httpRule(
   .appliesTo('server')
   .rule((ctx) =>
     ctx.validateCommonHttpTransactions(
-      (req, res) =>
-        equalsIgnoreCase(req.method, 'get', 'head') && res.statusCode === 304,
-      (req, res, transactionId) => checkHeaders(res.headers, transactionId)
+      and(or(method('GET'), method('HEAD')), statusCode(304)),
+      (
+        req: CommonHttpRequest,
+        res: CommonHttpResponse,
+        transactionId: string
+      ) => checkHeaders(res.headers, transactionId)
     )
   )
   .overrideTest((testContext) =>
