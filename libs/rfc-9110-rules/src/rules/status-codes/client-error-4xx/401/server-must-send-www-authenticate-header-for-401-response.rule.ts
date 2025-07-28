@@ -1,10 +1,4 @@
-import assert from 'node:assert';
-
-import {
-  equalsIgnoreCase,
-  getHeader,
-  type JSONSchemaType,
-} from '@thymian/core';
+import { type JSONSchemaType } from '@thymian/core';
 import {
   and,
   authorization,
@@ -17,14 +11,7 @@ import {
   statusCode,
 } from '@thymian/http-filter';
 import { httpRule } from '@thymian/http-linter';
-import {
-  expectHeaders,
-  filterHttpTransactions,
-  generateRequests,
-  mapToTestCase,
-  runRequests,
-  singleTestCase,
-} from '@thymian/http-testing';
+import { singleTestCase } from '@thymian/http-testing';
 
 type Options = {
   checkAllSecured?: boolean;

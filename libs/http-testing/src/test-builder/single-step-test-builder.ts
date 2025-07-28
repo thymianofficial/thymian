@@ -215,7 +215,7 @@ export class SingleStepTestBuilder<
     return this;
   }
 
-  done(): HttpTestPipeline<any> {
+  done(): HttpTestPipeline<Record<PropertyKey, unknown>> {
     return (transactions) =>
       transactions.pipe(
         // eslint-disable-next-line @typescript-eslint/ban-ts-comment

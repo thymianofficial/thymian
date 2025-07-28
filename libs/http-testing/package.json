@@ -26,6 +26,7 @@
     "url-template": "^3.1.1"
   },
   "peerDependencies": {
-    "@thymian/core": "^0"
+    "@thymian/core": "^0",
+    "@thymian/http-filter": "^0.0.1"
   }
 }

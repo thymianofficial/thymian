@@ -41,7 +41,6 @@ import {
   thymianToCommonHttpRequest,
   thymianToCommonHttpResponse,
 } from './utils.js';
-import * as console from 'node:console';
 
 function extractMediaType(req: HttpRequest): string {
   if (!req.headers) {

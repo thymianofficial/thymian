@@ -15,21 +15,11 @@ import {
   httpRule,
   type RuleViolation,
 } from '@thymian/http-linter';
-import {
-  expect,
-  filter,
-  generateRequests,
-  mapToTestCase,
-  overrideHeaders,
-  replayStep,
-  runRequests,
-  singleTestCase,
-} from '@thymian/http-testing';
+import { singleTestCase } from '@thymian/http-testing';
 
 import { createList } from '../../../../utils.js';
 import { representationFields } from '../../../fields.js';
 import { requiredHeadersFor304 } from './server-must-generate-header-fields-for-304-response.rule.js';
-import * as console from 'node:console';
 
 export function checkHeaders(
   notModifiedHeaders: string[],

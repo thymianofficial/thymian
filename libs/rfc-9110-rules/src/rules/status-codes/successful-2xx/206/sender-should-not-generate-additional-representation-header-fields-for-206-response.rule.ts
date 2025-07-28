@@ -1,6 +1,4 @@
-import * as assert from 'node:assert/strict';
-
-import { equalsIgnoreCase, getHeader, ThymianFormat } from '@thymian/core';
+import { equalsIgnoreCase, ThymianFormat } from '@thymian/core';
 import {
   and,
   constant,
@@ -11,18 +9,7 @@ import {
   statusCode,
 } from '@thymian/http-filter';
 import { httpRule, type RuleViolation } from '@thymian/http-linter';
-import {
-  expect,
-  filterHttpTransactions,
-  generateRequests,
-  mapToTestCase,
-  overrideHeaders,
-  overrideRequestWithPrevious,
-  replayStep,
-  replayStepButExpectResponse,
-  runRequests,
-  singleTestCase,
-} from '@thymian/http-testing';
+import { singleTestCase } from '@thymian/http-testing';
 
 import { createList } from '../../../../utils.js';
 import { requiredHeaders } from './server-must-generate-header-fields-for-206-response.rule.js';

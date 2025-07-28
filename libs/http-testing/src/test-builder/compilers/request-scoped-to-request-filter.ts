@@ -101,6 +101,12 @@ export function compileRequestScopedExpressionToRequestFilter(
         req: ThymianHttpRequest,
         reqId: string,
         responses: [string, ThymianHttpResponse][]
-      ) => true;
+      ) => expression.filters.map((expr) =>
+        compileRequestScopedExpressionToRequestFilter(expr, format)(
+          req,
+          reqId,
+          responses
+        )
+      ).reduce((acc, curr) => acc !== curr)
   }
 }

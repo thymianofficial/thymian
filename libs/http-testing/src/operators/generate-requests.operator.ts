@@ -1,5 +1,5 @@
 import type { PartialExceptFor } from '@thymian/core';
-import { mergeMap, of, type OperatorFunction } from 'rxjs';
+import { mergeMap, type OperatorFunction } from 'rxjs';
 
 import {
   type GenerateRequestsOptions,

@@ -1,10 +1,11 @@
-import type { HttpFilterExpression } from '@thymian/http-filter';
 import {
   equalsIgnoreCase,
   ThymianFormat,
   type ThymianHttpRequest,
   type ThymianHttpResponse,
 } from '@thymian/core';
+import type { HttpFilterExpression } from '@thymian/http-filter';
+
 import type { ResponseFilterFn } from '../../operators/index.js';
 
 export function compileResponseScopedExpressionToResponseFilter(

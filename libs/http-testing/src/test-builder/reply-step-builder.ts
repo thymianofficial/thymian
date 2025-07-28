@@ -1,4 +1,3 @@
-import { getHeader, type HttpResponse, setHeader } from '@thymian/core';
 import {
   type Constant,
   type RequestFilterExpression,
@@ -10,9 +9,9 @@ import {
   runRequests,
 } from '../operators/index.js';
 import type { BuilderPipeline } from './builder-pipeline.js';
-import type { RunOptions } from './single-step-test-builder.js';
-import { overrideTemplate } from './override-request-template.js';
 import { extractValueFromResponse } from './extract-value-from-response.js';
+import { overrideTemplate } from './override-request-template.js';
+import type { RunOptions } from './single-step-test-builder.js';
 
 export class ReplyStepBuilder {
   protected readonly pipeline: BuilderPipeline = [];
