@@ -1,10 +1,11 @@
 import assert from 'node:assert';
 
-import type {
-  HttpRequest,
-  HttpResponse,
-  ReportFn,
-  ThymianHttpTransaction,
+import {
+  getHeader,
+  type HttpRequest,
+  type HttpResponse,
+  type ReportFn,
+  type ThymianHttpTransaction,
 } from '@thymian/core';
 import type { HttpFilterExpression } from '@thymian/http-filter';
 import {
@@ -47,12 +48,13 @@ function extractMediaType(req: HttpRequest): string {
     return '';
   }
 
-  // TODO upper/lowercase
-  if (Array.isArray(req.headers['content-type'])) {
+  const ct = getHeader(req.headers, 'content-type');
+
+  if (Array.isArray(ct)) {
     throw new Error('Content-type is a single valued field.');
   }
 
-  return req.headers['content-type'] ?? '';
+  return ct ?? '';
 }
 
 export function httpRequestToCommonHttpRequest(
