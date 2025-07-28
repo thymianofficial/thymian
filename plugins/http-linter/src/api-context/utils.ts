@@ -48,6 +48,20 @@ export function compileExpressionToFilterFn(
   format: ThymianFormat
 ): FilterFn<[CommonHttpRequest, CommonHttpResponse, string]> {
   switch (expression.type) {
+    case 'origin':
+      return (req) => req.origin === expression.origin;
+    case 'hasBody':
+      return (req) => req.body;
+    case 'port':
+      return (req) => +new URL(req.origin).port === expression.port;
+    case 'requestMediaType':
+      return (req) => req.mediaType === expression.mediaType;
+    case 'responseMediaType':
+      return (_, res) => res.mediaType === expression.mediaType;
+    case 'responseTrailer':
+      return (_, res) => equalsIgnoreCase(expression.trailer, ...res.trailers);
+    case 'constant':
+      return () => Boolean(expression.value);
     case 'hasResponseBody':
       return (_, res) => res.body;
     case 'statusCodeRange':
@@ -55,10 +69,10 @@ export function compileExpressionToFilterFn(
         Number.isInteger(res.statusCode) &&
         res.statusCode >= expression.start &&
         res.statusCode <= expression.end;
-    case 'hasQueryParam':
+    case 'queryParam':
       return (req) =>
         equalsIgnoreCase(expression.param, ...req.queryParameters);
-    case 'hasResponses':
+    case 'hasResponse':
       throw new Error(
         'HTTP filter expression "hasResponse" is not supported in this mode.'
       );
@@ -73,7 +87,7 @@ export function compileExpressionToFilterFn(
           .reduce((acc, curr) => acc !== curr);
     case 'method':
       return (req) => equalsIgnoreCase(req.method, expression.method);
-    case 'hasRequestHeader':
+    case 'requestHeader':
       return (req) => equalsIgnoreCase(expression.header, ...req.headers);
     case 'path':
       return (req) => req.path === expression.path;
@@ -94,7 +108,5 @@ export function compileExpressionToFilterFn(
     case 'not':
       return (req, res, id) =>
         !compileExpressionToFilterFn(expression.filter, format)(req, res, id);
-    default:
-      throw new Error('Unknown filter expression');
   }
 }

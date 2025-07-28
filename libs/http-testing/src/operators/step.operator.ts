@@ -10,6 +10,7 @@ import type {
   HttpTestCaseStep,
 } from '../http-test/http-test-case.js';
 import type { PipelineItem } from '../http-test/http-test-pipeline.js';
+import { isFailedTestCase, isSkippedTestCase } from '../http-test/index.js';
 
 export function step<
   Steps extends HttpTestCaseStep[],
@@ -25,6 +26,15 @@ export function step<
   return (observable) =>
     observable.pipe(
       map(({ current, ctx }) => {
+        if (isSkippedTestCase(current) || isFailedTestCase(current)) {
+          return {
+            current: current as unknown as HttpTestCase<
+              [...Steps, CurrentStep, CustomHttpTestCaseStep]
+            >,
+            ctx,
+          };
+        }
+
         current.steps.push({
           transactions: [],
           source: {},

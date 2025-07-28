@@ -13,7 +13,6 @@ import { serializeRequest } from '../serialize-request.js';
 import {
   validateBodyForResponse,
   validateHeaders,
-  validateResponse,
   validateStatusCode,
 } from '../validate/index.js';
 
@@ -53,7 +52,7 @@ export function runRequests<
 
         if (typeof options.expectStatusCode !== 'undefined') {
           if (transaction.response.statusCode !== options.expectStatusCode) {
-            const message = `Expected status code ${options.expectStatusCode} but got ${transaction.response.statusCode}.`;
+            const message = `Expected status code ${options.expectStatusCode}, but received ${transaction.response.statusCode}.`;
 
             current.results.push({
               type: 'invalid-transaction',
@@ -69,19 +68,37 @@ export function runRequests<
         } else if (options.checkResponse && transaction.source) {
           const results: HttpTestCaseResult[] = [];
 
-          if (options.checkHeaders || options.checkResponse) {
-            results.push(
-              ...validateStatusCode(
-                transaction.source.thymianRes.statusCode,
-                transaction.response.statusCode
-              )
+          if (options.checkStatusCode || options.checkResponse) {
+            const result = validateStatusCode(
+              transaction.source.thymianRes.statusCode,
+              transaction.response.statusCode
             );
+
+            if (result.type === 'assertion-failure') {
+              current.results.push({
+                type: 'invalid-transaction',
+                message: result.message,
+                transaction: transaction.source,
+                timestamp: result.timestamp,
+                details:
+                  'In most cases, this is because @thymian/http-testing has failed to generate syntactic and/or semantic correct test data. You can either specify samples directly in your API description or provide valid samples via hooks.',
+              });
+
+              return ctx.skip(current, result.message);
+            }
+
+            results.push(result);
           }
 
-          if (options.checkBody || options.checkResponse) {
+          if (
+            options.checkBody ||
+            options.checkResponse ||
+            typeof transaction.response.body !== 'undefined'
+          ) {
             results.push(
               ...validateBodyForResponse(
-                transaction.response.body,
+                // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+                transaction.response.body!,
                 transaction.source.thymianRes
               )
             );
@@ -99,23 +116,24 @@ export function runRequests<
           const valid = results.some((r) => r.type === 'assertion-failure');
 
           if (!valid) {
-            const message = `Received in invalid response. See test results for more details.`;
+            current.results.push(
+              ...results.map((r) => {
+                if (r.type === 'assertion-failure') {
+                  r.transaction = transaction.source;
+                }
 
-            current.results.push({
-              type: 'invalid-transaction',
-              message,
-              transaction: transaction.source,
-              timestamp: Date.now(),
-              details:
-                'In most cases, this is because Thymian has failed to generate syntactic and/or semantic correct test data. You can either specify samples directly in your API description or provide valid samples via hooks.',
-            });
+                return r;
+              })
+            );
 
-            current.results.push(...results);
-
-            return ctx.skip(current, message);
+            return ctx.fail(current);
           }
         }
       }
+    } else {
+      ctx.logger.warn(
+        `Test case ${current.name} does not contain any steps to run requests for.`
+      );
     }
 
     return { current, ctx };

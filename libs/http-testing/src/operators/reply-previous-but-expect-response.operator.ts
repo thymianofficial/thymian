@@ -8,7 +8,11 @@ import {
   type SingleHttpTestCaseStep,
 } from '../http-test/http-test-case.js';
 import type { PipelineItem } from '../http-test/http-test-pipeline.js';
-import { isSingleHttpTestCaseStep } from '../http-test/index.js';
+import {
+  isFailedTestCase,
+  isSingleHttpTestCaseStep,
+  isSkippedTestCase,
+} from '../http-test/index.js';
 import type { StringAndNumberProperties } from '../utils.js';
 
 export function replayStepButExpectResponse<Steps extends HttpTestCaseStep[]>(
@@ -31,6 +35,15 @@ export function replayStepButExpectResponse<Steps extends HttpTestCaseStep[]>(
   >
 > {
   return mergeMap(({ ctx, current }) => {
+    if (isSkippedTestCase(current) || isFailedTestCase(current)) {
+      return of({
+        current: current as HttpTestCase<
+          [...Steps, SingleHttpTestCaseStep, SingleHttpTestCaseStep]
+        >,
+        ctx,
+      });
+    }
+
     const prevStep = current.steps.at(-1);
 
     if (typeof prevStep === 'undefined') {

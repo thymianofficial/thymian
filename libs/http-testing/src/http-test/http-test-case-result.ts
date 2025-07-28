@@ -25,6 +25,7 @@ export type AssertionFailure = {
   assertion?: string;
   expected?: unknown;
   actual?: unknown;
+  transaction?: ThymianHttpTransaction;
 };
 
 export type ExecutionError = {

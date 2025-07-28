@@ -5,6 +5,7 @@ import type {
   HttpTestCaseStep,
 } from '../http-test/http-test-case.js';
 import type { PipelineItem } from '../http-test/http-test-pipeline.js';
+import { isFailedTestCase, isSkippedTestCase } from '../http-test/index.js';
 
 export function overrideHeaders<Steps extends HttpTestCaseStep[]>(
   fn: (
@@ -13,6 +14,10 @@ export function overrideHeaders<Steps extends HttpTestCaseStep[]>(
   ) => Record<string, unknown>
 ): MonoTypeOperatorFunction<PipelineItem<HttpTestCase<Steps>>> {
   return map(({ current, ctx }) => {
+    if (isSkippedTestCase(current) || isFailedTestCase(current)) {
+      return { current, ctx };
+    }
+
     const currentStep = current.steps.at(-1);
 
     if (typeof currentStep === 'undefined') {

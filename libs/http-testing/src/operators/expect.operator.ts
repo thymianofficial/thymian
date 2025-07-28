@@ -2,22 +2,27 @@ import { AssertionError } from 'node:assert';
 
 import { map, type MonoTypeOperatorFunction } from 'rxjs';
 
-import type {
-  AssertionFailure,
-  HttpTestCase,
-  HttpTestCaseStep,
-  PipelineItem,
+import {
+  type HttpTestCase,
+  type HttpTestCaseStep,
+  isFailedTestCase,
+  isSkippedTestCase,
+  type PipelineItem,
 } from '../http-test/index.js';
 
 export function expect<Steps extends HttpTestCaseStep[]>(
   fn: (testInstance: PipelineItem<HttpTestCase<Steps>>) => void
 ): MonoTypeOperatorFunction<PipelineItem<HttpTestCase<Steps>>> {
-  return map((envelope) => {
+  return map((item) => {
+    if (isSkippedTestCase(item.current) || isFailedTestCase(item.current)) {
+      return item;
+    }
+
     try {
-      fn(envelope);
+      fn(item);
     } catch (e) {
       if (e instanceof AssertionError) {
-        envelope.current.results.push({
+        item.current.results.push({
           type: 'assertion-failure',
           message: e.message,
           timestamp: Date.now(),
@@ -26,12 +31,12 @@ export function expect<Steps extends HttpTestCaseStep[]>(
           actual: e.actual,
         });
 
-        return envelope.ctx.fail(envelope.current, e.message);
+        return item.ctx.fail(item.current, e.message);
       } else {
         throw e;
       }
     }
 
-    return envelope;
+    return item;
   });
 }

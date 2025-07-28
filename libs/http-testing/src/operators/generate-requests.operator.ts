@@ -1,5 +1,5 @@
 import type { PartialExceptFor } from '@thymian/core';
-import { mergeMap, type OperatorFunction } from 'rxjs';
+import { mergeMap, of, type OperatorFunction } from 'rxjs';
 
 import {
   type GenerateRequestsOptions,
@@ -41,11 +41,14 @@ export function generateRequests<
   PipelineItem<HttpTestCase<[...PreviousSteps, CurrentStep]>, Locals>,
   PipelineItem<HttpTestCase<[...PreviousSteps, InferStep<CurrentStep>]>, Locals>
 > {
-  // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-  // @ts-expect-error
   return mergeMap(async ({ current, ctx }) => {
     if (isSkippedTestCase(current) || isFailedTestCase(current)) {
-      return { current, ctx };
+      return {
+        current: current as HttpTestCase<
+          [...PreviousSteps, InferStep<CurrentStep>]
+        >,
+        ctx,
+      };
     }
 
     const step = current.steps.at(-1);
@@ -76,6 +79,11 @@ export function generateRequests<
       );
     }
 
-    return { current, ctx };
+    return {
+      current: current as HttpTestCase<
+        [...PreviousSteps, InferStep<CurrentStep>]
+      >,
+      ctx,
+    };
   });
 }

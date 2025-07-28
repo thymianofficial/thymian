@@ -8,6 +8,7 @@ import type {
 } from '@thymian/core';
 import type { HttpFilterExpression } from '@thymian/http-filter';
 import {
+  type AssertionFailure,
   filter,
   generateRequests,
   groupBy,
@@ -23,8 +24,8 @@ import {
   mapToTestCase,
   runRequests,
 } from '@thymian/http-testing';
-import type { RuleFnResult } from 'src/rule/rule-fn.js';
 
+import type { RuleFnResult } from '../rule/rule-fn.js';
 import type {
   RuleViolation,
   RuleViolationLocation,
@@ -40,6 +41,7 @@ import {
   thymianToCommonHttpRequest,
   thymianToCommonHttpResponse,
 } from './utils.js';
+import * as console from 'node:console';
 
 function extractMediaType(req: HttpRequest): string {
   if (!req.headers) {
@@ -280,30 +282,60 @@ export class HttpTestApiContext<
 
   private reportSkippedAndFailedTestCases(testResult: HttpTestResult) {
     testResult.cases.forEach((testCase) => {
-      if (testCase.status === 'skipped' || testCase.status === 'failed') {
+      if (testCase.status === 'skipped') {
         this.ctx.logger.debug(
-          `HTTP test case "${testCase.name}" from test "${this.name}" ${
-            testCase.status === 'failed' ? 'failed' : 'is skipped'
-          }. Reporting.`
+          `HTTP test case "${testCase.name}" from test "${this.name}" is skipped. Reporting.`
         );
 
         this.report({
           isProblem: true,
-          text: testCase.results
-            .filter(
-              (tc) => tc.type !== 'info' && tc.type !== 'assertion-success'
-            )
-            .map((tc) => tc.message)
-            .join('\n'),
+          text:
+            testCase.reason ??
+            testCase.results
+              .filter(
+                (tc) => tc.type !== 'info' && tc.type !== 'assertion-success'
+              )
+              .map((tc) => tc.message)
+              .join('\n'),
           title: testCase.name,
           subTopic: this.name,
-          topic: 'Following test (cases) could not be run successfully:',
+          topic: 'Skipped HTTP Test Cases',
         });
+      } else if (testCase.status === 'failed') {
+        this.ctx.logger.debug(
+          `HTTP test case "${testCase.name}" from test "${this.name}" failed.`
+        );
+
+        const assertionFailure = testCase.results.find(
+          (r) => r.type === 'assertion-failure' && !!r.transaction
+        ) as AssertionFailure;
+
+        if (assertionFailure && assertionFailure.transaction) {
+          this.reportViolation({
+            location: {
+              elementType: 'edge',
+              elementId: assertionFailure.transaction.transactionId,
+            },
+          });
+        } else {
+          this.report({
+            isProblem: true,
+            text: testCase.results
+              .filter(
+                (tc) => tc.type !== 'info' && tc.type !== 'assertion-success'
+              )
+              .map((tc) => tc.message)
+              .join('\n'),
+            title: testCase.name,
+            subTopic: this.name,
+            topic: 'Failed HTTP Test Cases',
+          });
+        }
       }
     });
   }
 
-  async test(pipeline: HttpTestPipeline<Locals>): Promise<RuleFnResult> {
+  async httpTest(pipeline: HttpTestPipeline<Locals>): Promise<RuleFnResult> {
     const testFn = httpTest(this.name, pipeline);
 
     const testResult = await testFn(this.ctx);

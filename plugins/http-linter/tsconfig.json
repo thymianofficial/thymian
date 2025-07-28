@@ -4,9 +4,6 @@
   "include": [],
   "references": [
     {
-      "path": "../../libs/http-filter"
-    },
-    {
       "path": "../sampler"
     },
     {
@@ -16,7 +13,7 @@
       "path": "../../libs/http-testing"
     },
     {
-      "path": "../format-validator"
+      "path": "../../libs/http-filter"
     },
     {
       "path": "../../core"

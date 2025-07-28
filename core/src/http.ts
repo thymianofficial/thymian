@@ -10,7 +10,7 @@ export type HttpRequest = {
 export type HttpResponse = {
   statusCode: number;
   headers: Record<string, string | string[] | undefined>;
-  body: string;
+  body?: string;
   bodyEncoding?: string;
   trailers: Record<string, string>;
   duration: number;

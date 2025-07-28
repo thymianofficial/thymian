@@ -22,21 +22,11 @@ export default class LintCommand extends BaseCliRunCommand<typeof LintCommand> {
       default: ['static'],
       options: ['static', 'test', 'analytics'],
     }),
-    validate: Flags.boolean({
-      description: 'Validate API description format(s) before linting.',
-      default: false,
-    }),
   };
 
   async run(): Promise<void> {
     const valid = await this.thymian.run(async () => {
       const format = await this.thymian.loadFormat();
-
-      if (this.flags.validate) {
-        await this.thymian.emitter.emitAction('format-validator.validate', {
-          format: format.export(),
-        });
-      }
 
       if (this.flags.rules.length > 0) {
         await this.thymian.emitter.emitAction('http-linter.load-rules', {

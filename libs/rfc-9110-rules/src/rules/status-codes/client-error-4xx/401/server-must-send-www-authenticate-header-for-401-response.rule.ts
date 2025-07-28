@@ -5,7 +5,17 @@ import {
   getHeader,
   type JSONSchemaType,
 } from '@thymian/core';
-import { statusCode } from '@thymian/http-filter';
+import {
+  and,
+  authorization,
+  constant,
+  method,
+  not,
+  or,
+  responseHeader,
+  responseWith,
+  statusCode,
+} from '@thymian/http-filter';
 import { httpRule } from '@thymian/http-linter';
 import {
   expectHeaders,
@@ -13,6 +23,7 @@ import {
   generateRequests,
   mapToTestCase,
   runRequests,
+  singleTestCase,
 } from '@thymian/http-testing';
 
 type Options = {
@@ -45,39 +56,25 @@ export default httpRule(
   .rule((ctx) =>
     ctx.validateCommonHttpTransactions(
       statusCode(401),
-      (_, res) => !equalsIgnoreCase('www-authenticate', ...res.headers)
+      responseHeader('www-authenticate')
     )
   )
   .overrideTest((testContext, options) =>
-    testContext.test((transactions) =>
-      transactions.pipe(
-        filterHttpTransactions(
-          (req, reqId) =>
-            !equalsIgnoreCase(req.method, 'head') &&
-            (options.checkAllSecured
-              ? testContext.format.requestIsSecured(reqId)
-              : true),
-          (res) => (options.checkAllSecured ? true : res.statusCode === 401)
-        ),
-        mapToTestCase(),
-        generateRequests({ authenticate: false }),
-        runRequests({ expectStatusCode: 401, checkResponse: true }),
-        expectHeaders((headers, transaction) => {
-          assert.ok(transaction.source);
-
-          testContext.assertTransaction(
-            transaction.source.transactionId,
-            () => {
-              const wwwAuthenticateHeader = getHeader(
-                headers,
-                'www-authenticate'
-              );
-
-              assert.ok(wwwAuthenticateHeader);
-            }
-          );
-        })
-      )
+    testContext.httpTest(
+      singleTestCase()
+        .forRequestsWith(
+          and(
+            not(method('HEAD')),
+            or(
+              and(authorization(), constant(options.checkAllSecured)),
+              responseWith(statusCode(401))
+            )
+          )
+        )
+        .forResponsesWith(statusCode(401))
+        .run()
+        .expectForTransactions(responseHeader('www-authenticate'))
+        .done()
     )
   )
   .done();

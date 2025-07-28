@@ -16,6 +16,7 @@ declare module '@thymian/core' {
 
 export * from './http-test/index.js';
 export * from './operators/index.js';
+export * from './test-builder/single-step-test-builder.js';
 export * from './request-generator/index.js';
 export * from './serialize-parameter.js';
 export * from './serialize-request.js';

@@ -10,7 +10,7 @@ export function validateResponse(
   actualResponse: HttpResponse
 ): { valid: boolean; results: HttpTestCaseResult[] } {
   const results = [
-    ...validateStatusCode(response.statusCode, actualResponse.statusCode),
+    validateStatusCode(response.statusCode, actualResponse.statusCode),
     ...validateBodyForResponse(actualResponse.body, response),
     ...validateHeaders(actualResponse.headers, response),
   ];

@@ -16,9 +16,6 @@
   "include": ["src/**/*.ts"],
   "references": [
     {
-      "path": "../../libs/http-filter/tsconfig.lib.json"
-    },
-    {
       "path": "../sampler/tsconfig.lib.json"
     },
     {
@@ -28,7 +25,7 @@
       "path": "../../libs/http-testing/tsconfig.lib.json"
     },
     {
-      "path": "../format-validator/tsconfig.lib.json"
+      "path": "../../libs/http-filter/tsconfig.lib.json"
     },
     {
       "path": "../../core/tsconfig.lib.json"

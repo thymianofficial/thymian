@@ -9,22 +9,26 @@ import { filter, type MonoTypeOperatorFunction } from 'rxjs';
 import type { PipelineItem } from '../http-test/index.js';
 import { type StringAndNumberProperties } from '../utils.js';
 
+export type RequestFilterFn = (
+  req: ThymianHttpRequest,
+  reqId: string,
+  responses: [string, ThymianHttpResponse][]
+) => boolean;
+
 export type RequestFilter =
   | StringAndNumberProperties<ThymianHttpRequest>
-  | ((
-      req: ThymianHttpRequest,
-      reqId: string,
-      responses: [string, ThymianHttpResponse][]
-    ) => boolean);
+  | RequestFilterFn;
+
+export type ResponseFilterFn = (
+  res: ThymianHttpResponse,
+  resId: string,
+  req: ThymianHttpRequest,
+  reqId: string
+) => boolean;
 
 export type ResponseFilter =
   | StringAndNumberProperties<ThymianHttpResponse>
-  | ((
-      res: ThymianHttpResponse,
-      resId: string,
-      req: ThymianHttpRequest,
-      reqId: string
-    ) => boolean);
+  | ResponseFilterFn;
 
 export function filterHttpTransactions(
   reqFilter: RequestFilter = {},

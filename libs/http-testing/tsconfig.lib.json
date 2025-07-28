@@ -19,6 +19,9 @@
       "path": "../../shared/test-utils/tsconfig.lib.json"
     },
     {
+      "path": "../http-filter/tsconfig.lib.json"
+    },
+    {
       "path": "../http-status-codes/tsconfig.lib.json"
     },
     {

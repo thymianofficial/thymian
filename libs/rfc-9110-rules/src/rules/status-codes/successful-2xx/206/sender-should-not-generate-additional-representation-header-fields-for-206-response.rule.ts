@@ -1,7 +1,15 @@
 import * as assert from 'node:assert/strict';
 
-import { equalsIgnoreCase,getHeader, ThymianFormat } from '@thymian/core';
-import { and, or, requestHeader, statusCode } from '@thymian/http-filter';
+import { equalsIgnoreCase, getHeader, ThymianFormat } from '@thymian/core';
+import {
+  and,
+  constant,
+  or,
+  requestHeader,
+  responseHeader,
+  responseWith,
+  statusCode,
+} from '@thymian/http-filter';
 import { httpRule, type RuleViolation } from '@thymian/http-linter';
 import {
   expect,
@@ -13,6 +21,7 @@ import {
   replayStep,
   replayStepButExpectResponse,
   runRequests,
+  singleTestCase,
 } from '@thymian/http-testing';
 
 import { createList } from '../../../../utils.js';
@@ -143,83 +152,45 @@ export default httpRule(
   )
   // TODO: let's think about later, if we should include this test
   .overrideTest((testContext) =>
-    testContext.test((transactions) =>
-      transactions.pipe(
-        filterHttpTransactions(
-          (req, reqId, responses) =>
-            Object.keys(req.headers).some(
-              (h) => h.toLowerCase() === 'if-range'
-            ) &&
-            responses.some(([, res]) => res.statusCode === 206) &&
-            responses.some(([, res]) => res.statusCode === 200),
-          (res) => res.statusCode === 206
-        ),
-        mapToTestCase(),
-        generateRequests(),
-        runRequests(),
-        replayStep((step) =>
-          step.pipe(
-            overrideRequestWithPrevious((requestTemplate, previous) => {
-              const transaction = previous.transactions[0];
-
-              if (transaction && transaction.response) {
-                const etagHeader = getHeader(
-                  transaction.response.headers,
-                  'etag'
-                );
-
-                if (typeof etagHeader === 'string') {
-                  return {
-                    ...requestTemplate,
-                    headers: {
-                      ...requestTemplate.headers,
-                      'if-range': etagHeader,
-                    },
-                  };
-                }
-              }
-
-              return requestTemplate;
-            }),
-            runRequests()
+    testContext.httpTest(
+      singleTestCase()
+        .forRequestsWith(
+          and(
+            requestHeader('if-range'),
+            responseWith(statusCode(200)),
+            responseWith(statusCode(206))
           )
-        ),
-        replayStepButExpectResponse({ statusCode: 200 }, (step) =>
-          step.pipe(
-            overrideHeaders((headers) => {
-              if ('if-range' in headers) {
-                headers['if-range'] = '"qupaya"';
-              }
-
-              return headers;
-            }),
-            runRequests()
-          )
-        ),
-        expect(({ current, ctx }) => {
-          assert.equal(current.steps.length, 3, 'Must have 3 steps.');
-          const partialResponseStep = current.steps[1];
-          const okResponseStep = current.steps[2];
-
-          assert.ok(partialResponseStep.transactions[0]);
-          assert.ok(okResponseStep.transactions[0]);
+        )
+        .forResponsesWith(statusCode(206))
+        .run()
+        .replayStep((step) =>
+          step
+            .set(requestHeader('if-range'), responseHeader('etag'))
+            .run()
+            .done()
+        )
+        .replayStep((step) =>
+          step
+            .set(requestHeader('if-range'), constant('"qupaya"'))
+            .run({ expectStatusCode: 200 })
+            .done()
+        )
+        .transactions((transactions) => {
+          const [, partialTransactions, okTransaction] = transactions;
 
           const violation = checkHeaders(
-            Object.keys(okResponseStep.transactions[0].response?.headers ?? {}),
-            Object.keys(
-              partialResponseStep.transactions[0].response?.headers ?? {}
-            ),
-            // TODO
-            partialResponseStep.transactions[0].source!.thymianReqId,
-            partialResponseStep.transactions[0].source!.thymianResId,
-            ctx.format
+            Object.keys(okTransaction.response.headers),
+            Object.keys(partialTransactions.response.headers),
+            partialTransactions.source.thymianReqId,
+            partialTransactions.source.thymianResId,
+            testContext.format
           );
 
           if (violation) {
             testContext.reportViolation(violation);
           }
         })
-      )
+        .done()
     )
   )
   .done();

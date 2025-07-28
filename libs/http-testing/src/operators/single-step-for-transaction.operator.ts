@@ -5,11 +5,13 @@ import {
 } from '@thymian/core';
 import { mergeMap, type Observable, of, type OperatorFunction } from 'rxjs';
 
-import type {
-  HttpTestCase,
-  HttpTestCaseStep,
-  PipelineItem,
-  SingleHttpTestCaseStep,
+import {
+  type HttpTestCase,
+  type HttpTestCaseStep,
+  isFailedTestCase,
+  isSkippedTestCase,
+  type PipelineItem,
+  type SingleHttpTestCaseStep,
 } from '../http-test/index.js';
 
 export function singleStepForTransaction<
@@ -31,6 +33,15 @@ export function singleStepForTransaction<
   PipelineItem<HttpTestCase<[...Steps, CurrentStep, SingleHttpTestCaseStep]>>
 > {
   return mergeMap(({ ctx, current }) => {
+    if (isSkippedTestCase(current) || isFailedTestCase(current)) {
+      return of({
+        current: current as unknown as HttpTestCase<
+          [...Steps, CurrentStep, SingleHttpTestCaseStep]
+        >,
+        ctx,
+      });
+    }
+
     const prevStep = current.steps.at(-1) as CurrentStep | undefined;
 
     if (typeof prevStep === 'undefined') {

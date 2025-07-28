@@ -1,4 +1,4 @@
-import type { ThymianHttpResponse } from '@thymian/core';
+import { getHeader, type ThymianHttpResponse } from '@thymian/core';
 
 import type { HttpTestCaseResult } from '../http-test/index.js';
 import { ajv } from './ajv.js';
@@ -34,15 +34,12 @@ export function checkForMissingHeaders(
   response: ThymianHttpResponse
 ): HttpTestCaseResult[] {
   return Object.entries(response.headers).reduce((acc, [name, header]) => {
-    if (!Object.hasOwn(headers, name) && header.required) {
+    const value = getHeader(headers, name);
+
+    if (!value && header.required) {
       acc.push({
         type: 'assertion-failure',
         message: `Header "${name}" is required but not included in the response.`,
-      });
-    } else {
-      acc.push({
-        type: 'assertion-success',
-        message: `Header "${name}" is required and is included in the response.`,
       });
     }
 

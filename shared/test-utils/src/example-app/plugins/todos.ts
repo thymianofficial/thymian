@@ -165,10 +165,12 @@ export default function todos(_fastify: FastifyInstance) {
           .send();
       }
 
-      return res
-        .header('etag', etagValue)
-        .header('cache-control', 'private')
-        .send(todo);
+      return (
+        res
+          //.header('etag', etagValue)
+          .header('cache-control', 'private')
+          .send(todo)
+      );
     }
   );
 

@@ -26,12 +26,12 @@ export function isCustomHttpTestCaseStep(
 
 export function isSkippedTestCase<Steps extends HttpTestCaseStep[]>(
   testCase: HttpTestCase<Steps>
-): testCase is HttpTestCase<Steps> & { staus: 'skipped' } {
+): testCase is HttpTestCase<Steps> & { status: 'skipped' } {
   return testCase.status === 'skipped';
 }
 
 export function isFailedTestCase<Steps extends HttpTestCaseStep[]>(
   testCase: HttpTestCase<Steps>
-): testCase is HttpTestCase<Steps> & { staus: 'failed' } {
+): testCase is HttpTestCase<Steps> & { status: 'failed' } {
   return testCase.status === 'failed';
 }

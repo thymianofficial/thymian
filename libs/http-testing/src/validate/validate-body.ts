@@ -56,9 +56,13 @@ export function validateJsonBody(
 }
 
 export function validateBodyForResponse(
-  body: string,
+  body: string | undefined,
   response: ThymianHttpResponse
 ): HttpTestCaseResult[] {
+  if (typeof body === 'undefined') {
+    return [];
+  }
+
   if (/^application\/[^+]*[+]?(json);?.*/.test(response.mediaType)) {
     return validateJsonBody(body, response);
   }

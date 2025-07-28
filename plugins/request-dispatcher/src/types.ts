@@ -55,7 +55,7 @@ export const httpResponseSchema: JSONSchemaType<HttpResponse> = {
         ],
       },
     },
-    body: { type: 'string', nullable: false },
+    body: { type: 'string', nullable: true },
     bodyEncoding: { type: 'string', nullable: true },
     trailers: {
       type: 'object',
@@ -67,7 +67,7 @@ export const httpResponseSchema: JSONSchemaType<HttpResponse> = {
     },
     duration: { type: 'number', nullable: false },
   },
-  required: ['statusCode', 'headers', 'body', 'trailers', 'duration'],
+  required: ['statusCode', 'headers', 'trailers', 'duration'],
   additionalProperties: false,
 } as const;
 

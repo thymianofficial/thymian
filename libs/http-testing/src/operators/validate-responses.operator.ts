@@ -8,12 +8,7 @@ import {
   isSkippedTestCase,
   type PipelineItem,
 } from '../http-test/index.js';
-import {
-  validateBodyForResponse,
-  validateHeaders,
-  validateResponse,
-  validateStatusCode,
-} from '../validate/index.js';
+import { validateResponse } from '../validate/index.js';
 import { hasThymianResId } from './utils.js';
 
 export function validateResponses<

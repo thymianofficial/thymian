@@ -1,15 +1,16 @@
 import { equalsIgnoreCase } from '@thymian/core';
-import { and, method, or, statusCode } from '@thymian/http-filter';
-import { httpRule, type RuleViolation } from '@thymian/http-linter';
 import {
-  expect,
-  filter,
-  generateRequests,
-  mapToTestCase,
-  overrideHeaders,
-  replayStep,
-  runRequests,
-} from '@thymian/http-testing';
+  and,
+  method,
+  not,
+  or,
+  requestHeader,
+  responseHeader,
+  responseWith,
+  statusCode,
+} from '@thymian/http-filter';
+import { httpRule, type RuleViolation } from '@thymian/http-linter';
+import { singleTestCase } from '@thymian/http-testing';
 
 import { createList } from '../../../../utils.js';
 
@@ -93,73 +94,41 @@ export default httpRule(
     )
   )
   .overrideTest((testContext) =>
-    testContext.test((transactions) =>
-      transactions.pipe(
-        filter(
-          ({ current }) =>
-            equalsIgnoreCase(current.thymianReq.method, 'get', 'head') &&
-            current.thymianRes.statusCode === 200
-        ),
-        mapToTestCase(),
-        generateRequests(),
-        runRequests(),
-        replayStep((step) =>
-          step.pipe(
-            overrideHeaders((headers, testCase) => {
-              const transaction = testCase.steps[0].transactions[0];
+    testContext.httpTest(
+      singleTestCase()
+        .forRequestsWith(
+          and(or(method('GET'), method('HEAD')), responseWith(statusCode(200)))
+        )
+        .forResponsesWith(statusCode(200))
+        .run()
+        .skipIf(
+          not(or(responseHeader('etag'), responseHeader('last-modified'))),
+          '200 OK response does not include ETag or Last-Modified header and therefore no 304 Not Modified response can be triggered.'
+        )
+        .replayStep((step) =>
+          step
+            .set(requestHeader('if-none-match'), responseHeader('etag'))
+            .set(
+              requestHeader('if-modified-since'),
+              responseHeader('last-modified')
+            )
+            .run({ expectStatusCode: 304 })
+            .done()
+        )
+        .transactions((transactions) => {
+          const [okTransaction, notModifiedTransaction] = transactions;
 
-              if (!transaction) {
-                throw new Error('Previous step does not have transaction.');
-              }
+          const violation = checkHeaders(
+            Object.keys(okTransaction.response.headers ?? {}),
+            Object.keys(notModifiedTransaction.response.headers ?? {}),
+            notModifiedTransaction.source.transactionId
+          );
 
-              const etag = transaction.response?.headers['etag'];
-
-              if (typeof etag === 'string') {
-                headers['if-none-match'] = etag;
-              }
-
-              return headers;
-            }),
-            runRequests({ checkResponse: false })
-          )
-        ),
-        expect(({ current }) => {
-          const okTransaction = current.steps[0].transactions[0];
-          const notModifiedTransaction = current.steps[1].transactions[0];
-
-          if (
-            okTransaction &&
-            notModifiedTransaction &&
-            notModifiedTransaction.response?.statusCode === 304
-          ) {
-            if (
-              okTransaction.response &&
-              notModifiedTransaction.response &&
-              notModifiedTransaction.source?.transactionId
-            ) {
-              let transactionId = notModifiedTransaction.source.transactionId;
-
-              const notModifiedResponse = testContext.format
-                .getHttpResponsesOf(notModifiedTransaction.source.thymianReqId)
-                .find(([, res]) => res.statusCode === 304);
-
-              if (notModifiedResponse) {
-                transactionId = notModifiedResponse[2];
-              }
-
-              const violation = checkHeaders(
-                Object.keys(okTransaction.response.headers ?? {}),
-                Object.keys(notModifiedTransaction.response.headers ?? {}),
-                transactionId
-              );
-
-              if (violation) {
-                testContext.reportViolation(violation);
-              }
-            }
+          if (violation) {
+            testContext.reportViolation(violation);
           }
         })
-      )
+        .done()
     )
   )
   .done();

@@ -25,24 +25,51 @@ export type HttpMethod =
   | (string & {});
 
 export type RequestFilterExpression =
-  | { type: 'method'; method: string }
-  | { type: 'hasRequestHeader'; header: string }
-  | { type: 'hasQueryParam'; param: string }
-  | { type: 'path'; path: string }
-  | { type: 'hasResponses'; filters: HttpFilterExpression[] }
-  | { type: 'isAuthorized'; isAuthorized: boolean };
+  | { type: 'method'; kind: 'request'; method: string }
+  | { type: 'requestHeader'; kind: 'request'; header: string; value?: unknown }
+  | { type: 'queryParam'; kind: 'request'; param: string; value?: unknown }
+  | { type: 'path'; kind: 'request'; path: string }
+  | {
+      type: 'hasResponse';
+      kind: 'request';
+      filters: HttpFilterExpression[];
+    }
+  | { type: 'isAuthorized'; kind: 'request'; isAuthorized: boolean }
+  | { type: 'origin'; kind: 'request'; origin: string }
+  | { type: 'hasBody'; kind: 'request'; hasBody: boolean }
+  | { type: 'port'; kind: 'request'; port: number }
+  | { type: 'requestMediaType'; kind: 'request'; mediaType: string };
 
 export type ResponseFilterExpression =
-  | { type: 'statusCode'; code: number }
-  | { type: 'hasResponseBody'; hasBody: boolean }
-  | { type: 'responseHeader'; header: string }
-  | { type: 'statusCodeRange'; start: number; end: number };
+  | { type: 'statusCode'; kind: 'response'; code: number }
+  | { type: 'hasResponseBody'; kind: 'response'; hasBody: boolean }
+  | {
+      type: 'responseHeader';
+      kind: 'response';
+      header: string;
+      value?: unknown;
+    }
+  | { type: 'statusCodeRange'; kind: 'response'; start: number; end: number }
+  | { type: 'responseMediaType'; kind: 'response'; mediaType: string }
+  | {
+      type: 'responseTrailer';
+      kind: 'response';
+      trailer: string;
+      value?: unknown;
+    };
 
 export type LogicalExpression =
-  | { type: 'and'; filters: HttpFilterExpression[] }
-  | { type: 'or'; filters: HttpFilterExpression[] }
-  | { type: 'not'; filter: HttpFilterExpression }
-  | { type: 'xor'; filters: [HttpFilterExpression, HttpFilterExpression] };
+  | { type: 'and'; kind: 'logic'; filters: HttpFilterExpression[] }
+  | { type: 'or'; kind: 'logic'; filters: HttpFilterExpression[] }
+  | { type: 'not'; kind: 'logic'; filter: HttpFilterExpression }
+  | Constant
+  | {
+      type: 'xor';
+      kind: 'logic';
+      filters: [HttpFilterExpression, HttpFilterExpression];
+    };
+
+export type Constant = { type: 'constant'; kind: 'logic'; value: unknown };
 
 export type HttpFilterExpression =
   | RequestFilterExpression
@@ -51,42 +78,67 @@ export type HttpFilterExpression =
 
 export const methods = (...methods: HttpMethod[]): LogicalExpression => ({
   type: 'or',
-  filters: methods.map((method) => ({ type: 'method', method })),
+  kind: 'logic',
+  filters: methods.map((method) => ({
+    type: 'method',
+    kind: 'request',
+    method,
+  })),
 });
 
 export const method = (method: HttpMethod): RequestFilterExpression => ({
   type: 'method',
+  kind: 'request',
   method,
 });
 
 export const path = (path: string): RequestFilterExpression => ({
   type: 'path',
+  kind: 'request',
   path,
 });
 
 export const responseHeader = (
-  header: HttpHeader
-): RequestFilterExpression | ResponseFilterExpression => ({
+  header: HttpHeader,
+  value?: unknown
+): ResponseFilterExpression => ({
   type: 'responseHeader',
+  kind: 'response',
   header,
+  value,
+});
+
+export const responseTrailer = (
+  trailer: string,
+  value?: unknown
+): ResponseFilterExpression => ({
+  type: 'responseTrailer',
+  kind: 'response',
+  trailer,
+  value,
 });
 
 export const requestHeader = (
-  header: HttpHeader
-): RequestFilterExpression | ResponseFilterExpression => ({
-  type: 'hasRequestHeader',
+  header: HttpHeader,
+  value?: unknown
+): RequestFilterExpression => ({
+  type: 'requestHeader',
+  kind: 'request',
   header,
+  value,
 });
 
 export const statusCode = (code: number): ResponseFilterExpression => ({
   type: 'statusCode',
   code,
+  kind: 'response',
 });
 
 export const statusCodeRange = (
   start: number,
   end: number
 ): ResponseFilterExpression => ({
+  kind: 'response',
   type: 'statusCodeRange',
   start,
   end,
@@ -94,21 +146,26 @@ export const statusCodeRange = (
 
 export const hasResponseBody = (hasBody = true): ResponseFilterExpression => ({
   type: 'hasResponseBody',
+  kind: 'response',
+
   hasBody,
 });
 
 export const and = (...filters: HttpFilterExpression[]): LogicalExpression => ({
   type: 'and',
+  kind: 'logic',
   filters,
 });
 
 export const or = (...filters: HttpFilterExpression[]): LogicalExpression => ({
   type: 'or',
+  kind: 'logic',
   filters,
 });
 
 export const not = (filter: HttpFilterExpression): LogicalExpression => ({
   type: 'not',
+  kind: 'logic',
   filter,
 });
 
@@ -116,46 +173,61 @@ export const xor = (
   ...filters: [HttpFilterExpression, HttpFilterExpression]
 ): LogicalExpression => ({
   type: 'xor',
+  kind: 'logic',
   filters,
 });
-export const isAuthorized = (isAuthorized = true): RequestFilterExpression => ({
+export const authorization = (
+  isAuthorized = true
+): RequestFilterExpression => ({
   type: 'isAuthorized',
+  kind: 'request',
   isAuthorized,
 });
 
-export const hasResponses = (
-  filters: HttpFilterExpression[]
+export const responseWith = (
+  ...filters: HttpFilterExpression[]
 ): RequestFilterExpression => ({
-  type: 'hasResponses',
+  type: 'hasResponse',
+  kind: 'request',
   filters,
 });
 
-export function responseWith(
-  ...filters: (ResponseFilterExpression | LogicalExpression)[]
-): LogicalExpression {
-  return and(...filters);
-}
+export const constant = (value: unknown): Constant => ({
+  type: 'constant',
+  kind: 'logic',
+  value,
+});
 
-export function requestWith(
-  ...filters: (RequestFilterExpression | LogicalExpression)[]
-): LogicalExpression {
-  return and(...filters);
-}
+export const origin = (origin: string): RequestFilterExpression => ({
+  type: 'origin',
+  kind: 'request',
+  origin,
+});
 
-export function httpFilter(
-  ...expressions: HttpFilterExpression[]
-): HttpFilterExpression {
-  console.log(expressions);
-  if (expressions.length === 0) {
-    return {
-      type: 'and',
-      filters: [],
-    };
-  } else if (expressions[0]) {
-    return expressions[0];
-  } else {
-    return and(...expressions);
-  }
-}
+export const hasRequestBody = (hasBody: boolean): RequestFilterExpression => ({
+  type: 'hasBody',
+  kind: 'request',
+  hasBody,
+});
 
-and(method('GET'), statusCode(201));
+export const port = (port: number): RequestFilterExpression => ({
+  type: 'port',
+  kind: 'request',
+  port,
+});
+
+export const requestMediaType = (
+  mediaType: string
+): RequestFilterExpression => ({
+  type: 'requestMediaType',
+  kind: 'request',
+  mediaType,
+});
+
+export const responseMediaType = (
+  mediaType: string
+): ResponseFilterExpression => ({
+  type: 'responseMediaType',
+  kind: 'response',
+  mediaType,
+});

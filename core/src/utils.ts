@@ -87,6 +87,26 @@ export function getHeader(
   return undefined;
 }
 
+export function setHeader(
+  headers: Record<string, unknown>,
+  headerName: string,
+  value: unknown
+): Record<string, unknown> {
+  const headerNames = Object.keys(headers);
+
+  const found = headerNames.find(
+    (name) => name.toLowerCase() === headerName.toLowerCase()
+  ) as keyof typeof headers;
+
+  if (found) {
+    headers[found] = value as (typeof headers)[typeof found];
+  } else {
+    headers[headerName] = value;
+  }
+
+  return headers;
+}
+
 export type PartialExceptFor<T, K extends keyof T> = Partial<Omit<T, K>> &
   Pick<T, K>;
 

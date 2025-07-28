@@ -5,6 +5,7 @@ import type {
   HttpTestCaseStep,
 } from '../http-test/http-test-case.js';
 import type { PipelineItem } from '../http-test/http-test-pipeline.js';
+import { isFailedTestCase, isSkippedTestCase } from '../http-test/index.js';
 
 export function replayStep<
   Steps extends HttpTestCaseStep[],
@@ -22,6 +23,12 @@ export function replayStep<
   PipelineItem<HttpTestCase<[...Steps, CurrentStep, CurrentStep]>>
 > {
   return mergeMap(({ ctx, current }) => {
+    if (isSkippedTestCase(current) || isFailedTestCase(current)) {
+      return of({ current, ctx }) as unknown as Observable<
+        PipelineItem<HttpTestCase<[...Steps, CurrentStep, CurrentStep]>>
+      >;
+    }
+
     const prevStep = current.steps.at(-1);
 
     if (typeof prevStep === 'undefined') {

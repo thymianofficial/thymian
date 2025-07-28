@@ -5,7 +5,6 @@ import {
   ThymianFormat,
   type ThymianPlugin,
 } from '@thymian/core';
-import type {} from '@thymian/format-validator';
 import type {} from '@thymian/request-dispatcher';
 import type {} from '@thymian/sampler';
 
