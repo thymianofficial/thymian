@@ -16,7 +16,7 @@ export class TextLogger implements Logger {
   trace(formatter: unknown, ...args: unknown[]): void {
     if (this.verbose) {
       console.debug(
-        `${chalk.grey(`TRACE`)} [${this.namespace}]: ${format(
+        `${chalk.grey(`TRACE`)} [${this.now()}] [${this.namespace}]: ${format(
           formatter,
           ...args
         )}`
@@ -25,7 +25,7 @@ export class TextLogger implements Logger {
   }
   warn(formatter: unknown, ...args: unknown[]): void {
     console.warn(
-      `${chalk.yellow(`WARN`)} [${this.namespace}]: ${format(
+      `${chalk.yellow(`WARN`)} [${this.now()}] [${this.namespace}]: ${format(
         formatter,
         ...args
       )}`
@@ -35,7 +35,7 @@ export class TextLogger implements Logger {
   debug(formatter: unknown, ...args: unknown[]): void {
     if (this.verbose) {
       console.debug(
-        `${chalk.blue(`DEBUG`)} [${this.namespace}]: ${format(
+        `${chalk.blue(`DEBUG`)} [${this.now()}] [${this.namespace}]: ${format(
           formatter,
           ...args
         )}`
@@ -44,7 +44,7 @@ export class TextLogger implements Logger {
   }
   info(formatter: unknown, ...args: unknown[]): void {
     console.log(
-      `${chalk.green(`INFO`)} [${this.namespace}]: ${format(
+      `${chalk.green(`INFO`)} [${this.now()}] [${this.namespace}]: ${format(
         formatter,
         ...args
       )}`
@@ -52,7 +52,10 @@ export class TextLogger implements Logger {
   }
   error(formatter: unknown, ...args: unknown[]): void {
     console.error(
-      `${chalk.red(`ERROR`)} [${this.namespace}]: ${format(formatter, ...args)}`
+      `${chalk.red(`ERROR`)} [${this.now()}] [${this.namespace}]: ${format(
+        formatter,
+        ...args
+      )}`
     );
   }
   out(output: unknown): void {
@@ -62,5 +65,9 @@ export class TextLogger implements Logger {
   }
   child(name: string, verbose = this.verbose): Logger {
     return new TextLogger(name, verbose);
+  }
+
+  private now(): string {
+    return new Date().toISOString().replace(/\.\d{3}Z$/, 'Z');
   }
 }

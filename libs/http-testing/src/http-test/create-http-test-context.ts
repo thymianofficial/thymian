@@ -41,6 +41,7 @@ export function createHttpTestContext<
     ): PipelineItem<HttpTestCase<Steps>, Locals> {
       testCase.status = 'skipped';
       testCase.reason = reason;
+      testCase.end = performance.now();
 
       return {
         ctx: this,
@@ -53,6 +54,7 @@ export function createHttpTestContext<
     ): PipelineItem<HttpTestCase<Steps>, Locals> {
       testCase.status = 'failed';
       testCase.reason = reason;
+      testCase.end = performance.now();
 
       return {
         ctx: this,

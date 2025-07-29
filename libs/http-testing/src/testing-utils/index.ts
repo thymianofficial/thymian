@@ -9,4 +9,7 @@ export const exampleContentGenerator: HttpTestContext['generateContent'] =
     }
   };
 
-export const identityHookRunner: HttpTestContext['runHook'] = async (a, b) => b;
+export const identityHookRunner: HttpTestContext['runHook'] = async (a, b) =>
+  // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+  // @ts-expect-error
+  b.value;

@@ -144,6 +144,9 @@ export class BaseRequestGenerator implements RequestGenerator {
           ) // How should we get invalid credentials?
             .join(':')
         ).toString('base64')}`;
+      } else {
+        request = (await this.ctx.runHook('authorize', { value: request }))
+          .value;
       }
     }
 

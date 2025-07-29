@@ -7,9 +7,8 @@ import {
   type ThymianSchema,
 } from '@thymian/core';
 import {
+  createHookRunner,
   createHttpTestContext,
-  type HttpTestCase,
-  type HttpTestCaseStep,
   type HttpTestContextLocals,
 } from '@thymian/http-testing';
 
@@ -25,7 +24,7 @@ export function createContext<Locals extends HttpTestContextLocals>(
     logger,
     locals,
     auth: {
-      basic: async () => ['matthyk', 'qupaya'],
+      // basic: async () => ['matthyk', 'qupaya'],
     },
     generateContent: async function (
       schema: ThymianSchema,
@@ -57,19 +56,6 @@ export function createContext<Locals extends HttpTestContextLocals>(
         }
       );
     },
-    runHook: async function <
-      Steps extends HttpTestCaseStep[] = HttpTestCaseStep[]
-    >(
-      name: string,
-      testCase: HttpTestCase<Steps>
-    ): Promise<HttpTestCase<Steps>> {
-      return (await emitter.emitAction(
-        'http-testing.test-hook',
-        { name, testCase },
-        {
-          strategy: 'deep-merge',
-        }
-      )) as HttpTestCase<Steps>;
-    },
+    runHook: createHookRunner(emitter),
   });
 }

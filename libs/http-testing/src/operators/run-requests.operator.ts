@@ -31,6 +31,10 @@ export function runRequests<
   opts: Partial<RunRequestsOptions> = {}
 ): MonoTypeOperatorFunction<PipelineItem<HttpTestCase<Steps>, Locals>> {
   return mergeMap(async ({ current, ctx }) => {
+    if (isSkippedTestCase(current) || isFailedTestCase(current)) {
+      return { current, ctx };
+    }
+
     const options: RunRequestsOptions = {
       checkResponse: false,
       checkStatusCode: true,
@@ -39,16 +43,47 @@ export function runRequests<
       ...opts,
     };
 
-    if (isSkippedTestCase(current) || isFailedTestCase(current)) {
-      return { current, ctx };
-    }
-
-    const step = current.steps.at(-1);
+    const stepIdx = current.steps.length - 1;
+    const step = current.steps.at(stepIdx);
 
     if (step) {
       for (const transaction of step.transactions) {
+        const beforeRequest = await ctx.runHook('beforeRequest', {
+          value: transaction.requestTemplate,
+        });
+
+        current.results.push(...(beforeRequest.testResults ?? []));
+
+        if (beforeRequest.skip) {
+          return ctx.skip(current, beforeRequest.skip);
+        }
+
+        if (beforeRequest.fail) {
+          return ctx.fail(current, beforeRequest.fail);
+        }
+
+        console.log({ rt: beforeRequest.value });
+
+        transaction.requestTemplate = beforeRequest.value;
+
         transaction.request = serializeRequest(transaction);
         transaction.response = await ctx.runRequest(transaction.request);
+
+        const afterResponse = await ctx.runHook('afterResponse', {
+          value: transaction.response,
+        });
+
+        current.results.push(...(afterResponse.testResults ?? []));
+
+        if (afterResponse.skip) {
+          return ctx.skip(current, afterResponse.skip);
+        }
+
+        if (afterResponse.fail) {
+          return ctx.fail(current, afterResponse.fail);
+        }
+
+        transaction.response = afterResponse.value;
 
         if (typeof options.expectStatusCode !== 'undefined') {
           if (transaction.response.statusCode !== options.expectStatusCode) {
@@ -65,7 +100,7 @@ export function runRequests<
 
             return ctx.skip(current, message);
           }
-        } else if (options.checkResponse && transaction.source) {
+        } else if (transaction.source) {
           const results: HttpTestCaseResult[] = [];
 
           if (options.checkStatusCode || options.checkResponse) {
@@ -92,13 +127,12 @@ export function runRequests<
 
           if (
             options.checkBody ||
-            options.checkResponse ||
-            typeof transaction.response.body !== 'undefined'
+            (options.checkResponse &&
+              typeof transaction.response.body !== 'undefined')
           ) {
             results.push(
               ...validateBodyForResponse(
-                // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-                transaction.response.body!,
+                transaction.response.body,
                 transaction.source.thymianRes
               )
             );
@@ -113,7 +147,7 @@ export function runRequests<
             );
           }
 
-          const valid = results.some((r) => r.type === 'assertion-failure');
+          const valid = !results.some((r) => r.type === 'assertion-failure');
 
           if (!valid) {
             current.results.push(

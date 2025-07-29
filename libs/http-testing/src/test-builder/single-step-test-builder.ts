@@ -163,6 +163,10 @@ export class SingleStepTestBuilder<
   ): ExpectOrStep<Transactions> {
     const operator: MonoTypeOperatorFunction<PipelineItem<HttpTestCase>> = map(
       ({ current, ctx }) => {
+        if (isSkippedTestCase(current) || isFailedTestCase(current)) {
+          return { current, ctx };
+        }
+
         const step = current.steps.at(-1);
 
         if (step) {

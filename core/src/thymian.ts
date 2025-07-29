@@ -106,7 +106,7 @@ export class Thymian {
       })()
         .then(resolve)
         .catch((err) => {
-          this.logger.debug('Error occurred. Try closing Thymian...');
+          this.logger.info('Try closing Thymian...');
 
           this.close().then(() => reject(err));
         });

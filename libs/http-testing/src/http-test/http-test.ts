@@ -26,7 +26,7 @@ export function httpTest<
     const testCases: HttpTestCase[] = [];
 
     const transactions = ctx.format.getThymianHttpTransactions();
-    const envelopes = transactions.map<
+    const items = transactions.map<
       PipelineItem<ThymianHttpTransaction, Locals>
     >((transaction) => ({
       current: transaction,
@@ -34,11 +34,12 @@ export function httpTest<
     }));
 
     return new Promise((resolve, reject) => {
-      fn(from(envelopes)).subscribe({
+      fn(from(items)).subscribe({
         next: (e) => {
           e.current.status =
             e.current.status === 'running' ? 'passed' : e.current.status;
-          e.current.end = performance.now();
+          e.current.end ??= performance.now();
+
           testCases.push(e.current);
         },
         complete: () => {

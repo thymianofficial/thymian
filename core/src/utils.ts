@@ -1,3 +1,4 @@
+import deepmerge from '@fastify/deepmerge';
 import {
   httpStatusCodeToPhrase,
   isValidHttpStatusCode,
@@ -141,3 +142,12 @@ export function equalsIgnoreCase(a: string, ...b: string[]): boolean {
     (str) => a.localeCompare(str, undefined, { sensitivity: 'accent' }) === 0
   );
 }
+
+export type DeepPartial<T> = T extends object
+  ? {
+      [P in keyof T]?: DeepPartial<T[P]>;
+    }
+  : T;
+
+export * from 'chalk';
+export { deepmerge };

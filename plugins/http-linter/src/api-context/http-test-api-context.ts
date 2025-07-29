@@ -285,7 +285,7 @@ export class HttpTestApiContext<
     testResult.cases.forEach((testCase) => {
       if (testCase.status === 'skipped') {
         this.ctx.logger.debug(
-          `HTTP test case "${testCase.name}" from test "${this.name}" is skipped. Reporting.`
+          `HTTP test case "${testCase.name}" from test "${this.name}" is skipped.`
         );
 
         this.report({
@@ -321,12 +321,14 @@ export class HttpTestApiContext<
         } else {
           this.report({
             isProblem: true,
-            text: testCase.results
-              .filter(
-                (tc) => tc.type !== 'info' && tc.type !== 'assertion-success'
-              )
-              .map((tc) => tc.message)
-              .join('\n'),
+            text:
+              testCase.reason ??
+              testCase.results
+                .filter(
+                  (tc) => tc.type !== 'info' && tc.type !== 'assertion-success'
+                )
+                .map((tc) => tc.message)
+                .join('\n'),
             title: testCase.name,
             subTopic: this.name,
             topic: 'Failed HTTP Test Cases',

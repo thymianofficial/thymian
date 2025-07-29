@@ -14,6 +14,7 @@ import type {
   HttpTestCaseStep,
   HttpTestCaseStepTransaction,
 } from './http-test-case.js';
+import type { HttpTestHooks } from './http-test-hooks.js';
 import type { PipelineItem } from './http-test-pipeline.js';
 
 export type GenerateRequestsOptions = {
@@ -52,10 +53,10 @@ export interface HttpTestContext<
     parameter: Parameter
   ): Promise<{ content: unknown; encoding?: string }>;
 
-  runHook<Steps extends HttpTestCaseStep[] = HttpTestCaseStep[]>(
-    name: string,
-    testCase: HttpTestCase<Steps>
-  ): Promise<HttpTestCase<Steps>>;
+  runHook<Hook extends keyof HttpTestHooks>(
+    name: Hook,
+    payload: HttpTestHooks[Hook]['arg']
+  ): Promise<HttpTestHooks[Hook]['return']>;
 
   skip<Steps extends HttpTestCaseStep[]>(
     testCase: HttpTestCase<Steps>,
