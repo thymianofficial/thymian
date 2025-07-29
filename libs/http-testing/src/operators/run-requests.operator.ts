@@ -62,8 +62,6 @@ export function runRequests<
           return ctx.fail(current, beforeRequest.fail);
         }
 
-        console.log({ rt: beforeRequest.value });
-
         transaction.requestTemplate = beforeRequest.value;
 
         transaction.request = serializeRequest(transaction);
