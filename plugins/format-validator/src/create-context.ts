@@ -6,11 +6,7 @@ import {
   ThymianFormat,
   type ThymianSchema,
 } from '@thymian/core';
-import {
-  createHttpTestContext,
-  type HttpTestCase,
-  type HttpTestCaseStep,
-} from '@thymian/http-testing';
+import { createHookRunner, createHttpTestContext } from '@thymian/http-testing';
 
 export function createContext(
   format: ThymianFormat,
@@ -55,19 +51,6 @@ export function createContext(
         }
       );
     },
-    runHook: async function <
-      Steps extends HttpTestCaseStep[] = HttpTestCaseStep[]
-    >(
-      name: string,
-      testCase: HttpTestCase<Steps>
-    ): Promise<HttpTestCase<Steps>> {
-      return (await emitter.emitAction(
-        'http-testing.test-hook',
-        { name, testCase },
-        {
-          strategy: 'deep-merge',
-        }
-      )) as HttpTestCase<Steps>;
-    },
+    runHook: createHookRunner(emitter),
   });
 }
