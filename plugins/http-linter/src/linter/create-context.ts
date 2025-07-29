@@ -23,9 +23,6 @@ export function createContext<Locals extends HttpTestContextLocals>(
     format,
     logger,
     locals,
-    auth: {
-      // basic: async () => ['matthyk', 'qupaya'],
-    },
     generateContent: async function (
       schema: ThymianSchema,
       contentType?: string
