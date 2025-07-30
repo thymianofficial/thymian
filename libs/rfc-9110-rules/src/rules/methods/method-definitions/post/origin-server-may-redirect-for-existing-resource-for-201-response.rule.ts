@@ -1,5 +1,5 @@
-import { httpRule } from '@thymian/http-linter';
 import { and, method, statusCode } from '@thymian/http-filter';
+import { httpRule } from '@thymian/http-linter';
 
 export default httpRule(
   'rfc9110/origin-server-may-redirect-for-existing-resource-for-201-response'

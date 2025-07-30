@@ -1,5 +1,5 @@
-import { httpRule } from '@thymian/http-linter';
 import { statusCode } from '@thymian/http-filter';
+import { httpRule } from '@thymian/http-linter';
 
 export default httpRule('rfc9110/402-status-code-is-reserved')
   .severity('error')

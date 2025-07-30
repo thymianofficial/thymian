@@ -1,4 +1,3 @@
-import { httpRule } from '@thymian/http-linter';
 import {
   and,
   method,
@@ -7,6 +6,7 @@ import {
   statusCode,
   statusCodeRange,
 } from '@thymian/http-filter';
+import { httpRule } from '@thymian/http-linter';
 
 export default httpRule(
   'rfc9110/origin-server-must-respond-with-correct-response-code-for-put-request'

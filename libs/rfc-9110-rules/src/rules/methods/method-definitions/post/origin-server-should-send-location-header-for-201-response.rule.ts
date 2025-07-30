@@ -1,4 +1,3 @@
-import { httpRule } from '@thymian/http-linter';
 import {
   and,
   method,
@@ -6,6 +5,7 @@ import {
   responseHeader,
   statusCode,
 } from '@thymian/http-filter';
+import { httpRule } from '@thymian/http-linter';
 
 export default httpRule(
   'rfc9110/origin-server-should-send-location-header-for-201-response'
