@@ -41,7 +41,7 @@ export abstract class ApiContext {
 
   abstract validateCommonHttpTransactions(
     filterFn: HttpFilterExpression,
-    validationFn:
+    validationFn?:
       | ValidationFn<[CommonHttpRequest, CommonHttpResponse, string]>
       | HttpFilterExpression
   ): Promise<RuleFnResult> | RuleFnResult;

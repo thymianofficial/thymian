@@ -1,7 +1,6 @@
 import { EOL } from 'node:os';
 
-import { BaseCliRunCommand } from '@thymian/cli-common';
-import { Flags } from '@thymian/cli-common/oclif';
+import { Command, Flags } from '@thymian/cli-common/oclif';
 import { checkbox, input, select } from '@thymian/cli-common/prompts';
 import type { JSONSchemaType } from '@thymian/core';
 
@@ -64,7 +63,7 @@ ${cjs ? 'module.exports =' : 'export default'} httpRule('${meta.name}')
   return template + '  .done()' + EOL;
 }
 
-export default class Generate extends BaseCliRunCommand<typeof Generate> {
+export default class Generate extends Command {
   static override flags = {
     cjs: Flags.boolean({
       description: 'Generate HTTP linter rule for CommonJs.',
@@ -73,6 +72,8 @@ export default class Generate extends BaseCliRunCommand<typeof Generate> {
   };
 
   override async run(): Promise<void> {
+    const { flags } = await this.parse(Generate);
+
     const name = await input({ message: 'What is the name of your rule?' });
 
     const severity = await select<RuleSeverity>({
@@ -122,21 +123,21 @@ export default class Generate extends BaseCliRunCommand<typeof Generate> {
     };
 
     if (url) {
-      ruleMeta.url = url;
+      ruleMeta.url = url.trim();
     }
 
     if (summary) {
-      ruleMeta.summary = summary;
+      ruleMeta.summary = summary.trim();
     }
 
     if (description) {
-      ruleMeta.description = description;
+      ruleMeta.description = description.trim();
     }
 
     if (appliesTo.length > 0) {
       ruleMeta.appliesTo = appliesTo;
     }
 
-    console.log(createRuleTemplate(ruleMeta, this.flags.cjs));
+    console.log(createRuleTemplate(ruleMeta, flags.cjs));
   }
 }

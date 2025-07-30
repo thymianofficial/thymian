@@ -28,7 +28,7 @@ export class StaticApiContext extends ApiContext {
     filter: HttpFilterExpression,
     validate:
       | ValidationFn<[CommonHttpRequest, CommonHttpResponse, string]>
-      | HttpFilterExpression
+      | HttpFilterExpression = filter
   ): RuleFnResult {
     const filterFn = compileExpressionToFilterFn(filter, this.format);
     const validationFn =

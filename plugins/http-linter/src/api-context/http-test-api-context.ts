@@ -201,7 +201,7 @@ export class HttpTestApiContext<
     filterExpr: HttpFilterExpression,
     validate:
       | ValidationFn<[CommonHttpRequest, CommonHttpResponse, string]>
-      | HttpFilterExpression
+      | HttpFilterExpression = filterExpr
   ): Promise<RuleFnResult> {
     const filterFn = compileExpressionToFilterFn(filterExpr, this.format);
     const validationFn =
