@@ -14,7 +14,6 @@ export function hash(input: string): string {
 
 export class FileOutputWriter implements OutputWriter {
   constructor(
-    private readonly logger: Logger,
     private readonly basePath: string,
     private readonly force: boolean
   ) {}

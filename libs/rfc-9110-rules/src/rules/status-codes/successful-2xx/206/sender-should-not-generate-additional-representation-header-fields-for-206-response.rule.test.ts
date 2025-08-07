@@ -2,7 +2,7 @@ import { NoopLogger } from '@thymian/core';
 import { HttpTestApiContext, StaticApiContext } from '@thymian/http-linter';
 import { createHttpTestContext } from '@thymian/http-testing';
 import {
-  exampleContentGenerator,
+  exampleRequestSampler,
   identityHookRunner,
 } from '@thymian/http-testing/testing-utils';
 import {
@@ -36,10 +36,7 @@ describe('sender-should-not-generate-additional-representation-header-fields-for
       logger: new NoopLogger(),
       runHook: identityHookRunner,
       runRequest: createFastifyRequestRunner(buildExampleApp()),
-      generateContent: exampleContentGenerator,
-      auth: {
-        basic: () => Promise.resolve(['matthyk', 'qupaya']),
-      },
+      sampleRequest: exampleRequestSampler,
     });
 
     it('should be defined', () => {

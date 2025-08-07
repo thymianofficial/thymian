@@ -2,7 +2,7 @@ import { NoopLogger } from '@thymian/core';
 import { HttpTestApiContext } from '@thymian/http-linter';
 import { createHttpTestContext } from '@thymian/http-testing';
 import {
-  exampleContentGenerator,
+  exampleRequestSampler,
   identityHookRunner,
 } from '@thymian/http-testing/testing-utils';
 import {
@@ -21,10 +21,7 @@ describe('server-must-not-generate-content-for-205-response', () => {
       logger: new NoopLogger(),
       runHook: identityHookRunner,
       runRequest: createFastifyRequestRunner(buildExampleApp()),
-      generateContent: exampleContentGenerator,
-      auth: {
-        basic: () => Promise.resolve(['matthyk', 'qupaya']),
-      },
+      sampleRequest: exampleRequestSampler,
       locals: {},
     });
 

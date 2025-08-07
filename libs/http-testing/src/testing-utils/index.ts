@@ -2,7 +2,7 @@ import type { Parameter } from '@thymian/core';
 
 import type { HttpTestContext, HttpTestHooks } from '../http-test/index.js';
 
-export const exampleContentGenerator: HttpTestContext['sampleRequest'] = async (
+export const exampleRequestSampler: HttpTestContext['sampleRequest'] = async (
   transaction
 ) => {
   return {

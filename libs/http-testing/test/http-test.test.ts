@@ -18,7 +18,7 @@ import {
   validateResponses,
 } from '../src/index.js';
 import {
-  exampleContentGenerator,
+  exampleRequestSampler,
   identityHookRunner,
 } from '../src/testing-utils/index.js';
 
@@ -34,10 +34,7 @@ describe('httpTest - todo app', () => {
       logger: new NoopLogger(),
       runHook: identityHookRunner,
       runRequest: createFastifyRequestRunner(exampleApp),
-      generateContent: exampleContentGenerator,
-      auth: {
-        basic: () => Promise.resolve(['matthyk', 'qupaya']),
-      },
+      sampleRequest: exampleRequestSampler,
     });
   });
 

@@ -53,7 +53,7 @@ describe('generate', () => {
       new ImageContentTypeStrategy()
     );
 
-    const writer = new FileOutputWriter(join(import.meta.dirname, 'tmp'));
+    const writer = new FileOutputWriter(join(import.meta.dirname, 'tmp'), true);
 
     await generate(format, t, g, writer);
   });

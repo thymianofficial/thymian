@@ -116,7 +116,7 @@ export const samplePlugin: ThymianPlugin<Partial<SamplerPluginOptions>> = {
           new HookContentTypeStrategy(emitter)
         );
 
-        const outputWriter = new FileOutputWriter(logger, basePath, opts.force);
+        const outputWriter = new FileOutputWriter(basePath, opts.force);
         const parsedFormat = ThymianFormat.import(format);
 
         for (const transaction of parsedFormat.getThymianHttpTransactions()) {
