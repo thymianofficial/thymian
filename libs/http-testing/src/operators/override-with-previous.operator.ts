@@ -1,6 +1,5 @@
 import { map, type MonoTypeOperatorFunction } from 'rxjs';
 
-import type { HttpRequestTemplate } from '../http-request-template.js';
 import {
   type HttpTestCase,
   type HttpTestCaseStep,
@@ -8,6 +7,7 @@ import {
   isSkippedTestCase,
   type PipelineItem,
 } from '../http-test/index.js';
+import type { HttpRequestTemplate } from '@thymian/core';
 
 export function overrideRequestWithPrevious<
   Steps extends HttpTestCaseStep[],

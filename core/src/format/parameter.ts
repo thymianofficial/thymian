@@ -5,5 +5,6 @@ export interface Parameter {
   description?: string;
   required: boolean;
   schema: ThymianSchema;
+  contentType?: string;
   style: SerializationStyle;
 }

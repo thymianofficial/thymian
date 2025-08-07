@@ -1,6 +1,16 @@
 import type { ThymianSchema } from '@thymian/core';
 
-import type { ContentTypeStrategy } from './content-types-strategies/content-type-strategy.js';
+import type { ContentTypeStrategy } from './content-type-strategy.js';
+
+export type ContentGeneratorResult =
+  | {
+      content: unknown;
+    }
+  | {
+      encoding: string;
+      buffer: Buffer;
+      ext: string;
+    };
 
 export class ContentGenerator {
   constructor(
@@ -11,7 +21,7 @@ export class ContentGenerator {
   generate(
     contentType: string,
     schema: ThymianSchema
-  ): Promise<{ content: unknown; encoding?: string }> {
+  ): Promise<ContentGeneratorResult> {
     const strategy =
       this.strategies.find((strategy) => strategy.matches(contentType)) ??
       this.fallbackStrategy;

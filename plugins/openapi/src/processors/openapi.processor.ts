@@ -99,7 +99,10 @@ export class OpenapiProcessor {
         path,
       }
     );
-    const requestIds = requests.map((req) => this.format.addRequest(req));
+    const responsesAndLinks = processResponsesObject(
+      operationObject.responses,
+      parameters
+    );
 
     const securitySchemes = this.globalSecuritySchemes.length
       ? this.globalSecuritySchemes
@@ -108,49 +111,37 @@ export class OpenapiProcessor {
         operationObject.security.map((sec) => Object.keys(sec)[0]!)
       : [];
 
-    requestIds.forEach((reqId) => {
-      securitySchemes.forEach((scheme) => {
-        if (typeof this.securitySchemeToNodeId[scheme] === 'string') {
-          this.format.addEdge(reqId, this.securitySchemeToNodeId[scheme], {
-            type: 'is-secured',
+    for (const req of requests) {
+      const reqId = this.format.addRequest(req);
+
+      for (const { responses, links } of responsesAndLinks) {
+        const responseIds: string[] = [];
+        for (const res of responses) {
+          const [resId] = this.format.addResponseToRequest(reqId, res);
+
+          responseIds.push(resId);
+
+          securitySchemes.forEach((scheme) => {
+            if (typeof this.securitySchemeToNodeId[scheme] === 'string') {
+              this.format.addEdge(reqId, this.securitySchemeToNodeId[scheme], {
+                type: 'is-secured',
+              });
+            }
           });
         }
-      });
-    });
 
-    const responsesAndLinks = processResponsesObject(
-      operationObject.responses,
-      parameters
-    );
-
-    const allResponseIds: string[] = [];
-
-    for (const { responses, links } of responsesAndLinks) {
-      const responseIds = responses.map((res) => this.format.addResponse(res));
-
-      links.forEach(({ name, linkObj }) => {
-        this.linkObjects.push({
-          name,
-          linkObj,
-          responseIds,
+        links.forEach(({ name, linkObj }) => {
+          this.linkObjects.push({
+            name,
+            linkObj,
+            responseIds,
+          });
         });
-      });
-
-      allResponseIds.push(...responseIds);
+      }
     }
-
-    requestIds.forEach((source) => {
-      allResponseIds.forEach((target) => {
-        this.format.addHttpTransaction(source, target);
-      });
-    });
   }
 
   public process(document: OpenApiV31.Document): ThymianFormat {
-    this.logger.debug(
-      `Processing OpenAPI document in version ${document.openapi}.`
-    );
-
     const securitySchemes = processSecuritySchemes(
       (document.components?.securitySchemes as Record<
         string,
@@ -160,7 +151,7 @@ export class OpenapiProcessor {
 
     securitySchemes.forEach((scheme) => {
       this.securitySchemeToNodeId[scheme.extensions.openapiV3.schemeName] =
-        this.format.addNode(scheme);
+        this.format.addSecurityScheme(scheme);
     });
 
     document.security?.forEach((security) => {

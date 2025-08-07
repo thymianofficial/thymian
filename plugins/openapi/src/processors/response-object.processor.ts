@@ -1,4 +1,4 @@
-import { type ThymianHttpResponse } from '@thymian/core';
+import { type PartialBy, type ThymianHttpResponse } from '@thymian/core';
 import type { OpenAPIV3_1 as OpenApiV31 } from 'openapi-types';
 
 import { processHeadersObject } from './headers-object.processor.js';
@@ -6,7 +6,7 @@ import { processMediaTypeObject } from './media-type-object.processor.js';
 import type { Parameters } from './utils.js';
 
 export type ResponsesWithLinks = {
-  responses: ThymianHttpResponse[];
+  responses: PartialBy<ThymianHttpResponse, 'label'>[];
   links: { name: string; linkObj: OpenApiV31.LinkObject }[];
 };
 
@@ -23,7 +23,7 @@ export function processResponseObject(
     ([name, linkObj]) => ({ name, linkObj })
   ) as { name: string; linkObj: OpenApiV31.LinkObject }[];
 
-  const responses = [] as ThymianHttpResponse[];
+  const responses: PartialBy<ThymianHttpResponse, 'label'>[] = [];
 
   if (responseObject.content) {
     responses.push(
@@ -47,7 +47,7 @@ export function processResponseObject(
             mediaType,
             statusCode,
             schema,
-          } satisfies ThymianHttpResponse;
+          } satisfies PartialBy<ThymianHttpResponse, 'label'>;
         })
     );
   } else {

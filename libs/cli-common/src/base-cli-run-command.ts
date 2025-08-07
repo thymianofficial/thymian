@@ -97,12 +97,14 @@ export abstract class BaseCliRunCommand<
     });
     this.flags = flags as CommandFlags<T>;
     this.args = args as CommandArgs<T>;
-    this.logger = new TextLogger('@thymian/cli', this.flags.verbose);
+    this.logger = new TextLogger(
+      '@thymian/cli',
+      this.flags.verbose || !!settings.debug
+    );
     this.thymian = new Thymian(this.logger.child('@thymian/core'), {
       timeout: this.flags.timeout,
       traceEvents: this.flags['trace-events'],
     });
-
     this.thymianConfig = await getConfig(this.flags.config, this.flags.cwd);
     this.overridePluginOptions();
 
@@ -234,10 +236,9 @@ export abstract class BaseCliRunCommand<
       : true;
 
     if (!valid) {
-      this.logger.error(
+      this.error(
         `Plugin "${pluginModule.name}" options are not valid and will not be registered.`
       );
-      return;
     }
 
     this.thymian.register(pluginModule, options);

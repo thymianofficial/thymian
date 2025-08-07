@@ -64,6 +64,14 @@ export function runRequests<
 
         transaction.requestTemplate = beforeRequest.value;
 
+        if (transaction.requestTemplate.authorize) {
+          transaction.requestTemplate = (
+            await ctx.runHook('authorize', {
+              value: transaction.requestTemplate,
+            })
+          ).value;
+        }
+
         transaction.request = serializeRequest(transaction);
         transaction.response = await ctx.runRequest(transaction.request);
 

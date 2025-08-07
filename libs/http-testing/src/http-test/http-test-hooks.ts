@@ -1,6 +1,5 @@
-import type { HttpResponse } from '@thymian/core';
+import type { HttpRequestTemplate, HttpResponse } from '@thymian/core';
 
-import type { HttpRequestTemplate } from '../http-request-template.js';
 import type { HttpTestCaseResult } from './http-test-case-result.js';
 
 export type HttpTestHookArg<T, Context = never> = {

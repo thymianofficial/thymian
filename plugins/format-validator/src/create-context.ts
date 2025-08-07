@@ -1,10 +1,11 @@
 import {
   type HttpRequest,
+  type HttpRequestTemplate,
   type HttpResponse,
   type Logger,
   ThymianEmitter,
   ThymianFormat,
-  type ThymianSchema,
+  type ThymianHttpTransaction,
 } from '@thymian/core';
 import { createHookRunner, createHttpTestContext } from '@thymian/http-testing';
 
@@ -18,22 +19,13 @@ export function createContext(
     format,
     logger,
     locals: {},
-    auth: {
-      basic: async () => ['matthyk', 'qupaya'],
-    },
-    generateContent: async function (
-      schema: ThymianSchema,
-      contentType?: string
-    ): Promise<{ content: unknown; encoding?: string }> {
-      return await emitter.emitAction(
-        'sampler.generate',
-        {
-          contentType: contentType ?? 'application/json',
-          schema,
-        },
-        {
-          strategy: 'first',
-        }
+    sampleRequest: function (
+      transaction: ThymianHttpTransaction
+    ): Promise<HttpRequestTemplate> {
+      return emitter.emitAction(
+        'sampler.sample-request',
+        { transaction },
+        { strategy: 'first' }
       );
     },
     runRequest: async function (req: HttpRequest): Promise<HttpResponse> {

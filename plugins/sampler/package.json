@@ -18,11 +18,21 @@
     "!**/*.tsbuildinfo"
   ],
   "dependencies": {
+    "lru-cache": "^11.1.0",
     "openapi-sampler": "^1.6.1",
     "sharp": "^0.34.1",
     "tslib": "^2.3.0"
   },
   "peerDependencies": {
-    "@thymian/core": "^0"
+    "@thymian/core": "^0",
+    "@thymian/cli-common": "^0"
+  },
+  "oclif": {
+    "commands": "./dist/cli/commands",
+    "topics": {
+      "sampler": {
+        "description": "Generate sample data for your API."
+      }
+    }
   }
 }

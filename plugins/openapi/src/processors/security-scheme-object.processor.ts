@@ -2,13 +2,14 @@ import type {
   ApiKeySecurityScheme,
   BasicSecurityScheme,
   BearerSecurityScheme,
+  PartialBy,
   SecurityScheme,
 } from '@thymian/core';
 import type { OpenAPIV3_1 as OpenApiV31 } from 'openapi-types';
 
 export function processSecuritySchemes(
   schemes: Record<string, OpenApiV31.SecuritySchemeObject>
-): SecurityScheme[] {
+): PartialBy<SecurityScheme, 'label'>[] {
   return Object.entries(schemes)
     .filter(([, scheme]) => scheme.type === 'http' || scheme.type === 'apiKey')
     .map(([name, schemeObj]) => {
@@ -22,7 +23,7 @@ export function processSecuritySchemes(
               schemeName: name,
             },
           },
-        } satisfies ApiKeySecurityScheme;
+        } satisfies PartialBy<ApiKeySecurityScheme, 'label'>;
       } else if ('scheme' in schemeObj) {
         if (schemeObj.scheme === 'basic') {
           return {
@@ -33,7 +34,7 @@ export function processSecuritySchemes(
                 schemeName: name,
               },
             },
-          } satisfies BasicSecurityScheme;
+          } satisfies PartialBy<BasicSecurityScheme, 'label'>;
         } else if (schemeObj.scheme === 'bearer') {
           return {
             type: 'security-scheme',
@@ -44,7 +45,7 @@ export function processSecuritySchemes(
                 schemeName: name,
               },
             },
-          } satisfies BearerSecurityScheme;
+          } satisfies PartialBy<BearerSecurityScheme, 'label'>;
         } else {
           throw new Error(`Scheme ${schemeObj.scheme} not supported.`);
         }

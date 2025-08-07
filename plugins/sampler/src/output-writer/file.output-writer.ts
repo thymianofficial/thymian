@@ -1,44 +1,73 @@
+import { createHash } from 'node:crypto';
 import { mkdir, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 
-import type { SampleHttRequest } from '../sample-request.js';
+import type { HttpRequestSample } from '../http-request-sample.js';
+import { createPathForTransaction } from './create-path-for-transaction.js';
 import type { OutputWriter } from './output-writer.js';
+import { type Logger, ThymianBaseError } from '@thymian/core';
+
+export function hash(input: string): string {
+  return createHash('sha1').update(input).digest('hex');
+}
 
 export class FileOutputWriter implements OutputWriter {
-  private readonly timestamp: number;
-  private readonly counter: Map<string, number> = new Map();
+  constructor(
+    private readonly logger: Logger,
+    private readonly basePath: string,
+    private readonly force: boolean
+  ) {}
 
-  constructor(private readonly basePath: string) {
-    this.timestamp = Date.now();
-  }
-
-  async write(sample: SampleHttRequest, requestId: string): Promise<void> {
+  async writeAssetFor(
+    value: Buffer,
+    ext: string,
+    sample: HttpRequestSample
+  ): Promise<string> {
     const path = join(
       this.basePath,
-      'requests',
-      this.timestamp.toString(),
-      requestId
+      createPathForTransaction(sample.meta.source)
     );
 
     await mkdir(path, { recursive: true });
 
-    const fileName = String(this.getCounterForRequest(requestId)).padStart(
-      5,
-      '0'
-    );
+    const fileName =
+      hash(sample.meta.source.transaction.label) +
+      (ext.startsWith('.') ? ext : `.${ext}`);
 
-    await writeFile(join(path, fileName) + '.json', JSON.stringify(sample), {
-      encoding: 'utf8',
+    const pathName = join(path, fileName);
+
+    await writeFile(pathName, value, {
+      encoding: (sample.request.bodyEncoding as BufferEncoding) ?? 'utf-8',
     });
+
+    return fileName;
   }
 
-  private getCounterForRequest(requestId: string): number {
-    const curr = this.counter.get(requestId);
+  async writeSample(sample: HttpRequestSample): Promise<string> {
+    const path = join(
+      this.basePath,
+      createPathForTransaction(sample.meta.source)
+    );
+    await mkdir(path, { recursive: true });
 
-    const updatedCounter = (curr ?? 0) + 1;
+    const fileName = join(path, 'request.json');
 
-    this.counter.set(requestId, updatedCounter);
+    try {
+      const flag = this.force ? 'w' : 'wx';
 
-    return updatedCounter;
+      await writeFile(fileName, JSON.stringify(sample), {
+        encoding: 'utf8',
+        flag,
+      });
+
+      return fileName;
+    } catch (e) {
+      throw new ThymianBaseError(`Cannot write sample to "${fileName}".`, {
+        suggestions: [
+          'Does the file already exists? If you want to overwrite it, use "--option @thymian/sampler.force=true".',
+        ],
+        cause: e,
+      });
+    }
   }
 }

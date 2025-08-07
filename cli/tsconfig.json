@@ -4,6 +4,9 @@
   "include": [],
   "references": [
     {
+      "path": "../plugins/sampler"
+    },
+    {
       "path": "../core"
     },
     {

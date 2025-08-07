@@ -143,6 +143,10 @@ export function equalsIgnoreCase(a: string, ...b: string[]): boolean {
   );
 }
 
+export function capitalizeFirstChar(str: string): string {
+  return String(str).charAt(0).toUpperCase() + String(str).slice(1);
+}
+
 export type DeepPartial<T> = T extends object
   ? {
       [P in keyof T]?: DeepPartial<T[P]>;

@@ -21,6 +21,7 @@
   "dependencies": {
     "@thymian/http-status-codes": "^0",
     "ajv": "^8.17.1",
+    "ajv-formats": "^3.0.1",
     "rxjs": "^7.8.2",
     "secure-json-parse": "^4.0.0",
     "url-template": "^3.1.1"

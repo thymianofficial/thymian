@@ -57,8 +57,8 @@ As you can see the test definition does not include any path oder API specific i
 ## How does this work?
 
 To say it in the most complicated way: With `@thymian/http-testing` you won't define your tests imperatively but 
-declaratively. You don't describe __how__ to call and test an HTTP but __what__ to call and test. This is modeled 
-through the usage of [RxJS](https://rxjs.dev/). While this library is mainly used to implement the asynchronous event 
+declaratively. You don't describe __how__ to call and test HTTP API endpoints but sets of endpoints end their expected properties.
+This is modeled through the usage of [RxJS](https://rxjs.dev/). While this library is mainly used to implement the asynchronous event 
 processing, especially in frontend projects (think about mouse click events), we use the capabilities of RxJS to
 implement a declarative testing approach. RxJS provides a way to write code in a declarative, functional and pure
 way. We use its powerful collection of operators to implement our approach as a pipeline. Thereby the initial value of

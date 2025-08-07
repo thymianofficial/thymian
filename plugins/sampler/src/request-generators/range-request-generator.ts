@@ -1,11 +1,11 @@
-import { BaseRequestGenerator } from './base-request-generator.js';
+import { AbstractRequestGenerator } from './abstract-request-generator.js';
 
-export class RangeRequestGenerator extends BaseRequestGenerator {
+export class RangeRequestGenerator extends AbstractRequestGenerator {
   /*
-  The specification is intentionally kept open for range units types.
-  A logic that extracts the appropriate unit could be implemented here.
-  However, since `bytes` is the only official range unit, we simply use it.
-   */
+The specification is intentionally kept open for range units types.
+A logic that extracts the appropriate unit could be implemented here.
+However, since `bytes` is the only official range unit, we simply use it.
+ */
   private extractRangeUnit(): string {
     return 'bytes';
   }

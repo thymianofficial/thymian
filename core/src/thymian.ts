@@ -41,7 +41,9 @@ export class Thymian {
       ...options
     }
 
-    this.emitter = new ThymianEmitter(logger.child('@thymian/core', this.options.traceEvents || this.logger.verbose), {
+
+    const emitterLogger = this.options.traceEvents ? logger.child('@thymian/core', true) : new NoopLogger()
+    this.emitter = new ThymianEmitter(emitterLogger, {
       completed: new Set(),
       errors: new Subject(),
       events: new Subject(),
@@ -106,7 +108,7 @@ export class Thymian {
       })()
         .then(resolve)
         .catch((err) => {
-          this.logger.info('Try closing Thymian...');
+          this.logger.debug('Try closing Thymian...');
 
           this.close().then(() => reject(err));
         });

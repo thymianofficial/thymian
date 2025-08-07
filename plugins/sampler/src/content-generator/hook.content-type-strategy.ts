@@ -5,6 +5,7 @@ import {
 } from '@thymian/core';
 
 import type { ContentTypeStrategy } from './content-type-strategy.js';
+import type { ContentGeneratorResult } from './content-generator.js';
 
 export class HookContentTypeStrategy implements ContentTypeStrategy {
   constructor(private readonly emitter: ThymianEmitter) {}
@@ -16,18 +17,24 @@ export class HookContentTypeStrategy implements ContentTypeStrategy {
   async generate(
     schema: ThymianSchema,
     contentType: string
-  ): Promise<{ content: unknown; encoding?: string }> {
-    const content = await this.emitter.emitAction('sampler.unknown-type', {
-      schema,
-      contentType,
-    });
+  ): Promise<ContentGeneratorResult> {
+    const content = await this.emitter.emitAction(
+      'sampler.unknown-type',
+      {
+        schema,
+        contentType,
+      },
+      {
+        strategy: 'first',
+      }
+    );
 
-    if (!content[0]) {
+    if (!content) {
       throw new ThymianBaseError(
         `Cannot sample data for content type ${contentType}.`
       );
     }
 
-    return content[0];
+    return content;
   }
 }

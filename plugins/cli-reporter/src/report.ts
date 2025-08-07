@@ -53,6 +53,8 @@ const header = `
 
 export function report(thymianReports: ThymianReport[]): void {
   if (thymianReports.length === 0) {
+    return;
+  } else if (!thymianReports.some((r) => r.isProblem)) {
     console.log(chalk.green('No problems were found.'));
 
     return;

@@ -1,7 +1,5 @@
-import { setHeader } from '@thymian/core';
+import { type HttpRequestTemplate, setHeader } from '@thymian/core';
 import type { RequestFilterExpression } from '@thymian/http-filter';
-
-import type { HttpRequestTemplate } from '../http-request-template.js';
 
 export function overrideTemplate(
   template: HttpRequestTemplate,

@@ -7,6 +7,8 @@ export const exampleAppFormat = ThymianFormat.import({
     {
       key: 'f6047871-7c0f-4b08-ab57-95f6c69850ef',
       attributes: {
+        label: '',
+
         type: 'security-scheme',
         scheme: 'basic',
         extensions: { openapiV3: { schemeName: 'basicAuth' } },
@@ -15,6 +17,7 @@ export const exampleAppFormat = ThymianFormat.import({
     {
       key: '059f8ba7-68fe-4c7f-9c03-8b23f3e09bde',
       attributes: {
+        label: '',
         type: 'http-request',
         host: 'localhost',
         port: 8080,
@@ -38,6 +41,8 @@ export const exampleAppFormat = ThymianFormat.import({
     {
       key: '1d1b8b15-ef0e-4641-9ce3-3bdb6f692a15',
       attributes: {
+        label: '',
+
         type: 'http-response',
         description: 'Default Response',
         headers: {
@@ -66,6 +71,8 @@ export const exampleAppFormat = ThymianFormat.import({
     {
       key: 'cfa82d14-ec58-4311-a75b-f5a74beb7e7b',
       attributes: {
+        label: '',
+
         type: 'http-response',
         description: 'not authorized',
         headers: {},
@@ -76,6 +83,8 @@ export const exampleAppFormat = ThymianFormat.import({
     {
       key: '115ed36f-35d4-4775-bf92-e81bf622c0cc',
       attributes: {
+        label: '',
+
         type: 'http-request',
         host: 'localhost',
         port: 8080,
@@ -100,6 +109,8 @@ export const exampleAppFormat = ThymianFormat.import({
     {
       key: 'e9f055a6-946b-4598-bd46-9a49a63dcb5f',
       attributes: {
+        label: '',
+
         type: 'http-response',
         description: 'Default Response',
         headers: {
@@ -125,6 +136,8 @@ export const exampleAppFormat = ThymianFormat.import({
     {
       key: '8130e527-fa58-4bb4-89e5-3642753ef451',
       attributes: {
+        label: '',
+
         type: 'http-request',
         host: 'localhost',
         port: 8080,
@@ -148,6 +161,8 @@ export const exampleAppFormat = ThymianFormat.import({
     {
       key: 'b61df69b-abd4-418a-a1e5-b6c50b5cd136',
       attributes: {
+        label: '',
+
         type: 'http-response',
         description: 'Default Response',
         headers: {
@@ -178,6 +193,8 @@ export const exampleAppFormat = ThymianFormat.import({
     {
       key: '260f960b-4724-4c18-940b-ca324db9cccd',
       attributes: {
+        label: '',
+
         type: 'http-response',
         description: '',
         headers: {
@@ -199,6 +216,8 @@ export const exampleAppFormat = ThymianFormat.import({
     {
       key: '53782e1d-0327-44bc-b066-efb3da40da76',
       attributes: {
+        label: '',
+
         type: 'http-request',
         host: 'localhost',
         port: 8080,
@@ -222,6 +241,8 @@ export const exampleAppFormat = ThymianFormat.import({
     {
       key: 'a0169df1-abb0-4ea5-88f2-f40ac27bbcc9',
       attributes: {
+        label: '',
+
         type: 'http-response',
         description: 'Default Response',
         headers: {
@@ -248,6 +269,8 @@ export const exampleAppFormat = ThymianFormat.import({
     {
       key: '8822c6aa-be9f-4067-bc44-8b56b706c8b4',
       attributes: {
+        label: '',
+
         type: 'http-response',
         description: 'Default Response',
         headers: {
@@ -284,6 +307,8 @@ export const exampleAppFormat = ThymianFormat.import({
     {
       key: '94a4176b-7f6a-42cc-bdcd-356f8d14218d',
       attributes: {
+        label: '',
+
         type: 'http-request',
         host: 'localhost',
         port: 8080,
@@ -307,6 +332,8 @@ export const exampleAppFormat = ThymianFormat.import({
     {
       key: '5a4ecbc4-df77-4066-8a42-557d33a15d07',
       attributes: {
+        label: '',
+
         type: 'http-response',
         description: 'Default Response',
         headers: {
@@ -328,6 +355,8 @@ export const exampleAppFormat = ThymianFormat.import({
     {
       key: '949edfc3-01b8-4c77-af5a-debd31382e15',
       attributes: {
+        label: '',
+
         type: 'http-response',
         description: 'Default Response',
         headers: {
@@ -344,6 +373,8 @@ export const exampleAppFormat = ThymianFormat.import({
     {
       key: 'f488f237-b3fe-4652-9a73-4d6555ad3cc7',
       attributes: {
+        label: '',
+
         type: 'http-request',
         host: 'localhost',
         port: 8080,
@@ -372,6 +403,8 @@ export const exampleAppFormat = ThymianFormat.import({
     {
       key: '6b9dce0e-853d-4403-b368-8942df1053d8',
       attributes: {
+        label: '',
+
         type: 'http-response',
         description: 'Default Response',
         headers: {
@@ -398,6 +431,8 @@ export const exampleAppFormat = ThymianFormat.import({
     {
       key: '67c2623e-bf8e-482d-bd13-72cfa0401cc5',
       attributes: {
+        label: '',
+
         type: 'http-response',
         description: 'Default Response',
         headers: {
@@ -424,6 +459,8 @@ export const exampleAppFormat = ThymianFormat.import({
     {
       key: '9f6d3ee3-2b6c-4b9d-9fd6-2dba6c6e9dcd',
       attributes: {
+        label: '',
+
         type: 'http-request',
         host: 'localhost',
         port: 8080,
@@ -452,6 +489,8 @@ export const exampleAppFormat = ThymianFormat.import({
     {
       key: '596f0759-3762-486f-b14d-a01c17456d44',
       attributes: {
+        label: '',
+
         type: 'http-response',
         description: 'Default Response',
         headers: {
@@ -478,6 +517,8 @@ export const exampleAppFormat = ThymianFormat.import({
     {
       key: 'f0163517-4c60-44db-b4eb-b1ce1376c284',
       attributes: {
+        label: '',
+
         type: 'http-response',
         description: 'Default Response',
         headers: {
@@ -504,6 +545,8 @@ export const exampleAppFormat = ThymianFormat.import({
     {
       key: '84e7dfc3-b0bc-4a0c-bb80-f6d6c45c2f89',
       attributes: {
+        label: '',
+
         type: 'http-request',
         host: 'localhost',
         port: 8080,
@@ -527,6 +570,8 @@ export const exampleAppFormat = ThymianFormat.import({
     {
       key: '95ef284d-fbff-447a-afd0-a272cd90b9b1',
       attributes: {
+        label: '',
+
         type: 'http-response',
         description: 'reset content',
         headers: {},
@@ -537,6 +582,8 @@ export const exampleAppFormat = ThymianFormat.import({
     {
       key: '0d527bbc-5c7b-45d5-b5c0-a9b7c616dc20',
       attributes: {
+        label: '',
+
         type: 'http-request',
         host: 'localhost',
         port: 8080,
@@ -560,6 +607,8 @@ export const exampleAppFormat = ThymianFormat.import({
     {
       key: '36c2ba69-6d79-4359-8b36-00936c015f37',
       attributes: {
+        label: '',
+
         type: 'http-response',
         description: 'reset content',
         headers: {},
@@ -578,145 +627,145 @@ export const exampleAppFormat = ThymianFormat.import({
       key: 'geid_232_0',
       source: '059f8ba7-68fe-4c7f-9c03-8b23f3e09bde',
       target: 'f6047871-7c0f-4b08-ab57-95f6c69850ef',
-      attributes: { type: 'is-secured' },
+      attributes: { type: 'is-secured', label: '' },
     },
     {
       key: 'geid_232_1',
       source: '059f8ba7-68fe-4c7f-9c03-8b23f3e09bde',
       target: '1d1b8b15-ef0e-4641-9ce3-3bdb6f692a15',
-      attributes: { type: 'http-transaction' },
+      attributes: { type: 'http-transaction', label: '' },
     },
     {
       key: 'geid_232_2',
       source: '059f8ba7-68fe-4c7f-9c03-8b23f3e09bde',
       target: 'cfa82d14-ec58-4311-a75b-f5a74beb7e7b',
-      attributes: { type: 'http-transaction' },
+      attributes: { type: 'http-transaction', label: '' },
     },
     {
       key: 'geid_232_3',
       source: '115ed36f-35d4-4775-bf92-e81bf622c0cc',
       target: 'f6047871-7c0f-4b08-ab57-95f6c69850ef',
-      attributes: { type: 'is-secured' },
+      attributes: { type: 'is-secured', label: '' },
     },
     {
       key: 'geid_232_4',
       source: '115ed36f-35d4-4775-bf92-e81bf622c0cc',
       target: 'e9f055a6-946b-4598-bd46-9a49a63dcb5f',
-      attributes: { type: 'http-transaction' },
+      attributes: { type: 'http-transaction', label: '' },
     },
     {
       key: 'geid_232_5',
       source: '8130e527-fa58-4bb4-89e5-3642753ef451',
       target: 'f6047871-7c0f-4b08-ab57-95f6c69850ef',
-      attributes: { type: 'is-secured' },
+      attributes: { type: 'is-secured', label: '' },
     },
     {
       key: 'geid_232_6',
       source: '8130e527-fa58-4bb4-89e5-3642753ef451',
       target: 'b61df69b-abd4-418a-a1e5-b6c50b5cd136',
-      attributes: { type: 'http-transaction' },
+      attributes: { type: 'http-transaction', label: '' },
     },
     {
       key: 'geid_232_7',
       source: '8130e527-fa58-4bb4-89e5-3642753ef451',
       target: '260f960b-4724-4c18-940b-ca324db9cccd',
-      attributes: { type: 'http-transaction' },
+      attributes: { type: 'http-transaction', label: '' },
     },
     {
       key: 'geid_232_8',
       source: '53782e1d-0327-44bc-b066-efb3da40da76',
       target: 'f6047871-7c0f-4b08-ab57-95f6c69850ef',
-      attributes: { type: 'is-secured' },
+      attributes: { type: 'is-secured', label: '' },
     },
     {
       key: 'geid_232_9',
       source: '53782e1d-0327-44bc-b066-efb3da40da76',
       target: 'a0169df1-abb0-4ea5-88f2-f40ac27bbcc9',
-      attributes: { type: 'http-transaction' },
+      attributes: { type: 'http-transaction', label: '' },
     },
     {
       key: 'geid_232_10',
       source: '53782e1d-0327-44bc-b066-efb3da40da76',
       target: '8822c6aa-be9f-4067-bc44-8b56b706c8b4',
-      attributes: { type: 'http-transaction' },
+      attributes: { type: 'http-transaction', label: '' },
     },
     {
       key: 'geid_232_11',
       source: '94a4176b-7f6a-42cc-bdcd-356f8d14218d',
       target: 'f6047871-7c0f-4b08-ab57-95f6c69850ef',
-      attributes: { type: 'is-secured' },
+      attributes: { type: 'is-secured', label: '' },
     },
     {
       key: 'geid_232_12',
       source: '94a4176b-7f6a-42cc-bdcd-356f8d14218d',
       target: '5a4ecbc4-df77-4066-8a42-557d33a15d07',
-      attributes: { type: 'http-transaction' },
+      attributes: { type: 'http-transaction', label: '' },
     },
     {
       key: 'geid_232_13',
       source: '94a4176b-7f6a-42cc-bdcd-356f8d14218d',
       target: '949edfc3-01b8-4c77-af5a-debd31382e15',
-      attributes: { type: 'http-transaction' },
+      attributes: { type: 'http-transaction', label: '' },
     },
     {
       key: 'geid_232_14',
       source: 'f488f237-b3fe-4652-9a73-4d6555ad3cc7',
       target: 'f6047871-7c0f-4b08-ab57-95f6c69850ef',
-      attributes: { type: 'is-secured' },
+      attributes: { type: 'is-secured', label: '' },
     },
     {
       key: 'geid_232_15',
       source: 'f488f237-b3fe-4652-9a73-4d6555ad3cc7',
       target: '6b9dce0e-853d-4403-b368-8942df1053d8',
-      attributes: { type: 'http-transaction' },
+      attributes: { type: 'http-transaction', label: '' },
     },
     {
       key: 'geid_232_16',
       source: 'f488f237-b3fe-4652-9a73-4d6555ad3cc7',
       target: '67c2623e-bf8e-482d-bd13-72cfa0401cc5',
-      attributes: { type: 'http-transaction' },
+      attributes: { type: 'http-transaction', label: '' },
     },
     {
       key: 'geid_232_17',
       source: '9f6d3ee3-2b6c-4b9d-9fd6-2dba6c6e9dcd',
       target: 'f6047871-7c0f-4b08-ab57-95f6c69850ef',
-      attributes: { type: 'is-secured' },
+      attributes: { type: 'is-secured', label: '' },
     },
     {
       key: 'geid_232_18',
       source: '9f6d3ee3-2b6c-4b9d-9fd6-2dba6c6e9dcd',
       target: '596f0759-3762-486f-b14d-a01c17456d44',
-      attributes: { type: 'http-transaction' },
+      attributes: { type: 'http-transaction', label: '' },
     },
     {
       key: 'geid_232_19',
       source: '9f6d3ee3-2b6c-4b9d-9fd6-2dba6c6e9dcd',
       target: 'f0163517-4c60-44db-b4eb-b1ce1376c284',
-      attributes: { type: 'http-transaction' },
+      attributes: { type: 'http-transaction', label: '' },
     },
     {
       key: 'geid_232_20',
       source: '84e7dfc3-b0bc-4a0c-bb80-f6d6c45c2f89',
       target: 'f6047871-7c0f-4b08-ab57-95f6c69850ef',
-      attributes: { type: 'is-secured' },
+      attributes: { type: 'is-secured', label: '' },
     },
     {
       key: 'geid_232_21',
       source: '84e7dfc3-b0bc-4a0c-bb80-f6d6c45c2f89',
       target: '95ef284d-fbff-447a-afd0-a272cd90b9b1',
-      attributes: { type: 'http-transaction' },
+      attributes: { type: 'http-transaction', label: '' },
     },
     {
       key: 'geid_232_22',
       source: '0d527bbc-5c7b-45d5-b5c0-a9b7c616dc20',
       target: 'f6047871-7c0f-4b08-ab57-95f6c69850ef',
-      attributes: { type: 'is-secured' },
+      attributes: { type: 'is-secured', label: '' },
     },
     {
       key: 'geid_232_23',
       source: '0d527bbc-5c7b-45d5-b5c0-a9b7c616dc20',
       target: '36c2ba69-6d79-4359-8b36-00936c015f37',
-      attributes: { type: 'http-transaction' },
+      attributes: { type: 'http-transaction', label: '' },
     },
   ],
 });

@@ -1,9 +1,11 @@
 import {
   type HttpRequest,
+  type HttpRequestTemplate,
   type HttpResponse,
   type Logger,
   ThymianEmitter,
   ThymianFormat,
+  type ThymianHttpTransaction,
   type ThymianSchema,
 } from '@thymian/core';
 import {
@@ -23,19 +25,13 @@ export function createContext<Locals extends HttpTestContextLocals>(
     format,
     logger,
     locals,
-    generateContent: async function (
-      schema: ThymianSchema,
-      contentType?: string
-    ): Promise<{ content: unknown; encoding?: string }> {
-      return await emitter.emitAction(
-        'sampler.generate',
-        {
-          contentType: contentType ?? 'application/json',
-          schema,
-        },
-        {
-          strategy: 'first',
-        }
+    sampleRequest: function (
+      transaction: ThymianHttpTransaction
+    ): Promise<HttpRequestTemplate> {
+      return emitter.emitAction(
+        'sampler.sample-request',
+        { transaction },
+        { strategy: 'first' }
       );
     },
     runRequest: async function (req: HttpRequest): Promise<HttpResponse> {

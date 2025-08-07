@@ -10,9 +10,6 @@ export const commonHttpHeaders = [
   'content-type',
   'connection',
   'server',
-  //'cache-control', TODO: we should discuss about this
-  //'etag',
-  //'last-modified',
   'vary',
   'content-encoding',
   'access-control-allow-origin',
@@ -24,6 +21,17 @@ export const commonHttpHeaders = [
   'strict-transport-security',
   'x-powered-by',
   'keep-alive',
+  'cross-origin-opener-policy',
+  'content-security-policy',
+  'cross-origin-opener-policy',
+  'origin-agent-cluster',
+  'referrer-policy',
+  'x-content-type-options',
+  'x-dns-prefetch-control',
+  'x-download-options',
+  'x-frame-options',
+  'x-permitted-cross-domain-policies',
+  'x-xss-protection',
 ] as const;
 
 const commonHeadersSet = new Set<string>(commonHttpHeaders);

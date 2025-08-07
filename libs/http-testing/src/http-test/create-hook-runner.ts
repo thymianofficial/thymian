@@ -1,12 +1,12 @@
 import {
   type DeepPartial,
+  type HttpRequestTemplate,
   type HttpResponse,
   type ThymianActions,
   ThymianEmitter,
 } from '@thymian/core';
 import { deepmerge } from '@thymian/core/utils';
 
-import type { HttpRequestTemplate } from '../http-request-template.js';
 import type { HttpTestContext } from './http-test-context.js';
 import type {
   HttpTestHookArg,

@@ -1,10 +1,10 @@
 import type {
   HttpRequest,
+  HttpRequestTemplate,
   HttpResponse,
   ThymianHttpTransaction,
 } from '@thymian/core';
 
-import type { HttpRequestTemplate } from '../http-request-template.js';
 import type { HttpTestCaseResult } from './http-test-case-result.js';
 
 export interface GroupedHttpTestCaseStep<

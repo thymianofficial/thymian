@@ -55,21 +55,16 @@ export function generateRequests<
 
     if (isSingleHttpTestCaseStep(step)) {
       step.transactions.push({
-        requestTemplate: await ctx.generateRequest(
-          ctx.format,
-          step.source,
-          options
-        ),
+        requestTemplate: {
+          ...(await ctx.sampleRequest(step.source)),
+          authorize: options?.authenticate ?? true,
+        },
         source: step.source,
-      } as HttpTestCaseStepTransaction);
+      });
     } else if (isGroupedHttpTestCaseStep(step)) {
       for (const transaction of step.source.transactions) {
         step.transactions.push({
-          requestTemplate: await ctx.generateRequest(
-            ctx.format,
-            transaction,
-            options
-          ),
+          requestTemplate: await ctx.sampleRequest(transaction),
           source: transaction,
         } as HttpTestCaseStepTransaction);
       }

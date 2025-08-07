@@ -1,23 +1,37 @@
+import { join } from 'node:path';
+
 import {
-  ThymianBaseError,
+  type HttpRequestTemplate,
+  type SerializedThymianFormat,
+  ThymianFormat,
+  type ThymianHttpTransaction,
   type ThymianPlugin,
   type ThymianSchema,
 } from '@thymian/core';
 
-import { ContentGenerator } from './content-generator.js';
-import { HookContentTypeStrategy } from './content-types-strategies/hook.content-type-strategy.js';
-import { ImageContentTypeStrategy } from './content-types-strategies/image.content-type-strategy.js';
-import { JsonContentTypeStrategy } from './content-types-strategies/json.content-type-strategy.js';
-import { XmlContentTypeStrategy } from './content-types-strategies/xml.content-type-strategy.js';
+import { ContentGenerator } from './content-generator/content-generator.js';
+import { HookContentTypeStrategy } from './content-generator/hook.content-type-strategy.js';
+import { ImageContentTypeStrategy } from './content-generator/image.content-type-strategy.js';
+import { JsonContentTypeStrategy } from './content-generator/json.content-type-strategy.js';
+import { XmlContentTypeStrategy } from './content-generator/xml.content-type-strategy.js';
+import { FileOutputWriter } from './output-writer/file.output-writer.js';
+import { generate } from './request-generators/generate.js';
+import { Sampler } from './sampler.js';
 
 declare module '@thymian/core' {
   interface ThymianActions {
     'sampler.generate': {
       event: {
-        contentType: string;
-        schema: ThymianSchema;
+        format: SerializedThymianFormat;
       };
-      response: { content: unknown; encoding?: string };
+      response: void;
+    };
+
+    'sampler.sample-request': {
+      event: {
+        transaction: ThymianHttpTransaction;
+      };
+      response: HttpRequestTemplate;
     };
 
     'sampler.unknown-type': {
@@ -30,9 +44,32 @@ declare module '@thymian/core' {
   }
 }
 
-export const dataGeneratorPlugin: ThymianPlugin = {
+export type SamplerPluginOptions = {
+  cwd: string;
+  path: string;
+  force: boolean;
+};
+
+export const samplePlugin: ThymianPlugin<Partial<SamplerPluginOptions>> = {
   name: '@thymian/sampler',
   version: '0.x',
+  options: {
+    type: 'object',
+    properties: {
+      cwd: {
+        type: 'string',
+        nullable: true,
+      },
+      path: {
+        type: 'string',
+        nullable: true,
+      },
+      force: {
+        type: 'boolean',
+        nullable: true,
+      },
+    },
+  },
   actions: {
     provides: {
       'sampler.generate': {
@@ -59,32 +96,56 @@ export const dataGeneratorPlugin: ThymianPlugin = {
       },
     },
   },
-  events: {},
-  plugin: async (emitter) => {
-    const generator = new ContentGenerator(
-      [
-        new JsonContentTypeStrategy(),
-        new XmlContentTypeStrategy(),
-        new ImageContentTypeStrategy(),
-      ],
-      new HookContentTypeStrategy(emitter)
-    );
+  plugin: async (emitter, logger, options) => {
+    const opts: SamplerPluginOptions = {
+      cwd: process.cwd(),
+      path: '.thymian/samples',
+      force: false,
+      ...options,
+    };
+    const basePath = join(opts.cwd, opts.path);
 
-    emitter.onAction(
-      'sampler.generate',
-      async ({ schema, contentType }, ctx) => {
-        try {
-          const result = await generator.generate(contentType, schema);
+    emitter.onAction('sampler.generate', async ({ format }, ctx) => {
+      try {
+        const contentGenerator = new ContentGenerator(
+          [
+            new JsonContentTypeStrategy(),
+            new XmlContentTypeStrategy(),
+            new ImageContentTypeStrategy(),
+          ],
+          new HookContentTypeStrategy(emitter)
+        );
 
-          ctx.reply(result);
-        } catch (e) {
-          ctx.error(
-            new ThymianBaseError('Cannot generate data.', { cause: e })
+        const outputWriter = new FileOutputWriter(logger, basePath, opts.force);
+        const parsedFormat = ThymianFormat.import(format);
+
+        for (const transaction of parsedFormat.getThymianHttpTransactions()) {
+          await generate(
+            parsedFormat,
+            transaction,
+            contentGenerator,
+            outputWriter
           );
         }
+
+        ctx.reply();
+      } catch (e) {
+        ctx.error(e);
       }
-    );
+    });
+
+    const sampler = new Sampler(basePath);
+
+    emitter.onAction('sampler.sample-request', async ({ transaction }, ctx) => {
+      try {
+        const sample = await sampler.sample(transaction);
+
+        ctx.reply(sample);
+      } catch (e) {
+        ctx.error(e);
+      }
+    });
   },
 };
 
-export default dataGeneratorPlugin;
+export default samplePlugin;

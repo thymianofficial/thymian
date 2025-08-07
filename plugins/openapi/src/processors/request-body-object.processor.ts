@@ -1,4 +1,4 @@
-import { type ThymianHttpRequest } from '@thymian/core';
+import { type PartialBy, type ThymianHttpRequest } from '@thymian/core';
 import type { OpenAPIV3_1 as OpenApiV31 } from 'openapi-types';
 
 import { processMediaTypeObject } from './media-type-object.processor.js';
@@ -15,7 +15,7 @@ export function processRequestBodyObjet(
     port: number;
     protocol: 'http' | 'https';
   }
-): ThymianHttpRequest[] {
+): PartialBy<ThymianHttpRequest, 'label'>[] {
   if (!requestBodyObject) {
     return [
       {
@@ -42,8 +42,7 @@ export function processRequestBodyObjet(
       .filter(
         ([mediaType]) =>
           !/^multipart\/.*/i.test(mediaType) &&
-          mediaType !== 'application/x-www-form-urlencoded' &&
-          mediaType !== 'application/xml'
+          mediaType !== 'application/x-www-form-urlencoded'
       )
       .map(([mediaType, mediaTypeObject]) => {
         const isMultipart = /^multipart\/.*/i.test(mediaType);
@@ -79,7 +78,7 @@ export function processRequestBodyObjet(
             ...parameters.headers,
             // ...headers, TODO
           },
-        } satisfies ThymianHttpRequest;
+        } satisfies PartialBy<ThymianHttpRequest, 'label'>;
       })
   );
 }

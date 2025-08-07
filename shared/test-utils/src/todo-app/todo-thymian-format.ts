@@ -2,11 +2,12 @@ import { ThymianFormat } from '@thymian/core';
 
 export const todoAppFormat = ThymianFormat.import({
   options: { type: 'directed', multi: true, allowSelfLoops: true },
-  attributes: {},
+  attributes: { label: '' },
   nodes: [
     {
       key: 'ff4df09d-9c26-4903-81c7-3643b384b7c4',
       attributes: {
+        label: '',
         type: 'http-request',
         host: 'localhost',
         port: 8080,
@@ -24,6 +25,7 @@ export const todoAppFormat = ThymianFormat.import({
     {
       key: 'bf76d1f8-fae9-464d-8025-2eb4ab88ec8a',
       attributes: {
+        label: '',
         type: 'http-response',
         description: 'Default Response',
         headers: {},
@@ -47,6 +49,7 @@ export const todoAppFormat = ThymianFormat.import({
     {
       key: 'f52fba20-4e21-460b-b0bb-10c14aa448a2',
       attributes: {
+        label: '',
         type: 'http-request',
         host: 'localhost',
         port: 8080,
@@ -73,6 +76,7 @@ export const todoAppFormat = ThymianFormat.import({
     {
       key: '17edfa3a-598e-40ba-9e8d-872f6cd38176',
       attributes: {
+        label: '',
         type: 'http-response',
         description: 'Default Response',
         headers: {},
@@ -93,6 +97,7 @@ export const todoAppFormat = ThymianFormat.import({
     {
       key: 'af62f2b5-0197-44ae-80a0-d381efee468a',
       attributes: {
+        label: '',
         type: 'http-response',
         description: 'Default Response',
         headers: {},
@@ -104,6 +109,7 @@ export const todoAppFormat = ThymianFormat.import({
     {
       key: '64338bca-eda4-4dcb-b822-ad3c7703cd78',
       attributes: {
+        label: '',
         type: 'http-request',
         host: 'localhost',
         port: 8080,
@@ -127,6 +133,7 @@ export const todoAppFormat = ThymianFormat.import({
     {
       key: 'eb0097f0-1252-4d7a-b5f0-d4645a7d1270',
       attributes: {
+        label: '',
         type: 'http-response',
         description: 'Default Response',
         headers: {},
@@ -147,6 +154,7 @@ export const todoAppFormat = ThymianFormat.import({
     {
       key: 'eb813cce-5e95-4f7a-9ed8-a4523a3f93cf',
       attributes: {
+        label: '',
         type: 'http-response',
         description: 'Default Response',
         headers: {},
@@ -158,6 +166,7 @@ export const todoAppFormat = ThymianFormat.import({
     {
       key: 'a2e8d334-fc8e-4ab2-ba9e-0fe0de34b18f',
       attributes: {
+        label: '',
         type: 'http-request',
         host: 'localhost',
         port: 8080,
@@ -181,6 +190,7 @@ export const todoAppFormat = ThymianFormat.import({
     {
       key: '745b1b85-da18-4fc0-9382-0829ea0cd3e6',
       attributes: {
+        label: '',
         type: 'http-response',
         description: 'Default Response',
         headers: {},
@@ -191,6 +201,7 @@ export const todoAppFormat = ThymianFormat.import({
     {
       key: '0e5523c2-ad5c-476c-9335-1e522e56311d',
       attributes: {
+        label: '',
         type: 'http-response',
         description: 'Default Response',
         headers: {},
@@ -202,6 +213,7 @@ export const todoAppFormat = ThymianFormat.import({
     {
       key: '7a8a1884-c467-4e2b-8146-92c7f76b99f8',
       attributes: {
+        label: '',
         type: 'http-request',
         host: 'localhost',
         port: 8080,
@@ -231,6 +243,7 @@ export const todoAppFormat = ThymianFormat.import({
     {
       key: '55a5ca94-282a-40e6-9c36-67ec9915ccc4',
       attributes: {
+        label: '',
         type: 'http-response',
         description: 'Default Response',
         headers: {},
@@ -252,6 +265,7 @@ export const todoAppFormat = ThymianFormat.import({
     {
       key: 'a1bd73ac-f4a2-40e8-9e10-ac5f5128fa3e',
       attributes: {
+        label: '',
         type: 'http-response',
         description: 'Default Response',
         headers: {},
@@ -263,6 +277,7 @@ export const todoAppFormat = ThymianFormat.import({
     {
       key: '0b856f44-865a-4781-9d82-1ce95089c30a',
       attributes: {
+        label: '',
         type: 'http-request',
         host: 'localhost',
         port: 8080,
@@ -286,6 +301,7 @@ export const todoAppFormat = ThymianFormat.import({
     {
       key: 'dfc47bcb-6d11-4c44-92a0-c11e6dd2d991',
       attributes: {
+        label: '',
         type: 'http-response',
         description: 'Default Response',
         headers: {},
@@ -310,6 +326,7 @@ export const todoAppFormat = ThymianFormat.import({
     {
       key: '6873b02b-73aa-4410-818a-53874d51d69a',
       attributes: {
+        label: '',
         type: 'http-request',
         host: 'localhost',
         port: 8080,
@@ -327,6 +344,7 @@ export const todoAppFormat = ThymianFormat.import({
     {
       key: '6abb0086-ae73-405d-b72d-d9534bde0fbb',
       attributes: {
+        label: '',
         type: 'http-response',
         description: 'Default Response',
         headers: {},
@@ -351,6 +369,7 @@ export const todoAppFormat = ThymianFormat.import({
     {
       key: 'ef3be3d0-949c-40a7-ac33-dbf229ea16c7',
       attributes: {
+        label: '',
         type: 'http-request',
         host: 'localhost',
         port: 8080,
@@ -375,6 +394,7 @@ export const todoAppFormat = ThymianFormat.import({
     {
       key: '2c9a2158-eebe-4398-b1da-b10ecfa709c1',
       attributes: {
+        label: '',
         type: 'http-response',
         description: 'Default Response',
         headers: {},
@@ -396,6 +416,7 @@ export const todoAppFormat = ThymianFormat.import({
     {
       key: '90fdfaf9-5ea3-4249-83aa-0a009f3512bc',
       attributes: {
+        label: '',
         type: 'http-response',
         description: 'Default Response',
         headers: {},
@@ -407,6 +428,7 @@ export const todoAppFormat = ThymianFormat.import({
     {
       key: '074a4dfa-ff69-4af5-b9a8-eba416d9186c',
       attributes: {
+        label: '',
         type: 'http-request',
         host: 'localhost',
         port: 8080,
@@ -430,6 +452,7 @@ export const todoAppFormat = ThymianFormat.import({
     {
       key: 'a235e5e0-58b0-483d-b439-ca32f35a404d',
       attributes: {
+        label: '',
         type: 'http-response',
         description: 'Default Response',
         headers: {},
@@ -451,6 +474,7 @@ export const todoAppFormat = ThymianFormat.import({
     {
       key: 'b5fb6ed7-f121-4c6f-8646-783a38c0aa4e',
       attributes: {
+        label: '',
         type: 'http-response',
         description: 'Default Response',
         headers: {},
@@ -462,6 +486,7 @@ export const todoAppFormat = ThymianFormat.import({
     {
       key: '5faa233d-acc1-485e-a910-f1084a5bc7c8',
       attributes: {
+        label: '',
         type: 'http-request',
         host: 'localhost',
         port: 8080,
@@ -495,6 +520,7 @@ export const todoAppFormat = ThymianFormat.import({
     {
       key: 'c13d99ee-39b6-49f7-9679-a58372c288a6',
       attributes: {
+        label: '',
         type: 'http-response',
         description: 'Default Response',
         headers: {},
@@ -516,6 +542,7 @@ export const todoAppFormat = ThymianFormat.import({
     {
       key: 'fee801d0-f004-49a0-9bcf-6a0c21e13bca',
       attributes: {
+        label: '',
         type: 'http-response',
         description: 'Default Response',
         headers: {},
@@ -527,6 +554,7 @@ export const todoAppFormat = ThymianFormat.import({
     {
       key: 'a1390ef4-9e58-47ff-bfa5-3213870e2b23',
       attributes: {
+        label: '',
         type: 'http-response',
         description: 'Default Response',
         headers: {},
@@ -538,6 +566,7 @@ export const todoAppFormat = ThymianFormat.import({
     {
       key: 'd64088ba-45fc-49a0-b4f5-bfe1e591d2e7',
       attributes: {
+        label: '',
         type: 'http-request',
         host: 'localhost',
         port: 8080,
@@ -561,6 +590,7 @@ export const todoAppFormat = ThymianFormat.import({
     {
       key: '376073c4-17b0-42d0-a9d5-401186ac4393',
       attributes: {
+        label: '',
         type: 'http-response',
         description: 'Default Response',
         headers: {},
@@ -571,6 +601,7 @@ export const todoAppFormat = ThymianFormat.import({
     {
       key: 'e82f1215-cc61-4e27-af90-c34ee831e37b',
       attributes: {
+        label: '',
         type: 'http-response',
         description: 'Default Response',
         headers: {},
@@ -585,121 +616,121 @@ export const todoAppFormat = ThymianFormat.import({
       key: 'geid_187_0',
       source: 'ff4df09d-9c26-4903-81c7-3643b384b7c4',
       target: 'bf76d1f8-fae9-464d-8025-2eb4ab88ec8a',
-      attributes: { type: 'http-transaction' },
+      attributes: { label: '', type: 'http-transaction' },
     },
     {
       key: 'geid_187_1',
       source: 'f52fba20-4e21-460b-b0bb-10c14aa448a2',
       target: '17edfa3a-598e-40ba-9e8d-872f6cd38176',
-      attributes: { type: 'http-transaction' },
+      attributes: { label: '', type: 'http-transaction' },
     },
     {
       key: 'geid_187_2',
       source: 'f52fba20-4e21-460b-b0bb-10c14aa448a2',
       target: 'af62f2b5-0197-44ae-80a0-d381efee468a',
-      attributes: { type: 'http-transaction' },
+      attributes: { label: '', type: 'http-transaction' },
     },
     {
       key: 'geid_187_3',
       source: '64338bca-eda4-4dcb-b822-ad3c7703cd78',
       target: 'eb0097f0-1252-4d7a-b5f0-d4645a7d1270',
-      attributes: { type: 'http-transaction' },
+      attributes: { label: '', type: 'http-transaction' },
     },
     {
       key: 'geid_187_4',
       source: '64338bca-eda4-4dcb-b822-ad3c7703cd78',
       target: 'eb813cce-5e95-4f7a-9ed8-a4523a3f93cf',
-      attributes: { type: 'http-transaction' },
+      attributes: { label: '', type: 'http-transaction' },
     },
     {
       key: 'geid_187_5',
       source: 'a2e8d334-fc8e-4ab2-ba9e-0fe0de34b18f',
       target: '745b1b85-da18-4fc0-9382-0829ea0cd3e6',
-      attributes: { type: 'http-transaction' },
+      attributes: { label: '', type: 'http-transaction' },
     },
     {
       key: 'geid_187_6',
       source: 'a2e8d334-fc8e-4ab2-ba9e-0fe0de34b18f',
       target: '0e5523c2-ad5c-476c-9335-1e522e56311d',
-      attributes: { type: 'http-transaction' },
+      attributes: { label: '', type: 'http-transaction' },
     },
     {
       key: 'geid_187_7',
       source: '7a8a1884-c467-4e2b-8146-92c7f76b99f8',
       target: '55a5ca94-282a-40e6-9c36-67ec9915ccc4',
-      attributes: { type: 'http-transaction' },
+      attributes: { label: '', type: 'http-transaction' },
     },
     {
       key: 'geid_187_8',
       source: '7a8a1884-c467-4e2b-8146-92c7f76b99f8',
       target: 'a1bd73ac-f4a2-40e8-9e10-ac5f5128fa3e',
-      attributes: { type: 'http-transaction' },
+      attributes: { label: '', type: 'http-transaction' },
     },
     {
       key: 'geid_187_9',
       source: '0b856f44-865a-4781-9d82-1ce95089c30a',
       target: 'dfc47bcb-6d11-4c44-92a0-c11e6dd2d991',
-      attributes: { type: 'http-transaction' },
+      attributes: { label: '', type: 'http-transaction' },
     },
     {
       key: 'geid_187_10',
       source: '6873b02b-73aa-4410-818a-53874d51d69a',
       target: '6abb0086-ae73-405d-b72d-d9534bde0fbb',
-      attributes: { type: 'http-transaction' },
+      attributes: { label: '', type: 'http-transaction' },
     },
     {
       key: 'geid_187_11',
       source: 'ef3be3d0-949c-40a7-ac33-dbf229ea16c7',
       target: '2c9a2158-eebe-4398-b1da-b10ecfa709c1',
-      attributes: { type: 'http-transaction' },
+      attributes: { label: '', type: 'http-transaction' },
     },
     {
       key: 'geid_187_12',
       source: 'ef3be3d0-949c-40a7-ac33-dbf229ea16c7',
       target: '90fdfaf9-5ea3-4249-83aa-0a009f3512bc',
-      attributes: { type: 'http-transaction' },
+      attributes: { label: '', type: 'http-transaction' },
     },
     {
       key: 'geid_187_13',
       source: '074a4dfa-ff69-4af5-b9a8-eba416d9186c',
       target: 'a235e5e0-58b0-483d-b439-ca32f35a404d',
-      attributes: { type: 'http-transaction' },
+      attributes: { label: '', type: 'http-transaction' },
     },
     {
       key: 'geid_187_14',
       source: '074a4dfa-ff69-4af5-b9a8-eba416d9186c',
       target: 'b5fb6ed7-f121-4c6f-8646-783a38c0aa4e',
-      attributes: { type: 'http-transaction' },
+      attributes: { label: '', type: 'http-transaction' },
     },
     {
       key: 'geid_187_15',
       source: '5faa233d-acc1-485e-a910-f1084a5bc7c8',
       target: 'c13d99ee-39b6-49f7-9679-a58372c288a6',
-      attributes: { type: 'http-transaction' },
+      attributes: { label: '', type: 'http-transaction' },
     },
     {
       key: 'geid_187_16',
       source: '5faa233d-acc1-485e-a910-f1084a5bc7c8',
       target: 'fee801d0-f004-49a0-9bcf-6a0c21e13bca',
-      attributes: { type: 'http-transaction' },
+      attributes: { label: '', type: 'http-transaction' },
     },
     {
       key: 'geid_187_17',
       source: '5faa233d-acc1-485e-a910-f1084a5bc7c8',
       target: 'a1390ef4-9e58-47ff-bfa5-3213870e2b23',
-      attributes: { type: 'http-transaction' },
+      attributes: { label: '', type: 'http-transaction' },
     },
     {
       key: 'geid_187_18',
       source: 'd64088ba-45fc-49a0-b4f5-bfe1e591d2e7',
       target: '376073c4-17b0-42d0-a9d5-401186ac4393',
-      attributes: { type: 'http-transaction' },
+      attributes: { label: '', type: 'http-transaction' },
     },
     {
       key: 'geid_187_19',
       source: 'd64088ba-45fc-49a0-b4f5-bfe1e591d2e7',
       target: 'e82f1215-cc61-4e27-af90-c34ee831e37b',
-      attributes: { type: 'http-transaction' },
+      attributes: { label: '', type: 'http-transaction' },
     },
   ],
 });

@@ -51,6 +51,7 @@ export function processParameterObject(
   parameterObject: OpenApiV31.ParameterObject
 ): [string, Parameter] {
   let thymianSchema: ThymianSchema;
+  let parameterContentType: string | undefined;
 
   if (parameterObject.schema) {
     thymianSchema = processSchema(
@@ -59,18 +60,17 @@ export function processParameterObject(
   } else if (parameterObject.content) {
     const entries = Object.entries(parameterObject.content);
 
-    if (entries.length !== 1) {
-      throw new Error('ParameterObject.content MUST contain one entry.');
+    if (entries.length !== 1 || !entries[0]) {
+      throw new Error(
+        'ParameterObject.content MUST contain exactly one entry.'
+      );
     }
 
-    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-    const mediaType = entries[0]![0];
-    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-    const mediaTypeObject = entries[0]![1];
+    const [contentType, mediaTypeObject] = entries[0];
 
-    const isMultipart = /^multipart\/.*/i.test(mediaType);
+    const isMultipart = /^multipart\/.*/i.test(contentType);
     const addEncoding =
-      mediaType === 'application/x-www-form-urlencoded' || isMultipart;
+      contentType === 'application/x-www-form-urlencoded' || isMultipart;
 
     const { schema } = processMediaTypeObject(
       mediaTypeObject,
@@ -85,6 +85,7 @@ export function processParameterObject(
     }
 
     thymianSchema = schema;
+    parameterContentType = contentType;
   } else {
     throw new Error(
       'A parameter object must define either a schema or a content property.'
@@ -120,19 +121,19 @@ export function processParameterObject(
           .withExplode(parameterObject.explode)
           .build();
 
-  return [
-    parameterObject.name,
-    typeof parameterObject.description !== 'undefined'
-      ? {
-          description: parameterObject.description,
-          required: parameterObject.required ?? false,
-          schema: thymianSchema,
-          style,
-        }
-      : {
-          required: parameterObject.required ?? false,
-          schema: thymianSchema,
-          style,
-        },
-  ];
+  const param: Parameter = {
+    required: parameterObject.required ?? false,
+    schema: thymianSchema,
+    style,
+  };
+
+  if (parameterObject.description) {
+    param.description = parameterObject.description;
+  }
+
+  if (parameterContentType) {
+    param.contentType = parameterContentType;
+  }
+
+  return [parameterObject.name, param];
 }

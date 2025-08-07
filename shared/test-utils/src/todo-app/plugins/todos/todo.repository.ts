@@ -15,7 +15,13 @@ export interface TodoRepository {
 }
 
 export default fp(async (fastify: FastifyInstance) => {
-  const todos: Todo[] = [];
+  const todos: Todo[] = [
+    {
+      id: '42',
+      title: 'My first todo',
+      done: false,
+    },
+  ];
 
   const repo: TodoRepository = {
     getByProjectId(id: string): Todo[] {

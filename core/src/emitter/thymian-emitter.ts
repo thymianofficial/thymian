@@ -76,6 +76,8 @@ export type EmitterState = {
 };
 
 export class ThymianEmitter {
+  static #hasBeenInitialized = false;
+
   private readonly options: ThymianEmitterOptions;
 
   readonly source: string;
@@ -88,6 +90,7 @@ export class ThymianEmitter {
 
   readonly #errors: Subject<ThymianErrorEvent<ErrorName>>;
 
+  // TODO: this is a problem
   readonly #listeners: Map<ThymianActionName, number>;
 
   readonly #completed: Set<string>;
@@ -110,9 +113,11 @@ export class ThymianEmitter {
     this.#listeners = state.listeners;
     this.#completed = state.completed;
 
-    if (this.options.traceEvents) {
+    if (!ThymianEmitter.#hasBeenInitialized) {
       this.#events.subscribe(this.logEvent('event'));
       this.#responses.subscribe(this.logEvent('response event'));
+
+      ThymianEmitter.#hasBeenInitialized = true;
     }
   }
 

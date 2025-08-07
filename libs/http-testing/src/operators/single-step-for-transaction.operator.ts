@@ -1,4 +1,5 @@
 import {
+  type HttpTransaction,
   ThymianFormat,
   type ThymianHttpRequest,
   type ThymianHttpResponse,
@@ -56,12 +57,13 @@ export function singleStepForTransaction<
     }
 
     const transactionId = findTransaction(prevStep, ctx.format);
+    const transaction = ctx.format.getEdge<HttpTransaction>(transactionId);
     const [thymianReqId, thymianResId] =
       ctx.format.graph.extremities(transactionId);
     const thymianReq = ctx.format.getNode<ThymianHttpRequest>(thymianReqId);
     const thymianRes = ctx.format.getNode<ThymianHttpResponse>(thymianResId);
 
-    if (!thymianReq || !thymianRes) {
+    if (!thymianReq || !thymianRes || !transaction) {
       return of(
         ctx.fail(
           current,
@@ -80,6 +82,7 @@ export function singleStepForTransaction<
         thymianRes,
         thymianResId,
         transactionId,
+        transaction,
       },
       transactions: [],
     };

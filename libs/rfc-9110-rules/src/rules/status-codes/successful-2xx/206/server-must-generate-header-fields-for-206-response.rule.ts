@@ -25,7 +25,7 @@ export default httpRule(
   )
   .rule((ctx) =>
     ctx.validateGroupedCommonHttpTransactions(
-      or(statusCode(200), statusCode(206)),
+      or(statusCode(200), statusCode(206)), // TODO: problem because we also check 200 response if there is no support for partial requests
       (req) => req.method + req.origin + req.path,
       (_, transactions) => {
         const okResponse = transactions.find(

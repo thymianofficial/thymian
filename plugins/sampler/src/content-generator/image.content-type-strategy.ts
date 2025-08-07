@@ -2,6 +2,7 @@ import type { ThymianSchema } from '@thymian/core';
 import sharp from 'sharp';
 
 import type { ContentTypeStrategy } from './content-type-strategy.js';
+import type { ContentGeneratorResult } from './content-generator.js';
 
 export type ImageContentTypeStrategyOptions = {
   width: number;
@@ -26,7 +27,7 @@ export class ImageContentTypeStrategy implements ContentTypeStrategy {
   async generate(
     schema: ThymianSchema,
     contentType: string
-  ): Promise<{ content: unknown; encoding?: string }> {
+  ): Promise<ContentGeneratorResult> {
     let content = sharp(this.randomPixelsBuffer(), {
       raw: {
         width: this.options.width,
@@ -41,7 +42,8 @@ export class ImageContentTypeStrategy implements ContentTypeStrategy {
 
     return {
       encoding: 'base64',
-      content: content.toBuffer().toString(),
+      buffer: await content.toBuffer(),
+      ext: 'png',
     };
   }
 

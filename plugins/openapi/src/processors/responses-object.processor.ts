@@ -1,4 +1,4 @@
-import type { ThymianHttpResponse } from '@thymian/core';
+import type { PartialBy, ThymianHttpResponse } from '@thymian/core';
 import {
   httpStatusCodeRanges,
   isHttpStatusCodeRange,
@@ -18,7 +18,7 @@ export function processResponsesObject(
   const responses: Record<
     string,
     {
-      responses: ThymianHttpResponse[];
+      responses: PartialBy<ThymianHttpResponse, 'label'>[];
       links: { name: string; linkObj: OpenApiV31.LinkObject }[];
     }
   > = {};

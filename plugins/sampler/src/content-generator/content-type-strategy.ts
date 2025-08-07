@@ -1,4 +1,5 @@
 import type { ThymianSchema } from '@thymian/core';
+import type { ContentGeneratorResult } from './content-generator.js';
 
 export interface ContentTypeStrategy {
   matches(contentType: string): boolean;
@@ -6,5 +7,5 @@ export interface ContentTypeStrategy {
   generate(
     schema: ThymianSchema,
     contentType: string
-  ): Promise<{ content: unknown; encoding?: string }>;
+  ): Promise<ContentGeneratorResult>;
 }

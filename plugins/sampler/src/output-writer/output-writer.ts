@@ -1,11 +1,10 @@
-import type { ThymianHttpRequest } from '@thymian/core';
-
-import type { SampleHttRequest } from '../sample-request.js';
+import type { HttpRequestSample } from '../http-request-sample.js';
 
 export interface OutputWriter {
-  write(
-    request: SampleHttRequest,
-    requestId: string,
-    thymianRequest: ThymianHttpRequest
-  ): Promise<void>;
+  writeSample(sample: HttpRequestSample): Promise<string>;
+  writeAssetFor(
+    buffer: Buffer,
+    ext: string,
+    sample: HttpRequestSample
+  ): Promise<string>;
 }
