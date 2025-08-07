@@ -22,6 +22,7 @@ export default [
             '@oclif/plugin-version',
             '@thymian/rfc-9110-rules',
             '@thymian/http-linter',
+            '@thymian/sampler'
           ],
         },
       ],

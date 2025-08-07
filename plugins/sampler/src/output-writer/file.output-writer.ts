@@ -2,10 +2,11 @@ import { createHash } from 'node:crypto';
 import { mkdir, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 
+import { type Logger, ThymianBaseError } from '@thymian/core';
+
 import type { HttpRequestSample } from '../http-request-sample.js';
 import { createPathForTransaction } from './create-path-for-transaction.js';
 import type { OutputWriter } from './output-writer.js';
-import { type Logger, ThymianBaseError } from '@thymian/core';
 
 export function hash(input: string): string {
   return createHash('sha1').update(input).digest('hex');

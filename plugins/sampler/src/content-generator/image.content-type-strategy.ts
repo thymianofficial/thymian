@@ -1,8 +1,8 @@
 import type { ThymianSchema } from '@thymian/core';
 import sharp from 'sharp';
 
-import type { ContentTypeStrategy } from './content-type-strategy.js';
 import type { ContentGeneratorResult } from './content-generator.js';
+import type { ContentTypeStrategy } from './content-type-strategy.js';
 
 export type ImageContentTypeStrategyOptions = {
   width: number;

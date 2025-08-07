@@ -1,11 +1,13 @@
+import { join } from 'node:path';
+
 import { ThymianFormat } from '@thymian/core';
 import { describe, it } from 'vitest';
-import { generate } from '../../src/request-generators/generate.js';
-import { ImageContentTypeStrategy } from '../../src/content-generator/image.content-type-strategy.js';
-import { FileOutputWriter } from '../../src/output-writer/file.output-writer.js';
+
 import { ContentGenerator } from '../../src/content-generator/content-generator.js';
-import { join } from 'node:path';
+import { ImageContentTypeStrategy } from '../../src/content-generator/image.content-type-strategy.js';
 import { XmlContentTypeStrategy } from '../../src/content-generator/xml.content-type-strategy.js';
+import { FileOutputWriter } from '../../src/output-writer/file.output-writer.js';
+import { generate } from '../../src/request-generators/generate.js';
 
 describe('generate', () => {
   it('should generate image type', async () => {

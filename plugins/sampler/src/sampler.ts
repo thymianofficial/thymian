@@ -8,8 +8,8 @@ import {
 } from '@thymian/core';
 import { LRUCache } from 'lru-cache';
 
-import { createPathForTransaction } from './output-writer/create-path-for-transaction.js';
 import type { HttpRequestSample } from './http-request-sample.js';
+import { createPathForTransaction } from './output-writer/create-path-for-transaction.js';
 
 export class Sampler {
   constructor(
