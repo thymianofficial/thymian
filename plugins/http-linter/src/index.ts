@@ -11,6 +11,7 @@ import type { HttpFilterExpression } from '@thymian/http-filter';
 import type {} from '@thymian/request-dispatcher';
 import type {} from '@thymian/sampler';
 
+import { HttpTransactionRepository } from './db/http-transaction-repository.js';
 import { createContext } from './linter/create-context.js';
 import { Linter } from './linter/linter.js';
 import { loadRules } from './load-rules.js';
@@ -23,7 +24,6 @@ import {
 } from './rule/rule-meta.js';
 import { type RuleSeverity, severityLevels } from './rule/rule-severity.js';
 import { createRuleFilter } from './rule-filter.js';
-import { HttpTransactionRepository } from './db/http-transaction-repository.js';
 
 export * from './api-context/api-context.js';
 export * from './api-context/http-test-api-context.js';

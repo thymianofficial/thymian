@@ -1,8 +1,8 @@
 import type { HttpFilterExpression } from '@thymian/http-filter';
 
 import type { SqlFragment } from '../utils.js';
-import { compileHttpFilterToWhereClause } from './http-filter-to-where-clause.js';
 import { httpFilterToGroupByClause } from './http-filter-to-groupby-clause.js';
+import { compileHttpFilterToWhereClause } from './http-filter-to-where-clause.js';
 
 export function httpFilterToGroupedCommonFilter(
   filter: HttpFilterExpression,

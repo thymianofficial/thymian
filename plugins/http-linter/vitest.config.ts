@@ -2,7 +2,7 @@ import { defineConfig } from 'vitest/config';
 
 export default defineConfig({
   test: {
-    include: ['test/**/*.test.ts', 'test/**/*.sql'],
+    include: ['test/**/*.test.ts'],
     disableConsoleIntercept: true,
   },
 });

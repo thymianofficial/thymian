@@ -83,18 +83,12 @@ export const openApiPlugin: ThymianPlugin<OpenApiPluginOptions> = {
     },
   },
   plugin: async (emitter, logger, opts) => {
-    console.log({ opts });
-
     emitter.onAction('core.load-format', async (_, ctx) => {
       try {
-        console.log('load format');
-
         const format = await loadOpenapi(logger, {
           ...defaultOpenApiPluginOptions,
           ...opts,
         });
-
-        console.log({ format: JSON.stringify(format.export()) });
 
         ctx.reply(format.export());
       } catch (e) {

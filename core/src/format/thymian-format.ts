@@ -8,6 +8,7 @@ import { MultiDirectedGraph } from 'graphology';
 import type { SerializedGraph } from 'graphology-types';
 import { match } from 'path-to-regexp';
 
+import type { HttpRequest, HttpResponse } from '../http.js';
 import { ThymianBaseError } from '../thymian.error.js';
 import {
   capitalizeFirstChar,
@@ -25,7 +26,6 @@ import type { IsSecuredWith } from './edges/is-secured-with.edge.js';
 import type { ThymianHttpRequest } from './nodes/http-request.node.js';
 import type { ThymianHttpResponse } from './nodes/http-response.node.js';
 import type { SecurityScheme } from './nodes/security-scheme.node.js';
-import type { HttpRequest, HttpResponse } from '../http.js';
 
 export type MatchResult = {
   reqId: string;

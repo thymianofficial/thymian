@@ -2,6 +2,7 @@ import { Subject } from 'rxjs';
 import semver from 'semver';
 
 import packageJson from '../package.json' with { type: 'json' };
+import { ajv, validate } from './ajv.js';
 import { corePlugin } from './core-plugin.js';
 import { ThymianEmitter } from './emitter/index.js';
 import {  ThymianFormat } from './format/index.js';
@@ -10,7 +11,6 @@ import { NoopLogger } from './logger/noop.logger.js';
 import { ThymianBaseError } from './thymian.error.js';
 import type { ThymianPlugin } from './thymian-plugin.js';
 import { timeoutPromise } from './utils.js';
-import { ajv, validate } from './ajv.js';
 
 export type RegisteredPlugin<T> = {
   plugin: ThymianPlugin<T>;
