@@ -64,7 +64,7 @@ export class Linter {
     }
 
     const result = await rule.staticRule(
-      new StaticApiContext(this.format, this.report),
+      new StaticApiContext(this.format, this.logger, this.report),
       {
         ...(this.ruleOptions[rule.meta.name] ?? {}),
         mode: 'static',

@@ -1,10 +1,13 @@
 import {
+  type HttpRequest,
+  type HttpResponse,
   type Logger,
   type SerializedThymianFormat,
   ThymianEmitter,
   ThymianFormat,
   type ThymianPlugin,
 } from '@thymian/core';
+import type { HttpFilterExpression } from '@thymian/http-filter';
 import type {} from '@thymian/request-dispatcher';
 import type {} from '@thymian/sampler';
 
@@ -20,6 +23,7 @@ import {
 } from './rule/rule-meta.js';
 import { type RuleSeverity, severityLevels } from './rule/rule-severity.js';
 import { createRuleFilter } from './rule-filter.js';
+import { HttpTransactionRepository } from './db/http-transaction-repository.js';
 
 export * from './api-context/api-context.js';
 export * from './api-context/http-test-api-context.js';
@@ -52,6 +56,13 @@ declare module '@thymian/core' {
     'http-linter.rules': {
       event: never;
       response: Rule[];
+    };
+  }
+
+  export interface ThymianEvents {
+    'http-linter.transaction': {
+      request: HttpRequest;
+      response: HttpResponse;
     };
   }
 }
@@ -197,6 +208,17 @@ export const httpLinterPlugin: ThymianPlugin<HttpLinterPluginOptions> = {
       );
 
       ctx.reply(await linter.run(m ?? modes));
+    });
+
+    const repo = new HttpTransactionRepository(':memory:', logger);
+    await repo.init();
+
+    emitter.on('http-linter.transaction', ({ request, response }) => {
+      try {
+        repo.insertHttpTransaction(request, response);
+      } catch (e) {
+        logger.error(e);
+      }
     });
   },
 };

@@ -14,10 +14,13 @@ export function compileResponseScopedToResponseChecker(
       return expression.code === response.statusCode;
     case 'hasResponseBody':
       return expression.hasBody === !!response.body;
-    case 'responseHeader':
+    case 'responseHeader': {
+      if (typeof expression.header === 'undefined') return true;
+
       return expression.value
         ? getHeader(response.headers, expression.header) === expression.value
         : equalsIgnoreCase(expression.header, ...Object.keys(response.headers));
+    }
     case 'statusCodeRange':
       return (
         response.statusCode <= expression.end &&

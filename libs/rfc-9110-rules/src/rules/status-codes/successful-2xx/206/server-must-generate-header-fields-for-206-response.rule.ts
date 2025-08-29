@@ -1,5 +1,12 @@
 import { equalsIgnoreCase } from '@thymian/core';
-import { or, statusCode } from '@thymian/http-filter';
+import {
+  and,
+  method,
+  or,
+  origin,
+  path,
+  statusCode,
+} from '@thymian/http-filter';
 import { httpRule } from '@thymian/http-linter';
 
 export const requiredHeaders = [
@@ -26,7 +33,7 @@ export default httpRule(
   .rule((ctx) =>
     ctx.validateGroupedCommonHttpTransactions(
       or(statusCode(200), statusCode(206)), // TODO: problem because we also check 200 response if there is no support for partial requests
-      (req) => req.method + req.origin + req.path,
+      and(method(), origin(), path()),
       (_, transactions) => {
         const okResponse = transactions.find(
           ([, res]) => res.statusCode === 200

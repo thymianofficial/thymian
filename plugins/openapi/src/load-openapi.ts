@@ -32,11 +32,15 @@ export async function loadOpenapi(
   }
 
   try {
+    console.log({ A: 1 });
+
     const { schema } = await openapi({ throwOnError: true })
       .load(options.filePath, { plugins })
       .upgrade()
       .validate()
       .get();
+
+    console.log({ A: 2 });
 
     return new OpenapiProcessor(logger, options).process(schema);
   } catch (e) {

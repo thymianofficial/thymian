@@ -7,7 +7,6 @@ const keysToRemove = new Set([
   'example',
   'deprecated',
   'discriminator',
-  'xml',
   'externalDocs',
   'readOnly',
   'writeOnly',
@@ -26,14 +25,28 @@ export type Draft202012SchemaObject = OpenAPIV31.SchemaObject & {
   exclusiveMaximum?: number;
   exclusiveMinimum?: number;
   contentEncoding?: string;
-};
+} & boolean;
 
 export function processSchema(schema: Draft202012SchemaObject): ThymianSchema {
+  // https://json-schema.org/draft/2020-12/draft-bhutton-json-schema-01#name-boolean-json-schemas
+  if (schema === false) {
+    return { not: {} };
+  }
+
+  if (schema === true) {
+    return {};
+  }
+
   return traverse(schema).map(function (node) {
     if (!this.isLeaf && isRecord(node) && node['example']) {
       node.examples ??= [];
-      // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-      // @ts-expect-error
+
+      if (!Array.isArray(node.examples)) {
+        throw new Error(
+          `Property "examples" must be an array but got type ${typeof node.examples}.`
+        );
+      }
+
       node.examples.push(node.example);
       this.update(node);
     }

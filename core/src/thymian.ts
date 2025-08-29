@@ -10,6 +10,7 @@ import { NoopLogger } from './logger/noop.logger.js';
 import { ThymianBaseError } from './thymian.error.js';
 import type { ThymianPlugin } from './thymian-plugin.js';
 import { timeoutPromise } from './utils.js';
+import { ajv, validate } from './ajv.js';
 
 export type RegisteredPlugin<T> = {
   plugin: ThymianPlugin<T>;
@@ -51,7 +52,8 @@ export class Thymian {
       responses: new Subject(),
       source: '@thymian/core',
     }, {
-      traceEvents: this.options.traceEvents
+      traceEvents: this.options.traceEvents,
+      timeout: this.options.timeout,
     });
   }
 
@@ -62,6 +64,16 @@ export class Thymian {
           suggestions: [`Install the matching plugin version for thymian version ${Thymian.VERSION}.`]
         }
       );
+    }
+
+    if (plugin.options && options) {
+      const validOptions = validate(plugin.options, options);
+
+      if (!validOptions) {
+        throw new PluginRegistrationError(
+          `Invalid options for plugin "${plugin.name}".`
+        );
+      }
     }
 
     this.logger.debug(`Register plugin ${plugin.name}.`);

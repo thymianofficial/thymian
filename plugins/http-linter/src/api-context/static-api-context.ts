@@ -19,6 +19,8 @@ import {
 } from './api-context.js';
 import {
   compileExpressionToFilterFn,
+  compileExpressionToGroupByFn,
+  compileExpressionToValidateFn,
   thymianToCommonHttpRequest,
   thymianToCommonHttpResponse,
 } from './utils.js';
@@ -34,28 +36,31 @@ export class StaticApiContext extends ApiContext {
     const validationFn =
       typeof validate === 'function'
         ? validate
-        : compileExpressionToFilterFn(validate, this.format);
+        : compileExpressionToValidateFn(validate, this.format);
 
     return this.format
       .getHttpTransactions()
-      .map<[CommonHttpRequest, CommonHttpResponse, string]>(
-        ([reqId, resId, transactionId]) => {
-          const req = this.format.getNode<ThymianHttpRequest>(reqId);
-          const res = this.format.getNode<ThymianHttpResponse>(resId);
+      .map<
+        [CommonHttpRequest, CommonHttpResponse, CommonHttpResponse[], string]
+      >(([reqId, resId, transactionId]) => {
+        const req = this.format.getNode<ThymianHttpRequest>(reqId);
+        const res = this.format.getNode<ThymianHttpResponse>(resId);
 
-          if (!req || !res) {
-            throw new Error('Invalid HTTP transaction.');
-          }
-
-          return [
-            thymianToCommonHttpRequest(reqId, req),
-            thymianToCommonHttpResponse(resId, res),
-            transactionId,
-          ];
+        if (!req || !res) {
+          throw new Error('Invalid HTTP transaction.');
         }
+
+        return [
+          thymianToCommonHttpRequest(reqId, req),
+          thymianToCommonHttpResponse(resId, res),
+          this.getCommonHttpResponsesOfRequest(reqId),
+          transactionId,
+        ];
+      })
+      .filter(([req, res, responses, transactionId]) =>
+        filterFn(req, res, responses, transactionId)
       )
-      .filter(([req, res, transactionId]) => filterFn(req, res, transactionId))
-      .reduce((violations, [req, res, transactionId]) => {
+      .reduce((violations, [req, res, , transactionId]) => {
         const validationResult = validationFn(req, res, transactionId);
 
         if (typeof validationResult === 'boolean' && validationResult) {
@@ -85,34 +90,38 @@ export class StaticApiContext extends ApiContext {
 
   validateGroupedCommonHttpTransactions(
     filter: HttpFilterExpression,
-    groupByFn: (req: CommonHttpRequest, res: CommonHttpResponse) => string,
+    groupBy: HttpFilterExpression,
     validationFn: ValidationFn<
       [string, [CommonHttpRequest, CommonHttpResponse][]],
       RuleViolation
     >
   ): RuleFnResult {
     const filterFn = compileExpressionToFilterFn(filter, this.format);
+    const groupByFn = compileExpressionToGroupByFn(groupBy, this.format);
 
     const groups = this.format
       .getHttpTransactions()
-      .map<[CommonHttpRequest, CommonHttpResponse, string]>(
-        ([reqId, resId, transactionId]) => {
-          const req = this.format.getNode<ThymianHttpRequest>(reqId);
-          const res = this.format.getNode<ThymianHttpResponse>(resId);
+      .map<
+        [CommonHttpRequest, CommonHttpResponse, CommonHttpResponse[], string]
+      >(([reqId, resId, transactionId]) => {
+        const req = this.format.getNode<ThymianHttpRequest>(reqId);
+        const res = this.format.getNode<ThymianHttpResponse>(resId);
 
-          if (!req || !res) {
-            throw new Error('Invalid HTTP transaction.');
-          }
-
-          return [
-            thymianToCommonHttpRequest(reqId, req),
-            thymianToCommonHttpResponse(resId, res),
-            transactionId,
-          ];
+        if (!req || !res) {
+          throw new Error('Invalid HTTP transaction.');
         }
+
+        return [
+          thymianToCommonHttpRequest(reqId, req),
+          thymianToCommonHttpResponse(resId, res),
+          this.getCommonHttpResponsesOfRequest(reqId),
+          transactionId,
+        ];
+      })
+      .filter(([req, res, responses, transactionId]) =>
+        filterFn(req, res, responses, transactionId)
       )
-      .filter(([req, res, transactionId]) => filterFn(req, res, transactionId))
-      .reduce((groups, [req, res, transactionId]) => {
+      .reduce((groups, [req, res, , transactionId]) => {
         const key = groupByFn(req, res);
 
         (groups[key] ??= []).push([req, res, transactionId]);

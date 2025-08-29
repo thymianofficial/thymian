@@ -16,7 +16,7 @@ export function isEventWithName<Name extends ThymianEventName>(
       | ThymianEvent<ThymianEventName>
       | ThymianActionEvent<ThymianActionName>
   ): event is ThymianEvent<Name> {
-    return event.name === name && !Object.hasOwn(event, 'correlationId');
+    return event.name === name; // && !Object.hasOwn(event, 'correlationId'); TODO: is the correlationId needed?
   };
 }
 
@@ -30,7 +30,7 @@ export function isActionEventWithName<Name extends ThymianActionName>(
       | ThymianEvent<ThymianEventName>
       | ThymianActionEvent<ThymianActionName>
   ): event is ThymianActionEvent<Name> {
-    return event.name === name && Object.hasOwn(event, 'correlationId');
+    return event.name === name;
   };
 }
 

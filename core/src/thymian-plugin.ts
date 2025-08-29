@@ -59,5 +59,17 @@ export function isPlugin(plugin: unknown): plugin is ThymianPlugin {
     if (!Object.hasOwn(plugin, key)) return false;
   }
 
+  if (typeof plugin['plugin'] !== 'function') {
+    return false;
+  }
+
+  if (typeof plugin['name'] !== 'string') {
+    return false;
+  }
+
+  if (typeof plugin['version'] !== 'string') {
+    return false;
+  }
+
   return true;
 }

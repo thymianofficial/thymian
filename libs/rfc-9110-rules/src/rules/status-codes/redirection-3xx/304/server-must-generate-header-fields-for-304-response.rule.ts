@@ -4,6 +4,8 @@ import {
   method,
   not,
   or,
+  origin,
+  path,
   requestHeader,
   responseHeader,
   responseWith,
@@ -65,7 +67,7 @@ export default httpRule(
         or(method('GET'), method('HEAD')),
         or(statusCode(304), statusCode(200))
       ),
-      (req) => req.method + req.origin + req.path + req.mediaType,
+      and(method(), origin(), path()),
       (_, transactions) => {
         const okResponse = transactions.find(
           ([, res]) => res.statusCode === 200
@@ -96,10 +98,9 @@ export default httpRule(
   .overrideTest((testContext) =>
     testContext.httpTest(
       singleTestCase()
-        .forRequestsWith(
+        .forTransactionsWith(
           and(or(method('GET'), method('HEAD')), responseWith(statusCode(200)))
         )
-        .forResponsesWith(statusCode(200))
         .run()
         .skipIf(
           not(or(responseHeader('etag'), responseHeader('last-modified'))),

@@ -2,7 +2,10 @@ import { equalsIgnoreCase, ThymianFormat } from '@thymian/core';
 import {
   and,
   constant,
+  method,
   or,
+  origin,
+  path,
   requestHeader,
   responseHeader,
   responseWith,
@@ -115,7 +118,7 @@ export default httpRule(
         res.statusCode === 200,
        */
       or(statusCode(200), and(statusCode(206), requestHeader('if-range'))),
-      (req) => req.method + req.origin + req.path,
+      and(method(), origin(), path()),
       (_, transactions) => {
         const okResponse = transactions.find(
           ([, res]) => res.statusCode === 200
@@ -141,14 +144,13 @@ export default httpRule(
   .overrideTest((testContext) =>
     testContext.httpTest(
       singleTestCase()
-        .forRequestsWith(
+        .forTransactionsWith(
           and(
             requestHeader('if-range'),
             responseWith(statusCode(200)),
             responseWith(statusCode(206))
           )
         )
-        .forResponsesWith(statusCode(206))
         .run()
         .replayStep((step) =>
           step

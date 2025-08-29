@@ -7,7 +7,7 @@ import {
   type ReportFn,
   type ThymianHttpTransaction,
 } from '@thymian/core';
-import type { HttpFilterExpression } from '@thymian/http-filter';
+import { type HttpFilterExpression } from '@thymian/http-filter';
 import {
   type AssertionFailure,
   filter,
@@ -39,6 +39,8 @@ import {
 } from './api-context.js';
 import {
   compileExpressionToFilterFn,
+  compileExpressionToGroupByFn,
+  compileExpressionToValidateFn,
   thymianToCommonHttpRequest,
   thymianToCommonHttpResponse,
 } from './utils.js';
@@ -58,11 +60,11 @@ function extractMediaType(req: HttpRequest): string {
 }
 
 export function httpRequestToCommonHttpRequest(
-  source: ThymianHttpTransaction,
+  source: string,
   request: HttpRequest
 ): CommonHttpRequest {
   return {
-    id: source.thymianReqId,
+    id: source,
     origin: request.origin,
     path: request.path,
     method: request.method,
@@ -77,14 +79,14 @@ export function httpRequestToCommonHttpRequest(
 }
 
 export function httpResponseToCommonHttpResponse(
-  source: ThymianHttpTransaction,
+  source: string,
   response: HttpResponse
-) {
+): CommonHttpResponse {
   return {
     body: !!response.body,
     headers: Object.keys(response.headers),
-    id: source.thymianResId,
-    mediaType: source.thymianRes.mediaType,
+    id: source,
+    mediaType: getHeader(response.headers, 'content-type')?.at(0) ?? '',
     statusCode: response.statusCode,
     trailers: Object.keys(response.trailers),
   };
@@ -108,7 +110,7 @@ export class HttpTestApiContext<
     private readonly ctx: HttpTestContext<Locals>,
     report: ReportFn
   ) {
-    super(ctx.format, report);
+    super(ctx.format, ctx.logger, report);
   }
 
   reportViolation(violation: RuleViolation): void {
@@ -117,13 +119,14 @@ export class HttpTestApiContext<
 
   async validateGroupedCommonHttpTransactions(
     filterExpr: HttpFilterExpression,
-    groupByFn: (req: CommonHttpRequest, res: CommonHttpResponse) => string,
+    groupB: HttpFilterExpression,
     validationFn: ValidationFn<
       [string, [CommonHttpRequest, CommonHttpResponse][]],
       RuleViolation | undefined
     >
   ): Promise<RuleFnResult> {
     const filterFn = compileExpressionToFilterFn(filterExpr, this.format);
+    const groupByFn = compileExpressionToGroupByFn(groupB, this.format);
 
     const test = httpTest(this.name, (test) =>
       test.pipe(
@@ -137,6 +140,7 @@ export class HttpTestApiContext<
               current.thymianResId,
               current.thymianRes
             ),
+            this.getCommonHttpResponsesOfRequest(current.thymianReqId),
             current.transactionId
           )
         ),
@@ -172,12 +176,12 @@ export class HttpTestApiContext<
           .filter(hasSource)
           .map<[CommonHttpRequest, CommonHttpResponse]>((transaction) => [
             httpRequestToCommonHttpRequest(
-              transaction.source,
+              transaction.source.thymianReqId,
               // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
               transaction.request!
             ),
             httpResponseToCommonHttpResponse(
-              transaction.source,
+              transaction.source.thymianResId,
               // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
               transaction.response!
             ),
@@ -207,7 +211,7 @@ export class HttpTestApiContext<
     const validationFn =
       typeof validate === 'function'
         ? validate
-        : compileExpressionToFilterFn(validate, this.format);
+        : compileExpressionToValidateFn(validate, this.format);
 
     const test = httpTest(this.name, (transactions) =>
       transactions.pipe(
@@ -221,6 +225,7 @@ export class HttpTestApiContext<
               current.thymianResId,
               current.thymianRes
             ),
+            this.getCommonHttpResponsesOfRequest(current.thymianReqId),
             current.transactionId
           )
         ),
@@ -248,8 +253,8 @@ export class HttpTestApiContext<
             }
 
             const validationResult = validationFn(
-              httpRequestToCommonHttpRequest(source, request),
-              httpResponseToCommonHttpResponse(source, response),
+              httpRequestToCommonHttpRequest(source.thymianReqId, request),
+              httpResponseToCommonHttpResponse(source.thymianResId, response),
               source.transactionId
             );
 

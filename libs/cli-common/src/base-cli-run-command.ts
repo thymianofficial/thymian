@@ -12,7 +12,6 @@ import {
   Thymian,
   ThymianBaseError,
   type ThymianPlugin,
-  validate,
 } from '@thymian/core';
 
 import { getConfig } from './get-config.js';
@@ -229,19 +228,7 @@ export abstract class BaseCliRunCommand<
       return;
     }
 
-    const options = config.options ?? {};
-
-    const valid = pluginModule.options
-      ? validate(pluginModule.options, options)
-      : true;
-
-    if (!valid) {
-      this.error(
-        `Plugin "${pluginModule.name}" options are not valid and will not be registered.`
-      );
-    }
-
-    this.thymian.register(pluginModule, options);
+    this.thymian.register(pluginModule, config.options);
   }
 
   protected async addPluginsToThymianConfig(): Promise<void> {

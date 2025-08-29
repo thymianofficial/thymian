@@ -22,14 +22,16 @@ export function compileResponseScopedExpressionToTransactionValidationFn(
           expression.mediaType
         );
     case 'responseTrailer':
+      if (typeof expression.trailer === 'undefined') return () => true;
+
       return (transaction) => {
         if (expression.value) {
           assert.strictEqual(
-            transaction.response?.trailers[expression.trailer],
+            transaction.response?.trailers[expression.trailer!],
             expression.value
           );
         } else {
-          assert.ok(transaction.response?.trailers[expression.trailer]);
+          assert.ok(transaction.response?.trailers[expression.trailer!]);
         }
       };
     case 'constant':
@@ -39,14 +41,18 @@ export function compileResponseScopedExpressionToTransactionValidationFn(
         assert.strictEqual(transaction.response?.statusCode, expression.code);
     case 'hasResponseBody':
       return (transaction) => assert.ok(transaction.response?.body);
-    case 'responseHeader':
+    case 'responseHeader': {
+      if (typeof expression.header === 'undefined') return () => true;
+
       return (transaction) =>
         assert.ok(
           equalsIgnoreCase(
-            expression.header,
+            // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+            expression.header!,
             ...Object.keys(transaction.response?.headers ?? {})
           )
         );
+    }
     case 'statusCodeRange':
       return (transaction) => {
         assert.ok(transaction.response?.statusCode);

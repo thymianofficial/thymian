@@ -1,5 +1,3 @@
-import type { ThymianHttpTransaction } from './format/index.js';
-
 export type HttpRequest = {
   origin: string;
   path: string;

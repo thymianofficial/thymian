@@ -1,4 +1,4 @@
-import { createHash,randomUUID } from 'node:crypto';
+import { createHash, randomUUID } from 'node:crypto';
 
 import {
   httpStatusCodeToPhrase,
@@ -9,7 +9,15 @@ import type { SerializedGraph } from 'graphology-types';
 import { match } from 'path-to-regexp';
 
 import { ThymianBaseError } from '../thymian.error.js';
-import { capitalizeFirstChar, type PartialBy } from '../utils.js';
+import {
+  capitalizeFirstChar,
+  equalsIgnoreCase,
+  getContentType,
+  getHeader,
+  normalizeUrl,
+  type PartialBy,
+  thymianRequestToOrigin,
+} from '../utils.js';
 import { matchObjects, type StringAndNumberProperties } from '../utils.js';
 import type { HttpLink } from './edges/http-link.edge.js';
 import type { HttpTransaction } from './edges/http-transaction.edge.js';
@@ -17,6 +25,7 @@ import type { IsSecuredWith } from './edges/is-secured-with.edge.js';
 import type { ThymianHttpRequest } from './nodes/http-request.node.js';
 import type { ThymianHttpResponse } from './nodes/http-response.node.js';
 import type { SecurityScheme } from './nodes/security-scheme.node.js';
+import type { HttpRequest, HttpResponse } from '../http.js';
 
 export type MatchResult = {
   reqId: string;
@@ -336,24 +345,58 @@ export class ThymianFormat {
   }
 
   getThymianHttpTransactions(): ThymianHttpTransaction[] {
-    return this.graph.reduceEdges((transactions, id, edge, source, target) => {
-      if (isEdgeType(edge, 'http-transaction')) {
-        transactions.push({
-          thymianReq: this.getNode<ThymianHttpRequest>(
-            source
-          ) as ThymianHttpRequest,
-          thymianReqId: source,
-          thymianRes: this.getNode<ThymianHttpResponse>(
-            target
-          ) as ThymianHttpResponse,
-          thymianResId: target,
-          transactionId: id,
-          transaction: edge,
-        });
-      }
+    return this.graph.reduceEdges(
+      (transactions, id, edge, sourceId, targetId, source, target) => {
+        if (isEdgeType(edge, 'http-transaction')) {
+          transactions.push({
+            thymianReq: source as ThymianHttpRequest,
+            thymianReqId: sourceId,
+            thymianRes: target as ThymianHttpResponse,
+            thymianResId: targetId,
+            transactionId: id,
+            transaction: edge,
+          });
+        }
 
-      return transactions;
-    }, [] as ThymianHttpTransaction[]);
+        return transactions;
+      },
+      [] as ThymianHttpTransaction[]
+    );
+  }
+
+  matchTransaction(
+    req: HttpRequest,
+    res: HttpResponse
+  ): [string, string, string] | undefined {
+    const edgeId = this.graph.findEdge(
+      (id, edge, sourceId, targetId, source, target) => {
+        if (!isEdgeType(edge, 'http-transaction')) return false;
+
+        const thymianReq = source as ThymianHttpRequest;
+        const thymianRes = target as ThymianHttpResponse;
+
+        const origin = thymianRequestToOrigin(thymianReq);
+        const reqMediaType = getContentType(req.headers);
+        const resMediaType = getContentType(res.headers);
+
+        const reqOriginUrl = normalizeUrl(req.origin);
+
+        return (
+          equalsIgnoreCase(thymianReq.method, req.method) &&
+          equalsIgnoreCase(thymianReq.path, req.path) &&
+          equalsIgnoreCase(origin, reqOriginUrl.toString()) &&
+          thymianRes.statusCode === res.statusCode &&
+          equalsIgnoreCase(reqMediaType, thymianReq.mediaType) &&
+          equalsIgnoreCase(resMediaType, thymianRes.mediaType)
+        );
+      }
+    );
+
+    if (!edgeId) {
+      return undefined;
+    }
+
+    return [edgeId, ...this.graph.extremities(edgeId)];
   }
 
   matchHtpRequestByUrl(url: string): MatchResult | undefined {

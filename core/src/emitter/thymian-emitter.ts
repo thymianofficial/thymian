@@ -23,7 +23,7 @@ import type {
   ThymianActionEvent,
   ThymianResponseEvent,
 } from './action-event.js';
-import type { ErrorName, ThymianErrorEvent } from './error.js';
+import type { ErrorName, ThymianErrorEvent } from './error-event.js';
 import type { EventPayload, ThymianEvent } from './events.js';
 import {
   isActionEventWithName,
@@ -90,9 +90,9 @@ export class ThymianEmitter {
 
   readonly #errors: Subject<ThymianErrorEvent<ErrorName>>;
 
-  // TODO: this is a problem
   readonly #listeners: Map<ThymianActionName, number>;
 
+  // TODO: this is a problem
   readonly #completed: Set<string>;
 
   constructor(
@@ -133,10 +133,12 @@ export class ThymianEmitter {
         } catch (e) {
           if (e instanceof ThymianBaseError) {
             this.#errors.next({
+              id: randomUUID(),
               error: e,
               name,
               timestamp: Date.now(),
               source: this.source,
+              correlationId: event.id,
             });
           } else if (isThymianError(e)) {
             const error = new ThymianBaseError(e.message, {
@@ -149,6 +151,8 @@ export class ThymianEmitter {
               name,
               timestamp: Date.now(),
               source: this.source,
+              correlationId: event.id,
+              id: randomUUID(),
             });
           } else {
             this.#errors.next({
@@ -159,6 +163,8 @@ export class ThymianEmitter {
               name,
               timestamp: Date.now(),
               source: this.source,
+              correlationId: event.id,
+              id: randomUUID(),
             });
           }
         }
@@ -170,6 +176,7 @@ export class ThymianEmitter {
     payload: EventPayload<Name>
   ): void {
     this.#events.next({
+      id: randomUUID(),
       name,
       payload,
       timestamp: Date.now(),
@@ -186,13 +193,15 @@ export class ThymianEmitter {
     this.#events
       .pipe(filter(isActionEventWithName(name)))
       .subscribe(async (event) => {
-        const ctx = this.createActionContext(name, event.correlationId);
+        const ctx = this.createActionContext(name, event.id);
 
         try {
           await handler(event.payload, ctx);
         } catch (e) {
           if (e instanceof ThymianBaseError) {
             this.#errors.next({
+              correlationId: event.id,
+              id: randomUUID(),
               error: e,
               name,
               timestamp: Date.now(),
@@ -207,9 +216,10 @@ export class ThymianEmitter {
             this.#errors.next({
               error,
               name,
-              correlationId: event.correlationId,
+              correlationId: event.id,
               timestamp: Date.now(),
               source: this.source,
+              id: randomUUID(),
             });
           } else {
             this.#errors.next({
@@ -218,7 +228,8 @@ export class ThymianEmitter {
                 { cause: e }
               ),
               name,
-              correlationId: event.correlationId,
+              correlationId: event.id,
+              id: randomUUID(),
               timestamp: Date.now(),
               source: this.source,
             });
@@ -245,7 +256,7 @@ export class ThymianEmitter {
     };
 
     const event: ThymianActionEvent<Name> = {
-      correlationId: randomUUID(),
+      id: randomUUID(),
       name,
       payload,
       timestamp: Date.now(),
@@ -256,10 +267,10 @@ export class ThymianEmitter {
     const takeNum = opts.strategy === 'first' ? 1 : numOfListeners;
 
     const responsesAndErrors = merge(
-      this.#responses.pipe(filter(isResponseOf(name, event.correlationId))),
+      this.#responses.pipe(filter(isResponseOf(name, event.id))),
       // eslint-disable-next-line @typescript-eslint/ban-ts-comment
       // @ts-expect-error
-      this.#errors.pipe(filter(isResponseOf(name, event.correlationId)))
+      this.#errors.pipe(filter(isResponseOf(name, event.id)))
     ).pipe(takeUntil(timer(opts.timeout)), take(takeNum), toArray());
 
     queueMicrotask(() => {
@@ -303,7 +314,7 @@ export class ThymianEmitter {
       .map((msg) => msg.payload)
       .filter(Boolean);
 
-    this.#completed.add(event.correlationId);
+    this.#completed.add(event.id);
 
     switch (opts.strategy) {
       case 'first':
@@ -349,6 +360,7 @@ export class ThymianEmitter {
         if (error instanceof ThymianBaseError) {
           this.#errors.next({
             correlationId,
+            id: randomUUID(),
             error: error,
             name,
             timestamp: Date.now(),
@@ -364,6 +376,7 @@ export class ThymianEmitter {
             error: thymianError,
             name,
             correlationId,
+            id: randomUUID(),
             timestamp: Date.now(),
             source: this.source,
           });
@@ -375,6 +388,7 @@ export class ThymianEmitter {
             ),
             name,
             correlationId,
+            id: randomUUID(),
             timestamp: Date.now(),
             source: this.source,
           });
@@ -387,6 +401,7 @@ export class ThymianEmitter {
           payload,
           timestamp: Date.now(),
           source: this.source,
+          id: randomUUID(),
         });
       },
     };

@@ -65,4 +65,12 @@ export type ThymianSchema = {
 
   $ref?: string;
   $anchor?: string;
+
+  xml?: {
+    name?: string;
+    namespace?: string;
+    prefix?: string;
+    attribute?: string;
+    wrapped?: boolean;
+  };
 };

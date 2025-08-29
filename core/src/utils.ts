@@ -72,7 +72,7 @@ export function zipArrays<A, B>(as: A[], bs: B[]): [A, B][] {
 }
 
 export function getHeader(
-  headers: Record<string, string | string[] | undefined>,
+  headers: Record<string, string | string[] | undefined> = {},
   headerName: string
 ): string | string[] | undefined {
   const headerNames = Object.keys(headers);
@@ -152,6 +152,44 @@ export type DeepPartial<T> = T extends object
       [P in keyof T]?: DeepPartial<T[P]>;
     }
   : T;
+
+export function thymianRequestToOrigin(req: ThymianHttpRequest): string {
+  return normalizeUrl(`${req.protocol}://${req.host}:${req.port}`);
+}
+
+export function getContentType(
+  headers: Record<string, string | string[] | undefined> = {},
+  defaultValue = ''
+): string {
+  const contentType = getHeader(headers, 'content-type');
+
+  if (!contentType) {
+    return defaultValue;
+  }
+
+  if (Array.isArray(contentType)) {
+    throw new Error('Multiple content-type headers found.');
+  }
+
+  return contentType;
+}
+
+export function normalizeUrl(urlString: string): string {
+  const url = new URL(urlString);
+
+  if (
+    (url.protocol === 'http:' && url.port === '80') ||
+    (url.protocol === 'https:' && url.port === '443')
+  ) {
+    url.port = '';
+  }
+
+  if (url.pathname !== '/' && url.pathname.endsWith('/')) {
+    url.pathname = url.pathname.slice(0, -1);
+  }
+
+  return url.toString();
+}
 
 export * from 'chalk';
 export { deepmerge };

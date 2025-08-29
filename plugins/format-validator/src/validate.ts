@@ -3,6 +3,7 @@ import {
   thymianHttpTransactionToString,
   type ThymianReport,
 } from '@thymian/core';
+import { constant, statusCodeRange } from '@thymian/http-filter';
 import { isValidSuccessfulStatusCode } from '@thymian/http-status-codes';
 import {
   filter,
@@ -12,6 +13,7 @@ import {
   isSingleHttpTestCaseStep,
   mapToTestCase,
   runRequests,
+  singleTestCase,
   validateResponses,
 } from '@thymian/http-testing';
 
@@ -20,6 +22,11 @@ export async function validate(
   logger: Logger,
   report: (report: ThymianReport) => void
 ): Promise<boolean> {
+  const r = httpTest(
+    'test',
+    singleTestCase().forTransactionsWith(statusCodeRange(200, 299)).run().done()
+  );
+
   const test = httpTest('@thymian/format-validate', (transactions) =>
     transactions.pipe(
       filter(({ current }) =>

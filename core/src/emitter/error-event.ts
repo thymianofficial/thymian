@@ -7,6 +7,7 @@ export type ErrorName = ThymianEventName | ThymianActionName | 'thymian.error';
 
 export type ThymianErrorEvent<Name extends ErrorName> = {
   name: Name;
+  id: string;
   error: ThymianError;
   timestamp: number;
   correlationId?: string;

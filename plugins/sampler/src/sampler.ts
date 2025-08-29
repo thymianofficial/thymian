@@ -22,6 +22,18 @@ export class Sampler {
     })
   ) {}
 
+  async checkIfIsInitialized(): Promise<void> {
+    try {
+      await access(this.basePath);
+    } catch (err) {
+      throw new ThymianBaseError(`@thymian/sampler is not initialized.`, {
+        name: 'SamplerError',
+        suggestions: ['Did you run thymian sampler:generate?'],
+        cause: err,
+      });
+    }
+  }
+
   async sample(
     transaction: ThymianHttpTransaction
   ): Promise<HttpRequestTemplate> {

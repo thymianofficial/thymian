@@ -43,13 +43,13 @@ export default httpRule(
   .rule((ctx) =>
     ctx.validateCommonHttpTransactions(
       statusCode(401),
-      responseHeader('www-authenticate')
+      not(responseHeader('www-authenticate'))
     )
   )
   .overrideTest((testContext, options) =>
     testContext.httpTest(
       singleTestCase()
-        .forRequestsWith(
+        .forTransactionsWith(
           and(
             not(method('HEAD')),
             or(
@@ -58,7 +58,6 @@ export default httpRule(
             )
           )
         )
-        .forResponsesWith(statusCode(401))
         .run()
         .expectForTransactions(responseHeader('www-authenticate'))
         .done()

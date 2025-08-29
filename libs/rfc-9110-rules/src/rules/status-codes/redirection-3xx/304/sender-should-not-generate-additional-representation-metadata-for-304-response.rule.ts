@@ -70,10 +70,9 @@ export default httpRule(
   .overrideTest((testContext) =>
     testContext.httpTest(
       singleTestCase()
-        .forRequestsWith(
+        .forTransactionsWith(
           and(or(method('GET'), method('HEAD')), responseWith(statusCode(200)))
         )
-        .forResponsesWith(statusCode(200))
         .run()
         .skipIf(
           not(or(responseHeader('etag'), responseHeader('last-modified'))),

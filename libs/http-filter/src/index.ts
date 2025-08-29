@@ -25,36 +25,36 @@ export type HttpMethod =
   | (string & {});
 
 export type RequestFilterExpression =
-  | { type: 'method'; kind: 'request'; method: string }
-  | { type: 'requestHeader'; kind: 'request'; header: string; value?: unknown }
-  | { type: 'queryParam'; kind: 'request'; param: string; value?: unknown }
-  | { type: 'path'; kind: 'request'; path: string }
+  | { type: 'method'; kind: 'request'; method?: string }
+  | { type: 'requestHeader'; kind: 'request'; header?: string; value?: unknown }
+  | { type: 'queryParam'; kind: 'request'; param?: string; value?: unknown }
+  | { type: 'path'; kind: 'request'; path?: string }
   | {
       type: 'hasResponse';
       kind: 'request';
-      filters: HttpFilterExpression[];
+      filter: HttpFilterExpression;
     }
   | { type: 'isAuthorized'; kind: 'request'; isAuthorized: boolean }
-  | { type: 'origin'; kind: 'request'; origin: string }
-  | { type: 'hasBody'; kind: 'request'; hasBody: boolean }
-  | { type: 'port'; kind: 'request'; port: number }
-  | { type: 'requestMediaType'; kind: 'request'; mediaType: string };
+  | { type: 'origin'; kind: 'request'; origin?: string }
+  | { type: 'hasBody'; kind: 'request'; hasBody?: boolean }
+  | { type: 'port'; kind: 'request'; port?: number }
+  | { type: 'requestMediaType'; kind: 'request'; mediaType?: string };
 
 export type ResponseFilterExpression =
-  | { type: 'statusCode'; kind: 'response'; code: number }
-  | { type: 'hasResponseBody'; kind: 'response'; hasBody: boolean }
+  | { type: 'statusCode'; kind: 'response'; code?: number }
+  | { type: 'hasResponseBody'; kind: 'response'; hasBody?: boolean }
   | {
       type: 'responseHeader';
       kind: 'response';
-      header: string;
+      header?: string;
       value?: unknown;
     }
   | { type: 'statusCodeRange'; kind: 'response'; start: number; end: number }
-  | { type: 'responseMediaType'; kind: 'response'; mediaType: string }
+  | { type: 'responseMediaType'; kind: 'response'; mediaType?: string }
   | {
       type: 'responseTrailer';
       kind: 'response';
-      trailer: string;
+      trailer?: string;
       value?: unknown;
     };
 
@@ -86,20 +86,20 @@ export const methods = (...methods: HttpMethod[]): LogicalExpression => ({
   })),
 });
 
-export const method = (method: HttpMethod): RequestFilterExpression => ({
+export const method = (method?: HttpMethod): RequestFilterExpression => ({
   type: 'method',
   kind: 'request',
   method,
 });
 
-export const path = (path: string): RequestFilterExpression => ({
+export const path = (path?: string): RequestFilterExpression => ({
   type: 'path',
   kind: 'request',
   path,
 });
 
 export const responseHeader = (
-  header: HttpHeader,
+  header?: HttpHeader,
   value?: unknown
 ): ResponseFilterExpression => ({
   type: 'responseHeader',
@@ -109,7 +109,7 @@ export const responseHeader = (
 });
 
 export const responseTrailer = (
-  trailer: string,
+  trailer?: string,
   value?: unknown
 ): ResponseFilterExpression => ({
   type: 'responseTrailer',
@@ -128,7 +128,7 @@ export const requestHeader = (
   value,
 });
 
-export const statusCode = (code: number): ResponseFilterExpression => ({
+export const statusCode = (code?: number): ResponseFilterExpression => ({
   type: 'statusCode',
   code,
   kind: 'response',
@@ -185,20 +185,20 @@ export const authorization = (
 });
 
 export const responseWith = (
-  ...filters: HttpFilterExpression[]
+  filter: HttpFilterExpression
 ): RequestFilterExpression => ({
   type: 'hasResponse',
   kind: 'request',
-  filters,
+  filter,
 });
 
-export const constant = (value: unknown): Constant => ({
+export const constant = (value?: unknown): Constant => ({
   type: 'constant',
   kind: 'logic',
   value,
 });
 
-export const origin = (origin: string): RequestFilterExpression => ({
+export const origin = (origin?: string): RequestFilterExpression => ({
   type: 'origin',
   kind: 'request',
   origin,
@@ -210,7 +210,7 @@ export const hasRequestBody = (hasBody: boolean): RequestFilterExpression => ({
   hasBody,
 });
 
-export const port = (port: number): RequestFilterExpression => ({
+export const port = (port?: number): RequestFilterExpression => ({
   type: 'port',
   kind: 'request',
   port,
@@ -230,4 +230,14 @@ export const responseMediaType = (
   type: 'responseMediaType',
   kind: 'response',
   mediaType,
+});
+
+export const queryParameter = (
+  name?: string,
+  value?: unknown
+): RequestFilterExpression => ({
+  type: 'queryParam',
+  kind: 'request',
+  param: name,
+  value,
 });

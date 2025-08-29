@@ -106,44 +106,42 @@ export const samplePlugin: ThymianPlugin<Partial<SamplerPluginOptions>> = {
     const basePath = join(opts.cwd, opts.path);
 
     emitter.onAction('sampler.generate', async ({ format }, ctx) => {
-      try {
-        const contentGenerator = new ContentGenerator(
-          [
-            new JsonContentTypeStrategy(),
-            new XmlContentTypeStrategy(),
-            new ImageContentTypeStrategy(),
-          ],
-          new HookContentTypeStrategy(emitter)
+      const contentGenerator = new ContentGenerator(
+        [
+          new JsonContentTypeStrategy(),
+          new XmlContentTypeStrategy(),
+          new ImageContentTypeStrategy(),
+        ],
+        new HookContentTypeStrategy(emitter)
+      );
+
+      const outputWriter = new FileOutputWriter(basePath, opts.force);
+      const parsedFormat = ThymianFormat.import(format);
+
+      for (const transaction of parsedFormat.getThymianHttpTransactions()) {
+        await generate(
+          parsedFormat,
+          transaction,
+          contentGenerator,
+          outputWriter
         );
-
-        const outputWriter = new FileOutputWriter(basePath, opts.force);
-        const parsedFormat = ThymianFormat.import(format);
-
-        for (const transaction of parsedFormat.getThymianHttpTransactions()) {
-          await generate(
-            parsedFormat,
-            transaction,
-            contentGenerator,
-            outputWriter
-          );
-        }
-
-        ctx.reply();
-      } catch (e) {
-        ctx.error(e);
       }
+
+      ctx.reply();
     });
 
     const sampler = new Sampler(basePath);
 
-    emitter.onAction('sampler.sample-request', async ({ transaction }, ctx) => {
-      try {
-        const sample = await sampler.sample(transaction);
+    emitter.onAction('core.ready', async (_, ctx) => {
+      await sampler.checkIfIsInitialized();
 
-        ctx.reply(sample);
-      } catch (e) {
-        ctx.error(e);
-      }
+      ctx.reply();
+    });
+
+    emitter.onAction('sampler.sample-request', async ({ transaction }, ctx) => {
+      const sample = await sampler.sample(transaction);
+
+      ctx.reply(sample);
     });
   },
 };

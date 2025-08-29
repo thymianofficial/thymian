@@ -11,9 +11,9 @@
     "importHelpers": true,
     "noImplicitReturns": true,
     "noFallthroughCasesInSwitch": true,
-    "types": ["node"]
+    "types": ["node"],
   },
-  "include": ["src/**/*.ts"],
+  "include": ["src/**/*.ts", "src/**/*.sql"],
   "references": [
     {
       "path": "../sampler/tsconfig.lib.json"

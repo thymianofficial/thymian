@@ -4,13 +4,16 @@
   "include": [],
   "references": [
     {
-      "path": "../../libs/http-status-codes"
+      "path": "../../libs/http-filter"
     },
     {
       "path": "../sampler"
     },
     {
       "path": "../request-dispatcher"
+    },
+    {
+      "path": "../../libs/http-status-codes"
     },
     {
       "path": "../../libs/http-testing"

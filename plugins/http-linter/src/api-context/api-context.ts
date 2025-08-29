@@ -1,8 +1,14 @@
-import { type PartialBy, type ReportFn, ThymianFormat } from '@thymian/core';
+import {
+  type Logger,
+  type PartialBy,
+  type ReportFn,
+  ThymianFormat,
+} from '@thymian/core';
 import type { HttpFilterExpression } from '@thymian/http-filter';
 
 import type { RuleFnResult } from '../rule/rule-fn.js';
 import type { RuleViolation } from '../rule/rule-violation.js';
+import { thymianToCommonHttpResponse } from './utils.js';
 
 export type FilterFn<Args extends unknown[]> = (...args: Args) => boolean;
 
@@ -35,26 +41,34 @@ export type CommonHttpResponse = {
 export abstract class ApiContext {
   constructor(
     readonly format: ThymianFormat,
+    protected readonly logger: Logger,
     // eslint-disable-next-line @typescript-eslint/no-empty-function
     protected readonly report: ReportFn = () => {}
   ) {}
 
   abstract validateCommonHttpTransactions(
-    filterFn: HttpFilterExpression,
+    filter: HttpFilterExpression,
     validationFn?:
       | ValidationFn<[CommonHttpRequest, CommonHttpResponse, string]>
       | HttpFilterExpression
   ): Promise<RuleFnResult> | RuleFnResult;
 
   abstract validateGroupedCommonHttpTransactions(
-    filterFn: HttpFilterExpression,
-    groupByFn: (req: CommonHttpRequest, res: CommonHttpResponse) => string,
+    filter: HttpFilterExpression,
+    groupBy: HttpFilterExpression,
     validationFn: ValidationFn<
       [string, [CommonHttpRequest, CommonHttpResponse][]],
       RuleViolation | undefined
     >
   ): Promise<RuleFnResult> | RuleFnResult;
+
+  protected getCommonHttpResponsesOfRequest(
+    reqId: string
+  ): CommonHttpResponse[] {
+    const responses = this.format.getNeighboursOfType(reqId, 'http-response');
+
+    return responses.map(([id, r]) => thymianToCommonHttpResponse(id, r));
+  }
 }
 
-//export interface LiveApiContext extends ApiContext {}
 export abstract class LiveApiContext extends ApiContext {}

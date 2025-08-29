@@ -6,7 +6,6 @@ import {
   ThymianEmitter,
   ThymianFormat,
   type ThymianHttpTransaction,
-  type ThymianSchema,
 } from '@thymian/core';
 import {
   createHookRunner,

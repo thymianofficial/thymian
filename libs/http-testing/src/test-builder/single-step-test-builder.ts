@@ -24,21 +24,16 @@ import {
   type RunRequestsOptions,
 } from '../operators/index.js';
 import type { BuilderPipeline } from './builder-pipeline.js';
-import { compileRequestScopedExpressionToRequestFilter } from './compilers/request-scoped-to-request-filter.js';
+import { httpFilterToTransactionFilter } from './compilers/http-filter-to-transaction-filter.js';
 import { compileResponseScopedToResponseChecker } from './compilers/response-scoped-to-response-checker.js';
-import { compileResponseScopedExpressionToResponseFilter } from './compilers/response-scoped-to-response-filter.js';
 import { compileResponseScopedExpressionToTransactionValidationFn } from './compilers/response-scoped-to-transaction-validator.js';
 import { overrideTemplate } from './override-request-template.js';
 import { ReplyStepBuilder } from './reply-step-builder.js';
 
 export type RunOptions = GenerateRequestsOptions & Partial<RunRequestsOptions>;
 
-export interface FilterRequests {
-  forRequestsWith(filter: HttpFilterExpression): FilterResponses;
-}
-
-export interface FilterResponses {
-  forResponsesWith(filter: HttpFilterExpression): RunRequests;
+export interface FilterTransactions {
+  forTransactionsWith(filter: HttpFilterExpression): RunRequests;
 }
 
 export interface RunRequests {
@@ -76,23 +71,17 @@ export interface ExpectOrStep<
 
 export class SingleStepTestBuilder<
   Transactions extends Required<HttpTestCaseStepTransaction>[]
-> implements
-    FilterRequests,
-    FilterResponses,
-    RunRequests,
-    ExpectOrStep<Transactions>
+> implements RunRequests, FilterTransactions, ExpectOrStep<Transactions>
 {
   protected readonly pipeline: BuilderPipeline = [];
 
   #requestOverrides: BuilderPipeline = [];
 
-  forRequestsWith(
-    httpFilter: HttpFilterExpression
-  ): SingleStepTestBuilder<Transactions> {
+  forTransactionsWith(filterExpression: HttpFilterExpression): RunRequests {
     this.pipeline.push(
       filter<PipelineItem<ThymianHttpTransaction>>(({ current, ctx }) => {
-        const filterFn = compileRequestScopedExpressionToRequestFilter(
-          httpFilter,
+        const filterFn = httpFilterToTransactionFilter(
+          filterExpression,
           ctx.format
         );
         const responses = ctx.format.getNeighboursOfType(
@@ -100,7 +89,13 @@ export class SingleStepTestBuilder<
           'http-response'
         );
 
-        return filterFn(current.thymianReq, current.thymianReqId, responses);
+        return filterFn(
+          current.thymianReq,
+          current.thymianReqId,
+          current.thymianRes,
+          current.thymianResId,
+          responses
+        );
       })
     );
 
@@ -109,28 +104,6 @@ export class SingleStepTestBuilder<
 
   tap(fn: () => void): RunRequests {
     this.pipeline.push(tap(fn));
-    return this;
-  }
-
-  forResponsesWith(
-    httpFilter: HttpFilterExpression
-  ): SingleStepTestBuilder<Transactions> {
-    this.pipeline.push(
-      filter<PipelineItem<ThymianHttpTransaction>>(({ current, ctx }) => {
-        const filterFn = compileResponseScopedExpressionToResponseFilter(
-          httpFilter,
-          ctx.format
-        );
-
-        return filterFn(
-          current.thymianRes,
-          current.thymianResId,
-          current.thymianReq,
-          current.thymianReqId
-        );
-      })
-    );
-
     return this;
   }
 
@@ -279,6 +252,6 @@ export class SingleStepTestBuilder<
   }
 }
 
-export function singleTestCase(): FilterRequests {
+export function singleTestCase(): FilterTransactions {
   return new SingleStepTestBuilder();
 }

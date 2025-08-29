@@ -11,9 +11,13 @@ export function overrideTemplate(
       template.method = value as string;
       break;
     case 'requestHeader':
+      if (typeof toRequest.header === 'undefined') break;
+
       setHeader(template.headers, toRequest.header, value);
       break;
     case 'queryParam':
+      if (typeof toRequest.param === 'undefined') break;
+
       setHeader(template.query, toRequest.param, value);
       break;
     case 'path':
