@@ -163,6 +163,11 @@ export function requestScopedHttpFilterToTransactionFilter(
         `${req.protocol}://${req.host}:${req.port}` === filterExpression.origin;
     case 'hasBody':
       return (req: ThymianHttpRequest) => !!req.bodyRequired;
+    case 'url':
+      return (req: ThymianHttpRequest) =>
+        `${req.protocol}://${req.host}:${req.port}${
+          req.path.startsWith('/') ? req.path : '/' + req.path
+        }` === filterExpression.url;
     case 'port':
       return (req: ThymianHttpRequest) => req.port === filterExpression.port;
     case 'requestMediaType':
@@ -214,5 +219,9 @@ export function requestScopedHttpFilterToTransactionFilter(
     case 'isAuthorized':
       return (_: ThymianHttpRequest, reqId: string) =>
         format.requestIsSecured(reqId) === filterExpression.isAuthorized;
+    default:
+      throw new Error(
+        `Invalid expression: ${JSON.stringify(filterExpression, null, 2)}.`
+      );
   }
 }

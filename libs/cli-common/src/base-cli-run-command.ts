@@ -202,7 +202,13 @@ export abstract class BaseCliRunCommand<
         ? join(this.flags.cwd, options.path ?? nameOrPath)
         : nameOrPath;
 
-    const pluginModule = (await import(require.resolve(location))).default;
+    let pluginModule;
+
+    try {
+      pluginModule = (await import(require.resolve(location))).default;
+    } catch (e) {
+      pluginModule = {};
+    }
 
     if (!isPlugin(pluginModule)) {
       throw new CLIError(

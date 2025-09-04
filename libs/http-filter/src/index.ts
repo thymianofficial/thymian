@@ -38,7 +38,8 @@ export type RequestFilterExpression =
   | { type: 'origin'; kind: 'request'; origin?: string }
   | { type: 'hasBody'; kind: 'request'; hasBody?: boolean }
   | { type: 'port'; kind: 'request'; port?: number }
-  | { type: 'requestMediaType'; kind: 'request'; mediaType?: string };
+  | { type: 'requestMediaType'; kind: 'request'; mediaType?: string }
+  | { type: 'url'; kind: 'request'; url?: string };
 
 export type ResponseFilterExpression =
   | { type: 'statusCode'; kind: 'response'; code?: number }
@@ -176,6 +177,7 @@ export const xor = (
   kind: 'logic',
   filters,
 });
+
 export const authorization = (
   isAuthorized = true
 ): RequestFilterExpression => ({
@@ -204,7 +206,7 @@ export const origin = (origin?: string): RequestFilterExpression => ({
   origin,
 });
 
-export const hasRequestBody = (hasBody: boolean): RequestFilterExpression => ({
+export const hasRequestBody = (hasBody = true): RequestFilterExpression => ({
   type: 'hasBody',
   kind: 'request',
   hasBody,
@@ -240,4 +242,10 @@ export const queryParameter = (
   kind: 'request',
   param: name,
   value,
+});
+
+export const url = (url?: string): RequestFilterExpression => ({
+  type: 'url',
+  kind: 'request',
+  url,
 });
