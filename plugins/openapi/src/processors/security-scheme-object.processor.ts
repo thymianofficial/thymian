@@ -19,7 +19,7 @@ export function processSecuritySchemes(
           scheme: 'api-key',
           in: schemeObj.in,
           extensions: {
-            openapiV3: {
+            openapi: {
               schemeName: name,
             },
           },
@@ -30,7 +30,7 @@ export function processSecuritySchemes(
             type: 'security-scheme',
             scheme: 'basic',
             extensions: {
-              openapiV3: {
+              openapi: {
                 schemeName: name,
               },
             },
@@ -41,7 +41,7 @@ export function processSecuritySchemes(
             scheme: 'bearer',
             bearerFormat: schemeObj.bearerFormat,
             extensions: {
-              openapiV3: {
+              openapi: {
                 schemeName: name,
               },
             },

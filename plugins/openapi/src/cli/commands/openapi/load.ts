@@ -15,15 +15,11 @@ export default class Load extends BaseCliRunCommand<typeof Load> {
   ];
 
   override async run(): Promise<void> {
-    console.log(
-      JSON.stringify(
-        (
-          await loadOpenapi(this.logger, {
-            ...defaultOpenApiPluginOptions,
-            filePath: this.args.file,
-          })
-        ).export()
-      )
-    );
+    const [format] = await loadOpenapi(this.logger, {
+      ...defaultOpenApiPluginOptions,
+      filePath: this.args.file,
+    });
+
+    console.log(JSON.stringify(format.export()));
   }
 }

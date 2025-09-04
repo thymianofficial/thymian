@@ -6,6 +6,7 @@ import {
 } from '@thymian/core';
 import type { OpenAPIV3_1 as OpenApiV31 } from 'openapi-types';
 
+import type { LocMapper } from '../loc-mapper/loc-mapper.js';
 import { processLinkObjectParameters } from './link-object.processor.js';
 import { processParameterObjects } from './parameter-object.processor.js';
 import { processRequestBodyObjet } from './request-body-object.processor.js';
@@ -39,7 +40,8 @@ export class OpenapiProcessor {
 
   constructor(
     private readonly logger: Logger,
-    private readonly options: OpenapiV30ParserOptions
+    private readonly options: OpenapiV30ParserOptions,
+    private readonly locMapper: LocMapper
   ) {}
 
   private processLinkObject(linkObjectToProcess: LinkObjectToProcess): void {
@@ -50,7 +52,7 @@ export class OpenapiProcessor {
     const reqs = this.format.graph.filterNodes(
       (id, attributes) =>
         isNodeType(attributes, 'http-request') &&
-        attributes.extensions?.openapiV3?.operationId ===
+        attributes.extensions?.openapi?.operationId ===
           linkObjectToProcess.linkObj.operationId
     );
 
@@ -90,6 +92,7 @@ export class OpenapiProcessor {
     const requests = processRequestBodyObjet(
       operationObject.requestBody as OpenApiV31.RequestBodyObject,
       parameters,
+      this.locMapper,
       {
         host: this.options.host,
         port: this.options.port,
@@ -117,7 +120,17 @@ export class OpenapiProcessor {
       for (const { responses, links } of responsesAndLinks) {
         const responseIds: string[] = [];
         for (const res of responses) {
-          const [resId] = this.format.addResponseToRequest(reqId, res);
+          const [resId] = this.format.addResponseToRequest(reqId, res, {
+            extensions: {
+              openapi: {
+                location: operationObject.operationId
+                  ? this.locMapper.locationForOperationId(
+                      operationObject.operationId
+                    )
+                  : undefined,
+              },
+            },
+          });
 
           responseIds.push(resId);
 
@@ -150,7 +163,7 @@ export class OpenapiProcessor {
     );
 
     securitySchemes.forEach((scheme) => {
-      this.securitySchemeToNodeId[scheme.extensions.openapiV3.schemeName] =
+      this.securitySchemeToNodeId[scheme.extensions.openapi.schemeName] =
         this.format.addSecurityScheme(scheme);
     });
 

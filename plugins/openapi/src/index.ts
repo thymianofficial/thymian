@@ -9,15 +9,24 @@ import { loadOpenapi, type ParseOpenApiOptions } from './load-openapi.js';
 declare module '@thymian/core' {
   interface ThymianHttpRequest {
     extensions: {
-      openapiV3: {
+      openapi: {
         operationId?: string;
+        location?: string;
+      };
+    };
+  }
+
+  interface HttpTransaction {
+    extensions: {
+      openapi: {
+        location?: string;
       };
     };
   }
 
   interface SecurityScheme {
     extensions: {
-      openapiV3: {
+      openapi: {
         schemeName: string;
       };
     };
@@ -25,9 +34,13 @@ declare module '@thymian/core' {
 
   interface ThymianFormat {
     getNodeByExtension(
-      extensionName: 'openapiV3',
+      extensionName: 'openapi',
       values: { operationId: string }
     ): ThymianNode | undefined;
+  }
+
+  interface ThymianEvents {
+    'openapi.document': Record<PropertyKey, unknown>;
   }
 }
 
@@ -85,10 +98,12 @@ export const openApiPlugin: ThymianPlugin<OpenApiPluginOptions> = {
   plugin: async (emitter, logger, opts) => {
     emitter.onAction('core.load-format', async (_, ctx) => {
       try {
-        const format = await loadOpenapi(logger, {
+        const [format, openapi] = await loadOpenapi(logger, {
           ...defaultOpenApiPluginOptions,
           ...opts,
         });
+
+        emitter.emit('openapi.document', openapi);
 
         ctx.reply(format.export());
       } catch (e) {

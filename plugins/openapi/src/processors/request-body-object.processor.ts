@@ -1,12 +1,14 @@
 import { type PartialBy, type ThymianHttpRequest } from '@thymian/core';
 import type { OpenAPIV3_1 as OpenApiV31 } from 'openapi-types';
 
+import type { LocMapper } from '../loc-mapper/loc-mapper.js';
 import { processMediaTypeObject } from './media-type-object.processor.js';
 import type { Parameters } from './utils.js';
 
 export function processRequestBodyObjet(
   requestBodyObject: OpenApiV31.RequestBodyObject | undefined,
   parameters: Parameters,
+  locMapper: LocMapper,
   context: {
     path: string;
     operationId?: string;
@@ -27,7 +29,7 @@ export function processRequestBodyObjet(
         method: context.method,
         mediaType: '',
         extensions: {
-          openapiV3: {
+          openapi: {
             operationId: context.operationId,
           },
         },
@@ -55,6 +57,10 @@ export function processRequestBodyObjet(
           isMultipart
         );
 
+        const location = context.operationId
+          ? locMapper.locationForOperationId(context.operationId)
+          : undefined;
+
         return {
           type: 'http-request',
           host: context.host,
@@ -67,8 +73,9 @@ export function processRequestBodyObjet(
           body: schema,
           mediaType,
           extensions: {
-            openapiV3: {
+            openapi: {
               operationId: context.operationId,
+              location,
             },
           },
           queryParameters: parameters.queryParameters,
