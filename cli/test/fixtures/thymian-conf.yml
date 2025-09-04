@@ -2,12 +2,14 @@ autoload: true
 plugins:
   '@thymian/http-linter':
     options:
+      modes:
+        - static
       rules:
         - '@thymian/rfc-9110-rules'
       ruleOptions: {}
   '@thymian/openapi':
     options:
-      filePath: '../shared/test-utils/src/fixtures/petstore-v2.yaml'
+      filePath: '/Users/matthias/University/testing/youtube.yaml'
   '@thymian/request-dispatcher': {}
   '@thymian/sampler': {}
   '@thymian/cli-reporter': {}
