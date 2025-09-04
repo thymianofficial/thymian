@@ -145,7 +145,8 @@ export class ThymianFormat {
 
   addResponseToRequest(
     requestId: string,
-    response: PartialBy<ThymianHttpResponse, 'label'>
+    response: PartialBy<ThymianHttpResponse, 'label'>,
+    transaction: Partial<HttpTransaction> = {}
   ): [string, string] {
     const req = this.getNode<ThymianHttpRequest>(requestId);
 
@@ -166,6 +167,7 @@ export class ThymianFormat {
       resId,
       this.addEdge(requestId, resId, {
         type: 'http-transaction',
+        ...transaction,
         label: `${req.label} \u2192 ${resLabel}`,
       }),
     ];
