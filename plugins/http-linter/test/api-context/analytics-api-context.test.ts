@@ -3,6 +3,7 @@ import { join } from 'node:path';
 
 import {
   DEFAULT_HEADER_SERIALIZATION_STYLE,
+  NoopLogger,
   TextLogger,
   ThymianFormat,
 } from '@thymian/core';
@@ -21,7 +22,9 @@ import { HttpTransactionRepository } from '../../src/db/http-transaction-reposit
 
 describe('AnalyticsApiContext', () => {
   let repo!: HttpTransactionRepository;
-  const logger = new TextLogger('AnalyticsApiContext', true);
+  const logger = new NoopLogger();
+  let format = new ThymianFormat();
+  const transactions: [string, string, string][] = [];
 
   beforeEach(async () => {
     repo = new HttpTransactionRepository(':memory:', logger);
@@ -33,101 +36,107 @@ describe('AnalyticsApiContext', () => {
     const seed = await readFile(join(import.meta.dirname, 'seed.sql'), 'utf-8');
 
     repo.db.exec(seed);
+
+    format = new ThymianFormat();
+
+    transactions.push(
+      format.addHttpTransaction(
+        {
+          mediaType: '',
+          type: 'http-request',
+          method: 'HEAD',
+          protocol: 'https',
+          port: 443,
+          host: 'api.example.com',
+          path: '/users',
+          headers: {},
+          cookies: {},
+          pathParameters: {},
+          queryParameters: {},
+        },
+        {
+          headers: {
+            'content-type': {
+              required: true,
+              schema: {
+                type: 'string',
+              },
+              style: DEFAULT_HEADER_SERIALIZATION_STYLE,
+            },
+          },
+          mediaType: 'application/json',
+          statusCode: 200,
+          type: 'http-response',
+        }
+      )
+    );
+
+    transactions.push(
+      format.addHttpTransaction(
+        {
+          mediaType: '',
+          type: 'http-request',
+          method: 'HEAD',
+          protocol: 'https',
+          port: 443,
+          host: 'api.example.com',
+          path: '/search',
+          headers: {},
+          cookies: {},
+          pathParameters: {},
+          queryParameters: {},
+        },
+        {
+          headers: {
+            'content-type': {
+              required: true,
+              schema: {
+                type: 'string',
+              },
+              style: DEFAULT_HEADER_SERIALIZATION_STYLE,
+            },
+          },
+          mediaType: 'application/json',
+          statusCode: 200,
+          type: 'http-response',
+        }
+      )
+    );
+
+    transactions.push(
+      format.addHttpTransaction(
+        {
+          mediaType: '',
+          type: 'http-request',
+          method: 'GET',
+          protocol: 'https',
+          port: 443,
+          host: 'api.example.com',
+          path: '/status',
+          headers: {},
+          cookies: {},
+          pathParameters: {},
+          queryParameters: {},
+        },
+        {
+          headers: {
+            'content-type': {
+              required: true,
+              schema: {
+                type: 'string',
+              },
+              style: DEFAULT_HEADER_SERIALIZATION_STYLE,
+            },
+          },
+          mediaType: 'application/json',
+          statusCode: 200,
+          type: 'http-response',
+        }
+      )
+    );
   });
 
   it('validateCommonHttpTransactions', async () => {
-    const format = new ThymianFormat();
-
-    format.addHttpTransaction(
-      {
-        mediaType: '',
-        type: 'http-request',
-        method: 'HEAD',
-        protocol: 'https',
-        port: 443,
-        host: 'api.example.com',
-        path: '/users',
-        headers: {},
-        cookies: {},
-        pathParameters: {},
-        queryParameters: {},
-      },
-      {
-        headers: {
-          'content-type': {
-            required: true,
-            schema: {
-              type: 'string',
-            },
-            style: DEFAULT_HEADER_SERIALIZATION_STYLE,
-          },
-        },
-        mediaType: 'application/json',
-        statusCode: 200,
-        type: 'http-response',
-      }
-    );
-
-    format.addHttpTransaction(
-      {
-        mediaType: '',
-        type: 'http-request',
-        method: 'HEAD',
-        protocol: 'https',
-        port: 443,
-        host: 'api.example.com',
-        path: '/search',
-        headers: {},
-        cookies: {},
-        pathParameters: {},
-        queryParameters: {},
-      },
-      {
-        headers: {
-          'content-type': {
-            required: true,
-            schema: {
-              type: 'string',
-            },
-            style: DEFAULT_HEADER_SERIALIZATION_STYLE,
-          },
-        },
-        mediaType: 'application/json',
-        statusCode: 200,
-        type: 'http-response',
-      }
-    );
-
-    const [, , edgeId] = format.addHttpTransaction(
-      {
-        mediaType: '',
-        type: 'http-request',
-        method: 'GET',
-        protocol: 'https',
-        port: 443,
-        host: 'api.example.com',
-        path: '/status',
-        headers: {},
-        cookies: {},
-        pathParameters: {},
-        queryParameters: {},
-      },
-      {
-        headers: {
-          'content-type': {
-            required: true,
-            schema: {
-              type: 'string',
-            },
-            style: DEFAULT_HEADER_SERIALIZATION_STYLE,
-          },
-        },
-        mediaType: 'application/json',
-        statusCode: 200,
-        type: 'http-response',
-      }
-    );
-
     const analytics = new AnalyticsApiContext(repo, logger, format);
 
     const results = analytics.validateCommonHttpTransactions(
@@ -137,103 +146,17 @@ describe('AnalyticsApiContext', () => {
 
     expect(results).toHaveLength(1);
     expect(results).toMatchObject([
-      { location: { elementType: 'edge', elementId: edgeId, pointer: '' } },
+      {
+        location: {
+          elementType: 'edge',
+          elementId: transactions[2][2],
+          pointer: '',
+        },
+      },
     ]);
   });
 
   it('validateGroupedCommonHttpTransactions', () => {
-    const format = new ThymianFormat();
-
-    format.addHttpTransaction(
-      {
-        mediaType: '',
-        type: 'http-request',
-        method: 'HEAD',
-        protocol: 'https',
-        port: 443,
-        host: 'api.example.com',
-        path: '/users',
-        headers: {},
-        cookies: {},
-        pathParameters: {},
-        queryParameters: {},
-      },
-      {
-        headers: {
-          'content-type': {
-            required: true,
-            schema: {
-              type: 'string',
-            },
-            style: DEFAULT_HEADER_SERIALIZATION_STYLE,
-          },
-        },
-        mediaType: 'application/json',
-        statusCode: 200,
-        type: 'http-response',
-      }
-    );
-
-    format.addHttpTransaction(
-      {
-        mediaType: '',
-        type: 'http-request',
-        method: 'HEAD',
-        protocol: 'https',
-        port: 443,
-        host: 'api.example.com',
-        path: '/search',
-        headers: {},
-        cookies: {},
-        pathParameters: {},
-        queryParameters: {},
-      },
-      {
-        headers: {
-          'content-type': {
-            required: true,
-            schema: {
-              type: 'string',
-            },
-            style: DEFAULT_HEADER_SERIALIZATION_STYLE,
-          },
-        },
-        mediaType: 'application/json',
-        statusCode: 200,
-        type: 'http-response',
-      }
-    );
-
-    const [, , edgeId] = format.addHttpTransaction(
-      {
-        mediaType: '',
-        type: 'http-request',
-        method: 'GET',
-        protocol: 'https',
-        port: 443,
-        host: 'api.example.com',
-        path: '/status',
-        headers: {},
-        cookies: {},
-        pathParameters: {},
-        queryParameters: {},
-      },
-      {
-        headers: {
-          'content-type': {
-            required: true,
-            schema: {
-              type: 'string',
-            },
-            style: DEFAULT_HEADER_SERIALIZATION_STYLE,
-          },
-        },
-        mediaType: 'application/json',
-        statusCode: 200,
-        type: 'http-response',
-      }
-    );
-
     const analytics = new AnalyticsApiContext(repo, logger, format);
 
     const results = analytics.validateGroupedCommonHttpTransactions(

@@ -1,5 +1,6 @@
 import {
   equalsIgnoreCase,
+  ThymianBaseError,
   ThymianFormat,
   type ThymianHttpRequest,
   type ThymianHttpResponse,
@@ -56,6 +57,16 @@ export function compileExpressionToFilterFn(
       return (req) => req.body;
     case 'port':
       return (req) => +new URL(req.origin).port === expression.port;
+    case 'url': {
+      if (typeof expression.url === 'undefined') {
+        return () => true;
+      }
+
+      return (req) =>
+        new URL(req.path, req.origin).toString() ===
+        // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+        new URL(expression.url!).toString();
+    }
     case 'requestMediaType':
       return (req) => req.mediaType === expression.mediaType;
     case 'responseMediaType':
@@ -153,6 +164,16 @@ export function compileExpressionToValidateFn(
       return (req) => req.body;
     case 'port':
       return (req) => +new URL(req.origin).port === expression.port;
+    case 'url': {
+      if (typeof expression.url === 'undefined') {
+        return () => true;
+      }
+
+      return (req) =>
+        new URL(req.path, req.origin).toString() ===
+        // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+        new URL(expression.url!).toString();
+    }
     case 'requestMediaType':
       return (req) => req.mediaType === expression.mediaType;
     case 'responseMediaType':
@@ -222,6 +243,8 @@ export function compileExpressionToGroupByFn(
   switch (expression.type) {
     case 'origin':
       return (req) => req.origin;
+    case 'url':
+      return (req) => new URL(req.path, req.origin).toString();
     case 'port':
       return (req) => new URL(req.origin).port;
     case 'requestMediaType':
@@ -260,6 +283,12 @@ export function compileExpressionToGroupByFn(
           .filter(Boolean)
           .join(' ');
     default:
-      throw new Error(`Unsupported group by expression: ${expression.type}`);
+      throw new ThymianBaseError(
+        `Unsupported group by expression "${expression.type}" for grouping common HTTP transactions.`,
+        {
+          name: 'UnsupportedGroupByExpression',
+          suggestions: ['Use another expression type.'],
+        }
+      );
   }
 }

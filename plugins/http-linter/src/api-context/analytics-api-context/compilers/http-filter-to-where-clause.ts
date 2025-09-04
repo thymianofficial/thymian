@@ -1,4 +1,9 @@
-import type { HttpFilterExpression } from '@thymian/http-filter';
+import {
+  and,
+  type HttpFilterExpression,
+  origin,
+  path,
+} from '@thymian/http-filter';
 
 import { parenthesize, type SqlFragment } from '../utils.js';
 import type { TableNames } from './types.js';
@@ -183,7 +188,18 @@ export function compileHttpFilterToWhereClause(
         params: [filter.param, filter.value],
       };
     }
+    case 'url': {
+      if (typeof filter.url === 'undefined') {
+        return { sql: '1=1', params: [] };
+      }
 
+      const url = new URL(filter.url);
+
+      return compileHttpFilterToWhereClause(
+        and(origin(url.origin), path(url.pathname)),
+        tableNames
+      );
+    }
     case 'hasResponse':
     case 'isAuthorized':
     case 'port':

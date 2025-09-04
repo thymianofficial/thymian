@@ -9,6 +9,7 @@ import {
   insertHttpResponse,
   insertHttpTransaction,
   insertRequestHeader,
+  insertRequestQueryParameter,
   insertResponseHeader,
   insertResponseTrailer,
 } from './statements.js';
@@ -22,19 +23,20 @@ export class HttpTransactionRepository {
   }
 
   async init(): Promise<void> {
-    this.logger.info('Initializing database for HttpTransactionRepository.');
+    this.logger.debug('Initializing database for HttpTransactionRepository.');
 
     const init = await readFile(join(import.meta.dirname, 'init.sql'), 'utf-8');
 
     this.db.exec(init);
   }
 
-  insertHttpTransaction(req: HttpRequest, res: HttpResponse): void {
-    this.db.transaction(() => {
+  insertHttpTransaction(req: HttpRequest, res: HttpResponse): string {
+    return this.db.transaction(() => {
       const reqId = this.db.prepare(insertHttpRequest).run({
         body: undefined,
         bodyEncoding: undefined,
         ...req,
+        path: req.path.split('?')[0] ?? '',
       }).lastInsertRowid;
 
       const resId = this.db.prepare(insertHttpResponse).run({
@@ -43,15 +45,26 @@ export class HttpTransactionRepository {
         ...res,
       }).lastInsertRowid;
 
-      this.db.prepare(insertHttpTransaction).run(reqId, resId);
+      const inserted = this.db.prepare(insertHttpTransaction).run(reqId, resId);
 
       this.insertHeaders(req.headers, insertRequestHeader, reqId);
       this.insertHeaders(res.headers, insertResponseHeader, resId);
       this.insertTrailers(res.trailers, resId);
+
+      const url = new URL(req.path, req.origin);
+      this.insertQueryParameters(
+        url.searchParams,
+        insertRequestQueryParameter,
+        reqId
+      );
+
+      return inserted.lastInsertRowid.toString();
     })();
   }
 
-  readTransactionFromId(transactionId: string): [HttpRequest, HttpResponse] {
+  readTransactionById(
+    transactionId: number | string
+  ): [HttpRequest, HttpResponse] {
     const transactionStatement = this.db.prepare<unknown[], any>(`
         SELECT 
           t.id AS transactionId, 
@@ -126,7 +139,7 @@ export class HttpTransactionRepository {
   }
 
   private insertQueryParameters(
-    queryParameters: Record<string, string | string[] | undefined> | undefined,
+    queryParameters: URLSearchParams,
     statement: string,
     id: number | bigint
   ): void {
@@ -135,6 +148,14 @@ export class HttpTransactionRepository {
     }
 
     const preparedStatement = this.db.prepare(statement);
+
+    for (const [name, value] of queryParameters.entries()) {
+      preparedStatement.run({
+        name,
+        value,
+        id,
+      });
+    }
   }
 
   private insertHeaders(

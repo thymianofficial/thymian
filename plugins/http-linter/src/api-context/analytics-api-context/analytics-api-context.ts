@@ -67,7 +67,7 @@ export class AnalyticsApiContext extends LiveApiContext {
     const results: RuleFnResult = [];
 
     for (const transaction of statement.iterate(...params)) {
-      const [req, res] = this.repository.readTransactionFromId(transaction.id);
+      const [req, res] = this.repository.readTransactionById(transaction.id);
       const matched = this.format.matchTransaction(req, res);
 
       if (!matched) {
@@ -131,7 +131,7 @@ export class AnalyticsApiContext extends LiveApiContext {
       const transactions = ids
         .map(
           (id) =>
-            [id, ...this.repository.readTransactionFromId(id)] as [
+            [id, ...this.repository.readTransactionById(id)] as [
               string,
               HttpRequest,
               HttpResponse
