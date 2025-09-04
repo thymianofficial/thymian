@@ -15,3 +15,7 @@ export function createList(list: string[]): string {
     );
   }
 }
+
+export function arrayDifference(as: string[], bs: string[]): string[] {
+  return as.filter((a) => !bs.includes(a));
+}

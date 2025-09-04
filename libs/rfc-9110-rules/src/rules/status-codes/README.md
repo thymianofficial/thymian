@@ -4,4 +4,4 @@
 - [ ] Successful 2xx: 15.3.7.1 - 15.3.7.3 are missing
 - [ ] Redirection 3xx: Status codes 307 und 308 are missing
 - [ ] Client Error 4xx
-- [ ] Server Error 1xx
+- [ ] Server Error 5xx

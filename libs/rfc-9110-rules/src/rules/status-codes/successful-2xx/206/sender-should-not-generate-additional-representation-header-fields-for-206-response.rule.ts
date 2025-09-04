@@ -14,7 +14,7 @@ import {
 import { httpRule, type RuleViolation } from '@thymian/http-linter';
 import { singleTestCase } from '@thymian/http-testing';
 
-import { createList } from '../../../../utils.js';
+import { arrayDifference, createList } from '../../../../utils.js';
 import { requiredHeaders } from './server-must-generate-header-fields-for-206-response.rule.js';
 
 export const representationHeaderFields = [
@@ -27,10 +27,6 @@ export const representationHeaderFields = [
   'etag',
   'last-modified',
 ];
-
-export function arrayDifference(as: string[], bs: string[]): string[] {
-  return as.filter((a) => !bs.includes(a));
-}
 
 export function checkHeaders(
   okResponseHeaders: string[],
