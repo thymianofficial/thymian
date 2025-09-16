@@ -5,6 +5,7 @@ import {
   or,
   origin,
   path,
+  responseWith,
   statusCode,
 } from '@thymian/http-filter';
 import { httpRule } from '@thymian/http-linter';
@@ -32,7 +33,10 @@ export default httpRule(
   )
   .rule((ctx) =>
     ctx.validateGroupedCommonHttpTransactions(
-      or(statusCode(200), statusCode(206)), // TODO: problem because we also check 200 response if there is no support for partial requests
+      or(
+        and(statusCode(200), responseWith(statusCode(206))),
+        and(statusCode(206), responseWith(statusCode(200)))
+      ), // TODO: problem because we also check 200 response if there is no support for partial requests
       and(method(), origin(), path()),
       (_, transactions) => {
         const okResponse = transactions.find(

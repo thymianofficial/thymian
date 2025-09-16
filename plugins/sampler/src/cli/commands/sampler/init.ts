@@ -1,15 +1,15 @@
 import { BaseCliRunCommand } from '@thymian/cli-common';
 
-export default class GenerateSamples extends BaseCliRunCommand<
-  typeof GenerateSamples
-> {
+export default class Init extends BaseCliRunCommand<typeof Init> {
   async run(): Promise<void> {
     await this.thymian.run(async (emitter) => {
       const format = await this.thymian.loadFormat();
 
-      return await emitter.emitAction('sampler.generate', {
+      return await emitter.emitAction('sampler.init', {
         format: format.export(),
       });
     });
+
+    this.logger.info('Sampler initialized.');
   }
 }

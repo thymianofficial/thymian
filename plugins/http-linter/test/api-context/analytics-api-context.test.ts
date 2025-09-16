@@ -4,7 +4,6 @@ import { join } from 'node:path';
 import {
   DEFAULT_HEADER_SERIALIZATION_STYLE,
   NoopLogger,
-  TextLogger,
   ThymianFormat,
 } from '@thymian/core';
 import {
@@ -17,29 +16,31 @@ import {
 } from '@thymian/http-filter';
 import { beforeEach, describe, expect, it } from 'vitest';
 
-import { AnalyticsApiContext } from '../../src/api-context/analytics-api-context/analytics-api-context';
-import { HttpTransactionRepository } from '../../src/db/http-transaction-repository';
+import { AnalyticsApiContext } from '../../src/api-context/analytics-api-context/analytics-api-context.js';
+import { HttpTransactionRepository } from '../../src/db/http-transaction-repository.js';
 
 describe('AnalyticsApiContext', () => {
   let repo!: HttpTransactionRepository;
   const logger = new NoopLogger();
   let format = new ThymianFormat();
-  const transactions: [string, string, string][] = [];
+  let transactions!: [
+    [string, string, string],
+    [string, string, string],
+    [string, string, string]
+  ];
 
   beforeEach(async () => {
     repo = new HttpTransactionRepository(':memory:', logger);
 
     await repo.init();
 
-    // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-    // @ts-expect-error
     const seed = await readFile(join(import.meta.dirname, 'seed.sql'), 'utf-8');
 
     repo.db.exec(seed);
 
     format = new ThymianFormat();
 
-    transactions.push(
+    transactions = [
       format.addHttpTransaction(
         {
           mediaType: '',
@@ -68,10 +69,7 @@ describe('AnalyticsApiContext', () => {
           statusCode: 200,
           type: 'http-response',
         }
-      )
-    );
-
-    transactions.push(
+      ),
       format.addHttpTransaction(
         {
           mediaType: '',
@@ -100,10 +98,7 @@ describe('AnalyticsApiContext', () => {
           statusCode: 200,
           type: 'http-response',
         }
-      )
-    );
-
-    transactions.push(
+      ),
       format.addHttpTransaction(
         {
           mediaType: '',
@@ -132,8 +127,8 @@ describe('AnalyticsApiContext', () => {
           statusCode: 200,
           type: 'http-response',
         }
-      )
-    );
+      ),
+    ];
   });
 
   it('validateCommonHttpTransactions', async () => {
@@ -164,7 +159,12 @@ describe('AnalyticsApiContext', () => {
       method(),
       (key, group) => {
         if (group.every((e) => e[0].method === 'GET')) {
-          return {};
+          return {
+            location: {
+              elementType: 'edge' as const,
+              elementId: '',
+            },
+          };
         }
       }
     );

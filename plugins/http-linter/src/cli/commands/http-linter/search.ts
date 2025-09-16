@@ -1,7 +1,7 @@
 import { join } from 'node:path';
 
 import { BaseCliRunCommand } from '@thymian/cli-common';
-import { Flags } from '@thymian/cli-common/oclif';
+import { Flags, ux } from '@thymian/cli-common/oclif';
 import Fuse from 'fuse.js';
 
 export default class SearchCommand extends BaseCliRunCommand<
@@ -21,17 +21,15 @@ export default class SearchCommand extends BaseCliRunCommand<
   };
 
   async run(): Promise<void> {
-    await this.thymian.ready();
+    const rules = await this.thymian.run(async (emitter) => {
+      if (this.flags.rules.length > 0) {
+        await emitter.emitAction('http-linter.load-rules', {
+          rules: this.flags.rules.map((rule) => join(process.cwd(), rule)),
+        });
+      }
 
-    if (this.flags.rules.length > 0) {
-      await this.thymian.emitter.emitAction('http-linter.load-rules', {
-        rules: this.flags.rules.map((rule) => join(process.cwd(), rule)),
-      });
-    }
-
-    const rules = (
-      await this.thymian.emitter.emitAction('http-linter.rules')
-    ).flat();
+      return (await emitter.emitAction('http-linter.rules')).flat();
+    });
 
     const fuse = new Fuse(rules, {
       keys: ['meta.description'],
@@ -44,11 +42,17 @@ export default class SearchCommand extends BaseCliRunCommand<
       includeScore: true,
     });
 
-    await this.thymian.close();
-
-    fuse
-      .search(this.flags.for)
-      .map((r) => `${r.item.meta.name} (score: ${r.score})`)
-      .forEach((r) => console.log(r));
+    for (const { item, score } of fuse.search(this.flags.for)) {
+      this.log(
+        `${ux.colorize('bold', item.meta.name)} ${ux.colorize(
+          'dim',
+          `(confidence: ${score})`
+        )}`
+      );
+      console.group();
+      this.log(item.meta.summary);
+      console.groupEnd();
+      this.log();
+    }
   }
 }

@@ -38,7 +38,7 @@ export class HttpTestLinter extends AbstractLinter {
       return true;
     }
 
-    this.reportRuleViolations(result, rule.meta, 'Static Checks');
+    this.reportRuleViolations(result, rule.meta, 'HTTP Tests');
 
     return false;
   }

@@ -38,7 +38,7 @@ export class AnalyticsLinter extends AbstractLinter {
       return true;
     }
 
-    this.reportRuleViolations(result, rule.meta, 'Static Checks');
+    this.reportRuleViolations(result, rule.meta, 'Analytic Checks');
 
     return false;
   }

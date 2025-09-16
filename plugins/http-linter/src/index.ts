@@ -66,7 +66,7 @@ declare module '@thymian/core' {
 
 export type HttpLinterPluginOptions = {
   rules: string[];
-  ruleOptions: Record<string, Record<string, unknown> | undefined>;
+  ruleOptions?: Record<string, Record<string, unknown> | undefined>;
   modes?: ('static' | 'test')[];
   origin?: string;
   ruleFilter?: {
@@ -79,11 +79,12 @@ export const httpLinterPlugin: ThymianPlugin<HttpLinterPluginOptions> = {
   name: '@thymian/http-linter',
   options: {
     type: 'object',
-    required: ['rules', 'ruleOptions'],
+    required: ['rules'],
     properties: {
       ruleOptions: {
         type: 'object',
         additionalProperties: true,
+        nullable: true,
       },
       modes: {
         nullable: true,
@@ -146,6 +147,8 @@ export const httpLinterPlugin: ThymianPlugin<HttpLinterPluginOptions> = {
 
     const modes = options.modes ?? ['static'];
 
+    logger.debug(`Running in mode(s): ${modes.join(', ')}`);
+
     emitter.onAction('http-linter.load-rules', async ({ rules }, ctx) => {
       const additionalLoadedRules = await loadRules(
         rules,
@@ -178,7 +181,7 @@ export const httpLinterPlugin: ThymianPlugin<HttpLinterPluginOptions> = {
             loadedRules,
             (report) => emitter.emit('core.report', report),
             thymianFormat,
-            options.ruleOptions
+            options.ruleOptions ?? {}
           ).run()) && valid;
       }
 
@@ -192,7 +195,7 @@ export const httpLinterPlugin: ThymianPlugin<HttpLinterPluginOptions> = {
             loadedRules,
             (report) => emitter.emit('core.report', report),
             thymianFormat,
-            options.ruleOptions
+            options.ruleOptions ?? {}
           ).run()) && valid;
       }
 
@@ -220,7 +223,7 @@ export const httpLinterPlugin: ThymianPlugin<HttpLinterPluginOptions> = {
           loadedRules,
           (report) => emitter.emit('core.report', report),
           thymianFormat,
-          options.ruleOptions
+          options.ruleOptions ?? {}
         ).run();
 
         ctx.reply(valid);

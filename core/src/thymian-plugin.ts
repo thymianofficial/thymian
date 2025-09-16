@@ -6,7 +6,7 @@ import type { ThymianEventName, ThymianEvents } from './events/index.js';
 import type { Logger } from './logger/logger.js';
 import { isRecord } from './utils.js';
 
-export type ThymianPluginFn<Options = unknown> = (
+export type ThymianPluginFn<Options extends Record<PropertyKey, unknown> & { cwd: string }> = (
   emitter: ThymianEmitter,
   logger: Logger,
   options: Options
@@ -15,7 +15,7 @@ export type ThymianPluginFn<Options = unknown> = (
 export type ThymianPluginEvents = {
   provides?: {
     [Name in ThymianEventName]?: JSONSchemaType<
-      Event extends keyof ThymianEvents ? ThymianEvents[Name] : unknown
+      Name extends keyof ThymianEvents ? ThymianEvents[Name] : unknown
     >;
   };
   emits?: ThymianEventName[];
@@ -42,8 +42,8 @@ export type ThymianPluginActions = {
   listensOn?: ThymianActionName[];
 };
 
-export type ThymianPlugin<Options = unknown> = {
-  plugin: ThymianPluginFn<Options>;
+export type ThymianPlugin<Options extends Record<PropertyKey, unknown> = Record<PropertyKey, unknown>> = {
+  plugin: ThymianPluginFn<Options & { cwd: string }>;
   options?: JSONSchemaType<Options>;
   name: string;
   version: string;

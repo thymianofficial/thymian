@@ -249,3 +249,5 @@ export const url = (url?: string): RequestFilterExpression => ({
   kind: 'request',
   url,
 });
+
+export const successfulStatusCode = () => statusCodeRange(200, 299);

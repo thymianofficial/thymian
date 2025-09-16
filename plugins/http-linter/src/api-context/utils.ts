@@ -244,7 +244,11 @@ export function compileExpressionToGroupByFn(
     case 'origin':
       return (req) => req.origin;
     case 'url':
-      return (req) => new URL(req.path, req.origin).toString();
+      return (req) => {
+        const url = new URL(req.path, req.origin);
+
+        return `${url.protocol}//${url.host}:${url.port}${url.pathname}${url.search}${url.hash}`;
+      };
     case 'port':
       return (req) => new URL(req.origin).port;
     case 'requestMediaType':

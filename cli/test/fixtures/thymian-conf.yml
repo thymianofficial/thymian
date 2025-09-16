@@ -9,7 +9,7 @@ plugins:
       ruleOptions: {}
   '@thymian/openapi':
     options:
-      filePath: '/Users/matthias/University/testing/youtube.yaml'
+      filePath: ''
   '@thymian/request-dispatcher': {}
   '@thymian/sampler': {}
   '@thymian/cli-reporter': {}

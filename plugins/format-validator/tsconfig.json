@@ -13,9 +13,6 @@
       "path": "../request-dispatcher"
     },
     {
-      "path": "../../libs/http-status-codes"
-    },
-    {
       "path": "../../libs/http-testing"
     },
     {

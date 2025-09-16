@@ -22,7 +22,24 @@ export async function getConfig(
   const fileContent = await fs.readFile(fullPath, 'utf-8');
   const { ext } = path.parse(fullPath);
 
-  const config =  ext === 'json' ? JSON.parse(fileContent) : parse(fileContent);
+  let config!: unknown;
+
+  if (ext === '.json') {
+    try {
+      config = JSON.parse(fileContent)
+    } catch (e) {
+      throw new Error(`Invalid JSON file at path ${fullPath}.`);
+
+    }
+  } else if (ext === '.yaml' || ext === '.yml') {
+    try {
+      config = parse(fileContent);
+    } catch (e) {
+      throw new Error(`Invalid yaml file at path ${fullPath}.`);
+    }
+  } else {
+    throw new Error(`Unsupported file extension "${ext}" for Thymian configuration.`);
+  }
 
   if (!validate(thymianSchema as unknown as JSONSchemaType<ThymianConfig>, config)) {
     throw new Error('Invalid Thymian config.');

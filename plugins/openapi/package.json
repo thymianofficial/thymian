@@ -20,7 +20,7 @@
     "openapi-types": "^12.1.3"
   },
   "dependencies": {
-    "@scalar/openapi-parser": "^0.10.14",
+    "@scalar/openapi-parser": "^0.20.4",
     "jsonc-parser": "^3.2.0",
     "tinyglobby": "^0.2.14",
     "traverse": "^0.6.11"
@@ -38,7 +38,7 @@
     },
     "topics": {
       "openapi": {
-        "description": "Load your Swagger/OpenAPI documents into Thymian."
+        "description": "Work directly with OpenAPI files within Thymian."
       }
     }
   }

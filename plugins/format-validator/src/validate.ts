@@ -3,18 +3,12 @@ import {
   thymianHttpTransactionToString,
   type ThymianReport,
 } from '@thymian/core';
-import { constant, statusCodeRange } from '@thymian/http-filter';
-import { isValidSuccessfulStatusCode } from '@thymian/http-status-codes';
+import { successfulStatusCode } from '@thymian/http-filter';
 import {
-  filter,
-  generateRequests,
   httpTest,
   type HttpTestContext,
   isSingleHttpTestCaseStep,
-  mapToTestCase,
-  runRequests,
   singleTestCase,
-  validateResponses,
 } from '@thymian/http-testing';
 
 export async function validate(
@@ -22,21 +16,12 @@ export async function validate(
   logger: Logger,
   report: (report: ThymianReport) => void
 ): Promise<boolean> {
-  const r = httpTest(
-    'test',
-    singleTestCase().forTransactionsWith(statusCodeRange(200, 299)).run().done()
-  );
-
-  const test = httpTest('@thymian/format-validate', (transactions) =>
-    transactions.pipe(
-      filter(({ current }) =>
-        isValidSuccessfulStatusCode(current.thymianRes.statusCode)
-      ),
-      mapToTestCase(),
-      generateRequests(),
-      runRequests(),
-      validateResponses()
-    )
+  const test = httpTest(
+    'Transactions with 2xx status code',
+    singleTestCase()
+      .forTransactionsWith(successfulStatusCode())
+      .run({ checkResponse: true })
+      .done()
   );
 
   const results = await test(context);
@@ -44,6 +29,28 @@ export async function validate(
   logger.debug(`Validated Thymian format in ${results.duration}ms.`);
 
   for (const testCase of results.cases) {
+    if (testCase.status === 'skipped') {
+      logger.debug(
+        `HTTP test case "${testCase.name}" from test "@thymian/format-validator" is skipped.`
+      );
+
+      report({
+        isProblem: true,
+        text:
+          testCase.reason ??
+          testCase.results
+            .filter(
+              (tc) => tc.type !== 'info' && tc.type !== 'assertion-success'
+            )
+            .map((tc) => tc.message)
+            .join('\n'),
+        title: testCase.name,
+        subTopic: '@thymian/format-validator',
+        topic: 'Skipped HTTP Test Cases',
+      });
+      continue;
+    }
+
     const step = testCase.steps[0];
 
     if (
@@ -67,29 +74,32 @@ export async function validate(
       source.thymianRes
     );
 
+    const subTopic = '2xx responses';
+    const topic = '@thymian/format-validator';
+
     testCase.results.forEach((result) => {
       if (result.type === 'assertion-failure') {
         report({
           text: `\u274C ${result.message}`,
           title,
-          topic: '@thymian/format-validator',
-          subTopic: 'Successful Responses',
+          topic,
+          subTopic,
           isProblem: true,
         });
       } else if (result.type === 'assertion-success') {
         report({
           text: `\u2705 ${result.message}`,
           title,
-          topic: '@thymian/format-validator',
-          subTopic: 'Successful Responses',
+          topic,
+          subTopic,
           isProblem: false,
         });
       } else if (result.type === 'info') {
         report({
           text: `\u2796 ${result.message}`,
           title,
-          topic: '@thymian/format-validator',
-          subTopic: 'Successful Responses',
+          topic,
+          subTopic,
           isProblem: false,
         });
       }

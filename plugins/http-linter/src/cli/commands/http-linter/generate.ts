@@ -69,22 +69,33 @@ export default class Generate extends Command {
       description: 'Generate HTTP linter rule for CommonJs.',
       default: false,
     }),
+    prefix: Flags.string({
+      description: 'Prefix for the rule name that is automatically added.',
+      default: '',
+    }),
+    url: Flags.string({
+      description: 'Url for the rule.',
+    }),
   };
 
   override async run(): Promise<void> {
     const { flags } = await this.parse(Generate);
 
-    const name = await input({ message: 'What is the name of your rule?' });
+    const name =
+      flags.prefix +
+      (await input({ message: 'What is the name of your rule?' }));
 
     const severity = await select<RuleSeverity>({
       message: 'What is the severity of your rule?',
       choices: ['error', 'warn', 'hint'],
     });
 
-    const url = await input({
-      message: 'Url:',
-      default: '',
-    });
+    const url =
+      flags.url ??
+      (await input({
+        message: 'Url:',
+        default: '',
+      }));
 
     const description = await input({
       message: 'Description:',
@@ -99,6 +110,7 @@ export default class Generate extends Command {
     const ruleTypes = await checkbox<RuleType>({
       message: 'What are the types of your rule?',
       choices: ['static', 'analytics', 'test', 'informational'],
+      required: true,
     });
 
     const appliesTo = await checkbox<HttpParticipantRole>({
@@ -138,6 +150,6 @@ export default class Generate extends Command {
       ruleMeta.appliesTo = appliesTo;
     }
 
-    console.log(createRuleTemplate(ruleMeta, flags.cjs));
+    this.log(createRuleTemplate(ruleMeta, flags.cjs));
   }
 }

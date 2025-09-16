@@ -20,7 +20,7 @@ import { Sampler } from './sampler.js';
 
 declare module '@thymian/core' {
   interface ThymianActions {
-    'sampler.generate': {
+    'sampler.init': {
       event: {
         format: SerializedThymianFormat;
       };
@@ -45,9 +45,8 @@ declare module '@thymian/core' {
 }
 
 export type SamplerPluginOptions = {
-  cwd: string;
   path: string;
-  force: boolean;
+  forceOverride: boolean;
 };
 
 export const samplePlugin: ThymianPlugin<Partial<SamplerPluginOptions>> = {
@@ -56,15 +55,11 @@ export const samplePlugin: ThymianPlugin<Partial<SamplerPluginOptions>> = {
   options: {
     type: 'object',
     properties: {
-      cwd: {
-        type: 'string',
-        nullable: true,
-      },
       path: {
         type: 'string',
         nullable: true,
       },
-      force: {
+      forceOverride: {
         type: 'boolean',
         nullable: true,
       },
@@ -72,7 +67,7 @@ export const samplePlugin: ThymianPlugin<Partial<SamplerPluginOptions>> = {
   },
   actions: {
     provides: {
-      'sampler.generate': {
+      'sampler.init': {
         // eslint-disable-next-line @typescript-eslint/ban-ts-comment
         // @ts-expect-error
         event: {
@@ -98,14 +93,14 @@ export const samplePlugin: ThymianPlugin<Partial<SamplerPluginOptions>> = {
   },
   plugin: async (emitter, logger, options) => {
     const opts: SamplerPluginOptions = {
-      cwd: process.cwd(),
-      path: '.thymian/samples',
-      force: false,
+      path: '.thymian',
+      forceOverride: false,
       ...options,
     };
-    const basePath = join(opts.cwd, opts.path);
 
-    emitter.onAction('sampler.generate', async ({ format }, ctx) => {
+    const basePath = join(options.cwd, opts.path, 'samples');
+
+    emitter.onAction('sampler.init', async ({ format }, ctx) => {
       const contentGenerator = new ContentGenerator(
         [
           new JsonContentTypeStrategy(),
@@ -115,7 +110,7 @@ export const samplePlugin: ThymianPlugin<Partial<SamplerPluginOptions>> = {
         new HookContentTypeStrategy(emitter)
       );
 
-      const outputWriter = new FileOutputWriter(basePath, opts.force);
+      const outputWriter = new FileOutputWriter(basePath, opts.forceOverride);
       const parsedFormat = ThymianFormat.import(format);
 
       for (const transaction of parsedFormat.getThymianHttpTransactions()) {
@@ -132,13 +127,9 @@ export const samplePlugin: ThymianPlugin<Partial<SamplerPluginOptions>> = {
 
     const sampler = new Sampler(basePath);
 
-    emitter.onAction('core.ready', async (_, ctx) => {
+    emitter.onAction('sampler.sample-request', async ({ transaction }, ctx) => {
       await sampler.checkIfIsInitialized();
 
-      ctx.reply();
-    });
-
-    emitter.onAction('sampler.sample-request', async ({ transaction }, ctx) => {
       const sample = await sampler.sample(transaction);
 
       ctx.reply(sample);

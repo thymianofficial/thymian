@@ -1,4 +1,6 @@
-export interface ThymianPluginConfiguration<Options> {
+export interface ThymianPluginConfiguration<
+  Options extends Record<PropertyKey, unknown> = Record<PropertyKey, unknown>
+> {
   path?: string;
   verbose?: boolean;
   autoload?: boolean;
@@ -7,5 +9,5 @@ export interface ThymianPluginConfiguration<Options> {
 
 export interface ThymianConfig {
   autoload?: boolean;
-  plugins: Record<string, ThymianPluginConfiguration<unknown>>;
+  plugins: Record<string, ThymianPluginConfiguration>;
 }

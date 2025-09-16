@@ -1,5 +1,3 @@
-import { validate } from '@scalar/openapi-parser';
-
 export type HeaderReference = `header.${string}`;
 export type QueryReference = `query.${string}`;
 export type PathReference = `path.${string}`;
@@ -17,7 +15,3 @@ export type RunExpression =
   | `$statusCode`
   | `$request.${Source}`
   | `$response.${Source}`;
-
-export function test() {
-  return validate('we');
-}

@@ -27,8 +27,6 @@ describe('processHeadersObject', () => {
       },
     });
 
-    console.log(JSON.stringify(result));
-
     expect(Object.keys(result)).toHaveLength(1);
     expect(result['accept']).toBeDefined();
     expect(result['accept']).toStrictEqual({

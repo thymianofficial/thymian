@@ -12,8 +12,7 @@ export function httpFilterToCommonFilter(
   });
 
   const statement = `
-      SELECT 
-        t.id AS id
+      SELECT t.id AS id
       FROM http_transaction t
       JOIN http_request req ON req.id = t.request_id
       JOIN http_response res ON res.id = t.response_id

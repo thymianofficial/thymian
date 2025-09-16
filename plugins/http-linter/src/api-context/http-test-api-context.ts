@@ -119,14 +119,17 @@ export class HttpTestApiContext<
 
   async validateGroupedCommonHttpTransactions(
     filterExpr: HttpFilterExpression,
-    groupB: HttpFilterExpression,
+    groupByExpression: HttpFilterExpression,
     validationFn: ValidationFn<
       [string, [CommonHttpRequest, CommonHttpResponse][]],
       RuleViolation | undefined
     >
   ): Promise<RuleFnResult> {
     const filterFn = compileExpressionToFilterFn(filterExpr, this.format);
-    const groupByFn = compileExpressionToGroupByFn(groupB, this.format);
+    const groupByFn = compileExpressionToGroupByFn(
+      groupByExpression,
+      this.format
+    );
 
     const test = httpTest(this.name, (test) =>
       test.pipe(

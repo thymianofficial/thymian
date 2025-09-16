@@ -99,7 +99,7 @@ export default httpRule(
     testContext.httpTest(
       singleTestCase()
         .forTransactionsWith(
-          and(or(method('GET'), method('HEAD')), responseWith(statusCode(200)))
+          and(or(method('GET'), method('HEAD')), statusCode(200))
         )
         .run()
         .skipIf(

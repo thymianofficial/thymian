@@ -1,5 +1,5 @@
 import { equalsIgnoreCase } from '@thymian/core';
-import { method, or, url } from '@thymian/http-filter';
+import { and, method, or, statusCode, url } from '@thymian/http-filter';
 import { httpRule, type RuleViolation } from '@thymian/http-linter';
 
 import { arrayDifference, createList } from '../../../../utils.js';
@@ -16,14 +16,14 @@ export default httpRule(
   .appliesTo('server')
   .rule((ctx) =>
     ctx.validateGroupedCommonHttpTransactions(
-      or(method('GET'), method('HEAD')),
+      and(statusCode(200), or(method('GET'), method('HEAD'))),
       url(),
       (_, transactions) => {
-        const getTransaction = transactions.find(([req, res]) =>
+        const getTransaction = transactions.find(([req]) =>
           equalsIgnoreCase(req.method, 'get')
         );
 
-        const headTransaction = transactions.find(([req, res]) =>
+        const headTransaction = transactions.find(([req]) =>
           equalsIgnoreCase(req.method, 'head')
         );
 

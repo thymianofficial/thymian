@@ -29,16 +29,22 @@ export function severityToColor(severity: RuleSeverity): string {
 }
 
 export abstract class AbstractLinter {
+  protected readonly rules: Rule[];
+
   constructor(
     protected readonly logger: Logger,
-    protected readonly rules: Rule[],
+    rules: Rule[],
     protected readonly report: (report: ThymianReport) => void,
     protected readonly format: ThymianFormat,
     protected readonly ruleOptions: Record<
       string,
       Record<string, unknown> | undefined
     >
-  ) {}
+  ) {
+    this.rules = rules.filter(
+      (r) => !(r.meta.type.length === 1 && r.meta.type[0] === 'informational')
+    );
+  }
 
   async run(): Promise<boolean> {
     return (

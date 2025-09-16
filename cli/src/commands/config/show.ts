@@ -1,41 +1,37 @@
 import { BaseCliRunCommand } from '@thymian/cli-common';
-import { ux } from '@thymian/cli-common/oclif';
+import { Flags, ux } from '@thymian/cli-common/oclif';
+import { stringify } from '@thymian/cli-common/yaml';
 
 export default class ShowConfig extends BaseCliRunCommand<typeof ShowConfig> {
-  static override description =
-    'Show the current configurations of registered plugins.';
-  public async run(): Promise<void> {
-    await this.thymian.run(() => {
-      for (const [name, config] of Object.entries(this.thymianConfig.plugins)) {
-        this.logLine(name.length);
-        this.log(ux.colorize('bold', name));
-        this.logLine(name.length);
-        this.log(
-          ux.colorizeJson(config, {
-            pretty: true,
-            theme: {
-              brace: '#00FFFF',
-              bracket: 'rgb(0, 255, 255)',
-              colon: 'dim',
-              comma: 'yellow',
-              key: 'bold',
-              string: 'green',
-              number: 'blue',
-              boolean: 'cyan',
-              null: 'redBright',
-            },
-          })
-        );
-        this.log();
-      }
-    });
-  }
+  static override description = 'Show the current Thymian configuration.';
 
-  private logLine(length: number): void {
-    this.log(
-      Array.from({ length })
-        .map(() => '-')
-        .join('')
-    );
+  static override flags = {
+    yaml: Flags.boolean({
+      default: false,
+      allowNo: true,
+      description: 'Output configuration in YAML format.',
+    }),
+  };
+  public async run(): Promise<void> {
+    if (this.flags.yaml) {
+      this.log(stringify(this.thymianConfig));
+    } else {
+      this.log(
+        ux.colorizeJson(this.thymianConfig, {
+          pretty: true,
+          theme: {
+            brace: '#00FFFF',
+            bracket: 'rgb(0, 255, 255)',
+            colon: 'dim',
+            comma: 'yellow',
+            key: 'bold',
+            string: 'green',
+            number: 'blue',
+            boolean: 'cyan',
+            null: 'redBright',
+          },
+        })
+      );
+    }
   }
 }

@@ -16,7 +16,11 @@ import {
 import type { ThymianActionName, ThymianActions } from '../actions/index.js';
 import type { ThymianEventName } from '../events/index.js';
 import type { Logger } from '../logger/logger.js';
-import { isThymianError, ThymianBaseError } from '../thymian.error.js';
+import {
+  isThymianError,
+  ThymianBaseError,
+  type ThymianError,
+} from '../thymian.error.js';
 import type {
   ActionEventPayload,
   ResponseEventPayload,
@@ -181,6 +185,31 @@ export class ThymianEmitter {
       payload,
       timestamp: Date.now(),
       source: this.source,
+    });
+  }
+
+  emitError(err: ThymianError, name = ''): void {
+    let error!: ThymianBaseError;
+    if (err instanceof ThymianBaseError) {
+      error = err;
+    } else if (isThymianError(err)) {
+      error = new ThymianBaseError(err.message, {
+        ...err.options,
+        name: err.name,
+      });
+    } else {
+      error = new ThymianBaseError(
+        `Error while emitting error event from "${this.source}".`,
+        { cause: err }
+      );
+    }
+
+    this.#errors.next({
+      error,
+      id: randomUUID(),
+      name: name as ErrorName,
+      source: this.source,
+      timestamp: Date.now(),
     });
   }
 

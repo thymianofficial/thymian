@@ -21,15 +21,9 @@
     "@thymian/cli-common": "0.0.1",
     "@thymian/core": "0.0.1",
     "@thymian/http-testing": "0.0.1",
-    "@thymian/http-status-codes": "0.0.1",
     "@thymian/request-dispatcher": "0.0.1",
     "@thymian/sampler": "0.0.1",
-    "vitest": "^3.0.9",
     "@thymian/http-filter": "0.0.1"
-  },
-  "devDependencies": {
-    "@thymian/request-dispatcher": "0.0.1",
-    "@thymian/sampler": "0.0.1"
   },
   "oclif": {
     "commands": "./dist/cli/commands",
@@ -37,8 +31,8 @@
       "thymian-plugin.init": "./dist/cli/init-hook"
     },
     "topics": {
-      "validate": {
-        "description": "Validate your API description against your HTTP API."
+      "format": {
+        "description": "Different utilities around the Thymian format."
       }
     }
   }

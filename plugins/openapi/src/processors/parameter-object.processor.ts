@@ -1,4 +1,5 @@
 import {
+  capitalizeFirstChar,
   CookieSerializationStyleBuilder,
   HeaderSerializationStyleBuilder,
   type Parameter,
@@ -80,7 +81,9 @@ export function processParameterObject(
 
     if (!schema) {
       throw new Error(
-        'A parameter object must define either a schema or a content property.'
+        `${capitalizeFirstChar(parameterObject.in)} parameter "${
+          parameterObject.name
+        }" object must define either a schema or a content property.`
       );
     }
 
@@ -88,7 +91,9 @@ export function processParameterObject(
     parameterContentType = contentType;
   } else {
     throw new Error(
-      'A parameter object must define either a schema or a content property.'
+      `${capitalizeFirstChar(parameterObject.in)} parameter "${
+        parameterObject.name
+      }" object must define either a schema or a content property.`
     );
   }
 

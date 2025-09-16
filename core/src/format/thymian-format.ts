@@ -14,7 +14,6 @@ import {
   capitalizeFirstChar,
   equalsIgnoreCase,
   getContentType,
-  getHeader,
   normalizeUrl,
   type PartialBy,
   thymianRequestToOrigin,

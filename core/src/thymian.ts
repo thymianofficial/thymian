@@ -2,7 +2,7 @@ import { Subject } from 'rxjs';
 import semver from 'semver';
 
 import packageJson from '../package.json' with { type: 'json' };
-import { ajv, validate } from './ajv.js';
+import { validate } from './ajv.js';
 import { corePlugin } from './core-plugin.js';
 import { ThymianEmitter } from './emitter/index.js';
 import {  ThymianFormat } from './format/index.js';
@@ -12,7 +12,7 @@ import { ThymianBaseError } from './thymian.error.js';
 import type { ThymianPlugin } from './thymian-plugin.js';
 import { timeoutPromise } from './utils.js';
 
-export type RegisteredPlugin<T> = {
+export type RegisteredPlugin<T extends Record<PropertyKey, unknown> = Record<PropertyKey, unknown>> = {
   plugin: ThymianPlugin<T>;
   options: T;
 };
@@ -21,11 +21,12 @@ export class PluginRegistrationError extends ThymianBaseError {}
 
 export type ThymianOptions = {
   timeout: number
-  traceEvents: boolean
+  traceEvents: boolean,
+  cwd: string
 }
 
 export class Thymian {
-  readonly plugins: RegisteredPlugin<unknown>[] = [];
+  readonly plugins: RegisteredPlugin[] = [];
 
   readonly emitter: ThymianEmitter;
 
@@ -39,6 +40,7 @@ export class Thymian {
     this.options = {
       timeout: 5000,
       traceEvents: false,
+      cwd: process.cwd(),
       ...options
     }
 
@@ -57,7 +59,7 @@ export class Thymian {
     });
   }
 
-  register<T>(plugin: ThymianPlugin<T>, options?: T): this {
+  register<T extends Record<PropertyKey, unknown>>(plugin: ThymianPlugin<T>, options?: T): this {
     if (!semver.satisfies(Thymian.VERSION, plugin.version)) {
       throw new PluginRegistrationError(
         `@thymian/core version ${Thymian.VERSION} does not match plugin version constraints ${plugin.version} from plugin "${plugin.name}".`, {
@@ -80,7 +82,7 @@ export class Thymian {
 
     // eslint-disable-next-line @typescript-eslint/ban-ts-comment
     // @ts-expect-error
-    this.plugins.push({ plugin: plugin, options: options });
+    this.plugins.push({ plugin: plugin, options: options ?? {} });
 
     return this;
   }
@@ -150,14 +152,14 @@ export class Thymian {
   }
 
   private async loadRegisteredPlugins(): Promise<void> {
-    await this.registerPlugin({ plugin: corePlugin, options: {} })
+    await this.registerPlugin({ plugin: corePlugin, options: { cwd: this.options.cwd } })
 
     for (const plugin of this.plugins) {
       await this.registerPlugin(plugin);
     }
   }
 
-  private async registerPlugin(registeredPlugin: RegisteredPlugin<unknown>): Promise<void> {
+  private async registerPlugin(registeredPlugin: RegisteredPlugin): Promise<void> {
     this.emitter.emit('core.register', {
       name: registeredPlugin.plugin.name,
       events: registeredPlugin.plugin.events ?? {},
@@ -165,7 +167,7 @@ export class Thymian {
     });
 
     await timeoutPromise(
-      registeredPlugin.plugin.plugin(this.emitter.child(registeredPlugin.plugin.name), this.logger.child(registeredPlugin.plugin.name), registeredPlugin.options),
+      registeredPlugin.plugin.plugin(this.emitter.child(registeredPlugin.plugin.name), this.logger.child(registeredPlugin.plugin.name), { ...registeredPlugin.options, cwd: this.options.cwd }),
       this.options.timeout,
       new PluginRegistrationError(`Timeout while registering plugin "${registeredPlugin.plugin.name}".`, {
         suggestions: [

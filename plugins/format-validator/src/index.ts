@@ -17,7 +17,7 @@ declare module '@thymian/core' {
       event: {
         format: SerializedThymianFormat;
       };
-      response: void;
+      response: boolean;
     };
   }
 }
@@ -26,7 +26,7 @@ export const formatValidatorPlugin: ThymianPlugin = {
   name: '@thymian/format-validator',
   version: '0.x',
   actions: {
-    requires: ['sampler.generate', 'request-dispatcher.http-request'],
+    requires: ['sampler.init', 'request-dispatcher.http-request'],
   },
   events: {
     emits: ['core.report'],
@@ -36,11 +36,11 @@ export const formatValidatorPlugin: ThymianPlugin = {
       const thymianFormat = ThymianFormat.import(format);
       const context = createContext(thymianFormat, logger, emitter);
 
-      await validate(context, logger, (report) =>
+      const valid = await validate(context, logger, (report) =>
         emitter.emit('core.report', report)
       );
 
-      ctx.reply();
+      ctx.reply(valid);
     });
 
     emitter.onAction('core.run', async (format, ctx) => {

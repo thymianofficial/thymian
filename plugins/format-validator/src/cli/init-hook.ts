@@ -3,7 +3,15 @@ import { confirm, runPrompts } from '@thymian/cli-common/prompts';
 
 import formatValidatorPlugin from '../index.js';
 
-const hook: ThymianPluginInitHook = async function () {
+const hook: ThymianPluginInitHook = async function (options) {
+  if (!options.interactive) {
+    return {
+      include: true,
+      pluginName: formatValidatorPlugin.name,
+      configuration: {},
+    };
+  }
+
   return runPrompts(async () => {
     const include = await confirm({
       message: `Do you want to validate your API description format against your real API with plugin ${formatValidatorPlugin.name}?`,

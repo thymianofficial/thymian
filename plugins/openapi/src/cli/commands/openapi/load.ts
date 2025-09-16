@@ -20,6 +20,6 @@ export default class Load extends BaseCliRunCommand<typeof Load> {
       filePath: this.args.file,
     });
 
-    console.log(JSON.stringify(format.export()));
+    this.log(JSON.stringify(format.export()));
   }
 }

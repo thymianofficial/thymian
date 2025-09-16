@@ -11,14 +11,17 @@ declare module '@oclif/core/interfaces' {
 
 export type ThymianPluginInitOptions = {
   cwd: string;
+  interactive: boolean;
 };
 
-export type ThymianPluginInitResult<T = unknown> = {
+export type ThymianPluginInitResult<
+  T extends Record<PropertyKey, unknown> = Record<PropertyKey, unknown>
+> = {
   pluginName: string;
   configuration: ThymianPluginConfiguration<T>;
   include: boolean;
 };
 
-export type ThymianPluginInitHook<T = unknown> = (
-  options: ThymianPluginInitOptions
-) => Promise<ThymianPluginInitResult<T>>;
+export type ThymianPluginInitHook<
+  T extends Record<PropertyKey, unknown> = Record<PropertyKey, unknown>
+> = (options: ThymianPluginInitOptions) => Promise<ThymianPluginInitResult<T>>;

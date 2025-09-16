@@ -24,7 +24,7 @@ describe('JsonContentTypeStrategy', () => {
         type: 'object',
         properties: { name: { type: 'string' } },
       };
-      const result = await generator.generate(schema);
+      const result = (await generator.generate(schema)) as { content: unknown };
 
       expect(result).toEqual({
         content: {
@@ -32,14 +32,24 @@ describe('JsonContentTypeStrategy', () => {
         },
       });
 
-      expect(typeof result.content).toBe('object');
-      expect(result.content).toHaveProperty('name');
+      expect(typeof result?.content).toBe('object');
+      expect(result?.content).toHaveProperty('name');
     });
 
     it('should generate null for an empty schema', async () => {
       const schema: ThymianSchema = {};
       expect(await generator.generate(schema)).toMatchObject({
         content: null,
+      });
+    });
+
+    it('test', async () => {
+      const schema: ThymianSchema = {
+        type: 'string',
+        examples: ['user1'],
+      };
+      expect(await generator.generate(schema)).toMatchObject({
+        content: 'user1',
       });
     });
   });

@@ -48,11 +48,11 @@ export function processSchema(schema: Draft202012SchemaObject): ThymianSchema {
       }
 
       node.examples.push(node.example);
-      this.update(node);
+      this.update(node, !!this.circular);
     }
 
     if (this.key && keysToRemove.has(this.key)) {
-      this.remove();
+      this.remove(!!this.circular);
     }
   });
 }

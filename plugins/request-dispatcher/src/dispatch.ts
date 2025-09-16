@@ -49,12 +49,19 @@ export async function dispatchHttpRequest(
     }
   );
 
-  return {
-    body: await response.body.text(),
+  const res: HttpResponse = {
     bodyEncoding: '',
     duration: performance.now() - start,
     headers: response.headers,
     statusCode: response.statusCode,
     trailers: response.trailers,
   };
+
+  const body = await response.body.text();
+
+  if (body) {
+    res.body = body;
+  }
+
+  return res;
 }

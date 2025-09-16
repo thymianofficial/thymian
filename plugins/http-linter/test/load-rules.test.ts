@@ -15,7 +15,5 @@ vitest.mock('./import-meta-resolve.ts', () => ({
 describe('load rules', () => {
   it('should load rules from package', async () => {
     const rules = await loadRules('@thymian/rfc-9110-rules');
-
-    console.log(rules.length);
   });
 });

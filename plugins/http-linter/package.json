@@ -19,7 +19,6 @@
   ],
   "dependencies": {
     "better-sqlite3": "^12.2.0",
-    "chalk": "4.1.2",
     "fuse.js": "^7.1.0",
     "tinyglobby": "^0.2.14",
     "tslib": "^2.3.0"
@@ -30,7 +29,8 @@
     "@thymian/http-filter": "^0",
     "@thymian/http-testing": "^0",
     "@thymian/request-dispatcher": "^0",
-    "@thymian/sampler": "^0"
+    "@thymian/sampler": "^0",
+    "chalk": "4.1.2"
   },
   "oclif": {
     "commands": "./dist/cli/commands",

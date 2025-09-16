@@ -103,6 +103,7 @@ export abstract class BaseCliRunCommand<
     this.thymian = new Thymian(this.logger.child('@thymian/core'), {
       timeout: this.flags.timeout,
       traceEvents: this.flags['trace-events'],
+      cwd: this.flags.cwd,
     });
     this.thymianConfig = await getConfig(this.flags.config, this.flags.cwd);
     this.overridePluginOptions();
@@ -185,8 +186,6 @@ export abstract class BaseCliRunCommand<
         this.thymianConfig.plugins[pluginName].options = {};
       }
 
-      // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-      // @ts-expect-error
       this.thymianConfig.plugins[pluginName].options[property] =
         safeParse(value);
     }
@@ -212,7 +211,9 @@ export abstract class BaseCliRunCommand<
 
     if (!isPlugin(pluginModule)) {
       throw new CLIError(
-        `File "${nameOrPath}" does not default export a valid Thymian plugin.`
+        `File "${
+          options.path ?? nameOrPath
+        }" does not default export a valid Thymian plugin.`
       );
     }
 

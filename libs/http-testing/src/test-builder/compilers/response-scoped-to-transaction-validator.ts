@@ -82,9 +82,18 @@ export function compileResponseScopedExpressionToTransactionValidationFn(
           )
         );
     case 'not':
-      return (transaction) =>
-        compileResponseScopedExpressionToTransactionValidationFn(
-          expression.filter
-        )(transaction);
+      return (transaction) => {
+        try {
+          compileResponseScopedExpressionToTransactionValidationFn(
+            expression.filter
+          )(transaction);
+        } catch {
+          return;
+        }
+
+        throw new assert.AssertionError({
+          message: 'Expression did not fail.',
+        });
+      };
   }
 }

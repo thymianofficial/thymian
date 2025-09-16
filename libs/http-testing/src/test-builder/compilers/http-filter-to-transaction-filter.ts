@@ -92,7 +92,7 @@ export function httpFilterToTransactionFilter(
           resId: string,
           responses: [string, ThymianHttpResponse][]
         ) =>
-          !httpFilterToTransactionFilter(filterExpression, format)(
+          !httpFilterToTransactionFilter(filterExpression.filter, format)(
             req,
             reqId,
             res,

@@ -26,7 +26,7 @@ export default class ListCommand extends BaseCliRunCommand<typeof ListCommand> {
         await this.thymian.emitter.emitAction('http-linter.rules')
       ).flat();
 
-      rules.forEach((r) => console.log(r.meta.name));
+      rules.forEach((r) => this.log(r.meta.name));
     });
   }
 }

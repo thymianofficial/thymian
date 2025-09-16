@@ -12,7 +12,11 @@ export const defaultConfig: ThymianConfig = {
         },
       },
     },
-    '@thymian/openapi': {},
+    '@thymian/openapi': {
+      options: {
+        filePath: 'openapi.yaml',
+      },
+    },
     '@thymian/request-dispatcher': {},
     '@thymian/sampler': {},
     '@thymian/cli-reporter': {},

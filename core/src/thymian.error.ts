@@ -23,9 +23,11 @@ export function isThymianError(value: unknown): value is ThymianError {
     isRecord(value) &&
     typeof value?.name === 'string' &&
     typeof value?.message === 'string' &&
-    'options' in value &&
-    isRecord(value.options) &&
-    (value.options.cause === undefined || value.options.cause instanceof Error)
+    ((Object.hasOwn(value, 'options') &&
+      isRecord(value.options) &&
+      (value.options.cause === undefined ||
+        value.options.cause instanceof Error)) ||
+      !Object.hasOwn(value, 'options'))
   );
 }
 

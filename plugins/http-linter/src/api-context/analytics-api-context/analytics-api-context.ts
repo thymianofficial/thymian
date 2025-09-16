@@ -82,24 +82,14 @@ export class AnalyticsApiContext extends LiveApiContext {
         transactionId
       );
 
-      if (violation === true) {
-        results.push({
-          location: {
-            elementType: 'edge',
-            elementId: transactionId,
-            pointer: '',
-          },
-        });
-      } else if (violation) {
-        results.push({
-          location: {
-            elementType: 'edge',
-            elementId: transactionId,
-            pointer: '',
-          },
-          ...violation,
-        });
-      }
+      results.push({
+        location: {
+          elementType: 'edge',
+          elementId: transactionId,
+          pointer: '',
+        },
+        ...(violation === true ? {} : violation),
+      });
     }
 
     return results;

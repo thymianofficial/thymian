@@ -1,7 +1,8 @@
+import { and, method, statusCode } from '@thymian/http-filter';
 import { httpRule } from '@thymian/http-linter';
 
 export default httpRule(
-  'rfc9110/user-agent-may-change-request-method-from-post-to-get-for-301-response'
+  'rfc9110/user-agent-may-change-request-method-from-post-to-get-for-302-response'
 )
   .severity('hint')
   .type('static')
@@ -14,20 +15,6 @@ export default httpRule(
   )
   .appliesTo('user-agent')
   .rule((ctx) =>
-    ctx.validateHttpTransactions(
-      (_, res) => res.statusCode === 302,
-      (req) => {
-        const getReq = ctx.format.findNode('http-request', {
-          host: req.host,
-          path: req.path,
-          port: req.port,
-          method: 'get',
-          mediaType: req.mediaType,
-          protocol: req.protocol,
-        });
-
-        return typeof getReq === 'undefined';
-      }
-    )
+    ctx.validateCommonHttpTransactions(and(method('POST'), statusCode(302)))
   )
   .done();

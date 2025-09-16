@@ -1,3 +1,6 @@
+import { writeFile } from 'node:fs/promises';
+import { join } from 'node:path';
+
 import { defaultConfig, type ThymianConfig } from '@thymian/cli-common';
 import { Command, Flags } from '@thymian/cli-common/oclif';
 import { stringify } from '@thymian/cli-common/yaml';
@@ -17,10 +20,11 @@ export default class Init extends Command {
       default: process.cwd(),
       description: 'Set current working directory.',
     }),
-    // https://clig.dev/#interactivity
-    'no-input': Flags.boolean({
+    'config-file': Flags.string({
+      default: 'thymian.config',
+    }),
+    yes: Flags.boolean({
       default: false,
-      description: 'Disable interactive input.',
     }),
   };
 
@@ -36,6 +40,7 @@ export default class Init extends Command {
 
     const hookResults = await this.config.runHook('thymian-plugin.init', {
       cwd: flags.cwd,
+      interactive: !flags.yes,
     });
 
     if (hookResults.failures.length > 0) {
@@ -59,14 +64,38 @@ export default class Init extends Command {
       }
     }
 
-    this.printConfig(flags.yaml);
+    const configFilePath = join(
+      flags.cwd,
+      `${flags['config-file']}${flags.yaml ? '.yaml' : '.json'}`
+    );
+
+    try {
+      await writeFile(configFilePath, this.getConfig(flags.yaml), {
+        encoding: 'utf-8',
+        flag: 'wx',
+      });
+    } catch (e) {
+      this.debug('Error writing configuration file: ' + e);
+      this.error(
+        `Configuration file "${configFilePath}" already exists. Please remove it before initializing Thymian.`,
+        { exit: 1 }
+      );
+    }
+
+    this.debug('Created configuration file at: ' + configFilePath);
+
+    this.log(`Initialized Thymian.`);
   }
 
   private printConfig(yaml: boolean): void {
+    this.log(this.getConfig(yaml));
+  }
+
+  private getConfig(yaml: boolean): string {
     if (yaml) {
-      this.log(stringify(this.thymianConfig));
+      return stringify(this.thymianConfig);
     } else {
-      this.log(JSON.stringify(this.thymianConfig, null, 2));
+      return JSON.stringify(this.thymianConfig, null, 2);
     }
   }
 }

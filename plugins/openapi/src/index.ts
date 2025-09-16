@@ -1,8 +1,11 @@
+import { join } from 'node:path';
+
 import {
   type PartialExceptFor,
   type ThymianNode,
   type ThymianPlugin,
 } from '@thymian/core';
+import type { OpenAPI } from 'openapi-types';
 
 import { loadOpenapi, type ParseOpenApiOptions } from './load-openapi.js';
 
@@ -40,7 +43,10 @@ declare module '@thymian/core' {
   }
 
   interface ThymianEvents {
-    'openapi.document': Record<PropertyKey, unknown>;
+    'openapi.document': {
+      filePath: string;
+      document: OpenAPI.Document;
+    };
   }
 }
 
@@ -53,11 +59,15 @@ export const defaultOpenApiPluginOptions: Omit<
   ParseOpenApiOptions,
   'filePath'
 > = {
-  port: 8080,
-  host: 'localhost',
-  protocol: 'http' as 'http' | 'https',
   allowExternalFiles: true,
   fetchExternalRefs: false,
+  validateUpgrade: true,
+  serverInfo: {
+    port: 8080,
+    host: 'localhost',
+    protocol: 'http',
+    basePath: '',
+  },
 };
 
 export const openApiPlugin: ThymianPlugin<OpenApiPluginOptions> = {
@@ -68,22 +78,37 @@ export const openApiPlugin: ThymianPlugin<OpenApiPluginOptions> = {
     additionalProperties: false,
     required: ['filePath'],
     properties: {
+      validateUpgrade: {
+        nullable: true,
+        type: 'boolean',
+      },
       filePath: {
         type: 'string',
         nullable: false,
       },
-      port: {
-        type: 'integer',
+      serverInfo: {
+        type: 'object',
         nullable: true,
-      },
-      host: {
-        type: 'string',
-        nullable: true,
-      },
-      protocol: {
-        type: 'string',
-        nullable: true,
-        enum: ['http', 'https'],
+        required: ['host', 'port', 'basePath', 'protocol'],
+        properties: {
+          basePath: {
+            type: 'string',
+            nullable: false,
+          },
+          port: {
+            type: 'integer',
+            nullable: false,
+          },
+          host: {
+            type: 'string',
+            nullable: false,
+          },
+          protocol: {
+            type: 'string',
+            nullable: false,
+            enum: ['http', 'https'],
+          },
+        },
       },
       allowExternalFiles: {
         nullable: true,
@@ -96,14 +121,20 @@ export const openApiPlugin: ThymianPlugin<OpenApiPluginOptions> = {
     },
   },
   plugin: async (emitter, logger, opts) => {
+    const filePath = join(opts.cwd, opts.filePath);
+
     emitter.onAction('core.load-format', async (_, ctx) => {
       try {
-        const [format, openapi] = await loadOpenapi(logger, {
+        const [format, document] = await loadOpenapi(logger, {
           ...defaultOpenApiPluginOptions,
           ...opts,
+          filePath,
         });
 
-        emitter.emit('openapi.document', openapi);
+        emitter.emit('openapi.document', {
+          document,
+          filePath,
+        });
 
         ctx.reply(format.export());
       } catch (e) {

@@ -1,3 +1,5 @@
+import { join } from 'node:path';
+
 import {
   isNodeType,
   type Logger,
@@ -7,6 +9,7 @@ import {
 import type { OpenAPIV3_1 as OpenApiV31 } from 'openapi-types';
 
 import type { LocMapper } from '../loc-mapper/loc-mapper.js';
+import { extractServerInfo, type ServerInfo } from './extract-server-info.js';
 import { processLinkObjectParameters } from './link-object.processor.js';
 import { processParameterObjects } from './parameter-object.processor.js';
 import { processRequestBodyObjet } from './request-body-object.processor.js';
@@ -14,17 +17,24 @@ import { processResponsesObject } from './responses-object.processor.js';
 import { processSecuritySchemes } from './security-scheme-object.processor.js';
 import { mergeParameters, type Parameters } from './utils.js';
 
-export type OpenapiV30ParserOptions = {
-  port: number;
-  host: string;
-  protocol: 'http' | 'https';
-};
+export type OpenapiV30ParserOptions = ServerInfo;
 
 export type LinkObjectToProcess = {
   linkObj: OpenApiV31.LinkObject;
   name: string;
   responseIds: string[];
 };
+
+export const supportedMethods = [
+  'get',
+  'put',
+  'post',
+  'delete',
+  'options',
+  'head',
+  'patch',
+  'trace',
+];
 
 /*
 https://swagger.io/specification/v3/
@@ -72,7 +82,8 @@ export class OpenapiProcessor {
     operationObject: OpenApiV31.OperationObject,
     params: Parameters,
     method: string,
-    path: string
+    path: string,
+    serverInfo: ServerInfo
   ): void {
     if (operationObject.deprecated) {
       this.logger.debug(
@@ -89,17 +100,22 @@ export class OpenapiProcessor {
       )
     );
 
+    const operationServerInfo = extractServerInfo(
+      operationObject.servers,
+      serverInfo
+    );
+
     const requests = processRequestBodyObjet(
       operationObject.requestBody as OpenApiV31.RequestBodyObject,
       parameters,
       this.locMapper,
       {
-        host: this.options.host,
-        port: this.options.port,
-        protocol: this.options.protocol,
+        host: operationServerInfo.host,
+        port: operationServerInfo.port,
+        protocol: operationServerInfo.protocol,
         operationId: operationObject.operationId,
         method,
-        path,
+        path: join(operationServerInfo.basePath, path),
       }
     );
     const responsesAndLinks = processResponsesObject(
@@ -175,16 +191,22 @@ export class OpenapiProcessor {
       }
     });
 
+    const serverInfo = extractServerInfo(document.servers, this.options);
+
     for (const [path, pathItem] of Object.entries(document.paths ?? {})) {
       if (typeof pathItem === 'undefined') {
         continue;
       }
 
       const parameters = processParameterObjects(
-        pathItem.parameters as OpenApiV31.ParameterObject[]
+        pathItem.parameters as OpenApiV31.ParameterObject[] | undefined
       );
 
       for (const [method, op] of Object.entries(pathItem)) {
+        if (!supportedMethods.includes(method)) {
+          continue;
+        }
+
         const operation = op as OpenApiV31.OperationObject;
 
         const operationParameters = processParameterObjects(
@@ -195,7 +217,8 @@ export class OpenapiProcessor {
           operation,
           mergeParameters(parameters, operationParameters),
           method,
-          path
+          path,
+          serverInfo
         );
       }
     }
