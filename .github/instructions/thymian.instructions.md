@@ -26,7 +26,7 @@ Thymian is built around a highly extensible plugin system—virtually everything
 - **Core Plugins**: Fundamental features (e.g., event handling, validation, reporting) are implemented as plugins in the `core/` package.
 - **Official Plugins**: Additional functionality (e.g., format validation, HTTP linting, OpenAPI support) is provided via plugins in the `plugins/` directory.
 - **Custom Plugins**: Developers can create their own plugins to extend or override core behavior, add new rules, or integrate with external systems.
-- **Plugin Registration**: Plugins are registered by the core. For each registered plugin an event (`core.register`) is emitted. This lets other plugins know which plugins are registered. 
+- **Plugin Registration**: Plugins are registered by the core. For each registered plugin an event (`core.register`) is emitted. This lets other plugins know which plugins are registered.
 - **Decoupling**: Plugins interact through well-defined APIs and events, ensuring loose coupling and maximum extensibility.
 - **Lifecycle**: Plugins can hook into core events, actions, and error flows, allowing deep integration and customization.
 
@@ -47,3 +47,13 @@ This architecture enables extensibility, plugin integration, and robust error ha
 
 ---
 
+## Shared Rules Architecture
+
+Thymian supports sharing and reusing rules across plugins and libraries. For example:
+
+- **Rule Libraries**: The `libs/rfc-9110-rules` package provides reusable HTTP rules based on RFC 9110, organized by fields, methods, and status codes.
+- **Rule Sets**: Rules are grouped into sets (see `src/index.ts` in `rfc-9110-rules`) for easy integration with linters and validators.
+- **Extensibility**: Plugins (e.g., `http-linter`) can consume these shared rule sets to enforce standards or add custom validation.
+- **Utilities**: Helper functions and constants (e.g., field lists, array utilities) are provided for rule composition and reporting.
+
+This approach enables consistent validation, extensibility, and code reuse throughout the Thymian ecosystem.
