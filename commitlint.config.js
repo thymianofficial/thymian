@@ -1,1 +1,30 @@
-export default { extends: ['@commitlint/config-conventional'] };
+export default {
+  extends: ['@commitlint/config-conventional'],
+  rules: {
+    'scope-enum': [
+      2,
+      'always',
+      [
+        'cli',
+        'core',
+        'libs',
+        'plugins',
+        'shared',
+        'cli-common',
+        'http-filter',
+        'http-status-codes',
+        'http-testing',
+        'rfc-9110-rules',
+        'cli-reporter',
+        'format-validator',
+        'http-linter',
+        'openapi',
+        'request-dispatcher',
+        'sampler',
+        'test-utils',
+        'repo',
+      ],
+    ],
+    'scope-empty': [2, 'never'],
+  },
+};
