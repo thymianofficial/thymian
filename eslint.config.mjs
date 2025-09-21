@@ -29,11 +29,42 @@ export default [
         'error',
         {
           enforceBuildableLibDependency: true,
-          allow: ['^.*/eslint(\\.base)?\\.config\\.[cm]?js$'],
+          allow: ['^.*/eslint(.base)?.config.[cm]?js$'],
           depConstraints: [
+            // Core can depend only on core
             {
-              sourceTag: '*',
+              sourceTag: 'core',
+              onlyDependOnLibsWithTags: ['core', 'lib', 'shared'],
+            },
+            // Plugins can depend on core, plugin, and lib
+            {
+              sourceTag: 'plugin',
+              onlyDependOnLibsWithTags: ['plugin', 'core', 'lib', 'shared'],
+            },
+            // Libs can depend on core, lib
+            {
+              sourceTag: 'lib',
+              onlyDependOnLibsWithTags: ['core', 'lib', 'shared'],
+            },
+            // Shared utilities can depend on core, lib, shared
+            {
+              sourceTag: 'shared',
+              onlyDependOnLibsWithTags: ['shared', 'core'],
+            },
+            // Apps (if any) can depend on anything except private
+            {
+              sourceTag: 'app',
               onlyDependOnLibsWithTags: ['*'],
+            },
+            // npm:public can depend only on npm:public
+            {
+              sourceTag: 'npm:public',
+              onlyDependOnLibsWithTags: ['npm:public'],
+            },
+            // npm:private can depend on anything
+            {
+              sourceTag: 'npm:private',
+              onlyDependOnLibsWithTags: ['npm:public', 'npm:private'],
             },
           ],
         },

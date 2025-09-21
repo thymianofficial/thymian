@@ -2,7 +2,6 @@ import {
   and,
   method,
   not,
-  requestMediaType,
   responseHeader,
   responseMediaType,
   statusCode,
