@@ -7,9 +7,5 @@
   ],
   "type": "module",
   "main": "./dist/index.js",
-  "typings": "./dist/index.d.ts",
-  "nx": {
-    "sourceRoot": "libs/http-status-codes/src",
-    "projectType": "library"
-  }
+  "typings": "./dist/index.d.ts"
 }

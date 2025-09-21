@@ -28,16 +28,5 @@
   },
   "devDependencies": {
     "@types/etag": "^1.8.4"
-  },
-  "nx": {
-    "targets": {
-      "build": {
-        "options": {
-          "assets": [
-            "src/fixtures/**/*"
-          ]
-        }
-      }
-    }
   }
 }
