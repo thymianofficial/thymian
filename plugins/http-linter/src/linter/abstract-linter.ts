@@ -63,6 +63,7 @@ export abstract class AbstractLinter {
                 `Error running rule ${rule.meta.name}: ${e}`,
                 {
                   name: `${this.constructor.name}Error`,
+                  cause: e,
                 }
               );
             }
