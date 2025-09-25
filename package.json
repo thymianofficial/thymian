@@ -8,7 +8,9 @@
     "format:check": "nx run-many -t format:check",
     "build": "nx run-many -t build --exclude @thymian/source",
     "lint": "nx affected:lint",
-    "prepare": "husky"
+    "prepare": "husky",
+    "local-registry": "nx local-registry",
+    "local-publish": "nx release publish --registry http://localhost:4873"
   },
   "lint-staged": {
     "*.{js,ts,jsx,tsx}": [

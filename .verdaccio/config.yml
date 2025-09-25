@@ -8,6 +8,20 @@ uplinks:
     maxage: 60m
 
 packages:
+  'thymian':
+    # give all users (including non-authenticated users) full access
+    # because it is a local registry
+    access: $all
+    publish: $all
+    unpublish: $all
+
+  '@thymian/*':
+    # give all users (including non-authenticated users) full access
+    # because it is a local registry
+    access: $all
+    publish: $all
+    unpublish: $all
+
   '**':
     # give all users (including non-authenticated users) full access
     # because it is a local registry
