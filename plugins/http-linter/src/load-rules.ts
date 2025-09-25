@@ -107,7 +107,7 @@ export async function loadRules(
       `Rule or rule set at ${location} does not use default export.`,
       {
         suggestions: [
-          'Use "export default" oder "module.exports =" to export your rule (set).',
+          'Use "export default" or "module.exports =" to export your rule (set).',
         ],
         name: 'RuleLoadError',
       }
