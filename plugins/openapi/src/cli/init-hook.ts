@@ -92,9 +92,6 @@ const hook: ThymianPluginInitHook<OpenApiPluginOptions> = async function (
       configuration: {
         options: {
           filePath: matches[0] ?? 'openapi.yaml',
-          port: 8080,
-          host: 'localhost',
-          protocol: 'http',
           allowExternalFiles: true,
         },
       },
