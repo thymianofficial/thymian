@@ -1,6 +1,7 @@
 import { Subject } from 'rxjs';
 import semver from 'semver';
 
+// prettier-ignore
 import packageJson from '../package.json' with { type: 'json' };
 import { validate } from './ajv.js';
 import { corePlugin } from './core-plugin.js';
@@ -101,9 +102,15 @@ export class Thymian {
 
   run<T>(fn: (emitter: ThymianEmitter, logger: Logger) => Promise<T> | T): Promise<T> {
     return new Promise((resolve, reject) => {
+      const tryClose = (err: unknown)=> {
+        this.logger.debug('Try closing Thymian...');
+
+        this.close().then(() => reject(err));
+      }
+
       this.emitter.onError((event) => {
         if (event.error.options.severity === 'error') {
-          reject(event.error);
+          tryClose(event.error);
         } else if (event.error.options.severity === 'warn') {
           this.logger.warn(event.error.message);
         } else {
@@ -122,9 +129,7 @@ export class Thymian {
       })()
         .then(resolve)
         .catch((err) => {
-          this.logger.debug('Try closing Thymian...');
-
-          this.close().then(() => reject(err));
+          tryClose(err)
         });
     })
   }
