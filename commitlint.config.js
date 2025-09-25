@@ -23,6 +23,7 @@ export default {
         'sampler',
         'test-utils',
         'repo',
+        'release',
       ],
     ],
     'scope-empty': [2, 'never'],
