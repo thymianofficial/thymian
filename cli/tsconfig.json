@@ -1,10 +1,7 @@
 {
   "extends": "../tsconfig.base.json",
   "files": [],
-  "include": [
-    "src/**/*.ts",
-    "test/**/*.ts",
-  ],
+  "include": ["src/**/*.ts", "test/**/*.ts"],
   "references": [
     {
       "path": "../plugins/sampler"
@@ -23,6 +20,9 @@
     },
     {
       "path": "../plugins/format-validator"
+    },
+    {
+      "path": "../plugins/cli-md-reporter"
     },
     {
       "path": "../plugins/cli-reporter"

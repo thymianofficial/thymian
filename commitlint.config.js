@@ -16,6 +16,7 @@ export default {
         'http-testing',
         'rfc-9110-rules',
         'cli-reporter',
+        'cli-md-reporter',
         'format-validator',
         'http-linter',
         'openapi',

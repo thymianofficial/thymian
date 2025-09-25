@@ -17,6 +17,7 @@ export default [
             '@oclif/plugin-plugins',
             '@oclif/plugin-version',
             '@thymian/cli-reporter',
+            '@thymian/cli-md-reporter',
             '@thymian/format-validator',
             '@thymian/openapi',
             '@oclif/plugin-version',

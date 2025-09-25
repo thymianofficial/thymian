@@ -40,6 +40,9 @@
       "path": "./plugins/cli-reporter"
     },
     {
+      "path": "./plugins/cli-md-reporter"
+    },
+    {
       "path": "./plugins/format-validator"
     },
     {

@@ -34,6 +34,9 @@
       "path": "../plugins/format-validator/tsconfig.lib.json"
     },
     {
+      "path": "../plugins/cli-md-reporter/tsconfig.lib.json"
+    },
+    {
       "path": "../plugins/cli-reporter/tsconfig.lib.json"
     },
     {

@@ -1,0 +1,9 @@
+{
+  "name": "@thymian/cli-md-reporter",
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "plugins/cli-md-reporter/src",
+  "projectType": "library",
+  "tags": ["lib"],
+  "// targets": "to see all targets run: nx show project @thymian/cli-md-reporter --web",
+  "targets": {}
+}

@@ -20,6 +20,7 @@ export const defaultConfig: ThymianConfig = {
     '@thymian/request-dispatcher': {},
     '@thymian/sampler': {},
     '@thymian/cli-reporter': {},
+    '@thymian/cli-md-reporter': {},
     '@thymian/format-validator': {},
   },
 };
