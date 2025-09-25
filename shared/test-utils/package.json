@@ -1,7 +1,6 @@
 {
   "name": "@thymian/test-utils",
   "version": "0.0.1",
-  "private": true,
   "main": "./dist/index.js",
   "module": "./dist/index.js",
   "types": "./dist/index.d.ts",
@@ -28,16 +27,5 @@
   },
   "devDependencies": {
     "@types/etag": "^1.8.4"
-  },
-  "nx": {
-    "targets": {
-      "build": {
-        "options": {
-          "assets": [
-            "src/fixtures/**/*"
-          ]
-        }
-      }
-    }
   }
 }

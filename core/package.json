@@ -8,13 +8,6 @@
   "type": "module",
   "main": "./dist/index.js",
   "typings": "./dist/index.d.ts",
-  "nx": {
-    "sourceRoot": "core/src",
-    "projectType": "library",
-    "tags": [
-      "core"
-    ]
-  },
   "exports": {
     "./package.json": "./package.json",
     ".": {
