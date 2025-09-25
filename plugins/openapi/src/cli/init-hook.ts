@@ -14,10 +14,8 @@ import { openApiPlugin, type OpenApiPluginOptions } from '../index.js';
 export async function searchForOpenApiFiles(cwd: string): Promise<string[]> {
   const found: string[] = [];
 
-  const matches = await glob({
-    patterns: '**/*.{json,yaml,yml}',
+  const matches = await glob('**/*.{json,yaml,yml}', {
     cwd,
-    deep: 5,
   });
 
   for (const match of matches) {
