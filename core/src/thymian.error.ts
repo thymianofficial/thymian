@@ -32,6 +32,8 @@ export function isThymianError(value: unknown): value is ThymianError {
 }
 
 export class ThymianBaseError extends Error implements ThymianError {
+  override cause?: unknown;
+
   public readonly options: PartialExceptFor<ThymianErrorOptions, 'severity'>;
   constructor(
     message: string,

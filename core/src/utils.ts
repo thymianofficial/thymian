@@ -8,6 +8,7 @@ import type {
   ThymianHttpRequest,
   ThymianHttpResponse,
 } from './format/index.js';
+import type { HttpRequest, HttpResponse } from './http.js';
 
 export function timeoutPromise<T>(
   promise: Promise<T>,
@@ -189,6 +190,25 @@ export function normalizeUrl(urlString: string): string {
   }
 
   return url.toString();
+}
+
+export function httpRequestToLabel(request: HttpRequest): string {
+  return `${request.method.toUpperCase()} ${new URL(
+    request.path,
+    request.origin
+  ).toString()}`;
+}
+
+export function httpResponseToLabel(response: HttpResponse): string {
+  const contentType = getHeader(response.headers, 'content-type');
+  const mediaType =
+    (Array.isArray(contentType) ? contentType[0] : contentType) ?? '';
+
+  return `${response.statusCode} ${
+    isValidHttpStatusCode(response.statusCode)
+      ? httpStatusCodeToPhrase[response.statusCode]
+      : ''
+  } ${mediaType}`;
 }
 
 export * from 'chalk';
