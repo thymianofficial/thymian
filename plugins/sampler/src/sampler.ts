@@ -28,7 +28,7 @@ export class Sampler {
     } catch (err) {
       throw new ThymianBaseError(`@thymian/sampler is not initialized.`, {
         name: 'SamplerError',
-        suggestions: ['Did you run thymian sampler:generate?'],
+        suggestions: ['Did you run thymian sampler:init?'],
         cause: err,
       });
     }
@@ -56,7 +56,7 @@ export class Sampler {
         `Cannot sample request for transaction ${transaction.transaction.label}.`,
         {
           name: 'SamplerError',
-          suggestions: ['Did you run thymian sampler:generate?'],
+          suggestions: ['Did you run thymian sampler:init?'],
           cause: err,
         }
       );
