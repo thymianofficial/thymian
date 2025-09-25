@@ -1,0 +1,9 @@
+{
+  "name": "@thymian/tcp-proxy",
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "plugins/tcp-proxy/src",
+  "projectType": "library",
+  "tags": ["lib"],
+  "// targets": "to see all targets run: nx show project @thymian/tcp-proxy --web",
+  "targets": {}
+}

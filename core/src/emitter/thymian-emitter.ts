@@ -86,15 +86,15 @@ export class ThymianEmitter {
 
   readonly source: string;
 
-  readonly #events = new Subject<
+  readonly events = new Subject<
     ThymianEvent<ThymianEventName> | ThymianActionEvent<ThymianActionName>
   >();
 
-  readonly #responses: Subject<ThymianResponseEvent<ThymianActionName>>;
+  readonly responses: Subject<ThymianResponseEvent<ThymianActionName>>;
 
-  readonly #errors: Subject<ThymianErrorEvent<ErrorName>>;
+  readonly errors: Subject<ThymianErrorEvent<ErrorName>>;
 
-  readonly #listeners: Map<ThymianActionName, number>;
+  readonly listeners: Map<ThymianActionName, number>;
 
   // TODO: this is a problem
   readonly #completed: Set<string>;
@@ -111,15 +111,15 @@ export class ThymianEmitter {
     };
 
     this.source = state.source;
-    this.#responses = state.responses;
-    this.#events = state.events;
-    this.#errors = state.errors;
-    this.#listeners = state.listeners;
+    this.responses = state.responses;
+    this.events = state.events;
+    this.errors = state.errors;
+    this.listeners = state.listeners;
     this.#completed = state.completed;
 
     if (!ThymianEmitter.#hasBeenInitialized) {
-      this.#events.subscribe(this.logEvent('event'));
-      this.#responses.subscribe(this.logEvent('response event'));
+      this.events.subscribe(this.logEvent('event'));
+      this.responses.subscribe(this.logEvent('response event'));
 
       ThymianEmitter.#hasBeenInitialized = true;
     }
@@ -129,57 +129,55 @@ export class ThymianEmitter {
     name: Name,
     handler: EventHandler<Name>
   ): void {
-    this.#events
-      .pipe(filter(isEventWithName(name)))
-      .subscribe(async (event) => {
-        try {
-          await handler(event.payload);
-        } catch (e) {
-          if (e instanceof ThymianBaseError) {
-            this.#errors.next({
-              id: randomUUID(),
-              error: e,
-              name,
-              timestamp: Date.now(),
-              source: this.source,
-              correlationId: event.id,
-            });
-          } else if (isThymianError(e)) {
-            const error = new ThymianBaseError(e.message, {
-              ...e.options,
-              name: e.name,
-            });
+    this.events.pipe(filter(isEventWithName(name))).subscribe(async (event) => {
+      try {
+        await handler(event.payload);
+      } catch (e) {
+        if (e instanceof ThymianBaseError) {
+          this.errors.next({
+            id: randomUUID(),
+            error: e,
+            name,
+            timestamp: Date.now(),
+            source: this.source,
+            correlationId: event.id,
+          });
+        } else if (isThymianError(e)) {
+          const error = new ThymianBaseError(e.message, {
+            ...e.options,
+            name: e.name,
+          });
 
-            this.#errors.next({
-              error,
-              name,
-              timestamp: Date.now(),
-              source: this.source,
-              correlationId: event.id,
-              id: randomUUID(),
-            });
-          } else {
-            this.#errors.next({
-              error: new ThymianBaseError(
-                `Error while calling event handler for event "${event.name}" from "${event.source}".`,
-                { cause: e }
-              ),
-              name,
-              timestamp: Date.now(),
-              source: this.source,
-              correlationId: event.id,
-              id: randomUUID(),
-            });
-          }
+          this.errors.next({
+            error,
+            name,
+            timestamp: Date.now(),
+            source: this.source,
+            correlationId: event.id,
+            id: randomUUID(),
+          });
+        } else {
+          this.errors.next({
+            error: new ThymianBaseError(
+              `Error while calling event handler for event "${event.name}" from "${event.source}".`,
+              { cause: e }
+            ),
+            name,
+            timestamp: Date.now(),
+            source: this.source,
+            correlationId: event.id,
+            id: randomUUID(),
+          });
         }
-      });
+      }
+    });
   }
 
   emit<Name extends ThymianEventName>(
     name: Name,
     payload: EventPayload<Name>
   ): void {
-    this.#events.next({
+    this.events.next({
       id: randomUUID(),
       name,
       payload,
@@ -204,7 +202,7 @@ export class ThymianEmitter {
       );
     }
 
-    this.#errors.next({
+    this.errors.next({
       error,
       id: randomUUID(),
       name: name as ErrorName,
@@ -217,9 +215,9 @@ export class ThymianEmitter {
     name: Name,
     handler: ActionHandler<Name>
   ): void {
-    this.#listeners.set(name, (this.#listeners.get(name) ?? 0) + 1);
+    this.increaseListenersFor(name);
 
-    this.#events
+    this.events
       .pipe(filter(isActionEventWithName(name)))
       .subscribe(async (event) => {
         const ctx = this.createActionContext(name, event.id);
@@ -228,7 +226,7 @@ export class ThymianEmitter {
           await handler(event.payload, ctx);
         } catch (e) {
           if (e instanceof ThymianBaseError) {
-            this.#errors.next({
+            this.errors.next({
               correlationId: event.id,
               id: randomUUID(),
               error: e,
@@ -242,7 +240,7 @@ export class ThymianEmitter {
               name: e.name,
             });
 
-            this.#errors.next({
+            this.errors.next({
               error,
               name,
               correlationId: event.id,
@@ -251,7 +249,7 @@ export class ThymianEmitter {
               id: randomUUID(),
             });
           } else {
-            this.#errors.next({
+            this.errors.next({
               error: new ThymianBaseError(
                 `Error while calling action handler for action "${event.name}" from "${event.source}".`,
                 { cause: e }
@@ -292,18 +290,18 @@ export class ThymianEmitter {
       source: this.source,
     };
 
-    const numOfListeners = this.#listeners.get(name) ?? 0;
+    const numOfListeners = this.listeners.get(name) ?? 0;
     const takeNum = opts.strategy === 'first' ? 1 : numOfListeners;
 
     const responsesAndErrors = merge(
-      this.#responses.pipe(filter(isResponseOf(name, event.id))),
+      this.responses.pipe(filter(isResponseOf(name, event.id))),
       // eslint-disable-next-line @typescript-eslint/ban-ts-comment
       // @ts-expect-error
-      this.#errors.pipe(filter(isResponseOf(name, event.id)))
+      this.errors.pipe(filter(isResponseOf(name, event.id)))
     ).pipe(takeUntil(timer(opts.timeout)), take(takeNum), toArray());
 
     queueMicrotask(() => {
-      this.#events.next(event);
+      this.events.next(event);
     });
 
     const results = (await firstValueFrom(responsesAndErrors)) as (
@@ -366,10 +364,10 @@ export class ThymianEmitter {
       this.logger.child(source),
       {
         completed: this.#completed,
-        errors: this.#errors,
-        events: this.#events,
-        listeners: this.#listeners,
-        responses: this.#responses,
+        errors: this.errors,
+        events: this.events,
+        listeners: this.listeners,
+        responses: this.responses,
         source,
       },
       {
@@ -387,7 +385,7 @@ export class ThymianEmitter {
     return {
       error: (error) => {
         if (error instanceof ThymianBaseError) {
-          this.#errors.next({
+          this.errors.next({
             correlationId,
             id: randomUUID(),
             error: error,
@@ -401,7 +399,7 @@ export class ThymianEmitter {
             name: error.name,
           });
 
-          this.#errors.next({
+          this.errors.next({
             error: thymianError,
             name,
             correlationId,
@@ -410,7 +408,7 @@ export class ThymianEmitter {
             source: this.source,
           });
         } else {
-          this.#errors.next({
+          this.errors.next({
             error: new ThymianBaseError(
               `Error while calling action handler for action "${name}".`,
               { cause: error }
@@ -424,7 +422,7 @@ export class ThymianEmitter {
         }
       },
       reply: (payload) => {
-        this.#responses.next({
+        this.responses.next({
           correlationId,
           name,
           payload,
@@ -437,7 +435,7 @@ export class ThymianEmitter {
   }
 
   onError(fn: (error: ThymianErrorEvent<ErrorName>) => void): void {
-    this.#errors.subscribe(fn);
+    this.errors.subscribe(fn);
   }
 
   private logEvent(type: 'event' | 'response event') {
@@ -457,5 +455,9 @@ export class ThymianEmitter {
           .replace('Z', '')}`
       );
     };
+  }
+
+  public increaseListenersFor(event: ThymianActionName): void {
+    this.listeners.set(event, (this.listeners.get(event) ?? 0) + 1);
   }
 }

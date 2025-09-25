@@ -44,6 +44,9 @@
     },
     {
       "path": "./libs/http-filter"
+    },
+    {
+      "path": "./plugins/tcp-proxy"
     }
   ]
 }
