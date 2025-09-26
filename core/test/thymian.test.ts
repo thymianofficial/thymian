@@ -128,10 +128,8 @@ describe('Thymian', () => {
     thymian.register(
       createPluginFor(async (emitter) => {
         emitter.onAction('core.close', (_, ctx) => {
-          setTimeout(() => {
-            closedSpy();
-            ctx.reply();
-          }, 1000);
+          closedSpy();
+          ctx.reply();
         });
       })
     );
@@ -159,6 +157,7 @@ describe('Thymian', () => {
           new ThymianFormat().export()
         );
       });
+      expect.fail('Thymian should have rejected the promise.');
     } catch (err) {
       expect(closedSpy).toHaveBeenCalled();
       expect(err).toMatchObject({
