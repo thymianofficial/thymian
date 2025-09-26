@@ -6,11 +6,11 @@
   "scripts": {
     "test": "nx run-many -t test",
     "format:check": "nx run-many -t format:check",
-    "build": "nx run-many -t build --exclude @thymian/source",
+    "build": "nx run-many -t build",
     "lint": "nx affected:lint",
     "prepare": "husky",
     "local-registry": "nx local-registry",
-    "local-publish": "nx release publish --registry http://localhost:4873"
+    "local-publish": "npm run build && nx release publish --registry http://localhost:4873"
   },
   "lint-staged": {
     "*.{js,ts,jsx,tsx}": [

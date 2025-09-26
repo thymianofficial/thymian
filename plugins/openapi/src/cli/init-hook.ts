@@ -29,8 +29,8 @@ export async function searchForOpenApiFiles(cwd: string): Promise<string[]> {
 
     for await (const line of rl) {
       if (
-        /^\s*swagger\s*:\s*("?2\.0\.0"?)/i.test(line) ||
-        /^\s*openapi\s*:\s*("?3\.[01]\.[01234]"?)/i.test(line)
+        /^\s*"?swagger"?\s*:\s*("?2\.0\.0"?)/i.test(line) ||
+        /^\s*"?openapi"?\s*:\s*("?3\.[01]\.[01234]"?)/i.test(line)
       ) {
         found.push(match);
         break;
