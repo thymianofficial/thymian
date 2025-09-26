@@ -7,6 +7,20 @@ type ReportRecord = Record<
   Record<string, ThymianReport[] | Record<string, ThymianReport[]>>
 >;
 
+export function severityToColor(
+  severity: 'off' | 'hint' | 'warn' | 'error' | undefined
+): string {
+  if (severity === 'hint') {
+    return chalk.blue(severity);
+  } else if (severity === 'warn') {
+    return chalk.yellow(severity);
+  } else if (severity === 'error') {
+    return chalk.red(severity);
+  } else {
+    return '';
+  }
+}
+
 export function formatReports(reports: ThymianReport[]): ReportRecord {
   return reports.reduce((reportAccumulator, currentReport) => {
     const { topic, title, subTopic } = currentReport;
@@ -94,7 +108,10 @@ export function report(thymianReports: ThymianReport[]): void {
           if (report.isProblem) {
             problemCounter++;
           }
-          console.log(report.text);
+          console.log(severityToColor(report.severity), report.text);
+          if (report.subText) {
+            console.log(chalk.dim(report.subText));
+          }
         }
         console.log();
       } else {
@@ -105,7 +122,10 @@ export function report(thymianReports: ThymianReport[]): void {
           console.group();
 
           for (const report of reports) {
-            console.log(report.text);
+            console.log(severityToColor(report.severity), report.text);
+            if (report.subText) {
+              console.log(chalk.dim(report.subText));
+            }
           }
 
           console.log();

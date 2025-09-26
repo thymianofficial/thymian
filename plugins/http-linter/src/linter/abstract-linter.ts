@@ -18,16 +18,6 @@ import type { RuleMeta } from '../rule/rule-meta.js';
 import type { RuleSeverity } from '../rule/rule-severity.js';
 import type { RuleViolation } from '../rule/rule-violation.js';
 
-export function severityToColor(severity: RuleSeverity): string {
-  if (severity === 'hint') {
-    return chalk.blue(severity);
-  } else if (severity === 'warn') {
-    return chalk.yellow(severity);
-  } else {
-    return chalk.red(severity);
-  }
-}
-
 export abstract class AbstractLinter {
   protected readonly rules: Rule[];
 
@@ -86,10 +76,11 @@ export abstract class AbstractLinter {
 
     for (const { location, message } of violations) {
       const topic = '@thymian/http-linter';
-      let text = message ?? ruleMeta.summary ?? ruleMeta.description;
-      text =
-        `${severityToColor(ruleMeta.severity)}: ` +
-        (text ? `${text}\n   ${chalk.dim(ruleMeta.name)}` : ruleMeta.name);
+      const text =
+        message ?? ruleMeta.summary ?? ruleMeta.description ?? ruleMeta.name;
+      const severity = ruleMeta.severity;
+      const subText = ruleMeta.name;
+
       let title = '';
 
       if (location.elementType === 'node') {
@@ -126,7 +117,9 @@ export abstract class AbstractLinter {
 
         const report: ThymianReport = {
           subTopic,
+          severity,
           text,
+          subText,
           title,
           topic,
           isProblem: true,

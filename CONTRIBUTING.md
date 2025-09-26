@@ -17,6 +17,7 @@ When making commits, use one of the following scopes to indicate the area of the
 | http-testing       | Library for HTTP testing utilities                                |
 | rfc-9110-rules     | Library for reusable HTTP rules based on RFC 9110                 |
 | cli-reporter       | Plugin for CLI reporting features                                 |
+| cli-md-reporter    | Plugin for CLI markdown reporting features                        |
 | format-validator   | Plugin for format validation                                      |
 | http-linter        | Plugin for HTTP linting                                           |
 | openapi            | Plugin for OpenAPI support                                        |

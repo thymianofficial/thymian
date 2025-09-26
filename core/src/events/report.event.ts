@@ -4,7 +4,9 @@ export interface ThymianReport {
   topic: string;
   subTopic?: string;
   title: string;
+  severity?: 'hint' | 'warn' | 'error' | 'off';
   text: string;
+  subText?: string;
   isProblem: boolean;
   location?: {
     format?: {
@@ -37,9 +39,18 @@ export const thymianReportSchema: JSONSchemaType<ReportEvent> = {
       type: 'string',
       nullable: false,
     },
+    severity: {
+      type: 'string',
+      enum: ['hint', 'warn', 'error', 'off'],
+      nullable: true,
+    },
     text: {
       type: 'string',
       nullable: false,
+    },
+    subText: {
+      type: 'string',
+      nullable: true,
     },
     isProblem: {
       type: 'boolean',
