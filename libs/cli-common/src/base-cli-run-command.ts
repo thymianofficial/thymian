@@ -77,6 +77,10 @@ export abstract class BaseCliRunCommand<
       default: process.cwd(),
       description: 'Set current working directory.',
     }),
+    ['tcp-client']: Flags.string({
+      description: 'Add name of TCP plugin.',
+      multiple: true,
+    }),
   };
 
   protected flags!: CommandFlags<T>;
@@ -111,7 +115,29 @@ export abstract class BaseCliRunCommand<
     if (this.shouldAutoload()) {
       this.debug('Autoload Thymian plugins.');
       await this.addPluginsToThymianConfig();
+      this.addTcpClients();
       await this.registerPluginsFromConfig();
+    }
+  }
+
+  protected addTcpClients(): void {
+    if (this.flags['tcp-client']) {
+      if (this.thymianConfig.plugins['@thymian/tcp-proxy']) {
+        this.thymianConfig.plugins['@thymian/tcp-proxy'].options ??= {};
+
+        this.thymianConfig.plugins[
+          '@thymian/tcp-proxy'
+        ].options.requiredClientNames ??= [];
+
+        (
+          this.thymianConfig.plugins['@thymian/tcp-proxy'].options
+            .requiredClientNames as string[]
+        ).push(...this.flags['tcp-client']);
+      } else {
+        this.error('@thymian/tcp-proxy is not loaded.', {
+          exit: 1,
+        });
+      }
     }
   }
 
