@@ -19,9 +19,7 @@
   ],
   "dependencies": {
     "chalk": "4.1.2",
-    "console-table-printer": "^2.14.6"
-  },
-  "peerDependencies": {
+    "console-table-printer": "^2.14.6",
     "@thymian/core": "^0"
   }
 }

@@ -17,7 +17,7 @@
     "dist",
     "!**/*.tsbuildinfo"
   ],
-  "peerDependencies": {
+  "dependencies": {
     "@thymian/core": "^0",
     "@thymian/http-filter": "^0",
     "@thymian/http-linter": "^0",

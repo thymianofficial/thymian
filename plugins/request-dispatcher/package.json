@@ -18,9 +18,7 @@
   },
   "dependencies": {
     "async-mutex": "^0.5.0",
-    "undici": "^6.21.2"
-  },
-  "peerDependencies": {
+    "undici": "^6.21.2",
     "@thymian/core": "^0"
   }
 }

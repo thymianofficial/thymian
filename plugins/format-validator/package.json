@@ -17,7 +17,7 @@
     "dist",
     "!**/*.tsbuildinfo"
   ],
-  "peerDependencies": {
+  "dependencies": {
     "@thymian/cli-common": "0.0.1",
     "@thymian/core": "0.0.1",
     "@thymian/http-testing": "0.0.1",
