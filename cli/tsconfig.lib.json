@@ -16,6 +16,9 @@
   "include": ["src/**/*.ts"],
   "references": [
     {
+      "path": "../plugins/tcp-proxy/tsconfig.lib.json"
+    },
+    {
       "path": "../plugins/sampler/tsconfig.lib.json"
     },
     {

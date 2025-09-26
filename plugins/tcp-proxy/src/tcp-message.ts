@@ -30,7 +30,7 @@ export type TcpEventMessage = {
   payload: ThymianEvent<ThymianEventName>;
 };
 
-export type TcpResponseEvent = {
+export type TcpResponseMessage = {
   type: 'response';
   payload: ThymianResponseEvent<ThymianActionName>;
 };
@@ -39,4 +39,4 @@ export type TcpMessage =
   | TcpErrorMessage
   | TcpEventMessage
   | InitializationMessage
-  | TcpResponseEvent;
+  | TcpResponseMessage;

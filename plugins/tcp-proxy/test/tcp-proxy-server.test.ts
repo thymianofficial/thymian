@@ -19,33 +19,38 @@ describe('TcpProxyServer', () => {
     const reportFn = vi.fn();
     const logger = new TextLogger('TCP', true);
 
-    const emitter = new ThymianEmitter(logger, {
-      completed: new Set(),
-      errors: new Subject(),
-      events: new Subject(),
-      listeners: new Map(),
-      responses: new Subject(),
-      source: '@thymian/core',
-    });
+    const emitter = new ThymianEmitter(
+      logger,
+      {
+        completed: new Set(),
+        errors: new Subject(),
+        events: new Subject(),
+        listeners: new Map(),
+        responses: new Subject(),
+        source: '@thymian/core',
+      },
+      {
+        timeout: 5000,
+      }
+    );
 
     emitter.on('core.report', reportFn);
 
     const server = new TcpProxyServer(logger, emitter, {
       port: 5000,
       requiredClientNames: ['client1'],
+      timeout: 5000,
     });
 
     const runPromise = server.run();
 
-    queueMicrotask(() => {
-      const client = net.createConnection(5000, '127.0.0.1', () => {
-        client.write(
-          JSON.stringify({
-            type: 'init',
-            payload: { name: 'client1', actions: { listensOn: ['core.run'] } },
-          }) + '\n'
-        );
-      });
+    const client = net.createConnection(5000, '127.0.0.1', () => {
+      client.write(
+        JSON.stringify({
+          type: 'init',
+          payload: { name: 'client1', actions: { listensOn: ['core.run'] } },
+        }) + '\n'
+      );
 
       client.on('data', (chunk) => {
         const chunkString = chunk.toString('utf-8').split('\n')[0];
@@ -73,11 +78,11 @@ describe('TcpProxyServer', () => {
           );
 
           const responseEvent: ThymianResponseEvent<'core.run'> = {
-            correlationId: 'abc123',
+            correlationId: msg.payload.id,
             id: '123abc',
             name: 'core.run',
             payload: {
-              pluginName: '',
+              pluginName: 'client1',
               status: 'success',
             },
             source: '',
@@ -93,7 +98,10 @@ describe('TcpProxyServer', () => {
 
     await runPromise;
 
-    await emitter.emitAction('core.run', new ThymianFormat().export());
+    console.log(
+      await emitter.emitAction('core.run', new ThymianFormat().export())
+    );
+    console.log('test');
 
     expect(reportFn).toHaveBeenCalled();
   });

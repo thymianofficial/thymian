@@ -30,6 +30,7 @@
     "@thymian/rfc-9110-rules": "^0",
     "@thymian/core": "^0",
     "@thymian/sampler": "^0",
+    "@thymian/tcp-proxy": "^0",
     "tslib": "^2.3.0"
   },
   "bin": {
