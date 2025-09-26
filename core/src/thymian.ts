@@ -102,15 +102,21 @@ export class Thymian {
 
   run<T>(fn: (emitter: ThymianEmitter, logger: Logger) => Promise<T> | T): Promise<T> {
     return new Promise((resolve, reject) => {
-      const tryClose = (err: unknown)=> {
+      const tryCloseThymian = (err: unknown)=> {
         this.logger.debug('Try closing Thymian...');
 
-        this.close().then(() => reject(err));
+        this.close().then(() => {
+          this.logger.debug('Thymian closed.');
+          reject(err)
+        }).catch((e) => {
+          this.logger.error('Error while closing Thymian.', e);
+          reject(err)
+        })
       }
 
       this.emitter.onError((event) => {
         if (event.error.options.severity === 'error') {
-          tryClose(event.error);
+          tryCloseThymian(event.error);
         } else if (event.error.options.severity === 'warn') {
           this.logger.warn(event.error.message);
         } else {
@@ -129,7 +135,7 @@ export class Thymian {
       })()
         .then(resolve)
         .catch((err) => {
-          tryClose(err)
+          tryCloseThymian(err)
         });
     })
   }
