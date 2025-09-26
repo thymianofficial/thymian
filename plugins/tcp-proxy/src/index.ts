@@ -17,3 +17,5 @@ export const tcpProxyPlugin: ThymianPlugin<
     await new TcpProxyServer(logger, emitter, opts).run();
   },
 };
+
+export default tcpProxyPlugin;

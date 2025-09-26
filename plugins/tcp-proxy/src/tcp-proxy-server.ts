@@ -1,6 +1,11 @@
 import net from 'node:net';
 
-import { type Logger, ThymianEmitter, timeoutPromise } from '@thymian/core';
+import {
+  type Logger,
+  ThymianBaseError,
+  ThymianEmitter,
+  timeoutPromise,
+} from '@thymian/core';
 
 import { ClientHandler } from './client-handler.js';
 
@@ -26,7 +31,15 @@ export class TcpProxyServer {
       this.logger.info(`TCP server listening on port ${this.options.port}.`);
     });
 
-    return timeoutPromise(this.waitForClients(), this.options.timeout);
+    return timeoutPromise(
+      this.waitForClients(),
+      this.options.timeout,
+      new ThymianBaseError('Timeout waiting for TCP clients to connect.', {
+        suggestions: [
+          `Try increase the timeout that is currently set to ${this.options.timeout}ms.`,
+        ],
+      })
+    );
   }
 
   private waitForClients(): Promise<void> {
@@ -34,6 +47,8 @@ export class TcpProxyServer {
 
     return new Promise((resolve) => {
       this.#server.on('connection', async (socket) => {
+        this.logger.debug(`Client connected.`);
+
         const clientHandler = new ClientHandler(
           socket,
           this.emitter,
