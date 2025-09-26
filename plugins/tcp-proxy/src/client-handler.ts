@@ -55,6 +55,8 @@ export class ClientHandler {
               continue;
             }
 
+            this.logger.debug(`Received TCP message: ${message}`);
+
             const event = JSON.parse(message) as TcpMessage;
 
             let emitter = this.emitter;
@@ -124,11 +126,13 @@ export class ClientHandler {
       ? ThymianErrorEvent<ErrorName>
       : ThymianResponseEvent<ThymianActionName>
   ): void {
-    this.socket.write(
-      JSON.stringify({
-        type,
-        payload,
-      }) + '\n'
+    const msg = JSON.stringify({
+      type,
+      payload,
+    });
+    this.logger.debug(
+      `Sending TCP message with type ${type} and message: ${msg}`
     );
+    this.socket.write(msg + '\n');
   }
 }
