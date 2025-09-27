@@ -15,21 +15,21 @@ import {
 } from './json-schema.processor.js';
 
 export function extractSerializationStyle(
-  encodingObj: OpenApiV31.EncodingObject
+  encodingObj: OpenApiV31.EncodingObject,
 ): SerializationStyle {
   const style = encodingObj.style ?? 'form';
   const explode = encodingObj.explode ?? style === 'form';
 
   return new SerializationStyleBuilder(
     style as SerializationStyle['style'],
-    explode
+    explode,
   ).build();
 }
 
 export function processMediaTypeObject(
   mediaTypeObject: OpenApiV31.MediaTypeObject,
   addEncodings = false,
-  isMultipart = false
+  isMultipart = false,
 ): {
   schema?: ThymianSchema;
   headers: Record<string, Parameter>;
@@ -49,7 +49,7 @@ export function processMediaTypeObject(
   if (isMultipart && mediaTypeObject.encoding) {
     Object.values(mediaTypeObject.encoding).forEach((encodingObject) => {
       headers = processHeadersObject(
-        encodingObject.headers as Record<string, OpenApiV31.HeaderObject>
+        encodingObject.headers as Record<string, OpenApiV31.HeaderObject>,
       );
     });
   }
@@ -74,12 +74,12 @@ export function processMediaTypeObject(
         [propertyName]: {
           contentType: encodingObj.contentType,
           headers: processHeadersObject(
-            encodingObj.headers as Record<string, OpenApiV31.HeaderObject>
+            encodingObj.headers as Record<string, OpenApiV31.HeaderObject>,
           ),
           serializationStyle: extractSerializationStyle(encodingObj),
         },
       }),
-      {} as Encoding
+      {} as Encoding,
     );
   }
 

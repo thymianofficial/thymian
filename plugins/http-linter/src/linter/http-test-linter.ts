@@ -12,14 +12,14 @@ export class HttpTestLinter extends AbstractLinter {
     rules: Rule[],
     report: (report: ThymianReport) => void,
     format: ThymianFormat,
-    ruleOptions: Record<string, Record<string, unknown> | undefined>
+    ruleOptions: Record<string, Record<string, unknown> | undefined>,
   ) {
     super(logger, rules, report, format, ruleOptions);
   }
 
   protected override async runRule(
     rule: Rule,
-    options: Record<string, unknown>
+    options: Record<string, unknown>,
   ): Promise<boolean> {
     if (!rule.testRule) {
       return true;
@@ -31,7 +31,7 @@ export class HttpTestLinter extends AbstractLinter {
         ...options,
         mode: 'test',
       },
-      this.logger.child(rule.meta.name)
+      this.logger.child(rule.meta.name),
     );
 
     if (!result || (Array.isArray(result) && result.length === 0)) {

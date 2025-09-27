@@ -10,7 +10,6 @@ export default [
         {
           ignoredFiles: ['{projectRoot}/eslint.config.{js,cjs,mjs}'],
           ignoredDependencies: ['vitest', 'fastify'],
-
         },
       ],
     },

@@ -42,7 +42,7 @@ export async function searchForOpenApiFiles(cwd: string): Promise<string[]> {
 }
 
 const hook: ThymianPluginInitHook<OpenApiPluginOptions> = async function (
-  opts
+  opts,
 ) {
   if (opts.interactive) {
     return runPrompts(async () => {

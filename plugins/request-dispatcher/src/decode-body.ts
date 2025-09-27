@@ -2,7 +2,7 @@ import { Readable } from 'stream';
 
 export function decodeBody(
   body?: string,
-  encoding?: string
+  encoding?: string,
 ): string | Buffer | Uint8Array | Readable | null {
   if (typeof body !== 'string') {
     return null;

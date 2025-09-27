@@ -16,16 +16,16 @@ type ApiContextType<RuleTypes extends [RuleType, ...RuleType[]]> =
   RuleTypes[number] extends 'static'
     ? StaticApiContext
     : RuleTypes[number] extends 'analytics'
-    ? AnalyticsApiContext
-    : RuleTypes[number] extends 'test'
-    ? HttpTestApiContext
-    : RuleTypes[number] extends 'analytics' | 'test'
-    ? LiveApiContext
-    : ApiContext;
+      ? AnalyticsApiContext
+      : RuleTypes[number] extends 'test'
+        ? HttpTestApiContext
+        : RuleTypes[number] extends 'analytics' | 'test'
+          ? LiveApiContext
+          : ApiContext;
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function isInformationalRule<R extends Rule<any>>(
-  rule: R
+  rule: R,
 ): rule is R & { meta: { type: ['informational'] } } {
   return rule.meta.type.includes('informational');
 }
@@ -46,47 +46,47 @@ interface Done<Options extends Record<PropertyKey, unknown>> {
 
 interface DefineRules<
   RuleTypes extends [RuleType, ...RuleType[]],
-  Options extends Record<PropertyKey, unknown>
+  Options extends Record<PropertyKey, unknown>,
 > extends Done<Options> {
   rule(
     fn: RuleTypes extends ['informational']
       ? never
-      : RuleFn<ApiContextType<RuleTypes>, Options>
+      : RuleFn<ApiContextType<RuleTypes>, Options>,
   ): DefineRules<RuleTypes, Options>;
 
   overrideAnalyticsRule(
     ffn: RuleTypes extends ['informational']
       ? never
-      : RuleFn<AnalyticsApiContext, Options>
+      : RuleFn<AnalyticsApiContext, Options>,
   ): DefineRules<RuleTypes, Options>;
 
   overrideStaticRule(
     fn: RuleTypes extends ['informational']
       ? never
-      : RuleFn<StaticApiContext, Options>
+      : RuleFn<StaticApiContext, Options>,
   ): DefineRules<RuleTypes, Options>;
 
   overrideTest(
     fn: RuleTypes extends ['informational']
       ? never
-      : RuleFn<HttpTestApiContext, Options>
+      : RuleFn<HttpTestApiContext, Options>,
   ): DefineRules<RuleTypes, Options>;
 }
 
 interface DefineOptionalRuleMetaProperties<
   RuleTypes extends [RuleType, ...RuleType[]],
-  Options extends Record<PropertyKey, unknown> = Record<PropertyKey, unknown>
+  Options extends Record<PropertyKey, unknown> = Record<PropertyKey, unknown>,
 > extends DefineRules<RuleTypes, Options> {
   appliesTo(
     ...participants: [HttpParticipantRole, ...HttpParticipantRole[]]
   ): this;
 
   description(
-    description: string
+    description: string,
   ): DefineOptionalRuleMetaProperties<RuleTypes, Options>;
 
   summary(
-    summary: string
+    summary: string,
   ): DefineOptionalRuleMetaProperties<RuleTypes, Options>;
 
   url(url: string): this;
@@ -94,18 +94,19 @@ interface DefineOptionalRuleMetaProperties<
   tags(...tags: string[]): DefineOptionalRuleMetaProperties<RuleTypes, Options>;
 
   explanation(
-    explanation: string
+    explanation: string,
   ): DefineOptionalRuleMetaProperties<RuleTypes, Options>;
 
   options<Options extends Record<PropertyKey, unknown>>(
-    schema: JSONSchemaType<Options>
+    schema: JSONSchemaType<Options>,
   ): DefineOptionalRuleMetaProperties<RuleTypes, Options>;
 }
 
 class RuleBuilder<
-  Options extends Record<PropertyKey, unknown>,
-  RuleTypes extends [RuleType, ...RuleType[]]
-> implements
+    Options extends Record<PropertyKey, unknown>,
+    RuleTypes extends [RuleType, ...RuleType[]],
+  >
+  implements
     DefineOptionalRuleMetaProperties<RuleTypes, Options>,
     DefineRuleType,
     DefineRuleSeverity
@@ -165,7 +166,7 @@ class RuleBuilder<
   }
 
   options<Opts extends Record<PropertyKey, unknown>>(
-    schema: JSONSchemaType<Opts>
+    schema: JSONSchemaType<Opts>,
   ): DefineOptionalRuleMetaProperties<RuleTypes, Opts> {
     this.#rule.meta.options = schema as JSONSchemaType<Options>;
 
@@ -184,7 +185,7 @@ class RuleBuilder<
   rule(
     fn: RuleTypes extends ['informational']
       ? never
-      : RuleFn<ApiContextType<RuleTypes>, Options>
+      : RuleFn<ApiContextType<RuleTypes>, Options>,
   ): DefineRules<RuleTypes, Options> {
     if (isInformationalRule(this.#rule)) {
       throw new Error('Cannot define rule function for this type of rule.');
@@ -206,7 +207,7 @@ class RuleBuilder<
   overrideAnalyticsRule(
     fn: RuleTypes extends ['informational']
       ? never
-      : RuleFn<AnalyticsApiContext, Options>
+      : RuleFn<AnalyticsApiContext, Options>,
   ): DefineRules<RuleTypes, Options> {
     if (isInformationalRule(this.#rule)) {
       throw new Error('Cannot define rule function for this type of rule.');
@@ -220,7 +221,7 @@ class RuleBuilder<
   overrideStaticRule(
     fn: RuleTypes extends ['informational']
       ? never
-      : RuleFn<StaticApiContext, Options>
+      : RuleFn<StaticApiContext, Options>,
   ): DefineRules<RuleTypes, Options> {
     if (isInformationalRule(this.#rule)) {
       throw new Error('Cannot define rule function for this type of rule.');
@@ -234,7 +235,7 @@ class RuleBuilder<
   overrideTest(
     fn: RuleTypes extends ['informational']
       ? never
-      : RuleFn<HttpTestApiContext, Options>
+      : RuleFn<HttpTestApiContext, Options>,
   ): DefineRules<RuleTypes, Options> {
     if (isInformationalRule(this.#rule)) {
       throw new Error('Cannot define rule function for this type of rule.');

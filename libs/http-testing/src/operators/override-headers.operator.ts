@@ -10,8 +10,8 @@ import { isFailedTestCase, isSkippedTestCase } from '../http-test/index.js';
 export function overrideHeaders<Steps extends HttpTestCaseStep[]>(
   fn: (
     headers: Record<string, unknown>,
-    testCase: HttpTestCase<Steps>
-  ) => Record<string, unknown>
+    testCase: HttpTestCase<Steps>,
+  ) => Record<string, unknown>,
 ): MonoTypeOperatorFunction<PipelineItem<HttpTestCase<Steps>>> {
   return map(({ current, ctx }) => {
     if (isSkippedTestCase(current) || isFailedTestCase(current)) {
@@ -27,7 +27,7 @@ export function overrideHeaders<Steps extends HttpTestCaseStep[]>(
     for (const transaction of currentStep.transactions) {
       transaction.requestTemplate.headers = fn(
         transaction.requestTemplate.headers,
-        current
+        current,
       );
     }
 

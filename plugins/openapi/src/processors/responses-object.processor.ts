@@ -13,7 +13,7 @@ import type { Parameters } from './utils.js';
 
 export function processResponsesObject(
   responsesObject: OpenApiV31.ResponsesObject | undefined,
-  parameters: Parameters
+  parameters: Parameters,
 ): ResponsesWithLinks[] {
   const responses: Record<
     string,
@@ -24,7 +24,7 @@ export function processResponsesObject(
   > = {};
 
   for (const [statusCode, responseObject] of Object.entries(
-    responsesObject ?? {}
+    responsesObject ?? {},
   )) {
     if (statusCode === 'default') {
       /* ignored */
@@ -36,7 +36,7 @@ export function processResponsesObject(
           responses[strCode] = processResponseObject(
             responseObject as OpenApiV31.ResponseObject,
             code,
-            parameters
+            parameters,
           );
         }
       });
@@ -45,14 +45,14 @@ export function processResponsesObject(
 
       if (statusCodeNumber < 100 || statusCodeNumber > 599) {
         throw new Error(
-          `Invalid status code. Status code must be a valid http status code or status code range (e.g. 2XX), but is ${statusCode}.`
+          `Invalid status code. Status code must be a valid http status code or status code range (e.g. 2XX), but is ${statusCode}.`,
         );
       }
 
       responses[statusCode] = processResponseObject(
         responseObject as OpenApiV31.ResponseObject,
         statusCodeNumber,
-        parameters
+        parameters,
       );
     }
   }

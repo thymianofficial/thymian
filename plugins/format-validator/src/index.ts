@@ -37,7 +37,7 @@ export const formatValidatorPlugin: ThymianPlugin = {
       const context = createContext(thymianFormat, logger, emitter);
 
       const valid = await validate(context, logger, (report) =>
-        emitter.emit('core.report', report)
+        emitter.emit('core.report', report),
       );
 
       ctx.reply(valid);
@@ -48,7 +48,7 @@ export const formatValidatorPlugin: ThymianPlugin = {
       const context = createContext(thymianFormat, logger, emitter);
 
       const valid = await validate(context, logger, (report) =>
-        emitter.emit('core.report', report)
+        emitter.emit('core.report', report),
       );
 
       ctx.reply({

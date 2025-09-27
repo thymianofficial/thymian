@@ -6,11 +6,11 @@ import type { HttpFilterExpression } from '@thymian/http-filter';
 import type { HttpTestCaseTransactionValidationFn } from '../../operators/index.js';
 
 export function compileResponseScopedExpressionToTransactionValidationFn(
-  expression: HttpFilterExpression
+  expression: HttpFilterExpression,
 ): HttpTestCaseTransactionValidationFn {
   if (expression.kind === 'request') {
     throw new Error(
-      'Cannot used an request-based HTTP filter in a response-based context.'
+      'Cannot used an request-based HTTP filter in a response-based context.',
     );
   }
 
@@ -19,7 +19,7 @@ export function compileResponseScopedExpressionToTransactionValidationFn(
       return (transaction) =>
         assert.strictEqual(
           transaction.response?.headers['content-type'],
-          expression.mediaType
+          expression.mediaType,
         );
     case 'responseTrailer':
       if (typeof expression.trailer === 'undefined') return () => true;
@@ -28,7 +28,7 @@ export function compileResponseScopedExpressionToTransactionValidationFn(
         if (expression.value) {
           assert.strictEqual(
             transaction.response?.trailers[expression.trailer!],
-            expression.value
+            expression.value,
           );
         } else {
           assert.ok(transaction.response?.trailers[expression.trailer!]);
@@ -49,8 +49,8 @@ export function compileResponseScopedExpressionToTransactionValidationFn(
           equalsIgnoreCase(
             // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
             expression.header!,
-            ...Object.keys(transaction.response?.headers ?? {})
-          )
+            ...Object.keys(transaction.response?.headers ?? {}),
+          ),
         );
     }
     case 'statusCodeRange':
@@ -64,28 +64,28 @@ export function compileResponseScopedExpressionToTransactionValidationFn(
       return (transaction) =>
         expression.filters.every((expr) =>
           compileResponseScopedExpressionToTransactionValidationFn(expr)(
-            transaction
-          )
+            transaction,
+          ),
         );
     case 'or':
       return (transaction) =>
         expression.filters.some((expr) => {
           compileResponseScopedExpressionToTransactionValidationFn(expr)(
-            transaction
+            transaction,
           );
         });
     case 'xor':
       return (transaction) =>
         expression.filters.every((expr) =>
           compileResponseScopedExpressionToTransactionValidationFn(expr)(
-            transaction
-          )
+            transaction,
+          ),
         );
     case 'not':
       return (transaction) => {
         try {
           compileResponseScopedExpressionToTransactionValidationFn(
-            expression.filter
+            expression.filter,
           )(transaction);
         } catch {
           return;

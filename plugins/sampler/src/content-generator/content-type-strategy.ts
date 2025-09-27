@@ -7,6 +7,6 @@ export interface ContentTypeStrategy {
 
   generate(
     schema: ThymianSchema,
-    contentType: string
+    contentType: string,
   ): Promise<ContentGeneratorResult>;
 }

@@ -11,7 +11,7 @@ import thymianSchema from './thymian-config-schema.json' with { type: 'json' };
 
 export async function getConfig(
   file: string,
-  cwd = process.cwd()
+  cwd = process.cwd(),
 ): Promise<ThymianConfig> {
   const fullPath = path.join(cwd, file);
 
@@ -26,10 +26,9 @@ export async function getConfig(
 
   if (ext === '.json') {
     try {
-      config = JSON.parse(fileContent)
+      config = JSON.parse(fileContent);
     } catch (e) {
       throw new Error(`Invalid JSON file at path ${fullPath}.`);
-
     }
   } else if (ext === '.yaml' || ext === '.yml') {
     try {
@@ -38,10 +37,14 @@ export async function getConfig(
       throw new Error(`Invalid yaml file at path ${fullPath}.`);
     }
   } else {
-    throw new Error(`Unsupported file extension "${ext}" for Thymian configuration.`);
+    throw new Error(
+      `Unsupported file extension "${ext}" for Thymian configuration.`,
+    );
   }
 
-  if (!validate(thymianSchema as unknown as JSONSchemaType<ThymianConfig>, config)) {
+  if (
+    !validate(thymianSchema as unknown as JSONSchemaType<ThymianConfig>, config)
+  ) {
     throw new Error('Invalid Thymian config.');
   }
 

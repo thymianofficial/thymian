@@ -3,7 +3,7 @@ import type { HttpFilterExpression } from '@thymian/http-filter';
 
 export function compileResponseScopedToResponseChecker(
   expression: HttpFilterExpression,
-  response: HttpResponse
+  response: HttpResponse,
 ): boolean {
   if (expression.kind === 'request') {
     throw new Error();
@@ -28,16 +28,16 @@ export function compileResponseScopedToResponseChecker(
       );
     case 'and':
       return expression.filters.every((expr) =>
-        compileResponseScopedToResponseChecker(expr, response)
+        compileResponseScopedToResponseChecker(expr, response),
       );
     case 'or':
       return expression.filters.some((expr) =>
-        compileResponseScopedToResponseChecker(expr, response)
+        compileResponseScopedToResponseChecker(expr, response),
       );
     case 'not':
       return !compileResponseScopedToResponseChecker(
         expression.filter,
-        response
+        response,
       );
     case 'xor':
       return expression.filters

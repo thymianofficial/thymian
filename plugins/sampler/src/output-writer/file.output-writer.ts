@@ -15,17 +15,17 @@ export function hash(input: string): string {
 export class FileOutputWriter implements OutputWriter {
   constructor(
     private readonly basePath: string,
-    private readonly force: boolean
+    private readonly force: boolean,
   ) {}
 
   async writeAssetFor(
     value: Buffer,
     ext: string,
-    sample: HttpRequestSample
+    sample: HttpRequestSample,
   ): Promise<string> {
     const path = join(
       this.basePath,
-      createPathForTransaction(sample.meta.source)
+      createPathForTransaction(sample.meta.source),
     );
 
     await mkdir(path, { recursive: true });
@@ -46,7 +46,7 @@ export class FileOutputWriter implements OutputWriter {
   async writeSample(sample: HttpRequestSample): Promise<string> {
     const path = join(
       this.basePath,
-      createPathForTransaction(sample.meta.source)
+      createPathForTransaction(sample.meta.source),
     );
     await mkdir(path, { recursive: true });
 

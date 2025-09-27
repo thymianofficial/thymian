@@ -32,7 +32,7 @@ export const clientErrorPhrases = [
 export type ClientErrorPhrase = (typeof clientErrorPhrases)[number];
 
 export function isValidClientErrorPhrase(
-  phrase: string
+  phrase: string,
 ): phrase is ClientErrorPhrase {
   return clientErrorPhrases.includes(phrase as ClientErrorPhrase);
 }

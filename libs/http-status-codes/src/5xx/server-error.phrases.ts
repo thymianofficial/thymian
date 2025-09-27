@@ -15,7 +15,7 @@ export const serverErrorPhrases = [
 export type ServerErrorPhrase = (typeof serverErrorPhrases)[number];
 
 export function isValidServerErrorPhrase(
-  phrase: string
+  phrase: string,
 ): phrase is ServerErrorPhrase {
   return serverErrorPhrases.includes(phrase as ServerErrorPhrase);
 }

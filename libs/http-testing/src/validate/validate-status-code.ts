@@ -2,7 +2,7 @@ import type { HttpTestCaseResult } from '../http-test/index.js';
 
 export function validateStatusCode(
   statusCode: number,
-  actualStatusCode: number
+  actualStatusCode: number,
 ): HttpTestCaseResult {
   if (statusCode !== actualStatusCode) {
     return {

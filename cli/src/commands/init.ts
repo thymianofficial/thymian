@@ -59,14 +59,14 @@ export default class Init extends Command {
         delete this.thymianConfig.plugins[pluginName];
 
         this.debug(
-          `Plugin "${pluginName}" is not added to Thymian configuration.`
+          `Plugin "${pluginName}" is not added to Thymian configuration.`,
         );
       }
     }
 
     const configFilePath = join(
       flags.cwd,
-      `${flags['config-file']}${flags.yaml ? '.yaml' : '.json'}`
+      `${flags['config-file']}${flags.yaml ? '.yaml' : '.json'}`,
     );
 
     try {
@@ -78,7 +78,7 @@ export default class Init extends Command {
       this.debug('Error writing configuration file: ' + e);
       this.error(
         `Configuration file "${configFilePath}" already exists. Please remove it before initializing Thymian.`,
-        { exit: 1 }
+        { exit: 1 },
       );
     }
 

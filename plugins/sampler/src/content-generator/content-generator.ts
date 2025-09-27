@@ -15,12 +15,12 @@ export type ContentGeneratorResult =
 export class ContentGenerator {
   constructor(
     private readonly strategies: ContentTypeStrategy[],
-    private readonly fallbackStrategy: ContentTypeStrategy
+    private readonly fallbackStrategy: ContentTypeStrategy,
   ) {}
 
   generate(
     contentType: string,
-    schema: ThymianSchema
+    schema: ThymianSchema,
   ): Promise<ContentGeneratorResult> {
     const strategy =
       this.strategies.find((strategy) => strategy.matches(contentType)) ??

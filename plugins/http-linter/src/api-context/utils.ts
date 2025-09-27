@@ -15,7 +15,7 @@ import type {
 
 export function thymianToCommonHttpRequest(
   id: string,
-  node: ThymianHttpRequest
+  node: ThymianHttpRequest,
 ): CommonHttpRequest {
   return {
     id,
@@ -32,7 +32,7 @@ export function thymianToCommonHttpRequest(
 
 export function thymianToCommonHttpResponse(
   id: string,
-  node: ThymianHttpResponse
+  node: ThymianHttpResponse,
 ): CommonHttpResponse {
   return {
     id,
@@ -46,7 +46,7 @@ export function thymianToCommonHttpResponse(
 
 export function compileExpressionToFilterFn(
   expression: HttpFilterExpression,
-  format: ThymianFormat
+  format: ThymianFormat,
 ): FilterFn<
   [CommonHttpRequest, CommonHttpResponse, CommonHttpResponse[], string]
 > {
@@ -97,7 +97,7 @@ export function compileExpressionToFilterFn(
           const transactionId = format.graph.findEdge(
             req.id,
             r.id,
-            (_, edge) => edge.type === 'http-transaction'
+            (_, edge) => edge.type === 'http-transaction',
           );
 
           if (!transactionId) {
@@ -108,7 +108,7 @@ export function compileExpressionToFilterFn(
             req,
             r,
             [],
-            transactionId
+            transactionId,
           );
         });
       };
@@ -118,7 +118,7 @@ export function compileExpressionToFilterFn(
       return (req, res, responses, id) =>
         expression.filters
           .map((expr) =>
-            compileExpressionToFilterFn(expr, format)(req, res, responses, id)
+            compileExpressionToFilterFn(expr, format)(req, res, responses, id),
           )
           .reduce((acc, curr) => acc !== curr);
     case 'method':
@@ -135,12 +135,12 @@ export function compileExpressionToFilterFn(
     case 'and':
       return (req, res, responses, id) =>
         expression.filters.every((e) =>
-          compileExpressionToFilterFn(e, format)(req, res, responses, id)
+          compileExpressionToFilterFn(e, format)(req, res, responses, id),
         );
     case 'or':
       return (req, res, responses, id) =>
         expression.filters.some((e) =>
-          compileExpressionToFilterFn(e, format)(req, res, responses, id)
+          compileExpressionToFilterFn(e, format)(req, res, responses, id),
         );
     case 'not':
       return (req, res, responses, id) =>
@@ -148,14 +148,14 @@ export function compileExpressionToFilterFn(
           req,
           res,
           responses,
-          id
+          id,
         );
   }
 }
 
 export function compileExpressionToValidateFn(
   expression: HttpFilterExpression,
-  format: ThymianFormat
+  format: ThymianFormat,
 ): FilterFn<[CommonHttpRequest, CommonHttpResponse, string]> {
   switch (expression.type) {
     case 'origin':
@@ -206,7 +206,7 @@ export function compileExpressionToValidateFn(
       return (req, res, id) =>
         expression.filters
           .map((expr) =>
-            compileExpressionToValidateFn(expr, format)(req, res, id)
+            compileExpressionToValidateFn(expr, format)(req, res, id),
           )
           .reduce((acc, curr) => acc !== curr);
     case 'method':
@@ -223,12 +223,12 @@ export function compileExpressionToValidateFn(
     case 'and':
       return (req, res, id) =>
         expression.filters.every((e) =>
-          compileExpressionToValidateFn(e, format)(req, res, id)
+          compileExpressionToValidateFn(e, format)(req, res, id),
         );
     case 'or':
       return (req, res, id) =>
         expression.filters.some((e) =>
-          compileExpressionToValidateFn(e, format)(req, res, id)
+          compileExpressionToValidateFn(e, format)(req, res, id),
         );
     case 'not':
       return (req, res, id) =>
@@ -238,7 +238,7 @@ export function compileExpressionToValidateFn(
 
 export function compileExpressionToGroupByFn(
   expression: HttpFilterExpression,
-  format: ThymianFormat
+  format: ThymianFormat,
 ): (req: CommonHttpRequest, res: CommonHttpResponse) => string {
   switch (expression.type) {
     case 'origin':
@@ -260,7 +260,7 @@ export function compileExpressionToGroupByFn(
     case 'queryParam':
       return (req) =>
         req.queryParameters.find(
-          (p) => p.toLowerCase() === expression.param?.toLowerCase()
+          (p) => p.toLowerCase() === expression.param?.toLowerCase(),
         ) ?? '';
     case 'isAuthorized':
       return (req) => String(format.requestIsSecured(req.id));
@@ -269,7 +269,7 @@ export function compileExpressionToGroupByFn(
     case 'requestHeader':
       return (req) =>
         req.headers.find(
-          (p) => p.toLowerCase() === expression.header?.toLowerCase()
+          (p) => p.toLowerCase() === expression.header?.toLowerCase(),
         ) ?? '';
     case 'path':
       return (req) => req.path;
@@ -278,7 +278,7 @@ export function compileExpressionToGroupByFn(
     case 'responseHeader':
       return (req, res) =>
         res.headers.find(
-          (p) => p.toLowerCase() === expression.header?.toLowerCase()
+          (p) => p.toLowerCase() === expression.header?.toLowerCase(),
         ) ?? '';
     case 'and':
       return (req, res) =>
@@ -292,7 +292,7 @@ export function compileExpressionToGroupByFn(
         {
           name: 'UnsupportedGroupByExpression',
           suggestions: ['Use another expression type.'],
-        }
+        },
       );
   }
 }

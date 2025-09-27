@@ -31,7 +31,7 @@ const plugin: ThymianPlugin = {
 };
 
 function createPluginFor(
-  plugin: ThymianPluginFn<{ cwd: string }>
+  plugin: ThymianPluginFn<{ cwd: string }>,
 ): ThymianPlugin {
   return {
     name: '',
@@ -97,13 +97,13 @@ describe('Thymian', () => {
       },
       {
         event: 'event',
-      }
+      },
     );
 
     await thymian.run(async () => {
       await thymian.emitter.emitAction(
         'core.run',
-        new ThymianFormat().export()
+        new ThymianFormat().export(),
       );
     });
 
@@ -118,7 +118,7 @@ describe('Thymian', () => {
         name: '@thymian/test-plugin',
         plugin: () => Promise.resolve(),
         version: '1.x',
-      })
+      }),
     ).toThrowError(PluginRegistrationError);
   });
 
@@ -131,7 +131,7 @@ describe('Thymian', () => {
           closedSpy();
           ctx.reply();
         });
-      })
+      }),
     );
 
     thymian.register(
@@ -147,14 +147,14 @@ describe('Thymian', () => {
 
           ctx.reply({ pluginName: '', status: 'success' });
         });
-      })
+      }),
     );
 
     try {
       await thymian.run(async () => {
         await thymian.emitter.emitAction(
           'core.run',
-          new ThymianFormat().export()
+          new ThymianFormat().export(),
         );
       });
       expect.fail('Thymian should have rejected the promise.');

@@ -43,7 +43,7 @@ export function processSchema(schema: Draft202012SchemaObject): ThymianSchema {
 
       if (!Array.isArray(node.examples)) {
         throw new Error(
-          `Property "examples" must be an array but got type ${typeof node.examples}.`
+          `Property "examples" must be an array but got type ${typeof node.examples}.`,
         );
       }
 
@@ -59,7 +59,7 @@ export function processSchema(schema: Draft202012SchemaObject): ThymianSchema {
 
 export function addExampleToSchema(
   schema: ThymianSchema,
-  example: unknown
+  example: unknown,
 ): ThymianSchema {
   if (isRecord(schema) && typeof example !== 'undefined') {
     (schema.examples ??= []).push(example);

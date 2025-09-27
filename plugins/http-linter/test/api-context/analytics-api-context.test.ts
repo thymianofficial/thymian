@@ -26,7 +26,7 @@ describe('AnalyticsApiContext', () => {
   let transactions!: [
     [string, string, string],
     [string, string, string],
-    [string, string, string]
+    [string, string, string],
   ];
 
   beforeEach(async () => {
@@ -68,7 +68,7 @@ describe('AnalyticsApiContext', () => {
           mediaType: 'application/json',
           statusCode: 200,
           type: 'http-response',
-        }
+        },
       ),
       format.addHttpTransaction(
         {
@@ -97,7 +97,7 @@ describe('AnalyticsApiContext', () => {
           mediaType: 'application/json',
           statusCode: 200,
           type: 'http-response',
-        }
+        },
       ),
       format.addHttpTransaction(
         {
@@ -126,7 +126,7 @@ describe('AnalyticsApiContext', () => {
           mediaType: 'application/json',
           statusCode: 200,
           type: 'http-response',
-        }
+        },
       ),
     ];
   });
@@ -136,7 +136,7 @@ describe('AnalyticsApiContext', () => {
 
     const results = analytics.validateCommonHttpTransactions(
       and(or(method('get'), method('head')), statusCode(200)),
-      not(or(responseHeader('etag'), responseHeader('last-modified')))
+      not(or(responseHeader('etag'), responseHeader('last-modified'))),
     );
 
     expect(results).toHaveLength(1);
@@ -166,7 +166,7 @@ describe('AnalyticsApiContext', () => {
             },
           };
         }
-      }
+      },
     );
 
     expect(results).toHaveLength(1);

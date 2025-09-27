@@ -6,15 +6,15 @@ import type {
 import type { PipelineItem } from './http-test-pipeline.js';
 
 export function createHttpTestContext<
-  Locals extends HttpTestContextLocals = HttpTestContextLocals
+  Locals extends HttpTestContextLocals = HttpTestContextLocals,
 >(
-  context: Omit<HttpTestContext<Locals>, 'skip' | 'fail'>
+  context: Omit<HttpTestContext<Locals>, 'skip' | 'fail'>,
 ): HttpTestContext<Locals> {
   return {
     ...context,
     skip<Steps extends HttpTestCaseStep[]>(
       testCase: HttpTestCase<Steps>,
-      reason?: string
+      reason?: string,
     ): PipelineItem<HttpTestCase<Steps>, Locals> {
       testCase.status = 'skipped';
       testCase.reason = reason;
@@ -27,7 +27,7 @@ export function createHttpTestContext<
     },
     fail<Steps extends HttpTestCaseStep[]>(
       testCase: HttpTestCase<Steps>,
-      reason?: string
+      reason?: string,
     ): PipelineItem<HttpTestCase<Steps>, Locals> {
       testCase.status = 'failed';
       testCase.reason = reason;

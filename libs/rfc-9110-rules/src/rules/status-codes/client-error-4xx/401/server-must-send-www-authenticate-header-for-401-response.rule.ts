@@ -30,21 +30,21 @@ const optionSchema: JSONSchemaType<Options> = {
 };
 
 export default httpRule(
-  'rfc9110/server-must-send-www-authenticate-header-for-401-response'
+  'rfc9110/server-must-send-www-authenticate-header-for-401-response',
 )
   .severity('error')
   .type('static', 'analytics', 'test')
   .url('https://www.rfc-editor.org/rfc/rfc9110.html#name-401-unauthorized')
   .options<Options>(optionSchema)
   .description(
-    'The server generating a 401 response MUST send a WWW-Authenticate header field containing at least one challenge applicable to the target resource.'
+    'The server generating a 401 response MUST send a WWW-Authenticate header field containing at least one challenge applicable to the target resource.',
   )
   .appliesTo('server')
   .rule((ctx) =>
     ctx.validateCommonHttpTransactions(
       statusCode(401),
-      not(responseHeader('www-authenticate'))
-    )
+      not(responseHeader('www-authenticate')),
+    ),
   )
   .overrideTest((testContext, options) =>
     testContext.httpTest(
@@ -54,13 +54,13 @@ export default httpRule(
             not(method('HEAD')),
             or(
               and(authorization(), constant(options.checkAllSecured)),
-              responseWith(statusCode(401))
-            )
-          )
+              responseWith(statusCode(401)),
+            ),
+          ),
         )
         .run()
         .expectForTransactions(responseHeader('www-authenticate'))
-        .done()
-    )
+        .done(),
+    ),
   )
   .done();

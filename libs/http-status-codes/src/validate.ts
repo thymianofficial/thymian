@@ -41,7 +41,7 @@ export function isValidHttpStatusCode(code: unknown): code is HttpStatusCode {
 }
 
 export function isValidHttpStatusPhrase(
-  phrase: string
+  phrase: string,
 ): phrase is HttpStatusPhrase {
   return (
     isValidInformationalPhrase(phrase) ||

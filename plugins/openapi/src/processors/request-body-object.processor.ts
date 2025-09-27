@@ -16,7 +16,7 @@ export function processRequestBodyObjet(
     host: string;
     port: number;
     protocol: 'http' | 'https';
-  }
+  },
 ): PartialBy<ThymianHttpRequest, 'label'>[] {
   if (!requestBodyObject) {
     return [
@@ -44,7 +44,7 @@ export function processRequestBodyObjet(
       .filter(
         ([mediaType]) =>
           !/^multipart\/.*/i.test(mediaType) &&
-          mediaType !== 'application/x-www-form-urlencoded'
+          mediaType !== 'application/x-www-form-urlencoded',
       )
       .map(([mediaType, mediaTypeObject]) => {
         const isMultipart = /^multipart\/.*/i.test(mediaType);
@@ -54,7 +54,7 @@ export function processRequestBodyObjet(
         const { schema } = processMediaTypeObject(
           mediaTypeObject,
           addEncoding,
-          isMultipart
+          isMultipart,
         );
 
         const location = context.operationId

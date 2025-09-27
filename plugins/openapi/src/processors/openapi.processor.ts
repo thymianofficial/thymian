@@ -51,7 +51,7 @@ export class OpenapiProcessor {
   constructor(
     private readonly logger: Logger,
     private readonly options: OpenapiV30ParserOptions,
-    private readonly locMapper: LocMapper
+    private readonly locMapper: LocMapper,
   ) {}
 
   private processLinkObject(linkObjectToProcess: LinkObjectToProcess): void {
@@ -63,7 +63,7 @@ export class OpenapiProcessor {
       (id, attributes) =>
         isNodeType(attributes, 'http-request') &&
         attributes.extensions?.openapi?.operationId ===
-          linkObjectToProcess.linkObj.operationId
+          linkObjectToProcess.linkObj.operationId,
     );
 
     linkObjectToProcess.responseIds.forEach((resId) => {
@@ -71,7 +71,7 @@ export class OpenapiProcessor {
         this.format.addHttpLink(resId, reqId, {
           ...processLinkObjectParameters(
             linkObjectToProcess.linkObj.parameters,
-            this.format.getNode(reqId) as ThymianHttpRequest
+            this.format.getNode(reqId) as ThymianHttpRequest,
           ),
         });
       });
@@ -83,26 +83,26 @@ export class OpenapiProcessor {
     params: Parameters,
     method: string,
     path: string,
-    serverInfo: ServerInfo
+    serverInfo: ServerInfo,
   ): void {
     if (operationObject.deprecated) {
       this.logger.debug(
         `Operation with id "${
           operationObject.operationId ?? '(no operationId provided)'
-        }" is deprecated but still used by Thymian.`
+        }" is deprecated but still used by Thymian.`,
       );
     }
 
     const parameters = mergeParameters(
       params,
       processParameterObjects(
-        operationObject.parameters as OpenApiV31.ParameterObject[]
-      )
+        operationObject.parameters as OpenApiV31.ParameterObject[],
+      ),
     );
 
     const operationServerInfo = extractServerInfo(
       operationObject.servers,
-      serverInfo
+      serverInfo,
     );
 
     const requests = processRequestBodyObjet(
@@ -116,19 +116,19 @@ export class OpenapiProcessor {
         operationId: operationObject.operationId,
         method,
         path: join(operationServerInfo.basePath, path),
-      }
+      },
     );
     const responsesAndLinks = processResponsesObject(
       operationObject.responses,
-      parameters
+      parameters,
     );
 
     const securitySchemes = this.globalSecuritySchemes.length
       ? this.globalSecuritySchemes
       : operationObject.security?.length
-      ? // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-        operationObject.security.map((sec) => Object.keys(sec)[0]!)
-      : [];
+        ? // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+          operationObject.security.map((sec) => Object.keys(sec)[0]!)
+        : [];
 
     for (const req of requests) {
       const reqId = this.format.addRequest(req);
@@ -141,7 +141,7 @@ export class OpenapiProcessor {
               openapi: {
                 location: operationObject.operationId
                   ? this.locMapper.locationForOperationId(
-                      operationObject.operationId
+                      operationObject.operationId,
                     )
                   : undefined,
               },
@@ -175,7 +175,7 @@ export class OpenapiProcessor {
       (document.components?.securitySchemes as Record<
         string,
         OpenApiV31.SecuritySchemeObject
-      >) ?? {}
+      >) ?? {},
     );
 
     securitySchemes.forEach((scheme) => {
@@ -199,7 +199,7 @@ export class OpenapiProcessor {
       }
 
       const parameters = processParameterObjects(
-        pathItem.parameters as OpenApiV31.ParameterObject[] | undefined
+        pathItem.parameters as OpenApiV31.ParameterObject[] | undefined,
       );
 
       for (const [method, op] of Object.entries(pathItem)) {
@@ -210,7 +210,7 @@ export class OpenapiProcessor {
         const operation = op as OpenApiV31.OperationObject;
 
         const operationParameters = processParameterObjects(
-          operation.parameters as OpenApiV31.ParameterObject[]
+          operation.parameters as OpenApiV31.ParameterObject[],
         );
 
         this.processOperationObject(
@@ -218,13 +218,13 @@ export class OpenapiProcessor {
           mergeParameters(parameters, operationParameters),
           method,
           path,
-          serverInfo
+          serverInfo,
         );
       }
     }
 
     this.linkObjects.forEach((linkToProcess) =>
-      this.processLinkObject(linkToProcess)
+      this.processLinkObject(linkToProcess),
     );
 
     return this.format;

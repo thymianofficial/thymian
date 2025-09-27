@@ -43,13 +43,13 @@ describe('httpTest - todo app', () => {
       transactions.pipe(
         filterHttpTransactions(
           { method: 'GET', path: '/projects/{id}' },
-          { statusCode: 200 }
+          { statusCode: 200 },
         ),
         mapToTestCase(),
         generateRequests(),
         runRequests(),
-        validateResponses()
-      )
+        validateResponses(),
+      ),
     );
 
     const r = await test(context);

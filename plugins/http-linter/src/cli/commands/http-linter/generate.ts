@@ -29,7 +29,7 @@ ${cjs ? 'module.exports =' : 'export default'} httpRule('${meta.name}')
 
   for (const [key, value] of Object.entries(meta) as [
     keyof RuleMeta,
-    RuleMeta[keyof RuleMeta]
+    RuleMeta[keyof RuleMeta],
   ][]) {
     switch (key) {
       case 'name':

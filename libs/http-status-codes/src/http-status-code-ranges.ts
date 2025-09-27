@@ -15,14 +15,14 @@ export const httpStatusCodeRanges = {
 export type HttpStatusCodeRange = keyof typeof httpStatusCodeRanges;
 
 export function isHttpStatusCodeRange(
-  statusCode: string
+  statusCode: string,
 ): statusCode is HttpStatusCodeRange {
   return /^[12345]XX$/.test(statusCode);
 }
 
 export function statusCodeMatchesRange(
   statusCode: number | string,
-  range: HttpStatusCodeRange
+  range: HttpStatusCodeRange,
 ): boolean {
   return !!httpStatusCodeRanges[range].find((code) => code === +statusCode);
 }

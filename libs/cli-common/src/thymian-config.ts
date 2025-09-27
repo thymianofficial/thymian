@@ -1,5 +1,5 @@
 export interface ThymianPluginConfiguration<
-  Options extends Record<PropertyKey, unknown> = Record<PropertyKey, unknown>
+  Options extends Record<PropertyKey, unknown> = Record<PropertyKey, unknown>,
 > {
   path?: string;
   verbose?: boolean;

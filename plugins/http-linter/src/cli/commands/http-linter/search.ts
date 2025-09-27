@@ -46,8 +46,8 @@ export default class SearchCommand extends BaseCliRunCommand<
       this.log(
         `${ux.colorize('bold', item.meta.name)} ${ux.colorize(
           'dim',
-          `(confidence: ${score})`
-        )}`
+          `(confidence: ${score})`,
+        )}`,
       );
       console.group();
       this.log(item.meta.summary);

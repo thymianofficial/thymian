@@ -5,7 +5,7 @@ export const redirectionStatusCodes = [
 export type RedirectionStatusCode = (typeof redirectionStatusCodes)[number];
 
 export function isValidRedirectionStatusCode(
-  code: number
+  code: number,
 ): code is RedirectionStatusCode {
   return redirectionStatusCodes.includes(code as RedirectionStatusCode);
 }

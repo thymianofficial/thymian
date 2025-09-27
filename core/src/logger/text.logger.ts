@@ -18,8 +18,8 @@ export class TextLogger implements Logger {
       console.debug(
         `${chalk.grey(`TRACE`)} [${this.now()}] [${this.namespace}]: ${format(
           formatter,
-          ...args
-        )}`
+          ...args,
+        )}`,
       );
     }
   }
@@ -27,8 +27,8 @@ export class TextLogger implements Logger {
     console.warn(
       `${chalk.yellow(`WARN`)} [${this.now()}] [${this.namespace}]: ${format(
         formatter,
-        ...args
-      )}`
+        ...args,
+      )}`,
     );
   }
 
@@ -37,8 +37,8 @@ export class TextLogger implements Logger {
       console.debug(
         `${chalk.blue(`DEBUG`)} [${this.now()}] [${this.namespace}]: ${format(
           formatter,
-          ...args
-        )}`
+          ...args,
+        )}`,
       );
     }
   }
@@ -46,16 +46,16 @@ export class TextLogger implements Logger {
     console.log(
       `${chalk.green(`INFO`)} [${this.now()}] [${this.namespace}]: ${format(
         formatter,
-        ...args
-      )}`
+        ...args,
+      )}`,
     );
   }
   error(formatter: unknown, ...args: unknown[]): void {
     console.error(
       `${chalk.red(`ERROR`)} [${this.now()}] [${this.namespace}]: ${format(
         formatter,
-        ...args
-      )}`
+        ...args,
+      )}`,
     );
   }
   out(output: unknown): void {

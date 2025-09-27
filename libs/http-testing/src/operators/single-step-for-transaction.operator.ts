@@ -17,7 +17,7 @@ import {
 
 export function singleStepForTransaction<
   Steps extends HttpTestCaseStep[],
-  CurrentStep extends HttpTestCaseStep
+  CurrentStep extends HttpTestCaseStep,
 >(
   findTransaction: (previous: CurrentStep, format: ThymianFormat) => string,
   fn: (
@@ -25,10 +25,10 @@ export function singleStepForTransaction<
       PipelineItem<
         HttpTestCase<[...Steps, CurrentStep, SingleHttpTestCaseStep]>
       >
-    >
+    >,
   ) => Observable<
     PipelineItem<HttpTestCase<[...Steps, CurrentStep, SingleHttpTestCaseStep]>>
-  >
+  >,
 ): OperatorFunction<
   PipelineItem<HttpTestCase<[...Steps, CurrentStep]>>,
   PipelineItem<HttpTestCase<[...Steps, CurrentStep, SingleHttpTestCaseStep]>>
@@ -49,10 +49,10 @@ export function singleStepForTransaction<
       return of(
         ctx.fail(
           current,
-          'Previous step must be defined.'
+          'Previous step must be defined.',
         ) as unknown as PipelineItem<
           HttpTestCase<[...Steps, CurrentStep, SingleHttpTestCaseStep]>
-        >
+        >,
       );
     }
 
@@ -67,10 +67,10 @@ export function singleStepForTransaction<
       return of(
         ctx.fail(
           current,
-          'Invalid HTTP transaction ID.'
+          'Invalid HTTP transaction ID.',
         ) as unknown as PipelineItem<
           HttpTestCase<[...Steps, CurrentStep, SingleHttpTestCaseStep]>
-        >
+        >,
       );
     }
 
@@ -95,7 +95,7 @@ export function singleStepForTransaction<
         current: current as unknown as HttpTestCase<
           [...Steps, CurrentStep, SingleHttpTestCaseStep]
         >,
-      })
+      }),
     );
   });
 }

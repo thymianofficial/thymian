@@ -22,7 +22,7 @@ function serializeBasePath(transaction: HttpTestCaseStepTransaction) {
           return serializePathParameter(
             parameterName,
             transaction.requestTemplate.pathParameters[parameterName],
-            transaction.source.thymianReq.pathParameters[parameterName].style
+            transaction.source.thymianReq.pathParameters[parameterName].style,
           );
         } else {
           const type =
@@ -36,11 +36,11 @@ function serializeBasePath(transaction: HttpTestCaseStepTransaction) {
             type === 'symbol'
           ) {
             return String(
-              transaction.requestTemplate.pathParameters[parameterName]
+              transaction.requestTemplate.pathParameters[parameterName],
             );
           } else {
             throw new Error(
-              `Value of path parameter "${parameterName}" must be of type string but got "${type}".`
+              `Value of path parameter "${parameterName}" must be of type string but got "${type}".`,
             );
           }
         }
@@ -48,17 +48,17 @@ function serializeBasePath(transaction: HttpTestCaseStepTransaction) {
         const transactionName = transaction.source
           ? thymianHttpTransactionToString(
               transaction.source.thymianReq,
-              transaction.source.thymianRes
+              transaction.source.thymianRes,
             )
           : `${transaction.requestTemplate.method.toUpperCase()} ${
               transaction.requestTemplate.origin
             }${transaction.requestTemplate.path}`;
 
         throw new Error(
-          `Missing value for path parameter "${parameterName}" of transaction "${transactionName}".`
+          `Missing value for path parameter "${parameterName}" of transaction "${transactionName}".`,
         );
       }
-    }
+    },
   );
 }
 
@@ -69,7 +69,7 @@ function serializeQuery(transaction: HttpTestCaseStepTransaction) {
         return serializeQueryParameter(
           name,
           value,
-          transaction.source?.thymianReq.queryParameters[name].style
+          transaction.source?.thymianReq.queryParameters[name].style,
         );
       } else {
         const type = typeof value;
@@ -84,7 +84,7 @@ function serializeQuery(transaction: HttpTestCaseStepTransaction) {
           return encodeURIComponent(String(value));
         } else {
           throw new Error(
-            `Invalid type for query parameter. Got type: ${type}.`
+            `Invalid type for query parameter. Got type: ${type}.`,
           );
         }
       }
@@ -93,7 +93,7 @@ function serializeQuery(transaction: HttpTestCaseStepTransaction) {
 }
 
 export function serializePath(
-  transaction: HttpTestCaseStepTransaction
+  transaction: HttpTestCaseStepTransaction,
 ): string {
   const path = serializeBasePath(transaction);
 
@@ -103,7 +103,7 @@ export function serializePath(
 }
 
 export function serializeHeaders(
-  transaction: HttpTestCaseStepTransaction
+  transaction: HttpTestCaseStepTransaction,
 ): Record<string, string> {
   const headers = transaction.source?.thymianReq.headers ?? {};
 
@@ -116,14 +116,14 @@ export function serializeHeaders(
           acc[key] = serializeHeaderParameter(key, value, headers[key].style);
         } else {
           throw new Error(
-            `Header value must be of type "string" but got "${typeof value}".`
+            `Header value must be of type "string" but got "${typeof value}".`,
           );
         }
       }
 
       return acc;
     },
-    {} as Record<string, string>
+    {} as Record<string, string>,
   );
 }
 
@@ -155,7 +155,7 @@ export function serializeBody(body: unknown): string | undefined {
 }
 
 export function serializeRequest(
-  transaction: HttpTestCaseStepTransaction
+  transaction: HttpTestCaseStepTransaction,
 ): HttpRequest {
   return {
     body: serializeBody(transaction.requestTemplate.body),

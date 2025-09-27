@@ -11,9 +11,9 @@ export default class List extends BaseCliRunCommand<typeof List> {
       this.log(
         this.thymian.plugins
           .map((plugin) =>
-            ux.colorize(this.config?.theme?.topic, plugin.plugin.name)
+            ux.colorize(this.config?.theme?.topic, plugin.plugin.name),
           )
-          .join(EOL)
+          .join(EOL),
       );
     });
   }

@@ -30,7 +30,7 @@ export class StaticApiContext extends ApiContext {
     filter: HttpFilterExpression,
     validate:
       | ValidationFn<[CommonHttpRequest, CommonHttpResponse, string]>
-      | HttpFilterExpression = filter
+      | HttpFilterExpression = filter,
   ): RuleFnResult {
     const filterFn = compileExpressionToFilterFn(filter, this.format);
     const validationFn =
@@ -58,7 +58,7 @@ export class StaticApiContext extends ApiContext {
         ];
       })
       .filter(([req, res, responses, transactionId]) =>
-        filterFn(req, res, responses, transactionId)
+        filterFn(req, res, responses, transactionId),
       )
       .reduce((violations, [req, res, , transactionId]) => {
         const validationResult = validationFn(req, res, transactionId);
@@ -94,7 +94,7 @@ export class StaticApiContext extends ApiContext {
     validationFn: ValidationFn<
       [string, [CommonHttpRequest, CommonHttpResponse][]],
       RuleViolation
-    >
+    >,
   ): RuleFnResult {
     const filterFn = compileExpressionToFilterFn(filter, this.format);
     const groupByFn = compileExpressionToGroupByFn(groupBy, this.format);
@@ -119,20 +119,23 @@ export class StaticApiContext extends ApiContext {
         ];
       })
       .filter(([req, res, responses, transactionId]) =>
-        filterFn(req, res, responses, transactionId)
+        filterFn(req, res, responses, transactionId),
       )
-      .reduce((groups, [req, res, , transactionId]) => {
-        const key = groupByFn(req, res);
+      .reduce(
+        (groups, [req, res, , transactionId]) => {
+          const key = groupByFn(req, res);
 
-        (groups[key] ??= []).push([req, res, transactionId]);
+          (groups[key] ??= []).push([req, res, transactionId]);
 
-        return groups;
-      }, {} as Record<string, [CommonHttpRequest, CommonHttpResponse, string][]>);
+          return groups;
+        },
+        {} as Record<string, [CommonHttpRequest, CommonHttpResponse, string][]>,
+      );
 
     return Object.entries(groups).reduce((violations, [key, group]) => {
       const validationResult = validationFn(
         key,
-        group.map(([req, res]) => [req, res])
+        group.map(([req, res]) => [req, res]),
       );
 
       if (validationResult) {
@@ -147,13 +150,13 @@ export class StaticApiContext extends ApiContext {
     filterFn: (
       req: ThymianHttpRequest,
       res: ThymianHttpResponse,
-      responses: ThymianHttpResponse[]
+      responses: ThymianHttpResponse[],
     ) => boolean,
     validationFn: (
       req: ThymianHttpRequest,
       res: ThymianHttpResponse,
-      responses: ThymianHttpResponse[]
-    ) => PartialBy<RuleViolation, 'location'> | boolean = filterFn
+      responses: ThymianHttpResponse[],
+    ) => PartialBy<RuleViolation, 'location'> | boolean = filterFn,
   ): RuleFnResult {
     return this.format.graph.reduceNodes((violations, id, node) => {
       if (!isNodeType(node, 'http-request')) {
@@ -170,7 +173,7 @@ export class StaticApiContext extends ApiContext {
           const transactionId = this.format.graph.findEdge(
             id,
             resId,
-            (_, edge) => edge.type === 'http-transaction'
+            (_, edge) => edge.type === 'http-transaction',
           );
 
           if (!transactionId) {

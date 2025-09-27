@@ -5,6 +5,6 @@ export interface OutputWriter {
   writeAssetFor(
     buffer: Buffer,
     ext: string,
-    sample: HttpRequestSample
+    sample: HttpRequestSample,
   ): Promise<string>;
 }

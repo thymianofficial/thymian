@@ -3,7 +3,7 @@ import { join } from 'node:path';
 import type { ThymianHttpTransaction } from '@thymian/core';
 
 export function createPathForTransaction(
-  transaction: ThymianHttpTransaction
+  transaction: ThymianHttpTransaction,
 ): string {
   const paths: string[] = [];
 
@@ -13,8 +13,8 @@ export function createPathForTransaction(
     ...transaction.thymianReq.path
       .split('/')
       .map((part) =>
-        /^\{.*}$/.test(part) ? '_' + part.substring(1, part.length - 1) : part
-      )
+        /^\{.*}$/.test(part) ? '_' + part.substring(1, part.length - 1) : part,
+      ),
   );
 
   if (transaction.thymianReq.mediaType) {

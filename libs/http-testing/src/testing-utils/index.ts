@@ -3,7 +3,7 @@ import type { Parameter } from '@thymian/core';
 import type { HttpTestContext, HttpTestHooks } from '../http-test/index.js';
 
 export const exampleRequestSampler: HttpTestContext['sampleRequest'] = async (
-  transaction
+  transaction,
 ) => {
   return {
     authorize: true,
@@ -14,14 +14,14 @@ export const exampleRequestSampler: HttpTestContext['sampleRequest'] = async (
     origin: `${transaction.thymianReq.protocol}://${transaction.thymianReq.host}:${transaction.thymianReq.port}`,
     path: transaction.thymianReq.path,
     pathParameters: generateExampleParameters(
-      transaction.thymianReq.pathParameters
+      transaction.thymianReq.pathParameters,
     ),
     query: generateExampleParameters(transaction.thymianReq.queryParameters),
   };
 };
 
 export function generateExampleParameters(
-  parameters: Record<string, Parameter>
+  parameters: Record<string, Parameter>,
 ): Record<string, unknown> {
   return Object.entries(parameters).reduce((acc, [name, param]) => {
     // eslint-disable-next-line @typescript-eslint/ban-ts-comment
@@ -34,7 +34,7 @@ export function generateExampleParameters(
 
 export const identityHookRunner: HttpTestContext['runHook'] = async (
   name,
-  payload
+  payload,
 ) => {
   return {
     value: payload.value,

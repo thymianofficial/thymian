@@ -15,7 +15,7 @@ export type ThymianPluginInitOptions = {
 };
 
 export type ThymianPluginInitResult<
-  T extends Record<PropertyKey, unknown> = Record<PropertyKey, unknown>
+  T extends Record<PropertyKey, unknown> = Record<PropertyKey, unknown>,
 > = {
   pluginName: string;
   configuration: ThymianPluginConfiguration<T>;
@@ -23,5 +23,5 @@ export type ThymianPluginInitResult<
 };
 
 export type ThymianPluginInitHook<
-  T extends Record<PropertyKey, unknown> = Record<PropertyKey, unknown>
+  T extends Record<PropertyKey, unknown> = Record<PropertyKey, unknown>,
 > = (options: ThymianPluginInitOptions) => Promise<ThymianPluginInitResult<T>>;

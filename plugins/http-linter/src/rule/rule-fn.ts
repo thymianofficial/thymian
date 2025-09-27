@@ -7,9 +7,9 @@ export type RuleFnResult = undefined | RuleViolation | RuleViolation[];
 
 export type RuleFn<
   Context extends ApiContext,
-  Options extends Record<PropertyKey, unknown>
+  Options extends Record<PropertyKey, unknown>,
 > = (
   context: Context,
   options: Options & { mode: 'static' | 'analytics' | 'test' },
-  logger: Logger
+  logger: Logger,
 ) => RuleFnResult | Promise<RuleFnResult>;

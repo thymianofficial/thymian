@@ -12,7 +12,7 @@ import type { Parameter } from './parameter.js';
 import type { SerializationStyle } from './serialization-style/index.js';
 
 export function extractSchemaForValue(
-  value: string
+  value: string,
 ): 'string' | 'integer' | 'number' | 'boolean' {
   if (!isNaN(parseInt(value))) {
     return 'integer';
@@ -31,7 +31,7 @@ export function extractSchemaForValue(
 
 export function valueToParameter(
   value: string | string[] | undefined,
-  style: SerializationStyle
+  style: SerializationStyle,
 ): Parameter | undefined {
   if (Array.isArray(value)) {
     return {
@@ -60,23 +60,26 @@ export function valueToParameter(
 
 export function parameterValuesToParameters(
   values: Record<string, string | string[] | undefined>,
-  style: SerializationStyle
+  style: SerializationStyle,
 ): Record<string, Parameter> {
-  return Object.entries(values).reduce((acc, [key, value]) => {
-    if (equalsIgnoreCase(key, 'content-type')) return acc;
+  return Object.entries(values).reduce(
+    (acc, [key, value]) => {
+      if (equalsIgnoreCase(key, 'content-type')) return acc;
 
-    const parameter = valueToParameter(value, style);
+      const parameter = valueToParameter(value, style);
 
-    if (!parameter) return acc;
+      if (!parameter) return acc;
 
-    acc[key] = parameter;
+      acc[key] = parameter;
 
-    return acc;
-  }, {} as Record<string, Parameter>);
+      return acc;
+    },
+    {} as Record<string, Parameter>,
+  );
 }
 
 export function httpRequestToThymianHttpRequest(
-  request: HttpRequest
+  request: HttpRequest,
 ): PartialBy<ThymianHttpRequest, 'label'> {
   const url = new URL(request.path, request.origin);
 
@@ -91,7 +94,7 @@ export function httpRequestToThymianHttpRequest(
     cookies: {},
     headers: parameterValuesToParameters(
       request.headers ?? {},
-      DEFAULT_HEADER_SERIALIZATION_STYLE
+      DEFAULT_HEADER_SERIALIZATION_STYLE,
     ),
     pathParameters: {},
     queryParameters: {},
@@ -99,7 +102,7 @@ export function httpRequestToThymianHttpRequest(
 }
 
 export function httpResponseToThymianHttpResponse(
-  response: HttpResponse
+  response: HttpResponse,
 ): ThymianHttpResponse {
   const thymianHttpResponse: ThymianHttpResponse = {
     type: 'http-response',
@@ -108,7 +111,7 @@ export function httpResponseToThymianHttpResponse(
     mediaType: getContentType(response.headers),
     headers: parameterValuesToParameters(
       response.headers ?? {},
-      DEFAULT_HEADER_SERIALIZATION_STYLE
+      DEFAULT_HEADER_SERIALIZATION_STYLE,
     ),
   };
 

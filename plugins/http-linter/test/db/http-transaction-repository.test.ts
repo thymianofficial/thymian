@@ -87,19 +87,19 @@ describe('HttpTransactionRepository', () => {
     const id = repo.insertHttpTransaction(req, res);
     const row = repo.db
       .prepare(
-        `SELECT request_id, response_id FROM http_transaction WHERE id = ?`
+        `SELECT request_id, response_id FROM http_transaction WHERE id = ?`,
       )
       .get(id) as { request_id: number; response_id: number };
 
     const reqHeaderCount = repo.db
       .prepare(
-        `SELECT COUNT(1) as cnt FROM http_request_header WHERE request_id = ? AND name = 'x-flag'`
+        `SELECT COUNT(1) as cnt FROM http_request_header WHERE request_id = ? AND name = 'x-flag'`,
       )
       .get(row.request_id) as { cnt: number };
 
     const resHeaderCount = repo.db
       .prepare(
-        `SELECT COUNT(1) as cnt FROM http_response_header WHERE response_id = ? AND name = 'vary'`
+        `SELECT COUNT(1) as cnt FROM http_response_header WHERE response_id = ? AND name = 'vary'`,
       )
       .get(row.response_id) as { cnt: number };
 
@@ -133,7 +133,7 @@ describe('HttpTransactionRepository', () => {
 
     const trailerCount = repo.db
       .prepare(
-        `SELECT COUNT(1) as cnt FROM http_response_trailer WHERE response_id = ?`
+        `SELECT COUNT(1) as cnt FROM http_response_trailer WHERE response_id = ?`,
       )
       .get(row.response_id) as { cnt: number };
 
@@ -165,7 +165,7 @@ describe('HttpTransactionRepository', () => {
 
     const qpRows = repo.db
       .prepare(
-        `SELECT name, value FROM http_request_query_parameter WHERE request_id = ? ORDER BY id`
+        `SELECT name, value FROM http_request_query_parameter WHERE request_id = ? ORDER BY id`,
       )
       .all(row.request_id) as Array<{ name: string; value: string }>;
 
@@ -198,25 +198,25 @@ describe('HttpTransactionRepository', () => {
 
     const row = repo.db
       .prepare(
-        `SELECT request_id, response_id FROM http_transaction WHERE id = ?`
+        `SELECT request_id, response_id FROM http_transaction WHERE id = ?`,
       )
       .get(id) as { request_id: number; response_id: number };
 
     const reqHeaderCount = repo.db
       .prepare(
-        `SELECT COUNT(1) as cnt FROM http_request_header WHERE request_id = ?`
+        `SELECT COUNT(1) as cnt FROM http_request_header WHERE request_id = ?`,
       )
       .get(row.request_id) as { cnt: number };
 
     const resHeaderCount = repo.db
       .prepare(
-        `SELECT COUNT(1) as cnt FROM http_response_header WHERE response_id = ?`
+        `SELECT COUNT(1) as cnt FROM http_response_header WHERE response_id = ?`,
       )
       .get(row.response_id) as { cnt: number };
 
     const qpCount = repo.db
       .prepare(
-        `SELECT COUNT(1) as cnt FROM http_request_query_parameter WHERE request_id = ?`
+        `SELECT COUNT(1) as cnt FROM http_request_query_parameter WHERE request_id = ?`,
       )
       .get(row.request_id) as { cnt: number };
 

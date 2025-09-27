@@ -1,10 +1,7 @@
 {
   "extends": "../../tsconfig.base.json",
   "files": [],
-  "include": [
-    "src/**/*.ts",
-    "test/**/*.ts",
-  ],
+  "include": ["src/**/*.ts", "test/**/*.ts"],
   "references": [
     {
       "path": "../../libs/cli-common"

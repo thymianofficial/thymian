@@ -16,7 +16,7 @@ import type { HttpTestContextLocals } from '../http-test/http-test-context.js';
 import type { PipelineItem } from '../http-test/http-test-pipeline.js';
 
 export function mapToGroupedTestCase<
-  Locals extends HttpTestContextLocals
+  Locals extends HttpTestContextLocals,
 >(): OperatorFunction<
   GroupedObservable<string, PipelineItem<ThymianHttpTransaction, Locals>>,
   PipelineItem<HttpTestCase<[GroupedHttpTestCaseStep]>, Locals>
@@ -53,7 +53,7 @@ export function mapToGroupedTestCase<
         };
 
         return envelope;
-      })
+      }),
     );
   });
 }

@@ -12,7 +12,7 @@ import { validateResponse } from '../validate/index.js';
 import { hasThymianResId } from './utils.js';
 
 export function validateResponses<
-  Steps extends HttpTestCaseStep[]
+  Steps extends HttpTestCaseStep[],
 >(): MonoTypeOperatorFunction<PipelineItem<HttpTestCase<Steps>>> {
   return mergeMap(async ({ current, ctx }) => {
     if (isSkippedTestCase(current) || isFailedTestCase(current)) {
@@ -31,7 +31,7 @@ export function validateResponses<
       }
 
       const response = ctx.format.getNode<ThymianHttpResponse>(
-        transaction.source.thymianResId
+        transaction.source.thymianResId,
       );
 
       if (!response) {
@@ -40,7 +40,7 @@ export function validateResponses<
 
       const result = validateResponse(
         transaction.source.thymianRes,
-        transaction.response
+        transaction.response,
       );
 
       current.results.push(...result.results);

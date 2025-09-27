@@ -20,7 +20,7 @@ export const requiredHeaders = [
 ];
 
 export default httpRule(
-  'rfc9110/server-must-generate-header-fields-for-206-response'
+  'rfc9110/server-must-generate-header-fields-for-206-response',
 )
   .severity('error')
   .type('static', 'test', 'analytics')
@@ -28,19 +28,19 @@ export default httpRule(
   .url('https://www.rfc-editor.org/rfc/rfc9110.html#name-206-partial-content')
   .description(
     `A server that generates a 206 response MUST generate the following header fields, if the field would have been sent in a 200 (OK) response to the same request: ${requiredHeaders.join(
-      ', '
-    )}`
+      ', ',
+    )}`,
   )
   .rule((ctx) =>
     ctx.validateGroupedCommonHttpTransactions(
       or(
         and(statusCode(200), responseWith(statusCode(206))),
-        and(statusCode(206), responseWith(statusCode(200)))
+        and(statusCode(206), responseWith(statusCode(200))),
       ), // TODO: problem because we also check 200 response if there is no support for partial requests
       and(method(), origin(), path()),
       (_, transactions) => {
         const okResponse = transactions.find(
-          ([, res]) => res.statusCode === 200
+          ([, res]) => res.statusCode === 200,
         )?.[1];
         const [partialRequest, partialResponse] =
           transactions.find(([, res]) => res.statusCode === 206) ?? [];
@@ -49,14 +49,14 @@ export default httpRule(
           const missingHeaders = requiredHeaders.filter(
             (headerName) =>
               equalsIgnoreCase(headerName, ...okResponse.headers) !==
-              equalsIgnoreCase(headerName, ...partialResponse.headers)
+              equalsIgnoreCase(headerName, ...partialResponse.headers),
           );
 
           if (missingHeaders.length > 0) {
             const transactionEdge = ctx.format.graph.findEdge(
               partialRequest.id,
               partialResponse.id,
-              (id, attributes) => attributes.type === 'http-transaction'
+              (id, attributes) => attributes.type === 'http-transaction',
             );
 
             if (!transactionEdge) {
@@ -80,7 +80,7 @@ export default httpRule(
         }
 
         return;
-      }
-    )
+      },
+    ),
   )
   .done();

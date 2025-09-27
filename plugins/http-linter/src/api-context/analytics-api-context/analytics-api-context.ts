@@ -32,7 +32,7 @@ export class AnalyticsApiContext extends LiveApiContext {
     readonly repository: HttpTransactionRepository,
     logger: Logger,
     format: ThymianFormat,
-    reportFn?: ReportFn
+    reportFn?: ReportFn,
   ) {
     super(format, logger, reportFn);
   }
@@ -41,7 +41,7 @@ export class AnalyticsApiContext extends LiveApiContext {
     filter: HttpFilterExpression,
     validate:
       | ValidationFn<[CommonHttpRequest, CommonHttpResponse, string]>
-      | HttpFilterExpression = filter
+      | HttpFilterExpression = filter,
   ): Promise<RuleFnResult> | RuleFnResult {
     let finalFilter!: HttpFilterExpression;
     let validateFn!: ValidationFn<
@@ -61,7 +61,7 @@ export class AnalyticsApiContext extends LiveApiContext {
     this.logger.debug('Executing SQL query:', sql);
 
     const statement = this.repository.db.prepare<unknown[], { id: string }>(
-      sql
+      sql,
     );
 
     const results: RuleFnResult = [];
@@ -79,7 +79,7 @@ export class AnalyticsApiContext extends LiveApiContext {
       const violation = validateFn(
         httpRequestToCommonHttpRequest(reqId, req),
         httpResponseToCommonHttpResponse(resId, res),
-        transactionId
+        transactionId,
       );
 
       results.push({
@@ -101,7 +101,7 @@ export class AnalyticsApiContext extends LiveApiContext {
     validationFn: ValidationFn<
       [string, [CommonHttpRequest, CommonHttpResponse][]],
       RuleViolation | undefined
-    >
+    >,
   ): Promise<RuleFnResult> | RuleFnResult {
     const { sql, params } = httpFilterToGroupedCommonFilter(filter, groupBy);
     const groupByFn = compileExpressionToGroupByFn(groupBy, this.format);
@@ -124,8 +124,8 @@ export class AnalyticsApiContext extends LiveApiContext {
             [id, ...this.repository.readTransactionById(id)] as [
               string,
               HttpRequest,
-              HttpResponse
-            ]
+              HttpResponse,
+            ],
         )
         .map(([, req, res]) => {
           const matched = this.format.matchTransaction(req, res);

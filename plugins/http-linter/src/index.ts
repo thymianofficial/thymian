@@ -133,14 +133,14 @@ export const httpLinterPlugin: ThymianPlugin<HttpLinterPluginOptions> = {
   async plugin(
     emitter: ThymianEmitter,
     logger: Logger,
-    options
+    options,
   ): Promise<void> {
     const ruleFilter = createRuleFilter(options.ruleFilter);
 
     const loadedRules = await loadRules(
       options.rules,
       ruleFilter,
-      options.ruleOptions
+      options.ruleOptions,
     );
 
     logger.debug(`${loadedRules.length} rules were initially loaded.`);
@@ -153,13 +153,13 @@ export const httpLinterPlugin: ThymianPlugin<HttpLinterPluginOptions> = {
       const additionalLoadedRules = await loadRules(
         rules,
         ruleFilter,
-        options.ruleOptions
+        options.ruleOptions,
       );
 
       loadedRules.push(...additionalLoadedRules);
 
       logger.debug(
-        `Loaded ${additionalLoadedRules.length} additional rules for @thymian/http-linter.`
+        `Loaded ${additionalLoadedRules.length} additional rules for @thymian/http-linter.`,
       );
 
       ctx.reply();
@@ -181,7 +181,7 @@ export const httpLinterPlugin: ThymianPlugin<HttpLinterPluginOptions> = {
             loadedRules,
             (report) => emitter.emit('core.report', report),
             thymianFormat,
-            options.ruleOptions ?? {}
+            options.ruleOptions ?? {},
           ).run()) && valid;
       }
 
@@ -195,7 +195,7 @@ export const httpLinterPlugin: ThymianPlugin<HttpLinterPluginOptions> = {
             loadedRules,
             (report) => emitter.emit('core.report', report),
             thymianFormat,
-            options.ruleOptions ?? {}
+            options.ruleOptions ?? {},
           ).run()) && valid;
       }
 
@@ -223,11 +223,11 @@ export const httpLinterPlugin: ThymianPlugin<HttpLinterPluginOptions> = {
           loadedRules,
           (report) => emitter.emit('core.report', report),
           thymianFormat,
-          options.ruleOptions ?? {}
+          options.ruleOptions ?? {},
         ).run();
 
         ctx.reply(valid);
-      }
+      },
     );
   },
 };

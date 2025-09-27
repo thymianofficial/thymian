@@ -4,7 +4,7 @@ import { parseTemplate, type PrimitiveValue } from 'url-template';
 export function serializePathParameter(
   name: string,
   content: unknown,
-  serializationStyle: SerializationStyle
+  serializationStyle: SerializationStyle,
 ): string {
   let prefix = '';
 
@@ -24,7 +24,7 @@ export function serializePathParameter(
 export function serializeHeaderParameter(
   name: string,
   content: unknown,
-  serializationStyle: SerializationStyle
+  serializationStyle: SerializationStyle,
 ): string {
   const postfix = serializationStyle.explode ? '*' : '';
 
@@ -35,7 +35,7 @@ export function serializeHeaderParameter(
 
 export function serializeCookieParameter(
   name: string,
-  content: unknown
+  content: unknown,
 ): string {
   return parseTemplate(`{${name}}`).expand({
     [name]: content as PrimitiveValue,
@@ -45,7 +45,7 @@ export function serializeCookieParameter(
 export function serializeQueryParameter(
   name: string,
   content: unknown,
-  serializationStyle: SerializationStyle
+  serializationStyle: SerializationStyle,
 ): string {
   // See matrix https://swagger.io/docs/specification/v3_0/serialization/#query-parameters
   const queryParameterTemplates: Record<
@@ -74,7 +74,7 @@ export function serializeQueryParameter(
 
   if (typeof template === 'undefined') {
     throw new Error(
-      `Serialization with style "${style}" and explode "${explode}" is currently not supported.`
+      `Serialization with style "${style}" and explode "${explode}" is currently not supported.`,
     );
   }
 

@@ -33,33 +33,33 @@ export function checkHeaders(
   partialResponseHeaders: string[],
   partialRequestId: string,
   partialResponseId: string,
-  format: ThymianFormat
+  format: ThymianFormat,
 ): RuleViolation | undefined {
   const requiredFields = requiredHeaders.filter((header) =>
-    equalsIgnoreCase(header, ...okResponseHeaders)
+    equalsIgnoreCase(header, ...okResponseHeaders),
   );
 
   const additionalRepresentationHeaders = partialResponseHeaders.filter(
     (header) =>
       !equalsIgnoreCase(header, ...requiredFields) &&
-      equalsIgnoreCase(header, ...representationHeaderFields)
+      equalsIgnoreCase(header, ...representationHeaderFields),
   );
 
   // The sender generated additional representation header
   if (additionalRepresentationHeaders.length > 0) {
     const representationHeaderFromOkResponse =
       representationHeaderFields.filter((header) =>
-        equalsIgnoreCase(header, ...okResponseHeaders)
+        equalsIgnoreCase(header, ...okResponseHeaders),
       );
 
     const representationHeaderFromPartialResponse =
       representationHeaderFields.filter((header) =>
-        equalsIgnoreCase(header, ...partialResponseHeaders)
+        equalsIgnoreCase(header, ...partialResponseHeaders),
       );
 
     const difference = arrayDifference(
       representationHeaderFromOkResponse,
-      representationHeaderFromPartialResponse
+      representationHeaderFromPartialResponse,
     );
     // but if the 206 response contains ALL representation header fields that are also contained in the 200 OK response, it is specification conform
     if (difference.length === 0) {
@@ -69,7 +69,7 @@ export function checkHeaders(
     const transactionEdge = format.graph.findEdge(
       partialRequestId,
       partialResponseId,
-      (_, attributes) => attributes.type === 'http-transaction'
+      (_, attributes) => attributes.type === 'http-transaction',
     );
 
     if (!transactionEdge) {
@@ -78,9 +78,9 @@ export function checkHeaders(
 
     return {
       message: `206 Partial Content response SHOULD NOT contain additional headers ${createList(
-        additionalRepresentationHeaders
+        additionalRepresentationHeaders,
       )} OR the 206 response MUST contain all representation headers, the 200 OK response also contains. Therefore the partial response is missing header(s): ${createList(
-        difference
+        difference,
       )}.`,
       location: {
         elementType: 'edge' as const,
@@ -93,17 +93,17 @@ export function checkHeaders(
 }
 
 export default httpRule(
-  'rfc9110/sender-should-not-generate-additional-representation-header-fields-for-206-response'
+  'rfc9110/sender-should-not-generate-additional-representation-header-fields-for-206-response',
 )
   // This rule covers 2 keywords from the specification. We therefore select the more strict keyword as the severity.
   .severity('error')
   .type('static', 'test', 'analytics')
   .url('https://www.rfc-editor.org/rfc/rfc9110.html#name-206-partial-content')
   .description(
-    'A sender that generates a 206 response to a request with an If-Range header field SHOULD NOT generate other representation header fields beyond those required because the client already has a prior response containing those header fields. Otherwise, a sender MUST generate all of the representation header fields that would have been sent in a 200 (OK) response to the same request.'
+    'A sender that generates a 206 response to a request with an If-Range header field SHOULD NOT generate other representation header fields beyond those required because the client already has a prior response containing those header fields. Otherwise, a sender MUST generate all of the representation header fields that would have been sent in a 200 (OK) response to the same request.',
   )
   .summary(
-    'A sender SHOULD NOT sent additional representation header fields or MUST generate all representation headers for a 206 Partial Content response.'
+    'A sender SHOULD NOT sent additional representation header fields or MUST generate all representation headers for a 206 Partial Content response.',
   )
   .rule((ctx) =>
     ctx.validateGroupedCommonHttpTransactions(
@@ -117,7 +117,7 @@ export default httpRule(
       and(method(), origin(), path()),
       (_, transactions) => {
         const okResponse = transactions.find(
-          ([, res]) => res.statusCode === 200
+          ([, res]) => res.statusCode === 200,
         )?.[1];
         const [partialRequest, partialResponse] =
           transactions.find(([, res]) => res.statusCode === 206) ?? [];
@@ -128,13 +128,13 @@ export default httpRule(
             partialResponse.headers,
             partialRequest.id,
             partialResponse.id,
-            ctx.format
+            ctx.format,
           );
         }
 
         return;
-      }
-    )
+      },
+    ),
   )
   // TODO: let's think about later, if we should include this test
   .overrideTest((testContext) =>
@@ -144,21 +144,21 @@ export default httpRule(
           and(
             requestHeader('if-range'),
             responseWith(statusCode(200)),
-            responseWith(statusCode(206))
-          )
+            responseWith(statusCode(206)),
+          ),
         )
         .run()
         .replayStep((step) =>
           step
             .set(requestHeader('if-range'), responseHeader('etag'))
             .run()
-            .done()
+            .done(),
         )
         .replayStep((step) =>
           step
             .set(requestHeader('if-range'), constant('"qupaya"'))
             .run({ expectStatusCode: 200 })
-            .done()
+            .done(),
         )
         .transactions((transactions) => {
           const [, partialTransactions, okTransaction] = transactions;
@@ -168,14 +168,14 @@ export default httpRule(
             Object.keys(partialTransactions.response.headers),
             partialTransactions.source.thymianReqId,
             partialTransactions.source.thymianResId,
-            testContext.format
+            testContext.format,
           );
 
           if (violation) {
             testContext.reportViolation(violation);
           }
         })
-        .done()
-    )
+        .done(),
+    ),
   )
   .done();

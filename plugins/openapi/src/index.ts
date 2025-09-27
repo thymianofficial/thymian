@@ -38,7 +38,7 @@ declare module '@thymian/core' {
   interface ThymianFormat {
     getNodeByExtension(
       extensionName: 'openapi',
-      values: { operationId: string }
+      values: { operationId: string },
     ): ThymianNode | undefined;
   }
 

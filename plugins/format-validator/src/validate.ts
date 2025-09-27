@@ -14,14 +14,14 @@ import {
 export async function validate(
   context: HttpTestContext,
   logger: Logger,
-  report: (report: ThymianReport) => void
+  report: (report: ThymianReport) => void,
 ): Promise<boolean> {
   const test = httpTest(
     'Transactions with 2xx status code',
     singleTestCase()
       .forTransactionsWith(successfulStatusCode())
       .run({ checkResponse: true })
-      .done()
+      .done(),
   );
 
   const results = await test(context);
@@ -31,7 +31,7 @@ export async function validate(
   for (const testCase of results.cases) {
     if (testCase.status === 'skipped') {
       logger.debug(
-        `HTTP test case "${testCase.name}" from test "@thymian/format-validator" is skipped.`
+        `HTTP test case "${testCase.name}" from test "@thymian/format-validator" is skipped.`,
       );
 
       report({
@@ -40,7 +40,7 @@ export async function validate(
           testCase.reason ??
           testCase.results
             .filter(
-              (tc) => tc.type !== 'info' && tc.type !== 'assertion-success'
+              (tc) => tc.type !== 'info' && tc.type !== 'assertion-success',
             )
             .map((tc) => tc.message)
             .join('\n'),
@@ -71,7 +71,7 @@ export async function validate(
 
     const title = thymianHttpTransactionToString(
       source.thymianReq,
-      source.thymianRes
+      source.thymianRes,
     );
 
     const subTopic = '2xx responses';

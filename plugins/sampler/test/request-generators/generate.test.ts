@@ -123,7 +123,7 @@ describe('generate', () => {
 
     const g = new ContentGenerator(
       [new XmlContentTypeStrategy()],
-      new ImageContentTypeStrategy()
+      new ImageContentTypeStrategy(),
     );
 
     const writer = new FileOutputWriter(join(import.meta.dirname, 'tmp'), true);

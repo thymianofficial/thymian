@@ -16,7 +16,7 @@ export class XmlContentTypeStrategy implements ContentTypeStrategy {
       encoding: 'utf-8',
       ext: 'xml',
       buffer: Buffer.from(
-        sample(schema as SamplerSchema, { format: 'xml' }) as string
+        sample(schema as SamplerSchema, { format: 'xml' }) as string,
       ),
     };
   }

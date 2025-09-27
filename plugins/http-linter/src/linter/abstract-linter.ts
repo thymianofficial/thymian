@@ -39,10 +39,10 @@ export abstract class AbstractLinter {
     protected readonly ruleOptions: Record<
       string,
       Record<string, unknown> | undefined
-    >
+    >,
   ) {
     this.rules = rules.filter(
-      (r) => !(r.meta.type.length === 1 && r.meta.type[0] === 'informational')
+      (r) => !(r.meta.type.length === 1 && r.meta.type[0] === 'informational'),
     );
   }
 
@@ -53,7 +53,7 @@ export abstract class AbstractLinter {
           try {
             return await this.runRule(
               rule,
-              this.ruleOptions[rule.meta.name] ?? {}
+              this.ruleOptions[rule.meta.name] ?? {},
             );
           } catch (e) {
             if (e instanceof ThymianBaseError) {
@@ -64,24 +64,24 @@ export abstract class AbstractLinter {
                 {
                   name: `${this.constructor.name}Error`,
                   cause: e,
-                }
+                },
               );
             }
           }
-        })
+        }),
       )
     ).every(Boolean);
   }
 
   protected abstract runRule<Options extends Record<string, unknown>>(
     rule: Rule,
-    options: Options
+    options: Options,
   ): Promise<boolean>;
 
   protected reportRuleViolations(
     result: RuleViolation | RuleViolation[],
     ruleMeta: RuleMeta<Record<PropertyKey, unknown>>,
-    subTopic: string
+    subTopic: string,
   ) {
     const violations = Array.isArray(result) ? result : [result];
 
@@ -98,7 +98,7 @@ export abstract class AbstractLinter {
 
         if (!node) {
           throw new ThymianBaseError(
-            `Invalid rule violation location for rule ${ruleMeta.name}.`
+            `Invalid rule violation location for rule ${ruleMeta.name}.`,
           );
         }
 
@@ -109,17 +109,17 @@ export abstract class AbstractLinter {
         }
       } else {
         const [source, target] = this.format.graph.extremities(
-          location.elementId
+          location.elementId,
         );
         const transaction = this.format.getEdge<HttpTransaction>(
-          location.elementId
+          location.elementId,
         );
         const req = this.format.getNode<ThymianHttpRequest>(source);
         const res = this.format.getNode<ThymianHttpResponse>(target);
 
         if (!req || !res || !transaction) {
           throw new ThymianBaseError(
-            `Invalid rule violation location for rule ${ruleMeta.name}.`
+            `Invalid rule violation location for rule ${ruleMeta.name}.`,
           );
         }
 
@@ -158,7 +158,7 @@ export abstract class AbstractLinter {
 
 export function hasProperty<T extends object, K extends PropertyKey>(
   obj: T,
-  property: K
+  property: K,
 ): obj is T & Record<K, Record<PropertyKey, unknown>> {
   return property in obj;
 }

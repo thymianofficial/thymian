@@ -107,7 +107,7 @@ export const samplePlugin: ThymianPlugin<Partial<SamplerPluginOptions>> = {
           new XmlContentTypeStrategy(),
           new ImageContentTypeStrategy(),
         ],
-        new HookContentTypeStrategy(emitter)
+        new HookContentTypeStrategy(emitter),
       );
 
       const outputWriter = new FileOutputWriter(basePath, opts.forceOverride);
@@ -118,7 +118,7 @@ export const samplePlugin: ThymianPlugin<Partial<SamplerPluginOptions>> = {
           parsedFormat,
           transaction,
           contentGenerator,
-          outputWriter
+          outputWriter,
         );
       }
 

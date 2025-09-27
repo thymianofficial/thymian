@@ -12,11 +12,11 @@ import {
 } from '../http-test/index.js';
 
 export type HttpTestCaseTransactionValidationFn = (
-  transaction: HttpTestCaseStepTransaction
+  transaction: HttpTestCaseStepTransaction,
 ) => void;
 
 export function expectForTransactions<Steps extends HttpTestCaseStep[]>(
-  fn: HttpTestCaseTransactionValidationFn
+  fn: HttpTestCaseTransactionValidationFn,
 ): MonoTypeOperatorFunction<PipelineItem<HttpTestCase<Steps>>> {
   return map(({ current, ctx }) => {
     if (isSkippedTestCase(current) || isFailedTestCase(current)) {
@@ -27,7 +27,7 @@ export function expectForTransactions<Steps extends HttpTestCaseStep[]>(
 
     if (!step) {
       ctx.logger.warn(
-        `Calling "expectForTransaction" for test case "${current.name}" that includes no test case steps.`
+        `Calling "expectForTransaction" for test case "${current.name}" that includes no test case steps.`,
       );
 
       return { current, ctx };

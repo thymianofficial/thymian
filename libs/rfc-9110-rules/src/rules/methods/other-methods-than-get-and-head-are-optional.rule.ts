@@ -10,7 +10,7 @@ export default httpRule('rfc9110/other-methods-than-get-and-head-are-optional')
   .rule((ctx) =>
     ctx.validateCommonHttpTransactions(
       not(or(method('GET'), method('HEAD'))),
-      statusCode(501)
-    )
+      statusCode(501),
+    ),
   )
   .done();

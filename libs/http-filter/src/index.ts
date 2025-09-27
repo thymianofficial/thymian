@@ -5,8 +5,8 @@ type OmitIndexSignature<T> = {
   [K in keyof T as string extends K
     ? never
     : number extends K
-    ? never
-    : K]: T[K];
+      ? never
+      : K]: T[K];
 };
 
 // from https://github.com/fastify/fastify/blob/c277b9f0ec27356de6551d7777117bd739057e99/types/utils.d.ts#L98
@@ -101,7 +101,7 @@ export const path = (path?: string): RequestFilterExpression => ({
 
 export const responseHeader = (
   header?: HttpHeader,
-  value?: unknown
+  value?: unknown,
 ): ResponseFilterExpression => ({
   type: 'responseHeader',
   kind: 'response',
@@ -111,7 +111,7 @@ export const responseHeader = (
 
 export const responseTrailer = (
   trailer?: string,
-  value?: unknown
+  value?: unknown,
 ): ResponseFilterExpression => ({
   type: 'responseTrailer',
   kind: 'response',
@@ -121,7 +121,7 @@ export const responseTrailer = (
 
 export const requestHeader = (
   header: HttpHeader,
-  value?: unknown
+  value?: unknown,
 ): RequestFilterExpression => ({
   type: 'requestHeader',
   kind: 'request',
@@ -137,7 +137,7 @@ export const statusCode = (code?: number): ResponseFilterExpression => ({
 
 export const statusCodeRange = (
   start: number,
-  end: number
+  end: number,
 ): ResponseFilterExpression => ({
   kind: 'response',
   type: 'statusCodeRange',
@@ -179,7 +179,7 @@ export const xor = (
 });
 
 export const authorization = (
-  isAuthorized = true
+  isAuthorized = true,
 ): RequestFilterExpression => ({
   type: 'isAuthorized',
   kind: 'request',
@@ -187,7 +187,7 @@ export const authorization = (
 });
 
 export const responseWith = (
-  filter: HttpFilterExpression
+  filter: HttpFilterExpression,
 ): RequestFilterExpression => ({
   type: 'hasResponse',
   kind: 'request',
@@ -219,7 +219,7 @@ export const port = (port?: number): RequestFilterExpression => ({
 });
 
 export const requestMediaType = (
-  mediaType: string
+  mediaType: string,
 ): RequestFilterExpression => ({
   type: 'requestMediaType',
   kind: 'request',
@@ -227,7 +227,7 @@ export const requestMediaType = (
 });
 
 export const responseMediaType = (
-  mediaType: string
+  mediaType: string,
 ): ResponseFilterExpression => ({
   type: 'responseMediaType',
   kind: 'response',
@@ -236,7 +236,7 @@ export const responseMediaType = (
 
 export const queryParameter = (
   name?: string,
-  value?: unknown
+  value?: unknown,
 ): RequestFilterExpression => ({
   type: 'queryParam',
   kind: 'request',

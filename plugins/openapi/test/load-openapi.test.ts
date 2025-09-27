@@ -14,7 +14,7 @@ describe('loadOpenapi', () => {
           fetchExternalRefs: false,
           filePath: join(
             import.meta.dirname,
-            'fixtures/circular-reference.yml'
+            'fixtures/circular-reference.yml',
           ),
           serverInfo: {
             port: 8080,
@@ -22,7 +22,7 @@ describe('loadOpenapi', () => {
             basePath: '',
             protocol: 'http',
           },
-        })
+        }),
     ).not.toThrowError();
   });
 });

@@ -22,12 +22,12 @@ export function replayStepButExpectResponse<Steps extends HttpTestCaseStep[]>(
       PipelineItem<
         HttpTestCase<[...Steps, SingleHttpTestCaseStep, SingleHttpTestCaseStep]>
       >
-    >
+    >,
   ) => Observable<
     PipelineItem<
       HttpTestCase<[...Steps, SingleHttpTestCaseStep, SingleHttpTestCaseStep]>
     >
-  >
+  >,
 ): OperatorFunction<
   PipelineItem<HttpTestCase<[...Steps, SingleHttpTestCaseStep]>>,
   PipelineItem<
@@ -83,8 +83,8 @@ export function replayStepButExpectResponse<Steps extends HttpTestCaseStep[]>(
           // eslint-disable-next-line @typescript-eslint/ban-ts-comment
           // @ts-expect-error
           current,
-          `A single transaction must be referenced but ${transactions.length} were referenced.`
-        )
+          `A single transaction must be referenced but ${transactions.length} were referenced.`,
+        ),
       );
     }
 
@@ -97,7 +97,7 @@ export function replayStepButExpectResponse<Steps extends HttpTestCaseStep[]>(
           ({
             requestTemplate: transaction.requestTemplate,
             source: transactions[0],
-          } as HttpTestCaseStepTransaction)
+          }) as HttpTestCaseStepTransaction,
       ),
     };
 
@@ -109,7 +109,7 @@ export function replayStepButExpectResponse<Steps extends HttpTestCaseStep[]>(
         current: current as HttpTestCase<
           [...Steps, SingleHttpTestCaseStep, SingleHttpTestCaseStep]
         >,
-      })
+      }),
     );
   });
 }

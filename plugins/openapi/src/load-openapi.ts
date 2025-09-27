@@ -22,7 +22,7 @@ export type ParseOpenApiOptions = {
 // There are a lot of problems with the @scalar/openapi-parser package. We should investigate further
 export async function loadOpenapi(
   logger: Logger,
-  options: ParseOpenApiOptions
+  options: ParseOpenApiOptions,
 ): Promise<[ThymianFormat, OpenAPI.Document]> {
   const plugins = [];
 
@@ -49,7 +49,7 @@ export async function loadOpenapi(
         suggestions: [
           `Does the file ${join(process.cwd(), options.filePath)} exist?`,
         ],
-      }
+      },
     );
   }
   try {
@@ -60,7 +60,7 @@ export async function loadOpenapi(
       `Invalid OpenAPI document from path "${options.filePath}".`,
       {
         cause,
-      }
+      },
     );
   }
 
@@ -71,7 +71,7 @@ export async function loadOpenapi(
       `Cannot upgrade OpenAPI document from path "${options.filePath}".`,
       {
         cause,
-      }
+      },
     );
   }
 
@@ -83,7 +83,7 @@ export async function loadOpenapi(
       {
         cause,
         suggestions: [`Are all external references valid AND available?`],
-      }
+      },
     );
   }
 
@@ -98,7 +98,7 @@ export async function loadOpenapi(
           suggestions: [
             "This might be because some parts of the Swagger/OpenAPI document couldn't be migrated automatically. It's best to migrate to the next version manually.",
           ],
-        }
+        },
       );
     }
   }
@@ -107,7 +107,7 @@ export async function loadOpenapi(
 
   return [
     new OpenapiProcessor(logger, options.serverInfo, locMapper).process(
-      current
+      current,
     ),
     // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
     document!,

@@ -17,7 +17,10 @@ import {
 export class HttpTransactionRepository {
   readonly db: Database;
 
-  constructor(location: string, private readonly logger: Logger) {
+  constructor(
+    location: string,
+    private readonly logger: Logger,
+  ) {
     this.db = new SqliteDb(location);
     this.db.pragma('journal_mode = WAL');
   }
@@ -55,7 +58,7 @@ export class HttpTransactionRepository {
       this.insertQueryParameters(
         url.searchParams,
         insertRequestQueryParameter,
-        reqId
+        reqId,
       );
 
       return inserted.lastInsertRowid.toString();
@@ -63,7 +66,7 @@ export class HttpTransactionRepository {
   }
 
   readTransactionById(
-    transactionId: number | string
+    transactionId: number | string,
   ): [HttpRequest, HttpResponse] {
     const transactionStatement = this.db.prepare<unknown[], any>(`
         SELECT 
@@ -141,7 +144,7 @@ export class HttpTransactionRepository {
   private insertQueryParameters(
     queryParameters: URLSearchParams,
     statement: string,
-    id: number | bigint
+    id: number | bigint,
   ): void {
     if (!queryParameters) {
       return;
@@ -161,7 +164,7 @@ export class HttpTransactionRepository {
   private insertHeaders(
     headers: Record<string, string | string[] | undefined> | undefined,
     statement: string,
-    id: number | bigint
+    id: number | bigint,
   ): void {
     if (!headers) {
       return;
@@ -190,7 +193,7 @@ export class HttpTransactionRepository {
 
   private insertTrailers(
     trailers: Record<string, string> | undefined,
-    responseId: number | bigint
+    responseId: number | bigint,
   ): void {
     if (!trailers) return;
 

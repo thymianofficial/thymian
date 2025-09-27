@@ -12,7 +12,7 @@ import type { HttpTestContextLocals } from '../http-test/http-test-context.js';
 import type { PipelineItem } from '../http-test/http-test-pipeline.js';
 
 export function mapToTestCase<
-  Locals extends HttpTestContextLocals
+  Locals extends HttpTestContextLocals,
 >(): OperatorFunction<
   PipelineItem<ThymianHttpTransaction, Locals>,
   PipelineItem<HttpTestCase<[SingleHttpTestCaseStep]>, Locals>
@@ -22,7 +22,7 @@ export function mapToTestCase<
     current: {
       name: thymianHttpTransactionToString(
         current.thymianReq,
-        current.thymianRes
+        current.thymianRes,
       ),
       status: 'running',
       start: performance.now(),

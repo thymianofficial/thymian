@@ -7,7 +7,7 @@ import { validateStatusCode } from './validate-status-code.js';
 
 export function validateResponse(
   response: ThymianHttpResponse,
-  actualResponse: HttpResponse
+  actualResponse: HttpResponse,
 ): { valid: boolean; results: HttpTestCaseResult[] } {
   const results = [
     validateStatusCode(response.statusCode, actualResponse.statusCode),

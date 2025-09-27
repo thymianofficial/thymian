@@ -6,7 +6,7 @@ import { ajv } from './ajv.js';
 
 export function validateJsonBody(
   body: string,
-  response: ThymianHttpResponse
+  response: ThymianHttpResponse,
 ): HttpTestCaseResult[] {
   try {
     const json = parse(body);
@@ -57,7 +57,7 @@ export function validateJsonBody(
 
 export function validateBodyForResponse(
   body: string | undefined,
-  response: ThymianHttpResponse
+  response: ThymianHttpResponse,
 ): HttpTestCaseResult[] {
   if (typeof body === 'undefined') {
     return [];

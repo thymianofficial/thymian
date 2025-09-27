@@ -8,7 +8,7 @@ import type {
 import type { OpenAPIV3_1 as OpenApiV31 } from 'openapi-types';
 
 export function processSecuritySchemes(
-  schemes: Record<string, OpenApiV31.SecuritySchemeObject>
+  schemes: Record<string, OpenApiV31.SecuritySchemeObject>,
 ): PartialBy<SecurityScheme, 'label'>[] {
   return Object.entries(schemes)
     .filter(([, scheme]) => scheme.type === 'http' || scheme.type === 'apiKey')
@@ -51,7 +51,7 @@ export function processSecuritySchemes(
         }
       } else {
         throw new Error(
-          'Property "scheme" is required for security scheme type "http".'
+          'Property "scheme" is required for security scheme type "http".',
         );
       }
     });

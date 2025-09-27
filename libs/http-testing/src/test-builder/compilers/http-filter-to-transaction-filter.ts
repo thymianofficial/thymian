@@ -15,18 +15,18 @@ export type TransactionFilterFn = (
   reqId: string,
   res: ThymianHttpResponse,
   resId: string,
-  responses: [string, ThymianHttpResponse][]
+  responses: [string, ThymianHttpResponse][],
 ) => boolean;
 
 export function httpFilterToTransactionFilter(
   filterExpression: HttpFilterExpression,
-  format: ThymianFormat
+  format: ThymianFormat,
 ): TransactionFilterFn {
   switch (filterExpression.kind) {
     case 'request':
       return requestScopedHttpFilterToTransactionFilter(
         filterExpression,
-        format
+        format,
       );
     case 'response':
       return responseScopeHttpFilterToTransactionFilter(filterExpression);
@@ -37,7 +37,7 @@ export function httpFilterToTransactionFilter(
           reqId: string,
           res: ThymianHttpResponse,
           resId: string,
-          responses: [string, ThymianHttpResponse][]
+          responses: [string, ThymianHttpResponse][],
         ) =>
           filterExpression.filters.every((expr) =>
             httpFilterToTransactionFilter(expr, format)(
@@ -45,8 +45,8 @@ export function httpFilterToTransactionFilter(
               reqId,
               res,
               resId,
-              responses
-            )
+              responses,
+            ),
           );
       } else if (filterExpression.type === 'or') {
         return (
@@ -54,7 +54,7 @@ export function httpFilterToTransactionFilter(
           reqId: string,
           res: ThymianHttpResponse,
           resId: string,
-          responses: [string, ThymianHttpResponse][]
+          responses: [string, ThymianHttpResponse][],
         ) =>
           filterExpression.filters.some((expr) =>
             httpFilterToTransactionFilter(expr, format)(
@@ -62,8 +62,8 @@ export function httpFilterToTransactionFilter(
               reqId,
               res,
               resId,
-              responses
-            )
+              responses,
+            ),
           );
       } else if (filterExpression.type === 'xor') {
         return (
@@ -71,7 +71,7 @@ export function httpFilterToTransactionFilter(
           reqId: string,
           res: ThymianHttpResponse,
           resId: string,
-          responses: [string, ThymianHttpResponse][]
+          responses: [string, ThymianHttpResponse][],
         ) =>
           filterExpression.filters
             .map((expr) =>
@@ -80,8 +80,8 @@ export function httpFilterToTransactionFilter(
                 reqId,
                 res,
                 resId,
-                responses
-              )
+                responses,
+              ),
             )
             .reduce((acc, curr) => acc !== curr);
       } else if (filterExpression.type === 'not') {
@@ -90,14 +90,14 @@ export function httpFilterToTransactionFilter(
           reqId: string,
           res: ThymianHttpResponse,
           resId: string,
-          responses: [string, ThymianHttpResponse][]
+          responses: [string, ThymianHttpResponse][],
         ) =>
           !httpFilterToTransactionFilter(filterExpression.filter, format)(
             req,
             reqId,
             res,
             resId,
-            responses
+            responses,
           );
       } else {
         return () => Boolean(filterExpression.value);
@@ -107,14 +107,14 @@ export function httpFilterToTransactionFilter(
 }
 
 export function responseScopeHttpFilterToTransactionFilter(
-  expression: ResponseFilterExpression
+  expression: ResponseFilterExpression,
 ): TransactionFilterFn {
   switch (expression.type) {
     case 'responseMediaType':
       return (
         req: ThymianHttpRequest,
         reqId: string,
-        res: ThymianHttpResponse
+        res: ThymianHttpResponse,
       ) => res.mediaType === expression.mediaType;
     case 'responseTrailer':
       // TODO
@@ -123,13 +123,13 @@ export function responseScopeHttpFilterToTransactionFilter(
       return (
         req: ThymianHttpRequest,
         reqId: string,
-        res: ThymianHttpResponse
+        res: ThymianHttpResponse,
       ) => res.statusCode === expression.code;
     case 'hasResponseBody':
       return (
         req: ThymianHttpRequest,
         reqId: string,
-        res: ThymianHttpResponse
+        res: ThymianHttpResponse,
       ) => !!res.schema;
     case 'responseHeader': {
       if (typeof expression.header === 'undefined') return () => false;
@@ -137,7 +137,7 @@ export function responseScopeHttpFilterToTransactionFilter(
       return (
         req: ThymianHttpRequest,
         reqId: string,
-        res: ThymianHttpResponse
+        res: ThymianHttpResponse,
         // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
       ) => equalsIgnoreCase(expression.header!, ...Object.keys(res.headers));
     }
@@ -145,7 +145,7 @@ export function responseScopeHttpFilterToTransactionFilter(
       return (
         req: ThymianHttpRequest,
         reqId: string,
-        res: ThymianHttpResponse
+        res: ThymianHttpResponse,
       ) =>
         Number.isInteger(res.statusCode) &&
         res.statusCode >= expression.start &&
@@ -155,7 +155,7 @@ export function responseScopeHttpFilterToTransactionFilter(
 
 export function requestScopedHttpFilterToTransactionFilter(
   filterExpression: RequestFilterExpression,
-  format: ThymianFormat
+  format: ThymianFormat,
 ): TransactionFilterFn {
   switch (filterExpression.type) {
     case 'origin':
@@ -194,7 +194,7 @@ export function requestScopedHttpFilterToTransactionFilter(
         equalsIgnoreCase(
           // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
           filterExpression.param!,
-          ...Object.keys(req.queryParameters)
+          ...Object.keys(req.queryParameters),
         );
     }
     case 'path':
@@ -205,15 +205,15 @@ export function requestScopedHttpFilterToTransactionFilter(
         reqId: string,
         res: ThymianHttpResponse,
         resId: string,
-        responses: [string, ThymianHttpResponse][]
+        responses: [string, ThymianHttpResponse][],
       ) => {
         const fn = httpFilterToTransactionFilter(
           filterExpression.filter,
-          format
+          format,
         );
 
         return responses.some(([resId, res]) =>
-          fn(req, reqId, res, resId, responses)
+          fn(req, reqId, res, resId, responses),
         );
       };
     case 'isAuthorized':
@@ -221,7 +221,7 @@ export function requestScopedHttpFilterToTransactionFilter(
         format.requestIsSecured(reqId) === filterExpression.isAuthorized;
     default:
       throw new Error(
-        `Invalid expression: ${JSON.stringify(filterExpression, null, 2)}.`
+        `Invalid expression: ${JSON.stringify(filterExpression, null, 2)}.`,
       );
   }
 }

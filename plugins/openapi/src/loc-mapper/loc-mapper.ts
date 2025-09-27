@@ -7,11 +7,11 @@ export type SourcePosition = {
 export abstract class LocMapper {
   protected constructor(
     protected readonly text: string,
-    protected readonly path: string
+    protected readonly path: string,
   ) {}
 
   abstract positionForOperationId(
-    operationId: string
+    operationId: string,
   ): SourcePosition | undefined;
 
   locationForOperationId(operationId: string): string | undefined {

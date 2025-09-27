@@ -11,7 +11,7 @@ export const optionFlag = Flags.custom<string>({
   parse: async (input: string) => {
     if (!optionRegexp.test(input)) {
       throw new Errors.CLIError(
-        `Invalid option format: ${input}. Use format <pluginName>.<property>=<value>.`
+        `Invalid option format: ${input}. Use format <pluginName>.<property>=<value>.`,
       );
     }
 

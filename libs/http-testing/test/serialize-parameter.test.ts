@@ -8,7 +8,7 @@ describe('serializePathParameter', () => {
     const serialized = serializePathParameter(
       'id',
       [2, 3, 5, 7],
-      new SerializationStyleBuilder('simple', false).build()
+      new SerializationStyleBuilder('simple', false).build(),
     );
 
     expect(serialized).toStrictEqual('2,3,5,7');
