@@ -36,7 +36,6 @@
     "@types/node": "^22.15.1",
     "@vitest/coverage-v8": "^3.0.9",
     "@vitest/ui": "^3.0.9",
-    "cli": "^1.0.1",
     "eslint": "^9.23.0",
     "eslint-config-prettier": "10.1.8",
     "eslint-plugin-import": "^2.31.0",
