@@ -35,10 +35,10 @@ describe('server-must-not-generate-content-for-205-response', () => {
           'server-must-not-generate-content-for-205-response',
           context,
           // eslint-disable-next-line @typescript-eslint/no-empty-function
-          () => {}
+          () => {},
         ),
         { mode: 'test' },
-        new NoopLogger()
+        new NoopLogger(),
       );
     });
   });

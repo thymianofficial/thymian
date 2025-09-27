@@ -4,7 +4,7 @@ import type { RequestFilterExpression } from '@thymian/http-filter';
 export function overrideTemplate(
   template: HttpRequestTemplate,
   toRequest: RequestFilterExpression,
-  value: unknown
+  value: unknown,
 ): HttpRequestTemplate {
   switch (toRequest.type) {
     case 'method':

@@ -5,7 +5,7 @@ export const successfulStatusCodes = [
 export type SuccessfulStatusCode = (typeof successfulStatusCodes)[number];
 
 export function isValidSuccessfulStatusCode(
-  code: number
+  code: number,
 ): code is SuccessfulStatusCode {
   return successfulStatusCodes.includes(code as SuccessfulStatusCode);
 }

@@ -72,13 +72,13 @@ export function report(thymianReports: ThymianReport[]): void {
     console.log(
       Array.from({ length: topic.length })
         .map(() => '-')
-        .join('')
+        .join(''),
     );
     console.log(chalk.bold(topic));
     console.log(
       Array.from({ length: topic.length })
         .map(() => '-')
-        .join('')
+        .join(''),
     );
     console.log();
     console.group();
@@ -131,7 +131,7 @@ export function report(thymianReports: ThymianReport[]): void {
       Topic: 'Total Number',
       '# of Problems': numberOfProblems,
     },
-    { color: 'red' }
+    { color: 'red' },
   );
   // Table or single line output?
   table.printTable();

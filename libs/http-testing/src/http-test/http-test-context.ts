@@ -19,7 +19,7 @@ export type GenerateRequestsOptions = {
 export type HttpTestContextLocals = Record<PropertyKey, unknown>;
 
 export interface HttpTestContext<
-  Locals extends HttpTestContextLocals = HttpTestContextLocals
+  Locals extends HttpTestContextLocals = HttpTestContextLocals,
 > {
   format: ThymianFormat;
 
@@ -28,23 +28,23 @@ export interface HttpTestContext<
   locals: Locals;
 
   sampleRequest(
-    transaction: ThymianHttpTransaction
+    transaction: ThymianHttpTransaction,
   ): Promise<HttpRequestTemplate>;
 
   runRequest(req: HttpRequest): Promise<HttpResponse>;
 
   runHook<Hook extends keyof HttpTestHooks>(
     name: Hook,
-    payload: HttpTestHooks[Hook]['arg']
+    payload: HttpTestHooks[Hook]['arg'],
   ): Promise<HttpTestHooks[Hook]['return']>;
 
   skip<Steps extends HttpTestCaseStep[]>(
     testCase: HttpTestCase<Steps>,
-    reason?: string
+    reason?: string,
   ): PipelineItem<HttpTestCase<Steps>, Locals>;
 
   fail<Steps extends HttpTestCaseStep[]>(
     testCase: HttpTestCase<Steps>,
-    reason?: string
+    reason?: string,
   ): PipelineItem<HttpTestCase<Steps>, Locals>;
 }

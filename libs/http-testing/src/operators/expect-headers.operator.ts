@@ -14,8 +14,8 @@ import {
 export function expectHeaders<Steps extends HttpTestCaseStep[]>(
   fn: (
     headers: Record<string, string | string[] | undefined>,
-    transaction: HttpTestCaseStepTransaction
-  ) => void
+    transaction: HttpTestCaseStepTransaction,
+  ) => void,
 ): MonoTypeOperatorFunction<PipelineItem<HttpTestCase<Steps>>> {
   return map(({ current, ctx }) => {
     if (isSkippedTestCase(current) || isFailedTestCase(current)) {

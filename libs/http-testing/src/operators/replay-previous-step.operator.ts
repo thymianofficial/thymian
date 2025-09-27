@@ -9,15 +9,15 @@ import { isFailedTestCase, isSkippedTestCase } from '../http-test/index.js';
 
 export function replayStep<
   Steps extends HttpTestCaseStep[],
-  CurrentStep extends HttpTestCaseStep
+  CurrentStep extends HttpTestCaseStep,
 >(
   fn: (
     step: Observable<
       PipelineItem<HttpTestCase<[...Steps, CurrentStep, CurrentStep]>>
-    >
+    >,
   ) => Observable<
     PipelineItem<HttpTestCase<[...Steps, CurrentStep, CurrentStep]>>
-  >
+  >,
 ): OperatorFunction<
   PipelineItem<HttpTestCase<[...Steps, CurrentStep]>>,
   PipelineItem<HttpTestCase<[...Steps, CurrentStep, CurrentStep]>>
@@ -50,7 +50,7 @@ export function replayStep<
       of({
         ctx,
         current: current as HttpTestCase<[...Steps, CurrentStep, CurrentStep]>,
-      })
+      }),
     );
   });
 }

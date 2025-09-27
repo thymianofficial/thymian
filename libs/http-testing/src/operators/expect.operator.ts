@@ -11,7 +11,7 @@ import {
 } from '../http-test/index.js';
 
 export function expect<Steps extends HttpTestCaseStep[]>(
-  fn: (testInstance: PipelineItem<HttpTestCase<Steps>>) => void
+  fn: (testInstance: PipelineItem<HttpTestCase<Steps>>) => void,
 ): MonoTypeOperatorFunction<PipelineItem<HttpTestCase<Steps>>> {
   return map((item) => {
     if (isSkippedTestCase(item.current) || isFailedTestCase(item.current)) {

@@ -13,19 +13,19 @@ export function createContext(
   format: ThymianFormat,
   logger: Logger,
   emitter: ThymianEmitter,
-  origin?: string
+  origin?: string,
 ) {
   return createHttpTestContext({
     format,
     logger,
     locals: {},
     sampleRequest: function (
-      transaction: ThymianHttpTransaction
+      transaction: ThymianHttpTransaction,
     ): Promise<HttpRequestTemplate> {
       return emitter.emitAction(
         'sampler.sample-request',
         { transaction },
-        { strategy: 'first' }
+        { strategy: 'first' },
       );
     },
     runRequest: async function (req: HttpRequest): Promise<HttpResponse> {
@@ -40,7 +40,7 @@ export function createContext(
         },
         {
           strategy: 'first',
-        }
+        },
       );
     },
     runHook: createHookRunner(emitter),

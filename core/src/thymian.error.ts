@@ -39,7 +39,7 @@ export class ThymianBaseError extends Error implements ThymianError {
     message: string,
     options: Partial<ThymianErrorOptions> & { cause?: unknown } & {
       severity?: ThymianErrorSeverity;
-    } = {}
+    } = {},
   ) {
     super(message);
     if (options.cause) {

@@ -9,7 +9,7 @@ export async function generate(
   format: ThymianFormat,
   transaction: ThymianHttpTransaction,
   contentGenerator: ContentGenerator,
-  writer: OutputWriter
+  writer: OutputWriter,
 ): Promise<void> {
   const generators = [
     new RangeRequestGenerator(format, transaction, contentGenerator, writer),

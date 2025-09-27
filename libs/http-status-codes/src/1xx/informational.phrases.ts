@@ -8,7 +8,7 @@ export const informationalPhrases = [
 export type InformationalPhrase = (typeof informationalPhrases)[number];
 
 export function isValidInformationalPhrase(
-  phrase: string
+  phrase: string,
 ): phrase is InformationalPhrase {
   return informationalPhrases.includes(phrase as InformationalPhrase);
 }

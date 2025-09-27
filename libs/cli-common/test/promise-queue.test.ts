@@ -48,13 +48,13 @@ describe('PromiseQueue', () => {
         await setTimeout(1000);
         logs.push(2);
         return 'a';
-      })
+      }),
     );
     vals.push(
       await queue.add(async () => {
         logs.push(4);
         return 'b';
-      })
+      }),
     );
 
     expect(vals).toStrictEqual(['a', 'b']);
@@ -93,7 +93,7 @@ describe('PromiseQueue', () => {
     expect(
       await queue.add(async () => {
         return 100;
-      })
+      }),
     ).toEqual(100);
   });
 });

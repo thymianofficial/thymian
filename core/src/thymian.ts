@@ -177,7 +177,7 @@ export class Thymian {
       formats.length === 0
         ? new ThymianFormat()
         : // we know that formats.length >= 1
-          // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+
           formats
             .slice(1)
             .reduce(

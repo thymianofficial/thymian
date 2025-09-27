@@ -10,7 +10,7 @@ import type { TableNames } from './types.js';
 
 export function compileHttpFilterToWhereClause(
   filter: HttpFilterExpression,
-  names: Partial<TableNames> = {}
+  names: Partial<TableNames> = {},
 ): SqlFragment {
   const tableNames: TableNames = {
     requests: 'req',
@@ -129,7 +129,7 @@ export function compileHttpFilterToWhereClause(
 
     case 'and': {
       const parts = filter.filters.map((expr) =>
-        compileHttpFilterToWhereClause(expr, tableNames)
+        compileHttpFilterToWhereClause(expr, tableNames),
       );
       return {
         sql: parts.map((p) => parenthesize(p.sql)).join(' AND '),
@@ -139,7 +139,7 @@ export function compileHttpFilterToWhereClause(
 
     case 'or': {
       const parts = filter.filters.map((expr) =>
-        compileHttpFilterToWhereClause(expr, tableNames)
+        compileHttpFilterToWhereClause(expr, tableNames),
       );
       return {
         sql: parts.map((p) => parenthesize(p.sql)).join(' OR '),
@@ -197,14 +197,14 @@ export function compileHttpFilterToWhereClause(
 
       return compileHttpFilterToWhereClause(
         and(origin(url.origin), path(url.pathname)),
-        tableNames
+        tableNames,
       );
     }
     case 'hasResponse':
     case 'isAuthorized':
     case 'port':
       throw new Error(
-        `HTTP filter expression "${filter.type}" is not supported for SQL translation.`
+        `HTTP filter expression "${filter.type}" is not supported for SQL translation.`,
       );
   }
 }

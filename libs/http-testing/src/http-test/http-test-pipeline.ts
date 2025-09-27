@@ -9,12 +9,12 @@ import type {
 
 export type PipelineItem<
   Current,
-  Locals extends HttpTestContextLocals = HttpTestContextLocals
+  Locals extends HttpTestContextLocals = HttpTestContextLocals,
 > = {
   current: Current;
   ctx: HttpTestContext<Locals>;
 };
 
 export type HttpTestPipeline<Locals extends HttpTestContextLocals> = (
-  transactions: Observable<PipelineItem<ThymianHttpTransaction, Locals>>
+  transactions: Observable<PipelineItem<ThymianHttpTransaction, Locals>>,
 ) => Observable<PipelineItem<HttpTestCase, Locals>>;

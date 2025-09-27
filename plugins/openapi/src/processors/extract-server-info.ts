@@ -16,7 +16,7 @@ export const defaultServerInfo: ServerInfo = {
 
 export function extractServerInfo(
   serverObjects: OpenApiV31.ServerObject[] = [],
-  defaultInfo: ServerInfo = defaultServerInfo
+  defaultInfo: ServerInfo = defaultServerInfo,
 ): ServerInfo {
   const serverInfo: ServerInfo = {
     ...defaultInfo,
@@ -40,7 +40,7 @@ export function extractServerInfo(
         }
 
         return match;
-      }
+      },
     );
 
     try {
@@ -50,11 +50,11 @@ export function extractServerInfo(
       serverInfo.port = url.port
         ? parseInt(url.port)
         : url.protocol === 'https:'
-        ? 443
-        : 80;
+          ? 443
+          : 80;
       serverInfo.protocol = url.protocol.replace(
         ':',
-        ''
+        '',
       ) as ServerInfo['protocol'];
       serverInfo.basePath = url.pathname;
     } catch (_) {

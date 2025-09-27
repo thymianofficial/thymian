@@ -1,8 +1,6 @@
 {
   "swagger": "2.0",
-  "produces": [
-    "application/json"
-  ],
+  "produces": ["application/json"],
   "parameters": {
     "globalHeader": {
       "description": "a global defined header",

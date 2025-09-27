@@ -18,7 +18,7 @@ export default async function resetContent(fastify: FastifyInstance) {
     },
     (req, reply) => {
       return reply.status(205).send();
-    }
+    },
   );
 
   // response body must be empty
@@ -39,7 +39,7 @@ export default async function resetContent(fastify: FastifyInstance) {
     },
     (req, reply) => {
       return reply.status(205).send(req.body);
-    }
+    },
   );
 }
 

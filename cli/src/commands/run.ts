@@ -16,7 +16,7 @@ export default class Run extends BaseCliRunCommand<typeof Run> {
 
     if (errorResult) {
       this.logger.debug(
-        `Plugin ${errorResult.pluginName} returned erroneous result.`
+        `Plugin ${errorResult.pluginName} returned erroneous result.`,
       );
       this.exit(1);
     }

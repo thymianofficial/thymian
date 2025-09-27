@@ -5,7 +5,7 @@ export const serverErrorStatusCodes = [
 export type ServerErrorStatusCode = (typeof serverErrorStatusCodes)[number];
 
 export function isValidServerErrorStatusCode(
-  code: number
+  code: number,
 ): code is ServerErrorStatusCode {
   return serverErrorStatusCodes.includes(code as ServerErrorStatusCode);
 }

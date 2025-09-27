@@ -4,7 +4,7 @@ import type { SqlFragment } from '../utils.js';
 import { compileHttpFilterToWhereClause } from './http-filter-to-where-clause.js';
 
 export function httpFilterToCommonFilter(
-  filter: HttpFilterExpression
+  filter: HttpFilterExpression,
 ): SqlFragment {
   const { sql, params } = compileHttpFilterToWhereClause(filter, {
     requests: 'req',

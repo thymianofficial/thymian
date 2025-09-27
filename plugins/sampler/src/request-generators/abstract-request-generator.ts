@@ -13,7 +13,7 @@ export abstract class AbstractRequestGenerator {
     protected readonly format: ThymianFormat,
     protected readonly transaction: ThymianHttpTransaction,
     protected readonly contentGenerator: ContentGenerator,
-    protected readonly writer: OutputWriter
+    protected readonly writer: OutputWriter,
   ) {}
 
   abstract matches(): boolean;
@@ -38,7 +38,7 @@ export abstract class AbstractRequestGenerator {
     if (this.shouldGenerateBody() && this.transaction.thymianReq.body) {
       const result = await this.contentGenerator.generate(
         this.transaction.thymianReq.mediaType,
-        this.transaction.thymianReq.body
+        this.transaction.thymianReq.body,
       );
 
       if ('buffer' in result) {
@@ -46,7 +46,7 @@ export abstract class AbstractRequestGenerator {
         requestSample.meta.bodyPath = await this.writer.writeAssetFor(
           result.buffer,
           result.ext,
-          requestSample
+          requestSample,
         );
       } else {
         requestSample.request.body = result.content;
@@ -78,14 +78,14 @@ export abstract class AbstractRequestGenerator {
   }
 
   protected async generateParameters(
-    parameters: Record<string, Parameter>
+    parameters: Record<string, Parameter>,
   ): Promise<Record<string, unknown>> {
     const generated = {} as Record<string, unknown>;
 
     for (const [name, parameter] of Object.entries(parameters)) {
       const result = await this.contentGenerator.generate(
         parameter.contentType ?? 'application/json',
-        parameter.schema
+        parameter.schema,
       );
 
       if ('buffer' in result) {
@@ -100,7 +100,7 @@ export abstract class AbstractRequestGenerator {
 
   protected async generateHeaders(): Promise<Record<string, unknown>> {
     const headers = await this.generateParameters(
-      this.transaction.thymianReq.headers
+      this.transaction.thymianReq.headers,
     );
 
     const { mediaType } = this.transaction.thymianReq;

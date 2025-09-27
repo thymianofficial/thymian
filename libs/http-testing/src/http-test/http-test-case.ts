@@ -8,7 +8,8 @@ import type {
 import type { HttpTestCaseResult } from './http-test-case-result.js';
 
 export interface GroupedHttpTestCaseStep<
-  Transactions extends HttpTestCaseStepTransaction[] = HttpTestCaseStepTransaction[]
+  Transactions extends
+    HttpTestCaseStepTransaction[] = HttpTestCaseStepTransaction[],
 > extends HttpTestCaseStep<
     {
       key: string;
@@ -20,7 +21,8 @@ export interface GroupedHttpTestCaseStep<
 }
 
 export interface SingleHttpTestCaseStep<
-  Transactions extends HttpTestCaseStepTransaction[] = HttpTestCaseStepTransaction[]
+  Transactions extends
+    HttpTestCaseStepTransaction[] = HttpTestCaseStepTransaction[],
 > extends HttpTestCaseStep<ThymianHttpTransaction, Transactions> {
   type: 'single';
 }
@@ -39,7 +41,8 @@ export type HttpTestCaseStepTransaction = {
 
 export interface HttpTestCaseStep<
   Source = unknown,
-  Transactions extends HttpTestCaseStepTransaction[] = HttpTestCaseStepTransaction[]
+  Transactions extends
+    HttpTestCaseStepTransaction[] = HttpTestCaseStepTransaction[],
 > {
   type: 'single' | 'grouped' | 'custom';
   source: Source;
@@ -49,7 +52,7 @@ export interface HttpTestCaseStep<
 export type HttpTestCaseStatus = 'running' | 'skipped' | 'failed' | 'passed';
 
 export type HttpTestCase<
-  Steps extends HttpTestCaseStep[] = HttpTestCaseStep[]
+  Steps extends HttpTestCaseStep[] = HttpTestCaseStep[],
 > = {
   start: number;
   end?: number;

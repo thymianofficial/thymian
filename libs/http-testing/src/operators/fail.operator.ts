@@ -3,7 +3,7 @@ import { map, type OperatorFunction } from 'rxjs';
 import type { HttpTestCase, HttpTestCaseStep } from '../http-test/index.js';
 
 export function failTestCase<Steps extends HttpTestCaseStep[]>(
-  fn: (testCase: HttpTestCase<Steps>) => boolean = () => true
+  fn: (testCase: HttpTestCase<Steps>) => boolean = () => true,
 ): OperatorFunction<HttpTestCase<Steps>, HttpTestCase<Steps>> {
   return map((testCase) => ({
     ...testCase,

@@ -19,7 +19,7 @@ export default async function projectsRoutes(_fastify: FastifyInstance) {
         },
       },
     },
-    async () => fastify.projects.getAll()
+    async () => fastify.projects.getAll(),
   );
 
   fastify.get(
@@ -42,7 +42,7 @@ export default async function projectsRoutes(_fastify: FastifyInstance) {
       if (!project)
         return reply.status(404).send({ error: 'Project not found' });
       return project;
-    }
+    },
   );
 
   fastify.post(
@@ -67,7 +67,7 @@ export default async function projectsRoutes(_fastify: FastifyInstance) {
       const project = fastify.projects.create(request.body);
 
       return reply.status(201).send(project);
-    }
+    },
   );
 
   fastify.delete(
@@ -92,7 +92,7 @@ export default async function projectsRoutes(_fastify: FastifyInstance) {
         return reply.status(404).send({ error: 'Project not found' });
 
       return reply.status(204).send();
-    }
+    },
   );
 
   fastify.post(
@@ -129,7 +129,7 @@ export default async function projectsRoutes(_fastify: FastifyInstance) {
       });
 
       return reply.status(201).send(todo);
-    }
+    },
   );
 
   fastify.get(
@@ -153,6 +153,6 @@ export default async function projectsRoutes(_fastify: FastifyInstance) {
     },
     async (request) => {
       return fastify.todos.getByProjectId(request.params.id);
-    }
+    },
   );
 }

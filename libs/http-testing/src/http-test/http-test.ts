@@ -15,11 +15,11 @@ export type HttpTestResult = {
 };
 
 export type HttpTestRunnerFn<Locals extends HttpTestContextLocals> = (
-  ctx: HttpTestContext<Locals>
+  ctx: HttpTestContext<Locals>,
 ) => Promise<HttpTestResult>;
 
 export function httpTest<
-  Locals extends HttpTestContextLocals = HttpTestContextLocals
+  Locals extends HttpTestContextLocals = HttpTestContextLocals,
 >(name: string, fn: HttpTestPipeline<Locals>): HttpTestRunnerFn<Locals> {
   return (ctx) => {
     const start = performance.now();

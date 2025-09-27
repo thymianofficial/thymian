@@ -13,7 +13,7 @@ export class JsonLocMapper extends LocMapper {
   }
 
   public positionForOperationId(
-    operationId: string
+    operationId: string,
   ): SourcePosition | undefined {
     if (!this.root) return undefined;
 
@@ -36,7 +36,7 @@ export class JsonLocMapper extends LocMapper {
 
   private findOperationIdProperty(
     node: JsonNode,
-    wanted: string
+    wanted: string,
   ): JsonNode | undefined {
     const stack: JsonNode[] = [node];
     while (stack.length) {

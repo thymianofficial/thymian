@@ -12,12 +12,12 @@ import {
 export function overrideRequestWithPrevious<
   Steps extends HttpTestCaseStep[],
   Previous extends HttpTestCaseStep,
-  Current extends HttpTestCaseStep
+  Current extends HttpTestCaseStep,
 >(
   fn: (
     requestTemplate: HttpRequestTemplate,
-    previous: Previous
-  ) => HttpRequestTemplate
+    previous: Previous,
+  ) => HttpRequestTemplate,
 ): MonoTypeOperatorFunction<
   PipelineItem<HttpTestCase<[...Steps, Previous, Current]>>
 > {

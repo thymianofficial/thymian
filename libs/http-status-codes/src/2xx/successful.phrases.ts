@@ -13,7 +13,7 @@ export const successfulPhrases = [
 export type SuccessfulPhrase = (typeof successfulPhrases)[number];
 
 export function isValidSuccessfulPhrase(
-  phrase: string
+  phrase: string,
 ): phrase is SuccessfulPhrase {
   return successfulPhrases.includes(phrase as SuccessfulPhrase);
 }

@@ -6,7 +6,7 @@ paths:
   /projects:
     get:
       responses:
-        "200":
+        '200':
           description: Default Response
           content:
             application/json:
@@ -40,7 +40,7 @@ paths:
                 - name
         required: true
       responses:
-        "201":
+        '201':
           description: Default Response
           content:
             application/json:
@@ -57,7 +57,7 @@ paths:
                 required:
                   - id
                   - name
-        "400":
+        '400':
           description: Default Response
           content:
             application/json:
@@ -76,7 +76,7 @@ paths:
           name: id
           required: true
       responses:
-        "200":
+        '200':
           description: Default Response
           content:
             application/json:
@@ -93,7 +93,7 @@ paths:
                 required:
                   - id
                   - name
-        "404":
+        '404':
           description: Default Response
           content:
             application/json:
@@ -110,9 +110,9 @@ paths:
           name: id
           required: true
       responses:
-        "204":
+        '204':
           description: Default Response
-        "404":
+        '404':
           description: Default Response
           content:
             application/json:
@@ -141,7 +141,7 @@ paths:
           name: id
           required: true
       responses:
-        "201":
+        '201':
           description: Default Response
           content:
             application/json:
@@ -157,13 +157,13 @@ paths:
                     type: boolean
                   projectId:
                     type:
-                      - "null"
+                      - 'null'
                       - string
                 required:
                   - id
                   - title
                   - done
-        "400":
+        '400':
           description: Default Response
           content:
             application/json:
@@ -180,7 +180,7 @@ paths:
           name: id
           required: true
       responses:
-        "200":
+        '200':
           description: Default Response
           content:
             application/json:
@@ -198,7 +198,7 @@ paths:
                       type: boolean
                     projectId:
                       type:
-                        - "null"
+                        - 'null'
                         - string
                   required:
                     - id
@@ -207,7 +207,7 @@ paths:
   /todos:
     get:
       responses:
-        "200":
+        '200':
           description: Default Response
           content:
             application/json:
@@ -225,7 +225,7 @@ paths:
                       type: boolean
                     projectId:
                       type:
-                        - "null"
+                        - 'null'
                         - string
                   required:
                     - id
@@ -245,7 +245,7 @@ paths:
                 - title
         required: true
       responses:
-        "201":
+        '201':
           description: Default Response
           content:
             application/json:
@@ -261,13 +261,13 @@ paths:
                     type: boolean
                   projectId:
                     type:
-                      - "null"
+                      - 'null'
                       - string
                 required:
                   - id
                   - title
                   - done
-        "400":
+        '400':
           description: Default Response
           content:
             application/json:
@@ -285,7 +285,7 @@ paths:
           name: id
           required: true
       responses:
-        "200":
+        '200':
           description: Default Response
           content:
             application/json:
@@ -301,13 +301,13 @@ paths:
                     type: boolean
                   projectId:
                     type:
-                      - "null"
+                      - 'null'
                       - string
                 required:
                   - id
                   - title
                   - done
-        "404":
+        '404':
           description: Default Response
           content:
             application/json:
@@ -337,7 +337,7 @@ paths:
           name: id
           required: true
       responses:
-        "200":
+        '200':
           description: Default Response
           content:
             application/json:
@@ -353,13 +353,13 @@ paths:
                     type: boolean
                   projectId:
                     type:
-                      - "null"
+                      - 'null'
                       - string
                 required:
                   - id
                   - title
                   - done
-        "400":
+        '400':
           description: Default Response
           content:
             application/json:
@@ -368,7 +368,7 @@ paths:
                 properties:
                   error:
                     type: string
-        "404":
+        '404':
           description: Default Response
           content:
             application/json:
@@ -385,9 +385,9 @@ paths:
           name: id
           required: true
       responses:
-        "204":
+        '204':
           description: Default Response
-        "404":
+        '404':
           description: Default Response
           content:
             application/json:

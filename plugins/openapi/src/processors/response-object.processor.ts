@@ -13,13 +13,13 @@ export type ResponsesWithLinks = {
 export function processResponseObject(
   responseObject: OpenApiV31.ResponseObject,
   statusCode: number,
-  parameters: Parameters
+  parameters: Parameters,
 ): ResponsesWithLinks {
   const headerParameters = processHeadersObject(
-    responseObject.headers as Record<string, OpenApiV31.HeaderObject>
+    responseObject.headers as Record<string, OpenApiV31.HeaderObject>,
   );
   const links = Object.entries(responseObject.links ?? {}).map(
-    ([name, linkObj]) => ({ name, linkObj })
+    ([name, linkObj]) => ({ name, linkObj }),
   ) as { name: string; linkObj: OpenApiV31.LinkObject }[];
 
   const responses: PartialBy<ThymianHttpResponse, 'label'>[] = [];
@@ -30,7 +30,7 @@ export function processResponseObject(
         .filter(
           ([mediaType]) =>
             !/^multipart\/.*/i.test(mediaType) &&
-            mediaType !== 'application/x-www-form-urlencoded'
+            mediaType !== 'application/x-www-form-urlencoded',
         )
         .map(([mediaType, mediaTypeObject]) => {
           const { schema } = processMediaTypeObject(mediaTypeObject);
@@ -46,7 +46,7 @@ export function processResponseObject(
             statusCode,
             schema,
           } satisfies PartialBy<ThymianHttpResponse, 'label'>;
-        })
+        }),
     );
   } else {
     responses.push({

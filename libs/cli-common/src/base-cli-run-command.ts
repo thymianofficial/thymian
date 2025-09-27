@@ -29,7 +29,7 @@ export type CommandArgs<T extends typeof Command> = Interfaces.InferredArgs<
 >;
 
 export abstract class BaseCliRunCommand<
-  T extends typeof Command
+  T extends typeof Command,
 > extends Command {
   static override enableJsonFlag = true;
 
@@ -98,7 +98,7 @@ export abstract class BaseCliRunCommand<
     this.args = args as CommandArgs<T>;
     this.logger = new TextLogger(
       '@thymian/cli',
-      this.flags.verbose || !!settings.debug
+      this.flags.verbose || !!settings.debug,
     );
     this.thymian = new Thymian(this.logger.child('@thymian/core'), {
       timeout: this.flags.timeout,
@@ -169,7 +169,7 @@ export abstract class BaseCliRunCommand<
 
       if (!match) {
         throw new CLIError(
-          `Expected option flag with format <pluginName>.<property>=<value>, but got: ${option}`
+          `Expected option flag with format <pluginName>.<property>=<value>, but got: ${option}`,
         );
       }
 
@@ -177,7 +177,7 @@ export abstract class BaseCliRunCommand<
 
       if (!pluginName || !property || !value) {
         throw new CLIError(
-          `Expected option flag with format <pluginName>.<property>=<value>, but got option with pluginName "${pluginName}", property "${property}" and value ${value}.`
+          `Expected option flag with format <pluginName>.<property>=<value>, but got option with pluginName "${pluginName}", property "${property}" and value ${value}.`,
         );
       }
 
@@ -193,7 +193,7 @@ export abstract class BaseCliRunCommand<
 
   protected async loadPluginModule(
     nameOrPath: string,
-    isRelativePath = false
+    isRelativePath = false,
   ): Promise<ThymianPlugin> {
     const options = this.thymianConfig.plugins[nameOrPath] ?? {};
     const location =
@@ -213,7 +213,7 @@ export abstract class BaseCliRunCommand<
       throw new CLIError(
         `File "${
           options.path ?? nameOrPath
-        }" does not default export a valid Thymian plugin.`
+        }" does not default export a valid Thymian plugin.`,
       );
     }
 
@@ -222,11 +222,11 @@ export abstract class BaseCliRunCommand<
 
   protected async registerPlugin(
     nameOrPath: string,
-    isRelativePath = false
+    isRelativePath = false,
   ): Promise<void> {
     const pluginModule = await this.loadPluginModule(
       nameOrPath,
-      isRelativePath
+      isRelativePath,
     );
 
     const config = this.thymianConfig.plugins[pluginModule.name] ?? {};

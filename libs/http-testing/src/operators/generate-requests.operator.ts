@@ -26,7 +26,7 @@ type InferStep<Step extends HttpTestCaseStep> =
           PartialExceptFor<
             HttpTestCaseStepTransaction,
             'requestTemplate' | 'source'
-          >
+          >,
         ]
       >
     : Step;
@@ -34,9 +34,9 @@ type InferStep<Step extends HttpTestCaseStep> =
 export function generateRequests<
   PreviousSteps extends HttpTestCaseStep[],
   CurrentStep extends HttpTestCaseStep,
-  Locals extends HttpTestContextLocals
+  Locals extends HttpTestContextLocals,
 >(
-  options?: GenerateRequestsOptions
+  options?: GenerateRequestsOptions,
 ): OperatorFunction<
   PipelineItem<HttpTestCase<[...PreviousSteps, CurrentStep]>, Locals>,
   PipelineItem<HttpTestCase<[...PreviousSteps, InferStep<CurrentStep>]>, Locals>
@@ -70,7 +70,7 @@ export function generateRequests<
       }
     } else if (isCustomHttpTestCaseStep(step)) {
       ctx.logger.warn(
-        'generateRequests was called on custom http test step which is not supported.'
+        'generateRequests was called on custom http test step which is not supported.',
       );
     }
 

@@ -9,7 +9,7 @@ import { httpLinterPlugin, type HttpLinterPluginOptions } from '../index.js';
 const defaultRuleSets = ['@thymian/rfc-9110-rules'];
 
 const hook: ThymianPluginInitHook<HttpLinterPluginOptions> = async function (
-  options
+  options,
 ) {
   if (!options.interactive) {
     return {
@@ -51,7 +51,7 @@ const hook: ThymianPluginInitHook<HttpLinterPluginOptions> = async function (
 
     const includeDefaultSets = await confirm({
       message: `Do you want to include default rule sets: ${defaultRuleSets.join(
-        ', '
+        ', ',
       )}?`,
       default: true,
     });

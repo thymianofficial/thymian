@@ -19,7 +19,7 @@ export class Sampler {
       HttpRequestTemplate
     > = new LRUCache({
       max: 500,
-    })
+    }),
   ) {}
 
   async checkIfIsInitialized(): Promise<void> {
@@ -35,7 +35,7 @@ export class Sampler {
   }
 
   async sample(
-    transaction: ThymianHttpTransaction
+    transaction: ThymianHttpTransaction,
   ): Promise<HttpRequestTemplate> {
     const transactionId = transaction.transactionId;
 
@@ -58,19 +58,19 @@ export class Sampler {
           name: 'SamplerError',
           suggestions: ['Did you run thymian sampler:init?'],
           cause: err,
-        }
+        },
       );
     }
 
     const requestSample = JSON.parse(
-      await readFile(filePath, 'utf-8')
+      await readFile(filePath, 'utf-8'),
     ) as HttpRequestSample;
 
     if (requestSample.meta.bodyPath) {
       const bodyFilePath = join(path, requestSample.meta.bodyPath);
       requestSample.request.body = await readFile(
         bodyFilePath,
-        (requestSample.request.bodyEncoding as BufferEncoding) ?? 'utf-8'
+        (requestSample.request.bodyEncoding as BufferEncoding) ?? 'utf-8',
       );
     }
 

@@ -14,7 +14,7 @@ import {
 } from '../http-test/index.js';
 
 export function expectStatusCode<Steps extends HttpTestCaseStep[]>(
-  statusCode: number | HttpStatusCodeRange | (number | HttpStatusCodeRange)[]
+  statusCode: number | HttpStatusCodeRange | (number | HttpStatusCodeRange)[],
 ): MonoTypeOperatorFunction<PipelineItem<HttpTestCase<Steps>>> {
   return map(({ current, ctx }) => {
     if (isSkippedTestCase(current) || isFailedTestCase(current)) {

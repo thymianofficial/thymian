@@ -28,7 +28,7 @@ declare module 'fastify' {
 }
 
 export function buildExampleApp(
-  opts: FastifyServerOptions = { ignoreTrailingSlash: true }
+  opts: FastifyServerOptions = { ignoreTrailingSlash: true },
 ): FastifyInstance {
   const app = Fastify(opts);
 

@@ -6,7 +6,7 @@ import { AbstractLinter } from './abstract-linter.js';
 export class StaticLinter extends AbstractLinter {
   protected override async runRule<Options extends Record<string, unknown>>(
     rule: Rule,
-    options: Options
+    options: Options,
   ): Promise<boolean> {
     if (!rule.staticRule) {
       return true;
@@ -18,7 +18,7 @@ export class StaticLinter extends AbstractLinter {
         ...options,
         mode: 'test',
       },
-      this.logger.child(rule.meta.name)
+      this.logger.child(rule.meta.name),
     );
 
     if (!result || (Array.isArray(result) && result.length === 0)) {

@@ -27,7 +27,7 @@ export async function buildToDoApp(
     logger: {
       level: 'error',
     },
-  }
+  },
 ): Promise<FastifyInstance> {
   const app = Fastify(opts);
 

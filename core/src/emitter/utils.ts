@@ -7,28 +7,28 @@ import type {
 import type { ThymianEvent } from './events.js';
 
 export function isEventWithName<Name extends ThymianEventName>(
-  name: Name
+  name: Name,
 ): (
-  event: ThymianEvent<ThymianEventName> | ThymianActionEvent<ThymianActionName>
+  event: ThymianEvent<ThymianEventName> | ThymianActionEvent<ThymianActionName>,
 ) => event is ThymianEvent<Name> {
   return function (
     event:
       | ThymianEvent<ThymianEventName>
-      | ThymianActionEvent<ThymianActionName>
+      | ThymianActionEvent<ThymianActionName>,
   ): event is ThymianEvent<Name> {
     return event.name === name; // && !Object.hasOwn(event, 'correlationId'); TODO: is the correlationId needed?
   };
 }
 
 export function isActionEventWithName<Name extends ThymianActionName>(
-  name: Name
+  name: Name,
 ): (
-  event: ThymianEvent<ThymianEventName> | ThymianActionEvent<ThymianActionName>
+  event: ThymianEvent<ThymianEventName> | ThymianActionEvent<ThymianActionName>,
 ) => event is ThymianActionEvent<Name> {
   return function (
     event:
       | ThymianEvent<ThymianEventName>
-      | ThymianActionEvent<ThymianActionName>
+      | ThymianActionEvent<ThymianActionName>,
   ): event is ThymianActionEvent<Name> {
     return event.name === name;
   };
@@ -36,12 +36,12 @@ export function isActionEventWithName<Name extends ThymianActionName>(
 
 export function isResponseOf<Name extends ThymianActionName>(
   name: Name,
-  cid: string
+  cid: string,
 ): (
-  event: ThymianResponseEvent<ThymianActionName>
+  event: ThymianResponseEvent<ThymianActionName>,
 ) => event is ThymianResponseEvent<Name> {
   return function (
-    event: ThymianResponseEvent<ThymianActionName>
+    event: ThymianResponseEvent<ThymianActionName>,
   ): event is ThymianResponseEvent<Name> {
     return event.name === name && event.correlationId === cid;
   };

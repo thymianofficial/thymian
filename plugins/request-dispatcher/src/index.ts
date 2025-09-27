@@ -1,15 +1,16 @@
 import {
-  type ThymianPlugin,
-  type HttpResponse,
   type HttpRequest,
+  type HttpResponse,
   type JSONSchemaType,
   ThymianBaseError,
+  type ThymianPlugin,
 } from '@thymian/core';
-import { httpResponseSchema } from './types.js';
+
 import {
   dispatchHttpRequest,
   type HttpRequestDispatchOptions,
 } from './dispatch.js';
+import { httpResponseSchema } from './types.js';
 
 declare module '@thymian/core' {
   interface ThymianActions {
@@ -101,11 +102,11 @@ export const dispatcherPlugin: ThymianPlugin = {
               `Error while dispatching request: ${request.method.toUpperCase()} ${
                 request.origin
               }.`,
-              { cause: e }
-            )
+              { cause: e },
+            ),
           );
         }
-      }
+      },
     );
   },
 };

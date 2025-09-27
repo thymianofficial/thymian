@@ -4,7 +4,7 @@ import type { Rule } from './rule/rule.js';
 export type RuleFilter = (rule: Rule) => boolean;
 
 export function createRuleFilter(
-  filters: HttpLinterPluginOptions['ruleFilter']
+  filters: HttpLinterPluginOptions['ruleFilter'],
 ): RuleFilter {
   const ruleFilters: RuleFilter[] = [];
 
@@ -13,15 +13,16 @@ export function createRuleFilter(
   if (severity) {
     ruleFilters.push(
       (rule) =>
-        severityLevelValues[rule.meta.severity] <= severityLevelValues[severity]
+        severityLevelValues[rule.meta.severity] <=
+        severityLevelValues[severity],
     );
   }
 
   if (appliesTo) {
     ruleFilters.push((rule) =>
       appliesTo.some((role) =>
-        rule.meta.appliesTo ? rule.meta.appliesTo.includes(role) : true
-      )
+        rule.meta.appliesTo ? rule.meta.appliesTo.includes(role) : true,
+      ),
     );
   }
 

@@ -39,7 +39,7 @@ const commonHeadersSet = new Set<string>(commonHttpHeaders);
 // checks if the response is missing required headers
 export function checkForMissingHeaders(
   headers: Record<string, string | string[] | undefined>,
-  response: ThymianHttpResponse
+  response: ThymianHttpResponse,
 ): HttpTestCaseResult[] {
   return Object.entries(response.headers).reduce((acc, [name, header]) => {
     const value = getHeader(headers, name);
@@ -58,13 +58,13 @@ export function checkForMissingHeaders(
 // Are there headers included in the response that are not in the description format?
 export function checkForAdditionalHeaders(
   headers: Record<string, string | string[] | undefined>,
-  response: ThymianHttpResponse
+  response: ThymianHttpResponse,
 ): HttpTestCaseResult[] {
   const failures = Object.keys(headers)
     .filter(
       (headerName) =>
         !Object.hasOwn(response.headers, headerName) &&
-        !commonHeadersSet.has(headerName)
+        !commonHeadersSet.has(headerName),
     )
     .map((headerName) => ({
       type: 'assertion-failure',
@@ -83,7 +83,7 @@ export function checkForAdditionalHeaders(
 
 export function validateExistingHeader(
   headers: Record<string, string | string[] | undefined>,
-  response: ThymianHttpResponse
+  response: ThymianHttpResponse,
 ): HttpTestCaseResult[] {
   return Object.entries(headers)
     .filter(([name]) => Object.hasOwn(response.headers, name))
@@ -118,7 +118,7 @@ export function validateExistingHeader(
 
 export function validateHeaders(
   headers: Record<string, string | string[] | undefined>,
-  response: ThymianHttpResponse
+  response: ThymianHttpResponse,
 ): HttpTestCaseResult[] {
   return [
     ...checkForMissingHeaders(headers, response),

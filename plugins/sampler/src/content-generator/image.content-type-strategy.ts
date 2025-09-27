@@ -26,7 +26,7 @@ export class ImageContentTypeStrategy implements ContentTypeStrategy {
   }
   async generate(
     schema: ThymianSchema,
-    contentType: string
+    contentType: string,
   ): Promise<ContentGeneratorResult> {
     let content = sharp(this.randomPixelsBuffer(), {
       raw: {

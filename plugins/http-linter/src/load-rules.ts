@@ -15,12 +15,12 @@ const require = createRequire(import.meta.url);
 
 export function areFunctionPropertiesIfDefined<Properties extends string[]>(
   obj: Record<PropertyKey, unknown>,
-  properties: Properties
+  properties: Properties,
 ): obj is Record<PropertyKey, unknown> &
   Record<Properties[number], (...args: unknown[]) => unknown> {
   return properties.some(
     (property) =>
-      Object.hasOwn(obj, property) && typeof obj[property] !== 'function'
+      Object.hasOwn(obj, property) && typeof obj[property] !== 'function',
   );
 }
 
@@ -54,7 +54,7 @@ export async function loadRuleSet(
   ruleSet: RuleSet,
   basePath: string,
   filterFn: RuleFilter,
-  options: Record<string, unknown>
+  options: Record<string, unknown>,
 ): Promise<Rule[]> {
   if (ruleSet.rules) {
     return ruleSet.rules.filter(filterFn);
@@ -71,7 +71,7 @@ export async function loadRuleSet(
       const files = await glob(pattern, { cwd: dirname });
       for (const file of files) {
         rules.push(
-          ...(await loadRules(path.join(dirname, file), filterFn, options))
+          ...(await loadRules(path.join(dirname, file), filterFn, options)),
         );
       }
     }
@@ -83,7 +83,7 @@ export async function loadRuleSet(
 export async function loadRules(
   path: string | string[],
   ruleFilter: RuleFilter = () => true,
-  options: Record<string, unknown> = {}
+  options: Record<string, unknown> = {},
 ): Promise<Rule[]> {
   if (Array.isArray(path)) {
     return (
@@ -110,7 +110,7 @@ export async function loadRules(
           'Use "export default" or "module.exports =" to export your rule (set).',
         ],
         name: 'RuleLoadError',
-      }
+      },
     );
   }
 
@@ -134,7 +134,7 @@ export async function loadRules(
               'Check the options for the rule in your Thymian config file.',
             ],
             name: 'InvalidRuleOptionError',
-          }
+          },
         );
       }
     }

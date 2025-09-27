@@ -14,11 +14,11 @@ import { isFailedTestCase, isSkippedTestCase } from '../http-test/index.js';
 
 export function step<
   Steps extends HttpTestCaseStep[],
-  CurrentStep extends HttpTestCaseStep
+  CurrentStep extends HttpTestCaseStep,
 >(
   fn: MonoTypeOperatorFunction<
     PipelineItem<HttpTestCase<[...Steps, CurrentStep, CustomHttpTestCaseStep]>>
-  >
+  >,
 ): OperatorFunction<
   PipelineItem<HttpTestCase<[...Steps, CurrentStep]>>,
   PipelineItem<HttpTestCase<[...Steps, CurrentStep, CustomHttpTestCaseStep]>>
@@ -47,6 +47,6 @@ export function step<
 
         return { current: newCurr, ctx };
       }),
-      fn
+      fn,
     );
 }

@@ -1,7 +1,7 @@
 import { httpRule } from '@thymian/http-linter';
 
 export default httpRule(
-  'rfc9110/proxy-must-not-automatically-retry-non-idempontent-requests'
+  'rfc9110/proxy-must-not-automatically-retry-non-idempontent-requests',
 )
   .severity('error')
   .type('informational')

@@ -61,7 +61,7 @@ function extractMediaType(req: HttpRequest): string {
 
 export function httpRequestToCommonHttpRequest(
   source: string,
-  request: HttpRequest
+  request: HttpRequest,
 ): CommonHttpRequest {
   return {
     id: source,
@@ -70,7 +70,7 @@ export function httpRequestToCommonHttpRequest(
     method: request.method,
     headers: Object.keys(request.headers ?? {}),
     queryParameters: Array.from(
-      new URLSearchParams(request.path.split('?')[1] ?? '').keys()
+      new URLSearchParams(request.path.split('?')[1] ?? '').keys(),
     ),
     cookies: [],
     mediaType: extractMediaType(request),
@@ -80,7 +80,7 @@ export function httpRequestToCommonHttpRequest(
 
 export function httpResponseToCommonHttpResponse(
   source: string,
-  response: HttpResponse
+  response: HttpResponse,
 ): CommonHttpResponse {
   return {
     body: !!response.body,
@@ -93,7 +93,7 @@ export function httpResponseToCommonHttpResponse(
 }
 
 function hasSource(
-  transaction: HttpTestCaseStepTransaction
+  transaction: HttpTestCaseStepTransaction,
 ): transaction is HttpTestCaseStepTransaction & {
   source: ThymianHttpTransaction;
 } {
@@ -101,14 +101,14 @@ function hasSource(
 }
 
 export class HttpTestApiContext<
-  Locals extends HttpTestContextLocals = HttpTestContextLocals
+  Locals extends HttpTestContextLocals = HttpTestContextLocals,
 > extends LiveApiContext {
   private readonly violations: RuleViolation[] = [];
 
   constructor(
     private readonly name: string,
     private readonly ctx: HttpTestContext<Locals>,
-    report: ReportFn
+    report: ReportFn,
   ) {
     super(ctx.format, ctx.logger, report);
   }
@@ -123,12 +123,12 @@ export class HttpTestApiContext<
     validationFn: ValidationFn<
       [string, [CommonHttpRequest, CommonHttpResponse][]],
       RuleViolation | undefined
-    >
+    >,
   ): Promise<RuleFnResult> {
     const filterFn = compileExpressionToFilterFn(filterExpr, this.format);
     const groupByFn = compileExpressionToGroupByFn(
       groupByExpression,
-      this.format
+      this.format,
     );
 
     const test = httpTest(this.name, (test) =>
@@ -137,32 +137,32 @@ export class HttpTestApiContext<
           filterFn(
             thymianToCommonHttpRequest(
               current.thymianReqId,
-              current.thymianReq
+              current.thymianReq,
             ),
             thymianToCommonHttpResponse(
               current.thymianResId,
-              current.thymianRes
+              current.thymianRes,
             ),
             this.getCommonHttpResponsesOfRequest(current.thymianReqId),
-            current.transactionId
-          )
+            current.transactionId,
+          ),
         ),
         groupBy(({ current }) =>
           groupByFn(
             thymianToCommonHttpRequest(
               current.thymianReqId,
-              current.thymianReq
+              current.thymianReq,
             ),
             thymianToCommonHttpResponse(
               current.thymianResId,
-              current.thymianRes
-            )
-          )
+              current.thymianRes,
+            ),
+          ),
         ),
         mapToGroupedTestCase(),
         generateRequests(),
-        runRequests()
-      )
+        runRequests(),
+      ),
     );
 
     const testResult = await test(this.ctx);
@@ -181,18 +181,18 @@ export class HttpTestApiContext<
             httpRequestToCommonHttpRequest(
               transaction.source.thymianReqId,
               // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-              transaction.request!
+              transaction.request!,
             ),
             httpResponseToCommonHttpResponse(
               transaction.source.thymianResId,
               // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-              transaction.response!
+              transaction.response!,
             ),
           ]);
 
         const validationResult = validationFn(
           source.key,
-          transactionToValidate
+          transactionToValidate,
         );
 
         if (validationResult) {
@@ -208,7 +208,7 @@ export class HttpTestApiContext<
     filterExpr: HttpFilterExpression,
     validate:
       | ValidationFn<[CommonHttpRequest, CommonHttpResponse, string]>
-      | HttpFilterExpression = filterExpr
+      | HttpFilterExpression = filterExpr,
   ): Promise<RuleFnResult> {
     const filterFn = compileExpressionToFilterFn(filterExpr, this.format);
     const validationFn =
@@ -222,20 +222,20 @@ export class HttpTestApiContext<
           filterFn(
             thymianToCommonHttpRequest(
               current.thymianReqId,
-              current.thymianReq
+              current.thymianReq,
             ),
             thymianToCommonHttpResponse(
               current.thymianResId,
-              current.thymianRes
+              current.thymianRes,
             ),
             this.getCommonHttpResponsesOfRequest(current.thymianReqId),
-            current.transactionId
-          )
+            current.transactionId,
+          ),
         ),
         mapToTestCase(),
         generateRequests(),
-        runRequests()
-      )
+        runRequests(),
+      ),
     );
 
     const testResult = await test(this.ctx);
@@ -258,7 +258,7 @@ export class HttpTestApiContext<
             const validationResult = validationFn(
               httpRequestToCommonHttpRequest(source.thymianReqId, request),
               httpResponseToCommonHttpResponse(source.thymianResId, response),
-              source.transactionId
+              source.transactionId,
             );
 
             if (typeof validationResult === 'boolean' && validationResult) {
@@ -284,7 +284,7 @@ export class HttpTestApiContext<
           }
 
           return violations;
-        })
+        }),
       )
       .concat(this.violations);
   }
@@ -293,7 +293,7 @@ export class HttpTestApiContext<
     testResult.cases.forEach((testCase) => {
       if (testCase.status === 'skipped') {
         this.ctx.logger.debug(
-          `HTTP test case "${testCase.name}" from test "${this.name}" is skipped.`
+          `HTTP test case "${testCase.name}" from test "${this.name}" is skipped.`,
         );
 
         this.report({
@@ -302,7 +302,7 @@ export class HttpTestApiContext<
             testCase.reason ??
             testCase.results
               .filter(
-                (tc) => tc.type !== 'info' && tc.type !== 'assertion-success'
+                (tc) => tc.type !== 'info' && tc.type !== 'assertion-success',
               )
               .map((tc) => tc.message)
               .join('\n'),
@@ -312,11 +312,11 @@ export class HttpTestApiContext<
         });
       } else if (testCase.status === 'failed') {
         this.ctx.logger.debug(
-          `HTTP test case "${testCase.name}" from test "${this.name}" failed.`
+          `HTTP test case "${testCase.name}" from test "${this.name}" failed.`,
         );
 
         const assertionFailure = testCase.results.find(
-          (r) => r.type === 'assertion-failure' && !!r.transaction
+          (r) => r.type === 'assertion-failure' && !!r.transaction,
         ) as AssertionFailure;
 
         if (assertionFailure && assertionFailure.transaction) {
@@ -333,7 +333,7 @@ export class HttpTestApiContext<
               testCase.reason ??
               testCase.results
                 .filter(
-                  (tc) => tc.type !== 'info' && tc.type !== 'assertion-success'
+                  (tc) => tc.type !== 'info' && tc.type !== 'assertion-success',
                 )
                 .map((tc) => tc.message)
                 .join('\n'),

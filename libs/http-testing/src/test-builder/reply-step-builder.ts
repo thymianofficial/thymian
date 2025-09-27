@@ -18,7 +18,7 @@ export class ReplyStepBuilder {
 
   set(
     toRequest: RequestFilterExpression,
-    fromResponse: ResponseFilterExpression | Constant
+    fromResponse: ResponseFilterExpression | Constant,
   ): ReplyStepBuilder {
     const operator = overrideRequestWithPrevious(
       (requestTemplate, previous) => {
@@ -38,7 +38,7 @@ export class ReplyStepBuilder {
         }
 
         throw new Error('No response found to override template.');
-      }
+      },
     );
 
     this.pipeline.push(operator);

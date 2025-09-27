@@ -1,7 +1,7 @@
 import type { RunExpression } from '../runtime-expression.js';
 
 export function processOpenApiRuntimeExpression(
-  expression: RunExpression
+  expression: RunExpression,
 ): string {
   if (expression === '$url') {
     return '$request/url';
@@ -27,7 +27,7 @@ export function processOpenApiRuntimeExpression(
 }
 
 export function isOpenApiRuntimeExpression(
-  expression: unknown
+  expression: unknown,
 ): expression is RunExpression {
   return (
     typeof expression === 'string' &&

@@ -30,7 +30,7 @@ export default class ShowConfig extends BaseCliRunCommand<typeof ShowConfig> {
             boolean: 'cyan',
             null: 'redBright',
           },
-        })
+        }),
       );
     }
   }

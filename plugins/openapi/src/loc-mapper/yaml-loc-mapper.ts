@@ -34,7 +34,7 @@ export class YamlLocMapper extends LocMapper {
   }
 
   public positionForOperationId(
-    operationId: string
+    operationId: string,
   ): SourcePosition | undefined {
     const pathsMap = this.getTopLevelMap('paths');
     if (!pathsMap) return undefined;
@@ -58,7 +58,7 @@ export class YamlLocMapper extends LocMapper {
         const opIdPair = this.findStringProperty(
           opObj,
           'operationId',
-          operationId
+          operationId,
         );
         if (opIdPair) {
           const methodKeyNode = methodPair.key as Scalar | undefined;
@@ -95,7 +95,7 @@ export class YamlLocMapper extends LocMapper {
   private findStringProperty(
     map: YAMLMap,
     propName: string,
-    expectedValue?: string
+    expectedValue?: string,
   ): Pair | null {
     for (const p of map.items as Pair[]) {
       const keyVal = (p.key as Scalar | undefined)?.value;

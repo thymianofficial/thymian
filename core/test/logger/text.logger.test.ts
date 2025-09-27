@@ -39,7 +39,9 @@ describe('TextLogger', () => {
     logger.info('should be printed');
 
     expect(consoleMock).toHaveBeenCalledWith(
-      expect.stringMatching(/INFO \[.*\] \[My cool logger\]: should be printed/)
+      expect.stringMatching(
+        /INFO \[.*\] \[My cool logger\]: should be printed/,
+      ),
     );
   });
 

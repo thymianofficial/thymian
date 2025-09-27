@@ -13,7 +13,7 @@ import type { HttpRequest, HttpResponse } from './http.js';
 export function timeoutPromise<T>(
   promise: Promise<T>,
   toWait = 5000,
-  err?: Error
+  err?: Error,
 ): Promise<T> {
   let timoutId: NodeJS.Timeout;
 
@@ -22,14 +22,14 @@ export function timeoutPromise<T>(
     new Promise((_, reject) => {
       timoutId = setTimeout(
         () => reject(err ?? new Error(`Promise timed out after ${toWait} ms.`)),
-        toWait
+        toWait,
       );
     }),
   ]).finally(() => clearTimeout(timoutId));
 }
 
 export function isRecord(
-  value: unknown
+  value: unknown,
 ): value is Record<PropertyKey, unknown> {
   return typeof value === 'object' && !Array.isArray(value) && value !== null;
 }
@@ -74,12 +74,12 @@ export function zipArrays<A, B>(as: A[], bs: B[]): [A, B][] {
 
 export function getHeader(
   headers: Record<string, string | string[] | undefined> = {},
-  headerName: string
+  headerName: string,
 ): string | string[] | undefined {
   const headerNames = Object.keys(headers);
 
   const found = headerNames.find(
-    (name) => name.toLowerCase() === headerName.toLowerCase()
+    (name) => name.toLowerCase() === headerName.toLowerCase(),
   );
 
   if (found) {
@@ -92,12 +92,12 @@ export function getHeader(
 export function setHeader(
   headers: Record<string, unknown>,
   headerName: string,
-  value: unknown
+  value: unknown,
 ): Record<string, unknown> {
   const headerNames = Object.keys(headers);
 
   const found = headerNames.find(
-    (name) => name.toLowerCase() === headerName.toLowerCase()
+    (name) => name.toLowerCase() === headerName.toLowerCase(),
   ) as keyof typeof headers;
 
   if (found) {
@@ -131,16 +131,16 @@ export function thymianResponseToString(res: ThymianHttpResponse): string {
 
 export function thymianHttpTransactionToString(
   req: ThymianHttpRequest,
-  res: ThymianHttpResponse
+  res: ThymianHttpResponse,
 ): string {
   return `${thymianRequestToString(req)} \u2192 ${thymianResponseToString(
-    res
+    res,
   )}`;
 }
 
 export function equalsIgnoreCase(a: string, ...b: string[]): boolean {
   return b.some(
-    (str) => a.localeCompare(str, undefined, { sensitivity: 'accent' }) === 0
+    (str) => a.localeCompare(str, undefined, { sensitivity: 'accent' }) === 0,
   );
 }
 
@@ -160,7 +160,7 @@ export function thymianRequestToOrigin(req: ThymianHttpRequest): string {
 
 export function getContentType(
   headers: Record<string, string | string[] | undefined> = {},
-  defaultValue = ''
+  defaultValue = '',
 ): string {
   const contentType = getHeader(headers, 'content-type');
 
@@ -195,7 +195,7 @@ export function normalizeUrl(urlString: string): string {
 export function httpRequestToLabel(request: HttpRequest): string {
   return `${request.method.toUpperCase()} ${new URL(
     request.path,
-    request.origin
+    request.origin,
   ).toString()}`;
 }
 

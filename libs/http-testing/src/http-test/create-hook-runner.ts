@@ -40,7 +40,7 @@ declare module '@thymian/core' {
 const dm = deepmerge();
 
 export function createHookRunner(
-  emitter: ThymianEmitter
+  emitter: ThymianEmitter,
 ): HttpTestContext['runHook'] {
   // TODO
   // eslint-disable-next-line @typescript-eslint/ban-ts-comment

@@ -3,7 +3,7 @@ import type { ResponseFilterExpression } from '@thymian/http-filter';
 
 export function extractValueFromResponse(
   response: HttpResponse,
-  filter: ResponseFilterExpression
+  filter: ResponseFilterExpression,
 ): unknown {
   switch (filter.type) {
     case 'statusCode':

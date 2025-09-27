@@ -14,7 +14,7 @@ export type FilterFn<Args extends unknown[]> = (...args: Args) => boolean;
 
 export type ValidationFn<
   Args extends unknown[],
-  R = PartialBy<RuleViolation, 'location'> | boolean | undefined
+  R = PartialBy<RuleViolation, 'location'> | boolean | undefined,
 > = (...args: Args) => R;
 
 export type CommonHttpRequest = {
@@ -43,14 +43,14 @@ export abstract class ApiContext {
     readonly format: ThymianFormat,
     protected readonly logger: Logger,
     // eslint-disable-next-line @typescript-eslint/no-empty-function
-    protected readonly report: ReportFn = () => {}
+    protected readonly report: ReportFn = () => {},
   ) {}
 
   abstract validateCommonHttpTransactions(
     filter: HttpFilterExpression,
     validationFn?:
       | ValidationFn<[CommonHttpRequest, CommonHttpResponse, string]>
-      | HttpFilterExpression
+      | HttpFilterExpression,
   ): Promise<RuleFnResult> | RuleFnResult;
 
   abstract validateGroupedCommonHttpTransactions(
@@ -59,11 +59,11 @@ export abstract class ApiContext {
     validationFn: ValidationFn<
       [string, [CommonHttpRequest, CommonHttpResponse][]],
       RuleViolation | undefined
-    >
+    >,
   ): Promise<RuleFnResult> | RuleFnResult;
 
   protected getCommonHttpResponsesOfRequest(
-    reqId: string
+    reqId: string,
   ): CommonHttpResponse[] {
     const responses = this.format.getNeighboursOfType(reqId, 'http-response');
 

@@ -26,9 +26,9 @@ export type RunRequestsOptions = {
 
 export function runRequests<
   Steps extends HttpTestCaseStep[],
-  Locals extends HttpTestContextLocals
+  Locals extends HttpTestContextLocals,
 >(
-  opts: Partial<RunRequestsOptions> = {}
+  opts: Partial<RunRequestsOptions> = {},
 ): MonoTypeOperatorFunction<PipelineItem<HttpTestCase<Steps>, Locals>> {
   return mergeMap(async ({ current, ctx }) => {
     if (isSkippedTestCase(current) || isFailedTestCase(current)) {
@@ -112,7 +112,7 @@ export function runRequests<
           if (options.checkStatusCode || options.checkResponse) {
             const result = validateStatusCode(
               transaction.source.thymianRes.statusCode,
-              transaction.response.statusCode
+              transaction.response.statusCode,
             );
 
             if (result.type === 'assertion-failure') {
@@ -139,8 +139,8 @@ export function runRequests<
             results.push(
               ...validateBodyForResponse(
                 transaction.response.body,
-                transaction.source.thymianRes
-              )
+                transaction.source.thymianRes,
+              ),
             );
           }
 
@@ -148,8 +148,8 @@ export function runRequests<
             results.push(
               ...validateHeaders(
                 transaction.response.headers,
-                transaction.source.thymianRes
-              )
+                transaction.source.thymianRes,
+              ),
             );
           }
 
@@ -163,7 +163,7 @@ export function runRequests<
                 }
 
                 return r;
-              })
+              }),
             );
 
             return ctx.fail(current);
@@ -172,7 +172,7 @@ export function runRequests<
       }
     } else {
       ctx.logger.warn(
-        `Test case ${current.name} does not contain any steps to run requests for.`
+        `Test case ${current.name} does not contain any steps to run requests for.`,
       );
     }
 

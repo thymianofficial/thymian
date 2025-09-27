@@ -43,12 +43,12 @@ export type ActionContext<Name extends ThymianActionName> = {
 };
 
 export type EventHandler<Event extends ThymianEventName> = (
-  payload: EventPayload<Event>
+  payload: EventPayload<Event>,
 ) => Promise<void> | void;
 
 export type ActionHandler<Name extends ThymianActionName> = (
   payload: ActionEventPayload<Name>,
-  ctx: ActionContext<Name>
+  ctx: ActionContext<Name>,
 ) => Promise<void> | void;
 
 export type ThymianEmitterOptions = {
@@ -63,7 +63,7 @@ export type EmitActionOptions = {
 
 export type EmitActionArgs<
   Name extends ThymianActionName,
-  Options extends Partial<EmitActionOptions>
+  Options extends Partial<EmitActionOptions>,
 > = ThymianActions[Name]['event'] extends void | undefined | null | never
   ? [name: Name, payload?: undefined, options?: Options]
   : [name: Name, payload: ThymianActions[Name]['event'], options?: Options];
@@ -102,7 +102,7 @@ export class ThymianEmitter {
   constructor(
     private readonly logger: Logger,
     state: EmitterState,
-    options: Partial<ThymianEmitterOptions> = {}
+    options: Partial<ThymianEmitterOptions> = {},
   ) {
     this.options = {
       timeout: 1000,
@@ -127,7 +127,7 @@ export class ThymianEmitter {
 
   on<Name extends ThymianEventName>(
     name: Name,
-    handler: EventHandler<Name>
+    handler: EventHandler<Name>,
   ): void {
     this.#events
       .pipe(filter(isEventWithName(name)))
@@ -162,7 +162,7 @@ export class ThymianEmitter {
             this.#errors.next({
               error: new ThymianBaseError(
                 `Error while calling event handler for event "${event.name}" from "${event.source}".`,
-                { cause: e }
+                { cause: e },
               ),
               name,
               timestamp: Date.now(),
@@ -177,7 +177,7 @@ export class ThymianEmitter {
 
   emit<Name extends ThymianEventName>(
     name: Name,
-    payload: EventPayload<Name>
+    payload: EventPayload<Name>,
   ): void {
     this.#events.next({
       id: randomUUID(),
@@ -200,7 +200,7 @@ export class ThymianEmitter {
     } else {
       error = new ThymianBaseError(
         `Error while emitting error event from "${this.source}".`,
-        { cause: err }
+        { cause: err },
       );
     }
 
@@ -215,7 +215,7 @@ export class ThymianEmitter {
 
   onAction<Name extends ThymianActionName>(
     name: Name,
-    handler: ActionHandler<Name>
+    handler: ActionHandler<Name>,
   ): void {
     this.#listeners.set(name, (this.#listeners.get(name) ?? 0) + 1);
 
@@ -254,7 +254,7 @@ export class ThymianEmitter {
             this.#errors.next({
               error: new ThymianBaseError(
                 `Error while calling action handler for action "${event.name}" from "${event.source}".`,
-                { cause: e }
+                { cause: e },
               ),
               name,
               correlationId: event.id,
@@ -269,7 +269,7 @@ export class ThymianEmitter {
 
   async emitAction<
     Name extends ThymianActionName,
-    Options extends Partial<EmitActionOptions> = { strategy: 'collect' }
+    Options extends Partial<EmitActionOptions> = { strategy: 'collect' },
   >(
     ...args: EmitActionArgs<Name, Options>
   ): Promise<
@@ -299,7 +299,7 @@ export class ThymianEmitter {
       this.#responses.pipe(filter(isResponseOf(name, event.id))),
       // eslint-disable-next-line @typescript-eslint/ban-ts-comment
       // @ts-expect-error
-      this.#errors.pipe(filter(isResponseOf(name, event.id)))
+      this.#errors.pipe(filter(isResponseOf(name, event.id))),
     ).pipe(takeUntil(timer(opts.timeout)), take(takeNum), toArray());
 
     queueMicrotask(() => {
@@ -312,7 +312,7 @@ export class ThymianEmitter {
     )[];
 
     const errors = results.filter((r) =>
-      Object.hasOwn(r, 'error')
+      Object.hasOwn(r, 'error'),
     ) as ThymianErrorEvent<Name>[];
 
     if (errors.length > 0 && typeof errors[0] !== 'undefined') {
@@ -321,7 +321,9 @@ export class ThymianEmitter {
           errors.length > 1 ? 's' : ''
         } from ${errors
           .map((err) => `"${err.source}"`)
-          .join(', ')} while waiting for response event(s) for event "${name}".`
+          .join(
+            ', ',
+          )} while waiting for response event(s) for event "${name}".`,
       );
 
       const { error } = errors[0];
@@ -335,7 +337,7 @@ export class ThymianEmitter {
 
     if (opts.strategy !== 'first' && results.length !== numOfListeners) {
       this.logger.debug(
-        `Expected ${numOfListeners} response events for event "${name}" but got ${results.length}.`
+        `Expected ${numOfListeners} response events for event "${name}" but got ${results.length}.`,
       );
     }
 
@@ -376,13 +378,13 @@ export class ThymianEmitter {
         ...this.options,
         // we only have to listen to all events once
         traceEvents: false,
-      }
+      },
     );
   }
 
   private createActionContext<Name extends ThymianActionName>(
     name: Name,
-    correlationId: string
+    correlationId: string,
   ): ActionContext<Name> {
     return {
       error: (error) => {
@@ -413,7 +415,7 @@ export class ThymianEmitter {
           this.#errors.next({
             error: new ThymianBaseError(
               `Error while calling action handler for action "${name}".`,
-              { cause: error }
+              { cause: error },
             ),
             name,
             correlationId,
@@ -446,15 +448,15 @@ export class ThymianEmitter {
         | ThymianEvent<ThymianEventName>
         | ThymianActionEvent<ThymianActionName>
         | ThymianResponseEvent<ThymianActionName>
-        | ThymianErrorEvent<ErrorName>
+        | ThymianErrorEvent<ErrorName>,
     ) => {
       this.logger.trace(
         `${chalk.bold(event.source)} with ${type} ${chalk.bold(
-          event.name
+          event.name,
         )} at ${new Date(event.timestamp)
           .toISOString()
           .replace('T', ' ')
-          .replace('Z', '')}`
+          .replace('Z', '')}`,
       );
     };
   }

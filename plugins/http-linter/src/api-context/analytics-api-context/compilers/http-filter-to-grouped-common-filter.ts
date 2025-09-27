@@ -6,7 +6,7 @@ import { compileHttpFilterToWhereClause } from './http-filter-to-where-clause.js
 
 export function httpFilterToGroupedCommonFilter(
   filter: HttpFilterExpression,
-  groupBy: HttpFilterExpression
+  groupBy: HttpFilterExpression,
 ): SqlFragment {
   const filterFragment = compileHttpFilterToWhereClause(filter, {
     requests: 'req',

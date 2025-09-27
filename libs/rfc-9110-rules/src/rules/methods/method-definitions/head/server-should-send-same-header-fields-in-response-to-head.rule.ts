@@ -5,13 +5,13 @@ import { httpRule, type RuleViolation } from '@thymian/http-linter';
 import { arrayDifference, createList } from '../../../../utils.js';
 
 export default httpRule(
-  'rfc9110/server-should-send-same-header-fields-in-response-to-head'
+  'rfc9110/server-should-send-same-header-fields-in-response-to-head',
 )
   .severity('warn')
   .type('static', 'analytics', 'test')
   .url('https://www.rfc-editor.org/rfc/rfc9110.html#name-head')
   .description(
-    'The server SHOULD send the same header fields in response to a HEAD request as it would have sent if the request method had been GET.'
+    'The server SHOULD send the same header fields in response to a HEAD request as it would have sent if the request method had been GET.',
   )
   .appliesTo('server')
   .rule((ctx) =>
@@ -20,11 +20,11 @@ export default httpRule(
       url(),
       (_, transactions) => {
         const getTransaction = transactions.find(([req]) =>
-          equalsIgnoreCase(req.method, 'get')
+          equalsIgnoreCase(req.method, 'get'),
         );
 
         const headTransaction = transactions.find(([req]) =>
-          equalsIgnoreCase(req.method, 'head')
+          equalsIgnoreCase(req.method, 'head'),
         );
 
         if (
@@ -38,7 +38,7 @@ export default httpRule(
 
         const difference = arrayDifference(
           getTransaction[1].headers,
-          headTransaction[1].headers
+          headTransaction[1].headers,
         );
 
         if (difference.length === 0) {
@@ -51,10 +51,10 @@ export default httpRule(
             elementType: 'node',
           },
           message: `Response to HEAD request is missing headers: ${createList(
-            difference
+            difference,
           )}`,
         } satisfies RuleViolation;
-      }
-    )
+      },
+    ),
   )
   .done();

@@ -43,14 +43,14 @@ export type MatchResult = {
 
 export function isNodeType<T extends ThymianNodeType>(
   node: ThymianNode,
-  type: T
+  type: T,
 ): node is ThymianNodes[T] {
   return node.type === type;
 }
 
 export function isEdgeType<T extends ThymianEdgeType>(
   edge: ThymianEdge,
-  type: T
+  type: T,
 ): edge is ThymianEdges[T] {
   return edge.type === type;
 }
@@ -91,7 +91,7 @@ export type ThymianGraph = MultiDirectedGraph<ThymianNode, ThymianEdge>;
 export type SerializedThymianFormat = SerializedGraph<ThymianNode, ThymianEdge>;
 
 export function thymianHttpRequestToLabel(
-  req: PartialBy<ThymianHttpRequest, 'label'>
+  req: PartialBy<ThymianHttpRequest, 'label'>,
 ): string {
   const label = `${req.method.toUpperCase()} ${req.protocol}://${req.host}:${
     req.port
@@ -101,7 +101,7 @@ export function thymianHttpRequestToLabel(
 }
 
 export function thymianHttpResponseToLabel(
-  res: PartialBy<ThymianHttpResponse, 'label'>
+  res: PartialBy<ThymianHttpResponse, 'label'>,
 ): string {
   const statusCode = res.statusCode;
   const phrase = isValidHttpStatusCode(statusCode)
@@ -123,7 +123,7 @@ export class ThymianFormat {
   addEdge(
     source: string,
     target: string,
-    edge: PartialBy<ThymianEdge, 'label'>
+    edge: PartialBy<ThymianEdge, 'label'>,
   ): string {
     return this.graph.addEdge(source, target, {
       label: edge.type,
@@ -134,7 +134,7 @@ export class ThymianFormat {
   addHttpLink(
     source: string,
     target: string,
-    edge: PartialBy<HttpLink, 'type' | 'label'>
+    edge: PartialBy<HttpLink, 'type' | 'label'>,
   ): string {
     const res = this.getNode<ThymianHttpResponse>(source);
     const req = this.getNode<ThymianHttpRequest>(target);
@@ -146,7 +146,7 @@ export class ThymianFormat {
     }
 
     const label = `${thymianHttpResponseToLabel(
-      res
+      res,
     )} \u2192 ${thymianHttpRequestToLabel(req)}`;
 
     return this.addEdge(source, target, {
@@ -159,13 +159,13 @@ export class ThymianFormat {
   addResponseToRequest(
     requestId: string,
     response: PartialBy<ThymianHttpResponse, 'label'>,
-    transaction: Partial<HttpTransaction> = {}
+    transaction: Partial<HttpTransaction> = {},
   ): [string, string] {
     const req = this.getNode<ThymianHttpRequest>(requestId);
 
     if (!req) {
       throw new Error(
-        `Invalid request ID${requestId}. Cannot add response to request.`
+        `Invalid request ID${requestId}. Cannot add response to request.`,
       );
     }
 
@@ -173,7 +173,7 @@ export class ThymianFormat {
 
     const resId = this.addResponse(
       { ...response, label: resLabel },
-      this.hash(req.label + resLabel)
+      this.hash(req.label + resLabel),
     );
 
     return [
@@ -188,7 +188,7 @@ export class ThymianFormat {
 
   addHttpTransaction(
     request: PartialBy<ThymianHttpRequest, 'label'>,
-    response: PartialBy<ThymianHttpResponse, 'label'>
+    response: PartialBy<ThymianHttpResponse, 'label'>,
   ): [string, string, string] {
     const reqLabel = thymianHttpRequestToLabel(request);
     const resLabel = thymianHttpResponseToLabel(response);
@@ -201,7 +201,7 @@ export class ThymianFormat {
 
     const resId = this.addResponse(
       { ...response, label: resLabel },
-      this.hash(reqLabel + resLabel)
+      this.hash(reqLabel + resLabel),
     );
 
     return [
@@ -240,13 +240,13 @@ export class ThymianFormat {
         ...request,
         type: 'http-request',
       },
-      this.hash(label)
+      this.hash(label),
     );
   }
 
   private addResponse(
     response: PartialBy<ThymianHttpResponse, 'label'>,
-    id?: string
+    id?: string,
   ): string {
     const label = thymianHttpResponseToLabel(response);
 
@@ -256,7 +256,7 @@ export class ThymianFormat {
         ...response,
         type: 'http-response',
       },
-      id
+      id,
     );
   }
 
@@ -274,13 +274,13 @@ export class ThymianFormat {
 
   findNodeByExtension(
     extensionName: string,
-    values: Record<PropertyKey, string | number | boolean>
+    values: Record<PropertyKey, string | number | boolean>,
   ): ThymianNode | undefined {
     const id = this.graph.findNode(
       (id, attributes) =>
         attributes.extensions &&
         extensionName in attributes.extensions &&
-        matchObjects(attributes.extensions[extensionName], values)
+        matchObjects(attributes.extensions[extensionName], values),
     );
 
     return this.graph.getNodeAttributes(id);
@@ -288,7 +288,7 @@ export class ThymianFormat {
 
   requestIsSecured(reqId: string): boolean {
     return !!this.graph.findOutEdge(reqId, (_, edge) =>
-      isEdgeType(edge, 'is-secured')
+      isEdgeType(edge, 'is-secured'),
     );
   }
 
@@ -300,7 +300,7 @@ export class ThymianFormat {
           const transactionId = this.graph.findEdge(
             reqId,
             id,
-            (_, edge) => edge.type === 'http-transaction'
+            (_, edge) => edge.type === 'http-transaction',
           );
 
           if (!transactionId) {
@@ -312,13 +312,13 @@ export class ThymianFormat {
 
         return acc;
       },
-      [] as [string, ThymianHttpResponse, string][]
+      [] as [string, ThymianHttpResponse, string][],
     );
   }
 
   getNeighboursOfType<Type extends ThymianNodeType>(
     id: string,
-    type: Type
+    type: Type,
   ): [string, ThymianNodes[Type]][] {
     return this.graph.reduceNeighbors(
       id,
@@ -329,13 +329,13 @@ export class ThymianFormat {
 
         return acc;
       },
-      [] as [string, ThymianNodes[Type]][]
+      [] as [string, ThymianNodes[Type]][],
     );
   }
 
   getNodesByExtension(
     extensionName: string,
-    values: Record<PropertyKey, string | number | boolean>
+    values: Record<PropertyKey, string | number | boolean>,
   ): ThymianNode[] {
     return this.graph.reduceNodes((acc, _, attributes) => {
       if (
@@ -350,13 +350,16 @@ export class ThymianFormat {
   }
 
   getHttpTransactions(): [string, string, string][] {
-    return this.graph.reduceEdges((transactions, id, edge, source, target) => {
-      if (edge.type === 'http-transaction') {
-        transactions.push([source, target, id]);
-      }
+    return this.graph.reduceEdges(
+      (transactions, id, edge, source, target) => {
+        if (edge.type === 'http-transaction') {
+          transactions.push([source, target, id]);
+        }
 
-      return transactions;
-    }, [] as [string, string, string][]);
+        return transactions;
+      },
+      [] as [string, string, string][],
+    );
   }
 
   getThymianHttpTransactions(): ThymianHttpTransaction[] {
@@ -375,13 +378,13 @@ export class ThymianFormat {
 
         return transactions;
       },
-      [] as ThymianHttpTransaction[]
+      [] as ThymianHttpTransaction[],
     );
   }
 
   matchTransaction(
     req: HttpRequest,
-    res: HttpResponse
+    res: HttpResponse,
   ): [string, string, string] | undefined {
     const edgeId = this.graph.findEdge(
       (id, edge, sourceId, targetId, source, target) => {
@@ -404,7 +407,7 @@ export class ThymianFormat {
           equalsIgnoreCase(reqMediaType, thymianReq.mediaType) &&
           equalsIgnoreCase(resMediaType, thymianRes.mediaType)
         );
-      }
+      },
     );
 
     if (!edgeId) {
@@ -425,32 +428,35 @@ export class ThymianFormat {
 
     const pathname = urlObj.pathname;
 
-    return this.graph.reduceNodes((result, id, node) => {
-      if (isNodeType(node, 'http-request')) {
-        const path = node.path.replaceAll(/{([^}]+)}/gi, ':$1');
+    return this.graph.reduceNodes(
+      (result, id, node) => {
+        if (isNodeType(node, 'http-request')) {
+          const path = node.path.replaceAll(/{([^}]+)}/gi, ':$1');
 
-        const matchFn = match(path);
+          const matchFn = match(path);
 
-        const r = matchFn(pathname);
+          const r = matchFn(pathname);
 
-        if (r) {
-          result = {
-            reqId: id,
-            parameters: r.params,
-          };
+          if (r) {
+            result = {
+              reqId: id,
+              parameters: r.params,
+            };
+          }
         }
-      }
 
-      return result;
-    }, undefined as MatchResult | undefined);
+        return result;
+      },
+      undefined as MatchResult | undefined,
+    );
   }
 
   findNode<Type extends ThymianNodeType>(
     type: Type,
-    properties: StringAndNumberProperties<ThymianNodes[Type]>
+    properties: StringAndNumberProperties<ThymianNodes[Type]>,
   ): ThymianNodes[Type] | undefined {
     const nodeId = this.graph.findNode(
-      (id, node) => isNodeType(node, type) && matchObjects(node, properties)
+      (id, node) => isNodeType(node, type) && matchObjects(node, properties),
     );
 
     if (typeof nodeId === 'undefined') {
@@ -478,7 +484,7 @@ export class ThymianFormat {
 
   addSampleHttpTransaction(
     request: HttpRequest,
-    response: HttpResponse
+    response: HttpResponse,
   ): [string, string, string] {
     const reqId = this.addSampleHttpRequest(request);
     const resId = this.addSampleHttpResponse(response);
@@ -505,7 +511,7 @@ export class ThymianFormat {
   }
 
   static fromHttpTransactions(
-    transactions: [HttpRequest, HttpResponse][]
+    transactions: [HttpRequest, HttpResponse][],
   ): ThymianFormat {
     const format = new ThymianFormat();
 
@@ -515,7 +521,7 @@ export class ThymianFormat {
 
       const [sampleReqId, sampleResId] = format.addSampleHttpTransaction(
         req,
-        res
+        res,
       );
 
       const [reqId, resId] = format.addHttpTransaction(thymianReq, thymianRes);
@@ -533,7 +539,7 @@ export class ThymianFormat {
 
   static import(graph: SerializedThymianFormat): ThymianFormat {
     return new ThymianFormat(
-      new MultiDirectedGraph<ThymianNode, ThymianEdge>().import(graph)
+      new MultiDirectedGraph<ThymianNode, ThymianEdge>().import(graph),
     );
   }
 

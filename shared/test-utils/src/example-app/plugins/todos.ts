@@ -129,9 +129,9 @@ export default function todos(_fastify: FastifyInstance) {
       res.code(200);
 
       return todos.filter((todo) =>
-        todo.title.toLowerCase().includes(req.query.title.toLowerCase())
+        todo.title.toLowerCase().includes(req.query.title.toLowerCase()),
       );
-    }
+    },
   );
 
   fastify.get(
@@ -171,7 +171,7 @@ export default function todos(_fastify: FastifyInstance) {
           .header('cache-control', 'private')
           .send(todo)
       );
-    }
+    },
   );
 
   fastify.post(
@@ -206,7 +206,7 @@ export default function todos(_fastify: FastifyInstance) {
       reply.status(201);
 
       return todo;
-    }
+    },
   );
 }
 

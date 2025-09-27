@@ -5,7 +5,7 @@ import type { TableNames } from './types.js';
 
 export function httpFilterToGroupByClause(
   expression: HttpFilterExpression,
-  tables: TableNames
+  tables: TableNames,
 ): SqlFragment {
   const params: unknown[] = [];
 
@@ -37,7 +37,7 @@ export function httpFilterToGroupByClause(
       };
     case 'and': {
       const parts = expression.filters.map((expr) =>
-        httpFilterToGroupByClause(expr, tables)
+        httpFilterToGroupByClause(expr, tables),
       );
 
       return {

@@ -18,7 +18,7 @@ import { processMediaTypeObject } from './media-type-object.processor.js';
 import type { Parameters } from './utils.js';
 
 export function processParameterObjects(
-  parameterObjects: OpenApiV31.ParameterObject[] | undefined
+  parameterObjects: OpenApiV31.ParameterObject[] | undefined,
 ): Parameters {
   const parameters: Parameters = {
     headers: {},
@@ -49,21 +49,21 @@ export function processParameterObjects(
 }
 
 export function processParameterObject(
-  parameterObject: OpenApiV31.ParameterObject
+  parameterObject: OpenApiV31.ParameterObject,
 ): [string, Parameter] {
   let thymianSchema: ThymianSchema;
   let parameterContentType: string | undefined;
 
   if (parameterObject.schema) {
     thymianSchema = processSchema(
-      parameterObject.schema as Draft202012SchemaObject
+      parameterObject.schema as Draft202012SchemaObject,
     );
   } else if (parameterObject.content) {
     const entries = Object.entries(parameterObject.content);
 
     if (entries.length !== 1 || !entries[0]) {
       throw new Error(
-        'ParameterObject.content MUST contain exactly one entry.'
+        'ParameterObject.content MUST contain exactly one entry.',
       );
     }
 
@@ -76,14 +76,14 @@ export function processParameterObject(
     const { schema } = processMediaTypeObject(
       mediaTypeObject,
       addEncoding,
-      isMultipart
+      isMultipart,
     );
 
     if (!schema) {
       throw new Error(
         `${capitalizeFirstChar(parameterObject.in)} parameter "${
           parameterObject.name
-        }" object must define either a schema or a content property.`
+        }" object must define either a schema or a content property.`,
       );
     }
 
@@ -93,7 +93,7 @@ export function processParameterObject(
     throw new Error(
       `${capitalizeFirstChar(parameterObject.in)} parameter "${
         parameterObject.name
-      }" object must define either a schema or a content property.`
+      }" object must define either a schema or a content property.`,
     );
   }
 
@@ -102,7 +102,7 @@ export function processParameterObject(
   Object.values(parameterObject.examples ?? {}).forEach((example) => {
     addExampleToSchema(
       thymianSchema,
-      (example as OpenApiV31.ExampleObject).value
+      (example as OpenApiV31.ExampleObject).value,
     );
   });
 
@@ -112,19 +112,19 @@ export function processParameterObject(
           .withExplode(parameterObject.explode)
           .build()
       : parameterObject.in === 'query'
-      ? new QuerySerializationStyleBuilder()
-          .withStyle(parameterObject.style)
-          .withExplode(parameterObject.explode)
-          .build()
-      : parameterObject.in === 'path'
-      ? new PathSerializationStyleBuilder()
-          .withStyle(parameterObject.style)
-          .withExplode(parameterObject.explode)
-          .build()
-      : new CookieSerializationStyleBuilder()
-          .withStyle(parameterObject.style)
-          .withExplode(parameterObject.explode)
-          .build();
+        ? new QuerySerializationStyleBuilder()
+            .withStyle(parameterObject.style)
+            .withExplode(parameterObject.explode)
+            .build()
+        : parameterObject.in === 'path'
+          ? new PathSerializationStyleBuilder()
+              .withStyle(parameterObject.style)
+              .withExplode(parameterObject.explode)
+              .build()
+          : new CookieSerializationStyleBuilder()
+              .withStyle(parameterObject.style)
+              .withExplode(parameterObject.explode)
+              .build();
 
   const param: Parameter = {
     required: parameterObject.required ?? false,

@@ -8,7 +8,7 @@ import {
 
 export function findPartsInRequest(
   req: ThymianHttpRequest,
-  name: string
+  name: string,
 ): string[] {
   const parts = [];
 
@@ -33,7 +33,7 @@ export function findPartsInRequest(
 
 export function processLinkObjectParameters(
   parameters: Record<string, unknown | RunExpression> | undefined,
-  req: ThymianHttpRequest
+  req: ThymianHttpRequest,
 ): Pick<
   HttpLink,
   'pathParameters' | 'queryParameters' | 'headers' | 'cookies'

@@ -12,7 +12,7 @@ import { type StringAndNumberProperties } from '../utils.js';
 export type RequestFilterFn = (
   req: ThymianHttpRequest,
   reqId: string,
-  responses: [string, ThymianHttpResponse][]
+  responses: [string, ThymianHttpResponse][],
 ) => boolean;
 
 export type RequestFilter =
@@ -23,7 +23,7 @@ export type ResponseFilterFn = (
   res: ThymianHttpResponse,
   resId: string,
   req: ThymianHttpRequest,
-  reqId: string
+  reqId: string,
 ) => boolean;
 
 export type ResponseFilter =
@@ -32,7 +32,7 @@ export type ResponseFilter =
 
 export function filterHttpTransactions(
   reqFilter: RequestFilter = {},
-  resFilter: ResponseFilter = {}
+  resFilter: ResponseFilter = {},
 ): MonoTypeOperatorFunction<PipelineItem<ThymianHttpTransaction>> {
   return filter(({ current: transaction, ctx }) => {
     const requestFilter =
@@ -41,7 +41,7 @@ export function filterHttpTransactions(
         : (t: ThymianHttpTransaction) => {
             const responses = ctx.format.getNeighboursOfType(
               transaction.thymianReqId,
-              'http-response'
+              'http-response',
             );
 
             return reqFilter(t.thymianReq, t.thymianReqId, responses);
@@ -55,7 +55,7 @@ export function filterHttpTransactions(
               t.thymianRes,
               t.thymianResId,
               t.thymianReq,
-              t.thymianReqId
+              t.thymianReqId,
             );
 
     return requestFilter(transaction) && responseFilter(transaction);

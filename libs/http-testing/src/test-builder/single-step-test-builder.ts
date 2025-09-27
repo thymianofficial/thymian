@@ -42,36 +42,37 @@ export interface RunRequests {
   tap(fn: () => void): RunRequests;
 
   run(
-    options?: RunOptions
+    options?: RunOptions,
   ): ExpectOrStep<[Required<HttpTestCaseStepTransaction>]>;
 }
 
 export interface ExpectOrStep<
-  Transactions extends Required<HttpTestCaseStepTransaction>[]
+  Transactions extends Required<HttpTestCaseStepTransaction>[],
 > {
   expectForTransactions(
     ...filters: HttpFilterExpression[]
   ): ExpectOrStep<Transactions>;
 
   replayStep(
-    step: (step: ReplyStepBuilder) => BuilderPipeline
+    step: (step: ReplyStepBuilder) => BuilderPipeline,
   ): ExpectOrStep<[...Transactions, Required<HttpTestCaseStepTransaction>]>;
 
   skipIf(
     expression: HttpFilterExpression,
-    message?: string
+    message?: string,
   ): ExpectOrStep<Transactions>;
 
   done(): HttpTestPipeline<Record<PropertyKey, unknown>>;
 
   transactions(
-    fn: (transactions: Transactions) => void
+    fn: (transactions: Transactions) => void,
   ): ExpectOrStep<Transactions>;
 }
 
 export class SingleStepTestBuilder<
-  Transactions extends Required<HttpTestCaseStepTransaction>[]
-> implements RunRequests, FilterTransactions, ExpectOrStep<Transactions>
+    Transactions extends Required<HttpTestCaseStepTransaction>[],
+  >
+  implements RunRequests, FilterTransactions, ExpectOrStep<Transactions>
 {
   protected readonly pipeline: BuilderPipeline = [];
 
@@ -82,11 +83,11 @@ export class SingleStepTestBuilder<
       filter<PipelineItem<ThymianHttpTransaction>>(({ current, ctx }) => {
         const filterFn = httpFilterToTransactionFilter(
           filterExpression,
-          ctx.format
+          ctx.format,
         );
         const responses = ctx.format.getNeighboursOfType(
           current.thymianReqId,
-          'http-response'
+          'http-response',
         );
 
         return filterFn(
@@ -94,9 +95,9 @@ export class SingleStepTestBuilder<
           current.thymianReqId,
           current.thymianRes,
           current.thymianResId,
-          responses
+          responses,
         );
-      })
+      }),
     );
 
     return this;
@@ -109,7 +110,7 @@ export class SingleStepTestBuilder<
 
   set(
     filter: RequestFilterExpression,
-    value: unknown
+    value: unknown,
   ): SingleStepTestBuilder<Transactions> {
     const operator: MonoTypeOperatorFunction<PipelineItem<HttpTestCase>> = map(
       ({ current, ctx }) => {
@@ -117,12 +118,12 @@ export class SingleStepTestBuilder<
           current.steps[0].transactions[0].requestTemplate = overrideTemplate(
             current.steps[0].transactions[0].requestTemplate,
             filter,
-            value
+            value,
           );
         }
 
         return { current, ctx };
-      }
+      },
     );
 
     this.#requestOverrides.push(operator);
@@ -132,7 +133,7 @@ export class SingleStepTestBuilder<
 
   skipIf(
     expression: HttpFilterExpression,
-    message?: string
+    message?: string,
   ): ExpectOrStep<Transactions> {
     const operator: MonoTypeOperatorFunction<PipelineItem<HttpTestCase>> = map(
       ({ current, ctx }) => {
@@ -154,7 +155,7 @@ export class SingleStepTestBuilder<
         }
 
         return { current, ctx };
-      }
+      },
     );
 
     this.pipeline.push(operator);
@@ -163,13 +164,13 @@ export class SingleStepTestBuilder<
   }
 
   run(
-    options: RunOptions = {}
+    options: RunOptions = {},
   ): SingleStepTestBuilder<[Required<HttpTestCaseStepTransaction>]> {
     this.pipeline.push(
       mapToTestCase(),
       generateRequests(options),
       ...this.#requestOverrides,
-      runRequests(options)
+      runRequests(options),
     );
 
     return this as unknown as SingleStepTestBuilder<
@@ -181,7 +182,7 @@ export class SingleStepTestBuilder<
     ...filters: HttpFilterExpression[]
   ): ExpectOrStep<Transactions> {
     const validate = compileResponseScopedExpressionToTransactionValidationFn(
-      and(...filters)
+      and(...filters),
     );
 
     const fn: MonoTypeOperatorFunction<PipelineItem<HttpTestCase>> =
@@ -197,12 +198,12 @@ export class SingleStepTestBuilder<
       transactions.pipe(
         // eslint-disable-next-line @typescript-eslint/ban-ts-comment
         // @ts-expect-error
-        ...this.pipeline
+        ...this.pipeline,
       );
   }
 
   replayStep(
-    step: (step: ReplyStepBuilder) => BuilderPipeline
+    step: (step: ReplyStepBuilder) => BuilderPipeline,
   ): SingleStepTestBuilder<
     [...Transactions, Required<HttpTestCaseStepTransaction>]
   > {
@@ -211,9 +212,9 @@ export class SingleStepTestBuilder<
         step1.pipe(
           // eslint-disable-next-line @typescript-eslint/ban-ts-comment
           // @ts-expect-error
-          ...step(new ReplyStepBuilder())
-        )
-      )
+          ...step(new ReplyStepBuilder()),
+        ),
+      ),
     );
 
     return this as unknown as SingleStepTestBuilder<
@@ -222,7 +223,7 @@ export class SingleStepTestBuilder<
   }
 
   transactions(
-    fn: (transactions: Transactions) => void
+    fn: (transactions: Transactions) => void,
   ): SingleStepTestBuilder<Transactions> {
     const operator: MonoTypeOperatorFunction<PipelineItem<HttpTestCase>> = map(
       ({ current, ctx }) => {
@@ -243,7 +244,7 @@ export class SingleStepTestBuilder<
         }
 
         return { current, ctx };
-      }
+      },
     );
 
     this.pipeline.push(operator);

@@ -12,14 +12,14 @@ export class AnalyticsLinter extends AbstractLinter {
     rules: Rule[],
     report: (report: ThymianReport) => void,
     format: ThymianFormat,
-    ruleOptions: Record<string, Record<string, unknown> | undefined>
+    ruleOptions: Record<string, Record<string, unknown> | undefined>,
   ) {
     super(logger, rules, report, format, ruleOptions);
   }
 
   protected override async runRule<Options extends Record<string, unknown>>(
     rule: Rule,
-    options: Options
+    options: Options,
   ): Promise<boolean> {
     if (!rule.analyticsRule) {
       return true;
@@ -31,7 +31,7 @@ export class AnalyticsLinter extends AbstractLinter {
         ...options,
         mode: 'analytics',
       },
-      this.logger.child(rule.meta.name)
+      this.logger.child(rule.meta.name),
     );
 
     if (!result || (Array.isArray(result) && result.length === 0)) {

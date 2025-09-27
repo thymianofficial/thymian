@@ -9,8 +9,7 @@ export default [
         'error',
         {
           ignoredFiles: ['{projectRoot}/eslint.config.{js,cjs,mjs}'],
-          ignoredDependencies: ['vitest', '@thymian/test-utils']
-
+          ignoredDependencies: ['vitest', '@thymian/test-utils'],
         },
       ],
     },

@@ -46,8 +46,8 @@ describe('ThymianFormat', () => {
 
       expect(() =>
         ThymianFormat.fromHttpTransactions(
-          transactions as [HttpRequest, HttpResponse][]
-        )
+          transactions as [HttpRequest, HttpResponse][],
+        ),
       ).toThrow();
     });
   });

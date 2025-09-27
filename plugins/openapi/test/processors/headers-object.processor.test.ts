@@ -51,7 +51,7 @@ describe('processHeadersObject', () => {
           },
         },
       },
-      false
+      false,
     );
 
     expect(Object.keys(result)).toHaveLength(2);

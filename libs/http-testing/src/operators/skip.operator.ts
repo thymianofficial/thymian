@@ -7,7 +7,7 @@ import type {
 import type { PipelineItem } from '../http-test/http-test-pipeline.js';
 
 export function skipTestCase<Steps extends HttpTestCaseStep[]>(
-  fn: (testCase: HttpTestCase<Steps>) => boolean = () => true
+  fn: (testCase: HttpTestCase<Steps>) => boolean = () => true,
 ): MonoTypeOperatorFunction<PipelineItem<HttpTestCase<Steps>>> {
   return map(({ current, ctx }) => ({
     current: {

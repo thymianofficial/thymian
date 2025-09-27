@@ -1,7 +1,8 @@
-import { request } from 'undici';
-import type { HttpMethod } from './types.js';
-import { decodeBody } from './decode-body.js';
 import type { HttpRequest, HttpResponse } from '@thymian/core';
+import { request } from 'undici';
+
+import { decodeBody } from './decode-body.js';
+import type { HttpMethod } from './types.js';
 
 export function isValidHttpMethod(method: string): method is HttpMethod {
   return [
@@ -23,7 +24,7 @@ export type HttpRequestDispatchOptions = {
 
 export async function dispatchHttpRequest(
   httpRequest: HttpRequest,
-  options: Partial<HttpRequestDispatchOptions> = {}
+  options: Partial<HttpRequestDispatchOptions> = {},
 ): Promise<HttpResponse> {
   const opts = {
     timeout: 5000,
@@ -46,7 +47,7 @@ export async function dispatchHttpRequest(
       body: decodeBody(httpRequest.body, httpRequest.bodyEncoding),
       bodyTimeout: opts.timeout,
       headersTimeout: opts.timeout,
-    }
+    },
   );
 
   const res: HttpResponse = {

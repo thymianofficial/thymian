@@ -6,7 +6,7 @@ import { processParameterObject } from './parameter-object.processor.js';
 export function processHeadersObject(
   headersObject: Record<string, OpenApiV31.HeaderObject> | undefined,
   // https://swagger.io/specification/v3/#response-object
-  ignoreContentTypeHeader = true
+  ignoreContentTypeHeader = true,
 ): Record<string, Parameter> {
   return Object.entries(headersObject ?? {}).reduce(
     (acc, [name, headerObject]) => {
@@ -25,6 +25,6 @@ export function processHeadersObject(
         [name]: parameter,
       };
     },
-    {} as Record<string, Parameter>
+    {} as Record<string, Parameter>,
   );
 }

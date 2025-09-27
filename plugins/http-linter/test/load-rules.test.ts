@@ -8,7 +8,7 @@ vitest.mock('./import-meta-resolve.ts', () => ({
     .fn()
     .mockImplementation(
       (specifier) =>
-        `file://${createRequire(import.meta.url).resolve(specifier)}`
+        `file://${createRequire(import.meta.url).resolve(specifier)}`,
     ),
 }));
 

@@ -11,7 +11,7 @@ export const redirectionPhrases = [
 export type RedirectionPhrase = (typeof redirectionPhrases)[number];
 
 export function isValidRedirectionPhrase(
-  phrase: string
+  phrase: string,
 ): phrase is RedirectionPhrase {
   return redirectionPhrases.includes(phrase as RedirectionPhrase);
 }
