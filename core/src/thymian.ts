@@ -1,7 +1,6 @@
 import { Subject } from 'rxjs';
 import semver from 'semver';
 
-// prettier-ignore
 import packageJson from '../package.json' with { type: 'json' };
 import { validate } from './ajv.js';
 import { corePlugin } from './core-plugin.js';
