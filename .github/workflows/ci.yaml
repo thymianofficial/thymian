@@ -28,6 +28,8 @@ jobs:
       - uses: nrwl/nx-set-shas@v4
       - name: run linter
         run: npx nx affected -t lint
+      - name: run formatter check
+        run: npx nx format:check --all
 
   main:
     strategy:
