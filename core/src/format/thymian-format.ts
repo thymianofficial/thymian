@@ -14,17 +14,27 @@ import {
   capitalizeFirstChar,
   equalsIgnoreCase,
   getContentType,
+  httpRequestToLabel,
+  httpResponseToLabel,
   normalizeUrl,
   type PartialBy,
   thymianRequestToOrigin,
 } from '../utils.js';
 import { matchObjects, type StringAndNumberProperties } from '../utils.js';
+import type { HasSample } from './edges/has-sample.edge.js';
 import type { HttpLink } from './edges/http-link.edge.js';
 import type { HttpTransaction } from './edges/http-transaction.edge.js';
 import type { IsSecuredWith } from './edges/is-secured-with.edge.js';
+import type { SampleHttpTransaction } from './edges/sample-http-transaction.edge.js';
 import type { ThymianHttpRequest } from './nodes/http-request.node.js';
 import type { ThymianHttpResponse } from './nodes/http-response.node.js';
+import type { SampleHttpRequest } from './nodes/sample-http-request.node.js';
+import type { SampleHttpResponse } from './nodes/sample-http-response.node.js';
 import type { SecurityScheme } from './nodes/security-scheme.node.js';
+import {
+  httpRequestToThymianHttpRequest,
+  httpResponseToThymianHttpResponse,
+} from './utils.js';
 
 export type MatchResult = {
   reqId: string;
@@ -49,12 +59,16 @@ export interface ThymianNodes {
   'http-request': ThymianHttpRequest;
   'http-response': ThymianHttpResponse;
   'security-scheme': SecurityScheme;
+  'sample-http-request': SampleHttpRequest;
+  'sample-http-response': SampleHttpResponse;
 }
 
 export interface ThymianEdges {
   'http-link': HttpLink;
   'http-transaction': HttpTransaction;
   'is-secured': IsSecuredWith;
+  'sample-http-transaction': SampleHttpTransaction;
+  'has-sample': HasSample;
 }
 
 export type ThymianHttpTransaction = {
@@ -446,6 +460,36 @@ export class ThymianFormat {
     return this.getNode<ThymianNodes[Type]>(nodeId);
   }
 
+  addSampleHttpRequest(request: HttpRequest): string {
+    return this.addNode({
+      type: 'sample-http-request',
+      label: httpRequestToLabel(request),
+      sample: request,
+    });
+  }
+
+  addSampleHttpResponse(response: HttpResponse): string {
+    return this.addNode({
+      type: 'sample-http-response',
+      label: httpResponseToLabel(response),
+      sample: response,
+    });
+  }
+
+  addSampleHttpTransaction(
+    request: HttpRequest,
+    response: HttpResponse
+  ): [string, string, string] {
+    const reqId = this.addSampleHttpRequest(request);
+    const resId = this.addSampleHttpResponse(response);
+    const transactionId = this.addEdge(reqId, reqId, {
+      type: 'sample-http-transaction',
+      label: `Sample HTTP Transaction`,
+    });
+
+    return [reqId, resId, transactionId];
+  }
+
   export(): SerializedThymianFormat {
     return this.graph.export();
   }
@@ -458,6 +502,33 @@ export class ThymianFormat {
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   merge(format: ThymianFormat): ThymianFormat {
     return this;
+  }
+
+  static fromHttpTransactions(
+    transactions: [HttpRequest, HttpResponse][]
+  ): ThymianFormat {
+    const format = new ThymianFormat();
+
+    for (const [req, res] of transactions) {
+      const thymianReq = httpRequestToThymianHttpRequest(req);
+      const thymianRes = httpResponseToThymianHttpResponse(res);
+
+      const [sampleReqId, sampleResId] = format.addSampleHttpTransaction(
+        req,
+        res
+      );
+
+      const [reqId, resId] = format.addHttpTransaction(thymianReq, thymianRes);
+
+      format.addEdge(reqId, sampleReqId, {
+        type: 'has-sample',
+      });
+      format.addEdge(resId, sampleResId, {
+        type: 'has-sample',
+      });
+    }
+
+    return format;
   }
 
   static import(graph: SerializedThymianFormat): ThymianFormat {
