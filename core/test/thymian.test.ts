@@ -6,6 +6,7 @@ import {
   Thymian,
   ThymianFormat,
   type ThymianPlugin,
+  ThymianPluginFn,
 } from '../src/index.js';
 
 declare module '../src/events/index.js' {
@@ -28,6 +29,16 @@ const plugin: ThymianPlugin = {
   version: '',
   plugin: () => Promise.resolve(),
 };
+
+function createPluginFor(
+  plugin: ThymianPluginFn<{ cwd: string }>
+): ThymianPlugin {
+  return {
+    name: '',
+    version: '',
+    plugin,
+  };
+}
 
 describe('Thymian', () => {
   let thymian: Thymian;
@@ -109,5 +120,49 @@ describe('Thymian', () => {
         version: '1.x',
       })
     ).toThrowError(PluginRegistrationError);
+  });
+
+  it('should call close action before rejecting promise for error event', async () => {
+    const closedSpy = vitest.fn();
+
+    thymian.register(
+      createPluginFor(async (emitter) => {
+        emitter.onAction('core.close', (_, ctx) => {
+          closedSpy();
+          ctx.reply();
+        });
+      })
+    );
+
+    thymian.register(
+      createPluginFor(async (emitter) => {
+        emitter.onAction('core.run', (_, ctx) => {
+          emitter.emitError({
+            message: 'Error event!',
+            name: 'MyError',
+            options: {
+              severity: 'error',
+            },
+          });
+
+          ctx.reply({ pluginName: '', status: 'success' });
+        });
+      })
+    );
+
+    try {
+      await thymian.run(async () => {
+        await thymian.emitter.emitAction(
+          'core.run',
+          new ThymianFormat().export()
+        );
+      });
+      expect.fail('Thymian should have rejected the promise.');
+    } catch (err) {
+      expect(closedSpy).toHaveBeenCalled();
+      expect(err).toMatchObject({
+        message: 'Error event!',
+      });
+    }
   });
 });

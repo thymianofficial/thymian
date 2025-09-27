@@ -5,14 +5,16 @@ import packageJson from '../package.json' with { type: 'json' };
 import { validate } from './ajv.js';
 import { corePlugin } from './core-plugin.js';
 import { ThymianEmitter } from './emitter/index.js';
-import {  ThymianFormat } from './format/index.js';
+import { ThymianFormat } from './format/index.js';
 import type { Logger } from './logger/logger.js';
 import { NoopLogger } from './logger/noop.logger.js';
 import { ThymianBaseError } from './thymian.error.js';
 import type { ThymianPlugin } from './thymian-plugin.js';
 import { timeoutPromise } from './utils.js';
 
-export type RegisteredPlugin<T extends Record<PropertyKey, unknown> = Record<PropertyKey, unknown>> = {
+export type RegisteredPlugin<
+  T extends Record<PropertyKey, unknown> = Record<PropertyKey, unknown>,
+> = {
   plugin: ThymianPlugin<T>;
   options: T;
 };
@@ -20,10 +22,10 @@ export type RegisteredPlugin<T extends Record<PropertyKey, unknown> = Record<Pro
 export class PluginRegistrationError extends ThymianBaseError {}
 
 export type ThymianOptions = {
-  timeout: number
-  traceEvents: boolean,
-  cwd: string
-}
+  timeout: number;
+  traceEvents: boolean;
+  cwd: string;
+};
 
 export class Thymian {
   readonly plugins: RegisteredPlugin[] = [];
@@ -36,35 +38,49 @@ export class Thymian {
 
   public static readonly VERSION = packageJson.version;
 
-  constructor(private readonly logger: Logger = new NoopLogger(), options: Partial<ThymianOptions> = {}) {
+  constructor(
+    private readonly logger: Logger = new NoopLogger(),
+    options: Partial<ThymianOptions> = {},
+  ) {
     this.options = {
       timeout: 5000,
       traceEvents: false,
       cwd: process.cwd(),
-      ...options
-    }
+      ...options,
+    };
 
-
-    const emitterLogger = this.options.traceEvents ? logger.child('@thymian/core', true) : new NoopLogger()
-    this.emitter = new ThymianEmitter(emitterLogger, {
-      completed: new Set(),
-      errors: new Subject(),
-      events: new Subject(),
-      listeners: new Map(),
-      responses: new Subject(),
-      source: '@thymian/core',
-    }, {
-      traceEvents: this.options.traceEvents,
-      timeout: this.options.timeout,
-    });
+    const emitterLogger = this.options.traceEvents
+      ? logger.child('@thymian/core', true)
+      : new NoopLogger();
+    this.emitter = new ThymianEmitter(
+      emitterLogger,
+      {
+        completed: new Set(),
+        errors: new Subject(),
+        events: new Subject(),
+        listeners: new Map(),
+        responses: new Subject(),
+        source: '@thymian/core',
+      },
+      {
+        traceEvents: this.options.traceEvents,
+        timeout: this.options.timeout,
+      },
+    );
   }
 
-  register<T extends Record<PropertyKey, unknown>>(plugin: ThymianPlugin<T>, options?: T): this {
+  register<T extends Record<PropertyKey, unknown>>(
+    plugin: ThymianPlugin<T>,
+    options?: T,
+  ): this {
     if (!semver.satisfies(Thymian.VERSION, plugin.version)) {
       throw new PluginRegistrationError(
-        `@thymian/core version ${Thymian.VERSION} does not match plugin version constraints ${plugin.version} from plugin "${plugin.name}".`, {
-          suggestions: [`Install the matching plugin version for thymian version ${Thymian.VERSION}.`]
-        }
+        `@thymian/core version ${Thymian.VERSION} does not match plugin version constraints ${plugin.version} from plugin "${plugin.name}".`,
+        {
+          suggestions: [
+            `Install the matching plugin version for thymian version ${Thymian.VERSION}.`,
+          ],
+        },
       );
     }
 
@@ -73,7 +89,7 @@ export class Thymian {
 
       if (!validOptions) {
         throw new PluginRegistrationError(
-          `Invalid options for plugin "${plugin.name}".`
+          `Invalid options for plugin "${plugin.name}".`,
         );
       }
     }
@@ -99,11 +115,27 @@ export class Thymian {
     this.#ready = true;
   }
 
-  run<T>(fn: (emitter: ThymianEmitter, logger: Logger) => Promise<T> | T): Promise<T> {
+  run<T>(
+    fn: (emitter: ThymianEmitter, logger: Logger) => Promise<T> | T,
+  ): Promise<T> {
     return new Promise((resolve, reject) => {
+      const tryCloseThymian = (err: unknown) => {
+        this.logger.debug('Try closing Thymian...');
+
+        this.close()
+          .then(() => {
+            this.logger.debug('Thymian closed.');
+            reject(err);
+          })
+          .catch((e) => {
+            this.logger.error('Error while closing Thymian.', e);
+            reject(err);
+          });
+      };
+
       this.emitter.onError((event) => {
         if (event.error.options.severity === 'error') {
-          reject(event.error);
+          tryCloseThymian(event.error);
         } else if (event.error.options.severity === 'warn') {
           this.logger.warn(event.error.message);
         } else {
@@ -118,48 +150,62 @@ export class Thymian {
 
         await this.close();
 
-        return result
+        return result;
       })()
         .then(resolve)
         .catch((err) => {
-          this.logger.debug('Try closing Thymian...');
-
-          this.close().then(() => reject(err));
+          tryCloseThymian(err);
         });
-    })
+    });
   }
 
-
   async close(): Promise<void> {
-     await this.emitter.emitAction('core.close');
+    await this.emitter.emitAction('core.close');
   }
 
   async loadFormat(): Promise<ThymianFormat> {
-    const formats = await this.emitter.emitAction('core.load-format', undefined, {
-      timeout: 2000,
-      strategy: 'collect'
-    })
+    const formats = await this.emitter.emitAction(
+      'core.load-format',
+      undefined,
+      {
+        timeout: 2000,
+        strategy: 'collect',
+      },
+    );
 
-    const format = formats.length === 0
-      ? new ThymianFormat()
-      // we know that formats.length >= 1
-      // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-      : formats.slice(1).reduce((acc, curr) => acc.merge(ThymianFormat.import(curr)), ThymianFormat.import(formats[0]!))
+    const format =
+      formats.length === 0
+        ? new ThymianFormat()
+        : // we know that formats.length >= 1
+          // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+          formats
+            .slice(1)
+            .reduce(
+              (acc, curr) => acc.merge(ThymianFormat.import(curr)),
+              ThymianFormat.import(formats[0]!),
+            );
 
-    this.logger.debug(`Merged Thymian format includes ${format.graph.order} nodes and ${format.graph.size} edges.`)
+    this.logger.debug(
+      `Merged Thymian format includes ${format.graph.order} nodes and ${format.graph.size} edges.`,
+    );
 
-    return format
+    return format;
   }
 
   private async loadRegisteredPlugins(): Promise<void> {
-    await this.registerPlugin({ plugin: corePlugin, options: { cwd: this.options.cwd } })
+    await this.registerPlugin({
+      plugin: corePlugin,
+      options: { cwd: this.options.cwd },
+    });
 
     for (const plugin of this.plugins) {
       await this.registerPlugin(plugin);
     }
   }
 
-  private async registerPlugin(registeredPlugin: RegisteredPlugin): Promise<void> {
+  private async registerPlugin(
+    registeredPlugin: RegisteredPlugin,
+  ): Promise<void> {
     this.emitter.emit('core.register', {
       name: registeredPlugin.plugin.name,
       events: registeredPlugin.plugin.events ?? {},
@@ -167,14 +213,21 @@ export class Thymian {
     });
 
     await timeoutPromise(
-      registeredPlugin.plugin.plugin(this.emitter.child(registeredPlugin.plugin.name), this.logger.child(registeredPlugin.plugin.name), { ...registeredPlugin.options, cwd: this.options.cwd }),
+      registeredPlugin.plugin.plugin(
+        this.emitter.child(registeredPlugin.plugin.name),
+        this.logger.child(registeredPlugin.plugin.name),
+        { ...registeredPlugin.options, cwd: this.options.cwd },
+      ),
       this.options.timeout,
-      new PluginRegistrationError(`Timeout while registering plugin "${registeredPlugin.plugin.name}".`, {
-        suggestions: [
-          'Increase plugin timeout duration. Using the Thymian CLI try using "--timeout" to set custom timeout (default 5000ms).',
-          'Check your plugin registration logic.'
-        ]
-      })
+      new PluginRegistrationError(
+        `Timeout while registering plugin "${registeredPlugin.plugin.name}".`,
+        {
+          suggestions: [
+            'Increase plugin timeout duration. Using the Thymian CLI try using "--timeout" to set custom timeout (default 5000ms).',
+            'Check your plugin registration logic.',
+          ],
+        },
+      ),
     );
   }
 }
