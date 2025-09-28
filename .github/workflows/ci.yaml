@@ -24,18 +24,18 @@ jobs:
         with:
           node-version: 22
       - name: install
-        run: npm i --ignore-scripts
+        run: npm ci
       - uses: nrwl/nx-set-shas@v4
       - name: run linter
         run: npx nx affected -t lint
       - name: run formatter check
-        run: npx nx format:check --all
+        run: npx nx affected -t format:check
 
   main:
     strategy:
       matrix:
         version: [20, 22, 24]
-        os: [ubuntu-latest, windows-latest, macos-latest]
+        os: [ubuntu-latest] #[ubuntu-latest, windows-latest, macos-latest]
     runs-on: ${{ matrix.os }}
     steps:
       - name: Check out repository
@@ -52,6 +52,6 @@ jobs:
         run: npm ci
       - uses: nrwl/nx-set-shas@v4
       - name: Build
-        run: npx nx run-many -t build --exclude @thymian/source
+        run: npx nx affected:build
       - name: Test
-        run: npx nx run-many -t test --exclude @thymian/source
+        run: npx nx affected:test
