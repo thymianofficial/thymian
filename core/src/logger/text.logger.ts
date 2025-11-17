@@ -15,7 +15,7 @@ export class TextLogger implements Logger {
 
   trace(formatter: unknown, ...args: unknown[]): void {
     if (this.verbose) {
-      console.debug(
+      console.log(
         `${chalk.grey(`TRACE`)} [${this.now()}] [${this.namespace}]: ${format(
           formatter,
           ...args,
@@ -24,7 +24,7 @@ export class TextLogger implements Logger {
     }
   }
   warn(formatter: unknown, ...args: unknown[]): void {
-    console.warn(
+    console.log(
       `${chalk.yellow(`WARN`)} [${this.now()}] [${this.namespace}]: ${format(
         formatter,
         ...args,
@@ -34,7 +34,7 @@ export class TextLogger implements Logger {
 
   debug(formatter: unknown, ...args: unknown[]): void {
     if (this.verbose) {
-      console.debug(
+      console.log(
         `${chalk.blue(`DEBUG`)} [${this.now()}] [${this.namespace}]: ${format(
           formatter,
           ...args,
@@ -51,7 +51,7 @@ export class TextLogger implements Logger {
     );
   }
   error(formatter: unknown, ...args: unknown[]): void {
-    console.error(
+    console.log(
       `${chalk.red(`ERROR`)} [${this.now()}] [${this.namespace}]: ${format(
         formatter,
         ...args,

@@ -17,16 +17,10 @@ describe('TextLogger', () => {
   let consoleMock: MockInstance<
     (message?: unknown, ...optionalParams: unknown[]) => void
   >;
-  let debugMock: MockInstance<
-    (message?: unknown, ...optionalParams: unknown[]) => void
-  >;
 
   beforeEach(() => {
     consoleMock = vitest
       .spyOn(console, 'log')
-      .mockImplementation(() => undefined);
-    debugMock = vitest
-      .spyOn(console, 'debug')
       .mockImplementation(() => undefined);
   });
 
@@ -56,7 +50,7 @@ describe('TextLogger', () => {
     const logger = new TextLogger('', true);
     logger.debug('should not be printed');
 
-    expect(debugMock).toHaveBeenCalled();
+    expect(consoleMock).toHaveBeenCalled();
   });
 
   it('should create child logger with new name and same verbose level', () => {
