@@ -24,6 +24,7 @@ export default {
         'test-utils',
         'repo',
         'release',
+        'websocket-proxy',
       ],
     ],
     'scope-empty': [2, 'never'],
