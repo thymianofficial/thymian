@@ -125,6 +125,17 @@ export class ThymianEmitter {
     }
   }
 
+  static newEmitterState(source = ''): EmitterState {
+    return {
+      source,
+      events: new Subject(),
+      responses: new Subject(),
+      errors: new Subject(),
+      listeners: new Map(),
+      completed: new Set(),
+    };
+  }
+
   on<Name extends ThymianEventName>(
     name: Name,
     handler: EventHandler<Name>,
