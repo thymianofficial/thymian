@@ -69,3 +69,5 @@ export const websocketProxyPlugin: ThymianPlugin<WebsocketProxyOptions> = {
     });
   },
 };
+
+export default websocketProxyPlugin;

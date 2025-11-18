@@ -99,6 +99,8 @@ export class WebSocketProxyServer {
             ),
           );
 
+          this.logger.debug(`Plugin "${connectedClient.name}" connected.`);
+
           this.clients.set(connectedClient.name, connectedClient);
 
           if (setContainsAll(this.required, Array.from(this.clients.keys()))) {
@@ -124,6 +126,8 @@ export class WebSocketProxyServer {
   }
 
   stop(): Promise<void> {
+    this.logger.debug('Shutting down WebSocket server.');
+
     return new Promise((resolve, reject) => {
       for (const [, client] of this.clients) {
         try {
@@ -161,7 +165,7 @@ export class WebSocketProxyServer {
       ws.on('message', async (rawMessage) => {
         const stringMessage = rawMessage.toString();
 
-        this.logger.debug(`Received message: ${stringMessage}`);
+        this.logger.trace(`Received message: ${stringMessage}`);
 
         let message!: ClientToServerMessage;
 
@@ -169,6 +173,9 @@ export class WebSocketProxyServer {
           const parsed = sjson.parse(stringMessage);
 
           if (!isClientToServerMessage(parsed)) {
+            this.logger.warn(
+              'Received invalid JSON message. Closing socket connection.',
+            );
             ws.close(1008, 'Received invalid message.');
             connectedClient.state = 'closed';
             return;
@@ -349,7 +356,7 @@ export class WebSocketProxyServer {
   ) {
     const stringifiedData = JSON.stringify(data);
 
-    this.logger.debug(`Sending message: ${stringifiedData}`);
+    this.logger.trace(`Sending message: ${stringifiedData}`);
 
     connectedClient.ws.send(stringifiedData, (err) => {
       if (err) {

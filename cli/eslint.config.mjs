@@ -23,6 +23,7 @@ export default [
             '@thymian/rfc-9110-rules',
             '@thymian/http-linter',
             '@thymian/sampler',
+            '@thymian/websocket-proxy',
           ],
         },
       ],

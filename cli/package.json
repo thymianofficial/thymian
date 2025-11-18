@@ -28,6 +28,7 @@
     "@thymian/http-linter": "^0",
     "@thymian/openapi": "^0",
     "@thymian/rfc-9110-rules": "^0",
+    "@thymian/websocket-proxy": "^0",
     "@thymian/core": "^0",
     "@thymian/sampler": "^0",
     "tslib": "^2.3.0"
