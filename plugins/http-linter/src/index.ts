@@ -6,6 +6,7 @@ import {
   ThymianEmitter,
   ThymianFormat,
   type ThymianPlugin,
+  type ThymianReport,
 } from '@thymian/core';
 import type {} from '@thymian/request-dispatcher';
 import type {} from '@thymian/sampler';
@@ -61,6 +62,16 @@ declare module '@thymian/core' {
       };
       response: boolean;
     };
+
+    'http-linter.lint-static': {
+      event: {
+        format: SerializedThymianFormat;
+      };
+      response: {
+        reports: ThymianReport[];
+        valid: boolean;
+      };
+    };
   }
 }
 
@@ -72,6 +83,7 @@ export type HttpLinterPluginOptions = {
   ruleFilter?: {
     severity?: RuleSeverity;
     appliesTo?: HttpParticipantRole[];
+    names?: string[];
   };
 };
 
@@ -121,6 +133,13 @@ export const httpLinterPlugin: ThymianPlugin<HttpLinterPluginOptions> = {
               enum: httpParticipantRoles,
             },
             nullable: true,
+          },
+          names: {
+            nullable: true,
+            type: 'array',
+            items: {
+              type: 'string',
+            },
           },
         },
       },
@@ -229,6 +248,25 @@ export const httpLinterPlugin: ThymianPlugin<HttpLinterPluginOptions> = {
         ctx.reply(valid);
       },
     );
+
+    emitter.onAction('http-linter.lint-static', async ({ format }, ctx) => {
+      const thymianFormat = ThymianFormat.import(format);
+
+      const reports: ThymianReport[] = [];
+
+      const valid = await new StaticLinter(
+        logger,
+        loadedRules,
+        (report) => reports.push(report),
+        thymianFormat,
+        options.ruleOptions ?? {},
+      ).run();
+
+      ctx.reply({
+        valid,
+        reports,
+      });
+    });
   },
 };
 
