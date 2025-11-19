@@ -1,4 +1,7 @@
-# Users Guide
+---
+title: 'Users Guide'
+description: 'This guide is for users who want to run the proxy plugin in Thymian and connect remote plugins via WebSocket.'
+---
 
 This guide is for users who want to run the proxy plugin in Thymian and connect remote plugins via WebSocket.
 

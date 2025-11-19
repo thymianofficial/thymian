@@ -1,4 +1,7 @@
-# Guide for Plugin Developers
+---
+title: 'Guide for Plugin Developers'
+description: 'This guide explains how a remote plugin communicates with Thymian over WebSockets via the plugin @thymian/websocket-proxy.'
+---
 
 This guide explains how a remote plugin communicates with Thymian over WebSockets via the plugin `@thymian/websocket-proxy`. The WebSocket server mirrors the `ThymianEmitter API`, i.e.:
 
