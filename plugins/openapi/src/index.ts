@@ -1,13 +1,14 @@
 import { join } from 'node:path';
 
 import {
-  type PartialExceptFor,
+  type SerializedThymianFormat,
   type ThymianNode,
   type ThymianPlugin,
 } from '@thymian/core';
 import type { OpenAPI } from 'openapi-types';
 
-import { loadOpenapi, type ParseOpenApiOptions } from './load-openapi.js';
+import { loadAndTransform } from './load-openapi.js';
+import type { ServerInfo } from './processors/extract-server-info.js';
 
 declare module '@thymian/core' {
   interface ThymianHttpRequest {
@@ -48,26 +49,27 @@ declare module '@thymian/core' {
       document: OpenAPI.Document;
     };
   }
+
+  interface ThymianActions {
+    'openapi.transform': {
+      event: {
+        content: string;
+      };
+      response: SerializedThymianFormat;
+    };
+  }
 }
 
-export type OpenApiPluginOptions = PartialExceptFor<
-  ParseOpenApiOptions,
-  'filePath'
->;
+export type OpenApiPluginOptions = {
+  serverInfo?: ServerInfo;
+  filePath: string;
+};
 
-export const defaultOpenApiPluginOptions: Omit<
-  ParseOpenApiOptions,
-  'filePath'
-> = {
-  allowExternalFiles: true,
-  fetchExternalRefs: false,
-  validateUpgrade: true,
-  serverInfo: {
-    port: 8080,
-    host: 'localhost',
-    protocol: 'http',
-    basePath: '',
-  },
+export const defaultServerInfo: ServerInfo = {
+  port: 8080,
+  host: 'localhost',
+  protocol: 'http',
+  basePath: '',
 };
 
 export const openApiPlugin: ThymianPlugin<OpenApiPluginOptions> = {
@@ -78,10 +80,6 @@ export const openApiPlugin: ThymianPlugin<OpenApiPluginOptions> = {
     additionalProperties: false,
     required: ['filePath'],
     properties: {
-      validateUpgrade: {
-        nullable: true,
-        type: 'boolean',
-      },
       filePath: {
         type: 'string',
         nullable: false,
@@ -110,36 +108,33 @@ export const openApiPlugin: ThymianPlugin<OpenApiPluginOptions> = {
           },
         },
       },
-      allowExternalFiles: {
-        nullable: true,
-        type: 'boolean',
-      },
-      fetchExternalRefs: {
-        nullable: true,
-        type: 'boolean',
-      },
     },
   },
   plugin: async (emitter, logger, opts) => {
     const filePath = join(opts.cwd, opts.filePath);
 
+    emitter.onAction('openapi.transform', async ({ content }, ctx) => {
+      const [, thymianFormat] = await loadAndTransform(content, {
+        logger,
+        serverInfo: opts.serverInfo ?? defaultServerInfo,
+      });
+
+      ctx.reply(thymianFormat.export());
+    });
+
     emitter.onAction('core.load-format', async (_, ctx) => {
-      try {
-        const [format, document] = await loadOpenapi(logger, {
-          ...defaultOpenApiPluginOptions,
-          ...opts,
-          filePath,
-        });
+      const [document, thymianFormat] = await loadAndTransform(filePath, {
+        logger,
+        serverInfo: opts.serverInfo ?? defaultServerInfo,
+        filePath,
+      });
 
-        emitter.emit('openapi.document', {
-          document,
-          filePath,
-        });
+      emitter.emit('openapi.document', {
+        document,
+        filePath,
+      });
 
-        ctx.reply(format.export());
-      } catch (e) {
-        ctx.error(e);
-      }
+      ctx.reply(thymianFormat.export());
     });
   },
 };
