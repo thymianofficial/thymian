@@ -1,4 +1,7 @@
-# @thymian/websocket-proxy
+---
+title: '@thymian/websocket-proxy'
+description: 'The Websocket Proxy Plugin connects remote plugins to Thymian via WebSockets. This allows plugins to be implemented in any programming language, as long as it supports communication via WebSockets.'
+---
 
 The Websocket Proxy Plugin connects remote plugins to Thymian via WebSockets. This allows plugins to be implemented in any programming language, as long as it supports communication via WebSockets.
 Thereby, the Websocket Proxy Plugin provides an interface similar to the `ThymianEmitter` for remote plugins. If you just want to connect a plugin via Websockets, see [here](users-guide.md). If you want to implement a remote plugin using Websockets, see [here](./plugin-developers.md).
