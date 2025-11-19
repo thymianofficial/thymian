@@ -61,7 +61,7 @@ export class WebSocketProxyServer {
     options: Partial<WebSocketProxyServerOptions> = {},
   ) {
     this.options = {
-      port: 45678,
+      port: 51234,
       plugins: [],
       clientTimeout: 4000,
       ...options,
