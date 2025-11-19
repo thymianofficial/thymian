@@ -1,12 +1,15 @@
 import { BaseCliRunCommand } from '@thymian/cli-common';
 import { Args } from '@thymian/cli-common/oclif';
 
-import { defaultOpenApiPluginOptions } from '../../../index.js';
-import { loadOpenapi } from '../../../load-openapi.js';
+import { loadAndTransform } from '../../../load-openapi.js';
 
 export default class Load extends BaseCliRunCommand<typeof Load> {
   static override args = {
-    file: Args.string({ description: 'file to read', required: true }),
+    content: Args.string({
+      description: 'file to read',
+      required: true,
+      ignoreStdin: false,
+    }),
   };
   static override description =
     'Load and parse the given Swagger/OpenAPI file to the Thymian format.';
@@ -15,9 +18,14 @@ export default class Load extends BaseCliRunCommand<typeof Load> {
   ];
 
   override async run(): Promise<void> {
-    const [format] = await loadOpenapi(this.logger, {
-      ...defaultOpenApiPluginOptions,
-      filePath: this.args.file,
+    const [, format] = await loadAndTransform(this.args.content, {
+      logger: this.logger,
+      serverInfo: {
+        port: 8080,
+        host: 'localhost',
+        protocol: 'http',
+        basePath: '',
+      },
     });
 
     this.log(JSON.stringify(format.export()));
