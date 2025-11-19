@@ -21,18 +21,20 @@ export default class Serve extends BaseCliRunCommand<typeof Serve> {
       await close(code);
     });
 
+    const quit = 'q';
+
     if (process.stdin.isTTY) {
       process.stdin.setRawMode(true);
     }
     process.stdin.resume();
     process.stdin.on('data', async (data) => {
-      if (data.toString() === 'q') {
+      if (data.toString() === quit) {
         await close(0);
       }
     });
 
     await this.thymian.ready();
 
-    this.log('Thymian is now in "serve" mode. Press "q" to exit.');
+    this.log(`Thymian is now in "serve" mode. Press "${quit}" to exit.`);
   }
 }
