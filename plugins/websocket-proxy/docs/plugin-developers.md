@@ -1,4 +1,7 @@
-# Guide for Plugin Developers
+---
+title: 'Guide for Plugin Developers'
+description: 'This guide explains how a remote plugin communicates with Thymian over WebSockets via the plugin @thymian/websocket-proxy.'
+---
 
 This guide explains how a remote plugin communicates with Thymian over WebSockets via the plugin `@thymian/websocket-proxy`. The WebSocket server mirrors the `ThymianEmitter API`, i.e.:
 
@@ -13,7 +16,7 @@ See also ThymianEmitter in `@thymian/core` — this protocol exposes the same su
 
 Before a connection can be established, the client must register to the server via a three-way handshake.
 
-1. Connect to WebSocket: `ws://<host>:<port>` (default port is 45678).
+1. Connect to WebSocket: `ws://<host>:<port>` (default port is 51234).
 2. Register:
    - Client sends once:
 

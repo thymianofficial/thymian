@@ -1,4 +1,7 @@
-# Users Guide
+---
+title: 'Users Guide'
+description: 'This guide is for users who want to run the proxy plugin in Thymian and connect remote plugins via WebSocket.'
+---
 
 This guide is for users who want to run the proxy plugin in Thymian and connect remote plugins via WebSocket.
 
@@ -24,7 +27,7 @@ import { websocketProxyPlugin } from '@thymian/websocket-proxy';
 const thymian = new Thymian();
 
 thymian.register(websocketProxyPlugin, {
-  port: 45678, // optional, default is 45678
+  port: 51234, // optional, default is 51234
   plugins: [
     {
       name: 'remote-plugin',
@@ -44,7 +47,7 @@ await thymian.close();
 
 The plugin takes an option object with the following properties:
 
-### `port` (optional) - Default: 45678
+### `port` (optional) - Default: 51234
 
 The port of the Websocket server.
 

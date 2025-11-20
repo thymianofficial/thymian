@@ -22,6 +22,9 @@
       "path": "../core/tsconfig.lib.json"
     },
     {
+      "path": "../plugins/websocket-proxy/tsconfig.lib.json"
+    },
+    {
       "path": "../libs/rfc-9110-rules/tsconfig.lib.json"
     },
     {
