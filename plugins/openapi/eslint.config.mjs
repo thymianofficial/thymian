@@ -9,7 +9,11 @@ export default [
         'error',
         {
           ignoredFiles: ['{projectRoot}/eslint.config.{js,cjs,mjs}'],
-          ignoredDependencies: ['vitest', 'openapi-types'],
+          ignoredDependencies: [
+            'vitest',
+            'openapi-types',
+            '@scalar/json-magic',
+          ],
         },
       ],
     },

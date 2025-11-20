@@ -1,115 +1,89 @@
-import { join } from 'node:path';
+import { bundle } from '@scalar/json-magic/bundle';
+import {
+  fetchUrls,
+  parseJson,
+  parseYaml,
+  readFiles,
+} from '@scalar/json-magic/bundle/plugins/node';
+import { dereference, validate } from '@scalar/openapi-parser';
+import { upgrade } from '@scalar/openapi-upgrader';
+import {
+  type Logger,
+  NoopLogger,
+  ThymianBaseError,
+  type ThymianFormat,
+} from '@thymian/core';
+import type { OpenAPIV3_1 } from 'openapi-types';
 
-import { dereference, load, upgrade, validate } from '@scalar/openapi-parser';
-import { fetchUrls } from '@scalar/openapi-parser/plugins/fetch-urls';
-import { readFiles } from '@scalar/openapi-parser/plugins/read-files';
-import { type Logger, type ThymianFormat } from '@thymian/core';
-import type { OpenAPI } from 'openapi-types';
-
-import { OpenApiError } from './error.js';
 import { locMapperForFile } from './loc-mapper/loc-mapper-for-file.js';
+import { NoopLocMapper } from './loc-mapper/noop-loc-mapper.js';
 import type { ServerInfo } from './processors/extract-server-info.js';
 import { OpenapiProcessor } from './processors/openapi.processor.js';
 
-export type ParseOpenApiOptions = {
-  serverInfo: ServerInfo;
-  allowExternalFiles: boolean;
-  fetchExternalRefs: boolean;
-  validateUpgrade?: boolean;
-  filePath: string;
-};
-
-// There are a lot of problems with the @scalar/openapi-parser package. We should investigate further
-export async function loadOpenapi(
-  logger: Logger,
-  options: ParseOpenApiOptions,
-): Promise<[ThymianFormat, OpenAPI.Document]> {
-  const plugins = [];
-
-  if (options.allowExternalFiles) {
-    plugins.push(readFiles());
-  }
-
-  if (options.fetchExternalRefs) {
-    plugins.push(fetchUrls());
-  }
-
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  let current: any;
-  let document: OpenAPI.Document | undefined = undefined;
-
+export async function loadAndUpgrade(
+  value: string,
+): Promise<OpenAPIV3_1.Document> {
   try {
-    current = (await load(options.filePath, { plugins, throwOnError: true }))
-      .filesystem;
-  } catch (cause) {
-    throw new OpenApiError(
-      `Cannot load OpenAPI document from path "${options.filePath}".`,
-      {
-        cause,
-        suggestions: [
-          `Does the file ${join(process.cwd(), options.filePath)} exist?`,
-        ],
-      },
-    );
-  }
-  try {
-    document = (await validate(current, { throwOnError: true }))
-      .specification as OpenAPI.Document;
-  } catch (cause) {
-    throw new OpenApiError(
-      `Invalid OpenAPI document from path "${options.filePath}".`,
-      {
-        cause,
-      },
-    );
-  }
+    const plugins = [parseJson(), parseYaml(), readFiles(), fetchUrls()];
 
-  try {
-    current = upgrade(current).specification;
-  } catch (cause) {
-    throw new OpenApiError(
-      `Cannot upgrade OpenAPI document from path "${options.filePath}".`,
-      {
-        cause,
-      },
-    );
-  }
+    const result = await bundle(value, {
+      plugins,
+      treeShake: false,
+    });
 
-  try {
-    current = (await dereference(current, { throwOnError: true })).schema;
-  } catch (cause) {
-    throw new OpenApiError(
-      `Cannot dereference OpenAPI document from path "${options.filePath}".`,
-      {
-        cause,
-        suggestions: [`Are all external references valid AND available?`],
-      },
-    );
+    await validate(result, { throwOnError: true });
+
+    const upgradedObject = upgrade(result, '3.1');
+
+    return dereference(upgradedObject, {
+      throwOnError: true,
+    }).schema as OpenAPIV3_1.Document;
+  } catch (e) {
+    throw new ThymianBaseError(`Error while loading OpenAPI document.`, {
+      cause: e,
+      suggestions: [
+        'Currently, only files without external references are supported. Do your OpenAPI documents contain any external references?',
+      ],
+    });
+  }
+}
+
+export async function openapiToThymianFormat(
+  document: OpenAPIV3_1.Document,
+  options: {
+    logger?: Logger;
+    serverInfo: ServerInfo;
+    filePath?: string;
+  },
+): Promise<ThymianFormat> {
+  if (
+    typeof document.openapi !== 'string' ||
+    !document.openapi.startsWith('3.1')
+  ) {
+    throw new ThymianBaseError('Only OpenAPI 3.1.x documents are supported.');
   }
 
-  if (options.validateUpgrade) {
-    try {
-      current = (await validate(current, { throwOnError: true })).schema;
-    } catch (cause) {
-      throw new OpenApiError(
-        `Validation after upgrading failed for OpenAPI document from path "${options.filePath}"`,
-        {
-          cause,
-          suggestions: [
-            "This might be because some parts of the Swagger/OpenAPI document couldn't be migrated automatically. It's best to migrate to the next version manually.",
-          ],
-        },
-      );
-    }
-  }
+  const locMapper =
+    typeof options.filePath === 'string'
+      ? await locMapperForFile(options.filePath)
+      : new NoopLocMapper();
 
-  const locMapper = await locMapperForFile(options.filePath);
+  return new OpenapiProcessor(
+    options.logger ?? new NoopLogger(),
+    options.serverInfo,
+    locMapper,
+  ).process(document);
+}
 
-  return [
-    new OpenapiProcessor(logger, options.serverInfo, locMapper).process(
-      current,
-    ),
-    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-    document!,
-  ];
+export async function loadAndTransform(
+  value: string,
+  options: {
+    logger: Logger;
+    serverInfo: ServerInfo;
+    filePath?: string;
+  },
+): Promise<[OpenAPIV3_1.Document, ThymianFormat]> {
+  const document = await loadAndUpgrade(value);
+
+  return [document, await openapiToThymianFormat(document, options)];
 }
