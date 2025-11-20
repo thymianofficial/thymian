@@ -21,5 +21,6 @@ export const defaultConfig: ThymianConfig = {
     '@thymian/sampler': {},
     '@thymian/cli-reporter': {},
     '@thymian/format-validator': {},
+    '@thymian/websocket-proxy': {},
   },
 };

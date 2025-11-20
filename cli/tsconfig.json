@@ -10,6 +10,9 @@
       "path": "../core"
     },
     {
+      "path": "../plugins/websocket-proxy"
+    },
+    {
       "path": "../libs/rfc-9110-rules"
     },
     {
