@@ -4,6 +4,11 @@ export type SourcePosition = {
   offset: number;
 };
 
+export type SourceLocation = {
+  path: string;
+  position: SourcePosition;
+};
+
 export abstract class LocMapper {
   protected constructor(
     protected readonly text: string,
@@ -14,9 +19,18 @@ export abstract class LocMapper {
     operationId: string,
   ): SourcePosition | undefined;
 
-  locationForOperationId(operationId: string): string | undefined {
+  locationForOperationId(operationId: string): SourceLocation | undefined {
     const pos = this.positionForOperationId(operationId);
 
-    return pos ? `${this.path}:${pos.line}:${pos.column}` : undefined;
+    return pos
+      ? {
+          path: this.path,
+          position: {
+            line: pos.line,
+            column: pos.column,
+            offset: pos.offset,
+          },
+        }
+      : undefined;
   }
 }

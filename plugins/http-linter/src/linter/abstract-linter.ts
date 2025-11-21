@@ -10,23 +10,14 @@ import {
   type ThymianReport,
   thymianRequestToString,
   thymianResponseToString,
+  type ThymianSeverity,
 } from '@thymian/core';
-import chalk from 'chalk';
+import { timestamp } from '@thymian/http-testing';
 
 import type { Rule } from '../rule/rule.js';
 import type { RuleMeta } from '../rule/rule-meta.js';
 import type { RuleSeverity } from '../rule/rule-severity.js';
 import type { RuleViolation } from '../rule/rule-violation.js';
-
-export function severityToColor(severity: RuleSeverity): string {
-  if (severity === 'hint') {
-    return chalk.blue(severity);
-  } else if (severity === 'warn') {
-    return chalk.yellow(severity);
-  } else {
-    return chalk.red(severity);
-  }
-}
 
 export abstract class AbstractLinter {
   protected readonly rules: Rule[];
@@ -78,6 +69,34 @@ export abstract class AbstractLinter {
     options: Options,
   ): Promise<boolean>;
 
+  /*
+  export interface ThymianReport {
+  producer: string;
+  source: string;
+  severity: ThymianReportSeverity;
+  summary: string;
+  title: string;
+  links?: { title?: string; url: string }[];
+  timestamp?: number;
+  details?: string;
+  category?: string;
+  location?: {
+    uri?: string;
+    format?: {
+      elementType: 'node' | 'edge';
+      id: string;
+    };
+    file?: {
+      path: string;
+      range: {
+        start: { line: number; column: number };
+        end: { line: number; column: number };
+      };
+    };
+  };
+}
+   */
+
   protected reportRuleViolations(
     result: RuleViolation | RuleViolation[],
     ruleMeta: RuleMeta<Record<PropertyKey, unknown>>,
@@ -85,13 +104,23 @@ export abstract class AbstractLinter {
   ) {
     const violations = Array.isArray(result) ? result : [result];
 
+    const producer = '@thymian/http-linter';
+    const source = ruleMeta.name;
+    const severity = ruleMeta.severity as ThymianSeverity;
+    const summary = ruleMeta.summary ?? ruleMeta.description ?? ruleMeta.name;
+    const details = ruleMeta.description ?? ruleMeta.name;
+    const timestamp = Date.now();
+
     for (const { location, message } of violations) {
-      const topic = '@thymian/http-linter';
-      let text = message ?? ruleMeta.summary ?? ruleMeta.description;
-      text =
-        `${severityToColor(ruleMeta.severity)}: ` +
-        (text ? `${text}\n   ${chalk.dim(ruleMeta.name)}` : ruleMeta.name);
-      let title = '';
+      const report: ThymianReport = {
+        producer,
+        severity,
+        summary: message ?? summary,
+        details,
+        timestamp,
+        source,
+        title: '',
+      };
 
       if (location.elementType === 'node') {
         const node = this.format.getNode(location.elementId);
@@ -103,9 +132,9 @@ export abstract class AbstractLinter {
         }
 
         if (isNodeType(node, 'http-request')) {
-          title = thymianRequestToString(node);
+          report.title = thymianRequestToString(node);
         } else if (isNodeType(node, 'http-response')) {
-          title = thymianResponseToString(node);
+          report.title = thymianResponseToString(node);
         }
       } else {
         const [source, target] = this.format.graph.extremities(
@@ -123,21 +152,7 @@ export abstract class AbstractLinter {
           );
         }
 
-        title = thymianHttpTransactionToString(req, res);
-
-        const report: ThymianReport = {
-          subTopic,
-          text,
-          title,
-          topic,
-          isProblem: true,
-          location: {
-            format: {
-              elementType: 'edge',
-              id: location.elementId,
-            },
-          },
-        };
+        report.title = thymianHttpTransactionToString(req, res);
 
         if (
           hasProperty(transaction, 'extensions') &&
@@ -146,7 +161,13 @@ export abstract class AbstractLinter {
           const { location } = transaction.extensions.openapi;
 
           if (location && typeof location === 'string' && report.location) {
-            report.location.file = location;
+            report.location.file = {
+              path: location,
+              range: {
+                start: { line: 0, column: 0 },
+                end: { line: 0, column: 0 },
+              },
+            };
           }
         }
 

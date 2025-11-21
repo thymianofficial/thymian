@@ -1,17 +1,31 @@
 import type { JSONSchemaType } from 'ajv/dist/2020.js';
 
+export type ThymianReportSeverity = 'info' | 'hint' | 'warn' | 'error';
+
 export interface ThymianReport {
-  topic: string;
-  subTopic?: string;
+  producer: string;
+  source: string;
+  severity: ThymianReportSeverity;
+  summary: string;
   title: string;
-  text: string;
-  isProblem: boolean;
+  links?: { title?: string; url: string }[];
+  timestamp?: number;
+  details?: string;
+  category?: string;
   location?: {
+    uri?: string;
     format?: {
       elementType: 'node' | 'edge';
       id: string;
     };
-    file?: string;
+    file?: {
+      path: string;
+      position: {
+        line: number;
+        column: number;
+        offset: number;
+      };
+    };
   };
 }
 
@@ -23,50 +37,74 @@ export const thymianReportSchema: JSONSchemaType<ReportEvent> = {
   type: 'object',
   nullable: false,
   additionalProperties: false,
-  required: ['topic', 'title', 'text', 'isProblem'],
+  required: ['producer', 'severity', 'summary', 'source', 'title'],
   properties: {
-    topic: {
+    producer: { type: 'string', nullable: false },
+    source: { type: 'string', nullable: false },
+    category: { type: 'string', nullable: true },
+    title: { type: 'string', nullable: false },
+    timestamp: { type: 'integer', nullable: true },
+    severity: {
       type: 'string',
+      enum: ['info', 'hint', 'warn', 'error'],
       nullable: false,
     },
-    subTopic: {
-      type: 'string',
+    summary: { type: 'string', nullable: false },
+    details: { type: 'string', nullable: true },
+    links: {
+      type: 'array',
       nullable: true,
-    },
-    title: {
-      type: 'string',
-      nullable: false,
-    },
-    text: {
-      type: 'string',
-      nullable: false,
-    },
-    isProblem: {
-      type: 'boolean',
-      nullable: false,
+      items: {
+        type: 'object',
+        nullable: false,
+        required: ['url'],
+        additionalProperties: false,
+        properties: {
+          title: { type: 'string', nullable: true },
+          url: { type: 'string', nullable: false },
+        },
+      },
     },
     location: {
       type: 'object',
       nullable: true,
       additionalProperties: false,
       properties: {
-        file: {
-          type: 'string',
-          nullable: true,
-        },
+        uri: { type: 'string', nullable: true },
         format: {
           type: 'object',
           nullable: true,
           required: ['id', 'elementType'],
+          additionalProperties: false,
           properties: {
             elementType: {
               enum: ['edge', 'node'],
               type: 'string',
               nullable: false,
             },
-            id: {
+            id: { type: 'string', nullable: false },
+          },
+        },
+        file: {
+          type: 'object',
+          nullable: true,
+          required: ['path', 'position'],
+          additionalProperties: false,
+          properties: {
+            path: {
               type: 'string',
               nullable: false,
+            },
+            position: {
+              type: 'object',
+              nullable: false,
+              required: ['line', 'column', 'offset'],
+              additionalProperties: false,
+              properties: {
+                line: { type: 'integer', nullable: false },
+                column: { type: 'integer', nullable: false },
+                offset: { type: 'integer', nullable: false },
+              },
             },
           },
         },

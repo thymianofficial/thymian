@@ -35,8 +35,10 @@ export async function validate(
       );
 
       report({
-        isProblem: true,
-        text:
+        producer: '@thymian/format-validator',
+        severity: 'warn',
+        summary: testCase.name,
+        details:
           testCase.reason ??
           testCase.results
             .filter(
@@ -44,9 +46,8 @@ export async function validate(
             )
             .map((tc) => tc.message)
             .join('\n'),
-        title: testCase.name,
-        subTopic: '@thymian/format-validator',
-        topic: 'Skipped HTTP Test Cases',
+        category: 'Skipped HTTP Test Cases',
+        timestamp: new Date().toISOString(),
       });
       continue;
     }
@@ -74,33 +75,36 @@ export async function validate(
       source.thymianRes,
     );
 
-    const subTopic = '2xx responses';
-    const topic = '@thymian/format-validator';
+    const category = '2xx responses';
+    const producer = '@thymian/format-validator';
 
     testCase.results.forEach((result) => {
       if (result.type === 'assertion-failure') {
         report({
-          text: `\u274C ${result.message}`,
-          title,
-          topic,
-          subTopic,
-          isProblem: true,
+          producer,
+          severity: 'error',
+          summary: title,
+          details: `\u274C ${result.message}`,
+          category,
+          timestamp: new Date().toISOString(),
         });
       } else if (result.type === 'assertion-success') {
         report({
-          text: `\u2705 ${result.message}`,
-          title,
-          topic,
-          subTopic,
-          isProblem: false,
+          producer,
+          severity: 'info',
+          summary: title,
+          details: `\u2705 ${result.message}`,
+          category,
+          timestamp: new Date().toISOString(),
         });
       } else if (result.type === 'info') {
         report({
-          text: `\u2796 ${result.message}`,
-          title,
-          topic,
-          subTopic,
-          isProblem: false,
+          producer,
+          severity: 'info',
+          summary: title,
+          details: `\u2796 ${result.message}`,
+          category,
+          timestamp: new Date().toISOString(),
         });
       }
     });
