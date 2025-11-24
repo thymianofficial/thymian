@@ -45,6 +45,11 @@
       "cache": true,
       "dependsOn": ["^build"],
       "inputs": ["production", "^production"]
+    },
+    "test": {
+      "options": {
+        "watch": false
+      }
     }
   }
 }
