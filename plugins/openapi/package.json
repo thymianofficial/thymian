@@ -17,7 +17,6 @@
     "@scalar/openapi-upgrader": "^0.1.4",
     "@thymian/cli-common": "^0",
     "@thymian/core": "^0",
-    "@thymian/http-status-codes": "^0",
     "jsonc-parser": "^3.2.0",
     "tinyglobby": "^0.2.14",
     "traverse": "^0.6.11",

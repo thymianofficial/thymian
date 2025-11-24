@@ -9,9 +9,7 @@
     {
       "path": "../http-filter"
     },
-    {
-      "path": "../http-status-codes"
-    },
+
     {
       "path": "../../core"
     },

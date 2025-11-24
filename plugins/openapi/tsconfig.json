@@ -4,9 +4,6 @@
   "include": ["src/**/*.ts", "test/**/*.ts"],
   "references": [
     {
-      "path": "../../libs/http-status-codes"
-    },
-    {
       "path": "../../core"
     },
     {

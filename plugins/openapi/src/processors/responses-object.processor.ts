@@ -1,8 +1,5 @@
 import type { PartialBy, ThymianHttpResponse } from '@thymian/core';
-import {
-  httpStatusCodeRanges,
-  isHttpStatusCodeRange,
-} from '@thymian/http-status-codes';
+import { httpStatusCodeRanges, isHttpStatusCodeRange } from '@thymian/core';
 import type { OpenAPIV3_1 as OpenApiV31 } from 'openapi-types';
 
 import {

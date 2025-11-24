@@ -1,14 +1,14 @@
 import { createHash, randomUUID } from 'node:crypto';
 
-import {
-  httpStatusCodeToPhrase,
-  isValidHttpStatusCode,
-} from '@thymian/http-status-codes';
 import { MultiDirectedGraph } from 'graphology';
 import type { SerializedGraph } from 'graphology-types';
 import { match } from 'path-to-regexp';
 
 import type { HttpRequest, HttpResponse } from '../http.js';
+import {
+  httpStatusCodeToPhrase,
+  isValidHttpStatusCode,
+} from '../http-status-codes/index.js';
 import { ThymianBaseError } from '../thymian.error.js';
 import {
   capitalizeFirstChar,

@@ -26,8 +26,7 @@
     "graphology": "^0.26.0",
     "path-to-regexp": "^8.2.0",
     "rxjs": "^7.8.2",
-    "semver": "^7.7.1",
-    "@thymian/http-status-codes": "^0"
+    "semver": "^7.7.1"
   },
   "devDependencies": {
     "@types/semver": "^7.7.0",

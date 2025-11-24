@@ -1,14 +1,14 @@
 import deepmerge from '@fastify/deepmerge';
-import {
-  httpStatusCodeToPhrase,
-  isValidHttpStatusCode,
-} from '@thymian/http-status-codes';
 
 import type {
   ThymianHttpRequest,
   ThymianHttpResponse,
 } from './format/index.js';
 import type { HttpRequest, HttpResponse } from './http.js';
+import {
+  httpStatusCodeToPhrase,
+  isValidHttpStatusCode,
+} from './http-status-codes/index.js';
 
 export function timeoutPromise<T>(
   promise: Promise<T>,

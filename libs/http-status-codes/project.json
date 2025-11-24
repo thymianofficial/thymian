@@ -1,6 +1,0 @@
-{
-  "$schema": "../../node_modules/nx/schemas/project-schema.json",
-  "sourceRoot": "libs/http-status-codes/src",
-  "projectType": "library",
-  "tags": ["scope:core", "type:lib"]
-}

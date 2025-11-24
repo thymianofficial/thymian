@@ -8,6 +8,11 @@ export * from './events/index.js';
 export * from './events/index.js';
 export * from './format/index.js';
 export * from './http.js';
+export {
+  httpStatusCodeRanges,
+  isHttpStatusCodeRange,
+} from './http-status-codes/http-status-code-ranges.js';
+export * from './http-status-codes/index.js';
 export * from './logger/logger.js';
 export * from './logger/noop.logger.js';
 export * from './logger/text.logger.js';

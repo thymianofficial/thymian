@@ -2,7 +2,7 @@ import { zipArrays } from '@thymian/core';
 import {
   type HttpStatusCodeRange,
   statusCodeMatchesRange,
-} from '@thymian/http-status-codes';
+} from '@thymian/core';
 import { map, type MonoTypeOperatorFunction } from 'rxjs';
 
 import {

@@ -12,7 +12,7 @@ export default {
         'shared',
         'cli-common',
         'http-filter',
-        'http-status-codes',
+
         'http-testing',
         'rfc-9110-rules',
         'reporter',

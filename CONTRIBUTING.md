@@ -13,7 +13,7 @@ When making commits, use one of the following scopes to indicate the area of the
 | shared             | Shared utilities and test resources                               |
 | cli-common         | Library for CLI shared logic/utilities                            |
 | http-filter        | Library for HTTP filtering logic                                  |
-| http-status-codes  | Library for HTTP status code definitions/utilities                |
+|                    |                                                                   |
 | http-testing       | Library for HTTP testing utilities                                |
 | rfc-9110-rules     | Library for reusable HTTP rules based on RFC 9110                 |
 | cli-reporter       | Plugin for CLI reporting features                                 |
