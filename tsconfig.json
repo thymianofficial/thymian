@@ -37,9 +37,6 @@
       "path": "./plugins/format-validator"
     },
     {
-      "path": "./libs/http-filter"
-    },
-    {
       "path": "./plugins/websocket-proxy"
     },
     {

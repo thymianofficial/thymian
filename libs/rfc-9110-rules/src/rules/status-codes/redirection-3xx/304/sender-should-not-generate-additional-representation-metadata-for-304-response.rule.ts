@@ -7,7 +7,7 @@ import {
   requestHeader,
   responseHeader,
   statusCode,
-} from '@thymian/http-filter';
+} from '@thymian/core';
 import {
   type CommonHttpRequest,
   type CommonHttpResponse,

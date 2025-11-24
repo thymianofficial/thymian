@@ -32,15 +32,15 @@ const depConstraintsProduction = [
   },
   // type:testing can access lib and testing
   {
-    sourceTag: 'type:testing',
-    onlyDependOnLibsWithTags: ['type:lib', 'type:testing'],
+    sourceTag: 'type:lib-feature',
+    onlyDependOnLibsWithTags: ['type:lib', 'type:lib-feature'],
   },
-  // type:config/content/rules/rule-set can access lib, config and testing
+  // type:e2e can access everything
   {
-    sourceTag: 'type:config',
-    onlyDependOnLibsWithTags: ['type:lib', 'type:config', 'type:testing'],
+    sourceTag: 'type:e2e',
+    onlyDependOnLibsWithTags: ['*'],
   },
-
+  // Dimension: npm visibility
   // npm:public can depend only on npm:public
   {
     sourceTag: 'npm:public',

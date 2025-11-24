@@ -26,9 +26,6 @@
       "path": "../../plugins/http-linter/tsconfig.lib.json"
     },
     {
-      "path": "../http-filter/tsconfig.lib.json"
-    },
-    {
       "path": "../../core/tsconfig.lib.json"
     }
   ]

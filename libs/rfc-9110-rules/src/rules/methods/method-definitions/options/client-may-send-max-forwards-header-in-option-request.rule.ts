@@ -1,4 +1,4 @@
-import { method, not, requestHeader } from '@thymian/http-filter';
+import { method, not, requestHeader } from '@thymian/core';
 import { httpRule } from '@thymian/http-linter';
 
 export default httpRule(

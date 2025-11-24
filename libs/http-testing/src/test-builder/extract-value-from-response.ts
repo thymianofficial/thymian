@@ -1,5 +1,5 @@
+import type { ResponseFilterExpression } from '@thymian/core';
 import { getHeader, type HttpResponse } from '@thymian/core';
-import type { ResponseFilterExpression } from '@thymian/http-filter';
 
 export function extractValueFromResponse(
   response: HttpResponse,

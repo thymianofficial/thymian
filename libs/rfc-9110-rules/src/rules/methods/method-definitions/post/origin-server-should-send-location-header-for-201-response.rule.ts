@@ -1,10 +1,4 @@
-import {
-  and,
-  method,
-  not,
-  responseHeader,
-  statusCode,
-} from '@thymian/http-filter';
+import { and, method, not, responseHeader, statusCode } from '@thymian/core';
 import { httpRule } from '@thymian/http-linter';
 
 export default httpRule(

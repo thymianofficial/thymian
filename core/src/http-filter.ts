@@ -1,4 +1,4 @@
-// from https://github.com/fastify/fastify/blob/c277b9f0ec27356de6551d7777117bd739057e99/types/utils.d.ts#L90
+// Merged from libs/http-filter/src/index.ts
 import * as http from 'node:http';
 
 type OmitIndexSignature<T> = {
@@ -9,7 +9,6 @@ type OmitIndexSignature<T> = {
       : K]: T[K];
 };
 
-// from https://github.com/fastify/fastify/blob/c277b9f0ec27356de6551d7777117bd739057e99/types/utils.d.ts#L98
 export type HttpHeader =
   | keyof OmitIndexSignature<http.OutgoingHttpHeaders>
   | (string & Record<never, never>);

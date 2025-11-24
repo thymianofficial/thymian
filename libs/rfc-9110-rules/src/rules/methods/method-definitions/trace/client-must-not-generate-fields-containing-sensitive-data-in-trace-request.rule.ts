@@ -1,4 +1,4 @@
-import { method, or, requestHeader } from '@thymian/http-filter';
+import { method, or, requestHeader } from '@thymian/core';
 import { httpRule } from '@thymian/http-linter';
 
 // TODO: Add more headers

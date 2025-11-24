@@ -1,5 +1,5 @@
 import { type Logger, type ThymianReport } from '@thymian/core';
-import { successfulStatusCode } from '@thymian/http-filter';
+import { successfulStatusCode } from '@thymian/core';
 import {
   httpTest,
   type HttpTestContext,

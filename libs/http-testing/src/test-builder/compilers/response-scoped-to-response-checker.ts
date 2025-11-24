@@ -1,5 +1,5 @@
+import type { HttpFilterExpression } from '@thymian/core';
 import { equalsIgnoreCase, getHeader, type HttpResponse } from '@thymian/core';
-import type { HttpFilterExpression } from '@thymian/http-filter';
 
 export function compileResponseScopedToResponseChecker(
   expression: HttpFilterExpression,

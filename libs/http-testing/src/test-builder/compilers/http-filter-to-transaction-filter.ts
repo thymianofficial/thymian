@@ -1,14 +1,14 @@
+import type { RequestFilterExpression } from '@thymian/core';
 import {
   equalsIgnoreCase,
   type ThymianFormat,
   type ThymianHttpRequest,
   type ThymianHttpResponse,
 } from '@thymian/core';
-import type { RequestFilterExpression } from '@thymian/http-filter';
 import {
   type HttpFilterExpression,
   type ResponseFilterExpression,
-} from '@thymian/http-filter';
+} from '@thymian/core';
 
 export type TransactionFilterFn = (
   req: ThymianHttpRequest,

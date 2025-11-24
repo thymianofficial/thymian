@@ -1,4 +1,4 @@
-import type { HttpFilterExpression } from '@thymian/http-filter';
+import type { HttpFilterExpression } from '@thymian/core';
 
 import type { SqlFragment } from '../utils.js';
 import { compileHttpFilterToWhereClause } from './http-filter-to-where-clause.js';

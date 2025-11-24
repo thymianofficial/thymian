@@ -2,7 +2,7 @@ import {
   type Constant,
   type RequestFilterExpression,
   type ResponseFilterExpression,
-} from '@thymian/http-filter';
+} from '@thymian/core';
 
 import {
   overrideRequestWithPrevious,

@@ -1,10 +1,10 @@
+import type { HttpFilterExpression } from '@thymian/core';
 import {
   type Logger,
   type PartialBy,
   type ReportFn,
   ThymianFormat,
 } from '@thymian/core';
-import type { HttpFilterExpression } from '@thymian/http-filter';
 
 import type { RuleFnResult } from '../rule/rule-fn.js';
 import type { RuleViolation } from '../rule/rule-violation.js';

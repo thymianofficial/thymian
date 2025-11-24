@@ -1,7 +1,7 @@
 import assert from 'node:assert';
 
+import type { HttpFilterExpression } from '@thymian/core';
 import { equalsIgnoreCase } from '@thymian/core';
-import type { HttpFilterExpression } from '@thymian/http-filter';
 
 import type { HttpTestCaseTransactionValidationFn } from '../../operators/index.js';
 

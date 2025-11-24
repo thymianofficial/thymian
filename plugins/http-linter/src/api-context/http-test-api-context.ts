@@ -7,7 +7,7 @@ import {
   type ReportFn,
   type ThymianHttpTransaction,
 } from '@thymian/core';
-import { type HttpFilterExpression } from '@thymian/http-filter';
+import { type HttpFilterExpression } from '@thymian/core';
 import {
   type AssertionFailure,
   filter,

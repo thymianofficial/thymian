@@ -1,4 +1,4 @@
-import { and, hasResponseBody, statusCode } from '@thymian/http-filter';
+import { and, hasResponseBody, statusCode } from '@thymian/core';
 import { httpRule } from '@thymian/http-linter';
 
 export default httpRule(

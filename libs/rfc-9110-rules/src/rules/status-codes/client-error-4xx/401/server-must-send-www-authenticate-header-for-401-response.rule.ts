@@ -9,7 +9,7 @@ import {
   responseHeader,
   responseWith,
   statusCode,
-} from '@thymian/http-filter';
+} from '@thymian/core';
 import { httpRule } from '@thymian/http-linter';
 import { singleTestCase } from '@thymian/http-testing';
 

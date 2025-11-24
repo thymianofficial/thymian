@@ -1,9 +1,4 @@
-import {
-  and,
-  type HttpFilterExpression,
-  origin,
-  path,
-} from '@thymian/http-filter';
+import { and, type HttpFilterExpression, origin, path } from '@thymian/core';
 
 import { parenthesize, type SqlFragment } from '../utils.js';
 import type { TableNames } from './types.js';

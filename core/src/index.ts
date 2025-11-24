@@ -8,6 +8,7 @@ export * from './events/index.js';
 export * from './events/index.js';
 export * from './format/index.js';
 export * from './http.js';
+export * from './http-filter.js';
 export {
   httpStatusCodeRanges,
   isHttpStatusCodeRange,

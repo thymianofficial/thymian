@@ -5,7 +5,7 @@ import {
   type ReportFn,
   ThymianFormat,
 } from '@thymian/core';
-import { and, type HttpFilterExpression } from '@thymian/http-filter';
+import { and, type HttpFilterExpression } from '@thymian/core';
 import type { RuleFnResult } from 'src/rule/rule-fn.js';
 import type { RuleViolation } from 'src/rule/rule-violation.js';
 

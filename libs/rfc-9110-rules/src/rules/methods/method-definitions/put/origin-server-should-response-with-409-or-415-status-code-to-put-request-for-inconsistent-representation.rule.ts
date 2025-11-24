@@ -1,4 +1,4 @@
-import { method, not, or, statusCode } from '@thymian/http-filter';
+import { method, not, or, statusCode } from '@thymian/core';
 import { httpRule } from '@thymian/http-linter';
 
 export default httpRule(

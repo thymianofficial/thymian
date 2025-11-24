@@ -1,6 +1,6 @@
 {
   "$schema": "../../node_modules/nx/schemas/project-schema.json",
-  "tags": ["scope:core", "type:testing"],
+  "tags": ["scope:core", "type:lib-feature", "type:testing"],
   "targets": {
     "build": {
       "options": {

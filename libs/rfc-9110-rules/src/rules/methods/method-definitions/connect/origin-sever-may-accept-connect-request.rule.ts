@@ -1,4 +1,4 @@
-import { method, statusCode } from '@thymian/http-filter';
+import { method, statusCode } from '@thymian/core';
 import { httpRule } from '@thymian/http-linter';
 
 export default httpRule('rfc9110/origin-sever-may-accept-connect-request')

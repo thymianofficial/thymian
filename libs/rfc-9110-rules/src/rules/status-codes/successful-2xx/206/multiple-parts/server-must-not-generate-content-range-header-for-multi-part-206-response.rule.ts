@@ -4,7 +4,7 @@ import {
   responseHeader,
   responseMediaType,
   statusCode,
-} from '@thymian/http-filter';
+} from '@thymian/core';
 import { httpRule } from '@thymian/http-linter';
 
 export default httpRule(

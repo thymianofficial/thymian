@@ -22,8 +22,7 @@
     "@thymian/core": "0.0.1",
     "@thymian/http-testing": "0.0.1",
     "@thymian/request-dispatcher": "0.0.1",
-    "@thymian/sampler": "0.0.1",
-    "@thymian/http-filter": "0.0.1"
+    "@thymian/sampler": "0.0.1"
   },
   "oclif": {
     "commands": "./dist/cli/commands",

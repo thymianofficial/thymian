@@ -13,7 +13,7 @@ import {
   or,
   responseHeader,
   statusCode,
-} from '@thymian/http-filter';
+} from '@thymian/core';
 import { beforeEach, describe, expect, it } from 'vitest';
 
 import { AnalyticsApiContext } from '../../src/api-context/analytics-api-context/analytics-api-context.js';

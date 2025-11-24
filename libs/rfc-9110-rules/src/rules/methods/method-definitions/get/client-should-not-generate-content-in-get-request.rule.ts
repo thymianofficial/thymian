@@ -1,4 +1,4 @@
-import { and, hasRequestBody, method } from '@thymian/http-filter';
+import { and, hasRequestBody, method } from '@thymian/core';
 import { httpRule } from '@thymian/http-linter';
 
 export default httpRule(

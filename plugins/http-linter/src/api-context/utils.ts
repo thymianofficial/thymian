@@ -5,7 +5,7 @@ import {
   type ThymianHttpRequest,
   type ThymianHttpResponse,
 } from '@thymian/core';
-import { type HttpFilterExpression } from '@thymian/http-filter';
+import { type HttpFilterExpression } from '@thymian/core';
 
 import type {
   CommonHttpRequest,

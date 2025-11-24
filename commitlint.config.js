@@ -11,7 +11,6 @@ export default {
         'plugins',
         'shared',
         'cli-common',
-        'http-filter',
 
         'http-testing',
         'rfc-9110-rules',

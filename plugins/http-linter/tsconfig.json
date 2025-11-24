@@ -13,9 +13,6 @@
       "path": "../../libs/http-testing"
     },
     {
-      "path": "../../libs/http-filter"
-    },
-    {
       "path": "../../core"
     },
     {

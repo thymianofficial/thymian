@@ -1,10 +1,10 @@
+import type { HttpFilterExpression } from '@thymian/core';
 import {
   isNodeType,
   type PartialBy,
   type ThymianHttpRequest,
   type ThymianHttpResponse,
 } from '@thymian/core';
-import type { HttpFilterExpression } from '@thymian/http-filter';
 import type { RuleFnResult } from 'src/rule/rule-fn.js';
 
 import type {

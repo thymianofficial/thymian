@@ -1,4 +1,4 @@
-import { statusCode } from '@thymian/http-filter';
+import { statusCode } from '@thymian/core';
 import { httpRule } from '@thymian/http-linter';
 
 export default httpRule('rfc9110/proxy-must-not-send-421-response')

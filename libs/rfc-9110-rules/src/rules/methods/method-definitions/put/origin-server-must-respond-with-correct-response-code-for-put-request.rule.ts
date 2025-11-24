@@ -5,7 +5,7 @@ import {
   or,
   statusCode,
   statusCodeRange,
-} from '@thymian/http-filter';
+} from '@thymian/core';
 import { httpRule } from '@thymian/http-linter';
 
 export default httpRule(

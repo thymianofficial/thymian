@@ -3,7 +3,7 @@ import {
   and,
   type HttpFilterExpression,
   type RequestFilterExpression,
-} from '@thymian/http-filter';
+} from '@thymian/core';
 import { filter, map, type MonoTypeOperatorFunction, tap } from 'rxjs';
 
 import {

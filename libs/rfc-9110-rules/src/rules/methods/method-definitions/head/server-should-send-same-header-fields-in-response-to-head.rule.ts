@@ -1,5 +1,5 @@
 import { equalsIgnoreCase } from '@thymian/core';
-import { and, method, or, statusCode, url } from '@thymian/http-filter';
+import { and, method, or, statusCode, url } from '@thymian/core';
 import { httpRule, type RuleViolation } from '@thymian/http-linter';
 
 import { arrayDifference, createList } from '../../../../utils.js';
