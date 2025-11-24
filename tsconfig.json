@@ -37,9 +37,6 @@
       "path": "./shared/test-utils"
     },
     {
-      "path": "./plugins/cli-reporter"
-    },
-    {
       "path": "./plugins/format-validator"
     },
     {
