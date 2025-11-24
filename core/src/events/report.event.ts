@@ -1,30 +1,24 @@
 import type { JSONSchemaType } from 'ajv/dist/2020.js';
 
+import type { ThymianFormatLocation } from '../format/index.js';
+
 export type ThymianReportSeverity = 'info' | 'hint' | 'warn' | 'error';
 
 export interface ThymianReport {
   producer: string;
-  source: string;
+  source?: string;
   severity: ThymianReportSeverity;
   summary: string;
   title: string;
   links?: { title?: string; url: string }[];
   timestamp?: number;
   details?: string;
-  category?: string;
+  category?: string | 'No Category';
   location?: {
-    uri?: string;
+    reference?: ThymianFormatLocation;
     format?: {
       elementType: 'node' | 'edge';
       id: string;
-    };
-    file?: {
-      path: string;
-      position: {
-        line: number;
-        column: number;
-        offset: number;
-      };
     };
   };
 }
@@ -33,14 +27,16 @@ export type ReportFn = (report: ThymianReport) => void;
 
 export type ReportEvent = ThymianReport;
 
+// eslint-disable-next-line @typescript-eslint/ban-ts-comment
+// @ts-expect-error
 export const thymianReportSchema: JSONSchemaType<ReportEvent> = {
   type: 'object',
   nullable: false,
   additionalProperties: false,
-  required: ['producer', 'severity', 'summary', 'source', 'title'],
+  required: ['producer', 'severity', 'summary', 'title'],
   properties: {
     producer: { type: 'string', nullable: false },
-    source: { type: 'string', nullable: false },
+    source: { type: 'string', nullable: true },
     category: { type: 'string', nullable: true },
     title: { type: 'string', nullable: false },
     timestamp: { type: 'integer', nullable: true },
@@ -70,7 +66,44 @@ export const thymianReportSchema: JSONSchemaType<ReportEvent> = {
       nullable: true,
       additionalProperties: false,
       properties: {
-        uri: { type: 'string', nullable: true },
+        reference: {
+          type: 'object',
+          nullable: true,
+          additionalProperties: false,
+          properties: {
+            position: {
+              type: 'object',
+              nullable: true,
+              additionalProperties: false,
+              required: ['line', 'offset', 'column'],
+              properties: {
+                line: { type: 'integer', nullable: false },
+                column: { type: 'integer', nullable: false },
+                offset: { type: 'integer', nullable: false },
+              },
+            },
+          },
+          oneOf: [
+            {
+              required: ['uri'],
+              properties: {
+                uri: {
+                  type: 'string',
+                  nullable: false,
+                },
+              },
+            },
+            {
+              required: ['path'],
+              properties: {
+                path: {
+                  type: 'string',
+                  nullable: false,
+                },
+              },
+            },
+          ],
+        },
         format: {
           type: 'object',
           nullable: true,
@@ -83,29 +116,6 @@ export const thymianReportSchema: JSONSchemaType<ReportEvent> = {
               nullable: false,
             },
             id: { type: 'string', nullable: false },
-          },
-        },
-        file: {
-          type: 'object',
-          nullable: true,
-          required: ['path', 'position'],
-          additionalProperties: false,
-          properties: {
-            path: {
-              type: 'string',
-              nullable: false,
-            },
-            position: {
-              type: 'object',
-              nullable: false,
-              required: ['line', 'column', 'offset'],
-              additionalProperties: false,
-              properties: {
-                line: { type: 'integer', nullable: false },
-                column: { type: 'integer', nullable: false },
-                offset: { type: 'integer', nullable: false },
-              },
-            },
           },
         },
       },

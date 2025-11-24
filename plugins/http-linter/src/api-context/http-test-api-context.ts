@@ -297,8 +297,7 @@ export class HttpTestApiContext<
         );
 
         this.report({
-          isProblem: true,
-          text:
+          summary:
             testCase.reason ??
             testCase.results
               .filter(
@@ -307,8 +306,10 @@ export class HttpTestApiContext<
               .map((tc) => tc.message)
               .join('\n'),
           title: testCase.name,
-          subTopic: this.name,
-          topic: 'Skipped HTTP Test Cases',
+          category: 'Skipped HTTP Test Cases',
+          source: '',
+          producer: '@thymian/http-linter',
+          severity: 'info',
         });
       } else if (testCase.status === 'failed') {
         this.ctx.logger.debug(
@@ -328,8 +329,7 @@ export class HttpTestApiContext<
           });
         } else {
           this.report({
-            isProblem: true,
-            text:
+            summary:
               testCase.reason ??
               testCase.results
                 .filter(
@@ -338,8 +338,10 @@ export class HttpTestApiContext<
                 .map((tc) => tc.message)
                 .join('\n'),
             title: testCase.name,
-            subTopic: this.name,
-            topic: 'Failed HTTP Test Cases',
+            category: 'Skipped HTTP Test Cases',
+            source: '',
+            producer: '@thymian/http-linter',
+            severity: 'info',
           });
         }
       }

@@ -1,8 +1,4 @@
-import {
-  type Logger,
-  thymianHttpTransactionToString,
-  type ThymianReport,
-} from '@thymian/core';
+import { type Logger, type ThymianReport } from '@thymian/core';
 import { successfulStatusCode } from '@thymian/http-filter';
 import {
   httpTest,
@@ -28,6 +24,29 @@ export async function validate(
 
   logger.debug(`Validated Thymian format in ${results.duration}ms.`);
 
+  const producer = '@thymian/format-validator';
+
+  const numbers = results.cases.reduce(
+    (acc, c) => {
+      acc[c.status]++;
+      return acc;
+    },
+    {
+      passed: 0,
+      failed: 0,
+      skipped: 0,
+      running: 0,
+    },
+  );
+
+  report({
+    producer,
+    severity: 'info',
+    summary: `Validated ${results.cases.length} HTTP transactions in ${results.duration}ms. ${numbers.passed} passed, ${numbers.failed} failed and ${numbers.skipped} skipped.`,
+    timestamp: Date.now(),
+    title: 'Format Validation Results',
+  });
+
   for (const testCase of results.cases) {
     if (testCase.status === 'skipped') {
       logger.debug(
@@ -35,7 +54,7 @@ export async function validate(
       );
 
       report({
-        producer: '@thymian/format-validator',
+        producer,
         severity: 'warn',
         summary: testCase.name,
         details:
@@ -47,7 +66,8 @@ export async function validate(
             .map((tc) => tc.message)
             .join('\n'),
         category: 'Skipped HTTP Test Cases',
-        timestamp: new Date().toISOString(),
+        timestamp: Date.now(),
+        title: testCase.name,
       });
       continue;
     }
@@ -62,7 +82,7 @@ export async function validate(
       throw new Error('Testcase should have exactly one step.');
     }
 
-    const { transactions, source } = step;
+    const { transactions } = step;
 
     const transaction = transactions[0];
 
@@ -70,41 +90,35 @@ export async function validate(
       throw new Error('Step should have exactly one transaction.');
     }
 
-    const title = thymianHttpTransactionToString(
-      source.thymianReq,
-      source.thymianRes,
-    );
-
     const category = '2xx responses';
-    const producer = '@thymian/format-validator';
 
     testCase.results.forEach((result) => {
       if (result.type === 'assertion-failure') {
         report({
           producer,
           severity: 'error',
-          summary: title,
-          details: `\u274C ${result.message}`,
+          summary: `\u274C ${result.message}`,
           category,
-          timestamp: new Date().toISOString(),
+          timestamp: Date.now(),
+          title: testCase.name,
         });
       } else if (result.type === 'assertion-success') {
         report({
           producer,
           severity: 'info',
-          summary: title,
-          details: `\u2705 ${result.message}`,
+          summary: `\u2705 ${result.message}`,
           category,
-          timestamp: new Date().toISOString(),
+          timestamp: Date.now(),
+          title: testCase.name,
         });
       } else if (result.type === 'info') {
         report({
           producer,
           severity: 'info',
-          summary: title,
-          details: `\u2796 ${result.message}`,
+          summary: `\u2796 ${result.message}`,
           category,
-          timestamp: new Date().toISOString(),
+          timestamp: Date.now(),
+          title: testCase.name,
         });
       }
     });

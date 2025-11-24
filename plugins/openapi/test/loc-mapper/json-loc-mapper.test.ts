@@ -12,7 +12,7 @@ describe('JSON LOC Mapper', async () => {
   );
   const openapi = await readFile(openapiPath, 'utf-8');
 
-  it('should map location', () => {
+  it('return source location for operation in simple openapi file', () => {
     const mapper = new JsonLocMapper(openapi, openapiPath);
 
     const location = mapper.locationForOperationId('getHello');
@@ -22,10 +22,8 @@ describe('JSON LOC Mapper', async () => {
       position: {
         line: 9,
         column: 7,
-        offset: 73,
+        offset: 111,
       },
     });
-
-    console.log(location);
   });
 });

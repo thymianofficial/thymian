@@ -1,6 +1,7 @@
+import type { ThymianFormatPosition } from '@thymian/core';
 import { type Node as JsonNode, parseTree } from 'jsonc-parser';
 
-import { LocMapper, type SourcePosition } from './loc-mapper.js';
+import { LocMapper } from './loc-mapper.js';
 
 export class JsonLocMapper extends LocMapper {
   private readonly root: JsonNode | undefined;
@@ -14,7 +15,7 @@ export class JsonLocMapper extends LocMapper {
 
   public positionForOperationId(
     operationId: string,
-  ): SourcePosition | undefined {
+  ): ThymianFormatPosition | undefined {
     if (!this.root) return undefined;
 
     const opIdProp = this.findOperationIdProperty(this.root, operationId);
@@ -64,7 +65,7 @@ export class JsonLocMapper extends LocMapper {
     return this.text.slice(n.offset, n.offset + n.length);
   }
 
-  private offsetToLineCol(offset: number): SourcePosition {
+  private offsetToLineCol(offset: number): ThymianFormatPosition {
     let low = 0,
       high = this.lineStarts.length - 1;
     while (low <= high) {

@@ -1,3 +1,4 @@
+import type { ThymianFormatPosition } from '@thymian/core';
 import {
   isMap,
   LineCounter,
@@ -8,7 +9,7 @@ import {
   YAMLMap,
 } from 'yaml';
 
-import { LocMapper, type SourcePosition } from './loc-mapper.js';
+import { LocMapper } from './loc-mapper.js';
 
 const HTTP_METHODS = [
   'get',
@@ -35,7 +36,7 @@ export class YamlLocMapper extends LocMapper {
 
   public positionForOperationId(
     operationId: string,
-  ): SourcePosition | undefined {
+  ): ThymianFormatPosition | undefined {
     const pathsMap = this.getTopLevelMap('paths');
     if (!pathsMap) return undefined;
 
@@ -112,7 +113,7 @@ export class YamlLocMapper extends LocMapper {
     return null;
   }
 
-  private positionFromNode(node?: Node | null): SourcePosition | null {
+  private positionFromNode(node?: Node | null): ThymianFormatPosition | null {
     if (!node || !Array.isArray((node as any).range)) return null;
 
     const [start] = (node as any).range as [number, number, number?];

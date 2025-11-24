@@ -10,6 +10,9 @@
       "path": "../core"
     },
     {
+      "path": "../plugins/reporter"
+    },
+    {
       "path": "../plugins/websocket-proxy"
     },
     {
@@ -23,9 +26,6 @@
     },
     {
       "path": "../plugins/format-validator"
-    },
-    {
-      "path": "../plugins/cli-reporter"
     },
     {
       "path": "../libs/cli-common"

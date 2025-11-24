@@ -47,6 +47,9 @@
     },
     {
       "path": "./plugins/websocket-proxy"
+    },
+    {
+      "path": "./plugins/reporter"
     }
   ]
 }

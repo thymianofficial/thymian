@@ -75,9 +75,9 @@ export function processRequestBodyObjet(
           extensions: {
             openapi: {
               operationId: context.operationId,
-              location,
             },
           },
+          location,
           queryParameters: parameters.queryParameters,
           cookies: parameters.cookies,
           pathParameters: parameters.pathParameters,

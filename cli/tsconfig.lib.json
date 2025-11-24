@@ -22,6 +22,9 @@
       "path": "../core/tsconfig.lib.json"
     },
     {
+      "path": "../plugins/reporter/tsconfig.lib.json"
+    },
+    {
       "path": "../plugins/websocket-proxy/tsconfig.lib.json"
     },
     {
@@ -35,9 +38,6 @@
     },
     {
       "path": "../plugins/format-validator/tsconfig.lib.json"
-    },
-    {
-      "path": "../plugins/cli-reporter/tsconfig.lib.json"
     },
     {
       "path": "../libs/cli-common/tsconfig.lib.json"

@@ -1,13 +1,7 @@
-export type SourcePosition = {
-  line: number;
-  column: number;
-  offset: number;
-};
-
-export type SourceLocation = {
-  path: string;
-  position: SourcePosition;
-};
+import type {
+  ThymianFormatLocation,
+  ThymianFormatPosition,
+} from '@thymian/core';
 
 export abstract class LocMapper {
   protected constructor(
@@ -17,9 +11,11 @@ export abstract class LocMapper {
 
   abstract positionForOperationId(
     operationId: string,
-  ): SourcePosition | undefined;
+  ): ThymianFormatPosition | undefined;
 
-  locationForOperationId(operationId: string): SourceLocation | undefined {
+  locationForOperationId(
+    operationId: string,
+  ): ThymianFormatLocation | undefined {
     const pos = this.positionForOperationId(operationId);
 
     return pos
