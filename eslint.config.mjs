@@ -1,6 +1,69 @@
 import nx from '@nx/eslint-plugin';
 import eslintPluginSimpleImportSort from 'eslint-plugin-simple-import-sort';
 
+const depConstraintsProduction = [
+  // Dimension: scope
+  // scope:cli can only access core and cli (package.json dependencies are runtime only)
+  {
+    sourceTag: 'scope:cli',
+    onlyDependOnLibsWithTags: ['scope:core', 'scope:cli'],
+  },
+  // scope:core can only access scope:core
+  {
+    sourceTag: 'scope:core',
+    onlyDependOnLibsWithTags: ['scope:core'],
+  },
+  // scope:plugin can access core, cli, and plugin
+  {
+    sourceTag: 'scope:plugin',
+    onlyDependOnLibsWithTags: ['scope:core', 'scope:cli', 'scope:plugin'],
+  },
+
+  // Dimension: type
+  // type:app can access everything
+  {
+    sourceTag: 'type:app',
+    onlyDependOnLibsWithTags: ['*'],
+  },
+  // type:lib can access lib
+  {
+    sourceTag: 'type:lib',
+    onlyDependOnLibsWithTags: ['type:lib'],
+  },
+  // type:testing can access lib and testing
+  {
+    sourceTag: 'type:testing',
+    onlyDependOnLibsWithTags: ['type:lib', 'type:testing'],
+  },
+  // type:config/content/rules/rule-set can access lib, config and testing
+  {
+    sourceTag: 'type:config',
+    onlyDependOnLibsWithTags: ['type:lib', 'type:config', 'type:testing'],
+  },
+
+  // npm:public can depend only on npm:public
+  {
+    sourceTag: 'npm:public',
+    onlyDependOnLibsWithTags: ['npm:public'],
+  },
+  // npm:private can depend on anything
+  {
+    sourceTag: 'npm:private',
+    onlyDependOnLibsWithTags: ['npm:public', 'npm:private'],
+  },
+];
+
+const depConstraintsTestFiles = depConstraintsProduction.map((constraint) => {
+  // Add type:testing to allowed tags
+  return {
+    ...constraint,
+    onlyDependOnLibsWithTags: [
+      ...constraint.onlyDependOnLibsWithTags,
+      'type:testing',
+    ],
+  };
+});
+
 export default [
   {
     plugins: {
@@ -30,43 +93,20 @@ export default [
         {
           enforceBuildableLibDependency: true,
           allow: ['^.*/eslint(.base)?.config.[cm]?js$'],
-          depConstraints: [
-            // Core can depend only on core
-            {
-              sourceTag: 'core',
-              onlyDependOnLibsWithTags: ['core', 'lib', 'shared'],
-            },
-            // Plugins can depend on core, plugin, and lib
-            {
-              sourceTag: 'plugin',
-              onlyDependOnLibsWithTags: ['plugin', 'core', 'lib', 'shared'],
-            },
-            // Libs can depend on core, lib
-            {
-              sourceTag: 'lib',
-              onlyDependOnLibsWithTags: ['core', 'lib', 'shared'],
-            },
-            // Shared utilities can depend on core, lib, shared
-            {
-              sourceTag: 'shared',
-              onlyDependOnLibsWithTags: ['shared', 'core'],
-            },
-            // Apps (if any) can depend on anything except private
-            {
-              sourceTag: 'app',
-              onlyDependOnLibsWithTags: ['*'],
-            },
-            // npm:public can depend only on npm:public
-            {
-              sourceTag: 'npm:public',
-              onlyDependOnLibsWithTags: ['npm:public'],
-            },
-            // npm:private can depend on anything
-            {
-              sourceTag: 'npm:private',
-              onlyDependOnLibsWithTags: ['npm:public', 'npm:private'],
-            },
-          ],
+          depConstraints: depConstraintsProduction,
+        },
+      ],
+    },
+  },
+  {
+    files: ['**/test/**/*.ts', '**/*.test.ts', '**/*.spec.ts'],
+    rules: {
+      '@nx/enforce-module-boundaries': [
+        'error',
+        {
+          enforceBuildableLibDependency: true,
+          allow: ['^.*/eslint(.base)?.config.[cm]?js$'],
+          depConstraints: depConstraintsTestFiles,
         },
       ],
     },
