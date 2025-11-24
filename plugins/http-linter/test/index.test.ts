@@ -53,8 +53,8 @@ describe('http-linter', () => {
 
     expect(result.valid).toBeFalsy();
     expect(result.reports).toHaveLength(1);
-    expect(result.reports[0]?.text).includes(
-      'fc9110/server-should-send-validator-fields',
+    expect(result.reports[0]?.source).includes(
+      'rfc9110/server-should-send-validator-fields',
     );
 
     await thymian.close();
