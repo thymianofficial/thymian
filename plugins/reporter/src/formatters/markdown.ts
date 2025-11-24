@@ -1,5 +1,7 @@
+import * as path from 'node:path';
+
 import type { ThymianReport, ThymianReportSeverity } from '@thymian/core';
-import { writeFile } from 'fs/promises';
+import { mkdir, writeFile } from 'fs/promises';
 
 import { Formatter } from '../formatter.js';
 
@@ -58,7 +60,7 @@ export class MarkdownFormatter extends Formatter<MarkdownFormatterOptions> {
 
           for (const report of reports) {
             const sev = this.mapSeverityToBadge(report.severity);
-            const src = report.source ? `\n   — *${report.source}*` : '';
+            const src = report.source ? `\r\n   — *${report.source}*` : '';
             lines.push(`- ${sev}: ${report.summary}${src}`);
 
             if (report.details) {
@@ -73,6 +75,8 @@ export class MarkdownFormatter extends Formatter<MarkdownFormatterOptions> {
       lines.push('');
     }
 
-    await writeFile(this.options.path, lines.join('\n'), 'utf-8');
+    await mkdir(path.dirname(this.options.path), { recursive: true });
+
+    await writeFile(this.options.path, lines.join('\r\n'), 'utf-8');
   }
 }

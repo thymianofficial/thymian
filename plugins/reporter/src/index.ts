@@ -37,7 +37,7 @@ export async function getFormatters(
             cwd,
             typeof options.path === 'string'
               ? options.path
-              : 'thymian/reports/report.md',
+              : '.thymian/reports/report.md',
           ),
         });
       }
