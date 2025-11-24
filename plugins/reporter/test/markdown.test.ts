@@ -6,6 +6,7 @@ import { MarkdownFormatter } from '../src/formatters/markdown.js';
 
 vi.mock('fs/promises', () => ({
   writeFile: vi.fn(),
+  mkdir: vi.fn(),
 }));
 
 describe('MarkdownFormatter', () => {
