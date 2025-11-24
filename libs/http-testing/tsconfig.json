@@ -4,16 +4,6 @@
   "include": [],
   "references": [
     {
-      "path": "../../shared/test-utils"
-    },
-    {
-      "path": "../http-filter"
-    },
-
-    {
-      "path": "../../core"
-    },
-    {
       "path": "./tsconfig.lib.json"
     }
   ],
