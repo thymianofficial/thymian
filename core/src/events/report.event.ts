@@ -27,8 +27,6 @@ export type ReportFn = (report: ThymianReport) => void;
 
 export type ReportEvent = ThymianReport;
 
-// eslint-disable-next-line @typescript-eslint/ban-ts-comment
-// @ts-expect-error
 export const thymianReportSchema: JSONSchemaType<ReportEvent> = {
   type: 'object',
   nullable: false,
@@ -71,6 +69,10 @@ export const thymianReportSchema: JSONSchemaType<ReportEvent> = {
           nullable: true,
           additionalProperties: false,
           properties: {
+            path: {
+              type: 'string',
+              nullable: true,
+            },
             position: {
               type: 'object',
               nullable: true,
@@ -82,23 +84,53 @@ export const thymianReportSchema: JSONSchemaType<ReportEvent> = {
                 offset: { type: 'integer', nullable: false },
               },
             },
+            uri: {
+              type: 'string',
+              nullable: true,
+            },
           },
           oneOf: [
             {
+              type: 'object',
+              nullable: true,
+              required: ['path'],
+              properties: {
+                path: {
+                  type: 'string',
+                  nullable: false,
+                },
+                position: {
+                  type: 'object',
+                  nullable: true,
+                  additionalProperties: false,
+                  required: ['line', 'offset', 'column'],
+                  properties: {
+                    line: { type: 'integer', nullable: false },
+                    column: { type: 'integer', nullable: false },
+                    offset: { type: 'integer', nullable: false },
+                  },
+                },
+              },
+            },
+            {
+              type: 'object',
+              nullable: true,
               required: ['uri'],
               properties: {
                 uri: {
                   type: 'string',
                   nullable: false,
                 },
-              },
-            },
-            {
-              required: ['path'],
-              properties: {
-                path: {
-                  type: 'string',
-                  nullable: false,
+                position: {
+                  type: 'object',
+                  nullable: true,
+                  additionalProperties: false,
+                  required: ['line', 'offset', 'column'],
+                  properties: {
+                    line: { type: 'integer', nullable: false },
+                    column: { type: 'integer', nullable: false },
+                    offset: { type: 'integer', nullable: false },
+                  },
                 },
               },
             },
