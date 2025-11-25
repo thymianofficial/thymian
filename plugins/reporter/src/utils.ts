@@ -3,7 +3,7 @@ export function createList(list: string[]): string {
     return '';
   } else if (list.length === 1) {
     return `${list[0]}`;
-    // length >== 2
+    // length >= 2
   } else {
     const last = list.at(-1) as string;
 

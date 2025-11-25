@@ -3,11 +3,7 @@ import * as path from 'node:path';
 import type { ThymianReport, ThymianReportSeverity } from '@thymian/core';
 import { mkdir, writeFile } from 'fs/promises';
 
-import { Formatter } from '../formatter.js';
-
-export type MarkdownFormatterOptions = {
-  path: string;
-};
+import { analyze, type Formatter } from '../formatter.js';
 
 export const details = (details: string): string =>
   `
@@ -16,14 +12,24 @@ export const details = (details: string): string =>
   ${details}
   </details>`;
 
-export class MarkdownFormatter extends Formatter<MarkdownFormatterOptions> {
+export function mapSeverityToBadge(severity: ThymianReportSeverity): string {
+  if (severity === 'error') return '❌ ERROR';
+  if (severity === 'warn') return '⚠️ WARN';
+  if (severity === 'hint') return '💡 HINT';
+  return 'ℹ️ INFO';
+}
+
+export type MarkdownFormatterOptions = {
+  path: string;
+};
+
+export class MarkdownFormatter implements Formatter<MarkdownFormatterOptions> {
+  options!: MarkdownFormatterOptions;
+
   private readonly reports: ThymianReport[] = [];
 
-  private mapSeverityToBadge(severity: ThymianReportSeverity): string {
-    if (severity === 'error') return '❌ ERROR';
-    if (severity === 'warn') return '⚠️ WARN';
-    if (severity === 'hint') return '💡 HINT';
-    return 'ℹ️ INFO';
+  init(options: MarkdownFormatterOptions): void {
+    this.options = options;
   }
 
   report(report: ThymianReport): void | Promise<void> {
@@ -33,7 +39,7 @@ export class MarkdownFormatter extends Formatter<MarkdownFormatterOptions> {
   async flush(): Promise<void> {
     if (this.reports.length === 0) return;
 
-    const analysis = this.analyze(this.reports);
+    const analysis = analyze(this.reports);
 
     const lines: string[] = [];
     lines.push('# Thymian Report');
@@ -59,8 +65,8 @@ export class MarkdownFormatter extends Formatter<MarkdownFormatterOptions> {
           lines.push('');
 
           for (const report of reports) {
-            const sev = this.mapSeverityToBadge(report.severity);
-            const src = report.source ? `\r\n   — *${report.source}*` : '';
+            const sev = mapSeverityToBadge(report.severity);
+            const src = report.source ? `\n   — *${report.source}*` : '';
             lines.push(`- ${sev}: ${report.summary}${src}`);
 
             if (report.details) {
@@ -77,6 +83,6 @@ export class MarkdownFormatter extends Formatter<MarkdownFormatterOptions> {
 
     await mkdir(path.dirname(this.options.path), { recursive: true });
 
-    await writeFile(this.options.path, lines.join('\r\n'), 'utf-8');
+    await writeFile(this.options.path, lines.join('\n'), 'utf-8');
   }
 }

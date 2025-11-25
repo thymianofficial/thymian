@@ -338,7 +338,7 @@ export class HttpTestApiContext<
                 .map((tc) => tc.message)
                 .join('\n'),
             title: testCase.name,
-            category: 'Skipped HTTP Test Cases',
+            category: 'Failed HTTP Test Cases',
             source: '',
             producer: '@thymian/http-linter',
             severity: 'info',

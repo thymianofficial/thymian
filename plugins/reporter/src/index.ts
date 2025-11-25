@@ -6,7 +6,7 @@ import {
   type ThymianReport,
 } from '@thymian/core';
 
-import { Formatter } from './formatter.js';
+import type { Formatter } from './formatter.js';
 import { CliFormatter, type CliFormatterOptions } from './formatters/cli.js';
 import {
   MarkdownFormatter,
@@ -25,13 +25,17 @@ export async function getFormatters(
   cwd: string,
 ): Promise<Formatter[]> {
   return Promise.all(
-    Object.entries(config).map(([name, options]) => {
+    Object.entries(config).map(async ([name, options]) => {
       if (name === 'cli') {
-        return new CliFormatter().init(options);
+        const formatter = new CliFormatter();
+        formatter.init(options);
+        return formatter;
       }
 
       if (name === 'markdown') {
-        return new MarkdownFormatter().init({
+        const formatter = new MarkdownFormatter();
+
+        formatter.init({
           ...options,
           path: join(
             cwd,
@@ -40,6 +44,8 @@ export async function getFormatters(
               : '.thymian/reports/report.md',
           ),
         });
+
+        return formatter;
       }
 
       throw new ThymianBaseError(
@@ -71,7 +77,7 @@ export const reporterPlugin: ThymianPlugin<ReporterPluginOptions> = {
     });
 
     emitter.onAction('core.close', async (_event, ctx) => {
-      await Promise.all(reporters.map(async (r) => r.flush(true)));
+      await Promise.all(reporters.map(async (r) => r.flush()));
       ctx.reply();
     });
   },

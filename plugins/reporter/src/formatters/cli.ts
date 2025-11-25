@@ -1,7 +1,11 @@
 import type { ThymianReport, ThymianReportSeverity } from '@thymian/core';
 import chalk from 'chalk';
 
-import { Formatter, type ThymianReportStatistics } from '../formatter.js';
+import {
+  analyze,
+  type Formatter,
+  type ThymianReportStatistics,
+} from '../formatter.js';
 import { createList } from '../utils.js';
 
 const header = `
@@ -10,60 +14,70 @@ const header = `
 +----------------+
 `;
 
+export function printProducer(producer: string): void {
+  console.log(
+    Array.from({ length: producer.length })
+      .map(() => '-')
+      .join(''),
+  );
+  console.log(chalk.bold(producer));
+  console.log(
+    Array.from({ length: producer.length })
+      .map(() => '-')
+      .join(''),
+  );
+  console.log();
+}
+
+export function createCliSummaryMessage(
+  statistics: ThymianReportStatistics,
+): string {
+  let message = `Found ${statistics.numberOfReports} reports from ${Object.keys(statistics.reportsFromProducers).length} producers. `;
+
+  message +=
+    createList(
+      Object.entries(statistics.reportsFromProducers).map(
+        ([producer, count]) =>
+          `${chalk.bold(count)} reports from ${chalk.bold(producer)}`,
+      ),
+    ) + '.';
+
+  return message;
+}
+
+export function mapSeverityToMessagePrefix(
+  severity: ThymianReportSeverity,
+): string {
+  if (severity === 'hint') return `${chalk.blue(severity)}: `;
+  if (severity === 'warn') return `${chalk.yellow(severity)}: `;
+  if (severity === 'error') return `${chalk.red(severity)}: `;
+  return '';
+}
+
 export type CliFormatterOptions = Record<PropertyKey, unknown>;
 
-export class CliFormatter extends Formatter<CliFormatterOptions> {
+export class CliFormatter implements Formatter<CliFormatterOptions> {
+  options!: CliFormatterOptions;
+
   private readonly reports: ThymianReport[] = [];
 
-  private printProducer(producer: string): void {
-    console.log(
-      Array.from({ length: producer.length })
-        .map(() => '-')
-        .join(''),
-    );
-    console.log(chalk.bold(producer));
-    console.log(
-      Array.from({ length: producer.length })
-        .map(() => '-')
-        .join(''),
-    );
-    console.log();
+  init(options: CliFormatterOptions): void {
+    this.options = options;
   }
 
-  private mapSeverityToMessagePrefix(severity: ThymianReportSeverity): string {
-    if (severity === 'hint') return `${chalk.blue(severity)}: `;
-    if (severity === 'warn') return `${chalk.yellow(severity)}: `;
-    if (severity === 'error') return `${chalk.red(severity)}: `;
-    return '';
-  }
-
-  private createCliSummaryMessage(statistics: ThymianReportStatistics): string {
-    let message = `Found ${statistics.numberOfReports} reports from ${Object.keys(statistics.reportsFromProducers).length} producers. `;
-
-    message +=
-      createList(
-        Object.entries(statistics.reportsFromProducers).map(
-          ([producer, count]) =>
-            `${chalk.bold(count)} reports from ${chalk.bold(producer)}`,
-        ),
-      ) + '.';
-
-    return message;
-  }
-
-  flush(): void | Promise<void> {
+  flush(): void {
     if (this.reports.length === 0) {
       return;
     }
-    const analysis = this.analyze(this.reports);
+    const analysis = analyze(this.reports);
 
     console.log(chalk.bold(header));
-    console.log(this.createCliSummaryMessage(analysis.statistics));
+    console.log(createCliSummaryMessage(analysis.statistics));
     console.log();
     console.log();
 
     for (const [producer, categories] of Object.entries(analysis.normalized)) {
-      this.printProducer(producer);
+      printProducer(producer);
 
       console.group();
 
@@ -77,7 +91,7 @@ export class CliFormatter extends Formatter<CliFormatterOptions> {
 
           for (const report of reports) {
             console.log(
-              `${this.mapSeverityToMessagePrefix(report.severity)}${report.summary}\n   ${chalk.dim(report.source)}`,
+              `${mapSeverityToMessagePrefix(report.severity)}${report.summary}\n   ${chalk.dim(report.source)}`,
             );
             console.log();
           }
@@ -102,7 +116,7 @@ export class CliFormatter extends Formatter<CliFormatterOptions> {
 
           for (const report of reports) {
             console.log(
-              `${this.mapSeverityToMessagePrefix(report.severity)}${report.summary}\n   ${chalk.dim(report.source ?? '')}`,
+              `${mapSeverityToMessagePrefix(report.severity)}${report.summary}\n   ${chalk.dim(report.source ?? '')}`,
             );
             console.log();
           }

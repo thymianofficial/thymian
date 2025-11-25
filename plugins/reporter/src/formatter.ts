@@ -20,48 +20,45 @@ export type ReportAnalysis = {
   statistics: ThymianReportStatistics;
 };
 
-export abstract class Formatter<Options = Record<PropertyKey, unknown>> {
-  protected options!: Options;
+export function analyze(reports: ThymianReport[]): ReportAnalysis {
+  return reports.reduce(
+    (acc: ReportAnalysis, report) => {
+      const { producer, category = 'No Category', title } = report;
 
-  init(options: Options): this | Promise<this> {
-    this.options = options;
-    return this;
-  }
+      acc.statistics.reportsFromProducers[producer] ??= 0;
+      acc.statistics.reportsFromProducers[producer]++;
 
-  protected analyze(reports: ThymianReport[]): ReportAnalysis {
-    return reports.reduce(
-      (acc, report) => {
-        const { producer, category = 'No Category', title } = report;
+      acc.normalized[producer] ??= {};
+      acc.normalized[producer][category] ??= {};
+      acc.normalized[producer][category][title] ??= [];
+      acc.normalized[producer][category][title].push(report);
 
-        acc.statistics.reportsFromProducers[producer] ??= 0;
-        acc.statistics.reportsFromProducers[producer]++;
+      acc.statistics.severityCounts[report.severity]++;
 
-        acc.normalized[producer] ??= {};
-        acc.normalized[producer][category] ??= {};
-        acc.normalized[producer][category][title] ??= [];
-        acc.normalized[producer][category][title].push(report);
-
-        acc.statistics.severityCounts[report.severity]++;
-
-        return acc;
-      },
-      {
-        normalized: {} as NormalizedThymianReports,
-        statistics: {
-          numberOfReports: reports.length,
-          severityCounts: {
-            error: 0,
-            warn: 0,
-            hint: 0,
-            info: 0,
-          },
-          reportsFromProducers: {},
+      return acc;
+    },
+    {
+      normalized: {} as NormalizedThymianReports,
+      statistics: {
+        numberOfReports: reports.length,
+        severityCounts: {
+          error: 0,
+          warn: 0,
+          hint: 0,
+          info: 0,
         },
-      } as ReportAnalysis,
-    );
-  }
+        reportsFromProducers: {},
+      },
+    },
+  );
+}
 
-  abstract report(report: ThymianReport): void | Promise<void>;
+export interface Formatter<Options = Record<PropertyKey, unknown>> {
+  options: Options;
 
-  abstract flush(final: boolean): void | Promise<void>;
+  init(options: Options): void | Promise<void>;
+
+  report(report: ThymianReport): void | Promise<void>;
+
+  flush(): void | Promise<void>;
 }

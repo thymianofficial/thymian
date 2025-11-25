@@ -2,7 +2,10 @@ import { ThymianReport, ThymianReportSeverity } from '@thymian/core';
 import { writeFile } from 'fs/promises';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { MarkdownFormatter } from '../src/formatters/markdown.js';
+import {
+  mapSeverityToBadge,
+  MarkdownFormatter,
+} from '../src/formatters/markdown.js';
 
 vi.mock('fs/promises', () => ({
   writeFile: vi.fn(),
@@ -27,7 +30,8 @@ describe('MarkdownFormatter', () => {
   let formatter = new MarkdownFormatter();
 
   beforeEach(async () => {
-    formatter = await new MarkdownFormatter().init(formatterOptions);
+    formatter = await new MarkdownFormatter();
+    await formatter.init(formatterOptions);
   });
 
   afterEach(() => {
@@ -43,11 +47,7 @@ describe('MarkdownFormatter', () => {
     };
 
     Object.entries(badges).forEach(([severity, badge]) => {
-      expect(
-        (formatter as any).mapSeverityToBadge(
-          severity as ThymianReportSeverity,
-        ),
-      ).toBe(badge);
+      expect(mapSeverityToBadge(severity as ThymianReportSeverity)).toBe(badge);
     });
   });
 
