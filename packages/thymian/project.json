@@ -1,0 +1,9 @@
+{
+  "name": "thymian",
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "packages/thymian/src",
+  "projectType": "application",
+  "tags": ["scope:packages/thymian", "type:app"],
+  "// targets": "to see all targets run: nx show project thymian --web",
+  "targets": {}
+}

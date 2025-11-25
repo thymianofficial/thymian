@@ -58,7 +58,9 @@
     "core",
     "libs/**",
     "cli",
-    "shared/test-utils"
+    "shared/test-utils",
+    "packages/cli/*",
+    "packages/*"
   ],
   "nx": {
     "includedScripts": [],
