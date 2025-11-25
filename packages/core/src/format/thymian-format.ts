@@ -125,10 +125,15 @@ export class ThymianFormat {
     target: string,
     edge: PartialBy<ThymianEdge, 'label'>,
   ): string {
-    return this.graph.addEdge(source, target, {
-      label: edge.type,
-      ...edge,
-    });
+    return this.graph.addEdgeWithKey(
+      this.hash(source + target + edge.label),
+      source,
+      target,
+      {
+        label: edge.type,
+        ...edge,
+      },
+    );
   }
 
   addHttpLink(
