@@ -7,7 +7,10 @@ import {
   ThymianFormat,
   type ThymianHttpTransaction,
 } from '@thymian/core';
-import { createHookRunner, createHttpTestContext } from '@thymian/http-testing';
+import {
+  createHttpTestContext,
+  createHttpTestHookRunnerFromThymianEmitter,
+} from '@thymian/http-testing';
 
 export function createContext(
   format: ThymianFormat,
@@ -43,6 +46,6 @@ export function createContext(
         },
       );
     },
-    runHook: createHookRunner(emitter),
+    runHook: createHttpTestHookRunnerFromThymianEmitter(emitter),
   });
 }

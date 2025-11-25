@@ -8,8 +8,8 @@ import {
   type ThymianHttpTransaction,
 } from '@thymian/core';
 import {
-  createHookRunner,
   createHttpTestContext,
+  createHttpTestHookRunnerFromThymianEmitter,
   type HttpTestContextLocals,
 } from '@thymian/http-testing';
 
@@ -48,6 +48,6 @@ export function createContext<Locals extends HttpTestContextLocals>(
         },
       );
     },
-    runHook: createHookRunner(emitter),
+    runHook: createHttpTestHookRunnerFromThymianEmitter(emitter),
   });
 }

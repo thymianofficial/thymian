@@ -50,6 +50,7 @@ export function runRequests<
       for (const transaction of step.transactions) {
         const beforeRequest = await ctx.runHook('beforeRequest', {
           value: transaction.requestTemplate,
+          ctx: transaction.source,
         });
 
         current.results.push(...(beforeRequest.testResults ?? []));
@@ -62,14 +63,15 @@ export function runRequests<
           return ctx.fail(current, beforeRequest.fail);
         }
 
-        transaction.requestTemplate = beforeRequest.value;
+        transaction.requestTemplate = beforeRequest.result;
 
         if (transaction.requestTemplate.authorize) {
           transaction.requestTemplate = (
             await ctx.runHook('authorize', {
               value: transaction.requestTemplate,
+              ctx: transaction.source,
             })
-          ).value;
+          ).result;
         }
 
         transaction.request = serializeRequest(transaction);
@@ -77,6 +79,11 @@ export function runRequests<
 
         const afterResponse = await ctx.runHook('afterResponse', {
           value: transaction.response,
+          ctx: {
+            request: transaction.request,
+            requestTemplate: transaction.requestTemplate,
+            thymianTransaction: transaction.source,
+          },
         });
 
         current.results.push(...(afterResponse.testResults ?? []));
@@ -89,7 +96,7 @@ export function runRequests<
           return ctx.fail(current, afterResponse.fail);
         }
 
-        transaction.response = afterResponse.value;
+        transaction.response = afterResponse.result;
 
         if (typeof options.expectStatusCode !== 'undefined') {
           if (transaction.response.statusCode !== options.expectStatusCode) {
