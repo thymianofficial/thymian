@@ -1,6 +1,7 @@
 {
+  "name": "@thymian/openapi",
   "$schema": "../../node_modules/nx/schemas/project-schema.json",
-  "sourceRoot": "plugins/openapi/src",
+  "sourceRoot": "packages/openapi/src",
   "projectType": "library",
   "tags": ["scope:plugin", "type:lib"]
 }

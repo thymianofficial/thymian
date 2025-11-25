@@ -10,7 +10,7 @@
       "path": "./plugins/request-dispatcher"
     },
     {
-      "path": "./plugins/openapi"
+      "path": "./packages/openapi"
     },
     {
       "path": "./libs/http-testing"

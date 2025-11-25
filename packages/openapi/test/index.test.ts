@@ -7,11 +7,13 @@ import { openApiPlugin } from '../src/index.js';
 
 describe('OpenApi plugin', () => {
   it('loads openapi v3 document', async () => {
-    const thymian = new Thymian(new NoopLogger());
+    const thymian = new Thymian(new NoopLogger(), {
+      cwd: join(import.meta.dirname, '../..'),
+    });
 
     await thymian
       .register(openApiPlugin, {
-        filePath: '../../shared/test-utils/src/fixtures/petstore-v2.yaml',
+        filePath: 'test-utils/src/fixtures/petstore-v2.yaml',
       })
       .ready();
 
