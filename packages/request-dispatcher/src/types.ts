@@ -1,6 +1,6 @@
-import type { Dispatcher } from 'undici';
-import type { JSONSchemaType } from '@thymian/core/ajv';
 import type { HttpRequest, HttpResponse } from '@thymian/core';
+import type { JSONSchemaType } from '@thymian/core/ajv';
+import type { Dispatcher } from 'undici';
 
 export const httpRequestSchema: JSONSchemaType<HttpRequest> = {
   type: 'object',

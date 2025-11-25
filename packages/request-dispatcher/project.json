@@ -1,9 +1,9 @@
 {
   "name": "@thymian/request-dispatcher",
   "$schema": "../../node_modules/nx/schemas/project-schema.json",
-  "sourceRoot": "plugins/request-dispatcher/src",
+  "sourceRoot": "packages/request-dispatcher/src",
   "projectType": "library",
-  "tags": ["scope:plugin", "type:lib"],
+  "tags": ["plugin", "scope:plugin", "type:lib"],
   "// targets": "to see all targets run: nx show project @thymian/request-dispatcher --web",
   "targets": {}
 }

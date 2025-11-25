@@ -7,7 +7,7 @@
       "path": "./packages/core"
     },
     {
-      "path": "./plugins/request-dispatcher"
+      "path": "./packages/request-dispatcher"
     },
     {
       "path": "./packages/openapi"

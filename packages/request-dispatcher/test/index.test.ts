@@ -1,5 +1,6 @@
-import { describe, it } from 'vitest';
 import { NoopLogger, Thymian } from '@thymian/core';
+import { describe, it } from 'vitest';
+
 import dispatcherPlugin from '../src/index.js';
 
 describe('runner plugin', () => {

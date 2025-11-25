@@ -19,7 +19,7 @@
       "path": "../../plugins/sampler/tsconfig.lib.json"
     },
     {
-      "path": "../../plugins/request-dispatcher/tsconfig.lib.json"
+      "path": "../request-dispatcher/tsconfig.lib.json"
     },
     {
       "path": "../../libs/http-testing/tsconfig.lib.json"

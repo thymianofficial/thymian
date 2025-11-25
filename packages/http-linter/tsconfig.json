@@ -7,7 +7,7 @@
       "path": "../../plugins/sampler"
     },
     {
-      "path": "../../plugins/request-dispatcher"
+      "path": "../request-dispatcher"
     },
     {
       "path": "../../libs/http-testing"
