@@ -25,7 +25,7 @@
       "path": "../../plugins/http-linter"
     },
     {
-      "path": "../../plugins/format-validator"
+      "path": "../format-validator"
     },
     {
       "path": "../cli-common"

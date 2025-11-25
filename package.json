@@ -56,8 +56,6 @@
   "workspaces": [
     "plugins/**",
     "libs/**",
-    "shared/test-utils",
-    "packages/cli/*",
     "packages/*"
   ],
   "nx": {

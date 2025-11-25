@@ -28,7 +28,7 @@
       "path": "./packages/cli-common"
     },
     {
-      "path": "./plugins/format-validator"
+      "path": "./packages/format-validator"
     },
     {
       "path": "./plugins/websocket-proxy"
