@@ -132,7 +132,7 @@ describe('Websocket Proxy Plugin', () => {
     // this should trigger the timeout
     // ws.send(JSON.stringify({ type: 'ready' }));
 
-    await expect(ready).rejects.toThrowError(
+    await expect(() => ready).rejects.toThrowError(
       'Cannot establish a connection to a WebSocket client within 10ms.',
     );
   });
