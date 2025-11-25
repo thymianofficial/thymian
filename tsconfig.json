@@ -4,49 +4,43 @@
   "files": [],
   "references": [
     {
-      "path": "./core"
+      "path": "./packages/core"
     },
     {
-      "path": "./plugins/request-dispatcher"
+      "path": "./packages/request-dispatcher"
     },
     {
-      "path": "./plugins/openapi"
+      "path": "./packages/openapi"
     },
     {
-      "path": "./libs/http-status-codes"
+      "path": "./packages/http-testing"
     },
     {
-      "path": "./libs/http-testing"
+      "path": "./packages/sampler"
     },
     {
-      "path": "./plugins/sampler"
+      "path": "./packages/http-linter"
     },
     {
-      "path": "./cli"
+      "path": "./packages/rfc-9110-rules"
     },
     {
-      "path": "./plugins/http-linter"
+      "path": "./packages/cli-common"
     },
     {
-      "path": "./libs/rfc-9110-rules"
+      "path": "./packages/format-validator"
     },
     {
-      "path": "./libs/cli-common"
+      "path": "./packages/websocket-proxy"
     },
     {
-      "path": "./shared/test-utils"
+      "path": "./packages/reporter"
     },
     {
-      "path": "./plugins/format-validator"
+      "path": "./packages/thymian"
     },
     {
-      "path": "./libs/http-filter"
-    },
-    {
-      "path": "./plugins/websocket-proxy"
-    },
-    {
-      "path": "./plugins/reporter"
+      "path": "./packages/test-utils"
     }
   ]
 }

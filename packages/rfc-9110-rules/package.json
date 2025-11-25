@@ -1,0 +1,25 @@
+{
+  "name": "@thymian/rfc-9110-rules",
+  "version": "0.0.1",
+  "main": "./dist/index.js",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "type": "module",
+  "exports": {
+    "./package.json": "./package.json",
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "!**/*.tsbuildinfo"
+  ],
+  "dependencies": {
+    "@thymian/core": "^0",
+    "@thymian/http-linter": "^0",
+    "@thymian/http-testing": "^0"
+  }
+}

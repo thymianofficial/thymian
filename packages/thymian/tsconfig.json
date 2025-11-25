@@ -1,0 +1,40 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "files": [],
+  "include": ["src/**/*.ts", "test/**/*.ts"],
+  "references": [
+    {
+      "path": "../sampler"
+    },
+    {
+      "path": "../core"
+    },
+    {
+      "path": "../reporter"
+    },
+    {
+      "path": "../websocket-proxy"
+    },
+    {
+      "path": "../rfc-9110-rules"
+    },
+    {
+      "path": "../openapi"
+    },
+    {
+      "path": "../http-linter"
+    },
+    {
+      "path": "../format-validator"
+    },
+    {
+      "path": "../cli-common"
+    },
+    {
+      "path": "./tsconfig.lib.json"
+    }
+  ],
+  "nx": {
+    "addTypecheckTarget": false
+  }
+}

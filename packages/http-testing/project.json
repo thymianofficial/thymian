@@ -1,0 +1,9 @@
+{
+  "name": "@thymian/http-testing",
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "packages/http-testing/src",
+  "projectType": "library",
+  "tags": ["scope:core", "type:lib"],
+  "// targets": "to see all targets run: nx show project @thymian/http-testing --web",
+  "targets": {}
+}

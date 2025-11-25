@@ -1,0 +1,38 @@
+{
+  "name": "@thymian/format-validator",
+  "version": "0.0.1",
+  "main": "./dist/index.js",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "type": "module",
+  "exports": {
+    "./package.json": "./package.json",
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "!**/*.tsbuildinfo"
+  ],
+  "dependencies": {
+    "@thymian/cli-common": "0.0.1",
+    "@thymian/core": "0.0.1",
+    "@thymian/http-testing": "0.0.1",
+    "@thymian/request-dispatcher": "0.0.1",
+    "@thymian/sampler": "0.0.1"
+  },
+  "oclif": {
+    "commands": "./dist/cli/commands",
+    "hooks": {
+      "thymian-plugin.init": "./dist/cli/init-hook"
+    },
+    "topics": {
+      "format": {
+        "description": "Different utilities around the Thymian format."
+      }
+    }
+  }
+}

@@ -1,0 +1,9 @@
+{
+  "name": "@thymian/websocket-proxy",
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "packages/websocket-proxy/src",
+  "projectType": "library",
+  "tags": ["scope:plugin", "type:lib"],
+  "// targets": "to see all targets run: nx show project @thymian/websocket-proxy --web",
+  "targets": {}
+}

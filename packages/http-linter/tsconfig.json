@@ -1,0 +1,28 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "files": [],
+  "include": ["src/**/*.ts", "test/**/*.ts"],
+  "references": [
+    {
+      "path": "../sampler"
+    },
+    {
+      "path": "../request-dispatcher"
+    },
+    {
+      "path": "../http-testing"
+    },
+    {
+      "path": "../core"
+    },
+    {
+      "path": "../cli-common"
+    },
+    {
+      "path": "./tsconfig.lib.json"
+    }
+  ],
+  "nx": {
+    "addTypecheckTarget": false
+  }
+}

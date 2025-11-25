@@ -29,7 +29,7 @@
       }
     },
     {
-      "plugin": "@nx/vite/plugin",
+      "plugin": "@nx/vitest",
       "options": {
         "testTargetName": "test"
       }
@@ -45,6 +45,11 @@
       "cache": true,
       "dependsOn": ["^build"],
       "inputs": ["production", "^production"]
+    },
+    "test": {
+      "options": {
+        "watch": false
+      }
     }
   }
 }
