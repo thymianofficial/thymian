@@ -4,13 +4,7 @@ applyTo: '**'
 
 ## Thymian Workspace Overview
 
-Thymian is a monorepo managed with Nx, organized into several main areas:
-
-- **cli/**: Command-line interface and related commands.
-- **core/**: Core framework logic, plugin system, and main APIs.
-  -- **libs/**: Shared libraries (e.g., http-testing, cli-common, etc.).
-- **plugins/**: Official plugins extending Thymian functionality (e.g., format-validator, http-linter, openapi).
-- **shared/**: Utilities and shared test resources.
+Thymian is a monorepo managed with Nx, organized into several packages under the `packages/` directory.
 
 ### Key Conventions
 

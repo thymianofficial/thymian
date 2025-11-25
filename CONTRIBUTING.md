@@ -6,24 +6,20 @@ When making commits, use one of the following scopes to indicate the area of the
 
 | Scope              | Description                                                       |
 | ------------------ | ----------------------------------------------------------------- |
+| repo               | Changes affecting repository-wide configuration, tooling, or docs |
+| release            | Release-related changes                                           |
 | cli                | Command-line interface and related commands                       |
 | core               | Core framework logic, plugin system, and main APIs                |
-| libs               | Shared libraries (umbrella scope for all libraries)               |
-| plugins            | Official plugins extending Thymian functionality                  |
-| shared             | Shared utilities and test resources                               |
-| cli-common         | Library for CLI shared logic/utilities                            |
-|                    |                                                                   |
-|                    |                                                                   |
-| http-testing       | Library for HTTP testing utilities                                |
-| rfc-9110-rules     | Library for reusable HTTP rules based on RFC 9110                 |
-| cli-reporter       | Plugin for CLI reporting features                                 |
 | format-validator   | Plugin for format validation                                      |
 | http-linter        | Plugin for HTTP linting                                           |
+| http-testing       | Library for HTTP testing utilities                                |
 | openapi            | Plugin for OpenAPI support                                        |
-| request-dispatcher | Plugin or library for request dispatching                         |
-| sampler            | Plugin or library for sampling logic                              |
+| reporter           | Plugin for reporting features                                     |
+| request-dispatcher | Plugin for request dispatching                                    |
+| rfc-9110-rules     | Library for reusable HTTP rules based on RFC 9110                 |
+| sampler            | Plugin for sampling logic                                         |
 | test-utils         | Shared test utilities                                             |
-| repo               | Changes affecting repository-wide configuration, tooling, or docs |
+| websocket-proxy    | Plugin for WebSocket proxy functionality                          |
 
 Use these scopes in your commit messages for clarity and traceability.
 

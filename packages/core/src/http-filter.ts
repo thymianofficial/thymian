@@ -1,4 +1,3 @@
-// Merged from libs/http-filter/src/index.ts
 import * as http from 'node:http';
 
 type OmitIndexSignature<T> = {
