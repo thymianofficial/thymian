@@ -68,14 +68,14 @@ export type ServerEventMessage = {
 
 export type EmitActionResultMessage = {
   type: 'emitActionResult';
-  id: string;
+  correlationId: string;
   name: ThymianActionName;
   payload?: unknown;
 };
 
 export type EmitActionErrorMessage = {
   type: 'emitActionError';
-  id: string;
+  correlationId: string;
   name: ThymianActionName;
   error: { name?: string; message?: string };
 };
