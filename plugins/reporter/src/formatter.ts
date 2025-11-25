@@ -38,7 +38,7 @@ export function analyze(reports: ThymianReport[]): ReportAnalysis {
       return acc;
     },
     {
-      normalized: {} as NormalizedThymianReports,
+      normalized: {},
       statistics: {
         numberOfReports: reports.length,
         severityCounts: {
