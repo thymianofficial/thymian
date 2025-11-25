@@ -13,10 +13,10 @@
       "path": "../../libs/http-testing"
     },
     {
-      "path": "../../core"
+      "path": "../../packages/core"
     },
     {
-      "path": "../../libs/cli-common"
+      "path": "../../packages/cli-common"
     },
     {
       "path": "./tsconfig.lib.json"

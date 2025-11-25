@@ -7,7 +7,7 @@
       "path": "../../plugins/sampler"
     },
     {
-      "path": "../../core"
+      "path": "../core"
     },
     {
       "path": "../../plugins/reporter"
@@ -28,7 +28,7 @@
       "path": "../../plugins/format-validator"
     },
     {
-      "path": "../../libs/cli-common"
+      "path": "../cli-common"
     },
     {
       "path": "./tsconfig.lib.json"

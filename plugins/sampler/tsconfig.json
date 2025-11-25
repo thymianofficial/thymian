@@ -4,10 +4,10 @@
   "include": ["src/**/*.ts", "test/**/*.ts"],
   "references": [
     {
-      "path": "../../libs/cli-common"
+      "path": "../../packages/cli-common"
     },
     {
-      "path": "../../core"
+      "path": "../../packages/core"
     },
     {
       "path": "./tsconfig.lib.json"

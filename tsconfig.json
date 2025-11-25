@@ -19,16 +19,13 @@
       "path": "./plugins/sampler"
     },
     {
-      "path": "./cli"
-    },
-    {
       "path": "./plugins/http-linter"
     },
     {
       "path": "./libs/rfc-9110-rules"
     },
     {
-      "path": "./libs/cli-common"
+      "path": "./packages/cli-common"
     },
     {
       "path": "./shared/test-utils"
@@ -41,6 +38,9 @@
     },
     {
       "path": "./plugins/reporter"
+    },
+    {
+      "path": "./packages/thymian"
     }
   ]
 }

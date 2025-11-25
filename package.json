@@ -55,9 +55,7 @@
   },
   "workspaces": [
     "plugins/**",
-    "core",
     "libs/**",
-    "cli",
     "shared/test-utils",
     "packages/cli/*",
     "packages/*"
