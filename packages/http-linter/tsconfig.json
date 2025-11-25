@@ -4,7 +4,7 @@
   "include": ["src/**/*.ts", "test/**/*.ts"],
   "references": [
     {
-      "path": "../../plugins/sampler"
+      "path": "../sampler"
     },
     {
       "path": "../request-dispatcher"

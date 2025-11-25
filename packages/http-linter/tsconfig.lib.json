@@ -16,7 +16,7 @@
   "include": ["src/**/*.ts", "src/**/*.sql"],
   "references": [
     {
-      "path": "../../plugins/sampler/tsconfig.lib.json"
+      "path": "../sampler/tsconfig.lib.json"
     },
     {
       "path": "../request-dispatcher/tsconfig.lib.json"

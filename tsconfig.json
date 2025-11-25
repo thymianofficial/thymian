@@ -16,7 +16,7 @@
       "path": "./libs/http-testing"
     },
     {
-      "path": "./plugins/sampler"
+      "path": "./packages/sampler"
     },
     {
       "path": "./packages/http-linter"
