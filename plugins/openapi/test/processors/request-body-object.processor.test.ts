@@ -145,7 +145,7 @@ describe('processRequestBodyObjet', () => {
       context,
     );
 
-    expect(result[0]?.location).toEqual({
+    expect(result[0]?.sourceLocation).toEqual({
       path: '',
       position: {
         line: 10,
