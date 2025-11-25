@@ -16,19 +16,19 @@
   "include": ["src/**/*.ts", "src/**/*.sql"],
   "references": [
     {
-      "path": "../sampler/tsconfig.lib.json"
+      "path": "../../plugins/sampler/tsconfig.lib.json"
     },
     {
-      "path": "../request-dispatcher/tsconfig.lib.json"
+      "path": "../../plugins/request-dispatcher/tsconfig.lib.json"
     },
     {
       "path": "../../libs/http-testing/tsconfig.lib.json"
     },
     {
-      "path": "../../packages/core/tsconfig.lib.json"
+      "path": "../core/tsconfig.lib.json"
     },
     {
-      "path": "../../packages/cli-common/tsconfig.lib.json"
+      "path": "../cli-common/tsconfig.lib.json"
     }
   ]
 }

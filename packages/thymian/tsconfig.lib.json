@@ -34,7 +34,7 @@
       "path": "../../plugins/openapi/tsconfig.lib.json"
     },
     {
-      "path": "../../plugins/http-linter/tsconfig.lib.json"
+      "path": "../http-linter/tsconfig.lib.json"
     },
     {
       "path": "../format-validator/tsconfig.lib.json"

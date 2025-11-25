@@ -4,19 +4,19 @@
   "include": ["src/**/*.ts", "test/**/*.ts"],
   "references": [
     {
-      "path": "../sampler"
+      "path": "../../plugins/sampler"
     },
     {
-      "path": "../request-dispatcher"
+      "path": "../../plugins/request-dispatcher"
     },
     {
       "path": "../../libs/http-testing"
     },
     {
-      "path": "../../packages/core"
+      "path": "../core"
     },
     {
-      "path": "../../packages/cli-common"
+      "path": "../cli-common"
     },
     {
       "path": "./tsconfig.lib.json"

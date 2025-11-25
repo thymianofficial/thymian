@@ -19,7 +19,7 @@
       "path": "./plugins/sampler"
     },
     {
-      "path": "./plugins/http-linter"
+      "path": "./packages/http-linter"
     },
     {
       "path": "./libs/rfc-9110-rules"

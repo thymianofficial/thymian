@@ -22,7 +22,7 @@
       "path": "../../plugins/openapi"
     },
     {
-      "path": "../../plugins/http-linter"
+      "path": "../http-linter"
     },
     {
       "path": "../format-validator"
