@@ -28,9 +28,6 @@
       "path": "./packages/cli-common"
     },
     {
-      "path": "./shared/test-utils"
-    },
-    {
       "path": "./plugins/format-validator"
     },
     {
@@ -41,6 +38,9 @@
     },
     {
       "path": "./packages/thymian"
+    },
+    {
+      "path": "./packages/test-utils"
     }
   ]
 }
