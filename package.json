@@ -54,8 +54,6 @@
     "vitest": "^3.0.9"
   },
   "workspaces": [
-    "plugins/**",
-    "libs/**",
     "packages/*"
   ],
   "nx": {

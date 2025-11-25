@@ -13,7 +13,7 @@
       "path": "../reporter"
     },
     {
-      "path": "../../plugins/websocket-proxy"
+      "path": "../websocket-proxy"
     },
     {
       "path": "../../libs/rfc-9110-rules"
