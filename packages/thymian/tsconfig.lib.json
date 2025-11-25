@@ -22,7 +22,7 @@
       "path": "../core/tsconfig.lib.json"
     },
     {
-      "path": "../../plugins/reporter/tsconfig.lib.json"
+      "path": "../reporter/tsconfig.lib.json"
     },
     {
       "path": "../../plugins/websocket-proxy/tsconfig.lib.json"

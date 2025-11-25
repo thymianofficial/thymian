@@ -34,7 +34,7 @@
       "path": "./plugins/websocket-proxy"
     },
     {
-      "path": "./plugins/reporter"
+      "path": "./packages/reporter"
     },
     {
       "path": "./packages/thymian"
