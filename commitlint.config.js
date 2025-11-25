@@ -15,7 +15,7 @@ export default {
         'http-status-codes',
         'http-testing',
         'rfc-9110-rules',
-        'cli-reporter',
+        'reporter',
         'format-validator',
         'http-linter',
         'openapi',

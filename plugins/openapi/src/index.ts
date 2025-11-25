@@ -15,15 +15,6 @@ declare module '@thymian/core' {
     extensions: {
       openapi: {
         operationId?: string;
-        location?: string;
-      };
-    };
-  }
-
-  interface HttpTransaction {
-    extensions: {
-      openapi: {
-        location?: string;
       };
     };
   }

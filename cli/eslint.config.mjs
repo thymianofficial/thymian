@@ -24,6 +24,7 @@ export default [
             '@thymian/http-linter',
             '@thymian/sampler',
             '@thymian/websocket-proxy',
+            '@thymian/reporter',
           ],
         },
       ],

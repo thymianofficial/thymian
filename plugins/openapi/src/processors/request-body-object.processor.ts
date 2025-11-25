@@ -57,7 +57,7 @@ export function processRequestBodyObjet(
           isMultipart,
         );
 
-        const location = context.operationId
+        const sourceLocation = context.operationId
           ? locMapper.locationForOperationId(context.operationId)
           : undefined;
 
@@ -75,9 +75,9 @@ export function processRequestBodyObjet(
           extensions: {
             openapi: {
               operationId: context.operationId,
-              location,
             },
           },
+          sourceLocation,
           queryParameters: parameters.queryParameters,
           cookies: parameters.cookies,
           pathParameters: parameters.pathParameters,

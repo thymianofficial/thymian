@@ -1,8 +1,4 @@
-import {
-  type Logger,
-  thymianHttpTransactionToString,
-  type ThymianReport,
-} from '@thymian/core';
+import { type Logger, type ThymianReport } from '@thymian/core';
 import { successfulStatusCode } from '@thymian/http-filter';
 import {
   httpTest,
@@ -28,6 +24,29 @@ export async function validate(
 
   logger.debug(`Validated Thymian format in ${results.duration}ms.`);
 
+  const producer = '@thymian/format-validator';
+
+  const numbers = results.cases.reduce(
+    (acc, c) => {
+      acc[c.status]++;
+      return acc;
+    },
+    {
+      passed: 0,
+      failed: 0,
+      skipped: 0,
+      running: 0,
+    },
+  );
+
+  report({
+    producer,
+    severity: 'info',
+    summary: `Validated ${results.cases.length} HTTP transactions in ${results.duration}ms. ${numbers.passed} passed, ${numbers.failed} failed and ${numbers.skipped} skipped.`,
+    timestamp: Date.now(),
+    title: 'Format Validation Results',
+  });
+
   for (const testCase of results.cases) {
     if (testCase.status === 'skipped') {
       logger.debug(
@@ -35,8 +54,10 @@ export async function validate(
       );
 
       report({
-        isProblem: true,
-        text:
+        producer,
+        severity: 'warn',
+        summary: testCase.name,
+        details:
           testCase.reason ??
           testCase.results
             .filter(
@@ -44,9 +65,9 @@ export async function validate(
             )
             .map((tc) => tc.message)
             .join('\n'),
+        category: 'Skipped HTTP Test Cases',
+        timestamp: Date.now(),
         title: testCase.name,
-        subTopic: '@thymian/format-validator',
-        topic: 'Skipped HTTP Test Cases',
       });
       continue;
     }
@@ -61,7 +82,7 @@ export async function validate(
       throw new Error('Testcase should have exactly one step.');
     }
 
-    const { transactions, source } = step;
+    const { transactions } = step;
 
     const transaction = transactions[0];
 
@@ -69,38 +90,35 @@ export async function validate(
       throw new Error('Step should have exactly one transaction.');
     }
 
-    const title = thymianHttpTransactionToString(
-      source.thymianReq,
-      source.thymianRes,
-    );
-
-    const subTopic = '2xx responses';
-    const topic = '@thymian/format-validator';
+    const category = '2xx responses';
 
     testCase.results.forEach((result) => {
       if (result.type === 'assertion-failure') {
         report({
-          text: `\u274C ${result.message}`,
-          title,
-          topic,
-          subTopic,
-          isProblem: true,
+          producer,
+          severity: 'error',
+          summary: `\u274C ${result.message}`,
+          category,
+          timestamp: Date.now(),
+          title: testCase.name,
         });
       } else if (result.type === 'assertion-success') {
         report({
-          text: `\u2705 ${result.message}`,
-          title,
-          topic,
-          subTopic,
-          isProblem: false,
+          producer,
+          severity: 'info',
+          summary: `\u2705 ${result.message}`,
+          category,
+          timestamp: Date.now(),
+          title: testCase.name,
         });
       } else if (result.type === 'info') {
         report({
-          text: `\u2796 ${result.message}`,
-          title,
-          topic,
-          subTopic,
-          isProblem: false,
+          producer,
+          severity: 'info',
+          summary: `\u2796 ${result.message}`,
+          category,
+          timestamp: Date.now(),
+          title: testCase.name,
         });
       }
     });

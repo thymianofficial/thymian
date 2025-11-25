@@ -2,6 +2,7 @@ export * from './edges/edge.js';
 export * from './edges/http-link.edge.js';
 export * from './edges/http-transaction.edge.js';
 export * from './edges/is-secured-with.edge.js';
+export * from './format-location.js';
 export * from './nodes/http-request.node.js';
 export * from './nodes/http-response.node.js';
 export * from './nodes/node.js';

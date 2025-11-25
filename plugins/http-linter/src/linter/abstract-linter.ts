@@ -11,22 +11,10 @@ import {
   thymianRequestToString,
   thymianResponseToString,
 } from '@thymian/core';
-import chalk from 'chalk';
 
 import type { Rule } from '../rule/rule.js';
 import type { RuleMeta } from '../rule/rule-meta.js';
-import type { RuleSeverity } from '../rule/rule-severity.js';
 import type { RuleViolation } from '../rule/rule-violation.js';
-
-export function severityToColor(severity: RuleSeverity): string {
-  if (severity === 'hint') {
-    return chalk.blue(severity);
-  } else if (severity === 'warn') {
-    return chalk.yellow(severity);
-  } else {
-    return chalk.red(severity);
-  }
-}
 
 export abstract class AbstractLinter {
   protected readonly rules: Rule[];
@@ -81,17 +69,32 @@ export abstract class AbstractLinter {
   protected reportRuleViolations(
     result: RuleViolation | RuleViolation[],
     ruleMeta: RuleMeta<Record<PropertyKey, unknown>>,
-    subTopic: string,
-  ) {
+    category = 'HTTP Conformance Violation',
+  ): void {
+    if (ruleMeta.severity === 'off') {
+      return;
+    }
+
     const violations = Array.isArray(result) ? result : [result];
 
+    const producer = '@thymian/http-linter';
+    const source = ruleMeta.name;
+    const severity = ruleMeta.severity;
+    const summary = ruleMeta.summary ?? ruleMeta.description ?? ruleMeta.name;
+    const details = ruleMeta.description;
+    const timestamp = Date.now();
+
     for (const { location, message } of violations) {
-      const topic = '@thymian/http-linter';
-      let text = message ?? ruleMeta.summary ?? ruleMeta.description;
-      text =
-        `${severityToColor(ruleMeta.severity)}: ` +
-        (text ? `${text}\n   ${chalk.dim(ruleMeta.name)}` : ruleMeta.name);
-      let title = '';
+      const report: ThymianReport = {
+        producer,
+        severity,
+        summary: message ?? summary,
+        details,
+        timestamp,
+        source,
+        category,
+        title: '',
+      };
 
       if (location.elementType === 'node') {
         const node = this.format.getNode(location.elementId);
@@ -103,10 +106,23 @@ export abstract class AbstractLinter {
         }
 
         if (isNodeType(node, 'http-request')) {
-          title = thymianRequestToString(node);
+          report.title = thymianRequestToString(node);
         } else if (isNodeType(node, 'http-response')) {
-          title = thymianResponseToString(node);
+          report.title = thymianResponseToString(node);
         }
+
+        report.location ??= {};
+
+        if (node.sourceLocation) {
+          report.location.reference = {
+            ...node.sourceLocation,
+          };
+        }
+
+        report.location.format = {
+          elementType: 'node',
+          id: location.elementId,
+        };
       } else {
         const [source, target] = this.format.graph.extremities(
           location.elementId,
@@ -123,42 +139,23 @@ export abstract class AbstractLinter {
           );
         }
 
-        title = thymianHttpTransactionToString(req, res);
+        report.title = thymianHttpTransactionToString(req, res);
 
-        const report: ThymianReport = {
-          subTopic,
-          text,
-          title,
-          topic,
-          isProblem: true,
-          location: {
-            format: {
-              elementType: 'edge',
-              id: location.elementId,
-            },
-          },
-        };
+        report.location ??= {};
 
-        if (
-          hasProperty(transaction, 'extensions') &&
-          hasProperty(transaction.extensions, 'openapi')
-        ) {
-          const { location } = transaction.extensions.openapi;
-
-          if (location && typeof location === 'string' && report.location) {
-            report.location.file = location;
-          }
+        if (transaction.sourceLocation) {
+          report.location.reference = {
+            ...transaction.sourceLocation,
+          };
         }
 
-        this.report(report);
+        report.location.format = {
+          elementType: 'edge',
+          id: location.elementId,
+        };
       }
+
+      this.report(report);
     }
   }
-}
-
-export function hasProperty<T extends object, K extends PropertyKey>(
-  obj: T,
-  property: K,
-): obj is T & Record<K, Record<PropertyKey, unknown>> {
-  return property in obj;
 }

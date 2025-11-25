@@ -136,17 +136,20 @@ export class OpenapiProcessor {
       for (const { responses, links } of responsesAndLinks) {
         const responseIds: string[] = [];
         for (const res of responses) {
-          const [resId] = this.format.addResponseToRequest(reqId, res, {
-            extensions: {
-              openapi: {
-                location: operationObject.operationId
-                  ? this.locMapper.locationForOperationId(
-                      operationObject.operationId,
-                    )
-                  : undefined,
-              },
+          const sourceLocation = operationObject.operationId
+            ? this.locMapper.locationForOperationId(operationObject.operationId)
+            : undefined;
+
+          const [resId] = this.format.addResponseToRequest(
+            reqId,
+            {
+              ...res,
+              sourceLocation,
             },
-          });
+            {
+              sourceLocation,
+            },
+          );
 
           responseIds.push(resId);
 

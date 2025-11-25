@@ -8,13 +8,16 @@ export default [
       '@nx/dependency-checks': [
         'error',
         {
-          ignoredFiles: ['{projectRoot}/eslint.config.{js,cjs,mjs}'],
-          ignoredDependencies: ['@thymian/test-utils', 'vitest'],
+          ignoredFiles: ['{projectRoot}/eslint.config.{js,cjs,mjs,ts,cts,mts}'],
+          ignoredDependencies: ['tslib', 'vitest', 'tslib'],
         },
       ],
     },
     languageOptions: {
       parser: await import('jsonc-eslint-parser'),
     },
+  },
+  {
+    ignores: ['**/out-tsc'],
   },
 ];

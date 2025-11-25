@@ -1,10 +1,10 @@
 {
-  "name": "@thymian/cli-reporter",
+  "name": "@thymian/reporter",
   "version": "0.0.1",
+  "type": "module",
   "main": "./dist/index.js",
   "module": "./dist/index.js",
   "types": "./dist/index.d.ts",
-  "type": "module",
   "exports": {
     "./package.json": "./package.json",
     ".": {
@@ -18,8 +18,8 @@
     "!**/*.tsbuildinfo"
   ],
   "dependencies": {
-    "chalk": "4.1.2",
-    "console-table-printer": "^2.14.6",
+    "chalk": "^4.1.2",
+    "tslib": "^2.3.0",
     "@thymian/core": "^0"
   }
 }

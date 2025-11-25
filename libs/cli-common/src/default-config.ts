@@ -19,7 +19,13 @@ export const defaultConfig: ThymianConfig = {
     },
     '@thymian/request-dispatcher': {},
     '@thymian/sampler': {},
-    '@thymian/cli-reporter': {},
+    '@thymian/reporter': {
+      options: {
+        formatters: {
+          cli: {},
+        },
+      },
+    },
     '@thymian/format-validator': {},
     '@thymian/websocket-proxy': {},
   },

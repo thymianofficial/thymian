@@ -1,0 +1,19 @@
+{
+  "swagger": "3.1.1",
+  "info": {
+    "version": "",
+    "title": ""
+  },
+  "paths": {
+    "/hello": {
+      "get": {
+        "operationId": "getHello",
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    }
+  }
+}
