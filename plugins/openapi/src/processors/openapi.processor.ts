@@ -136,7 +136,7 @@ export class OpenapiProcessor {
       for (const { responses, links } of responsesAndLinks) {
         const responseIds: string[] = [];
         for (const res of responses) {
-          const location = operationObject.operationId
+          const sourceLocation = operationObject.operationId
             ? this.locMapper.locationForOperationId(operationObject.operationId)
             : undefined;
 
@@ -144,10 +144,10 @@ export class OpenapiProcessor {
             reqId,
             {
               ...res,
-              location,
+              sourceLocation,
             },
             {
-              location,
+              sourceLocation,
             },
           );
 

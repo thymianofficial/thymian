@@ -113,9 +113,9 @@ export abstract class AbstractLinter {
 
         report.location ??= {};
 
-        if (node.location) {
+        if (node.sourceLocation) {
           report.location.reference = {
-            ...node.location,
+            ...node.sourceLocation,
           };
         }
 
@@ -143,9 +143,9 @@ export abstract class AbstractLinter {
 
         report.location ??= {};
 
-        if (transaction.location) {
+        if (transaction.sourceLocation) {
           report.location.reference = {
-            ...transaction.location,
+            ...transaction.sourceLocation,
           };
         }
 
