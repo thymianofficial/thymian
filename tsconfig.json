@@ -13,7 +13,7 @@
       "path": "./packages/openapi"
     },
     {
-      "path": "./libs/http-testing"
+      "path": "./packages/http-testing"
     },
     {
       "path": "./packages/sampler"

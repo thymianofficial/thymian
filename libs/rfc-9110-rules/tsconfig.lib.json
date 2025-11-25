@@ -20,7 +20,7 @@
       "path": "../../packages/test-utils/tsconfig.lib.json"
     },
     {
-      "path": "../http-testing/tsconfig.lib.json"
+      "path": "../../packages/http-testing/tsconfig.lib.json"
     },
     {
       "path": "../../packages/http-linter/tsconfig.lib.json"

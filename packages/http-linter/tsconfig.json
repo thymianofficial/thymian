@@ -10,7 +10,7 @@
       "path": "../request-dispatcher"
     },
     {
-      "path": "../../libs/http-testing"
+      "path": "../http-testing"
     },
     {
       "path": "../core"

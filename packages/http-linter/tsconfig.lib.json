@@ -22,7 +22,7 @@
       "path": "../request-dispatcher/tsconfig.lib.json"
     },
     {
-      "path": "../../libs/http-testing/tsconfig.lib.json"
+      "path": "../http-testing/tsconfig.lib.json"
     },
     {
       "path": "../core/tsconfig.lib.json"
