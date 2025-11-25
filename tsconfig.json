@@ -22,7 +22,7 @@
       "path": "./packages/http-linter"
     },
     {
-      "path": "./libs/rfc-9110-rules"
+      "path": "./packages/rfc-9110-rules"
     },
     {
       "path": "./packages/cli-common"

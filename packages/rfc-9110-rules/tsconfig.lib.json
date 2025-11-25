@@ -17,16 +17,16 @@
   "exclude": ["src/**/*.test.ts"],
   "references": [
     {
-      "path": "../../packages/test-utils/tsconfig.lib.json"
+      "path": "../test-utils/tsconfig.lib.json"
     },
     {
-      "path": "../../packages/http-testing/tsconfig.lib.json"
+      "path": "../http-testing/tsconfig.lib.json"
     },
     {
-      "path": "../../packages/http-linter/tsconfig.lib.json"
+      "path": "../http-linter/tsconfig.lib.json"
     },
     {
-      "path": "../../packages/core/tsconfig.lib.json"
+      "path": "../core/tsconfig.lib.json"
     }
   ]
 }
