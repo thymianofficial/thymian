@@ -12,3 +12,4 @@ You want to try out Thymian? Run the following commands in the specific order:
 
 1. Start verdaccio: `npm run local-registry`
 2. Publish to local registry: `npx nx release publish --registry http://localhost:4873` or `npm run local-publish`
+
