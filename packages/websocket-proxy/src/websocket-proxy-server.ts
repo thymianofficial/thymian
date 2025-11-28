@@ -303,7 +303,7 @@ export class WebSocketProxyServer {
 
               this.sendMessageForClient(connectedClient, {
                 type: 'emitActionResult',
-                id,
+                correlationId: id,
                 name,
                 payload: result,
               });
@@ -311,7 +311,7 @@ export class WebSocketProxyServer {
               if (e instanceof Error) {
                 this.sendMessageForClient(connectedClient, {
                   type: 'emitActionError',
-                  id,
+                  correlationId: id,
                   name,
                   error: {
                     name: e?.name ?? 'Error',
@@ -321,7 +321,7 @@ export class WebSocketProxyServer {
               } else {
                 this.sendMessageForClient(connectedClient, {
                   type: 'emitActionError',
-                  id,
+                  correlationId: id,
                   name,
                   error: {},
                 });

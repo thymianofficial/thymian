@@ -1,5 +1,6 @@
 import { Thymian, ThymianEmitter } from '@thymian/core';
-import { describe, expect, it, vitest } from 'vitest';
+import getPort from 'get-port';
+import { beforeEach, describe, expect, it, vitest } from 'vitest';
 import { WebSocket } from 'ws';
 
 import { websocketProxyPlugin } from '../src';
@@ -17,9 +18,14 @@ declare module '@thymian/core' {
 }
 
 describe('Websocket Proxy Plugin', () => {
+  let port = 45681;
+
+  beforeEach(async () => {
+    port = await getPort();
+  });
+
   it('closes connection for invalid JSON with code 1003', async () => {
     const thymian = new Thymian();
-    const port = 45681;
 
     thymian.register(websocketProxyPlugin, { port });
     await thymian.ready();
@@ -37,7 +43,7 @@ describe('Websocket Proxy Plugin', () => {
 
   it('closes connection for semantically incorrect message with code 1008', async () => {
     const thymian = new Thymian();
-    const port = 45682;
+
     thymian.register(websocketProxyPlugin, { port });
     await thymian.ready();
 
@@ -54,7 +60,7 @@ describe('Websocket Proxy Plugin', () => {
 
   it('closes connection for unknown message type with code 1008', async () => {
     const thymian = new Thymian();
-    const port = 45683;
+
     thymian.register(websocketProxyPlugin, { port });
     await thymian.ready();
 
@@ -71,7 +77,6 @@ describe('Websocket Proxy Plugin', () => {
 
   it('closes connection with code 1008 if ready message is sent before registration', async () => {
     const thymian = new Thymian();
-    const port = 45684;
 
     thymian.register(websocketProxyPlugin, { port });
     await thymian.ready();
@@ -89,7 +94,7 @@ describe('Websocket Proxy Plugin', () => {
 
   it('closes connection if emit message is sent before the plugin is registered', async () => {
     const thymian = new Thymian();
-    const port = 45685;
+
     thymian.register(websocketProxyPlugin, { port });
     await thymian.ready();
 
@@ -107,7 +112,7 @@ describe('Websocket Proxy Plugin', () => {
 
   it('throws timeout error if plugin is required does not establish connection in time', async () => {
     const thymian = new Thymian();
-    const port = 45685;
+
     thymian.register(websocketProxyPlugin, {
       port,
       clientTimeout: 10,
@@ -139,8 +144,6 @@ describe('Websocket Proxy Plugin', () => {
 
   it('remote plugin can call action', async () => {
     const thymian = new Thymian();
-
-    const port = 45679;
 
     thymian
       .register(websocketProxyPlugin, {
@@ -186,7 +189,6 @@ describe('Websocket Proxy Plugin', () => {
 
   it('remote plugins only receive registered events', async () => {
     const thymian = new Thymian();
-    const port = 45680;
 
     thymian.register(websocketProxyPlugin, {
       port,
@@ -218,7 +220,6 @@ describe('Websocket Proxy Plugin', () => {
 
   it('should not acknowledge plugin registration with invalid token', async () => {
     const thymian = new Thymian();
-    const port = 45681;
 
     thymian.register(websocketProxyPlugin, {
       port,

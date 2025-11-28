@@ -69,8 +69,10 @@ export class ReferenceClient {
     );
     this.messageHandlers.set(
       'emitActionResult',
-      (message: { name: string; payload: unknown; id: string }) => {
-        this.pendingActionResults.get(message.id)?.resolve(message.payload);
+      (message: { name: string; payload: unknown; correlationId: string }) => {
+        this.pendingActionResults
+          .get(message.correlationId)
+          ?.resolve(message.payload);
       },
     );
 
@@ -79,9 +81,11 @@ export class ReferenceClient {
       (message: {
         name: string;
         error: { name?: string; message?: string };
-        id: string;
+        correlationId: string;
       }) => {
-        this.pendingActionResults.get(message.id)?.reject(message.error);
+        this.pendingActionResults
+          .get(message.correlationId)
+          ?.reject(message.error);
       },
     );
   }
