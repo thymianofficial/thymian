@@ -31,6 +31,23 @@ jobs:
       - name: run formatter check
         run: npx nx affected -t format:check
 
+  license-check:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          filter: tree:0
+      - name: Setup node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: install
+        run: npm ci
+      - name: Check licenses
+        run: npm run check:licenses
+
   main:
     strategy:
       matrix:
