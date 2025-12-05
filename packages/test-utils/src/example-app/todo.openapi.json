@@ -162,6 +162,258 @@
           }
         }
       }
+    },
+    "/auth-tests/valid-401": {
+      "get": {
+        "tags": ["Authentication Tests"],
+        "summary": "Valid 401 with WWW-Authenticate header",
+        "description": "Tests RFC 9110 Rule 2 - valid case",
+        "responses": {
+          "401": {
+            "description": "Unauthorized with proper WWW-Authenticate header",
+            "headers": {
+              "WWW-Authenticate": {
+                "schema": {
+                  "type": "string",
+                  "example": "Basic realm=\"test\""
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/auth-tests/invalid-401-missing-header": {
+      "get": {
+        "tags": ["Authentication Tests"],
+        "summary": "Invalid 401 without WWW-Authenticate header",
+        "description": "Tests RFC 9110 Rule 2 - violation (missing required header)",
+        "responses": {
+          "401": {
+            "description": "Unauthorized without WWW-Authenticate header (RFC violation)"
+          }
+        }
+      }
+    },
+    "/auth-tests/invalid-401-empty-header": {
+      "get": {
+        "tags": ["Authentication Tests"],
+        "summary": "Invalid 401 with empty WWW-Authenticate header",
+        "description": "Tests RFC 9110 Rule 2 - violation (empty header value)",
+        "responses": {
+          "401": {
+            "description": "Unauthorized with empty WWW-Authenticate header (RFC violation)"
+          }
+        }
+      }
+    },
+    "/auth-tests/valid-realm-quoted": {
+      "get": {
+        "tags": ["Authentication Tests"],
+        "summary": "Valid WWW-Authenticate with quoted realm",
+        "description": "Tests RFC 9110 Rule 6 - valid case (quoted-string syntax)",
+        "responses": {
+          "401": {
+            "description": "Unauthorized with properly quoted realm parameter",
+            "headers": {
+              "WWW-Authenticate": {
+                "schema": {
+                  "type": "string",
+                  "example": "Basic realm=\"protected area\""
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/auth-tests/invalid-realm-unquoted": {
+      "get": {
+        "tags": ["Authentication Tests"],
+        "summary": "Invalid WWW-Authenticate with unquoted realm",
+        "description": "Tests RFC 9110 Rule 6 - violation (token syntax instead of quoted-string)",
+        "responses": {
+          "401": {
+            "description": "Unauthorized with unquoted realm parameter (RFC violation)",
+            "headers": {
+              "WWW-Authenticate": {
+                "schema": {
+                  "type": "string",
+                  "example": "Basic realm=test"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/auth-tests/invalid-duplicate-params": {
+      "get": {
+        "tags": ["Authentication Tests"],
+        "summary": "Invalid WWW-Authenticate with duplicate parameters",
+        "description": "Tests RFC 9110 Rule 1 - violation (realm appears twice)",
+        "responses": {
+          "401": {
+            "description": "Unauthorized with duplicate parameter names (RFC violation)",
+            "headers": {
+              "WWW-Authenticate": {
+                "schema": {
+                  "type": "string",
+                  "example": "Digest realm=\"test\", realm=\"other\", nonce=\"abc123\""
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/auth-tests/invalid-duplicate-params-case": {
+      "get": {
+        "tags": ["Authentication Tests"],
+        "summary": "Invalid WWW-Authenticate with duplicate parameters (case-insensitive)",
+        "description": "Tests RFC 9110 Rule 1 - violation (realm and REALM are the same)",
+        "responses": {
+          "401": {
+            "description": "Unauthorized with case-insensitive duplicate parameters (RFC violation)",
+            "headers": {
+              "WWW-Authenticate": {
+                "schema": {
+                  "type": "string",
+                  "example": "Digest realm=\"test\", REALM=\"other\", nonce=\"abc123\""
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/auth-tests/valid-200-with-www-auth": {
+      "get": {
+        "tags": ["Authentication Tests"],
+        "summary": "Valid 200 response with WWW-Authenticate",
+        "description": "Tests RFC 9110 Rule 7 - informational (WWW-Authenticate in non-401 is allowed)",
+        "responses": {
+          "200": {
+            "description": "Success with WWW-Authenticate header (valid use case)",
+            "headers": {
+              "WWW-Authenticate": {
+                "schema": {
+                  "type": "string",
+                  "example": "Bearer realm=\"optional\""
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/auth-tests/valid-403-with-www-auth": {
+      "get": {
+        "tags": ["Authentication Tests"],
+        "summary": "Valid 403 response with WWW-Authenticate",
+        "description": "Tests RFC 9110 Rule 7 - informational (WWW-Authenticate in non-401 is allowed)",
+        "responses": {
+          "403": {
+            "description": "Forbidden with WWW-Authenticate header (valid use case)",
+            "headers": {
+              "WWW-Authenticate": {
+                "schema": {
+                  "type": "string",
+                  "example": "Basic realm=\"upgrade\""
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/auth-tests/invalid-403-instead-401": {
+      "get": {
+        "tags": ["Authentication Tests"],
+        "summary": "Invalid 403 instead of 401 for authentication failure",
+        "description": "Tests RFC 9110 Rule 4 - warning case (should return 401, not 403)",
+        "parameters": [
+          {
+            "name": "Authorization",
+            "in": "header",
+            "schema": {
+              "type": "string"
+            },
+            "required": false
+          }
+        ],
+        "responses": {
+          "403": {
+            "description": "Forbidden instead of 401 (RFC warning - should use 401)"
+          }
+        }
+      }
+    },
+    "/auth-tests/protected": {
+      "get": {
+        "tags": ["Authentication Tests"],
+        "summary": "Protected endpoint with proper authentication flow",
+        "description": "Tests RFC 9110 Rules 2 & 4 - valid authentication handling",
+        "security": [
+          {
+            "basicAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Access granted with valid credentials",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "message": {
+                      "type": "string"
+                    },
+                    "user": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized - missing or invalid credentials",
+            "headers": {
+              "WWW-Authenticate": {
+                "schema": {
+                  "type": "string",
+                  "example": "Basic realm=\"protected\""
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/auth-tests/valid-multiple-challenges": {
+      "get": {
+        "tags": ["Authentication Tests"],
+        "summary": "Valid 401 with multiple WWW-Authenticate challenges",
+        "description": "Tests RFC 9110 Rule 2 - multiple challenges are allowed",
+        "responses": {
+          "401": {
+            "description": "Unauthorized with multiple authentication challenges",
+            "headers": {
+              "WWW-Authenticate": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  },
+                  "example": ["Basic realm=\"test\"", "Bearer realm=\"api\""]
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "servers": [
