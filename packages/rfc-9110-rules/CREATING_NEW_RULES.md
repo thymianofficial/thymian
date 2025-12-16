@@ -184,7 +184,9 @@ overrideTest((ctx) =>
   )
 )
 ```
+### Step 6: Add Custom static checks (Optional)
 
+Just like the optional custom tests, the static checks can be overridden. When using the specific StaticApiContext, the rule has full access to the `ThymianFormat` instance. This allows for example to run checks on the JSON Schemas of the transactions.
 ### Step 6: Complete the Rule
 
 Always end with `.done()`:
