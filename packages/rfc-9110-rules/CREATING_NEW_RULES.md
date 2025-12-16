@@ -149,7 +149,7 @@ export default httpRule('rfc9110/unique-rule-identifier')
 - Be specific and descriptive
 
 ### Step 4: Implement the Rule Logic
-
+The rule logic can be defined with the so-called `common` interface provided by the two methods `validateCommonHttpTransactions` and `validateGroupedCommonHttpTransactions`. If the rule logic is defined with one of these methods, its logic can be translated automatically into the 3 distinct interfaces "static", "test" and "analytics".
 **Basic Validation Pattern:**
 
 ```typescript
@@ -226,7 +226,7 @@ Sets the rule severity.
 
 - `'error'`: For MUST/MUST NOT requirements (mandatory)
 - `'warn'`: For SHOULD/SHOULD NOT requirements (recommended)
-
+- `'hint'`: For OPTIONAL/MAY etc (for truly optional aspects of the specification)
 **Required:** Yes
 
 ---
@@ -287,14 +287,16 @@ Optional shorter summary.
 #### `.appliesTo(...participants: string[])`
 
 Specifies which HTTP participant(s) must comply. Can accept one or more participants.
-
-**Common values:**
-
-- `'client'`
-- `'server'`
-- `'origin server'`
-- `'proxy'`
-- `'cache'`
+Allowed Value:
+* 'intermediary'
+* 'proxy'
+* 'gateway'
+* 'tunnel'
+* 'origin server'
+* 'server'
+* 'client'
+* 'user-agent'
+* 'cache'
 
 **Examples:**
 
@@ -385,7 +387,7 @@ Example: Complex authentication header validation
   ctx.validateCommonHttpTransactions(
     responseHeader('www-authenticate'),
     (request, response) => {
-      const authHeader = getHeaderValue(response.headers, 'www-authenticate');
+      const authHeader = getHeader(response.headers, 'www-authenticate');
       const parsed = parseAuthenticationHeader(authHeader);
       return hasDuplicateParameters(parsed);
     }
@@ -905,7 +907,13 @@ Use for **recommended** requirements:
 - RECOMMENDED
 
 ---
+#### Hint (`'hint'`)
 
+Use for **optional** requirements:
+
+- MAY
+- MAY NOT
+- OPTIONAL
 ## Testing Patterns
 
 ### Basic Test Override
