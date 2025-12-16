@@ -1348,7 +1348,7 @@ export default httpRule('rfc9110/complex-validation-example')
       responseHeader('www-authenticate'), // Select transactions
       (request, response) => {
         // Custom logic with access to full request/response
-        const authHeader = getHeaderValue(response.headers, 'www-authenticate');
+        const authHeader = getHeader(response.headers, 'www-authenticate');
         if (!authHeader) return false;
 
         const parsed = parseAuthenticationHeader(authHeader);
