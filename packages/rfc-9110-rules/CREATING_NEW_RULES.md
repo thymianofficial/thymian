@@ -25,7 +25,7 @@ This document provides comprehensive guidance for creating new HTTP linting rule
 
 ### What is a Rule?
 
-A rule in the Thymian HTTP linter validates HTTP transactions against specifications defined in RFC 9110. Each rule:
+A rule in the Thymian HTTP linter validates the Thymian format, HTTP APIs and HTTP transactions against some predefined set of rules. In this project every rule is extracted from RFC9110. Each rule:
 
 - Targets a specific requirement from RFC 9110
 - Validates HTTP requests, responses, or both
