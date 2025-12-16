@@ -104,7 +104,7 @@ export default httpRule('rfc9110/rule-identifier')
 **File Naming Convention:**
 
 - Use kebab-case
-- Be descriptive and specific
+- the rule name starts with the role(s) that the rule can be applied to, followed by the requirement keyword (MUST, SHOULD, etc.) and then a description of the rule
 - End with `.rule.ts`
 - Example: `client-must-not-send-content-in-trace-request.rule.ts`
 
