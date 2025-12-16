@@ -1189,32 +1189,6 @@ find src/rules -name "*.rule.ts" | grep -i "method"
 find src/rules -name "*.rule.ts" | grep -i "status"
 ```
 
-### 9. Test Your Rules
-
-After creating a rule:
-
-1. Build the package
-2. Run the linter with your rule enabled
-3. Verify it catches violations
-4. Verify it doesn't have false positives
-
-### 10. Document Complex Logic
-
-If rule logic is complex, add comments:
-
-```typescript
-.
-rule((ctx) =>
-  ctx.validateCommonHttpTransactions(
-    // Check PUT requests that succeeded (2xx)
-    and(method('PUT'), statusCodeRange(200, 299)),
-    // Violation: status code is NOT 200, 201, or 204
-    not(or(statusCode(200), statusCode(201), statusCode(204)))
-  )
-)
-```
-
----
 
 ## Complete Examples
 
