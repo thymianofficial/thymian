@@ -977,30 +977,6 @@ src/rules/
     └── [header-related rules]
 ```
 
-### Naming Conventions
-
-**File Names:**
-
-- Use kebab-case
-- Be descriptive
-- Include participant if relevant
-- Include modal verb (must, should, may)
-- End with `.rule.ts`
-
-**Examples:**
-
-- `client-must-not-send-content-in-trace-request.rule.ts`
-- `server-must-send-www-authenticate-header-for-401-response.rule.ts`
-- `origin-server-should-send-location-header-for-201-response.rule.ts`
-
-**Rule Identifiers:**
-
-- Format: `rfc9110/descriptive-name`
-- Use kebab-case
-- Match file name (without `.rule.ts`)
-- Be unique
-
----
 
 ## RFC 9110 Structure Reference
 
