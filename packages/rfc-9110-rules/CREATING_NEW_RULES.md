@@ -1450,7 +1450,6 @@ export function arrayDifference(as: string[], bs: string[]): string[];
 
 - [RFC 9110 - HTTP Semantics](https://www.rfc-editor.org/rfc/rfc9110.html)
 - [RFC 2119 - Key words for RFCs](https://www.rfc-editor.org/rfc/rfc2119.html)
-- [Thymian Project](https://github.com/thymian-project)
 
 ---
 
