@@ -29,7 +29,7 @@ A rule in the Thymian HTTP linter validates the Thymian format, HTTP APIs and HT
 
 - Targets a specific requirement from RFC 9110
 - Validates HTTP requests, responses, or both
-- Can run in multiple modes: static analysis, analytics, or test
+- Can run in multiple modes: static, analytics, or test
 - Provides actionable feedback when violations are detected
 
 ### Rule Location
