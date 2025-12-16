@@ -218,7 +218,7 @@ Creates a new rule builder.
 
 ---
 
-#### `.severity(level: 'error' | 'warn')`
+#### `.severity(level: 'error' | 'warn'  | 'hint')`
 
 Sets the rule severity.
 
