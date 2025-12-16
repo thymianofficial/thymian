@@ -1359,55 +1359,6 @@ export default httpRule('rfc9110/complex-validation-example')
   .done();
 ```
 
-### Helper Functions for Complex Validation
-
-Create helper functions for parsing and validation logic:
-
-```typescript
-function getHeaderValue(
-  headers: string[],
-  headerName: string
-): string | undefined {
-  const lowerName = headerName.toLowerCase();
-  for (const header of headers) {
-    if (header.toLowerCase().startsWith(lowerName + ':')) {
-      return header.substring(header.indexOf(':') + 1).trim();
-    }
-  }
-  return undefined;
-}
-
-// Use in validation
-.rule((ctx) =>
-  ctx.validateCommonHttpTransactions(
-    responseHeader('content-type'),
-    (request, response) => {
-      const contentType = getHeaderValue(response.headers, 'content-type');
-      return !contentType || !isValidContentType(contentType);
-    }
-  )
-)
-```
-
-### Importing Utility Modules
-
-For shared parsing logic, create utility modules:
-
-```typescript
-import { httpRule } from '@thymian/http-linter';
-import { parseAuthenticationHeader, hasDuplicateParameters } from '../utils/auth-parser.js';
-
-export default httpRule('rfc9110/auth-validation')
-  .rule((ctx) =>
-    ctx.validateCommonHttpTransactions(responseHeader('www-authenticate'), (request, response) => {
-      const authHeader = getHeaderValue(response.headers, 'www-authenticate');
-      const challenges = parseAuthenticationHeader(authHeader);
-      return challenges.some((challenge) => hasDuplicateParameters(challenge));
-    }),
-  )
-  .done();
-```
-
 ### Multiple Participants
 
 Some rules apply to multiple HTTP participants:
