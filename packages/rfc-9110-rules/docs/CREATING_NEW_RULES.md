@@ -149,6 +149,7 @@ export default httpRule('rfc9110/unique-rule-identifier')
 - Be specific and descriptive
 
 ### Step 4: Implement the Rule Logic
+
 The rule logic can be defined with the so-called `common` interface provided by the two methods `validateCommonHttpTransactions` and `validateGroupedCommonHttpTransactions`. If the rule logic is defined with one of these methods, its logic can be translated automatically into the 3 distinct interfaces "static", "test" and "analytics".
 **Basic Validation Pattern:**
 
@@ -184,9 +185,11 @@ overrideTest((ctx) =>
   )
 )
 ```
+
 ### Step 6: Add Custom static checks (Optional)
 
 Just like the optional custom tests, the static checks can be overridden. When using the specific StaticApiContext, the rule has full access to the `ThymianFormat` instance. This allows for example to run checks on the JSON Schemas of the transactions.
+
 ### Step 7: Add custom analytics checks (optional)
 
 Also the AnalyticsContext provides its own interface with which more specific tests can be defined. One gets full access to the underlying SQLite database and can run any SQL statement.
@@ -227,7 +230,7 @@ Sets the rule severity.
 - `'error'`: For MUST/MUST NOT requirements (mandatory)
 - `'warn'`: For SHOULD/SHOULD NOT requirements (recommended)
 - `'hint'`: For OPTIONAL/MAY etc (for truly optional aspects of the specification)
-**Required:** Yes
+  **Required:** Yes
 
 ---
 
@@ -288,24 +291,26 @@ Optional shorter summary.
 
 Specifies which HTTP participant(s) must comply. Can accept one or more participants.
 Allowed Value:
-* 'intermediary'
-* 'proxy'
-* 'gateway'
-* 'tunnel'
-* 'origin server'
-* 'server'
-* 'client'
-* 'user-agent'
-* 'cache'
+
+- 'intermediary'
+- 'proxy'
+- 'gateway'
+- 'tunnel'
+- 'origin server'
+- 'server'
+- 'client'
+- 'user-agent'
+- 'cache'
 
 **Examples:**
 
 ```typescript
 // Single participant
-.appliesTo('client')
+.
+appliesTo('client')
 
-// Multiple participants
-.appliesTo('server', 'proxy')
+  // Multiple participants
+  .appliesTo('server', 'proxy')
 ```
 
 **Required:** Recommended
@@ -333,7 +338,8 @@ rule((ctx) =>
 Example: Check TRACE requests (transaction) for request body (violation)
 
 ```typescript
-.rule((ctx) =>
+.
+rule((ctx) =>
   ctx.validateCommonHttpTransactions(
     method('TRACE'),
     hasRequestBody()
@@ -346,7 +352,8 @@ Example: Check TRACE requests (transaction) for request body (violation)
 Use when the filter itself identifies the violation:
 
 ```typescript
-.rule((ctx) =>
+.
+rule((ctx) =>
   ctx.validateCommonHttpTransactions(
     violationFilter  // Matching this filter IS the violation
   )
@@ -356,7 +363,8 @@ Use when the filter itself identifies the violation:
 Example: Any GET request with a body is a violation
 
 ```typescript
-.rule((ctx) =>
+.
+rule((ctx) =>
   ctx.validateCommonHttpTransactions(
     and(method('GET'), hasRequestBody())
   )
@@ -368,7 +376,8 @@ Example: Any GET request with a body is a violation
 Use for complex validation logic that requires examining request/response details:
 
 ```typescript
-.rule((ctx) =>
+.
+rule((ctx) =>
   ctx.validateCommonHttpTransactions(
     transactionFilter,  // Which transactions to check
     (request, response) => {
@@ -383,7 +392,8 @@ Use for complex validation logic that requires examining request/response detail
 Example: Complex authentication header validation
 
 ```typescript
-.rule((ctx) =>
+.
+rule((ctx) =>
   ctx.validateCommonHttpTransactions(
     responseHeader('www-authenticate'),
     (request, response) => {
@@ -400,7 +410,8 @@ Example: Complex authentication header validation
 Use when you need to compare or validate groups of related transactions (e.g., comparing GET and HEAD responses to the same URL):
 
 ```typescript
-.rule((ctx) =>
+.
+rule((ctx) =>
   ctx.validateGroupedCommonHttpTransactions(
     transactionFilter,  // Which transactions to include
     groupingFilter,     // How to group transactions (e.g., by url())
@@ -428,7 +439,8 @@ Example: Comparing HEAD and GET responses
 import { equalsIgnoreCase } from '@thymian/core';
 import { type RuleViolation } from '@thymian/http-linter';
 
-.rule((ctx) =>
+.
+rule((ctx) =>
   ctx.validateGroupedCommonHttpTransactions(
     and(statusCode(200), or(method('GET'), method('HEAD'))),
     url(),  // Group by URL
@@ -907,6 +919,7 @@ Use for **recommended** requirements:
 - RECOMMENDED
 
 ---
+
 #### Hint (`'hint'`)
 
 Use for **optional** requirements:
@@ -914,6 +927,7 @@ Use for **optional** requirements:
 - MAY
 - MAY NOT
 - OPTIONAL
+
 ## Testing Patterns
 
 ### Basic Test Override
@@ -988,7 +1002,6 @@ src/rules/
 └── headers/
     └── [header-related rules]
 ```
-
 
 ## RFC 9110 Structure Reference
 
@@ -1200,7 +1213,6 @@ Review existing rules for similar requirements:
 find src/rules -name "*.rule.ts" | grep -i "method"
 find src/rules -name "*.rule.ts" | grep -i "status"
 ```
-
 
 ## Complete Examples
 
@@ -1470,8 +1482,10 @@ When generating a new rule:
 1. **Parse the requirement**: Extract method, status code, headers, participant(s)
 2. **Determine severity**: MUST/MUST NOT → `'error'`, SHOULD/SHOULD NOT → `'warn'`
 3. **Select validation pattern**:
-   - Simple filter-based? → Pattern A or B
-   - Need parsing/complex logic? → Pattern C (custom function)
+
+- Simple filter-based? → Pattern A or B
+- Need parsing/complex logic? → Pattern C (custom function)
+
 4. **Build validation**: Use appropriate `validateCommonHttpTransactions` pattern
 5. **Complete metadata**: All required fields with proper formatting
 6. **End with done()**: Always call `.done()` to finalize
@@ -1488,19 +1502,23 @@ statusCode(X) + not(header(Y)) → violation
 **Pattern 2: Single-Filter Validation (Direct)**
 
 ```typescript
-and(method(X), hasBody) → IS violation
+and(method(X), hasBody) → IS
+violation
 ```
 
 **Pattern 3: Custom Function Validation**
 
 ```typescript
-header(X) + (req, res) => parseAndValidate(res.headers) → violation
+header(X) + (req, res)
+=>
+parseAndValidate(res.headers) → violation
 ```
 
 **Pattern 4: Multiple Participants**
 
 ```typescript
-.appliesTo('server', 'proxy') // Both must comply
+.
+appliesTo('server', 'proxy') // Both must comply
 ```
 
 **Pattern 5: Header requirements**
