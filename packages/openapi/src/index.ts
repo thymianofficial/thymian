@@ -1,7 +1,6 @@
-import { join } from 'node:path';
-
 import {
   type SerializedThymianFormat,
+  ThymianFormat,
   type ThymianNode,
   type ThymianPlugin,
 } from '@thymian/core';
@@ -36,8 +35,8 @@ declare module '@thymian/core' {
 
   interface ThymianEvents {
     'openapi.document': {
-      filePath: string;
       document: OpenAPI.Document;
+      filePath?: string;
     };
   }
 
@@ -52,8 +51,11 @@ declare module '@thymian/core' {
 }
 
 export type OpenApiPluginOptions = {
-  serverInfo?: ServerInfo;
-  filePath: string;
+  descriptions?: {
+    serverInfo?: ServerInfo;
+    source: string;
+    sourceName?: string;
+  }[];
 };
 
 export const defaultServerInfo: ServerInfo = {
@@ -69,63 +71,86 @@ export const openApiPlugin: ThymianPlugin<OpenApiPluginOptions> = {
   options: {
     type: 'object',
     additionalProperties: false,
-    required: ['filePath'],
     properties: {
-      filePath: {
-        type: 'string',
-        nullable: false,
-      },
-      serverInfo: {
-        type: 'object',
+      descriptions: {
+        type: 'array',
         nullable: true,
-        required: ['host', 'port', 'basePath', 'protocol'],
-        properties: {
-          basePath: {
-            type: 'string',
-            nullable: false,
-          },
-          port: {
-            type: 'integer',
-            nullable: false,
-          },
-          host: {
-            type: 'string',
-            nullable: false,
-          },
-          protocol: {
-            type: 'string',
-            nullable: false,
-            enum: ['http', 'https'],
+        items: {
+          type: 'object',
+          additionalProperties: false,
+          required: ['source'],
+          properties: {
+            source: {
+              type: 'string',
+              nullable: false,
+            },
+            sourceName: {
+              type: 'string',
+              nullable: true,
+            },
+            serverInfo: {
+              type: 'object',
+              nullable: true,
+              required: ['host', 'port', 'basePath', 'protocol'],
+              properties: {
+                basePath: {
+                  type: 'string',
+                  nullable: false,
+                },
+                port: {
+                  type: 'integer',
+                  nullable: false,
+                },
+                host: {
+                  type: 'string',
+                  nullable: false,
+                },
+                protocol: {
+                  type: 'string',
+                  nullable: false,
+                  enum: ['http', 'https'],
+                },
+              },
+            },
           },
         },
       },
     },
   },
   plugin: async (emitter, logger, opts) => {
-    const filePath = join(opts.cwd, opts.filePath);
-
     emitter.onAction('openapi.transform', async ({ content }, ctx) => {
       const [, thymianFormat] = await loadAndTransform(content, {
         logger,
-        serverInfo: opts.serverInfo ?? defaultServerInfo,
+        serverInfo: defaultServerInfo,
+        cwd: opts.cwd,
       });
 
       ctx.reply(thymianFormat.export());
     });
 
     emitter.onAction('core.load-format', async (_, ctx) => {
-      const [document, thymianFormat] = await loadAndTransform(filePath, {
-        logger,
-        serverInfo: opts.serverInfo ?? defaultServerInfo,
-        filePath,
-      });
+      let format = new ThymianFormat();
 
-      emitter.emit('openapi.document', {
-        document,
-        filePath,
-      });
+      for (const description of opts.descriptions ?? []) {
+        const [document, thymianFormat, filePath] = await loadAndTransform(
+          description.source,
+          {
+            logger,
+            format,
+            serverInfo: description.serverInfo ?? defaultServerInfo,
+            sourceName: description.sourceName,
+            cwd: opts.cwd,
+          },
+        );
+        format = thymianFormat;
 
-      ctx.reply(thymianFormat.export());
+        emitter.emit('openapi.document', {
+          document,
+          filePath,
+        });
+      }
+
+      ctx.reply(format.export());
     });
   },
 };

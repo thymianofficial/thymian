@@ -1,11 +1,16 @@
 import * as http from 'node:http';
 import { join } from 'node:path';
 
+import { NoopLogger } from '@thymian/core';
 import type { OpenAPIV3_1 } from 'openapi-types';
 import { describe, expect, it } from 'vitest';
 import yaml from 'yaml';
 
-import { loadAndUpgrade, openapiToThymianFormat } from '../src/load-openapi.js';
+import {
+  loadAndTransform,
+  loadAndUpgrade,
+  openapiToThymianFormat,
+} from '../src/load-openapi.js';
 
 const swaggerDocument = {
   swagger: '2.0',
@@ -26,13 +31,13 @@ describe('load-openapi', () => {
     it('loads and upgrades swagger document from JSON string', async () => {
       const result = await loadAndUpgrade(JSON.stringify(swaggerDocument));
 
-      expect(result.openapi).toBe('3.1.1');
+      expect(result.document.openapi).toBe('3.1.1');
     });
 
     it('loads and upgrades swagger document from YAML string', async () => {
       const result = await loadAndUpgrade(yaml.stringify(swaggerDocument));
 
-      expect(result.openapi).toBe('3.1.1');
+      expect(result.document.openapi).toBe('3.1.1');
     });
 
     it('loads and upgrades swagger document from JSON file', async () => {
@@ -40,7 +45,7 @@ describe('load-openapi', () => {
         join(import.meta.dirname, 'fixtures/simple-swagger.json'),
       );
 
-      expect(result.openapi).toBe('3.1.1');
+      expect(result.document.openapi).toBe('3.1.1');
     });
 
     it('loads and upgrades swagger document from YAML file', async () => {
@@ -48,7 +53,7 @@ describe('load-openapi', () => {
         join(import.meta.dirname, 'fixtures/simple-swagger.yaml'),
       );
 
-      expect(result.openapi).toBe('3.1.1');
+      expect(result.document.openapi).toBe('3.1.1');
     });
 
     it('loads and upgrades swagger document from YAML file server', async () => {
@@ -69,7 +74,7 @@ describe('load-openapi', () => {
 
       const result = await loadAndUpgrade('http://localhost:3412');
 
-      expect(result.openapi).toBe('3.1.1');
+      expect(result.document.openapi).toBe('3.1.1');
 
       server.closeAllConnections();
 
@@ -78,6 +83,22 @@ describe('load-openapi', () => {
   });
 
   describe('openapiToThymianFormat', () => {
+    it('test', async () => {
+      await loadAndTransform(
+        '/Users/matthias/Thymian/thymian/packages/openapi/test/fixtures/thymian-demo.yaml',
+        {
+          cwd: '',
+          logger: new NoopLogger(),
+          serverInfo: {
+            basePath: '',
+            port: 8080,
+            host: 'localhost',
+            protocol: 'http',
+          },
+        },
+      );
+    });
+
     it('throws error for non supported openapi version', async () => {
       await expect(
         async () =>

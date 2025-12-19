@@ -1,3 +1,5 @@
+import { isAbsolute, join } from 'node:path';
+
 import { bundle } from '@scalar/json-magic/bundle';
 import {
   fetchUrls,
@@ -20,13 +22,27 @@ import { NoopLocMapper } from './loc-mapper/noop-loc-mapper.js';
 import type { ServerInfo } from './processors/extract-server-info.js';
 import { OpenapiProcessor } from './processors/openapi.processor.js';
 
+export type LoadResult = {
+  document: OpenAPIV3_1.Document;
+  filePath?: string;
+};
+
 export async function loadAndUpgrade(
   value: string,
-): Promise<OpenAPIV3_1.Document> {
+  cwd: string = process.cwd(),
+): Promise<LoadResult> {
   try {
-    const plugins = [parseJson(), parseYaml(), readFiles(), fetchUrls()];
+    const readFilesPlugin = readFiles();
+    // the validate function of the readFiles plugin returns undefined if the value is not a local file
+    const isFileValue = readFilesPlugin.validate(value);
+    const finalValue =
+      !isFileValue || (isFileValue && isAbsolute(value))
+        ? value
+        : join(cwd, value);
 
-    const result = await bundle(value, {
+    const plugins = [parseJson(), parseYaml(), readFilesPlugin, fetchUrls()];
+
+    const result = await bundle(finalValue, {
       plugins,
       treeShake: false,
     });
@@ -34,10 +50,14 @@ export async function loadAndUpgrade(
     await validate(result, { throwOnError: true });
 
     const upgradedObject = upgrade(result, '3.1');
-
-    return dereference(upgradedObject, {
+    const dereferenced = dereference(upgradedObject, {
       throwOnError: true,
     }).schema as OpenAPIV3_1.Document;
+
+    return {
+      document: dereferenced,
+      filePath: isFileValue ? finalValue : undefined,
+    };
   } catch (e) {
     throw new ThymianBaseError(`Error while loading OpenAPI document.`, {
       cause: e,
@@ -54,6 +74,8 @@ export async function openapiToThymianFormat(
     logger?: Logger;
     serverInfo: ServerInfo;
     filePath?: string;
+    format?: ThymianFormat;
+    sourceName?: string;
   },
 ): Promise<ThymianFormat> {
   if (
@@ -72,7 +94,8 @@ export async function openapiToThymianFormat(
     options.logger ?? new NoopLogger(),
     options.serverInfo,
     locMapper,
-  ).process(document);
+    options.format,
+  ).process(document, options.sourceName);
 }
 
 export async function loadAndTransform(
@@ -80,10 +103,17 @@ export async function loadAndTransform(
   options: {
     logger: Logger;
     serverInfo: ServerInfo;
-    filePath?: string;
+    cwd: string;
+    format?: ThymianFormat;
+    sourceName?: string;
   },
-): Promise<[OpenAPIV3_1.Document, ThymianFormat]> {
-  const document = await loadAndUpgrade(value);
+): Promise<[OpenAPIV3_1.Document, ThymianFormat, string | undefined]> {
+  const loadResult = await loadAndUpgrade(value, options.cwd);
 
-  return [document, await openapiToThymianFormat(document, options)];
+  const result = await openapiToThymianFormat(loadResult.document, {
+    ...options,
+    filePath: loadResult.filePath,
+  });
+
+  return [loadResult.document, result, loadResult.filePath];
 }

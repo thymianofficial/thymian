@@ -62,10 +62,10 @@ export abstract class BaseCliRunCommand<
     }),
     option: optionFlag(),
     timeout: Flags.integer({
-      default: 5000,
+      default: 10000,
       charAliases: ['t'],
       description:
-        'Set the duration in ms to wait until a plugin is registered.',
+        'Set the duration in ms to wait for anything that happens in Thymian.',
       helpGroup: 'BASE',
     }),
     'trace-events': Flags.boolean({
@@ -96,10 +96,8 @@ export abstract class BaseCliRunCommand<
     });
     this.flags = flags as CommandFlags<T>;
     this.args = args as CommandArgs<T>;
-    this.logger = new TextLogger(
-      '@thymian/cli',
-      this.flags.verbose || !!settings.debug,
-    );
+    this.flags.verbose = settings.debug || this.flags.verbose;
+    this.logger = new TextLogger('@thymian/cli', this.flags.verbose);
     this.thymian = new Thymian(this.logger.child('@thymian/core'), {
       timeout: this.flags.timeout,
       traceEvents: this.flags['trace-events'],

@@ -24,6 +24,7 @@
     "@fastify/deepmerge": "^3.1.0",
     "ajv": "^8.17.1",
     "chalk": "^5.4.1",
+    "fast-json-stable-stringify": "^2.1.0",
     "graphology": "^0.26.0",
     "path-to-regexp": "^8.2.0",
     "rxjs": "^7.8.2",

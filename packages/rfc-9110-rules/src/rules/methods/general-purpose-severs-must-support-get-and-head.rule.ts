@@ -14,16 +14,14 @@ export default httpRule(
   .appliesTo('server')
   .rule((ctx) =>
     ctx.validateCommonHttpTransactions(
-      and(or(method('get'), method('head')), statusCode(200)),
+      or(method('get'), method('head')),
       statusCode(501),
     ),
   )
   .overrideTest((ctx) =>
     ctx.httpTest(
       singleTestCase()
-        .forTransactionsWith(
-          and(or(method('get'), method('head')), statusCode(200)),
-        )
+        .forTransactionsWith(or(method('get'), method('head')))
         .run({ checkResponse: false })
         .expectForTransactions(not(statusCode(501)))
         .done(),

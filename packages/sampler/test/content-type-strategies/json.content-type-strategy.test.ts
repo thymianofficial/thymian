@@ -1,7 +1,7 @@
 import type { ThymianSchema } from '@thymian/core';
 import { describe, expect, it } from 'vitest';
 
-import { JsonContentTypeStrategy } from '../../src/content-generator/json.content-type-strategy.js';
+import { JsonContentTypeStrategy } from '../../src/generation/content-type-strategies/json.content-type-strategy.js';
 
 describe('JsonContentTypeStrategy', () => {
   const generator = new JsonContentTypeStrategy();

@@ -12,4 +12,3 @@ plugins:
       filePath: ''
   '@thymian/request-dispatcher': {}
   '@thymian/sampler': {}
-  '@thymian/cli-reporter': {}

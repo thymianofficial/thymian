@@ -6,7 +6,7 @@ import type {
   ThymianPluginInitHook,
   ThymianPluginInitResult,
 } from '@thymian/cli-common';
-import { confirm, runPrompts, select } from '@thymian/cli-common/prompts';
+import { checkbox, confirm, runPrompts } from '@thymian/cli-common/prompts';
 import { glob } from 'tinyglobby';
 
 import { openApiPlugin, type OpenApiPluginOptions } from '../index.js';
@@ -46,9 +46,9 @@ const hook: ThymianPluginInitHook<OpenApiPluginOptions> = async function (
 ) {
   if (opts.interactive) {
     return runPrompts(async () => {
-      const options: OpenApiPluginOptions = {
-        filePath: 'openapi.yaml',
-      };
+      const options = {
+        descriptions: [] as { source: string }[],
+      } satisfies OpenApiPluginOptions;
 
       const result: ThymianPluginInitResult<OpenApiPluginOptions> = {
         include: true,
@@ -73,24 +73,28 @@ const hook: ThymianPluginInitHook<OpenApiPluginOptions> = async function (
       const matches = await searchForOpenApiFiles(opts.cwd);
 
       if (matches.length > 0) {
-        options.filePath = await select({
+        const choices = await checkbox({
           message: 'Which Swagger/OpenAPI file should be processed?',
-          choices: matches,
-          default: 'openapi.yaml',
+          choices: matches.map((name) => ({ name, value: name })),
         });
+
+        options.descriptions = choices.map((c) => ({ source: c }));
       }
       return result;
     });
   } else {
     const matches = await searchForOpenApiFiles(opts.cwd);
 
+    const descriptions = matches.map((match) => ({
+      source: match,
+    }));
+
     return {
       include: true,
       pluginName: openApiPlugin.name,
       configuration: {
         options: {
-          filePath: matches[0] ?? 'openapi.yaml',
-          allowExternalFiles: true,
+          descriptions,
         },
       },
     };

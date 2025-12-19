@@ -13,7 +13,11 @@ describe('OpenApi plugin', () => {
 
     await thymian
       .register(openApiPlugin, {
-        filePath: 'test-utils/src/fixtures/petstore-v2.yaml',
+        descriptions: [
+          {
+            source: 'test-utils/src/fixtures/petstore-v2.yaml',
+          },
+        ],
       })
       .ready();
 
@@ -25,11 +29,7 @@ describe('OpenApi plugin', () => {
   it('loads and transforms openapi document from file via transform action', async () => {
     const thymian = new Thymian(new NoopLogger());
 
-    await thymian
-      .register(openApiPlugin, {
-        filePath: '',
-      })
-      .ready();
+    await thymian.register(openApiPlugin).ready();
 
     const format = ThymianFormat.import(
       await thymian.emitter.emitAction(

@@ -11,8 +11,8 @@ import {
 
 describe('ThymianFormat', () => {
   const transactions: [
-    PartialBy<ThymianHttpRequest, 'label'>,
-    PartialBy<ThymianHttpResponse, 'label'>,
+    PartialBy<ThymianHttpRequest, 'label' | 'sourceName'>,
+    PartialBy<ThymianHttpResponse, 'label' | 'sourceName'>,
   ][] = [
     [
       {
@@ -54,8 +54,8 @@ describe('ThymianFormat', () => {
     const format2 = new ThymianFormat();
 
     for (const transaction of transactions) {
-      format1.addHttpTransaction(transaction[0], transaction[1]);
-      format2.addHttpTransaction(transaction[0], transaction[1]);
+      format1.addHttpTransaction(transaction[0], transaction[1], '');
+      format2.addHttpTransaction(transaction[0], transaction[1], '');
     }
 
     expect(format1.export()).toMatchObject(format2.export());
@@ -66,14 +66,49 @@ describe('ThymianFormat', () => {
     const format2 = new ThymianFormat();
 
     for (const transaction of transactions) {
-      format1.addHttpTransaction(transaction[0], transaction[1]);
-      format2.addHttpTransaction(transaction[0], {
-        ...transaction[1],
-        mediaType: 'application/json',
-      });
+      format1.addHttpTransaction(transaction[0], transaction[1], '');
+      format2.addHttpTransaction(
+        transaction[0],
+        {
+          ...transaction[1],
+          mediaType: 'application/json',
+        },
+        '',
+      );
     }
 
     expect(format1.export()).not.toMatchObject(format2.export());
+  });
+
+  it('should produce same hash for identical sources', () => {
+    const format1 = new ThymianFormat();
+    const format2 = new ThymianFormat();
+
+    for (const transaction of transactions) {
+      format1.addHttpTransaction(transaction[0], transaction[1], '');
+      format2.addHttpTransaction(transaction[0], transaction[1], '');
+    }
+
+    expect(format1.toHash()).toBe(format2.toHash());
+  });
+
+  it('should not produce same hash for different sources', () => {
+    const format1 = new ThymianFormat();
+    const format2 = new ThymianFormat();
+
+    for (const transaction of transactions) {
+      format1.addHttpTransaction(transaction[0], transaction[1], '');
+      format2.addHttpTransaction(
+        transaction[0],
+        {
+          ...transaction[1],
+          mediaType: 'application/json',
+        },
+        '',
+      );
+    }
+
+    expect(format1.toHash()).not.toBe(format2.toHash());
   });
 
   describe('fromHttpTransactions', () => {
@@ -101,7 +136,10 @@ describe('ThymianFormat', () => {
         ],
       ];
 
-      const thymianFormat = ThymianFormat.fromHttpTransactions(transactions);
+      const thymianFormat = ThymianFormat.fromHttpTransactions(
+        transactions,
+        '',
+      );
       expect(thymianFormat).toBeInstanceOf(ThymianFormat);
 
       const httpTransactions = thymianFormat.getThymianHttpTransactions();
@@ -120,6 +158,7 @@ describe('ThymianFormat', () => {
       expect(() =>
         ThymianFormat.fromHttpTransactions(
           transactions as [HttpRequest, HttpResponse][],
+          '',
         ),
       ).toThrow();
     });

@@ -1,4 +1,4 @@
-import { BaseCliRunCommand } from '@thymian/cli-common';
+import { BaseCliRunCommand, oclif } from '@thymian/cli-common';
 
 export default class Init extends BaseCliRunCommand<typeof Init> {
   async run(): Promise<void> {
@@ -10,6 +10,6 @@ export default class Init extends BaseCliRunCommand<typeof Init> {
       });
     });
 
-    this.logger.info('Sampler initialized.');
+    this.log(oclif.ux.colorize('green', 'Sampler initialized.'));
   }
 }

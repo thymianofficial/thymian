@@ -5,6 +5,7 @@ import {
   ThymianBaseError,
   type ThymianPlugin,
 } from '@thymian/core';
+import PQueue from 'p-queue';
 
 import {
   dispatchHttpRequest,
@@ -76,9 +77,19 @@ export const httpRequestHookSchema: JSONSchemaType<{
   },
 };
 
-export const dispatcherPlugin: ThymianPlugin = {
+export type SamplerPluginOptions = {
+  concurrency?: number;
+};
+
+export const dispatcherPlugin: ThymianPlugin<SamplerPluginOptions> = {
   name: '@thymian/request-dispatcher',
   version: '0.x',
+  options: {
+    type: 'object',
+    properties: {
+      concurrency: { type: 'integer', nullable: true },
+    },
+  },
   actions: {
     provides: {
       'request-dispatcher.http-request': {
@@ -88,12 +99,27 @@ export const dispatcherPlugin: ThymianPlugin = {
     },
   },
   events: {},
-  plugin: async (emitter) => {
+  plugin: async (emitter, logger, opts) => {
+    const options = {
+      concurrency: 10,
+      ...opts,
+    };
+
+    const queue = new PQueue({ concurrency: options.concurrency });
+
+    emitter.onAction('core.close', async (_, ctx) => {
+      await queue.onIdle();
+
+      ctx.reply();
+    });
+
     emitter.onAction(
       'request-dispatcher.http-request',
       async ({ request, options }, ctx) => {
         try {
-          const result = await dispatchHttpRequest(request, options);
+          const result = await queue.add(() =>
+            dispatchHttpRequest(request, options),
+          );
 
           ctx.reply(result);
         } catch (e) {

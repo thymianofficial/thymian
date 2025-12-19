@@ -22,6 +22,7 @@ export type RunRequestsOptions = {
   checkHeaders: boolean;
   checkBody: boolean;
   expectStatusCode?: number;
+  authorize: boolean;
 };
 
 export function runRequests<
@@ -40,6 +41,7 @@ export function runRequests<
       checkStatusCode: true,
       checkBody: false,
       checkHeaders: false,
+      authorize: true,
       ...opts,
     };
 
@@ -63,15 +65,17 @@ export function runRequests<
           return ctx.fail(current, beforeRequest.fail);
         }
 
-        transaction.requestTemplate = beforeRequest.result;
+        transaction.requestTemplate =
+          beforeRequest.result ?? transaction.requestTemplate;
 
-        if (transaction.requestTemplate.authorize) {
-          transaction.requestTemplate = (
-            await ctx.runHook('authorize', {
-              value: transaction.requestTemplate,
-              ctx: transaction.source,
-            })
-          ).result;
+        if (options.authorize && transaction.requestTemplate.authorize) {
+          transaction.requestTemplate =
+            (
+              await ctx.runHook('authorize', {
+                value: transaction.requestTemplate,
+                ctx: transaction.source,
+              })
+            ).result ?? transaction.requestTemplate;
         }
 
         transaction.request = serializeRequest(transaction);
@@ -96,7 +100,7 @@ export function runRequests<
           return ctx.fail(current, afterResponse.fail);
         }
 
-        transaction.response = afterResponse.result;
+        transaction.response = afterResponse.result ?? transaction.response;
 
         if (typeof options.expectStatusCode !== 'undefined') {
           if (transaction.response.statusCode !== options.expectStatusCode) {

@@ -4,19 +4,16 @@
   "include": ["src/**/*.ts", "test/**/*.ts"],
   "references": [
     {
-      "path": "../sampler"
-    },
-    {
-      "path": "../core"
-    },
-    {
-      "path": "../reporter"
-    },
-    {
       "path": "../websocket-proxy"
     },
     {
+      "path": "../sampler"
+    },
+    {
       "path": "../rfc-9110-rules"
+    },
+    {
+      "path": "../reporter"
     },
     {
       "path": "../openapi"
@@ -26,6 +23,9 @@
     },
     {
       "path": "../format-validator"
+    },
+    {
+      "path": "../core"
     },
     {
       "path": "../cli-common"

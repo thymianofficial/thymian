@@ -58,7 +58,7 @@ export default httpRule(
             ),
           ),
         )
-        .run()
+        .run({ authorize: false })
         .expectForTransactions(responseHeader('www-authenticate'))
         .done(),
     ),

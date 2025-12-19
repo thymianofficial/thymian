@@ -4,7 +4,7 @@ import {
   type ThymianSchema,
 } from '@thymian/core';
 
-import type { ContentGeneratorResult } from './content-generator.js';
+import type { ContentSource } from '../../http-request-sample.js';
 import type { ContentTypeStrategy } from './content-type-strategy.js';
 
 export class HookContentTypeStrategy implements ContentTypeStrategy {
@@ -17,7 +17,7 @@ export class HookContentTypeStrategy implements ContentTypeStrategy {
   async generate(
     schema: ThymianSchema,
     contentType: string,
-  ): Promise<ContentGeneratorResult> {
+  ): Promise<ContentSource> {
     const content = await this.emitter.emitAction(
       'sampler.unknown-type',
       {

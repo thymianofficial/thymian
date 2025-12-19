@@ -91,7 +91,7 @@ export class CliFormatter implements Formatter<CliFormatterOptions> {
 
           for (const report of reports) {
             console.log(
-              `${mapSeverityToMessagePrefix(report.severity)}${report.summary}\n   ${chalk.dim(report.source)}`,
+              `${mapSeverityToMessagePrefix(report.severity)}${report.summary}${report.source ? `\n   ${chalk.dim(report.source)}` : ''}`,
             );
             console.log();
           }
@@ -116,7 +116,7 @@ export class CliFormatter implements Formatter<CliFormatterOptions> {
 
           for (const report of reports) {
             console.log(
-              `${mapSeverityToMessagePrefix(report.severity)}${report.summary}\n   ${chalk.dim(report.source ?? '')}`,
+              `${mapSeverityToMessagePrefix(report.severity)}${report.summary}${report.source ? `\n   ${chalk.dim(report.source)}` : ''}`,
             );
             console.log();
           }
@@ -132,7 +132,7 @@ export class CliFormatter implements Formatter<CliFormatterOptions> {
     }
 
     console.log(
-      `Found ${chalk.red(`${analysis.statistics.severityCounts.error} errors`)}, ${chalk.yellow(`${analysis.statistics.severityCounts.warn} warnings`)}, ${chalk.blue(`${analysis.statistics.severityCounts.hint} hints`)} and ${chalk.grey(`${analysis.statistics.severityCounts.info} infos`)}.`,
+      `Found ${chalk.red(`${analysis.statistics.severityCounts.error} errors`)}, ${chalk.yellow(`${analysis.statistics.severityCounts.warn} warnings`)} and ${chalk.blue(`${analysis.statistics.severityCounts.hint} hints`)}.`,
     );
   }
 

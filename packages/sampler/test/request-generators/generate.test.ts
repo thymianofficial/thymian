@@ -3,12 +3,12 @@ import { join } from 'node:path';
 import { ThymianFormat } from '@thymian/core';
 import { describe, it } from 'vitest';
 
-import { ContentGenerator } from '../../src/content-generator/content-generator.js';
-import { ImageContentTypeStrategy } from '../../src/content-generator/image.content-type-strategy.js';
-import { JsonContentTypeStrategy } from '../../src/content-generator/json.content-type-strategy.js';
-import { XmlContentTypeStrategy } from '../../src/content-generator/xml.content-type-strategy.js';
+import { ContentSourceGenerator } from '../../src/generation/content-source-generator.js';
+import { ImageContentTypeStrategy } from '../../src/generation/content-type-strategies/image.content-type-strategy.js';
+import { JsonContentTypeStrategy } from '../../src/generation/content-type-strategies/json.content-type-strategy.js';
+import { XmlContentTypeStrategy } from '../../src/generation/content-type-strategies/xml.content-type-strategy.js';
+import { generate } from '../../src/generation/request-generators/generate.js';
 import { FileOutputWriter } from '../../src/output-writer/file.output-writer.js';
-import { generate } from '../../src/request-generators/generate.js';
 
 describe('generate', () => {
   it('should work', async () => {
@@ -78,7 +78,7 @@ describe('generate', () => {
 
     const t = format.getThymianHttpTransactions()[0]!;
 
-    const g = new ContentGenerator([], new JsonContentTypeStrategy());
+    const g = new ContentSourceGenerator([], new JsonContentTypeStrategy());
 
     const writer = new FileOutputWriter(join(import.meta.dirname, 'tmp'), true);
 
@@ -121,7 +121,7 @@ describe('generate', () => {
 
     const t = format.getThymianHttpTransactions()[0]!;
 
-    const g = new ContentGenerator(
+    const g = new ContentSourceGenerator(
       [new XmlContentTypeStrategy()],
       new ImageContentTypeStrategy(),
     );

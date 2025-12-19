@@ -1,0 +1,334 @@
+openapi: 3.0.0
+paths:
+  /:
+    get:
+      operationId: AppController_getHello
+      parameters: []
+      responses:
+        '200':
+          description: ''
+      tags:
+        - App
+  /users:
+    post:
+      operationId: UsersController_create
+      parameters: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateUserDto'
+      responses:
+        '201':
+          description: User was created.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+      summary: Create new user
+      tags: &a1
+        - users
+    get:
+      operationId: UsersController_findAll
+      parameters: []
+      responses:
+        '200':
+          description: List of users
+      summary: List users
+      tags: *a1
+  /users/{id}:
+    get:
+      operationId: UsersController_findOne
+      parameters:
+        - name: id
+          required: true
+          in: path
+          schema:
+            type: number
+      responses:
+        '200':
+          description: User entity
+      summary: Get user by id
+      tags: *a1
+    patch:
+      operationId: UsersController_update
+      parameters:
+        - name: id
+          required: true
+          in: path
+          schema:
+            type: number
+      responses:
+        '200':
+          description: Updated user
+      summary: Update user
+      tags: *a1
+    delete:
+      operationId: UsersController_remove
+      parameters:
+        - name: id
+          required: true
+          in: path
+          schema:
+            type: number
+      responses:
+        '200':
+          description: User deleted
+      summary: Delete user
+      tags: *a1
+  /todos:
+    post:
+      operationId: TodosController_create
+      parameters: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateTodoDto'
+      responses:
+        '201':
+          description: Todo created
+      security: &a2
+        - basic: []
+        - basic: []
+      summary: Create a new todo (authenticated)
+      tags: &a3
+        - todos
+    get:
+      operationId: TodosController_findAll
+      parameters: []
+      responses:
+        '200':
+          description: List of todos
+      security: *a2
+      summary: List todos (authenticated)
+      tags: *a3
+  /todos/{id}/participants:
+    post:
+      operationId: TodosController_addParticipants
+      parameters:
+        - name: id
+          required: true
+          in: path
+          schema:
+            type: number
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AddParticipantsDto'
+      responses:
+        '200':
+          description: Participants added
+      security: *a2
+      summary: Add participants to a todo (authenticated)
+      tags: *a3
+  /todos/{id}:
+    get:
+      operationId: TodosController_get
+      parameters:
+        - name: id
+          required: true
+          in: path
+          schema:
+            type: number
+      responses:
+        '200':
+          description: Todo found
+      security: *a2
+      summary: Get a todo with participants and tasks (authenticated)
+      tags: *a3
+    patch:
+      operationId: TodosController_update
+      parameters:
+        - name: id
+          required: true
+          in: path
+          schema:
+            type: number
+      responses:
+        '200':
+          description: Updated todo
+      security: *a2
+      summary: Update a todo (authenticated)
+      tags: *a3
+    delete:
+      operationId: TodosController_remove
+      parameters:
+        - name: id
+          required: true
+          in: path
+          schema:
+            type: number
+      responses:
+        '200':
+          description: Todo deleted
+      security: *a2
+      summary: Delete a todo (authenticated)
+      tags: *a3
+  /todos/{todoId}/tasks:
+    post:
+      operationId: TasksController_create
+      parameters:
+        - name: todoId
+          required: true
+          in: path
+          schema:
+            type: number
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateTaskDto'
+      responses:
+        '201':
+          description: Task erstellt
+      security: &a4
+        - basic: []
+        - basic: []
+      summary: Task zu einem Todo hinzufügen (authentifiziert)
+      tags: &a5
+        - tasks
+    get:
+      operationId: TasksController_findAll
+      parameters:
+        - name: todoId
+          required: true
+          in: path
+          schema:
+            type: number
+      responses:
+        '200':
+          description: Liste von Tasks
+      security: *a4
+      summary: Alle Tasks eines Todos auflisten (authentifiziert)
+      tags: *a5
+  /todos/{todoId}/tasks/{id}:
+    get:
+      operationId: TasksController_findOne
+      parameters:
+        - name: todoId
+          required: true
+          in: path
+          schema:
+            type: number
+        - name: id
+          required: true
+          in: path
+          schema:
+            type: number
+      responses:
+        '200':
+          description: Task gefunden
+      security: *a4
+      summary: Einen Task eines Todos abrufen (authentifiziert)
+      tags: *a5
+    patch:
+      operationId: TasksController_update
+      parameters:
+        - name: todoId
+          required: true
+          in: path
+          schema:
+            type: number
+        - name: id
+          required: true
+          in: path
+          schema:
+            type: number
+      responses:
+        '200':
+          description: Task aktualisiert
+      security: *a4
+      summary: Task aktualisieren (authentifiziert)
+      tags: *a5
+    delete:
+      operationId: TasksController_remove
+      parameters:
+        - name: todoId
+          required: true
+          in: path
+          schema:
+            type: number
+        - name: id
+          required: true
+          in: path
+          schema:
+            type: number
+      responses:
+        '200':
+          description: Task gelöscht
+      security: *a4
+      summary: Task löschen (authentifiziert)
+      tags: *a5
+info:
+  title: Todos
+  description: ''
+  version: '1.0'
+  contact: {}
+tags: []
+servers:
+  - url: http://127.0.0.1:3000
+components:
+  securitySchemes:
+    basicAuth:
+      type: http
+      scheme: basic
+  schemas:
+    CreateUserDto:
+      type: object
+      properties:
+        name:
+          type: string
+          example: alice
+          description: user name
+        password:
+          type: string
+          example: secret
+          description: password in plain test
+      required:
+        - name
+        - password
+    User:
+      type: object
+      properties: {}
+    CreateTodoDto:
+      type: object
+      properties:
+        title:
+          type: string
+          example: Shopping
+          description: Title of the todo
+        description:
+          type: string
+          example: Milk, Bread, Eggs
+      required:
+        - title
+    AddParticipantsDto:
+      type: object
+      properties:
+        userIds:
+          example:
+            - 1
+            - 2
+          description: IDs of users to add to the todo
+          type: array
+          items:
+            type: string
+      required:
+        - userIds
+    CreateTaskDto:
+      type: object
+      properties:
+        title:
+          type: string
+          example: Buy milk
+        description:
+          type: string
+          example: Whole milk 3.5%
+      required:
+        - title

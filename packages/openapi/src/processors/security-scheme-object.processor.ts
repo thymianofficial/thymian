@@ -9,7 +9,7 @@ import type { OpenAPIV3_1 as OpenApiV31 } from 'openapi-types';
 
 export function processSecuritySchemes(
   schemes: Record<string, OpenApiV31.SecuritySchemeObject>,
-): PartialBy<SecurityScheme, 'label'>[] {
+): PartialBy<SecurityScheme, 'label' | 'sourceName'>[] {
   return Object.entries(schemes)
     .filter(([, scheme]) => scheme.type === 'http' || scheme.type === 'apiKey')
     .map(([name, schemeObj]) => {
@@ -23,7 +23,7 @@ export function processSecuritySchemes(
               schemeName: name,
             },
           },
-        } satisfies PartialBy<ApiKeySecurityScheme, 'label'>;
+        } satisfies PartialBy<ApiKeySecurityScheme, 'label' | 'sourceName'>;
       } else if ('scheme' in schemeObj) {
         if (schemeObj.scheme === 'basic') {
           return {
@@ -34,7 +34,7 @@ export function processSecuritySchemes(
                 schemeName: name,
               },
             },
-          } satisfies PartialBy<BasicSecurityScheme, 'label'>;
+          } satisfies PartialBy<BasicSecurityScheme, 'label' | 'sourceName'>;
         } else if (schemeObj.scheme === 'bearer') {
           return {
             type: 'security-scheme',
@@ -45,7 +45,7 @@ export function processSecuritySchemes(
                 schemeName: name,
               },
             },
-          } satisfies PartialBy<BearerSecurityScheme, 'label'>;
+          } satisfies PartialBy<BearerSecurityScheme, 'label' | 'sourceName'>;
         } else {
           throw new Error(`Scheme ${schemeObj.scheme} not supported.`);
         }

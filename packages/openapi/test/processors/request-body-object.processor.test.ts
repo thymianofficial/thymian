@@ -27,6 +27,7 @@ describe('processRequestBodyObjet', () => {
     host: 'localhost',
     port: 8080,
     protocol: 'http' as const,
+    sourceName: 'test',
   };
 
   it('returns a default http-request when requestBodyObject is undefined', () => {

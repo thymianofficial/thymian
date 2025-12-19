@@ -45,7 +45,7 @@ export type Skip = {
 
 export type Warning = {
   type: 'warning';
-  details: string;
+  details?: string;
 };
 
 export type Info = {

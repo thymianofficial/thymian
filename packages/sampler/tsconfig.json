@@ -4,10 +4,16 @@
   "include": ["src/**/*.ts", "test/**/*.ts"],
   "references": [
     {
-      "path": "../cli-common"
+      "path": "../request-dispatcher"
+    },
+    {
+      "path": "../http-testing"
     },
     {
       "path": "../core"
+    },
+    {
+      "path": "../cli-common"
     },
     {
       "path": "./tsconfig.lib.json"

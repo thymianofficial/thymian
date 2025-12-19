@@ -1,4 +1,4 @@
-import { Subject } from 'rxjs';
+import { ReplaySubject, Subject } from 'rxjs';
 import semver from 'semver';
 
 import packageJson from '../package.json' with { type: 'json' };
@@ -25,6 +25,7 @@ export type ThymianOptions = {
   timeout: number;
   traceEvents: boolean;
   cwd: string;
+  logAllErrors: boolean;
 };
 
 export class Thymian {
@@ -46,22 +47,17 @@ export class Thymian {
       timeout: 5000,
       traceEvents: false,
       cwd: process.cwd(),
+      logAllErrors: false,
       ...options,
     };
 
-    const emitterLogger = this.options.traceEvents
-      ? logger.child('@thymian/core', true)
-      : new NoopLogger();
+    const emitterLogger = logger.child(
+      '@thymian/core',
+      this.options.traceEvents,
+    );
     this.emitter = new ThymianEmitter(
       emitterLogger,
-      {
-        completed: new Set(),
-        errors: new Subject(),
-        events: new Subject(),
-        listeners: new Map(),
-        responses: new Subject(),
-        source: '@thymian/core',
-      },
+      ThymianEmitter.emptyEmitterState('@thymian/core'),
       {
         traceEvents: this.options.traceEvents,
         timeout: this.options.timeout,
@@ -119,9 +115,15 @@ export class Thymian {
     fn: (emitter: ThymianEmitter, logger: Logger) => Promise<T> | T,
   ): Promise<T> {
     return new Promise((resolve, reject) => {
-      const tryCloseThymian = (err: unknown) => {
-        this.logger.debug('Try closing Thymian...');
+      let closed = false;
 
+      const tryCloseThymian = (err: unknown) => {
+        if (closed) {
+          return;
+        }
+        closed = true;
+
+        this.logger.debug('Try closing Thymian...');
         this.close()
           .then(() => {
             this.logger.debug('Thymian closed.');
@@ -134,12 +136,14 @@ export class Thymian {
       };
 
       this.emitter.onError((event) => {
+        if (closed && this.options.logAllErrors) {
+          this.logger
+            .child(event.source)
+            [event.error.options.severity](event.error.message);
+        }
+
         if (event.error.options.severity === 'error') {
           tryCloseThymian(event.error);
-        } else if (event.error.options.severity === 'warn') {
-          this.logger.warn(event.error.message);
-        } else {
-          this.logger.info(event.error.message);
         }
       });
 
@@ -160,10 +164,18 @@ export class Thymian {
   }
 
   async close(): Promise<void> {
+    await this.emitter.shutdown(1000, 1100);
+
     await this.emitter.emitAction('core.close');
+
+    this.emitter.completeSubjects();
   }
 
-  async loadFormat(): Promise<ThymianFormat> {
+  async loadFormat(
+    _options: { emitFormat?: boolean } = {},
+  ): Promise<ThymianFormat> {
+    const options = { emitFormat: true, ..._options };
+
     const formats = await this.emitter.emitAction(
       'core.load-format',
       undefined,
@@ -188,6 +200,10 @@ export class Thymian {
     this.logger.debug(
       `Merged Thymian format includes ${format.graph.order} nodes and ${format.graph.size} edges.`,
     );
+
+    if (options.emitFormat) {
+      await this.emitter.emitAction('core.format', format.export());
+    }
 
     return format;
   }

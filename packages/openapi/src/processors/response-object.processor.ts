@@ -6,7 +6,7 @@ import { processMediaTypeObject } from './media-type-object.processor.js';
 import type { Parameters } from './utils.js';
 
 export type ResponsesWithLinks = {
-  responses: PartialBy<ThymianHttpResponse, 'label'>[];
+  responses: PartialBy<ThymianHttpResponse, 'label' | 'sourceName'>[];
   links: { name: string; linkObj: OpenApiV31.LinkObject }[];
 };
 
@@ -22,7 +22,8 @@ export function processResponseObject(
     ([name, linkObj]) => ({ name, linkObj }),
   ) as { name: string; linkObj: OpenApiV31.LinkObject }[];
 
-  const responses: PartialBy<ThymianHttpResponse, 'label'>[] = [];
+  const responses: PartialBy<ThymianHttpResponse, 'label' | 'sourceName'>[] =
+    [];
 
   if (responseObject.content) {
     responses.push(
@@ -45,7 +46,7 @@ export function processResponseObject(
             mediaType,
             statusCode,
             schema,
-          } satisfies PartialBy<ThymianHttpResponse, 'label'>;
+          } satisfies PartialBy<ThymianHttpResponse, 'label' | 'sourceName'>;
         }),
     );
   } else {

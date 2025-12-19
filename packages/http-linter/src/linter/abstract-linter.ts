@@ -35,30 +35,42 @@ export abstract class AbstractLinter {
   }
 
   async run(): Promise<boolean> {
-    return (
-      await Promise.all(
-        this.rules.map(async (rule) => {
-          try {
-            return await this.runRule(
-              rule,
-              this.ruleOptions[rule.meta.name] ?? {},
-            );
-          } catch (e) {
-            if (e instanceof ThymianBaseError) {
-              throw e;
-            } else {
-              throw new ThymianBaseError(
-                `Error running rule ${rule.meta.name}: ${e}`,
-                {
-                  name: `${this.constructor.name}Error`,
-                  cause: e,
-                },
-              );
-            }
-          }
-        }),
-      )
-    ).every(Boolean);
+    let allSuccessful = true;
+
+    for (const rule of this.rules) {
+      try {
+        const success = await this.runRule(
+          rule,
+          this.ruleOptions[rule.meta.name] ?? {},
+        );
+
+        this.logger.debug(
+          `Rule ${rule.meta.name} finished with success: ${success}`,
+        );
+
+        allSuccessful &&= success;
+      } catch (e) {
+        if (e instanceof ThymianBaseError) {
+          throw new ThymianBaseError(
+            `Error running rule ${rule.meta.name}: ${e.message}`,
+            {
+              name: `${this.constructor.name}Error`,
+              cause: e,
+            },
+          );
+        } else {
+          throw new ThymianBaseError(
+            `Error running rule ${rule.meta.name}: ${e}`,
+            {
+              name: `${this.constructor.name}Error`,
+              cause: e,
+            },
+          );
+        }
+      }
+    }
+
+    return allSuccessful;
   }
 
   protected abstract runRule<Options extends Record<string, unknown>>(
