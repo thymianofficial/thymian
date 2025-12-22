@@ -19,6 +19,7 @@ export default {
         'sampler',
         'test-utils',
         'websocket-proxy',
+        'core-testing',
       ],
     ],
     'scope-empty': [2, 'never'],
