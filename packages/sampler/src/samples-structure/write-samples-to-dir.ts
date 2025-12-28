@@ -1,5 +1,5 @@
 import { mkdir, writeFile } from 'node:fs/promises';
-import { format, join } from 'node:path';
+import { basename, format, join } from 'node:path';
 
 import { ThymianBaseError } from '@thymian/core';
 
@@ -172,7 +172,7 @@ async function transformContentSource(
     await writeToFile(filePath, source.$buffer, source.$encoding);
 
     return {
-      $file: filePath,
+      $file: basename(filePath),
     };
   } else {
     throw new ThymianBaseError('Unknown content source type .' + source + name);

@@ -3,10 +3,8 @@ import { Flags, ux } from '@thymian/cli-common/oclif';
 import {
   type HttpRequest,
   type HttpResponse,
-  httpStatusCodes,
   httpStatusCodeToPhrase,
   isValidHttpStatusCode,
-  successfulStatusCode,
   type ThymianHttpTransaction,
   thymianHttpTransactionToString,
 } from '@thymian/core';

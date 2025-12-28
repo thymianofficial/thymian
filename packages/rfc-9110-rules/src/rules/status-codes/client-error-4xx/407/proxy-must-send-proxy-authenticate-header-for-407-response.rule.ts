@@ -5,7 +5,7 @@ export default httpRule(
   'rfc9110/proxy-must-send-proxy-authenticate-header-for-407-response',
 )
   .severity('error')
-  .type('static', 'analytics')
+  .type('analytics')
   .url(
     'https://www.rfc-editor.org/rfc/rfc9110.html#name-407-proxy-authentication-re',
   )

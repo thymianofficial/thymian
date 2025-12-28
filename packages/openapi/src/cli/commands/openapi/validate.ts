@@ -24,8 +24,10 @@ export default class Validate extends BaseCliRunCommand<typeof Validate> {
       if (result.errors) {
         this.log('\u274C Invalid Swagger/OpenAPI file with errors:');
         console.group();
-        result.errors.forEach((e) => this.log(`* ${e.message}`));
-        console.group();
+        result.errors.forEach((e) =>
+          this.log(`* ${e.message}${'path' in e ? ` (at "${e.path}")` : ''}`),
+        );
+        console.groupEnd();
       }
       this.exit(1);
     }

@@ -27,25 +27,35 @@ export type LoadResult = {
   filePath?: string;
 };
 
+export async function loadOpenApi(
+  value: string,
+  cwd: string = process.cwd(),
+): Promise<[object, string]> {
+  const readFilesPlugin = readFiles();
+  // the validate function of the readFiles plugin returns undefined if the value is not a local file
+  const isFileValue = readFilesPlugin.validate(value);
+  const finalValue =
+    !isFileValue || (isFileValue && isAbsolute(value))
+      ? value
+      : join(cwd, value);
+
+  const plugins = [parseJson(), parseYaml(), readFilesPlugin, fetchUrls()];
+
+  return [
+    await bundle(finalValue, {
+      plugins,
+      treeShake: false,
+    }),
+    finalValue,
+  ];
+}
+
 export async function loadAndUpgrade(
   value: string,
   cwd: string = process.cwd(),
 ): Promise<LoadResult> {
   try {
-    const readFilesPlugin = readFiles();
-    // the validate function of the readFiles plugin returns undefined if the value is not a local file
-    const isFileValue = readFilesPlugin.validate(value);
-    const finalValue =
-      !isFileValue || (isFileValue && isAbsolute(value))
-        ? value
-        : join(cwd, value);
-
-    const plugins = [parseJson(), parseYaml(), readFilesPlugin, fetchUrls()];
-
-    const result = await bundle(finalValue, {
-      plugins,
-      treeShake: false,
-    });
+    const [result, filePath] = await loadOpenApi(value, cwd);
 
     await validate(result, { throwOnError: true });
 
@@ -56,13 +66,14 @@ export async function loadAndUpgrade(
 
     return {
       document: dereferenced,
-      filePath: isFileValue ? finalValue : undefined,
+      filePath: filePath ? filePath : undefined,
     };
   } catch (e) {
     throw new ThymianBaseError(`Error while loading OpenAPI document.`, {
       cause: e,
       suggestions: [
         'Currently, only files without external references are supported. Do your OpenAPI documents contain any external references?',
+        'You can validate your OpenAPI document using the `thymian openapi:validate` command.',
       ],
     });
   }

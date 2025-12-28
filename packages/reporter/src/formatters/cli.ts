@@ -54,15 +54,20 @@ export function mapSeverityToMessagePrefix(
   return '';
 }
 
-export type CliFormatterOptions = Record<PropertyKey, unknown>;
+export type CliFormatterOptions = {
+  summaryOnly: boolean;
+};
 
-export class CliFormatter implements Formatter<CliFormatterOptions> {
+export class CliFormatter implements Formatter<Partial<CliFormatterOptions>> {
   options!: CliFormatterOptions;
 
   private readonly reports: ThymianReport[] = [];
 
-  init(options: CliFormatterOptions): void {
-    this.options = options;
+  init(options: Partial<CliFormatterOptions>): void {
+    this.options = {
+      summaryOnly: false,
+      ...options,
+    };
   }
 
   flush(): void {
@@ -76,59 +81,63 @@ export class CliFormatter implements Formatter<CliFormatterOptions> {
     console.log();
     console.log();
 
-    for (const [producer, categories] of Object.entries(analysis.normalized)) {
-      printProducer(producer);
-
-      console.group();
-
-      if (Object.hasOwn(categories, 'No Category')) {
-        for (const [title, reports] of Object.entries(
-          categories['No Category'] ?? {},
-        )) {
-          console.log(chalk.bold(title));
-
-          console.group();
-
-          for (const report of reports) {
-            console.log(
-              `${mapSeverityToMessagePrefix(report.severity)}${report.summary}${report.source ? `\n   ${chalk.dim(report.source)}` : ''}`,
-            );
-            console.log();
-          }
-
-          console.groupEnd();
-        }
-      }
-
-      for (const [category, titles] of Object.entries(categories)) {
-        if (category === 'No Category') continue;
-
-        console.log(chalk.bold(category));
+    if (!this.options.summaryOnly) {
+      for (const [producer, categories] of Object.entries(
+        analysis.normalized,
+      )) {
+        printProducer(producer);
 
         console.group();
 
-        console.log();
+        if (Object.hasOwn(categories, 'No Category')) {
+          for (const [title, reports] of Object.entries(
+            categories['No Category'] ?? {},
+          )) {
+            console.log(chalk.bold(title));
 
-        for (const [title, reports] of Object.entries(titles)) {
-          console.log(chalk.underline(title));
+            console.group();
+
+            for (const report of reports) {
+              console.log(
+                `${mapSeverityToMessagePrefix(report.severity)}${report.summary}${report.source ? `\n   ${chalk.dim(report.source)}` : ''}`,
+              );
+              console.log();
+            }
+
+            console.groupEnd();
+          }
+        }
+
+        for (const [category, titles] of Object.entries(categories)) {
+          if (category === 'No Category') continue;
+
+          console.log(chalk.bold(category));
 
           console.group();
 
-          for (const report of reports) {
-            console.log(
-              `${mapSeverityToMessagePrefix(report.severity)}${report.summary}${report.source ? `\n   ${chalk.dim(report.source)}` : ''}`,
-            );
-            console.log();
+          console.log();
+
+          for (const [title, reports] of Object.entries(titles)) {
+            console.log(chalk.underline(title));
+
+            console.group();
+
+            for (const report of reports) {
+              console.log(
+                `${mapSeverityToMessagePrefix(report.severity)}${report.summary}${report.source ? `\n   ${chalk.dim(report.source)}` : ''}`,
+              );
+              console.log();
+            }
+
+            console.groupEnd();
           }
 
           console.groupEnd();
         }
 
         console.groupEnd();
+        console.log();
       }
-
-      console.groupEnd();
-      console.log();
     }
 
     console.log(

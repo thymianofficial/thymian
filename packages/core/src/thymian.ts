@@ -180,7 +180,6 @@ export class Thymian {
       'core.load-format',
       undefined,
       {
-        timeout: 2000,
         strategy: 'collect',
       },
     );

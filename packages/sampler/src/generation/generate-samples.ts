@@ -10,6 +10,7 @@ import { ContentSourceGenerator } from './content-source-generator.js';
 import { HookContentTypeStrategy } from './content-type-strategies/hook.content-type-strategy.js';
 import { ImageContentTypeStrategy } from './content-type-strategies/image.content-type-strategy.js';
 import { JsonContentTypeStrategy } from './content-type-strategies/json.content-type-strategy.js';
+import { PlainTextContentTypeStrategy } from './content-type-strategies/text.content-type-strategy.js';
 import { XmlContentTypeStrategy } from './content-type-strategies/xml.content-type-strategy.js';
 import { DefaultRequestGenerator } from './request-generators/default-request-generator.js';
 import { RangeRequestGenerator } from './request-generators/range-request-generator.js';
@@ -25,6 +26,7 @@ export async function generateSamplesTree(
       new JsonContentTypeStrategy(),
       new XmlContentTypeStrategy(),
       new ImageContentTypeStrategy(),
+      new PlainTextContentTypeStrategy(),
     ],
     new HookContentTypeStrategy(emitter),
   );

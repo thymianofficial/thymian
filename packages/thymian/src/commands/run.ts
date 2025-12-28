@@ -1,6 +1,7 @@
 import { settings } from '@oclif/core';
+import type { CommandError } from '@oclif/core/interfaces';
 import { BaseCliRunCommand } from '@thymian/cli-common';
-import ora from 'ora';
+import ora, { type Ora } from 'ora';
 
 const growingPlant = {
   interval: 200,
@@ -13,23 +14,34 @@ export default class Run extends BaseCliRunCommand<typeof Run> {
     'Run Thymian and the corresponding plugins specified in the Thymian configuration and via CLI.';
   static override examples = ['<%= config.bin %> <%= command.id %>'];
 
+  private spinner!: Ora;
+
+  protected override catch(err: CommandError): Promise<void> {
+    this.spinner?.clear();
+    return super.catch(err);
+  }
+
   override async run(): Promise<void> {
-    const spinner = ora({
+    this.spinner = ora({
       spinner: growingPlant,
       prefixText: text,
     });
 
     if (!this.flags.verbose) {
-      spinner.start();
+      this.spinner.start();
     }
 
     const results = await this.thymian.run(async (emitter) => {
       emitter.onAction('core.close', (_, ctx) => {
         if (!this.flags.verbose) {
-          spinner.succeed('Spiced up! 🌱');
+          this.spinner.succeed('Spiced up! 🌱');
         }
 
         ctx.reply();
+      });
+
+      emitter.onError(() => {
+        this.spinner.clear();
       });
 
       const format = await this.thymian.loadFormat();

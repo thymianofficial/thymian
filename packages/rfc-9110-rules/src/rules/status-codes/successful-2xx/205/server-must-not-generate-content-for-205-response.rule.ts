@@ -6,7 +6,7 @@ export default httpRule(
 )
   .severity('error')
   .type('test', 'static', 'analytics')
-  .appliesTo('origin server')
+  .appliesTo('server')
   .url('https://www.rfc-editor.org/rfc/rfc9110.html#name-205-reset-content')
   .description(
     `Since the 205 status code implies that no additional content will be provided, a server MUST NOT generate content in a 205 response.`,

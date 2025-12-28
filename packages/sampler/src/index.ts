@@ -162,7 +162,7 @@ export const samplePlugin: ThymianPlugin<Partial<SamplerPluginOptions>> = {
 
       await writeSamplesToDir(samples, generatedTypes.keyToTransactionId, {
         path: basePath,
-        mode: 'overwrite',
+        mode: 'failIfExist',
       });
 
       await writeFile(
