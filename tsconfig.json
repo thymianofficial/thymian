@@ -41,6 +41,9 @@
     },
     {
       "path": "./packages/test-utils"
+    },
+    {
+      "path": "./packages/core-testing"
     }
   ]
 }
