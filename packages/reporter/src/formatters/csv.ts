@@ -6,7 +6,6 @@ import type { Formatter } from '../formatter.js';
 
 export type CsvFormatterOptions = {
   path: string;
-  logger: Logger;
 };
 
 export class CsvFormatter implements Formatter<CsvFormatterOptions> {
@@ -14,10 +13,12 @@ export class CsvFormatter implements Formatter<CsvFormatterOptions> {
 
   options!: CsvFormatterOptions;
 
+  constructor(private readonly logger: Logger) {}
+
   flush(): Promise<void> {
     return new Promise((resolve) => {
       this.stream.end(() => {
-        this.options.logger.debug(`Wrote CSV report to ${this.options.path}`);
+        this.logger.debug(`Wrote CSV report to ${this.options.path}`);
 
         resolve();
       });
@@ -29,7 +30,7 @@ export class CsvFormatter implements Formatter<CsvFormatterOptions> {
     this.stream = createWriteStream(options.path, 'utf-8');
 
     this.stream.on('error', (err) => {
-      this.options.logger.error(
+      this.logger.error(
         `Failed to write CSV report to ${this.options.path}: ${err.message}`,
       );
     });

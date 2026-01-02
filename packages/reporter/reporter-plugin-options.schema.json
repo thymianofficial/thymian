@@ -1,0 +1,52 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://thymian.dev/schemas/reporter-plugin-options.json",
+  "title": "ReporterPluginOptions",
+  "description": "Configuration options for the Thymian reporter plugin",
+  "type": "object",
+  "properties": {
+    "formatters": {
+      "description": "Configuration for different report formatters",
+      "type": "object",
+      "properties": {
+        "cli": {
+          "description": "Configuration for the CLI (console) formatter",
+          "type": "object",
+          "properties": {
+            "summaryOnly": {
+              "description": "When true, only shows the summary without detailed reports",
+              "type": "boolean"
+            }
+          },
+          "additionalProperties": false
+        },
+        "markdown": {
+          "description": "Configuration for the Markdown formatter",
+          "type": "object",
+          "properties": {
+            "path": {
+              "description": "File path where the markdown report will be saved",
+              "type": "string"
+            }
+          },
+          "required": ["path"],
+          "additionalProperties": false
+        },
+        "csv": {
+          "description": "Configuration for the CSV formatter",
+          "type": "object",
+          "properties": {
+            "path": {
+              "description": "File path where the CSV report will be saved",
+              "type": "string"
+            }
+          },
+          "required": ["path"],
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": false
+}
