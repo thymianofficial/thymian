@@ -1,0 +1,32 @@
+{
+  "name": "@thymian/spectral",
+  "version": "0.0.1",
+  "type": "module",
+  "main": "./dist/index.js",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    "./package.json": "./package.json",
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "!**/*.tsbuildinfo"
+  ],
+  "dependencies": {
+    "@stoplight/spectral-core": "^1.20.0",
+    "@stoplight/spectral-parsers": "^1.0.5",
+    "@stoplight/spectral-ruleset-bundler": "^1.6.3",
+    "tslib": "^2.3.0"
+  },
+  "peerDependencies": {
+    "@thymian/core": "^0.0.1"
+  },
+  "devDependencies": {
+    "@thymian/openapi": "^0.0.1"
+  }
+}

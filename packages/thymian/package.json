@@ -31,6 +31,7 @@
     "@thymian/reporter": "^0",
     "@thymian/core": "^0",
     "@thymian/sampler": "^0",
+    "@thymian/spectral": "^0",
     "tslib": "^2.3.0"
   },
   "bin": {

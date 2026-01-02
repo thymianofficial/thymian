@@ -20,6 +20,7 @@ export default {
         'test-utils',
         'websocket-proxy',
         'core-testing',
+        'spectral',
       ],
     ],
     'scope-empty': [2, 'never'],
