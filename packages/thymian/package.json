@@ -31,6 +31,7 @@
     "@thymian/rfc-9110-rules": "^0",
     "@thymian/sampler": "^0",
     "@thymian/websocket-proxy": "^0",
+    "@thymian/evaluation": "^0",
     "ora": "^5.3.0",
     "tslib": "^2.3.0"
   },

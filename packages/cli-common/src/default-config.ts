@@ -19,6 +19,7 @@ export const defaultConfig: ThymianConfig = {
     },
     '@thymian/request-dispatcher': {},
     '@thymian/sampler': {},
+    '@thymian/evaluation': {},
     '@thymian/reporter': {
       options: {
         formatters: {
