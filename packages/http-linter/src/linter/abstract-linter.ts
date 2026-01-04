@@ -16,6 +16,12 @@ import type { Rule } from '../rule/rule.js';
 import type { RuleMeta } from '../rule/rule-meta.js';
 import type { RuleViolation } from '../rule/rule-violation.js';
 
+export function findDuplicates<T>(elements: T[]): T[] {
+  return elements.filter(
+    (element, index) => elements.indexOf(element) !== index,
+  );
+}
+
 export abstract class AbstractLinter {
   protected readonly rules: Rule[];
 
@@ -29,6 +35,14 @@ export abstract class AbstractLinter {
       Record<string, unknown> | undefined
     >,
   ) {
+    const duplicateRuleNames = findDuplicates(rules.map((r) => r.meta.name));
+
+    if (duplicateRuleNames.length > 0) {
+      throw new ThymianBaseError(
+        `Duplicate rule names found: ${duplicateRuleNames.join(', ')}`,
+      );
+    }
+
     this.rules = rules.filter(
       (r) => !(r.meta.type.length === 1 && r.meta.type[0] === 'informational'),
     );
