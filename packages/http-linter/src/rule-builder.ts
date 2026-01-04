@@ -260,5 +260,8 @@ class RuleBuilder<
 }
 
 export function httpRule(name: string): DefineRuleSeverity {
+  if (name.includes(' ')) {
+    throw new Error('Rule name cannot contain spaces: ' + name);
+  }
   return new RuleBuilder(name);
 }
