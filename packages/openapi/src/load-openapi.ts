@@ -15,7 +15,7 @@ import {
   ThymianBaseError,
   type ThymianFormat,
 } from '@thymian/core';
-import type { OpenAPIV3_1 } from 'openapi-types';
+import type { OpenAPI, OpenAPIV3_1 } from 'openapi-types';
 
 import { locMapperForFile } from './loc-mapper/loc-mapper-for-file.js';
 import { NoopLocMapper } from './loc-mapper/noop-loc-mapper.js';
@@ -24,6 +24,7 @@ import { OpenapiProcessor } from './processors/openapi.processor.js';
 
 export type LoadResult = {
   document: OpenAPIV3_1.Document;
+  original: OpenAPI.Document;
   filePath?: string;
 };
 
@@ -53,19 +54,30 @@ export async function loadOpenApi(
 export async function loadAndUpgrade(
   value: string,
   cwd: string = process.cwd(),
+  logger: Logger,
 ): Promise<LoadResult> {
   try {
     const [result, filePath] = await loadOpenApi(value, cwd);
 
+    logger.debug(`Loaded OpenAPI document.`);
+
     await validate(result, { throwOnError: true });
 
-    const upgradedObject = upgrade(result, '3.1');
+    logger.debug(`Successfully validated OpenAPI document.`);
+
+    const upgradedObject = upgrade(structuredClone(result), '3.1');
+
+    logger.debug(`Upgraded OpenAPI document.`);
+
     const dereferenced = dereference(upgradedObject, {
       throwOnError: true,
     }).schema as OpenAPIV3_1.Document;
 
+    logger.debug(`Dereferenced OpenAPI document.`);
+
     return {
       document: dereferenced,
+      original: result as OpenAPI.Document,
       filePath: filePath ? filePath : undefined,
     };
   } catch (e) {
@@ -118,13 +130,15 @@ export async function loadAndTransform(
     format?: ThymianFormat;
     sourceName?: string;
   },
-): Promise<[OpenAPIV3_1.Document, ThymianFormat, string | undefined]> {
-  const loadResult = await loadAndUpgrade(value, options.cwd);
+): Promise<[OpenAPI.Document, ThymianFormat, string | undefined]> {
+  const loadResult = await loadAndUpgrade(value, options.cwd, options.logger);
 
   const result = await openapiToThymianFormat(loadResult.document, {
     ...options,
     filePath: loadResult.filePath,
   });
 
-  return [loadResult.document, result, loadResult.filePath];
+  options.logger.debug('Transformed OpenAPI document into Thymian format.');
+
+  return [loadResult.original, result, loadResult.filePath];
 }
