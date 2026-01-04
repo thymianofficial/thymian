@@ -1,4 +1,3 @@
-import { ReplaySubject, Subject } from 'rxjs';
 import semver from 'semver';
 
 import packageJson from '../package.json' with { type: 'json' };

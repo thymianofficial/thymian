@@ -1,4 +1,3 @@
-import { settings } from '@oclif/core';
 import type { CommandError } from '@oclif/core/interfaces';
 import { BaseCliRunCommand } from '@thymian/cli-common';
 import ora, { type Ora } from 'ora';
