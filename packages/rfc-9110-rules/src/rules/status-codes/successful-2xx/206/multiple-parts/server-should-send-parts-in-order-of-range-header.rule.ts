@@ -1,7 +1,7 @@
 import { httpRule } from '@thymian/http-linter';
 
 export default httpRule(
-  'rfc9110/ server-should-send-parts-in-order-of-range-header',
+  'rfc9110/server-should-send-parts-in-order-of-range-header',
 )
   .severity('warn')
   .type('informational')

@@ -1,7 +1,7 @@
 import { httpRule } from '@thymian/http-linter';
 
 export default httpRule(
-  'rfc9110/server-must-not-generate-content-for-205-response',
+  'rfc9110/client-must-inspect-206-response-content-type-and-range',
 )
   .severity('error')
   .type('informational')
