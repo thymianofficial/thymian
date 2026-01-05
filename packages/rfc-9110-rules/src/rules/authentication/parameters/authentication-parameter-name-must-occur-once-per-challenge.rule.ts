@@ -1,40 +1,37 @@
-import { or, responseHeader, type ThymianHttpResponse } from '@thymian/core';
+import { getHeader, or, requestHeader, responseHeader } from '@thymian/core';
 import { httpRule } from '@thymian/http-linter';
 
 import { parseChallenges } from '../utils/auth-parser.js';
+import {
+  requestAuthenticationHeaders,
+  responseAuthenticationHeaders,
+} from '../utils/authentication-header-names.js';
 
 export default httpRule(
   'rfc9110/authentication-parameter-name-must-occur-once-per-challenge',
 )
   .severity('error')
-  .type('static', 'analytics')
+  .type('test', 'analytics')
   .url(
     'https://www.rfc-editor.org/rfc/rfc9110.html#name-authentication-parameters',
   )
   .description(
     'Authentication parameter names are matched case-insensitively and each parameter name MUST only occur once per challenge.',
   )
-  .appliesTo('server', 'proxy')
   .rule((ctx) =>
-    ctx.validateCommonHttpTransactions(
+    ctx.validateHttpTransactions(
       or(
-        responseHeader('www-authenticate'),
-        responseHeader('proxy-authenticate'),
+        ...requestAuthenticationHeaders.map((h) => requestHeader(h)),
+        ...responseAuthenticationHeaders.map((h) => responseHeader(h)),
       ),
       (req, res) => {
-        const fullResponse = ctx.format.getNode<ThymianHttpResponse>(res.id);
-        if (!fullResponse) return false;
-
-        const wwwAuth = fullResponse.headers['www-authenticate'];
-        const proxyAuth = fullResponse.headers['proxy-authenticate'];
-
         const headers = [
-          ...(Array.isArray(wwwAuth) ? wwwAuth : wwwAuth ? [wwwAuth] : []),
-          ...(Array.isArray(proxyAuth)
-            ? proxyAuth
-            : proxyAuth
-              ? [proxyAuth]
-              : []),
+          ...requestAuthenticationHeaders.flatMap(
+            (header) => getHeader(req.headers, header) ?? [],
+          ),
+          ...responseAuthenticationHeaders.flatMap(
+            (header) => getHeader(res.headers, header) ?? [],
+          ),
         ];
 
         for (const headerValue of headers) {
