@@ -49,29 +49,29 @@ The **static context** validates API specifications without making any HTTP call
 
 ### Advantages
 
-✅ **Very fast** — No network latency, validates in milliseconds
-✅ **No dependencies** — Doesn't require a running API
-✅ **Comprehensive coverage** — Checks all defined endpoints
-✅ **Early feedback** — Catches issues before implementation
+- ✅ **Very fast** — No network latency, validates in milliseconds
+- ✅ **No dependencies** — Doesn't require a running API
+- ✅ **Comprehensive coverage** — Checks all defined endpoints
+- ✅ **Early feedback** — Catches issues before implementation
 
 ### Limitations
 
-❌ **Spec-only** — Can't validate actual API behavior
-❌ **No runtime checks** — Can't detect implementation issues
-❌ **Limited to definitions** — Only validates what's documented
+- ❌ **Spec-only** — Can't validate actual API behavior
+- ❌ **No runtime checks** — Can't detect implementation issues
+- ❌ **Limited to definitions** — Only validates what's documented
 
 ### Example Usage
 
 ```typescript
 import { httpRule } from '@thymian/http-linter';
-import { and, method, statusCode, not, responseHeader } from '@thymian/core';
+import { statusCode, not, responseHeader } from '@thymian/core';
 
-export default httpRule('post-201-location-in-spec')
-  .severity('error')
+export default httpRule('require-rate-limit-headers')
+  .severity('warn')
   .type('static') // Static context only
-  .description('POST endpoints returning 201 must define Location header')
+  .description('All responses must define rate limiting headers')
   .appliesTo('server')
-  .rule((ctx) => ctx.validateCommonHttpTransactions(and(method('POST'), statusCode(201)), not(responseHeader('location'))))
+  .rule((ctx) => ctx.validateCommonHttpTransactions(statusCode(200), not(responseHeader('x-ratelimit-limit'))))
   .done();
 ```
 
@@ -142,31 +142,30 @@ The **test context** generates and executes HTTP requests against a live API. It
 
 ### Advantages
 
-✅ **Tests real implementation** — Validates actual behavior
-✅ **Discovers runtime issues** — Finds problems specs don't catch
-✅ **Verifies compliance** — Confirms servers follow standards
-✅ **Active probing** — Tests edge cases and error scenarios
+- ✅ **Tests real implementation** — Validates actual behavior
+- ✅ **Discovers runtime issues** — Finds problems specs don't catch
+- ✅ **Verifies compliance** — Confirms servers follow standards
+- ✅ **Active probing** — Tests edge cases and error scenarios
 
 ### Limitations
 
-❌ **Speed depends on API** — Performance varies based on endpoint response times and network conditions
-❌ **Requires running API** — Can't test without deployment
-❌ **May affect state** — Tests can modify data
-❌ **Limited coverage** — Only tests what you configure
+- ❌ **Speed depends on API** — Performance varies based on endpoint response times and network conditions
+- ❌ **Requires running API** — Can't test without deployment
+- ❌ **May affect state** — Tests can modify data
+- ❌ **Limited coverage** — Only tests what you configure
 
 ### Example Usage
 
 ```typescript
 import { httpRule } from '@thymian/http-linter';
-import { statusCode, not, responseHeader } from '@thymian/core';
-import { singleTestCase } from '@thymian/http-testing';
+import { not, responseHeader } from '@thymian/core';
 
-export default httpRule('test-401-auth-header')
+export default httpRule('test-request-id-propagation')
   .severity('error')
   .type('test') // Test context only
-  .description('Live API must return WWW-Authenticate on 401')
+  .description('Live API must return X-Request-ID for request tracking')
   .appliesTo('server')
-  .rule((ctx) => ctx.validateCommonHttpTransactions(statusCode(401), not(responseHeader('www-authenticate'))))
+  .rule((ctx) => ctx.validateCommonHttpTransactions(not(responseHeader('x-request-id'))))
   .done();
 ```
 
@@ -250,17 +249,17 @@ The **analytics context** validates recorded HTTP transactions stored in a SQLit
 
 ### Advantages
 
-✅ **Real-world data** — Validates actual usage patterns
-✅ **No impact** — Passive analysis, doesn't affect services
-✅ **Historical analysis** — Can analyze past traffic
-✅ **SQL optimization** — Efficient queries on large datasets
+- ✅ **Real-world data** — Validates actual usage patterns
+- ✅ **No impact** — Passive analysis, doesn't affect services
+- ✅ **Historical analysis** — Can analyze past traffic
+- ✅ **SQL optimization** — Efficient queries on large datasets
 
 ### Limitations
 
-❌ **Requires recorded data** — Need traffic collection
-❌ **Passive only** — Can't test, only analyze
-❌ **Coverage depends on traffic** — Only checks what was recorded
-❌ **After the fact** — Discovers issues after they occurred
+- ❌ **Requires recorded data** — Need traffic collection
+- ❌ **Passive only** — Can't test, only analyze
+- ❌ **Coverage depends on traffic** — Only checks what was recorded
+- ❌ **After the fact** — Discovers issues after they occurred
 
 ### Example Usage
 
@@ -293,15 +292,13 @@ The analytics context automatically compiles filter expressions to SQL for effic
 
 ```typescript
 // This filter...
-ctx.validateCommonHttpTransactions(and(method('POST'), statusCode(201)), not(responseHeader('location')));
+ctx.validateCommonHttpTransactions(not(responseHeader('x-correlation-id')));
 
 // ...is compiled to SQL like:
 // SELECT * FROM http_transactions
-// WHERE request_method = 'POST'
-// AND response_status = 201
-// AND NOT EXISTS (
-//   SELECT 1 FROM response_headers
-//   WHERE header_name = 'location'
+// WHERE NOT EXISTS (
+//   SELECT 1 FROM request_headers
+//   WHERE header_name = 'x-correlation-id'
 // )
 ```
 

@@ -85,19 +85,19 @@ Always end with `.done()`:
 
 ## Complete Example
 
-Here's a complete rule that ensures POST requests returning 201 include a Location header:
+Here's a complete rule that enforces API versioning through custom headers:
 
 ```typescript
 import { httpRule } from '@thymian/http-linter';
-import { and, method, statusCode, not, responseHeader } from '@thymian/core';
+import { not, requestHeader } from '@thymian/core';
 
-export default httpRule('post-201-requires-location')
+export default httpRule('require-api-version-header')
   .severity('error')
   .type('static', 'analytics', 'test')
-  .url('https://www.rfc-editor.org/rfc/rfc9110.html#status.201')
-  .description('POST requests that return 201 must include Location header')
-  .appliesTo('server')
-  .rule((ctx) => ctx.validateCommonHttpTransactions(and(method('POST'), statusCode(201)), not(responseHeader('location'))))
+  .url('https://api-guidelines.mycompany.com/versioning')
+  .description('All API requests must include X-API-Version header')
+  .appliesTo('client')
+  .rule((ctx) => ctx.validateCommonHttpTransactions(not(requestHeader('x-api-version'))))
   .done();
 ```
 
@@ -206,37 +206,37 @@ export default httpRule('errors-use-problem-details')
   .done();
 ```
 
-### Example 2: Validate Authentication Flow
+### Example 2: Enforce Correlation ID Tracking
 
-Check that 401 responses include proper authentication challenges:
+Ensure distributed tracing by requiring correlation IDs:
 
 ```typescript
 import { httpRule } from '@thymian/http-linter';
-import { statusCode, not, responseHeader } from '@thymian/core';
+import { not, requestHeader } from '@thymian/core';
 
-export default httpRule('401-requires-auth-challenge')
-  .severity('error')
-  .type('static', 'analytics', 'test')
-  .description('401 responses must include WWW-Authenticate header')
-  .appliesTo('server')
-  .rule((ctx) => ctx.validateCommonHttpTransactions(statusCode(401), not(responseHeader('www-authenticate'))))
+export default httpRule('require-correlation-id')
+  .severity('warn')
+  .type('static', 'analytics')
+  .description('Requests should include X-Correlation-ID for distributed tracing')
+  .appliesTo('client')
+  .rule((ctx) => ctx.validateCommonHttpTransactions(not(requestHeader('x-correlation-id'))))
   .done();
 ```
 
-### Example 3: Prevent Breaking Changes
+### Example 3: Require Deprecation Headers
 
-Ensure endpoints don't return 410 Gone for resources that should exist:
+Ensure deprecated endpoints include proper sunset notices:
 
 ```typescript
 import { httpRule } from '@thymian/http-linter';
-import { and, statusCode, path } from '@thymian/core';
+import { and, path, not, responseHeader } from '@thymian/core';
 
-export default httpRule('no-410-on-active-endpoints')
+export default httpRule('deprecated-endpoints-require-sunset')
   .severity('error')
-  .type('analytics')
-  .description('Active API endpoints should not return 410 Gone')
+  .type('static', 'analytics')
+  .description('Deprecated API endpoints must include Sunset header')
   .appliesTo('server')
-  .rule((ctx) => ctx.validateCommonHttpTransactions(and(path('/api/*'), statusCode(410))))
+  .rule((ctx) => ctx.validateCommonHttpTransactions(and(path('/api/v1/*')), not(responseHeader('sunset'))))
   .done();
 ```
 

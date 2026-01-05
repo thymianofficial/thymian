@@ -82,12 +82,12 @@ flowchart TB
 **Example:**
 
 ```typescript
-// Validates that all 201 responses define a Location header in the spec
+// Validates that paginated responses define Link header in the spec
 .type('static')
 .rule((ctx) =>
   ctx.validateCommonHttpTransactions(
-    statusCode(201),
-    not(responseHeader('location'))
+    and(statusCode(200), path('/api/*/list')),
+    not(responseHeader('link'))
   )
 )
 ```

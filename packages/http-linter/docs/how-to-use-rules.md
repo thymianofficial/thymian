@@ -150,7 +150,7 @@ Filter which rules execute:
 ```typescript
 {
   ruleFilter: {
-    names: ['post-201-requires-location', '401-requires-auth-header'];
+    names: ['require-api-version-header', 'require-correlation-id'];
   }
 }
 ```
@@ -175,8 +175,8 @@ Some rules accept configuration. Pass options via `ruleOptions`:
 {
   rules: ['./rules/**/*.rule.ts'],
   ruleOptions: {
-    'server-must-send-www-authenticate-header-for-401-response': {
-      checkAllSecured: true
+    'require-api-version-header': {
+      allowedVersions: ['v1', 'v2', 'v3']
     }
   }
 }

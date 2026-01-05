@@ -61,14 +61,14 @@ Validate that your implementation matches your specification:
 
 ```typescript
 import { httpRule } from '@thymian/http-linter';
-import { and, method, statusCode, not, responseHeader } from '@thymian/core';
+import { not, requestHeader } from '@thymian/core';
 
-export default httpRule('post-201-requires-location')
+export default httpRule('require-api-version-header')
   .severity('error')
   .type('static', 'test') // Spec AND implementation
-  .description('POST requests returning 201 must include Location header')
-  .appliesTo('server')
-  .rule((ctx) => ctx.validateCommonHttpTransactions(and(method('POST'), statusCode(201)), not(responseHeader('location'))))
+  .description('All API requests must include X-API-Version header')
+  .appliesTo('client')
+  .rule((ctx) => ctx.validateCommonHttpTransactions(not(requestHeader('x-api-version'))))
   .done();
 ```
 
@@ -440,14 +440,14 @@ Each rule should validate one thing:
 
 ```typescript
 // ✅ Good: Focused validation
-httpRule('post-201-has-location')
-  .type('static', 'test')
+httpRule('require-correlation-id')
+  .type('static', 'analytics')
   .rule((ctx) => {
     /* single concern */
   });
 
 // ❌ Avoid: Multiple concerns in one rule
-httpRule('post-requirements') // Too broad
+httpRule('request-requirements') // Too broad
   .rule((ctx) => {
     /* validates multiple things */
   });
