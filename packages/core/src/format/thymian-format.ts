@@ -1,9 +1,9 @@
 import { createHash } from 'node:crypto';
 
-import stringify from 'fast-json-stable-stringify';
 import { MultiDirectedGraph } from 'graphology';
 import type { SerializedGraph } from 'graphology-types';
 import { match } from 'path-to-regexp';
+import stringify from 'safe-stable-stringify';
 
 import type { HttpRequest, HttpResponse } from '../http.js';
 import {
@@ -727,6 +727,10 @@ export class ThymianFormat {
   }
 
   private hashObj(obj: unknown): string {
+    if (typeof obj === 'undefined') {
+      return '';
+    }
+
     return createHash('sha1').update(stringify(obj)).digest('hex');
   }
 }
