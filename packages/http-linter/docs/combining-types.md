@@ -150,10 +150,10 @@ export default httpRule('rule-with-overrides')
 
 Override a specific context when:
 
-✅ Common interface is insufficient for that context
-✅ You need access to context-specific APIs
-✅ Performance optimization is needed
-✅ The logic fundamentally differs between contexts
+- ✅ Common interface is insufficient for that context
+- ✅ You need access to context-specific APIs
+- ✅ Performance optimization is needed
+- ✅ The logic fundamentally differs between contexts
 
 ### Example: Override Test Context
 
