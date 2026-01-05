@@ -26,26 +26,25 @@ HTTP linting addresses these challenges by providing automated validation that r
 
 ## Quick Start
 
-Here's a simple rule that ensures all 401 responses include a `WWW-Authenticate` header:
+Here's a simple custom rule that enforces API versioning across your organization:
 
 ```typescript
 import { httpRule } from '@thymian/http-linter';
-import { statusCode, not, responseHeader } from '@thymian/core';
+import { path, not } from '@thymian/core';
 
-export default httpRule('ensure-401-has-auth-header')
+export default httpRule('api-must-include-version-in-path')
   .severity('error')
-  .type('static', 'analytics', 'test')
-  .description('401 responses must include WWW-Authenticate header')
+  .type('static', 'analytics')
+  .description('All API endpoints must include /v{number}/ in path for versioning')
   .appliesTo('server')
-  .rule((ctx) => ctx.validateCommonHttpTransactions(statusCode(401), not(responseHeader('www-authenticate'))))
+  .rule((ctx) => ctx.validateCommonHttpTransactions(path('/api/'), not(path('/api/v\\d+/'))))
   .done();
 ```
 
-This rule automatically validates:
+This custom organizational rule automatically validates:
 
-- **Static specs** — Checks OpenAPI definitions
-- **Live tests** — Tests running API endpoints
-- **Traffic analysis** — Validates recorded HTTP transactions
+- **Static specs** — Checks OpenAPI definitions during design
+- **Traffic analysis** — Validates recorded HTTP transactions from production
 
 ## Use Cases
 
@@ -63,10 +62,10 @@ Validate that your running API matches its specification by applying the same ru
 Create organization-wide rules for consistent API behavior:
 
 ```typescript
-// Ensure all successful POST requests return 201
-httpRule('post-must-return-201')
-  .type('static', 'analytics')
-  .rule((ctx) => ctx.validateCommonHttpTransactions(and(method('POST'), successfulStatusCode()), not(statusCode(201))))
+// Ensure all authenticated endpoints include rate limit headers
+httpRule('authenticated-endpoints-must-include-rate-limits')
+  .type('analytics', 'test')
+  .rule((ctx) => ctx.validateCommonHttpTransactions(and(authorization(), successfulStatusCode()), not(responseHeader('x-ratelimit-remaining'))))
   .done();
 ```
 
