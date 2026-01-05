@@ -26,11 +26,13 @@ flowchart TD
 
 Each context provides different capabilities and trade-offs:
 
-| Context       | Speed        | Network | Data Source      | Use Case              |
-| ------------- | ------------ | ------- | ---------------- | --------------------- |
-| **Static**    | ⚡ Very Fast | No      | OpenAPI spec     | Design validation     |
-| **Test**      | 🐢 Slow      | Yes     | Live API         | Integration testing   |
-| **Analytics** | ⚡ Fast      | No      | Recorded traffic | Production monitoring |
+| Context       | Speed         | Network | Data Source      | Use Case              |
+| ------------- | ------------- | ------- | ---------------- | --------------------- |
+| **Static**    | ⚡ Very Fast  | No      | OpenAPI spec     | Design validation     |
+| **Test**      | ⏱️ Variable\* | Yes     | Live API         | Integration testing   |
+| **Analytics** | ⚡ Fast       | No      | Recorded traffic | Production monitoring |
+
+_\*Test speed depends on API endpoint performance and network conditions_
 
 ## Static Context
 
@@ -147,7 +149,7 @@ The **test context** generates and executes HTTP requests against a live API. It
 
 ### Limitations
 
-❌ **Slow** — Network latency for each request
+❌ **Speed depends on API** — Performance varies based on endpoint response times and network conditions
 ❌ **Requires running API** — Can't test without deployment
 ❌ **May affect state** — Tests can modify data
 ❌ **Limited coverage** — Only tests what you configure
@@ -352,10 +354,12 @@ export default httpRule('analyze-auth-flow')
 
 | Aspect               | Static    | Test          | Analytics   |
 | -------------------- | --------- | ------------- | ----------- |
-| **Validation Speed** | < 1ms     | 10-1000ms     | < 10ms      |
+| **Validation Speed** | < 1ms     | 10-1000ms\*   | < 10ms      |
 | **Setup Time**       | None      | Server start  | Data import |
 | **Resource Usage**   | Minimal   | Network + CPU | Disk + CPU  |
 | **Scalability**      | Excellent | Poor          | Good        |
+
+_\*Depends on API endpoint response times_
 
 ### Coverage Characteristics
 

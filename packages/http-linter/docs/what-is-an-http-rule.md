@@ -146,12 +146,14 @@ flowchart TB
 
 | Feature           | Static                | Test                  | Analytics         |
 | ----------------- | --------------------- | --------------------- | ----------------- |
-| **Speed**         | ⚡ Very Fast          | 🐢 Slow               | ⚡ Fast           |
+| **Speed**         | ⚡ Very Fast          | ⏱️ Variable\*         | ⚡ Fast           |
 | **Data Source**   | OpenAPI spec          | Live API              | Recorded traffic  |
 | **Network Calls** | No                    | Yes                   | No                |
 | **When to Run**   | Design & dev          | CI/CD & dev           | Production & QA   |
 | **Catches**       | Spec issues           | Implementation issues | Real-world issues |
 | **Coverage**      | All defined endpoints | Tested endpoints      | Used endpoints    |
+
+_\*Test speed depends on API endpoint performance and network conditions_
 
 ## The Common Interface
 

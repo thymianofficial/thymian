@@ -125,7 +125,8 @@ Use one filter when matching it is itself the violation:
 ```typescript
 .rule((ctx) =>
   ctx.validateCommonHttpTransactions(
-    and(method('GET'), hasRequestBody())  // GET with body IS the violation
+    and(method('GET'), statusCode(200)), // For a successful GET
+    not(hasResponseBody())               // It is a violation if it has NO body
   )
 )
 ```
