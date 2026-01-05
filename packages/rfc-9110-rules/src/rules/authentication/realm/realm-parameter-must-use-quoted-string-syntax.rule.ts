@@ -1,4 +1,9 @@
-import { equalsIgnoreCase, or, responseHeader } from '@thymian/core';
+import {
+  equalsIgnoreCase,
+  or,
+  responseHeader,
+  type ThymianHttpResponse,
+} from '@thymian/core';
 import { httpRule } from '@thymian/http-linter';
 
 import { parseChallenges } from '../utils/auth-parser.js';
@@ -20,8 +25,12 @@ export default httpRule('rfc9110/realm-parameter-must-use-quoted-string-syntax')
         responseHeader('proxy-authenticate'),
       ),
       (_req, res) => {
-        const wwwAuth = res.headers['www-authenticate'] ?? [];
-        const proxyAuth = res.headers['proxy-authenticate'] ?? [];
+        const fullResponse = ctx.format.getNode<ThymianHttpResponse>(res.id);
+        if (!fullResponse) return false;
+
+        const wwwAuth = fullResponse.headers['www-authenticate'];
+        const proxyAuth = fullResponse.headers['proxy-authenticate'];
+
         const authHeaders = [
           ...(Array.isArray(wwwAuth) ? wwwAuth : [wwwAuth]),
           ...(Array.isArray(proxyAuth) ? proxyAuth : [proxyAuth]),

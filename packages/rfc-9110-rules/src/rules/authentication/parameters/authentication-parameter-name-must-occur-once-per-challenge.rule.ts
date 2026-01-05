@@ -1,4 +1,4 @@
-import { or, responseHeader } from '@thymian/core';
+import { or, responseHeader, type ThymianHttpResponse } from '@thymian/core';
 import { httpRule } from '@thymian/http-linter';
 
 import { parseChallenges } from '../utils/auth-parser.js';
@@ -22,8 +22,11 @@ export default httpRule(
         responseHeader('proxy-authenticate'),
       ),
       (req, res) => {
-        const wwwAuth = res.headers['www-authenticate'];
-        const proxyAuth = res.headers['proxy-authenticate'];
+        const fullResponse = ctx.format.getNode<ThymianHttpResponse>(res.id);
+        if (!fullResponse) return false;
+
+        const wwwAuth = fullResponse.headers['www-authenticate'];
+        const proxyAuth = fullResponse.headers['proxy-authenticate'];
 
         const headers = [
           ...(Array.isArray(wwwAuth) ? wwwAuth : wwwAuth ? [wwwAuth] : []),
