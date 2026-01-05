@@ -2,12 +2,12 @@ import assert from 'node:assert';
 
 import {
   getHeader,
+  type HttpFilterExpression,
   type HttpRequest,
   type HttpResponse,
   type ReportFn,
   type ThymianHttpTransaction,
 } from '@thymian/core';
-import { type HttpFilterExpression } from '@thymian/core';
 import {
   type AssertionFailure,
   filter,
@@ -26,24 +26,25 @@ import {
   runRequests,
 } from '@thymian/http-testing';
 
-import type { RuleFnResult } from '../rule/rule-fn.js';
+import type { RuleFnResult } from '../../rule/rule-fn.js';
 import type {
   RuleViolation,
   RuleViolationLocation,
-} from '../rule/rule-violation.js';
+} from '../../rule/rule-violation.js';
 import {
   type CommonHttpRequest,
   type CommonHttpResponse,
   LiveApiContext,
   type ValidationFn,
-} from './api-context.js';
+} from '../api-context.js';
 import {
   compileExpressionToFilterFn,
   compileExpressionToGroupByFn,
   compileExpressionToValidateFn,
   thymianToCommonHttpRequest,
   thymianToCommonHttpResponse,
-} from './utils.js';
+} from '../utils.js';
+import { httpFilterToTransactionValidationFn } from './compilers/http-filter-to-transaction-validation-fn.js';
 
 function extractMediaType(req: HttpRequest): string {
   if (!req.headers) {
@@ -373,5 +374,86 @@ export class HttpTestApiContext<
         throw e;
       }
     }
+  }
+
+  override async validateHttpTransactions(
+    filterExpr: HttpFilterExpression,
+    validation:
+      | ValidationFn<[HttpRequest, HttpResponse]>
+      | HttpFilterExpression = filterExpr,
+  ): Promise<RuleFnResult> {
+    const filterFn = compileExpressionToFilterFn(filterExpr, this.format);
+    const validationFn =
+      typeof validation === 'function'
+        ? validation
+        : httpFilterToTransactionValidationFn(validation);
+
+    const test = httpTest(this.name, (transactions) =>
+      transactions.pipe(
+        filter(({ current }) =>
+          filterFn(
+            thymianToCommonHttpRequest(
+              current.thymianReqId,
+              current.thymianReq,
+            ),
+            thymianToCommonHttpResponse(
+              current.thymianResId,
+              current.thymianRes,
+            ),
+            this.getCommonHttpResponsesOfRequest(current.thymianReqId),
+            current.transactionId,
+          ),
+        ),
+        mapToTestCase(),
+        generateRequests(),
+        runRequests(),
+      ),
+    );
+
+    const testResult = await test(this.ctx);
+
+    this.reportSkippedAndFailedTestCases(testResult);
+
+    return testResult.cases
+      .filter((testCase) => testCase.status === 'passed')
+      .flatMap((testCase) =>
+        testCase.steps.flatMap((step) => {
+          const violations: RuleViolation[] = [];
+
+          for (const transaction of step.transactions) {
+            const { request, response, source } = transaction;
+
+            if (!request || !response || !source) {
+              throw new Error();
+            }
+
+            const validationResult = validationFn(request, response);
+
+            if (typeof validationResult === 'boolean' && validationResult) {
+              violations.push({
+                location: {
+                  elementType: 'edge',
+                  elementId: source.transactionId,
+                  pointer: '',
+                } satisfies RuleViolationLocation,
+              });
+            }
+
+            if (validationResult && typeof validationResult === 'object') {
+              violations.push({
+                location: {
+                  elementType: 'edge',
+                  elementId: source.transactionId,
+                  pointer: '',
+                },
+                ...validationResult,
+              });
+            }
+          }
+
+          return violations;
+        }),
+      )
+      .concat(this.violations);
   }
 }

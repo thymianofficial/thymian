@@ -251,7 +251,7 @@ export function visitHttpFilter<TResult>(
   }
 }
 
-export function createFilterVisitor<T extends (...args: unknown[]) => boolean>(
+export function createFilterVisitor<T extends (...args: any[]) => boolean>(
   visitor: HttpFilterVisitor<T>,
 ): HttpFilterVisitor<T> {
   const extendedVisitor: HttpFilterVisitor<T> = {

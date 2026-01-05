@@ -1,5 +1,5 @@
 import type { AnalyticsApiContext } from '../api-context/analytics-api-context/analytics-api-context.js';
-import type { HttpTestApiContext } from '../api-context/http-test-api-context.js';
+import type { HttpTestApiContext } from '../api-context/http-test-api-context/http-test-api-context.js';
 import type { StaticApiContext } from '../api-context/static-api-context.js';
 import type { RuleFn } from './rule-fn.js';
 import type { RuleMeta } from './rule-meta.js';

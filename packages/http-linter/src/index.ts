@@ -26,7 +26,7 @@ import { type RuleSeverity, severityLevels } from './rule/rule-severity.js';
 import { createRuleFilter } from './rule-filter.js';
 
 export * from './api-context/api-context.js';
-export * from './api-context/http-test-api-context.js';
+export * from './api-context/http-test-api-context/http-test-api-context.js';
 export * from './api-context/static-api-context.js';
 export * from './api-context/utils.js';
 export * from './rule/rule.js';

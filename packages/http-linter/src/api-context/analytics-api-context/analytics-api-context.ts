@@ -19,11 +19,8 @@ import {
 import {
   httpRequestToCommonHttpRequest,
   httpResponseToCommonHttpResponse,
-} from '../http-test-api-context.js';
-import {
-  compileExpressionToGroupByFn,
-  compileExpressionToValidateFn,
-} from '../utils.js';
+} from '../http-test-api-context/http-test-api-context.js';
+import { compileExpressionToGroupByFn } from '../utils.js';
 import { httpFilterToCommonFilter } from './compilers/http-filter-to-common-filter.js';
 import { httpFilterToGroupedCommonFilter } from './compilers/http-filter-to-grouped-common-filter.js';
 
@@ -153,6 +150,58 @@ export class AnalyticsApiContext extends LiveApiContext {
       if (violation) {
         results.push(violation);
       }
+    }
+
+    return results;
+  }
+
+  override validateHttpTransactions(
+    filter: HttpFilterExpression,
+    validation:
+      | ValidationFn<[HttpRequest, HttpResponse]>
+      | HttpFilterExpression = filter,
+  ): Promise<RuleFnResult> | RuleFnResult {
+    let finalFilter!: HttpFilterExpression;
+    let validateFn!: ValidationFn<[HttpRequest, HttpResponse]>;
+
+    if (typeof validation === 'function') {
+      finalFilter = filter;
+      validateFn = validation;
+    } else {
+      finalFilter = and(filter, validation);
+      validateFn = () => true;
+    }
+
+    const { sql, params } = httpFilterToCommonFilter(finalFilter);
+
+    this.logger.debug('Executing SQL query:', sql);
+
+    const statement = this.repository.db.prepare<unknown[], { id: string }>(
+      sql,
+    );
+
+    const results: RuleFnResult = [];
+
+    for (const transaction of statement.iterate(...params)) {
+      const [req, res] = this.repository.readTransactionById(transaction.id);
+      const matched = this.format.matchTransaction(req, res);
+
+      if (!matched) {
+        throw new Error('Invalid HTTP transaction ID.');
+      }
+
+      const [transactionId] = matched;
+
+      const violation = validateFn(req, res);
+
+      results.push({
+        location: {
+          elementType: 'edge',
+          elementId: transactionId,
+          pointer: '',
+        },
+        ...(violation === true ? {} : violation),
+      });
     }
 
     return results;
