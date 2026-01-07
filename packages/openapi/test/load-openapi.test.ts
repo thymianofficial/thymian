@@ -29,13 +29,21 @@ const swaggerDocument = {
 describe('load-openapi', () => {
   describe('loadAndUpgrade', () => {
     it('loads and upgrades swagger document from JSON string', async () => {
-      const result = await loadAndUpgrade(JSON.stringify(swaggerDocument));
+      const result = await loadAndUpgrade(
+        JSON.stringify(swaggerDocument),
+        process.cwd(),
+        new NoopLogger(),
+      );
 
       expect(result.document.openapi).toBe('3.1.1');
     });
 
     it('loads and upgrades swagger document from YAML string', async () => {
-      const result = await loadAndUpgrade(yaml.stringify(swaggerDocument));
+      const result = await loadAndUpgrade(
+        yaml.stringify(swaggerDocument),
+        process.cwd(),
+        new NoopLogger(),
+      );
 
       expect(result.document.openapi).toBe('3.1.1');
     });
@@ -43,6 +51,8 @@ describe('load-openapi', () => {
     it('loads and upgrades swagger document from JSON file', async () => {
       const result = await loadAndUpgrade(
         join(import.meta.dirname, 'fixtures/simple-swagger.json'),
+        process.cwd(),
+        new NoopLogger(),
       );
 
       expect(result.document.openapi).toBe('3.1.1');
@@ -51,6 +61,8 @@ describe('load-openapi', () => {
     it('loads and upgrades swagger document from YAML file', async () => {
       const result = await loadAndUpgrade(
         join(import.meta.dirname, 'fixtures/simple-swagger.yaml'),
+        process.cwd(),
+        new NoopLogger(),
       );
 
       expect(result.document.openapi).toBe('3.1.1');
@@ -72,13 +84,34 @@ describe('load-openapi', () => {
 
       await started;
 
-      const result = await loadAndUpgrade('http://localhost:3412');
+      const result = await loadAndUpgrade(
+        'http://localhost:3412',
+        process.cwd(),
+        new NoopLogger(),
+      );
 
       expect(result.document.openapi).toBe('3.1.1');
 
       server.closeAllConnections();
 
       await new Promise((resolve) => server.close(resolve));
+    });
+
+    it('handles circular references', async () => {
+      const result = await loadAndUpgrade(
+        '/Users/matthias/University/openapi-directory/APIs/pocketsmith.com/2.0/openapi.yaml', // join(import.meta.dirname, 'fixtures/simple-swagger.yaml'),
+        process.cwd(),
+        new NoopLogger(),
+      );
+
+      await openapiToThymianFormat(result.document, {
+        serverInfo: {
+          port: 0,
+          host: '',
+          protocol: 'http',
+          basePath: '',
+        },
+      });
     });
   });
 
