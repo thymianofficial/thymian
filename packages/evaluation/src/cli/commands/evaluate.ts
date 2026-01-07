@@ -1,24 +1,9 @@
 import { createWriteStream, type WriteStream } from 'node:fs';
-import { isAbsolute, join, relative } from 'node:path';
+import { isAbsolute, join } from 'node:path';
 
-import { bundle } from '@scalar/json-magic/bundle';
-import {
-  parseJson,
-  parseYaml,
-  readFiles,
-} from '@scalar/json-magic/bundle/plugins/node';
-import { dereference, validate } from '@scalar/openapi-parser';
-import { upgrade } from '@scalar/openapi-upgrader';
-import { Args, Command, Flags } from '@thymian/cli-common/oclif';
-import {
-  isRecord,
-  NoopLogger,
-  TextLogger,
-  Thymian,
-  type ThymianReport,
-} from '@thymian/core';
+import { Args, Command } from '@thymian/cli-common/oclif';
+import { Thymian } from '@thymian/core';
 import httpLinterPlugin from '@thymian/http-linter';
-import openApiPlugin from '@thymian/openapi';
 import { Piscina } from 'piscina';
 import { glob } from 'tinyglobby';
 
@@ -47,15 +32,6 @@ export default class Evaluate extends Command {
     resultsFile: Args.file({
       required: false,
       default: 'results.csv',
-    }),
-  };
-
-  static override flags = {
-    'log-errors': Flags.boolean({
-      default: false,
-    }),
-    'log-std-out': Flags.boolean({
-      default: false,
     }),
   };
 
@@ -112,7 +88,7 @@ export default class Evaluate extends Command {
   }
 
   override async run(): Promise<void> {
-    const { args, flags } = await this.parse(Evaluate);
+    const { args } = await this.parse(Evaluate);
 
     this.log(`Evaluating directory: ${args.directory}`);
 
@@ -129,7 +105,7 @@ export default class Evaluate extends Command {
 
     this.log(`Found ${matches.length} OpenAPI/Swagger files.`);
 
-    await this.evaluate(matches, openapiCwd, flags['log-std-out']);
+    await this.evaluate(matches, openapiCwd);
   }
 
   private writeStream(content: string): Promise<void> {
@@ -148,24 +124,8 @@ export default class Evaluate extends Command {
     return this.writeLock;
   }
 
-  /*
-  export interface WorkerResult {
-  success: boolean;
-  title?: string;
-  version?: string;
-  violations: Record<string, number>;
-  reportsCount: {
-    error: number;
-    warn: number;
-    hint: number;
-    info: number;
-  };
-  errorMessage?: string;
-}
-   */
-
   private async writeReport(path: string, data: WorkerResult): Promise<void> {
-    let row = `${makeStringCsvSafe(data.title)},${makeStringCsvSafe(path)},${makeStringCsvSafe(data.version)},${data.success},${makeStringCsvSafe(data.errorMessage!)},${data.reportsCount.hint + data.reportsCount.warn + data.reportsCount.error},${data.reportsCount.error},${data.reportsCount.warn},${data.reportsCount.hint},`;
+    let row = `${makeStringCsvSafe(data.title)},${makeStringCsvSafe(path)},${makeStringCsvSafe(data.version)},${data.success},${makeStringCsvSafe(data.errorMessage)},${data.reportsCount.hint + data.reportsCount.warn + data.reportsCount.error},${data.reportsCount.error},${data.reportsCount.warn},${data.reportsCount.hint},`;
 
     const finalViolations = { ...this.ruleNames, ...data.violations };
 
@@ -178,46 +138,7 @@ export default class Evaluate extends Command {
     await this.writeStream(row);
   }
 
-  private async tryBundle(path: string): Promise<object> {
-    try {
-      return await bundle(path, {
-        plugins: [parseJson(), parseYaml(), readFiles()],
-        treeShake: false,
-      });
-    } catch (e) {
-      throw new Error(`cannot bundle`);
-    }
-  }
-
-  private async tryValidate(document: object): Promise<void> {
-    const validated = await validate(document, { throwOnError: false });
-
-    if (!validated.valid) {
-      throw new Error('invalid OpenAPI document');
-    }
-  }
-
-  private tryUpgrade(document: object): object {
-    try {
-      return upgrade(document, '3.1');
-    } catch (e) {
-      throw new Error('cannot upgrade');
-    }
-  }
-
-  private tryDereference(document: object): void {
-    try {
-      dereference(document);
-    } catch (e) {
-      throw new Error('cannot dereference');
-    }
-  }
-
-  private async evaluate(
-    matches: string[],
-    openApiDir: string,
-    useLogger: boolean,
-  ): Promise<void> {
+  private async evaluate(matches: string[], openApiDir: string): Promise<void> {
     // let evaluationCounter = 0;
     // const evaluationStart = performance.now();
     // const numberOfDocuments = matches.length;
@@ -334,6 +255,8 @@ export default class Evaluate extends Command {
     //
     // await this.closeStream();
 
+    matches.splice(0, 2595);
+
     const tasks = matches.map(async (match, idx) => {
       const filePath = join(openApiDir, match);
 
@@ -347,11 +270,11 @@ export default class Evaluate extends Command {
         await this.writeReport(join(openApiDir, match), result);
 
         if (!result.success) {
-          this.warn(`Analysis failed for ${match}: ${result.errorMessage}`);
+          // this.warn(`Analysis failed for ${match}.`);
         }
 
         return result.success;
-      } catch (err: any) {
+      } catch (_) {
         this.error(`WORKER CRASHED on file: ${match}. Skipping file.`, {
           exit: false,
         });
@@ -360,7 +283,7 @@ export default class Evaluate extends Command {
           success: false,
           violations: {},
           reportsCount: { error: 0, warn: 0, hint: 0, info: 0 },
-          errorMessage: 'Worker Crashed (OOM/StackOverflow)',
+          errorMessage: 'Worker Crashed',
           title: 'CRASH',
           version: 'unknown',
         });
@@ -378,7 +301,7 @@ export default class Evaluate extends Command {
     const successCount = results.filter((r) => r).length;
 
     this.log(
-      `Successfully processed ${successCount} / ${matches.length} files.`,
+      `Processed ${successCount} / ${matches.length} (${((successCount / matches.length) * 100).toPrecision(3)}%) files successfully.`,
     );
 
     await this.closeStream();
