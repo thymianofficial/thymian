@@ -648,10 +648,6 @@ export class ThymianFormat {
     };
   }
 
-  toJSON(): SerializedThymianFormat {
-    return this.export();
-  }
-
   // TODO must implement this feature. But before we should think about the node and edge ID generation
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   merge(format: ThymianFormat): ThymianFormat {
