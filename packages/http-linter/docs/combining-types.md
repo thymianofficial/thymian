@@ -3,7 +3,7 @@ title: 'Combining Different Rule Types'
 description: 'Writing hybrid rules that work across multiple contexts'
 ---
 
-One of the most powerful features of Thymian is the ability to write a single rule that works across multiple validation contexts. This prevents API drift and ensures consistent governance throughout the development lifecycle.
+One of the most powerful features of `@thymian/http-linter` is the ability to write a single rule that works across multiple validation contexts. This prevents API drift and ensures consistent governance throughout the development lifecycle.
 
 ## The Common Interface
 
@@ -344,41 +344,6 @@ This pattern works across all contexts because:
 - **Test** — Generates both GET and HEAD tests, then compares
 - **Analytics** — Groups recorded transactions by URL
 
-## Accessing Full Transaction Data
-
-When using the common interface but needing full transaction details:
-
-```typescript
-import { httpRule } from '@thymian/http-linter';
-import { responseHeader } from '@thymian/core';
-
-export default httpRule('validate-header-value')
-  .severity('error')
-  .type('static', 'analytics')
-  .description('Content-Type header must include charset for text types')
-  .appliesTo('server')
-  .rule((ctx) =>
-    ctx.validateCommonHttpTransactions(responseHeader('content-type'), (request, response) => {
-      // Access full response node
-      const fullResponse = ctx.format.getNode(response.id);
-      if (!fullResponse) return false;
-
-      // Get header value
-      const contentType = fullResponse.headers['content-type'];
-
-      // Custom validation
-      if (contentType.startsWith('text/') && !contentType.includes('charset')) {
-        return true; // Violation!
-      }
-
-      return false;
-    }),
-  )
-  .done();
-```
-
-This pattern works in all contexts because `ctx.format` is available everywhere.
-
 ## Best Practices
 
 ### 1. Start with Common Interface
@@ -418,23 +383,7 @@ Choose type combinations based on your needs:
 .type('static')  // When test or analytics would add value
 ```
 
-### 3. Document Why Overrides Are Used
-
-When overriding, add comments explaining why:
-
-```typescript
-.rule((ctx) => {
-  // Common logic works for static and analytics
-  return ctx.validateCommonHttpTransactions(...)
-})
-.overrideTest((ctx) => {
-  // Test needs custom logic to avoid testing all secured endpoints
-  // This prevents excessive load on the API during testing
-  return ctx.httpTest(...)
-})
-```
-
-### 4. Keep Rules Focused
+### 3. Keep Rules Focused
 
 Each rule should validate one thing:
 
@@ -451,67 +400,6 @@ httpRule('request-requirements') // Too broad
   .rule((ctx) => {
     /* validates multiple things */
   });
-```
-
-### 5. Test Hybrid Rules
-
-Ensure your hybrid rules work correctly in all specified contexts:
-
-```bash
-# Test static validation
-thymian run --mode static
-
-# Test with live API
-thymian run --mode test
-
-# Test with recorded traffic
-thymian run --mode analytics
-```
-
-## Troubleshooting
-
-### Rule Works in One Context but Not Others
-
-**Problem:** Rule passes in static but fails in test
-
-**Solution:** Check that your filters match differently between contexts:
-
-```typescript
-// Static context sees spec definitions
-// Test context sees actual responses
-// They may differ!
-
-.rule((ctx) =>
-  ctx.validateCommonHttpTransactions(
-    statusCode(201),
-    (req, res) => {
-      // Add logging to see what's different
-      console.log('Context:', ctx.constructor.name);
-      console.log('Response:', res);
-      return /* validation */;
-    }
-  )
-)
-```
-
-### Common Interface Feels Limiting
-
-**Problem:** Can't express complex logic with filters alone
-
-**Solution:** Use custom validation functions or context overrides:
-
-```typescript
-// Instead of complex filters...
-.rule((ctx) =>
-  ctx.validateCommonHttpTransactions(
-    responseHeader('cache-control'),
-    (req, res) => {
-      // Custom logic with full access
-      const fullResponse = ctx.format.getNode(res.id);
-      return customValidation(fullResponse);
-    }
-  )
-)
 ```
 
 ## Next Steps

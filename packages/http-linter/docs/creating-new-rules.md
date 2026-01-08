@@ -125,8 +125,7 @@ Use one filter when matching it is itself the violation:
 ```typescript
 .rule((ctx) =>
   ctx.validateCommonHttpTransactions(
-    and(method('GET'), statusCode(200)), // For a successful GET
-    not(hasResponseBody())               // It is a violation if it has NO body
+    and(method('GET'), statusCode(200), hasRequestBody()), // GET should not have request body
   )
 )
 ```
@@ -136,13 +135,14 @@ Use one filter when matching it is itself the violation:
 Use a function for complex logic that requires examining the transaction details:
 
 ```typescript
-.rule((ctx) =>
+import { getHeader } from '@thymian/core';
+
+.
+rule((ctx) =>
   ctx.validateCommonHttpTransactions(
     responseHeader('www-authenticate'),
     (request, response) => {
-      // Access the full response via ctx.format
-      const fullResponse = ctx.format.getNode(response.id);
-      const authHeader = fullResponse.headers['www-authenticate'];
+      const authHeader = getHeader(fullResponse.headers, 'www-authenticate');
 
       // Custom validation logic
       return !isValidAuthHeader(authHeader);
@@ -181,6 +181,7 @@ responseMediaType('application/json'); // Match content type
 and(method('POST'), statusCode(201)); // Both must match
 or(statusCode(301), statusCode(302)); // Either can match
 not(responseHeader('location')); // Must NOT match
+xor(...);
 ```
 
 ### Complete Filter Reference
@@ -246,18 +247,16 @@ When filters aren't sufficient, use custom validation functions:
 
 ```typescript
 import { httpRule } from '@thymian/http-linter';
-import { responseHeader } from '@thymian/core';
+import { responseHeader, getHeader } from '@thymian/core';
 
 export default httpRule('validate-cache-control-directives')
   .severity('warn')
-  .type('static', 'analytics')
+  .type('test', 'analytics')
   .description('Cache-Control header must include valid directives')
   .appliesTo('server')
   .rule((ctx) =>
-    ctx.validateCommonHttpTransactions(responseHeader('cache-control'), (request, response) => {
-      // Get full response to access header values
-      const fullResponse = ctx.format.getNode(response.id);
-      const cacheControl = fullResponse.headers['cache-control'];
+    ctx.validateHttpTransactions(responseHeader('cache-control'), (request, response) => {
+      const cacheControl = getHeader(response.headers, 'cache-control');
 
       // Custom parsing and validation
       const directives = parseCacheControl(cacheControl);
@@ -276,60 +275,6 @@ function hasValidDirectives(directives: any) {
   // Your validation logic
 }
 ```
-
-## File Organization
-
-Organize your rules logically:
-
-```
-rules/
-├── authentication/
-│   ├── 401-requires-www-authenticate.rule.ts
-│   └── authorization-header-format.rule.ts
-├── error-handling/
-│   ├── errors-use-problem-details.rule.ts
-│   └── 500-includes-content-type.rule.ts
-└── methods/
-    ├── get-no-body.rule.ts
-    └── post-returns-201.rule.ts
-```
-
-**Best practices:**
-
-- Group related rules in directories
-- Use descriptive file names ending in `.rule.ts`
-- Export default from each rule file
-- Keep rules focused on a single concern
-
-## Testing Your Rules
-
-To test your rules locally:
-
-1. **Create a test API specification or traffic sample**
-2. **Configure Thymian to load your rule:**
-
-```typescript
-// thymian.config.ts
-export default {
-  plugins: [
-    {
-      plugin: '@thymian/http-linter',
-      options: {
-        rules: ['./rules/**/*.rule.ts'],
-        modes: ['static'],
-      },
-    },
-  ],
-};
-```
-
-3. **Run Thymian:**
-
-```bash
-thymian run
-```
-
-4. **Verify violations are reported correctly**
 
 ## Common Pitfalls
 
@@ -362,32 +307,6 @@ and(method('GET'), method('POST'));
 
 // ✅ Use OR for alternatives
 or(method('GET'), method('POST'));
-```
-
-### 3. Not Handling Optional Values
-
-When using custom validation functions, check for undefined:
-
-```typescript
-.rule((ctx) =>
-  ctx.validateCommonHttpTransactions(
-    responseHeader('location'),
-    (request, response) => {
-      const fullResponse = ctx.format.getNode(response.id);
-
-      // ❌ May throw if header missing
-      const location = fullResponse.headers['location'];
-
-      // ✅ Check for existence first
-      if (!fullResponse || !fullResponse.headers['location']) {
-        return false;
-      }
-
-      const location = fullResponse.headers['location'];
-      return !isValidUrl(location);
-    }
-  )
-)
 ```
 
 ## Next Steps

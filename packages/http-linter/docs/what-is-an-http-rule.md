@@ -25,21 +25,22 @@ httpRule('rule-name')
   .type('static', 'test')      // Where does it run?
   .description('...')          // What does it validate?
   .appliesTo('server')         // Who must comply?
-  .rule((ctx) => { ... })      // How to validate?
+  .rule((ctx) => { ...
+  })      // How to validate?
   .done();
 ```
 
 ### Core Components
 
-| Component            | Purpose                 | Example                                    |
-| -------------------- | ----------------------- | ------------------------------------------ |
-| **Name**             | Unique identifier       | `'no-body-in-get-requests'`                |
-| **Severity**         | Impact level            | `'error'`, `'warn'`, `'hint'`              |
-| **Type**             | Validation contexts     | `'static'`, `'analytics'`, `'test'`        |
-| **Description**      | What the rule validates | `'GET requests should not include a body'` |
-| **Applies To**       | Target participant      | `'client'`, `'server'`, `'proxy'`          |
-| **Validation Logic** | How to check compliance | Filter expressions or custom functions     |
-| **URL** (optional)   | Reference documentation | RFC section or internal docs               |
+| Component            | Purpose                 | Example                                          |
+| -------------------- | ----------------------- | ------------------------------------------------ |
+| **Name**             | Unique identifier       | `'no-body-in-get-requests'`                      |
+| **Severity**         | Impact level            | `'error'`, `'warn'`, `'hint'`, `'informational'` |
+| **Type**             | Validation contexts     | `'static'`, `'analytics'`, `'test'`              |
+| **Description**      | What the rule validates | `'GET requests should not include a body'`       |
+| **Applies To**       | Target participant      | `'client'`, `'server'`, `'proxy'`                |
+| **Validation Logic** | How to check compliance | Filter expressions or custom functions           |
+| **URL** (optional)   | Reference documentation | RFC section or internal docs                     |
 
 ## The Three Validation Contexts
 
@@ -47,29 +48,29 @@ Thymian provides three distinct contexts for running rules, each suited for diff
 
 ```mermaid
 flowchart TB
-    subgraph Design["📐 Design Phase"]
-        A[OpenAPI Spec] --> B[Static Context]
-        B --> C[Validates Spec Definitions]
-    end
+  subgraph Design["📐 Design Phase"]
+    A[OpenAPI Spec] --> B[Static Context]
+    B --> C[Validates Spec Definitions]
+  end
 
-    subgraph Development["💻 Development Phase"]
-        D[Running API] --> E[Test Context]
-        E --> F[Generates & Runs Tests]
-    end
+  subgraph Development["💻 Development Phase"]
+    D[Running API] --> E[Test Context]
+    E --> F[Generates & Runs Tests]
+  end
 
-    subgraph Production["🔍 Production Phase"]
-        G[Recorded Traffic] --> H[Analytics Context]
-        H --> I[Analyzes Transactions]
-    end
+  subgraph Production["🔍 Production Phase"]
+    G[Recorded Traffic] --> H[Analytics Context]
+    H --> I[Analyzes Transactions]
+  end
 
-    C --> J[Reports]
-    F --> J
-    I --> J
+  C --> J[Reports]
+  F --> J
+  I --> J
 ```
 
 ### Static Context
 
-**What it validates:** API specifications (OpenAPI documents)
+**What it validates:** API specifications (e.g. OpenAPI documents)
 
 **When to use:** During design and development to catch issues early
 
@@ -83,13 +84,14 @@ flowchart TB
 
 ```typescript
 // Validates that paginated responses define Link header in the spec
-.type('static')
-.rule((ctx) =>
-  ctx.validateCommonHttpTransactions(
-    and(statusCode(200), path('/api/*/list')),
-    not(responseHeader('link'))
+.
+type('static')
+  .rule((ctx) =>
+    ctx.validateCommonHttpTransactions(
+      and(statusCode(200), path('/api/*/list')),
+      not(responseHeader('link'))
+    )
   )
-)
 ```
 
 ### Test Context
@@ -108,13 +110,14 @@ flowchart TB
 
 ```typescript
 // Actively tests that servers support both GET and HEAD methods
-.type('test')
-.rule((ctx) =>
-  ctx.validateCommonHttpTransactions(
-    method('GET'),
-    statusCode(501) // Not Implemented
+.
+type('test')
+  .rule((ctx) =>
+    ctx.validateCommonHttpTransactions(
+      method('GET'),
+      statusCode(501) // Not Implemented
+    )
   )
-)
 ```
 
 ### Analytics Context
@@ -133,13 +136,14 @@ flowchart TB
 
 ```typescript
 // Analyzes recorded traffic for missing authentication headers
-.type('analytics')
-.rule((ctx) =>
-  ctx.validateCommonHttpTransactions(
-    statusCode(401),
-    not(responseHeader('www-authenticate'))
+.
+type('analytics')
+  .rule((ctx) =>
+    ctx.validateCommonHttpTransactions(
+      statusCode(401),
+      not(responseHeader('www-authenticate'))
+    )
   )
-)
 ```
 
 ## Comparison Table
@@ -193,21 +197,26 @@ httpRule('comprehensive-rule').severity('error').type('static', 'analytics').url
 
 Rules have three severity levels that indicate their importance:
 
-| Severity  | When to Use                                | Example                                          |
-| --------- | ------------------------------------------ | ------------------------------------------------ |
-| **error** | Must comply (MUST/MUST NOT in specs)       | `'401 must include WWW-Authenticate'`            |
-| **warn**  | Should comply (SHOULD/SHOULD NOT in specs) | `'POST should return 201 for created resources'` |
-| **hint**  | Optional (MAY in specs)                    | `'Consider adding Cache-Control headers'`        |
+| Severity          | When to Use                                | Example                                          |
+| ----------------- | ------------------------------------------ | ------------------------------------------------ |
+| **error**         | Must comply (MUST/MUST NOT in specs)       | `'401 must include WWW-Authenticate'`            |
+| **warn**          | Should comply (SHOULD/SHOULD NOT in specs) | `'POST should return 201 for created resources'` |
+| **hint**          | Optional (MAY in specs)                    | `'Consider adding Cache-Control headers'`        |
+| **informational** | Rules that cannot be tested                | `'Resource names should be always plural'`       |
 
 ```typescript
 // Critical requirement
-.severity('error')
+.
+severity('error')
 
 // Recommended practice
 .severity('warn')
 
 // Optional suggestion
 .severity('hint')
+
+// Informational rule
+.severity('informational')
 ```
 
 ## Preventing API Drift

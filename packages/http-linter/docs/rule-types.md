@@ -9,19 +9,16 @@ Thymian provides three validation contexts, each designed for a specific stage i
 
 ```mermaid
 flowchart TD
-    A[Rule Definition] --> B{Rule Types}
-
-    B -->|.type'static'| C[StaticApiContext]
-    B -->|.type'test'| D[HttpTestContext]
-    B -->|.type'analytics'| E[AnalyticsApiContext]
-
-    C --> F[ThymianFormat<br/>OpenAPI Spec]
-    D --> G[Live API<br/>HTTP Requests]
-    E --> H[SQLite DB<br/>Recorded Traffic]
-
-    F --> I[Fast<br/>Design-time]
-    G --> J[Active<br/>Integration]
-    H --> K[Passive<br/>Monitoring]
+  A[Rule Definition] --> B{Rule Types}
+  B -->|. type'static'| C[StaticApiContext]
+  B -->|. type'test'| D[HttpTestContext]
+  B -->|. type'analytics'| E[AnalyticsApiContext]
+  C --> F[ThymianFormat<br/>OpenAPI Spec]
+  D --> G[Live API<br/>HTTP Requests]
+  E --> H[SQLite DB<br/>Recorded Traffic]
+  F --> I[Fast<br/>Design-time]
+  G --> J[Active<br/>Integration]
+  H --> K[Passive<br/>Monitoring]
 ```
 
 Each context provides different capabilities and trade-offs:
@@ -92,39 +89,42 @@ The static context checks:
 
 ```typescript
 // Ensure all error responses define Content-Type
-.type('static')
-.rule((ctx) =>
-  ctx.validateCommonHttpTransactions(
-    statusCodeRange(400, 599),
-    not(responseHeader('content-type'))
+.
+type('static')
+  .rule((ctx) =>
+    ctx.validateCommonHttpTransactions(
+      statusCodeRange(400, 599),
+      not(responseHeader('content-type'))
+    )
   )
-)
 ```
 
 **2. Validate status codes:**
 
 ```typescript
 // Check that DELETE operations define 204 responses
-.type('static')
-.rule((ctx) =>
-  ctx.validateCommonHttpTransactions(
-    method('DELETE'),
-    not(statusCode(204))
+.
+type('static')
+  .rule((ctx) =>
+    ctx.validateCommonHttpTransactions(
+      method('DELETE'),
+      not(statusCode(204))
+    )
   )
-)
 ```
 
 **3. Check request bodies:**
 
 ```typescript
 // POST requests should define request bodies
-.type('static')
-.rule((ctx) =>
-  ctx.validateCommonHttpTransactions(
-    method('POST'),
-    not(hasRequestBody())
+.
+type('static')
+  .rule((ctx) =>
+    ctx.validateCommonHttpTransactions(
+      method('POST'),
+      not(hasRequestBody())
+    )
   )
-)
 ```
 
 ## Test Context
@@ -165,7 +165,7 @@ export default httpRule('test-request-id-propagation')
   .type('test') // Test context only
   .description('Live API must return X-Request-ID for request tracking')
   .appliesTo('server')
-  .rule((ctx) => ctx.validateCommonHttpTransactions(not(responseHeader('x-request-id'))))
+  .rule((ctx) => ctx.validateHttpTransactions(not(responseHeader('x-request-id'))))
   .done();
 ```
 
@@ -345,51 +345,24 @@ export default httpRule('analyze-auth-flow')
   .done();
 ```
 
-## Context Comparison
-
-### Performance Characteristics
-
-| Aspect               | Static    | Test          | Analytics   |
-| -------------------- | --------- | ------------- | ----------- |
-| **Validation Speed** | < 1ms     | 10-1000ms\*   | < 10ms      |
-| **Setup Time**       | None      | Server start  | Data import |
-| **Resource Usage**   | Minimal   | Network + CPU | Disk + CPU  |
-| **Scalability**      | Excellent | Poor          | Good        |
-
-_\*Depends on API endpoint response times_
-
-### Coverage Characteristics
-
-| Aspect                | Static       | Test     | Analytics |
-| --------------------- | ------------ | -------- | --------- |
-| **Endpoint Coverage** | 100% defined | Selected | Used only |
-| **Edge Cases**        | Spec-defined | Testable | Observed  |
-| **Real Behavior**     | No           | Yes      | Yes       |
-| **Historical Data**   | No           | No       | Yes       |
-
 ## Choosing the Right Context
 
 ### Decision Tree
 
 ```mermaid
 flowchart TD
-    Start[Need to validate...] --> Q1{Spec or behavior?}
-
-    Q1 -->|Spec| Static[Use Static]
-    Q1 -->|Behavior| Q2{Have running API?}
-
-    Q2 -->|Yes| Q3{Active or passive?}
-    Q2 -->|No| Traffic{Have traffic data?}
-
-    Q3 -->|Active testing| Test[Use Test]
-    Q3 -->|Passive analysis| Traffic
-
-    Traffic -->|Yes| Analytics[Use Analytics]
-    Traffic -->|No| Wait[Wait for traffic<br/>or deploy API]
-
-    Static --> Consider1[Consider adding Test<br/>to prevent drift]
-    Test --> Consider2[Consider adding Analytics<br/>for production monitoring]
-    Analytics --> Consider3[Consider adding Static<br/>for design validation]
+  Start[Need to validate...] --> Q1{Spec or behavior?}
+  Q1 -->|Spec| Static[Use Static]
+  Q1 -->|Behavior| Q2{Have running API?}
+  Q2 -->|Yes| Q3{Active or passive?}
+  Q2 -->|No| Traffic{Have traffic data?}
+  Q3 -->|Active testing| Test[Use Test]
+  Q3 -->|Passive analysis| Traffic
+  Traffic -->|Yes| Analytics[Use Analytics]
+  Traffic -->|No| Wait[Wait for traffic<br/>or deploy API]
+  Static --> Consider1[Consider adding Test<br/>to prevent drift]
+  Test --> Consider2[Consider adding Analytics<br/>for production monitoring]
+  Analytics --> Consider3[Consider adding Static<br/>for design validation]
 ```
 
 ### Common Patterns
@@ -397,19 +370,22 @@ flowchart TD
 **Pattern 1: Design + Implementation**
 
 ```typescript
-.type('static', 'test')  // Catch drift between spec and code
+.
+type('static', 'test')  // Catch drift between spec and code
 ```
 
 **Pattern 2: Implementation + Production**
 
 ```typescript
-.type('test', 'analytics')  // Validate both testing and live
+.
+type('test', 'analytics')  // Validate both testing and live
 ```
 
 **Pattern 3: Complete Coverage**
 
 ```typescript
-.type('static', 'test', 'analytics')  // Validate everywhere
+.
+type('static', 'test', 'analytics')  // Validate everywhere
 ```
 
 ## Next Steps
