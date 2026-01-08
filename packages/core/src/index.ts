@@ -9,6 +9,7 @@ export * from './events/index.js';
 export * from './format/index.js';
 export * from './http.js';
 export * from './http-filter.js';
+export * from './http-filter-visitor.js';
 export {
   httpStatusCodeRanges,
   isHttpStatusCodeRange,

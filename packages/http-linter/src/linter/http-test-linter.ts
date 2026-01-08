@@ -1,7 +1,7 @@
 import { type Logger, ThymianFormat, type ThymianReport } from '@thymian/core';
 import type { HttpTestContext } from '@thymian/http-testing';
 
-import { HttpTestApiContext } from '../api-context/http-test-api-context.js';
+import { HttpTestApiContext } from '../api-context/http-test-api-context/http-test-api-context.js';
 import type { Rule } from '../rule/rule.js';
 import { AbstractLinter } from './abstract-linter.js';
 

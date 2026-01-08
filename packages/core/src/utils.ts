@@ -211,5 +211,13 @@ export function httpResponseToLabel(response: HttpResponse): string {
   } ${mediaType}`;
 }
 
+export function queryParamsFromRequest(
+  req: HttpRequest,
+): Record<string, string> {
+  const params = new URLSearchParams(req.path.split('?')[1] ?? '');
+
+  return Object.fromEntries(params.entries());
+}
+
 export * from 'chalk';
 export { deepmerge };

@@ -1,4 +1,8 @@
-import type { HttpFilterExpression } from '@thymian/core';
+import type {
+  HttpFilterExpression,
+  HttpRequest,
+  HttpResponse,
+} from '@thymian/core';
 import {
   type Logger,
   type PartialBy,
@@ -71,4 +75,11 @@ export abstract class ApiContext {
   }
 }
 
-export abstract class LiveApiContext extends ApiContext {}
+export abstract class LiveApiContext extends ApiContext {
+  abstract validateHttpTransactions(
+    filter: HttpFilterExpression,
+    validation?:
+      | ValidationFn<[HttpRequest, HttpResponse]>
+      | HttpFilterExpression,
+  ): Promise<RuleFnResult> | RuleFnResult;
+}
