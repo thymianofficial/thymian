@@ -32,9 +32,9 @@ export function compileHttpFilterToWhereClause(
     case 'requestHeader': {
       const base = `
         EXISTS (
-          SELECT 1 
-          FROM http_request_header reqHeader 
-          WHERE reqHeader.request_id = ${tableNames.requests}.id 
+          SELECT 1
+          FROM http_request_header reqHeader
+          WHERE reqHeader.request_id = ${tableNames.requests}.id
           AND reqHeader.name = ? COLLATE NOCASE`;
       if (typeof filter.value === 'undefined') {
         return { sql: `${base})`, params: [filter.header] };
@@ -48,9 +48,9 @@ export function compileHttpFilterToWhereClause(
     case 'responseHeader': {
       const base = `
         EXISTS (
-          SELECT 1 
-          FROM http_response_header resHeader 
-          WHERE resHeader.response_id = res.id 
+          SELECT 1
+          FROM http_response_header resHeader
+          WHERE resHeader.response_id = res.id
           AND resHeader.name = ? COLLATE NOCASE`;
       if (typeof filter.value === 'undefined') {
         return { sql: `${base})`, params: [filter.header] };
@@ -64,9 +64,9 @@ export function compileHttpFilterToWhereClause(
     case 'responseTrailer': {
       const base = `
         EXISTS (
-          SELECT 1 
-          FROM http_response_trailer resTrailer 
-          WHERE resTrailer.response_id = res.id 
+          SELECT 1
+          FROM http_response_trailer resTrailer
+          WHERE resTrailer.response_id = res.id
           AND resTrailer.name = ? COLLATE NOCASE`;
       if (typeof filter.value === 'undefined') {
         return { sql: `${base})`, params: [filter.trailer] };
@@ -98,10 +98,10 @@ export function compileHttpFilterToWhereClause(
     case 'requestMediaType': {
       const where = `
         EXISTS (
-          SELECT 1 
-          FROM http_request_header reqHeader 
-          WHERE reqHeader.request_id = req.id 
-          AND reqHeader.name = "content-type" COLLATE NOCASE 
+          SELECT 1
+          FROM http_request_header reqHeader
+          WHERE reqHeader.request_id = req.id
+          AND reqHeader.name = "content-type" COLLATE NOCASE
           AND LOWER(hr.value) LIKE LOWER(? || "%")
         )`;
       return { sql: where, params: [filter.mediaType] };
@@ -110,10 +110,10 @@ export function compileHttpFilterToWhereClause(
     case 'responseMediaType': {
       const where = `
         EXISTS (
-          SELECT 1 
-          FROM http_response_header resHeader 
-          WHERE resHeader.response_id = res.id 
-          AND resHeader.name = "content-type" COLLATE NOCASE 
+          SELECT 1
+          FROM http_response_header resHeader
+          WHERE resHeader.response_id = res.id
+          AND resHeader.name = "content-type" COLLATE NOCASE
           AND LOWER(hs.value) LIKE LOWER(? || "%")
         )`;
       return { sql: where, params: [filter.mediaType] };
@@ -155,8 +155,8 @@ export function compileHttpFilterToWhereClause(
       const sa = compileHttpFilterToWhereClause(a);
       const sb = compileHttpFilterToWhereClause(b);
       const where = `
-        (${parenthesize(sa.sql)} AND NOT ${parenthesize(sb.sql)}) 
-        OR 
+        (${parenthesize(sa.sql)} AND NOT ${parenthesize(sb.sql)})
+        OR
         (${parenthesize(sb.sql)} AND NOT ${parenthesize(sa.sql)})
       `;
       return {
@@ -173,11 +173,11 @@ export function compileHttpFilterToWhereClause(
       return {
         sql: `
           EXISTS (
-            SELECT 1 
-            FROM http_request_query_parameter reqParam 
-            WHERE 
-              reqParam.request_id = reqId AND 
-              reqParam.name = ? COLLATE NOCASE AND 
+            SELECT 1
+            FROM http_request_query_parameter reqParam
+            WHERE
+              reqParam.request_id = reqId AND
+              reqParam.name = ? COLLATE NOCASE AND
               reqParam.value = ?
           )`,
         params: [filter.param, filter.value],
@@ -195,6 +195,17 @@ export function compileHttpFilterToWhereClause(
         tableNames,
       );
     }
+    case 'protocol': {
+      if (typeof filter.protocol === 'undefined') {
+        return { sql: '1=1', params: [] };
+      }
+
+      return {
+        sql: `${tableNames.requests}.origin LIKE '?%'`,
+        params: [filter.protocol],
+      };
+    }
+
     case 'hasResponse':
     case 'isAuthorized':
     case 'port':

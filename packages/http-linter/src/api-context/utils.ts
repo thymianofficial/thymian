@@ -67,6 +67,8 @@ export function compileExpressionToFilterFn(
         // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
         new URL(expression.url!).toString();
     }
+    case 'protocol':
+      return (req) => req.origin.startsWith(`${expression.protocol}:`);
     case 'requestMediaType':
       return (req) => req.mediaType === expression.mediaType;
     case 'responseMediaType':
@@ -174,6 +176,8 @@ export function compileExpressionToValidateFn(
         // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
         new URL(expression.url!).toString();
     }
+    case 'protocol':
+      return (req) => req.origin.startsWith(`${expression.protocol}:`);
     case 'requestMediaType':
       return (req) => req.mediaType === expression.mediaType;
     case 'responseMediaType':
