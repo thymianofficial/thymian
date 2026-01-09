@@ -8,7 +8,14 @@ You want to try out Thymian? Run the following commands in the specific order:
 - `cd cli`
 - `./bin/run.js run -o @thymian/openapi.filePath=../shared/test-utils/src/example-app/example-app.openapi.yaml -p test/fixtures/my-thymian-plugin.js`
 
-# local publish
+## local publish
 
 1. Start verdaccio: `npm run local-registry`
 2. Publish to local registry: `npx nx release publish --registry http://localhost:4873` or `npm run local-publish`
+
+## How to run and build the astro documentation
+
+Don't call astro targets directly but always use the nx commands!
+
+- run: `nx run astro:serve`
+- build: `nx run astro:build`

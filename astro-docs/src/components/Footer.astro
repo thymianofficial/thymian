@@ -1,0 +1,46 @@
+---
+import Default from '@astrojs/starlight/components/Footer.astro';
+import {getCollection} from 'astro:content';
+
+const STRIP_EXT_REGEX = /\.[^/.]+$/;
+
+const getDocTitle = (doc: { id: string; data: { title?: string } }) => {
+    const noExt = doc.id.replace(STRIP_EXT_REGEX, '');
+    return doc.data.title ?? noExt.split('/').pop() ?? noExt;
+};
+
+const getDocPath = (doc: { id: string }) => {
+    const noExt = doc.id.replace(STRIP_EXT_REGEX, '');
+    return '/' + noExt.replace(/\/index$/i, '') + '/';
+};
+
+const sortedLegalDocs = (await getCollection('docs', ({id}) => id.startsWith('legal/'))).sort((a, b) => {
+    const aName = getDocTitle(a);
+    const bName = getDocTitle(b);
+    return aName.localeCompare(bName);
+});
+---
+<Default>
+    <slot/>
+</Default>
+{sortedLegalDocs.length > 0 && (
+<nav aria-label="Legal documents" class="my-12">
+  <h2 class="text-sm font-semibold text-zinc-900 dark:text-zinc-100 mb-2">Legal documents</h2>
+  <ul class="pl-0 flex flex-wrap items-center gap-x-4 gap-y-2 list-none">
+    {sortedLegalDocs.map((doc) => {
+      const path = getDocPath(doc);
+      const title = getDocTitle(doc);
+      return (
+        <li>
+          <a
+            class="text-sm no-underline hover:underline underline-offset-4 text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-100"
+            href={path}
+          >
+            {title}
+          </a>
+        </li>
+      );
+    })}
+  </ul>
+</nav>
+  )}

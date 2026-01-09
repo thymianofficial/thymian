@@ -1,0 +1,19 @@
+---
+import Check from '../../assets/check-circled.svg';
+import { LinkButton } from '@astrojs/starlight/components';
+
+interface Props {
+  points: string[];
+  action: string;
+  actionLink: string;
+  imgSrc?: string;
+}
+const { points, action, actionLink, imgSrc } = Astro.props;
+---
+<aside class="not-content bg-black text-white text-base rounded-xl px-[max(15px,3.5%)] py-[max(10px,2.5%)] relative bg-no-repeat bg-position-[68%_50%] bg-size-[max(900px,100%)]" style={{backgroundImage: imgSrc && `linear-gradient(90deg,rgba(0,0,0,.8)60%,rgba(0,0,0,.4)90%),url(${imgSrc})`}}>
+  <h2 class="text-white text-3xl font-bold mb-4"><slot name="title"/></h2>
+  <ul class="grid grid-cols-1 md:grid-cols-2 md:w-5/6 mb-7 pl-8 text-base marker:text-4xl" style={{listStyleImage: `url(${Check.src})`}}>
+    {points.map((point) => (<li><span class="relative -top-[4px]">{point}</span></li>))}
+  </ul>
+  <LinkButton href={actionLink}>{action}</LinkButton>
+</aside>

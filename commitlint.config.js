@@ -20,6 +20,7 @@ export default {
         'test-utils',
         'websocket-proxy',
         'core-testing',
+        'astro-docs',
       ],
     ],
     'scope-empty': [2, 'never'],
