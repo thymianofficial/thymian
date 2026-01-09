@@ -44,6 +44,9 @@
     },
     {
       "path": "./packages/core-testing"
+    },
+    {
+      "path": "./astro-docs"
     }
   ]
 }

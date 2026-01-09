@@ -20,6 +20,7 @@ When making commits, use one of the following scopes to indicate the area of the
 | sampler            | Plugin for sampling logic                                         |
 | test-utils         | Shared test utilities                                             |
 | websocket-proxy    | Plugin for WebSocket proxy functionality                          |
+| astro-docs         | Changes to the Astro/Starlight documentation                      |
 
 Use these scopes in your commit messages for clarity and traceability.
 

@@ -1,0 +1,19 @@
+---
+import ActionBanner from './ActionBanner.astro';
+import Logo from '../../assets/logo-banner.svg';
+---
+<template id="example-action-banner-template">
+  <ActionBanner action="Get Started" actionLink="/get-started" points={['easy', 'awesome', 'yay', 'FTW']} imgSrc={Logo.src}>
+    <span slot="title">Hallo <span class="text-accent-600">Du</span> da</span>
+  </ActionBanner>
+</template>
+
+<script>
+  class ExampleActionBanner extends HTMLElement {
+    connectedCallback() {
+      const template = document.getElementById('example-action-banner-template') as HTMLTemplateElement;
+      this.appendChild(template.content.cloneNode(true));
+    }
+  }
+  customElements.define('thy-example-banner', ExampleActionBanner);
+</script>

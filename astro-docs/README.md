@@ -1,0 +1,90 @@
+# Thymian documentation website
+
+[![Built with Starlight](https://astro.badg.es/v2/built-with-starlight/tiny.svg)](https://starlight.astro.build)
+
+```
+npm create astro@latest -- --template starlight
+```
+
+Added Nx on top of Astro using https://nx.dev/showcase/example-repos/add-astro.
+
+## 🚀 Project Structure
+
+Inside of your Astro + Starlight + Nx project, you'll see the following folders and files:
+
+```
+.
+├── public/
+├── src/
+│   ├── assets/
+│   ├── content/
+│   │   └── docs/
+│   └── content.config.ts
+├── thymian/
+├── astro.config.mjs
+├── nx.json
+├── package.json
+├── project.json
+└── tsconfig.json
+```
+
+The _thymian_ repository is embedded in the thymian folder as a git submodule. When you run `npm run dev`, the docs are copied from the workspaces in the thymian directory into the `src/content/docs/` directory, replacing any existing files.` Feel free to check out [GitHub's blog entry on git submodules](https://github.blog/open-source/git/working-with-submodules/).
+
+Hint: The thymian plugin docs should not be edited here, but when updating the thymian plugins!
+
+Starlight looks for `.md` or `.mdx` files in the `src/content/docs/` directory. Each file is exposed as a route based on its file name.
+
+Images can be added to `src/assets/` and embedded in Markdown with a relative link.
+
+Static assets, like favicons, can be placed in the `public/` directory.
+
+## Versions
+
+This project uses [starlight-versions](https://starlight-versions.vercel.app/getting-started/).
+
+Add the starlight-versions plugin as starlight plugin when you create the first version:
+
+```js
+// ...
+starlight({
+  // ...
+  plugins: [
+    starlightVersions({
+      versions: [{ slug: '1.0' }],
+    }),
+  ],
+});
+```
+
+There is always the current version and defined archived versions. To create a new version, you add the name (version) for the current version and run `npm run dev`. That will archive the current version under the name. Then you can then go on adjusting the documentation for the new current version. See the above link for details.
+
+## Other plugins
+
+### Mermaid client side rendering
+
+See https://github.com/joesaby/astro-mermaid.
+
+### Automatic llms.txt generation
+
+See https://delucis.github.io/starlight-llms-txt/.
+
+## How to add banners
+
+See [Action banner documentation](src/components/action-banner/README.md).
+
+## 🧞 Commands
+
+All commands are run from the root of the project, from a terminal:
+
+| Command                   | Action                                           |
+| :------------------------ | :----------------------------------------------- |
+| `npm install`             | Installs dependencies                            |
+| `npm run dev`             | Starts local dev server at `localhost:4321`      |
+| `npm run build`           | Build your production site to `./dist/`          |
+| `npm run preview`         | Preview your build locally, before deploying     |
+| `npm run astro ...`       | Run CLI commands like `astro add`, `astro check` |
+| `npm run astro -- --help` | Get help using the Astro CLI                     |
+
+## 👀 Want to learn more?
+
+Check out [Starlight’s docs](https://starlight.astro.build/), read [the Astro documentation](https://docs.astro.build), or jump into the [Astro Discord server](https://astro.build/chat).

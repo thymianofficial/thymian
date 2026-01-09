@@ -58,7 +58,8 @@
     "vitest": "^3.0.9"
   },
   "workspaces": [
-    "packages/*"
+    "packages/*",
+    "astro-docs"
   ],
   "nx": {
     "includedScripts": [],

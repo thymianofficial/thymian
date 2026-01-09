@@ -1,0 +1,34 @@
+{
+  "name": "astro",
+  "$schema": "../node_modules/nx/schemas/project-schema.json",
+  "comment": "package.json#scripts runs in the project root directory with astro assumes is where the node_modules is. which fails. so run the scripts in project.json#targets with --root command instead",
+  "targets": {
+    "serve": {
+      "continuous": true,
+      "command": "astro dev",
+      "options": {
+        "cwd": "astro-docs"
+      }
+    },
+    "build": {
+      "command": "astro build",
+      "options": {
+        "cwd": "astro-docs"
+      }
+    },
+    "preview": {
+      "continuous": true,
+      "dependsOn": [":build"],
+      "command": "astro preview",
+      "options": {
+        "cwd": "astro-docs"
+      }
+    },
+    "astro": {
+      "command": "astro",
+      "options": {
+        "cwd": "astro-docs"
+      }
+    }
+  }
+}
