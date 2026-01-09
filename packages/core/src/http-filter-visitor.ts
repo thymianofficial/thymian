@@ -35,6 +35,9 @@ export interface HttpFilterVisitor<TResult> {
     expr: Extract<RequestFilterExpression, { type: 'requestMediaType' }>,
   ): TResult;
   visitUrl?(expr: Extract<RequestFilterExpression, { type: 'url' }>): TResult;
+  visitProtocol?(
+    expr: Extract<RequestFilterExpression, { type: 'protocol' }>,
+  ): TResult;
 
   // Response filter visitors
   visitStatusCode?(
@@ -148,6 +151,13 @@ export function visitHttpFilter<TResult>(
             );
           }
           return visitor.visitUrl(expr);
+        case 'protocol':
+          if (!visitor.visitProtocol) {
+            throw new Error(
+              `Visitor does not implement visitProtocol for expression type: ${expr.type}`,
+            );
+          }
+          return visitor.visitProtocol(expr);
         default:
           throw new Error(
             `Unknown request filter type: ${(expr as RequestFilterExpression).type}`,

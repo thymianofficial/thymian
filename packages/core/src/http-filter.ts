@@ -37,7 +37,8 @@ export type RequestFilterExpression =
   | { type: 'hasBody'; kind: 'request'; hasBody?: boolean }
   | { type: 'port'; kind: 'request'; port?: number }
   | { type: 'requestMediaType'; kind: 'request'; mediaType?: string }
-  | { type: 'url'; kind: 'request'; url?: string };
+  | { type: 'url'; kind: 'request'; url?: string }
+  | { type: 'protocol'; kind: 'request'; protocol?: string };
 
 export type ResponseFilterExpression =
   | { type: 'statusCode'; kind: 'response'; code?: number }
@@ -95,6 +96,14 @@ export const path = (path?: string): RequestFilterExpression => ({
   type: 'path',
   kind: 'request',
   path,
+});
+
+export const protocol = (
+  protocol?: 'http' | 'https',
+): RequestFilterExpression => ({
+  type: 'protocol',
+  kind: 'request',
+  protocol,
 });
 
 export const responseHeader = (
