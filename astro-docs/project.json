@@ -5,12 +5,14 @@
   "targets": {
     "serve": {
       "continuous": true,
+      "dependsOn": ["copyPluginDocs"],
       "command": "astro dev",
       "options": {
         "cwd": "astro-docs"
       }
     },
     "build": {
+      "dependsOn": ["copyPluginDocs"],
       "command": "astro build",
       "options": {
         "cwd": "astro-docs"
@@ -18,7 +20,7 @@
     },
     "preview": {
       "continuous": true,
-      "dependsOn": [":build"],
+      "dependsOn": ["build"],
       "command": "astro preview",
       "options": {
         "cwd": "astro-docs"
@@ -29,6 +31,9 @@
       "options": {
         "cwd": "astro-docs"
       }
+    },
+    "copyPluginDocs": {
+      "command": "scripts/copy-docs.mjs"
     }
   }
 }
