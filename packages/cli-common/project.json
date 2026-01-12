@@ -1,5 +1,5 @@
 {
-  "name": "@thymian/cli-common",
+  "name": "cli-common",
   "$schema": "../../node_modules/nx/schemas/project-schema.json",
   "sourceRoot": "packages/cli-common/src",
   "projectType": "library",

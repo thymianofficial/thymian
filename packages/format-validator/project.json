@@ -1,5 +1,5 @@
 {
-  "name": "@thymian/format-validator",
+  "name": "format-validator",
   "$schema": "../../node_modules/nx/schemas/project-schema.json",
   "sourceRoot": "packages/format-validator/src",
   "projectType": "library",

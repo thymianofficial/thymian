@@ -1,5 +1,5 @@
 {
-  "name": "@thymian/sampler",
+  "name": "sampler",
   "$schema": "../../node_modules/nx/schemas/project-schema.json",
   "sourceRoot": "packages/sampler/src",
   "projectType": "library",
