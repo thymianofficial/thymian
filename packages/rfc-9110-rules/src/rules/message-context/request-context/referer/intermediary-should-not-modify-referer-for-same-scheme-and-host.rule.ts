@@ -1,5 +1,6 @@
 import { httpRule } from '@thymian/http-linter';
 
+// could be analytics at some point
 export default httpRule(
   'rfc9110/intermediary-should-not-modify-referer-for-same-scheme-and-host',
 )

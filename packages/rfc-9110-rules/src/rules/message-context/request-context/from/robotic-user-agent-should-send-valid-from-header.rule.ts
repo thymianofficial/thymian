@@ -20,6 +20,7 @@ export default httpRule(
         return false;
       }
 
+      // when ABNF support is added, we should replace this regex with the ABNF defined in RFC 5322
       // Basic email validation
       const emailRegex =
         /^[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*$/;

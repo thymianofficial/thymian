@@ -9,5 +9,8 @@ export default httpRule(
   .description(
     "If the Location value provided in a 3xx (Redirection) response does not have a fragment component, a user agent MUST process the redirection as if the value inherits the fragment component of the URI reference used to generate the target URI (i.e., the redirection inherits the original reference's fragment, if any).",
   )
+  .summary(
+    'A user agent MUST process the redirection as if the value inherits the fragment component of the URI reference used to generate the target URI',
+  )
   .appliesTo('user-agent')
   .done();

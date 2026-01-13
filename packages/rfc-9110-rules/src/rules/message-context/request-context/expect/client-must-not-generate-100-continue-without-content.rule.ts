@@ -13,7 +13,7 @@ export default httpRule(
   .appliesTo('client')
   .rule((ctx) =>
     ctx.validateCommonHttpTransactions(
-      and(requestHeader('expect'), not(hasRequestBody())),
+      and(requestHeader('expect', '100-continue'), not(hasRequestBody())),
     ),
   )
   .done();

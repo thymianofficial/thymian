@@ -1,4 +1,4 @@
-import { and, getHeader, requestHeader } from '@thymian/core';
+import { getHeader, requestHeader } from '@thymian/core';
 import { httpRule } from '@thymian/http-linter';
 
 export default httpRule(
@@ -12,7 +12,7 @@ export default httpRule(
   )
   .appliesTo('user-agent')
   .overrideAnalyticsRule((ctx) =>
-    ctx.validateHttpTransactions(and(requestHeader('referer')), (request) => {
+    ctx.validateHttpTransactions(requestHeader('referer'), (request) => {
       const referer = getHeader(request.headers, 'referer');
 
       if (typeof referer !== 'string') {
