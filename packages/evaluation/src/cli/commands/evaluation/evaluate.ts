@@ -7,10 +7,13 @@ import httpLinterPlugin from '@thymian/http-linter';
 import { Piscina } from 'piscina';
 import { glob } from 'tinyglobby';
 
-import type { WorkerData, WorkerResult } from '../worker.js';
+import type { WorkerData, WorkerResult } from '../../worker.js';
 
 function makeStringCsvSafe<T extends string | undefined>(str: T): T {
-  return (str ? `"${str.replaceAll('\n', ' ')}"` : null) as T;
+  return (str ? `"${str.replaceAll('\n', ' ')}"` : null)?.replaceAll(
+    '"',
+    '""',
+  ) as T;
 }
 
 export default class Evaluate extends Command {
@@ -18,7 +21,11 @@ export default class Evaluate extends Command {
   private pool!: Piscina;
 
   static override description =
-    'Statically lints all OpenAPI and Swagger files within a directory.';
+    'Evaluates all OpenAPI and Swagger files within a directory.';
+
+  static override examples = [
+    '<%= config.bin %> <%= command.id %> ./dir/to/openapi/documents ./results run-1.csv',
+  ];
 
   static override args = {
     directory: Args.directory({
@@ -31,6 +38,7 @@ export default class Evaluate extends Command {
     }),
     resultsFile: Args.file({
       required: false,
+      description: 'The file to store the evaluation results in.',
       default: 'results.csv',
     }),
   };
@@ -139,124 +147,6 @@ export default class Evaluate extends Command {
   }
 
   private async evaluate(matches: string[], openApiDir: string): Promise<void> {
-    // let evaluationCounter = 0;
-    // const evaluationStart = performance.now();
-    // const numberOfDocuments = matches.length;
-    //
-    // matches.splice(0, 400);
-    //
-    // let start = performance.now();
-    //
-    // for (const [idx, match] of matches.entries()) {
-    //   const fullFilePath = join(openApiDir, match);
-    //
-    //   console.log(`Analyzing file ${fullFilePath}`);
-    //
-    //   const thymian = new Thymian(
-    //     useLogger ? new TextLogger('@thymian/evaluation') : new NoopLogger(),
-    //     {
-    //       timeout: 100000,
-    //     },
-    //   );
-    //
-    //   this.debug(`Analyzing file ${fullFilePath}...`);
-    //
-    //   thymian.register(openApiPlugin, {
-    //     descriptions: [
-    //       {
-    //         source: fullFilePath,
-    //       },
-    //     ],
-    //   });
-    //   thymian.register(httpLinterPlugin, {
-    //     rules: ['@thymian/rfc-9110-rules'],
-    //     modes: ['static'],
-    //     ruleFilter: {
-    //       ruleTypes: ['static'],
-    //     },
-    //   });
-    //
-    //   let version: string | undefined;
-    //   let title: string | undefined;
-    //
-    //   try {
-    //     const bundled = await this.tryBundle(fullFilePath);
-    //
-    //     await this.tryValidate(bundled);
-    //
-    //     this.tryDereference(this.tryUpgrade(bundled));
-    //
-    //     const report = await thymian.run(async (emitter) => {
-    //       emitter.on('openapi.document', ({ document }) => {
-    //         title = document.info.title;
-    //         version =
-    //           'openapi' in document
-    //             ? document.openapi
-    //             : 'swagger' in document
-    //               ? document.swagger
-    //               : undefined;
-    //       });
-    //
-    //       const format = await thymian.loadFormat({ emitFormat: true });
-    //
-    //       return await emitter.emitAction(
-    //         'http-linter.lint-static',
-    //         {
-    //           format: format.export(),
-    //         },
-    //         {
-    //           strategy: 'first',
-    //         },
-    //       );
-    //     });
-    //
-    //     if (!version || !title) {
-    //       throw new Error(
-    //         `Could not determine OpenAPI version and/or title for ${match}.`,
-    //       );
-    //     }
-    //
-    //     await this.writeReport(
-    //       report.reports,
-    //       title,
-    //       fullFilePath,
-    //       version,
-    //       true,
-    //       null,
-    //     );
-    //   } catch (e) {
-    //     this.error(`Error while analyzing file ${fullFilePath}.`, {
-    //       exit: false,
-    //     });
-    //
-    //     await this.writeReport(
-    //       [],
-    //       title ?? 'No title',
-    //       fullFilePath,
-    //       version ?? 'unknown version',
-    //       false,
-    //       isRecord(e) && 'message' in e ? String(e.message) : 'Unknown error',
-    //     );
-    //     evaluationCounter++;
-    //   }
-    //
-    //   if ((idx + 1) % 100 === 0) {
-    //     this.log(
-    //       `Analyzed ${idx + 1} files in ${((performance.now() - start) / 1000).toPrecision(4)} s.`,
-    //     );
-    //     start = performance.now();
-    //     if (global.gc) {
-    //       const used = process.memoryUsage().heapUsed / 1024 / 1024;
-    //       this.log(`Memory usage: ${Math.round(used * 100) / 100} MB`);
-    //       global.gc();
-    //     }
-    //   }
-    // }
-    //
-    // await this.closeStream();
-
-    matches.splice(0, 2595);
-
     const tasks = matches.map(async (match, idx) => {
       const filePath = join(openApiDir, match);
 
@@ -268,10 +158,6 @@ export default class Evaluate extends Command {
         const result = (await this.pool.run(workerData)) as WorkerResult;
 
         await this.writeReport(join(openApiDir, match), result);
-
-        if (!result.success) {
-          // this.warn(`Analysis failed for ${match}.`);
-        }
 
         return result.success;
       } catch (_) {
