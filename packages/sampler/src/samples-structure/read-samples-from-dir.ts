@@ -85,9 +85,16 @@ export async function extractParameterValues(
 }
 
 export async function extractSample(path: string): Promise<HttpRequestSample> {
-  const fileSample = JSON.parse(
-    await readFile(path, 'utf-8'),
-  ) as FileRequestSample;
+  const sampleFile = await readFile(path, 'utf-8');
+  let fileSample!: FileRequestSample;
+
+  try {
+    fileSample = JSON.parse(sampleFile) as FileRequestSample;
+  } catch (err) {
+    throw new ThymianBaseError(`Could not parse JSON sample file "${path}".`, {
+      suggestions: ['Check that the sample file is valid JSON.'],
+    });
+  }
 
   const sample: HttpRequestSample = {
     authorize: fileSample.authorize,

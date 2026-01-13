@@ -374,12 +374,12 @@ export function generatedTypesToString(types: GeneratedTypes['types']): string {
                 // query params
                 .writeLine(`query${req.query.required ? '' : '?'}:`)
                 .writeLine(req.query.type)
-                .writeLine(' & { [query: string]: string }')
+                .writeLine(' & { [query: string]: string | number | boolean }')
 
                 // path params
                 .writeLine(`path${req.path.required ? '' : '?'}:`)
                 .writeLine(req.path.type)
-                .writeLine(' & { [param: string]: string | number }')
+                .writeLine(' & { [param: string]: string | number | boolean }')
 
                 // headers
                 .writeLine(`headers${req.headers.required ? '' : '?'}:`)
