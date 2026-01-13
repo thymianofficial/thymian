@@ -49,6 +49,12 @@ export function runRequests<
     const step = current.steps.at(stepIdx);
 
     if (step) {
+      if (step.transactions.length === 0) {
+        ctx.logger.warn(
+          `Test case ${current.name} does not contain any transactions to run requests for.`,
+        );
+      }
+
       for (const transaction of step.transactions) {
         const beforeRequest = await ctx.runHook('beforeRequest', {
           value: transaction.requestTemplate,
