@@ -89,8 +89,6 @@ export class Thymian {
       }
     }
 
-    this.logger.debug(`Register plugin ${plugin.name}.`);
-
     // eslint-disable-next-line @typescript-eslint/ban-ts-comment
     // @ts-expect-error
     this.plugins.push({ plugin: plugin, options: options ?? {} });
@@ -220,6 +218,10 @@ export class Thymian {
   private async registerPlugin(
     registeredPlugin: RegisteredPlugin,
   ): Promise<void> {
+    this.logger.debug(
+      `Register plugin ${registeredPlugin.plugin.name} with options ${JSON.stringify(registeredPlugin.options)}`,
+    );
+
     this.emitter.emit('core.register', {
       name: registeredPlugin.plugin.name,
       events: registeredPlugin.plugin.events ?? {},
