@@ -1,5 +1,5 @@
 {
-  "name": "@thymian/http-linter",
+  "name": "http-linter",
   "$schema": "../../node_modules/nx/schemas/project-schema.json",
   "sourceRoot": "packages/http-linter/src",
   "projectType": "library",

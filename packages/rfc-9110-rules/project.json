@@ -1,5 +1,5 @@
 {
-  "name": "@thymian/rfc-9110-rules",
+  "name": "rfc-9110-rules",
   "$schema": "../../node_modules/nx/schemas/project-schema.json",
   "sourceRoot": "packages/rfc-9110-rules/src",
   "projectType": "library",

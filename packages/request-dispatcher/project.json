@@ -1,5 +1,5 @@
 {
-  "name": "@thymian/request-dispatcher",
+  "name": "request-dispatcher",
   "$schema": "../../node_modules/nx/schemas/project-schema.json",
   "sourceRoot": "packages/request-dispatcher/src",
   "projectType": "library",

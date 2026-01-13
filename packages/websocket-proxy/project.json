@@ -1,5 +1,5 @@
 {
-  "name": "@thymian/websocket-proxy",
+  "name": "websocket-proxy",
   "$schema": "../../node_modules/nx/schemas/project-schema.json",
   "sourceRoot": "packages/websocket-proxy/src",
   "projectType": "library",

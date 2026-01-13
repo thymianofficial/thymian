@@ -1,5 +1,5 @@
 {
-  "name": "@thymian/test-utils",
+  "name": "test-utils",
   "$schema": "../../node_modules/nx/schemas/project-schema.json",
   "tags": ["scope:core", "type:lib-feature", "type:testing"],
   "targets": {
