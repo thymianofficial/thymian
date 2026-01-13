@@ -1,5 +1,6 @@
-import { and, method, statusCode } from '@thymian/core';
+import { and, method, not, statusCode } from '@thymian/core';
 import { httpRule } from '@thymian/http-linter';
+import { singleTestCase } from '@thymian/http-testing';
 
 export default httpRule(
   'rfc9110/origin-server-may-redirect-for-existing-resource-for-201-response',
@@ -14,6 +15,26 @@ export default httpRule(
   .rule((context) =>
     context.validateCommonHttpTransactions(
       and(method('POST'), statusCode(201)),
+    ),
+  )
+  .overrideTest((ctx) =>
+    ctx.httpTest(
+      singleTestCase()
+        .forTransactionsWith(and(method('POST'), statusCode(201)))
+        .run()
+        .skipIf(not(statusCode(201)))
+        .replayStep((step) => step.run().done())
+        .transactions(([, transaction]) => {
+          if (transaction.response.statusCode !== 303) {
+            ctx.reportViolation({
+              location: {
+                elementType: 'edge',
+                elementId: transaction.source.transactionId,
+              },
+            });
+          }
+        })
+        .done(),
     ),
   )
   .done();
