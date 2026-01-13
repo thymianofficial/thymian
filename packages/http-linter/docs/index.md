@@ -1,5 +1,5 @@
 ---
-title: '@thymian/http-linter'
+title: 'Overview'
 description: 'Validate HTTP APIs across design, testing, and production with reusable rules.'
 ---
 

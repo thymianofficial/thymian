@@ -1,5 +1,5 @@
 ---
-title: '@thymian/websocket-proxy'
+title: 'Overview'
 description: 'The Websocket Proxy Plugin connects remote plugins to Thymian via WebSockets. This allows plugins to be implemented in any programming language, as long as it supports communication via WebSockets.'
 ---
 

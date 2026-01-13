@@ -26,3 +26,6 @@ pnpm-debug.log*
 .nx/workspace-data
 .cursor/rules/nx-rules.mdc
 .github/instructions/nx.instructions.md
+
+# plugin documentation is added automatically
+src/content/docs/plugins/

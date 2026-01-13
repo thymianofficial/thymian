@@ -1,4 +1,6 @@
 // @ts-check
+import { readdirSync } from 'node:fs';
+
 import starlight from '@astrojs/starlight';
 import tailwindcss from '@tailwindcss/vite';
 import { defineConfig } from 'astro/config';
@@ -9,6 +11,11 @@ import starlightLlmsTxt from 'starlight-llms-txt';
 const UMAMI_URL = process.env.UMAMI_URL;
 const UMAMI_WEBSITE_ID = process.env.UMAMI_WEBSITE_ID;
 
+function getPluginDirs() {
+  return readdirSync('src/content/docs/plugins', { withFileTypes: true })
+    .filter(dirent => dirent.isDirectory())
+    .map(dirent => dirent.name)
+}
 
 // https://astro.build/config
 export default defineConfig({
@@ -79,6 +86,13 @@ export default defineConfig({
           label: 'Reference',
           autogenerate: { directory: 'reference' },
         },
+        {
+          label: 'Plugins',
+          items: getPluginDirs().map((dirName) => ({
+            label: dirName,
+            autogenerate: { directory: `plugins/${dirName}` },
+          })),
+        }
       ],
       components: {
         Header: './src/components/ThymianHeader.astro',
