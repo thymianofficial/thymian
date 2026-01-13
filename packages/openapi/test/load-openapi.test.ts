@@ -96,23 +96,6 @@ describe('load-openapi', () => {
 
       await new Promise((resolve) => server.close(resolve));
     });
-
-    it('handles circular references', async () => {
-      const result = await loadAndUpgrade(
-        '/Users/matthias/University/openapi-directory/APIs/pocketsmith.com/2.0/openapi.yaml', // join(import.meta.dirname, 'fixtures/simple-swagger.yaml'),
-        process.cwd(),
-        new NoopLogger(),
-      );
-
-      await openapiToThymianFormat(result.document, {
-        serverInfo: {
-          port: 0,
-          host: '',
-          protocol: 'http',
-          basePath: '',
-        },
-      });
-    });
   });
 
   describe('openapiToThymianFormat', () => {
