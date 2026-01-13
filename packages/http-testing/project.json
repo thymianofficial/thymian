@@ -1,5 +1,5 @@
 {
-  "name": "@thymian/http-testing",
+  "name": "http-testing",
   "$schema": "../../node_modules/nx/schemas/project-schema.json",
   "sourceRoot": "packages/http-testing/src",
   "projectType": "library",

@@ -1,6 +1,9 @@
 {
   "name": "@thymian/openapi",
-  "version": "0.0.1",
+  "version": "0.0.0-PLACEHOLDER",
+  "publishConfig": {
+    "access": "restricted"
+  },
   "files": [
     "dist",
     "!**/*.tsbuildinfo"
@@ -15,8 +18,8 @@
   "dependencies": {
     "@scalar/openapi-parser": "^0.23.2",
     "@scalar/openapi-upgrader": "^0.1.4",
-    "@thymian/cli-common": "^0",
-    "@thymian/core": "^0",
+    "@thymian/cli-common": "0.0.0-PLACEHOLDER",
+    "@thymian/core": "0.0.0-PLACEHOLDER",
     "jsonc-parser": "^3.2.0",
     "tinyglobby": "^0.2.14",
     "traverse": "^0.6.11",

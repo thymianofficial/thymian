@@ -1,6 +1,9 @@
 {
   "name": "@thymian/websocket-proxy",
-  "version": "0.0.1",
+  "version": "0.0.0-PLACEHOLDER",
+  "publishConfig": {
+    "access": "restricted"
+  },
   "main": "./dist/index.js",
   "module": "./dist/index.js",
   "types": "./dist/index.d.ts",
@@ -21,7 +24,7 @@
     "secure-json-parse": "^4.1.0",
     "tslib": "^2.3.0",
     "ws": "^8.18.3",
-    "@thymian/core": "^0"
+    "@thymian/core": "0.0.0-PLACEHOLDER"
   },
   "devDependencies": {
     "@types/ws": "^8.18.1",

@@ -1,6 +1,6 @@
 {
   "name": "@thymian/core-testing",
-  "version": "0.0.1",
+  "version": "0.0.0-PLACEHOLDER",
   "main": "./dist/index.js",
   "type": "module",
   "module": "./dist/index.js",
@@ -25,9 +25,9 @@
     "tslib": "^2.3.0"
   },
   "devDependencies": {
-    "@thymian/core": "^0"
+    "@thymian/core": "0.0.0-PLACEHOLDER"
   },
   "peerDependencies": {
-    "@thymian/core": "^0"
+    "@thymian/core": "0.0.0-PLACEHOLDER"
   }
 }

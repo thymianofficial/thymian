@@ -1,6 +1,9 @@
 {
-  "name": "thymian",
-  "version": "0.0.1",
+  "name": "@thymian/cli",
+  "version": "0.0.0-PLACEHOLDER",
+  "publishConfig": {
+    "access": "restricted"
+  },
   "main": "./dist/index.js",
   "module": "./dist/index.js",
   "types": "./dist/index.d.ts",
@@ -22,15 +25,15 @@
     "@oclif/plugin-not-found": "^3.2.57",
     "@oclif/plugin-plugins": "^5.4.43",
     "@oclif/plugin-version": "^2.2.30",
-    "@thymian/cli-common": "^0",
-    "@thymian/format-validator": "^0",
-    "@thymian/http-linter": "^0",
-    "@thymian/openapi": "^0",
-    "@thymian/rfc-9110-rules": "^0",
-    "@thymian/websocket-proxy": "^0",
-    "@thymian/reporter": "^0",
-    "@thymian/core": "^0",
-    "@thymian/sampler": "^0",
+    "@thymian/cli-common": "0.0.0-PLACEHOLDER",
+    "@thymian/format-validator": "0.0.0-PLACEHOLDER",
+    "@thymian/http-linter": "0.0.0-PLACEHOLDER",
+    "@thymian/openapi": "0.0.0-PLACEHOLDER",
+    "@thymian/rfc-9110-rules": "0.0.0-PLACEHOLDER",
+    "@thymian/websocket-proxy": "0.0.0-PLACEHOLDER",
+    "@thymian/reporter": "0.0.0-PLACEHOLDER",
+    "@thymian/core": "0.0.0-PLACEHOLDER",
+    "@thymian/sampler": "0.0.0-PLACEHOLDER",
     "tslib": "^2.3.0"
   },
   "bin": {

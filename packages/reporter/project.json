@@ -1,5 +1,5 @@
 {
-  "name": "@thymian/reporter",
+  "name": "reporter",
   "$schema": "../../node_modules/nx/schemas/project-schema.json",
   "sourceRoot": "packages/reporter/src",
   "projectType": "library",

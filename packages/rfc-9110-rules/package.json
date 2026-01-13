@@ -1,6 +1,9 @@
 {
   "name": "@thymian/rfc-9110-rules",
-  "version": "0.0.1",
+  "version": "0.0.0-PLACEHOLDER",
+  "publishConfig": {
+    "access": "restricted"
+  },
   "main": "./dist/index.js",
   "module": "./dist/index.js",
   "types": "./dist/index.d.ts",
@@ -18,8 +21,8 @@
     "!**/*.tsbuildinfo"
   ],
   "dependencies": {
-    "@thymian/core": "^0",
-    "@thymian/http-linter": "^0",
-    "@thymian/http-testing": "^0"
+    "@thymian/core": "0.0.0-PLACEHOLDER",
+    "@thymian/http-linter": "0.0.0-PLACEHOLDER",
+    "@thymian/http-testing": "0.0.0-PLACEHOLDER"
   }
 }
