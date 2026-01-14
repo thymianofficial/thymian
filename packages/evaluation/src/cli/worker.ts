@@ -32,11 +32,11 @@ export default async function ({
   filePath,
 }: WorkerData): Promise<WorkerResult> {
   const thymian = new Thymian(new NoopLogger(), {
-    timeout: 100000,
+    timeout: 9000000000,
   });
 
   try {
-    const bundled = await tryBundle(filePath);
+    const bundled = (await tryBundle(filePath)) as any;
 
     await tryValidate(bundled);
 
@@ -52,20 +52,10 @@ export default async function ({
       ruleFilter: { ruleTypes: ['static'] },
     });
 
-    let version: string | undefined;
-    let title: string | undefined;
+    const version = bundled.openapi ?? bundled.swagger;
+    const title = bundled.info?.title;
 
     const report = await thymian.run(async (emitter) => {
-      emitter.on('openapi.document', ({ document }) => {
-        title = document.info.title;
-        version =
-          'openapi' in document
-            ? document.openapi
-            : 'swagger' in document
-              ? document.swagger
-              : undefined;
-      });
-
       const format = await thymian.loadFormat({ emitFormat: true });
       return await emitter.emitAction(
         'http-linter.lint-static',

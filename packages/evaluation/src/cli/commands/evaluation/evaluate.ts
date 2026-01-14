@@ -10,10 +10,11 @@ import { glob } from 'tinyglobby';
 import type { WorkerData, WorkerResult } from '../../worker.js';
 
 function makeStringCsvSafe<T extends string | undefined>(str: T): T {
-  return (str ? `"${str.replaceAll('\n', ' ')}"` : null)?.replaceAll(
-    '"',
-    '""',
-  ) as T;
+  if (str === undefined) {
+    return str;
+  }
+
+  return ('"' + str.replaceAll('\n', ' ').replaceAll('"', '""') + '"') as T;
 }
 
 export default class Evaluate extends Command {
@@ -82,8 +83,7 @@ export default class Evaluate extends Command {
     });
 
     this.pool = new Piscina({
-      filename: join(import.meta.dirname, '..', 'worker.js'),
-      idleTimeout: 10000,
+      filename: join(import.meta.dirname, '../..', 'worker.js'),
     });
   }
 
