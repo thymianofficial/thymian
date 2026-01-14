@@ -139,10 +139,10 @@ import { getHeader } from '@thymian/core';
 
 .
 rule((ctx) =>
-  ctx.validateCommonHttpTransactions(
+  ctx.validateHttpTransactions(
     responseHeader('www-authenticate'),
     (request, response) => {
-      const authHeader = getHeader(fullResponse.headers, 'www-authenticate');
+      const authHeader = getHeader(response.headers, 'www-authenticate');
 
       // Custom validation logic
       return !isValidAuthHeader(authHeader);
