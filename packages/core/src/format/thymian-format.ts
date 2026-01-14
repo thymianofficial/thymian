@@ -29,7 +29,6 @@ import type { IsSecuredWith } from './edges/is-secured-with.edge.js';
 import type { SampleHttpTransaction } from './edges/sample-http-transaction.edge.js';
 import type { ThymianHttpRequest } from './nodes/http-request.node.js';
 import type { ThymianHttpResponse } from './nodes/http-response.node.js';
-import type { ThymianBaseNode } from './nodes/node.js';
 import type { SampleHttpRequest } from './nodes/sample-http-request.node.js';
 import type { SampleHttpResponse } from './nodes/sample-http-response.node.js';
 import type { SecurityScheme } from './nodes/security-scheme.node.js';
