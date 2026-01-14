@@ -1,3 +1,5 @@
+import { ThymianBaseError } from '@thymian/core';
+
 import type { HttpRequestSample } from './http-request-sample.js';
 import { readSamplesFromDir } from './samples-structure/read-samples-from-dir.js';
 import {
@@ -64,7 +66,13 @@ export class RequestSampler {
 
   sampleForTransaction(transactionId: string): HttpRequestSample | undefined {
     if (!this.initialized) {
-      throw new Error('Cannot sample for transaction before init.');
+      throw new ThymianBaseError(
+        'Cannot sample for transaction before @thymian/sampler was initialized.',
+        {
+          suggestions: ['Did you run "thymian sampler:init"?'],
+          name: 'SamplerNotInitializedError',
+        },
+      );
     }
 
     const node = this.sampleNodes.get(transactionId);
