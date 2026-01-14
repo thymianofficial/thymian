@@ -381,7 +381,7 @@ export class ThymianEmitter {
     ) as ThymianErrorEvent<Name>[];
 
     if (errors.length > 0 && typeof errors[0] !== 'undefined') {
-      this.logger.error(
+      this.logger.debug(
         `Received ${errors.length} error event${
           errors.length > 1 ? 's' : ''
         } from ${errors
