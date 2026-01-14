@@ -34,6 +34,7 @@ declare module '@thymian/core' {
     'sampler.init': {
       event: {
         format: SerializedThymianFormat;
+        overwrite?: boolean;
       };
       response: void;
     };
@@ -127,15 +128,20 @@ export const samplePlugin: ThymianPlugin<Partial<SamplerPluginOptions>> = {
       logger,
     );
 
-    emitter.onAction('core.format', async (f, ctx) => {
-      format = ThymianFormat.import(f);
-
+    async function initializeSamplerAndHookRunner(format: ThymianFormat) {
       samples = (await entryExists(basePath))
         ? await readSamplesFromDir(basePath)
         : undefined;
 
       await requestSampler.init(samples);
       await hookRunner.init(format, samples);
+    }
+
+    emitter.onAction('core.format', async (f, ctx) => {
+      format = ThymianFormat.import(f);
+
+      await initializeSamplerAndHookRunner(format);
+
       ctx.reply();
     });
 
@@ -150,7 +156,7 @@ export const samplePlugin: ThymianPlugin<Partial<SamplerPluginOptions>> = {
       },
     );
 
-    emitter.onAction('sampler.init', async ({ format }, ctx) => {
+    emitter.onAction('sampler.init', async ({ format, overwrite }, ctx) => {
       const parsedFormat = ThymianFormat.import(format);
 
       const samples = await generateSamplesForThymianFormat(
@@ -162,7 +168,7 @@ export const samplePlugin: ThymianPlugin<Partial<SamplerPluginOptions>> = {
 
       await writeSamplesToDir(samples, generatedTypes.keyToTransactionId, {
         path: basePath,
-        mode: 'failIfExist',
+        mode: typeof overwrite === 'boolean' ? 'overwrite' : 'failIfExist',
       });
 
       await writeFile(
@@ -198,6 +204,7 @@ export const samplePlugin: ThymianPlugin<Partial<SamplerPluginOptions>> = {
               name: 'VersionMismatchError',
               suggestions: [
                 `The loaded samples were generated at ${requestSampler.timestamp()}. Did you forget to regenerate the samples?`,
+                '$ thymian sampler:init',
               ],
             },
           );
