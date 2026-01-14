@@ -1,3 +1,4 @@
+import { thymianHttpTransactionToString } from '@thymian/core';
 import { mergeMap, type MonoTypeOperatorFunction } from 'rxjs';
 
 import {
@@ -56,6 +57,22 @@ export function runRequests<
       }
 
       for (const transaction of step.transactions) {
+        const transactionName = transaction.source
+          ? thymianHttpTransactionToString(
+              transaction.source.thymianReq,
+              transaction.source.thymianRes,
+            )
+          : transaction.requestTemplate.method.toUpperCase() +
+            ' ' +
+            new URL(
+              transaction.requestTemplate.path,
+              transaction.requestTemplate.origin,
+            ).toString();
+
+        ctx.logger.debug(
+          `Running "beforeRequest" hook for transaction ${transactionName} in test case ${current.name}.`,
+        );
+
         const beforeRequest = await ctx.runHook('beforeRequest', {
           value: transaction.requestTemplate,
           ctx: transaction.source,
@@ -64,10 +81,18 @@ export function runRequests<
         current.results.push(...(beforeRequest.testResults ?? []));
 
         if (beforeRequest.skip) {
+          ctx.logger.debug(
+            `Skipping test case "${current.name}" after "beforeEach" hook.`,
+          );
+
           return ctx.skip(current, beforeRequest.skip);
         }
 
         if (beforeRequest.fail) {
+          ctx.logger.debug(
+            `Test case ${current.name} failed after "beforeEach" hook.`,
+          );
+
           return ctx.fail(current, beforeRequest.fail);
         }
 
@@ -75,6 +100,10 @@ export function runRequests<
           beforeRequest.result ?? transaction.requestTemplate;
 
         if (options.authorize && transaction.requestTemplate.authorize) {
+          ctx.logger.debug(
+            `Running "authorize" hook for transaction ${transactionName} in test case ${current.name}.`,
+          );
+
           transaction.requestTemplate =
             (
               await ctx.runHook('authorize', {
@@ -99,10 +128,18 @@ export function runRequests<
         current.results.push(...(afterResponse.testResults ?? []));
 
         if (afterResponse.skip) {
+          ctx.logger.debug(
+            `Skipping test case "${current.name}" after "afterEach" hook.`,
+          );
+
           return ctx.skip(current, afterResponse.skip);
         }
 
         if (afterResponse.fail) {
+          ctx.logger.debug(
+            `Skipping test case "${current.name}" after "afterEach" hook.`,
+          );
+
           return ctx.fail(current, afterResponse.fail);
         }
 
