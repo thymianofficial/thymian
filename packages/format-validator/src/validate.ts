@@ -40,13 +40,13 @@ export async function validate(
     },
   );
 
-  // report({
-  //   producer,
-  //   severity: 'info',
-  //   summary: `✖ ${numbers.failed} failed   ✔ ${numbers.passed} passed   ○ ${numbers.skipped} skipped`,
-  //   timestamp: Date.now(),
-  //   title: `ℹ Validated ${results.cases.length} HTTP transactions in ${results.duration.toPrecision(4)}ms.`,
-  // });
+  report({
+    producer,
+    severity: 'info',
+    summary: `✖ ${numbers.failed} failed   ✔ ${numbers.passed} passed   ○ ${numbers.skipped} skipped`,
+    timestamp: Date.now(),
+    title: `ℹ Validated ${results.cases.length} HTTP transactions in ${results.duration.toPrecision(4)}ms.`,
+  });
 
   for (const testCase of results.cases) {
     if (testCase.status === 'skipped') {
