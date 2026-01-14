@@ -1,53 +1,24 @@
-import type { ThymianReport, ThymianReportSeverity } from '@thymian/core';
+import type { ThymianReport } from '@thymian/core';
 import chalk from 'chalk';
 
-import {
-  analyze,
-  type Formatter,
-  type ThymianReportStatistics,
-} from '../formatter.js';
-import { createList } from '../utils.js';
-
-const header = `
-+----------------+
-|   CLI REPORT   |
-+----------------+
-`;
+import { analyze, type Formatter } from '../formatter.js';
 
 export function printProducer(producer: string): void {
   console.log(
-    Array.from({ length: producer.length })
-      .map(() => '-')
-      .join(''),
+    `${producer} ${Array.from({ length: 80 - producer.length })
+      .map(() => '─')
+      .join('')}`,
   );
-  console.log(chalk.bold(producer));
-  console.log(
-    Array.from({ length: producer.length })
-      .map(() => '-')
-      .join(''),
-  );
-  console.log();
 }
 
-export function createCliSummaryMessage(
-  statistics: ThymianReportStatistics,
-): string {
-  let message = `Found ${statistics.numberOfReports} reports from ${Object.keys(statistics.reportsFromProducers).length} producers. `;
+export function createPrefix({
+  severity,
+  layoutOptions,
+}: ThymianReport): string {
+  if (layoutOptions?.prefixSeverity === false) {
+    return '';
+  }
 
-  message +=
-    createList(
-      Object.entries(statistics.reportsFromProducers).map(
-        ([producer, count]) =>
-          `${chalk.bold(count)} reports from ${chalk.bold(producer)}`,
-      ),
-    ) + '.';
-
-  return message;
-}
-
-export function mapSeverityToMessagePrefix(
-  severity: ThymianReportSeverity,
-): string {
   if (severity === 'hint') return `${chalk.blue(severity)}: `;
   if (severity === 'warn') return `${chalk.yellow(severity)}: `;
   if (severity === 'error') return `${chalk.red(severity)}: `;
@@ -72,13 +43,13 @@ export class CliFormatter implements Formatter<Partial<CliFormatterOptions>> {
 
   flush(): void {
     if (this.reports.length === 0) {
+      console.log(
+        `Nothing found. ${chalk.dim('  ...and your API seems to be spiced well')}`,
+      );
       return;
     }
     const analysis = analyze(this.reports);
 
-    console.log(chalk.bold(header));
-    console.log(createCliSummaryMessage(analysis.statistics));
-    console.log();
     console.log();
 
     if (!this.options.summaryOnly) {
@@ -86,7 +57,7 @@ export class CliFormatter implements Formatter<Partial<CliFormatterOptions>> {
         analysis.normalized,
       )) {
         printProducer(producer);
-
+        console.log();
         console.group();
 
         if (Object.hasOwn(categories, 'No Category')) {
@@ -99,7 +70,7 @@ export class CliFormatter implements Formatter<Partial<CliFormatterOptions>> {
 
             for (const report of reports) {
               console.log(
-                `${mapSeverityToMessagePrefix(report.severity)}${report.summary}${report.source ? `\n   ${chalk.dim(report.source)}` : ''}`,
+                `${createPrefix(report)}${report.summary}${report.source ? `\n   ${chalk.dim(report.source)}` : ''}`,
               );
               console.log();
             }
@@ -124,7 +95,7 @@ export class CliFormatter implements Formatter<Partial<CliFormatterOptions>> {
 
             for (const report of reports) {
               console.log(
-                `${mapSeverityToMessagePrefix(report.severity)}${report.summary}${report.source ? `\n   ${chalk.dim(report.source)}` : ''}`,
+                `${createPrefix(report)}${report.summary}${report.source ? `\n   ${chalk.dim(report.source)}` : ''}`,
               );
               console.log();
             }

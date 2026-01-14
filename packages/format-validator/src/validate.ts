@@ -40,13 +40,13 @@ export async function validate(
     },
   );
 
-  report({
-    producer,
-    severity: 'info',
-    summary: `${numbers.passed} passed ✅  ${numbers.failed} failed ❌  ${numbers.skipped} skipped ⏭️`,
-    timestamp: Date.now(),
-    title: `Validated ${results.cases.length} HTTP transactions in ${results.duration.toPrecision(4)}ms.`,
-  });
+  // report({
+  //   producer,
+  //   severity: 'info',
+  //   summary: `✖ ${numbers.failed} failed   ✔ ${numbers.passed} passed   ○ ${numbers.skipped} skipped`,
+  //   timestamp: Date.now(),
+  //   title: `ℹ Validated ${results.cases.length} HTTP transactions in ${results.duration.toPrecision(4)}ms.`,
+  // });
 
   for (const testCase of results.cases) {
     if (testCase.status === 'skipped') {
@@ -98,28 +98,37 @@ export async function validate(
         report({
           producer,
           severity: 'error',
-          summary: `\u274C ${result.message}`,
+          summary: `✖ ${result.message}`,
           category,
           timestamp: Date.now(),
           title: testCase.name,
+          layoutOptions: {
+            prefixSeverity: false,
+          },
         });
       } else if (result.type === 'assertion-success') {
         report({
           producer,
           severity: 'info',
-          summary: `\u2705 ${result.message}`,
+          summary: `✔ ${result.message}`,
           category,
           timestamp: Date.now(),
           title: testCase.name,
+          layoutOptions: {
+            prefixSeverity: false,
+          },
         });
       } else if (result.type === 'info') {
         report({
           producer,
           severity: 'info',
-          summary: `\u2796 ${result.message}`,
+          summary: `ℹ ${result.message}`,
           category,
           timestamp: Date.now(),
           title: testCase.name,
+          layoutOptions: {
+            prefixSeverity: false,
+          },
         });
       }
     });
