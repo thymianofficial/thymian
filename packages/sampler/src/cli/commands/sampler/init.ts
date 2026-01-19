@@ -6,6 +6,13 @@ export default class Init extends BaseCliRunCommand<typeof Init> {
       default: false,
       description: 'Overwrite existing samples.',
     }),
+
+    check: oclif.Flags.boolean({
+      description:
+        'After initialization, run a format check to verify all transactions can be executed.',
+      allowNo: true,
+      default: false,
+    }),
   };
 
   async run(): Promise<void> {
@@ -30,26 +37,31 @@ export default class Init extends BaseCliRunCommand<typeof Init> {
     });
 
     this.log(oclif.ux.colorize('green', 'Sampler initialized.'));
-    this.log();
-    this.log('To check if every transaction can be executed, run:');
-    this.log();
-    this.log('$ thymian format:check');
-    this.log();
-    if (this.config.findCommand('format:check')) {
-      const answer = await prompts.confirm({
-        message: 'Do you want to run this check now?',
-      });
 
-      if (answer) {
+    if (this.flags.check) {
+      if (this.config.findCommand('format:check')) {
         this.log();
+        const answer = await prompts.confirm({
+          message: 'Do you want to run this check now?',
+        });
 
-        await this.config.runCommand('format:check', [
-          '-c',
-          this.flags.config,
-          '--cwd',
-          this.flags.cwd,
-        ]);
+        if (answer) {
+          this.log();
+
+          await this.config.runCommand('format:check', [
+            '-c',
+            this.flags.config,
+            '--cwd',
+            this.flags.cwd,
+          ]);
+        }
       }
+    } else {
+      this.log();
+      this.log('To check if every transaction can be executed, run:');
+      this.log();
+      this.log('$ thymian format:check');
+      this.log();
     }
   }
 }
