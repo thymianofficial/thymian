@@ -35,7 +35,7 @@ export function createHttpRequest(
     cookies: {},
     pathParameters: {},
     mediaType: '',
-    sourceName: '',
+    sourceName: 'test-source',
     ...overrides,
   };
 }

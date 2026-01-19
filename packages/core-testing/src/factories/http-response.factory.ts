@@ -26,7 +26,7 @@ export function createHttpResponse(
     statusCode,
     headers: {},
     mediaType: 'application/json',
-    sourceName: '',
+    sourceName: 'test-source',
     ...overrides,
   };
 }
