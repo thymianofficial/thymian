@@ -3,6 +3,8 @@ title: Hook System Deep Dive
 description: Understanding how the cascading hook system works internally and why it's designed this way.
 ---
 
+import { FileTree, Aside } from '@astrojs/starlight/components';
+
 Understanding how the cascading hook system works internally and why it's designed this way.
 In most cases, you will not need this guide to work with Thymian. But if you're curious, keep reading!
 
@@ -32,16 +34,18 @@ When sampler initializes, it:
 
 Given this structure:
 
-```
-Todos/
-├── auth.authorize.ts
-└── 127.0.0.1/
-    └── 3000/
-        └── users/
-            ├── setup.beforeEach.ts
-            └── @POST/
-                └── validate.afterEach.ts
-```
+<FileTree>
+
+- Todos
+  - auth.authorize.ts
+  - 127.0.0.1
+    - 3000
+      - users
+        - setup.beforeEach.ts
+        - @POST
+          - validate.afterEach.ts
+
+</FileTree>
 
 Sampler discovers:
 
@@ -55,18 +59,20 @@ Sampler discovers:
 
 Hooks are associated with **tree nodes** that represent your API structure:
 
-```
-Root
-└── Source (Todos)
-    └── Host (127.0.0.1)
-        └── Port (3000)
-            └── Path (users)
-                └── PathParameter ([id])
-                    └── Method (@GET)
-                        └── StatusCode (200)
-                            └── ResponseMediaType (application__json)
-                                └── Samples
-```
+<FileTree>
+
+- Root
+  - Source (Todos)
+    - Host (127.0.0.1)
+      - Port (3000)
+        - Path (users)
+          - PathParameter ([id])
+            - Method (@GET)
+              - StatusCode (200)
+                - ResponseMediaType (application\_\_json)
+                  - Samples
+
+</FileTree>
 
 Each node can have hooks attached.
 
@@ -135,14 +141,6 @@ Special behavior:
 - Only the **last authorize hook** in the chain executes
 - Earlier authorize hooks are ignored
 - This allows child endpoints to override parent authorization
-
-```t
-// Only global-auth.authorize.ts runs for most endpoints
-Todos/
-├── global-auth.authorize.ts  ← Applies to all
-└── public/
-    └── local-auth.authorize.ts  ← Overrides for /public/*
-```
 
 ### AfterEach Hooks
 

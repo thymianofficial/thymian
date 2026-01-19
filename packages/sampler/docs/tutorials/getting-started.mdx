@@ -3,11 +3,11 @@ title: Getting Started with @thymian/sampler
 description: Getting started tutorial for @thymian/sampler
 ---
 
-import { Tabs, TabItem } from '@astrojs/starlight/components';
+import { Tabs, TabItem, FileTree } from '@astrojs/starlight/components';
 
 This tutorial walks you through the complete workflow of using the sampler plugin, from installation to running tests with hooks.
 
----
+
 
 ## What You'll Learn
 
@@ -19,7 +19,7 @@ By the end of this tutorial, you'll be able to:
 - Create hooks to add authentication and prepare test data
 - Run tests against your API
 
----
+
 
 ## Prerequisites
 
@@ -28,7 +28,7 @@ By the end of this tutorial, you'll be able to:
 - An OpenAPI 3.x specification for your API
 - Thymian installed in your project
 
----
+
 
 ## Tutorial Setup
 
@@ -36,7 +36,7 @@ This tutorial uses the [Space Launch System API](https://github.com/thymianoffic
 
 You can follow along with any API that has an OpenAPI specification.
 
----
+
 
 ## Step 1: Install Thymian and Set Up Your API
 
@@ -75,7 +75,7 @@ Space Launch System API:
 
 </Tabs>
 
----
+
 
 ## Step 2: Create a Thymian Configuration File
 
@@ -100,7 +100,7 @@ plugins:
 
 Adjust the `source` path to point to your OpenAPI specification file.
 
----
+
 
 ## Step 3: Generate Initial Samples
 
@@ -119,31 +119,33 @@ This command:
 
 **Output structure:**
 
-```
-.thymian/samples/
-├── types.d.ts                    # Generated TypeScript types
-├── tsconfig.json                 # TypeScript configuration
-├── meta.json                     # Metadata about generated samples
-└── Space_Launch_System_API/      # Your API source
-    └── localhost/
-        └── 3000/
-            └── api/
-                └── v1/
-                    ├── launches/
-                    │   ├── @GET/
-                    │   │   └── 200/
-                    │   │       └── application__json/
-                    │   │           └── request.json
-                    │   └── @POST/
-                    |       └── application__json/
-                    │           └── 201/
-                    │               └── application__json/
-                    │                   └── request.json
-                    └── astronauts/
-                        └── ...
-```
+<FileTree>
 
----
+- .thymian/samples/
+  - types.d.ts # Generated TypeScript types
+  - tsconfig.json # TypeScript configuration
+  - meta.json # Metadata about generated samples
+  - Space_Launch_System_API/ # Your API source
+    - localhost/
+      - 3000/
+        - api/
+          - v1/
+            - launches/
+              - @GET/
+                - 200/
+                  - application__json/
+                    - request.json
+              - @POST/
+                - application__json/
+                  - 201/
+                    - application__json/
+                      - request.json
+            - astronauts/
+              - ...
+
+</FileTree>
+
+
 
 ## Step 4: Inspect Generated Samples
 
@@ -180,14 +182,14 @@ You'll see auto-generated sample data:
 }
 ```
 
----
+
 
 ## Step 5: Customize Sample Data (Optional)
 
 While auto-generated samples work, you may want more realistic data. To edit the request data just edit the corresponding `request.json` file.
 The Space Launch System API provides examples in the OpenAPI spec, so the generated samples are already quite good.
 
----
+
 
 ## Step 6: Run Checks Without Authentication
 
@@ -232,7 +234,7 @@ thymian format:check
 Checked 14 transactions. 13 failed.
 ```
 
----
+
 
 ## Step 7: Create an Authorization Hook
 
@@ -288,7 +290,7 @@ const hook: AuthorizeHook = async (request, context, utils) => {
 export default hook;
 ```
 
----
+
 
 ## Step 8: Run Checks With Authentication
 
@@ -320,7 +322,7 @@ We should now see that most requests can be run. The only ones that fail request
 Checked 14 transactions. 4 failed.
 ```
 
----
+
 
 ## Step 9: Handle Resource Dependencies
 
@@ -371,7 +373,7 @@ const hook: BeforeEachRequestHook = async (request, context, utils) => {
 export default hook;
 ```
 
----
+
 
 ## Step 10: Run Complete Test Suite
 
@@ -404,7 +406,7 @@ Checked 14 transactions. 2 failed.
 
 As you can see, only the /astronauts/{id} endpoints are failing. Lets add a beforeEach hook for these endpoints:
 
----
+
 
 ## Step 11: Handle Resource Dependencies - Part 2
 
@@ -453,7 +455,7 @@ const hook: BeforeEachRequestHook = async (request, context, utils) => {
 export default hook;
 ```
 
----
+
 
 ## Step 12: Run Final Check
 
@@ -484,8 +486,6 @@ Now you should see that all transactions can be run:
 Checked 14 transactions. 0 failed.
 ```
 
----
-
 ## Summary
 
 You've successfully:
@@ -502,25 +502,3 @@ You've successfully:
 
 ✔ Run transactions gainst your API
 
----
-
-## Next Steps
-
-### Explore More Hook Capabilities
-
-- [How to Write Hooks](../how-to/write-hooks.mdx)
-- [How to Make Requests in Hooks](../how-to/make-requests-in-hooks.mdx)
-- [How to Skip or Fail Tests](../how-to/skip-and-fail-tests.mdx)
-
-### Understand the Concepts
-
-- [Explanation: Hook System](../explanation/hook-system.md)
-- [Explanation: Hierarchical File-Based Approach](../explanation/hierarchical-approach.md)
-
-### Reference Documentation
-
-- [CLI Reference](../references/cli.md)
-- [Hooks API Reference](../references/hooks-api.md)
-- [Request Format Reference](../references/request-format.md)
-
----

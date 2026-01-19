@@ -3,6 +3,8 @@ title: Request Format Reference
 description: Complete reference for the `request.json` file format used by the sampler plugin.
 ---
 
+import { Aside } from '@enact/docs/components';
+
 # Request Format Reference
 
 Complete reference for the `request.json` file format used by the sampler plugin.
@@ -63,7 +65,9 @@ The endpoint path, including path parameters.
 "path": "/api/v1/users/abc/posts/xyz"
 ```
 
-**Note:** Path parameters are replaced at runtime using the `pathParameters` field.
+<Aside type="note">
+ Path parameters are replaced at runtime using the `pathParameters` field.
+</Aside>
 
 ### `method`
 
@@ -74,7 +78,7 @@ The HTTP method.
 
 **Examples:**
 
-```json
+```jsonc
 "method": "GET"
 "method": "POST"
 "method": "DELETE"
@@ -94,12 +98,14 @@ Whether to run the authorize hook for this request.
 
 **Examples:**
 
-```json
+```jsonc
 "authorize": true   // Protected endpoint
 "authorize": false  // Public endpoint
 ```
 
-**Note:** Typically set to `false` for endpoints that create authentication resources (e.g., user registration).
+<Aside type="note">
+  A Typically set to `false` for endpoints that create authentication resources (e.g., user registration).
+</Aside>
 
 ### `headers`
 
@@ -110,7 +116,7 @@ HTTP headers to include in the request.
 
 **Examples:**
 
-```json
+```jsonc
 "headers": {
   "content-type": "application/json",
   "accept": "application/json",
@@ -118,7 +124,7 @@ HTTP headers to include in the request.
 }
 ```
 
-```json
+```jsonc
 "headers": {
   "authorization": "Bearer token123",
   "user-agent": "MyApp/1.0"
@@ -141,11 +147,11 @@ Cookies to include in the request.
 
 **Examples:**
 
-```json
+```jsonc
 "cookies": {}
 ```
 
-```json
+```jsonc
 "cookies": {
   "session": "abc123xyz",
   "preference": "dark-mode"
@@ -163,7 +169,7 @@ Values for path parameters defined in the endpoint.
 
 For path `/api/v1/launches/{id}`:
 
-```json
+```jsonc
 "path": "/api/v1/launches/{id}",
 "pathParameters": {
   "id": "abc123"
@@ -172,7 +178,7 @@ For path `/api/v1/launches/{id}`:
 
 For path `/api/v1/users/{userId}/posts/{postId}`:
 
-```json
+```jsonc
 "path": "/api/v1/users/{userId}/posts/{postId}",
 "pathParameters": {
   "userId": "user-123",
@@ -180,7 +186,9 @@ For path `/api/v1/users/{userId}/posts/{postId}`:
 }
 ```
 
-**Note:** Values are substituted into the path before sending the request.
+<Aside type="note">
+  Values are substituted into the path before sending the request.
+</Aside>
 
 ### `query`
 
@@ -191,11 +199,11 @@ Query parameters to include in the request URL.
 
 **Examples:**
 
-```json
+```jsonc
 "query": {}
 ```
 
-```json
+```jsonc
 "query": {
   "limit": 10,
   "offset": 0,
@@ -203,7 +211,7 @@ Query parameters to include in the request URL.
 }
 ```
 
-```json
+```jsonc
 "query": {
   "filter": "status:active",
   "include": "author,tags"
@@ -223,7 +231,7 @@ The request body. Only applicable for methods that support a body (POST, PUT, PA
 
 JSON body:
 
-```json
+```jsonc
 "body": {
   "missionName": "Apollo 11",
   "launchDate": "2026-07-20T20:17:00Z",
@@ -233,7 +241,7 @@ JSON body:
 
 Array body:
 
-```json
+```jsonc
 "body": [
   { "id": 1, "name": "Item 1" },
   { "id": 2, "name": "Item 2" }
@@ -242,7 +250,7 @@ Array body:
 
 String body:
 
-```json
+```jsonc
 "body": "Plain text content"
 ```
 

@@ -3,44 +3,49 @@ title: Why Provide Request Files for Each Endpoint?
 description: Understanding why sampler requires explicit request samples for every endpoint, including error cases.
 ---
 
+import { FileTree, Aside } from '@astrojs/starlight/components';
+
 Understanding why sampler requires explicit request samples for every endpoint, including error cases.
 
 ## The Requirement
 
 The sampler plugin requires a `request.json` file for every endpoint and status code combination defined in your OpenAPI specification:
 
-```
-launches/
-├── @GET/
-│   └── 200/
-│       └── application__json/
-│           └── request.json    ← Success case
-├── @POST/
-│   ├── 201/
-│   │   └── application__json/
-│   │       └── request.json    ← Success case
-│   ├── 400/
-│   │   └── application__json/
-│   │       └── request.json    ← Bad request case
-│   └── 422/
-│       └── application__json/
-│           └── request.json    ← Validation error case
-└── [id]/
-    ├── @GET/
-    │   ├── 200/
-    │   │   └── application__json/
-    │   │       └── request.json    ← Found case
-    │   └── 404/
-    │       └── application__json/
-    │           └── request.json    ← Not found case
-    └── @DELETE/
-        ├── 204/
-        │   └── application__json/
-        │       └── request.json    ← Success case
-        └── 404/
-            └── application__json/
-                └── request.json    ← Not found case
-```
+<FileTree>
+
+- launches/
+  - @GET/
+    - 200/
+      - application\_\_json/
+        - request.json ← Success case
+  - @POST/
+    - application\_\_json/
+      - 201/
+        - application\_\_json/
+          - request.json ← Success case
+      - 400/
+        - application\_\_json/
+          - request.json ← Bad request case
+      - 422/
+        - application\_\_json/
+          - request.json ← Validation error case
+  - [id]/
+    - @GET/
+      - 200/
+        - application\_\_json/
+          - request.json ← Found case
+      - 404/
+        - application\_\_json/
+          - request.json ← Not found case
+    - @DELETE/
+      - 204/
+        - application\_\_json/
+          - request.json ← Success case
+      - 404/
+        - application\_\_json/
+          - request.json ← Not found case
+
+</FileTree>
 
 ## Why Is This Required?
 
