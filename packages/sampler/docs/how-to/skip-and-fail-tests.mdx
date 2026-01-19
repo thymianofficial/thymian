@@ -1,0 +1,206 @@
+---
+title: How to Skip or Fail Tests in Hooks
+description: Skipping and failing tests in hooks
+---
+
+import { Aside } from '@astrojs/starlight/components';
+
+<Aside type="danger" title="Problem">
+  You need to skip tests under certain conditions or explicitly fail tests when requirements aren't met.
+</Aside>
+
+<Aside type="tip" title="Solution">
+  Use `utils.skip()` and `utils.fail()` in your hooks.
+</Aside>
+
+
+
+## Skipping Tests
+
+Use `utils.skip()` when a test cannot run due to missing preconditions.
+
+### Reason to Skip
+
+- Required resources cannot be created
+- Prerequisites are not met
+- Test is not applicable for certain conditions
+
+### Basic Usage
+
+```typescript
+import { BeforeEachRequestHook } from '@thymian/hooks';
+
+const hook: BeforeEachRequestHook = async (request, context, utils) => {
+  const response = await utils.request('POST http://localhost:3000/api/v1/launches', {
+    body: {
+      missionName: utils.randomString(10),
+      launchDate: '2026-12-31T00:00:00Z',
+      rocketType: 'Falcon9'
+    },
+    headers: { 'content-type': 'application/json' }
+  });
+
+  // Skip if resource creation failed
+  if (response.statusCode !== 201) {
+    utils.skip('Cannot create required launch resource');
+  }
+
+  request.pathParameters.id = response.body.id;
+  return request;
+};
+
+export default hook;
+```
+
+### Skip with Details
+
+Provide detailed information about why the test was skipped:
+
+```typescript
+if (response.statusCode === 503) {
+  utils.skip(`Service unavailable (status ${response.statusCode}). Cannot proceed with test.`);
+}
+```
+
+
+
+## Failing Tests
+
+Use `utils.fail()` when a test should explicitly fail due to invalid conditions.
+
+### When to Fail
+
+- Setup produces unexpected results
+- Resources are in an invalid state
+- Critical preconditions are violated
+- Data validation fails
+
+### Basic Usage
+
+```typescript
+import { BeforeEachRequestHook } from '@thymian/hooks';
+
+const hook: BeforeEachRequestHook = async (request, context, utils) => {
+  const response = await utils.request('POST http://localhost:3000/api/v1/launches', {
+    body: {
+      missionName: utils.randomString(10),
+      launchDate: '2026-12-31T00:00:00Z',
+      rocketType: 'Falcon9'
+    },
+    headers: { 'content-type': 'application/json' }
+  });
+
+  // Fail if creation returned wrong status
+  if (response.statusCode === 200) {
+    utils.fail(`Expected 201 Created, got ${response.statusCode}`);
+  }
+
+  // Fail if response body is invalid
+  if (!response.body.id) {
+    utils.fail('Created launch has no ID field');
+  }
+
+  request.pathParameters.id = response.body.id;
+  return request;
+};
+
+export default hook;
+```
+
+
+
+## What Happens When You Skip or Fail?
+
+### Skip
+
+```typescript
+utils.skip('Resource unavailable');
+```
+
+**Result:**
+- Test is marked as **skipped**
+- Remaining hooks do not execute
+- Test does not count as failure
+- Test report shows skip reason
+
+**Output:**
+```
+GET /api/v1/launches/123
+  ⊘ Skipped: Resource unavailable
+```
+
+### Fail
+
+```typescript
+utils.fail('Invalid response structure');
+```
+
+**Result:**
+- Test is marked as **failed**
+- Remaining hooks do not execute
+- Test counts as failure in report
+- Test report shows failure reason
+
+**Output:**
+```
+GET /api/v1/launches/123
+  ✗ Failed: Invalid response structure
+```
+
+
+
+## Technical Details
+
+Both `skip()` and `fail()` throw special errors that are caught by the hook runner:
+
+```typescript
+// These throw errors internally
+utils.skip('message');  // Throws SkipError
+utils.fail('message');  // Throws FailError
+```
+
+**Note:** These methods never return. TypeScript recognizes them as `never` return type.
+
+
+
+## Alternatives
+
+### Using return
+
+For simple conditional logic, you can return early without skipping:
+
+```typescript
+const hook: BeforeEachRequestHook = async (request, context, utils) => {
+  // For 404 tests, just return without modification
+  if (context.thymianRes.statusCode === 404) {
+    return request;
+  }
+
+  // For other cases, do setup
+  // ...
+  return request;
+};
+```
+
+This doesn't skip the test, it just skips the hook logic.
+
+### Using Assertions
+
+For validation in afterEach hooks, consider using `utils.assertionFailure()` instead of `utils.fail()`:
+
+```typescript
+const hook: AfterEachResponseHook = async (response, context, utils) => {
+  const body = JSON.parse(response.body || '{}');
+
+  if (!body.id) {
+    utils.assertionFailure('Missing ID field', {
+      expected: 'id field present',
+      actual: 'id field missing'
+    });
+  }
+
+  return response;
+};
+```
+
+**Difference:** `assertionFailure()` records a failed assertion but allows other validations to continue. `fail()` stops execution immediately.

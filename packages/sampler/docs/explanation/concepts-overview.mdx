@@ -1,0 +1,218 @@
+---
+title: The Concept of the File-based Samples
+description: An overview of the core concepts behind the Thymian Sampler plugin for API testing.
+---
+
+import { FileTree, Aside } from '@astrojs/starlight/components';
+
+To run API tests, you need sample data. And especially the approach of Thymian requires a structured way to organize sample data.
+Thymian does not only want to test individual endpoints or transactions, but the entire API described. This also includes `4xx` responses.
+For this reason, an approach is required that is both **scalable** and **transparent**. The `@thymian/sampler` plugin provides such an approach based on a filesystem structure.
+It mirrors your API structure in the filesystem and allows you to customize requests dynamically.
+
+## Why is the filesystem a good match?
+
+HTTP/REST APIs are usually organized in a hierarchical structure. For example, `/todos/{id}/tasks` is a child of `/todos/{id}`.
+This structure naturally lends itself to a filesystem-like structure. Additionally, the hierarchical allows using the concept of (reusable) **hooks** to customize requests.
+On top, the filesystem-based approach has the following advantages:
+
+**1. Tool-Friendly**
+- Edit with any text editor
+- Search with grep/find
+- Version control with git
+- Review in pull requests
+
+**2. Language-Agnostic**
+- JSON samples work with any language
+- TypeScript hooks are optional
+
+**3. Transparent**
+- See exactly what data is sent
+- No hidden magic
+- Debuggable
+
+**4. Scalable**
+- Large APIs → deep trees
+- Organize by team/feature
+- Parallel development
+
+## The Key Concepts
+
+In the following sections, we'll explain the core concepts behind the Thymian Sampler plugin. For more practical details, check out the guides and tutorials. For a complete reference, check out the reference pages.
+
+Let's understand the concepts based on an example. We will take the [Space Launch System API](https://github.com/thymianofficial/thymian-getting-started). After samples are generated for this project, we will get the following structure:
+
+<FileTree>
+
+- .thymian/
+  - samples/
+    - Space_Launch_System_API/
+      - basic.authorize.ts
+      - localhost/
+        - 3000/
+          - api/
+            - v1/
+              - astronauts/
+                - [id]/
+                  - @DELETE/
+                    - 204/
+                      - requests/
+                        - 0-request.json
+                      - meta.json
+                    - 404/
+                      - requests/
+                        - 0-request.json
+                      - meta.json
+                  - @GET/
+                    - 200/
+                      - application__json/
+                        - requests/
+                          - 0-request.json
+                        - meta.json
+                    - 404/
+                      - requests/
+                        - 0-request.json
+                      - meta.json
+                  - @PUT/
+                    - application__json/
+                      - 200/
+                        - application__json/
+                          - requests/
+                            - 0-request.json
+                          - meta.json
+                  - create-astronaut.beforeEach.ts
+                - @GET/
+                  - 200/
+                    - application__json/
+                      - requests/
+                        - 0-request.json
+                      - meta.json
+                - @POST/
+                  - application__json/
+                    - 201/
+                      - application__json/
+                        - requests/
+                          - 0-request.json
+                        - meta.json
+              - launches/
+                - [id]/
+                  - @DELETE/
+                    - 204/
+                      - requests/
+                        - 0-request.json
+                      - meta.json
+                    - 404/
+                      - requests/
+                        - 0-request.json
+                      - meta.json
+                  - @GET/
+                    - 200/
+                      - application__json/
+                        - requests/
+                          - 0-request.json
+                        - meta.json
+                    - 404/
+                      - requests/
+                        - 0-request.json
+                      - meta.json
+                  - @PUT/
+                    - application__json/
+                      - 200/
+                        - application__json/
+                          - requests/
+                            - 0-request.json
+                          - meta.json
+                  - create-launch.beforeEach.ts
+                - @GET/
+                  - 200/
+                    - application__json/
+                      - requests/
+                        - 0-request.json
+                      - meta.json
+                - @POST/
+                  - application__json/
+                    - 201/
+                      - application__json/
+                        - requests/
+                          - 0-request.json
+                        - meta.json
+    - meta.json
+    - tsconfig.json
+    - types.d.ts
+
+</FileTree>
+
+### Request Samples
+
+A **request sample** is a JSON file containing all data needed for an HTTP request:
+
+```json
+{
+  "origin": "http://localhost:3000",
+  "path": "/api/v1/astronauts/{id}",
+  "method": "get",
+  "authorize": true,
+  "headers": {
+    "accept": "application/json"
+  },
+  "cookies": {},
+  "pathParameters": {
+    "id": 0
+  },
+  "query": {}
+}
+```
+
+You can see such files in the filesystem above (0-request.json). Samples are **templates** that can be modified by hooks before execution and also modified manually.
+Request files are always at the bottom of the hierarchy and its corresponding `requests` directory contains all samples. At the same
+level as the `requests` directory, there is a `meta.json` file that contains additional information about the sample. For
+more information, see the next section.
+
+### Sampling Strategies
+
+As just mentioned, besides each `requests` directory, there is a `meta.json` file. This file contains metadata about the samples in the `requests` directory
+and looks like this:
+
+```json
+{
+  "sourceTransaction": "883282f633d92bb7a81eb0dbc59a87ee2b0a9a44",
+  "samplingStrategy": {
+    "type": "random"
+  }
+}
+```
+
+The `sourceTransaction` field contains the ID of the transaction for which the request samples are for. It comes
+from the Thymian format and should never be touched or modified manually.
+
+The `samplingStrategy` field contains information about how samples are selected. Currently, only `random` and `fixed` strategies are supported.`
+
+#### Random Sampling
+
+When this strategy is used, a random sample is selected for each request.
+
+#### Fixed Sampling
+
+When this strategy is used, the same sample is selected for each request. This is useful for deterministic tests and
+should be used most of the time.
+
+### Hooks
+
+The concept of hooks enables users to customize requests/responses dynamically. They are also located in the filesystem
+and live in the hierarchy just like samples. There are 3 types of hooks: `beforeEach`, `afterEach` and `authorize`, and
+are called at different points in the execution pipeline. But the most important aspect of hooks is that they are **cascading**.
+That means that they are executed from root to leaf, for all requests that match the hook's path.
+Imagine the samples folder as a tree. When a request (a leaf) is executed, the sampler plugin runs from that leaf to the root (the samples folder), executing all hook files along the way.
+This enables easy reuse of hook files and fits well into the hierarchical structure of REST APIs. If and when a hook is executed not only depends on its
+location in the hierarchy, but also on its type.
+
+#### Hook Types
+
+Three types of hooks modify different aspects of requests:
+
+| Hook Type | When It Runs | Purpose | Example Use Case |
+|-----------|--------------|---------|------------------|
+| `beforeEach` | Before sending request | Modify request data | Randomize usernames, add headers |
+| `afterEach` | After receiving response | Validate or process response | Assert status codes, extract IDs |
+| `authorize` | Before protected requests | Add authentication | Create users, add auth tokens |
+
