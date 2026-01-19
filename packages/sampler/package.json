@@ -41,6 +41,7 @@
   },
   "devDependencies": {
     "fast-json-stable-stringify": "^2.1.0",
-    "ts-morph": "^27.0.2"
+    "ts-morph": "^27.0.2",
+    "@thymian/core-testing": "^0"
   }
 }
