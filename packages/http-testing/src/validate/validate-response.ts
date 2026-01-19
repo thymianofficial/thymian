@@ -8,9 +8,14 @@ import { validateStatusCode } from './validate-status-code.js';
 export function validateResponse(
   response: ThymianHttpResponse,
   actualResponse: HttpResponse,
+  availableResponses: ThymianHttpResponse[],
 ): { valid: boolean; results: HttpTestCaseResult[] } {
   const results = [
-    validateStatusCode(response.statusCode, actualResponse.statusCode),
+    validateStatusCode(
+      response.statusCode,
+      actualResponse.statusCode,
+      availableResponses.map(({ statusCode }) => statusCode),
+    ),
     ...validateBodyForResponse(actualResponse.body, response),
     ...validateHeaders(actualResponse.headers, response),
   ];

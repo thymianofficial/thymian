@@ -41,6 +41,9 @@ export function validateResponses<
       const result = validateResponse(
         transaction.source.thymianRes,
         transaction.response,
+        ctx.format
+          .getHttpResponsesOf(transaction.source.thymianReqId)
+          .map(([, response]) => response),
       );
 
       current.results.push(...result.results);

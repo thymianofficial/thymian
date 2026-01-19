@@ -167,6 +167,9 @@ export function runRequests<
             const result = validateStatusCode(
               transaction.source.thymianRes.statusCode,
               transaction.response.statusCode,
+              ctx.format
+                .getHttpResponsesOf(transaction.source.thymianReqId)
+                .map(([, { statusCode }]) => statusCode),
             );
 
             if (result.type === 'assertion-failure') {
