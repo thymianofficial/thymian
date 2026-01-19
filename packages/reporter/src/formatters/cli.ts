@@ -43,9 +43,6 @@ export class CliFormatter implements Formatter<Partial<CliFormatterOptions>> {
 
   flush(): void {
     if (this.reports.length === 0) {
-      console.log(
-        `Nothing found. ${chalk.dim('  ...and your API seems to be spiced well')}`,
-      );
       return;
     }
     const analysis = analyze(this.reports);
