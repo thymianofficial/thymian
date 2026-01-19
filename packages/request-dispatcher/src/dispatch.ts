@@ -1,5 +1,4 @@
 import type { HttpRequest, HttpResponse } from '@thymian/core';
-import type PQueue from 'p-queue';
 import { request } from 'undici';
 
 import { decodeBody } from './decode-body.js';
