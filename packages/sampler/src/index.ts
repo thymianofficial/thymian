@@ -1,5 +1,5 @@
 import { writeFile } from 'node:fs/promises';
-import { join } from 'node:path';
+import { isAbsolute, join } from 'node:path';
 
 import {
   type HttpRequestTemplate,
@@ -106,7 +106,13 @@ export const samplePlugin: ThymianPlugin<Partial<SamplerPluginOptions>> = {
     },
   },
   plugin: async (emitter, logger, options) => {
-    const basePath = join(options.cwd, '.thymian', 'samples');
+    let basePath = join(options.cwd, '.thymian', 'samples');
+
+    if (options.path) {
+      basePath = isAbsolute(options.path)
+        ? options.path
+        : join(options.cwd, options.path);
+    }
 
     let format: ThymianFormat | undefined;
     let samples: SamplesStructure | undefined;
