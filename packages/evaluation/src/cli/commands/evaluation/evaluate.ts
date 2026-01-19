@@ -1,4 +1,5 @@
 import { createWriteStream, type WriteStream } from 'node:fs';
+import * as os from 'node:os';
 import { isAbsolute, join } from 'node:path';
 
 import { Args, Command } from '@thymian/cli-common/oclif';
@@ -84,6 +85,7 @@ export default class Evaluate extends Command {
 
     this.pool = new Piscina({
       filename: join(import.meta.dirname, '../..', 'worker.js'),
+      maxThreads: 1,
     });
   }
 
@@ -104,7 +106,11 @@ export default class Evaluate extends Command {
       ? args.directory
       : join(process.cwd(), args.directory);
 
-    await this.initStream(join(args.resultsDir, args.resultsFile));
+    const baseResultDir = isAbsolute(args.resultsDir)
+      ? args.resultsDir
+      : join(process.cwd(), args.resultsDir);
+
+    await this.initStream(join(baseResultDir, args.resultsFile));
 
     const matches = await glob('**/*.{yaml,yml,json}', {
       cwd: openapiCwd,

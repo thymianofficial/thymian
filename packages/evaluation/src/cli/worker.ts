@@ -32,7 +32,7 @@ export default async function ({
   filePath,
 }: WorkerData): Promise<WorkerResult> {
   const thymian = new Thymian(new NoopLogger(), {
-    timeout: 9000000000,
+    timeout: 2147483646,
   });
 
   try {
