@@ -19,7 +19,6 @@ export const defaultConfig: ThymianConfig = {
     },
     '@thymian/request-dispatcher': {},
     '@thymian/sampler': {},
-    '@thymian/evaluation': {},
     '@thymian/reporter': {
       options: {
         formatters: {
@@ -28,6 +27,5 @@ export const defaultConfig: ThymianConfig = {
       },
     },
     '@thymian/format-validator': {},
-    '@thymian/websocket-proxy': {},
   },
 };
