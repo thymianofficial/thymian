@@ -1,11 +1,13 @@
-import { join } from 'node:path';
+import { rm } from 'node:fs/promises';
 
 import { ThymianEmitter, ThymianFormat } from '@thymian/core';
-import { describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
 import { generateSamplesForThymianFormat } from '../src/generation/generate-samples-for-thymian-format.js';
+import { generateTypesForThymianFormat } from '../src/hooks/generate-request-types.js';
 import { RequestSampler } from '../src/request-sampler.js';
 import { writeSamplesToDir } from '../src/samples-structure/write-samples-to-dir.js';
+import { createTempDir } from './utils.js';
 
 const format = ThymianFormat.import({
   options: {
@@ -1328,8 +1330,14 @@ const format = ThymianFormat.import({
 });
 
 describe('generateSamplesForThymianFormat', () => {
-  it('hash', () => {
-    console.log(format.toHash());
+  let tempDir!: string;
+
+  beforeEach(async () => {
+    tempDir = await createTempDir('generateSamplesForThymianFormat');
+  });
+
+  afterEach(async () => {
+    await rm(tempDir, { recursive: true, force: true });
   });
 
   it('should work', async () => {
@@ -1338,11 +1346,13 @@ describe('generateSamplesForThymianFormat', () => {
       new ThymianEmitter(),
     );
 
-    await writeSamplesToDir(samples, {
-      path: join(import.meta.dirname, 'my-test'),
+    const generated = await generateTypesForThymianFormat(format);
+
+    await writeSamplesToDir(samples, generated.keyToTransactionId, {
+      path: tempDir,
     });
 
-    const sampler = new RequestSampler(join(import.meta.dirname, 'my-test'));
+    const sampler = new RequestSampler(tempDir);
 
     await sampler.init();
 

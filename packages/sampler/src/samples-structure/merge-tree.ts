@@ -33,7 +33,7 @@ export function mergeHooks(a: Hooks | undefined, b: Hooks | undefined): Hooks {
 function getNodeKey(node: Node): string {
   switch (node.type) {
     case 'samples':
-      return node.type;
+      return node.type + node.meta.sourceTransaction;
     case 'requests':
       return node.type;
     case 'root':
@@ -78,24 +78,37 @@ function mergeRequestNodes(a: RequestsNode, b: RequestsNode): RequestsNode {
     meta: { ...a.meta, ...b.meta },
     hooks: mergeHooks(a.hooks, b.hooks),
     // just combine the lists of samples
-    value: [...a.value, ...b.value],
+    value: [...(a.value ?? []), ...(b.value ?? [])],
     children: [],
   };
 }
 
 export function mergeNodes(a: Node, b: Node): Node {
+  if (a.type !== b.type) {
+    throw new ThymianBaseError(
+      `Cannot merge nodes of different types: ${a.type} vs ${b.type}`,
+    );
+  }
+
   if (nodeIsType(a, 'requests') && nodeIsType(b, 'requests')) {
     return mergeRequestNodes(a, b);
   } else if (!nodeIsType(a, 'requests') && !nodeIsType(b, 'requests')) {
-    // this is VERY ugly, but it's currently the price for the type safe tree structure. We should probably refactor this later.
-    // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-    // @ts-expect-error
-    return {
+    const node = {
       type: a.type,
       value: a.value,
       hooks: mergeHooks(a.hooks, b.hooks),
       children: mergeChildLists(a.children, b.children),
+      meta: { ...(a.meta ?? {}), ...(b.meta ?? {}) },
     };
+
+    if (a.meta || b.meta) {
+      node.meta = { ...(a.meta ?? {}), ...(b.meta ?? {}) };
+    }
+
+    // this is VERY ugly, but it's currently the price for the type safe tree structure. We should probably refactor this later.
+    // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+    // @ts-expect-error
+    return node;
   } else {
     throw new Error('This should never happen: ' + a + ' ' + b);
   }

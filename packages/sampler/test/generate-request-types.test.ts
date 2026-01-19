@@ -1,17 +1,17 @@
 import { ThymianFormat } from '@thymian/core';
-import { describe, it } from 'vitest';
+import { Project } from 'ts-morph';
+import { describe, expect, it } from 'vitest';
 
 import {
   generatedTypesToString,
-  generateTypeForSchema,
   generateTypesForThymianFormat,
 } from '../src/hooks/generate-request-types.js';
 
 describe('generateRequestTypes', () => {
-  it('should generate request type definitions as a string', async () => {
+  it('should generate request type definitions as a string - small', async () => {
     const format = new ThymianFormat();
 
-    format.addHttpTransaction(
+    const [, , transactionId] = format.addHttpTransaction(
       {
         cookies: {},
         headers: {},
@@ -50,10 +50,28 @@ describe('generateRequestTypes', () => {
 
     const result = await generateTypesForThymianFormat(format);
 
-    console.log(result);
+    expect(result.keyToTransactionId).toMatchObject({
+      'GET http://localhost:8080/users/{username}/orders': transactionId,
+    });
+
+    const dtsContent = generatedTypesToString(result.types);
+
+    const project = new Project({
+      skipAddingFilesFromTsConfig: true,
+      compilerOptions: {
+        strict: true,
+      },
+    });
+    const sourceFile = project.createSourceFile('generated.d.ts', dtsContent);
+    const diagnostics = sourceFile.getPreEmitDiagnostics();
+
+    expect(
+      diagnostics.length,
+      'Generated source file should not emit any diagnostics',
+    ).toBe(0);
   });
 
-  it('should generate request type definitions as a string -2 ', async () => {
+  it('should generate request type definitions as a string - large', async () => {
     const format = ThymianFormat.import(
       {
         options: { type: 'directed', multi: true, allowSelfLoops: true },
@@ -820,18 +838,21 @@ describe('generateRequestTypes', () => {
     );
 
     const result = await generateTypesForThymianFormat(format);
-    console.log(result.keyToTransactionId);
 
-    //console.log(generatedTypesToString(result));
-  });
-});
+    const dtsContent = generatedTypesToString(result.types);
 
-describe('generateTypeForSchema', () => {
-  it('should generate empty type for empty object', async () => {
-    const schema = {
-      type: 'object',
-      properties: {},
-      required: [],
-    };
+    const project = new Project({
+      skipAddingFilesFromTsConfig: true,
+      compilerOptions: {
+        strict: true,
+      },
+    });
+    const sourceFile = project.createSourceFile('generated.d.ts', dtsContent);
+    const diagnostics = sourceFile.getPreEmitDiagnostics();
+
+    expect(
+      diagnostics.length,
+      'Generated source file should not emit any diagnostics',
+    ).toBe(0);
   });
 });

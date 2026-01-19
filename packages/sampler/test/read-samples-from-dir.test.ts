@@ -1,29 +1,19 @@
-import { mkdtemp, rm } from 'node:fs/promises';
-import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { rm } from 'node:fs/promises';
 
 import stringify from 'fast-json-stable-stringify';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
-import { RequestSampler } from '../src/request-sampler.js';
-import { getPathTransactionId } from '../src/samples-structure/get-path-transaction-id.js';
 import { readSamplesFromDir } from '../src/samples-structure/read-samples-from-dir.js';
 import { samplesTreeFromThymianHttpTransaction } from '../src/samples-structure/samples-from-transactions.js';
 import { traverse } from '../src/samples-structure/traverse.js';
-import {
-  getTreeStructureMeta,
-  writeSamplesToDir,
-} from '../src/samples-structure/write-samples-to-dir.js';
-
-async function createTempDir(): Promise<string> {
-  return await mkdtemp(join(tmpdir(), 'thymian-read-samples-test-dir-'));
-}
+import { writeSamplesToDir } from '../src/samples-structure/write-samples-to-dir.js';
+import { createTempDir } from './utils.js';
 
 describe('readSamplesFromDir', async () => {
   let tempDir!: string;
 
   beforeEach(async () => {
-    tempDir = await createTempDir();
+    tempDir = await createTempDir('thymian-read-samples-test-dir-');
   });
 
   afterEach(async () => {
@@ -78,8 +68,6 @@ describe('readSamplesFromDir', async () => {
       '',
     );
 
-    console.log(getTreeStructureMeta(samples));
-
     await writeSamplesToDir(
       samples,
       {},
@@ -98,6 +86,3 @@ describe('readSamplesFromDir', async () => {
     expect(stringify(samples)).toEqual(stringify(readSamples));
   });
 });
-
-// 6d87bc779fb543d5bd38ac6a6424e657489c654b
-// 6d87bc779fb543d5bd38ac6a6424e657489c654b

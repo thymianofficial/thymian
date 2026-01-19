@@ -18,6 +18,7 @@
     "!**/*.tsbuildinfo"
   ],
   "dependencies": {
+    "@scalar/json-magic": "^0.8.8",
     "@scalar/openapi-parser": "^0.23.9",
     "@scalar/openapi-upgrader": "^0.1.6",
     "@thymian/cli-common": "^0",

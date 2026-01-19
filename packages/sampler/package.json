@@ -20,15 +20,15 @@
   "dependencies": {
     "@thymian/cli-common": "^0",
     "@thymian/core": "^0",
+    "@thymian/http-testing": "^0",
+    "@thymian/request-dispatcher": "^0",
     "code-block-writer": "^13.0.3",
     "jiti": "^2.6.1",
     "json-schema-to-typescript": "^15.0.4",
     "launch-editor": "^2.12.0",
     "openapi-sampler": "^1.6.1",
     "sharp": "^0.34.1",
-    "tinyglobby": "^0.2.15",
-    "tslib": "^2.3.0",
-    "url-template": "^3.1.1"
+    "tslib": "^2.3.0"
   },
   "oclif": {
     "commands": "./dist/cli/commands",
@@ -40,6 +40,7 @@
     }
   },
   "devDependencies": {
-    "fast-json-stable-stringify": "^2.1.0"
+    "fast-json-stable-stringify": "^2.1.0",
+    "ts-morph": "^27.0.2"
   }
 }

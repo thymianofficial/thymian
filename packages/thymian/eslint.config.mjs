@@ -25,6 +25,7 @@ export default [
             '@thymian/sampler',
             '@thymian/websocket-proxy',
             '@thymian/reporter',
+            '@thymian/evaluation',
           ],
         },
       ],

@@ -1,5 +1,4 @@
-import type { CommandError } from '@oclif/core/interfaces';
-import { BaseCliRunCommand } from '@thymian/cli-common';
+import { BaseCliRunCommand, oclif } from '@thymian/cli-common';
 import ora, { type Ora } from 'ora';
 
 const growingPlant = {
@@ -16,7 +15,7 @@ export default class Run extends BaseCliRunCommand<typeof Run> {
 
   private spinner!: Ora;
 
-  protected override catch(err: CommandError): Promise<void> {
+  protected override catch(err: oclif.Errors.CLIError): Promise<void> {
     // this.spinner?.clear();
     return super.catch(err);
   }
