@@ -39,7 +39,7 @@ export function createThymianFormatWithTransaction(
   response: ThymianHttpResponse = createHttpResponse(),
 ): ThymianFormat {
   const format = new ThymianFormat();
-  format.addHttpTransaction(request, response);
+  format.addHttpTransaction(request, response, '');
   return format;
 }
 
@@ -70,7 +70,7 @@ export function createThymianFormatWithTransactions(
   }
 
   for (const [request, response] of transactions) {
-    format.addHttpTransaction(request, response);
+    format.addHttpTransaction(request, response, '');
   }
   return format;
 }
