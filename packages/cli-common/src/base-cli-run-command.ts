@@ -1,6 +1,6 @@
 import { existsSync } from 'node:fs';
 import { createRequire } from 'node:module';
-import { join, parse } from 'node:path';
+import { isAbsolute, join, parse } from 'node:path';
 
 import { Command, Flags, Interfaces, settings } from '@oclif/core';
 import { CLIError } from '@oclif/core/errors';
@@ -107,7 +107,7 @@ export abstract class BaseCliRunCommand<
     this.overridePluginOptions();
 
     if (this.shouldAutoload()) {
-      this.debug('Autoload Thymian plugins.');
+      this.debug('Autoloading Thymian plugins.');
       await this.addPluginsToThymianConfig();
       await this.registerPluginsFromConfig();
     }
@@ -201,6 +201,8 @@ export abstract class BaseCliRunCommand<
 
     let pluginModule;
 
+    this.debug('Load plugin module from location "%s".', location);
+
     try {
       pluginModule = (await import(require.resolve(location))).default;
     } catch (e) {
@@ -209,7 +211,7 @@ export abstract class BaseCliRunCommand<
 
     if (!isPlugin(pluginModule)) {
       throw new CLIError(
-        `File "${
+        `"${
           options.path ?? nameOrPath
         }" does not default export a valid Thymian plugin.`,
       );
@@ -238,20 +240,33 @@ export abstract class BaseCliRunCommand<
 
   protected async addPluginsToThymianConfig(): Promise<void> {
     for (const plugin of this.flags.plugin) {
-      const { dir } = parse(plugin);
+      this.debug('Adding plugin from flag "%s" to Thymian config.', plugin);
 
-      if ((!dir && existsSync(plugin)) || dir) {
+      if ((await this.isNpmPackage(plugin)) || isAbsolute(plugin)) {
+        this.debug('Load plugin "%s" as npm package or absolute path.', plugin);
+
+        const pluginModule = await this.loadPluginModule(plugin, false);
+
+        this.thymianConfig.plugins[pluginModule.name] ??= {};
+      } else {
+        this.debug(`Load plugin %s from relative path.`, plugin);
+
         const pluginModule = await this.loadPluginModule(plugin, true);
 
         this.thymianConfig.plugins[pluginModule.name] = {
           ...(this.thymianConfig.plugins[pluginModule.name] ?? {}),
           path: plugin,
         };
-      } else {
-        const pluginModule = await this.loadPluginModule(plugin, false);
-
-        this.thymianConfig.plugins[pluginModule.name] ??= {};
       }
+    }
+  }
+
+  private async isNpmPackage(name: string): Promise<boolean> {
+    try {
+      require.resolve(name, { paths: [this.flags.cwd] });
+      return true;
+    } catch {
+      return false;
     }
   }
 
