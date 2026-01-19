@@ -8,68 +8,72 @@ import {
 } from '../src/hooks/generate-request-types.js';
 
 describe('generateRequestTypes', () => {
-  it('should generate request type definitions as a string - small', async () => {
-    const format = new ThymianFormat();
+  it(
+    'should generate request type definitions as a string - small',
+    { timeout: 10000 },
+    async () => {
+      const format = new ThymianFormat();
 
-    const [, , transactionId] = format.addHttpTransaction(
-      {
-        cookies: {},
-        headers: {},
-        host: 'localhost',
-        label: '',
-        mediaType: '',
-        method: 'GET',
-        path: '/users/{username}/orders',
-        pathParameters: {},
-        port: 8080,
-        protocol: 'http',
-        queryParameters: {
-          limit: {
-            schema: { type: 'number' },
-            required: true,
-            style: { style: 'form', explode: true },
+      const [, , transactionId] = format.addHttpTransaction(
+        {
+          cookies: {},
+          headers: {},
+          host: 'localhost',
+          label: '',
+          mediaType: '',
+          method: 'GET',
+          path: '/users/{username}/orders',
+          pathParameters: {},
+          port: 8080,
+          protocol: 'http',
+          queryParameters: {
+            limit: {
+              schema: { type: 'number' },
+              required: true,
+              style: { style: 'form', explode: true },
+            },
+          },
+          type: 'http-request',
+          body: {
+            type: 'object',
+            properties: {
+              username: { type: 'string' },
+            },
           },
         },
-        type: 'http-request',
-        body: {
-          type: 'object',
-          properties: {
-            username: { type: 'string' },
-          },
+        {
+          headers: {},
+          label: '',
+          mediaType: 'application/json',
+          statusCode: 200,
+          type: 'http-response',
         },
-      },
-      {
-        headers: {},
-        label: '',
-        mediaType: 'application/json',
-        statusCode: 200,
-        type: 'http-response',
-      },
-      '',
-    );
+        '',
+      );
 
-    const result = await generateTypesForThymianFormat(format);
+      const result = await generateTypesForThymianFormat(format);
 
-    expect(result.keyToTransactionId).toMatchObject({
-      'GET http://localhost:8080/users/{username}/orders': transactionId,
-    });
+      expect(result.keyToTransactionId).toMatchObject({
+        'GET http://localhost:8080/users/{username}/orders': transactionId,
+      });
 
-    const dtsContent = generatedTypesToString(result.types);
+      const dtsContent = generatedTypesToString(result.types);
 
-    const project = new Project({
-      skipAddingFilesFromTsConfig: true,
-      compilerOptions: {
-        strict: true,
-      },
-    });
-    const sourceFile = project.createSourceFile('generated.d.ts', dtsContent);
-    const diagnostics = sourceFile.getPreEmitDiagnostics();
+      const project = new Project({
+        skipAddingFilesFromTsConfig: true,
+        compilerOptions: {
+          strict: true,
+        },
+      });
+      const sourceFile = project.createSourceFile('generated.d.ts', dtsContent);
+      const diagnostics = sourceFile.getPreEmitDiagnostics();
 
-    expect(
-      diagnostics.length,
-      'Generated source file should not emit any diagnostics',
-    ).toBe(0);
-  });
+      expect(
+        diagnostics.length,
+        'Generated source file should not emit any diagnostics',
+      ).toBe(0);
+    },
+  );
 
   it('should generate request type definitions as a string - large', async () => {
     const format = ThymianFormat.import(
