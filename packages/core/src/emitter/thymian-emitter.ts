@@ -140,10 +140,7 @@ export class ThymianEmitter {
     };
   }
 
-  async shutdown(
-    idleTimeMs = this.options.timeout,
-    maxWaitMs = this.options.timeout,
-  ): Promise<void> {
+  async shutdown(idleTimeMs = this.options.timeout): Promise<void> {
     await Promise.all([
       this.shutdownSubject(this.#events, idleTimeMs, 'events'),
       this.shutdownSubject(this.#responses, idleTimeMs, 'responses'),

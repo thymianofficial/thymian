@@ -161,9 +161,9 @@ export class Thymian {
   }
 
   async close(): Promise<void> {
-    await this.emitter.shutdown(1000, 1100);
-
     await this.emitter.emitAction('core.close');
+
+    await this.emitter.shutdown(1000);
 
     this.emitter.completeSubjects();
   }
