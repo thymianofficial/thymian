@@ -8,6 +8,7 @@ const growingPlant = {
 };
 const text = 'Spicing up your API...';
 
+// the spinner is currently crashing with the CLI output. We should investigate this.
 export default class Run extends BaseCliRunCommand<typeof Run> {
   static override description =
     'Run Thymian and the corresponding plugins specified in the Thymian configuration and via CLI.';
@@ -16,7 +17,7 @@ export default class Run extends BaseCliRunCommand<typeof Run> {
   private spinner!: Ora;
 
   protected override catch(err: CommandError): Promise<void> {
-    this.spinner?.clear();
+    // this.spinner?.clear();
     return super.catch(err);
   }
 
@@ -27,20 +28,20 @@ export default class Run extends BaseCliRunCommand<typeof Run> {
     });
 
     if (!this.flags.verbose) {
-      this.spinner.start();
+      // this.spinner.start();
     }
 
     const results = await this.thymian.run(async (emitter) => {
       emitter.onAction('core.close', (_, ctx) => {
         if (!this.flags.verbose) {
-          this.spinner.succeed('Spiced up! 🌱');
+          // this.spinner.succeed('Spiced up! 🌱');
         }
 
         ctx.reply();
       });
 
       emitter.onError(() => {
-        this.spinner.clear();
+        // this.spinner.clear();
       });
 
       const format = await this.thymian.loadFormat();
