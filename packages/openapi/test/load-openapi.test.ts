@@ -6,11 +6,7 @@ import type { OpenAPIV3_1 } from 'openapi-types';
 import { describe, expect, it } from 'vitest';
 import yaml from 'yaml';
 
-import {
-  loadAndTransform,
-  loadAndUpgrade,
-  openapiToThymianFormat,
-} from '../src/load-openapi.js';
+import { loadAndUpgrade, openapiToThymianFormat } from '../src/load-openapi.js';
 
 const swaggerDocument = {
   swagger: '2.0',
@@ -99,22 +95,6 @@ describe('load-openapi', () => {
   });
 
   describe('openapiToThymianFormat', () => {
-    it('test', async () => {
-      await loadAndTransform(
-        '/Users/matthias/Thymian/thymian/packages/openapi/test/fixtures/thymian-demo.yaml',
-        {
-          cwd: '',
-          logger: new NoopLogger(),
-          serverInfo: {
-            basePath: '',
-            port: 8080,
-            host: 'localhost',
-            protocol: 'http',
-          },
-        },
-      );
-    });
-
     it('throws error for non supported openapi version', async () => {
       await expect(
         async () =>
