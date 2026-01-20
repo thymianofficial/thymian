@@ -34,7 +34,7 @@ export default class RunRequest extends BaseCliRunCommand<typeof RunRequest> {
 
   override async run(): Promise<void> {
     await this.thymian.run(async (emitter) => {
-      const thymianFormat = await this.thymian.loadFormat();
+      const thymianFormat = await this.thymian.loadFormat(this.filter);
 
       const titleToTransaction = new Map<string, ThymianHttpTransaction>();
 

@@ -4,8 +4,6 @@ import {
   isValidClientErrorStatusCode,
   isValidSuccessfulStatusCode,
   type ThymianEmitter,
-  type ThymianFormat,
-  type ThymianHttpTransaction,
   thymianHttpTransactionToString,
 } from '@thymian/core';
 import {
@@ -30,7 +28,9 @@ export class Check extends BaseCliRunCommand<typeof Check> {
     let successful = 0;
     let failed = 0;
 
-    const format = await this.thymian.loadFormat({ emitFormat: true });
+    const format = await this.thymian.loadFormat(this.filter, {
+      emitFormat: true,
+    });
 
     for (const {
       thymianRes,
@@ -107,7 +107,9 @@ export class Check extends BaseCliRunCommand<typeof Check> {
   private async checkTransactionsIncremental(
     emitter: ThymianEmitter,
   ): Promise<void> {
-    const format = await this.thymian.loadFormat({ emitFormat: true });
+    const format = await this.thymian.loadFormat(this.filter, {
+      emitFormat: true,
+    });
 
     for (const {
       thymianRes,

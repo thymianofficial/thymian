@@ -1,6 +1,6 @@
 import { join } from 'node:path';
 
-import { NoopLogger, Thymian, ThymianFormat } from '@thymian/core';
+import { constant, NoopLogger, Thymian, ThymianFormat } from '@thymian/core';
 import { describe, expect, it } from 'vitest';
 
 import { openApiPlugin } from '../src/index.js';
@@ -21,7 +21,9 @@ describe('OpenApi plugin', () => {
       })
       .ready();
 
-    const formats = await thymian.emitter.emitAction('core.load-format');
+    const formats = await thymian.emitter.emitAction('core.load-format', {
+      filter: constant(true),
+    });
 
     expect(formats).toHaveLength(1);
   });

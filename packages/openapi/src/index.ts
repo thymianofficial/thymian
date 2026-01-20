@@ -1,4 +1,6 @@
 import {
+  constant,
+  type HttpFilterExpression,
   type SerializedThymianFormat,
   ThymianFormat,
   type ThymianNode,
@@ -43,6 +45,7 @@ declare module '@thymian/core' {
   interface ThymianActions {
     'openapi.transform': {
       event: {
+        filter?: HttpFilterExpression;
         content: string;
       };
       response: SerializedThymianFormat;
@@ -118,18 +121,23 @@ export const openApiPlugin: ThymianPlugin<OpenApiPluginOptions> = {
     },
   },
   plugin: async (emitter, logger, opts) => {
-    emitter.onAction('openapi.transform', async ({ content }, ctx) => {
+    emitter.onAction('openapi.transform', async ({ content, filter }, ctx) => {
       const [, thymianFormat] = await loadAndTransform(content, {
         logger,
         serverInfo: defaultServerInfo,
         cwd: opts.cwd,
+        filter: filter ?? constant(true),
       });
 
       ctx.reply(thymianFormat.export());
     });
 
-    emitter.onAction('core.load-format', async (_, ctx) => {
+    emitter.onAction('core.load-format', async ({ filter }, ctx) => {
       let format = new ThymianFormat();
+
+      logger.debug(
+        `Loading OpenApi document with filter: ${JSON.stringify(filter)}`,
+      );
 
       for (const description of opts.descriptions ?? []) {
         const [document, thymianFormat, filePath] = await loadAndTransform(
@@ -140,6 +148,7 @@ export const openApiPlugin: ThymianPlugin<OpenApiPluginOptions> = {
             serverInfo: description.serverInfo ?? defaultServerInfo,
             sourceName: description.sourceName,
             cwd: opts.cwd,
+            filter,
           },
         );
         format = thymianFormat;

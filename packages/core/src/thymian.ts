@@ -5,6 +5,7 @@ import { validate } from './ajv.js';
 import { corePlugin } from './core-plugin.js';
 import { ThymianEmitter } from './emitter/index.js';
 import { ThymianFormat } from './format/index.js';
+import { constant, type HttpFilterExpression } from './http-filter.js';
 import type { Logger } from './logger/logger.js';
 import { NoopLogger } from './logger/noop.logger.js';
 import { ThymianBaseError } from './thymian.error.js';
@@ -178,13 +179,14 @@ export class Thymian {
   }
 
   async loadFormat(
+    filter: HttpFilterExpression = constant(true),
     _options: { emitFormat?: boolean } = {},
   ): Promise<ThymianFormat> {
     const options = { emitFormat: true, ..._options };
 
     const formats = await this.emitter.emitAction(
       'core.load-format',
-      undefined,
+      { filter },
       {
         strategy: 'collect',
       },
@@ -210,7 +212,15 @@ export class Thymian {
       await this.emitter.emitAction('core.format', format.export());
     }
 
-    return format;
+    const filteredFormat = format.filter(filter);
+
+    if (filteredFormat.graph.size === 0) {
+      this.logger.warn(
+        'No nodes found in Thymian format after filtering. Is this intended?',
+      );
+    }
+
+    return filteredFormat;
   }
 
   private async loadRegisteredPlugins(): Promise<void> {
