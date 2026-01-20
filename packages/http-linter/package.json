@@ -1,6 +1,9 @@
 {
   "name": "@thymian/http-linter",
-  "version": "0.0.1",
+  "version": "0.0.0-PLACEHOLDER",
+  "publishConfig": {
+    "access": "restricted"
+  },
   "main": "./dist/index.js",
   "module": "./dist/index.js",
   "types": "./dist/index.d.ts",
@@ -18,11 +21,11 @@
     "!**/*.tsbuildinfo"
   ],
   "dependencies": {
-    "@thymian/cli-common": "^0",
-    "@thymian/core": "^0",
-    "@thymian/http-testing": "^0",
-    "@thymian/request-dispatcher": "^0",
-    "@thymian/sampler": "^0",
+    "@thymian/cli-common": "0.0.0-PLACEHOLDER",
+    "@thymian/core": "0.0.0-PLACEHOLDER",
+    "@thymian/http-testing": "0.0.0-PLACEHOLDER",
+    "@thymian/request-dispatcher": "0.0.0-PLACEHOLDER",
+    "@thymian/sampler": "0.0.0-PLACEHOLDER",
     "better-sqlite3": "^12.2.0",
     "fuse.js": "^7.1.0",
     "tinyglobby": "^0.2.14",

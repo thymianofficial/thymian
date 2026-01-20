@@ -1,6 +1,9 @@
 {
   "name": "@thymian/sampler",
-  "version": "0.0.1",
+  "version": "0.0.0-PLACEHOLDER",
+  "publishConfig": {
+    "access": "restricted"
+  },
   "main": "./dist/index.js",
   "module": "./dist/index.js",
   "types": "./dist/index.d.ts",
@@ -18,10 +21,10 @@
     "!**/*.tsbuildinfo"
   ],
   "dependencies": {
-    "@thymian/cli-common": "^0",
-    "@thymian/core": "^0",
-    "@thymian/http-testing": "^0",
-    "@thymian/request-dispatcher": "^0",
+    "@thymian/cli-common": "0.0.0-PLACEHOLDER",
+    "@thymian/core": "0.0.0-PLACEHOLDER",
+    "@thymian/http-testing": "0.0.0-PLACEHOLDER",
+    "@thymian/request-dispatcher": "0.0.0-PLACEHOLDER",
     "code-block-writer": "^13.0.3",
     "jiti": "^2.6.1",
     "json-schema-to-typescript": "^15.0.4",
@@ -42,6 +45,6 @@
   "devDependencies": {
     "fast-json-stable-stringify": "^2.1.0",
     "ts-morph": "^27.0.2",
-    "@thymian/core-testing": "^0"
+    "@thymian/core-testing": "0.0.0-PLACEHOLDER"
   }
 }

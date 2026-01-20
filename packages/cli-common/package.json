@@ -1,6 +1,9 @@
 {
   "name": "@thymian/cli-common",
-  "version": "0.0.1",
+  "version": "0.0.0-PLACEHOLDER",
+  "publishConfig": {
+    "access": "restricted"
+  },
   "type": "module",
   "main": "./dist/index.js",
   "module": "./dist/index.js",
@@ -25,6 +28,6 @@
     "tslib": "^2.3.0",
     "yaml": "^2.8.0",
     "@oclif/core": "^4.3.3",
-    "@thymian/core": "^0"
+    "@thymian/core": "0.0.0-PLACEHOLDER"
   }
 }
