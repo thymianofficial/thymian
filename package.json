@@ -10,7 +10,7 @@
     "lint": "nx affected:lint",
     "prepare": "husky",
     "local-registry": "nx local-registry",
-    "local-publish": "npm run build && nx release publish --registry http://localhost:4873",
+    "local-publish": "node ./scripts/release.ts --local --no-dry-run",
     "check:licenses": "node scripts/check-licenses.js",
     "postinstall": "npm run check:licenses"
   },
