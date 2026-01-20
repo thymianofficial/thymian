@@ -56,7 +56,7 @@ export default async function ({
     const title = bundled.info?.title;
 
     const report = await thymian.run(async (emitter) => {
-      const format = await thymian.loadFormat({ emitFormat: true });
+      const format = await thymian.loadFormat();
       return await emitter.emitAction(
         'http-linter.lint-static',
         { format: format.export() },
