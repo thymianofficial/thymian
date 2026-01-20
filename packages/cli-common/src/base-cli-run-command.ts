@@ -1,11 +1,12 @@
-import { existsSync } from 'node:fs';
 import { createRequire } from 'node:module';
-import { isAbsolute, join, parse } from 'node:path';
+import { isAbsolute, join } from 'node:path';
 
 import { Command, Flags, Interfaces, settings } from '@oclif/core';
 import { CLIError } from '@oclif/core/errors';
 import type { CommandError } from '@oclif/core/interfaces';
 import {
+  and,
+  type HttpFilterExpression,
   isPlugin,
   type Logger,
   TextLogger,
@@ -14,8 +15,9 @@ import {
   type ThymianPlugin,
 } from '@thymian/core';
 
+import { filterFlag } from './flags/filter-flag.js';
+import { optionFlag, optionRegexp } from './flags/option-flag.js';
 import { getConfig } from './get-config.js';
-import { optionFlag, optionRegexp } from './option-flag.js';
 import { safeParse } from './safe-parse.js';
 import type { ThymianConfig } from './thymian-config.js';
 
@@ -77,6 +79,7 @@ export abstract class BaseCliRunCommand<
       default: process.cwd(),
       description: 'Set current working directory.',
     }),
+    filter: filterFlag(),
   };
 
   protected flags!: CommandFlags<T>;
@@ -84,6 +87,7 @@ export abstract class BaseCliRunCommand<
   protected logger!: Logger;
   protected thymianConfig!: ThymianConfig;
   protected thymian!: Thymian;
+  public filter!: HttpFilterExpression;
 
   public override async init(): Promise<void> {
     await super.init();
@@ -105,6 +109,12 @@ export abstract class BaseCliRunCommand<
     });
     this.thymianConfig = await getConfig(this.flags.config, this.flags.cwd);
     this.overridePluginOptions();
+
+    this.filter = and(...(this.flags.filter ?? []));
+
+    if (Array.isArray(this.thymianConfig.filters)) {
+      this.filter = and(...this.thymianConfig.filters, this.filter);
+    }
 
     if (this.shouldAutoload()) {
       this.debug('Autoloading Thymian plugins.');

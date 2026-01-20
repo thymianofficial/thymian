@@ -1,9 +1,13 @@
 import type { JSONSchemaType } from 'ajv/dist/2020.js';
 
 import type { SerializedThymianFormat } from '../format/index.js';
+import type { HttpFilterExpression } from '../http-filter.js';
 import type { Action } from './action.js';
 
-export type LoadFormatAction = Action<void, SerializedThymianFormat>;
+export type LoadFormatAction = Action<
+  { filter: HttpFilterExpression },
+  SerializedThymianFormat
+>;
 
 // TODO: schema is not 100% correct (but 99%)
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
