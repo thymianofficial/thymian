@@ -39,7 +39,7 @@
     "projects": ["packages/*"],
     "releaseTagPattern": "{version}",
     "version": {
-      "preVersionCommand": "npx nx run-many -t build --no-tui",
+      "preVersionCommand": "npx nx run-many -t build --exclude astro --no-tui",
       "conventionalCommits": true,
       "versionActionsOptions": {
         "skipLockFileUpdate": true
