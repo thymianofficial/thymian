@@ -1,6 +1,9 @@
 {
   "name": "@thymian/sampler",
-  "version": "0.0.1",
+  "version": "0.0.0-PLACEHOLDER",
+  "publishConfig": {
+    "access": "restricted"
+  },
   "main": "./dist/index.js",
   "module": "./dist/index.js",
   "types": "./dist/index.d.ts",
@@ -22,8 +25,8 @@
     "openapi-sampler": "^1.6.1",
     "sharp": "^0.34.1",
     "tslib": "^2.3.0",
-    "@thymian/core": "^0",
-    "@thymian/cli-common": "^0"
+    "@thymian/core": "0.0.0-PLACEHOLDER",
+    "@thymian/cli-common": "0.0.0-PLACEHOLDER"
   },
   "oclif": {
     "commands": "./dist/cli/commands",
