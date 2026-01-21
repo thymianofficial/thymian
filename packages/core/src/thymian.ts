@@ -38,6 +38,9 @@ export class Thymian {
 
   public static readonly VERSION = packageJson.version;
 
+  // Number of milliseconds that is waited for new events and actions to be emitted before shutting down the emitter.
+  private static IDLE_TIMEOUT = 500;
+
   constructor(
     private readonly logger: Logger = new NoopLogger(),
     options: Partial<ThymianOptions> = {},
@@ -163,7 +166,8 @@ export class Thymian {
   async close(): Promise<void> {
     await this.emitter.emitAction('core.close');
 
-    await this.emitter.shutdown(500);
+    // This let the ThymianEmitter wait 500 ms for the last events to be emitted before shutting down.
+    await this.emitter.shutdown(Thymian.IDLE_TIMEOUT);
 
     this.emitter.completeSubjects();
   }

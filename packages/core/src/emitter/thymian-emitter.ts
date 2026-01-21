@@ -364,6 +364,10 @@ export class ThymianEmitter {
 
     const resultsPromise = firstValueFrom(responsesAndErrors);
 
+    // Yield execution to the event loop.
+    // This forces the event emission into the next microtask, ensuring that:
+    // 1. The 'resultsPromise' subscription is fully active.
+    // 2. The event emission does not run synchronously within the current stack frame.
     await Promise.resolve();
 
     this.#events.next(event);
