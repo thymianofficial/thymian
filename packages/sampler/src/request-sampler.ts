@@ -47,7 +47,14 @@ export class RequestSampler {
   }
 
   timestamp(): string {
-    return new Date(this.samples.meta.timestamp).toISOString();
+    try {
+      return new Date(this.samples.meta.timestamp).toISOString();
+    } catch (e) {
+      throw new ThymianBaseError(
+        `Invalid timestamp in samples meta: ${this.samples.meta.timestamp}`,
+        { cause: e },
+      );
+    }
   }
 
   async init(samples?: SamplesStructure): Promise<void> {
