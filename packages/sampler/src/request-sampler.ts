@@ -85,7 +85,7 @@ export class RequestSampler {
     const node = this.sampleNodes.get(transactionId);
 
     if (!node) {
-      return undefined;
+      return;
     }
 
     const { samplingStrategy } = node.meta;
