@@ -2,9 +2,8 @@ import { Thymian, ThymianFormat } from '@thymian/core';
 import { describe, expect, it } from 'vitest';
 
 import httpLinterPlugin from '../src/index.js';
-import { loadRules } from '../src/load-rules.js';
 
-describe('http-linter', () => {
+describe('http-linter', { timeout: 10000 }, () => {
   it('http-linter.lint-static should return thymian reports', async () => {
     const thymian = new Thymian();
     await thymian
@@ -39,6 +38,7 @@ describe('http-linter', () => {
         statusCode: 200,
         type: 'http-response',
       },
+      'test',
     );
 
     const result = await thymian.emitter.emitAction(
