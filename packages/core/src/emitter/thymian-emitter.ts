@@ -103,6 +103,11 @@ export class ThymianEmitter {
   // TODO: this is a problem
   readonly #completed: Set<string>;
 
+  /**
+   * Multiplier for the hard timeout limit relative to the idle debounce time.
+   */
+  private static MAX_WAIT_MULTIPLIER = 5;
+
   constructor(
     private readonly logger: Logger = new NoopLogger(),
     state: EmitterState = ThymianEmitter.emptyEmitterState(),
@@ -150,17 +155,18 @@ export class ThymianEmitter {
 
   private async shutdownSubject(
     subject: Subject<any>,
-    timeout: number,
+    waitFor: number,
     name = '',
+    timeout = waitFor * ThymianEmitter.MAX_WAIT_MULTIPLIER,
   ): Promise<void> {
     return new Promise((resolve) => {
       race([
         subject.pipe(
-          debounceTime(timeout),
+          debounceTime(waitFor),
           take(1),
           map(() => 'idle'),
         ),
-        timer(timeout * 1.2).pipe(map(() => 'timeout')),
+        timer(timeout).pipe(map(() => 'timeout')),
       ]).subscribe((reason) => {
         this.logger.debug(
           `Complete subject${name ? ' ' + name : name} due to ${reason}.`,
