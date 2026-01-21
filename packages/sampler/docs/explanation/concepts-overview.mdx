@@ -183,7 +183,7 @@ and looks like this:
 ```
 
 The `sourceTransaction` field contains the ID of the transaction for which the request samples are for. It comes
-from the Thymian format and should never be touched or modified manually.
+from the Thymian format and should never be touched or modified manually. The ID is simply a hash of the transaction.
 
 The `samplingStrategy` field contains information about how samples are selected. Currently, only `random` and `fixed` strategies are supported.`
 
