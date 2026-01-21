@@ -49,7 +49,7 @@ describe('ThymianFormat', () => {
     ],
   ];
 
-  it('should be identically for identically sources', () => {
+  it('should be identical for identical sources', () => {
     const format1 = new ThymianFormat();
     const format2 = new ThymianFormat();
 
