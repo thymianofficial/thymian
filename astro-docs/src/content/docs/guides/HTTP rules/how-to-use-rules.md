@@ -1,6 +1,8 @@
 ---
 title: 'How To Use Rules'
 description: 'Integrating and configuring HTTP linting rules in your projects'
+sidebar:
+  order: 1
 ---
 
 Once you've created HTTP rules, you need to integrate them into your API projects. This guide covers loading rules, configuration, and common usage patterns.
@@ -189,6 +191,6 @@ tsc --noEmit
 
 ## Next Steps
 
-- Explore the [CLI commands](./cli.md) for managing rules
-- Learn about [creating custom rules](./creating-new-rules.md)
-- See [combining rule types](./combining-types.md) for hybrid validation
+- Explore the [CLI commands](../../references/plugins/http-linter/cli.md) for managing rules
+- Learn about [creating custom rules](creating-new-rules.md)
+- See [combining rule types](combining-types.md) for hybrid validation

@@ -1,6 +1,4 @@
 // @ts-check
-import { readdirSync } from 'node:fs';
-
 import starlight from '@astrojs/starlight';
 import tailwindcss from '@tailwindcss/vite';
 import { defineConfig } from 'astro/config';
@@ -10,12 +8,6 @@ import starlightLlmsTxt from 'starlight-llms-txt';
 
 const UMAMI_URL = process.env.UMAMI_URL;
 const UMAMI_WEBSITE_ID = process.env.UMAMI_WEBSITE_ID;
-
-function getPluginDirs() {
-  return readdirSync('src/content/docs/plugins', { withFileTypes: true })
-    .filter(dirent => dirent.isDirectory())
-    .map(dirent => dirent.name)
-}
 
 // https://astro.build/config
 export default defineConfig({
@@ -72,23 +64,32 @@ export default defineConfig({
       ],
       sidebar: [
         {
-          label: 'Introduction',
-          autogenerate: { directory: 'introduction' },
+          slug: 'introduction/what-is-thymian',
+          attrs: { style: 'font-weight: normal;' },
+        },
+        {
+          slug: 'introduction/getting-started',
+          attrs: { style: 'font-weight: normal;' },
+        },
+        {
+          label: 'Tutorials',
+          collapsed: true,
+          autogenerate: { directory: 'tutorials' },
         },
         {
           label: 'Guides',
+          collapsed: true,
           autogenerate: { directory: 'guides' },
         },
         {
-          label: 'Reference',
-          autogenerate: { directory: 'reference' },
+          label: 'References',
+          collapsed: true,
+          autogenerate: { directory: 'references' },
         },
         {
-          label: 'Plugins',
-          items: getPluginDirs().map((dirName) => ({
-            label: dirName,
-            autogenerate: { directory: `plugins/${dirName}` },
-          })),
+          label: 'Concepts',
+          collapsed: true,
+          autogenerate: { directory: 'concepts' },
         },
       ],
       components: {

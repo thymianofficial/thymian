@@ -390,6 +390,6 @@ type('static', 'test', 'analytics')  // Validate everywhere
 
 ## Next Steps
 
-- Learn about [combining rule types](./combining-types.md) for hybrid validation
-- Explore [how to use rules](./how-to-use-rules.md) in your projects
-- See the [CLI reference](./cli.md) for rule management commands
+- Learn about [combining rule types](../../../guides/rules/combining-types.md) for hybrid validation
+- Explore [how to use rules](../../../guides/rules/how-to-use-rules.md) in your projects
+- See the [CLI reference](cli.md) for rule management commands

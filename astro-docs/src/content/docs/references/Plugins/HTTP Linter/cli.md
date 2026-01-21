@@ -319,6 +319,6 @@ thymian http-linter:overview \
 
 ## Next Steps
 
-- Learn about [creating rules](./creating-new-rules.md)
-- See [how to use rules](./how-to-use-rules.md) in your projects
-- Explore [rule types](./rule-types.md) for validation contexts
+- Learn about [creating rules](../../../guides/rules/creating-new-rules.md)
+- See [how to use rules](../../../guides/rules/how-to-use-rules.md) in your projects
+- Explore [rule types](rule-types.md) for validation contexts
