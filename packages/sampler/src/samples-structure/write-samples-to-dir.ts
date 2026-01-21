@@ -31,7 +31,7 @@ export type WriteToFile = (
 export function getTreeStructureMeta(tree: SamplesStructure): PathToNodeType {
   const meta: PathToNodeType = {};
 
-  traverse(tree, '' as string, (node: BaseNode, currentPath) => {
+  traverse(tree, '', (node: BaseNode, currentPath) => {
     const path = join(currentPath, getFolderNameFromNode(node as Node));
 
     if (!isValidNodeType(node.type)) {
