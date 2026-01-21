@@ -420,7 +420,9 @@ export class ThymianFormat {
   getThymianHttpRequestsWithIds(): [ThymianHttpRequest, string][] {
     return this.graph.reduceNodes(
       (requests: [ThymianHttpRequest, string][], id, node) => {
-        if (isNodeType(node, 'http-request')) requests.push([node, id]);
+        if (isNodeType(node, 'http-request')) {
+          requests.push([node, id]);
+        }
 
         return requests;
       },
