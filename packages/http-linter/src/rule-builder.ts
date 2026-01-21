@@ -118,7 +118,7 @@ class RuleBuilder<
       meta: {
         severity: 'off',
         tags: [],
-        name,
+        name: name.trim(),
         type: ['static', 'analytics', 'test'],
         options: {} as JSONSchemaType<Options>,
       },
@@ -141,17 +141,17 @@ class RuleBuilder<
   }
 
   description(description: string): this {
-    this.#rule.meta.description = description;
+    this.#rule.meta.description = description.trim();
     return this;
   }
 
   summary(summary: string): this {
-    this.#rule.meta.summary = summary;
+    this.#rule.meta.summary = summary.trim();
     return this;
   }
 
   url(url: string): this {
-    this.#rule.meta.description = url;
+    this.#rule.meta.description = url.trim();
     return this;
   }
 
@@ -161,7 +161,7 @@ class RuleBuilder<
   }
 
   explanation(explanation: string): this {
-    this.#rule.meta.explanation = explanation;
+    this.#rule.meta.explanation = explanation.trim();
     return this;
   }
 
