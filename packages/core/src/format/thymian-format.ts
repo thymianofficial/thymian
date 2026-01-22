@@ -151,8 +151,9 @@ export class ThymianFormat {
     const id = this.hash(source, target, this.hashObj(e));
 
     if (this.graph.hasEdge(id)) {
-      if (options.throwIfExists)
+      if (options.throwIfExists) {
         throw new Error(`Edge with ID ${id} already exists.`);
+      }
 
       return id;
     }
@@ -448,7 +449,9 @@ export class ThymianFormat {
   getThymianHttpRequests(): ThymianHttpRequest[] {
     return this.graph.reduceNodes(
       (requests: ThymianHttpRequest[], id, node) => {
-        if (isNodeType(node, 'http-request')) requests.push(node);
+        if (isNodeType(node, 'http-request')) {
+          requests.push(node);
+        }
 
         return requests;
       },
@@ -521,7 +524,9 @@ export class ThymianFormat {
   ): [string, string, string] | undefined {
     const edgeId = this.graph.findEdge(
       (id, edge, sourceId, targetId, source, target) => {
-        if (!isEdgeType(edge, 'http-transaction')) return false;
+        if (!isEdgeType(edge, 'http-transaction')) {
+          return false;
+        }
 
         const thymianReq = source as ThymianHttpRequest;
         const thymianRes = target as ThymianHttpResponse;

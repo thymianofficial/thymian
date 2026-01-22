@@ -29,7 +29,9 @@ export default httpRule(
 
         for (const token of productTokens) {
           const [, version] = token.split('/');
-          if (!version) continue;
+          if (!version) {
+            continue;
+          }
 
           // Check if version contains non-version information
           // Valid versions typically contain: digits, dots, dashes, alphanumerics

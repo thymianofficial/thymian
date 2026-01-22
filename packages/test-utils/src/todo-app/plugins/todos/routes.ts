@@ -43,7 +43,9 @@ export default async function todosRoutes(_fastify: FastifyInstance) {
     },
     async (request, reply) => {
       const todo = fastify.todos.getById(request.params.id);
-      if (!todo) return reply.status(404).send({ error: 'ToDo not found' });
+      if (!todo) {
+        return reply.status(404).send({ error: 'ToDo not found' });
+      }
       return todo;
     },
   );
@@ -103,7 +105,9 @@ export default async function todosRoutes(_fastify: FastifyInstance) {
     },
     async (request, reply) => {
       const todo = fastify.todos.getById(request.params.id);
-      if (!todo) return reply.status(404).send({ error: 'ToDo not found' });
+      if (!todo) {
+        return reply.status(404).send({ error: 'ToDo not found' });
+      }
 
       const { projectId } = request.body;
 
@@ -144,7 +148,9 @@ export default async function todosRoutes(_fastify: FastifyInstance) {
     async (request, reply) => {
       const success = fastify.todos.deleteById(request.params.id);
 
-      if (!success) return reply.status(404).send({ error: 'ToDo not found' });
+      if (!success) {
+        return reply.status(404).send({ error: 'ToDo not found' });
+      }
 
       return reply.status(204).send();
     },

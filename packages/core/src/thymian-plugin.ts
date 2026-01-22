@@ -56,11 +56,15 @@ export type ThymianPlugin<
 };
 
 export function isPlugin(plugin: unknown): plugin is ThymianPlugin {
-  if (!isRecord(plugin)) return false;
+  if (!isRecord(plugin)) {
+    return false;
+  }
 
   const requiredKeys = ['plugin', 'name', 'version'];
   for (const key of requiredKeys) {
-    if (!Object.hasOwn(plugin, key)) return false;
+    if (!Object.hasOwn(plugin, key)) {
+      return false;
+    }
   }
 
   if (typeof plugin['plugin'] !== 'function') {

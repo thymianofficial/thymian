@@ -39,8 +39,9 @@ export default async function projectsRoutes(_fastify: FastifyInstance) {
     },
     async (request, reply) => {
       const project = fastify.projects.getById(request.params.id);
-      if (!project)
+      if (!project) {
         return reply.status(404).send({ error: 'Project not found' });
+      }
       return project;
     },
   );
@@ -88,8 +89,9 @@ export default async function projectsRoutes(_fastify: FastifyInstance) {
     async (request, reply) => {
       const deleted = fastify.projects.deleteById(request.params.id);
 
-      if (!deleted)
+      if (!deleted) {
         return reply.status(404).send({ error: 'Project not found' });
+      }
 
       return reply.status(204).send();
     },
