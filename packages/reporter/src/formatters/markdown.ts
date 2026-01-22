@@ -1,6 +1,10 @@
 import * as path from 'node:path';
 
-import type { ThymianReport, ThymianReportSeverity } from '@thymian/core';
+import type {
+  Logger,
+  ThymianReport,
+  ThymianReportSeverity,
+} from '@thymian/core';
 import { mkdir, writeFile } from 'fs/promises';
 
 import { analyze, type Formatter } from '../formatter.js';
@@ -27,6 +31,8 @@ export class MarkdownFormatter implements Formatter<MarkdownFormatterOptions> {
   options!: MarkdownFormatterOptions;
 
   private readonly reports: ThymianReport[] = [];
+
+  constructor(private readonly logger: Logger) {}
 
   init(options: MarkdownFormatterOptions): void {
     this.options = options;
@@ -84,5 +90,7 @@ export class MarkdownFormatter implements Formatter<MarkdownFormatterOptions> {
     await mkdir(path.dirname(this.options.path), { recursive: true });
 
     await writeFile(this.options.path, lines.join('\n'), 'utf-8');
+
+    this.logger.debug(`Wrote Markdown report to ${this.options.path}.`);
   }
 }

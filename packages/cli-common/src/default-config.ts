@@ -14,7 +14,7 @@ export const defaultConfig: ThymianConfig = {
     },
     '@thymian/openapi': {
       options: {
-        filePath: 'openapi.yaml',
+        descriptions: [],
       },
     },
     '@thymian/request-dispatcher': {},
@@ -27,6 +27,5 @@ export const defaultConfig: ThymianConfig = {
       },
     },
     '@thymian/format-validator': {},
-    '@thymian/websocket-proxy': {},
   },
 };

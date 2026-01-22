@@ -29,7 +29,7 @@ import { createMockLogger } from './logger.mock.js';
 export function createMockEmitter(): ThymianEmitter {
   const emitter = new ThymianEmitter(
     createMockLogger(),
-    ThymianEmitter.newEmitterState(),
+    ThymianEmitter.emptyEmitterState(),
   );
 
   // Spy on all methods
@@ -64,7 +64,7 @@ export function createEmitterWithHandlers<K extends ThymianEventName>(
 ): ThymianEmitter {
   const emitter = new ThymianEmitter(
     createMockLogger(),
-    ThymianEmitter.newEmitterState(),
+    ThymianEmitter.emptyEmitterState(),
   );
 
   for (const [eventName, handler] of Object.entries(handlers) as Array<
@@ -102,7 +102,7 @@ export function createEmitterWithActionHandlers<K extends ThymianActionName>(
 ): ThymianEmitter {
   const emitter = new ThymianEmitter(
     createMockLogger(),
-    ThymianEmitter.newEmitterState(),
+    ThymianEmitter.emptyEmitterState(),
   );
 
   for (const [actionName, handler] of Object.entries(handlers) as Array<

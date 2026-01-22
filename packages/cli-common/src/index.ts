@@ -5,4 +5,5 @@ export * from './plugin-hook.js';
 export * as prompts from './prompts.js';
 export * from './read-plugins.js';
 export * from './thymian-config.js';
+export * from './thymian-config-schema.js';
 export * as yaml from './yaml.js';

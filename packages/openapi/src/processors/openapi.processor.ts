@@ -46,12 +46,13 @@ export class OpenapiProcessor {
 
   private globalSecuritySchemes: string[] = [];
 
-  private readonly format = new ThymianFormat();
+  private sourceName!: string;
 
   constructor(
     private readonly logger: Logger,
     private readonly options: OpenapiV30ParserOptions,
     private readonly locMapper: LocMapper,
+    private readonly format = new ThymianFormat(),
   ) {}
 
   private processLinkObject(linkObjectToProcess: LinkObjectToProcess): void {
@@ -73,6 +74,7 @@ export class OpenapiProcessor {
             linkObjectToProcess.linkObj.parameters,
             this.format.getNode(reqId) as ThymianHttpRequest,
           ),
+          sourceName: this.sourceName,
         });
       });
     });
@@ -116,6 +118,7 @@ export class OpenapiProcessor {
         operationId: operationObject.operationId,
         method,
         path: join(operationServerInfo.basePath, path),
+        sourceName: this.sourceName,
       },
     );
     const responsesAndLinks = processResponsesObject(
@@ -131,7 +134,10 @@ export class OpenapiProcessor {
         : [];
 
     for (const req of requests) {
-      const reqId = this.format.addRequest(req);
+      const reqId = this.format.addRequest({
+        sourceName: this.sourceName,
+        ...req,
+      });
 
       for (const { responses, links } of responsesAndLinks) {
         const responseIds: string[] = [];
@@ -145,9 +151,11 @@ export class OpenapiProcessor {
             {
               ...res,
               sourceLocation,
+              sourceName: this.sourceName,
             },
             {
               sourceLocation,
+              sourceName: this.sourceName,
             },
           );
 
@@ -157,6 +165,7 @@ export class OpenapiProcessor {
             if (typeof this.securitySchemeToNodeId[scheme] === 'string') {
               this.format.addEdge(reqId, this.securitySchemeToNodeId[scheme], {
                 type: 'is-secured',
+                sourceName: this.sourceName,
               });
             }
           });
@@ -173,7 +182,12 @@ export class OpenapiProcessor {
     }
   }
 
-  public process(document: OpenApiV31.Document): ThymianFormat {
+  public process(
+    document: OpenApiV31.Document,
+    sourceName: string = document.info.title,
+  ): ThymianFormat {
+    this.sourceName = sourceName;
+
     const securitySchemes = processSecuritySchemes(
       (document.components?.securitySchemes as Record<
         string,
@@ -183,7 +197,10 @@ export class OpenapiProcessor {
 
     securitySchemes.forEach((scheme) => {
       this.securitySchemeToNodeId[scheme.extensions.openapi.schemeName] =
-        this.format.addSecurityScheme(scheme);
+        this.format.addSecurityScheme({
+          ...scheme,
+          sourceName: this.sourceName,
+        });
     });
 
     document.security?.forEach((security) => {

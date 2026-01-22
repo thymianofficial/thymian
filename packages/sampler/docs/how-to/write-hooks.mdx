@@ -1,0 +1,186 @@
+---
+title: How to Write a Hook
+description: 'Guide to writing hooks for the sampler plugin'
+---
+
+import { FileTree, Aside } from '@astrojs/starlight/components';
+
+This guide shows you how to write hooks.
+
+## Understanding Hook Types
+
+The sampler plugin provides three types of hooks:
+
+- **beforeEach**: Modifies requests before they are sent
+- **authorize**: Adds authentication credentials to requests
+- **afterEach**: Validates or processes responses after they are received
+
+
+## Creating a BeforeEach Hook
+
+BeforeEach hooks modify request data before sending HTTP requests.
+
+### Generate the Hook File
+
+Use the CLI to generate a hook template:
+
+```bash
+thymian sampler:hooks:generate
+```
+
+This command lets you choose for which transactions you want to create a hook file interactively. It also generates
+a template file for you, looking like this:
+
+```typescript
+import { BeforeEachRequestHook } from '@thymian/hooks';
+
+const hook: BeforeEachRequestHook = async (request, context, utils) => {
+
+  return request;
+};
+
+export default hook;
+```
+
+### Write the Hook
+
+```typescript
+import { BeforeEachRequestHook } from '@thymian/hooks';
+
+const hook: BeforeEachRequestHook = async (request, context, utils) => {
+  // Modify request headers
+  request.headers['x-custom-header'] = 'value';
+
+  // Customize query parameters
+  request.query['limit'] = '10';
+
+  // Generate dynamic data
+  request.body = {
+    ...request.body,
+    timestamp: new Date().toISOString(),
+  };
+
+  return request;
+};
+
+export default hook;
+```
+
+
+## Creating an Authorize Hook
+
+With Authorize hooks authentication credentials can add to protected endpoints. The `authorize hook runs before each request
+for which the `authorize` property in the corresponding `request.json` file is set to `true`.
+
+### Generate the Hook File
+
+```bash
+thymian sampler:hooks:generate
+```
+
+Choose "authorize" when prompted.
+
+### Write the Hook
+
+```typescript
+import { AuthorizeHook } from '@thymian/hooks';
+
+const hook: AuthorizeHook = async (request, context, utils) => {
+  // Create test credentials
+  const username = utils.randomString(10);
+  const password = utils.randomString(12);
+
+  // Create user account
+  const response = await utils.request('POST http://localhost:3000/api/v1/astronauts', {
+    body: { name: username, password, role: 'Commander' },
+    headers: { 'content-type': 'application/json' }
+  }, {
+    runHooks: false  // Don't run hooks for this request
+  });
+
+  // Add authorization header
+  const credentials = Buffer.from(`${username}:${password}`).toString('base64');
+  request.headers.authorization = `Basic ${credentials}`;
+
+  return request;
+};
+
+export default hook;
+```
+
+## Creating an AfterEach Hook
+
+AfterEach hooks validate responses and perform cleanup.
+
+### Generate the Hook File
+
+```bash
+thymian sampler:hooks:generate
+```
+
+Choose "afterEach" when prompted.
+
+### Write the Hook
+
+```typescript
+import { AfterEachResponseHook } from '@thymian/hooks';
+
+const hook: AfterEachResponseHook = async (response, context, utils) => {
+  // Validate response headers
+  if (!response.headers['content-type']) {
+    utils.assertionFailure('Missing content-type header');
+  }
+
+  // Validate response body structure
+  const body = JSON.parse(response.body || '{}');
+  if (body.id && typeof body.id !== 'string') {
+    utils.assertionFailure('ID field must be a string', {
+      expected: 'string',
+      actual: typeof body.id
+    });
+  }
+
+  // Add info message
+  utils.info(`Response processed in ${response.duration}ms`);
+
+  return response;
+};
+
+export default hook;
+```
+
+
+## Hook Placement and Scope
+
+Hooks are discovered based on their filesystem location:
+
+<FileTree>
+
+- Your_API/
+  - global.authorize.ts
+  - localhost/
+    - 3000/
+      - api/
+        - v1/
+          - shared.beforeEach.ts
+          - launches/
+            - setup.beforeEach.ts
+            - [id]/
+              - validate.afterEach.ts
+
+</FileTree>
+
+<Aside type="note">
+  THooks at higher levels apply to all child endpoints (cascading).
+</Aside>
+
+## Hook Naming Convention
+
+Files must follow this pattern:
+
+- BeforeEach: `*.beforeEach.ts` (e.g., `setup.beforeEach.ts`)
+- Authorize: `*.authorize.ts` (e.g., `auth.authorize.ts`)
+- AfterEach: `*.afterEach.ts` (e.g., `validate.afterEach.ts`)
+
+Supported extensions: `.ts`, `.js`, `.mjs`, `.cjs`, `.mts`, `.cts`
+

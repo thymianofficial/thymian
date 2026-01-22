@@ -1,7 +1,8 @@
 import type { ThymianSchema } from '@thymian/core';
 import { describe, expect, it } from 'vitest';
 
-import { JsonContentTypeStrategy } from '../../src/content-generator/json.content-type-strategy.js';
+import { JsonContentTypeStrategy } from '../../src/generation/content-type-strategies/json.content-type-strategy.js';
+import { isInlineContentSource } from '../../src/http-request-sample.js';
 
 describe('JsonContentTypeStrategy', () => {
   const generator = new JsonContentTypeStrategy();
@@ -24,22 +25,26 @@ describe('JsonContentTypeStrategy', () => {
         type: 'object',
         properties: { name: { type: 'string' } },
       };
-      const result = (await generator.generate(schema)) as { content: unknown };
+      const result = await generator.generate(schema);
 
       expect(result).toEqual({
-        content: {
+        $content: {
           name: expect.stringMatching(/.*/),
         },
       });
 
-      expect(typeof result?.content).toBe('object');
-      expect(result?.content).toHaveProperty('name');
+      expect(isInlineContentSource(result)).toBeTruthy();
+
+      if (isInlineContentSource(result)) {
+        expect(typeof result.$content).toBe('object');
+        expect(result.$content).toHaveProperty('name');
+      }
     });
 
     it('should generate null for an empty schema', async () => {
       const schema: ThymianSchema = {};
       expect(await generator.generate(schema)).toMatchObject({
-        content: null,
+        $content: null,
       });
     });
 
@@ -49,7 +54,7 @@ describe('JsonContentTypeStrategy', () => {
         examples: ['user1'],
       };
       expect(await generator.generate(schema)).toMatchObject({
-        content: 'user1',
+        $content: 'user1',
       });
     });
   });

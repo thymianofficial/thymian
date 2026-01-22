@@ -1,8 +1,9 @@
-import { createHash, randomUUID } from 'node:crypto';
+import { createHash } from 'node:crypto';
 
 import { MultiDirectedGraph } from 'graphology';
 import type { SerializedGraph } from 'graphology-types';
 import { match } from 'path-to-regexp';
+import stringify from 'safe-stable-stringify';
 
 import type { HttpRequest, HttpResponse } from '../http.js';
 import {
@@ -88,10 +89,20 @@ export type ThymianEdgeType = keyof ThymianEdges;
 
 export type ThymianGraph = MultiDirectedGraph<ThymianNode, ThymianEdge>;
 
-export type SerializedThymianFormat = SerializedGraph<ThymianNode, ThymianEdge>;
+export type SerializedThymianFormat = SerializedGraph<
+  ThymianNode,
+  ThymianEdge,
+  { hash: string }
+>;
+
+export type SerializedThymianFormatWithoutSourceName = SerializedGraph<
+  PartialBy<ThymianNode, 'sourceName'>,
+  PartialBy<ThymianEdge, 'sourceName'>,
+  { hash: string }
+>;
 
 export function thymianHttpRequestToLabel(
-  req: PartialBy<ThymianHttpRequest, 'label'>,
+  req: PartialBy<ThymianHttpRequest, 'label' | 'sourceName'>,
 ): string {
   const label = `${req.method.toUpperCase()} ${req.protocol}://${req.host}:${
     req.port
@@ -101,7 +112,7 @@ export function thymianHttpRequestToLabel(
 }
 
 export function thymianHttpResponseToLabel(
-  res: PartialBy<ThymianHttpResponse, 'label'>,
+  res: PartialBy<ThymianHttpResponse, 'label' | 'sourceName'>,
 ): string {
   const statusCode = res.statusCode;
   const phrase = isValidHttpStatusCode(statusCode)
@@ -116,6 +127,8 @@ export function thymianHttpResponseToLabel(
 export class ThymianFormat {
   readonly graph: ThymianGraph;
 
+  static readonly ignoredNodeProperties: string[] = ['x', 'y'];
+
   constructor(graph: ThymianGraph = new MultiDirectedGraph()) {
     this.graph = graph;
   }
@@ -124,11 +137,33 @@ export class ThymianFormat {
     source: string,
     target: string,
     edge: PartialBy<ThymianEdge, 'label'>,
+    options: {
+      throwIfExists?: boolean;
+    } = {},
   ): string {
-    return this.graph.addEdge(source, target, {
+    const e = {
       label: edge.type,
       ...edge,
-    });
+    };
+
+    const id = this.hash(source, target, this.hashObj(e));
+
+    if (this.graph.hasEdge(id)) {
+      if (options.throwIfExists)
+        throw new Error(`Edge with ID ${id} already exists.`);
+
+      return id;
+    }
+
+    return this.graph.addEdgeWithKey(
+      this.hash(source, target, this.hashObj(e)),
+      source,
+      target,
+      {
+        label: edge.type,
+        ...edge,
+      },
+    );
   }
 
   addHttpLink(
@@ -160,6 +195,7 @@ export class ThymianFormat {
     requestId: string,
     response: PartialBy<ThymianHttpResponse, 'label'>,
     transaction: Partial<HttpTransaction> = {},
+    sourceName?: string,
   ): [string, string] {
     const req = this.getNode<ThymianHttpRequest>(requestId);
 
@@ -171,10 +207,7 @@ export class ThymianFormat {
 
     const resLabel = thymianHttpResponseToLabel(response);
 
-    const resId = this.addResponse(
-      { ...response, label: resLabel },
-      this.hash(req.label + resLabel),
-    );
+    const resId = this.addResponse({ ...response, label: resLabel });
 
     return [
       resId,
@@ -182,27 +215,21 @@ export class ThymianFormat {
         type: 'http-transaction',
         ...transaction,
         label: `${req.label} \u2192 ${resLabel}`,
+        sourceName: sourceName ?? req.sourceName,
       }),
     ];
   }
 
   addHttpTransaction(
-    request: PartialBy<ThymianHttpRequest, 'label'>,
-    response: PartialBy<ThymianHttpResponse, 'label'>,
+    request: PartialBy<ThymianHttpRequest, 'label' | 'sourceName'>,
+    response: PartialBy<ThymianHttpResponse, 'label' | 'sourceName'>,
+    sourceName: string,
   ): [string, string, string] {
     const reqLabel = thymianHttpRequestToLabel(request);
     const resLabel = thymianHttpResponseToLabel(response);
 
-    const reqId = this.hash(reqLabel);
-
-    if (!this.graph.hasNode(reqId)) {
-      this.addRequest({ ...request, label: reqLabel });
-    }
-
-    const resId = this.addResponse(
-      { ...response, label: resLabel },
-      this.hash(reqLabel + resLabel),
-    );
+    const reqId = this.addRequest({ sourceName, ...request });
+    const resId = this.addResponse({ sourceName, ...response });
 
     return [
       reqId,
@@ -210,6 +237,7 @@ export class ThymianFormat {
       this.addEdge(reqId, resId, {
         type: 'http-transaction',
         label: `${reqLabel} \u2192 ${resLabel}`,
+        sourceName,
       }),
     ];
   }
@@ -234,14 +262,11 @@ export class ThymianFormat {
   addRequest(request: PartialBy<ThymianHttpRequest, 'label'>): string {
     const label = thymianHttpRequestToLabel(request);
 
-    return this.addNode(
-      {
-        label,
-        ...request,
-        type: 'http-request',
-      },
-      this.hash(label),
-    );
+    return this.addNode({
+      label,
+      ...request,
+      type: 'http-request',
+    });
   }
 
   private addResponse(
@@ -260,8 +285,22 @@ export class ThymianFormat {
     );
   }
 
-  addNode(node: ThymianNode, id: string = randomUUID()): string {
-    return this.graph.addNode(id, node);
+  addNode(
+    node: ThymianNode,
+    id: string = this.hashObj(node),
+    options: {
+      throwIfExists?: boolean;
+    } = {},
+  ): string {
+    if (this.graph.hasNode(id)) {
+      if (options.throwIfExists) {
+        throw new Error(`Node with ID ${id} already exists.`);
+      }
+
+      return id;
+    } else {
+      return this.graph.addNode(id, node);
+    }
   }
 
   getNode<T extends ThymianNode = ThymianNode>(id: string): T | undefined {
@@ -333,6 +372,35 @@ export class ThymianFormat {
     );
   }
 
+  getThymianHttpRequestsWithResponses(): [
+    ThymianHttpRequest,
+    ThymianHttpResponse[],
+    string,
+    string[],
+  ][] {
+    return this.graph.reduceNodes(
+      (
+        acc: [ThymianHttpRequest, ThymianHttpResponse[], string, string[]][],
+        id,
+        node,
+      ) => {
+        if (isNodeType(node, 'http-request')) {
+          const responses = this.getHttpResponsesOf(id);
+
+          acc.push([
+            node,
+            responses.map(([, res]) => res),
+            id,
+            responses.map(([id]) => id),
+          ]);
+        }
+
+        return acc;
+      },
+      [],
+    );
+  }
+
   getNodesByExtension(
     extensionName: string,
     values: Record<PropertyKey, string | number | boolean>,
@@ -349,6 +417,19 @@ export class ThymianFormat {
     }, [] as ThymianNode[]);
   }
 
+  getThymianHttpRequestsWithIds(): [ThymianHttpRequest, string][] {
+    return this.graph.reduceNodes(
+      (requests: [ThymianHttpRequest, string][], id, node) => {
+        if (isNodeType(node, 'http-request')) {
+          requests.push([node, id]);
+        }
+
+        return requests;
+      },
+      [],
+    );
+  }
+
   getHttpTransactions(): [string, string, string][] {
     return this.graph.reduceEdges(
       (transactions, id, edge, source, target) => {
@@ -360,6 +441,49 @@ export class ThymianFormat {
       },
       [] as [string, string, string][],
     );
+  }
+
+  getThymianHttpRequests(): ThymianHttpRequest[] {
+    return this.graph.reduceNodes(
+      (requests: ThymianHttpRequest[], id, node) => {
+        if (isNodeType(node, 'http-request')) requests.push(node);
+
+        return requests;
+      },
+      [],
+    );
+  }
+
+  getThymianHttpTransactionById(
+    id: string,
+  ): ThymianHttpTransaction | undefined {
+    const edge = this.getEdge<HttpTransaction>(id);
+
+    if (!edge) {
+      return undefined;
+    }
+
+    const [reqId, resId] = this.graph.extremities(id);
+
+    if (!reqId || !resId) {
+      return undefined;
+    }
+
+    const req = this.getNode<ThymianHttpRequest>(reqId);
+    const res = this.getNode<ThymianHttpResponse>(resId);
+
+    if (!req || !res) {
+      return undefined;
+    }
+
+    return {
+      thymianReq: req,
+      thymianReqId: reqId,
+      thymianRes: res,
+      thymianResId: resId,
+      transactionId: id,
+      transaction: edge,
+    };
   }
 
   getThymianHttpTransactions(): ThymianHttpTransaction[] {
@@ -466,42 +590,63 @@ export class ThymianFormat {
     return this.getNode<ThymianNodes[Type]>(nodeId);
   }
 
-  addSampleHttpRequest(request: HttpRequest): string {
+  addSampleHttpRequest(request: HttpRequest, sourceName: string): string {
     return this.addNode({
       type: 'sample-http-request',
       label: httpRequestToLabel(request),
       sample: request,
+      sourceName,
     });
   }
 
-  addSampleHttpResponse(response: HttpResponse): string {
+  addSampleHttpResponse(response: HttpResponse, sourceName: string): string {
     return this.addNode({
       type: 'sample-http-response',
       label: httpResponseToLabel(response),
       sample: response,
+      sourceName,
     });
   }
 
   addSampleHttpTransaction(
     request: HttpRequest,
     response: HttpResponse,
+    sourceName: string,
   ): [string, string, string] {
-    const reqId = this.addSampleHttpRequest(request);
-    const resId = this.addSampleHttpResponse(response);
+    const reqId = this.addSampleHttpRequest(request, sourceName);
+    const resId = this.addSampleHttpResponse(response, sourceName);
     const transactionId = this.addEdge(reqId, reqId, {
       type: 'sample-http-transaction',
       label: `Sample HTTP Transaction`,
+      sourceName,
     });
 
     return [reqId, resId, transactionId];
   }
 
-  export(): SerializedThymianFormat {
-    return this.graph.export();
+  toHash(): string {
+    const hash = createHash('sha1');
+
+    this.graph
+      .nodes()
+      .sort()
+      .forEach((id) => hash.update(id));
+
+    this.graph
+      .edges()
+      .sort()
+      .forEach((id) => hash.update(id));
+
+    return hash.digest('hex');
   }
 
-  toJSON(): SerializedThymianFormat {
-    return this.export();
+  export(): SerializedThymianFormat {
+    return {
+      ...this.graph.export(),
+      attributes: {
+        hash: this.toHash(),
+      },
+    };
   }
 
   // TODO must implement this feature. But before we should think about the node and edge ID generation
@@ -512,38 +657,77 @@ export class ThymianFormat {
 
   static fromHttpTransactions(
     transactions: [HttpRequest, HttpResponse][],
+    sourceName: string,
   ): ThymianFormat {
     const format = new ThymianFormat();
 
     for (const [req, res] of transactions) {
-      const thymianReq = httpRequestToThymianHttpRequest(req);
-      const thymianRes = httpResponseToThymianHttpResponse(res);
+      const thymianReq = httpRequestToThymianHttpRequest(req, sourceName);
+      const thymianRes = httpResponseToThymianHttpResponse(res, sourceName);
 
       const [sampleReqId, sampleResId] = format.addSampleHttpTransaction(
         req,
         res,
+        sourceName,
       );
 
-      const [reqId, resId] = format.addHttpTransaction(thymianReq, thymianRes);
+      const [reqId, resId] = format.addHttpTransaction(
+        thymianReq,
+        thymianRes,
+        sourceName,
+      );
 
       format.addEdge(reqId, sampleReqId, {
         type: 'has-sample',
+        sourceName,
       });
       format.addEdge(resId, sampleResId, {
         type: 'has-sample',
+        sourceName,
       });
     }
 
     return format;
   }
 
-  static import(graph: SerializedThymianFormat): ThymianFormat {
-    return new ThymianFormat(
-      new MultiDirectedGraph<ThymianNode, ThymianEdge>().import(graph),
-    );
+  static import(graph: SerializedThymianFormat): ThymianFormat;
+  static import(
+    graph: SerializedThymianFormatWithoutSourceName,
+    sourceName: string,
+  ): ThymianFormat;
+  static import(
+    graph: SerializedThymianFormatWithoutSourceName | SerializedThymianFormat,
+    sourceName?: string,
+  ): ThymianFormat {
+    const g = new MultiDirectedGraph<
+      PartialBy<ThymianNode, 'sourceName'> | ThymianNode,
+      PartialBy<ThymianEdge, 'sourceName'> | ThymianEdge
+    >().import(graph);
+
+    g.forEachNode((_, node) => {
+      node.sourceName ??= sourceName;
+    });
+
+    g.forEachEdge((_, edge) => {
+      edge.sourceName ??= sourceName;
+    });
+
+    return new ThymianFormat(g as ThymianGraph);
   }
 
-  private hash(input: string): string {
-    return createHash('sha1').update(input).digest('hex');
+  private hash(...values: string[]): string {
+    const hash = createHash('sha1');
+
+    values.forEach((value) => hash.update(value));
+
+    return hash.digest('hex');
+  }
+
+  private hashObj(obj: unknown): string {
+    if (typeof obj === 'undefined') {
+      return '';
+    }
+
+    return createHash('sha1').update(stringify(obj)).digest('hex');
   }
 }

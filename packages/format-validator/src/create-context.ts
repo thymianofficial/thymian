@@ -7,7 +7,10 @@ import {
   ThymianFormat,
   type ThymianHttpTransaction,
 } from '@thymian/core';
-import { createHookRunner, createHttpTestContext } from '@thymian/http-testing';
+import {
+  createHttpTestContext,
+  createHttpTestHookRunnerFromThymianEmitter,
+} from '@thymian/http-testing';
 
 export function createContext(
   format: ThymianFormat,
@@ -19,10 +22,10 @@ export function createContext(
     format,
     logger,
     locals: {},
-    sampleRequest: function (
+    sampleRequest: async function (
       transaction: ThymianHttpTransaction,
     ): Promise<HttpRequestTemplate> {
-      return emitter.emitAction(
+      return await emitter.emitAction(
         'sampler.sample-request',
         { transaction },
         { strategy: 'first' },
@@ -43,6 +46,6 @@ export function createContext(
         },
       );
     },
-    runHook: createHookRunner(emitter),
+    runHook: createHttpTestHookRunnerFromThymianEmitter(emitter),
   });
 }

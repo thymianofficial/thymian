@@ -17,8 +17,9 @@
     "name": "@thymian/request-dispatcher"
   },
   "dependencies": {
+    "@thymian/core": "^0",
     "async-mutex": "^0.5.0",
-    "undici": "^6.21.2",
-    "@thymian/core": "^0"
+    "p-queue": "^9.0.1",
+    "undici": "^6.21.2"
   }
 }

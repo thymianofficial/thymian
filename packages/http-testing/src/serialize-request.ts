@@ -157,6 +157,13 @@ export function serializeBody(body: unknown): string | undefined {
 export function serializeRequest(
   transaction: HttpTestCaseStepTransaction,
 ): HttpRequest {
+  if (!transaction.requestTemplate) {
+    throw new Error(
+      'Missing request template for transaction ' +
+        transaction.source?.transactionId,
+    );
+  }
+
   return {
     body: serializeBody(transaction.requestTemplate.body),
     bodyEncoding: transaction.requestTemplate.bodyEncoding,

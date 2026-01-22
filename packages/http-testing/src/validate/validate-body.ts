@@ -30,7 +30,7 @@ export function validateJsonBody(
       return [
         {
           type: 'assertion-failure',
-          message: 'Invalid response body.',
+          message: `Invalid response body: ${validate.errors.map((err) => err.instancePath + ' ' + err.message).join(', ')}`,
           timestamp: Date.now(),
         },
       ];

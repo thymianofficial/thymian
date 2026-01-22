@@ -14,6 +14,7 @@ export type ThymianSchema = {
   enum?: unknown[];
 
   examples?: unknown[];
+  description?: string;
   default?: unknown;
 
   // Numbers

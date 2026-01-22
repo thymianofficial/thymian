@@ -20,6 +20,7 @@ export async function validate(
       .done(),
   );
 
+  logger.debug('Validating Thymian format.');
   const results = await test(context);
 
   logger.debug(`Validated Thymian format in ${results.duration}ms.`);
@@ -42,9 +43,9 @@ export async function validate(
   report({
     producer,
     severity: 'info',
-    summary: `Validated ${results.cases.length} HTTP transactions in ${results.duration}ms. ${numbers.passed} passed, ${numbers.failed} failed and ${numbers.skipped} skipped.`,
+    summary: `✖ ${numbers.failed} failed   ✔ ${numbers.passed} passed   ○ ${numbers.skipped} skipped`,
     timestamp: Date.now(),
-    title: 'Format Validation Results',
+    title: `ℹ Validated ${results.cases.length} HTTP transactions in ${results.duration.toPrecision(4)}ms.`,
   });
 
   for (const testCase of results.cases) {
@@ -55,8 +56,8 @@ export async function validate(
 
       report({
         producer,
-        severity: 'warn',
-        summary: testCase.name,
+        severity: 'info',
+        summary: testCase.reason ?? 'Because of an unknown reason.',
         details:
           testCase.reason ??
           testCase.results
@@ -97,28 +98,37 @@ export async function validate(
         report({
           producer,
           severity: 'error',
-          summary: `\u274C ${result.message}`,
+          summary: `✖ ${result.message}`,
           category,
           timestamp: Date.now(),
           title: testCase.name,
+          layoutOptions: {
+            prefixSeverity: false,
+          },
         });
       } else if (result.type === 'assertion-success') {
         report({
           producer,
           severity: 'info',
-          summary: `\u2705 ${result.message}`,
+          summary: `✔ ${result.message}`,
           category,
           timestamp: Date.now(),
           title: testCase.name,
+          layoutOptions: {
+            prefixSeverity: false,
+          },
         });
       } else if (result.type === 'info') {
         report({
           producer,
           severity: 'info',
-          summary: `\u2796 ${result.message}`,
+          summary: `ℹ ${result.message}`,
           category,
           timestamp: Date.now(),
           title: testCase.name,
+          layoutOptions: {
+            prefixSeverity: false,
+          },
         });
       }
     });

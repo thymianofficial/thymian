@@ -16,8 +16,9 @@ export function processRequestBodyObjet(
     host: string;
     port: number;
     protocol: 'http' | 'https';
+    sourceName: string;
   },
-): PartialBy<ThymianHttpRequest, 'label'>[] {
+): PartialBy<ThymianHttpRequest, 'label' | 'sourceName'>[] {
   if (!requestBodyObject) {
     return [
       {
@@ -85,7 +86,7 @@ export function processRequestBodyObjet(
             ...parameters.headers,
             // ...headers, TODO
           },
-        } satisfies PartialBy<ThymianHttpRequest, 'label'>;
+        } satisfies PartialBy<ThymianHttpRequest, 'label' | 'sourceName'>;
       })
   );
 }

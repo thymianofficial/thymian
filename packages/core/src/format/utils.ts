@@ -1,11 +1,6 @@
 import { DEFAULT_HEADER_SERIALIZATION_STYLE } from '../constants.js';
 import type { HttpRequest, HttpResponse } from '../http.js';
-import {
-  equalsIgnoreCase,
-  getContentType,
-  getHeader,
-  type PartialBy,
-} from '../utils.js';
+import { equalsIgnoreCase, getContentType, type PartialBy } from '../utils.js';
 import type { ThymianHttpRequest } from './nodes/http-request.node.js';
 import type { ThymianHttpResponse } from './nodes/http-response.node.js';
 import type { Parameter } from './parameter.js';
@@ -80,6 +75,7 @@ export function parameterValuesToParameters(
 
 export function httpRequestToThymianHttpRequest(
   request: HttpRequest,
+  sourceName: string,
 ): PartialBy<ThymianHttpRequest, 'label'> {
   const url = new URL(request.path, request.origin);
 
@@ -98,11 +94,13 @@ export function httpRequestToThymianHttpRequest(
     ),
     pathParameters: {},
     queryParameters: {},
+    sourceName,
   };
 }
 
 export function httpResponseToThymianHttpResponse(
   response: HttpResponse,
+  sourceName: string,
 ): ThymianHttpResponse {
   const thymianHttpResponse: ThymianHttpResponse = {
     type: 'http-response',
@@ -113,6 +111,7 @@ export function httpResponseToThymianHttpResponse(
       response.headers ?? {},
       DEFAULT_HEADER_SERIALIZATION_STYLE,
     ),
+    sourceName,
   };
 
   if (response.body) {

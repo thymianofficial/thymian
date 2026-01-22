@@ -15,7 +15,7 @@ export function processResponsesObject(
   const responses: Record<
     string,
     {
-      responses: PartialBy<ThymianHttpResponse, 'label'>[];
+      responses: PartialBy<ThymianHttpResponse, 'label' | 'sourceName'>[];
       links: { name: string; linkObj: OpenApiV31.LinkObject }[];
     }
   > = {};

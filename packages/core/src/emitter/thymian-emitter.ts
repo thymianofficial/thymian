@@ -3,9 +3,12 @@ import { randomUUID } from 'node:crypto';
 import deepmerge from '@fastify/deepmerge';
 import chalk from 'chalk';
 import {
+  debounceTime,
   filter,
   firstValueFrom,
+  map,
   merge,
+  race,
   Subject,
   take,
   takeUntil,
@@ -16,6 +19,7 @@ import {
 import type { ThymianActionName, ThymianActions } from '../actions/index.js';
 import type { ThymianEventName } from '../events/index.js';
 import type { Logger } from '../logger/logger.js';
+import { NoopLogger } from '../logger/noop.logger.js';
 import {
   isThymianError,
   ThymianBaseError,
@@ -99,9 +103,14 @@ export class ThymianEmitter {
   // TODO: this is a problem
   readonly #completed: Set<string>;
 
+  /**
+   * Multiplier for the hard timeout limit relative to the idle debounce time.
+   */
+  private static MAX_WAIT_MULTIPLIER = 5;
+
   constructor(
-    private readonly logger: Logger,
-    state: EmitterState,
+    private readonly logger: Logger = new NoopLogger(),
+    state: EmitterState = ThymianEmitter.emptyEmitterState(),
     options: Partial<ThymianEmitterOptions> = {},
   ) {
     this.options = {
@@ -125,7 +134,7 @@ export class ThymianEmitter {
     }
   }
 
-  static newEmitterState(source = ''): EmitterState {
+  static emptyEmitterState(source = ''): EmitterState {
     return {
       source,
       events: new Subject(),
@@ -134,6 +143,43 @@ export class ThymianEmitter {
       listeners: new Map(),
       completed: new Set(),
     };
+  }
+
+  async shutdown(idleTimeMs = this.options.timeout): Promise<void> {
+    await Promise.all([
+      this.shutdownSubject(this.#events, idleTimeMs, 'events'),
+      this.shutdownSubject(this.#responses, idleTimeMs, 'responses'),
+      this.shutdownSubject(this.#errors, idleTimeMs, 'errors'),
+    ]);
+  }
+
+  private async shutdownSubject(
+    subject: Subject<any>,
+    waitFor: number,
+    name = '',
+    timeout = waitFor * ThymianEmitter.MAX_WAIT_MULTIPLIER,
+  ): Promise<void> {
+    return new Promise((resolve) => {
+      race([
+        subject.pipe(
+          debounceTime(waitFor),
+          take(1),
+          map(() => 'idle'),
+        ),
+        timer(timeout).pipe(map(() => 'timeout')),
+      ]).subscribe((reason) => {
+        this.logger.debug(
+          `Complete subject${name ? ' ' + name : name} due to ${reason}.`,
+        );
+        resolve();
+      });
+    });
+  }
+
+  completeSubjects(): void {
+    this.#events.complete();
+    this.#responses.complete();
+    this.#errors.complete();
   }
 
   on<Name extends ThymianEventName>(
@@ -288,6 +334,8 @@ export class ThymianEmitter {
       ? ResponseEventPayload<Name>[]
       : ResponseEventPayload<Name>
   > {
+    const start = performance.now();
+
     const [name, payload, options] = args;
     const opts: EmitActionOptions = {
       timeout: this.options.timeout,
@@ -304,6 +352,7 @@ export class ThymianEmitter {
     };
 
     const numOfListeners = this.#listeners.get(name) ?? 0;
+
     const takeNum = opts.strategy === 'first' ? 1 : numOfListeners;
 
     const responsesAndErrors = merge(
@@ -313,21 +362,33 @@ export class ThymianEmitter {
       this.#errors.pipe(filter(isResponseOf(name, event.id))),
     ).pipe(takeUntil(timer(opts.timeout)), take(takeNum), toArray());
 
-    queueMicrotask(() => {
-      this.#events.next(event);
-    });
+    const resultsPromise = firstValueFrom(responsesAndErrors);
 
-    const results = (await firstValueFrom(responsesAndErrors)) as (
+    // Yield execution to the event loop.
+    // This forces the event emission into the next microtask, ensuring that:
+    // 1. The 'resultsPromise' subscription is fully active.
+    // 2. The event emission does not run synchronously within the current stack frame.
+    await Promise.resolve();
+
+    this.#events.next(event);
+
+    const results = (await resultsPromise) as (
       | ThymianResponseEvent<Name>
       | ThymianErrorEvent<Name>
     )[];
+
+    if (results.length === 0) {
+      this.logger.debug(
+        `No response event received for action "${name}" within ${opts.timeout}ms.`,
+      );
+    }
 
     const errors = results.filter((r) =>
       Object.hasOwn(r, 'error'),
     ) as ThymianErrorEvent<Name>[];
 
     if (errors.length > 0 && typeof errors[0] !== 'undefined') {
-      this.logger.error(
+      this.logger.debug(
         `Received ${errors.length} error event${
           errors.length > 1 ? 's' : ''
         } from ${errors
@@ -347,16 +408,28 @@ export class ThymianEmitter {
     }
 
     if (opts.strategy !== 'first' && results.length !== numOfListeners) {
-      this.logger.debug(
+      this.logger.warn(
         `Expected ${numOfListeners} response events for event "${name}" but got ${results.length}.`,
       );
     }
 
-    const payloads = (results as ThymianResponseEvent<Name>[])
-      .map((msg) => msg.payload)
-      .filter(Boolean);
+    const payloads = (results as ThymianResponseEvent<Name>[]).map(
+      (msg) => msg.payload,
+    );
 
     this.#completed.add(event.id);
+
+    const duration = performance.now() - start;
+
+    if (duration > opts.timeout) {
+      this.logger.warn(
+        `Action "${name}" took ${duration}ms but timeout was set to ${opts.timeout}. Increase the timeout to avoid this warning.`,
+      );
+    }
+
+    this.logger.debug(
+      `Action "${name}" was emitted and processed in ${performance.now() - start}ms.`,
+    );
 
     switch (opts.strategy) {
       case 'first':

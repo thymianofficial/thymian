@@ -21,6 +21,7 @@ export default {
         'websocket-proxy',
         'core-testing',
         'astro-docs',
+        'evaluation',
       ],
     ],
     'scope-empty': [2, 'never'],

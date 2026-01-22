@@ -1,67 +1,68 @@
-import { join } from 'node:path';
+import { type ThymianPlugin, type ThymianReport } from '@thymian/core';
 
-import {
-  ThymianBaseError,
-  type ThymianPlugin,
-  type ThymianReport,
-} from '@thymian/core';
-
-import type { Formatter } from './formatter.js';
-import { CliFormatter, type CliFormatterOptions } from './formatters/cli.js';
-import {
-  MarkdownFormatter,
-  type MarkdownFormatterOptions,
-} from './formatters/markdown.js';
+import { type Formatters, getFormatters } from './get-formatters.js';
 
 export type ReporterPluginOptions = {
-  formatters?: {
-    cli?: CliFormatterOptions;
-    markdown?: MarkdownFormatterOptions;
-  };
+  formatters?: Partial<Formatters>;
 };
-
-export async function getFormatters(
-  config: ReporterPluginOptions['formatters'] = {},
-  cwd: string,
-): Promise<Formatter[]> {
-  return Promise.all(
-    Object.entries(config).map(async ([name, options]) => {
-      if (name === 'cli') {
-        const formatter = new CliFormatter();
-        formatter.init(options);
-        return formatter;
-      }
-
-      if (name === 'markdown') {
-        const formatter = new MarkdownFormatter();
-
-        formatter.init({
-          ...options,
-          path: join(
-            cwd,
-            typeof options.path === 'string'
-              ? options.path
-              : '.thymian/reports/report.md',
-          ),
-        });
-
-        return formatter;
-      }
-
-      throw new ThymianBaseError(
-        `Unknown formatter "${name}". Available formatters: cli, markdown.`,
-        {
-          suggestions: [
-            'If you want to add your own formatter, implement a new plugin and listen on the `core.report` event and/or open a Github issue.',
-          ],
-        },
-      );
-    }),
-  );
-}
 
 export const reporterPlugin: ThymianPlugin<ReporterPluginOptions> = {
   name: '@thymian/reporter',
+  options: {
+    type: 'object',
+    additionalProperties: false,
+    properties: {
+      formatters: {
+        nullable: true,
+        description: 'Configuration for different report formatters',
+        type: 'object',
+        properties: {
+          cli: {
+            nullable: true,
+            description: 'Configuration for the CLI (console) formatter',
+            type: 'object',
+            properties: {
+              summaryOnly: {
+                description:
+                  'When true, only shows the summary without detailed reports',
+                type: 'boolean',
+                nullable: true,
+              },
+            },
+            additionalProperties: false,
+          },
+          markdown: {
+            description: 'Configuration for the Markdown formatter',
+            nullable: true,
+            type: 'object',
+            properties: {
+              path: {
+                description:
+                  'File path where the markdown report will be saved',
+                type: 'string',
+                nullable: true,
+              },
+            },
+            additionalProperties: false,
+          },
+          csv: {
+            description: 'Configuration for the CSV formatter',
+            nullable: true,
+            type: 'object',
+            properties: {
+              path: {
+                description: 'File path where the CSV report will be saved',
+                type: 'string',
+                nullable: true,
+              },
+            },
+            additionalProperties: false,
+          },
+        },
+        additionalProperties: false,
+      },
+    },
+  },
   version: '0.x',
   events: {
     listensOn: ['core.report'],
@@ -69,8 +70,8 @@ export const reporterPlugin: ThymianPlugin<ReporterPluginOptions> = {
   actions: {
     listensOn: ['core.close'],
   },
-  async plugin(emitter, _logger, { formatters, cwd }) {
-    const reporters = await getFormatters(formatters, cwd);
+  async plugin(emitter, logger, { formatters, cwd }) {
+    const reporters = await getFormatters(formatters, cwd, logger);
 
     emitter.on('core.report', async (report: ThymianReport) => {
       reporters.forEach((r) => r.report(report));

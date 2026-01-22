@@ -1,4 +1,3 @@
-import { Subject } from 'rxjs';
 import semver from 'semver';
 
 import packageJson from '../package.json' with { type: 'json' };
@@ -23,8 +22,10 @@ export class PluginRegistrationError extends ThymianBaseError {}
 
 export type ThymianOptions = {
   timeout: number;
+  idleTimeout: number;
   traceEvents: boolean;
   cwd: string;
+  logAllErrors: boolean;
 };
 
 export class Thymian {
@@ -38,30 +39,32 @@ export class Thymian {
 
   public static readonly VERSION = packageJson.version;
 
+  // Number of milliseconds that is waited for new events and actions to be emitted before shutting down the emitter.
+  public static readonly DEFAULT_IDLE_TIMEOUT = 500;
+
+  // number of milliseconds that is waited for actions response and plugin registration
+  public static readonly DEFAULT_TIMEOUT = 10000;
+
   constructor(
     private readonly logger: Logger = new NoopLogger(),
     options: Partial<ThymianOptions> = {},
   ) {
     this.options = {
-      timeout: 5000,
+      idleTimeout: Thymian.DEFAULT_IDLE_TIMEOUT,
+      timeout: Thymian.DEFAULT_TIMEOUT,
       traceEvents: false,
       cwd: process.cwd(),
+      logAllErrors: false,
       ...options,
     };
 
-    const emitterLogger = this.options.traceEvents
-      ? logger.child('@thymian/core', true)
-      : new NoopLogger();
+    const emitterLogger = logger.child(
+      '@thymian/core',
+      this.options.traceEvents,
+    );
     this.emitter = new ThymianEmitter(
       emitterLogger,
-      {
-        completed: new Set(),
-        errors: new Subject(),
-        events: new Subject(),
-        listeners: new Map(),
-        responses: new Subject(),
-        source: '@thymian/core',
-      },
+      ThymianEmitter.emptyEmitterState('@thymian/core'),
       {
         traceEvents: this.options.traceEvents,
         timeout: this.options.timeout,
@@ -94,8 +97,6 @@ export class Thymian {
       }
     }
 
-    this.logger.debug(`Register plugin ${plugin.name}.`);
-
     // eslint-disable-next-line @typescript-eslint/ban-ts-comment
     // @ts-expect-error
     this.plugins.push({ plugin: plugin, options: options ?? {} });
@@ -119,9 +120,15 @@ export class Thymian {
     fn: (emitter: ThymianEmitter, logger: Logger) => Promise<T> | T,
   ): Promise<T> {
     return new Promise((resolve, reject) => {
-      const tryCloseThymian = (err: unknown) => {
-        this.logger.debug('Try closing Thymian...');
+      let closed = false;
 
+      const tryCloseThymian = (err: unknown) => {
+        if (closed) {
+          return;
+        }
+        closed = true;
+
+        this.logger.debug('Try closing Thymian...');
         this.close()
           .then(() => {
             this.logger.debug('Thymian closed.');
@@ -134,12 +141,14 @@ export class Thymian {
       };
 
       this.emitter.onError((event) => {
+        if (closed && this.options.logAllErrors) {
+          this.logger
+            .child(event.source)
+            [event.error.options.severity](event.error.message);
+        }
+
         if (event.error.options.severity === 'error') {
           tryCloseThymian(event.error);
-        } else if (event.error.options.severity === 'warn') {
-          this.logger.warn(event.error.message);
-        } else {
-          this.logger.info(event.error.message);
         }
       });
 
@@ -161,14 +170,22 @@ export class Thymian {
 
   async close(): Promise<void> {
     await this.emitter.emitAction('core.close');
+
+    // This let the ThymianEmitter wait 500 ms for the last events to be emitted before shutting down.
+    await this.emitter.shutdown(this.options.idleTimeout);
+
+    this.emitter.completeSubjects();
   }
 
-  async loadFormat(): Promise<ThymianFormat> {
+  async loadFormat(
+    _options: { emitFormat?: boolean } = {},
+  ): Promise<ThymianFormat> {
+    const options = { emitFormat: true, ..._options };
+
     const formats = await this.emitter.emitAction(
       'core.load-format',
       undefined,
       {
-        timeout: 2000,
         strategy: 'collect',
       },
     );
@@ -189,6 +206,10 @@ export class Thymian {
       `Merged Thymian format includes ${format.graph.order} nodes and ${format.graph.size} edges.`,
     );
 
+    if (options.emitFormat) {
+      await this.emitter.emitAction('core.format', format.export());
+    }
+
     return format;
   }
 
@@ -206,6 +227,10 @@ export class Thymian {
   private async registerPlugin(
     registeredPlugin: RegisteredPlugin,
   ): Promise<void> {
+    this.logger.debug(
+      `Register plugin ${registeredPlugin.plugin.name} with options ${JSON.stringify(registeredPlugin.options)}`,
+    );
+
     this.emitter.emit('core.register', {
       name: registeredPlugin.plugin.name,
       events: registeredPlugin.plugin.events ?? {},

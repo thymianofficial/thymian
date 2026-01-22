@@ -1,3 +1,4 @@
+import { thymianHttpTransactionToString } from '@thymian/core';
 import { mergeMap, type MonoTypeOperatorFunction } from 'rxjs';
 
 import {
@@ -22,6 +23,7 @@ export type RunRequestsOptions = {
   checkHeaders: boolean;
   checkBody: boolean;
   expectStatusCode?: number;
+  authorize: boolean;
 };
 
 export function runRequests<
@@ -40,6 +42,7 @@ export function runRequests<
       checkStatusCode: true,
       checkBody: false,
       checkHeaders: false,
+      authorize: true,
       ...opts,
     };
 
@@ -47,29 +50,67 @@ export function runRequests<
     const step = current.steps.at(stepIdx);
 
     if (step) {
+      if (step.transactions.length === 0) {
+        ctx.logger.warn(
+          `Test case ${current.name} does not contain any transactions to run requests for.`,
+        );
+      }
+
       for (const transaction of step.transactions) {
+        const transactionName = transaction.source
+          ? thymianHttpTransactionToString(
+              transaction.source.thymianReq,
+              transaction.source.thymianRes,
+            )
+          : transaction.requestTemplate.method.toUpperCase() +
+            ' ' +
+            new URL(
+              transaction.requestTemplate.path,
+              transaction.requestTemplate.origin,
+            ).toString();
+
+        ctx.logger.debug(
+          `Running "beforeRequest" hook for transaction ${transactionName} in test case ${current.name}.`,
+        );
+
         const beforeRequest = await ctx.runHook('beforeRequest', {
           value: transaction.requestTemplate,
+          ctx: transaction.source,
         });
 
         current.results.push(...(beforeRequest.testResults ?? []));
 
         if (beforeRequest.skip) {
+          ctx.logger.debug(
+            `Skipping test case "${current.name}" after "beforeEach" hook.`,
+          );
+
           return ctx.skip(current, beforeRequest.skip);
         }
 
         if (beforeRequest.fail) {
+          ctx.logger.debug(
+            `Test case ${current.name} failed after "beforeEach" hook.`,
+          );
+
           return ctx.fail(current, beforeRequest.fail);
         }
 
-        transaction.requestTemplate = beforeRequest.value;
+        transaction.requestTemplate =
+          beforeRequest.result ?? transaction.requestTemplate;
 
-        if (transaction.requestTemplate.authorize) {
-          transaction.requestTemplate = (
-            await ctx.runHook('authorize', {
-              value: transaction.requestTemplate,
-            })
-          ).value;
+        if (options.authorize && transaction.requestTemplate.authorize) {
+          ctx.logger.debug(
+            `Running "authorize" hook for transaction ${transactionName} in test case ${current.name}.`,
+          );
+
+          transaction.requestTemplate =
+            (
+              await ctx.runHook('authorize', {
+                value: transaction.requestTemplate,
+                ctx: transaction.source,
+              })
+            ).result ?? transaction.requestTemplate;
         }
 
         transaction.request = serializeRequest(transaction);
@@ -77,19 +118,32 @@ export function runRequests<
 
         const afterResponse = await ctx.runHook('afterResponse', {
           value: transaction.response,
+          ctx: {
+            request: transaction.request,
+            requestTemplate: transaction.requestTemplate,
+            thymianTransaction: transaction.source,
+          },
         });
 
         current.results.push(...(afterResponse.testResults ?? []));
 
         if (afterResponse.skip) {
+          ctx.logger.debug(
+            `Skipping test case "${current.name}" after "afterEach" hook.`,
+          );
+
           return ctx.skip(current, afterResponse.skip);
         }
 
         if (afterResponse.fail) {
+          ctx.logger.debug(
+            `Skipping test case "${current.name}" after "afterEach" hook.`,
+          );
+
           return ctx.fail(current, afterResponse.fail);
         }
 
-        transaction.response = afterResponse.value;
+        transaction.response = afterResponse.result ?? transaction.response;
 
         if (typeof options.expectStatusCode !== 'undefined') {
           if (transaction.response.statusCode !== options.expectStatusCode) {
@@ -113,6 +167,9 @@ export function runRequests<
             const result = validateStatusCode(
               transaction.source.thymianRes.statusCode,
               transaction.response.statusCode,
+              ctx.format
+                .getHttpResponsesOf(transaction.source.thymianReqId)
+                .map(([, { statusCode }]) => statusCode),
             );
 
             if (result.type === 'assertion-failure') {

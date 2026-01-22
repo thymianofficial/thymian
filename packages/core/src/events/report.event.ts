@@ -14,6 +14,9 @@ export interface ThymianReport {
   timestamp?: number;
   details?: string;
   category?: string | 'No Category';
+  layoutOptions?: {
+    prefixSeverity?: boolean;
+  };
   location?: {
     reference?: ThymianFormatLocation;
     format?: {
@@ -38,6 +41,16 @@ export const thymianReportSchema: JSONSchemaType<ReportEvent> = {
     category: { type: 'string', nullable: true },
     title: { type: 'string', nullable: false },
     timestamp: { type: 'integer', nullable: true },
+    layoutOptions: {
+      nullable: true,
+      type: 'object',
+      properties: {
+        prefixSeverity: {
+          type: 'boolean',
+          nullable: true,
+        },
+      },
+    },
     severity: {
       type: 'string',
       enum: ['info', 'hint', 'warn', 'error'],

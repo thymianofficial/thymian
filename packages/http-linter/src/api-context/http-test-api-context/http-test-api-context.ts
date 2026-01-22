@@ -299,16 +299,18 @@ export class HttpTestApiContext<
 
         this.report({
           summary:
-            testCase.reason ??
-            testCase.results
-              .filter(
-                (tc) => tc.type !== 'info' && tc.type !== 'assertion-success',
-              )
-              .map((tc) => tc.message)
-              .join('\n'),
+            'Skipped: ' +
+            (testCase.reason ??
+              testCase.results
+                .filter(
+                  (tc) => tc.type !== 'info' && tc.type !== 'assertion-success',
+                )
+                .map((tc) => tc.message)
+                .join('\n')),
           title: testCase.name,
-          category: 'Skipped HTTP Test Cases',
-          source: '',
+          category: 'HTTP Tests',
+          // details: testCasesToString(testCase),
+          source: this.name,
           producer: '@thymian/http-linter',
           severity: 'info',
         });
@@ -357,23 +359,6 @@ export class HttpTestApiContext<
     this.reportSkippedAndFailedTestCases(testResult);
 
     return this.violations;
-  }
-
-  assertTransaction(transactionId: string, fn: () => unknown): void {
-    try {
-      fn();
-    } catch (e) {
-      if (e instanceof assert.AssertionError) {
-        this.reportViolation({
-          location: {
-            elementType: 'edge',
-            elementId: transactionId,
-          },
-        });
-      } else {
-        throw e;
-      }
-    }
   }
 
   override async validateHttpTransactions(
@@ -456,4 +441,22 @@ export class HttpTestApiContext<
       )
       .concat(this.violations);
   }
+}
+
+export function testCasesToString(testCase: HttpTestCase): string {
+  let text = '';
+
+  text += `${testCase.name}\n`;
+  for (const [idx, step] of testCase.steps.entries()) {
+    text += `\tStep No. ${idx + 1}\n`;
+    for (const [idx, transaction] of step.transactions.entries()) {
+      text += `\t\tTransaction No. ${idx + 1}\n`;
+      if (transaction.request && transaction.response) {
+        text += JSON.stringify(transaction.request, null, 2) + '\n';
+        text += JSON.stringify(transaction.response, null, 2) + '\n\n';
+      }
+    }
+  }
+
+  return text;
 }

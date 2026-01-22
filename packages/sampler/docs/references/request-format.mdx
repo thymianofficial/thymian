@@ -1,0 +1,512 @@
+---
+title: Request Format Reference
+description: Complete reference for the `request.json` file format used by the sampler plugin.
+---
+
+import { Aside } from '@astrojs/starlight/components';
+
+# Request Format Reference
+
+Complete reference for the `request.json` file format used by the sampler plugin.
+
+## File Structure
+
+Each endpoint has a `request.json` file that defines the HTTP request to send:
+
+```json
+{
+  "origin": "http://localhost:3000",
+  "path": "/api/v1/launches",
+  "method": "POST",
+  "authorize": false,
+  "headers": {
+    "content-type": "application/json"
+  },
+  "cookies": {},
+  "pathParameters": {},
+  "query": {},
+  "body": {
+    "missionName": "Apollo 11",
+    "launchDate": "2026-07-20T20:17:00Z",
+    "rocketType": "Saturn V"
+  }
+}
+```
+
+## Fields
+
+### `origin`
+
+**Type:** `string`
+**Required:** Yes
+
+The base URL of the API server.
+
+**Examples:**
+
+```json
+"origin": "http://localhost:3000"
+"origin": "https://api.example.com"
+"origin": "http://192.168.1.100:8080"
+```
+
+### `path`
+
+**Type:** `string`
+**Required:** Yes
+
+The endpoint path, including path parameters.
+
+**Examples:**
+
+```json
+"path": "/api/v1/launches"
+"path": "/api/v1/launches/123"
+"path": "/api/v1/users/abc/posts/xyz"
+```
+
+<Aside type="note">
+ Path parameters are replaced at runtime using the `pathParameters` field.
+</Aside>
+
+### `method`
+
+**Type:** `string`
+**Required:** Yes
+
+The HTTP method.
+
+**Examples:**
+
+```jsonc
+"method": "GET"
+"method": "POST"
+"method": "DELETE"
+```
+
+### `authorize`
+
+**Type:** `boolean`
+**Required:** Yes
+
+Whether to run the authorize hook for this request.
+
+**Values:**
+
+- `true`: Run authorize hook
+- `false`: Skip authorize hook
+
+**Examples:**
+
+```jsonc
+"authorize": true   // Protected endpoint
+"authorize": false  // Public endpoint
+```
+
+<Aside type="note">
+  A Typically set to `false` for endpoints that create authentication resources (e.g., user registration).
+</Aside>
+
+### `headers`
+
+**Type:** `Record<string, Value>`
+**Required:** Yes
+
+HTTP headers to include in the request.
+
+**Examples:**
+
+```jsonc
+"headers": {
+  "content-type": "application/json",
+  "accept": "application/json",
+  "x-api-version": "v1"
+}
+```
+
+```jsonc
+"headers": {
+  "authorization": "Bearer token123",
+  "user-agent": "MyApp/1.0"
+}
+```
+
+**Common headers:**
+
+- `content-type`: Type of request body
+- `accept`: Expected response type
+- `authorization`: Authentication credentials
+- Custom headers specific to your API
+
+### `cookies`
+
+**Type:** `Record<string, Value>`
+**Required:** Yes
+
+Cookies to include in the request.
+
+**Examples:**
+
+```jsonc
+"cookies": {}
+```
+
+```jsonc
+"cookies": {
+  "session": "abc123xyz",
+  "preference": "dark-mode"
+}
+```
+
+### `pathParameters`
+
+**Type:** `Record<string, Value>`
+**Required:** Yes
+
+Values for path parameters defined in the endpoint.
+
+**Examples:**
+
+For path `/api/v1/launches/{id}`:
+
+```jsonc
+"path": "/api/v1/launches/{id}",
+"pathParameters": {
+  "id": "abc123"
+}
+```
+
+For path `/api/v1/users/{userId}/posts/{postId}`:
+
+```jsonc
+"path": "/api/v1/users/{userId}/posts/{postId}",
+"pathParameters": {
+  "userId": "user-123",
+  "postId": "post-456"
+}
+```
+
+<Aside type="note">
+  Values are substituted into the path before sending the request.
+</Aside>
+
+### `query`
+
+**Type:** `Record<string, Value>`
+**Required:** Yes
+
+Query parameters to include in the request URL.
+
+**Examples:**
+
+```jsonc
+"query": {}
+```
+
+```jsonc
+"query": {
+  "limit": 10,
+  "offset": 0,
+  "sort": "createdAt"
+}
+```
+
+```jsonc
+"query": {
+  "filter": "status:active",
+  "include": "author,tags"
+}
+```
+
+**Result:** `GET /api/v1/launches?limit=10&offset=0&sort=createdAt`
+
+### `body`
+
+**Type:** `Value` (optional)
+**Required:** No
+
+The request body. Only applicable for methods that support a body (POST, PUT, PATCH).
+
+**Examples:**
+
+JSON body:
+
+```jsonc
+"body": {
+  "missionName": "Apollo 11",
+  "launchDate": "2026-07-20T20:17:00Z",
+  "rocketType": "Saturn V"
+}
+```
+
+Array body:
+
+```jsonc
+"body": [
+  { "id": 1, "name": "Item 1" },
+  { "id": 2, "name": "Item 2" }
+]
+```
+
+String body:
+
+```jsonc
+"body": "Plain text content"
+```
+
+### `bodyEncoding`
+
+**Type:** `string` (optional)
+**Required:** No
+
+Encoding for the request body. Rarely needed.
+
+## Value Types
+
+Fields like `headers`, `cookies`, `query`, `pathParameters`, and `body` accept `Value` types:
+
+### Inline Values
+
+Simple values embedded directly in the JSON:
+
+```json
+{
+  "headers": {
+    "content-type": "application/json"
+  },
+  "body": {
+    "name": "Apollo 11",
+    "year": 2026,
+    "active": true,
+    "description": null
+  }
+}
+```
+
+**Supported types:**
+
+- `string`: `"text"`
+- `number`: `123`, `45.67`
+- `boolean`: `true`, `false`
+- `null`: `null`
+- Objects and arrays
+
+### File References
+
+Reference external files using the `$file` syntax:
+
+```json
+{
+  "body": {
+    "$file": "launch-data.json",
+    "$encoding": "utf-8"
+  }
+}
+```
+
+**Structure:**
+
+- `$file`: Filename (must be in the same directory as `request.json`)
+- `$encoding`: (optional) File encoding (default: `utf-8`)
+
+## Using External Files
+
+For large or complex data, reference external files instead of embedding in `request.json`.
+
+### Step 1: Create the External File
+
+Create a file in the same directory as `request.json`:
+
+```
+.thymian/samples/Your_API/localhost/3000/api/v1/launches/@POST/201/application__json/
+├── request.json
+└── launch-data.json
+```
+
+### Step 2: Write the Data
+
+`launch-data.json`:
+
+```json
+{
+  "missionName": "Apollo 11",
+  "launchDate": "2026-07-20T20:17:00Z",
+  "rocketType": "Saturn V",
+  "crew": [
+    {
+      "name": "Neil Armstrong",
+      "role": "Commander"
+    },
+    {
+      "name": "Buzz Aldrin",
+      "role": "Lunar Module Pilot"
+    },
+    {
+      "name": "Michael Collins",
+      "role": "Command Module Pilot"
+    }
+  ]
+}
+```
+
+### Step 3: Reference in request.json
+
+```json
+{
+  "origin": "http://localhost:3000",
+  "path": "/api/v1/launches",
+  "method": "POST",
+  "authorize": false,
+  "headers": {
+    "content-type": "application/json"
+  },
+  "cookies": {},
+  "pathParameters": {},
+  "query": {},
+  "body": {
+    "$file": "launch-data.json"
+  }
+}
+```
+
+**Benefits:**
+
+- Keep `request.json` clean and readable
+- Reuse data across multiple requests
+- Store binary or large text data externally
+- Better version control diffs
+
+## Examples
+
+### GET Request with Query Parameters
+
+```json
+{
+  "origin": "http://localhost:3000",
+  "path": "/api/v1/launches",
+  "method": "GET",
+  "authorize": true,
+  "headers": {
+    "accept": "application/json"
+  },
+  "cookies": {},
+  "pathParameters": {},
+  "query": {
+    "limit": 20,
+    "sort": "launchDate",
+    "status": "scheduled"
+  }
+}
+```
+
+### POST Request with JSON Body
+
+```json
+{
+  "origin": "http://localhost:3000",
+  "path": "/api/v1/launches",
+  "method": "POST",
+  "authorize": true,
+  "headers": {
+    "content-type": "application/json"
+  },
+  "cookies": {},
+  "pathParameters": {},
+  "query": {},
+  "body": {
+    "missionName": "Artemis I",
+    "launchDate": "2026-11-16T06:47:00Z",
+    "rocketType": "SLS"
+  }
+}
+```
+
+### PUT Request with Path Parameter
+
+```json
+{
+  "origin": "http://localhost:3000",
+  "path": "/api/v1/launches/{id}",
+  "method": "PUT",
+  "authorize": true,
+  "headers": {
+    "content-type": "application/json"
+  },
+  "cookies": {},
+  "pathParameters": {
+    "id": "launch-123"
+  },
+  "query": {},
+  "body": {
+    "status": "completed",
+    "actualLaunchDate": "2026-11-16T06:55:30Z"
+  }
+}
+```
+
+### DELETE Request
+
+```json
+{
+  "origin": "http://localhost:3000",
+  "path": "/api/v1/launches/{id}",
+  "method": "DELETE",
+  "authorize": true,
+  "headers": {},
+  "cookies": {},
+  "pathParameters": {
+    "id": "launch-123"
+  },
+  "query": {}
+}
+```
+
+### Request with Custom Headers
+
+```json
+{
+  "origin": "http://localhost:3000",
+  "path": "/api/v1/launches",
+  "method": "GET",
+  "authorize": true,
+  "headers": {
+    "accept": "application/json",
+    "x-api-version": "2",
+    "x-request-id": "req-12345",
+    "user-agent": "ThymianTest/1.0"
+  },
+  "cookies": {},
+  "pathParameters": {},
+  "query": {}
+}
+```
+
+## Modifying Requests
+
+You can modify requests in three ways:
+
+### 1. Edit request.json Directly
+
+```json
+{
+  "body": {
+    "missionName": "Custom Mission Name",
+    "launchDate": "2026-12-31T00:00:00Z",
+    "rocketType": "Falcon Heavy"
+  }
+}
+```
+
+### 2. Use Hooks
+
+```typescript
+const hook: BeforeEachRequestHook = async (request, context, utils) => {
+  request.body.missionName = utils.randomString(10);
+  request.headers['x-custom-header'] = 'value';
+  return request;
+};
+```
+
+### 3. Combine Both
+
+Use `request.json` for static data and hooks for dynamic modifications.

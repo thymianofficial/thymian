@@ -16,6 +16,12 @@ import type { Rule } from '../rule/rule.js';
 import type { RuleMeta } from '../rule/rule-meta.js';
 import type { RuleViolation } from '../rule/rule-violation.js';
 
+export function findDuplicates<T>(elements: T[]): T[] {
+  return elements.filter(
+    (element, index) => elements.indexOf(element) !== index,
+  );
+}
+
 export abstract class AbstractLinter {
   protected readonly rules: Rule[];
 
@@ -29,36 +35,56 @@ export abstract class AbstractLinter {
       Record<string, unknown> | undefined
     >,
   ) {
+    const duplicateRuleNames = findDuplicates(rules.map((r) => r.meta.name));
+
+    if (duplicateRuleNames.length > 0) {
+      throw new ThymianBaseError(
+        `Duplicate rule names found: ${duplicateRuleNames.join(', ')}`,
+      );
+    }
+
     this.rules = rules.filter(
       (r) => !(r.meta.type.length === 1 && r.meta.type[0] === 'informational'),
     );
   }
 
   async run(): Promise<boolean> {
-    return (
-      await Promise.all(
-        this.rules.map(async (rule) => {
-          try {
-            return await this.runRule(
-              rule,
-              this.ruleOptions[rule.meta.name] ?? {},
-            );
-          } catch (e) {
-            if (e instanceof ThymianBaseError) {
-              throw e;
-            } else {
-              throw new ThymianBaseError(
-                `Error running rule ${rule.meta.name}: ${e}`,
-                {
-                  name: `${this.constructor.name}Error`,
-                  cause: e,
-                },
-              );
-            }
-          }
-        }),
-      )
-    ).every(Boolean);
+    let allSuccessful = true;
+
+    for (const rule of this.rules) {
+      try {
+        const success = await this.runRule(
+          rule,
+          this.ruleOptions[rule.meta.name] ?? {},
+        );
+
+        this.logger.debug(
+          `Rule ${rule.meta.name} finished with success: ${success}`,
+        );
+
+        allSuccessful &&= success;
+      } catch (e) {
+        if (e instanceof ThymianBaseError) {
+          throw new ThymianBaseError(
+            `Error running rule ${rule.meta.name}: ${e.message}`,
+            {
+              name: `${this.constructor.name}Error`,
+              cause: e,
+            },
+          );
+        } else {
+          throw new ThymianBaseError(
+            `Error running rule ${rule.meta.name}: ${e}`,
+            {
+              name: `${this.constructor.name}Error`,
+              cause: e,
+            },
+          );
+        }
+      }
+    }
+
+    return allSuccessful;
   }
 
   protected abstract runRule<Options extends Record<string, unknown>>(

@@ -5,4 +5,5 @@ export interface ThymianBaseNode {
   label: string;
   extensions?: Record<PropertyKey, unknown>;
   sourceLocation?: ThymianFormatLocation;
+  sourceName: string;
 }

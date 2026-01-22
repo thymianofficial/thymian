@@ -21,6 +21,8 @@ import type { Rule } from './rule/rule.js';
 import {
   type HttpParticipantRole,
   httpParticipantRoles,
+  type RuleType,
+  ruleTypes,
 } from './rule/rule-meta.js';
 import { type RuleSeverity, severityLevels } from './rule/rule-severity.js';
 import { createRuleFilter } from './rule-filter.js';
@@ -84,6 +86,7 @@ export type HttpLinterPluginOptions = {
     severity?: RuleSeverity;
     appliesTo?: HttpParticipantRole[];
     names?: string[];
+    ruleTypes?: RuleType[];
   };
 };
 
@@ -121,6 +124,14 @@ export const httpLinterPlugin: ThymianPlugin<HttpLinterPluginOptions> = {
         additionalProperties: false,
         nullable: true,
         properties: {
+          ruleTypes: {
+            type: 'array',
+            items: {
+              type: 'string',
+              enum: ruleTypes,
+            },
+            nullable: true,
+          },
           severity: {
             type: 'string',
             enum: severityLevels,

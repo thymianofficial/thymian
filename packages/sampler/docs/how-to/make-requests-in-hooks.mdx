@@ -1,0 +1,216 @@
+---
+title: How to Make Requests in Hooks
+description: Learn how to make HTTP requests within your hooks to create resources, authenticate, or fetch data.
+---
+
+import { Aside } from '@astrojs/starlight/components';
+
+At some point in your hook, you'll need to make an HTTP request to an API. This guide shows you how to do that with the `utils.request()` method.
+
+
+## The utils.request() Method
+
+Every hook receives a `utils` object with a type-safe `request()` method:
+
+```typescript
+utils.request(
+  url,           // The endpoint to call
+  requestData,   // Headers, body, cookies, etc.
+  options        // Control hook execution
+)
+```
+
+## Basic Usage
+
+### Making a Simple Request
+
+```typescript
+import { BeforeEachRequestHook } from '@thymian/hooks';
+
+const hook: BeforeEachRequestHook = async (request, context, utils) => {
+  const response = await utils.request(
+    'POST http://localhost:3000/api/v1/launches',
+    {
+      body: {
+        missionName: 'Apollo 11',
+        launchDate: '2026-12-31T00:00:00Z',
+        rocketType: 'Saturn V'
+      },
+      headers: {
+        'content-type': 'application/json'
+      }
+    }
+  );
+
+  console.log(response.statusCode);  // 201
+  console.log(response.body);        // { id: '...', missionName: 'Apollo 11', ... }
+
+  return request;
+};
+
+export default hook;
+```
+
+
+
+## Type Safety
+
+The `request()` method is fully type-safe based on your OpenAPI specification.
+
+### Autocomplete for URLs
+
+Your IDE suggests available endpoints:
+
+```typescript
+// Type "utils.request('" and get autocomplete:
+utils.request('POST http://localhost:3000/api/v1/launches', ...)
+utils.request('GET http://localhost:3000/api/v1/launches', ...)
+utils.request('GET http://localhost:3000/api/v1/astronauts', ...)
+```
+
+### Type-Checked Request Bodies
+
+Request bodies are validated against your API schema:
+
+```typescript
+const response = await utils.request('POST http://localhost:3000/api/v1/launches', {
+  body: {
+    missionName: 'Apollo 11',     // ✓ Valid
+    launchDate: '2026-12-31T00:00:00Z',  // ✓ Valid
+    rocketType: 'Saturn V',       // ✓ Valid
+    // invalidField: 'test'       // ✗ TypeScript error
+  },
+  headers: {
+    'content-type': 'application/json'
+  }
+});
+```
+
+### Type-Checked Responses
+
+Response bodies are typed based on your OpenAPI responses:
+
+```typescript
+const response = await utils.request('GET http://localhost:3000/api/v1/launches', {});
+
+// TypeScript knows the response structure
+if (response.statusCode === 200) {
+  const launches = response.body;  // Type: Launch[]
+  console.log(launches[0].missionName);
+}
+```
+
+
+
+## Request Options
+
+### Disable Hooks
+
+By default, `utils.request()` runs all hooks (beforeEach, authorize, afterEach) for the target endpoint. Disable this to prevent infinite loops:
+
+```typescript
+const response = await utils.request('POST http://localhost:3000/api/v1/astronauts', {
+  body: { name: 'Buzz Aldrin', password: 'secret', role: 'Pilot' },
+  headers: { 'content-type': 'application/json' }
+}, {
+  runHooks: false  // Don't execute hooks for this request
+});
+```
+
+**Use case:** Creating users in an authorize hook to avoid circular execution.
+
+### Disable Authorization
+
+Skip only the authorize hook while keeping other hooks:
+
+```typescript
+const response = await utils.request('GET http://localhost:3000/api/v1/launches', {}, {
+  authorize: false  // Skip authorize, but run beforeEach/afterEach
+});
+```
+
+**Use case:** Testing public endpoints that don't require authentication.
+
+### Specify Status Code
+
+If an endpoint has multiple response samples (e.g., 200, 404), specify which one to use:
+
+```typescript
+// Request the 404 response sample
+const response = await utils.request('GET http://localhost:3000/api/v1/launches/123', {}, {
+  forStatusCode: 404
+});
+```
+
+**Use case:** Testing error handling in your hooks.
+
+
+
+## Error Handling
+
+### Check Status Codes
+
+Always verify responses succeeded:
+
+```typescript
+const response = await utils.request('POST http://localhost:3000/api/v1/launches', {
+  body: { /* ... */ },
+  headers: { 'content-type': 'application/json' }
+});
+
+if (response.statusCode !== 201) {
+  utils.fail(`Unexpected status code: ${response.statusCode}`);
+}
+```
+
+### Handle Missing Resources
+
+```typescript
+const response = await utils.request('GET http://localhost:3000/api/v1/launches/123', {});
+
+if (response.statusCode === 404) {
+  utils.skip('Launch not found, skipping test');
+}
+```
+
+### Graceful Degradation
+
+```typescript
+try {
+  const response = await utils.request('POST http://localhost:3000/api/v1/launches', {
+    body: { /* ... */ },
+    headers: { 'content-type': 'application/json' }
+  });
+
+  if (response.statusCode !== 201) {
+    utils.warn('Launch creation failed, using default data');
+    // Fallback logic here
+  }
+} catch (error) {
+  utils.warn('Request failed entirely', error.message);
+}
+```
+
+
+
+## Limitations
+
+### Must Be Defined in OpenAPI
+
+You can only request endpoints that exist in your OpenAPI specification. If an endpoint isn't defined, you'll get a TypeScript error.
+
+### URL Format Must Match
+
+The URL must exactly match the format: `METHOD http://host:port/path`
+
+```typescript
+// ✓ Correct
+utils.request('POST http://localhost:3000/api/v1/launches', ...)
+
+// ✗ Incorrect - Missing method
+utils.request('http://localhost:3000/api/v1/launches', ...)
+
+// ✗ Incorrect - Wrong format
+utils.request('localhost:3000/api/v1/launches', ...)
+```
+

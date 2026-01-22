@@ -54,10 +54,19 @@ export function generateRequests<
     const step = current.steps.at(-1);
 
     if (isSingleHttpTestCaseStep(step)) {
+      const template = await ctx.sampleRequest(step.source);
+
+      if (typeof template === 'undefined') {
+        throw new Error(
+          'Failed to generate request template for transactions: ' +
+            JSON.stringify(step.source),
+        );
+      }
+
       step.transactions.push({
         requestTemplate: {
-          ...(await ctx.sampleRequest(step.source)),
-          authorize: options?.authenticate ?? true,
+          ...template,
+          authorize: options?.authenticate ?? template.authorize,
         },
         source: step.source,
       });

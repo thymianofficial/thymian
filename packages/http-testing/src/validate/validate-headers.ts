@@ -1,4 +1,8 @@
-import { getHeader, type ThymianHttpResponse } from '@thymian/core';
+import {
+  getHeader,
+  objHasKeyIgnoreCase,
+  type ThymianHttpResponse,
+} from '@thymian/core';
 
 import type { HttpTestCaseResult } from '../http-test/index.js';
 import { ajv } from './ajv.js';
@@ -63,8 +67,8 @@ export function checkForAdditionalHeaders(
   const failures = Object.keys(headers)
     .filter(
       (headerName) =>
-        !Object.hasOwn(response.headers, headerName) &&
-        !commonHeadersSet.has(headerName),
+        !objHasKeyIgnoreCase(response.headers, headerName) &&
+        !commonHeadersSet.has(headerName.toLowerCase()),
     )
     .map((headerName) => ({
       type: 'assertion-failure',
@@ -96,7 +100,7 @@ export function validateExistingHeader(
         if (validate.errors) {
           return {
             type: 'assertion-failure',
-            message: `Invalid value for header ${name}.`,
+            message: `Invalid value for header ${name}: ${validate.errors.map((err) => err.message).join(', ')}.`,
             timestamp: Date.now(),
           };
         } else {

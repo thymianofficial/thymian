@@ -32,11 +32,11 @@ export function generateExampleParameters(
   }, {});
 }
 
-export const identityHookRunner: HttpTestContext['runHook'] = async (
-  name,
-  payload,
-) => {
+export function identityHookRunner<Hook extends keyof HttpTestHooks>(
+  name: Hook,
+  payload: HttpTestHooks[Hook]['arg'],
+): HttpTestHooks[Hook]['return'] {
   return {
-    value: payload.value,
-  } as HttpTestHooks[typeof name]['return'];
-};
+    result: payload.value,
+  } as HttpTestHooks[Hook]['return'];
+}

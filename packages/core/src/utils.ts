@@ -60,7 +60,9 @@ export type StringAndNumberProperties<T> = Partial<{
   [key in KeysWithStringOrNumberValue<T>]: T[key];
 }>;
 
-export type PartialBy<T, K extends keyof T> = Omit<T, K> & Partial<Pick<T, K>>;
+export type PartialBy<T, K extends keyof T> = T extends any
+  ? Omit<T, K> & Partial<Pick<T, K>>
+  : never;
 
 export function zipArrays<A, B>(as: A[], bs: B[]): [A, B][] {
   if (as.length !== bs.length) {
@@ -87,6 +89,15 @@ export function getHeader(
   }
 
   return undefined;
+}
+
+export function objHasKeyIgnoreCase(
+  obj: Record<PropertyKey, unknown>,
+  key: PropertyKey,
+): boolean {
+  return !!Object.keys(obj).find(
+    (k) => k.toLowerCase() === key.toString().toLowerCase(),
+  );
 }
 
 export function setHeader(
@@ -136,6 +147,12 @@ export function thymianHttpTransactionToString(
   return `${thymianRequestToString(req)} \u2192 ${thymianResponseToString(
     res,
   )}`;
+}
+
+export function thymianHttpRequestToUrl(req: ThymianHttpRequest): string {
+  return normalizeUrl(
+    `${req.protocol}://${req.host}:${req.port}${req.path.startsWith('/') ? req.path : '/' + req.path}`,
+  );
 }
 
 export function equalsIgnoreCase(a: string, ...b: string[]): boolean {
@@ -189,7 +206,7 @@ export function normalizeUrl(urlString: string): string {
     url.pathname = url.pathname.slice(0, -1);
   }
 
-  return url.toString();
+  return decodeURI(url.toString());
 }
 
 export function httpRequestToLabel(request: HttpRequest): string {

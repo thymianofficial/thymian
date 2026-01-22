@@ -41,7 +41,7 @@ httpTest('every GET response should contain a Cache-Control header', (transactio
   transactions.pipe(
     filter((req) => req.method === 'GET'),
     mapToTestCase(),
-    generateRequest(),
+    generateRequest({}),
     runRequests(),
     expectStatusCode(200),
     expectHeaders((headers) => {

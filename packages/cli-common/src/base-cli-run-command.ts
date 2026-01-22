@@ -1,6 +1,6 @@
 import { existsSync } from 'node:fs';
 import { createRequire } from 'node:module';
-import { join, parse } from 'node:path';
+import { isAbsolute, join, parse } from 'node:path';
 
 import { Command, Flags, Interfaces, settings } from '@oclif/core';
 import { CLIError } from '@oclif/core/errors';
@@ -62,11 +62,17 @@ export abstract class BaseCliRunCommand<
     }),
     option: optionFlag(),
     timeout: Flags.integer({
-      default: 5000,
+      default: Thymian.DEFAULT_TIMEOUT,
       charAliases: ['t'],
       description:
-        'Set the duration in ms to wait until a plugin is registered.',
+        'Set the duration in ms to wait for anything that happens in Thymian.',
       helpGroup: 'BASE',
+    }),
+    ['idle-timeout']: Flags.integer({
+      description:
+        'Set the duration in ms to waited for events and actions when closing Thymian.',
+      helpGroup: 'BASE',
+      default: Thymian.DEFAULT_IDLE_TIMEOUT,
     }),
     'trace-events': Flags.boolean({
       default: false,
@@ -96,20 +102,19 @@ export abstract class BaseCliRunCommand<
     });
     this.flags = flags as CommandFlags<T>;
     this.args = args as CommandArgs<T>;
-    this.logger = new TextLogger(
-      '@thymian/cli',
-      this.flags.verbose || !!settings.debug,
-    );
+    this.flags.verbose = settings.debug || this.flags.verbose;
+    this.logger = new TextLogger('@thymian/cli', this.flags.verbose);
     this.thymian = new Thymian(this.logger.child('@thymian/core'), {
       timeout: this.flags.timeout,
       traceEvents: this.flags['trace-events'],
       cwd: this.flags.cwd,
+      idleTimeout: this.flags['idle-timeout'],
     });
     this.thymianConfig = await getConfig(this.flags.config, this.flags.cwd);
     this.overridePluginOptions();
 
     if (this.shouldAutoload()) {
-      this.debug('Autoload Thymian plugins.');
+      this.debug('Autoloading Thymian plugins.');
       await this.addPluginsToThymianConfig();
       await this.registerPluginsFromConfig();
     }
@@ -203,6 +208,8 @@ export abstract class BaseCliRunCommand<
 
     let pluginModule;
 
+    this.debug('Load plugin module from location "%s".', location);
+
     try {
       pluginModule = (await import(require.resolve(location))).default;
     } catch (e) {
@@ -211,7 +218,7 @@ export abstract class BaseCliRunCommand<
 
     if (!isPlugin(pluginModule)) {
       throw new CLIError(
-        `File "${
+        `"${
           options.path ?? nameOrPath
         }" does not default export a valid Thymian plugin.`,
       );
@@ -240,20 +247,33 @@ export abstract class BaseCliRunCommand<
 
   protected async addPluginsToThymianConfig(): Promise<void> {
     for (const plugin of this.flags.plugin) {
-      const { dir } = parse(plugin);
+      this.debug('Adding plugin from flag "%s" to Thymian config.', plugin);
 
-      if ((!dir && existsSync(plugin)) || dir) {
+      if ((await this.isNpmPackage(plugin)) || isAbsolute(plugin)) {
+        this.debug('Load plugin "%s" as npm package or absolute path.', plugin);
+
+        const pluginModule = await this.loadPluginModule(plugin, false);
+
+        this.thymianConfig.plugins[pluginModule.name] ??= {};
+      } else {
+        this.debug(`Load plugin %s from relative path.`, plugin);
+
         const pluginModule = await this.loadPluginModule(plugin, true);
 
         this.thymianConfig.plugins[pluginModule.name] = {
           ...(this.thymianConfig.plugins[pluginModule.name] ?? {}),
           path: plugin,
         };
-      } else {
-        const pluginModule = await this.loadPluginModule(plugin, false);
-
-        this.thymianConfig.plugins[pluginModule.name] ??= {};
       }
+    }
+  }
+
+  private async isNpmPackage(name: string): Promise<boolean> {
+    try {
+      require.resolve(name, { paths: [this.flags.cwd] });
+      return true;
+    } catch {
+      return false;
     }
   }
 

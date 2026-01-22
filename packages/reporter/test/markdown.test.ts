@@ -1,4 +1,8 @@
-import { ThymianReport, ThymianReportSeverity } from '@thymian/core';
+import {
+  NoopLogger,
+  ThymianReport,
+  ThymianReportSeverity,
+} from '@thymian/core';
 import { writeFile } from 'fs/promises';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -27,10 +31,10 @@ describe('MarkdownFormatter', () => {
   });
 
   const formatterOptions = { path: 'test-report.md' };
-  let formatter = new MarkdownFormatter();
+  let formatter = new MarkdownFormatter(new NoopLogger());
 
   beforeEach(async () => {
-    formatter = await new MarkdownFormatter();
+    formatter = new MarkdownFormatter(new NoopLogger());
     await formatter.init(formatterOptions);
   });
 

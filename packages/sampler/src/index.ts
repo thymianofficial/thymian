@@ -1,28 +1,40 @@
-import { join } from 'node:path';
+import { writeFile } from 'node:fs/promises';
+import { isAbsolute, join } from 'node:path';
 
 import {
   type HttpRequestTemplate,
   type SerializedThymianFormat,
+  ThymianBaseError,
   ThymianFormat,
   type ThymianHttpTransaction,
+  thymianHttpTransactionToString,
   type ThymianPlugin,
   type ThymianSchema,
 } from '@thymian/core';
+import type {} from '@thymian/http-testing';
+import type {} from '@thymian/request-dispatcher';
 
-import { ContentGenerator } from './content-generator/content-generator.js';
-import { HookContentTypeStrategy } from './content-generator/hook.content-type-strategy.js';
-import { ImageContentTypeStrategy } from './content-generator/image.content-type-strategy.js';
-import { JsonContentTypeStrategy } from './content-generator/json.content-type-strategy.js';
-import { XmlContentTypeStrategy } from './content-generator/xml.content-type-strategy.js';
-import { FileOutputWriter } from './output-writer/file.output-writer.js';
-import { generate } from './request-generators/generate.js';
-import { Sampler } from './sampler.js';
+import { generateSamplesForThymianFormat } from './generation/generate-samples-for-thymian-format.js';
+import {
+  generatedTypesToString,
+  generateTypesForThymianFormat,
+} from './hooks/generate-request-types.js';
+import { HookRunner } from './hooks/hook-runner.js';
+import { tsConfig } from './hooks/ts-config.js';
+import { requestSampleToRequestTemplate } from './request-sample-to-request-template.js';
+import { RequestSampler } from './request-sampler.js';
+import { getPathTransactionId } from './samples-structure/get-path-transaction-id.js';
+import { readSamplesFromDir } from './samples-structure/read-samples-from-dir.js';
+import type { SamplesStructure } from './samples-structure/samples-tree-structure.js';
+import { writeSamplesToDir } from './samples-structure/write-samples-to-dir.js';
+import { entryExists } from './utils.js';
 
 declare module '@thymian/core' {
   interface ThymianActions {
     'sampler.init': {
       event: {
         format: SerializedThymianFormat;
+        overwrite?: boolean;
       };
       response: void;
     };
@@ -39,14 +51,20 @@ declare module '@thymian/core' {
         contentType: string;
         schema: ThymianSchema;
       };
-      response: { content: unknown; encoding?: string };
+      response: { $content: unknown; $encoding?: string };
+    };
+
+    'sampler.path-from-transaction': {
+      event: {
+        transactionId: string;
+      };
+      response: string | undefined;
     };
   }
 }
 
 export type SamplerPluginOptions = {
   path: string;
-  forceOverride: boolean;
 };
 
 export const samplePlugin: ThymianPlugin<Partial<SamplerPluginOptions>> = {
@@ -57,10 +75,6 @@ export const samplePlugin: ThymianPlugin<Partial<SamplerPluginOptions>> = {
     properties: {
       path: {
         type: 'string',
-        nullable: true,
-      },
-      forceOverride: {
-        type: 'boolean',
         nullable: true,
       },
     },
@@ -92,47 +106,137 @@ export const samplePlugin: ThymianPlugin<Partial<SamplerPluginOptions>> = {
     },
   },
   plugin: async (emitter, logger, options) => {
-    const opts: SamplerPluginOptions = {
-      path: '.thymian',
-      forceOverride: false,
-      ...options,
-    };
+    let basePath = join(options.cwd, '.thymian', 'samples');
 
-    const basePath = join(options.cwd, opts.path, 'samples');
+    if (options.path) {
+      basePath = isAbsolute(options.path)
+        ? options.path
+        : join(options.cwd, options.path);
+    }
 
-    emitter.onAction('sampler.init', async ({ format }, ctx) => {
-      const contentGenerator = new ContentGenerator(
-        [
-          new JsonContentTypeStrategy(),
-          new XmlContentTypeStrategy(),
-          new ImageContentTypeStrategy(),
-        ],
-        new HookContentTypeStrategy(emitter),
-      );
+    let format: ThymianFormat | undefined;
+    let samples: SamplesStructure | undefined;
 
-      const outputWriter = new FileOutputWriter(basePath, opts.forceOverride);
-      const parsedFormat = ThymianFormat.import(format);
-
-      for (const transaction of parsedFormat.getThymianHttpTransactions()) {
-        await generate(
-          parsedFormat,
-          transaction,
-          contentGenerator,
-          outputWriter,
+    const requestSampler = new RequestSampler(basePath);
+    const hookRunner = new HookRunner(
+      basePath,
+      async (request) => {
+        return await emitter.emitAction(
+          'request-dispatcher.http-request',
+          {
+            request,
+          },
+          {
+            strategy: 'first',
+          },
         );
-      }
+      },
+      logger,
+    );
+
+    async function initializeSamplerAndHookRunner(format: ThymianFormat) {
+      samples = (await entryExists(basePath))
+        ? await readSamplesFromDir(basePath)
+        : undefined;
+
+      await requestSampler.init(samples);
+      await hookRunner.init(format, samples);
+    }
+
+    emitter.onAction('core.format', async (f, ctx) => {
+      format = ThymianFormat.import(f);
+
+      await initializeSamplerAndHookRunner(format);
 
       ctx.reply();
     });
 
-    const sampler = new Sampler(basePath);
+    emitter.onAction(
+      'sampler.path-from-transaction',
+      ({ transactionId }, ctx) => {
+        if (!samples) {
+          throw new ThymianBaseError('No samples are loaded.');
+        }
+
+        ctx.reply(getPathTransactionId(transactionId, basePath, samples));
+      },
+    );
+
+    emitter.onAction('sampler.init', async ({ format, overwrite }, ctx) => {
+      const parsedFormat = ThymianFormat.import(format);
+
+      const samples = await generateSamplesForThymianFormat(
+        parsedFormat,
+        emitter,
+      );
+
+      const generatedTypes = await generateTypesForThymianFormat(parsedFormat);
+
+      await writeSamplesToDir(samples, generatedTypes.keyToTransactionId, {
+        path: basePath,
+        mode: typeof overwrite === 'boolean' ? 'overwrite' : 'failIfExist',
+      });
+
+      await writeFile(
+        join(basePath, 'types.d.ts'),
+        generatedTypesToString(generatedTypes.types),
+      );
+
+      await writeFile(
+        join(basePath, 'tsconfig.json'),
+        JSON.stringify(tsConfig, null, 2),
+      );
+
+      ctx.reply();
+    });
 
     emitter.onAction('sampler.sample-request', async ({ transaction }, ctx) => {
-      await sampler.checkIfIsInitialized();
+      if (!format) {
+        throw new ThymianBaseError('');
+      }
 
-      const sample = await sampler.sample(transaction);
+      const sample = requestSampler.sampleForTransaction(
+        transaction.transactionId,
+      );
+      if (!sample) {
+        const currentFormatVersion = format.toHash();
+        if (currentFormatVersion !== requestSampler.version()) {
+          throw new ThymianBaseError(
+            `Cannot sample for transaction "${thymianHttpTransactionToString(
+              transaction.thymianReq,
+              transaction.thymianRes,
+            )}", because it based on version "${currentFormatVersion}" but the loaded samples are based on version "${requestSampler.version()}".`,
+            {
+              name: 'VersionMismatchError',
+              suggestions: [
+                `The loaded samples were generated at ${requestSampler.timestamp()}. Did you forget to regenerate the samples?`,
+                '$ thymian sampler:init',
+              ],
+            },
+          );
+        }
 
-      ctx.reply(sample);
+        throw new ThymianBaseError(
+          `Cannot sample for transaction ${thymianHttpTransactionToString(
+            transaction.thymianReq,
+            transaction.thymianRes,
+          )} with transaction ID ${transaction.transactionId}`,
+        );
+      }
+
+      ctx.reply(requestSampleToRequestTemplate(sample));
+    });
+
+    emitter.onAction('http-testing.beforeRequest', async (hook, ctx) => {
+      ctx.reply(await hookRunner.beforeEachRequest(hook));
+    });
+
+    emitter.onAction('http-testing.afterResponse', async (hook, ctx) => {
+      ctx.reply(await hookRunner.afterEachResponse(hook));
+    });
+
+    emitter.onAction('http-testing.authorize', async (hook, ctx) => {
+      ctx.reply(await hookRunner.authorize(hook));
     });
   },
 };
