@@ -1,6 +1,8 @@
 ---
-title: 'Users Guide'
+title: 'How to connect remote plugins?'
 description: 'This guide is for users who want to run the proxy plugin in Thymian and connect remote plugins via WebSocket.'
+sidebar:
+  order: 0
 ---
 
 This guide is for users who want to run the proxy plugin in Thymian and connect remote plugins via WebSocket.
@@ -14,7 +16,7 @@ The proxy plugin starts a WebSocket server that remote clients can connect to. A
 - receive events from Thymian, and
 - handle actions requested by Thymian and reply.
 
-For protocol details, see the [Plugin Developers Guide](./plugin-developers.md).
+For protocol details, see the [Plugin Developers Guide](../references/plugins/websocket-proxy/plugin-developers.md).
 
 ## Configuration in Thymian
 

@@ -1,6 +1,8 @@
 ---
-title: 'Overview'
+title: 'Use linting to validate your APIs'
 description: 'Validate HTTP APIs across design, testing, and production with reusable rules.'
+sidebar:
+  order: 0
 ---
 
 The **@thymian/http-linter** enables you to validate HTTP APIs at every stage of development—from design and implementation to testing and production monitoring. Write validation rules once and apply them across static specifications, live API tests, and recorded traffic analysis.
@@ -105,15 +107,15 @@ Rules can target one or more contexts, and the linter automatically adapts the v
 
 ## Documentation
 
-1. [What is an HTTP Rule?](./what-is-an-http-rule.md) — Core concepts and rule anatomy
-2. [Creating New Rules](./creating-new-rules.md) — Step-by-step guide to writing rules
-3. [Rule Types](./rule-types.md) — Understanding static, test, and analytics contexts
-4. [Combining Different Rule Types](./combining-types.md) — Writing hybrid rules
-5. [How To Use Rules](./how-to-use-rules.md) — Integration and configuration
-6. [CLI](./cli.md) — Command-line tools reference
+1. [What is an HTTP Rule?](../../concepts/what-is-an-http-rule.md) — Core concepts and rule anatomy
+2. [Creating New Rules](creating-new-rules.md) — Step-by-step guide to writing rules
+3. [Rule Types](../../references/plugins/http-linter/rule-types.md) — Understanding static, test, and analytics contexts
+4. [Combining Different Rule Types](combining-types.md) — Writing hybrid rules
+5. [How To Use Rules](how-to-use-rules.md) — Integration and configuration
+6. [CLI](../../references/plugins/http-linter/cli.md) — Command-line tools reference
 
 ## Next Steps
 
-- Learn about [HTTP rule fundamentals](./what-is-an-http-rule.md)
-- Follow the guide to [create your first rule](./creating-new-rules.md)
-- Explore the [CLI tools](./cli.md) for rule generation and management
+- Learn about [HTTP rule fundamentals](../../concepts/what-is-an-http-rule.md)
+- Follow the guide to [create your first rule](creating-new-rules.md)
+- Explore the [CLI tools](../../references/plugins/http-linter/cli.md) for rule generation and management

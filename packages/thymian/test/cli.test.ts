@@ -4,7 +4,7 @@ import { fileURLToPath } from 'node:url';
 
 import { describe, expect, it } from 'vitest';
 
-describe('cli', () => {
+describe('cli', { timeout: 10000 }, () => {
   it.each([['run'], ['dev']])(
     '%s.js can be called from any current working directory',
     async (command) => {

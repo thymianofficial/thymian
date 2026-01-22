@@ -1,6 +1,8 @@
 ---
 title: 'Creating New Rules'
 description: 'Step-by-step guide to writing HTTP validation rules'
+sidebar:
+  order: 2
 ---
 
 Creating HTTP validation rules in Thymian is straightforward. You can generate a rule scaffold using the CLI or write one from scratch. This guide walks you through both approaches.
@@ -313,6 +315,6 @@ or(method('GET'), method('POST'));
 
 Now that you know how to create rules:
 
-- Explore [rule types in depth](./rule-types.md) to understand context-specific features
-- Learn about [combining rule types](./combining-types.md) for hybrid rules
-- See [how to use rules](./how-to-use-rules.md) in your projects
+- Explore [rule types in depth](../../references/plugins/http-linter/rule-types.md) to understand context-specific features
+- Learn about [combining rule types](combining-types.md) for hybrid rules
+- See [how to use rules](how-to-use-rules.md) in your projects
