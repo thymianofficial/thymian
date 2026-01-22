@@ -62,11 +62,17 @@ export abstract class BaseCliRunCommand<
     }),
     option: optionFlag(),
     timeout: Flags.integer({
-      default: 10000,
+      default: Thymian.DEFAULT_TIMEOUT,
       charAliases: ['t'],
       description:
         'Set the duration in ms to wait for anything that happens in Thymian.',
       helpGroup: 'BASE',
+    }),
+    ['idle-timeout']: Flags.integer({
+      description:
+        'Set the duration in ms to waited for events and actions when closing Thymian.',
+      helpGroup: 'BASE',
+      default: Thymian.DEFAULT_IDLE_TIMEOUT,
     }),
     'trace-events': Flags.boolean({
       default: false,
@@ -102,6 +108,7 @@ export abstract class BaseCliRunCommand<
       timeout: this.flags.timeout,
       traceEvents: this.flags['trace-events'],
       cwd: this.flags.cwd,
+      idleTimeout: this.flags['idle-timeout'],
     });
     this.thymianConfig = await getConfig(this.flags.config, this.flags.cwd);
     this.overridePluginOptions();

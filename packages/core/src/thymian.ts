@@ -22,6 +22,7 @@ export class PluginRegistrationError extends ThymianBaseError {}
 
 export type ThymianOptions = {
   timeout: number;
+  idleTimeout: number;
   traceEvents: boolean;
   cwd: string;
   logAllErrors: boolean;
@@ -39,14 +40,18 @@ export class Thymian {
   public static readonly VERSION = packageJson.version;
 
   // Number of milliseconds that is waited for new events and actions to be emitted before shutting down the emitter.
-  private static IDLE_TIMEOUT = 500;
+  public static readonly DEFAULT_IDLE_TIMEOUT = 500;
+
+  // number of milliseconds that is waited for actions response and plugin registration
+  public static readonly DEFAULT_TIMEOUT = 10000;
 
   constructor(
     private readonly logger: Logger = new NoopLogger(),
     options: Partial<ThymianOptions> = {},
   ) {
     this.options = {
-      timeout: 5000,
+      idleTimeout: Thymian.DEFAULT_IDLE_TIMEOUT,
+      timeout: Thymian.DEFAULT_TIMEOUT,
       traceEvents: false,
       cwd: process.cwd(),
       logAllErrors: false,
@@ -167,7 +172,7 @@ export class Thymian {
     await this.emitter.emitAction('core.close');
 
     // This let the ThymianEmitter wait 500 ms for the last events to be emitted before shutting down.
-    await this.emitter.shutdown(Thymian.IDLE_TIMEOUT);
+    await this.emitter.shutdown(this.options.idleTimeout);
 
     this.emitter.completeSubjects();
   }
