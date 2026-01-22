@@ -6,6 +6,7 @@ import { match } from 'path-to-regexp';
 import stringify from 'safe-stable-stringify';
 
 import type { HttpRequest, HttpResponse } from '../http.js';
+import type { HttpFilterExpression } from '../http-filter.js';
 import {
   httpStatusCodeToPhrase,
   isValidHttpStatusCode,
@@ -27,6 +28,7 @@ import type { HttpLink } from './edges/http-link.edge.js';
 import type { HttpTransaction } from './edges/http-transaction.edge.js';
 import type { IsSecuredWith } from './edges/is-secured-with.edge.js';
 import type { SampleHttpTransaction } from './edges/sample-http-transaction.edge.js';
+import { httpFilterExpressionToTransactionFilter } from './http-filter-expression-to-transaction-filter.js';
 import type { ThymianHttpRequest } from './nodes/http-request.node.js';
 import type { ThymianHttpResponse } from './nodes/http-response.node.js';
 import type { SampleHttpRequest } from './nodes/sample-http-request.node.js';
@@ -457,7 +459,14 @@ export class ThymianFormat {
   getThymianHttpTransactionById(
     id: string,
   ): ThymianHttpTransaction | undefined {
-    const edge = this.getEdge<HttpTransaction>(id);
+    let edge;
+
+    try {
+      edge = this.getEdge<HttpTransaction>(id);
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    } catch (e) {
+      /*empty*/
+    }
 
     if (!edge) {
       return undefined;
@@ -653,6 +662,52 @@ export class ThymianFormat {
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   merge(format: ThymianFormat): ThymianFormat {
     return this;
+  }
+
+  filter(expression: HttpFilterExpression): ThymianFormat;
+  filter(
+    fn: (
+      transaction: ThymianHttpTransaction,
+      transactions: ThymianHttpTransaction[],
+    ) => boolean,
+  ): ThymianFormat;
+  filter(
+    fn:
+      | ((
+          transaction: ThymianHttpTransaction,
+          transactions: ThymianHttpTransaction[],
+        ) => boolean)
+      | HttpFilterExpression,
+  ): ThymianFormat {
+    const copied = this.graph.copy();
+
+    const filterFn =
+      typeof fn === 'function'
+        ? fn
+        : httpFilterExpressionToTransactionFilter(fn);
+
+    // 1. if the filter function returns false for a transaction, its corresponding edge is dropped
+    this.getThymianHttpTransactions()
+      .filter(
+        (transaction, _, transactions) =>
+          !filterFn(transaction, transactions, this),
+      )
+      .forEach((transaction) => {
+        copied.dropEdge(transaction.transactionId);
+      });
+
+    // after that, all nodes that have no outgoing edges are dropped if they are http-request or http-response nodes
+    copied.forEachNode((id, node) => {
+      if (
+        (isNodeType(node, 'http-request') ||
+          isNodeType(node, 'http-response')) &&
+        copied.neighbors(id).length === 0
+      ) {
+        copied.dropNode(id);
+      }
+    });
+
+    return new ThymianFormat(copied);
   }
 
   static fromHttpTransactions(

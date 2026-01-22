@@ -2,51 +2,62 @@ import { existsSync } from 'node:fs';
 import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
 
-import { type JSONSchemaType, validate } from '@thymian/core';
 import { parse } from 'yaml';
 
 import { defaultConfig } from './default-config.js';
 import type { ThymianConfig } from './thymian-config.js';
-import thymianSchema from './thymian-config-schema.json' with { type: 'json' };
+import { validateConfig } from './validate-config.js';
 
 export async function getConfig(
   file: string,
   cwd = process.cwd(),
 ): Promise<ThymianConfig> {
   const fullPath = path.join(cwd, file);
-
-  if (!existsSync(fullPath)) {
-    return defaultConfig;
-  }
-
-  const fileContent = await fs.readFile(fullPath, 'utf-8');
-  const { ext } = path.parse(fullPath);
-
-  let config!: unknown;
-
-  if (ext === '.json') {
-    try {
-      config = JSON.parse(fileContent);
-    } catch (e) {
-      throw new Error(`Invalid JSON file at path ${fullPath}.`);
+  try {
+    if (!existsSync(fullPath)) {
+      return defaultConfig;
     }
-  } else if (ext === '.yaml' || ext === '.yml') {
-    try {
-      config = parse(fileContent);
-    } catch (e) {
-      throw new Error(`Invalid yaml file at path ${fullPath}.`);
+
+    const fileContent = await fs.readFile(fullPath, 'utf-8');
+    const { ext } = path.parse(fullPath);
+
+    let config!: unknown;
+
+    if (ext === '.json') {
+      try {
+        config = JSON.parse(fileContent);
+      } catch (e) {
+        throw new Error(`Invalid JSON file at path ${fullPath}.`);
+      }
+    } else if (ext === '.yaml' || ext === '.yml') {
+      try {
+        config = parse(fileContent);
+      } catch (e) {
+        throw new Error(`Invalid yaml file at path ${fullPath}.`);
+      }
+    } else {
+      throw new Error(
+        `Unsupported file extension "${ext}" for Thymian configuration.`,
+      );
     }
-  } else {
-    throw new Error(
-      `Unsupported file extension "${ext}" for Thymian configuration.`,
-    );
-  }
 
-  if (
-    !validate(thymianSchema as unknown as JSONSchemaType<ThymianConfig>, config)
-  ) {
-    throw new Error('Invalid Thymian config.');
-  }
+    const validationResult = validateConfig(config);
 
-  return config;
+    if (!validationResult.valid) {
+      throw new Error(`Invalid Thymian config`, {
+        cause: validationResult.message,
+      });
+    }
+
+    return config as ThymianConfig;
+  } catch (e) {
+    if (e instanceof Error) {
+      console.error(`Cannot run Thymian CLI because of: ${e.message}`);
+
+      if (e.cause) {
+        console.error(e.cause);
+      }
+    }
+    process.exit(2);
+  }
 }

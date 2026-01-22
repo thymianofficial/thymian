@@ -1,6 +1,7 @@
 import { join } from 'node:path';
 
 import {
+  type HttpFilterExpression,
   isNodeType,
   type Logger,
   ThymianFormat,
@@ -8,6 +9,7 @@ import {
 } from '@thymian/core';
 import type { OpenAPIV3_1 as OpenApiV31 } from 'openapi-types';
 
+import { httpFilterExpressionToOperationFilter } from '../http-filter-expression-to-operation-filter.js';
 import type { LocMapper } from '../loc-mapper/loc-mapper.js';
 import { extractServerInfo, type ServerInfo } from './extract-server-info.js';
 import { processLinkObjectParameters } from './link-object.processor.js';
@@ -69,13 +71,18 @@ export class OpenapiProcessor {
 
     linkObjectToProcess.responseIds.forEach((resId) => {
       reqs.forEach((reqId) => {
-        this.format.addHttpLink(resId, reqId, {
-          ...processLinkObjectParameters(
-            linkObjectToProcess.linkObj.parameters,
-            this.format.getNode(reqId) as ThymianHttpRequest,
-          ),
-          sourceName: this.sourceName,
-        });
+        if (
+          this.format.graph.hasNode(resId) &&
+          this.format.graph.hasNode(reqId)
+        ) {
+          this.format.addHttpLink(resId, reqId, {
+            ...processLinkObjectParameters(
+              linkObjectToProcess.linkObj.parameters,
+              this.format.getNode(reqId) as ThymianHttpRequest,
+            ),
+            sourceName: this.sourceName,
+          });
+        }
       });
     });
   }
@@ -184,9 +191,11 @@ export class OpenapiProcessor {
 
   public process(
     document: OpenApiV31.Document,
+    filter: HttpFilterExpression,
     sourceName: string = document.info.title,
   ): ThymianFormat {
     this.sourceName = sourceName;
+    const filterFn = httpFilterExpressionToOperationFilter(filter);
 
     const securitySchemes = processSecuritySchemes(
       (document.components?.securitySchemes as Record<
@@ -233,13 +242,27 @@ export class OpenapiProcessor {
           operation.parameters as OpenApiV31.ParameterObject[],
         );
 
-        this.processOperationObject(
-          operation,
-          mergeParameters(parameters, operationParameters),
-          method,
-          path,
-          serverInfo,
-        );
+        const allParameters = mergeParameters(parameters, operationParameters);
+
+        if (
+          filterFn({
+            document,
+            method,
+            params: allParameters,
+            path,
+            operationObject: operation,
+            serverInfo,
+          })
+        ) {
+          this.logger.debug('Do not skip operation:' + operation.operationId);
+          this.processOperationObject(
+            operation,
+            allParameters,
+            method,
+            path,
+            serverInfo,
+          );
+        }
       }
     }
 
@@ -250,3 +273,8 @@ export class OpenapiProcessor {
     return this.format;
   }
 }
+
+export type OperationObjectFilterFn = (
+  operationObject: OpenApiV31.OperationObject,
+  document: OpenApiV31.Document,
+) => boolean;

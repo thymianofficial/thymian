@@ -43,7 +43,7 @@ export default class Run extends BaseCliRunCommand<typeof Run> {
         // this.spinner.clear();
       });
 
-      const format = await this.thymian.loadFormat();
+      const format = await this.thymian.loadFormat(this.filter);
 
       return await emitter.emitAction('core.run', format.export(), {
         strategy: 'collect',

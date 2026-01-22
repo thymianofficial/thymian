@@ -10,6 +10,7 @@ import {
 import { dereference, validate } from '@scalar/openapi-parser';
 import { upgrade } from '@scalar/openapi-upgrader';
 import {
+  type HttpFilterExpression,
   type Logger,
   NoopLogger,
   ThymianBaseError,
@@ -96,6 +97,7 @@ export async function openapiToThymianFormat(
   options: {
     logger?: Logger;
     serverInfo: ServerInfo;
+    filter: HttpFilterExpression;
     filePath?: string;
     format?: ThymianFormat;
     sourceName?: string;
@@ -118,7 +120,7 @@ export async function openapiToThymianFormat(
     options.serverInfo,
     locMapper,
     options.format,
-  ).process(document, options.sourceName);
+  ).process(document, options.filter, options.sourceName);
 }
 
 export async function loadAndTransform(
@@ -127,6 +129,7 @@ export async function loadAndTransform(
     logger: Logger;
     serverInfo: ServerInfo;
     cwd: string;
+    filter: HttpFilterExpression;
     format?: ThymianFormat;
     sourceName?: string;
   },
@@ -136,6 +139,7 @@ export async function loadAndTransform(
   const result = await openapiToThymianFormat(loadResult.document, {
     ...options,
     filePath: loadResult.filePath,
+    filter: options.filter,
   });
 
   options.logger.debug('Transformed OpenAPI document into Thymian format.');

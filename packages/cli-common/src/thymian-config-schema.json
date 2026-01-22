@@ -1,11 +1,15 @@
 {
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
   "type": "object",
+  "required": ["plugins"],
+  "additionalProperties": false,
   "properties": {
     "autoload": {
       "type": "boolean"
     },
     "plugins": {
       "type": "object",
+      "nullable": false,
       "additionalProperties": {
         "type": "object",
         "additionalProperties": false,
@@ -22,6 +26,280 @@
           }
         }
       }
+    },
+    "filters": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/HttpFilterExpression"
+      }
+    }
+  },
+  "$defs": {
+    "HttpFilterExpression": {
+      "oneOf": [
+        { "$ref": "#/$defs/RequestFilterExpression" },
+        { "$ref": "#/$defs/ResponseFilterExpression" },
+        { "$ref": "#/$defs/LogicalExpression" }
+      ]
+    },
+    "RequestFilterExpression": {
+      "oneOf": [
+        {
+          "type": "object",
+          "properties": {
+            "type": { "const": "method" },
+            "kind": { "const": "request" },
+            "method": { "type": "string" }
+          },
+          "required": ["type", "kind"],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": { "const": "requestHeader" },
+            "kind": { "const": "request" },
+            "header": { "type": "string" },
+            "value": {}
+          },
+          "required": ["type", "kind"],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": { "const": "queryParam" },
+            "kind": { "const": "request" },
+            "param": { "type": "string" },
+            "value": {}
+          },
+          "required": ["type", "kind"],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": { "const": "path" },
+            "kind": { "const": "request" },
+            "path": { "type": "string" }
+          },
+          "required": ["type", "kind"],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": { "const": "hasResponse" },
+            "kind": { "const": "request" },
+            "filter": { "$ref": "#/$defs/HttpFilterExpression" }
+          },
+          "required": ["type", "kind", "filter"],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": { "const": "isAuthorized" },
+            "kind": { "const": "request" },
+            "isAuthorized": { "type": "boolean" }
+          },
+          "required": ["type", "kind", "isAuthorized"],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": { "const": "origin" },
+            "kind": { "const": "request" },
+            "origin": { "type": "string" }
+          },
+          "required": ["type", "kind"],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": { "const": "hasBody" },
+            "kind": { "const": "request" },
+            "hasBody": { "type": "boolean" }
+          },
+          "required": ["type", "kind"],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": { "const": "port" },
+            "kind": { "const": "request" },
+            "port": { "type": "integer", "minimum": 0, "maximum": 65535 }
+          },
+          "required": ["type", "kind"],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": { "const": "requestMediaType" },
+            "kind": { "const": "request" },
+            "mediaType": { "type": "string" }
+          },
+          "required": ["type", "kind"],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": { "const": "url" },
+            "kind": { "const": "request" },
+            "url": { "type": "string" }
+          },
+          "required": ["type", "kind"],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": { "const": "protocol" },
+            "kind": { "const": "request" },
+            "protocol": { "type": "string" }
+          },
+          "required": ["type", "kind"],
+          "additionalProperties": false
+        }
+      ]
+    },
+    "ResponseFilterExpression": {
+      "oneOf": [
+        {
+          "type": "object",
+          "properties": {
+            "type": { "const": "statusCode" },
+            "kind": { "const": "response" },
+            "code": { "type": "number" }
+          },
+          "required": ["type", "kind"],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": { "const": "hasResponseBody" },
+            "kind": { "const": "response" },
+            "hasBody": { "type": "boolean" }
+          },
+          "required": ["type", "kind"],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": { "const": "responseHeader" },
+            "kind": { "const": "response" },
+            "header": { "type": "string" },
+            "value": {}
+          },
+          "required": ["type", "kind"],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": { "const": "statusCodeRange" },
+            "kind": { "const": "response" },
+            "start": { "type": "number" },
+            "end": { "type": "number" }
+          },
+          "required": ["type", "kind", "start", "end"],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": { "const": "responseMediaType" },
+            "kind": { "const": "response" },
+            "mediaType": { "type": "string" }
+          },
+          "required": ["type", "kind"],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": { "const": "responseTrailer" },
+            "kind": { "const": "response" },
+            "trailer": { "type": "string" },
+            "value": {}
+          },
+          "required": ["type", "kind"],
+          "additionalProperties": false
+        }
+      ]
+    },
+    "LogicalExpression": {
+      "oneOf": [
+        {
+          "type": "object",
+          "properties": {
+            "type": { "const": "and" },
+            "kind": { "const": "logic" },
+            "filters": {
+              "type": "array",
+              "items": { "$ref": "#/$defs/HttpFilterExpression" }
+            }
+          },
+          "required": ["type", "kind", "filters"],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": { "const": "or" },
+            "kind": { "const": "logic" },
+            "filters": {
+              "type": "array",
+              "items": { "$ref": "#/$defs/HttpFilterExpression" }
+            }
+          },
+          "required": ["type", "kind", "filters"],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": { "const": "not" },
+            "kind": { "const": "logic" },
+            "filter": { "$ref": "#/$defs/HttpFilterExpression" }
+          },
+          "required": ["type", "kind", "filter"],
+          "additionalProperties": false
+        },
+        { "$ref": "#/$defs/Constant" },
+        {
+          "type": "object",
+          "properties": {
+            "type": { "const": "xor" },
+            "kind": { "const": "logic" },
+            "filters": {
+              "type": "array",
+              "items": { "$ref": "#/$defs/HttpFilterExpression" },
+              "minItems": 2,
+              "maxItems": 2
+            }
+          },
+          "required": ["type", "kind", "filters"],
+          "additionalProperties": false
+        }
+      ]
+    },
+    "Constant": {
+      "type": "object",
+      "properties": {
+        "type": { "const": "constant" },
+        "kind": { "const": "logic" },
+        "value": {}
+      },
+      "required": ["type", "kind", "value"],
+      "additionalProperties": false
     }
   }
 }

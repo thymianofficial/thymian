@@ -19,6 +19,7 @@ export default class Load extends BaseCliRunCommand<typeof Load> {
 
   override async run(): Promise<void> {
     const [, format] = await loadAndTransform(this.args.content, {
+      filter: this.filter,
       cwd: this.flags.cwd,
       logger: this.logger,
       serverInfo: {

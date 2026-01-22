@@ -83,6 +83,7 @@ export default [
       '**/vite.config.*.timestamp*',
       '**/vitest.config.*.timestamp*',
       'node_modules',
+      '**/.astro',
     ],
   },
   {
