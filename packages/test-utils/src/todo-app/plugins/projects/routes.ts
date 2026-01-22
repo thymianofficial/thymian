@@ -91,7 +91,7 @@ export default async function projectsRoutes(_fastify: FastifyInstance) {
       if (!deleted)
         return reply.status(404).send({ error: 'Project not found' });
 
-      return reply.status(204).send();
+      return reply.status(204).send(null);
     },
   );
 
