@@ -47,8 +47,11 @@ export class CsvFormatter implements Formatter<CsvFormatterOptions> {
   report(report: ThymianReport): Promise<void> {
     return new Promise((resolve, reject) => {
       this.stream.write(thymianReportToCsvLine(report), (err) => {
-        if (err) reject(err);
-        else resolve();
+        if (err) {
+          reject(err);
+        } else {
+          resolve();
+        }
       });
     });
   }

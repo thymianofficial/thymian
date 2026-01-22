@@ -17,9 +17,15 @@ export const details = (details: string): string =>
   </details>`;
 
 export function mapSeverityToBadge(severity: ThymianReportSeverity): string {
-  if (severity === 'error') return '❌ ERROR';
-  if (severity === 'warn') return '⚠️ WARN';
-  if (severity === 'hint') return '💡 HINT';
+  if (severity === 'error') {
+    return '❌ ERROR';
+  }
+  if (severity === 'warn') {
+    return '⚠️ WARN';
+  }
+  if (severity === 'hint') {
+    return '💡 HINT';
+  }
   return 'ℹ️ INFO';
 }
 
@@ -43,7 +49,9 @@ export class MarkdownFormatter implements Formatter<MarkdownFormatterOptions> {
   }
 
   async flush(): Promise<void> {
-    if (this.reports.length === 0) return;
+    if (this.reports.length === 0) {
+      return;
+    }
 
     const analysis = analyze(this.reports);
 

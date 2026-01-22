@@ -37,7 +37,9 @@ export default fp(async (fastify: FastifyInstance) => {
     },
     deleteById: (id) => {
       const index = todos.findIndex((p) => p.id === id);
-      if (index === -1) return false;
+      if (index === -1) {
+        return false;
+      }
       todos.splice(index, 1);
       return true;
     },
@@ -45,7 +47,9 @@ export default fp(async (fastify: FastifyInstance) => {
     update(todo: Todo): boolean {
       const idx = todos.findIndex((t) => t.id === todo.id);
 
-      if (idx === -1) return false;
+      if (idx === -1) {
+        return false;
+      }
 
       todos[idx] = todo;
 

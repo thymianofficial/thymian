@@ -195,7 +195,9 @@ export class HttpTransactionRepository {
     trailers: Record<string, string> | undefined,
     responseId: number | bigint,
   ): void {
-    if (!trailers) return;
+    if (!trailers) {
+      return;
+    }
 
     const stmt = this.db.prepare(insertResponseTrailer);
     for (const [name, value] of Object.entries(trailers)) {
