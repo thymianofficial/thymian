@@ -1,7 +1,11 @@
-# format-validator
+# Thymian
 
-This library was generated with [Nx](https://nx.dev).
+Add resilience and HTTP conformance to your API development workflow. Thymian is a lightweight, language-agnostic library that helps you build robust APIs.
 
-## Building
+## @thymian/format-validator
 
-Run `nx build format-validator` to build the library.
+Validates JSON and YAML format structures.
+
+## Documentation
+
+For comprehensive documentation, visit [Thymian Documentation](https://thymian.dev/).

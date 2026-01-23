@@ -1,8 +1,8 @@
-# @thymian/core-testing
+# Thymian
 
-Testing utilities, factories, and mocks for the Thymian plugin ecosystem.
+Add resilience and HTTP conformance to your API development workflow. Thymian is a lightweight, language-agnostic library that helps you build robust APIs.
 
-## Overview
+## @thymian/core-testing
 
 `@thymian/core-testing` provides reusable testing utilities that make it easy to write tests for Thymian plugins and components. It includes:
 
@@ -16,7 +16,7 @@ Testing utilities, factories, and mocks for the Thymian plugin ecosystem.
 npm install --save-dev @thymian/core-testing
 ```
 
-## Quick Start
+### Quick Start
 
 ```typescript
 import { createHttpRequest, createHttpResponse, createMockLogger, createMockEmitter, createMockPlugin } from '@thymian/core-testing';
@@ -37,11 +37,11 @@ expect(logger.info).toHaveBeenCalled();
 expect(emitter.emit).toHaveBeenCalledWith('core.register', expect.any(Object));
 ```
 
-## API Reference
+### API Reference
 
-### Factories
+#### Factories
 
-#### Schema Factories
+##### Schema Factories
 
 Create ThymianSchema objects with sensible defaults:
 
@@ -63,7 +63,7 @@ const objectSchema = createObjectSchema({
 const arraySchema = createArraySchema(createStringSchema());
 ```
 
-#### Parameter Factories
+##### Parameter Factories
 
 Create Parameter objects:
 
@@ -80,7 +80,7 @@ const requiredParam = createRequiredParameter({
 });
 ```
 
-#### HTTP Request Factories
+##### HTTP Request Factories
 
 Create ThymianHttpRequest objects:
 
@@ -103,7 +103,7 @@ const postRequest = createPostRequest({
 });
 ```
 
-#### HTTP Response Factories
+##### HTTP Response Factories
 
 Create ThymianHttpResponse objects:
 
@@ -122,7 +122,7 @@ const errorResponse = createNotFoundResponse({
 });
 ```
 
-#### ThymianFormat Factories
+##### ThymianFormat Factories
 
 Create ThymianFormat instances:
 
@@ -145,9 +145,9 @@ const formatWithMany = createThymianFormatWithTransactions([
 const formatWithSpecificNumber = createThymianFormatWithTransactions(10);
 ```
 
-### Mocks
+#### Mocks
 
-#### Logger Mock
+##### Logger Mock
 
 Create mock Logger instances:
 
@@ -167,7 +167,7 @@ expect(verboseLogger.verbose).toBe(true);
 const silentLogger = createSilentMockLogger();
 ```
 
-#### Emitter Mock
+##### Emitter Mock
 
 Create mock ThymianEmitter instances:
 
@@ -192,7 +192,7 @@ expect(events).toHaveLength(1);
 expect(events[0][0]).toBe('core.register');
 ```
 
-#### Plugin Mock
+##### Plugin Mock
 
 Create mock ThymianPlugin instances:
 
@@ -227,9 +227,9 @@ const pluginWithMeta = createPluginWithMetadata({
 });
 ```
 
-## Examples
+### Examples
 
-### Testing a Plugin
+#### Testing a Plugin
 
 ```typescript
 import { describe, it, expect } from 'vitest';
@@ -262,7 +262,7 @@ describe('myPlugin', () => {
 });
 ```
 
-### Testing Format Transformations
+#### Testing Format Transformations
 
 ```typescript
 import { describe, it, expect } from 'vitest';
@@ -283,3 +283,7 @@ describe('transformFormat', () => {
   });
 });
 ```
+
+## Documentation
+
+For comprehensive documentation, visit [Thymian Documentation](https://thymian.dev/).

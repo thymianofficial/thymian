@@ -1,7 +1,11 @@
-# http-linter
+# Thymian
 
-This library was generated with [Nx](https://nx.dev).
+Add resilience and HTTP conformance to your API development workflow. Thymian is a lightweight, language-agnostic library that helps you build robust APIs.
 
-## Building
+## @thymian/http-linter
 
-Run `nx build http-linter` to build the library.
+HTTP-based linting and rule checking for APIs.
+
+## Documentation
+
+For comprehensive documentation, visit [Thymian Documentation](https://thymian.dev/).
