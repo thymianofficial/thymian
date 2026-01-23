@@ -212,6 +212,7 @@ export const samplePlugin: ThymianPlugin<Partial<SamplerPluginOptions>> = {
                 `The loaded samples were generated at ${requestSampler.timestamp()}. Did you forget to regenerate the samples?`,
                 '$ thymian sampler:init',
               ],
+              ref: 'https://thymian.dev/guides/samples/update-samples',
             },
           );
         }
