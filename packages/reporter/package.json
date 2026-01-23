@@ -1,6 +1,9 @@
 {
   "name": "@thymian/reporter",
-  "version": "0.0.1",
+  "version": "0.0.0-PLACEHOLDER",
+  "publishConfig": {
+    "access": "restricted"
+  },
   "type": "module",
   "main": "./dist/index.js",
   "module": "./dist/index.js",
@@ -20,6 +23,6 @@
   "dependencies": {
     "chalk": "^4.1.2",
     "tslib": "^2.3.0",
-    "@thymian/core": "^0"
+    "@thymian/core": "0.0.0-PLACEHOLDER"
   }
 }

@@ -1,6 +1,9 @@
 {
   "name": "@thymian/test-utils",
-  "version": "0.0.1",
+  "version": "0.0.0-PLACEHOLDER",
+  "publishConfig": {
+    "access": "restricted"
+  },
   "main": "./dist/index.js",
   "module": "./dist/index.js",
   "types": "./dist/index.d.ts",
@@ -19,7 +22,7 @@
     "@fastify/swagger": "^9.5.1",
     "@fastify/swagger-ui": "^5.2.3",
     "@fastify/type-provider-json-schema-to-ts": "^5.0.0",
-    "@thymian/core": "^0",
+    "@thymian/core": "0.0.0-PLACEHOLDER",
     "etag": "^1.8.1",
     "fastify": "^5.4.0",
     "fastify-plugin": "^5.0.1",

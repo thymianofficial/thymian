@@ -152,7 +152,7 @@ export default async function todosRoutes(_fastify: FastifyInstance) {
         return reply.status(404).send({ error: 'ToDo not found' });
       }
 
-      return reply.status(204).send();
+      return reply.status(204).send(null);
     },
   );
 }

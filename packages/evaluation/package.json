@@ -1,6 +1,9 @@
 {
   "name": "@thymian/evaluation",
-  "version": "0.0.1",
+  "version": "0.0.0-PLACEHOLDER",
+  "publishConfig": {
+    "access": "restricted"
+  },
   "main": "./dist/index.js",
   "module": "./dist/index.js",
   "type": "module",
@@ -21,10 +24,10 @@
     "@scalar/json-magic": "0.9.0",
     "@scalar/openapi-parser": "^0.23.9",
     "@scalar/openapi-upgrader": "^0.1.6",
-    "@thymian/cli-common": "^0",
-    "@thymian/core": "^0",
-    "@thymian/http-linter": "^0",
-    "@thymian/openapi": "^0",
+    "@thymian/cli-common": "0.0.0-PLACEHOLDER",
+    "@thymian/core": "0.0.0-PLACEHOLDER",
+    "@thymian/http-linter": "0.0.0-PLACEHOLDER",
+    "@thymian/openapi": "0.0.0-PLACEHOLDER",
     "csv-parse": "^6.1.0",
     "piscina": "^5.1.4",
     "tinyglobby": "^0.2.15",
