@@ -1,5 +1,5 @@
 ---
-title: Why is types.d.ts File?
+title: What is this types.d.ts file?
 description: Explanation of the types.d.ts file and how it works
 ---
 
