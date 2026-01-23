@@ -1,5 +1,5 @@
 ---
-title: How To Customize Request Data
+title: How to customize Request Data
 description: Learn how to modify generated request samples
 ---
 

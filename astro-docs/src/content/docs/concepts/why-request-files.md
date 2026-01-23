@@ -1,5 +1,5 @@
 ---
-title: Why Provide Request Files for Each Endpoint?
+title: Why Provide Request Files for each Endpoint?
 description: Understanding why sampler requires explicit request samples for every endpoint, including error cases.
 ---
 
