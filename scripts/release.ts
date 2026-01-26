@@ -1,3 +1,5 @@
+import { execSync } from 'node:child_process';
+
 import { ReleaseClient } from 'nx/release/index.js';
 import yargs from 'yargs';
 import { hideBin } from 'yargs/helpers';
@@ -44,7 +46,10 @@ async function isVerdaccioRunning(url: string): Promise<boolean> {
     })
     .parseAsync();
 
-  console.log('\n📋 Release Configuration:');
+  const isCanary = isCanaryRelease(argv.version);
+
+  console.log(`\n${isCanary ? '🐤' : '📋'} Release Configuration:`);
+  console.log(`  mode: ${isCanary ? 'CANARY' : 'STANDARD'}`);
   console.log(`  version: ${argv.version || 'conventional commits'}`);
   console.log(`  dryRun: ${argv.dryRun}`);
   console.log(`  firstRelease: ${argv.firstRelease}`);
@@ -52,7 +57,7 @@ async function isVerdaccioRunning(url: string): Promise<boolean> {
   console.log(`  local: ${argv.local}`);
   console.log(`  registry: ${argv.local ? 'http://localhost:4873' : 'npm'}\n`);
 
-  if (argv.local) {
+  if (argv.local && !argv.dryRun) {
     const isRunning = await isVerdaccioRunning('http://localhost:4873/');
     if (!isRunning) {
       console.error(
@@ -65,16 +70,48 @@ async function isVerdaccioRunning(url: string): Promise<boolean> {
 
   const client = new ReleaseClient({});
 
+  // For canary releases, first get the next version using conventional commits
+  let versionSpecifier = argv.version;
+  let canaryVersionString: string | undefined;
+
+  if (isCanary) {
+    console.log('🔍 Determining next version from conventional commits...\n');
+
+    const { workspaceVersion: nextVersion } = await client.releaseVersion({
+      specifier: undefined, // Let conventional commits determine version
+      dryRun: true, // Don't actually version yet
+      firstRelease: argv.firstRelease,
+      verbose: argv.verbose,
+      gitTag: false,
+    });
+
+    if (!nextVersion) {
+      console.log(
+        'ℹ️  No release needed (no relevant commits since last release)',
+      );
+      console.log('   Exiting gracefully.\n');
+      process.exit(0);
+    }
+
+    const commitHash = getCurrentCommitHash();
+    canaryVersionString = getCanaryVersion(nextVersion, commitHash);
+    versionSpecifier = canaryVersionString;
+
+    console.log(`📦 Canary version: ${canaryVersionString}`);
+    console.log(`   Base version: ${nextVersion}`);
+    console.log(`   Commit hash: ${commitHash}\n`);
+  }
+
   const { workspaceVersion, projectsVersionData, releaseGraph } =
     await client.releaseVersion({
-      specifier: argv.version,
+      specifier: versionSpecifier,
       dryRun: argv.dryRun,
       firstRelease: argv.firstRelease,
       verbose: argv.verbose,
-      gitTag: !argv.local,
+      gitTag: isCanary ? false : !argv.local,
     });
 
-  if (!argv.local) {
+  if (!argv.local && !isCanary) {
     await client.releaseChangelog({
       releaseGraph,
       versionData: projectsVersionData,
@@ -92,7 +129,7 @@ async function isVerdaccioRunning(url: string): Promise<boolean> {
     verbose: argv.verbose,
     access: 'restricted', // publish privately for now
     registry: argv.local ? 'http://localhost:4873' : undefined,
-    tag: 'latest',
+    tag: isCanary ? 'canary' : 'latest',
   });
 
   if (!argv.dryRun) {
@@ -105,3 +142,23 @@ async function isVerdaccioRunning(url: string): Promise<boolean> {
     Object.values(publishResults).every((result) => result.code === 0) ? 0 : 1,
   );
 })();
+
+function getCurrentCommitHash(): string {
+  try {
+    const hash = execSync('git rev-parse HEAD', { encoding: 'utf-8' }).trim();
+    return hash.substring(0, 7);
+  } catch (error) {
+    console.error('❌ Error: Failed to get current commit hash');
+    throw error;
+  }
+}
+
+function getCanaryVersion(baseVersion: string, commitHash: string): string {
+  const date = new Date();
+  const yyyymmdd = date.toISOString().slice(0, 10).replace(/-/g, '');
+  return `${baseVersion}-canary.${yyyymmdd}-${commitHash}`;
+}
+
+function isCanaryRelease(version: string | undefined): boolean {
+  return version === 'canary';
+}

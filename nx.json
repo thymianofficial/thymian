@@ -41,6 +41,7 @@
     "version": {
       "preVersionCommand": "npx nx run-many -t build --exclude astro --no-tui",
       "conventionalCommits": true,
+      "adjustSemverBumpsForZeroMajorVersion": true,
       "versionActionsOptions": {
         "skipLockFileUpdate": true
       },

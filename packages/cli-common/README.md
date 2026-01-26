@@ -1,7 +1,11 @@
-# cli-common
+# Thymian
 
-This library was generated with [Nx](https://nx.dev).
+Add resilience and HTTP conformance to your API development workflow. Thymian is a lightweight, language-agnostic library that helps you build robust APIs.
 
-## Building
+## @thymian/cli-common
 
-Run `nx build cli-common` to build the library.
+Shared utilities and helpers for Thymian CLI tools.
+
+## Documentation
+
+For comprehensive documentation, visit [Thymian Documentation](https://thymian.dev/).

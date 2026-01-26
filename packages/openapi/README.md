@@ -1,7 +1,11 @@
-# openapi
+# Thymian
 
-This library was generated with [Nx](https://nx.dev).
+Add resilience and HTTP conformance to your API development workflow. Thymian is a lightweight, language-agnostic library that helps you build robust APIs.
 
-## Building
+## @thymian/openapi
 
-Run `nx build openapi` to build the library.
+OpenAPI document parsing and validation utilities.
+
+## Documentation
+
+For comprehensive documentation, visit [Thymian Documentation](https://thymian.dev/).

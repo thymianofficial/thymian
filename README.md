@@ -1,5 +1,9 @@
 # Thymian
 
+Add resilience and HTTP conformance to your API development workflow. Thymian is a lightweight, language-agnostic library that helps you build robust APIs.
+
+## Getting Started
+
 You want to try out Thymian? Run the following commands in the specific order:
 
 - `npm i`
@@ -28,3 +32,7 @@ There are different kinds of documentation:
 - [Astro documentation](astro-docs/README.md): The astro documentation is available as a website to the users. It contains general information about Thymian, How-To's and reference documentation for the plugins and the CLI. Add any kind of End-User documentation here (except for plugins, see next point).
 - Plugin documentation: The plugin documentation is part of the astro documentation. It is located in `docs` folders in the plugin projects but will be added to the astro documentation during the build process.
 - Subproject READMEs: You have technical documentation that is subproject-specific? Put it into the README of the subproject.
+
+## Documentation
+
+For comprehensive documentation, visit [Thymian Documentation](https://thymian.dev/).

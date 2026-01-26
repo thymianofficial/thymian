@@ -102,5 +102,6 @@
     "Invoke-Expression": false,
     "iex": false
   },
-  "chat.agent.maxRequests": 200
+  "chat.agent.maxRequests": 200,
+  "terminal.integrated.scrollback": 10000
 }

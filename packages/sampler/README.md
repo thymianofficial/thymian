@@ -1,7 +1,11 @@
-# data-generator
+# Thymian
 
-This library was generated with [Nx](https://nx.dev).
+Add resilience and HTTP conformance to your API development workflow. Thymian is a lightweight, language-agnostic library that helps you build robust APIs.
 
-## Building
+## @thymian/sampler
 
-Run `nx build data-generator` to build the library.
+Generates sample implementations from API specifications.
+
+## Documentation
+
+For comprehensive documentation, visit [Thymian Documentation](https://thymian.dev/).
