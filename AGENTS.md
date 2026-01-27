@@ -64,3 +64,19 @@ Thymian supports sharing and reusing rules across plugins and libraries. For exa
 - **Utilities**: Helper functions and constants (e.g., field lists, array utilities) are provided for rule composition and reporting.
 
 This approach enables consistent validation, extensibility, and code reuse throughout the Thymian ecosystem.
+
+---
+
+## Deployment & Release
+
+### Skipping Canary Deployment
+
+To skip the canary release deployment for a commit, include `[skip-canary]` in the commit message:
+
+```bash
+git commit -m "docs: update documentation
+
+[skip-canary]"
+```
+
+When this flag is present in the commit message pushed to `main`, the canary release workflow will be skipped, and no new version will be published to npm.
