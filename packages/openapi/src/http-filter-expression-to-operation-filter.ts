@@ -45,11 +45,15 @@ function hasResponseWithStatusCode(
   operationObject: OpenApiV31.OperationObject,
   code: number,
 ): boolean {
-  if (!operationObject.responses) return false;
+  if (!operationObject.responses) {
+    return false;
+  }
 
   return Object.keys(operationObject.responses).some((statusCode) => {
     // Handle 'default' or numeric status codes
-    if (statusCode === 'default') return false;
+    if (statusCode === 'default') {
+      return false;
+    }
     return parseInt(statusCode, 10) === code;
   });
 }
@@ -62,10 +66,14 @@ function hasResponseInStatusCodeRange(
   start: number,
   end: number,
 ): boolean {
-  if (!operationObject.responses) return false;
+  if (!operationObject.responses) {
+    return false;
+  }
 
   return Object.keys(operationObject.responses).some((statusCode) => {
-    if (statusCode === 'default') return false;
+    if (statusCode === 'default') {
+      return false;
+    }
     const code = parseInt(statusCode, 10);
     return Number.isInteger(code) && code >= start && code <= end;
   });
@@ -85,11 +93,17 @@ function hasRequestMediaType(
   operationObject: OpenApiV31.OperationObject,
   mediaType: string,
 ): boolean {
-  if (!operationObject.requestBody) return false;
-  if ('$ref' in operationObject.requestBody) return false;
+  if (!operationObject.requestBody) {
+    return false;
+  }
+  if ('$ref' in operationObject.requestBody) {
+    return false;
+  }
 
   const content = operationObject.requestBody.content;
-  if (!content) return false;
+  if (!content) {
+    return false;
+  }
 
   return Object.keys(content).some((mt) => equalsIgnoreCase(mt, mediaType));
 }
@@ -101,11 +115,17 @@ function hasResponseMediaType(
   operationObject: OpenApiV31.OperationObject,
   mediaType: string,
 ): boolean {
-  if (!operationObject.responses) return false;
+  if (!operationObject.responses) {
+    return false;
+  }
 
   return Object.values(operationObject.responses).some((response) => {
-    if ('$ref' in response) return false;
-    if (!response.content) return false;
+    if ('$ref' in response) {
+      return false;
+    }
+    if (!response.content) {
+      return false;
+    }
 
     return Object.keys(response.content).some((mt) =>
       equalsIgnoreCase(mt, mediaType),
@@ -120,11 +140,17 @@ function hasResponseHeader(
   operationObject: OpenApiV31.OperationObject,
   header: string,
 ): boolean {
-  if (!operationObject.responses) return false;
+  if (!operationObject.responses) {
+    return false;
+  }
 
   return Object.values(operationObject.responses).some((response) => {
-    if ('$ref' in response) return false;
-    if (!response.headers) return false;
+    if ('$ref' in response) {
+      return false;
+    }
+    if (!response.headers) {
+      return false;
+    }
 
     return Object.keys(response.headers).some((h) =>
       equalsIgnoreCase(h, header),
@@ -136,10 +162,14 @@ function hasResponseHeader(
  * Helper to check if operation has response body
  */
 function hasResponseBody(operationObject: OpenApiV31.OperationObject): boolean {
-  if (!operationObject.responses) return false;
+  if (!operationObject.responses) {
+    return false;
+  }
 
   return Object.values(operationObject.responses).some((response) => {
-    if ('$ref' in response) return false;
+    if ('$ref' in response) {
+      return false;
+    }
     return !!response.content && Object.keys(response.content).length > 0;
   });
 }

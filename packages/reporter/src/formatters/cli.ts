@@ -19,9 +19,15 @@ export function createPrefix({
     return '';
   }
 
-  if (severity === 'hint') return `${chalk.blue(severity)}: `;
-  if (severity === 'warn') return `${chalk.yellow(severity)}: `;
-  if (severity === 'error') return `${chalk.red(severity)}: `;
+  if (severity === 'hint') {
+    return `${chalk.blue(severity)}: `;
+  }
+  if (severity === 'warn') {
+    return `${chalk.yellow(severity)}: `;
+  }
+  if (severity === 'error') {
+    return `${chalk.red(severity)}: `;
+  }
   return '';
 }
 
@@ -77,7 +83,9 @@ export class CliFormatter implements Formatter<Partial<CliFormatterOptions>> {
         }
 
         for (const [category, titles] of Object.entries(categories)) {
-          if (category === 'No Category') continue;
+          if (category === 'No Category') {
+            continue;
+          }
 
           console.log(chalk.bold(category));
 

@@ -59,11 +59,15 @@ export function parameterValuesToParameters(
 ): Record<string, Parameter> {
   return Object.entries(values).reduce(
     (acc, [key, value]) => {
-      if (equalsIgnoreCase(key, 'content-type')) return acc;
+      if (equalsIgnoreCase(key, 'content-type')) {
+        return acc;
+      }
 
       const parameter = valueToParameter(value, style);
 
-      if (!parameter) return acc;
+      if (!parameter) {
+        return acc;
+      }
 
       acc[key] = parameter;
 

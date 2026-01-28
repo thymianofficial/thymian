@@ -1,6 +1,9 @@
 {
   "name": "@thymian/request-dispatcher",
-  "version": "0.0.1",
+  "version": "0.0.0-PLACEHOLDER",
+  "publishConfig": {
+    "access": "restricted"
+  },
   "files": [
     "dist",
     "!**/*.tsbuildinfo"
@@ -17,7 +20,7 @@
     "name": "@thymian/request-dispatcher"
   },
   "dependencies": {
-    "@thymian/core": "^0",
+    "@thymian/core": "0.0.0-PLACEHOLDER",
     "async-mutex": "^0.5.0",
     "p-queue": "^9.0.1",
     "undici": "^6.21.2"

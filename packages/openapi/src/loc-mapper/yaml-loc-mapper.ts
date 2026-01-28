@@ -38,12 +38,16 @@ export class YamlLocMapper extends LocMapper {
     operationId: string,
   ): ThymianFormatPosition | undefined {
     const pathsMap = this.getTopLevelMap('paths');
-    if (!pathsMap) return undefined;
+    if (!pathsMap) {
+      return undefined;
+    }
 
     for (const pathPair of pathsMap.items as Pair[]) {
       const pathKeyScalar = pathPair.key as Scalar | undefined;
       const pathVal = pathPair.value as YAMLMap | undefined;
-      if (!pathKeyScalar || !isMap(pathVal)) continue;
+      if (!pathKeyScalar || !isMap(pathVal)) {
+        continue;
+      }
 
       for (const methodPair of pathVal.items as Pair[]) {
         const methodKey = (methodPair.key as Scalar | undefined)?.value;
@@ -54,7 +58,9 @@ export class YamlLocMapper extends LocMapper {
           continue;
         }
         const opObj = methodPair.value as YAMLMap | undefined;
-        if (!isMap(opObj)) continue;
+        if (!isMap(opObj)) {
+          continue;
+        }
 
         const opIdPair = this.findStringProperty(
           opObj,
@@ -64,11 +70,15 @@ export class YamlLocMapper extends LocMapper {
         if (opIdPair) {
           const methodKeyNode = methodPair.key as Scalar | undefined;
           const posMethod = this.positionFromNode(methodKeyNode);
-          if (posMethod) return posMethod;
+          if (posMethod) {
+            return posMethod;
+          }
 
           const opIdKeyNode = opIdPair.key as Scalar | undefined;
           const posOpId = this.positionFromNode(opIdKeyNode);
-          if (posOpId) return posOpId;
+          if (posOpId) {
+            return posOpId;
+          }
         }
       }
     }
@@ -82,7 +92,9 @@ export class YamlLocMapper extends LocMapper {
 
   private getTopLevelMap(key: string): YAMLMap | null {
     const contents = this.doc.contents;
-    if (!isMap(contents)) return null;
+    if (!isMap(contents)) {
+      return null;
+    }
 
     for (const p of contents.items as Pair[]) {
       const k = (p.key as Scalar | undefined)?.value;
@@ -100,9 +112,13 @@ export class YamlLocMapper extends LocMapper {
   ): Pair | null {
     for (const p of map.items as Pair[]) {
       const keyVal = (p.key as Scalar | undefined)?.value;
-      if (keyVal !== propName) continue;
+      if (keyVal !== propName) {
+        continue;
+      }
 
-      if (expectedValue === undefined) return p;
+      if (expectedValue === undefined) {
+        return p;
+      }
 
       const valNode = p.value as Scalar | undefined;
       const valStr = valNode?.value;
@@ -114,11 +130,15 @@ export class YamlLocMapper extends LocMapper {
   }
 
   private positionFromNode(node?: Node | null): ThymianFormatPosition | null {
-    if (!node || !Array.isArray((node as any).range)) return null;
+    if (!node || !Array.isArray((node as any).range)) {
+      return null;
+    }
 
     const [start] = (node as any).range as [number, number, number?];
 
-    if (typeof start !== 'number') return null;
+    if (typeof start !== 'number') {
+      return null;
+    }
 
     const { line, col } = this.lineCounter.linePos(start);
     return { line, column: col, offset: start };

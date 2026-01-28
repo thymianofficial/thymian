@@ -1,7 +1,11 @@
-# rfc-9110-rules
+# Thymian
 
-This library was generated with [Nx](https://nx.dev).
+Add resilience and HTTP conformance to your API development workflow. Thymian is a lightweight, language-agnostic library that helps you build robust APIs.
 
-## Building
+## @thymian/rfc-9110-rules
 
-Run `nx build rfc-9110-rules` to build the library.
+Reusable HTTP rules based on RFC 9110.
+
+## Documentation
+
+For comprehensive documentation, visit [Thymian Documentation](https://thymian.dev/).

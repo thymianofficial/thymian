@@ -16,10 +16,14 @@ export class JsonLocMapper extends LocMapper {
   public positionForOperationId(
     operationId: string,
   ): ThymianFormatPosition | undefined {
-    if (!this.root) return undefined;
+    if (!this.root) {
+      return undefined;
+    }
 
     const opIdProp = this.findOperationIdProperty(this.root, operationId);
-    if (!opIdProp) return undefined;
+    if (!opIdProp) {
+      return undefined;
+    }
 
     const operationObject = opIdProp.parent;
     const methodProp = operationObject?.parent;
@@ -56,7 +60,9 @@ export class JsonLocMapper extends LocMapper {
           }
         }
       }
-      if (cur.children) stack.push(...cur.children);
+      if (cur.children) {
+        stack.push(...cur.children);
+      }
     }
     return undefined;
   }
@@ -75,9 +81,11 @@ export class JsonLocMapper extends LocMapper {
         mid + 1 < this.lineStarts.length
           ? this.lineStarts[mid + 1]!
           : this.text.length + 1!;
-      if (offset < start) high = mid - 1;
-      else if (offset >= nextStart) low = mid + 1;
-      else {
+      if (offset < start) {
+        high = mid - 1;
+      } else if (offset >= nextStart) {
+        low = mid + 1;
+      } else {
         const line = mid + 1;
         const column = offset - start + 1;
         return { line, column, offset };
@@ -91,7 +99,9 @@ export class JsonLocMapper extends LocMapper {
     for (let i = 0; i < s.length; i++) {
       const ch = s.charCodeAt(i);
       if (ch === 13) {
-        if (i + 1 < s.length && s.charCodeAt(i + 1) === 10) i++;
+        if (i + 1 < s.length && s.charCodeAt(i + 1) === 10) {
+          i++;
+        }
         starts.push(i + 1);
       } else if (ch === 10) {
         starts.push(i + 1);

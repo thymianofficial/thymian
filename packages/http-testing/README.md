@@ -1,9 +1,13 @@
-# @thymian/http-testing
+# Thymian
+
+Add resilience and HTTP conformance to your API development workflow. Thymian is a lightweight, language-agnostic library that helps you build robust APIs.
+
+## @thymian/http-testing
 
 `@thymian/http-testing` is a HTTP testing library which proposes a new testing approach. Instead of writing tests
 for each of your HTTP-based APIs, define them once and run it against all your APIs.
 
-## The fundamental concept of API-unspecific tests
+### The fundamental concept of API-unspecific tests
 
 If you normally write End-to-end (E2E) tests for your HTTP API, it looks something like this:
 
@@ -53,7 +57,7 @@ httpTest('every GET response should contain a Cache-Control header', (transactio
 
 As you can see the test definition does not include any path oder API specific information.
 
-## How does this work?
+### How does this work?
 
 To say it in the most complicated way: With `@thymian/http-testing` you won't define your tests imperatively but
 declaratively. You don't describe **how** to call and test HTTP API endpoints but sets of endpoints end their expected properties.
@@ -66,8 +70,14 @@ you are totally free to do whatever you want in this pipeline, the result of it 
 or failed test cases. To define and run these test cases `@thymian/http-testing` provides a number of operators
 additional to the built-in ones from RxJS itself.
 
+```
     +-------------------+     +------+             +------+     +------------+
     | HTTP Transactions | --> | Step | --> ... --> | Step | --> | Test Cases |
     +-------------------+     +------+             +------+     +------------+
+```
 
 To align with the approach of RxJS, the list of HTTP transactions is an [Observable](https://rxjs.dev/guide/observable).
+
+## Documentation
+
+For comprehensive documentation, visit [Thymian Documentation](https://thymian.dev/).

@@ -35,7 +35,9 @@ export function isRecord(
 }
 
 export function matchObjects(source: unknown, target: unknown): boolean {
-  if (!isRecord(source) || !isRecord(target)) return false;
+  if (!isRecord(source) || !isRecord(target)) {
+    return false;
+  }
 
   return Object.entries(target)
     .filter(([, value]) => Boolean(value))

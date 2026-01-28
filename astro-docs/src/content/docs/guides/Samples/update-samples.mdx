@@ -1,0 +1,95 @@
+---
+title: How to update outdated Samples
+description: Thymian reports that your samples are outdated and based on an old version of your API specification.
+---
+
+import { Aside } from '@astrojs/starlight/components';
+
+<Aside type="danger" title="Problem">
+  Thymian reports that your samples are outdated and based on an old version of your API specification.
+</Aside>
+
+Error Message:
+
+```
+Cannot sample for transaction "GET /api/v1/launches -> 200",
+because it based on version "abc123" but the loaded samples
+are based on version "def456".
+```
+
+## Why This Happens
+
+Samples become outdated when you modify your OpenAPI specification:
+
+- Adding or removing endpoints
+- Changing request/response schemas
+- Modifying path parameters or query parameters
+- Updating response status codes
+
+The sampler tracks the specification version and detects mismatches to ensure test reliability.
+
+## Solution: Regenerate Samples
+
+### Step 1: Review Your Changes
+
+Before regenerating, understand what changed in your API.Review endpoints, schemas, and contracts that were modified.
+
+### Step 2: Regenerate Samples
+
+Run the init command with the `--overwrite` flag:
+
+```bash
+thymian sampler:init --overwrite
+```
+
+This will:
+- Generate new sample data based on the updated specification
+- Overwrite `request.json` files with new sample values
+- Update the version hash in `meta.json`
+- Regenerate TypeScript types in `types.d.ts`
+- Leaves hook files untouched
+
+### Step 3: Review Generated Samples
+
+Check the regenerated samples to ensure they match your expectations and inspect critical `request.json` files to verify the generated data is appropriate.
+
+### Step 4: Customize Samples (If Needed)
+
+If the auto-generated samples don't fit your needs, customize them manually:
+
+```json
+{
+  "body": {
+    "missionName": "Apollo 11",
+    "launchDate": "2026-07-20T20:17:00Z",
+    "rocketType": "Saturn V"
+  }
+}
+```
+
+See [How to Customize Request Data](customize-request-data.md) for details.
+
+### Step 5: Update Hooks (If Necessary)
+
+If your API changes affect authentication or data dependencies, update your hooks. Verify that hooks still work with the new API structure.
+
+### Step 6: Run Tests
+
+Verify everything works:
+
+```bash
+thymian format:check
+```
+
+
+
+## Understanding the Version Hash
+
+The version hash is calculated from:
+
+- All endpoint definitions (paths, methods, status codes)
+- Request and response schemas
+- Security requirements
+- Server URLs
+
+<Aside type="note">Also, description or examples changes in your OpenAPI spec can trigger a version change.</Aside>

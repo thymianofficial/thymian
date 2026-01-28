@@ -15,7 +15,9 @@ export function compileResponseScopedToResponseChecker(
     case 'hasResponseBody':
       return expression.hasBody === !!response.body;
     case 'responseHeader': {
-      if (typeof expression.header === 'undefined') return true;
+      if (typeof expression.header === 'undefined') {
+        return true;
+      }
 
       return expression.value
         ? getHeader(response.headers, expression.header) === expression.value

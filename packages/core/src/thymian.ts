@@ -77,12 +77,15 @@ export class Thymian {
     plugin: ThymianPlugin<T>,
     options?: T,
   ): this {
-    if (!semver.satisfies(Thymian.VERSION, plugin.version)) {
+    // we only consider stable versions for compatibility checks, so that pre-releases
+    // like 1.0.0-beta.1 are also compatible with 1.0.0
+    const thymianStableVersion = Thymian.VERSION.replace(/-.*$/, '');
+    if (!semver.satisfies(thymianStableVersion, plugin.version)) {
       throw new PluginRegistrationError(
-        `@thymian/core version ${Thymian.VERSION} does not match plugin version constraints ${plugin.version} from plugin "${plugin.name}".`,
+        `@thymian/core version ${thymianStableVersion} does not match plugin version constraints ${plugin.version} from plugin "${plugin.name}".`,
         {
           suggestions: [
-            `Install the matching plugin version for thymian version ${Thymian.VERSION}.`,
+            `Install the matching plugin version for thymian version ${thymianStableVersion}.`,
           ],
         },
       );

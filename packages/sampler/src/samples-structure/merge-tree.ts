@@ -10,12 +10,13 @@ import {
 } from './samples-tree-structure.js';
 
 export function mergeHooks(a: Hooks | undefined, b: Hooks | undefined): Hooks {
-  if (!a && !b)
+  if (!a && !b) {
     return {
       afterEachResponse: [],
       beforeEachRequest: [],
       authorize: [],
     };
+  }
 
   return {
     beforeEachRequest: [

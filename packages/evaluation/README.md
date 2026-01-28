@@ -1,7 +1,11 @@
-# evaluation
+# Thymian
 
-This library was generated with [Nx](https://nx.dev).
+Add resilience and HTTP conformance to your API development workflow. Thymian is a lightweight, language-agnostic library that helps you build robust APIs.
 
-## Building
+## @thymian/evaluation
 
-Run `nx build evaluation` to build the library.
+Framework for evaluating API quality and conformance.
+
+## Documentation
+
+For comprehensive documentation, visit [Thymian Documentation](https://thymian.dev/).

@@ -22,7 +22,9 @@ export function compileResponseScopedExpressionToTransactionValidationFn(
           expression.mediaType,
         );
     case 'responseTrailer':
-      if (typeof expression.trailer === 'undefined') return () => true;
+      if (typeof expression.trailer === 'undefined') {
+        return () => true;
+      }
 
       return (transaction) => {
         if (expression.value) {
@@ -42,7 +44,9 @@ export function compileResponseScopedExpressionToTransactionValidationFn(
     case 'hasResponseBody':
       return (transaction) => assert.ok(transaction.response?.body);
     case 'responseHeader': {
-      if (typeof expression.header === 'undefined') return () => true;
+      if (typeof expression.header === 'undefined') {
+        return () => true;
+      }
 
       return (transaction) =>
         assert.ok(

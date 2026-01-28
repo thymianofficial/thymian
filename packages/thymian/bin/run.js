@@ -4,13 +4,15 @@ import path from 'node:path';
 
 import { getPluginNames, oclif } from '@thymian/cli-common';
 
+const dirname = import.meta.dirname;
+
 const thymianPath = import.meta.url.includes('node_modules')
-  ? path.join(process.cwd(), 'node_modules', 'thymian')
-  : import.meta.url;
+  ? path.join(dirname, 'node_modules', '@thymian', 'cli')
+  : path.join(dirname, '..');
 
 const pluginsPath = import.meta.url.includes('node_modules')
   ? thymianPath
-  : process.cwd();
+  : path.join(dirname, '..');
 
 await oclif.execute({
   dir: thymianPath,

@@ -31,7 +31,9 @@ export default fp(async (fastify: FastifyInstance) => {
     },
     deleteById: (id) => {
       const index = projects.findIndex((p) => p.id === id);
-      if (index === -1) return false;
+      if (index === -1) {
+        return false;
+      }
       projects.splice(index, 1);
       return true;
     },

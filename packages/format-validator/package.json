@@ -1,6 +1,9 @@
 {
   "name": "@thymian/format-validator",
-  "version": "0.0.1",
+  "version": "0.0.0-PLACEHOLDER",
+  "publishConfig": {
+    "access": "restricted"
+  },
   "main": "./dist/index.js",
   "module": "./dist/index.js",
   "types": "./dist/index.d.ts",
@@ -18,11 +21,11 @@
     "!**/*.tsbuildinfo"
   ],
   "dependencies": {
-    "@thymian/cli-common": "0.0.1",
-    "@thymian/core": "0.0.1",
-    "@thymian/http-testing": "0.0.1",
-    "@thymian/request-dispatcher": "0.0.1",
-    "@thymian/sampler": "0.0.1"
+    "@thymian/cli-common": "0.0.0-PLACEHOLDER",
+    "@thymian/core": "0.0.0-PLACEHOLDER",
+    "@thymian/http-testing": "0.0.0-PLACEHOLDER",
+    "@thymian/request-dispatcher": "0.0.0-PLACEHOLDER",
+    "@thymian/sampler": "0.0.0-PLACEHOLDER"
   },
   "oclif": {
     "commands": "./dist/cli/commands",

@@ -132,7 +132,9 @@ export function responseScopeHttpFilterToTransactionFilter(
         res: ThymianHttpResponse,
       ) => !!res.schema;
     case 'responseHeader': {
-      if (typeof expression.header === 'undefined') return () => false;
+      if (typeof expression.header === 'undefined') {
+        return () => false;
+      }
 
       return (
         req: ThymianHttpRequest,
@@ -174,21 +176,27 @@ export function requestScopedHttpFilterToTransactionFilter(
       return (req: ThymianHttpRequest) =>
         req.mediaType === filterExpression.mediaType;
     case 'method': {
-      if (typeof filterExpression.method === 'undefined') return () => false;
+      if (typeof filterExpression.method === 'undefined') {
+        return () => false;
+      }
 
       return (req: ThymianHttpRequest) =>
         // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
         equalsIgnoreCase(req.method, filterExpression.method!);
     }
     case 'requestHeader': {
-      if (typeof filterExpression.header === 'undefined') return () => false;
+      if (typeof filterExpression.header === 'undefined') {
+        return () => false;
+      }
 
       return (req: ThymianHttpRequest) =>
         // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
         equalsIgnoreCase(filterExpression.header!, ...Object.keys(req.headers));
     }
     case 'queryParam': {
-      if (typeof filterExpression.param === 'undefined') return () => false;
+      if (typeof filterExpression.param === 'undefined') {
+        return () => false;
+      }
 
       return (req: ThymianHttpRequest) =>
         equalsIgnoreCase(

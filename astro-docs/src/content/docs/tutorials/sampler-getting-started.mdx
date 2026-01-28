@@ -1,0 +1,502 @@
+---
+title: Initializing your Request Samples
+description: Getting started tutorial for @thymian/sampler
+---
+
+import { Tabs, TabItem, FileTree } from '@astrojs/starlight/components';
+
+This tutorial walks you through the complete workflow of using the sampler plugin, from installation to running tests with hooks.
+
+## What You'll Learn
+
+By the end of this tutorial, you'll be able to:
+
+- Install and configure the sampler plugin
+- Generate sample request data from your OpenAPI specification
+- Customize request samples
+- Create hooks to add authentication and prepare test data
+- Run tests against your API
+
+
+
+## Prerequisites
+
+- Node.js 20+ installed
+- A working API implementation
+- An OpenAPI 3.x specification for your API
+- Thymian installed in your project
+
+
+
+## Tutorial Setup
+
+This tutorial uses the [Space Launch System API](https://github.com/thymianofficial/thymian-getting-started) as an example. The API manages rocket launches and astronauts with Basic Authentication.
+
+You can follow along with any API that has an OpenAPI specification.
+
+
+
+## Step 1: Install Thymian and Set Up Your API
+
+
+Navigate to your project directory (where your API implementation lives):
+
+Space Launch System API:
+
+<Tabs>
+
+  <TabItem label="Fastify">
+    ```bash
+    cd implementations/node/fastify
+    ```
+
+    Install Thymian, if not done already:
+
+    ```bash
+    npm install -D thymian
+    ```
+    And set up your API. For the Space Launch System API implemented with Fastify, run:
+
+    ```bash
+    npm i
+    ```
+
+    to install all dependencies and then
+
+    ```bash
+    npm run dev
+    ```
+
+    to start the API server.
+
+  </TabItem>
+
+</Tabs>
+
+
+
+## Step 2: Create a Thymian Configuration File
+
+Create `thymian.config.yaml` in your project root:
+
+```yaml
+plugins:
+  "@thymian/openapi":
+    options:
+      descriptions:
+        - source: ../../../openapi.yaml
+  "@thymian/request-dispatcher": {}
+  "@thymian/sampler":
+    options:
+      path: '.thymian/samples' # Directory where samples are generated
+  "@thymian/reporter":
+    options:
+      formatters:
+        cli: {}
+  "@thymian/format-validator": {}
+```
+
+Adjust the `source` path to point to your OpenAPI specification file.
+
+
+
+## Step 3: Generate Initial Samples
+
+Run the sampler initialization command:
+
+```bash
+thymian sampler:init --no-check
+```
+
+This command:
+- Analyzes your OpenAPI specification
+- Creates a directory structure mirroring your API
+- Generates sample `request.json` files for each endpoint
+- Creates TypeScript type definitions in `types.d.ts`
+- Sets up a `tsconfig.json` for hook development
+
+**Output structure:**
+
+<FileTree>
+
+- .thymian/samples/
+  - types.d.ts # Generated TypeScript types
+  - tsconfig.json # TypeScript configuration
+  - meta.json # Metadata about generated samples
+  - Space_Launch_System_API/ # Your API source
+    - localhost/
+      - 3000/
+        - api/
+          - v1/
+            - launches/
+              - @GET/
+                - 200/
+                  - application__json/
+                    - request.json
+              - @POST/
+                - application__json/
+                  - 201/
+                    - application__json/
+                      - request.json
+            - astronauts/
+              - ...
+
+</FileTree>
+
+
+
+## Step 4: Inspect Generated Samples
+
+Look at a generated sample file:
+
+```bash
+ cat .thymian/samples/Space_Launch_System_API/localhost/3000/api/v1/launches/@POST/application__json/201/application__json/requests/0-request.json
+ ```
+
+You'll see auto-generated sample data:
+
+```json
+{
+  "origin": "http://localhost:3000",
+  "path": "/api/v1/launches",
+  "method": "post",
+  "authorize": true,
+  "headers": {
+    "content-type": "application/json",
+    "accept": "application/json"
+  },
+  "cookies": {},
+  "pathParameters": {},
+  "query": {},
+  "body": {
+    "missionName": "Artemis II",
+    "launchDate": "2019-08-24T14:15:22Z",
+    "rocketType": "Falcon9",
+    "isManned": false,
+    "crewIds": [
+      0
+    ]
+  }
+}
+```
+
+
+
+## Step 5: Customize Sample Data (Optional)
+
+While auto-generated samples work, you may want more realistic data. To edit the request data just edit the corresponding `request.json` file.
+The Space Launch System API provides examples in the OpenAPI spec, so the generated samples are already quite good.
+
+
+
+## Step 6: Run Checks Without Authentication
+
+Before adding authentication, let's verify the basic setup works.
+
+Start your API server if not already running. For the Space Launch System API, run:
+
+<Tabs>
+
+  <TabItem label="Fastify">
+    ```bash
+    npm run dev
+    ```
+  </TabItem>
+
+</Tabs>
+
+In another terminal, run Thymian:
+
+```bash
+thymian format:check
+```
+
+**Expected result:** Most tests will fail because of a `401 Unauthorized` response because the API requires authentication.
+
+```
+✖ GET /api/v1/launches → 200 OK - application/json
+✖ POST /api/v1/launches - application/json → 201 CREATED - application/json
+✖ GET /api/v1/launches/{id} → 200 OK - application/json
+✖ GET /api/v1/launches/{id} → 404 NOT FOUND
+✖ PUT /api/v1/launches/{id} - application/json → 200 OK - application/json
+✖ DELETE /api/v1/launches/{id} → 204 NO CONTENT
+✖ DELETE /api/v1/launches/{id} → 404 NOT FOUND
+✖ GET /api/v1/astronauts → 200 OK - application/json
+✔ POST /api/v1/astronauts - application/json → 201 CREATED - application/json
+✖ GET /api/v1/astronauts/{id} → 200 OK - application/json
+✖ GET /api/v1/astronauts/{id} → 404 NOT FOUND
+✖ PUT /api/v1/astronauts/{id} - application/json → 200 OK - application/json
+✖ DELETE /api/v1/astronauts/{id} → 204 NO CONTENT
+✖ DELETE /api/v1/astronauts/{id} → 404 NOT FOUND
+
+Checked 14 transactions. 13 failed.
+```
+
+
+
+## Step 7: Create an Authorization Hook
+
+Generate an authorize hook:
+
+```bash
+touch .thymian/samples/Space_Launch_System_API/basic.authorize.ts
+```
+
+Then we implement the hook:
+
+```typescript
+import { AuthorizeHook } from '@thymian/hooks';
+
+const hook: AuthorizeHook = async (request, context, utils) => {
+  // if a new austronaut is being created, skip authentication
+  if (context.thymianReq.path === '/api/v1/austronauts' && context.thymianReq.method === 'POST') {
+    return request;
+  }
+
+  // Generate unique credentials
+  const username = utils.randomString(10);
+  const password = utils.randomString(12);
+
+  // Create a test user
+  const response = await utils.request('POST http://localhost:3000/api/v1/astronauts', {
+    body: {
+      name: username,
+      password: password,
+      role: 'Commander'
+    },
+    headers: {
+      'content-type': 'application/json'
+    }
+  }, {
+    runHooks: false  // Important: Prevent infinite loop
+  });
+
+  // Handle creation failure
+  if (response.statusCode !== 201) {
+    utils.skip('Cannot create user for authentication');
+  }
+
+  // Add Basic Authentication header
+  const credentials = Buffer.from(`${username}:${password}`).toString('base64');
+  request.headers.authorization = `Basic ${credentials}`;
+
+  utils.info(`User created: ${username}`);
+
+  return request;
+};
+
+export default hook;
+```
+
+
+
+## Step 8: Run Checks With Authentication
+
+Run tests again:
+
+```bash
+thymian format:check
+```
+
+We should now see that most requests can be run. The only ones that fail requests that depend on a valid and existing
+`id` for a resource.
+
+```
+✔ GET /api/v1/launches → 200 OK - application/json
+✔ POST /api/v1/launches - application/json → 201 CREATED - application/json
+✖ GET /api/v1/launches/{id} → 200 OK - application/json                      <-- Missing ID
+✔ GET /api/v1/launches/{id} → 404 NOT FOUND
+✔ PUT /api/v1/launches/{id} - application/json → 200 OK - application/json
+✖ DELETE /api/v1/launches/{id} → 204 NO CONTENT                              <-- Missing ID
+✔ DELETE /api/v1/launches/{id} → 404 NOT FOUND
+✔ GET /api/v1/astronauts → 200 OK - application/json
+✔ POST /api/v1/astronauts - application/json → 201 CREATED - application/json
+✖ GET /api/v1/astronauts/{id} → 200 OK - application/json                    <-- Missing ID
+✔ GET /api/v1/astronauts/{id} → 404 NOT FOUND
+✔ PUT /api/v1/astronauts/{id} - application/json → 200 OK - application/json
+✖ DELETE /api/v1/astronauts/{id} → 204 NO CONTENT                            <-- Missing ID
+✔ DELETE /api/v1/astronauts/{id} → 404 NOT FOUND
+
+Checked 14 transactions. 4 failed.
+```
+
+
+
+## Step 9: Handle Resource Dependencies
+
+Some endpoints require existing resources. For example, `GET /launches/{id}` and `DELETE /launches/{id}` needs a launch to exist.
+
+Generate a beforeEach hook for the `[id]` path:
+
+```bash
+touch .thymian/samples/Space_Launch_System_API/localhost/3000/api/v1/launches/[id]/create-launch.beforeEach.ts
+```
+
+Edit the hook:
+
+```typescript
+import { BeforeEachRequestHook } from '@thymian/hooks';
+
+const hook: BeforeEachRequestHook = async (request, context, utils) => {
+  // Skip for 404 tests (where we test missing resources)
+  if (context.thymianRes.statusCode === 404) {
+    return request;
+  }
+
+  // Create a launch
+  const response = await utils.request('POST http://localhost:3000/api/v1/launches', {
+    body: {
+      missionName: utils.randomString(10),
+      launchDate: '2026-12-31T00:00:00Z',
+      rocketType: 'Falcon9'
+    },
+    headers: {
+      'content-type': 'application/json'
+    }
+  });
+
+  // Fail if creation didn't work
+  if (response.statusCode !== 201) {
+    utils.fail(`Failed to create launch: ${response.statusCode}`);
+  }
+
+  // Use the created launch ID
+  request.pathParameters.id = response.body.id;
+
+  utils.info(`Created launch ${response.body.id} for test`);
+
+  return request;
+};
+
+export default hook;
+```
+
+
+
+## Step 10: Run Complete Test Suite
+
+Run the checks again:
+
+```bash
+thymian format:check
+```
+
+**Expected result:**
+
+```
+✔ GET /api/v1/launches → 200 OK - application/json
+✔ POST /api/v1/launches - application/json → 201 CREATED - application/json
+✔ GET /api/v1/launches/{id} → 200 OK - application/json
+✔ GET /api/v1/launches/{id} → 404 NOT FOUND
+✔ PUT /api/v1/launches/{id} - application/json → 200 OK - application/json
+✔ DELETE /api/v1/launches/{id} → 204 NO CONTENT
+✔ DELETE /api/v1/launches/{id} → 404 NOT FOUND
+✔ GET /api/v1/astronauts → 200 OK - application/json
+✔ POST /api/v1/astronauts - application/json → 201 CREATED - application/json
+✖ GET /api/v1/astronauts/{id} → 200 OK - application/json
+✔ GET /api/v1/astronauts/{id} → 404 NOT FOUND
+✔ PUT /api/v1/astronauts/{id} - application/json → 200 OK - application/json
+✖ DELETE /api/v1/astronauts/{id} → 204 NO CONTENT
+✔ DELETE /api/v1/astronauts/{id} → 404 NOT FOUND
+
+Checked 14 transactions. 2 failed.
+```
+
+As you can see, only the `/astronauts/{id}` endpoints are failing. Lets add a beforeEach hook for these endpoints:
+
+
+
+## Step 11: Handle Resource Dependencies - Part 2
+
+Generate a beforeEach hook for the `[id]` path:
+
+```bash
+touch .thymian/samples/Space_Launch_System_API/localhost/3000/api/v1/astronauts/[id]/create-astronaut.beforeEach.ts
+```
+
+Edit the hook:
+
+```typescript
+import { BeforeEachRequestHook } from '@thymian/hooks';
+
+const hook: BeforeEachRequestHook = async (request, context, utils) => {
+  // Skip for 404 tests (where we test missing resources)
+  if (context.thymianRes.statusCode === 404) {
+    return request;
+  }
+
+  // Create a launch
+  const response = await utils.request('POST http://localhost:3000/api/v1/astronauts', {
+    body: {
+      name: utils.randomString(10),
+      password: utils.randomString(12),
+      role: 'Commander'
+    },
+    headers: {
+      'content-type': 'application/json'
+    }
+  });
+
+  // Fail if creation didn't work
+  if (response.statusCode !== 201) {
+    utils.fail(`Failed to create launch: ${response.statusCode}`);
+  }
+
+  // Use the created launch ID
+  request.pathParameters.id = response.body.id;
+
+  utils.info(`Created astronaut ${response.body.id} for test`);
+
+  return request;
+};
+
+export default hook;
+```
+
+
+
+## Step 12: Run Final Check
+
+Run checks to see if all hooks are working.
+
+```bash
+thymian format:check
+```
+
+Now you should see that all transactions can be run:
+
+```
+✔ GET /api/v1/launches → 200 OK - application/json
+✔ POST /api/v1/launches - application/json → 201 CREATED - application/json
+✔ GET /api/v1/launches/{id} → 200 OK - application/json
+✔ GET /api/v1/launches/{id} → 404 NOT FOUND
+✔ PUT /api/v1/launches/{id} - application/json → 200 OK - application/json
+✔ DELETE /api/v1/launches/{id} → 204 NO CONTENT
+✔ DELETE /api/v1/launches/{id} → 404 NOT FOUND
+✔ GET /api/v1/astronauts → 200 OK - application/json
+✔ POST /api/v1/astronauts - application/json → 201 CREATED - application/json
+✔ GET /api/v1/astronauts/{id} → 200 OK - application/json
+✔ GET /api/v1/astronauts/{id} → 404 NOT FOUND
+✔ PUT /api/v1/astronauts/{id} - application/json → 200 OK - application/json
+✔ DELETE /api/v1/astronauts/{id} → 204 NO CONTENT
+✔ DELETE /api/v1/astronauts/{id} → 404 NOT FOUND
+
+Checked 14 transactions. 0 failed.
+```
+
+## Summary
+
+You've successfully:
+
+✔ Installed the sampler plugin
+
+✔ Generated sample request data from your OpenAPI specification
+
+✔ Customized request samples
+
+✔ Created an authorize hook to handle authentication
+
+✔ Created a beforeEach hook to set up test dependencies
+
+✔ Run transactions gainst your API
+

@@ -58,7 +58,9 @@ export class RequestSampler {
   }
 
   async init(samples?: SamplesStructure): Promise<void> {
-    if (this.initialized) return;
+    if (this.initialized) {
+      return;
+    }
 
     if (!(await entryExists(this.basePath))) {
       return;
