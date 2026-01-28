@@ -1,4 +1,4 @@
-import { equalsIgnoreCase, ThymianFormat } from '@thymian/core';
+import { equalsIgnoreCase } from '@thymian/core';
 import {
   and,
   constant,
@@ -31,10 +31,7 @@ export const representationHeaderFields = [
 export function checkHeaders(
   okResponseHeaders: string[],
   partialResponseHeaders: string[],
-  partialRequestId: string,
-  partialResponseId: string,
-  format: ThymianFormat,
-): RuleViolation | undefined {
+): Omit<RuleViolation, 'location'> | undefined {
   const requiredFields = requiredHeaders.filter((header) =>
     equalsIgnoreCase(header, ...okResponseHeaders),
   );
@@ -66,26 +63,12 @@ export function checkHeaders(
       return;
     }
 
-    const transactionEdge = format.graph.findEdge(
-      partialRequestId,
-      partialResponseId,
-      (_, attributes) => attributes.type === 'http-transaction',
-    );
-
-    if (!transactionEdge) {
-      return;
-    }
-
     return {
       message: `206 Partial Content response SHOULD NOT contain additional headers ${createList(
         additionalRepresentationHeaders,
       )} OR the 206 response MUST contain all representation headers, the 200 OK response also contains. Therefore the partial response is missing header(s): ${createList(
         difference,
       )}.`,
-      location: {
-        elementType: 'edge' as const,
-        elementId: transactionEdge,
-      },
     };
   }
 
@@ -113,23 +96,32 @@ export default httpRule(
           res.statusCode === 206) ||
         res.statusCode === 200,
        */
-      or(statusCode(200), and(statusCode(206), requestHeader('if-range'))),
+      or(
+        and(statusCode(200), responseWith(statusCode(206))),
+        and(statusCode(206), requestHeader('if-range')),
+      ),
       and(method(), origin(), path()),
       (_, transactions) => {
-        const okResponse = transactions.find(
-          ([, res]) => res.statusCode === 200,
-        )?.[1];
-        const [partialRequest, partialResponse] =
+        const [, okResponse] =
+          transactions.find(([, res]) => res.statusCode === 200) ?? [];
+        const [partialRequest, partialResponse, partialTransactionLocation] =
           transactions.find(([, res]) => res.statusCode === 206) ?? [];
 
-        if (okResponse && partialResponse && partialRequest) {
-          return checkHeaders(
+        if (
+          okResponse &&
+          partialResponse &&
+          partialRequest &&
+          partialTransactionLocation
+        ) {
+          const violation = checkHeaders(
             okResponse.headers,
             partialResponse.headers,
-            partialRequest.id,
-            partialResponse.id,
-            ctx.format,
           );
+
+          return {
+            ...violation,
+            location: partialTransactionLocation,
+          };
         }
 
         return;
@@ -166,13 +158,16 @@ export default httpRule(
           const violation = checkHeaders(
             Object.keys(okTransaction.response.headers),
             Object.keys(partialTransactions.response.headers),
-            partialTransactions.source.thymianReqId,
-            partialTransactions.source.thymianResId,
-            testContext.format,
           );
 
           if (violation) {
-            testContext.reportViolation(violation);
+            testContext.reportViolation({
+              message: violation.message,
+              location: {
+                elementType: 'edge',
+                elementId: partialTransactions.source.transactionId,
+              },
+            });
           }
         })
         .done(),

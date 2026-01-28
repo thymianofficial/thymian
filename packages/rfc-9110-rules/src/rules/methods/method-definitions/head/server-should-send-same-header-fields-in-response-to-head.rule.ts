@@ -19,26 +19,21 @@ export default httpRule(
       and(statusCode(200), or(method('GET'), method('HEAD'))),
       url(),
       (_, transactions) => {
-        const getTransaction = transactions.find(([req]) =>
-          equalsIgnoreCase(req.method, 'get'),
-        );
+        const [, getResponse, getLocation] =
+          transactions.find(([req]) => equalsIgnoreCase(req.method, 'get')) ??
+          [];
 
-        const headTransaction = transactions.find(([req]) =>
-          equalsIgnoreCase(req.method, 'head'),
-        );
+        const [, headResponse, headLocation] =
+          transactions.find(([req]) => equalsIgnoreCase(req.method, 'head')) ??
+          [];
 
-        if (
-          !getTransaction ||
-          !headTransaction ||
-          !getTransaction[1] ||
-          !headTransaction[1]
-        ) {
+        if (!getResponse || !headResponse || !getLocation || !headLocation) {
           return undefined;
         }
 
         const difference = arrayDifference(
-          getTransaction[1].headers,
-          headTransaction[1].headers,
+          getResponse.headers,
+          headResponse.headers,
         );
 
         if (difference.length === 0) {
@@ -46,10 +41,7 @@ export default httpRule(
         }
 
         return {
-          location: {
-            elementId: headTransaction[1].id,
-            elementType: 'node',
-          },
+          location: headLocation,
           message: `Response to HEAD request is missing headers: ${createList(
             difference,
           )}`,

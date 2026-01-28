@@ -1,4 +1,4 @@
-import { equalsIgnoreCase } from '@thymian/core';
+import { equalsIgnoreCase, url } from '@thymian/core';
 import {
   and,
   method,
@@ -28,8 +28,7 @@ export const requiredHeadersFor304 = [
 export function checkHeaders(
   okResponseHeaders: string[],
   notModifiedHeaders: string[],
-  transactionId: string,
-): RuleViolation | undefined {
+): Omit<RuleViolation, 'location'> | undefined {
   const missingHeaders = requiredHeadersFor304.filter(
     (header) =>
       equalsIgnoreCase(header, ...okResponseHeaders) &&
@@ -41,10 +40,6 @@ export function checkHeaders(
       message: `304 Not Modified response MUST include headers ${createList(
         missingHeaders,
       )} because these were included in the corresponding 200 OK response.`,
-      location: {
-        elementType: 'edge',
-        elementId: transactionId,
-      },
     };
   }
 
@@ -67,27 +62,30 @@ export default httpRule(
         or(method('GET'), method('HEAD')),
         or(statusCode(304), statusCode(200)),
       ),
-      and(method(), origin(), path()),
+      url(),
       (_, transactions) => {
-        const okResponse = transactions.find(
-          ([, res]) => res.statusCode === 200,
-        )?.[1];
-        const [notModifiedRequest, notModifiedResponse] =
+        const [okResponse] =
+          transactions.find(([, res]) => res.statusCode === 200) ?? [];
+
+        const [notModifiedRequest, notModifiedResponse, notModifiedLocation] =
           transactions.find(([, res]) => res.statusCode === 304) ?? [];
 
-        if (okResponse && notModifiedRequest && notModifiedResponse) {
-          const transactionId = ctx.format.graph.findEdge(
-            notModifiedRequest.id,
-            notModifiedResponse.id,
-            (_, edge) => edge.type === 'http-transaction',
+        if (
+          okResponse &&
+          notModifiedRequest &&
+          notModifiedResponse &&
+          notModifiedLocation
+        ) {
+          const violation = checkHeaders(
+            okResponse.headers,
+            notModifiedResponse.headers,
           );
 
-          if (transactionId) {
-            return checkHeaders(
-              okResponse.headers,
-              notModifiedResponse.headers,
-              transactionId,
-            );
+          if (violation) {
+            return {
+              ...violation,
+              location: notModifiedLocation,
+            };
           }
         }
 
@@ -122,11 +120,16 @@ export default httpRule(
           const violation = checkHeaders(
             Object.keys(okTransaction.response.headers ?? {}),
             Object.keys(notModifiedTransaction.response.headers ?? {}),
-            notModifiedTransaction.source.transactionId,
           );
 
           if (violation) {
-            testContext.reportViolation(violation);
+            testContext.reportViolation({
+              ...violation,
+              location: {
+                elementType: 'edge',
+                elementId: notModifiedTransaction.source.transactionId,
+              },
+            });
           }
         })
         .done(),
