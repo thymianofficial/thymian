@@ -1,7 +1,4 @@
-import assert from 'node:assert';
-
 import {
-  getHeader,
   type HttpFilterExpression,
   type HttpRequest,
   type HttpResponse,
@@ -22,76 +19,25 @@ import {
   type HttpTestPipeline,
   type HttpTestResult,
   mapToGroupedTestCase,
-  mapToTestCase,
   runRequests,
+  singleTestCase,
 } from '@thymian/http-testing';
 
-import type { RuleFnResult } from '../../rule/rule-fn.js';
+import type { RuleFnResult } from '../rule/rule-fn.js';
 import type {
   RuleViolation,
   RuleViolationLocation,
-} from '../../rule/rule-violation.js';
+} from '../rule/rule-violation.js';
+import type { ValidationFn } from './api-context.js';
+import type { CommonHttpRequest, CommonHttpResponse } from './common-types.js';
+import { LiveApiContext } from './live-api-context.js';
 import {
-  type CommonHttpRequest,
-  type CommonHttpResponse,
-  LiveApiContext,
-  type ValidationFn,
-} from '../api-context.js';
-import {
-  compileExpressionToFilterFn,
-  compileExpressionToGroupByFn,
-  compileExpressionToValidateFn,
-  thymianToCommonHttpRequest,
-  thymianToCommonHttpResponse,
-} from '../utils.js';
-import { httpFilterToTransactionValidationFn } from './compilers/http-filter-to-transaction-validation-fn.js';
-
-function extractMediaType(req: HttpRequest): string {
-  if (!req.headers) {
-    return '';
-  }
-
-  const ct = getHeader(req.headers, 'content-type');
-
-  if (Array.isArray(ct)) {
-    throw new Error('Content-type is a single valued field.');
-  }
-
-  return ct ?? '';
-}
-
-export function httpRequestToCommonHttpRequest(
-  source: string,
-  request: HttpRequest,
-): CommonHttpRequest {
-  return {
-    id: source,
-    origin: request.origin,
-    path: request.path,
-    method: request.method,
-    headers: Object.keys(request.headers ?? {}),
-    queryParameters: Array.from(
-      new URLSearchParams(request.path.split('?')[1] ?? '').keys(),
-    ),
-    cookies: [],
-    mediaType: extractMediaType(request),
-    body: !!request.body,
-  };
-}
-
-export function httpResponseToCommonHttpResponse(
-  source: string,
-  response: HttpResponse,
-): CommonHttpResponse {
-  return {
-    body: !!response.body,
-    headers: Object.keys(response.headers),
-    id: source,
-    mediaType: getHeader(response.headers, 'content-type')?.at(0) ?? '',
-    statusCode: response.statusCode,
-    trailers: Object.keys(response.trailers),
-  };
-}
+  httpRequestToCommonHttpRequest,
+  httpResponseToCommonHttpResponse,
+} from './utils/http-to-common.js';
+import { httpFilterExpressionToFilter } from './visitors/http-filter-expression-to-filter.js';
+import { httpFilterToGroupByFn } from './visitors/http-filter-to-static-by-fn.js';
+import { httpFilterToTransactionValidationFn } from './visitors/http-filter-to-transaction-validation-fn.js';
 
 function hasSource(
   transaction: HttpTestCaseStepTransaction,
@@ -122,44 +68,20 @@ export class HttpTestApiContext<
     filterExpr: HttpFilterExpression,
     groupByExpression: HttpFilterExpression,
     validationFn: ValidationFn<
-      [string, [CommonHttpRequest, CommonHttpResponse][]],
+      [
+        string,
+        [CommonHttpRequest, CommonHttpResponse, RuleViolationLocation][],
+      ],
       RuleViolation | undefined
     >,
   ): Promise<RuleFnResult> {
-    const filterFn = compileExpressionToFilterFn(filterExpr, this.format);
-    const groupByFn = compileExpressionToGroupByFn(
-      groupByExpression,
-      this.format,
-    );
+    const filterFn = httpFilterExpressionToFilter(filterExpr);
+    const groupByFn = httpFilterToGroupByFn(groupByExpression);
 
     const test = httpTest(this.name, (test) =>
       test.pipe(
-        filter(({ current }) =>
-          filterFn(
-            thymianToCommonHttpRequest(
-              current.thymianReqId,
-              current.thymianReq,
-            ),
-            thymianToCommonHttpResponse(
-              current.thymianResId,
-              current.thymianRes,
-            ),
-            this.getCommonHttpResponsesOfRequest(current.thymianReqId),
-            current.transactionId,
-          ),
-        ),
-        groupBy(({ current }) =>
-          groupByFn(
-            thymianToCommonHttpRequest(
-              current.thymianReqId,
-              current.thymianReq,
-            ),
-            thymianToCommonHttpResponse(
-              current.thymianResId,
-              current.thymianRes,
-            ),
-          ),
-        ),
+        filter(({ current, ctx }) => filterFn(current, ctx.format)),
+        groupBy(({ current, ctx }) => groupByFn(current, ctx.format)),
         mapToGroupedTestCase(),
         generateRequests(),
         runRequests(),
@@ -176,24 +98,30 @@ export class HttpTestApiContext<
         const testCase = value as HttpTestCase<[GroupedHttpTestCaseStep]>;
         const { source, transactions } = testCase.steps[0];
 
-        const transactionToValidate = transactions
+        const transactionsToValidate = transactions
           .filter(hasSource)
-          .map<[CommonHttpRequest, CommonHttpResponse]>((transaction) => [
+          .map<
+            [CommonHttpRequest, CommonHttpResponse, RuleViolationLocation]
+          >((transaction) => [
             httpRequestToCommonHttpRequest(
-              transaction.source.thymianReqId,
               // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
               transaction.request!,
+              transaction.source.thymianReqId,
             ),
             httpResponseToCommonHttpResponse(
-              transaction.source.thymianResId,
               // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
               transaction.response!,
+              transaction.source.thymianResId,
             ),
+            {
+              elementId: transaction.source.transactionId,
+              elementType: 'edge',
+            },
           ]);
 
         const validationResult = validationFn(
           source.key,
-          transactionToValidate,
+          transactionsToValidate,
         );
 
         if (validationResult) {
@@ -208,35 +136,14 @@ export class HttpTestApiContext<
   async validateCommonHttpTransactions(
     filterExpr: HttpFilterExpression,
     validate:
-      | ValidationFn<[CommonHttpRequest, CommonHttpResponse, string]>
+      | ValidationFn<
+          [CommonHttpRequest, CommonHttpResponse, RuleViolationLocation]
+        >
       | HttpFilterExpression = filterExpr,
   ): Promise<RuleFnResult> {
-    const filterFn = compileExpressionToFilterFn(filterExpr, this.format);
-    const validationFn =
-      typeof validate === 'function'
-        ? validate
-        : compileExpressionToValidateFn(validate, this.format);
-
-    const test = httpTest(this.name, (transactions) =>
-      transactions.pipe(
-        filter(({ current }) =>
-          filterFn(
-            thymianToCommonHttpRequest(
-              current.thymianReqId,
-              current.thymianReq,
-            ),
-            thymianToCommonHttpResponse(
-              current.thymianResId,
-              current.thymianRes,
-            ),
-            this.getCommonHttpResponsesOfRequest(current.thymianReqId),
-            current.transactionId,
-          ),
-        ),
-        mapToTestCase(),
-        generateRequests(),
-        runRequests(),
-      ),
+    const test = httpTest(
+      this.name,
+      singleTestCase().forTransactionsWith(filterExpr).run().done(),
     );
 
     const testResult = await test(this.ctx);
@@ -253,34 +160,51 @@ export class HttpTestApiContext<
             const { request, response, source } = transaction;
 
             if (!request || !response || !source) {
-              throw new Error();
+              throw new Error('Invalid HTTP test case transaction.');
             }
 
-            const validationResult = validationFn(
-              httpRequestToCommonHttpRequest(source.thymianReqId, request),
-              httpResponseToCommonHttpResponse(source.thymianResId, response),
-              source.transactionId,
-            );
-
-            if (typeof validationResult === 'boolean' && validationResult) {
-              violations.push({
-                location: {
+            if (typeof validate === 'function') {
+              const validationResult = validate(
+                httpRequestToCommonHttpRequest(request, source.thymianReqId),
+                httpResponseToCommonHttpResponse(response, source.thymianResId),
+                {
                   elementType: 'edge',
                   elementId: source.transactionId,
-                  pointer: '',
-                } satisfies RuleViolationLocation,
-              });
-            }
-
-            if (validationResult && typeof validationResult === 'object') {
-              violations.push({
-                location: {
-                  elementType: 'edge',
-                  elementId: source.transactionId,
-                  pointer: '',
                 },
-                ...validationResult,
-              });
+              );
+              if (typeof validationResult === 'boolean' && validationResult) {
+                violations.push({
+                  location: {
+                    elementType: 'edge',
+                    elementId: source.transactionId,
+                    pointer: '',
+                  } satisfies RuleViolationLocation,
+                });
+              }
+
+              if (validationResult && typeof validationResult === 'object') {
+                violations.push({
+                  location: {
+                    elementType: 'edge',
+                    elementId: source.transactionId,
+                    pointer: '',
+                  },
+                  ...validationResult,
+                });
+              }
+            } else {
+              const validateFn = httpFilterToTransactionValidationFn(validate);
+
+              const validationResult = validateFn(request, response);
+              if (typeof validationResult === 'boolean' && validationResult) {
+                violations.push({
+                  location: {
+                    elementType: 'edge',
+                    elementId: source.transactionId,
+                    pointer: '',
+                  } satisfies RuleViolationLocation,
+                });
+              }
             }
           }
 
@@ -367,32 +291,14 @@ export class HttpTestApiContext<
       | ValidationFn<[HttpRequest, HttpResponse]>
       | HttpFilterExpression = filterExpr,
   ): Promise<RuleFnResult> {
-    const filterFn = compileExpressionToFilterFn(filterExpr, this.format);
     const validationFn =
       typeof validation === 'function'
         ? validation
         : httpFilterToTransactionValidationFn(validation);
 
-    const test = httpTest(this.name, (transactions) =>
-      transactions.pipe(
-        filter(({ current }) =>
-          filterFn(
-            thymianToCommonHttpRequest(
-              current.thymianReqId,
-              current.thymianReq,
-            ),
-            thymianToCommonHttpResponse(
-              current.thymianResId,
-              current.thymianRes,
-            ),
-            this.getCommonHttpResponsesOfRequest(current.thymianReqId),
-            current.transactionId,
-          ),
-        ),
-        mapToTestCase(),
-        generateRequests(),
-        runRequests(),
-      ),
+    const test = httpTest(
+      this.name,
+      singleTestCase().forTransactionsWith(filterExpr).run().done(),
     );
 
     const testResult = await test(this.ctx);

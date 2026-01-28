@@ -122,63 +122,67 @@ export abstract class AbstractLinter {
         title: '',
       };
 
-      if (location.elementType === 'node') {
-        const node = this.format.getNode(location.elementId);
-
-        if (!node) {
-          throw new ThymianBaseError(
-            `Invalid rule violation location for rule ${ruleMeta.name}.`,
-          );
-        }
-
-        if (isNodeType(node, 'http-request')) {
-          report.title = thymianRequestToString(node);
-        } else if (isNodeType(node, 'http-response')) {
-          report.title = thymianResponseToString(node);
-        }
-
-        report.location ??= {};
-
-        if (node.sourceLocation) {
-          report.location.reference = {
-            ...node.sourceLocation,
-          };
-        }
-
-        report.location.format = {
-          elementType: 'node',
-          id: location.elementId,
-        };
+      if (typeof location === 'string') {
+        report.title = location;
       } else {
-        const [source, target] = this.format.graph.extremities(
-          location.elementId,
-        );
-        const transaction = this.format.getEdge<HttpTransaction>(
-          location.elementId,
-        );
-        const req = this.format.getNode<ThymianHttpRequest>(source);
-        const res = this.format.getNode<ThymianHttpResponse>(target);
+        if (location.elementType === 'node') {
+          const node = this.format.getNode(location.elementId);
 
-        if (!req || !res || !transaction) {
-          throw new ThymianBaseError(
-            `Invalid rule violation location for rule ${ruleMeta.name}.`,
+          if (!node) {
+            throw new ThymianBaseError(
+              `Invalid rule violation location for rule ${ruleMeta.name}.`,
+            );
+          }
+
+          if (isNodeType(node, 'http-request')) {
+            report.title = thymianRequestToString(node);
+          } else if (isNodeType(node, 'http-response')) {
+            report.title = thymianResponseToString(node);
+          }
+
+          report.location ??= {};
+
+          if (node.sourceLocation) {
+            report.location.reference = {
+              ...node.sourceLocation,
+            };
+          }
+
+          report.location.format = {
+            elementType: 'node',
+            id: location.elementId,
+          };
+        } else {
+          const [source, target] = this.format.graph.extremities(
+            location.elementId,
           );
-        }
+          const transaction = this.format.getEdge<HttpTransaction>(
+            location.elementId,
+          );
+          const req = this.format.getNode<ThymianHttpRequest>(source);
+          const res = this.format.getNode<ThymianHttpResponse>(target);
 
-        report.title = thymianHttpTransactionToString(req, res);
+          if (!req || !res || !transaction) {
+            throw new ThymianBaseError(
+              `Invalid rule violation location for rule ${ruleMeta.name}.`,
+            );
+          }
 
-        report.location ??= {};
+          report.title = thymianHttpTransactionToString(req, res);
 
-        if (transaction.sourceLocation) {
-          report.location.reference = {
-            ...transaction.sourceLocation,
+          report.location ??= {};
+
+          if (transaction.sourceLocation) {
+            report.location.reference = {
+              ...transaction.sourceLocation,
+            };
+          }
+
+          report.location.format = {
+            elementType: 'edge',
+            id: location.elementId,
           };
         }
-
-        report.location.format = {
-          elementType: 'edge',
-          id: location.elementId,
-        };
       }
 
       this.report(report);

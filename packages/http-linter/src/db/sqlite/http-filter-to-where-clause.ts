@@ -27,7 +27,7 @@ export function compileHttpFilterToWhereClause(
       };
 
     case 'path':
-      return { sql: '${tableNames.req}.path = ?', params: [filter.path] };
+      return { sql: `${tableNames.requests}.path = ?`, params: [filter.path] };
 
     case 'requestHeader': {
       const base = `
@@ -101,8 +101,8 @@ export function compileHttpFilterToWhereClause(
           SELECT 1
           FROM http_request_header reqHeader
           WHERE reqHeader.request_id = req.id
-          AND reqHeader.name = "content-type" COLLATE NOCASE
-          AND LOWER(hr.value) LIKE LOWER(? || "%")
+          AND reqHeader.name = 'content-type' COLLATE NOCASE
+          AND LOWER(reqHeader.value) LIKE LOWER(?)
         )`;
       return { sql: where, params: [filter.mediaType] };
     }
@@ -113,8 +113,8 @@ export function compileHttpFilterToWhereClause(
           SELECT 1
           FROM http_response_header resHeader
           WHERE resHeader.response_id = res.id
-          AND resHeader.name = "content-type" COLLATE NOCASE
-          AND LOWER(hs.value) LIKE LOWER(? || "%")
+          AND resHeader.name = 'content-type' COLLATE NOCASE
+          AND LOWER(resHeader.value) LIKE LOWER(?)
         )`;
       return { sql: where, params: [filter.mediaType] };
     }

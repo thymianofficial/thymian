@@ -10,7 +10,7 @@ import {
   visitHttpFilter,
 } from '@thymian/core';
 
-import type { ValidationFn } from '../../api-context.js';
+import type { ValidationFn } from '../api-context.js';
 
 export function httpFilterToTransactionValidationFn(
   filterExpression: HttpFilterExpression,

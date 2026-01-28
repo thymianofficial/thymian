@@ -2,15 +2,12 @@ import { NoopLogger, ThymianFormat } from '@thymian/core';
 import type { JSONSchemaType } from '@thymian/core/ajv';
 import { describe, expect, it } from 'vitest';
 
-import type { Rule, RuleMeta } from '../src/index.js';
+import type { RuleMeta } from '../src/index.js';
 import { AbstractLinter } from '../src/linter/abstract-linter.js';
 
 describe('AbstractLinter', () => {
   class TestLinter extends AbstractLinter {
-    override runRule<Options extends Record<string, unknown>>(
-      rule: Rule,
-      options: Options,
-    ): Promise<boolean> {
+    override runRule(): Promise<boolean> {
       return Promise.resolve(false);
     }
   }

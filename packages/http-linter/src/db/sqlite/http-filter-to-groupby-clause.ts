@@ -1,4 +1,12 @@
-import type { HttpFilterExpression } from '@thymian/core';
+import {
+  and,
+  type HttpFilterExpression,
+  type LogicalExpression,
+  origin,
+  path,
+  port,
+  visitHttpFilter,
+} from '@thymian/core';
 
 import type { SqlFragment } from '../utils.js';
 import type { TableNames } from './types.js';
@@ -10,6 +18,8 @@ export function httpFilterToGroupByClause(
   const params: unknown[] = [];
 
   switch (expression.type) {
+    case 'url':
+      return httpFilterToGroupByClause(and(origin(), port(), path()), tables);
     case 'origin':
       return {
         sql: `${tables.requests}.origin`,
@@ -48,4 +58,32 @@ export function httpFilterToGroupByClause(
     default:
       throw new Error(`Unsupported group by expression: ${expression.type}`);
   }
+}
+
+export function httpFilterToGroupingKey(
+  expression: HttpFilterExpression,
+  tables: TableNames,
+): string {
+  return visitHttpFilter(expression, {
+    visitAnd(expr: Extract<LogicalExpression, { type: 'and' }>): string {
+      return expr.filters
+        .map((filter) => httpFilterToGroupingKey(filter, tables))
+        .join(' || ');
+    },
+    visitOrigin(): string {
+      return `COALESCE(${tables.requests}.origin, '')`;
+    },
+    visitMethod(): string {
+      return `COALESCE(${tables.requests}.method, '')`;
+    },
+    visitPort(): string {
+      return `COALESCE(${tables.requests}.port, '')`;
+    },
+    visitStatusCode(): string {
+      return `COALESCE(${tables.responses}.status_code, '')`;
+    },
+    visitPath(): string {
+      return `COALESCE(${tables.requests}.path, '')`;
+    },
+  });
 }

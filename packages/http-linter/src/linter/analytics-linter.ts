@@ -1,8 +1,8 @@
 import { type Logger, ThymianFormat, type ThymianReport } from '@thymian/core';
 import type { Rule } from 'src/rule/rule.js';
 
-import { AnalyticsApiContext } from '../api-context/analytics-api-context/analytics-api-context.js';
-import { HttpTransactionRepository } from '../db/http-transaction-repository.js';
+import { AnalyticsApiContext } from '../api-context/analytics-api-context.js';
+import type { HttpTransactionRepository } from '../db/http-transaction-repository.js';
 import { AbstractLinter } from './abstract-linter.js';
 
 export class AnalyticsLinter extends AbstractLinter {
