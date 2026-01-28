@@ -18,6 +18,7 @@ import {
 
 import type { ThymianActionName, ThymianActions } from '../actions/index.js';
 import type { ThymianEventName } from '../events/index.js';
+import { ThymianFormat } from '../format/index.js';
 import type { Logger } from '../logger/logger.js';
 import { NoopLogger } from '../logger/noop.logger.js';
 import {
@@ -63,7 +64,19 @@ export type ThymianEmitterOptions = {
 export type EmitActionOptions = {
   timeout: number;
   strategy: 'first' | 'collect' | 'deep-merge';
+  strict: boolean;
 };
+
+export type EmitActionReturnType<
+  Name extends ThymianActionName,
+  Options extends Partial<EmitActionOptions>,
+> = Options['strict'] extends false
+  ? Options['strategy'] extends 'collect' | undefined
+    ? ResponseEventPayload<Name>[] | undefined
+    : ResponseEventPayload<Name> | undefined
+  : Options['strategy'] extends 'collect' | undefined
+    ? ResponseEventPayload<Name>[]
+    : ResponseEventPayload<Name>;
 
 export type EmitActionArgs<
   Name extends ThymianActionName,
@@ -326,23 +339,36 @@ export class ThymianEmitter {
 
   async emitAction<
     Name extends ThymianActionName,
-    Options extends Partial<EmitActionOptions> = { strategy: 'collect' },
+    Options extends Partial<EmitActionOptions> = {
+      strategy: 'collect';
+      strict: true;
+    },
   >(
     ...args: EmitActionArgs<Name, Options>
-  ): Promise<
-    Options['strategy'] extends 'collect'
-      ? ResponseEventPayload<Name>[]
-      : ResponseEventPayload<Name>
-  > {
-    const start = performance.now();
-
+  ): Promise<EmitActionReturnType<Name, Options>> {
     const [name, payload, options] = args;
     const opts: EmitActionOptions = {
       timeout: this.options.timeout,
       strategy: 'collect',
+      strict: true,
       ...(options ?? {}),
     };
 
+    if (!this.#listeners.has(name) && !name.startsWith('core.')) {
+      if (opts.strict) {
+        this.emitError(
+          new ThymianBaseError(`No listener for action "${name}" registered.`, {
+            suggestions: [
+              'Did you forget to call register handler via "onAction" for it?',
+            ],
+            name: 'NoHandlerRegisteredError',
+          }),
+        );
+      }
+      return undefined as EmitActionReturnType<Name, Options>;
+    }
+
+    const start = performance.now();
     const event: ThymianActionEvent<Name> = {
       id: randomUUID(),
       name,
