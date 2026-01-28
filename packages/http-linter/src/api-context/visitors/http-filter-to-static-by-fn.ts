@@ -40,7 +40,9 @@ const visitor: HttpFilterVisitor<GroupByFn> = {
   },
   visitQueryParam({ param }) {
     return (transaction) => {
-      if (!param) return '';
+      if (!param) {
+        return '';
+      }
 
       const keys = Object.keys(transaction.thymianReq.queryParameters);
       const found = keys.find((k) => equalsIgnoreCase(k, param));
@@ -56,7 +58,9 @@ const visitor: HttpFilterVisitor<GroupByFn> = {
   },
   visitRequestHeader({ header }) {
     return (transaction) => {
-      if (!header) return '';
+      if (!header) {
+        return '';
+      }
       const keys = Object.keys(transaction.thymianReq.headers);
       const found = keys.find((k) => equalsIgnoreCase(k, header));
       return found ? String(transaction.thymianReq.headers[found]) : '';
@@ -70,7 +74,9 @@ const visitor: HttpFilterVisitor<GroupByFn> = {
   },
   visitResponseHeader({ header }) {
     return (transaction) => {
-      if (!header) return '';
+      if (!header) {
+        return '';
+      }
       const keys = Object.keys(transaction.thymianRes.headers);
       const found = keys.find((k) => equalsIgnoreCase(k, header));
       return found ? String(transaction.thymianRes.headers[found]) : '';

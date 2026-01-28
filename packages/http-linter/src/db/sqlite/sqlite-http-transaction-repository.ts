@@ -350,7 +350,17 @@ export class SqliteHttpTransactionRepository
   }
 
   private readResponseById(id: number): CapturedHttpResponse | undefined {
-    const responseStmt = this.db.prepare<unknown[], any>(`
+    const responseStmt = this.db.prepare<
+      unknown[],
+      {
+        status_code: number;
+        body: string | undefined;
+        body_encoding: string | undefined;
+        duration: number;
+        role_id: number;
+        role_name: HttpParticipantRole;
+      }
+    >(`
       SELECT res.*, role.name as role_name
       FROM http_response res
       LEFT JOIN communication_role role ON res.role_id = role.id
@@ -399,7 +409,18 @@ export class SqliteHttpTransactionRepository
   }
 
   private readRequestById(id: number): CapturedHttpRequest | undefined {
-    const requestStmt = this.db.prepare<unknown[], any>(`
+    const requestStmt = this.db.prepare<
+      unknown[],
+      {
+        origin: string;
+        path: string;
+        method: string;
+        body: string | undefined;
+        body_encoding: string | undefined;
+        role_id: number;
+        role_name: HttpParticipantRole;
+      }
+    >(`
       SELECT req.*, role.name as role_name
       FROM http_request req
       LEFT JOIN communication_role role ON req.role_id = role.id

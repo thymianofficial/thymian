@@ -44,18 +44,18 @@ function createTransactionValidationVisitor(): HttpFilterVisitor<
         return headerValue === expr.value;
       };
     },
-    visitQueryParam(expr) {
-      if (typeof expr.param === 'undefined') {
+    visitQueryParam({ param, value }) {
+      if (typeof param === 'undefined') {
         return () => false;
       }
       return (req) => {
         const queryParams = queryParamsFromRequest(req);
 
-        const paramValue = queryParams[expr.param!];
-        if (typeof expr.value === 'undefined') {
+        const paramValue = queryParams[param];
+        if (typeof value === 'undefined') {
           return paramValue !== undefined;
         }
-        return paramValue === expr.value;
+        return paramValue === value;
       };
     },
     visitPath(expr) {
@@ -103,16 +103,16 @@ function createTransactionValidationVisitor(): HttpFilterVisitor<
         return hasBody === (expr.hasBody ?? true);
       };
     },
-    visitResponseHeader(expr) {
-      if (typeof expr.header === 'undefined') {
+    visitResponseHeader({ header, value }) {
+      if (typeof header === 'undefined') {
         return () => false;
       }
       return (req, res) => {
-        const headerValue = res.headers[expr.header!];
-        if (typeof expr.value === 'undefined') {
+        const headerValue = res.headers[header];
+        if (typeof value === 'undefined') {
           return headerValue !== undefined;
         }
-        return headerValue === expr.value;
+        return headerValue === value;
       };
     },
     visitStatusCodeRange(expr) {
@@ -121,22 +121,22 @@ function createTransactionValidationVisitor(): HttpFilterVisitor<
         res.statusCode >= expr.start &&
         res.statusCode <= expr.end;
     },
-    visitResponseMediaType(expr) {
+    visitResponseMediaType({ mediaType }) {
       return (req, res) => {
         const contentType = res.headers['content-type'];
-        return contentType?.includes(expr.mediaType!) ?? false;
+        return contentType?.includes(mediaType) ?? false;
       };
     },
-    visitResponseTrailer(expr) {
-      if (typeof expr.trailer === 'undefined') {
+    visitResponseTrailer({ trailer, value }) {
+      if (typeof trailer === 'undefined') {
         return () => false;
       }
       return (req, res) => {
-        const trailerValue = res.trailers?.[expr.trailer!];
-        if (typeof expr.value === 'undefined') {
+        const trailerValue = res.trailers?.[trailer];
+        if (typeof value === 'undefined') {
           return trailerValue !== undefined;
         }
-        return trailerValue === expr.value;
+        return trailerValue === value;
       };
     },
   });

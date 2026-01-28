@@ -305,8 +305,8 @@ describe('StaticApiContext', () => {
       const context = new StaticApiContext(format, new NoopLogger());
 
       const result = context.validateHttpTransactions(
-        (req, res) => req.method === 'get',
-        (req, res) => ({
+        (req) => req.method === 'get',
+        (req) => ({
           message: `Found GET request to ${req.path}`,
         }),
       );

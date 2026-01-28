@@ -8,7 +8,6 @@ import {
   responseHeader,
   statusCode,
   statusCodeRange,
-  TextLogger,
 } from '@thymian/core';
 import { createThymianFormat } from '@thymian/core-testing';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
@@ -503,7 +502,7 @@ describe('AnalyticsApiContext', () => {
       const result = context.validateGroupedCommonHttpTransactions(
         method('get'),
         statusCode(),
-        (key, transactions) => {
+        (key) => {
           groupKeys.push(key);
           return undefined;
         },
