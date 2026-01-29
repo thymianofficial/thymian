@@ -7,6 +7,7 @@ import {
   ThymianFormat,
   type ThymianHttpRequest,
   ThymianHttpResponse,
+  ThymianSchema,
 } from '../../src';
 
 describe('ThymianFormat', () => {
@@ -556,6 +557,72 @@ describe('ThymianFormat', () => {
       expect(() =>
         format.addEdge(reqId, resId, edge, { throwIfExists: true }),
       ).toThrow();
+    });
+  });
+
+  describe('export', () => {
+    it('should be robust against circular references', () => {
+      const format = new ThymianFormat();
+      const schema: ThymianSchema = {
+        type: 'object',
+        properties: {
+          prop: { type: 'string' },
+        },
+      };
+      schema.properties['circular'] = schema;
+      format.addHttpTransaction(
+        {
+          cookies: {},
+          headers: {},
+          host: 'localhost',
+          label: '',
+          mediaType: '',
+          method: 'post',
+          path: '/',
+          pathParameters: {},
+          port: 8080,
+          protocol: 'http',
+          queryParameters: {},
+          sourceName: '',
+          type: 'http-request',
+          body: schema,
+        },
+        {
+          headers: {},
+          label: '',
+          mediaType: '',
+          sourceName: '',
+          statusCode: 0,
+          type: 'http-response',
+        },
+        'test',
+      );
+      const exported = format.export();
+
+      let serialized!: string;
+      expect(() => {
+        serialized = JSON.stringify(exported);
+      }).not.toThrowError();
+
+      console.log(serialized);
+
+      const formatAgain = ThymianFormat.import(JSON.parse(serialized));
+      const transactions = formatAgain.getThymianHttpTransactions();
+
+      expect(transactions).toHaveLength(1);
+      const expectedSchema = {
+        type: 'object',
+        properties: {
+          prop: { type: 'string' },
+        },
+      };
+      expectedSchema.properties['circular'] = expectedSchema;
+
+      expect(transactions[0].thymianReq).toMatchObject({
+        body: expectedSchema,
+      });
+
+      expect(serialized).toStrictEqual(JSON.stringify(formatAgain.export()));
     });
   });
 });

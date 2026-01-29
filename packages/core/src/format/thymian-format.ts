@@ -23,6 +23,10 @@ import {
   thymianRequestToOrigin,
 } from '../utils.js';
 import { matchObjects, type StringAndNumberProperties } from '../utils.js';
+import {
+  resolveCircularReferences,
+  resolveThymianPointers,
+} from './circular-references.js';
 import type { HasSample } from './edges/has-sample.edge.js';
 import type { HttpLink } from './edges/http-link.edge.js';
 import type { HttpTransaction } from './edges/http-transaction.edge.js';
@@ -655,12 +659,12 @@ export class ThymianFormat {
   }
 
   export(): SerializedThymianFormat {
-    return {
+    return resolveCircularReferences({
       ...this.graph.export(),
       attributes: {
         hash: this.toHash(),
       },
-    };
+    });
   }
 
   // TODO must implement this feature. But before we should think about the node and edge ID generation
@@ -762,7 +766,7 @@ export class ThymianFormat {
     const g = new MultiDirectedGraph<
       PartialBy<ThymianNode, 'sourceName'> | ThymianNode,
       PartialBy<ThymianEdge, 'sourceName'> | ThymianEdge
-    >().import(graph);
+    >().import(resolveThymianPointers(graph));
 
     g.forEachNode((_, node) => {
       node.sourceName ??= sourceName;
