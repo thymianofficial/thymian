@@ -1,7 +1,9 @@
 import { Subject } from 'rxjs';
 import { beforeEach, describe, expect, it, vitest } from 'vitest';
 
-import { NoopLogger, ThymianEmitter } from '../src/index.js';
+import { ThymianBaseError } from '../src';
+import { ThymianEmitter } from '../src/emitter/thymian-emitter.js';
+import { NoopLogger } from '../src/logger/noop.logger.js';
 
 declare module '../src/events/index.js' {
   interface ThymianEvents {
@@ -12,6 +14,10 @@ declare module '../src/events/index.js' {
 
 declare module '../src/actions/index.js' {
   interface ThymianActions {
+    testAction: {
+      event: string;
+      response: number;
+    };
     action: {
       event: string;
       response: number;
@@ -100,5 +106,38 @@ describe('ThymianEmitter', () => {
       a: 11,
       b: 42,
     });
+  });
+
+  it('should emit error if action is emitted for which no handler is registered and strict mode enabled', async () => {
+    const errorSpy = vitest.fn();
+
+    emitter.onError(errorSpy);
+
+    const r = await emitter.emitAction('testAction', '2', {
+      strategy: 'deep-merge',
+    });
+
+    expect(r).toBeUndefined();
+    expect(errorSpy).toBeCalledWith(
+      expect.objectContaining({
+        error: expect.objectContaining({
+          message: 'No listener for action "testAction" registered.',
+        }),
+      }),
+    );
+  });
+
+  it('should return undefined if action is emitted for which no handler is registered and strict mode disabled', async () => {
+    const errorSpy = vitest.fn();
+
+    emitter.onError(errorSpy);
+
+    const result = await emitter.emitAction('testAction', '2', {
+      strategy: 'deep-merge',
+      strict: false,
+    });
+
+    expect(result).toBeUndefined();
+    expect(errorSpy).not.toBeCalled();
   });
 });
