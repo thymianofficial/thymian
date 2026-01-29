@@ -7,7 +7,7 @@
   "// targets": "to see all targets run: nx show project @thymian/http-linter --web",
   "targets": {
     "generate-docs": {
-      "command": "NODE_ENV=development npx oclif readme --no-aliases --readme-path ../../astro-docs/src/content/docs/references/Plugins/HTTP\\ Linter/cli.md --tsconfig-path ./tsconfig.lib.json",
+      "command": "NODE_ENV=development oclif readme --no-aliases --readme-path ../../astro-docs/src/content/docs/references/Plugins/HTTP\\ Linter/cli.md",
       "options": {
         "cwd": "packages/http-linter"
       }

@@ -7,7 +7,7 @@
   "// targets": "to see all targets run: nx show project @thymian/format-validator --web",
   "targets": {
     "generate-docs": {
-      "command": "NODE_ENV=development npx oclif readme --no-aliases --readme-path ./../../astro-docs/src/content/docs/references/Plugins/Format\\ Validator/cli.md --tsconfig-path ./tsconfig.lib.json",
+      "command": "NODE_ENV=development oclif readme --no-aliases --readme-path ./../../astro-docs/src/content/docs/references/Plugins/Format\\ Validator/cli.md",
       "options": {
         "cwd": "packages/format-validator"
       }
