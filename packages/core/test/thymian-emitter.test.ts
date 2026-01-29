@@ -1,7 +1,6 @@
 import { Subject } from 'rxjs';
 import { beforeEach, describe, expect, it, vitest } from 'vitest';
 
-import { ThymianBaseError } from '../src';
 import { ThymianEmitter } from '../src/emitter/thymian-emitter.js';
 import { NoopLogger } from '../src/logger/noop.logger.js';
 
@@ -139,5 +138,41 @@ describe('ThymianEmitter', () => {
 
     expect(result).toBeUndefined();
     expect(errorSpy).not.toBeCalled();
+  });
+
+  it('should idle if no events are emitted when Thymian is closed', async () => {
+    const logger = new NoopLogger();
+    const debugSpy = vitest.spyOn(logger, 'debug');
+
+    const emitter = new ThymianEmitter(logger);
+    const shutdownPromise = emitter.shutdown();
+
+    await shutdownPromise;
+
+    expect(debugSpy).toHaveBeenNthCalledWith(
+      3,
+      expect.stringContaining('due to idle'),
+    );
+  });
+
+  it("should timeout if Thymian won't idle", { timeout: 10000 }, async () => {
+    const logger = new NoopLogger();
+    const debugSpy = vitest.spyOn(logger, 'debug');
+
+    const emitter = new ThymianEmitter(logger);
+    const shutdownPromise = emitter.shutdown();
+
+    for (let i = 1; i < 20; i++) {
+      setTimeout(() => {
+        emitter.emit('a', 2);
+      }, i * 400);
+    }
+
+    await shutdownPromise;
+
+    expect(debugSpy).toHaveBeenNthCalledWith(
+      3,
+      expect.stringContaining('due to timeout'),
+    );
   });
 });
