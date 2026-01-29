@@ -6,6 +6,8 @@ import { getPluginNames, oclif } from '@thymian/cli-common';
 
 const dirname = import.meta.dirname;
 
+oclif.settings.enableAutoTranspile = false;
+
 const thymianPath = import.meta.url.includes('node_modules')
   ? path.join(dirname, 'node_modules', 'thymian')
   : path.join(dirname, '..');

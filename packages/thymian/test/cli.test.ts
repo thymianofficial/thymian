@@ -4,15 +4,19 @@ import { fileURLToPath } from 'node:url';
 
 import { describe, expect, it } from 'vitest';
 
-describe('cli', { timeout: 10000 }, () => {
+describe('cli', () => {
   it.each([['run'], ['dev']])(
     '%s.js can be called from any current working directory',
     async (command) => {
       expect(() =>
-        execSync(`../bin/${command}.js http-linter:overview`, {
-          stdio: 'pipe',
-          cwd: dirname(fileURLToPath(import.meta.url)),
-        }),
+        // we must set NODE_ENV to NOT_TEST to avoid vitest setting it to test
+        execSync(
+          `NODE_ENV=NOT_TEST ../bin/${command}.js http-linter:overview`,
+          {
+            stdio: 'pipe',
+            cwd: dirname(fileURLToPath(import.meta.url)),
+          },
+        ),
       ).not.toThrow();
     },
   );
