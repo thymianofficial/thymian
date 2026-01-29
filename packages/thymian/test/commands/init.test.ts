@@ -7,6 +7,6 @@ process.env.OCLIF_TEST_ROOT = join(import.meta.url, '../../..');
 
 describe('init command', () => {
   it('should run init command', async () => {
-    await captureOutput(async () => await runCommand('init'));
+    await captureOutput(async () => await runCommand('init --no-input'));
   });
 });
