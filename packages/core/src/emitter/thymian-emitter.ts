@@ -9,6 +9,7 @@ import {
   map,
   merge,
   race,
+  startWith,
   Subject,
   take,
   takeUntil,
@@ -18,7 +19,6 @@ import {
 
 import type { ThymianActionName, ThymianActions } from '../actions/index.js';
 import type { ThymianEventName } from '../events/index.js';
-import { ThymianFormat } from '../format/index.js';
 import type { Logger } from '../logger/logger.js';
 import { NoopLogger } from '../logger/noop.logger.js';
 import {
@@ -175,6 +175,7 @@ export class ThymianEmitter {
     return new Promise((resolve) => {
       race([
         subject.pipe(
+          startWith(null),
           debounceTime(waitFor),
           take(1),
           map(() => 'idle'),
