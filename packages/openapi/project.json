@@ -3,5 +3,14 @@
   "$schema": "../../node_modules/nx/schemas/project-schema.json",
   "sourceRoot": "packages/openapi/src",
   "projectType": "library",
-  "tags": ["scope:plugin", "type:lib"]
+  "tags": ["scope:plugin", "type:lib"],
+  "// targets": "to see all targets run: nx show project @thymian/openapi --web",
+  "targets": {
+    "generate-docs": {
+      "command": "NODE_ENV=development oclif readme --no-aliases --readme-path ../../astro-docs/src/content/docs/references/Plugins/OpenAPI/cli.md",
+      "options": {
+        "cwd": "packages/openapi"
+      }
+    }
+  }
 }

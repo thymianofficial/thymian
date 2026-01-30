@@ -29,6 +29,7 @@
   },
   "oclif": {
     "commands": "./dist/cli/commands",
+    "bin": "thymian",
     "hooks": {
       "thymian-plugin.init": "./dist/cli/init-hook"
     },

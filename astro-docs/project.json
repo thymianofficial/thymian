@@ -11,6 +11,7 @@
       }
     },
     "build": {
+      "dependsOn": ["increaseCliDocsHeaderLevels"],
       "command": "astro build",
       "options": {
         "cwd": "astro-docs"
@@ -26,6 +27,16 @@
     },
     "astro": {
       "command": "astro",
+      "options": {
+        "cwd": "astro-docs"
+      }
+    },
+    "generateCliDocs": {
+      "command": "nx run-many -t generate-docs"
+    },
+    "increaseCliDocsHeaderLevels": {
+      "dependsOn": ["generateCliDocs"],
+      "command": "../scripts/increase-md-header-levels.js src/content/docs/references/**/cli.mdx?",
       "options": {
         "cwd": "astro-docs"
       }
