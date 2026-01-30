@@ -3,7 +3,8 @@
   "files": [],
   "include": ["src/**/*.ts", "test/**/*.ts"],
   "compilerOptions": {
-    "outDir": "dist"
+    "outDir": "dist",
+    "rootDir": "dist"
   },
   "references": [
     {

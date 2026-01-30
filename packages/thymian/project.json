@@ -7,8 +7,7 @@
   "// targets": "to see all targets run: nx show project thymian --web",
   "targets": {
     "generate-docs": {
-      "command": "npx oclif readme --no-aliases --readme-path ../../astro-docs/src/content/docs/references/cli.md",
-      "dependsOn": ["build"],
+      "command": "NODE_ENV=development oclif readme --no-aliases --readme-path ../../astro-docs/src/content/docs/references/cli.md",
       "options": {
         "cwd": "packages/thymian"
       }

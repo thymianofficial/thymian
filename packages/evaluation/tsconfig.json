@@ -3,7 +3,8 @@
   "files": [],
   "include": [],
   "compilerOptions": {
-    "outDir": "dist"
+    "outDir": "dist",
+    "rootDir": "src"
   },
   "references": [
     {

@@ -36,7 +36,7 @@
     },
     "increaseCliDocsHeaderLevels": {
       "dependsOn": ["generateCliDocs"],
-      "command": "../scripts/increase-md-header-levels.js src/content/docs/references/**/cli.md",
+      "command": "../scripts/increase-md-header-levels.js src/content/docs/references/**/cli.mdx?",
       "options": {
         "cwd": "astro-docs"
       }
