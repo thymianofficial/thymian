@@ -2,7 +2,6 @@ const REF_KEY = '$thymian-ref';
 
 export function resolveCircularReferences<T>(obj: T): T {
   const activeStack = new Map();
-  const REF_KEY = '$thymian-ref';
 
   function recurse(current: any, path: string): any {
     if (typeof current !== 'object' || current === null) {
