@@ -230,6 +230,13 @@ export function httpResponseToLabel(response: HttpResponse): string {
   } ${mediaType}`;
 }
 
+export function httpTransactionToLabel(
+  request: HttpRequest,
+  response: HttpResponse,
+): string {
+  return `${httpRequestToLabel(request)} \u2192 ${httpResponseToLabel(response)}`;
+}
+
 export function queryParamsFromRequest(
   req: HttpRequest,
 ): Record<string, string> {

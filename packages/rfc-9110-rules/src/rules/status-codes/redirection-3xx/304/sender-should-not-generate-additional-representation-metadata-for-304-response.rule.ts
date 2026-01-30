@@ -8,12 +8,7 @@ import {
   responseHeader,
   statusCode,
 } from '@thymian/core';
-import {
-  type CommonHttpRequest,
-  type CommonHttpResponse,
-  httpRule,
-  type RuleViolation,
-} from '@thymian/http-linter';
+import { httpRule, type RuleViolation } from '@thymian/http-linter';
 import { singleTestCase } from '@thymian/http-testing';
 
 import { createList } from '../../../../utils.js';
@@ -22,8 +17,7 @@ import { requiredHeadersFor304 } from './server-must-generate-header-fields-for-
 
 export function checkHeaders(
   notModifiedHeaders: string[],
-  transactionId: string,
-): RuleViolation | undefined {
+): Omit<RuleViolation, 'location'> | undefined {
   const additionalHeaders = representationFields.filter(
     (header) =>
       !equalsIgnoreCase(header, ...requiredHeadersFor304) &&
@@ -35,10 +29,6 @@ export function checkHeaders(
       message: `304 Not Modified response SHOULD NOT include additional headers ${createList(
         additionalHeaders,
       )}.`,
-      location: {
-        elementType: 'edge',
-        elementId: transactionId,
-      },
     };
   }
 
@@ -60,11 +50,7 @@ export default httpRule(
   .rule((ctx) =>
     ctx.validateCommonHttpTransactions(
       and(or(method('GET'), method('HEAD')), statusCode(304)),
-      (
-        req: CommonHttpRequest,
-        res: CommonHttpResponse,
-        transactionId: string,
-      ) => checkHeaders(res.headers, transactionId),
+      (req, res) => checkHeaders(res.headers),
     ),
   )
   .overrideTest((testContext) =>
@@ -93,11 +79,16 @@ export default httpRule(
 
           const violation = checkHeaders(
             Object.keys(notModifiedTransaction.response.headers ?? {}),
-            notModifiedTransaction.source.transactionId,
           );
 
           if (violation) {
-            testContext.reportViolation(violation);
+            testContext.reportViolation({
+              message: violation.message,
+              location: {
+                elementType: 'edge',
+                elementId: notModifiedTransaction.source.transactionId,
+              },
+            });
           }
         })
         .done(),

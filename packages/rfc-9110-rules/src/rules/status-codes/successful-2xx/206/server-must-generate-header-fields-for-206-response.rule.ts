@@ -36,16 +36,21 @@ export default httpRule(
       or(
         and(statusCode(200), responseWith(statusCode(206))),
         and(statusCode(206), responseWith(statusCode(200))),
-      ), // TODO: problem because we also check 200 response if there is no support for partial requests
+      ),
       and(method(), origin(), path()),
       (_, transactions) => {
         const okResponse = transactions.find(
           ([, res]) => res.statusCode === 200,
         )?.[1];
-        const [partialRequest, partialResponse] =
+        const [partialRequest, partialResponse, partialTransactionLocation] =
           transactions.find(([, res]) => res.statusCode === 206) ?? [];
 
-        if (okResponse && partialResponse && partialRequest) {
+        if (
+          okResponse &&
+          partialResponse &&
+          partialRequest &&
+          partialTransactionLocation
+        ) {
           const missingHeaders = requiredHeaders.filter(
             (headerName) =>
               equalsIgnoreCase(headerName, ...okResponse.headers) !==
@@ -53,16 +58,6 @@ export default httpRule(
           );
 
           if (missingHeaders.length > 0) {
-            const transactionEdge = ctx.format.graph.findEdge(
-              partialRequest.id,
-              partialResponse.id,
-              (id, attributes) => attributes.type === 'http-transaction',
-            );
-
-            if (!transactionEdge) {
-              return;
-            }
-
             return {
               message: `206 Partial Content response MUST contain header${
                 missingHeaders.length > 1 ? 's' : ''
@@ -71,10 +66,7 @@ export default httpRule(
                 .join(', ')}, as the corresponding 200 OK responses contained ${
                 missingHeaders.length > 1 ? 'these headers' : 'this header'
               }.`,
-              location: {
-                elementType: 'edge' as const,
-                elementId: transactionEdge,
-              },
+              location: partialTransactionLocation,
             };
           }
         }

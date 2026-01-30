@@ -1,4 +1,7 @@
-import type { HttpFilterExpression } from '@thymian/core';
+import {
+  type HttpFilterExpression,
+  type ThymianHttpTransaction,
+} from '@thymian/core';
 import {
   isNodeType,
   type PartialBy,
@@ -11,139 +14,137 @@ import type {
   RuleViolation,
   RuleViolationLocation,
 } from '../rule/rule-violation.js';
+import { ApiContext, type ValidationFn } from './api-context.js';
+import type { CommonHttpRequest, CommonHttpResponse } from './common-types.js';
 import {
-  ApiContext,
-  type CommonHttpRequest,
-  type CommonHttpResponse,
-  type ValidationFn,
-} from './api-context.js';
-import {
-  compileExpressionToFilterFn,
-  compileExpressionToGroupByFn,
-  compileExpressionToValidateFn,
   thymianToCommonHttpRequest,
   thymianToCommonHttpResponse,
-} from './utils.js';
+} from './utils/thymian-to-common.js';
+import { httpFilterExpressionToFilter } from './visitors/http-filter-expression-to-filter.js';
+import { httpFilterToGroupByFn } from './visitors/http-filter-to-static-by-fn.js';
 
 export class StaticApiContext extends ApiContext {
   validateCommonHttpTransactions(
     filter: HttpFilterExpression,
     validate:
-      | ValidationFn<[CommonHttpRequest, CommonHttpResponse, string]>
+      | ValidationFn<
+          [CommonHttpRequest, CommonHttpResponse, RuleViolationLocation]
+        >
       | HttpFilterExpression = filter,
   ): RuleFnResult {
-    const filterFn = compileExpressionToFilterFn(filter, this.format);
-    const validationFn =
-      typeof validate === 'function'
-        ? validate
-        : compileExpressionToValidateFn(validate, this.format);
+    const filterFn = httpFilterExpressionToFilter(filter);
 
     return this.format
-      .getHttpTransactions()
-      .map<
-        [CommonHttpRequest, CommonHttpResponse, CommonHttpResponse[], string]
-      >(([reqId, resId, transactionId]) => {
-        const req = this.format.getNode<ThymianHttpRequest>(reqId);
-        const res = this.format.getNode<ThymianHttpResponse>(resId);
-
-        if (!req || !res) {
-          throw new Error('Invalid HTTP transaction.');
-        }
-
-        return [
-          thymianToCommonHttpRequest(reqId, req),
-          thymianToCommonHttpResponse(resId, res),
-          this.getCommonHttpResponsesOfRequest(reqId),
-          transactionId,
-        ];
-      })
-      .filter(([req, res, responses, transactionId]) =>
-        filterFn(req, res, responses, transactionId),
-      )
-      .reduce((violations, [req, res, , transactionId]) => {
-        const validationResult = validationFn(req, res, transactionId);
-
-        if (typeof validationResult === 'boolean' && validationResult) {
-          violations.push({
-            location: {
+      .getThymianHttpTransactions()
+      .filter((transaction) => filterFn(transaction, this.format))
+      .reduce<RuleViolation[]>((violations, transaction) => {
+        if (typeof validate === 'function') {
+          const validationResult = validate(
+            thymianToCommonHttpRequest(
+              transaction.thymianReq,
+              transaction.thymianReqId,
+            ),
+            thymianToCommonHttpResponse(
+              transaction.thymianRes,
+              transaction.thymianResId,
+            ),
+            {
               elementType: 'edge',
-              elementId: transactionId,
-              pointer: '',
-            } satisfies RuleViolationLocation,
-          });
-        }
-
-        if (validationResult && typeof validationResult === 'object') {
-          violations.push({
-            location: {
-              elementType: 'edge',
-              elementId: transactionId,
-              pointer: '',
+              elementId: transaction.transactionId,
             },
-            ...validationResult,
-          });
+          );
+          if (typeof validationResult === 'boolean' && validationResult) {
+            violations.push({
+              location: {
+                elementType: 'edge',
+                elementId: transaction.transactionId,
+              } satisfies RuleViolationLocation,
+            });
+          }
+
+          if (validationResult && typeof validationResult === 'object') {
+            violations.push({
+              location: {
+                elementType: 'edge',
+                elementId: transaction.transactionId,
+              },
+              ...validationResult,
+            });
+          }
+        } else {
+          const validateFn = httpFilterExpressionToFilter(validate);
+
+          if (validateFn(transaction, this.format)) {
+            violations.push({
+              location: {
+                elementType: 'edge',
+                elementId: transaction.transactionId,
+                pointer: '',
+              } satisfies RuleViolationLocation,
+            });
+          }
         }
 
         return violations;
-      }, [] as RuleViolation[]);
+      }, []);
   }
 
   validateGroupedCommonHttpTransactions(
     filter: HttpFilterExpression,
     groupBy: HttpFilterExpression,
     validationFn: ValidationFn<
-      [string, [CommonHttpRequest, CommonHttpResponse][]],
-      RuleViolation
+      [
+        string,
+        [CommonHttpRequest, CommonHttpResponse, RuleViolationLocation][],
+      ],
+      RuleViolation | undefined
     >,
   ): RuleFnResult {
-    const filterFn = compileExpressionToFilterFn(filter, this.format);
-    const groupByFn = compileExpressionToGroupByFn(groupBy, this.format);
+    const filterFn = httpFilterExpressionToFilter(filter);
+    const groupByFn = httpFilterToGroupByFn(groupBy);
 
     const groups = this.format
-      .getHttpTransactions()
-      .map<
-        [CommonHttpRequest, CommonHttpResponse, CommonHttpResponse[], string]
-      >(([reqId, resId, transactionId]) => {
-        const req = this.format.getNode<ThymianHttpRequest>(reqId);
-        const res = this.format.getNode<ThymianHttpResponse>(resId);
-
-        if (!req || !res) {
-          throw new Error('Invalid HTTP transaction.');
-        }
-
-        return [
-          thymianToCommonHttpRequest(reqId, req),
-          thymianToCommonHttpResponse(resId, res),
-          this.getCommonHttpResponsesOfRequest(reqId),
-          transactionId,
-        ];
-      })
-      .filter(([req, res, responses, transactionId]) =>
-        filterFn(req, res, responses, transactionId),
-      )
-      .reduce(
-        (groups, [req, res, , transactionId]) => {
-          const key = groupByFn(req, res);
-
-          (groups[key] ??= []).push([req, res, transactionId]);
-
+      .getThymianHttpTransactions()
+      .filter((t) => filterFn(t, this.format))
+      .reduce<Record<string, ThymianHttpTransaction[]>>(
+        (groups, transaction) => {
+          const key = groupByFn(transaction, this.format);
+          (groups[key] ??= []).push(transaction);
           return groups;
         },
-        {} as Record<string, [CommonHttpRequest, CommonHttpResponse, string][]>,
+        {},
       );
 
-    return Object.entries(groups).reduce((violations, [key, group]) => {
-      const validationResult = validationFn(
-        key,
-        group.map(([req, res]) => [req, res]),
-      );
+    return Object.entries(groups).reduce<RuleViolation[]>(
+      (violations, [key, group]) => {
+        const validationResult = validationFn(
+          key,
+          group.map(
+            ({
+              thymianReq,
+              thymianRes,
+              thymianReqId,
+              thymianResId,
+              transactionId,
+            }) => [
+              thymianToCommonHttpRequest(thymianReq, thymianReqId),
+              thymianToCommonHttpResponse(thymianRes, thymianResId),
+              {
+                elementType: 'edge',
+                elementId: transactionId,
+              },
+            ],
+          ),
+        );
 
-      if (validationResult) {
-        violations.push(validationResult);
-      }
+        if (validationResult) {
+          violations.push(validationResult);
+        }
 
-      return violations;
-    }, [] as RuleViolation[]);
+        return violations;
+      },
+      [],
+    );
   }
 
   validateHttpTransactions(

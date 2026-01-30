@@ -1,8 +1,4 @@
-import type {
-  HttpFilterExpression,
-  HttpRequest,
-  HttpResponse,
-} from '@thymian/core';
+import type { HttpFilterExpression } from '@thymian/core';
 import {
   type Logger,
   type PartialBy,
@@ -11,49 +7,30 @@ import {
 } from '@thymian/core';
 
 import type { RuleFnResult } from '../rule/rule-fn.js';
-import type { RuleViolation } from '../rule/rule-violation.js';
-import { thymianToCommonHttpResponse } from './utils.js';
-
-export type FilterFn<Args extends unknown[]> = (...args: Args) => boolean;
+import type {
+  RuleViolation,
+  RuleViolationLocation,
+} from '../rule/rule-violation.js';
+import type { CommonHttpRequest, CommonHttpResponse } from './common-types.js';
 
 export type ValidationFn<
   Args extends unknown[],
   R = PartialBy<RuleViolation, 'location'> | boolean | undefined,
 > = (...args: Args) => R;
 
-export type CommonHttpRequest = {
-  id: string;
-  origin: string;
-  path: string;
-  method: string;
-  headers: string[];
-  queryParameters: string[];
-  cookies: string[];
-  mediaType: string;
-  body: boolean;
-};
-
-export type CommonHttpResponse = {
-  id: string;
-  statusCode: number;
-  mediaType: string;
-  headers: string[];
-  body: boolean;
-  trailers: string[];
-};
-
 export abstract class ApiContext {
   constructor(
     readonly format: ThymianFormat,
     protected readonly logger: Logger,
-    // eslint-disable-next-line @typescript-eslint/no-empty-function
-    protected readonly report: ReportFn = () => {},
+    protected readonly report: ReportFn = () => undefined,
   ) {}
 
   abstract validateCommonHttpTransactions(
     filter: HttpFilterExpression,
     validationFn?:
-      | ValidationFn<[CommonHttpRequest, CommonHttpResponse, string]>
+      | ValidationFn<
+          [CommonHttpRequest, CommonHttpResponse, RuleViolationLocation]
+        >
       | HttpFilterExpression,
   ): Promise<RuleFnResult> | RuleFnResult;
 
@@ -61,25 +38,11 @@ export abstract class ApiContext {
     filter: HttpFilterExpression,
     groupBy: HttpFilterExpression,
     validationFn: ValidationFn<
-      [string, [CommonHttpRequest, CommonHttpResponse][]],
+      [
+        string,
+        [CommonHttpRequest, CommonHttpResponse, RuleViolationLocation][],
+      ],
       RuleViolation | undefined
     >,
-  ): Promise<RuleFnResult> | RuleFnResult;
-
-  protected getCommonHttpResponsesOfRequest(
-    reqId: string,
-  ): CommonHttpResponse[] {
-    const responses = this.format.getNeighboursOfType(reqId, 'http-response');
-
-    return responses.map(([id, r]) => thymianToCommonHttpResponse(id, r));
-  }
-}
-
-export abstract class LiveApiContext extends ApiContext {
-  abstract validateHttpTransactions(
-    filter: HttpFilterExpression,
-    validation?:
-      | ValidationFn<[HttpRequest, HttpResponse]>
-      | HttpFilterExpression,
   ): Promise<RuleFnResult> | RuleFnResult;
 }

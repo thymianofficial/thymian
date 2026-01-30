@@ -1,8 +1,9 @@
+import { isAbsolute, join } from 'node:path';
+
 import {
-  type HttpRequest,
-  type HttpResponse,
   type Logger,
   type SerializedThymianFormat,
+  ThymianBaseError,
   ThymianEmitter,
   ThymianFormat,
   type ThymianPlugin,
@@ -11,7 +12,8 @@ import {
 import type {} from '@thymian/request-dispatcher';
 import type {} from '@thymian/sampler';
 
-import { HttpTransactionRepository } from './db/http-transaction-repository.js';
+import type { HttpTransactionRepository } from './db/http-transaction-repository.js';
+import { SqliteHttpTransactionRepository } from './db/sqlite/sqlite-http-transaction-repository.js';
 import { AnalyticsLinter } from './linter/analytics-linter.js';
 import { createContext } from './linter/create-context.js';
 import { HttpTestLinter } from './linter/http-test-linter.js';
@@ -26,11 +28,11 @@ import {
 } from './rule/rule-meta.js';
 import { type RuleSeverity, severityLevels } from './rule/rule-severity.js';
 import { createRuleFilter } from './rule-filter.js';
+import type { CapturedTrace, CapturedTransaction } from './types.js';
 
 export * from './api-context/api-context.js';
-export * from './api-context/http-test-api-context/http-test-api-context.js';
+export * from './api-context/http-test-api-context.js';
 export * from './api-context/static-api-context.js';
-export * from './api-context/utils.js';
 export * from './rule/rule.js';
 export * from './rule/rule-fn.js';
 export * from './rule/rule-meta.js';
@@ -51,20 +53,6 @@ declare module '@thymian/core' {
       response: Rule[];
     };
 
-    'http-linter.analyze-transactions': {
-      event: {
-        analyzeOptions: {
-          format: SerializedThymianFormat;
-        };
-        transactions: {
-          request: HttpRequest;
-          response: HttpResponse;
-          meta: Record<PropertyKey, unknown>;
-        }[];
-      };
-      response: boolean;
-    };
-
     'http-linter.lint-static': {
       event: {
         format: SerializedThymianFormat;
@@ -74,13 +62,52 @@ declare module '@thymian/core' {
         valid: boolean;
       };
     };
+
+    'http-linter.lint-analytics': {
+      event: {
+        format?: SerializedThymianFormat;
+        transactions?: CapturedTransaction[];
+        traces?: CapturedTrace[];
+      };
+      response: {
+        reports: ThymianReport[];
+        valid: boolean;
+      };
+    };
+
+    'http-linter.lint-analytics-batch': {
+      event: {
+        format?: SerializedThymianFormat;
+      };
+      response: {
+        reports: ThymianReport[];
+        valid: boolean;
+      };
+    };
+  }
+
+  interface ThymianEvents {
+    'http-linter.transaction': CapturedTransaction;
+    'http-linter.trace': CapturedTrace;
   }
 }
+
+export type AnalyticsOptions = {
+  captureTransactions?:
+    | {
+        type: 'in-memory';
+      }
+    | {
+        type: 'file';
+        filePath?: string;
+      };
+};
 
 export type HttpLinterPluginOptions = {
   rules: string[];
   ruleOptions?: Record<string, Record<string, unknown> | undefined>;
-  modes?: ('static' | 'test')[];
+  modes?: RuleType[];
+  analytics?: AnalyticsOptions;
   origin?: string;
   ruleFilter?: {
     severity?: RuleSeverity;
@@ -106,7 +133,7 @@ export const httpLinterPlugin: ThymianPlugin<HttpLinterPluginOptions> = {
         type: 'array',
         items: {
           type: 'string',
-          enum: ['static', 'test'],
+          enum: ruleTypes,
         },
       },
       rules: {
@@ -118,6 +145,44 @@ export const httpLinterPlugin: ThymianPlugin<HttpLinterPluginOptions> = {
       origin: {
         type: 'string',
         nullable: true,
+      },
+      analytics: {
+        type: 'object',
+        nullable: true,
+        additionalProperties: false,
+        properties: {
+          captureTransactions: {
+            nullable: true,
+            type: 'object',
+            required: ['type'],
+            oneOf: [
+              {
+                description: 'Save incoming HTTP transaction in memory.',
+                properties: {
+                  type: {
+                    const: 'in-memory',
+                  },
+                },
+                required: ['type'],
+                additionalProperties: false,
+              },
+              {
+                description:
+                  'Saves incoming HTTP transaction in specified DB file.',
+                properties: {
+                  type: {
+                    const: 'file',
+                  },
+                  filePath: {
+                    type: 'string',
+                  },
+                },
+                required: ['type'],
+                additionalProperties: false,
+              },
+            ],
+          },
+        },
       },
       ruleFilter: {
         type: 'object',
@@ -179,6 +244,41 @@ export const httpLinterPlugin: ThymianPlugin<HttpLinterPluginOptions> = {
 
     logger.debug(`Running in mode(s): ${modes.join(', ')}`);
 
+    let transactionRepository: HttpTransactionRepository | undefined;
+
+    if (modes.includes('analytics')) {
+      let location = ':memory:';
+
+      if (options.analytics?.captureTransactions?.type === 'file') {
+        const filePath = options.analytics.captureTransactions.filePath;
+
+        if (!filePath) {
+          location = join(
+            options.cwd,
+            '.thymian',
+            'db',
+            `${Date.now().toString()}.db`,
+          );
+        } else {
+          location = isAbsolute(filePath)
+            ? filePath
+            : join(options.cwd, filePath);
+        }
+      }
+
+      transactionRepository = new SqliteHttpTransactionRepository(
+        location,
+        logger.child('@thymian/http-linter:HttpTransactionRepository'),
+      );
+      await transactionRepository.init();
+    }
+
+    emitter.onAction('core.close', async (_, ctx) => {
+      await transactionRepository?.close();
+
+      ctx.reply();
+    });
+
     emitter.onAction('http-linter.load-rules', async ({ rules }, ctx) => {
       const additionalLoadedRules = await loadRules(
         rules,
@@ -235,31 +335,6 @@ export const httpLinterPlugin: ThymianPlugin<HttpLinterPluginOptions> = {
       });
     });
 
-    emitter.onAction(
-      'http-linter.analyze-transactions',
-      async ({ transactions, analyzeOptions }, ctx) => {
-        const repository = new HttpTransactionRepository(':memory:', logger);
-        await repository.init();
-
-        const thymianFormat = ThymianFormat.import(analyzeOptions.format);
-
-        for (const { response, request } of transactions) {
-          repository.insertHttpTransaction(request, response);
-        }
-
-        const valid = await new AnalyticsLinter(
-          repository,
-          logger,
-          loadedRules,
-          (report) => emitter.emit('core.report', report),
-          thymianFormat,
-          options.ruleOptions ?? {},
-        ).run();
-
-        ctx.reply(valid);
-      },
-    );
-
     emitter.onAction('http-linter.lint-static', async ({ format }, ctx) => {
       const thymianFormat = ThymianFormat.import(format);
 
@@ -278,6 +353,98 @@ export const httpLinterPlugin: ThymianPlugin<HttpLinterPluginOptions> = {
         reports,
       });
     });
+
+    emitter.on('http-linter.transaction', (transaction) => {
+      if (typeof transactionRepository === 'undefined') {
+        logger.warn(
+          'Received HTTP transaction but HttpTransactionRepository is not yet initialized.',
+        );
+
+        return;
+      }
+
+      transactionRepository.insertHttpTransaction(transaction);
+    });
+
+    emitter.onAction(
+      'http-linter.lint-analytics-batch',
+      async ({ format }, ctx) => {
+        if (typeof transactionRepository === 'undefined') {
+          return ctx.error(
+            new ThymianBaseError(
+              'Cannot run analytics linting because the HttpTransactionRepository is not initialized.',
+            ),
+          );
+        }
+
+        const thymianFormat = format
+          ? ThymianFormat.import(format)
+          : new ThymianFormat();
+
+        const reports: ThymianReport[] = [];
+
+        const valid = await new AnalyticsLinter(
+          transactionRepository,
+          logger,
+          loadedRules,
+          (report) => reports.push(report),
+          thymianFormat,
+          options.ruleOptions ?? {},
+        ).run();
+
+        ctx.reply({
+          valid,
+          reports,
+        });
+      },
+    );
+
+    emitter.onAction(
+      'http-linter.lint-analytics',
+      async ({ format, traces, transactions }, ctx) => {
+        if (!traces || transactions) {
+          logger.warn('No traffic was sent with "http-linter.lint-analytics".');
+        }
+
+        const thymianFormat = format
+          ? ThymianFormat.import(format)
+          : new ThymianFormat();
+
+        const repo = new SqliteHttpTransactionRepository(
+          ':memory:',
+          logger.child('@thymian/http-linter:HttpTransactionRepository'),
+        );
+        await repo.init();
+
+        if (traces) {
+          for (const trace of traces) {
+            repo.insertHttpTrace(trace);
+          }
+        }
+
+        if (transactions) {
+          for (const transaction of transactions) {
+            repo.insertHttpTransaction(transaction);
+          }
+        }
+
+        const reports: ThymianReport[] = [];
+
+        const valid = await new AnalyticsLinter(
+          repo,
+          logger,
+          loadedRules,
+          (report) => reports.push(report),
+          thymianFormat,
+          options.ruleOptions ?? {},
+        ).run();
+
+        ctx.reply({
+          valid,
+          reports,
+        });
+      },
+    );
   },
 };
 
