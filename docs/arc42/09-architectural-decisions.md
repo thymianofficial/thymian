@@ -1,75 +1,31 @@
 # 9. Architectural Decisions
 
-## Core features are plugins and are treated as such
+This chapter documents the significant architectural decisions made for Thymian. Each decision is recorded as an Architecture Decision Record (ADR) following the [Michael Nygard template](https://github.com/joelparkerhenderson/architecture-decision-record/tree/main/locales/en/templates/decision-record-template-by-michael-nygard).
 
-| Date       | Status   |
-| ---------- | -------- |
-| 2024-11-07 | Accepted |
+> **For Copilot/Agents:** Use the [ADR management skill](../../.github/skills/adr-management/SKILL.md) to create, update, or manage ADRs.
 
-### Context
+## ADR Index
 
-### Decision
+| ADR                                              | Title                              | Status   | Date       | Related Quality Requirements                                                                                           |
+| ------------------------------------------------ | ---------------------------------- | -------- | ---------- | ---------------------------------------------------------------------------------------------------------------------- |
+| [ADR-0001](adr/0001-core-features-as-plugins.md) | Core features are plugins          | Accepted | 2024-11-07 | [10.2.2](10-quality-requirements.md#102-quality-scenarios), [10.2.3](10-quality-requirements.md#102-quality-scenarios) |
+| [ADR-0002](adr/0002-communication-as-plugin.md)  | Communication as a plugin          | Proposed | 2024-11-07 | [10.2.4](10-quality-requirements.md#102-quality-scenarios)                                                             |
+| [ADR-0003](adr/0003-plugins-allow-streaming.md)  | Plugins should allow for streaming | Proposed | 2024-11-07 | [10.2.1](10-quality-requirements.md#102-quality-scenarios), [10.2.2](10-quality-requirements.md#102-quality-scenarios) |
+| [ADR-0004](adr/0004-plugins-run-isolated.md)     | Plugins should run isolated        | Proposed | 2024-11-07 | [10.2.3](10-quality-requirements.md#102-quality-scenarios)                                                             |
 
-To improve modularity, even pre-built features like the file loader and the OpenAPI parsers will be implemented as plugins.
+## Creating New ADRs
 
-Plugins have their schema files packages. (similarly to nx generator/executor schema files)
+To create a new ADR:
 
-The configuration of the plugins happens in the Thymian config.
+1. Copy the [ADR template](adr/ADR-TEMPLATE.md)
+2. Use the next available 4-digit number (e.g., `0005-short-title.md`)
+3. Fill in all sections, including cross-references to relevant quality requirements
+4. Add the new ADR to the index table above
+5. Update [Chapter 10 (Quality Requirements)](10-quality-requirements.md) with a back-reference if applicable
 
-### Consequences
+### Status Values
 
-The code will be easier to maintain because there are no hard-coded implementations. It's harder to implement the initial version because the plugin system needs to be set up as well.
-
-## Communication as a plugin
-
-| Date       | Status   |
-| ---------- | -------- |
-| 2024-11-07 | Proposed |
-
-### Context
-
-The interoperability and DX quality goals lead to the question whether it should be possible to write plugins in other languages and as a result, how would the communication with the other languages happen.
-
-The initial implementation allows only for importing JS files.
-
-### Decision
-
-It should be possible to write plugins in other languages so developers can use 'their' language. Simple import of JS files is therefore insufficient.
-
-Communication with other plugins will itself be a wrapper plugin. That allows the use of either importing JS files (default) or other ways like TCP or Shell (stdin/stdout) plugins.
-
-It's not implemented immediately, but the implementation should allow for extending the communication as plugin.
-
-Important: exchanged information must be serializable.
-
-### Consequences
-
-The whole system is more flexible but harder to understand.
-
-## Plugins should allow for streaming
-
-| Date       | Status   |
-| ---------- | -------- |
-| 2024-11-07 | Proposed |
-
-### Context
-
-Wait time for results might be long depending on API size and number of checked rules. It would improve DX if results could be seen as soon as possible, which is as rules are evaluated on API statements.
-
-### Decision
-
-### Consequences
-
-## Plugins should run isolated
-
-| Date       | Status   |
-| ---------- | -------- |
-| 2024-11-07 | Proposed |
-
-### Context
-
-Simply importing plugins in the form of JS files allows for injection attacks. Should Thymian use a container or sandbox system like V8 Isolates to run plugins safely?
-
-### Decision
-
-### Consequences
+- **Proposed**: Under discussion, not yet accepted
+- **Accepted**: Decision has been made and is in effect
+- **Deprecated**: No longer recommended, but not replaced
+- **Superseded**: Replaced by another ADR (must link to successor)
