@@ -33,3 +33,10 @@ The configuration of the plugins happens in the Thymian config.
 
 - [Quality Requirement 10.2.3](../10-quality-requirements.md#102-quality-scenarios): Modularity — Adding new specification formats requires only a plugin
 - [Quality Requirement 10.2.2](../10-quality-requirements.md#102-quality-scenarios): User engagement — Easy to add own plugins
+
+## Status History
+
+| Date       | Status   | Notes                             |
+| ---------- | -------- | --------------------------------- |
+| 2024-11-07 | Proposed | Initial proposal                  |
+| 2024-11-07 | Accepted | Accepted after initial discussion |

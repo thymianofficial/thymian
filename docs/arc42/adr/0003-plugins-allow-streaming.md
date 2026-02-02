@@ -20,3 +20,9 @@ Wait time for results might be long depending on API size and number of checked 
 
 - [Quality Requirement 10.2.2](../10-quality-requirements.md#102-quality-scenarios): User engagement — Encourage users with good, understandable feedback
 - [Quality Requirement 10.2.1](../10-quality-requirements.md#102-quality-scenarios): Learnability — Users should recognize patterns from other tools
+
+## Status History
+
+| Date       | Status   | Notes            |
+| ---------- | -------- | ---------------- |
+| 2024-11-07 | Proposed | Initial proposal |

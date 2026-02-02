@@ -38,3 +38,9 @@ It's not implemented immediately, but the implementation should allow for extend
 
 - [Quality Requirement 10.2.4](../10-quality-requirements.md#102-quality-scenarios): Interoperability — Write plugins in preferred programming language
 - [ADR-0001](0001-core-features-as-plugins.md): Core features as plugins (foundational decision)
+
+## Status History
+
+| Date       | Status   | Notes            |
+| ---------- | -------- | ---------------- |
+| 2024-11-07 | Proposed | Initial proposal |
