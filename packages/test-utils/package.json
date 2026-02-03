@@ -24,7 +24,7 @@
     "@fastify/type-provider-json-schema-to-ts": "^5.0.0",
     "@thymian/core": "0.0.0-PLACEHOLDER",
     "etag": "^1.8.1",
-    "fastify": "^5.4.0",
+    "fastify": "^5.7.3",
     "fastify-plugin": "^5.0.1",
     "fastify-range": "^2.0.0"
   },
