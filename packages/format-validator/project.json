@@ -11,6 +11,10 @@
       "options": {
         "cwd": "packages/format-validator"
       }
+    },
+    "generate-schema-docs": {
+      "dependsOn": ["build"],
+      "command": "node scripts/generate-schema-docs.js @thymian/format-validator  astro-docs/src/content/docs/references/Plugins/Format\\ Validator/options.md"
     }
   }
 }

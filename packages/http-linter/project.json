@@ -11,6 +11,10 @@
       "options": {
         "cwd": "packages/http-linter"
       }
+    },
+    "generate-schema-docs": {
+      "dependsOn": ["build"],
+      "command": "node scripts/generate-schema-docs.js @thymian/http-linter astro-docs/src/content/docs/references/Plugins/HTTP\\ Linter/options.md"
     }
   }
 }

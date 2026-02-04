@@ -25,6 +25,7 @@
   },
   "private": true,
   "devDependencies": {
+    "@adobe/jsonschema2md": "^8.0.10",
     "@commitlint/cli": "^19.8.1",
     "@commitlint/config-conventional": "^19.8.1",
     "@nx/eslint": "22.4.0",
@@ -45,6 +46,7 @@
     "eslint-plugin-unused-imports": "^4.1.4",
     "husky": "^9.1.7",
     "jsonc-eslint-parser": "^2.1.0",
+    "jsonschema2mk": "^2.1.1",
     "license-checker": "^25.0.1",
     "lint-staged": "^16.1.6",
     "nx": "22.4.0",

@@ -11,6 +11,10 @@
       "options": {
         "cwd": "packages/sampler"
       }
+    },
+    "generate-schema-docs": {
+      "dependsOn": ["build"],
+      "command": "node scripts/generate-schema-docs.js @thymian/sampler  astro-docs/src/content/docs/references/Plugins/Sampler/options.md"
     }
   }
 }
