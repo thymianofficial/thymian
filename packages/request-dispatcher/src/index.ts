@@ -25,6 +25,14 @@ declare module '@thymian/core' {
   }
 }
 
+export interface UndiciError extends Error {
+  code: string;
+}
+
+export function isUndiciError(err: unknown): err is UndiciError {
+  return err instanceof Error && 'code' in err;
+}
+
 export const httpRequestHookSchema: JSONSchemaType<{
   options?: Partial<HttpRequestDispatchOptions>;
   request: HttpRequest;
@@ -122,7 +130,12 @@ export const dispatcherPlugin: ThymianPlugin<SamplerPluginOptions> = {
           );
 
           ctx.reply(result);
-        } catch (e) {
+        } catch (e: unknown) {
+          if (isUndiciError(e) && e.code === 'ECONNREFUSED') {
+            ctx.error(
+              new ThymianBaseError(`Server ${request.origin} is unavailable.`),
+            );
+          }
           ctx.error(
             new ThymianBaseError(
               `Error while dispatching request: ${request.method.toUpperCase()} ${

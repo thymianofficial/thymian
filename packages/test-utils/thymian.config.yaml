@@ -1,0 +1,17 @@
+plugins:
+  '@thymian/http-linter':
+    options:
+      ruleOptions: {}
+      rules:
+        - '@thymian/rfc-9110-rules'
+  '@thymian/openapi':
+    options:
+      descriptions:
+        - 'source': './src/example-app/example-app.openapi.yaml'
+  '@thymian/request-dispatcher': {}
+  '@thymian/sampler': {}
+  '@thymian/reporter':
+    options:
+      formatters:
+        cli: {}
+  '@thymian/format-validator': {}
