@@ -23,6 +23,9 @@ import(pkgName)
       fm: {
         title: options['title'] ?? 'Plugin Options',
         description: options['description'] ?? '',
+        sidebar: {
+          order: -100,
+        },
       },
     });
     return jsm.convert(options);
