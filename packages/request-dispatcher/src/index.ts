@@ -25,11 +25,11 @@ declare module '@thymian/core' {
   }
 }
 
-export interface UndiciError extends Error {
+export interface HttpRequestError extends Error {
   code: string;
 }
 
-export function isUndiciError(err: unknown): err is UndiciError {
+export function isHttpRequestError(err: unknown): err is HttpRequestError {
   return err instanceof Error && 'code' in err;
 }
 
@@ -131,7 +131,7 @@ export const dispatcherPlugin: ThymianPlugin<SamplerPluginOptions> = {
 
           ctx.reply(result);
         } catch (e: unknown) {
-          if (isUndiciError(e) && e.code === 'ECONNREFUSED') {
+          if (isHttpRequestError(e) && e.code === 'ECONNREFUSED') {
             ctx.error(
               new ThymianBaseError(`Server ${request.origin} is unavailable.`),
             );
