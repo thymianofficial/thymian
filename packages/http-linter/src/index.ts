@@ -113,6 +113,7 @@ export type HttpLinterPluginOptions = {
     severity?: RuleSeverity;
     appliesTo?: HttpParticipantRole[];
     names?: string[];
+    excluded?: string[];
     ruleTypes?: RuleType[];
   };
 };
@@ -211,6 +212,13 @@ export const httpLinterPlugin: ThymianPlugin<HttpLinterPluginOptions> = {
             nullable: true,
           },
           names: {
+            nullable: true,
+            type: 'array',
+            items: {
+              type: 'string',
+            },
+          },
+          excluded: {
             nullable: true,
             type: 'array',
             items: {

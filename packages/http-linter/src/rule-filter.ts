@@ -8,7 +8,7 @@ export function createRuleFilter(
 ): RuleFilter {
   const ruleFilters: RuleFilter[] = [];
 
-  const { severity, appliesTo, names, ruleTypes } = filters ?? {};
+  const { severity, appliesTo, names, ruleTypes, excluded } = filters ?? {};
 
   if (severity) {
     ruleFilters.push(
@@ -34,6 +34,10 @@ export function createRuleFilter(
     ruleFilters.push((rule) =>
       ruleTypes.some((type) => rule.meta.type.includes(type)),
     );
+  }
+
+  if (excluded) {
+    ruleFilters.push((rule) => !excluded.includes(rule.meta.name));
   }
 
   return (rule) => ruleFilters.every((filter) => filter(rule));
