@@ -14,6 +14,7 @@ if (searchPatterns.length === 0) {
   console.log(
     'increase-md-header-levels.js path/pattern/1.md [path/pattern/2.md] [...]',
   );
+  process.exit(1);
 }
 
 const files = await glob(searchPatterns);

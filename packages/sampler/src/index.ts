@@ -71,6 +71,10 @@ export const samplePlugin: ThymianPlugin<Partial<SamplerPluginOptions>> = {
   name: '@thymian/sampler',
   version: '0.x',
   options: {
+    // ### for reference documentation ###
+    title: 'Plugin Options',
+    description: 'Configuration options for the Sampler plugin',
+    // ###################################
     type: 'object',
     properties: {
       path: {

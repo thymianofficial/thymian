@@ -11,7 +11,7 @@
       }
     },
     "build": {
-      "dependsOn": ["increaseCliDocsHeaderLevels"],
+      "dependsOn": ["increaseCliDocsHeaderLevels", "generateSchemaDocs"],
       "command": "astro build",
       "options": {
         "cwd": "astro-docs"
@@ -33,6 +33,9 @@
     },
     "generateCliDocs": {
       "command": "nx run-many -t generate-docs"
+    },
+    "generateSchemaDocs": {
+      "command": "nx run-many -t generate-schema-docs"
     },
     "increaseCliDocsHeaderLevels": {
       "dependsOn": ["generateCliDocs"],

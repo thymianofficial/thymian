@@ -72,6 +72,10 @@ export const openApiPlugin: ThymianPlugin<OpenApiPluginOptions> = {
   name: '@thymian/openapi',
   version: '0.x',
   options: {
+    // ### for reference documentation ###
+    title: 'Plugin Options',
+    description: 'Configuration options for the OpenAPI plugin',
+    // ###################################
     type: 'object',
     additionalProperties: false,
     properties: {

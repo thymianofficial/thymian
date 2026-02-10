@@ -11,6 +11,10 @@
       "options": {
         "cwd": "packages/openapi"
       }
+    },
+    "generate-schema-docs": {
+      "dependsOn": ["build"],
+      "command": "node scripts/generate-schema-docs.js @thymian/openapi  astro-docs/src/content/docs/references/Plugins/OpenAPI/options.md"
     }
   }
 }

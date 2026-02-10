@@ -120,6 +120,10 @@ export type HttpLinterPluginOptions = {
 export const httpLinterPlugin: ThymianPlugin<HttpLinterPluginOptions> = {
   name: '@thymian/http-linter',
   options: {
+    // ### for reference documentation ###
+    title: 'Plugin Options',
+    description: 'Configuration options for the HTTP Linter plugin',
+    // ###################################
     type: 'object',
     required: ['rules'],
     properties: {
