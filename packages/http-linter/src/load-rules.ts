@@ -7,6 +7,7 @@ import { isRecord, ThymianBaseError } from '@thymian/core';
 import { validate } from '@thymian/core/ajv';
 import { glob } from 'tinyglobby';
 
+import { isRuleSeverityLevel, type RulesOptions } from './index.js';
 import type { Rule } from './rule/rule.js';
 import type { RuleSet } from './rule/rule-set.js';
 import type { RuleFilter } from './rule-filter.js';
@@ -54,7 +55,7 @@ export async function loadRuleSet(
   ruleSet: RuleSet,
   basePath: string,
   filterFn: RuleFilter,
-  options: Record<string, unknown>,
+  options: RulesOptions,
 ): Promise<Rule[]> {
   if (ruleSet.rules) {
     return ruleSet.rules.filter(filterFn);
@@ -83,7 +84,7 @@ export async function loadRuleSet(
 export async function loadRules(
   path: string | string[],
   ruleFilter: RuleFilter = () => true,
-  options: Record<string, unknown> = {},
+  options: RulesOptions = {},
 ): Promise<Rule[]> {
   if (Array.isArray(path)) {
     return (
@@ -116,30 +117,36 @@ export async function loadRules(
 
   const ruleOrRuleSet = module.default;
 
-  if (isRule(ruleOrRuleSet) && ruleFilter(ruleOrRuleSet)) {
-    const ruleOptions = options[ruleOrRuleSet.meta.name];
+  if (isRule(ruleOrRuleSet)) {
+    const { name } = ruleOrRuleSet.meta;
 
-    if (typeof ruleOptions === 'boolean') {
-      if (!ruleOptions) {
-        return [];
+    const ruleOptions = options[name];
+
+    if (isRecord(ruleOptions)) {
+      ruleOrRuleSet.meta.severity =
+        ruleOptions.severity ?? ruleOrRuleSet.meta.severity;
+      ruleOrRuleSet.meta.type = ruleOptions.type ?? ruleOrRuleSet.meta.type;
+
+      if (ruleOptions.options && ruleOrRuleSet.meta.options) {
+        if (!validate(ruleOrRuleSet.meta.options, ruleOptions.options)) {
+          throw new ThymianBaseError(
+            `Options for rule "${ruleOrRuleSet.meta.name}" does not match the schema of the rule.`,
+            {
+              suggestions: [
+                'Check the options for the rule in your Thymian config file.',
+              ],
+              name: 'InvalidRuleOptionError',
+            },
+          );
+        }
       }
-    } else if (ruleOptions) {
-      if (
-        !validate(ruleOrRuleSet.meta.options, options[ruleOrRuleSet.meta.name])
-      ) {
-        throw new ThymianBaseError(
-          `Options for rule "${ruleOrRuleSet.meta.name}" does not match the schema of the rule.`,
-          {
-            suggestions: [
-              'Check the options for the rule in your Thymian config file.',
-            ],
-            name: 'InvalidRuleOptionError',
-          },
-        );
-      }
+    } else if (isRuleSeverityLevel(ruleOptions)) {
+      ruleOrRuleSet.meta.severity = ruleOptions;
     }
 
-    return [ruleOrRuleSet];
+    if (ruleFilter(ruleOrRuleSet)) {
+      return [ruleOrRuleSet];
+    }
   }
 
   if (isRuleSet(ruleOrRuleSet)) {
@@ -147,4 +154,20 @@ export async function loadRules(
   }
 
   return [];
+}
+
+export function extractOptionsFromRules(
+  rulesOptions: RulesOptions | undefined,
+): Record<string, Record<PropertyKey, unknown>> {
+  return Object.entries(rulesOptions ?? {}).reduce(
+    (
+      acc: Record<string, Record<PropertyKey, unknown>>,
+      [ruleName, ruleOptions],
+    ) => ({
+      ...acc,
+      [ruleName]:
+        isRecord(ruleOptions) && ruleOptions.options ? ruleOptions.options : {},
+    }),
+    {},
+  );
 }

@@ -18,14 +18,9 @@ import { AnalyticsLinter } from './linter/analytics-linter.js';
 import { createContext } from './linter/create-context.js';
 import { HttpTestLinter } from './linter/http-test-linter.js';
 import { StaticLinter } from './linter/static-linter.js';
-import { loadRules } from './load-rules.js';
+import { extractOptionsFromRules, loadRules } from './load-rules.js';
 import type { Rule } from './rule/rule.js';
-import {
-  type HttpParticipantRole,
-  httpParticipantRoles,
-  type RuleType,
-  ruleTypes,
-} from './rule/rule-meta.js';
+import { type RuleType, ruleTypes } from './rule/rule-meta.js';
 import { type RuleSeverity, severityLevels } from './rule/rule-severity.js';
 import { createRuleFilter } from './rule-filter.js';
 import type { CapturedTrace, CapturedTransaction } from './types.js';
@@ -103,18 +98,23 @@ export type AnalyticsOptions = {
       };
 };
 
+export type SingleRuleOptions<
+  Options extends Record<PropertyKey, unknown> = Record<PropertyKey, unknown>,
+> = {
+  severity?: RuleSeverity;
+  type?: RuleType[];
+  skipOrigins?: string[];
+  options?: Options;
+};
+
+export type RulesOptions = Record<string, RuleSeverity | SingleRuleOptions>;
+
 export type HttpLinterPluginOptions = {
-  rules: string[];
-  ruleOptions?: Record<string, Record<string, unknown> | undefined>;
-  modes?: RuleType[];
+  ruleSets: string[];
+  severity?: RuleSeverity;
+  type?: RuleType[];
   analytics?: AnalyticsOptions;
-  origin?: string;
-  ruleFilter?: {
-    severity?: RuleSeverity;
-    appliesTo?: HttpParticipantRole[];
-    names?: string[];
-    ruleTypes?: RuleType[];
-  };
+  rules?: RulesOptions;
 };
 
 export const httpLinterPlugin: ThymianPlugin<HttpLinterPluginOptions> = {
@@ -125,14 +125,9 @@ export const httpLinterPlugin: ThymianPlugin<HttpLinterPluginOptions> = {
     description: 'Configuration options for the HTTP Linter plugin',
     // ###################################
     type: 'object',
-    required: ['rules'],
+    required: ['ruleSets'],
     properties: {
-      ruleOptions: {
-        type: 'object',
-        additionalProperties: true,
-        nullable: true,
-      },
-      modes: {
+      type: {
         nullable: true,
         type: 'array',
         items: {
@@ -140,15 +135,62 @@ export const httpLinterPlugin: ThymianPlugin<HttpLinterPluginOptions> = {
           enum: ruleTypes,
         },
       },
-      rules: {
+      ruleSets: {
         type: 'array',
+        nullable: false,
         items: {
           type: 'string',
         },
       },
-      origin: {
+      rules: {
+        type: 'object',
+        nullable: true,
+        required: [],
+        additionalProperties: {
+          oneOf: [
+            {
+              type: 'string',
+              enum: severityLevels,
+            },
+            {
+              type: 'object',
+              additionalProperties: false,
+              nullable: false,
+              properties: {
+                severity: {
+                  nullable: true,
+                  type: 'string',
+                  enum: severityLevels,
+                },
+                type: {
+                  nullable: true,
+                  type: 'array',
+                  items: {
+                    type: 'string',
+                    enum: ruleTypes,
+                  },
+                },
+                skipOrigins: {
+                  type: 'array',
+                  nullable: true,
+                  items: {
+                    type: 'string',
+                  },
+                },
+                options: {
+                  type: 'object',
+                  nullable: true,
+                  additionalProperties: true,
+                },
+              },
+            },
+          ],
+        },
+      },
+      severity: {
         type: 'string',
         nullable: true,
+        enum: severityLevels,
       },
       analytics: {
         type: 'object',
@@ -188,41 +230,6 @@ export const httpLinterPlugin: ThymianPlugin<HttpLinterPluginOptions> = {
           },
         },
       },
-      ruleFilter: {
-        type: 'object',
-        additionalProperties: false,
-        nullable: true,
-        properties: {
-          ruleTypes: {
-            type: 'array',
-            items: {
-              type: 'string',
-              enum: ruleTypes,
-            },
-            nullable: true,
-          },
-          severity: {
-            type: 'string',
-            enum: severityLevels,
-            nullable: true,
-          },
-          appliesTo: {
-            type: 'array',
-            items: {
-              type: 'string',
-              enum: httpParticipantRoles,
-            },
-            nullable: true,
-          },
-          names: {
-            nullable: true,
-            type: 'array',
-            items: {
-              type: 'string',
-            },
-          },
-        },
-      },
     },
   },
   actions: {
@@ -234,19 +241,26 @@ export const httpLinterPlugin: ThymianPlugin<HttpLinterPluginOptions> = {
     logger: Logger,
     options,
   ): Promise<void> {
-    const ruleFilter = createRuleFilter(options.ruleFilter);
+    const modes = options.type ?? ['static'];
+    const severity = options.severity ?? 'hint';
+    const optionsForRules = extractOptionsFromRules(options.rules);
+
+    logger.debug(
+      `Running in mode(s): ${modes.join(', ')} with severity "${severity}".`,
+    );
+
+    const ruleFilter = createRuleFilter({
+      severity,
+      type: modes,
+    });
 
     const loadedRules = await loadRules(
-      options.rules,
+      options.ruleSets,
       ruleFilter,
-      options.ruleOptions,
+      options.rules ?? {},
     );
 
     logger.debug(`${loadedRules.length} rules were initially loaded.`);
-
-    const modes = options.modes ?? ['static'];
-
-    logger.debug(`Running in mode(s): ${modes.join(', ')}`);
 
     let transactionRepository: HttpTransactionRepository | undefined;
 
@@ -287,7 +301,7 @@ export const httpLinterPlugin: ThymianPlugin<HttpLinterPluginOptions> = {
       const additionalLoadedRules = await loadRules(
         rules,
         ruleFilter,
-        options.ruleOptions,
+        options.rules ?? {},
       );
 
       loadedRules.push(...additionalLoadedRules);
@@ -315,7 +329,7 @@ export const httpLinterPlugin: ThymianPlugin<HttpLinterPluginOptions> = {
             loadedRules,
             (report) => emitter.emit('core.report', report),
             thymianFormat,
-            options.ruleOptions ?? {},
+            optionsForRules,
           ).run()) && valid;
       }
 
@@ -329,7 +343,7 @@ export const httpLinterPlugin: ThymianPlugin<HttpLinterPluginOptions> = {
             loadedRules,
             (report) => emitter.emit('core.report', report),
             thymianFormat,
-            options.ruleOptions ?? {},
+            optionsForRules,
           ).run()) && valid;
       }
 
@@ -349,7 +363,7 @@ export const httpLinterPlugin: ThymianPlugin<HttpLinterPluginOptions> = {
         loadedRules,
         (report) => reports.push(report),
         thymianFormat,
-        options.ruleOptions ?? {},
+        optionsForRules,
       ).run();
 
       ctx.reply({
@@ -393,7 +407,7 @@ export const httpLinterPlugin: ThymianPlugin<HttpLinterPluginOptions> = {
           loadedRules,
           (report) => reports.push(report),
           thymianFormat,
-          options.ruleOptions ?? {},
+          optionsForRules,
         ).run();
 
         ctx.reply({
@@ -440,7 +454,7 @@ export const httpLinterPlugin: ThymianPlugin<HttpLinterPluginOptions> = {
           loadedRules,
           (report) => reports.push(report),
           thymianFormat,
-          options.ruleOptions ?? {},
+          optionsForRules,
         ).run();
 
         ctx.reply({
