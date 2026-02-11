@@ -1,7 +1,7 @@
 import { httpRule } from '@thymian/http-linter';
 
 export default httpRule(
-  'rfc/server-should-indicate-if-closing-the-connection-when-sending-final-status-code-without-full-request',
+  'rfc9110/server-should-indicate-if-closing-the-connection-when-sending-final-status-code-without-full-request',
 )
   .severity('warn')
   .type('informational')

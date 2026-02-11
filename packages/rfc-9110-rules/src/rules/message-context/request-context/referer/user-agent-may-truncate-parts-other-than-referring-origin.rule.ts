@@ -1,7 +1,7 @@
 import { httpRule } from '@thymian/http-linter';
 
 export default httpRule(
-  'rfc/user-agent-may-truncate-parts-other-than-referring-origin',
+  'rfc9110/user-agent-may-truncate-parts-other-than-referring-origin',
 )
   .severity('hint')
   .type('informational')
