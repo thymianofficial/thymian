@@ -1,4 +1,11 @@
-import { and, method, not, responseMediaType, statusCode } from '@thymian/core';
+import {
+  and,
+  method,
+  not,
+  path,
+  responseMediaType,
+  statusCode,
+} from '@thymian/core';
 import { NoopLogger } from '@thymian/core';
 import {
   createHttpRequest,
@@ -168,6 +175,46 @@ describe('StaticApiContext', () => {
       const result = context.validateCommonHttpTransactions(
         and(method('get'), statusCode(200)),
       );
+
+      expect(result).toHaveLength(1);
+      expect(result).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            location: {
+              elementType: 'edge',
+              elementId: id,
+              pointer: '',
+            },
+          }),
+        ]),
+      );
+    });
+
+    it('should ignore skipped origins', () => {
+      const format = createThymianFormat();
+      const [, , id] = format.addHttpTransaction(
+        createHttpRequest({ method: 'get', path: '/users', host: 'localhost' }),
+        createHttpResponse({ statusCode: 200, headers: {} }),
+        'test-source-1',
+      );
+      format.addHttpTransaction(
+        createHttpRequest({
+          method: 'post',
+          path: '/users',
+          host: 'api.example.com',
+        }),
+        createHttpResponse({ statusCode: 201, headers: {} }),
+        'test-source-2',
+      );
+
+      const context = new StaticApiContext(
+        format,
+        new NoopLogger(),
+        () => undefined,
+        ['*.example.com'],
+      );
+
+      const result = context.validateCommonHttpTransactions(path('/users'));
 
       expect(result).toHaveLength(1);
       expect(result).toEqual(

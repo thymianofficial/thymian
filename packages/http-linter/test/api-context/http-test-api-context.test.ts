@@ -190,6 +190,55 @@ describe('HttpTestApiContext', () => {
         expect(result?.[0]?.message).toBe('Custom violation');
       }
     });
+
+    it('should ignore the skipped origins', async () => {
+      const format = createThymianFormat();
+      const [, , id] = format.addHttpTransaction(
+        createHttpRequest({ method: 'get', path: '/users', host: 'localhost' }),
+        createHttpResponse({ statusCode: 200, headers: {} }),
+        'test-source-1',
+      );
+      format.addHttpTransaction(
+        createHttpRequest({
+          method: 'post',
+          path: '/users',
+          host: 'api.example.com',
+        }),
+        createHttpResponse({ statusCode: 200, headers: {} }),
+        'test-source-2',
+      );
+
+      const mockContext = createMockHttpTestContext({ format });
+      vi.mocked(mockContext.runRequest).mockResolvedValue({
+        statusCode: 200,
+        headers: {},
+        duration: 0,
+        trailers: {},
+      });
+
+      const context = new HttpTestApiContext(
+        'test-rule',
+        mockContext,
+        vi.fn(),
+        ['*.example.com'],
+      );
+
+      const result = await context.validateCommonHttpTransactions(
+        statusCode(200),
+        () => {
+          return { message: 'Custom violation' };
+        },
+      );
+
+      expect(result).toHaveLength(1);
+      expect(result).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            location: { elementType: 'edge', elementId: id, pointer: '' },
+          }),
+        ]),
+      );
+    });
   });
 
   describe('validateGroupedCommonHttpTransactions', () => {

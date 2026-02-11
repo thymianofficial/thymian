@@ -49,9 +49,7 @@ function sortTraceTransactions(
   return sortedList;
 }
 
-export class SqliteHttpTransactionRepository
-  implements HttpTransactionRepository
-{
+export class SqliteHttpTransactionRepository implements HttpTransactionRepository {
   readonly db: Database;
 
   constructor(

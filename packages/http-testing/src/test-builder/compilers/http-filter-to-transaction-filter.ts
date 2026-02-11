@@ -1,4 +1,7 @@
-import type { RequestFilterExpression } from '@thymian/core';
+import {
+  type RequestFilterExpression,
+  thymianRequestToOrigin,
+} from '@thymian/core';
 import {
   equalsIgnoreCase,
   type ThymianFormat,
@@ -227,9 +230,25 @@ export function requestScopedHttpFilterToTransactionFilter(
     case 'isAuthorized':
       return (_: ThymianHttpRequest, reqId: string) =>
         format.requestIsSecured(reqId) === filterExpression.isAuthorized;
+    case 'matches-origin': {
+      if (typeof filterExpression.origin === 'undefined') {
+        return () => false;
+      }
+
+      const regExp = createRegExp(filterExpression.origin);
+
+      return (req) => regExp.test(thymianRequestToOrigin(req));
+    }
+
     default:
       throw new Error(
         `Invalid expression: ${JSON.stringify(filterExpression, null, 2)}.`,
       );
   }
+}
+
+export function createRegExp(pattern: string): RegExp {
+  const regexString =
+    '^' + pattern.replace(/\./g, '\\.').replace(/\*/g, '.*') + '(:\\d{1,5})?$';
+  return new RegExp(regexString);
 }
