@@ -1,6 +1,6 @@
 import { httpRule } from '@thymian/http-linter';
 
-export default httpRule('rfc/proxy-may-generate-immediate-100-response')
+export default httpRule('rfc9110/proxy-may-generate-immediate-100-response')
   .severity('hint')
   .type('informational')
   .url('https://www.rfc-editor.org/rfc/rfc9110.html#name-expect')

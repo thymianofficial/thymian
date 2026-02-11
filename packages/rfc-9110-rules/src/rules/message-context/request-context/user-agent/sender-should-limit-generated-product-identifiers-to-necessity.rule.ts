@@ -1,7 +1,7 @@
 import { httpRule } from '@thymian/http-linter';
 
 export default httpRule(
-  'rfc/sender-should-limit-generated-product-identifiers-to-necessity',
+  'rfc9110/sender-should-limit-generated-product-identifiers-to-necessity',
 )
   .severity('warn')
   .type('informational')

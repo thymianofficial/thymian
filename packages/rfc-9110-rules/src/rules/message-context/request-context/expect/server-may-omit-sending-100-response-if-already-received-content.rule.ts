@@ -1,7 +1,7 @@
 import { httpRule } from '@thymian/http-linter';
 
 export default httpRule(
-  'rfc/server-may-omit-sending-100-response-if-already-received-content',
+  'rfc9110/server-may-omit-sending-100-response-if-already-received-content',
 )
   .severity('hint')
   .type('informational')
