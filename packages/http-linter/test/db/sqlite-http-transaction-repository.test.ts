@@ -325,8 +325,6 @@ describe('HttpTransactionRepository', () => {
       const id = await repo.insertHttpTransaction(transaction);
       const retrieved = await repo.readTransactionById(id);
 
-      console.log(retrieved);
-
       expect(retrieved).toBeDefined();
       // Path should be normalized (query params removed)
       expect(retrieved?.request.data.path).toBe(
