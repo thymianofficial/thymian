@@ -7,9 +7,10 @@ import { isRecord, ThymianBaseError } from '@thymian/core';
 import { validate } from '@thymian/core/ajv';
 import { glob } from 'tinyglobby';
 
-import { isRuleSeverityLevel, type RulesOptions } from './index.js';
 import type { Rule } from './rule/rule.js';
 import type { RuleSet } from './rule/rule-set.js';
+import { isRuleSeverityLevel } from './rule/rule-severity.js';
+import type { RulesConfiguration } from './rule-configuration.js';
 import type { RuleFilter } from './rule-filter.js';
 
 const require = createRequire(import.meta.url);
@@ -55,7 +56,7 @@ export async function loadRuleSet(
   ruleSet: RuleSet,
   basePath: string,
   filterFn: RuleFilter,
-  options: RulesOptions,
+  options: RulesConfiguration,
 ): Promise<Rule[]> {
   if (ruleSet.rules) {
     return ruleSet.rules.filter(filterFn);
@@ -84,7 +85,7 @@ export async function loadRuleSet(
 export async function loadRules(
   path: string | string[],
   ruleFilter: RuleFilter = () => true,
-  options: RulesOptions = {},
+  options: RulesConfiguration = {},
 ): Promise<Rule[]> {
   if (Array.isArray(path)) {
     return (
@@ -154,20 +155,4 @@ export async function loadRules(
   }
 
   return [];
-}
-
-export function extractOptionsFromRules(
-  rulesOptions: RulesOptions | undefined,
-): Record<string, Record<PropertyKey, unknown>> {
-  return Object.entries(rulesOptions ?? {}).reduce(
-    (
-      acc: Record<string, Record<PropertyKey, unknown>>,
-      [ruleName, ruleOptions],
-    ) => ({
-      ...acc,
-      [ruleName]:
-        isRecord(ruleOptions) && ruleOptions.options ? ruleOptions.options : {},
-    }),
-    {},
-  );
 }

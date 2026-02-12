@@ -1,13 +1,13 @@
 import type { Rule } from 'src/rule/rule.js';
 
 import { StaticApiContext } from '../api-context/static-api-context.js';
-import type { SingleRuleOptions } from '../index.js';
+import type { SingleRuleConfiguration } from '../rule-configuration.js';
 import { AbstractLinter } from './abstract-linter.js';
 
 export class StaticLinter extends AbstractLinter {
   protected override async runRule(
     rule: Rule,
-    options: SingleRuleOptions,
+    options: SingleRuleConfiguration,
   ): Promise<boolean> {
     if (!rule.staticRule) {
       return true;

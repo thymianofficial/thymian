@@ -3,7 +3,10 @@ import type { Rule } from 'src/rule/rule.js';
 
 import { AnalyticsApiContext } from '../api-context/analytics-api-context.js';
 import type { HttpTransactionRepository } from '../db/http-transaction-repository.js';
-import type { RulesOptions, SingleRuleOptions } from '../index.js';
+import type {
+  RulesConfiguration,
+  SingleRuleConfiguration,
+} from '../rule-configuration.js';
 import { AbstractLinter } from './abstract-linter.js';
 
 export class AnalyticsLinter extends AbstractLinter {
@@ -13,14 +16,14 @@ export class AnalyticsLinter extends AbstractLinter {
     rules: Rule[],
     report: (report: ThymianReport) => void,
     format: ThymianFormat,
-    ruleOptions: RulesOptions,
+    ruleOptions: RulesConfiguration,
   ) {
     super(logger, rules, report, format, ruleOptions);
   }
 
   protected override async runRule(
     rule: Rule,
-    options: SingleRuleOptions,
+    options: SingleRuleConfiguration,
   ): Promise<boolean> {
     if (!rule.analyticsRule) {
       return true;

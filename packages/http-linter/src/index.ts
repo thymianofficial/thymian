@@ -18,10 +18,11 @@ import { AnalyticsLinter } from './linter/analytics-linter.js';
 import { createContext } from './linter/create-context.js';
 import { HttpTestLinter } from './linter/http-test-linter.js';
 import { StaticLinter } from './linter/static-linter.js';
-import { extractOptionsFromRules, loadRules } from './load-rules.js';
+import { loadRules } from './load-rules.js';
 import type { Rule } from './rule/rule.js';
 import { type RuleType, ruleTypes } from './rule/rule-meta.js';
 import { type RuleSeverity, severityLevels } from './rule/rule-severity.js';
+import type { RulesConfiguration } from './rule-configuration.js';
 import { createRuleFilter } from './rule-filter.js';
 import type { CapturedTrace, CapturedTransaction } from './types.js';
 
@@ -98,23 +99,12 @@ export type AnalyticsOptions = {
       };
 };
 
-export type SingleRuleOptions<
-  Options extends Record<PropertyKey, unknown> = Record<PropertyKey, unknown>,
-> = {
-  severity?: RuleSeverity;
-  type?: RuleType[];
-  skipOrigins?: string[];
-  options?: Options;
-};
-
-export type RulesOptions = Record<string, RuleSeverity | SingleRuleOptions>;
-
 export type HttpLinterPluginOptions = {
   ruleSets: string[];
   severity?: RuleSeverity;
   type?: RuleType[];
   analytics?: AnalyticsOptions;
-  rules?: RulesOptions;
+  rules?: RulesConfiguration;
 };
 
 export const httpLinterPlugin: ThymianPlugin<HttpLinterPluginOptions> = {

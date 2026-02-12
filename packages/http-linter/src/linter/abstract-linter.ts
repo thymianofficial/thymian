@@ -12,14 +12,14 @@ import {
   thymianResponseToString,
 } from '@thymian/core';
 
-import {
-  isRuleSeverityLevel,
-  type RulesOptions,
-  type SingleRuleOptions,
-} from '../index.js';
 import type { Rule } from '../rule/rule.js';
 import type { RuleMeta } from '../rule/rule-meta.js';
+import { isRuleSeverityLevel } from '../rule/rule-severity.js';
 import type { RuleViolation } from '../rule/rule-violation.js';
+import type {
+  RulesConfiguration,
+  SingleRuleConfiguration,
+} from '../rule-configuration.js';
 
 export function findDuplicates<T>(elements: T[]): T[] {
   return elements.filter(
@@ -35,7 +35,7 @@ export abstract class AbstractLinter {
     rules: Rule[],
     protected readonly report: (report: ThymianReport) => void,
     protected readonly format: ThymianFormat,
-    protected readonly rulesOptions: RulesOptions,
+    protected readonly rulesConfig: RulesConfiguration,
   ) {
     const duplicateRuleNames = findDuplicates(rules.map((r) => r.meta.name));
 
@@ -54,9 +54,11 @@ export abstract class AbstractLinter {
     let allSuccessful = true;
 
     for (const rule of this.rules) {
-      const options = isRuleSeverityLevel(this.rulesOptions[rule.meta.name])
+      const options = isRuleSeverityLevel(this.rulesConfig[rule.meta.name])
         ? {}
-        : (this.rulesOptions[rule.meta.name] as SingleRuleOptions | undefined);
+        : (this.rulesConfig[rule.meta.name] as
+            | SingleRuleConfiguration
+            | undefined);
 
       try {
         const success = await this.runRule(rule, options ?? {});
@@ -92,7 +94,7 @@ export abstract class AbstractLinter {
 
   protected abstract runRule(
     rule: Rule,
-    options: SingleRuleOptions,
+    options: SingleRuleConfiguration,
   ): Promise<boolean>;
 
   protected reportRuleViolations(
