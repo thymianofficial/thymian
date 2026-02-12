@@ -144,6 +144,17 @@ export const httpLinterPlugin: ThymianPlugin<HttpLinterPluginOptions> = {
         type: 'object',
         nullable: true,
         required: [],
+        examples: [
+          {
+            'rfc9110/server-should-send-validator-fields': 'off',
+          },
+          {
+            'rfc9110/server-should-send-validator-fields': {
+              severity: 'error',
+              skipOrigins: ['*.my-domain.de'],
+            },
+          },
+        ],
         additionalProperties: {
           type: ['string', 'object'], // this is required for the documentation generation
           oneOf: [
