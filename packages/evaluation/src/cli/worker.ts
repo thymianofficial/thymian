@@ -47,9 +47,8 @@ export default async function ({
     });
 
     thymian.register(httpLinterPlugin, {
-      rules: ['@thymian/rfc-9110-rules'],
-      modes: ['static'],
-      ruleFilter: { ruleTypes: ['static'] },
+      ruleSets: ['@thymian/rfc-9110-rules'],
+      type: ['static'],
     });
 
     const version = bundled.openapi ?? bundled.swagger;
