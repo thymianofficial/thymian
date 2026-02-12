@@ -1,4 +1,4 @@
-import { and, not, or, responseHeader, statusCodeRange } from '@thymian/core';
+import { and, not, responseHeader, statusCodeRange } from '@thymian/core';
 import { httpRule } from '@thymian/http-linter';
 
 export default httpRule('rfc9110/origin-server-should-send-etag')
@@ -20,7 +20,7 @@ export default httpRule('rfc9110/origin-server-should-send-etag')
         // Only for successful responses
         statusCodeRange(200, 299),
         // Should have at least one validator
-        not(or(responseHeader('etag'), responseHeader('last-modified'))),
+        not(responseHeader('etag')),
       ),
     ),
   )

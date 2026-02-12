@@ -1,9 +1,13 @@
-import { responseHeader } from '@thymian/core';
+import {
+  getHeader,
+  httpTransactionToLabel,
+  responseHeader,
+} from '@thymian/core';
 import { httpRule } from '@thymian/http-linter';
 
 export default httpRule('rfc9110/recipient-must-handle-large-content-length')
   .severity('warn')
-  .type('static', 'test', 'analytics')
+  .type('test', 'analytics')
   .appliesTo('server', 'client', 'intermediary')
   .url('https://www.rfc-editor.org/rfc/rfc9110.html#section-8.6')
   .description(
@@ -15,21 +19,13 @@ export default httpRule('rfc9110/recipient-must-handle-large-content-length')
     'Content-Length values should be checked for integer overflow risks.',
   )
   .rule((ctx) =>
-    ctx.validateCommonHttpTransactions(
+    ctx.validateHttpTransactions(
       responseHeader('content-length'),
-      (req, res, location) => {
-        const contentLengthHeader = res.headers.find((h: string) =>
-          h.toLowerCase().startsWith('content-length:'),
-        );
+      (req, res) => {
+        const contentLengthHeader = getHeader(res.headers, 'content-length');
 
-        if (!contentLengthHeader) {
+        if (typeof contentLengthHeader !== 'string') {
           return false;
-        }
-
-        const value = contentLengthHeader.split(':', 2)[1]?.trim();
-
-        if (!value || !/^\d+$/.test(value)) {
-          return false; // Invalid format handled by other rule
         }
 
         // Check for extremely large values that could cause issues
@@ -38,18 +34,18 @@ export default httpRule('rfc9110/recipient-must-handle-large-content-length')
         const MAX_REASONABLE_SIZE = Math.pow(2, 40); // 1 TB
 
         try {
-          const numericValue = BigInt(value);
+          const numericValue = BigInt(contentLengthHeader);
 
           if (numericValue > BigInt(MAX_REASONABLE_SIZE)) {
             return {
-              message: `Content-Length value ${value} exceeds reasonable size limit (>1TB), potential overflow risk`,
-              location,
+              message: `Content-Length value ${numericValue.toString()} exceeds reasonable size limit (>1TB), potential overflow risk`,
+              location: httpTransactionToLabel(req, res),
             };
           }
         } catch (e) {
           return {
-            message: `Content-Length value "${value}" is too large to parse safely`,
-            location,
+            message: `Content-Length value "${contentLengthHeader}" is too large to parse safely`,
+            location: httpTransactionToLabel(req, res),
           };
         }
 

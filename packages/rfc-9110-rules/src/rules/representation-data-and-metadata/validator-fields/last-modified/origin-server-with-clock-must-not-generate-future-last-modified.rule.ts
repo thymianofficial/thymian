@@ -1,11 +1,16 @@
-import { and, responseHeader } from '@thymian/core';
+import {
+  and,
+  getHeader,
+  httpTransactionToLabel,
+  responseHeader,
+} from '@thymian/core';
 import { httpRule } from '@thymian/http-linter';
 
 export default httpRule(
   'rfc9110/origin-server-with-clock-must-not-generate-future-last-modified',
 )
   .severity('error')
-  .type('static', 'test', 'analytics')
+  .type('test', 'analytics')
   .appliesTo('origin server')
   .url('https://www.rfc-editor.org/rfc/rfc9110.html#section-8.8.2.1')
   .description(
@@ -18,30 +23,21 @@ export default httpRule(
     'Origin servers MUST NOT generate Last-Modified dates later than the Date header.',
   )
   .rule((ctx) =>
-    ctx.validateCommonHttpTransactions(
+    ctx.validateHttpTransactions(
       and(responseHeader('last-modified'), responseHeader('date')),
-      (req, res, location) => {
-        // Headers are stored as a string array in the format ["name: value", ...]
-        const lastModifiedHeader = res.headers.find((h: string) =>
-          h.toLowerCase().startsWith('last-modified:'),
-        );
-        const dateHeader = res.headers.find((h: string) =>
-          h.toLowerCase().startsWith('date:'),
-        );
+      (req, res) => {
+        const lastModifiedHeader = getHeader(res.headers, 'last-modified');
+        const dateHeader = getHeader(res.headers, 'date');
 
-        if (!lastModifiedHeader || !dateHeader) {
+        if (
+          typeof lastModifiedHeader !== 'string' ||
+          typeof dateHeader !== 'string'
+        ) {
           return false;
         }
 
-        const lastModified = lastModifiedHeader.split(':', 2)[1]?.trim();
-        const date = dateHeader.split(':', 2)[1]?.trim();
-
-        if (!lastModified || !date) {
-          return false;
-        }
-
-        const lastModifiedDate = new Date(lastModified);
-        const dateValue = new Date(date);
+        const lastModifiedDate = new Date(lastModifiedHeader);
+        const dateValue = new Date(dateHeader);
 
         if (isNaN(lastModifiedDate.getTime()) || isNaN(dateValue.getTime())) {
           return false;
@@ -49,8 +45,8 @@ export default httpRule(
 
         if (lastModifiedDate > dateValue) {
           return {
-            message: `Last-Modified date (${lastModified}) is later than Date header (${date})`,
-            location,
+            message: `Last-Modified date (${lastModifiedHeader}) is later than Date header (${dateHeader})`,
+            location: httpTransactionToLabel(req, res),
           };
         }
 
