@@ -16,11 +16,8 @@ export default httpRule(
   )
   .rule((ctx) =>
     ctx.validateCommonHttpTransactions(
-      and(
-        method('connect'),
-        statusCodeRange(200, 299),
-        responseHeader('content-length'),
-      ),
+      and(method('connect'), statusCodeRange(200, 299)),
+      responseHeader('content-length'),
     ),
   )
   .done();

@@ -22,10 +22,8 @@ export default httpRule(
   )
   .rule((ctx) =>
     ctx.validateCommonHttpTransactions(
-      and(
-        or(statusCodeRange(100, 199), statusCode(204)),
-        responseHeader('content-length'),
-      ),
+      and(or(statusCodeRange(100, 199), statusCode(204))),
+      responseHeader('content-length'),
     ),
   )
   .done();

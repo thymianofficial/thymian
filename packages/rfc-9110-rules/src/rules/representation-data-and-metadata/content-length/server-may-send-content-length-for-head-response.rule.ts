@@ -1,10 +1,18 @@
+import {
+  constant,
+  getHeader,
+  method,
+  not,
+  responseHeader,
+} from '@thymian/core';
 import { httpRule } from '@thymian/http-linter';
+import { singleTestCase } from '@thymian/http-testing';
 
 export default httpRule(
   'rfc9110/server-may-send-content-length-for-head-response',
 )
-  .severity('off')
-  .type('informational')
+  .severity('error')
+  .type('test')
   .appliesTo('server')
   .url('https://www.rfc-editor.org/rfc/rfc9110.html#section-8.6')
   .description(
@@ -15,5 +23,43 @@ export default httpRule(
   )
   .summary(
     'Servers MAY send Content-Length in HEAD responses (must match what GET would return).',
+  )
+  .rule((ctx) =>
+    ctx.httpTest(
+      singleTestCase()
+        .forTransactionsWith(method('head'))
+        .run({ checkResponse: false })
+        .skipIf(
+          not(responseHeader('content-length')),
+          'Content-Length header is not present in HEAD response.',
+        )
+        .replayStep((step) => step.set(method(), constant('get')).run().done())
+        .transactions(([headTransaction, getTransaction]) => {
+          const headContentLength = getHeader(
+            headTransaction.response.headers,
+            'content-length',
+          );
+
+          const getContentLength = getHeader(
+            getTransaction.response.headers,
+            'content-length',
+          );
+
+          if (
+            typeof headContentLength === 'string' &&
+            typeof getContentLength === 'string' &&
+            headContentLength !== getContentLength
+          ) {
+            ctx.reportViolation({
+              message: `Content-Length in HEAD response does not match GET response (${headContentLength} != ${getContentLength}).`,
+              location: {
+                elementType: 'edge',
+                elementId: headTransaction.source.transactionId,
+              },
+            });
+          }
+        })
+        .done(),
+    ),
   )
   .done();

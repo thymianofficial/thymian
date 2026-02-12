@@ -1,4 +1,4 @@
-import { and, responseHeader } from '@thymian/core';
+import { responseHeader } from '@thymian/core';
 import { httpRule } from '@thymian/http-linter';
 
 export default httpRule('rfc9110/content-encoding-should-not-include-identity')
@@ -12,7 +12,7 @@ export default httpRule('rfc9110/content-encoding-should-not-include-identity')
   .summary('Content-Encoding header SHOULD NOT include "identity" coding.')
   .rule((ctx) =>
     ctx.validateCommonHttpTransactions(
-      responseHeader('content-encoding', /\bidentity\b/i),
+      responseHeader('content-encoding', 'identity'),
     ),
   )
   .done();
