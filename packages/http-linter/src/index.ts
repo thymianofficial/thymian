@@ -243,7 +243,7 @@ export const httpLinterPlugin: ThymianPlugin<HttpLinterPluginOptions> = {
   ): Promise<void> {
     const modes = options.type ?? ['static'];
     const severity = options.severity ?? 'hint';
-    const optionsForRules = extractOptionsFromRules(options.rules);
+    const ruleOptions = options.rules ?? {};
 
     logger.debug(
       `Running in mode(s): ${modes.join(', ')} with severity "${severity}".`,
@@ -329,7 +329,7 @@ export const httpLinterPlugin: ThymianPlugin<HttpLinterPluginOptions> = {
             loadedRules,
             (report) => emitter.emit('core.report', report),
             thymianFormat,
-            optionsForRules,
+            ruleOptions,
           ).run()) && valid;
       }
 
@@ -343,7 +343,7 @@ export const httpLinterPlugin: ThymianPlugin<HttpLinterPluginOptions> = {
             loadedRules,
             (report) => emitter.emit('core.report', report),
             thymianFormat,
-            optionsForRules,
+            ruleOptions,
           ).run()) && valid;
       }
 
@@ -363,7 +363,7 @@ export const httpLinterPlugin: ThymianPlugin<HttpLinterPluginOptions> = {
         loadedRules,
         (report) => reports.push(report),
         thymianFormat,
-        optionsForRules,
+        ruleOptions,
       ).run();
 
       ctx.reply({
@@ -407,7 +407,7 @@ export const httpLinterPlugin: ThymianPlugin<HttpLinterPluginOptions> = {
           loadedRules,
           (report) => reports.push(report),
           thymianFormat,
-          optionsForRules,
+          ruleOptions,
         ).run();
 
         ctx.reply({
@@ -454,7 +454,7 @@ export const httpLinterPlugin: ThymianPlugin<HttpLinterPluginOptions> = {
           loadedRules,
           (report) => reports.push(report),
           thymianFormat,
-          optionsForRules,
+          ruleOptions,
         ).run();
 
         ctx.reply({
