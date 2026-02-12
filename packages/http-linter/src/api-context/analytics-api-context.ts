@@ -117,9 +117,7 @@ export class AnalyticsApiContext extends LiveApiContext {
     >,
   ): Promise<RuleFnResult> | RuleFnResult {
     const results: RuleFnResult = [];
-    let finalFilter = filter;
-
-    finalFilter = this.addOriginsToFilter(finalFilter);
+    const finalFilter = this.addOriginsToFilter(filter);
 
     const groups = this.repository.readAndGroupTransactionsByHttpFilter(
       finalFilter,
