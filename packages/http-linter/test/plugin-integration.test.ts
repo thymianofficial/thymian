@@ -101,16 +101,52 @@ describe('http-linter integration tests', () => {
   );
 
   it('should ignore given origins for specified rules', async () => {
-    await thymian.register(httpLinterPlugin, {
-      ruleSets: [
-        join(import.meta.dirname, 'fixtures/rules/ignore-origins.rule.mjs'),
-      ],
-      type: ['static'],
-      rules: {
-        'ignore-origins': {
-          options: {},
+    await thymian
+      .register(httpLinterPlugin, {
+        ruleSets: [
+          join(
+            import.meta.dirname,
+            'fixtures/rules/should-send-validator-fields.rule.mjs',
+          ),
+        ],
+        type: ['static'],
+        rules: {
+          'rfc9110/server-should-send-validator-fields': {
+            skipOrigins: ['localhost:8080'],
+          },
         },
+      })
+      .ready();
+
+    format.addHttpTransaction(
+      createHttpRequest({ host: 'localhost', port: 8080 }),
+      createHttpResponse({ statusCode: 200 }),
+      'test-source',
+    );
+    const [, , id] = format.addHttpTransaction(
+      createHttpRequest({ host: 'localhost', port: 3000 }),
+      createHttpResponse({ statusCode: 200 }),
+      'test-source',
+    );
+
+    const result = await thymian.emitter.emitAction(
+      'http-linter.lint-static',
+      { format: format.export() },
+      {
+        strategy: 'first',
       },
-    });
+    );
+
+    expect(result.valid).toBeFalsy();
+    expect(result.reports).toHaveLength(1);
+    expect(result.reports).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          location: {
+            format: { id, elementType: 'edge' },
+          },
+        }),
+      ]),
+    );
   });
 });
