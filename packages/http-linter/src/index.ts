@@ -118,41 +118,57 @@ export const httpLinterPlugin: ThymianPlugin<HttpLinterPluginOptions> = {
     required: ['ruleSets'],
     properties: {
       type: {
+        description: 'Defines with which contexts the rules are run.',
         nullable: true,
         type: 'array',
         items: {
+          description: 'Defines with which contexts the rules are run.',
           type: 'string',
           enum: ruleTypes,
         },
       },
       ruleSets: {
+        description:
+          'Array of rule sets to load. Can be package names or file paths (absolute or relative to the current working directory).',
         type: 'array',
         nullable: false,
         items: {
+          description:
+            'Array of rule sets to load. Can be package names or file paths (absolute or relative to the current working directory).',
           type: 'string',
         },
       },
       rules: {
+        description:
+          'Per-rule configuration to override default settings. Keys are rule names, values can be either a severity level string or a configuration object.',
         type: 'object',
         nullable: true,
         required: [],
         additionalProperties: {
+          type: ['string', 'object'], // this is required for the documentation generation
           oneOf: [
             {
+              description: 'Set the severity level for this rule.',
               type: 'string',
               enum: severityLevels,
             },
             {
+              description: 'Detailed configuration for this rule.',
               type: 'object',
               additionalProperties: false,
               nullable: false,
+              required: [],
               properties: {
                 severity: {
+                  description:
+                    'Override the default severity level for this rule.',
                   nullable: true,
                   type: 'string',
                   enum: severityLevels,
                 },
                 type: {
+                  description:
+                    'Override which execution modes this rule applies to.',
                   nullable: true,
                   type: 'array',
                   items: {
@@ -161,6 +177,9 @@ export const httpLinterPlugin: ThymianPlugin<HttpLinterPluginOptions> = {
                   },
                 },
                 skipOrigins: {
+                  description:
+                    'Array of origin (patterns) to exclude from this rule. Transactions or operations matching these origins will not be checked by this rule.',
+                  examples: [['*.my-domain.de']],
                   type: 'array',
                   nullable: true,
                   items: {
@@ -168,6 +187,8 @@ export const httpLinterPlugin: ThymianPlugin<HttpLinterPluginOptions> = {
                   },
                 },
                 options: {
+                  description:
+                    'Rule-specific configuration options. The structure depends on the individual rule being configured. Refer to the rule documentation for available options.',
                   type: 'object',
                   nullable: true,
                   additionalProperties: true,
@@ -178,24 +199,32 @@ export const httpLinterPlugin: ThymianPlugin<HttpLinterPluginOptions> = {
         },
       },
       severity: {
+        description: 'Set the severity the linter is run with.',
         type: 'string',
         nullable: true,
         enum: severityLevels,
       },
       analytics: {
+        description:
+          'Configuration for analytics mode, which analyzes captured HTTP traffic. Required when using type "analytics".',
         type: 'object',
         nullable: true,
         additionalProperties: false,
         properties: {
           captureTransactions: {
+            description:
+              'Specifies how to capture and store HTTP transactions for analytics linting. Transactions can be stored in-memory (fast, lost on exit) or persisted to a SQLite database file.',
             nullable: true,
             type: 'object',
             required: ['type'],
             oneOf: [
               {
-                description: 'Save incoming HTTP transaction in memory.',
+                description:
+                  'Store HTTP transactions in memory. Fast and suitable for short-lived processes or when persistence is not needed. All captured data is lost when the process exits.',
                 properties: {
                   type: {
+                    description:
+                      'Storage type identifier for in-memory transaction capture.',
                     const: 'in-memory',
                   },
                 },
@@ -204,12 +233,16 @@ export const httpLinterPlugin: ThymianPlugin<HttpLinterPluginOptions> = {
               },
               {
                 description:
-                  'Saves incoming HTTP transaction in specified DB file.',
+                  'Store HTTP transactions in a SQLite database file. Allows persistence and analysis after the process exits. If filePath is not specified, a timestamped database file is created in .thymian/db/.',
                 properties: {
                   type: {
+                    description:
+                      'Storage type identifier for file-based transaction capture.',
                     const: 'file',
                   },
                   filePath: {
+                    description:
+                      'Path to the SQLite database file for storing transactions. Can be absolute or relative to the current working directory. If not specified, defaults to ".thymian/db/{timestamp}.db".',
                     type: 'string',
                   },
                 },
