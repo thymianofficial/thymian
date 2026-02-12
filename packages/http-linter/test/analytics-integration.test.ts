@@ -1,19 +1,9 @@
 import { join } from 'node:path';
 
-import {
-  DEFAULT_HEADER_SERIALIZATION_STYLE,
-  httpTransactionToLabel,
-  Thymian,
-  ThymianFormat,
-} from '@thymian/core';
-import {
-  createHttpRequest,
-  createHttpResponse,
-  createThymianFormatWithTransaction,
-} from '@thymian/core-testing';
+import { httpTransactionToLabel, Thymian, ThymianFormat } from '@thymian/core';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
-import httpLinterPlugin, { type RuleSeverity } from '../src/index.js';
+import httpLinterPlugin from '../src/index.js';
 import type { CapturedTransaction } from '../src/types.js';
 
 describe('http-linter analytics integration', { timeout: 30000 }, () => {
@@ -66,7 +56,9 @@ describe('http-linter analytics integration', { timeout: 30000 }, () => {
           trailers: {},
           duration: 0,
         },
-        meta: {},
+        meta: {
+          role: 'origin server',
+        },
       },
     };
 
@@ -214,7 +206,9 @@ describe('http-linter analytics integration', { timeout: 30000 }, () => {
               ...(i % 10 === 0 ? { etag: `"etag-${i}"` } : {}),
             },
           },
-          meta: {},
+          meta: {
+            role: 'origin server',
+          },
         },
       });
     }
@@ -364,7 +358,9 @@ describe('http-linter analytics integration', { timeout: 30000 }, () => {
                 duration: 0,
                 trailers: {},
               },
-              meta: {},
+              meta: {
+                role: 'origin server',
+              },
             },
           });
         })(),
