@@ -35,6 +35,19 @@ export class AnalyticsApiContext extends LiveApiContext {
     super(format, logger, reportFn, skippedOrigins);
   }
 
+  private addOriginsToFilter(
+    filter: HttpFilterExpression,
+  ): HttpFilterExpression {
+    return this.skippedOrigins.length === 0
+      ? filter
+      : and(
+          filter,
+          not(
+            or(...this.skippedOrigins.map((origin) => matchesOrigin(origin))),
+          ),
+        );
+  }
+
   override validateCommonHttpTransactions(
     filter: HttpFilterExpression,
     validate:
@@ -56,12 +69,7 @@ export class AnalyticsApiContext extends LiveApiContext {
       validateFn = () => true;
     }
 
-    if (this.skippedOrigins.length > 0) {
-      finalFilter = and(
-        finalFilter,
-        not(or(...this.skippedOrigins.map((origin) => matchesOrigin(origin)))),
-      );
-    }
+    finalFilter = this.addOriginsToFilter(finalFilter);
 
     const results: RuleFnResult = [];
 
@@ -111,12 +119,7 @@ export class AnalyticsApiContext extends LiveApiContext {
     const results: RuleFnResult = [];
     let finalFilter = filter;
 
-    if (this.skippedOrigins.length > 0) {
-      finalFilter = and(
-        finalFilter,
-        not(or(...this.skippedOrigins.map((origin) => matchesOrigin(origin)))),
-      );
-    }
+    finalFilter = this.addOriginsToFilter(finalFilter);
 
     const groups = this.repository.readAndGroupTransactionsByHttpFilter(
       finalFilter,
@@ -159,12 +162,7 @@ export class AnalyticsApiContext extends LiveApiContext {
       validateFn = () => true;
     }
 
-    if (this.skippedOrigins.length > 0) {
-      finalFilter = and(
-        finalFilter,
-        not(or(...this.skippedOrigins.map((origin) => matchesOrigin(origin)))),
-      );
-    }
+    finalFilter = this.addOriginsToFilter(finalFilter);
 
     const results: RuleFnResult = [];
 
