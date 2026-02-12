@@ -235,7 +235,7 @@ export function requestScopedHttpFilterToTransactionFilter(
         return () => false;
       }
 
-      const regExp = createRegExp(filterExpression.origin);
+      const regExp = createRegExpFromOriginWildcard(filterExpression.origin);
 
       return (req) => regExp.test(thymianRequestToOrigin(req));
     }
@@ -247,8 +247,7 @@ export function requestScopedHttpFilterToTransactionFilter(
   }
 }
 
-export function createRegExp(pattern: string): RegExp {
-  const regexString =
-    '^' + pattern.replace(/\./g, '\\.').replace(/\*/g, '.*') + '(:\\d{1,5})?$';
+export function createRegExpFromOriginWildcard(pattern: string): RegExp {
+  const regexString = `${pattern.replace(/\./g, '\\.').replace(/\*/g, '.*')}/?(:\\d{1,5})?$`;
   return new RegExp(regexString);
 }
