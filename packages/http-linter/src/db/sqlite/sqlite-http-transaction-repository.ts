@@ -112,7 +112,6 @@ export class SqliteHttpTransactionRepository implements HttpTransactionRepositor
     `;
 
     this.logger.debug('Executing SQL query:', statement);
-    this.logger.debug('Executing SQL query:', statement);
 
     const result = this.db
       .prepare<
