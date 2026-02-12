@@ -1,9 +1,8 @@
 import { httpRule } from '@thymian/http-linter';
 
 export default httpRule('rfc9110/content-location-201-response-semantics')
-  .severity('off')
+  .severity('hint')
   .type('informational')
-  .appliesTo('server', 'origin server')
   .url('https://www.rfc-editor.org/rfc/rfc9110.html#section-8.7')
   .description(
     `For a 201 (Created) response, if the Content-Location field value is identical to the Location header field value,

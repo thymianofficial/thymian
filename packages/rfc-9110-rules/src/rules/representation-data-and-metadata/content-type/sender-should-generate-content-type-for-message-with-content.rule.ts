@@ -20,4 +20,7 @@ export default httpRule(
       and(hasResponseBody(), not(responseHeader('content-type'))),
     ),
   )
+  .overrideStaticRule((ctx) =>
+    ctx.validateHttpTransactions((req, res) => !!res.schema && !res.mediaType),
+  )
   .done();

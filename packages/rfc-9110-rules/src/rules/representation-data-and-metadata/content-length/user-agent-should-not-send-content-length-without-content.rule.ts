@@ -1,11 +1,18 @@
-import { and, getHeader, method, or, requestHeader } from '@thymian/core';
+import {
+  and,
+  hasRequestBody,
+  method,
+  not,
+  or,
+  requestHeader,
+} from '@thymian/core';
 import { httpRule } from '@thymian/http-linter';
 
 export default httpRule(
   'rfc9110/user-agent-should-not-send-content-length-without-content',
 )
   .severity('warn')
-  .type('analytics', 'test')
+  .type('analytics')
   .appliesTo('user-agent', 'client')
   .url('https://www.rfc-editor.org/rfc/rfc9110.html#section-8.6')
   .description(
@@ -34,55 +41,8 @@ export default httpRule(
           method('trace'),
         ),
         requestHeader('content-length'),
+        not(hasRequestBody()),
       ),
-      (request, response) => {
-        const contentLength = getHeader(request.headers, 'content-length');
-
-        if (!contentLength) {
-          return false;
-        }
-
-        // Check if Content-Length is non-zero
-        const lengthValue = parseInt(String(contentLength), 10);
-        if (isNaN(lengthValue) || lengthValue === 0) {
-          return false;
-        }
-
-        return {
-          message: `${request.method.toUpperCase()} request should not send Content-Length with non-zero value (${contentLength}). Methods like GET, HEAD, DELETE typically should not have content.`,
-        };
-      },
-    ),
-  )
-  .overrideTest((ctx) =>
-    ctx.validateHttpTransactions(
-      and(
-        or(
-          method('get'),
-          method('head'),
-          method('delete'),
-          method('connect'),
-          method('options'),
-          method('trace'),
-        ),
-        requestHeader('content-length'),
-      ),
-      (request, response) => {
-        const contentLength = getHeader(request.headers, 'content-length');
-
-        if (!contentLength) {
-          return false;
-        }
-
-        const lengthValue = parseInt(String(contentLength), 10);
-        if (isNaN(lengthValue) || lengthValue === 0) {
-          return false;
-        }
-
-        return {
-          message: `${request.method.toUpperCase()} request should not send Content-Length with non-zero value (${contentLength}). Methods like GET, HEAD, DELETE typically should not have content.`,
-        };
-      },
     ),
   )
   .done();
