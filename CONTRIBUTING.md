@@ -8,6 +8,7 @@ When making commits, use one of the following scopes to indicate the area of the
 | ------------------ | ----------------------------------------------------------------- |
 | repo               | Changes affecting repository-wide configuration, tooling, or docs |
 | release            | Release-related changes                                           |
+| deps               | Dependency updates and changes                                    |
 | cli                | Command-line interface and related commands                       |
 | core               | Core framework logic, plugin system, and main APIs                |
 | format-validator   | Plugin for format validation                                      |
