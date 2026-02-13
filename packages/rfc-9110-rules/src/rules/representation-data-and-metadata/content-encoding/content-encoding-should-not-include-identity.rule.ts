@@ -3,7 +3,7 @@ import { httpRule } from '@thymian/http-linter';
 
 export default httpRule('rfc9110/content-encoding-should-not-include-identity')
   .severity('warn')
-  .type('static', 'test', 'analytics')
+  .type('test', 'analytics')
   .appliesTo('server')
   .url('https://www.rfc-editor.org/rfc/rfc9110.html#section-8.4')
   .description(
@@ -11,7 +11,7 @@ export default httpRule('rfc9110/content-encoding-should-not-include-identity')
   )
   .summary('Content-Encoding header SHOULD NOT include "identity" coding.')
   .rule((ctx) =>
-    ctx.validateCommonHttpTransactions(
+    ctx.validateHttpTransactions(
       responseHeader('content-encoding', 'identity'),
     ),
   )
