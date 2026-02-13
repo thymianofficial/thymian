@@ -133,7 +133,10 @@ export const dispatcherPlugin: ThymianPlugin<SamplerPluginOptions> = {
         } catch (e: unknown) {
           if (isHttpRequestError(e) && e.code === 'ECONNREFUSED') {
             ctx.error(
-              new ThymianBaseError(`Server ${request.origin} is unavailable.`),
+              new ThymianBaseError(`Server ${request.origin} is unavailable.`, {
+                name: 'ServerUnavailableError',
+                ref: 'https://thymian.dev/references/errors/server-unavailable-error/',
+              }),
             );
           }
           ctx.error(
@@ -141,7 +144,11 @@ export const dispatcherPlugin: ThymianPlugin<SamplerPluginOptions> = {
               `Error while dispatching request: ${request.method.toUpperCase()} ${
                 request.origin
               }.`,
-              { cause: e },
+              {
+                name: 'RequestDispatchError',
+                ref: 'https://thymian.dev/references/errors/request-dispatch-error/',
+                cause: e,
+              },
             ),
           );
         }

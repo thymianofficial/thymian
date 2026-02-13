@@ -67,7 +67,10 @@ export async function generateHook<
   }
 
   if (!transaction) {
-    throw new ThymianBaseError('Invalid transaction selected.');
+    throw new ThymianBaseError('Invalid transaction selected.', {
+      name: 'InvalidTransactionError',
+      ref: 'https://thymian.dev/references/errors/invalid-transaction-error/',
+    });
   }
 
   const path = await emitter.emitAction(

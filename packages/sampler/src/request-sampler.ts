@@ -52,7 +52,11 @@ export class RequestSampler {
     } catch (e) {
       throw new ThymianBaseError(
         `Invalid timestamp in samples meta: ${this.samples.meta.timestamp}`,
-        { cause: e },
+        {
+          name: 'InvalidSampleTimestampError',
+          ref: 'https://thymian.dev/references/errors/invalid-sample-timestamp-error/',
+          cause: e,
+        },
       );
     }
   }

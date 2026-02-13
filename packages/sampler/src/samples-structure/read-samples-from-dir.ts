@@ -47,6 +47,8 @@ export async function tryImport<T>(path: string): Promise<T> {
 
   if (module === null || typeof module !== 'function') {
     throw new ThymianBaseError(`Could not import hook from "${path}".`, {
+      name: 'HookImportError',
+      ref: 'https://thymian.dev/references/errors/hook-import-error/',
       suggestions: [
         'Check that the hook file exists and the hook function is exported as default.',
       ],
@@ -92,7 +94,10 @@ export async function extractSample(path: string): Promise<HttpRequestSample> {
     fileSample = JSON.parse(sampleFile) as FileRequestSample;
   } catch (err) {
     throw new ThymianBaseError(`Could not parse JSON sample file "${path}".`, {
+      name: 'InvalidSampleJSONError',
+      ref: 'https://thymian.dev/references/errors/invalid-sample-json-error/',
       suggestions: ['Check that the sample file is valid JSON.'],
+      cause: err,
     });
   }
 

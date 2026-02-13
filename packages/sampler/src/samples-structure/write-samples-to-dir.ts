@@ -175,7 +175,13 @@ async function transformContentSource(
       $file: basename(filePath),
     };
   } else {
-    throw new ThymianBaseError('Unknown content source type .' + source + name);
+    throw new ThymianBaseError(
+      'Unknown content source type .' + source + name,
+      {
+        name: 'UnknownContentSourceTypeError',
+        ref: 'https://thymian.dev/references/errors/unknown-content-source-type-error/',
+      },
+    );
   }
 }
 
@@ -220,6 +226,10 @@ export async function writeSamplesToDir(
     if (mode === 'failIfExist' && (await entryExists(path))) {
       throw new ThymianBaseError(
         `File/Directory at path "${path}" already exists. Use "overwrite" mode to overwrite it.`,
+        {
+          name: 'PathAlreadyExistsError',
+          ref: 'https://thymian.dev/references/errors/path-already-exists-error/',
+        },
       );
     }
 

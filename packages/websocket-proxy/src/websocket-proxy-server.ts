@@ -91,6 +91,8 @@ export class WebSocketProxyServer {
             new ThymianBaseError(
               `Cannot establish a connection to a WebSocket client within ${this.options.clientTimeout}ms.`,
               {
+                name: 'WebSocketConnectionTimeoutError',
+                ref: 'https://thymian.dev/references/errors/websocket-connection-timeout-error/',
                 suggestions: [
                   'Check if the client is running and if the port is correct.',
                   'Increase the clientTimeout option if the client takes longer to connect.',

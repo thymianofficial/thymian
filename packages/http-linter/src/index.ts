@@ -425,6 +425,10 @@ export const httpLinterPlugin: ThymianPlugin<HttpLinterPluginOptions> = {
           return ctx.error(
             new ThymianBaseError(
               'Cannot run analytics linting because the HttpTransactionRepository is not initialized.',
+              {
+                name: 'RepositoryNotInitializedError',
+                ref: 'https://thymian.dev/references/errors/repository-not-initialized-error/',
+              },
             ),
           );
         }
