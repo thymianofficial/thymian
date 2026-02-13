@@ -40,6 +40,10 @@ export abstract class AbstractLinter {
     if (duplicateRuleNames.length > 0) {
       throw new ThymianBaseError(
         `Duplicate rule names found: ${duplicateRuleNames.join(', ')}`,
+        {
+          name: 'DuplicateRuleNamesError',
+          ref: 'https://thymian.dev/references/errors/duplicate-rule-names-error/',
+        },
       );
     }
 
@@ -131,6 +135,10 @@ export abstract class AbstractLinter {
           if (!node) {
             throw new ThymianBaseError(
               `Invalid rule violation location for rule ${ruleMeta.name}.`,
+              {
+                name: 'InvalidRuleViolationLocationError',
+                ref: 'https://thymian.dev/references/errors/invalid-rule-violation-location-error/',
+              },
             );
           }
 
@@ -165,6 +173,10 @@ export abstract class AbstractLinter {
           if (!req || !res || !transaction) {
             throw new ThymianBaseError(
               `Invalid rule violation location for rule ${ruleMeta.name}.`,
+              {
+                name: 'InvalidRuleViolationLocationError',
+                ref: 'https://thymian.dev/references/errors/invalid-rule-violation-location-error/',
+              },
             );
           }
 

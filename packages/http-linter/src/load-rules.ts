@@ -110,6 +110,7 @@ export async function loadRules(
           'Use "export default" or "module.exports =" to export your rule (set).',
         ],
         name: 'RuleLoadError',
+        ref: 'https://thymian.dev/references/errors/rule-load-error/',
       },
     );
   }
@@ -134,6 +135,7 @@ export async function loadRules(
               'Check the options for the rule in your Thymian config file.',
             ],
             name: 'InvalidRuleOptionError',
+            ref: 'https://thymian.dev/references/errors/invalid-rule-option/',
           },
         );
       }

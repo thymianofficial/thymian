@@ -159,7 +159,10 @@ export const samplePlugin: ThymianPlugin<Partial<SamplerPluginOptions>> = {
       'sampler.path-from-transaction',
       ({ transactionId }, ctx) => {
         if (!samples) {
-          throw new ThymianBaseError('No samples are loaded.');
+          throw new ThymianBaseError('No samples are loaded.', {
+            name: 'SamplesNotLoadedError',
+            ref: 'https://thymian.dev/references/errors/samples-not-loaded-error/',
+          });
         }
 
         ctx.reply(getPathTransactionId(transactionId, basePath, samples));
@@ -196,7 +199,10 @@ export const samplePlugin: ThymianPlugin<Partial<SamplerPluginOptions>> = {
 
     emitter.onAction('sampler.sample-request', async ({ transaction }, ctx) => {
       if (!format) {
-        throw new ThymianBaseError('');
+        throw new ThymianBaseError('Format is not loaded.', {
+          name: 'FormatNotLoadedError',
+          ref: 'https://thymian.dev/references/errors/format-not-loaded-error/',
+        });
       }
 
       const sample = requestSampler.sampleForTransaction(
@@ -226,6 +232,10 @@ export const samplePlugin: ThymianPlugin<Partial<SamplerPluginOptions>> = {
             transaction.thymianReq,
             transaction.thymianRes,
           )} with transaction ID ${transaction.transactionId}`,
+          {
+            name: 'TransactionSampleNotFoundError',
+            ref: 'https://thymian.dev/references/errors/transaction-sample-not-found-error/',
+          },
         );
       }
 
