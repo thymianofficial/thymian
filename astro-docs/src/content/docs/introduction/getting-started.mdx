@@ -1,0 +1,231 @@
+---
+title: Getting Started
+description: Getting Started with Thymian
+---
+
+import { Aside, Code, Tabs, TabItem, Steps } from '@astrojs/starlight/components';
+
+This guide will walk you through the first steps of using Thymian. Let's get started right away!
+
+
+## Prerequisites
+
+* You need any of the following **Node.js** _LTS_ versions: **20**, **22**, or **24**
+* Any Swagger/OpenAPI specification file (OpenAPI version 3.2 is currently not supported)
+
+
+## Installation
+
+You won't need to install Thymian locally, we will just use `npx` for this.
+
+Check if you can run Thymian by running the following command:
+
+```bash
+npx @thymian/cli --version
+```
+
+## Initialization
+
+Now navigate to your project's root directory and run the following command to initialize Thymian:
+
+```bash
+npx @thymian/cli init --yes
+```
+
+The [`init`](../../references/cli#thymian-init) command sets up Thymian in your project. The `--yes` flag will skip
+interactive prompts and use default settings. This command will:
+
+1. Detect your OpenAPI specification file
+2. Create a `thymian.config.yaml` configuration file in your project
+
+### Understanding the Configuration File
+
+After initialization, you'll have a `thymian.config.yaml` file that looks like this:
+
+```yaml
+plugins:
+  # Loads and parses your OpenAPI specification
+  "@thymian/openapi":
+    options:
+      descriptions:
+        - source: ./path/to/your/openapi.yaml
+  # Validates HTTP conformance
+  "@thymian/http-linter":
+    options:
+      type:
+       - static
+      severity: error # will only show errors
+      ruleSets:
+        - "@thymian/rfc-9110-rules"
+  "@thymian/reporter":
+    options:
+      formatters:
+        cli: {}
+```
+
+**Key sections:**
+
+- **`@thymian/openapi`**: Points to your OpenAPI specification file. Update the `source` path if needed.
+- **`@thymian/http-linter`**: Applies HTTP conformance rules
+- **`@thymian/reporter`**: Configures how results are displayed in the terminal.
+
+
+<Aside type="tip">
+  You can list your loaded plugins via:
+
+  ```bash
+  npx @thymian/cli plugins:list
+  ```
+</Aside>
+
+## Running Your First Analysis
+
+Run your first analysis by navigating to your project's root directory and run:
+
+```bash
+npx @thymian/cli run
+```
+
+This command will:
+
+<Steps>
+
+1. **Load your OpenAPI specification**
+
+   Loads your OpenAPI specification(s) and transforms them into a single, unified model (the Thymian format).
+
+2. **Load HTTP Rules**
+
+   Loads all rule sets specified in the configuration file under `ruleSets`. In the example of this guide, we're using the rule set extracted from [RFC 9110](https://www.rfc-editor.org/rfc/rfc9110.html).
+
+3. **Static analysis**
+
+    Applies all loaded rules to your OpenAPI specification. Each rule checks for specific HTTP conformance issues and generates results based on the findings.
+
+4. **Display results**
+
+   Displays all found issues in the terminal.
+
+</Steps>
+
+
+## Understanding the Results
+
+Thymian will output results in a structured format. Here is an exemplary output from the HTTP linter:
+
+```console
+@thymian/http-linter ────────────────────────────────────────────────────────────
+
+  Static Checks
+
+     PUT /launches/{id} - application/json → 401 UNAUTHORIZED
+      error: The server generating a 401 response MUST send a WWW-Authenticate header field containing at least one challenge applicable to the target resource.
+         rfc9110/server-must-send-www-authenticate-header-for-401-response
+
+    DELETE /launches/{id} → 401 UNAUTHORIZED
+      error: The server generating a 401 response MUST send a WWW-Authenticate header field containing at least one challenge applicable to the target resource.
+         rfc9110/server-must-send-www-authenticate-header-for-401-response
+
+
+Found 2 errors, 0 warnings and 0 hints.
+```
+
+In this example, two problems were found in the OpenAPI specification. And since we configured the linter to only show errors,
+both of them are marked as such. Let's take a closer look at analyze the first issue in detail.
+
+### Severity Level
+
+```console "error"
+PUT /launches/{id} - application/json → 401 UNAUTHORIZED
+      error: The server generating a 401 response MUST send a WWW-Authenticate header field containing at least one challenge applicable to the target resource.
+         rfc9110/server-must-send-www-authenticate-header-for-401-response
+
+```
+
+Each problem found is assigned a `severity` level based on the rule it was triggered by.
+In this case, the severity level is `error`. This indicates that the issue violates the HTTP specification and can cause issues with interoperability or performance, for example.
+For more about HTTP conformance, see [here](../http-conformance). Besides the `error` severity level, there are also `warn` and `hint`, indicating a potential conformance issue and a suggestion for a truly optional mechanism of HTTP, respectively.
+
+| Severity | Description                                                                  |
+|----------|------------------------------------------------------------------------------|
+| error    | Problem that needs to be fixed.                                              |
+| warn     | Problem that should be fixed. May be left as is under certain circumstances. |
+| hint     | Only a suggestion.                                                           |
+
+### Description
+
+```console "The server generating a 401 response MUST send a WWW-Authenticate header field containing at least one challenge applicable to the target resource."
+PUT /launches/{id} - application/json → 401 UNAUTHORIZED
+      error: The server generating a 401 response MUST send a WWW-Authenticate header field containing at least one challenge applicable to the target resource.
+         rfc9110/server-must-send-www-authenticate-header-for-401-response
+
+```
+
+After the severity level, the description of the problem is shown. This explains what the rule requires. This description is the way to understand the problem and how to fix it.
+
+### Location
+
+```console "PUT /launches/{id} - application/json → 401 UNAUTHORIZED"
+PUT /launches/{id} - application/json → 401 UNAUTHORIZED
+      error: The server generating a 401 response MUST send a WWW-Authenticate header field containing at least one challenge applicable to the target resource.
+         rfc9110/server-must-send-www-authenticate-header-for-401-response
+
+```
+
+Next, we look at the exact location of the problem in the OpenAPI specification. As shown above, the problem is located in the
+`401 UNAUTHORIZED` response for the `PUT /launches/{id}` operation. So to fix this issue, you would need to navigate to the corresponding operation
+in the Swagger/OpenAPI specification and add the missing `WWW-Authenticate` header to the `401` response definition. This could look like this:
+
+```diff
+ '401':
+   description: Unauthorized
++  headers:
++    WWW-Authenticate:
++      schema:
++        type: string
+```
+
+### Source
+
+```console "rfc9110/server-must-send-www-authenticate-header-for-401-response"
+PUT /launches/{id} - application/json → 401 UNAUTHORIZED
+      error: The server generating a 401 response MUST send a WWW-Authenticate header field containing at least one challenge applicable to the target resource.
+         rfc9110/server-must-send-www-authenticate-header-for-401-response
+
+```
+
+Finally, we look at the rule that triggered the problem. In this case, the rule is `rfc9110/server-must-send-www-authenticate-header-for-401-response`.
+
+## Summary
+
+What did you just do? You have linted your OpenAPI specification and checked your API description for potential HTTP conformance issues.
+Based on your configured `severity` Thymian shows you problems, that **MUST**, **SHOULD** or **MAY** be fixed.
+If you fixed all problems, you're ready to for your next steps with Thymian and to spice up your API 🌿!
+
+
+## Next Steps
+
+To statically analyze your OpenAPI specification was just your first step. Thymian has much more to offer and can be your
+swiss army knife for your HTTP API development process.
+
+### Testing Against Your Live API
+
+Once you've validated your OpenAPI specification, Thymian can be used to:
+
+1. Test your API against your OpenAPI specification to prevent **contract drift**
+2. Test your live API against the HTTP specification
+
+While we have only performed static checks so far, these two use cases perform actual requests to your live API and validate its responses.
+
+<Aside type="note">
+Contract drift is a common issue where teams update their code but forget to update the OpenAPI document (or vice versa). Thymian catches these discrepancies automatically.
+</Aside>
+
+### Extending Thymian with Plugins
+
+Don't want to add yet another tool to your development process?
+Thymian's plugin architecture lets you integrate tools you're already using by integrating them as [plugin](../../guides/plugin-developers-guide).
+
+It even provides the possibility to write plugins in any of your favorite languages or to connect remote plugins.
+For this use case, Thymian provides a proxy plugin. This allows you to connect your plugins via WebSockets.
+See [this guide](../../guides/remote-plugins) to learn how to develop such a plugin.
