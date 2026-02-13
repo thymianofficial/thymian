@@ -8,7 +8,6 @@ import { httpRule } from '@thymian/http-linter';
 export default httpRule('rfc9110/recipient-must-handle-large-content-length')
   .severity('warn')
   .type('test', 'analytics')
-  .appliesTo('server', 'client', 'intermediary')
   .url('https://www.rfc-editor.org/rfc/rfc9110.html#section-8.6')
   .description(
     `A recipient MUST anticipate potentially large decimal numerals and prevent parsing errors due to integer
