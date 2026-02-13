@@ -1,3 +1,5 @@
+import { join } from 'node:path';
+
 import { writeFile } from 'fs/promises';
 import * as jsonSchema from 'jsonschema2mk';
 
@@ -20,6 +22,7 @@ import(pkgName)
     const jsm = new jsonSchema.default({
       partials: ['json2md-partials'],
       extension: ['front-matter'],
+      plugin: [join(import.meta.dirname, 'jsonschema2mk', 'nobr-in-table.cjs')],
       fm: {
         title: options['title'] ?? 'Plugin Options',
         description: options['description'] ?? '',
