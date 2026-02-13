@@ -101,6 +101,25 @@ When reviewing plugin code:
 
 ---
 
+## CLI Documentation (cli.md files)
+
+When reviewing `cli.md` files in `astro-docs/src/content/docs/references/`:
+
+1. **🔴 Required**: Content between `<!-- commands -->` and `<!-- commandsstop -->` markers must be empty
+2. These markers indicate auto-generated content zones — manual content should never be committed
+3. The correct format is:
+
+   ```markdown
+   # Commands
+
+     <!-- commands -->
+     <!-- commandsstop -->
+   ```
+
+4. Any content between these markers (command lists, usage examples, etc.) indicates the file was committed with auto-generated content and must be removed
+
+---
+
 ## Review Response Format
 
 When providing review feedback, categorize issues as:
