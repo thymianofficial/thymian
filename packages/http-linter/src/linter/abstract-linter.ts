@@ -14,7 +14,12 @@ import {
 
 import type { Rule } from '../rule/rule.js';
 import type { RuleMeta } from '../rule/rule-meta.js';
+import { isRuleSeverityLevel } from '../rule/rule-severity.js';
 import type { RuleViolation } from '../rule/rule-violation.js';
+import type {
+  RulesConfiguration,
+  SingleRuleConfiguration,
+} from '../rule-configuration.js';
 
 export function findDuplicates<T>(elements: T[]): T[] {
   return elements.filter(
@@ -30,10 +35,7 @@ export abstract class AbstractLinter {
     rules: Rule[],
     protected readonly report: (report: ThymianReport) => void,
     protected readonly format: ThymianFormat,
-    protected readonly ruleOptions: Record<
-      string,
-      Record<string, unknown> | undefined
-    >,
+    protected readonly rulesConfig: RulesConfiguration,
   ) {
     const duplicateRuleNames = findDuplicates(rules.map((r) => r.meta.name));
 
@@ -52,11 +54,14 @@ export abstract class AbstractLinter {
     let allSuccessful = true;
 
     for (const rule of this.rules) {
+      const options = isRuleSeverityLevel(this.rulesConfig[rule.meta.name])
+        ? {}
+        : (this.rulesConfig[rule.meta.name] as
+            | SingleRuleConfiguration
+            | undefined);
+
       try {
-        const success = await this.runRule(
-          rule,
-          this.ruleOptions[rule.meta.name] ?? {},
-        );
+        const success = await this.runRule(rule, options ?? {});
 
         this.logger.debug(
           `Rule ${rule.meta.name} finished with success: ${success}`,
@@ -87,9 +92,9 @@ export abstract class AbstractLinter {
     return allSuccessful;
   }
 
-  protected abstract runRule<Options extends Record<string, unknown>>(
+  protected abstract runRule(
     rule: Rule,
-    options: Options,
+    options: SingleRuleConfiguration,
   ): Promise<boolean>;
 
   protected reportRuleViolations(

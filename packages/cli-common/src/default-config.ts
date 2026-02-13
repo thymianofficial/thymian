@@ -4,12 +4,7 @@ export const defaultConfig: ThymianConfig = {
   plugins: {
     '@thymian/http-linter': {
       options: {
-        rules: ['@thymian/rfc-9110-rules'],
-        ruleOptions: {
-          'rfc9110/server-must-send-www-authenticate-header-for-401-response': {
-            checkAllSecured: false,
-          },
-        },
+        ruleSets: ['@thymian/rfc-9110-rules'],
       },
     },
     '@thymian/openapi': {

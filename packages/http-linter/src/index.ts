@@ -20,13 +20,9 @@ import { HttpTestLinter } from './linter/http-test-linter.js';
 import { StaticLinter } from './linter/static-linter.js';
 import { loadRules } from './load-rules.js';
 import type { Rule } from './rule/rule.js';
-import {
-  type HttpParticipantRole,
-  httpParticipantRoles,
-  type RuleType,
-  ruleTypes,
-} from './rule/rule-meta.js';
+import { type RuleType, ruleTypes } from './rule/rule-meta.js';
 import { type RuleSeverity, severityLevels } from './rule/rule-severity.js';
+import type { RulesConfiguration } from './rule-configuration.js';
 import { createRuleFilter } from './rule-filter.js';
 import type { CapturedTrace, CapturedTransaction } from './types.js';
 
@@ -104,17 +100,11 @@ export type AnalyticsOptions = {
 };
 
 export type HttpLinterPluginOptions = {
-  rules: string[];
-  ruleOptions?: Record<string, Record<string, unknown> | undefined>;
-  modes?: RuleType[];
+  ruleSets: string[];
+  severity?: RuleSeverity;
+  type?: RuleType[];
   analytics?: AnalyticsOptions;
-  origin?: string;
-  ruleFilter?: {
-    severity?: RuleSeverity;
-    appliesTo?: HttpParticipantRole[];
-    names?: string[];
-    ruleTypes?: RuleType[];
-  };
+  rules?: RulesConfiguration;
 };
 
 export const httpLinterPlugin: ThymianPlugin<HttpLinterPluginOptions> = {
@@ -125,45 +115,127 @@ export const httpLinterPlugin: ThymianPlugin<HttpLinterPluginOptions> = {
     description: 'Configuration options for the HTTP Linter plugin',
     // ###################################
     type: 'object',
-    required: ['rules'],
+    required: ['ruleSets'],
     properties: {
-      ruleOptions: {
-        type: 'object',
-        additionalProperties: true,
-        nullable: true,
-      },
-      modes: {
+      type: {
+        description: 'Defines with which contexts the rules are run.',
         nullable: true,
         type: 'array',
         items: {
+          description: 'Defines with which contexts the rules are run.',
           type: 'string',
           enum: ruleTypes,
         },
       },
-      rules: {
+      ruleSets: {
+        description:
+          'Array of rule sets to load. Can be package names or file paths (absolute or relative to the current working directory).',
         type: 'array',
+        nullable: false,
         items: {
+          description:
+            'Array of rule sets to load. Can be package names or file paths (absolute or relative to the current working directory).',
           type: 'string',
         },
       },
-      origin: {
+      rules: {
+        description:
+          'Per-rule configuration to override default settings. Keys are rule names, values can be either a severity level string or a configuration object.',
+        type: 'object',
+        nullable: true,
+        required: [],
+        examples: [
+          {
+            'rfc9110/server-should-send-validator-fields': 'off',
+          },
+          {
+            'rfc9110/server-should-send-validator-fields': {
+              severity: 'error',
+              skipOrigins: ['*.my-domain.de'],
+            },
+          },
+        ],
+        additionalProperties: {
+          type: ['string', 'object'], // this is required for the documentation generation
+          oneOf: [
+            {
+              description: 'Set the severity level for this rule.',
+              type: 'string',
+              enum: severityLevels,
+            },
+            {
+              description: 'Detailed configuration for this rule.',
+              type: 'object',
+              additionalProperties: false,
+              nullable: false,
+              required: [],
+              properties: {
+                severity: {
+                  description:
+                    'Override the default severity level for this rule.',
+                  nullable: true,
+                  type: 'string',
+                  enum: severityLevels,
+                },
+                type: {
+                  description:
+                    'Override which execution modes this rule applies to.',
+                  nullable: true,
+                  type: 'array',
+                  items: {
+                    type: 'string',
+                    enum: ruleTypes,
+                  },
+                },
+                skipOrigins: {
+                  description:
+                    'Array of origin (patterns) to exclude from this rule. Transactions or operations matching these origins will not be checked by this rule.',
+                  examples: [['*.my-domain.de']],
+                  type: 'array',
+                  nullable: true,
+                  items: {
+                    type: 'string',
+                  },
+                },
+                options: {
+                  description:
+                    'Rule-specific configuration options. The structure depends on the individual rule being configured. Refer to the rule documentation for available options.',
+                  type: 'object',
+                  nullable: true,
+                  additionalProperties: true,
+                },
+              },
+            },
+          ],
+        },
+      },
+      severity: {
+        description: 'Set the severity the linter is run with.',
         type: 'string',
         nullable: true,
+        enum: severityLevels,
       },
       analytics: {
+        description:
+          'Configuration for analytics mode, which analyzes captured HTTP traffic. Required when using type "analytics".',
         type: 'object',
         nullable: true,
         additionalProperties: false,
         properties: {
           captureTransactions: {
+            description:
+              'Specifies how to capture and store HTTP transactions for analytics linting. Transactions can be stored in-memory (fast, lost on exit) or persisted to a SQLite database file.',
             nullable: true,
             type: 'object',
             required: ['type'],
             oneOf: [
               {
-                description: 'Save incoming HTTP transaction in memory.',
+                description:
+                  'Store HTTP transactions in memory. Fast and suitable for short-lived processes or when persistence is not needed. All captured data is lost when the process exits.',
                 properties: {
                   type: {
+                    description:
+                      'Storage type identifier for in-memory transaction capture.',
                     const: 'in-memory',
                   },
                 },
@@ -172,12 +244,16 @@ export const httpLinterPlugin: ThymianPlugin<HttpLinterPluginOptions> = {
               },
               {
                 description:
-                  'Saves incoming HTTP transaction in specified DB file.',
+                  'Store HTTP transactions in a SQLite database file. Allows persistence and analysis after the process exits. If filePath is not specified, a timestamped database file is created in .thymian/db/.',
                 properties: {
                   type: {
+                    description:
+                      'Storage type identifier for file-based transaction capture.',
                     const: 'file',
                   },
                   filePath: {
+                    description:
+                      'Path to the SQLite database file for storing transactions. Can be absolute or relative to the current working directory. If not specified, defaults to ".thymian/db/{timestamp}.db".',
                     type: 'string',
                   },
                 },
@@ -185,41 +261,6 @@ export const httpLinterPlugin: ThymianPlugin<HttpLinterPluginOptions> = {
                 additionalProperties: false,
               },
             ],
-          },
-        },
-      },
-      ruleFilter: {
-        type: 'object',
-        additionalProperties: false,
-        nullable: true,
-        properties: {
-          ruleTypes: {
-            type: 'array',
-            items: {
-              type: 'string',
-              enum: ruleTypes,
-            },
-            nullable: true,
-          },
-          severity: {
-            type: 'string',
-            enum: severityLevels,
-            nullable: true,
-          },
-          appliesTo: {
-            type: 'array',
-            items: {
-              type: 'string',
-              enum: httpParticipantRoles,
-            },
-            nullable: true,
-          },
-          names: {
-            nullable: true,
-            type: 'array',
-            items: {
-              type: 'string',
-            },
           },
         },
       },
@@ -234,19 +275,26 @@ export const httpLinterPlugin: ThymianPlugin<HttpLinterPluginOptions> = {
     logger: Logger,
     options,
   ): Promise<void> {
-    const ruleFilter = createRuleFilter(options.ruleFilter);
+    const modes = options.type ?? ['static'];
+    const severity = options.severity ?? 'hint';
+    const ruleOptions = options.rules ?? {};
+
+    logger.debug(
+      `Running in mode(s): ${modes.join(', ')} with severity "${severity}".`,
+    );
+
+    const ruleFilter = createRuleFilter({
+      severity,
+      type: modes,
+    });
 
     const loadedRules = await loadRules(
-      options.rules,
+      options.ruleSets,
       ruleFilter,
-      options.ruleOptions,
+      options.rules ?? {},
     );
 
     logger.debug(`${loadedRules.length} rules were initially loaded.`);
-
-    const modes = options.modes ?? ['static'];
-
-    logger.debug(`Running in mode(s): ${modes.join(', ')}`);
 
     let transactionRepository: HttpTransactionRepository | undefined;
 
@@ -287,7 +335,7 @@ export const httpLinterPlugin: ThymianPlugin<HttpLinterPluginOptions> = {
       const additionalLoadedRules = await loadRules(
         rules,
         ruleFilter,
-        options.ruleOptions,
+        options.rules ?? {},
       );
 
       loadedRules.push(...additionalLoadedRules);
@@ -315,7 +363,7 @@ export const httpLinterPlugin: ThymianPlugin<HttpLinterPluginOptions> = {
             loadedRules,
             (report) => emitter.emit('core.report', report),
             thymianFormat,
-            options.ruleOptions ?? {},
+            ruleOptions,
           ).run()) && valid;
       }
 
@@ -329,7 +377,7 @@ export const httpLinterPlugin: ThymianPlugin<HttpLinterPluginOptions> = {
             loadedRules,
             (report) => emitter.emit('core.report', report),
             thymianFormat,
-            options.ruleOptions ?? {},
+            ruleOptions,
           ).run()) && valid;
       }
 
@@ -349,7 +397,7 @@ export const httpLinterPlugin: ThymianPlugin<HttpLinterPluginOptions> = {
         loadedRules,
         (report) => reports.push(report),
         thymianFormat,
-        options.ruleOptions ?? {},
+        ruleOptions,
       ).run();
 
       ctx.reply({
@@ -393,7 +441,7 @@ export const httpLinterPlugin: ThymianPlugin<HttpLinterPluginOptions> = {
           loadedRules,
           (report) => reports.push(report),
           thymianFormat,
-          options.ruleOptions ?? {},
+          ruleOptions,
         ).run();
 
         ctx.reply({
@@ -440,7 +488,7 @@ export const httpLinterPlugin: ThymianPlugin<HttpLinterPluginOptions> = {
           loadedRules,
           (report) => reports.push(report),
           thymianFormat,
-          options.ruleOptions ?? {},
+          ruleOptions,
         ).run();
 
         ctx.reply({

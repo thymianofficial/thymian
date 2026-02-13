@@ -1,4 +1,7 @@
-import type { HttpFilterExpression } from '@thymian/core';
+import {
+  type HttpFilterExpression,
+  thymianRequestToOrigin,
+} from '@thymian/core';
 import {
   type Logger,
   type PartialBy,
@@ -11,6 +14,7 @@ import type {
   RuleViolation,
   RuleViolationLocation,
 } from '../rule/rule-violation.js';
+import { createRegExpFromOriginWildcard } from '../utils.js';
 import type { CommonHttpRequest, CommonHttpResponse } from './common-types.js';
 
 export type ValidationFn<
@@ -19,11 +23,27 @@ export type ValidationFn<
 > = (...args: Args) => R;
 
 export abstract class ApiContext {
+  readonly format: ThymianFormat;
+
   constructor(
-    readonly format: ThymianFormat,
+    format: ThymianFormat,
     protected readonly logger: Logger,
     protected readonly report: ReportFn = () => undefined,
-  ) {}
+    protected readonly skippedOrigins: string[] = [],
+  ) {
+    if (skippedOrigins.length === 0) {
+      this.format = format;
+    } else {
+      const regExps = skippedOrigins.map(createRegExpFromOriginWildcard);
+
+      this.format = format.filter(
+        ({ thymianReq }) =>
+          !regExps.some((regExp) =>
+            regExp.test(thymianRequestToOrigin(thymianReq)),
+          ),
+      );
+    }
+  }
 
   abstract validateCommonHttpTransactions(
     filter: HttpFilterExpression,

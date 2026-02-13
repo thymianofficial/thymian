@@ -1,40 +1,27 @@
-import { type HttpLinterPluginOptions, severityLevelValues } from './index.js';
 import type { Rule } from './rule/rule.js';
+import type { RuleType } from './rule/rule-meta.js';
+import {
+  type RuleSeverity,
+  severityLevelValues,
+} from './rule/rule-severity.js';
 
 export type RuleFilter = (rule: Rule) => boolean;
 
-export function createRuleFilter(
-  filters: HttpLinterPluginOptions['ruleFilter'],
-): RuleFilter {
+export function createRuleFilter({
+  severity,
+  type,
+}: {
+  severity: RuleSeverity;
+  type: RuleType[];
+}): RuleFilter {
   const ruleFilters: RuleFilter[] = [];
 
-  const { severity, appliesTo, names, ruleTypes } = filters ?? {};
+  ruleFilters.push(
+    (rule) =>
+      severityLevelValues[rule.meta.severity] <= severityLevelValues[severity],
+  );
 
-  if (severity) {
-    ruleFilters.push(
-      (rule) =>
-        severityLevelValues[rule.meta.severity] <=
-        severityLevelValues[severity],
-    );
-  }
-
-  if (appliesTo) {
-    ruleFilters.push((rule) =>
-      appliesTo.some((role) =>
-        rule.meta.appliesTo ? rule.meta.appliesTo.includes(role) : true,
-      ),
-    );
-  }
-
-  if (names) {
-    ruleFilters.push((rule) => names.includes(rule.meta.name));
-  }
-
-  if (Array.isArray(ruleTypes)) {
-    ruleFilters.push((rule) =>
-      ruleTypes.some((type) => rule.meta.type.includes(type)),
-    );
-  }
+  ruleFilters.push((rule) => type.some((t) => rule.meta.type.includes(t)));
 
   return (rule) => ruleFilters.every((filter) => filter(rule));
 }

@@ -3,6 +3,10 @@ import type { HttpTestContext } from '@thymian/http-testing';
 
 import { HttpTestApiContext } from '../api-context/http-test-api-context.js';
 import type { Rule } from '../rule/rule.js';
+import type {
+  RulesConfiguration,
+  SingleRuleConfiguration,
+} from '../rule-configuration.js';
 import { AbstractLinter } from './abstract-linter.js';
 
 export class HttpTestLinter extends AbstractLinter {
@@ -12,23 +16,28 @@ export class HttpTestLinter extends AbstractLinter {
     rules: Rule[],
     report: (report: ThymianReport) => void,
     format: ThymianFormat,
-    ruleOptions: Record<string, Record<string, unknown> | undefined>,
+    ruleOptions: RulesConfiguration,
   ) {
     super(logger, rules, report, format, ruleOptions);
   }
 
   protected override async runRule(
     rule: Rule,
-    options: Record<string, unknown>,
+    options: SingleRuleConfiguration,
   ): Promise<boolean> {
     if (!rule.testRule) {
       return true;
     }
 
     const result = await rule.testRule(
-      new HttpTestApiContext(rule.meta.name, this.context, this.report),
+      new HttpTestApiContext(
+        rule.meta.name,
+        this.context,
+        this.report,
+        options.skipOrigins,
+      ),
       {
-        ...options,
+        ...(options.options ?? {}),
         mode: 'test',
       },
       this.logger.child(rule.meta.name),

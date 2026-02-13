@@ -38,6 +38,9 @@ export interface HttpFilterVisitor<TResult> {
   visitProtocol?(
     expr: Extract<RequestFilterExpression, { type: 'protocol' }>,
   ): TResult;
+  visitMatchesOrigin?(
+    expr: Extract<RequestFilterExpression, { type: 'matches-origin' }>,
+  ): TResult;
 
   // Response filter visitors
   visitStatusCode?(
@@ -158,6 +161,13 @@ export function visitHttpFilter<TResult>(
             );
           }
           return visitor.visitProtocol(expr);
+        case 'matches-origin':
+          if (!visitor.visitMatchesOrigin) {
+            throw new Error(
+              `Visitor does not implement visitMatchesOrigin for expression type: ${expr.type}`,
+            );
+          }
+          return visitor.visitMatchesOrigin(expr);
         default:
           throw new Error(
             `Unknown request filter type: ${(expr as RequestFilterExpression).type}`,

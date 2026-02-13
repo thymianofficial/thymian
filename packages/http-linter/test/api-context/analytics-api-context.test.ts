@@ -174,6 +174,52 @@ describe('AnalyticsApiContext', () => {
       );
     });
 
+    it('should ignore skipped origins', async () => {
+      insertTransaction({
+        request: {
+          data: {
+            method: 'get',
+            origin: 'https://api.example.com',
+            path: '/posts',
+            headers: {},
+          },
+          meta: {},
+        },
+      });
+      insertTransaction({
+        request: {
+          data: {
+            method: 'get',
+            origin: 'https://api.example.de',
+            path: '/users',
+            headers: {},
+          },
+          meta: {},
+        },
+      });
+
+      const format = createThymianFormat();
+      const context = new AnalyticsApiContext(
+        repository,
+        new NoopLogger(),
+        format,
+        () => undefined,
+        [],
+        ['*.example.de'],
+      );
+
+      const result = context.validateCommonHttpTransactions(statusCode(200));
+
+      expect(result).toHaveLength(1);
+      expect(result).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            location: expect.stringMatching('https://api.example.com/posts'),
+          }),
+        ]),
+      );
+    });
+
     it('should handle multiple transactions', async () => {
       insertTransaction({
         response: {

@@ -38,7 +38,8 @@ export type RequestFilterExpression =
   | { type: 'port'; kind: 'request'; port?: number }
   | { type: 'requestMediaType'; kind: 'request'; mediaType?: string }
   | { type: 'url'; kind: 'request'; url?: string }
-  | { type: 'protocol'; kind: 'request'; protocol?: string };
+  | { type: 'protocol'; kind: 'request'; protocol?: string }
+  | { type: 'matches-origin'; kind: 'request'; origin?: string };
 
 export type ResponseFilterExpression =
   | { type: 'statusCode'; kind: 'response'; code?: number }
@@ -258,3 +259,9 @@ export const url = (url?: string): RequestFilterExpression => ({
 });
 
 export const successfulStatusCode = () => statusCodeRange(200, 299);
+
+export const matchesOrigin = (origin?: string): RequestFilterExpression => ({
+  type: 'matches-origin',
+  kind: 'request',
+  origin,
+});

@@ -49,9 +49,7 @@ function sortTraceTransactions(
   return sortedList;
 }
 
-export class SqliteHttpTransactionRepository
-  implements HttpTransactionRepository
-{
+export class SqliteHttpTransactionRepository implements HttpTransactionRepository {
   readonly db: Database;
 
   constructor(
@@ -113,7 +111,6 @@ export class SqliteHttpTransactionRepository
       GROUP BY ${groupByFragment.sql}
     `;
 
-    this.logger.debug('Executing SQL query:', statement);
     this.logger.debug('Executing SQL query:', statement);
 
     const result = this.db

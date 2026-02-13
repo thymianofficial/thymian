@@ -3,6 +3,10 @@ import type { Rule } from 'src/rule/rule.js';
 
 import { AnalyticsApiContext } from '../api-context/analytics-api-context.js';
 import type { HttpTransactionRepository } from '../db/http-transaction-repository.js';
+import type {
+  RulesConfiguration,
+  SingleRuleConfiguration,
+} from '../rule-configuration.js';
 import { AbstractLinter } from './abstract-linter.js';
 
 export class AnalyticsLinter extends AbstractLinter {
@@ -12,23 +16,30 @@ export class AnalyticsLinter extends AbstractLinter {
     rules: Rule[],
     report: (report: ThymianReport) => void,
     format: ThymianFormat,
-    ruleOptions: Record<string, Record<string, unknown> | undefined>,
+    ruleOptions: RulesConfiguration,
   ) {
     super(logger, rules, report, format, ruleOptions);
   }
 
-  protected override async runRule<Options extends Record<string, unknown>>(
+  protected override async runRule(
     rule: Rule,
-    options: Options,
+    options: SingleRuleConfiguration,
   ): Promise<boolean> {
     if (!rule.analyticsRule) {
       return true;
     }
 
     const result = await rule.analyticsRule(
-      new AnalyticsApiContext(this.repository, this.logger, this.format),
+      new AnalyticsApiContext(
+        this.repository,
+        this.logger,
+        this.format,
+        this.report,
+        rule.meta.appliesTo,
+        options.skipOrigins,
+      ),
       {
-        ...options,
+        ...(options.options ?? {}),
         mode: 'analytics',
       },
       this.logger.child(rule.meta.name),

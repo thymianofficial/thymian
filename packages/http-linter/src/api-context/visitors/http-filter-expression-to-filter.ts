@@ -4,8 +4,11 @@ import {
   type HttpFilterExpression,
   type ThymianFormat,
   type ThymianHttpTransaction,
+  thymianRequestToOrigin,
   visitHttpFilter,
 } from '@thymian/core';
+
+import { createRegExpFromOriginWildcard } from '../../utils.js';
 
 export type StaticFilter = (
   thymianTransaction: ThymianHttpTransaction,
@@ -130,6 +133,16 @@ const visitor = createFilterVisitor<StaticFilter>({
   },
   visitResponseTrailer() {
     throw new Error('Response trailers are not currently supported.');
+  },
+  visitMatchesOrigin({ origin }) {
+    if (typeof origin !== 'string') {
+      return () => false;
+    }
+
+    const regExp = createRegExpFromOriginWildcard(origin);
+
+    return (transaction) =>
+      regExp.test(thymianRequestToOrigin(transaction.thymianReq));
   },
 });
 

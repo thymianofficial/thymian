@@ -52,11 +52,8 @@ export default class Evaluate extends Command {
   private async initStream(path: string): Promise<void> {
     const thymian = new Thymian();
     thymian.register(httpLinterPlugin, {
-      rules: ['@thymian/rfc-9110-rules'],
-      modes: ['static'],
-      ruleFilter: {
-        ruleTypes: ['static'],
-      },
+      ruleSets: ['@thymian/rfc-9110-rules'],
+      type: ['static'],
     });
 
     const rules = await thymian.run((emitter) =>
