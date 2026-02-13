@@ -6,7 +6,7 @@ import formatValidatorPlugin from '../index.js';
 const hook: ThymianPluginInitHook = async function (options) {
   if (!options.interactive) {
     return {
-      include: true,
+      include: false,
       pluginName: formatValidatorPlugin.name,
       configuration: {},
     };

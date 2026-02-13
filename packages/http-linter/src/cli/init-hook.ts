@@ -18,6 +18,8 @@ const hook: ThymianPluginInitHook<HttpLinterPluginOptions> = async function (
       configuration: {
         options: {
           ruleSets: ['@thymian/rfc-9110-rules'],
+          severity: 'error',
+          type: ['static'],
         },
       },
     };

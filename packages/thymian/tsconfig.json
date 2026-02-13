@@ -8,6 +8,9 @@
   },
   "references": [
     {
+      "path": "../request-dispatcher"
+    },
+    {
       "path": "../evaluation"
     },
     {

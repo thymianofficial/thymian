@@ -21,8 +21,15 @@
   },
   "dependencies": {
     "@thymian/core": "0.0.0-PLACEHOLDER",
+    "@thymian/cli-common": "0.0.0-PLACEHOLDER",
     "async-mutex": "^0.5.0",
     "p-queue": "^9.0.1",
     "undici": "^6.21.2"
+  },
+  "oclif": {
+    "bin": "thymian",
+    "hooks": {
+      "thymian-plugin.init": "./dist/cli/init-hook"
+    }
   }
 }

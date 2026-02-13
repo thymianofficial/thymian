@@ -40,6 +40,9 @@
       "sampler": {
         "description": "Generate sample data for your API."
       }
+    },
+    "hooks": {
+      "thymian-plugin.init": "./dist/cli/init-hook"
     }
   },
   "devDependencies": {
