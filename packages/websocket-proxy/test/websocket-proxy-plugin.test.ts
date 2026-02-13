@@ -140,6 +140,10 @@ describe('Websocket Proxy Plugin', () => {
     await expect(() => ready).rejects.toThrowError(
       'Cannot establish a connection to a WebSocket client within 10ms.',
     );
+
+    // Clean up to prevent unhandled rejection
+    ws.close();
+    await thymian.close();
   });
 
   it('remote plugin can call action', async () => {
