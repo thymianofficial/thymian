@@ -7,6 +7,7 @@ export default {
       [
         'repo',
         'release',
+        'deps',
         'cli',
         'core',
         'format-validator',
