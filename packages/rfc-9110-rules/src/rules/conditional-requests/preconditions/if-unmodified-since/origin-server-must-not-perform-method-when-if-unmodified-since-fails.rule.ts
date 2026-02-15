@@ -1,12 +1,16 @@
 import {
   and,
+  getHeader,
   not,
   or,
   requestHeader,
+  responseHeader,
   statusCode,
   statusCodeRange,
 } from '@thymian/core';
 import { httpRule } from '@thymian/http-linter';
+
+import { compareHttpDates, isValidHttpDate } from '../../utils.js';
 
 export default httpRule(
   'rfc9110/origin-server-must-not-perform-method-when-if-unmodified-since-fails',
@@ -22,14 +26,44 @@ export default httpRule(
   )
   .appliesTo('origin server')
   .tags('conditional-requests', 'if-unmodified-since', '412')
-  .rule((ctx) =>
-    ctx.validateCommonHttpTransactions(
+  .overrideAnalyticsRule((ctx) =>
+    ctx.validateHttpTransactions(
       and(
         requestHeader('if-unmodified-since'),
         not(requestHeader('if-match')),
-        // Check if response is neither 412 nor 2xx when If-Unmodified-Since should have failed
-        not(or(statusCode(412), statusCodeRange(200, 299))),
+        responseHeader('last-modified'),
       ),
+      (req, res) => {
+        const ifUnmodifiedSince = getHeader(req.headers, 'if-unmodified-since');
+        const lastModified = getHeader(res.headers, 'last-modified');
+
+        if (
+          typeof ifUnmodifiedSince !== 'string' ||
+          typeof lastModified !== 'string' ||
+          !isValidHttpDate(ifUnmodifiedSince) ||
+          !isValidHttpDate(lastModified)
+        ) {
+          return false;
+        }
+
+        // If-Unmodified-Since evaluates to false (i.e., fails) when
+        // the resource HAS been modified (lastModified > ifUnmodifiedSince)
+        const comparison = compareHttpDates(lastModified, ifUnmodifiedSince);
+
+        if (comparison !== null && comparison > 0) {
+          // Resource was modified - should return 412 or 2xx
+          const is412 = res.statusCode === 412;
+          const is2xx = res.statusCode >= 200 && res.statusCode < 300;
+
+          if (!is412 && !is2xx) {
+            return {
+              message: `If-Unmodified-Since precondition failed (resource modified since ${ifUnmodifiedSince}), but server responded with ${res.statusCode} instead of 412 Precondition Failed or 2xx status code.`,
+            };
+          }
+        }
+
+        return false;
+      },
     ),
   )
   .done();

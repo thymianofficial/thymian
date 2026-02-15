@@ -1,6 +1,7 @@
 import {
   and,
   constant,
+  getHeader,
   method,
   not,
   or,
@@ -10,6 +11,8 @@ import {
 } from '@thymian/core';
 import { httpRule } from '@thymian/http-linter';
 import { singleTestCase } from '@thymian/http-testing';
+
+import { compareHttpDates, isValidHttpDate } from '../../utils.js';
 
 export default httpRule(
   'rfc9110/origin-server-should-respond-304-when-if-modified-since-false',
@@ -25,14 +28,42 @@ export default httpRule(
   )
   .appliesTo('origin server')
   .tags('conditional-requests', 'if-modified-since', '304')
-  .rule((ctx) =>
-    ctx.validateCommonHttpTransactions(
+  .overrideAnalyticsRule((ctx) =>
+    ctx.validateHttpTransactions(
       and(
         or(method('GET'), method('HEAD')),
         requestHeader('if-modified-since'),
         not(requestHeader('if-none-match')),
-        statusCode(200),
+        responseHeader('last-modified'),
       ),
+      (req, res) => {
+        const ifModifiedSince = getHeader(req.headers, 'if-modified-since');
+        const lastModified = getHeader(res.headers, 'last-modified');
+
+        if (
+          typeof ifModifiedSince !== 'string' ||
+          typeof lastModified !== 'string' ||
+          !isValidHttpDate(ifModifiedSince) ||
+          !isValidHttpDate(lastModified)
+        ) {
+          return false;
+        }
+
+        // If-Modified-Since evaluates to false (i.e., condition fails) when
+        // the resource has NOT been modified (lastModified <= ifModifiedSince)
+        const comparison = compareHttpDates(lastModified, ifModifiedSince);
+
+        if (comparison !== null && comparison <= 0) {
+          // Resource not modified - should return 304
+          if (res.statusCode === 200) {
+            return {
+              message: `If-Modified-Since precondition failed (resource not modified since ${ifModifiedSince}), but server responded with 200 instead of 304 Not Modified.`,
+            };
+          }
+        }
+
+        return false;
+      },
     ),
   )
   .overrideTest((ctx) =>

@@ -1,13 +1,17 @@
 import {
   and,
+  getHeader,
   method,
   not,
   or,
   requestHeader,
+  responseHeader,
   statusCode,
   statusCodeRange,
 } from '@thymian/core';
 import { httpRule } from '@thymian/http-linter';
+
+import { compareETags, parseConditionalETagHeader } from '../../utils.js';
 
 export default httpRule(
   'rfc9110/origin-server-must-not-perform-method-when-if-match-fails',
@@ -23,14 +27,41 @@ export default httpRule(
   )
   .appliesTo('origin server')
   .tags('conditional-requests', 'if-match', '412', 'precondition-failed')
-  .rule((ctx) =>
-    ctx.validateCommonHttpTransactions(
-      and(
-        requestHeader('if-match'),
-        // Looking for responses that are not 412 or 2xx when If-Match should have failed
-        // This is a simplified check - full validation would require comparing ETags
-        not(or(statusCode(412), statusCodeRange(200, 299))),
-      ),
+  .overrideAnalyticsRule((ctx) =>
+    ctx.validateHttpTransactions(
+      and(requestHeader('if-match'), responseHeader('etag')),
+      (req, res) => {
+        const ifMatch = getHeader(req.headers, 'if-match');
+        const etag = getHeader(res.headers, 'etag');
+
+        if (typeof ifMatch !== 'string' || typeof etag !== 'string' || !etag) {
+          return false;
+        }
+
+        const requestedETags = parseConditionalETagHeader(ifMatch);
+
+        // If-Match evaluates to false (i.e., fails) when there is NO match
+        // Using strong comparison per RFC 9110 section 13.1.1
+        const hasMatch =
+          requestedETags.includes('*') ||
+          requestedETags.some((requestedETag) =>
+            compareETags(requestedETag, etag, false),
+          );
+
+        if (!hasMatch) {
+          // Precondition failed - check response status
+          const is412 = res.statusCode === 412;
+          const is2xx = res.statusCode >= 200 && res.statusCode < 300;
+
+          if (!is412 && !is2xx) {
+            return {
+              message: `If-Match precondition failed (no ETag match), but server responded with ${res.statusCode} instead of 412 Precondition Failed or 2xx status code.`,
+            };
+          }
+        }
+
+        return false;
+      },
     ),
   )
   .done();
