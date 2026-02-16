@@ -1,21 +1,16 @@
 import {
   and,
-<<<<<<< mk/feat/rfc9110-conditional-requests
-=======
-  constant,
   getHeader,
->>>>>>> pm/feat/rfc9110-conditional-requests
   method,
   not,
   or,
   requestHeader,
   responseHeader,
+  responseWith,
   statusCode,
 } from '@thymian/core';
 import { httpRule } from '@thymian/http-linter';
 import { singleTestCase } from '@thymian/http-testing';
-
-import { compareHttpDates, isValidHttpDate } from '../../utils.js';
 
 export default httpRule(
   'rfc9110/origin-server-should-respond-304-when-if-modified-since-false',
@@ -31,42 +26,12 @@ export default httpRule(
   )
   .appliesTo('origin server')
   .tags('conditional-requests', 'if-modified-since', '304')
-  .overrideAnalyticsRule((ctx) =>
-    ctx.validateHttpTransactions(
+  .rule((ctx) =>
+    ctx.validateCommonHttpTransactions(
       and(
-        or(method('GET'), method('HEAD')),
         requestHeader('if-modified-since'),
-        not(requestHeader('if-none-match')),
-        responseHeader('last-modified'),
+        not(responseWith(statusCode(304))),
       ),
-      (req, res) => {
-        const ifModifiedSince = getHeader(req.headers, 'if-modified-since');
-        const lastModified = getHeader(res.headers, 'last-modified');
-
-        if (
-          typeof ifModifiedSince !== 'string' ||
-          typeof lastModified !== 'string' ||
-          !isValidHttpDate(ifModifiedSince) ||
-          !isValidHttpDate(lastModified)
-        ) {
-          return false;
-        }
-
-        // If-Modified-Since evaluates to false (i.e., condition fails) when
-        // the resource has NOT been modified (lastModified <= ifModifiedSince)
-        const comparison = compareHttpDates(lastModified, ifModifiedSince);
-
-        if (comparison !== null && comparison <= 0) {
-          // Resource not modified - should return 304
-          if (res.statusCode === 200) {
-            return {
-              message: `If-Modified-Since precondition failed (resource not modified since ${ifModifiedSince}), but server responded with 200 instead of 304 Not Modified.`,
-            };
-          }
-        }
-
-        return false;
-      },
     ),
   )
   .overrideTest((ctx) =>
