@@ -20,17 +20,20 @@ export default httpRule(
     ctx.validateHttpTransactions(requestHeader('if-range'), (req) => {
       const ifRange = getHeader(req.headers, 'if-range');
 
-      if (typeof ifRange !== 'string') {
+      if (typeof ifRange === 'string') {
         return false;
       }
 
-      // Check if it starts with a quote (entity-tag) and is weak
-      if (ifRange.trim().match(/^[Ww]?"/)) {
-        if (isWeakETag(ifRange)) {
-          return {
-            message: `If-Range header field contains a weak entity tag (marked with W/), which is not allowed. Value used: ${ifRange}`,
-          };
-        }
+      const ranges = Array.isArray(ifRange) ? ifRange : [ifRange];
+
+      const invalidRanges = ranges.filter(
+        (range) => range && range.trim().match(/^[Ww]?"/),
+      );
+
+      if (invalidRanges.length > 0) {
+        return {
+          message: `If-Range header field contains a weak entity tag (marked with W/), which is not allowed. Value(s) used: ${invalidRanges.join(', ')}`,
+        };
       }
 
       return false;
