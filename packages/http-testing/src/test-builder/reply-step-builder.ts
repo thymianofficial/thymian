@@ -1,9 +1,12 @@
 import {
   type Constant,
+  type HttpRequestTemplate,
+  type HttpResponse,
   type RequestFilterExpression,
   type ResponseFilterExpression,
 } from '@thymian/core';
 
+import type { SingleHttpTestCaseStep } from '../http-test/index.js';
 import {
   overrideRequestWithPrevious,
   runRequests,
@@ -18,17 +21,25 @@ export class ReplyStepBuilder {
 
   set(
     toRequest: RequestFilterExpression,
-    fromResponse: ResponseFilterExpression | Constant,
+    fromResponse:
+      | ResponseFilterExpression
+      | Constant
+      | ((response: HttpResponse) => unknown),
   ): ReplyStepBuilder {
     const operator = overrideRequestWithPrevious(
       (requestTemplate, previous) => {
         const response = previous.transactions[0]?.response;
 
         if (response) {
-          const extractedValue =
-            fromResponse.type === 'constant'
-              ? fromResponse.value
-              : extractValueFromResponse(response, fromResponse);
+          let extractedValue!: unknown;
+
+          if (typeof fromResponse === 'function') {
+            extractedValue = fromResponse(response);
+          } else if (fromResponse.type === 'constant') {
+            extractedValue = fromResponse.value;
+          } else {
+            extractedValue = extractValueFromResponse(response, fromResponse);
+          }
 
           if (extractedValue) {
             return overrideTemplate(requestTemplate, toRequest, extractedValue);
