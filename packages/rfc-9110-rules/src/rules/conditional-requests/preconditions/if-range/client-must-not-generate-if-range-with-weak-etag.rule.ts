@@ -7,7 +7,7 @@ export default httpRule(
   'rfc9110/client-must-not-generate-if-range-with-weak-etag',
 )
   .severity('error')
-  .type('static', 'analytics')
+  .type('analytics')
   .url('https://www.rfc-editor.org/rfc/rfc9110.html#section-13.1.5')
   .description(
     'A client MUST NOT generate an If-Range header field containing an entity tag that is marked as weak.',
@@ -28,8 +28,7 @@ export default httpRule(
       if (ifRange.trim().match(/^[Ww]?"/)) {
         if (isWeakETag(ifRange)) {
           return {
-            message:
-              'If-Range header field contains a weak entity tag (marked with W/), which is not allowed.',
+            message: `If-Range header field contains a weak entity tag (marked with W/), which is not allowed. Value used: ${ifRange}`,
           };
         }
       }
