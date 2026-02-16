@@ -604,8 +604,6 @@ describe('ThymianFormat', () => {
         serialized = JSON.stringify(exported);
       }).not.toThrowError();
 
-      console.log(serialized);
-
       const formatAgain = ThymianFormat.import(JSON.parse(serialized));
       const transactions = formatAgain.getThymianHttpTransactions();
 
