@@ -1,6 +1,6 @@
-import { join } from 'node:path';
+import { dirname, join } from 'node:path';
 
-import { writeFile } from 'fs/promises';
+import { mkdir, writeFile } from 'fs/promises';
 import * as jsonSchema from 'jsonschema2mk';
 
 // e.g. @thymian/http-linter
@@ -13,12 +13,13 @@ if (!pkgName) {
   process.exit(1);
 }
 
-import(pkgName)
-  .then((plugin) => plugin.default['options'])
-  .then((options) => {
-    if (!options) {
-      throw new Error('No options found in plugin');
-    }
+try {
+  const plugin = await import(pkgName);
+  const options = plugin.default['options'];
+
+  if (!options) {
+    console.warn('No options found in plugin, skipping schema generation.');
+  } else {
     const jsm = new jsonSchema.default({
       partials: ['json2md-partials'],
       extension: ['front-matter'],
@@ -31,10 +32,14 @@ import(pkgName)
         },
       },
     });
-    return jsm.convert(options);
-  })
-  .then((md) => writeFile(targetMd, md))
-  .catch((error) => console.error(error))
-  .finally(() => {
-    console.log('Done!');
-  });
+    const md = await jsm.convert(options);
+    await mkdir(dirname(targetMd), { recursive: true });
+    await writeFile(targetMd, md);
+
+    console.log('Generated schema docs for', pkgName);
+  }
+} catch (error) {
+  console.error('Failed to generate schema docs for', pkgName);
+  console.error(error);
+  process.exit(1);
+}
