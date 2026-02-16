@@ -26,6 +26,7 @@ export default [
             '@thymian/websocket-proxy',
             '@thymian/reporter',
             '@thymian/evaluation',
+            '@thymian/request-dispatcher',
           ],
         },
       ],
