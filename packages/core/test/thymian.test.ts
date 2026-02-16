@@ -137,15 +137,13 @@ describe('Thymian', () => {
     thymian.register(
       createPluginFor(async (emitter) => {
         emitter.onAction('core.run', (_, ctx) => {
-          emitter.emitError({
+          ctx.error({
             message: 'Error event!',
             name: 'MyError',
             options: {
               severity: 'error',
             },
           });
-
-          ctx.reply({ pluginName: '', status: 'success' });
         });
       }),
     );
