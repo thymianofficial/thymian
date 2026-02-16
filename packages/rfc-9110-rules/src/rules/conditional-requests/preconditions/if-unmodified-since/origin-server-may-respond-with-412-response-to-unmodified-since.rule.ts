@@ -1,31 +1,47 @@
+// origin-server-may-respond-with-412-response-to-unmodified-since
+
 import {
   and,
+  constant,
   getHeader,
   method,
   not,
   or,
   requestHeader,
   responseHeader,
+  responseWith,
+  statusCode,
   statusCodeRange,
 } from '@thymian/core';
 import { httpRule } from '@thymian/http-linter';
 import { singleTestCase } from '@thymian/http-testing';
 
 export default httpRule(
-  'rfc9110/origin-server-must-not-perform-method-when-if-unmodified-since-fails',
+  'rfc9110/origin-server-may-respond-with-412-response-to-unmodified-since',
 )
-  .severity('error')
-  .type('test')
+  .severity('hint')
+  .type('static', 'test')
   .url('https://www.rfc-editor.org/rfc/rfc9110.html#section-13.1.4')
   .description(
-    'An origin server that evaluates an If-Unmodified-Since condition MUST NOT perform the requested method if the condition evaluates to false. Instead, the origin server MAY indicate that the conditional request failed by responding with a 412 (Precondition Failed) status code. Alternatively, if the request is a state-changing operation that appears to have already been applied to the selected representation, the origin server MAY respond with a 2xx (Successful) status code.',
+    'An origin server that evaluates an If-Unmodified-Since condition MUST NOT perform the requested method if the condition evaluates to false. Instead, the origin server MAY indicate that the conditional request failed by responding with a 412 (Precondition Failed) status code.',
   )
   .summary(
-    'Origin server MUST NOT perform method when If-Unmodified-Since fails; MUST respond with 412 or 2xx.',
+    'An origin server MAY indicate that the conditional request failed by responding with a 412 (Precondition Failed) status code.',
   )
   .appliesTo('origin server')
-  .tags('conditional-requests', 'if-unmodified-since', '412')
+  .tags(
+    'conditional-requests',
+    'if-unmodified-since',
+    '412',
+    'precondition-failed',
+  )
   .rule((ctx) =>
+    ctx.validateCommonHttpTransactions(
+      requestHeader('if-unmodified-since'),
+      not(responseWith(statusCode(412))),
+    ),
+  )
+  .overrideTest((ctx) =>
     ctx.httpTest(
       singleTestCase()
         .forTransactionsWith(
@@ -58,7 +74,7 @@ export default httpRule(
             .run()
             .done(),
         )
-        .expectForTransactions(statusCodeRange(400, 499))
+        .expectForTransactions(statusCode(412))
         .done(),
     ),
   )

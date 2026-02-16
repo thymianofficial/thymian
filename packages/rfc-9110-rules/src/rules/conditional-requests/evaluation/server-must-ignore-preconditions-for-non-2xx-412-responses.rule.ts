@@ -30,8 +30,7 @@ export default httpRule(
           requestHeader('if-unmodified-since'),
           requestHeader('if-range'),
         ),
-        // Response is not 2xx, not 304, not 412, but still evaluated preconditions (returned 304 or 412)
-        not(or(statusCodeRange(200, 299), statusCode(304), statusCode(412))),
+        not(or(statusCodeRange(200, 299), statusCode(412))),
       ),
     ),
   )
