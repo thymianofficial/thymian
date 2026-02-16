@@ -2,6 +2,8 @@
 title: 'RequestDispatchError'
 ---
 
+## The Cause
+
 An error occurred while dispatching an HTTP request. This is a general error that wraps the underlying cause of the failure.
 
 Common causes include:
@@ -12,6 +14,8 @@ Common causes include:
 - Request timeout
 - Malformed requests
 - Server errors (5xx status codes)
+
+## The Solution
 
 To diagnose the issue:
 

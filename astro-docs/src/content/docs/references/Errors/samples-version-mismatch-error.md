@@ -2,6 +2,8 @@
 title: 'SamplesVersionMismatchError'
 ---
 
+## The Cause
+
 Cannot merge sample trees that were generated with different versions of the Thymian format. Sample trees can only be merged if they're based on the same format version.
 
 This error occurs when trying to combine samples from different versions, such as:
@@ -9,6 +11,8 @@ This error occurs when trying to combine samples from different versions, such a
 - Samples generated at different times with different Thymian versions
 - Samples from different branches of your codebase
 - Samples from different projects or configurations
+
+## The Solution
 
 To resolve this:
 

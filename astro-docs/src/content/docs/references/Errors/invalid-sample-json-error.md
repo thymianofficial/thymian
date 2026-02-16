@@ -2,6 +2,8 @@
 title: 'InvalidSampleJSONError'
 ---
 
+## The Cause
+
 A sample file contains invalid JSON and cannot be parsed. Sample files must be valid JSON documents.
 
 This can happen when:
@@ -33,6 +35,8 @@ Common JSON syntax errors:
   "foo": "bar"
 }
 ```
+
+## The Solution
 
 To fix this:
 
