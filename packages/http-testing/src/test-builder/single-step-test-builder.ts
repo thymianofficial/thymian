@@ -1,4 +1,7 @@
-import type { ThymianHttpTransaction } from '@thymian/core';
+import type {
+  HttpRequestTemplate,
+  ThymianHttpTransaction,
+} from '@thymian/core';
 import {
   and,
   type HttpFilterExpression,
@@ -39,6 +42,10 @@ export interface FilterTransactions {
 export interface RunRequests {
   set(filter: RequestFilterExpression, value: unknown): RunRequests;
 
+  mapRequest(
+    fn: (request: HttpRequestTemplate) => HttpRequestTemplate,
+  ): RunRequests;
+
   tap(fn: () => void): RunRequests;
 
   run(
@@ -70,13 +77,33 @@ export interface ExpectOrStep<
 }
 
 export class SingleStepTestBuilder<
-    Transactions extends Required<HttpTestCaseStepTransaction>[],
-  >
+  Transactions extends Required<HttpTestCaseStepTransaction>[],
+>
   implements RunRequests, FilterTransactions, ExpectOrStep<Transactions>
 {
   protected readonly pipeline: BuilderPipeline = [];
 
   #requestOverrides: BuilderPipeline = [];
+
+  mapRequest(
+    fn: (request: HttpRequestTemplate) => HttpRequestTemplate,
+  ): SingleStepTestBuilder<Transactions> {
+    const operator: MonoTypeOperatorFunction<PipelineItem<HttpTestCase>> = map(
+      ({ current, ctx }) => {
+        if (current.steps[0]?.transactions[0]) {
+          current.steps[0].transactions[0].requestTemplate = fn(
+            current.steps[0].transactions[0].requestTemplate,
+          );
+        }
+
+        return { current, ctx };
+      },
+    );
+
+    this.#requestOverrides.push(operator);
+
+    return this;
+  }
 
   forTransactionsWith(filterExpression: HttpFilterExpression): RunRequests {
     this.pipeline.push(
