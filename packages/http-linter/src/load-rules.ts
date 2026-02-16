@@ -119,29 +119,6 @@ export async function loadRules(
 
   const ruleOrRuleSet = module.default;
 
-<<<<<<< mk/docs/error-reference
-  if (isRule(ruleOrRuleSet) && ruleFilter(ruleOrRuleSet)) {
-    const ruleOptions = options[ruleOrRuleSet.meta.name];
-
-    if (typeof ruleOptions === 'boolean') {
-      if (!ruleOptions) {
-        return [];
-      }
-    } else if (ruleOptions) {
-      if (
-        !validate(ruleOrRuleSet.meta.options, options[ruleOrRuleSet.meta.name])
-      ) {
-        throw new ThymianBaseError(
-          `Options for rule "${ruleOrRuleSet.meta.name}" does not match the schema of the rule.`,
-          {
-            suggestions: [
-              'Check the options for the rule in your Thymian config file.',
-            ],
-            name: 'InvalidRuleOptionError',
-            ref: 'https://thymian.dev/references/errors/invalid-rule-option/',
-          },
-        );
-=======
   if (isRule(ruleOrRuleSet)) {
     const { name } = ruleOrRuleSet.meta;
 
@@ -161,10 +138,10 @@ export async function loadRules(
                 'Check the options for the rule in your Thymian config file.',
               ],
               name: 'InvalidRuleOptionError',
+              ref: 'https://thymian.dev/references/errors/invalid-rule-option/',
             },
           );
         }
->>>>>>> main
       }
     } else if (isRuleSeverityLevel(ruleOptions)) {
       ruleOrRuleSet.meta.severity = ruleOptions;
