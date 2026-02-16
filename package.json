@@ -25,7 +25,6 @@
   },
   "private": true,
   "devDependencies": {
-    "@adobe/jsonschema2md": "^8.0.10",
     "@commitlint/cli": "^19.8.1",
     "@commitlint/config-conventional": "^19.8.1",
     "@nx/eslint": "22.5.0",
