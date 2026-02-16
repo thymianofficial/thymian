@@ -8,7 +8,7 @@ module.exports = function (data, jsonschema2mk) {
     }
     const result = string
       .map(function (s) {
-        return '<nobr>`' + s.toString().replace(/(`)/g, '\\$1') + '`</nobr>';
+        return `<nobr>\`${s.toString().replace(/(`)/g, '\\$1')}\`</nobr>`;
       })
       .join(', ');
     return new jsonschema2mk.Handlebars.SafeString(result);
