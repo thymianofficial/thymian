@@ -463,7 +463,7 @@ export async function generateTypesForThymianFormat(
         };
 
         if (res.mediaType) {
-          headers.accept = mediaTypeParameter(res.mediaType);
+          headers['content-type'] = mediaTypeParameter(res.mediaType);
         }
 
         const result: ResponseType = {
