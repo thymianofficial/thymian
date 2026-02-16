@@ -9,6 +9,8 @@ import { glob } from 'tinyglobby';
 
 import type { Rule } from './rule/rule.js';
 import type { RuleSet } from './rule/rule-set.js';
+import { isRuleSeverityLevel } from './rule/rule-severity.js';
+import type { RulesConfiguration } from './rule-configuration.js';
 import type { RuleFilter } from './rule-filter.js';
 
 const require = createRequire(import.meta.url);
@@ -54,7 +56,7 @@ export async function loadRuleSet(
   ruleSet: RuleSet,
   basePath: string,
   filterFn: RuleFilter,
-  options: Record<string, unknown>,
+  options: RulesConfiguration,
 ): Promise<Rule[]> {
   if (ruleSet.rules) {
     return ruleSet.rules.filter(filterFn);
@@ -83,7 +85,7 @@ export async function loadRuleSet(
 export async function loadRules(
   path: string | string[],
   ruleFilter: RuleFilter = () => true,
-  options: Record<string, unknown> = {},
+  options: RulesConfiguration = {},
 ): Promise<Rule[]> {
   if (Array.isArray(path)) {
     return (
@@ -117,6 +119,7 @@ export async function loadRules(
 
   const ruleOrRuleSet = module.default;
 
+<<<<<<< mk/docs/error-reference
   if (isRule(ruleOrRuleSet) && ruleFilter(ruleOrRuleSet)) {
     const ruleOptions = options[ruleOrRuleSet.meta.name];
 
@@ -138,10 +141,38 @@ export async function loadRules(
             ref: 'https://thymian.dev/references/errors/invalid-rule-option/',
           },
         );
+=======
+  if (isRule(ruleOrRuleSet)) {
+    const { name } = ruleOrRuleSet.meta;
+
+    const ruleOptions = options[name];
+
+    if (isRecord(ruleOptions)) {
+      ruleOrRuleSet.meta.severity =
+        ruleOptions.severity ?? ruleOrRuleSet.meta.severity;
+      ruleOrRuleSet.meta.type = ruleOptions.type ?? ruleOrRuleSet.meta.type;
+
+      if (ruleOptions.options && ruleOrRuleSet.meta.options) {
+        if (!validate(ruleOrRuleSet.meta.options, ruleOptions.options)) {
+          throw new ThymianBaseError(
+            `Options for rule "${ruleOrRuleSet.meta.name}" does not match the schema of the rule.`,
+            {
+              suggestions: [
+                'Check the options for the rule in your Thymian config file.',
+              ],
+              name: 'InvalidRuleOptionError',
+            },
+          );
+        }
+>>>>>>> main
       }
+    } else if (isRuleSeverityLevel(ruleOptions)) {
+      ruleOrRuleSet.meta.severity = ruleOptions;
     }
 
-    return [ruleOrRuleSet];
+    if (ruleFilter(ruleOrRuleSet)) {
+      return [ruleOrRuleSet];
+    }
   }
 
   if (isRuleSet(ruleOrRuleSet)) {

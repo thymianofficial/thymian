@@ -51,13 +51,19 @@ export class HttpTestApiContext<
   Locals extends HttpTestContextLocals = HttpTestContextLocals,
 > extends LiveApiContext {
   private readonly violations: RuleViolation[] = [];
+  private readonly ctx: HttpTestContext<Locals>;
 
   constructor(
     private readonly name: string,
-    private readonly ctx: HttpTestContext<Locals>,
+    ctx: HttpTestContext<Locals>,
     report: ReportFn,
+    skippedOrigins?: string[],
   ) {
-    super(ctx.format, ctx.logger, report);
+    super(ctx.format, ctx.logger, report, skippedOrigins);
+    this.ctx = {
+      ...ctx,
+      format: this.format,
+    };
   }
 
   reportViolation(violation: RuleViolation): void {

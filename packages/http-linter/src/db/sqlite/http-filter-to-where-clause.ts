@@ -205,7 +205,16 @@ export function compileHttpFilterToWhereClause(
         params: [filter.protocol],
       };
     }
+    case 'matches-origin': {
+      if (typeof filter.origin === 'undefined') {
+        return { sql: '1=1', params: [] };
+      }
 
+      return {
+        sql: `${tableNames.requests}.origin LIKE ?`,
+        params: [`%${filter.origin.replaceAll('*', '%')}%`],
+      };
+    }
     case 'hasResponse':
     case 'isAuthorized':
     case 'port':

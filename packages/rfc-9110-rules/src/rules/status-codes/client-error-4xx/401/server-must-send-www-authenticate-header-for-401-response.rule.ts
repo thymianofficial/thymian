@@ -53,7 +53,7 @@ export default httpRule(
           and(
             not(method('HEAD')),
             or(
-              and(authorization(), constant(options.checkAllSecured)),
+              and(authorization(), constant(options.checkAllSecured ?? false)),
               responseWith(statusCode(401)),
             ),
           ),

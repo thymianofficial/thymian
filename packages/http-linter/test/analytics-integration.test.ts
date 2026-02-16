@@ -1,3 +1,5 @@
+import { join } from 'node:path';
+
 import { httpTransactionToLabel, Thymian, ThymianFormat } from '@thymian/core';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
@@ -20,15 +22,17 @@ describe('http-linter analytics integration', { timeout: 30000 }, () => {
   it('should register plugin, receive transactions via event, and lint via action', async () => {
     await thymian
       .register(httpLinterPlugin, {
-        rules: ['@thymian/rfc-9110-rules'],
-        modes: ['analytics'],
+        ruleSets: [
+          join(
+            import.meta.dirname,
+            'fixtures/rules/should-send-validator-fields.rule.mjs',
+          ),
+        ],
+        type: ['analytics'],
         analytics: {
           captureTransactions: {
             type: 'in-memory',
           },
-        },
-        ruleFilter: {
-          names: ['rfc9110/server-should-send-validator-fields'],
         },
       })
       .ready();
@@ -52,7 +56,9 @@ describe('http-linter analytics integration', { timeout: 30000 }, () => {
           trailers: {},
           duration: 0,
         },
-        meta: {},
+        meta: {
+          role: 'origin server',
+        },
       },
     };
 
@@ -82,15 +88,17 @@ describe('http-linter analytics integration', { timeout: 30000 }, () => {
   it('should return valid when all transactions pass rules', async () => {
     await thymian
       .register(httpLinterPlugin, {
-        rules: ['@thymian/rfc-9110-rules'],
-        modes: ['analytics'],
+        ruleSets: [
+          join(
+            import.meta.dirname,
+            'fixtures/rules/should-send-validator-fields.rule.mjs',
+          ),
+        ],
+        type: ['analytics'],
         analytics: {
           captureTransactions: {
             type: 'in-memory',
           },
-        },
-        ruleFilter: {
-          names: ['rfc9110/server-should-send-validator-fields'],
         },
       })
       .ready();
@@ -136,14 +144,19 @@ describe('http-linter analytics integration', { timeout: 30000 }, () => {
   it('should handle lint-analytics action without analytics mode enabled', async () => {
     await thymian
       .register(httpLinterPlugin, {
-        rules: ['@thymian/rfc-9110-rules'],
-        modes: ['static'], // analytics is NOT enabled
+        ruleSets: [
+          join(
+            import.meta.dirname,
+            'fixtures/rules/should-send-validator-fields.rule.mjs',
+          ),
+        ],
+        type: ['static'], // analytics is NOT enabled
       })
       .ready();
 
     await expect(
       thymian.emitter.emitAction(
-        'http-linter.lint-analytics',
+        'http-linter.lint-analytics-batch',
         {
           format: format.export(),
         },
@@ -157,15 +170,17 @@ describe('http-linter analytics integration', { timeout: 30000 }, () => {
   it('should handle large number of transactions', async () => {
     await thymian
       .register(httpLinterPlugin, {
-        rules: ['@thymian/rfc-9110-rules'],
-        modes: ['analytics'],
+        ruleSets: [
+          join(
+            import.meta.dirname,
+            'fixtures/rules/should-send-validator-fields.rule.mjs',
+          ),
+        ],
+        type: ['analytics'],
         analytics: {
           captureTransactions: {
             type: 'in-memory',
           },
-        },
-        ruleFilter: {
-          names: ['rfc9110/server-should-send-validator-fields'],
         },
       })
       .ready();
@@ -191,7 +206,9 @@ describe('http-linter analytics integration', { timeout: 30000 }, () => {
               ...(i % 10 === 0 ? { etag: `"etag-${i}"` } : {}),
             },
           },
-          meta: {},
+          meta: {
+            role: 'origin server',
+          },
         },
       });
     }
@@ -213,15 +230,17 @@ describe('http-linter analytics integration', { timeout: 30000 }, () => {
   it('should handle interleaved transaction events and multiple lints', async () => {
     await thymian
       .register(httpLinterPlugin, {
-        rules: ['@thymian/rfc-9110-rules'],
-        modes: ['analytics'],
+        ruleSets: [
+          join(
+            import.meta.dirname,
+            'fixtures/rules/should-send-validator-fields.rule.mjs',
+          ),
+        ],
+        type: ['analytics'],
         analytics: {
           captureTransactions: {
             type: 'in-memory',
           },
-        },
-        ruleFilter: {
-          names: ['rfc9110/server-should-send-validator-fields'],
         },
       })
       .ready();
@@ -303,15 +322,17 @@ describe('http-linter analytics integration', { timeout: 30000 }, () => {
   it('should handle concurrent transaction insertions', async () => {
     await thymian
       .register(httpLinterPlugin, {
-        rules: ['@thymian/rfc-9110-rules'],
-        modes: ['analytics'],
+        ruleSets: [
+          join(
+            import.meta.dirname,
+            'fixtures/rules/should-send-validator-fields.rule.mjs',
+          ),
+        ],
+        type: ['analytics'],
         analytics: {
           captureTransactions: {
             type: 'in-memory',
           },
-        },
-        ruleFilter: {
-          names: ['rfc9110/server-should-send-validator-fields'],
         },
       })
       .ready();
@@ -337,7 +358,9 @@ describe('http-linter analytics integration', { timeout: 30000 }, () => {
                 duration: 0,
                 trailers: {},
               },
-              meta: {},
+              meta: {
+                role: 'origin server',
+              },
             },
           });
         })(),

@@ -7,9 +7,11 @@ import {
   type HttpRequest,
   type HttpResponse,
   queryParamsFromRequest,
+  thymianRequestToOrigin,
   visitHttpFilter,
 } from '@thymian/core';
 
+import { createRegExpFromOriginWildcard } from '../../utils.js';
 import type { ValidationFn } from '../api-context.js';
 
 export function httpFilterToTransactionValidationFn(
@@ -138,6 +140,16 @@ function createTransactionValidationVisitor(): HttpFilterVisitor<
         }
         return trailerValue === value;
       };
+    },
+    visitMatchesOrigin({ origin }) {
+      if (typeof origin !== 'string') {
+        return () => false;
+      }
+
+      const regExp = createRegExpFromOriginWildcard(origin);
+
+      return (transaction) =>
+        regExp.test(thymianRequestToOrigin(transaction.thymianReq));
     },
   });
 }

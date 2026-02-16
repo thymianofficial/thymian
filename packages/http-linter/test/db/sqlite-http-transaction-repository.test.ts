@@ -3,6 +3,7 @@ import {
   constant,
   hasRequestBody,
   hasResponseBody,
+  matchesOrigin,
   method,
   NoopLogger,
   not,
@@ -325,8 +326,6 @@ describe('HttpTransactionRepository', () => {
       const id = await repo.insertHttpTransaction(transaction);
       const retrieved = await repo.readTransactionById(id);
 
-      console.log(retrieved);
-
       expect(retrieved).toBeDefined();
       // Path should be normalized (query params removed)
       expect(retrieved?.request.data.path).toBe(
@@ -515,7 +514,7 @@ describe('HttpTransactionRepository', () => {
           request: {
             data: {
               method: 'POST',
-              origin: 'https://api.example.com',
+              origin: 'https://api.example.com:8080',
               path: '/users',
               headers: {
                 'content-type': 'application/json',
@@ -693,7 +692,7 @@ describe('HttpTransactionRepository', () => {
 
       const results = Array.from(repo.readTransactionsByHttpFilter(filter));
 
-      expect(results.length).toBe(5);
+      expect(results.length).toBe(4);
       expect(
         results.every(
           (tx) => tx.request.data.origin === 'https://api.example.com',
@@ -821,6 +820,19 @@ describe('HttpTransactionRepository', () => {
           meta: { role: 'proxy' },
         },
       });
+    });
+
+    it('should handle origin wildcard', async () => {
+      const filter = matchesOrigin('https://api.*.com:8080');
+
+      const results = Array.from(repo.readTransactionsByHttpFilter(filter));
+
+      expect(results).toHaveLength(1);
+      expect(results[0]?.request.data).toEqual(
+        expect.objectContaining({
+          origin: 'https://api.example.com:8080',
+        }),
+      );
     });
   });
 

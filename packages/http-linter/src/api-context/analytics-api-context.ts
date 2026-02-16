@@ -3,10 +3,12 @@ import {
   type HttpResponse,
   httpTransactionToLabel,
   type Logger,
+  matchesOrigin,
+  or,
   type ReportFn,
   ThymianFormat,
 } from '@thymian/core';
-import { and, type HttpFilterExpression } from '@thymian/core';
+import { and, type HttpFilterExpression, not } from '@thymian/core';
 import type { RuleFnResult } from 'src/rule/rule-fn.js';
 import type { RuleViolation } from 'src/rule/rule-violation.js';
 
@@ -28,8 +30,22 @@ export class AnalyticsApiContext extends LiveApiContext {
     format: ThymianFormat,
     reportFn?: ReportFn,
     private readonly roles?: HttpParticipantRole[],
+    skippedOrigins?: string[],
   ) {
-    super(format, logger, reportFn);
+    super(format, logger, reportFn, skippedOrigins);
+  }
+
+  private addOriginsToFilter(
+    filter: HttpFilterExpression,
+  ): HttpFilterExpression {
+    return this.skippedOrigins.length === 0
+      ? filter
+      : and(
+          filter,
+          not(
+            or(...this.skippedOrigins.map((origin) => matchesOrigin(origin))),
+          ),
+        );
   }
 
   override validateCommonHttpTransactions(
@@ -52,6 +68,8 @@ export class AnalyticsApiContext extends LiveApiContext {
       finalFilter = and(filter, validate);
       validateFn = () => true;
     }
+
+    finalFilter = this.addOriginsToFilter(finalFilter);
 
     const results: RuleFnResult = [];
 
@@ -99,9 +117,10 @@ export class AnalyticsApiContext extends LiveApiContext {
     >,
   ): Promise<RuleFnResult> | RuleFnResult {
     const results: RuleFnResult = [];
+    const finalFilter = this.addOriginsToFilter(filter);
 
     const groups = this.repository.readAndGroupTransactionsByHttpFilter(
-      filter,
+      finalFilter,
       groupBy,
       this.roles,
     );
@@ -140,6 +159,8 @@ export class AnalyticsApiContext extends LiveApiContext {
       finalFilter = and(filter, validation);
       validateFn = () => true;
     }
+
+    finalFilter = this.addOriginsToFilter(finalFilter);
 
     const results: RuleFnResult = [];
 

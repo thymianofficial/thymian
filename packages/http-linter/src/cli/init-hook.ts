@@ -17,7 +17,7 @@ const hook: ThymianPluginInitHook<HttpLinterPluginOptions> = async function (
       pluginName: httpLinterPlugin.name,
       configuration: {
         options: {
-          rules: ['@thymian/rfc-9110-rules'],
+          ruleSets: ['@thymian/rfc-9110-rules'],
         },
       },
     };
@@ -25,8 +25,7 @@ const hook: ThymianPluginInitHook<HttpLinterPluginOptions> = async function (
 
   return runPrompts(async () => {
     const opts: HttpLinterPluginOptions = {
-      ruleOptions: {},
-      rules: [],
+      ruleSets: [],
     };
 
     const result: ThymianPluginInitResult<HttpLinterPluginOptions> = {
@@ -57,7 +56,7 @@ const hook: ThymianPluginInitHook<HttpLinterPluginOptions> = async function (
     });
 
     if (includeDefaultSets) {
-      opts.rules.push(...defaultRuleSets);
+      opts.ruleSets.push(...defaultRuleSets);
     }
 
     return result;
