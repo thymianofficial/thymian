@@ -1,7 +1,10 @@
 import {
   and,
+<<<<<<< mk/feat/rfc9110-conditional-requests
+=======
   constant,
   getHeader,
+>>>>>>> pm/feat/rfc9110-conditional-requests
   method,
   not,
   or,
@@ -18,7 +21,7 @@ export default httpRule(
   'rfc9110/origin-server-should-respond-304-when-if-modified-since-false',
 )
   .severity('warn')
-  .type('static', 'analytics', 'test')
+  .type('static', 'test')
   .url('https://www.rfc-editor.org/rfc/rfc9110.html#section-13.1.3')
   .description(
     'An origin server that evaluates an If-Modified-Since condition SHOULD NOT perform the requested method if the condition evaluates to false; instead, the origin server SHOULD generate a 304 (Not Modified) response, including only those metadata that are useful for identifying or updating a previously cached response.',
@@ -83,9 +86,19 @@ export default httpRule(
               requestHeader('if-modified-since'),
               responseHeader('last-modified'),
             )
-            .run({ expectStatusCode: 304 })
+            .run()
             .done(),
         )
+        .transactions(([, notModifiedTransaction]) => {
+          if (notModifiedTransaction.response.statusCode !== 304) {
+            ctx.reportViolation({
+              location: {
+                elementType: 'edge',
+                elementId: notModifiedTransaction.source.transactionId,
+              },
+            });
+          }
+        })
         .done(),
     ),
   )

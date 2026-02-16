@@ -93,13 +93,33 @@ export function getHeader(
   return undefined;
 }
 
+export function deleteHeader<T extends Record<string, unknown> | undefined>(
+  headers: T,
+  headerName: string,
+): T {
+  const key = findKeyIgnoreCase(headers ?? {}, headerName);
+
+  if (key && headers) {
+    delete headers[key];
+  }
+
+  return headers;
+}
+
+export function findKeyIgnoreCase(
+  obj: Record<PropertyKey, unknown>,
+  key: PropertyKey,
+): string | undefined {
+  return Object.keys(obj).find(
+    (k) => k.toLowerCase() === key.toString().toLowerCase(),
+  );
+}
+
 export function objHasKeyIgnoreCase(
   obj: Record<PropertyKey, unknown>,
   key: PropertyKey,
 ): boolean {
-  return !!Object.keys(obj).find(
-    (k) => k.toLowerCase() === key.toString().toLowerCase(),
-  );
+  return !!findKeyIgnoreCase(obj, key);
 }
 
 export function setHeader(

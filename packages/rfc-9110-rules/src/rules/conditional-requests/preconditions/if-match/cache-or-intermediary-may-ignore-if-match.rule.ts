@@ -1,8 +1,9 @@
+import { requestHeader } from '@thymian/core';
 import { httpRule } from '@thymian/http-linter';
 
 export default httpRule('rfc9110/cache-may-ignore-if-match')
-  .severity('off')
-  .type('informational')
+  .severity('hint')
+  .type('analytics')
   .url('https://www.rfc-editor.org/rfc/rfc9110.html#section-13.1.1')
   .description(
     'A cache or intermediary MAY ignore If-Match because its interoperability features are only necessary for an origin server.',
@@ -10,4 +11,5 @@ export default httpRule('rfc9110/cache-may-ignore-if-match')
   .summary('Cache or intermediary MAY ignore If-Match header field.')
   .appliesTo('cache', 'intermediary')
   .tags('conditional-requests', 'if-match', 'cache')
+  .rule((ctx) => ctx.validateHttpTransactions(requestHeader('if-match')))
   .done();
