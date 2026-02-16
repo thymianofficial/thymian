@@ -2,6 +2,8 @@
 title: 'ServerUnavailableError'
 ---
 
+## The Cause
+
 The server connection was refused. The server at the specified origin is not reachable or not running.
 
 This error occurs when:
@@ -10,6 +12,8 @@ This error occurs when:
 - The server is running on a different port
 - A firewall is blocking the connection
 - The server address/hostname is incorrect
+
+## The Solution
 
 To resolve this:
 

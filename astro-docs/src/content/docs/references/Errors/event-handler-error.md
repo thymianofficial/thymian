@@ -2,9 +2,13 @@
 title: 'EventHandlerError'
 ---
 
+## The Cause
+
 An error occurred while executing an event handler. This error wraps the underlying error that was thrown by your event handler code.
 
 Event handlers are functions that respond to Thymian events. When an error occurs in your handler, it's caught and wrapped in this error type to provide context about where the error occurred.
+
+## The Solution
 
 To debug this error:
 

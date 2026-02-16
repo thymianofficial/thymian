@@ -2,9 +2,13 @@
 title: 'InvalidSampleTimestampError'
 ---
 
+## The Cause
+
 The timestamp in the samples metadata is invalid or cannot be parsed as a valid date. This usually indicates corruption in the samples metadata file.
 
 The samples metadata includes a timestamp that tracks when the samples were generated. This timestamp must be a valid ISO 8601 date string.
+
+## The Solution
 
 To fix this, regenerate your samples:
 

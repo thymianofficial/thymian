@@ -2,9 +2,13 @@
 title: 'ActionHandlerError'
 ---
 
+## The Cause
+
 An error occurred while executing an action handler. This error wraps the underlying error that was thrown by your action handler code.
 
 Actions are request-response style operations in Thymian's event system. When an action handler throws an error, it's caught and wrapped to provide context about which action failed.
+
+## The Solution
 
 To debug this error:
 

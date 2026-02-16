@@ -2,6 +2,8 @@
 title: 'RepositoryNotInitializedError'
 ---
 
+## The Cause
+
 You attempted to run analytics linting, but the HTTP transaction repository was not initialized. The repository is required to store and query HTTP transactions for analytics-based linting rules.
 
 This error typically occurs when:
@@ -10,6 +12,10 @@ This error typically occurs when:
 - There's a configuration issue preventing repository initialization
 - You have not set the `analytics` type in the `@thymian/http-linter` configuration.
 
+## The Solution
+
+Ensure that the HTTP transaction repository is properly configured and initialized before running analytics linting operations:
+
 ```yaml
 plugins:
   - '@thymian/http-linter':
@@ -17,5 +23,3 @@ plugins:
         type:
           - analytics # <-- you have to set this in order to use the `http-linter.lint-analytics-batch` action
 ```
-
-Ensure that the HTTP transaction repository is properly configured and initialized before running analytics linting operations.

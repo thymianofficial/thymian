@@ -2,6 +2,8 @@
 title: 'WebSocketConnectionTimeoutError'
 ---
 
+## The Cause
+
 Failed to establish a WebSocket connection with a client within the configured timeout period.
 
 This error occurs when:
@@ -10,6 +12,8 @@ This error occurs when:
 - The client is not running
 - The WebSocket port is incorrect or blocked
 - Network issues prevent the connection
+
+## The Solution
 
 To resolve this:
 

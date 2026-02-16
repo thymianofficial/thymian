@@ -2,7 +2,11 @@
 title: 'PathAlreadyExistsError'
 ---
 
+## The Cause
+
 A file or directory already exists at the target path, and the operation is configured to fail when this happens. You're running in "failIfExist" mode.
+
+## The Solution
 
 To resolve this, you have two options:
 

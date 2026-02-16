@@ -2,6 +2,8 @@
 title: 'UnknownFormatterError'
 ---
 
+## The Cause
+
 You specified a formatter that doesn't exist. Formatters control how Thymian reports are displayed.
 
 Available formatters:
@@ -9,6 +11,8 @@ Available formatters:
 - `cli` - Command-line output (default)
 - `markdown` - Markdown format
 - `csv` - Comma-separated values (CSV)
+
+## The Solution
 
 Check your configuration file for typos in the formatter name:
 

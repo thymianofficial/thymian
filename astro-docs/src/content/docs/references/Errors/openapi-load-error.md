@@ -2,9 +2,9 @@
 title: 'OpenAPILoadError'
 ---
 
-An error occurred while loading, parsing, or dereferencing the OpenAPI document. This can happen for several reasons:
+## The Cause
 
-## Common Causes
+An error occurred while loading, parsing, or dereferencing the OpenAPI document. This can happen for several reasons:
 
 ### External References
 
@@ -29,16 +29,20 @@ components:
 
 ### Invalid OpenAPI Document
 
-The document may not be valid according to the OpenAPI 3.1 specification. You can validate your document using:
-
-```bash
-thymian openapi:validate path/to/your/openapi.yaml
-```
+The document may not be valid according to the OpenAPI 3.1 specification.
 
 ### File System Issues
 
 - The file path may be incorrect
 - The file may not be readable
 - The file may not be valid YAML/JSON
+
+## The Solution
+
+You can validate your document using:
+
+```bash
+thymian openapi:validate path/to/your/openapi.yaml
+```
 
 If you're using external references, consider using a tool like [swagger-cli](https://www.npmjs.com/package/swagger-cli) to bundle your OpenAPI document into a single file before using it with Thymian.

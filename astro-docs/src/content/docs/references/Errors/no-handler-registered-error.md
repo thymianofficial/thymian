@@ -2,6 +2,8 @@
 title: 'NoHandlerRegisteredError'
 ---
 
+## The Cause
+
 You attempted to emit an action, but no handler is registered for that action name. Actions require at least one handler to be registered when running in `strict` mode.
 
 This error occurs when:
@@ -10,6 +12,8 @@ This error occurs when:
 - The handler registration happens after the action is emitted
 - The plugin that provides the handler hasn't been loaded
 - You're using an action name that doesn't exist
+
+## The Solution
 
 To fix this:
 

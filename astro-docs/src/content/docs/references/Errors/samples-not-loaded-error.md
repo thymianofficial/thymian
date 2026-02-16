@@ -2,6 +2,8 @@
 title: 'SamplesNotLoadedError'
 ---
 
+## The Cause
+
 You attempted to retrieve the path for a transaction, but no samples have been loaded. The sampler needs to load samples from disk before it can provide file paths for transactions.
 
 This typically happens when:
@@ -9,6 +11,8 @@ This typically happens when:
 - The samples haven't been generated yet
 - The samples directory is empty or doesn't exist
 - There was an error loading the samples
+
+## The Solution
 
 To resolve this:
 
