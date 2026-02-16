@@ -233,7 +233,11 @@ export class ThymianEmitter {
             this.#errors.next({
               error: new ThymianBaseError(
                 `Error while calling event handler for event "${event.name}" from "${event.source}".`,
-                { cause: e },
+                {
+                  name: 'EventHandlerError',
+                  ref: 'https://thymian.dev/references/errors/event-handler-error/',
+                  cause: e,
+                },
               ),
               name,
               timestamp: Date.now(),
@@ -271,7 +275,9 @@ export class ThymianEmitter {
     } else {
       error = new ThymianBaseError(
         `Error while emitting error event from "${this.source}".`,
-        { cause: err },
+        {
+          cause: err,
+        },
       );
     }
 
@@ -325,7 +331,11 @@ export class ThymianEmitter {
             this.#errors.next({
               error: new ThymianBaseError(
                 `Error while calling action handler for action "${event.name}" from "${event.source}".`,
-                { cause: e },
+                {
+                  name: 'ActionHandlerError',
+                  ref: 'https://thymian.dev/references/errors/action-handler-error/',
+                  cause: e,
+                },
               ),
               name,
               correlationId: event.id,
@@ -526,7 +536,11 @@ export class ThymianEmitter {
           this.#errors.next({
             error: new ThymianBaseError(
               `Error while calling action handler for action "${name}".`,
-              { cause: error },
+              {
+                name: 'ActionHandlerError',
+                ref: 'https://thymian.dev/references/errors/action-handler-error/',
+                cause: error,
+              },
             ),
             name,
             correlationId,

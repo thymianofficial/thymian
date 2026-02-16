@@ -88,6 +88,10 @@ export function mergeNodes(a: Node, b: Node): Node {
   if (a.type !== b.type) {
     throw new ThymianBaseError(
       `Cannot merge nodes of different types: ${a.type} vs ${b.type}`,
+      {
+        name: 'NodeTypeMismatchError',
+        ref: 'https://thymian.dev/references/errors/node-type-mismatch-error/',
+      },
     );
   }
 
@@ -122,6 +126,10 @@ export function mergeTrees(
   if (a.meta.version !== b.meta.version) {
     throw new ThymianBaseError(
       `Cannot merge SamplesTrees with different versions: ${a.meta.version} vs ${b.meta.version}`,
+      {
+        name: 'SamplesVersionMismatchError',
+        ref: 'https://thymian.dev/references/errors/samples-version-mismatch-error/',
+      },
     );
   }
 

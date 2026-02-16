@@ -83,6 +83,8 @@ export async function loadAndUpgrade(
     };
   } catch (e) {
     throw new ThymianBaseError(`Error while loading OpenAPI document.`, {
+      name: 'OpenAPILoadError',
+      ref: 'https://thymian.dev/references/errors/openapi-load-error/',
       cause: e,
       suggestions: [
         'Currently, only files without external references are supported. Do your OpenAPI documents contain any external references?',

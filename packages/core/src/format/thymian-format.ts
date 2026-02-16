@@ -184,6 +184,7 @@ export class ThymianFormat {
     if (!res || !req) {
       throw new ThymianBaseError('Invalid HTTP link.', {
         name: 'InvalidHttpLink',
+        ref: 'https://thymian.dev/references/errors/invalid-http-link/',
       });
     }
 

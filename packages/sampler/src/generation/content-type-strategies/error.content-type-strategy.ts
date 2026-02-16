@@ -10,6 +10,10 @@ export class ErrorContentTypeStrategy implements ContentTypeStrategy {
   generate(schema: ThymianSchema, contentType: string): never {
     throw new ThymianBaseError(
       `Cannot generate content for content type "${contentType}".`,
+      {
+        name: 'UnsupportedContentTypeError',
+        ref: 'https://thymian.dev/references/errors/unsupported-content-type-error/',
+      },
     );
   }
 }

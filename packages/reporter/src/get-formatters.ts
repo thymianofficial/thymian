@@ -81,6 +81,8 @@ export async function getFormatters(
         throw new ThymianBaseError(
           `Unknown formatter "${name}". Available formatters: ${Object.keys(FORMATTER_REGISTRY).join(', ')}.`,
           {
+            name: 'UnknownFormatterError',
+            ref: 'https://thymian.dev/references/errors/unknown-formatter-error/',
             suggestions: [
               'If you want to add your own formatter, implement a new plugin and listen on the `core.report` event and/or open a Github issue.',
             ],

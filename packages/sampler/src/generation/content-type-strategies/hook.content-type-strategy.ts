@@ -26,12 +26,17 @@ export class HookContentTypeStrategy implements ContentTypeStrategy {
       },
       {
         strategy: 'first',
+        strict: false,
       },
     );
 
     if (!content) {
       throw new ThymianBaseError(
         `Cannot sample data for content type ${contentType}.`,
+        {
+          name: 'UnsupportedContentTypeError',
+          ref: 'https://thymian.dev/references/errors/unsupported-content-type-error/',
+        },
       );
     }
 

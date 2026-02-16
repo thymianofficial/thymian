@@ -87,6 +87,7 @@ const visitor: HttpFilterVisitor<GroupByFn> = {
       `Unsupported group by expression "hasResponse" for grouping common HTTP transactions.`,
       {
         name: 'UnsupportedGroupByExpression',
+        ref: 'https://thymian.dev/references/errors/unsupported-group-by-expression/',
         suggestions: ['Use another expression type.'],
       },
     );
@@ -96,6 +97,7 @@ const visitor: HttpFilterVisitor<GroupByFn> = {
       `Unsupported group by expression "hasBody" for grouping common HTTP transactions.`,
       {
         name: 'UnsupportedGroupByExpression',
+        ref: 'https://thymian.dev/references/errors/unsupported-group-by-expression/',
         suggestions: ['Use another expression type.'],
       },
     );
@@ -105,6 +107,7 @@ const visitor: HttpFilterVisitor<GroupByFn> = {
       `Unsupported group by expression "hasResponseBody" for grouping common HTTP transactions.`,
       {
         name: 'UnsupportedGroupByExpression',
+        ref: 'https://thymian.dev/references/errors/unsupported-group-by-expression/',
         suggestions: ['Use another expression type.'],
       },
     );
@@ -114,6 +117,7 @@ const visitor: HttpFilterVisitor<GroupByFn> = {
       `Unsupported group by expression "statusCodeRange" for grouping common HTTP transactions.`,
       {
         name: 'UnsupportedGroupByExpression',
+        ref: 'https://thymian.dev/references/errors/unsupported-group-by-expression/',
         suggestions: ['Use another expression type.'],
       },
     );
@@ -126,6 +130,7 @@ const visitor: HttpFilterVisitor<GroupByFn> = {
       `Unsupported group by expression "responseTrailer" for grouping common HTTP transactions.`,
       {
         name: 'UnsupportedGroupByExpression',
+        ref: 'https://thymian.dev/references/errors/unsupported-group-by-expression/',
         suggestions: ['Use another expression type.'],
       },
     );
