@@ -11,6 +11,8 @@ import {
 import { httpRule } from '@thymian/http-linter';
 import { singleTestCase } from '@thymian/http-testing';
 
+import { compareHttpDates, isValidHttpDate } from '../../utils.js';
+
 export default httpRule(
   'rfc9110/origin-server-must-not-perform-method-when-if-unmodified-since-fails',
 )

@@ -2,6 +2,8 @@ import { constant, requestHeader, statusCodeRange } from '@thymian/core';
 import { httpRule } from '@thymian/http-linter';
 import { singleTestCase } from '@thymian/http-testing';
 
+import { compareETags, parseConditionalETagHeader } from '../../utils.js';
+
 export default httpRule(
   'rfc9110/origin-server-must-not-perform-method-when-if-match-fails',
 )

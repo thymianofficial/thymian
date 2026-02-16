@@ -12,6 +12,8 @@ import {
 import { httpRule } from '@thymian/http-linter';
 import { singleTestCase } from '@thymian/http-testing';
 
+import { compareETags, parseConditionalETagHeader } from '../../utils.js';
+
 export default httpRule(
   'rfc9110/origin-server-must-respond-304-or-412-when-if-none-match-fails',
 )
