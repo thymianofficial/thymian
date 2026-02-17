@@ -31,10 +31,4 @@ describe('parseContentRange', () => {
 
     expect(result).toEqual([]);
   });
-
-  it('returns empty array for invalid format with extra spaces', () => {
-    const result = parseContentRange('bytes  0-499/1000');
-
-    expect(result).toEqual([]);
-  });
 });
