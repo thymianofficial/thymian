@@ -294,7 +294,17 @@ export class HttpTestApiContext<
   override async validateHttpTransactions(
     filterExpr: HttpFilterExpression,
     validation:
-      | ValidationFn<[HttpRequest, HttpResponse]>
+      | ValidationFn<
+          [
+            HttpRequest,
+            HttpResponse,
+            {
+              elementType: 'node' | 'edge';
+              elementId: string;
+              pointer?: string;
+            },
+          ]
+        >
       | HttpFilterExpression = filterExpr,
   ): Promise<RuleFnResult> {
     const validationFn =
@@ -324,7 +334,10 @@ export class HttpTestApiContext<
               throw new Error();
             }
 
-            const validationResult = validationFn(request, response);
+            const validationResult = validationFn(request, response, {
+              elementType: 'edge',
+              elementId: source.transactionId,
+            });
 
             if (typeof validationResult === 'boolean' && validationResult) {
               violations.push({
