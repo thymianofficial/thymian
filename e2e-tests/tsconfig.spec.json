@@ -1,0 +1,13 @@
+{
+  "extends": "../tsconfig.base.json",
+  "compilerOptions": {
+    "baseUrl": ".",
+    "rootDir": "test",
+    "outDir": "dist",
+    "emitDeclarationOnly": false,
+    "moduleResolution": "nodenext",
+    "module": "nodenext",
+    "types": ["node"]
+  },
+  "include": ["test/**/*.ts"]
+}

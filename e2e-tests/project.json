@@ -1,0 +1,16 @@
+{
+  "name": "e2e-tests",
+  "$schema": "../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "e2e-tests/src",
+  "projectType": "library",
+  "tags": ["type:e2e"],
+  "// targets": "to see all targets run: nx show project e2e-tests --web",
+  "targets": {
+    "e2e": {
+      "executor": "@nx/vitest:test"
+    },
+    "test": {
+      "executor": "nx:noop"
+    }
+  }
+}
