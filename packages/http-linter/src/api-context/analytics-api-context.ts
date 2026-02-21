@@ -146,11 +146,11 @@ export class AnalyticsApiContext extends LiveApiContext {
   override validateHttpTransactions(
     filter: HttpFilterExpression,
     validation:
-      | ValidationFn<[HttpRequest, HttpResponse]>
+      | ValidationFn<[HttpRequest, HttpResponse, string]>
       | HttpFilterExpression = filter,
   ): Promise<RuleFnResult> | RuleFnResult {
     let finalFilter!: HttpFilterExpression;
-    let validateFn!: ValidationFn<[HttpRequest, HttpResponse]>;
+    let validateFn!: ValidationFn<[HttpRequest, HttpResponse, string]>;
 
     if (typeof validation === 'function') {
       finalFilter = filter;
@@ -171,11 +171,11 @@ export class AnalyticsApiContext extends LiveApiContext {
       finalFilter,
       this.roles,
     )) {
-      const violation = validateFn(request.data, response.data);
+      const location = httpTransactionToLabel(request.data, response.data);
+
+      const violation = validateFn(request.data, response.data, location);
 
       if (violation) {
-        const location = httpTransactionToLabel(request.data, response.data);
-
         if (violation === true) {
           results.push({
             location,
