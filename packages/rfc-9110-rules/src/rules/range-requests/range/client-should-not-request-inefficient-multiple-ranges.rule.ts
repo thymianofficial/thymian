@@ -1,7 +1,7 @@
 import { getHeader, requestHeader } from '@thymian/core';
 import { httpRule } from '@thymian/http-linter';
 
-import { parseRangeHeader } from './parse-range-header.js';
+import { parseRangeHeader } from './utils.js';
 
 /*
  * 1. Extract all (start, end) pairs from the Range header.

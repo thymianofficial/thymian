@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { parseRangeHeader } from './parse-range-header';
+import { parseRangeHeader } from './utils';
 
 describe('parseRangeHeader', () => {
   it('parses a valid single range', () => {

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { parseContentRange } from './parse-content-range';
+import { parseContentRange } from './utils';
 
 describe('parseContentRange', () => {
   it('parses valid range with known size', () => {

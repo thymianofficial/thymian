@@ -1,7 +1,7 @@
 import { responseHeader } from '@thymian/core';
 import { httpRule } from '@thymian/http-linter';
 
-import { parseContentRange } from './parse-content-range.js';
+import { parseContentRange } from './utils.js';
 
 export default httpRule(
   'rfc9110/recipient-must-not-recombine-invalid-content-range',
