@@ -81,7 +81,7 @@ async function promptUserConfirmation(
   console.log('='.repeat(60));
   console.log(`\n🏷️  Version: ${version}\n`);
 
-  // Display changelog/version data
+  // Display projects and versions
   if (projectsVersionData) {
     console.log('📝 Projects to be released:');
     for (const [project, data] of Object.entries(projectsVersionData)) {
@@ -218,36 +218,49 @@ async function promptUserConfirmation(
   if (isLatest) {
     console.log('🔍 Determining next version from conventional commits...\n');
     versionSpecifier = undefined; // Let conventional commits determine version
-  }
 
-  // CI publish-only mode: skip versioning and changelog, only publish
-  if (isCIPublishMode && !isCanary) {
-    console.log('🔄 CI publish-only mode: skipping versioning and changelog\n');
+    // Interactive confirmation for latest releases (local only, not dry-run)
+    // Run a dry-run first to get version info, then prompt, then execute
+    if (!argv.local && !argv.dryRun && !isInCI()) {
+      const previewResult = await client.releaseVersion({
+        specifier: versionSpecifier,
+        dryRun: true, // Preview only
+        firstRelease: argv.firstRelease,
+        verbose: argv.verbose,
+        gitTag: false,
+      });
 
-    // Get the release graph from a dry-run versioning
-    const versionResult = await client.releaseVersion({
-      specifier: argv.version,
-      dryRun: true, // Don't actually version
-      firstRelease: false,
-      verbose: argv.verbose,
-      gitTag: false,
-    });
+      if (!previewResult.workspaceVersion) {
+        console.error('❌ Error: Could not determine workspace version');
+        process.exit(1);
+      }
 
-    const publishResults = await client.releasePublish({
-      releaseGraph: versionResult.releaseGraph,
-      dryRun: argv.dryRun,
-      firstRelease: argv.firstRelease,
-      verbose: argv.verbose,
-      access: 'restricted',
-      registry: undefined, // Use default npm registry
-      tag: 'latest',
-    });
+      // Generate changelog preview (prints to console)
+      console.log('\n📋 Changelog Preview:\n');
+      await client.releaseChangelog({
+        releaseGraph: previewResult.releaseGraph,
+        versionData: previewResult.projectsVersionData,
+        version: previewResult.workspaceVersion,
+        dryRun: true, // Preview mode - output to console only
+        firstRelease: argv.firstRelease,
+        verbose: true, // Show the full changelog output
+      });
 
-    process.exit(
-      Object.values(publishResults).every((result) => result.code === 0)
-        ? 0
-        : 1,
-    );
+      const confirmed = await promptUserConfirmation(
+        previewResult.workspaceVersion,
+        previewResult.projectsVersionData as Record<
+          string,
+          { newVersion: string }
+        >,
+      );
+
+      if (!confirmed) {
+        console.log('\n❌ Release cancelled by user.\n');
+        process.exit(0);
+      }
+
+      console.log('\n✅ Release confirmed. Proceeding...\n');
+    }
   }
 
   const { workspaceVersion, projectsVersionData, releaseGraph } =
@@ -258,26 +271,6 @@ async function promptUserConfirmation(
       verbose: argv.verbose,
       gitTag: isCanary ? false : !argv.local,
     });
-
-  // Interactive confirmation for latest releases (local only, not dry-run)
-  if (isLatest && !argv.local && !argv.dryRun && !isInCI()) {
-    if (!workspaceVersion) {
-      console.error('❌ Error: Could not determine workspace version');
-      process.exit(1);
-    }
-
-    const confirmed = await promptUserConfirmation(
-      workspaceVersion,
-      projectsVersionData as Record<string, { newVersion: string }>,
-    );
-
-    if (!confirmed) {
-      console.log('\n❌ Release cancelled by user.\n');
-      process.exit(0);
-    }
-
-    console.log('\n✅ Release confirmed. Proceeding...\n');
-  }
 
   // Create changelog for non-local, non-canary releases
   if (!argv.local && !isCanary) {
