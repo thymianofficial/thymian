@@ -25,7 +25,7 @@ Thymian follows a tag-based release process that maintains clean version control
 **Canary Releases:**
 
 - Automatically triggered on every push to `main` branch
-- Published to npm with `@canary` tag
+- Published to npm with dist-tag `canary`
 - Version format: `{base-version}-canary.{YYYYMMDD}-{git-hash}`
 - Non-interactive, immediate publishing
 - Skipped when commit message contains `[skip-canary]`
@@ -34,7 +34,7 @@ Thymian follows a tag-based release process that maintains clean version control
 
 - Manually triggered by developers using `--version latest`
 - Interactive approval flow with local review
-- Published to npm with `@latest` tag
+- Published to npm with dist-tag `latest`
 - Two-phase process: local creation of tag/release, CI publishing to npm
 - Requires GitHub environment approval and allowlist validation
 

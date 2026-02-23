@@ -70,7 +70,7 @@ Triggered automatically on every push to `main`:
 
 ```bash
 # Happens automatically via GitHub Actions
-# Publishes to npm with tag @canary
+# Publishes to npm with dist-tag `canary`
 # Version format: X.Y.Z-canary.YYYYMMDD-{hash}
 ```
 
@@ -98,7 +98,7 @@ node ./scripts/release.ts --version latest --no-local
 **What happens:**
 
 1. Script determines next version using conventional commits
-2. Displays changelog and prompts for confirmation
+2. Displays version and project list, then prompts for confirmation
 3. On approval: creates git tag and GitHub Release
 4. GitHub Release triggers CI workflow
 5. CI workflow publishes to npm (requires environment approval)
@@ -138,8 +138,8 @@ git checkout main && git pull
 # 2. Preview the release (optional but recommended)
 node ./scripts/release.ts --version latest --no-local --dry-run
 
-# 3. Create the release (interactive)
-node ./scripts/release.ts --version latest --no-local
+# 3. Create the release (interactive, will ask for approval for new versions and changelog)
+node ./scripts/release.ts --version latest --no-local --no-dry-run
 # Review the version and changelog
 # Type 'yes' to confirm
 
@@ -160,7 +160,7 @@ node ./scripts/release.ts --version latest --no-local
 1. Build all packages
 2. Version with canary format
 3. Create changelog
-4. Publish to npm with `@canary` tag
+4. Publish to npm with dist-tag `canary`
 5. Requires `npm` environment approval
 
 #### Latest Release Workflow
@@ -173,7 +173,7 @@ node ./scripts/release.ts --version latest --no-local
 2. Checkout repository at release tag
 3. Build all packages
 4. Validate user is in allowlist
-5. Publish to npm with `@latest` tag
+5. Publish to npm with dist-tag `latest`
 6. Requires `npm` environment approval
 
 ### Release Configuration
@@ -222,4 +222,4 @@ Check:
 
 ### ADR Compliance
 
-This release system follows [ADR-0005](docs/arc42/adr/0005-no-version-commits.md) - no version commits are created. Version information lives only in git tags and GitHub Releases.
+This release system follows [ADR-0005](docs/arc42/adr/0005-tags-over-source-version-bumps.md) - no version commits are created. Version information lives only in git tags and GitHub Releases.
