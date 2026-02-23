@@ -257,13 +257,14 @@ async function promptUserConfirmation(
     }
   }
 
+  // Version the release (skip git tagging in CI - tags already exist from local release)
   const { workspaceVersion, projectsVersionData, releaseGraph } =
     await client.releaseVersion({
       specifier: versionSpecifier,
       dryRun: argv.dryRun,
       firstRelease: argv.firstRelease,
       verbose: argv.verbose,
-      gitTag: isCanary ? false : !argv.local,
+      gitTag: isCanary ? false : !argv.local && !isInCI(),
     });
 
   // Create changelog for non-local, non-canary releases
