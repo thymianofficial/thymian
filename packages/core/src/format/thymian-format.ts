@@ -162,15 +162,10 @@ export class ThymianFormat {
       return id;
     }
 
-    return this.graph.addEdgeWithKey(
-      this.hash(source, target, this.hashObj(e)),
-      source,
-      target,
-      {
-        label: edge.type,
-        ...edge,
-      },
-    );
+    return this.graph.addEdgeWithKey(id, source, target, {
+      label: edge.type,
+      ...edge,
+    });
   }
 
   addHttpLink(
@@ -215,7 +210,17 @@ export class ThymianFormat {
 
     const resLabel = thymianHttpResponseToLabel(response);
 
-    const resId = this.addResponse({ ...response, label: resLabel });
+    const res: ThymianHttpResponse = {
+      label: resLabel,
+      ...response,
+      type: 'http-response',
+    };
+
+    // Generate unique ID by combining request ID with response hash
+    // This ensures each request has its own response nodes, even if response content is identical
+    const responseNodeId = this.hash(requestId, this.hashObj(res));
+
+    const resId = this.addResponse(res, responseNodeId);
 
     return [
       resId,
@@ -233,21 +238,13 @@ export class ThymianFormat {
     response: PartialBy<ThymianHttpResponse, 'label' | 'sourceName'>,
     sourceName: string,
   ): [string, string, string] {
-    const reqLabel = thymianHttpRequestToLabel(request);
-    const resLabel = thymianHttpResponseToLabel(response);
-
     const reqId = this.addRequest({ sourceName, ...request });
-    const resId = this.addResponse({ sourceName, ...response });
+    const [resId, transactionId] = this.addResponseToRequest(reqId, {
+      sourceName,
+      ...response,
+    });
 
-    return [
-      reqId,
-      resId,
-      this.addEdge(reqId, resId, {
-        type: 'http-transaction',
-        label: `${reqLabel} \u2192 ${resLabel}`,
-        sourceName,
-      }),
-    ];
+    return [reqId, resId, transactionId];
   }
 
   addSecurityScheme(scheme: PartialBy<SecurityScheme, 'label'>): string {
