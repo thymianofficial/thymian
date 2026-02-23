@@ -1,8 +1,18 @@
 import { execSync } from 'node:child_process';
+import { stdin as input, stdout as output } from 'node:process';
+import * as readline from 'node:readline/promises';
 
 import { ReleaseClient } from 'nx/release/index.js';
 import yargs from 'yargs';
 import { hideBin } from 'yargs/helpers';
+
+// Allowlist of GitHub usernames authorized to publish latest releases
+const VALID_AUTHORS_FOR_LATEST: string[] = [
+  'matthyk', // Matthias Keckl
+  'Markus-Ende', // Markus Ende
+  'BaggersIO', // Peter Müller
+  'atennert', // Andreas Tennert
+];
 
 async function isVerdaccioRunning(url: string): Promise<boolean> {
   try {
@@ -10,6 +20,84 @@ async function isVerdaccioRunning(url: string): Promise<boolean> {
     return response.ok;
   } catch {
     return false;
+  }
+}
+
+function isInCI(): boolean {
+  return process.env.GITHUB_ACTIONS === 'true';
+}
+
+function validateCIPublishMode(
+  version: string | undefined,
+  isLocal: boolean,
+): void {
+  // CI publish-only mode validation
+  if (!isInCI() || isLocal) {
+    return; // Not in CI or local mode - skip validation
+  }
+
+  // Require exact semver version in CI
+  const semverRegex = /^\d+\.\d+\.\d+(-[a-z0-9.-]+)?(\+[a-z0-9.-]+)?$/i;
+  if (!version || !semverRegex.test(version)) {
+    console.error('❌ Error: CI publish mode requires exact semver version');
+    console.error(`   Received: ${version || 'undefined'}`);
+    console.error('   Expected: exact semver (e.g., 1.2.3, 1.0.0-beta.1)');
+    process.exit(1);
+  }
+
+  // Validate GitHub actor against allowlist
+  const actor = process.env.GITHUB_ACTOR;
+  if (!actor) {
+    console.error('❌ Error: GITHUB_ACTOR not set in CI environment');
+    process.exit(1);
+  }
+
+  if (!VALID_AUTHORS_FOR_LATEST.includes(actor)) {
+    console.error('❌ Error: Unauthorized user for latest release');
+    console.error(`   User: ${actor}`);
+    console.error(
+      `   Allowed users: ${VALID_AUTHORS_FOR_LATEST.join(', ') || 'none configured'}`,
+    );
+    process.exit(1);
+  }
+
+  console.log('✅ CI publish mode validation passed');
+  console.log(`   User: ${actor}`);
+  console.log(`   Version: ${version}\n`);
+}
+
+async function promptUserConfirmation(
+  version: string,
+  projectsVersionData: Record<string, { newVersion: string }>,
+): Promise<boolean> {
+  console.log('\n' + '='.repeat(60));
+  console.log('📦 RELEASE SUMMARY');
+  console.log('='.repeat(60));
+  console.log(`\n🏷️  Version: ${version}\n`);
+
+  // Display projects and versions
+  if (projectsVersionData) {
+    console.log('📝 Projects to be released:');
+    for (const [project, data] of Object.entries(projectsVersionData)) {
+      console.log(`   • ${project}: ${data.newVersion}`);
+    }
+    console.log();
+  }
+
+  console.log('This will:');
+  console.log('  1. Create a git tag for this version');
+  console.log('  2. Create a GitHub Release');
+  console.log('  3. Trigger CI to publish to npm (requires approval)\n');
+  console.log('='.repeat(60) + '\n');
+
+  const rl = readline.createInterface({ input, output });
+  try {
+    const answer = await rl.question(
+      '🤔 Do you want to proceed with this release? (yes/no or y/n): ',
+    );
+    return answer.toLowerCase() === 'yes' || answer.toLowerCase() === 'y';
+  } finally {
+    rl.close();
   }
 }
 
@@ -47,9 +135,27 @@ async function isVerdaccioRunning(url: string): Promise<boolean> {
     .parseAsync();
 
   const isCanary = isCanaryRelease(argv.version);
+  const isLatest = argv.version === 'latest';
+  const isCIPublishMode = isInCI() && !argv.local;
 
-  console.log(`\n${isCanary ? '🐤' : '📋'} Release Configuration:`);
-  console.log(`  mode: ${isCanary ? 'CANARY' : 'STANDARD'}`);
+  // Validate CI publish-only mode (skip for canary and dry-runs)
+  if (isCIPublishMode && !isCanary && !argv.dryRun) {
+    validateCIPublishMode(argv.version, argv.local);
+  }
+
+  let mode = 'STANDARD';
+  if (isCanary) {
+    mode = 'CANARY';
+  } else if (isLatest) {
+    mode = 'LATEST';
+  } else if (isCIPublishMode) {
+    mode = 'CI-PUBLISH';
+  }
+
+  console.log(
+    `\n${isCanary ? '🐤' : isLatest ? '🚀' : '📋'} Release Configuration:`,
+  );
+  console.log(`  mode: ${mode}`);
   console.log(`  version: ${argv.version || 'conventional commits'}`);
   console.log(`  dryRun: ${argv.dryRun}`);
   console.log(`  firstRelease: ${argv.firstRelease}`);
@@ -102,6 +208,55 @@ async function isVerdaccioRunning(url: string): Promise<boolean> {
     console.log(`   Commit hash: ${commitHash}\n`);
   }
 
+  // For latest releases, use conventional commits to determine version
+  if (isLatest) {
+    console.log('🔍 Determining next version from conventional commits...\n');
+    versionSpecifier = undefined; // Let conventional commits determine version
+
+    // Interactive confirmation for latest releases
+    // Run a dry-run first to get version info, then prompt, then execute
+    if (!argv.local && !argv.dryRun && !isInCI()) {
+      const previewResult = await client.releaseVersion({
+        specifier: versionSpecifier,
+        dryRun: true, // Preview only
+        firstRelease: argv.firstRelease,
+        verbose: argv.verbose,
+        gitTag: false,
+      });
+
+      if (!previewResult.workspaceVersion) {
+        console.error('❌ Error: Could not determine workspace version');
+        process.exit(1);
+      }
+
+      // Generate changelog preview (prints to console)
+      console.log('\n📋 Changelog Preview:\n');
+      await client.releaseChangelog({
+        releaseGraph: previewResult.releaseGraph,
+        versionData: previewResult.projectsVersionData,
+        version: previewResult.workspaceVersion,
+        dryRun: true, // Preview mode - output to console only
+        firstRelease: argv.firstRelease,
+        verbose: true, // Show the full changelog output
+      });
+
+      const confirmed = await promptUserConfirmation(
+        previewResult.workspaceVersion,
+        previewResult.projectsVersionData as Record<
+          string,
+          { newVersion: string }
+        >,
+      );
+
+      if (!confirmed) {
+        console.log('\n❌ Release cancelled by user.\n');
+        process.exit(0);
+      }
+
+      console.log('\n✅ Release confirmed. Proceeding...\n');
+    }
+  }
+
   const { workspaceVersion, projectsVersionData, releaseGraph } =
     await client.releaseVersion({
       specifier: versionSpecifier,
@@ -111,6 +266,7 @@ async function isVerdaccioRunning(url: string): Promise<boolean> {
       gitTag: isCanary ? false : !argv.local,
     });
 
+  // Create changelog for non-local, non-canary releases
   if (!argv.local && !isCanary) {
     await client.releaseChangelog({
       releaseGraph,
@@ -120,6 +276,22 @@ async function isVerdaccioRunning(url: string): Promise<boolean> {
       firstRelease: argv.firstRelease,
       verbose: argv.verbose,
     });
+  }
+
+  // Skip publish for latest releases (will be triggered by GitHub Release)
+  if (isLatest && !argv.local) {
+    if (argv.dryRun) {
+      console.log('\n📋 DRY-RUN MODE: No changes were made.');
+      console.log(
+        '   In actual run: Tag and GitHub Release would be created, triggering CI to publish to npm.\n',
+      );
+    } else {
+      console.log('\n✅ Tag and GitHub Release created successfully!');
+      console.log(
+        '   Publishing to npm will be triggered by GitHub Release.\n',
+      );
+    }
+    process.exit(0);
   }
 
   const publishResults = await client.releasePublish({
@@ -132,7 +304,11 @@ async function isVerdaccioRunning(url: string): Promise<boolean> {
     tag: isCanary ? 'canary' : 'latest',
   });
 
-  if (!argv.dryRun) {
+  if (argv.dryRun) {
+    console.log(
+      '\n📋 DRY-RUN MODE: This was a dry-run. No changes were made.\n',
+    );
+  } else {
     console.log(
       '\n⚠️  WARNING: Do not commit the versioned package.json files. They have to be reverted after the release process.\n',
     );
