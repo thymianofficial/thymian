@@ -1,12 +1,16 @@
 import { writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 
-import { defaultConfig, type ThymianConfig } from '@thymian/cli-common';
-import { Command, Flags } from '@thymian/cli-common/oclif';
+import {
+  defaultConfig,
+  ThymianBaseCommand,
+  type ThymianConfig,
+} from '@thymian/cli-common';
+import { Flags } from '@thymian/cli-common/oclif';
 import { stringify } from '@thymian/cli-common/yaml';
 import { type Logger, TextLogger } from '@thymian/core';
 
-export default class Init extends Command {
+export default class Init extends ThymianBaseCommand<typeof Init> {
   static override description = 'Initialize Thymian in your project.';
   static override examples = ['<%= config.bin %> <%= command.id %>'];
 
@@ -32,15 +36,9 @@ export default class Init extends Command {
   private readonly thymianConfig: ThymianConfig = defaultConfig;
 
   public async run(): Promise<void> {
-    const { flags } = await this.parse(Init);
-
-    if (flags['no-input']) {
-      return this.printConfig(flags.yaml);
-    }
-
     const hookResults = await this.config.runHook('thymian-plugin.init', {
-      cwd: flags.cwd,
-      interactive: !flags.yes,
+      cwd: this.flags.cwd,
+      interactive: !this.flags.yes,
     });
 
     if (hookResults.failures.length > 0) {
@@ -65,12 +63,12 @@ export default class Init extends Command {
     }
 
     const configFilePath = join(
-      flags.cwd,
-      `${flags['config-file']}${flags.yaml ? '.yaml' : '.json'}`,
+      this.flags.cwd,
+      `${this.flags['config-file']}${this.flags.yaml ? '.yaml' : '.json'}`,
     );
 
     try {
-      await writeFile(configFilePath, this.getConfig(flags.yaml), {
+      await writeFile(configFilePath, this.getConfig(this.flags.yaml), {
         encoding: 'utf-8',
         flag: 'wx',
       });

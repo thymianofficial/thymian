@@ -6,6 +6,9 @@ declare module '@oclif/core/interfaces' {
       options: ThymianPluginInitOptions;
       return: ThymianPluginInitResult;
     };
+    'thymian.feedback': {
+      options: Record<PropertyKey, unknown>;
+    };
   }
 }
 
@@ -25,3 +28,5 @@ export type ThymianPluginInitResult<
 export type ThymianPluginInitHook<
   T extends Record<PropertyKey, unknown> = Record<PropertyKey, unknown>,
 > = (options: ThymianPluginInitOptions) => Promise<ThymianPluginInitResult<T>>;
+
+export type ThymianFeedbackHook = () => Promise<void>;

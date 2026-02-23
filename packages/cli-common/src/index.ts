@@ -1,9 +1,11 @@
 export * from './base-cli-run-command.js';
 export * from './default-config.js';
+export * from './error-cache.js';
 export * as oclif from './oclif.js';
 export * from './plugin-hook.js';
 export * as prompts from './prompts.js';
 export * from './read-plugins.js';
+export * from './thymian-base-command.js';
 export * from './thymian-config.js';
 export * from './thymian-config-schema.js';
 export * as yaml from './yaml.js';

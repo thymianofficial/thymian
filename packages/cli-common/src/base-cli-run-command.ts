@@ -15,6 +15,8 @@ import {
   type ThymianPlugin,
 } from '@thymian/core';
 
+import { ErrorCache } from './error-cache.js';
+import { Feedback } from './feedback.js';
 import { filterFlag } from './flags/filter-flag.js';
 import { optionFlag, optionRegexp } from './flags/option-flag.js';
 import { getConfig } from './get-config.js';
@@ -86,6 +88,11 @@ export abstract class BaseCliRunCommand<
       description: 'Set current working directory.',
     }),
     filter: filterFlag(),
+    ['suppress-feedback']: Flags.boolean({
+      default: false,
+      description: 'Suppress feedback messages from Thymian.',
+      helpGroup: 'BASE',
+    }),
   };
 
   protected flags!: CommandFlags<T>;
@@ -94,6 +101,8 @@ export abstract class BaseCliRunCommand<
   protected thymianConfig!: ThymianConfig;
   protected thymian!: Thymian;
   public filter!: HttpFilterExpression;
+  protected feedback!: Feedback;
+  protected errorCache!: ErrorCache;
 
   public override async init(): Promise<void> {
     await super.init();
@@ -114,6 +123,9 @@ export abstract class BaseCliRunCommand<
       cwd: this.flags.cwd,
       idleTimeout: this.flags['idle-timeout'],
     });
+    this.feedback = Feedback.forCommand(this);
+    this.errorCache = ErrorCache.forCommand(this);
+
     this.thymianConfig = await getConfig(this.flags.config, this.flags.cwd);
     this.overridePluginOptions();
 
@@ -128,9 +140,35 @@ export abstract class BaseCliRunCommand<
       await this.addPluginsToThymianConfig();
       await this.registerPluginsFromConfig();
     }
+
+    await this.feedback.run();
   }
 
-  protected override catch(err: CommandError): Promise<void> {
+  protected override async catch(err: CommandError): Promise<void> {
+    await this.feedback.error();
+    const versionDetails = this.config.versionDetails;
+
+    const pluginVersions = Object.entries(versionDetails.pluginVersions ?? {})
+      .filter(([name]) => !name.startsWith('@oclif'))
+      .map(([name, version]) => ({ name, version: version.version }));
+
+    await this.errorCache.write({
+      name: err.name,
+      message: err.message,
+      commandName: this.id ?? 'unknown command',
+      timestamp: Date.now(),
+      cause: err.cause,
+      stack: err.stack,
+      argv: process.argv,
+      version: {
+        architecture: versionDetails.architecture,
+        cliVersion: versionDetails.cliVersion,
+        nodeVersion: versionDetails.nodeVersion,
+        osVersion: versionDetails.osVersion,
+      },
+      pluginVersions,
+    });
+
     if (err instanceof ThymianBaseError) {
       const cliError = new CLIError(err.message, {
         suggestions: err.options.suggestions,
@@ -291,5 +329,9 @@ export abstract class BaseCliRunCommand<
     for (const name of Object.keys(this.thymianConfig.plugins)) {
       await this.registerPlugin(name);
     }
+  }
+
+  public shouldSuppressFeedback(): boolean {
+    return this.flags['suppress-feedback'];
   }
 }
