@@ -267,8 +267,8 @@ async function promptUserConfirmation(
       gitTag: isCanary ? false : !argv.local && !isInCI(),
     });
 
-  // Create changelog for non-local, non-canary releases
-  if (!argv.local && !isCanary) {
+  // Skip changelog in CI publish mode - it was already created during local release
+  if (!argv.local && !isCanary && !isCIPublishMode) {
     await client.releaseChangelog({
       releaseGraph,
       versionData: projectsVersionData,
