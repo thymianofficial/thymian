@@ -18,7 +18,7 @@ export class Feedback {
       return;
     }
 
-    if (Math.random() < 0.2) {
+    if (this.shouldPrintFeedback()) {
       this.wasRun = true;
       await this.onRun();
     }
@@ -28,6 +28,11 @@ export class Feedback {
     if (!this.wasRun) {
       await this.onRun();
     }
+  }
+
+  // print the feedback hint in 20% of the cases
+  shouldPrintFeedback(): boolean {
+    return Math.random() < 0.2;
   }
 
   static forCommand(
