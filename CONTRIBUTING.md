@@ -50,6 +50,7 @@ Refer to this list when contributing to ensure consistent commit messages.
 | `type:app`         | All types                      | Executable packages or nx apps                                                                               |
 | `type:lib`         | `type:lib`                     | A library                                                                                                    |
 | `type:lib-feature` | `type:lib`, `type:lib-feature` | Features add functionality to libraries. E.g. publishable config, rule-sets or just splitted out source code |
+| `type:testing`     | All types                      | Testing libraries that should be accessible to all other projects for testing purposes                       |
 | `type:e2e`         | All types                      | End-to-end tests and testing utilities                                                                       |
 
 ## Releases
@@ -138,7 +139,7 @@ git checkout main && git pull
 # 2. Preview the release (optional but recommended)
 node ./scripts/release.ts --version latest --no-local --dry-run
 
-# 3. Create the release (interactive, will ask for approval for new versions and changelog)
+# 3. Create the release (interactive, will ask for approval; requires --no-dry-run to actually execute)
 node ./scripts/release.ts --version latest --no-local --no-dry-run
 # Review the version and changelog
 # Type 'yes' to confirm

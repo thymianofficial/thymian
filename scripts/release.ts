@@ -45,12 +45,6 @@ function validateCIPublishMode(
     process.exit(1);
   }
 
-  // Validate registry is not localhost
-  if (isLocal) {
-    console.error('❌ Error: CI publish mode cannot use local registry');
-    process.exit(1);
-  }
-
   // Validate GitHub actor against allowlist
   const actor = process.env.GITHUB_ACTOR;
   if (!actor) {
@@ -99,7 +93,7 @@ async function promptUserConfirmation(
   const rl = readline.createInterface({ input, output });
   try {
     const answer = await rl.question(
-      '🤔 Do you want to proceed with this release? (yes/no): ',
+      '🤔 Do you want to proceed with this release? (yes/no or y/n): ',
     );
     return answer.toLowerCase() === 'yes' || answer.toLowerCase() === 'y';
   } finally {
@@ -219,7 +213,7 @@ async function promptUserConfirmation(
     console.log('🔍 Determining next version from conventional commits...\n');
     versionSpecifier = undefined; // Let conventional commits determine version
 
-    // Interactive confirmation for latest releases (local only, not dry-run)
+    // Interactive confirmation for latest releases
     // Run a dry-run first to get version info, then prompt, then execute
     if (!argv.local && !argv.dryRun && !isInCI()) {
       const previewResult = await client.releaseVersion({
@@ -286,8 +280,17 @@ async function promptUserConfirmation(
 
   // Skip publish for latest releases (will be triggered by GitHub Release)
   if (isLatest && !argv.local) {
-    console.log('\n✅ Tag and GitHub Release created successfully!');
-    console.log('   Publishing to npm will be triggered by GitHub Release.\n');
+    if (argv.dryRun) {
+      console.log('\n📋 DRY-RUN MODE: No changes were made.');
+      console.log(
+        '   In actual run: Tag and GitHub Release would be created, triggering CI to publish to npm.\n',
+      );
+    } else {
+      console.log('\n✅ Tag and GitHub Release created successfully!');
+      console.log(
+        '   Publishing to npm will be triggered by GitHub Release.\n',
+      );
+    }
     process.exit(0);
   }
 
@@ -301,7 +304,11 @@ async function promptUserConfirmation(
     tag: isCanary ? 'canary' : 'latest',
   });
 
-  if (!argv.dryRun) {
+  if (argv.dryRun) {
+    console.log(
+      '\n📋 DRY-RUN MODE: This was a dry-run. No changes were made.\n',
+    );
+  } else {
     console.log(
       '\n⚠️  WARNING: Do not commit the versioned package.json files. They have to be reverted after the release process.\n',
     );
