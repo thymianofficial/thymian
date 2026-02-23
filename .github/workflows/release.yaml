@@ -7,6 +7,12 @@ on:
       - main
   release:
     types: [published]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Tag to publish'
+        required: true
+        type: string
 
 permissions:
   contents: read
@@ -44,12 +50,23 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     environment: npm
-    if: github.event_name == 'release' && github.event.action == 'published'
+    if: (github.event_name == 'release' && github.event.action == 'published') || github.event_name == 'workflow_dispatch'
     steps:
+      - name: Determine tag
+        id: determine-tag
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            TAG="${{ inputs.tag }}"
+          else
+            TAG="${{ github.event.release.tag_name }}"
+          fi
+          echo "tag=$TAG" >> $GITHUB_OUTPUT
+          echo "Using tag: $TAG"
+
       - name: Check out repository at release tag
         uses: actions/checkout@v4
         with:
-          ref: ${{ github.event.release.tag_name }}
+          ref: ${{ steps.determine-tag.outputs.tag }}
           fetch-depth: 0
           filter: tree:0
 
@@ -66,7 +83,7 @@ jobs:
       - name: Extract version from release tag
         id: extract-version
         run: |
-          TAG_NAME="${{ github.event.release.tag_name }}"
+          TAG_NAME="${{ steps.determine-tag.outputs.tag }}"
           # Remove 'v' prefix if present
           VERSION="${TAG_NAME#v}"
           echo "version=$VERSION" >> $GITHUB_OUTPUT
