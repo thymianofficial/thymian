@@ -12,16 +12,21 @@ export default httpRule(
   .description(
     `A recipient SHOULD parse for userinfo and treat its presence as an error; it is likely being used to obscure the authority for the sake of phishing attacks.`,
   )
-  .rule((ctx) =>
+  .rule((ctx, opts, logger) =>
     ctx.validateHttpTransactions(
       or(protocol('http'), protocol('https')),
       (req, res) => {
-        const url = new URL(req.path, req.origin);
+        try {
+          const url = new URL(req.path, req.origin);
 
-        return (
-          (!!url.username || !!url.password) &&
-          !(res.statusCode >= 400 && res.statusCode < 500)
-        );
+          return (
+            (!!url.username || !!url.password) &&
+            !(res.statusCode >= 400 && res.statusCode < 500)
+          );
+        } catch (e) {
+          logger.error('Cannot run rule because of invalid URL:', e);
+          return false;
+        }
       },
     ),
   )

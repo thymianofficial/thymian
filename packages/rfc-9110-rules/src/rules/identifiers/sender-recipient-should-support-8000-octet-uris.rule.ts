@@ -10,14 +10,18 @@ export default httpRule(
   .description(
     'It is RECOMMENDED that all senders and recipients support, at a minimum, URIs with lengths of 8000 octets in protocol elements.',
   )
-  .rule((ctx) =>
+  .rule((ctx, opts, logger) =>
     ctx.validateHttpTransactions(statusCode(414), (req) => {
-      const url = new URL(req.path, req.origin);
+      try {
+        const url = new URL(req.path, req.origin);
 
-      if (new TextEncoder().encode(url.toString()).length <= 8000) {
-        return {
-          message: 'URI length is less than 8000 octets',
-        };
+        if (new TextEncoder().encode(url.toString()).length <= 8000) {
+          return {
+            message: 'URI length is less than 8000 octets',
+          };
+        }
+      } catch (e) {
+        logger.error('Cannot run rule because of invalid URL:', e);
       }
 
       return false;

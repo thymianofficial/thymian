@@ -10,13 +10,18 @@ export default httpRule('rfc9110/sender-must-not-generate-userinfo-in-uri')
   .description(
     "A sender MUST NOT generate the userinfo subcomponent (and its '@' delimiter) when an 'http' or 'https' URI reference is generated within a message as a target URI or field value.",
   )
-  .rule((ctx) =>
+  .rule((ctx, opts, logger) =>
     ctx.validateCommonHttpTransactions(
       or(protocol('http'), protocol('https')),
       (req) => {
-        const url = new URL(req.path, req.origin);
+        try {
+          const url = new URL(req.path, req.origin);
 
-        return !!url.username || !!url.password;
+          return !!url.username || !!url.password;
+        } catch (e) {
+          logger.error('Cannot run rule because of invalid URL:', e);
+          return false;
+        }
       },
     ),
   )

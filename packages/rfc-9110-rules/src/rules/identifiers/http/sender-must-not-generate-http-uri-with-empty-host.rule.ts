@@ -10,10 +10,14 @@ export default httpRule(
   .description(
     `A sender MUST NOT generate an 'http' URI with an empty host identifier.`,
   )
-  .rule((ctx) =>
-    ctx.validateHttpTransactions(
-      protocol('http'),
-      (req) => new URL(req.path, req.origin).host === '',
-    ),
+  .rule((ctx, opts, logger) =>
+    ctx.validateHttpTransactions(protocol('http'), (req) => {
+      try {
+        return new URL(req.path, req.origin).host === '';
+      } catch (e) {
+        logger.error('Cannot run rule because of invalid URL:', e);
+        return false;
+      }
+    }),
   )
   .done();
