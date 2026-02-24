@@ -35,6 +35,9 @@ yarn-error.log
 testem.log
 /typings
 
+# opencode is confiured to use .github/skills
+.opencode/skills
+
 # System Files
 .DS_Store
 Thumbs.db
