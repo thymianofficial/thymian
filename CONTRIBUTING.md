@@ -83,13 +83,16 @@ For production releases with approval gates:
 
 ```bash
 # Step 1: Preview what the release will look like (optional)
-node ./scripts/release.ts --version latest --no-local --dry-run
+node ./scripts/release.ts --dist-tag latest --no-local --dry-run
 
 # Step 2: Create the release (interactive)
-node ./scripts/release.ts --version latest --no-local
+node ./scripts/release.ts --dist-tag latest --no-local --no-dry-run
+
+# Or with an explicit version:
+node ./scripts/release.ts --dist-tag latest --version 1.2.3 --no-local --no-dry-run
 
 # The script will:
-# - Calculate version from conventional commits
+# - Calculate version from conventional commits (or use explicit --version)
 # - Show version and changelog
 # - Ask for your confirmation
 # - Create git tag and GitHub Release (if confirmed)
@@ -114,21 +117,28 @@ For testing with local Verdaccio registry:
 # Start local registry
 npm run local-registry
 
-# In another terminal, publish to local registry
-node ./scripts/release.ts --version patch --no-dry-run
+# In another terminal, publish to local registry with latest dist-tag
+node ./scripts/release.ts --dist-tag latest --version patch --no-dry-run
 
 # Or specify exact version
-node ./scripts/release.ts --version 1.2.3 --no-dry-run
+node ./scripts/release.ts --dist-tag latest --version 1.2.3 --no-dry-run
+
+# Test canary locally
+node ./scripts/release.ts --dist-tag canary --version 1.2.3 --local --no-dry-run
 ```
 
-### Version Strategies
+### CLI Options
 
-- **`latest`** - Use conventional commits (recommended for production)
-- **`canary`** - Automatic canary version with date and commit hash
-- **`patch`** - Increment patch version (0.0.X)
-- **`minor`** - Increment minor version (0.X.0)
-- **`major`** - Increment major version (X.0.0)
-- **`1.2.3`** - Explicit semver version
+| Option             | Description                                                                                                           |
+| ------------------ | --------------------------------------------------------------------------------------------------------------------- |
+| `--dist-tag`, `-t` | **Required.** npm dist-tag to publish with (`canary` or `latest`)                                                     |
+| `--version`, `-v`  | Explicit version specifier (e.g., `1.2.3`, `patch`, `minor`, `major`). If omitted, derived from conventional commits. |
+| `--dry-run`, `-d`  | Preview changes without executing (default: `true`)                                                                   |
+| `--no-dry-run`     | Execute changes for real                                                                                              |
+| `--local`          | Publish to local Verdaccio registry (default: `true`)                                                                 |
+| `--no-local`       | Publish to npm                                                                                                        |
+| `--first-release`  | Treat as first release for the workspace                                                                              |
+| `--verbose`        | Enable verbose logging (default: `true`)                                                                              |
 
 ### Release Workflow for Maintainers
 
@@ -137,10 +147,10 @@ node ./scripts/release.ts --version 1.2.3 --no-dry-run
 git checkout main && git pull
 
 # 2. Preview the release (optional but recommended)
-node ./scripts/release.ts --version latest --no-local --dry-run
+node ./scripts/release.ts --dist-tag latest --no-local --dry-run
 
 # 3. Create the release (interactive, will ask for approval; requires --no-dry-run to actually execute)
-node ./scripts/release.ts --version latest --no-local --no-dry-run
+node ./scripts/release.ts --dist-tag latest --no-local --no-dry-run
 # Review the version and changelog
 # Type 'yes' to confirm
 

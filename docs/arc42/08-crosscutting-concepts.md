@@ -32,7 +32,7 @@ Thymian follows a tag-based release process that maintains clean version control
 
 **Latest Releases:**
 
-- Manually triggered by developers using `--version latest`
+- Manually triggered by developers using `--dist-tag latest`
 - Interactive approval flow with local review
 - Published to npm with dist-tag `latest`
 - Two-phase process: local creation of tag/release, CI publishing to npm
@@ -42,8 +42,8 @@ Thymian follows a tag-based release process that maintains clean version control
 
 **Local Phase (Developer):**
 
-1. Run `node ./scripts/release.ts --version latest --no-local`
-2. Script calculates next version using conventional commits
+1. Run `node ./scripts/release.ts --dist-tag latest --no-local` (optionally add `--version X.Y.Z` to override conventional commits)
+2. Script calculates next version using conventional commits (or uses explicit `--version` if provided)
 3. Interactive prompt displays version and changelog
 4. Developer approves or declines
 5. If approved: Git tag and GitHub Release are created (no npm publish)
