@@ -12,6 +12,5 @@ export default httpRule(
   .summary(
     'Recipient MAY combine multiple field lines with the same name into one field line.',
   )
-  .appliesTo('client', 'server', 'proxy', 'intermediary')
   .tags('fields', 'field-order')
   .done();
