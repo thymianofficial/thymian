@@ -623,4 +623,200 @@ describe('ThymianFormat', () => {
       expect(serialized).toStrictEqual(JSON.stringify(formatAgain.export()));
     });
   });
+
+  describe('addResponseToRequest', () => {
+    it('should create unique response nodes for identical responses on different requests', () => {
+      const format = new ThymianFormat();
+
+      const request1: PartialBy<ThymianHttpRequest, 'label' | 'sourceName'> = {
+        type: 'http-request',
+        host: 'localhost',
+        port: 8080,
+        protocol: 'http',
+        path: '/endpoint-a',
+        method: 'get',
+        headers: {},
+        queryParameters: {},
+        cookies: {},
+        pathParameters: {},
+        mediaType: '',
+      };
+
+      const request2: PartialBy<ThymianHttpRequest, 'label' | 'sourceName'> = {
+        type: 'http-request',
+        host: 'localhost',
+        port: 8080,
+        protocol: 'http',
+        path: '/endpoint-b',
+        method: 'get',
+        headers: {},
+        queryParameters: {},
+        cookies: {},
+        pathParameters: {},
+        mediaType: '',
+      };
+
+      const identicalResponse: PartialBy<
+        ThymianHttpResponse,
+        'label' | 'sourceName'
+      > = {
+        type: 'http-response',
+        headers: {},
+        mediaType: '',
+        statusCode: 200,
+        description: 'OK',
+      };
+
+      const reqId1 = format.addRequest({ ...request1, sourceName: 'source1' });
+      const reqId2 = format.addRequest({ ...request2, sourceName: 'source1' });
+
+      const [resId1] = format.addResponseToRequest(reqId1, {
+        ...identicalResponse,
+        sourceName: 'source1',
+      });
+      const [resId2] = format.addResponseToRequest(reqId2, {
+        ...identicalResponse,
+        sourceName: 'source1',
+      });
+
+      // Response IDs should be different even though response content is identical
+      expect(resId1).not.toBe(resId2);
+
+      // Both response nodes should exist in the graph
+      expect(format.graph.hasNode(resId1)).toBe(true);
+      expect(format.graph.hasNode(resId2)).toBe(true);
+
+      // Total nodes should be 4 (2 requests + 2 responses)
+      expect(format.graph.order).toBe(4);
+    });
+
+    it('should throw error when adding response to non-existent request', () => {
+      const format = new ThymianFormat();
+
+      const response: PartialBy<ThymianHttpResponse, 'label'> = {
+        type: 'http-response',
+        headers: {},
+        mediaType: '',
+        statusCode: 200,
+        sourceName: 'source1',
+      };
+
+      expect(() => {
+        format.addResponseToRequest('non-existent-request-id', response);
+      }).toThrow();
+    });
+
+    it('should return both response ID and transaction ID', () => {
+      const format = new ThymianFormat();
+
+      const request: PartialBy<ThymianHttpRequest, 'label'> = {
+        type: 'http-request',
+        host: 'localhost',
+        port: 8080,
+        protocol: 'http',
+        path: '/test',
+        method: 'get',
+        headers: {},
+        queryParameters: {},
+        cookies: {},
+        pathParameters: {},
+        mediaType: '',
+        sourceName: 'source1',
+      };
+
+      const response: PartialBy<ThymianHttpResponse, 'label'> = {
+        type: 'http-response',
+        headers: {},
+        mediaType: '',
+        statusCode: 200,
+        sourceName: 'source1',
+      };
+
+      const reqId = format.addRequest(request);
+      const [resId, transactionId] = format.addResponseToRequest(
+        reqId,
+        response,
+      );
+
+      // Should return valid IDs
+      expect(typeof resId).toBe('string');
+      expect(typeof transactionId).toBe('string');
+      expect(resId.length).toBeGreaterThan(0);
+      expect(transactionId.length).toBeGreaterThan(0);
+
+      // Response and transaction should exist in graph
+      expect(format.graph.hasNode(resId)).toBe(true);
+      expect(format.graph.hasEdge(transactionId)).toBe(true);
+
+      // Transaction should connect request to response
+      const [sourceId, targetId] = format.graph.extremities(transactionId);
+      expect(sourceId).toBe(reqId);
+      expect(targetId).toBe(resId);
+    });
+  });
+
+  describe('addHttpTransaction', () => {
+    it('should create transaction using addResponseToRequest internally', () => {
+      const format = new ThymianFormat();
+
+      const request: PartialBy<ThymianHttpRequest, 'label' | 'sourceName'> = {
+        type: 'http-request',
+        host: 'localhost',
+        port: 8080,
+        protocol: 'http',
+        path: '/test',
+        method: 'post',
+        headers: {},
+        queryParameters: {},
+        cookies: {},
+        pathParameters: {},
+        mediaType: 'application/json',
+      };
+
+      const response: PartialBy<ThymianHttpResponse, 'label' | 'sourceName'> = {
+        type: 'http-response',
+        headers: {},
+        mediaType: 'application/json',
+        statusCode: 201,
+      };
+
+      const [reqId, resId, transactionId] = format.addHttpTransaction(
+        request,
+        response,
+        'test-source',
+      );
+
+      // All IDs should be valid
+      expect(typeof reqId).toBe('string');
+      expect(typeof resId).toBe('string');
+      expect(typeof transactionId).toBe('string');
+
+      // All nodes and edges should exist
+      expect(format.graph.hasNode(reqId)).toBe(true);
+      expect(format.graph.hasNode(resId)).toBe(true);
+      expect(format.graph.hasEdge(transactionId)).toBe(true);
+
+      // Verify the transaction connects request to response
+      const transaction = format.getThymianHttpTransactionById(transactionId);
+      expect(transaction).toBeDefined();
+      expect(transaction?.thymianReqId).toBe(reqId);
+      expect(transaction?.thymianResId).toBe(resId);
+    });
+
+    it('should properly inherit sourceName in response when using addHttpTransaction', () => {
+      const format = new ThymianFormat();
+
+      const [reqId, resId] = format.addHttpTransaction(
+        transactions[0][0],
+        transactions[0][1],
+        'custom-source',
+      );
+
+      const req = format.getNode<ThymianHttpRequest>(reqId);
+      const res = format.getNode<ThymianHttpResponse>(resId);
+
+      expect(req?.sourceName).toBe('custom-source');
+      expect(res?.sourceName).toBe('custom-source');
+    });
+  });
 });

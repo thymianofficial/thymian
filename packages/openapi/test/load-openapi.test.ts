@@ -334,5 +334,63 @@ describe('load-openapi', () => {
       const transactions = format.getThymianHttpTransactions();
       expect(transactions.length).toBe(0);
     });
+
+    it('should create separate response nodes for identical responses', async () => {
+      const document: OpenAPIV3_1.Document = {
+        openapi: '3.1.0',
+        info: {
+          title: 'Min API',
+          version: '1.0.0',
+        },
+        paths: {
+          '/a': {
+            get: {
+              responses: {
+                '200': {
+                  description: 'OK',
+                },
+              },
+            },
+          },
+          '/b': {
+            get: {
+              responses: {
+                '200': {
+                  description: 'OK',
+                },
+              },
+            },
+          },
+        },
+      };
+
+      const format = await openapiToThymianFormat(document, {
+        filter: constant(true),
+        serverInfo: {
+          basePath: '',
+          port: 8080,
+          host: 'localhost',
+          protocol: 'http',
+        },
+      });
+
+      const transactions = format.getThymianHttpTransactions();
+
+      // Should have 2 transactions (one for each request)
+      expect(transactions.length).toBe(2);
+
+      // Should have 2 request nodes
+      const requests = format.getThymianHttpRequests();
+      expect(requests.length).toBe(2);
+
+      // Should have 2 distinct response nodes (not 1 shared node)
+      const responseIds = new Set(transactions.map((t) => t.thymianResId));
+      expect(responseIds.size).toBe(2);
+
+      // Verify that the responses are not the same object
+      expect(transactions[0]?.thymianResId).not.toBe(
+        transactions[1]?.thymianResId,
+      );
+    });
   });
 });
