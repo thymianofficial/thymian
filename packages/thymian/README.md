@@ -1,11 +1,19 @@
-# Thymian
+# @thymian/cli
 
-Add resilience and HTTP conformance to your API development workflow. Thymian is a lightweight, language-agnostic library that helps you build robust APIs.
+Main CLI entry point for Thymian - a lightweight, language-agnostic library that helps you build robust APIs by adding resilience testing and HTTP conformance validation to your development workflow.
 
-## @thymian/cli
+## Installation
 
-Main CLI entry point for Thymian.
+```bash
+npm install @thymian/cli
+```
+
+## Quick Start
+
+```bash
+npx thymian run
+```
 
 ## Documentation
 
-For comprehensive documentation, visit [Thymian Documentation](https://thymian.dev/).
+For comprehensive documentation, guides, and API reference, visit [Thymian Documentation](https://thymian.dev/).
