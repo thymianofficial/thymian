@@ -9,7 +9,7 @@ export default httpRule(
     'https://www.rfc-editor.org/rfc/rfc9110.html#name-https-certificate-verificat',
   )
   .description(
-    'Automated clients MUST log the error to an appropriate audit log (if available).',
+    'Automated clients SHOULD terminate the connection if HTTPS certificate verification fails.',
   )
   .appliesTo('client')
   .done();
