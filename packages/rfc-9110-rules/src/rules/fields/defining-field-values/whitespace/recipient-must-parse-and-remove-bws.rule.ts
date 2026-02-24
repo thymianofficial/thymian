@@ -13,6 +13,5 @@ export default httpRule('rfc9110/recipient-must-parse-and-remove-bws')
   .summary(
     'Recipient MUST parse for and remove bad whitespace (BWS) before interpretation.',
   )
-  .appliesTo('client', 'server', 'proxy', 'intermediary')
   .tags('fields', 'whitespace', 'parsing')
   .done();

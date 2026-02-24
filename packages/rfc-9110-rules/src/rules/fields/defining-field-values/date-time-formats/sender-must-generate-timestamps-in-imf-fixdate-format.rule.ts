@@ -16,6 +16,5 @@ export default httpRule(
   .summary(
     'Sender MUST generate HTTP-date timestamps in the IMF-fixdate format.',
   )
-  .appliesTo('client', 'server')
   .tags('fields', 'date-time')
   .done();

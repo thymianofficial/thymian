@@ -13,6 +13,5 @@ export default httpRule(
     'A recipient SHOULD treat other allowed octets in field content (i.e., obs-text) as opaque data.',
   )
   .summary('Recipient SHOULD treat obs-text octets as opaque data.')
-  .appliesTo('client', 'server', 'proxy', 'intermediary')
   .tags('fields', 'field-values')
   .done();

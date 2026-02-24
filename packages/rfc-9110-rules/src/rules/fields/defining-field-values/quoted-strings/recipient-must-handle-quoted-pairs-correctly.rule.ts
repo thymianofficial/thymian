@@ -14,6 +14,5 @@ export default httpRule('rfc9110/recipient-must-handle-quoted-pairs-correctly')
   .summary(
     'Recipient processing quoted-strings MUST handle quoted-pairs as if replaced by the octet following the backslash.',
   )
-  .appliesTo('client', 'server', 'proxy', 'intermediary')
   .tags('fields', 'quoted-strings', 'parsing')
   .done();

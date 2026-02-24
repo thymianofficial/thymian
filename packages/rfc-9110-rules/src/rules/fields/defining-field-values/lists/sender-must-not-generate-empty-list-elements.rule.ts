@@ -12,6 +12,5 @@ export default httpRule('rfc9110/sender-must-not-generate-empty-list-elements')
     'In any production that uses the list construct, a sender MUST NOT generate empty list elements.',
   )
   .summary('Sender MUST NOT generate empty list elements.')
-  .appliesTo('client', 'server')
   .tags('fields', 'lists')
   .done();

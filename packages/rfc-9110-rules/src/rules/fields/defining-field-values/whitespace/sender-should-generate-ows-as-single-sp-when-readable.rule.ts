@@ -16,6 +16,5 @@ export default httpRule(
   .summary(
     'Sender SHOULD generate optional whitespace (OWS) as a single SP when preferred for readability.',
   )
-  .appliesTo('client', 'server')
   .tags('fields', 'whitespace')
   .done();

@@ -15,6 +15,5 @@ export default httpRule(
   .summary(
     'Recipient MUST parse and ignore a reasonable number of empty list elements.',
   )
-  .appliesTo('client', 'server', 'proxy', 'intermediary')
   .tags('fields', 'lists', 'parsing')
   .done();

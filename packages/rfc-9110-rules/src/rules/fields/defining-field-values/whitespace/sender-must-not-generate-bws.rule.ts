@@ -13,6 +13,5 @@ export default httpRule('rfc9110/sender-must-not-generate-bws')
     'The BWS rule is used where the grammar allows optional whitespace only for historical reasons. A sender MUST NOT generate BWS in messages.',
   )
   .summary('Sender MUST NOT generate bad whitespace (BWS) in messages.')
-  .appliesTo('client', 'server')
   .tags('fields', 'whitespace')
   .done();

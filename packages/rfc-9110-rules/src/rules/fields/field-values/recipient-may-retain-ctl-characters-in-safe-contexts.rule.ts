@@ -15,6 +15,5 @@ export default httpRule(
   .summary(
     'Recipient MAY retain other CTL characters in field values when in safe contexts.',
   )
-  .appliesTo('client', 'server', 'proxy', 'intermediary')
   .tags('fields', 'field-values')
   .done();

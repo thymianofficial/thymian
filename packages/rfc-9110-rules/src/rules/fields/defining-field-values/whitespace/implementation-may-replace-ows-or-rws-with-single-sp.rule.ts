@@ -14,6 +14,5 @@ export default httpRule(
   .summary(
     'OWS or RWS content MAY be replaced with a single SP before interpretation or forwarding.',
   )
-  .appliesTo('client', 'server', 'proxy', 'intermediary')
   .tags('fields', 'whitespace')
   .done();
