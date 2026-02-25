@@ -1,4 +1,4 @@
-import { constant, not, requestHeader } from '@thymian/core';
+import { not, requestHeader } from '@thymian/core';
 import { httpRule } from '@thymian/http-linter';
 
 export default httpRule('rfc9110/proxy-must-send-via-header')
