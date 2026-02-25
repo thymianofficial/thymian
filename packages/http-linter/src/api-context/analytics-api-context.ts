@@ -15,6 +15,7 @@ import type { RuleViolation } from 'src/rule/rule-violation.js';
 import type { HttpTransactionRepository } from '../db/http-transaction-repository.js';
 import type { HttpParticipantRole } from '../rule/rule-meta.js';
 import type { RuleViolationLocation } from '../rule/rule-violation.js';
+import type { CapturedTrace, CapturedTransaction } from '../types.js';
 import { type ValidationFn } from './api-context.js';
 import type { CommonHttpRequest, CommonHttpResponse } from './common-types.js';
 import { LiveApiContext } from './live-api-context.js';
@@ -22,17 +23,28 @@ import {
   httpRequestToCommonHttpRequest,
   httpResponseToCommonHttpResponse,
 } from './utils/http-to-common.js';
+import { capturedTraceToString } from './utils/trace-to-string.js';
 
 export class AnalyticsApiContext extends LiveApiContext {
+  private readonly roles?: HttpParticipantRole[];
+
   constructor(
     readonly repository: HttpTransactionRepository,
     logger: Logger,
     format: ThymianFormat,
     reportFn?: ReportFn,
-    private readonly roles?: HttpParticipantRole[],
+    roles?: HttpParticipantRole[],
     skippedOrigins?: string[],
   ) {
     super(format, logger, reportFn, skippedOrigins);
+
+    if (roles) {
+      this.roles = roles.flatMap((role) =>
+        role === 'intermediary'
+          ? ['proxy', 'tunnel', 'gateway', 'intermediary']
+          : role,
+      );
+    }
   }
 
   private addOriginsToFilter(
@@ -102,7 +114,7 @@ export class AnalyticsApiContext extends LiveApiContext {
       }
     }
 
-    return results;
+    return results.concat(this.violations);
   }
 
   override validateGroupedCommonHttpTransactions(
@@ -189,6 +201,69 @@ export class AnalyticsApiContext extends LiveApiContext {
       }
     }
 
-    return results;
+    return results.concat(this.violations);
+  }
+
+  validateCapturedHttpTransactions(
+    filter: HttpFilterExpression,
+    validate: ValidationFn<[CapturedTransaction, string]>,
+  ): Promise<RuleFnResult> | RuleFnResult {
+    const finalFilter = this.addOriginsToFilter(filter);
+
+    const results: RuleFnResult = [];
+
+    for (const transaction of this.repository.readTransactionsByHttpFilter(
+      finalFilter,
+      this.roles,
+    )) {
+      const location = httpTransactionToLabel(
+        transaction.request.data,
+        transaction.response.data,
+      );
+
+      const violation = validate(transaction, location);
+
+      if (violation) {
+        if (violation === true) {
+          results.push({
+            location,
+          });
+        } else {
+          results.push({
+            location,
+            ...violation,
+          });
+        }
+      }
+    }
+
+    return results.concat(this.violations);
+  }
+
+  validateCapturedHttpTraces(
+    validate: ValidationFn<[CapturedTrace, string]>,
+  ): RuleFnResult {
+    const results: RuleFnResult = [];
+
+    for (const trace of this.repository.readAllHttpTraces()) {
+      const location = capturedTraceToString(trace);
+
+      const violation = validate(trace, location);
+
+      if (violation) {
+        if (violation === true) {
+          results.push({
+            location,
+          });
+        } else {
+          results.push({
+            location,
+            ...violation,
+          });
+        }
+      }
+    }
+
+    return results.concat(this.violations);
   }
 }

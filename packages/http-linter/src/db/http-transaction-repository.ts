@@ -28,4 +28,6 @@ export interface HttpTransactionRepository {
     groupBy: HttpFilterExpression,
     role?: HttpParticipantRole[],
   ): IterableIterator<[string, CapturedTransaction[]], void, unknown>;
+
+  readAllHttpTraces(): IterableIterator<CapturedTrace, void, unknown>;
 }

@@ -1,4 +1,10 @@
-import type { HttpRequest, HttpResponse } from '@thymian/core';
+import {
+  type HttpRequest,
+  httpRequestToLabel,
+  type HttpResponse,
+  httpResponseToLabel,
+  httpTransactionToLabel,
+} from '@thymian/core';
 
 import type { HttpParticipantRole } from './rule/rule-meta.js';
 
