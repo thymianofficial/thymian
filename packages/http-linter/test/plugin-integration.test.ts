@@ -71,6 +71,49 @@ describe('http-linter integration tests', () => {
     expect(result.valid).toBeFalsy();
   });
 
+  it('rule should be able to disable rules', async () => {
+    await thymian
+      .register(httpLinterPlugin, {
+        ruleSets: [
+          join(
+            import.meta.dirname,
+            'fixtures/rules/should-send-validator-fields.rule.mjs',
+          ),
+        ],
+        type: ['test'],
+        rules: {
+          'rfc9110/server-should-send-validator-fields': 'off',
+        },
+      })
+      .ready();
+
+    const format = createThymianFormatWithTransaction(
+      createHttpRequest({
+        method: 'get',
+      }),
+      createHttpResponse({
+        statusCode: 200,
+      }),
+    );
+
+    const rules = await thymian.emitter.emitAction(
+      'http-linter.rules',
+      undefined,
+      {
+        strategy: 'first',
+      },
+    );
+
+    const result = await thymian.emitter.emitAction(
+      'http-linter.lint-static',
+      { format: format.export() },
+      { strategy: 'first' },
+    );
+
+    expect(result.valid).toBeTruthy();
+    expect(rules).toHaveLength(0);
+  });
+
   it.each([
     ['off', 0],
     ['warn', 2],
