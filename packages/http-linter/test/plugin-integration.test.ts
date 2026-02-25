@@ -71,7 +71,7 @@ describe('http-linter integration tests', () => {
     expect(result.valid).toBeFalsy();
   });
 
-  it('rule should be able to disable rules', async () => {
+  it('should be able to disable a rule', async () => {
     await thymian
       .register(httpLinterPlugin, {
         ruleSets: [
