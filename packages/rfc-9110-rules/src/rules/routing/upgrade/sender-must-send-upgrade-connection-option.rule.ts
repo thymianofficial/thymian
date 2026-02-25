@@ -14,7 +14,7 @@ export default httpRule('rfc9110/sender-must-send-upgrade-connection-option')
       const connectionHeader = getHeader(req.headers, 'connection');
 
       if (!connectionHeader) {
-        return false;
+        return true;
       }
 
       const connectionHeaderValues = Array.isArray(connectionHeader)

@@ -1,4 +1,4 @@
-import { not, requestHeader } from '@thymian/core';
+import { not, responseHeader } from '@thymian/core';
 import { httpRule } from '@thymian/http-linter';
 
 export default httpRule('rfc9110/gateway-may-send-via-header-in-responses')
@@ -12,7 +12,7 @@ export default httpRule('rfc9110/gateway-may-send-via-header-in-responses')
   .appliesTo('gateway')
   .rule((ctx) =>
     ctx.validateCapturedHttpTransactions(
-      not(requestHeader('via')),
+      not(responseHeader('via')),
       ({ response }) => response.meta.role === 'gateway',
     ),
   )

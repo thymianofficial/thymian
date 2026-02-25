@@ -1,4 +1,4 @@
-import { or, requestHeader } from '@thymian/core';
+import { and, or, requestHeader } from '@thymian/core';
 import { httpRule } from '@thymian/http-linter';
 
 export default httpRule('rfc9110/sender-may-replace-host-with-pseudonym')
@@ -11,7 +11,10 @@ export default httpRule('rfc9110/sender-may-replace-host-with-pseudonym')
   .summary('Sender MAY replace host with pseudonym in Via header.')
   .rule((ctx) =>
     ctx.validateHttpTransactions(
-      or(requestHeader('host'), requestHeader(':authority')),
+      and(
+        or(requestHeader('host'), requestHeader(':authority')),
+        requestHeader('via'),
+      ),
     ),
   )
   .done();

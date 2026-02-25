@@ -19,21 +19,32 @@ export default httpRule(
   .rule((ctx) =>
     ctx.validateCapturedHttpTraces((trace, location) => {
       for (let i = 1; i < trace.length; i++) {
+        // contains response from proxy (if there is a proxy)
         const prev = trace[i - 1];
+        // contains response to proxy (if there is a proxy)
         const curr = trace[i];
 
-        if (!prev || !curr) {
+        if (!prev || !curr || prev.response.meta.role !== 'proxy') {
           continue;
         }
 
         const cacheControlHeader = getHeader(
-          prev.request.data.headers,
+          curr.response.data.headers,
           'cache-control',
         );
 
+        if (!cacheControlHeader) {
+          continue;
+        }
+
+        const cacheDirectives = Array.isArray(cacheControlHeader)
+          ? cacheControlHeader
+          : [cacheControlHeader];
+
         if (
-          cacheControlHeader &&
-          cacheControlHeader.includes('no-transform') &&
+          cacheDirectives.some(
+            (directive) => directive.toLowerCase().trim() === 'no-transform',
+          ) &&
           prev.request.data !== curr.request.data
         ) {
           ctx.reportViolation({
