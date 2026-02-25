@@ -14,7 +14,7 @@ export function createRuleFilter({
   severity: RuleSeverity;
   type: RuleType[];
 }): RuleFilter {
-  // we need this so we don't load any rules of the severity of the linter is set to off
+  // we need this so we don't load any rules if the linter severity is set to 'off'
   if (severity === 'off') {
     return () => false;
   }
