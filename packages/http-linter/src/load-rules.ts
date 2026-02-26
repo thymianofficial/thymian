@@ -120,19 +120,25 @@ export async function loadRules(
   const ruleOrRuleSet = module.default;
 
   if (isRule(ruleOrRuleSet)) {
-    const { name } = ruleOrRuleSet.meta;
+    // Create a shallow copy of the rule to avoid mutating the cached module
+    const rule = {
+      ...ruleOrRuleSet,
+      meta: {
+        ...ruleOrRuleSet.meta,
+      },
+    };
 
+    const { name } = rule.meta;
     const ruleOptions = options[name];
 
     if (isRecord(ruleOptions)) {
-      ruleOrRuleSet.meta.severity =
-        ruleOptions.severity ?? ruleOrRuleSet.meta.severity;
-      ruleOrRuleSet.meta.type = ruleOptions.type ?? ruleOrRuleSet.meta.type;
+      rule.meta.severity = ruleOptions.severity ?? rule.meta.severity;
+      rule.meta.type = ruleOptions.type ?? rule.meta.type;
 
-      if (ruleOptions.options && ruleOrRuleSet.meta.options) {
-        if (!validate(ruleOrRuleSet.meta.options, ruleOptions.options)) {
+      if (ruleOptions.options && rule.meta.options) {
+        if (!validate(rule.meta.options, ruleOptions.options)) {
           throw new ThymianBaseError(
-            `Options for rule "${ruleOrRuleSet.meta.name}" does not match the schema of the rule.`,
+            `Options for rule "${rule.meta.name}" does not match the schema of the rule.`,
             {
               suggestions: [
                 'Check the options for the rule in your Thymian config file.',
@@ -144,11 +150,11 @@ export async function loadRules(
         }
       }
     } else if (isRuleSeverityLevel(ruleOptions)) {
-      ruleOrRuleSet.meta.severity = ruleOptions;
+      rule.meta.severity = ruleOptions;
     }
 
-    if (ruleFilter(ruleOrRuleSet)) {
-      return [ruleOrRuleSet];
+    if (ruleFilter(rule)) {
+      return [rule];
     }
   }
 
