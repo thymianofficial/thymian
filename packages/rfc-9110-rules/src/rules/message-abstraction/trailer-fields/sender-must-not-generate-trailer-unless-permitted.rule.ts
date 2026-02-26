@@ -22,8 +22,7 @@ export default httpRule(
   'rfc9110/sender-must-not-generate-trailer-unless-permitted',
 )
   .severity('error')
-  .type('static', 'analytics', 'test', 'informational')
-  .appliesTo('client', 'server')
+  .type('analytics')
   .url('https://www.rfc-editor.org/rfc/rfc9110.html#section-6.5.1')
   .description(
     "Many fields cannot be processed outside the header section because their evaluation is necessary prior to receiving the content, such as those that describe message framing, routing, authentication, request modifiers, response controls, or content format. A sender MUST NOT generate a trailer field unless the sender knows the corresponding header field name's definition permits the field to be sent in trailers.",

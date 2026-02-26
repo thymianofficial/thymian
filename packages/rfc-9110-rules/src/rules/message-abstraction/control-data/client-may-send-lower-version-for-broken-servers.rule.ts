@@ -4,7 +4,7 @@ export default httpRule(
   'rfc9110/client-may-send-lower-version-for-broken-servers',
 )
   .severity('hint')
-  .type('analytics', 'informational')
+  .type('informational')
   .appliesTo('client')
   .url('https://www.rfc-editor.org/rfc/rfc9110.html#section-6.2')
   .description(
