@@ -1,7 +1,7 @@
 import * as http from 'node:http';
 import { join } from 'node:path';
 
-import { constant, NoopLogger } from '@thymian/core';
+import { constant, NoopLogger, ThymianBaseError } from '@thymian/core';
 import type { OpenAPIV3_1 } from 'openapi-types';
 import { describe, expect, it } from 'vitest';
 import yaml from 'yaml';
@@ -91,6 +91,55 @@ describe('load-openapi', () => {
       server.closeAllConnections();
 
       await new Promise((resolve) => server.close(resolve));
+    });
+
+    it('throws OpenAPIFileNotFoundError when file does not exist', async () => {
+      try {
+        await loadAndUpgrade(
+          'nonexistent-file.yaml',
+          process.cwd(),
+          new NoopLogger(),
+        );
+        expect.fail('Error should have been thrown');
+      } catch (error) {
+        expect(error).toBeInstanceOf(ThymianBaseError);
+        expect((error as ThymianBaseError).options.name).toBe(
+          'OpenAPIFileNotFoundError',
+        );
+        expect((error as ThymianBaseError).options.ref).toBe(
+          'https://thymian.dev/references/errors/openapi-file-not-found-error/',
+        );
+        expect(String(error)).toContain('nonexistent-file.yaml');
+      }
+    });
+
+    it('throws OpenAPIValidationError when validation fails', async () => {
+      const invalidDocument = {
+        swagger: '2.0',
+        info: {
+          // Missing required 'title' field
+          version: '1.0.0',
+        },
+        paths: {},
+      };
+
+      try {
+        await loadAndUpgrade(
+          JSON.stringify(invalidDocument),
+          process.cwd(),
+          new NoopLogger(),
+        );
+        expect.fail('Error should have been thrown');
+      } catch (error) {
+        expect(error).toBeInstanceOf(ThymianBaseError);
+        expect((error as ThymianBaseError).options.name).toBe(
+          'OpenAPIValidationError',
+        );
+        expect((error as ThymianBaseError).options.ref).toBe(
+          'https://thymian.dev/references/errors/openapi-validation-error/',
+        );
+        expect(String(error)).toContain('validation');
+      }
     });
   });
 

@@ -20,7 +20,7 @@ export default class Info extends BaseCliRunCommand<typeof Info> {
   ];
 
   override async run(): Promise<void> {
-    const [document] = await loadOpenApi(this.args.content, this.flags.cwd);
+    const { document } = await loadOpenApi(this.args.content, this.flags.cwd);
 
     const { valid, version, specification } = await validate(document);
 
