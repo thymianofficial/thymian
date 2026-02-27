@@ -61,7 +61,7 @@ export async function loadOpenApi(
         plugins,
         treeShake: false,
       }),
-      filePath: finalValue,
+      filePath: isFileValue ? finalValue : undefined,
     };
   } catch (e) {
     const suggestions = ['Ensure the content is valid YAML or JSON'];
@@ -69,7 +69,7 @@ export async function loadOpenApi(
     if (isFileValue) {
       suggestions.push(
         ...[
-          `Verify the file path is correct: ${relativePath}`,
+          `Verify the file path is correct: ${relativePath ?? ''}`,
           'Check file permissions and ensure the file is readable',
         ],
       );
@@ -116,11 +116,11 @@ export async function loadAndUpgrade(
     );
   }
 
-  logger.debug(`Successfully validated OpenAPI file '${relativePath}'.`);
+  logger.debug(`Successfully validated OpenAPI file '${relativePath ?? ''}'.`);
 
   const upgradedObject = upgrade(structuredClone(document), '3.1');
 
-  logger.debug(`Upgraded OpenAPI file '${relativePath}' to version 3.1.`);
+  logger.debug(`Upgraded OpenAPI file '${relativePath ?? ''}' to version 3.1.`);
 
   const dereferencedResult = dereference(upgradedObject, {
     throwOnError: false,
@@ -132,6 +132,7 @@ export async function loadAndUpgrade(
       `Error in OpenAPI file '${relativePath}': Dereferencing all internal references failed.`,
       {
         name: 'OpenAPIDereferenceError',
+        ref: 'https://thymian.dev/references/errors/openapi-dereference-error/',
         cause: new Error(
           dereferencedResult?.errors?.map((e) => e.message).join('; ') ?? '',
         ),
@@ -160,17 +161,12 @@ export async function openapiToThymianFormat(
     sourceName?: string;
   },
 ): Promise<ThymianFormat> {
-  const cwd = process.cwd();
-  const relativePath = options.filePath
-    ? getRelativePath(options.filePath, cwd)
-    : 'unknown file';
-
   if (
     typeof document.openapi !== 'string' ||
     !document.openapi.startsWith('3.1')
   ) {
     throw new ThymianBaseError(
-      `Error in OpenAPI file ${relativePath ?? ''}: Only OpenAPI 3.1.x documents are supported.`,
+      `Error in OpenAPI file ${options.filePath ?? ''}: Only OpenAPI 3.1.x documents are supported.`,
       {
         name: 'OpenAPIDocumentVersionError',
       },
