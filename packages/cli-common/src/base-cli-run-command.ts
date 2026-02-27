@@ -49,7 +49,7 @@ export abstract class BaseCliRunCommand<
       aliases: ['c'],
       charAliases: ['c'],
       description: 'Path to thymian configuration file.',
-      default: 'thymian.config.yaml',
+      default: 'thymian.config.json',
       helpGroup: 'BASE',
     }),
     autoload: Flags.boolean({

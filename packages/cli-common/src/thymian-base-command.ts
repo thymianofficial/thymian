@@ -1,5 +1,7 @@
-import { Command, Flags, Interfaces } from '@oclif/core';
+import { Command, Flags, Interfaces, settings } from '@oclif/core';
+import { CLIError } from '@oclif/core/errors';
 import type { CommandError } from '@oclif/core/interfaces';
+import { ThymianBaseError } from '@thymian/core';
 
 import { ErrorCache } from './error-cache.js';
 import { Feedback } from './feedback.js';
@@ -68,7 +70,36 @@ export abstract class ThymianBaseCommand<
       },
       pluginVersions,
     });
+
+    if (err instanceof ThymianBaseError) {
+      const cliError = new CLIError(err.message, {
+        suggestions: err.options.suggestions,
+        exit: err.options.exitCode,
+        code: err.options.code,
+      });
+
+      cliError.name = err.name;
+      Object.defineProperty(cliError, 'ref', { value: err.options.ref });
+
+      if (settings.debug) {
+        this.printStackTraces(err);
+      }
+
+      return super.catch(cliError);
+    }
+
     return super.catch(err);
+  }
+
+  protected printStackTraces(err: unknown): void {
+    if (err instanceof Error) {
+      if (this.jsonEnabled() && err.cause) {
+        this.logJson(this.toErrorJson(err.cause));
+      } else if (err.cause) {
+        console.log(err.cause);
+      }
+      this.printStackTraces(err.cause);
+    }
   }
 
   public shouldSuppressFeedback(): boolean {
