@@ -62,6 +62,8 @@ export default class Init extends ThymianBaseCommand<typeof Init> {
       !shouldBeYamlFormat
     ) {
       parsedPath.ext = '.json';
+    } else if (parsedPath.ext === '') {
+      parsedPath.ext = shouldBeYamlFormat ? '.yaml' : '.json';
     }
 
     const finalConfigFilePath = format({
@@ -74,7 +76,7 @@ export default class Init extends ThymianBaseCommand<typeof Init> {
     if (existsSync(finalConfigFilePath) && !this.flags.force) {
       // Pre-flight check: verify config file doesn't already exist
       throw new ThymianBaseError(
-        `Configuration file "${configFilePath}" already exists.`,
+        `Configuration file "${finalConfigFilePath}" already exists.`,
         {
           suggestions: [
             '`thymian init --force` to overwrite current configuration',
@@ -122,12 +124,15 @@ export default class Init extends ThymianBaseCommand<typeof Init> {
       });
     } catch (e) {
       this.debug('Error writing configuration file: ' + e);
-      this.error(`Failed to write configuration file to "${configFilePath}".`, {
-        exit: 1,
-      });
+      this.error(
+        `Failed to write configuration file to "${finalConfigFilePath}".`,
+        {
+          exit: 1,
+        },
+      );
     }
 
-    this.log(`${ux.colorize('green', 'CREATED')} ${configFilePath}`);
+    this.log(`${ux.colorize('green', 'CREATED')} ${finalConfigFilePath}`);
     this.log();
     this.log(`Initialized Thymian.`);
   }

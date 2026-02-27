@@ -3,7 +3,7 @@ import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
-import { captureOutput, runCommand } from '@oclif/test';
+import { runCommand } from '@oclif/test';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
 process.env.OCLIF_TEST_ROOT = join(import.meta.url, '../../..');
@@ -81,17 +81,29 @@ describe('init command', () => {
   });
 
   it('should create yaml config file when --yaml-format flag is used', async () => {
-    const r = await runCommand(`init --cwd ${testDir} --yaml-format --yes`);
+    await runCommand(`init --cwd ${testDir} --yaml-format --yes`);
 
     expect(existsSync(join(testDir, 'thymian.config.yaml'))).toBe(true);
   });
 
+  it('should append .json extension when --config-file is given without an extension', async () => {
+    await runCommand(`init --cwd ${testDir} --config-file custom-config --yes`);
+
+    expect(existsSync(join(testDir, 'custom-config.json'))).toBe(true);
+  });
+
+  it('should append .yaml extension when --config-file without extension is combined with --yaml-format', async () => {
+    await runCommand(
+      `init --cwd ${testDir} --config-file custom-config --yaml-format --yes`,
+    );
+
+    expect(existsSync(join(testDir, 'custom-config.yaml'))).toBe(true);
+  });
+
   it('should create yaml config file with custom name when both --yaml-format and --config-file are used', async () => {
-    const result = await captureOutput(async () => {
-      await runCommand(
-        `init --cwd ${testDir} --config-file my-thymian.yaml --yaml-format --yes`,
-      );
-    });
+    await runCommand(
+      `init --cwd ${testDir} --config-file my-thymian.yaml --yaml-format --yes`,
+    );
 
     expect(existsSync(join(testDir, 'my-thymian.yaml'))).toBe(true);
   });

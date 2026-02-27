@@ -5,6 +5,7 @@ import { ThymianBaseError } from '@thymian/core';
 
 import { ErrorCache } from './error-cache.js';
 import { Feedback } from './feedback.js';
+import { printStackTraces } from './print-stack-traces.js';
 
 type Flags<T extends typeof Command> = Interfaces.InferredFlags<
   (typeof ThymianBaseCommand)['baseFlags'] & T['flags']
@@ -82,24 +83,15 @@ export abstract class ThymianBaseCommand<
       Object.defineProperty(cliError, 'ref', { value: err.options.ref });
 
       if (settings.debug) {
-        this.printStackTraces(err);
+        printStackTraces(err, this.jsonEnabled(), (data) =>
+          this.logJson(this.toErrorJson(data as Error)),
+        );
       }
 
       return super.catch(cliError);
     }
 
     return super.catch(err);
-  }
-
-  protected printStackTraces(err: unknown): void {
-    if (err instanceof Error) {
-      if (this.jsonEnabled() && err.cause) {
-        this.logJson(this.toErrorJson(err.cause));
-      } else if (err.cause) {
-        console.log(err.cause);
-      }
-      this.printStackTraces(err.cause);
-    }
   }
 
   public shouldSuppressFeedback(): boolean {
