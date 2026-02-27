@@ -132,7 +132,6 @@ export async function loadAndUpgrade(
       `Error in OpenAPI file '${relativePath}': Dereferencing all internal references failed.`,
       {
         name: 'OpenAPIDereferenceError',
-        ref: 'https://thymian.dev/references/errors/openapi-dereference-error/',
         cause: new Error(
           dereferencedResult?.errors?.map((e) => e.message).join('; ') ?? '',
         ),
