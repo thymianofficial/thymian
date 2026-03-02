@@ -2,7 +2,7 @@ import { httpRule } from '@thymian/http-linter';
 
 export default httpRule('rfc9110/client-should-send-highest-conformant-version')
   .severity('warn')
-  .type('analytics', 'informational')
+  .type('informational')
   .appliesTo('client')
   .url('https://www.rfc-editor.org/rfc/rfc9110.html#section-6.2')
   .description(
