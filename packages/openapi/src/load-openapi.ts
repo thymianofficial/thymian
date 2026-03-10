@@ -32,7 +32,7 @@ export type LoadResult = {
 export async function loadOpenApi(
   value: string,
   cwd: string = process.cwd(),
-): Promise<[object, string]> {
+): Promise<[object, string | undefined]> {
   const readFilesPlugin = readFiles();
   // the validate function of the readFiles plugin returns undefined if the value is not a local file
   const isFileValue = readFilesPlugin.validate(value);
@@ -48,7 +48,7 @@ export async function loadOpenApi(
       plugins,
       treeShake: false,
     }),
-    finalValue,
+    isFileValue ? finalValue : undefined,
   ];
 }
 
@@ -79,7 +79,7 @@ export async function loadAndUpgrade(
     return {
       document: dereferenced,
       original: result as OpenAPI.Document,
-      filePath: filePath ? filePath : undefined,
+      filePath: filePath,
     };
   } catch (e) {
     throw new ThymianBaseError(`Error while loading OpenAPI document.`, {
@@ -111,7 +111,6 @@ export async function openapiToThymianFormat(
   ) {
     throw new ThymianBaseError('Only OpenAPI 3.1.x documents are supported.');
   }
-
   const locMapper =
     typeof options.filePath === 'string'
       ? await locMapperForFile(options.filePath)

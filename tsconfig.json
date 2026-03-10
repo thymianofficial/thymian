@@ -50,6 +50,9 @@
     },
     {
       "path": "./astro-docs"
+    },
+    {
+      "path": "./e2e-tests"
     }
   ]
 }
