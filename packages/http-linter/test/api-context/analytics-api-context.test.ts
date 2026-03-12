@@ -499,6 +499,246 @@ describe('AnalyticsApiContext', () => {
 
       expect(result).toHaveLength(2);
     });
+
+    it('should apply intermediate role correctly', async () => {
+      insertTransaction({
+        request: {
+          data: {
+            method: 'get',
+            origin: 'https://api.example.com',
+            path: '/users',
+            headers: {},
+          },
+          meta: {
+            role: 'user-agent',
+          },
+        },
+        response: {
+          data: {
+            statusCode: 200,
+            headers: {},
+            trailers: {},
+            duration: 100,
+          },
+          meta: {
+            role: 'proxy',
+          },
+        },
+      });
+      insertTransaction({
+        request: {
+          data: {
+            method: 'post',
+            origin: 'https://api.example.de',
+            path: '/users',
+            headers: {},
+          },
+          meta: {
+            role: 'user-agent',
+          },
+        },
+        response: {
+          data: {
+            statusCode: 201,
+            headers: {},
+            trailers: {},
+            duration: 150,
+          },
+          meta: {
+            role: 'origin server',
+          },
+        },
+      });
+
+      const format = createThymianFormat();
+      const context = new AnalyticsApiContext(
+        repository,
+        new NoopLogger(),
+        format,
+        () => undefined,
+        ['intermediary'],
+      );
+
+      const result = await context.validateCommonHttpTransactions(
+        path('/users'),
+      );
+
+      expect(result).toHaveLength(1);
+      expect(result).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            location: expect.stringMatching('https://api.example.com/users'),
+          }),
+        ]),
+      );
+    });
+  });
+
+  describe('validateCapturedHttpTransactions', () => {
+    it('should validate captured transactions with filter', () => {
+      insertTransaction({
+        request: {
+          data: {
+            method: 'post',
+            origin: 'https://api.example.com',
+            path: '/users',
+            headers: {},
+          },
+          meta: {},
+        },
+        response: {
+          data: {
+            statusCode: 201,
+            headers: {},
+            trailers: {},
+            duration: 100,
+          },
+          meta: {},
+        },
+      });
+
+      insertTransaction({
+        request: {
+          data: {
+            method: 'get',
+            origin: 'https://api.example.com',
+            path: '/products',
+            headers: {},
+          },
+          meta: {},
+        },
+        response: {
+          data: {
+            statusCode: 200,
+            headers: {},
+            trailers: {},
+            duration: 50,
+          },
+          meta: {},
+        },
+      });
+
+      const format = createThymianFormat();
+      const context = new AnalyticsApiContext(
+        repository,
+        new NoopLogger(),
+        format,
+      );
+
+      const result = context.validateCapturedHttpTransactions(
+        path('/users'),
+        (transaction, location) => {
+          if (transaction.request.data.method === 'post') {
+            return { message: 'POST method found', severity: 'error' };
+          }
+          return false;
+        },
+      );
+
+      expect(result).toHaveLength(1);
+      expect(result).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            message: 'POST method found',
+            severity: 'error',
+            location: expect.stringContaining('/users'),
+          }),
+        ]),
+      );
+    });
+
+    it('should return true for boolean validation result', () => {
+      insertTransaction();
+
+      const format = createThymianFormat();
+      const context = new AnalyticsApiContext(
+        repository,
+        new NoopLogger(),
+        format,
+      );
+
+      const result = context.validateCapturedHttpTransactions(
+        path('/users'),
+        () => true,
+      );
+
+      expect(result).toHaveLength(1);
+      expect(result).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            location: expect.stringContaining(''),
+          }),
+        ]),
+      );
+    });
+
+    it('should filter by role when provided', () => {
+      insertTransaction({
+        request: {
+          data: {
+            method: 'get',
+            origin: 'https://api.example.com',
+            path: '/users',
+            headers: {},
+          },
+          meta: {
+            role: 'proxy',
+          },
+        },
+        response: {
+          data: {
+            statusCode: 200,
+            headers: {},
+            trailers: {},
+            duration: 100,
+          },
+          meta: {
+            role: 'proxy',
+          },
+        },
+      });
+
+      insertTransaction({
+        request: {
+          data: {
+            method: 'get',
+            origin: 'https://api.example.com',
+            path: '/users',
+            headers: {},
+          },
+          meta: {
+            role: 'user-agent',
+          },
+        },
+        response: {
+          data: {
+            statusCode: 200,
+            headers: {},
+            trailers: {},
+            duration: 100,
+          },
+          meta: {
+            role: 'origin server',
+          },
+        },
+      });
+
+      const format = createThymianFormat();
+      const context = new AnalyticsApiContext(
+        repository,
+        new NoopLogger(),
+        format,
+        () => undefined,
+        ['intermediary'],
+      );
+
+      const result = context.validateCapturedHttpTransactions(
+        path('/users'),
+        () => true,
+      );
+
+      expect(result).toHaveLength(1);
+    });
   });
 
   describe('validateGroupedCommonHttpTransactions', () => {
@@ -987,6 +1227,195 @@ describe('AnalyticsApiContext', () => {
       );
 
       expect(result).toHaveLength(1);
+    });
+  });
+
+  describe('validateCapturedHttpTraces', () => {
+    it('should validate traces with single transaction', () => {
+      insertTransaction({
+        request: {
+          data: {
+            method: 'get',
+            origin: 'https://api.example.com',
+            path: '/users',
+            headers: {},
+          },
+          meta: {},
+        },
+        response: {
+          data: {
+            statusCode: 200,
+            headers: {},
+            trailers: {},
+            duration: 100,
+          },
+          meta: {},
+        },
+      });
+
+      const format = createThymianFormat();
+      const context = new AnalyticsApiContext(
+        repository,
+        new NoopLogger(),
+        format,
+      );
+
+      const result = context.validateCapturedHttpTraces((trace) => {
+        if (trace.length === 1) {
+          return { message: 'Single transaction trace' };
+        }
+        return false;
+      });
+
+      expect(result).toHaveLength(1);
+      expect(result).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            message: 'Single transaction trace',
+          }),
+        ]),
+      );
+    });
+
+    it('should validate traces with multiple transactions', () => {
+      repository.insertHttpTrace([
+        {
+          request: {
+            data: {
+              method: 'get',
+              origin: 'https://proxy.example.com',
+              path: '/users',
+              headers: {},
+            },
+            meta: { role: 'proxy' },
+          },
+          response: {
+            data: {
+              statusCode: 200,
+              headers: {},
+              trailers: {},
+              duration: 100,
+            },
+            meta: { role: 'proxy' },
+          },
+        },
+        {
+          request: {
+            data: {
+              method: 'get',
+              origin: 'https://api.example.com',
+              path: '/users',
+              headers: {},
+            },
+            meta: { role: 'origin server' },
+          },
+          response: {
+            data: {
+              statusCode: 200,
+              headers: {},
+              trailers: {},
+              duration: 50,
+            },
+            meta: { role: 'origin server' },
+          },
+        },
+      ]);
+
+      repository.insertHttpTrace([
+        {
+          request: {
+            data: {
+              method: 'get',
+              origin: 'https://cache.example.com',
+              path: '/users',
+              headers: {},
+            },
+            meta: { role: 'cache' },
+          },
+          response: {
+            data: {
+              statusCode: 200,
+              headers: {},
+              trailers: {},
+              duration: 100,
+            },
+            meta: { role: 'cache' },
+          },
+        },
+        {
+          request: {
+            data: {
+              method: 'get',
+              origin: 'https://cache.example.com',
+              path: '/users',
+              headers: {},
+            },
+            meta: { role: 'origin server' },
+          },
+          response: {
+            data: {
+              statusCode: 200,
+              headers: {},
+              trailers: {},
+              duration: 50,
+            },
+            meta: { role: 'origin server' },
+          },
+        },
+      ]);
+
+      repository.insertHttpTrace([
+        {
+          request: {
+            data: {
+              method: 'get',
+              origin: 'https://api.example.com',
+              path: '/users',
+              headers: {},
+            },
+            meta: { role: 'origin server' },
+          },
+          response: {
+            data: {
+              statusCode: 200,
+              headers: {},
+              trailers: {},
+              duration: 50,
+            },
+            meta: { role: 'origin server' },
+          },
+        },
+      ]);
+
+      const format = createThymianFormat();
+      const context = new AnalyticsApiContext(
+        repository,
+        new NoopLogger(),
+        format,
+      );
+
+      const result = context.validateCapturedHttpTraces((trace) => {
+        const [first, last] = trace;
+
+        if (!first || !last) {
+          return false;
+        }
+
+        return (
+          first.request.meta.role === 'proxy' &&
+          last.response.meta.role === 'origin server' &&
+          first.request.data.method === 'get'
+        );
+      });
+
+      expect(result).toHaveLength(1);
+      expect(result).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            location: expect.stringContaining('https://proxy.example.com'),
+          }),
+        ]),
+      );
     });
   });
 });

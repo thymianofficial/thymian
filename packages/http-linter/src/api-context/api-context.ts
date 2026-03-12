@@ -24,6 +24,7 @@ export type ValidationFn<
 
 export abstract class ApiContext {
   readonly format: ThymianFormat;
+  protected readonly violations: RuleViolation[] = [];
 
   constructor(
     format: ThymianFormat,
@@ -43,6 +44,10 @@ export abstract class ApiContext {
           ),
       );
     }
+  }
+
+  reportViolation(violation: RuleViolation): void {
+    this.violations.push(violation);
   }
 
   abstract validateCommonHttpTransactions(

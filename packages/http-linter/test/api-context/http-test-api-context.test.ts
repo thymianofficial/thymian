@@ -471,4 +471,86 @@ describe('HttpTestApiContext', () => {
       expect(result).toHaveLength(0);
     });
   });
+
+  describe('reportViolation', () => {
+    it('should accumulate violations and include them in validation results', async () => {
+      const format = createThymianFormatWithTransaction(
+        createHttpRequest({ method: 'get', path: '/users' }),
+        createHttpResponse({ statusCode: 200, headers: {} }),
+      );
+
+      const mockContext = createMockHttpTestContext({ format });
+      vi.mocked(mockContext.runRequest).mockResolvedValue({
+        statusCode: 200,
+        headers: {},
+        duration: 0,
+        trailers: {},
+      });
+
+      const context = new HttpTestApiContext('test-rule', mockContext, vi.fn());
+
+      // Report some violations
+      context.reportViolation({
+        location: 'manual-location-1',
+        message: 'Manual violation 1',
+      });
+      context.reportViolation({
+        location: 'manual-location-2',
+        message: 'Manual violation 2',
+      });
+
+      // Run validation that also returns a violation
+      const result = await context.validateHttpTransactions(
+        method('get'),
+        () => ({ message: 'Validation violation', severity: 'error' }),
+      );
+
+      expect(result).toHaveLength(3);
+      expect(result).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            location: 'manual-location-1',
+            message: 'Manual violation 1',
+          }),
+          expect.objectContaining({
+            location: 'manual-location-2',
+            message: 'Manual violation 2',
+          }),
+          expect.objectContaining({
+            message: 'Validation violation',
+          }),
+        ]),
+      );
+    });
+
+    it('should include reported violations in validateCommonHttpTransactions', async () => {
+      const format = createThymianFormatWithTransaction(
+        createHttpRequest({ method: 'post', path: '/users' }),
+        createHttpResponse({ statusCode: 201, headers: {} }),
+      );
+
+      const mockContext = createMockHttpTestContext({ format });
+      const context = new HttpTestApiContext('test-rule', mockContext, vi.fn());
+
+      context.reportViolation({
+        location: 'reported-violation',
+        message: 'Custom reported violation',
+      });
+
+      const result = await context.validateCommonHttpTransactions(
+        method('post'),
+        () => false,
+      );
+
+      expect(result).toHaveLength(1);
+      expect(result).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            location: 'reported-violation',
+            message: 'Custom reported violation',
+          }),
+        ]),
+      );
+    });
+  });
 });

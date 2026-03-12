@@ -50,7 +50,6 @@ function hasSource(
 export class HttpTestApiContext<
   Locals extends HttpTestContextLocals = HttpTestContextLocals,
 > extends LiveApiContext {
-  private readonly violations: RuleViolation[] = [];
   private readonly ctx: HttpTestContext<Locals>;
 
   constructor(
@@ -64,10 +63,6 @@ export class HttpTestApiContext<
       ...ctx,
       format: this.format,
     };
-  }
-
-  reportViolation(violation: RuleViolation): void {
-    this.violations.push(violation);
   }
 
   async validateGroupedCommonHttpTransactions(

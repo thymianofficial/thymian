@@ -1299,4 +1299,144 @@ describe('HttpTransactionRepository', () => {
       expect(retrieved2).toHaveLength(1);
     });
   });
+
+  describe('readAllHttpTraces', () => {
+    it('should return empty iterator when no traces exist', () => {
+      const traces = Array.from(repo.readAllHttpTraces());
+      expect(traces).toHaveLength(0);
+    });
+
+    it('should return all traces from the database', async () => {
+      const trace1: CapturedTrace = [
+        {
+          request: {
+            data: {
+              method: 'GET',
+              origin: 'https://api.example.com',
+              path: '/users',
+            },
+            meta: { role: 'user-agent' },
+          },
+          response: {
+            data: {
+              statusCode: 200,
+              headers: {},
+              trailers: {},
+              duration: 100,
+            },
+            meta: { role: 'origin server' },
+          },
+        },
+      ];
+
+      const trace2: CapturedTrace = [
+        {
+          request: {
+            data: {
+              method: 'POST',
+              origin: 'https://api.example.com',
+              path: '/users',
+            },
+            meta: { role: 'user-agent' },
+          },
+          response: {
+            data: {
+              statusCode: 201,
+              headers: {},
+              trailers: {},
+              duration: 150,
+            },
+            meta: { role: 'origin server' },
+          },
+        },
+      ];
+
+      const trace3: CapturedTrace = [
+        {
+          request: {
+            data: {
+              method: 'GET',
+              origin: 'https://proxy.example.com',
+              path: '/api',
+            },
+            meta: { role: 'proxy' },
+          },
+          response: {
+            data: {
+              statusCode: 200,
+              headers: {},
+              trailers: {},
+              duration: 50,
+            },
+            meta: { role: 'proxy' },
+          },
+        },
+        {
+          request: {
+            data: {
+              method: 'GET',
+              origin: 'https://api.example.com',
+              path: '/api',
+            },
+            meta: { role: 'origin server' },
+          },
+          response: {
+            data: {
+              statusCode: 200,
+              headers: {},
+              trailers: {},
+              duration: 50,
+            },
+            meta: { role: 'origin server' },
+          },
+        },
+      ];
+
+      await repo.insertHttpTrace(trace1);
+      await repo.insertHttpTrace(trace2);
+      await repo.insertHttpTrace(trace3);
+
+      const allTraces = Array.from(repo.readAllHttpTraces());
+
+      expect(allTraces).toHaveLength(3);
+      expect(allTraces[0]).toHaveLength(1);
+      expect(allTraces[1]).toHaveLength(1);
+      expect(allTraces[2]).toHaveLength(2);
+    });
+
+    it('should correctly iterate through traces with iterator protocol', async () => {
+      const trace: CapturedTrace = [
+        {
+          request: {
+            data: {
+              method: 'DELETE',
+              origin: 'https://api.example.com',
+              path: '/users/123',
+            },
+            meta: { role: 'user-agent' },
+          },
+          response: {
+            data: {
+              statusCode: 204,
+              headers: {},
+              trailers: {},
+              duration: 75,
+            },
+            meta: { role: 'origin server' },
+          },
+        },
+      ];
+
+      await repo.insertHttpTrace(trace);
+
+      const iterator = repo.readAllHttpTraces();
+      const firstTrace = iterator.next();
+
+      expect(firstTrace.done).toBe(false);
+      expect(firstTrace.value).toHaveLength(1);
+
+      const secondTrace = iterator.next();
+      expect(secondTrace.done).toBe(true);
+    });
+  });
 });

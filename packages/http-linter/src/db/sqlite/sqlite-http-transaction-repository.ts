@@ -300,6 +300,23 @@ export class SqliteHttpTransactionRepository implements HttpTransactionRepositor
     return trace.length > 0 ? trace : undefined;
   }
 
+  // this could be implemented more efficiently by using a single query that joins the http_trace table with the http_transaction table
+  // but this would require a lot of refactoring of the code that reads traces and transactions
+  // so for now we just iterate over all traces and read all transactions for each trace
+  *readAllHttpTraces(): IterableIterator<CapturedTrace, void, unknown> {
+    const traceStmt = this.db.prepare(`
+      SELECT id FROM http_trace
+    `);
+    const traceRows = traceStmt.all() as Array<{ id: number }>;
+
+    for (const traceRow of traceRows) {
+      const trace = this.readTraceById(traceRow.id);
+      if (trace) {
+        yield trace;
+      }
+    }
+  }
+
   insertHttpTransaction(transaction: CapturedTransaction): number {
     const insertTransaction = this.db.transaction(() => {
       // Create a trace for this single transaction
