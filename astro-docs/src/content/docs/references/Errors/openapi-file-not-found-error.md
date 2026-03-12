@@ -33,5 +33,5 @@ pwd
 If you're having issues with relative paths, try using an absolute path:
 
 ```bash
-thymian validate /absolute/path/to/openapi.yaml
+thymian openapi:validate /absolute/path/to/openapi.yaml
 ```
