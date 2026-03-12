@@ -39,7 +39,7 @@ export default async function setup(project: TestProject) {
 
   console.log('Publishing e2e test Thymian version');
   let output = execSync(
-    `npm run local-publish -- --version ${thymianVersion}`,
+    `npm run local-publish -- --dist-tag latest --version ${thymianVersion}`,
     {
       cwd: rootDir,
     },
