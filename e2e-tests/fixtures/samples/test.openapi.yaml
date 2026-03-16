@@ -1,0 +1,34 @@
+openapi: 3.1.0
+info:
+  title: 'Test API'
+  description: 'Test API'
+  version: '1.0.0'
+servers:
+  - url: http://localhost:3000
+paths:
+  /api/hello:
+    get:
+      summary: 'GET api/hello'
+      operationId: 'hello'
+      parameters:
+        - name: 'name'
+          in: 'query'
+          required: true
+          schema:
+            type: 'string'
+      responses:
+        '200':
+          description: 'OK'
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/Data'
+components:
+  schemas:
+    Data:
+      type: 'object'
+      properties:
+        content:
+          type: 'string'
+      required:
+        - 'content'

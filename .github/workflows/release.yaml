@@ -42,7 +42,7 @@ jobs:
         run: npm ci
 
       - name: Publish canary release
-        run: node ./scripts/release.ts --version canary --no-dry-run --no-local
+        run: node ./scripts/release.ts --dist-tag canary --no-dry-run --no-local
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
@@ -90,6 +90,6 @@ jobs:
           echo "Extracted version: $VERSION"
 
       - name: Publish to npm
-        run: node ./scripts/release.ts --version ${{ steps.extract-version.outputs.version }} --no-dry-run --no-local
+        run: node ./scripts/release.ts --dist-tag latest --version ${{ steps.extract-version.outputs.version }} --no-dry-run --no-local
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}

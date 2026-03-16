@@ -1,0 +1,13 @@
+plugins:
+  '@thymian/http-linter':
+    options:
+      ruleSets:
+        - '@thymian/rfc-9110-rules'
+  '@thymian/openapi':
+    options:
+      descriptions:
+        - source: test.openapi.yaml
+  '@thymian/reporter':
+    options:
+      formatters:
+        cli: {}

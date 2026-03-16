@@ -1,4 +1,4 @@
-import type { HttpRequest, HttpResponse } from '@thymian/core';
+import { type HttpRequest, type HttpResponse } from '@thymian/core';
 
 import type { HttpParticipantRole } from './rule/rule-meta.js';
 

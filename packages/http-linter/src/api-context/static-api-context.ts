@@ -86,7 +86,8 @@ export class StaticApiContext extends ApiContext {
         }
 
         return violations;
-      }, []);
+      }, [])
+      .concat(this.violations);
   }
 
   validateGroupedCommonHttpTransactions(
@@ -115,8 +116,8 @@ export class StaticApiContext extends ApiContext {
         {},
       );
 
-    return Object.entries(groups).reduce<RuleViolation[]>(
-      (violations, [key, group]) => {
+    return Object.entries(groups)
+      .reduce<RuleViolation[]>((violations, [key, group]) => {
         const validationResult = validationFn(
           key,
           group.map(
@@ -142,9 +143,8 @@ export class StaticApiContext extends ApiContext {
         }
 
         return violations;
-      },
-      [],
-    );
+      }, [])
+      .concat(this.violations);
   }
 
   validateHttpTransactions(
@@ -159,48 +159,50 @@ export class StaticApiContext extends ApiContext {
       responses: ThymianHttpResponse[],
     ) => PartialBy<RuleViolation, 'location'> | boolean = filterFn,
   ): RuleFnResult {
-    return this.format.graph.reduceNodes((violations, id, node) => {
-      if (!isNodeType(node, 'http-request')) {
-        return violations;
-      }
+    return this.format.graph
+      .reduceNodes((violations, id, node) => {
+        if (!isNodeType(node, 'http-request')) {
+          return violations;
+        }
 
-      const responsesWithIds = this.format.getHttpResponsesOf(id);
-      const responses = responsesWithIds.map(([, res]) => res);
+        const responsesWithIds = this.format.getHttpResponsesOf(id);
+        const responses = responsesWithIds.map(([, res]) => res);
 
-      for (const [resId, res] of responsesWithIds) {
-        if (filterFn(node, res, responses)) {
-          const result = validationFn(node, res, responses);
+        for (const [resId, res] of responsesWithIds) {
+          if (filterFn(node, res, responses)) {
+            const result = validationFn(node, res, responses);
 
-          const transactionId = this.format.graph.findEdge(
-            id,
-            resId,
-            (_, edge) => edge.type === 'http-transaction',
-          );
+            const transactionId = this.format.graph.findEdge(
+              id,
+              resId,
+              (_, edge) => edge.type === 'http-transaction',
+            );
 
-          if (!transactionId) {
-            throw new Error('Invalid HTTP transaction ID.');
-          }
+            if (!transactionId) {
+              throw new Error('Invalid HTTP transaction ID.');
+            }
 
-          if (typeof result === 'boolean' && result) {
-            violations.push({
-              location: {
-                elementType: 'edge',
-                elementId: transactionId,
-              },
-            });
-          } else if (result) {
-            violations.push({
-              location: {
-                elementType: 'edge',
-                elementId: transactionId,
-              },
-              ...result,
-            });
+            if (typeof result === 'boolean' && result) {
+              violations.push({
+                location: {
+                  elementType: 'edge',
+                  elementId: transactionId,
+                },
+              });
+            } else if (result) {
+              violations.push({
+                location: {
+                  elementType: 'edge',
+                  elementId: transactionId,
+                },
+                ...result,
+              });
+            }
           }
         }
-      }
 
-      return violations;
-    }, [] as RuleViolation[]);
+        return violations;
+      }, [] as RuleViolation[])
+      .concat(this.violations);
   }
 }

@@ -172,7 +172,6 @@ export async function openapiToThymianFormat(
       },
     );
   }
-
   const locMapper =
     typeof options.filePath === 'string'
       ? await locMapperForFile(options.filePath)
