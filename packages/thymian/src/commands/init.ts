@@ -1,22 +1,28 @@
+import { existsSync } from 'node:fs';
 import { writeFile } from 'node:fs/promises';
-import { join } from 'node:path';
+import { extname, format, join, parse } from 'node:path';
 
 import {
   defaultConfig,
   ThymianBaseCommand,
   type ThymianConfig,
 } from '@thymian/cli-common';
-import { Flags } from '@thymian/cli-common/oclif';
+import { Flags, ux } from '@thymian/cli-common/oclif';
 import { stringify } from '@thymian/cli-common/yaml';
-import { type Logger, TextLogger } from '@thymian/core';
+import { type Logger, TextLogger, ThymianBaseError } from '@thymian/core';
 
 export default class Init extends ThymianBaseCommand<typeof Init> {
   static override description = 'Initialize Thymian in your project.';
-  static override examples = ['<%= config.bin %> <%= command.id %>'];
+  static override examples = [
+    '<%= config.bin %> <%= command.id %>',
+    '<%= config.bin %> <%= command.id %> --yes',
+    '<%= config.bin %> <%= command.id %> --yes --force',
+    '<%= config.bin %> <%= command.id %> --config-file custom-config.yaml',
+  ];
 
   static override flags = {
-    yaml: Flags.boolean({
-      default: true,
+    ['yaml-format']: Flags.boolean({
+      default: false,
       allowNo: true,
       description: 'Output configuration file in YAML format.',
     }),
@@ -25,7 +31,11 @@ export default class Init extends ThymianBaseCommand<typeof Init> {
       description: 'Set current working directory.',
     }),
     'config-file': Flags.string({
-      default: 'thymian.config',
+      default: 'thymian.config.json',
+    }),
+    force: Flags.boolean({
+      default: false,
+      description: 'Overwrite existing configuration file.',
     }),
     yes: Flags.boolean({
       default: false,
@@ -36,6 +46,47 @@ export default class Init extends ThymianBaseCommand<typeof Init> {
   private readonly thymianConfig: ThymianConfig = defaultConfig;
 
   public async run(): Promise<void> {
+    const configFilePath = join(this.flags.cwd, this.flags['config-file']);
+
+    const parsedPath = parse(configFilePath);
+
+    const shouldBeYamlFormat =
+      this.flags['yaml-format'] ||
+      extname(configFilePath) === '.yaml' ||
+      extname(configFilePath) === '.yml';
+
+    if (parsedPath.ext === '.json' && shouldBeYamlFormat) {
+      parsedPath.ext = '.yaml';
+    } else if (
+      (parsedPath.ext === '.yaml' || parsedPath.ext === '.yml') &&
+      !shouldBeYamlFormat
+    ) {
+      parsedPath.ext = '.json';
+    } else if (parsedPath.ext === '') {
+      parsedPath.ext = shouldBeYamlFormat ? '.yaml' : '.json';
+    }
+
+    const finalConfigFilePath = format({
+      dir: parsedPath.dir,
+      name: parsedPath.name,
+      ext: parsedPath.ext,
+      root: parsedPath.root,
+    });
+
+    if (existsSync(finalConfigFilePath) && !this.flags.force) {
+      // Pre-flight check: verify config file doesn't already exist
+      throw new ThymianBaseError(
+        `Configuration file "${finalConfigFilePath}" already exists.`,
+        {
+          suggestions: [
+            '`thymian init --force` to overwrite current configuration',
+            '`thymian init --config-file <path>` to specify a different file path',
+          ],
+          name: 'ThymianConfigAlreadyExists',
+        },
+      );
+    }
+
     const hookResults = await this.config.runHook('thymian-plugin.init', {
       cwd: this.flags.cwd,
       interactive: !this.flags.yes,
@@ -62,31 +113,28 @@ export default class Init extends ThymianBaseCommand<typeof Init> {
       }
     }
 
-    const configFilePath = join(
-      this.flags.cwd,
-      `${this.flags['config-file']}${this.flags.yaml ? '.yaml' : '.json'}`,
-    );
+    for (const pluginName of Object.keys(this.thymianConfig.plugins)) {
+      this.log(`${ux.colorize('cyan', 'ADDED')} plugin ${pluginName}`);
+    }
 
     try {
-      await writeFile(configFilePath, this.getConfig(this.flags.yaml), {
+      await writeFile(finalConfigFilePath, this.getConfig(shouldBeYamlFormat), {
         encoding: 'utf-8',
-        flag: 'wx',
+        flag: this.flags.force ? 'w' : 'wx',
       });
     } catch (e) {
       this.debug('Error writing configuration file: ' + e);
       this.error(
-        `Configuration file "${configFilePath}" already exists. Please remove it before initializing Thymian.`,
-        { exit: 1 },
+        `Failed to write configuration file to "${finalConfigFilePath}".`,
+        {
+          exit: 1,
+        },
       );
     }
 
-    this.debug('Created configuration file at: ' + configFilePath);
-
+    this.log(`${ux.colorize('green', 'CREATED')} ${finalConfigFilePath}`);
+    this.log();
     this.log(`Initialized Thymian.`);
-  }
-
-  private printConfig(yaml: boolean): void {
-    this.log(this.getConfig(yaml));
   }
 
   private getConfig(yaml: boolean): string {

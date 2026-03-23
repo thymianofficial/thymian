@@ -1,8 +1,11 @@
-import { Command, Flags, Interfaces } from '@oclif/core';
+import { Command, Flags, Interfaces, settings } from '@oclif/core';
+import { CLIError } from '@oclif/core/errors';
 import type { CommandError } from '@oclif/core/interfaces';
+import { ThymianBaseError } from '@thymian/core';
 
 import { ErrorCache } from './error-cache.js';
 import { Feedback } from './feedback.js';
+import { printStackTraces } from './print-stack-traces.js';
 
 type Flags<T extends typeof Command> = Interfaces.InferredFlags<
   (typeof ThymianBaseCommand)['baseFlags'] & T['flags']
@@ -68,6 +71,26 @@ export abstract class ThymianBaseCommand<
       },
       pluginVersions,
     });
+
+    if (err instanceof ThymianBaseError) {
+      const cliError = new CLIError(err.message, {
+        suggestions: err.options.suggestions,
+        exit: err.options.exitCode,
+        code: err.options.code,
+      });
+
+      cliError.name = err.name;
+      Object.defineProperty(cliError, 'ref', { value: err.options.ref });
+
+      if (settings.debug) {
+        printStackTraces(err, this.jsonEnabled(), (data) =>
+          this.logJson(this.toErrorJson(data as Error)),
+        );
+      }
+
+      return super.catch(cliError);
+    }
+
     return super.catch(err);
   }
 
