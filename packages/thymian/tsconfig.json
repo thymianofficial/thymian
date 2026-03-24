@@ -35,9 +35,6 @@
       "path": "../plugin-http-analyzer"
     },
     {
-      "path": "../api-description-validation-rules"
-    },
-    {
       "path": "../plugin-evaluation"
     },
     {

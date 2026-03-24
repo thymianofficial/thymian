@@ -21,7 +21,6 @@ export const defaultConfig: ThymianConfig = {
         },
       },
     },
-    '@thymian/api-description-validation-rules': {},
     '@thymian/http-tester-plugin': {
       options: {
         ruleSets: [

@@ -1,4 +1,3 @@
-import type {} from '@thymian/api-description-validation-rules';
 import { BaseCliRunCommand, oclif } from '@thymian/cli-common';
 import type {} from '@thymian/evaluation';
 import type {} from '@thymian/openapi';

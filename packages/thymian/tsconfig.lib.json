@@ -46,9 +46,6 @@
       "path": "../plugin-http-analyzer/tsconfig.lib.json"
     },
     {
-      "path": "../api-description-validation-rules/tsconfig.lib.json"
-    },
-    {
       "path": "../core/tsconfig.lib.json"
     },
     {
