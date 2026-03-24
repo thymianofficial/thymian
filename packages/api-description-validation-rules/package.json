@@ -22,7 +22,6 @@
   ],
   "dependencies": {
     "@thymian/core": "0.0.0-PLACEHOLDER",
-    "@thymian/http-testing": "0.0.0-PLACEHOLDER",
     "@thymian/request-dispatcher": "0.0.0-PLACEHOLDER",
     "@thymian/sampler": "0.0.0-PLACEHOLDER"
   }

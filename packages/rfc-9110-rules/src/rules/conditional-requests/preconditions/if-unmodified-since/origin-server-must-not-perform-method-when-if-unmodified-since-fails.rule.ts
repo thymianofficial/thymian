@@ -8,8 +8,7 @@ import {
   responseHeader,
   statusCodeRange,
 } from '@thymian/core';
-import { httpRule } from '@thymian/core';
-import { singleTestCase } from '@thymian/http-testing';
+import { httpRule, singleTestCase } from '@thymian/core';
 
 export default httpRule(
   'rfc9110/origin-server-must-not-perform-method-when-if-unmodified-since-fails',

@@ -5,6 +5,8 @@ import type { ThymianFormat } from '../format/thymian-format.js';
 import type { ThymianHttpTransaction } from '../format/thymian-format.js';
 import type { HttpRequest, HttpResponse } from '../http.js';
 import type { HttpFilterExpression } from '../http-filter.js';
+import type { HttpTestContextLocals } from '../http-testing/http-test/http-test-context.js';
+import type { HttpTestPipeline } from '../http-testing/http-test/http-test-pipeline.js';
 import type { PartialBy } from '../utils.js';
 import type {
   RuleFnResult,
@@ -90,7 +92,9 @@ export interface LintContext extends ApiContext {
 }
 
 export interface TestContext extends LiveApiContext {
-  httpTest(pipeline: unknown): Promise<RuleFnResult> | RuleFnResult;
+  httpTest(
+    pipeline: HttpTestPipeline<HttpTestContextLocals>,
+  ): Promise<RuleFnResult> | RuleFnResult;
 }
 
 export interface AnalyzeContext extends LiveApiContext {

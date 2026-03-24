@@ -11,7 +11,6 @@ import {
   type ThymianPlugin,
   type ThymianSchema,
 } from '@thymian/core';
-import type {} from '@thymian/http-testing';
 import type {} from '@thymian/request-dispatcher';
 
 import { generateSamplesForThymianFormat } from './generation/generate-samples-for-thymian-format.js';

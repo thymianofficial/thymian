@@ -5,7 +5,7 @@ import {
   type HttpTestContext,
   isSingleHttpTestCaseStep,
   singleTestCase,
-} from '@thymian/http-testing';
+} from '@thymian/core';
 
 export async function validate(
   context: HttpTestContext,

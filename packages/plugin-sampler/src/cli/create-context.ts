@@ -10,7 +10,7 @@ import {
 import {
   createHttpTestContext,
   createHttpTestHookRunnerFromThymianEmitter,
-} from '@thymian/http-testing';
+} from '@thymian/core';
 
 export function createContext(
   format: ThymianFormat,

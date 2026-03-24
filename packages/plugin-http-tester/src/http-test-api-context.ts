@@ -19,9 +19,7 @@ import {
 } from '@thymian/core';
 import {
   type AssertionFailure,
-  filter,
   generateRequests,
-  groupBy,
   type GroupedHttpTestCaseStep,
   httpTest,
   type HttpTestCase,
@@ -33,7 +31,8 @@ import {
   mapToGroupedTestCase,
   runRequests,
   singleTestCase,
-} from '@thymian/http-testing';
+} from '@thymian/core';
+import { filter, groupBy } from 'rxjs';
 
 import { httpFilterExpressionToFilter } from './visitors/http-filter-expression-to-filter.js';
 import { httpFilterToGroupByFn } from './visitors/http-filter-to-static-by-fn.js';

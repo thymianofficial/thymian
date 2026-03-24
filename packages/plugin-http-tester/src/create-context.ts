@@ -11,7 +11,7 @@ import {
   createHttpTestContext,
   createHttpTestHookRunnerFromThymianEmitter,
   type HttpTestContextLocals,
-} from '@thymian/http-testing';
+} from '@thymian/core';
 
 export function createContext<Locals extends HttpTestContextLocals>(
   format: ThymianFormat,

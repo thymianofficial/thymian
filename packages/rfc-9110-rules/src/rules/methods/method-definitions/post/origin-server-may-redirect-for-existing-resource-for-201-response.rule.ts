@@ -1,6 +1,5 @@
 import { and, method, not, statusCode } from '@thymian/core';
-import { httpRule } from '@thymian/core';
-import { singleTestCase } from '@thymian/http-testing';
+import { httpRule, singleTestCase } from '@thymian/core';
 
 export default httpRule(
   'rfc9110/origin-server-may-redirect-for-existing-resource-for-201-response',

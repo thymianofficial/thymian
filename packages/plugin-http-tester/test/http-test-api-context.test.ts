@@ -16,16 +16,13 @@ import {
   statusCode,
   type ThymianFormat,
 } from '@thymian/core';
+import { createHttpTestContext, type HttpTestContext } from '@thymian/core';
 import {
   createHttpRequest,
   createHttpResponse,
   createThymianFormat,
   createThymianFormatWithTransaction,
 } from '@thymian/core-testing';
-import {
-  createHttpTestContext,
-  type HttpTestContext,
-} from '@thymian/http-testing';
 import { describe, expect, it, vi } from 'vitest';
 
 import { HttpTestApiContext } from '../src/http-test-api-context.js';

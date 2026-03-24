@@ -19,9 +19,6 @@
       "path": "../plugin-request-dispatcher/tsconfig.lib.json"
     },
     {
-      "path": "../http-testing/tsconfig.lib.json"
-    },
-    {
       "path": "../core/tsconfig.lib.json"
     },
     {

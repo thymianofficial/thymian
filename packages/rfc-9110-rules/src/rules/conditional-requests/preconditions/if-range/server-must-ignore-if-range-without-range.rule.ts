@@ -6,8 +6,7 @@ import {
   requestHeader,
   statusCode,
 } from '@thymian/core';
-import { httpRule } from '@thymian/core';
-import { singleTestCase } from '@thymian/http-testing';
+import { httpRule, singleTestCase } from '@thymian/core';
 
 export default httpRule('rfc9110/server-must-ignore-if-range-without-range')
   .severity('error')

@@ -11,9 +11,6 @@
       "path": "../plugin-request-dispatcher"
     },
     {
-      "path": "../http-testing"
-    },
-    {
       "path": "../core"
     },
     {

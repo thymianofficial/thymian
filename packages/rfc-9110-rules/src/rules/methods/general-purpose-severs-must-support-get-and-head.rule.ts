@@ -1,6 +1,5 @@
 import { and, method, not, or, statusCode } from '@thymian/core';
-import { httpRule } from '@thymian/core';
-import { singleTestCase } from '@thymian/http-testing';
+import { httpRule, singleTestCase } from '@thymian/core';
 
 export default httpRule(
   'rfc9110/general-purpose-severs-must-support-get-and-head',

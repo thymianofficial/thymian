@@ -1,6 +1,7 @@
 import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 
+import type { HttpTestCaseResult, HttpTestHooks } from '@thymian/core';
 import {
   type HttpRequest,
   type HttpResponse,
@@ -9,7 +10,6 @@ import {
   type ThymianFormat,
   thymianHttpTransactionToString,
 } from '@thymian/core';
-import type { HttpTestCaseResult, HttpTestHooks } from '@thymian/http-testing';
 
 import { readSamplesFromDir } from '../samples-structure/read-samples-from-dir.js';
 import type {

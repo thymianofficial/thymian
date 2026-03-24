@@ -8,10 +8,7 @@ import {
   type Logger,
   type ThymianFormat,
 } from '@thymian/core';
-import {
-  type HttpTestCaseResult,
-  serializeRequest,
-} from '@thymian/http-testing';
+import { type HttpTestCaseResult, serializeRequest } from '@thymian/core';
 
 import { FailError, SkipError } from './hook-errors.js';
 import type { HookRunner } from './hook-runner.js';

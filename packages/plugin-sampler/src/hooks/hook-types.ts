@@ -1,4 +1,4 @@
-import type { HttpTestHooks } from '@thymian/http-testing';
+import type { HttpTestHooks } from '@thymian/core';
 
 import type { Endpoints, HookUtils } from './hook-utils.js';
 

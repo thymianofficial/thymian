@@ -13,9 +13,6 @@
       "path": "./packages/plugin-openapi"
     },
     {
-      "path": "./packages/http-testing"
-    },
-    {
       "path": "./packages/plugin-sampler"
     },
     {

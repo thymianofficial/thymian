@@ -1,27 +1,7 @@
-import {
-  type CoreRequestDispatchInput,
-  type HttpRequest,
-  type HttpResponse,
-  type JSONSchemaType,
-  ThymianBaseError,
-  type ThymianPlugin,
-} from '@thymian/core';
+import { ThymianBaseError, type ThymianPlugin } from '@thymian/core';
 import PQueue from 'p-queue';
 
-import {
-  dispatchHttpRequest,
-  type HttpRequestDispatchOptions,
-} from './dispatch.js';
-import { httpResponseSchema } from './types.js';
-
-declare module '@thymian/core' {
-  interface ThymianActions {
-    'core.request.dispatch': {
-      event: CoreRequestDispatchInput;
-      response: HttpResponse;
-    };
-  }
-}
+import { dispatchHttpRequest } from './dispatch.js';
 
 export interface HttpRequestError extends Error {
   code: string;
@@ -30,58 +10,6 @@ export interface HttpRequestError extends Error {
 export function isHttpRequestError(err: unknown): err is HttpRequestError {
   return err instanceof Error && 'code' in err;
 }
-
-export const httpRequestHookSchema: JSONSchemaType<{
-  options?: Partial<HttpRequestDispatchOptions>;
-  request: HttpRequest;
-}> = {
-  type: 'object',
-  nullable: false,
-  required: ['request'],
-  properties: {
-    options: {
-      type: 'object',
-      nullable: true,
-      properties: {
-        timeout: {
-          type: 'integer',
-          nullable: true,
-        },
-      },
-    },
-    request: {
-      type: 'object',
-      properties: {
-        origin: { type: 'string', nullable: false },
-        path: { type: 'string', nullable: false },
-        method: { type: 'string', nullable: false },
-        body: { type: 'string', nullable: true },
-        bodyEncoding: { type: 'string', nullable: true },
-        headers: {
-          type: 'object',
-          required: [],
-          nullable: true,
-          additionalProperties: {
-            oneOf: [
-              {
-                type: 'array',
-                items: {
-                  type: 'string',
-                },
-              },
-              {
-                type: 'string',
-              },
-            ],
-          },
-        },
-        timeout: { type: 'number', nullable: true },
-      },
-      required: ['origin', 'method', 'path'],
-      additionalProperties: false,
-    },
-  },
-};
 
 export type SamplerPluginOptions = {
   concurrency?: number;
@@ -97,12 +25,7 @@ export const dispatcherPlugin: ThymianPlugin<SamplerPluginOptions> = {
     },
   },
   actions: {
-    provides: {
-      'core.request.dispatch': {
-        event: httpRequestHookSchema,
-        response: httpResponseSchema,
-      },
-    },
+    listensOn: ['core.request.dispatch'],
   },
   events: {},
   plugin: async (emitter, logger, opts) => {

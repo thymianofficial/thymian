@@ -9,8 +9,7 @@ import {
   responseWith,
   statusCode,
 } from '@thymian/core';
-import { httpRule } from '@thymian/core';
-import { singleTestCase } from '@thymian/http-testing';
+import { httpRule, singleTestCase } from '@thymian/core';
 
 import { compareETags, parseConditionalETagHeader } from '../../utils.js';
 
