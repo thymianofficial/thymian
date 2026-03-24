@@ -6,8 +6,12 @@ import { glob } from 'tinyglobby';
 
 import { ThymianBaseError } from '../thymian.error.js';
 import { isRecord } from '../utils.js';
+import { validate } from './ajv-validate.js';
 import type { Rule } from './rule.js';
+import type { RulesConfiguration } from './rule-configuration.js';
+import type { RuleFilter } from './rule-filter.js';
 import type { RuleSet } from './rule-set.js';
+import { isRuleSeverityLevel } from './rule-severity.js';
 
 const require = createRequire(import.meta.url);
 
@@ -57,9 +61,11 @@ export function isRuleSet(ruleSet: unknown): ruleSet is RuleSet {
 async function loadRuleSet(
   ruleSet: RuleSet,
   basePath: string,
+  ruleFilter: RuleFilter,
+  options: RulesConfiguration,
 ): Promise<Rule[]> {
   if (ruleSet.rules) {
-    return ruleSet.rules;
+    return ruleSet.rules.filter(ruleFilter);
   }
 
   const rules: Rule[] = [];
@@ -73,7 +79,9 @@ async function loadRuleSet(
       const files = await glob(pattern, { cwd: dirname });
 
       for (const file of files) {
-        rules.push(...(await loadRules(path.join(dirname, file))));
+        rules.push(
+          ...(await loadRules(path.join(dirname, file), ruleFilter, options)),
+        );
       }
     }
   }
@@ -81,13 +89,21 @@ async function loadRuleSet(
   return rules;
 }
 
-export async function loadRules(input: string | string[]): Promise<Rule[]> {
+export async function loadRules(
+  input: string | string[],
+  ruleFilter: RuleFilter = () => true,
+  options: RulesConfiguration = {},
+): Promise<Rule[]> {
   if (!input || (Array.isArray(input) && input.length === 0)) {
     return [];
   }
 
   if (Array.isArray(input)) {
-    return (await Promise.all(input.map((entry) => loadRules(entry)))).flat();
+    return (
+      await Promise.all(
+        input.map((entry) => loadRules(entry, ruleFilter, options)),
+      )
+    ).flat();
   }
 
   let location = input;
@@ -159,11 +175,48 @@ export async function loadRules(input: string | string[]): Promise<Rule[]> {
   const ruleOrRuleSet = module.default;
 
   if (isRule(ruleOrRuleSet)) {
-    return [ruleOrRuleSet];
+    // Create a shallow copy of the rule to avoid mutating the cached module
+    const rule = {
+      ...ruleOrRuleSet,
+      meta: {
+        ...ruleOrRuleSet.meta,
+      },
+    };
+
+    const { name } = rule.meta;
+    const ruleOptions = options[name];
+
+    if (isRecord(ruleOptions)) {
+      rule.meta.severity = ruleOptions.severity ?? rule.meta.severity;
+      rule.meta.type = ruleOptions.type ?? rule.meta.type;
+
+      if (ruleOptions.options && rule.meta.options) {
+        if (!validate(rule.meta.options, ruleOptions.options)) {
+          throw new ThymianBaseError(
+            `Options for rule "${rule.meta.name}" does not match the schema of the rule.`,
+            {
+              suggestions: [
+                'Check the options for the rule in your Thymian config file.',
+              ],
+              name: 'InvalidRuleOptionError',
+              ref: 'https://thymian.dev/references/errors/invalid-rule-option/',
+            },
+          );
+        }
+      }
+    } else if (isRuleSeverityLevel(ruleOptions)) {
+      rule.meta.severity = ruleOptions;
+    }
+
+    if (ruleFilter(rule)) {
+      return [rule];
+    }
+
+    return [];
   }
 
   if (isRuleSet(ruleOrRuleSet)) {
-    return loadRuleSet(ruleOrRuleSet, resolved);
+    return loadRuleSet(ruleOrRuleSet, resolved, ruleFilter, options);
   }
 
   return [];

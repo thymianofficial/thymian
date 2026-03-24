@@ -21,7 +21,11 @@
     "!**/*.tsbuildinfo"
   ],
   "dependencies": {
-    "@thymian/http-linter": "0.0.0-PLACEHOLDER",
+    "@thymian/core": "0.0.0-PLACEHOLDER",
+    "@thymian/http-testing": "0.0.0-PLACEHOLDER",
     "tslib": "^2.3.0"
+  },
+  "devDependencies": {
+    "@thymian/core-testing": "0.0.0-PLACEHOLDER"
   }
 }

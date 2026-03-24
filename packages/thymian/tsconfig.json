@@ -8,9 +8,6 @@
   },
   "references": [
     {
-      "path": "../plugin-evaluation"
-    },
-    {
       "path": "../plugin-websocket-proxy"
     },
     {
@@ -20,28 +17,28 @@
       "path": "../rfc-9110-rules"
     },
     {
+      "path": "../plugin-request-dispatcher"
+    },
+    {
       "path": "../plugin-reporter"
     },
     {
       "path": "../plugin-openapi"
     },
     {
-      "path": "../plugin-request-dispatcher"
+      "path": "../plugin-http-tester"
     },
     {
       "path": "../plugin-http-linter"
     },
     {
-      "path": "../plugin-http-tester"
-    },
-    {
       "path": "../plugin-http-analyzer"
     },
     {
-      "path": "../http-linter"
+      "path": "../api-description-validation-rules"
     },
     {
-      "path": "../api-description-validation-rules"
+      "path": "../plugin-evaluation"
     },
     {
       "path": "../core"

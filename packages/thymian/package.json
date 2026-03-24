@@ -30,7 +30,6 @@
     "@thymian/evaluation": "0.0.0-PLACEHOLDER",
     "@thymian/api-description-validation-rules": "0.0.0-PLACEHOLDER",
     "@thymian/http-analyzer-plugin": "0.0.0-PLACEHOLDER",
-    "@thymian/http-linter": "0.0.0-PLACEHOLDER",
     "@thymian/http-linter-plugin": "0.0.0-PLACEHOLDER",
     "@thymian/http-tester-plugin": "0.0.0-PLACEHOLDER",
     "@thymian/openapi": "0.0.0-PLACEHOLDER",
@@ -58,7 +57,7 @@
       "@oclif/plugin-help",
       "@oclif/plugin-not-found",
       "@oclif/plugin-version",
-      "@thymian/http-linter"
+      "@thymian/http-linter-plugin"
     ]
   },
   "devDependencies": {

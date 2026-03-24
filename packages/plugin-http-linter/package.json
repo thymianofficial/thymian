@@ -21,7 +21,24 @@
     "!**/*.tsbuildinfo"
   ],
   "dependencies": {
-    "@thymian/http-linter": "0.0.0-PLACEHOLDER",
+    "@thymian/cli-common": "0.0.0-PLACEHOLDER",
+    "@thymian/core": "0.0.0-PLACEHOLDER",
+    "fuse.js": "^7.1.0",
     "tslib": "^2.3.0"
+  },
+  "devDependencies": {
+    "@thymian/core-testing": "0.0.0-PLACEHOLDER"
+  },
+  "oclif": {
+    "commands": "./dist/cli/commands",
+    "bin": "thymian",
+    "hooks": {
+      "thymian-plugin.init": "./dist/cli/init-hook"
+    },
+    "topics": {
+      "http-linter": {
+        "description": "Check your API for HTTP conformance."
+      }
+    }
   }
 }

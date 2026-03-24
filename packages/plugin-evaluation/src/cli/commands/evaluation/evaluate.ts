@@ -4,7 +4,7 @@ import { isAbsolute, join } from 'node:path';
 
 import { Args, Command } from '@thymian/cli-common/oclif';
 import { Thymian } from '@thymian/core';
-import httpLinterPlugin from '@thymian/http-linter';
+import { httpLinterPlugin } from '@thymian/http-linter-plugin';
 import { Piscina } from 'piscina';
 import { glob } from 'tinyglobby';
 
@@ -53,7 +53,6 @@ export default class Evaluate extends Command {
     const thymian = new Thymian();
     thymian.register(httpLinterPlugin, {
       ruleSets: ['@thymian/rfc-9110-rules'],
-      type: ['static'],
     });
 
     const rules = await thymian.run((emitter) =>

@@ -265,5 +265,10 @@ export function queryParamsFromRequest(
   return Object.fromEntries(params.entries());
 }
 
+export function createRegExpFromOriginWildcard(pattern: string): RegExp {
+  const regexString = `${pattern.replace(/\./g, '\\.').replace(/\*/g, '.*')}/?(:\\d{1,5})?$`;
+  return new RegExp(regexString);
+}
+
 export * from 'chalk';
 export { deepmerge };

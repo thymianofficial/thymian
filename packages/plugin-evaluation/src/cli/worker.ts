@@ -7,7 +7,7 @@ import {
 import { dereference, validate } from '@scalar/openapi-parser';
 import { upgrade } from '@scalar/openapi-upgrader';
 import { NoopLogger, Thymian } from '@thymian/core';
-import httpLinterPlugin from '@thymian/http-linter';
+import { httpLinterPlugin } from '@thymian/http-linter-plugin';
 import openApiPlugin from '@thymian/openapi';
 
 export interface WorkerResult {
@@ -48,7 +48,6 @@ export default async function ({
 
     thymian.register(httpLinterPlugin, {
       ruleSets: ['@thymian/rfc-9110-rules'],
-      type: ['static'],
     });
 
     const version = bundled.openapi ?? bundled.swagger;

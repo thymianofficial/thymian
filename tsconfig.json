@@ -19,9 +19,6 @@
       "path": "./packages/plugin-sampler"
     },
     {
-      "path": "./packages/http-linter"
-    },
-    {
       "path": "./packages/rfc-9110-rules"
     },
     {

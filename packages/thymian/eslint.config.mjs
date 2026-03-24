@@ -21,7 +21,6 @@ export default [
             '@thymian/openapi',
             '@oclif/plugin-version',
             '@thymian/rfc-9110-rules',
-            '@thymian/http-linter',
             '@thymian/http-linter-plugin',
             '@thymian/http-tester-plugin',
             '@thymian/http-analyzer-plugin',
