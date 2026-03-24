@@ -5,7 +5,7 @@ import {
   responseWith,
   statusCode,
 } from '@thymian/core';
-import { httpRule } from '@thymian/http-linter';
+import { httpRule } from '@thymian/core';
 
 export default httpRule(
   'rfc9110/origin-server-may-respond-415-for-unacceptable-content-coding',

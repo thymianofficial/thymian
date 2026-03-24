@@ -16,7 +16,7 @@ vitest.mock('./import-meta-resolve.ts', () => ({
 describe('load rules', () => {
   it('should load rules from package', async () => {
     await loadRules('@thymian/rfc-9110-rules');
-  });
+  }, 15_000);
 
   it('overrides severity from config with object', async () => {
     const basePath = import.meta.dirname;

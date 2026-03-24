@@ -2,6 +2,7 @@ import { isAbsolute, join } from 'node:path';
 
 import {
   type Logger,
+  type Rule,
   type SerializedThymianFormat,
   ThymianBaseError,
   ThymianEmitter,
@@ -9,17 +10,12 @@ import {
   type ThymianPlugin,
   type ThymianReport,
 } from '@thymian/core';
-import type {} from '@thymian/request-dispatcher';
-import type {} from '@thymian/sampler';
 
 import type { HttpTransactionRepository } from './db/http-transaction-repository.js';
 import { SqliteHttpTransactionRepository } from './db/sqlite/sqlite-http-transaction-repository.js';
 import { AnalyticsLinter } from './linter/analytics-linter.js';
-import { createContext } from './linter/create-context.js';
-import { HttpTestLinter } from './linter/http-test-linter.js';
 import { StaticLinter } from './linter/static-linter.js';
 import { loadRules } from './load-rules.js';
-import type { Rule } from './rule/rule.js';
 import { type RuleType, ruleTypes } from './rule/rule-meta.js';
 import { type RuleSeverity, severityLevels } from './rule/rule-severity.js';
 import type { RulesConfiguration } from './rule-configuration.js';
@@ -267,7 +263,13 @@ export const httpLinterPlugin: ThymianPlugin<HttpLinterPluginOptions> = {
     },
   },
   actions: {
-    listensOn: ['core.run'],
+    listensOn: [
+      'http-linter.load-rules',
+      'http-linter.rules',
+      'http-linter.lint-static',
+      'http-linter.lint-analytics',
+      'http-linter.lint-analytics-batch',
+    ],
   },
   version: '0.x',
   async plugin(
@@ -293,8 +295,6 @@ export const httpLinterPlugin: ThymianPlugin<HttpLinterPluginOptions> = {
       ruleFilter,
       options.rules ?? {},
     );
-
-    logger.debug(`${loadedRules.length} rules were initially loaded.`);
 
     let transactionRepository: HttpTransactionRepository | undefined;
 
@@ -339,11 +339,6 @@ export const httpLinterPlugin: ThymianPlugin<HttpLinterPluginOptions> = {
       );
 
       loadedRules.push(...additionalLoadedRules);
-
-      logger.debug(
-        `Loaded ${additionalLoadedRules.length} additional rules for @thymian/http-linter.`,
-      );
-
       ctx.reply();
     });
 
@@ -351,50 +346,16 @@ export const httpLinterPlugin: ThymianPlugin<HttpLinterPluginOptions> = {
       ctx.reply(loadedRules);
     });
 
-    emitter.onAction('core.run', async (format, ctx) => {
-      const thymianFormat = ThymianFormat.import(format);
-
-      let valid = true;
-
-      if (modes.includes('static')) {
-        valid =
-          (await new StaticLinter(
-            logger,
-            loadedRules,
-            (report) => emitter.emit('core.report', report),
-            thymianFormat,
-            ruleOptions,
-          ).run()) && valid;
-      }
-
-      if (modes.includes('test')) {
-        const httpTestContext = createContext(thymianFormat, logger, emitter);
-
-        valid =
-          (await new HttpTestLinter(
-            httpTestContext,
-            logger,
-            loadedRules,
-            (report) => emitter.emit('core.report', report),
-            thymianFormat,
-            ruleOptions,
-          ).run()) && valid;
-      }
-
-      ctx.reply({
-        pluginName: '@thymian/http-linter',
-        status: valid ? 'success' : 'failed',
-      });
-    });
-
     emitter.onAction('http-linter.lint-static', async ({ format }, ctx) => {
       const thymianFormat = ThymianFormat.import(format);
+
+      const filteredRules = loadedRules.filter(ruleFilter);
 
       const reports: ThymianReport[] = [];
 
       const valid = await new StaticLinter(
         logger,
-        loadedRules,
+        filteredRules,
         (report) => reports.push(report),
         thymianFormat,
         ruleOptions,
@@ -442,7 +403,7 @@ export const httpLinterPlugin: ThymianPlugin<HttpLinterPluginOptions> = {
         const valid = await new AnalyticsLinter(
           transactionRepository,
           logger,
-          loadedRules,
+          loadedRules.filter(ruleFilter),
           (report) => reports.push(report),
           thymianFormat,
           ruleOptions,
@@ -489,7 +450,7 @@ export const httpLinterPlugin: ThymianPlugin<HttpLinterPluginOptions> = {
         const valid = await new AnalyticsLinter(
           repo,
           logger,
-          loadedRules,
+          loadedRules.filter(ruleFilter),
           (report) => reports.push(report),
           thymianFormat,
           ruleOptions,

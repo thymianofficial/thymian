@@ -1,3 +1,4 @@
+import type { ValidationFn } from '@thymian/core';
 import {
   createFilterVisitor,
   equalsIgnoreCase,
@@ -12,7 +13,6 @@ import {
 } from '@thymian/core';
 
 import { createRegExpFromOriginWildcard } from '../../utils.js';
-import type { ValidationFn } from '../api-context.js';
 
 export function httpFilterToTransactionValidationFn(
   filterExpression: HttpFilterExpression,
@@ -20,7 +20,7 @@ export function httpFilterToTransactionValidationFn(
   return visitHttpFilter(
     filterExpression,
     createTransactionValidationVisitor(),
-  );
+  ) as ValidationFn<[HttpRequest, HttpResponse]>;
 }
 
 function createTransactionValidationVisitor(): HttpFilterVisitor<
@@ -31,10 +31,10 @@ function createTransactionValidationVisitor(): HttpFilterVisitor<
       if (typeof expr.method === 'undefined') {
         return () => false;
       }
-      return (req) => req.method === expr.method;
+      return (req: HttpRequest) => req.method === expr.method;
     },
     visitRequestHeader(expr) {
-      return (req) => {
+      return (req: HttpRequest) => {
         if (!req.headers || !expr.header) {
           return false;
         }
@@ -50,7 +50,7 @@ function createTransactionValidationVisitor(): HttpFilterVisitor<
       if (typeof param === 'undefined') {
         return () => false;
       }
-      return (req) => {
+      return (req: HttpRequest) => {
         const queryParams = queryParamsFromRequest(req);
 
         const paramValue = queryParams[param];
@@ -61,46 +61,47 @@ function createTransactionValidationVisitor(): HttpFilterVisitor<
       };
     },
     visitPath(expr) {
-      return (req) => req.path === expr.path;
+      return (req: HttpRequest) => req.path === expr.path;
     },
     visitHasResponse(expr) {
-      return (req, res) => {
+      return (req: HttpRequest, res: HttpResponse) => {
         const fn = httpFilterToTransactionValidationFn(expr.filter);
-        return fn(req, res);
+        return !!fn(req, res);
       };
     },
     visitOrigin(expr) {
-      return (req) => {
+      return (req: HttpRequest) => {
         return req.origin === expr.origin;
       };
     },
     visitHasBody(expr) {
-      return (req) => {
+      return (req: HttpRequest) => {
         const hasBody = req.body !== undefined && req.body !== null;
         return hasBody === (expr.hasBody ?? true);
       };
     },
     visitPort(expr) {
-      return (req) =>
+      return (req: HttpRequest) =>
         new URL(req.path, req.origin).port === expr.port?.toString();
     },
     visitRequestMediaType(expr) {
-      return (req) => {
+      return (req: HttpRequest) => {
         const contentType = getContentType(req.headers);
         return equalsIgnoreCase(contentType, expr.mediaType ?? '');
       };
     },
     visitUrl(expr) {
-      return (req) => {
+      return (req: HttpRequest) => {
         const url = new URL(req.path, req.origin).toString();
         return url === expr.url;
       };
     },
     visitStatusCode(expr) {
-      return (req, res) => res.statusCode === expr.code;
+      return (_req: HttpRequest, res: HttpResponse) =>
+        res.statusCode === expr.code;
     },
     visitHasResponseBody(expr) {
-      return (req, res) => {
+      return (_req: HttpRequest, res: HttpResponse) => {
         const hasBody = res.body !== undefined && res.body !== null;
         return hasBody === (expr.hasBody ?? true);
       };
@@ -109,7 +110,7 @@ function createTransactionValidationVisitor(): HttpFilterVisitor<
       if (typeof header === 'undefined') {
         return () => false;
       }
-      return (req, res) => {
+      return (_req: HttpRequest, res: HttpResponse) => {
         const headerValue = res.headers[header];
         if (typeof value === 'undefined') {
           return headerValue !== undefined;
@@ -118,22 +119,22 @@ function createTransactionValidationVisitor(): HttpFilterVisitor<
       };
     },
     visitStatusCodeRange(expr) {
-      return (req, res) =>
+      return (_req: HttpRequest, res: HttpResponse) =>
         Number.isInteger(res.statusCode) &&
         res.statusCode >= expr.start &&
         res.statusCode <= expr.end;
     },
     visitResponseMediaType({ mediaType }) {
-      return (req, res) => {
+      return (_req: HttpRequest, res: HttpResponse) => {
         const contentType = res.headers['content-type'];
-        return contentType?.includes(mediaType) ?? false;
+        return contentType?.includes(mediaType ?? '') ?? false;
       };
     },
     visitResponseTrailer({ trailer, value }) {
       if (typeof trailer === 'undefined') {
         return () => false;
       }
-      return (req, res) => {
+      return (_req: HttpRequest, res: HttpResponse) => {
         const trailerValue = res.trailers?.[trailer];
         if (typeof value === 'undefined') {
           return trailerValue !== undefined;

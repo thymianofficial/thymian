@@ -1,5 +1,5 @@
 import { getHeader, responseHeader } from '@thymian/core';
-import { httpRule } from '@thymian/http-linter';
+import { httpRule } from '@thymian/core';
 
 export default httpRule('rfc9110/proxy-must-not-generate-vary-wildcard')
   .severity('error')

@@ -1,4 +1,4 @@
-import { httpRule } from '@thymian/http-linter';
+import { httpRule } from '@thymian/core';
 
 // TODO: Implement ABNF validation for comment syntax and quoted-pair detection
 // Requires parsing comment and detecting unnecessary quoted-pairs:

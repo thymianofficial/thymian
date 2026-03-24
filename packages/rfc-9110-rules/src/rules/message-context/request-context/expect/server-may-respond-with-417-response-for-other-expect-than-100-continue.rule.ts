@@ -1,5 +1,5 @@
 import { and, not, requestHeader, statusCode } from '@thymian/core';
-import { httpRule } from '@thymian/http-linter';
+import { httpRule } from '@thymian/core';
 
 export default httpRule(
   'rfc9110/server-may-respond-with-417-response-for-other-expect-than-100-continue',

@@ -1,5 +1,6 @@
 import {
   type HttpFilterExpression,
+  type LintContext,
   type ThymianHttpTransaction,
 } from '@thymian/core';
 import {
@@ -8,8 +9,8 @@ import {
   type ThymianHttpRequest,
   type ThymianHttpResponse,
 } from '@thymian/core';
-import type { RuleFnResult } from 'src/rule/rule-fn.js';
 
+import type { RuleFnResult } from '../rule/rule-fn.js';
 import type {
   RuleViolation,
   RuleViolationLocation,
@@ -23,7 +24,7 @@ import {
 import { httpFilterExpressionToFilter } from './visitors/http-filter-expression-to-filter.js';
 import { httpFilterToGroupByFn } from './visitors/http-filter-to-static-by-fn.js';
 
-export class StaticApiContext extends ApiContext {
+export class StaticApiContext extends ApiContext implements LintContext {
   validateCommonHttpTransactions(
     filter: HttpFilterExpression,
     validate:

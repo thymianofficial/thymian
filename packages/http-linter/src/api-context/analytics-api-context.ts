@@ -1,4 +1,5 @@
 import {
+  type AnalyzeContext,
   type HttpRequest,
   type HttpResponse,
   httpTransactionToLabel,
@@ -9,11 +10,11 @@ import {
   ThymianFormat,
 } from '@thymian/core';
 import { and, type HttpFilterExpression, not } from '@thymian/core';
-import type { RuleFnResult } from 'src/rule/rule-fn.js';
-import type { RuleViolation } from 'src/rule/rule-violation.js';
 
 import type { HttpTransactionRepository } from '../db/http-transaction-repository.js';
+import type { RuleFnResult } from '../rule/rule-fn.js';
 import type { HttpParticipantRole } from '../rule/rule-meta.js';
+import type { RuleViolation } from '../rule/rule-violation.js';
 import type { RuleViolationLocation } from '../rule/rule-violation.js';
 import type { CapturedTrace, CapturedTransaction } from '../types.js';
 import { type ValidationFn } from './api-context.js';
@@ -25,7 +26,10 @@ import {
 } from './utils/http-to-common.js';
 import { capturedTraceToString } from './utils/trace-to-string.js';
 
-export class AnalyticsApiContext extends LiveApiContext {
+export class AnalyticsApiContext
+  extends LiveApiContext
+  implements AnalyzeContext
+{
   private readonly roles?: HttpParticipantRole[];
 
   constructor(

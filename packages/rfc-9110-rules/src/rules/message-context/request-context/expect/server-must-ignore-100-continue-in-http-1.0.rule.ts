@@ -1,4 +1,4 @@
-import { httpRule } from '@thymian/http-linter';
+import { httpRule } from '@thymian/core';
 
 // could be analytics at some point --> we should add the HTTP to the analytics context
 export default httpRule('rfc9110/server-must-ignore-100-continue-in-http-1.0')

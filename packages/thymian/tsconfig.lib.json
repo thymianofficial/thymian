@@ -16,28 +16,40 @@
   "include": ["src/**/*.ts"],
   "references": [
     {
-      "path": "../evaluation/tsconfig.lib.json"
+      "path": "../plugin-evaluation/tsconfig.lib.json"
     },
     {
-      "path": "../websocket-proxy/tsconfig.lib.json"
+      "path": "../plugin-websocket-proxy/tsconfig.lib.json"
     },
     {
-      "path": "../sampler/tsconfig.lib.json"
+      "path": "../plugin-sampler/tsconfig.lib.json"
     },
     {
       "path": "../rfc-9110-rules/tsconfig.lib.json"
     },
     {
-      "path": "../reporter/tsconfig.lib.json"
+      "path": "../plugin-reporter/tsconfig.lib.json"
     },
     {
-      "path": "../openapi/tsconfig.lib.json"
+      "path": "../plugin-openapi/tsconfig.lib.json"
+    },
+    {
+      "path": "../plugin-request-dispatcher/tsconfig.lib.json"
+    },
+    {
+      "path": "../plugin-http-linter/tsconfig.lib.json"
+    },
+    {
+      "path": "../plugin-http-tester/tsconfig.lib.json"
+    },
+    {
+      "path": "../plugin-http-analyzer/tsconfig.lib.json"
     },
     {
       "path": "../http-linter/tsconfig.lib.json"
     },
     {
-      "path": "../format-validator/tsconfig.lib.json"
+      "path": "../api-description-validation-rules/tsconfig.lib.json"
     },
     {
       "path": "../core/tsconfig.lib.json"

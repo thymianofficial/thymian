@@ -1,0 +1,8 @@
+{
+  "name": "plugin-http-analyzer",
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "packages/plugin-http-analyzer/src",
+  "projectType": "library",
+  "tags": ["scope:plugin", "type:lib"],
+  "targets": {}
+}

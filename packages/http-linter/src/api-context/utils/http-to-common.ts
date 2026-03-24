@@ -1,10 +1,4 @@
-import {
-  getHeader,
-  type HttpRequest,
-  httpRequestToLabel,
-  type HttpResponse,
-  httpResponseToLabel,
-} from '@thymian/core';
+import { getHeader, type HttpRequest, type HttpResponse } from '@thymian/core';
 
 import type { CommonHttpRequest, CommonHttpResponse } from '../common-types.js';
 
@@ -24,8 +18,10 @@ export function extractMediaType(req: HttpRequest): string {
 
 export function httpRequestToCommonHttpRequest(
   request: HttpRequest,
-  id?: string,
+  _id?: string,
 ): CommonHttpRequest {
+  void _id;
+
   return {
     origin: request.origin,
     path: request.path,
@@ -37,24 +33,20 @@ export function httpRequestToCommonHttpRequest(
     cookies: [],
     mediaType: extractMediaType(request),
     body: !!request.body,
-    location: id
-      ? { elementId: id, elementType: 'node' }
-      : httpRequestToLabel(request),
   };
 }
 
 export function httpResponseToCommonHttpResponse(
   response: HttpResponse,
-  id?: string,
+  _id?: string,
 ): CommonHttpResponse {
+  void _id;
+
   return {
     body: !!response.body,
     headers: Object.keys(response.headers),
     mediaType: getHeader(response.headers, 'content-type')?.at(0) ?? '',
     statusCode: response.statusCode,
     trailers: Object.keys(response.trailers),
-    location: id
-      ? { elementId: id, elementType: 'node' }
-      : httpResponseToLabel(response),
   };
 }

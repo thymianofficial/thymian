@@ -19,12 +19,6 @@
       "path": "../core-testing/tsconfig.lib.json"
     },
     {
-      "path": "../sampler/tsconfig.lib.json"
-    },
-    {
-      "path": "../request-dispatcher/tsconfig.lib.json"
-    },
-    {
       "path": "../http-testing/tsconfig.lib.json"
     },
     {

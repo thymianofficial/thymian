@@ -11,12 +11,6 @@
       "path": "../core-testing"
     },
     {
-      "path": "../sampler"
-    },
-    {
-      "path": "../request-dispatcher"
-    },
-    {
       "path": "../http-testing"
     },
     {

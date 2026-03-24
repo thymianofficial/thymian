@@ -10,7 +10,7 @@ import {
   responseWith,
   statusCode,
 } from '@thymian/core';
-import { httpRule } from '@thymian/http-linter';
+import { httpRule } from '@thymian/core';
 import { singleTestCase } from '@thymian/http-testing';
 
 type Options = {

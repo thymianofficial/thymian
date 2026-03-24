@@ -1,4 +1,4 @@
-import { httpRule } from '@thymian/http-linter';
+import { httpRule } from '@thymian/core';
 
 // in the future, we could analyze the request/response body and check if we can detect encodings that are not present in the headers
 export default httpRule(

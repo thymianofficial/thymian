@@ -1,4 +1,4 @@
-import { httpRule } from '@thymian/http-linter';
+import { httpRule } from '@thymian/core';
 
 // TODO: Implement ABNF validation for VCHAR character detection
 // Requires validating field values only contain VCHAR (%x21-7E), SP (%x20), and HTAB (%x09)

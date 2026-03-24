@@ -1,37 +1,32 @@
 import {
+  type ApiContext as CoreApiContext,
+  type CommonHttpRequest,
+  type CommonHttpResponse,
   type HttpFilterExpression,
+  type RuleViolation,
+  type RuleViolationLocation,
   thymianRequestToOrigin,
+  type ValidationFn,
 } from '@thymian/core';
-import {
-  type Logger,
-  type PartialBy,
-  type ReportFn,
-  ThymianFormat,
-} from '@thymian/core';
+import { type Logger, type ReportFn, ThymianFormat } from '@thymian/core';
 
 import type { RuleFnResult } from '../rule/rule-fn.js';
-import type {
-  RuleViolation,
-  RuleViolationLocation,
-} from '../rule/rule-violation.js';
 import { createRegExpFromOriginWildcard } from '../utils.js';
-import type { CommonHttpRequest, CommonHttpResponse } from './common-types.js';
+export type { ValidationFn } from '@thymian/core';
 
-export type ValidationFn<
-  Args extends unknown[],
-  R = PartialBy<RuleViolation, 'location'> | boolean | undefined,
-> = (...args: Args) => R;
-
-export abstract class ApiContext {
+export abstract class ApiContext implements CoreApiContext {
   readonly format: ThymianFormat;
   protected readonly violations: RuleViolation[] = [];
+  readonly report: ReportFn;
 
   constructor(
     format: ThymianFormat,
     protected readonly logger: Logger,
-    protected readonly report: ReportFn = () => undefined,
+    report: ReportFn = () => undefined,
     protected readonly skippedOrigins: string[] = [],
   ) {
+    this.report = report;
+
     if (skippedOrigins.length === 0) {
       this.format = format;
     } else {

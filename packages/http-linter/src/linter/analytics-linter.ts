@@ -1,8 +1,8 @@
 import { type Logger, ThymianFormat, type ThymianReport } from '@thymian/core';
-import type { Rule } from 'src/rule/rule.js';
 
 import { AnalyticsApiContext } from '../api-context/analytics-api-context.js';
 import type { HttpTransactionRepository } from '../db/http-transaction-repository.js';
+import type { Rule } from '../rule/rule.js';
 import type {
   RulesConfiguration,
   SingleRuleConfiguration,
@@ -25,11 +25,11 @@ export class AnalyticsLinter extends AbstractLinter {
     rule: Rule,
     options: SingleRuleConfiguration,
   ): Promise<boolean> {
-    if (!rule.analyticsRule) {
+    if (!rule.analyzeRule) {
       return true;
     }
 
-    const result = await rule.analyticsRule(
+    const result = await rule.analyzeRule(
       new AnalyticsApiContext(
         this.repository,
         this.logger,

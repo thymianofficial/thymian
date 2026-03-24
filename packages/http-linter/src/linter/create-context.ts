@@ -28,7 +28,7 @@ export function createContext<Locals extends HttpTestContextLocals>(
       transaction: ThymianHttpTransaction,
     ): Promise<HttpRequestTemplate> {
       return await emitter.emitAction(
-        'sampler.sample-request',
+        'core.request.sample',
         { transaction },
         { strategy: 'first' },
       );
@@ -36,7 +36,7 @@ export function createContext<Locals extends HttpTestContextLocals>(
     runRequest: async function (req: HttpRequest): Promise<HttpResponse> {
       const finalOrigin = origin ?? req.origin;
       return await emitter.emitAction(
-        'request-dispatcher.http-request',
+        'core.request.dispatch',
         {
           request: {
             ...req,

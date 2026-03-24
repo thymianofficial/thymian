@@ -1,0 +1,8 @@
+{
+  "name": "plugin-http-tester",
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "packages/plugin-http-tester/src",
+  "projectType": "library",
+  "tags": ["scope:plugin", "type:lib"],
+  "targets": {}
+}

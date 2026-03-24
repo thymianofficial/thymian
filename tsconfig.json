@@ -7,16 +7,16 @@
       "path": "./packages/core"
     },
     {
-      "path": "./packages/request-dispatcher"
+      "path": "./packages/plugin-request-dispatcher"
     },
     {
-      "path": "./packages/openapi"
+      "path": "./packages/plugin-openapi"
     },
     {
       "path": "./packages/http-testing"
     },
     {
-      "path": "./packages/sampler"
+      "path": "./packages/plugin-sampler"
     },
     {
       "path": "./packages/http-linter"
@@ -28,13 +28,13 @@
       "path": "./packages/cli-common"
     },
     {
-      "path": "./packages/format-validator"
+      "path": "./packages/api-description-validation-rules"
     },
     {
-      "path": "./packages/websocket-proxy"
+      "path": "./packages/plugin-websocket-proxy"
     },
     {
-      "path": "./packages/reporter"
+      "path": "./packages/plugin-reporter"
     },
     {
       "path": "./packages/thymian"
@@ -43,7 +43,7 @@
       "path": "./packages/test-utils"
     },
     {
-      "path": "./packages/evaluation"
+      "path": "./packages/plugin-evaluation"
     },
     {
       "path": "./packages/core-testing"
@@ -53,6 +53,15 @@
     },
     {
       "path": "./e2e-tests"
+    },
+    {
+      "path": "./packages/plugin-http-analyzer"
+    },
+    {
+      "path": "./packages/plugin-http-linter"
+    },
+    {
+      "path": "./packages/plugin-http-tester"
     }
   ]
 }

@@ -1,6 +1,5 @@
-import type { Rule } from 'src/rule/rule.js';
-
 import { StaticApiContext } from '../api-context/static-api-context.js';
+import type { Rule } from '../rule/rule.js';
 import type { SingleRuleConfiguration } from '../rule-configuration.js';
 import { AbstractLinter } from './abstract-linter.js';
 
@@ -9,11 +8,11 @@ export class StaticLinter extends AbstractLinter {
     rule: Rule,
     options: SingleRuleConfiguration,
   ): Promise<boolean> {
-    if (!rule.staticRule) {
+    if (!rule.lintRule) {
       return true;
     }
 
-    const result = await rule.staticRule(
+    const result = await rule.lintRule(
       new StaticApiContext(
         this.format,
         this.logger,
@@ -22,7 +21,7 @@ export class StaticLinter extends AbstractLinter {
       ),
       {
         ...(options.options ?? {}),
-        mode: 'test',
+        mode: 'static',
       },
       this.logger.child(rule.meta.name),
     );

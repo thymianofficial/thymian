@@ -1,0 +1,8 @@
+{
+  "name": "plugin-http-linter",
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "packages/plugin-http-linter/src",
+  "projectType": "library",
+  "tags": ["scope:plugin", "type:lib"],
+  "targets": {}
+}

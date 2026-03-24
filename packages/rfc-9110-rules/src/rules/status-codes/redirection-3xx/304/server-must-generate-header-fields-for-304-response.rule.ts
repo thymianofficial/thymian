@@ -11,7 +11,7 @@ import {
   responseWith,
   statusCode,
 } from '@thymian/core';
-import { httpRule, type RuleViolation } from '@thymian/http-linter';
+import { httpRule, type RuleViolation } from '@thymian/core';
 import { singleTestCase } from '@thymian/http-testing';
 
 import { createList } from '../../../../utils.js';

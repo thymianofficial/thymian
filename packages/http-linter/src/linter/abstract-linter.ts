@@ -29,6 +29,7 @@ export function findDuplicates<T>(elements: T[]): T[] {
 
 export abstract class AbstractLinter {
   protected readonly rules: Rule[];
+  readonly violations: RuleViolation[] = [];
 
   constructor(
     protected readonly logger: Logger,
@@ -201,6 +202,14 @@ export abstract class AbstractLinter {
           };
         }
       }
+
+      this.violations.push({
+        rule: ruleMeta.name,
+        severity,
+        location,
+        message,
+        summary,
+      });
 
       this.report(report);
     }

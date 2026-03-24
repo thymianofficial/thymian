@@ -1,5 +1,5 @@
 import { httpTransactionToLabel, not, responseHeader } from '@thymian/core';
-import { httpRule } from '@thymian/http-linter';
+import { httpRule } from '@thymian/core';
 
 export default httpRule(
   'rfc9110/sender-should-generate-trailer-header-when-sending-trailers',

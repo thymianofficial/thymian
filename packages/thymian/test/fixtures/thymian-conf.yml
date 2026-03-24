@@ -1,6 +1,6 @@
 autoload: true
 plugins:
-  '@thymian/http-linter':
+  '@thymian/http-linter-plugin':
     options:
       modes:
         - static

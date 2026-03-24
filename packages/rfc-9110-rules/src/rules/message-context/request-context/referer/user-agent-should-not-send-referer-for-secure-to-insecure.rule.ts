@@ -1,5 +1,5 @@
 import { getHeader, requestHeader } from '@thymian/core';
-import { httpRule } from '@thymian/http-linter';
+import { httpRule } from '@thymian/core';
 
 export default httpRule(
   'rfc9110/user-agent-should-not-send-referer-for-secure-to-insecure',

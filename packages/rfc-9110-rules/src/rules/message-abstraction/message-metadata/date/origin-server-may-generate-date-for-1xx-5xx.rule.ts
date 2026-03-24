@@ -1,5 +1,5 @@
 import { and, not, or, responseHeader, statusCodeRange } from '@thymian/core';
-import { httpRule } from '@thymian/http-linter';
+import { httpRule } from '@thymian/core';
 
 export default httpRule('rfc9110/origin-server-may-generate-date-for-1xx-5xx')
   .severity('hint')

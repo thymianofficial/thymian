@@ -3,6 +3,7 @@ import {
   type HttpRequest,
   type HttpResponse,
   type ReportFn,
+  type TestContext,
   type ThymianHttpTransaction,
 } from '@thymian/core';
 import {
@@ -49,7 +50,10 @@ function hasSource(
 
 export class HttpTestApiContext<
   Locals extends HttpTestContextLocals = HttpTestContextLocals,
-> extends LiveApiContext {
+>
+  extends LiveApiContext
+  implements TestContext
+{
   private readonly ctx: HttpTestContext<Locals>;
 
   constructor(

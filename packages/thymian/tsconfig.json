@@ -8,28 +8,40 @@
   },
   "references": [
     {
-      "path": "../evaluation"
+      "path": "../plugin-evaluation"
     },
     {
-      "path": "../websocket-proxy"
+      "path": "../plugin-websocket-proxy"
     },
     {
-      "path": "../sampler"
+      "path": "../plugin-sampler"
     },
     {
       "path": "../rfc-9110-rules"
     },
     {
-      "path": "../reporter"
+      "path": "../plugin-reporter"
     },
     {
-      "path": "../openapi"
+      "path": "../plugin-openapi"
+    },
+    {
+      "path": "../plugin-request-dispatcher"
+    },
+    {
+      "path": "../plugin-http-linter"
+    },
+    {
+      "path": "../plugin-http-tester"
+    },
+    {
+      "path": "../plugin-http-analyzer"
     },
     {
       "path": "../http-linter"
     },
     {
-      "path": "../format-validator"
+      "path": "../api-description-validation-rules"
     },
     {
       "path": "../core"

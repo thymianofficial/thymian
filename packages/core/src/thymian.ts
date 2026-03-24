@@ -1,6 +1,16 @@
 import semver from 'semver';
 
 import packageJson from '../package.json' with { type: 'json' };
+import type {
+  CoreAnalyzeInput,
+  CoreFormatLoadInput,
+  CoreLintInput,
+  CoreTestInput,
+  CoreTrafficLoadInput,
+  SpecificationInput,
+  TrafficInput,
+  ValidationResult,
+} from './actions/index.js';
 import { validate } from './ajv.js';
 import { corePlugin } from './core-plugin.js';
 import { ThymianEmitter } from './emitter/index.js';
@@ -8,9 +18,29 @@ import { ThymianFormat } from './format/index.js';
 import { constant, type HttpFilterExpression } from './http-filter.js';
 import type { Logger } from './logger/logger.js';
 import { NoopLogger } from './logger/noop.logger.js';
+import { type LoadedTraffic, loadRules, type Rule } from './rules/index.js';
 import { ThymianBaseError } from './thymian.error.js';
 import type { ThymianPlugin } from './thymian-plugin.js';
 import { timeoutPromise } from './utils.js';
+
+export interface LintWorkflowInput {
+  specification: SpecificationInput[];
+  rules?: string[];
+  options?: Record<string, unknown>;
+}
+
+export interface TestWorkflowInput {
+  specification: SpecificationInput[];
+  rules?: string[];
+  options?: Record<string, unknown>;
+}
+
+export interface AnalyzeWorkflowInput {
+  specification?: SpecificationInput[];
+  traffic: TrafficInput[];
+  rules?: string[];
+  options?: Record<string, unknown>;
+}
 
 export type RegisteredPlugin<
   T extends Record<PropertyKey, unknown> = Record<PropertyKey, unknown>,
@@ -182,29 +212,56 @@ export class Thymian {
   }
 
   async loadFormat(
-    filter: HttpFilterExpression = constant(true),
+    inputOrFilter: CoreFormatLoadInput | HttpFilterExpression = constant(true),
     _options: { emitFormat?: boolean } = {},
   ): Promise<ThymianFormat> {
     const options = { emitFormat: true, ..._options };
 
-    const formats = await this.emitter.emitAction(
-      'core.load-format',
-      { filter },
-      {
-        strategy: 'collect',
-      },
-    );
+    const isCoreFormatLoadInput = (
+      value: CoreFormatLoadInput | HttpFilterExpression,
+    ): value is CoreFormatLoadInput =>
+      typeof value === 'object' &&
+      value !== null &&
+      'inputs' in value &&
+      Array.isArray(value.inputs);
+
+    const filter = isCoreFormatLoadInput(inputOrFilter)
+      ? constant(true)
+      : inputOrFilter;
+
+    const useNewFormatInputs = isCoreFormatLoadInput(inputOrFilter);
+
+    const [legacyFormats, formats] = await Promise.all([
+      this.emitter.emitAction(
+        'core.load-format',
+        { filter },
+        {
+          strategy: 'collect',
+        },
+      ),
+      this.emitter.emitAction(
+        'core.format.load',
+        useNewFormatInputs ? inputOrFilter : { inputs: [] },
+        {
+          strategy: 'collect',
+        },
+      ),
+    ]);
+
+    const allFormats = useNewFormatInputs
+      ? formats
+      : legacyFormats.concat(formats);
 
     const format =
-      formats.length === 0
+      allFormats.length === 0
         ? new ThymianFormat()
         : // we know that formats.length >= 1
 
-          formats
+          allFormats
             .slice(1)
             .reduce(
               (acc, curr) => acc.merge(ThymianFormat.import(curr)),
-              ThymianFormat.import(formats[0]!),
+              ThymianFormat.import(allFormats[0]!),
             );
 
     this.logger.debug(
@@ -224,6 +281,112 @@ export class Thymian {
     }
 
     return filteredFormat;
+  }
+
+  async loadTraffic(input: CoreTrafficLoadInput): Promise<LoadedTraffic> {
+    const loadedTraffic = await this.emitter.emitAction(
+      'core.traffic.load',
+      input,
+      {
+        strategy: 'collect',
+      },
+    );
+
+    return loadedTraffic.reduce<LoadedTraffic>(
+      (acc, current) => ({
+        transactions: [
+          ...(acc.transactions ?? []),
+          ...(current.transactions ?? []),
+        ],
+        traces: [...(acc.traces ?? []), ...(current.traces ?? [])],
+        metadata: {
+          ...(acc.metadata ?? {}),
+          ...(current.metadata ?? {}),
+        },
+      }),
+      {},
+    );
+  }
+
+  async loadRules(paths: string[] = []): Promise<Rule[]> {
+    return loadRules(paths);
+  }
+
+  async runLint(input: CoreLintInput): Promise<ValidationResult> {
+    return this.emitter.emitAction('core.lint', input, { strategy: 'first' });
+  }
+
+  async runTest(input: CoreTestInput): Promise<ValidationResult> {
+    return this.emitter.emitAction('core.test', input, { strategy: 'first' });
+  }
+
+  async runAnalyze(input: CoreAnalyzeInput): Promise<ValidationResult> {
+    return this.emitter.emitAction('core.analyze', input, {
+      strategy: 'first',
+    });
+  }
+
+  async lint(input: LintWorkflowInput): Promise<ValidationResult> {
+    return this.runValidationWorkflow({
+      specification: input.specification,
+      rules: input.rules,
+      options: input.options,
+      execute: (format, rules, options) =>
+        this.runLint({ format, rules, options }),
+    });
+  }
+
+  async test(input: TestWorkflowInput): Promise<ValidationResult> {
+    return this.runValidationWorkflow({
+      specification: input.specification,
+      rules: input.rules,
+      options: input.options,
+      execute: (format, rules, options) =>
+        this.runTest({ format, rules, options }),
+    });
+  }
+
+  async analyze(input: AnalyzeWorkflowInput): Promise<ValidationResult> {
+    const [traffic, rules, format] = await Promise.all([
+      this.loadTraffic({ inputs: input.traffic }),
+      this.loadRules(input.rules),
+      input.specification
+        ? this.loadFormat(
+            { inputs: input.specification },
+            { emitFormat: false },
+          )
+        : Promise.resolve(undefined),
+    ]);
+
+    return this.runAnalyze({
+      traffic,
+      format: format?.export(),
+      rules,
+      options: input.options,
+    });
+  }
+
+  private async runValidationWorkflow({
+    specification,
+    rules,
+    options,
+    execute,
+  }: {
+    specification: SpecificationInput[];
+    rules?: string[];
+    options?: Record<string, unknown>;
+    execute: (
+      format: ReturnType<ThymianFormat['export']>,
+      loadedRules: Rule[],
+      workflowOptions?: Record<string, unknown>,
+    ) => Promise<ValidationResult>;
+  }): Promise<ValidationResult> {
+    const [format, loadedRules] = await Promise.all([
+      this.loadFormat({ inputs: specification }, { emitFormat: false }),
+      this.loadRules(rules),
+    ]);
+
+    return execute(format.export(), loadedRules, options);
   }
 
   private async loadRegisteredPlugins(): Promise<void> {

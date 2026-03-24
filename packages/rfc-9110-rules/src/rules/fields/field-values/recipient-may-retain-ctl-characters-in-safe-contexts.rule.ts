@@ -1,4 +1,4 @@
-import { httpRule } from '@thymian/http-linter';
+import { httpRule } from '@thymian/core';
 
 // TODO: Implement ABNF validation for CTL character detection
 // Requires detecting CTL characters (%x00-1F, %x7F) excluding CR/LF/NUL

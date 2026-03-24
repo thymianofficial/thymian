@@ -1,5 +1,5 @@
 import { and, method, responseHeader, statusCodeRange } from '@thymian/core';
-import { httpRule } from '@thymian/http-linter';
+import { httpRule } from '@thymian/core';
 
 export default httpRule(
   'rfc9110/server-must-not-send-content-length-for-2xx-connect-response',
