@@ -2,7 +2,7 @@ import type { ThymianConfig } from './thymian-config.js';
 
 export const defaultConfig: ThymianConfig = {
   plugins: {
-    '@thymian/http-linter-plugin': {
+    '@thymian/http-linter': {
       options: {
         ruleSets: ['@thymian/rfc-9110-rules'],
       },
@@ -21,7 +21,7 @@ export const defaultConfig: ThymianConfig = {
         },
       },
     },
-    '@thymian/http-tester-plugin': {
+    '@thymian/http-tester': {
       options: {
         ruleSets: [
           '@thymian/rfc-9110-rules',
@@ -29,7 +29,7 @@ export const defaultConfig: ThymianConfig = {
         ],
       },
     },
-    '@thymian/http-analyzer-plugin': {
+    '@thymian/http-analyzer': {
       options: {
         ruleSets: [
           '@thymian/rfc-9110-rules',

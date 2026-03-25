@@ -1,5 +1,5 @@
 {
-  "name": "@thymian/http-analyzer-plugin",
+  "name": "@thymian/http-analyzer",
   "version": "0.0.0-PLACEHOLDER",
   "publishConfig": {
     "access": "restricted"

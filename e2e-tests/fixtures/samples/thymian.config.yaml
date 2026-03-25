@@ -1,5 +1,5 @@
 plugins:
-  '@thymian/http-linter-plugin':
+  '@thymian/http-linter':
     options:
       ruleSets:
         - '@thymian/rfc-9110-rules'

@@ -275,7 +275,7 @@ function selectRules(
 }
 
 export function createHttpLinterPlugin(
-  pluginName = '@thymian/http-linter-plugin',
+  pluginName = '@thymian/http-linter',
 ): ThymianPlugin<HttpLinterPluginOptions> {
   return {
     name: pluginName,

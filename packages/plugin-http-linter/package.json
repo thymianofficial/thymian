@@ -1,5 +1,5 @@
 {
-  "name": "@thymian/http-linter-plugin",
+  "name": "@thymian/http-linter",
   "version": "0.0.0-PLACEHOLDER",
   "publishConfig": {
     "access": "restricted"

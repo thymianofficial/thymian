@@ -28,9 +28,9 @@
     "@thymian/cli-common": "0.0.0-PLACEHOLDER",
     "@thymian/core": "0.0.0-PLACEHOLDER",
     "@thymian/evaluation": "0.0.0-PLACEHOLDER",
-    "@thymian/http-analyzer-plugin": "0.0.0-PLACEHOLDER",
-    "@thymian/http-linter-plugin": "0.0.0-PLACEHOLDER",
-    "@thymian/http-tester-plugin": "0.0.0-PLACEHOLDER",
+    "@thymian/http-analyzer": "0.0.0-PLACEHOLDER",
+    "@thymian/http-linter": "0.0.0-PLACEHOLDER",
+    "@thymian/http-tester": "0.0.0-PLACEHOLDER",
     "@thymian/openapi": "0.0.0-PLACEHOLDER",
     "@thymian/reporter": "0.0.0-PLACEHOLDER",
     "@thymian/request-dispatcher": "0.0.0-PLACEHOLDER",
@@ -56,7 +56,7 @@
       "@oclif/plugin-help",
       "@oclif/plugin-not-found",
       "@oclif/plugin-version",
-      "@thymian/http-linter-plugin"
+      "@thymian/http-linter"
     ]
   },
   "devDependencies": {

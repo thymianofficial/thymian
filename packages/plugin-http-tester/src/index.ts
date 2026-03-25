@@ -255,7 +255,7 @@ function selectRules(
 }
 
 export function createHttpTesterPlugin(
-  pluginName = '@thymian/http-tester-plugin',
+  pluginName = '@thymian/http-tester',
 ): ThymianPlugin<HttpTesterPluginOptions> {
   return {
     name: pluginName,

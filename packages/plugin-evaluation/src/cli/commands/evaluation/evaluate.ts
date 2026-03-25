@@ -4,7 +4,7 @@ import { isAbsolute, join } from 'node:path';
 
 import { Args, Command } from '@thymian/cli-common/oclif';
 import { Thymian } from '@thymian/core';
-import { httpLinterPlugin } from '@thymian/http-linter-plugin';
+import { httpLinterPlugin } from '@thymian/http-linter';
 import { Piscina } from 'piscina';
 import { glob } from 'tinyglobby';
 

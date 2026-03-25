@@ -7,7 +7,7 @@ import {
 import { dereference, validate } from '@scalar/openapi-parser';
 import { upgrade } from '@scalar/openapi-upgrader';
 import { NoopLogger, Thymian } from '@thymian/core';
-import { httpLinterPlugin } from '@thymian/http-linter-plugin';
+import { httpLinterPlugin } from '@thymian/http-linter';
 import openApiPlugin from '@thymian/openapi';
 
 export interface WorkerResult {

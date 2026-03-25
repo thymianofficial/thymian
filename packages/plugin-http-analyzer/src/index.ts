@@ -304,7 +304,7 @@ function selectRules(
 }
 
 export function createHttpAnalyzerPlugin(
-  pluginName = '@thymian/http-analyzer-plugin',
+  pluginName = '@thymian/http-analyzer',
 ): ThymianPlugin<HttpAnalyzerPluginOptions> {
   return {
     name: pluginName,
