@@ -184,11 +184,13 @@ export class AnalyticsApiContext implements AnalyzeContext {
   validateHttpTransactions(
     filter: HttpFilterExpression,
     validation:
-      | ValidationFn<[HttpRequest, HttpResponse, string]>
+      | ValidationFn<[HttpRequest, HttpResponse, RuleViolationLocation]>
       | HttpFilterExpression = filter,
   ): Promise<RuleFnResult> | RuleFnResult {
     let finalFilter!: HttpFilterExpression;
-    let validateFn!: ValidationFn<[HttpRequest, HttpResponse, string]>;
+    let validateFn!: ValidationFn<
+      [HttpRequest, HttpResponse, RuleViolationLocation]
+    >;
 
     if (typeof validation === 'function') {
       finalFilter = filter;
@@ -209,7 +211,14 @@ export class AnalyticsApiContext implements AnalyzeContext {
       finalFilter,
       this.roles,
     )) {
-      const location = httpTransactionToLabel(request.data, response.data);
+      const matched = this.format.matchTransaction(request.data, response.data);
+      const location: RuleViolationLocation = matched
+        ? {
+            elementType: 'edge',
+            elementId: matched[0],
+            label: httpTransactionToLabel(request.data, response.data),
+          }
+        : httpTransactionToLabel(request.data, response.data);
 
       const violation = validateFn(request.data, response.data, location);
 

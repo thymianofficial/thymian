@@ -3,10 +3,10 @@ import {
   type HttpResponse,
   httpRule,
   or,
+  type RuleViolationLocation,
   singleTestCase,
   statusCodeRange,
   successfulStatusCode,
-  type ThymianHttpResponse,
   validateHeaders,
 } from '@thymian/core';
 
@@ -21,20 +21,27 @@ export default httpRule('api-description/response-headers-conform-to-schema')
   .rule((ctx) =>
     ctx.validateHttpTransactions(
       or(successfulStatusCode(), statusCodeRange(400, 499)),
-      (request: HttpRequest, response: HttpResponse) => {
-        const matched = ctx.format.matchTransaction(request, response);
-
-        if (!matched) {
+      (
+        _request: HttpRequest,
+        response: HttpResponse,
+        location: RuleViolationLocation,
+      ) => {
+        if (typeof location === 'string') {
           return false;
         }
 
-        const thymianRes = ctx.format.getNode<ThymianHttpResponse>(matched[2]);
+        const transaction = ctx.format.getThymianHttpTransactionById(
+          location.elementId,
+        );
 
-        if (!thymianRes) {
+        if (!transaction) {
           return false;
         }
 
-        const results = validateHeaders(response.headers, thymianRes);
+        const results = validateHeaders(
+          response.headers,
+          transaction.thymianRes,
+        );
         const failures = results.filter((r) => r.type === 'assertion-failure');
 
         if (failures.length > 0) {

@@ -3,7 +3,7 @@ import {
   type HttpRequest,
   type HttpResponse,
   httpRule,
-  type ThymianHttpRequest,
+  type RuleViolationLocation,
   validateBodyForRequest,
 } from '@thymian/core';
 
@@ -16,20 +16,27 @@ export default httpRule('api-description/request-body-conforms-to-schema')
   .rule((ctx) =>
     ctx.validateHttpTransactions(
       constant(true),
-      (request: HttpRequest, _response: HttpResponse) => {
-        const matched = ctx.format.matchTransaction(request, _response);
-
-        if (!matched) {
+      (
+        request: HttpRequest,
+        _response: HttpResponse,
+        location: RuleViolationLocation,
+      ) => {
+        if (typeof location === 'string') {
           return false;
         }
 
-        const thymianReq = ctx.format.getNode<ThymianHttpRequest>(matched[1]);
+        const transaction = ctx.format.getThymianHttpTransactionById(
+          location.elementId,
+        );
 
-        if (!thymianReq) {
+        if (!transaction) {
           return false;
         }
 
-        const results = validateBodyForRequest(request.body, thymianReq);
+        const results = validateBodyForRequest(
+          request.body,
+          transaction.thymianReq,
+        );
         const failures = results.filter((r) => r.type === 'assertion-failure');
 
         if (failures.length > 0) {
