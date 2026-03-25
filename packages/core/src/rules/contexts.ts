@@ -2,9 +2,9 @@ import type { ReportFn } from '../events/report.event.js';
 import type { ThymianHttpRequest } from '../format/nodes/http-request.node.js';
 import type { ThymianHttpResponse } from '../format/nodes/http-response.node.js';
 import type { ThymianFormat } from '../format/thymian-format.js';
-import type { ThymianHttpTransaction } from '../format/thymian-format.js';
 import type { HttpRequest, HttpResponse } from '../http.js';
 import type { HttpFilterExpression } from '../http-filter.js';
+import type { HttpTestResult } from '../http-testing/http-test/http-test.js';
 import type { HttpTestContextLocals } from '../http-testing/http-test/http-test-context.js';
 import type { HttpTestPipeline } from '../http-testing/http-test/http-test-pipeline.js';
 import type { PartialBy } from '../utils.js';
@@ -95,6 +95,9 @@ export interface TestContext extends LiveApiContext {
   httpTest(
     pipeline: HttpTestPipeline<HttpTestContextLocals>,
   ): Promise<RuleFnResult> | RuleFnResult;
+  runHttpTest(
+    pipeline: HttpTestPipeline<HttpTestContextLocals>,
+  ): Promise<HttpTestResult>;
 }
 
 export interface AnalyzeContext extends LiveApiContext {

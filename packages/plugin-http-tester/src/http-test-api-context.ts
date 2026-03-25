@@ -305,6 +305,14 @@ export class HttpTestApiContext<
     return this.violations;
   }
 
+  async runHttpTest(
+    pipeline: HttpTestPipeline<Locals>,
+  ): Promise<HttpTestResult> {
+    const testFn = httpTest(this.name, pipeline);
+
+    return testFn(this.ctx);
+  }
+
   async validateHttpTransactions(
     filterExpr: HttpFilterExpression,
     validation:
