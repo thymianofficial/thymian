@@ -8,7 +8,7 @@ import {
 } from '@thymian/core';
 
 export default httpRule(
-  'api-description/request-query-parameters-conform-to-schema',
+  'thymian/request-query-parameters-must-conform-to-schema',
 )
   .severity('error')
   .type('analytics')
@@ -18,7 +18,6 @@ export default httpRule(
   .summary(
     'Request query parameters must conform to the API description schema',
   )
-  .tags('api-description', 'schema-validation', 'request', 'query-parameters')
   .rule((ctx) =>
     ctx.validateHttpTransactions(
       constant(true),

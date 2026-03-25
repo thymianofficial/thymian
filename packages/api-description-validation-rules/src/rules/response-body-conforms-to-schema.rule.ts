@@ -10,14 +10,13 @@ import {
   validateBodyForResponse,
 } from '@thymian/core';
 
-export default httpRule('api-description/response-body-conforms-to-schema')
+export default httpRule('thymian/response-body-must-conforms-to-schema')
   .severity('error')
   .type('test', 'analytics')
   .description(
     'Response body for 2xx and 4xx responses must conform to the API description schema.',
   )
-  .summary('Response body must conform to the API description schema')
-  .tags('api-description', 'schema-validation', 'response', 'body')
+  .summary('Response body must conform to the API description schema.')
   .rule((ctx) =>
     ctx.validateHttpTransactions(
       or(successfulStatusCode(), statusCodeRange(400, 499)),

@@ -10,14 +10,13 @@ import {
   validateHeaders,
 } from '@thymian/core';
 
-export default httpRule('api-description/response-headers-conform-to-schema')
+export default httpRule('thymian/response-headers-must-conform-to-schema')
   .severity('error')
   .type('test', 'analytics')
   .description(
     'Response headers must conform to the API description schema. Checks for missing required headers, additional undocumented headers, and validates existing headers against their schema.',
   )
   .summary('Response headers must conform to the API description schema')
-  .tags('api-description', 'schema-validation', 'response', 'headers')
   .rule((ctx) =>
     ctx.validateHttpTransactions(
       or(successfulStatusCode(), statusCodeRange(400, 499)),

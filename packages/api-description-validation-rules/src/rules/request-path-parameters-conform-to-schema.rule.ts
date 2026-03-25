@@ -8,7 +8,7 @@ import {
 } from '@thymian/core';
 
 export default httpRule(
-  'api-description/request-path-parameters-conform-to-schema',
+  'thymian/request-path-parameters-must-conform-to-schema',
 )
   .severity('error')
   .type('analytics')
@@ -16,7 +16,6 @@ export default httpRule(
     'Request path parameters must conform to the API description schema. Validates extracted path parameters against their schema definitions.',
   )
   .summary('Request path parameters must conform to the API description schema')
-  .tags('api-description', 'schema-validation', 'request', 'path-parameters')
   .rule((ctx) =>
     ctx.validateHttpTransactions(
       constant(true),

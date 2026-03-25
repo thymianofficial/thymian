@@ -7,14 +7,13 @@ import {
   validateRequestHeaders,
 } from '@thymian/core';
 
-export default httpRule('api-description/request-headers-conform-to-schema')
+export default httpRule('thymian/request-headers-must-conform-to-schema')
   .severity('error')
   .type('analytics')
   .description(
     'Request headers must conform to the API description schema. Checks for missing required headers, additional undocumented headers, and validates existing headers against their schema.',
   )
-  .summary('Request headers must conform to the API description schema')
-  .tags('api-description', 'schema-validation', 'request', 'headers')
+  .summary('Request headers must conform to the API description schema.')
   .rule((ctx) =>
     ctx.validateHttpTransactions(
       constant(true),

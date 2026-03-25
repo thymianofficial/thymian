@@ -7,12 +7,10 @@ import {
   validateBodyForRequest,
 } from '@thymian/core';
 
-export default httpRule('api-description/request-body-conforms-to-schema')
+export default httpRule('thymian/request-body-must-conform-to-schema')
   .severity('error')
   .type('analytics')
   .description('Request body must conform to the API description schema.')
-  .summary('Request body must conform to the API description schema')
-  .tags('api-description', 'schema-validation', 'request', 'body')
   .rule((ctx) =>
     ctx.validateHttpTransactions(
       constant(true),
