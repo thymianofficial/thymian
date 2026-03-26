@@ -3,8 +3,7 @@ import * as os from 'node:os';
 import { isAbsolute, join } from 'node:path';
 
 import { Args, Command } from '@thymian/cli-common/oclif';
-import { Thymian } from '@thymian/core';
-import { httpLinterPlugin } from '@thymian/http-linter';
+import { createRuleFilter, loadRules } from '@thymian/core';
 import { Piscina } from 'piscina';
 import { glob } from 'tinyglobby';
 
@@ -50,16 +49,8 @@ export default class Evaluate extends Command {
   private ruleNames: Record<string, number> = {};
 
   private async initStream(path: string): Promise<void> {
-    const thymian = new Thymian();
-    thymian.register(httpLinterPlugin, {
-      ruleSets: ['@thymian/rfc-9110-rules'],
-    });
-
-    const rules = await thymian.run((emitter) =>
-      emitter.emitAction('http-linter.rules', undefined, {
-        strategy: 'first',
-      }),
-    );
+    const ruleFilter = createRuleFilter({ severity: 'hint', type: ['static'] });
+    const rules = await loadRules('@thymian/rfc-9110-rules', ruleFilter);
 
     const ruleNames = rules.map((rule) => rule.meta.name).sort();
 

@@ -6,8 +6,6 @@ import { confirm, runPrompts } from '@thymian/cli-common/prompts';
 
 import { httpLinterPlugin, type HttpLinterPluginOptions } from '../index.js';
 
-const defaultRuleSets = ['@thymian/rfc-9110-rules'];
-
 const hook: ThymianPluginInitHook<HttpLinterPluginOptions> = async function (
   options,
 ) {
@@ -15,24 +13,14 @@ const hook: ThymianPluginInitHook<HttpLinterPluginOptions> = async function (
     return {
       include: true,
       pluginName: httpLinterPlugin.name,
-      configuration: {
-        options: {
-          ruleSets: ['@thymian/rfc-9110-rules'],
-        },
-      },
+      configuration: {},
     };
   }
 
   return runPrompts(async () => {
-    const opts: HttpLinterPluginOptions = {
-      ruleSets: [],
-    };
-
     const result: ThymianPluginInitResult<HttpLinterPluginOptions> = {
       include: true,
-      configuration: {
-        options: opts,
-      },
+      configuration: {},
       pluginName: httpLinterPlugin.name,
     };
 
@@ -46,17 +34,6 @@ const hook: ThymianPluginInitHook<HttpLinterPluginOptions> = async function (
         configuration: {},
         include: false,
       };
-    }
-
-    const includeDefaultSets = await confirm({
-      message: `Do you want to include default rule sets: ${defaultRuleSets.join(
-        ', ',
-      )}?`,
-      default: true,
-    });
-
-    if (includeDefaultSets) {
-      opts.ruleSets.push(...defaultRuleSets);
     }
 
     return result;

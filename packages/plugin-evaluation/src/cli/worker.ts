@@ -6,7 +6,12 @@ import {
 } from '@scalar/json-magic/bundle/plugins/node';
 import { dereference, validate } from '@scalar/openapi-parser';
 import { upgrade } from '@scalar/openapi-upgrader';
-import { NoopLogger, Thymian } from '@thymian/core';
+import {
+  createRuleFilter,
+  loadRules,
+  NoopLogger,
+  Thymian,
+} from '@thymian/core';
 import { httpLinterPlugin } from '@thymian/http-linter';
 import openApiPlugin from '@thymian/openapi';
 
@@ -46,9 +51,10 @@ export default async function ({
       descriptions: [{ source: filePath }],
     });
 
-    thymian.register(httpLinterPlugin, {
-      ruleSets: ['@thymian/rfc-9110-rules'],
-    });
+    thymian.register(httpLinterPlugin, {});
+
+    const ruleFilter = createRuleFilter({ severity: 'hint', type: ['static'] });
+    const rules = await loadRules('@thymian/rfc-9110-rules', ruleFilter);
 
     const version = bundled.openapi ?? bundled.swagger;
     const title = bundled.info?.title;
@@ -57,7 +63,7 @@ export default async function ({
       const format = await thymian.loadFormat();
       return await emitter.emitAction(
         'http-linter.lint-static',
-        { format: format.export() },
+        { format: format.export(), rules },
         { strategy: 'first' },
       );
     });

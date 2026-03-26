@@ -2,6 +2,7 @@ import { join } from 'node:path';
 
 import { BaseCliRunCommand } from '@thymian/cli-common';
 import { Flags, ux } from '@thymian/cli-common/oclif';
+import { loadRules } from '@thymian/core';
 import Fuse from 'fuse.js';
 
 export default class SearchCommand extends BaseCliRunCommand<
@@ -21,15 +22,11 @@ export default class SearchCommand extends BaseCliRunCommand<
   };
 
   async run(): Promise<void> {
-    const rules = await this.thymian.run(async (emitter) => {
-      if (this.flags.rules.length > 0) {
-        await emitter.emitAction('http-linter.load-rules', {
-          rules: this.flags.rules.map((rule) => join(process.cwd(), rule)),
-        });
-      }
+    const ruleSources = this.flags.rules.map((rule) =>
+      join(process.cwd(), rule),
+    );
 
-      return (await emitter.emitAction('http-linter.rules')).flat();
-    });
+    const rules = await loadRules(ruleSources);
 
     const fuse = new Fuse(rules, {
       keys: ['meta.description'],

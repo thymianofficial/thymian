@@ -8,6 +8,7 @@ export * from './rule-filter.js';
 export * from './rule-fn.js';
 export * from './rule-loader.js';
 export * from './rule-meta.js';
+export * from './rule-runner.js';
 export * from './rule-set.js';
 export * from './rule-severity.js';
 export * from './rule-violation.js';

@@ -2,13 +2,23 @@ import { join } from 'node:path';
 
 import {
   type CapturedTransaction,
+  createRuleFilter,
   httpTransactionToLabel,
+  loadRules,
   Thymian,
   ThymianFormat,
 } from '@thymian/core';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
 import httpAnalyzerPlugin from '../src/index.js';
+
+async function loadAnalyzerRules(fixturePath: string) {
+  const ruleFilter = createRuleFilter({
+    severity: 'hint',
+    type: ['analytics'],
+  });
+  return loadRules(fixturePath, ruleFilter);
+}
 
 describe('http-analyzer analytics integration', { timeout: 30000 }, () => {
   let thymian: Thymian;
@@ -26,19 +36,16 @@ describe('http-analyzer analytics integration', { timeout: 30000 }, () => {
   it('should register plugin, receive transactions via event, and lint via action', async () => {
     await thymian
       .register(httpAnalyzerPlugin, {
-        ruleSets: [
-          join(
-            import.meta.dirname,
-            'fixtures/rules/should-send-validator-fields.rule.mjs',
-          ),
-        ],
-        analytics: {
-          captureTransactions: {
-            type: 'in-memory',
-          },
-        },
+        storage: { type: 'memory' },
       })
       .ready();
+
+    const rules = await loadAnalyzerRules(
+      join(
+        import.meta.dirname,
+        'fixtures/rules/should-send-validator-fields.rule.mjs',
+      ),
+    );
 
     const transaction: CapturedTransaction = {
       request: {
@@ -65,12 +72,13 @@ describe('http-analyzer analytics integration', { timeout: 30000 }, () => {
       },
     };
 
-    thymian.emitter.emit('http-linter.transaction', transaction);
+    thymian.emitter.emit('http-analyzer.transaction', transaction);
 
     const result = await thymian.emitter.emitAction(
-      'http-linter.lint-analytics-batch',
+      'http-analyzer.lint-analytics-batch',
       {
         format: format.export(),
+        rules,
       },
       {
         strategy: 'first',
@@ -91,21 +99,18 @@ describe('http-analyzer analytics integration', { timeout: 30000 }, () => {
   it('should return valid when all transactions pass rules', async () => {
     await thymian
       .register(httpAnalyzerPlugin, {
-        ruleSets: [
-          join(
-            import.meta.dirname,
-            'fixtures/rules/should-send-validator-fields.rule.mjs',
-          ),
-        ],
-        analytics: {
-          captureTransactions: {
-            type: 'in-memory',
-          },
-        },
+        storage: { type: 'memory' },
       })
       .ready();
 
-    thymian.emitter.emit('http-linter.transaction', {
+    const rules = await loadAnalyzerRules(
+      join(
+        import.meta.dirname,
+        'fixtures/rules/should-send-validator-fields.rule.mjs',
+      ),
+    );
+
+    thymian.emitter.emit('http-analyzer.transaction', {
       request: {
         data: {
           method: 'get',
@@ -130,9 +135,10 @@ describe('http-analyzer analytics integration', { timeout: 30000 }, () => {
     });
 
     const result = await thymian.emitter.emitAction(
-      'http-linter.lint-analytics-batch',
+      'http-analyzer.lint-analytics-batch',
       {
         format: format.export(),
+        rules,
       },
       {
         strategy: 'first',
@@ -145,12 +151,12 @@ describe('http-analyzer analytics integration', { timeout: 30000 }, () => {
 
   it('should return undefined for lint-analytics-batch when analyzer plugin is not registered', async () => {
     // In the split plugin architecture, the analyzer plugin is NOT registered,
-    // so there is no handler for 'http-linter.lint-analytics-batch'.
+    // so there is no handler for 'http-analyzer.lint-analytics-batch'.
     // emitAction returns undefined when no handler is registered.
     await thymian.ready();
 
     const result = await thymian.emitter.emitAction(
-      'http-linter.lint-analytics-batch',
+      'http-analyzer.lint-analytics-batch',
       {
         format: format.export(),
       },
@@ -165,22 +171,19 @@ describe('http-analyzer analytics integration', { timeout: 30000 }, () => {
   it('should handle large number of transactions', async () => {
     await thymian
       .register(httpAnalyzerPlugin, {
-        ruleSets: [
-          join(
-            import.meta.dirname,
-            'fixtures/rules/should-send-validator-fields.rule.mjs',
-          ),
-        ],
-        analytics: {
-          captureTransactions: {
-            type: 'in-memory',
-          },
-        },
+        storage: { type: 'memory' },
       })
       .ready();
 
+    const rules = await loadAnalyzerRules(
+      join(
+        import.meta.dirname,
+        'fixtures/rules/should-send-validator-fields.rule.mjs',
+      ),
+    );
+
     for (let i = 0; i < 100; i++) {
-      thymian.emitter.emit('http-linter.transaction', {
+      thymian.emitter.emit('http-analyzer.transaction', {
         request: {
           data: {
             method: 'get',
@@ -208,9 +211,10 @@ describe('http-analyzer analytics integration', { timeout: 30000 }, () => {
     }
 
     const result = await thymian.emitter.emitAction(
-      'http-linter.lint-analytics-batch',
+      'http-analyzer.lint-analytics-batch',
       {
         format: format.export(),
+        rules,
       },
       {
         strategy: 'first',
@@ -224,21 +228,18 @@ describe('http-analyzer analytics integration', { timeout: 30000 }, () => {
   it('should handle interleaved transaction events and multiple lints', async () => {
     await thymian
       .register(httpAnalyzerPlugin, {
-        ruleSets: [
-          join(
-            import.meta.dirname,
-            'fixtures/rules/should-send-validator-fields.rule.mjs',
-          ),
-        ],
-        analytics: {
-          captureTransactions: {
-            type: 'in-memory',
-          },
-        },
+        storage: { type: 'memory' },
       })
       .ready();
 
-    thymian.emitter.emit('http-linter.transaction', {
+    const rules = await loadAnalyzerRules(
+      join(
+        import.meta.dirname,
+        'fixtures/rules/should-send-validator-fields.rule.mjs',
+      ),
+    );
+
+    thymian.emitter.emit('http-analyzer.transaction', {
       request: {
         data: {
           method: 'get',
@@ -263,9 +264,10 @@ describe('http-analyzer analytics integration', { timeout: 30000 }, () => {
     });
 
     const result1 = await thymian.emitter.emitAction(
-      'http-linter.lint-analytics',
+      'http-analyzer.lint-analytics',
       {
         format: format.export(),
+        rules,
       },
       {
         strategy: 'first',
@@ -275,7 +277,7 @@ describe('http-analyzer analytics integration', { timeout: 30000 }, () => {
     const firstCount = result1.reports.length;
     expect(firstCount).toBeGreaterThanOrEqual(0);
 
-    thymian.emitter.emit('http-linter.transaction', {
+    thymian.emitter.emit('http-analyzer.transaction', {
       request: {
         data: {
           method: 'get',
@@ -300,9 +302,10 @@ describe('http-analyzer analytics integration', { timeout: 30000 }, () => {
     });
 
     const result2 = await thymian.emitter.emitAction(
-      'http-linter.lint-analytics',
+      'http-analyzer.lint-analytics',
       {
         format: format.export(),
+        rules,
       },
       {
         strategy: 'first',
@@ -315,25 +318,22 @@ describe('http-analyzer analytics integration', { timeout: 30000 }, () => {
   it('should handle concurrent transaction insertions', async () => {
     await thymian
       .register(httpAnalyzerPlugin, {
-        ruleSets: [
-          join(
-            import.meta.dirname,
-            'fixtures/rules/should-send-validator-fields.rule.mjs',
-          ),
-        ],
-        analytics: {
-          captureTransactions: {
-            type: 'in-memory',
-          },
-        },
+        storage: { type: 'memory' },
       })
       .ready();
+
+    const rules = await loadAnalyzerRules(
+      join(
+        import.meta.dirname,
+        'fixtures/rules/should-send-validator-fields.rule.mjs',
+      ),
+    );
 
     const emitPromises = [];
     for (let i = 0; i < 50; i++) {
       emitPromises.push(
         (async () => {
-          thymian.emitter.emit('http-linter.transaction', {
+          thymian.emitter.emit('http-analyzer.transaction', {
             request: {
               data: {
                 method: 'get',
@@ -362,9 +362,10 @@ describe('http-analyzer analytics integration', { timeout: 30000 }, () => {
     await Promise.all(emitPromises);
 
     const result = await thymian.emitter.emitAction(
-      'http-linter.lint-analytics-batch',
+      'http-analyzer.lint-analytics-batch',
       {
         format: format.export(),
+        rules,
       },
       {
         strategy: 'first',

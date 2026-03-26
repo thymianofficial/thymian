@@ -1,6 +1,5 @@
 import {
   constant,
-  type CoreFormatLoadInput,
   type HttpFilterExpression,
   type SerializedThymianFormat,
   ThymianFormat,

@@ -2,11 +2,7 @@ import type { ThymianConfig } from './thymian-config.js';
 
 export const defaultConfig: ThymianConfig = {
   plugins: {
-    '@thymian/http-linter': {
-      options: {
-        ruleSets: ['@thymian/rfc-9110-rules'],
-      },
-    },
+    '@thymian/http-linter': {},
     '@thymian/openapi': {
       options: {
         descriptions: [],
@@ -21,21 +17,7 @@ export const defaultConfig: ThymianConfig = {
         },
       },
     },
-    '@thymian/http-tester': {
-      options: {
-        ruleSets: [
-          '@thymian/rfc-9110-rules',
-          '@thymian/api-description-validation-rules',
-        ],
-      },
-    },
-    '@thymian/http-analyzer': {
-      options: {
-        ruleSets: [
-          '@thymian/rfc-9110-rules',
-          '@thymian/api-description-validation-rules',
-        ],
-      },
-    },
+    '@thymian/http-tester': {},
+    '@thymian/http-analyzer': {},
   },
 };

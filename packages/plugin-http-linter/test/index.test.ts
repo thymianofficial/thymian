@@ -1,6 +1,6 @@
 import { join } from 'node:path';
 
-import { Thymian, ThymianFormat } from '@thymian/core';
+import { loadRules, Thymian, ThymianFormat } from '@thymian/core';
 import {
   createHttpRequest,
   createHttpResponse,
@@ -13,16 +13,14 @@ import httpLinterPlugin from '../src/index.js';
 describe('http-linter', { timeout: 10000 }, () => {
   it('http-linter.lint-static should return thymian reports', async () => {
     const thymian = new Thymian();
-    await thymian
-      .register(httpLinterPlugin, {
-        ruleSets: [
-          join(
-            import.meta.dirname,
-            'fixtures/rules/should-send-validator-fields.rule.mjs',
-          ),
-        ],
-      })
-      .ready();
+    await thymian.register(httpLinterPlugin, {}).ready();
+
+    const rules = await loadRules(
+      join(
+        import.meta.dirname,
+        'fixtures/rules/should-send-validator-fields.rule.mjs',
+      ),
+    );
 
     const format = createThymianFormatWithTransaction(
       createHttpRequest({ method: 'get' }),
@@ -33,6 +31,7 @@ describe('http-linter', { timeout: 10000 }, () => {
       'http-linter.lint-static',
       {
         format: format.export(),
+        rules,
       },
       {
         strategy: 'first',

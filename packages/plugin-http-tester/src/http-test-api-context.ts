@@ -255,7 +255,7 @@ export class HttpTestApiContext<
           title: testCase.name,
           category: 'HTTP Tests',
           source: this.name,
-          producer: '@thymian/http-linter',
+          producer: '@thymian/http-tester',
           severity: 'info',
         });
       } else if (testCase.status === 'failed') {
@@ -287,7 +287,7 @@ export class HttpTestApiContext<
             title: testCase.name,
             category: 'Failed HTTP Test Cases',
             source: '',
-            producer: '@thymian/http-linter',
+            producer: '@thymian/http-tester',
             severity: 'info',
           });
         }

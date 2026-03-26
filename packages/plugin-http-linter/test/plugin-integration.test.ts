@@ -1,7 +1,9 @@
 import { join } from 'node:path';
 
 import {
+  createRuleFilter,
   DEFAULT_HEADER_SERIALIZATION_STYLE,
+  loadRules,
   type RuleSeverity,
   Thymian,
   ThymianFormat,
@@ -29,23 +31,21 @@ describe('http-linter integration tests', () => {
   });
 
   it('should provide options to rules', async () => {
-    await thymian
-      .register(httpLinterPlugin, {
-        ruleSets: [
-          join(
-            import.meta.dirname,
-            'fixtures/rules/rule-with-options.rule.mjs',
-          ),
-        ],
-        rules: {
-          'rule-with-options': {
-            options: {
-              foo: 'lol',
-            },
-          },
+    await thymian.register(httpLinterPlugin, {}).ready();
+
+    const rulesConfig = {
+      'rule-with-options': {
+        options: {
+          foo: 'lol',
         },
-      })
-      .ready();
+      },
+    };
+
+    const rules = await loadRules(
+      join(import.meta.dirname, 'fixtures/rules/rule-with-options.rule.mjs'),
+      undefined,
+      rulesConfig,
+    );
 
     const format = createThymianFormatWithTransaction(
       createHttpRequest({
@@ -64,7 +64,7 @@ describe('http-linter integration tests', () => {
 
     const result = await thymian.emitter.emitAction(
       'http-linter.lint-static',
-      { format: format.export() },
+      { format: format.export(), rules, rulesConfig },
       { strategy: 'first' },
     );
 
@@ -72,19 +72,20 @@ describe('http-linter integration tests', () => {
   });
 
   it('should be able to disable a rule', async () => {
-    await thymian
-      .register(httpLinterPlugin, {
-        ruleSets: [
-          join(
-            import.meta.dirname,
-            'fixtures/rules/should-send-validator-fields.rule.mjs',
-          ),
-        ],
-        rules: {
-          'rfc9110/server-should-send-validator-fields': 'off',
-        },
-      })
-      .ready();
+    await thymian.register(httpLinterPlugin, {}).ready();
+
+    const rulesConfig = {
+      'rfc9110/server-should-send-validator-fields': 'off' as const,
+    };
+
+    const rules = await loadRules(
+      join(
+        import.meta.dirname,
+        'fixtures/rules/should-send-validator-fields.rule.mjs',
+      ),
+      undefined,
+      rulesConfig,
+    );
 
     const format = createThymianFormatWithTransaction(
       createHttpRequest({
@@ -95,22 +96,17 @@ describe('http-linter integration tests', () => {
       }),
     );
 
-    const rules = await thymian.emitter.emitAction(
-      'http-linter.rules',
-      undefined,
-      {
-        strategy: 'first',
-      },
-    );
-
     const result = await thymian.emitter.emitAction(
       'http-linter.lint-static',
-      { format: format.export() },
+      { format: format.export(), rules, rulesConfig },
       { strategy: 'first' },
     );
 
     expect(result.valid).toBeTruthy();
-    expect(rules).toHaveLength(0);
+    // The rule is loaded with severity 'off' - loadRules applies the config
+    // but doesn't filter. runRules skips rules with severity 'off' at runtime.
+    expect(rules).toHaveLength(1);
+    expect(rules[0].meta.severity).toBe('off');
   });
 
   it.each([
@@ -121,42 +117,42 @@ describe('http-linter integration tests', () => {
   ])(
     'should load rules respecting given severity %s and return %d rules',
     async (severity, length) => {
-      await thymian
-        .register(httpLinterPlugin, {
-          ruleSets: [
-            join(import.meta.dirname, 'fixtures/rules/a.rule.mjs'),
-            join(import.meta.dirname, 'fixtures/rules/b.rule.mjs'),
-          ],
-          severity: severity as RuleSeverity,
-        })
-        .ready();
+      await thymian.register(httpLinterPlugin, {}).ready();
 
-      const result = await thymian.emitter.emitAction(
-        'http-linter.rules',
-        undefined,
-        { strategy: 'first' },
+      const ruleFilter = createRuleFilter({
+        severity: severity as RuleSeverity,
+        type: ['static'],
+      });
+
+      const rules = await loadRules(
+        [
+          join(import.meta.dirname, 'fixtures/rules/a.rule.mjs'),
+          join(import.meta.dirname, 'fixtures/rules/b.rule.mjs'),
+        ],
+        ruleFilter,
       );
 
-      expect(result).toHaveLength(length);
+      expect(rules).toHaveLength(length);
     },
   );
 
   it('should ignore given origins for specified rules', async () => {
-    await thymian
-      .register(httpLinterPlugin, {
-        ruleSets: [
-          join(
-            import.meta.dirname,
-            'fixtures/rules/should-send-validator-fields.rule.mjs',
-          ),
-        ],
-        rules: {
-          'rfc9110/server-should-send-validator-fields': {
-            skipOrigins: ['localhost:8080'],
-          },
-        },
-      })
-      .ready();
+    await thymian.register(httpLinterPlugin, {}).ready();
+
+    const rulesConfig = {
+      'rfc9110/server-should-send-validator-fields': {
+        skipOrigins: ['localhost:8080'],
+      },
+    };
+
+    const rules = await loadRules(
+      join(
+        import.meta.dirname,
+        'fixtures/rules/should-send-validator-fields.rule.mjs',
+      ),
+      undefined,
+      rulesConfig,
+    );
 
     format.addHttpTransaction(
       createHttpRequest({ host: 'localhost', port: 8080 }),
@@ -171,7 +167,7 @@ describe('http-linter integration tests', () => {
 
     const result = await thymian.emitter.emitAction(
       'http-linter.lint-static',
-      { format: format.export() },
+      { format: format.export(), rules, rulesConfig },
       {
         strategy: 'first',
       },
