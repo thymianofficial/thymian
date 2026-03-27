@@ -20,7 +20,6 @@ Ensure that the `@thymian/http-analyzer` plugin is properly configured and regis
 plugins:
   '@thymian/http-analyzer':
     options:
-      analytics:
-        captureTransactions:
-          type: in-memory
+      storage:
+        type: 'memory'
 ```
