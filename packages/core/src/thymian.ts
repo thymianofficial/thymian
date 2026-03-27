@@ -316,6 +316,12 @@ export class Thymian {
     );
   }
 
+  /**
+   * Architectural note:
+   * Core owns the public validation entrypoints and input-loading contract.
+   * Plugins own the mode-specific execution semantics behind these entrypoints.
+   * This keeps the consumer-facing API stable while preserving plugin-based extensibility.
+   */
   async lint(input: LintWorkflowInput): Promise<ValidationResult[]> {
     const { rulesConfig } = input;
 
