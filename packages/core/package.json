@@ -29,7 +29,7 @@
     "ajv-formats": "^3.0.1",
     "chalk": "^5.4.1",
     "graphology": "^0.26.0",
-    "path-to-regexp": "^0.1.12",
+    "path-to-regexp": "^8.4.0",
     "rxjs": "^7.8.2",
     "safe-stable-stringify": "^2.5.0",
     "secure-json-parse": "^3.0.2",
