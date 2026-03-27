@@ -1,7 +1,7 @@
 import type { RuleSet } from '@thymian/core';
 
 const apiDescriptionValidation: RuleSet = {
-  name: 'api-description-validation',
+  name: '@thymian/api-description-validation-rules',
   pattern: 'rules/**/*.rule.js',
 };
 
