@@ -444,4 +444,245 @@ describe('Thymian', () => {
       );
     });
   });
+
+  describe('validation workflows', () => {
+    it('lint should load specification inputs and dispatch through the core entrypoint', async () => {
+      const formatLoadSpy = vitest.fn();
+      const coreLintSpy = vitest.fn();
+
+      thymian.register(
+        createPluginFor(async (emitter) => {
+          emitter.onAction('core.format.load', (input, ctx) => {
+            formatLoadSpy(input);
+
+            const format = new ThymianFormat();
+            format.addHttpTransaction(
+              {
+                type: 'http-request',
+                host: 'localhost',
+                port: 8080,
+                protocol: 'http',
+                path: '/lint',
+                method: 'get',
+                headers: {},
+                queryParameters: {},
+                cookies: {},
+                pathParameters: {},
+                mediaType: '',
+              },
+              {
+                type: 'http-response',
+                headers: {},
+                mediaType: 'application/json',
+                statusCode: 200,
+              },
+              'spec-loader',
+            );
+
+            ctx.reply(format.export());
+          });
+
+          emitter.onAction('core.lint', (payload, ctx) => {
+            coreLintSpy(payload);
+            ctx.reply({ status: 'success', reports: [], violations: [] });
+          });
+        }),
+      );
+
+      await thymian.ready();
+
+      const result = await thymian.lint({
+        specification: [{ type: 'openapi', location: '/tmp/api.yaml' }],
+        rulesConfig: { demo: 'warn' },
+        options: { source: 'test' },
+      });
+
+      expect(formatLoadSpy).toHaveBeenCalledWith({
+        inputs: [{ type: 'openapi', location: '/tmp/api.yaml' }],
+      });
+      expect(coreLintSpy).toHaveBeenCalledTimes(1);
+      expect(coreLintSpy.mock.calls[0]?.[0]).toMatchObject({
+        rules: [],
+        rulesConfig: { demo: 'warn' },
+        options: { source: 'test' },
+      });
+      expect(coreLintSpy.mock.calls[0]?.[0].format).toBeDefined();
+      expect(result).toEqual([
+        { status: 'success', reports: [], violations: [] },
+      ]);
+    });
+
+    it('test should load specification inputs and dispatch through the core entrypoint', async () => {
+      const formatLoadSpy = vitest.fn();
+      const coreTestSpy = vitest.fn();
+
+      thymian.register(
+        createPluginFor(async (emitter) => {
+          emitter.onAction('core.format.load', (input, ctx) => {
+            formatLoadSpy(input);
+            ctx.reply(new ThymianFormat().export());
+          });
+
+          emitter.onAction('core.test', (payload, ctx) => {
+            coreTestSpy(payload);
+            ctx.reply({
+              status: 'failed',
+              reports: [],
+              violations: [
+                {
+                  rule: 'demo/test-rule',
+                  severity: 'warn',
+                  location: 'request',
+                },
+              ],
+            });
+          });
+        }),
+      );
+
+      await thymian.ready();
+
+      const result = await thymian.test({
+        specification: [{ type: 'openapi', location: '/tmp/api.yaml' }],
+        options: { replay: false },
+      });
+
+      expect(formatLoadSpy).toHaveBeenCalledWith({
+        inputs: [{ type: 'openapi', location: '/tmp/api.yaml' }],
+      });
+      expect(coreTestSpy).toHaveBeenCalledTimes(1);
+      expect(coreTestSpy.mock.calls[0]?.[0]).toMatchObject({
+        rules: [],
+        rulesConfig: undefined,
+        options: { replay: false },
+      });
+      expect(result).toEqual([
+        {
+          status: 'failed',
+          reports: [],
+          violations: [
+            {
+              rule: 'demo/test-rule',
+              severity: 'warn',
+              location: 'request',
+            },
+          ],
+        },
+      ]);
+    });
+
+    it('analyze should merge traffic, optionally load format, and dispatch through the core entrypoint', async () => {
+      const formatLoadSpy = vitest.fn();
+      const trafficLoadSpy = vitest.fn();
+      const coreAnalyzeSpy = vitest.fn();
+
+      thymian.register(
+        createPluginFor(async (emitter) => {
+          emitter.onAction('core.format.load', (input, ctx) => {
+            formatLoadSpy(input);
+            ctx.reply(new ThymianFormat().export());
+          });
+
+          emitter.onAction('core.traffic.load', (input, ctx) => {
+            trafficLoadSpy(input);
+            ctx.reply({
+              transactions: [
+                {
+                  request: {
+                    data: {
+                      method: 'get',
+                      origin: 'https://api.example.com',
+                      path: '/users/1',
+                      headers: {},
+                    },
+                    meta: {},
+                  },
+                  response: {
+                    data: {
+                      statusCode: 200,
+                      headers: {},
+                      trailers: {},
+                      duration: 0,
+                    },
+                    meta: {},
+                  },
+                },
+              ],
+              traces: [{ id: 'trace-1' }],
+              metadata: { pluginA: true },
+            });
+          });
+
+          emitter.onAction('core.analyze', (payload, ctx) => {
+            coreAnalyzeSpy(payload);
+            ctx.reply({ status: 'success', reports: [], violations: [] });
+          });
+        }),
+      );
+
+      thymian.register(
+        createPluginFor(async (emitter) => {
+          emitter.onAction('core.traffic.load', (_, ctx) => {
+            ctx.reply({
+              transactions: [
+                {
+                  request: {
+                    data: {
+                      method: 'post',
+                      origin: 'https://api.example.com',
+                      path: '/users',
+                      headers: {},
+                    },
+                    meta: {},
+                  },
+                  response: {
+                    data: {
+                      statusCode: 201,
+                      headers: {},
+                      trailers: {},
+                      duration: 0,
+                    },
+                    meta: {},
+                  },
+                },
+              ],
+              traces: [{ id: 'trace-2' }],
+              metadata: { pluginB: true },
+            });
+          });
+        }),
+      );
+
+      await thymian.ready();
+
+      const result = await thymian.analyze({
+        specification: [{ type: 'openapi', location: '/tmp/api.yaml' }],
+        traffic: [{ type: 'har', location: '/tmp/traffic.har' }],
+        options: { includeTraces: true },
+      });
+
+      expect(trafficLoadSpy).toHaveBeenCalledWith({
+        inputs: [{ type: 'har', location: '/tmp/traffic.har' }],
+      });
+      expect(formatLoadSpy).toHaveBeenCalledWith({
+        inputs: [{ type: 'openapi', location: '/tmp/api.yaml' }],
+      });
+      expect(coreAnalyzeSpy).toHaveBeenCalledTimes(1);
+      expect(coreAnalyzeSpy.mock.calls[0]?.[0]).toMatchObject({
+        options: { includeTraces: true },
+        rules: [],
+        traffic: {
+          metadata: { pluginA: true, pluginB: true },
+        },
+      });
+      expect(
+        coreAnalyzeSpy.mock.calls[0]?.[0].traffic.transactions,
+      ).toHaveLength(2);
+      expect(coreAnalyzeSpy.mock.calls[0]?.[0].traffic.traces).toHaveLength(2);
+      expect(coreAnalyzeSpy.mock.calls[0]?.[0].format).toBeDefined();
+      expect(result).toEqual([
+        { status: 'success', reports: [], violations: [] },
+      ]);
+    });
+  });
 });
