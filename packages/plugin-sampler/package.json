@@ -24,7 +24,12 @@
     "@thymian/cli-common": "0.0.0-PLACEHOLDER",
     "@thymian/core": "0.0.0-PLACEHOLDER",
     "@thymian/request-dispatcher": "0.0.0-PLACEHOLDER",
+    "code-block-writer": "^13.0.3",
     "jiti": "^2.6.1",
+    "json-schema-to-typescript": "^15.0.4",
+    "launch-editor": "^2.13.2",
+    "openapi-sampler": "^1.7.2",
+    "sharp": "^0.34.5",
     "tslib": "^2.3.0"
   },
   "oclif": {
@@ -37,8 +42,8 @@
     }
   },
   "devDependencies": {
+    "@thymian/core-testing": "0.0.0-PLACEHOLDER",
     "fast-json-stable-stringify": "^2.1.0",
-    "ts-morph": "^27.0.2",
-    "@thymian/core-testing": "0.0.0-PLACEHOLDER"
+    "ts-morph": "^27.0.2"
   }
 }
