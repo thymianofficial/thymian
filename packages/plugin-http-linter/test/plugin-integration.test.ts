@@ -13,7 +13,7 @@ import {
   createHttpResponse,
   createThymianFormatWithTransaction,
 } from '@thymian/core-testing';
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import httpLinterPlugin from '../src/index.js';
 
@@ -184,5 +184,121 @@ describe('http-linter integration tests', () => {
         }),
       ]),
     );
+  });
+});
+
+describe('core.lint integration tests', () => {
+  let thymian: Thymian;
+
+  beforeEach(async () => {
+    thymian = new Thymian();
+  });
+
+  afterEach(async () => {
+    await thymian.close();
+  });
+
+  it('should return ValidationResult shape with status and violations on failure', async () => {
+    await thymian.register(httpLinterPlugin, {}).ready();
+
+    const rules = await loadRules(
+      join(
+        import.meta.dirname,
+        'fixtures/rules/should-send-validator-fields.rule.mjs',
+      ),
+    );
+
+    const format = createThymianFormatWithTransaction(
+      createHttpRequest({ method: 'get' }),
+      createHttpResponse({ statusCode: 200 }),
+    );
+
+    const result = await thymian.emitter.emitAction(
+      'core.lint',
+      { format: format.export(), rules },
+      { strategy: 'first' },
+    );
+
+    expect(result.status).toBe('failed');
+    expect(result.reports).toHaveLength(1);
+    expect(result.violations).toHaveLength(1);
+    expect(result.violations[0]).toMatchObject({
+      rule: 'rfc9110/server-should-send-validator-fields',
+      severity: 'warn',
+    });
+  });
+
+  it('should return status success and empty violations when all rules pass', async () => {
+    await thymian.register(httpLinterPlugin, {}).ready();
+
+    const rules = await loadRules(
+      join(
+        import.meta.dirname,
+        'fixtures/rules/should-send-validator-fields.rule.mjs',
+      ),
+    );
+
+    const format = createThymianFormatWithTransaction(
+      createHttpRequest({ method: 'get' }),
+      createHttpResponse({ statusCode: 200, headers: { etag: '"abc"' } }),
+    );
+
+    const result = await thymian.emitter.emitAction(
+      'core.lint',
+      { format: format.export(), rules },
+      { strategy: 'first' },
+    );
+
+    expect(result.status).toBe('success');
+    expect(result.reports).toHaveLength(0);
+    expect(result.violations).toHaveLength(0);
+  });
+
+  it('should return status success with empty rules', async () => {
+    await thymian.register(httpLinterPlugin, {}).ready();
+
+    const format = createThymianFormatWithTransaction(
+      createHttpRequest({ method: 'get' }),
+      createHttpResponse({ statusCode: 200 }),
+    );
+
+    const result = await thymian.emitter.emitAction(
+      'core.lint',
+      { format: format.export(), rules: [] },
+      { strategy: 'first' },
+    );
+
+    expect(result.status).toBe('success');
+    expect(result.reports).toHaveLength(0);
+    expect(result.violations).toHaveLength(0);
+  });
+
+  it('should not emit core.report events', async () => {
+    await thymian.register(httpLinterPlugin, {}).ready();
+
+    const reportSpy = vi.fn();
+    thymian.emitter.on('core.report', reportSpy);
+
+    const rules = await loadRules(
+      join(
+        import.meta.dirname,
+        'fixtures/rules/should-send-validator-fields.rule.mjs',
+      ),
+    );
+
+    const format = createThymianFormatWithTransaction(
+      createHttpRequest({ method: 'get' }),
+      createHttpResponse({ statusCode: 200 }),
+    );
+
+    const result = await thymian.emitter.emitAction(
+      'core.lint',
+      { format: format.export(), rules },
+      { strategy: 'first' },
+    );
+
+    expect(result.status).toBe('failed');
+    expect(result.violations).toHaveLength(1);
+    expect(reportSpy).not.toHaveBeenCalled();
   });
 });

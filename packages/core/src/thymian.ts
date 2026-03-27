@@ -2,10 +2,9 @@ import semver from 'semver';
 
 import packageJson from '../package.json' with { type: 'json' };
 import type {
-  CoreAnalyzeInput,
   CoreFormatLoadInput,
-  CoreLintInput,
-  CoreTestInput,
+  CoreRequestDispatchInput,
+  CoreRequestSampleInput,
   CoreTrafficLoadInput,
   SpecificationInput,
   TrafficInput,
@@ -15,10 +14,16 @@ import { validate } from './ajv.js';
 import { corePlugin } from './core-plugin.js';
 import { ThymianEmitter } from './emitter/index.js';
 import { ThymianFormat } from './format/index.js';
+import type { HttpRequestTemplate, HttpResponse } from './http.js';
 import { constant, type HttpFilterExpression } from './http-filter.js';
 import type { Logger } from './logger/logger.js';
 import { NoopLogger } from './logger/noop.logger.js';
-import { type LoadedTraffic, loadRules, type Rule } from './rules/index.js';
+import {
+  type LoadedTraffic,
+  loadRules,
+  type Rule,
+  type RulesConfiguration,
+} from './rules/index.js';
 import { ThymianBaseError } from './thymian.error.js';
 import type { ThymianPlugin } from './thymian-plugin.js';
 import { timeoutPromise } from './utils.js';
@@ -26,12 +31,14 @@ import { timeoutPromise } from './utils.js';
 export interface LintWorkflowInput {
   specification: SpecificationInput[];
   rules?: string[];
+  rulesConfig?: RulesConfiguration;
   options?: Record<string, unknown>;
 }
 
 export interface TestWorkflowInput {
   specification: SpecificationInput[];
   rules?: string[];
+  rulesConfig?: RulesConfiguration;
   options?: Record<string, unknown>;
 }
 
@@ -39,6 +46,7 @@ export interface AnalyzeWorkflowInput {
   specification?: SpecificationInput[];
   traffic: TrafficInput[];
   rules?: string[];
+  rulesConfig?: RulesConfiguration;
   options?: Record<string, unknown>;
 }
 
@@ -308,48 +316,42 @@ export class Thymian {
     );
   }
 
-  async loadRules(paths: string[] = []): Promise<Rule[]> {
-    return loadRules(paths);
+  async lint(input: LintWorkflowInput): Promise<ValidationResult[]> {
+    const { rulesConfig } = input;
+
+    const [format, rules] = await Promise.all([
+      this.loadFormat({ inputs: input.specification }, { emitFormat: false }),
+      loadRules(input.rules ?? [], undefined, rulesConfig, this.options.cwd),
+    ]);
+
+    return this.emitter.emitAction(
+      'core.lint',
+      { format: format.export(), rules, rulesConfig, options: input.options },
+      { strategy: 'collect' },
+    );
   }
 
-  async runLint(input: CoreLintInput): Promise<ValidationResult> {
-    return this.emitter.emitAction('core.lint', input, { strategy: 'first' });
+  async test(input: TestWorkflowInput): Promise<ValidationResult[]> {
+    const { rulesConfig } = input;
+
+    const [format, rules] = await Promise.all([
+      this.loadFormat({ inputs: input.specification }, { emitFormat: false }),
+      loadRules(input.rules ?? [], undefined, rulesConfig, this.options.cwd),
+    ]);
+
+    return this.emitter.emitAction(
+      'core.test',
+      { format: format.export(), rules, rulesConfig, options: input.options },
+      { strategy: 'collect' },
+    );
   }
 
-  async runTest(input: CoreTestInput): Promise<ValidationResult> {
-    return this.emitter.emitAction('core.test', input, { strategy: 'first' });
-  }
+  async analyze(input: AnalyzeWorkflowInput): Promise<ValidationResult[]> {
+    const { rulesConfig } = input;
 
-  async runAnalyze(input: CoreAnalyzeInput): Promise<ValidationResult> {
-    return this.emitter.emitAction('core.analyze', input, {
-      strategy: 'first',
-    });
-  }
-
-  async lint(input: LintWorkflowInput): Promise<ValidationResult> {
-    return this.runValidationWorkflow({
-      specification: input.specification,
-      rules: input.rules,
-      options: input.options,
-      execute: (format, rules, options) =>
-        this.runLint({ format, rules, options }),
-    });
-  }
-
-  async test(input: TestWorkflowInput): Promise<ValidationResult> {
-    return this.runValidationWorkflow({
-      specification: input.specification,
-      rules: input.rules,
-      options: input.options,
-      execute: (format, rules, options) =>
-        this.runTest({ format, rules, options }),
-    });
-  }
-
-  async analyze(input: AnalyzeWorkflowInput): Promise<ValidationResult> {
     const [traffic, rules, format] = await Promise.all([
       this.loadTraffic({ inputs: input.traffic }),
-      this.loadRules(input.rules),
+      loadRules(input.rules ?? [], undefined, rulesConfig, this.options.cwd),
       input.specification
         ? this.loadFormat(
             { inputs: input.specification },
@@ -358,35 +360,29 @@ export class Thymian {
         : Promise.resolve(undefined),
     ]);
 
-    return this.runAnalyze({
-      traffic,
-      format: format?.export(),
-      rules,
-      options: input.options,
+    return this.emitter.emitAction(
+      'core.analyze',
+      {
+        traffic,
+        format: format?.export(),
+        rules,
+        rulesConfig,
+        options: input.options,
+      },
+      { strategy: 'collect' },
+    );
+  }
+
+  async sample(input: CoreRequestSampleInput): Promise<HttpRequestTemplate> {
+    return this.emitter.emitAction('core.request.sample', input, {
+      strategy: 'first',
     });
   }
 
-  private async runValidationWorkflow({
-    specification,
-    rules,
-    options,
-    execute,
-  }: {
-    specification: SpecificationInput[];
-    rules?: string[];
-    options?: Record<string, unknown>;
-    execute: (
-      format: ReturnType<ThymianFormat['export']>,
-      loadedRules: Rule[],
-      workflowOptions?: Record<string, unknown>,
-    ) => Promise<ValidationResult>;
-  }): Promise<ValidationResult> {
-    const [format, loadedRules] = await Promise.all([
-      this.loadFormat({ inputs: specification }, { emitFormat: false }),
-      this.loadRules(rules),
-    ]);
-
-    return execute(format.export(), loadedRules, options);
+  async dispatch(input: CoreRequestDispatchInput): Promise<HttpResponse> {
+    return this.emitter.emitAction('core.request.dispatch', input, {
+      strategy: 'first',
+    });
   }
 
   private async loadRegisteredPlugins(): Promise<void> {

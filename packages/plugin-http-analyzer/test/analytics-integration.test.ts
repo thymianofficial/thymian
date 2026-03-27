@@ -8,7 +8,7 @@ import {
   Thymian,
   ThymianFormat,
 } from '@thymian/core';
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import httpAnalyzerPlugin from '../src/index.js';
 
@@ -374,5 +374,218 @@ describe('http-analyzer analytics integration', { timeout: 30000 }, () => {
 
     expect(result.valid).toBeFalsy();
     expect(result.reports).toHaveLength(50);
+  });
+});
+
+describe('core.analyze integration tests', { timeout: 30000 }, () => {
+  let thymian: Thymian;
+
+  beforeEach(async () => {
+    thymian = new Thymian();
+  });
+
+  afterEach(async () => {
+    await thymian.close();
+  });
+
+  function createFailingTransaction(): CapturedTransaction {
+    return {
+      request: {
+        data: {
+          method: 'get',
+          origin: 'https://api.example.com',
+          path: '/users/123',
+          headers: {},
+        },
+        meta: {},
+      },
+      response: {
+        data: {
+          statusCode: 200,
+          headers: { 'content-type': 'application/json' },
+          trailers: {},
+          duration: 0,
+        },
+        meta: { role: 'origin server' },
+      },
+    };
+  }
+
+  function createPassingTransaction(): CapturedTransaction {
+    return {
+      request: {
+        data: {
+          method: 'get',
+          origin: 'https://api.example.com',
+          path: '/users/123',
+          headers: {},
+        },
+        meta: {},
+      },
+      response: {
+        data: {
+          statusCode: 200,
+          headers: {
+            'content-type': 'application/json',
+            etag: '"abc123"',
+          },
+          trailers: {},
+          duration: 0,
+        },
+        meta: { role: 'origin server' },
+      },
+    };
+  }
+
+  it('should return ValidationResult shape with status and violations on failure', async () => {
+    await thymian
+      .register(httpAnalyzerPlugin, { storage: { type: 'memory' } })
+      .ready();
+
+    const rules = await loadAnalyzerRules(
+      join(
+        import.meta.dirname,
+        'fixtures/rules/should-send-validator-fields.rule.mjs',
+      ),
+    );
+
+    const result = await thymian.emitter.emitAction(
+      'core.analyze',
+      {
+        format: new ThymianFormat().export(),
+        rules,
+        traffic: { transactions: [createFailingTransaction()] },
+      },
+      { strategy: 'first' },
+    );
+
+    expect(result.status).toBe('failed');
+    expect(result.reports.length).toBeGreaterThanOrEqual(1);
+    expect(result.violations.length).toBeGreaterThanOrEqual(1);
+    expect(result.violations[0]).toMatchObject({
+      rule: 'rfc9110/server-should-send-validator-fields',
+      severity: 'warn',
+    });
+  });
+
+  it('should return status success when all transactions pass rules', async () => {
+    await thymian
+      .register(httpAnalyzerPlugin, { storage: { type: 'memory' } })
+      .ready();
+
+    const rules = await loadAnalyzerRules(
+      join(
+        import.meta.dirname,
+        'fixtures/rules/should-send-validator-fields.rule.mjs',
+      ),
+    );
+
+    const result = await thymian.emitter.emitAction(
+      'core.analyze',
+      {
+        format: new ThymianFormat().export(),
+        rules,
+        traffic: { transactions: [createPassingTransaction()] },
+      },
+      { strategy: 'first' },
+    );
+
+    expect(result.status).toBe('success');
+    expect(result.reports).toHaveLength(0);
+    expect(result.violations).toHaveLength(0);
+  });
+
+  it('should return status success with empty rules', async () => {
+    await thymian
+      .register(httpAnalyzerPlugin, { storage: { type: 'memory' } })
+      .ready();
+
+    const result = await thymian.emitter.emitAction(
+      'core.analyze',
+      {
+        format: new ThymianFormat().export(),
+        rules: [],
+        traffic: { transactions: [createFailingTransaction()] },
+      },
+      { strategy: 'first' },
+    );
+
+    expect(result.status).toBe('success');
+    expect(result.reports).toHaveLength(0);
+    expect(result.violations).toHaveLength(0);
+  });
+
+  it('should not emit core.report events', async () => {
+    await thymian
+      .register(httpAnalyzerPlugin, { storage: { type: 'memory' } })
+      .ready();
+
+    const reportSpy = vi.fn();
+    thymian.emitter.on('core.report', reportSpy);
+
+    const rules = await loadAnalyzerRules(
+      join(
+        import.meta.dirname,
+        'fixtures/rules/should-send-validator-fields.rule.mjs',
+      ),
+    );
+
+    const result = await thymian.emitter.emitAction(
+      'core.analyze',
+      {
+        format: new ThymianFormat().export(),
+        rules,
+        traffic: { transactions: [createFailingTransaction()] },
+      },
+      { strategy: 'first' },
+    );
+
+    expect(result.status).toBe('failed');
+    expect(result.violations.length).toBeGreaterThanOrEqual(1);
+    expect(reportSpy).not.toHaveBeenCalled();
+  });
+
+  it('should use ephemeral repo independent from persistent event-fed repo', async () => {
+    await thymian
+      .register(httpAnalyzerPlugin, { storage: { type: 'memory' } })
+      .ready();
+
+    const rules = await loadAnalyzerRules(
+      join(
+        import.meta.dirname,
+        'fixtures/rules/should-send-validator-fields.rule.mjs',
+      ),
+    );
+
+    // Feed a failing transaction into the persistent repo via events
+    thymian.emitter.emit(
+      'http-analyzer.transaction',
+      createFailingTransaction(),
+    );
+
+    // Call core.analyze with only a passing transaction
+    const result = await thymian.emitter.emitAction(
+      'core.analyze',
+      {
+        format: new ThymianFormat().export(),
+        rules,
+        traffic: { transactions: [createPassingTransaction()] },
+      },
+      { strategy: 'first' },
+    );
+
+    // The failing transaction in the persistent repo should NOT affect core.analyze
+    expect(result.status).toBe('success');
+    expect(result.violations).toHaveLength(0);
+
+    // Verify the persistent repo still has the failing transaction via batch action
+    const batchResult = await thymian.emitter.emitAction(
+      'http-analyzer.lint-analytics-batch',
+      { format: new ThymianFormat().export(), rules },
+      { strategy: 'first' },
+    );
+
+    expect(batchResult.valid).toBeFalsy();
+    expect(batchResult.reports.length).toBeGreaterThanOrEqual(1);
   });
 });

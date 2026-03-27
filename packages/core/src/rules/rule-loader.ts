@@ -63,6 +63,7 @@ async function loadRuleSet(
   basePath: string,
   ruleFilter: RuleFilter,
   options: RulesConfiguration,
+  cwd: string,
 ): Promise<Rule[]> {
   if (ruleSet.rules) {
     return ruleSet.rules.filter(ruleFilter);
@@ -80,7 +81,12 @@ async function loadRuleSet(
 
       for (const file of files) {
         rules.push(
-          ...(await loadRules(path.join(dirname, file), ruleFilter, options)),
+          ...(await loadRules(
+            path.join(dirname, file),
+            ruleFilter,
+            options,
+            cwd,
+          )),
         );
       }
     }
@@ -93,6 +99,7 @@ export async function loadRules(
   input: string | string[],
   ruleFilter: RuleFilter = () => true,
   options: RulesConfiguration = {},
+  cwd: string = process.cwd(),
 ): Promise<Rule[]> {
   if (!input || (Array.isArray(input) && input.length === 0)) {
     return [];
@@ -101,29 +108,16 @@ export async function loadRules(
   if (Array.isArray(input)) {
     return (
       await Promise.all(
-        input.map((entry) => loadRules(entry, ruleFilter, options)),
+        input.map((entry) => loadRules(entry, ruleFilter, options, cwd)),
       )
     ).flat();
   }
 
   let location = input;
-  const fileLocation = path.join(process.cwd(), input);
+  const fileLocation = path.join(cwd, input);
 
   if (existsSync(fileLocation)) {
     location = fileLocation;
-  } else if (input.startsWith('@thymian/')) {
-    const workspacePackageName = input.replace('@thymian/', '');
-    const workspaceSourceEntry = path.join(
-      process.cwd(),
-      'packages',
-      workspacePackageName,
-      'src',
-      'index.ts',
-    );
-
-    if (existsSync(workspaceSourceEntry)) {
-      location = workspaceSourceEntry;
-    }
   }
 
   let resolved: string;
@@ -131,30 +125,10 @@ export async function loadRules(
   try {
     resolved = require.resolve(location);
   } catch {
-    if (input.startsWith('@thymian/')) {
-      const workspacePackageName = input.replace('@thymian/', '');
-      const workspaceSourceEntry = path.join(
-        process.cwd(),
-        'packages',
-        workspacePackageName,
-        'src',
-        'index.ts',
-      );
-
-      if (existsSync(workspaceSourceEntry)) {
-        resolved = workspaceSourceEntry;
-      } else {
-        throw new ThymianBaseError(`Cannot resolve rule source ${input}.`, {
-          name: 'RuleLoadError',
-          ref: 'https://thymian.dev/references/errors/rule-load-error/',
-        });
-      }
-    } else {
-      throw new ThymianBaseError(`Cannot resolve rule source ${input}.`, {
-        name: 'RuleLoadError',
-        ref: 'https://thymian.dev/references/errors/rule-load-error/',
-      });
-    }
+    throw new ThymianBaseError(`Cannot resolve rule source ${input}.`, {
+      name: 'RuleLoadError',
+      ref: 'https://thymian.dev/references/errors/rule-load-error/',
+    });
   }
 
   const module = await import(resolved);
@@ -216,7 +190,7 @@ export async function loadRules(
   }
 
   if (isRuleSet(ruleOrRuleSet)) {
-    return loadRuleSet(ruleOrRuleSet, resolved, ruleFilter, options);
+    return loadRuleSet(ruleOrRuleSet, resolved, ruleFilter, options, cwd);
   }
 
   return [];
