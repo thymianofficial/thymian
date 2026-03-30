@@ -1,3 +1,4 @@
+import { execSync } from 'node:child_process';
 import {
   cpSync,
   existsSync,
@@ -15,6 +16,7 @@ import { filter, firstValueFrom, ReplaySubject } from 'rxjs';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { WebSocket } from 'ws';
 
+import { getCleanEnv } from './env-utils.js';
 import { getAvailablePort } from './port-utils.js';
 
 const fixturesDir = join(import.meta.dirname, '..', 'fixtures');
@@ -23,17 +25,56 @@ type InstallationMode = 'npx' | 'global' | 'local';
 const installationMode: InstallationMode =
   (process.env.THYMIAN_E2E_MODE as InstallationMode) || 'npx';
 
-function renderThymian(args: string[], opts?: { cwd?: string }) {
+function execThymian(args: string[], opts: { cwd?: string } = {}): string {
   const version = process.env.THYMIAN_E2E_VERSION ?? '';
+  const env = getCleanEnv();
+  let command: string;
   switch (installationMode) {
     case 'npx':
-      return render('npx', ['--yes', `@thymian/cli@${version}`, ...args], opts);
+      command = `npx --yes @thymian/cli@${version} ${args.join(' ')}`;
+      break;
+    case 'global': {
+      const bin = process.env.THYMIAN_E2E_GLOBAL_BIN ?? 'thymian';
+      command = `${bin} ${args.join(' ')}`;
+      break;
+    }
+    case 'local':
+      throw new Error('Local installation mode not yet implemented');
+  }
+  try {
+    return execSync(command, {
+      cwd: opts.cwd,
+      env,
+      encoding: 'utf-8',
+      timeout: 90_000,
+    });
+  } catch (error) {
+    const execError = error as {
+      stdout?: string;
+      stderr?: string;
+      status?: number;
+    };
+    console.warn(
+      `execThymian exited with status ${execError.status ?? 'unknown'}`,
+    );
+    return (execError.stdout ?? '') + (execError.stderr ?? '');
+  }
+}
+
+function renderThymian(args: string[], opts?: { cwd?: string }) {
+  const version = process.env.THYMIAN_E2E_VERSION ?? '';
+  const env = getCleanEnv();
+  switch (installationMode) {
+    case 'npx':
+      return render('npx', ['--yes', `@thymian/cli@${version}`, ...args], {
+        ...opts,
+        env,
+      });
     case 'global':
-      return render(
-        process.env.THYMIAN_E2E_GLOBAL_BIN ?? 'thymian',
-        args,
-        opts,
-      );
+      return render(process.env.THYMIAN_E2E_GLOBAL_BIN ?? 'thymian', args, {
+        ...opts,
+        env,
+      });
     case 'local':
       throw new Error('Local installation mode not yet implemented');
   }
@@ -55,30 +96,18 @@ describe('E2E test Thymian', () => {
   describe('using cli', () => {
     it(
       'should print the standard message',
-      async () => {
-        console.log('=> should print the standard message');
-        const { findByText } = await renderThymian([], {
-          cwd: e2eTempDir,
-        });
-
-        await expect(
-          findByText(/VERSION/, undefined, { timeout: 59000 }),
-        ).resolves.toBeTruthy();
+      () => {
+        const output = execThymian([], { cwd: e2eTempDir });
+        expect(output).toMatch(/VERSION/);
       },
-      { timeout: 60000 },
+      { timeout: 90000 },
     );
 
     it(
       'should initialize Thymian',
-      async () => {
-        const { findByText } = await renderThymian(['init', '--yes'], {
-          cwd: e2eTempDir,
-        });
-
-        await expect(
-          findByText(/Initialized Thymian/, undefined, { timeout: 89000 }),
-        ).resolves.toBeTruthy();
-
+      () => {
+        const output = execThymian(['init', '--yes'], { cwd: e2eTempDir });
+        expect(output).toMatch(/Initialized Thymian/);
         expect(existsSync(join(e2eTempDir, 'thymian.config.yaml'))).toBe(true);
       },
       { timeout: 90000 },
@@ -86,16 +115,10 @@ describe('E2E test Thymian', () => {
 
     it(
       'should run a static check',
-      async () => {
+      () => {
         copyFixturesToTempDir(join(fixturesDir, 'static-lint'), e2eTempDir);
-
-        const { findByText } = await renderThymian(['run'], {
-          cwd: e2eTempDir,
-        });
-
-        await expect(
-          findByText(/Static Checks/, undefined, { timeout: 89000 }),
-        ).resolves.toBeTruthy();
+        const output = execThymian(['run'], { cwd: e2eTempDir });
+        expect(output).toMatch(/Static Checks/);
       },
       { timeout: 90000 },
     );
@@ -105,17 +128,10 @@ describe('E2E test Thymian', () => {
       async () => {
         copyFixturesToTempDir(join(fixturesDir, 'samples/'), e2eTempDir);
 
-        const { findByText } = await renderThymian(
-          ['sampler:init', '--no-check'],
-          {
-            cwd: e2eTempDir,
-          },
-        );
-
-        await expect(
-          findByText(/Sampler initialized/, undefined, { timeout: 89000 }),
-        ).resolves.toBeTruthy();
-
+        const samplerOutput = execThymian(['sampler:init', '--no-check'], {
+          cwd: e2eTempDir,
+        });
+        expect(samplerOutput).toMatch(/Sampler initialized/);
         expect(existsSync(join(e2eTempDir, '.thymian'))).toBe(true);
 
         const port = await getAvailablePort();
@@ -141,15 +157,8 @@ describe('E2E test Thymian', () => {
         await server.listen({ port, host: '0.0.0.0' });
 
         try {
-          const { findByText } = await renderThymian(['format:check'], {
-            cwd: e2eTempDir,
-          });
-
-          await expect(
-            findByText(/GET \/api\/hello → 200 OK/, undefined, {
-              timeout: 89000,
-            }),
-          ).resolves.toBeTruthy();
+          const output = execThymian(['format:check'], { cwd: e2eTempDir });
+          expect(output).toMatch(/GET \/api\/hello → 200 OK/);
         } finally {
           await server.close();
         }

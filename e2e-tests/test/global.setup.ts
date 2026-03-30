@@ -6,6 +6,8 @@ import { join } from 'node:path';
 import { waitFor } from 'cli-testing-library';
 import type { TestProject } from 'vitest/node';
 
+import { getCleanEnv } from './env-utils.js';
+
 const rootDir = join(import.meta.dirname, '..', '..');
 
 const thymianVersion = '0.0.1-e2e';
@@ -44,10 +46,12 @@ export default async function setup(_project: TestProject) {
   );
 
   console.log('Publishing e2e test Thymian version');
+  const cleanEnv = getCleanEnv();
   let output = execSync(
     `npm run local-publish -- --dist-tag latest --version ${thymianVersion}`,
     {
       cwd: rootDir,
+      env: { ...cleanEnv, npm_config_registry: verdaccioUrl },
     },
   ).toString();
 
@@ -71,9 +75,16 @@ export default async function setup(_project: TestProject) {
   console.log(
     `Installing e2e test Thymian version to isolated prefix: ${globalPrefix}`,
   );
-  output = execSync(`npm install -g @thymian/cli@${thymianVersion}`, {
-    env: { ...process.env, npm_config_prefix: globalPrefix },
-  }).toString();
+  output = execSync(
+    `npm install -g @thymian/cli@${thymianVersion} --registry ${verdaccioUrl}`,
+    {
+      env: {
+        ...cleanEnv,
+        npm_config_prefix: globalPrefix,
+        npm_config_registry: verdaccioUrl,
+      },
+    },
+  ).toString();
   console.log(output);
 
   try {
