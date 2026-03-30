@@ -1,28 +1,45 @@
+import { cpSync, existsSync, mkdtempSync, rmSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+
 import { render, type RenderResult, waitFor } from 'cli-testing-library';
 import fastify from 'fastify';
-import { cpSync, existsSync, mkdirSync, rmSync } from 'fs';
-import { join } from 'path';
 import { filter, firstValueFrom, ReplaySubject } from 'rxjs';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { WebSocket } from 'ws';
 
-const dirname = import.meta.dirname;
-const fixturesDir = join(dirname, '..', 'fixtures');
-const e2eTempDir =
-  process.env.TARGET_FOLDER || join(process.cwd(), 'tmp-e2e-test');
+const fixturesDir = join(import.meta.dirname, '..', 'fixtures');
 
-const thymianConfigPath = join(e2eTempDir, 'thymian.config.yaml');
+type InstallationMode = 'npx' | 'global' | 'local';
+const installationMode: InstallationMode =
+  (process.env.THYMIAN_E2E_MODE as InstallationMode) || 'npx';
 
-const thymianBin = 'thymian';
+function renderThymian(args: string[], opts?: { cwd?: string }) {
+  const version = process.env.THYMIAN_E2E_VERSION ?? '';
+  switch (installationMode) {
+    case 'npx':
+      return render('npx', ['--yes', `@thymian/cli@${version}`, ...args], opts);
+    case 'global':
+      return render(
+        process.env.THYMIAN_E2E_GLOBAL_BIN ?? 'thymian',
+        args,
+        opts,
+      );
+    case 'local':
+      throw new Error('Local installation mode not yet implemented');
+  }
+}
 
 describe('E2E test Thymian', () => {
+  let e2eTempDir: string;
+
   beforeEach(() => {
-    console.log('Creating e2e test temp dir');
-    mkdirSync(e2eTempDir, { recursive: true });
+    e2eTempDir = mkdtempSync(join(tmpdir(), 'thymian-e2e-'));
+    console.log(`Created e2e test temp dir: ${e2eTempDir}`);
   });
 
   afterEach(() => {
-    console.log('Removing e2e test temp dir');
+    console.log(`Removing e2e test temp dir: ${e2eTempDir}`);
     rmSync(e2eTempDir, { recursive: true, force: true });
   });
 
@@ -31,7 +48,7 @@ describe('E2E test Thymian', () => {
       'should print the standard message',
       async () => {
         console.log('=> should print the standard message');
-        const { findByText } = await render(thymianBin, [], {
+        const { findByText } = await renderThymian([], {
           cwd: e2eTempDir,
         });
 
@@ -45,7 +62,7 @@ describe('E2E test Thymian', () => {
     it(
       'should initialize Thymian',
       async () => {
-        const { findByText } = await render(thymianBin, ['init', '--yes'], {
+        const { findByText } = await renderThymian(['init', '--yes'], {
           cwd: e2eTempDir,
         });
 
@@ -53,7 +70,7 @@ describe('E2E test Thymian', () => {
           findByText(/Initialized Thymian/, undefined, { timeout: 89000 }),
         ).resolves.toBeTruthy();
 
-        expect(existsSync(thymianConfigPath)).toBe(true);
+        expect(existsSync(join(e2eTempDir, 'thymian.config.yaml'))).toBe(true);
       },
       { timeout: 90000 },
     );
@@ -61,9 +78,9 @@ describe('E2E test Thymian', () => {
     it(
       'should run a static check',
       async () => {
-        copyFixturesToTempDir(join(fixturesDir, 'static-lint'));
+        copyFixturesToTempDir(join(fixturesDir, 'static-lint'), e2eTempDir);
 
-        const { findByText } = await render(thymianBin, ['run'], {
+        const { findByText } = await renderThymian(['run'], {
           cwd: e2eTempDir,
         });
 
@@ -77,10 +94,9 @@ describe('E2E test Thymian', () => {
     it(
       'should generate samples and run a dynamic check',
       async () => {
-        copyFixturesToTempDir(join(fixturesDir, 'samples/'));
+        copyFixturesToTempDir(join(fixturesDir, 'samples/'), e2eTempDir);
 
-        const { findByText } = await render(
-          thymianBin,
+        const { findByText } = await renderThymian(
           ['sampler:init', '--no-check'],
           {
             cwd: e2eTempDir,
@@ -104,7 +120,7 @@ describe('E2E test Thymian', () => {
         await server.listen({ port: 3000, host: '0.0.0.0' });
 
         try {
-          const { findByText } = await render(thymianBin, ['format:check'], {
+          const { findByText } = await renderThymian(['format:check'], {
             cwd: e2eTempDir,
           });
 
@@ -125,7 +141,7 @@ describe('E2E test Thymian', () => {
     let instance: RenderResult;
 
     beforeEach(async () => {
-      instance = await render(thymianBin, [
+      instance = await renderThymian([
         'serve',
         '-o',
         '@thymian/websocket-proxy.port=51234',
@@ -264,6 +280,6 @@ components:
   });
 });
 
-function copyFixturesToTempDir(fixturesDir: string) {
-  cpSync(fixturesDir, e2eTempDir, { recursive: true, force: true });
+function copyFixturesToTempDir(sourceDir: string, tempDir: string) {
+  cpSync(sourceDir, tempDir, { recursive: true, force: true });
 }

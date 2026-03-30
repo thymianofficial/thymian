@@ -1,17 +1,23 @@
 import { type ChildProcess, exec, execSync } from 'node:child_process';
+import { mkdtempSync, rmSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 
 import { waitFor } from 'cli-testing-library';
-import { join } from 'path';
 import type { TestProject } from 'vitest/node';
 
-const dirname = import.meta.dirname;
-const rootDir = join(dirname, '..', '..');
+const rootDir = join(import.meta.dirname, '..', '..');
 
-export const thymianVersion = '0.0.1-e2e';
+const thymianVersion = '0.0.1-e2e';
+const verdaccioUrl = 'http://localhost:4873';
 
 let verdaccioProcess: ChildProcess;
+let globalPrefix: string;
 
-export default async function setup(project: TestProject) {
+export default async function setup(_project: TestProject) {
+  // Registry isolation: all npm operations resolve packages from Verdaccio
+  process.env.npm_config_registry = verdaccioUrl;
+
   verdaccioProcess = exec(
     'npm run local-registry',
     {
@@ -29,7 +35,7 @@ export default async function setup(project: TestProject) {
 
   await waitFor(
     async () => {
-      const response = await fetch('http://localhost:4873');
+      const response = await fetch(verdaccioUrl);
       if (!response.ok) {
         throw new Error('Verdaccio is not ready yet');
       }
@@ -60,8 +66,14 @@ export default async function setup(project: TestProject) {
     throw error;
   }
 
-  console.log('Installing e2e test Thymian version');
-  output = execSync(`npm install -g @thymian/cli@${thymianVersion}`).toString();
+  // Global install isolation: redirect to temp dir via npm_config_prefix
+  globalPrefix = mkdtempSync(join(tmpdir(), 'thymian-e2e-global-'));
+  console.log(
+    `Installing e2e test Thymian version to isolated prefix: ${globalPrefix}`,
+  );
+  output = execSync(`npm install -g @thymian/cli@${thymianVersion}`, {
+    env: { ...process.env, npm_config_prefix: globalPrefix },
+  }).toString();
   console.log(output);
 
   try {
@@ -77,9 +89,26 @@ export default async function setup(project: TestProject) {
     verdaccioProcess.kill();
     throw error;
   }
+
+  // Expose environment for tests
+  process.env.THYMIAN_E2E_VERSION = thymianVersion;
+  process.env.THYMIAN_E2E_GLOBAL_BIN = join(globalPrefix, 'bin', 'thymian');
+  process.env.THYMIAN_E2E_GLOBAL_PREFIX = globalPrefix;
 }
 
 export function teardown() {
   console.log('Shutting down local registry');
   verdaccioProcess.kill();
+
+  // Clean up isolated global prefix
+  if (globalPrefix) {
+    console.log(`Cleaning up global prefix: ${globalPrefix}`);
+    rmSync(globalPrefix, { recursive: true, force: true });
+  }
+
+  // Clean up environment variables
+  delete process.env.npm_config_registry;
+  delete process.env.THYMIAN_E2E_VERSION;
+  delete process.env.THYMIAN_E2E_GLOBAL_BIN;
+  delete process.env.THYMIAN_E2E_GLOBAL_PREFIX;
 }
