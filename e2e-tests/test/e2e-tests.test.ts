@@ -1,4 +1,11 @@
-import { cpSync, existsSync, mkdtempSync, rmSync } from 'node:fs';
+import {
+  cpSync,
+  existsSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  writeFileSync,
+} from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
@@ -7,6 +14,8 @@ import fastify from 'fastify';
 import { filter, firstValueFrom, ReplaySubject } from 'rxjs';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { WebSocket } from 'ws';
+
+import { getAvailablePort } from './port-utils.js';
 
 const fixturesDir = join(import.meta.dirname, '..', 'fixtures');
 
@@ -109,6 +118,18 @@ describe('E2E test Thymian', () => {
 
         expect(existsSync(join(e2eTempDir, '.thymian'))).toBe(true);
 
+        const port = await getAvailablePort();
+
+        const openapiPath = join(e2eTempDir, 'test.openapi.yaml');
+        const openapiContent = readFileSync(openapiPath, 'utf-8');
+        writeFileSync(
+          openapiPath,
+          openapiContent.replace(
+            'http://localhost:3000',
+            `http://localhost:${port}`,
+          ),
+        );
+
         const server = fastify();
         server.get<{ Querystring: { name: string } }>(
           '/api/hello',
@@ -117,7 +138,7 @@ describe('E2E test Thymian', () => {
             return { content: `Hello ${name}` };
           },
         );
-        await server.listen({ port: 3000, host: '0.0.0.0' });
+        await server.listen({ port, host: '0.0.0.0' });
 
         try {
           const { findByText } = await renderThymian(['format:check'], {
@@ -139,12 +160,14 @@ describe('E2E test Thymian', () => {
 
   describe('using websocket', () => {
     let instance: RenderResult;
+    let wsPort: number;
 
     beforeEach(async () => {
+      wsPort = await getAvailablePort();
       instance = await renderThymian([
         'serve',
         '-o',
-        '@thymian/websocket-proxy.port=51234',
+        `@thymian/websocket-proxy.port=${wsPort}`,
       ]);
     });
 
@@ -167,7 +190,7 @@ describe('E2E test Thymian', () => {
           }),
         ).resolves.toBeTruthy();
 
-        const ws = new WebSocket('ws://localhost:51234');
+        const ws = new WebSocket(`ws://localhost:${wsPort}`);
         console.log('Created WebSocket instance');
 
         try {
