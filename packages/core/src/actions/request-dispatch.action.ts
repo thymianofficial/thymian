@@ -57,7 +57,6 @@ export const requestDispatchActionSchema = {
             ],
           },
         },
-        timeout: { type: 'number', nullable: true },
       },
     },
   },

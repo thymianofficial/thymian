@@ -1,4 +1,4 @@
-import { httpRule,requestHeader } from '@thymian/core';
+import { httpRule, requestHeader } from '@thymian/core';
 
 export default httpRule('rule-with-options')
   .severity('warn')

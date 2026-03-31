@@ -29,12 +29,7 @@ export const dispatcherPlugin: ThymianPlugin<SamplerPluginOptions> = {
   },
   events: {},
   plugin: async (emitter, logger, opts) => {
-    const options = {
-      concurrency: 10,
-      ...opts,
-    };
-
-    const queue = new PQueue({ concurrency: options.concurrency });
+    const queue = new PQueue({ concurrency: opts?.concurrency ?? 10 });
 
     emitter.onAction('core.close', async (_, ctx) => {
       await queue.onIdle();
@@ -53,7 +48,7 @@ export const dispatcherPlugin: ThymianPlugin<SamplerPluginOptions> = {
           ctx.reply(result);
         } catch (e: unknown) {
           if (isHttpRequestError(e) && e.code === 'ECONNREFUSED') {
-            ctx.error(
+            return ctx.error(
               new ThymianBaseError(`Server ${request.origin} is unavailable.`, {
                 name: 'ServerUnavailableError',
                 ref: 'https://thymian.dev/references/errors/server-unavailable-error/',

@@ -19,9 +19,6 @@
       "path": "../core/tsconfig.lib.json"
     },
     {
-      "path": "../cli-common/tsconfig.lib.json"
-    },
-    {
       "path": "../core-testing/tsconfig.lib.json"
     }
   ]

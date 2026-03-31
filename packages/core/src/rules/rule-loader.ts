@@ -21,14 +21,22 @@ type RecordWithFunctions<Properties extends string[]> = Record<
 > &
   Record<Properties[number], (...args: unknown[]) => unknown>;
 
-function areFunctionPropertiesIfDefined<Properties extends string[]>(
+const ruleFunctionProperties = ['lintRule', 'testRule', 'analyzeRule'] as const;
+
+type RuleFunctionProperties = typeof ruleFunctionProperties;
+
+function areFunctionPropertiesIfDefined(
   obj: Record<PropertyKey, unknown>,
-  properties: Properties,
-): obj is RecordWithFunctions<Properties> {
-  return properties.some(
-    (property) =>
-      Object.hasOwn(obj, property) && typeof obj[property] !== 'function',
-  );
+): obj is RecordWithFunctions<[...RuleFunctionProperties]> {
+  return ruleFunctionProperties.every((property) => {
+    if (!Object.hasOwn(obj, property)) {
+      return true;
+    }
+
+    const value = obj[property];
+
+    return value === undefined || typeof value === 'function';
+  });
 }
 
 export function isRule(rule: unknown): rule is Rule {
@@ -36,14 +44,7 @@ export function isRule(rule: unknown): rule is Rule {
     return false;
   }
 
-  return !areFunctionPropertiesIfDefined(rule, [
-    'rule',
-    'lintRule',
-    'analyzeRule',
-    'testRule',
-    'staticRule',
-    'analyticsRule',
-  ]);
+  return areFunctionPropertiesIfDefined(rule);
 }
 
 export function isRuleSet(ruleSet: unknown): ruleSet is RuleSet {

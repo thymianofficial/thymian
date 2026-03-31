@@ -4,14 +4,11 @@
   "include": ["src/**/*.ts", "test/**/*.ts"],
   "compilerOptions": {
     "outDir": "dist",
-    "rootDir": "dist"
+    "rootDir": "src"
   },
   "references": [
     {
       "path": "../core"
-    },
-    {
-      "path": "../cli-common"
     },
     {
       "path": "../core-testing"
