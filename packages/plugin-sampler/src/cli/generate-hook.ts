@@ -28,7 +28,8 @@ export async function generateHook<
   forTransaction?: string,
   loadedThymianFormat?: ThymianFormat,
 ): Promise<void> {
-  const thymianFormat = loadedThymianFormat ?? (await thymian.loadFormat());
+  const thymianFormat =
+    loadedThymianFormat ?? (await thymian.loadFormat({ inputs: [] }));
 
   const titleToTransaction = new Map<string, ThymianHttpTransaction>();
 

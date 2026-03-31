@@ -21,7 +21,6 @@ import type {
 } from './events/report.event.js';
 import { ThymianFormat } from './format/index.js';
 import type { HttpRequestTemplate, HttpResponse } from './http.js';
-import { constant, type HttpFilterExpression } from './http-filter.js';
 import type { LogLevel } from './logger/log-level.js';
 import { shouldLog } from './logger/log-level.js';
 import type { Logger } from './logger/logger.js';
@@ -235,36 +234,14 @@ export class Thymian {
   }
 
   async loadFormat(
-    inputOrFilter: CoreFormatLoadInput | HttpFilterExpression = constant(true),
+    input: CoreFormatLoadInput,
     _options: { emitFormat?: boolean } = {},
   ): Promise<ThymianFormat> {
     const options = { emitFormat: true, ..._options };
 
-    const isCoreFormatLoadInput = (
-      value: CoreFormatLoadInput | HttpFilterExpression,
-    ): value is CoreFormatLoadInput =>
-      typeof value === 'object' &&
-      value !== null &&
-      'inputs' in value &&
-      Array.isArray(value.inputs);
-
-    const filter = isCoreFormatLoadInput(inputOrFilter)
-      ? constant(true)
-      : inputOrFilter;
-
-    const formatLoadInput: CoreFormatLoadInput = isCoreFormatLoadInput(
-      inputOrFilter,
-    )
-      ? inputOrFilter
-      : { inputs: [] };
-
-    const formats = await this.emitter.emitAction(
-      'core.format.load',
-      formatLoadInput,
-      {
-        strategy: 'collect',
-      },
-    );
+    const formats = await this.emitter.emitAction('core.format.load', input, {
+      strategy: 'collect',
+    });
 
     const format =
       formats.length === 0
@@ -284,15 +261,11 @@ export class Thymian {
       await this.emitter.emitAction('core.format', format.export());
     }
 
-    const filteredFormat = format.filter(filter);
-
-    if (filteredFormat.graph.size === 0) {
-      this.logger.warn(
-        'No nodes found in Thymian format after filtering. Is this intended?',
-      );
+    if (format.graph.size === 0) {
+      this.logger.warn('No nodes found in Thymian format. Is this intended?');
     }
 
-    return filteredFormat;
+    return format;
   }
 
   async loadTraffic(input: CoreTrafficLoadInput): Promise<LoadedTraffic> {
