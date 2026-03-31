@@ -53,12 +53,13 @@ export default class Init extends BaseCliRunCommand<typeof Init> {
         if (answer) {
           this.log();
 
-          await this.config.runCommand('format:check', [
-            '-c',
-            this.flags.config,
-            '--cwd',
-            this.flags.cwd,
-          ]);
+          const args = ['--cwd', this.flags.cwd];
+
+          if (this.flags.config) {
+            args.push('-c', this.flags.config);
+          }
+
+          await this.config.runCommand('format:check', args);
         }
       }
     } else {

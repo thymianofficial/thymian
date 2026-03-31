@@ -3,7 +3,6 @@ import {
   createSeverityRuleFilter,
   handleWorkflowOutcome,
   mergeRuleSets,
-  mergeSpecifications,
   resolveRuleSeverity,
 } from '@thymian/cli-common';
 import type {} from '@thymian/evaluation';
@@ -23,16 +22,7 @@ export default class Lint extends BaseCliRunCommand<typeof Lint> {
   ];
 
   override async run(): Promise<void> {
-    const specifications = mergeSpecifications(
-      this.thymianConfig.specifications,
-      this.flags.spec,
-    );
-
-    if (specifications.length === 0) {
-      this.logger.warn(
-        'No specifications configured. Add specifications to your config file or use --spec flags.',
-      );
-    }
+    const specifications = this.thymianConfig.specifications ?? [];
 
     const ruleSets = mergeRuleSets(
       this.thymianConfig.ruleSets,

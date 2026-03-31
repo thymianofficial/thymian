@@ -38,9 +38,6 @@
       "path": "../plugin-evaluation"
     },
     {
-      "path": "../core"
-    },
-    {
       "path": "../cli-common"
     },
     {

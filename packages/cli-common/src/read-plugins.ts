@@ -9,7 +9,6 @@ export async function getPluginNames(
     config: {
       type: 'string',
       short: 'c',
-      default: 'thymian.config.json',
     },
   } as const;
 
@@ -22,10 +21,10 @@ export async function getPluginNames(
 
   const configFlag = processed.values.config;
 
-  const configPath =
-    typeof configFlag === 'string' ? configFlag : 'thymian.config.yaml';
-
-  const config = await getConfig(configPath, process.cwd());
+  const config = await getConfig({
+    configPath: typeof configFlag === 'string' ? configFlag : undefined,
+    cwd: process.cwd(),
+  });
 
   return Object.keys(config.plugins);
 }

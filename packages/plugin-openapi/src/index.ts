@@ -187,3 +187,5 @@ export const openApiPlugin: ThymianPlugin<OpenApiPluginOptions> = {
 };
 
 export default openApiPlugin;
+
+export { searchForOpenApiFiles } from './search-for-openapi-files.js';

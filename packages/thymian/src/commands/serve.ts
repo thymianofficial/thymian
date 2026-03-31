@@ -3,6 +3,7 @@ import { BaseCliRunCommand } from '@thymian/cli-common';
 export default class Serve extends BaseCliRunCommand<typeof Serve> {
   static override description = 'Run Thymian in serve mode.';
   static override examples = ['<%= config.bin %> <%= command.id %>'];
+  static override requiresSpecifications = false;
 
   override async run(): Promise<void> {
     const close = async (code = 0) => {

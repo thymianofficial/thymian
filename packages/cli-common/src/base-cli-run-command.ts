@@ -9,10 +9,12 @@ import {
   isPlugin,
   type Logger,
   type LogLevel,
+  type SpecificationInput,
   TextLogger,
   Thymian,
   ThymianBaseError,
   type ThymianPlugin,
+  type TrafficInput,
 } from '@thymian/core';
 
 import { ErrorCache } from './error-cache.js';
@@ -22,6 +24,8 @@ import { ruleSetFlag } from './flags/rule-set-flag.js';
 import { specFlag } from './flags/spec-flag.js';
 import { trafficFlag } from './flags/traffic-flag.js';
 import { getConfig } from './get-config.js';
+import type { ThymianSpecSearchResult } from './hooks/spec-search-hook.js';
+import type { ThymianTrafficSearchResult } from './hooks/traffic-search-hook.js';
 import type { ThymianConfig } from './thymian-config.js';
 
 const require = createRequire(import.meta.url);
@@ -37,6 +41,20 @@ export abstract class BaseCliRunCommand<
   T extends typeof Command,
 > extends Command {
   static override enableJsonFlag = true;
+
+  /**
+   * Whether this command requires API specifications to run.
+   * Commands that operate independently of specs (e.g. `serve`, `http-linter:overview`)
+   * can set this to `false` to skip the spec resolution chain (Steps C–F).
+   */
+  static requiresSpecifications = true;
+
+  /**
+   * Whether this command requires traffic inputs to run.
+   * Only `analyze` sets this to `true`. When enabled, traffic is resolved
+   * via --traffic flag → config → thymian.traffic-search hook → guidance.
+   */
+  static requiresTraffic = false;
 
   static override baseFlags = {
     verbose: Flags.boolean({
@@ -130,8 +148,103 @@ export abstract class BaseCliRunCommand<
     this.args = args as CommandArgs<T>;
     this.flags.debug = settings.debug || this.flags.debug;
 
-    this.thymianConfig = await getConfig(this.flags.config, this.flags.cwd);
+    // --- Config Resolution Chain ---
+    // Step A+B: Load config from --config flag, well-known file, or defaultConfig
+    this.thymianConfig = await getConfig({
+      configPath: this.flags.config,
+      cwd: this.flags.cwd,
+    });
+
     this.overridePluginOptions();
+
+    // Step C: --spec flag overrides config specifications
+    if (this.flags.spec && this.flags.spec.length > 0) {
+      this.thymianConfig = {
+        ...this.thymianConfig,
+        specifications: this.flags.spec,
+      };
+    }
+
+    // Step D+E+F: If no specifications at this point, ask plugins to search
+    // Only enforced for commands that require specifications.
+    const requiresSpecs = (this.ctor as typeof BaseCliRunCommand)
+      .requiresSpecifications;
+
+    if (
+      requiresSpecs &&
+      (!this.thymianConfig.specifications ||
+        this.thymianConfig.specifications.length === 0)
+    ) {
+      const discovered = await this.runSpecSearch();
+
+      if (discovered.length > 0) {
+        // Step E: Specifications found — suggest user actions and exit
+        const fileList = discovered
+          .flatMap((d) => d.specifications.map((s) => `  - ${s.location}`))
+          .join('\n');
+        const firstSpec = discovered[0]!.specifications[0]!;
+
+        this.log(
+          `No specification configured. The following specification files were detected:\n\n${fileList}\n`,
+        );
+        this.log('Rerun with --spec to use a detected file, for example:\n');
+        this.log(
+          `  $ thymian ${this.id} --spec ${formatSpecInput(firstSpec)}\n`,
+        );
+        this.log('Or generate a reusable config:\n');
+        this.log(
+          `  $ thymian generate config --for-spec ${formatSpecInput(firstSpec)}`,
+        );
+        this.exit(2);
+      } else {
+        // Step F: No specifications found anywhere
+        this.log(
+          'No specification found. Provide a specification with --spec or create a configuration file.\n',
+        );
+        this.log('  $ thymian generate config\n');
+        this.exit(2);
+      }
+    }
+
+    // --- Traffic Resolution Chain ---
+    // --traffic flag overrides config traffic
+    if (this.flags.traffic && this.flags.traffic.length > 0) {
+      this.thymianConfig = {
+        ...this.thymianConfig,
+        traffic: this.flags.traffic,
+      };
+    }
+
+    const requiresTraffic = (this.ctor as typeof BaseCliRunCommand)
+      .requiresTraffic;
+
+    if (
+      requiresTraffic &&
+      (!this.thymianConfig.traffic || this.thymianConfig.traffic.length === 0)
+    ) {
+      const discovered = await this.runTrafficSearch();
+
+      if (discovered.length > 0) {
+        const fileList = discovered
+          .flatMap((d) => d.traffic.map((t) => `  * ${formatTrafficInput(t)}`))
+          .join('\n');
+        const firstTraffic = discovered[0]!.traffic[0]!;
+
+        this.log(
+          `No traffic configured. The following traffic files were detected:\n\n${fileList}\n`,
+        );
+        this.log('Rerun with --traffic to use a detected file, for example:\n');
+        this.log(
+          `  $ thymian ${this.id} --traffic ${formatTrafficInput(firstTraffic)}\n`,
+        );
+        this.exit(2);
+      } else {
+        this.log(
+          'No traffic found. Provide traffic with --traffic or add it to your configuration file.\n',
+        );
+        this.exit(2);
+      }
+    }
 
     const logLevel = this.resolveLogLevelWithConfig();
 
@@ -216,6 +329,46 @@ export abstract class BaseCliRunCommand<
     }
 
     return this.thymianConfig.autoload ?? true;
+  }
+
+  /**
+   * Run the `thymian.spec-search` oclif hook to let plugins discover specification files.
+   * Returns results grouped by plugin, each containing typed SpecificationInput[].
+   */
+  private async runSpecSearch(): Promise<ThymianSpecSearchResult[]> {
+    const hookResults = await this.config.runHook('thymian.spec-search', {
+      cwd: this.flags.cwd,
+    });
+
+    const results: ThymianSpecSearchResult[] = [];
+    for (const success of hookResults.successes) {
+      const result = success.result as ThymianSpecSearchResult;
+      if (result.specifications.length > 0) {
+        results.push(result);
+      }
+    }
+
+    return results;
+  }
+
+  /**
+   * Run the `thymian.traffic-search` oclif hook to let plugins discover traffic files.
+   * Returns results grouped by plugin, each containing typed TrafficInput[].
+   */
+  private async runTrafficSearch(): Promise<ThymianTrafficSearchResult[]> {
+    const hookResults = await this.config.runHook('thymian.traffic-search', {
+      cwd: this.flags.cwd,
+    });
+
+    const results: ThymianTrafficSearchResult[] = [];
+    for (const success of hookResults.successes) {
+      const result = success.result as ThymianTrafficSearchResult;
+      if (result.traffic.length > 0) {
+        results.push(result);
+      }
+    }
+
+    return results;
   }
 
   /**
@@ -361,4 +514,18 @@ export abstract class BaseCliRunCommand<
   public shouldSuppressFeedback(): boolean {
     return this.flags['suppress-feedback'];
   }
+}
+
+/**
+ * Format a SpecificationInput as `type:location` for display and --spec flag suggestions.
+ */
+function formatSpecInput(spec: SpecificationInput): string {
+  return `${spec.type}:${spec.location}`;
+}
+
+/**
+ * Format a TrafficInput as `type:location` for display and --traffic flag suggestions.
+ */
+function formatTrafficInput(traffic: TrafficInput): string {
+  return `${traffic.type}:${traffic.location}`;
 }
