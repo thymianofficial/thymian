@@ -32,7 +32,8 @@
       "plugin": "@nx/vitest",
       "options": {
         "testTargetName": "test"
-      }
+      },
+      "exclude": ["e2e-tests/**"]
     }
   ],
   "release": {

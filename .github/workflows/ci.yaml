@@ -3,6 +3,7 @@ on:
   push:
     branches:
       - main
+      - rework-arch
   pull_request: {}
   workflow_dispatch:
 
