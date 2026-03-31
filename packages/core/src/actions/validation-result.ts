@@ -11,6 +11,14 @@ export interface ValidationResult {
   metadata?: Record<string, unknown>;
 }
 
+export type WorkflowClassification = 'clean-run' | 'findings' | 'tool-error';
+
+export interface WorkflowOutcome {
+  classification: WorkflowClassification;
+  text?: string;
+  results: ValidationResult[];
+}
+
 export const validationResultSchema = {
   type: 'object',
   nullable: false,

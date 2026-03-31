@@ -1,6 +1,7 @@
 import {
   BaseCliRunCommand,
   createSeverityRuleFilter,
+  handleWorkflowOutcome,
   mergeRuleSets,
   mergeSpecifications,
   mergeTraffic,
@@ -49,38 +50,16 @@ export default class Analyze extends BaseCliRunCommand<typeof Analyze> {
       this.flags['rule-severity'],
     );
 
-    const results = await this.thymian.run(async (emitter) => {
-      const validationResults = await this.thymian.analyze({
+    const outcome = await this.thymian.run(async () => {
+      return await this.thymian.analyze({
         specification: specifications.length > 0 ? specifications : undefined,
         traffic,
         rules: ruleSets,
         rulesConfig: this.thymianConfig.rules,
         ruleFilter: createSeverityRuleFilter(ruleSeverity),
       });
-
-      const [flushResult] = await emitter.emitAction(
-        'core.report.flush',
-        undefined,
-        { strategy: 'collect' },
-      );
-
-      if (flushResult?.text) {
-        this.log(flushResult.text);
-      }
-
-      return validationResults;
     });
 
-    const hasError = results.some((r) => r.status === 'error');
-
-    if (hasError) {
-      this.exit(2);
-    }
-
-    const hasFailed = results.some((r) => r.status === 'failed');
-
-    if (hasFailed) {
-      this.exit(1);
-    }
+    handleWorkflowOutcome(this, outcome);
   }
 }

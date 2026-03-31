@@ -217,6 +217,10 @@ describe('Thymian', () => {
               violations: [],
             });
           });
+
+          emitter.onAction('core.report.flush', (_, ctx) => {
+            ctx.reply({ text: 'lint report' });
+          });
         }),
       );
 
@@ -238,14 +242,18 @@ describe('Thymian', () => {
         options: { source: 'test' },
       });
       expect(coreLintSpy.mock.calls[0]?.[0].format).toBeDefined();
-      expect(result).toEqual([
-        {
-          source: '@thymian/http-linter',
-          status: 'success',
-          reports: [],
-          violations: [],
-        },
-      ]);
+      expect(result).toEqual({
+        classification: 'clean-run',
+        text: 'lint report',
+        results: [
+          {
+            source: '@thymian/http-linter',
+            status: 'success',
+            reports: [],
+            violations: [],
+          },
+        ],
+      });
     });
 
     it('test should load specification inputs and dispatch through the core entrypoint', async () => {
@@ -274,6 +282,10 @@ describe('Thymian', () => {
               ],
             });
           });
+
+          emitter.onAction('core.report.flush', (_, ctx) => {
+            ctx.reply({ text: 'test report' });
+          });
         }),
       );
 
@@ -293,20 +305,24 @@ describe('Thymian', () => {
         rulesConfig: undefined,
         options: { replay: false },
       });
-      expect(result).toEqual([
-        {
-          source: '@thymian/http-tester',
-          status: 'failed',
-          reports: [],
-          violations: [
-            {
-              ruleName: 'demo/test-rule',
-              severity: 'warn',
-              violation: { location: 'request' },
-            },
-          ],
-        },
-      ]);
+      expect(result).toEqual({
+        classification: 'findings',
+        text: 'test report',
+        results: [
+          {
+            source: '@thymian/http-tester',
+            status: 'failed',
+            reports: [],
+            violations: [
+              {
+                ruleName: 'demo/test-rule',
+                severity: 'warn',
+                violation: { location: 'request' },
+              },
+            ],
+          },
+        ],
+      });
     });
 
     it('analyze should merge traffic, optionally load format, and dispatch through the core entrypoint', async () => {
@@ -359,6 +375,10 @@ describe('Thymian', () => {
               reports: [],
               violations: [],
             });
+          });
+
+          emitter.onAction('core.report.flush', (_, ctx) => {
+            ctx.reply({ text: 'analyze report' });
           });
         }),
       );
@@ -423,14 +443,18 @@ describe('Thymian', () => {
       ).toHaveLength(2);
       expect(coreAnalyzeSpy.mock.calls[0]?.[0].traffic.traces).toHaveLength(2);
       expect(coreAnalyzeSpy.mock.calls[0]?.[0].format).toBeDefined();
-      expect(result).toEqual([
-        {
-          source: '@thymian/http-analyzer',
-          status: 'success',
-          reports: [],
-          violations: [],
-        },
-      ]);
+      expect(result).toEqual({
+        classification: 'clean-run',
+        text: 'analyze report',
+        results: [
+          {
+            source: '@thymian/http-analyzer',
+            status: 'success',
+            reports: [],
+            violations: [],
+          },
+        ],
+      });
     });
   });
 });

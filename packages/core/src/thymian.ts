@@ -9,6 +9,8 @@ import type {
   SpecificationInput,
   TrafficInput,
   ValidationResult,
+  WorkflowClassification,
+  WorkflowOutcome,
 } from './actions/index.js';
 import { validate } from './ajv.js';
 import { corePlugin } from './core-plugin.js';
@@ -299,7 +301,7 @@ export class Thymian {
    * Plugins own the mode-specific execution semantics behind these entrypoints.
    * This keeps the consumer-facing API stable while preserving plugin-based extensibility.
    */
-  async lint(input: LintWorkflowInput): Promise<ValidationResult[]> {
+  async lint(input: LintWorkflowInput): Promise<WorkflowOutcome> {
     const { rulesConfig, ruleFilter } = input;
 
     const [format, rules] = await Promise.all([
@@ -315,10 +317,14 @@ export class Thymian {
 
     this.bridgeReports(results, format);
 
-    return results;
+    return {
+      classification: this.classifyResults(results),
+      text: await this.flushReportText(),
+      results,
+    };
   }
 
-  async test(input: TestWorkflowInput): Promise<ValidationResult[]> {
+  async test(input: TestWorkflowInput): Promise<WorkflowOutcome> {
     const { rulesConfig, ruleFilter } = input;
 
     const [format, rules] = await Promise.all([
@@ -334,10 +340,14 @@ export class Thymian {
 
     this.bridgeReports(results, format);
 
-    return results;
+    return {
+      classification: this.classifyResults(results),
+      text: await this.flushReportText(),
+      results,
+    };
   }
 
-  async analyze(input: AnalyzeWorkflowInput): Promise<ValidationResult[]> {
+  async analyze(input: AnalyzeWorkflowInput): Promise<WorkflowOutcome> {
     const { rulesConfig, ruleFilter } = input;
 
     const [traffic, rules, format] = await Promise.all([
@@ -365,7 +375,11 @@ export class Thymian {
 
     this.bridgeReports(results, format ?? new ThymianFormat());
 
-    return results;
+    return {
+      classification: this.classifyResults(results),
+      text: await this.flushReportText(),
+      results,
+    };
   }
 
   async sample(input: CoreRequestSampleInput): Promise<HttpRequestTemplate> {
@@ -398,6 +412,28 @@ export class Thymian {
         );
       }
     }
+  }
+
+  private classifyResults(results: ValidationResult[]): WorkflowClassification {
+    if (results.some((result) => result.status === 'error')) {
+      return 'tool-error';
+    }
+
+    if (results.some((result) => result.status === 'failed')) {
+      return 'findings';
+    }
+
+    return 'clean-run';
+  }
+
+  private async flushReportText(): Promise<string | undefined> {
+    const [flushResult] = await this.emitter.emitAction(
+      'core.report.flush',
+      undefined,
+      { strategy: 'collect' },
+    );
+
+    return flushResult?.text;
   }
 
   private createReportFromViolations(

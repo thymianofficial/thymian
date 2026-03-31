@@ -12,4 +12,5 @@ export * from './read-plugins.js';
 export * from './thymian-base-command.js';
 export * from './thymian-config.js';
 export * from './thymian-config-schema.js';
+export * from './workflow-outcome.js';
 export * as yaml from './yaml.js';
