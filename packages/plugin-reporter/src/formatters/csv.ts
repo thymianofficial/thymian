@@ -15,12 +15,12 @@ export class CsvFormatter implements Formatter<CsvFormatterOptions> {
 
   constructor(private readonly logger: Logger) {}
 
-  flush(): Promise<void> {
+  flush(): Promise<string | undefined> {
     return new Promise((resolve) => {
       this.stream.end(() => {
         this.logger.debug(`Wrote CSV report to ${this.options.path}`);
 
-        resolve();
+        resolve(undefined);
       });
     });
   }
@@ -37,7 +37,7 @@ export class CsvFormatter implements Formatter<CsvFormatterOptions> {
 
     return new Promise((resolve) => {
       this.stream.on('ready', () => {
-        this.stream.write('producer,severity,title,summary,category,source\n');
+        this.stream.write('source,section,severity,ruleName,message,details\n');
 
         resolve();
       });
@@ -46,7 +46,15 @@ export class CsvFormatter implements Formatter<CsvFormatterOptions> {
 
   report(report: ThymianReport): Promise<void> {
     return new Promise((resolve, reject) => {
-      this.stream.write(thymianReportToCsvLine(report), (err) => {
+      const lines = thymianReportToCsvLines(report);
+
+      if (lines.length === 0) {
+        resolve();
+        return;
+      }
+
+      const data = lines.join('');
+      this.stream.write(data, (err) => {
         if (err) {
           reject(err);
         } else {
@@ -57,10 +65,37 @@ export class CsvFormatter implements Formatter<CsvFormatterOptions> {
   }
 }
 
-export function thymianReportToCsvLine(report: ThymianReport): string {
-  return `${makeStringCsvSafe(report.producer)},${makeStringCsvSafe(report.severity)},${makeStringCsvSafe(report.title)},${makeStringCsvSafe(report.summary)},${makeStringCsvSafe(report.category)},${makeStringCsvSafe(report.source)}\n`;
+export function thymianReportToCsvLines(report: ThymianReport): string[] {
+  const lines: string[] = [];
+
+  if (!report.sections || report.sections.length === 0) {
+    // Report with no sections — emit a single row with source and message
+    lines.push(`${csvSafe(report.source)},,,,,${csvSafe(report.message)}\n`);
+    return lines;
+  }
+
+  for (const section of report.sections) {
+    for (const item of section.items) {
+      lines.push(
+        `${csvSafe(report.source)},${csvSafe(section.heading)},${csvSafe(item.severity)},${csvSafe(item.ruleName)},${csvSafe(item.message)},${csvSafe(item.details)}\n`,
+      );
+    }
+  }
+
+  return lines;
 }
 
-export function makeStringCsvSafe(str: string | undefined): string | null {
-  return str ? `"${str.replaceAll('\n', ' ')}"` : null;
+export function csvSafe(str: string | undefined): string {
+  if (!str) {
+    return '';
+  }
+
+  // Escape double quotes by doubling them, wrap in quotes if needed
+  const escaped = str.replaceAll('"', '""').replaceAll('\n', ' ');
+
+  if (escaped.includes(',') || escaped.includes('"') || escaped.includes(' ')) {
+    return `"${escaped}"`;
+  }
+
+  return escaped;
 }

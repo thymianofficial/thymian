@@ -3,15 +3,15 @@ import { join } from 'node:path';
 import { type Logger, ThymianBaseError } from '@thymian/core';
 
 import type { Formatter } from './formatter.js';
-import { CliFormatter, type CliFormatterOptions } from './formatters/cli.js';
 import { CsvFormatter, type CsvFormatterOptions } from './formatters/csv.js';
 import {
   MarkdownFormatter,
   type MarkdownFormatterOptions,
 } from './formatters/markdown.js';
+import { TextFormatter, type TextFormatterOptions } from './formatters/text.js';
 
 export type Formatters = {
-  cli: Partial<CliFormatterOptions>;
+  text: Partial<TextFormatterOptions>;
   markdown: Partial<MarkdownFormatterOptions>;
   csv: Partial<CsvFormatterOptions>;
 };
@@ -33,11 +33,14 @@ export type FormatterRegistryEntry<K extends keyof Formatters> = {
 export const FORMATTER_REGISTRY: {
   [K in keyof Formatters]: FormatterRegistryEntry<K>;
 } = {
-  cli: {
-    factory: () => new CliFormatter(),
-    prepareOptions: (options) => ({
+  text: {
+    factory: () => new TextFormatter(),
+    prepareOptions: (options, { cwd }) => ({
       summaryOnly: false,
       ...options,
+      ...(typeof options.path === 'string'
+        ? { path: join(cwd, options.path) }
+        : {}),
     }),
   },
   markdown: {

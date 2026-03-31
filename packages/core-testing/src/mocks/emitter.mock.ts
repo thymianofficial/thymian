@@ -86,7 +86,7 @@ export function createEmitterWithHandlers<K extends ThymianEventName>(
  * @example
  * ```typescript
  * const emitter = createEmitterWithActionHandlers({
- *   'core.load-format': async (event) => ({ format: createThymianFormat() }),
+ *   'core.format.load': async (event) => ({ format: createThymianFormat() }),
  * });
  * ```
  */

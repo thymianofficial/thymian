@@ -28,7 +28,7 @@ export default class Init extends BaseCliRunCommand<typeof Init> {
         );
       }
 
-      const format = await this.thymian.loadFormat(this.filter, {
+      const format = await this.thymian.loadFormat(undefined, {
         emitFormat: true,
       });
 

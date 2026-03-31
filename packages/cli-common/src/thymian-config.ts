@@ -1,4 +1,10 @@
-import type { HttpFilterExpression } from '@thymian/core';
+import type {
+  LogLevel,
+  RulesConfiguration,
+  RuleSeverity,
+  SpecificationInput,
+  TrafficInput,
+} from '@thymian/core';
 
 export interface ThymianPluginConfiguration<
   Options extends Record<PropertyKey, unknown> = Record<PropertyKey, unknown>,
@@ -11,6 +17,11 @@ export interface ThymianPluginConfiguration<
 
 export interface ThymianConfig {
   autoload?: boolean;
+  logLevel?: LogLevel;
+  specifications?: SpecificationInput[];
+  traffic?: TrafficInput[];
+  ruleSets?: string[];
+  ruleSeverity?: RuleSeverity;
+  rules?: RulesConfiguration;
   plugins: Record<string, ThymianPluginConfiguration>;
-  filters?: HttpFilterExpression[];
 }

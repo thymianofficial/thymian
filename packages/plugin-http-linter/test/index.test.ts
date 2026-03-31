@@ -39,10 +39,11 @@ describe('http-linter', { timeout: 10000 }, () => {
     );
 
     expect(result.valid).toBeFalsy();
-    expect(result.reports).toHaveLength(1);
-    expect(result.reports[0]?.source).includes(
-      'rfc9110/server-should-send-validator-fields',
-    );
+    expect(result.violations).toHaveLength(1);
+    expect(result.violations[0]).toMatchObject({
+      ruleName: 'rfc9110/server-should-send-validator-fields',
+      severity: 'warn',
+    });
 
     await thymian.close();
   });

@@ -1,6 +1,10 @@
 export * from './base-cli-run-command.js';
 export * from './default-config.js';
 export * from './error-cache.js';
+export * from './flags/rule-set-flag.js';
+export * from './flags/spec-flag.js';
+export * from './flags/traffic-flag.js';
+export * from './merge-inputs.js';
 export * as oclif from './oclif.js';
 export * from './plugin-hook.js';
 export * as prompts from './prompts.js';

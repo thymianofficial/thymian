@@ -79,7 +79,12 @@ export default async function ({
       if (r.source) {
         violations[r.source] = (violations[r.source] || 0) + 1;
       }
-      reportsCount[r.severity] += 1;
+
+      for (const section of r.sections ?? []) {
+        for (const item of section.items) {
+          reportsCount[item.severity] += 1;
+        }
+      }
     }
 
     return {

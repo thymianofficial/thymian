@@ -20,13 +20,8 @@ describe('MarkdownFormatter', () => {
   const createReport = (
     overrides: Partial<ThymianReport> = {},
   ): ThymianReport => ({
-    producer: 'TestProducer',
     source: 'source-file.ts',
-    severity: 'error',
-    summary: 'Test summary',
-    title: 'Test Title',
-    details: 'Detailed description.',
-    category: 'Test Category',
+    message: 'Test summary',
     ...overrides,
   });
 
@@ -58,19 +53,31 @@ describe('MarkdownFormatter', () => {
   it('should save report data to file when flushed', async () => {
     const reports = [
       createReport({
-        severity: 'error',
-        category: 'Category1',
-        title: 'Title1',
+        source: 'rule-1',
+        message: 'Summary 1',
+        sections: [
+          {
+            heading: 'Section 1',
+            items: [
+              {
+                severity: 'error',
+                message: 'Error item',
+                ruleName: 'rfc9110/must-include-date-header',
+              },
+              { severity: 'warn', message: 'Warn item' },
+            ],
+          },
+        ],
       }),
       createReport({
-        severity: 'warn',
-        category: 'Category1',
-        title: 'Title2',
-      }),
-      createReport({
-        severity: 'hint',
-        category: 'Category2',
-        title: 'Title3',
+        source: 'rule-2',
+        message: 'Summary 2',
+        sections: [
+          {
+            heading: 'Section 2',
+            items: [{ severity: 'hint', message: 'Hint item' }],
+          },
+        ],
       }),
     ];
 
@@ -85,28 +92,38 @@ describe('MarkdownFormatter', () => {
     expect(path).toBe('test-report.md');
 
     expect(content).toContain('# Thymian Report');
-    expect(content).toContain('A total of 3 reports were found.');
-    expect(content).toContain('❌ ERROR: Test summary');
-    expect(content).toContain('⚠️ WARN: Test summary');
-    expect(content).toContain('💡 HINT: Test summary');
+    expect(content).toContain('A total of 2 reports with 3 items were found.');
+    expect(content).toContain('**❌ ERROR**: Error item');
+    expect(content).toContain('*Rule: rfc9110/must-include-date-header*');
+    expect(content).toContain('**⚠️ WARN**: Warn item');
+    expect(content).toContain('**💡 HINT**: Hint item');
   });
 
-  it('should group reports by producer, category, and title', async () => {
+  it('should group reports by source with sections and headings', async () => {
     const reports = [
       createReport({
-        producer: 'Producer1',
-        category: 'Category1',
-        title: 'Title1',
+        source: 'rule-a',
+        message: 'Rule A summary',
+        sections: [
+          {
+            heading: 'GET /users → 200',
+            items: [{ severity: 'error', message: 'Missing header' }],
+          },
+          {
+            heading: 'POST /users → 201',
+            items: [{ severity: 'warn', message: 'Deprecated field' }],
+          },
+        ],
       }),
       createReport({
-        producer: 'Producer1',
-        category: 'Category1',
-        title: 'Title2',
-      }),
-      createReport({
-        producer: 'Producer2',
-        category: 'Category2',
-        title: 'Title3',
+        source: 'rule-b',
+        message: 'Rule B summary',
+        sections: [
+          {
+            heading: 'GET /items → 200',
+            items: [{ severity: 'hint', message: 'Optional improvement' }],
+          },
+        ],
       }),
     ];
 
@@ -119,17 +136,91 @@ describe('MarkdownFormatter', () => {
     expect(writeFile).toHaveBeenCalledOnce();
     const [, content] = vi.mocked(writeFile).mock.calls[0];
 
-    expect(content).toContain('## Producer1');
-    expect(content).toContain('### Category1');
-    expect(content).toContain('#### Title1');
-    expect(content).toContain('#### Title2');
-    expect(content).toContain('## Producer2');
-    expect(content).toContain('### Category2');
-    expect(content).toContain('#### Title3');
+    expect(content).toContain('## rule-a');
+    expect(content).toContain('### GET /users → 200');
+    expect(content).toContain('### POST /users → 201');
+    expect(content).toContain('## rule-b');
+    expect(content).toContain('### GET /items → 200');
   });
 
-  it('should include report details if present', async () => {
-    const report = createReport({ details: 'Additional report details.' });
+  it('should include ruleName if present', async () => {
+    const report = createReport({
+      source: 'test-rule',
+      message: 'Test summary',
+      sections: [
+        {
+          heading: 'Test Section',
+          items: [
+            {
+              severity: 'error',
+              message: 'Missing required header',
+              ruleName: 'rfc9110/must-include-date-header',
+            },
+          ],
+        },
+      ],
+    });
+
+    formatter.report(report);
+
+    vi.mocked(writeFile).mockResolvedValue();
+
+    await formatter.flush();
+
+    expect(writeFile).toHaveBeenCalledOnce();
+    const [, content] = vi.mocked(writeFile).mock.calls[0];
+
+    expect(content).toContain('**❌ ERROR**: Missing required header');
+    expect(content).toContain('*Rule: rfc9110/must-include-date-header*');
+  });
+
+  it('should not include ruleName line when not present', async () => {
+    const report = createReport({
+      source: 'test-rule',
+      message: 'Test summary',
+      sections: [
+        {
+          heading: 'Test Section',
+          items: [
+            {
+              severity: 'warn',
+              message: 'Some warning',
+            },
+          ],
+        },
+      ],
+    });
+
+    formatter.report(report);
+
+    vi.mocked(writeFile).mockResolvedValue();
+
+    await formatter.flush();
+
+    expect(writeFile).toHaveBeenCalledOnce();
+    const [, content] = vi.mocked(writeFile).mock.calls[0];
+
+    expect(content).toContain('**⚠️ WARN**: Some warning');
+    expect(content).not.toContain('*Rule:');
+  });
+
+  it('should include item details if present', async () => {
+    const report = createReport({
+      source: 'test-rule',
+      message: 'Test summary',
+      sections: [
+        {
+          heading: 'Test Section',
+          items: [
+            {
+              severity: 'error',
+              message: 'Error message',
+              details: 'Additional report details.',
+            },
+          ],
+        },
+      ],
+    });
 
     formatter.report(report);
 
@@ -141,5 +232,49 @@ describe('MarkdownFormatter', () => {
     const [, content] = vi.mocked(writeFile).mock.calls[0];
 
     expect(content).toContain('Additional report details.');
+  });
+
+  it('should include links if present', async () => {
+    const report = createReport({
+      source: 'test-rule',
+      message: 'Test summary',
+      sections: [
+        {
+          heading: 'Test Section',
+          items: [
+            {
+              severity: 'warn',
+              message: 'Warning message',
+              links: [
+                {
+                  title: 'RFC 9110',
+                  url: 'https://www.rfc-editor.org/rfc/rfc9110',
+                },
+              ],
+            },
+          ],
+        },
+      ],
+    });
+
+    formatter.report(report);
+
+    vi.mocked(writeFile).mockResolvedValue();
+
+    await formatter.flush();
+
+    expect(writeFile).toHaveBeenCalledOnce();
+    const [, content] = vi.mocked(writeFile).mock.calls[0];
+
+    expect(content).toContain(
+      '[RFC 9110](https://www.rfc-editor.org/rfc/rfc9110)',
+    );
+  });
+
+  it('should return undefined when no reports are present', async () => {
+    const result = await formatter.flush();
+
+    expect(result).toBeUndefined();
+    expect(writeFile).not.toHaveBeenCalled();
   });
 });

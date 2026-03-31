@@ -3,6 +3,7 @@ import { isAbsolute, join } from 'node:path';
 import {
   type CapturedTrace,
   type CapturedTransaction,
+  type EvaluatedRuleViolation,
   type Logger,
   type Rule,
   type RuleRunnerAdapter,
@@ -34,6 +35,7 @@ declare module '@thymian/core' {
       };
       response: {
         reports: ThymianReport[];
+        violations: EvaluatedRuleViolation[];
         valid: boolean;
       };
     };
@@ -46,6 +48,7 @@ declare module '@thymian/core' {
       };
       response: {
         reports: ThymianReport[];
+        violations: EvaluatedRuleViolation[];
         valid: boolean;
       };
     };
@@ -66,17 +69,13 @@ export type HttpAnalyzerPluginOptions = {
 };
 
 function createAnalyzerAdapter(
-  pluginName: string,
   logger: Logger,
   reportFn: (report: ThymianReport) => void,
   format: ThymianFormat,
   repository: SqliteHttpTransactionRepository,
-  rulesConfig: RulesConfiguration,
 ): RuleRunnerAdapter<AnalyticsApiContext> {
   return {
     errorName: 'AnalyzeLinterError',
-    category: 'Analytic Checks',
-    producer: pluginName,
     mode: 'analytics',
     getRuleFn: (rule: Rule) => rule.analyzeRule,
     createContext: (rule: Rule, options: SingleRuleConfiguration | undefined) =>
@@ -151,31 +150,24 @@ export function createHttpAnalyzerPlugin(
             repo.insertHttpTransaction(transaction);
           }
 
-          const reports: ThymianReport[] = [];
-          const reportFn = (report: ThymianReport) => reports.push(report);
+          const reportFn = (report: ThymianReport) =>
+            emitter.emit('core.report', report);
 
-          const { valid, violations } = await runRules(
+          const { violations, statistics } = await runRules(
             logger,
             rules,
-            reportFn,
             thymianFormat,
             rulesConfig,
-            createAnalyzerAdapter(
-              pluginName,
-              logger,
-              reportFn,
-              thymianFormat,
-              repo,
-              rulesConfig,
-            ),
+            createAnalyzerAdapter(logger, reportFn, thymianFormat, repo),
           );
 
           await repo.close();
 
           ctx.reply({
-            status: valid ? 'success' : 'failed',
-            reports,
+            source: pluginName,
+            status: violations.length === 0 ? 'success' : 'failed',
             violations,
+            statistics,
           });
         },
       );
@@ -189,25 +181,23 @@ export function createHttpAnalyzerPlugin(
           const reports: ThymianReport[] = [];
           const reportFn = (report: ThymianReport) => reports.push(report);
 
-          const { valid } = await runRules(
+          const { violations } = await runRules(
             logger,
             rules,
-            reportFn,
             thymianFormat,
             rulesConfig,
             createAnalyzerAdapter(
-              pluginName,
               logger,
               reportFn,
               thymianFormat,
               initializedRepository,
-              rulesConfig,
             ),
           );
 
           ctx.reply({
             reports,
-            valid,
+            violations,
+            valid: violations.length === 0,
           });
         },
       );
@@ -238,25 +228,18 @@ export function createHttpAnalyzerPlugin(
           const reports: ThymianReport[] = [];
           const reportFn = (report: ThymianReport) => reports.push(report);
 
-          const { valid } = await runRules(
+          const { violations } = await runRules(
             logger,
             rules,
-            reportFn,
             thymianFormat,
             rulesConfig,
-            createAnalyzerAdapter(
-              pluginName,
-              logger,
-              reportFn,
-              thymianFormat,
-              repo,
-              rulesConfig,
-            ),
+            createAnalyzerAdapter(logger, reportFn, thymianFormat, repo),
           );
 
           ctx.reply({
             reports,
-            valid,
+            violations,
+            valid: violations.length === 0,
           });
         },
       );

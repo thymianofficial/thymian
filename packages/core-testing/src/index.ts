@@ -86,7 +86,6 @@ export {
 export {
   createMockLogger,
   createSilentMockLogger,
-  createVerboseMockLogger,
 } from './mocks/logger.mock.js';
 export {
   createMockPlugin,

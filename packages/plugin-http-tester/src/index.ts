@@ -30,15 +30,13 @@ export function createHttpTesterPlugin(
         'core.test',
         async ({ format, rules = [], rulesConfig = {} }, ctx) => {
           const thymianFormat = ThymianFormat.import(format);
-          const reports: ThymianReport[] = [];
-          const reportFn = (report: ThymianReport) => reports.push(report);
+          const reportFn = (report: ThymianReport) =>
+            emitter.emit('core.report', report);
 
           const context = createContext(thymianFormat, logger, emitter);
 
           const adapter: RuleRunnerAdapter<HttpTestApiContext> = {
             errorName: 'TestLinterError',
-            category: 'HTTP Tests',
-            producer: pluginName,
             mode: 'test',
             getRuleFn: (rule: Rule) => rule.testRule,
             createContext: (
@@ -53,19 +51,19 @@ export function createHttpTesterPlugin(
               ),
           };
 
-          const { valid, violations } = await runRules(
+          const { violations, statistics } = await runRules(
             logger,
             rules,
-            reportFn,
             thymianFormat,
             rulesConfig,
             adapter,
           );
 
           ctx.reply({
-            status: valid ? 'success' : 'failed',
-            reports,
+            source: pluginName,
+            status: violations.length === 0 ? 'success' : 'failed',
             violations,
+            statistics,
           });
         },
       );

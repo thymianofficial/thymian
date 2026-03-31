@@ -7,4 +7,4 @@ plugins:
   '@thymian/reporter':
     options:
       formatters:
-        cli: {}
+        text: {}

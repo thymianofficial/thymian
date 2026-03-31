@@ -1,4 +1,4 @@
-import type { ThymianReport } from '../events/report.event.js';
+import type { ThymianReportLocation } from '../events/report.event.js';
 import type {
   HttpTransaction,
   ThymianHttpRequest,
@@ -17,9 +17,8 @@ import type {
   RulesConfiguration,
   SingleRuleConfiguration,
 } from './rule-configuration.js';
-import type { RuleMeta } from './rule-meta.js';
 import { isRuleSeverityLevel } from './rule-severity.js';
-import type { RuleFnResult } from './rule-violation.js';
+import type { EvaluatedRuleViolation, RuleFnResult } from './rule-violation.js';
 import type { RuleViolation } from './rule-violation.js';
 
 export function findDuplicates<T>(elements: T[]): T[] {
@@ -28,122 +27,95 @@ export function findDuplicates<T>(elements: T[]): T[] {
   );
 }
 
-export function reportRuleViolations(
-  result: RuleViolation | RuleViolation[],
-  ruleMeta: RuleMeta<Record<PropertyKey, unknown>>,
+export function resolveViolationLocation(
+  violation: RuleViolation,
   format: ThymianFormat,
-  violations: RuleViolation[],
-  reportFn: (report: ThymianReport) => void,
-  producer: string,
-  category: string,
-): void {
-  if (ruleMeta.severity === 'off') {
-    return;
+  ruleName: string,
+): { heading: string; location?: ThymianReportLocation } {
+  const { location } = violation;
+
+  if (typeof location === 'string') {
+    return { heading: location };
   }
 
-  const violationArray = Array.isArray(result) ? result : [result];
+  if (location.elementType === 'node') {
+    const node = format.getNode(location.elementId);
 
-  const source = ruleMeta.name;
-  const severity = ruleMeta.severity;
-  const summary = ruleMeta.summary ?? ruleMeta.description ?? ruleMeta.name;
-  const details = ruleMeta.description;
-  const timestamp = Date.now();
-
-  for (const { location, message } of violationArray) {
-    const report: ThymianReport = {
-      producer,
-      severity,
-      summary: message ?? summary,
-      details,
-      timestamp,
-      source,
-      category,
-      title: '',
-    };
-
-    if (typeof location === 'string') {
-      report.title = location;
-    } else {
-      if (location.elementType === 'node') {
-        const node = format.getNode(location.elementId);
-
-        if (!node) {
-          throw new ThymianBaseError(
-            `Invalid rule violation location for rule ${ruleMeta.name}.`,
-            {
-              name: 'InvalidRuleViolationLocationError',
-              ref: 'https://thymian.dev/references/errors/invalid-rule-violation-location-error/',
-            },
-          );
-        }
-
-        if (isNodeType(node, 'http-request')) {
-          report.title = thymianRequestToString(node);
-        } else if (isNodeType(node, 'http-response')) {
-          report.title = thymianResponseToString(node);
-        }
-
-        report.location ??= {};
-
-        if (node.sourceLocation) {
-          report.location.reference = {
-            ...node.sourceLocation,
-          };
-        }
-
-        report.location.format = {
-          elementType: 'node',
-          id: location.elementId,
-        };
-      } else {
-        const [source, target] = format.graph.extremities(location.elementId);
-        const transaction = format.getEdge<HttpTransaction>(location.elementId);
-        const req = format.getNode<ThymianHttpRequest>(source);
-        const res = format.getNode<ThymianHttpResponse>(target);
-
-        if (!req || !res || !transaction) {
-          throw new ThymianBaseError(
-            `Invalid rule violation location for rule ${ruleMeta.name}.`,
-            {
-              name: 'InvalidRuleViolationLocationError',
-              ref: 'https://thymian.dev/references/errors/invalid-rule-violation-location-error/',
-            },
-          );
-        }
-
-        report.title = thymianHttpTransactionToString(req, res);
-
-        report.location ??= {};
-
-        if (transaction.sourceLocation) {
-          report.location.reference = {
-            ...transaction.sourceLocation,
-          };
-        }
-
-        report.location.format = {
-          elementType: 'edge',
-          id: location.elementId,
-        };
-      }
+    if (!node) {
+      throw new ThymianBaseError(
+        `Invalid rule violation location for rule ${ruleName}.`,
+        {
+          name: 'InvalidRuleViolationLocationError',
+          ref: 'https://thymian.dev/references/errors/invalid-rule-violation-location-error/',
+        },
+      );
     }
 
-    violations.push({
-      rule: ruleMeta.name,
-      severity,
-      location,
-      message,
-      summary,
-    });
+    let heading = '';
 
-    reportFn(report);
+    if (isNodeType(node, 'http-request')) {
+      heading = thymianRequestToString(node);
+    } else if (isNodeType(node, 'http-response')) {
+      heading = thymianResponseToString(node);
+    }
+
+    const reportLocation: ThymianReportLocation = {};
+
+    if (node.sourceLocation) {
+      reportLocation.file = { ...node.sourceLocation };
+    }
+
+    reportLocation.format = {
+      elementType: 'node',
+      elementId: location.elementId,
+    };
+
+    return { heading, location: reportLocation };
   }
+
+  const [source, target] = format.graph.extremities(location.elementId);
+  const transaction = format.getEdge<HttpTransaction>(location.elementId);
+  const req = format.getNode<ThymianHttpRequest>(source);
+  const res = format.getNode<ThymianHttpResponse>(target);
+
+  if (!req || !res || !transaction) {
+    throw new ThymianBaseError(
+      `Invalid rule violation location for rule ${ruleName}.`,
+      {
+        name: 'InvalidRuleViolationLocationError',
+        ref: 'https://thymian.dev/references/errors/invalid-rule-violation-location-error/',
+      },
+    );
+  }
+
+  const heading = thymianHttpTransactionToString(req, res);
+
+  const reportLocation: ThymianReportLocation = {};
+
+  if (transaction.sourceLocation) {
+    reportLocation.file = { ...transaction.sourceLocation };
+  }
+
+  reportLocation.format = {
+    elementType: 'edge',
+    elementId: location.elementId,
+  };
+
+  return { heading, location: reportLocation };
+}
+
+export interface RuleRunnerStatistics {
+  rulesRun: number;
+  rulesWithViolations: number;
+}
+
+export interface RunRulesResult {
+  violations: EvaluatedRuleViolation[];
+  statistics: RuleRunnerStatistics;
 }
 
 export type RuleRunnerAdapter<Context> = {
   errorName: string;
-  category: string;
-  producer: string;
   mode: 'static' | 'analytics' | 'test';
   getRuleFn(rule: Rule):
     | ((
@@ -163,11 +135,10 @@ export type RuleRunnerAdapter<Context> = {
 export async function runRules<Context>(
   logger: Logger,
   rules: Rule[],
-  reportFn: (report: ThymianReport) => void,
   format: ThymianFormat,
   rulesConfig: RulesConfiguration,
   adapter: RuleRunnerAdapter<Context>,
-): Promise<{ valid: boolean; violations: RuleViolation[] }> {
+): Promise<RunRulesResult> {
   const duplicateRuleNames = findDuplicates(rules.map((r) => r.meta.name));
 
   if (duplicateRuleNames.length > 0) {
@@ -186,8 +157,9 @@ export async function runRules<Context>(
       !(r.meta.type.length === 1 && r.meta.type[0] === 'informational'),
   );
 
-  const violations: RuleViolation[] = [];
-  let allSuccessful = true;
+  const violations: EvaluatedRuleViolation[] = [];
+  let rulesRun = 0;
+  let rulesWithViolations = 0;
 
   for (const rule of filteredRules) {
     const options = isRuleSeverityLevel(rulesConfig[rule.meta.name])
@@ -200,6 +172,8 @@ export async function runRules<Context>(
       if (!ruleFn) {
         continue;
       }
+
+      rulesRun++;
 
       const context = adapter.createContext(rule, options);
 
@@ -216,17 +190,25 @@ export async function runRules<Context>(
         continue;
       }
 
-      reportRuleViolations(
-        result,
-        rule.meta,
-        format,
-        violations,
-        reportFn,
-        adapter.producer,
-        adapter.category,
-      );
+      const violationArray = Array.isArray(result) ? result : [result];
 
-      allSuccessful = false;
+      if (rule.meta.severity === 'off') {
+        continue;
+      }
+
+      rulesWithViolations++;
+
+      for (const violation of violationArray) {
+        violations.push({
+          ruleName: rule.meta.name,
+          severity: rule.meta.severity,
+          violation: {
+            message:
+              rule.meta.summary ?? rule.meta.description ?? rule.meta.name,
+            ...violation,
+          },
+        });
+      }
     } catch (e) {
       if (e instanceof ThymianBaseError) {
         throw new ThymianBaseError(
@@ -248,5 +230,11 @@ export async function runRules<Context>(
     }
   }
 
-  return { valid: allSuccessful, violations };
+  return {
+    violations,
+    statistics: {
+      rulesRun,
+      rulesWithViolations,
+    },
+  };
 }

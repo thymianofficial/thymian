@@ -1,5 +1,6 @@
 import { BaseCliRunCommand } from '@thymian/cli-common';
 import { Args } from '@thymian/cli-common/oclif';
+import { constant } from '@thymian/core';
 
 import { loadAndTransform } from '../../../load-openapi.js';
 
@@ -19,7 +20,7 @@ export default class Load extends BaseCliRunCommand<typeof Load> {
 
   override async run(): Promise<void> {
     const [, format] = await loadAndTransform(this.args.content, {
-      filter: this.filter,
+      filter: constant(true),
       cwd: this.flags.cwd,
       logger: this.logger,
       serverInfo: {

@@ -17,15 +17,21 @@ export const reporterPlugin: ThymianPlugin<ReporterPluginOptions> = {
         description: 'Configuration for different report formatters',
         type: 'object',
         properties: {
-          cli: {
+          text: {
             nullable: true,
-            description: 'Configuration for the CLI (console) formatter',
+            description: 'Configuration for the text (console) formatter',
             type: 'object',
             properties: {
               summaryOnly: {
                 description:
                   'When true, only shows the summary without detailed reports',
                 type: 'boolean',
+                nullable: true,
+              },
+              path: {
+                description:
+                  'File path where the plain text report will be saved (ANSI escape codes are stripped)',
+                type: 'string',
                 nullable: true,
               },
             },
@@ -68,18 +74,29 @@ export const reporterPlugin: ThymianPlugin<ReporterPluginOptions> = {
     listensOn: ['core.report'],
   },
   actions: {
-    listensOn: ['core.close'],
+    listensOn: ['core.report.flush'],
   },
-  async plugin(emitter, logger, { formatters, cwd }) {
+  async plugin(emitter, logger, { formatters: userFormatters, cwd }) {
+    const formatters = {
+      text: {},
+      ...userFormatters,
+    };
+
     const reporters = await getFormatters(formatters, cwd, logger);
 
     emitter.on('core.report', async (report: ThymianReport) => {
       reporters.forEach((r) => r.report(report));
     });
 
-    emitter.onAction('core.close', async (_event, ctx) => {
-      await Promise.all(reporters.map(async (r) => r.flush()));
-      ctx.reply();
+    emitter.onAction('core.report.flush', async (_event, ctx) => {
+      const results = await Promise.all(reporters.map(async (r) => r.flush()));
+
+      // Collect text output from formatters that return strings (e.g. TextFormatter)
+      const textParts = results.filter(
+        (r): r is string => typeof r === 'string',
+      );
+
+      ctx.reply(textParts.length > 0 ? { text: textParts.join('\n') } : {});
     });
   },
 };
