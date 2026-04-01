@@ -24,6 +24,7 @@ export default {
         'thymian',
         'websocket-proxy',
         'evaluation',
+        'e2e',
       ],
     ],
     'scope-empty': [2, 'never'],
