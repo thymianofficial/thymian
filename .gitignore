@@ -34,7 +34,6 @@ npm-debug.log
 yarn-error.log
 testem.log
 /typings
-.npmrc
 
 # opencode is confiured to use .github/skills
 .opencode/skills

@@ -74,7 +74,9 @@
           "port": 4873,
           "config": ".verdaccio/config.yml",
           "storage": "tmp/local-registry/storage",
-          "location": "none"
+          "scopes": [
+            "@thymian"
+          ]
         }
       }
     }
