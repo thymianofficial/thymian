@@ -8,14 +8,14 @@ import { openApiPlugin } from '../src/index.js';
 describe('OpenApi plugin', () => {
   it('loads openapi v3 document', async () => {
     const thymian = new Thymian(new NoopLogger(), {
-      cwd: join(import.meta.dirname, '../..'),
+      cwd: join(import.meta.dirname, '..'),
     });
 
     await thymian
       .register(openApiPlugin, {
         descriptions: [
           {
-            source: 'test-utils/src/fixtures/petstore-v2.yaml',
+            source: 'test/fixtures/petstore-v2.yaml',
           },
         ],
       })
@@ -25,7 +25,7 @@ describe('OpenApi plugin', () => {
       inputs: [
         {
           type: 'openapi',
-          location: 'test-utils/src/fixtures/petstore-v2.yaml',
+          location: 'test/fixtures/petstore-v2.yaml',
         },
       ],
     });

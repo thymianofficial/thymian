@@ -35,9 +35,6 @@
       "path": "../plugin-http-analyzer"
     },
     {
-      "path": "../plugin-evaluation"
-    },
-    {
       "path": "../cli-common"
     },
     {

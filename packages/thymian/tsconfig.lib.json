@@ -43,9 +43,6 @@
       "path": "../plugin-http-analyzer/tsconfig.lib.json"
     },
     {
-      "path": "../plugin-evaluation/tsconfig.lib.json"
-    },
-    {
       "path": "../cli-common/tsconfig.lib.json"
     }
   ]
