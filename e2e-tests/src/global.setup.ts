@@ -1,5 +1,11 @@
 import { type ChildProcess, execSync, spawn } from 'node:child_process';
-import { mkdtempSync, rmSync } from 'node:fs';
+import {
+  existsSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  writeFileSync,
+} from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { setTimeout as sleep } from 'node:timers/promises';
@@ -11,13 +17,16 @@ import { getCleanEnv } from './env-utils.js';
 const rootDir = join(import.meta.dirname, '..', '..');
 
 const thymianVersion = '0.0.1-e2e';
-const verdaccioUrl = 'http://localhost:4873';
+const verdaccioPort = 4873;
+const verdaccioUrl = `http://localhost:${verdaccioPort}`;
+const npmrcPath = join(rootDir, '.npmrc');
 
 const isWindows = process.platform === 'win32';
 const npmCmd = isWindows ? 'npm.cmd' : 'npm';
 
 let verdaccioProcess: ChildProcess;
 let globalPrefix: string;
+let previousNpmrc: string | null = null;
 
 function killVerdaccio() {
   if (!verdaccioProcess) {
@@ -72,6 +81,20 @@ export default async function setup(_project: TestProject) {
   // Registry isolation: all npm operations resolve packages from Verdaccio
   process.env.npm_config_registry = verdaccioUrl;
 
+  // Kill any stale Verdaccio process occupying the port from a previous run
+  // so the new instance can bind to the expected port.
+  if (!isWindows) {
+    try {
+      execSync(`lsof -ti :${verdaccioPort} | xargs kill -9`, {
+        stdio: 'ignore',
+      });
+      // Brief pause to let the OS release the port
+      await sleep(500);
+    } catch {
+      // No process on that port — nothing to clean up
+    }
+  }
+
   verdaccioProcess = spawn(npmCmd, ['run', 'local-registry'], {
     cwd: rootDir,
     detached: true,
@@ -102,6 +125,23 @@ export default async function setup(_project: TestProject) {
 
   console.log('Publishing e2e test Thymian version');
   const cleanEnv = getCleanEnv();
+
+  // Create a project-level .npmrc so that npm publish/install commands
+  // authenticate against the local Verdaccio instance.  The verdaccio target
+  // runs with `location: "none"` to avoid mutating the user-level npm config,
+  // so we need to provide the auth token ourselves.
+  previousNpmrc = existsSync(npmrcPath)
+    ? readFileSync(npmrcPath, 'utf-8')
+    : null;
+  writeFileSync(
+    npmrcPath,
+    [
+      `registry=${verdaccioUrl}/`,
+      `//localhost:${verdaccioPort}/:_authToken=secretVerdaccioToken`,
+      '',
+    ].join('\n'),
+    'utf-8',
+  );
   try {
     execSync(
       `npm run local-publish -- --dist-tag latest --version ${thymianVersion}`,
@@ -162,6 +202,13 @@ export default async function setup(_project: TestProject) {
 function teardown() {
   console.log('Shutting down local registry');
   killVerdaccio();
+
+  // Restore or remove the project-level .npmrc
+  if (previousNpmrc !== null) {
+    writeFileSync(npmrcPath, previousNpmrc, 'utf-8');
+  } else {
+    rmSync(npmrcPath, { force: true });
+  }
 
   // Clean up isolated global prefix
   if (globalPrefix) {

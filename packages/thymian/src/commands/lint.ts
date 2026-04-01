@@ -5,7 +5,6 @@ import {
   mergeRuleSets,
   resolveRuleSeverity,
 } from '@thymian/cli-common';
-import type {} from '@thymian/evaluation';
 import type {} from '@thymian/openapi';
 import type {} from '@thymian/reporter';
 import type {} from '@thymian/sampler';
