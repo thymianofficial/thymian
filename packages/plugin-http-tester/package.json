@@ -1,0 +1,31 @@
+{
+  "name": "@thymian/http-tester",
+  "version": "0.0.0-PLACEHOLDER",
+  "publishConfig": {
+    "access": "restricted"
+  },
+  "main": "./dist/index.js",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "type": "module",
+  "exports": {
+    "./package.json": "./package.json",
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "!**/*.tsbuildinfo"
+  ],
+  "dependencies": {
+    "@thymian/core": "0.0.0-PLACEHOLDER",
+    "rxjs": "^7.8.2",
+    "tslib": "^2.3.0"
+  },
+  "devDependencies": {
+    "@thymian/core-testing": "0.0.0-PLACEHOLDER"
+  }
+}

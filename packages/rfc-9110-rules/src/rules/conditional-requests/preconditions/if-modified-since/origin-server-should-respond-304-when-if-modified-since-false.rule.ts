@@ -9,8 +9,7 @@ import {
   responseWith,
   statusCode,
 } from '@thymian/core';
-import { httpRule } from '@thymian/http-linter';
-import { singleTestCase } from '@thymian/http-testing';
+import { httpRule, singleTestCase } from '@thymian/core';
 
 export default httpRule(
   'rfc9110/origin-server-should-respond-304-when-if-modified-since-false',

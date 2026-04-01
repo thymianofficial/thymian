@@ -1,4 +1,4 @@
-import { httpRule } from '@thymian/http-linter';
+import { httpRule } from '@thymian/core';
 
 export default httpRule(
   'rfc9110/server-must-generate-content-range-header-in-corresponding-body-part-for-206-response',

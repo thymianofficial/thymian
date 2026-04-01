@@ -1,5 +1,5 @@
 import { or, requestHeader } from '@thymian/core';
-import { httpRule } from '@thymian/http-linter';
+import { httpRule } from '@thymian/core';
 
 const typicalVaryHeaders = [
   'Accept-Encoding',

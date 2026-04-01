@@ -1,5 +1,5 @@
 import { getHeader, requestHeader } from '@thymian/core';
-import { httpRule } from '@thymian/http-linter';
+import { httpRule } from '@thymian/core';
 
 import { parseRangeHeader } from './utils.js';
 

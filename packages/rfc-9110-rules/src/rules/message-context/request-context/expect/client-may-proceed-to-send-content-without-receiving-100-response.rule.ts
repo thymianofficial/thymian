@@ -1,4 +1,4 @@
-import { httpRule } from '@thymian/http-linter';
+import { httpRule } from '@thymian/core';
 
 export default httpRule(
   'rfc9110/client-may-proceed-to-send-content-without-receiving-100-response',

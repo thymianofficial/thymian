@@ -1,4 +1,4 @@
-import { httpRule } from '@thymian/http-linter';
+import { httpRule } from '@thymian/core';
 
 // TODO: Implement ABNF validation for BWS parsing and removal
 // Requires detecting and removing BWS before processing:

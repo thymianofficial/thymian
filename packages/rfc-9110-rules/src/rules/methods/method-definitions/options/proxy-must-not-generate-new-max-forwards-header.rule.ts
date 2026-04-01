@@ -1,4 +1,4 @@
-import { httpRule } from '@thymian/http-linter';
+import { httpRule } from '@thymian/core';
 
 export default httpRule(
   'rfc9110/proxy-must-not-generate-new-max-forwards-header',

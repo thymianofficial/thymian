@@ -11,8 +11,7 @@ import {
   responseWith,
   statusCode,
 } from '@thymian/core';
-import { httpRule, type RuleViolation } from '@thymian/http-linter';
-import { singleTestCase } from '@thymian/http-testing';
+import { httpRule, type RuleViolation, singleTestCase } from '@thymian/core';
 
 import { arrayDifference, createList } from '../../../../utils.js';
 import { requiredHeaders } from './server-must-generate-header-fields-for-206-response.rule.js';

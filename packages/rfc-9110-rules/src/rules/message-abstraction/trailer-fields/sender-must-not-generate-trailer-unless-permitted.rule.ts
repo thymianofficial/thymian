@@ -1,5 +1,5 @@
 import { responseTrailer } from '@thymian/core';
-import { httpRule } from '@thymian/http-linter';
+import { httpRule } from '@thymian/core';
 
 // Fields that are forbidden in trailers per RFC 9110
 const FORBIDDEN_TRAILER_FIELDS = new Set([

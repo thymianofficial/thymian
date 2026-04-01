@@ -6,14 +6,15 @@ This chapter documents the significant architectural decisions made for Thymian.
 
 ## ADR Index
 
-| ADR                                                       | Title                              | Status   | Date       | Related Quality Requirements                                                                                           |
-| --------------------------------------------------------- | ---------------------------------- | -------- | ---------- | ---------------------------------------------------------------------------------------------------------------------- |
-| [ADR-0001](adr/0001-core-features-as-plugins.md)          | Core features are plugins          | Accepted | 2024-11-07 | [10.2.2](10-quality-requirements.md#102-quality-scenarios), [10.2.3](10-quality-requirements.md#102-quality-scenarios) |
-| [ADR-0002](adr/0002-communication-as-plugin.md)           | Communication as a plugin          | Proposed | 2024-11-07 | [10.2.4](10-quality-requirements.md#102-quality-scenarios)                                                             |
-| [ADR-0003](adr/0003-plugins-allow-streaming.md)           | Plugins should allow for streaming | Proposed | 2024-11-07 | [10.2.1](10-quality-requirements.md#102-quality-scenarios), [10.2.2](10-quality-requirements.md#102-quality-scenarios) |
-| [ADR-0004](adr/0004-plugins-run-isolated.md)              | Plugins should run isolated        | Proposed | 2024-11-07 | [10.2.3](10-quality-requirements.md#102-quality-scenarios)                                                             |
-| [ADR-0005](adr/0005-tags-over-source-version-bumps.md)    | Use git tags for release versions  | Accepted | 2026-01-31 | —                                                                                                                      |
-| [ADR-0006](adr/0006-e2e-test-infrastructure-decisions.md) | E2E test infrastructure decisions  | Accepted | 2026-03-31 | [10.1](10-quality-requirements.md#101-quality-requirements-overview): Reliability                                      |
+| ADR                                                                            | Title                                                              | Status   | Date       | Related Quality Requirements                                                                                           |
+| ------------------------------------------------------------------------------ | ------------------------------------------------------------------ | -------- | ---------- | ---------------------------------------------------------------------------------------------------------------------- |
+| [ADR-0001](adr/0001-core-features-as-plugins.md)                               | Core features are plugins                                          | Accepted | 2024-11-07 | [10.2.2](10-quality-requirements.md#102-quality-scenarios), [10.2.3](10-quality-requirements.md#102-quality-scenarios) |
+| [ADR-0002](adr/0002-communication-as-plugin.md)                                | Communication as a plugin                                          | Proposed | 2024-11-07 | [10.2.4](10-quality-requirements.md#102-quality-scenarios)                                                             |
+| [ADR-0003](adr/0003-plugins-allow-streaming.md)                                | Plugins should allow for streaming                                 | Proposed | 2024-11-07 | [10.2.1](10-quality-requirements.md#102-quality-scenarios), [10.2.2](10-quality-requirements.md#102-quality-scenarios) |
+| [ADR-0004](adr/0004-plugins-run-isolated.md)                                   | Plugins should run isolated                                        | Proposed | 2024-11-07 | [10.2.3](10-quality-requirements.md#102-quality-scenarios)                                                             |
+| [ADR-0005](adr/0005-tags-over-source-version-bumps.md)                         | Use git tags for release versions                                  | Accepted | 2026-01-31 | —                                                                                                                      |
+| [ADR-0006](adr/0006-e2e-test-infrastructure-decisions.md)                      | E2E test infrastructure decisions                                  | Accepted | 2026-03-31 | [10.1](10-quality-requirements.md#101-quality-requirements-overview): Reliability                                      |
+| [ADR-0007](adr/0007-core-owns-validation-entrypoints-plugins-own-execution.md) | Core owns validation entrypoints, plugins own validation execution | Accepted | 2026-03-27 | —                                                                                                                      |
 
 ## Creating New ADRs
 

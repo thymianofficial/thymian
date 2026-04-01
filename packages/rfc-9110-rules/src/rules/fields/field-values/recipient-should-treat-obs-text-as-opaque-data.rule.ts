@@ -1,4 +1,4 @@
-import { httpRule } from '@thymian/http-linter';
+import { httpRule } from '@thymian/core';
 
 // TODO: Implement ABNF validation for obs-text detection
 // Requires detecting obs-text octets (%x80-FF) in field values

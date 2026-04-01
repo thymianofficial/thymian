@@ -17,15 +17,6 @@
   "exclude": ["src/**/*.test.ts"],
   "references": [
     {
-      "path": "../test-utils/tsconfig.lib.json"
-    },
-    {
-      "path": "../http-testing/tsconfig.lib.json"
-    },
-    {
-      "path": "../http-linter/tsconfig.lib.json"
-    },
-    {
       "path": "../core/tsconfig.lib.json"
     }
   ]

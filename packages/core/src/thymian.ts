@@ -1,16 +1,54 @@
 import semver from 'semver';
 
 import packageJson from '../package.json' with { type: 'json' };
+import type {
+  CoreFormatLoadInput,
+  CoreRequestDispatchInput,
+  CoreRequestSampleInput,
+  CoreTrafficLoadInput,
+  SpecificationInput,
+  TrafficInput,
+  ValidationResult,
+} from './actions/index.js';
 import { validate } from './ajv.js';
 import { corePlugin } from './core-plugin.js';
 import { ThymianEmitter } from './emitter/index.js';
 import { ThymianFormat } from './format/index.js';
+import type { HttpRequestTemplate, HttpResponse } from './http.js';
 import { constant, type HttpFilterExpression } from './http-filter.js';
 import type { Logger } from './logger/logger.js';
 import { NoopLogger } from './logger/noop.logger.js';
+import {
+  type LoadedTraffic,
+  loadRules,
+  type Rule,
+  type RulesConfiguration,
+} from './rules/index.js';
 import { ThymianBaseError } from './thymian.error.js';
 import type { ThymianPlugin } from './thymian-plugin.js';
 import { timeoutPromise } from './utils.js';
+
+export interface LintWorkflowInput {
+  specification: SpecificationInput[];
+  rules?: string[];
+  rulesConfig?: RulesConfiguration;
+  options?: Record<string, unknown>;
+}
+
+export interface TestWorkflowInput {
+  specification: SpecificationInput[];
+  rules?: string[];
+  rulesConfig?: RulesConfiguration;
+  options?: Record<string, unknown>;
+}
+
+export interface AnalyzeWorkflowInput {
+  specification?: SpecificationInput[];
+  traffic: TrafficInput[];
+  rules?: string[];
+  rulesConfig?: RulesConfiguration;
+  options?: Record<string, unknown>;
+}
 
 export type RegisteredPlugin<
   T extends Record<PropertyKey, unknown> = Record<PropertyKey, unknown>,
@@ -182,29 +220,56 @@ export class Thymian {
   }
 
   async loadFormat(
-    filter: HttpFilterExpression = constant(true),
+    inputOrFilter: CoreFormatLoadInput | HttpFilterExpression = constant(true),
     _options: { emitFormat?: boolean } = {},
   ): Promise<ThymianFormat> {
     const options = { emitFormat: true, ..._options };
 
-    const formats = await this.emitter.emitAction(
-      'core.load-format',
-      { filter },
-      {
-        strategy: 'collect',
-      },
-    );
+    const isCoreFormatLoadInput = (
+      value: CoreFormatLoadInput | HttpFilterExpression,
+    ): value is CoreFormatLoadInput =>
+      typeof value === 'object' &&
+      value !== null &&
+      'inputs' in value &&
+      Array.isArray(value.inputs);
+
+    const filter = isCoreFormatLoadInput(inputOrFilter)
+      ? constant(true)
+      : inputOrFilter;
+
+    const useNewFormatInputs = isCoreFormatLoadInput(inputOrFilter);
+
+    const [legacyFormats, formats] = await Promise.all([
+      this.emitter.emitAction(
+        'core.load-format',
+        { filter },
+        {
+          strategy: 'collect',
+        },
+      ),
+      this.emitter.emitAction(
+        'core.format.load',
+        useNewFormatInputs ? inputOrFilter : { inputs: [] },
+        {
+          strategy: 'collect',
+        },
+      ),
+    ]);
+
+    const allFormats = useNewFormatInputs
+      ? formats
+      : legacyFormats.concat(formats);
 
     const format =
-      formats.length === 0
+      allFormats.length === 0
         ? new ThymianFormat()
         : // we know that formats.length >= 1
 
-          formats
+          allFormats
             .slice(1)
             .reduce(
               (acc, curr) => acc.merge(ThymianFormat.import(curr)),
-              ThymianFormat.import(formats[0]!),
+              ThymianFormat.import(allFormats[0]!),
             );
 
     this.logger.debug(
@@ -224,6 +289,106 @@ export class Thymian {
     }
 
     return filteredFormat;
+  }
+
+  async loadTraffic(input: CoreTrafficLoadInput): Promise<LoadedTraffic> {
+    const loadedTraffic = await this.emitter.emitAction(
+      'core.traffic.load',
+      input,
+      {
+        strategy: 'collect',
+      },
+    );
+
+    return loadedTraffic.reduce<LoadedTraffic>(
+      (acc, current) => ({
+        transactions: [
+          ...(acc.transactions ?? []),
+          ...(current.transactions ?? []),
+        ],
+        traces: [...(acc.traces ?? []), ...(current.traces ?? [])],
+        metadata: {
+          ...(acc.metadata ?? {}),
+          ...(current.metadata ?? {}),
+        },
+      }),
+      {},
+    );
+  }
+
+  /**
+   * Architectural note:
+   * Core owns the public validation entrypoints and input-loading contract.
+   * Plugins own the mode-specific execution semantics behind these entrypoints.
+   * This keeps the consumer-facing API stable while preserving plugin-based extensibility.
+   */
+  async lint(input: LintWorkflowInput): Promise<ValidationResult[]> {
+    const { rulesConfig } = input;
+
+    const [format, rules] = await Promise.all([
+      this.loadFormat({ inputs: input.specification }, { emitFormat: false }),
+      loadRules(input.rules ?? [], undefined, rulesConfig, this.options.cwd),
+    ]);
+
+    return this.emitter.emitAction(
+      'core.lint',
+      { format: format.export(), rules, rulesConfig, options: input.options },
+      { strategy: 'collect' },
+    );
+  }
+
+  async test(input: TestWorkflowInput): Promise<ValidationResult[]> {
+    const { rulesConfig } = input;
+
+    const [format, rules] = await Promise.all([
+      this.loadFormat({ inputs: input.specification }, { emitFormat: false }),
+      loadRules(input.rules ?? [], undefined, rulesConfig, this.options.cwd),
+    ]);
+
+    return this.emitter.emitAction(
+      'core.test',
+      { format: format.export(), rules, rulesConfig, options: input.options },
+      { strategy: 'collect' },
+    );
+  }
+
+  async analyze(input: AnalyzeWorkflowInput): Promise<ValidationResult[]> {
+    const { rulesConfig } = input;
+
+    const [traffic, rules, format] = await Promise.all([
+      this.loadTraffic({ inputs: input.traffic }),
+      loadRules(input.rules ?? [], undefined, rulesConfig, this.options.cwd),
+      input.specification
+        ? this.loadFormat(
+            { inputs: input.specification },
+            { emitFormat: false },
+          )
+        : Promise.resolve(undefined),
+    ]);
+
+    return this.emitter.emitAction(
+      'core.analyze',
+      {
+        traffic,
+        format: format?.export(),
+        rules,
+        rulesConfig,
+        options: input.options,
+      },
+      { strategy: 'collect' },
+    );
+  }
+
+  async sample(input: CoreRequestSampleInput): Promise<HttpRequestTemplate> {
+    return this.emitter.emitAction('core.request.sample', input, {
+      strategy: 'first',
+    });
+  }
+
+  async dispatch(input: CoreRequestDispatchInput): Promise<HttpResponse> {
+    return this.emitter.emitAction('core.request.dispatch', input, {
+      strategy: 'first',
+    });
   }
 
   private async loadRegisteredPlugins(): Promise<void> {

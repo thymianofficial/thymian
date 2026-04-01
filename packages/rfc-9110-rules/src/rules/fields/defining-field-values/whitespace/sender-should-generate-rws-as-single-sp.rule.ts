@@ -1,4 +1,4 @@
-import { httpRule } from '@thymian/http-linter';
+import { httpRule } from '@thymian/core';
 
 // TODO: Implement ABNF validation for RWS generation
 // Requires detecting RWS positions and validating single SP generation:

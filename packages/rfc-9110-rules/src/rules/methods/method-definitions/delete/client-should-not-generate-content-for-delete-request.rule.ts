@@ -1,5 +1,5 @@
 import { hasRequestBody, method } from '@thymian/core';
-import { httpRule } from '@thymian/http-linter';
+import { httpRule } from '@thymian/core';
 
 export default httpRule(
   'rfc9110/client-should-not-generate-content-for-delete-request',

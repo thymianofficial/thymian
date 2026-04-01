@@ -1,4 +1,4 @@
-import { httpRule } from '@thymian/http-linter';
+import { httpRule } from '@thymian/core';
 
 // TODO: Implement ABNF validation for #rule recipient syntax
 // Requires accepting lists with empty elements per recipient syntax:

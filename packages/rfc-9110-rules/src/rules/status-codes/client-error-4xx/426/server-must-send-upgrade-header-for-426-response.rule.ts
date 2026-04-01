@@ -1,5 +1,5 @@
 import { not, responseHeader, statusCode } from '@thymian/core';
-import { httpRule } from '@thymian/http-linter';
+import { httpRule } from '@thymian/core';
 
 export default httpRule(
   'rfc9110/server-must-send-upgrade-header-for-426-response',

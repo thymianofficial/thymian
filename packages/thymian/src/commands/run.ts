@@ -1,4 +1,9 @@
 import { BaseCliRunCommand, oclif } from '@thymian/cli-common';
+import type {} from '@thymian/evaluation';
+import type {} from '@thymian/openapi';
+import type {} from '@thymian/reporter';
+import type {} from '@thymian/sampler';
+import type {} from '@thymian/websocket-proxy';
 import ora, { type Ora } from 'ora';
 
 const growingPlant = {

@@ -3,7 +3,7 @@ import {
   httpTransactionToLabel,
   responseHeader,
 } from '@thymian/core';
-import { httpRule } from '@thymian/http-linter';
+import { httpRule } from '@thymian/core';
 
 export default httpRule('rfc9110/recipient-must-handle-large-content-length')
   .severity('warn')

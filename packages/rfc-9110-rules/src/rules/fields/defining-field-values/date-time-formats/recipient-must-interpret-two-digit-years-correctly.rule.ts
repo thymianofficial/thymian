@@ -1,4 +1,4 @@
-import { httpRule } from '@thymian/http-linter';
+import { httpRule } from '@thymian/core';
 
 // TODO: Implement ABNF validation and logic for two-digit year interpretation
 // Requires parsing rfc850-date format and applying 50-year rule for 2-digit years

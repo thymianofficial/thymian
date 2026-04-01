@@ -6,7 +6,7 @@ import {
   responseHeader,
   type ThymianHttpResponse,
 } from '@thymian/core';
-import { httpRule } from '@thymian/http-linter';
+import { httpRule } from '@thymian/core';
 
 import { parseChallenges } from '../utils/auth-parser.js';
 import {

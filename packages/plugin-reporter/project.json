@@ -1,0 +1,14 @@
+{
+  "name": "plugin-reporter",
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "packages/plugin-reporter/src",
+  "projectType": "library",
+  "tags": ["scope:plugin", "type:lib"],
+  "// targets": "to see all targets run: nx show project @thymian/reporter --web",
+  "targets": {
+    "generate-schema-docs": {
+      "dependsOn": ["build"],
+      "command": "node scripts/generate-schema-docs.js @thymian/reporter astro-docs/src/content/docs/references/Plugins/Reporter/options.md"
+    }
+  }
+}

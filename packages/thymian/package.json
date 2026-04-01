@@ -28,10 +28,12 @@
     "@thymian/cli-common": "0.0.0-PLACEHOLDER",
     "@thymian/core": "0.0.0-PLACEHOLDER",
     "@thymian/evaluation": "0.0.0-PLACEHOLDER",
-    "@thymian/format-validator": "0.0.0-PLACEHOLDER",
+    "@thymian/http-analyzer": "0.0.0-PLACEHOLDER",
     "@thymian/http-linter": "0.0.0-PLACEHOLDER",
+    "@thymian/http-tester": "0.0.0-PLACEHOLDER",
     "@thymian/openapi": "0.0.0-PLACEHOLDER",
     "@thymian/reporter": "0.0.0-PLACEHOLDER",
+    "@thymian/request-dispatcher": "0.0.0-PLACEHOLDER",
     "@thymian/rfc-9110-rules": "0.0.0-PLACEHOLDER",
     "@thymian/sampler": "0.0.0-PLACEHOLDER",
     "@thymian/websocket-proxy": "0.0.0-PLACEHOLDER",
@@ -53,7 +55,8 @@
     "plugins": [
       "@oclif/plugin-help",
       "@oclif/plugin-not-found",
-      "@oclif/plugin-version"
+      "@oclif/plugin-version",
+      "@thymian/http-linter"
     ]
   },
   "devDependencies": {

@@ -1,5 +1,5 @@
 import { requestHeader } from '@thymian/core';
-import { httpRule } from '@thymian/http-linter';
+import { httpRule } from '@thymian/core';
 
 export default httpRule('rfc9110/codings-value-may-be-given-quality-value')
   .severity('hint')

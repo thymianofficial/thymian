@@ -1,4 +1,4 @@
-import { httpRule } from '@thymian/http-linter';
+import { httpRule } from '@thymian/core';
 
 // TODO: Implement ABNF validation for field-value format (field-content, field-vchar)
 // Requires parsing field-value ABNF to detect and validate whitespace handling:
