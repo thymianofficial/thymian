@@ -17,6 +17,7 @@ import {
 
 import { ErrorCache } from './error-cache.js';
 import { Feedback } from './feedback.js';
+import { deepSet, optionFlag } from './flags/option-flag.js';
 import { ruleSetFlag } from './flags/rule-set-flag.js';
 import { specFlag } from './flags/spec-flag.js';
 import { trafficFlag } from './flags/traffic-flag.js';
@@ -74,6 +75,7 @@ export abstract class BaseCliRunCommand<
       default: [],
       helpGroup: 'BASE',
     }),
+    option: optionFlag(),
     spec: specFlag(),
     traffic: trafficFlag(),
     ['rule-set']: ruleSetFlag(),
@@ -129,6 +131,7 @@ export abstract class BaseCliRunCommand<
     this.flags.debug = settings.debug || this.flags.debug;
 
     this.thymianConfig = await getConfig(this.flags.config, this.flags.cwd);
+    this.overridePluginOptions();
 
     const logLevel = this.resolveLogLevelWithConfig();
 
@@ -213,6 +216,30 @@ export abstract class BaseCliRunCommand<
     }
 
     return this.thymianConfig.autoload ?? true;
+  }
+
+  /**
+   * Apply `-o` flag overrides to the loaded Thymian configuration.
+   *
+   * Each override targets a specific plugin by name and sets a deeply
+   * nested property on its `options` object.  If the plugin entry does
+   * not yet exist in the config it will be created.
+   */
+  protected overridePluginOptions(): void {
+    if (!this.flags.option?.length) {
+      return;
+    }
+
+    for (const override of this.flags.option) {
+      this.thymianConfig.plugins[override.pluginName] ??= {};
+      const pluginConfig = this.thymianConfig.plugins[override.pluginName]!;
+      pluginConfig.options ??= {};
+      deepSet(
+        pluginConfig.options as Record<string, unknown>,
+        override.path,
+        override.value,
+      );
+    }
   }
 
   /**

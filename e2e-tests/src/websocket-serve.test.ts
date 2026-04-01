@@ -1,12 +1,14 @@
-import { writeFileSync } from 'node:fs';
-import { join } from 'node:path';
-
 import { type RenderResult, waitFor } from 'cli-testing-library';
 import { filter, firstValueFrom, ReplaySubject } from 'rxjs';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { WebSocket } from 'ws';
 
-import { renderThymian, useTempDir } from './helpers.js';
+import {
+  copyFixturesToTempDir,
+  fixturesDir,
+  renderThymian,
+  useTempDir,
+} from './helpers.js';
 import { getAvailablePort } from './port-utils.js';
 
 describe('thymian serve (websocket)', () => {
@@ -18,27 +20,16 @@ describe('thymian serve (websocket)', () => {
   beforeEach(async () => {
     wsPort = await getAvailablePort();
 
-    // Create a config file with the websocket-proxy port configured.
-    // The port must be set via the plugin options in the config file
-    // since the -o flag no longer exists in the new CLI architecture.
-    const configContent = `plugins:
-  "@thymian/http-linter": {}
-  "@thymian/openapi": {}
-  "@thymian/reporter":
-    options:
-      formatters:
-        text: {}
-  "@thymian/websocket-proxy":
-    options:
-      port: ${wsPort}
-`;
-    writeFileSync(
-      join(getTempDir(), 'thymian.config.yaml'),
-      configContent,
-      'utf-8',
-    );
+    // Copy the websocket-serve fixture which has all plugins configured
+    // but no port set for @thymian/websocket-proxy.
+    copyFixturesToTempDir(`${fixturesDir}/websocket-serve`, getTempDir());
 
-    instance = await renderThymian(['serve'], { cwd: getTempDir() });
+    // Use the -o flag to override the websocket-proxy port at runtime,
+    // demonstrating and exercising the reintroduced option flag.
+    instance = await renderThymian(
+      ['serve', '-o', `@thymian/websocket-proxy.port=${wsPort}`],
+      { cwd: getTempDir() },
+    );
   });
 
   afterEach(async () => {
