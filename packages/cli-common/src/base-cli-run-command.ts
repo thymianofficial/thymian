@@ -78,7 +78,6 @@ export abstract class BaseCliRunCommand<
       aliases: ['c'],
       charAliases: ['c'],
       description: 'Path to thymian configuration file.',
-      default: 'thymian.config.yaml',
       helpGroup: 'BASE',
     }),
     autoload: Flags.boolean({
@@ -147,6 +146,9 @@ export abstract class BaseCliRunCommand<
     this.flags = flags as CommandFlags<T>;
     this.args = args as CommandArgs<T>;
     this.flags.debug = settings.debug || this.flags.debug;
+
+    this.feedback = Feedback.forCommand(this);
+    this.errorCache = ErrorCache.forCommand(this);
 
     // --- Config Resolution Chain ---
     // Step A+B: Load config from --config flag, well-known file, or defaultConfig
@@ -255,8 +257,6 @@ export abstract class BaseCliRunCommand<
       cwd: this.flags.cwd,
       idleTimeout: this.flags['idle-timeout'],
     });
-    this.feedback = Feedback.forCommand(this);
-    this.errorCache = ErrorCache.forCommand(this);
 
     if (this.shouldAutoload()) {
       this.debug('Autoloading Thymian plugins.');

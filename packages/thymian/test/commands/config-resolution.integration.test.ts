@@ -178,9 +178,7 @@ describe('config resolution chain (integration)', () => {
         await Lint.run(['--cwd', cwdDir, '--no-autoload']);
       });
 
-      // this.exit(2) throws an ExitError during init(); the catch handler
-      // fails because this.feedback is not yet initialized, but the output
-      // is still captured before the exit.
+      // this.exit(2) throws an ExitError during init() after logging guidance.
       expect(error).toBeDefined();
       expect(stdout).toContain('No specification found');
     });
@@ -277,9 +275,7 @@ describe('config resolution chain (integration)', () => {
         await Lint.run(['--cwd', emptyDir, '--no-autoload']);
       });
 
-      // this.exit(2) throws an ExitError during init(); the catch handler
-      // fails because this.feedback is not yet initialized, but the output
-      // is still captured before the exit.
+      // this.exit(2) throws an ExitError during init() after logging guidance.
       expect(error).toBeDefined();
       expect(stdout).toContain('No specification found');
       expect(stdout).toContain('thymian generate config');
