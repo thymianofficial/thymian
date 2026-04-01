@@ -171,31 +171,6 @@ describe('config resolution chain (integration)', () => {
       );
     });
 
-    it('auto-discovers thymian.config.json in cwd', async () => {
-      writeFileSync(
-        join(cwdDir, 'thymian.config.json'),
-        JSON.stringify(
-          {
-            specifications: [{ type: 'openapi', location: './from-json.yaml' }],
-            plugins: { '@thymian/openapi': {} },
-          },
-          null,
-          2,
-        ),
-      );
-
-      await captureOutput(async () => {
-        await Lint.run(['--cwd', cwdDir, '--no-autoload']);
-      });
-
-      expect(mockState.runCalled).toBe(true);
-      expect(mockState.lintInput).toEqual(
-        expect.objectContaining({
-          specification: [{ type: 'openapi', location: './from-json.yaml' }],
-        }),
-      );
-    });
-
     it('falls back to defaultConfig when no config file exists (triggers spec-search exit)', async () => {
       // No config file in cwdDir, no --spec
       // defaultConfig has empty specifications, so Step D/E/F should trigger

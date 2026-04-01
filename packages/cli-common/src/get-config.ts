@@ -20,11 +20,7 @@ export interface GetConfigOptions {
 }
 
 /** Well-known config file names checked in order when no explicit `--config` is given. */
-const DEFAULT_CONFIG_NAMES = [
-  'thymian.config.yaml',
-  'thymian.config.yml',
-  'thymian.config.json',
-];
+const DEFAULT_CONFIG_NAMES = ['thymian.config.yaml'];
 
 /**
  * Resolve and load a Thymian configuration.

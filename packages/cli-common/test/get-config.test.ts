@@ -110,48 +110,13 @@ plugins:
       expect(config.plugins).toHaveProperty('@thymian/openapi');
     });
 
-    it('should auto-detect thymian.config.yml in cwd', async () => {
-      const yamlContent = `
-plugins:
-  '@thymian/reporter':
-    options:
-      formatters:
-        cli: {}
-`;
-      await writeFile(join(tempDir, 'thymian.config.yml'), yamlContent);
-
-      const config = await getConfig({ cwd: tempDir });
-
-      expect(config.plugins).toHaveProperty('@thymian/reporter');
-    });
-
-    it('should auto-detect thymian.config.json in cwd', async () => {
-      const configContent: ThymianConfig = {
-        plugins: { '@thymian/http-linter': {} },
-      };
-
-      await writeFile(
-        join(tempDir, 'thymian.config.json'),
-        JSON.stringify(configContent),
-      );
-
-      const config = await getConfig({ cwd: tempDir });
-
-      expect(config.plugins).toHaveProperty('@thymian/http-linter');
-    });
-
-    it('should prefer .yaml over .yml and .json', async () => {
-      const yamlContent = `
-plugins:
-  picked-yaml: {}
-`;
+    it('should ignore thymian.config.yml and thymian.config.json during auto-probe', async () => {
       const ymlContent = `
 plugins:
   picked-yml: {}
 `;
       const jsonContent: ThymianConfig = { plugins: { 'picked-json': {} } };
 
-      await writeFile(join(tempDir, 'thymian.config.yaml'), yamlContent);
       await writeFile(join(tempDir, 'thymian.config.yml'), ymlContent);
       await writeFile(
         join(tempDir, 'thymian.config.json'),
@@ -160,9 +125,7 @@ plugins:
 
       const config = await getConfig({ cwd: tempDir });
 
-      expect(config.plugins).toHaveProperty('picked-yaml');
-      expect(config.plugins).not.toHaveProperty('picked-yml');
-      expect(config.plugins).not.toHaveProperty('picked-json');
+      expect(config).toEqual(defaultConfig);
     });
 
     it('should return defaultConfig when no well-known file exists', async () => {
@@ -182,12 +145,10 @@ plugins:
         },
       };
 
-      await writeFile(
-        join(tempDir, 'thymian.config.json'),
-        JSON.stringify(configContent),
-      );
+      const configPath = join(tempDir, 'thymian.config.json');
+      await writeFile(configPath, JSON.stringify(configContent));
 
-      const config = await getConfig({ cwd: tempDir });
+      const config = await getConfig({ configPath, cwd: tempDir });
 
       expect(config).toEqual(configContent);
     });
@@ -215,12 +176,10 @@ plugins:
         plugins: {},
       };
 
-      await writeFile(
-        join(tempDir, 'thymian.config.json'),
-        JSON.stringify(configContent),
-      );
+      const configPath = join(tempDir, 'thymian.config.json');
+      await writeFile(configPath, JSON.stringify(configContent));
 
-      const config = await getConfig({ cwd: tempDir });
+      const config = await getConfig({ configPath, cwd: tempDir });
 
       expect(config.autoload).toBe(true);
     });
@@ -231,12 +190,10 @@ plugins:
         specifications: [{ type: 'openapi', location: './openapi.yaml' }],
       };
 
-      await writeFile(
-        join(tempDir, 'thymian.config.json'),
-        JSON.stringify(configContent),
-      );
+      const configPath = join(tempDir, 'thymian.config.json');
+      await writeFile(configPath, JSON.stringify(configContent));
 
-      const config = await getConfig({ cwd: tempDir });
+      const config = await getConfig({ configPath, cwd: tempDir });
 
       expect(config.specifications).toBeDefined();
       expect(config.specifications).toHaveLength(1);
@@ -247,12 +204,10 @@ plugins:
         plugins: {},
       };
 
-      await writeFile(
-        join(tempDir, 'thymian.config.json'),
-        JSON.stringify(configContent),
-      );
+      const configPath = join(tempDir, 'thymian.config.json');
+      await writeFile(configPath, JSON.stringify(configContent));
 
-      const config = await getConfig({ cwd: tempDir });
+      const config = await getConfig({ configPath, cwd: tempDir });
 
       expect(config.plugins).toEqual({});
     });
@@ -260,9 +215,10 @@ plugins:
 
   describe('error handling', () => {
     it('should exit process with code 2 on invalid JSON', async () => {
-      await writeFile(join(tempDir, 'thymian.config.json'), '{ invalid json }');
+      const configPath = join(tempDir, 'thymian.config.json');
+      await writeFile(configPath, '{ invalid json }');
 
-      await expect(getConfig({ cwd: tempDir })).rejects.toThrow(
+      await expect(getConfig({ configPath, cwd: tempDir })).rejects.toThrow(
         'process.exit called with code 2',
       );
       expect(consoleErrorSpy).toHaveBeenCalled();
@@ -287,12 +243,10 @@ plugins:
         autoload: 'invalid-type',
       };
 
-      await writeFile(
-        join(tempDir, 'thymian.config.json'),
-        JSON.stringify(invalidConfig),
-      );
+      const configPath = join(tempDir, 'thymian.config.json');
+      await writeFile(configPath, JSON.stringify(invalidConfig));
 
-      await expect(getConfig({ cwd: tempDir })).rejects.toThrow(
+      await expect(getConfig({ configPath, cwd: tempDir })).rejects.toThrow(
         'process.exit called with code 2',
       );
       expect(consoleErrorSpy).toHaveBeenCalledWith(
@@ -306,12 +260,10 @@ plugins:
         plugins: 'not-an-object',
       };
 
-      await writeFile(
-        join(tempDir, 'thymian.config.json'),
-        JSON.stringify(invalidConfig),
-      );
+      const configPath = join(tempDir, 'thymian.config.json');
+      await writeFile(configPath, JSON.stringify(invalidConfig));
 
-      await expect(getConfig({ cwd: tempDir })).rejects.toThrow(
+      await expect(getConfig({ configPath, cwd: tempDir })).rejects.toThrow(
         'process.exit called with code 2',
       );
       expect(consoleErrorSpy).toHaveBeenCalledWith(
@@ -325,12 +277,10 @@ plugins:
         unknownField: 'value',
       };
 
-      await writeFile(
-        join(tempDir, 'thymian.config.json'),
-        JSON.stringify(invalidConfig),
-      );
+      const configPath = join(tempDir, 'thymian.config.json');
+      await writeFile(configPath, JSON.stringify(invalidConfig));
 
-      await expect(getConfig({ cwd: tempDir })).rejects.toThrow(
+      await expect(getConfig({ configPath, cwd: tempDir })).rejects.toThrow(
         'process.exit called with code 2',
       );
       expect(consoleErrorSpy).toHaveBeenCalledTimes(2);
@@ -347,12 +297,10 @@ plugins:
     });
 
     it('should handle missing required fields', async () => {
-      await writeFile(
-        join(tempDir, 'thymian.config.json'),
-        JSON.stringify({ autoload: true }),
-      );
+      const configPath = join(tempDir, 'thymian.config.json');
+      await writeFile(configPath, JSON.stringify({ autoload: true }));
 
-      await expect(getConfig({ cwd: tempDir })).rejects.toThrow(
+      await expect(getConfig({ configPath, cwd: tempDir })).rejects.toThrow(
         'process.exit called with code 2',
       );
       expect(consoleErrorSpy).toHaveBeenCalled();
@@ -360,9 +308,10 @@ plugins:
     });
 
     it('should handle empty JSON file', async () => {
-      await writeFile(join(tempDir, 'thymian.config.json'), '{}');
+      const configPath = join(tempDir, 'thymian.config.json');
+      await writeFile(configPath, '{}');
 
-      await expect(getConfig({ cwd: tempDir })).rejects.toThrow(
+      await expect(getConfig({ configPath, cwd: tempDir })).rejects.toThrow(
         'process.exit called with code 2',
       );
       expect(consoleErrorSpy).toHaveBeenCalled();
