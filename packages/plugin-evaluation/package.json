@@ -36,6 +36,7 @@
   "oclif": {
     "commands": "./dist/cli/commands",
     "bin": "thymian",
+    "topicSeparator": " ",
     "topics": {
       "evaluation": {
         "description": "Commands related to scientific publications based on Thymian.",

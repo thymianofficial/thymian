@@ -49,7 +49,7 @@
       "thymian.feedback": "./dist/hooks/feedback"
     },
     "dirname": "thymian",
-    "topicSeparator": ":",
+    "topicSeparator": " ",
     "plugins": [
       "@oclif/plugin-help",
       "@oclif/plugin-not-found",
