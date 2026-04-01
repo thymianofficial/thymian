@@ -20,19 +20,31 @@ export async function searchForOpenApiFiles(cwd: string): Promise<string[]> {
   for (const match of matches) {
     const filePath = join(cwd, match);
 
-    const fileStream = fs.createReadStream(filePath, { encoding: 'utf8' });
+    let fileStream: fs.ReadStream | null = null;
+    let rl: readline.Interface | null = null;
 
-    const rl = readline.createInterface({
-      input: fileStream,
-    });
+    try {
+      fileStream = fs.createReadStream(filePath, { encoding: 'utf8' });
 
-    for await (const line of rl) {
-      if (
-        /^\s*"?swagger"?\s*:\s*("?2\.0\.0"?)/i.test(line) ||
-        /^\s*"?openapi"?\s*:\s*("?3\.[01]\.[01234]"?)/i.test(line)
-      ) {
-        found.push(match);
-        break;
+      rl = readline.createInterface({
+        input: fileStream,
+      });
+
+      for await (const line of rl) {
+        if (
+          /^\s*"?swagger"?\s*:\s*("?2\.0\.0"?)/i.test(line) ||
+          /^\s*"?openapi"?\s*:\s*("?3\.(0|1)\.\d+"?)/i.test(line)
+        ) {
+          found.push(match);
+          break;
+        }
+      }
+    } finally {
+      if (rl) {
+        rl.close();
+      }
+      if (fileStream) {
+        fileStream.destroy();
       }
     }
   }

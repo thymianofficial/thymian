@@ -25,7 +25,6 @@ const __dirname = fileURLToPath(new URL('.', import.meta.url));
 
 /**
  * Helper to read and parse a generated YAML config file.
- * Strips comment lines before parsing.
  */
 async function loadGeneratedConfig(
   filePath: string,

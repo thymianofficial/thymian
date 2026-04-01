@@ -1,11 +1,5 @@
 import { type ChildProcess, execSync, spawn } from 'node:child_process';
-import {
-  existsSync,
-  mkdtempSync,
-  readFileSync,
-  rmSync,
-  writeFileSync,
-} from 'node:fs';
+import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { setTimeout as sleep } from 'node:timers/promises';
@@ -19,14 +13,12 @@ const rootDir = join(import.meta.dirname, '..', '..');
 const thymianVersion = '0.0.1-e2e';
 const verdaccioPort = 4873;
 const verdaccioUrl = `http://localhost:${verdaccioPort}`;
-const npmrcPath = join(rootDir, '.npmrc');
 
 const isWindows = process.platform === 'win32';
 const npmCmd = isWindows ? 'npm.cmd' : 'npm';
 
 let verdaccioProcess: ChildProcess;
 let globalPrefix: string;
-const previousNpmrc: string | null = null;
 
 function killVerdaccio() {
   if (!verdaccioProcess) {

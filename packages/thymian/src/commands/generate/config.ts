@@ -81,6 +81,30 @@ export default class GenerateConfig extends ThymianBaseCommand<
       }
     }
 
+    // Guard against overwriting an existing file at the resolved output path.
+    // The default-config-exists case is already handled above; this covers
+    // --output pointing to an existing file or an interactive custom path that
+    // already exists.
+    if (existsSync(outputPath)) {
+      if (interactive) {
+        const overwrite = await confirm({
+          message: `File already exists at ${outputPath}. Overwrite?`,
+          default: false,
+        });
+
+        if (!overwrite) {
+          this.error('Aborted to avoid overwriting existing file.', {
+            exit: 1,
+          });
+        }
+      } else {
+        this.error(
+          `File already exists at ${outputPath}. Use a different --output path or remove the existing file.`,
+          { exit: 1 },
+        );
+      }
+    }
+
     // Resolve specification: --for-spec flag takes priority over auto-detection
     let selectedSpec: ReturnType<typeof parseSpecFlag>;
 
