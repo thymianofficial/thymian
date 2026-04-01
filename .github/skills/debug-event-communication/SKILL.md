@@ -34,7 +34,7 @@ This skill helps debug and analyze Thymian's event-driven architecture based on 
    - Structure: `{ id, name, payload, timestamp, source }`
    - Registered with: `emitter.onAction(actionName, (payload, ctx) => { ctx.reply(response) })`
    - Emitted with: `await emitter.emitAction(actionName, payload, options)`
-   - Examples: `core.ready`, `core.close`, `core.format.load`, `core.run`, `core.format`
+   - Examples: `core.ready`, `core.close`, `core.format.load`, `core.lint`, `core.test`, `core.analyze`, `core.report.flush`
    - Waits for response(s) from handler(s) with timeout
    - Strategies: `'first'`, `'collect'` (default), `'deep-merge'`
 
