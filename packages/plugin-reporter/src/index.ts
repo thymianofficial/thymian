@@ -74,12 +74,33 @@ export const reporterPlugin: ThymianPlugin<ReporterPluginOptions> = {
     listensOn: ['core.report'],
   },
   actions: {
-    listensOn: ['core.report.flush'],
+    listensOn: ['core.report.flush', 'core.close'],
   },
   async plugin(emitter, logger, { formatters: userFormatters, cwd }) {
-    const formatters = {
-      text: {},
-      ...userFormatters,
+    const formatters = Object.fromEntries(
+      Object.entries({
+        text: {},
+        ...(userFormatters ?? {}),
+      }).filter(([, options]) => options != null),
+    ) as Formatters;
+
+    let hasFlushed = false;
+
+    const flushReporters = async (): Promise<{ text?: string }> => {
+      if (hasFlushed) {
+        return {};
+      }
+
+      hasFlushed = true;
+
+      const results = await Promise.all(reporters.map(async (r) => r.flush()));
+
+      // Collect text output from formatters that return strings (e.g. TextFormatter)
+      const textParts = results.filter(
+        (r): r is string => typeof r === 'string',
+      );
+
+      return textParts.length > 0 ? { text: textParts.join('\n') } : {};
     };
 
     const reporters = await getFormatters(formatters, cwd, logger);
@@ -89,14 +110,12 @@ export const reporterPlugin: ThymianPlugin<ReporterPluginOptions> = {
     });
 
     emitter.onAction('core.report.flush', async (_event, ctx) => {
-      const results = await Promise.all(reporters.map(async (r) => r.flush()));
+      ctx.reply(await flushReporters());
+    });
 
-      // Collect text output from formatters that return strings (e.g. TextFormatter)
-      const textParts = results.filter(
-        (r): r is string => typeof r === 'string',
-      );
-
-      ctx.reply(textParts.length > 0 ? { text: textParts.join('\n') } : {});
+    emitter.onAction('core.close', async (_event, ctx) => {
+      await flushReporters();
+      ctx.reply();
     });
   },
 };

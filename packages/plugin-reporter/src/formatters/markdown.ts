@@ -19,15 +19,15 @@ export const details = (text: string): string =>
 
 export function mapSeverityToBadge(severity: ThymianReportSeverity): string {
   if (severity === 'error') {
-    return `${errorSymbol} error:`;
+    return `${errorSymbol} error`;
   }
   if (severity === 'warn') {
-    return `${warnSymbol} warn:`;
+    return `${warnSymbol} warn`;
   }
   if (severity === 'hint') {
-    return `${hintSymbol} hint:`;
+    return `${hintSymbol} hint`;
   }
-  return 'info:';
+  return 'info';
 }
 
 export type MarkdownFormatterOptions = {

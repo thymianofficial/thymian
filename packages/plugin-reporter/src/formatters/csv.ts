@@ -70,7 +70,7 @@ export function thymianReportToCsvLines(report: ThymianReport): string[] {
 
   if (!report.sections || report.sections.length === 0) {
     // Report with no sections — emit a single row with source and message
-    lines.push(`${csvSafe(report.source)},,,,,${csvSafe(report.message)}\n`);
+    lines.push(`${csvSafe(report.source)},,,,${csvSafe(report.message)},\n`);
     return lines;
   }
 

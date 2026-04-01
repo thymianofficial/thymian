@@ -31,6 +31,7 @@ export function createMockLogger(overrides: Partial<Logger> = {}): Logger {
     out: vi.fn(),
     child: vi.fn((name: string) =>
       createMockLogger({
+        level: logger.level,
         namespace: `${logger.namespace}:${name}`,
       }),
     ),

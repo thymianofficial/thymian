@@ -77,7 +77,6 @@ describe('Thymian', () => {
           ctx.reply({
             source: 'test-plugin',
             status: 'success',
-            reports: [],
             violations: [],
           });
         });
@@ -213,7 +212,6 @@ describe('Thymian', () => {
             ctx.reply({
               source: '@thymian/http-linter',
               status: 'success',
-              reports: [],
               violations: [],
             });
           });
@@ -249,7 +247,6 @@ describe('Thymian', () => {
           {
             source: '@thymian/http-linter',
             status: 'success',
-            reports: [],
             violations: [],
           },
         ],
@@ -272,7 +269,6 @@ describe('Thymian', () => {
             ctx.reply({
               source: '@thymian/http-tester',
               status: 'failed',
-              reports: [],
               violations: [
                 {
                   ruleName: 'demo/test-rule',
@@ -312,7 +308,6 @@ describe('Thymian', () => {
           {
             source: '@thymian/http-tester',
             status: 'failed',
-            reports: [],
             violations: [
               {
                 ruleName: 'demo/test-rule',
@@ -372,7 +367,6 @@ describe('Thymian', () => {
             ctx.reply({
               source: '@thymian/http-analyzer',
               status: 'success',
-              reports: [],
               violations: [],
             });
           });
@@ -450,7 +444,6 @@ describe('Thymian', () => {
           {
             source: '@thymian/http-analyzer',
             status: 'success',
-            reports: [],
             violations: [],
           },
         ],

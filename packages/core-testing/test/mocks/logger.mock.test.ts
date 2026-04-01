@@ -43,6 +43,13 @@ describe('Logger Mock', () => {
 
       expect(child.namespace).toBe('parent:child');
     });
+
+    it('should preserve log level on child loggers', () => {
+      const logger = createMockLogger({ namespace: 'parent', level: 'debug' });
+      const child = logger.child('child');
+
+      expect(child.level).toBe('debug');
+    });
   });
 
   describe('createSilentMockLogger', () => {

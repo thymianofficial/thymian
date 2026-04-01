@@ -79,9 +79,6 @@ export class TextFormatter implements Formatter<Partial<TextFormatterOptions>> {
 
             lines.push('');
           }
-        } else {
-          lines.push(`  ${report.message}`);
-          lines.push('');
         }
       }
     }

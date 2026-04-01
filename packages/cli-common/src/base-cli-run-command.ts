@@ -243,28 +243,6 @@ export abstract class BaseCliRunCommand<
   }
 
   /**
-   * Resolve the effective log level from flags and config.
-   * Priority: --log-level flag > --debug flag > --verbose flag > config logLevel > default 'warn'
-   */
-  private resolveLogLevel(): LogLevel {
-    const flagLevel = this.flags['log-level'];
-
-    if (flagLevel && isLogLevel(flagLevel)) {
-      return flagLevel;
-    }
-
-    if (this.flags.debug) {
-      return 'debug';
-    }
-
-    if (this.flags.verbose) {
-      return 'info';
-    }
-
-    return 'warn';
-  }
-
-  /**
    * Re-resolve log level considering the config file.
    * Only applies config.logLevel if no explicit flag was set.
    */
@@ -350,7 +328,12 @@ export abstract class BaseCliRunCommand<
     for (const plugin of this.flags.plugin) {
       this.debug('Adding plugin from flag "%s" to Thymian config.', plugin);
 
-      if ((await this.isNpmPackage(plugin)) || isAbsolute(plugin)) {
+      const isPathPlugin =
+        isAbsolute(plugin) ||
+        plugin.startsWith('./') ||
+        plugin.startsWith('../');
+
+      if (!isPathPlugin) {
         this.debug('Load plugin "%s" as npm package or absolute path.', plugin);
 
         const pluginModule = await this.loadPluginModule(plugin, false);
@@ -366,15 +349,6 @@ export abstract class BaseCliRunCommand<
           path: plugin,
         };
       }
-    }
-  }
-
-  private async isNpmPackage(name: string): Promise<boolean> {
-    try {
-      require.resolve(name, { paths: [this.flags.cwd] });
-      return true;
-    } catch {
-      return false;
     }
   }
 
