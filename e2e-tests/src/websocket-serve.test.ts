@@ -20,14 +20,16 @@ describe('thymian serve (websocket)', () => {
   beforeEach(async () => {
     wsPort = await getAvailablePort();
 
-    // Copy the websocket-serve fixture which has all plugins configured
-    // but no port set for @thymian/websocket-proxy.
-    copyFixturesToTempDir(`${fixturesDir}/websocket-serve`, getTempDir());
-
     // Use the -o flag to override the websocket-proxy port at runtime,
     // demonstrating and exercising the reintroduced option flag.
     instance = await renderThymian(
-      ['serve', '-o', `@thymian/websocket-proxy.port=${wsPort}`],
+      [
+        'serve',
+        '-o',
+        `@thymian/websocket-proxy.port=${wsPort}`,
+        '-p',
+        '@thymian/websocket-proxy',
+      ],
       { cwd: getTempDir() },
     );
   });
