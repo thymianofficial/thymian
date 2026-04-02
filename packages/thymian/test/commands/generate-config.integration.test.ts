@@ -257,7 +257,7 @@ describe('generate config (integration)', () => {
           testDir,
           '--no-interactive',
           '--for-spec',
-          './api.yaml',
+          'openapi:./api.yaml',
         ]);
       });
 

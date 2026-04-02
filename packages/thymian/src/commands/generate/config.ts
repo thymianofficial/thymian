@@ -45,8 +45,8 @@ export default class GenerateConfig extends ThymianBaseCommand<
     ['for-spec']: Flags.string({
       multiple: true,
       description:
-        'Specification input in the format [<type>:]<location>. Skips auto-detection and uses the provided spec(s) directly.',
-      helpValue: '[type:]location',
+        'Specification input in the format <type>:<location>. Skips auto-detection and uses the provided spec(s) directly.',
+      helpValue: 'type:location',
     }),
   };
 
