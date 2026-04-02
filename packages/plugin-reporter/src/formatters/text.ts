@@ -6,14 +6,19 @@ import chalk from 'chalk';
 import { mkdir, writeFile } from 'fs/promises';
 
 import { analyze, type Formatter } from '../formatter.js';
-import { errorSymbol, hintSymbol, warnSymbol } from '../style.js';
+import {
+  errorSymbol,
+  hintSymbol,
+  successSymbol,
+  warnSymbol,
+} from '../style.js';
 
 export function formatSeverityPrefix(severity: ThymianReportSeverity): string {
   if (severity === 'hint') {
     return `${chalk.blue(`${hintSymbol} ${severity}`)}: `;
   }
   if (severity === 'warn') {
-    return `${chalk.yellow(`${warnSymbol} ${severity}`)}: `;
+    return `${chalk.yellow(`${warnSymbol} warning`)}: `;
   }
   if (severity === 'error') {
     return `${chalk.red(`${errorSymbol} ${severity}`)}: `;
@@ -41,7 +46,7 @@ export class TextFormatter implements Formatter<Partial<TextFormatterOptions>> {
 
   async flush(): Promise<string | undefined> {
     if (this.reports.length === 0) {
-      return undefined;
+      return `${chalk.green(successSymbol)} No problems found`;
     }
 
     const analysis = analyze(this.reports);

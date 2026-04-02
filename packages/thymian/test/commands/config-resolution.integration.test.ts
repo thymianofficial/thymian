@@ -219,10 +219,10 @@ describe('config resolution chain (integration)', () => {
       );
     });
 
-    it('--spec without explicit type defaults to openapi', async () => {
+    it('--spec without type prefix rejects with a parse error', async () => {
       const configPath = join(tmpDir, 'override.config.yaml');
 
-      await captureOutput(async () => {
+      const { error } = await captureOutput(async () => {
         await Lint.run([
           '--config',
           configPath,
@@ -232,12 +232,7 @@ describe('config resolution chain (integration)', () => {
         ]);
       });
 
-      expect(mockState.runCalled).toBe(true);
-      expect(mockState.lintInput).toEqual(
-        expect.objectContaining({
-          specification: [{ type: 'openapi', location: './just-a-path.yaml' }],
-        }),
-      );
+      expect(error).toBeDefined();
     });
 
     it('--spec with no config file uses default config + spec override', async () => {

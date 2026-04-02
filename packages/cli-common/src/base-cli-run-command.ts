@@ -252,14 +252,24 @@ export abstract class BaseCliRunCommand<
 
     this.logger = new TextLogger('@thymian/cli', logLevel);
 
+    this.logger.info('Configuration loaded.');
+
+    const specCount = this.thymianConfig.specifications?.length ?? 0;
+    if (specCount > 0) {
+      this.logger.info(`Resolved ${specCount} specification(s).`);
+    }
+
     this.thymian = new Thymian(this.logger.child('@thymian/core'), {
       timeout: this.flags.timeout,
       cwd: this.flags.cwd,
       idleTimeout: this.flags['idle-timeout'],
     });
 
+    this.logger.info('Thymian instance created.');
+
     if (this.shouldAutoload()) {
       this.debug('Autoloading Thymian plugins.');
+      this.logger.info('Autoloading plugins from configuration...');
       await this.addPluginsToThymianConfig();
       await this.registerPluginsFromConfig();
     }

@@ -17,7 +17,7 @@ export class TextLogger implements Logger {
 
   trace(formatter: unknown, ...args: unknown[]): void {
     if (shouldLog('trace', this.level)) {
-      console.log(
+      console.error(
         `${chalk.grey(`TRACE`)} [${this.now()}] [${this.namespace}]: ${format(
           formatter,
           ...args,
@@ -27,7 +27,7 @@ export class TextLogger implements Logger {
   }
   warn(formatter: unknown, ...args: unknown[]): void {
     if (shouldLog('warn', this.level)) {
-      console.log(
+      console.error(
         `${chalk.yellow(`WARN`)} [${this.now()}] [${this.namespace}]: ${format(
           formatter,
           ...args,
@@ -38,7 +38,7 @@ export class TextLogger implements Logger {
 
   debug(formatter: unknown, ...args: unknown[]): void {
     if (shouldLog('debug', this.level)) {
-      console.log(
+      console.error(
         `${chalk.blue(`DEBUG`)} [${this.now()}] [${this.namespace}]: ${format(
           formatter,
           ...args,
@@ -48,7 +48,7 @@ export class TextLogger implements Logger {
   }
   info(formatter: unknown, ...args: unknown[]): void {
     if (shouldLog('info', this.level)) {
-      console.log(
+      console.error(
         `${chalk.green(`INFO`)} [${this.now()}] [${this.namespace}]: ${format(
           formatter,
           ...args,
@@ -58,7 +58,7 @@ export class TextLogger implements Logger {
   }
   error(formatter: unknown, ...args: unknown[]): void {
     if (shouldLog('error', this.level)) {
-      console.log(
+      console.error(
         `${chalk.red(`ERROR`)} [${this.now()}] [${this.namespace}]: ${format(
           formatter,
           ...args,

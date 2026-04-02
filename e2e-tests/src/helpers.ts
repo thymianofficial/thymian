@@ -1,4 +1,4 @@
-import { spawnSync } from 'node:child_process';
+import { spawnSync, type SpawnSyncReturns } from 'node:child_process';
 import { cpSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -23,33 +23,52 @@ export const installationMode: InstallationMode = rawMode as InstallationMode;
 const isWindows = process.platform === 'win32';
 const npxCmd = isWindows ? 'npx.cmd' : 'npx';
 
-export function execThymian(
-  args: string[],
-  opts: { cwd?: string; allowFailure?: boolean } = {},
-): string {
+/**
+ * Resolve the command and argument list for the current installation mode.
+ */
+function resolveThymianCommand(args: string[]): {
+  cmd: string;
+  argv: string[];
+} {
   const version = process.env.THYMIAN_E2E_VERSION ?? '';
-  const env = getCleanEnv();
-  let cmd: string;
-  let argv: string[];
   switch (installationMode) {
     case 'npx':
-      cmd = npxCmd;
-      argv = ['--yes', `@thymian/cli@${version}`, ...args];
-      break;
-    case 'global': {
-      cmd = process.env.THYMIAN_E2E_GLOBAL_BIN ?? 'thymian';
-      argv = args;
-      break;
-    }
+      return {
+        cmd: npxCmd,
+        argv: ['--yes', `@thymian/cli@${version}`, ...args],
+      };
+    case 'global':
+      return {
+        cmd: process.env.THYMIAN_E2E_GLOBAL_BIN ?? 'thymian',
+        argv: args,
+      };
     case 'local':
       throw new Error('Local installation mode not yet implemented');
   }
-  const result = spawnSync(cmd, argv, {
+}
+
+/**
+ * Spawn thymian synchronously and return the raw SpawnSyncReturns result.
+ */
+function spawnThymian(
+  args: string[],
+  opts: { cwd?: string } = {},
+): SpawnSyncReturns<string> {
+  const { cmd, argv } = resolveThymianCommand(args);
+  const env = getCleanEnv();
+  return spawnSync(cmd, argv, {
     cwd: opts.cwd,
     env,
     encoding: 'utf-8',
     timeout: 90_000,
   });
+}
+
+export function execThymian(
+  args: string[],
+  opts: { cwd?: string; allowFailure?: boolean } = {},
+): string {
+  const result = spawnThymian(args, opts);
   const output = (result.stdout ?? '') + (result.stderr ?? '');
   if (result.status !== 0) {
     console.warn(
@@ -67,6 +86,28 @@ export function execThymian(
     throw err;
   }
   return output;
+}
+
+export interface ThymianResult {
+  stdout: string;
+  stderr: string;
+  exitCode: number | null;
+}
+
+/**
+ * Execute thymian and return stdout, stderr, and exitCode separately.
+ * Never throws on non-zero exit — callers can assert on exitCode.
+ */
+export function execThymianResult(
+  args: string[],
+  opts: { cwd?: string } = {},
+): ThymianResult {
+  const result = spawnThymian(args, opts);
+  return {
+    stdout: result.stdout ?? '',
+    stderr: result.stderr ?? '',
+    exitCode: result.status,
+  };
 }
 
 export function renderThymian(args: string[], opts?: { cwd?: string }) {

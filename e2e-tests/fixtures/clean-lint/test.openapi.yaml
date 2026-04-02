@@ -1,0 +1,30 @@
+openapi: 3.1.0
+info:
+  title: Clean Test API
+  description: A minimal API specification designed to produce zero lint violations.
+  version: 1.0.0
+paths:
+  /api/health:
+    get:
+      summary: Health check
+      operationId: getHealth
+      responses:
+        '200':
+          description: OK
+          headers:
+            Date:
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthResponse'
+components:
+  schemas:
+    HealthResponse:
+      type: object
+      properties:
+        status:
+          type: string
+      required:
+        - status
