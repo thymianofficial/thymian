@@ -173,6 +173,33 @@ describe('thymian test', () => {
     expect(result.exitCode).toBe(2);
   }, 180_000);
 
+  it('should exit 1 when violations are found', async () => {
+    const { server, targetUrl } = await setupTestEnvironment(
+      'dynamic-test',
+      getTempDir(),
+    );
+
+    try {
+      const result = await execThymianRawAsync(
+        [
+          'test',
+          '--target-url',
+          targetUrl,
+          '--rule-severity',
+          'warn',
+          '--rule-set',
+          '@thymian/rfc-9110-rules',
+        ],
+        { cwd: getTempDir(), allowFailure: true },
+      );
+
+      expect(result.exitCode).toBe(1);
+      expect(result.stdout).toMatch(/ \d+ warnings?/);
+    } finally {
+      await server.close();
+    }
+  }, 180_000);
+
   // ─── --spec Flag ──────────────────────────────────────────────────
 
   it('should accept specification via --spec flag', async () => {
