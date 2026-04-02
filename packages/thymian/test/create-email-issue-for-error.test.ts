@@ -1,4 +1,4 @@
-import { type CachedError } from '@thymian/cli-common';
+import { type CachedError } from '@thymian/common-cli';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
 import { createEmailReport } from '../src/create-email-issue-for-error.js';
@@ -138,8 +138,8 @@ describe('createEmailReport', () => {
         nodeVersion: 'v18.0.0',
       },
       pluginVersions: [
-        { name: '@thymian/openapi', version: '1.0.0' },
-        { name: '@thymian/http-linter', version: '2.0.0' },
+        { name: '@thymian/plugin-openapi', version: '1.0.0' },
+        { name: '@thymian/plugin-http-linter', version: '2.0.0' },
       ],
     };
 
@@ -147,8 +147,8 @@ describe('createEmailReport', () => {
     const decodedUrl = decodeURIComponent(url);
 
     expect(decodedUrl).toContain('PLUGINS:');
-    expect(decodedUrl).toContain('- @thymian/openapi: 1.0.0');
-    expect(decodedUrl).toContain('- @thymian/http-linter: 2.0.0');
+    expect(decodedUrl).toContain('- @thymian/plugin-openapi: 1.0.0');
+    expect(decodedUrl).toContain('- @thymian/plugin-http-linter: 2.0.0');
   });
 
   it('should include stack trace with HOME replaced by ~', () => {

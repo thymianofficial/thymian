@@ -3,7 +3,7 @@
   "$schema": "../../node_modules/nx/schemas/project-schema.json",
   "sourceRoot": "packages/rfc-9110-rules/src",
   "projectType": "library",
-  "tags": ["scope:plugin", "type:lib-feature"],
-  "// targets": "to see all targets run: nx show project @thymian/rfc-9110-rules --web",
+  "tags": ["scope:rules", "type:lib", "npm:public"],
+  "// targets": "to see all targets run: nx show project @thymian/rules-rfc-9110 --web",
   "targets": {}
 }

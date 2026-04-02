@@ -210,7 +210,7 @@ describe('Thymian', () => {
           emitter.onAction('core.lint', (payload, ctx) => {
             coreLintSpy(payload);
             ctx.reply({
-              source: '@thymian/http-linter',
+              source: '@thymian/plugin-http-linter',
               status: 'success',
               violations: [],
             });
@@ -245,7 +245,7 @@ describe('Thymian', () => {
         text: 'lint report',
         results: [
           {
-            source: '@thymian/http-linter',
+            source: '@thymian/plugin-http-linter',
             status: 'success',
             violations: [],
           },
@@ -267,7 +267,7 @@ describe('Thymian', () => {
           emitter.onAction('core.test', (payload, ctx) => {
             coreTestSpy(payload);
             ctx.reply({
-              source: '@thymian/http-tester',
+              source: '@thymian/plugin-http-tester',
               status: 'failed',
               violations: [
                 {
@@ -306,7 +306,7 @@ describe('Thymian', () => {
         text: 'test report',
         results: [
           {
-            source: '@thymian/http-tester',
+            source: '@thymian/plugin-http-tester',
             status: 'failed',
             violations: [
               {
@@ -365,7 +365,7 @@ describe('Thymian', () => {
           emitter.onAction('core.analyze', (payload, ctx) => {
             coreAnalyzeSpy(payload);
             ctx.reply({
-              source: '@thymian/http-analyzer',
+              source: '@thymian/plugin-http-analyzer',
               status: 'success',
               violations: [],
             });
@@ -442,7 +442,7 @@ describe('Thymian', () => {
         text: 'analyze report',
         results: [
           {
-            source: '@thymian/http-analyzer',
+            source: '@thymian/plugin-http-analyzer',
             status: 'success',
             violations: [],
           },

@@ -11,7 +11,7 @@ import {
   type ThymianPlugin,
   type ThymianSchema,
 } from '@thymian/core';
-import type {} from '@thymian/request-dispatcher';
+import type {} from '@thymian/plugin-request-dispatcher';
 
 import { generateSamplesForThymianFormat } from './generation/generate-samples-for-thymian-format.js';
 import {
@@ -68,7 +68,7 @@ export type SamplerPluginOptions = {
 };
 
 export const samplePlugin: ThymianPlugin<Partial<SamplerPluginOptions>> = {
-  name: '@thymian/sampler',
+  name: '@thymian/plugin-sampler',
   version: '0.x',
   options: {
     // ### for reference documentation ###

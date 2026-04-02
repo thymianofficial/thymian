@@ -188,7 +188,7 @@ describe('thymian test', () => {
           '--rule-severity',
           'warn',
           '--rule-set',
-          '@thymian/rfc-9110-rules',
+          '@thymian/rules-rfc-9110',
         ],
         { cwd: getTempDir(), allowFailure: true },
       );
@@ -239,7 +239,7 @@ describe('thymian test', () => {
         [
           'test',
           '--rule-set',
-          '@thymian/rfc-9110-rules',
+          '@thymian/rules-rfc-9110',
           '--target-url',
           targetUrl,
         ],

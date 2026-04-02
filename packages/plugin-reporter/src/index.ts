@@ -7,7 +7,7 @@ export type ReporterPluginOptions = {
 };
 
 export const reporterPlugin: ThymianPlugin<ReporterPluginOptions> = {
-  name: '@thymian/reporter',
+  name: '@thymian/plugin-reporter',
   options: {
     type: 'object',
     additionalProperties: false,

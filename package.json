@@ -1,7 +1,7 @@
 {
   "name": "@thymian/source",
   "version": "0.0.0",
-  "license": "MIT",
+  "license": "AGPL-3.0-only",
   "type": "module",
   "scripts": {
     "test": "nx run-many -t test",

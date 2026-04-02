@@ -69,7 +69,7 @@ export const defaultServerInfo: ServerInfo = {
 };
 
 export const openApiPlugin: ThymianPlugin<OpenApiPluginOptions> = {
-  name: '@thymian/openapi',
+  name: '@thymian/plugin-openapi',
   version: '0.x',
   options: {
     // ### for reference documentation ###

@@ -63,7 +63,7 @@ export class HookRunner {
   ): Promise<HttpTestHooks['afterResponse']['return']> {
     if (!this.initialized) {
       throw new ThymianBaseError(
-        'Cannot run hooks before @thymian/sampler is initialized.',
+        'Cannot run hooks before @thymian/plugin-sampler is initialized.',
         {
           name: 'HookRunnerNotInitialized',
           suggestions: ['Did you run "thymian sampler:init"?'],
@@ -129,7 +129,7 @@ export class HookRunner {
   ): Promise<HttpTestHooks['authorize']['return']> {
     if (!this.initialized) {
       throw new ThymianBaseError(
-        'Cannot run hooks before @thymian/sampler is initialized.',
+        'Cannot run hooks before @thymian/plugin-sampler is initialized.',
         {
           name: 'HookRunnerNotInitialized',
           suggestions: ['Did you run "thymian sampler:init"?'],
@@ -199,7 +199,7 @@ export class HookRunner {
   ): Promise<HttpTestHooks['beforeRequest']['return']> {
     if (!this.initialized) {
       throw new ThymianBaseError(
-        'Cannot run hooks before @thymian/sampler is initialized.',
+        'Cannot run hooks before @thymian/plugin-sampler is initialized.',
         {
           name: 'HookRunnerNotInitialized',
           suggestions: ['Did you run "thymian sampler:init"?'],

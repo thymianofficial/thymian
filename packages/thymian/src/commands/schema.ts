@@ -1,4 +1,4 @@
-import { BaseCliRunCommand, thymianConfigSchema } from '@thymian/cli-common';
+import { BaseCliRunCommand, thymianConfigSchema } from '@thymian/common-cli';
 
 const configSchema = {
   ...thymianConfigSchema,

@@ -10,5 +10,20 @@
     "GPL-2.0-only",
     "GPL-2.0-or-later"
   ],
-  "excludePackages": []
+  "excludePackages": [
+    "thymian",
+    "@thymian/common-cli",
+    "@thymian/core",
+    "@thymian/core-testing",
+    "@thymian/plugin-http-analyzer",
+    "@thymian/plugin-http-linter",
+    "@thymian/plugin-http-tester",
+    "@thymian/plugin-openapi",
+    "@thymian/plugin-reporter",
+    "@thymian/plugin-request-dispatcher",
+    "@thymian/plugin-sampler",
+    "@thymian/plugin-websocket-proxy",
+    "@thymian/rules-api-description-validation",
+    "@thymian/rules-rfc-9110"
+  ]
 }

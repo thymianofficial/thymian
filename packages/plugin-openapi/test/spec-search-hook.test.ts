@@ -44,6 +44,6 @@ describe('spec-search-hook', () => {
   it('should return the openapi plugin name', async () => {
     const result = await hook({ cwd: tempDir });
 
-    expect(result.pluginName).toBe('@thymian/openapi');
+    expect(result.pluginName).toBe('@thymian/plugin-openapi');
   });
 });

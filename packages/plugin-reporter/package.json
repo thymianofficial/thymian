@@ -1,8 +1,9 @@
 {
-  "name": "@thymian/reporter",
+  "name": "@thymian/plugin-reporter",
   "version": "0.0.0-PLACEHOLDER",
+  "license": "AGPL-3.0-only",
   "publishConfig": {
-    "access": "restricted"
+    "access": "public"
   },
   "type": "module",
   "main": "./dist/index.js",

@@ -1,7 +1,7 @@
 import { EOL } from 'node:os';
 
-import { BaseCliRunCommand } from '@thymian/cli-common';
-import { ux } from '@thymian/cli-common/oclif';
+import { BaseCliRunCommand } from '@thymian/common-cli';
+import { ux } from '@thymian/common-cli/oclif';
 
 export default class List extends BaseCliRunCommand<typeof List> {
   static override description = 'List all registered Thymian plugins.';

@@ -1,7 +1,7 @@
 import { writeFile } from 'node:fs/promises';
 import { format, join, relative } from 'node:path';
 
-import { BaseCliRunCommand, oclif, prompts } from '@thymian/cli-common';
+import { BaseCliRunCommand, oclif, prompts } from '@thymian/common-cli';
 import {
   type Thymian,
   ThymianBaseError,

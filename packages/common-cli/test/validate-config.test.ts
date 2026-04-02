@@ -19,7 +19,7 @@ describe('validate-config', () => {
       it('should validate valid ThymianConfig with plugins', () => {
         const config: ThymianConfig = {
           plugins: {
-            '@thymian/openapi': {
+            '@thymian/plugin-openapi': {
               options: {
                 descriptions: [
                   {
@@ -28,7 +28,7 @@ describe('validate-config', () => {
                 ],
               },
             },
-            '@thymian/sampler': {
+            '@thymian/plugin-sampler': {
               options: {
                 path: './samples',
               },
@@ -77,7 +77,7 @@ describe('validate-config', () => {
       it('should validate ThymianConfig with ruleSets', () => {
         const config: ThymianConfig = {
           plugins: {},
-          ruleSets: ['@thymian/rfc-9110-rules'],
+          ruleSets: ['@thymian/rules-rfc-9110'],
         };
 
         const result = validateConfig(config);
@@ -136,7 +136,7 @@ describe('validate-config', () => {
       it('should validate config with plugin options', () => {
         const config: ThymianConfig = {
           plugins: {
-            '@thymian/openapi': {
+            '@thymian/plugin-openapi': {
               options: {
                 descriptions: [
                   {

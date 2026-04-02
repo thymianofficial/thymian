@@ -8,7 +8,7 @@ import {
 export type WebsocketProxyOptions = Partial<WebSocketProxyServerOptions>;
 
 export const websocketProxyPlugin: ThymianPlugin<WebsocketProxyOptions> = {
-  name: '@thymian/websocket-proxy',
+  name: '@thymian/plugin-websocket-proxy',
   version: '0.x',
   options: {
     type: 'object',

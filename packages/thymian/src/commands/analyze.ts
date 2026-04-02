@@ -4,11 +4,11 @@ import {
   handleWorkflowOutcome,
   mergeRuleSets,
   resolveRuleSeverity,
-} from '@thymian/cli-common';
-import type {} from '@thymian/openapi';
-import type {} from '@thymian/reporter';
-import type {} from '@thymian/sampler';
-import type {} from '@thymian/websocket-proxy';
+} from '@thymian/common-cli';
+import type {} from '@thymian/plugin-openapi';
+import type {} from '@thymian/plugin-reporter';
+import type {} from '@thymian/plugin-sampler';
+import type {} from '@thymian/plugin-websocket-proxy';
 
 export default class Analyze extends BaseCliRunCommand<typeof Analyze> {
   static override description =

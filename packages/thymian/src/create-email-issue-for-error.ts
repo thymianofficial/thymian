@@ -1,4 +1,4 @@
-import type { CachedError } from '@thymian/cli-common';
+import type { CachedError } from '@thymian/common-cli';
 
 export function createEmailReport(
   recipient: string,

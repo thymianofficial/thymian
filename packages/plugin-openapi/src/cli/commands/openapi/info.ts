@@ -1,6 +1,6 @@
 import { validate } from '@scalar/openapi-parser';
-import { BaseCliRunCommand } from '@thymian/cli-common';
-import { Args } from '@thymian/cli-common/oclif';
+import { BaseCliRunCommand } from '@thymian/common-cli';
+import { Args } from '@thymian/common-cli/oclif';
 import { ThymianBaseError } from '@thymian/core';
 
 import { loadOpenApi } from '../../../load-openapi.js';

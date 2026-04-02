@@ -2,11 +2,11 @@ specifications:
   - type: openapi
     location: test.openapi.yaml
 ruleSets:
-  - '@thymian/rfc-9110-rules'
+  - '@thymian/rules-rfc-9110'
 plugins:
-  '@thymian/http-linter': {}
-  '@thymian/openapi': {}
-  '@thymian/reporter':
+  '@thymian/plugin-http-linter': {}
+  '@thymian/plugin-openapi': {}
+  '@thymian/plugin-reporter':
     options:
       formatters:
         text: {}

@@ -144,8 +144,8 @@ describe('ErrorCache', () => {
           osVersion: 'Darwin 23.0.0',
         },
         pluginVersions: [
-          { name: '@thymian/openapi', version: '1.0.0' },
-          { name: '@thymian/http-linter', version: '2.0.0' },
+          { name: '@thymian/plugin-openapi', version: '1.0.0' },
+          { name: '@thymian/plugin-http-linter', version: '2.0.0' },
         ],
       };
 

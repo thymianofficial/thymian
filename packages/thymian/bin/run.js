@@ -2,7 +2,7 @@
 
 import path from 'node:path';
 
-import { getPluginNames, oclif } from '@thymian/cli-common';
+import { getPluginNames, oclif } from '@thymian/common-cli';
 
 const dirname = import.meta.dirname;
 

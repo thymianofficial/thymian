@@ -1,8 +1,9 @@
 {
-  "name": "@thymian/http-tester",
+  "name": "@thymian/plugin-http-tester",
   "version": "0.0.0-PLACEHOLDER",
+  "license": "AGPL-3.0-only",
   "publishConfig": {
-    "access": "restricted"
+    "access": "public"
   },
   "main": "./dist/index.js",
   "module": "./dist/index.js",

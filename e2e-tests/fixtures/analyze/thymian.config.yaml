@@ -2,12 +2,12 @@ traffic:
   - type: fixture
     location: static
 ruleSets:
-  - '@thymian/rfc-9110-rules'
+  - '@thymian/rules-rfc-9110'
 plugins:
-  '@thymian/http-analyzer': {}
+  '@thymian/plugin-http-analyzer': {}
   '@thymian/e2e-traffic-loader':
     path: ./traffic-loader-plugin.mjs
-  '@thymian/reporter':
+  '@thymian/plugin-reporter':
     options:
       formatters:
         text: {}

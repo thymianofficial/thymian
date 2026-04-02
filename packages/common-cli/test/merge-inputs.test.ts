@@ -77,39 +77,39 @@ describe('merge-inputs', () => {
   describe('mergeRuleSets', () => {
     it('should merge config and flag rule sets', () => {
       const result = mergeRuleSets(
-        ['@thymian/rfc-9110-rules'],
+        ['@thymian/rules-rfc-9110'],
         ['@thymian/custom-rules'],
       );
 
       expect(result).toEqual([
-        '@thymian/rfc-9110-rules',
+        '@thymian/rules-rfc-9110',
         '@thymian/custom-rules',
       ]);
     });
 
     it('should deduplicate rule set names', () => {
       const result = mergeRuleSets(
-        ['@thymian/rfc-9110-rules', '@thymian/custom-rules'],
-        ['@thymian/rfc-9110-rules', '@thymian/other-rules'],
+        ['@thymian/rules-rfc-9110', '@thymian/custom-rules'],
+        ['@thymian/rules-rfc-9110', '@thymian/other-rules'],
       );
 
       expect(result).toEqual([
-        '@thymian/rfc-9110-rules',
+        '@thymian/rules-rfc-9110',
         '@thymian/custom-rules',
         '@thymian/other-rules',
       ]);
     });
 
     it('should handle undefined config', () => {
-      const result = mergeRuleSets(undefined, ['@thymian/rfc-9110-rules']);
+      const result = mergeRuleSets(undefined, ['@thymian/rules-rfc-9110']);
 
-      expect(result).toEqual(['@thymian/rfc-9110-rules']);
+      expect(result).toEqual(['@thymian/rules-rfc-9110']);
     });
 
     it('should handle undefined flags', () => {
-      const result = mergeRuleSets(['@thymian/rfc-9110-rules'], undefined);
+      const result = mergeRuleSets(['@thymian/rules-rfc-9110'], undefined);
 
-      expect(result).toEqual(['@thymian/rfc-9110-rules']);
+      expect(result).toEqual(['@thymian/rules-rfc-9110']);
     });
 
     it('should return empty array when both are undefined', () => {

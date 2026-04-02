@@ -1,8 +1,9 @@
 {
-  "name": "@thymian/cli-common",
+  "name": "@thymian/common-cli",
   "version": "0.0.0-PLACEHOLDER",
+  "license": "AGPL-3.0-only",
   "publishConfig": {
-    "access": "restricted"
+    "access": "public"
   },
   "type": "module",
   "main": "./dist/index.js",

@@ -1,4 +1,4 @@
-import type { ThymianSpecSearchHook } from '@thymian/cli-common';
+import type { ThymianSpecSearchHook } from '@thymian/common-cli';
 
 import { openApiPlugin } from '../index.js';
 import { searchForOpenApiFiles } from '../search-for-openapi-files.js';

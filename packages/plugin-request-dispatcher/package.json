@@ -1,8 +1,9 @@
 {
-  "name": "@thymian/request-dispatcher",
+  "name": "@thymian/plugin-request-dispatcher",
   "version": "0.0.0-PLACEHOLDER",
+  "license": "AGPL-3.0-only",
   "publishConfig": {
-    "access": "restricted"
+    "access": "public"
   },
   "files": [
     "dist",

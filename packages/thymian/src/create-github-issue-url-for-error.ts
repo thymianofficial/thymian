@@ -1,4 +1,4 @@
-import type { CachedError } from '@thymian/cli-common';
+import type { CachedError } from '@thymian/common-cli';
 
 export function createGithubIssueUrlForError(error: CachedError): string {
   const baseUrl = 'https://github.com/thymianofficial/thymian/issues/new';

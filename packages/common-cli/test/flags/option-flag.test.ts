@@ -39,13 +39,13 @@ describe('option-flag', () => {
 
     it('should parse a valid input via the oclif parse hook', async () => {
       const result = (await flag.parse!(
-        '@thymian/reporter.formatters.text.summaryOnly=true',
+        '@thymian/plugin-reporter.formatters.text.summaryOnly=true',
         {},
         {} as never,
       )) as PluginOptionOverride;
 
       expect(result).toEqual({
-        pluginName: '@thymian/reporter',
+        pluginName: '@thymian/plugin-reporter',
         path: ['formatters', 'text', 'summaryOnly'],
         value: true,
       });
@@ -55,8 +55,8 @@ describe('option-flag', () => {
   describe('parseOptionFlag', () => {
     describe('scoped plugin names', () => {
       it('should parse a scoped plugin with a single property', () => {
-        expect(parseOptionFlag('@thymian/websocket-proxy.port=8080')).toEqual({
-          pluginName: '@thymian/websocket-proxy',
+        expect(parseOptionFlag('@thymian/plugin-websocket-proxy.port=8080')).toEqual({
+          pluginName: '@thymian/plugin-websocket-proxy',
           path: ['port'],
           value: 8080,
         });
@@ -64,17 +64,17 @@ describe('option-flag', () => {
 
       it('should parse a scoped plugin with deeply nested properties', () => {
         expect(
-          parseOptionFlag('@thymian/reporter.formatters.text.summaryOnly=true'),
+          parseOptionFlag('@thymian/plugin-reporter.formatters.text.summaryOnly=true'),
         ).toEqual({
-          pluginName: '@thymian/reporter',
+          pluginName: '@thymian/plugin-reporter',
           path: ['formatters', 'text', 'summaryOnly'],
           value: true,
         });
       });
 
       it('should handle a scoped plugin with an array index', () => {
-        expect(parseOptionFlag('@thymian/sampler.items[0].name=Auth')).toEqual({
-          pluginName: '@thymian/sampler',
+        expect(parseOptionFlag('@thymian/plugin-sampler.items[0].name=Auth')).toEqual({
+          pluginName: '@thymian/plugin-sampler',
           path: ['items', 0, 'name'],
           value: 'Auth',
         });
@@ -187,19 +187,19 @@ describe('option-flag', () => {
 
     describe('error cases', () => {
       it('should throw when no equals sign is present', () => {
-        expect(() => parseOptionFlag('@thymian/reporter.formatters')).toThrow(
+        expect(() => parseOptionFlag('@thymian/plugin-reporter.formatters')).toThrow(
           Errors.CLIError,
         );
-        expect(() => parseOptionFlag('@thymian/reporter.formatters')).toThrow(
+        expect(() => parseOptionFlag('@thymian/plugin-reporter.formatters')).toThrow(
           'Expected <pluginName>.<property>=<value>',
         );
       });
 
       it('should throw when no property path is present (scoped)', () => {
-        expect(() => parseOptionFlag('@thymian/reporter=value')).toThrow(
+        expect(() => parseOptionFlag('@thymian/plugin-reporter=value')).toThrow(
           Errors.CLIError,
         );
-        expect(() => parseOptionFlag('@thymian/reporter=value')).toThrow(
+        expect(() => parseOptionFlag('@thymian/plugin-reporter=value')).toThrow(
           'Expected <pluginName>.<property>=<value>',
         );
       });
@@ -438,9 +438,9 @@ describe('option-flag', () => {
   describe('end-to-end flag scenarios', () => {
     it('should combine parse + deepSet to build plugin options from multiple flags', () => {
       const flags = [
-        '@thymian/reporter.formatters.text.summaryOnly=true',
-        '@thymian/reporter.formatters.text.path=report.txt',
-        '@thymian/websocket-proxy.port=9090',
+        '@thymian/plugin-reporter.formatters.text.summaryOnly=true',
+        '@thymian/plugin-reporter.formatters.text.path=report.txt',
+        '@thymian/plugin-websocket-proxy.port=9090',
       ];
 
       const plugins: Record<string, Record<string, unknown>> = {};
@@ -452,7 +452,7 @@ describe('option-flag', () => {
       }
 
       expect(plugins).toEqual({
-        '@thymian/reporter': {
+        '@thymian/plugin-reporter': {
           formatters: {
             text: {
               summaryOnly: true,
@@ -460,7 +460,7 @@ describe('option-flag', () => {
             },
           },
         },
-        '@thymian/websocket-proxy': {
+        '@thymian/plugin-websocket-proxy': {
           port: 9090,
         },
       });
@@ -468,8 +468,8 @@ describe('option-flag', () => {
 
     it('should allow later flags to override earlier flags for the same path', () => {
       const flags = [
-        '@thymian/websocket-proxy.port=3000',
-        '@thymian/websocket-proxy.port=9090',
+        '@thymian/plugin-websocket-proxy.port=3000',
+        '@thymian/plugin-websocket-proxy.port=9090',
       ];
 
       const plugins: Record<string, Record<string, unknown>> = {};
@@ -480,7 +480,7 @@ describe('option-flag', () => {
         deepSet(plugins[override.pluginName]!, override.path, override.value);
       }
 
-      expect(plugins['@thymian/websocket-proxy']).toEqual({ port: 9090 });
+      expect(plugins['@thymian/plugin-websocket-proxy']).toEqual({ port: 9090 });
     });
 
     it('should build array elements from indexed flags', () => {

@@ -1,8 +1,9 @@
 {
-  "name": "@thymian/api-description-validation-rules",
+  "name": "@thymian/rules-api-description-validation",
   "version": "0.0.0-PLACEHOLDER",
+  "license": "AGPL-3.0-only",
   "publishConfig": {
-    "access": "restricted"
+    "access": "public"
   },
   "main": "./dist/index.js",
   "module": "./dist/index.js",

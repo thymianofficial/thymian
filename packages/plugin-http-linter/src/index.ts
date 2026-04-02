@@ -68,7 +68,7 @@ function createStaticLinterAdapter(
 }
 
 export function createHttpLinterPlugin(
-  pluginName = '@thymian/http-linter',
+  pluginName = '@thymian/plugin-http-linter',
 ): ThymianPlugin<HttpLinterPluginOptions> {
   return {
     name: pluginName,

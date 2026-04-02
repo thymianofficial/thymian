@@ -4,11 +4,11 @@ import {
   handleWorkflowOutcome,
   mergeRuleSets,
   resolveRuleSeverity,
-} from '@thymian/cli-common';
-import type {} from '@thymian/openapi';
-import type {} from '@thymian/reporter';
-import type {} from '@thymian/sampler';
-import type {} from '@thymian/websocket-proxy';
+} from '@thymian/common-cli';
+import type {} from '@thymian/plugin-openapi';
+import type {} from '@thymian/plugin-reporter';
+import type {} from '@thymian/plugin-sampler';
+import type {} from '@thymian/plugin-websocket-proxy';
 
 export default class Lint extends BaseCliRunCommand<typeof Lint> {
   static override description =
@@ -17,7 +17,7 @@ export default class Lint extends BaseCliRunCommand<typeof Lint> {
   static override examples = [
     '<%= config.bin %> <%= command.id %>',
     '<%= config.bin %> <%= command.id %> --spec openapi:./openapi.yaml',
-    '<%= config.bin %> <%= command.id %> --rule-set @thymian/rfc-9110-rules',
+    '<%= config.bin %> <%= command.id %> --rule-set @thymian/rules-rfc-9110',
   ];
 
   override async run(): Promise<void> {

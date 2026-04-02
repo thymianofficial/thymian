@@ -3,13 +3,13 @@ import { dirname, join } from 'node:path';
 import { mkdir, writeFile } from 'fs/promises';
 import * as jsonSchema from 'jsonschema2mk';
 
-// e.g. @thymian/http-linter
+// e.g. @thymian/plugin-http-linter
 const [pkgName, targetMd] = process.argv.slice(2);
 
 console.log('Generating JSON schema docs for', pkgName);
 
 if (!pkgName) {
-  console.error('Please provide a package name. E.g. @thymian/http-linter');
+  console.error('Please provide a package name. E.g. @thymian/plugin-http-linter');
   process.exit(1);
 }
 
