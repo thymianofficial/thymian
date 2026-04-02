@@ -5,5 +5,5 @@
 /.nx/workspace-data
 
 # Test fixture: intentionally invalid YAML for e2e error-handling tests
-e2e-tests/fixtures/analyze/invalid-spec.yaml
+/e2e-tests/fixtures/analyze/invalid-spec.yaml
 

@@ -99,11 +99,14 @@ export default httpRule(
           return;
         }
 
-        const missingHeaders = requiredHeaders.filter(
-          (headerName) =>
-            equalsIgnoreCase(headerName, ...okResponse.headers) !==
-            equalsIgnoreCase(headerName, ...partialResponse.headers),
-        );
+        const missingHeaders = requiredHeaders.filter((headerName) => {
+          const okHas = equalsIgnoreCase(headerName, ...okResponse.headers);
+          const partialHas = equalsIgnoreCase(
+            headerName,
+            ...partialResponse.headers,
+          );
+          return okHas && !partialHas;
+        });
 
         if (missingHeaders.length > 0) {
           return {
