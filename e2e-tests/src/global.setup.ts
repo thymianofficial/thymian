@@ -83,7 +83,9 @@ export default async function setup(_project: TestProject) {
       // Brief pause to let the OS release the port
       await sleep(500);
     } catch {
-      // No process on that port — nothing to clean up
+      console.log(
+        `No process is listening on port ${verdaccioPort} - nothing to clean up.`,
+      );
     }
   }
 
