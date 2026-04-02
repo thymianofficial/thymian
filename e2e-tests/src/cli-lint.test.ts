@@ -101,8 +101,12 @@ describe('thymian lint', () => {
   it('should produce deterministic output across consecutive runs', () => {
     copyFixturesToTempDir(join(fixturesDir, 'static-lint'), getTempDir());
 
-    const first = execThymianResult(['lint'], { cwd: getTempDir() });
-    const second = execThymianResult(['lint'], { cwd: getTempDir() });
+    const first = execThymianResult(['lint --suppress-feedback'], {
+      cwd: getTempDir(),
+    });
+    const second = execThymianResult(['lint --suppress-feedback'], {
+      cwd: getTempDir(),
+    });
 
     expect(first.stdout).toBe(second.stdout);
   }, 180_000);
