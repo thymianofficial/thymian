@@ -23,7 +23,9 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     environment: npm
-    if: "github.event_name == 'push' && !contains(github.event.head_commit.message, '[skip-canary]')"
+    # Canary release deactivated — change `if: false` back to the original condition to re-enable:
+    # if: "github.event_name == 'push' && !contains(github.event.head_commit.message, '[skip-canary]')"
+    if: false
     steps:
       - name: Check out repository
         uses: actions/checkout@v4

@@ -4,7 +4,7 @@
   "include": ["src/**/*.ts", "test/**/*.ts"],
   "compilerOptions": {
     "outDir": "dist",
-    "rootDir": "dist"
+    "rootDir": "src"
   },
   "references": [
     {
