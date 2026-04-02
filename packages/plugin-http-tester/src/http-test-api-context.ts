@@ -12,6 +12,7 @@ import {
   type RuleViolation,
   type RuleViolationLocation,
   type TestContext,
+  ThymianBaseError,
   ThymianFormat,
   type ThymianHttpTransaction,
   type ThymianReportSection,
@@ -60,6 +61,7 @@ export class HttpTestApiContext<
     ctx: HttpTestContext<Locals>,
     report: ReportFn = () => undefined,
     private readonly skippedOrigins: string[] = [],
+    private readonly pluginSource = '@thymian/http-tester',
   ) {
     this.report = report;
 
@@ -330,7 +332,7 @@ export class HttpTestApiContext<
     }
 
     this.report({
-      source: '@thymian/http-tester',
+      source: this.pluginSource,
       message: parts.join(' and '),
       sections,
     });
@@ -394,7 +396,9 @@ export class HttpTestApiContext<
             const { request, response, source } = transaction;
 
             if (!request || !response || !source) {
-              throw new Error();
+              throw new ThymianBaseError(
+                'Invalid HTTP test case transaction: missing request, response, or source.',
+              );
             }
 
             const validationResult = validationFn(request, response, {

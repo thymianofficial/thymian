@@ -3,6 +3,7 @@ import {
   type RuleRunnerAdapter,
   runRules,
   type SingleRuleConfiguration,
+  ThymianBaseError,
   ThymianFormat,
   type ThymianPlugin,
   type ThymianReport,
@@ -40,8 +41,13 @@ export function createHttpTesterPlugin(
               const url = new URL(targetUrl);
               normalizedOrigin = url.origin;
             } catch (error) {
-              throw new Error(
+              throw new ThymianBaseError(
                 `Invalid targetUrl "${targetUrl}": ${(error as Error).message}`,
+                {
+                  suggestions: [
+                    'Provide a valid URL including the protocol (e.g., "http://localhost:3000").',
+                  ],
+                },
               );
             }
           }
@@ -66,6 +72,7 @@ export function createHttpTesterPlugin(
                 context,
                 reportFn,
                 (options ?? {}).skipOrigins,
+                pluginName,
               ),
           };
 

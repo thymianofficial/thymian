@@ -52,6 +52,9 @@ export const thymianConfigSchema = {
       type: 'object',
       additionalProperties: true,
     },
+    targetUrl: {
+      type: 'string',
+    },
     plugins: {
       type: 'object',
       additionalProperties: {
