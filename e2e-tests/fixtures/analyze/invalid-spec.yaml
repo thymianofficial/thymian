@@ -1,0 +1,3 @@
+this is not valid openapi: [[[
+  broken yaml that cannot be parsed as a spec
+  missing required fields entirely

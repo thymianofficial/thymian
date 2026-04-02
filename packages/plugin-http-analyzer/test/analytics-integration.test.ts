@@ -559,4 +559,170 @@ describe('core.analyze integration tests', { timeout: 30000 }, () => {
     expect(batchResult.valid).toBeFalsy();
     expect(batchResult.violations.length).toBeGreaterThanOrEqual(1);
   });
+
+  it('should isolate consecutive core.analyze calls (no state bleed)', async () => {
+    await thymian
+      .register(httpAnalyzerPlugin, { storage: { type: 'memory' } })
+      .ready();
+
+    const rules = await loadAnalyzerRules(
+      join(
+        import.meta.dirname,
+        'fixtures/rules/should-send-validator-fields.rule.mjs',
+      ),
+    );
+
+    // First analyze: failing transaction → violations
+    const result1 = await thymian.emitter.emitAction(
+      'core.analyze',
+      {
+        format: new ThymianFormat().export(),
+        rules,
+        traffic: { transactions: [createFailingTransaction()] },
+      },
+      { strategy: 'first' },
+    );
+
+    expect(result1.status).toBe('failed');
+    expect(result1.violations.length).toBeGreaterThanOrEqual(1);
+
+    // Second analyze: passing transaction → no violations
+    // The failing transaction from the first call must NOT persist
+    const result2 = await thymian.emitter.emitAction(
+      'core.analyze',
+      {
+        format: new ThymianFormat().export(),
+        rules,
+        traffic: { transactions: [createPassingTransaction()] },
+      },
+      { strategy: 'first' },
+    );
+
+    expect(result2.status).toBe('success');
+    expect(result2.violations).toHaveLength(0);
+  });
+
+  it('should produce deterministic results for identical input', async () => {
+    await thymian
+      .register(httpAnalyzerPlugin, { storage: { type: 'memory' } })
+      .ready();
+
+    const rules = await loadAnalyzerRules(
+      join(
+        import.meta.dirname,
+        'fixtures/rules/should-send-validator-fields.rule.mjs',
+      ),
+    );
+
+    const traffic = {
+      transactions: [
+        createFailingTransaction(),
+        createPassingTransaction(),
+        createFailingTransaction(),
+      ],
+    };
+
+    const result1 = await thymian.emitter.emitAction(
+      'core.analyze',
+      {
+        format: new ThymianFormat().export(),
+        rules,
+        traffic,
+      },
+      { strategy: 'first' },
+    );
+
+    const result2 = await thymian.emitter.emitAction(
+      'core.analyze',
+      {
+        format: new ThymianFormat().export(),
+        rules,
+        traffic,
+      },
+      { strategy: 'first' },
+    );
+
+    expect(result1.status).toBe(result2.status);
+    expect(result1.violations).toHaveLength(result2.violations.length);
+    expect(result1.violations.map((v) => v.ruleName)).toEqual(
+      result2.violations.map((v) => v.ruleName),
+    );
+  });
+
+  it('should handle empty traffic gracefully (no transactions, no traces)', async () => {
+    await thymian
+      .register(httpAnalyzerPlugin, { storage: { type: 'memory' } })
+      .ready();
+
+    const rules = await loadAnalyzerRules(
+      join(
+        import.meta.dirname,
+        'fixtures/rules/should-send-validator-fields.rule.mjs',
+      ),
+    );
+
+    const result = await thymian.emitter.emitAction(
+      'core.analyze',
+      {
+        format: new ThymianFormat().export(),
+        rules,
+        traffic: {},
+      },
+      { strategy: 'first' },
+    );
+
+    expect(result.status).toBe('success');
+    expect(result.violations).toHaveLength(0);
+  });
+
+  it('should filter transactions by response role for analytics rules', async () => {
+    await thymian
+      .register(httpAnalyzerPlugin, { storage: { type: 'memory' } })
+      .ready();
+
+    const rules = await loadAnalyzerRules(
+      join(
+        import.meta.dirname,
+        'fixtures/rules/should-send-validator-fields.rule.mjs',
+      ),
+    );
+
+    // A transaction with a 'proxy' role on the response — the rule targets
+    // 'origin server' so the proxy transaction should be filtered out and
+    // produce zero violations.
+    const proxyTransaction: CapturedTransaction = {
+      request: {
+        data: {
+          method: 'get',
+          origin: 'https://api.example.com',
+          path: '/users/123',
+          headers: {},
+        },
+        meta: {},
+      },
+      response: {
+        data: {
+          statusCode: 200,
+          headers: { 'content-type': 'application/json' },
+          trailers: {},
+          duration: 0,
+        },
+        meta: { role: 'proxy' },
+      },
+    };
+
+    const result = await thymian.emitter.emitAction(
+      'core.analyze',
+      {
+        format: new ThymianFormat().export(),
+        rules,
+        traffic: { transactions: [proxyTransaction] },
+      },
+      { strategy: 'first' },
+    );
+
+    // Proxy role is not 'origin server', so the transaction is excluded
+    expect(result.violations).toHaveLength(0);
+    expect(result.status).toBe('success');
+  });
 });

@@ -1,6 +1,8 @@
 import {
   and,
   not,
+  origin,
+  path,
   requestHeader,
   responseWith,
   statusCode,
@@ -26,6 +28,24 @@ export default httpRule(
         requestHeader('content-encoding'),
         not(responseWith(statusCode(415))),
       ),
+    ),
+  )
+  .overrideAnalyticsRule((ctx) =>
+    // responseWith() cannot be compiled to SQL, so for analytics mode
+    // we group by endpoint and check within each group whether any
+    // transaction with Content-Encoding received a 415 response.
+    ctx.validateGroupedCommonHttpTransactions(
+      requestHeader('content-encoding'),
+      and(origin(), path()),
+      (_, transactions) => {
+        const has415 = transactions.some(([, res]) => res.statusCode === 415);
+        if (has415) {
+          return undefined;
+        }
+        // No 415 response for this endpoint — report the first transaction
+        const [, , location] = transactions[0] ?? [];
+        return location ? { location } : undefined;
+      },
     ),
   )
   .done();

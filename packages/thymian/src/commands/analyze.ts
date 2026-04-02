@@ -20,6 +20,7 @@ export default class Analyze extends BaseCliRunCommand<typeof Analyze> {
     '<%= config.bin %> <%= command.id %> --spec openapi:./openapi.yaml --traffic har:./traffic.har',
   ];
 
+  static override requiresSpecifications = false;
   static override requiresTraffic = true;
 
   override async run(): Promise<void> {
