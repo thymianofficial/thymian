@@ -196,7 +196,7 @@ export abstract class BaseCliRunCommand<
         );
         ux.stderr('Or generate a reusable config:\n');
         ux.stderr(
-          `  $ thymian generate config --for-spec ${formatSpecInput(firstSpec)}`,
+          `  $ thymian generate config --for-spec ${formatSpecInput(firstSpec)}\n`,
         );
         this.exit(2);
       } else {
