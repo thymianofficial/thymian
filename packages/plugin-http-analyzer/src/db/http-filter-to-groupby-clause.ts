@@ -26,11 +26,6 @@ export function httpFilterToGroupByClause(
         sql: `${tables.requests}.origin`,
         params,
       };
-    case 'port':
-      return {
-        sql: `${tables.requests}.port`,
-        params,
-      };
     case 'method':
       return {
         sql: `${tables.requests}.method`,

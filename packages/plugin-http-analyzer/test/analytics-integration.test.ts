@@ -688,9 +688,8 @@ describe('core.analyze integration tests', { timeout: 30000 }, () => {
     );
 
     // A transaction with a 'proxy' role on the response — the rule targets
-    // 'origin server' so the proxy transaction should not trigger violations
-    // for origin-only rules, BUT the should-send-validator-fields rule uses
-    // the generic 'server' role which includes proxies.
+    // 'origin server' so the proxy transaction should be filtered out and
+    // produce zero violations.
     const proxyTransaction: CapturedTransaction = {
       request: {
         data: {
@@ -722,8 +721,8 @@ describe('core.analyze integration tests', { timeout: 30000 }, () => {
       { strategy: 'first' },
     );
 
-    // The test fixture rule targets 'server' which includes proxy role
-    expect(result.violations.length).toBeGreaterThanOrEqual(0);
-    expect(result.status).toBeDefined();
+    // Proxy role is not 'origin server', so the transaction is excluded
+    expect(result.violations).toHaveLength(0);
+    expect(result.status).toBe('success');
   });
 });

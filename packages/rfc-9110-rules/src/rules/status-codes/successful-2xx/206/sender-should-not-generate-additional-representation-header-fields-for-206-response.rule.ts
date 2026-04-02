@@ -117,6 +117,10 @@ export default httpRule(
             partialResponse.headers,
           );
 
+          if (!violation) {
+            return;
+          }
+
           return {
             ...violation,
             location: partialTransactionLocation,
@@ -150,6 +154,10 @@ export default httpRule(
             okResponse.headers,
             partialResponse.headers,
           );
+
+          if (!violation) {
+            return;
+          }
 
           return {
             ...violation,
