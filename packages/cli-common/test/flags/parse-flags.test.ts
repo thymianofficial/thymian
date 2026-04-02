@@ -14,13 +14,10 @@ describe('flag parsers', () => {
       });
     });
 
-    it('should default type to openapi when no colon is present', () => {
-      const result = parseSpecFlag('./openapi.yaml');
-
-      expect(result).toEqual({
-        type: 'openapi',
-        location: './openapi.yaml',
-      });
+    it('should throw for missing type prefix', () => {
+      expect(() => parseSpecFlag('./openapi.yaml')).toThrow(
+        'Invalid --spec format: "./openapi.yaml"',
+      );
     });
 
     it('should parse multiple types', () => {

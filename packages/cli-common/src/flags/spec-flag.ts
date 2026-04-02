@@ -2,14 +2,16 @@ import { Errors, Flags } from '@oclif/core';
 import type { SpecificationInput } from '@thymian/core';
 
 /**
- * Parse a `--spec` flag value of the format `[<type>:]<location>` into a SpecificationInput.
- * The type is optional and defaults to `openapi`.
+ * Parse a `--spec` flag value of the format `<type>:<location>` into a SpecificationInput.
+ * Both type and location are required.
  */
 export function parseSpecFlag(input: string): SpecificationInput {
   const colonIndex = input.indexOf(':');
 
   if (colonIndex === -1) {
-    return { type: 'openapi', location: input };
+    throw new Errors.CLIError(
+      `Invalid --spec format: "${input}". Expected format: <type>:<location> (e.g. openapi:./openapi.yaml).`,
+    );
   }
 
   const type = input.slice(0, colonIndex);
@@ -17,7 +19,7 @@ export function parseSpecFlag(input: string): SpecificationInput {
 
   if (!type || !location) {
     throw new Errors.CLIError(
-      `Invalid --spec format: "${input}". Expected format: [<type>:]<location> (e.g. openapi:./openapi.yaml or ./openapi.yaml).`,
+      `Invalid --spec format: "${input}". Expected format: <type>:<location> (e.g. openapi:./openapi.yaml).`,
     );
   }
 
@@ -26,9 +28,9 @@ export function parseSpecFlag(input: string): SpecificationInput {
 
 export const specFlag = Flags.custom<SpecificationInput>({
   description:
-    'Specification input in the format [<type>:]<location>. Type defaults to "openapi" if omitted (e.g. openapi:./openapi.yaml or ./openapi.yaml).',
+    'Specification input in the format <type>:<location> (e.g. openapi:./openapi.yaml).',
   multiple: true,
-  helpValue: '[type:]location',
+  helpValue: 'type:location',
   helpGroup: 'BASE',
   parse: async (input) => parseSpecFlag(input),
 });

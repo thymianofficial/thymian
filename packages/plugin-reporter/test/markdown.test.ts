@@ -40,7 +40,7 @@ describe('MarkdownFormatter', () => {
   it('should map severity to the correct badge', () => {
     const badges: Record<ThymianReportSeverity, string> = {
       error: '✖ error',
-      warn: '⚠ warn',
+      warn: '⚠ warning',
       hint: 'ℹ hint',
       info: 'info',
     };
@@ -95,7 +95,7 @@ describe('MarkdownFormatter', () => {
     expect(content).toContain('A total of 2 reports with 3 items were found.');
     expect(content).toContain('**✖ error**: Error item');
     expect(content).toContain('*Rule: rfc9110/must-include-date-header*');
-    expect(content).toContain('**⚠ warn**: Warn item');
+    expect(content).toContain('**⚠ warning**: Warn item');
     expect(content).toContain('**ℹ hint**: Hint item');
   });
 
@@ -200,7 +200,7 @@ describe('MarkdownFormatter', () => {
     expect(writeFile).toHaveBeenCalledOnce();
     const [, content] = vi.mocked(writeFile).mock.calls[0];
 
-    expect(content).toContain('**⚠ warn**: Some warning');
+    expect(content).toContain('**⚠ warning**: Some warning');
     expect(content).not.toContain('*Rule:');
   });
 
