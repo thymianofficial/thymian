@@ -28,32 +28,10 @@ export default {
                 headers: {
                   'content-type': 'application/json',
                   etag: '"abc123"',
+                  date: ''
                 },
                 trailers: {},
                 duration: 30,
-              },
-              meta: { role: 'origin server' },
-            },
-          },
-          {
-            request: {
-              data: {
-                method: 'get',
-                origin: 'https://api.example.com',
-                path: '/users/2',
-                headers: {},
-              },
-              meta: {},
-            },
-            response: {
-              data: {
-                statusCode: 200,
-                headers: {
-                  'content-type': 'application/json',
-                  etag: '"def456"',
-                },
-                trailers: {},
-                duration: 25,
               },
               meta: { role: 'origin server' },
             },
