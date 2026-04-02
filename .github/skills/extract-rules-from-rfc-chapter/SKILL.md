@@ -281,7 +281,7 @@ For each rule, verify:
 
 **Code Quality:**
 
-- [ ] Imports are correct (`@thymian/core`, `@thymian/http-linter`)
+- [ ] Imports are correct (`@thymian/core`, `@thymian/plugin-http-linter`)
 - [ ] Rule exported as default
 - [ ] Rule ends with `.done()`
 - [ ] No syntax errors

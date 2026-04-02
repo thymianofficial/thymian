@@ -67,8 +67,8 @@ This architecture enables extensibility, plugin integration, and robust error ha
 
 Thymian supports sharing and reusing rules across plugins and libraries. For example:
 
-- **Rule Libraries**: The `packages/rfc-9110-rules` package provides reusable HTTP rules based on RFC 9110, organized by fields, methods, and status codes.
-- **Rule Sets**: Rules are grouped into sets (see `src/index.ts` in `rfc-9110-rules`) for easy integration with linters and validators.
+- **Rule Libraries**: The `packages/rules-rfc-9110` package provides reusable HTTP rules based on RFC 9110, organized by fields, methods, and status codes.
+- **Rule Sets**: Rules are grouped into sets (see `src/index.ts` in `rules-rfc-9110`) for easy integration with linters and validators.
 - **Extensibility**: Plugins (e.g., `http-linter`) can consume these shared rule sets to enforce standards or add custom validation.
 - **Utilities**: Helper functions and constants (e.g., field lists, array utilities) are provided for rule composition and reporting.
 

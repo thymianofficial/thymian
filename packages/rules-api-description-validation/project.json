@@ -1,7 +1,7 @@
 {
-  "name": "api-description-validation-rules",
+  "name": "rules-api-description-validation",
   "$schema": "../../node_modules/nx/schemas/project-schema.json",
-  "sourceRoot": "packages/api-description-validation-rules/src",
+  "sourceRoot": "packages/rules-api-description-validation/src",
   "projectType": "library",
   "tags": ["scope:rules", "type:lib", "npm:public"],
   "// targets": "to see all targets run: nx show project @thymian/rules-api-description-validation --web",

@@ -22,7 +22,7 @@ This skill helps implement HTTP rules from RFC documents following the existing 
 
 ## Rule Structure
 
-RFC rules follow a consistent pattern using the `httpRule` builder API from `@thymian/http-linter`. Examine existing rules in the target package to understand the specific patterns and conventions used.
+RFC rules follow a consistent pattern using the `httpRule` builder API from `@thymian/plugin-http-linter`. Examine existing rules in the target package to understand the specific patterns and conventions used.
 
 ## Steps
 
@@ -387,7 +387,7 @@ The following examples are from RFC 9110. Adapt the patterns for other RFCs.
 
 ```typescript
 import { hasRequestBody, method } from '@thymian/core';
-import { httpRule } from '@thymian/http-linter';
+import { httpRule } from '@thymian/plugin-http-linter';
 
 export default httpRule('rfc9110/client-should-not-generate-content-for-delete-request')
   .severity('warn')
@@ -409,7 +409,7 @@ export default httpRule('rfc9110/client-should-not-generate-content-for-delete-r
 
 ```typescript
 import { and, method, or, responseHeader, statusCodeRange } from '@thymian/core';
-import { httpRule } from '@thymian/http-linter';
+import { httpRule } from '@thymian/plugin-http-linter';
 
 export default httpRule('rfc9110/server-must-not-send-transfer-encoding-or-content-length-headers-in-2xx-response-to-connect-request')
   .severity('error')
@@ -430,7 +430,7 @@ export default httpRule('rfc9110/server-must-not-send-transfer-encoding-or-conte
 **Implementation:**
 
 ```typescript
-import { httpRule } from '@thymian/http-linter';
+import { httpRule } from '@thymian/plugin-http-linter';
 
 export default httpRule('rfc9110/user-agent-may-repeat-request-with-new-authorization-header').severity('hint').type('analytics').url('https://www.rfc-editor.org/rfc/rfc9110.html#name-401-unauthorized').summary('The user agent MAY repeat the request with a new or replaced Authorization header field.').description('If the request included authentication credentials, then the 401 response indicates that authorization has been refused for those credentials. The user agent MAY repeat the request with a new or replaced Authorization header field.').appliesTo('user-agent').done();
 ```
@@ -444,7 +444,7 @@ export default httpRule('rfc9110/user-agent-may-repeat-request-with-new-authoriz
 **Implementation:**
 
 ```typescript
-import { httpRule } from '@thymian/http-linter';
+import { httpRule } from '@thymian/plugin-http-linter';
 
 export default httpRule('rfc9110/origin-server-must-disable-safe-methods-for-unsafe-resources').severity('error').type('informational').url('https://www.rfc-editor.org/rfc/rfc9110.html#name-safe-methods').summary('If the purpose of such a resource is to perform an unsafe action, then the resource owner MUST disable or disallow that action when it is accessed using a safe request method.').description('When a resource is constructed such that parameters within the target URI have the effect of selecting an action, it is the resource owner\'s responsibility to ensure that the action is consistent with the request method semantics. For example, it is common for Web-based content editing software to use actions within query parameters, such as "page?do=delete". If the purpose of such a resource is to perform an unsafe action, then the resource owner MUST disable or disallow that action when it is accessed using a safe request method.').appliesTo('origin server').done();
 ```
@@ -465,7 +465,7 @@ When creating a new RFC rule, verify:
 - [ ] Summary is added if description is long
 - [ ] Validation logic uses appropriate matchers
 - [ ] Rule is exported as default
-- [ ] Imports are from `@thymian/core` and `@thymian/http-linter` or `@thymian/http-testing`
+- [ ] Imports are from `@thymian/core` and `@thymian/plugin-http-linter` or `@thymian/plugin-http-testing`
 - [ ] Rule ends with `.done()`
 
 ## Notes

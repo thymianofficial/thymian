@@ -1,7 +1,7 @@
 {
-  "name": "cli-common",
+  "name": "common-cli",
   "$schema": "../../node_modules/nx/schemas/project-schema.json",
-  "sourceRoot": "packages/cli-common/src",
+  "sourceRoot": "packages/common-cli/src",
   "projectType": "library",
   "tags": ["scope:cli", "type:lib", "npm:public"],
   "// targets": "to see all targets run: nx show project @thymian/common-cli --web",
