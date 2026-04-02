@@ -65,9 +65,9 @@ describe('thymian lint', () => {
       cwd: getTempDir(),
     });
 
-    expect(stdout).toMatch(/errors/);
-    expect(stdout).toMatch(/warnings/);
-    expect(stdout).toMatch(/hints/);
+    expect(stdout).toMatch(/errors?/);
+    expect(stdout).toMatch(/warnings?/);
+    expect(stdout).toMatch(/hints?/);
   }, 90_000);
 
   it('should use "warning" label (not "warn") for warning-severity items', () => {
@@ -115,8 +115,8 @@ describe('thymian lint', () => {
     });
 
     // Report content should be on stdout
-    expect(stdout).toMatch(/errors/);
-    expect(stdout).toMatch(/hints/);
+    expect(stdout).toMatch(/errors?/);
+    expect(stdout).toMatch(/hints?/);
 
     // Operational messages (e.g. logs, warnings) should not leak into stdout
     // stdout should only contain the formatted report
