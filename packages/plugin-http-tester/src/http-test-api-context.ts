@@ -237,8 +237,8 @@ export class HttpTestApiContext<
   }
 
   private reportSkippedAndFailedTestCases(testResult: HttpTestResult) {
-    const skippedItems: { heading: string; message: string }[] = [];
-    const failedItems: { heading: string; message: string }[] = [];
+    const skippedItems: { name: string; reason: string }[] = [];
+    const failedItems: { name: string; reason: string }[] = [];
 
     testResult.cases.forEach((testCase) => {
       if (testCase.status === 'skipped') {
@@ -247,8 +247,8 @@ export class HttpTestApiContext<
         );
 
         skippedItems.push({
-          heading: testCase.name,
-          message:
+          name: testCase.name,
+          reason:
             testCase.reason ??
             testCase.results
               .filter(
@@ -275,8 +275,8 @@ export class HttpTestApiContext<
           });
         } else {
           failedItems.push({
-            heading: testCase.name,
-            message:
+            name: testCase.name,
+            reason:
               testCase.reason ??
               testCase.results
                 .filter(
@@ -297,20 +297,22 @@ export class HttpTestApiContext<
 
     if (skippedItems.length > 0) {
       sections.push({
-        heading: 'Skipped Test Cases',
+        heading: 'Skipped test cases',
         items: skippedItems.map((item) => ({
           severity: 'info' as const,
-          message: item.message,
+          message: item.name,
+          details: item.reason,
         })),
       });
     }
 
     if (failedItems.length > 0) {
       sections.push({
-        heading: 'Failed Test Cases',
+        heading: 'Failed test cases',
         items: failedItems.map((item) => ({
           severity: 'warn' as const,
-          message: item.message,
+          message: item.name,
+          details: item.reason,
         })),
       });
     }
@@ -328,8 +330,8 @@ export class HttpTestApiContext<
     }
 
     this.report({
-      source: this.name,
-      message: parts.join(', '),
+      source: '@thymian/http-tester',
+      message: parts.join('and '),
       sections,
     });
   }
