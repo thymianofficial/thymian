@@ -24,7 +24,7 @@ We will use `npm_config_prefix` to redirect `npm install -g` to a temporary dire
 
 ```typescript
 const globalPrefix = mkdtempSync(join(tmpdir(), 'thymian-e2e-global-'));
-execSync(`npm install -g @thymian/cli@${version}`, {
+execSync(`npm install -g thymian@${version}`, {
   env: { ...cleanEnv, npm_config_prefix: globalPrefix, npm_config_registry: verdaccioUrl },
 });
 // Binary at: join(globalPrefix, 'bin', 'thymian')
