@@ -1,7 +1,8 @@
-import { existsSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 
 import { describe, expect, it } from 'vitest';
+import { parse } from 'yaml';
 
 import { execThymian, useTempDir } from './helpers.js';
 
@@ -21,6 +22,45 @@ describe('thymian generate config', () => {
     );
 
     expect(output).toMatch(/Configuration written to/);
-    expect(existsSync(join(getTempDir(), 'thymian.config.yaml'))).toBe(true);
+
+    const configPath = join(getTempDir(), 'thymian.config.yaml');
+    expect(existsSync(configPath)).toBe(true);
+
+    // Read and verify the raw config content
+    const rawContent = readFileSync(configPath, 'utf-8');
+
+    // Parse the YAML and verify config structure
+    const config = parse(rawContent) as Record<string, unknown>;
+
+    // Verify specifications
+    expect(config.specifications).toEqual([
+      { type: 'openapi', location: 'petstore.yaml' },
+    ]);
+
+    // Verify default ruleSets and severity
+    expect(config.ruleSets).toEqual(['@thymian/rfc-9110-rules']);
+    expect(config.ruleSeverity).toBe('error');
+    expect(config.rules).toEqual({});
+
+    // Verify traffic
+    expect(config.traffic).toEqual([]);
+
+    // Verify all default plugins are present
+    const plugins = config.plugins as Record<string, unknown>;
+    expect(plugins).toHaveProperty('@thymian/http-linter');
+    expect(plugins).toHaveProperty('@thymian/openapi');
+    expect(plugins).toHaveProperty('@thymian/request-dispatcher');
+    expect(plugins).toHaveProperty('@thymian/sampler');
+    expect(plugins).toHaveProperty('@thymian/reporter');
+    expect(plugins).toHaveProperty('@thymian/http-tester');
+    expect(plugins).toHaveProperty('@thymian/http-analyzer');
+
+    // Verify plugin-specific options
+    expect(plugins['@thymian/openapi']).toEqual({
+      options: { descriptions: [] },
+    });
+    expect(plugins['@thymian/reporter']).toEqual({
+      options: { formatters: { text: {} } },
+    });
   }, 90_000);
 });
