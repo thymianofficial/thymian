@@ -12,8 +12,10 @@ import {
   type RuleViolation,
   type RuleViolationLocation,
   type TestContext,
+  ThymianBaseError,
   ThymianFormat,
   type ThymianHttpTransaction,
+  type ThymianReportSection,
   thymianRequestToOrigin,
   type ValidationFn,
 } from '@thymian/core';
@@ -59,6 +61,7 @@ export class HttpTestApiContext<
     ctx: HttpTestContext<Locals>,
     report: ReportFn = () => undefined,
     private readonly skippedOrigins: string[] = [],
+    private readonly pluginSource = '@thymian/http-tester',
   ) {
     this.report = report;
 
@@ -236,42 +239,25 @@ export class HttpTestApiContext<
   }
 
   private reportSkippedAndFailedTestCases(testResult: HttpTestResult) {
+    const skippedItems: { name: string; reason: string }[] = [];
+    const failedItems: { name: string; reason: string }[] = [];
+
     testResult.cases.forEach((testCase) => {
       if (testCase.status === 'skipped') {
         this.ctx.logger.debug(
           `HTTP test case "${testCase.name}" from test "${this.name}" is skipped.`,
         );
 
-        this.report({
-          source: this.name,
-          message:
-            'Skipped: ' +
-            (testCase.reason ??
-              testCase.results
-                .filter(
-                  (tc) => tc.type !== 'info' && tc.type !== 'assertion-success',
-                )
-                .map((tc) => tc.message)
-                .join('\n')),
-          sections: [
-            {
-              heading: testCase.name,
-              items: [
-                {
-                  severity: 'info',
-                  message:
-                    testCase.reason ??
-                    testCase.results
-                      .filter(
-                        (tc) =>
-                          tc.type !== 'info' && tc.type !== 'assertion-success',
-                      )
-                      .map((tc) => tc.message)
-                      .join('\n'),
-                },
-              ],
-            },
-          ],
+        skippedItems.push({
+          name: testCase.name,
+          reason:
+            testCase.reason ??
+            testCase.results
+              .filter(
+                (tc) => tc.type !== 'info' && tc.type !== 'assertion-success',
+              )
+              .map((tc) => tc.message)
+              .join('\n'),
         });
       } else if (testCase.status === 'failed') {
         this.ctx.logger.debug(
@@ -290,9 +276,9 @@ export class HttpTestApiContext<
             },
           });
         } else {
-          this.report({
-            source: this.name,
-            message:
+          failedItems.push({
+            name: testCase.name,
+            reason:
               testCase.reason ??
               testCase.results
                 .filter(
@@ -300,29 +286,55 @@ export class HttpTestApiContext<
                 )
                 .map((tc) => tc.message)
                 .join('\n'),
-            sections: [
-              {
-                heading: testCase.name,
-                items: [
-                  {
-                    severity: 'info',
-                    message:
-                      testCase.reason ??
-                      testCase.results
-                        .filter(
-                          (tc) =>
-                            tc.type !== 'info' &&
-                            tc.type !== 'assertion-success',
-                        )
-                        .map((tc) => tc.message)
-                        .join('\n'),
-                  },
-                ],
-              },
-            ],
           });
         }
       }
+    });
+
+    if (skippedItems.length === 0 && failedItems.length === 0) {
+      return;
+    }
+
+    const sections: ThymianReportSection[] = [];
+
+    if (skippedItems.length > 0) {
+      sections.push({
+        heading: 'Skipped test cases',
+        items: skippedItems.map((item) => ({
+          severity: 'info' as const,
+          message: item.name,
+          details: item.reason,
+        })),
+      });
+    }
+
+    if (failedItems.length > 0) {
+      sections.push({
+        heading: 'Failed test cases',
+        items: failedItems.map((item) => ({
+          severity: 'warn' as const,
+          message: item.name,
+          details: item.reason,
+        })),
+      });
+    }
+
+    const parts: string[] = [];
+    if (skippedItems.length > 0) {
+      parts.push(
+        `${skippedItems.length} test case${skippedItems.length === 1 ? '' : 's'} skipped`,
+      );
+    }
+    if (failedItems.length > 0) {
+      parts.push(
+        `${failedItems.length} test case${failedItems.length === 1 ? '' : 's'} failed`,
+      );
+    }
+
+    this.report({
+      source: this.pluginSource,
+      message: `[${this.name}] ${parts.join(' and ')}`,
+      sections,
     });
   }
 
@@ -384,7 +396,9 @@ export class HttpTestApiContext<
             const { request, response, source } = transaction;
 
             if (!request || !response || !source) {
-              throw new Error();
+              throw new ThymianBaseError(
+                'Invalid HTTP test case transaction: missing request, response, or source.',
+              );
             }
 
             const validationResult = validationFn(request, response, {

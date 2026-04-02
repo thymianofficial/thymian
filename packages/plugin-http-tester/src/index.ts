@@ -3,6 +3,7 @@ import {
   type RuleRunnerAdapter,
   runRules,
   type SingleRuleConfiguration,
+  ThymianBaseError,
   ThymianFormat,
   type ThymianPlugin,
   type ThymianReport,
@@ -28,12 +29,35 @@ export function createHttpTesterPlugin(
     async plugin(emitter, logger) {
       emitter.onAction(
         'core.test',
-        async ({ format, rules = [], rulesConfig = {} }, ctx) => {
+        async ({ format, rules = [], rulesConfig = {}, targetUrl }, ctx) => {
           const thymianFormat = ThymianFormat.import(format);
           const reportFn = (report: ThymianReport) =>
             emitter.emit('core.report', report);
 
-          const context = createContext(thymianFormat, logger, emitter);
+          let normalizedOrigin: string | undefined;
+
+          if (targetUrl != null) {
+            try {
+              const url = new URL(targetUrl);
+              normalizedOrigin = url.origin;
+            } catch (error) {
+              throw new ThymianBaseError(
+                `Invalid value for --target-url / config key "targetUrl" ("${targetUrl}"): ${(error as Error).message}`,
+                {
+                  suggestions: [
+                    'Provide a valid URL including the protocol (e.g., "http://localhost:3000").',
+                  ],
+                },
+              );
+            }
+          }
+
+          const context = createContext(
+            thymianFormat,
+            logger,
+            emitter,
+            normalizedOrigin,
+          );
 
           const adapter: RuleRunnerAdapter<HttpTestApiContext> = {
             errorName: 'TestLinterError',
@@ -48,6 +72,7 @@ export function createHttpTesterPlugin(
                 context,
                 reportFn,
                 (options ?? {}).skipOrigins,
+                pluginName,
               ),
           };
 
