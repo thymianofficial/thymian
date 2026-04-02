@@ -28,12 +28,17 @@ export function createHttpTesterPlugin(
     async plugin(emitter, logger) {
       emitter.onAction(
         'core.test',
-        async ({ format, rules = [], rulesConfig = {} }, ctx) => {
+        async ({ format, rules = [], rulesConfig = {}, targetUrl }, ctx) => {
           const thymianFormat = ThymianFormat.import(format);
           const reportFn = (report: ThymianReport) =>
             emitter.emit('core.report', report);
 
-          const context = createContext(thymianFormat, logger, emitter);
+          const context = createContext(
+            thymianFormat,
+            logger,
+            emitter,
+            targetUrl,
+          );
 
           const adapter: RuleRunnerAdapter<HttpTestApiContext> = {
             errorName: 'TestLinterError',

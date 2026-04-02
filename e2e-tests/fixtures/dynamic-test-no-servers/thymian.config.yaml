@@ -1,0 +1,25 @@
+specifications:
+  - type: openapi
+    location: test.openapi.yaml
+ruleSets:
+  - '@thymian/rfc-9110-rules'
+rules:
+  # These rules use singleTestCase().set(requestHeader(), constant()) which
+  # triggers a pre-existing serialization bug in the test builder — disable
+  # them so the e2e suite focuses on testing the --target-url workflow.
+  rfc9110/recipient-must-reject-or-replace-invalid-characters: 'off'
+  rfc9110/recipient-must-ignore-range-when-if-range-false: 'off'
+  rfc9110/origin-server-must-not-perform-method-when-if-match-fails: 'off'
+plugins:
+  '@thymian/http-linter': {}
+  '@thymian/openapi':
+    options:
+      descriptions:
+        - source: test.openapi.yaml
+  '@thymian/request-dispatcher': {}
+  '@thymian/sampler': {}
+  '@thymian/http-tester': {}
+  '@thymian/reporter':
+    options:
+      formatters:
+        text: {}

@@ -5,6 +5,7 @@ import type { ValidationResult } from './validation-result.js';
 
 export interface CoreTestInput extends CoreValidationInput {
   format: SerializedThymianFormat;
+  targetUrl?: string;
 }
 
 export type TestAction = Action<CoreTestInput, ValidationResult>;

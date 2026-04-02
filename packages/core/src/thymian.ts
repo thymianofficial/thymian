@@ -53,6 +53,7 @@ export interface TestWorkflowInput {
   rulesConfig?: RulesConfiguration;
   ruleFilter?: RuleFilter;
   options?: Record<string, unknown>;
+  targetUrl?: string;
 }
 
 export interface AnalyzeWorkflowInput {
@@ -328,13 +329,19 @@ export class Thymian {
     const { rulesConfig, ruleFilter } = input;
 
     const [format, rules] = await Promise.all([
-      this.loadFormat({ inputs: input.specification }, { emitFormat: false }),
+      this.loadFormat({ inputs: input.specification }),
       loadRules(input.rules ?? [], ruleFilter, rulesConfig, this.options.cwd),
     ]);
 
     const results = await this.emitter.emitAction(
       'core.test',
-      { format: format.export(), rules, rulesConfig, options: input.options },
+      {
+        format: format.export(),
+        rules,
+        rulesConfig,
+        options: input.options,
+        targetUrl: input.targetUrl,
+      },
       { strategy: 'collect' },
     );
 

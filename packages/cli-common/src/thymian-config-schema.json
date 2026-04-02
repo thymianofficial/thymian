@@ -57,6 +57,10 @@
       "type": "string",
       "enum": ["off", "error", "warn", "hint"]
     },
+    "targetUrl": {
+      "type": "string",
+      "description": "Override the target URL for all test requests. When set, all requests are sent to this origin instead of the servers defined in the specification."
+    },
     "rules": {
       "type": "object",
       "additionalProperties": {

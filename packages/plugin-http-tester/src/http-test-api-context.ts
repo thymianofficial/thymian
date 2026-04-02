@@ -14,6 +14,7 @@ import {
   type TestContext,
   ThymianFormat,
   type ThymianHttpTransaction,
+  type ThymianReportSection,
   thymianRequestToOrigin,
   type ValidationFn,
 } from '@thymian/core';
@@ -236,42 +237,25 @@ export class HttpTestApiContext<
   }
 
   private reportSkippedAndFailedTestCases(testResult: HttpTestResult) {
+    const skippedItems: { heading: string; message: string }[] = [];
+    const failedItems: { heading: string; message: string }[] = [];
+
     testResult.cases.forEach((testCase) => {
       if (testCase.status === 'skipped') {
         this.ctx.logger.debug(
           `HTTP test case "${testCase.name}" from test "${this.name}" is skipped.`,
         );
 
-        this.report({
-          source: this.name,
+        skippedItems.push({
+          heading: testCase.name,
           message:
-            'Skipped: ' +
-            (testCase.reason ??
-              testCase.results
-                .filter(
-                  (tc) => tc.type !== 'info' && tc.type !== 'assertion-success',
-                )
-                .map((tc) => tc.message)
-                .join('\n')),
-          sections: [
-            {
-              heading: testCase.name,
-              items: [
-                {
-                  severity: 'info',
-                  message:
-                    testCase.reason ??
-                    testCase.results
-                      .filter(
-                        (tc) =>
-                          tc.type !== 'info' && tc.type !== 'assertion-success',
-                      )
-                      .map((tc) => tc.message)
-                      .join('\n'),
-                },
-              ],
-            },
-          ],
+            testCase.reason ??
+            testCase.results
+              .filter(
+                (tc) => tc.type !== 'info' && tc.type !== 'assertion-success',
+              )
+              .map((tc) => tc.message)
+              .join('\n'),
         });
       } else if (testCase.status === 'failed') {
         this.ctx.logger.debug(
@@ -290,8 +274,8 @@ export class HttpTestApiContext<
             },
           });
         } else {
-          this.report({
-            source: this.name,
+          failedItems.push({
+            heading: testCase.name,
             message:
               testCase.reason ??
               testCase.results
@@ -300,29 +284,53 @@ export class HttpTestApiContext<
                 )
                 .map((tc) => tc.message)
                 .join('\n'),
-            sections: [
-              {
-                heading: testCase.name,
-                items: [
-                  {
-                    severity: 'info',
-                    message:
-                      testCase.reason ??
-                      testCase.results
-                        .filter(
-                          (tc) =>
-                            tc.type !== 'info' &&
-                            tc.type !== 'assertion-success',
-                        )
-                        .map((tc) => tc.message)
-                        .join('\n'),
-                  },
-                ],
-              },
-            ],
           });
         }
       }
+    });
+
+    if (skippedItems.length === 0 && failedItems.length === 0) {
+      return;
+    }
+
+    const sections: ThymianReportSection[] = [];
+
+    if (skippedItems.length > 0) {
+      sections.push({
+        heading: 'Skipped Test Cases',
+        items: skippedItems.map((item) => ({
+          severity: 'info' as const,
+          message: item.message,
+        })),
+      });
+    }
+
+    if (failedItems.length > 0) {
+      sections.push({
+        heading: 'Failed Test Cases',
+        items: failedItems.map((item) => ({
+          severity: 'warn' as const,
+          message: item.message,
+        })),
+      });
+    }
+
+    const parts: string[] = [];
+    if (skippedItems.length > 0) {
+      parts.push(
+        `${skippedItems.length} test case${skippedItems.length === 1 ? '' : 's'} skipped`,
+      );
+    }
+    if (failedItems.length > 0) {
+      parts.push(
+        `${failedItems.length} test case${failedItems.length === 1 ? '' : 's'} failed`,
+      );
+    }
+
+    this.report({
+      source: this.name,
+      message: parts.join(', '),
+      sections,
     });
   }
 
