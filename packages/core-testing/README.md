@@ -152,16 +152,12 @@ const formatWithSpecificNumber = createThymianFormatWithTransactions(10);
 Create mock Logger instances:
 
 ```typescript
-import { createMockLogger, createVerboseMockLogger, createSilentMockLogger } from '@thymian/core-testing';
+import { createMockLogger, createSilentMockLogger } from '@thymian/core-testing';
 
 // Standard mock (with vi.fn() spies)
 const logger = createMockLogger({ namespace: 'test-plugin' });
 logger.info('Starting plugin');
 expect(logger.info).toHaveBeenCalledWith('Starting plugin');
-
-// Verbose logger
-const verboseLogger = createVerboseMockLogger();
-expect(verboseLogger.verbose).toBe(true);
 
 // Silent logger (no spies, just no-ops)
 const silentLogger = createSilentMockLogger();

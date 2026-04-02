@@ -7,6 +7,6 @@ sidebar:
 
 **Properties**
 
-| Name     | Type     | Description | Required |
-| -------- | -------- | ----------- | -------- |
-| **path** | `string` |             |          |
+| Name     | Type                  | Description | Required |
+| -------- | --------------------- | ----------- | -------- |
+| **path** | <nobr>`string`</nobr> |             |          |

@@ -1,4 +1,4 @@
-import { httpRule } from '@thymian/http-linter';
+import { httpRule } from '@thymian/core';
 
 // TODO: Implement ABNF validation for unnecessary quoted-pair detection
 // Requires detecting quoted-pairs not needed for DQUOTE (%x22) or backslash (%x5C)

@@ -1,0 +1,50 @@
+{
+  "name": "@thymian/sampler",
+  "version": "0.0.0-PLACEHOLDER",
+  "publishConfig": {
+    "access": "restricted"
+  },
+  "main": "./dist/index.js",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "type": "module",
+  "exports": {
+    "./package.json": "./package.json",
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "!**/*.tsbuildinfo"
+  ],
+  "dependencies": {
+    "@thymian/cli-common": "0.0.0-PLACEHOLDER",
+    "@thymian/core": "0.0.0-PLACEHOLDER",
+    "@thymian/request-dispatcher": "0.0.0-PLACEHOLDER",
+    "code-block-writer": "^13.0.3",
+    "jiti": "^2.6.1",
+    "json-schema-to-typescript": "^15.0.4",
+    "launch-editor": "^2.13.2",
+    "openapi-sampler": "^1.7.2",
+    "sharp": "^0.34.5",
+    "tslib": "^2.3.0"
+  },
+  "oclif": {
+    "commands": "./dist/cli/commands",
+    "bin": "thymian",
+    "topicSeparator": " ",
+    "topics": {
+      "sampler": {
+        "description": "Generate sample data for your API."
+      }
+    }
+  },
+  "devDependencies": {
+    "@thymian/core-testing": "0.0.0-PLACEHOLDER",
+    "fast-json-stable-stringify": "^2.1.0",
+    "ts-morph": "^27.0.2"
+  }
+}

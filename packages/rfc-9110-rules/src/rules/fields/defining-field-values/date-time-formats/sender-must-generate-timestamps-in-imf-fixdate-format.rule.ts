@@ -1,4 +1,4 @@
-import { httpRule } from '@thymian/http-linter';
+import { httpRule } from '@thymian/core';
 
 // TODO: Implement ABNF validation for IMF-fixdate generation
 // Requires validating HTTP-date follows IMF-fixdate format:

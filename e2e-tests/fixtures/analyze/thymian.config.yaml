@@ -1,0 +1,13 @@
+traffic:
+  - type: fixture
+    location: static
+ruleSets:
+  - '@thymian/rfc-9110-rules'
+plugins:
+  '@thymian/http-analyzer': {}
+  '@thymian/e2e-traffic-loader':
+    path: ./traffic-loader-plugin.mjs
+  '@thymian/reporter':
+    options:
+      formatters:
+        text: {}

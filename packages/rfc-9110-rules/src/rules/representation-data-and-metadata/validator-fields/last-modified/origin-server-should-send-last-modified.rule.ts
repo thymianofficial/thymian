@@ -1,5 +1,5 @@
 import { and, not, responseHeader, statusCodeRange } from '@thymian/core';
-import { httpRule } from '@thymian/http-linter';
+import { httpRule } from '@thymian/core';
 
 export default httpRule('rfc9110/origin-server-should-send-last-modified')
   .severity('warn')

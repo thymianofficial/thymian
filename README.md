@@ -35,27 +35,25 @@ Check if you can run Thymian by running the following command:
 npx @thymian/cli --version
 ```
 
-### Initialization
+### First Run Without a Config
 
-Now navigate to your project's root directory and run the following command to initialize Thymian:
-
-```bash
-npx @thymian/cli init --yes
-```
-
-The [`init`](https://thymian.dev/references/cli/#thymian-init) command sets up Thymian in your project. The `--yes` flag will skip
-interactive prompts and use default settings. This command will:
-
-1. Detect your OpenAPI specification file
-2. Create a `thymian.config.yaml` configuration file in your project
-
-### Running Your First Analysis
-
-Run your first analysis by navigating to your project's root directory and run:
+Now navigate to your project's root directory and run Thymian directly against your API description:
 
 ```bash
-npx @thymian/cli run
+npx @thymian/cli lint --spec openapi:openapi.yaml
 ```
+
+This is the fastest way to reach a first conformance result without any prior setup.
+
+### Generate a Reusable Config
+
+If you want to save that setup for future runs, generate a config file:
+
+```bash
+npx @thymian/cli generate config
+```
+
+This command detects your OpenAPI specification file and creates a `thymian.config.yaml` you can reuse with `npx @thymian/cli lint`.
 
 ## 📚 Documentation
 

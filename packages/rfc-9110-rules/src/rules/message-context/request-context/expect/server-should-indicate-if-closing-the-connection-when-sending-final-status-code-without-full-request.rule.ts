@@ -1,4 +1,4 @@
-import { httpRule } from '@thymian/http-linter';
+import { httpRule } from '@thymian/core';
 
 export default httpRule(
   'rfc9110/server-should-indicate-if-closing-the-connection-when-sending-final-status-code-without-full-request',

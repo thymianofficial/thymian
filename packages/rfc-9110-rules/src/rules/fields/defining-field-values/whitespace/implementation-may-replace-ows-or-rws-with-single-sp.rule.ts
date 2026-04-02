@@ -1,4 +1,4 @@
-import { httpRule } from '@thymian/http-linter';
+import { httpRule } from '@thymian/core';
 
 // TODO: Implement ABNF validation for OWS/RWS normalization
 // Requires detecting OWS/RWS positions and optionally normalizing to single SP

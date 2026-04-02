@@ -1,7 +1,12 @@
 import type { JSONSchemaType } from 'ajv/dist/2020.js';
 
 import packageJson from '../package.json' with { type: 'json' };
-import { loadFormatActionSchema, runActionSchema } from './actions/index.js';
+import {
+  formatLoadActionSchema,
+  requestDispatchActionSchema,
+  trafficLoadActionSchema,
+  validationResultSchema,
+} from './actions/index.js';
 import {
   RegisterPluginEventSchema,
   thymianReportSchema,
@@ -26,13 +31,37 @@ export const corePlugin: ThymianPlugin = {
         event: VoidSchema,
         response: VoidSchema,
       },
-      'core.load-format': {
-        event: {} as JSONSchemaType<never>,
-        response: loadFormatActionSchema,
+      'core.format.load': {
+        event: formatLoadActionSchema,
+        response: {} as JSONSchemaType<unknown>,
       },
-      'core.run': {
-        event: loadFormatActionSchema,
-        response: runActionSchema,
+      'core.traffic.load': {
+        event: trafficLoadActionSchema,
+        response: {} as JSONSchemaType<unknown>,
+      },
+      'core.lint': {
+        event: {} as JSONSchemaType<unknown>,
+        response: validationResultSchema,
+      },
+      'core.test': {
+        event: {} as JSONSchemaType<unknown>,
+        response: validationResultSchema,
+      },
+      'core.analyze': {
+        event: {} as JSONSchemaType<unknown>,
+        response: validationResultSchema,
+      },
+      'core.request.dispatch': {
+        event: requestDispatchActionSchema,
+        response: {} as JSONSchemaType<unknown>,
+      },
+      'core.request.sample': {
+        event: {} as JSONSchemaType<unknown>,
+        response: {} as JSONSchemaType<unknown>,
+      },
+      'core.report.flush': {
+        event: VoidSchema,
+        response: {} as JSONSchemaType<unknown>,
       },
     },
   },

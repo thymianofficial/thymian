@@ -1,5 +1,5 @@
 import { and, method, statusCode } from '@thymian/core';
-import { httpRule } from '@thymian/http-linter';
+import { httpRule } from '@thymian/core';
 
 export default httpRule(
   'rfc9110/user-agent-may-change-request-method-from-post-to-get-for-301-response',

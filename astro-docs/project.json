@@ -2,7 +2,7 @@
   "name": "astro",
   "$schema": "../node_modules/nx/schemas/project-schema.json",
   "comment": "package.json#scripts runs in the project root directory with astro assumes is where the node_modules is. which fails. so run the scripts in project.json#targets with --root command instead",
-  "implicitDependencies": ["*", "!core", "!test-utils", "!rfc-9110-rules"],
+  "implicitDependencies": ["*", "!core", "!rfc-9110-rules"],
   "targets": {
     "serve": {
       "continuous": true,

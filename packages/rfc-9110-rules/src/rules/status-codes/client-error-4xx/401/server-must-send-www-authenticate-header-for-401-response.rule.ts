@@ -10,8 +10,7 @@ import {
   responseWith,
   statusCode,
 } from '@thymian/core';
-import { httpRule } from '@thymian/http-linter';
-import { singleTestCase } from '@thymian/http-testing';
+import { httpRule, singleTestCase } from '@thymian/core';
 
 type Options = {
   checkAllSecured?: boolean;

@@ -10,16 +10,16 @@ This error typically occurs when:
 
 - Analytics linting is triggered before the repository has been set up
 - There's a configuration issue preventing repository initialization
-- You have not set the `analytics` type in the `@thymian/http-linter` configuration.
+- The `@thymian/http-analyzer` plugin is not registered.
 
 ## The Solution
 
-Ensure that the HTTP transaction repository is properly configured and initialized before running analytics linting operations:
+Ensure that the `@thymian/http-analyzer` plugin is properly configured and registered before running analytics linting operations:
 
 ```yaml
 plugins:
-  - '@thymian/http-linter':
-      options:
-        type:
-          - analytics # <-- you have to set this in order to use the `http-linter.lint-analytics-batch` action
+  '@thymian/http-analyzer':
+    options:
+      storage:
+        type: 'memory'
 ```

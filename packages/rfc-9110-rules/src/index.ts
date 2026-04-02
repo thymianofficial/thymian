@@ -1,4 +1,4 @@
-import type { RuleSet } from '@thymian/http-linter';
+import type { RuleSet } from '@thymian/core';
 
 const rfc9110: RuleSet = {
   name: 'rfc9110',

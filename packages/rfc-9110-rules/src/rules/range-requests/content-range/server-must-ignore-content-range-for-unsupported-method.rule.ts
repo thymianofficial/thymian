@@ -1,5 +1,5 @@
 import { and, method, or, responseHeader } from '@thymian/core';
-import { httpRule } from '@thymian/http-linter';
+import { httpRule } from '@thymian/core';
 
 export default httpRule(
   'rfc9110/server-must-ignore-content-range-for-unsupported-method',

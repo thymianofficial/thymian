@@ -1,5 +1,5 @@
 // origin-server-should-limit-addition-of-subproducts-by-third-parties
-import { httpRule } from '@thymian/http-linter';
+import { httpRule } from '@thymian/core';
 
 export default httpRule(
   'rfc9110/origin-server-should-limit-addition-of-subproducts-by-third-parties',

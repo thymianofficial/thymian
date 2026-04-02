@@ -1,0 +1,23 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "files": [],
+  "include": ["src/**/*.ts", "test/**/*.ts"],
+  "compilerOptions": {
+    "outDir": "dist",
+    "rootDir": "src"
+  },
+  "references": [
+    {
+      "path": "../core"
+    },
+    {
+      "path": "../core-testing"
+    },
+    {
+      "path": "./tsconfig.lib.json"
+    }
+  ],
+  "nx": {
+    "addTypecheckTarget": false
+  }
+}

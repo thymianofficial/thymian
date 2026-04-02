@@ -1,5 +1,5 @@
 import { responseHeader } from '@thymian/core';
-import { httpRule } from '@thymian/http-linter';
+import { httpRule } from '@thymian/core';
 
 export default httpRule(
   'rfc9110/multiple-languages-may-be-listed-for-multiple-audiences',

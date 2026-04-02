@@ -1,5 +1,5 @@
 import { method, not, requestHeader } from '@thymian/core';
-import { httpRule } from '@thymian/http-linter';
+import { httpRule } from '@thymian/core';
 
 export default httpRule(
   'rfc9110/client-may-send-max-forwards-header-in-option-request',

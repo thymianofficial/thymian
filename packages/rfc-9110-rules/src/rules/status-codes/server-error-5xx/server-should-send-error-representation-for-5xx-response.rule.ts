@@ -5,7 +5,7 @@ import {
   not,
   statusCodeRange,
 } from '@thymian/core';
-import { httpRule } from '@thymian/http-linter';
+import { httpRule } from '@thymian/core';
 
 export default httpRule(
   'rfc9110/server-should-send-error-representation-for-5xx-response',

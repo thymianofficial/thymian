@@ -9,7 +9,17 @@ export default [
         'error',
         {
           ignoredFiles: ['{projectRoot}/eslint.config.{js,cjs,mjs}'],
-          ignoredDependencies: ['vitest', 'openapi-types', 'graphology-types'],
+          ignoredDependencies: [
+            'vitest',
+            'openapi-types',
+            'graphology-types',
+            '@fastify/deepmerge',
+            'graphology',
+            'rxjs',
+            'ajv-formats',
+            'secure-json-parse',
+            'url-template',
+          ],
         },
       ],
     },

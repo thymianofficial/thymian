@@ -2,12 +2,12 @@
   "extends": "../tsconfig.base.json",
   "compilerOptions": {
     "baseUrl": ".",
-    "rootDir": "test",
+    "rootDir": "src",
     "outDir": "dist",
     "emitDeclarationOnly": false,
     "moduleResolution": "nodenext",
     "module": "nodenext",
     "types": ["node"]
   },
-  "include": ["test/**/*.ts"]
+  "include": ["src/**/*.ts"]
 }

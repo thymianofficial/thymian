@@ -1,5 +1,5 @@
 import { statusCode } from '@thymian/core';
-import { httpRule } from '@thymian/http-linter';
+import { httpRule } from '@thymian/core';
 
 export default httpRule(
   'rfc9110/origin-server-may-respond-with-404-instead-of-403',

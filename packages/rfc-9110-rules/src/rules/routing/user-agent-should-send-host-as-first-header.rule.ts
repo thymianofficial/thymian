@@ -1,4 +1,4 @@
-import { httpRule } from '@thymian/http-linter';
+import { httpRule } from '@thymian/core';
 
 // we could test this if we would have access to the raw request
 export default httpRule('rfc9110/user-agent-should-send-host-as-first-header')

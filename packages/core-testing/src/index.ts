@@ -86,7 +86,6 @@ export {
 export {
   createMockLogger,
   createSilentMockLogger,
-  createVerboseMockLogger,
 } from './mocks/logger.mock.js';
 export {
   createMockPlugin,
@@ -94,3 +93,13 @@ export {
   createPluginWithMetadata,
   createSpyPluginFn,
 } from './mocks/plugin.mock.js';
+
+// ============================================================================
+// HTTP Testing Utilities
+// ============================================================================
+
+export {
+  exampleRequestSampler,
+  generateExampleParameters,
+  identityHookRunner,
+} from './http-testing-utils.js';

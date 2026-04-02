@@ -3,6 +3,7 @@ on:
   push:
     branches:
       - main
+      - rework-arch
   pull_request: {}
   workflow_dispatch:
 
@@ -13,6 +14,7 @@ permissions:
 jobs:
   e2e:
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
@@ -27,9 +29,5 @@ jobs:
         run: npm ci
       - name: Build packages
         run: npx nx build thymian
-      - name: Prepare test folder
-        run: mkdir -p /tmp/thymian-e2e-test
       - name: Run Thymian E2E tests
-        env:
-          TARGET_FOLDER: '/tmp/thymian-e2e-test'
-        run: npx nx e2e e2e-tests --outputStyle=static
+        run: npx nx e2e e2e-tests

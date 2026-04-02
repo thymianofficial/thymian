@@ -11,8 +11,7 @@ import {
   responseWith,
   statusCode,
 } from '@thymian/core';
-import { httpRule, type RuleViolation } from '@thymian/http-linter';
-import { singleTestCase } from '@thymian/http-testing';
+import { httpRule, type RuleViolation, singleTestCase } from '@thymian/core';
 
 import { arrayDifference, createList } from '../../../../utils.js';
 import { requiredHeaders } from './server-must-generate-header-fields-for-206-response.rule.js';
@@ -117,6 +116,48 @@ export default httpRule(
             okResponse.headers,
             partialResponse.headers,
           );
+
+          if (!violation) {
+            return;
+          }
+
+          return {
+            ...violation,
+            location: partialTransactionLocation,
+          };
+        }
+
+        return;
+      },
+    ),
+  )
+  .overrideAnalyticsRule((ctx) =>
+    // responseWith() cannot be compiled to SQL, so for analytics mode
+    // we broaden the filter to fetch both 200 and 206 responses for the
+    // same endpoint, then compare representation headers in the callback.
+    ctx.validateGroupedCommonHttpTransactions(
+      or(statusCode(200), and(statusCode(206), requestHeader('if-range'))),
+      and(method(), origin(), path()),
+      (_, transactions) => {
+        const [, okResponse] =
+          transactions.find(([, res]) => res.statusCode === 200) ?? [];
+        const [partialRequest, partialResponse, partialTransactionLocation] =
+          transactions.find(([, res]) => res.statusCode === 206) ?? [];
+
+        if (
+          okResponse &&
+          partialResponse &&
+          partialRequest &&
+          partialTransactionLocation
+        ) {
+          const violation = checkHeaders(
+            okResponse.headers,
+            partialResponse.headers,
+          );
+
+          if (!violation) {
+            return;
+          }
 
           return {
             ...violation,

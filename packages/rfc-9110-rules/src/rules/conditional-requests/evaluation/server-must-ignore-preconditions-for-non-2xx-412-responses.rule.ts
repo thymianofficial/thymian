@@ -6,7 +6,7 @@ import {
   statusCode,
   statusCodeRange,
 } from '@thymian/core';
-import { httpRule } from '@thymian/http-linter';
+import { httpRule } from '@thymian/core';
 
 export default httpRule(
   'rfc9110/server-must-ignore-preconditions-for-non-2xx-412-responses',

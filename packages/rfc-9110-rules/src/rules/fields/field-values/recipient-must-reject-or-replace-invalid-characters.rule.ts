@@ -1,6 +1,5 @@
 import { constant, requestHeader } from '@thymian/core';
-import { httpRule } from '@thymian/http-linter';
-import { singleTestCase } from '@thymian/http-testing';
+import { httpRule, singleTestCase } from '@thymian/core';
 
 // TODO: Implement ABNF validation for invalid character detection
 // Requires detecting CR (%x0D), LF (%x0A), or NUL (%x00) in field values

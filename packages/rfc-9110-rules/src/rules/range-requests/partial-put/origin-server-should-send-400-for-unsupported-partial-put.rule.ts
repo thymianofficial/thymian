@@ -6,7 +6,7 @@ import {
   responseWith,
   statusCode,
 } from '@thymian/core';
-import { httpRule } from '@thymian/http-linter';
+import { httpRule } from '@thymian/core';
 
 export default httpRule(
   'rfc9110/origin-server-should-send-400-for-unsupported-partial-put',

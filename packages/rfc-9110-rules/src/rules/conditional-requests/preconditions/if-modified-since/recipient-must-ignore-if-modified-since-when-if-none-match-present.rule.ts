@@ -1,5 +1,5 @@
 import { and, requestHeader } from '@thymian/core';
-import { httpRule } from '@thymian/http-linter';
+import { httpRule } from '@thymian/core';
 
 export default httpRule(
   'rfc9110/recipient-must-ignore-if-modified-since-when-if-none-match-present',

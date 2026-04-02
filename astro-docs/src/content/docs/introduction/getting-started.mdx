@@ -24,23 +24,31 @@ Check if you can run Thymian by running the following command:
 npx @thymian/cli --version
 ```
 
-## Initialization
+## First Run Without a Config
 
-Now navigate to your project's root directory and run the following command to initialize Thymian:
+Now navigate to your project's root directory and run Thymian directly against your API description:
 
 ```bash
-npx @thymian/cli init --yes
+npx @thymian/cli lint --spec openapi:openapi.yaml
 ```
 
-The [`init`](../../references/cli#thymian-init) command sets up Thymian in your project. The `--yes` flag will skip
-interactive prompts and use default settings. This command will:
+This is the fastest onboarding path. It lets you validate one API immediately without creating a configuration file first.
+
+If you want to keep that setup for future runs, generate a reusable config afterward:
+
+```bash
+npx @thymian/cli generate config
+```
+
+This command will:
 
 1. Detect your OpenAPI specification file
-2. Create a `thymian.config.yaml` configuration file in your project
+2. Let you choose which file to use when multiple specs are found
+3. Create a `thymian.config.yaml` configuration file in your project
 
 ### Understanding the Configuration File
 
-After initialization, you'll have a `thymian.config.yaml` file that looks like this:
+After running `generate config`, you'll have a `thymian.config.yaml` file that looks like this:
 
 ```yaml
 plugins:
@@ -74,16 +82,16 @@ plugins:
   You can list your loaded plugins via:
 
   ```bash
-  npx @thymian/cli plugins:list
+  npx @thymian/cli plugins list
   ```
 </Aside>
 
-## Running Your First Analysis
+## Running With a Saved Configuration
 
-Run your first analysis by navigating to your project's root directory and run:
+After generating a config file, run your next analysis from your project's root directory:
 
 ```bash
-npx @thymian/cli run
+npx @thymian/cli lint
 ```
 
 This command will:

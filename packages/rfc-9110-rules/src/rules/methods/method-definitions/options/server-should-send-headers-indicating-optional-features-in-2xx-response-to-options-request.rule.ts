@@ -6,7 +6,7 @@ import {
   responseHeader,
   successfulStatusCode,
 } from '@thymian/core';
-import { httpRule } from '@thymian/http-linter';
+import { httpRule } from '@thymian/core';
 
 const headerNames = ['allow'];
 

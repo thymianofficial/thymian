@@ -1,26 +1,32 @@
 import { createRequire } from 'node:module';
 import { isAbsolute, join } from 'node:path';
+import { inspect } from 'node:util';
 
-import { Command, Flags, Interfaces, settings } from '@oclif/core';
+import { Command, Flags, Interfaces, settings, ux } from '@oclif/core';
 import { CLIError } from '@oclif/core/errors';
 import type { CommandError } from '@oclif/core/interfaces';
 import {
-  and,
-  type HttpFilterExpression,
+  isLogLevel,
   isPlugin,
   type Logger,
+  type LogLevel,
+  type SpecificationInput,
   TextLogger,
   Thymian,
   ThymianBaseError,
   type ThymianPlugin,
+  type TrafficInput,
 } from '@thymian/core';
 
 import { ErrorCache } from './error-cache.js';
 import { Feedback } from './feedback.js';
-import { filterFlag } from './flags/filter-flag.js';
-import { optionFlag, optionRegexp } from './flags/option-flag.js';
+import { deepSet, optionFlag } from './flags/option-flag.js';
+import { ruleSetFlag } from './flags/rule-set-flag.js';
+import { specFlag } from './flags/spec-flag.js';
+import { trafficFlag } from './flags/traffic-flag.js';
 import { getConfig } from './get-config.js';
-import { safeParse } from './safe-parse.js';
+import type { ThymianSpecSearchResult } from './hooks/spec-search-hook.js';
+import type { ThymianTrafficSearchResult } from './hooks/traffic-search-hook.js';
 import type { ThymianConfig } from './thymian-config.js';
 
 const require = createRequire(import.meta.url);
@@ -37,19 +43,42 @@ export abstract class BaseCliRunCommand<
 > extends Command {
   static override enableJsonFlag = true;
 
+  /**
+   * Whether this command requires API specifications to run.
+   * Commands that operate independently of specs (e.g. `serve`, `http-linter:overview`)
+   * can set this to `false` to skip the spec resolution chain (Steps C–F).
+   */
+  static requiresSpecifications = true;
+
+  /**
+   * Whether this command requires traffic inputs to run.
+   * Only `analyze` sets this to `true`. When enabled, traffic is resolved
+   * via --traffic flag → config → thymian.traffic-search hook → guidance.
+   */
+  static requiresTraffic = false;
+
   static override baseFlags = {
     verbose: Flags.boolean({
       default: false,
-      aliases: ['debug'],
+      description: 'Run thymian in verbose mode.',
+      helpGroup: 'BASE',
+    }),
+    debug: Flags.boolean({
+      default: false,
       charAliases: ['d'],
       description: 'Run thymian in debug mode.',
       helpGroup: 'BASE',
+    }),
+    ['log-level']: Flags.string({
+      description:
+        'Set log level (trace, debug, info, warn, error, silent). When set to trace, all events are traced.',
+      helpGroup: 'BASE',
+      options: ['trace', 'debug', 'info', 'warn', 'error', 'silent'],
     }),
     config: Flags.file({
       aliases: ['c'],
       charAliases: ['c'],
       description: 'Path to thymian configuration file.',
-      default: 'thymian.config.yaml',
       helpGroup: 'BASE',
     }),
     autoload: Flags.boolean({
@@ -65,6 +94,15 @@ export abstract class BaseCliRunCommand<
       helpGroup: 'BASE',
     }),
     option: optionFlag(),
+    spec: specFlag(),
+    traffic: trafficFlag(),
+    ['rule-set']: ruleSetFlag(),
+    ['rule-severity']: Flags.string({
+      description:
+        'Set the minimum rule severity threshold for rule loading (off, error, warn, hint). Only rules at or above this severity are loaded.',
+      helpGroup: 'BASE',
+      options: ['off', 'error', 'warn', 'hint'],
+    }),
     timeout: Flags.integer({
       default: Thymian.DEFAULT_TIMEOUT,
       charAliases: ['t'],
@@ -78,16 +116,10 @@ export abstract class BaseCliRunCommand<
       helpGroup: 'BASE',
       default: Thymian.DEFAULT_IDLE_TIMEOUT,
     }),
-    'trace-events': Flags.boolean({
-      default: false,
-      description: 'All events that are emitted will be logged.',
-      helpGroup: 'BASE',
-    }),
     cwd: Flags.string({
       default: process.cwd(),
       description: 'Set current working directory.',
     }),
-    filter: filterFlag(),
     ['suppress-feedback']: Flags.boolean({
       default: false,
       description: 'Suppress feedback messages from Thymian.',
@@ -100,7 +132,6 @@ export abstract class BaseCliRunCommand<
   protected logger!: Logger;
   protected thymianConfig!: ThymianConfig;
   protected thymian!: Thymian;
-  public filter!: HttpFilterExpression;
   protected feedback!: Feedback;
   protected errorCache!: ErrorCache;
 
@@ -115,28 +146,133 @@ export abstract class BaseCliRunCommand<
     });
     this.flags = flags as CommandFlags<T>;
     this.args = args as CommandArgs<T>;
-    this.flags.verbose = settings.debug || this.flags.verbose;
-    this.logger = new TextLogger('@thymian/cli', this.flags.verbose);
-    this.thymian = new Thymian(this.logger.child('@thymian/core'), {
-      timeout: this.flags.timeout,
-      traceEvents: this.flags['trace-events'],
-      cwd: this.flags.cwd,
-      idleTimeout: this.flags['idle-timeout'],
-    });
+    this.flags.debug = settings.debug || this.flags.debug;
+
     this.feedback = Feedback.forCommand(this);
     this.errorCache = ErrorCache.forCommand(this);
 
-    this.thymianConfig = await getConfig(this.flags.config, this.flags.cwd);
+    // --- Config Resolution Chain ---
+    // Step A+B: Load config from --config flag, well-known file, or defaultConfig
+    this.thymianConfig = await getConfig({
+      configPath: this.flags.config,
+      cwd: this.flags.cwd,
+    });
+
     this.overridePluginOptions();
 
-    this.filter = and(...(this.flags.filter ?? []));
-
-    if (Array.isArray(this.thymianConfig.filters)) {
-      this.filter = and(...this.thymianConfig.filters, this.filter);
+    // Step C: --spec flag overrides config specifications
+    if (this.flags.spec && this.flags.spec.length > 0) {
+      this.thymianConfig = {
+        ...this.thymianConfig,
+        specifications: this.flags.spec,
+      };
     }
+
+    // Step D+E+F: If no specifications at this point, ask plugins to search
+    // Only enforced for commands that require specifications.
+    const requiresSpecs = (this.ctor as typeof BaseCliRunCommand)
+      .requiresSpecifications;
+
+    if (
+      requiresSpecs &&
+      (!this.thymianConfig.specifications ||
+        this.thymianConfig.specifications.length === 0)
+    ) {
+      const discovered = await this.runSpecSearch();
+
+      if (discovered.length > 0) {
+        // Step E: Specifications found — suggest user actions and exit
+        const fileList = discovered
+          .flatMap((d) => d.specifications.map((s) => `  - ${s.location}`))
+          .join('\n');
+        const firstSpec = discovered[0]!.specifications[0]!;
+
+        ux.stderr(
+          `No specification configured. The following specification files were detected:\n\n${fileList}\n`,
+        );
+        ux.stderr('Rerun with --spec to use a detected file, for example:\n');
+        ux.stderr(
+          `  $ thymian ${this.id} --spec ${formatSpecInput(firstSpec)}\n`,
+        );
+        ux.stderr('Or generate a reusable config:\n');
+        ux.stderr(
+          `  $ thymian generate config --for-spec ${formatSpecInput(firstSpec)}\n`,
+        );
+        this.exit(2);
+      } else {
+        // Step F: No specifications found anywhere
+        ux.stderr(
+          'No specification found. Provide a specification with --spec or create a configuration file.\n',
+        );
+        ux.stderr('  $ thymian generate config\n');
+        this.exit(2);
+      }
+    }
+
+    // --- Traffic Resolution Chain ---
+    // --traffic flag overrides config traffic
+    if (this.flags.traffic && this.flags.traffic.length > 0) {
+      this.thymianConfig = {
+        ...this.thymianConfig,
+        traffic: this.flags.traffic,
+      };
+    }
+
+    const requiresTraffic = (this.ctor as typeof BaseCliRunCommand)
+      .requiresTraffic;
+
+    if (
+      requiresTraffic &&
+      (!this.thymianConfig.traffic || this.thymianConfig.traffic.length === 0)
+    ) {
+      const discovered = await this.runTrafficSearch();
+
+      if (discovered.length > 0) {
+        const fileList = discovered
+          .flatMap((d) => d.traffic.map((t) => `  * ${formatTrafficInput(t)}`))
+          .join('\n');
+        const firstTraffic = discovered[0]!.traffic[0]!;
+
+        ux.stderr(
+          `No traffic configured. The following traffic files were detected:\n\n${fileList}\n`,
+        );
+        ux.stderr(
+          'Rerun with --traffic to use a detected file, for example:\n',
+        );
+        ux.stderr(
+          `  $ thymian ${this.id} --traffic ${formatTrafficInput(firstTraffic)}\n`,
+        );
+        this.exit(2);
+      } else {
+        ux.stderr(
+          'No traffic found. Provide traffic with --traffic or add it to your configuration file.\n',
+        );
+        this.exit(2);
+      }
+    }
+
+    const logLevel = this.resolveLogLevelWithConfig();
+
+    this.logger = new TextLogger('@thymian/cli', logLevel);
+
+    this.logger.info('Configuration loaded.');
+
+    const specCount = this.thymianConfig.specifications?.length ?? 0;
+    if (specCount > 0) {
+      this.logger.info(`Resolved ${specCount} specification(s).`);
+    }
+
+    this.thymian = new Thymian(this.logger.child('@thymian/core'), {
+      timeout: this.flags.timeout,
+      cwd: this.flags.cwd,
+      idleTimeout: this.flags['idle-timeout'],
+    });
+
+    this.logger.info('Thymian instance created.');
 
     if (this.shouldAutoload()) {
       this.debug('Autoloading Thymian plugins.');
+      this.logger.info('Autoloading plugins from configuration...');
       await this.addPluginsToThymianConfig();
       await this.registerPluginsFromConfig();
     }
@@ -194,7 +330,11 @@ export abstract class BaseCliRunCommand<
       if (this.jsonEnabled() && err.cause) {
         this.logJson(this.toErrorJson(err.cause));
       } else if (err.cause) {
-        console.log(err.cause);
+        ux.stderr(
+          err.cause instanceof Error
+            ? String(err.cause)
+            : inspect(err.cause, { depth: 3 }),
+        );
       }
       this.printStackTraces(err.cause);
     }
@@ -208,40 +348,101 @@ export abstract class BaseCliRunCommand<
     return this.thymianConfig.autoload ?? true;
   }
 
-  public setThymian(thymian: Thymian): void {
-    this.thymian = thymian;
+  /**
+   * Run the `thymian.spec-search` oclif hook to let plugins discover specification files.
+   * Returns results grouped by plugin, each containing typed SpecificationInput[].
+   */
+  private async runSpecSearch(): Promise<ThymianSpecSearchResult[]> {
+    const hookResults = await this.config.runHook('thymian.spec-search', {
+      cwd: this.flags.cwd,
+    });
+
+    const results: ThymianSpecSearchResult[] = [];
+    for (const success of hookResults.successes) {
+      const result = success.result as ThymianSpecSearchResult;
+      if (result.specifications.length > 0) {
+        results.push(result);
+      }
+    }
+
+    return results;
   }
 
+  /**
+   * Run the `thymian.traffic-search` oclif hook to let plugins discover traffic files.
+   * Returns results grouped by plugin, each containing typed TrafficInput[].
+   */
+  private async runTrafficSearch(): Promise<ThymianTrafficSearchResult[]> {
+    const hookResults = await this.config.runHook('thymian.traffic-search', {
+      cwd: this.flags.cwd,
+    });
+
+    const results: ThymianTrafficSearchResult[] = [];
+    for (const success of hookResults.successes) {
+      const result = success.result as ThymianTrafficSearchResult;
+      if (result.traffic.length > 0) {
+        results.push(result);
+      }
+    }
+
+    return results;
+  }
+
+  /**
+   * Apply `-o` flag overrides to the loaded Thymian configuration.
+   *
+   * Each override targets a specific plugin by name and sets a deeply
+   * nested property on its `options` object.  If the plugin entry does
+   * not yet exist in the config it will be created.
+   */
   protected overridePluginOptions(): void {
-    if (!this.flags.option) {
+    if (!this.flags.option?.length) {
       return;
     }
 
-    for (const option of this.flags.option) {
-      const match = optionRegexp.exec(option);
-
-      if (!match) {
-        throw new CLIError(
-          `Expected option flag with format <pluginName>.<property>=<value>, but got: ${option}`,
-        );
-      }
-
-      const [, pluginName, property, value] = match;
-
-      if (!pluginName || !property || !value) {
-        throw new CLIError(
-          `Expected option flag with format <pluginName>.<property>=<value>, but got option with pluginName "${pluginName}", property "${property}" and value ${value}.`,
-        );
-      }
-
-      if (!this.thymianConfig.plugins[pluginName]?.options) {
-        this.thymianConfig.plugins[pluginName] ??= {};
-        this.thymianConfig.plugins[pluginName].options = {};
-      }
-
-      this.thymianConfig.plugins[pluginName].options[property] =
-        safeParse(value);
+    for (const override of this.flags.option) {
+      this.thymianConfig.plugins[override.pluginName] ??= {};
+      const pluginConfig = this.thymianConfig.plugins[override.pluginName]!;
+      pluginConfig.options ??= {};
+      deepSet(
+        pluginConfig.options as Record<string, unknown>,
+        override.path,
+        override.value,
+      );
     }
+  }
+
+  /**
+   * Re-resolve log level considering the config file.
+   * Only applies config.logLevel if no explicit flag was set.
+   */
+  private resolveLogLevelWithConfig(): LogLevel {
+    const flagLevel = this.flags['log-level'];
+
+    if (flagLevel && isLogLevel(flagLevel)) {
+      return flagLevel;
+    }
+
+    if (this.flags.debug) {
+      return 'debug';
+    }
+
+    if (this.flags.verbose) {
+      return 'info';
+    }
+
+    if (
+      this.thymianConfig.logLevel &&
+      isLogLevel(this.thymianConfig.logLevel)
+    ) {
+      return this.thymianConfig.logLevel;
+    }
+
+    return 'warn';
+  }
+
+  public setThymian(thymian: Thymian): void {
+    this.thymian = thymian;
   }
 
   protected async loadPluginModule(
@@ -297,7 +498,12 @@ export abstract class BaseCliRunCommand<
     for (const plugin of this.flags.plugin) {
       this.debug('Adding plugin from flag "%s" to Thymian config.', plugin);
 
-      if ((await this.isNpmPackage(plugin)) || isAbsolute(plugin)) {
+      const isPathPlugin =
+        isAbsolute(plugin) ||
+        plugin.startsWith('./') ||
+        plugin.startsWith('../');
+
+      if (!isPathPlugin) {
         this.debug('Load plugin "%s" as npm package or absolute path.', plugin);
 
         const pluginModule = await this.loadPluginModule(plugin, false);
@@ -316,15 +522,6 @@ export abstract class BaseCliRunCommand<
     }
   }
 
-  private async isNpmPackage(name: string): Promise<boolean> {
-    try {
-      require.resolve(name, { paths: [this.flags.cwd] });
-      return true;
-    } catch {
-      return false;
-    }
-  }
-
   protected async registerPluginsFromConfig(): Promise<void> {
     for (const name of Object.keys(this.thymianConfig.plugins)) {
       await this.registerPlugin(name);
@@ -334,4 +531,18 @@ export abstract class BaseCliRunCommand<
   public shouldSuppressFeedback(): boolean {
     return this.flags['suppress-feedback'];
   }
+}
+
+/**
+ * Format a SpecificationInput as `type:location` for display and --spec flag suggestions.
+ */
+function formatSpecInput(spec: SpecificationInput): string {
+  return `${spec.type}:${spec.location}`;
+}
+
+/**
+ * Format a TrafficInput as `type:location` for display and --traffic flag suggestions.
+ */
+function formatTrafficInput(traffic: TrafficInput): string {
+  return `${traffic.type}:${traffic.location}`;
 }

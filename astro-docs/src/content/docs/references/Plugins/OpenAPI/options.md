@@ -7,9 +7,9 @@ sidebar:
 
 **Properties**
 
-| Name                              | Type       | Description | Required |
-| --------------------------------- | ---------- | ----------- | -------- |
-| [**descriptions**](#descriptions) | `object[]` |             |          |
+| Name                              | Type                    | Description | Required |
+| --------------------------------- | ----------------------- | ----------- | -------- |
+| [**descriptions**](#descriptions) | <nobr>`object[]`</nobr> |             |          |
 
 **Additional Properties:** not allowed  
 **Example**
@@ -32,11 +32,11 @@ sidebar:
 
 **Item Properties**
 
-| Name                                      | Type     | Description | Required |
-| ----------------------------------------- | -------- | ----------- | -------- |
-| **source**                                | `string` |             | yes      |
-| **sourceName**                            | `string` |             | no       |
-| [**serverInfo**](#descriptionsserverinfo) | `object` |             | yes      |
+| Name                                      | Type                  | Description | Required |
+| ----------------------------------------- | --------------------- | ----------- | -------- |
+| **source**                                | <nobr>`string`</nobr> |             | yes      |
+| **sourceName**                            | <nobr>`string`</nobr> |             | no       |
+| [**serverInfo**](#descriptionsserverinfo) | <nobr>`object`</nobr> |             | yes      |
 
 **Item Additional Properties:** not allowed  
 **Example**
@@ -55,9 +55,9 @@ sidebar:
 
 **Properties**
 
-| Name         | Type      | Description                    | Required |
-| ------------ | --------- | ------------------------------ | -------- |
-| **basePath** | `string`  |                                | yes      |
-| **port**     | `integer` |                                | yes      |
-| **host**     | `string`  |                                | yes      |
-| **protocol** | `string`  | Enum: `"http"`, `"https"`<br/> | yes      |
+| Name         | Type                   | Description                    | Required |
+| ------------ | ---------------------- | ------------------------------ | -------- |
+| **basePath** | <nobr>`string`</nobr>  |                                | yes      |
+| **port**     | <nobr>`integer`</nobr> |                                | yes      |
+| **host**     | <nobr>`string`</nobr>  |                                | yes      |
+| **protocol** | <nobr>`string`</nobr>  | Enum: `"http"`, `"https"`<br/> | yes      |

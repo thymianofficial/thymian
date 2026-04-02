@@ -1,0 +1,16 @@
+{
+  "name": "plugin-http-analyzer",
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "packages/plugin-http-analyzer/src",
+  "projectType": "library",
+  "tags": ["scope:plugin", "type:lib"],
+  "targets": {
+    "build": {
+      "dependsOn": ["^build"],
+      "command": "tsc --build tsconfig.lib.json && cp src/db/init.sql dist/db/init.sql",
+      "options": {
+        "cwd": "packages/plugin-http-analyzer"
+      }
+    }
+  }
+}

@@ -1,4 +1,4 @@
-import { httpRule } from '@thymian/http-linter';
+import { httpRule } from '@thymian/core';
 
 export default httpRule(
   'rfc9110/origin-server-must-send-3xx-response-if-state-change-should-be-applied-to-other-resource',

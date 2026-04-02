@@ -1,5 +1,5 @@
 import { and, hasRequestBody, method, not, requestHeader } from '@thymian/core';
-import { httpRule } from '@thymian/http-linter';
+import { httpRule } from '@thymian/core';
 
 export default httpRule(
   'rfc9110/client-must-send-content-type-header-for-content-in-options-request',
