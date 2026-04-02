@@ -6,7 +6,7 @@
     "@astrojs/starlight": "^0.35.2",
     "@astrojs/starlight-tailwind": "^4.0.1",
     "@tailwindcss/vite": "^4.1.12",
-    "astro": "^5.16.7",
+    "astro": "^5.18.1",
     "astro-mail-obfuscation": "^2.3.4",
     "astro-mermaid": "^1.0.4",
     "astro-og-canvas": "^0.7.2",
