@@ -127,6 +127,40 @@ export default httpRule(
       },
     ),
   )
+  .overrideAnalyticsRule((ctx) =>
+    // responseWith() cannot be compiled to SQL, so for analytics mode
+    // we broaden the filter to fetch both 200 and 206 responses for the
+    // same endpoint, then compare representation headers in the callback.
+    ctx.validateGroupedCommonHttpTransactions(
+      or(statusCode(200), and(statusCode(206), requestHeader('if-range'))),
+      and(method(), origin(), path()),
+      (_, transactions) => {
+        const [, okResponse] =
+          transactions.find(([, res]) => res.statusCode === 200) ?? [];
+        const [partialRequest, partialResponse, partialTransactionLocation] =
+          transactions.find(([, res]) => res.statusCode === 206) ?? [];
+
+        if (
+          okResponse &&
+          partialResponse &&
+          partialRequest &&
+          partialTransactionLocation
+        ) {
+          const violation = checkHeaders(
+            okResponse.headers,
+            partialResponse.headers,
+          );
+
+          return {
+            ...violation,
+            location: partialTransactionLocation,
+          };
+        }
+
+        return;
+      },
+    ),
+  )
   // TODO: let's think about later, if we should include this test
   .overrideTest((testContext) =>
     testContext.httpTest(

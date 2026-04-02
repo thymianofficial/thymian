@@ -201,7 +201,7 @@ export function compileHttpFilterToWhereClause(
       }
 
       return {
-        sql: `${tableNames.requests}.origin LIKE '?%'`,
+        sql: `${tableNames.requests}.origin LIKE ? || '%'`,
         params: [filter.protocol],
       };
     }

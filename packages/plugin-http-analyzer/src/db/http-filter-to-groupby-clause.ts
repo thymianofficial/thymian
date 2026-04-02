@@ -4,7 +4,6 @@ import {
   type LogicalExpression,
   origin,
   path,
-  port,
   visitHttpFilter,
 } from '@thymian/core';
 
@@ -19,7 +18,9 @@ export function httpFilterToGroupByClause(
 
   switch (expression.type) {
     case 'url':
-      return httpFilterToGroupByClause(and(origin(), port(), path()), tables);
+      // port is embedded in origin (e.g. "https://example.com:8080"), so
+      // grouping by origin + path is sufficient to identify a URL.
+      return httpFilterToGroupByClause(and(origin(), path()), tables);
     case 'origin':
       return {
         sql: `${tables.requests}.origin`,
@@ -64,7 +65,12 @@ export function httpFilterToGroupingKey(
   expression: HttpFilterExpression,
   tables: TableNames,
 ): string {
-  return visitHttpFilter(expression, {
+  // Pre-expand url() to and(origin(), path()) so the visitor does not need a
+  // visitUrl handler (port is already embedded in origin).
+  const resolved =
+    expression.type === 'url' ? and(origin(), path()) : expression;
+
+  return visitHttpFilter(resolved, {
     visitAnd(expr: Extract<LogicalExpression, { type: 'and' }>): string {
       return expr.filters
         .map((filter) => httpFilterToGroupingKey(filter, tables))
@@ -75,9 +81,6 @@ export function httpFilterToGroupingKey(
     },
     visitMethod(): string {
       return `COALESCE(${tables.requests}.method, '')`;
-    },
-    visitPort(): string {
-      return `COALESCE(${tables.requests}.port, '')`;
     },
     visitStatusCode(): string {
       return `COALESCE(${tables.responses}.status_code, '')`;

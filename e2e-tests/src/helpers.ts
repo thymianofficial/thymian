@@ -23,10 +23,22 @@ export const installationMode: InstallationMode = rawMode as InstallationMode;
 const isWindows = process.platform === 'win32';
 const npxCmd = isWindows ? 'npx.cmd' : 'npx';
 
-export function execThymian(
+export interface SpawnThymianResult {
+  stdout: string;
+  stderr: string;
+  status: number | null;
+  output: string;
+}
+
+/**
+ * Spawn the thymian CLI and return separate stdout, stderr, status code, and
+ * combined output. Use this when you need to assert on stream separation or
+ * exit codes directly.
+ */
+export function spawnThymian(
   args: string[],
-  opts: { cwd?: string; allowFailure?: boolean } = {},
-): string {
+  opts: { cwd?: string } = {},
+): SpawnThymianResult {
   const version = process.env.THYMIAN_E2E_VERSION ?? '';
   const env = getCleanEnv();
   let cmd: string;
@@ -50,11 +62,23 @@ export function execThymian(
     encoding: 'utf-8',
     timeout: 90_000,
   });
-  const output = (result.stdout ?? '') + (result.stderr ?? '');
-  if (result.status !== 0) {
-    console.warn(
-      `execThymian exited with status ${result.status ?? 'unknown'}`,
-    );
+  const stdout = result.stdout ?? '';
+  const stderr = result.stderr ?? '';
+  return {
+    stdout,
+    stderr,
+    status: result.status,
+    output: stdout + stderr,
+  };
+}
+
+export function execThymian(
+  args: string[],
+  opts: { cwd?: string; allowFailure?: boolean } = {},
+): string {
+  const { status, output } = spawnThymian(args, { cwd: opts.cwd });
+  if (status !== 0) {
+    console.warn(`execThymian exited with status ${status ?? 'unknown'}`);
     if (output) {
       console.warn(output);
     }
@@ -62,7 +86,7 @@ export function execThymian(
       return output;
     }
     const err = new Error(
-      `execThymian failed with status ${result.status ?? 'unknown'}.\n\nOutput:\n${output}`,
+      `execThymian failed with status ${status ?? 'unknown'}.\n\nOutput:\n${output}`,
     );
     throw err;
   }
