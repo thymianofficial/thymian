@@ -465,7 +465,7 @@ When creating a new RFC rule, verify:
 - [ ] Summary is added if description is long
 - [ ] Validation logic uses appropriate matchers
 - [ ] Rule is exported as default
-- [ ] Imports are from `@thymian/core` and `@thymian/plugin-http-linter` or `@thymian/plugin-http-testing`
+- [ ] Imports are from `@thymian/core` and `@thymian/plugin-http-linter` or `@thymian/plugin-http-tester`
 - [ ] Rule ends with `.done()`
 
 ## Notes

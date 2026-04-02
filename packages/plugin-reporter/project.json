@@ -4,7 +4,7 @@
   "sourceRoot": "packages/plugin-reporter/src",
   "projectType": "library",
   "tags": ["scope:plugin", "type:lib", "npm:public"],
-  "// targets": "to see all targets run: nx show project @thymian/plugin-reporter --web",
+  "// targets": "to see all targets run: nx show project plugin-reporter --web",
   "targets": {
     "generate-schema-docs": {
       "dependsOn": ["build"],

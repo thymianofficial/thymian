@@ -4,6 +4,6 @@
   "sourceRoot": "packages/rules-rfc-9110/src",
   "projectType": "library",
   "tags": ["scope:rules", "type:lib", "npm:public"],
-  "// targets": "to see all targets run: nx show project @thymian/rules-rfc-9110 --web",
+  "// targets": "to see all targets run: nx show project rules-rfc-9110 --web",
   "targets": {}
 }
