@@ -333,7 +333,7 @@ export class HttpTestApiContext<
 
     this.report({
       source: this.pluginSource,
-      message: parts.join(' and '),
+      message: `[${this.name}] ${parts.join(' and ')}`,
       sections,
     });
   }

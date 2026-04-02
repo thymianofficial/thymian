@@ -42,7 +42,7 @@ export function createHttpTesterPlugin(
               normalizedOrigin = url.origin;
             } catch (error) {
               throw new ThymianBaseError(
-                `Invalid targetUrl "${targetUrl}": ${(error as Error).message}`,
+                `Invalid value for --target-url / config key "targetUrl" ("${targetUrl}"): ${(error as Error).message}`,
                 {
                   suggestions: [
                     'Provide a valid URL including the protocol (e.g., "http://localhost:3000").',
