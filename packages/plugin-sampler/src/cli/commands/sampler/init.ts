@@ -1,4 +1,4 @@
-import { BaseCliRunCommand, oclif, prompts } from '@thymian/cli-common';
+import { BaseCliRunCommand, oclif, prompts } from '@thymian/common-cli';
 
 export default class Init extends BaseCliRunCommand<typeof Init> {
   static override flags = {
@@ -18,7 +18,7 @@ export default class Init extends BaseCliRunCommand<typeof Init> {
   async run(): Promise<void> {
     await this.thymian.run(async (emitter) => {
       if (
-        !this.thymian.plugins.find((p) => p.plugin.name === '@thymian/sampler')
+        !this.thymian.plugins.find((p) => p.plugin.name === '@thymian/plugin-sampler')
       ) {
         this.error(
           'Cannot initialize sampler if sampler plugin is not registered.',

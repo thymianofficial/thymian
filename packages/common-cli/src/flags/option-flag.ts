@@ -18,8 +18,8 @@ export interface PluginOptionOverride {
  * path supports arbitrarily deep nesting via dot notation and bracket
  * array indexing, following the Helm `--set` convention:
  *
- *   @thymian/reporter.formatters.text.summaryOnly=true
- *   @thymian/sampler.items[0].name=Authorization
+ *   @thymian/plugin-reporter.formatters.text.summaryOnly=true
+ *   @thymian/plugin-sampler.items[0].name=Authorization
  */
 export function parseOptionFlag(input: string): PluginOptionOverride {
   const eqIdx = input.indexOf('=');
@@ -48,8 +48,8 @@ export function parseOptionFlag(input: string): PluginOptionOverride {
 }
 
 /**
- * Split a full key like `@thymian/reporter.formatters.text.path` into
- * the plugin name (`@thymian/reporter`) and the property path segments
+ * Split a full key like `@thymian/plugin-reporter.formatters.text.path` into
+ * the plugin name (`@thymian/plugin-reporter`) and the property path segments
  * (`['formatters', 'text', 'path']`).
  *
  * Scoped packages (`@scope/name`) are handled: the plugin name extends

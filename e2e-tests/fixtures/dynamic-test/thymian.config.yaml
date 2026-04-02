@@ -2,7 +2,7 @@ specifications:
   - type: openapi
     location: test.openapi.yaml
 ruleSets:
-  - '@thymian/rfc-9110-rules'
+  - '@thymian/rules-rfc-9110'
 rules:
   # These rules use singleTestCase().set(requestHeader(), constant()) which
   # triggers a pre-existing serialization bug in the test builder — disable
@@ -11,15 +11,15 @@ rules:
   rfc9110/recipient-must-ignore-range-when-if-range-false: 'off'
   rfc9110/origin-server-must-not-perform-method-when-if-match-fails: 'off'
 plugins:
-  '@thymian/http-linter': {}
-  '@thymian/openapi':
+  '@thymian/plugin-http-linter': {}
+  '@thymian/plugin-openapi':
     options:
       descriptions:
         - source: test.openapi.yaml
-  '@thymian/request-dispatcher': {}
-  '@thymian/sampler': {}
-  '@thymian/http-tester': {}
-  '@thymian/reporter':
+  '@thymian/plugin-request-dispatcher': {}
+  '@thymian/plugin-sampler': {}
+  '@thymian/plugin-http-tester': {}
+  '@thymian/plugin-reporter':
     options:
       formatters:
         text: {}

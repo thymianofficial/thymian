@@ -4,12 +4,12 @@ import {
   handleWorkflowOutcome,
   mergeRuleSets,
   resolveRuleSeverity,
-} from '@thymian/cli-common';
-import { Flags } from '@thymian/cli-common/oclif';
-import type {} from '@thymian/openapi';
-import type {} from '@thymian/reporter';
-import type {} from '@thymian/sampler';
-import type {} from '@thymian/websocket-proxy';
+} from '@thymian/common-cli';
+import { Flags } from '@thymian/common-cli/oclif';
+import type {} from '@thymian/plugin-openapi';
+import type {} from '@thymian/plugin-reporter';
+import type {} from '@thymian/plugin-sampler';
+import type {} from '@thymian/plugin-websocket-proxy';
 
 export default class Test extends BaseCliRunCommand<typeof Test> {
   static override description =
@@ -18,7 +18,7 @@ export default class Test extends BaseCliRunCommand<typeof Test> {
   static override examples = [
     '<%= config.bin %> <%= command.id %>',
     '<%= config.bin %> <%= command.id %> --spec openapi:./openapi.yaml',
-    '<%= config.bin %> <%= command.id %> --rule-set @thymian/rfc-9110-rules',
+    '<%= config.bin %> <%= command.id %> --rule-set @thymian/rules-rfc-9110',
     '<%= config.bin %> <%= command.id %> --target-url http://localhost:8080',
   ];
 

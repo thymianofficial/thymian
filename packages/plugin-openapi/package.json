@@ -1,8 +1,9 @@
 {
-  "name": "@thymian/openapi",
+  "name": "@thymian/plugin-openapi",
   "version": "0.0.0-PLACEHOLDER",
+  "license": "AGPL-3.0-only",
   "publishConfig": {
-    "access": "restricted"
+    "access": "public"
   },
   "files": [
     "dist",
@@ -18,7 +19,7 @@
   "dependencies": {
     "@scalar/openapi-parser": "^0.23.2",
     "@scalar/openapi-upgrader": "^0.1.4",
-    "@thymian/cli-common": "0.0.0-PLACEHOLDER",
+    "@thymian/common-cli": "0.0.0-PLACEHOLDER",
     "@thymian/core": "0.0.0-PLACEHOLDER",
     "jsonc-parser": "^3.2.0",
     "tinyglobby": "^0.2.14",

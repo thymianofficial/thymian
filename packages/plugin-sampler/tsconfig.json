@@ -14,7 +14,7 @@
       "path": "../core"
     },
     {
-      "path": "../cli-common"
+      "path": "../common-cli"
     },
     {
       "path": "../core-testing"

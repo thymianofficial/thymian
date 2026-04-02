@@ -161,7 +161,7 @@ async function runCanaryRelease(
     dryRun: argv.dryRun,
     firstRelease: argv.firstRelease,
     verbose: argv.verbose,
-    access: 'restricted',
+    access: 'public',
     registry: argv.local ? 'http://localhost:4873' : undefined,
     tag: argv.distTag,
   });
@@ -335,7 +335,7 @@ async function runCIPublishRelease(
     dryRun: argv.dryRun,
     firstRelease: argv.firstRelease,
     verbose: argv.verbose,
-    access: 'restricted',
+    access: 'public',
     registry: undefined, // Use npm
     tag: argv.distTag,
   });
@@ -401,7 +401,7 @@ async function runLocalRelease(
     dryRun: argv.dryRun,
     firstRelease: argv.firstRelease,
     verbose: argv.verbose,
-    access: 'restricted',
+    access: 'public',
     registry: 'http://localhost:4873',
     tag: argv.distTag,
   });

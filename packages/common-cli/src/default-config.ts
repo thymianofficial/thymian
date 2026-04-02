@@ -3,26 +3,26 @@ import type { ThymianConfig } from './thymian-config.js';
 export const defaultConfig: ThymianConfig = {
   specifications: [],
   traffic: [],
-  ruleSets: ['@thymian/rfc-9110-rules'],
+  ruleSets: ['@thymian/rules-rfc-9110'],
   ruleSeverity: 'error',
   rules: {},
   plugins: {
-    '@thymian/http-linter': {},
-    '@thymian/openapi': {
+    '@thymian/plugin-http-linter': {},
+    '@thymian/plugin-openapi': {
       options: {
         descriptions: [],
       },
     },
-    '@thymian/request-dispatcher': {},
-    '@thymian/sampler': {},
-    '@thymian/reporter': {
+    '@thymian/plugin-request-dispatcher': {},
+    '@thymian/plugin-sampler': {},
+    '@thymian/plugin-reporter': {
       options: {
         formatters: {
           text: {},
         },
       },
     },
-    '@thymian/http-tester': {},
-    '@thymian/http-analyzer': {},
+    '@thymian/plugin-http-tester': {},
+    '@thymian/plugin-http-analyzer': {},
   },
 };

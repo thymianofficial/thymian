@@ -97,7 +97,7 @@ describe('config resolution chain (integration)', () => {
           '  - type: openapi',
           '    location: ./my-api.yaml',
           'plugins:',
-          "  '@thymian/openapi': {}",
+          "  '@thymian/plugin-openapi': {}",
         ].join('\n'),
       );
 
@@ -153,7 +153,7 @@ describe('config resolution chain (integration)', () => {
           '  - type: openapi',
           '    location: ./auto-discovered.yaml',
           'plugins:',
-          "  '@thymian/openapi': {}",
+          "  '@thymian/plugin-openapi': {}",
         ].join('\n'),
       );
 
@@ -197,7 +197,7 @@ describe('config resolution chain (integration)', () => {
           '  - type: openapi',
           '    location: ./original.yaml',
           'plugins:',
-          "  '@thymian/openapi': {}",
+          "  '@thymian/plugin-openapi': {}",
         ].join('\n'),
       );
 
@@ -228,7 +228,7 @@ describe('config resolution chain (integration)', () => {
           '  - type: openapi',
           '    location: ./original.yaml',
           'plugins:',
-          "  '@thymian/openapi': {}",
+          "  '@thymian/plugin-openapi': {}",
         ].join('\n'),
       );
 

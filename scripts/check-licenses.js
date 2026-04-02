@@ -75,8 +75,9 @@ for (const packageJsonPath of packageJsonFiles) {
 
     // Check each dependency
     for (const [depName, depInfo] of Object.entries(licenses)) {
-      // Skip excluded packages
-      if (excludePackages.has(depName)) {
+      // Skip excluded packages (strip version suffix from depName for matching)
+      const depBaseName = depName.replace(/@[^@]*$/, '');
+      if (excludePackages.has(depName) || excludePackages.has(depBaseName)) {
         continue;
       }
 

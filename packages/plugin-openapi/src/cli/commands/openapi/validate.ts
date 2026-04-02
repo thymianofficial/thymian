@@ -1,7 +1,7 @@
 import { load, validate } from '@scalar/openapi-parser';
 import { readFiles } from '@scalar/openapi-parser/plugins/read-files';
-import { BaseCliRunCommand } from '@thymian/cli-common';
-import { Args } from '@thymian/cli-common/oclif';
+import { BaseCliRunCommand } from '@thymian/common-cli';
+import { Args } from '@thymian/common-cli/oclif';
 
 export default class Validate extends BaseCliRunCommand<typeof Validate> {
   static override args = {

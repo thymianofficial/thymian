@@ -3,7 +3,7 @@ import {
   oclif,
   prompts,
   ThymianBaseCommand,
-} from '@thymian/cli-common';
+} from '@thymian/common-cli';
 import open from 'open';
 
 import { createEmailReport } from '../create-email-issue-for-error.js';

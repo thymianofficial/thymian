@@ -49,7 +49,7 @@ describe('get-config', () => {
     it('should load config from explicit configPath', async () => {
       const configContent: ThymianConfig = {
         plugins: {
-          '@thymian/openapi': {
+          '@thymian/plugin-openapi': {
             path: './openapi.yaml',
           },
         },
@@ -100,14 +100,14 @@ describe('get-config', () => {
     it('should auto-detect thymian.config.yaml in cwd', async () => {
       const yamlContent = `
 plugins:
-  '@thymian/openapi':
+  '@thymian/plugin-openapi':
     path: ./openapi.yaml
 `;
       await writeFile(join(tempDir, 'thymian.config.yaml'), yamlContent);
 
       const config = await getConfig({ cwd: tempDir });
 
-      expect(config.plugins).toHaveProperty('@thymian/openapi');
+      expect(config.plugins).toHaveProperty('@thymian/plugin-openapi');
     });
 
     it('should ignore thymian.config.yml and thymian.config.json during auto-probe', async () => {
@@ -139,7 +139,7 @@ plugins:
     it('should load valid JSON config', async () => {
       const configContent: ThymianConfig = {
         plugins: {
-          '@thymian/openapi': {
+          '@thymian/plugin-openapi': {
             path: './openapi.yaml',
           },
         },
@@ -156,7 +156,7 @@ plugins:
     it('should load valid YAML config', async () => {
       const yamlContent = `
 plugins:
-  '@thymian/openapi':
+  '@thymian/plugin-openapi':
     path: ./openapi.yaml
 `;
 
@@ -164,8 +164,8 @@ plugins:
 
       const config = await getConfig({ cwd: tempDir });
 
-      expect(config.plugins).toHaveProperty('@thymian/openapi');
-      expect(config.plugins['@thymian/openapi']).toEqual({
+      expect(config.plugins).toHaveProperty('@thymian/plugin-openapi');
+      expect(config.plugins['@thymian/plugin-openapi']).toEqual({
         path: './openapi.yaml',
       });
     });

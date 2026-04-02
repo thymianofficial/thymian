@@ -16,7 +16,7 @@ export type SamplerPluginOptions = {
 };
 
 export const dispatcherPlugin: ThymianPlugin<SamplerPluginOptions> = {
-  name: '@thymian/request-dispatcher',
+  name: '@thymian/plugin-request-dispatcher',
   version: '0.x',
   options: {
     type: 'object',

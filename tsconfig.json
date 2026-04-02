@@ -16,15 +16,6 @@
       "path": "./packages/plugin-sampler"
     },
     {
-      "path": "./packages/rfc-9110-rules"
-    },
-    {
-      "path": "./packages/cli-common"
-    },
-    {
-      "path": "./packages/api-description-validation-rules"
-    },
-    {
       "path": "./packages/plugin-websocket-proxy"
     },
     {
@@ -33,7 +24,6 @@
     {
       "path": "./packages/thymian"
     },
-
     {
       "path": "./packages/core-testing"
     },
@@ -51,6 +41,15 @@
     },
     {
       "path": "./packages/plugin-http-tester"
+    },
+    {
+      "path": "./packages/rules-api-description-validation"
+    },
+    {
+      "path": "./packages/rules-rfc-9110"
+    },
+    {
+      "path": "./packages/common-cli"
     }
   ]
 }

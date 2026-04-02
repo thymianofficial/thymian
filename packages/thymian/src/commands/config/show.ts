@@ -1,6 +1,6 @@
-import { BaseCliRunCommand } from '@thymian/cli-common';
-import { Flags, ux } from '@thymian/cli-common/oclif';
-import { stringify } from '@thymian/cli-common/yaml';
+import { BaseCliRunCommand } from '@thymian/common-cli';
+import { Flags, ux } from '@thymian/common-cli/oclif';
+import { stringify } from '@thymian/common-cli/yaml';
 
 export default class ShowConfig extends BaseCliRunCommand<typeof ShowConfig> {
   static override description = 'Show the current Thymian configuration.';

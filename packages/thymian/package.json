@@ -1,8 +1,9 @@
 {
-  "name": "@thymian/cli",
+  "name": "thymian",
   "version": "0.0.0-PLACEHOLDER",
+  "license": "AGPL-3.0-only",
   "publishConfig": {
-    "access": "restricted"
+    "access": "public"
   },
   "main": "./dist/index.js",
   "module": "./dist/index.js",
@@ -25,16 +26,16 @@
     "@oclif/plugin-not-found": "^3.2.57",
     "@oclif/plugin-plugins": "^5.4.43",
     "@oclif/plugin-version": "^2.2.30",
-    "@thymian/cli-common": "0.0.0-PLACEHOLDER",
-    "@thymian/http-analyzer": "0.0.0-PLACEHOLDER",
-    "@thymian/http-linter": "0.0.0-PLACEHOLDER",
-    "@thymian/http-tester": "0.0.0-PLACEHOLDER",
-    "@thymian/openapi": "0.0.0-PLACEHOLDER",
-    "@thymian/reporter": "0.0.0-PLACEHOLDER",
-    "@thymian/request-dispatcher": "0.0.0-PLACEHOLDER",
-    "@thymian/rfc-9110-rules": "0.0.0-PLACEHOLDER",
-    "@thymian/sampler": "0.0.0-PLACEHOLDER",
-    "@thymian/websocket-proxy": "0.0.0-PLACEHOLDER",
+    "@thymian/common-cli": "0.0.0-PLACEHOLDER",
+    "@thymian/plugin-http-analyzer": "0.0.0-PLACEHOLDER",
+    "@thymian/plugin-http-linter": "0.0.0-PLACEHOLDER",
+    "@thymian/plugin-http-tester": "0.0.0-PLACEHOLDER",
+    "@thymian/plugin-openapi": "0.0.0-PLACEHOLDER",
+    "@thymian/plugin-reporter": "0.0.0-PLACEHOLDER",
+    "@thymian/plugin-request-dispatcher": "0.0.0-PLACEHOLDER",
+    "@thymian/plugin-sampler": "0.0.0-PLACEHOLDER",
+    "@thymian/plugin-websocket-proxy": "0.0.0-PLACEHOLDER",
+    "@thymian/rules-rfc-9110": "0.0.0-PLACEHOLDER",
     "open": "^8.4.2",
     "tslib": "^2.3.0"
   },
@@ -53,7 +54,7 @@
       "@oclif/plugin-help",
       "@oclif/plugin-not-found",
       "@oclif/plugin-version",
-      "@thymian/http-linter"
+      "@thymian/plugin-http-linter"
     ]
   },
   "devDependencies": {

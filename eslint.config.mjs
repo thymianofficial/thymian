@@ -3,10 +3,10 @@ import eslintPluginSimpleImportSort from 'eslint-plugin-simple-import-sort';
 
 const depConstraintsProduction = [
   // Dimension: scope
-  // scope:cli can only access core and cli (package.json dependencies are runtime only)
+  // scope:cli can only access core, cli, plugin, and rules (thymian CLI app aggregates plugins)
   {
     sourceTag: 'scope:cli',
-    onlyDependOnLibsWithTags: ['scope:core', 'scope:cli'],
+    onlyDependOnLibsWithTags: ['scope:core', 'scope:cli', 'scope:plugin', 'scope:rules'],
   },
   // scope:core can only access scope:core
   {

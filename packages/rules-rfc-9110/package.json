@@ -1,8 +1,9 @@
 {
-  "name": "@thymian/rfc-9110-rules",
+  "name": "@thymian/rules-rfc-9110",
   "version": "0.0.0-PLACEHOLDER",
+  "license": "AGPL-3.0-only",
   "publishConfig": {
-    "access": "restricted"
+    "access": "public"
   },
   "main": "./dist/index.js",
   "module": "./dist/index.js",

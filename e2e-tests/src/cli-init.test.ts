@@ -38,7 +38,7 @@ describe('thymian generate config', () => {
     ]);
 
     // Verify default ruleSets and severity
-    expect(config.ruleSets).toEqual(['@thymian/rfc-9110-rules']);
+    expect(config.ruleSets).toEqual(['@thymian/rules-rfc-9110']);
     expect(config.ruleSeverity).toBe('error');
     expect(config.rules).toEqual({});
 
@@ -47,19 +47,19 @@ describe('thymian generate config', () => {
 
     // Verify all default plugins are present
     const plugins = config.plugins as Record<string, unknown>;
-    expect(plugins).toHaveProperty('@thymian/http-linter');
-    expect(plugins).toHaveProperty('@thymian/openapi');
-    expect(plugins).toHaveProperty('@thymian/request-dispatcher');
-    expect(plugins).toHaveProperty('@thymian/sampler');
-    expect(plugins).toHaveProperty('@thymian/reporter');
-    expect(plugins).toHaveProperty('@thymian/http-tester');
-    expect(plugins).toHaveProperty('@thymian/http-analyzer');
+    expect(plugins).toHaveProperty('@thymian/plugin-http-linter');
+    expect(plugins).toHaveProperty('@thymian/plugin-openapi');
+    expect(plugins).toHaveProperty('@thymian/plugin-request-dispatcher');
+    expect(plugins).toHaveProperty('@thymian/plugin-sampler');
+    expect(plugins).toHaveProperty('@thymian/plugin-reporter');
+    expect(plugins).toHaveProperty('@thymian/plugin-http-tester');
+    expect(plugins).toHaveProperty('@thymian/plugin-http-analyzer');
 
     // Verify plugin-specific options
-    expect(plugins['@thymian/openapi']).toEqual({
+    expect(plugins['@thymian/plugin-openapi']).toEqual({
       options: { descriptions: [] },
     });
-    expect(plugins['@thymian/reporter']).toEqual({
+    expect(plugins['@thymian/plugin-reporter']).toEqual({
       options: { formatters: { text: {} } },
     });
   }, 90_000);

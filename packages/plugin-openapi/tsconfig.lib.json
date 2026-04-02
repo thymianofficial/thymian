@@ -19,7 +19,7 @@
       "path": "../core/tsconfig.lib.json"
     },
     {
-      "path": "../cli-common/tsconfig.lib.json"
+      "path": "../common-cli/tsconfig.lib.json"
     }
   ]
 }

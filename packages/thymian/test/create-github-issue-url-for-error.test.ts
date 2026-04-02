@@ -1,4 +1,4 @@
-import { type CachedError } from '@thymian/cli-common';
+import { type CachedError } from '@thymian/common-cli';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
 import { createGithubIssueUrlForError } from '../src/create-github-issue-url-for-error.js';
@@ -120,8 +120,8 @@ describe('createGithubIssueUrlForError', () => {
         nodeVersion: 'v18.0.0',
       },
       pluginVersions: [
-        { name: '@thymian/openapi', version: '1.0.0' },
-        { name: '@thymian/http-linter', version: '2.0.0' },
+        { name: '@thymian/plugin-openapi', version: '1.0.0' },
+        { name: '@thymian/plugin-http-linter', version: '2.0.0' },
       ],
     };
 
@@ -130,8 +130,8 @@ describe('createGithubIssueUrlForError', () => {
     const body = parsedUrl.searchParams.get('body');
 
     expect(body).toContain('🔌 Installed Plugins');
-    expect(body).toContain('| @thymian/openapi | 1.0.0 |');
-    expect(body).toContain('| @thymian/http-linter | 2.0.0 |');
+    expect(body).toContain('| @thymian/plugin-openapi | 1.0.0 |');
+    expect(body).toContain('| @thymian/plugin-http-linter | 2.0.0 |');
   });
 
   it('should show "none" when no plugins installed', () => {
@@ -314,7 +314,7 @@ describe('createGithubIssueUrlForError', () => {
         cliVersion: '1.0.0',
         nodeVersion: 'v18.0.0',
       },
-      pluginVersions: [{ name: '@thymian/openapi', version: '1.0.0' }],
+      pluginVersions: [{ name: '@thymian/plugin-openapi', version: '1.0.0' }],
     };
 
     const url = createGithubIssueUrlForError(error);

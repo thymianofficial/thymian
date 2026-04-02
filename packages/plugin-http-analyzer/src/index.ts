@@ -91,7 +91,7 @@ function createAnalyzerAdapter(
 }
 
 export function createHttpAnalyzerPlugin(
-  pluginName = '@thymian/http-analyzer',
+  pluginName = '@thymian/plugin-http-analyzer',
 ): ThymianPlugin<HttpAnalyzerPluginOptions> {
   return {
     name: pluginName,

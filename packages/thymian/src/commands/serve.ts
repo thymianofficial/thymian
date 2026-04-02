@@ -1,4 +1,4 @@
-import { BaseCliRunCommand } from '@thymian/cli-common';
+import { BaseCliRunCommand } from '@thymian/common-cli';
 
 export default class Serve extends BaseCliRunCommand<typeof Serve> {
   static override description = 'Run Thymian in serve mode.';

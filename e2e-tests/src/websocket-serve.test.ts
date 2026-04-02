@@ -26,9 +26,9 @@ describe('thymian serve (websocket)', () => {
       [
         'serve',
         '-o',
-        `@thymian/websocket-proxy.port=${wsPort}`,
+        `@thymian/plugin-websocket-proxy.port=${wsPort}`,
         '-p',
-        '@thymian/websocket-proxy',
+        '@thymian/plugin-websocket-proxy',
       ],
       { cwd: getTempDir() },
     );

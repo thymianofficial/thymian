@@ -164,7 +164,7 @@ describe('generate config (integration)', () => {
       // Create an existing config
       writeFileSync(
         join(testDir, 'thymian.config.yaml'),
-        'plugins:\n  "@thymian/openapi": {}\n',
+        'plugins:\n  "@thymian/plugin-openapi": {}\n',
       );
 
       // Create a spec so detection doesn't fail first
@@ -327,10 +327,10 @@ describe('generate config (integration)', () => {
 
       // defaultConfig plugins should be present
       const plugins = loadedConfig.plugins as Record<string, unknown>;
-      expect(plugins).toHaveProperty('@thymian/http-linter');
-      expect(plugins).toHaveProperty('@thymian/openapi');
-      expect(plugins).toHaveProperty('@thymian/reporter');
-      expect(plugins).toHaveProperty('@thymian/sampler');
+      expect(plugins).toHaveProperty('@thymian/plugin-http-linter');
+      expect(plugins).toHaveProperty('@thymian/plugin-openapi');
+      expect(plugins).toHaveProperty('@thymian/plugin-reporter');
+      expect(plugins).toHaveProperty('@thymian/plugin-sampler');
     });
   });
 });

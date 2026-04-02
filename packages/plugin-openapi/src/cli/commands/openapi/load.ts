@@ -1,5 +1,5 @@
-import { BaseCliRunCommand } from '@thymian/cli-common';
-import { Args } from '@thymian/cli-common/oclif';
+import { BaseCliRunCommand } from '@thymian/common-cli';
+import { Args } from '@thymian/common-cli/oclif';
 import { constant } from '@thymian/core';
 
 import { loadAndTransform } from '../../../load-openapi.js';

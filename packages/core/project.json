@@ -3,7 +3,7 @@
   "$schema": "../../node_modules/nx/schemas/project-schema.json",
   "sourceRoot": "packages/core/src",
   "projectType": "library",
-  "tags": ["scope:core", "type:lib"],
-  "// targets": "to see all targets run: nx show project @thymian/core --web",
+  "tags": ["scope:core", "type:lib", "npm:public"],
+  "// targets": "to see all targets run: nx show project core --web",
   "targets": {}
 }

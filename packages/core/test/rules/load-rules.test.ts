@@ -6,7 +6,7 @@ import { loadRules } from '../../src/rules/rule-loader.js';
 
 describe('load rules', () => {
   it('should load rules from package', async () => {
-    await loadRules('@thymian/rfc-9110-rules');
+    await loadRules('@thymian/rules-rfc-9110');
   }, 15_000);
 
   it('overrides severity from config with object', async () => {

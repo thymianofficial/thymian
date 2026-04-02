@@ -78,7 +78,7 @@ export class WebSocketProxyServer {
 
     this.wss.on('listening', () => {
       this.logger.debug(
-        `@thymian/websocket-proxy listening on ws://localhost:${this.options.port}`,
+        `@thymian/plugin-websocket-proxy listening on ws://localhost:${this.options.port}`,
       );
     });
 

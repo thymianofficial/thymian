@@ -6,11 +6,11 @@ import {
   defaultConfig,
   parseSpecFlag,
   ThymianBaseCommand,
-} from '@thymian/cli-common';
-import { Flags, ux } from '@thymian/cli-common/oclif';
-import { confirm, input, select } from '@thymian/cli-common/prompts';
-import { stringify } from '@thymian/cli-common/yaml';
-import { searchForOpenApiFiles } from '@thymian/openapi';
+} from '@thymian/common-cli';
+import { Flags, ux } from '@thymian/common-cli/oclif';
+import { confirm, input, select } from '@thymian/common-cli/prompts';
+import { stringify } from '@thymian/common-cli/yaml';
+import { searchForOpenApiFiles } from '@thymian/plugin-openapi';
 
 const DEFAULT_CONFIG_FILENAME = 'thymian.config.yaml';
 

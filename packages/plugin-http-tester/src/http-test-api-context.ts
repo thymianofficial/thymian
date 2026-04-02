@@ -61,7 +61,7 @@ export class HttpTestApiContext<
     ctx: HttpTestContext<Locals>,
     report: ReportFn = () => undefined,
     private readonly skippedOrigins: string[] = [],
-    private readonly pluginSource = '@thymian/http-tester',
+    private readonly pluginSource = '@thymian/plugin-http-tester',
   ) {
     this.report = report;
 

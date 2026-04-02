@@ -1,8 +1,8 @@
 import type {
   ThymianPluginInitHook,
   ThymianPluginInitResult,
-} from '@thymian/cli-common';
-import { checkbox, confirm, runPrompts } from '@thymian/cli-common/prompts';
+} from '@thymian/common-cli';
+import { checkbox, confirm, runPrompts } from '@thymian/common-cli/prompts';
 
 import { openApiPlugin, type OpenApiPluginOptions } from '../index.js';
 import { searchForOpenApiFiles } from '../search-for-openapi-files.js';

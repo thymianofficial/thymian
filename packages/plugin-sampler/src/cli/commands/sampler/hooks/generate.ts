@@ -1,5 +1,5 @@
-import { BaseCliRunCommand } from '@thymian/cli-common';
-import { Flags } from '@thymian/cli-common/oclif';
+import { BaseCliRunCommand } from '@thymian/common-cli';
+import { Flags } from '@thymian/common-cli/oclif';
 
 import { generateHook } from '../../../generate-hook.js';
 

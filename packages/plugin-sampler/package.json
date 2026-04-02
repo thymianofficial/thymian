@@ -1,8 +1,9 @@
 {
-  "name": "@thymian/sampler",
+  "name": "@thymian/plugin-sampler",
   "version": "0.0.0-PLACEHOLDER",
+  "license": "AGPL-3.0-only",
   "publishConfig": {
-    "access": "restricted"
+    "access": "public"
   },
   "main": "./dist/index.js",
   "module": "./dist/index.js",
@@ -21,9 +22,9 @@
     "!**/*.tsbuildinfo"
   ],
   "dependencies": {
-    "@thymian/cli-common": "0.0.0-PLACEHOLDER",
+    "@thymian/common-cli": "0.0.0-PLACEHOLDER",
     "@thymian/core": "0.0.0-PLACEHOLDER",
-    "@thymian/request-dispatcher": "0.0.0-PLACEHOLDER",
+    "@thymian/plugin-request-dispatcher": "0.0.0-PLACEHOLDER",
     "code-block-writer": "^13.0.3",
     "jiti": "^2.6.1",
     "json-schema-to-typescript": "^15.0.4",

@@ -80,7 +80,7 @@ export class RequestSampler {
   sampleForTransaction(transactionId: string): HttpRequestSample | undefined {
     if (!this.initialized) {
       throw new ThymianBaseError(
-        'Cannot sample for transaction before @thymian/sampler was initialized.',
+        'Cannot sample for transaction before @thymian/plugin-sampler was initialized.',
         {
           suggestions: ['Did you run "thymian sampler:init"?'],
           name: 'SamplerNotInitializedError',
