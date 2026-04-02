@@ -23,5 +23,6 @@ export interface ThymianConfig {
   ruleSets?: string[];
   ruleSeverity?: RuleSeverity;
   rules?: RulesConfiguration;
+  targetUrl?: string;
   plugins: Record<string, ThymianPluginConfiguration>;
 }

@@ -174,13 +174,13 @@ describe('config resolution chain (integration)', () => {
     it('falls back to defaultConfig when no config file exists (triggers spec-search exit)', async () => {
       // No config file in cwdDir, no --spec
       // defaultConfig has empty specifications, so Step D/E/F should trigger
-      const { stdout, error } = await captureOutput(async () => {
+      const { stderr, error } = await captureOutput(async () => {
         await Lint.run(['--cwd', cwdDir, '--no-autoload']);
       });
 
       // this.exit(2) throws an ExitError during init() after logging guidance.
       expect(error).toBeDefined();
-      expect(stdout).toContain('No specification found');
+      expect(stderr).toContain('No specification found');
     });
   });
 
@@ -219,10 +219,20 @@ describe('config resolution chain (integration)', () => {
       );
     });
 
-    it('--spec without explicit type defaults to openapi', async () => {
-      const configPath = join(tmpDir, 'override.config.yaml');
+    it('--spec without type prefix rejects with a parse error', async () => {
+      const configPath = join(tmpDir, 'spec-parse-error.config.yaml');
+      writeFileSync(
+        configPath,
+        [
+          'specifications:',
+          '  - type: openapi',
+          '    location: ./original.yaml',
+          'plugins:',
+          "  '@thymian/openapi': {}",
+        ].join('\n'),
+      );
 
-      await captureOutput(async () => {
+      const { error } = await captureOutput(async () => {
         await Lint.run([
           '--config',
           configPath,
@@ -232,12 +242,8 @@ describe('config resolution chain (integration)', () => {
         ]);
       });
 
-      expect(mockState.runCalled).toBe(true);
-      expect(mockState.lintInput).toEqual(
-        expect.objectContaining({
-          specification: [{ type: 'openapi', location: './just-a-path.yaml' }],
-        }),
-      );
+      expect(error).toBeDefined();
+      expect(mockState.runCalled).toBe(false);
     });
 
     it('--spec with no config file uses default config + spec override', async () => {
@@ -271,14 +277,14 @@ describe('config resolution chain (integration)', () => {
       const emptyDir = join(tmpDir, 'no-specs');
       mkdirSync(emptyDir, { recursive: true });
 
-      const { stdout, error } = await captureOutput(async () => {
+      const { stderr, error } = await captureOutput(async () => {
         await Lint.run(['--cwd', emptyDir, '--no-autoload']);
       });
 
       // this.exit(2) throws an ExitError during init() after logging guidance.
       expect(error).toBeDefined();
-      expect(stdout).toContain('No specification found');
-      expect(stdout).toContain('thymian generate config');
+      expect(stderr).toContain('No specification found');
+      expect(stderr).toContain('thymian generate config');
       expect(mockState.runCalled).toBe(false);
     });
   });

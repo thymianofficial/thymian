@@ -40,7 +40,7 @@ npx @thymian/cli --version
 Now navigate to your project's root directory and run Thymian directly against your API description:
 
 ```bash
-npx @thymian/cli lint --spec openapi.yaml
+npx @thymian/cli lint --spec openapi:openapi.yaml
 ```
 
 This is the fastest way to reach a first conformance result without any prior setup.

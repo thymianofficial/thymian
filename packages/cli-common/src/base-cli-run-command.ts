@@ -1,7 +1,8 @@
 import { createRequire } from 'node:module';
 import { isAbsolute, join } from 'node:path';
+import { inspect } from 'node:util';
 
-import { Command, Flags, Interfaces, settings } from '@oclif/core';
+import { Command, Flags, Interfaces, settings, ux } from '@oclif/core';
 import { CLIError } from '@oclif/core/errors';
 import type { CommandError } from '@oclif/core/interfaces';
 import {
@@ -186,24 +187,24 @@ export abstract class BaseCliRunCommand<
           .join('\n');
         const firstSpec = discovered[0]!.specifications[0]!;
 
-        this.log(
+        ux.stderr(
           `No specification configured. The following specification files were detected:\n\n${fileList}\n`,
         );
-        this.log('Rerun with --spec to use a detected file, for example:\n');
-        this.log(
+        ux.stderr('Rerun with --spec to use a detected file, for example:\n');
+        ux.stderr(
           `  $ thymian ${this.id} --spec ${formatSpecInput(firstSpec)}\n`,
         );
-        this.log('Or generate a reusable config:\n');
-        this.log(
-          `  $ thymian generate config --for-spec ${formatSpecInput(firstSpec)}`,
+        ux.stderr('Or generate a reusable config:\n');
+        ux.stderr(
+          `  $ thymian generate config --for-spec ${formatSpecInput(firstSpec)}\n`,
         );
         this.exit(2);
       } else {
         // Step F: No specifications found anywhere
-        this.log(
+        ux.stderr(
           'No specification found. Provide a specification with --spec or create a configuration file.\n',
         );
-        this.log('  $ thymian generate config\n');
+        ux.stderr('  $ thymian generate config\n');
         this.exit(2);
       }
     }
@@ -232,16 +233,18 @@ export abstract class BaseCliRunCommand<
           .join('\n');
         const firstTraffic = discovered[0]!.traffic[0]!;
 
-        this.log(
+        ux.stderr(
           `No traffic configured. The following traffic files were detected:\n\n${fileList}\n`,
         );
-        this.log('Rerun with --traffic to use a detected file, for example:\n');
-        this.log(
+        ux.stderr(
+          'Rerun with --traffic to use a detected file, for example:\n',
+        );
+        ux.stderr(
           `  $ thymian ${this.id} --traffic ${formatTrafficInput(firstTraffic)}\n`,
         );
         this.exit(2);
       } else {
-        this.log(
+        ux.stderr(
           'No traffic found. Provide traffic with --traffic or add it to your configuration file.\n',
         );
         this.exit(2);
@@ -252,14 +255,24 @@ export abstract class BaseCliRunCommand<
 
     this.logger = new TextLogger('@thymian/cli', logLevel);
 
+    this.logger.info('Configuration loaded.');
+
+    const specCount = this.thymianConfig.specifications?.length ?? 0;
+    if (specCount > 0) {
+      this.logger.info(`Resolved ${specCount} specification(s).`);
+    }
+
     this.thymian = new Thymian(this.logger.child('@thymian/core'), {
       timeout: this.flags.timeout,
       cwd: this.flags.cwd,
       idleTimeout: this.flags['idle-timeout'],
     });
 
+    this.logger.info('Thymian instance created.');
+
     if (this.shouldAutoload()) {
       this.debug('Autoloading Thymian plugins.');
+      this.logger.info('Autoloading plugins from configuration...');
       await this.addPluginsToThymianConfig();
       await this.registerPluginsFromConfig();
     }
@@ -317,7 +330,11 @@ export abstract class BaseCliRunCommand<
       if (this.jsonEnabled() && err.cause) {
         this.logJson(this.toErrorJson(err.cause));
       } else if (err.cause) {
-        console.log(err.cause);
+        ux.stderr(
+          err.cause instanceof Error
+            ? String(err.cause)
+            : inspect(err.cause, { depth: 3 }),
+        );
       }
       this.printStackTraces(err.cause);
     }

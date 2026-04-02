@@ -22,7 +22,7 @@ export function mapSeverityToBadge(severity: ThymianReportSeverity): string {
     return `${errorSymbol} error`;
   }
   if (severity === 'warn') {
-    return `${warnSymbol} warn`;
+    return `${warnSymbol} warning`;
   }
   if (severity === 'hint') {
     return `${hintSymbol} hint`;

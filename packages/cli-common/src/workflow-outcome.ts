@@ -1,4 +1,5 @@
 import type { Command } from '@oclif/core';
+import { ux } from '@oclif/core';
 import type { WorkflowClassification, WorkflowOutcome } from '@thymian/core';
 
 export function classificationToExitCode(
@@ -15,11 +16,11 @@ export function classificationToExitCode(
 }
 
 export function handleWorkflowOutcome(
-  command: Pick<Command, 'log' | 'exit'>,
+  command: Pick<Command, 'exit'>,
   outcome: WorkflowOutcome,
 ): void {
   if (outcome.text) {
-    command.log(outcome.text);
+    ux.stdout(outcome.text);
   }
 
   const exitCode = classificationToExitCode(outcome.classification);

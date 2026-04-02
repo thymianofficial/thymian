@@ -5,8 +5,8 @@ import { describe, expect, it } from 'vitest';
 
 import {
   copyFixturesToTempDir,
+  execThymianRaw,
   fixturesDir,
-  spawnThymian,
   useTempDir,
   writeConfigToTempDir,
 } from './helpers.js';
@@ -28,9 +28,12 @@ describe('thymian analyze', () => {
         ].join('\n'),
       );
 
-      const result = spawnThymian(['analyze'], { cwd: getTempDir() });
+      const result = execThymianRaw(['analyze'], {
+        cwd: getTempDir(),
+        allowFailure: true,
+      });
 
-      expect(result.status).toBe(2);
+      expect(result.exitCode).toBe(2);
       expect(result.output).toMatch(/No traffic found|No traffic configured/);
     }, 90_000);
 
@@ -39,11 +42,14 @@ describe('thymian analyze', () => {
 
       // The analyze fixture has traffic but no specifications configured.
       // The command must not exit 2 with a "No specification" guidance.
-      const result = spawnThymian(['analyze'], { cwd: getTempDir() });
+      const result = execThymianRaw(['analyze'], {
+        cwd: getTempDir(),
+        allowFailure: true,
+      });
 
       expect(result.output).not.toMatch(/No specification found/);
       expect(result.output).not.toMatch(/No specification configured/);
-      expect(result.status).not.toBe(2);
+      expect(result.exitCode).not.toBe(2);
     }, 90_000);
   });
 
@@ -51,18 +57,24 @@ describe('thymian analyze', () => {
     it('should detect rule violations and exit 1', () => {
       copyFixturesToTempDir(join(fixturesDir, 'analyze'), getTempDir());
 
-      const result = spawnThymian(['analyze'], { cwd: getTempDir() });
+      const result = execThymianRaw(['analyze'], {
+        cwd: getTempDir(),
+        allowFailure: true,
+      });
 
       // The fixture plugin provides a GET 200 response without ETag or
       // Last-Modified, which violates the should-send-validator-fields
       // rule. The analyzer must report findings and exit 1.
-      expect(result.status).toBe(1);
+      expect(result.exitCode).toBe(1);
     }, 90_000);
 
     it('should report rule violations with severity and rule name', () => {
       copyFixturesToTempDir(join(fixturesDir, 'analyze'), getTempDir());
 
-      const result = spawnThymian(['analyze'], { cwd: getTempDir() });
+      const result = execThymianRaw(['analyze'], {
+        cwd: getTempDir(),
+        allowFailure: true,
+      });
 
       expect(result.stdout).toMatch(/reported a violation/);
       expect(result.stdout).toMatch(/warn/);
@@ -71,7 +83,10 @@ describe('thymian analyze', () => {
     it('should include a summary footer with error, warning and hint counts', () => {
       copyFixturesToTempDir(join(fixturesDir, 'analyze'), getTempDir());
 
-      const result = spawnThymian(['analyze'], { cwd: getTempDir() });
+      const result = execThymianRaw(['analyze'], {
+        cwd: getTempDir(),
+        allowFailure: true,
+      });
 
       // The text formatter always outputs a summary line like:
       // "Found 0 errors, 1 warnings and 0 hints."
@@ -85,7 +100,10 @@ describe('thymian analyze', () => {
     it('should write report output to stdout, not stderr', () => {
       copyFixturesToTempDir(join(fixturesDir, 'analyze'), getTempDir());
 
-      const result = spawnThymian(['analyze'], { cwd: getTempDir() });
+      const result = execThymianRaw(['analyze'], {
+        cwd: getTempDir(),
+        allowFailure: true,
+      });
 
       // Report text (rule violations, severity, summary) belongs on stdout.
       expect(result.stdout).toMatch(/rules run successfully/);
@@ -122,10 +140,10 @@ describe('thymian analyze', () => {
         ].join('\n'),
       );
 
-      const result = spawnThymian(['analyze'], { cwd: getTempDir() });
+      const result = execThymianRaw(['analyze'], { cwd: getTempDir() });
 
       // Exit 0 = clean-run (no violations)
-      expect(result.status).toBe(0);
+      expect(result.exitCode).toBe(0);
     }, 90_000);
   });
 
@@ -141,14 +159,14 @@ describe('thymian analyze', () => {
         join(getTempDir(), 'test.openapi.yaml'),
       );
 
-      const result = spawnThymian(
+      const result = execThymianRaw(
         ['analyze', '--spec', 'openapi:test.openapi.yaml'],
-        { cwd: getTempDir() },
+        { cwd: getTempDir(), allowFailure: true },
       );
 
       // The command should complete with findings (exit 1) — the traffic
       // loader produces violations. NOT exit 2 (tool-error).
-      expect(result.status).not.toBe(2);
+      expect(result.exitCode).not.toBe(2);
       expect(result.stdout).toMatch(/rules run successfully/);
     }, 90_000);
   });

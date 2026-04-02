@@ -6,14 +6,19 @@ import chalk from 'chalk';
 import { mkdir, writeFile } from 'fs/promises';
 
 import { analyze, type Formatter } from '../formatter.js';
-import { errorSymbol, hintSymbol, warnSymbol } from '../style.js';
+import {
+  errorSymbol,
+  hintSymbol,
+  successSymbol,
+  warnSymbol,
+} from '../style.js';
 
 export function formatSeverityPrefix(severity: ThymianReportSeverity): string {
   if (severity === 'hint') {
     return `${chalk.blue(`${hintSymbol} ${severity}`)}: `;
   }
   if (severity === 'warn') {
-    return `${chalk.yellow(`${warnSymbol} ${severity}`)}: `;
+    return `${chalk.yellow(`${warnSymbol} warning`)}: `;
   }
   if (severity === 'error') {
     return `${chalk.red(`${errorSymbol} ${severity}`)}: `;
@@ -41,7 +46,15 @@ export class TextFormatter implements Formatter<Partial<TextFormatterOptions>> {
 
   async flush(): Promise<string | undefined> {
     if (this.reports.length === 0) {
-      return undefined;
+      const message = `${chalk.green(successSymbol)} No problems found`;
+
+      if (this.options.path) {
+        const plainText = stripVTControlCharacters(message);
+        await mkdir(path.dirname(this.options.path), { recursive: true });
+        await writeFile(this.options.path, plainText, 'utf-8');
+      }
+
+      return message;
     }
 
     const analysis = analyze(this.reports);
@@ -84,8 +97,9 @@ export class TextFormatter implements Formatter<Partial<TextFormatterOptions>> {
     }
 
     lines.push('');
+    const { error, warn, hint } = analysis.statistics.severityCounts;
     lines.push(
-      `Found ${chalk.red(`${analysis.statistics.severityCounts.error} errors`)}, ${chalk.yellow(`${analysis.statistics.severityCounts.warn} warnings`)} and ${chalk.blue(`${analysis.statistics.severityCounts.hint} hints`)}.`,
+      `Found ${chalk.red(`${error} ${error === 1 ? 'error' : 'errors'}`)}, ${chalk.yellow(`${warn} ${warn === 1 ? 'warning' : 'warnings'}`)} and ${chalk.blue(`${hint} ${hint === 1 ? 'hint' : 'hints'}`)}.`,
     );
 
     const coloredOutput = lines.join('\n');
