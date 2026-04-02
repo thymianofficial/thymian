@@ -144,7 +144,7 @@ export default async function setup(_project: TestProject) {
   );
   try {
     execSync(
-      `npm install -g @thymian/cli@${thymianVersion} --registry ${verdaccioUrl}`,
+      `npm install -g thymian@${thymianVersion} --registry ${verdaccioUrl}`,
       {
         stdio: 'inherit',
         env: {

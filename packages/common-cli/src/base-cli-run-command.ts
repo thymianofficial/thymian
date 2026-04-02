@@ -253,7 +253,7 @@ export abstract class BaseCliRunCommand<
 
     const logLevel = this.resolveLogLevelWithConfig();
 
-    this.logger = new TextLogger('@thymian/cli', logLevel);
+    this.logger = new TextLogger('thymian', logLevel);
 
     this.logger.info('Configuration loaded.');
 

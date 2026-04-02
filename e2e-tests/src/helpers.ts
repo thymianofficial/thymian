@@ -42,7 +42,7 @@ function resolveThymianCommand(args: string[]): {
     case 'npx':
       return {
         cmd: npxCmd,
-        argv: ['--yes', `@thymian/cli@${version}`, ...args],
+        argv: ['--yes', `thymian@${version}`, ...args],
       };
     case 'global':
       return {
@@ -218,7 +218,7 @@ export function renderThymian(args: string[], opts?: { cwd?: string }) {
   const env = getCleanEnv();
   switch (installationMode) {
     case 'npx':
-      return render('npx', ['--yes', `@thymian/cli@${version}`, ...args], {
+      return render('npx', ['--yes', `thymian@${version}`, ...args], {
         ...opts,
         env,
       });
