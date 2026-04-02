@@ -89,8 +89,9 @@ export class TextFormatter implements Formatter<Partial<TextFormatterOptions>> {
     }
 
     lines.push('');
+    const { error, warn, hint } = analysis.statistics.severityCounts;
     lines.push(
-      `Found ${chalk.red(`${analysis.statistics.severityCounts.error} errors`)}, ${chalk.yellow(`${analysis.statistics.severityCounts.warn} warnings`)} and ${chalk.blue(`${analysis.statistics.severityCounts.hint} hints`)}.`,
+      `Found ${chalk.red(`${error} ${error === 1 ? 'error' : 'errors'}`)}, ${chalk.yellow(`${warn} ${warn === 1 ? 'warning' : 'warnings'}`)} and ${chalk.blue(`${hint} ${hint === 1 ? 'hint' : 'hints'}`)}.`,
     );
 
     const coloredOutput = lines.join('\n');

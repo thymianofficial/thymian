@@ -1,3 +1,4 @@
+import { writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 
 import { describe, expect, it } from 'vitest';
@@ -76,8 +77,52 @@ describe('thymian lint', () => {
       cwd: getTempDir(),
     });
 
-    if (stdout.includes('warning')) {
-      expect(stdout).not.toMatch(/⚠ warn[^i]/);
-    }
+    expect(stdout).toContain('warning');
+    expect(stdout).not.toMatch(/⚠ warn[^i]/);
+  }, 90_000);
+
+  it('should exit with code 2 for an invalid (unparseable) spec', () => {
+    const tempDir = getTempDir();
+    writeFileSync(
+      join(tempDir, 'broken.yaml'),
+      '{{not: valid yaml at all',
+      'utf-8',
+    );
+
+    const { exitCode, stderr } = execThymianResult(
+      ['lint', '--spec', 'openapi:broken.yaml'],
+      { cwd: tempDir },
+    );
+
+    expect(exitCode).toBe(2);
+    expect(stderr).toMatch(/error/i);
+  }, 90_000);
+
+  it('should produce deterministic output across consecutive runs', () => {
+    copyFixturesToTempDir(join(fixturesDir, 'static-lint'), getTempDir());
+
+    const first = execThymianResult(['lint'], { cwd: getTempDir() });
+    const second = execThymianResult(['lint'], { cwd: getTempDir() });
+
+    expect(first.stdout).toBe(second.stdout);
+  }, 180_000);
+
+  it('should separate report content (stdout) from operational messages (stderr)', () => {
+    copyFixturesToTempDir(join(fixturesDir, 'static-lint'), getTempDir());
+
+    const { stdout, stderr } = execThymianResult(['lint'], {
+      cwd: getTempDir(),
+    });
+
+    // Report content should be on stdout
+    expect(stdout).toMatch(/errors/);
+    expect(stdout).toMatch(/hints/);
+
+    // Operational messages (e.g. logs, warnings) should not leak into stdout
+    // stdout should only contain the formatted report
+    expect(stdout).not.toMatch(/Configuration loaded/);
+
+    // stderr should be a string (operational output goes here, if any)
+    expect(typeof stderr).toBe('string');
   }, 90_000);
 });

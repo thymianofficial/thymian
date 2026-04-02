@@ -150,9 +150,9 @@ describe('TextFormatter', () => {
 
     const result = await formatter.flush();
 
-    expect(result).toContain('1 errors');
-    expect(result).toContain('1 warnings');
-    expect(result).toContain('1 hints');
+    expect(result).toContain('1 error');
+    expect(result).toContain('1 warning');
+    expect(result).toContain('1 hint');
   });
 
   it('should include rule name when present', async () => {
@@ -198,7 +198,7 @@ describe('TextFormatter', () => {
     const result = await formatter.flush();
 
     expect(result).not.toContain('should-not-appear.yaml');
-    expect(result).toContain('1 errors');
+    expect(result).toContain('1 error');
   });
 
   // ----- File output -----
