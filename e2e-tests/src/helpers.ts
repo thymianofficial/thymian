@@ -1,4 +1,4 @@
-import { spawn, spawnSync } from 'node:child_process';
+import { spawn, spawnSync, type SpawnSyncReturns } from 'node:child_process';
 import { cpSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -30,6 +30,47 @@ export interface ExecThymianResult {
   exitCode: number | null;
 }
 
+/**
+ * Resolve the command and argument list for the current installation mode.
+ */
+function resolveThymianCommand(args: string[]): {
+  cmd: string;
+  argv: string[];
+} {
+  const version = process.env.THYMIAN_E2E_VERSION ?? '';
+  switch (installationMode) {
+    case 'npx':
+      return {
+        cmd: npxCmd,
+        argv: ['--yes', `@thymian/cli@${version}`, ...args],
+      };
+    case 'global':
+      return {
+        cmd: process.env.THYMIAN_E2E_GLOBAL_BIN ?? 'thymian',
+        argv: args,
+      };
+    case 'local':
+      throw new Error('Local installation mode not yet implemented');
+  }
+}
+
+/**
+ * Spawn thymian synchronously and return the raw SpawnSyncReturns result.
+ */
+function spawnThymian(
+  args: string[],
+  opts: { cwd?: string } = {},
+): SpawnSyncReturns<string> {
+  const { cmd, argv } = resolveThymianCommand(args);
+  const env = getCleanEnv();
+  return spawnSync(cmd, argv, {
+    cwd: opts.cwd,
+    env,
+    encoding: 'utf-8',
+    timeout: 90_000,
+  });
+}
+
 export function execThymian(
   args: string[],
   opts: { cwd?: string; allowFailure?: boolean } = {},
@@ -42,29 +83,7 @@ export function execThymianRaw(
   args: string[],
   opts: { cwd?: string; allowFailure?: boolean } = {},
 ): ExecThymianResult {
-  const version = process.env.THYMIAN_E2E_VERSION ?? '';
-  const env = getCleanEnv();
-  let cmd: string;
-  let argv: string[];
-  switch (installationMode) {
-    case 'npx':
-      cmd = npxCmd;
-      argv = ['--yes', `@thymian/cli@${version}`, ...args];
-      break;
-    case 'global': {
-      cmd = process.env.THYMIAN_E2E_GLOBAL_BIN ?? 'thymian';
-      argv = args;
-      break;
-    }
-    case 'local':
-      throw new Error('Local installation mode not yet implemented');
-  }
-  const result = spawnSync(cmd, argv, {
-    cwd: opts.cwd,
-    env,
-    encoding: 'utf-8',
-    timeout: 90_000,
-  });
+  const result = spawnThymian(args, opts);
   const stdout = result.stdout ?? '';
   const stderr = result.stderr ?? '';
   const output = stdout + stderr;
@@ -95,23 +114,8 @@ export function execThymianRawAsync(
   args: string[],
   opts: { cwd?: string; allowFailure?: boolean } = {},
 ): Promise<ExecThymianResult> {
-  const version = process.env.THYMIAN_E2E_VERSION ?? '';
+  const { cmd, argv } = resolveThymianCommand(args);
   const env = getCleanEnv();
-  let cmd: string;
-  let argv: string[];
-  switch (installationMode) {
-    case 'npx':
-      cmd = npxCmd;
-      argv = ['--yes', `@thymian/cli@${version}`, ...args];
-      break;
-    case 'global': {
-      cmd = process.env.THYMIAN_E2E_GLOBAL_BIN ?? 'thymian';
-      argv = args;
-      break;
-    }
-    case 'local':
-      throw new Error('Local installation mode not yet implemented');
-  }
 
   const timeoutMs = 90_000;
   const controller = new AbortController();
@@ -185,6 +189,28 @@ export function execThymianRawAsync(
       resolve({ stdout, stderr, output, exitCode });
     });
   });
+}
+
+export interface ThymianResult {
+  stdout: string;
+  stderr: string;
+  exitCode: number | null;
+}
+
+/**
+ * Execute thymian and return stdout, stderr, and exitCode separately.
+ * Never throws on non-zero exit — callers can assert on exitCode.
+ */
+export function execThymianResult(
+  args: string[],
+  opts: { cwd?: string } = {},
+): ThymianResult {
+  const result = spawnThymian(args, opts);
+  return {
+    stdout: result.stdout ?? '',
+    stderr: result.stderr ?? '',
+    exitCode: result.status,
+  };
 }
 
 export function renderThymian(args: string[], opts?: { cwd?: string }) {

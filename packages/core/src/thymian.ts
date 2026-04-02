@@ -168,10 +168,14 @@ export class Thymian {
       return;
     }
 
+    this.logger.info('Loading plugins...');
     await this.loadRegisteredPlugins();
 
     await this.emitter.emitAction('core.ready');
 
+    this.logger.info(
+      `Thymian ready (${this.plugins.length} plugin(s) loaded).`,
+    );
     this.#ready = true;
   }
 
@@ -242,6 +246,10 @@ export class Thymian {
   ): Promise<ThymianFormat> {
     const options = { emitFormat: true, ..._options };
 
+    this.logger.info(
+      `Loading format from ${input.inputs?.length ?? 0} specification(s)...`,
+    );
+
     const formats = await this.emitter.emitAction('core.format.load', input, {
       strategy: 'collect',
     });
@@ -305,10 +313,16 @@ export class Thymian {
   async lint(input: LintWorkflowInput): Promise<WorkflowOutcome> {
     const { rulesConfig, ruleFilter } = input;
 
+    this.logger.info('Loading specification and rules...');
+
     const [format, rules] = await Promise.all([
       this.loadFormat({ inputs: input.specification }, { emitFormat: false }),
       loadRules(input.rules ?? [], ruleFilter, rulesConfig, this.options.cwd),
     ]);
+
+    this.logger.info(
+      `Loaded ${rules.length} rule(s). Running lint workflow...`,
+    );
 
     const results = await this.emitter.emitAction(
       'core.lint',
@@ -318,8 +332,11 @@ export class Thymian {
 
     this.bridgeReports(results, format);
 
+    const classification = this.classifyResults(results);
+    this.logger.info(`Lint complete: ${classification}.`);
+
     return {
-      classification: this.classifyResults(results),
+      classification,
       text: await this.flushReportText(),
       results,
     };
@@ -511,6 +528,7 @@ export class Thymian {
   private async registerPlugin(
     registeredPlugin: RegisteredPlugin,
   ): Promise<void> {
+    this.logger.info(`Registering plugin: ${registeredPlugin.plugin.name}`);
     this.logger.debug(
       `Register plugin ${registeredPlugin.plugin.name} with options ${JSON.stringify(registeredPlugin.options)}`,
     );

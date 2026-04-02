@@ -247,7 +247,7 @@ describe('generate config (integration)', () => {
       });
     });
 
-    it('--for-spec without explicit type defaults to openapi', async () => {
+    it('--for-spec with explicit type uses the provided type', async () => {
       const testDir = join(tmpDir, 'for-spec-no-type');
       mkdirSync(testDir, { recursive: true });
 
@@ -257,7 +257,7 @@ describe('generate config (integration)', () => {
           testDir,
           '--no-interactive',
           '--for-spec',
-          './api.yaml',
+          'openapi:./api.yaml',
         ]);
       });
 

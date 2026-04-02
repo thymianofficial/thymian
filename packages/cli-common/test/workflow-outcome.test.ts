@@ -1,9 +1,21 @@
+import { ux } from '@oclif/core';
 import { describe, expect, it, vi } from 'vitest';
 
 import {
   classificationToExitCode,
   handleWorkflowOutcome,
 } from '../src/workflow-outcome.js';
+
+vi.mock('@oclif/core', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@oclif/core')>();
+  return {
+    ...actual,
+    ux: {
+      ...actual.ux,
+      stdout: vi.fn(),
+    },
+  };
+});
 
 describe('workflow-outcome', () => {
   describe('classificationToExitCode', () => {
@@ -17,9 +29,8 @@ describe('workflow-outcome', () => {
   });
 
   describe('handleWorkflowOutcome', () => {
-    it('logs report text and does not exit on clean run', () => {
+    it('writes report text to stdout and does not exit on clean run', () => {
       const command = {
-        log: vi.fn(),
         exit: vi.fn(),
       };
 
@@ -29,7 +40,7 @@ describe('workflow-outcome', () => {
         results: [],
       });
 
-      expect(command.log).toHaveBeenCalledWith('all good');
+      expect(ux.stdout).toHaveBeenCalledWith('all good');
       expect(command.exit).not.toHaveBeenCalled();
     });
 
@@ -38,7 +49,6 @@ describe('workflow-outcome', () => {
       ['tool-error', 2],
     ] as const)('exits with %d for %s', (classification, exitCode) => {
       const command = {
-        log: vi.fn(),
         exit: vi.fn(),
       };
 
