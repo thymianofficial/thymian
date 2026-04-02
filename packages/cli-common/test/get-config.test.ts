@@ -2,7 +2,6 @@ import { mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
-import { method, statusCode } from '@thymian/core';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { defaultConfig } from '../src/default-config.js';
@@ -107,13 +106,10 @@ plugins:
   });
 
   describe('edge cases', () => {
-    it('should load config with filters array', async () => {
+    it('should load config with specifications array', async () => {
       const configContent: ThymianConfig = {
         plugins: {},
-        filters: [
-          { type: 'method', kind: 'request', method: 'get' },
-          { type: 'statusCode', code: 200, kind: 'response' },
-        ],
+        specifications: [{ type: 'openapi', location: './openapi.yaml' }],
       };
 
       const configPath = join(tempDir, 'thymian.config.json');
@@ -121,8 +117,8 @@ plugins:
 
       const config = await getConfig('thymian.config.json', tempDir);
 
-      expect(config.filters).toBeDefined();
-      expect(config.filters).toHaveLength(2);
+      expect(config.specifications).toBeDefined();
+      expect(config.specifications).toHaveLength(1);
     });
 
     it('should load config with empty plugins object', async () => {

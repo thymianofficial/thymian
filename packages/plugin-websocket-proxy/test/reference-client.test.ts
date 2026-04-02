@@ -11,11 +11,11 @@ describe('Reference Client', () => {
     const client = new ReferenceClient(
       45678,
       'remote-plugin',
-      ['core.run'],
+      ['core.lint'],
       [],
     );
 
-    client.onAction('core.run', () => {
+    client.onAction('core.lint', () => {
       client.emitEvent('core.report', {
         topic: client.options.key,
         title: 'B',
@@ -52,7 +52,11 @@ describe('Reference Client', () => {
 
     await Promise.all([thymian.ready(), client.init()]);
 
-    await thymian.emitter.emitAction('core.run', new ThymianFormat().export());
+    await thymian.emitter.emitAction('core.lint', {
+      format: new ThymianFormat().export(),
+      rules: [],
+      rulesConfig: {},
+    });
 
     await client.emitEvent('core.report', {
       topic: 'A',

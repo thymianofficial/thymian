@@ -5,10 +5,10 @@ import { Command, Flags, Interfaces, settings } from '@oclif/core';
 import { CLIError } from '@oclif/core/errors';
 import type { CommandError } from '@oclif/core/interfaces';
 import {
-  and,
-  type HttpFilterExpression,
+  isLogLevel,
   isPlugin,
   type Logger,
+  type LogLevel,
   TextLogger,
   Thymian,
   ThymianBaseError,
@@ -17,10 +17,11 @@ import {
 
 import { ErrorCache } from './error-cache.js';
 import { Feedback } from './feedback.js';
-import { filterFlag } from './flags/filter-flag.js';
-import { optionFlag, optionRegexp } from './flags/option-flag.js';
+import { deepSet, optionFlag } from './flags/option-flag.js';
+import { ruleSetFlag } from './flags/rule-set-flag.js';
+import { specFlag } from './flags/spec-flag.js';
+import { trafficFlag } from './flags/traffic-flag.js';
 import { getConfig } from './get-config.js';
-import { safeParse } from './safe-parse.js';
 import type { ThymianConfig } from './thymian-config.js';
 
 const require = createRequire(import.meta.url);
@@ -40,10 +41,20 @@ export abstract class BaseCliRunCommand<
   static override baseFlags = {
     verbose: Flags.boolean({
       default: false,
-      aliases: ['debug'],
+      description: 'Run thymian in verbose mode.',
+      helpGroup: 'BASE',
+    }),
+    debug: Flags.boolean({
+      default: false,
       charAliases: ['d'],
       description: 'Run thymian in debug mode.',
       helpGroup: 'BASE',
+    }),
+    ['log-level']: Flags.string({
+      description:
+        'Set log level (trace, debug, info, warn, error, silent). When set to trace, all events are traced.',
+      helpGroup: 'BASE',
+      options: ['trace', 'debug', 'info', 'warn', 'error', 'silent'],
     }),
     config: Flags.file({
       aliases: ['c'],
@@ -65,6 +76,15 @@ export abstract class BaseCliRunCommand<
       helpGroup: 'BASE',
     }),
     option: optionFlag(),
+    spec: specFlag(),
+    traffic: trafficFlag(),
+    ['rule-set']: ruleSetFlag(),
+    ['rule-severity']: Flags.string({
+      description:
+        'Set the minimum rule severity threshold for rule loading (off, error, warn, hint). Only rules at or above this severity are loaded.',
+      helpGroup: 'BASE',
+      options: ['off', 'error', 'warn', 'hint'],
+    }),
     timeout: Flags.integer({
       default: Thymian.DEFAULT_TIMEOUT,
       charAliases: ['t'],
@@ -78,16 +98,10 @@ export abstract class BaseCliRunCommand<
       helpGroup: 'BASE',
       default: Thymian.DEFAULT_IDLE_TIMEOUT,
     }),
-    'trace-events': Flags.boolean({
-      default: false,
-      description: 'All events that are emitted will be logged.',
-      helpGroup: 'BASE',
-    }),
     cwd: Flags.string({
       default: process.cwd(),
       description: 'Set current working directory.',
     }),
-    filter: filterFlag(),
     ['suppress-feedback']: Flags.boolean({
       default: false,
       description: 'Suppress feedback messages from Thymian.',
@@ -100,7 +114,6 @@ export abstract class BaseCliRunCommand<
   protected logger!: Logger;
   protected thymianConfig!: ThymianConfig;
   protected thymian!: Thymian;
-  public filter!: HttpFilterExpression;
   protected feedback!: Feedback;
   protected errorCache!: ErrorCache;
 
@@ -115,25 +128,22 @@ export abstract class BaseCliRunCommand<
     });
     this.flags = flags as CommandFlags<T>;
     this.args = args as CommandArgs<T>;
-    this.flags.verbose = settings.debug || this.flags.verbose;
-    this.logger = new TextLogger('@thymian/cli', this.flags.verbose);
+    this.flags.debug = settings.debug || this.flags.debug;
+
+    this.thymianConfig = await getConfig(this.flags.config, this.flags.cwd);
+    this.overridePluginOptions();
+
+    const logLevel = this.resolveLogLevelWithConfig();
+
+    this.logger = new TextLogger('@thymian/cli', logLevel);
+
     this.thymian = new Thymian(this.logger.child('@thymian/core'), {
       timeout: this.flags.timeout,
-      traceEvents: this.flags['trace-events'],
       cwd: this.flags.cwd,
       idleTimeout: this.flags['idle-timeout'],
     });
     this.feedback = Feedback.forCommand(this);
     this.errorCache = ErrorCache.forCommand(this);
-
-    this.thymianConfig = await getConfig(this.flags.config, this.flags.cwd);
-    this.overridePluginOptions();
-
-    this.filter = and(...(this.flags.filter ?? []));
-
-    if (Array.isArray(this.thymianConfig.filters)) {
-      this.filter = and(...this.thymianConfig.filters, this.filter);
-    }
 
     if (this.shouldAutoload()) {
       this.debug('Autoloading Thymian plugins.');
@@ -208,40 +218,61 @@ export abstract class BaseCliRunCommand<
     return this.thymianConfig.autoload ?? true;
   }
 
-  public setThymian(thymian: Thymian): void {
-    this.thymian = thymian;
-  }
-
+  /**
+   * Apply `-o` flag overrides to the loaded Thymian configuration.
+   *
+   * Each override targets a specific plugin by name and sets a deeply
+   * nested property on its `options` object.  If the plugin entry does
+   * not yet exist in the config it will be created.
+   */
   protected overridePluginOptions(): void {
-    if (!this.flags.option) {
+    if (!this.flags.option?.length) {
       return;
     }
 
-    for (const option of this.flags.option) {
-      const match = optionRegexp.exec(option);
-
-      if (!match) {
-        throw new CLIError(
-          `Expected option flag with format <pluginName>.<property>=<value>, but got: ${option}`,
-        );
-      }
-
-      const [, pluginName, property, value] = match;
-
-      if (!pluginName || !property || !value) {
-        throw new CLIError(
-          `Expected option flag with format <pluginName>.<property>=<value>, but got option with pluginName "${pluginName}", property "${property}" and value ${value}.`,
-        );
-      }
-
-      if (!this.thymianConfig.plugins[pluginName]?.options) {
-        this.thymianConfig.plugins[pluginName] ??= {};
-        this.thymianConfig.plugins[pluginName].options = {};
-      }
-
-      this.thymianConfig.plugins[pluginName].options[property] =
-        safeParse(value);
+    for (const override of this.flags.option) {
+      this.thymianConfig.plugins[override.pluginName] ??= {};
+      const pluginConfig = this.thymianConfig.plugins[override.pluginName]!;
+      pluginConfig.options ??= {};
+      deepSet(
+        pluginConfig.options as Record<string, unknown>,
+        override.path,
+        override.value,
+      );
     }
+  }
+
+  /**
+   * Re-resolve log level considering the config file.
+   * Only applies config.logLevel if no explicit flag was set.
+   */
+  private resolveLogLevelWithConfig(): LogLevel {
+    const flagLevel = this.flags['log-level'];
+
+    if (flagLevel && isLogLevel(flagLevel)) {
+      return flagLevel;
+    }
+
+    if (this.flags.debug) {
+      return 'debug';
+    }
+
+    if (this.flags.verbose) {
+      return 'info';
+    }
+
+    if (
+      this.thymianConfig.logLevel &&
+      isLogLevel(this.thymianConfig.logLevel)
+    ) {
+      return this.thymianConfig.logLevel;
+    }
+
+    return 'warn';
+  }
+
+  public setThymian(thymian: Thymian): void {
+    this.thymian = thymian;
   }
 
   protected async loadPluginModule(
@@ -297,7 +328,12 @@ export abstract class BaseCliRunCommand<
     for (const plugin of this.flags.plugin) {
       this.debug('Adding plugin from flag "%s" to Thymian config.', plugin);
 
-      if ((await this.isNpmPackage(plugin)) || isAbsolute(plugin)) {
+      const isPathPlugin =
+        isAbsolute(plugin) ||
+        plugin.startsWith('./') ||
+        plugin.startsWith('../');
+
+      if (!isPathPlugin) {
         this.debug('Load plugin "%s" as npm package or absolute path.', plugin);
 
         const pluginModule = await this.loadPluginModule(plugin, false);
@@ -313,15 +349,6 @@ export abstract class BaseCliRunCommand<
           path: plugin,
         };
       }
-    }
-  }
-
-  private async isNpmPackage(name: string): Promise<boolean> {
-    try {
-      require.resolve(name, { paths: [this.flags.cwd] });
-      return true;
-    } catch {
-      return false;
     }
   }
 

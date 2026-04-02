@@ -1,4 +1,5 @@
 import {
+  type EvaluatedRuleViolation,
   type Rule,
   type RuleRunnerAdapter,
   type RulesConfiguration,
@@ -34,6 +35,7 @@ declare module '@thymian/core' {
       };
       response: {
         reports: ThymianReport[];
+        violations: EvaluatedRuleViolation[];
         valid: boolean;
       };
     };
@@ -43,7 +45,6 @@ declare module '@thymian/core' {
 export type HttpLinterPluginOptions = Record<string, never>;
 
 function createStaticLinterAdapter(
-  pluginName: string,
   logger: import('@thymian/core').Logger,
   reportFn: (report: ThymianReport) => void,
   format: ThymianFormat,
@@ -51,8 +52,6 @@ function createStaticLinterAdapter(
 ): RuleRunnerAdapter<StaticApiContext> {
   return {
     errorName: 'StaticLinterError',
-    category: 'Static Checks',
-    producer: pluginName,
     mode: 'static',
     getRuleFn: (rule: Rule) => rule.lintRule,
     createContext: (
@@ -82,17 +81,15 @@ export function createHttpLinterPlugin(
         'core.lint',
         async ({ format, rules = [], rulesConfig = {} }, ctx) => {
           const thymianFormat = ThymianFormat.import(format);
-          const reports: ThymianReport[] = [];
-          const reportFn = (report: ThymianReport) => reports.push(report);
+          const reportFn = (report: ThymianReport) =>
+            emitter.emit('core.report', report);
 
-          const { valid, violations } = await runRules(
+          const { violations, statistics } = await runRules(
             logger,
             rules,
-            reportFn,
             thymianFormat,
             rulesConfig,
             createStaticLinterAdapter(
-              pluginName,
               logger,
               reportFn,
               thymianFormat,
@@ -101,9 +98,10 @@ export function createHttpLinterPlugin(
           );
 
           ctx.reply({
-            status: valid ? 'success' : 'failed',
-            reports,
+            source: pluginName,
+            status: violations.length === 0 ? 'success' : 'failed',
             violations,
+            statistics,
           });
         },
       );
@@ -115,14 +113,12 @@ export function createHttpLinterPlugin(
           const reports: ThymianReport[] = [];
           const reportFn = (report: ThymianReport) => reports.push(report);
 
-          const { valid } = await runRules(
+          const { violations } = await runRules(
             logger,
             rules,
-            reportFn,
             thymianFormat,
             rulesConfig,
             createStaticLinterAdapter(
-              pluginName,
               logger,
               reportFn,
               thymianFormat,
@@ -132,7 +128,8 @@ export function createHttpLinterPlugin(
 
           ctx.reply({
             reports,
-            valid,
+            violations,
+            valid: violations.length === 0,
           });
         },
       );

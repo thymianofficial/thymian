@@ -8,7 +8,7 @@ import {
   Thymian,
   ThymianFormat,
 } from '@thymian/core';
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
 import httpAnalyzerPlugin from '../src/index.js';
 
@@ -86,14 +86,17 @@ describe('http-analyzer analytics integration', { timeout: 30000 }, () => {
     );
 
     expect(result.valid).toBeFalsy();
-    expect(result.reports).toHaveLength(1);
-    expect(result.reports[0]).toMatchObject({
-      source: 'rfc9110/server-should-send-validator-fields',
-      title: httpTransactionToLabel(
-        transaction.request.data,
-        transaction.response.data,
-      ),
+    expect(result.violations).toHaveLength(1);
+    expect(result.violations[0]).toMatchObject({
+      ruleName: 'rfc9110/server-should-send-validator-fields',
+      severity: 'warn',
     });
+    // The transaction heading should appear in the violation location
+    const expectedHeading = httpTransactionToLabel(
+      transaction.request.data,
+      transaction.response.data,
+    );
+    expect(result.violations[0].violation.location).toBe(expectedHeading);
   });
 
   it('should return valid when all transactions pass rules', async () => {
@@ -146,7 +149,6 @@ describe('http-analyzer analytics integration', { timeout: 30000 }, () => {
     );
 
     expect(result.valid).toBe(true);
-    expect(result.reports).toHaveLength(0);
   });
 
   it('should return undefined for lint-analytics-batch when analyzer plugin is not registered', async () => {
@@ -222,7 +224,8 @@ describe('http-analyzer analytics integration', { timeout: 30000 }, () => {
     );
 
     expect(result.valid).toBeFalsy();
-    expect(result.reports).toHaveLength(90);
+    // All violations for the same rule — 90 transactions without etag produce 90 violations
+    expect(result.violations).toHaveLength(90);
   });
 
   it('should handle interleaved transaction events and multiple lints', async () => {
@@ -274,7 +277,7 @@ describe('http-analyzer analytics integration', { timeout: 30000 }, () => {
       },
     );
 
-    const firstCount = result1.reports.length;
+    const firstCount = result1.violations.length;
     expect(firstCount).toBeGreaterThanOrEqual(0);
 
     thymian.emitter.emit('http-analyzer.transaction', {
@@ -312,7 +315,7 @@ describe('http-analyzer analytics integration', { timeout: 30000 }, () => {
       },
     );
 
-    expect(result2.reports.length).toBeGreaterThanOrEqual(firstCount);
+    expect(result2.violations.length).toBeGreaterThanOrEqual(firstCount);
   });
 
   it('should handle concurrent transaction insertions', async () => {
@@ -373,7 +376,8 @@ describe('http-analyzer analytics integration', { timeout: 30000 }, () => {
     );
 
     expect(result.valid).toBeFalsy();
-    expect(result.reports).toHaveLength(50);
+    // All violations for the same rule — 50 transactions produce 50 violations
+    expect(result.violations).toHaveLength(50);
   });
 });
 
@@ -460,10 +464,9 @@ describe('core.analyze integration tests', { timeout: 30000 }, () => {
     );
 
     expect(result.status).toBe('failed');
-    expect(result.reports.length).toBeGreaterThanOrEqual(1);
     expect(result.violations.length).toBeGreaterThanOrEqual(1);
     expect(result.violations[0]).toMatchObject({
-      rule: 'rfc9110/server-should-send-validator-fields',
+      ruleName: 'rfc9110/server-should-send-validator-fields',
       severity: 'warn',
     });
   });
@@ -491,7 +494,6 @@ describe('core.analyze integration tests', { timeout: 30000 }, () => {
     );
 
     expect(result.status).toBe('success');
-    expect(result.reports).toHaveLength(0);
     expect(result.violations).toHaveLength(0);
   });
 
@@ -511,38 +513,7 @@ describe('core.analyze integration tests', { timeout: 30000 }, () => {
     );
 
     expect(result.status).toBe('success');
-    expect(result.reports).toHaveLength(0);
     expect(result.violations).toHaveLength(0);
-  });
-
-  it('should not emit core.report events', async () => {
-    await thymian
-      .register(httpAnalyzerPlugin, { storage: { type: 'memory' } })
-      .ready();
-
-    const reportSpy = vi.fn();
-    thymian.emitter.on('core.report', reportSpy);
-
-    const rules = await loadAnalyzerRules(
-      join(
-        import.meta.dirname,
-        'fixtures/rules/should-send-validator-fields.rule.mjs',
-      ),
-    );
-
-    const result = await thymian.emitter.emitAction(
-      'core.analyze',
-      {
-        format: new ThymianFormat().export(),
-        rules,
-        traffic: { transactions: [createFailingTransaction()] },
-      },
-      { strategy: 'first' },
-    );
-
-    expect(result.status).toBe('failed');
-    expect(result.violations.length).toBeGreaterThanOrEqual(1);
-    expect(reportSpy).not.toHaveBeenCalled();
   });
 
   it('should use ephemeral repo independent from persistent event-fed repo', async () => {
@@ -586,6 +557,6 @@ describe('core.analyze integration tests', { timeout: 30000 }, () => {
     );
 
     expect(batchResult.valid).toBeFalsy();
-    expect(batchResult.reports.length).toBeGreaterThanOrEqual(1);
+    expect(batchResult.violations.length).toBeGreaterThanOrEqual(1);
   });
 });

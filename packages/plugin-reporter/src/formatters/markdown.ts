@@ -8,25 +8,26 @@ import type {
 import { mkdir, writeFile } from 'fs/promises';
 
 import { analyze, type Formatter } from '../formatter.js';
+import { errorSymbol, hintSymbol, warnSymbol } from '../style.js';
 
-export const details = (details: string): string =>
+export const details = (text: string): string =>
   `
   <details>
   <summary>More details</summary>
-  ${details}
+  ${text}
   </details>`;
 
 export function mapSeverityToBadge(severity: ThymianReportSeverity): string {
   if (severity === 'error') {
-    return '❌ ERROR';
+    return `${errorSymbol} error`;
   }
   if (severity === 'warn') {
-    return '⚠️ WARN';
+    return `${warnSymbol} warn`;
   }
   if (severity === 'hint') {
-    return '💡 HINT';
+    return `${hintSymbol} hint`;
   }
-  return 'ℹ️ INFO';
+  return 'info';
 }
 
 export type MarkdownFormatterOptions = {
@@ -44,13 +45,13 @@ export class MarkdownFormatter implements Formatter<MarkdownFormatterOptions> {
     this.options = options;
   }
 
-  report(report: ThymianReport): void | Promise<void> {
+  report(report: ThymianReport): void {
     this.reports.push(report);
   }
 
-  async flush(): Promise<void> {
+  async flush(): Promise<string | undefined> {
     if (this.reports.length === 0) {
-      return;
+      return undefined;
     }
 
     const analysis = analyze(this.reports);
@@ -58,33 +59,49 @@ export class MarkdownFormatter implements Formatter<MarkdownFormatterOptions> {
     const lines: string[] = [];
     lines.push('# Thymian Report');
 
-    const { numberOfReports, severityCounts } = analysis.statistics;
+    const { numberOfReports, numberOfItems, severityCounts } =
+      analysis.statistics;
 
-    lines.push('A total of ' + numberOfReports + ' reports were found.');
     lines.push(
-      `Of these there are ${severityCounts.error} errors, ${severityCounts.warn} warnings, and ${severityCounts.hint} hints and ${severityCounts.info} infos.`,
+      `A total of ${numberOfReports} reports with ${numberOfItems} items were found.`,
+    );
+    lines.push(
+      `Of these there are ${severityCounts.error} errors, ${severityCounts.warn} warnings, ${severityCounts.hint} hints and ${severityCounts.info} infos.`,
     );
     lines.push('');
 
-    for (const [producer, categories] of Object.entries(analysis.normalized)) {
-      lines.push(`## ${producer}`);
+    for (const report of analysis.reports) {
+      lines.push(`## ${report.source}`);
       lines.push('');
 
-      for (const [category, titles] of Object.entries(categories)) {
-        lines.push(`### ${category}`);
+      if (report.message) {
+        lines.push(`  ${report.message}`);
         lines.push('');
+        lines.push('');
+      }
 
-        for (const [title, reports] of Object.entries(titles)) {
-          lines.push(`#### ${title}`);
+      if (report.sections) {
+        for (const section of report.sections) {
+          lines.push(`### ${section.heading}`);
           lines.push('');
 
-          for (const report of reports) {
-            const sev = mapSeverityToBadge(report.severity);
-            const src = report.source ? `\n   — *${report.source}*` : '';
-            lines.push(`- ${sev}: ${report.summary}${src}`);
+          for (const item of section.items) {
+            const sev = mapSeverityToBadge(item.severity);
+            lines.push(`- **${sev}**: ${item.message}`);
 
-            if (report.details) {
-              lines.push(details(report.details));
+            if (item.ruleName) {
+              lines.push(`<br/>  *Rule: ${item.ruleName}*`);
+            }
+
+            if (item.details) {
+              lines.push(details(item.details));
+            }
+
+            if (item.links && item.links.length > 0) {
+              lines.push('  Related links:');
+              for (const link of item.links) {
+                lines.push(`  - [${link.title ?? link.url}](${link.url})`);
+              }
             }
           }
 
@@ -100,5 +117,7 @@ export class MarkdownFormatter implements Formatter<MarkdownFormatterOptions> {
     await writeFile(this.options.path, lines.join('\n'), 'utf-8');
 
     this.logger.debug(`Wrote Markdown report to ${this.options.path}.`);
+
+    return undefined;
   }
 }

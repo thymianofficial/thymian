@@ -1,4 +1,4 @@
-import type { Logger } from '@thymian/core';
+import type { Logger, LogLevel } from '@thymian/core';
 import { vi } from 'vitest';
 
 /**
@@ -22,37 +22,22 @@ import { vi } from 'vitest';
 export function createMockLogger(overrides: Partial<Logger> = {}): Logger {
   const logger: Logger = {
     namespace: 'mock-logger',
-    verbose: false,
+    level: 'warn' as LogLevel,
     debug: vi.fn(),
     info: vi.fn(),
     error: vi.fn(),
     trace: vi.fn(),
     warn: vi.fn(),
     out: vi.fn(),
-    child: vi.fn((name: string, verbose?: boolean) =>
+    child: vi.fn((name: string) =>
       createMockLogger({
+        level: logger.level,
         namespace: `${logger.namespace}:${name}`,
-        verbose: verbose ?? logger.verbose,
       }),
     ),
     ...overrides,
   };
   return logger;
-}
-
-/**
- * Creates a verbose mock Logger (with verbose: true).
- *
- * @param overrides - Partial logger to override defaults
- * @returns A mock Logger instance with verbose enabled
- */
-export function createVerboseMockLogger(
-  overrides: Partial<Logger> = {},
-): Logger {
-  return createMockLogger({
-    verbose: true,
-    ...overrides,
-  });
 }
 
 /**
@@ -67,17 +52,16 @@ export function createSilentMockLogger(
 ): Logger {
   return {
     namespace: 'silent-logger',
-    verbose: false,
+    level: 'silent' as LogLevel,
     debug: () => undefined,
     info: () => undefined,
     error: () => undefined,
     trace: () => undefined,
     warn: () => undefined,
     out: () => undefined,
-    child: (name: string, verbose?: boolean) =>
+    child: (name: string) =>
       createSilentMockLogger({
         namespace: `silent-logger:${name}`,
-        verbose: verbose ?? false,
       }),
     ...overrides,
   };

@@ -4,7 +4,11 @@ import { isClientToServerMessage } from '../src/message-schemas';
 
 describe('Message validation', () => {
   it('should validate register message', () => {
-    const msg = { type: 'register', name: 'client-a', onActions: ['core.run'] };
+    const msg = {
+      type: 'register',
+      name: 'client-a',
+      onActions: ['core.lint'],
+    };
     expect(isClientToServerMessage(msg)).toBe(true);
   });
 
@@ -22,7 +26,7 @@ describe('Message validation', () => {
     const msg = {
       type: 'emitAction',
       id: 'abc',
-      name: 'core.run',
+      name: 'core.lint',
       payload: { x: 1 },
       options: { strategy: 'first', timeout: 1000 },
     };
@@ -33,13 +37,13 @@ describe('Message validation', () => {
     const reply = {
       type: 'actionReply',
       correlationId: 'c1',
-      name: 'core.run',
+      name: 'core.lint',
       payload: { ok: true },
     };
     const error = {
       type: 'actionError',
       correlationId: 'c2',
-      name: 'core.run',
+      name: 'core.lint',
       error: { message: 'fail' },
     };
     expect(isClientToServerMessage(reply)).toBe(true);

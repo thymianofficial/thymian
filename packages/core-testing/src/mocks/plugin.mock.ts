@@ -110,7 +110,7 @@ export function createPluginThatEmits<
  *   },
  *   actions: {
  *     provides: {
- *       'core.load-format': { event: {}, response: {} }
+ *       'core.format.load': { event: {}, response: {} }
  *     }
  *   }
  * });

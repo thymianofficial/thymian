@@ -1,24 +1,34 @@
 import type { JSONSchemaType } from 'ajv/dist/2020.js';
 
-import {
-  type ThymianReport,
-  thymianReportSchema,
-} from '../events/report.event.js';
-import type { RuleViolation } from '../rules/rule-violation.js';
+import type { RuleRunnerStatistics } from '../rules/rule-runner.js';
+import type { EvaluatedRuleViolation } from '../rules/rule-violation.js';
 
 export interface ValidationResult {
+  source: string;
   status: 'success' | 'failed' | 'error';
-  violations: RuleViolation[];
-  reports: ThymianReport[];
+  violations: EvaluatedRuleViolation[];
+  statistics?: RuleRunnerStatistics;
   metadata?: Record<string, unknown>;
+}
+
+export type WorkflowClassification = 'clean-run' | 'findings' | 'tool-error';
+
+export interface WorkflowOutcome {
+  classification: WorkflowClassification;
+  text?: string;
+  results: ValidationResult[];
 }
 
 export const validationResultSchema = {
   type: 'object',
   nullable: false,
-  required: ['status', 'violations', 'reports'],
+  required: ['source', 'status', 'violations'],
   additionalProperties: false,
   properties: {
+    source: {
+      type: 'string',
+      nullable: false,
+    },
     status: {
       type: 'string',
       enum: ['success', 'failed', 'error'],
@@ -30,51 +40,56 @@ export const validationResultSchema = {
       items: {
         type: 'object',
         nullable: false,
-        required: ['rule', 'severity', 'location'],
+        required: ['ruleName', 'severity', 'violation'],
         additionalProperties: false,
         properties: {
-          rule: { type: 'string', nullable: false },
+          ruleName: { type: 'string', nullable: false },
           severity: {
             type: 'string',
             enum: ['error', 'warn', 'hint'],
             nullable: false,
           },
-          message: { type: 'string', nullable: true },
-          summary: { type: 'string', nullable: true },
-          metadata: {
+          violation: {
             type: 'object',
-            nullable: true,
-            required: [],
-            additionalProperties: true,
-          },
-          location: {
-            oneOf: [
-              { type: 'string', nullable: true },
-              {
-                type: 'object',
-                nullable: true,
-                required: ['elementType', 'elementId'],
-                additionalProperties: false,
-                properties: {
-                  elementType: {
-                    type: 'string',
-                    enum: ['node', 'edge'],
-                    nullable: false,
+            nullable: false,
+            required: ['location'],
+            additionalProperties: false,
+            properties: {
+              location: {
+                oneOf: [
+                  { type: 'string', nullable: true },
+                  {
+                    type: 'object',
+                    nullable: true,
+                    required: ['elementType', 'elementId'],
+                    additionalProperties: false,
+                    properties: {
+                      elementType: {
+                        type: 'string',
+                        enum: ['node', 'edge'],
+                        nullable: false,
+                      },
+                      elementId: { type: 'string', nullable: false },
+                      pointer: { type: 'string', nullable: true },
+                      label: { type: 'string', nullable: true },
+                    },
                   },
-                  elementId: { type: 'string', nullable: false },
-                  pointer: { type: 'string', nullable: true },
-                  label: { type: 'string', nullable: true },
-                },
+                ],
               },
-            ],
+              message: { type: 'string', nullable: true },
+            },
           },
         },
       },
     },
-    reports: {
-      type: 'array',
-      nullable: false,
-      items: thymianReportSchema,
+    statistics: {
+      type: 'object',
+      nullable: true,
+      additionalProperties: false,
+      properties: {
+        rulesRun: { type: 'integer', nullable: false },
+        rulesWithViolations: { type: 'integer', nullable: false },
+      },
     },
     metadata: {
       type: 'object',

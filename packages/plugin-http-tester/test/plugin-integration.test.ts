@@ -6,7 +6,7 @@ import {
   createHttpResponse,
   createThymianFormatWithTransaction,
 } from '@thymian/core-testing';
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
 import httpTesterPlugin from '../src/index.js';
 
@@ -128,10 +128,9 @@ describe('core.test integration tests', { timeout: 30000 }, () => {
     );
 
     expect(result.status).toBe('failed');
-    expect(result.reports.length).toBeGreaterThanOrEqual(1);
     expect(result.violations.length).toBeGreaterThanOrEqual(1);
     expect(result.violations[0]).toMatchObject({
-      rule: 'rfc9110/server-should-send-validator-fields',
+      ruleName: 'rfc9110/server-should-send-validator-fields',
       severity: 'warn',
     });
   });
@@ -163,7 +162,6 @@ describe('core.test integration tests', { timeout: 30000 }, () => {
     );
 
     expect(result.status).toBe('success');
-    expect(result.reports).toHaveLength(0);
     expect(result.violations).toHaveLength(0);
   });
 
@@ -182,38 +180,7 @@ describe('core.test integration tests', { timeout: 30000 }, () => {
     );
 
     expect(result.status).toBe('success');
-    expect(result.reports).toHaveLength(0);
     expect(result.violations).toHaveLength(0);
-  });
-
-  it('should not emit core.report events', async () => {
-    registerRequestMocks(thymian);
-    await thymian.register(httpTesterPlugin, {}).ready();
-
-    const reportSpy = vi.fn();
-    thymian.emitter.on('core.report', reportSpy);
-
-    const rules = await loadRules(
-      join(
-        import.meta.dirname,
-        'fixtures/rules/should-send-validator-fields.rule.mjs',
-      ),
-    );
-
-    const format = createThymianFormatWithTransaction(
-      createHttpRequest({ method: 'get' }),
-      createHttpResponse({ statusCode: 200 }),
-    );
-
-    const result = await thymian.emitter.emitAction(
-      'core.test',
-      { format: format.export(), rules },
-      { strategy: 'first' },
-    );
-
-    expect(result.status).toBe('failed');
-    expect(result.violations.length).toBeGreaterThanOrEqual(1);
-    expect(reportSpy).not.toHaveBeenCalled();
   });
 
   it('should skip rules with severity off via rulesConfig', async () => {
@@ -245,7 +212,6 @@ describe('core.test integration tests', { timeout: 30000 }, () => {
     );
 
     expect(result.status).toBe('success');
-    expect(result.reports).toHaveLength(0);
     expect(result.violations).toHaveLength(0);
   });
 });

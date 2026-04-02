@@ -9,21 +9,32 @@ import type {
   SpecificationInput,
   TrafficInput,
   ValidationResult,
+  WorkflowClassification,
+  WorkflowOutcome,
 } from './actions/index.js';
 import { validate } from './ajv.js';
 import { corePlugin } from './core-plugin.js';
 import { ThymianEmitter } from './emitter/index.js';
+import type {
+  ThymianReport,
+  ThymianReportItem,
+  ThymianReportLocation,
+  ThymianReportSection,
+} from './events/report.event.js';
 import { ThymianFormat } from './format/index.js';
 import type { HttpRequestTemplate, HttpResponse } from './http.js';
-import { constant, type HttpFilterExpression } from './http-filter.js';
+import type { LogLevel } from './logger/log-level.js';
+import { shouldLog } from './logger/log-level.js';
 import type { Logger } from './logger/logger.js';
 import { NoopLogger } from './logger/noop.logger.js';
 import {
   type LoadedTraffic,
   loadRules,
-  type Rule,
+  type RuleFilter,
   type RulesConfiguration,
 } from './rules/index.js';
+import { resolveViolationLocation } from './rules/rule-runner.js';
+import type { EvaluatedRuleViolation } from './rules/rule-violation.js';
 import { ThymianBaseError } from './thymian.error.js';
 import type { ThymianPlugin } from './thymian-plugin.js';
 import { timeoutPromise } from './utils.js';
@@ -32,6 +43,7 @@ export interface LintWorkflowInput {
   specification: SpecificationInput[];
   rules?: string[];
   rulesConfig?: RulesConfiguration;
+  ruleFilter?: RuleFilter;
   options?: Record<string, unknown>;
 }
 
@@ -39,6 +51,7 @@ export interface TestWorkflowInput {
   specification: SpecificationInput[];
   rules?: string[];
   rulesConfig?: RulesConfiguration;
+  ruleFilter?: RuleFilter;
   options?: Record<string, unknown>;
 }
 
@@ -47,6 +60,7 @@ export interface AnalyzeWorkflowInput {
   traffic: TrafficInput[];
   rules?: string[];
   rulesConfig?: RulesConfiguration;
+  ruleFilter?: RuleFilter;
   options?: Record<string, unknown>;
 }
 
@@ -65,6 +79,7 @@ export type ThymianOptions = {
   traceEvents: boolean;
   cwd: string;
   logAllErrors: boolean;
+  logLevel?: LogLevel;
 };
 
 export class Thymian {
@@ -88,19 +103,20 @@ export class Thymian {
     private readonly logger: Logger = new NoopLogger(),
     options: Partial<ThymianOptions> = {},
   ) {
+    const logLevel = options.logLevel ?? logger.level;
+    const traceEvents = options.traceEvents ?? shouldLog('trace', logLevel);
+
     this.options = {
       idleTimeout: Thymian.DEFAULT_IDLE_TIMEOUT,
       timeout: Thymian.DEFAULT_TIMEOUT,
-      traceEvents: false,
       cwd: process.cwd(),
       logAllErrors: false,
+      logLevel,
       ...options,
+      traceEvents,
     };
 
-    const emitterLogger = logger.child(
-      '@thymian/core',
-      this.options.traceEvents,
-    );
+    const emitterLogger = logger.child('@thymian/core');
     this.emitter = new ThymianEmitter(
       emitterLogger,
       ThymianEmitter.emptyEmitterState('@thymian/core'),
@@ -220,56 +236,23 @@ export class Thymian {
   }
 
   async loadFormat(
-    inputOrFilter: CoreFormatLoadInput | HttpFilterExpression = constant(true),
+    input: CoreFormatLoadInput,
     _options: { emitFormat?: boolean } = {},
   ): Promise<ThymianFormat> {
     const options = { emitFormat: true, ..._options };
 
-    const isCoreFormatLoadInput = (
-      value: CoreFormatLoadInput | HttpFilterExpression,
-    ): value is CoreFormatLoadInput =>
-      typeof value === 'object' &&
-      value !== null &&
-      'inputs' in value &&
-      Array.isArray(value.inputs);
-
-    const filter = isCoreFormatLoadInput(inputOrFilter)
-      ? constant(true)
-      : inputOrFilter;
-
-    const useNewFormatInputs = isCoreFormatLoadInput(inputOrFilter);
-
-    const [legacyFormats, formats] = await Promise.all([
-      this.emitter.emitAction(
-        'core.load-format',
-        { filter },
-        {
-          strategy: 'collect',
-        },
-      ),
-      this.emitter.emitAction(
-        'core.format.load',
-        useNewFormatInputs ? inputOrFilter : { inputs: [] },
-        {
-          strategy: 'collect',
-        },
-      ),
-    ]);
-
-    const allFormats = useNewFormatInputs
-      ? formats
-      : legacyFormats.concat(formats);
+    const formats = await this.emitter.emitAction('core.format.load', input, {
+      strategy: 'collect',
+    });
 
     const format =
-      allFormats.length === 0
+      formats.length === 0
         ? new ThymianFormat()
-        : // we know that formats.length >= 1
-
-          allFormats
+        : formats
             .slice(1)
             .reduce(
               (acc, curr) => acc.merge(ThymianFormat.import(curr)),
-              ThymianFormat.import(allFormats[0]!),
+              ThymianFormat.import(formats[0]!),
             );
 
     this.logger.debug(
@@ -280,15 +263,11 @@ export class Thymian {
       await this.emitter.emitAction('core.format', format.export());
     }
 
-    const filteredFormat = format.filter(filter);
-
-    if (filteredFormat.graph.size === 0) {
-      this.logger.warn(
-        'No nodes found in Thymian format after filtering. Is this intended?',
-      );
+    if (format.graph.size === 0) {
+      this.logger.warn('No nodes found in Thymian format. Is this intended?');
     }
 
-    return filteredFormat;
+    return format;
   }
 
   async loadTraffic(input: CoreTrafficLoadInput): Promise<LoadedTraffic> {
@@ -322,42 +301,58 @@ export class Thymian {
    * Plugins own the mode-specific execution semantics behind these entrypoints.
    * This keeps the consumer-facing API stable while preserving plugin-based extensibility.
    */
-  async lint(input: LintWorkflowInput): Promise<ValidationResult[]> {
-    const { rulesConfig } = input;
+  async lint(input: LintWorkflowInput): Promise<WorkflowOutcome> {
+    const { rulesConfig, ruleFilter } = input;
 
     const [format, rules] = await Promise.all([
       this.loadFormat({ inputs: input.specification }, { emitFormat: false }),
-      loadRules(input.rules ?? [], undefined, rulesConfig, this.options.cwd),
+      loadRules(input.rules ?? [], ruleFilter, rulesConfig, this.options.cwd),
     ]);
 
-    return this.emitter.emitAction(
+    const results = await this.emitter.emitAction(
       'core.lint',
       { format: format.export(), rules, rulesConfig, options: input.options },
       { strategy: 'collect' },
     );
+
+    this.bridgeReports(results, format);
+
+    return {
+      classification: this.classifyResults(results),
+      text: await this.flushReportText(),
+      results,
+    };
   }
 
-  async test(input: TestWorkflowInput): Promise<ValidationResult[]> {
-    const { rulesConfig } = input;
+  async test(input: TestWorkflowInput): Promise<WorkflowOutcome> {
+    const { rulesConfig, ruleFilter } = input;
 
     const [format, rules] = await Promise.all([
       this.loadFormat({ inputs: input.specification }, { emitFormat: false }),
-      loadRules(input.rules ?? [], undefined, rulesConfig, this.options.cwd),
+      loadRules(input.rules ?? [], ruleFilter, rulesConfig, this.options.cwd),
     ]);
 
-    return this.emitter.emitAction(
+    const results = await this.emitter.emitAction(
       'core.test',
       { format: format.export(), rules, rulesConfig, options: input.options },
       { strategy: 'collect' },
     );
+
+    this.bridgeReports(results, format);
+
+    return {
+      classification: this.classifyResults(results),
+      text: await this.flushReportText(),
+      results,
+    };
   }
 
-  async analyze(input: AnalyzeWorkflowInput): Promise<ValidationResult[]> {
-    const { rulesConfig } = input;
+  async analyze(input: AnalyzeWorkflowInput): Promise<WorkflowOutcome> {
+    const { rulesConfig, ruleFilter } = input;
 
     const [traffic, rules, format] = await Promise.all([
       this.loadTraffic({ inputs: input.traffic }),
-      loadRules(input.rules ?? [], undefined, rulesConfig, this.options.cwd),
+      loadRules(input.rules ?? [], ruleFilter, rulesConfig, this.options.cwd),
       input.specification
         ? this.loadFormat(
             { inputs: input.specification },
@@ -366,7 +361,7 @@ export class Thymian {
         : Promise.resolve(undefined),
     ]);
 
-    return this.emitter.emitAction(
+    const results = await this.emitter.emitAction(
       'core.analyze',
       {
         traffic,
@@ -377,6 +372,14 @@ export class Thymian {
       },
       { strategy: 'collect' },
     );
+
+    this.bridgeReports(results, format ?? new ThymianFormat());
+
+    return {
+      classification: this.classifyResults(results),
+      text: await this.flushReportText(),
+      results,
+    };
   }
 
   async sample(input: CoreRequestSampleInput): Promise<HttpRequestTemplate> {
@@ -389,6 +392,102 @@ export class Thymian {
     return this.emitter.emitAction('core.request.dispatch', input, {
       strategy: 'first',
     });
+  }
+
+  private bridgeReports(
+    results: ValidationResult[],
+    format: ThymianFormat,
+  ): void {
+    for (const result of results) {
+      // Create and emit reports from evaluated rule violations
+      if (result.violations.length > 0) {
+        this.emitter.emit(
+          'core.report',
+          this.createReportFromViolations(
+            result.source,
+            result.violations,
+            format,
+            result,
+          ),
+        );
+      }
+    }
+  }
+
+  private classifyResults(results: ValidationResult[]): WorkflowClassification {
+    if (results.some((result) => result.status === 'error')) {
+      return 'tool-error';
+    }
+
+    if (results.some((result) => result.status === 'failed')) {
+      return 'findings';
+    }
+
+    return 'clean-run';
+  }
+
+  private async flushReportText(): Promise<string | undefined> {
+    const [flushResult] = await this.emitter.emitAction(
+      'core.report.flush',
+      undefined,
+      { strategy: 'collect' },
+    );
+
+    return flushResult?.text;
+  }
+
+  private createReportFromViolations(
+    source: string,
+    violations: EvaluatedRuleViolation[],
+    format: ThymianFormat,
+    result: ValidationResult,
+  ): ThymianReport {
+    let message = '';
+    if (result.statistics) {
+      message = `${result.statistics.rulesRun} HTTP rules run successfully. ${result.statistics.rulesWithViolations} rules reported a violation.`;
+    }
+
+    // Group violations by their resolved location heading
+    const sectionMap = new Map<
+      string,
+      { location?: ThymianReportLocation; items: ThymianReportItem[] }
+    >();
+
+    for (const { ruleName, severity, violation } of violations) {
+      const { heading, location } = resolveViolationLocation(
+        violation,
+        format,
+        ruleName,
+      );
+
+      let section = sectionMap.get(heading);
+
+      if (!section) {
+        section = { location, items: [] };
+        sectionMap.set(heading, section);
+      }
+
+      const item: ThymianReportItem = {
+        severity,
+        message: violation.message,
+        ruleName,
+        location,
+      };
+
+      section.items.push(item);
+    }
+
+    const sections: ThymianReportSection[] = [];
+
+    for (const [heading, { location, items }] of sectionMap) {
+      sections.push({ heading, items, location });
+    }
+
+    return {
+      source,
+      message,
+      sections,
+    };
   }
 
   private async loadRegisteredPlugins(): Promise<void> {

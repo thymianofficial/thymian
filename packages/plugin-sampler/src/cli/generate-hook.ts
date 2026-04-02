@@ -29,7 +29,7 @@ export async function generateHook<
   loadedThymianFormat?: ThymianFormat,
 ): Promise<void> {
   const thymianFormat =
-    loadedThymianFormat ?? (await thymian.loadFormat(command.filter));
+    loadedThymianFormat ?? (await thymian.loadFormat({ inputs: [] }));
 
   const titleToTransaction = new Map<string, ThymianHttpTransaction>();
 

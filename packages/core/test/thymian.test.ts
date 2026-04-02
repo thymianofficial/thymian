@@ -71,10 +71,14 @@ describe('Thymian', () => {
       name: '',
       version: '',
       plugin: async (emitter) => {
-        emitter.onAction('core.run', (format, ctx) => {
+        emitter.onAction('core.lint', (_payload, ctx) => {
           emitter.emit('test', 1);
           emitter.emit('event', 'turing');
-          ctx.reply({ pluginName: '', status: 'success' });
+          ctx.reply({
+            source: 'test-plugin',
+            status: 'success',
+            violations: [],
+          });
         });
       },
     });
@@ -101,10 +105,11 @@ describe('Thymian', () => {
     );
 
     await thymian.run(async () => {
-      await thymian.emitter.emitAction(
-        'core.run',
-        new ThymianFormat().export(),
-      );
+      await thymian.emitter.emitAction('core.lint', {
+        format: new ThymianFormat().export(),
+        rules: [],
+        rulesConfig: {},
+      });
     });
 
     expect(a).toHaveBeenCalledTimes(1);
@@ -136,7 +141,7 @@ describe('Thymian', () => {
 
     thymian.register(
       createPluginFor(async (emitter) => {
-        emitter.onAction('core.run', (_, ctx) => {
+        emitter.onAction('core.lint', (_, ctx) => {
           ctx.error({
             message: 'Error event!',
             name: 'MyError',
@@ -150,10 +155,11 @@ describe('Thymian', () => {
 
     try {
       await thymian.run(async () => {
-        await thymian.emitter.emitAction(
-          'core.run',
-          new ThymianFormat().export(),
-        );
+        await thymian.emitter.emitAction('core.lint', {
+          format: new ThymianFormat().export(),
+          rules: [],
+          rulesConfig: {},
+        });
       });
       expect.fail('Thymian should have rejected the promise.');
     } catch (err) {
@@ -162,287 +168,6 @@ describe('Thymian', () => {
         message: 'Error event!',
       });
     }
-  });
-
-  describe('loadFormat', () => {
-    it('should load and merge formats from plugins', async () => {
-      thymian.register(
-        createPluginFor(async (emitter) => {
-          emitter.onAction('core.load-format', (_, ctx) => {
-            const format = new ThymianFormat();
-            format.addHttpTransaction(
-              {
-                type: 'http-request',
-                host: 'localhost',
-                port: 8080,
-                protocol: 'http',
-                path: '/test',
-                method: 'get',
-                headers: {},
-                queryParameters: {},
-                cookies: {},
-                pathParameters: {},
-                mediaType: '',
-              },
-              {
-                type: 'http-response',
-                headers: {},
-                mediaType: 'text/plain',
-                statusCode: 200,
-              },
-              'source1',
-            );
-
-            ctx.reply(format.export());
-          });
-        }),
-      );
-
-      await thymian.ready();
-
-      const format = await thymian.loadFormat();
-
-      expect(format).toBeInstanceOf(ThymianFormat);
-      expect(format.getThymianHttpTransactions().length).toBe(1);
-    });
-
-    it('should apply filter to loaded format', async () => {
-      thymian.register(
-        createPluginFor(async (emitter) => {
-          emitter.onAction('core.load-format', (_, ctx) => {
-            const format = new ThymianFormat();
-            format.addHttpTransaction(
-              {
-                type: 'http-request',
-                host: 'localhost',
-                port: 8080,
-                protocol: 'http',
-                path: '/users',
-                method: 'get',
-                headers: {},
-                queryParameters: {},
-                cookies: {},
-                pathParameters: {},
-                mediaType: '',
-              },
-              {
-                type: 'http-response',
-                headers: {},
-                mediaType: 'application/json',
-                statusCode: 200,
-              },
-              'source1',
-            );
-            format.addHttpTransaction(
-              {
-                type: 'http-request',
-                host: 'localhost',
-                port: 8080,
-                protocol: 'http',
-                path: '/users',
-                method: 'post',
-                headers: {},
-                queryParameters: {},
-                cookies: {},
-                pathParameters: {},
-                mediaType: 'application/json',
-              },
-              {
-                type: 'http-response',
-                headers: {},
-                mediaType: 'application/json',
-                statusCode: 201,
-              },
-              'source1',
-            );
-
-            ctx.reply(format.export());
-          });
-        }),
-      );
-
-      await thymian.ready();
-
-      const format = await thymian.loadFormat({
-        type: 'method',
-        method: 'get',
-        kind: 'request',
-      });
-
-      expect(format.getThymianHttpTransactions().length).toBe(1);
-      expect(format.getThymianHttpTransactions()[0].thymianReq.method).toBe(
-        'get',
-      );
-    });
-
-    it('should emit format action when emitFormat is true', async () => {
-      const formatActionSpy = vitest.fn();
-
-      thymian.register(
-        createPluginFor(async (emitter) => {
-          emitter.onAction('core.load-format', (_, ctx) => {
-            const format = new ThymianFormat();
-            ctx.reply(format.export());
-          });
-
-          emitter.onAction('core.format', (_, ctx) => {
-            formatActionSpy();
-            ctx.reply();
-          });
-        }),
-      );
-
-      await thymian.ready();
-      await thymian.loadFormat(undefined, { emitFormat: true });
-
-      expect(formatActionSpy).toHaveBeenCalled();
-    });
-
-    it('should not emit format action when emitFormat is false', async () => {
-      const formatActionSpy = vitest.fn();
-
-      thymian.register(
-        createPluginFor(async (emitter) => {
-          emitter.onAction('core.load-format', (_, ctx) => {
-            const format = new ThymianFormat();
-            ctx.reply(format.export());
-          });
-
-          emitter.onAction('core.format', (_, ctx) => {
-            formatActionSpy();
-            ctx.reply();
-          });
-        }),
-      );
-
-      await thymian.ready();
-      await thymian.loadFormat(undefined, { emitFormat: false });
-
-      expect(formatActionSpy).not.toHaveBeenCalled();
-    });
-
-    it('should return empty format when filter results in no transactions', async () => {
-      thymian.register(
-        createPluginFor(async (emitter) => {
-          emitter.onAction('core.load-format', (_, ctx) => {
-            const format = new ThymianFormat();
-            format.addHttpTransaction(
-              {
-                type: 'http-request',
-                host: 'localhost',
-                port: 8080,
-                protocol: 'http',
-                path: '/users',
-                method: 'get',
-                headers: {},
-                queryParameters: {},
-                cookies: {},
-                pathParameters: {},
-                mediaType: '',
-              },
-              {
-                type: 'http-response',
-                headers: {},
-                mediaType: 'application/json',
-                statusCode: 200,
-              },
-              'source1',
-            );
-
-            ctx.reply(format.export());
-          });
-        }),
-      );
-
-      await thymian.ready();
-
-      const format = await thymian.loadFormat({
-        type: 'method',
-        method: 'delete',
-        kind: 'request',
-      });
-
-      expect(format.getThymianHttpTransactions().length).toBe(0);
-    });
-
-    it('should apply filter after merging formats', async () => {
-      thymian.register(
-        createPluginFor(async (emitter) => {
-          emitter.onAction('core.load-format', (_, ctx) => {
-            const format = new ThymianFormat();
-            format.addHttpTransaction(
-              {
-                type: 'http-request',
-                host: 'localhost',
-                port: 8080,
-                protocol: 'http',
-                path: '/users',
-                method: 'get',
-                headers: {},
-                queryParameters: {},
-                cookies: {},
-                pathParameters: {},
-                mediaType: '',
-              },
-              {
-                type: 'http-response',
-                headers: {},
-                mediaType: 'application/json',
-                statusCode: 200,
-              },
-              'plugin1',
-            );
-
-            ctx.reply(format.export());
-          });
-        }),
-      );
-
-      thymian.register(
-        createPluginFor(async (emitter) => {
-          emitter.onAction('core.load-format', (_, ctx) => {
-            const format = new ThymianFormat();
-            format.addHttpTransaction(
-              {
-                type: 'http-request',
-                host: 'localhost',
-                port: 8080,
-                protocol: 'http',
-                path: '/users',
-                method: 'post',
-                headers: {},
-                queryParameters: {},
-                cookies: {},
-                pathParameters: {},
-                mediaType: 'application/json',
-              },
-              {
-                type: 'http-response',
-                headers: {},
-                mediaType: 'application/json',
-                statusCode: 201,
-              },
-              'plugin2',
-            );
-
-            ctx.reply(format.export());
-          });
-        }),
-      );
-
-      await thymian.ready();
-
-      const format = await thymian.loadFormat({
-        type: 'method',
-        method: 'get',
-        kind: 'request',
-      });
-
-      expect(format.getThymianHttpTransactions().length).toBe(1);
-      expect(format.getThymianHttpTransactions()[0].thymianReq.method).toBe(
-        'get',
-      );
-    });
   });
 
   describe('validation workflows', () => {
@@ -484,7 +209,15 @@ describe('Thymian', () => {
 
           emitter.onAction('core.lint', (payload, ctx) => {
             coreLintSpy(payload);
-            ctx.reply({ status: 'success', reports: [], violations: [] });
+            ctx.reply({
+              source: '@thymian/http-linter',
+              status: 'success',
+              violations: [],
+            });
+          });
+
+          emitter.onAction('core.report.flush', (_, ctx) => {
+            ctx.reply({ text: 'lint report' });
           });
         }),
       );
@@ -507,9 +240,17 @@ describe('Thymian', () => {
         options: { source: 'test' },
       });
       expect(coreLintSpy.mock.calls[0]?.[0].format).toBeDefined();
-      expect(result).toEqual([
-        { status: 'success', reports: [], violations: [] },
-      ]);
+      expect(result).toEqual({
+        classification: 'clean-run',
+        text: 'lint report',
+        results: [
+          {
+            source: '@thymian/http-linter',
+            status: 'success',
+            violations: [],
+          },
+        ],
+      });
     });
 
     it('test should load specification inputs and dispatch through the core entrypoint', async () => {
@@ -526,16 +267,20 @@ describe('Thymian', () => {
           emitter.onAction('core.test', (payload, ctx) => {
             coreTestSpy(payload);
             ctx.reply({
+              source: '@thymian/http-tester',
               status: 'failed',
-              reports: [],
               violations: [
                 {
-                  rule: 'demo/test-rule',
+                  ruleName: 'demo/test-rule',
                   severity: 'warn',
-                  location: 'request',
+                  violation: { location: 'request' },
                 },
               ],
             });
+          });
+
+          emitter.onAction('core.report.flush', (_, ctx) => {
+            ctx.reply({ text: 'test report' });
           });
         }),
       );
@@ -556,19 +301,23 @@ describe('Thymian', () => {
         rulesConfig: undefined,
         options: { replay: false },
       });
-      expect(result).toEqual([
-        {
-          status: 'failed',
-          reports: [],
-          violations: [
-            {
-              rule: 'demo/test-rule',
-              severity: 'warn',
-              location: 'request',
-            },
-          ],
-        },
-      ]);
+      expect(result).toEqual({
+        classification: 'findings',
+        text: 'test report',
+        results: [
+          {
+            source: '@thymian/http-tester',
+            status: 'failed',
+            violations: [
+              {
+                ruleName: 'demo/test-rule',
+                severity: 'warn',
+                violation: { location: 'request' },
+              },
+            ],
+          },
+        ],
+      });
     });
 
     it('analyze should merge traffic, optionally load format, and dispatch through the core entrypoint', async () => {
@@ -615,7 +364,15 @@ describe('Thymian', () => {
 
           emitter.onAction('core.analyze', (payload, ctx) => {
             coreAnalyzeSpy(payload);
-            ctx.reply({ status: 'success', reports: [], violations: [] });
+            ctx.reply({
+              source: '@thymian/http-analyzer',
+              status: 'success',
+              violations: [],
+            });
+          });
+
+          emitter.onAction('core.report.flush', (_, ctx) => {
+            ctx.reply({ text: 'analyze report' });
           });
         }),
       );
@@ -680,9 +437,17 @@ describe('Thymian', () => {
       ).toHaveLength(2);
       expect(coreAnalyzeSpy.mock.calls[0]?.[0].traffic.traces).toHaveLength(2);
       expect(coreAnalyzeSpy.mock.calls[0]?.[0].format).toBeDefined();
-      expect(result).toEqual([
-        { status: 'success', reports: [], violations: [] },
-      ]);
+      expect(result).toEqual({
+        classification: 'clean-run',
+        text: 'analyze report',
+        results: [
+          {
+            source: '@thymian/http-analyzer',
+            status: 'success',
+            violations: [],
+          },
+        ],
+      });
     });
   });
 });

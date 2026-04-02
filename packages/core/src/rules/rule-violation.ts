@@ -10,12 +10,18 @@ export type RuleViolationLocation =
   | string;
 
 export type RuleViolation = {
-  rule?: string;
-  severity?: Exclude<RuleSeverity, 'off'>;
   location: RuleViolationLocation;
   message?: string;
-  summary?: string;
-  metadata?: Record<string, unknown>;
+};
+
+/**
+ * A rule violation enriched with the rule name and resolved severity
+ * from the rule runner. This is the type returned by `runRules()`.
+ */
+export type EvaluatedRuleViolation = {
+  ruleName: string;
+  severity: Exclude<RuleSeverity, 'off'>;
+  violation: Required<RuleViolation>;
 };
 
 export type RuleFnResult = undefined | RuleViolation | RuleViolation[];

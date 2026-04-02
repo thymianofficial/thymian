@@ -243,7 +243,8 @@ export class HttpTestApiContext<
         );
 
         this.report({
-          summary:
+          source: this.name,
+          message:
             'Skipped: ' +
             (testCase.reason ??
               testCase.results
@@ -252,11 +253,25 @@ export class HttpTestApiContext<
                 )
                 .map((tc) => tc.message)
                 .join('\n')),
-          title: testCase.name,
-          category: 'HTTP Tests',
-          source: this.name,
-          producer: '@thymian/http-tester',
-          severity: 'info',
+          sections: [
+            {
+              heading: testCase.name,
+              items: [
+                {
+                  severity: 'info',
+                  message:
+                    testCase.reason ??
+                    testCase.results
+                      .filter(
+                        (tc) =>
+                          tc.type !== 'info' && tc.type !== 'assertion-success',
+                      )
+                      .map((tc) => tc.message)
+                      .join('\n'),
+                },
+              ],
+            },
+          ],
         });
       } else if (testCase.status === 'failed') {
         this.ctx.logger.debug(
@@ -276,7 +291,8 @@ export class HttpTestApiContext<
           });
         } else {
           this.report({
-            summary:
+            source: this.name,
+            message:
               testCase.reason ??
               testCase.results
                 .filter(
@@ -284,11 +300,26 @@ export class HttpTestApiContext<
                 )
                 .map((tc) => tc.message)
                 .join('\n'),
-            title: testCase.name,
-            category: 'Failed HTTP Test Cases',
-            source: '',
-            producer: '@thymian/http-tester',
-            severity: 'info',
+            sections: [
+              {
+                heading: testCase.name,
+                items: [
+                  {
+                    severity: 'info',
+                    message:
+                      testCase.reason ??
+                      testCase.results
+                        .filter(
+                          (tc) =>
+                            tc.type !== 'info' &&
+                            tc.type !== 'assertion-success',
+                        )
+                        .map((tc) => tc.message)
+                        .join('\n'),
+                  },
+                ],
+              },
+            ],
           });
         }
       }

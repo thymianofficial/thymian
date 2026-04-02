@@ -1,4 +1,3 @@
-import { method, statusCode } from '@thymian/core';
 import { describe, expect, it } from 'vitest';
 
 import type { ThymianConfig } from '../src/thymian-config.js';
@@ -53,10 +52,10 @@ describe('validate-config', () => {
         expect(result.valid).toBe(true);
       });
 
-      it('should validate ThymianConfig with filters array', () => {
+      it('should validate ThymianConfig with specifications array', () => {
         const config: ThymianConfig = {
           plugins: {},
-          filters: [method('get'), statusCode(200)],
+          specifications: [{ type: 'openapi', location: './openapi.yaml' }],
         };
 
         const result = validateConfig(config);
@@ -64,10 +63,56 @@ describe('validate-config', () => {
         expect(result.valid).toBe(true);
       });
 
-      it('should validate ThymianConfig with empty filters array', () => {
+      it('should validate ThymianConfig with traffic array', () => {
         const config: ThymianConfig = {
           plugins: {},
-          filters: [],
+          traffic: [{ type: 'har', location: './traffic.har' }],
+        };
+
+        const result = validateConfig(config);
+
+        expect(result.valid).toBe(true);
+      });
+
+      it('should validate ThymianConfig with ruleSets', () => {
+        const config: ThymianConfig = {
+          plugins: {},
+          ruleSets: ['@thymian/rfc-9110-rules'],
+        };
+
+        const result = validateConfig(config);
+
+        expect(result.valid).toBe(true);
+      });
+
+      it('should validate ThymianConfig with ruleSeverity', () => {
+        const config: ThymianConfig = {
+          plugins: {},
+          ruleSeverity: 'error',
+        };
+
+        const result = validateConfig(config);
+
+        expect(result.valid).toBe(true);
+      });
+
+      it('should validate ThymianConfig with ruleSeverity set to hint', () => {
+        const config: ThymianConfig = {
+          plugins: {},
+          ruleSeverity: 'hint',
+        };
+
+        const result = validateConfig(config);
+
+        expect(result.valid).toBe(true);
+      });
+
+      it('should validate ThymianConfig with rules', () => {
+        const config: ThymianConfig = {
+          plugins: {},
+          rules: {
+            'rfc9110/content-type-required': 'warn',
+          },
         };
 
         const result = validateConfig(config);
@@ -151,32 +196,6 @@ describe('validate-config', () => {
           }
         });
 
-        it('should invalidate config with wrong type for filters', () => {
-          const config = {
-            plugins: {},
-            filters: 'not-an-array',
-          };
-
-          const result = validateConfig(config);
-
-          expect(result.valid).toBe(false);
-          if (result.valid === false) {
-            expect(result.message).toContain('must be');
-          }
-        });
-
-        it('should invalidate null config', () => {
-          const result = validateConfig(null);
-
-          expect(result.valid).toBe(false);
-        });
-
-        it('should invalidate undefined config', () => {
-          const result = validateConfig(undefined);
-
-          expect(result.valid).toBe(false);
-        });
-
         it('should invalidate config with additional root properties', () => {
           const config = {
             plugins: {},
@@ -191,6 +210,18 @@ describe('validate-config', () => {
               'must NOT have additional properties',
             );
           }
+        });
+
+        it('should invalidate null config', () => {
+          const result = validateConfig(null);
+
+          expect(result.valid).toBe(false);
+        });
+
+        it('should invalidate undefined config', () => {
+          const result = validateConfig(undefined);
+
+          expect(result.valid).toBe(false);
         });
 
         it('should return error message for invalid config', () => {
@@ -212,7 +243,6 @@ describe('validate-config', () => {
         it('should report all validation errors', () => {
           const config = {
             autoload: 'invalid',
-            filters: 'not-an-array',
           };
 
           const result = validateConfig(config);

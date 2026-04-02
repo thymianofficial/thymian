@@ -3,9 +3,7 @@ import type { JSONSchemaType } from 'ajv/dist/2020.js';
 import packageJson from '../package.json' with { type: 'json' };
 import {
   formatLoadActionSchema,
-  loadFormatActionSchema,
   requestDispatchActionSchema,
-  runActionSchema,
   trafficLoadActionSchema,
   validationResultSchema,
 } from './actions/index.js';
@@ -33,10 +31,6 @@ export const corePlugin: ThymianPlugin = {
         event: VoidSchema,
         response: VoidSchema,
       },
-      'core.load-format': {
-        event: {} as JSONSchemaType<never>,
-        response: loadFormatActionSchema,
-      },
       'core.format.load': {
         event: formatLoadActionSchema,
         response: {} as JSONSchemaType<unknown>,
@@ -44,10 +38,6 @@ export const corePlugin: ThymianPlugin = {
       'core.traffic.load': {
         event: trafficLoadActionSchema,
         response: {} as JSONSchemaType<unknown>,
-      },
-      'core.run': {
-        event: loadFormatActionSchema,
-        response: runActionSchema,
       },
       'core.lint': {
         event: {} as JSONSchemaType<unknown>,
@@ -67,6 +57,10 @@ export const corePlugin: ThymianPlugin = {
       },
       'core.request.sample': {
         event: {} as JSONSchemaType<unknown>,
+        response: {} as JSONSchemaType<unknown>,
+      },
+      'core.report.flush': {
+        event: VoidSchema,
         response: {} as JSONSchemaType<unknown>,
       },
     },

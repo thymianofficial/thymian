@@ -1,10 +1,11 @@
 /* eslint @typescript-eslint/no-empty-function: 0 */
 
+import type { LogLevel } from './log-level.js';
 import type { Logger } from './logger.js';
 
 export class NoopLogger implements Logger {
   readonly namespace: string;
-  verbose = false;
+  level: LogLevel = 'silent';
 
   constructor(name = '') {
     this.namespace = name;
