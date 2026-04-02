@@ -32,7 +32,7 @@ You won't need to install Thymian locally, we will just use `npx` for this.
 Check if you can run Thymian by running the following command:
 
 ```bash
-npx @thymian/cli --version
+npx thymian --version
 ```
 
 ### First Run Without a Config
@@ -40,7 +40,7 @@ npx @thymian/cli --version
 Now navigate to your project's root directory and run Thymian directly against your API description:
 
 ```bash
-npx @thymian/cli lint --spec openapi:openapi.yaml
+npx thymian lint --spec openapi:openapi.yaml
 ```
 
 This is the fastest way to reach a first conformance result without any prior setup.
@@ -50,10 +50,10 @@ This is the fastest way to reach a first conformance result without any prior se
 If you want to save that setup for future runs, generate a config file:
 
 ```bash
-npx @thymian/cli generate config
+npx thymian generate config
 ```
 
-This command detects your OpenAPI specification file and creates a `thymian.config.yaml` you can reuse with `npx @thymian/cli lint`.
+This command detects your OpenAPI specification file and creates a `thymian.config.yaml` you can reuse with `npx thymian lint`.
 
 ## 📚 Documentation
 

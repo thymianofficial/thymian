@@ -3,16 +3,20 @@ title: Getting Started
 description: Getting Started with Thymian
 ---
 
-import { Aside, Code, Tabs, TabItem, Steps } from '@astrojs/starlight/components';
+import {
+  Aside,
+  Code,
+  Tabs,
+  TabItem,
+  Steps,
+} from '@astrojs/starlight/components';
 
 This guide will walk you through the first steps of using Thymian. Let's get started right away!
 
-
 ## Prerequisites
 
-* You need any of the following **Node.js** _LTS_ versions: **20**, **22**, or **24**
-* Any Swagger/OpenAPI specification file (OpenAPI version 3.2 is currently not supported)
-
+- You need any of the following **Node.js** _LTS_ versions: **20**, **22**, or **24**
+- Any Swagger/OpenAPI specification file (OpenAPI version 3.2 is currently not supported)
 
 ## Installation
 
@@ -21,7 +25,7 @@ You won't need to install Thymian locally, we will just use `npx` for this.
 Check if you can run Thymian by running the following command:
 
 ```bash
-npx @thymian/cli --version
+npx thymian --version
 ```
 
 ## First Run Without a Config
@@ -29,7 +33,7 @@ npx @thymian/cli --version
 Now navigate to your project's root directory and run Thymian directly against your API description:
 
 ```bash
-npx @thymian/cli lint --spec openapi:openapi.yaml
+npx thymian lint --spec openapi:openapi.yaml
 ```
 
 This is the fastest onboarding path. It lets you validate one API immediately without creating a configuration file first.
@@ -37,7 +41,7 @@ This is the fastest onboarding path. It lets you validate one API immediately wi
 If you want to keep that setup for future runs, generate a reusable config afterward:
 
 ```bash
-npx @thymian/cli generate config
+npx thymian generate config
 ```
 
 This command will:
@@ -53,19 +57,19 @@ After running `generate config`, you'll have a `thymian.config.yaml` file that l
 ```yaml
 plugins:
   # Loads and parses your OpenAPI specification
-  "@thymian/openapi":
+  '@thymian/openapi':
     options:
       descriptions:
         - source: ./path/to/your/openapi.yaml
   # Validates HTTP conformance
-  "@thymian/http-linter":
+  '@thymian/http-linter':
     options:
       type:
-       - static
+        - static
       severity: error # will only show errors
       ruleSets:
-        - "@thymian/rfc-9110-rules"
-  "@thymian/reporter":
+        - '@thymian/rfc-9110-rules'
+  '@thymian/reporter':
     options:
       formatters:
         cli: {}
@@ -77,13 +81,13 @@ plugins:
 - **`@thymian/http-linter`**: Applies HTTP conformance rules
 - **`@thymian/reporter`**: Configures how results are displayed in the terminal.
 
-
 <Aside type="tip">
   You can list your loaded plugins via:
 
-  ```bash
-  npx @thymian/cli plugins list
-  ```
+```bash
+npx thymian plugins list
+```
+
 </Aside>
 
 ## Running With a Saved Configuration
@@ -91,7 +95,7 @@ plugins:
 After generating a config file, run your next analysis from your project's root directory:
 
 ```bash
-npx @thymian/cli lint
+npx thymian lint
 ```
 
 This command will:
@@ -108,14 +112,13 @@ This command will:
 
 3. **Static analysis**
 
-    Applies all loaded rules to your OpenAPI specification. Each rule checks for specific HTTP conformance issues and generates results based on the findings.
+   Applies all loaded rules to your OpenAPI specification. Each rule checks for specific HTTP conformance issues and generates results based on the findings.
 
 4. **Display results**
 
    Displays all found issues in the terminal.
 
 </Steps>
-
 
 ## Understanding the Results
 
@@ -155,7 +158,7 @@ In this case, the severity level is `error`. This indicates that the issue viola
 Besides the `error` severity level, there are also `warn` and `hint`, indicating a potential conformance issue and a suggestion for a truly optional mechanism of HTTP, respectively.
 
 | Severity | Description                                                                  |
-|----------|------------------------------------------------------------------------------|
+| -------- | ---------------------------------------------------------------------------- |
 | error    | Problem that needs to be fixed.                                              |
 | warn     | Problem that should be fixed. May be left as is under certain circumstances. |
 | hint     | Only a suggestion.                                                           |
@@ -210,7 +213,6 @@ What did you just do? You have linted your OpenAPI specification and checked you
 Based on your configured `severity` Thymian shows you problems, that **MUST**, **SHOULD** or **MAY** be fixed.
 If you fixed all problems, you're ready to for your next steps with Thymian and to spice up your API 🌿!
 
-
 ## Next Steps
 
 To statically analyze your OpenAPI specification was just your first step. Thymian has much more to offer and can be your
@@ -226,7 +228,9 @@ Once you've validated your OpenAPI specification, Thymian can be used to:
 While we have only performed static checks so far, these two use cases perform actual requests to your live API and validate its responses.
 
 <Aside type="note">
-Contract drift is a common issue where teams update their code but forget to update the OpenAPI document (or vice versa). Thymian catches these discrepancies automatically.
+  Contract drift is a common issue where teams update their code but forget to
+  update the OpenAPI document (or vice versa). Thymian catches these
+  discrepancies automatically.
 </Aside>
 
 ### Extending Thymian with Plugins
