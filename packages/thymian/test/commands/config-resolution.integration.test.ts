@@ -174,13 +174,13 @@ describe('config resolution chain (integration)', () => {
     it('falls back to defaultConfig when no config file exists (triggers spec-search exit)', async () => {
       // No config file in cwdDir, no --spec
       // defaultConfig has empty specifications, so Step D/E/F should trigger
-      const { stdout, error } = await captureOutput(async () => {
+      const { stderr, error } = await captureOutput(async () => {
         await Lint.run(['--cwd', cwdDir, '--no-autoload']);
       });
 
       // this.exit(2) throws an ExitError during init() after logging guidance.
       expect(error).toBeDefined();
-      expect(stdout).toContain('No specification found');
+      expect(stderr).toContain('No specification found');
     });
   });
 
@@ -266,14 +266,14 @@ describe('config resolution chain (integration)', () => {
       const emptyDir = join(tmpDir, 'no-specs');
       mkdirSync(emptyDir, { recursive: true });
 
-      const { stdout, error } = await captureOutput(async () => {
+      const { stderr, error } = await captureOutput(async () => {
         await Lint.run(['--cwd', emptyDir, '--no-autoload']);
       });
 
       // this.exit(2) throws an ExitError during init() after logging guidance.
       expect(error).toBeDefined();
-      expect(stdout).toContain('No specification found');
-      expect(stdout).toContain('thymian generate config');
+      expect(stderr).toContain('No specification found');
+      expect(stderr).toContain('thymian generate config');
       expect(mockState.runCalled).toBe(false);
     });
   });
