@@ -1,5 +1,6 @@
 import { createRequire } from 'node:module';
 import { isAbsolute, join } from 'node:path';
+import { inspect } from 'node:util';
 
 import { Command, Flags, Interfaces, settings, ux } from '@oclif/core';
 import { CLIError } from '@oclif/core/errors';
@@ -329,7 +330,11 @@ export abstract class BaseCliRunCommand<
       if (this.jsonEnabled() && err.cause) {
         this.logJson(this.toErrorJson(err.cause));
       } else if (err.cause) {
-        ux.stderr(String(err.cause));
+        ux.stderr(
+          err.cause instanceof Error
+            ? String(err.cause)
+            : inspect(err.cause, { depth: 3 }),
+        );
       }
       this.printStackTraces(err.cause);
     }

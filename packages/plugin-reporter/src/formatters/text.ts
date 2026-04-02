@@ -46,7 +46,15 @@ export class TextFormatter implements Formatter<Partial<TextFormatterOptions>> {
 
   async flush(): Promise<string | undefined> {
     if (this.reports.length === 0) {
-      return `${chalk.green(successSymbol)} No problems found`;
+      const message = `${chalk.green(successSymbol)} No problems found`;
+
+      if (this.options.path) {
+        const plainText = stripVTControlCharacters(message);
+        await mkdir(path.dirname(this.options.path), { recursive: true });
+        await writeFile(this.options.path, plainText, 'utf-8');
+      }
+
+      return message;
     }
 
     const analysis = analyze(this.reports);

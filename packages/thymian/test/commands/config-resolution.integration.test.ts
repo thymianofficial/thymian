@@ -220,7 +220,17 @@ describe('config resolution chain (integration)', () => {
     });
 
     it('--spec without type prefix rejects with a parse error', async () => {
-      const configPath = join(tmpDir, 'override.config.yaml');
+      const configPath = join(tmpDir, 'spec-parse-error.config.yaml');
+      writeFileSync(
+        configPath,
+        [
+          'specifications:',
+          '  - type: openapi',
+          '    location: ./original.yaml',
+          'plugins:',
+          "  '@thymian/openapi': {}",
+        ].join('\n'),
+      );
 
       const { error } = await captureOutput(async () => {
         await Lint.run([
@@ -233,6 +243,7 @@ describe('config resolution chain (integration)', () => {
       });
 
       expect(error).toBeDefined();
+      expect(mockState.runCalled).toBe(false);
     });
 
     it('--spec with no config file uses default config + spec override', async () => {
