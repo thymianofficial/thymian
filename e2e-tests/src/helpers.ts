@@ -113,26 +113,54 @@ export function execThymianRawAsync(
       throw new Error('Local installation mode not yet implemented');
   }
 
+  const timeoutMs = 90_000;
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+
   return new Promise<ExecThymianResult>((resolve, reject) => {
     const child = spawn(cmd, argv, {
       cwd: opts.cwd,
       env,
       stdio: ['ignore', 'pipe', 'pipe'],
-      timeout: 90_000,
+      signal: controller.signal,
     });
 
     const stdoutChunks: string[] = [];
     const stderrChunks: string[] = [];
 
-    child.stdout.setEncoding('utf-8');
-    child.stderr.setEncoding('utf-8');
+    if (child.stdout) {
+      child.stdout.setEncoding('utf-8');
+      child.stdout.on('data', (chunk: string) => stdoutChunks.push(chunk));
+    }
 
-    child.stdout.on('data', (chunk: string) => stdoutChunks.push(chunk));
-    child.stderr.on('data', (chunk: string) => stderrChunks.push(chunk));
+    if (child.stderr) {
+      child.stderr.setEncoding('utf-8');
+      child.stderr.on('data', (chunk: string) => stderrChunks.push(chunk));
+    }
 
-    child.on('error', reject);
+    child.on('error', (err) => {
+      clearTimeout(timeoutId);
+      const stdout = stdoutChunks.join('');
+      const stderr = stderrChunks.join('');
+      const output = stdout + stderr;
+
+      if (controller.signal.aborted) {
+        if (opts.allowFailure) {
+          resolve({ stdout, stderr, output, exitCode: null });
+          return;
+        }
+        reject(
+          new Error(
+            `execThymian timed out after ${timeoutMs}ms.\n\nOutput so far:\n${output}`,
+          ),
+        );
+        return;
+      }
+      reject(err);
+    });
 
     child.on('close', (code) => {
+      clearTimeout(timeoutId);
       const stdout = stdoutChunks.join('');
       const stderr = stderrChunks.join('');
       const output = stdout + stderr;

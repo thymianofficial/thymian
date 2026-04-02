@@ -331,7 +331,7 @@ export class HttpTestApiContext<
 
     this.report({
       source: '@thymian/http-tester',
-      message: parts.join('and '),
+      message: parts.join(' and '),
       sections,
     });
   }

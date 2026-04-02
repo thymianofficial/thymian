@@ -33,11 +33,24 @@ export function createHttpTesterPlugin(
           const reportFn = (report: ThymianReport) =>
             emitter.emit('core.report', report);
 
+          let normalizedOrigin: string | undefined;
+
+          if (targetUrl != null) {
+            try {
+              const url = new URL(targetUrl);
+              normalizedOrigin = url.origin;
+            } catch (error) {
+              throw new Error(
+                `Invalid targetUrl "${targetUrl}": ${(error as Error).message}`,
+              );
+            }
+          }
+
           const context = createContext(
             thymianFormat,
             logger,
             emitter,
-            targetUrl,
+            normalizedOrigin,
           );
 
           const adapter: RuleRunnerAdapter<HttpTestApiContext> = {
