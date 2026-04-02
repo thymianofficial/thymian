@@ -26,8 +26,6 @@
     "@oclif/plugin-plugins": "^5.4.43",
     "@oclif/plugin-version": "^2.2.30",
     "@thymian/cli-common": "0.0.0-PLACEHOLDER",
-    "@thymian/core": "0.0.0-PLACEHOLDER",
-    "@thymian/evaluation": "0.0.0-PLACEHOLDER",
     "@thymian/http-analyzer": "0.0.0-PLACEHOLDER",
     "@thymian/http-linter": "0.0.0-PLACEHOLDER",
     "@thymian/http-tester": "0.0.0-PLACEHOLDER",
@@ -50,7 +48,7 @@
       "thymian.feedback": "./dist/hooks/feedback"
     },
     "dirname": "thymian",
-    "topicSeparator": ":",
+    "topicSeparator": " ",
     "plugins": [
       "@oclif/plugin-help",
       "@oclif/plugin-not-found",

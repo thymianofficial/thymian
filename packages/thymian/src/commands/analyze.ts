@@ -3,11 +3,8 @@ import {
   createSeverityRuleFilter,
   handleWorkflowOutcome,
   mergeRuleSets,
-  mergeSpecifications,
-  mergeTraffic,
   resolveRuleSeverity,
 } from '@thymian/cli-common';
-import type {} from '@thymian/evaluation';
 import type {} from '@thymian/openapi';
 import type {} from '@thymian/reporter';
 import type {} from '@thymian/sampler';
@@ -23,22 +20,11 @@ export default class Analyze extends BaseCliRunCommand<typeof Analyze> {
     '<%= config.bin %> <%= command.id %> --spec openapi:./openapi.yaml --traffic har:./traffic.har',
   ];
 
+  static override requiresTraffic = true;
+
   override async run(): Promise<void> {
-    const traffic = mergeTraffic(
-      this.thymianConfig.traffic,
-      this.flags.traffic,
-    );
-
-    if (traffic.length === 0) {
-      this.logger.warn(
-        'No traffic configured. Add traffic to your config file or use --traffic flags.',
-      );
-    }
-
-    const specifications = mergeSpecifications(
-      this.thymianConfig.specifications,
-      this.flags.spec,
-    );
+    const specifications = this.thymianConfig.specifications ?? [];
+    const traffic = this.thymianConfig.traffic ?? [];
 
     const ruleSets = mergeRuleSets(
       this.thymianConfig.ruleSets,

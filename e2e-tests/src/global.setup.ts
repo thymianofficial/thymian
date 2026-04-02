@@ -11,7 +11,8 @@ import { getCleanEnv } from './env-utils.js';
 const rootDir = join(import.meta.dirname, '..', '..');
 
 const thymianVersion = '0.0.1-e2e';
-const verdaccioUrl = 'http://localhost:4873';
+const verdaccioPort = 4873;
+const verdaccioUrl = `http://localhost:${verdaccioPort}`;
 
 const isWindows = process.platform === 'win32';
 const npmCmd = isWindows ? 'npm.cmd' : 'npm';
@@ -72,6 +73,22 @@ export default async function setup(_project: TestProject) {
   // Registry isolation: all npm operations resolve packages from Verdaccio
   process.env.npm_config_registry = verdaccioUrl;
 
+  // Kill any stale Verdaccio process occupying the port from a previous run
+  // so the new instance can bind to the expected port.
+  if (!isWindows) {
+    try {
+      execSync(`lsof -ti :${verdaccioPort} | xargs kill -9`, {
+        stdio: 'ignore',
+      });
+      // Brief pause to let the OS release the port
+      await sleep(500);
+    } catch {
+      console.log(
+        `No process is listening on port ${verdaccioPort} - nothing to clean up.`,
+      );
+    }
+  }
+
   verdaccioProcess = spawn(npmCmd, ['run', 'local-registry'], {
     cwd: rootDir,
     detached: true,
@@ -102,6 +119,7 @@ export default async function setup(_project: TestProject) {
 
   console.log('Publishing e2e test Thymian version');
   const cleanEnv = getCleanEnv();
+
   try {
     execSync(
       `npm run local-publish -- --dist-tag latest --version ${thymianVersion}`,

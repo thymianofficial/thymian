@@ -35,6 +35,7 @@
   "oclif": {
     "commands": "./dist/cli/commands",
     "bin": "thymian",
+    "topicSeparator": " ",
     "topics": {
       "sampler": {
         "description": "Generate sample data for your API."

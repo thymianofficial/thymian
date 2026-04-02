@@ -28,8 +28,10 @@
   "oclif": {
     "commands": "./dist/cli/commands",
     "bin": "thymian",
+    "topicSeparator": " ",
     "hooks": {
-      "thymian-plugin.init": "./dist/cli/init-hook"
+      "thymian-plugin.init": "./dist/cli/init-hook",
+      "thymian.spec-search": "./dist/cli/spec-search-hook"
     },
     "topics": {
       "openapi": {

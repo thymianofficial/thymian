@@ -1,13 +1,10 @@
-import type { ThymianPluginConfiguration } from './thymian-config.js';
+import type { ThymianPluginConfiguration } from '../thymian-config.js';
 
 declare module '@oclif/core/interfaces' {
   interface Hooks {
     'thymian-plugin.init': {
       options: ThymianPluginInitOptions;
       return: ThymianPluginInitResult;
-    };
-    'thymian.feedback': {
-      options: Record<PropertyKey, unknown>;
     };
   }
 }
@@ -28,5 +25,3 @@ export type ThymianPluginInitResult<
 export type ThymianPluginInitHook<
   T extends Record<PropertyKey, unknown> = Record<PropertyKey, unknown>,
 > = (options: ThymianPluginInitOptions) => Promise<ThymianPluginInitResult<T>>;
-
-export type ThymianFeedbackHook = () => Promise<void>;

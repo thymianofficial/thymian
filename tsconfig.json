@@ -33,12 +33,7 @@
     {
       "path": "./packages/thymian"
     },
-    {
-      "path": "./packages/test-utils"
-    },
-    {
-      "path": "./packages/plugin-evaluation"
-    },
+
     {
       "path": "./packages/core-testing"
     },
