@@ -11,6 +11,13 @@ These instructions guide GitHub Copilot when reviewing code and documentation in
 - Understand the **event-driven architecture** using `ThymianEmitter` for events, actions, and errors
 - Packages are located under `packages/` — each package has its own `project.json`, `package.json`, and build configuration
 
+### Package Versions — DO NOT MODIFY
+
+- **`version` fields in `package.json` files use `0.0.0-PLACEHOLDER`** — this value is replaced automatically by the release pipeline at publish time
+- **NEVER** change `version` or internal `@thymian/*` dependency versions in `package.json` files
+- This applies to the `version` field itself **and** to any `dependencies`, `devDependencies`, or `peerDependencies` that reference `@thymian/*` packages
+- If you see `0.0.0-PLACEHOLDER` in a `package.json`, leave it exactly as-is
+
 ### Code Quality
 
 - **TypeScript**: Ensure strict mode compliance, proper typing (no implicit `any`), and consistent use of interfaces/types

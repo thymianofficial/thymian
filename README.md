@@ -14,14 +14,16 @@
 
 </div>
 
-Thymian is an innovative, language-agnostic open-source library that revolutionizes **API development** by combining **resilience testing and HTTP conformance linting** into a single, robust workflow. By integrating static analysis with runtime testing, it ensures your APIs strictly adhere to **RFC/IETF standards and industry best practices** throughout their entire lifecycle.
+Thymian is a language-agnostic, open-source **HTTP conformance and API governance tool**. It validates your APIs against RFC standards and your OpenAPI specification out of the box, statically, against live endpoints, and in recorded production traffic. Fully extensible with plugins and shareable custom rules that you write once and run everywhere.
 
-## Key Capabilities:
+## Key Capabilities
 
-- **Standards-First:** Validates against official HTTP specifications.
-- **API Lifecycle Testing:** Apply the same rules from static analysis to runtime testing and traffic analysis.
-- **Language-Agnostic:** Built to fit into any tech stack without friction.
-- **Extensible:** Easily customize your analysis with custom rules and plugins.
+- **Standards-First** — Validates against RFC 9110 and related HTTP specifications
+- **Write Once, Validate Everywhere** — A single rule definition works across `thymian lint`, `thymian test`, and `thymian analyze`
+- **Multi-Layer Governance** — Validates HTTP infrastructure, protocol compliance, technical implementation, and organizational guidelines
+- **Educational Reporting** — Violations explain the RFC semantics and real-world consequences, not just pass/fail
+- **Production-Aware** — Monitors how proxies, CDNs, and load balancers affect HTTP semantics in real deployments
+- **Language-Agnostic & Extensible** — Works with any tech stack; custom rules distributable as npm packages, remote plugins via WebSocket
 
 ## 🚀 Quick Installation
 
@@ -72,7 +74,7 @@ Get professional consulting and dedicated support from the creators of Thymian. 
 - Custom rule development
 - Team training and workshops
 
-**[Learn more about Enterprise Support](https://thymian.dev/enterprise)** | **Email: [support@thymian.dev](mailto:support@thymian.com)**
+**[Learn more about Enterprise Support](https://thymian.dev/enterprise)** | **Email: [support@thymian.dev](mailto:support@thymian.dev)**
 
 ---
 

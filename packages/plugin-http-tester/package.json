@@ -2,6 +2,15 @@
   "name": "@thymian/plugin-http-tester",
   "version": "0.0.0-PLACEHOLDER",
   "license": "AGPL-3.0-only",
+  "bugs": {
+    "url": "https://github.com/thymianofficial/thymian/issues"
+  },
+  "homepage": "https://thymian.dev",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/thymianofficial/thymian.git",
+    "directory": "packages/plugin-http-tester"
+  },
   "publishConfig": {
     "access": "public"
   },
