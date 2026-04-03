@@ -16,7 +16,7 @@ The proxy plugin starts a WebSocket server that remote clients can connect to. A
 - receive events from Thymian, and
 - handle actions requested by Thymian and reply.
 
-For protocol details, see the [Plugin Developers Guide](../plugin-developers-guide).
+For protocol details, see the [Plugin Developers Guide](/guides/remote-plugins/how-to-develop-a-remote-plugin/).
 
 ## Configuration in Thymian
 
