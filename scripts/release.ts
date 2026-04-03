@@ -63,15 +63,9 @@ function validateAndDetermineMode(argv: {
     process.exit(1);
   }
 
-  // Reject: publishing to npm outside CI (except canary which runs in CI anyway)
-  if (!argv.local && !inCI && isLatest) {
-    console.error('❌ Error: Invalid argument combination');
-    console.error('   --dist-tag latest --no-local (outside CI)');
-    console.error(
-      '   Problem: This bypasses CI authorization. Use CI for npm publishes.\n',
-    );
-    process.exit(1);
-  }
+  // Note: --dist-tag latest --no-local outside CI is allowed.
+  // The 'latest' mode only creates a git tag + GitHub Release.
+  // Actual npm publishing is handled by CI when it picks up the GitHub Release event.
 
   // Determine mode
   let mode: ReleaseMode;

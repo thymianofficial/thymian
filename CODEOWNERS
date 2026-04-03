@@ -1,5 +1,5 @@
 # Release script - requires review from core maintainers
-/scripts/release.ts @Markus-Ende @BaggersIO
+/scripts/release.ts @Markus-Ende @BaggersIO @matthyk
 
 # Workflow - requires review from core maintainers
-/.github/workflows/release.yaml @Markus-Ende @BaggersIO
+/.github/workflows/release.yaml @Markus-Ende @BaggersIO @matthyk
