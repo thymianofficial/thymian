@@ -404,6 +404,5 @@ httpRule('request-requirements') // Too broad
 
 ## Next Steps
 
-- See [how to use rules](how-to-use-rules.md) in your projects
-- Explore the [CLI tools](../../references/plugins/http-linter/cli.md) for managing rules
-- Check the [API reference](https://docs.thymian.dev/api) for advanced patterns
+- See [how to use rules](/guides/http-rules/how-to-use-rules/) in your projects
+- Explore the [CLI tools](/references/plugins/http-linter/cli/) for managing rules
