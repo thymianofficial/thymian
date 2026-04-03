@@ -188,7 +188,7 @@ xor(...);
 
 ### Complete Filter Reference
 
-See the [API documentation](https://docs.thymian.dev/api/filters) for a complete list of available filters.
+See the API documentation for a complete list of available filters.
 
 ## Real-World Examples
 
@@ -315,6 +315,6 @@ or(method('GET'), method('POST'));
 
 Now that you know how to create rules:
 
-- Explore [rule types in depth](../../references/plugins/http-linter/rule-types.md) to understand context-specific features
-- Learn about [combining rule types](combining-types.md) for hybrid rules
-- See [how to use rules](how-to-use-rules.md) in your projects
+- Explore [rule types in depth](/references/plugins/http-linter/rule-types/) to understand context-specific features
+- Learn about [combining rule types](/guides/http-rules/combining-types/) for hybrid rules
+- See [how to use rules](/guides/http-rules/how-to-use-rules/) in your projects

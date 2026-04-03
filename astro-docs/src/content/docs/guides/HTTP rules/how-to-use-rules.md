@@ -191,6 +191,6 @@ tsc --noEmit
 
 ## Next Steps
 
-- Explore the [CLI commands](../../references/plugins/http-linter/cli.md) for managing rules
-- Learn about [creating custom rules](creating-new-rules.md)
-- See [combining rule types](combining-types.md) for hybrid validation
+- Explore the [CLI commands](/references/plugins/http-linter/cli/) for managing rules
+- Learn about [creating custom rules](/guides/http-rules/creating-new-rules/)
+- See [combining rule types](/guides/http-rules/combining-types/) for hybrid validation
