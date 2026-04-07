@@ -132,8 +132,8 @@ export abstract class BaseCliRunCommand<
   protected logger!: Logger;
   protected thymianConfig!: ThymianConfig;
   protected thymian!: Thymian;
-  protected feedback!: Feedback;
-  protected errorCache!: ErrorCache;
+  protected feedback: Feedback | undefined;
+  protected errorCache: ErrorCache | undefined;
 
   public override async init(): Promise<void> {
     await super.init();
@@ -281,14 +281,14 @@ export abstract class BaseCliRunCommand<
   }
 
   protected override async catch(err: CommandError): Promise<void> {
-    await this.feedback.error();
+    await this.feedback?.error();
     const versionDetails = this.config.versionDetails;
 
     const pluginVersions = Object.entries(versionDetails.pluginVersions ?? {})
       .filter(([name]) => !name.startsWith('@oclif'))
       .map(([name, version]) => ({ name, version: version.version }));
 
-    await this.errorCache.write({
+    await this.errorCache?.write({
       name: err.name,
       message: err.message,
       commandName: this.id ?? 'unknown command',
