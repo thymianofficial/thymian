@@ -5,7 +5,7 @@ sidebar:
   order: 0
 ---
 
-The **@thymian/http-linter** enables you to validate HTTP APIs at every stage of development—from design and implementation to testing and production monitoring. Write validation rules once and apply them across static specifications, live API tests, and recorded traffic analysis.
+The **HTTP linter** (`@thymian/plugin-http-linter`) enables you to validate HTTP APIs at every stage of development—from design and implementation to testing and production monitoring. Write validation rules once and apply them across static specifications, live API tests, and recorded traffic analysis.
 
 ## Why HTTP Linting?
 
@@ -31,7 +31,7 @@ HTTP linting addresses these challenges by providing automated validation that r
 Here's a simple custom rule that enforces API versioning across your organization:
 
 ```typescript
-import { httpRule } from '@thymian/http-linter';
+import { httpRule } from '@thymian/core';
 import { path, not } from '@thymian/core';
 
 export default httpRule('api-must-include-version-in-path')
@@ -45,8 +45,8 @@ export default httpRule('api-must-include-version-in-path')
 
 This custom organizational rule automatically validates:
 
-- **Static specs** — Checks OpenAPI definitions during design
-- **Traffic analysis** — Validates recorded HTTP transactions from production
+- **Lint** — Checks OpenAPI definitions during design
+- **Analyze** — Validates recorded HTTP transactions from production
 
 ## Use Cases
 
@@ -76,7 +76,7 @@ httpRule('authenticated-endpoints-must-include-rate-limits')
 Analyze recorded traffic to detect issues in production:
 
 ```typescript
-// Analytics-only rule for production monitoring
+// Analyze-only rule for production monitoring
 .type('analytics')
 ```
 
@@ -84,9 +84,9 @@ Analyze recorded traffic to detect issues in production:
 
 ```mermaid
 graph LR
-    A[HTTP Rule] --> B[Static Context]
+    A[HTTP Rule] --> B[Lint Context]
     A --> C[Test Context]
-    A --> D[Analytics Context]
+    A --> D[Analyze Context]
 
     B --> E[Validates OpenAPI Spec]
     C --> F[Generates & Runs Tests]
@@ -99,9 +99,9 @@ graph LR
 
 The HTTP linter provides three validation contexts, each suited for different stages of development:
 
-1. **Static** — Fast validation against API specifications
+1. **Lint** — Fast validation against API specifications
 2. **Test** — Active testing of live endpoints
-3. **Analytics** — Passive analysis of recorded HTTP traffic
+3. **Analyze** — Passive analysis of recorded HTTP traffic
 
 Rules can target one or more contexts, and the linter automatically adapts the validation logic to each context.
 
@@ -109,7 +109,7 @@ Rules can target one or more contexts, and the linter automatically adapts the v
 
 1. [What is an HTTP Rule?](../../concepts/what-is-an-http-rule.md) — Core concepts and rule anatomy
 2. [Creating New Rules](creating-new-rules.md) — Step-by-step guide to writing rules
-3. [Rule Types](../../references/plugins/http-linter/rule-types.md) — Understanding static, test, and analytics contexts
+3. [Rule Types](../../references/plugins/http-linter/rule-types.md) — Understanding lint, test, and analyze contexts
 4. [Combining Different Rule Types](combining-types.md) — Writing hybrid rules
 5. [How To Use Rules](how-to-use-rules.md) — Integration and configuration
 6. [CLI](../../references/plugins/http-linter/cli.md) — Command-line tools reference

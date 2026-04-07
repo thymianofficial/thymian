@@ -1,6 +1,6 @@
 ---
 title: Initializing your Request Samples
-description: Getting started tutorial for @thymian/sampler
+description: Getting started tutorial for @thymian/plugin-sampler
 ---
 
 import { Tabs, TabItem, FileTree } from '@astrojs/starlight/components';
@@ -80,23 +80,32 @@ Space Launch System API:
 Create `thymian.config.yaml` in your project root:
 
 ```yaml
+specifications:
+  - type: openapi
+    location: ../../../openapi.yaml
+
+ruleSets:
+  - '@thymian/rules-rfc-9110'
+
+ruleSeverity: error
+
 plugins:
-  "@thymian/openapi":
+  '@thymian/plugin-openapi':
     options:
-      descriptions:
-        - source: ../../../openapi.yaml
-  "@thymian/request-dispatcher": {}
-  "@thymian/sampler":
+      descriptions: []
+  '@thymian/plugin-request-dispatcher': {}
+  '@thymian/plugin-sampler':
     options:
       path: '.thymian/samples' # Directory where samples are generated
-  "@thymian/reporter":
+  '@thymian/plugin-reporter':
     options:
       formatters:
-        cli: {}
-  "@thymian/format-validator": {}
+        text: {}
+  '@thymian/plugin-http-tester': {}
+  '@thymian/plugin-http-linter': {}
 ```
 
-Adjust the `source` path to point to your OpenAPI specification file.
+Adjust the `location` path to point to your OpenAPI specification file.
 
 
 
@@ -208,7 +217,7 @@ Start your API server if not already running. For the Space Launch System API, r
 In another terminal, run Thymian:
 
 ```bash
-thymian format:check
+thymian test
 ```
 
 **Expected result:** Most tests will fail because of a `401 Unauthorized` response because the API requires authentication.
@@ -295,7 +304,7 @@ export default hook;
 Run tests again:
 
 ```bash
-thymian format:check
+thymian test
 ```
 
 We should now see that most requests can be run. The only ones that fail requests that depend on a valid and existing
@@ -378,7 +387,7 @@ export default hook;
 Run the checks again:
 
 ```bash
-thymian format:check
+thymian test
 ```
 
 **Expected result:**
@@ -460,7 +469,7 @@ export default hook;
 Run checks to see if all hooks are working.
 
 ```bash
-thymian format:check
+thymian test
 ```
 
 Now you should see that all transactions can be run:
@@ -498,5 +507,5 @@ You've successfully:
 
 ✔ Created a beforeEach hook to set up test dependencies
 
-✔ Run transactions gainst your API
+✔ Run tests against your API
 

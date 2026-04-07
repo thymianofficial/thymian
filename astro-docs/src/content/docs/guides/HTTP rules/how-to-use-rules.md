@@ -13,31 +13,28 @@ There are two ways to load rules into Thymian:
 
 ### 1. Via Configuration File
 
-Create a `thymian.config.ts` file in your project root:
+Create a `thymian.config.yaml` file in your project root:
 
 ```yaml
+ruleSets:
+  - './rules/**/*.rule.js' # Local rules
+  - '@thymian/rules-rfc-9110' # Npm package
+
 plugins:
-  '@thymian/http-linter':
-    options:
-      rules:
-        - './rules/**/*.rule.js', # Local rules
-        - '@thymian/rfc-9110-rules', # Npm package
+  '@thymian/plugin-http-linter': {}
 ```
 
 ### 2. Programmatically
 
-Load rules in your application code:
+Load rules using the Thymian programmatic API:
 
 ```typescript
 import { Thymian } from '@thymian/core';
-import httpLinterPlugin from '@thymian/http-linter';
+import { httpLinterPlugin } from '@thymian/plugin-http-linter';
 
-const thymian = new Thymian().register(httpLinterPlugin, {
-  rules: ['./rules/**/*.rule.ts'],
-  modes: ['static'],
-});
+const thymian = new Thymian().register(httpLinterPlugin);
 
-await thymian.run();
+await thymian.ready();
 ```
 
 ## Creating Your Own Rule Set
@@ -73,7 +70,7 @@ my-api-rules/
   "types": "./dist/index.d.ts",
   "files": ["dist"],
   "peerDependencies": {
-    "@thymian/http-linter": "^0.0.1",
+    "@thymian/plugin-http-linter": "^0.0.1",
     "@thymian/core": "^0.0.1"
   }
 }
@@ -84,7 +81,7 @@ my-api-rules/
 **src/index.ts:**
 
 ```typescript
-import type { RuleSet } from '@thymian/http-linter';
+import type { RuleSet } from '@thymian/core';
 
 const myCompanyRules: RuleSet = {
   name: '@mycompany/api-rules',
@@ -109,11 +106,11 @@ npm install @mycompany/api-rules
 ```
 
 ```yaml
+ruleSets:
+  - '@mycompany/api-rules'
+
 plugins:
-  '@thymian/http-linter':
-    options:
-      rules:
-        - '@mycompany/api-rules'
+  '@thymian/plugin-http-linter': {}
 ```
 
 ## Debugging Rule Loading

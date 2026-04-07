@@ -320,7 +320,7 @@ You can register plugins via the Thymian configuration file or via CLI.
 If you want to load a plugin directly via the CLI, use the `--plugin` option:
 
 ```bash
-thymian run --plugin ./path/to/my-plugin.js
+thymian lint --plugin ./path/to/my-plugin.js
 ```
 
 ### Via Configuration File

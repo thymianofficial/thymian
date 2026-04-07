@@ -16,7 +16,7 @@ The proxy plugin starts a WebSocket server that remote clients can connect to. A
 - receive events from Thymian, and
 - handle actions requested by Thymian and reply.
 
-For protocol details, see the [Plugin Developers Guide](../references/plugins/websocket-proxy/plugin-developers.md).
+For protocol details, see the [Plugin Developers Guide](../plugin-developers-guide).
 
 ## Configuration in Thymian
 
@@ -24,7 +24,7 @@ Register the proxy plugin in your Thymian setup and configure the port and known
 
 ```ts
 import { Thymian, TextLogger } from '@thymian/core';
-import { websocketProxyPlugin } from '@thymian/websocket-proxy';
+import { websocketProxyPlugin } from '@thymian/plugin-websocket-proxy';
 
 const thymian = new Thymian();
 
