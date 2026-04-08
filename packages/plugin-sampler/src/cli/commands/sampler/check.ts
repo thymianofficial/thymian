@@ -139,13 +139,13 @@ export default class Check extends BaseCliRunCommand<typeof Check> {
       this.log();
       this.log('You can generate a hook for this transaction with:');
       this.log(
-        `  $ thymian sampler hooks generate --for-transaction ${transaction.transactionId}`,
+        `  $ thymian sampler generate hook --for-transaction ${transaction.transactionId}`,
       );
       this.log();
 
-      if (!this.config.findCommand('sampler:hooks:generate')) {
+      if (!this.config.findCommand('sampler generate hook')) {
         this.debug(
-          'Command sampler:hooks:generate is not available. Skipping hook generation prompt.',
+          'Command sampler generate hook is not available. Skipping hook generation prompt.',
         );
         continue;
       }
@@ -156,7 +156,7 @@ export default class Check extends BaseCliRunCommand<typeof Check> {
       });
 
       if (answer) {
-        await this.config.runCommand('sampler:hooks:generate', [
+        await this.config.runCommand('sampler generate hook', [
           '--for-transaction',
           transaction.transactionId,
           '--cwd',

@@ -6,7 +6,7 @@ import { generateHook } from '../../../generate-hook.js';
 export default class GenerateHook extends BaseCliRunCommand<
   typeof GenerateHook
 > {
-  static override aliases = ['sampler:hooks:g', 'sampler:h:g'];
+  static override aliases = ['sampler:g:h', 'sampler:generate:h'];
 
   static override flags = {
     'for-transaction': Flags.string({
