@@ -5,7 +5,7 @@ sidebar:
   order: 0
 ---
 
-The **HTTP linter** (`@thymian/plugin-http-linter`) enables you to validate HTTP APIs at every stage of development—from design and implementation to testing and production monitoring. Write validation rules once and apply them across static specifications, live API tests, and recorded traffic analysis.
+The HTTP plugins (`@thymian/plugin-http-linter`, `@thymian/plugin-http-tester` and `@thymian/plugin-http-analyzer`) enables you to validate HTTP APIs at every stage of development—from design and implementation to testing and production monitoring. Write validation rules once and apply them across static specifications, live API tests, and recorded traffic analysis.
 
 ## Why HTTP Linting?
 
@@ -31,15 +31,14 @@ HTTP linting addresses these challenges by providing automated validation that r
 Here's a simple custom rule that enforces API versioning across your organization:
 
 ```typescript
-import { httpRule } from '@thymian/core';
-import { path, not } from '@thymian/core';
+import { httpRule, path, not, constant } from '@thymian/core';
 
 export default httpRule('api-must-include-version-in-path')
   .severity('error')
   .type('static', 'analytics')
   .description('All API endpoints must include /v{number}/ in path for versioning')
   .appliesTo('server')
-  .rule((ctx) => ctx.validateCommonHttpTransactions(path('/api/'), not(path('/api/v\\d+/'))))
+  .rule((ctx) => ctx.validateCommonHttpTransactions(constant(true), (req) => /api\/v\d+/.test(path(req))))
   .done();
 ```
 
