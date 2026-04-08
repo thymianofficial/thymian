@@ -1,5 +1,5 @@
 import { statusCode } from '@thymian/core';
-import { httpRule } from '@thymian/http-linter';
+import { httpRule } from '@thymian/core';
 
 export default httpRule(
   'rfc9110/sender-recipient-should-support-8000-octet-uris',
