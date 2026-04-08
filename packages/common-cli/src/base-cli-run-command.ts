@@ -132,11 +132,15 @@ export abstract class BaseCliRunCommand<
   protected logger!: Logger;
   protected thymianConfig!: ThymianConfig;
   protected thymian!: Thymian;
-  protected feedback: Feedback | undefined;
-  protected errorCache: ErrorCache | undefined;
+  protected feedback?: Feedback;
+  protected errorCache?: ErrorCache;
 
   public override async init(): Promise<void> {
     await super.init();
+
+    this.feedback = Feedback.forCommand(this);
+    this.errorCache = ErrorCache.forCommand(this);
+
     const { args, flags } = await this.parse({
       flags: this.ctor.flags,
       baseFlags: (super.ctor as typeof BaseCliRunCommand).baseFlags,
@@ -147,9 +151,6 @@ export abstract class BaseCliRunCommand<
     this.flags = flags as CommandFlags<T>;
     this.args = args as CommandArgs<T>;
     this.flags.debug = settings.debug || this.flags.debug;
-
-    this.feedback = Feedback.forCommand(this);
-    this.errorCache = ErrorCache.forCommand(this);
 
     // --- Config Resolution Chain ---
     // Step A+B: Load config from --config flag, well-known file, or defaultConfig
