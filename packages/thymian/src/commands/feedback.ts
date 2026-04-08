@@ -17,7 +17,7 @@ export class Feedback extends ThymianBaseCommand<typeof Feedback> {
   }
 
   override async run(): Promise<void> {
-    const lastError = await this.errorCache.read();
+    const lastError = await this.errorCache?.read();
 
     this.log('✨ Thank you for your feedback! ✨');
     this.log();
@@ -33,7 +33,7 @@ export class Feedback extends ThymianBaseCommand<typeof Feedback> {
       });
 
       if (reportError) {
-        await this.errorCache.reset();
+        await this.errorCache?.reset();
 
         await this.reportError(lastError);
       } else {
