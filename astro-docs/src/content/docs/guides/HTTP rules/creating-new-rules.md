@@ -305,3 +305,11 @@ and(method('GET'), method('POST'));
 // ✅ Use OR for alternatives
 or(method('GET'), method('POST'));
 ```
+
+## Next Steps
+
+Now that you know how to create rules:
+
+- Explore [rule types in depth](/references/plugins/http-linter/rule-types/) to understand context-specific features
+- Learn about [combining rule types](/guides/http-rules/combining-types/) for hybrid rules
+- See [how to use rules](/guides/http-rules/how-to-use-rules/) in your projects

@@ -400,3 +400,8 @@ httpRule('request-requirements') // Too broad
     /* validates multiple things */
   });
 ```
+
+## Next Steps
+
+- See [how to use rules](/guides/http-rules/how-to-use-rules/) in your projects
+- Explore the [CLI tools](/references/plugins/http-linter/cli/) for managing rules

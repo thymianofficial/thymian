@@ -184,9 +184,7 @@ The test context checks:
 For complex scenarios, override the default test behavior:
 
 ```typescript
-import { httpRule } from '@thymian/core';
-import { and, method, not, statusCode } from '@thymian/core';
-import { singleTestCase } from '@thymian/core';
+import { and, method, not, statusCode, singleTestCase, httpRule } from '@thymian/core';
 
 export default httpRule('server-supports-get-head')
   .severity('error')
@@ -390,6 +388,6 @@ type('static', 'test', 'analytics')  // Validate everywhere
 
 ## Next Steps
 
-- Learn about [combining rule types](../guides/HTTP%20rules/combining-types.md) for hybrid validation
-- Explore [how to use rules](../guides/HTTP%20rules/how-to-use-rules.md) in your projects
-- See the [CLI reference](../references/cli) for rule management commands
+- Learn about [combining rule types](/guides/http-rules/combining-types/) for hybrid validation
+- Explore [how to use rules](/guides/http-rules/how-to-use-rules/) in your projects
+- See the [CLI reference](/references/plugins/http-linter/cli/) for rule management commands
