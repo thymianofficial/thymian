@@ -39,7 +39,7 @@ Before regenerating, understand what changed in your API.Review endpoints, schem
 Run the init command with the `--overwrite` flag:
 
 ```bash
-thymian sampler:init --overwrite
+thymian sampler init --overwrite
 ```
 
 This will:
@@ -78,7 +78,7 @@ If your API changes affect authentication or data dependencies, update your hook
 Verify everything works:
 
 ```bash
-thymian test
+thymian sampler check
 ```
 
 
