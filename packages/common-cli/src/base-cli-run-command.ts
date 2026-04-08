@@ -279,7 +279,7 @@ export abstract class BaseCliRunCommand<
       await this.registerPluginsFromConfig();
     }
 
-    await this.feedback.run();
+    await this.feedback?.run();
   }
 
   protected override async catch(err: CommandError): Promise<void> {

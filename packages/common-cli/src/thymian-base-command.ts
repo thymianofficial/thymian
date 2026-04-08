@@ -44,7 +44,7 @@ export abstract class ThymianBaseCommand<
 
     this.feedback = Feedback.forCommand(this);
 
-    await this.feedback.run();
+    await this.feedback?.run();
   }
 
   protected override async catch(err: CommandError): Promise<void> {
