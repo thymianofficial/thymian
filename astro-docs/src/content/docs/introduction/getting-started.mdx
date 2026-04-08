@@ -68,9 +68,7 @@ ruleSets:
 ruleSeverity: error # will only show errors
 
 plugins:
-  '@thymian/plugin-openapi':
-    options:
-      descriptions: []
+  '@thymian/plugin-openapi': {}
   '@thymian/plugin-http-linter': {}
   '@thymian/plugin-request-dispatcher': {}
   '@thymian/plugin-sampler': {}
@@ -86,7 +84,7 @@ plugins:
 
 - **`specifications`**: Lists your API specification files. Each entry has a `type` (e.g., `openapi`) and `location` (path to the file).
 - **`ruleSets`**: Which rule sets to apply. The default is `@thymian/rules-rfc-9110` for HTTP conformance rules.
-- **`ruleSeverity`**: The minimum severity level to report (`error`, `warning`, or `hint`).
+- **`ruleSeverity`**: The minimum severity level to report (`error`, `warn`, or `hint`).
 - **`plugins`**: The Thymian plugins to load. Plugins handle parsing, validation, reporting, and more.
 
 <Aside type="tip">
@@ -166,12 +164,12 @@ PUT /launches/{id} - application/json → 401 UNAUTHORIZED
 
 Each problem found is assigned a `severity` level based on the rule it was triggered by.
 In this case, the severity level is `error`. This indicates that the issue violates the HTTP specification and can cause issues with interoperability or performance, for example.
-Besides the `error` severity level, there are also `warning` and `hint`, indicating a potential conformance issue and a suggestion for a truly optional mechanism of HTTP, respectively.
+Besides the `error` severity level, there are also `warn` and `hint`, indicating a potential conformance issue and a suggestion for a truly optional mechanism of HTTP, respectively.
 
 | Symbol | Severity | Description                                                                  |
 | ------ | -------- | ---------------------------------------------------------------------------- |
 | ✖      | error    | Problem that needs to be fixed.                                              |
-| ⚠      | warning  | Problem that should be fixed. May be left as is under certain circumstances. |
+| ⚠      | warn     | Problem that should be fixed. May be left as is under certain circumstances. |
 | ℹ      | hint     | Only a suggestion.                                                           |
 
 When no problems are found, Thymian displays: `✓ No problems found`.
@@ -241,22 +239,6 @@ If you fixed all problems, you're ready for your next steps with Thymian and to 
 
 To statically analyze your OpenAPI specification was just your first step. Thymian has much more to offer and can be your
 swiss army knife for your HTTP API development process.
-
-{/* TODO: Add "Testing Against Your Live API" section once the test command tutorial is ready */}
-
-### Analyzing Recorded API Traffic
-
-If you have recorded HTTP traffic, Thymian can analyze it against your specification:
-
-```bash
-npx thymian analyze --spec openapi:openapi.yaml
-```
-
-This validates recorded request/response pairs against your API specification and HTTP conformance rules.
-
-### Using Thymian in CI/CD
-
-Thymian's validation commands (`lint`, `test`, `analyze`) are non-interactive by default and return structured exit codes — making them ideal for automated quality gates. See the [CI/CD Integration Guide](../../guides/ci-cd-integration) for pipeline examples and best practices.
 
 ### Extending Thymian with Plugins
 
