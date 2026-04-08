@@ -30,7 +30,6 @@ export abstract class ThymianBaseCommand<
   public override async init(): Promise<void> {
     await super.init();
 
-    this.feedback = Feedback.forCommand(this);
     this.errorCache = ErrorCache.forCommand(this);
 
     const { args, flags } = await this.parse({
@@ -42,6 +41,8 @@ export abstract class ThymianBaseCommand<
     });
     this.flags = flags as Flags<T>;
     this.args = args as Args<T>;
+
+    this.feedback = Feedback.forCommand(this);
 
     await this.feedback.run();
   }

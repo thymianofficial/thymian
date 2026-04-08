@@ -138,7 +138,6 @@ export abstract class BaseCliRunCommand<
   public override async init(): Promise<void> {
     await super.init();
 
-    this.feedback = Feedback.forCommand(this);
     this.errorCache = ErrorCache.forCommand(this);
 
     const { args, flags } = await this.parse({
@@ -151,6 +150,8 @@ export abstract class BaseCliRunCommand<
     this.flags = flags as CommandFlags<T>;
     this.args = args as CommandArgs<T>;
     this.flags.debug = settings.debug || this.flags.debug;
+
+    this.feedback = Feedback.forCommand(this);
 
     // --- Config Resolution Chain ---
     // Step A+B: Load config from --config flag, well-known file, or defaultConfig
