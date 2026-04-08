@@ -11,6 +11,10 @@
       "options": {
         "cwd": "packages/plugin-http-analyzer"
       }
+    },
+    "generate-schema-docs": {
+      "dependsOn": ["build"],
+      "command": "node scripts/generate-schema-docs.js @thymian/plugin-http-analyzer  astro-docs/src/content/docs/references/Plugins/HTTP\\ Analyzer/options.md"
     }
   }
 }

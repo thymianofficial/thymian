@@ -96,6 +96,37 @@ export function createHttpAnalyzerPlugin(
   return {
     name: pluginName,
     version: '0.x',
+    options: {
+      type: 'object',
+      nullable: true,
+      properties: {
+        storage: {
+          type: 'object',
+          required: ['type'],
+          nullable: true,
+          oneOf: [
+            {
+              type: 'object',
+              properties: {
+                type: { const: 'memory' },
+              },
+              required: ['type'],
+              additionalProperties: false,
+            },
+            {
+              type: 'object',
+              properties: {
+                type: { const: 'sqlite' },
+                path: { type: 'string' },
+              },
+              required: ['type'],
+              additionalProperties: false,
+            },
+          ],
+        },
+      },
+      additionalProperties: false,
+    },
     actions: {
       listensOn: ['core.analyze'],
     },

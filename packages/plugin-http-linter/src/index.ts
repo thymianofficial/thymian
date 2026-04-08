@@ -42,8 +42,6 @@ declare module '@thymian/core' {
   }
 }
 
-export type HttpLinterPluginOptions = Record<string, never>;
-
 function createStaticLinterAdapter(
   logger: import('@thymian/core').Logger,
   reportFn: (report: ThymianReport) => void,
@@ -69,7 +67,7 @@ function createStaticLinterAdapter(
 
 export function createHttpLinterPlugin(
   pluginName = '@thymian/plugin-http-linter',
-): ThymianPlugin<HttpLinterPluginOptions> {
+): ThymianPlugin {
   return {
     name: pluginName,
     version: '0.x',

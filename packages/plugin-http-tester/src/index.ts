@@ -15,11 +15,9 @@ import { HttpTestApiContext } from './http-test-api-context.js';
 export { createContext } from './create-context.js';
 export { HttpTestApiContext } from './http-test-api-context.js';
 
-export type HttpTesterPluginOptions = Record<string, never>;
-
 export function createHttpTesterPlugin(
   pluginName = '@thymian/plugin-http-tester',
-): ThymianPlugin<HttpTesterPluginOptions> {
+): ThymianPlugin {
   return {
     name: pluginName,
     version: '0.x',
