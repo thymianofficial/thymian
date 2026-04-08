@@ -16,48 +16,17 @@
 </div>
 <!-- HEADER:END -->
 
-Thymian is a language-agnostic, open-source **HTTP conformance and API governance tool**. It validates your APIs against RFC standards and your OpenAPI specification out of the box, statically, against live endpoints, and in recorded production traffic. Fully extensible with plugins and shareable custom rules that you write once and run everywhere.
+## @thymian/plugin-http-analyzer
 
-## Key Capabilities
+Captures and stores HTTP transactions in a SQLite database for post-facto analysis. Powers `thymian analyze` by running validation rules against recorded production traffic, detecting HTTP conformance issues in real deployments where proxies, CDNs, and load balancers affect HTTP semantics.
 
-- **Standards-First** — Validates against RFC 9110 and related HTTP specifications
-- **Write Once, Validate Everywhere** — A single rule definition works across `thymian lint`, `thymian test`, and `thymian analyze`
-- **Multi-Layer Governance** — Validates HTTP infrastructure, protocol compliance, technical implementation, and organizational guidelines
-- **Educational Reporting** — Violations explain the RFC semantics and real-world consequences, not just pass/fail
-- **Production-Aware** — Monitors how proxies, CDNs, and load balancers affect HTTP semantics in real deployments
-- **Language-Agnostic & Extensible** — Works with any tech stack; custom rules distributable as npm packages, remote plugins via WebSocket
-
-## 🚀 Quick Installation
-
-### Installation
-
-You won't need to install Thymian locally, we will just use `npx` for this.
-
-Check if you can run Thymian by running the following command:
+## Installation
 
 ```bash
-npx thymian --version
+npm install @thymian/plugin-http-analyzer
 ```
 
-### First Run Without a Config
-
-Now navigate to your project's root directory and run Thymian directly against your API description:
-
-```bash
-npx thymian lint --spec openapi:openapi.yaml
-```
-
-This is the fastest way to reach a first conformance result without any prior setup.
-
-### Generate a Reusable Config
-
-If you want to save that setup for future runs, generate a config file:
-
-```bash
-npx thymian generate config
-```
-
-This command detects your OpenAPI specification file and creates a `thymian.config.yaml` you can reuse with `npx thymian lint`.
+> **Getting started with Thymian?** See the [main Thymian package](https://www.npmjs.com/package/thymian) for quick installation and first-run instructions.
 
 <!-- FOOTER:START - Do not remove or modify this section -->
 
