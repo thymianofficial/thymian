@@ -24,17 +24,10 @@ plugins:
   '@thymian/plugin-http-linter': {}
 ```
 
-### 2. Programmatically
+### 2. Via CLI flags
 
-Load rules using the Thymian programmatic API:
-
-```typescript
-import { Thymian } from '@thymian/core';
-import { httpLinterPlugin } from '@thymian/plugin-http-linter';
-
-const thymian = new Thymian().register(httpLinterPlugin);
-
-await thymian.ready();
+```bash
+npx thymian lint --rule-set @thymian/rules-rfc-9110
 ```
 
 ## Creating Your Own Rule Set
@@ -92,14 +85,9 @@ const myCompanyRules: RuleSet = {
 export default myCompanyRules;
 ```
 
-### Publishing
-
-```bash
-npm run build
-npm publish
-```
-
 ### Using Your Rule Set
+
+After publishing your rule set to npm, install it in your project:
 
 ```bash
 npm install @mycompany/api-rules
@@ -108,55 +96,20 @@ npm install @mycompany/api-rules
 ```yaml
 ruleSets:
   - '@mycompany/api-rules'
-
-plugins:
-  '@thymian/plugin-http-linter': {}
 ```
 
-## Debugging Rule Loading
-
-### List Loaded Rules
+## List Loaded Rules
 
 See which rules are loaded:
 
 ```bash
-thymian http-linter:list
+thymian rules list
 ```
 
 Or with specific rule sources:
 
 ```bash
-thymian http-linter:list --rules ./rules/**/*.rule.ts
-```
-
-### Search for Rules
-
-Find rules by description:
-
-```bash
-thymian http-linter:search --for "authentication"
-```
-
-### Show Rule Statistics
-
-View an overview of loaded rules:
-
-```bash
-thymian http-linter:overview
-```
-
-Output:
-
-```
-┌──────────────┬───────┬──────┬───────┐
-│              │ error │ warn │ hint  │
-├──────────────┼───────┼──────┼───────┤
-│ static       │ 45    │ 23   │ 5     │
-│ test         │ 12    │ 8    │ 2     │
-│ analytics    │ 38    │ 19   │ 3     │
-│ informational│ 15    │ 0    │ 0     │
-└──────────────┴───────┴──────┴───────┘
-138 rules loaded in total.
+thymian rules list --rule-set ./rules/**/*.rule.ts
 ```
 
 ## Troubleshooting
