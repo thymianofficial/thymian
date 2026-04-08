@@ -132,11 +132,14 @@ export abstract class BaseCliRunCommand<
   protected logger!: Logger;
   protected thymianConfig!: ThymianConfig;
   protected thymian!: Thymian;
-  protected feedback!: Feedback;
-  protected errorCache!: ErrorCache;
+  protected feedback?: Feedback;
+  protected errorCache?: ErrorCache;
 
   public override async init(): Promise<void> {
     await super.init();
+
+    this.errorCache = ErrorCache.forCommand(this);
+
     const { args, flags } = await this.parse({
       flags: this.ctor.flags,
       baseFlags: (super.ctor as typeof BaseCliRunCommand).baseFlags,
@@ -149,7 +152,6 @@ export abstract class BaseCliRunCommand<
     this.flags.debug = settings.debug || this.flags.debug;
 
     this.feedback = Feedback.forCommand(this);
-    this.errorCache = ErrorCache.forCommand(this);
 
     // --- Config Resolution Chain ---
     // Step A+B: Load config from --config flag, well-known file, or defaultConfig
@@ -277,18 +279,18 @@ export abstract class BaseCliRunCommand<
       await this.registerPluginsFromConfig();
     }
 
-    await this.feedback.run();
+    await this.feedback?.run();
   }
 
   protected override async catch(err: CommandError): Promise<void> {
-    await this.feedback.error();
+    await this.feedback?.error();
     const versionDetails = this.config.versionDetails;
 
     const pluginVersions = Object.entries(versionDetails.pluginVersions ?? {})
       .filter(([name]) => !name.startsWith('@oclif'))
       .map(([name, version]) => ({ name, version: version.version }));
 
-    await this.errorCache.write({
+    await this.errorCache?.write({
       name: err.name,
       message: err.message,
       commandName: this.id ?? 'unknown command',

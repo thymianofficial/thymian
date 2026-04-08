@@ -24,11 +24,14 @@ export abstract class ThymianBaseCommand<
 
   protected flags!: Flags<T>;
   protected args!: Args<T>;
-  protected feedback!: Feedback;
-  protected errorCache!: ErrorCache;
+  protected feedback?: Feedback;
+  protected errorCache?: ErrorCache;
 
   public override async init(): Promise<void> {
     await super.init();
+
+    this.errorCache = ErrorCache.forCommand(this);
+
     const { args, flags } = await this.parse({
       flags: this.ctor.flags,
       baseFlags: (super.ctor as typeof ThymianBaseCommand).baseFlags,
@@ -38,21 +41,21 @@ export abstract class ThymianBaseCommand<
     });
     this.flags = flags as Flags<T>;
     this.args = args as Args<T>;
-    this.feedback = Feedback.forCommand(this);
-    this.errorCache = ErrorCache.forCommand(this);
 
-    await this.feedback.run();
+    this.feedback = Feedback.forCommand(this);
+
+    await this.feedback?.run();
   }
 
   protected override async catch(err: CommandError): Promise<void> {
-    await this.feedback.error();
+    await this.feedback?.error();
     const versionDetails = this.config.versionDetails;
 
     const pluginVersions = Object.entries(versionDetails.pluginVersions ?? {})
       .filter(([name]) => !name.startsWith('@oclif'))
       .map(([name, version]) => ({ name, version: version.version }));
 
-    await this.errorCache.write({
+    await this.errorCache?.write({
       name: err.name,
       message: err.message,
       commandName: this.id ?? 'unknown command',
