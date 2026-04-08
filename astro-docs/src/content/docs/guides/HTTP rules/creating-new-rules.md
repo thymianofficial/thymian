@@ -12,7 +12,7 @@ Creating HTTP validation rules in Thymian is straightforward. You can generate a
 The fastest way to create a new rule is using the interactive CLI generator:
 
 ```bash
-thymian http-linter:generate
+thymian generate rule
 ```
 
 This command guides you through the rule creation process:
@@ -185,10 +185,6 @@ not(responseHeader('location')); // Must NOT match
 xor(...);
 ```
 
-### Complete Filter Reference
-
-See the [API documentation](https://docs.thymian.dev/api/filters) for a complete list of available filters.
-
 ## Real-World Examples
 
 ### Example 1: Enforce Consistent Error Format
@@ -309,11 +305,3 @@ and(method('GET'), method('POST'));
 // ✅ Use OR for alternatives
 or(method('GET'), method('POST'));
 ```
-
-## Next Steps
-
-Now that you know how to create rules:
-
-- Explore [rule types in depth](../../references/plugins/http-linter/rule-types.md) to understand context-specific features
-- Learn about [combining rule types](combining-types.md) for hybrid rules
-- See [how to use rules](how-to-use-rules.md) in your projects
