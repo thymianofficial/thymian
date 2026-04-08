@@ -31,7 +31,6 @@
     "bin": "thymian",
     "topicSeparator": " ",
     "hooks": {
-      "thymian-plugin.init": "./dist/cli/init-hook",
       "thymian.spec-search": "./dist/cli/spec-search-hook"
     },
     "topics": {

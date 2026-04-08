@@ -9,7 +9,7 @@ export default class Init extends BaseCliRunCommand<typeof Init> {
 
     check: oclif.Flags.boolean({
       description:
-        'After initialization, run a format check to verify all transactions can be executed.',
+        'After initialization, run sampler check to verify all transactions can be executed.',
       allowNo: true,
       default: false,
     }),
@@ -18,7 +18,9 @@ export default class Init extends BaseCliRunCommand<typeof Init> {
   async run(): Promise<void> {
     await this.thymian.run(async (emitter) => {
       if (
-        !this.thymian.plugins.find((p) => p.plugin.name === '@thymian/plugin-sampler')
+        !this.thymian.plugins.find(
+          (p) => p.plugin.name === '@thymian/plugin-sampler',
+        )
       ) {
         this.error(
           'Cannot initialize sampler if sampler plugin is not registered.',
@@ -29,7 +31,7 @@ export default class Init extends BaseCliRunCommand<typeof Init> {
       }
 
       const format = await this.thymian.loadFormat(
-        { inputs: [] },
+        { inputs: this.thymianConfig.specifications ?? [] },
         {
           emitFormat: true,
         },
@@ -44,7 +46,7 @@ export default class Init extends BaseCliRunCommand<typeof Init> {
     this.log(oclif.ux.colorize('green', 'Sampler initialized.'));
 
     if (this.flags.check) {
-      if (this.config.findCommand('format:check')) {
+      if (this.config.findCommand('sampler check')) {
         this.log();
         const answer = await prompts.confirm({
           message: 'Do you want to run this check now?',
@@ -59,14 +61,14 @@ export default class Init extends BaseCliRunCommand<typeof Init> {
             args.push('-c', this.flags.config);
           }
 
-          await this.config.runCommand('format:check', args);
+          await this.config.runCommand('sampler check', args);
         }
       }
     } else {
       this.log();
       this.log('To check if every transaction can be executed, run:');
       this.log();
-      this.log('$ thymian format:check');
+      this.log('$ thymian sampler check');
       this.log();
     }
   }

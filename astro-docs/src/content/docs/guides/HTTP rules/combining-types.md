@@ -3,15 +3,14 @@ title: 'Combining Different Rule Types'
 description: 'Writing hybrid rules that work across multiple contexts'
 ---
 
-One of the most powerful features of `@thymian/http-linter` is the ability to write a single rule that works across multiple validation contexts. This prevents API drift and ensures consistent governance throughout the development lifecycle.
+One of the most powerful features of the HTTP linter is the ability to write a single rule that works across multiple validation contexts. This prevents API drift and ensures consistent governance throughout the development lifecycle.
 
 ## The Common Interface
 
-The **common interface** allows you to write validation logic once and have it automatically work in static, test, and analytics contexts:
+The **common interface** allows you to write validation logic once and have it automatically work in lint, test, and analyze contexts:
 
 ```typescript
-import { httpRule } from '@thymian/http-linter';
-import { statusCode, not, responseHeader } from '@thymian/core';
+import { httpRule, statusCode, not, responseHeader } from '@thymian/core';
 
 export default httpRule('hybrid-rule')
   .severity('error')
@@ -24,9 +23,9 @@ export default httpRule('hybrid-rule')
 
 This single rule:
 
-- **Static** — Validates spec definitions
+- **Lint** — Validates spec definitions
 - **Test** — Tests live endpoints
-- **Analytics** — Analyzes recorded traffic
+- **Analyze** — Analyzes recorded traffic
 
 ## How It Works
 
@@ -34,9 +33,9 @@ This single rule:
 flowchart LR
     A[Rule Definition<br/>Common Interface] --> B{Context Type}
 
-    B -->|static| C[StaticApiContext]
-    B -->|test| D[HttpTestContext]
-    B -->|analytics| E[AnalyticsContext]
+    B -->|static| C[LintContext]
+    B -->|test| D[TestContext]
+    B -->|analytics| E[AnalyzeContext]
 
     C --> F[Reads ThymianFormat<br/>Validates Spec]
     D --> G[Generates Tests<br/>Executes Requests]
@@ -49,9 +48,9 @@ flowchart LR
 
 The HTTP linter automatically adapts your rule logic to each context:
 
-1. **In static mode** — Extracts transactions from OpenAPI spec
+1. **In lint mode** — Extracts transactions from OpenAPI spec
 2. **In test mode** — Generates and executes HTTP tests
-3. **In analytics mode** — Queries database and validates transactions
+3. **In analyze mode** — Queries database and validates transactions
 
 ## When to Use Hybrid Rules
 
@@ -60,7 +59,7 @@ The HTTP linter automatically adapts your rule logic to each context:
 Validate that your implementation matches your specification:
 
 ```typescript
-import { httpRule } from '@thymian/http-linter';
+import { httpRule } from '@thymian/core';
 import { not, requestHeader } from '@thymian/core';
 
 export default httpRule('require-api-version-header')
@@ -74,7 +73,7 @@ export default httpRule('require-api-version-header')
 
 **Benefits:**
 
-- Catches spec issues during design (static)
+- Catches spec issues during design (lint)
 - Catches implementation issues during testing (test)
 - Ensures spec and implementation stay in sync
 
@@ -83,7 +82,7 @@ export default httpRule('require-api-version-header')
 Validate behavior from testing through production:
 
 ```typescript
-import { httpRule } from '@thymian/http-linter';
+import { httpRule } from '@thymian/core';
 import { statusCodeRange, not, responseMediaType } from '@thymian/core';
 
 export default httpRule('errors-use-problem-details')
@@ -98,7 +97,7 @@ export default httpRule('errors-use-problem-details')
 **Benefits:**
 
 - Validates during integration testing (test)
-- Monitors production traffic (analytics)
+- Monitors production traffic (analyze)
 - Catches regressions in either environment
 
 ### Use Case 3: Complete Coverage
@@ -106,7 +105,7 @@ export default httpRule('errors-use-problem-details')
 Validate at all stages of development:
 
 ```typescript
-import { httpRule } from '@thymian/http-linter';
+import { httpRule } from '@thymian/core';
 import { statusCode, not, responseHeader } from '@thymian/core';
 
 export default httpRule('complete-coverage')
@@ -120,9 +119,9 @@ export default httpRule('complete-coverage')
 
 **Benefits:**
 
-- Catches design issues (static)
+- Catches design issues (lint)
 - Validates implementation (test)
-- Monitors production (analytics)
+- Monitors production (analyze)
 - Maximum confidence
 
 ## Context-Specific Overrides
@@ -158,10 +157,10 @@ Override a specific context when:
 ### Example: Override Test Context
 
 ```typescript
-import { httpRule } from '@thymian/http-linter';
+import { httpRule } from '@thymian/core';
 import { type JSONSchemaType } from '@thymian/core';
 import { and, authorization, constant, method, not, or, responseHeader, responseWith, statusCode } from '@thymian/core';
-import { singleTestCase } from '@thymian/http-testing';
+import { singleTestCase } from '@thymian/core';
 
 type Options = {
   checkAllSecured?: boolean;
@@ -202,14 +201,14 @@ export default httpRule('401-with-custom-test')
 
 **Why override?**
 
-- Static and analytics can use simple common logic
+- Static and analyze can use simple common logic
 - Test needs sophisticated logic to decide which endpoints to test
 - Uses rule options to control behavior
 - Avoids testing unnecessary endpoints
 
 ## Common Hybrid Patterns
 
-### Pattern 1: Static + Analytics
+### Pattern 1: Lint + Analyze
 
 Perfect for validating design and production traffic without active testing:
 
@@ -229,7 +228,7 @@ Perfect for validating design and production traffic without active testing:
 - Production monitoring is needed
 - Active testing is not feasible
 
-### Pattern 2: Static + Test
+### Pattern 2: Lint + Test
 
 Ideal for preventing drift between specification and implementation:
 
@@ -294,7 +293,7 @@ Maximum coverage across all stages:
 For rules that compare multiple transactions, use grouped validation:
 
 ```typescript
-import { httpRule, type RuleViolation } from '@thymian/http-linter';
+import { httpRule, type RuleViolation } from '@thymian/core';
 import { and, or, method, statusCode, url, equalsIgnoreCase } from '@thymian/core';
 
 export default httpRule('head-matches-get-headers')
@@ -340,9 +339,9 @@ function arraysEqual(a: string[], b: string[]): boolean {
 
 This pattern works across all contexts because:
 
-- **Static** — Groups transactions defined in spec
+- **Lint** — Groups transactions defined in spec
 - **Test** — Generates both GET and HEAD tests, then compares
-- **Analytics** — Groups recorded transactions by URL
+- **Analyze** — Groups recorded transactions by URL
 
 ## Best Practices
 
@@ -401,9 +400,3 @@ httpRule('request-requirements') // Too broad
     /* validates multiple things */
   });
 ```
-
-## Next Steps
-
-- See [how to use rules](how-to-use-rules.md) in your projects
-- Explore the [CLI tools](../../references/plugins/http-linter/cli.md) for managing rules
-- Check the [API reference](https://docs.thymian.dev/api) for advanced patterns

@@ -37,7 +37,8 @@
     "@thymian/plugin-websocket-proxy": "0.0.0-PLACEHOLDER",
     "@thymian/rules-rfc-9110": "0.0.0-PLACEHOLDER",
     "open": "^8.4.2",
-    "tslib": "^2.3.0"
+    "tslib": "^2.3.0",
+    "@thymian/core": "0.0.0-PLACEHOLDER"
   },
   "bin": {
     "thymian": "./bin/run.js"

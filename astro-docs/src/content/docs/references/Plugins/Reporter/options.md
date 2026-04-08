@@ -17,7 +17,7 @@ sidebar:
 ```json
 {
   "formatters": {
-    "cli": {},
+    "text": {},
     "markdown": {},
     "csv": {}
   }
@@ -30,32 +30,33 @@ sidebar:
 
 **Properties**
 
-| Name                                | Type                  | Description                                        | Required |
-| ----------------------------------- | --------------------- | -------------------------------------------------- | -------- |
-| [**cli**](#formatterscli)           | <nobr>`object`</nobr> | Configuration for the CLI (console) formatter<br/> |          |
-| [**markdown**](#formattersmarkdown) | <nobr>`object`</nobr> | Configuration for the Markdown formatter<br/>      |          |
-| [**csv**](#formatterscsv)           | <nobr>`object`</nobr> | Configuration for the CSV formatter<br/>           |          |
+| Name                                | Type                  | Description                                         | Required |
+| ----------------------------------- | --------------------- | --------------------------------------------------- | -------- |
+| [**text**](#formatterstext)         | <nobr>`object`</nobr> | Configuration for the text (console) formatter<br/> |          |
+| [**markdown**](#formattersmarkdown) | <nobr>`object`</nobr> | Configuration for the Markdown formatter<br/>       |          |
+| [**csv**](#formatterscsv)           | <nobr>`object`</nobr> | Configuration for the CSV formatter<br/>            |          |
 
 **Additional Properties:** not allowed  
 **Example**
 
 ```json
 {
-  "cli": {},
+  "text": {},
   "markdown": {},
   "csv": {}
 }
 ```
 
-<a name="formatterscli"></a>
+<a name="formatterstext"></a>
 
-### formatters\.cli: object
+### formatters\.text: object
 
 **Properties**
 
-| Name            | Type                   | Description                                                     | Required |
-| --------------- | ---------------------- | --------------------------------------------------------------- | -------- |
-| **summaryOnly** | <nobr>`boolean`</nobr> | When true, only shows the summary without detailed reports<br/> |          |
+| Name            | Type                   | Description                                                                               | Required |
+| --------------- | ---------------------- | ----------------------------------------------------------------------------------------- | -------- |
+| **summaryOnly** | <nobr>`boolean`</nobr> | When true, only shows the summary without detailed reports<br/>                           |          |
+| **path**        | <nobr>`string`</nobr>  | File path where the plain text report will be saved (ANSI escape codes are stripped)<br/> |          |
 
 **Additional Properties:** not allowed  
 <a name="formattersmarkdown"></a>

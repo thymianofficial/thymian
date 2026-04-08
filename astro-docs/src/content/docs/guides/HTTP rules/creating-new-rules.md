@@ -12,7 +12,7 @@ Creating HTTP validation rules in Thymian is straightforward. You can generate a
 The fastest way to create a new rule is using the interactive CLI generator:
 
 ```bash
-thymian http-linter:generate
+thymian generate rule
 ```
 
 This command guides you through the rule creation process:
@@ -27,7 +27,7 @@ This command guides you through the rule creation process:
 The CLI generates a rule template that you can copy into your project:
 
 ```typescript
-import { httpRule } from '@thymian/http-linter';
+import { httpRule } from '@thymian/core';
 
 export default httpRule('your-rule-name').severity('error').type('static', 'analytics').description('Your rule description').appliesTo('server').done();
 ```
@@ -39,11 +39,10 @@ export default httpRule('your-rule-name').severity('error').type('static', 'anal
 Start by importing the necessary components:
 
 ```typescript
-import { httpRule } from '@thymian/http-linter';
-import { statusCode, not, responseHeader } from '@thymian/core';
+import { httpRule, statusCode, not, responseHeader } from '@thymian/core';
 ```
 
-The `@thymian/core` package provides filter expressions for matching HTTP transactions.
+The `@thymian/core` package provides both the rule builder and filter expressions for matching HTTP transactions.
 
 ### Step 2: Define Rule Metadata
 
@@ -90,7 +89,7 @@ Always end with `.done()`:
 Here's a complete rule that enforces API versioning through custom headers:
 
 ```typescript
-import { httpRule } from '@thymian/http-linter';
+import { httpRule } from '@thymian/core';
 import { not, requestHeader } from '@thymian/core';
 
 export default httpRule('require-api-version-header')
@@ -186,10 +185,6 @@ not(responseHeader('location')); // Must NOT match
 xor(...);
 ```
 
-### Complete Filter Reference
-
-See the [API documentation](https://docs.thymian.dev/api/filters) for a complete list of available filters.
-
 ## Real-World Examples
 
 ### Example 1: Enforce Consistent Error Format
@@ -197,7 +192,7 @@ See the [API documentation](https://docs.thymian.dev/api/filters) for a complete
 Ensure all error responses use Problem Details format:
 
 ```typescript
-import { httpRule } from '@thymian/http-linter';
+import { httpRule } from '@thymian/core';
 import { statusCodeRange, not, responseMediaType } from '@thymian/core';
 
 export default httpRule('errors-use-problem-details')
@@ -214,7 +209,7 @@ export default httpRule('errors-use-problem-details')
 Ensure distributed tracing by requiring correlation IDs:
 
 ```typescript
-import { httpRule } from '@thymian/http-linter';
+import { httpRule } from '@thymian/core';
 import { not, requestHeader } from '@thymian/core';
 
 export default httpRule('require-correlation-id')
@@ -231,7 +226,7 @@ export default httpRule('require-correlation-id')
 Ensure deprecated endpoints include proper sunset notices:
 
 ```typescript
-import { httpRule } from '@thymian/http-linter';
+import { httpRule } from '@thymian/core';
 import { and, path, not, responseHeader } from '@thymian/core';
 
 export default httpRule('deprecated-endpoints-require-sunset')
@@ -248,7 +243,7 @@ export default httpRule('deprecated-endpoints-require-sunset')
 When filters aren't sufficient, use custom validation functions:
 
 ```typescript
-import { httpRule } from '@thymian/http-linter';
+import { httpRule } from '@thymian/core';
 import { responseHeader, getHeader } from '@thymian/core';
 
 export default httpRule('validate-cache-control-directives')
@@ -310,11 +305,3 @@ and(method('GET'), method('POST'));
 // ✅ Use OR for alternatives
 or(method('GET'), method('POST'));
 ```
-
-## Next Steps
-
-Now that you know how to create rules:
-
-- Explore [rule types in depth](../../references/plugins/http-linter/rule-types.md) to understand context-specific features
-- Learn about [combining rule types](combining-types.md) for hybrid rules
-- See [how to use rules](how-to-use-rules.md) in your projects

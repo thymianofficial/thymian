@@ -1,9 +1,9 @@
 ---
 title: Initializing your Request Samples
-description: Getting started tutorial for @thymian/sampler
+description: Getting started tutorial for @thymian/plugin-sampler
 ---
 
-import { Tabs, TabItem, FileTree } from '@astrojs/starlight/components';
+import { Tabs, TabItem, FileTree, Steps } from '@astrojs/starlight/components';
 
 This tutorial walks you through the complete workflow of using the sampler plugin, from installation to running tests with hooks.
 
@@ -22,90 +22,60 @@ By the end of this tutorial, you'll be able to:
 ## Prerequisites
 
 - Node.js 20+ installed
-- A working API implementation
-- An OpenAPI 3.x specification for your API
-- Thymian installed in your project
 
 
+## Step 1: Install the Thymian demo project
 
-## Tutorial Setup
+As a first step we will install the Thymian demo project which includes the Space Launch System API. This will be the API we will run our tests against in this tutorial.
 
-This tutorial uses the [Space Launch System API](https://github.com/thymianofficial/thymian-getting-started) as an example. The API manages rocket launches and astronauts with Basic Authentication.
+<Steps>
 
-You can follow along with any API that has an OpenAPI specification.
+1. **Clone the demo repository via**
 
+   <Tabs>
 
+     <TabItem label="HTTPS">
+       ```bash
+       git clone https://github.com/thymianofficial/thymian-demo.git
+       ```
+     </TabItem>
 
-## Step 1: Install Thymian and Set Up Your API
+     <TabItem label="SSH">
+        ```bash
+        git clone git@github.com:thymianofficial/thymian-demo.git
+        ```
+     </TabItem>
 
+     <TabItem label="GitHub CLI">
+       ```bash
+       gh repo clone thymianofficial/thymian-demo
+       ```
+     </TabItem>
 
-Navigate to your project directory (where your API implementation lives):
+   </Tabs>
 
-Space Launch System API:
+2. **Install dependencies**
 
-<Tabs>
+     ```bash
+      npm install
+      ```
 
-  <TabItem label="Fastify">
-    ```bash
-    cd implementations/node/fastify
-    ```
+3. **Check if you can run Thymian**
 
-    Install Thymian, if not done already:
-
-    ```bash
-    npm install -D thymian
-    ```
-    And set up your API. For the Space Launch System API implemented with Fastify, run:
-
-    ```bash
-    npm i
-    ```
-
-    to install all dependencies and then
-
-    ```bash
-    npm run dev
-    ```
-
-    to start the API server.
-
-  </TabItem>
-
-</Tabs>
+   ```bash
+   npx thymian --version
+   ```
 
 
-
-## Step 2: Create a Thymian Configuration File
-
-Create `thymian.config.yaml` in your project root:
-
-```yaml
-plugins:
-  "@thymian/openapi":
-    options:
-      descriptions:
-        - source: ../../../openapi.yaml
-  "@thymian/request-dispatcher": {}
-  "@thymian/sampler":
-    options:
-      path: '.thymian/samples' # Directory where samples are generated
-  "@thymian/reporter":
-    options:
-      formatters:
-        cli: {}
-  "@thymian/format-validator": {}
-```
-
-Adjust the `source` path to point to your OpenAPI specification file.
+</Steps>
 
 
-
-## Step 3: Generate Initial Samples
+## Step 2: Generate Initial Samples
 
 Run the sampler initialization command:
 
 ```bash
-thymian sampler:init --no-check
+npx thymian sampler init --spec openapi:openapi.yaml
 ```
 
 This command:
@@ -145,7 +115,7 @@ This command:
 
 
 
-## Step 4: Inspect Generated Samples
+## Step 3: Inspect Generated Samples
 
 Look at a generated sample file:
 
@@ -182,33 +152,28 @@ You'll see auto-generated sample data:
 
 
 
-## Step 5: Customize Sample Data (Optional)
+## Step 4: Customize Sample Data (Optional)
 
 While auto-generated samples work, you may want more realistic data. To edit the request data just edit the corresponding `request.json` file.
 The Space Launch System API provides examples in the OpenAPI spec, so the generated samples are already quite good.
 
 
 
-## Step 6: Run Checks Without Authentication
+## Step 5: Run Checks Without Authentication
 
 Before adding authentication, let's verify the basic setup works.
 
 Start your API server if not already running. For the Space Launch System API, run:
 
-<Tabs>
 
-  <TabItem label="Fastify">
-    ```bash
-    npm run dev
-    ```
-  </TabItem>
-
-</Tabs>
+  ```bash
+  npm run dev
+  ```
 
 In another terminal, run Thymian:
 
 ```bash
-thymian format:check
+npx thymian sampler check --spec openapi:openapi.yaml
 ```
 
 **Expected result:** Most tests will fail because of a `401 Unauthorized` response because the API requires authentication.
@@ -234,7 +199,7 @@ Checked 14 transactions. 13 failed.
 
 
 
-## Step 7: Create an Authorization Hook
+## Step 6: Create an Authorization Hook
 
 Generate an authorize hook:
 
@@ -290,12 +255,12 @@ export default hook;
 
 
 
-## Step 8: Run Checks With Authentication
+## Step 7: Run Checks With Authentication
 
 Run tests again:
 
 ```bash
-thymian format:check
+npx thymian sampler check --spec openapi:openapi.yaml
 ```
 
 We should now see that most requests can be run. The only ones that fail requests that depend on a valid and existing
@@ -322,7 +287,7 @@ Checked 14 transactions. 4 failed.
 
 
 
-## Step 9: Handle Resource Dependencies
+## Step 8: Handle Resource Dependencies
 
 Some endpoints require existing resources. For example, `GET /launches/{id}` and `DELETE /launches/{id}` needs a launch to exist.
 
@@ -373,12 +338,12 @@ export default hook;
 
 
 
-## Step 10: Run Complete Test Suite
+## Step 9: Run Complete Test Suite
 
 Run the checks again:
 
 ```bash
-thymian format:check
+npx thymian sampler check --spec openapi:openapi.yaml
 ```
 
 **Expected result:**
@@ -406,7 +371,7 @@ As you can see, only the `/astronauts/{id}` endpoints are failing. Lets add a be
 
 
 
-## Step 11: Handle Resource Dependencies - Part 2
+## Step 10: Handle Resource Dependencies - Part 2
 
 Generate a beforeEach hook for the `[id]` path:
 
@@ -455,12 +420,13 @@ export default hook;
 
 
 
-## Step 12: Run Final Check
+## Step 11: Run Final Check
 
 Run checks to see if all hooks are working.
 
 ```bash
-thymian format:check
+npx thymian sampler check --spec openapi:openapi.yaml
+
 ```
 
 Now you should see that all transactions can be run:
@@ -498,5 +464,5 @@ You've successfully:
 
 ✔ Created a beforeEach hook to set up test dependencies
 
-✔ Run transactions gainst your API
+✔ Run tests against your API
 

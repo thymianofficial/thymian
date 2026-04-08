@@ -1,6 +1,6 @@
 ---
 title: 'Rule Types'
-description: 'Deep dive into static, test, and analytics validation contexts'
+description: 'Deep dive into lint, test, and analyze validation contexts'
 ---
 
 Thymian provides three validation contexts, each designed for a specific stage in the API development lifecycle. Understanding when and how to use each context helps you create effective validation rules.
@@ -10,9 +10,9 @@ Thymian provides three validation contexts, each designed for a specific stage i
 ```mermaid
 flowchart TD
   A[Rule Definition] --> B{Rule Types}
-  B -->|. type'static'| C[StaticApiContext]
-  B -->|. type'test'| D[HttpTestContext]
-  B -->|. type'analytics'| E[AnalyticsApiContext]
+  B -->|. type'static'| C[LintContext]
+  B -->|. type'test'| D[TestContext]
+  B -->|. type'analytics'| E[AnalyzeContext]
   C --> F[ThymianFormat<br/>OpenAPI Spec]
   D --> G[Live API<br/>HTTP Requests]
   E --> H[SQLite DB<br/>Recorded Traffic]
@@ -23,19 +23,19 @@ flowchart TD
 
 Each context provides different capabilities and trade-offs:
 
-| Context       | Speed         | Network | Data Source      | Use Case              |
-| ------------- | ------------- | ------- | ---------------- | --------------------- |
-| **Static**    | ⚡ Very Fast  | No      | OpenAPI spec     | Design validation     |
-| **Test**      | ⏱️ Variable\* | Yes     | Live API         | Integration testing   |
-| **Analytics** | ⚡ Fast       | No      | Recorded traffic | Production monitoring |
+| Context     | Speed         | Network | Data Source      | Use Case              |
+| ----------- | ------------- | ------- | ---------------- | --------------------- |
+| **Lint**    | ⚡ Very Fast  | No      | OpenAPI spec     | Design validation     |
+| **Test**    | ⏱️ Variable\* | Yes     | Live API         | Integration testing   |
+| **Analyze** | ⚡ Fast       | No      | Recorded traffic | Production monitoring |
 
 _\*Test speed depends on API endpoint performance and network conditions_
 
-## Static Context
+## Lint Context
 
 ### What It Does
 
-The **static context** validates API specifications without making any HTTP calls. It analyzes the Thymian format (derived from OpenAPI documents) to check that your API design follows rules.
+The **lint context** validates API specifications without making any HTTP calls. It analyzes the Thymian format (derived from OpenAPI documents) to check that your API design follows rules.
 
 ### When to Use
 
@@ -60,12 +60,12 @@ The **static context** validates API specifications without making any HTTP call
 ### Example Usage
 
 ```typescript
-import { httpRule } from '@thymian/http-linter';
+import { httpRule } from '@thymian/core';
 import { statusCode, not, responseHeader } from '@thymian/core';
 
 export default httpRule('require-rate-limit-headers')
   .severity('warn')
-  .type('static') // Static context only
+  .type('static') // Lint context only
   .description('All responses must define rate limiting headers')
   .appliesTo('server')
   .rule((ctx) => ctx.validateCommonHttpTransactions(statusCode(200), not(responseHeader('x-ratelimit-limit'))))
@@ -74,7 +74,7 @@ export default httpRule('require-rate-limit-headers')
 
 ### What Gets Validated
 
-The static context checks:
+The lint context checks:
 
 - Request/response definitions in OpenAPI specs
 - Header presence and schemas
@@ -157,7 +157,7 @@ The **test context** generates and executes HTTP requests against a live API. It
 ### Example Usage
 
 ```typescript
-import { httpRule } from '@thymian/http-linter';
+import { httpRule } from '@thymian/core';
 import { not, responseHeader } from '@thymian/core';
 
 export default httpRule('test-request-id-propagation')
@@ -184,9 +184,9 @@ The test context checks:
 For complex scenarios, override the default test behavior:
 
 ```typescript
-import { httpRule } from '@thymian/http-linter';
+import { httpRule } from '@thymian/core';
 import { and, method, not, statusCode } from '@thymian/core';
-import { singleTestCase } from '@thymian/http-testing';
+import { singleTestCase } from '@thymian/core';
 
 export default httpRule('server-supports-get-head')
   .severity('error')
@@ -234,11 +234,11 @@ export default httpRule('configurable-test')
   .done();
 ```
 
-## Analytics Context
+## Analyze Context
 
 ### What It Does
 
-The **analytics context** validates recorded HTTP transactions stored in a SQLite database. It analyzes real traffic that has already occurred.
+The **analyze context** validates recorded HTTP transactions stored in a SQLite database. It analyzes real traffic that has already occurred.
 
 ### When to Use
 
@@ -264,12 +264,12 @@ The **analytics context** validates recorded HTTP transactions stored in a SQLit
 ### Example Usage
 
 ```typescript
-import { httpRule } from '@thymian/http-linter';
+import { httpRule } from '@thymian/core';
 import { statusCode, not, responseHeader } from '@thymian/core';
 
 export default httpRule('analyze-401-responses')
   .severity('error')
-  .type('analytics') // Analytics context only
+  .type('analytics') // Analyze context only
   .description('Recorded 401 responses must include WWW-Authenticate')
   .appliesTo('server')
   .rule((ctx) => ctx.validateCommonHttpTransactions(statusCode(401), not(responseHeader('www-authenticate'))))
@@ -278,7 +278,7 @@ export default httpRule('analyze-401-responses')
 
 ### What Gets Validated
 
-The analytics context checks:
+The analyze context checks:
 
 - Recorded HTTP request/response pairs
 - Header values from real traffic
@@ -288,7 +288,7 @@ The analytics context checks:
 
 ### SQL Optimization
 
-The analytics context automatically compiles filter expressions to SQL for efficiency:
+The analyze context automatically compiles filter expressions to SQL for efficiency:
 
 ```typescript
 // This filter...
@@ -352,17 +352,17 @@ export default httpRule('analyze-auth-flow')
 ```mermaid
 flowchart TD
   Start[Need to validate...] --> Q1{Spec or behavior?}
-  Q1 -->|Spec| Static[Use Static]
+  Q1 -->|Spec| Lint[Use Lint]
   Q1 -->|Behavior| Q2{Have running API?}
   Q2 -->|Yes| Q3{Active or passive?}
   Q2 -->|No| Traffic{Have traffic data?}
   Q3 -->|Active testing| Test[Use Test]
   Q3 -->|Passive analysis| Traffic
-  Traffic -->|Yes| Analytics[Use Analytics]
+  Traffic -->|Yes| Analyze[Use Analyze]
   Traffic -->|No| Wait[Wait for traffic<br/>or deploy API]
-  Static --> Consider1[Consider adding Test<br/>to prevent drift]
-  Test --> Consider2[Consider adding Analytics<br/>for production monitoring]
-  Analytics --> Consider3[Consider adding Static<br/>for design validation]
+  Lint --> Consider1[Consider adding Test<br/>to prevent drift]
+  Test --> Consider2[Consider adding Analyze<br/>for production monitoring]
+  Analyze --> Consider3[Consider adding Lint<br/>for design validation]
 ```
 
 ### Common Patterns
@@ -390,6 +390,6 @@ type('static', 'test', 'analytics')  // Validate everywhere
 
 ## Next Steps
 
-- Learn about [combining rule types](../../../guides/rules/combining-types.md) for hybrid validation
-- Explore [how to use rules](../../../guides/rules/how-to-use-rules.md) in your projects
-- See the [CLI reference](cli.md) for rule management commands
+- Learn about [combining rule types](../guides/HTTP%20rules/combining-types.md) for hybrid validation
+- Explore [how to use rules](../guides/HTTP%20rules/how-to-use-rules.md) in your projects
+- See the [CLI reference](../references/cli) for rule management commands

@@ -13,31 +13,21 @@ There are two ways to load rules into Thymian:
 
 ### 1. Via Configuration File
 
-Create a `thymian.config.ts` file in your project root:
+Create a `thymian.config.yaml` file in your project root:
 
 ```yaml
+ruleSets:
+  - './rules/**/*.rule.js' # Local rules
+  - '@thymian/rules-rfc-9110' # Npm package
+
 plugins:
-  '@thymian/http-linter':
-    options:
-      rules:
-        - './rules/**/*.rule.js', # Local rules
-        - '@thymian/rfc-9110-rules', # Npm package
+  '@thymian/plugin-http-linter': {}
 ```
 
-### 2. Programmatically
+### 2. Via CLI flags
 
-Load rules in your application code:
-
-```typescript
-import { Thymian } from '@thymian/core';
-import httpLinterPlugin from '@thymian/http-linter';
-
-const thymian = new Thymian().register(httpLinterPlugin, {
-  rules: ['./rules/**/*.rule.ts'],
-  modes: ['static'],
-});
-
-await thymian.run();
+```bash
+npx thymian lint --rule-set @thymian/rules-rfc-9110
 ```
 
 ## Creating Your Own Rule Set
@@ -73,7 +63,7 @@ my-api-rules/
   "types": "./dist/index.d.ts",
   "files": ["dist"],
   "peerDependencies": {
-    "@thymian/http-linter": "^0.0.1",
+    "@thymian/plugin-http-linter": "^0.0.1",
     "@thymian/core": "^0.0.1"
   }
 }
@@ -84,7 +74,7 @@ my-api-rules/
 **src/index.ts:**
 
 ```typescript
-import type { RuleSet } from '@thymian/http-linter';
+import type { RuleSet } from '@thymian/core';
 
 const myCompanyRules: RuleSet = {
   name: '@mycompany/api-rules',
@@ -95,71 +85,31 @@ const myCompanyRules: RuleSet = {
 export default myCompanyRules;
 ```
 
-### Publishing
-
-```bash
-npm run build
-npm publish
-```
-
 ### Using Your Rule Set
+
+After publishing your rule set to npm, install it in your project:
 
 ```bash
 npm install @mycompany/api-rules
 ```
 
 ```yaml
-plugins:
-  '@thymian/http-linter':
-    options:
-      rules:
-        - '@mycompany/api-rules'
+ruleSets:
+  - '@mycompany/api-rules'
 ```
 
-## Debugging Rule Loading
-
-### List Loaded Rules
+## List Loaded Rules
 
 See which rules are loaded:
 
 ```bash
-thymian http-linter:list
+thymian rules list
 ```
 
 Or with specific rule sources:
 
 ```bash
-thymian http-linter:list --rules ./rules/**/*.rule.ts
-```
-
-### Search for Rules
-
-Find rules by description:
-
-```bash
-thymian http-linter:search --for "authentication"
-```
-
-### Show Rule Statistics
-
-View an overview of loaded rules:
-
-```bash
-thymian http-linter:overview
-```
-
-Output:
-
-```
-┌──────────────┬───────┬──────┬───────┐
-│              │ error │ warn │ hint  │
-├──────────────┼───────┼──────┼───────┤
-│ static       │ 45    │ 23   │ 5     │
-│ test         │ 12    │ 8    │ 2     │
-│ analytics    │ 38    │ 19   │ 3     │
-│ informational│ 15    │ 0    │ 0     │
-└──────────────┴───────┴──────┴───────┘
-138 rules loaded in total.
+thymian rules list --rule-set ./rules/**/*.rule.ts
 ```
 
 ## Troubleshooting

@@ -22,7 +22,7 @@ and you provide the following Thymian configuration file:
 
 ```yaml
 plugins:
-  '@thymian/http-linter':
+  '@thymian/plugin-http-linter':
     options:
       rules:
         'my-rule':

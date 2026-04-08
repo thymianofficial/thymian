@@ -9,9 +9,9 @@ An HTTP rule in Thymian applies the familiar concept of linting—like ESLint fo
 
 Unlike tools that only validate static OpenAPI documents (like Spectral), Thymian rules work across three contexts:
 
-- **Static validation** — Checks API specifications before implementation
-- **Live testing** — Actively tests running API endpoints
-- **Traffic analysis** — Validates recorded HTTP transactions
+- **Lint** — Checks API specifications before implementation
+- **Test** — Actively tests running API endpoints
+- **Analyze** — Validates recorded HTTP transactions
 
 This multi-context approach prevents API drift and ensures governance throughout the development lifecycle.
 
@@ -32,15 +32,15 @@ httpRule('rule-name')
 
 ### Core Components
 
-| Component            | Purpose                 | Example                                          |
-| -------------------- | ----------------------- | ------------------------------------------------ |
-| **Name**             | Unique identifier       | `'no-body-in-get-requests'`                      |
-| **Severity**         | Impact level            | `'error'`, `'warn'`, `'hint'`, `'informational'` |
-| **Type**             | Validation contexts     | `'static'`, `'analytics'`, `'test'`              |
-| **Description**      | What the rule validates | `'GET requests should not include a body'`       |
-| **Applies To**       | Target participant      | `'client'`, `'server'`, `'proxy'`                |
-| **Validation Logic** | How to check compliance | Filter expressions or custom functions           |
-| **URL** (optional)   | Reference documentation | RFC section or internal docs                     |
+| Component            | Purpose                 | Example                                                |
+| -------------------- | ----------------------- | ------------------------------------------------------ |
+| **Name**             | Unique identifier       | `'no-body-in-get-requests'`                            |
+| **Severity**         | Impact level            | `'error'`, `'warn'`, `'hint'`                          |
+| **Type**             | Validation contexts     | `'static'`, `'analytics'`, `'test'`, `'informational'` |
+| **Description**      | What the rule validates | `'GET requests should not include a body'`             |
+| **Applies To**       | Target participant      | `'client'`, `'server'`, `'proxy'`                      |
+| **Validation Logic** | How to check compliance | Filter expressions or custom functions                 |
+| **URL** (optional)   | Reference documentation | RFC section or internal docs                           |
 
 ## The Three Validation Contexts
 
@@ -49,7 +49,7 @@ Thymian provides three distinct contexts for running rules, each suited for diff
 ```mermaid
 flowchart TB
   subgraph Design["📐 Design Phase"]
-    A[OpenAPI Spec] --> B[Static Context]
+    A[OpenAPI Spec] --> B[Lint Context]
     B --> C[Validates Spec Definitions]
   end
 
@@ -59,7 +59,7 @@ flowchart TB
   end
 
   subgraph Production["🔍 Production Phase"]
-    G[Recorded Traffic] --> H[Analytics Context]
+    G[Recorded Traffic] --> H[Analyze Context]
     H --> I[Analyzes Transactions]
   end
 
@@ -68,7 +68,7 @@ flowchart TB
   I --> J
 ```
 
-### Static Context
+### Lint Context
 
 **What it validates:** API specifications (e.g. OpenAPI documents)
 
@@ -120,7 +120,7 @@ type('test')
   )
 ```
 
-### Analytics Context
+### Analyze Context
 
 **What it validates:** Recorded HTTP transactions
 
@@ -148,7 +148,7 @@ type('analytics')
 
 ## Comparison Table
 
-| Feature           | Static                | Test                  | Analytics         |
+| Feature           | Lint                  | Test                  | Analyze           |
 | ----------------- | --------------------- | --------------------- | ----------------- |
 | **Speed**         | ⚡ Very Fast          | ⏱️ Variable\*         | ⚡ Fast           |
 | **Data Source**   | OpenAPI spec          | Live API              | Recorded traffic  |
@@ -172,9 +172,9 @@ httpRule('works-everywhere')
 
 This rule automatically:
 
-- Validates spec definitions in **static** mode
+- Validates spec definitions in **lint** mode
 - Tests live endpoints in **test** mode
-- Analyzes recorded traffic in **analytics** mode
+- Analyzes recorded traffic in **analyze** mode
 
 You write the logic once, and Thymian adapts it to each context.
 
@@ -197,12 +197,13 @@ httpRule('comprehensive-rule').severity('error').type('static', 'analytics').url
 
 Rules have three severity levels that indicate their importance:
 
-| Severity          | When to Use                                | Example                                          |
-| ----------------- | ------------------------------------------ | ------------------------------------------------ |
-| **error**         | Must comply (MUST/MUST NOT in specs)       | `'401 must include WWW-Authenticate'`            |
-| **warn**          | Should comply (SHOULD/SHOULD NOT in specs) | `'POST should return 201 for created resources'` |
-| **hint**          | Optional (MAY in specs)                    | `'Consider adding Cache-Control headers'`        |
-| **informational** | Rules that cannot be tested                | `'Resource names should be always plural'`       |
+| Severity  | When to Use                                | Example                                          |
+| --------- | ------------------------------------------ | ------------------------------------------------ |
+| **error** | Must comply (MUST/MUST NOT in specs)       | `'401 must include WWW-Authenticate'`            |
+| **warn**  | Should comply (SHOULD/SHOULD NOT in specs) | `'POST should return 201 for created resources'` |
+| **hint**  | Optional (MAY in specs)                    | `'Consider adding Cache-Control headers'`        |
+
+> **Note:** Rules that describe requirements which cannot be tested automatically can use the `'informational'` **rule type** (see [The Three Validation Contexts](#the-three-validation-contexts)). This is separate from the severity level.
 
 ```typescript
 // Critical requirement
@@ -214,9 +215,6 @@ severity('error')
 
 // Optional suggestion
 .severity('hint')
-
-// Informational rule
-.severity('informational')
 ```
 
 ## Preventing API Drift
@@ -234,7 +232,7 @@ httpRule('consistent-error-responses')
 
 This rule ensures:
 
-1. Your **spec** defines proper error responses (static)
+1. Your **spec** defines proper error responses (lint)
 2. Your **implementation** actually returns them (test)
 
 If they diverge, violations are reported in one context or the other.
@@ -243,6 +241,6 @@ If they diverge, violations are reported in one context or the other.
 
 Now that you understand what HTTP rules are and how they work:
 
-- Learn [how to create your own rules](../guides/rules/creating-new-rules.md)
-- Explore [rule types in depth](../references/plugins/http-linter/rule-types.md)
-- Discover [hybrid rule patterns](../guides/rules/combining-types.md)
+- Learn [how to create your own rules](../guides/HTTP%20rules/creating-new-rules)
+- Explore [rule types in depth](./rule-types)
+- Discover [hybrid rule patterns](../guides/HTTP%20rules/combining-types)

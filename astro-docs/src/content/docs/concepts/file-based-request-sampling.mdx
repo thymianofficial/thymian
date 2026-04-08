@@ -7,7 +7,7 @@ import { FileTree, Aside } from '@astrojs/starlight/components';
 
 To run API tests, you need sample data. And especially the approach of Thymian requires a structured way to organize sample data.
 Thymian does not only want to test individual endpoints or transactions, but the entire API described. This also includes `4xx` responses.
-For this reason, an approach is required that is both **scalable** and **transparent**. The `@thymian/sampler` plugin provides such an approach based on a filesystem structure.
+For this reason, an approach is required that is both **scalable** and **transparent**. The `@thymian/plugin-sampler` plugin provides such an approach based on a filesystem structure.
 It mirrors your API structure in the filesystem and allows you to customize requests dynamically.
 
 ## Why is the filesystem a good match?

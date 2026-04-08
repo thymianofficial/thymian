@@ -1,6 +1,6 @@
 ---
 title: How to develop a plugin?
-description: A guide in my new Starlight docs site.
+description: Learn how to build plugins that extend Thymian through its event-driven architecture.
 ---
 
 ## Introduction
@@ -32,7 +32,7 @@ export type ThymianPlugin<Options extends Record<PropertyKey, unknown> = Record<
 ### Required Fields
 
 - **`name`** (string): Unique name of the plugin
-- **`version`** (string): The version of Thymian the plugin is compatible with
+- **`version`** (string): The version of Thymian the plugin is compatible with (semver constraint)
 - **`plugin`** (function): The main function executed at startup
 
 ### Optional Fields
@@ -51,7 +51,7 @@ type ThymianPluginFn<Options> = (emitter: ThymianEmitter, logger: Logger, option
 
 - **`emitter`**: The event emitter for communication
 - **`logger`**: Logger instance for structured logging
-- **`options`**: Configuration options from `thymian.config.json`/`yaml`
+- **`options`**: Configuration options from `thymian.config.yaml`, plus `cwd` (automatically added)
 
 ## The ThymianEmitter: API Overview
 
@@ -64,8 +64,8 @@ The `ThymianEmitter` is the central interface for plugin communication:
 Registers an event handler for a specific event.
 
 ```typescript
-emitter.on('core.error', async (payload) => {
-  console.log('Error received:', payload);
+emitter.on('core.error', async (error) => {
+  logger.error('Error received:', error.message);
 });
 ```
 
@@ -75,8 +75,20 @@ Sends an event to all registered listeners (fire-and-forget).
 
 ```typescript
 emitter.emit('core.report', {
-  type: 'info',
-  message: 'Plugin started successfully',
+  source: 'my-plugin',
+  message: 'Analysis complete',
+  sections: [
+    {
+      heading: 'GET /pets -> 200 OK',
+      items: [
+        {
+          severity: 'warn',
+          message: 'Missing Cache-Control header',
+          ruleName: 'my-plugin/cache-control',
+        },
+      ],
+    },
+  ],
 });
 ```
 
@@ -92,27 +104,27 @@ emitter.emitError(new Error('Something went wrong'), 'my-plugin');
 
 #### `onAction(actionName, handler)`
 
-Registers an action handler that responds to action requests.
+Registers an action handler that responds to action requests. The handler receives the action payload and a context object with `reply()` and `error()` methods.
 
 ```typescript
-emitter.onAction('core.run', async (payload, ctx) => {
-  // Process the action
+emitter.onAction('core.format.load', async (payload, ctx) => {
+  // Load and parse a specification format
+  const format = await loadMyFormat(payload.inputs);
+
   ctx.reply({
-    value: {
-      pluginName: 'my-plugin',
-      status: 'success',
-    },
+    value: format,
   });
 });
 ```
 
 #### `emitAction(actionName, payload?, options?)`
 
-Sends an action and waits for responses from all registered handlers.
+Sends an action and waits for responses from registered handlers.
 
 ```typescript
-const responses = await emitter.emitAction('core.load-format');
-console.log('Received responses:', responses);
+const responses = await emitter.emitAction('core.format.load', {
+  inputs: [{ type: 'openapi', location: './openapi.yaml' }],
+});
 ```
 
 **Options:**
@@ -122,81 +134,130 @@ console.log('Received responses:', responses);
   - `'collect'` (default): Array of all responses
   - `'first'`: Only the first response
   - `'deep-merge'`: All responses are deeply merged
+- `strict`: Whether to emit an error if no handler is registered for a non-core action (default: `true`)
+
+### Error Methods
+
+#### `onError(handler)`
+
+Registers a handler for error events.
+
+```typescript
+emitter.onError((errorEvent) => {
+  logger.error('Error from', errorEvent.source, ':', errorEvent.message);
+});
+```
 
 ### Additional Methods
 
 #### `child(source)`
 
-Creates a child emitter with its own source name for better logging.
+Creates a child emitter with its own source name for better traceability. Child emitters share the same underlying event bus.
 
 ```typescript
 const childEmitter = emitter.child('my-plugin:submodule');
 ```
 
-## Lifecycle Actions: The Plugin Lifecycle
+## Lifecycle Actions
 
-Thymian defines four central lifecycle actions that control the system's flow:
+Thymian defines two lifecycle actions that control the system's flow:
 
-### 1. `core.ready`
+### `core.ready`
 
-**Event Payload:** `void`  
-**Response Payload:** `void`  
-**Timing:** Triggered after all plugins have been loaded and before main processing begins.  
-**Usage:** Initialization of resources, connections, etc.
+**Payload:** `void`
+**Response:** `void`
+**Timing:** Triggered after all plugins have been loaded and their plugin functions have been called.
+**Usage:** Post-initialization tasks that require all plugins to be registered (e.g., establishing connections, checking for required sibling plugins).
 
-### 2. `core.load-format`
+### `core.close`
 
-**Event Payload:** `void`  
-**Response Payload:** `SerializedThymianFormat` (graph data structure)  
-**Timing:** Called to load data from plugins.  
-**Usage:** Plugins that provide data (e.g., import plugins) should respond here.
-
-### 3. `core.run`
-
-**Event Payload:** `SerializedThymianFormat`  
-**Response Payload:** `RunActionResponse`  
-**Timing:** The main processing phase where plugins work on the loaded data.  
-**Usage:** Analysis, transformation, export of data.
-
-**Response Structure:**
-
-```typescript
-{
-  pluginName: string,
-  status: 'success' | 'failed' | 'error',
-  message?: string
-}
-```
-
-### 4. `core.close`
-
-**Event Payload:** `void`  
-**Response Payload:** `void`  
-**Timing:** Called before the system shuts down.  
+**Payload:** `void`
+**Response:** `void`
+**Timing:** Called before the system shuts down.
 **Usage:** Cleanup of resources, closing connections, saving state.
+
+### Lifecycle Sequence
+
+```text
+thymian.run(fn)
+  |
+  +-> ready()
+  |     +-> For each plugin:
+  |     |     emit('core.register', { name, events, options })
+  |     |     plugin.plugin(childEmitter, childLogger, options)
+  |     |
+  |     +-> emitAction('core.ready')
+  |
+  +-> fn(emitter, logger)          // user workflow (lint, test, analyze, ...)
+  |
+  +-> close()
+        +-> emitAction('core.close')
+        +-> emitter.shutdown()
+```
 
 ## Core Events
 
-In addition to actions, the following system events exist:
+Events are fire-and-forget messages. Plugins listen with `emitter.on(...)`.
 
-- **`core.error`**: Triggered on errors
-- **`core.register`**: Triggered when a plugin is registered
-- **`core.report`**: For general status messages
-- **`core.exit`**: Triggered before system shutdown
+| Event           | Payload                     | Description                                                                                                              |
+| --------------- | --------------------------- | ------------------------------------------------------------------------------------------------------------------------ |
+| `core.error`    | `ThymianError`              | Emitted when an error occurs. Includes `name`, `message`, and optional `severity`, `exitCode`, `suggestions`, `code`.    |
+| `core.register` | `{ name, options, events }` | Emitted once per plugin during the loading phase. Lets other plugins discover registered peers.                          |
+| `core.report`   | `ThymianReport`             | Structured validation/analysis report. Contains `source`, `message`, and optional `sections` with severity-tagged items. |
+| `core.exit`     | `{ code? }`                 | Signals process exit with an optional exit code.                                                                         |
+
+## Core Actions
+
+Actions are request-response interactions. Plugins listen with `emitter.onAction(...)` and must call `ctx.reply(...)` to respond.
+
+### Specification and Traffic Loading
+
+| Action              | Request Payload           | Response Payload                        | Strategy  | Description                                                                                                                      |
+| ------------------- | ------------------------- | --------------------------------------- | --------- | -------------------------------------------------------------------------------------------------------------------------------- |
+| `core.format.load`  | `{ inputs, options? }`    | `SerializedThymianFormat`               | `collect` | Load and parse API specification(s) into the internal format graph. Each plugin may return a partial graph; Thymian merges them. |
+| `core.format`       | `SerializedThymianFormat` | `void`                                  | `collect` | Broadcasts the finalized, merged format graph to all interested plugins. Emitted after `core.format.load` completes.             |
+| `core.traffic.load` | `{ inputs, options? }`    | `{ transactions?, traces?, metadata? }` | `collect` | Load captured HTTP traffic data. Plugins return matching transaction/trace data.                                                 |
+
+### Validation Workflows
+
+| Action         | Request Payload                                          | Response Payload   | Strategy  | Description                                                         |
+| -------------- | -------------------------------------------------------- | ------------------ | --------- | ------------------------------------------------------------------- |
+| `core.lint`    | `{ format, rules?, rulesConfig?, options? }`             | `ValidationResult` | `collect` | Run lint rules against a format (static analysis, no live traffic). |
+| `core.test`    | `{ format, targetUrl?, rules?, rulesConfig?, options? }` | `ValidationResult` | `collect` | Run test rules against a live target URL.                           |
+| `core.analyze` | `{ traffic, format?, rules?, rulesConfig?, options? }`   | `ValidationResult` | `collect` | Run analysis rules against captured traffic.                        |
+
+`ValidationResult` contains `source`, `status` (`'success'` | `'failed'` | `'error'`), `violations[]`, and optional `statistics`.
+
+### Reporting
+
+| Action              | Request Payload | Response Payload | Strategy  | Description                                                                         |
+| ------------------- | --------------- | ---------------- | --------- | ----------------------------------------------------------------------------------- |
+| `core.report.flush` | `void`          | `{ text? }`      | `collect` | Tells reporter plugins to finalize their output. Returns the formatted report text. |
+
+### HTTP Request Handling
+
+| Action                  | Request Payload             | Response Payload      | Strategy | Description                                                                                 |
+| ----------------------- | --------------------------- | --------------------- | -------- | ------------------------------------------------------------------------------------------- |
+| `core.request.sample`   | `{ transaction, options? }` | `HttpRequestTemplate` | `first`  | Generate a sample HTTP request from a format transaction. Only one plugin needs to respond. |
+| `core.request.dispatch` | `{ request, options? }`     | `HttpResponse`        | `first`  | Send an HTTP request and return the response. Only one plugin needs to respond.             |
+
+:::note
+Actions using `first` strategy return only the first response, while `collect` waits for all registered handlers.
+:::
 
 ## Tutorial: Complete Example Plugin
 
-Here is a complete example plugin that implements **all** lifecycle hooks and demonstrates them:
+Here is a complete example plugin that listens to lifecycle actions, core events, and the `core.format` broadcast:
 
 ```javascript
-// hello-world-plugin.js
+// my-format-inspector-plugin.js
 export default {
-  name: 'hello-world-plugin',
+  name: 'my-format-inspector',
   version: '0.0.1',
 
   // Declaration: Which actions does this plugin listen to?
   actions: {
-    listensOn: ['core.ready', 'core.load-format', 'core.run', 'core.close'],
+    listensOn: ['core.ready', 'core.format', 'core.close'],
   },
 
   // Declaration: Which events does this plugin listen to?
@@ -208,46 +269,31 @@ export default {
     logger.info('Plugin is being initialized with options:', options);
 
     // ============================================
-    // LIFECYCLE ACTION 1: core.ready
+    // LIFECYCLE ACTION: core.ready
     // ============================================
     emitter.onAction('core.ready', async (payload, ctx) => {
-      console.log('[HelloWorld] 🚀 core.ready - System is ready, plugins are loaded');
-      logger.info('Ready phase: Initialization begins');
+      logger.info('System is ready, all plugins are loaded');
+      ctx.reply();
+    });
 
-      // Here, for example, database connections could be established
-      // await connectToDatabase();
+    // ============================================
+    // ACTION: core.format
+    // Receives the merged API specification format
+    // ============================================
+    emitter.onAction('core.format', async (format, ctx) => {
+      logger.info('Received format with', format.nodes.length, 'nodes');
+
+      // Inspect the format graph, e.g., collect endpoints
+      // You could emit reports based on the format analysis
 
       ctx.reply();
     });
 
     // ============================================
-    // LIFECYCLE ACTION 3: core.run
-    // ============================================
-    emitter.onAction('core.run', async (payload, ctx) => {
-      logger.info('My plugin received payload.');
-
-      // Logic for processing
-
-      // Respond with status
-      ctx.reply({
-        value: {
-          pluginName: 'hello-world-plugin',
-          status: 'success',
-          message: `Successfully processed ${payload.nodes.length} nodes and ${payload.edges.length} edges`,
-        },
-      });
-    });
-
-    // ============================================
-    // LIFECYCLE ACTION 4: core.close
+    // LIFECYCLE ACTION: core.close
     // ============================================
     emitter.onAction('core.close', async (payload, ctx) => {
-      logger.info('Close phase: Clean up and close connections');
-
-      // Here resources would be released
-      // await disconnectFromDatabase();
-      // await saveState();
-
+      logger.info('Cleaning up resources');
       ctx.reply();
     });
 
@@ -255,38 +301,21 @@ export default {
     // EVENT LISTENER: core.error
     // ============================================
     emitter.on('core.error', async (error) => {
-      logger.error('Error detected in system:', error);
-      // Error handling, e.g., send notifications
+      logger.error('Error detected:', error.message);
     });
 
     // ============================================
     // EVENT LISTENER: core.register
     // ============================================
     emitter.on('core.register', async (event) => {
-      logger.info('New plugin was registered:', event);
-      // Track which plugins were loaded
+      logger.info('Plugin registered:', event.name);
     });
 
     // ============================================
     // EVENT LISTENER: core.report
     // ============================================
     emitter.on('core.report', async (report) => {
-      logger.info('Report event:', report);
-      // Collect statistics or reports
-    });
-
-    // ============================================
-    // CUSTOM ACTION: Example for own action
-    // ============================================
-    // Plugins can also define and provide their own actions
-    emitter.onAction('hello-world.greet', async (payload, ctx) => {
-      const name = payload?.name || 'World';
-      ctx.reply({
-        value: {
-          greeting: `Hello ${name}!`,
-          timestamp: new Date().toISOString(),
-        },
-      });
+      logger.info('Report from', report.source, ':', report.message);
     });
 
     logger.info('Plugin initialization completed - all handlers registered');
@@ -320,33 +349,12 @@ You can register plugins via the Thymian configuration file or via CLI.
 If you want to load a plugin directly via the CLI, use the `--plugin` option:
 
 ```bash
-thymian run --plugin ./path/to/my-plugin.js
+thymian lint --plugin ./path/to/my-plugin.js
 ```
 
 ### Via Configuration File
 
-Plugins are registered in `thymian.config.json` or `thymian.config.yaml`:
-
-**JSON Format:**
-
-```json
-{
-  "plugins": {
-    "my-awesome-plugin": {
-      "module": "./path/to/my-plugin.js",
-      "enabled": true,
-      "greeting": "Hello World",
-      "customOption": 42
-    },
-    "hello-world-plugin": {
-      "module": "./plugins/hello-world-plugin.js",
-      "enabled": true
-    }
-  }
-}
-```
-
-**YAML Format:**
+Plugins are registered in `thymian.config.yaml`:
 
 ```yaml
 plugins:
@@ -356,8 +364,8 @@ plugins:
       greeting: Hello World
       customOption: 42
 
-  hello-world-plugin:
-    path: ./path-to-plugin/hello-world-plugin.js
+  my-format-inspector:
+    path: ./plugins/my-format-inspector-plugin.js
 ```
 
 ### 3. Plugin Options
@@ -376,7 +384,7 @@ async plugin(emitter, logger, options) {
 
 ### 1. Logging
 
-Use the provided logger instead of console.log:
+Use the provided logger instead of `console.log`:
 
 ```javascript
 logger.info('Informative message', { additionalData: 'value' });
@@ -396,7 +404,7 @@ async plugin(emitter, logger, options) {
 }
 ```
 
-### 4. Resource Management
+### 3. Resource Management
 
 Use `core.close` to properly release resources:
 
@@ -404,17 +412,45 @@ Use `core.close` to properly release resources:
 emitter.onAction('core.close', async (payload, ctx) => {
   await closeDatabase();
   await saveState();
-  ctx.reply({ value: undefined });
+  ctx.reply();
 });
 ```
 
-### 5. Child Emitters for Submodules
+### 4. Child Emitters for Submodules
 
 Use child emitters for better logging and organization:
 
 ```javascript
 const subEmitter = emitter.child('my-plugin:submodule');
-subEmitter.emit('core.report', { ... }); // Source is automatically set
+subEmitter.emit('core.report', {
+  source: 'my-plugin:submodule',
+  message: 'Sub-analysis complete',
+});
+```
+
+### 5. Declare Your Event and Action Dependencies
+
+Always declare which events and actions your plugin interacts with. This helps Thymian validate the plugin graph and lets other plugins discover capabilities:
+
+```javascript
+export default {
+  name: 'my-plugin',
+  version: '1.0.0',
+
+  events: {
+    listensOn: ['core.error', 'core.report'],
+    emits: ['core.report'],
+  },
+
+  actions: {
+    listensOn: ['core.ready', 'core.lint', 'core.close'],
+    requires: ['core.format.load'],
+  },
+
+  async plugin(emitter, logger, options) {
+    // ...
+  },
+};
 ```
 
 ## Summary
@@ -422,11 +458,12 @@ subEmitter.emit('core.report', { ... }); // Source is automatically set
 A complete Thymian plugin:
 
 1. **Exports an object** with `name`, `version`, and `plugin` function
-2. **Registers handlers** for lifecycle actions (ready, load-format, run, close)
-3. **Implements event listeners** for system events (error, register, report)
-4. **Communicates via the emitter** with other plugins
-5. **Handles errors** in all handlers properly
-6. **Uses logging** for diagnostics and monitoring
-7. **Is registered in the config** (`thymian.config.json`/`.yaml`)
+2. **Registers handlers** for lifecycle actions (`core.ready`, `core.close`)
+3. **Listens to workflow actions** as needed (`core.format.load`, `core.format`, `core.lint`, `core.test`, `core.analyze`, etc.)
+4. **Implements event listeners** for system events (`core.error`, `core.register`, `core.report`, `core.exit`)
+5. **Communicates via the emitter** with other plugins
+6. **Declares its dependencies** via `events` and `actions` metadata
+7. **Uses logging** for diagnostics and monitoring
+8. **Is registered in the config** (`thymian.config.yaml`)
 
 With this knowledge, you can develop powerful plugins that integrate seamlessly into the Thymian system!

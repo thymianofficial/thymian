@@ -3,7 +3,7 @@ title: How to customize Request Data
 description: Learn how to modify generated request samples
 ---
 
-Sometimes the automatically generated samples are not sufficient for your use case. `@thymian/sampler` lets you customize the generated samples
+Sometimes the automatically generated samples are not sufficient for your use case. `@thymian/plugin-sampler` lets you customize the generated samples
 by modifying the request data files directly or adding multiple test cases.
 
 ## Step 1: Locate the Request Sample

@@ -53,14 +53,6 @@ declare module '@thymian/core' {
   }
 }
 
-export type OpenApiPluginOptions = {
-  descriptions?: {
-    serverInfo?: ServerInfo;
-    source: string;
-    sourceName?: string;
-  }[];
-};
-
 export const defaultServerInfo: ServerInfo = {
   port: 8080,
   host: 'localhost',
@@ -68,62 +60,9 @@ export const defaultServerInfo: ServerInfo = {
   basePath: '',
 };
 
-export const openApiPlugin: ThymianPlugin<OpenApiPluginOptions> = {
+export const openApiPlugin: ThymianPlugin = {
   name: '@thymian/plugin-openapi',
   version: '0.x',
-  options: {
-    // ### for reference documentation ###
-    title: 'Plugin Options',
-    description: 'Configuration options for the OpenAPI plugin',
-    // ###################################
-    type: 'object',
-    additionalProperties: false,
-    properties: {
-      descriptions: {
-        type: 'array',
-        nullable: true,
-        items: {
-          type: 'object',
-          additionalProperties: false,
-          required: ['source'],
-          properties: {
-            source: {
-              type: 'string',
-              nullable: false,
-            },
-            sourceName: {
-              type: 'string',
-              nullable: true,
-            },
-            serverInfo: {
-              type: 'object',
-              nullable: true,
-              required: ['host', 'port', 'basePath', 'protocol'],
-              properties: {
-                basePath: {
-                  type: 'string',
-                  nullable: false,
-                },
-                port: {
-                  type: 'integer',
-                  nullable: false,
-                },
-                host: {
-                  type: 'string',
-                  nullable: false,
-                },
-                protocol: {
-                  type: 'string',
-                  nullable: false,
-                  enum: ['http', 'https'],
-                },
-              },
-            },
-          },
-        },
-      },
-    },
-  },
   plugin: async (emitter, logger, opts) => {
     emitter.onAction('openapi.transform', async ({ content, filter }, ctx) => {
       const [, thymianFormat] = await loadAndTransform(content, {
@@ -154,7 +93,7 @@ export const openApiPlugin: ThymianPlugin<OpenApiPluginOptions> = {
                   ? (input.options['serverInfo'] as ServerInfo)
                   : undefined,
             }))
-        : (opts.descriptions ?? []);
+        : [];
 
       if (descriptions.length === 0) {
         ctx.reply(format.export());
