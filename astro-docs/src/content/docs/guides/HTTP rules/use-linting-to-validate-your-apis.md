@@ -5,7 +5,7 @@ sidebar:
   order: 0
 ---
 
-The HTTP plugins (`@thymian/plugin-http-linter`, `@thymian/plugin-http-tester` and `@thymian/plugin-http-analyzer`) enables you to validate HTTP APIs at every stage of development—from design and implementation to testing and production monitoring. Write validation rules once and apply them across static specifications, live API tests, and recorded traffic analysis.
+The HTTP plugins (`@thymian/plugin-http-linter`, `@thymian/plugin-http-tester` and `@thymian/plugin-http-analyzer`) enable you to validate HTTP APIs at every stage of development—from design and implementation to testing and production monitoring. Write validation rules once and apply them across static specifications, live API tests, and recorded traffic analysis.
 
 ## Why HTTP Linting?
 
@@ -31,14 +31,14 @@ HTTP linting addresses these challenges by providing automated validation that r
 Here's a simple custom rule that enforces API versioning across your organization:
 
 ```typescript
-import { httpRule, path, not, constant } from '@thymian/core';
+import { httpRule, not, constant } from '@thymian/core';
 
 export default httpRule('api-must-include-version-in-path')
   .severity('error')
   .type('static', 'analytics')
   .description('All API endpoints must include /v{number}/ in path for versioning')
   .appliesTo('server')
-  .rule((ctx) => ctx.validateCommonHttpTransactions(constant(true), (req) => /api\/v\d+/.test(path(req))))
+  .rule((ctx) => ctx.validateCommonHttpTransactions(constant(true), (req) => /api\/v\d+/.test(req.path)))
   .done();
 ```
 
@@ -108,13 +108,13 @@ Rules can target one or more contexts, and the linter automatically adapts the v
 
 1. [What is an HTTP Rule?](../../concepts/what-is-an-http-rule.md) — Core concepts and rule anatomy
 2. [Creating New Rules](creating-new-rules.md) — Step-by-step guide to writing rules
-3. [Rule Types](../../references/plugins/http-linter/rule-types.md) — Understanding lint, test, and analyze contexts
+3. [Rule Types](../../concepts/rule-types) — Understanding lint, test, and analyze contexts
 4. [Combining Different Rule Types](combining-types.md) — Writing hybrid rules
 5. [How To Use Rules](how-to-use-rules.md) — Integration and configuration
-6. [CLI](../../references/plugins/http-linter/cli.md) — Command-line tools reference
+6. [CLI](../../references/cli) — Command-line tools reference
 
 ## Next Steps
 
 - Learn about [HTTP rule fundamentals](../../concepts/what-is-an-http-rule.md)
 - Follow the guide to [create your first rule](creating-new-rules.md)
-- Explore the [CLI tools](../../references/plugins/http-linter/cli.md) for rule generation and management
+- Explore the [CLI tools](../../references/cli) for rule generation and management

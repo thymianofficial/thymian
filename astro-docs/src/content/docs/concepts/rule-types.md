@@ -392,4 +392,4 @@ type('static', 'test', 'analytics')  // Validate everywhere
 
 - Learn about [combining rule types](../guides/HTTP%20rules/combining-types.md) for hybrid validation
 - Explore [how to use rules](../guides/HTTP%20rules/how-to-use-rules.md) in your projects
-- See the [CLI reference](cli.md) for rule management commands
+- See the [CLI reference](../references/cli) for rule management commands
