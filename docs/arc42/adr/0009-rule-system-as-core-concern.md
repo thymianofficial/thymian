@@ -6,7 +6,7 @@
 
 ## Context
 
-In the pre-Epic 1 architecture, rule execution was embedded in a monolithic `http-linter` package that handled static linting, live testing, and traffic analysis in a single codebase. This created several problems:
+In the old architecture, rule execution was embedded in a monolithic `http-linter` package that handled static linting, live testing, and traffic analysis in a single codebase. This created several problems:
 
 - Adding a new validation mode required modifying the `http-linter` package.
 - Rule types, contexts, and the runner were tightly coupled to a single package.

@@ -6,7 +6,7 @@
 
 ## Context
 
-As the number of actions in Thymian grew during Epic 1, a consistent naming convention became necessary. Without a convention, action names were inconsistent — some used flat names, others used dot-separated names, and it was unclear from the name alone whether an action was core-owned or plugin-owned.
+As the number of actions in Thymian grew during the architectural rewrite, a consistent naming convention became necessary. Without a convention, action names were inconsistent — some used flat names, others used dot-separated names, and it was unclear from the name alone whether an action was core-owned or plugin-owned.
 
 The action system is the primary communication mechanism between core and plugins (see [ADR-0010](0010-core-owned-infrastructure-actions.md)), so clear, predictable names directly impact developer experience and system comprehensibility.
 

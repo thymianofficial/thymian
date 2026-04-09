@@ -6,7 +6,7 @@
 
 ## Context
 
-During Epic 1, Thymian's monorepo underwent a significant package restructuring. The original package names were inconsistent — some used a `cli-` prefix, some were bare nouns (`evaluation`, `openapi`, `reporter`), and the relationship between a package and its architectural role was not immediately clear from the name alone.
+Thymian's monorepo underwent a significant package restructuring. The original package names were inconsistent — some used a `cli-` prefix, some were bare nouns (`evaluation`, `openapi`, `reporter`), and the relationship between a package and its architectural role was not immediately clear from the name alone.
 
 As the number of packages grew and the architecture crystallized around the ports-and-adapters / plugin model, a naming convention became necessary to:
 

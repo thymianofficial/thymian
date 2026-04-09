@@ -6,7 +6,7 @@
 
 ## Context
 
-In the pre-Epic 1 architecture, infrastructure capabilities like HTTP request dispatching and request sampling were owned by their respective plugins. For example, the sampler plugin defined and owned the `sampler.sample` action, and the request dispatcher plugin defined its own action for dispatching HTTP requests.
+In the old architecture, infrastructure capabilities like HTTP request dispatching and request sampling were owned by their respective plugins. For example, the sampler plugin defined and owned the `sampler.sample` action, and the request dispatcher plugin defined its own action for dispatching HTTP requests.
 
 This created a coupling problem: the HTTP Tester plugin needed to know the specific action names of the Sampler and Request Dispatcher plugins to function. If either plugin changed its action contract, the Tester would break. This also meant that replacing the Sampler or Dispatcher with an alternative implementation required the replacement to match the original's action names — a leaky abstraction.
 
