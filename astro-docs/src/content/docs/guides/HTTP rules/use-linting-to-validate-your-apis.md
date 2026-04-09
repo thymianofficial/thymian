@@ -108,13 +108,13 @@ Rules can target one or more contexts, and the linter automatically adapts the v
 
 1. [What is an HTTP Rule?](/concepts/what-is-an-http-rule/) — Core concepts and rule anatomy
 2. [Creating New Rules](/guides/http-rules/creating-new-rules/) — Step-by-step guide to writing rules
-3. [Rule Types](/references/plugins/http-linter/rule-types/) — Understanding static, test, and analytics contexts
+3. [Rule Types](/concepts/rule-types/) — Understanding static, test, and analytics contexts
 4. [Combining Different Rule Types](/guides/http-rules/combining-types/) — Writing hybrid rules
 5. [How To Use Rules](/guides/http-rules/how-to-use-rules/) — Integration and configuration
-6. [CLI](/references/plugins/http-linter/cli/) — Command-line tools reference
+6. [CLI](/references/cli/) — Command-line tools reference
 
 ## Next Steps
 
 - Learn about [HTTP rule fundamentals](/concepts/what-is-an-http-rule/)
 - Follow the guide to [create your first rule](/guides/http-rules/creating-new-rules/)
-- Explore the [CLI tools](/references/plugins/http-linter/cli/) for rule generation and management
+- Explore the [CLI tools](/references/cli/) for rule generation and management

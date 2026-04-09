@@ -245,5 +245,5 @@ If they diverge, violations are reported in one context or the other.
 Now that you understand what HTTP rules are and how they work:
 
 - Learn [how to create your own rules](/guides/http-rules/creating-new-rules/)
-- Explore [rule types in depth](/references/plugins/http-linter/rule-types/)
+- Explore [rule types in depth](/concepts/rule-types/)
 - Discover [hybrid rule patterns](/guides/http-rules/combining-types/)

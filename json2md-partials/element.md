@@ -1,7 +1,6 @@
 {{#if path~}}
-<a name="{{{tolink (or path 'root')}}}"></a>
-{{/if~}}
-{{#if path}}{{{mdlevel path}}} {{escape path}}: {{escape (or title (or type 'any'))}}{{/if}}
+<h{{mdlevelnumber path}} id="{{{tolink (or path 'root')}}}">{{path}}: {{or title (or type 'any')}}</h{{mdlevelnumber path}}>
+{{/if}}
 
 {{#if deprecated}}(DEPRECATED){{/if}}
 

@@ -8,7 +8,7 @@
   "targets": {
     "generate-schema-docs": {
       "dependsOn": ["build"],
-      "command": "node scripts/generate-schema-docs.js @thymian/plugin-websocket-proxy astro-docs/src/content/docs/references/Plugins/WebSocket\\ Proxy/options.md"
+      "command": "node scripts/generate-schema-docs.js @thymian/plugin-websocket-proxy astro-docs/src/content/docs/references/Plugins/Websocket\\ Proxy/options.md"
     }
   }
 }

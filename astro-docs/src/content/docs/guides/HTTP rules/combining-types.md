@@ -404,4 +404,4 @@ httpRule('request-requirements') // Too broad
 ## Next Steps
 
 - See [how to use rules](/guides/http-rules/how-to-use-rules/) in your projects
-- Explore the [CLI tools](/references/plugins/http-linter/cli/) for managing rules
+- Explore the [CLI tools](/references/cli/) for managing rules
