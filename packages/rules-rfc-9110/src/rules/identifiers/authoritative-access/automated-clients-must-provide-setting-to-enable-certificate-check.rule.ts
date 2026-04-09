@@ -1,7 +1,7 @@
-import { httpRule } from '@thymian/http-linter';
+import { httpRule } from '@thymian/core';
 
 export default httpRule(
-  'rfc9110/automated-client-must-log-error-to-audit-log-for-bad-certificate',
+  'rfc9110/automated-clients-must-provide-setting-to-enable-certificate-check',
 )
   .severity('error')
   .type('informational')
@@ -9,7 +9,7 @@ export default httpRule(
     'https://www.rfc-editor.org/rfc/rfc9110.html#name-https-certificate-verificat',
   )
   .description(
-    'Automated clients MUST log the error to an appropriate audit log (if available).',
+    'Automated clients MUST provide a configuration setting that enables certificate checking.',
   )
   .appliesTo('client')
   .done();
