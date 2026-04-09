@@ -17,7 +17,7 @@ This can happen when:
 To resolve this, regenerate your samples:
 
 ```bash
-thymian sampler:init
+thymian sampler init
 ```
 
 This will create new samples for all transactions in your format, including the one that's currently missing.

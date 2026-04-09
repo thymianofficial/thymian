@@ -25,7 +25,7 @@ BeforeEach hooks modify request data before sending HTTP requests.
 Use the CLI to generate a hook template:
 
 ```bash
-thymian sampler:hooks:generate
+thymian sampler generate hook
 ```
 
 This command lets you choose for which transactions you want to create a hook file interactively. It also generates
@@ -75,7 +75,7 @@ for which the `authorize` property in the corresponding `request.json` file is s
 ### Generate the Hook File
 
 ```bash
-thymian sampler:hooks:generate
+thymian sampler generate hook
 ```
 
 Choose "authorize" when prompted.
@@ -91,7 +91,7 @@ const hook: AuthorizeHook = async (request, context, utils) => {
   const password = utils.randomString(12);
 
   // Create user account
-  const response = await utils.request('POST http://localhost:3000/api/v1/astronauts', {
+  const response = await utils.request('POST http://localhost:3000/astronauts', {
     body: { name: username, password, role: 'Commander' },
     headers: { 'content-type': 'application/json' }
   }, {
@@ -115,7 +115,7 @@ AfterEach hooks validate responses and perform cleanup.
 ### Generate the Hook File
 
 ```bash
-thymian sampler:hooks:generate
+thymian sampler generate hook
 ```
 
 Choose "afterEach" when prompted.

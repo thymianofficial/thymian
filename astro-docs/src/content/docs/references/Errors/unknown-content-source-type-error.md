@@ -13,7 +13,7 @@ This error typically indicates internal data corruption or a bug in how samples 
 If you encounter this error, try regenerating your samples:
 
 ```bash
-thymian sampler:init
+thymian sampler init
 ```
 
 If the error persists, it may indicate a bug that should be reported.

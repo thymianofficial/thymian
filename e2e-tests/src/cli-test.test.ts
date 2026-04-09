@@ -15,7 +15,7 @@ import {
 import { getAvailablePort } from './port-utils.js';
 
 /**
- * Helper: copy a fixture to temp dir, run `sampler:init`, and start a test server.
+ * Helper: copy a fixture to temp dir, run `sampler init`, and start a test server.
  * Returns the server and its port so tests can use `--target-url`.
  */
 async function setupTestEnvironment(

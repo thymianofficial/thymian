@@ -45,5 +45,5 @@ To fix this:
 3. Or regenerate the samples:
 
 ```bash
-thymian sampler:init --overwrite
+thymian sampler init --overwrite
 ```

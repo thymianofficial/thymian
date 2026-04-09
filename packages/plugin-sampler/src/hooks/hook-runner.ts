@@ -66,7 +66,7 @@ export class HookRunner {
         'Cannot run hooks before @thymian/plugin-sampler is initialized.',
         {
           name: 'HookRunnerNotInitialized',
-          suggestions: ['Did you run "thymian sampler:init"?'],
+          suggestions: ['Did you run "thymian sampler init"?'],
         },
       );
     }
@@ -132,7 +132,7 @@ export class HookRunner {
         'Cannot run hooks before @thymian/plugin-sampler is initialized.',
         {
           name: 'HookRunnerNotInitialized',
-          suggestions: ['Did you run "thymian sampler:init"?'],
+          suggestions: ['Did you run "thymian sampler init"?'],
         },
       );
     }
@@ -202,7 +202,7 @@ export class HookRunner {
         'Cannot run hooks before @thymian/plugin-sampler is initialized.',
         {
           name: 'HookRunnerNotInitialized',
-          suggestions: ['Did you run "thymian sampler:init"?'],
+          suggestions: ['Did you run "thymian sampler init"?'],
         },
       );
     }

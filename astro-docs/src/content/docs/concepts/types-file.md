@@ -11,7 +11,7 @@ The `types.d.ts` file provides TypeScript type definitions for making HTTP reque
 
 ## How It Works
 
-When you run `thymian sampler:init`, the sampler plugin analyzes your OpenAPI specification(s) and generates TypeScript types for every endpoint.
+When you run `thymian sampler init`, the sampler plugin analyzes your OpenAPI specification(s) and generates TypeScript types for every endpoint.
 
 ### Example
 
@@ -41,7 +41,7 @@ The `types.d.ts` file generates:
 ```typescript
 declare module '@thymian/hooks' {
   interface Endpoints {
-    'POST http://localhost:3000/api/v1/launches': {
+    'POST http://localhost:3000/launches': {
       req: {
         body: {
           missionName: string;
@@ -72,7 +72,7 @@ import { BeforeEachRequestHook } from '@thymian/hooks';
 
 const hook: BeforeEachRequestHook = async (request, context, utils) => {
   // TypeScript knows the structure of this request
-  const response = await utils.request('POST http://localhost:3000/api/v1/launches', {
+  const response = await utils.request('POST http://localhost:3000/launches', {
     body: {
       missionName: 'Apollo 11', // ✓ Type-checked
       launchDate: '2026-01-01T00:00:00Z', // ✓ Type-checked
@@ -100,7 +100,7 @@ export default hook;
 
 ### Reasons
 
-1. **Auto-generated**: The file is regenerated every time you run `thymian sampler:init`
+1. **Auto-generated**: The file is regenerated every time you run `thymian sampler init`
 2. **Derived from spec**: Types are calculated from your OpenAPI specification
 3. **Overwritten**: Manual changes will be lost on the next regeneration
 
@@ -109,13 +109,13 @@ export default hook;
 The `types.d.ts` file is regenerated when you run:
 
 ```bash
-thymian sampler:init
+thymian sampler init
 ```
 
 Or:
 
 ```bash
-thymian sampler:init --overwrite
+thymian sampler init --overwrite
 ```
 
 ## Working Without Types
@@ -125,7 +125,7 @@ If your project doesn't use TypeScript, you can ignore `types.d.ts`. Write hooks
 ```javascript
 // hook.beforeEach.js
 const hook = async (request, context, utils) => {
-  const response = await utils.request('POST http://localhost:3000/api/v1/launches', {
+  const response = await utils.request('POST http://localhost:3000/launches', {
     body: {
       missionName: 'Apollo 11',
       launchDate: '2026-01-01T00:00:00Z',

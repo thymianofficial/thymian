@@ -19,7 +19,7 @@ rm -rf path/to/samples
 2. **Use overwrite mode** when initializing:
 
 ```bash
-thymian sampler:init --overwrite
+thymian sampler init --overwrite
 ```
 
 The `--overwrite` flag tells Thymian to replace existing files instead of failing when they already exist. Use this when you want to regenerate samples and replace the old ones.
