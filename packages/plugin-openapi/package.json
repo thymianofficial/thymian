@@ -33,7 +33,7 @@
     "jsonc-parser": "^3.2.0",
     "tinyglobby": "^0.2.14",
     "traverse": "^0.6.11",
-    "yaml": "^2.8.0"
+    "yaml": "^2.8.3"
   },
   "oclif": {
     "commands": "./dist/cli/commands",
