@@ -1,5 +1,4 @@
-import { protocol } from '@thymian/core';
-import { httpRule } from '@thymian/core';
+import { httpRule, protocol } from '@thymian/core';
 
 export default httpRule(
   'rfc9110/sender-must-not-generate-http-uri-with-empty-host',
