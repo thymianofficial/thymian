@@ -390,4 +390,3 @@ type('static', 'test', 'analytics')  // Validate everywhere
 
 - Learn about [combining rule types](/guides/http-rules/combining-types/) for hybrid validation
 - Explore [how to use rules](/guides/http-rules/how-to-use-rules/) in your projects
-- See the [CLI reference](/references/plugins/http-linter/cli/) for rule management commands

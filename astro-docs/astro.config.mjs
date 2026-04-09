@@ -4,6 +4,7 @@ import tailwindcss from '@tailwindcss/vite';
 import { defineConfig } from 'astro/config';
 import mailObfuscation from 'astro-mail-obfuscation';
 import mermaid from 'astro-mermaid';
+import starlightLinksValidator from 'starlight-links-validator';
 import starlightLlmsTxt from 'starlight-llms-txt';
 
 const UMAMI_URL = process.env.UMAMI_URL;
@@ -100,6 +101,7 @@ export default defineConfig({
         starlightLlmsTxt({
           projectName: 'Thymian',
         }),
+        starlightLinksValidator(),
       ],
     }),
     mailObfuscation({
