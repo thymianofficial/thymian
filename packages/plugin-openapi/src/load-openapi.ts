@@ -31,6 +31,10 @@ function getRelativePath(filePath: string, cwd: string): string {
   }
 }
 
+function formatSourceLabel(relativePath: string | undefined): string {
+  return relativePath ? `'${relativePath}'` : 'the OpenAPI document';
+}
+
 export type LoadResult = {
   document: OpenAPIV3_1.Document;
   original: OpenAPI.Document;
@@ -64,26 +68,41 @@ export async function loadOpenApi(
       filePath: isFileValue ? finalValue : undefined,
     };
   } catch (e) {
-    const suggestions = ['Ensure the content is valid YAML or JSON'];
+    const isENOENT =
+      e instanceof Error &&
+      'code' in e &&
+      (e as NodeJS.ErrnoException).code === 'ENOENT';
 
-    if (isFileValue) {
-      suggestions.push(
-        ...[
-          `Verify the file path is correct: ${relativePath ?? ''}`,
-          'Check file permissions and ensure the file is readable',
-        ],
+    if (isFileValue && isENOENT) {
+      throw new ThymianBaseError(
+        `OpenAPI file not found: ${relativePath ?? value}`,
+        {
+          name: 'OpenAPIFileNotFoundError',
+          ref: 'https://thymian.dev/references/errors/openapi-file-not-found-error/',
+          cause: e,
+          suggestions: [
+            `Verify the file path is correct: ${relativePath ?? value}`,
+            'Check file permissions and ensure the file is readable',
+          ],
+        },
       );
     }
 
-    throw new ThymianBaseError(
-      `Error in OpenAPI file ${relativePath ?? ''}: Failed to read or parse the document.`,
-      {
-        name: 'OpenAPIFileNotFoundError',
-        ref: 'https://thymian.dev/references/errors/openapi-file-not-found-error/',
-        cause: e,
-        suggestions,
-      },
-    );
+    const sourceLabel = relativePath ? `'${relativePath}'` : 'the document';
+
+    throw new ThymianBaseError(`Failed to read or parse ${sourceLabel}.`, {
+      name: 'OpenAPILoadError',
+      cause: e,
+      suggestions: [
+        'Ensure the content is valid YAML or JSON',
+        ...(isFileValue
+          ? [
+              `Verify the file path is correct: ${relativePath ?? value}`,
+              'Check file permissions and ensure the file is readable',
+            ]
+          : []),
+      ],
+    });
   }
 }
 
@@ -95,41 +114,40 @@ export async function loadAndUpgrade(
   const { document, filePath } = await loadOpenApi(value, cwd);
   const relativePath = filePath ? getRelativePath(filePath, cwd) : undefined;
 
-  logger.info(`Loading OpenAPI file ${relativePath ?? ''}.`);
+  const sourceLabel = formatSourceLabel(relativePath);
+
+  logger.info(`Loading ${sourceLabel}.`);
 
   const validationResult = await validate(document, { throwOnError: false });
 
   if (!validationResult.valid && validationResult.errors) {
-    throw new ThymianBaseError(
-      `Schema validation for OpenAPI file ${relativePath ?? ''} failed.`,
-      {
-        name: 'OpenAPIValidationError',
-        ref: 'https://thymian.dev/references/errors/openapi-validation-error/',
-        cause: new Error(
-          validationResult.errors.map((e) => e.message).join('; '),
-        ),
-        suggestions: [
-          'This indicates that your OpenAPI document does not match the OpenAPI specification. Use `thymian openapi:validate` to get detailed validation errors',
-          'Ensure all required fields are present (openapi, info, paths)',
-        ],
-      },
-    );
+    throw new ThymianBaseError(`Schema validation for ${sourceLabel} failed.`, {
+      name: 'OpenAPIValidationError',
+      ref: 'https://thymian.dev/references/errors/openapi-validation-error/',
+      cause: new Error(
+        validationResult.errors.map((e) => e.message).join('; '),
+      ),
+      suggestions: [
+        'This indicates that your OpenAPI document does not match the OpenAPI specification. Use `thymian openapi:validate` to get detailed validation errors',
+        'Ensure all required fields are present (openapi, info, paths)',
+      ],
+    });
   }
 
-  logger.debug(`Successfully validated OpenAPI file '${relativePath ?? ''}'.`);
+  logger.debug(`Successfully validated ${sourceLabel}.`);
 
   const upgradedObject = upgrade(structuredClone(document), '3.1');
 
-  logger.debug(`Upgraded OpenAPI file '${relativePath ?? ''}' to version 3.1.`);
+  logger.debug(`Upgraded ${sourceLabel} to version 3.1.`);
 
   const dereferencedResult = dereference(upgradedObject, {
     throwOnError: false,
   });
 
   if (dereferencedResult?.errors?.length || !dereferencedResult.schema) {
-    logger.debug(`Cannot dereferenced OpenAPI file '${relativePath}'.`);
+    logger.debug(`Cannot dereference ${sourceLabel}.`);
     throw new ThymianBaseError(
-      `Error in OpenAPI file '${relativePath}': Dereferencing all internal references failed.`,
+      `Dereferencing all internal references in ${sourceLabel} failed.`,
       {
         name: 'OpenAPIDereferenceError',
         ref: 'https://thymian.dev/references/errors/openapi-dereference-error/',
@@ -161,12 +179,16 @@ export async function openapiToThymianFormat(
     sourceName?: string;
   },
 ): Promise<ThymianFormat> {
+  const sourceLabel = options.filePath
+    ? formatSourceLabel(getRelativePath(options.filePath, process.cwd()))
+    : formatSourceLabel(undefined);
+
   if (
     typeof document.openapi !== 'string' ||
     !document.openapi.startsWith('3.1')
   ) {
     throw new ThymianBaseError(
-      `Error in OpenAPI file ${options.filePath ?? ''}: Only OpenAPI 3.1.x documents are supported.`,
+      `Only OpenAPI 3.1.x documents are supported (found in ${sourceLabel}).`,
       {
         name: 'OpenAPIDocumentVersionError',
       },
@@ -198,10 +220,9 @@ export async function loadAndTransform(
   },
 ): Promise<[OpenAPI.Document, ThymianFormat, string | undefined]> {
   const loadResult = await loadAndUpgrade(value, options.cwd, options.logger);
-  const relativePath = getRelativePath(
-    loadResult.filePath || value,
-    options.cwd,
-  );
+  const relativePath = loadResult.filePath
+    ? getRelativePath(loadResult.filePath, options.cwd)
+    : undefined;
 
   const result = await openapiToThymianFormat(loadResult.document, {
     ...options,
@@ -210,7 +231,7 @@ export async function loadAndTransform(
   });
 
   options.logger.debug(
-    `Transformed OpenAPI file '${relativePath}' into Thymian format.`,
+    `Transformed ${formatSourceLabel(relativePath)} into Thymian format.`,
   );
 
   return [loadResult.original, result, loadResult.filePath];

@@ -67,11 +67,11 @@ components:
 5. **Validate your document** - Use an OpenAPI validator to catch reference errors early:
 
    ```bash
-   thymian lint openapi.yaml
+   thymian openapi validate openapi.yaml
    ```
 
 If you continue to see this error, enable debug output to see which specific references are failing:
 
 ```bash
-DEBUG=thymian:* thymian lint openapi.yaml
+DEBUG=thymian:* thymian openapi validate openapi.yaml
 ```

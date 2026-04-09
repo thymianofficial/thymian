@@ -141,6 +141,51 @@ describe('load-openapi', () => {
         expect(String(error)).toContain('validation');
       }
     });
+
+    it('throws OpenAPIDereferenceError when $ref cannot be resolved', async () => {
+      const documentWithBadRef = {
+        openapi: '3.1.0',
+        info: {
+          title: 'Test',
+          version: '1.0.0',
+        },
+        paths: {
+          '/test': {
+            get: {
+              responses: {
+                '200': {
+                  description: 'OK',
+                  content: {
+                    'application/json': {
+                      schema: {
+                        $ref: '#/components/schemas/NonExistent',
+                      },
+                    },
+                  },
+                },
+              },
+            },
+          },
+        },
+      };
+
+      try {
+        await loadAndUpgrade(
+          JSON.stringify(documentWithBadRef),
+          process.cwd(),
+          new NoopLogger(),
+        );
+        expect.fail('Error should have been thrown');
+      } catch (error) {
+        expect(error).toBeInstanceOf(ThymianBaseError);
+        expect((error as ThymianBaseError).options.name).toBe(
+          'OpenAPIDereferenceError',
+        );
+        expect((error as ThymianBaseError).options.ref).toBe(
+          'https://thymian.dev/references/errors/openapi-dereference-error/',
+        );
+      }
+    });
   });
 
   describe('openapiToThymianFormat', () => {
