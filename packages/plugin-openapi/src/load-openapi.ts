@@ -1,3 +1,4 @@
+import { access } from 'node:fs/promises';
 import { isAbsolute, join, relative } from 'node:path';
 
 import { bundle } from '@scalar/json-magic/bundle';
@@ -35,6 +36,15 @@ function formatSourceLabel(relativePath: string | undefined): string {
   return relativePath ? `'${relativePath}'` : 'the OpenAPI document';
 }
 
+async function fileExists(path: string) {
+  try {
+    await access(path);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 export type LoadResult = {
   document: OpenAPIV3_1.Document;
   original: OpenAPI.Document;
@@ -68,12 +78,7 @@ export async function loadOpenApi(
       filePath: isFileValue ? finalValue : undefined,
     };
   } catch (e) {
-    const isENOENT =
-      e instanceof Error &&
-      'code' in e &&
-      (e as NodeJS.ErrnoException).code === 'ENOENT';
-
-    if (isFileValue && isENOENT) {
+    if (isFileValue && !(await fileExists(finalValue))) {
       throw new ThymianBaseError(
         `OpenAPI file not found: ${relativePath ?? value}`,
         {
@@ -121,6 +126,26 @@ export async function loadAndUpgrade(
   const validationResult = await validate(document, { throwOnError: false });
 
   if (!validationResult.valid && validationResult.errors) {
+    const refErrors = validationResult.errors.filter(
+      (err) => err.code === 'INVALID_REFERENCE',
+    );
+
+    if (refErrors.length > 0) {
+      throw new ThymianBaseError(
+        `Invalid $ref${refErrors.length > 1 ? 's' : ''} found: ${refErrors.map((err) => err.message).join(', ')}`,
+        {
+          name: 'OpenAPIDereferenceError',
+          ref: 'https://thymian.dev/references/errors/openapi-dereference-error/',
+          cause: new Error(
+            validationResult?.errors?.map((e) => e.message).join('; ') ?? '',
+          ),
+          suggestions: [
+            'Ensure all $refs are valid and resolve to a valid non-external location.',
+          ],
+        },
+      );
+    }
+
     throw new ThymianBaseError(`Schema validation for ${sourceLabel} failed.`, {
       name: 'OpenAPIValidationError',
       ref: 'https://thymian.dev/references/errors/openapi-validation-error/',
