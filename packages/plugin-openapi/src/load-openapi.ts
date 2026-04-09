@@ -202,10 +202,13 @@ export async function openapiToThymianFormat(
     filePath?: string;
     format?: ThymianFormat;
     sourceName?: string;
+    cwd?: string;
   },
 ): Promise<ThymianFormat> {
   const sourceLabel = options.filePath
-    ? formatSourceLabel(getRelativePath(options.filePath, process.cwd()))
+    ? formatSourceLabel(
+        getRelativePath(options.filePath, options.cwd ?? process.cwd()),
+      )
     : formatSourceLabel(undefined);
 
   if (
@@ -253,6 +256,7 @@ export async function loadAndTransform(
     ...options,
     filePath: loadResult.filePath,
     filter: options.filter,
+    cwd: options.cwd,
   });
 
   options.logger.debug(
