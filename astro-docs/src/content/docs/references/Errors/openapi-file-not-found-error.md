@@ -11,8 +11,6 @@ Common causes include:
 - **File does not exist** - The path you provided doesn't point to an actual file
 - **Incorrect path** - The file path is relative but the current working directory is different than expected
 - **File permissions** - The file exists but cannot be read due to permission restrictions
-- **Invalid file format** - The file is not a valid YAML or JSON file
-- **Network issues** - For remote URLs, the file could not be fetched
 
 ## The Solution
 
@@ -33,5 +31,5 @@ pwd
 If you're having issues with relative paths, try using an absolute path:
 
 ```bash
-thymian openapi:validate /absolute/path/to/openapi.yaml
+thymian openapi validate /absolute/path/to/openapi.yaml
 ```
