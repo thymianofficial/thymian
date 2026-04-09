@@ -6,7 +6,7 @@
 
 ## Context
 
-Prior the architectural rewrite, the HTTP test framework — providing the pipeline-based test DSL, request/response validators, serialization utilities, and test builders — lived in a standalone `http-testing` package. This package was consumed by the HTTP Tester plugin and by rule authors who needed to write `testRule` functions.
+Prior to the architectural rewrite, the HTTP test framework — providing the pipeline-based test DSL, request/response validators, serialization utilities, and test builders — lived in a standalone `http-testing` package. This package was consumed by the HTTP Tester plugin and by rule authors who needed to write `testRule` functions.
 
 This arrangement created two problems:
 
