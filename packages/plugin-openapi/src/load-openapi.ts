@@ -1,4 +1,5 @@
-import { isAbsolute, join } from 'node:path';
+import { access } from 'node:fs/promises';
+import { isAbsolute, join, relative } from 'node:path';
 
 import { bundle } from '@scalar/json-magic/bundle';
 import {
@@ -23,6 +24,27 @@ import { NoopLocMapper } from './loc-mapper/noop-loc-mapper.js';
 import type { ServerInfo } from './processors/extract-server-info.js';
 import { OpenapiProcessor } from './processors/openapi.processor.js';
 
+function getRelativePath(filePath: string, cwd: string): string {
+  try {
+    return relative(cwd, filePath);
+  } catch {
+    return filePath;
+  }
+}
+
+function formatSourceLabel(relativePath: string | undefined): string {
+  return relativePath ? `'${relativePath}'` : 'the OpenAPI document';
+}
+
+async function fileExists(path: string) {
+  try {
+    await access(path);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 export type LoadResult = {
   document: OpenAPIV3_1.Document;
   original: OpenAPI.Document;
@@ -32,7 +54,7 @@ export type LoadResult = {
 export async function loadOpenApi(
   value: string,
   cwd: string = process.cwd(),
-): Promise<[object, string | undefined]> {
+): Promise<{ document: object; filePath: string | undefined }> {
   const readFilesPlugin = readFiles();
   // the validate function of the readFiles plugin returns undefined if the value is not a local file
   const isFileValue = readFilesPlugin.validate(value);
@@ -41,15 +63,52 @@ export async function loadOpenApi(
       ? value
       : join(cwd, value);
 
+  const relativePath = isFileValue
+    ? getRelativePath(finalValue, cwd)
+    : undefined;
+
   const plugins = [parseJson(), parseYaml(), readFilesPlugin, fetchUrls()];
 
-  return [
-    await bundle(finalValue, {
-      plugins,
-      treeShake: false,
-    }),
-    isFileValue ? finalValue : undefined,
-  ];
+  try {
+    return {
+      document: await bundle(finalValue, {
+        plugins,
+        treeShake: false,
+      }),
+      filePath: isFileValue ? finalValue : undefined,
+    };
+  } catch (e) {
+    if (isFileValue && !(await fileExists(finalValue))) {
+      throw new ThymianBaseError(
+        `OpenAPI file not found: ${relativePath ?? value}`,
+        {
+          name: 'OpenAPIFileNotFoundError',
+          ref: 'https://thymian.dev/references/errors/openapi-file-not-found-error/',
+          cause: e,
+          suggestions: [
+            `Verify the file path is correct: ${relativePath ?? value}`,
+            'Check file permissions and ensure the file is readable',
+          ],
+        },
+      );
+    }
+
+    const sourceLabel = relativePath ? `'${relativePath}'` : 'the document';
+
+    throw new ThymianBaseError(`Failed to read or parse ${sourceLabel}.`, {
+      name: 'OpenAPILoadError',
+      cause: e,
+      suggestions: [
+        'Ensure the content is valid YAML or JSON',
+        ...(isFileValue
+          ? [
+              `Verify the file path is correct: ${relativePath ?? value}`,
+              'Check file permissions and ensure the file is readable',
+            ]
+          : []),
+      ],
+    });
+  }
 }
 
 export async function loadAndUpgrade(
@@ -57,41 +116,81 @@ export async function loadAndUpgrade(
   cwd: string = process.cwd(),
   logger: Logger,
 ): Promise<LoadResult> {
-  try {
-    const [result, filePath] = await loadOpenApi(value, cwd);
+  const { document, filePath } = await loadOpenApi(value, cwd);
+  const relativePath = filePath ? getRelativePath(filePath, cwd) : undefined;
 
-    logger.debug(`Loaded OpenAPI document.`);
+  const sourceLabel = formatSourceLabel(relativePath);
 
-    await validate(result, { throwOnError: true });
+  logger.info(`Loading ${sourceLabel}.`);
 
-    logger.debug(`Successfully validated OpenAPI document.`);
+  const validationResult = await validate(document, { throwOnError: false });
 
-    const upgradedObject = upgrade(structuredClone(result), '3.1');
+  if (!validationResult.valid && validationResult.errors) {
+    const refErrors = validationResult.errors.filter(
+      (err) => err.code === 'INVALID_REFERENCE',
+    );
 
-    logger.debug(`Upgraded OpenAPI document.`);
+    if (refErrors.length > 0) {
+      throw new ThymianBaseError(
+        `Invalid $ref${refErrors.length > 1 ? 's' : ''} found: ${refErrors.map((err) => err.message).join(', ')}`,
+        {
+          name: 'OpenAPIDereferenceError',
+          ref: 'https://thymian.dev/references/errors/openapi-dereference-error/',
+          cause: new Error(
+            validationResult?.errors?.map((e) => e.message).join('; ') ?? '',
+          ),
+          suggestions: [
+            'Ensure all $refs are valid and resolve to a valid non-external location.',
+          ],
+        },
+      );
+    }
 
-    const dereferenced = dereference(upgradedObject, {
-      throwOnError: true,
-    }).schema as OpenAPIV3_1.Document;
-
-    logger.debug(`Dereferenced OpenAPI document.`);
-
-    return {
-      document: dereferenced,
-      original: result as OpenAPI.Document,
-      filePath: filePath,
-    };
-  } catch (e) {
-    throw new ThymianBaseError(`Error while loading OpenAPI document.`, {
-      name: 'OpenAPILoadError',
-      ref: 'https://thymian.dev/references/errors/openapi-load-error/',
-      cause: e,
+    throw new ThymianBaseError(`Schema validation for ${sourceLabel} failed.`, {
+      name: 'OpenAPIValidationError',
+      ref: 'https://thymian.dev/references/errors/openapi-validation-error/',
+      cause: new Error(
+        validationResult.errors.map((e) => e.message).join('; '),
+      ),
       suggestions: [
-        'Currently, only files without external references are supported. Do your OpenAPI documents contain any external references?',
-        'You can validate your OpenAPI document using the `thymian openapi:validate` command.',
+        'This indicates that your OpenAPI document does not match the OpenAPI specification. Use `thymian openapi:validate` to get detailed validation errors',
+        'Ensure all required fields are present (openapi, info, paths)',
       ],
     });
   }
+
+  logger.debug(`Successfully validated ${sourceLabel}.`);
+
+  const upgradedObject = upgrade(structuredClone(document), '3.1');
+
+  logger.debug(`Upgraded ${sourceLabel} to version 3.1.`);
+
+  const dereferencedResult = dereference(upgradedObject, {
+    throwOnError: false,
+  });
+
+  if (dereferencedResult?.errors?.length || !dereferencedResult.schema) {
+    logger.debug(`Cannot dereference ${sourceLabel}.`);
+    throw new ThymianBaseError(
+      `Dereferencing all internal references in ${sourceLabel} failed.`,
+      {
+        name: 'OpenAPIDereferenceError',
+        ref: 'https://thymian.dev/references/errors/openapi-dereference-error/',
+        cause: new Error(
+          dereferencedResult?.errors?.map((e) => e.message).join('; ') ?? '',
+        ),
+        suggestions: [
+          'Ensure all $refs are valid and resolve to a valid non-external location.',
+        ],
+      },
+    );
+  }
+
+  return {
+    document: dereferencedResult.schema as OpenAPIV3_1.Document,
+    original: document as OpenAPI.Document,
+    filePath: filePath ? filePath : undefined,
+  };
 }
 
 export async function openapiToThymianFormat(
@@ -103,14 +202,27 @@ export async function openapiToThymianFormat(
     filePath?: string;
     format?: ThymianFormat;
     sourceName?: string;
+    cwd?: string;
   },
 ): Promise<ThymianFormat> {
+  const sourceLabel = options.filePath
+    ? formatSourceLabel(
+        getRelativePath(options.filePath, options.cwd ?? process.cwd()),
+      )
+    : formatSourceLabel(undefined);
+
   if (
     typeof document.openapi !== 'string' ||
     !document.openapi.startsWith('3.1')
   ) {
-    throw new ThymianBaseError('Only OpenAPI 3.1.x documents are supported.');
+    throw new ThymianBaseError(
+      `Only OpenAPI 3.1.x documents are supported (found in ${sourceLabel}).`,
+      {
+        name: 'OpenAPIDocumentVersionError',
+      },
+    );
   }
+
   const locMapper =
     typeof options.filePath === 'string'
       ? await locMapperForFile(options.filePath)
@@ -136,14 +248,20 @@ export async function loadAndTransform(
   },
 ): Promise<[OpenAPI.Document, ThymianFormat, string | undefined]> {
   const loadResult = await loadAndUpgrade(value, options.cwd, options.logger);
+  const relativePath = loadResult.filePath
+    ? getRelativePath(loadResult.filePath, options.cwd)
+    : undefined;
 
   const result = await openapiToThymianFormat(loadResult.document, {
     ...options,
     filePath: loadResult.filePath,
     filter: options.filter,
+    cwd: options.cwd,
   });
 
-  options.logger.debug('Transformed OpenAPI document into Thymian format.');
+  options.logger.debug(
+    `Transformed ${formatSourceLabel(relativePath)} into Thymian format.`,
+  );
 
   return [loadResult.original, result, loadResult.filePath];
 }
