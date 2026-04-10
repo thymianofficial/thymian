@@ -14,18 +14,24 @@ import {
 } from '../style.js';
 
 /**
- * Compute the visible (non-ANSI) character width of a severity prefix
- * so the rule name can be aligned underneath the message text.
+ * Visible column width of a severity prefix in a monospace terminal.
+ *
+ * Unicode symbols (✖ U+2716, ⚠ U+26A0, ℹ U+2139) each occupy one terminal
+ * column in standard monospace fonts. We use hardcoded values instead of
+ * `.length` on template strings because JavaScript's string length counts
+ * UTF-16 code units, which may differ from visual column width for characters
+ * outside the BMP. For these specific BMP symbols the values happen to match.
+ *
+ * Widths:  "✖ error: " = 9,  "⚠ warning: " = 11,  "ℹ hint: " = 8
  */
 function severityPrefixWidth(severity: ThymianReportSeverity): number {
-  // "✖ error: " = 10, "⚠ warning: " = 11, "ℹ hint: " = 8
   switch (severity) {
     case 'error':
-      return `${errorSymbol} error: `.length;
+      return 9; // "✖ error: "
     case 'warn':
-      return `${warnSymbol} warning: `.length;
+      return 11; // "⚠ warning: "
     case 'hint':
-      return `${hintSymbol} hint: `.length;
+      return 8; // "ℹ hint: "
     default:
       return 0;
   }

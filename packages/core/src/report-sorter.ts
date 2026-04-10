@@ -4,7 +4,11 @@ import type {
   ThymianReportSection,
   ThymianReportSeverity,
 } from './events/report.event.js';
-import type { ReportSortMode } from './thymian.js';
+
+/**
+ * Supported sort modes for reshaping reports before presentation.
+ */
+export type ReportSortMode = 'rule' | 'endpoint' | 'severity';
 
 /**
  * Item with its original section heading preserved for regrouping.

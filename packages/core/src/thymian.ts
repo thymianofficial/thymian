@@ -27,7 +27,7 @@ import type { LogLevel } from './logger/log-level.js';
 import { shouldLog } from './logger/log-level.js';
 import type { Logger } from './logger/logger.js';
 import { NoopLogger } from './logger/noop.logger.js';
-import { sortReports } from './report-sorter.js';
+import { type ReportSortMode, sortReports } from './report-sorter.js';
 import {
   type LoadedTraffic,
   loadRules,
@@ -74,8 +74,6 @@ export type RegisteredPlugin<
 };
 
 export class PluginRegistrationError extends ThymianBaseError {}
-
-export type ReportSortMode = 'rule' | 'endpoint' | 'severity';
 
 export type ThymianOptions = {
   timeout: number;
