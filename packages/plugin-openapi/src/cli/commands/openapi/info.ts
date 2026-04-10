@@ -6,6 +6,8 @@ import { ThymianBaseError } from '@thymian/core';
 import { loadOpenApi } from '../../../load-openapi.js';
 
 export default class Info extends BaseCliRunCommand<typeof Info> {
+  static override requiresSpecifications = false;
+
   static override args = {
     content: Args.string({
       description: 'file to read',
