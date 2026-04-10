@@ -127,7 +127,7 @@ Promise resolving to response object:
 Basic request:
 
 ```typescript
-const response = await utils.request('POST http://localhost:3000/api/v1/launches', {
+const response = await utils.request('POST http://localhost:3000/launches', {
   body: {
     missionName: 'Apollo 11',
     launchDate: '2026-12-31T00:00:00Z',
@@ -143,7 +143,7 @@ Request without hooks:
 
 ```typescript
 const response = await utils.request(
-  'POST http://localhost:3000/api/v1/astronauts',
+  'POST http://localhost:3000/astronauts',
   {
     body: { name: 'Buzz', password: 'secret', role: 'Pilot' },
     headers: { 'content-type': 'application/json' },
@@ -158,7 +158,7 @@ Request specific status code:
 
 ```typescript
 const response = await utils.request(
-  'GET http://localhost:3000/api/v1/launches/123',
+  'GET http://localhost:3000/launches/123',
   {},
   {
     forStatusCode: 404, // Use 404 response sample
@@ -181,7 +181,7 @@ skip(message: string): never
 #### Example
 
 ```typescript
-const response = await utils.request('POST http://localhost:3000/api/v1/launches', {
+const response = await utils.request('POST http://localhost:3000/launches', {
   body: {
     /* ... */
   },
@@ -208,7 +208,7 @@ fail(message: string): never
 #### Example
 
 ```typescript
-const response = await utils.request('POST http://localhost:3000/api/v1/launches', {
+const response = await utils.request('POST http://localhost:3000/launches', {
   body: {
     /* ... */
   },
@@ -240,7 +240,7 @@ info(message: string): void
 
 ```typescript
 utils.info('Creating test user');
-const response = await utils.request('POST http://localhost:3000/api/v1/astronauts', {
+const response = await utils.request('POST http://localhost:3000/astronauts', {
   body: {
     /* ... */
   },
@@ -252,7 +252,7 @@ utils.info(`User created with ID: ${response.body.id}`);
 **Output:**
 
 ```
-POST /api/v1/launches
+POST /launches
   ℹ Creating test user
   ℹ User created with ID: abc123
   ✓ 201 Created (15ms)
@@ -282,7 +282,7 @@ if (response.headers['x-rate-limit-remaining'] === '1') {
 **Output:**
 
 ```
-POST /api/v1/launches
+POST /launches
   ⚠ Rate limit almost exhausted (Only 1 request remaining)
   ✓ 201 Created (15ms)
 ```
@@ -303,7 +303,7 @@ assertionSuccess(message: string, assertion?: string): void
 #### Example
 
 ```typescript
-const response = await utils.request('GET http://localhost:3000/api/v1/launches', {});
+const response = await utils.request('GET http://localhost:3000/launches', {});
 
 if (response.body.length > 0) {
   utils.assertionSuccess('Response contains launches', 'has launches');
@@ -313,7 +313,7 @@ if (response.body.length > 0) {
 **Output:**
 
 ```
-GET /api/v1/launches
+GET /launches
   ✓ has launches
   ✓ 200 OK (8ms)
 ```
@@ -366,7 +366,7 @@ if (!body.missionName) {
 **Output:**
 
 ```
-POST /api/v1/launches
+POST /launches
   ✗ has id (expected: "id field present", actual: "id field missing")
   ✗ has missionName (expected: "missionName field present", actual: "missionName field missing")
   ✓ 201 Created (12ms)
@@ -389,7 +389,7 @@ timeout(message: string, durationMs: number): void
 
 ```typescript
 const start = Date.now();
-const response = await utils.request('POST http://localhost:3000/api/v1/launches', {
+const response = await utils.request('POST http://localhost:3000/launches', {
   body: {
     /* ... */
   },

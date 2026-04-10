@@ -16,7 +16,7 @@ Each endpoint has a `request.json` file that defines the HTTP request to send:
 ```json
 {
   "origin": "http://localhost:3000",
-  "path": "/api/v1/launches",
+  "path": "/launches",
   "method": "POST",
   "authorize": false,
   "headers": {
@@ -60,9 +60,9 @@ The endpoint path, including path parameters.
 **Examples:**
 
 ```json
-"path": "/api/v1/launches"
-"path": "/api/v1/launches/123"
-"path": "/api/v1/users/abc/posts/xyz"
+"path": "/launches"
+"path": "/launches/123"
+"path": "/users/abc/posts/xyz"
 ```
 
 <Aside type="note">
@@ -167,19 +167,19 @@ Values for path parameters defined in the endpoint.
 
 **Examples:**
 
-For path `/api/v1/launches/{id}`:
+For path `/launches/{id}`:
 
 ```jsonc
-"path": "/api/v1/launches/{id}",
+"path": "/launches/{id}",
 "pathParameters": {
   "id": "abc123"
 }
 ```
 
-For path `/api/v1/users/{userId}/posts/{postId}`:
+For path `/users/{userId}/posts/{postId}`:
 
 ```jsonc
-"path": "/api/v1/users/{userId}/posts/{postId}",
+"path": "/users/{userId}/posts/{postId}",
 "pathParameters": {
   "userId": "user-123",
   "postId": "post-456"
@@ -218,7 +218,7 @@ Query parameters to include in the request URL.
 }
 ```
 
-**Result:** `GET /api/v1/launches?limit=10&offset=0&sort=createdAt`
+**Result:** `GET /launches?limit=10&offset=0&sort=createdAt`
 
 ### `body`
 
@@ -354,7 +354,7 @@ Create a file in the same directory as `request.json`:
 ```json
 {
   "origin": "http://localhost:3000",
-  "path": "/api/v1/launches",
+  "path": "/launches",
   "method": "POST",
   "authorize": false,
   "headers": {
@@ -383,7 +383,7 @@ Create a file in the same directory as `request.json`:
 ```json
 {
   "origin": "http://localhost:3000",
-  "path": "/api/v1/launches",
+  "path": "/launches",
   "method": "GET",
   "authorize": true,
   "headers": {
@@ -404,7 +404,7 @@ Create a file in the same directory as `request.json`:
 ```json
 {
   "origin": "http://localhost:3000",
-  "path": "/api/v1/launches",
+  "path": "/launches",
   "method": "POST",
   "authorize": true,
   "headers": {
@@ -426,7 +426,7 @@ Create a file in the same directory as `request.json`:
 ```json
 {
   "origin": "http://localhost:3000",
-  "path": "/api/v1/launches/{id}",
+  "path": "/launches/{id}",
   "method": "PUT",
   "authorize": true,
   "headers": {
@@ -449,7 +449,7 @@ Create a file in the same directory as `request.json`:
 ```json
 {
   "origin": "http://localhost:3000",
-  "path": "/api/v1/launches/{id}",
+  "path": "/launches/{id}",
   "method": "DELETE",
   "authorize": true,
   "headers": {},
@@ -466,7 +466,7 @@ Create a file in the same directory as `request.json`:
 ```json
 {
   "origin": "http://localhost:3000",
-  "path": "/api/v1/launches",
+  "path": "/launches",
   "method": "GET",
   "authorize": true,
   "headers": {

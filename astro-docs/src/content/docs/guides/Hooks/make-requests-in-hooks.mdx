@@ -29,7 +29,7 @@ import { BeforeEachRequestHook } from '@thymian/hooks';
 
 const hook: BeforeEachRequestHook = async (request, context, utils) => {
   const response = await utils.request(
-    'POST http://localhost:3000/api/v1/launches',
+    'POST http://localhost:3000/launches',
     {
       body: {
         missionName: 'Apollo 11',
@@ -63,9 +63,9 @@ Your IDE suggests available endpoints:
 
 ```typescript
 // Type "utils.request('" and get autocomplete:
-utils.request('POST http://localhost:3000/api/v1/launches', ...)
-utils.request('GET http://localhost:3000/api/v1/launches', ...)
-utils.request('GET http://localhost:3000/api/v1/astronauts', ...)
+utils.request('POST http://localhost:3000/launches', ...)
+utils.request('GET http://localhost:3000/launches', ...)
+utils.request('GET http://localhost:3000/astronauts', ...)
 ```
 
 ### Type-Checked Request Bodies
@@ -73,7 +73,7 @@ utils.request('GET http://localhost:3000/api/v1/astronauts', ...)
 Request bodies are validated against your API schema:
 
 ```typescript
-const response = await utils.request('POST http://localhost:3000/api/v1/launches', {
+const response = await utils.request('POST http://localhost:3000/launches', {
   body: {
     missionName: 'Apollo 11',     // ✓ Valid
     launchDate: '2026-12-31T00:00:00Z',  // ✓ Valid
@@ -91,7 +91,7 @@ const response = await utils.request('POST http://localhost:3000/api/v1/launches
 Response bodies are typed based on your OpenAPI responses:
 
 ```typescript
-const response = await utils.request('GET http://localhost:3000/api/v1/launches', {});
+const response = await utils.request('GET http://localhost:3000/launches', {});
 
 // TypeScript knows the response structure
 if (response.statusCode === 200) {
@@ -109,7 +109,7 @@ if (response.statusCode === 200) {
 By default, `utils.request()` runs all hooks (beforeEach, authorize, afterEach) for the target endpoint. Disable this to prevent infinite loops:
 
 ```typescript
-const response = await utils.request('POST http://localhost:3000/api/v1/astronauts', {
+const response = await utils.request('POST http://localhost:3000/astronauts', {
   body: { name: 'Buzz Aldrin', password: 'secret', role: 'Pilot' },
   headers: { 'content-type': 'application/json' }
 }, {
@@ -124,7 +124,7 @@ const response = await utils.request('POST http://localhost:3000/api/v1/astronau
 Skip only the authorize hook while keeping other hooks:
 
 ```typescript
-const response = await utils.request('GET http://localhost:3000/api/v1/launches', {}, {
+const response = await utils.request('GET http://localhost:3000/launches', {}, {
   authorize: false  // Skip authorize, but run beforeEach/afterEach
 });
 ```
@@ -137,7 +137,7 @@ If an endpoint has multiple response samples (e.g., 200, 404), specify which one
 
 ```typescript
 // Request the 404 response sample
-const response = await utils.request('GET http://localhost:3000/api/v1/launches/123', {}, {
+const response = await utils.request('GET http://localhost:3000/launches/123', {}, {
   forStatusCode: 404
 });
 ```
@@ -153,7 +153,7 @@ const response = await utils.request('GET http://localhost:3000/api/v1/launches/
 Always verify responses succeeded:
 
 ```typescript
-const response = await utils.request('POST http://localhost:3000/api/v1/launches', {
+const response = await utils.request('POST http://localhost:3000/launches', {
   body: { /* ... */ },
   headers: { 'content-type': 'application/json' }
 });
@@ -166,7 +166,7 @@ if (response.statusCode !== 201) {
 ### Handle Missing Resources
 
 ```typescript
-const response = await utils.request('GET http://localhost:3000/api/v1/launches/123', {});
+const response = await utils.request('GET http://localhost:3000/launches/123', {});
 
 if (response.statusCode === 404) {
   utils.skip('Launch not found, skipping test');
@@ -177,7 +177,7 @@ if (response.statusCode === 404) {
 
 ```typescript
 try {
-  const response = await utils.request('POST http://localhost:3000/api/v1/launches', {
+  const response = await utils.request('POST http://localhost:3000/launches', {
     body: { /* ... */ },
     headers: { 'content-type': 'application/json' }
   });
@@ -205,12 +205,12 @@ The URL must exactly match the format: `METHOD http://host:port/path`
 
 ```typescript
 // ✓ Correct
-utils.request('POST http://localhost:3000/api/v1/launches', ...)
+utils.request('POST http://localhost:3000/launches', ...)
 
 // ✗ Incorrect - Missing method
-utils.request('http://localhost:3000/api/v1/launches', ...)
+utils.request('http://localhost:3000/launches', ...)
 
 // ✗ Incorrect - Wrong format
-utils.request('localhost:3000/api/v1/launches', ...)
+utils.request('localhost:3000/launches', ...)
 ```
 

@@ -19,7 +19,7 @@ To resolve this:
 1. Generate samples if you haven't already:
 
 ```bash
-thymian sampler:init
+thymian sampler init
 ```
 
 2. Ensure the samples directory exists and contains the generated sample files

@@ -1,22 +1,21 @@
 import { BaseCliRunCommand, oclif, prompts } from '@thymian/common-cli';
 import { Flags } from '@thymian/common-cli/oclif';
 import {
-  getHeader,
-  type HttpResponse,
-  httpStatusCodeToPhrase,
+  filterHttpTransactions,
+  generateRequests,
+  httpTest,
+  type HttpTestCase,
   isValidClientErrorStatusCode,
-  isValidHttpStatusCode,
   isValidSuccessfulStatusCode,
-  serializeRequest,
+  mapToTestCase,
+  type RequestFilterFn,
+  type ResponseFilterFn,
+  runRequests,
   type ThymianHttpTransaction,
   thymianHttpTransactionToString,
 } from '@thymian/core';
 
-type CheckResult =
-  | { passed: true }
-  | { passed: false; reason: string; response?: HttpResponse };
-
-const MAX_BODY_PREVIEW_LENGTH = 500;
+import { createContext } from '../../create-context.js';
 
 export default class Check extends BaseCliRunCommand<typeof Check> {
   static override description =
@@ -42,7 +41,7 @@ export default class Check extends BaseCliRunCommand<typeof Check> {
   };
 
   override async run(): Promise<void> {
-    await this.thymian.run(async () => {
+    await this.thymian.run(async (emitter) => {
       const specifications = this.thymianConfig.specifications ?? [];
 
       const format = await this.thymian.loadFormat({
@@ -53,16 +52,27 @@ export default class Check extends BaseCliRunCommand<typeof Check> {
       const targetUrl =
         this.flags['target-url'] ?? this.thymianConfig.targetUrl;
 
+      const context = createContext(
+        format,
+        this.logger.child('sampler-check'),
+        emitter,
+      );
+
       if (this.flags.incremental) {
-        await this.checkTransactionsIncremental(transactions, targetUrl);
+        await this.checkTransactionsIncremental(
+          transactions,
+          context,
+          targetUrl,
+        );
       } else {
-        await this.checkAllTransactions(transactions, targetUrl);
+        await this.checkAllTransactions(transactions, context, targetUrl);
       }
     });
   }
 
   private async checkAllTransactions(
     transactions: ThymianHttpTransaction[],
+    context: ReturnType<typeof createContext>,
     targetUrl?: string,
   ): Promise<void> {
     let successful = 0;
@@ -80,14 +90,20 @@ export default class Check extends BaseCliRunCommand<typeof Check> {
 
       this.logger.debug('Checking transaction: ' + transactionName);
 
-      const result = await this.checkTransaction(transaction, targetUrl);
+      const testResult = await this.runTransaction(
+        transaction,
+        context,
+        targetUrl,
+      );
 
-      if (result.passed) {
+      const testCase = testResult.cases[0];
+
+      if (testCase && testCase.status === 'passed') {
         this.log(oclif.ux.colorize('green', `✔ ${transactionName}`));
         successful++;
       } else {
         this.log(oclif.ux.colorize('red', `✖ ${transactionName}`));
-        this.logFailureDetails(result);
+        this.logFailureDetails(testCase);
         this.log();
         failed++;
       }
@@ -112,6 +128,7 @@ export default class Check extends BaseCliRunCommand<typeof Check> {
 
   private async checkTransactionsIncremental(
     transactions: ThymianHttpTransaction[],
+    context: ReturnType<typeof createContext>,
     targetUrl?: string,
   ): Promise<void> {
     for (const transaction of transactions) {
@@ -126,15 +143,21 @@ export default class Check extends BaseCliRunCommand<typeof Check> {
 
       this.logger.debug('Checking transaction: ' + transactionName);
 
-      const result = await this.checkTransaction(transaction, targetUrl);
+      const testResult = await this.runTransaction(
+        transaction,
+        context,
+        targetUrl,
+      );
 
-      if (result.passed) {
+      const testCase = testResult.cases[0];
+
+      if (testCase && testCase.status === 'passed') {
         this.log(oclif.ux.colorize('green', `✔ ${transactionName}`));
         continue;
       }
 
       this.log(oclif.ux.colorize('red', `✖ ${transactionName}`));
-      this.logFailureDetails(result);
+      this.logFailureDetails(testCase);
 
       this.log();
       this.log('You can generate a hook for this transaction with:');
@@ -174,73 +197,50 @@ export default class Check extends BaseCliRunCommand<typeof Check> {
     );
   }
 
-  private async checkTransaction(
+  private async runTransaction(
     transaction: ThymianHttpTransaction,
+    context: ReturnType<typeof createContext>,
     targetUrl?: string,
-  ): Promise<CheckResult> {
-    try {
-      const template = await this.thymian.sample({ transaction });
+  ) {
+    const transactionName = thymianHttpTransactionToString(
+      transaction.thymianReq,
+      transaction.thymianRes,
+    );
 
-      const request = serializeRequest({
-        requestTemplate: template,
-        source: transaction,
-      });
+    const reqFilter: RequestFilterFn = (_req, reqId) =>
+      reqId === transaction.thymianReqId;
+    const resFilter: ResponseFilterFn = (_res, resId) =>
+      resId === transaction.thymianResId;
 
-      if (targetUrl) {
-        request.origin = targetUrl;
-      }
-
-      const response = await this.thymian.dispatch({ request });
-
-      if (response.statusCode !== transaction.thymianRes.statusCode) {
-        return {
-          passed: false,
-          reason: `Expected status ${transaction.thymianRes.statusCode}, got ${response.statusCode}.`,
-          response,
-        };
-      }
-
-      return { passed: true };
-    } catch (error) {
-      return {
-        passed: false,
-        reason: error instanceof Error ? error.message : String(error),
-      };
-    }
-  }
-
-  private logFailureDetails(
-    result: Extract<CheckResult, { passed: false }>,
-  ): void {
-    this.log(oclif.ux.colorize('dim', `    Reason: ${result.reason}`));
-
-    if (!result.response) {
-      return;
-    }
-
-    const { statusCode, headers, body } = result.response;
-    const phrase = isValidHttpStatusCode(statusCode)
-      ? httpStatusCodeToPhrase[statusCode]
-      : '';
-    const contentType = getHeader(headers, 'content-type');
-    const contentTypeStr = Array.isArray(contentType)
-      ? contentType[0]
-      : contentType;
-
-    this.log(
-      oclif.ux.colorize(
-        'dim',
-        `    Received: ${statusCode} ${phrase}${contentTypeStr ? ` (${contentTypeStr})` : ''}`,
+    const test = httpTest(transactionName, (transactions) =>
+      transactions.pipe(
+        filterHttpTransactions(reqFilter, resFilter),
+        mapToTestCase(),
+        generateRequests(),
+        runRequests({ checkResponse: false, origin: targetUrl }),
       ),
     );
 
-    if (body) {
-      const preview =
-        body.length > MAX_BODY_PREVIEW_LENGTH
-          ? body.slice(0, MAX_BODY_PREVIEW_LENGTH) + '…'
-          : body;
+    return test(context);
+  }
 
-      this.log(oclif.ux.colorize('dim', `    Body: ${preview}`));
+  private logFailureDetails(testCase?: HttpTestCase): void {
+    if (!testCase) {
+      this.log(oclif.ux.colorize('dim', '    Reason: No test result.'));
+      return;
+    }
+
+    if (testCase.reason) {
+      this.log(oclif.ux.colorize('dim', `    Reason: ${testCase.reason}`));
+    }
+
+    for (const result of testCase.results) {
+      if (
+        result.type === 'assertion-failure' ||
+        result.type === 'invalid-transaction'
+      ) {
+        this.log(oclif.ux.colorize('dim', `    ${result.message}`));
+      }
     }
   }
 }

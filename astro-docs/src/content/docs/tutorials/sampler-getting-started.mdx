@@ -128,7 +128,7 @@ You'll see auto-generated sample data:
 ```json
 {
   "origin": "http://localhost:3000",
-  "path": "/api/v1/launches",
+  "path": "/launches",
   "method": "post",
   "authorize": true,
   "headers": {
@@ -179,20 +179,20 @@ npx thymian sampler check --spec openapi:openapi.yaml
 **Expected result:** Most tests will fail because of a `401 Unauthorized` response because the API requires authentication.
 
 ```
-✖ GET /api/v1/launches → 200 OK - application/json
-✖ POST /api/v1/launches - application/json → 201 CREATED - application/json
-✖ GET /api/v1/launches/{id} → 200 OK - application/json
-✖ GET /api/v1/launches/{id} → 404 NOT FOUND
-✖ PUT /api/v1/launches/{id} - application/json → 200 OK - application/json
-✖ DELETE /api/v1/launches/{id} → 204 NO CONTENT
-✖ DELETE /api/v1/launches/{id} → 404 NOT FOUND
-✖ GET /api/v1/astronauts → 200 OK - application/json
-✔ POST /api/v1/astronauts - application/json → 201 CREATED - application/json
-✖ GET /api/v1/astronauts/{id} → 200 OK - application/json
-✖ GET /api/v1/astronauts/{id} → 404 NOT FOUND
-✖ PUT /api/v1/astronauts/{id} - application/json → 200 OK - application/json
-✖ DELETE /api/v1/astronauts/{id} → 204 NO CONTENT
-✖ DELETE /api/v1/astronauts/{id} → 404 NOT FOUND
+✖ GET /launches → 200 OK - application/json
+✖ POST /launches - application/json → 201 CREATED - application/json
+✖ GET /launches/{id} → 200 OK - application/json
+✖ GET /launches/{id} → 404 NOT FOUND
+✖ PUT /launches/{id} - application/json → 200 OK - application/json
+✖ DELETE /launches/{id} → 204 NO CONTENT
+✖ DELETE /launches/{id} → 404 NOT FOUND
+✖ GET /astronauts → 200 OK - application/json
+✔ POST /astronauts - application/json → 201 CREATED - application/json
+✖ GET /astronauts/{id} → 200 OK - application/json
+✖ GET /astronauts/{id} → 404 NOT FOUND
+✖ PUT /astronauts/{id} - application/json → 200 OK - application/json
+✖ DELETE /astronauts/{id} → 204 NO CONTENT
+✖ DELETE /astronauts/{id} → 404 NOT FOUND
 
 Checked 14 transactions. 13 failed.
 ```
@@ -213,8 +213,8 @@ Then we implement the hook:
 import { AuthorizeHook } from '@thymian/hooks';
 
 const hook: AuthorizeHook = async (request, context, utils) => {
-  // if a new austronaut is being created, skip authentication
-  if (context.thymianReq.path === '/api/v1/austronauts' && context.thymianReq.method === 'POST') {
+  // if a new astronaut is being created, skip authentication
+  if (context.thymianReq.path === '/astronauts' && context.thymianReq.method === 'POST') {
     return request;
   }
 
@@ -223,7 +223,7 @@ const hook: AuthorizeHook = async (request, context, utils) => {
   const password = utils.randomString(12);
 
   // Create a test user
-  const response = await utils.request('POST http://localhost:3000/api/v1/astronauts', {
+  const response = await utils.request('POST http://localhost:3000/astronauts', {
     body: {
       name: username,
       password: password,
@@ -267,20 +267,20 @@ We should now see that most requests can be run. The only ones that fail request
 `id` for a resource.
 
 ```
-✔ GET /api/v1/launches → 200 OK - application/json
-✔ POST /api/v1/launches - application/json → 201 CREATED - application/json
-✖ GET /api/v1/launches/{id} → 200 OK - application/json                      <-- Missing ID
-✔ GET /api/v1/launches/{id} → 404 NOT FOUND
-✔ PUT /api/v1/launches/{id} - application/json → 200 OK - application/json
-✖ DELETE /api/v1/launches/{id} → 204 NO CONTENT                              <-- Missing ID
-✔ DELETE /api/v1/launches/{id} → 404 NOT FOUND
-✔ GET /api/v1/astronauts → 200 OK - application/json
-✔ POST /api/v1/astronauts - application/json → 201 CREATED - application/json
-✖ GET /api/v1/astronauts/{id} → 200 OK - application/json                    <-- Missing ID
-✔ GET /api/v1/astronauts/{id} → 404 NOT FOUND
-✔ PUT /api/v1/astronauts/{id} - application/json → 200 OK - application/json
-✖ DELETE /api/v1/astronauts/{id} → 204 NO CONTENT                            <-- Missing ID
-✔ DELETE /api/v1/astronauts/{id} → 404 NOT FOUND
+✔ GET /launches → 200 OK - application/json
+✔ POST /launches - application/json → 201 CREATED - application/json
+✖ GET /launches/{id} → 200 OK - application/json                      <-- Missing ID
+✔ GET /launches/{id} → 404 NOT FOUND
+✔ PUT /launches/{id} - application/json → 200 OK - application/json
+✖ DELETE /launches/{id} → 204 NO CONTENT                              <-- Missing ID
+✔ DELETE /launches/{id} → 404 NOT FOUND
+✔ GET /astronauts → 200 OK - application/json
+✔ POST /astronauts - application/json → 201 CREATED - application/json
+✖ GET /astronauts/{id} → 200 OK - application/json                    <-- Missing ID
+✔ GET /astronauts/{id} → 404 NOT FOUND
+✔ PUT /astronauts/{id} - application/json → 200 OK - application/json
+✖ DELETE /astronauts/{id} → 204 NO CONTENT                            <-- Missing ID
+✔ DELETE /astronauts/{id} → 404 NOT FOUND
 
 Checked 14 transactions. 4 failed.
 ```
@@ -309,7 +309,7 @@ const hook: BeforeEachRequestHook = async (request, context, utils) => {
   }
 
   // Create a launch
-  const response = await utils.request('POST http://localhost:3000/api/v1/launches', {
+  const response = await utils.request('POST http://localhost:3000/launches', {
     body: {
       missionName: utils.randomString(10),
       launchDate: '2026-12-31T00:00:00Z',
@@ -349,20 +349,20 @@ npx thymian sampler check --spec openapi:openapi.yaml
 **Expected result:**
 
 ```
-✔ GET /api/v1/launches → 200 OK - application/json
-✔ POST /api/v1/launches - application/json → 201 CREATED - application/json
-✔ GET /api/v1/launches/{id} → 200 OK - application/json
-✔ GET /api/v1/launches/{id} → 404 NOT FOUND
-✔ PUT /api/v1/launches/{id} - application/json → 200 OK - application/json
-✔ DELETE /api/v1/launches/{id} → 204 NO CONTENT
-✔ DELETE /api/v1/launches/{id} → 404 NOT FOUND
-✔ GET /api/v1/astronauts → 200 OK - application/json
-✔ POST /api/v1/astronauts - application/json → 201 CREATED - application/json
-✖ GET /api/v1/astronauts/{id} → 200 OK - application/json
-✔ GET /api/v1/astronauts/{id} → 404 NOT FOUND
-✔ PUT /api/v1/astronauts/{id} - application/json → 200 OK - application/json
-✖ DELETE /api/v1/astronauts/{id} → 204 NO CONTENT
-✔ DELETE /api/v1/astronauts/{id} → 404 NOT FOUND
+✔ GET /launches → 200 OK - application/json
+✔ POST /launches - application/json → 201 CREATED - application/json
+✔ GET /launches/{id} → 200 OK - application/json
+✔ GET /launches/{id} → 404 NOT FOUND
+✔ PUT /launches/{id} - application/json → 200 OK - application/json
+✔ DELETE /launches/{id} → 204 NO CONTENT
+✔ DELETE /launches/{id} → 404 NOT FOUND
+✔ GET /astronauts → 200 OK - application/json
+✔ POST /astronauts - application/json → 201 CREATED - application/json
+✖ GET /astronauts/{id} → 200 OK - application/json
+✔ GET /astronauts/{id} → 404 NOT FOUND
+✔ PUT /astronauts/{id} - application/json → 200 OK - application/json
+✖ DELETE /astronauts/{id} → 204 NO CONTENT
+✔ DELETE /astronauts/{id} → 404 NOT FOUND
 
 Checked 14 transactions. 2 failed.
 ```
@@ -391,7 +391,7 @@ const hook: BeforeEachRequestHook = async (request, context, utils) => {
   }
 
   // Create a launch
-  const response = await utils.request('POST http://localhost:3000/api/v1/astronauts', {
+  const response = await utils.request('POST http://localhost:3000/astronauts', {
     body: {
       name: utils.randomString(10),
       password: utils.randomString(12),
@@ -432,20 +432,20 @@ npx thymian sampler check --spec openapi:openapi.yaml
 Now you should see that all transactions can be run:
 
 ```
-✔ GET /api/v1/launches → 200 OK - application/json
-✔ POST /api/v1/launches - application/json → 201 CREATED - application/json
-✔ GET /api/v1/launches/{id} → 200 OK - application/json
-✔ GET /api/v1/launches/{id} → 404 NOT FOUND
-✔ PUT /api/v1/launches/{id} - application/json → 200 OK - application/json
-✔ DELETE /api/v1/launches/{id} → 204 NO CONTENT
-✔ DELETE /api/v1/launches/{id} → 404 NOT FOUND
-✔ GET /api/v1/astronauts → 200 OK - application/json
-✔ POST /api/v1/astronauts - application/json → 201 CREATED - application/json
-✔ GET /api/v1/astronauts/{id} → 200 OK - application/json
-✔ GET /api/v1/astronauts/{id} → 404 NOT FOUND
-✔ PUT /api/v1/astronauts/{id} - application/json → 200 OK - application/json
-✔ DELETE /api/v1/astronauts/{id} → 204 NO CONTENT
-✔ DELETE /api/v1/astronauts/{id} → 404 NOT FOUND
+✔ GET /launches → 200 OK - application/json
+✔ POST /launches - application/json → 201 CREATED - application/json
+✔ GET /launches/{id} → 200 OK - application/json
+✔ GET /launches/{id} → 404 NOT FOUND
+✔ PUT /launches/{id} - application/json → 200 OK - application/json
+✔ DELETE /launches/{id} → 204 NO CONTENT
+✔ DELETE /launches/{id} → 404 NOT FOUND
+✔ GET /astronauts → 200 OK - application/json
+✔ POST /astronauts - application/json → 201 CREATED - application/json
+✔ GET /astronauts/{id} → 200 OK - application/json
+✔ GET /astronauts/{id} → 404 NOT FOUND
+✔ PUT /astronauts/{id} - application/json → 200 OK - application/json
+✔ DELETE /astronauts/{id} → 204 NO CONTENT
+✔ DELETE /astronauts/{id} → 404 NOT FOUND
 
 Checked 14 transactions. 0 failed.
 ```

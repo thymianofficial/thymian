@@ -24,6 +24,8 @@ export type RunRequestsOptions = {
   checkBody: boolean;
   expectStatusCode?: number;
   authorize: boolean;
+  /** Override the origin of all request templates. When set, every request is sent to this origin instead of the one defined in the specification. */
+  origin?: string;
 };
 
 export function runRequests<
@@ -57,6 +59,13 @@ export function runRequests<
       }
 
       for (const transaction of step.transactions) {
+        if (options.origin) {
+          transaction.requestTemplate = {
+            ...transaction.requestTemplate,
+            origin: options.origin,
+          };
+        }
+
         const transactionName = transaction.source
           ? thymianHttpTransactionToString(
               transaction.source.thymianReq,

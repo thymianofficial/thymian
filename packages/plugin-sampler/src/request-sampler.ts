@@ -82,7 +82,7 @@ export class RequestSampler {
       throw new ThymianBaseError(
         'Cannot sample for transaction before @thymian/plugin-sampler was initialized.',
         {
-          suggestions: ['Did you run "thymian sampler:init"?'],
+          suggestions: ['Did you run "thymian sampler init"?'],
           name: 'SamplerNotInitializedError',
         },
       );

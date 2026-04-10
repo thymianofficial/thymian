@@ -31,7 +31,7 @@ Use `utils.skip()` when a test cannot run due to missing preconditions.
 import { BeforeEachRequestHook } from '@thymian/hooks';
 
 const hook: BeforeEachRequestHook = async (request, context, utils) => {
-  const response = await utils.request('POST http://localhost:3000/api/v1/launches', {
+  const response = await utils.request('POST http://localhost:3000/launches', {
     body: {
       missionName: utils.randomString(10),
       launchDate: '2026-12-31T00:00:00Z',
@@ -81,7 +81,7 @@ Use `utils.fail()` when a test should explicitly fail due to invalid conditions.
 import { BeforeEachRequestHook } from '@thymian/hooks';
 
 const hook: BeforeEachRequestHook = async (request, context, utils) => {
-  const response = await utils.request('POST http://localhost:3000/api/v1/launches', {
+  const response = await utils.request('POST http://localhost:3000/launches', {
     body: {
       missionName: utils.randomString(10),
       launchDate: '2026-12-31T00:00:00Z',
@@ -125,7 +125,7 @@ utils.skip('Resource unavailable');
 
 **Output:**
 ```
-GET /api/v1/launches/123
+GET /launches/123
   ⊘ Skipped: Resource unavailable
 ```
 
@@ -143,7 +143,7 @@ utils.fail('Invalid response structure');
 
 **Output:**
 ```
-GET /api/v1/launches/123
+GET /launches/123
   ✗ Failed: Invalid response structure
 ```
 

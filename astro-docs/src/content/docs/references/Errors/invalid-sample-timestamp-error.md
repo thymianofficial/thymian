@@ -13,7 +13,7 @@ The samples metadata includes a timestamp that tracks when the samples were gene
 To fix this, regenerate your samples:
 
 ```bash
-thymian sampler:init --overwrite
+thymian sampler init --overwrite
 ```
 
 This will create fresh samples with a valid timestamp.
