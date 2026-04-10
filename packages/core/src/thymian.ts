@@ -27,6 +27,7 @@ import type { LogLevel } from './logger/log-level.js';
 import { shouldLog } from './logger/log-level.js';
 import type { Logger } from './logger/logger.js';
 import { NoopLogger } from './logger/noop.logger.js';
+import { sortReports } from './report-sorter.js';
 import {
   type LoadedTraffic,
   loadRules,
@@ -74,6 +75,8 @@ export type RegisteredPlugin<
 
 export class PluginRegistrationError extends ThymianBaseError {}
 
+export type ReportSortMode = 'rule' | 'endpoint' | 'severity';
+
 export type ThymianOptions = {
   timeout: number;
   idleTimeout: number;
@@ -81,6 +84,7 @@ export type ThymianOptions = {
   cwd: string;
   logAllErrors: boolean;
   logLevel?: LogLevel;
+  sortReportsBy?: ReportSortMode;
 };
 
 export class Thymian {
@@ -422,11 +426,12 @@ export class Thymian {
     results: ValidationResult[],
     format: ThymianFormat,
   ): void {
+    // Collect all reports first so sorting can operate across them
+    const reports: ThymianReport[] = [];
+
     for (const result of results) {
-      // Create and emit reports from evaluated rule violations
       if (result.violations.length > 0) {
-        this.emitter.emit(
-          'core.report',
+        reports.push(
           this.createReportFromViolations(
             result.source,
             result.violations,
@@ -435,6 +440,13 @@ export class Thymian {
           ),
         );
       }
+    }
+
+    // Apply sort mode reshaping before emission
+    const sorted = sortReports(reports, this.options.sortReportsBy);
+
+    for (const report of sorted) {
+      this.emitter.emit('core.report', report);
     }
   }
 
