@@ -5,6 +5,8 @@ import { constant } from '@thymian/core';
 import { loadAndTransform } from '../../../load-openapi.js';
 
 export default class Load extends BaseCliRunCommand<typeof Load> {
+  static override requiresSpecifications = false;
+
   static override args = {
     content: Args.string({
       description: 'file to read',

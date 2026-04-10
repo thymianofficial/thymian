@@ -4,6 +4,8 @@ import { BaseCliRunCommand } from '@thymian/common-cli';
 import { Args } from '@thymian/common-cli/oclif';
 
 export default class Validate extends BaseCliRunCommand<typeof Validate> {
+  static override requiresSpecifications = false;
+
   static override args = {
     file: Args.string({ description: 'file to read', required: true }),
   };
