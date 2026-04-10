@@ -511,6 +511,7 @@ export class Thymian {
       source,
       message,
       sections,
+      metadata: result.metadata,
     };
   }
 
