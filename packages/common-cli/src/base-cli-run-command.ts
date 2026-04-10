@@ -69,6 +69,18 @@ export abstract class BaseCliRunCommand<
       description: 'Run thymian in debug mode.',
       helpGroup: 'BASE',
     }),
+    guidance: Flags.boolean({
+      allowNo: true,
+      description:
+        'Show guidance hints on stderr. Defaults to true for TTY, false for non-TTY.',
+      helpGroup: 'BASE',
+    }),
+    ['sort-reports-by']: Flags.string({
+      description: 'Control how validation findings are grouped in the report.',
+      helpGroup: 'BASE',
+      options: ['rule', 'endpoint', 'severity'],
+      default: 'endpoint',
+    }),
     ['log-level']: Flags.string({
       description:
         'Set log level (trace, debug, info, warn, error, silent). When set to trace, all events are traced.',
@@ -135,6 +147,12 @@ export abstract class BaseCliRunCommand<
   protected feedback?: Feedback;
   protected errorCache?: ErrorCache;
 
+  /**
+   * Whether guidance output is enabled for this command run.
+   * Resolved from `--guidance`/`--no-guidance` flag with TTY auto-detection fallback.
+   */
+  protected guidanceEnabled = false;
+
   public override async init(): Promise<void> {
     await super.init();
 
@@ -150,6 +168,8 @@ export abstract class BaseCliRunCommand<
     this.flags = flags as CommandFlags<T>;
     this.args = args as CommandArgs<T>;
     this.flags.debug = settings.debug || this.flags.debug;
+
+    this.guidanceEnabled = this.flags.guidance ?? Boolean(process.stdout.isTTY);
 
     this.feedback = Feedback.forCommand(this);
 
@@ -268,6 +288,10 @@ export abstract class BaseCliRunCommand<
       timeout: this.flags.timeout,
       cwd: this.flags.cwd,
       idleTimeout: this.flags['idle-timeout'],
+      sortReportsBy: this.flags['sort-reports-by'] as
+        | 'rule'
+        | 'endpoint'
+        | 'severity',
     });
 
     this.logger.info('Thymian instance created.');
@@ -532,6 +556,19 @@ export abstract class BaseCliRunCommand<
 
   public shouldSuppressFeedback(): boolean {
     return this.flags['suppress-feedback'];
+  }
+
+  /**
+   * Write a guidance message to stderr when guidance is enabled.
+   * This is the single choke-point for all guidance output — if
+   * `this.guidanceEnabled` is false, the method is a no-op.
+   */
+  public guidance(message: string): void {
+    if (!this.guidanceEnabled) {
+      return;
+    }
+
+    ux.stderr(message);
   }
 }
 
