@@ -1,0 +1,1026 @@
+---
+/**
+ * PluginEcosystem – interactive infographic showcasing the strengths of
+ * Thymian's plugin architecture and extensibility.
+ *
+ * Shows: core framework → event bus → official + custom plugins.
+ * Desktop: radial / hub-and-spoke layout.
+ * Mobile:  vertical card stack.
+ */
+
+// ── Data ────────────────────────────────────────────────────────────────
+interface Strength {
+  icon: string;
+  title: string;
+  description: string;
+}
+
+interface PluginCard {
+  id: string;
+  icon: string;
+  name: string;
+  pkg: string;
+  description: string;
+  category: 'official' | 'custom' | 'community';
+}
+
+const strengths: Strength[] = [
+  {
+    icon: '🔌',
+    title: 'Everything Is a Plugin',
+    description:
+      'Core features, integrations, and extensions are all plugins — the framework imposes no hard-coded behavior.',
+  },
+  {
+    icon: '📡',
+    title: 'Event-Driven Architecture',
+    description:
+      'Plugins communicate through a reactive event bus (ThymianEmitter) with typed events, actions, and error flows.',
+  },
+  {
+    icon: '🔗',
+    title: 'Loose Coupling',
+    description:
+      'Plugins interact through well-defined APIs and events. Add, remove, or swap plugins without touching others.',
+  },
+  {
+    icon: '🌐',
+    title: 'Remote Plugins via WebSocket',
+    description:
+      'Connect plugins running in any language or process over WebSocket — perfect for polyglot environments.',
+  },
+  {
+    icon: '📦',
+    title: 'Shareable as npm Packages',
+    description:
+      'Publish plugins and rule sets as npm modules. Share validation logic across teams and projects.',
+  },
+  {
+    icon: '🛡️',
+    title: 'Schema-Validated Config',
+    description:
+      'Plugin options are validated at startup via JSON Schema — catch misconfigurations before they cause failures.',
+  },
+];
+
+const officialPlugins: PluginCard[] = [
+  {
+    id: 'http-linter',
+    icon: '📐',
+    name: 'HTTP Linter',
+    pkg: '@thymian/plugin-http-linter',
+    description: 'Static analysis of OpenAPI specs and HTTP definitions.',
+    category: 'official',
+  },
+  {
+    id: 'http-tester',
+    icon: '🧪',
+    name: 'HTTP Tester',
+    pkg: '@thymian/plugin-http-tester',
+    description: 'Live endpoint testing against your rule definitions.',
+    category: 'official',
+  },
+  {
+    id: 'http-analyzer',
+    icon: '📊',
+    name: 'HTTP Analyzer',
+    pkg: '@thymian/plugin-http-analyzer',
+    description: 'Passive analysis of recorded HTTP traffic for compliance.',
+    category: 'official',
+  },
+  {
+    id: 'openapi',
+    icon: '📄',
+    name: 'OpenAPI',
+    pkg: '@thymian/plugin-openapi',
+    description: 'Load, parse, and validate OpenAPI specifications.',
+    category: 'official',
+  },
+  {
+    id: 'reporter',
+    icon: '📋',
+    name: 'Reporter',
+    pkg: '@thymian/plugin-reporter',
+    description: 'Collect and format validation results into reports.',
+    category: 'official',
+  },
+  {
+    id: 'sampler',
+    icon: '🎯',
+    name: 'Sampler',
+    pkg: '@thymian/plugin-sampler',
+    description: 'File-based HTTP request sampling for reproducible tests.',
+    category: 'official',
+  },
+  {
+    id: 'websocket-proxy',
+    icon: '🔗',
+    name: 'WebSocket Proxy',
+    pkg: '@thymian/plugin-websocket-proxy',
+    description: 'Connect remote plugins over WebSocket for distributed setups.',
+    category: 'official',
+  },
+  {
+    id: 'request-dispatcher',
+    icon: '🚀',
+    name: 'Request Dispatcher',
+    pkg: '@thymian/plugin-request-dispatcher',
+    description: 'Dispatch HTTP requests to live endpoints for testing.',
+    category: 'official',
+  },
+];
+
+const categoryMeta: Record<PluginCard['category'], { label: string; classes: string; ringClass: string }> = {
+  official: {
+    label: 'Official',
+    classes:
+      'bg-[var(--color-accent-100)] text-[var(--color-accent-800)] dark:bg-[var(--color-accent-950)] dark:text-[var(--color-accent-300)]',
+    ringClass: 'ring-[var(--color-accent-400)]',
+  },
+  community: {
+    label: 'Community',
+    classes:
+      'bg-[var(--color-accent-alt-100)] text-[var(--color-accent-alt-800)] dark:bg-[var(--color-accent-alt-950)] dark:text-[var(--color-accent-alt-300)]',
+    ringClass: 'ring-[var(--color-accent-alt-400)]',
+  },
+  custom: {
+    label: 'Custom',
+    classes: 'pe-badge-custom',
+    ringClass: 'ring-[var(--color-accent-400)]',
+  },
+};
+---
+
+<section class="pe-section not-content" aria-labelledby="pe-heading">
+  <!-- Header -->
+  <div class="text-center mb-8 lg:mb-12">
+    <h2
+      id="pe-heading"
+      class="text-2xl sm:text-3xl lg:text-4xl font-bold text-gray-900 dark:text-gray-100 mb-3"
+    >
+      Built to Be Extended
+    </h2>
+    <p
+      class="text-base lg:text-lg text-gray-500 dark:text-gray-400 max-w-2xl mx-auto"
+    >
+      Virtually everything in Thymian is a plugin. A reactive event bus connects
+      them all — swap, extend, or build your own without touching a single line
+      of framework code.
+    </p>
+  </div>
+
+  <!-- ═════════ Architecture strengths grid ═════════ -->
+  <div class="pe-strengths">
+    {
+      strengths.map((s, i) => (
+        <div
+          class="pe-strength-card"
+          data-animate="strength"
+          data-delay={i * 80}
+        >
+          <span class="pe-strength-icon" aria-hidden="true">
+            {s.icon}
+          </span>
+          <div>
+            <h3 class="pe-strength-title">{s.title}</h3>
+            <p class="pe-strength-desc">{s.description}</p>
+          </div>
+        </div>
+      ))
+    }
+  </div>
+
+  <!-- ═════════ Hub diagram (desktop) ═════════ -->
+  <div class="pe-hub hidden sm:flex" data-animate="hub" aria-hidden="true">
+    <div class="pe-hub-core">
+      <span class="pe-hub-core-label">ThymianEmitter</span>
+      <span class="pe-hub-core-sub">Event Bus</span>
+    </div>
+    <div class="pe-hub-spokes">
+      <div class="pe-hub-spoke pe-hub-spoke--events">
+        <svg class="pe-spoke-arrow" viewBox="0 0 24 24" fill="none">
+          <path
+            d="M5 12h14m0 0l-4-4m4 4l-4 4"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+            stroke-linejoin="round"></path>
+        </svg>
+        <span class="pe-spoke-label">Events</span>
+      </div>
+      <div class="pe-hub-spoke pe-hub-spoke--actions">
+        <svg class="pe-spoke-arrow" viewBox="0 0 24 24" fill="none">
+          <path
+            d="M5 12h14m0 0l-4-4m4 4l-4 4M19 12H5m0 0l4-4m-4 4l4 4"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+            stroke-linejoin="round"></path>
+        </svg>
+        <span class="pe-spoke-label">Actions</span>
+      </div>
+      <div class="pe-hub-spoke pe-hub-spoke--errors">
+        <svg class="pe-spoke-arrow" viewBox="0 0 24 24" fill="none">
+          <path
+            d="M5 12h14m0 0l-4-4m4 4l-4 4"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+            stroke-linejoin="round"></path>
+        </svg>
+        <span class="pe-spoke-label">Errors</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═════════ Plugin code snippet ═════════ -->
+  <div class="pe-code-card" data-animate="code-card">
+    <div class="pe-code-header">
+      <span class="pe-code-dot pe-code-dot--red"></span>
+      <span class="pe-code-dot pe-code-dot--yellow"></span>
+      <span class="pe-code-dot pe-code-dot--green"></span>
+      <span class="pe-code-filename">my-custom-plugin.ts</span>
+    </div>
+    <pre
+      class="pe-code"><code><span class="pe-kw">import type</span> {'{'} <span class="pe-type">ThymianPlugin</span> {'}'} <span class="pe-kw">from</span> <span class="pe-str">'@thymian/core'</span>;
+
+<span class="pe-kw">export const</span> myPlugin: <span class="pe-type">ThymianPlugin</span> = {'{'}
+  name: <span class="pe-str">'my-custom-plugin'</span>,
+  version: <span class="pe-str">'*'</span>,
+
+  <span class="pe-kw">async</span> <span class="pe-fn">plugin</span>(emitter, logger, options) {'{'}
+    emitter.<span class="pe-fn">onAction</span>(<span class="pe-str">'core.ready'</span>, <span class="pe-kw">async</span> (payload, ctx) =&gt; {'{'}
+      logger.<span class="pe-fn">info</span>(<span class="pe-str">'Plugin is ready!'</span>);
+      ctx.<span class="pe-fn">reply</span>();
+    {'}'});
+
+    emitter.<span class="pe-fn">onAction</span>(<span class="pe-str">'core.lint'</span>, <span class="pe-kw">async</span> (payload, ctx) =&gt; {'{'}
+      <span class="pe-comment">// Your custom validation logic here</span>
+      ctx.<span class="pe-fn">reply</span>({'{'} results: [] {'}'});
+    {'}'});
+  {'}'}
+{'}'};
+</code></pre>
+    <div class="pe-code-caption">
+      <svg
+        class="pe-caption-icon"
+        viewBox="0 0 16 16"
+        fill="none"
+        aria-hidden="true"
+      >
+        <path
+          d="M8 1a7 7 0 1 0 0 14A7 7 0 0 0 8 1Zm0 10.5a.75.75 0 1 1 0-1.5.75.75 0 0 1 0 1.5ZM8 4a.75.75 0 0 0-.75.75v3.5a.75.75 0 0 0 1.5 0v-3.5A.75.75 0 0 0 8 4Z"
+          fill="currentColor"></path>
+      </svg>
+      Typed interface. Event-driven. Zero boilerplate.
+    </div>
+  </div>
+
+  <!-- ═════════ Official plugins showcase ═════════ -->
+  <div class="text-center mb-6 mt-10 lg:mt-14">
+    <h3
+      class="text-xl sm:text-2xl font-bold text-gray-900 dark:text-gray-100 mb-2"
+    >
+      Official Plugin Ecosystem
+    </h3>
+    <p class="text-sm text-gray-500 dark:text-gray-400 max-w-xl mx-auto">
+      Ready-to-use plugins covering every stage of the API lifecycle — or build
+      your own with the same powerful APIs.
+    </p>
+  </div>
+
+  <div class="pe-plugins">
+    {
+      officialPlugins.map((p, i) => (
+        <div
+          class="pe-plugin-card"
+          data-animate="plugin"
+          data-delay={i * 60}
+        >
+          <div class="pe-plugin-header">
+            <span class="pe-plugin-icon" aria-hidden="true">
+              {p.icon}
+            </span>
+            <div class="pe-plugin-meta">
+              <h4 class="pe-plugin-name">{p.name}</h4>
+              <code class="pe-plugin-pkg">{p.pkg}</code>
+            </div>
+            <span
+              class={`pe-badge ${categoryMeta[p.category].classes} ring-1 ${categoryMeta[p.category].ringClass}`}
+            >
+              {categoryMeta[p.category].label}
+            </span>
+          </div>
+          <p class="pe-plugin-desc">{p.description}</p>
+        </div>
+      ))
+    }
+  </div>
+
+  <!-- ═════════ Build-your-own callout ═════════ -->
+  <div class="pe-callout" data-animate="callout">
+    <div class="pe-callout-inner">
+      <div class="pe-callout-icon-wrap" aria-hidden="true">
+        <svg class="pe-callout-icon" viewBox="0 0 24 24" fill="none">
+          <path
+            d="M12 6v6l4 2"
+            stroke="currentColor"
+            stroke-width="1.5"
+            stroke-linecap="round"
+            stroke-linejoin="round"></path>
+          <circle
+            cx="12"
+            cy="12"
+            r="10"
+            stroke="currentColor"
+            stroke-width="1.5"></circle>
+        </svg>
+      </div>
+      <div class="pe-callout-content">
+        <h3 class="pe-callout-title">Build Your Own in Minutes</h3>
+        <p class="pe-callout-desc">
+          Implement the <code>ThymianPlugin</code> interface, hook into lifecycle
+          events, and publish as an npm package. Local plugins, remote WebSocket
+          plugins, and shared rule sets all use the same unified API.
+        </p>
+        <div class="pe-callout-links">
+          <a href="/guides/plugin-developers-guide/" class="pe-callout-link">
+            <svg
+              class="pe-link-icon"
+              viewBox="0 0 16 16"
+              fill="none"
+              aria-hidden="true"
+            >
+              <path
+                d="M4 1h6l4 4v9a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1Z"
+                stroke="currentColor"
+                stroke-width="1.4"></path>
+              <path d="M10 1v4h4" stroke="currentColor" stroke-width="1.4"
+              ></path>
+              <path
+                d="M6 9h5M6 12h3"
+                stroke="currentColor"
+                stroke-width="1.4"
+                stroke-linecap="round"></path>
+            </svg>
+            Plugin Developer Guide
+          </a>
+          <a
+            href="/guides/remote-plugins/how-to-connect-remote-plugins/"
+            class="pe-callout-link"
+          >
+            <svg
+              class="pe-link-icon"
+              viewBox="0 0 16 16"
+              fill="none"
+              aria-hidden="true"
+            >
+              <path
+                d="M2 13V8l3-3 3 2 3-4 3 3v7H2Z"
+                stroke="currentColor"
+                stroke-width="1.4"
+                stroke-linejoin="round"></path>
+            </svg>
+            Remote Plugins Guide
+          </a>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════ Styles ═══════════════ -->
+<style>
+  /* ── Section wrapper ───────────────────────────────────────── */
+  .pe-section {
+    --pe-radius: 0.75rem;
+    max-width: 80rem;
+    margin-inline: auto;
+    padding: 2rem 1rem;
+  }
+  @media (min-width: 1024px) {
+    .pe-section {
+      padding: 3rem 2rem;
+    }
+  }
+
+  /* ── Strengths grid ─────────────────────────────────────────── */
+  .pe-strengths {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 0.75rem;
+    margin-bottom: 2.5rem;
+  }
+  @media (min-width: 640px) {
+    .pe-strengths {
+      grid-template-columns: repeat(2, 1fr);
+    }
+  }
+  @media (min-width: 1024px) {
+    .pe-strengths {
+      grid-template-columns: repeat(3, 1fr);
+      gap: 1rem;
+    }
+  }
+
+  .pe-strength-card {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.75rem;
+    padding: 1rem 1.15rem;
+    border-radius: var(--pe-radius);
+    border: 1px solid var(--color-gray-200);
+    background: var(--color-gray-100);
+    transition: border-color 0.2s, box-shadow 0.2s;
+    opacity: 0;
+  }
+  :global([data-theme='dark']) .pe-strength-card {
+    border-color: var(--color-gray-700);
+    background: var(--color-gray-900);
+  }
+  .pe-strength-card.revealed {
+    animation: peFadeSlideUp 0.5s ease-out forwards;
+  }
+  .pe-strength-card:hover {
+    border-color: var(--color-accent-300);
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.06);
+  }
+  :global([data-theme='dark']) .pe-strength-card:hover {
+    border-color: var(--color-accent-700);
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.25);
+  }
+
+  .pe-strength-icon {
+    font-size: 1.5rem;
+    flex-shrink: 0;
+    line-height: 1;
+  }
+  .pe-strength-title {
+    font-size: 0.9rem;
+    font-weight: 700;
+    color: var(--color-gray-900);
+    margin: 0 0 0.25rem;
+  }
+  :global([data-theme='dark']) .pe-strength-title {
+    color: var(--color-gray-100);
+  }
+  .pe-strength-desc {
+    font-size: 0.78rem;
+    color: var(--color-gray-600);
+    line-height: 1.5;
+    margin: 0;
+  }
+  :global([data-theme='dark']) .pe-strength-desc {
+    color: var(--color-gray-400);
+  }
+
+  /* ── Hub diagram ────────────────────────────────────────────── */
+  .pe-hub {
+    flex-direction: column;
+    align-items: center;
+    gap: 1rem;
+    margin-bottom: 2rem;
+  }
+  .pe-hub-core {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    width: 9rem;
+    height: 9rem;
+    border-radius: 50%;
+    background: var(--gradient-brand);
+    color: white;
+    box-shadow: 0 0 0 4px var(--color-accent-200), 0 8px 32px rgba(0, 0, 0, 0.12);
+    opacity: 0;
+  }
+  :global([data-theme='dark']) .pe-hub-core {
+    box-shadow: 0 0 0 4px var(--color-accent-800), 0 8px 32px rgba(0, 0, 0, 0.4);
+  }
+  .pe-hub-core.revealed {
+    animation: peFadeSlideUp 0.6s ease-out forwards;
+  }
+  .pe-hub-core-label {
+    font-size: 0.8rem;
+    font-weight: 700;
+    letter-spacing: 0.03em;
+  }
+  .pe-hub-core-sub {
+    font-size: 0.65rem;
+    opacity: 0.85;
+    margin-top: 0.15rem;
+  }
+  .pe-hub-spokes {
+    display: flex;
+    gap: 3rem;
+  }
+  .pe-hub-spoke {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.25rem;
+    color: var(--color-accent-500);
+    opacity: 0;
+  }
+  .pe-hub-spoke.revealed {
+    animation: peFadeIn 0.4s ease-out forwards;
+  }
+  .pe-spoke-arrow {
+    width: 1.5rem;
+    height: 1.5rem;
+  }
+  .pe-spoke-label {
+    font-size: 0.65rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--color-gray-500);
+  }
+  :global([data-theme='dark']) .pe-spoke-label {
+    color: var(--color-gray-400);
+  }
+
+  /* ── Code card ──────────────────────────────────────────────── */
+  .pe-code-card {
+    max-width: 40rem;
+    margin: 0 auto 2rem;
+    border-radius: var(--pe-radius);
+    overflow: hidden;
+    border: 1px solid var(--color-gray-200);
+    background: var(--color-gray-100);
+    opacity: 0;
+  }
+  :global([data-theme='dark']) .pe-code-card {
+    border-color: var(--color-gray-700);
+    background: var(--color-gray-900);
+  }
+  .pe-code-card.revealed {
+    animation: peFadeSlideUp 0.6s ease-out forwards;
+  }
+
+  .pe-code-header {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    padding: 0.5rem 0.75rem;
+    background: var(--color-gray-200);
+    border-bottom: 1px solid var(--color-gray-200);
+  }
+  :global([data-theme='dark']) .pe-code-header {
+    background: var(--color-gray-800);
+    border-color: var(--color-gray-700);
+  }
+  .pe-code-dot {
+    width: 0.6rem;
+    height: 0.6rem;
+    border-radius: 50%;
+  }
+  .pe-code-dot--red {
+    background: #ef4444;
+  }
+  .pe-code-dot--yellow {
+    background: #eab308;
+  }
+  .pe-code-dot--green {
+    background: #22c55e;
+  }
+  .pe-code-filename {
+    margin-left: 0.5rem;
+    font-size: 0.7rem;
+    font-weight: 500;
+    color: var(--color-gray-500);
+  }
+  :global([data-theme='dark']) .pe-code-filename {
+    color: var(--color-gray-400);
+  }
+
+  .pe-code {
+    padding: 1rem 1.25rem;
+    margin: 0;
+    font-size: 0.72rem;
+    line-height: 1.65;
+    overflow-x: auto;
+    font-family: ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas,
+      'Liberation Mono', monospace;
+    color: var(--color-gray-700);
+    background: transparent;
+    border: none;
+  }
+  :global([data-theme='dark']) .pe-code {
+    color: var(--color-gray-300);
+  }
+
+  /* Syntax highlighting */
+  .pe-kw {
+    color: var(--color-accent-700);
+    font-weight: 600;
+  }
+  :global([data-theme='dark']) .pe-kw {
+    color: var(--color-accent-400);
+  }
+  .pe-fn {
+    color: var(--color-accent-alt-700);
+  }
+  :global([data-theme='dark']) .pe-fn {
+    color: var(--color-accent-alt-400);
+  }
+  .pe-str {
+    color: var(--color-accent-600);
+  }
+  :global([data-theme='dark']) .pe-str {
+    color: var(--color-accent-300);
+  }
+  .pe-type {
+    color: #b45309;
+    font-weight: 600;
+  }
+  :global([data-theme='dark']) .pe-type {
+    color: #fbbf24;
+  }
+  .pe-comment {
+    color: var(--color-gray-400);
+    font-style: italic;
+  }
+  :global([data-theme='dark']) .pe-comment {
+    color: var(--color-gray-500);
+  }
+
+  .pe-code-caption {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    padding: 0.55rem 1rem;
+    border-top: 1px solid var(--color-gray-200);
+    font-size: 0.72rem;
+    font-weight: 500;
+    color: var(--color-accent-700);
+  }
+  :global([data-theme='dark']) .pe-code-caption {
+    border-color: var(--color-gray-700);
+    color: var(--color-accent-400);
+  }
+  .pe-caption-icon {
+    width: 0.9rem;
+    height: 0.9rem;
+    flex-shrink: 0;
+  }
+
+  /* ── Plugin cards grid ──────────────────────────────────────── */
+  .pe-plugins {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 0.75rem;
+    margin-bottom: 2.5rem;
+  }
+  @media (min-width: 640px) {
+    .pe-plugins {
+      grid-template-columns: repeat(2, 1fr);
+    }
+  }
+  @media (min-width: 1024px) {
+    .pe-plugins {
+      grid-template-columns: repeat(4, 1fr);
+      gap: 1rem;
+    }
+  }
+
+  .pe-plugin-card {
+    border-radius: var(--pe-radius);
+    border: 1px solid var(--color-gray-200);
+    background: var(--color-gray-100);
+    overflow: hidden;
+    transition: border-color 0.2s, box-shadow 0.2s;
+    opacity: 0;
+  }
+  :global([data-theme='dark']) .pe-plugin-card {
+    border-color: var(--color-gray-700);
+    background: var(--color-gray-900);
+  }
+  .pe-plugin-card.revealed {
+    animation: peFadeSlideUp 0.5s ease-out forwards;
+  }
+  .pe-plugin-card:hover {
+    border-color: var(--color-accent-300);
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.06);
+  }
+  :global([data-theme='dark']) .pe-plugin-card:hover {
+    border-color: var(--color-accent-700);
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.25);
+  }
+
+  .pe-plugin-header {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.75rem 0.85rem;
+    border-bottom: 1px solid var(--color-gray-200);
+  }
+  :global([data-theme='dark']) .pe-plugin-header {
+    border-color: var(--color-gray-700);
+  }
+  .pe-plugin-icon {
+    font-size: 1.3rem;
+    flex-shrink: 0;
+  }
+  .pe-plugin-meta {
+    flex: 1;
+    min-width: 0;
+  }
+  .pe-plugin-name {
+    font-size: 0.82rem;
+    font-weight: 700;
+    color: var(--color-gray-900);
+    margin: 0;
+    line-height: 1.3;
+  }
+  :global([data-theme='dark']) .pe-plugin-name {
+    color: var(--color-gray-100);
+  }
+  .pe-plugin-pkg {
+    font-size: 0.6rem;
+    color: var(--color-gray-400);
+    font-family: ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas,
+      'Liberation Mono', monospace;
+    display: block;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .pe-plugin-desc {
+    font-size: 0.75rem;
+    color: var(--color-gray-600);
+    line-height: 1.45;
+    padding: 0.65rem 0.85rem;
+    margin: 0;
+  }
+  :global([data-theme='dark']) .pe-plugin-desc {
+    color: var(--color-gray-400);
+  }
+
+  /* ── Badge ──────────────────────────────────────────────────── */
+  .pe-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+    border-radius: 9999px;
+    padding: 0.15rem 0.5rem;
+    font-size: 0.6rem;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    white-space: nowrap;
+    line-height: 1.5;
+    flex-shrink: 0;
+  }
+  .pe-badge-custom {
+    background: linear-gradient(
+      135deg,
+      var(--color-accent-100) 0%,
+      var(--color-accent-alt-100) 100%
+    );
+    color: var(--color-accent-800);
+  }
+  :global([data-theme='dark']) .pe-badge-custom {
+    background: linear-gradient(
+      135deg,
+      var(--color-accent-950) 0%,
+      var(--color-accent-alt-950) 100%
+    );
+    color: var(--color-accent-alt-300);
+  }
+
+  /* ── Build-your-own callout ─────────────────────────────────── */
+  .pe-callout {
+    max-width: 52rem;
+    margin: 0 auto;
+    opacity: 0;
+  }
+  .pe-callout.revealed {
+    animation: peFadeSlideUp 0.5s ease-out forwards;
+  }
+  .pe-callout-inner {
+    display: flex;
+    gap: 1.25rem;
+    align-items: flex-start;
+    padding: 1.25rem 1.5rem;
+    border-radius: var(--pe-radius);
+    border: 1px solid var(--color-accent-200);
+    background: linear-gradient(
+      135deg,
+      var(--color-accent-50) 0%,
+      var(--color-accent-alt-50) 100%
+    );
+  }
+  :global([data-theme='dark']) .pe-callout-inner {
+    border-color: var(--color-accent-800);
+    background: linear-gradient(
+      135deg,
+      var(--color-accent-950) 0%,
+      var(--color-accent-alt-950) 100%
+    );
+  }
+  .pe-callout-icon-wrap {
+    flex-shrink: 0;
+    width: 2.5rem;
+    height: 2.5rem;
+    border-radius: 50%;
+    background: var(--color-accent-100);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  :global([data-theme='dark']) .pe-callout-icon-wrap {
+    background: var(--color-accent-900);
+  }
+  .pe-callout-icon {
+    width: 1.3rem;
+    height: 1.3rem;
+    color: var(--color-accent-600);
+  }
+  :global([data-theme='dark']) .pe-callout-icon {
+    color: var(--color-accent-400);
+  }
+  .pe-callout-content {
+    flex: 1;
+    min-width: 0;
+  }
+  .pe-callout-title {
+    font-size: 0.95rem;
+    font-weight: 700;
+    color: var(--color-gray-900);
+    margin: 0 0 0.35rem;
+  }
+  :global([data-theme='dark']) .pe-callout-title {
+    color: var(--color-gray-100);
+  }
+  .pe-callout-desc {
+    font-size: 0.8rem;
+    color: var(--color-gray-600);
+    line-height: 1.5;
+    margin: 0 0 0.65rem;
+  }
+  :global([data-theme='dark']) .pe-callout-desc {
+    color: var(--color-gray-400);
+  }
+  .pe-callout-desc code {
+    font-size: 0.75rem;
+    padding: 0.1rem 0.35rem;
+    border-radius: 4px;
+    background: var(--color-accent-100);
+    color: var(--color-accent-800);
+  }
+  :global([data-theme='dark']) .pe-callout-desc code {
+    background: var(--color-accent-900);
+    color: var(--color-accent-300);
+  }
+  .pe-callout-links {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.75rem;
+  }
+  .pe-callout-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    font-size: 0.78rem;
+    font-weight: 600;
+    color: var(--color-accent-700);
+    text-decoration: none;
+    transition: color 0.15s;
+  }
+  .pe-callout-link:hover {
+    color: var(--color-accent-500);
+  }
+  :global([data-theme='dark']) .pe-callout-link {
+    color: var(--color-accent-400);
+  }
+  :global([data-theme='dark']) .pe-callout-link:hover {
+    color: var(--color-accent-300);
+  }
+  .pe-link-icon {
+    width: 0.9rem;
+    height: 0.9rem;
+    flex-shrink: 0;
+  }
+
+  /* ── Animations ─────────────────────────────────────────────── */
+  @keyframes peFadeSlideUp {
+    from {
+      opacity: 0;
+      transform: translateY(12px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+  @keyframes peFadeIn {
+    from {
+      opacity: 0;
+    }
+    to {
+      opacity: 1;
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .pe-strength-card,
+    .pe-hub-core,
+    .pe-hub-spoke,
+    .pe-code-card,
+    .pe-plugin-card,
+    .pe-callout {
+      opacity: 1 !important;
+      animation: none !important;
+    }
+  }
+</style>
+
+<!-- ═══════════════ Scroll-triggered reveal ═══════════════ -->
+<script>
+  function initPluginEcosystem() {
+    const section = document.querySelector('.pe-section');
+    if (!section) return;
+
+    const prefersReduced = window.matchMedia(
+      '(prefers-reduced-motion: reduce)',
+    ).matches;
+
+    const strengthCards = section.querySelectorAll<HTMLElement>(
+      '.pe-strength-card',
+    );
+    const hubCore = section.querySelector<HTMLElement>('.pe-hub-core');
+    const hubSpokes =
+      section.querySelectorAll<HTMLElement>('.pe-hub-spoke');
+    const codeCard = section.querySelector<HTMLElement>('.pe-code-card');
+    const pluginCards =
+      section.querySelectorAll<HTMLElement>('.pe-plugin-card');
+    const callout = section.querySelector<HTMLElement>('.pe-callout');
+
+    if (prefersReduced) {
+      strengthCards.forEach((c) => c.classList.add('revealed'));
+      hubCore?.classList.add('revealed');
+      hubSpokes.forEach((s) => s.classList.add('revealed'));
+      codeCard?.classList.add('revealed');
+      pluginCards.forEach((c) => c.classList.add('revealed'));
+      callout?.classList.add('revealed');
+      return;
+    }
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        for (const entry of entries) {
+          if (!entry.isIntersecting) continue;
+
+          // 1. Reveal strength cards with stagger
+          strengthCards.forEach((card) => {
+            const delay = parseInt(card.dataset.delay ?? '0', 10);
+            card.style.animationDelay = `${delay}ms`;
+            card.classList.add('revealed');
+          });
+
+          // 2. Reveal hub core
+          if (hubCore) {
+            hubCore.style.animationDelay = '500ms';
+            hubCore.classList.add('revealed');
+          }
+
+          // 3. Reveal spokes
+          hubSpokes.forEach((spoke, i) => {
+            spoke.style.animationDelay = `${700 + i * 120}ms`;
+            spoke.classList.add('revealed');
+          });
+
+          // 4. Reveal code card
+          if (codeCard) {
+            codeCard.style.animationDelay = '400ms';
+            codeCard.classList.add('revealed');
+          }
+
+          // 5. Reveal plugin cards with stagger
+          pluginCards.forEach((card) => {
+            const delay = parseInt(card.dataset.delay ?? '0', 10);
+            card.style.animationDelay = `${600 + delay}ms`;
+            card.classList.add('revealed');
+          });
+
+          // 6. Reveal callout last
+          if (callout) {
+            callout.style.animationDelay = '1200ms';
+            callout.classList.add('revealed');
+          }
+
+          observer.unobserve(entry.target);
+        }
+      },
+      { threshold: 0.1 },
+    );
+
+    observer.observe(section);
+  }
+
+  initPluginEcosystem();
+  document.addEventListener('astro:after-swap', initPluginEcosystem);
+</script>
+
+

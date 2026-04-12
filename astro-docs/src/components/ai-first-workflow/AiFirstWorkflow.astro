@@ -1,0 +1,810 @@
+---
+/**
+ * AiFirstWorkflow – interactive infographic showing how Thymian is built
+ * for AI-first development workflows and works alongside LLMs / AI agents.
+ *
+ * Shows: structured output → AI agent loop → continuous validation.
+ * Desktop: flow diagram with agent interaction cards.
+ * Mobile:  vertical stack.
+ */
+
+// ── Data ────────────────────────────────────────────────────────────────
+interface AiCapability {
+  icon: string;
+  title: string;
+  description: string;
+}
+
+interface FlowStep {
+  id: string;
+  icon: string;
+  title: string;
+  description: string;
+  command: string;
+  aiAction: string;
+}
+
+const capabilities: AiCapability[] = [
+  {
+    icon: '📋',
+    title: 'Structured JSON Output',
+    description:
+      'Every CLI command supports --json, producing machine-readable output that LLMs and agents can parse and act on without guessing.',
+  },
+  {
+    icon: '🔁',
+    title: 'Deterministic Feedback Loops',
+    description:
+      'Non-interactive mode with explicit flags ensures reproducible results — perfect for agentic retry-and-fix workflows.',
+  },
+  {
+    icon: '🧠',
+    title: 'Rich Error Context',
+    description:
+      'Violations include rule names, RFC references, severity levels, and exact locations — giving AI agents all the context they need to fix issues.',
+  },
+  {
+    icon: '⚡',
+    title: 'Zero Ambiguity',
+    description:
+      'Exit codes, structured results, and typed schemas mean agents never have to parse prose or guess what went wrong.',
+  },
+  {
+    icon: '🔧',
+    title: 'Scaffolding for Agents',
+    description:
+      'Generate configs, rules, and sample data programmatically with --no-interactive — no human prompts blocking the pipeline.',
+  },
+  {
+    icon: '🌐',
+    title: 'Works with Any LLM',
+    description:
+      'Language-agnostic CLI output works with GPT, Claude, Gemini, local models, or any tool that reads JSON from stdout.',
+  },
+];
+
+const flowSteps: FlowStep[] = [
+  {
+    id: 'generate',
+    icon: '🏗️',
+    title: '1. AI Scaffolds',
+    description: 'An LLM generates or modifies your OpenAPI spec based on requirements.',
+    command: 'thymian generate config --no-interactive',
+    aiAction: 'Creates config from detected spec',
+  },
+  {
+    id: 'validate',
+    icon: '🔍',
+    title: '2. Thymian Validates',
+    description: 'Thymian lints the spec against RFC rules and returns structured results.',
+    command: 'thymian lint --json',
+    aiAction: 'Parses violations from JSON output',
+  },
+  {
+    id: 'fix',
+    icon: '🔧',
+    title: '3. AI Fixes',
+    description: 'The agent reads violation details — rule, location, severity — and patches the spec.',
+    command: 'thymian lint --json | ai-agent fix',
+    aiAction: 'Applies targeted fixes with context',
+  },
+  {
+    id: 'verify',
+    icon: '✅',
+    title: '4. Thymian Verifies',
+    description: 'Re-run validation to confirm all issues are resolved. Zero violations = done.',
+    command: 'thymian lint --json && thymian test --json',
+    aiAction: 'Confirms clean pass, moves to next task',
+  },
+];
+---
+
+<section class="ai-section not-content" aria-labelledby="ai-heading">
+  <!-- Header -->
+  <div class="text-center mb-8 lg:mb-12">
+    <h2
+      id="ai-heading"
+      class="text-2xl sm:text-3xl lg:text-4xl font-bold text-gray-900 dark:text-gray-100 mb-3"
+    >
+      Built for AI-First Development
+    </h2>
+    <p
+      class="text-base lg:text-lg text-gray-500 dark:text-gray-400 max-w-2xl mx-auto"
+    >
+      Thymian's structured JSON output and deterministic CLI make it the
+      ideal validation layer in LLM-powered and agentic development workflows.
+    </p>
+  </div>
+
+  <!-- ═════════ Capability cards ═════════ -->
+  <div class="ai-capabilities">
+    {
+      capabilities.map((c, i) => (
+        <div
+          class="ai-cap-card"
+          data-animate="cap"
+          data-delay={i * 80}
+        >
+          <span class="ai-cap-icon" aria-hidden="true">
+            {c.icon}
+          </span>
+          <div>
+            <h3 class="ai-cap-title">{c.title}</h3>
+            <p class="ai-cap-desc">{c.description}</p>
+          </div>
+        </div>
+      ))
+    }
+  </div>
+
+  <!-- ═════════ Agent loop flow ═════════ -->
+  <div class="text-center mb-6 mt-10 lg:mt-14">
+    <h3
+      class="text-xl sm:text-2xl font-bold text-gray-900 dark:text-gray-100 mb-2"
+    >
+      The AI Agent Loop
+    </h3>
+    <p class="text-sm text-gray-500 dark:text-gray-400 max-w-xl mx-auto">
+      Thymian fits naturally into validate → fix → verify cycles that AI coding
+      agents use to ship correct APIs autonomously.
+    </p>
+  </div>
+
+  <div class="ai-flow">
+    {
+      flowSteps.map((step, i) => (
+        <>
+          <div
+            class="ai-flow-step"
+            data-animate="flow-step"
+            data-delay={i * 150}
+          >
+            <div class="ai-flow-step-header">
+              <span class="ai-flow-step-icon" aria-hidden="true">
+                {step.icon}
+              </span>
+              <h4 class="ai-flow-step-title">{step.title}</h4>
+            </div>
+            <p class="ai-flow-step-desc">{step.description}</p>
+            <div class="ai-flow-cmd">
+              <code>{step.command}</code>
+            </div>
+            <div class="ai-flow-agent">
+              <svg class="ai-flow-agent-icon" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+                <circle cx="8" cy="8" r="6.5" stroke="currentColor" stroke-width="1.2" />
+                <path d="M5.5 6.5h1.5v3H5.5zM9 6.5h1.5v3H9z" fill="currentColor" />
+                <path d="M5.5 11c0-1.38 1.12-2.5 2.5-2.5s2.5 1.12 2.5 2.5" stroke="currentColor" stroke-width="1" stroke-linecap="round" />
+              </svg>
+              <span class="ai-flow-agent-text">{step.aiAction}</span>
+            </div>
+          </div>
+          {i < flowSteps.length - 1 && (
+            <div class="ai-flow-arrow" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none" class="ai-arrow-svg">
+                <path
+                  d="M5 12h14m0 0l-4-4m4 4l-4 4"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                />
+              </svg>
+            </div>
+          )}
+        </>
+      ))
+    }
+  </div>
+
+  <!-- ═════════ Example: before/after terminal ═════════ -->
+  <div class="ai-example" data-animate="example">
+    <div class="ai-example-terminal">
+      <div class="ai-term-header">
+        <span class="ai-dot ai-dot--red"></span>
+        <span class="ai-dot ai-dot--yellow"></span>
+        <span class="ai-dot ai-dot--green"></span>
+        <span class="ai-term-title">AI agent workflow</span>
+      </div>
+      <div class="ai-term-body">
+        <div class="ai-term-line ai-term-line--comment"># Step 1: LLM generates an OpenAPI spec</div>
+        <div class="ai-term-line ai-term-line--prompt">$ ai-agent generate openapi --for payments-api</div>
+        <div class="ai-term-line ai-term-line--blank"><br /></div>
+        <div class="ai-term-line ai-term-line--comment"># Step 2: Validate with Thymian</div>
+        <div class="ai-term-line ai-term-line--prompt">$ thymian lint --json --spec openapi:./payments.yaml</div>
+        <div class="ai-term-line ai-term-line--output">{'{'} "classification": "fail", "results": [{'{'}</div>
+        <div class="ai-term-line ai-term-line--error">    "rule": "rfc9110/must-send-www-authenticate",</div>
+        <div class="ai-term-line ai-term-line--output">    "severity": "error",</div>
+        <div class="ai-term-line ai-term-line--output">    "location": "POST /payments → 401"</div>
+        <div class="ai-term-line ai-term-line--output">{'}'}] {'}'}</div>
+        <div class="ai-term-line ai-term-line--blank"><br /></div>
+        <div class="ai-term-line ai-term-line--comment"># Step 3: AI agent reads violation, patches the spec</div>
+        <div class="ai-term-line ai-term-line--prompt">$ ai-agent fix --input violations.json</div>
+        <div class="ai-term-line ai-term-line--success">✔ Added WWW-Authenticate header to 401 response</div>
+        <div class="ai-term-line ai-term-line--blank"><br /></div>
+        <div class="ai-term-line ai-term-line--comment"># Step 4: Re-validate — clean pass</div>
+        <div class="ai-term-line ai-term-line--prompt">$ thymian lint --json --spec openapi:./payments.yaml</div>
+        <div class="ai-term-line ai-term-line--output">{'{'} "classification": "pass", "results": [] {'}'}</div>
+        <div class="ai-term-line ai-term-line--success">✔ No violations found</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═════════ Callout ═════════ -->
+  <div class="ai-callout" data-animate="callout">
+    <div class="ai-callout-inner">
+      <div class="ai-callout-icon-wrap" aria-hidden="true">
+        <svg class="ai-callout-icon" viewBox="0 0 24 24" fill="none">
+          <path d="M12 2a7 7 0 0 1 7 7c0 2.5-1.5 4.5-3 5.5V17a2 2 0 0 1-2 2h-4a2 2 0 0 1-2-2v-2.5C6.5 13.5 5 11.5 5 9a7 7 0 0 1 7-7Z" stroke="currentColor" stroke-width="1.5"></path>
+          <path d="M9 21h6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"></path>
+          <path d="M10 17v-3.5M14 17v-3.5" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"></path>
+        </svg>
+      </div>
+      <div class="ai-callout-content">
+        <h3 class="ai-callout-title">AI + Thymian = Correct APIs by Default</h3>
+        <p class="ai-callout-desc">
+          Whether you use GitHub Copilot, Cursor, Aider, or custom AI agents — Thymian's
+          <code>--json</code> output and <code>--no-interactive</code> mode give any
+          LLM the structured feedback it needs to self-correct API implementations.
+          No custom integrations required.
+        </p>
+        <div class="ai-callout-links">
+          <a href="/references/cli/" class="ai-callout-link">
+            <svg
+              class="ai-link-icon"
+              viewBox="0 0 16 16"
+              fill="none"
+              aria-hidden="true"
+            >
+              <rect
+                x="1"
+                y="1"
+                width="14"
+                height="14"
+                rx="2"
+                stroke="currentColor"
+                stroke-width="1.4"></rect>
+              <path
+                d="M4 5l3 3-3 3"
+                stroke="currentColor"
+                stroke-width="1.4"
+                stroke-linecap="round"
+                stroke-linejoin="round"></path>
+              <path
+                d="M9 11h3"
+                stroke="currentColor"
+                stroke-width="1.4"
+                stroke-linecap="round"></path>
+            </svg>
+            CLI Reference
+          </a>
+          <a href="/introduction/getting-started/" class="ai-callout-link">
+            <svg
+              class="ai-link-icon"
+              viewBox="0 0 16 16"
+              fill="none"
+              aria-hidden="true"
+            >
+              <path
+                d="M4 1h6l4 4v9a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1Z"
+                stroke="currentColor"
+                stroke-width="1.4"></path>
+              <path d="M10 1v4h4" stroke="currentColor" stroke-width="1.4"></path>
+              <path
+                d="M6 9h5M6 12h3"
+                stroke="currentColor"
+                stroke-width="1.4"
+                stroke-linecap="round"></path>
+            </svg>
+            Getting Started
+          </a>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════ Styles ═══════════════ -->
+<style>
+  /* ── Section wrapper ───────────────────────────────────────── */
+  .ai-section {
+    --ai-radius: 0.75rem;
+    max-width: 80rem;
+    margin-inline: auto;
+    padding: 2rem 1rem;
+  }
+  @media (min-width: 640px) {
+    .ai-section {
+      padding: 2.5rem 1.5rem;
+    }
+  }
+  @media (min-width: 1024px) {
+    .ai-section {
+      padding: 3rem 2rem;
+    }
+  }
+
+  /* ── Capability cards grid ──────────────────────────────────── */
+  .ai-capabilities {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 0.75rem;
+    margin-bottom: 2.5rem;
+  }
+  @media (min-width: 640px) {
+    .ai-capabilities {
+      grid-template-columns: repeat(2, 1fr);
+    }
+  }
+  @media (min-width: 1024px) {
+    .ai-capabilities {
+      grid-template-columns: repeat(3, 1fr);
+      gap: 1rem;
+    }
+  }
+
+  .ai-cap-card {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.75rem;
+    padding: 1rem 1.15rem;
+    border-radius: var(--ai-radius);
+    border: 1px solid var(--color-gray-200);
+    background: var(--color-gray-100);
+    transition: border-color 0.2s, box-shadow 0.2s;
+    opacity: 0;
+  }
+  :global([data-theme='dark']) .ai-cap-card {
+    border-color: var(--color-gray-700);
+    background: var(--color-gray-900);
+  }
+  .ai-cap-card.revealed {
+    animation: aiFadeSlideUp 0.5s ease-out forwards;
+  }
+  .ai-cap-card:hover {
+    border-color: var(--color-accent-300);
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.06);
+  }
+  :global([data-theme='dark']) .ai-cap-card:hover {
+    border-color: var(--color-accent-700);
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.25);
+  }
+
+  .ai-cap-icon {
+    font-size: 1.5rem;
+    flex-shrink: 0;
+    line-height: 1;
+  }
+  .ai-cap-title {
+    font-size: 0.9rem;
+    font-weight: 700;
+    color: var(--color-gray-900);
+    margin: 0 0 0.25rem;
+  }
+  :global([data-theme='dark']) .ai-cap-title {
+    color: var(--color-gray-100);
+  }
+  .ai-cap-desc {
+    font-size: 0.78rem;
+    color: var(--color-gray-600);
+    line-height: 1.5;
+    margin: 0;
+  }
+  :global([data-theme='dark']) .ai-cap-desc {
+    color: var(--color-gray-400);
+  }
+
+  /* ── Flow steps ─────────────────────────────────────────────── */
+  .ai-flow {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.75rem;
+    margin-bottom: 2.5rem;
+  }
+  @media (min-width: 768px) {
+    .ai-flow {
+      display: grid;
+      /* 4 equal step columns with auto-width arrow columns between */
+      grid-template-columns: 1fr auto 1fr auto 1fr auto 1fr;
+      align-items: stretch;
+      gap: 0;
+    }
+  }
+
+  .ai-flow-step {
+    min-width: 0;
+    padding: 1.25rem;
+    border-radius: var(--ai-radius);
+    border: 1px solid var(--color-gray-200);
+    background: var(--color-gray-100);
+    opacity: 0;
+    transition: border-color 0.2s, box-shadow 0.2s;
+  }
+  :global([data-theme='dark']) .ai-flow-step {
+    border-color: var(--color-gray-700);
+    background: var(--color-gray-900);
+  }
+  .ai-flow-step.revealed {
+    animation: aiFadeSlideUp 0.5s ease-out forwards;
+  }
+  .ai-flow-step:hover {
+    border-color: var(--color-accent-300);
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.06);
+  }
+  :global([data-theme='dark']) .ai-flow-step:hover {
+    border-color: var(--color-accent-700);
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.25);
+  }
+
+  .ai-flow-step-header {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-bottom: 0.5rem;
+  }
+  .ai-flow-step-icon {
+    font-size: 1.5rem;
+  }
+  .ai-flow-step-title {
+    font-size: 0.9rem;
+    font-weight: 700;
+    color: var(--color-gray-900);
+    margin: 0;
+  }
+  :global([data-theme='dark']) .ai-flow-step-title {
+    color: var(--color-gray-100);
+  }
+
+  .ai-flow-step-desc {
+    font-size: 0.78rem;
+    color: var(--color-gray-600);
+    line-height: 1.5;
+    margin: 0 0 0.75rem;
+  }
+  :global([data-theme='dark']) .ai-flow-step-desc {
+    color: var(--color-gray-400);
+  }
+
+  .ai-flow-cmd {
+    padding: 0.4rem 0.65rem;
+    border-radius: 0.4rem;
+    background: #1a1b26;
+    margin-bottom: 0.5rem;
+    overflow-x: auto;
+  }
+  :global([data-theme='dark']) .ai-flow-cmd {
+    background: #0d1117;
+  }
+  .ai-flow-cmd code {
+    font-size: 0.68rem;
+    color: #7dd3fc;
+    font-family: ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas,
+      'Liberation Mono', monospace;
+    white-space: nowrap;
+    background: none;
+    padding: 0;
+  }
+  @media (min-width: 768px) {
+    .ai-flow-cmd code {
+      white-space: normal;
+      word-break: break-all;
+    }
+  }
+
+  .ai-flow-agent {
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
+    font-size: 0.7rem;
+    font-weight: 600;
+    color: var(--color-accent-600);
+  }
+  :global([data-theme='dark']) .ai-flow-agent {
+    color: var(--color-accent-400);
+  }
+  .ai-flow-agent-icon {
+    width: 0.9rem;
+    height: 0.9rem;
+    flex-shrink: 0;
+  }
+  .ai-flow-agent-text {
+    font-style: italic;
+  }
+
+  /* ── Flow arrows ────────────────────────────────────────────── */
+  .ai-flow-arrow {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    color: var(--color-accent-400);
+    padding: 0 0.25rem;
+  }
+  @media (max-width: 767px) {
+    .ai-flow-arrow {
+      transform: rotate(90deg);
+      height: 1.5rem;
+    }
+  }
+  .ai-arrow-svg {
+    width: 1.25rem;
+    height: 1.25rem;
+  }
+
+  /* ── Example terminal ───────────────────────────────────────── */
+  .ai-example {
+    max-width: 48rem;
+    margin: 0 auto 2.5rem;
+    opacity: 0;
+  }
+  .ai-example.revealed {
+    animation: aiFadeSlideUp 0.6s ease-out forwards;
+  }
+
+  .ai-example-terminal {
+    border-radius: var(--ai-radius);
+    overflow: hidden;
+    border: 1px solid var(--color-gray-200);
+    background: #1a1b26;
+  }
+  :global([data-theme='dark']) .ai-example-terminal {
+    border-color: var(--color-gray-700);
+    background: #0d1117;
+  }
+
+  .ai-term-header {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    padding: 0.5rem 0.75rem;
+    background: #15161e;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  }
+  :global([data-theme='dark']) .ai-term-header {
+    background: #010409;
+  }
+
+  .ai-dot {
+    width: 0.6rem;
+    height: 0.6rem;
+    border-radius: 50%;
+  }
+  .ai-dot--red {
+    background: #ef4444;
+  }
+  .ai-dot--yellow {
+    background: #eab308;
+  }
+  .ai-dot--green {
+    background: #22c55e;
+  }
+
+  .ai-term-title {
+    margin-left: 0.5rem;
+    font-size: 0.7rem;
+    font-weight: 500;
+    color: rgba(255, 255, 255, 0.4);
+  }
+
+  .ai-term-body {
+    padding: 1rem 1.25rem;
+    font-family: ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas,
+      'Liberation Mono', monospace;
+    font-size: 0.72rem;
+    line-height: 1.65;
+  }
+
+  .ai-term-line {
+    white-space: pre-wrap;
+    word-break: break-all;
+  }
+  .ai-term-line--prompt {
+    color: #7dd3fc;
+    font-weight: 600;
+  }
+  .ai-term-line--output {
+    color: rgba(255, 255, 255, 0.7);
+  }
+  .ai-term-line--success {
+    color: #4ade80;
+  }
+  .ai-term-line--error {
+    color: #f87171;
+  }
+  .ai-term-line--comment {
+    color: rgba(255, 255, 255, 0.3);
+    font-style: italic;
+  }
+  .ai-term-line--blank {
+    height: 0.4rem;
+  }
+
+  /* ── Callout ────────────────────────────────────────────────── */
+  .ai-callout {
+    opacity: 0;
+  }
+  .ai-callout.revealed {
+    animation: aiFadeSlideUp 0.6s ease-out forwards;
+  }
+  .ai-callout-inner {
+    display: flex;
+    align-items: flex-start;
+    gap: 1.25rem;
+    padding: 1.5rem 1.75rem;
+    border-radius: var(--ai-radius);
+    border: 1px solid var(--color-accent-200);
+    background: var(--color-accent-50, var(--color-accent-100));
+  }
+  :global([data-theme='dark']) .ai-callout-inner {
+    border-color: var(--color-accent-800);
+    background: var(--color-accent-950);
+  }
+
+  .ai-callout-icon-wrap {
+    flex-shrink: 0;
+    width: 2.5rem;
+    height: 2.5rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 0.5rem;
+    background: var(--color-accent-200);
+    color: var(--color-accent-700);
+  }
+  :global([data-theme='dark']) .ai-callout-icon-wrap {
+    background: var(--color-accent-900);
+    color: var(--color-accent-300);
+  }
+  .ai-callout-icon {
+    width: 1.25rem;
+    height: 1.25rem;
+  }
+
+  .ai-callout-content {
+    flex: 1;
+    min-width: 0;
+  }
+  .ai-callout-title {
+    font-size: 1rem;
+    font-weight: 700;
+    color: var(--color-accent-900);
+    margin: 0 0 0.35rem;
+  }
+  :global([data-theme='dark']) .ai-callout-title {
+    color: var(--color-accent-200);
+  }
+  .ai-callout-desc {
+    font-size: 0.82rem;
+    line-height: 1.55;
+    color: var(--color-accent-800);
+    margin: 0 0 0.75rem;
+  }
+  :global([data-theme='dark']) .ai-callout-desc {
+    color: var(--color-accent-300);
+  }
+  .ai-callout-desc code {
+    font-size: 0.78rem;
+    padding: 0.1rem 0.35rem;
+    border-radius: 0.25rem;
+    background: var(--color-accent-200);
+    color: var(--color-accent-900);
+  }
+  :global([data-theme='dark']) .ai-callout-desc code {
+    background: var(--color-accent-900);
+    color: var(--color-accent-200);
+  }
+
+  .ai-callout-links {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1rem;
+  }
+  .ai-callout-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    font-size: 0.78rem;
+    font-weight: 600;
+    color: var(--color-accent-700);
+    text-decoration: none;
+    transition: color 0.2s;
+  }
+  :global([data-theme='dark']) .ai-callout-link {
+    color: var(--color-accent-400);
+  }
+  .ai-callout-link:hover {
+    color: var(--color-accent-500);
+    text-decoration: underline;
+  }
+  .ai-link-icon {
+    width: 0.9rem;
+    height: 0.9rem;
+    flex-shrink: 0;
+  }
+
+  /* ── Animations ─────────────────────────────────────────────── */
+  @keyframes aiFadeSlideUp {
+    from {
+      opacity: 0;
+      transform: translateY(12px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .ai-cap-card,
+    .ai-flow-step,
+    .ai-example,
+    .ai-callout {
+      opacity: 1 !important;
+      animation: none !important;
+    }
+  }
+</style>
+
+<!-- ═══════════════ Scroll-triggered reveal ═══════════════ -->
+<script>
+  function initAiFirstWorkflow() {
+    const section = document.querySelector('.ai-section');
+    if (!section) return;
+
+    const prefersReduced = window.matchMedia(
+      '(prefers-reduced-motion: reduce)',
+    ).matches;
+
+    const capCards = section.querySelectorAll<HTMLElement>('.ai-cap-card');
+    const flowSteps = section.querySelectorAll<HTMLElement>('.ai-flow-step');
+    const example = section.querySelector<HTMLElement>('.ai-example');
+    const callout = section.querySelector<HTMLElement>('.ai-callout');
+
+    if (prefersReduced) {
+      capCards.forEach((c) => c.classList.add('revealed'));
+      flowSteps.forEach((s) => s.classList.add('revealed'));
+      example?.classList.add('revealed');
+      callout?.classList.add('revealed');
+      return;
+    }
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        for (const entry of entries) {
+          if (!entry.isIntersecting) continue;
+
+          capCards.forEach((card) => {
+            const delay = parseInt(card.dataset.delay ?? '0', 10);
+            card.style.animationDelay = `${delay}ms`;
+            card.classList.add('revealed');
+          });
+
+          flowSteps.forEach((step) => {
+            const delay = parseInt(step.dataset.delay ?? '0', 10);
+            step.style.animationDelay = `${500 + delay}ms`;
+            step.classList.add('revealed');
+          });
+
+          if (example) {
+            example.style.animationDelay = '800ms';
+            example.classList.add('revealed');
+          }
+
+          if (callout) {
+            callout.style.animationDelay = '1100ms';
+            callout.classList.add('revealed');
+          }
+
+          observer.unobserve(entry.target);
+        }
+      },
+      { threshold: 0.1 },
+    );
+
+    observer.observe(section);
+  }
+
+  initAiFirstWorkflow();
+  document.addEventListener('astro:after-swap', initAiFirstWorkflow);
+</script>
+

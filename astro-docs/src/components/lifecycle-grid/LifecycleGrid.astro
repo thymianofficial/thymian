@@ -1,0 +1,574 @@
+---
+/**
+ * LifecycleGrid – interactive infographic showing where Thymian operates
+ * across the API development lifecycle and HTTP infrastructure layers.
+ *
+ * Desktop/Tablet: 2-D grid  (X = lifecycle stages, Y = infra layers)
+ * Mobile:         vertical timeline (stages stacked, layers nested)
+ */
+
+// ── Data ────────────────────────────────────────────────────────────────
+interface Badge {
+  mode: 'lint' | 'test' | 'analyze';
+  label: string;
+}
+
+interface Cell {
+  text: string;
+  muted?: boolean;
+  badges?: Badge[];
+}
+
+const stages = [
+  'API Design / Spec',
+  'Development',
+  'Feature Branch CI',
+  'Dev / Staging',
+  'QA',
+  'Production',
+] as const;
+
+const layers = ['Client / API Spec', 'Backend API', 'Infra / Traffic'] as const;
+
+const stageIcons: Record<string, string> = {
+  'API Design / Spec': '📐',
+  Development: '💻',
+  'Feature Branch CI': '🔀',
+  'Dev / Staging': '🚀',
+  QA: '🧪',
+  Production: '🌐',
+};
+
+// grid[row][col]
+const grid: Cell[][] = [
+  /* Frontend */
+  [
+    { text: 'API spec file', badges: [{ mode: 'lint', label: 'Lint' }] },
+    { text: 'API spec file', badges: [{ mode: 'lint', label: 'Lint' }] },
+    { text: 'CI build', badges: [{ mode: 'lint', label: 'Lint' }] },
+    { text: 'Deployed FE', muted: true },
+    { text: 'Deployed FE', muted: true },
+    { text: 'Deployed FE', muted: true },
+  ],
+  /* Backend API */
+  [
+    { text: '—', muted: true },
+    { text: 'localhost BE', badges: [{ mode: 'test', label: 'Test' }] },
+    { text: 'CI test runner', badges: [{ mode: 'test', label: 'Test' }] },
+    { text: 'Deployed BE', badges: [{ mode: 'test', label: 'Test' }] },
+    { text: 'Deployed BE', badges: [{ mode: 'test', label: 'Test' }] },
+    { text: 'Deployed BE', muted: true },
+  ],
+  /* Infra / Traffic */
+  [
+    { text: '—', muted: true },
+    { text: '—', muted: true },
+    { text: '—', muted: true },
+    { text: '—', muted: true },
+    { text: 'Reverse proxy / Monitoring', badges: [{ mode: 'analyze', label: 'Analyze' }] },
+    { text: 'LB / Monitoring', badges: [{ mode: 'analyze', label: 'Analyze' }] },
+  ],
+];
+
+// ── Badge color / icon mapping ─────────────────────────────────────────
+const badgeMeta: Record<string, { classes: string; ringClass: string }> = {
+  lint: {
+    classes: 'bg-[var(--color-accent-100)] text-[var(--color-accent-800)] dark:bg-[var(--color-accent-950)] dark:text-[var(--color-accent-300)]',
+    ringClass: 'ring-[var(--color-accent-400)]',
+  },
+  test: {
+    classes: 'bg-[var(--color-accent-alt-100)] text-[var(--color-accent-alt-800)] dark:bg-[var(--color-accent-alt-950)] dark:text-[var(--color-accent-alt-300)]',
+    ringClass: 'ring-[var(--color-accent-alt-400)]',
+  },
+  analyze: {
+    classes: 'lifecycle-badge-analyze',
+    ringClass: 'ring-[var(--color-accent-400)]',
+  },
+};
+---
+
+<!-- ═══════════════ Component markup ═══════════════ -->
+<section class="lifecycle-section not-content" aria-labelledby="lifecycle-heading">
+  <!-- Header -->
+  <div class="text-center mb-8 lg:mb-12">
+    <h2 id="lifecycle-heading" class="text-2xl sm:text-3xl lg:text-4xl font-bold text-gray-900 dark:text-gray-100 mb-3">
+      Thymian Across the API Lifecycle
+    </h2>
+    <p class="text-base lg:text-lg text-gray-500 dark:text-gray-400 max-w-2xl mx-auto">
+      From specification to production — see where Thymian validates, tests, and analysis your APIs.
+    </p>
+  </div>
+
+  <!-- Legend -->
+  <div class="flex flex-wrap items-center justify-center gap-4 mb-8" role="list" aria-label="Validation modes legend">
+    <div class="flex items-center gap-1.5" role="listitem">
+      <span class={`lifecycle-badge ${badgeMeta.lint.classes} ring-1 ${badgeMeta.lint.ringClass}`}>
+        <svg class="lifecycle-badge-icon" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M4 1h6l4 4v9a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1Z" stroke="currentColor" stroke-width="1.4"/><path d="M10 1v4h4" stroke="currentColor" stroke-width="1.4"/><path d="M6 9h5M6 12h3" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>
+        Lint
+      </span>
+      <span class="text-xs text-gray-500 dark:text-gray-400">Static analysis</span>
+    </div>
+    <div class="flex items-center gap-1.5" role="listitem">
+      <span class={`lifecycle-badge ${badgeMeta.test.classes} ring-1 ${badgeMeta.test.ringClass}`}>
+        <svg class="lifecycle-badge-icon" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M5 2.5v11l8-5.5-8-5.5Z" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/></svg>
+        Test
+      </span>
+      <span class="text-xs text-gray-500 dark:text-gray-400">Live endpoint testing</span>
+    </div>
+    <div class="flex items-center gap-1.5" role="listitem">
+      <span class={`lifecycle-badge ${badgeMeta.analyze.classes} ring-1 ${badgeMeta.analyze.ringClass}`}>
+        <svg class="lifecycle-badge-icon" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M2 13V8l3-3 3 2 3-4 3 3v7H2Z" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/></svg>
+        Analyze
+      </span>
+      <span class="text-xs text-gray-500 dark:text-gray-400">Traffic analysis</span>
+    </div>
+  </div>
+
+  <!-- ═════════ Desktop / Tablet grid ═════════ -->
+  <div class="lifecycle-grid-wrap hidden sm:block" aria-hidden="false">
+    <div class="overflow-x-auto lifecycle-scroll-fade">
+      <table class="lifecycle-table" role="grid" aria-label="API lifecycle and infrastructure matrix">
+        <thead>
+          <tr>
+            <th class="lifecycle-corner" scope="col"><span class="sr-only">Infrastructure layer</span></th>
+            {stages.map((s) => (
+              <th class="lifecycle-col-header" scope="col">
+                <span class="lifecycle-col-icon">{stageIcons[s]}</span>
+                <span>{s}</span>
+              </th>
+            ))}
+          </tr>
+        </thead>
+        <tbody>
+          {layers.map((layer, ri) => (
+            <tr>
+              <th class="lifecycle-row-header" scope="row">{layer}</th>
+              {grid[ri].map((cell, ci) => {
+                const delay = ri * 120 + ci * 80;
+                const active = !cell.muted && cell.badges && cell.badges.length > 0;
+                return (
+                  <td
+                    class={`lifecycle-cell ${active ? 'lifecycle-cell--active' : ''} ${cell.muted ? 'lifecycle-cell--muted' : ''}`}
+                    data-delay={delay}
+                  >
+                    <span class="lifecycle-cell-text">{cell.text}</span>
+                    {cell.badges && (
+                      <div class="lifecycle-badges">
+                        {cell.badges.map((b) => (
+                          <span
+                            class={`lifecycle-badge ${badgeMeta[b.mode].classes} ring-1 ${badgeMeta[b.mode].ringClass} lifecycle-badge--animated`}
+                            aria-label={`${b.label} mode active`}
+                          >
+                            {b.mode === 'lint' && (
+                              <svg class="lifecycle-badge-icon" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M4 1h6l4 4v9a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1Z" stroke="currentColor" stroke-width="1.4"/><path d="M10 1v4h4" stroke="currentColor" stroke-width="1.4"/><path d="M6 9h5M6 12h3" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>
+                            )}
+                            {b.mode === 'test' && (
+                              <svg class="lifecycle-badge-icon" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M5 2.5v11l8-5.5-8-5.5Z" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/></svg>
+                            )}
+                            {b.mode === 'analyze' && (
+                              <svg class="lifecycle-badge-icon" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M2 13V8l3-3 3 2 3-4 3 3v7H2Z" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/></svg>
+                            )}
+                            {b.label}
+                          </span>
+                        ))}
+                      </div>
+                    )}
+                  </td>
+                );
+              })}
+            </tr>
+          ))}
+        </tbody>
+      </table>
+
+
+    </div>
+  </div>
+
+  <!-- ═════════ Mobile timeline ═════════ -->
+  <div class="lifecycle-timeline sm:hidden" aria-hidden="false">
+    {stages.map((stage, si) => (
+      <div class="lifecycle-tl-stage" data-delay={si * 100}>
+        <div class="lifecycle-tl-dot" aria-hidden="true"/>
+        <div class="lifecycle-tl-card">
+          <h3 class="lifecycle-tl-title">
+            <span class="lifecycle-tl-icon">{stageIcons[stage]}</span>
+            {stage}
+          </h3>
+          {layers.map((layer, ri) => {
+            const cell = grid[ri][si];
+            if (cell.muted && !cell.badges?.length) return null;
+            return (
+              <div class={`lifecycle-tl-row ${cell.muted ? 'opacity-50' : ''}`}>
+                <span class="lifecycle-tl-layer">{layer}</span>
+                <span class="lifecycle-tl-cell-text">{cell.text}</span>
+                {cell.badges && (
+                  <div class="lifecycle-badges mt-1">
+                    {cell.badges.map((b) => (
+                      <span
+                        class={`lifecycle-badge ${badgeMeta[b.mode].classes} ring-1 ${badgeMeta[b.mode].ringClass}`}
+                        aria-label={`${b.label} mode active`}
+                      >
+                        {b.mode === 'lint' && (
+                          <svg class="lifecycle-badge-icon" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M4 1h6l4 4v9a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1Z" stroke="currentColor" stroke-width="1.4"/><path d="M10 1v4h4" stroke="currentColor" stroke-width="1.4"/><path d="M6 9h5M6 12h3" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>
+                        )}
+                        {b.mode === 'test' && (
+                          <svg class="lifecycle-badge-icon" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M5 2.5v11l8-5.5-8-5.5Z" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/></svg>
+                        )}
+                        {b.mode === 'analyze' && (
+                          <svg class="lifecycle-badge-icon" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M2 13V8l3-3 3 2 3-4 3 3v7H2Z" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/></svg>
+                        )}
+                        {b.label}
+                      </span>
+                    ))}
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    ))}
+  </div>
+</section>
+
+<!-- ═══════════════ Styles ═══════════════ -->
+<style>
+  /* ── Section wrapper ───────────────────────────────────────── */
+  .lifecycle-section {
+    --lc-radius: 0.75rem;
+    max-width: 80rem;
+    margin-inline: auto;
+    padding: 2rem 1rem;
+  }
+  @media (min-width: 1024px) {
+    .lifecycle-section { padding: 3rem 2rem; }
+  }
+
+  /* ── Badge pill (shared) ───────────────────────────────────── */
+  .lifecycle-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+    border-radius: 9999px;
+    padding: 0.2rem 0.6rem;
+    font-size: 0.7rem;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    white-space: nowrap;
+    line-height: 1.5;
+  }
+  .lifecycle-badge-icon {
+    width: 0.85rem;
+    height: 0.85rem;
+    flex-shrink: 0;
+  }
+  .lifecycle-badge-analyze {
+    background: linear-gradient(135deg, var(--color-accent-100) 0%, var(--color-accent-alt-100) 100%);
+    color: var(--color-accent-800);
+  }
+we  :global([data-theme='dark']) .lifecycle-badge-analyze {
+    background: linear-gradient(135deg, var(--color-accent-950) 0%, var(--color-accent-alt-950) 100%);
+    color: var(--color-accent-alt-300);
+  }
+  .lifecycle-badges {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.35rem;
+    margin-top: 0.4rem;
+  }
+
+  /* ── Desktop/Tablet grid ───────────────────────────────────── */
+  .lifecycle-grid-wrap {
+    position: relative;
+  }
+  .lifecycle-scroll-fade {
+    position: relative;
+  }
+  @media (min-width: 640px) and (max-width: 1023px) {
+    .lifecycle-scroll-fade::after {
+      content: '';
+      position: absolute;
+      top: 0; right: 0; bottom: 0;
+      width: 2.5rem;
+      background: linear-gradient(to right, transparent, var(--color-gray-100));
+      pointer-events: none;
+      border-radius: 0 var(--lc-radius) var(--lc-radius) 0;
+    }
+    :global([data-theme='dark']) .lifecycle-scroll-fade::after {
+      background: linear-gradient(to right, transparent, var(--color-gray-900));
+    }
+  }
+
+  .lifecycle-table {
+    width: 100%;
+    min-width: 52rem;
+    border-collapse: separate;
+    border-spacing: 0;
+    table-layout: fixed;
+  }
+
+  /* Corner cell */
+  .lifecycle-corner {
+    width: 8rem;
+  }
+
+  /* Column headers */
+  .lifecycle-col-header {
+    padding: 0.75rem 0.5rem 1rem;
+    font-size: 0.8rem;
+    font-weight: 700;
+    text-align: center;
+    color: var(--color-gray-700);
+    position: relative;
+  }
+  :global([data-theme='dark']) .lifecycle-col-header { color: var(--color-gray-300); }
+  .lifecycle-col-header::after {
+    content: '';
+    position: absolute;
+    left: 10%;
+    right: 10%;
+    bottom: 0;
+    height: 3px;
+    border-radius: 2px;
+    background: var(--gradient-brand);
+  }
+  .lifecycle-col-icon {
+    display: block;
+    font-size: 1.3rem;
+    margin-bottom: 0.25rem;
+  }
+
+  /* Row headers */
+  .lifecycle-row-header {
+    padding: 0.75rem 0.75rem;
+    font-size: 0.8rem;
+    font-weight: 700;
+    text-align: left;
+    color: var(--color-gray-700);
+    vertical-align: middle;
+    white-space: nowrap;
+  }
+  :global([data-theme='dark']) .lifecycle-row-header { color: var(--color-gray-300); }
+
+  /* Data cells */
+  .lifecycle-cell {
+    padding: 0.75rem 0.6rem;
+    text-align: center;
+    vertical-align: middle;
+    border: 1px solid var(--color-gray-200);
+    border-radius: var(--lc-radius);
+    margin: 0.25rem;
+    transition: background 0.2s, box-shadow 0.2s;
+  }
+  :global([data-theme='dark']) .lifecycle-cell {
+    border-color: var(--color-gray-700);
+  }
+  .lifecycle-cell--active {
+    background: var(--color-accent-50);
+    border-color: var(--color-accent-200);
+    box-shadow: 0 0 0 1px var(--color-accent-200);
+  }
+  :global([data-theme='dark']) .lifecycle-cell--active {
+    background: var(--color-accent-950);
+    border-color: var(--color-accent-800);
+    box-shadow: 0 0 0 1px var(--color-accent-800);
+  }
+  .lifecycle-cell--muted {
+    opacity: 0.45;
+    border-style: dashed;
+  }
+  .lifecycle-cell-text {
+    display: block;
+    font-size: 0.75rem;
+    color: var(--color-gray-500);
+    line-height: 1.4;
+  }
+  :global([data-theme='dark']) .lifecycle-cell-text { color: var(--color-gray-400); }
+
+  /* Use CSS border-spacing trick: separate cells visually */
+  .lifecycle-table {
+    border-spacing: 0.35rem;
+  }
+
+  /* ── Reveal animations ─────────────────────────────────────── */
+  @keyframes fadeSlideUp {
+    from { opacity: 0; transform: translateY(12px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+  @keyframes pulseRing {
+    0%   { box-shadow: 0 0 0 0 currentColor; }
+    50%  { box-shadow: 0 0 0 5px transparent; }
+    100% { box-shadow: 0 0 0 0 transparent; }
+  }
+
+  .lifecycle-cell,
+  .lifecycle-tl-stage {
+    opacity: 0;
+  }
+  .lifecycle-cell.revealed,
+  .lifecycle-tl-stage.revealed {
+    animation: fadeSlideUp 0.5s ease-out forwards;
+  }
+  .lifecycle-badge--animated.badge-pulse {
+    animation: pulseRing 0.7s ease-out 2;
+  }
+
+  /* Respect reduced motion */
+  @media (prefers-reduced-motion: reduce) {
+    .lifecycle-cell,
+    .lifecycle-tl-stage {
+      opacity: 1 !important;
+      animation: none !important;
+    }
+    .lifecycle-badge--animated { animation: none !important; }
+  }
+
+  /* ── Mobile timeline ───────────────────────────────────────── */
+  .lifecycle-timeline {
+    position: relative;
+    padding-left: 1.75rem;
+  }
+  .lifecycle-timeline::before {
+    content: '';
+    position: absolute;
+    left: 0.55rem;
+    top: 0;
+    bottom: 0;
+    width: 3px;
+    border-radius: 2px;
+    background: var(--gradient-brand);
+  }
+  .lifecycle-tl-stage {
+    position: relative;
+    margin-bottom: 1.25rem;
+  }
+  .lifecycle-tl-dot {
+    position: absolute;
+    left: -1.38rem;
+    top: 0.6rem;
+    width: 0.7rem;
+    height: 0.7rem;
+    border-radius: 9999px;
+    background: var(--color-accent-600);
+    border: 2px solid var(--color-accent-200);
+    z-index: 2;
+  }
+  :global([data-theme='dark']) .lifecycle-tl-dot {
+    background: var(--color-accent-alt-500);
+    border-color: var(--color-accent-alt-800);
+  }
+  .lifecycle-tl-card {
+    background: var(--color-gray-100);
+    border: 1px solid var(--color-gray-200);
+    border-radius: var(--lc-radius);
+    padding: 0.85rem 1rem;
+  }
+  :global([data-theme='dark']) .lifecycle-tl-card {
+    background: var(--color-gray-900);
+    border-color: var(--color-gray-700);
+  }
+  .lifecycle-tl-title {
+    font-size: 0.95rem;
+    font-weight: 700;
+    color: var(--color-gray-900);
+    margin: 0 0 0.5rem;
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+  }
+  :global([data-theme='dark']) .lifecycle-tl-title { color: var(--color-gray-100); }
+  .lifecycle-tl-icon {
+    font-size: 1.1rem;
+  }
+  .lifecycle-tl-row {
+    padding: 0.35rem 0;
+    border-top: 1px solid var(--color-gray-200);
+  }
+  :global([data-theme='dark']) .lifecycle-tl-row { border-color: var(--color-gray-700); }
+  .lifecycle-tl-layer {
+    display: block;
+    font-size: 0.65rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--color-gray-400);
+    margin-bottom: 0.15rem;
+  }
+  .lifecycle-tl-cell-text {
+    font-size: 0.8rem;
+    color: var(--color-gray-700);
+  }
+  :global([data-theme='dark']) .lifecycle-tl-cell-text { color: var(--color-gray-300); }
+
+  /* ── Utility ───────────────────────────────────────────────── */
+  .sr-only {
+    position: absolute;
+    width: 1px; height: 1px;
+    padding: 0; margin: -1px;
+    overflow: hidden;
+    clip: rect(0,0,0,0);
+    white-space: nowrap;
+    border-width: 0;
+  }
+</style>
+
+<!-- ═══════════════ Scroll-triggered reveal ═══════════════ -->
+<script>
+  function initLifecycleGrid() {
+    const section = document.querySelector('.lifecycle-section');
+    if (!section) return;
+
+    const prefersReduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+    // Cells (desktop)
+    const cells = section.querySelectorAll<HTMLElement>('.lifecycle-cell');
+    // Timeline stages (mobile)
+    const tlStages = section.querySelectorAll<HTMLElement>('.lifecycle-tl-stage');
+
+    if (prefersReduced) {
+      cells.forEach((c) => c.classList.add('revealed'));
+      tlStages.forEach((s) => s.classList.add('revealed'));
+      return;
+    }
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        for (const entry of entries) {
+          if (!entry.isIntersecting) continue;
+          // Reveal grid cells with stagger
+          cells.forEach((cell) => {
+            const delay = parseInt(cell.dataset.delay ?? '0', 10);
+            cell.style.animationDelay = `${delay}ms`;
+            cell.classList.add('revealed');
+
+            // Pulse badges inside
+            setTimeout(() => {
+              cell.querySelectorAll('.lifecycle-badge--animated').forEach((b) => {
+                b.classList.add('badge-pulse');
+              });
+            }, delay + 500);
+          });
+
+          // Reveal timeline stages
+          tlStages.forEach((stage) => {
+            const delay = parseInt(stage.dataset.delay ?? '0', 10);
+            stage.style.animationDelay = `${delay}ms`;
+            stage.classList.add('revealed');
+          });
+
+          observer.unobserve(entry.target);
+        }
+      },
+      { threshold: 0.15 },
+    );
+
+    observer.observe(section);
+  }
+
+  // Run on initial load and on Astro view transitions
+  initLifecycleGrid();
+  document.addEventListener('astro:after-swap', initLifecycleGrid);
+</script>
+
