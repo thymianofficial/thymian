@@ -26,9 +26,7 @@ sidebar:
 }
 ```
 
-<a name="plugins"></a>
-
-## plugins\[\]: array
+<h2 id="plugins">plugins[]: array</h2>
 
 **Items**
 
@@ -52,8 +50,6 @@ sidebar:
 ]
 ```
 
-<a name="pluginsoptions"></a>
-
-### plugins\[\]\.options: object
+<h3 id="pluginsoptions">plugins[].options: object</h3>
 
 **Additional Properties:** allowed

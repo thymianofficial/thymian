@@ -85,10 +85,5 @@
   },
   "volta": {
     "node": "22.19.0"
-  },
-  "overrides": {
-    "starlight-blog": {
-      "marked": "^16.0.0"
-    }
   }
 }
