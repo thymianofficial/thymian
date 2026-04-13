@@ -96,6 +96,7 @@ export default defineConfig({
       components: {
         Header: './src/components/ThymianHeader.astro',
         Footer: './src/components/Footer.astro',
+        MobileMenuFooter: './src/components/ThymianMobileMenuFooter.astro',
       },
       plugins: [
         starlightLlmsTxt({
