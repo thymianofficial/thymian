@@ -389,6 +389,10 @@ const categoryMeta: Record<PluginCard['category'], { label: string; classes: str
     border: 1px solid var(--color-gray-200);
     background: var(--color-gray-100);
     transition: border-color 0.2s, box-shadow 0.2s;
+    opacity: 1;
+  }
+  :global(html.js-enabled) .pe-strength-card,
+  :global(html[data-js='enabled']) .pe-strength-card {
     opacity: 0;
   }
   :global([data-theme='dark']) .pe-strength-card {

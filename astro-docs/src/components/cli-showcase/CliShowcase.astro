@@ -225,8 +225,11 @@ const features: Feature[] = [
     flex: 1;
     min-width: 0;
     max-width: 14rem;
-    opacity: 0;
+    opacity: 1;
     transition: border-color 0.2s, box-shadow 0.2s;
+  }
+  :global(.js-enabled) .cs-loop-step {
+    opacity: 0;
   }
   :global([data-theme='dark']) .cs-loop-step {
     border-color: var(--color-gray-700);
@@ -357,14 +360,19 @@ const features: Feature[] = [
     border: 1px solid var(--color-gray-200);
     background: var(--color-gray-100);
     transition: border-color 0.2s, box-shadow 0.2s;
-    opacity: 0;
+    opacity: 1;
+  }
+  @media (scripting: enabled) {
+    .cs-feature-card {
+      opacity: 0;
+    }
+    .cs-feature-card.revealed {
+      animation: csFadeSlideUp 0.5s ease-out forwards;
+    }
   }
   :global([data-theme='dark']) .cs-feature-card {
     border-color: var(--color-gray-700);
     background: var(--color-gray-900);
-  }
-  .cs-feature-card.revealed {
-    animation: csFadeSlideUp 0.5s ease-out forwards;
   }
   .cs-feature-card:hover {
     border-color: var(--color-accent-300);

@@ -423,18 +423,13 @@ const contextMeta: Record<ContextId, { activeClasses: string; ringClass: string 
   }
 
   /* ── Reveal animations ─────────────────────────────────────── */
-  @keyframes fadeSlideUp {
-    from { opacity: 0; transform: translateY(12px); }
-    to   { opacity: 1; transform: translateY(0); }
-  }
-
   .lifecycle-cell,
   .lifecycle-tl-stage {
-    opacity: 0;
+    opacity: 1;
   }
   .lifecycle-cell.revealed,
   .lifecycle-tl-stage.revealed {
-    animation: fadeSlideUp 0.5s ease-out forwards;
+    opacity: 1;
   }
 
   /* Respect reduced motion */
