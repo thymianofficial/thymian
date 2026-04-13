@@ -4,6 +4,7 @@ import tailwindcss from '@tailwindcss/vite';
 import { defineConfig } from 'astro/config';
 import mailObfuscation from 'astro-mail-obfuscation';
 import mermaid from 'astro-mermaid';
+import starlightBlog from 'starlight-blog';
 import starlightLinksValidator from 'starlight-links-validator';
 import starlightLlmsTxt from 'starlight-llms-txt';
 
@@ -99,6 +100,19 @@ export default defineConfig({
         MobileMenuFooter: './src/components/ThymianMobileMenuFooter.astro',
       },
       plugins: [
+        starlightBlog({
+          title: 'Blog',
+          prefix: 'blog',
+          postCount: 10,
+          recentPostCount: 5,
+          authors: {
+            thymian: {
+              name: 'Thymian Team',
+              title: 'Core Team',
+              url: 'https://thymian.dev',
+            },
+          },
+        }),
         starlightLlmsTxt({
           projectName: 'Thymian',
         }),
