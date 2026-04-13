@@ -35,7 +35,7 @@ const strengths: Strength[] = [
     icon: '📡',
     title: 'Event-Driven Architecture',
     description:
-      'Plugins communicate through a reactive event bus (ThymianEmitter) with typed events, actions, and error flows.',
+      'Plugins communicate through a reactive event bus with typed events, actions, and error flows.',
   },
   {
     icon: '🔗',
@@ -47,7 +47,7 @@ const strengths: Strength[] = [
     icon: '🌐',
     title: 'Remote Plugins via WebSocket',
     description:
-      'Connect plugins running in any language or process over WebSocket — perfect for polyglot environments.',
+      'Connect plugins running in any language or process over WebSockets — perfect for polyglot environments.',
   },
   {
     icon: '📦',
@@ -165,7 +165,7 @@ const categoryMeta: Record<PluginCard['category'], { label: string; classes: str
     >
       Virtually everything in Thymian is a plugin. A reactive event bus connects
       them all — swap, extend, or build your own without touching a single line
-      of framework code.
+      of framework code or even JavaScript!
     </p>
   </div>
 
@@ -190,49 +190,6 @@ const categoryMeta: Record<PluginCard['category'], { label: string; classes: str
     }
   </div>
 
-  <!-- ═════════ Hub diagram (desktop) ═════════ -->
-  <div class="pe-hub hidden sm:flex" data-animate="hub" aria-hidden="true">
-    <div class="pe-hub-core">
-      <span class="pe-hub-core-label">ThymianEmitter</span>
-      <span class="pe-hub-core-sub">Event Bus</span>
-    </div>
-    <div class="pe-hub-spokes">
-      <div class="pe-hub-spoke pe-hub-spoke--events">
-        <svg class="pe-spoke-arrow" viewBox="0 0 24 24" fill="none">
-          <path
-            d="M5 12h14m0 0l-4-4m4 4l-4 4"
-            stroke="currentColor"
-            stroke-width="2"
-            stroke-linecap="round"
-            stroke-linejoin="round"></path>
-        </svg>
-        <span class="pe-spoke-label">Events</span>
-      </div>
-      <div class="pe-hub-spoke pe-hub-spoke--actions">
-        <svg class="pe-spoke-arrow" viewBox="0 0 24 24" fill="none">
-          <path
-            d="M5 12h14m0 0l-4-4m4 4l-4 4M19 12H5m0 0l4-4m-4 4l4 4"
-            stroke="currentColor"
-            stroke-width="2"
-            stroke-linecap="round"
-            stroke-linejoin="round"></path>
-        </svg>
-        <span class="pe-spoke-label">Actions</span>
-      </div>
-      <div class="pe-hub-spoke pe-hub-spoke--errors">
-        <svg class="pe-spoke-arrow" viewBox="0 0 24 24" fill="none">
-          <path
-            d="M5 12h14m0 0l-4-4m4 4l-4 4"
-            stroke="currentColor"
-            stroke-width="2"
-            stroke-linecap="round"
-            stroke-linejoin="round"></path>
-        </svg>
-        <span class="pe-spoke-label">Errors</span>
-      </div>
-    </div>
-  </div>
-
   <!-- ═════════ Plugin code snippet ═════════ -->
   <div class="pe-code-card" data-animate="code-card">
     <div class="pe-code-header">
@@ -248,13 +205,13 @@ const categoryMeta: Record<PluginCard['category'], { label: string; classes: str
   name: <span class="pe-str">'my-custom-plugin'</span>,
   version: <span class="pe-str">'*'</span>,
 
-  <span class="pe-kw">async</span> <span class="pe-fn">plugin</span>(emitter, logger, options) {'{'}
-    emitter.<span class="pe-fn">onAction</span>(<span class="pe-str">'core.ready'</span>, <span class="pe-kw">async</span> (payload, ctx) =&gt; {'{'}
+  <span class="pe-kw">async</span> <span class="pe-fn">plugin</span>(bus, logger, options) {'{'}
+    bus.<span class="pe-fn">onAction</span>(<span class="pe-str">'core.ready'</span>, <span class="pe-kw">async</span> (payload, ctx) =&gt; {'{'}
       logger.<span class="pe-fn">info</span>(<span class="pe-str">'Plugin is ready!'</span>);
       ctx.<span class="pe-fn">reply</span>();
     {'}'});
 
-    emitter.<span class="pe-fn">onAction</span>(<span class="pe-str">'core.lint'</span>, <span class="pe-kw">async</span> (payload, ctx) =&gt; {'{'}
+    bus.<span class="pe-fn">onAction</span>(<span class="pe-str">'core.lint'</span>, <span class="pe-kw">async</span> (payload, ctx) =&gt; {'{'}
       <span class="pe-comment">// Your custom validation logic here</span>
       ctx.<span class="pe-fn">reply</span>({'{'} results: [] {'}'});
     {'}'});
@@ -471,72 +428,6 @@ const categoryMeta: Record<PluginCard['category'], { label: string; classes: str
     margin: 0;
   }
   :global([data-theme='dark']) .pe-strength-desc {
-    color: var(--color-gray-400);
-  }
-
-  /* ── Hub diagram ────────────────────────────────────────────── */
-  .pe-hub {
-    flex-direction: column;
-    align-items: center;
-    gap: 1rem;
-    margin-bottom: 2rem;
-  }
-  .pe-hub-core {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    width: 9rem;
-    height: 9rem;
-    border-radius: 50%;
-    background: var(--gradient-brand);
-    color: white;
-    box-shadow: 0 0 0 4px var(--color-accent-200), 0 8px 32px rgba(0, 0, 0, 0.12);
-    opacity: 0;
-  }
-  :global([data-theme='dark']) .pe-hub-core {
-    box-shadow: 0 0 0 4px var(--color-accent-800), 0 8px 32px rgba(0, 0, 0, 0.4);
-  }
-  .pe-hub-core.revealed {
-    animation: peFadeSlideUp 0.6s ease-out forwards;
-  }
-  .pe-hub-core-label {
-    font-size: 0.8rem;
-    font-weight: 700;
-    letter-spacing: 0.03em;
-  }
-  .pe-hub-core-sub {
-    font-size: 0.65rem;
-    opacity: 0.85;
-    margin-top: 0.15rem;
-  }
-  .pe-hub-spokes {
-    display: flex;
-    gap: 3rem;
-  }
-  .pe-hub-spoke {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 0.25rem;
-    color: var(--color-accent-500);
-    opacity: 0;
-  }
-  .pe-hub-spoke.revealed {
-    animation: peFadeIn 0.4s ease-out forwards;
-  }
-  .pe-spoke-arrow {
-    width: 1.5rem;
-    height: 1.5rem;
-  }
-  .pe-spoke-label {
-    font-size: 0.65rem;
-    font-weight: 600;
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
-    color: var(--color-gray-500);
-  }
-  :global([data-theme='dark']) .pe-spoke-label {
     color: var(--color-gray-400);
   }
 
@@ -925,8 +816,6 @@ const categoryMeta: Record<PluginCard['category'], { label: string; classes: str
 
   @media (prefers-reduced-motion: reduce) {
     .pe-strength-card,
-    .pe-hub-core,
-    .pe-hub-spoke,
     .pe-code-card,
     .pe-plugin-card,
     .pe-callout {
@@ -949,9 +838,6 @@ const categoryMeta: Record<PluginCard['category'], { label: string; classes: str
     const strengthCards = section.querySelectorAll<HTMLElement>(
       '.pe-strength-card',
     );
-    const hubCore = section.querySelector<HTMLElement>('.pe-hub-core');
-    const hubSpokes =
-      section.querySelectorAll<HTMLElement>('.pe-hub-spoke');
     const codeCard = section.querySelector<HTMLElement>('.pe-code-card');
     const pluginCards =
       section.querySelectorAll<HTMLElement>('.pe-plugin-card');
@@ -959,8 +845,6 @@ const categoryMeta: Record<PluginCard['category'], { label: string; classes: str
 
     if (prefersReduced) {
       strengthCards.forEach((c) => c.classList.add('revealed'));
-      hubCore?.classList.add('revealed');
-      hubSpokes.forEach((s) => s.classList.add('revealed'));
       codeCard?.classList.add('revealed');
       pluginCards.forEach((c) => c.classList.add('revealed'));
       callout?.classList.add('revealed');
@@ -979,34 +863,22 @@ const categoryMeta: Record<PluginCard['category'], { label: string; classes: str
             card.classList.add('revealed');
           });
 
-          // 2. Reveal hub core
-          if (hubCore) {
-            hubCore.style.animationDelay = '500ms';
-            hubCore.classList.add('revealed');
-          }
-
-          // 3. Reveal spokes
-          hubSpokes.forEach((spoke, i) => {
-            spoke.style.animationDelay = `${700 + i * 120}ms`;
-            spoke.classList.add('revealed');
-          });
-
-          // 4. Reveal code card
+          // 2. Reveal code card
           if (codeCard) {
             codeCard.style.animationDelay = '400ms';
             codeCard.classList.add('revealed');
           }
 
-          // 5. Reveal plugin cards with stagger
+          // 3. Reveal plugin cards with stagger
           pluginCards.forEach((card) => {
             const delay = parseInt(card.dataset.delay ?? '0', 10);
             card.style.animationDelay = `${600 + delay}ms`;
             card.classList.add('revealed');
           });
 
-          // 6. Reveal callout last
+          // 4. Reveal callout last
           if (callout) {
-            callout.style.animationDelay = '1200ms';
+            callout.style.animationDelay = '1000ms';
             callout.classList.add('revealed');
           }
 

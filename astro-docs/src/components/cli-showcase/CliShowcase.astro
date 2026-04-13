@@ -1,117 +1,92 @@
 ---
 /**
- * CliShowcase – interactive infographic demonstrating the benefits of
- * Thymian's CLI with both interactive and non-interactive (CI) modes.
+ * CliShowcase – infographic showing how Thymian fits into the
+ * AI-first development loop: Generate → Validate → Fix (continuous).
  *
- * Shows: dual-mode terminal cards, feature highlights, and mode comparison.
- * Desktop: side-by-side terminal panels with toggle.
- * Mobile:  stacked card layout.
+ * Features a visual circular loop diagram.
+ * Desktop: loop diagram with connected steps.
+ * Mobile:  vertical flow.
  */
 
 // ── Data ────────────────────────────────────────────────────────────────
+interface LoopStep {
+  id: string;
+  icon: string;
+  label: string;
+  actor: string;
+  description: string;
+  isThymian: boolean;
+}
+
 interface Feature {
   icon: string;
   title: string;
   description: string;
 }
 
-interface TerminalLine {
-  type: 'prompt' | 'output' | 'success' | 'error' | 'info' | 'blank' | 'interactive';
-  text: string;
-}
+const loopSteps: LoopStep[] = [
+  {
+    id: 'generate',
+    icon: '🏗️',
+    label: 'Generate',
+    actor: 'Developer or AI Agent',
+    description: 'Write or generate an OpenAPI spec or API implementation based on requirements.',
+    isThymian: false,
+  },
+  {
+    id: 'validate',
+    icon: '🔍',
+    label: 'Validate',
+    actor: 'Thymian CLI',
+    description: 'Lint specs, test live endpoints, or analyze traffic — same rules, every context.',
+    isThymian: true,
+  },
+  {
+    id: 'fix',
+    icon: '🔧',
+    label: 'Fix',
+    actor: 'Developer or AI Agent',
+    description: 'Rich error context with rule IDs, RFC references, and exact locations enables targeted fixes.',
+    isThymian: false,
+  },
+];
 
 const features: Feature[] = [
   {
-    icon: '⚡',
-    title: 'Zero-Config Quick Start',
+    icon: '🧠',
+    title: 'Rich Error Context',
     description:
-      'Run thymian lint against any OpenAPI spec instantly — no config file needed.',
+      'Violations include rule names, RFC references, severity levels, and exact locations — giving any AI agent or developer all the context needed to fix issues.',
   },
   {
-    icon: '🔄',
-    title: 'Interactive & CI Modes',
+    icon: '🔁',
+    title: 'Deterministic Feedback Loops',
     description:
-      'Guided prompts for developers. Flags and JSON output for CI/CD pipelines and AI agents.',
+      'Non-interactive mode with explicit flags ensures reproducible results — perfect for agentic retry-and-fix workflows.',
+  },
+  {
+    icon: '⚡',
+    title: 'Zero Ambiguity',
+    description:
+      'Exit codes, structured results, and typed schemas mean agents never have to parse prose or guess what went wrong.',
+  },
+  {
+    icon: '🔧',
+    title: 'Scaffolding for Agents',
+    description:
+      'Generate configs, rules, and sample data programmatically with --no-interactive — no human prompts blocking the pipeline.',
+  },
+  {
+    icon: '🌐',
+    title: 'Works with Any LLM',
+    description:
+      'Language-agnostic CLI output works with GitHub Copilot, Cursor, Aider, local models, or any tool that reads structured output.',
   },
   {
     icon: '🧩',
     title: 'Composable Commands',
     description:
-      'Lint, test, analyze, serve — each command does one thing well and plays nicely with pipes.',
-  },
-  {
-    icon: '📊',
-    title: 'Structured JSON Output',
-    description:
-      'Every command supports --json for machine-readable output — perfect for LLMs, scripts, and dashboards.',
-  },
-  {
-    icon: '🔧',
-    title: 'Config Generation',
-    description:
-      'Scaffold configuration files and rules interactively or fully automated with --no-interactive.',
-  },
-  {
-    icon: '🎯',
-    title: 'Smart Defaults',
-    description:
-      'Sensible defaults out of the box. Override anything via flags, config files, or environment.',
-  },
-];
-
-const interactiveLines: TerminalLine[] = [
-  { type: 'prompt', text: '$ thymian generate config' },
-  { type: 'blank', text: '' },
-  { type: 'info', text: '? Detected specification: petstore.yaml. Use this file?' },
-  { type: 'interactive', text: '  › Yes' },
-  { type: 'blank', text: '' },
-  { type: 'output', text: '# Thymian Configuration' },
-  { type: 'output', text: '# Specification: petstore.yaml' },
-  { type: 'blank', text: '' },
-  { type: 'success', text: '✔ Configuration written to thymian.config.yaml' },
-];
-
-const nonInteractiveLines: TerminalLine[] = [
-  { type: 'prompt', text: '$ thymian lint --json --spec openapi:./petstore.yaml' },
-  { type: 'blank', text: '' },
-  { type: 'output', text: '{' },
-  { type: 'output', text: '  "classification": "fail",' },
-  { type: 'output', text: '  "results": [{' },
-  { type: 'output', text: '    "rule": "rfc9110/must-send-www-authenticate",' },
-  { type: 'error', text: '    "severity": "error",' },
-  { type: 'output', text: '    "location": "PUT /launches/{id} → 401"' },
-  { type: 'output', text: '  }]' },
-  { type: 'output', text: '}' },
-];
-
-const ciPipelineLines: TerminalLine[] = [
-  { type: 'prompt', text: '$ thymian test --target-url $API_URL --json' },
-  { type: 'blank', text: '' },
-  { type: 'output', text: '{' },
-  { type: 'output', text: '  "classification": "pass",' },
-  { type: 'output', text: '  "results": [{' },
-  { type: 'output', text: '    "rulesEvaluated": 34,' },
-  { type: 'success', text: '    "violations": 0' },
-  { type: 'output', text: '  }]' },
-  { type: 'output', text: '}' },
-];
-
-const modeDetails = [
-  {
-    id: 'interactive',
-    icon: '💻',
-    label: 'Interactive',
-    title: 'Developer-Friendly',
-    description: 'Guided prompts, auto-detection, and a smooth developer experience for local workflows.',
-    highlights: ['Spec auto-detection', 'Selection prompts', 'Colored output', 'Step-by-step wizards'],
-  },
-  {
-    id: 'non-interactive',
-    icon: '🤖',
-    label: 'Non-Interactive',
-    title: 'Automation-Ready',
-    description: 'Deterministic flags, JSON output, and zero-prompt execution for CI/CD and AI agents.',
-    highlights: ['--json flag', '--no-interactive', 'Exit codes', 'Pipe-friendly'],
+      'Lint, test, analyze — each command does one thing well and plays nicely with pipes and automation scripts.',
   },
 ];
 ---
@@ -123,17 +98,64 @@ const modeDetails = [
       id="cs-heading"
       class="text-2xl sm:text-3xl lg:text-4xl font-bold text-gray-900 dark:text-gray-100 mb-3"
     >
-      One CLI. Two Modes. Every Workflow.
+      Built for Developer &amp; AI Workflows
     </h2>
     <p
       class="text-base lg:text-lg text-gray-500 dark:text-gray-400 max-w-2xl mx-auto"
     >
-      Interactive prompts guide you locally. Flags and JSON output power your
-      CI/CD pipelines, scripts, and AI-driven development workflows.
+      Thymian fits naturally into the development loop — whether you're coding
+      by hand or an AI agent is driving. Generate, validate, fix, repeat.
     </p>
   </div>
 
-  <!-- ═════════ Feature cards grid ═════════ -->
+  <!-- ═════════ Development loop visualization ═════════ -->
+  <div class="cs-loop" data-animate="loop">
+    <!-- Desktop: horizontal loop with arrows -->
+    <div class="cs-loop-steps">
+      {loopSteps.map((step, i) => (
+        <>
+          <div
+            class={`cs-loop-step ${step.isThymian ? 'cs-loop-step--thymian' : ''}`}
+            data-animate="loop-step"
+            data-delay={i * 120}
+          >
+            <div class="cs-loop-step-icon-wrap">
+              <span class="cs-loop-step-icon" aria-hidden="true">{step.icon}</span>
+            </div>
+            <h3 class="cs-loop-step-label">{step.label}</h3>
+            <span class="cs-loop-step-actor">{step.actor}</span>
+            <p class="cs-loop-step-desc">{step.description}</p>
+          </div>
+          {i < loopSteps.length - 1 && (
+            <div class="cs-loop-arrow" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none" class="cs-loop-arrow-svg">
+                <path
+                  d="M5 12h14m0 0l-4-4m4 4l-4 4"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                />
+              </svg>
+            </div>
+          )}
+        </>
+      ))}
+    </div>
+  </div>
+
+  <!-- ═════════ Feature cards ═════════ -->
+  <div class="text-center mb-6 mt-10 lg:mt-14">
+    <h3
+      class="text-xl sm:text-2xl font-bold text-gray-900 dark:text-gray-100 mb-2"
+    >
+      Why It Works
+    </h3>
+    <p class="text-sm text-gray-500 dark:text-gray-400 max-w-xl mx-auto">
+      Designed from the ground up for both human developers and AI agents.
+    </p>
+  </div>
+
   <div class="cs-features">
     {
       features.map((f, i) => (
@@ -153,253 +175,6 @@ const modeDetails = [
       ))
     }
   </div>
-
-  <!-- ═════════ Mode toggle ═════════ -->
-  <div class="cs-mode-toggle" role="tablist" aria-label="CLI mode">
-    <button
-      class="cs-mode-tab cs-mode-tab--active"
-      role="tab"
-      aria-selected="true"
-      data-mode="interactive"
-      id="cs-tab-interactive"
-      aria-controls="cs-panel-interactive"
-    >
-      <span class="cs-tab-icon" aria-hidden="true">💻</span>
-      Interactive
-    </button>
-    <button
-      class="cs-mode-tab"
-      role="tab"
-      aria-selected="false"
-      data-mode="ci"
-      id="cs-tab-ci"
-      aria-controls="cs-panel-ci"
-    >
-      <span class="cs-tab-icon" aria-hidden="true">🤖</span>
-      Non-Interactive
-    </button>
-  </div>
-
-  <!-- ═════════ Terminal panels ═════════ -->
-  <div class="cs-terminals">
-    <!-- Interactive panel -->
-    <div
-      class="cs-terminal-panel cs-terminal-panel--active"
-      id="cs-panel-interactive"
-      role="tabpanel"
-      aria-labelledby="cs-tab-interactive"
-    >
-      <div class="cs-terminal" data-animate="terminal">
-        <div class="cs-terminal-header">
-          <span class="cs-dot cs-dot--red"></span>
-          <span class="cs-dot cs-dot--yellow"></span>
-          <span class="cs-dot cs-dot--green"></span>
-          <span class="cs-terminal-title">thymian — interactive</span>
-        </div>
-        <div class="cs-terminal-body">
-          {
-            interactiveLines.map((line) => (
-              <div class={`cs-line cs-line--${line.type}`}>
-                {line.type === 'blank' ? <br /> : line.text}
-              </div>
-            ))
-          }
-        </div>
-      </div>
-
-      <div class="cs-panel-info">
-        <h3 class="cs-panel-title">
-          <span class="cs-panel-title-icon" aria-hidden="true">💻</span>
-          Developer-Friendly
-        </h3>
-        <p class="cs-panel-desc">
-          Guided prompts, auto-detection, and a smooth developer experience for
-          local workflows. Thymian detects your specs, suggests configurations,
-          and walks you through setup interactively.
-        </p>
-        <div class="cs-highlights">
-          {
-            ['Spec auto-detection', 'Selection prompts', 'Colored output', 'Step-by-step wizards'].map(
-              (h) => (
-                <span class="cs-highlight">{h}</span>
-              ),
-            )
-          }
-        </div>
-      </div>
-    </div>
-
-    <!-- Non-interactive / CI panel -->
-    <div
-      class="cs-terminal-panel"
-      id="cs-panel-ci"
-      role="tabpanel"
-      aria-labelledby="cs-tab-ci"
-      hidden
-    >
-      <div class="cs-terminal-duo">
-        <div class="cs-terminal" data-animate="terminal">
-          <div class="cs-terminal-header">
-            <span class="cs-dot cs-dot--red"></span>
-            <span class="cs-dot cs-dot--yellow"></span>
-            <span class="cs-dot cs-dot--green"></span>
-            <span class="cs-terminal-title">lint — json output</span>
-          </div>
-          <div class="cs-terminal-body">
-            {
-              nonInteractiveLines.map((line) => (
-                <div class={`cs-line cs-line--${line.type}`}>
-                  {line.type === 'blank' ? <br /> : line.text}
-                </div>
-              ))
-            }
-          </div>
-        </div>
-
-        <div class="cs-terminal" data-animate="terminal">
-          <div class="cs-terminal-header">
-            <span class="cs-dot cs-dot--red"></span>
-            <span class="cs-dot cs-dot--yellow"></span>
-            <span class="cs-dot cs-dot--green"></span>
-            <span class="cs-terminal-title">test — CI pipeline</span>
-          </div>
-          <div class="cs-terminal-body">
-            {
-              ciPipelineLines.map((line) => (
-                <div class={`cs-line cs-line--${line.type}`}>
-                  {line.type === 'blank' ? <br /> : line.text}
-                </div>
-              ))
-            }
-          </div>
-        </div>
-      </div>
-
-      <div class="cs-panel-info">
-        <h3 class="cs-panel-title">
-          <span class="cs-panel-title-icon" aria-hidden="true">🤖</span>
-          Automation-Ready
-        </h3>
-        <p class="cs-panel-desc">
-          Deterministic flags, JSON output, and zero-prompt execution.
-          Built for CI/CD pipelines, shell scripts, and AI coding agents
-          that parse structured data.
-        </p>
-        <div class="cs-highlights">
-          {
-            ['--json flag', '--no-interactive', 'Exit codes', 'Pipe-friendly'].map(
-              (h) => (
-                <span class="cs-highlight">{h}</span>
-              ),
-            )
-          }
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <!-- ═════════ Mode comparison cards ═════════ -->
-  <div class="cs-modes">
-    {
-      modeDetails.map((mode, i) => (
-        <div
-          class="cs-mode-card"
-          data-animate="mode-card"
-          data-delay={i * 150}
-        >
-          <div class="cs-mode-header">
-            <span class="cs-mode-icon" aria-hidden="true">
-              {mode.icon}
-            </span>
-            <div>
-              <h3 class="cs-mode-title">{mode.title}</h3>
-              <span class="cs-mode-label">{mode.label}</span>
-            </div>
-          </div>
-          <p class="cs-mode-desc">{mode.description}</p>
-          <div class="cs-mode-highlights">
-            {mode.highlights.map((h) => (
-              <span class="cs-mode-hl">
-                <code>{h}</code>
-              </span>
-            ))}
-          </div>
-        </div>
-      ))
-    }
-  </div>
-
-  <!-- ═════════ CTA callout ═════════ -->
-  <div class="cs-callout" data-animate="callout">
-    <div class="cs-callout-inner">
-      <div class="cs-callout-icon-wrap" aria-hidden="true">
-        <svg class="cs-callout-icon" viewBox="0 0 24 24" fill="none">
-          <rect x="3" y="3" width="18" height="18" rx="3" stroke="currentColor" stroke-width="1.5"></rect>
-          <path d="M7 8l3 3-3 3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"></path>
-          <path d="M12 16h5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"></path>
-        </svg>
-      </div>
-      <div class="cs-callout-content">
-        <h3 class="cs-callout-title">Get Started in Seconds</h3>
-        <p class="cs-callout-desc">
-          Run your first lint with zero configuration. Generate a config file
-          interactively — or go fully automated with <code>--no-interactive</code> for
-          your CI pipeline.
-        </p>
-        <div class="cs-callout-links">
-          <a href="/introduction/getting-started/" class="cs-callout-link">
-            <svg
-              class="cs-link-icon"
-              viewBox="0 0 16 16"
-              fill="none"
-              aria-hidden="true"
-            >
-              <path
-                d="M4 1h6l4 4v9a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1Z"
-                stroke="currentColor"
-                stroke-width="1.4"></path>
-              <path d="M10 1v4h4" stroke="currentColor" stroke-width="1.4"></path>
-              <path
-                d="M6 9h5M6 12h3"
-                stroke="currentColor"
-                stroke-width="1.4"
-                stroke-linecap="round"></path>
-            </svg>
-            Quick Start Guide
-          </a>
-          <a href="/references/cli/" class="cs-callout-link">
-            <svg
-              class="cs-link-icon"
-              viewBox="0 0 16 16"
-              fill="none"
-              aria-hidden="true"
-            >
-              <rect
-                x="1"
-                y="1"
-                width="14"
-                height="14"
-                rx="2"
-                stroke="currentColor"
-                stroke-width="1.4"></rect>
-              <path
-                d="M4 5l3 3-3 3"
-                stroke="currentColor"
-                stroke-width="1.4"
-                stroke-linecap="round"
-                stroke-linejoin="round"></path>
-              <path
-                d="M9 11h3"
-                stroke="currentColor"
-                stroke-width="1.4"
-                stroke-linecap="round"></path>
-            </svg>
-            CLI Reference
-          </a>
-        </div>
-      </div>
-    </div>
-  </div>
 </section>
 
 <!-- ═══════════════ Styles ═══════════════ -->
@@ -412,14 +187,151 @@ const modeDetails = [
     padding: 2rem 1rem;
   }
   @media (min-width: 640px) {
-    .cs-section {
-      padding: 2.5rem 1.5rem;
-    }
+    .cs-section { padding: 2.5rem 1.5rem; }
   }
   @media (min-width: 1024px) {
-    .cs-section {
-      padding: 3rem 2rem;
+    .cs-section { padding: 3rem 2rem; }
+  }
+
+  /* ── Development loop ──────────────────────────────────────── */
+  .cs-loop {
+    margin-bottom: 1rem;
+  }
+
+  .cs-loop-steps {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+    align-items: center;
+  }
+  @media (min-width: 640px) {
+    .cs-loop-steps {
+      flex-direction: row;
+      justify-content: center;
+      align-items: stretch;
+      gap: 0;
     }
+  }
+
+  .cs-loop-step {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    padding: 1.25rem 1rem;
+    border-radius: var(--cs-radius);
+    border: 1px solid var(--color-gray-200);
+    background: var(--color-gray-100);
+    flex: 1;
+    min-width: 0;
+    max-width: 14rem;
+    opacity: 0;
+    transition: border-color 0.2s, box-shadow 0.2s;
+  }
+  :global([data-theme='dark']) .cs-loop-step {
+    border-color: var(--color-gray-700);
+    background: var(--color-gray-900);
+  }
+  .cs-loop-step.revealed {
+    animation: csFadeSlideUp 0.5s ease-out forwards;
+  }
+  .cs-loop-step:hover {
+    border-color: var(--color-accent-300);
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.06);
+  }
+  :global([data-theme='dark']) .cs-loop-step:hover {
+    border-color: var(--color-accent-700);
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.25);
+  }
+
+  /* Thymian step highlight */
+  .cs-loop-step--thymian {
+    border-color: var(--color-accent-300);
+    background: var(--color-accent-50);
+    box-shadow: 0 0 0 2px var(--color-accent-200);
+  }
+  :global([data-theme='dark']) .cs-loop-step--thymian {
+    border-color: var(--color-accent-700);
+    background: var(--color-accent-950);
+    box-shadow: 0 0 0 2px var(--color-accent-800);
+  }
+
+  .cs-loop-step-icon-wrap {
+    width: 3rem;
+    height: 3rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    background: var(--color-gray-200);
+    margin-bottom: 0.65rem;
+  }
+  :global([data-theme='dark']) .cs-loop-step-icon-wrap {
+    background: var(--color-gray-800);
+  }
+  .cs-loop-step--thymian .cs-loop-step-icon-wrap {
+    background: var(--color-accent-200);
+  }
+  :global([data-theme='dark']) .cs-loop-step--thymian .cs-loop-step-icon-wrap {
+    background: var(--color-accent-800);
+  }
+  .cs-loop-step-icon {
+    font-size: 1.35rem;
+  }
+
+  .cs-loop-step-label {
+    font-size: 0.95rem;
+    font-weight: 700;
+    color: var(--color-gray-900);
+    margin: 0 0 0.15rem;
+  }
+  :global([data-theme='dark']) .cs-loop-step-label {
+    color: var(--color-gray-100);
+  }
+
+  .cs-loop-step-actor {
+    font-size: 0.65rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--color-gray-400);
+    margin-bottom: 0.5rem;
+  }
+  .cs-loop-step--thymian .cs-loop-step-actor {
+    color: var(--color-accent-600);
+  }
+  :global([data-theme='dark']) .cs-loop-step--thymian .cs-loop-step-actor {
+    color: var(--color-accent-400);
+  }
+
+  .cs-loop-step-desc {
+    font-size: 0.75rem;
+    color: var(--color-gray-600);
+    line-height: 1.5;
+    margin: 0;
+  }
+  :global([data-theme='dark']) .cs-loop-step-desc {
+    color: var(--color-gray-400);
+  }
+
+  /* Loop arrows */
+  .cs-loop-arrow {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    color: var(--color-accent-400);
+    padding: 0 0.35rem;
+  }
+  @media (max-width: 639px) {
+    .cs-loop-arrow {
+      transform: rotate(90deg);
+      height: 1.25rem;
+    }
+  }
+  .cs-loop-arrow-svg {
+    width: 1.25rem;
+    height: 1.25rem;
   }
 
   /* ── Feature cards grid ─────────────────────────────────────── */
@@ -430,15 +342,10 @@ const modeDetails = [
     margin-bottom: 2.5rem;
   }
   @media (min-width: 640px) {
-    .cs-features {
-      grid-template-columns: repeat(2, 1fr);
-    }
+    .cs-features { grid-template-columns: repeat(2, 1fr); }
   }
   @media (min-width: 1024px) {
-    .cs-features {
-      grid-template-columns: repeat(3, 1fr);
-      gap: 1rem;
-    }
+    .cs-features { grid-template-columns: repeat(3, 1fr); gap: 1rem; }
   }
 
   .cs-feature-card {
@@ -468,539 +375,51 @@ const modeDetails = [
     box-shadow: 0 4px 16px rgba(0, 0, 0, 0.25);
   }
 
-  .cs-feature-icon {
-    font-size: 1.5rem;
-    flex-shrink: 0;
-    line-height: 1;
-  }
+  .cs-feature-icon { font-size: 1.5rem; flex-shrink: 0; line-height: 1; }
   .cs-feature-title {
     font-size: 0.9rem;
     font-weight: 700;
     color: var(--color-gray-900);
     margin: 0 0 0.25rem;
   }
-  :global([data-theme='dark']) .cs-feature-title {
-    color: var(--color-gray-100);
-  }
+  :global([data-theme='dark']) .cs-feature-title { color: var(--color-gray-100); }
   .cs-feature-desc {
     font-size: 0.78rem;
     color: var(--color-gray-600);
     line-height: 1.5;
     margin: 0;
   }
-  :global([data-theme='dark']) .cs-feature-desc {
-    color: var(--color-gray-400);
-  }
-
-  /* ── Mode toggle tabs ───────────────────────────────────────── */
-  .cs-mode-toggle {
-    display: flex;
-    justify-content: center;
-    gap: 0.5rem;
-    margin-bottom: 1.5rem;
-  }
-
-  .cs-mode-tab {
-    display: flex;
-    align-items: center;
-    gap: 0.4rem;
-    padding: 0.55rem 1.25rem;
-    border-radius: 999px;
-    border: 1px solid var(--color-gray-200);
-    background: var(--color-gray-100);
-    color: var(--color-gray-600);
-    font-size: 0.82rem;
-    font-weight: 600;
-    cursor: pointer;
-    transition: all 0.2s;
-  }
-  :global([data-theme='dark']) .cs-mode-tab {
-    border-color: var(--color-gray-700);
-    background: var(--color-gray-900);
-    color: var(--color-gray-400);
-  }
-  .cs-mode-tab:hover {
-    border-color: var(--color-accent-300);
-    color: var(--color-accent-700);
-  }
-  :global([data-theme='dark']) .cs-mode-tab:hover {
-    border-color: var(--color-accent-700);
-    color: var(--color-accent-300);
-  }
-  .cs-mode-tab--active {
-    background: var(--color-accent-100);
-    border-color: var(--color-accent-300);
-    color: var(--color-accent-800);
-  }
-  :global([data-theme='dark']) .cs-mode-tab--active {
-    background: var(--color-accent-950);
-    border-color: var(--color-accent-700);
-    color: var(--color-accent-300);
-  }
-
-  .cs-tab-icon {
-    font-size: 1rem;
-  }
-
-  /* ── Terminal panels ────────────────────────────────────────── */
-  .cs-terminals {
-    margin-bottom: 2.5rem;
-  }
-
-  .cs-terminal-panel {
-    display: none;
-  }
-  .cs-terminal-panel--active {
-    display: block;
-  }
-
-  .cs-terminal-duo {
-    display: grid;
-    grid-template-columns: 1fr;
-    gap: 1rem;
-  }
-  @media (min-width: 768px) {
-    .cs-terminal-duo {
-      grid-template-columns: repeat(2, 1fr);
-    }
-  }
-
-  .cs-terminal {
-    border-radius: var(--cs-radius);
-    overflow: hidden;
-    border: 1px solid var(--color-gray-200);
-    background: #1a1b26;
-    opacity: 0;
-  }
-  :global([data-theme='dark']) .cs-terminal {
-    border-color: var(--color-gray-700);
-    background: #0d1117;
-  }
-  .cs-terminal.revealed {
-    animation: csFadeSlideUp 0.6s ease-out forwards;
-  }
-
-  .cs-terminal-header {
-    display: flex;
-    align-items: center;
-    gap: 0.4rem;
-    padding: 0.5rem 0.75rem;
-    background: #15161e;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.06);
-  }
-  :global([data-theme='dark']) .cs-terminal-header {
-    background: #010409;
-  }
-
-  .cs-dot {
-    width: 0.6rem;
-    height: 0.6rem;
-    border-radius: 50%;
-  }
-  .cs-dot--red {
-    background: #ef4444;
-  }
-  .cs-dot--yellow {
-    background: #eab308;
-  }
-  .cs-dot--green {
-    background: #22c55e;
-  }
-
-  .cs-terminal-title {
-    margin-left: 0.5rem;
-    font-size: 0.7rem;
-    font-weight: 500;
-    color: rgba(255, 255, 255, 0.4);
-  }
-
-  .cs-terminal-body {
-    padding: 1rem 1.25rem;
-    font-family: ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas,
-      'Liberation Mono', monospace;
-    font-size: 0.72rem;
-    line-height: 1.65;
-  }
-
-  .cs-line {
-    white-space: pre-wrap;
-    word-break: break-all;
-  }
-  .cs-line--prompt {
-    color: #7dd3fc;
-    font-weight: 600;
-  }
-  .cs-line--output {
-    color: rgba(255, 255, 255, 0.7);
-  }
-  .cs-line--success {
-    color: #4ade80;
-  }
-  .cs-line--error {
-    color: #f87171;
-  }
-  .cs-line--info {
-    color: #a78bfa;
-  }
-  .cs-line--interactive {
-    color: #38bdf8;
-    font-weight: 600;
-  }
-  .cs-line--blank {
-    height: 0.4rem;
-  }
-
-  /* ── Panel info (beside terminal) ───────────────────────────── */
-  .cs-panel-info {
-    margin-top: 1.25rem;
-    padding: 1.25rem;
-    border-radius: var(--cs-radius);
-    border: 1px solid var(--color-gray-200);
-    background: var(--color-gray-100);
-  }
-  :global([data-theme='dark']) .cs-panel-info {
-    border-color: var(--color-gray-700);
-    background: var(--color-gray-900);
-  }
-
-  .cs-panel-title {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-    font-size: 1rem;
-    font-weight: 700;
-    color: var(--color-gray-900);
-    margin: 0 0 0.5rem;
-  }
-  :global([data-theme='dark']) .cs-panel-title {
-    color: var(--color-gray-100);
-  }
-  .cs-panel-title-icon {
-    font-size: 1.15rem;
-  }
-
-  .cs-panel-desc {
-    font-size: 0.82rem;
-    color: var(--color-gray-600);
-    line-height: 1.55;
-    margin: 0 0 0.75rem;
-  }
-  :global([data-theme='dark']) .cs-panel-desc {
-    color: var(--color-gray-400);
-  }
-
-  .cs-highlights {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 0.4rem;
-  }
-  .cs-highlight {
-    display: inline-block;
-    padding: 0.2rem 0.6rem;
-    border-radius: 999px;
-    font-size: 0.7rem;
-    font-weight: 600;
-    background: var(--color-accent-100);
-    color: var(--color-accent-800);
-    border: 1px solid var(--color-accent-200);
-  }
-  :global([data-theme='dark']) .cs-highlight {
-    background: var(--color-accent-950);
-    color: var(--color-accent-300);
-    border-color: var(--color-accent-800);
-  }
-
-  /* ── Mode comparison cards ──────────────────────────────────── */
-  .cs-modes {
-    display: grid;
-    grid-template-columns: 1fr;
-    gap: 1rem;
-    margin-bottom: 2.5rem;
-  }
-  @media (min-width: 640px) {
-    .cs-modes {
-      grid-template-columns: repeat(2, 1fr);
-    }
-  }
-
-  .cs-mode-card {
-    padding: 1.25rem;
-    border-radius: var(--cs-radius);
-    border: 1px solid var(--color-gray-200);
-    background: var(--color-gray-100);
-    opacity: 0;
-    transition: border-color 0.2s, box-shadow 0.2s;
-  }
-  :global([data-theme='dark']) .cs-mode-card {
-    border-color: var(--color-gray-700);
-    background: var(--color-gray-900);
-  }
-  .cs-mode-card.revealed {
-    animation: csFadeSlideUp 0.5s ease-out forwards;
-  }
-  .cs-mode-card:hover {
-    border-color: var(--color-accent-300);
-    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.06);
-  }
-  :global([data-theme='dark']) .cs-mode-card:hover {
-    border-color: var(--color-accent-700);
-    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.25);
-  }
-
-  .cs-mode-header {
-    display: flex;
-    align-items: center;
-    gap: 0.75rem;
-    margin-bottom: 0.75rem;
-  }
-  .cs-mode-icon {
-    font-size: 1.75rem;
-  }
-  .cs-mode-title {
-    font-size: 1rem;
-    font-weight: 700;
-    color: var(--color-gray-900);
-    margin: 0;
-  }
-  :global([data-theme='dark']) .cs-mode-title {
-    color: var(--color-gray-100);
-  }
-  .cs-mode-label {
-    font-size: 0.7rem;
-    font-weight: 600;
-    color: var(--color-accent-600);
-    text-transform: uppercase;
-    letter-spacing: 0.04em;
-  }
-  :global([data-theme='dark']) .cs-mode-label {
-    color: var(--color-accent-400);
-  }
-
-  .cs-mode-desc {
-    font-size: 0.82rem;
-    color: var(--color-gray-600);
-    line-height: 1.5;
-    margin: 0 0 0.75rem;
-  }
-  :global([data-theme='dark']) .cs-mode-desc {
-    color: var(--color-gray-400);
-  }
-
-  .cs-mode-highlights {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 0.4rem;
-  }
-  .cs-mode-hl {
-    display: inline-block;
-    padding: 0.2rem 0.55rem;
-    border-radius: var(--cs-radius);
-    font-size: 0.7rem;
-    background: var(--color-gray-200);
-    color: var(--color-gray-700);
-  }
-  :global([data-theme='dark']) .cs-mode-hl {
-    background: var(--color-gray-800);
-    color: var(--color-gray-300);
-  }
-  .cs-mode-hl code {
-    font-size: 0.68rem;
-    background: none;
-    padding: 0;
-  }
-
-  /* ── Callout ────────────────────────────────────────────────── */
-  .cs-callout {
-    opacity: 0;
-  }
-  .cs-callout.revealed {
-    animation: csFadeSlideUp 0.6s ease-out forwards;
-  }
-  .cs-callout-inner {
-    display: flex;
-    align-items: flex-start;
-    gap: 1.25rem;
-    padding: 1.5rem 1.75rem;
-    border-radius: var(--cs-radius);
-    border: 1px solid var(--color-accent-200);
-    background: var(--color-accent-50, var(--color-accent-100));
-  }
-  :global([data-theme='dark']) .cs-callout-inner {
-    border-color: var(--color-accent-800);
-    background: var(--color-accent-950);
-  }
-
-  .cs-callout-icon-wrap {
-    flex-shrink: 0;
-    width: 2.5rem;
-    height: 2.5rem;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    border-radius: 0.5rem;
-    background: var(--color-accent-200);
-    color: var(--color-accent-700);
-  }
-  :global([data-theme='dark']) .cs-callout-icon-wrap {
-    background: var(--color-accent-900);
-    color: var(--color-accent-300);
-  }
-  .cs-callout-icon {
-    width: 1.25rem;
-    height: 1.25rem;
-  }
-
-  .cs-callout-content {
-    flex: 1;
-    min-width: 0;
-  }
-  .cs-callout-title {
-    font-size: 1rem;
-    font-weight: 700;
-    color: var(--color-accent-900);
-    margin: 0 0 0.35rem;
-  }
-  :global([data-theme='dark']) .cs-callout-title {
-    color: var(--color-accent-200);
-  }
-  .cs-callout-desc {
-    font-size: 0.82rem;
-    line-height: 1.55;
-    color: var(--color-accent-800);
-    margin: 0 0 0.75rem;
-  }
-  :global([data-theme='dark']) .cs-callout-desc {
-    color: var(--color-accent-300);
-  }
-  .cs-callout-desc code {
-    font-size: 0.78rem;
-    padding: 0.1rem 0.35rem;
-    border-radius: 0.25rem;
-    background: var(--color-accent-200);
-    color: var(--color-accent-900);
-  }
-  :global([data-theme='dark']) .cs-callout-desc code {
-    background: var(--color-accent-900);
-    color: var(--color-accent-200);
-  }
-
-  .cs-callout-links {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 1rem;
-  }
-  .cs-callout-link {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.35rem;
-    font-size: 0.78rem;
-    font-weight: 600;
-    color: var(--color-accent-700);
-    text-decoration: none;
-    transition: color 0.2s;
-  }
-  :global([data-theme='dark']) .cs-callout-link {
-    color: var(--color-accent-400);
-  }
-  .cs-callout-link:hover {
-    color: var(--color-accent-500);
-    text-decoration: underline;
-  }
-  .cs-link-icon {
-    width: 0.9rem;
-    height: 0.9rem;
-    flex-shrink: 0;
-  }
+  :global([data-theme='dark']) .cs-feature-desc { color: var(--color-gray-400); }
 
   /* ── Animations ─────────────────────────────────────────────── */
   @keyframes csFadeSlideUp {
-    from {
-      opacity: 0;
-      transform: translateY(12px);
-    }
-    to {
-      opacity: 1;
-      transform: translateY(0);
-    }
-  }
-  @keyframes csFadeIn {
-    from {
-      opacity: 0;
-    }
-    to {
-      opacity: 1;
-    }
+    from { opacity: 0; transform: translateY(12px); }
+    to   { opacity: 1; transform: translateY(0); }
   }
 
   @media (prefers-reduced-motion: reduce) {
-    .cs-feature-card,
-    .cs-terminal,
-    .cs-mode-card,
-    .cs-callout {
+    .cs-loop-step,
+    .cs-feature-card {
       opacity: 1 !important;
       animation: none !important;
     }
   }
 </style>
 
-<!-- ═══════════════ Tab switching + scroll-triggered reveal ═══════════════ -->
+<!-- ═══════════════ Scroll-triggered reveal ═══════════════ -->
 <script>
   function initCliShowcase() {
     const section = document.querySelector('.cs-section');
     if (!section) return;
 
-    // ── Tab switching ────────────────────────────────────────
-    const tabs = section.querySelectorAll<HTMLElement>('.cs-mode-tab');
-    const panels = section.querySelectorAll<HTMLElement>('.cs-terminal-panel');
+    const prefersReduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
-    tabs.forEach((tab) => {
-      tab.addEventListener('click', () => {
-        const mode = tab.dataset.mode;
-
-        // Update tabs
-        tabs.forEach((t) => {
-          t.classList.remove('cs-mode-tab--active');
-          t.setAttribute('aria-selected', 'false');
-        });
-        tab.classList.add('cs-mode-tab--active');
-        tab.setAttribute('aria-selected', 'true');
-
-        // Update panels
-        panels.forEach((panel) => {
-          const isTarget =
-            (mode === 'interactive' && panel.id === 'cs-panel-interactive') ||
-            (mode === 'ci' && panel.id === 'cs-panel-ci');
-
-          if (isTarget) {
-            panel.classList.add('cs-terminal-panel--active');
-            panel.removeAttribute('hidden');
-            // Trigger terminal animations for newly visible panel
-            panel.querySelectorAll<HTMLElement>('.cs-terminal').forEach((t) => {
-              t.classList.add('revealed');
-            });
-          } else {
-            panel.classList.remove('cs-terminal-panel--active');
-            panel.setAttribute('hidden', '');
-          }
-        });
-      });
-    });
-
-    // ── Scroll-triggered reveal ──────────────────────────────
-    const prefersReduced = window.matchMedia(
-      '(prefers-reduced-motion: reduce)',
-    ).matches;
-
+    const loopSteps = section.querySelectorAll<HTMLElement>('.cs-loop-step');
     const featureCards = section.querySelectorAll<HTMLElement>('.cs-feature-card');
-    const terminals = section.querySelectorAll<HTMLElement>('.cs-terminal');
-    const modeCards = section.querySelectorAll<HTMLElement>('.cs-mode-card');
-    const callout = section.querySelector<HTMLElement>('.cs-callout');
 
     if (prefersReduced) {
+      loopSteps.forEach((s) => s.classList.add('revealed'));
       featureCards.forEach((c) => c.classList.add('revealed'));
-      terminals.forEach((t) => t.classList.add('revealed'));
-      modeCards.forEach((c) => c.classList.add('revealed'));
-      callout?.classList.add('revealed');
       return;
     }
 
@@ -1009,29 +428,19 @@ const modeDetails = [
         for (const entry of entries) {
           if (!entry.isIntersecting) continue;
 
+          // 1. Reveal loop steps with stagger
+          loopSteps.forEach((step) => {
+            const delay = parseInt(step.dataset.delay ?? '0', 10);
+            step.style.animationDelay = `${delay}ms`;
+            step.classList.add('revealed');
+          });
+
+          // 2. Reveal feature cards
           featureCards.forEach((card) => {
             const delay = parseInt(card.dataset.delay ?? '0', 10);
-            card.style.animationDelay = `${delay}ms`;
+            card.style.animationDelay = `${400 + delay}ms`;
             card.classList.add('revealed');
           });
-
-          // Only reveal terminals in the active panel
-          const activePanel = section.querySelector('.cs-terminal-panel--active');
-          activePanel?.querySelectorAll<HTMLElement>('.cs-terminal').forEach((t, i) => {
-            t.style.animationDelay = `${400 + i * 150}ms`;
-            t.classList.add('revealed');
-          });
-
-          modeCards.forEach((card) => {
-            const delay = parseInt(card.dataset.delay ?? '0', 10);
-            card.style.animationDelay = `${600 + delay}ms`;
-            card.classList.add('revealed');
-          });
-
-          if (callout) {
-            callout.style.animationDelay = '900ms';
-            callout.classList.add('revealed');
-          }
 
           observer.unobserve(entry.target);
         }
@@ -1045,4 +454,3 @@ const modeDetails = [
   initCliShowcase();
   document.addEventListener('astro:after-swap', initCliShowcase);
 </script>
-

@@ -3,7 +3,9 @@ title: Thymian
 description: Language-agnostic, open-source HTTP conformance and API governance tool.
 template: splash
 hero:
-  tagline: Thymian is a language-agnostic, open-source HTTP conformance and API governance tool. It validates your APIs against RFC standards and your OpenAPI specification — statically, against live endpoints, and in recorded production traffic. Fully extensible with plugins and shareable custom rules.
+  tagline: Thymian is a language-agnostic, open-source governance engine that integrates directly into developer and AI workflows across the entire API lifecycle. It validates your services against OpenAPI or HTTP specifications to mandate strict conformance for security, performance, and reliability. By using extensible plugins and shareable custom rules, you can write once and run everywhere to automate complex use-case testing with zero friction.
+
+
   image:
     file: ../../assets/logo.svg
   actions:
@@ -21,10 +23,13 @@ import LifecycleGrid from '../../components/lifecycle-grid/LifecycleGrid.astro';
 import RulesDriftPrevention from '../../components/rules-drift-prevention/RulesDriftPrevention.astro';
 import PluginEcosystem from '../../components/plugin-ecosystem/PluginEcosystem.astro';
 import CliShowcase from '../../components/cli-showcase/CliShowcase.astro';
-import AiFirstWorkflow from '../../components/ai-first-workflow/AiFirstWorkflow.astro';
 
 <div className="not-content my-16">
   <LifecycleGrid />
+</div>
+
+<div className="not-content my-16">
+  <CliShowcase />
 </div>
 
 <div className="not-content my-16">
@@ -33,14 +38,6 @@ import AiFirstWorkflow from '../../components/ai-first-workflow/AiFirstWorkflow.
 
 <div className="not-content my-16">
   <PluginEcosystem />
-</div>
-
-<div className="not-content my-16">
-  <CliShowcase />
-</div>
-
-<div className="not-content my-16">
-  <AiFirstWorkflow />
 </div>
 
 ## Explore the Thymian Ecosystem
