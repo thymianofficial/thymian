@@ -1,0 +1,846 @@
+---
+/**
+ * RulesDriftPrevention – interactive infographic illustrating how
+ * Thymian's sharable rules prevent API drift across the lifecycle.
+ *
+ * Shows: one rule definition → three validation contexts → drift caught.
+ * Desktop: horizontal flow with animated connections.
+ * Mobile:  vertical stack.
+ */
+
+// ── Data ────────────────────────────────────────────────────────────────
+interface Stage {
+  id: 'design' | 'development' | 'production';
+  icon: string;
+  title: string;
+  context: 'Lint' | 'Test' | 'Analyze';
+  contextMode: 'lint' | 'test' | 'analyze';
+  dataSource: string;
+  description: string;
+  catches: string;
+}
+
+const stages: Stage[] = [
+  {
+    id: 'design',
+    icon: '📐',
+    title: 'API Design & CI',
+    context: 'Lint',
+    contextMode: 'lint',
+    dataSource: 'OpenAPI Specifications',
+    description: 'Validates API specifications before any code is written.',
+    catches: 'Missing headers, wrong status codes, incomplete schemas',
+  },
+  {
+    id: 'development',
+    icon: '💻',
+    title: 'Dev & Staging',
+    context: 'Test',
+    contextMode: 'test',
+    dataSource: 'Live API Endpoints',
+    description: 'Actively tests running endpoints against the same rule.',
+    catches: 'Implementation diverges from spec, runtime errors',
+  },
+  {
+    id: 'production',
+    icon: '🌐',
+    title: 'QA & Production',
+    context: 'Analyze',
+    contextMode: 'analyze',
+    dataSource: 'Recorded HTTP Traffic',
+    description: 'Analyzes real traffic to verify compliance passively.',
+    catches: 'Real-world violations, undocumented behavior, regressions',
+  },
+];
+
+const badgeMeta: Record<string, { classes: string; ringClass: string }> = {
+  lint: {
+    classes:
+      'bg-[var(--color-accent-100)] text-[var(--color-accent-800)] dark:bg-[var(--color-accent-950)] dark:text-[var(--color-accent-300)]',
+    ringClass: 'ring-[var(--color-accent-400)]',
+  },
+  test: {
+    classes:
+      'bg-[var(--color-accent-alt-100)] text-[var(--color-accent-alt-800)] dark:bg-[var(--color-accent-alt-950)] dark:text-[var(--color-accent-alt-300)]',
+    ringClass: 'ring-[var(--color-accent-alt-400)]',
+  },
+  analyze: {
+    classes: 'rdp-badge-analyze',
+    ringClass: 'ring-[var(--color-accent-400)]',
+  },
+};
+---
+
+<section class="rdp-section not-content" aria-labelledby="rdp-heading">
+  <!-- Header -->
+  <div class="text-center mb-8 lg:mb-12">
+    <h2
+      id="rdp-heading"
+      class="text-2xl sm:text-3xl lg:text-4xl font-bold text-gray-900 dark:text-gray-100 mb-3"
+    >
+      One Rule. Every Stage. Zero Drift.
+    </h2>
+    <p
+      class="text-base lg:text-lg text-gray-500 dark:text-gray-400 max-w-2xl mx-auto"
+    >
+      Write validation logic once — Thymian applies it across your entire API
+      lifecycle, catching inconsistencies before they reach users.
+    </p>
+  </div>
+
+  <!-- ═════════ Rule code card (center anchor) ═════════ -->
+  <div class="rdp-rule-card" data-animate="rule-card">
+    <div class="rdp-rule-card-header">
+      <span class="rdp-rule-card-dot rdp-rule-card-dot--red"></span>
+      <span class="rdp-rule-card-dot rdp-rule-card-dot--yellow"></span>
+      <span class="rdp-rule-card-dot rdp-rule-card-dot--green"></span>
+      <span class="rdp-rule-card-filename">error-responses.rule.ts</span>
+    </div>
+    <pre class="rdp-rule-code"><code><span class="rdp-code-keyword">export default</span> <span class="rdp-code-fn">httpRule</span>(<span class="rdp-code-string">'consistent-error-responses'</span>)
+  .<span class="rdp-code-fn">severity</span>(<span class="rdp-code-string">'error'</span>)
+  .<span class="rdp-code-fn">type</span>(<span class="rdp-code-string rdp-code-highlight">'static'</span>, <span class="rdp-code-string rdp-code-highlight">'test'</span>, <span class="rdp-code-string rdp-code-highlight">'analytics'</span>)
+  .<span class="rdp-code-fn">description</span>(<span class="rdp-code-string">'Error responses must use problem+json'</span>)
+  .<span class="rdp-code-fn">rule</span>(<span class="rdp-code-param">ctx</span> <span class="rdp-code-keyword">=&gt;</span>
+    ctx.<span class="rdp-code-fn">validateCommonHttpTransactions</span>(
+      <span class="rdp-code-fn">statusCodeRange</span>(<span class="rdp-code-number">400</span>, <span class="rdp-code-number">599</span>),
+      <span class="rdp-code-fn">not</span>(<span class="rdp-code-fn">responseMediaType</span>(<span class="rdp-code-string">'application/problem+json'</span>))
+    )
+  )
+  .<span class="rdp-code-fn">done</span>();</code></pre>
+    <div class="rdp-rule-card-caption">
+      <svg
+        class="rdp-caption-icon"
+        viewBox="0 0 16 16"
+        fill="none"
+        aria-hidden="true"
+      >
+        <path
+          d="M8 1a7 7 0 1 0 0 14A7 7 0 0 0 8 1Zm0 10.5a.75.75 0 1 1 0-1.5.75.75 0 0 1 0 1.5ZM8 4a.75.75 0 0 0-.75.75v3.5a.75.75 0 0 0 1.5 0v-3.5A.75.75 0 0 0 8 4Z"
+          fill="currentColor"></path>
+      </svg>
+      Same logic. Three contexts. Automatic adaptation.
+    </div>
+  </div>
+
+  <!-- ═════════ Arrow connector (desktop only) ═════════ -->
+  <div class="rdp-connector hidden sm:flex" aria-hidden="true">
+    <div class="rdp-connector-line"></div>
+    <div class="rdp-connector-arrows">
+      {
+        stages.map((s) => (
+          <div class="rdp-connector-arrow" data-mode={s.contextMode}>
+            <svg viewBox="0 0 24 24" fill="none" class="rdp-arrow-svg">
+              <path
+                d="M12 4v16m0 0l-5-5m5 5l5-5"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              />
+            </svg>
+          </div>
+        ))
+      }
+    </div>
+  </div>
+
+  <!-- ═════════ Context cards ═════════ -->
+  <div class="rdp-contexts">
+    {
+      stages.map((stage, i) => (
+        <div
+          class="rdp-context-card"
+          data-animate="context-card"
+          data-delay={i * 150}
+          data-mode={stage.contextMode}
+        >
+          {/* Header with badge */}
+          <div class="rdp-context-header">
+            <span class="rdp-context-icon">{stage.icon}</span>
+            <div>
+              <h3 class="rdp-context-title">{stage.title}</h3>
+            </div>
+            <span
+              class={`rdp-badge ${badgeMeta[stage.contextMode].classes} ring-1 ${badgeMeta[stage.contextMode].ringClass}`}
+            >
+              {stage.contextMode === 'lint' && (
+                <svg
+                  class="rdp-badge-icon"
+                  viewBox="0 0 16 16"
+                  fill="none"
+                  aria-hidden="true"
+                >
+                  <path
+                    d="M4 1h6l4 4v9a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1Z"
+                    stroke="currentColor"
+                    stroke-width="1.4"
+                  />
+                  <path
+                    d="M10 1v4h4"
+                    stroke="currentColor"
+                    stroke-width="1.4"
+                  />
+                  <path
+                    d="M6 9h5M6 12h3"
+                    stroke="currentColor"
+                    stroke-width="1.4"
+                    stroke-linecap="round"
+                  />
+                </svg>
+              )}
+              {stage.contextMode === 'test' && (
+                <svg
+                  class="rdp-badge-icon"
+                  viewBox="0 0 16 16"
+                  fill="none"
+                  aria-hidden="true"
+                >
+                  <path
+                    d="M5 2.5v11l8-5.5-8-5.5Z"
+                    stroke="currentColor"
+                    stroke-width="1.4"
+                    stroke-linejoin="round"
+                  />
+                </svg>
+              )}
+              {stage.contextMode === 'analyze' && (
+                <svg
+                  class="rdp-badge-icon"
+                  viewBox="0 0 16 16"
+                  fill="none"
+                  aria-hidden="true"
+                >
+                  <path
+                    d="M2 13V8l3-3 3 2 3-4 3 3v7H2Z"
+                    stroke="currentColor"
+                    stroke-width="1.4"
+                    stroke-linejoin="round"
+                  />
+                </svg>
+              )}
+              {stage.context}
+            </span>
+          </div>
+
+          {/* Body */}
+          <div class="rdp-context-body">
+            <p class="rdp-context-desc">{stage.description}</p>
+
+            <div class="rdp-context-detail">
+              <span class="rdp-detail-label">Data Source</span>
+              <span class="rdp-detail-value">{stage.dataSource}</span>
+            </div>
+
+            <div class="rdp-context-detail">
+              <span class="rdp-detail-label">Catches</span>
+              <span class="rdp-detail-value">{stage.catches}</span>
+            </div>
+          </div>
+
+          {/* Drift indicator */}
+          <div class="rdp-drift-indicator">
+            <svg
+              class="rdp-drift-icon"
+              viewBox="0 0 16 16"
+              fill="none"
+              aria-hidden="true"
+            >
+              <path
+                d="M8 1v8m0 2.5v.5"
+                stroke="currentColor"
+                stroke-width="1.6"
+                stroke-linecap="round"
+              />
+              <circle cx="8" cy="14" r="1" fill="currentColor" />
+            </svg>
+            <span class="rdp-drift-text">
+              {stage.contextMode === 'lint' && 'Spec violation? Caught here.'}
+              {stage.contextMode === 'test' &&
+                'Implementation diverges? Caught here.'}
+              {stage.contextMode === 'analyze' &&
+                'Production regression? Caught here.'}
+            </span>
+          </div>
+        </div>
+      ))
+    }
+  </div>
+
+  <!-- ═════════ Shareable rule sets callout ═════════ -->
+  <div class="rdp-shareable" data-animate="shareable">
+    <div class="rdp-shareable-inner">
+      <div class="rdp-shareable-icon-wrap" aria-hidden="true">
+        <svg class="rdp-shareable-icon" viewBox="0 0 24 24" fill="none">
+          <path
+            d="M18 8a3 3 0 1 0 0-6 3 3 0 0 0 0 6ZM6 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6ZM18 22a3 3 0 1 0 0-6 3 3 0 0 0 0 6Z"
+            stroke="currentColor"
+            stroke-width="1.5"></path>
+          <path
+            d="m8.59 13.51 6.83 3.98M15.41 6.51l-6.82 3.98"
+            stroke="currentColor"
+            stroke-width="1.5"></path>
+        </svg>
+      </div>
+      <div class="rdp-shareable-content">
+        <h3 class="rdp-shareable-title">Sharable Rule Sets</h3>
+        <p class="rdp-shareable-desc">
+          Package rules as npm modules and share them across teams and projects.
+          Use built-in sets like <code>@thymian/rules-rfc-9110</code> or create your
+          own organizational standards.
+        </p>
+        <div class="rdp-shareable-examples">
+          <code class="rdp-shareable-pkg">@thymian/rules-rfc-9110</code>
+          <code class="rdp-shareable-pkg">@thymian/rules-api-description-validation</code>
+          <code class="rdp-shareable-pkg">@your-org/api-standards</code>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════ Styles ═══════════════ -->
+<style>
+  /* ── Section wrapper ───────────────────────────────────────── */
+  .rdp-section {
+    --rdp-radius: 0.75rem;
+    max-width: 80rem;
+    margin-inline: auto;
+    padding: 2rem 1rem;
+  }
+  @media (min-width: 1024px) {
+    .rdp-section {
+      padding: 3rem 2rem;
+    }
+  }
+
+  /* ── Rule code card ────────────────────────────────────────── */
+  .rdp-rule-card {
+    max-width: 40rem;
+    margin: 0 auto 2rem;
+    border-radius: var(--rdp-radius);
+    overflow: hidden;
+    border: 1px solid var(--color-gray-200);
+    background: var(--color-gray-100);
+    opacity: 1;
+  }
+  :global([data-theme='dark']) .rdp-rule-card {
+    border-color: var(--color-gray-700);
+    background: var(--color-gray-900);
+  }
+  .rdp-rule-card.revealed {
+    animation: rdpFadeSlideUp 0.6s ease-out forwards;
+  }
+
+  .rdp-rule-card-header {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    padding: 0.5rem 0.75rem;
+    background: var(--color-gray-200);
+    border-bottom: 1px solid var(--color-gray-200);
+  }
+  :global([data-theme='dark']) .rdp-rule-card-header {
+    background: var(--color-gray-800);
+    border-color: var(--color-gray-700);
+  }
+  .rdp-rule-card-dot {
+    width: 0.6rem;
+    height: 0.6rem;
+    border-radius: 50%;
+  }
+  .rdp-rule-card-dot--red {
+    background: #ef4444;
+  }
+  .rdp-rule-card-dot--yellow {
+    background: #eab308;
+  }
+  .rdp-rule-card-dot--green {
+    background: #22c55e;
+  }
+  .rdp-rule-card-filename {
+    margin-left: 0.5rem;
+    font-size: 0.7rem;
+    font-weight: 500;
+    color: var(--color-gray-500);
+  }
+  :global([data-theme='dark']) .rdp-rule-card-filename {
+    color: var(--color-gray-400);
+  }
+
+  .rdp-rule-code {
+    padding: 1rem 1.25rem;
+    margin: 0;
+    font-size: 0.72rem;
+    line-height: 1.65;
+    overflow-x: auto;
+    font-family: ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas,
+      'Liberation Mono', monospace;
+    color: var(--color-gray-700);
+    background: transparent;
+    border: none;
+  }
+  :global([data-theme='dark']) .rdp-rule-code {
+    color: var(--color-gray-300);
+  }
+
+  /* Syntax highlighting */
+  .rdp-code-keyword {
+    color: var(--color-accent-700);
+    font-weight: 600;
+  }
+  :global([data-theme='dark']) .rdp-code-keyword {
+    color: var(--color-accent-400);
+  }
+  .rdp-code-fn {
+    color: var(--color-accent-alt-700);
+  }
+  :global([data-theme='dark']) .rdp-code-fn {
+    color: var(--color-accent-alt-400);
+  }
+  .rdp-code-string {
+    color: var(--color-accent-600);
+  }
+  :global([data-theme='dark']) .rdp-code-string {
+    color: var(--color-accent-300);
+  }
+  .rdp-code-number {
+    color: #b45309;
+  }
+  :global([data-theme='dark']) .rdp-code-number {
+    color: #fbbf24;
+  }
+  .rdp-code-param {
+    color: var(--color-gray-500);
+    font-style: italic;
+  }
+
+  /* Highlight the type arguments to draw attention */
+  .rdp-code-highlight {
+    background: var(--color-accent-100);
+    padding: 0.1rem 0.25rem;
+    border-radius: 3px;
+  }
+  :global([data-theme='dark']) .rdp-code-highlight {
+    background: var(--color-accent-950);
+  }
+
+  .rdp-rule-card-caption {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    padding: 0.55rem 1rem;
+    border-top: 1px solid var(--color-gray-200);
+    font-size: 0.72rem;
+    font-weight: 500;
+    color: var(--color-accent-700);
+  }
+  :global([data-theme='dark']) .rdp-rule-card-caption {
+    border-color: var(--color-gray-700);
+    color: var(--color-accent-400);
+  }
+  .rdp-caption-icon {
+    width: 0.9rem;
+    height: 0.9rem;
+    flex-shrink: 0;
+  }
+
+  /* ── Arrow connector ───────────────────────────────────────── */
+  .rdp-connector {
+    flex-direction: column;
+    align-items: center;
+    margin-bottom: 1.5rem;
+  }
+  .rdp-connector-line {
+    width: 2px;
+    height: 1.5rem;
+    background: var(--gradient-brand);
+    border-radius: 1px;
+  }
+  .rdp-connector-arrows {
+    display: flex;
+    justify-content: center;
+    gap: 5rem;
+  }
+  .rdp-connector-arrow {
+    color: var(--color-accent-500);
+    opacity: 0;
+  }
+  .rdp-connector-arrow.revealed {
+    animation: rdpFadeIn 0.4s ease-out forwards;
+  }
+  .rdp-arrow-svg {
+    width: 1.5rem;
+    height: 1.5rem;
+  }
+
+  /* ── Context cards ─────────────────────────────────────────── */
+  .rdp-contexts {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 1rem;
+    margin-bottom: 2rem;
+  }
+  @media (min-width: 640px) {
+    .rdp-contexts {
+      grid-template-columns: repeat(3, 1fr);
+      gap: 1.25rem;
+    }
+  }
+
+  .rdp-context-card {
+    border-radius: var(--rdp-radius);
+    border: 1px solid var(--color-gray-200);
+    background: var(--color-gray-100);
+    overflow: hidden;
+    transition: box-shadow 0.2s, border-color 0.2s;
+  }
+  :global([data-theme='dark']) .rdp-context-card {
+    border-color: var(--color-gray-700);
+    background: var(--color-gray-900);
+  }
+  .rdp-context-card.revealed {
+    animation: rdpFadeSlideUp 0.5s ease-out forwards;
+  }
+  .rdp-context-card:hover {
+    border-color: var(--color-accent-300);
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.06);
+  }
+  :global([data-theme='dark']) .rdp-context-card:hover {
+    border-color: var(--color-accent-700);
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.25);
+  }
+
+  .rdp-context-header {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    padding: 0.85rem 1rem;
+    border-bottom: 1px solid var(--color-gray-200);
+  }
+  :global([data-theme='dark']) .rdp-context-header {
+    border-color: var(--color-gray-700);
+  }
+  .rdp-context-icon {
+    font-size: 1.4rem;
+    flex-shrink: 0;
+  }
+  .rdp-context-title {
+    font-size: 0.9rem;
+    font-weight: 700;
+    color: var(--color-gray-900);
+    margin: 0;
+    line-height: 1.3;
+  }
+  :global([data-theme='dark']) .rdp-context-title {
+    color: var(--color-gray-100);
+  }
+  .rdp-badge {
+    margin-left: auto;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+    border-radius: 9999px;
+    padding: 0.2rem 0.6rem;
+    font-size: 0.7rem;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    white-space: nowrap;
+    line-height: 1.5;
+    flex-shrink: 0;
+  }
+  .rdp-badge-icon {
+    width: 0.85rem;
+    height: 0.85rem;
+    flex-shrink: 0;
+  }
+  .rdp-badge-analyze {
+    background: linear-gradient(
+      135deg,
+      var(--color-accent-100) 0%,
+      var(--color-accent-alt-100) 100%
+    );
+    color: var(--color-accent-800);
+  }
+  :global([data-theme='dark']) .rdp-badge-analyze {
+    background: linear-gradient(
+      135deg,
+      var(--color-accent-950) 0%,
+      var(--color-accent-alt-950) 100%
+    );
+    color: var(--color-accent-alt-300);
+  }
+
+  .rdp-context-body {
+    padding: 0.85rem 1rem;
+  }
+  .rdp-context-desc {
+    font-size: 0.8rem;
+    color: var(--color-gray-600);
+    line-height: 1.5;
+    margin: 0 0 0.75rem;
+  }
+  :global([data-theme='dark']) .rdp-context-desc {
+    color: var(--color-gray-400);
+  }
+
+  .rdp-context-detail {
+    display: flex;
+    flex-direction: column;
+    gap: 0.1rem;
+    padding: 0.35rem 0;
+  }
+  .rdp-context-detail + .rdp-context-detail {
+    border-top: 1px solid var(--color-gray-200);
+  }
+  :global([data-theme='dark']) .rdp-context-detail + .rdp-context-detail {
+    border-color: var(--color-gray-700);
+  }
+  .rdp-detail-label {
+    font-size: 0.65rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--color-gray-400);
+  }
+  .rdp-detail-value {
+    font-size: 0.78rem;
+    color: var(--color-gray-700);
+    line-height: 1.4;
+  }
+  :global([data-theme='dark']) .rdp-detail-value {
+    color: var(--color-gray-300);
+  }
+
+  /* ── Drift indicator ───────────────────────────────────────── */
+  .rdp-drift-indicator {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    padding: 0.55rem 1rem;
+    border-top: 1px solid var(--color-gray-200);
+    background: var(--color-accent-50);
+  }
+  :global([data-theme='dark']) .rdp-drift-indicator {
+    border-color: var(--color-gray-700);
+    background: var(--color-accent-950);
+  }
+  .rdp-drift-icon {
+    width: 0.9rem;
+    height: 0.9rem;
+    flex-shrink: 0;
+    color: var(--color-accent-600);
+  }
+  :global([data-theme='dark']) .rdp-drift-icon {
+    color: var(--color-accent-400);
+  }
+  .rdp-drift-text {
+    font-size: 0.7rem;
+    font-weight: 600;
+    color: var(--color-accent-700);
+  }
+  :global([data-theme='dark']) .rdp-drift-text {
+    color: var(--color-accent-300);
+  }
+
+  /* ── Shareable rule sets callout ────────────────────────────── */
+  .rdp-shareable {
+    max-width: 52rem;
+    margin: 0 auto;
+    opacity: 0;
+  }
+  .rdp-shareable.revealed {
+    animation: rdpFadeSlideUp 0.5s ease-out forwards;
+  }
+  .rdp-shareable-inner {
+    display: flex;
+    gap: 1.25rem;
+    align-items: flex-start;
+    padding: 1.25rem 1.5rem;
+    border-radius: var(--rdp-radius);
+    border: 1px solid var(--color-accent-200);
+    background: linear-gradient(
+      135deg,
+      var(--color-accent-50) 0%,
+      var(--color-accent-alt-50) 100%
+    );
+  }
+  :global([data-theme='dark']) .rdp-shareable-inner {
+    border-color: var(--color-accent-800);
+    background: linear-gradient(
+      135deg,
+      var(--color-accent-950) 0%,
+      var(--color-accent-alt-950) 100%
+    );
+  }
+  .rdp-shareable-icon-wrap {
+    flex-shrink: 0;
+    width: 2.5rem;
+    height: 2.5rem;
+    border-radius: 50%;
+    background: var(--color-accent-100);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  :global([data-theme='dark']) .rdp-shareable-icon-wrap {
+    background: var(--color-accent-900);
+  }
+  .rdp-shareable-icon {
+    width: 1.3rem;
+    height: 1.3rem;
+    color: var(--color-accent-600);
+  }
+  :global([data-theme='dark']) .rdp-shareable-icon {
+    color: var(--color-accent-400);
+  }
+  .rdp-shareable-content {
+    flex: 1;
+    min-width: 0;
+  }
+  .rdp-shareable-title {
+    font-size: 0.95rem;
+    font-weight: 700;
+    color: var(--color-gray-900);
+    margin: 0 0 0.35rem;
+  }
+  :global([data-theme='dark']) .rdp-shareable-title {
+    color: var(--color-gray-100);
+  }
+  .rdp-shareable-desc {
+    font-size: 0.8rem;
+    color: var(--color-gray-600);
+    line-height: 1.5;
+    margin: 0 0 0.65rem;
+  }
+  :global([data-theme='dark']) .rdp-shareable-desc {
+    color: var(--color-gray-400);
+  }
+  .rdp-shareable-desc code {
+    font-size: 0.75rem;
+    padding: 0.1rem 0.35rem;
+    border-radius: 4px;
+    background: var(--color-accent-100);
+    color: var(--color-accent-800);
+  }
+  :global([data-theme='dark']) .rdp-shareable-desc code {
+    background: var(--color-accent-900);
+    color: var(--color-accent-300);
+  }
+  .rdp-shareable-examples {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.4rem;
+  }
+  .rdp-shareable-pkg {
+    font-size: 0.68rem;
+    padding: 0.2rem 0.55rem;
+    border-radius: 9999px;
+    background: var(--color-accent-100);
+    color: var(--color-accent-800);
+    border: 1px solid var(--color-accent-200);
+    font-weight: 500;
+  }
+  :global([data-theme='dark']) .rdp-shareable-pkg {
+    background: var(--color-accent-900);
+    color: var(--color-accent-300);
+    border-color: var(--color-accent-800);
+  }
+
+  /* ── Animations ────────────────────────────────────────────── */
+  @keyframes rdpFadeSlideUp {
+    from {
+      opacity: 0;
+      transform: translateY(12px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+  @keyframes rdpFadeIn {
+    from {
+      opacity: 0;
+    }
+    to {
+      opacity: 1;
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .rdp-rule-card,
+    .rdp-context-card,
+    .rdp-connector-arrow,
+    .rdp-shareable {
+      opacity: 1 !important;
+      animation: none !important;
+    }
+  }
+</style>
+
+<!-- ═══════════════ Scroll-triggered reveal ═══════════════ -->
+<script>
+  function initRulesDriftPrevention() {
+    const section = document.querySelector('.rdp-section');
+    if (!section) return;
+
+    const prefersReduced = window.matchMedia(
+      '(prefers-reduced-motion: reduce)',
+    ).matches;
+
+    const ruleCard = section.querySelector<HTMLElement>('.rdp-rule-card');
+    const contextCards = section.querySelectorAll<HTMLElement>(
+      '.rdp-context-card',
+    );
+    const arrows =
+      section.querySelectorAll<HTMLElement>('.rdp-connector-arrow');
+    const shareable = section.querySelector<HTMLElement>('.rdp-shareable');
+
+    if (prefersReduced) {
+      ruleCard?.classList.add('revealed');
+      contextCards.forEach((c) => c.classList.add('revealed'));
+      arrows.forEach((a) => a.classList.add('revealed'));
+      shareable?.classList.add('revealed');
+      return;
+    }
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        for (const entry of entries) {
+          if (!entry.isIntersecting) continue;
+
+          // 1. Reveal rule card
+          ruleCard?.classList.add('revealed');
+
+          // 2. Reveal arrows after rule card
+          arrows.forEach((arrow, i) => {
+            arrow.style.animationDelay = `${400 + i * 100}ms`;
+            arrow.classList.add('revealed');
+          });
+
+          // 3. Reveal context cards with stagger
+          contextCards.forEach((card) => {
+            const delay = parseInt(card.dataset.delay ?? '0', 10);
+            card.style.animationDelay = `${600 + delay}ms`;
+            card.classList.add('revealed');
+          });
+
+          // 4. Reveal shareable callout last
+          if (shareable) {
+            shareable.style.animationDelay = '1100ms';
+            shareable.classList.add('revealed');
+          }
+
+          observer.unobserve(entry.target);
+        }
+      },
+      { threshold: 0.1 },
+    );
+
+    observer.observe(section);
+  }
+
+  initRulesDriftPrevention();
+  document.addEventListener('astro:after-swap', initRulesDriftPrevention);
+</script>
+

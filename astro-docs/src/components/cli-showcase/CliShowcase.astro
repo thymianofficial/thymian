@@ -1,0 +1,464 @@
+---
+/**
+ * CliShowcase – infographic showing how Thymian fits into the
+ * AI-first development loop: Generate → Validate → Fix (continuous).
+ *
+ * Features a visual circular loop diagram.
+ * Desktop: loop diagram with connected steps.
+ * Mobile:  vertical flow.
+ */
+
+// ── Data ────────────────────────────────────────────────────────────────
+interface LoopStep {
+  id: string;
+  icon: string;
+  label: string;
+  actor: string;
+  description: string;
+  isThymian: boolean;
+}
+
+interface Feature {
+  icon: string;
+  title: string;
+  description: string;
+}
+
+const loopSteps: LoopStep[] = [
+  {
+    id: 'generate',
+    icon: '🏗️',
+    label: 'Generate',
+    actor: 'Developer or AI Agent',
+    description: 'Write or generate an OpenAPI spec or API implementation based on requirements.',
+    isThymian: false,
+  },
+  {
+    id: 'validate',
+    icon: '🔍',
+    label: 'Validate',
+    actor: 'Thymian CLI',
+    description: 'Lint specs, test live endpoints, or analyze traffic — same rules, every context.',
+    isThymian: true,
+  },
+  {
+    id: 'fix',
+    icon: '🔧',
+    label: 'Fix',
+    actor: 'Developer or AI Agent',
+    description: 'Rich error context with rule IDs, RFC references, and exact locations enables targeted fixes.',
+    isThymian: false,
+  },
+];
+
+const features: Feature[] = [
+  {
+    icon: '🧠',
+    title: 'Rich Error Context',
+    description:
+      'Violations include rule names, RFC references, severity levels, and exact locations — giving any AI agent or developer all the context needed to fix issues.',
+  },
+  {
+    icon: '🔁',
+    title: 'Deterministic Feedback Loops',
+    description:
+      'Non-interactive mode with explicit flags ensures reproducible results — perfect for agentic retry-and-fix workflows.',
+  },
+  {
+    icon: '⚡',
+    title: 'Zero Ambiguity',
+    description:
+      'Exit codes, structured results, and typed schemas mean agents never have to parse prose or guess what went wrong.',
+  },
+  {
+    icon: '🔧',
+    title: 'Scaffolding for Agents',
+    description:
+      'Generate configs, rules, and sample data programmatically with --no-interactive — no human prompts blocking the pipeline.',
+  },
+  {
+    icon: '🌐',
+    title: 'Works with Any LLM',
+    description:
+      'Language-agnostic CLI output works with GitHub Copilot, Cursor, Aider, local models, or any tool that reads structured output.',
+  },
+  {
+    icon: '🧩',
+    title: 'Composable Commands',
+    description:
+      'Lint, test, analyze — each command does one thing well and plays nicely with pipes and automation scripts.',
+  },
+];
+---
+
+<section class="cs-section not-content" aria-labelledby="cs-heading">
+  <!-- Header -->
+  <div class="text-center mb-8 lg:mb-12">
+    <h2
+      id="cs-heading"
+      class="text-2xl sm:text-3xl lg:text-4xl font-bold text-gray-900 dark:text-gray-100 mb-3"
+    >
+      Built for Developer &amp; AI Workflows
+    </h2>
+    <p
+      class="text-base lg:text-lg text-gray-500 dark:text-gray-400 max-w-2xl mx-auto"
+    >
+      Thymian fits naturally into the development loop — whether you're coding
+      by hand or an AI agent is driving. Generate, validate, fix, repeat.
+    </p>
+  </div>
+
+  <!-- ═════════ Development loop visualization ═════════ -->
+  <div class="cs-loop" data-animate="loop">
+    <!-- Desktop: horizontal loop with arrows -->
+    <div class="cs-loop-steps">
+      {loopSteps.map((step, i) => (
+        <>
+          <div
+            class={`cs-loop-step ${step.isThymian ? 'cs-loop-step--thymian' : ''}`}
+            data-animate="loop-step"
+            data-delay={i * 120}
+          >
+            <div class="cs-loop-step-icon-wrap">
+              <span class="cs-loop-step-icon" aria-hidden="true">{step.icon}</span>
+            </div>
+            <h3 class="cs-loop-step-label">{step.label}</h3>
+            <span class="cs-loop-step-actor">{step.actor}</span>
+            <p class="cs-loop-step-desc">{step.description}</p>
+          </div>
+          {i < loopSteps.length - 1 && (
+            <div class="cs-loop-arrow" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none" class="cs-loop-arrow-svg">
+                <path
+                  d="M5 12h14m0 0l-4-4m4 4l-4 4"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                />
+              </svg>
+            </div>
+          )}
+        </>
+      ))}
+    </div>
+  </div>
+
+  <!-- ═════════ Feature cards ═════════ -->
+  <div class="text-center mb-6 mt-10 lg:mt-14">
+    <h3
+      class="text-xl sm:text-2xl font-bold text-gray-900 dark:text-gray-100 mb-2"
+    >
+      Why It Works
+    </h3>
+    <p class="text-sm text-gray-500 dark:text-gray-400 max-w-xl mx-auto">
+      Designed from the ground up for both human developers and AI agents.
+    </p>
+  </div>
+
+  <div class="cs-features">
+    {
+      features.map((f, i) => (
+        <div
+          class="cs-feature-card"
+          data-animate="feature"
+          data-delay={i * 80}
+        >
+          <span class="cs-feature-icon" aria-hidden="true">
+            {f.icon}
+          </span>
+          <div>
+            <h3 class="cs-feature-title">{f.title}</h3>
+            <p class="cs-feature-desc">{f.description}</p>
+          </div>
+        </div>
+      ))
+    }
+  </div>
+</section>
+
+<!-- ═══════════════ Styles ═══════════════ -->
+<style>
+  /* ── Section wrapper ───────────────────────────────────────── */
+  .cs-section {
+    --cs-radius: 0.75rem;
+    max-width: 80rem;
+    margin-inline: auto;
+    padding: 2rem 1rem;
+  }
+  @media (min-width: 640px) {
+    .cs-section { padding: 2.5rem 1.5rem; }
+  }
+  @media (min-width: 1024px) {
+    .cs-section { padding: 3rem 2rem; }
+  }
+
+  /* ── Development loop ──────────────────────────────────────── */
+  .cs-loop {
+    margin-bottom: 1rem;
+  }
+
+  .cs-loop-steps {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+    align-items: center;
+  }
+  @media (min-width: 640px) {
+    .cs-loop-steps {
+      flex-direction: row;
+      justify-content: center;
+      align-items: stretch;
+      gap: 0;
+    }
+  }
+
+  .cs-loop-step {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    padding: 1.25rem 1rem;
+    border-radius: var(--cs-radius);
+    border: 1px solid var(--color-gray-200);
+    background: var(--color-gray-100);
+    flex: 1;
+    min-width: 0;
+    max-width: 14rem;
+    opacity: 1;
+    transition: border-color 0.2s, box-shadow 0.2s;
+  }
+  :global(.js-enabled) .cs-loop-step {
+    opacity: 0;
+  }
+  :global([data-theme='dark']) .cs-loop-step {
+    border-color: var(--color-gray-700);
+    background: var(--color-gray-900);
+  }
+  .cs-loop-step.revealed {
+    animation: csFadeSlideUp 0.5s ease-out forwards;
+  }
+  .cs-loop-step:hover {
+    border-color: var(--color-accent-300);
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.06);
+  }
+  :global([data-theme='dark']) .cs-loop-step:hover {
+    border-color: var(--color-accent-700);
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.25);
+  }
+
+  /* Thymian step highlight */
+  .cs-loop-step--thymian {
+    border-color: var(--color-accent-300);
+    background: var(--color-accent-50);
+    box-shadow: 0 0 0 2px var(--color-accent-200);
+  }
+  :global([data-theme='dark']) .cs-loop-step--thymian {
+    border-color: var(--color-accent-700);
+    background: var(--color-accent-950);
+    box-shadow: 0 0 0 2px var(--color-accent-800);
+  }
+
+  .cs-loop-step-icon-wrap {
+    width: 3rem;
+    height: 3rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    background: var(--color-gray-200);
+    margin-bottom: 0.65rem;
+  }
+  :global([data-theme='dark']) .cs-loop-step-icon-wrap {
+    background: var(--color-gray-800);
+  }
+  .cs-loop-step--thymian .cs-loop-step-icon-wrap {
+    background: var(--color-accent-200);
+  }
+  :global([data-theme='dark']) .cs-loop-step--thymian .cs-loop-step-icon-wrap {
+    background: var(--color-accent-800);
+  }
+  .cs-loop-step-icon {
+    font-size: 1.35rem;
+  }
+
+  .cs-loop-step-label {
+    font-size: 0.95rem;
+    font-weight: 700;
+    color: var(--color-gray-900);
+    margin: 0 0 0.15rem;
+  }
+  :global([data-theme='dark']) .cs-loop-step-label {
+    color: var(--color-gray-100);
+  }
+
+  .cs-loop-step-actor {
+    font-size: 0.65rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--color-gray-400);
+    margin-bottom: 0.5rem;
+  }
+  .cs-loop-step--thymian .cs-loop-step-actor {
+    color: var(--color-accent-600);
+  }
+  :global([data-theme='dark']) .cs-loop-step--thymian .cs-loop-step-actor {
+    color: var(--color-accent-400);
+  }
+
+  .cs-loop-step-desc {
+    font-size: 0.75rem;
+    color: var(--color-gray-600);
+    line-height: 1.5;
+    margin: 0;
+  }
+  :global([data-theme='dark']) .cs-loop-step-desc {
+    color: var(--color-gray-400);
+  }
+
+  /* Loop arrows */
+  .cs-loop-arrow {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    color: var(--color-accent-400);
+    padding: 0 0.35rem;
+  }
+  @media (max-width: 639px) {
+    .cs-loop-arrow {
+      transform: rotate(90deg);
+      height: 1.25rem;
+    }
+  }
+  .cs-loop-arrow-svg {
+    width: 1.25rem;
+    height: 1.25rem;
+  }
+
+  /* ── Feature cards grid ─────────────────────────────────────── */
+  .cs-features {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 0.75rem;
+    margin-bottom: 2.5rem;
+  }
+  @media (min-width: 640px) {
+    .cs-features { grid-template-columns: repeat(2, 1fr); }
+  }
+  @media (min-width: 1024px) {
+    .cs-features { grid-template-columns: repeat(3, 1fr); gap: 1rem; }
+  }
+
+  .cs-feature-card {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.75rem;
+    padding: 1rem 1.15rem;
+    border-radius: var(--cs-radius);
+    border: 1px solid var(--color-gray-200);
+    background: var(--color-gray-100);
+    transition: border-color 0.2s, box-shadow 0.2s;
+    opacity: 1;
+  }
+  @media (scripting: enabled) {
+    .cs-feature-card {
+      opacity: 0;
+    }
+    .cs-feature-card.revealed {
+      animation: csFadeSlideUp 0.5s ease-out forwards;
+    }
+  }
+  :global([data-theme='dark']) .cs-feature-card {
+    border-color: var(--color-gray-700);
+    background: var(--color-gray-900);
+  }
+  .cs-feature-card:hover {
+    border-color: var(--color-accent-300);
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.06);
+  }
+  :global([data-theme='dark']) .cs-feature-card:hover {
+    border-color: var(--color-accent-700);
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.25);
+  }
+
+  .cs-feature-icon { font-size: 1.5rem; flex-shrink: 0; line-height: 1; }
+  .cs-feature-title {
+    font-size: 0.9rem;
+    font-weight: 700;
+    color: var(--color-gray-900);
+    margin: 0 0 0.25rem;
+  }
+  :global([data-theme='dark']) .cs-feature-title { color: var(--color-gray-100); }
+  .cs-feature-desc {
+    font-size: 0.78rem;
+    color: var(--color-gray-600);
+    line-height: 1.5;
+    margin: 0;
+  }
+  :global([data-theme='dark']) .cs-feature-desc { color: var(--color-gray-400); }
+
+  /* ── Animations ─────────────────────────────────────────────── */
+  @keyframes csFadeSlideUp {
+    from { opacity: 0; transform: translateY(12px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .cs-loop-step,
+    .cs-feature-card {
+      opacity: 1 !important;
+      animation: none !important;
+    }
+  }
+</style>
+
+<!-- ═══════════════ Scroll-triggered reveal ═══════════════ -->
+<script>
+  function initCliShowcase() {
+    const section = document.querySelector('.cs-section');
+    if (!section) return;
+
+    const prefersReduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+    const loopSteps = section.querySelectorAll<HTMLElement>('.cs-loop-step');
+    const featureCards = section.querySelectorAll<HTMLElement>('.cs-feature-card');
+
+    if (prefersReduced) {
+      loopSteps.forEach((s) => s.classList.add('revealed'));
+      featureCards.forEach((c) => c.classList.add('revealed'));
+      return;
+    }
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        for (const entry of entries) {
+          if (!entry.isIntersecting) continue;
+
+          // 1. Reveal loop steps with stagger
+          loopSteps.forEach((step) => {
+            const delay = parseInt(step.dataset.delay ?? '0', 10);
+            step.style.animationDelay = `${delay}ms`;
+            step.classList.add('revealed');
+          });
+
+          // 2. Reveal feature cards
+          featureCards.forEach((card) => {
+            const delay = parseInt(card.dataset.delay ?? '0', 10);
+            card.style.animationDelay = `${400 + delay}ms`;
+            card.classList.add('revealed');
+          });
+
+          observer.unobserve(entry.target);
+        }
+      },
+      { threshold: 0.1 },
+    );
+
+    observer.observe(section);
+  }
+
+  initCliShowcase();
+  document.addEventListener('astro:after-swap', initCliShowcase);
+</script>
