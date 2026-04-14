@@ -1,6 +1,7 @@
 {
   "name": "@thymian/source",
   "version": "0.0.0",
+  "description": "Thymian monorepo — API resilience testing and HTTP conformance linting",
   "license": "AGPL-3.0-only",
   "type": "module",
   "scripts": {

@@ -1,6 +1,7 @@
 {
   "name": "@thymian/rules-rfc-9110",
   "version": "0.0.0-PLACEHOLDER",
+  "description": "Thymian rule set implementing RFC 9110 HTTP semantics validation",
   "license": "AGPL-3.0-only",
   "bugs": {
     "url": "https://github.com/thymianofficial/thymian/issues"

@@ -1,6 +1,7 @@
 {
   "name": "@thymian/plugin-http-tester",
   "version": "0.0.0-PLACEHOLDER",
+  "description": "Thymian plugin for runtime HTTP conformance testing against live API endpoints",
   "license": "AGPL-3.0-only",
   "bugs": {
     "url": "https://github.com/thymianofficial/thymian/issues"

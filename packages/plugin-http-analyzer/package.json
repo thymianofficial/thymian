@@ -1,6 +1,7 @@
 {
   "name": "@thymian/plugin-http-analyzer",
   "version": "0.0.0-PLACEHOLDER",
+  "description": "Thymian plugin for analyzing captured HTTP traffic against conformance rules",
   "license": "AGPL-3.0-only",
   "bugs": {
     "url": "https://github.com/thymianofficial/thymian/issues"

@@ -1,6 +1,7 @@
 {
   "name": "@thymian/common-cli",
   "version": "0.0.0-PLACEHOLDER",
+  "description": "Shared CLI utilities, commands, and configuration management for Thymian",
   "license": "AGPL-3.0-only",
   "bugs": {
     "url": "https://github.com/thymianofficial/thymian/issues"

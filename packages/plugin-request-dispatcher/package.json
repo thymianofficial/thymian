@@ -1,6 +1,7 @@
 {
   "name": "@thymian/plugin-request-dispatcher",
   "version": "0.0.0-PLACEHOLDER",
+  "description": "Thymian plugin for dispatching HTTP requests with concurrency control",
   "license": "AGPL-3.0-only",
   "bugs": {
     "url": "https://github.com/thymianofficial/thymian/issues"
