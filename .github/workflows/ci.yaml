@@ -51,7 +51,7 @@ jobs:
 
   main:
     strategy:
-      fail-fast: true
+      fail-fast: false
       matrix:
         version: [20, 22, 24]
         os: [ubuntu-latest, windows-latest, macos-latest]
@@ -71,6 +71,6 @@ jobs:
         run: npm ci
       - uses: nrwl/nx-set-shas@v4
       - name: Build
-        run: npx nx affected:build ${{ runner.os != 'Linux' && '--exclude astro' || '' }}
+        run: npx nx affected:build ${{ runner.os != 'Linux' && '--exclude astro-docs' || '' }}
       - name: Test
         run: npx nx affected:test
