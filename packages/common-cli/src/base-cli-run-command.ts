@@ -1,5 +1,5 @@
 import { createRequire } from 'node:module';
-import { isAbsolute, join } from 'node:path';
+import { isAbsolute, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { inspect } from 'node:util';
 
@@ -455,7 +455,7 @@ export abstract class BaseCliRunCommand<
     const options = this.thymianConfig.plugins[nameOrPath] ?? {};
     const location =
       isRelativePath || typeof options.path === 'string'
-        ? join(this.flags.cwd, options.path ?? nameOrPath)
+        ? resolve(this.flags.cwd, options.path ?? nameOrPath)
         : nameOrPath;
 
     let pluginModule;
@@ -471,7 +471,13 @@ export abstract class BaseCliRunCommand<
         location,
         inspect(e),
       );
-      pluginModule = {};
+      throw new ThymianBaseError(
+        `Failed to load plugin module "${options.path ?? nameOrPath}".`,
+        {
+          name: 'PluginLoadError',
+          cause: e,
+        },
+      );
     }
 
     if (!isPlugin(pluginModule)) {

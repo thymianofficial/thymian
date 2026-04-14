@@ -116,7 +116,7 @@ export async function loadRules(
   }
 
   let location = input;
-  const fileLocation = path.join(cwd, input);
+  const fileLocation = path.resolve(cwd, input);
 
   if (existsSync(fileLocation)) {
     location = fileLocation;
