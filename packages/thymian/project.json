@@ -8,9 +8,12 @@
   "targets": {
     "generate-docs": {
       "dependsOn": ["build"],
-      "command": "NODE_ENV=development oclif readme --no-aliases --readme-path ../../astro-docs/src/content/docs/references/cli.md",
+      "command": "oclif readme --no-aliases --readme-path ../../astro-docs/src/content/docs/references/cli.md",
       "options": {
-        "cwd": "packages/thymian"
+        "cwd": "packages/thymian",
+        "env": {
+          "NODE_ENV": "development"
+        }
       }
     }
   }

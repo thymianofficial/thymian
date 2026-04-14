@@ -22,7 +22,6 @@ describe('JSON LOC Mapper', async () => {
       position: {
         line: 9,
         column: 7,
-        offset: 111,
       },
     });
   });

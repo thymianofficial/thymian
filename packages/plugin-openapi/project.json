@@ -8,9 +8,12 @@
   "targets": {
     "generate-docs": {
       "dependsOn": ["build"],
-      "command": "NODE_ENV=development oclif readme --no-aliases --readme-path ../../astro-docs/src/content/docs/references/Plugins/OpenAPI/cli.md",
+      "command": "oclif readme --no-aliases --readme-path ../../astro-docs/src/content/docs/references/Plugins/OpenAPI/cli.md",
       "options": {
-        "cwd": "packages/plugin-openapi"
+        "cwd": "packages/plugin-openapi",
+        "env": {
+          "NODE_ENV": "development"
+        }
       }
     }
   }

@@ -7,7 +7,7 @@
   "targets": {
     "build": {
       "dependsOn": ["^build"],
-      "command": "tsc --build tsconfig.lib.json && cp src/db/init.sql dist/db/init.sql",
+      "command": "tsc --build tsconfig.lib.json && node -e \"require('fs').cpSync('src/db/init.sql','dist/db/init.sql')\"",
       "options": {
         "cwd": "packages/plugin-http-analyzer"
       }

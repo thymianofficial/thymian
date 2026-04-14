@@ -10,9 +10,10 @@ describe('cli', () => {
     async (command) => {
       expect(() =>
         // we must set NODE_ENV to NOT_TEST to avoid vitest setting it to test
-        execSync(`NODE_ENV=NOT_TEST ../bin/${command}.js --help`, {
+        execSync(`node ../bin/${command}.js --help`, {
           stdio: 'pipe',
           cwd: dirname(fileURLToPath(import.meta.url)),
+          env: { ...process.env, NODE_ENV: 'NOT_TEST' },
         }),
       ).not.toThrow();
     },
