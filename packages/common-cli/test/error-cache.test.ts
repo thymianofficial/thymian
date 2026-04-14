@@ -109,7 +109,9 @@ describe('ErrorCache', () => {
     });
 
     it('should handle write failures gracefully', async () => {
-      const invalidCache = new ErrorCache('/invalid/readonly/path');
+      // Use a null byte in the path to guarantee an invalid path on all OSes.
+      // A plain '/invalid/...' path is writable on Windows (resolves to D:\invalid\...).
+      const invalidCache = new ErrorCache('/invalid/\0/path');
       const error: CachedError = {
         name: 'TestError',
         message: 'Test',
@@ -198,7 +200,9 @@ describe('ErrorCache', () => {
     });
 
     it('should handle file read failures gracefully', async () => {
-      const invalidCache = new ErrorCache('/invalid/readonly/path');
+      // Use a null byte in the path to guarantee an invalid path on all OSes.
+      // A plain '/invalid/...' path is writable on Windows (resolves to D:\invalid\...).
+      const invalidCache = new ErrorCache('/invalid/\0/path');
 
       const result = await invalidCache.read();
 
