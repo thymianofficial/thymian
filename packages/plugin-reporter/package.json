@@ -1,6 +1,7 @@
 {
   "name": "@thymian/plugin-reporter",
   "version": "0.0.0-PLACEHOLDER",
+  "description": "Thymian plugin for formatting and outputting conformance analysis reports",
   "license": "AGPL-3.0-only",
   "bugs": {
     "url": "https://github.com/thymianofficial/thymian/issues"

@@ -1,6 +1,7 @@
 {
   "name": "@thymian/core-testing",
   "version": "0.0.0-PLACEHOLDER",
+  "description": "Testing utilities, factories, and mocks for writing Thymian plugin tests",
   "license": "AGPL-3.0-only",
   "bugs": {
     "url": "https://github.com/thymianofficial/thymian/issues"

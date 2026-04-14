@@ -1,6 +1,7 @@
 {
   "name": "@thymian/plugin-openapi",
   "version": "0.0.0-PLACEHOLDER",
+  "description": "Thymian plugin for loading, parsing, and transforming OpenAPI specifications",
   "license": "AGPL-3.0-only",
   "bugs": {
     "url": "https://github.com/thymianofficial/thymian/issues"

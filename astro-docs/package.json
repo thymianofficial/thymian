@@ -1,6 +1,7 @@
 {
   "name": "astro-docs",
   "version": "0.0.1",
+  "description": "Documentation website for Thymian built with Astro Starlight",
   "type": "module",
   "dependencies": {
     "@astrojs/starlight": "^0.35.2",

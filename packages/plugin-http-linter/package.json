@@ -1,6 +1,7 @@
 {
   "name": "@thymian/plugin-http-linter",
   "version": "0.0.0-PLACEHOLDER",
+  "description": "Thymian plugin for static linting of API descriptions against HTTP conformance rules",
   "license": "AGPL-3.0-only",
   "bugs": {
     "url": "https://github.com/thymianofficial/thymian/issues"

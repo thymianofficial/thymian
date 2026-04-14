@@ -1,6 +1,7 @@
 {
   "name": "@thymian/rules-api-description-validation",
   "version": "0.0.0-PLACEHOLDER",
+  "description": "Thymian rule set for validating API description documents",
   "license": "AGPL-3.0-only",
   "bugs": {
     "url": "https://github.com/thymianofficial/thymian/issues"

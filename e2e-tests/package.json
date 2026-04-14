@@ -1,5 +1,6 @@
 {
   "name": "e2e-tests",
+  "description": "End-to-end tests for the Thymian CLI and plugins",
   "type": "module",
   "devDependencies": {
     "@types/ws": "^8.18.1",
