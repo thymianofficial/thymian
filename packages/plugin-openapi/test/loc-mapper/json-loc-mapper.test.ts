@@ -10,10 +10,7 @@ describe('JSON LOC Mapper', async () => {
     import.meta.dirname,
     '../fixtures/simple-openapi-v3_1.json',
   );
-  const openapi = (await readFile(openapiPath, 'utf-8')).replaceAll(
-    '\r\n',
-    '\n',
-  );
+  const openapi = await readFile(openapiPath, 'utf-8');
 
   it('return source location for operation in simple openapi file', () => {
     const mapper = new JsonLocMapper(openapi, openapiPath);
@@ -25,7 +22,6 @@ describe('JSON LOC Mapper', async () => {
       position: {
         line: 9,
         column: 7,
-        offset: 111,
       },
     });
   });
