@@ -103,20 +103,16 @@ function withEndpointAsMessage(
 function sortByRule(reports: ThymianReport[]): ThymianReport[] {
   const items = flattenReports(reports);
 
-  const groups = new Map<
-    string,
-    { items: ThymianReportItem[]; headings: Set<string> }
-  >();
+  const groups = new Map<string, { items: ThymianReportItem[] }>();
 
   for (const { item, sectionHeading } of items) {
     const key = item.ruleName ?? '(no rule)';
     let group = groups.get(key);
     if (!group) {
-      group = { items: [], headings: new Set() };
+      group = { items: [] };
       groups.set(key, group);
     }
     group.items.push(withEndpointAsMessage(item, sectionHeading));
-    group.headings.add(sectionHeading);
   }
 
   const sections: ThymianReportSection[] = [];
@@ -232,7 +228,7 @@ function sortBySeverity(reports: ThymianReport[]): ThymianReport[] {
 /**
  * Reshape reports according to the selected sort mode.
  *
- * - `rule` (default): Group by rule name, each section heading is the rule name
+ * - `rule`: Group by rule name, each section heading is the rule name
  * - `endpoint`: Group by endpoint/location heading (closest to natural insertion order)
  * - `severity`: Group by severity level in order error → warn → hint → info
  *

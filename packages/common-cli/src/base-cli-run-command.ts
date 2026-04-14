@@ -169,7 +169,7 @@ export abstract class BaseCliRunCommand<
     this.args = args as CommandArgs<T>;
     this.flags.debug = settings.debug || this.flags.debug;
 
-    this.guidanceEnabled = this.flags.guidance ?? Boolean(process.stdout.isTTY);
+    this.guidanceEnabled = this.flags.guidance ?? Boolean(process.stderr.isTTY);
 
     this.feedback = Feedback.forCommand(this);
 

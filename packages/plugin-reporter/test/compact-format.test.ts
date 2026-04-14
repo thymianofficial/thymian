@@ -97,7 +97,7 @@ describe('TextFormatter compact format (Story 2.3)', () => {
       expect(ruleNameLine!.startsWith(' ')).toBe(true);
 
       // The indentation should be 4 (base) + prefix width
-      // For error: "✖ error: " = 10 chars
+      // For error: "✖ error: " = 9 chars
       const expectedIndent = 4 + `${errorSymbol} error: `.length;
       const actualIndent =
         ruleNameLine!.length - ruleNameLine!.trimStart().length;
