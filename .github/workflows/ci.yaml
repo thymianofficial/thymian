@@ -71,6 +71,6 @@ jobs:
         run: npm ci
       - uses: nrwl/nx-set-shas@v4
       - name: Build
-        run: npx nx affected:build ${{ runner.os != 'Linux' && '--exclude astro-docs' || '' }}
+        run: npx nx affected:build ${{ runner.os != 'Linux' && '--exclude astro' || '' }}
       - name: Test
         run: npx nx affected:test
