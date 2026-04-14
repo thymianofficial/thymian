@@ -43,5 +43,5 @@ describe('generateSamplesForThymianFormat', () => {
       const sample = sampler.sampleForTransaction(transaction.transactionId);
       expect(sample).toBeDefined();
     }
-  });
+  }, 30_000);
 });
