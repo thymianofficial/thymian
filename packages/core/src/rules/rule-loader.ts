@@ -1,6 +1,7 @@
 import { existsSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import * as path from 'node:path';
+import { pathToFileURL } from 'node:url';
 
 import { glob } from 'tinyglobby';
 
@@ -115,7 +116,7 @@ export async function loadRules(
   }
 
   let location = input;
-  const fileLocation = path.join(cwd, input);
+  const fileLocation = path.resolve(cwd, input);
 
   if (existsSync(fileLocation)) {
     location = fileLocation;
@@ -132,7 +133,7 @@ export async function loadRules(
     });
   }
 
-  const module = await import(resolved);
+  const module = await import(pathToFileURL(resolved).href);
 
   if (!('default' in module)) {
     throw new ThymianBaseError(
