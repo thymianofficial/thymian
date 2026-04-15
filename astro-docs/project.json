@@ -44,6 +44,13 @@
       "options": {
         "cwd": "astro-docs"
       }
+    },
+    "e2e": {
+      "dependsOn": ["build"],
+      "command": "npx playwright test",
+      "options": {
+        "cwd": "astro-docs"
+      }
     }
   }
 }

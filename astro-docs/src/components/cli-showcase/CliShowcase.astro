@@ -228,23 +228,37 @@ const features: Feature[] = [
     opacity: 1;
     transition: border-color 0.2s, box-shadow 0.2s;
   }
-  :global(.js-enabled) .cs-loop-step {
-    opacity: 0;
+  @media (scripting: enabled) {
+    .cs-loop-step {
+      opacity: 0;
+    }
+    .cs-loop-step.revealed {
+      animation: csFadeSlideUp 0.5s ease-out forwards;
+    }
   }
   :global([data-theme='dark']) .cs-loop-step {
     border-color: var(--color-gray-700);
     background: var(--color-gray-900);
   }
-  .cs-loop-step.revealed {
-    animation: csFadeSlideUp 0.5s ease-out forwards;
-  }
   .cs-loop-step:hover {
     border-color: var(--color-accent-300);
     box-shadow: 0 4px 16px rgba(0, 0, 0, 0.06);
   }
+  .cs-loop-step:focus-visible {
+    border-color: var(--color-accent-300);
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.06);
+    outline: 2px solid var(--color-accent-400);
+    outline-offset: 2px;
+  }
   :global([data-theme='dark']) .cs-loop-step:hover {
     border-color: var(--color-accent-700);
     box-shadow: 0 4px 16px rgba(0, 0, 0, 0.25);
+  }
+  :global([data-theme='dark']) .cs-loop-step:focus-visible {
+    border-color: var(--color-accent-700);
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.25);
+    outline: 2px solid var(--color-accent-400);
+    outline-offset: 2px;
   }
 
   /* Thymian step highlight */
@@ -297,7 +311,7 @@ const features: Feature[] = [
     font-weight: 600;
     text-transform: uppercase;
     letter-spacing: 0.04em;
-    color: var(--color-gray-400);
+    color: var(--color-gray-500);
     margin-bottom: 0.5rem;
   }
   .cs-loop-step--thymian .cs-loop-step-actor {
@@ -378,9 +392,21 @@ const features: Feature[] = [
     border-color: var(--color-accent-300);
     box-shadow: 0 4px 16px rgba(0, 0, 0, 0.06);
   }
+  .cs-feature-card:focus-visible {
+    border-color: var(--color-accent-300);
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.06);
+    outline: 2px solid var(--color-accent-400);
+    outline-offset: 2px;
+  }
   :global([data-theme='dark']) .cs-feature-card:hover {
     border-color: var(--color-accent-700);
     box-shadow: 0 4px 16px rgba(0, 0, 0, 0.25);
+  }
+  :global([data-theme='dark']) .cs-feature-card:focus-visible {
+    border-color: var(--color-accent-700);
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.25);
+    outline: 2px solid var(--color-accent-400);
+    outline-offset: 2px;
   }
 
   .cs-feature-icon { font-size: 1.5rem; flex-shrink: 0; line-height: 1; }

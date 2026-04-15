@@ -391,24 +391,37 @@ const categoryMeta: Record<PluginCard['category'], { label: string; classes: str
     transition: border-color 0.2s, box-shadow 0.2s;
     opacity: 1;
   }
-  :global(html.js-enabled) .pe-strength-card,
-  :global(html[data-js='enabled']) .pe-strength-card {
-    opacity: 0;
+  @media (scripting: enabled) {
+    .pe-strength-card {
+      opacity: 0;
+    }
+    .pe-strength-card.revealed {
+      animation: peFadeSlideUp 0.5s ease-out forwards;
+    }
   }
   :global([data-theme='dark']) .pe-strength-card {
     border-color: var(--color-gray-700);
     background: var(--color-gray-900);
   }
-  .pe-strength-card.revealed {
-    animation: peFadeSlideUp 0.5s ease-out forwards;
-  }
   .pe-strength-card:hover {
     border-color: var(--color-accent-300);
     box-shadow: 0 4px 16px rgba(0, 0, 0, 0.06);
   }
+  .pe-strength-card:focus-visible {
+    border-color: var(--color-accent-300);
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.06);
+    outline: 2px solid var(--color-accent-400);
+    outline-offset: 2px;
+  }
   :global([data-theme='dark']) .pe-strength-card:hover {
     border-color: var(--color-accent-700);
     box-shadow: 0 4px 16px rgba(0, 0, 0, 0.25);
+  }
+  :global([data-theme='dark']) .pe-strength-card:focus-visible {
+    border-color: var(--color-accent-700);
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.25);
+    outline: 2px solid var(--color-accent-400);
+    outline-offset: 2px;
   }
 
   .pe-strength-icon {
@@ -443,14 +456,19 @@ const categoryMeta: Record<PluginCard['category'], { label: string; classes: str
     overflow: hidden;
     border: 1px solid var(--color-gray-200);
     background: var(--color-gray-100);
-    opacity: 0;
+    opacity: 1;
+  }
+  @media (scripting: enabled) {
+    .pe-code-card {
+      opacity: 0;
+    }
+    .pe-code-card.revealed {
+      animation: peFadeSlideUp 0.6s ease-out forwards;
+    }
   }
   :global([data-theme='dark']) .pe-code-card {
     border-color: var(--color-gray-700);
     background: var(--color-gray-900);
-  }
-  .pe-code-card.revealed {
-    animation: peFadeSlideUp 0.6s ease-out forwards;
   }
 
   .pe-code-header {
@@ -533,11 +551,11 @@ const categoryMeta: Record<PluginCard['category'], { label: string; classes: str
     color: #fbbf24;
   }
   .pe-comment {
-    color: var(--color-gray-400);
+    color: var(--color-gray-500);
     font-style: italic;
   }
   :global([data-theme='dark']) .pe-comment {
-    color: var(--color-gray-500);
+    color: var(--color-gray-400);
   }
 
   .pe-code-caption {
@@ -585,22 +603,39 @@ const categoryMeta: Record<PluginCard['category'], { label: string; classes: str
     background: var(--color-gray-100);
     overflow: hidden;
     transition: border-color 0.2s, box-shadow 0.2s;
-    opacity: 0;
+    opacity: 1;
+  }
+  @media (scripting: enabled) {
+    .pe-plugin-card {
+      opacity: 0;
+    }
+    .pe-plugin-card.revealed {
+      animation: peFadeSlideUp 0.5s ease-out forwards;
+    }
   }
   :global([data-theme='dark']) .pe-plugin-card {
     border-color: var(--color-gray-700);
     background: var(--color-gray-900);
   }
-  .pe-plugin-card.revealed {
-    animation: peFadeSlideUp 0.5s ease-out forwards;
-  }
   .pe-plugin-card:hover {
     border-color: var(--color-accent-300);
     box-shadow: 0 4px 16px rgba(0, 0, 0, 0.06);
   }
+  .pe-plugin-card:focus-visible {
+    border-color: var(--color-accent-300);
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.06);
+    outline: 2px solid var(--color-accent-400);
+    outline-offset: 2px;
+  }
   :global([data-theme='dark']) .pe-plugin-card:hover {
     border-color: var(--color-accent-700);
     box-shadow: 0 4px 16px rgba(0, 0, 0, 0.25);
+  }
+  :global([data-theme='dark']) .pe-plugin-card:focus-visible {
+    border-color: var(--color-accent-700);
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.25);
+    outline: 2px solid var(--color-accent-400);
+    outline-offset: 2px;
   }
 
   .pe-plugin-header {
@@ -633,7 +668,7 @@ const categoryMeta: Record<PluginCard['category'], { label: string; classes: str
   }
   .pe-plugin-pkg {
     font-size: 0.6rem;
-    color: var(--color-gray-400);
+    color: var(--color-gray-500);
     font-family: ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas,
       'Liberation Mono', monospace;
     display: block;
@@ -688,10 +723,15 @@ const categoryMeta: Record<PluginCard['category'], { label: string; classes: str
   .pe-callout {
     max-width: 52rem;
     margin: 0 auto;
-    opacity: 0;
+    opacity: 1;
   }
-  .pe-callout.revealed {
-    animation: peFadeSlideUp 0.5s ease-out forwards;
+  @media (scripting: enabled) {
+    .pe-callout {
+      opacity: 0;
+    }
+    .pe-callout.revealed {
+      animation: peFadeSlideUp 0.5s ease-out forwards;
+    }
   }
   .pe-callout-inner {
     display: flex;
@@ -786,11 +826,21 @@ const categoryMeta: Record<PluginCard['category'], { label: string; classes: str
   .pe-callout-link:hover {
     color: var(--color-accent-500);
   }
+  .pe-callout-link:focus-visible {
+    color: var(--color-accent-500);
+    outline: 2px solid var(--color-accent-400);
+    outline-offset: 2px;
+  }
   :global([data-theme='dark']) .pe-callout-link {
     color: var(--color-accent-400);
   }
   :global([data-theme='dark']) .pe-callout-link:hover {
     color: var(--color-accent-300);
+  }
+  :global([data-theme='dark']) .pe-callout-link:focus-visible {
+    color: var(--color-accent-300);
+    outline: 2px solid var(--color-accent-400);
+    outline-offset: 2px;
   }
   .pe-link-icon {
     width: 0.9rem;
