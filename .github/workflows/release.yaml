@@ -26,24 +26,23 @@ jobs:
     if: "github.event_name == 'push' && !contains(github.event.head_commit.message, '[skip-canary]')"
     steps:
       - name: Check out repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           fetch-depth: 0
           filter: tree:0
 
       - name: Setup node
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
-          node-version: 24
+          node-version: '24'
           cache: npm
+          registry-url: 'https://registry.npmjs.org'
 
       - name: Install dependencies
         run: npm ci
 
       - name: Publish canary release
         run: node ./scripts/release.ts --dist-tag canary --no-dry-run --no-local
-        env:
-          NPM_CONFIG_PROVENANCE: true
 
   publish-latest-release:
     runs-on: ubuntu-latest
@@ -63,17 +62,18 @@ jobs:
           echo "Using tag: $TAG"
 
       - name: Check out repository at release tag
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           ref: ${{ steps.determine-tag.outputs.tag }}
           fetch-depth: 0
           filter: tree:0
 
       - name: Setup node
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
-          node-version: 24
+          node-version: '24'
           cache: npm
+          registry-url: 'https://registry.npmjs.org'
 
       - name: Install dependencies
         run: npm ci
@@ -89,5 +89,3 @@ jobs:
 
       - name: Publish to npm
         run: node ./scripts/release.ts --dist-tag latest --version ${{ steps.extract-version.outputs.version }} --no-dry-run --no-local
-        env:
-          NPM_CONFIG_PROVENANCE: true
