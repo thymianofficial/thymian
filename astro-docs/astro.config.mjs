@@ -63,6 +63,11 @@ export default defineConfig({
           label: 'Reddit',
           href: 'https://www.reddit.com/r/ThymianOfficial/',
         },
+        {
+          icon: 'linkedin',
+          label: 'LinkedIn',
+          href: 'https://www.linkedin.com/company/thymiandev/',
+        },
       ],
       sidebar: [
         {
