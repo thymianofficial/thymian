@@ -99,6 +99,11 @@ const flowSteps: FlowStep[] = [
 ];
 ---
 
+<!-- Enable scroll-reveal animations only when IntersectionObserver is available -->
+<script is:inline>
+  'IntersectionObserver' in window && (document.documentElement.dataset.animations = '');
+</script>
+
 <section class="ai-section not-content" aria-labelledby="ai-heading">
   <!-- Header -->
   <div class="text-center mb-8 lg:mb-12">
@@ -353,13 +358,11 @@ const flowSteps: FlowStep[] = [
     transition: border-color 0.2s, box-shadow 0.2s;
     opacity: 1;
   }
-  @media (scripting: enabled) {
-    .ai-cap-card {
-      opacity: 0;
-    }
-    .ai-cap-card.revealed {
-      animation: aiFadeSlideUp 0.5s ease-out forwards;
-    }
+  :global(html[data-animations]) .ai-cap-card {
+    opacity: 0;
+  }
+  :global(html[data-animations]) .ai-cap-card.revealed {
+    animation: aiFadeSlideUp 0.5s ease-out forwards;
   }
   :global([data-theme='dark']) .ai-cap-card {
     border-color: var(--color-gray-700);
@@ -369,21 +372,9 @@ const flowSteps: FlowStep[] = [
     border-color: var(--color-accent-300);
     box-shadow: 0 4px 16px rgba(0, 0, 0, 0.06);
   }
-  .ai-cap-card:focus-visible {
-    border-color: var(--color-accent-300);
-    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.06);
-    outline: 2px solid var(--color-accent-400);
-    outline-offset: 2px;
-  }
   :global([data-theme='dark']) .ai-cap-card:hover {
     border-color: var(--color-accent-700);
     box-shadow: 0 4px 16px rgba(0, 0, 0, 0.25);
-  }
-  :global([data-theme='dark']) .ai-cap-card:focus-visible {
-    border-color: var(--color-accent-700);
-    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.25);
-    outline: 2px solid var(--color-accent-400);
-    outline-offset: 2px;
   }
 
   .ai-cap-icon {
@@ -437,13 +428,11 @@ const flowSteps: FlowStep[] = [
     opacity: 1;
     transition: border-color 0.2s, box-shadow 0.2s;
   }
-  @media (scripting: enabled) {
-    .ai-flow-step {
-      opacity: 0;
-    }
-    .ai-flow-step.revealed {
-      animation: aiFadeSlideUp 0.5s ease-out forwards;
-    }
+  :global(html[data-animations]) .ai-flow-step {
+    opacity: 0;
+  }
+  :global(html[data-animations]) .ai-flow-step.revealed {
+    animation: aiFadeSlideUp 0.5s ease-out forwards;
   }
   :global([data-theme='dark']) .ai-flow-step {
     border-color: var(--color-gray-700);
@@ -453,21 +442,9 @@ const flowSteps: FlowStep[] = [
     border-color: var(--color-accent-300);
     box-shadow: 0 4px 16px rgba(0, 0, 0, 0.06);
   }
-  .ai-flow-step:focus-visible {
-    border-color: var(--color-accent-300);
-    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.06);
-    outline: 2px solid var(--color-accent-400);
-    outline-offset: 2px;
-  }
   :global([data-theme='dark']) .ai-flow-step:hover {
     border-color: var(--color-accent-700);
     box-shadow: 0 4px 16px rgba(0, 0, 0, 0.25);
-  }
-  :global([data-theme='dark']) .ai-flow-step:focus-visible {
-    border-color: var(--color-accent-700);
-    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.25);
-    outline: 2px solid var(--color-accent-400);
-    outline-offset: 2px;
   }
 
   .ai-flow-step-header {
@@ -571,13 +548,11 @@ const flowSteps: FlowStep[] = [
     margin: 0 auto 2.5rem;
     opacity: 1;
   }
-  @media (scripting: enabled) {
-    .ai-example {
-      opacity: 0;
-    }
-    .ai-example.revealed {
-      animation: aiFadeSlideUp 0.6s ease-out forwards;
-    }
+  :global(html[data-animations]) .ai-example {
+    opacity: 0;
+  }
+  :global(html[data-animations]) .ai-example.revealed {
+    animation: aiFadeSlideUp 0.6s ease-out forwards;
   }
 
   .ai-example-terminal {
@@ -662,13 +637,11 @@ const flowSteps: FlowStep[] = [
   .ai-callout {
     opacity: 1;
   }
-  @media (scripting: enabled) {
-    .ai-callout {
-      opacity: 0;
-    }
-    .ai-callout.revealed {
-      animation: aiFadeSlideUp 0.6s ease-out forwards;
-    }
+  :global(html[data-animations]) .ai-callout {
+    opacity: 0;
+  }
+  :global(html[data-animations]) .ai-callout.revealed {
+    animation: aiFadeSlideUp 0.6s ease-out forwards;
   }
   .ai-callout-inner {
     display: flex;
@@ -817,6 +790,8 @@ const flowSteps: FlowStep[] = [
       callout?.classList.add('revealed');
       return;
     }
+
+    if (!('IntersectionObserver' in window)) return;
 
     const observer = new IntersectionObserver(
       (entries) => {

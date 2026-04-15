@@ -71,6 +71,11 @@ const badgeMeta: Record<string, { classes: string; ringClass: string }> = {
 };
 ---
 
+<!-- Enable scroll-reveal animations only when IntersectionObserver is available -->
+<script is:inline>
+  'IntersectionObserver' in window && (document.documentElement.dataset.animations = '');
+</script>
+
 <section class="rdp-section not-content" aria-labelledby="rdp-heading">
   <!-- Header -->
   <div class="text-center mb-8 lg:mb-12">
@@ -466,13 +471,11 @@ const badgeMeta: Record<string, { classes: string; ringClass: string }> = {
     color: var(--color-accent-500);
     opacity: 1;
   }
-  @media (scripting: enabled) {
-    .rdp-connector-arrow {
-      opacity: 0;
-    }
-    .rdp-connector-arrow.revealed {
-      animation: rdpFadeIn 0.4s ease-out forwards;
-    }
+  :global(html[data-animations]) .rdp-connector-arrow {
+    opacity: 0;
+  }
+  :global(html[data-animations]) .rdp-connector-arrow.revealed {
+    animation: rdpFadeIn 0.4s ease-out forwards;
   }
   .rdp-arrow-svg {
     width: 1.5rem;
@@ -511,21 +514,9 @@ const badgeMeta: Record<string, { classes: string; ringClass: string }> = {
     border-color: var(--color-accent-300);
     box-shadow: 0 4px 16px rgba(0, 0, 0, 0.06);
   }
-  .rdp-context-card:focus-visible {
-    border-color: var(--color-accent-300);
-    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.06);
-    outline: 2px solid var(--color-accent-400);
-    outline-offset: 2px;
-  }
   :global([data-theme='dark']) .rdp-context-card:hover {
     border-color: var(--color-accent-700);
     box-shadow: 0 4px 16px rgba(0, 0, 0, 0.25);
-  }
-  :global([data-theme='dark']) .rdp-context-card:focus-visible {
-    border-color: var(--color-accent-700);
-    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.25);
-    outline: 2px solid var(--color-accent-400);
-    outline-offset: 2px;
   }
 
   .rdp-context-header {
@@ -667,13 +658,11 @@ const badgeMeta: Record<string, { classes: string; ringClass: string }> = {
     margin: 0 auto;
     opacity: 1;
   }
-  @media (scripting: enabled) {
-    .rdp-shareable {
-      opacity: 0;
-    }
-    .rdp-shareable.revealed {
-      animation: rdpFadeSlideUp 0.5s ease-out forwards;
-    }
+  :global(html[data-animations]) .rdp-shareable {
+    opacity: 0;
+  }
+  :global(html[data-animations]) .rdp-shareable.revealed {
+    animation: rdpFadeSlideUp 0.5s ease-out forwards;
   }
   .rdp-shareable-inner {
     display: flex;
@@ -826,6 +815,8 @@ const badgeMeta: Record<string, { classes: string; ringClass: string }> = {
       shareable?.classList.add('revealed');
       return;
     }
+
+    if (!('IntersectionObserver' in window)) return;
 
     const observer = new IntersectionObserver(
       (entries) => {

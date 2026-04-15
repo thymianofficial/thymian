@@ -91,6 +91,11 @@ const features: Feature[] = [
 ];
 ---
 
+<!-- Enable scroll-reveal animations only when IntersectionObserver is available -->
+<script is:inline>
+  'IntersectionObserver' in window && (document.documentElement.dataset.animations = '');
+</script>
+
 <section class="cs-section not-content" aria-labelledby="cs-heading">
   <!-- Header -->
   <div class="text-center mb-8 lg:mb-12">
@@ -228,13 +233,11 @@ const features: Feature[] = [
     opacity: 1;
     transition: border-color 0.2s, box-shadow 0.2s;
   }
-  @media (scripting: enabled) {
-    .cs-loop-step {
-      opacity: 0;
-    }
-    .cs-loop-step.revealed {
-      animation: csFadeSlideUp 0.5s ease-out forwards;
-    }
+  :global(html[data-animations]) .cs-loop-step {
+    opacity: 0;
+  }
+  :global(html[data-animations]) .cs-loop-step.revealed {
+    animation: csFadeSlideUp 0.5s ease-out forwards;
   }
   :global([data-theme='dark']) .cs-loop-step {
     border-color: var(--color-gray-700);
@@ -244,21 +247,9 @@ const features: Feature[] = [
     border-color: var(--color-accent-300);
     box-shadow: 0 4px 16px rgba(0, 0, 0, 0.06);
   }
-  .cs-loop-step:focus-visible {
-    border-color: var(--color-accent-300);
-    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.06);
-    outline: 2px solid var(--color-accent-400);
-    outline-offset: 2px;
-  }
   :global([data-theme='dark']) .cs-loop-step:hover {
     border-color: var(--color-accent-700);
     box-shadow: 0 4px 16px rgba(0, 0, 0, 0.25);
-  }
-  :global([data-theme='dark']) .cs-loop-step:focus-visible {
-    border-color: var(--color-accent-700);
-    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.25);
-    outline: 2px solid var(--color-accent-400);
-    outline-offset: 2px;
   }
 
   /* Thymian step highlight */
@@ -376,13 +367,11 @@ const features: Feature[] = [
     transition: border-color 0.2s, box-shadow 0.2s;
     opacity: 1;
   }
-  @media (scripting: enabled) {
-    .cs-feature-card {
-      opacity: 0;
-    }
-    .cs-feature-card.revealed {
-      animation: csFadeSlideUp 0.5s ease-out forwards;
-    }
+  :global(html[data-animations]) .cs-feature-card {
+    opacity: 0;
+  }
+  :global(html[data-animations]) .cs-feature-card.revealed {
+    animation: csFadeSlideUp 0.5s ease-out forwards;
   }
   :global([data-theme='dark']) .cs-feature-card {
     border-color: var(--color-gray-700);
@@ -392,21 +381,9 @@ const features: Feature[] = [
     border-color: var(--color-accent-300);
     box-shadow: 0 4px 16px rgba(0, 0, 0, 0.06);
   }
-  .cs-feature-card:focus-visible {
-    border-color: var(--color-accent-300);
-    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.06);
-    outline: 2px solid var(--color-accent-400);
-    outline-offset: 2px;
-  }
   :global([data-theme='dark']) .cs-feature-card:hover {
     border-color: var(--color-accent-700);
     box-shadow: 0 4px 16px rgba(0, 0, 0, 0.25);
-  }
-  :global([data-theme='dark']) .cs-feature-card:focus-visible {
-    border-color: var(--color-accent-700);
-    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.25);
-    outline: 2px solid var(--color-accent-400);
-    outline-offset: 2px;
   }
 
   .cs-feature-icon { font-size: 1.5rem; flex-shrink: 0; line-height: 1; }
@@ -456,6 +433,8 @@ const features: Feature[] = [
       featureCards.forEach((c) => c.classList.add('revealed'));
       return;
     }
+
+    if (!('IntersectionObserver' in window)) return;
 
     const observer = new IntersectionObserver(
       (entries) => {

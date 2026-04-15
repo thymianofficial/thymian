@@ -151,6 +151,11 @@ const categoryMeta: Record<PluginCard['category'], { label: string; classes: str
 };
 ---
 
+<!-- Enable scroll-reveal animations only when IntersectionObserver is available -->
+<script is:inline>
+  'IntersectionObserver' in window && (document.documentElement.dataset.animations = '');
+</script>
+
 <section class="pe-section not-content" aria-labelledby="pe-heading">
   <!-- Header -->
   <div class="text-center mb-8 lg:mb-12">
@@ -391,13 +396,11 @@ const categoryMeta: Record<PluginCard['category'], { label: string; classes: str
     transition: border-color 0.2s, box-shadow 0.2s;
     opacity: 1;
   }
-  @media (scripting: enabled) {
-    .pe-strength-card {
-      opacity: 0;
-    }
-    .pe-strength-card.revealed {
-      animation: peFadeSlideUp 0.5s ease-out forwards;
-    }
+  :global(html[data-animations]) .pe-strength-card {
+    opacity: 0;
+  }
+  :global(html[data-animations]) .pe-strength-card.revealed {
+    animation: peFadeSlideUp 0.5s ease-out forwards;
   }
   :global([data-theme='dark']) .pe-strength-card {
     border-color: var(--color-gray-700);
@@ -407,21 +410,9 @@ const categoryMeta: Record<PluginCard['category'], { label: string; classes: str
     border-color: var(--color-accent-300);
     box-shadow: 0 4px 16px rgba(0, 0, 0, 0.06);
   }
-  .pe-strength-card:focus-visible {
-    border-color: var(--color-accent-300);
-    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.06);
-    outline: 2px solid var(--color-accent-400);
-    outline-offset: 2px;
-  }
   :global([data-theme='dark']) .pe-strength-card:hover {
     border-color: var(--color-accent-700);
     box-shadow: 0 4px 16px rgba(0, 0, 0, 0.25);
-  }
-  :global([data-theme='dark']) .pe-strength-card:focus-visible {
-    border-color: var(--color-accent-700);
-    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.25);
-    outline: 2px solid var(--color-accent-400);
-    outline-offset: 2px;
   }
 
   .pe-strength-icon {
@@ -458,13 +449,11 @@ const categoryMeta: Record<PluginCard['category'], { label: string; classes: str
     background: var(--color-gray-100);
     opacity: 1;
   }
-  @media (scripting: enabled) {
-    .pe-code-card {
-      opacity: 0;
-    }
-    .pe-code-card.revealed {
-      animation: peFadeSlideUp 0.6s ease-out forwards;
-    }
+  :global(html[data-animations]) .pe-code-card {
+    opacity: 0;
+  }
+  :global(html[data-animations]) .pe-code-card.revealed {
+    animation: peFadeSlideUp 0.6s ease-out forwards;
   }
   :global([data-theme='dark']) .pe-code-card {
     border-color: var(--color-gray-700);
@@ -605,13 +594,11 @@ const categoryMeta: Record<PluginCard['category'], { label: string; classes: str
     transition: border-color 0.2s, box-shadow 0.2s;
     opacity: 1;
   }
-  @media (scripting: enabled) {
-    .pe-plugin-card {
-      opacity: 0;
-    }
-    .pe-plugin-card.revealed {
-      animation: peFadeSlideUp 0.5s ease-out forwards;
-    }
+  :global(html[data-animations]) .pe-plugin-card {
+    opacity: 0;
+  }
+  :global(html[data-animations]) .pe-plugin-card.revealed {
+    animation: peFadeSlideUp 0.5s ease-out forwards;
   }
   :global([data-theme='dark']) .pe-plugin-card {
     border-color: var(--color-gray-700);
@@ -621,21 +608,9 @@ const categoryMeta: Record<PluginCard['category'], { label: string; classes: str
     border-color: var(--color-accent-300);
     box-shadow: 0 4px 16px rgba(0, 0, 0, 0.06);
   }
-  .pe-plugin-card:focus-visible {
-    border-color: var(--color-accent-300);
-    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.06);
-    outline: 2px solid var(--color-accent-400);
-    outline-offset: 2px;
-  }
   :global([data-theme='dark']) .pe-plugin-card:hover {
     border-color: var(--color-accent-700);
     box-shadow: 0 4px 16px rgba(0, 0, 0, 0.25);
-  }
-  :global([data-theme='dark']) .pe-plugin-card:focus-visible {
-    border-color: var(--color-accent-700);
-    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.25);
-    outline: 2px solid var(--color-accent-400);
-    outline-offset: 2px;
   }
 
   .pe-plugin-header {
@@ -725,13 +700,11 @@ const categoryMeta: Record<PluginCard['category'], { label: string; classes: str
     margin: 0 auto;
     opacity: 1;
   }
-  @media (scripting: enabled) {
-    .pe-callout {
-      opacity: 0;
-    }
-    .pe-callout.revealed {
-      animation: peFadeSlideUp 0.5s ease-out forwards;
-    }
+  :global(html[data-animations]) .pe-callout {
+    opacity: 0;
+  }
+  :global(html[data-animations]) .pe-callout.revealed {
+    animation: peFadeSlideUp 0.5s ease-out forwards;
   }
   .pe-callout-inner {
     display: flex;
@@ -904,6 +877,8 @@ const categoryMeta: Record<PluginCard['category'], { label: string; classes: str
       callout?.classList.add('revealed');
       return;
     }
+
+    if (!('IntersectionObserver' in window)) return;
 
     const observer = new IntersectionObserver(
       (entries) => {
