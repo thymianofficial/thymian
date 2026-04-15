@@ -6,34 +6,39 @@
 
 @theme {
   /* Brand Accent – Light Mode (Herb Teal) */
-  --color-accent-50:  #E6F6F3;
-  --color-accent-100: #CDEEE8;
-  --color-accent-200: #A3E1D7;
-  --color-accent-300: #74CFBF;
-  --color-accent-400: #3EB7A1;
-  --color-accent-500: #169C83;
+  --color-accent-50: #e6f6f3;
+  --color-accent-100: #cdeee8;
+  --color-accent-200: #a3e1d7;
+  --color-accent-300: #74cfbf;
+  --color-accent-400: #3eb7a1;
+  --color-accent-500: #169c83;
   /* Light mode accent seed */
-  --color-accent-600: #017B64;
+  --color-accent-600: #017b64;
   --color-accent-700: #046151;
-  --color-accent-800: #084D40;
-  --color-accent-900: #0A3B32;
+  --color-accent-800: #084d40;
+  --color-accent-900: #0a3b32;
   --color-accent-950: #072923;
 
   /* Optional: Leaf/Lime alternate ramp (badges, gradients) */
-  --color-accent-alt-50:  #F0FAE9;
-  --color-accent-alt-100: #E1F3D3;
-  --color-accent-alt-200: #C3E7A8;
-  --color-accent-alt-300: #A3DA7F;
-  --color-accent-alt-400: #85CC59;
-  --color-accent-alt-500: #6CBC40;
-  --color-accent-alt-600: #56AA34;
+  --color-accent-alt-50: #f0fae9;
+  --color-accent-alt-100: #e1f3d3;
+  --color-accent-alt-200: #c3e7a8;
+  --color-accent-alt-300: #a3da7f;
+  --color-accent-alt-400: #85cc59;
+  --color-accent-alt-500: #6cbc40;
+  --color-accent-alt-600: #56aa34;
   --color-accent-alt-700: #458628;
-  --color-accent-alt-800: #33641E;
-  --color-accent-alt-900: #254B16;
-  --color-accent-alt-950: #162E0C;
+  --color-accent-alt-800: #33641e;
+  --color-accent-alt-900: #254b16;
+  --color-accent-alt-950: #162e0c;
 
   /* Optional brand gradient (used e.g. in hero, badges) */
-  --gradient-brand: linear-gradient(135deg, #017B64 0%, #5AB12E 60%, #BEEB63 100%);
+  --gradient-brand: linear-gradient(
+    135deg,
+    #017b64 0%,
+    #5ab12e 60%,
+    #beeb63 100%
+  );
   /* Generated gray color palettes. */
   --color-gray-100: #f6f6f7;
   --color-gray-200: #edeeef;
@@ -47,20 +52,18 @@
 
 /* Dark mode accent override */
 @layer components {
-  @media (prefers-color-scheme: dark) {
-    :root {
-      /* Brand Accent – Dark Mode (Leaf Green) */
-      --color-accent-50:  #F0F9E9;
-      --color-accent-100: #E1F2D3;
-      --color-accent-200: #BFE7A9;
-      --color-accent-300: #9AD97F;
-      --color-accent-400: #76C95A;
-      --color-accent-500: #64BD44;
-      --color-accent-600: #5AB12E; /* Dark seed */
-      --color-accent-700: #4A8F25;
-      --color-accent-800: #376E1B;
-      --color-accent-900: #275114;
-      --color-accent-950: #17340A;
-    }
+  :root[data-theme='dark'] {
+    /* Brand Accent – Dark Mode (Leaf Green) */
+    --color-accent-50: #f0f9e9;
+    --color-accent-100: #e1f2d3;
+    --color-accent-200: #bfe7a9;
+    --color-accent-300: #9ad97f;
+    --color-accent-400: #76c95a;
+    --color-accent-500: #64bd44;
+    --color-accent-600: #5ab12e; /* Dark seed */
+    --color-accent-700: #4a8f25;
+    --color-accent-800: #376e1b;
+    --color-accent-900: #275114;
+    --color-accent-950: #17340a;
   }
 }

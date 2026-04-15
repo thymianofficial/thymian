@@ -99,6 +99,11 @@ const flowSteps: FlowStep[] = [
 ];
 ---
 
+<!-- Enable scroll-reveal animations only when IntersectionObserver is available -->
+<script is:inline>
+  'IntersectionObserver' in window && (document.documentElement.dataset.animations = '');
+</script>
+
 <section class="ai-section not-content" aria-labelledby="ai-heading">
   <!-- Header -->
   <div class="text-center mb-8 lg:mb-12">
@@ -351,14 +356,17 @@ const flowSteps: FlowStep[] = [
     border: 1px solid var(--color-gray-200);
     background: var(--color-gray-100);
     transition: border-color 0.2s, box-shadow 0.2s;
+    opacity: 1;
+  }
+  :global(html[data-animations]) .ai-cap-card {
     opacity: 0;
+  }
+  :global(html[data-animations]) .ai-cap-card.revealed {
+    animation: aiFadeSlideUp 0.5s ease-out forwards;
   }
   :global([data-theme='dark']) .ai-cap-card {
     border-color: var(--color-gray-700);
     background: var(--color-gray-900);
-  }
-  .ai-cap-card.revealed {
-    animation: aiFadeSlideUp 0.5s ease-out forwards;
   }
   .ai-cap-card:hover {
     border-color: var(--color-accent-300);
@@ -417,15 +425,18 @@ const flowSteps: FlowStep[] = [
     border-radius: var(--ai-radius);
     border: 1px solid var(--color-gray-200);
     background: var(--color-gray-100);
-    opacity: 0;
+    opacity: 1;
     transition: border-color 0.2s, box-shadow 0.2s;
+  }
+  :global(html[data-animations]) .ai-flow-step {
+    opacity: 0;
+  }
+  :global(html[data-animations]) .ai-flow-step.revealed {
+    animation: aiFadeSlideUp 0.5s ease-out forwards;
   }
   :global([data-theme='dark']) .ai-flow-step {
     border-color: var(--color-gray-700);
     background: var(--color-gray-900);
-  }
-  .ai-flow-step.revealed {
-    animation: aiFadeSlideUp 0.5s ease-out forwards;
   }
   .ai-flow-step:hover {
     border-color: var(--color-accent-300);
@@ -535,9 +546,12 @@ const flowSteps: FlowStep[] = [
   .ai-example {
     max-width: 48rem;
     margin: 0 auto 2.5rem;
+    opacity: 1;
+  }
+  :global(html[data-animations]) .ai-example {
     opacity: 0;
   }
-  .ai-example.revealed {
+  :global(html[data-animations]) .ai-example.revealed {
     animation: aiFadeSlideUp 0.6s ease-out forwards;
   }
 
@@ -583,7 +597,7 @@ const flowSteps: FlowStep[] = [
     margin-left: 0.5rem;
     font-size: 0.7rem;
     font-weight: 500;
-    color: rgba(255, 255, 255, 0.4);
+    color: rgba(255, 255, 255, 0.55);
   }
 
   .ai-term-body {
@@ -612,7 +626,7 @@ const flowSteps: FlowStep[] = [
     color: #f87171;
   }
   .ai-term-line--comment {
-    color: rgba(255, 255, 255, 0.3);
+    color: rgba(255, 255, 255, 0.55);
     font-style: italic;
   }
   .ai-term-line--blank {
@@ -621,9 +635,12 @@ const flowSteps: FlowStep[] = [
 
   /* ── Callout ────────────────────────────────────────────────── */
   .ai-callout {
+    opacity: 1;
+  }
+  :global(html[data-animations]) .ai-callout {
     opacity: 0;
   }
-  .ai-callout.revealed {
+  :global(html[data-animations]) .ai-callout.revealed {
     animation: aiFadeSlideUp 0.6s ease-out forwards;
   }
   .ai-callout-inner {
@@ -716,6 +733,12 @@ const flowSteps: FlowStep[] = [
     color: var(--color-accent-500);
     text-decoration: underline;
   }
+  .ai-callout-link:focus-visible {
+    color: var(--color-accent-500);
+    text-decoration: underline;
+    outline: 2px solid var(--color-accent-400);
+    outline-offset: 2px;
+  }
   .ai-link-icon {
     width: 0.9rem;
     height: 0.9rem;
@@ -767,6 +790,8 @@ const flowSteps: FlowStep[] = [
       callout?.classList.add('revealed');
       return;
     }
+
+    if (!('IntersectionObserver' in window)) return;
 
     const observer = new IntersectionObserver(
       (entries) => {

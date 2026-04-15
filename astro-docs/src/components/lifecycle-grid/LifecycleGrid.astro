@@ -102,7 +102,7 @@ const contextMeta: Record<ContextId, { activeClasses: string; ringClass: string 
   </div>
 
   <!-- ═════════ Desktop / Tablet grid ═════════ -->
-  <div class="lifecycle-grid-wrap hidden sm:block" aria-hidden="false">
+  <div class="lifecycle-grid-wrap hidden sm:block">
     <div class="overflow-x-auto lifecycle-scroll-fade">
       <table class="lifecycle-table" role="grid" aria-label="API lifecycle context availability matrix">
         <thead>
@@ -161,7 +161,7 @@ const contextMeta: Record<ContextId, { activeClasses: string; ringClass: string 
   </div>
 
   <!-- ═════════ Mobile timeline ═════════ -->
-  <div class="lifecycle-timeline sm:hidden" aria-hidden="false">
+  <div class="lifecycle-timeline sm:hidden">
     {stages.map((stage, si) => {
       const activeContexts = contexts.filter((ctx) => availability[ctx.id][si]);
       return (

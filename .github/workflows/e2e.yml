@@ -31,3 +31,25 @@ jobs:
         run: npx nx build thymian
       - name: Run Thymian E2E tests
         run: npx nx e2e e2e-tests
+
+  accessibility:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          filter: tree:0
+      - name: Setup node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: install
+        run: npm ci
+      - name: Install Playwright browsers
+        run: npx playwright install --with-deps chromium
+      - name: Build docs site
+        run: npx nx build astro
+      - name: Run accessibility tests
+        run: npx nx e2e astro
