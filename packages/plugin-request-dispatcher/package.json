@@ -15,6 +15,13 @@
   "publishConfig": {
     "access": "public"
   },
+  "keywords": [
+    "thymian",
+    "api-testing",
+    "http-client",
+    "http-request",
+    "request-dispatcher"
+  ],
   "files": [
     "dist",
     "!**/*.tsbuildinfo"

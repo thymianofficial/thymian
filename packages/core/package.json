@@ -15,6 +15,15 @@
   "publishConfig": {
     "access": "public"
   },
+  "keywords": [
+    "thymian",
+    "api-governance",
+    "http",
+    "http-conformance",
+    "plugin-system",
+    "rule-engine",
+    "validation"
+  ],
   "files": [
     "dist",
     "!**/*.tsbuildinfo"

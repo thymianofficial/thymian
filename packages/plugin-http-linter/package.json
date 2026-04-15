@@ -15,6 +15,15 @@
   "publishConfig": {
     "access": "public"
   },
+  "keywords": [
+    "thymian",
+    "api-linter",
+    "lint",
+    "linter",
+    "openapi-linter",
+    "rfc-9110",
+    "static-analysis"
+  ],
   "main": "./dist/index.js",
   "module": "./dist/index.js",
   "types": "./dist/index.d.ts",

@@ -15,6 +15,14 @@
   "publishConfig": {
     "access": "public"
   },
+  "keywords": [
+    "thymian",
+    "cli",
+    "oclif",
+    "api-governance",
+    "command-line",
+    "configuration"
+  ],
   "type": "module",
   "main": "./dist/index.js",
   "module": "./dist/index.js",
