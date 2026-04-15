@@ -44,7 +44,7 @@ jobs:
       - name: Publish canary release
         run: node ./scripts/release.ts --dist-tag canary --no-dry-run --no-local
         env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+          NPM_CONFIG_PROVENANCE: true
 
   publish-latest-release:
     runs-on: ubuntu-latest
@@ -92,4 +92,4 @@ jobs:
       - name: Publish to npm
         run: node ./scripts/release.ts --dist-tag latest --version ${{ steps.extract-version.outputs.version }} --no-dry-run --no-local
         env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+          NPM_CONFIG_PROVENANCE: true
