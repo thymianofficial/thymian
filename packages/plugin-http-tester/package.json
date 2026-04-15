@@ -15,6 +15,15 @@
   "publishConfig": {
     "access": "public"
   },
+  "keywords": [
+    "thymian",
+    "api-testing",
+    "conformance-testing",
+    "http-testing",
+    "rfc-9110",
+    "rest-api",
+    "validator"
+  ],
   "main": "./dist/index.js",
   "module": "./dist/index.js",
   "types": "./dist/index.d.ts",

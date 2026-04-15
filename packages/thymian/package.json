@@ -15,6 +15,21 @@
   "publishConfig": {
     "access": "public"
   },
+  "keywords": [
+    "thymian",
+    "api",
+    "api-governance",
+    "api-linter",
+    "api-testing",
+    "http",
+    "http-conformance",
+    "linter",
+    "openapi",
+    "rest-api",
+    "rfc-9110",
+    "swagger",
+    "validator"
+  ],
   "main": "./dist/index.js",
   "module": "./dist/index.js",
   "types": "./dist/index.d.ts",

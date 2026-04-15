@@ -15,6 +15,12 @@
   "publishConfig": {
     "access": "public"
   },
+  "keywords": [
+    "thymian",
+    "extensibility",
+    "remote-plugins",
+    "websocket"
+  ],
   "main": "./dist/index.js",
   "module": "./dist/index.js",
   "types": "./dist/index.d.ts",

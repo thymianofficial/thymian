@@ -15,6 +15,14 @@
   "publishConfig": {
     "access": "public"
   },
+  "keywords": [
+    "thymian",
+    "api-reports",
+    "ci",
+    "reporter",
+    "reporting",
+    "test-reporter"
+  ],
   "type": "module",
   "main": "./dist/index.js",
   "module": "./dist/index.js",

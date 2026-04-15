@@ -15,6 +15,14 @@
   "publishConfig": {
     "access": "public"
   },
+  "keywords": [
+    "thymian",
+    "testing",
+    "test-utils",
+    "plugin-testing",
+    "http-mocks",
+    "api-testing"
+  ],
   "main": "./dist/index.js",
   "type": "module",
   "module": "./dist/index.js",
