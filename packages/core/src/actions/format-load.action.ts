@@ -11,7 +11,7 @@ export interface SpecificationInput {
 
 export interface CoreFormatLoadInput {
   inputs: SpecificationInput[];
-  skipSpecValidation?: boolean;
+  skipSpecValidation: boolean;
   options?: Record<string, unknown>;
 }
 
