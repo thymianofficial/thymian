@@ -211,7 +211,7 @@ The `plugin-http-tester` package (`@thymian/plugin-http-tester`) listens on the 
 
 ### 5.2.4 HTTP Analyzer
 
-The `plugin-http-analyzer` package (`@thymian/plugin-http-analyzer`) listens on the `core.analyze` action. It loads captured HTTP traffic (e.g., from HAR files), matches traffic against the ThymianFormat, and validates the recorded interactions against configured rules using an `AnalyzeContext`.
+The `plugin-http-analyzer` package (`@thymian/plugin-http-analyzer`) listens on the `core.analyze` action. It receives captured HTTP traffic (e.g., from HAR files), matches traffic against the ThymianFormat, and validates the recorded interactions against configured rules using an `AnalyzeContext`.
 
 ### 5.2.5 Sampler
 

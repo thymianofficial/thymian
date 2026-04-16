@@ -20,7 +20,6 @@ We will promote the following infrastructure actions to core-owned contracts:
 | ----------------------- | -------------------------------------------------- | ----------- | --------------------------- |
 | `core.request.dispatch` | Send an HTTP request and return the response       | `'first'`   | `plugin-request-dispatcher` |
 | `core.request.sample`   | Generate an HTTP request template from sample data | `'first'`   | `plugin-sampler`            |
-| `core.traffic.load`     | Load captured HTTP traffic from external sources   | `'collect'` | `plugin-http-analyzer`      |
 | `core.format.load`      | Load API descriptions into ThymianFormat           | `'collect'` | `plugin-openapi`            |
 
 These actions are declared by the `corePlugin` (in `core-plugin.ts`) with their event and response JSON schemas. Plugins register as listeners for these actions during their `plugin()` registration function.

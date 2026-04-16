@@ -38,7 +38,7 @@ The `ActionContext` provides:
 | -------------- | ------------------------------------------------- | ----------------------------------------------------------------------- |
 | `'collect'`    | Wait for all listeners, return array of responses | Workflow actions (`core.lint`, `core.test`, `core.analyze`)             |
 | `'first'`      | Return after first response                       | Infrastructure actions (`core.request.dispatch`, `core.request.sample`) |
-| `'deep-merge'` | Deep-merge all responses into a single object     | Format broadcasting (`core.format`)                                     |
+| `'deep-merge'` | Deep-merge all responses into a single object     | -                                                                       |
 
 ### 8.1.3 Action Naming Convention
 
@@ -198,7 +198,7 @@ The `RuleMeta` type captures:
 | ---------------- | ----------------------- | --------------------------------------------------------------------------------- |
 | `name`           | `string`                | Unique rule identifier                                                            |
 | `type`           | `RuleType[]`            | Applicable modes: `'static'`, `'analytics'`, `'test'`, `'informational'`          |
-| `severity`       | `RuleSeverity`          | Default severity: `'error'`, `'warn'`, `'info'`, `'off'`                          |
+| `severity`       | `RuleSeverity`          | Default severity: `'error'`, `'warn'`, `'hint'`, `'off'`                          |
 | `options`        | `JSONSchemaType`        | JSON Schema for rule-specific options                                             |
 | `appliesTo`      | `HttpParticipantRole[]` | HTTP participant roles the rule targets (e.g., `'client'`, `'server'`, `'proxy'`) |
 | `tags`           | `string[]`              | Categorization tags                                                               |

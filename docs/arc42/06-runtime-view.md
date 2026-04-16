@@ -136,7 +136,7 @@ sequenceDiagram
     E-->>T: formats[]
     T->>T: Merge formats into single ThymianFormat
 
-    T->>E: emitAction("core.format", exportedFormat) [deep-merge]
+    T->>E: emitAction("core.format", exportedFormat)
     Note over E: Broadcast format to all plugins
     E->>S: core.format
     S->>S: Initialize samples + hook runner

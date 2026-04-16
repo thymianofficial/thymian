@@ -52,7 +52,7 @@ Plugin-owned actions follow the pattern **`<plugin-short-name>.<verb>`** or **`<
 | `http-testing.afterResponse`         | plugin-sampler (hooks) |
 | `http-testing.authorize`             | plugin-sampler (hooks) |
 
-The first segment identifies the owning plugin, making it immediately clear which package is responsible.
+The first segment identifies the owning plugin, making it immediately clear which package is responsible. The `http-testing.*` actions are an exception. This is a library that can be used by various plugins, so the `core` prefix is omitted.
 
 ### Core-owned events
 
