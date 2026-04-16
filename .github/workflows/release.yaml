@@ -9,9 +9,17 @@ on:
     types: [published]
   workflow_dispatch:
     inputs:
-      tag:
-        description: 'Tag to publish'
+      job:
+        description: 'Which job to run'
         required: true
+        type: choice
+        options:
+          - publish-latest-release
+          - canary-release
+        default: publish-latest-release
+      tag:
+        description: 'Tag to publish (required for publish-latest-release)'
+        required: false
         type: string
 
 permissions:
@@ -23,7 +31,9 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     environment: npm
-    if: "github.event_name == 'push' && !contains(github.event.head_commit.message, '[skip-canary]')"
+    if: |
+      (github.event_name == 'push' && !contains(github.event.head_commit.message, '[skip-canary]')) ||
+      (github.event_name == 'workflow_dispatch' && inputs.job == 'canary-release')
     steps:
       - name: Check out repository
         uses: actions/checkout@v6
@@ -41,6 +51,17 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Compute canary version
+        id: canary-version
+        run: |
+          HASH=$(git rev-parse --short HEAD)
+          DATE=$(date -u +%Y%m%d%H%M%S)
+          # Derive next semver base from latest tag
+          BASE=$(git describe --tags --abbrev=0 2>/dev/null | sed 's/^v//' || echo '0.0.0')
+          CANARY="${BASE}-canary.${DATE}.${HASH}"
+          echo "version=$CANARY" >> $GITHUB_OUTPUT
+          echo "Canary version: $CANARY"
+
       - name: Strip token auth from .npmrc for OIDC
         run: |
           NPMRC="${NPM_CONFIG_USERCONFIG:-$HOME/.npmrc}"
@@ -48,8 +69,29 @@ jobs:
             sed -i '/_authToken/d' "$NPMRC"
           fi
 
-      - name: Publish canary release
-        run: node ./scripts/release.ts --dist-tag canary --no-dry-run --no-local
+      - name: Version all packages to ${{ steps.canary-version.outputs.version }}
+        run: |
+          VERSION="${{ steps.canary-version.outputs.version }}"
+          for f in packages/*/package.json; do
+            node -e "
+              const fs = require('fs');
+              const pkg = JSON.parse(fs.readFileSync('$f', 'utf8'));
+              pkg.version = '$VERSION';
+              fs.writeFileSync('$f', JSON.stringify(pkg, null, 2) + '\\n');
+            "
+            echo "Versioned $f to $VERSION"
+          done
+
+      - name: Build packages
+        run: npx nx run-many -t build --exclude astro --no-tui
+
+      - name: Publish canary to npm
+        run: |
+          for pkg in packages/*/; do
+            pkgname=$(node -e "const d=require('./${pkg}package.json'); console.log(d.name)")
+            echo "Publishing $pkgname..."
+            (cd "$pkg" && npm publish --access public --tag canary)
+          done
         env:
           NODE_AUTH_TOKEN: ''
 
@@ -57,7 +99,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     environment: npm
-    if: (github.event_name == 'release' && github.event.action == 'published') || github.event_name == 'workflow_dispatch'
+    if: (github.event_name == 'release' && github.event.action == 'published') || (github.event_name == 'workflow_dispatch' && inputs.job == 'publish-latest-release')
     steps:
       - name: Determine tag
         id: determine-tag
@@ -103,7 +145,28 @@ jobs:
             sed -i '/_authToken/d' "$NPMRC"
           fi
 
-      - name: Publish to npm
-        run: node ./scripts/release.ts --dist-tag latest --version ${{ steps.extract-version.outputs.version }} --no-dry-run --no-local
+      - name: Version all packages to ${{ steps.extract-version.outputs.version }}
+        run: |
+          VERSION="${{ steps.extract-version.outputs.version }}"
+          for f in packages/*/package.json; do
+            node -e "
+              const fs = require('fs');
+              const pkg = JSON.parse(fs.readFileSync('$f', 'utf8'));
+              pkg.version = '$VERSION';
+              fs.writeFileSync('$f', JSON.stringify(pkg, null, 2) + '\n');
+            "
+            echo "Versioned $f to $VERSION"
+          done
+
+      - name: Build packages
+        run: npx nx run-many -t build --exclude astro --no-tui
+
+      - name: Publish packages to npm
+        run: |
+          for pkg in packages/*/; do
+            pkgname=$(node -e "const d=require('./${pkg}package.json'); console.log(d.name)")
+            echo "Publishing $pkgname..."
+            (cd "$pkg" && npm publish --access public)
+          done
         env:
           NODE_AUTH_TOKEN: ''
