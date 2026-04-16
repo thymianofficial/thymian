@@ -126,21 +126,14 @@ async function runCanaryRelease(
     });
 
     if (!nextVersion) {
-      // No conventional-commit bump detected — fall back to current latest tag
-      // so canary builds on branches still get a meaningful version.
-      const fallback = execSync(
-        'git describe --tags --abbrev=0 2>/dev/null || echo "0.0.0"',
-      )
-        .toString()
-        .trim()
-        .replace(/^v/, '');
       console.log(
-        `ℹ️  No conventional-commit bump detected. Using latest tag as base: ${fallback}\n`,
+        'ℹ️  No release needed (no relevant commits since last release)',
       );
-      baseVersion = fallback;
-    } else {
-      baseVersion = nextVersion;
+      console.log('   Exiting gracefully.\n');
+      process.exit(0);
     }
+
+    baseVersion = nextVersion;
   }
 
   const commitHash = getCurrentCommitHash();
