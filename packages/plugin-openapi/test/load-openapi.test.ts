@@ -187,7 +187,7 @@ describe('load-openapi', () => {
       }
     });
 
-    it('warns but does not throw on schema validation failure when skipValidation is true', async () => {
+    it('warns but does not throw on schema validation failure when skipSpecValidation is true', async () => {
       const invalidDocument = {
         swagger: '2.0',
         info: {
@@ -209,7 +209,7 @@ describe('load-openapi', () => {
 
       // Should succeed — validation ran but only warned
       expect(result.document.openapi).toBe('3.1.1');
-      expect(wantSpy).toBeCalledTimes(1);
+      expect(wantSpy).toHaveBeenCalledTimes(1);
     });
 
     it('still throws on $ref errors when skipSpecValidation is true', async () => {
