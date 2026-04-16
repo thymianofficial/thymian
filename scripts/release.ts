@@ -1,7 +1,10 @@
-import { execSync } from 'node:child_process';
+import { execFileSync, execSync } from 'node:child_process';
+import { existsSync, readFileSync } from 'node:fs';
+import { join } from 'node:path';
 import { stdin as input, stdout as output } from 'node:process';
 import * as readline from 'node:readline/promises';
 
+import { createProjectGraphAsync } from '@nx/devkit';
 import { ReleaseClient } from 'nx/release/index.js';
 import yargs from 'yargs';
 import { hideBin } from 'yargs/helpers';
@@ -141,7 +144,7 @@ async function runCanaryRelease(
   console.log(`   Commit hash: ${commitHash}\n`);
 
   // Version packages
-  const { releaseGraph } = await client.releaseVersion({
+  const { projectsVersionData, releaseGraph } = await client.releaseVersion({
     specifier: canaryVersionString,
     dryRun: argv.dryRun,
     firstRelease: argv.firstRelease,
@@ -149,28 +152,31 @@ async function runCanaryRelease(
     gitTag: false,
   });
 
-  // Publish with canary dist-tag (no changelog for canary)
-  const publishResults = await client.releasePublish({
-    releaseGraph,
-    dryRun: argv.dryRun,
-    firstRelease: argv.firstRelease,
-    verbose: argv.verbose,
-    access: 'public',
-    registry: argv.local ? 'http://localhost:4873' : undefined,
-    tag: argv.distTag,
-  });
-
   if (argv.dryRun) {
+    // Dry-run: delegate to nx — no OIDC token involved
+    const dryRunResults = await client.releasePublish({
+      releaseGraph,
+      dryRun: true,
+      firstRelease: argv.firstRelease,
+      verbose: argv.verbose,
+      tag: argv.distTag,
+    });
+    const dryRunFailed = Object.values(dryRunResults).some((r) => r.code !== 0);
     console.log(
       '\n📋 DRY-RUN MODE: This was a dry-run. No changes were made.\n',
     );
+    process.exit(dryRunFailed ? 1 : 0);
   } else {
+    // Real npm.org publish: use plain npm for OIDC trusted publishing
+    await publishPackagesWithNpm(
+      releaseGraph,
+      projectsVersionData,
+      argv.distTag,
+    );
     console.log('\n✅ Canary release published successfully!\n');
   }
 
-  process.exit(
-    Object.values(publishResults).every((result) => result.code === 0) ? 0 : 1,
-  );
+  process.exit(0);
 }
 
 /**
@@ -315,7 +321,7 @@ async function runCIPublishRelease(
   console.log(`   Version: ${argv.version}\n`);
 
   // Version packages without git tag (tag already exists from local release)
-  const { releaseGraph } = await client.releaseVersion({
+  const { projectsVersionData, releaseGraph } = await client.releaseVersion({
     specifier: argv.version,
     dryRun: argv.dryRun,
     firstRelease: argv.firstRelease,
@@ -323,28 +329,31 @@ async function runCIPublishRelease(
     gitTag: false,
   });
 
-  // Publish to npm (skip changelog - already created during local release)
-  const publishResults = await client.releasePublish({
-    releaseGraph,
-    dryRun: argv.dryRun,
-    firstRelease: argv.firstRelease,
-    verbose: argv.verbose,
-    access: 'public',
-    registry: undefined, // Use npm
-    tag: argv.distTag,
-  });
-
   if (argv.dryRun) {
+    // Dry-run: delegate to nx — no OIDC token involved
+    const dryRunResults = await client.releasePublish({
+      releaseGraph,
+      dryRun: true,
+      firstRelease: argv.firstRelease,
+      verbose: argv.verbose,
+      tag: argv.distTag,
+    });
+    const dryRunFailed = Object.values(dryRunResults).some((r) => r.code !== 0);
     console.log(
       '\n📋 DRY-RUN MODE: This was a dry-run. No changes were made.\n',
     );
+    process.exit(dryRunFailed ? 1 : 0);
   } else {
+    // Real npm.org publish: use plain npm for OIDC trusted publishing
+    await publishPackagesWithNpm(
+      releaseGraph,
+      projectsVersionData,
+      argv.distTag,
+    );
     console.log('\n✅ Published to npm successfully!\n');
   }
 
-  process.exit(
-    Object.values(publishResults).every((result) => result.code === 0) ? 0 : 1,
-  );
+  process.exit(0);
 }
 
 /**
@@ -389,7 +398,7 @@ async function runLocalRelease(
     gitTag: false,
   });
 
-  // Publish to local registry (no changelog for local testing)
+  // Local (Verdaccio): always use nx publish — no OIDC involved
   const publishResults = await client.releasePublish({
     releaseGraph,
     dryRun: argv.dryRun,
@@ -399,21 +408,22 @@ async function runLocalRelease(
     registry: 'http://localhost:4873',
     tag: argv.distTag,
   });
+  const publishFailed = Object.values(publishResults).some((r) => r.code !== 0);
 
   if (argv.dryRun) {
     console.log(
       '\n📋 DRY-RUN MODE: This was a dry-run. No changes were made.\n',
     );
   } else {
-    console.log('\n✅ Published to local registry successfully!');
-    console.log(
-      '\n⚠️  WARNING: Do not commit the versioned package.json files. They have to be reverted after the release process.\n',
-    );
+    if (!publishFailed) {
+      console.log('\n✅ Published to local registry successfully!');
+      console.log(
+        '\n⚠️  WARNING: Do not commit the versioned package.json files. They have to be reverted after the release process.\n',
+      );
+    }
   }
 
-  process.exit(
-    Object.values(publishResults).every((result) => result.code === 0) ? 0 : 1,
-  );
+  process.exit(publishFailed ? 1 : 0);
 }
 
 /**
@@ -512,6 +522,125 @@ async function runLocalRelease(
 // ============================================================================
 // Helper Functions
 // ============================================================================
+
+/**
+ * Publishes packages to npm.org using plain `npm publish`.
+ * Only called for real (non-dry-run) npm.org publishes where OIDC trusted
+ * publishing is required. Dry-run and local (Verdaccio) paths use
+ * `client.releasePublish()` instead.
+ *
+ * Publishes in topological order from the release graph so that dependencies
+ * are available on npm before their dependents are published.
+ */
+async function publishPackagesWithNpm(
+  releaseGraph: {
+    sortedReleaseGroups: string[];
+    sortedProjects: Map<string, string[]>;
+  },
+  projectsVersionData: Record<string, { newVersion: string | null }>,
+  tag: string,
+): Promise<void> {
+  const projectGraph = await createProjectGraphAsync();
+  let hasFailure = false;
+
+  for (const groupName of releaseGraph.sortedReleaseGroups) {
+    const sortedProjects = releaseGraph.sortedProjects.get(groupName) ?? [];
+    for (const projectName of sortedProjects) {
+      const node = projectGraph.nodes[projectName];
+      if (!node) {
+        console.error(
+          `❌ ABORTING: Project "${projectName}" not found in project graph.`,
+        );
+        process.exit(1);
+      }
+
+      const projectRoot = node.data.root;
+      const pkgJsonPath = join(projectRoot, 'package.json');
+      let pkgJson: Record<string, unknown>;
+      try {
+        pkgJson = JSON.parse(readFileSync(pkgJsonPath, 'utf-8'));
+      } catch (error: unknown) {
+        const fsError = error as NodeJS.ErrnoException;
+        if (fsError.code === 'ENOENT') {
+          console.log(`⏭️  Skipping ${projectName} (no package.json)`);
+          continue;
+        }
+        const message = error instanceof Error ? error.message : String(error);
+        console.error(`❌ ABORTING: Failed to read ${pkgJsonPath}: ${message}`);
+        process.exit(1);
+      }
+
+      if (pkgJson['private'] === true) {
+        console.log(`⏭️  Skipping private package: ${projectName}`);
+        continue;
+      }
+
+      const npmName =
+        typeof pkgJson['name'] === 'string' ? pkgJson['name'] : projectName;
+
+      // Guard: verify build artifacts exist before publishing
+      const distDir = join(projectRoot, 'dist');
+      if (!existsSync(distDir)) {
+        console.error(
+          `❌ ABORTING: ${npmName} has no dist/ directory. Run the build first.`,
+        );
+        process.exit(1);
+      }
+
+      // Guard: on-disk version is what npm publish actually uses
+      const expectedVersion = projectsVersionData[projectName]?.newVersion;
+      const onDiskVersion =
+        typeof pkgJson['version'] === 'string' ? pkgJson['version'] : undefined;
+
+      if (!onDiskVersion || onDiskVersion.includes('PLACEHOLDER')) {
+        console.error(
+          `❌ ABORTING: ${npmName} has on-disk version "${onDiskVersion ?? 'missing'}" — PLACEHOLDER detected or version missing.`,
+        );
+        process.exit(1);
+      }
+
+      // Assert the version on disk matches the release plan
+      if (
+        typeof expectedVersion === 'string' &&
+        expectedVersion !== onDiskVersion
+      ) {
+        console.error(
+          `❌ ABORTING: ${npmName} expected version "${expectedVersion}" but package.json on disk has "${onDiskVersion}".`,
+        );
+        process.exit(1);
+      }
+
+      console.log(`📦 Publishing ${npmName}@${onDiskVersion} [tag: ${tag}]...`);
+
+      const args = ['publish', '--provenance', '--tag', tag];
+      // --access is only valid (and required) for scoped packages
+      if (npmName.startsWith('@')) {
+        args.push('--access', 'public');
+      }
+
+      try {
+        execFileSync('npm', args, { cwd: projectRoot, stdio: 'inherit' });
+        console.log(`✅ ${npmName}@${onDiskVersion} published`);
+      } catch (error: unknown) {
+        const message = error instanceof Error ? error.message : String(error);
+        const status =
+          typeof error === 'object' &&
+          error !== null &&
+          'status' in error &&
+          typeof (error as { status: unknown }).status === 'number'
+            ? (error as { status: number }).status
+            : undefined;
+        const details = status !== undefined ? ` (exit status ${status})` : '';
+        console.error(`❌ Failed to publish ${npmName}${details}: ${message}`);
+        hasFailure = true;
+      }
+    }
+  }
+
+  if (hasFailure) {
+    process.exit(1);
+  }
+}
 
 function isInCI(): boolean {
   return process.env.GITHUB_ACTIONS === 'true';
