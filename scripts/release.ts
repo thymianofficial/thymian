@@ -152,6 +152,19 @@ async function runCanaryRelease(
     gitTag: false,
   });
 
+  if (argv.skipPublish) {
+    // Emit the computed version for the workflow to capture via GITHUB_OUTPUT
+    const githubOutput = process.env.GITHUB_OUTPUT;
+    if (githubOutput) {
+      const { appendFileSync } = await import('node:fs');
+      appendFileSync(githubOutput, `canary_version=${canaryVersionString}\n`);
+    }
+    console.log(
+      `\n📋 SKIP-PUBLISH: Versioning complete at ${canaryVersionString}. Skipping NX publish — publishing handled externally.\n`,
+    );
+    process.exit(0);
+  }
+
   // Publish with canary dist-tag (no changelog for canary)
   const publishResults = await client.releasePublish({
     releaseGraph,
