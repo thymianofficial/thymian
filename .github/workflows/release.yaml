@@ -114,28 +114,8 @@ jobs:
             sed -i '/_authToken/d' "$NPMRC"
           fi
 
-      - name: Version all packages to ${{ steps.extract-version.outputs.version }}
-        run: |
-          VERSION="${{ steps.extract-version.outputs.version }}"
-          for f in packages/*/package.json; do
-            node -e "
-              const fs = require('fs');
-              const pkg = JSON.parse(fs.readFileSync('$f', 'utf8'));
-              pkg.version = '$VERSION';
-              fs.writeFileSync('$f', JSON.stringify(pkg, null, 2) + '\n');
-            "
-            echo "Versioned $f to $VERSION"
-          done
-
-      - name: Build packages
-        run: npx nx run-many -t build --exclude astro --no-tui
-
-      - name: Publish packages to npm
-        run: |
-          for pkg in packages/*/; do
-            pkgname=$(node -e "const d=require('./${pkg}package.json'); console.log(d.name)")
-            echo "Publishing $pkgname..."
-            (cd "$pkg" && npm publish --access public)
-          done
+      - name: Publish to npm
+        run: node ./scripts/release.ts --dist-tag latest --version ${{ steps.extract-version.outputs.version }} --no-dry-run --no-local
         env:
           NODE_AUTH_TOKEN: ''
+          NPM_CONFIG_PROVENANCE: 'true'
