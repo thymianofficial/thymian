@@ -142,7 +142,7 @@ export abstract class BaseCliRunCommand<
       default: true,
       allowNo: true,
       description:
-        'Skip schema validation when loading specifications. Use --no-skip-spec-validation to enable validation.',
+        'Do not fail on schema validation errors when loading specifications.',
       helpGroup: 'BASE',
     }),
   };

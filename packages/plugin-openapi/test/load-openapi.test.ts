@@ -3,7 +3,7 @@ import { join } from 'node:path';
 
 import { constant, NoopLogger, ThymianBaseError } from '@thymian/core';
 import type { OpenAPIV3_1 } from 'openapi-types';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vitest } from 'vitest';
 import yaml from 'yaml';
 
 import { loadAndUpgrade, openapiToThymianFormat } from '../src/load-openapi.js';
@@ -197,11 +197,8 @@ describe('load-openapi', () => {
         paths: {},
       };
 
-      const warnings: string[] = [];
       const logger = new NoopLogger();
-      logger.warn = (msg: unknown) => {
-        warnings.push(String(msg));
-      };
+      const wantSpy = vitest.spyOn(logger, 'warn');
 
       const result = await loadAndUpgrade(
         JSON.stringify(invalidDocument),
@@ -212,11 +209,10 @@ describe('load-openapi', () => {
 
       // Should succeed — validation ran but only warned
       expect(result.document.openapi).toBe('3.1.1');
-      expect(warnings).toHaveLength(1);
-      expect(warnings[0]).toContain('--skip-spec-validation');
+      expect(wantSpy).toBeCalledTimes(1);
     });
 
-    it('still throws on $ref errors when skipValidation is true', async () => {
+    it('still throws on $ref errors when skipSpecValidation is true', async () => {
       const documentWithBadRef = {
         openapi: '3.1.0',
         info: {

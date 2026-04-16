@@ -115,7 +115,7 @@ export async function loadAndUpgrade(
   value: string,
   cwd: string = process.cwd(),
   logger: Logger,
-  skipValidation = false,
+  skipSpecValidation = false,
 ): Promise<LoadResult> {
   const { document, filePath } = await loadOpenApi(value, cwd);
   const relativePath = filePath ? getRelativePath(filePath, cwd) : undefined;
@@ -147,9 +147,9 @@ export async function loadAndUpgrade(
       );
     }
 
-    if (skipValidation) {
+    if (skipSpecValidation) {
       logger.warn(
-        `Schema validation for ${sourceLabel} failed, but --skip-spec-validation is set. Continuing anyway.`,
+        `Schema validation for ${sourceLabel} failed. But \`skipSpecValidation\` is set to true.`,
       );
     } else {
       throw new ThymianBaseError(
@@ -255,14 +255,14 @@ export async function loadAndTransform(
     filter: HttpFilterExpression;
     format?: ThymianFormat;
     sourceName?: string;
-    skipValidation?: boolean;
+    skipSpecValidation?: boolean;
   },
 ): Promise<[OpenAPI.Document, ThymianFormat, string | undefined]> {
   const loadResult = await loadAndUpgrade(
     value,
     options.cwd,
     options.logger,
-    options.skipValidation,
+    options.skipSpecValidation,
   );
   const relativePath = loadResult.filePath
     ? getRelativePath(loadResult.filePath, options.cwd)

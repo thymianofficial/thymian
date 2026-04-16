@@ -324,7 +324,7 @@ export class Thymian {
       this.loadFormat(
         {
           inputs: input.specification,
-          options: { skipSpecValidation: input.skipSpecValidation },
+          skipSpecValidation: input.skipSpecValidation,
         },
         { emitFormat: false },
       ),
@@ -359,7 +359,7 @@ export class Thymian {
     const [format, rules] = await Promise.all([
       this.loadFormat({
         inputs: input.specification,
-        options: { skipSpecValidation: input.skipSpecValidation },
+        skipSpecValidation: input.skipSpecValidation,
       }),
       loadRules(input.rules ?? [], ruleFilter, rulesConfig, this.options.cwd),
     ]);
@@ -395,7 +395,7 @@ export class Thymian {
         ? this.loadFormat(
             {
               inputs: input.specification,
-              options: { skipSpecValidation: input.skipSpecValidation },
+              skipSpecValidation: input.skipSpecValidation,
             },
             { emitFormat: false },
           )

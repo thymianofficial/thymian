@@ -40,17 +40,17 @@ describe('OpenApi plugin', () => {
 
     await thymian.register(openApiPlugin).ready();
 
-    // petstore-v2 is a valid doc, but this tests the options propagation path
     const formats = await thymian.emitter.emitAction('core.format.load', {
       inputs: [
         {
           type: 'openapi',
-          location: 'test/fixtures/petstore-v2.yaml',
+          location: 'test/fixtures/invalid-openapi.yaml',
         },
       ],
-      options: { skipSpecValidation: true },
+      skipSpecValidation: true,
     });
 
+    // Invalid doc should still load when skipSpecValidation is true (warning logged instead of error)
     expect(formats).toHaveLength(1);
   });
 

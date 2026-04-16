@@ -11,6 +11,7 @@ export interface SpecificationInput {
 
 export interface CoreFormatLoadInput {
   inputs: SpecificationInput[];
+  skipSpecValidation?: boolean;
   options?: Record<string, unknown>;
 }
 
@@ -46,6 +47,10 @@ export const formatLoadActionSchema = {
       type: 'array',
       nullable: false,
       items: specificationInputSchema,
+    },
+    skipSpecValidation: {
+      type: 'boolean',
+      nullable: true,
     },
     options: {
       type: 'object',
