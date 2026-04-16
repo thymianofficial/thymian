@@ -75,8 +75,10 @@ export const openApiPlugin: ThymianPlugin = {
       ctx.reply(thymianFormat.export());
     });
 
-    emitter.onAction('core.format.load', async ({ inputs }, ctx) => {
+    emitter.onAction('core.format.load', async ({ inputs, options }, ctx) => {
       let format = new ThymianFormat();
+
+      const skipValidation = options?.['skipSpecValidation'] === true;
 
       const descriptions = inputs.length
         ? inputs
@@ -110,6 +112,7 @@ export const openApiPlugin: ThymianPlugin = {
             sourceName: description.sourceName,
             cwd: opts.cwd,
             filter: constant(true),
+            skipValidation,
           },
         );
         format = thymianFormat;

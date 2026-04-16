@@ -138,6 +138,13 @@ export abstract class BaseCliRunCommand<
       description: 'Suppress feedback messages from Thymian.',
       helpGroup: 'BASE',
     }),
+    ['skip-spec-validation']: Flags.boolean({
+      default: true,
+      allowNo: true,
+      description:
+        'Skip schema validation when loading specifications. Use --no-skip-spec-validation to enable validation.',
+      helpGroup: 'BASE',
+    }),
   };
 
   protected flags!: CommandFlags<T>;

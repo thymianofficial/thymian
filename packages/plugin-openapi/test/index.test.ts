@@ -33,6 +33,27 @@ describe('OpenApi plugin', () => {
     expect(formats).toHaveLength(1);
   });
 
+  it('loads openapi document with skipSpecValidation skipping schema errors', async () => {
+    const thymian = new Thymian(new NoopLogger(), {
+      cwd: join(import.meta.dirname, '..'),
+    });
+
+    await thymian.register(openApiPlugin).ready();
+
+    // petstore-v2 is a valid doc, but this tests the options propagation path
+    const formats = await thymian.emitter.emitAction('core.format.load', {
+      inputs: [
+        {
+          type: 'openapi',
+          location: 'test/fixtures/petstore-v2.yaml',
+        },
+      ],
+      options: { skipSpecValidation: true },
+    });
+
+    expect(formats).toHaveLength(1);
+  });
+
   it('loads and transforms openapi document from file via transform action', async () => {
     const thymian = new Thymian(new NoopLogger());
 

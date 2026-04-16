@@ -46,6 +46,7 @@ export interface LintWorkflowInput {
   rulesConfig?: RulesConfiguration;
   ruleFilter?: RuleFilter;
   options?: Record<string, unknown>;
+  skipSpecValidation?: boolean;
 }
 
 export interface TestWorkflowInput {
@@ -54,6 +55,7 @@ export interface TestWorkflowInput {
   rulesConfig?: RulesConfiguration;
   ruleFilter?: RuleFilter;
   options?: Record<string, unknown>;
+  skipSpecValidation?: boolean;
   targetUrl?: string;
 }
 
@@ -64,6 +66,7 @@ export interface AnalyzeWorkflowInput {
   rulesConfig?: RulesConfiguration;
   ruleFilter?: RuleFilter;
   options?: Record<string, unknown>;
+  skipSpecValidation?: boolean;
 }
 
 export type RegisteredPlugin<
@@ -318,7 +321,13 @@ export class Thymian {
     this.logger.info('Loading specification and rules...');
 
     const [format, rules] = await Promise.all([
-      this.loadFormat({ inputs: input.specification }, { emitFormat: false }),
+      this.loadFormat(
+        {
+          inputs: input.specification,
+          options: { skipSpecValidation: input.skipSpecValidation },
+        },
+        { emitFormat: false },
+      ),
       loadRules(input.rules ?? [], ruleFilter, rulesConfig, this.options.cwd),
     ]);
 
@@ -348,7 +357,10 @@ export class Thymian {
     const { rulesConfig, ruleFilter } = input;
 
     const [format, rules] = await Promise.all([
-      this.loadFormat({ inputs: input.specification }),
+      this.loadFormat({
+        inputs: input.specification,
+        options: { skipSpecValidation: input.skipSpecValidation },
+      }),
       loadRules(input.rules ?? [], ruleFilter, rulesConfig, this.options.cwd),
     ]);
 
@@ -381,7 +393,10 @@ export class Thymian {
       loadRules(input.rules ?? [], ruleFilter, rulesConfig, this.options.cwd),
       input.specification
         ? this.loadFormat(
-            { inputs: input.specification },
+            {
+              inputs: input.specification,
+              options: { skipSpecValidation: input.skipSpecValidation },
+            },
             { emitFormat: false },
           )
         : Promise.resolve(undefined),

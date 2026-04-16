@@ -186,6 +186,104 @@ describe('load-openapi', () => {
         );
       }
     });
+
+    it('warns but does not throw on schema validation failure when skipValidation is true', async () => {
+      const invalidDocument = {
+        swagger: '2.0',
+        info: {
+          // Missing required 'title' field
+          version: '1.0.0',
+        },
+        paths: {},
+      };
+
+      const warnings: string[] = [];
+      const logger = new NoopLogger();
+      logger.warn = (msg: unknown) => {
+        warnings.push(String(msg));
+      };
+
+      const result = await loadAndUpgrade(
+        JSON.stringify(invalidDocument),
+        process.cwd(),
+        logger,
+        true,
+      );
+
+      // Should succeed — validation ran but only warned
+      expect(result.document.openapi).toBe('3.1.1');
+      expect(warnings).toHaveLength(1);
+      expect(warnings[0]).toContain('--skip-spec-validation');
+    });
+
+    it('still throws on $ref errors when skipValidation is true', async () => {
+      const documentWithBadRef = {
+        openapi: '3.1.0',
+        info: {
+          title: 'Test',
+          version: '1.0.0',
+        },
+        paths: {
+          '/test': {
+            get: {
+              responses: {
+                '200': {
+                  description: 'OK',
+                  content: {
+                    'application/json': {
+                      schema: {
+                        $ref: '#/components/schemas/NonExistent',
+                      },
+                    },
+                  },
+                },
+              },
+            },
+          },
+        },
+      };
+
+      try {
+        await loadAndUpgrade(
+          JSON.stringify(documentWithBadRef),
+          process.cwd(),
+          new NoopLogger(),
+          true,
+        );
+        expect.fail('Error should have been thrown');
+      } catch (error) {
+        expect(error).toBeInstanceOf(ThymianBaseError);
+        expect((error as ThymianBaseError).options.name).toBe(
+          'OpenAPIDereferenceError',
+        );
+      }
+    });
+
+    it('validates schema when skipValidation is false', async () => {
+      const invalidDocument = {
+        swagger: '2.0',
+        info: {
+          // Missing required 'title' field
+          version: '1.0.0',
+        },
+        paths: {},
+      };
+
+      try {
+        await loadAndUpgrade(
+          JSON.stringify(invalidDocument),
+          process.cwd(),
+          new NoopLogger(),
+          false,
+        );
+        expect.fail('Error should have been thrown');
+      } catch (error) {
+        expect(error).toBeInstanceOf(ThymianBaseError);
+        expect((error as ThymianBaseError).options.name).toBe(
+          'OpenAPIValidationError',
+        );
+      }
+    });
   });
 
   describe('openapiToThymianFormat', () => {
