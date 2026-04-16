@@ -58,26 +58,11 @@ jobs:
             sed -i '/_authToken/d' "$NPMRC"
           fi
 
-      # NX constructs `npm publish ... --"@thymian:registry=..."` for scoped packages.
-      # This scope-specific registry flag prevents npm from triggering the OIDC token
-      # exchange required for trusted publishing — npm looks for @thymian:_authToken
-      # instead of the OIDC flow. This is a fundamental design in NX (unchanged in
-      # latest master). Workaround: use NX for versioning only (--skip-publish), then
-      # publish each package directly via `npm publish` which correctly uses OIDC.
-      - name: Version packages via NX
-        id: nx-version
-        run: node ./scripts/release.ts --dist-tag canary --no-dry-run --no-local --skip-publish
+      - name: Publish canary release
+        run: node ./scripts/release.ts --dist-tag canary --no-dry-run --no-local
         env:
           NODE_AUTH_TOKEN: ''
-
-      - name: Publish canary to npm
-        run: |
-          for pkg in packages/*/; do
-            echo "Publishing $pkg..."
-            (cd "$pkg" && npm publish --access public --tag canary)
-          done
-        env:
-          NODE_AUTH_TOKEN: ''
+          NPM_CONFIG_PROVENANCE: 'true'
 
   publish-latest-release:
     runs-on: ubuntu-latest
@@ -92,6 +77,10 @@ jobs:
             TAG="${{ inputs.tag }}"
           else
             TAG="${{ github.event.release.tag_name }}"
+          fi
+          if [ -z "$TAG" ]; then
+            echo "::error::Tag is required for publish-latest-release but was empty"
+            exit 1
           fi
           echo "tag=$TAG" >> $GITHUB_OUTPUT
           echo "Using tag: $TAG"
@@ -132,10 +121,10 @@ jobs:
       # NX constructs `npm publish ... --"@thymian:registry=..."` for scoped packages.
       # This scope-specific registry flag prevents npm from triggering the OIDC token
       # exchange required for trusted publishing — npm looks for @thymian:_authToken
-      # instead of the OIDC flow. This is a fundamental design in NX (unchanged in
-      # latest master). Workaround: use NX for versioning only (--skip-publish), then
-      # publish each package directly via `npm publish` which correctly uses OIDC.
-      - name: Version packages via NX
+      # instead of the OIDC flow. This is unfixed in NX as of v22.5+.
+      # Workaround: use NX for versioning only (--skip-publish), then publish each
+      # package directly via `npm publish` which correctly uses OIDC.
+      - name: Version and build packages via NX
         run: node ./scripts/release.ts --dist-tag latest --version ${{ steps.extract-version.outputs.version }} --no-dry-run --no-local --skip-publish
         env:
           NODE_AUTH_TOKEN: ''
@@ -148,3 +137,4 @@ jobs:
           done
         env:
           NODE_AUTH_TOKEN: ''
+          NPM_CONFIG_PROVENANCE: 'true'
