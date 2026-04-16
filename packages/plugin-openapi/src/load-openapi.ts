@@ -149,7 +149,7 @@ export async function loadAndUpgrade(
 
     if (skipSpecValidation) {
       logger.warn(
-        `Schema validation for ${sourceLabel} failed. But \`skipSpecValidation\` is set to true.`,
+        `Schema validation for ${sourceLabel} failed. Errors:${validationResult?.errors?.map((e) => '\n  - ' + e.message + ('path' in e ? ` (at ${(e as Record<string, unknown>)['path']})` : '')).join('. ') ?? ''}`,
       );
     } else {
       throw new ThymianBaseError(
