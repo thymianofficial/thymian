@@ -114,8 +114,16 @@ jobs:
             sed -i '/_authToken/d' "$NPMRC"
           fi
 
-      - name: Publish to npm
-        run: node ./scripts/release.ts --dist-tag latest --version ${{ steps.extract-version.outputs.version }} --no-dry-run --no-local
+      - name: Version packages via NX
+        run: node ./scripts/release.ts --dist-tag latest --version ${{ steps.extract-version.outputs.version }} --no-dry-run --no-local --skip-publish
         env:
           NODE_AUTH_TOKEN: ''
-          NPM_CONFIG_PROVENANCE: 'true'
+
+      - name: Publish packages to npm
+        run: |
+          for pkg in packages/*/; do
+            echo "Publishing $pkg..."
+            (cd "$pkg" && npm publish --access public --tag latest)
+          done
+        env:
+          NODE_AUTH_TOKEN: ''

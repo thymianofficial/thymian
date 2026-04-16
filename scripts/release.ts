@@ -25,6 +25,7 @@ interface ValidatedArguments {
   firstRelease: boolean;
   verbose: boolean;
   local: boolean;
+  skipPublish: boolean;
 }
 
 /**
@@ -38,6 +39,7 @@ function validateAndDetermineMode(argv: {
   firstRelease: boolean;
   verbose: boolean;
   local: boolean;
+  skipPublish: boolean;
 }): ValidatedArguments {
   const isCanary = argv.distTag === 'canary';
   const isLatest = argv.distTag === 'latest';
@@ -88,6 +90,7 @@ function validateAndDetermineMode(argv: {
     firstRelease: argv.firstRelease,
     verbose: argv.verbose,
     local: argv.local,
+    skipPublish: argv.skipPublish,
   };
 }
 
@@ -323,6 +326,13 @@ async function runCIPublishRelease(
     gitTag: false,
   });
 
+  if (argv.skipPublish) {
+    console.log(
+      '\n📋 SKIP-PUBLISH: Versioning complete. Skipping NX publish — publishing handled externally.\n',
+    );
+    process.exit(0);
+  }
+
   // Publish to npm (skip changelog - already created during local release)
   const publishResults = await client.releasePublish({
     releaseGraph,
@@ -458,6 +468,12 @@ async function runLocalRelease(
       type: 'boolean',
       default: true,
     })
+    .option('skipPublish', {
+      description:
+        'Skip the NX publish step after versioning. Use for trusted publishing where npm publish is called directly.',
+      type: 'boolean',
+      default: false,
+    })
     .parseAsync();
 
   // Validate arguments and determine mode
@@ -468,6 +484,7 @@ async function runLocalRelease(
     firstRelease: argv.firstRelease,
     verbose: argv.verbose,
     local: argv.local,
+    skipPublish: argv.skipPublish,
   });
 
   // Display configuration
