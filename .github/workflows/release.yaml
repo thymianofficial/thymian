@@ -42,7 +42,11 @@ jobs:
         run: npm ci
 
       - name: Strip token auth from .npmrc for OIDC
-        run: sed -i '/_authToken/d' "${NPM_CONFIG_USERCONFIG:-$HOME/.npmrc}"
+        run: |
+          NPMRC="${NPM_CONFIG_USERCONFIG:-$HOME/.npmrc}"
+          if [ -f "$NPMRC" ]; then
+            sed -i '/_authToken/d' "$NPMRC"
+          fi
 
       - name: Publish canary release
         run: node ./scripts/release.ts --dist-tag canary --no-dry-run --no-local
@@ -93,10 +97,9 @@ jobs:
       - name: Strip token auth from .npmrc for OIDC
         run: |
           NPMRC="${NPM_CONFIG_USERCONFIG:-$HOME/.npmrc}"
-          echo "Removing _authToken from $NPMRC to enable OIDC trusted publishing"
-          sed -i '/_authToken/d' "$NPMRC"
-          echo "--- .npmrc after strip ---"
-          cat "$NPMRC"
+          if [ -f "$NPMRC" ]; then
+            sed -i '/_authToken/d' "$NPMRC"
+          fi
 
       - name: Publish to npm
         run: node ./scripts/release.ts --dist-tag latest --version ${{ steps.extract-version.outputs.version }} --no-dry-run --no-local
