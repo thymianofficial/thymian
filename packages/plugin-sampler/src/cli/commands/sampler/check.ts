@@ -46,6 +46,7 @@ export default class Check extends BaseCliRunCommand<typeof Check> {
 
       const format = await this.thymian.loadFormat({
         inputs: specifications,
+        skipSpecValidation: this.flags['skip-spec-validation'],
       });
 
       const transactions = format.getThymianHttpTransactions();
