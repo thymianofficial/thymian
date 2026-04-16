@@ -232,6 +232,7 @@ describe('Thymian', () => {
 
       expect(formatLoadSpy).toHaveBeenCalledWith({
         inputs: [{ type: 'openapi', location: '/tmp/api.yaml' }],
+        skipSpecValidation: true,
       });
       expect(coreLintSpy).toHaveBeenCalledTimes(1);
       expect(coreLintSpy.mock.calls[0]?.[0]).toMatchObject({
@@ -294,6 +295,7 @@ describe('Thymian', () => {
 
       expect(formatLoadSpy).toHaveBeenCalledWith({
         inputs: [{ type: 'openapi', location: '/tmp/api.yaml' }],
+        skipSpecValidation: true,
       });
       expect(coreTestSpy).toHaveBeenCalledTimes(1);
       expect(coreTestSpy.mock.calls[0]?.[0]).toMatchObject({
@@ -423,6 +425,7 @@ describe('Thymian', () => {
       });
       expect(formatLoadSpy).toHaveBeenCalledWith({
         inputs: [{ type: 'openapi', location: '/tmp/api.yaml' }],
+        skipSpecValidation: true,
       });
       expect(coreAnalyzeSpy).toHaveBeenCalledTimes(1);
       expect(coreAnalyzeSpy.mock.calls[0]?.[0]).toMatchObject({

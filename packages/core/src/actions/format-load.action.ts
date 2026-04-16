@@ -40,7 +40,7 @@ export const specificationInputSchema = {
 export const formatLoadActionSchema = {
   type: 'object',
   nullable: false,
-  required: ['inputs'],
+  required: ['inputs', 'skipSpecValidation'],
   additionalProperties: false,
   properties: {
     inputs: {
@@ -50,7 +50,7 @@ export const formatLoadActionSchema = {
     },
     skipSpecValidation: {
       type: 'boolean',
-      nullable: true,
+      nullable: false,
     },
     options: {
       type: 'object',

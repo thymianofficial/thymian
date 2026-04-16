@@ -28,6 +28,7 @@ describe('OpenApi plugin', () => {
           location: 'test/fixtures/petstore-v2.yaml',
         },
       ],
+      skipSpecValidation: false,
     });
 
     expect(formats).toHaveLength(1);
