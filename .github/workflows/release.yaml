@@ -92,12 +92,18 @@ jobs:
           echo "Extracted version: $VERSION"
 
       - name: Debug OIDC environment
+        if: github.event_name == 'workflow_dispatch'
         run: |
-          echo "ACTIONS_ID_TOKEN_REQUEST_URL is set: ${{ env.ACTIONS_ID_TOKEN_REQUEST_URL != '' }}"
+          echo "ACTIONS_ID_TOKEN_REQUEST_URL is set: $(test -n "$ACTIONS_ID_TOKEN_REQUEST_URL" && echo true || echo false)"
           echo "ACTIONS_ID_TOKEN_REQUEST_TOKEN length: ${#ACTIONS_ID_TOKEN_REQUEST_TOKEN}"
           echo "NODE_AUTH_TOKEN length: ${#NODE_AUTH_TOKEN}"
-          echo "NPM_CONFIG_USERCONFIG: $NPM_CONFIG_USERCONFIG"
-          cat "$NPM_CONFIG_USERCONFIG" 2>/dev/null || echo "No .npmrc found"
+          NPMRC="${NPM_CONFIG_USERCONFIG:-$HOME/.npmrc}"
+          echo "npmrc path: $NPMRC"
+          if [ -f "$NPMRC" ]; then
+            grep -v '_authToken\|_password\|_auth' "$NPMRC" || echo "(no non-auth lines)"
+          else
+            echo "No .npmrc found at $NPMRC"
+          fi
           npm config list
         env:
           NODE_AUTH_TOKEN: ''
