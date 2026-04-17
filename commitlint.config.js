@@ -24,6 +24,7 @@ export default {
         'rules-rfc-9110',
         'thymian',
         'e2e',
+        'plugin-har',
       ],
     ],
     'scope-empty': [2, 'never'],
