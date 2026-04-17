@@ -50,6 +50,9 @@
     },
     {
       "path": "./packages/common-cli"
+    },
+    {
+      "path": "./packages/plugin-har"
     }
   ]
 }

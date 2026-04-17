@@ -1,0 +1,48 @@
+{
+  "name": "@thymian/plugin-har",
+  "version": "0.0.1-e2e",
+  "description": "Thymian plugin for loading HAR (HTTP Archive) files into the traffic pipeline",
+  "license": "AGPL-3.0-only",
+  "bugs": {
+    "url": "https://github.com/thymianofficial/thymian/issues"
+  },
+  "homepage": "https://thymian.dev",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/thymianofficial/thymian.git",
+    "directory": "packages/plugin-har"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "keywords": [
+    "thymian",
+    "har",
+    "http-archive",
+    "traffic-loader",
+    "api-conformance"
+  ],
+  "main": "./dist/index.js",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "type": "module",
+  "exports": {
+    "./package.json": "./package.json",
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "!**/*.tsbuildinfo"
+  ],
+  "dependencies": {
+    "@thymian/core": "0.0.1-e2e",
+    "tslib": "^2.3.0"
+  },
+  "devDependencies": {
+    "@thymian/core-testing": "0.0.1-e2e"
+  }
+}

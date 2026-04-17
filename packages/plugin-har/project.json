@@ -1,0 +1,16 @@
+{
+  "name": "plugin-har",
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "packages/plugin-har/src",
+  "projectType": "library",
+  "tags": ["scope:plugin", "type:lib", "npm:public"],
+  "targets": {
+    "build": {
+      "dependsOn": ["^build"],
+      "command": "tsc --build tsconfig.lib.json",
+      "options": {
+        "cwd": "packages/plugin-har"
+      }
+    }
+  }
+}
