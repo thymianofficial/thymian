@@ -1,3 +1,4 @@
+import type { HttpParticipantRole } from '@thymian/core';
 import { describe, expect, it } from 'vitest';
 
 import {
@@ -7,6 +8,8 @@ import {
   transformHarHeaders,
 } from '../src/har-transformer.js';
 import type { HarEntry, HarHeader, HarLog } from '../src/har-types.js';
+
+const DEFAULT_ROLE: HttpParticipantRole = 'origin server';
 
 describe('transformHarHeaders', () => {
   it('should transform single headers', () => {
@@ -86,7 +89,7 @@ describe('transformHarEntry', () => {
   };
 
   it('should transform a complete entry into CapturedTransaction', () => {
-    const result = transformHarEntry(baseEntry);
+    const result = transformHarEntry(baseEntry, DEFAULT_ROLE);
 
     expect(result).toEqual({
       request: {
@@ -108,7 +111,7 @@ describe('transformHarEntry', () => {
           trailers: {},
           duration: 42,
         },
-        meta: {},
+        meta: { role: 'origin server' },
       },
     });
   });
@@ -119,7 +122,7 @@ describe('transformHarEntry', () => {
       time: 0,
     };
 
-    expect(transformHarEntry(entry)).toBeNull();
+    expect(transformHarEntry(entry, DEFAULT_ROLE)).toBeNull();
   });
 
   it('should map postData.text to body', () => {
@@ -132,7 +135,7 @@ describe('transformHarEntry', () => {
       },
     };
 
-    const result = transformHarEntry(entry);
+    const result = transformHarEntry(entry, DEFAULT_ROLE);
     expect(result?.request.data.body).toBe('{"name":"test"}');
   });
 
@@ -145,12 +148,12 @@ describe('transformHarEntry', () => {
       },
     };
 
-    const result = transformHarEntry(entry);
+    const result = transformHarEntry(entry, DEFAULT_ROLE);
     expect(result?.response.data.bodyEncoding).toBe('base64');
   });
 
   it('should lowercase the method', () => {
-    const result = transformHarEntry(baseEntry);
+    const result = transformHarEntry(baseEntry, DEFAULT_ROLE);
     expect(result?.request.data.method).toBe('get');
   });
 
@@ -160,7 +163,13 @@ describe('transformHarEntry', () => {
       request: { ...baseEntry.request, url: 'not-a-valid-url' },
     };
 
-    expect(transformHarEntry(entry)).toBeNull();
+    expect(transformHarEntry(entry, DEFAULT_ROLE)).toBeNull();
+  });
+
+  it('should apply the specified role to response meta', () => {
+    const result = transformHarEntry(baseEntry, 'proxy');
+
+    expect(result?.response.meta.role).toBe('proxy');
   });
 });
 
@@ -200,7 +209,7 @@ describe('transformHar', () => {
       },
     };
 
-    const result = transformHar(har);
+    const result = transformHar(har, DEFAULT_ROLE);
 
     expect(result.transactions).toHaveLength(2);
     expect(result.skippedCount).toBe(0);
@@ -236,7 +245,7 @@ describe('transformHar', () => {
       },
     };
 
-    const result = transformHar(har);
+    const result = transformHar(har, DEFAULT_ROLE);
 
     expect(result.transactions).toHaveLength(1);
     expect(result.skippedCount).toBe(1);
@@ -245,7 +254,7 @@ describe('transformHar', () => {
   it('should handle empty entries array', () => {
     const har: HarLog = { log: { version: '1.2', entries: [] } };
 
-    const result = transformHar(har);
+    const result = transformHar(har, DEFAULT_ROLE);
 
     expect(result.transactions).toHaveLength(0);
     expect(result.skippedCount).toBe(0);

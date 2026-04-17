@@ -1,7 +1,11 @@
 import { readFile, stat } from 'node:fs/promises';
 import { isAbsolute, join } from 'node:path';
 
-import type { CapturedTransaction, Logger } from '@thymian/core';
+import type {
+  CapturedTransaction,
+  HttpParticipantRole,
+  Logger,
+} from '@thymian/core';
 import { ThymianBaseError } from '@thymian/core';
 
 import { getValidationErrors, validateHar } from './har-schema.js';
@@ -19,6 +23,8 @@ export async function loadTransactionsFromHar(
   logger: Logger,
   cwd: string,
   maxFileSize: number,
+  clientRole: HttpParticipantRole,
+  serverRole: HttpParticipantRole,
 ): Promise<CapturedTransaction[]> {
   const filePath = isAbsolute(location) ? location : join(cwd, location);
 
@@ -59,7 +65,11 @@ export async function loadTransactionsFromHar(
     );
   }
 
-  const { transactions, skippedCount } = transformHar(parsed);
+  const { transactions, skippedCount } = transformHar(
+    parsed,
+    clientRole,
+    serverRole,
+  );
 
   if (skippedCount > 0) {
     logger.warn(

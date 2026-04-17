@@ -1,4 +1,9 @@
-import type { CapturedTransaction, Logger, ThymianPlugin } from '@thymian/core';
+import type {
+  CapturedTransaction,
+  HttpParticipantRole,
+  Logger,
+  ThymianPlugin,
+} from '@thymian/core';
 
 import { loadTransactionsFromHar } from './load-transactions.js';
 
@@ -12,6 +17,14 @@ export type HarPluginOptions = {
    * @default 52_428_800 (50 MB)
    */
   maxFileSize?: number;
+
+  /**
+   * The HTTP participant role to assign to responses loaded from HAR files.
+   * This determines which RFC rules apply to the loaded traffic.
+   * @default 'origin server'
+   */
+  clientRole?: HttpParticipantRole;
+  serverRole?: HttpParticipantRole;
 };
 
 export function createHarPlugin(
@@ -25,6 +38,38 @@ export function createHarPlugin(
       nullable: true,
       properties: {
         maxFileSize: { type: 'number', nullable: true },
+        clientRole: {
+          type: 'string',
+          nullable: true,
+          default: 'user-agent',
+          enum: [
+            'intermediary',
+            'proxy',
+            'gateway',
+            'tunnel',
+            'origin server',
+            'server',
+            'client',
+            'user-agent',
+            'cache',
+          ],
+        },
+        serverRole: {
+          type: 'string',
+          nullable: true,
+          default: 'origin server',
+          enum: [
+            'intermediary',
+            'proxy',
+            'gateway',
+            'tunnel',
+            'origin server',
+            'server',
+            'client',
+            'user-agent',
+            'cache',
+          ],
+        },
       },
       additionalProperties: false,
     },
@@ -33,6 +78,10 @@ export function createHarPlugin(
     },
     async plugin(emitter, logger: Logger, options) {
       const maxFileSize = options.maxFileSize ?? DEFAULT_MAX_FILE_SIZE_BYTES;
+      const clientRole: HttpParticipantRole =
+        options.clientRole ?? 'user-agent';
+      const serverRole: HttpParticipantRole =
+        options.serverRole ?? 'origin server';
 
       emitter.onAction('core.traffic.load', async (input, ctx) => {
         const harInputs = input.inputs.filter((i) => i.type === 'har');
@@ -48,11 +97,14 @@ export function createHarPlugin(
           logger.info(
             `Loading traffic from HAR file: ${String(harInput.location)}`,
           );
+
           const transactions = await loadTransactionsFromHar(
             String(harInput.location),
             logger,
             options.cwd,
             maxFileSize,
+            clientRole,
+            serverRole,
           );
 
           // Avoid spread (`allTransactions.push(...transactions)`) because

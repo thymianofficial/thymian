@@ -1,4 +1,4 @@
-import type { CapturedTransaction } from '@thymian/core';
+import type { CapturedTransaction, HttpParticipantRole } from '@thymian/core';
 
 import type { HarEntry, HarHeader, HarLog } from './har-types.js';
 
@@ -31,7 +31,11 @@ export function parseUrl(url: string): { origin: string; path: string } {
   };
 }
 
-export function transformHarEntry(entry: HarEntry): CapturedTransaction | null {
+export function transformHarEntry(
+  entry: HarEntry,
+  clientRole: HttpParticipantRole,
+  serverRole: HttpParticipantRole,
+): CapturedTransaction | null {
   if (!entry.response) {
     return null;
   }
@@ -56,7 +60,7 @@ export function transformHarEntry(entry: HarEntry): CapturedTransaction | null {
         headers: transformHarHeaders(entry.request.headers),
         body: entry.request.postData?.text,
       },
-      meta: {},
+      meta: { role: clientRole },
     },
     response: {
       data: {
@@ -67,12 +71,16 @@ export function transformHarEntry(entry: HarEntry): CapturedTransaction | null {
         trailers: {},
         duration: entry.time,
       },
-      meta: {},
+      meta: { role: serverRole },
     },
   };
 }
 
-export function transformHar(har: HarLog): {
+export function transformHar(
+  har: HarLog,
+  clientRole: HttpParticipantRole,
+  serverRole: HttpParticipantRole,
+): {
   transactions: CapturedTransaction[];
   skippedCount: number;
 } {
@@ -80,7 +88,7 @@ export function transformHar(har: HarLog): {
   let skippedCount = 0;
 
   for (const entry of har.log.entries) {
-    const transaction = transformHarEntry(entry);
+    const transaction = transformHarEntry(entry, clientRole, serverRole);
     if (transaction) {
       transactions.push(transaction);
     } else {
