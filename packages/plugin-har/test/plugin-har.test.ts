@@ -3,11 +3,8 @@ import { mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
-import {
-  captureEmittedEvents,
-  createMockEmitter,
-  createMockLogger,
-} from '@thymian/core-testing';
+import { Thymian } from '@thymian/core';
+import { createMockEmitter, createMockLogger } from '@thymian/core-testing';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { createHarPlugin } from '../src/index.js';
@@ -43,28 +40,21 @@ describe('plugin-har', () => {
 
   it('should ignore non-har type inputs and not reply', async () => {
     const plugin = createHarPlugin();
-    const emitter = createMockEmitter();
-    const logger = createMockLogger();
 
-    await plugin.plugin(emitter, logger, { cwd: tmpDir });
+    const thymian = new Thymian().register(plugin);
 
-    const replied = vi.fn();
+    await thymian.ready();
 
-    // Simulate the action handler by calling it directly
-    // Get the registered handler
-    const onActionCalls = vi.mocked(emitter.onAction).mock.calls;
-    const trafficLoadHandler = onActionCalls.find(
-      (call) => call[0] === 'core.traffic.load',
-    );
-    expect(trafficLoadHandler).toBeDefined();
+    const result = await thymian.loadTraffic({
+      inputs: [
+        {
+          type: 'not-har',
+          location: '',
+        },
+      ],
+    });
 
-    const handler = trafficLoadHandler![1];
-    await handler(
-      { inputs: [{ type: 'openapi', location: '/some/file.yaml' }] },
-      { reply: replied } as any,
-    );
-
-    expect(replied).not.toHaveBeenCalled();
+    expect(result.transactions).toHaveLength(0);
   });
 
   it('should read HAR file and reply with transactions', async () => {
@@ -72,22 +62,21 @@ describe('plugin-har', () => {
     await writeFile(harFile, createValidHar([validEntry]));
 
     const plugin = createHarPlugin();
-    const emitter = createMockEmitter();
-    const logger = createMockLogger();
 
-    await plugin.plugin(emitter, logger, { cwd: tmpDir });
+    const thymian = new Thymian().register(plugin);
 
-    const onActionCalls = vi.mocked(emitter.onAction).mock.calls;
-    const handler = onActionCalls.find(
-      (call) => call[0] === 'core.traffic.load',
-    )![1];
+    await thymian.ready();
 
-    const replied = vi.fn();
-    await handler({ inputs: [{ type: 'har', location: harFile }] }, {
-      reply: replied,
-    } as any);
+    const result = await thymian.loadTraffic({
+      inputs: [
+        {
+          type: 'har',
+          location: harFile,
+        },
+      ],
+    });
 
-    expect(replied).toHaveBeenCalledWith({
+    expect(result).toMatchObject({
       transactions: [
         expect.objectContaining({
           request: expect.objectContaining({
@@ -107,24 +96,21 @@ describe('plugin-har', () => {
     await writeFile(harFile, 'not-json{{{');
 
     const plugin = createHarPlugin();
-    const emitter = createMockEmitter();
-    const logger = createMockLogger();
-    const events = captureEmittedEvents(emitter);
 
-    await plugin.plugin(emitter, logger, { cwd: tmpDir });
+    const thymian = new Thymian().register(plugin);
 
-    const onActionCalls = vi.mocked(emitter.onAction).mock.calls;
-    const handler = onActionCalls.find(
-      (call) => call[0] === 'core.traffic.load',
-    )![1];
+    await thymian.ready();
 
-    const replied = vi.fn();
-    await handler({ inputs: [{ type: 'har', location: harFile }] }, {
-      reply: replied,
-    } as any);
-
-    expect(events.some(([name]) => name === 'core.error')).toBe(true);
-    expect(replied).toHaveBeenCalledWith({ transactions: [] });
+    await expect(() =>
+      thymian.loadTraffic({
+        inputs: [
+          {
+            type: 'har',
+            location: harFile,
+          },
+        ],
+      }),
+    ).rejects.toThrowError(/as JSON/);
   });
 
   it('should emit core.error for valid JSON but invalid HAR structure', async () => {
@@ -132,26 +118,21 @@ describe('plugin-har', () => {
     await writeFile(harFile, JSON.stringify({ foo: 'bar' }));
 
     const plugin = createHarPlugin();
-    const emitter = createMockEmitter();
-    const logger = createMockLogger();
-    const events = captureEmittedEvents(emitter);
 
-    await plugin.plugin(emitter, logger, { cwd: tmpDir });
+    const thymian = new Thymian().register(plugin);
 
-    const onActionCalls = vi.mocked(emitter.onAction).mock.calls;
-    const handler = onActionCalls.find(
-      (call) => call[0] === 'core.traffic.load',
-    )![1];
+    await thymian.ready();
 
-    const replied = vi.fn();
-    await handler({ inputs: [{ type: 'har', location: harFile }] }, {
-      reply: replied,
-    } as any);
-
-    const errorEvent = events.find(([name]) => name === 'core.error');
-    expect(errorEvent).toBeDefined();
-    expect(errorEvent![1].message).toContain('Invalid HAR structure');
-    expect(replied).toHaveBeenCalledWith({ transactions: [] });
+    await expect(() =>
+      thymian.loadTraffic({
+        inputs: [
+          {
+            type: 'har',
+            location: harFile,
+          },
+        ],
+      }),
+    ).rejects.toThrowError(/Invalid HAR structure/);
   });
 
   it('should handle empty HAR file with zero entries', async () => {
@@ -246,26 +227,22 @@ describe('plugin-har', () => {
     await writeFile(harFile, createValidHar([validEntry]));
 
     const plugin = createHarPlugin();
-    const emitter = createMockEmitter();
-    const logger = createMockLogger();
-    const events = captureEmittedEvents(emitter);
 
-    // Set maxFileSize to 1 byte so any real file exceeds it
-    await plugin.plugin(emitter, logger, { cwd: tmpDir, maxFileSize: 1 });
+    const thymian = new Thymian().register(plugin, {
+      maxFileSize: 1,
+    });
 
-    const onActionCalls = vi.mocked(emitter.onAction).mock.calls;
-    const handler = onActionCalls.find(
-      (call) => call[0] === 'core.traffic.load',
-    )![1];
+    await thymian.ready();
 
-    const replied = vi.fn();
-    await handler({ inputs: [{ type: 'har', location: harFile }] }, {
-      reply: replied,
-    } as any);
-
-    const errorEvent = events.find(([name]) => name === 'core.error');
-    expect(errorEvent).toBeDefined();
-    expect(errorEvent![1].message).toContain('exceeds maximum size');
-    expect(replied).toHaveBeenCalledWith({ transactions: [] });
+    await expect(() =>
+      thymian.loadTraffic({
+        inputs: [
+          {
+            type: 'har',
+            location: harFile,
+          },
+        ],
+      }),
+    ).rejects.toThrowError(/exceeds maximum size/);
   });
 });
