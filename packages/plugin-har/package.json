@@ -1,6 +1,6 @@
 {
   "name": "@thymian/plugin-har",
-  "version": "0.0.1-e2e",
+  "version": "0.0.0-PLACEHOLDER",
   "description": "Thymian plugin for loading HAR (HTTP Archive) files into the traffic pipeline",
   "license": "AGPL-3.0-only",
   "bugs": {
@@ -39,10 +39,10 @@
     "!**/*.tsbuildinfo"
   ],
   "dependencies": {
-    "@thymian/core": "0.0.1-e2e",
+    "@thymian/core": "0.0.0-PLACEHOLDER",
     "tslib": "^2.3.0"
   },
   "devDependencies": {
-    "@thymian/core-testing": "0.0.1-e2e"
+    "@thymian/core-testing": "0.0.0-PLACEHOLDER"
   }
 }
