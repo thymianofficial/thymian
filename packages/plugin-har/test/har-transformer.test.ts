@@ -43,12 +43,12 @@ describe('transformHarHeaders', () => {
 });
 
 describe('parseUrl', () => {
-  it('should extract origin and path, stripping query params', () => {
+  it('should extract origin and path, preserving query params', () => {
     const result = parseUrl('https://api.example.com/users?page=1');
 
     expect(result).toEqual({
       origin: 'https://api.example.com',
-      path: '/users',
+      path: '/users?page=1',
     });
   });
 
@@ -211,6 +211,7 @@ describe('transformHar', () => {
 
     expect(result.transactions).toHaveLength(2);
     expect(result.skippedCount).toBe(0);
+    expect(result.skippedReasons).toEqual([]);
   });
 
   it('should count skipped entries without responses', () => {
@@ -247,6 +248,7 @@ describe('transformHar', () => {
 
     expect(result.transactions).toHaveLength(1);
     expect(result.skippedCount).toBe(1);
+    expect(result.skippedReasons).toEqual(['missing response']);
   });
 
   it('should handle empty entries array', () => {
@@ -256,5 +258,35 @@ describe('transformHar', () => {
 
     expect(result.transactions).toHaveLength(0);
     expect(result.skippedCount).toBe(0);
+    expect(result.skippedReasons).toEqual([]);
+  });
+
+  it('should track invalid request URL as a skip reason', () => {
+    const har: HarLog = {
+      log: {
+        version: '1.2',
+        entries: [
+          {
+            request: {
+              method: 'GET',
+              url: 'not-a-valid-url',
+              headers: [],
+            },
+            response: {
+              status: 200,
+              headers: [],
+              content: { size: 0 },
+            },
+            time: 10,
+          },
+        ],
+      },
+    };
+
+    const result = transformHar(har, 'user-agent', 'origin server');
+
+    expect(result.transactions).toHaveLength(0);
+    expect(result.skippedCount).toBe(1);
+    expect(result.skippedReasons).toEqual(['invalid request URL']);
   });
 });

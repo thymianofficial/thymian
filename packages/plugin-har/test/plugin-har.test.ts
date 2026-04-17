@@ -218,7 +218,7 @@ describe('plugin-har', () => {
       transactions: [expect.any(Object)],
     });
     expect(logger.warn).toHaveBeenCalledWith(
-      expect.stringContaining('Skipped 1 HAR entry without response'),
+      expect.stringContaining('Skipped 1 HAR entry'),
     );
   });
 

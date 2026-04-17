@@ -13,17 +13,23 @@ const DEFAULT_MAX_FILE_SIZE_BYTES = 50 * 1024 * 1024;
 export type HarPluginOptions = {
   /**
    * Maximum allowed HAR file size in bytes.
-   * Files exceeding this limit are skipped with a `core.error` event.
+   * Files exceeding this limit cause a `ThymianBaseError` to be thrown.
    * @default 52_428_800 (50 MB)
    */
   maxFileSize?: number;
 
   /**
-   * The HTTP participant role to assign to responses loaded from HAR files.
-   * This determines which RFC rules apply to the loaded traffic.
-   * @default 'origin server'
+   * The HTTP participant role to assign to requests loaded from HAR files.
+   * This determines which RFC rules apply to the client side of the loaded traffic.
+   * @default 'user-agent'
    */
   clientRole?: HttpParticipantRole;
+
+  /**
+   * The HTTP participant role to assign to responses loaded from HAR files.
+   * This determines which RFC rules apply to the server side of the loaded traffic.
+   * @default 'origin server'
+   */
   serverRole?: HttpParticipantRole;
 };
 

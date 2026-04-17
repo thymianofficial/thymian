@@ -27,7 +27,7 @@ export function parseUrl(url: string): { origin: string; path: string } {
   const parsed = new URL(url);
   return {
     origin: parsed.origin,
-    path: parsed.pathname,
+    path: parsed.pathname + parsed.search,
   };
 }
 
@@ -83,18 +83,33 @@ export function transformHar(
 ): {
   transactions: CapturedTransaction[];
   skippedCount: number;
+  skippedReasons: string[];
 } {
   const transactions: CapturedTransaction[] = [];
   let skippedCount = 0;
+  const skippedReasons: string[] = [];
 
   for (const entry of har.log.entries) {
-    const transaction = transformHarEntry(entry, clientRole, serverRole);
+    if (!entry.response) {
+      skippedCount++;
+      skippedReasons.push('missing response');
+      continue;
+    }
+
+    let transaction: CapturedTransaction | null;
+    try {
+      transaction = transformHarEntry(entry, clientRole, serverRole);
+    } catch {
+      transaction = null;
+    }
+
     if (transaction) {
       transactions.push(transaction);
     } else {
       skippedCount++;
+      skippedReasons.push('invalid request URL');
     }
   }
 
-  return { transactions, skippedCount };
+  return { transactions, skippedCount, skippedReasons };
 }

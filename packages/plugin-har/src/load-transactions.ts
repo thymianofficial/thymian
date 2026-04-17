@@ -65,15 +65,16 @@ export async function loadTransactionsFromHar(
     );
   }
 
-  const { transactions, skippedCount } = transformHar(
+  const { transactions, skippedCount, skippedReasons } = transformHar(
     parsed,
     clientRole,
     serverRole,
   );
 
   if (skippedCount > 0) {
+    const uniqueReasons = [...new Set(skippedReasons)].join(', ');
     logger.warn(
-      `Skipped ${skippedCount.toString()} HAR ${skippedCount === 1 ? 'entry' : 'entries'} without response in ${filePath}`,
+      `Skipped ${skippedCount.toString()} HAR ${skippedCount === 1 ? 'entry' : 'entries'} in ${filePath} due to: ${uniqueReasons}`,
     );
   }
 
