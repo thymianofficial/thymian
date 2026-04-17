@@ -24,5 +24,6 @@ export const defaultConfig: ThymianConfig = {
     },
     '@thymian/plugin-http-tester': {},
     '@thymian/plugin-http-analyzer': {},
+    '@thymian/plugin-har': {},
   },
 };
