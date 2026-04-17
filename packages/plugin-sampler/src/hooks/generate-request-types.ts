@@ -7,27 +7,75 @@ import {
 import CodeBlockWriter from 'code-block-writer';
 import { compile, type JSONSchema } from 'json-schema-to-typescript';
 
+function escapeJsonPointerSegment(segment: string | number): string {
+  return String(segment).replace(/~/g, '~0').replace(/\//g, '~1');
+}
+
+function normalizeCircularSchemaRefs<T>(schema: T): T {
+  const activeStack = new Map<object, string>();
+
+  const recurse = (current: unknown, path: string): unknown => {
+    if (typeof current !== 'object' || current === null) {
+      return current;
+    }
+
+    if (activeStack.has(current)) {
+      return { $ref: activeStack.get(current) };
+    }
+
+    activeStack.set(current, path);
+
+    let result: unknown;
+
+    if (Array.isArray(current)) {
+      result = current.map((item, index) => recurse(item, `${path}/${index}`));
+    } else {
+      result = Object.fromEntries(
+        Object.entries(current).map(([key, value]) => [
+          key,
+          recurse(value, `${path}/${escapeJsonPointerSegment(key)}`),
+        ]),
+      );
+    }
+
+    activeStack.delete(current);
+
+    return result;
+  };
+
+  return recurse(schema, '#') as T;
+}
+
 export async function generateTypeForSchema(
   schema: unknown,
   mediaType: string,
-): Promise<string> {
+  typeName: string,
+): Promise<GeneratedSchemaType> {
   if (!(mediaType === 'application/json' || mediaType.includes('+json'))) {
-    return 'unknown';
+    return { declarations: [], type: 'unknown' };
   }
 
-  const type = await compile(schema as JSONSchema, 'Type', {
-    bannerComment: '',
-    additionalProperties: true,
-    style: {
-      semi: false,
+  const declaration = await compile(
+    normalizeCircularSchemaRefs(schema) as JSONSchema,
+    typeName,
+    {
+      bannerComment: '',
+      additionalProperties: true,
+      style: {
+        semi: false,
+      },
     },
-  });
+  );
 
-  return type.replace(/export (interface|type) Type =?/, '');
+  return {
+    declarations: [declaration],
+    type: typeName,
+  };
 }
 
 export async function generateTypeForParameters2(
   parameters: Record<string, Parameter>,
+  nextTypeName: () => string,
 ): Promise<ParameterType> {
   const schema: {
     properties: Record<string, unknown>;
@@ -48,18 +96,25 @@ export async function generateTypeForParameters2(
   }
 
   return {
-    type: await generateTypeForSchema(schema, "'application/json'"),
+    ...(await generateTypeForSchema(
+      schema,
+      "'application/json'",
+      nextTypeName(),
+    )),
     required: schema.required.length > 0,
   };
 }
 
 export async function generateTypeForParameters(
   parameters: Record<string, Parameter>,
+  nextTypeName: () => string,
 ): Promise<ParameterType> {
   const result: {
+    declarations: string[];
     required: boolean;
     types: Record<string, string>;
   } = {
+    declarations: [],
     required: false,
     types: {},
   };
@@ -67,10 +122,14 @@ export async function generateTypeForParameters(
   for (const [name, param] of Object.entries(parameters)) {
     result.required ||= param.required;
 
-    result.types[name] = await generateTypeForSchema(
+    const generatedType = await generateTypeForSchema(
       param.schema,
       param.contentType ?? 'application/json',
+      nextTypeName(),
     );
+
+    result.types[name] = generatedType.type;
+    result.declarations.push(...generatedType.declarations);
   }
 
   const writer = new CodeBlockWriter({
@@ -84,16 +143,25 @@ export async function generateTypeForParameters(
   });
 
   return {
+    declarations: result.declarations,
     type: writer.toString(),
     required: result.required,
   };
 }
 
-export type ParameterType = { type: string; required: boolean };
+export type GeneratedSchemaType = {
+  declarations: string[];
+  type: string;
+};
+
+export type ParameterType = GeneratedSchemaType & {
+  required: boolean;
+};
 
 export type ResponseType = {
   statusCode: number;
   body?: string;
+  bodyDeclarations?: string[];
   headers: ParameterType;
 };
 
@@ -103,6 +171,7 @@ export type GeneratedTypes = {
     {
       req: {
         body?: string;
+        bodyDeclarations?: string[];
         query: ParameterType;
         path: ParameterType;
         headers: ParameterType;
@@ -111,6 +180,7 @@ export type GeneratedTypes = {
     }
   >;
   keyToTransactionId: Record<string, string>;
+  declarations: string[];
 };
 
 export const staticCode = `
@@ -349,15 +419,19 @@ export const infoText = `
  */
 `;
 
-export function generatedTypesToString(types: GeneratedTypes['types']): string {
+export function generatedTypesToString(generated: GeneratedTypes): string {
   const writer = new CodeBlockWriter({
     indentNumberOfSpaces: 2,
   });
 
   writer.writeLine(infoText).write(staticCode);
 
+  for (const declaration of generated.declarations) {
+    writer.writeLine(declaration);
+  }
+
   writer.writeLine(`export type Endpoints = `).block(() => {
-    for (const [key, { req, res }] of Object.entries(types)) {
+    for (const [key, { req, res }] of Object.entries(generated.types)) {
       writer
         .quote(key)
         .write(':')
@@ -431,9 +505,12 @@ export async function generateTypesForThymianFormat(
   format: ThymianFormat,
 ): Promise<GeneratedTypes> {
   const generated: GeneratedTypes = {
+    declarations: [],
     types: {},
     keyToTransactionId: {},
   };
+  let typeId = 0;
+  const nextTypeName = () => `GeneratedSchema${++typeId}`;
 
   for (const [
     req,
@@ -450,12 +527,24 @@ export async function generateTypesForThymianFormat(
     }
 
     const key = `${req.method.toUpperCase()} ${thymianHttpRequestToUrl(req)}`;
-    const query = await generateTypeForParameters(req.queryParameters);
-    const path = await generateTypeForParameters(req.pathParameters);
-    const headers = await generateTypeForParameters(allHeaders);
+    const query = await generateTypeForParameters(
+      req.queryParameters,
+      nextTypeName,
+    );
+    const path = await generateTypeForParameters(
+      req.pathParameters,
+      nextTypeName,
+    );
+    const headers = await generateTypeForParameters(allHeaders, nextTypeName);
     const body = req.body
-      ? await generateTypeForSchema(req.body, req.mediaType)
+      ? await generateTypeForSchema(req.body, req.mediaType, nextTypeName())
       : undefined;
+    generated.declarations.push(
+      ...query.declarations,
+      ...path.declarations,
+      ...headers.declarations,
+      ...(body?.declarations ?? []),
+    );
     const res: ResponseType[] = await Promise.all(
       responses.map(async (res) => {
         const headers = {
@@ -468,11 +557,20 @@ export async function generateTypesForThymianFormat(
 
         const result: ResponseType = {
           statusCode: res.statusCode,
-          headers: await generateTypeForParameters(headers),
+          headers: await generateTypeForParameters(headers, nextTypeName),
         };
 
+        generated.declarations.push(...result.headers.declarations);
+
         if (res.schema) {
-          result.body = await generateTypeForSchema(res.schema, res.mediaType);
+          const body = await generateTypeForSchema(
+            res.schema,
+            res.mediaType,
+            nextTypeName(),
+          );
+          result.body = body.type;
+          result.bodyDeclarations = body.declarations;
+          generated.declarations.push(...body.declarations);
         }
 
         return result;
@@ -529,7 +627,8 @@ export async function generateTypesForThymianFormat(
         query,
         headers,
         path,
-        body,
+        body: body?.type,
+        bodyDeclarations: body?.declarations,
       },
       res,
     };
