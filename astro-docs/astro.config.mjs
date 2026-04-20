@@ -4,6 +4,7 @@ import tailwindcss from '@tailwindcss/vite';
 import { defineConfig } from 'astro/config';
 import mailObfuscation from 'astro-mail-obfuscation';
 import mermaid from 'astro-mermaid';
+import starlightBlog from 'starlight-blog';
 import starlightLinksValidator from 'starlight-links-validator';
 import starlightLlmsTxt from 'starlight-llms-txt';
 
@@ -62,6 +63,11 @@ export default defineConfig({
           label: 'Reddit',
           href: 'https://www.reddit.com/r/ThymianOfficial/',
         },
+        {
+          icon: 'linkedin',
+          label: 'LinkedIn',
+          href: 'https://www.linkedin.com/company/thymiandev/',
+        },
       ],
       sidebar: [
         {
@@ -96,8 +102,22 @@ export default defineConfig({
       components: {
         Header: './src/components/ThymianHeader.astro',
         Footer: './src/components/Footer.astro',
+        MobileMenuFooter: './src/components/ThymianMobileMenuFooter.astro',
       },
       plugins: [
+        starlightBlog({
+          title: 'Blog',
+          prefix: 'blog',
+          postCount: 10,
+          recentPostCount: 5,
+          authors: {
+            thymian: {
+              name: 'Thymian Team',
+              title: 'Core Team',
+              url: 'https://thymian.dev',
+            },
+          },
+        }),
         starlightLlmsTxt({
           projectName: 'Thymian',
         }),
@@ -111,8 +131,5 @@ export default defineConfig({
 
   vite: {
     plugins: [tailwindcss()],
-    ssr: {
-      noExternal: ['zod'],
-    },
   },
 });

@@ -1,0 +1,754 @@
+---
+/**
+ * EnterpriseProblem – visual framing section for the enterprise page.
+ *
+ * Establishes the problem space that enterprise consulting solves:
+ * silent infrastructure issues, API drift, and invisible compliance gaps.
+ *
+ * Layout:
+ *   1. Centered header (h2 + hook subtitle)
+ *   2. 3 pain-point cards (3-col grid, compact)
+ *   3. 2 incident cards (security-alert style, side-by-side)
+ *   4. Authority callout (gradient background)
+ */
+
+// ── Data ────────────────────────────────────────────────────────────────
+interface PainPoint {
+  icon: string;
+  title: string;
+  description: string;
+}
+
+interface Incident {
+  icon: string;
+  title: string;
+  severity: 'Critical' | 'High';
+  severityColor: 'red' | 'orange';
+  rfc: string;
+  rfcSection: string;
+  description: string;
+  impact: string;
+}
+
+const painPoints: PainPoint[] = [
+  {
+    icon: '🌐',
+    title: 'Silent Infrastructure Changes',
+    description:
+      'CDNs rewrite Cache-Control headers. Load balancers strip Content-Encoding. Reverse proxies inject Via headers that leak internal hostnames. None of these trigger a test failure.',
+  },
+  {
+    icon: '📡',
+    title: 'API Drift at Scale',
+    description:
+      'Specifications drift from implementations across dozens of teams and hundreds of endpoints. Without protocol-level enforcement, every service becomes its own dialect of HTTP.',
+  },
+  {
+    icon: '🕳️',
+    title: 'Invisible Compliance Gaps',
+    description:
+      'Functional tests pass. Integration tests pass. But HTTP semantics violations — missing headers, wrong status codes, malformed content negotiation — lurk undetected until they cause incidents.',
+  },
+];
+
+const incidents: Incident[] = [
+  {
+    icon: '🔓',
+    title: 'Request Smuggling via Content-Length',
+    severity: 'Critical',
+    severityColor: 'red',
+    rfc: 'RFC 9110',
+    rfcSection: '§8.6',
+    description:
+      'A Content-Length header that doesn\'t match the actual body size lets attackers inject requests into other users\' connections — the same class of vulnerability that has breached major cloud providers.',
+    impact: 'Data exfiltration, authentication bypass, cache poisoning',
+  },
+  {
+    icon: '🔀',
+    title: 'Cache Poisoning via Missing Vary',
+    severity: 'High',
+    severityColor: 'orange',
+    rfc: 'RFC 9110',
+    rfcSection: '§12.5.5',
+    description:
+      'A missing Vary header on a cached response means one user\'s authenticated content gets served to another — turning your caching layer into a data leak.',
+    impact: 'Data leaks, session hijacking, compliance violations',
+  },
+];
+---
+
+<!-- Enable scroll-reveal animations only when IntersectionObserver is available -->
+<script is:inline>
+  'IntersectionObserver' in window && (document.documentElement.dataset.animations = '');
+</script>
+
+<section class="ep-section not-content" aria-labelledby="ep-heading">
+  <!-- ═════════ Header ═════════ -->
+  <div class="text-center mb-8 lg:mb-12">
+    <h2
+      id="ep-heading"
+      class="text-2xl sm:text-3xl lg:text-4xl font-bold text-gray-900 dark:text-gray-100 mb-3"
+    >
+      The Problem at Scale
+    </h2>
+    <p
+      class="text-base lg:text-lg text-gray-500 dark:text-gray-400 max-w-2xl mx-auto"
+    >
+      Most API issues don't surface in development. They surface in production
+      — when it's already an incident, not a bug.
+    </p>
+  </div>
+
+  <!-- ═════════ Pain point cards (3-col) ═════════ -->
+  <div class="ep-pain-points">
+    {
+      painPoints.map((p, i) => (
+        <div
+          class="ep-pain-card"
+          data-animate="pain"
+          data-delay={i * 100}
+        >
+          <span class="ep-pain-icon" aria-hidden="true">{p.icon}</span>
+          <h3 class="ep-pain-title">{p.title}</h3>
+          <p class="ep-pain-desc">{p.description}</p>
+        </div>
+      ))
+    }
+  </div>
+
+  <!-- ═════════ Incident cards (2-col, security-alert style) ═════════ -->
+  <div class="text-center mb-6 mt-10 lg:mt-14">
+    <h3
+      class="text-xl sm:text-2xl font-bold text-gray-900 dark:text-gray-100 mb-2"
+    >
+      Real Vulnerabilities Thymian Catches
+    </h3>
+    <p class="text-sm text-gray-500 dark:text-gray-400 max-w-xl mx-auto">
+      Thymian ships with an extensive RFC 9110 rule set covering dozens of
+      protocol requirements. Here are two examples of violations it catches
+      — each one responsible for real-world breaches.
+    </p>
+  </div>
+
+  <div class="ep-incidents">
+    {
+      incidents.map((inc, i) => (
+        <div
+          class={`ep-incident-card ep-incident-card--${inc.severityColor}`}
+          data-animate="incident"
+          data-delay={i * 150}
+        >
+          <div class="ep-incident-header">
+            <span class="ep-incident-icon" aria-hidden="true">{inc.icon}</span>
+            <div class="ep-incident-meta">
+              <h4 class="ep-incident-title">{inc.title}</h4>
+              <span class="ep-incident-rfc">{inc.rfc} {inc.rfcSection}</span>
+            </div>
+            <span class={`ep-severity ep-severity--${inc.severityColor}`}>
+              {inc.severityColor === 'red' ? '🔴' : '🟠'} {inc.severity}
+            </span>
+          </div>
+          <div class="ep-incident-body">
+            <p class="ep-incident-desc">{inc.description}</p>
+            <div class="ep-incident-impact">
+              <span class="ep-impact-label">Impact</span>
+              <span class="ep-impact-value">{inc.impact}</span>
+            </div>
+          </div>
+        </div>
+      ))
+    }
+  </div>
+
+  <!-- ═════════ "And more" indicator ═════════ -->
+  <div class="ep-more" data-animate="more">
+    <span class="ep-more-text">
+      Plus: Server header fingerprinting, Via header information leaks, userinfo
+      in URIs, content negotiation errors, and dozens more RFC 9110 violations
+    </span>
+  </div>
+
+  <!-- ═════════ Authority callout ═════════ -->
+  <div class="ep-authority" data-animate="authority">
+    <div class="ep-authority-inner">
+      <div class="ep-authority-icon-wrap" aria-hidden="true">
+        <svg class="ep-authority-icon" viewBox="0 0 24 24" fill="none">
+          <path
+            d="M12 2L2 7l10 5 10-5-10-5Z"
+            stroke="currentColor"
+            stroke-width="1.5"
+            stroke-linejoin="round"
+          />
+          <path
+            d="M2 17l10 5 10-5"
+            stroke="currentColor"
+            stroke-width="1.5"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          />
+          <path
+            d="M2 12l10 5 10-5"
+            stroke="currentColor"
+            stroke-width="1.5"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          />
+        </svg>
+      </div>
+      <div class="ep-authority-content">
+        <h3 class="ep-authority-title">We Wrote the Rules — Literally</h3>
+        <p class="ep-authority-desc">
+          We built the RFC 9110 rule set from scratch, mapped every
+          <strong>MUST</strong>, <strong>SHOULD</strong>, and <strong>MAY</strong>
+          to actionable validation, and designed a system that enforces them
+          identically at design time, during testing, and in production. That
+          depth of understanding is what we bring to your organization.
+        </p>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═════════ Contact CTA ═════════ -->
+  <div class="ep-contact" data-animate="contact">
+    <p class="ep-contact-text">
+      Want to find out what Thymian would flag in your infrastructure?
+    </p>
+    <a
+      href="mailto:support@thymian.com?subject=Enterprise%20Consultation"
+      class="ep-contact-button"
+    >
+      <svg
+        class="ep-contact-button-icon"
+        viewBox="0 0 20 20"
+        fill="currentColor"
+        aria-hidden="true"
+      >
+        <path
+          d="M2.003 5.884L10 9.882l7.997-3.998A2 2 0 0016 4H4a2 2 0 00-1.997 1.884z"
+        />
+        <path
+          d="M18 8.118l-8 4-8-4V14a2 2 0 002 2h12a2 2 0 002-2V8.118z"
+        />
+      </svg>
+      Get in Touch
+    </a>
+  </div>
+</section>
+
+<!-- ═══════════════ Styles ═══════════════ -->
+<style>
+  /* ── Section wrapper ───────────────────────────────────────── */
+  .ep-section {
+    --ep-radius: 0.75rem;
+    max-width: 80rem;
+    margin-inline: auto;
+    padding: 2rem 1rem;
+  }
+  @media (min-width: 640px) {
+    .ep-section { padding: 2.5rem 1.5rem; }
+  }
+  @media (min-width: 1024px) {
+    .ep-section { padding: 3rem 2rem; }
+  }
+
+  /* ── Pain point cards ──────────────────────────────────────── */
+  .ep-pain-points {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 0.75rem;
+  }
+  @media (min-width: 640px) {
+    .ep-pain-points { grid-template-columns: repeat(2, 1fr); }
+  }
+  @media (min-width: 1024px) {
+    .ep-pain-points { grid-template-columns: repeat(3, 1fr); gap: 1rem; }
+  }
+
+  .ep-pain-card {
+    padding: 1.25rem 1.15rem;
+    border-radius: var(--ep-radius);
+    border: 1px solid var(--color-gray-200);
+    background: var(--color-gray-100);
+    transition: border-color 0.2s, box-shadow 0.2s;
+    opacity: 1;
+  }
+  :global(html[data-animations]) .ep-pain-card {
+    opacity: 0;
+  }
+  :global(html[data-animations]) .ep-pain-card.revealed {
+    animation: epFadeSlideUp 0.5s ease-out forwards;
+  }
+  :global([data-theme='dark']) .ep-pain-card {
+    border-color: var(--color-gray-700);
+    background: var(--color-gray-900);
+  }
+  .ep-pain-card:hover {
+    border-color: var(--color-accent-300);
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.06);
+  }
+  :global([data-theme='dark']) .ep-pain-card:hover {
+    border-color: var(--color-accent-700);
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.25);
+  }
+
+  .ep-pain-icon {
+    font-size: 1.5rem;
+    display: block;
+    margin-bottom: 0.65rem;
+    line-height: 1;
+  }
+  .ep-pain-title {
+    font-size: 0.95rem;
+    font-weight: 700;
+    color: var(--color-gray-900);
+    margin: 0 0 0.35rem;
+  }
+  :global([data-theme='dark']) .ep-pain-title {
+    color: var(--color-gray-100);
+  }
+  .ep-pain-desc {
+    font-size: 0.8rem;
+    color: var(--color-gray-600);
+    line-height: 1.55;
+    margin: 0;
+  }
+  :global([data-theme='dark']) .ep-pain-desc {
+    color: var(--color-gray-400);
+  }
+
+  /* ── Incident cards ────────────────────────────────────────── */
+  .ep-incidents {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 1rem;
+    margin-bottom: 2.5rem;
+  }
+  @media (min-width: 640px) {
+    .ep-incidents { grid-template-columns: repeat(2, 1fr); }
+  }
+
+  .ep-incident-card {
+    border-radius: var(--ep-radius);
+    border: 1px solid var(--color-gray-200);
+    background: var(--color-gray-100);
+    overflow: hidden;
+    border-left: 3px solid transparent;
+    transition: box-shadow 0.2s, border-color 0.2s;
+    opacity: 1;
+  }
+  :global(html[data-animations]) .ep-incident-card {
+    opacity: 0;
+  }
+  :global(html[data-animations]) .ep-incident-card.revealed {
+    animation: epFadeSlideUp 0.5s ease-out forwards;
+  }
+  :global([data-theme='dark']) .ep-incident-card {
+    border-color: var(--color-gray-700);
+    background: var(--color-gray-900);
+  }
+
+  /* Severity-colored left border */
+  .ep-incident-card--red {
+    border-left-color: #ef4444;
+  }
+  .ep-incident-card--orange {
+    border-left-color: #f97316;
+  }
+
+  .ep-incident-card:hover {
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+  }
+  :global([data-theme='dark']) .ep-incident-card:hover {
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+  }
+
+  .ep-incident-header {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    padding: 0.85rem 1rem;
+    border-bottom: 1px solid var(--color-gray-200);
+  }
+  :global([data-theme='dark']) .ep-incident-header {
+    border-color: var(--color-gray-700);
+  }
+  .ep-incident-icon {
+    font-size: 1.3rem;
+    flex-shrink: 0;
+  }
+  .ep-incident-meta {
+    flex: 1;
+    min-width: 0;
+  }
+  .ep-incident-title {
+    font-size: 0.88rem;
+    font-weight: 700;
+    color: var(--color-gray-900);
+    margin: 0;
+    line-height: 1.3;
+  }
+  :global([data-theme='dark']) .ep-incident-title {
+    color: var(--color-gray-100);
+  }
+  .ep-incident-rfc {
+    font-size: 0.65rem;
+    font-weight: 500;
+    color: var(--color-gray-500);
+    font-family: ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas,
+      'Liberation Mono', monospace;
+  }
+
+  /* Severity badge */
+  .ep-severity {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+    border-radius: 9999px;
+    padding: 0.2rem 0.65rem;
+    font-size: 0.65rem;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    white-space: nowrap;
+    flex-shrink: 0;
+  }
+  .ep-severity--red {
+    background: #fef2f2;
+    color: #dc2626;
+    border: 1px solid #fecaca;
+  }
+  :global([data-theme='dark']) .ep-severity--red {
+    background: rgba(239, 68, 68, 0.12);
+    color: #fca5a5;
+    border-color: rgba(239, 68, 68, 0.3);
+  }
+  .ep-severity--orange {
+    background: #fff7ed;
+    color: #ea580c;
+    border: 1px solid #fed7aa;
+  }
+  :global([data-theme='dark']) .ep-severity--orange {
+    background: rgba(249, 115, 22, 0.12);
+    color: #fdba74;
+    border-color: rgba(249, 115, 22, 0.3);
+  }
+
+  .ep-incident-body {
+    padding: 0.85rem 1rem;
+  }
+  .ep-incident-desc {
+    font-size: 0.8rem;
+    color: var(--color-gray-600);
+    line-height: 1.55;
+    margin: 0 0 0.75rem;
+  }
+  :global([data-theme='dark']) .ep-incident-desc {
+    color: var(--color-gray-400);
+  }
+
+  .ep-incident-impact {
+    display: flex;
+    flex-direction: column;
+    gap: 0.1rem;
+    padding-top: 0.55rem;
+    border-top: 1px solid var(--color-gray-200);
+  }
+  :global([data-theme='dark']) .ep-incident-impact {
+    border-color: var(--color-gray-700);
+  }
+  .ep-impact-label {
+    font-size: 0.6rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--color-gray-500);
+  }
+  .ep-impact-value {
+    font-size: 0.75rem;
+    color: var(--color-gray-700);
+    line-height: 1.4;
+  }
+  :global([data-theme='dark']) .ep-impact-value {
+    color: var(--color-gray-300);
+  }
+
+  /* ── "And more" indicator ────────────────────────────────────── */
+  .ep-more {
+    text-align: center;
+    margin-bottom: 2.5rem;
+    opacity: 1;
+  }
+  :global(html[data-animations]) .ep-more {
+    opacity: 0;
+  }
+  :global(html[data-animations]) .ep-more.revealed {
+    animation: epFadeSlideUp 0.5s ease-out forwards;
+  }
+  .ep-more-text {
+    display: inline-block;
+    font-size: 0.75rem;
+    color: var(--color-gray-500);
+    line-height: 1.5;
+    padding: 0.45rem 1rem;
+    border-radius: var(--ep-radius);
+    border: 1px dashed var(--color-gray-300);
+    background: var(--color-gray-50);
+  }
+  :global([data-theme='dark']) .ep-more-text {
+    color: var(--color-gray-400);
+    border-color: var(--color-gray-600);
+    background: var(--color-gray-900);
+  }
+
+  /* ── Authority callout ─────────────────────────────────────── */
+  .ep-authority {
+    max-width: 52rem;
+    margin: 0 auto;
+    opacity: 1;
+  }
+  :global(html[data-animations]) .ep-authority {
+    opacity: 0;
+  }
+  :global(html[data-animations]) .ep-authority.revealed {
+    animation: epFadeSlideUp 0.5s ease-out forwards;
+  }
+  .ep-authority-inner {
+    display: flex;
+    gap: 1.25rem;
+    align-items: flex-start;
+    padding: 1.25rem 1.5rem;
+    border-radius: var(--ep-radius);
+    border: 1px solid var(--color-accent-200);
+    background: linear-gradient(
+      135deg,
+      var(--color-accent-50) 0%,
+      var(--color-accent-alt-50) 100%
+    );
+  }
+  :global([data-theme='dark']) .ep-authority-inner {
+    border-color: var(--color-accent-800);
+    background: linear-gradient(
+      135deg,
+      var(--color-accent-950) 0%,
+      var(--color-accent-alt-950) 100%
+    );
+  }
+  .ep-authority-icon-wrap {
+    flex-shrink: 0;
+    width: 2.5rem;
+    height: 2.5rem;
+    border-radius: 50%;
+    background: var(--color-accent-100);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  :global([data-theme='dark']) .ep-authority-icon-wrap {
+    background: var(--color-accent-900);
+  }
+  .ep-authority-icon {
+    width: 1.3rem;
+    height: 1.3rem;
+    color: var(--color-accent-600);
+  }
+  :global([data-theme='dark']) .ep-authority-icon {
+    color: var(--color-accent-400);
+  }
+  .ep-authority-content {
+    flex: 1;
+    min-width: 0;
+  }
+  .ep-authority-title {
+    font-size: 0.95rem;
+    font-weight: 700;
+    color: var(--color-gray-900);
+    margin: 0 0 0.35rem;
+  }
+  :global([data-theme='dark']) .ep-authority-title {
+    color: var(--color-gray-100);
+  }
+  .ep-authority-desc {
+    font-size: 0.8rem;
+    color: var(--color-gray-600);
+    line-height: 1.55;
+    margin: 0;
+  }
+  :global([data-theme='dark']) .ep-authority-desc {
+    color: var(--color-gray-400);
+  }
+  .ep-authority-desc strong {
+    color: var(--color-accent-700);
+    font-weight: 700;
+  }
+  :global([data-theme='dark']) .ep-authority-desc strong {
+    color: var(--color-accent-300);
+  }
+
+  /* ── Contact CTA ─────────────────────────────────────────── */
+  .ep-contact {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.85rem;
+    text-align: center;
+    margin-top: 2.5rem;
+    padding: 2rem 1.5rem;
+    border-radius: var(--ep-radius);
+    border: 1px solid var(--color-gray-200);
+    background: var(--color-gray-50);
+    opacity: 1;
+  }
+  :global(html[data-animations]) .ep-contact {
+    opacity: 0;
+  }
+  :global(html[data-animations]) .ep-contact.revealed {
+    animation: epFadeSlideUp 0.5s ease-out forwards;
+  }
+  :global([data-theme='dark']) .ep-contact {
+    border-color: var(--color-gray-700);
+    background: var(--color-gray-900);
+  }
+  .ep-contact-text {
+    font-size: 0.95rem;
+    font-weight: 600;
+    color: var(--color-gray-700);
+    margin: 0;
+  }
+  :global([data-theme='dark']) .ep-contact-text {
+    color: var(--color-gray-300);
+  }
+  .ep-contact-button {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.65rem 1.5rem;
+    border-radius: 9999px;
+    font-size: 0.88rem;
+    font-weight: 700;
+    background: var(--color-accent-600);
+    color: #fff;
+    text-decoration: none;
+    transition: background 0.2s, box-shadow 0.2s, transform 0.15s;
+  }
+  .ep-contact-button:hover {
+    background: var(--color-accent-500);
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
+    transform: translateY(-1px);
+  }
+  :global([data-theme='dark']) .ep-contact-button {
+    background: var(--color-accent-500);
+  }
+  :global([data-theme='dark']) .ep-contact-button:hover {
+    background: var(--color-accent-400);
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
+  }
+  .ep-contact-button:focus-visible {
+    outline: 2px solid var(--color-accent-400);
+    outline-offset: 2px;
+  }
+  .ep-contact-button-icon {
+    width: 1rem;
+    height: 1rem;
+    flex-shrink: 0;
+  }
+
+  /* ── Animations ─────────────────────────────────────────────── */
+  @keyframes epFadeSlideUp {
+    from {
+      opacity: 0;
+      transform: translateY(12px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .ep-pain-card,
+    .ep-incident-card,
+    .ep-more,
+    .ep-authority,
+    .ep-contact {
+      opacity: 1 !important;
+      animation: none !important;
+    }
+  }
+</style>
+
+<!-- ═══════════════ Scroll-triggered reveal ═══════════════ -->
+<script>
+  function initEnterpriseProblem() {
+    const section = document.querySelector('.ep-section');
+    if (!section) return;
+
+    const prefersReduced = window.matchMedia(
+      '(prefers-reduced-motion: reduce)',
+    ).matches;
+
+    const painCards = section.querySelectorAll<HTMLElement>('.ep-pain-card');
+    const incidentCards = section.querySelectorAll<HTMLElement>('.ep-incident-card');
+    const more = section.querySelector<HTMLElement>('.ep-more');
+    const authority = section.querySelector<HTMLElement>('.ep-authority');
+    const contact = section.querySelector<HTMLElement>('.ep-contact');
+
+    if (prefersReduced) {
+      painCards.forEach((c) => c.classList.add('revealed'));
+      incidentCards.forEach((c) => c.classList.add('revealed'));
+      more?.classList.add('revealed');
+      authority?.classList.add('revealed');
+      contact?.classList.add('revealed');
+      return;
+    }
+
+    if (!('IntersectionObserver' in window)) return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        for (const entry of entries) {
+          if (!entry.isIntersecting) continue;
+
+          // 1. Reveal pain point cards with stagger
+          painCards.forEach((card) => {
+            const delay = parseInt(card.dataset.delay ?? '0', 10);
+            card.style.animationDelay = `${delay}ms`;
+            card.classList.add('revealed');
+          });
+
+          // 2. Reveal incident cards with stagger
+          incidentCards.forEach((card) => {
+            const delay = parseInt(card.dataset.delay ?? '0', 10);
+            card.style.animationDelay = `${400 + delay}ms`;
+            card.classList.add('revealed');
+          });
+
+          // 3. Reveal "and more" indicator
+          if (more) {
+            more.style.animationDelay = '700ms';
+            more.classList.add('revealed');
+          }
+
+          // 4. Reveal authority callout
+          if (authority) {
+            authority.style.animationDelay = '850ms';
+            authority.classList.add('revealed');
+          }
+
+          // 5. Reveal contact CTA last
+          if (contact) {
+            contact.style.animationDelay = '1000ms';
+            contact.classList.add('revealed');
+          }
+
+          observer.unobserve(entry.target);
+        }
+      },
+      { threshold: 0.1 },
+    );
+
+    observer.observe(section);
+  }
+
+  initEnterpriseProblem();
+  document.addEventListener('astro:after-swap', initEnterpriseProblem);
+</script>
