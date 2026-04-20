@@ -51,7 +51,13 @@ export async function generateTypeForSchema(
   mediaType: string,
   typeName: string,
 ): Promise<GeneratedSchemaType> {
-  if (!(mediaType === 'application/json' || mediaType.includes('+json'))) {
+  const normalizedMediaType = mediaType.split(';', 1)[0]?.trim().toLowerCase();
+  if (
+    !(
+      normalizedMediaType === 'application/json' ||
+      normalizedMediaType?.includes('+json')
+    )
+  ) {
     return { declarations: [], type: 'unknown' };
   }
 
