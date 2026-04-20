@@ -115,6 +115,7 @@ export async function loadAndUpgrade(
   value: string,
   cwd: string = process.cwd(),
   logger: Logger,
+  validateSpecs = false,
 ): Promise<LoadResult> {
   const { document, filePath } = await loadOpenApi(value, cwd);
   const relativePath = filePath ? getRelativePath(filePath, cwd) : undefined;
@@ -146,20 +147,40 @@ export async function loadAndUpgrade(
       );
     }
 
-    throw new ThymianBaseError(`Schema validation for ${sourceLabel} failed.`, {
-      name: 'OpenAPIValidationError',
-      ref: 'https://thymian.dev/references/errors/openapi-validation-error/',
-      cause: new Error(
-        validationResult.errors.map((e) => e.message).join('; '),
-      ),
-      suggestions: [
-        'This indicates that your OpenAPI document does not match the OpenAPI specification. Use `thymian openapi:validate` to get detailed validation errors',
-        'Ensure all required fields are present (openapi, info, paths)',
-      ],
-    });
-  }
+    if (validateSpecs) {
+      throw new ThymianBaseError(
+        `Schema validation for ${sourceLabel} failed.`,
+        {
+          name: 'OpenAPIValidationError',
+          ref: 'https://thymian.dev/references/errors/openapi-validation-error/',
+          cause: new Error(
+            validationResult.errors.map((e) => e.message).join('; '),
+          ),
+          suggestions: [
+            'This indicates that your OpenAPI document does not match the OpenAPI specification. Use `thymian openapi:validate` to get detailed validation errors',
+            'Ensure all required fields are present (openapi, info, paths)',
+          ],
+        },
+      );
+    } else {
+      const formattedValidationErrors =
+        validationResult.errors
+          ?.map((e) => {
+            const errorPath =
+              'path' in e
+                ? ` (at ${(e as Record<string, unknown>)['path']})`
+                : '';
+            return `  - ${e.message}${errorPath}`;
+          })
+          .join('\n') ?? '';
 
-  logger.debug(`Successfully validated ${sourceLabel}.`);
+      logger.warn(
+        `Schema validation for ${sourceLabel} failed.${formattedValidationErrors ? `\nErrors:\n${formattedValidationErrors}` : ''}`,
+      );
+    }
+  } else {
+    logger.debug(`Successfully validated ${sourceLabel}.`);
+  }
 
   const upgradedObject = upgrade(structuredClone(document), '3.1');
 
@@ -245,9 +266,15 @@ export async function loadAndTransform(
     filter: HttpFilterExpression;
     format?: ThymianFormat;
     sourceName?: string;
+    validateSpecs?: boolean;
   },
 ): Promise<[OpenAPI.Document, ThymianFormat, string | undefined]> {
-  const loadResult = await loadAndUpgrade(value, options.cwd, options.logger);
+  const loadResult = await loadAndUpgrade(
+    value,
+    options.cwd,
+    options.logger,
+    options.validateSpecs,
+  );
   const relativePath = loadResult.filePath
     ? getRelativePath(loadResult.filePath, options.cwd)
     : undefined;

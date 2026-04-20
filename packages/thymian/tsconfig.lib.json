@@ -19,6 +19,9 @@
       "path": "../core/tsconfig.lib.json"
     },
     {
+      "path": "../plugin-har/tsconfig.lib.json"
+    },
+    {
       "path": "../rules-rfc-9110/tsconfig.lib.json"
     },
     {

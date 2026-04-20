@@ -39,6 +39,7 @@ export default class Lint extends BaseCliRunCommand<typeof Lint> {
         rules: ruleSets,
         rulesConfig: this.thymianConfig.rules,
         ruleFilter: createSeverityRuleFilter(ruleSeverity),
+        validateSpecs: this.flags['validate-specs'],
       });
     });
 

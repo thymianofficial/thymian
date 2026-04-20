@@ -25,11 +25,16 @@ export async function generateHook<
   emitter: ThymianEmitter,
   command: BaseCliRunCommand<T>,
   cwd: string,
+  validateSpecs: boolean,
   forTransaction?: string,
   loadedThymianFormat?: ThymianFormat,
 ): Promise<void> {
   const thymianFormat =
-    loadedThymianFormat ?? (await thymian.loadFormat({ inputs: [] }));
+    loadedThymianFormat ??
+    (await thymian.loadFormat({
+      inputs: [],
+      validateSpecs,
+    }));
 
   const titleToTransaction = new Map<string, ThymianHttpTransaction>();
 
