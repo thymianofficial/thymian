@@ -6,7 +6,7 @@ authors:
 tags:
   - announcement
   - release
-excerpt: 'Thymian is an open-source HTTP conformance engine that validates your APIs against RFC standards — statically, against live endpoints, and in recorded production traffic. One rule set, every stage, zero drift.'
+excerpt: 'APIs routinely violate HTTP protocol requirements — causing broken caching, request smuggling, and security vulnerabilities that surface in production. Today we release Thymian, an open-source HTTP conformance engine that detects protocol-level drift across your entire API lifecycle. One rule set, every stage, zero drift.'
 ---
 
 Today, we are excited to announce the release of **Thymian**!
