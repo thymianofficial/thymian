@@ -3,7 +3,7 @@ import { join } from 'node:path';
 
 import { constant, NoopLogger, ThymianBaseError } from '@thymian/core';
 import type { OpenAPIV3_1 } from 'openapi-types';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vitest } from 'vitest';
 import yaml from 'yaml';
 
 import { loadAndUpgrade, openapiToThymianFormat } from '../src/load-openapi.js';
@@ -113,7 +113,7 @@ describe('load-openapi', () => {
       }
     });
 
-    it('throws OpenAPIValidationError when validation fails', async () => {
+    it('throws OpenAPIValidationError when validation fails and validateSpecs is enabled', async () => {
       const invalidDocument = {
         swagger: '2.0',
         info: {
@@ -128,6 +128,7 @@ describe('load-openapi', () => {
           JSON.stringify(invalidDocument),
           process.cwd(),
           new NoopLogger(),
+          true,
         );
         expect.fail('Error should have been thrown');
       } catch (error) {
@@ -183,6 +184,74 @@ describe('load-openapi', () => {
         );
         expect((error as ThymianBaseError).options.ref).toBe(
           'https://thymian.dev/references/errors/openapi-dereference-error/',
+        );
+      }
+    });
+
+    it('warns but does not throw on schema validation failure when validateSpecs is false', async () => {
+      const invalidDocument = {
+        swagger: '2.0',
+        info: {
+          // Missing required 'title' field
+          version: '1.0.0',
+        },
+        paths: {},
+      };
+
+      const logger = new NoopLogger();
+      const wantSpy = vitest.spyOn(logger, 'warn');
+
+      const result = await loadAndUpgrade(
+        JSON.stringify(invalidDocument),
+        process.cwd(),
+        logger,
+        false,
+      );
+
+      // Should succeed — validation ran but only warned
+      expect(result.document.openapi).toBe('3.1.1');
+      expect(wantSpy).toHaveBeenCalledTimes(1);
+    });
+
+    it('still throws on $ref errors when validateSpecs is false', async () => {
+      const documentWithBadRef = {
+        openapi: '3.1.0',
+        info: {
+          title: 'Test',
+          version: '1.0.0',
+        },
+        paths: {
+          '/test': {
+            get: {
+              responses: {
+                '200': {
+                  description: 'OK',
+                  content: {
+                    'application/json': {
+                      schema: {
+                        $ref: '#/components/schemas/NonExistent',
+                      },
+                    },
+                  },
+                },
+              },
+            },
+          },
+        },
+      };
+
+      try {
+        await loadAndUpgrade(
+          JSON.stringify(documentWithBadRef),
+          process.cwd(),
+          new NoopLogger(),
+          false,
+        );
+        expect.fail('Error should have been thrown');
+      } catch (error) {
+        expect(error).toBeInstanceOf(ThymianBaseError);
+        expect((error as ThymianBaseError).options.name).toBe(
+          'OpenAPIDereferenceError',
         );
       }
     });

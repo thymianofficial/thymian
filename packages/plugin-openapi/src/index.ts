@@ -75,53 +75,57 @@ export const openApiPlugin: ThymianPlugin = {
       ctx.reply(thymianFormat.export());
     });
 
-    emitter.onAction('core.format.load', async ({ inputs }, ctx) => {
-      let format = new ThymianFormat();
+    emitter.onAction(
+      'core.format.load',
+      async ({ inputs, validateSpecs }, ctx) => {
+        let format = new ThymianFormat();
 
-      const descriptions = inputs.length
-        ? inputs
-            .filter((input) => input.type === 'openapi')
-            .map((input) => ({
-              source: String(input.location),
-              sourceName:
-                typeof input.options?.['sourceName'] === 'string'
-                  ? input.options['sourceName']
-                  : undefined,
-              serverInfo:
-                typeof input.options?.['serverInfo'] === 'object' &&
-                input.options['serverInfo'] !== null
-                  ? (input.options['serverInfo'] as ServerInfo)
-                  : undefined,
-            }))
-        : [];
+        const descriptions = inputs.length
+          ? inputs
+              .filter((input) => input.type === 'openapi')
+              .map((input) => ({
+                source: String(input.location),
+                sourceName:
+                  typeof input.options?.['sourceName'] === 'string'
+                    ? input.options['sourceName']
+                    : undefined,
+                serverInfo:
+                  typeof input.options?.['serverInfo'] === 'object' &&
+                  input.options['serverInfo'] !== null
+                    ? (input.options['serverInfo'] as ServerInfo)
+                    : undefined,
+              }))
+          : [];
 
-      if (descriptions.length === 0) {
+        if (descriptions.length === 0) {
+          ctx.reply(format.export());
+          return;
+        }
+
+        for (const description of descriptions) {
+          const [document, thymianFormat, filePath] = await loadAndTransform(
+            description.source,
+            {
+              logger,
+              format,
+              serverInfo: description.serverInfo ?? defaultServerInfo,
+              sourceName: description.sourceName,
+              cwd: opts.cwd,
+              filter: constant(true),
+              validateSpecs,
+            },
+          );
+          format = thymianFormat;
+
+          emitter.emit('openapi.document', {
+            document,
+            filePath,
+          });
+        }
+
         ctx.reply(format.export());
-        return;
-      }
-
-      for (const description of descriptions) {
-        const [document, thymianFormat, filePath] = await loadAndTransform(
-          description.source,
-          {
-            logger,
-            format,
-            serverInfo: description.serverInfo ?? defaultServerInfo,
-            sourceName: description.sourceName,
-            cwd: opts.cwd,
-            filter: constant(true),
-          },
-        );
-        format = thymianFormat;
-
-        emitter.emit('openapi.document', {
-          document,
-          filePath,
-        });
-      }
-
-      ctx.reply(format.export());
-    });
+      },
+    );
   },
 };
 

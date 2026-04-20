@@ -31,7 +31,10 @@ export default class Init extends BaseCliRunCommand<typeof Init> {
       }
 
       const format = await this.thymian.loadFormat(
-        { inputs: this.thymianConfig.specifications ?? [] },
+        {
+          inputs: this.thymianConfig.specifications ?? [],
+          validateSpecs: this.flags['validate-specs'],
+        },
         {
           emitFormat: true,
         },

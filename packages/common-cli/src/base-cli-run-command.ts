@@ -138,6 +138,13 @@ export abstract class BaseCliRunCommand<
       description: 'Suppress feedback messages from Thymian.',
       helpGroup: 'BASE',
     }),
+    ['validate-specs']: Flags.boolean({
+      default: false,
+      allowNo: true,
+      description:
+        'Validate included specifications and fail on schema validation errors.',
+      helpGroup: 'BASE',
+    }),
   };
 
   protected flags!: CommandFlags<T>;

@@ -28,8 +28,30 @@ describe('OpenApi plugin', () => {
           location: 'test/fixtures/petstore-v2.yaml',
         },
       ],
+      validateSpecs: true,
     });
 
+    expect(formats).toHaveLength(1);
+  });
+
+  it('loads openapi document when validateSpecs is disabled', async () => {
+    const thymian = new Thymian(new NoopLogger(), {
+      cwd: join(import.meta.dirname, '..'),
+    });
+
+    await thymian.register(openApiPlugin).ready();
+
+    const formats = await thymian.emitter.emitAction('core.format.load', {
+      inputs: [
+        {
+          type: 'openapi',
+          location: 'test/fixtures/invalid-openapi.yaml',
+        },
+      ],
+      validateSpecs: false,
+    });
+
+    // Invalid doc should still load when validateSpecs is false (warning logged instead of error)
     expect(formats).toHaveLength(1);
   });
 
