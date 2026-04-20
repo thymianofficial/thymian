@@ -127,6 +127,42 @@ node ./scripts/release.ts --dist-tag latest --version 1.2.3 --no-dry-run
 node ./scripts/release.ts --dist-tag canary --version 1.2.3 --local --no-dry-run
 ```
 
+#### Bootstrapping New Packages on npm
+
+When you add a **new** `@thymian/*` package to the monorepo, it must be published once manually before CI can use trusted publishing (OIDC). The `bootstrap-npm-packages` script handles this:
+
+```bash
+# 1. Log in to npm (one-time, needs publish rights on the @thymian scope)
+npm login
+
+# 2. Build the new package(s)
+npx nx run-many -t build
+
+# 3. Dry-run (default) — see what would be published
+npm run bootstrap-npm-packages
+
+# 4. Publish for real
+npm run bootstrap-npm-packages -- --no-dryRun
+```
+
+The script will:
+
+1. Detect all `@thymian/*` workspace packages that don't exist on npm yet
+2. Publish each one as a canary version (using the latest canary version from already-published packages by default)
+3. Print npm settings links and exact form values for configuring **trusted publishing** on each new package
+
+You can also target specific packages or override the canary version:
+
+```bash
+# Publish only specific packages
+npm run bootstrap-npm-packages -- --no-dryRun -p @thymian/my-new-package
+
+# Override the canary version
+npm run bootstrap-npm-packages -- --no-dryRun -v 1.2.3-canary.20260420-abc1234
+```
+
+After publishing, follow the printed instructions to add trusted publishing in the npm UI so CI can take over future releases.
+
 ### CLI Options
 
 | Option             | Description                                                                                                           |
