@@ -7,6 +7,7 @@ import mermaid from 'astro-mermaid';
 import starlightBlog from 'starlight-blog';
 import starlightLinksValidator from 'starlight-links-validator';
 import starlightLlmsTxt from 'starlight-llms-txt';
+import { blogAuthors } from './src/data/team';
 
 const UMAMI_URL = process.env.UMAMI_URL;
 const UMAMI_WEBSITE_ID = process.env.UMAMI_WEBSITE_ID;
@@ -110,13 +111,7 @@ export default defineConfig({
           prefix: 'blog',
           postCount: 10,
           recentPostCount: 5,
-          authors: {
-            thymian: {
-              name: 'Thymian Team',
-              title: 'Core Team',
-              url: 'https://thymian.dev',
-            },
-          },
+          authors: blogAuthors,
         }),
         starlightLlmsTxt({
           projectName: 'Thymian',

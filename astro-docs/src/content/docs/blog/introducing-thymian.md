@@ -2,7 +2,7 @@
 title: 'Introducing Thymian: HTTP Conformance for the Entire API Lifecycle'
 date: 2026-04-20T00:00:00Z
 authors:
-  - 'thymian'
+  - 'peterMuller'
 tags:
   - announcement
   - release
