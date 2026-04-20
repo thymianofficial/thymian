@@ -3,7 +3,10 @@ import type { ThymianConfig } from './thymian-config.js';
 export const defaultConfig: ThymianConfig = {
   specifications: [],
   traffic: [],
-  ruleSets: ['@thymian/rules-rfc-9110'],
+  ruleSets: [
+    '@thymian/rules-rfc-9110',
+    '@thymian/rules-api-description-validation',
+  ],
   ruleSeverity: 'error',
   rules: {},
   plugins: {
