@@ -73,38 +73,6 @@ export async function generateTypeForSchema(
   };
 }
 
-export async function generateTypeForParameters2(
-  parameters: Record<string, Parameter>,
-  nextTypeName: () => string,
-): Promise<ParameterType> {
-  const schema: {
-    properties: Record<string, unknown>;
-    required: string[];
-    type: string;
-  } = {
-    type: 'object',
-    properties: {},
-    required: [],
-  };
-
-  for (const [name, param] of Object.entries(parameters)) {
-    schema.properties[name] = param.schema;
-
-    if (param.required) {
-      schema.required.push(name);
-    }
-  }
-
-  return {
-    ...(await generateTypeForSchema(
-      schema,
-      "'application/json'",
-      nextTypeName(),
-    )),
-    required: schema.required.length > 0,
-  };
-}
-
 export async function generateTypeForParameters(
   parameters: Record<string, Parameter>,
   nextTypeName: () => string,
@@ -161,7 +129,6 @@ export type ParameterType = GeneratedSchemaType & {
 export type ResponseType = {
   statusCode: number;
   body?: string;
-  bodyDeclarations?: string[];
   headers: ParameterType;
 };
 
@@ -171,7 +138,6 @@ export type GeneratedTypes = {
     {
       req: {
         body?: string;
-        bodyDeclarations?: string[];
         query: ParameterType;
         path: ParameterType;
         headers: ParameterType;
@@ -545,37 +511,38 @@ export async function generateTypesForThymianFormat(
       ...headers.declarations,
       ...(body?.declarations ?? []),
     );
-    const res: ResponseType[] = await Promise.all(
-      responses.map(async (res) => {
-        const headers = {
-          ...res.headers,
-        };
+    const res: ResponseType[] = [];
 
-        if (res.mediaType) {
-          headers['content-type'] = mediaTypeParameter(res.mediaType);
-        }
+    for (const response of responses) {
+      const responseHeaders = {
+        ...response.headers,
+      };
 
-        const result: ResponseType = {
-          statusCode: res.statusCode,
-          headers: await generateTypeForParameters(headers, nextTypeName),
-        };
+      if (response.mediaType) {
+        responseHeaders['content-type'] = mediaTypeParameter(
+          response.mediaType,
+        );
+      }
 
-        generated.declarations.push(...result.headers.declarations);
+      const result: ResponseType = {
+        statusCode: response.statusCode,
+        headers: await generateTypeForParameters(responseHeaders, nextTypeName),
+      };
 
-        if (res.schema) {
-          const body = await generateTypeForSchema(
-            res.schema,
-            res.mediaType,
-            nextTypeName(),
-          );
-          result.body = body.type;
-          result.bodyDeclarations = body.declarations;
-          generated.declarations.push(...body.declarations);
-        }
+      generated.declarations.push(...result.headers.declarations);
 
-        return result;
-      }),
-    );
+      if (response.schema) {
+        const body = await generateTypeForSchema(
+          response.schema,
+          response.mediaType,
+          nextTypeName(),
+        );
+        result.body = body.type;
+        generated.declarations.push(...body.declarations);
+      }
+
+      res.push(result);
+    }
 
     const default2xxResponse = res
       .filter((r) => r.statusCode >= 200 && r.statusCode < 300)
@@ -628,7 +595,6 @@ export async function generateTypesForThymianFormat(
         headers,
         path,
         body: body?.type,
-        bodyDeclarations: body?.declarations,
       },
       res,
     };
