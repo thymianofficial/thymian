@@ -163,8 +163,19 @@ export async function loadAndUpgrade(
         },
       );
     } else {
+      const formattedValidationErrors =
+        validationResult.errors
+          ?.map((e) => {
+            const errorPath =
+              'path' in e
+                ? ` (at ${(e as Record<string, unknown>)['path']})`
+                : '';
+            return `  - ${e.message}${errorPath}`;
+          })
+          .join('\n') ?? '';
+
       logger.warn(
-        `Schema validation for ${sourceLabel} failed. Errors:${validationResult?.errors?.map((e) => '\n  - ' + e.message + ('path' in e ? ` (at ${(e as Record<string, unknown>)['path']})` : '')).join('. ') ?? ''}`,
+        `Schema validation for ${sourceLabel} failed.${formattedValidationErrors ? `\nErrors:\n${formattedValidationErrors}` : ''}`,
       );
     }
   } else {
