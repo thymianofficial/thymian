@@ -1,0 +1,500 @@
+---
+/**
+ * EnterpriseResearch – trust & credibility section for the enterprise page.
+ *
+ * Establishes the team behind Thymian:
+ *   1. Team header
+ *   2. Founder bios (4 core members, 2-col grid)
+ *   3. Extended contributors row
+ *   4. CTA callout via shared CtaCallout component
+ *   5. Company badge
+ *
+ * Uses shared scroll-reveal utility and CtaCallout component.
+ */
+
+import CtaCallout from '../enterprise-shared/CtaCallout.astro';
+
+// ── Data ────────────────────────────────────────────────────────────────
+interface Founder {
+  name: string;
+  role: string;
+  bio: string;
+  linkedin: string;
+  initials: string;
+}
+
+const founders: Founder[] = [
+  {
+    name: 'Matthias Keckl',
+    role: 'Core Member',
+    bio: 'Drives research initiatives and engineering excellence. Bridges academic rigor with practical consulting to shape Thymian\u2019s rule engine and validation approach.',
+    linkedin: 'https://www.linkedin.com/in/matthiaskeckl/',
+    initials: 'MK',
+  },
+  {
+    name: 'Peter Müller',
+    role: 'Core Member',
+    bio: 'Leads community engagement and core engineering. Focuses on developer experience, open-source collaboration, and helping teams adopt API conformance practices.',
+    linkedin: 'https://www.linkedin.com/in/petermuller/',
+    initials: 'PM',
+  },
+  {
+    name: 'Markus Ende',
+    role: 'Core Member',
+    bio: 'Seasoned engineer and consultant specializing in API quality. Brings deep expertise in HTTP standards and hands-on experience guiding enterprise integrations.',
+    linkedin: 'https://www.linkedin.com/in/markusende/',
+    initials: 'ME',
+  },
+  {
+    name: 'Andreas Tennert',
+    role: 'Core Member',
+    bio: 'Architects the plugin system and tooling integrations. Ensures Thymian fits seamlessly into existing CI/CD pipelines and developer workflows.',
+    linkedin: 'https://www.linkedin.com/in/andreastennert/',
+    initials: 'AT',
+  },
+];
+
+interface Contributor {
+  name: string;
+  role: string;
+}
+
+const contributors: Contributor[] = [
+  { name: 'Dariant Siswadie', role: 'Engineering' },
+  { name: 'Gerrit Letz', role: 'Engineering' },
+  { name: 'Johannes Witt', role: 'Engineering' },
+  { name: 'Saninn Salas Díaz', role: 'Engineering' },
+  { name: 'Marco Salas Díaz', role: 'Engineering' },
+  { name: 'Moses Tamarazyan', role: 'Tooling' },
+  { name: 'Andrea Cossu', role: 'Communication' },
+  { name: 'Angelica Cossu', role: 'Organization' },
+];
+---
+
+<section class="er-section not-content" aria-labelledby="er-heading">
+  <!-- ═════════ Team header ═════════ -->
+  <header class="er-header">
+    <h2 id="er-heading" class="er-heading">Who&rsquo;s Behind Thymian</h2>
+    <p class="er-subtitle">
+      Every engagement is led directly by the engineers who designed and built
+      Thymian &mdash; not outsourced, not delegated.
+    </p>
+  </header>
+
+  <!-- ═════════ Founder cards ═════════ -->
+  <div class="er-founders">
+    {
+      founders.map((f, i) => (
+        <div class="er-founder-card" data-animate="founder" data-delay={i * 150}>
+          <div class="er-founder-header">
+            <div class="er-avatar" aria-hidden="true">
+              <span class="er-avatar-initials">{f.initials}</span>
+            </div>
+            <div class="er-founder-meta">
+              <h3 class="er-founder-name">{f.name}</h3>
+              <span class="er-founder-role">{f.role}</span>
+            </div>
+            <a
+              href={f.linkedin}
+              class="er-linkedin"
+              target="_blank"
+              rel="noopener"
+              aria-label={`${f.name} on LinkedIn`}
+            >
+              <svg viewBox="0 0 24 24" fill="currentColor" class="er-linkedin-icon">
+                <path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433a2.062 2.062 0 0 1-2.063-2.065 2.064 2.064 0 1 1 2.063 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z" />
+              </svg>
+            </a>
+          </div>
+          <p class="er-founder-bio">{f.bio}</p>
+        </div>
+      ))
+    }
+  </div>
+
+  <!-- ═════════ Extended team row ═════════ -->
+  <div class="er-contributors" data-animate="contributors" data-delay="0">
+    <span class="er-contributors-label">Also contributing:</span>
+    {
+      contributors.map((c, i) => (
+        <>
+          <span class="er-contributor">
+            <span class="er-contributor-name">{c.name}</span>
+            <span class="er-contributor-role">{c.role}</span>
+          </span>
+          {i < contributors.length - 1 && <span class="er-contributor-sep" aria-hidden="true">&middot;</span>}
+        </>
+      ))
+    }
+  </div>
+
+  <!-- ═════════ CTA callout ═════════ -->
+  <CtaCallout title="Work Directly With the Core Team" showIcon={false}>
+    <ul class="er-cta-reasons">
+      <li class="er-cta-reason">
+        <span class="er-cta-reason-icon" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+        </span>
+        <span>
+          <strong>Prevention</strong> &mdash; We designed the rule engine and know exactly how to integrate it into your CI pipeline to catch conformance issues before they ship.
+        </span>
+      </li>
+      <li class="er-cta-reason">
+        <span class="er-cta-reason-icon" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"/><line x1="4" y1="22" x2="4" y2="15"/></svg>
+        </span>
+        <span>
+          <strong>API Governance</strong> &mdash; As the architects of the plugin system, we help you build custom rule sets and shared policies tailored to your organization.
+        </span>
+      </li>
+      <li class="er-cta-reason">
+        <span class="er-cta-reason-icon" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+        </span>
+        <span>
+          <strong>Live Incidents</strong> &mdash; When production breaks, the people who wrote the analyzer and understand HTTP at the RFC level are the fastest path to a root cause.
+        </span>
+      </li>
+    </ul>
+  </CtaCallout>
+
+  <!-- ═════════ Company badge ═════════ -->
+  <div class="er-company" data-animate="company" data-delay="0">
+    <span class="er-company-text">
+      Thymian is built and maintained by
+      <a href="https://qupaya.com" class="er-link" target="_blank" rel="noopener">
+        qupaya technologies GmbH
+      </a>
+      &mdash; based in Nuremberg, Germany.
+    </span>
+  </div>
+</section>
+
+<!-- ═══════════════ Styles ═══════════════ -->
+<style>
+  @import '../../styles/enterprise-shared.css';
+
+  /* ── Section wrapper ───────────────────────────────────────── */
+  .er-section {
+    max-width: var(--ep-section-max-width);
+    margin-inline: auto;
+    padding: var(--ep-section-gap) var(--ep-section-padding-x);
+  }
+
+  /* ── Header ────────────────────────────────────────────────── */
+  .er-header {
+    text-align: center;
+    margin-bottom: var(--ep-header-mb);
+  }
+  .er-heading {
+    font-size: clamp(1.5rem, 2.5vw, 2.25rem);
+    font-weight: 700;
+    color: var(--color-gray-900);
+    margin: 0 0 0.75rem;
+  }
+  :global([data-theme='dark']) .er-heading {
+    color: var(--color-gray-100);
+  }
+  .er-subtitle {
+    font-size: clamp(0.95rem, 1.5vw, 1.125rem);
+    color: var(--color-gray-500);
+    max-width: 42rem;
+    margin: 0 auto;
+  }
+  :global([data-theme='dark']) .er-subtitle {
+    color: var(--color-gray-400);
+  }
+
+  /* ── Founder cards ─────────────────────────────────────────── */
+  .er-founders {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: var(--ep-grid-gap);
+    margin-bottom: var(--ep-grid-mb);
+  }
+  @media (min-width: 768px) {
+    .er-founders { grid-template-columns: repeat(2, 1fr); }
+  }
+
+  .er-founder-card {
+    padding: 1.5rem 1.35rem;
+    border-radius: var(--ep-radius);
+    border: 1px solid var(--color-gray-200);
+    background: var(--color-gray-100);
+    transition: border-color 0.2s, box-shadow 0.2s;
+    opacity: 1;
+  }
+  :global(html[data-animations]) .er-founder-card {
+    opacity: 0;
+  }
+  :global(html[data-animations]) .er-founder-card.revealed {
+    animation: enterpriseFadeSlideUp 0.5s ease-out forwards;
+  }
+  :global([data-theme='dark']) .er-founder-card {
+    border-color: var(--color-gray-700);
+    background: var(--color-gray-900);
+  }
+  .er-founder-card:hover {
+    border-color: var(--color-accent-300);
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.06);
+  }
+  :global([data-theme='dark']) .er-founder-card:hover {
+    border-color: var(--color-accent-700);
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.25);
+  }
+
+  .er-founder-header {
+    display: flex;
+    align-items: center;
+    gap: 0.85rem;
+    margin-bottom: 0.85rem;
+  }
+
+  .er-avatar {
+    width: 3rem;
+    height: 3rem;
+    border-radius: 50%;
+    background: var(--gradient-brand);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+  }
+
+  .er-avatar-initials {
+    font-size: 1rem;
+    font-weight: 800;
+    color: #fff;
+    letter-spacing: 0.04em;
+  }
+
+  .er-founder-meta {
+    flex: 1;
+    min-width: 0;
+  }
+
+  .er-founder-name {
+    font-size: 1rem;
+    font-weight: 700;
+    color: var(--color-gray-900);
+    margin: 0;
+    line-height: 1.3;
+  }
+  :global([data-theme='dark']) .er-founder-name {
+    color: var(--color-gray-100);
+  }
+
+  .er-founder-role {
+    font-size: 0.78rem;
+    color: var(--color-accent-600);
+    font-weight: 600;
+  }
+  :global([data-theme='dark']) .er-founder-role {
+    color: var(--color-accent-400);
+  }
+
+  .er-linkedin {
+    flex-shrink: 0;
+    width: 2rem;
+    height: 2rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 0.375rem;
+    color: var(--color-gray-400);
+    transition: color 0.15s, background 0.15s;
+  }
+  .er-linkedin:hover {
+    color: var(--color-accent-600);
+    background: var(--color-gray-200);
+  }
+  :global([data-theme='dark']) .er-linkedin:hover {
+    color: var(--color-accent-400);
+    background: var(--color-gray-800);
+  }
+
+  .er-linkedin-icon {
+    width: 1.15rem;
+    height: 1.15rem;
+  }
+
+  .er-founder-bio {
+    font-size: 0.82rem;
+    color: var(--color-gray-600);
+    line-height: 1.6;
+    margin: 0;
+  }
+  :global([data-theme='dark']) .er-founder-bio {
+    color: var(--color-gray-400);
+  }
+
+  /* ── Extended team row ─────────────────────────────────────── */
+  .er-contributors {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: center;
+    gap: 0.35rem 0.5rem;
+    margin-bottom: var(--ep-grid-mb);
+    padding: 0.75rem 1rem;
+    opacity: 1;
+  }
+  :global(html[data-animations]) .er-contributors {
+    opacity: 0;
+  }
+  :global(html[data-animations]) .er-contributors.revealed {
+    animation: enterpriseFadeSlideUp 0.5s ease-out forwards;
+  }
+
+  .er-contributors-label {
+    font-size: 0.78rem;
+    font-weight: 600;
+    color: var(--color-gray-500);
+    margin-right: 0.15rem;
+  }
+  :global([data-theme='dark']) .er-contributors-label {
+    color: var(--color-gray-400);
+  }
+
+  .er-contributor {
+    display: inline-flex;
+    align-items: baseline;
+    gap: 0.3rem;
+  }
+
+  .er-contributor-name {
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: var(--color-gray-700);
+  }
+  :global([data-theme='dark']) .er-contributor-name {
+    color: var(--color-gray-300);
+  }
+
+  .er-contributor-role {
+    font-size: 0.72rem;
+    color: var(--color-gray-400);
+    font-weight: 400;
+  }
+  :global([data-theme='dark']) .er-contributor-role {
+    color: var(--color-gray-500);
+  }
+
+  .er-contributor-sep {
+    color: var(--color-gray-300);
+    font-size: 0.8rem;
+  }
+  :global([data-theme='dark']) .er-contributor-sep {
+    color: var(--color-gray-600);
+  }
+
+  /* ── CTA reasons (inside CtaCallout slot) ──────────────────── */
+  .er-cta-reasons {
+    list-style: none;
+    padding: 0;
+    margin: 0 0 1.25rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.85rem;
+  }
+
+  .er-cta-reason {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.65rem;
+    font-size: 0.82rem;
+    color: var(--color-gray-600);
+    line-height: 1.6;
+  }
+  :global([data-theme='dark']) .er-cta-reason {
+    color: var(--color-gray-400);
+  }
+
+  .er-cta-reason :global(strong) {
+    color: var(--color-gray-900);
+    font-weight: 700;
+  }
+  :global([data-theme='dark']) .er-cta-reason :global(strong) {
+    color: var(--color-gray-100);
+  }
+
+  .er-cta-reason-icon {
+    flex-shrink: 0;
+    width: 1.25rem;
+    height: 1.25rem;
+    color: var(--color-accent-600);
+    margin-top: 0.1rem;
+  }
+  .er-cta-reason-icon svg {
+    width: 100%;
+    height: 100%;
+  }
+  :global([data-theme='dark']) .er-cta-reason-icon {
+    color: var(--color-accent-400);
+  }
+
+  /* ── Company badge ─────────────────────────────────────────── */
+  .er-company {
+    text-align: center;
+    padding: 1.5rem 1rem 0;
+    opacity: 1;
+  }
+  :global(html[data-animations]) .er-company {
+    opacity: 0;
+  }
+  :global(html[data-animations]) .er-company.revealed {
+    animation: enterpriseFadeSlideUp 0.5s ease-out forwards;
+  }
+
+  .er-company-text {
+    font-size: 0.8rem;
+    color: var(--color-gray-500);
+    line-height: 1.5;
+  }
+  :global([data-theme='dark']) .er-company-text {
+    color: var(--color-gray-400);
+  }
+
+  .er-link {
+    color: var(--color-accent-600);
+    text-decoration: underline;
+    text-underline-offset: 2px;
+    transition: color 0.15s;
+  }
+  .er-link:hover {
+    color: var(--color-accent-500);
+  }
+  :global([data-theme='dark']) .er-link {
+    color: var(--color-accent-400);
+  }
+  :global([data-theme='dark']) .er-link:hover {
+    color: var(--color-accent-300);
+  }
+
+  /* ── Reduced motion ────────────────────────────────────────── */
+  @media (prefers-reduced-motion: reduce) {
+    .er-founder-card,
+    .er-contributors,
+    .er-company {
+      opacity: 1 !important;
+      animation: none !important;
+    }
+  }
+</style>
+
+<!-- ═══════════════ Scroll-triggered reveal ═══════════════ -->
+<script>
+  import { initScrollReveal } from '../enterprise-shared/scroll-reveal';
+
+  function init() {
+    initScrollReveal('.er-section', [
+      { selector: '.er-founder-card', baseDelay: 0 },
+      { selector: '.er-contributors', baseDelay: 600 },
+      { selector: '.ent-cta', baseDelay: 750 },
+      { selector: '.er-company', baseDelay: 900 },
+    ]);
+  }
+
+  init();
+  document.addEventListener('astro:after-swap', init);
+</script>

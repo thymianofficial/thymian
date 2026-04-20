@@ -2,15 +2,15 @@
 /**
  * EnterpriseConsulting – service showcase for the enterprise page.
  *
- * Follows the same visual patterns as the home-page components
- * (CliShowcase, PluginEcosystem, RulesDriftPrevention):
+ * Layout:
  *   - Section header (h2 + subtitle)
  *   - Service card grid (2-col desktop, 1-col mobile)
  *   - Highlighted card for AI workflow
- *   - CTA callout with email button
- *   - Scroll-reveal animations via IntersectionObserver
- *   - Full dark-mode support
+ *   - CTA callout via shared CtaCallout component
+ *   - Scroll-reveal animations via shared utility
  */
+
+import CtaCallout from '../enterprise-shared/CtaCallout.astro';
 
 // ── Data ────────────────────────────────────────────────────────────────
 interface Service {
@@ -82,27 +82,15 @@ const services: Service[] = [
 ];
 ---
 
-<!-- Enable scroll-reveal animations only when IntersectionObserver is available -->
-<script is:inline>
-  'IntersectionObserver' in window && (document.documentElement.dataset.animations = '');
-</script>
-
-<section class="ec-section not-content" aria-labelledby="ec-heading" id="ec-services">
+<section class="ec-section not-content" aria-labelledby="ec-heading" id="consulting-services">
   <!-- ═════════ Section header ═════════ -->
-  <div class="text-center mb-8 lg:mb-12">
-    <h2
-      id="ec-heading"
-      class="text-2xl sm:text-3xl lg:text-4xl font-bold text-gray-900 dark:text-gray-100 mb-3"
-    >
-      Consulting Services
-    </h2>
-    <p
-      class="text-base lg:text-lg text-gray-500 dark:text-gray-400 max-w-2xl mx-auto"
-    >
+  <header class="ec-header">
+    <h2 id="ec-heading" class="ec-heading">Consulting Services</h2>
+    <p class="ec-subtitle">
       Hands-on guidance from the engineers who built Thymian &mdash; tailored to
       your architecture, your stack, and your standards.
     </p>
-  </div>
+  </header>
 
   <!-- ═════════ Service cards grid ═════════ -->
   <div class="ec-services">
@@ -131,102 +119,68 @@ const services: Service[] = [
   </div>
 
   <!-- ═════════ CTA callout ═════════ -->
-  <div class="ec-cta" data-animate="cta">
-    <div class="ec-cta-inner">
-      <div class="ec-cta-icon-wrap" aria-hidden="true">
-        <svg class="ec-cta-icon" viewBox="0 0 24 24" fill="none">
-          <path
-            d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"
-            stroke="currentColor"
-            stroke-width="1.5"
-            stroke-linecap="round"
-            stroke-linejoin="round"></path>
-          <circle
-            cx="9"
-            cy="7"
-            r="4"
-            stroke="currentColor"
-            stroke-width="1.5"></circle>
-          <path
-            d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"
-            stroke="currentColor"
-            stroke-width="1.5"
-            stroke-linecap="round"
-            stroke-linejoin="round"></path>
-        </svg>
-      </div>
-      <div class="ec-cta-content">
-        <h3 class="ec-cta-title">Work With the Creators of Thymian</h3>
-        <p class="ec-cta-desc">
-          Every engagement is led by the engineers who designed and built
-          Thymian&rsquo;s core architecture, rule engine, and plugin system. This
-          isn&rsquo;t outsourced consulting &mdash; it&rsquo;s direct access to
-          the team that understands HTTP conformance at the RFC level. We start
-          with a discovery call to understand your architecture, your challenges,
-          and your goals.
-        </p>
-        <a
-          href="mailto:support@thymian.com?subject=Enterprise%20Consultation"
-          class="ec-cta-button"
-        >
-          <svg
-            class="ec-cta-button-icon"
-            viewBox="0 0 20 20"
-            fill="currentColor"
-            aria-hidden="true"
-          >
-            <path
-              d="M2.003 5.884L10 9.882l7.997-3.998A2 2 0 0016 4H4a2 2 0 00-1.997 1.884z"
-            ></path>
-            <path
-              d="M18 8.118l-8 4-8-4V14a2 2 0 002 2h12a2 2 0 002-2V8.118z"
-            ></path>
-          </svg>
-          Schedule a Consultation
-        </a>
-      </div>
-    </div>
-  </div>
+  <CtaCallout title="Not Sure Where to Start?">
+    <p class="ec-cta-desc">
+      Most engagements begin with a short call. Walk us through your
+      API landscape and pain points &mdash; we&rsquo;ll tell you
+      which services make sense and which ones you can skip.
+      No pitch deck, no commitment.
+    </p>
+  </CtaCallout>
 </section>
 
 <!-- ═══════════════ Styles ═══════════════ -->
 <style>
+  @import '../../styles/enterprise-shared.css';
+
   /* ── Section wrapper ───────────────────────────────────────── */
   .ec-section {
-    --ec-radius: 0.75rem;
-    max-width: 80rem;
+    max-width: var(--ep-section-max-width);
     margin-inline: auto;
-    padding: 2rem 1rem;
+    padding: var(--ep-section-gap) var(--ep-section-padding-x);
   }
-  @media (min-width: 640px) {
-    .ec-section {
-      padding: 2.5rem 1.5rem;
-    }
+
+  /* ── Header ────────────────────────────────────────────────── */
+  .ec-header {
+    text-align: center;
+    margin-bottom: var(--ep-header-mb);
   }
-  @media (min-width: 1024px) {
-    .ec-section {
-      padding: 3rem 2rem;
-    }
+  .ec-heading {
+    font-size: clamp(1.5rem, 2.5vw, 2.25rem);
+    font-weight: 700;
+    color: var(--color-gray-900);
+    margin: 0 0 0.75rem;
+  }
+  :global([data-theme='dark']) .ec-heading {
+    color: var(--color-gray-100);
+  }
+  .ec-subtitle {
+    font-size: clamp(0.95rem, 1.5vw, 1.125rem);
+    color: var(--color-gray-500);
+    max-width: 42rem;
+    margin: 0 auto;
+  }
+  :global([data-theme='dark']) .ec-subtitle {
+    color: var(--color-gray-400);
   }
 
   /* ── Service cards grid ────────────────────────────────────── */
   .ec-services {
     display: grid;
     grid-template-columns: 1fr;
-    gap: 1rem;
-    margin-bottom: 2.5rem;
+    gap: var(--ep-grid-gap);
+    margin-bottom: var(--ep-grid-mb);
   }
   @media (min-width: 768px) {
     .ec-services {
       grid-template-columns: repeat(2, 1fr);
-      gap: 1.25rem;
     }
   }
 
   /* ── Card base ─────────────────────────────────────────────── */
   .ec-card {
     position: relative;
-    border-radius: var(--ec-radius);
+    border-radius: var(--ep-radius);
     border: 1px solid var(--color-gray-200);
     background: var(--color-gray-100);
     overflow: hidden;
@@ -237,7 +191,7 @@ const services: Service[] = [
     opacity: 0;
   }
   :global(html[data-animations]) .ec-card.revealed {
-    animation: ecFadeSlideUp 0.5s ease-out forwards;
+    animation: enterpriseFadeSlideUp 0.5s ease-out forwards;
   }
   :global([data-theme='dark']) .ec-card {
     border-color: var(--color-gray-700);
@@ -281,7 +235,7 @@ const services: Service[] = [
 
   /* Card body */
   .ec-card-body {
-    padding: 1.25rem 1.35rem 1.35rem;
+    padding: var(--ep-card-padding) 1.35rem 1.35rem;
   }
 
   /* Card header (icon + title) */
@@ -338,79 +292,7 @@ const services: Service[] = [
     color: var(--color-gray-400);
   }
 
-  /* ── CTA callout ───────────────────────────────────────────── */
-  .ec-cta {
-    max-width: 52rem;
-    margin: 0 auto;
-    opacity: 1;
-  }
-  :global(html[data-animations]) .ec-cta {
-    opacity: 0;
-  }
-  :global(html[data-animations]) .ec-cta.revealed {
-    animation: ecFadeSlideUp 0.5s ease-out forwards;
-  }
-
-  .ec-cta-inner {
-    display: flex;
-    gap: 1.25rem;
-    align-items: flex-start;
-    padding: 1.5rem 1.75rem;
-    border-radius: var(--ec-radius);
-    border: 1px solid var(--color-accent-200);
-    background: linear-gradient(
-      135deg,
-      var(--color-accent-50) 0%,
-      var(--color-accent-alt-50) 100%
-    );
-  }
-  :global([data-theme='dark']) .ec-cta-inner {
-    border-color: var(--color-accent-800);
-    background: linear-gradient(
-      135deg,
-      var(--color-accent-950) 0%,
-      var(--color-accent-alt-950) 100%
-    );
-  }
-
-  .ec-cta-icon-wrap {
-    flex-shrink: 0;
-    width: 2.75rem;
-    height: 2.75rem;
-    border-radius: 50%;
-    background: var(--color-accent-100);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-  }
-  :global([data-theme='dark']) .ec-cta-icon-wrap {
-    background: var(--color-accent-900);
-  }
-
-  .ec-cta-icon {
-    width: 1.4rem;
-    height: 1.4rem;
-    color: var(--color-accent-600);
-  }
-  :global([data-theme='dark']) .ec-cta-icon {
-    color: var(--color-accent-400);
-  }
-
-  .ec-cta-content {
-    flex: 1;
-    min-width: 0;
-  }
-
-  .ec-cta-title {
-    font-size: 1.05rem;
-    font-weight: 700;
-    color: var(--color-gray-900);
-    margin: 0 0 0.45rem;
-  }
-  :global([data-theme='dark']) .ec-cta-title {
-    color: var(--color-gray-100);
-  }
-
+  /* ── CTA desc (inside CtaCallout slot) ─────────────────────── */
   .ec-cta-desc {
     font-size: 0.82rem;
     color: var(--color-gray-600);
@@ -421,70 +303,9 @@ const services: Service[] = [
     color: var(--color-gray-400);
   }
 
-  .ec-cta-button {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.5rem;
-    padding: 0.6rem 1.4rem;
-    border-radius: 9999px;
-    font-size: 0.85rem;
-    font-weight: 700;
-    background: var(--color-accent-600);
-    color: #fff;
-    text-decoration: none;
-    transition: background 0.2s, box-shadow 0.2s, transform 0.15s;
-  }
-  .ec-cta-button:hover {
-    background: var(--color-accent-500);
-    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
-    transform: translateY(-1px);
-  }
-  :global([data-theme='dark']) .ec-cta-button {
-    background: var(--color-accent-500);
-  }
-  :global([data-theme='dark']) .ec-cta-button:hover {
-    background: var(--color-accent-400);
-    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
-  }
-  .ec-cta-button:focus-visible {
-    outline: 2px solid var(--color-accent-400);
-    outline-offset: 2px;
-  }
-
-  .ec-cta-button-icon {
-    width: 1rem;
-    height: 1rem;
-    flex-shrink: 0;
-  }
-
-  /* ── Responsive: hide CTA icon on very small screens ───────── */
-  @media (max-width: 479px) {
-    .ec-cta-inner {
-      flex-direction: column;
-      align-items: stretch;
-      gap: 1rem;
-      padding: 1.25rem 1.25rem;
-    }
-    .ec-cta-icon-wrap {
-      align-self: flex-start;
-    }
-  }
-
-  /* ── Animations ────────────────────────────────────────────── */
-  @keyframes ecFadeSlideUp {
-    from {
-      opacity: 0;
-      transform: translateY(12px);
-    }
-    to {
-      opacity: 1;
-      transform: translateY(0);
-    }
-  }
-
+  /* ── Reduced motion ────────────────────────────────────────── */
   @media (prefers-reduced-motion: reduce) {
-    .ec-card,
-    .ec-cta {
+    .ec-card {
       opacity: 1 !important;
       animation: none !important;
     }
@@ -493,53 +314,15 @@ const services: Service[] = [
 
 <!-- ═══════════════ Scroll-triggered reveal ═══════════════ -->
 <script>
-  function initEnterpriseConsulting() {
-    const section = document.querySelector('.ec-section');
-    if (!section) return;
+  import { initScrollReveal } from '../enterprise-shared/scroll-reveal';
 
-    const prefersReduced = window.matchMedia(
-      '(prefers-reduced-motion: reduce)',
-    ).matches;
-
-    const serviceCards =
-      section.querySelectorAll<HTMLElement>('.ec-card');
-    const cta = section.querySelector<HTMLElement>('.ec-cta');
-
-    if (prefersReduced) {
-      serviceCards.forEach((c) => c.classList.add('revealed'));
-      cta?.classList.add('revealed');
-      return;
-    }
-
-    if (!('IntersectionObserver' in window)) return;
-
-    const observer = new IntersectionObserver(
-      (entries) => {
-        for (const entry of entries) {
-          if (!entry.isIntersecting) continue;
-
-          // Reveal service cards with stagger
-          serviceCards.forEach((card) => {
-            const delay = parseInt(card.dataset.delay ?? '0', 10);
-            card.style.animationDelay = `${delay}ms`;
-            card.classList.add('revealed');
-          });
-
-          // Reveal CTA last
-          if (cta) {
-            cta.style.animationDelay = `${serviceCards.length * 80 + 200}ms`;
-            cta.classList.add('revealed');
-          }
-
-          observer.unobserve(entry.target);
-        }
-      },
-      { threshold: 0.1 },
-    );
-
-    observer.observe(section);
+  function init() {
+    initScrollReveal('.ec-section', [
+      { selector: '.ec-card', baseDelay: 0 },
+      { selector: '.ent-cta', baseDelay: 700 },
+    ]);
   }
 
-  initEnterpriseConsulting();
-  document.addEventListener('astro:after-swap', initEnterpriseConsulting);
+  init();
+  document.addEventListener('astro:after-swap', init);
 </script>
