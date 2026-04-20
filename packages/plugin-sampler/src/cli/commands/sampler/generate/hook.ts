@@ -22,7 +22,7 @@ export default class GenerateHook extends BaseCliRunCommand<
         emitter,
         this,
         this.flags.cwd,
-        this.flags['skip-spec-validation'],
+        this.flags['validate-specs'],
         this.flags['for-transaction'],
       );
     });

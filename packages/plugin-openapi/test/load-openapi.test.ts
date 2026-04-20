@@ -113,7 +113,7 @@ describe('load-openapi', () => {
       }
     });
 
-    it('throws OpenAPIValidationError when validation fails', async () => {
+    it('throws OpenAPIValidationError when validation fails and validateSpecs is enabled', async () => {
       const invalidDocument = {
         swagger: '2.0',
         info: {
@@ -128,6 +128,7 @@ describe('load-openapi', () => {
           JSON.stringify(invalidDocument),
           process.cwd(),
           new NoopLogger(),
+          true,
         );
         expect.fail('Error should have been thrown');
       } catch (error) {
@@ -187,7 +188,7 @@ describe('load-openapi', () => {
       }
     });
 
-    it('warns but does not throw on schema validation failure when skipSpecValidation is true', async () => {
+    it('warns but does not throw on schema validation failure when validateSpecs is false', async () => {
       const invalidDocument = {
         swagger: '2.0',
         info: {
@@ -204,7 +205,7 @@ describe('load-openapi', () => {
         JSON.stringify(invalidDocument),
         process.cwd(),
         logger,
-        true,
+        false,
       );
 
       // Should succeed — validation ran but only warned
@@ -212,7 +213,7 @@ describe('load-openapi', () => {
       expect(wantSpy).toHaveBeenCalledTimes(1);
     });
 
-    it('still throws on $ref errors when skipSpecValidation is true', async () => {
+    it('still throws on $ref errors when validateSpecs is false', async () => {
       const documentWithBadRef = {
         openapi: '3.1.0',
         info: {
@@ -244,7 +245,7 @@ describe('load-openapi', () => {
           JSON.stringify(documentWithBadRef),
           process.cwd(),
           new NoopLogger(),
-          true,
+          false,
         );
         expect.fail('Error should have been thrown');
       } catch (error) {
@@ -255,7 +256,7 @@ describe('load-openapi', () => {
       }
     });
 
-    it('validates schema when skipValidation is false', async () => {
+    it('validates schema when validateSpecs is true', async () => {
       const invalidDocument = {
         swagger: '2.0',
         info: {
@@ -270,7 +271,7 @@ describe('load-openapi', () => {
           JSON.stringify(invalidDocument),
           process.cwd(),
           new NoopLogger(),
-          false,
+          true,
         );
         expect.fail('Error should have been thrown');
       } catch (error) {

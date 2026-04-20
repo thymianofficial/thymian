@@ -51,7 +51,7 @@ export default class Test extends BaseCliRunCommand<typeof Test> {
         rulesConfig: this.thymianConfig.rules,
         ruleFilter: createSeverityRuleFilter(ruleSeverity),
         targetUrl,
-        skipSpecValidation: this.flags['skip-spec-validation'],
+        validateSpecs: this.flags['validate-specs'],
       });
     });
 

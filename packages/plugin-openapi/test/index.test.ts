@@ -28,13 +28,13 @@ describe('OpenApi plugin', () => {
           location: 'test/fixtures/petstore-v2.yaml',
         },
       ],
-      skipSpecValidation: false,
+      validateSpecs: true,
     });
 
     expect(formats).toHaveLength(1);
   });
 
-  it('loads openapi document with skipSpecValidation skipping schema errors', async () => {
+  it('loads openapi document when validateSpecs is disabled', async () => {
     const thymian = new Thymian(new NoopLogger(), {
       cwd: join(import.meta.dirname, '..'),
     });
@@ -48,10 +48,10 @@ describe('OpenApi plugin', () => {
           location: 'test/fixtures/invalid-openapi.yaml',
         },
       ],
-      skipSpecValidation: true,
+      validateSpecs: false,
     });
 
-    // Invalid doc should still load when skipSpecValidation is true (warning logged instead of error)
+    // Invalid doc should still load when validateSpecs is false (warning logged instead of error)
     expect(formats).toHaveLength(1);
   });
 

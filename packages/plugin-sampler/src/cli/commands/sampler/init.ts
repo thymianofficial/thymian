@@ -33,7 +33,7 @@ export default class Init extends BaseCliRunCommand<typeof Init> {
       const format = await this.thymian.loadFormat(
         {
           inputs: this.thymianConfig.specifications ?? [],
-          skipSpecValidation: this.flags['skip-spec-validation'],
+          validateSpecs: this.flags['validate-specs'],
         },
         {
           emitFormat: true,

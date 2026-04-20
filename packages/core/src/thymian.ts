@@ -46,7 +46,7 @@ export interface LintWorkflowInput {
   rulesConfig?: RulesConfiguration;
   ruleFilter?: RuleFilter;
   options?: Record<string, unknown>;
-  skipSpecValidation?: boolean;
+  validateSpecs?: boolean;
 }
 
 export interface TestWorkflowInput {
@@ -55,7 +55,7 @@ export interface TestWorkflowInput {
   rulesConfig?: RulesConfiguration;
   ruleFilter?: RuleFilter;
   options?: Record<string, unknown>;
-  skipSpecValidation?: boolean;
+  validateSpecs?: boolean;
   targetUrl?: string;
 }
 
@@ -66,7 +66,7 @@ export interface AnalyzeWorkflowInput {
   rulesConfig?: RulesConfiguration;
   ruleFilter?: RuleFilter;
   options?: Record<string, unknown>;
-  skipSpecValidation?: boolean;
+  validateSpecs?: boolean;
 }
 
 export type RegisteredPlugin<
@@ -324,7 +324,7 @@ export class Thymian {
       this.loadFormat(
         {
           inputs: input.specification,
-          skipSpecValidation: input.skipSpecValidation ?? true,
+          validateSpecs: input.validateSpecs ?? false,
         },
         { emitFormat: false },
       ),
@@ -359,7 +359,7 @@ export class Thymian {
     const [format, rules] = await Promise.all([
       this.loadFormat({
         inputs: input.specification,
-        skipSpecValidation: input.skipSpecValidation ?? true,
+        validateSpecs: input.validateSpecs ?? false,
       }),
       loadRules(input.rules ?? [], ruleFilter, rulesConfig, this.options.cwd),
     ]);
@@ -395,7 +395,7 @@ export class Thymian {
         ? this.loadFormat(
             {
               inputs: input.specification,
-              skipSpecValidation: input.skipSpecValidation ?? true,
+              validateSpecs: input.validateSpecs ?? false,
             },
             { emitFormat: false },
           )

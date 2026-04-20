@@ -115,7 +115,7 @@ export async function loadAndUpgrade(
   value: string,
   cwd: string = process.cwd(),
   logger: Logger,
-  skipSpecValidation = false,
+  validateSpecs = false,
 ): Promise<LoadResult> {
   const { document, filePath } = await loadOpenApi(value, cwd);
   const relativePath = filePath ? getRelativePath(filePath, cwd) : undefined;
@@ -147,11 +147,7 @@ export async function loadAndUpgrade(
       );
     }
 
-    if (skipSpecValidation) {
-      logger.warn(
-        `Schema validation for ${sourceLabel} failed. Errors:${validationResult?.errors?.map((e) => '\n  - ' + e.message + ('path' in e ? ` (at ${(e as Record<string, unknown>)['path']})` : '')).join('. ') ?? ''}`,
-      );
-    } else {
+    if (validateSpecs) {
       throw new ThymianBaseError(
         `Schema validation for ${sourceLabel} failed.`,
         {
@@ -165,6 +161,10 @@ export async function loadAndUpgrade(
             'Ensure all required fields are present (openapi, info, paths)',
           ],
         },
+      );
+    } else {
+      logger.warn(
+        `Schema validation for ${sourceLabel} failed. Errors:${validationResult?.errors?.map((e) => '\n  - ' + e.message + ('path' in e ? ` (at ${(e as Record<string, unknown>)['path']})` : '')).join('. ') ?? ''}`,
       );
     }
   } else {
@@ -255,14 +255,14 @@ export async function loadAndTransform(
     filter: HttpFilterExpression;
     format?: ThymianFormat;
     sourceName?: string;
-    skipSpecValidation?: boolean;
+    validateSpecs?: boolean;
   },
 ): Promise<[OpenAPI.Document, ThymianFormat, string | undefined]> {
   const loadResult = await loadAndUpgrade(
     value,
     options.cwd,
     options.logger,
-    options.skipSpecValidation,
+    options.validateSpecs,
   );
   const relativePath = loadResult.filePath
     ? getRelativePath(loadResult.filePath, options.cwd)

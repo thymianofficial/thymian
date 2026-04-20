@@ -77,7 +77,7 @@ export const openApiPlugin: ThymianPlugin = {
 
     emitter.onAction(
       'core.format.load',
-      async ({ inputs, skipSpecValidation }, ctx) => {
+      async ({ inputs, validateSpecs }, ctx) => {
         let format = new ThymianFormat();
 
         const descriptions = inputs.length
@@ -112,7 +112,7 @@ export const openApiPlugin: ThymianPlugin = {
               sourceName: description.sourceName,
               cwd: opts.cwd,
               filter: constant(true),
-              skipSpecValidation,
+              validateSpecs,
             },
           );
           format = thymianFormat;

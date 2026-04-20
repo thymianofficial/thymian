@@ -44,7 +44,7 @@ export default class Analyze extends BaseCliRunCommand<typeof Analyze> {
         rules: ruleSets,
         rulesConfig: this.thymianConfig.rules,
         ruleFilter: createSeverityRuleFilter(ruleSeverity),
-        skipSpecValidation: this.flags['skip-spec-validation'],
+        validateSpecs: this.flags['validate-specs'],
       });
     });
 
