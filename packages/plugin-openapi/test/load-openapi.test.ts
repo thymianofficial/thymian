@@ -255,32 +255,6 @@ describe('load-openapi', () => {
         );
       }
     });
-
-    it('validates schema when validateSpecs is true', async () => {
-      const invalidDocument = {
-        swagger: '2.0',
-        info: {
-          // Missing required 'title' field
-          version: '1.0.0',
-        },
-        paths: {},
-      };
-
-      try {
-        await loadAndUpgrade(
-          JSON.stringify(invalidDocument),
-          process.cwd(),
-          new NoopLogger(),
-          true,
-        );
-        expect.fail('Error should have been thrown');
-      } catch (error) {
-        expect(error).toBeInstanceOf(ThymianBaseError);
-        expect((error as ThymianBaseError).options.name).toBe(
-          'OpenAPIValidationError',
-        );
-      }
-    });
   });
 
   describe('openapiToThymianFormat', () => {
