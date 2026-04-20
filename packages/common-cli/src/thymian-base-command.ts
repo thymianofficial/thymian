@@ -12,7 +12,7 @@ type Args<T extends typeof Command> = Interfaces.InferredArgs<T['args']>;
 export abstract class ThymianBaseCommand<
   T extends typeof Command,
 > extends Command {
-  static override enableJsonFlag = true;
+  static override enableJsonFlag = false;
 
   static override baseFlags = {
     ['suppress-feedback']: Flags.boolean({

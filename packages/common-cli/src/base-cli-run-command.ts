@@ -42,7 +42,7 @@ export type CommandArgs<T extends typeof Command> = Interfaces.InferredArgs<
 export abstract class BaseCliRunCommand<
   T extends typeof Command,
 > extends Command {
-  static override enableJsonFlag = true;
+  static override enableJsonFlag = false;
 
   /**
    * Whether this command requires API specifications to run.
