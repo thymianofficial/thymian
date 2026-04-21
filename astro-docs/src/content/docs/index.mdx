@@ -3,7 +3,7 @@ title: Thymian
 description: Language-agnostic, open-source HTTP conformance and API governance tool.
 template: splash
 hero:
-  tagline: Write API rules once. Lint specs, test endpoints, and analyze traffic — all with the same rules, across every stage of your API lifecycle.
+  tagline: Write API rules once. Lint specs, test endpoints, and analyze traffic — all with the same rules, across every stage of your API lifecycle. Open source. AGPL v3 licensed.
 
   image:
     file: ../../assets/logo.svg
@@ -11,10 +11,6 @@ hero:
     - text: Get Started
       link: /introduction/getting-started
       icon: right-arrow
-    - text: Enterprise
-      link: /enterprise/
-      icon: right-arrow
-      variant: secondary
     - text: GitHub
       link: https://github.com/thymianofficial/thymian
       icon: github
@@ -27,6 +23,11 @@ import RulesDriftPrevention from '../../components/rules-drift-prevention/RulesD
 import PluginEcosystem from '../../components/plugin-ecosystem/PluginEcosystem.astro';
 import CliShowcase from '../../components/cli-showcase/CliShowcase.astro';
 import Differentiator from '../../components/differentiator/Differentiator.astro';
+import QuickStart from '../../components/quick-start/QuickStart.astro';
+
+<div className="not-content my-12">
+  <QuickStart />
+</div>
 
 <div className="not-content my-16">
   <LifecycleGrid />
@@ -52,18 +53,7 @@ import Differentiator from '../../components/differentiator/Differentiator.astro
   <LinkButton href="/introduction/getting-started/" icon="right-arrow">
     Get Started
   </LinkButton>
-  <LinkButton
-    href="/introduction/what-is-thymian/"
-    variant="secondary"
-    icon="right-arrow"
-  >
-    Read Docs
-  </LinkButton>
-  <LinkButton
-    href="/guides/plugin-developers-guide/"
-    variant="secondary"
-    icon="right-arrow"
-  >
-    Plugin Guide
+  <LinkButton href="/enterprise/" variant="secondary" icon="right-arrow">
+    Enterprise
   </LinkButton>
 </div>
