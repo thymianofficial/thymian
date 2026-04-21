@@ -1,0 +1,350 @@
+---
+/**
+ * Differentiator – comparison section showing how Thymian differs from
+ * existing API tooling (Spectral, Prism, Dredd).
+ *
+ * Replaces the generic "Explore the Ecosystem" card grid with a concrete
+ * reason to choose Thymian for developers already familiar with alternatives.
+ */
+
+interface ToolCapability {
+  label: string;
+  description: string;
+}
+
+interface Tool {
+  name: string;
+  capabilities: Record<string, boolean | 'partial'>;
+}
+
+const capabilities: ToolCapability[] = [
+  { label: 'Static spec linting', description: 'Validate OpenAPI specs without running code' },
+  { label: 'Live endpoint testing', description: 'Test running API endpoints against rules' },
+  { label: 'Traffic analysis', description: 'Analyze recorded or live HTTP traffic passively' },
+  { label: 'Unified rule definitions', description: 'Same rules across all validation modes' },
+  { label: 'Extensible plugin system', description: 'Full plugin architecture with event bus' },
+  { label: 'AI-optimized output', description: 'Structured output for agentic workflows' },
+  { label: 'Sharable rule packages', description: 'Publish and reuse rules as npm packages' },
+];
+
+const tools: Tool[] = [
+  {
+    name: 'Spectral',
+    capabilities: {
+      'Static spec linting': true,
+      'Live endpoint testing': false,
+      'Traffic analysis': false,
+      'Unified rule definitions': false,
+      'Extensible plugin system': 'partial',
+      'AI-optimized output': false,
+      'Sharable rule packages': 'partial',
+    },
+  },
+  {
+    name: 'Prism',
+    capabilities: {
+      'Static spec linting': false,
+      'Live endpoint testing': true,
+      'Traffic analysis': false,
+      'Unified rule definitions': false,
+      'Extensible plugin system': false,
+      'AI-optimized output': false,
+      'Sharable rule packages': false,
+    },
+  },
+  {
+    name: 'Dredd',
+    capabilities: {
+      'Static spec linting': false,
+      'Live endpoint testing': true,
+      'Traffic analysis': false,
+      'Unified rule definitions': false,
+      'Extensible plugin system': 'partial',
+      'AI-optimized output': false,
+      'Sharable rule packages': false,
+    },
+  },
+  {
+    name: 'Thymian',
+    capabilities: {
+      'Static spec linting': true,
+      'Live endpoint testing': true,
+      'Traffic analysis': true,
+      'Unified rule definitions': true,
+      'Extensible plugin system': true,
+      'AI-optimized output': true,
+      'Sharable rule packages': true,
+    },
+  },
+];
+---
+
+<section class="df-section not-content" aria-labelledby="df-heading">
+  <div class="text-center mb-8 lg:mb-12">
+    <h2
+      id="df-heading"
+      class="text-2xl sm:text-3xl lg:text-4xl font-bold text-gray-900 dark:text-gray-100 mb-3"
+    >
+      How Thymian Is Different
+    </h2>
+    <p
+      class="text-base lg:text-lg text-gray-500 dark:text-gray-400 max-w-2xl mx-auto"
+    >
+      Other tools handle one piece of the puzzle. Thymian unifies spec linting,
+      endpoint testing, and traffic analysis under a single rule engine.
+    </p>
+  </div>
+
+  <!-- Desktop table -->
+  <div class="df-table-wrap df-desktop-only">
+    <div class="overflow-x-auto">
+      <table class="df-table" role="grid" aria-label="Feature comparison between API tools">
+        <thead>
+          <tr>
+            <th class="df-corner" scope="col"><span class="sr-only">Capability</span></th>
+            {tools.map((tool) => (
+              <th class={`df-col-header ${tool.name === 'Thymian' ? 'df-col-header--thymian' : ''}`} scope="col">
+                {tool.name}
+              </th>
+            ))}
+          </tr>
+        </thead>
+        <tbody>
+          {capabilities.map((cap) => (
+            <tr>
+              <th class="df-row-header" scope="row" title={cap.description}>{cap.label}</th>
+              {tools.map((tool) => {
+                const val = tool.capabilities[cap.label];
+                const isThymian = tool.name === 'Thymian';
+                return (
+                  <td class={`df-cell ${isThymian ? 'df-cell--thymian' : ''}`}
+                      aria-label={`${tool.name}: ${cap.label} — ${val === true ? 'yes' : val === 'partial' ? 'partial' : 'no'}`}>
+                    {val === true && (
+                      <svg class={`df-icon ${isThymian ? 'df-icon--yes-thymian' : 'df-icon--yes'}`} viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                        <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/>
+                      </svg>
+                    )}
+                    {val === 'partial' && (
+                      <span class="df-partial" aria-hidden="true">~</span>
+                    )}
+                    {val === false && (
+                      <span class="df-no" aria-hidden="true">&mdash;</span>
+                    )}
+                  </td>
+                );
+              })}
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Mobile cards -->
+  <div class="df-mobile df-mobile-only">
+    {capabilities.map((cap) => (
+      <div class="df-mobile-card">
+        <h3 class="df-mobile-cap">{cap.label}</h3>
+        <div class="df-mobile-tools">
+          {tools.map((tool) => {
+            const val = tool.capabilities[cap.label];
+            const isThymian = tool.name === 'Thymian';
+            return (
+              <div class={`df-mobile-tool ${isThymian ? 'df-mobile-tool--thymian' : ''}`}>
+                <span class="df-mobile-tool-name">{tool.name}</span>
+                {val === true && (
+                  <svg class={`df-icon-sm ${isThymian ? 'df-icon--yes-thymian' : 'df-icon--yes'}`} viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                    <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/>
+                  </svg>
+                )}
+                {val === 'partial' && <span class="df-partial">~</span>}
+                {val === false && <span class="df-no">&mdash;</span>}
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    ))}
+  </div>
+</section>
+
+<style>
+  .df-section {
+    max-width: 80rem;
+    margin-inline: auto;
+    padding: 2rem 1rem;
+  }
+  @media (min-width: 1024px) {
+    .df-section { padding: 3rem 2rem; }
+  }
+
+  /* ── Desktop table ─────────────────────────────────────────── */
+  .df-desktop-only {
+    display: none;
+  }
+  @media (min-width: 640px) {
+    .df-desktop-only {
+      display: block;
+    }
+  }
+  .df-mobile-only {
+    display: flex;
+  }
+  @media (min-width: 640px) {
+    .df-mobile-only {
+      display: none;
+    }
+  }
+  .df-table-wrap {
+    max-width: 56rem;
+    margin: 0 auto;
+  }
+  .df-table {
+    width: 100%;
+    border-collapse: separate;
+    border-spacing: 0;
+    font-size: 0.82rem;
+  }
+  .df-corner {
+    width: 14rem;
+  }
+  .df-col-header {
+    padding: 0.75rem 0.75rem;
+    text-align: center;
+    font-weight: 700;
+    font-size: 0.85rem;
+    color: var(--color-gray-700);
+    border-bottom: 2px solid var(--color-gray-200);
+  }
+  :global([data-theme='dark']) .df-col-header {
+    color: var(--color-gray-300);
+    border-color: var(--color-gray-700);
+  }
+  .df-col-header--thymian {
+    color: var(--color-accent-700);
+    border-bottom-color: var(--color-accent-400);
+  }
+  :global([data-theme='dark']) .df-col-header--thymian {
+    color: var(--color-accent-400);
+    border-bottom-color: var(--color-accent-600);
+  }
+  .df-row-header {
+    padding: 0.6rem 0.75rem;
+    text-align: left;
+    font-weight: 600;
+    font-size: 0.8rem;
+    color: var(--color-gray-700);
+    border-bottom: 1px solid var(--color-gray-200);
+    white-space: nowrap;
+  }
+  :global([data-theme='dark']) .df-row-header {
+    color: var(--color-gray-300);
+    border-color: var(--color-gray-700);
+  }
+  .df-cell {
+    padding: 0.6rem 0.75rem;
+    text-align: center;
+    vertical-align: middle;
+    border-bottom: 1px solid var(--color-gray-200);
+  }
+  :global([data-theme='dark']) .df-cell {
+    border-color: var(--color-gray-700);
+  }
+  .df-cell--thymian {
+    background: var(--color-accent-50);
+  }
+  :global([data-theme='dark']) .df-cell--thymian {
+    background: var(--color-accent-950);
+  }
+  .df-icon {
+    width: 1.1rem;
+    height: 1.1rem;
+    margin: 0 auto;
+  }
+  .df-icon--yes {
+    color: var(--color-gray-400);
+  }
+  .df-icon--yes-thymian {
+    color: var(--color-accent-600);
+  }
+  :global([data-theme='dark']) .df-icon--yes-thymian {
+    color: var(--color-accent-400);
+  }
+  .df-partial {
+    font-size: 0.9rem;
+    font-weight: 700;
+    color: var(--color-gray-400);
+  }
+  .df-no {
+    font-size: 0.85rem;
+    color: var(--color-gray-300);
+  }
+  :global([data-theme='dark']) .df-no {
+    color: var(--color-gray-600);
+  }
+
+  /* ── Mobile cards ──────────────────────────────────────────── */
+  .df-mobile {
+    flex-direction: column;
+    gap: 0.75rem;
+  }
+  .df-mobile-card {
+    border: 1px solid var(--color-gray-200);
+    border-radius: 0.75rem;
+    padding: 0.85rem 1rem;
+    background: var(--color-gray-100);
+  }
+  :global([data-theme='dark']) .df-mobile-card {
+    border-color: var(--color-gray-700);
+    background: var(--color-gray-900);
+  }
+  .df-mobile-cap {
+    font-size: 0.85rem;
+    font-weight: 700;
+    color: var(--color-gray-900);
+    margin: 0 0 0.5rem;
+  }
+  :global([data-theme='dark']) .df-mobile-cap {
+    color: var(--color-gray-100);
+  }
+  .df-mobile-tools {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 0.4rem;
+  }
+  .df-mobile-tool {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.15rem;
+  }
+  .df-mobile-tool--thymian {
+    background: var(--color-accent-50);
+    border-radius: 0.5rem;
+    padding: 0.25rem;
+  }
+  :global([data-theme='dark']) .df-mobile-tool--thymian {
+    background: var(--color-accent-950);
+  }
+  .df-mobile-tool-name {
+    font-size: 0.6rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--color-gray-500);
+  }
+  .df-icon-sm {
+    width: 0.9rem;
+    height: 0.9rem;
+  }
+
+  .sr-only {
+    position: absolute;
+    width: 1px; height: 1px;
+    padding: 0; margin: -1px;
+    overflow: hidden;
+    clip: rect(0,0,0,0);
+    white-space: nowrap;
+    border-width: 0;
+  }
+</style>
