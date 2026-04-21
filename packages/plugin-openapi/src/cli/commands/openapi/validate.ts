@@ -7,10 +7,13 @@ export default class Validate extends BaseCliRunCommand<typeof Validate> {
   static override requiresSpecifications = false;
 
   static override args = {
-    file: Args.string({ description: 'file to read', required: true }),
+    file: Args.string({
+      description: 'Path to the OpenAPI or Swagger document to validate.',
+      required: true,
+    }),
   };
   static override description =
-    'Load and parse the given Swagger/OpenAPI file to the Thymian format.';
+    'Validate an OpenAPI or Swagger document and exit non-zero on errors.';
   static override examples = [
     '<%= config.bin %> <%= command.id %> openapi.yaml',
   ];

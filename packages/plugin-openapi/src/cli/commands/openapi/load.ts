@@ -9,13 +9,13 @@ export default class Load extends BaseCliRunCommand<typeof Load> {
 
   static override args = {
     content: Args.string({
-      description: 'file to read',
+      description: 'Path to the OpenAPI or Swagger document to convert.',
       required: true,
       ignoreStdin: false,
     }),
   };
   static override description =
-    'Load and parse the given Swagger/OpenAPI file to the Thymian format.';
+    'Convert an OpenAPI or Swagger document to exported Thymian format JSON.';
   static override examples = [
     '<%= config.bin %> <%= command.id %> openapi.yaml',
   ];

@@ -10,13 +10,13 @@ export default class Info extends BaseCliRunCommand<typeof Info> {
 
   static override args = {
     content: Args.string({
-      description: 'file to read',
+      description: 'Path to the OpenAPI or Swagger document to inspect.',
       required: true,
       ignoreStdin: false,
     }),
   };
   static override description =
-    'Load and parse the given Swagger/OpenAPI file to the Thymian format.';
+    'Print summary information for an OpenAPI or Swagger document.';
   static override examples = [
     '<%= config.bin %> <%= command.id %> openapi.yaml',
   ];
