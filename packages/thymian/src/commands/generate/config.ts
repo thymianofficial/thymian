@@ -207,9 +207,9 @@ export default class GenerateConfig extends ThymianBaseCommand<
 
   private generateCommentedConfig(
     config: typeof defaultConfig & {
-      specifications: ReturnType<typeof parseSpecFlag>[];
+      specifications: SpecificationInput[];
     },
-    specifications: ReturnType<typeof parseSpecFlag>[],
+    specifications: SpecificationInput[],
   ): string {
     const yaml = stringify(config);
     const specCommentLines = specifications.map(
