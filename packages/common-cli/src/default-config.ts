@@ -8,11 +8,7 @@ export const defaultConfig: ThymianConfig = {
   rules: {},
   plugins: {
     '@thymian/plugin-http-linter': {},
-    '@thymian/plugin-openapi': {
-      options: {
-        descriptions: [],
-      },
-    },
+    '@thymian/plugin-openapi': {},
     '@thymian/plugin-request-dispatcher': {},
     '@thymian/plugin-sampler': {},
     '@thymian/plugin-reporter': {
