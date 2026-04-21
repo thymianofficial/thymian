@@ -16,7 +16,7 @@ describe('flag parsers', () => {
 
     it('should throw for missing type prefix', () => {
       expect(() => parseSpecFlag('./openapi.yaml')).toThrow(
-        'Invalid --spec format: "./openapi.yaml"',
+        'Invalid format: "./openapi.yaml"',
       );
     });
 
