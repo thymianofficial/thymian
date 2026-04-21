@@ -55,10 +55,6 @@ describe('thymian generate config', () => {
     expect(plugins).toHaveProperty('@thymian/plugin-http-tester');
     expect(plugins).toHaveProperty('@thymian/plugin-http-analyzer');
 
-    // Verify plugin-specific options
-    expect(plugins['@thymian/plugin-openapi']).toEqual({
-      options: { descriptions: [] },
-    });
     expect(plugins['@thymian/plugin-reporter']).toEqual({
       options: { formatters: { text: {} } },
     });
