@@ -4,13 +4,13 @@ import { join, relative } from 'node:path';
 
 import {
   defaultConfig,
-  parseSpecFlag,
   specFlag,
   ThymianBaseCommand,
 } from '@thymian/common-cli';
 import { Flags, ux } from '@thymian/common-cli/oclif';
 import { confirm, input, select } from '@thymian/common-cli/prompts';
 import { stringify } from '@thymian/common-cli/yaml';
+import type { SpecificationInput } from '@thymian/core';
 import { searchForOpenApiFiles } from '@thymian/plugin-openapi';
 
 const DEFAULT_CONFIG_FILENAME = 'thymian.config.yaml';
@@ -106,7 +106,7 @@ export default class GenerateConfig extends ThymianBaseCommand<
     }
 
     // Resolve specification: --for-spec flag takes priority over auto-detection
-    let selectedSpecs: ReturnType<typeof parseSpecFlag>[];
+    let selectedSpecs: SpecificationInput[];
 
     if (this.flags['for-spec'] && this.flags['for-spec'].length > 0) {
       selectedSpecs = this.flags['for-spec'];
