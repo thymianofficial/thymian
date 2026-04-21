@@ -19,10 +19,11 @@ Verify that all sampled transactions can be executed against the live API.
 
 ```
 USAGE
-  $ thymian sampler check [--json] [--verbose] [--debug] [--log-level trace|debug|info|warn|error|silent] [--config
-    <value>] [--autoload] [--plugin <value>...] [--option <plugin>.<path>=<value>...] [--spec type:location...]
-    [--traffic type:location...] [--rule-set package-name...] [--rule-severity off|error|warn|hint] [--timeout <value>]
-    [--idle-timeout <value>] [--cwd <value>] [--suppress-feedback] [--incremental] [--target-url <value>]
+  $ thymian sampler check [--json] [--verbose] [--debug] [--guidance] [--sort-reports-by rule|endpoint|severity]
+    [--log-level trace|debug|info|warn|error|silent] [--config <value>] [--autoload] [--plugin <value>...] [--option
+    <plugin>.<path>=<value>...] [--spec type:location...] [--traffic type:location...] [--rule-set package-name...]
+    [--rule-severity off|error|warn|hint] [--timeout <value>] [--idle-timeout <value>] [--cwd <value>]
+    [--suppress-feedback] [--validate-specs] [--incremental] [--target-url <value>]
 
 FLAGS
   --cwd=<value>         [default: /Users/petermuller/dev/thymian/thymian/packages/plugin-sampler] Set current working
@@ -36,6 +37,7 @@ BASE FLAGS
                                        file.
   --config=<value>                     Path to thymian configuration file.
   --debug                              Run thymian in debug mode.
+  --[no-]guidance                      Show guidance hints on stderr. Defaults to true for TTY, false for non-TTY.
   --idle-timeout=<value>               [default: 500] Set the duration in ms to waited for events and actions when
                                        closing Thymian.
   --log-level=<option>                 Set log level (trace, debug, info, warn, error, silent). When set to trace, all
@@ -49,12 +51,15 @@ BASE FLAGS
   --rule-severity=<option>             Set the minimum rule severity threshold for rule loading (off, error, warn,
                                        hint). Only rules at or above this severity are loaded.
                                        <options: off|error|warn|hint>
+  --sort-reports-by=<option>           [default: endpoint] Control how validation findings are grouped in the report.
+                                       <options: rule|endpoint|severity>
   --spec=type:location...              Specification input in the format <type>:<location> (e.g.
                                        openapi:./openapi.yaml).
   --suppress-feedback                  Suppress feedback messages from Thymian.
   --timeout=<value>                    [default: 10000] Set the duration in ms to wait for anything that happens in
                                        Thymian.
   --traffic=type:location...           Traffic input in the format <type>:<location> (e.g. har:./traffic.har).
+  --[no-]validate-specs                Validate included specifications and fail on schema validation errors.
   --verbose                            Run thymian in verbose mode.
 
 GLOBAL FLAGS
@@ -77,10 +82,11 @@ _See code: [dist/cli/commands/sampler/check.js](https://github.com/thymianoffici
 
 ```
 USAGE
-  $ thymian sampler generate hook [--json] [--verbose] [--debug] [--log-level trace|debug|info|warn|error|silent] [--config
-    <value>] [--autoload] [--plugin <value>...] [--option <plugin>.<path>=<value>...] [--spec type:location...]
-    [--traffic type:location...] [--rule-set package-name...] [--rule-severity off|error|warn|hint] [--timeout <value>]
-    [--idle-timeout <value>] [--cwd <value>] [--suppress-feedback] [--for-transaction <value>]
+  $ thymian sampler generate hook [--json] [--verbose] [--debug] [--guidance] [--sort-reports-by rule|endpoint|severity]
+    [--log-level trace|debug|info|warn|error|silent] [--config <value>] [--autoload] [--plugin <value>...] [--option
+    <plugin>.<path>=<value>...] [--spec type:location...] [--traffic type:location...] [--rule-set package-name...]
+    [--rule-severity off|error|warn|hint] [--timeout <value>] [--idle-timeout <value>] [--cwd <value>]
+    [--suppress-feedback] [--validate-specs] [--for-transaction <value>]
 
 FLAGS
   --cwd=<value>              [default: /Users/petermuller/dev/thymian/thymian/packages/plugin-sampler] Set current
@@ -92,6 +98,7 @@ BASE FLAGS
                                        file.
   --config=<value>                     Path to thymian configuration file.
   --debug                              Run thymian in debug mode.
+  --[no-]guidance                      Show guidance hints on stderr. Defaults to true for TTY, false for non-TTY.
   --idle-timeout=<value>               [default: 500] Set the duration in ms to waited for events and actions when
                                        closing Thymian.
   --log-level=<option>                 Set log level (trace, debug, info, warn, error, silent). When set to trace, all
@@ -105,12 +112,15 @@ BASE FLAGS
   --rule-severity=<option>             Set the minimum rule severity threshold for rule loading (off, error, warn,
                                        hint). Only rules at or above this severity are loaded.
                                        <options: off|error|warn|hint>
+  --sort-reports-by=<option>           [default: endpoint] Control how validation findings are grouped in the report.
+                                       <options: rule|endpoint|severity>
   --spec=type:location...              Specification input in the format <type>:<location> (e.g.
                                        openapi:./openapi.yaml).
   --suppress-feedback                  Suppress feedback messages from Thymian.
   --timeout=<value>                    [default: 10000] Set the duration in ms to wait for anything that happens in
                                        Thymian.
   --traffic=type:location...           Traffic input in the format <type>:<location> (e.g. har:./traffic.har).
+  --[no-]validate-specs                Validate included specifications and fail on schema validation errors.
   --verbose                            Run thymian in verbose mode.
 
 GLOBAL FLAGS
@@ -127,10 +137,11 @@ _See code: [dist/cli/commands/sampler/generate/hook.js](https://github.com/thymi
 
 ```
 USAGE
-  $ thymian sampler init [--json] [--verbose] [--debug] [--log-level trace|debug|info|warn|error|silent] [--config
-    <value>] [--autoload] [--plugin <value>...] [--option <plugin>.<path>=<value>...] [--spec type:location...]
-    [--traffic type:location...] [--rule-set package-name...] [--rule-severity off|error|warn|hint] [--timeout <value>]
-    [--idle-timeout <value>] [--cwd <value>] [--suppress-feedback] [--overwrite] [--check]
+  $ thymian sampler init [--json] [--verbose] [--debug] [--guidance] [--sort-reports-by rule|endpoint|severity]
+    [--log-level trace|debug|info|warn|error|silent] [--config <value>] [--autoload] [--plugin <value>...] [--option
+    <plugin>.<path>=<value>...] [--spec type:location...] [--traffic type:location...] [--rule-set package-name...]
+    [--rule-severity off|error|warn|hint] [--timeout <value>] [--idle-timeout <value>] [--cwd <value>]
+    [--suppress-feedback] [--validate-specs] [--overwrite] [--check]
 
 FLAGS
   --[no-]check   After initialization, run sampler check to verify all transactions can be executed.
@@ -143,6 +154,7 @@ BASE FLAGS
                                        file.
   --config=<value>                     Path to thymian configuration file.
   --debug                              Run thymian in debug mode.
+  --[no-]guidance                      Show guidance hints on stderr. Defaults to true for TTY, false for non-TTY.
   --idle-timeout=<value>               [default: 500] Set the duration in ms to waited for events and actions when
                                        closing Thymian.
   --log-level=<option>                 Set log level (trace, debug, info, warn, error, silent). When set to trace, all
@@ -156,12 +168,15 @@ BASE FLAGS
   --rule-severity=<option>             Set the minimum rule severity threshold for rule loading (off, error, warn,
                                        hint). Only rules at or above this severity are loaded.
                                        <options: off|error|warn|hint>
+  --sort-reports-by=<option>           [default: endpoint] Control how validation findings are grouped in the report.
+                                       <options: rule|endpoint|severity>
   --spec=type:location...              Specification input in the format <type>:<location> (e.g.
                                        openapi:./openapi.yaml).
   --suppress-feedback                  Suppress feedback messages from Thymian.
   --timeout=<value>                    [default: 10000] Set the duration in ms to wait for anything that happens in
                                        Thymian.
   --traffic=type:location...           Traffic input in the format <type>:<location> (e.g. har:./traffic.har).
+  --[no-]validate-specs                Validate included specifications and fail on schema validation errors.
   --verbose                            Run thymian in verbose mode.
 
 GLOBAL FLAGS

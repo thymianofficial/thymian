@@ -29,10 +29,11 @@ Analyze recorded API traffic against specifications and configured rule sets.
 
 ```
 USAGE
-  $ thymian analyze [--json] [--verbose] [--debug] [--log-level trace|debug|info|warn|error|silent] [--config
-    <value>] [--autoload] [--plugin <value>...] [--option <plugin>.<path>=<value>...] [--spec type:location...]
-    [--traffic type:location...] [--rule-set package-name...] [--rule-severity off|error|warn|hint] [--timeout <value>]
-    [--idle-timeout <value>] [--cwd <value>] [--suppress-feedback]
+  $ thymian analyze [--json] [--verbose] [--debug] [--guidance] [--sort-reports-by rule|endpoint|severity]
+    [--log-level trace|debug|info|warn|error|silent] [--config <value>] [--autoload] [--plugin <value>...] [--option
+    <plugin>.<path>=<value>...] [--spec type:location...] [--traffic type:location...] [--rule-set package-name...]
+    [--rule-severity off|error|warn|hint] [--timeout <value>] [--idle-timeout <value>] [--cwd <value>]
+    [--suppress-feedback]
 
 FLAGS
   --cwd=<value>  [default: /Users/petermuller/dev/thymian/thymian/packages/thymian] Set current working directory.
@@ -42,6 +43,7 @@ BASE FLAGS
                                        file.
   --config=<value>                     Path to thymian configuration file.
   --debug                              Run thymian in debug mode.
+  --[no-]guidance                      Show guidance hints on stderr. Defaults to true for TTY, false for non-TTY.
   --idle-timeout=<value>               [default: 500] Set the duration in ms to waited for events and actions when
                                        closing Thymian.
   --log-level=<option>                 Set log level (trace, debug, info, warn, error, silent). When set to trace, all
@@ -55,6 +57,8 @@ BASE FLAGS
   --rule-severity=<option>             Set the minimum rule severity threshold for rule loading (off, error, warn,
                                        hint). Only rules at or above this severity are loaded.
                                        <options: off|error|warn|hint>
+  --sort-reports-by=<option>           [default: endpoint] Control how validation findings are grouped in the report.
+                                       <options: rule|endpoint|severity>
   --spec=type:location...              Specification input in the format <type>:<location> (e.g.
                                        openapi:./openapi.yaml).
   --suppress-feedback                  Suppress feedback messages from Thymian.
@@ -85,10 +89,11 @@ Show the current Thymian configuration.
 
 ```
 USAGE
-  $ thymian config show [--json] [--verbose] [--debug] [--log-level trace|debug|info|warn|error|silent] [--config
-    <value>] [--autoload] [--plugin <value>...] [--option <plugin>.<path>=<value>...] [--spec type:location...]
-    [--traffic type:location...] [--rule-set package-name...] [--rule-severity off|error|warn|hint] [--timeout <value>]
-    [--idle-timeout <value>] [--cwd <value>] [--suppress-feedback] [--yaml]
+  $ thymian config show [--json] [--verbose] [--debug] [--guidance] [--sort-reports-by rule|endpoint|severity]
+    [--log-level trace|debug|info|warn|error|silent] [--config <value>] [--autoload] [--plugin <value>...] [--option
+    <plugin>.<path>=<value>...] [--spec type:location...] [--traffic type:location...] [--rule-set package-name...]
+    [--rule-severity off|error|warn|hint] [--timeout <value>] [--idle-timeout <value>] [--cwd <value>]
+    [--suppress-feedback] [--yaml]
 
 FLAGS
   --cwd=<value>  [default: /Users/petermuller/dev/thymian/thymian/packages/thymian] Set current working directory.
@@ -99,6 +104,7 @@ BASE FLAGS
                                        file.
   --config=<value>                     Path to thymian configuration file.
   --debug                              Run thymian in debug mode.
+  --[no-]guidance                      Show guidance hints on stderr. Defaults to true for TTY, false for non-TTY.
   --idle-timeout=<value>               [default: 500] Set the duration in ms to waited for events and actions when
                                        closing Thymian.
   --log-level=<option>                 Set log level (trace, debug, info, warn, error, silent). When set to trace, all
@@ -112,6 +118,8 @@ BASE FLAGS
   --rule-severity=<option>             Set the minimum rule severity threshold for rule loading (off, error, warn,
                                        hint). Only rules at or above this severity are loaded.
                                        <options: off|error|warn|hint>
+  --sort-reports-by=<option>           [default: endpoint] Control how validation findings are grouped in the report.
+                                       <options: rule|endpoint|severity>
   --spec=type:location...              Specification input in the format <type>:<location> (e.g.
                                        openapi:./openapi.yaml).
   --suppress-feedback                  Suppress feedback messages from Thymian.
@@ -246,10 +254,11 @@ Lint API specifications against configured rule sets.
 
 ```
 USAGE
-  $ thymian lint [--json] [--verbose] [--debug] [--log-level trace|debug|info|warn|error|silent] [--config
-    <value>] [--autoload] [--plugin <value>...] [--option <plugin>.<path>=<value>...] [--spec type:location...]
-    [--traffic type:location...] [--rule-set package-name...] [--rule-severity off|error|warn|hint] [--timeout <value>]
-    [--idle-timeout <value>] [--cwd <value>] [--suppress-feedback]
+  $ thymian lint [--json] [--verbose] [--debug] [--guidance] [--sort-reports-by rule|endpoint|severity]
+    [--log-level trace|debug|info|warn|error|silent] [--config <value>] [--autoload] [--plugin <value>...] [--option
+    <plugin>.<path>=<value>...] [--spec type:location...] [--traffic type:location...] [--rule-set package-name...]
+    [--rule-severity off|error|warn|hint] [--timeout <value>] [--idle-timeout <value>] [--cwd <value>]
+    [--suppress-feedback]
 
 FLAGS
   --cwd=<value>  [default: /Users/petermuller/dev/thymian/thymian/packages/thymian] Set current working directory.
@@ -259,6 +268,7 @@ BASE FLAGS
                                        file.
   --config=<value>                     Path to thymian configuration file.
   --debug                              Run thymian in debug mode.
+  --[no-]guidance                      Show guidance hints on stderr. Defaults to true for TTY, false for non-TTY.
   --idle-timeout=<value>               [default: 500] Set the duration in ms to waited for events and actions when
                                        closing Thymian.
   --log-level=<option>                 Set log level (trace, debug, info, warn, error, silent). When set to trace, all
@@ -272,6 +282,8 @@ BASE FLAGS
   --rule-severity=<option>             Set the minimum rule severity threshold for rule loading (off, error, warn,
                                        hint). Only rules at or above this severity are loaded.
                                        <options: off|error|warn|hint>
+  --sort-reports-by=<option>           [default: endpoint] Control how validation findings are grouped in the report.
+                                       <options: rule|endpoint|severity>
   --spec=type:location...              Specification input in the format <type>:<location> (e.g.
                                        openapi:./openapi.yaml).
   --suppress-feedback                  Suppress feedback messages from Thymian.
@@ -302,10 +314,11 @@ List all registered Thymian plugins.
 
 ```
 USAGE
-  $ thymian plugins list [--json] [--verbose] [--debug] [--log-level trace|debug|info|warn|error|silent] [--config
-    <value>] [--autoload] [--plugin <value>...] [--option <plugin>.<path>=<value>...] [--spec type:location...]
-    [--traffic type:location...] [--rule-set package-name...] [--rule-severity off|error|warn|hint] [--timeout <value>]
-    [--idle-timeout <value>] [--cwd <value>] [--suppress-feedback]
+  $ thymian plugins list [--json] [--verbose] [--debug] [--guidance] [--sort-reports-by rule|endpoint|severity]
+    [--log-level trace|debug|info|warn|error|silent] [--config <value>] [--autoload] [--plugin <value>...] [--option
+    <plugin>.<path>=<value>...] [--spec type:location...] [--traffic type:location...] [--rule-set package-name...]
+    [--rule-severity off|error|warn|hint] [--timeout <value>] [--idle-timeout <value>] [--cwd <value>]
+    [--suppress-feedback]
 
 FLAGS
   --cwd=<value>  [default: /Users/petermuller/dev/thymian/thymian/packages/thymian] Set current working directory.
@@ -315,6 +328,7 @@ BASE FLAGS
                                        file.
   --config=<value>                     Path to thymian configuration file.
   --debug                              Run thymian in debug mode.
+  --[no-]guidance                      Show guidance hints on stderr. Defaults to true for TTY, false for non-TTY.
   --idle-timeout=<value>               [default: 500] Set the duration in ms to waited for events and actions when
                                        closing Thymian.
   --log-level=<option>                 Set log level (trace, debug, info, warn, error, silent). When set to trace, all
@@ -328,6 +342,8 @@ BASE FLAGS
   --rule-severity=<option>             Set the minimum rule severity threshold for rule loading (off, error, warn,
                                        hint). Only rules at or above this severity are loaded.
                                        <options: off|error|warn|hint>
+  --sort-reports-by=<option>           [default: endpoint] Control how validation findings are grouped in the report.
+                                       <options: rule|endpoint|severity>
   --spec=type:location...              Specification input in the format <type>:<location> (e.g.
                                        openapi:./openapi.yaml).
   --suppress-feedback                  Suppress feedback messages from Thymian.
@@ -351,10 +367,11 @@ List all rules from the configured rule sets.
 
 ```
 USAGE
-  $ thymian rules list [--json] [--verbose] [--debug] [--log-level trace|debug|info|warn|error|silent] [--config
-    <value>] [--autoload] [--plugin <value>...] [--option <plugin>.<path>=<value>...] [--spec type:location...]
-    [--traffic type:location...] [--rule-set package-name...] [--rule-severity off|error|warn|hint] [--timeout <value>]
-    [--idle-timeout <value>] [--cwd <value>] [--suppress-feedback] [--type static|analytics|test|informational...]
+  $ thymian rules list [--json] [--verbose] [--debug] [--guidance] [--sort-reports-by rule|endpoint|severity]
+    [--log-level trace|debug|info|warn|error|silent] [--config <value>] [--autoload] [--plugin <value>...] [--option
+    <plugin>.<path>=<value>...] [--spec type:location...] [--traffic type:location...] [--rule-set package-name...]
+    [--rule-severity off|error|warn|hint] [--timeout <value>] [--idle-timeout <value>] [--cwd <value>]
+    [--suppress-feedback] [--type static|analytics|test|informational...]
 
 FLAGS
   --cwd=<value>       [default: /Users/petermuller/dev/thymian/thymian/packages/thymian] Set current working directory.
@@ -366,6 +383,7 @@ BASE FLAGS
                                        file.
   --config=<value>                     Path to thymian configuration file.
   --debug                              Run thymian in debug mode.
+  --[no-]guidance                      Show guidance hints on stderr. Defaults to true for TTY, false for non-TTY.
   --idle-timeout=<value>               [default: 500] Set the duration in ms to waited for events and actions when
                                        closing Thymian.
   --log-level=<option>                 Set log level (trace, debug, info, warn, error, silent). When set to trace, all
@@ -379,6 +397,8 @@ BASE FLAGS
   --rule-severity=<option>             Set the minimum rule severity threshold for rule loading (off, error, warn,
                                        hint). Only rules at or above this severity are loaded.
                                        <options: off|error|warn|hint>
+  --sort-reports-by=<option>           [default: endpoint] Control how validation findings are grouped in the report.
+                                       <options: rule|endpoint|severity>
   --spec=type:location...              Specification input in the format <type>:<location> (e.g.
                                        openapi:./openapi.yaml).
   --suppress-feedback                  Suppress feedback messages from Thymian.
@@ -409,10 +429,11 @@ _See code: [dist/commands/rules/list.js](https://github.com/thymianofficial/thym
 
 ```
 USAGE
-  $ thymian schema [--json] [--verbose] [--debug] [--log-level trace|debug|info|warn|error|silent] [--config
-    <value>] [--autoload] [--plugin <value>...] [--option <plugin>.<path>=<value>...] [--spec type:location...]
-    [--traffic type:location...] [--rule-set package-name...] [--rule-severity off|error|warn|hint] [--timeout <value>]
-    [--idle-timeout <value>] [--cwd <value>] [--suppress-feedback]
+  $ thymian schema [--json] [--verbose] [--debug] [--guidance] [--sort-reports-by rule|endpoint|severity]
+    [--log-level trace|debug|info|warn|error|silent] [--config <value>] [--autoload] [--plugin <value>...] [--option
+    <plugin>.<path>=<value>...] [--spec type:location...] [--traffic type:location...] [--rule-set package-name...]
+    [--rule-severity off|error|warn|hint] [--timeout <value>] [--idle-timeout <value>] [--cwd <value>]
+    [--suppress-feedback]
 
 FLAGS
   --cwd=<value>  [default: /Users/petermuller/dev/thymian/thymian/packages/thymian] Set current working directory.
@@ -422,6 +443,7 @@ BASE FLAGS
                                        file.
   --config=<value>                     Path to thymian configuration file.
   --debug                              Run thymian in debug mode.
+  --[no-]guidance                      Show guidance hints on stderr. Defaults to true for TTY, false for non-TTY.
   --idle-timeout=<value>               [default: 500] Set the duration in ms to waited for events and actions when
                                        closing Thymian.
   --log-level=<option>                 Set log level (trace, debug, info, warn, error, silent). When set to trace, all
@@ -435,6 +457,8 @@ BASE FLAGS
   --rule-severity=<option>             Set the minimum rule severity threshold for rule loading (off, error, warn,
                                        hint). Only rules at or above this severity are loaded.
                                        <options: off|error|warn|hint>
+  --sort-reports-by=<option>           [default: endpoint] Control how validation findings are grouped in the report.
+                                       <options: rule|endpoint|severity>
   --spec=type:location...              Specification input in the format <type>:<location> (e.g.
                                        openapi:./openapi.yaml).
   --suppress-feedback                  Suppress feedback messages from Thymian.
@@ -455,10 +479,11 @@ Run Thymian in serve mode.
 
 ```
 USAGE
-  $ thymian serve [--json] [--verbose] [--debug] [--log-level trace|debug|info|warn|error|silent] [--config
-    <value>] [--autoload] [--plugin <value>...] [--option <plugin>.<path>=<value>...] [--spec type:location...]
-    [--traffic type:location...] [--rule-set package-name...] [--rule-severity off|error|warn|hint] [--timeout <value>]
-    [--idle-timeout <value>] [--cwd <value>] [--suppress-feedback]
+  $ thymian serve [--json] [--verbose] [--debug] [--guidance] [--sort-reports-by rule|endpoint|severity]
+    [--log-level trace|debug|info|warn|error|silent] [--config <value>] [--autoload] [--plugin <value>...] [--option
+    <plugin>.<path>=<value>...] [--spec type:location...] [--traffic type:location...] [--rule-set package-name...]
+    [--rule-severity off|error|warn|hint] [--timeout <value>] [--idle-timeout <value>] [--cwd <value>]
+    [--suppress-feedback]
 
 FLAGS
   --cwd=<value>  [default: /Users/petermuller/dev/thymian/thymian/packages/thymian] Set current working directory.
@@ -468,6 +493,7 @@ BASE FLAGS
                                        file.
   --config=<value>                     Path to thymian configuration file.
   --debug                              Run thymian in debug mode.
+  --[no-]guidance                      Show guidance hints on stderr. Defaults to true for TTY, false for non-TTY.
   --idle-timeout=<value>               [default: 500] Set the duration in ms to waited for events and actions when
                                        closing Thymian.
   --log-level=<option>                 Set log level (trace, debug, info, warn, error, silent). When set to trace, all
@@ -481,6 +507,8 @@ BASE FLAGS
   --rule-severity=<option>             Set the minimum rule severity threshold for rule loading (off, error, warn,
                                        hint). Only rules at or above this severity are loaded.
                                        <options: off|error|warn|hint>
+  --sort-reports-by=<option>           [default: endpoint] Control how validation findings are grouped in the report.
+                                       <options: rule|endpoint|severity>
   --spec=type:location...              Specification input in the format <type>:<location> (e.g.
                                        openapi:./openapi.yaml).
   --suppress-feedback                  Suppress feedback messages from Thymian.
@@ -507,10 +535,11 @@ Test API specifications by running live requests against configured rule sets.
 
 ```
 USAGE
-  $ thymian test [--json] [--verbose] [--debug] [--log-level trace|debug|info|warn|error|silent] [--config
-    <value>] [--autoload] [--plugin <value>...] [--option <plugin>.<path>=<value>...] [--spec type:location...]
-    [--traffic type:location...] [--rule-set package-name...] [--rule-severity off|error|warn|hint] [--timeout <value>]
-    [--idle-timeout <value>] [--cwd <value>] [--suppress-feedback] [--target-url <value>]
+  $ thymian test [--json] [--verbose] [--debug] [--guidance] [--sort-reports-by rule|endpoint|severity]
+    [--log-level trace|debug|info|warn|error|silent] [--config <value>] [--autoload] [--plugin <value>...] [--option
+    <plugin>.<path>=<value>...] [--spec type:location...] [--traffic type:location...] [--rule-set package-name...]
+    [--rule-severity off|error|warn|hint] [--timeout <value>] [--idle-timeout <value>] [--cwd <value>]
+    [--suppress-feedback] [--target-url <value>]
 
 FLAGS
   --cwd=<value>         [default: /Users/petermuller/dev/thymian/thymian/packages/thymian] Set current working
@@ -523,6 +552,7 @@ BASE FLAGS
                                        file.
   --config=<value>                     Path to thymian configuration file.
   --debug                              Run thymian in debug mode.
+  --[no-]guidance                      Show guidance hints on stderr. Defaults to true for TTY, false for non-TTY.
   --idle-timeout=<value>               [default: 500] Set the duration in ms to waited for events and actions when
                                        closing Thymian.
   --log-level=<option>                 Set log level (trace, debug, info, warn, error, silent). When set to trace, all
@@ -536,6 +566,8 @@ BASE FLAGS
   --rule-severity=<option>             Set the minimum rule severity threshold for rule loading (off, error, warn,
                                        hint). Only rules at or above this severity are loaded.
                                        <options: off|error|warn|hint>
+  --sort-reports-by=<option>           [default: endpoint] Control how validation findings are grouped in the report.
+                                       <options: rule|endpoint|severity>
   --spec=type:location...              Specification input in the format <type>:<location> (e.g.
                                        openapi:./openapi.yaml).
   --suppress-feedback                  Suppress feedback messages from Thymian.
