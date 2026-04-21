@@ -13,7 +13,18 @@
  */
 
 import CtaCallout from '../enterprise-shared/CtaCallout.astro';
-import { founders, contributors } from '../../data/team';
+import { founders } from '../../data/team';
+
+// Import team images so Astro can resolve them at build time
+const teamImages = import.meta.glob<{ default: ImageMetadata }>('../../assets/team/*.webp', { eager: true });
+
+function resolveTeamImage(picture?: string): string | undefined {
+  if (!picture) return undefined;
+  const filename = picture.split('/').pop();
+  if (!filename) return undefined;
+  const key = Object.keys(teamImages).find((k) => k.endsWith(`/${filename}`));
+  return key ? teamImages[key]!.default.src : undefined;
+}
 ---
 
 <section class="er-section not-content" aria-labelledby="er-heading">
@@ -33,8 +44,8 @@ import { founders, contributors } from '../../data/team';
         <div class="er-founder-card" data-animate="founder" data-delay={i * 150}>
           <div class="er-founder-header">
             <div class="er-avatar" aria-hidden="true">
-              {f.picture ? (
-                <img src={f.picture} alt="" class="er-avatar-img" loading="lazy" />
+              {resolveTeamImage(f.picture) ? (
+                <img src={resolveTeamImage(f.picture)} alt="" class="er-avatar-img" loading="lazy" />
               ) : (
                 <span class="er-avatar-initials">{f.initials}</span>
               )}
@@ -57,22 +68,6 @@ import { founders, contributors } from '../../data/team';
           </div>
           <p class="er-founder-bio">{f.bio}</p>
         </div>
-      ))
-    }
-  </div>
-
-  <!-- ═════════ Extended team row ═════════ -->
-  <div class="er-contributors" data-animate="contributors" data-delay="0">
-    <span class="er-contributors-label">Also contributing:</span>
-    {
-      contributors.map((c, i) => (
-        <>
-          <span class="er-contributor">
-            <span class="er-contributor-name">{c.name}</span>
-            <span class="er-contributor-role">{c.role}</span>
-          </span>
-          {i < contributors.length - 1 && <span class="er-contributor-sep" aria-hidden="true">&middot;</span>}
-        </>
       ))
     }
   </div>
@@ -102,6 +97,14 @@ import { founders, contributors } from '../../data/team';
         </span>
         <span>
           <strong>Live Incidents</strong> &mdash; When production breaks, the people who wrote the analyzer and understand HTTP at the RFC level are the fastest path to a root cause.
+        </span>
+      </li>
+      <li class="er-cta-reason">
+        <span class="er-cta-reason-icon" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+        </span>
+        <span>
+          <strong>After the Engagement</strong> &mdash; You keep everything: documented rule sets, pipeline configurations, training materials, and the knowledge to maintain it all independently. Optional ongoing support is available if you need it.
         </span>
       </li>
     </ul>
@@ -284,66 +287,6 @@ import { founders, contributors } from '../../data/team';
     color: var(--color-gray-400);
   }
 
-  /* ── Extended team row ─────────────────────────────────────── */
-  .er-contributors {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    justify-content: center;
-    gap: 0.35rem 0.5rem;
-    margin-bottom: var(--ep-grid-mb);
-    padding: 0.75rem 1rem;
-    opacity: 1;
-  }
-  :global(html[data-animations]) .er-contributors {
-    opacity: 0;
-  }
-  :global(html[data-animations]) .er-contributors.revealed {
-    animation: enterpriseFadeSlideUp 0.5s ease-out forwards;
-  }
-
-  .er-contributors-label {
-    font-size: 0.78rem;
-    font-weight: 600;
-    color: var(--color-gray-500);
-    margin-right: 0.15rem;
-  }
-  :global([data-theme='dark']) .er-contributors-label {
-    color: var(--color-gray-400);
-  }
-
-  .er-contributor {
-    display: inline-flex;
-    align-items: baseline;
-    gap: 0.3rem;
-  }
-
-  .er-contributor-name {
-    font-size: 0.8rem;
-    font-weight: 600;
-    color: var(--color-gray-700);
-  }
-  :global([data-theme='dark']) .er-contributor-name {
-    color: var(--color-gray-300);
-  }
-
-  .er-contributor-role {
-    font-size: 0.72rem;
-    color: var(--color-gray-400);
-    font-weight: 400;
-  }
-  :global([data-theme='dark']) .er-contributor-role {
-    color: var(--color-gray-500);
-  }
-
-  .er-contributor-sep {
-    color: var(--color-gray-300);
-    font-size: 0.8rem;
-  }
-  :global([data-theme='dark']) .er-contributor-sep {
-    color: var(--color-gray-600);
-  }
-
   /* ── CTA reasons (inside CtaCallout slot) ──────────────────── */
   .er-cta-reasons {
     list-style: none;
@@ -430,7 +373,6 @@ import { founders, contributors } from '../../data/team';
   /* ── Reduced motion ────────────────────────────────────────── */
   @media (prefers-reduced-motion: reduce) {
     .er-founder-card,
-    .er-contributors,
     .er-company {
       opacity: 1 !important;
       animation: none !important;
@@ -445,9 +387,8 @@ import { founders, contributors } from '../../data/team';
   function init() {
     initScrollReveal('.er-section', [
       { selector: '.er-founder-card', baseDelay: 0 },
-      { selector: '.er-contributors', baseDelay: 600 },
-      { selector: '.ent-cta', baseDelay: 750 },
-      { selector: '.er-company', baseDelay: 900 },
+      { selector: '.ent-cta', baseDelay: 600 },
+      { selector: '.er-company', baseDelay: 750 },
     ]);
   }
 

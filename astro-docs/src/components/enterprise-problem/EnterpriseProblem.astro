@@ -166,6 +166,20 @@ const incidents: Incident[] = [
       across design-time analysis, testing, and production monitoring. This level of protocol
       expertise is what we bring to your organization.
     </p>
+    <div class="ep-metrics">
+      <div class="ep-metric">
+        <span class="ep-metric-value">399</span>
+        <span class="ep-metric-label">RFC rules implemented</span>
+      </div>
+      <div class="ep-metric">
+        <span class="ep-metric-value">113</span>
+        <span class="ep-metric-label">RFC sections covered</span>
+      </div>
+      <div class="ep-metric">
+        <span class="ep-metric-value">3</span>
+        <span class="ep-metric-label">Validation contexts (lint, test, analyze)</span>
+      </div>
+    </div>
   </CtaCallout>
 </section>
 
@@ -435,6 +449,36 @@ const incidents: Incident[] = [
   }
   :global([data-theme='dark']) .ep-authority-desc :global(strong) {
     color: var(--color-accent-300);
+  }
+
+  /* ── Metrics row ──────────────────────────────────────────── */
+  .ep-metrics {
+    display: flex;
+    gap: 1.5rem;
+    flex-wrap: wrap;
+    margin-bottom: 1rem;
+  }
+  .ep-metric {
+    display: flex;
+    flex-direction: column;
+    gap: 0.1rem;
+  }
+  .ep-metric-value {
+    font-size: 1.5rem;
+    font-weight: 800;
+    color: var(--color-accent-600);
+    line-height: 1;
+  }
+  :global([data-theme='dark']) .ep-metric-value {
+    color: var(--color-accent-400);
+  }
+  .ep-metric-label {
+    font-size: 0.72rem;
+    color: var(--color-gray-500);
+    font-weight: 500;
+  }
+  :global([data-theme='dark']) .ep-metric-label {
+    color: var(--color-gray-400);
   }
 
   /* ── Reduced motion ────────────────────────────────────────── */
