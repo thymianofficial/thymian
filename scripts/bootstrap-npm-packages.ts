@@ -1,6 +1,6 @@
 import { execFileSync, execSync } from 'node:child_process';
 import { existsSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
-import { join } from 'node:path';
+import { basename, join } from 'node:path';
 
 import yargs from 'yargs';
 import { hideBin } from 'yargs/helpers';
@@ -84,7 +84,11 @@ const TRUSTED_PUBLISHING_ENVIRONMENT = 'npm';
   }
   console.log('');
 
-  buildPackages(targetPackages);
+  if (args.dryRun) {
+    console.log('Dry-run mode: skipping package builds.');
+  } else {
+    buildPackages(targetPackages);
+  }
 
   const failedPackages: string[] = [];
   const publishedPackages: string[] = [];
@@ -125,10 +129,7 @@ const TRUSTED_PUBLISHING_ENVIRONMENT = 'npm';
 
 function buildPackages(packages: WorkspacePackage[]): void {
   // Derive Nx project names from the package directory names (e.g. packages/core -> core)
-  const projectNames = packages.map((pkg) => {
-    const parts = pkg.packageDir.split('/');
-    return parts[parts.length - 1];
-  });
+  const projectNames = packages.map((pkg) => basename(pkg.packageDir));
 
   const projectList = projectNames.join(',');
   console.log(`Building packages: ${projectList}`);
@@ -149,7 +150,7 @@ function buildPackages(packages: WorkspacePackage[]): void {
 
 function ensureNpmLogin(): void {
   try {
-    const user = execFileSync('npm', ['whoami'], {
+    const user = execFileSync('npm', ['whoami', '--registry', NPM_REGISTRY], {
       encoding: 'utf8',
       stdio: ['ignore', 'pipe', 'pipe'],
     }).trim();
@@ -390,10 +391,14 @@ function patchPackageJsonForCanary(
 
 function isPublishedOnNpm(packageName: string): boolean {
   try {
-    execFileSync('npm', ['view', packageName, 'version', '--json'], {
-      stdio: ['ignore', 'pipe', 'pipe'],
-      encoding: 'utf8',
-    });
+    execFileSync(
+      'npm',
+      ['view', packageName, 'version', '--json', '--registry', NPM_REGISTRY],
+      {
+        stdio: ['ignore', 'pipe', 'pipe'],
+        encoding: 'utf8',
+      },
+    );
     return true;
   } catch (error: unknown) {
     const stderr = getErrorStderr(error);
@@ -412,7 +417,14 @@ function getNpmDistTag(
   try {
     const output = execFileSync(
       'npm',
-      ['view', packageName, `dist-tags.${distTag}`, '--json'],
+      [
+        'view',
+        packageName,
+        `dist-tags.${distTag}`,
+        '--json',
+        '--registry',
+        NPM_REGISTRY,
+      ],
       {
         stdio: ['ignore', 'pipe', 'pipe'],
         encoding: 'utf8',
