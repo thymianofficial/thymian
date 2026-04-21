@@ -5,6 +5,7 @@ import { join, relative } from 'node:path';
 import {
   defaultConfig,
   parseSpecFlag,
+  specFlag,
   ThymianBaseCommand,
 } from '@thymian/common-cli';
 import { Flags, ux } from '@thymian/common-cli/oclif';
@@ -43,11 +44,9 @@ export default class GenerateConfig extends ThymianBaseCommand<
       description:
         'Output path for the generated configuration file. Defaults to thymian.config.yaml in the working directory.',
     }),
-    ['for-spec']: Flags.string({
-      multiple: true,
+    ['for-spec']: specFlag({
       description:
         'Specification input in the format <type>:<location>. Skips auto-detection and adds each provided specification directly.',
-      helpValue: 'type:location',
     }),
   };
 
@@ -110,7 +109,7 @@ export default class GenerateConfig extends ThymianBaseCommand<
     let selectedSpecs: ReturnType<typeof parseSpecFlag>[];
 
     if (this.flags['for-spec'] && this.flags['for-spec'].length > 0) {
-      selectedSpecs = this.flags['for-spec'].map((spec) => parseSpecFlag(spec));
+      selectedSpecs = this.flags['for-spec'];
     } else {
       // Auto-detect OpenAPI files
       const detectedFiles = await searchForOpenApiFiles(cwd);

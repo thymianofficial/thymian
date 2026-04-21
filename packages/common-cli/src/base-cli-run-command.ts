@@ -109,7 +109,9 @@ export abstract class BaseCliRunCommand<
       helpGroup: 'BASE',
     }),
     option: optionFlag(),
-    spec: specFlag(),
+    spec: specFlag({
+      helpGroup: 'BASE',
+    }),
     traffic: trafficFlag(),
     ['rule-set']: ruleSetFlag(),
     ['rule-severity']: Flags.string({

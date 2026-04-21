@@ -10,7 +10,7 @@ export function parseSpecFlag(input: string): SpecificationInput {
 
   if (colonIndex === -1) {
     throw new Errors.CLIError(
-      `Invalid --spec format: "${input}". Expected format: <type>:<location> (e.g. openapi:./openapi.yaml).`,
+      `Invalid format: "${input}". Expected format: <type>:<location> (e.g. openapi:./openapi.yaml).`,
     );
   }
 
@@ -19,7 +19,7 @@ export function parseSpecFlag(input: string): SpecificationInput {
 
   if (!type || !location) {
     throw new Errors.CLIError(
-      `Invalid --spec format: "${input}". Expected format: <type>:<location> (e.g. openapi:./openapi.yaml).`,
+      `Invalid format: "${input}". Expected format: <type>:<location> (e.g. openapi:./openapi.yaml).`,
     );
   }
 
@@ -31,6 +31,5 @@ export const specFlag = Flags.custom<SpecificationInput>({
     'Specification input in the format <type>:<location> (e.g. openapi:./openapi.yaml).',
   multiple: true,
   helpValue: 'type:location',
-  helpGroup: 'BASE',
   parse: async (input) => parseSpecFlag(input),
 });

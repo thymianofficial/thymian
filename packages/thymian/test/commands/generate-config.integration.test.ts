@@ -214,7 +214,7 @@ describe('generate config (integration)', () => {
       });
     });
 
-    it('generates config with all provided --for-spec values in order', async () => {
+    it('generates config with all provided --for-spec values', async () => {
       const testDir = join(tmpDir, 'for-spec-multiple');
       mkdirSync(testDir, { recursive: true });
 
