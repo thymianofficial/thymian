@@ -213,7 +213,8 @@ export default class GenerateConfig extends ThymianBaseCommand<
   ): string {
     const yaml = stringify(config);
     const specCommentLines = specifications.map(
-      (spec) => `# Specification: ${spec.type}:${String(spec.location)}`,
+      (spec) =>
+        `# Specification: ${spec.type.replaceAll(/[\n\r]/g, '')}:${String(spec.location).replaceAll(/[\n\r]/g, '')}`,
     );
 
     // Prepend a comment header explaining the config
