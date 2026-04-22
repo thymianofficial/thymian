@@ -35,7 +35,7 @@ export const founders: TeamMember[] = [
     linkedin: 'https://www.linkedin.com/in/matthias-keckl/',
     initials: 'MK',
     title: 'Core Team',
-    picture: './src/assets/team/matthias-keckl.webp',
+    picture: '/team/matthias-keckl.webp',
   },
   {
     name: 'Peter Müller',
@@ -44,7 +44,7 @@ export const founders: TeamMember[] = [
     linkedin: 'https://www.linkedin.com/in/muellerpeter/',
     initials: 'PM',
     title: 'Core Team',
-    picture: './src/assets/team/peter-muller.webp',
+    picture: '/team/peter-muller.webp',
   },
   {
     name: 'Markus Ende',
@@ -53,7 +53,7 @@ export const founders: TeamMember[] = [
     linkedin: 'https://www.linkedin.com/in/markus-ende/',
     initials: 'ME',
     title: 'Core Team',
-    picture: './src/assets/team/markus-ende.webp',
+    picture: '/team/markus-ende.webp',
   },
   {
     name: 'Andreas Tennert',
@@ -62,7 +62,7 @@ export const founders: TeamMember[] = [
     linkedin: 'https://www.linkedin.com/in/andreas-tennert/',
     initials: 'AT',
     title: 'Core Team',
-    picture: './src/assets/team/andreas-tennert.webp',
+    picture: '/team/andreas-tennert.webp',
   },
 ];
 
