@@ -1,6 +1,9 @@
 import { BaseCliRunCommand, oclif, prompts } from '@thymian/common-cli';
 
 export default class Init extends BaseCliRunCommand<typeof Init> {
+  static override description =
+    'Generate initial sampler files for the current API specification.';
+
   static override flags = {
     overwrite: oclif.Flags.boolean({
       default: false,

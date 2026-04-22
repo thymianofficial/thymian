@@ -12,6 +12,9 @@ import { createGithubIssueUrlForError } from '../create-github-issue-url-for-err
 export class Feedback extends ThymianBaseCommand<typeof Feedback> {
   protected static CONTACT = 'c3VwcG9ydEB0aHltaWFuLmRldg==';
 
+  static override description =
+    'Share CLI feedback or report the most recent command error.';
+
   override shouldSuppressFeedback(): boolean {
     return true;
   }

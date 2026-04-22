@@ -7,10 +7,12 @@ export default class GenerateHook extends BaseCliRunCommand<
   typeof GenerateHook
 > {
   static override aliases = ['sampler g h', 'sampler generate h'];
+  static override description =
+    'Generate a sampler hook for a specific transaction.';
 
   static override flags = {
     'for-transaction': Flags.string({
-      description: 'For which transaction do you want to generate a hook?',
+      description: 'Transaction identifier to generate the hook for.',
       required: false,
     }),
   };

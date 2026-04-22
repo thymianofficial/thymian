@@ -97,17 +97,21 @@ export abstract class BaseCliRunCommand<
     autoload: Flags.boolean({
       allowNo: true,
       description:
-        'Disable automatic loading and initialization of plugins based on configuration file.',
+        'Automatically load and initialize plugins from the configuration file.',
       helpGroup: 'BASE',
     }),
     plugin: Flags.string({
       multiple: true,
       charAliases: ['p'],
       default: [],
+      description:
+        'Load an additional plugin package or relative plugin path before running the command. Can be used multiple times.',
       helpGroup: 'BASE',
     }),
     option: optionFlag(),
-    spec: specFlag(),
+    spec: specFlag({
+      helpGroup: 'BASE',
+    }),
     traffic: trafficFlag(),
     ['rule-set']: ruleSetFlag(),
     ['rule-severity']: Flags.string({

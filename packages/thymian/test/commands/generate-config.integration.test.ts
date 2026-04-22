@@ -214,6 +214,38 @@ describe('generate config (integration)', () => {
       });
     });
 
+    it('generates config with all provided --for-spec values', async () => {
+      const testDir = join(tmpDir, 'for-spec-multiple');
+      mkdirSync(testDir, { recursive: true });
+
+      await captureOutput(async () => {
+        await GenerateConfig.run([
+          '--cwd',
+          testDir,
+          '--no-interactive',
+          '--for-spec',
+          'openapi:./petstore.yaml',
+          '--for-spec',
+          'openapi:./orders.yaml',
+        ]);
+      });
+
+      const configPath = join(testDir, 'thymian.config.yaml');
+      expect(existsSync(configPath)).toBe(true);
+
+      const loadedConfig = await loadGeneratedConfig(configPath);
+      expect(loadedConfig.specifications).toEqual([
+        { type: 'openapi', location: './petstore.yaml' },
+        { type: 'openapi', location: './orders.yaml' },
+      ]);
+
+      const configContent = await readFile(configPath, 'utf-8');
+      expect(configContent).toContain(
+        '# Specification: openapi:./petstore.yaml',
+      );
+      expect(configContent).toContain('# Specification: openapi:./orders.yaml');
+    });
+
     it('generates config with --for-spec even when no spec files exist in cwd', async () => {
       const testDir = join(tmpDir, 'for-spec-no-files');
       mkdirSync(testDir, { recursive: true });
