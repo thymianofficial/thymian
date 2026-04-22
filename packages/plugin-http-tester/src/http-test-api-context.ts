@@ -7,7 +7,6 @@ import {
   httpRequestToCommonHttpRequest,
   type HttpResponse,
   httpResponseToCommonHttpResponse,
-  type ReportFn,
   type RuleFnResult,
   type RuleViolation,
   type RuleViolationLocation,
@@ -15,7 +14,6 @@ import {
   ThymianBaseError,
   ThymianFormat,
   type ThymianHttpTransaction,
-  type ThymianReportSection,
   thymianRequestToOrigin,
   type ValidationFn,
 } from '@thymian/core';
@@ -48,23 +46,33 @@ function hasSource(
   return 'source' in transaction;
 }
 
+const noopReport = () => undefined;
+
+export interface HttpTesterRuleDiagnostics {
+  skippedCases: Array<{
+    name: string;
+    reason: string;
+  }>;
+  failedCases: Array<{
+    name: string;
+    reason: string;
+  }>;
+}
+
 export class HttpTestApiContext<
   Locals extends HttpTestContextLocals = HttpTestContextLocals,
-> implements TestContext {
+> implements TestContext<HttpTesterRuleDiagnostics> {
   readonly format: ThymianFormat;
-  readonly report: ReportFn;
+  readonly report = noopReport;
   private readonly violations: RuleViolation[] = [];
   private readonly ctx: HttpTestContext<Locals>;
+  private diagnostics?: HttpTesterRuleDiagnostics;
 
   constructor(
     private readonly name: string,
     ctx: HttpTestContext<Locals>,
-    report: ReportFn = () => undefined,
     private readonly skippedOrigins: string[] = [],
-    private readonly pluginSource = '@thymian/plugin-http-tester',
   ) {
-    this.report = report;
-
     if (skippedOrigins.length === 0) {
       this.format = ctx.format;
     } else {
@@ -86,6 +94,10 @@ export class HttpTestApiContext<
 
   reportViolation(violation: RuleViolation): void {
     this.violations.push(violation);
+  }
+
+  getRuleExecutionDiagnostics(): HttpTesterRuleDiagnostics | undefined {
+    return this.diagnostics;
   }
 
   async validateGroupedCommonHttpTransactions(
@@ -114,7 +126,7 @@ export class HttpTestApiContext<
 
     const testResult = await test(this.ctx);
 
-    this.reportSkippedAndFailedTestCases(testResult);
+    this.collectSkippedAndFailedTestCases(testResult);
 
     return testResult.cases
       .filter((testCase) => testCase.status === 'passed')
@@ -172,7 +184,7 @@ export class HttpTestApiContext<
 
     const testResult = await test(this.ctx);
 
-    this.reportSkippedAndFailedTestCases(testResult);
+    this.collectSkippedAndFailedTestCases(testResult);
 
     return testResult.cases
       .filter((testCase) => testCase.status === 'passed')
@@ -238,16 +250,15 @@ export class HttpTestApiContext<
       .concat(this.violations);
   }
 
-  private reportSkippedAndFailedTestCases(testResult: HttpTestResult) {
-    const skippedItems: { name: string; reason: string }[] = [];
-    const failedItems: { name: string; reason: string }[] = [];
+  private collectSkippedAndFailedTestCases(testResult: HttpTestResult) {
+    const skippedItems: HttpTesterRuleDiagnostics['skippedCases'] = [];
+    const failedItems: HttpTesterRuleDiagnostics['failedCases'] = [];
 
     testResult.cases.forEach((testCase) => {
       if (testCase.status === 'skipped') {
         this.ctx.logger.debug(
           `HTTP test case "${testCase.name}" from test "${this.name}" is skipped.`,
         );
-
         skippedItems.push({
           name: testCase.name,
           reason:
@@ -291,51 +302,13 @@ export class HttpTestApiContext<
       }
     });
 
-    if (skippedItems.length === 0 && failedItems.length === 0) {
-      return;
-    }
-
-    const sections: ThymianReportSection[] = [];
-
-    if (skippedItems.length > 0) {
-      sections.push({
-        heading: 'Skipped test cases',
-        items: skippedItems.map((item) => ({
-          severity: 'info' as const,
-          message: item.name,
-          details: item.reason,
-        })),
-      });
-    }
-
-    if (failedItems.length > 0) {
-      sections.push({
-        heading: 'Failed test cases',
-        items: failedItems.map((item) => ({
-          severity: 'warn' as const,
-          message: item.name,
-          details: item.reason,
-        })),
-      });
-    }
-
-    const parts: string[] = [];
-    if (skippedItems.length > 0) {
-      parts.push(
-        `${skippedItems.length} test case${skippedItems.length === 1 ? '' : 's'} skipped`,
-      );
-    }
-    if (failedItems.length > 0) {
-      parts.push(
-        `${failedItems.length} test case${failedItems.length === 1 ? '' : 's'} failed`,
-      );
-    }
-
-    this.report({
-      source: this.pluginSource,
-      message: `[${this.name}] ${parts.join(' and ')}`,
-      sections,
-    });
+    this.diagnostics =
+      skippedItems.length > 0 || failedItems.length > 0
+        ? {
+            skippedCases: skippedItems,
+            failedCases: failedItems,
+          }
+        : undefined;
   }
 
   async httpTest(pipeline: HttpTestPipeline<Locals>): Promise<RuleFnResult> {
@@ -343,7 +316,7 @@ export class HttpTestApiContext<
 
     const testResult = await testFn(this.ctx);
 
-    this.reportSkippedAndFailedTestCases(testResult);
+    this.collectSkippedAndFailedTestCases(testResult);
 
     return this.violations;
   }
@@ -384,7 +357,7 @@ export class HttpTestApiContext<
 
     const testResult = await test(this.ctx);
 
-    this.reportSkippedAndFailedTestCases(testResult);
+    this.collectSkippedAndFailedTestCases(testResult);
 
     return testResult.cases
       .filter((testCase) => testCase.status === 'passed')

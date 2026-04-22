@@ -8,6 +8,7 @@ import type { HttpTestResult } from '../http-testing/http-test/http-test.js';
 import type { HttpTestContextLocals } from '../http-testing/http-test/http-test-context.js';
 import type { HttpTestPipeline } from '../http-testing/http-test/http-test-pipeline.js';
 import type { PartialBy } from '../utils.js';
+import type { RuleExecutionDiagnosticsProvider } from './rule-runner.js';
 import type {
   RuleFnResult,
   RuleViolation,
@@ -42,7 +43,9 @@ export type ValidationFn<
     | undefined,
 > = (...args: Args) => R;
 
-export interface ApiContext {
+export interface ApiContext<
+  TDiagnostics = unknown,
+> extends RuleExecutionDiagnosticsProvider<TDiagnostics> {
   readonly format: ThymianFormat;
   readonly report: ReportFn;
   reportViolation(violation: RuleViolation): void;
@@ -67,7 +70,9 @@ export interface ApiContext {
   ): Promise<RuleFnResult> | RuleFnResult;
 }
 
-export interface LiveApiContext extends ApiContext {
+export interface LiveApiContext<
+  TDiagnostics = unknown,
+> extends ApiContext<TDiagnostics> {
   validateHttpTransactions(
     filter: HttpFilterExpression,
     validation?:
@@ -76,7 +81,9 @@ export interface LiveApiContext extends ApiContext {
   ): Promise<RuleFnResult> | RuleFnResult;
 }
 
-export interface LintContext extends ApiContext {
+export interface LintContext<
+  TDiagnostics = unknown,
+> extends ApiContext<TDiagnostics> {
   validateHttpTransactions(
     filterFn: (
       req: ThymianHttpRequest,
@@ -91,7 +98,9 @@ export interface LintContext extends ApiContext {
   ): Promise<RuleFnResult> | RuleFnResult;
 }
 
-export interface TestContext extends LiveApiContext {
+export interface TestContext<
+  TDiagnostics = unknown,
+> extends LiveApiContext<TDiagnostics> {
   httpTest(
     pipeline: HttpTestPipeline<HttpTestContextLocals>,
   ): Promise<RuleFnResult> | RuleFnResult;
@@ -100,7 +109,9 @@ export interface TestContext extends LiveApiContext {
   ): Promise<HttpTestResult>;
 }
 
-export interface AnalyzeContext extends LiveApiContext {
+export interface AnalyzeContext<
+  TDiagnostics = unknown,
+> extends LiveApiContext<TDiagnostics> {
   validateCapturedHttpTransactions(
     filter: HttpFilterExpression,
     validate: ValidationFn<[CapturedTransaction, string]>,

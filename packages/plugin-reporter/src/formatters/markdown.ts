@@ -37,7 +37,7 @@ export type MarkdownFormatterOptions = {
 export class MarkdownFormatter implements Formatter<MarkdownFormatterOptions> {
   options!: MarkdownFormatterOptions;
 
-  private readonly reports: ThymianReport[] = [];
+  private readonly reportsMap: Map<string, ThymianReport[]> = new Map();
 
   constructor(private readonly logger: Logger) {}
 
@@ -46,15 +46,19 @@ export class MarkdownFormatter implements Formatter<MarkdownFormatterOptions> {
   }
 
   report(report: ThymianReport): void {
-    this.reports.push(report);
+    if (!this.reportsMap.has(report.source)) {
+      this.reportsMap.set(report.source, []);
+    }
+
+    this.reportsMap.get(report.source)?.push(report);
   }
 
   async flush(): Promise<string | undefined> {
-    if (this.reports.length === 0) {
+    if (this.reportsMap.size === 0) {
       return undefined;
     }
 
-    const analysis = analyze(this.reports);
+    const analysis = analyze(this.reportsMap);
 
     const lines: string[] = [];
     lines.push('# Thymian Report');
@@ -70,46 +74,51 @@ export class MarkdownFormatter implements Formatter<MarkdownFormatterOptions> {
     );
     lines.push('');
 
-    for (const report of analysis.reports) {
-      lines.push(`## ${report.source}`);
+    for (const [source, reports] of this.reportsMap.entries()) {
+      lines.push(`## ${source}`);
       lines.push('');
 
-      if (report.message) {
-        lines.push(`  ${report.message}`);
-        lines.push('');
-        lines.push('');
-      }
+      lines.push(
+        reports
+          .map((report) => report.message)
+          .filter(Boolean)
+          .join(' '),
+      );
 
-      if (report.sections) {
-        for (const section of report.sections) {
-          lines.push(`### ${section.heading}`);
-          lines.push('');
+      lines.push('');
 
-          for (const item of section.items) {
-            const sev = mapSeverityToBadge(item.severity);
-            lines.push(`- **${sev}**: ${item.message}`);
+      for (const report of reports) {
+        if (report.sections) {
+          for (const section of report.sections) {
+            lines.push(`### ${section.heading}`);
+            lines.push('');
 
-            if (item.ruleName) {
-              lines.push(`<br/>  *Rule: ${item.ruleName}*`);
-            }
+            for (const item of section.items) {
+              const sev = mapSeverityToBadge(item.severity);
+              lines.push(`- **${sev}**: ${item.message}`);
 
-            if (item.details) {
-              lines.push(details(item.details));
-            }
+              if (item.ruleName) {
+                lines.push(`<br/>  *Rule: ${item.ruleName}*`);
+              }
 
-            if (item.links && item.links.length > 0) {
-              lines.push('  Related links:');
-              for (const link of item.links) {
-                lines.push(`  - [${link.title ?? link.url}](${link.url})`);
+              if (item.details) {
+                lines.push(details(item.details));
+              }
+
+              if (item.links && item.links.length > 0) {
+                lines.push('  Related links:');
+                for (const link of item.links) {
+                  lines.push(`  - [${link.title ?? link.url}](${link.url})`);
+                }
               }
             }
+
+            lines.push('');
           }
-
-          lines.push('');
         }
-      }
 
-      lines.push('');
+        lines.push('');
+      }
     }
 
     await mkdir(path.dirname(this.options.path), { recursive: true });

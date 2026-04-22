@@ -65,7 +65,7 @@ export type TextFormatterOptions = {
 export class TextFormatter implements Formatter<Partial<TextFormatterOptions>> {
   options!: TextFormatterOptions;
 
-  private readonly reports: ThymianReport[] = [];
+  private readonly reportsMap: Map<string, ThymianReport[]> = new Map();
 
   init(options: Partial<TextFormatterOptions>): void {
     this.options = {
@@ -75,7 +75,7 @@ export class TextFormatter implements Formatter<Partial<TextFormatterOptions>> {
   }
 
   async flush(): Promise<string | undefined> {
-    if (this.reports.length === 0) {
+    if (this.reportsMap.size === 0) {
       const message = `${chalk.green(successSymbol)} No problems found`;
 
       if (this.options.path) {
@@ -87,58 +87,68 @@ export class TextFormatter implements Formatter<Partial<TextFormatterOptions>> {
       return this.ensurePlainTextForNonTty(message);
     }
 
-    const analysis = analyze(this.reports);
+    const analysis = analyze(this.reportsMap);
     const lines: string[] = [];
 
     if (!this.options.summaryOnly) {
-      for (const report of analysis.reports) {
+      for (const [source, reports] of this.reportsMap.entries()) {
         lines.push(
-          `${report.source} ${Array.from({
-            length: Math.max(1, 80 - report.source.length),
+          `${source} ${Array.from({
+            length: Math.max(1, 80 - source.length),
           })
             .map(() => '─')
             .join('')}`,
         );
+
         lines.push('');
 
-        if (report.message) {
-          lines.push(`  ${report.message}`);
-          lines.push('');
-          lines.push('');
-        }
+        lines.push(
+          reports
+            .map((report) => report.message)
+            .filter(Boolean)
+            .join(' '),
+        );
 
-        if (report.sections && report.sections.length > 0) {
-          for (const section of report.sections) {
-            const isSeverityGrouped = SEVERITY_HEADING_RE.test(section.heading);
+        lines.push('');
 
-            lines.push(`  ${chalk.bold(section.heading)}`);
-            lines.push('');
+        for (const report of reports) {
+          if (report.sections && report.sections.length > 0) {
+            for (const section of report.sections) {
+              const isSeverityGrouped = SEVERITY_HEADING_RE.test(
+                section.heading,
+              );
 
-            for (const item of section.items) {
-              // When grouped by severity the heading already conveys the
-              // severity level → skip the per-item severity prefix to
-              // avoid redundant "Errors (3)  ✖ error: …" lines.
-              const prefix = isSeverityGrouped
-                ? ''
-                : formatSeverityPrefix(item.severity);
+              lines.push(`  ${chalk.bold(section.heading)}`);
+              lines.push('');
 
-              // 4 spaces base indentation + prefix + message
-              lines.push(`    ${prefix}${item.message}`);
+              for (const item of section.items) {
+                // When grouped by severity the heading already conveys the
+                // severity level → skip the per-item severity prefix to
+                // avoid redundant "Errors (3)  ✖ error: …" lines.
+                const prefix = isSeverityGrouped
+                  ? ''
+                  : formatSeverityPrefix(item.severity);
 
-              // When grouped by rule the heading already shows the rule
-              // name → skip the per-item rule name to avoid duplication.
-              const ruleRedundant = item.ruleName === section.heading;
-              if (item.ruleName && !ruleRedundant) {
-                // Align rule name under message text:
-                // 4 spaces base indent + prefix visible width
-                const indent = isSeverityGrouped
-                  ? 4
-                  : 4 + severityPrefixWidth(item.severity);
-                lines.push(`${' '.repeat(indent)}${chalk.dim(item.ruleName)}`);
+                // 4 spaces base indentation + prefix + message
+                lines.push(`    ${prefix}${item.message}`);
+
+                // When grouped by rule the heading already shows the rule
+                // name → skip the per-item rule name to avoid duplication.
+                const ruleRedundant = item.ruleName === section.heading;
+                if (item.ruleName && !ruleRedundant) {
+                  // Align rule name under message text:
+                  // 4 spaces base indent + prefix visible width
+                  const indent = isSeverityGrouped
+                    ? 4
+                    : 4 + severityPrefixWidth(item.severity);
+                  lines.push(
+                    `${' '.repeat(indent)}${chalk.dim(item.ruleName)}`,
+                  );
+                }
               }
-            }
 
-            lines.push('');
+              lines.push('');
+            }
           }
         }
       }
@@ -162,7 +172,11 @@ export class TextFormatter implements Formatter<Partial<TextFormatterOptions>> {
   }
 
   report(report: ThymianReport): void {
-    this.reports.push(report);
+    if (!this.reportsMap.has(report.source)) {
+      this.reportsMap.set(report.source, []);
+    }
+
+    this.reportsMap.get(report.source)?.push(report);
   }
 
   /**

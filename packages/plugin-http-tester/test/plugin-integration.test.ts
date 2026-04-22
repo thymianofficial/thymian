@@ -1,6 +1,13 @@
 import { join } from 'node:path';
 
-import { loadRules, Thymian } from '@thymian/core';
+import type { Rule, TestContext } from '@thymian/core';
+import {
+  loadRules,
+  method,
+  singleTestCase,
+  statusCode,
+  Thymian,
+} from '@thymian/core';
 import {
   createHttpRequest,
   createHttpResponse,
@@ -213,5 +220,86 @@ describe('core.test integration tests', { timeout: 30000 }, () => {
 
     expect(result.status).toBe('success');
     expect(result.violations).toHaveLength(0);
+  });
+
+  it('should emit a single aggregated core.report for skipped test cases', async () => {
+    registerRequestMocks(thymian);
+    await thymian.register(httpTesterPlugin, {}).ready();
+
+    const reports: unknown[] = [];
+    thymian.emitter.on('core.report', (report) => {
+      reports.push(report);
+    });
+
+    const rules: Rule[] = [
+      {
+        meta: {
+          name: 'custom/skip-report',
+          type: ['test'],
+          options: {
+            type: 'object',
+            properties: {},
+            required: [],
+            additionalProperties: false,
+          },
+          severity: 'warn' as const,
+        },
+        testRule: (ctx: TestContext) =>
+          ctx.httpTest(
+            singleTestCase()
+              .forTransactionsWith(method('get'))
+              .run()
+              .skipIf(statusCode(200), 'Skip because status is 200')
+              .done(),
+          ),
+      },
+    ];
+
+    const format = createThymianFormatWithTransaction(
+      createHttpRequest({ method: 'get' }),
+      createHttpResponse({ statusCode: 200 }),
+    );
+
+    const result = await thymian.emitter.emitAction(
+      'core.test',
+      { format: format.export(), rules },
+      { strategy: 'first' },
+    );
+
+    expect(result.status).toBe('success');
+    expect(result.violations).toHaveLength(0);
+    expect(result.metadata?.diagnosticsByRule).toEqual({
+      'custom/skip-report': {
+        skippedCases: [
+          {
+            name: expect.any(String),
+            reason: 'Skip because status is 200',
+          },
+        ],
+        failedCases: [],
+      },
+    });
+    expect(reports).toHaveLength(1);
+    expect(reports[0]).toMatchObject({
+      source: '@thymian/plugin-http-tester',
+      message: 'HTTP test execution summary: 1 skipped, 0 failed test case(s).',
+      sections: expect.arrayContaining([
+        expect.objectContaining({
+          heading: 'Overview',
+        }),
+        expect.objectContaining({
+          heading: 'Skipped by reason',
+          items: [
+            expect.objectContaining({
+              message: 'Skip because status is 200',
+              details: '1 test case(s)',
+            }),
+          ],
+        }),
+        expect.objectContaining({
+          heading: 'Skipped test cases',
+        }),
+      ]),
+    });
   });
 });
