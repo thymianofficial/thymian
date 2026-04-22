@@ -14,7 +14,7 @@ interface ToolCapability {
 
 interface Tool {
   name: string;
-  capabilities: Record<string, boolean | 'partial'>;
+  capabilities: Record<string, boolean | true>;
 }
 
 const capabilities: ToolCapability[] = [
@@ -37,7 +37,7 @@ const tools: Tool[] = [
       'Traffic analysis': false,
       'RFC protocol conformance': false,
       'Unified rule definitions': false,
-      'Extensible plugin system': 'partial',
+      'Extensible plugin system': true,
       'AI-optimized output': false,
       'Sharable rule packages': true,
     },
@@ -46,7 +46,7 @@ const tools: Tool[] = [
     name: 'Schemathesis',
     capabilities: {
       'Static spec linting': false,
-      'Live endpoint testing': 'partial',
+      'Live endpoint testing': true,
       'Traffic analysis': false,
       'RFC protocol conformance': false,
       'Unified rule definitions': false,
@@ -63,7 +63,7 @@ const tools: Tool[] = [
       'Traffic analysis': false,
       'RFC protocol conformance': false,
       'Unified rule definitions': false,
-      'Extensible plugin system': 'partial',
+      'Extensible plugin system': true,
       'AI-optimized output': false,
       'Sharable rule packages': false,
     },
@@ -72,9 +72,9 @@ const tools: Tool[] = [
     name: 'REDbot',
     capabilities: {
       'Static spec linting': false,
-      'Live endpoint testing': 'partial',
-      'Traffic analysis': 'partial',
-      'RFC protocol conformance': 'partial',
+      'Live endpoint testing': true,
+      'Traffic analysis': true,
+      'RFC protocol conformance': true,
       'Unified rule definitions': false,
       'Extensible plugin system': false,
       'AI-optimized output': false,
