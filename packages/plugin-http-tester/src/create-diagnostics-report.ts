@@ -36,7 +36,7 @@ export function createHttpTestDiagnosticsReport(
   );
 
   return {
-    source: pluginName,
+    source: `${pluginName}: skipped and failed test cases`,
     message: `${entries.length} rule${entries.length > 1 ? 's' : ''} could not be checked completely because of skipped and failed transactions.`,
     sections,
   };
