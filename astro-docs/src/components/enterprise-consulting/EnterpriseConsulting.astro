@@ -129,8 +129,11 @@ const services: Service[] = [
 </section>
 
 <!-- ═══════════════ Styles ═══════════════ -->
-<style>
+<style is:global>
   @import '../../styles/enterprise-shared.css';
+</style>
+
+<style>
 
   /* ── Section wrapper ───────────────────────────────────────── */
   .ec-section {
@@ -323,5 +326,8 @@ const services: Service[] = [
   }
 
   init();
-  document.addEventListener('astro:after-swap', init);
+  if (!document.documentElement.dataset.enterpriseConsultingAfterSwapListenerRegistered) {
+    document.addEventListener('astro:after-swap', init);
+    document.documentElement.dataset.enterpriseConsultingAfterSwapListenerRegistered = 'true';
+  }
 </script>

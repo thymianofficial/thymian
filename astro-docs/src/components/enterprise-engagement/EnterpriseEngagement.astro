@@ -66,8 +66,11 @@ const steps: Step[] = [
   </div>
 </section>
 
-<style>
+<style is:global>
   @import '../../styles/enterprise-shared.css';
+</style>
+
+<style>
 
   .ee-section {
     max-width: var(--ep-section-max-width);
@@ -234,5 +237,8 @@ const steps: Step[] = [
   }
 
   init();
-  document.addEventListener('astro:after-swap', init);
+  if (!document.documentElement.dataset.enterpriseEngagementAfterSwapListenerRegistered) {
+    document.addEventListener('astro:after-swap', init);
+    document.documentElement.dataset.enterpriseEngagementAfterSwapListenerRegistered = 'true';
+  }
 </script>

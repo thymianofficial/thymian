@@ -111,8 +111,11 @@ import { founders } from '../../data/team';
 </section>
 
 <!-- ═══════════════ Styles ═══════════════ -->
-<style>
+<style is:global>
   @import '../../styles/enterprise-shared.css';
+</style>
+
+<style>
 
   /* ── Section wrapper ───────────────────────────────────────── */
   .er-section {
@@ -381,5 +384,8 @@ import { founders } from '../../data/team';
   }
 
   init();
-  document.addEventListener('astro:after-swap', init);
+  if (!document.documentElement.dataset.enterpriseResearchAfterSwapListenerRegistered) {
+    document.addEventListener('astro:after-swap', init);
+    document.documentElement.dataset.enterpriseResearchAfterSwapListenerRegistered = 'true';
+  }
 </script>

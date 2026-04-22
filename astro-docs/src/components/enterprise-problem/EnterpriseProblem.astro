@@ -184,8 +184,11 @@ const incidents: Incident[] = [
 </section>
 
 <!-- ═══════════════ Styles ═══════════════ -->
-<style>
+<style is:global>
   @import '../../styles/enterprise-shared.css';
+</style>
+
+<style>
 
   /* ── Section wrapper ───────────────────────────────────────── */
   .ep-section {
@@ -504,5 +507,8 @@ const incidents: Incident[] = [
   }
 
   init();
-  document.addEventListener('astro:after-swap', init);
+  if (!document.documentElement.dataset.enterpriseProblemAfterSwapListenerRegistered) {
+    document.addEventListener('astro:after-swap', init);
+    document.documentElement.dataset.enterpriseProblemAfterSwapListenerRegistered = 'true';
+  }
 </script>
