@@ -1,7 +1,5 @@
 import {
-  type Logger,
   type Rule,
-  type RuleFnResult,
   type RuleRunnerAdapter,
   runRules,
   type SingleRuleConfiguration,

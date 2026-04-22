@@ -282,24 +282,19 @@ describe('core.test integration tests', { timeout: 30000 }, () => {
     expect(reports).toHaveLength(1);
     expect(reports[0]).toMatchObject({
       source: '@thymian/plugin-http-tester',
-      message: 'HTTP test execution summary: 1 skipped, 0 failed test case(s).',
-      sections: expect.arrayContaining([
+      message:
+        '1 rule could not be checked completely because of skipped and failed transactions.',
+      sections: [
         expect.objectContaining({
-          heading: 'Overview',
-        }),
-        expect.objectContaining({
-          heading: 'Skipped by reason',
+          heading: 'custom/skip-report (1 skipped, 0 failed)',
           items: [
             expect.objectContaining({
-              message: 'Skip because status is 200',
-              details: '1 test case(s)',
+              message: expect.stringContaining('Skipped'),
+              details: 'Skip because status is 200',
             }),
           ],
         }),
-        expect.objectContaining({
-          heading: 'Skipped test cases',
-        }),
-      ]),
+      ],
     });
   });
 });

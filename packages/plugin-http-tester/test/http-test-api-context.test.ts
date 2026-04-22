@@ -556,6 +556,48 @@ describe('HttpTestApiContext', () => {
         createHttpResponse({ statusCode: 200, headers: {} }),
       );
 
+      const mockContext = createMockHttpTestContext({
+        format,
+        runRequest: async (req: HttpRequest): Promise<HttpResponse> => ({
+          duration: 0,
+          trailers: {},
+          statusCode: req.method === 'post' ? 201 : 200,
+          headers: {},
+        }),
+      });
+      const context = new HttpTestApiContext('diagnostic-test', mockContext);
+
+      await context.httpTest(
+        singleTestCase()
+          .forTransactionsWith(method('get'))
+          .run()
+          .skipIf(statusCode(200), 'Skip because status is 200')
+          .done(),
+      );
+
+      expect(context.getRuleExecutionDiagnostics()).toMatchObject({
+        skippedCases: [
+          {
+            name: expect.any(String),
+            reason: 'Skip because status is 200',
+          },
+        ],
+      });
+    });
+
+    it('should accumulate diagnostics across multiple helper calls', async () => {
+      const format = createThymianFormat();
+      format.addHttpTransaction(
+        createHttpRequest({ method: 'get', path: '/users' }),
+        createHttpResponse({ statusCode: 200, headers: {} }),
+        'test-source-1',
+      );
+      format.addHttpTransaction(
+        createHttpRequest({ method: 'post', path: '/users' }),
+        createHttpResponse({ statusCode: 201, headers: {} }),
+        'test-source-2',
+      );
+
       const mockContext = createMockHttpTestContext({ format });
       const context = new HttpTestApiContext('diagnostic-test', mockContext);
 
@@ -567,6 +609,14 @@ describe('HttpTestApiContext', () => {
           .done(),
       );
 
+      await context.runHttpTest(
+        singleTestCase()
+          .forTransactionsWith(method('post'))
+          .run()
+          .skipIf(statusCode(200), 'Skip because status is 200 for POST')
+          .done(),
+      );
+
       expect(context.getRuleExecutionDiagnostics()).toEqual({
         skippedCases: [
           {
@@ -575,6 +625,27 @@ describe('HttpTestApiContext', () => {
           },
         ],
         failedCases: [],
+      });
+
+      await context.httpTest(
+        singleTestCase()
+          .forTransactionsWith(method('post'))
+          .run()
+          .skipIf(statusCode(201), 'Skip because status is 201 for POST')
+          .done(),
+      );
+
+      expect(context.getRuleExecutionDiagnostics()).toMatchObject({
+        skippedCases: expect.arrayContaining([
+          {
+            name: expect.any(String),
+            reason: 'Skip because status is 200',
+          },
+          {
+            name: expect.any(String),
+            reason: 'Expected status code 201, but received 200.',
+          },
+        ]),
       });
     });
   });

@@ -18,8 +18,11 @@ export function analyze(reports: Map<string, ThymianReport[]>): ReportAnalysis {
     info: 0,
   };
 
+  let reportCounter = 0;
   let reportItemsCounter = 0;
   for (const [, r] of reports.entries()) {
+    reportCounter += r.length;
+
     for (const report of r) {
       for (const section of report.sections ?? []) {
         reportItemsCounter += section.items.length;
@@ -34,7 +37,7 @@ export function analyze(reports: Map<string, ThymianReport[]>): ReportAnalysis {
 
   return {
     statistics: {
-      numberOfReports: reports.size,
+      numberOfReports: reportCounter,
       numberOfItems: reportItemsCounter,
       severityCounts,
     },

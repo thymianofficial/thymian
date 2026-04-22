@@ -302,13 +302,21 @@ export class HttpTestApiContext<
       }
     });
 
-    this.diagnostics =
-      skippedItems.length > 0 || failedItems.length > 0
-        ? {
-            skippedCases: skippedItems,
-            failedCases: failedItems,
-          }
-        : undefined;
+    if (
+      !this.diagnostics &&
+      skippedItems.length === 0 &&
+      failedItems.length === 0
+    ) {
+      return;
+    }
+
+    this.diagnostics = {
+      skippedCases: [
+        ...(this.diagnostics?.skippedCases ?? []),
+        ...skippedItems,
+      ],
+      failedCases: [...(this.diagnostics?.failedCases ?? []), ...failedItems],
+    };
   }
 
   async httpTest(pipeline: HttpTestPipeline<Locals>): Promise<RuleFnResult> {

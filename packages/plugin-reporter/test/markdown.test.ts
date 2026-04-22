@@ -143,6 +143,37 @@ describe('MarkdownFormatter', () => {
     expect(content).toContain('### GET /items → 200');
   });
 
+  it('should count all reports even when they share a source', async () => {
+    const reports = [
+      createReport({
+        source: 'shared-source',
+        sections: [
+          {
+            heading: 'Section 1',
+            items: [{ severity: 'error', message: 'Error item' }],
+          },
+        ],
+      }),
+      createReport({
+        source: 'shared-source',
+        sections: [
+          {
+            heading: 'Section 2',
+            items: [{ severity: 'warn', message: 'Warn item' }],
+          },
+        ],
+      }),
+    ];
+
+    reports.forEach((report) => formatter.report(report));
+    vi.mocked(writeFile).mockResolvedValue();
+
+    await formatter.flush();
+
+    const [, content] = vi.mocked(writeFile).mock.calls[0];
+    expect(content).toContain('A total of 2 reports with 2 items were found.');
+  });
+
   it('should include ruleName if present', async () => {
     const report = createReport({
       source: 'test-rule',

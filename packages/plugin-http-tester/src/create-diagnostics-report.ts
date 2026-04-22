@@ -18,7 +18,7 @@ export function createHttpTestDiagnosticsReport(
       const failed = diagnostics?.failedCases ?? [];
 
       return {
-        heading: `${ruleName} (${skipped.length ?? 0} failed, ${failed.length} skipped)`,
+        heading: `${ruleName} (${skipped.length} skipped, ${failed.length} failed)`,
         items: [
           ...skipped.map(({ name, reason }) => ({
             message: `Skipped "${name}" because`,
@@ -36,7 +36,7 @@ export function createHttpTestDiagnosticsReport(
   );
 
   return {
-    source: `${pluginName}: skipped and failed test cases`,
+    source: pluginName,
     message: `${entries.length} rule${entries.length > 1 ? 's' : ''} could not be checked completely because of skipped and failed transactions.`,
     sections,
   };
