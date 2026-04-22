@@ -281,7 +281,7 @@ describe('core.test integration tests', { timeout: 30000 }, () => {
     });
     expect(reports).toHaveLength(1);
     expect(reports[0]).toMatchObject({
-      source: '@thymian/plugin-http-tester',
+      source: '@thymian/plugin-http-tester: skipped and failed test cases',
       message:
         '1 rule could not be checked completely because of skipped and failed transactions.',
       sections: [
