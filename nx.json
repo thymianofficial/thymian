@@ -75,5 +75,6 @@
         "watch": false
       }
     }
-  }
+  },
+  "analytics": true
 }
