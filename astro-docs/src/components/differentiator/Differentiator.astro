@@ -1,7 +1,7 @@
 ---
 /**
  * Differentiator – comparison section showing how Thymian differs from
- * existing API tooling (Spectral, Prism, Dredd).
+ * existing API tooling (Spectral, Schemathesis, Dredd, REDbot).
  *
  * Replaces the generic "Explore the Ecosystem" card grid with a concrete
  * reason to choose Thymian for developers already familiar with alternatives.
@@ -21,6 +21,7 @@ const capabilities: ToolCapability[] = [
   { label: 'Static spec linting', description: 'Validate OpenAPI specs without running code' },
   { label: 'Live endpoint testing', description: 'Test running API endpoints against rules' },
   { label: 'Traffic analysis', description: 'Analyze recorded or live HTTP traffic passively' },
+  { label: 'RFC protocol conformance', description: 'Validate HTTP semantics against RFC standards' },
   { label: 'Unified rule definitions', description: 'Same rules across all validation modes' },
   { label: 'Extensible plugin system', description: 'Full plugin architecture with event bus' },
   { label: 'AI-optimized output', description: 'Structured output for agentic workflows' },
@@ -34,18 +35,20 @@ const tools: Tool[] = [
       'Static spec linting': true,
       'Live endpoint testing': false,
       'Traffic analysis': false,
+      'RFC protocol conformance': false,
       'Unified rule definitions': false,
       'Extensible plugin system': 'partial',
       'AI-optimized output': false,
-      'Sharable rule packages': 'partial',
+      'Sharable rule packages': true,
     },
   },
   {
-    name: 'Prism',
+    name: 'Schemathesis',
     capabilities: {
       'Static spec linting': false,
-      'Live endpoint testing': true,
+      'Live endpoint testing': 'partial',
       'Traffic analysis': false,
+      'RFC protocol conformance': false,
       'Unified rule definitions': false,
       'Extensible plugin system': false,
       'AI-optimized output': false,
@@ -58,8 +61,22 @@ const tools: Tool[] = [
       'Static spec linting': false,
       'Live endpoint testing': true,
       'Traffic analysis': false,
+      'RFC protocol conformance': false,
       'Unified rule definitions': false,
       'Extensible plugin system': 'partial',
+      'AI-optimized output': false,
+      'Sharable rule packages': false,
+    },
+  },
+  {
+    name: 'REDbot',
+    capabilities: {
+      'Static spec linting': false,
+      'Live endpoint testing': 'partial',
+      'Traffic analysis': 'partial',
+      'RFC protocol conformance': 'partial',
+      'Unified rule definitions': false,
+      'Extensible plugin system': false,
       'AI-optimized output': false,
       'Sharable rule packages': false,
     },
@@ -70,6 +87,7 @@ const tools: Tool[] = [
       'Static spec linting': true,
       'Live endpoint testing': true,
       'Traffic analysis': true,
+      'RFC protocol conformance': true,
       'Unified rule definitions': true,
       'Extensible plugin system': true,
       'AI-optimized output': true,
@@ -309,7 +327,7 @@ const tools: Tool[] = [
   }
   .df-mobile-tools {
     display: grid;
-    grid-template-columns: repeat(4, 1fr);
+    grid-template-columns: repeat(5, 1fr);
     gap: 0.4rem;
   }
   .df-mobile-tool {
