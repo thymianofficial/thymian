@@ -38,7 +38,10 @@ describe('thymian generate config', () => {
     ]);
 
     // Verify default ruleSets and severity
-    expect(config.ruleSets).toEqual(['@thymian/rules-rfc-9110']);
+    expect(config.ruleSets).toEqual([
+      '@thymian/rules-rfc-9110',
+      '@thymian/rules-api-description-validation',
+    ]);
     expect(config.ruleSeverity).toBe('error');
     expect(config.rules).toEqual({});
 

@@ -29,6 +29,7 @@ export default [
             '@thymian/plugin-websocket-proxy',
             '@thymian/plugin-reporter',
             '@thymian/evaluation',
+            '@thymian/rules-api-description-validation',
           ],
         },
       ],
