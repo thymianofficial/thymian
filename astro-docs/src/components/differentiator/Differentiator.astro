@@ -1,7 +1,7 @@
 ---
 /**
  * Differentiator – comparison section showing how Thymian differs from
- * existing API tooling (Spectral, Schemathesis, Dredd, REDbot).
+ * existing API tooling (Spectral + Prism, Schemathesis, Bruno, REDbot).
  *
  * Replaces the generic "Explore the Ecosystem" card grid with a concrete
  * reason to choose Thymian for developers already familiar with alternatives.
@@ -12,7 +12,7 @@ interface ToolCapability {
   description: string;
 }
 
-type ToolCapabilityState = boolean | 'partial';
+type ToolCapabilityState = boolean | 'planned';
 
 interface Tool {
   name: string;
@@ -20,80 +20,98 @@ interface Tool {
 }
 
 const capabilities: ToolCapability[] = [
-  { label: 'Static spec linting', description: 'Validate OpenAPI specs without running code' },
-  { label: 'Live endpoint testing', description: 'Test running API endpoints against rules' },
-  { label: 'Traffic analysis', description: 'Analyze recorded or live HTTP traffic passively' },
-  { label: 'RFC protocol conformance', description: 'Validate HTTP semantics against RFC standards' },
-  { label: 'Unified rule definitions', description: 'Same rules across all validation modes' },
-  { label: 'Extensible plugin system', description: 'Full plugin architecture with event bus' },
-  { label: 'AI-optimized output', description: 'Structured output for agentic workflows' },
-  { label: 'Sharable rule packages', description: 'Publish and reuse rules as npm packages' },
+  { label: 'Static Spec Linting', description: 'Validate OpenAPI specs without running code' },
+  { label: 'Live Endpoint Testing', description: 'Test running API endpoints against rules' },
+  { label: 'Traffic Analysis', description: 'Analyze recorded or live HTTP traffic passively' },
+  { label: 'Proxy Mode', description: 'Route live API traffic through a validating proxy' },
+  { label: 'HTTP Conformance', description: 'Validate HTTP semantics against RFC standards' },
+  { label: 'Interactive API Client', description: 'Send and inspect requests manually in a GUI client' },
+  { label: 'Mock Server Generation', description: 'Generate mock endpoints from an API description' },
+  { label: 'Write Rules Once', description: 'Same rules across all validation modes' },
+  { label: 'Extensible Plugin System', description: 'Full plugin architecture with event bus' },
+  { label: 'AI-Optimized Output', description: 'Structured output for agentic workflows' },
+  { label: 'Sharable Rule Packages', description: 'Publish and reuse rules as npm packages' },
 ];
 
 const tools: Tool[] = [
   {
-    name: 'Spectral',
+    name: 'Spectral + Prism',
     capabilities: {
-      'Static spec linting': true,
-      'Live endpoint testing': false,
-      'Traffic analysis': false,
-      'RFC protocol conformance': false,
-      'Unified rule definitions': false,
-      'Extensible plugin system': true,
-      'AI-optimized output': false,
-      'Sharable rule packages': true,
+      'Static Spec Linting': true,
+      'Live Endpoint Testing': true,
+      'Traffic Analysis': true,
+      'Proxy Mode': true,
+      'HTTP Conformance': false,
+      'Interactive API Client': false,
+      'Mock Server Generation': true,
+      'Write Rules Once': false,
+      'Extensible Plugin System': true,
+      'AI-Optimized Output': false,
+      'Sharable Rule Packages': true,
     },
   },
   {
     name: 'Schemathesis',
     capabilities: {
-      'Static spec linting': false,
-      'Live endpoint testing': true,
-      'Traffic analysis': false,
-      'RFC protocol conformance': false,
-      'Unified rule definitions': false,
-      'Extensible plugin system': false,
-      'AI-optimized output': false,
-      'Sharable rule packages': false,
+      'Static Spec Linting': false,
+      'Live Endpoint Testing': true,
+      'Traffic Analysis': false,
+      'Proxy Mode': false,
+      'HTTP Conformance': false,
+      'Interactive API Client': false,
+      'Mock Server Generation': false,
+      'Write Rules Once': false,
+      'Extensible Plugin System': false,
+      'AI-Optimized Output': false,
+      'Sharable Rule Packages': false,
     },
   },
   {
-    name: 'Dredd',
+    name: 'Bruno',
     capabilities: {
-      'Static spec linting': false,
-      'Live endpoint testing': true,
-      'Traffic analysis': false,
-      'RFC protocol conformance': false,
-      'Unified rule definitions': false,
-      'Extensible plugin system': true,
-      'AI-optimized output': false,
-      'Sharable rule packages': false,
+      'Static Spec Linting': false,
+      'Live Endpoint Testing': true,
+      'Traffic Analysis': false,
+      'Proxy Mode': false,
+      'HTTP Conformance': false,
+      'Interactive API Client': true,
+      'Mock Server Generation': false,
+      'Write Rules Once': false,
+      'Extensible Plugin System': false,
+      'AI-Optimized Output': false,
+      'Sharable Rule Packages': false,
     },
   },
   {
     name: 'REDbot',
     capabilities: {
-      'Static spec linting': false,
-      'Live endpoint testing': true,
-      'Traffic analysis': true,
-      'RFC protocol conformance': true,
-      'Unified rule definitions': false,
-      'Extensible plugin system': false,
-      'AI-optimized output': false,
-      'Sharable rule packages': false,
+      'Static Spec Linting': false,
+      'Live Endpoint Testing': true,
+      'Traffic Analysis': true,
+      'Proxy Mode': false,
+      'HTTP Conformance': true,
+      'Interactive API Client': false,
+      'Mock Server Generation': false,
+      'Write Rules Once': false,
+      'Extensible Plugin System': false,
+      'AI-Optimized Output': false,
+      'Sharable Rule Packages': false,
     },
   },
   {
     name: 'Thymian',
     capabilities: {
-      'Static spec linting': true,
-      'Live endpoint testing': true,
-      'Traffic analysis': true,
-      'RFC protocol conformance': true,
-      'Unified rule definitions': true,
-      'Extensible plugin system': true,
-      'AI-optimized output': true,
-      'Sharable rule packages': true,
+      'Static Spec Linting': true,
+      'Live Endpoint Testing': true,
+      'Traffic Analysis': true,
+      'Proxy Mode': 'planned',
+      'HTTP Conformance': true,
+      'Interactive API Client': false,
+      'Mock Server Generation': false,
+      'Write Rules Once': true,
+      'Extensible Plugin System': true,
+      'AI-Optimized Output': true,
+      'Sharable Rule Packages': true,
     },
   },
 ];
@@ -113,6 +131,11 @@ const tools: Tool[] = [
       Other tools handle one piece of the puzzle. Thymian unifies spec linting,
       endpoint testing, and traffic analysis under a single rule engine.
     </p>
+    <div class="df-legend" aria-label="Feature comparison legend">
+      <span class="df-legend-item"><span class="df-legend-icon df-legend-icon--yes">✓</span> Supported</span>
+      <span class="df-legend-item"><span class="df-planned">Planned</span></span>
+      <span class="df-legend-item"><span class="df-legend-icon df-legend-icon--no">—</span> Not supported</span>
+    </div>
   </div>
 
   <!-- Desktop table -->
@@ -138,14 +161,14 @@ const tools: Tool[] = [
                 const isThymian = tool.name === 'Thymian';
                 return (
                   <td class={`df-cell ${isThymian ? 'df-cell--thymian' : ''}`}
-                      aria-label={`${tool.name}: ${cap.label} — ${val === true ? 'yes' : val === 'partial' ? 'partial' : 'no'}`}>
+                      aria-label={`${tool.name}: ${cap.label} — ${val === true ? 'supported' : val === 'planned' ? 'planned' : 'not supported'}`}>
                     {val === true && (
                       <svg class={`df-icon ${isThymian ? 'df-icon--yes-thymian' : 'df-icon--yes'}`} viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
                         <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/>
                       </svg>
                     )}
-                    {val === 'partial' && (
-                      <span class="df-partial" aria-hidden="true">~</span>
+                    {val === 'planned' && (
+                      <span class="df-planned" aria-hidden="true">Planned</span>
                     )}
                     {val === false && (
                       <span class="df-no" aria-hidden="true">&mdash;</span>
@@ -177,7 +200,7 @@ const tools: Tool[] = [
                     <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/>
                   </svg>
                 )}
-                {val === 'partial' && <span class="df-partial">~</span>}
+                {val === 'planned' && <span class="df-planned">Planned</span>}
                 {val === false && <span class="df-no">&mdash;</span>}
               </div>
             );
@@ -196,6 +219,33 @@ const tools: Tool[] = [
   }
   @media (min-width: 1024px) {
     .df-section { padding: 3rem 2rem; }
+  }
+  .df-legend {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 0.75rem 1rem;
+    margin-top: 1rem;
+    font-size: 0.85rem;
+    color: var(--color-gray-500);
+  }
+  .df-legend-item {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+  }
+  .df-legend-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 1rem;
+    font-weight: 700;
+  }
+  .df-legend-icon--yes {
+    color: var(--color-accent-600);
+  }
+  .df-legend-icon--no {
+    color: var(--color-gray-400);
   }
 
   /* ── Desktop table ─────────────────────────────────────────── */
@@ -290,10 +340,24 @@ const tools: Tool[] = [
   :global([data-theme='dark']) .df-icon--yes-thymian {
     color: var(--color-accent-400);
   }
-  .df-partial {
-    font-size: 0.9rem;
+  .df-planned {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0.12rem 0.45rem;
+    border-radius: 999px;
+    border: 1px solid var(--color-accent-300);
+    background: var(--color-accent-100);
+    color: var(--color-accent-700);
+    font-size: 0.68rem;
     font-weight: 700;
-    color: var(--color-gray-400);
+    line-height: 1.2;
+    white-space: nowrap;
+  }
+  :global([data-theme='dark']) .df-planned {
+    border-color: var(--color-accent-700);
+    background: var(--color-accent-950);
+    color: var(--color-accent-300);
   }
   .df-no {
     font-size: 0.85rem;
@@ -349,8 +413,7 @@ const tools: Tool[] = [
   .df-mobile-tool-name {
     font-size: 0.6rem;
     font-weight: 600;
-    text-transform: uppercase;
-    letter-spacing: 0.04em;
+    text-align: center;
     color: var(--color-gray-500);
   }
   .df-icon-sm {
