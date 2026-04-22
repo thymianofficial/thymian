@@ -21,12 +21,12 @@ export function createHttpTestDiagnosticsReport(
         heading: `${ruleName} (${skipped.length} skipped, ${failed.length} failed)`,
         items: [
           ...skipped.map(({ name, reason }) => ({
-            message: `Skipped "${name}" because`,
+            message: `Skipped "${name}"`,
             details: reason,
             severity: 'info' as const,
           })),
           ...failed.map(({ name, reason }) => ({
-            message: `Failed ${name}`,
+            message: `Failed "${name}"`,
             details: reason,
             severity: 'info' as const,
           })),
