@@ -1,0 +1,514 @@
+---
+/**
+ * EnterpriseProblem – visual framing section for the enterprise page.
+ *
+ * Establishes the problem space that enterprise consulting solves:
+ * silent infrastructure issues, API drift, and invisible compliance gaps.
+ *
+ * Layout:
+ *   1. Centered header (h2 + hook subtitle)
+ *   2. 3 pain-point cards (3-col grid, compact)
+ *   3. 4 incident cards (security-alert style, 2-col grid)
+ *   4. Authority callout (gradient background) via CtaCallout
+ */
+
+import CtaCallout from '../enterprise-shared/CtaCallout.astro';
+
+// ── Data ────────────────────────────────────────────────────────────────
+interface PainPoint {
+  icon: string;
+  title: string;
+  description: string;
+}
+
+interface Incident {
+  icon: string;
+  title: string;
+  severity: 'Critical' | 'High';
+  severityColor: 'red' | 'orange';
+  rfc: string;
+  rfcSection: string;
+  description: string;
+  impact: string;
+}
+
+const painPoints: PainPoint[] = [
+  {
+    icon: '🌐',
+    title: 'Infrastructure Blind Spots',
+    description:
+      'Between your application and its consumers sits a chain of intermediaries — CDNs, load balancers, reverse proxies — each capable of silently altering HTTP semantics. Header rewrites, stripped encodings, and injected metadata go unnoticed by conventional testing yet directly affect reliability and security.',
+  },
+  {
+    icon: '📡',
+    title: 'Specification Drift',
+    description:
+      'As organizations scale, the gap between API specifications and actual protocol behavior widens. Without systematic enforcement at the HTTP layer, inconsistencies accumulate across teams and services, eroding interoperability and increasing integration costs.',
+  },
+  {
+    icon: '🕳️',
+    title: 'Undetected Conformance Gaps',
+    description:
+      'Functional and integration tests verify business logic — not protocol correctness. Violations of HTTP semantics such as incorrect status codes, missing headers, or improper content negotiation pass through every stage of the pipeline until they manifest as production incidents.',
+  },
+];
+
+const incidents: Incident[] = [
+  {
+    icon: '🔓',
+    title: 'Request Smuggling via Content-Length',
+    severity: 'Critical',
+    severityColor: 'red',
+    rfc: 'RFC 9110',
+    rfcSection: '§8.6',
+    description:
+      'When a Content-Length header does not accurately reflect the message body size, intermediaries may interpret message boundaries differently. This class of desynchronization vulnerability has been exploited in documented attacks against major platforms, enabling unauthorized access to other users\' sessions.',
+    impact: 'Data exfiltration, authentication bypass, cache poisoning',
+  },
+  {
+    icon: '🔀',
+    title: 'Cache Poisoning via Missing Vary',
+    severity: 'High',
+    severityColor: 'orange',
+    rfc: 'RFC 9110',
+    rfcSection: '§12.5.5',
+    description:
+      'An omitted Vary header allows caching layers to serve a single cached representation regardless of request context — such as authentication state or content preferences. The result is cross-user data exposure through a mechanism that is invisible to application-level monitoring.',
+    impact: 'Cross-user data exposure, session leakage, regulatory non-compliance',
+  },
+  {
+    icon: '⚠️',
+    title: 'Incorrect Status Codes Breaking Client Logic',
+    severity: 'High',
+    severityColor: 'orange',
+    rfc: 'RFC 9110',
+    rfcSection: '§15',
+    description:
+      'APIs that return 200 OK for failed operations or use 400 Bad Request indiscriminately prevent clients from implementing proper error handling, retry logic, and circuit breakers. Mobile apps, SDKs, and partner integrations silently degrade because they cannot distinguish transient failures from permanent errors.',
+    impact: 'Broken retry logic, poor client experience, cascading failures across integrations',
+  },
+  {
+    icon: '💸',
+    title: 'Redundant Data Transfer Inflating Cloud Costs',
+    severity: 'High',
+    severityColor: 'orange',
+    rfc: 'RFC 9110',
+    rfcSection: '§13',
+    description:
+      'APIs that omit ETag or Last-Modified headers — or ignore conditional requests like If-None-Match and If-Modified-Since — force full response payloads on every request, even when the data has not changed. At scale, this multiplies bandwidth consumption, increases compute time for serialization, and drives up egress charges across CDNs and cloud regions.',
+    impact: 'Excessive egress and compute costs, degraded response times, wasted infrastructure capacity',
+  },
+];
+---
+
+<section class="ep-section not-content" aria-labelledby="ep-heading">
+  <!-- ═════════ Header ═════════ -->
+  <header class="ep-header">
+    <h2 id="ep-heading" class="ep-heading">The Challenge at Scale</h2>
+    <p class="ep-subtitle">
+      HTTP conformance issues rarely surface during development. They emerge in production — as incidents, not as test failures.
+    </p>
+  </header>
+
+  <!-- ═════════ Pain point cards (3-col) ═════════ -->
+  <div class="ep-pain-points">
+    {
+      painPoints.map((p, i) => (
+        <div class="ep-pain-card" data-animate="pain" data-delay={i * 100}>
+          <span class="ep-pain-icon" aria-hidden="true">{p.icon}</span>
+          <h3 class="ep-pain-title">{p.title}</h3>
+          <p class="ep-pain-desc">{p.description}</p>
+        </div>
+      ))
+    }
+  </div>
+
+  <!-- ═════════ Incident cards (2-col, security-alert style) ═════════ -->
+  <header class="ep-subheader">
+    <h3 class="ep-subheading">Protocol Violations with Real-World Consequences</h3>
+  </header>
+
+  <div class="ep-incidents">
+    {
+      incidents.map((inc, i) => (
+        <div
+          class={`ep-incident-card ep-incident-card--${inc.severityColor}`}
+          data-animate="incident"
+          data-delay={i * 150}
+        >
+          <div class="ep-incident-header">
+            <span class="ep-incident-icon" aria-hidden="true">{inc.icon}</span>
+            <div class="ep-incident-meta">
+              <h4 class="ep-incident-title">{inc.title}</h4>
+            </div>
+            <span class={`ep-severity ep-severity--${inc.severityColor}`}>
+              {inc.severityColor === 'red' ? '🔴' : '🟠'} {inc.severity}
+            </span>
+          </div>
+          <div class="ep-incident-body">
+            <p class="ep-incident-desc">{inc.description}</p>
+            <div class="ep-incident-impact">
+              <span class="ep-impact-label">Impact</span>
+              <span class="ep-impact-value">{inc.impact}</span>
+            </div>
+          </div>
+        </div>
+      ))
+    }
+  </div>
+
+  <!-- ═════════ Authority callout ═════════ -->
+  <CtaCallout title="Built on Deep Protocol Expertise" buttonText="Get in Touch">
+    <p class="ep-authority-desc">
+      We developed Thymian's RFC 9110 rule set from the ground up, systematically mapping every
+      <strong>MUST</strong>, <strong>SHOULD</strong>, and <strong>MAY</strong>
+      requirement to automated, actionable validation. The same rules apply consistently
+      across design-time analysis, testing, and production monitoring. This level of protocol
+      expertise is what we bring to your organization.
+    </p>
+    <div class="ep-metrics">
+      <div class="ep-metric">
+        <span class="ep-metric-value">399</span>
+        <span class="ep-metric-label">RFC rules implemented</span>
+      </div>
+      <div class="ep-metric">
+        <span class="ep-metric-value">113</span>
+        <span class="ep-metric-label">RFC sections covered</span>
+      </div>
+      <div class="ep-metric">
+        <span class="ep-metric-value">3</span>
+        <span class="ep-metric-label">Validation contexts (lint, test, analyze)</span>
+      </div>
+    </div>
+  </CtaCallout>
+</section>
+
+<!-- ═══════════════ Styles ═══════════════ -->
+<style is:global>
+  @import '../../styles/enterprise-shared.css';
+</style>
+
+<style>
+
+  /* ── Section wrapper ───────────────────────────────────────── */
+  .ep-section {
+    max-width: var(--ep-section-max-width);
+    margin-inline: auto;
+    padding: var(--ep-section-gap) var(--ep-section-padding-x);
+  }
+
+  /* ── Header ────────────────────────────────────────────────── */
+  .ep-header {
+    text-align: center;
+    margin-bottom: var(--ep-header-mb);
+  }
+  .ep-heading {
+    font-size: clamp(1.5rem, 2.5vw, 2.25rem);
+    font-weight: 700;
+    color: var(--color-gray-900);
+    margin: 0 0 0.75rem;
+  }
+  :global([data-theme='dark']) .ep-heading {
+    color: var(--color-gray-100);
+  }
+  .ep-subtitle {
+    font-size: clamp(0.95rem, 1.5vw, 1.125rem);
+    color: var(--color-gray-500);
+    max-width: 42rem;
+    margin: 0 auto;
+  }
+  :global([data-theme='dark']) .ep-subtitle {
+    color: var(--color-gray-400);
+  }
+
+  /* ── Subheader ─────────────────────────────────────────────── */
+  .ep-subheader {
+    text-align: center;
+    margin-top: var(--ep-subheader-mt);
+    margin-bottom: var(--ep-subheader-mb);
+  }
+  .ep-subheading {
+    font-size: clamp(1.25rem, 2vw, 1.5rem);
+    font-weight: 700;
+    color: var(--color-gray-900);
+    margin: 0;
+  }
+  :global([data-theme='dark']) .ep-subheading {
+    color: var(--color-gray-100);
+  }
+
+  /* ── Pain point cards ──────────────────────────────────────── */
+  .ep-pain-points {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: var(--ep-grid-gap);
+  }
+  @media (min-width: 640px) {
+    .ep-pain-points { grid-template-columns: repeat(2, 1fr); }
+  }
+  @media (min-width: 1024px) {
+    .ep-pain-points { grid-template-columns: repeat(3, 1fr); }
+  }
+
+  .ep-pain-card {
+    padding: var(--ep-card-padding);
+    border-radius: var(--ep-radius);
+    border: 1px solid var(--color-gray-200);
+    background: var(--color-gray-100);
+    transition: border-color 0.2s, box-shadow 0.2s;
+    opacity: 1;
+  }
+  :global(html[data-animations]) .ep-pain-card {
+    opacity: 0;
+  }
+  :global(html[data-animations]) .ep-pain-card.revealed {
+    animation: enterpriseFadeSlideUp 0.5s ease-out forwards;
+  }
+  :global([data-theme='dark']) .ep-pain-card {
+    border-color: var(--color-gray-700);
+    background: var(--color-gray-900);
+  }
+  .ep-pain-card:hover {
+    border-color: var(--color-accent-300);
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.06);
+  }
+  :global([data-theme='dark']) .ep-pain-card:hover {
+    border-color: var(--color-accent-700);
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.25);
+  }
+
+  .ep-pain-icon {
+    font-size: 1.5rem;
+    display: block;
+    margin-bottom: 0.65rem;
+    line-height: 1;
+  }
+  .ep-pain-title {
+    font-size: 0.95rem;
+    font-weight: 700;
+    color: var(--color-gray-900);
+    margin: 0 0 0.35rem;
+  }
+  :global([data-theme='dark']) .ep-pain-title {
+    color: var(--color-gray-100);
+  }
+  .ep-pain-desc {
+    font-size: 0.8rem;
+    color: var(--color-gray-600);
+    line-height: 1.55;
+    margin: 0;
+  }
+  :global([data-theme='dark']) .ep-pain-desc {
+    color: var(--color-gray-400);
+  }
+
+  /* ── Incident cards ────────────────────────────────────────── */
+  .ep-incidents {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: var(--ep-grid-gap);
+    margin-bottom: var(--ep-grid-mb);
+  }
+  @media (min-width: 640px) {
+    .ep-incidents { grid-template-columns: repeat(2, 1fr); }
+  }
+
+  .ep-incident-card {
+    border-radius: var(--ep-radius);
+    border: 1px solid var(--color-gray-200);
+    background: var(--color-gray-100);
+    overflow: hidden;
+    border-left: 3px solid transparent;
+    transition: box-shadow 0.2s, border-color 0.2s;
+    opacity: 1;
+  }
+  :global(html[data-animations]) .ep-incident-card {
+    opacity: 0;
+  }
+  :global(html[data-animations]) .ep-incident-card.revealed {
+    animation: enterpriseFadeSlideUp 0.5s ease-out forwards;
+  }
+  :global([data-theme='dark']) .ep-incident-card {
+    border-color: var(--color-gray-700);
+    background: var(--color-gray-900);
+  }
+  .ep-incident-card--red { border-left-color: #ef4444; }
+  .ep-incident-card--orange { border-left-color: #f97316; }
+  .ep-incident-card:hover {
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+  }
+  :global([data-theme='dark']) .ep-incident-card:hover {
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+  }
+
+  .ep-incident-header {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    padding: 0.85rem 1rem;
+    border-bottom: 1px solid var(--color-gray-200);
+  }
+  :global([data-theme='dark']) .ep-incident-header {
+    border-color: var(--color-gray-700);
+  }
+  .ep-incident-icon { font-size: 1.3rem; flex-shrink: 0; }
+  .ep-incident-meta { flex: 1; min-width: 0; }
+  .ep-incident-title {
+    font-size: 0.88rem;
+    font-weight: 700;
+    color: var(--color-gray-900);
+    margin: 0;
+    line-height: 1.3;
+  }
+  :global([data-theme='dark']) .ep-incident-title {
+    color: var(--color-gray-100);
+  }
+
+  /* Severity badge */
+  .ep-severity {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+    border-radius: 9999px;
+    padding: 0.2rem 0.65rem;
+    font-size: 0.65rem;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    white-space: nowrap;
+    flex-shrink: 0;
+  }
+  .ep-severity--red {
+    background: #fef2f2;
+    color: #dc2626;
+    border: 1px solid #fecaca;
+  }
+  :global([data-theme='dark']) .ep-severity--red {
+    background: rgba(239, 68, 68, 0.12);
+    color: #fca5a5;
+    border-color: rgba(239, 68, 68, 0.3);
+  }
+  .ep-severity--orange {
+    background: #fff7ed;
+    color: #ea580c;
+    border: 1px solid #fed7aa;
+  }
+  :global([data-theme='dark']) .ep-severity--orange {
+    background: rgba(249, 115, 22, 0.12);
+    color: #fdba74;
+    border-color: rgba(249, 115, 22, 0.3);
+  }
+
+  .ep-incident-body { padding: 0.85rem 1rem; }
+  .ep-incident-desc {
+    font-size: 0.8rem;
+    color: var(--color-gray-600);
+    line-height: 1.55;
+    margin: 0 0 0.75rem;
+  }
+  :global([data-theme='dark']) .ep-incident-desc {
+    color: var(--color-gray-400);
+  }
+
+  .ep-incident-impact {
+    display: flex;
+    flex-direction: column;
+    gap: 0.1rem;
+    padding-top: 0.55rem;
+    border-top: 1px solid var(--color-gray-200);
+  }
+  :global([data-theme='dark']) .ep-incident-impact {
+    border-color: var(--color-gray-700);
+  }
+  .ep-impact-label {
+    font-size: 0.6rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--color-gray-500);
+  }
+  .ep-impact-value {
+    font-size: 0.75rem;
+    color: var(--color-gray-700);
+    line-height: 1.4;
+  }
+  :global([data-theme='dark']) .ep-impact-value {
+    color: var(--color-gray-300);
+  }
+
+  /* ── Authority desc (inside CtaCallout slot) ───────────────── */
+  .ep-authority-desc {
+    font-size: 0.82rem;
+    color: var(--color-gray-600);
+    line-height: 1.6;
+    margin: 0 0 1rem;
+  }
+  :global([data-theme='dark']) .ep-authority-desc {
+    color: var(--color-gray-400);
+  }
+  .ep-authority-desc :global(strong) {
+    color: var(--color-accent-700);
+    font-weight: 700;
+  }
+  :global([data-theme='dark']) .ep-authority-desc :global(strong) {
+    color: var(--color-accent-300);
+  }
+
+  /* ── Metrics row ──────────────────────────────────────────── */
+  .ep-metrics {
+    display: flex;
+    gap: 1.5rem;
+    flex-wrap: wrap;
+    margin-bottom: 1rem;
+  }
+  .ep-metric {
+    display: flex;
+    flex-direction: column;
+    gap: 0.1rem;
+  }
+  .ep-metric-value {
+    font-size: 1.5rem;
+    font-weight: 800;
+    color: var(--color-accent-600);
+    line-height: 1;
+  }
+  :global([data-theme='dark']) .ep-metric-value {
+    color: var(--color-accent-400);
+  }
+  .ep-metric-label {
+    font-size: 0.72rem;
+    color: var(--color-gray-500);
+    font-weight: 500;
+  }
+  :global([data-theme='dark']) .ep-metric-label {
+    color: var(--color-gray-400);
+  }
+
+  /* ── Reduced motion ────────────────────────────────────────── */
+  @media (prefers-reduced-motion: reduce) {
+    .ep-pain-card,
+    .ep-incident-card {
+      opacity: 1 !important;
+      animation: none !important;
+    }
+  }
+</style>
+
+<!-- ═══════════════ Scroll-triggered reveal ═══════════════ -->
+<script>
+  import { initScrollReveal } from '../enterprise-shared/scroll-reveal';
+
+  function init() {
+    initScrollReveal('.ep-section', [
+      { selector: '.ep-pain-card', baseDelay: 0 },
+      { selector: '.ep-incident-card', baseDelay: 400 },
+      { selector: '.ent-cta', baseDelay: 700 },
+    ]);
+  }
+
+  init();
+  if (!document.documentElement.dataset.enterpriseProblemAfterSwapListenerRegistered) {
+    document.addEventListener('astro:after-swap', init);
+    document.documentElement.dataset.enterpriseProblemAfterSwapListenerRegistered = 'true';
+  }
+</script>

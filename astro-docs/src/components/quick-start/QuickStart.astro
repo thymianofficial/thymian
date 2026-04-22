@@ -1,0 +1,120 @@
+---
+/**
+ * QuickStart – prominent "Try it now" terminal block shown right below the hero.
+ * Reuses the same visual language as CliShowcase's terminal component.
+ */
+---
+
+<section class="qs-section not-content" aria-label="Quick start">
+  <h2 class="qs-heading">Try it now</h2>
+  <p class="qs-sub">One command. No config required.</p>
+
+  <div class="qs-terminal">
+    <div class="qs-terminal-header">
+      <span class="qs-dot qs-dot--red"></span>
+      <span class="qs-dot qs-dot--yellow"></span>
+      <span class="qs-dot qs-dot--green"></span>
+      <span class="qs-terminal-title">Terminal</span>
+    </div>
+    <pre class="qs-terminal-body"><code><span class="qs-prompt">$</span> <span class="qs-cmd">npx thymian lint</span> --spec openapi:openapi.yaml</code></pre>
+  </div>
+</section>
+
+<style>
+  .qs-section {
+    max-width: 44rem;
+    margin-inline: auto;
+    text-align: center;
+  }
+
+  .qs-heading {
+    font-size: 1.25rem;
+    font-weight: 700;
+    color: var(--color-gray-900);
+    margin: 0 0 0.35rem;
+  }
+  :global([data-theme='dark']) .qs-heading {
+    color: var(--color-gray-100);
+  }
+
+  .qs-sub {
+    font-size: 0.875rem;
+    color: var(--color-gray-500);
+    margin: 0 0 1.25rem;
+  }
+  :global([data-theme='dark']) .qs-sub {
+    color: var(--color-gray-400);
+  }
+
+  /* ── Terminal chrome (matches CliShowcase) ──────────────── */
+  .qs-terminal {
+    border-radius: 0.75rem;
+    overflow: hidden;
+    border: 1px solid var(--color-gray-200);
+    background: var(--color-gray-100);
+    text-align: left;
+  }
+  :global([data-theme='dark']) .qs-terminal {
+    border-color: var(--color-gray-700);
+    background: #0d1117;
+  }
+
+  .qs-terminal-header {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    padding: 0.5rem 0.75rem;
+    background: var(--color-gray-200);
+    border-bottom: 1px solid var(--color-gray-200);
+  }
+  :global([data-theme='dark']) .qs-terminal-header {
+    background: var(--color-gray-800);
+    border-color: var(--color-gray-700);
+  }
+
+  .qs-dot {
+    width: 0.6rem;
+    height: 0.6rem;
+    border-radius: 50%;
+  }
+  .qs-dot--red    { background: #ef4444; }
+  .qs-dot--yellow { background: #eab308; }
+  .qs-dot--green  { background: #22c55e; }
+
+  .qs-terminal-title {
+    margin-left: 0.5rem;
+    font-size: 0.7rem;
+    font-weight: 500;
+    color: var(--color-gray-500);
+  }
+  :global([data-theme='dark']) .qs-terminal-title {
+    color: var(--color-gray-400);
+  }
+
+  .qs-terminal-body {
+    padding: 1.1rem 1.5rem;
+    margin: 0;
+    font-size: 0.92rem;
+    line-height: 1.6;
+    overflow-x: auto;
+    font-family: ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas, 'Liberation Mono', monospace;
+    color: var(--color-gray-600);
+    background: transparent;
+    border: none;
+  }
+  :global([data-theme='dark']) .qs-terminal-body {
+    color: var(--color-gray-400);
+  }
+
+  .qs-prompt {
+    color: var(--color-gray-500);
+  }
+
+  .qs-cmd {
+    color: var(--color-accent-600);
+    font-weight: 600;
+  }
+  :global([data-theme='dark']) .qs-cmd {
+    color: var(--color-accent-400);
+  }
+</style>

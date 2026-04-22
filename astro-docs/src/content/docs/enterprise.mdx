@@ -1,50 +1,31 @@
 ---
 title: Official Support
-description: Enterprise solutions and support for Thymian
+description: Enterprise consulting and support from the creators of Thymian
 template: splash
 hero:
-  tagline: Deliver production-ready APIs faster with enterprise support and expert consulting from Thymian's creators
+  tagline: We built Thymian to solve the hardest problems in HTTP conformance and API governance. Now we bring that expertise directly to your organization — from specification to production.
   image:
     file: ../../assets/logo.svg
   actions:
-    - text: Contact
-      link: mailto:support@thymian.com
+    - text: Schedule a Consultation
+      link: mailto:support@thymian.dev?subject=Enterprise%20Consultation
       icon: email
       variant: primary
-    - text: Learn More
+    - text: Explore Services
       link: /enterprise/#consulting-services
       icon: right-arrow
       variant: minimal
 ---
 
-import { Card, CardGrid } from '@astrojs/starlight/components';
+import EnterpriseProblem from '../../components/enterprise-problem/EnterpriseProblem.astro';
+import EnterpriseResearch from '../../components/enterprise-research/EnterpriseResearch.astro';
+import EnterpriseConsulting from '../../components/enterprise-consulting/EnterpriseConsulting.astro';
+import EnterpriseEngagement from '../../components/enterprise-engagement/EnterpriseEngagement.astro';
 
-## Consulting Services
+<EnterpriseProblem />
 
-Accelerate your API excellence with hands-on guidance from Thymian's creators. Transform your API quality with expert consultation on HTTP standards compliance, testing strategy, and seamless CI/CD integration. Get practical solutions tailored to your architecture and business goals.
+<span id="consulting-services" />
 
-<div className="mt-12">
-  <CardGrid stagger>
-    <Card title="API Design Strategy" icon="pencil">
-      Build APIs that scale with consulting on RESTful design, versioning strategies, error handling patterns, and documentation standards. Reduce technical debt and improve developer experience.
-    </Card>
-    <Card title="HTTP Standards Compliance" icon="magnifier">
-      Deep-dive audits of your HTTP implementations against RFC specifications. Catch protocol violations before they reach production, with detailed reports and remediation guidance.
-    </Card>
-    <Card title="API Governance" icon="document">
-      Establish and enforce API standards across your organization with governance frameworks, policy automation, and compliance monitoring. Ensure consistency and quality at scale.
-    </Card>
-    <Card title="Expert Architecture Review" icon="star">
-      Get comprehensive assessments of your API implementations from the team who built Thymian. Identify gaps, optimize performance, and receive actionable recommendations with detailed implementation roadmaps.
-    </Card>
-    <Card title="End-to-End Workflow Integration" icon="puzzle">
-      Integrate Thymian across your entire development lifecycle: design-time IDE support, local developer workflows, and CI/CD pipelines (GitHub Actions, Jenkins, GitLab CI). Includes custom configuration and best practices documentation.
-    </Card>
-    <Card title="Custom Plugin Development" icon="setting">
-      Extend Thymian's capabilities with custom plugins tailored to your specific needs. We'll design, develop, and maintain integrations for your proprietary systems and workflows.
-    </Card>
-    <Card title="Team Training & Workshops" icon="approve-check">
-      Empower your team with hands-on workshops covering HTTP fundamentals, Thymian best practices, and advanced testing techniques. Includes customized training materials and ongoing support.
-    </Card>
-  </CardGrid>
-</div>
+<EnterpriseConsulting />
+<EnterpriseEngagement />
+<EnterpriseResearch />

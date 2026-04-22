@@ -53,6 +53,24 @@ const loopSteps: LoopStep[] = [
 
 const features: Feature[] = [
   {
+    icon: '🛡️',
+    title: 'Security Conformance',
+    description:
+      'Catch missing authentication headers, incorrect CORS configurations, and non-standard error disclosure before they reach production.',
+  },
+  {
+    icon: '⚡',
+    title: 'Performance Validation',
+    description:
+      'Enforce Cache-Control policies, validate content encoding headers, and verify response payload conformance against your specifications.',
+  },
+  {
+    icon: '🔒',
+    title: 'Reliability Guarantees',
+    description:
+      'Ensure consistent error formats (RFC 9457), proper status codes, and specification compliance across all environments — from staging to production.',
+  },
+  {
     icon: '🧠',
     title: 'Rich Error Context',
     description:
@@ -65,28 +83,10 @@ const features: Feature[] = [
       'Non-interactive mode with explicit flags ensures reproducible results — perfect for agentic retry-and-fix workflows.',
   },
   {
-    icon: '⚡',
+    icon: '🧩',
     title: 'Zero Ambiguity',
     description:
       'Exit codes, structured results, and typed schemas mean agents never have to parse prose or guess what went wrong.',
-  },
-  {
-    icon: '🔧',
-    title: 'Scaffolding for Agents',
-    description:
-      'Generate configs, rules, and sample data programmatically with --no-interactive — no human prompts blocking the pipeline.',
-  },
-  {
-    icon: '🌐',
-    title: 'Works with Any LLM',
-    description:
-      'Language-agnostic CLI output works with GitHub Copilot, Cursor, Aider, local models, or any tool that reads structured output.',
-  },
-  {
-    icon: '🧩',
-    title: 'Composable Commands',
-    description:
-      'Lint, test, analyze — each command does one thing well and plays nicely with pipes and automation scripts.',
   },
 ];
 ---
@@ -147,6 +147,38 @@ const features: Feature[] = [
         </>
       ))}
     </div>
+  </div>
+
+  <!-- ═════════ CLI output example ═════════ -->
+  <div class="cs-terminal" data-animate="terminal">
+    <div class="cs-terminal-header">
+      <span class="cs-terminal-dot cs-terminal-dot--red"></span>
+      <span class="cs-terminal-dot cs-terminal-dot--yellow"></span>
+      <span class="cs-terminal-dot cs-terminal-dot--green"></span>
+      <span class="cs-terminal-title">Terminal</span>
+    </div>
+    <pre class="cs-terminal-body"><code><span class="cs-term-prompt">$</span> <span class="cs-term-cmd">npx thymian lint</span> --spec openapi:openapi.yaml
+
+  <span class="cs-term-route">GET /api/v1/users/{'{'}id{'}'} → 404 NOT FOUND - application/json</span>
+
+    <span class="cs-term-error">&#10005; error:</span> Origin servers with a clock MUST generate Date header in 2xx, 3xx, and 4xx responses.
+             <span class="cs-term-rule">rfc9110/origin-server-with-clock-must-generate-date-for-2xx-3xx-4xx</span>
+
+  <span class="cs-term-route">GET /api/v1/users/{'{'}id{'}'} → 401 UNAUTHORIZED - application/json</span>
+
+    <span class="cs-term-error">&#10005; error:</span> Server MUST send WWW-Authenticate header for 401 response.
+             <span class="cs-term-rule">rfc9110/server-must-send-www-authenticate-header-for-401-response</span>
+
+  <span class="cs-term-route">GET /api/v1/users → 200 OK - application/json</span>
+
+    <span class="cs-term-warn">&#9888; warn:</span>  Origin servers SHOULD send ETag for selected representation.
+             <span class="cs-term-rule">rfc9110/origin-server-should-send-etag</span>
+
+    <span class="cs-term-warn">&#9888; warn:</span>  Origin servers SHOULD send Last-Modified for selected representation.
+             <span class="cs-term-rule">rfc9110/origin-server-should-send-last-modified</span>
+
+
+  Found <span class="cs-term-error">2 errors</span>, <span class="cs-term-warn">2 warnings</span> and 0 hints.</code></pre>
   </div>
 
   <!-- ═════════ Feature cards ═════════ -->
@@ -342,6 +374,102 @@ const features: Feature[] = [
     height: 1.25rem;
   }
 
+  /* ── Terminal output ─────────────────────────────────────────── */
+  .cs-terminal {
+    max-width: 44rem;
+    margin: 2rem auto 0;
+    border-radius: var(--cs-radius);
+    overflow: hidden;
+    border: 1px solid var(--color-gray-200);
+    background: var(--color-gray-100);
+    opacity: 1;
+  }
+  :global(html[data-animations]) .cs-terminal {
+    opacity: 0;
+  }
+  :global(html[data-animations]) .cs-terminal.revealed {
+    animation: csFadeSlideUp 0.5s ease-out forwards;
+  }
+  :global([data-theme='dark']) .cs-terminal {
+    border-color: var(--color-gray-700);
+    background: #0d1117;
+  }
+  .cs-terminal-header {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    padding: 0.5rem 0.75rem;
+    background: var(--color-gray-200);
+    border-bottom: 1px solid var(--color-gray-200);
+  }
+  :global([data-theme='dark']) .cs-terminal-header {
+    background: var(--color-gray-800);
+    border-color: var(--color-gray-700);
+  }
+  .cs-terminal-dot {
+    width: 0.6rem;
+    height: 0.6rem;
+    border-radius: 50%;
+  }
+  .cs-terminal-dot--red { background: #ef4444; }
+  .cs-terminal-dot--yellow { background: #eab308; }
+  .cs-terminal-dot--green { background: #22c55e; }
+  .cs-terminal-title {
+    margin-left: 0.5rem;
+    font-size: 0.7rem;
+    font-weight: 500;
+    color: var(--color-gray-500);
+  }
+  :global([data-theme='dark']) .cs-terminal-title {
+    color: var(--color-gray-400);
+  }
+  .cs-terminal-body {
+    padding: 1rem 1.25rem;
+    margin: 0;
+    font-size: 0.72rem;
+    line-height: 1.7;
+    overflow-x: auto;
+    font-family: ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas, 'Liberation Mono', monospace;
+    color: var(--color-gray-600);
+    background: transparent;
+    border: none;
+  }
+  :global([data-theme='dark']) .cs-terminal-body {
+    color: var(--color-gray-400);
+  }
+  .cs-term-prompt {
+    color: var(--color-gray-500);
+  }
+  .cs-term-cmd {
+    color: var(--color-accent-600);
+    font-weight: 600;
+  }
+  :global([data-theme='dark']) .cs-term-cmd {
+    color: var(--color-accent-400);
+  }
+  .cs-term-route {
+    color: var(--color-gray-800);
+    font-weight: 600;
+  }
+  :global([data-theme='dark']) .cs-term-route {
+    color: var(--color-gray-200);
+  }
+  .cs-term-error {
+    color: #ef4444;
+    font-weight: 600;
+  }
+  .cs-term-warn {
+    color: #eab308;
+    font-weight: 600;
+  }
+  .cs-term-rule {
+    color: var(--color-gray-400);
+    font-size: 0.68rem;
+  }
+  :global([data-theme='dark']) .cs-term-rule {
+    color: var(--color-gray-500);
+  }
+
   /* ── Feature cards grid ─────────────────────────────────────── */
   .cs-features {
     display: grid;
@@ -426,10 +554,12 @@ const features: Feature[] = [
     const prefersReduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
     const loopSteps = section.querySelectorAll<HTMLElement>('.cs-loop-step');
+    const terminal = section.querySelector<HTMLElement>('.cs-terminal');
     const featureCards = section.querySelectorAll<HTMLElement>('.cs-feature-card');
 
     if (prefersReduced) {
       loopSteps.forEach((s) => s.classList.add('revealed'));
+      terminal?.classList.add('revealed');
       featureCards.forEach((c) => c.classList.add('revealed'));
       return;
     }
@@ -448,7 +578,13 @@ const features: Feature[] = [
             step.classList.add('revealed');
           });
 
-          // 2. Reveal feature cards
+          // 2. Reveal terminal
+          if (terminal) {
+            terminal.style.animationDelay = '350ms';
+            terminal.classList.add('revealed');
+          }
+
+          // 3. Reveal feature cards
           featureCards.forEach((card) => {
             const delay = parseInt(card.dataset.delay ?? '0', 10);
             card.style.animationDelay = `${400 + delay}ms`;

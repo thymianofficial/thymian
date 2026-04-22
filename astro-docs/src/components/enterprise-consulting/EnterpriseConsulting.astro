@@ -1,0 +1,333 @@
+---
+/**
+ * EnterpriseConsulting – service showcase for the enterprise page.
+ *
+ * Layout:
+ *   - Section header (h2 + subtitle)
+ *   - Service card grid (2-col desktop, 1-col mobile)
+ *   - Highlighted card for AI workflow
+ *   - CTA callout via shared CtaCallout component
+ *   - Scroll-reveal animations via shared utility
+ */
+
+import CtaCallout from '../enterprise-shared/CtaCallout.astro';
+
+// ── Data ────────────────────────────────────────────────────────────────
+interface Service {
+  id: string;
+  icon: string;
+  title: string;
+  description: string;
+  highlight?: boolean;
+}
+
+const services: Service[] = [
+  {
+    id: 'auditing',
+    icon: '🔍',
+    title: 'HTTP Conformance Auditing',
+    description:
+      'Deep conformance audits against RFC 9110 that uncover protocol violations in your specifications, implementations, and live traffic. You receive a prioritized findings report with RFC references, risk assessments, and remediation paths.',
+  },
+  {
+    id: 'governance',
+    icon: '📋',
+    title: 'API Governance & Organizational Standards',
+    description:
+      'Shareable rule sets packaged as npm modules \u2014 your own @your-org/api-standards \u2014 that validate at design time, catch issues before merge, and monitor production. You receive a ready-to-publish package and rollout plan.',
+  },
+  {
+    id: 'design',
+    icon: '📐',
+    title: 'API Design Strategy',
+    description:
+      'We work with your architects to establish conformant-by-construction design patterns \u2014 versioning, error responses, content negotiation, and caching aligned with HTTP semantics. You receive design guidelines, OpenAPI templates, and automated checks.',
+  },
+  {
+    id: 'production',
+    icon: '🌐',
+    title: 'Production Traffic Analysis',
+    description:
+      'We audit recorded HTTP traffic to uncover how proxies, CDNs, and load balancers alter semantics in ways your tests never see. You receive an analysis report with infrastructure-specific recommendations.',
+  },
+  {
+    id: 'ai',
+    icon: '🤖',
+    title: 'AI-Assisted API Development',
+    description:
+      'Automated conformance checks integrated into your AI-assisted development pipelines, so generated code is validated against RFC requirements before it ships. You receive a configured pipeline and integration guides.',
+  },
+  {
+    id: 'lifecycle',
+    icon: '🔄',
+    title: 'Lifecycle & CI/CD Integration',
+    description:
+      'Conformance checks at every stage: IDE validation, automated PR checks, and production monitoring. We configure your CI/CD platform and establish feedback loops that prevent regressions. You receive pipeline configs and a failure runbook.',
+  },
+  {
+    id: 'plugins',
+    icon: '🔧',
+    title: 'Custom Plugin & Rule Development',
+    description:
+      'Custom plugins and rules for proprietary protocols, internal conventions, or domain-specific constraints. Need non-TypeScript integration? We build remote plugins via WebSocket. You receive production-ready code and test suites.',
+  },
+  {
+    id: 'enablement',
+    icon: '🎓',
+    title: 'Team Enablement',
+    description:
+      'Hands-on workshops covering HTTP semantics, custom rule authoring, plugin development, and traffic analysis. You receive recordings, training materials tailored to your architecture, and a long-term reference guide.',
+  },
+];
+---
+
+<section class="ec-section not-content" aria-labelledby="ec-heading">
+  <!-- ═════════ Section header ═════════ -->
+  <header class="ec-header">
+    <h2 id="ec-heading" class="ec-heading">Consulting Services</h2>
+    <p class="ec-subtitle">
+      Hands-on guidance from the engineers who built Thymian &mdash; tailored to
+      your architecture, your stack, and your standards.
+    </p>
+  </header>
+
+  <!-- ═════════ Service cards grid ═════════ -->
+  <div class="ec-services">
+    {
+      services.map((svc, i) => (
+        <div
+          class={`ec-card ${svc.highlight ? 'ec-card--highlight' : ''}`}
+          data-animate="service"
+          data-delay={i * 80}
+        >
+          <div class="ec-card-accent" aria-hidden="true" />
+          <div class="ec-card-body">
+            <div class="ec-card-header">
+              <span class="ec-card-icon-wrap">
+                <span class="ec-card-icon" aria-hidden="true">
+                  {svc.icon}
+                </span>
+              </span>
+              <h3 class="ec-card-title">{svc.title}</h3>
+            </div>
+            <p class="ec-card-desc">{svc.description}</p>
+          </div>
+        </div>
+      ))
+    }
+  </div>
+
+  <!-- ═════════ CTA callout ═════════ -->
+  <CtaCallout title="Not Sure Where to Start?">
+    <p class="ec-cta-desc">
+      Most engagements begin with a short call. Walk us through your
+      API landscape and pain points &mdash; we&rsquo;ll tell you
+      which services make sense and which ones you can skip.
+      No pitch deck, no commitment.
+    </p>
+  </CtaCallout>
+</section>
+
+<!-- ═══════════════ Styles ═══════════════ -->
+<style is:global>
+  @import '../../styles/enterprise-shared.css';
+</style>
+
+<style>
+
+  /* ── Section wrapper ───────────────────────────────────────── */
+  .ec-section {
+    max-width: var(--ep-section-max-width);
+    margin-inline: auto;
+    padding: var(--ep-section-gap) var(--ep-section-padding-x);
+  }
+
+  /* ── Header ────────────────────────────────────────────────── */
+  .ec-header {
+    text-align: center;
+    margin-bottom: var(--ep-header-mb);
+  }
+  .ec-heading {
+    font-size: clamp(1.5rem, 2.5vw, 2.25rem);
+    font-weight: 700;
+    color: var(--color-gray-900);
+    margin: 0 0 0.75rem;
+  }
+  :global([data-theme='dark']) .ec-heading {
+    color: var(--color-gray-100);
+  }
+  .ec-subtitle {
+    font-size: clamp(0.95rem, 1.5vw, 1.125rem);
+    color: var(--color-gray-500);
+    max-width: 42rem;
+    margin: 0 auto;
+  }
+  :global([data-theme='dark']) .ec-subtitle {
+    color: var(--color-gray-400);
+  }
+
+  /* ── Service cards grid ────────────────────────────────────── */
+  .ec-services {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: var(--ep-grid-gap);
+    margin-bottom: var(--ep-grid-mb);
+  }
+  @media (min-width: 768px) {
+    .ec-services {
+      grid-template-columns: repeat(2, 1fr);
+    }
+  }
+
+  /* ── Card base ─────────────────────────────────────────────── */
+  .ec-card {
+    position: relative;
+    border-radius: var(--ep-radius);
+    border: 1px solid var(--color-gray-200);
+    background: var(--color-gray-100);
+    overflow: hidden;
+    transition: border-color 0.2s, box-shadow 0.2s;
+    opacity: 1;
+  }
+  :global(html[data-animations]) .ec-card {
+    opacity: 0;
+  }
+  :global(html[data-animations]) .ec-card.revealed {
+    animation: enterpriseFadeSlideUp 0.5s ease-out forwards;
+  }
+  :global([data-theme='dark']) .ec-card {
+    border-color: var(--color-gray-700);
+    background: var(--color-gray-900);
+  }
+  .ec-card:hover {
+    border-color: var(--color-accent-300);
+    box-shadow: 0 6px 24px rgba(0, 0, 0, 0.06);
+  }
+  :global([data-theme='dark']) .ec-card:hover {
+    border-color: var(--color-accent-700);
+    box-shadow: 0 6px 24px rgba(0, 0, 0, 0.3);
+  }
+
+  /* Gradient top accent bar */
+  .ec-card-accent {
+    height: 3px;
+    background: var(--gradient-brand);
+  }
+
+  /* Highlighted card (AI workflow) */
+  .ec-card--highlight {
+    border-color: var(--color-accent-200);
+    background: var(--color-accent-50);
+  }
+  :global([data-theme='dark']) .ec-card--highlight {
+    border-color: var(--color-accent-800);
+    background: var(--color-accent-950);
+  }
+  .ec-card--highlight .ec-card-accent {
+    height: 4px;
+  }
+  .ec-card--highlight:hover {
+    border-color: var(--color-accent-400);
+    box-shadow: 0 6px 24px rgba(0, 0, 0, 0.08);
+  }
+  :global([data-theme='dark']) .ec-card--highlight:hover {
+    border-color: var(--color-accent-600);
+    box-shadow: 0 6px 24px rgba(0, 0, 0, 0.35);
+  }
+
+  /* Card body */
+  .ec-card-body {
+    padding: var(--ep-card-padding) 1.35rem 1.35rem;
+  }
+
+  /* Card header (icon + title) */
+  .ec-card-header {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    margin-bottom: 0.75rem;
+  }
+
+  .ec-card-icon-wrap {
+    width: 2.25rem;
+    height: 2.25rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    background: var(--color-gray-200);
+    flex-shrink: 0;
+  }
+  :global([data-theme='dark']) .ec-card-icon-wrap {
+    background: var(--color-gray-800);
+  }
+  .ec-card--highlight .ec-card-icon-wrap {
+    background: var(--color-accent-200);
+  }
+  :global([data-theme='dark']) .ec-card--highlight .ec-card-icon-wrap {
+    background: var(--color-accent-800);
+  }
+
+  .ec-card-icon {
+    font-size: 1.15rem;
+    line-height: 1;
+  }
+
+  .ec-card-title {
+    font-size: 1rem;
+    font-weight: 700;
+    color: var(--color-gray-900);
+    margin: 0;
+    line-height: 1.3;
+  }
+  :global([data-theme='dark']) .ec-card-title {
+    color: var(--color-gray-100);
+  }
+
+  .ec-card-desc {
+    font-size: 0.82rem;
+    color: var(--color-gray-600);
+    line-height: 1.6;
+    margin: 0;
+  }
+  :global([data-theme='dark']) .ec-card-desc {
+    color: var(--color-gray-400);
+  }
+
+  /* ── CTA desc (inside CtaCallout slot) ─────────────────────── */
+  .ec-cta-desc {
+    font-size: 0.82rem;
+    color: var(--color-gray-600);
+    line-height: 1.6;
+    margin: 0 0 1rem;
+  }
+  :global([data-theme='dark']) .ec-cta-desc {
+    color: var(--color-gray-400);
+  }
+
+  /* ── Reduced motion ────────────────────────────────────────── */
+  @media (prefers-reduced-motion: reduce) {
+    .ec-card {
+      opacity: 1 !important;
+      animation: none !important;
+    }
+  }
+</style>
+
+<!-- ═══════════════ Scroll-triggered reveal ═══════════════ -->
+<script>
+  import { initScrollReveal } from '../enterprise-shared/scroll-reveal';
+
+  function init() {
+    initScrollReveal('.ec-section', [
+      { selector: '.ec-card', baseDelay: 0 },
+      { selector: '.ent-cta', baseDelay: 700 },
+    ]);
+  }
+
+  init();
+  if (!document.documentElement.dataset.enterpriseConsultingAfterSwapListenerRegistered) {
+    document.addEventListener('astro:after-swap', init);
+    document.documentElement.dataset.enterpriseConsultingAfterSwapListenerRegistered = 'true';
+  }
+</script>

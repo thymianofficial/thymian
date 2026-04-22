@@ -4,8 +4,11 @@ import tailwindcss from '@tailwindcss/vite';
 import { defineConfig } from 'astro/config';
 import mailObfuscation from 'astro-mail-obfuscation';
 import mermaid from 'astro-mermaid';
+import starlightBlog from 'starlight-blog';
 import starlightLinksValidator from 'starlight-links-validator';
 import starlightLlmsTxt from 'starlight-llms-txt';
+
+import { blogAuthors } from './src/data/team';
 
 const UMAMI_URL = process.env.UMAMI_URL;
 const UMAMI_WEBSITE_ID = process.env.UMAMI_WEBSITE_ID;
@@ -34,7 +37,7 @@ export default defineConfig({
         ...(UMAMI_URL && UMAMI_WEBSITE_ID
           ? [
               {
-                tag: /** @type {'script'} */ ('script'),
+                tag: /** @type {'script'} */ 'script',
                 attrs: {
                   async: true,
                   defer: true,
@@ -61,6 +64,11 @@ export default defineConfig({
           icon: 'reddit',
           label: 'Reddit',
           href: 'https://www.reddit.com/r/ThymianOfficial/',
+        },
+        {
+          icon: 'linkedin',
+          label: 'LinkedIn',
+          href: 'https://www.linkedin.com/company/thymiandev/',
         },
       ],
       sidebar: [
@@ -96,8 +104,16 @@ export default defineConfig({
       components: {
         Header: './src/components/ThymianHeader.astro',
         Footer: './src/components/Footer.astro',
+        MobileMenuFooter: './src/components/ThymianMobileMenuFooter.astro',
       },
       plugins: [
+        starlightBlog({
+          title: 'Blog',
+          prefix: 'blog',
+          postCount: 10,
+          recentPostCount: 5,
+          authors: blogAuthors,
+        }),
         starlightLlmsTxt({
           projectName: 'Thymian',
         }),
@@ -111,8 +127,5 @@ export default defineConfig({
 
   vite: {
     plugins: [tailwindcss()],
-    ssr: {
-      noExternal: ['zod'],
-    },
   },
 });

@@ -3,8 +3,7 @@ title: Thymian
 description: Language-agnostic, open-source HTTP conformance and API governance tool.
 template: splash
 hero:
-  tagline: Thymian is a language-agnostic, open-source governance engine that integrates directly into developer and AI workflows across the entire API lifecycle. It validates your services against OpenAPI or HTTP specifications to mandate strict conformance for security, performance, and reliability. By using extensible plugins and shareable custom rules, you can write once and run everywhere to automate complex use-case testing with zero friction.
-
+  tagline: Write API rules once. Lint specs, test endpoints, and analyze traffic — all with the same rules, across every stage of your API lifecycle. Open source. AGPL v3 licensed.
 
   image:
     file: ../../assets/logo.svg
@@ -12,17 +11,23 @@ hero:
     - text: Get Started
       link: /introduction/getting-started
       icon: right-arrow
-    - text: Enterprise
-      link: /enterprise/
-      icon: right-arrow
-      variant: secondary
+    - text: GitHub
+      link: https://github.com/thymianofficial/thymian
+      icon: github
+      variant: minimal
 ---
 
-import { Card, CardGrid, LinkButton } from '@astrojs/starlight/components';
+import { LinkButton } from '@astrojs/starlight/components';
 import LifecycleGrid from '../../components/lifecycle-grid/LifecycleGrid.astro';
 import RulesDriftPrevention from '../../components/rules-drift-prevention/RulesDriftPrevention.astro';
 import PluginEcosystem from '../../components/plugin-ecosystem/PluginEcosystem.astro';
 import CliShowcase from '../../components/cli-showcase/CliShowcase.astro';
+import Differentiator from '../../components/differentiator/Differentiator.astro';
+import QuickStart from '../../components/quick-start/QuickStart.astro';
+
+<div className="not-content my-12">
+  <QuickStart />
+</div>
 
 <div className="not-content my-16">
   <LifecycleGrid />
@@ -40,39 +45,15 @@ import CliShowcase from '../../components/cli-showcase/CliShowcase.astro';
   <PluginEcosystem />
 </div>
 
-## Explore the Thymian Ecosystem
+<div className="not-content my-16">
+  <Differentiator />
+</div>
 
-<div className="mt-12">
-  <CardGrid stagger minimal>
-    <Card title="Quick Start" icon="rocket">
-      Get up and running with Thymian in minutes. Follow our step-by-step guide to add resilience and HTTP conformance to your APIs.
-
-      <LinkButton href="/introduction/getting-started/" variant="minimal" icon="right-arrow">Get Started</LinkButton>
-    </Card>
-    <Card title="Thymian CLI" icon="seti:shell">
-      Master the Thymian command-line interface. Learn how to use powerful CLI commands to test, analyze, and validate your APIs from the terminal.
-
-      <LinkButton href="/references/cli/" variant="minimal" icon="right-arrow">View CLI Docs</LinkButton>
-    </Card>
-    <Card title="Plugin Ecosystem" icon="puzzle">
-      Explore plugins to extend Thymian's capabilities. Discover plugins that add new features and integrations to your workflow.
-
-      <LinkButton href="/guides/plugin-developers-guide/" variant="minimal" icon="right-arrow">Explore Plugins</LinkButton>
-    </Card>
-    <Card title="Integrations" icon="laptop">
-      Install Thymian integrations to extend your workflow. Explore integrations that automate your testing, monitoring, and deployment processes.
-
-      <LinkButton href="/guides/remote-plugins/how-to-connect-remote-plugins/" variant="minimal" icon="right-arrow">Explore Integrations</LinkButton>
-    </Card>
-    <Card title="Documentation" icon="open-book">
-      Comprehensive guides and API reference. Dive deep into Thymian's features, configuration options, and best practices.
-
-      <LinkButton href="/introduction/what-is-thymian/" variant="minimal" icon="right-arrow">Read Docs</LinkButton>
-    </Card>
-    <Card title="Enterprise Support" icon="star">
-      Professional consulting and dedicated support from the creators of Thymian for your team. Get expert help with implementation, custom solutions, and priority support.
-
-      <LinkButton href="/enterprise/" variant="minimal" icon="right-arrow">Learn More</LinkButton>
-    </Card>
-  </CardGrid>
+<div className="not-content mt-12 mb-8 flex flex-wrap justify-center gap-4">
+  <LinkButton href="/introduction/getting-started/" icon="right-arrow">
+    Get Started
+  </LinkButton>
+  <LinkButton href="/enterprise/" variant="secondary" icon="right-arrow">
+    Enterprise
+  </LinkButton>
 </div>

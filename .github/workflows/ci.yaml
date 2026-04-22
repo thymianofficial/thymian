@@ -71,6 +71,7 @@ jobs:
         run: npm ci
       - uses: nrwl/nx-set-shas@v4
       - name: Build
-        run: npx nx affected:build ${{ runner.os != 'Linux' && '--exclude astro' || '' }}
+        # Astro 6 requires Node >=22.12, so skip the astro project on the Node 20 lane.
+        run: npx nx affected:build ${{ matrix.version == 20 && '--exclude astro' || '' }}
       - name: Test
         run: npx nx affected:test

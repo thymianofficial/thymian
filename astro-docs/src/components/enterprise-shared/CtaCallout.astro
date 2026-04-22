@@ -1,0 +1,191 @@
+---
+/**
+ * CtaCallout – reusable CTA callout for enterprise page sections.
+ *
+ * Renders a gradient-bordered card with:
+ *   - Optional icon (via `icon` slot, defaults to a layers SVG)
+ *   - Title
+ *   - Body content (via default slot)
+ *   - Email CTA button
+ *
+ * Props:
+ *   - title: Callout heading text
+ *   - buttonText: CTA button label (default: "Schedule a Consultation")
+ *   - buttonHref: CTA link (default: mailto:support@thymian.dev)
+ *   - showIcon: Whether to show the icon circle (default: true)
+ */
+
+interface Props {
+  title: string;
+  buttonText?: string;
+  buttonHref?: string;
+  showIcon?: boolean;
+  class?: string;
+}
+
+const {
+  title,
+  buttonText = 'Schedule a Consultation',
+  buttonHref = 'mailto:support@thymian.dev?subject=Enterprise%20Consultation',
+  showIcon = true,
+  class: className = '',
+} = Astro.props;
+---
+
+<div class:list={['ent-cta', className]} data-animate="cta">
+  <div class="ent-cta-inner">
+    {showIcon && (
+      <div class="ent-cta-icon-wrap" aria-hidden="true">
+        <slot name="icon">
+          <svg class="ent-cta-icon" viewBox="0 0 24 24" fill="none">
+            <path d="M12 2L2 7l10 5 10-5-10-5Z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round" />
+            <path d="M2 17l10 5 10-5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
+            <path d="M2 12l10 5 10-5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
+          </svg>
+        </slot>
+      </div>
+    )}
+    <div class="ent-cta-content">
+      <h3 class="ent-cta-title">{title}</h3>
+      <slot />
+      <a href={buttonHref} class="ent-cta-button">
+        <svg class="ent-cta-button-icon" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+          <path d="M2.003 5.884L10 9.882l7.997-3.998A2 2 0 0016 4H4a2 2 0 00-1.997 1.884z" />
+          <path d="M18 8.118l-8 4-8-4V14a2 2 0 002 2h12a2 2 0 002-2V8.118z" />
+        </svg>
+        {buttonText}
+      </a>
+    </div>
+  </div>
+</div>
+
+<style>
+  .ent-cta {
+    max-width: var(--ep-cta-max-width, 52rem);
+    margin: 0 auto;
+    opacity: 1;
+  }
+  :global(html[data-animations]) .ent-cta {
+    opacity: 0;
+  }
+  :global(html[data-animations]) .ent-cta.revealed {
+    animation: enterpriseFadeSlideUp 0.5s ease-out forwards;
+  }
+
+  .ent-cta-inner {
+    display: flex;
+    gap: 1.25rem;
+    align-items: flex-start;
+    padding: 1.5rem 1.75rem;
+    border-radius: var(--ep-radius, 0.75rem);
+    border: 1px solid var(--color-accent-200);
+    background: linear-gradient(
+      135deg,
+      var(--color-accent-50) 0%,
+      var(--color-accent-alt-50) 100%
+    );
+  }
+  :global([data-theme='dark']) .ent-cta-inner {
+    border-color: var(--color-accent-800);
+    background: linear-gradient(
+      135deg,
+      var(--color-accent-950) 0%,
+      var(--color-accent-alt-950) 100%
+    );
+  }
+
+  .ent-cta-icon-wrap {
+    flex-shrink: 0;
+    width: 2.75rem;
+    height: 2.75rem;
+    border-radius: 50%;
+    background: var(--color-accent-100);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  :global([data-theme='dark']) .ent-cta-icon-wrap {
+    background: var(--color-accent-900);
+  }
+
+  .ent-cta-icon {
+    width: 1.4rem;
+    height: 1.4rem;
+    color: var(--color-accent-600);
+  }
+  :global([data-theme='dark']) .ent-cta-icon {
+    color: var(--color-accent-400);
+  }
+
+  .ent-cta-content {
+    flex: 1;
+    min-width: 0;
+  }
+
+  .ent-cta-title {
+    font-size: 1.05rem;
+    font-weight: 700;
+    color: var(--color-gray-900);
+    margin: 0 0 0.45rem;
+  }
+  :global([data-theme='dark']) .ent-cta-title {
+    color: var(--color-gray-100);
+  }
+
+  /* ── CTA button ──────────────────────────────────────────── */
+  .ent-cta-button {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.6rem 1.4rem;
+    border-radius: 9999px;
+    font-size: 0.85rem;
+    font-weight: 700;
+    background: var(--color-accent-600);
+    color: #fff;
+    text-decoration: none;
+    transition: background 0.2s, box-shadow 0.2s, transform 0.15s;
+  }
+  .ent-cta-button:hover {
+    background: var(--color-accent-500);
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
+    transform: translateY(-1px);
+  }
+  :global([data-theme='dark']) .ent-cta-button {
+    background: var(--color-accent-500);
+  }
+  :global([data-theme='dark']) .ent-cta-button:hover {
+    background: var(--color-accent-400);
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
+  }
+  .ent-cta-button:focus-visible {
+    outline: 2px solid var(--color-accent-400);
+    outline-offset: 2px;
+  }
+
+  .ent-cta-button-icon {
+    width: 1rem;
+    height: 1rem;
+    flex-shrink: 0;
+  }
+
+  /* ── Responsive ──────────────────────────────────────────── */
+  @media (max-width: 479px) {
+    .ent-cta-inner {
+      flex-direction: column;
+      align-items: stretch;
+      gap: 1rem;
+      padding: 1.25rem;
+    }
+    .ent-cta-icon-wrap {
+      align-self: flex-start;
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .ent-cta {
+      opacity: 1 !important;
+      animation: none !important;
+    }
+  }
+</style>

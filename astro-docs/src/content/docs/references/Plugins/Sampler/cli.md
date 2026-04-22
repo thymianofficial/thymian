@@ -7,5 +7,5 @@ sidebar:
 
 # Commands
 
-  <!-- commands -->
-  <!-- commandsstop -->
+<!-- commands -->
+<!-- commandsstop -->

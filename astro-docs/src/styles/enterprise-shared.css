@@ -1,0 +1,59 @@
+/*
+ * Shared styles for enterprise page sections.
+ *
+ * Provides:
+ *   - Spacing custom properties for consistent vertical rhythm
+ *   - Shared section wrapper styles
+ *   - Section header typography
+ *   - CTA button styles
+ *   - Scroll-reveal animation keyframes + reduced-motion reset
+ */
+
+/* ── Spacing scale ──────────────────────────────────────────── */
+:root {
+  --ep-section-gap: 3.5rem;
+  --ep-section-padding-x: 1rem;
+  --ep-section-max-width: 80rem;
+  --ep-radius: 0.75rem;
+  --ep-grid-gap: 1rem;
+  --ep-card-padding: 1.25rem;
+  --ep-header-mb: 2rem;
+  --ep-subheader-mt: 2.5rem;
+  --ep-subheader-mb: 1.5rem;
+  --ep-grid-mb: 2.5rem;
+  --ep-cta-max-width: 52rem;
+}
+@media (min-width: 640px) {
+  :root {
+    --ep-section-padding-x: 1.5rem;
+    --ep-grid-gap: 1.25rem;
+    --ep-header-mb: 2.5rem;
+  }
+}
+@media (min-width: 1024px) {
+  :root {
+    --ep-section-padding-x: 2rem;
+    --ep-section-gap: 4rem;
+    --ep-header-mb: 3rem;
+    --ep-subheader-mt: 3rem;
+  }
+}
+
+/* ── Scroll-reveal keyframe ─────────────────────────────────── */
+@keyframes enterpriseFadeSlideUp {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  [data-animate] {
+    opacity: 1 !important;
+    animation: none !important;
+  }
+}
