@@ -5,6 +5,7 @@ import {
   mergeRuleSets,
   resolveRuleSeverity,
 } from '@thymian/common-cli';
+import type {} from '@thymian/plugin-har';
 import type {} from '@thymian/plugin-openapi';
 import type {} from '@thymian/plugin-reporter';
 import type {} from '@thymian/plugin-sampler';
@@ -44,6 +45,7 @@ export default class Analyze extends BaseCliRunCommand<typeof Analyze> {
         rules: ruleSets,
         rulesConfig: this.thymianConfig.rules,
         ruleFilter: createSeverityRuleFilter(ruleSeverity),
+        validateSpecs: this.flags['validate-specs'],
       });
     });
 

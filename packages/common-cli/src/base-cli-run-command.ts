@@ -42,7 +42,7 @@ export type CommandArgs<T extends typeof Command> = Interfaces.InferredArgs<
 export abstract class BaseCliRunCommand<
   T extends typeof Command,
 > extends Command {
-  static override enableJsonFlag = true;
+  static override enableJsonFlag = false;
 
   /**
    * Whether this command requires API specifications to run.
@@ -136,6 +136,13 @@ export abstract class BaseCliRunCommand<
     ['suppress-feedback']: Flags.boolean({
       default: false,
       description: 'Suppress feedback messages from Thymian.',
+      helpGroup: 'BASE',
+    }),
+    ['validate-specs']: Flags.boolean({
+      default: false,
+      allowNo: true,
+      description:
+        'Validate included specifications and fail on schema validation errors.',
       helpGroup: 'BASE',
     }),
   };

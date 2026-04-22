@@ -186,7 +186,7 @@ export const samplePlugin: ThymianPlugin<Partial<SamplerPluginOptions>> = {
 
       await writeFile(
         join(basePath, 'types.d.ts'),
-        generatedTypesToString(generatedTypes.types),
+        generatedTypesToString(generatedTypes),
       );
 
       await writeFile(

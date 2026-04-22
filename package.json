@@ -12,6 +12,7 @@
     "prepare": "husky",
     "local-registry": "nx local-registry",
     "local-publish": "node ./scripts/release.ts --local --no-dry-run",
+    "bootstrap-npm-packages": "node ./scripts/bootstrap-npm-packages.ts",
     "check:licenses": "node scripts/check-licenses.js",
     "postinstall": "npm run check:licenses"
   },
