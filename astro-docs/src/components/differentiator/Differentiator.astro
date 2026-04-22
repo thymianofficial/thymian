@@ -12,9 +12,11 @@ interface ToolCapability {
   description: string;
 }
 
+type ToolCapabilityState = boolean | 'partial';
+
 interface Tool {
   name: string;
-  capabilities: Record<string, boolean | true>;
+  capabilities: Record<string, ToolCapabilityState>;
 }
 
 const capabilities: ToolCapability[] = [

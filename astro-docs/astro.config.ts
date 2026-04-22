@@ -37,7 +37,7 @@ export default defineConfig({
         ...(UMAMI_URL && UMAMI_WEBSITE_ID
           ? [
               {
-                tag: /** @type {'script'} */ ('script'),
+                tag: /** @type {'script'} */ 'script',
                 attrs: {
                   async: true,
                   defer: true,

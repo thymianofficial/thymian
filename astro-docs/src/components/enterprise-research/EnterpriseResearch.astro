@@ -5,9 +5,8 @@
  * Establishes the team behind Thymian:
  *   1. Team header
  *   2. Founder bios (4 core members, 2-col grid)
- *   3. Extended contributors row
- *   4. CTA callout via shared CtaCallout component
- *   5. Company badge
+ *   3. CTA callout via shared CtaCallout component
+ *   4. Company badge
  *
  * Uses shared scroll-reveal utility and CtaCallout component.
  */
@@ -47,7 +46,7 @@ import { founders } from '../../data/team';
               href={f.linkedin}
               class="er-linkedin"
               target="_blank"
-              rel="noopener"
+              rel="noopener noreferrer"
               aria-label={`${f.name} on LinkedIn`}
             >
               <svg viewBox="0 0 24 24" fill="currentColor" class="er-linkedin-icon">
@@ -103,7 +102,7 @@ import { founders } from '../../data/team';
   <div class="er-company" data-animate="company" data-delay="0">
     <span class="er-company-text">
       Thymian is built and maintained by
-      <a href="https://qupaya.com" class="er-link" target="_blank" rel="noopener">
+      <a href="https://qupaya.com" class="er-link" target="_blank" rel="noopener noreferrer">
         qupaya technologies GmbH
       </a>
       &mdash; based in Nuremberg, Germany.
