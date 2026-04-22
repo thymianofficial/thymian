@@ -7,6 +7,7 @@ import mermaid from 'astro-mermaid';
 import starlightBlog from 'starlight-blog';
 import starlightLinksValidator from 'starlight-links-validator';
 import starlightLlmsTxt from 'starlight-llms-txt';
+
 import { blogAuthors } from './src/data/team';
 
 const UMAMI_URL = process.env.UMAMI_URL;
