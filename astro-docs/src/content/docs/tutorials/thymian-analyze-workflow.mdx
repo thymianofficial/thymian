@@ -57,7 +57,7 @@ npx thymian analyze --traffic har:./traffic.har
 
 This tells Thymian to load the recorded traffic and validate it with the configured rule sets.
 
-### Analyze traffic only
+#### Analyze traffic only
 
 If you run `thymian analyze` with only `--traffic`, Thymian focuses on the recorded HTTP interactions themselves.
 
@@ -67,7 +67,7 @@ This is useful when you want to answer questions like:
 - do responses include the headers and behavior the rules expect?
 - what changed in the deployed environment?
 
-### Analyze traffic with an API description
+#### Analyze traffic with an API description
 
 If you also provide a specification, Thymian gets additional context for the analysis:
 
