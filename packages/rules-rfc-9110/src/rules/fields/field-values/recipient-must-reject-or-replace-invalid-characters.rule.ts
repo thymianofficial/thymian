@@ -7,6 +7,8 @@ export default httpRule(
   'rfc9110/recipient-must-reject-or-replace-invalid-characters',
 )
   .severity('error')
+  // We need to make this informational for now since we do not yet have the functionality to craft or send an intentionally invalid HTTP request.
+  // To test this rule against a real HTTP server, we would have to establish a TCP connection ourselves and manually construct the HTTP request.
   .type('informational')
   .url('https://www.rfc-editor.org/rfc/rfc9110.html#section-5.5')
   .description(
