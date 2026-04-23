@@ -1,0 +1,110 @@
+---
+title: Using thymian analyze
+description: Learn how to analyze recorded HTTP traffic with Thymian, when to use HAR files, and how to interpret violations from real environments.
+---
+
+`thymian analyze` lets you analyze recorded HTTP traffic instead of generating new requests during the run. In principle, that traffic can come from any source. Today, Thymian supports HAR files natively, and you can already feed traffic from other sources through the WebSocket proxy plugin.
+
+This approach is useful when you want to inspect large amounts of traffic or analyze behavior from environments where the full HTTP path matters, such as staging, production, or any setup where proxies, gateways, and caches influence the final result. Thymian stores the recorded traffic in a SQLite database and translates the rules into SQL queries, which makes the analysis efficient even for larger datasets.
+
+In this tutorial, you will learn how to use a HAR file with Thymian to detect rule violations in recorded traffic.
+
+## When to Use `thymian analyze`
+
+Use `thymian analyze` when you already have recorded traffic and want to validate it after the fact.
+
+Typical situations include:
+
+- you want to inspect traffic from staging, production, or another deployed environment
+- you need to analyze large traffic datasets
+- proxies, gateways, or caches may influence the final HTTP behavior
+- you want to validate observed traffic without sending new requests
+
+## Prerequisites
+
+- Thymian available through `npx` or installed in your environment
+- A HAR file with recorded HTTP traffic
+
+You can often export a HAR file directly from your browser's developer tools, from an API client, or from tooling that captures HTTP traffic.
+
+## Step by Step Instructions
+
+### Step 1: Create or export a HAR file
+
+Before you can analyze traffic, you need a HAR file.
+
+Common ways to get one include:
+
+- exporting network traffic from your browser's developer tools
+- exporting requests from an API client
+- capturing traffic in another HTTP tool and saving it as HAR
+
+The important part is that the file contains the HTTP requests and responses you want to inspect.
+
+At this stage, focus on collecting traffic from the environment you care about. For example:
+
+- local development if you are investigating a specific bug
+- staging if you want to validate a near-production setup
+- production-like or production traffic if infrastructure affects the final behavior
+
+### Step 2: Analyze the HAR file with Thymian
+
+Once you have a HAR file, run:
+
+```bash
+npx thymian analyze --traffic har:./traffic.har
+```
+
+This tells Thymian to load the recorded traffic and validate it with the configured rule sets.
+
+### Analyze traffic only
+
+If you run `thymian analyze` with only `--traffic`, Thymian focuses on the recorded HTTP interactions themselves.
+
+This is useful when you want to answer questions like:
+
+- does this observed traffic follow HTTP semantics?
+- do responses include the headers and behavior the rules expect?
+- what changed in the deployed environment?
+
+### Analyze traffic with an API description
+
+If you also provide a specification, Thymian gets additional context for the analysis:
+
+```bash
+npx thymian analyze --spec openapi:./openapi.yaml --traffic har:./traffic.har
+```
+
+When you pass `--spec`, Thymian can also validate the recorded traffic against the API description.
+
+This is useful when you want to check not only whether the traffic follows HTTP rules, but also whether the observed traffic is still valid for the described API.
+
+### Step 3: Review possible violations
+
+After the run, inspect the findings carefully.
+
+The reported issues help you understand what happened in the recorded traffic. For example, they can show:
+
+- missing or incorrect headers
+- cache-related issues
+- authentication-related problems
+- behavior introduced by proxies or gateways
+- mismatches between observed traffic and the API description
+
+Think of this step as understanding the signal before jumping to the fix. First, identify what rule failed, where it failed, and in which environment the traffic was captured.
+
+### Step 4: Decide where to fix the issue
+
+Once you understand the violation, decide where the change belongs.
+
+Depending on the finding, the fix may live in:
+
+- the origin server
+- a reverse proxy configuration
+- a gateway or CDN configuration
+- middleware in the application
+- the API description itself
+
+This step matters because recorded traffic often reflects the behavior of the full deployed system, not just the application code.
+
+Unlike `thymian test`, this mode does not generate fresh traffic. It works with traffic you already captured.

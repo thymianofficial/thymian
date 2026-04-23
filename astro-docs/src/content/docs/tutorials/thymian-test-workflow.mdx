@@ -1,0 +1,109 @@
+---
+title: Using thymian test
+description: Learn how thymian test works, when to use it, and how to build a practical live testing workflow.
+---
+
+`thymian test` validates a running API by sending real HTTP requests and checking the responses with the same rule system you use during linting. It helps you catch implementation drift: places where the live behavior no longer matches HTTP expectations or your intended design.
+
+## When to Use `thymian test`
+
+Use `thymian test` when your API is running and you want to validate real behavior.
+
+Typical situations include:
+
+- local development against a running server
+- CI checks against a test environment
+- integration testing before deployment
+- verifying that implementation changes still respect HTTP semantics
+
+If `thymian lint` asks, "Does the specification look correct?", then `thymian test` asks, "Does the running API actually behave correctly?"
+
+## Prerequisites
+
+- An OpenAPI specification file
+- A running API server
+
+## Step by Step Instructions
+
+### Step 1: Generate request samples
+
+Thymian uses the sampler plugin to create request templates from your API description:
+
+```bash
+npx thymian sampler init --spec openapi:openapi.yaml
+```
+
+This creates a `.thymian/samples/` directory with generated requests you can inspect and customize.
+
+These samples are the foundation for your live test runs because they tell Thymian what to send to the running API. For a hands-on walkthrough, see [Initializing your Request Samples](/tutorials/sampler-getting-started/).
+
+### Step 2: Run live tests against your API
+
+Start your API server, then run:
+
+```bash
+npx thymian test --spec openapi:openapi.yaml --target-url http://localhost:3000
+```
+
+This command tells Thymian to:
+
+1. Load the specification
+2. Load the request samples
+3. Send HTTP requests to the target URL
+4. Evaluate the responses against the loaded rules
+5. Report any violations
+
+If you already have a Thymian config file, you can also run the command with `-c` and point to that config explicitly:
+
+```bash
+npx thymian test -c ./thymian.config.yaml
+```
+
+### Step 3: Interpret the results
+
+`thymian test` reports findings in the context of real HTTP traffic.
+
+That means the output reflects what your running server actually returned, not just what the OpenAPI file describes. This is useful for catching problems caused by:
+
+- framework defaults
+- missing middleware
+- authentication flows
+- proxies or environment-specific behavior
+- implementation changes that were never reflected in the spec
+
+If a test run reports violations, fix the implementation, the test setup, or the specification, then rerun the command.
+
+### Step 4: Write better live tests with samples and hooks
+
+Many APIs need more than a basic generated request. For example, you may need to:
+
+- add authentication
+- create data before a request runs
+- inject IDs or tokens into requests
+- skip or shape requests for specific scenarios
+
+That is where samples and hooks help. A common progression looks like this:
+
+1. Generate sample requests with `thymian sampler init`
+2. Run `thymian test`
+3. See which requests fail because they need setup or authentication
+4. Add or refine hooks
+5. Run `thymian test` again
+
+For a deeper hands-on example of generating and refining request samples, see [Initializing your Request Samples](/tutorials/sampler-getting-started/).
+
+## How `thymian test` fits into the workflow
+
+`thymian test` sits between design-time validation and traffic analysis:
+
+- **`lint`** checks the API description
+- **`test`** checks a live implementation
+- **`analyze`** checks recorded traffic after requests have already happened
+
+This makes `test` the best place to catch implementation issues before they appear in staging or production traffic.
+
+## Next Steps
+
+- If you have not done it yet, start with [Use `thymian lint` to review your API design](/tutorials/thymian-lint-workflow/)
+- Continue with [Use `thymian analyze` to inspect recorded traffic](/tutorials/thymian-analyze-workflow/)
+- See the [CLI reference](/references/cli/)

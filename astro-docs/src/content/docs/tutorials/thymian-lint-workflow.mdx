@@ -1,0 +1,101 @@
+---
+title: Using thymian lint
+description: Learn what thymian lint does, when to run it, and how to use it as the first step in your API workflow.
+---
+
+`thymian lint` is the fastest way to start with Thymian. It checks your API description without sending any HTTP requests, so you can catch protocol and design issues before you deploy or test a live server.
+
+## When to Use `thymian lint`
+
+Use `thymian lint` when you want feedback on your API design itself.
+
+Typical situations include:
+
+- you are writing or reviewing an OpenAPI specification
+- you want quick feedback before implementing an endpoint
+- you want a CI-friendly quality gate for API descriptions
+- you want to catch missing headers, wrong status codes, or incomplete response definitions early
+
+`thymian lint` works best at the design stage, where changes are cheapest and easiest to make.
+
+## Prerequisites
+
+- An OpenAPI specification file
+
+## Step by Step Instructions
+
+### Step 1: Run your first lint check
+
+From your project root, run:
+
+```bash
+npx thymian lint --spec openapi:openapi.yaml
+```
+
+This command tells Thymian to:
+
+1. Load your OpenAPI file
+2. Load the configured or default rule sets
+3. Apply HTTP conformance rules to the specification
+4. Print the findings in the terminal
+
+At this stage, Thymian checks the API description only. It does not contact a running server.
+
+### Step 2: Understand what the output means
+
+The output tells you three important things:
+
+- **where** the problem is
+- **why** it matters
+- **which rule** reported it
+
+Example:
+
+```console
+PUT /launches/{id} - application/json → 401 UNAUTHORIZED
+      ✖ error: The server generating a 401 response MUST send a WWW-Authenticate header field containing at least one challenge applicable to the target resource.
+         rfc9110/server-must-send-www-authenticate-header-for-401-response
+```
+
+Read this from top to bottom:
+
+1. The issue is attached to the `401 UNAUTHORIZED` response of `PUT /launches/{id}`
+2. The severity is `error`, so this is a real problem to fix
+3. The message explains the HTTP requirement
+4. The rule name tells you which standard-based rule found it
+
+### Step 3: Fix the specification and rerun
+
+After reviewing the finding, update your OpenAPI file and run the command again:
+
+```bash
+npx thymian lint --spec openapi:openapi.yaml
+```
+
+This edit-and-rerun loop is the main `lint` workflow. It helps you improve the API contract before you invest time in implementation or runtime checks.
+
+### Step 4: Save your setup for repeated use
+
+Once the command works for your project, generate a reusable config:
+
+```bash
+npx thymian generate config
+```
+
+If you already have a Thymian config file, you can also run the command with `-c` and point to that config explicitly:
+
+```bash
+npx thymian lint -c ./thymian.config.yaml
+```
+
+This is usually the best setup for local development and CI because your specification, plugins, and rule sets live in one place.
+
+### Step 5: Adjust how much Thymian reports
+
+If you want to see more than errors, lower the minimum severity:
+
+```bash
+npx thymian lint --rule-severity hint
+```
+
+This is useful when you want broader guidance while refining an API design.
