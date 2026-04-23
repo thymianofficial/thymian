@@ -17,6 +17,7 @@ import type {
   RulesConfiguration,
   SingleRuleConfiguration,
 } from './rule-configuration.js';
+import type { RuleSeverity } from './rule-severity.js';
 import { isRuleSeverityLevel } from './rule-severity.js';
 import type { EvaluatedRuleViolation, RuleFnResult } from './rule-violation.js';
 import type { RuleViolation } from './rule-violation.js';
@@ -109,12 +110,20 @@ export interface RuleRunnerStatistics {
   rulesWithViolations: number;
 }
 
-export interface RunRulesResult {
-  violations: EvaluatedRuleViolation[];
-  statistics: RuleRunnerStatistics;
+export interface RuleExecutionDiagnosticsProvider<TDiagnostics = unknown> {
+  getRuleExecutionDiagnostics(): TDiagnostics | undefined;
 }
 
-export type RuleRunnerAdapter<Context> = {
+export interface RunRulesResult<TDiagnostics = unknown> {
+  violations: EvaluatedRuleViolation[];
+  statistics: RuleRunnerStatistics;
+  diagnosticsByRule: Partial<Record<string, TDiagnostics>>;
+}
+
+export type RuleRunnerAdapter<
+  Context extends RuleExecutionDiagnosticsProvider<TDiagnostics>,
+  TDiagnostics = unknown,
+> = {
   errorName: string;
   mode: 'static' | 'analytics' | 'test';
   getRuleFn(rule: Rule):
@@ -132,13 +141,16 @@ export type RuleRunnerAdapter<Context> = {
   ): Context;
 };
 
-export async function runRules<Context>(
+export async function runRules<
+  Context extends RuleExecutionDiagnosticsProvider<TDiagnostics>,
+  TDiagnostics = unknown,
+>(
   logger: Logger,
   rules: Rule[],
   format: ThymianFormat,
   rulesConfig: RulesConfiguration,
-  adapter: RuleRunnerAdapter<Context>,
-): Promise<RunRulesResult> {
+  adapter: RuleRunnerAdapter<Context, TDiagnostics>,
+): Promise<RunRulesResult<TDiagnostics>> {
   const duplicateRuleNames = findDuplicates(rules.map((r) => r.meta.name));
 
   if (duplicateRuleNames.length > 0) {
@@ -158,6 +170,7 @@ export async function runRules<Context>(
   );
 
   const violations: EvaluatedRuleViolation[] = [];
+  const diagnosticsByRule: Partial<Record<string, TDiagnostics>> = {};
   let rulesRun = 0;
   let rulesWithViolations = 0;
 
@@ -186,6 +199,12 @@ export async function runRules<Context>(
         logger.child(rule.meta.name),
       );
 
+      const diagnostics = context.getRuleExecutionDiagnostics();
+
+      if (diagnostics !== undefined) {
+        diagnosticsByRule[rule.meta.name] = diagnostics;
+      }
+
       if (!result || (Array.isArray(result) && result.length === 0)) {
         continue;
       }
@@ -195,13 +214,12 @@ export async function runRules<Context>(
       if (rule.meta.severity === 'off') {
         continue;
       }
-
       rulesWithViolations++;
 
       for (const violation of violationArray) {
         violations.push({
           ruleName: rule.meta.name,
-          severity: rule.meta.severity,
+          severity: rule.meta.severity as Exclude<RuleSeverity, 'off'>,
           violation: {
             message:
               rule.meta.summary ?? rule.meta.description ?? rule.meta.name,
@@ -236,5 +254,6 @@ export async function runRules<Context>(
       rulesRun,
       rulesWithViolations,
     },
+    diagnosticsByRule,
   };
 }

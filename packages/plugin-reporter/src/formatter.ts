@@ -1,8 +1,4 @@
-import type {
-  ThymianReport,
-  ThymianReportItem,
-  ThymianReportSeverity,
-} from '@thymian/core';
+import type { ThymianReport, ThymianReportSeverity } from '@thymian/core';
 
 export type ThymianReportStatistics = {
   numberOfReports: number;
@@ -11,19 +7,10 @@ export type ThymianReportStatistics = {
 };
 
 export type ReportAnalysis = {
-  reports: ThymianReport[];
   statistics: ThymianReportStatistics;
 };
 
-function countItems(reports: ThymianReport[]): ThymianReportItem[] {
-  return reports.flatMap(
-    (report) => report.sections?.flatMap((s) => s.items) ?? [],
-  );
-}
-
-export function analyze(reports: ThymianReport[]): ReportAnalysis {
-  const items = countItems(reports);
-
+export function analyze(reports: Map<string, ThymianReport[]>): ReportAnalysis {
   const severityCounts: Record<ThymianReportSeverity, number> = {
     error: 0,
     warn: 0,
@@ -31,15 +18,27 @@ export function analyze(reports: ThymianReport[]): ReportAnalysis {
     info: 0,
   };
 
-  for (const item of items) {
-    severityCounts[item.severity]++;
+  let reportCounter = 0;
+  let reportItemsCounter = 0;
+  for (const [, r] of reports.entries()) {
+    reportCounter += r.length;
+
+    for (const report of r) {
+      for (const section of report.sections ?? []) {
+        reportItemsCounter += section.items.length;
+
+        for (const item of section.items ?? []) {
+          severityCounts[item.severity] =
+            (severityCounts[item.severity] ?? 0) + 1;
+        }
+      }
+    }
   }
 
   return {
-    reports,
     statistics: {
-      numberOfReports: reports.length,
-      numberOfItems: items.length,
+      numberOfReports: reportCounter,
+      numberOfItems: reportItemsCounter,
       severityCounts,
     },
   };

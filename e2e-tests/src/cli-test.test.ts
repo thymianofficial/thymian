@@ -1,7 +1,7 @@
 import { readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 
-import fastify from 'fastify';
+import fastify, { type FastifyInstance } from 'fastify';
 import { describe, expect, it } from 'vitest';
 
 import {
@@ -21,9 +21,7 @@ import { getAvailablePort } from './port-utils.js';
 async function setupTestEnvironment(
   fixtureName: string,
   tempDir: string,
-  handler: (
-    server: ReturnType<typeof fastify>,
-  ) => void = addDefaultHelloHandler,
+  handler: (server: FastifyInstance) => void = addDefaultHelloHandler,
 ) {
   copyFixturesToTempDir(join(fixturesDir, fixtureName), tempDir);
 
@@ -38,7 +36,7 @@ async function setupTestEnvironment(
   return { server, port, targetUrl: `http://localhost:${port}` };
 }
 
-function addDefaultHelloHandler(server: ReturnType<typeof fastify>) {
+function addDefaultHelloHandler(server: FastifyInstance) {
   server.get<{ Querystring: { name: string } }>('/api/hello', async (req) => {
     const { name } = req.query;
     return { content: `Hello ${name}` };
@@ -151,7 +149,7 @@ describe('thymian test', () => {
 
       // Skipped test cases are not violations, so exit code remains 0
       expect(result.exitCode).toBe(0);
-      expect(result.stdout).toMatch(/test case skipped/);
+      expect(result.stdout).toMatch(/skipped and failed test cases/);
     } finally {
       await server.close();
     }

@@ -73,6 +73,10 @@ export class AnalyticsApiContext implements AnalyzeContext {
     this.violations.push(violation);
   }
 
+  getRuleExecutionDiagnostics(): undefined {
+    return undefined;
+  }
+
   private addOriginsToFilter(
     filter: HttpFilterExpression,
   ): HttpFilterExpression {

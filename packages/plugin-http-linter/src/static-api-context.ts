@@ -55,6 +55,10 @@ export class StaticApiContext implements LintContext {
     this.violations.push(violation);
   }
 
+  getRuleExecutionDiagnostics(): undefined {
+    return undefined;
+  }
+
   validateCommonHttpTransactions(
     filter: HttpFilterExpression,
     validate:

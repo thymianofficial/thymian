@@ -13,6 +13,7 @@ import {
   port,
   responseHeader,
   responseMediaType,
+  singleTestCase,
   statusCode,
   type ThymianFormat,
 } from '@thymian/core';
@@ -101,7 +102,7 @@ describe('HttpTestApiContext', () => {
         headers: {},
       });
 
-      const context = new HttpTestApiContext('test-rule', mockContext, vi.fn());
+      const context = new HttpTestApiContext('test-rule', mockContext);
 
       const result = await context.validateCommonHttpTransactions(
         statusCode(200),
@@ -119,7 +120,7 @@ describe('HttpTestApiContext', () => {
 
       const mockContext = createMockHttpTestContext({ format });
 
-      const context = new HttpTestApiContext('test-rule', mockContext, vi.fn());
+      const context = new HttpTestApiContext('test-rule', mockContext);
 
       const result = await context.validateCommonHttpTransactions(
         statusCode(404),
@@ -145,7 +146,7 @@ describe('HttpTestApiContext', () => {
         },
       });
 
-      const context = new HttpTestApiContext('test-rule', mockContext, vi.fn());
+      const context = new HttpTestApiContext('test-rule', mockContext);
 
       const result = await context.validateCommonHttpTransactions(
         statusCode(200),
@@ -173,7 +174,7 @@ describe('HttpTestApiContext', () => {
         trailers: {},
       });
 
-      const context = new HttpTestApiContext('test-rule', mockContext, vi.fn());
+      const context = new HttpTestApiContext('test-rule', mockContext);
 
       const result = await context.validateCommonHttpTransactions(
         statusCode(200),
@@ -213,12 +214,9 @@ describe('HttpTestApiContext', () => {
         trailers: {},
       });
 
-      const context = new HttpTestApiContext(
-        'test-rule',
-        mockContext,
-        vi.fn(),
-        ['*.example.com'],
-      );
+      const context = new HttpTestApiContext('test-rule', mockContext, [
+        '*.example.com',
+      ]);
 
       const result = await context.validateCommonHttpTransactions(
         statusCode(200),
@@ -277,7 +275,7 @@ describe('HttpTestApiContext', () => {
         },
       });
 
-      const context = new HttpTestApiContext('test-rule', mockContext, vi.fn());
+      const context = new HttpTestApiContext('test-rule', mockContext);
 
       const groupKeys: string[] = [];
       const result = await context.validateGroupedCommonHttpTransactions(
@@ -356,7 +354,7 @@ describe('HttpTestApiContext', () => {
         },
       });
 
-      const context = new HttpTestApiContext('test-rule', mockContext, vi.fn());
+      const context = new HttpTestApiContext('test-rule', mockContext);
 
       const result = await context.validateGroupedCommonHttpTransactions(
         method('get'),
@@ -401,7 +399,7 @@ describe('HttpTestApiContext', () => {
         headers: {},
       });
 
-      const context = new HttpTestApiContext('test-rule', mockContext, vi.fn());
+      const context = new HttpTestApiContext('test-rule', mockContext);
 
       const result = await context.validateHttpTransactions(
         and(method('get'), statusCode(200)),
@@ -425,7 +423,7 @@ describe('HttpTestApiContext', () => {
         headers: {},
       });
 
-      const context = new HttpTestApiContext('test-rule', mockContext, vi.fn());
+      const context = new HttpTestApiContext('test-rule', mockContext);
 
       const result = await context.validateHttpTransactions(
         method('get'),
@@ -458,7 +456,7 @@ describe('HttpTestApiContext', () => {
         trailers: {},
       });
 
-      const context = new HttpTestApiContext('test-rule', mockContext, vi.fn());
+      const context = new HttpTestApiContext('test-rule', mockContext);
 
       const result = await context.validateHttpTransactions(
         method('get'),
@@ -484,7 +482,7 @@ describe('HttpTestApiContext', () => {
         trailers: {},
       });
 
-      const context = new HttpTestApiContext('test-rule', mockContext, vi.fn());
+      const context = new HttpTestApiContext('test-rule', mockContext);
 
       // Report some violations
       context.reportViolation({
@@ -527,7 +525,7 @@ describe('HttpTestApiContext', () => {
       );
 
       const mockContext = createMockHttpTestContext({ format });
-      const context = new HttpTestApiContext('test-rule', mockContext, vi.fn());
+      const context = new HttpTestApiContext('test-rule', mockContext);
 
       context.reportViolation({
         location: 'reported-violation',
@@ -548,6 +546,107 @@ describe('HttpTestApiContext', () => {
           }),
         ]),
       );
+    });
+  });
+
+  describe('getRuleExecutionDiagnostics', () => {
+    it('should expose skipped test cases as rule diagnostics', async () => {
+      const format = createThymianFormatWithTransaction(
+        createHttpRequest({ method: 'get', path: '/users' }),
+        createHttpResponse({ statusCode: 200, headers: {} }),
+      );
+
+      const mockContext = createMockHttpTestContext({
+        format,
+        runRequest: async (req: HttpRequest): Promise<HttpResponse> => ({
+          duration: 0,
+          trailers: {},
+          statusCode: req.method === 'post' ? 201 : 200,
+          headers: {},
+        }),
+      });
+      const context = new HttpTestApiContext('diagnostic-test', mockContext);
+
+      await context.httpTest(
+        singleTestCase()
+          .forTransactionsWith(method('get'))
+          .run()
+          .skipIf(statusCode(200), 'Skip because status is 200')
+          .done(),
+      );
+
+      expect(context.getRuleExecutionDiagnostics()).toMatchObject({
+        skippedCases: [
+          {
+            name: expect.any(String),
+            reason: 'Skip because status is 200',
+          },
+        ],
+      });
+    });
+
+    it('should accumulate diagnostics across multiple helper calls', async () => {
+      const format = createThymianFormat();
+      format.addHttpTransaction(
+        createHttpRequest({ method: 'get', path: '/users' }),
+        createHttpResponse({ statusCode: 200, headers: {} }),
+        'test-source-1',
+      );
+      format.addHttpTransaction(
+        createHttpRequest({ method: 'post', path: '/users' }),
+        createHttpResponse({ statusCode: 201, headers: {} }),
+        'test-source-2',
+      );
+
+      const mockContext = createMockHttpTestContext({ format });
+      const context = new HttpTestApiContext('diagnostic-test', mockContext);
+
+      await context.httpTest(
+        singleTestCase()
+          .forTransactionsWith(method('get'))
+          .run()
+          .skipIf(statusCode(200), 'Skip because status is 200')
+          .done(),
+      );
+
+      await context.runHttpTest(
+        singleTestCase()
+          .forTransactionsWith(method('post'))
+          .run()
+          .skipIf(statusCode(200), 'Skip because status is 200 for POST')
+          .done(),
+      );
+
+      expect(context.getRuleExecutionDiagnostics()).toEqual({
+        skippedCases: [
+          {
+            name: expect.any(String),
+            reason: 'Skip because status is 200',
+          },
+        ],
+        failedCases: [],
+      });
+
+      await context.httpTest(
+        singleTestCase()
+          .forTransactionsWith(method('post'))
+          .run()
+          .skipIf(statusCode(201), 'Skip because status is 201 for POST')
+          .done(),
+      );
+
+      expect(context.getRuleExecutionDiagnostics()).toMatchObject({
+        skippedCases: expect.arrayContaining([
+          {
+            name: expect.any(String),
+            reason: 'Skip because status is 200',
+          },
+          {
+            name: expect.any(String),
+            reason: 'Expected status code 201, but received 200.',
+          },
+        ]),
+      });
     });
   });
 });

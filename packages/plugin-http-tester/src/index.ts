@@ -6,14 +6,20 @@ import {
   ThymianBaseError,
   ThymianFormat,
   type ThymianPlugin,
-  type ThymianReport,
 } from '@thymian/core';
 
 import { createContext } from './create-context.js';
-import { HttpTestApiContext } from './http-test-api-context.js';
+import { createHttpTestDiagnosticsReport } from './create-diagnostics-report.js';
+import {
+  HttpTestApiContext,
+  type HttpTesterRuleDiagnostics,
+} from './http-test-api-context.js';
 
 export { createContext } from './create-context.js';
-export { HttpTestApiContext } from './http-test-api-context.js';
+export {
+  HttpTestApiContext,
+  type HttpTesterRuleDiagnostics,
+} from './http-test-api-context.js';
 
 export function createHttpTesterPlugin(
   pluginName = '@thymian/plugin-http-tester',
@@ -29,9 +35,6 @@ export function createHttpTesterPlugin(
         'core.test',
         async ({ format, rules = [], rulesConfig = {}, targetUrl }, ctx) => {
           const thymianFormat = ThymianFormat.import(format);
-          const reportFn = (report: ThymianReport) =>
-            emitter.emit('core.report', report);
-
           let normalizedOrigin: string | undefined;
 
           if (targetUrl != null) {
@@ -57,10 +60,13 @@ export function createHttpTesterPlugin(
             normalizedOrigin,
           );
 
-          const adapter: RuleRunnerAdapter<HttpTestApiContext> = {
+          const adapter: RuleRunnerAdapter<
+            HttpTestApiContext,
+            HttpTesterRuleDiagnostics
+          > = {
             errorName: 'TestLinterError',
             mode: 'test',
-            getRuleFn: (rule: Rule) => rule.testRule,
+            getRuleFn: (rule) => rule.testRule,
             createContext: (
               rule: Rule,
               options: SingleRuleConfiguration | undefined,
@@ -68,13 +74,11 @@ export function createHttpTesterPlugin(
               new HttpTestApiContext(
                 rule.meta.name,
                 context,
-                reportFn,
                 (options ?? {}).skipOrigins,
-                pluginName,
               ),
           };
 
-          const { violations, statistics } = await runRules(
+          const { violations, statistics, diagnosticsByRule } = await runRules(
             logger,
             rules,
             thymianFormat,
@@ -82,11 +86,23 @@ export function createHttpTesterPlugin(
             adapter,
           );
 
+          const report = createHttpTestDiagnosticsReport(
+            pluginName,
+            diagnosticsByRule,
+          );
+
+          if (report) {
+            emitter.emit('core.report', report);
+          }
+
           ctx.reply({
             source: pluginName,
             status: violations.length === 0 ? 'success' : 'failed',
             violations,
             statistics,
+            metadata: {
+              diagnosticsByRule,
+            },
           });
         },
       );
