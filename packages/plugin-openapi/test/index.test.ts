@@ -73,4 +73,34 @@ describe('OpenApi plugin', () => {
     expect(format.graph.size).toBe(1); // edges
     expect(format.graph.order).toBe(2); // nodes
   });
+
+  it('responds to core.validate-specs for supported OpenAPI inputs', async () => {
+    const thymian = new Thymian(new NoopLogger(), {
+      cwd: join(import.meta.dirname, '..'),
+    });
+
+    await thymian.register(openApiPlugin).ready();
+
+    const results = await thymian.emitter.emitAction(
+      'core.validate-specs',
+      {
+        inputs: [
+          {
+            type: 'openapi',
+            location: 'test/fixtures/petstore-v2.yaml',
+          },
+        ],
+      },
+      { strategy: 'collect' },
+    );
+
+    expect(results).toHaveLength(1);
+    expect(results[0]).toEqual([
+      expect.objectContaining({
+        type: 'openapi',
+        location: 'test/fixtures/petstore-v2.yaml',
+        status: 'success',
+      }),
+    ]);
+  });
 });

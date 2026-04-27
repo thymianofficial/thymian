@@ -31,7 +31,7 @@ export default class Info extends BaseCliRunCommand<typeof Info> {
         name: 'InvalidOpenAPIDocumentError',
         ref: 'https://thymian.dev/references/errors/invalid-openapi-document-error/',
         suggestions: [
-          'Use thymian openapi:validate to validate your OpenAPI document.',
+          'Use thymian validate --spec openapi:<path> to validate your OpenAPI document.',
         ],
       });
     }

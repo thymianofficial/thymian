@@ -2,8 +2,10 @@ import type { JSONSchemaType } from 'ajv/dist/2020.js';
 
 import packageJson from '../package.json' with { type: 'json' };
 import {
+  coreValidateSpecsActionSchema,
   formatLoadActionSchema,
   requestDispatchActionSchema,
+  specValidationResultsSchema,
   trafficLoadActionSchema,
   validationResultSchema,
 } from './actions/index.js';
@@ -50,6 +52,10 @@ export const corePlugin: ThymianPlugin = {
       'core.analyze': {
         event: {} as JSONSchemaType<unknown>,
         response: validationResultSchema,
+      },
+      'core.validate-specs': {
+        event: coreValidateSpecsActionSchema,
+        response: specValidationResultsSchema,
       },
       'core.request.dispatch': {
         event: requestDispatchActionSchema,
