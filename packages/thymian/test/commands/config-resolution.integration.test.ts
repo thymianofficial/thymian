@@ -3,6 +3,7 @@ import { existsSync, mkdirSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
+import { ux } from '@oclif/core';
 import { captureOutput } from '@oclif/test';
 import {
   afterAll,
@@ -16,11 +17,25 @@ import {
   vi,
 } from 'vitest';
 
+vi.mock('@oclif/core', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@oclif/core')>();
+  return {
+    ...actual,
+    ux: {
+      ...actual.ux,
+      stdout: vi.fn(),
+      stderr: vi.fn(),
+    },
+  };
+});
+
 process.env.OCLIF_TEST_ROOT = join(import.meta.url, '../../..');
 
 // --- Shared mock state ---
 const mockState: {
   lintInput?: unknown;
+  validateInput?: unknown;
+  validateResult?: unknown;
   runCalled?: boolean;
 } = {};
 
@@ -41,6 +56,13 @@ vi.mock('@thymian/core', async () => {
       mockState.runCalled = true;
       return { outcome: 'pass', results: [] };
     });
+    public validate = vi.fn(async (input: unknown) => {
+      mockState.validateInput = input;
+      mockState.runCalled = true;
+      return (
+        mockState.validateResult ?? { classification: 'clean-run', results: [] }
+      );
+    });
   }
 
   return {
@@ -50,6 +72,7 @@ vi.mock('@thymian/core', async () => {
 });
 
 import Lint from '../../src/commands/lint.js';
+import Validate from '../../src/commands/validate.js';
 
 const __dirname = fileURLToPath(new URL('.', import.meta.url));
 
@@ -76,6 +99,8 @@ describe('config resolution chain (integration)', () => {
       .spyOn(process, 'exit')
       .mockImplementation((() => undefined) as () => never);
     mockState.lintInput = undefined;
+    mockState.validateInput = undefined;
+    mockState.validateResult = undefined;
     mockState.runCalled = false;
   });
 
@@ -180,7 +205,9 @@ describe('config resolution chain (integration)', () => {
 
       // this.exit(2) throws an ExitError during init() after logging guidance.
       expect(error).toBeDefined();
-      expect(stderr).toContain('No specification found');
+      expect(ux.stderr).toHaveBeenCalledWith(
+        expect.stringContaining('No specification found'),
+      );
     });
   });
 
@@ -269,6 +296,131 @@ describe('config resolution chain (integration)', () => {
     });
   });
 
+  describe('validate command config resolution', () => {
+    it('uses --spec over config specifications for validate', async () => {
+      const configPath = join(tmpDir, 'validate-override.config.yaml');
+      writeFileSync(
+        configPath,
+        [
+          'specifications:',
+          '  - type: openapi',
+          '    location: ./original.yaml',
+          'plugins:',
+          "  '@thymian/plugin-openapi': {}",
+        ].join('\n'),
+      );
+
+      await captureOutput(async () => {
+        await Validate.run([
+          '--config',
+          configPath,
+          '--spec',
+          'openapi:./overridden.yaml',
+          '--no-autoload',
+        ]);
+      });
+
+      expect(mockState.validateInput).toEqual(
+        expect.objectContaining({
+          specification: [{ type: 'openapi', location: './overridden.yaml' }],
+        }),
+      );
+    });
+
+    it('renders a validation summary from the thymian package', async () => {
+      const configPath = join(tmpDir, 'validate-render.config.yaml');
+      writeFileSync(
+        configPath,
+        [
+          'specifications:',
+          '  - type: openapi',
+          '    location: ./render.yaml',
+          'plugins:',
+          "  '@thymian/plugin-openapi': {}",
+        ].join('\n'),
+      );
+
+      mockState.validateResult = {
+        classification: 'findings',
+        results: [
+          {
+            type: 'openapi',
+            location: './render.yaml',
+            source: 'render.yaml',
+            status: 'failed',
+            issues: [{ message: 'missing info.title', path: '$.info' }],
+          },
+        ],
+      };
+
+      await captureOutput(async () => {
+        await Validate.run(['--config', configPath, '--no-autoload']);
+      });
+
+      expect(mockState.validateInput).toEqual(
+        expect.objectContaining({
+          specification: [{ type: 'openapi', location: './render.yaml' }],
+        }),
+      );
+      expect(ux.stdout).toHaveBeenCalledWith(expect.stringContaining('1 of 1'));
+    });
+
+    it('does not report all specs valid for unsupported specifications', async () => {
+      const configPath = join(tmpDir, 'validate-unsupported.config.yaml');
+      writeFileSync(
+        configPath,
+        [
+          'specifications:',
+          '  - type: asyncapi',
+          '    location: ./render.yaml',
+          'plugins:',
+          "  '@thymian/plugin-openapi': {}",
+        ].join('\n'),
+      );
+
+      mockState.validateResult = {
+        classification: 'tool-error',
+        results: [
+          {
+            type: 'asyncapi',
+            location: './render.yaml',
+            source: 'render.yaml',
+            status: 'unsupported',
+            issues: [
+              {
+                message:
+                  'No validator registered for specification type "asyncapi".',
+              },
+            ],
+          },
+        ],
+      };
+
+      await captureOutput(async () => {
+        await Validate.run(['--config', configPath, '--no-autoload']);
+      });
+
+      expect(ux.stdout).not.toHaveBeenCalledWith(
+        'All specifications are valid.',
+      );
+      expect(ux.stdout).toHaveBeenCalledWith(
+        expect.stringContaining('could not be validated'),
+      );
+    });
+
+    it('does not call validate when no specifications are resolved', async () => {
+      const emptyDir = join(tmpDir, 'validate-no-specs');
+      mkdirSync(emptyDir, { recursive: true });
+
+      const { error } = await captureOutput(async () => {
+        await Validate.run(['--cwd', emptyDir, '--no-autoload']);
+      });
+
+      expect(error).toBeDefined();
+      expect(mockState.validateInput).toBeUndefined();
+    });
+  });
+
   // -------------------------------------------------------
   // Steps D+E+F: Spec search hook and guidance messages
   // -------------------------------------------------------
@@ -283,8 +435,12 @@ describe('config resolution chain (integration)', () => {
 
       // this.exit(2) throws an ExitError during init() after logging guidance.
       expect(error).toBeDefined();
-      expect(stderr).toContain('No specification found');
-      expect(stderr).toContain('thymian generate config');
+      expect(ux.stderr).toHaveBeenCalledWith(
+        expect.stringContaining('No specification found'),
+      );
+      expect(ux.stderr).toHaveBeenCalledWith(
+        expect.stringContaining('thymian generate config'),
+      );
       expect(mockState.runCalled).toBe(false);
     });
   });
