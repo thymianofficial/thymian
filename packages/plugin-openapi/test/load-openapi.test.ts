@@ -6,7 +6,11 @@ import type { OpenAPIV3_1 } from 'openapi-types';
 import { describe, expect, it, vitest } from 'vitest';
 import yaml from 'yaml';
 
-import { loadAndUpgrade, openapiToThymianFormat } from '../src/load-openapi.js';
+import {
+  loadAndUpgrade,
+  openapiToThymianFormat,
+  validateOpenApi,
+} from '../src/load-openapi.js';
 
 const swaggerDocument = {
   swagger: '2.0',
@@ -554,6 +558,73 @@ describe('load-openapi', () => {
       expect(transactions[0]?.thymianResId).not.toBe(
         transactions[1]?.thymianResId,
       );
+    });
+  });
+
+  describe('validateOpenApi', () => {
+    it('returns failed result for schema-invalid documents', async () => {
+      const result = await validateOpenApi(
+        'test/fixtures/invalid-openapi.yaml',
+        {
+          cwd: join(import.meta.dirname, '..'),
+          logger: new NoopLogger(),
+        },
+      );
+
+      expect(result.status).toBe('failed');
+      expect(result.issues.length).toBeGreaterThan(0);
+    });
+
+    it('returns success result for valid documents', async () => {
+      const result = await validateOpenApi('test/fixtures/petstore-v2.yaml', {
+        cwd: join(import.meta.dirname, '..'),
+        logger: new NoopLogger(),
+      });
+
+      expect(result).toEqual(
+        expect.objectContaining({
+          type: 'openapi',
+          status: 'success',
+          issues: [],
+        }),
+      );
+    });
+
+    it('returns failed result for invalid references', async () => {
+      const result = await validateOpenApi(
+        JSON.stringify({
+          openapi: '3.1.0',
+          info: {
+            title: 'Test',
+            version: '1.0.0',
+          },
+          paths: {
+            '/test': {
+              get: {
+                responses: {
+                  '200': {
+                    description: 'OK',
+                    content: {
+                      'application/json': {
+                        schema: {
+                          $ref: '#/components/schemas/Missing',
+                        },
+                      },
+                    },
+                  },
+                },
+              },
+            },
+          },
+        }),
+        {
+          cwd: join(import.meta.dirname, '..'),
+          logger: new NoopLogger(),
+        },
+      );
+
+      expect(result.status).toBe('failed');
+      expect(result.issues.length).toBeGreaterThan(0);
     });
   });
 });

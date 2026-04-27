@@ -14,6 +14,8 @@ import {
   type HttpFilterExpression,
   type Logger,
   NoopLogger,
+  type SpecValidationIssue,
+  type SpecValidationResult,
   ThymianBaseError,
   type ThymianFormat,
 } from '@thymian/core';
@@ -50,6 +52,18 @@ export type LoadResult = {
   original: OpenAPI.Document;
   filePath?: string;
 };
+
+function mapValidationIssue(error: {
+  message: string;
+  code?: string;
+  path?: unknown;
+}): SpecValidationIssue {
+  return {
+    message: error.message,
+    code: error.code,
+    path: typeof error.path === 'string' ? error.path : undefined,
+  };
+}
 
 export async function loadOpenApi(
   value: string,
@@ -157,7 +171,7 @@ export async function loadAndUpgrade(
             validationResult.errors.map((e) => e.message).join('; '),
           ),
           suggestions: [
-            'This indicates that your OpenAPI document does not match the OpenAPI specification. Use `thymian openapi:validate` to get detailed validation errors',
+            'This indicates that your OpenAPI document does not match the OpenAPI specification. Use `thymian validate --spec openapi:<path>` to get detailed validation errors',
             'Ensure all required fields are present (openapi, info, paths)',
           ],
         },
@@ -211,6 +225,82 @@ export async function loadAndUpgrade(
     document: dereferencedResult.schema as OpenAPIV3_1.Document,
     original: document as OpenAPI.Document,
     filePath: filePath ? filePath : undefined,
+  };
+}
+
+export async function validateOpenApi(
+  value: string,
+  options: {
+    cwd: string;
+    logger?: Logger;
+    sourceName?: string;
+  },
+): Promise<SpecValidationResult> {
+  const logger = options.logger ?? new NoopLogger();
+  const { document, filePath } = await loadOpenApi(value, options.cwd);
+  const relativePath = filePath
+    ? getRelativePath(filePath, options.cwd)
+    : value;
+  const source = options.sourceName ?? relativePath;
+
+  const validationResult = await validate(document, { throwOnError: false });
+
+  if (!validationResult.valid && validationResult.errors) {
+    const issues = validationResult.errors.map(mapValidationIssue);
+    const hasReferenceErrors = validationResult.errors.some(
+      (error) => error.code === 'INVALID_REFERENCE',
+    );
+
+    logger.info(`OpenAPI validation failed for '${source}'.`);
+
+    return {
+      type: 'openapi',
+      location: value,
+      source,
+      status: 'failed',
+      issues,
+      metadata: {
+        filePath,
+        hasReferenceErrors,
+      },
+    };
+  }
+
+  try {
+    await loadAndUpgrade(value, options.cwd, logger, false);
+  } catch (error) {
+    if (error instanceof ThymianBaseError) {
+      return {
+        type: 'openapi',
+        location: value,
+        source,
+        status: 'failed',
+        issues: [
+          {
+            message: error.message,
+            code: error.name,
+          },
+        ],
+        metadata: {
+          filePath,
+        },
+      };
+    }
+
+    throw error;
+  }
+
+  logger.debug(`Successfully validated '${source}'.`);
+
+  return {
+    type: 'openapi',
+    location: value,
+    source,
+    status: 'success',
+    issues: [],
+    metadata: {
+      filePath,
+    },
   };
 }
 
