@@ -735,3 +735,10 @@ indispensable foundation upon which professional, future-proof, and scalable web
 [^73]: [Non-compliant and Proud: A Case Study of HTTP Compliance - ResearchGate](https://www.researchgate.net/profile/Ralph-Johnson-3/publication/32964874_Non-compliant_and_Proud_A_Case_Study_of_HTTP_Compliance/links/555f593e08ae86c06b636c08/Non-compliant-and-Proud-A-Case-Study-of-HTTP-Compliance.pdf?origin=scientificContributions)
 
 [^74]: [Common CDN issues and how to fix them - Cloudflare](https://www.cloudflare.com/learning/cdn/common-cdn-issues/)
+
+---
+
+## See Also
+
+- [Use Cases Covered by RFC 9110](/concepts/use-cases/) — Concrete, real-world problems that Thymian detects through HTTP conformance validation, with HTTP examples, flow diagrams, and academic references
+- [Future Use Cases](/concepts/future-use-cases/) — Attack vectors requiring dedicated rule sets beyond RFC 9110

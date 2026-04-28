@@ -65,3 +65,7 @@ Thymian bridges the gap between development and production:
 By serving as the bridge between static specification linting, contract testing, and runtime testing, Thymian provides a
 comprehensive solution for modern API development. Whether you're building new APIs or maintaining existing ones,
 Thymian helps ensure quality, consistency, and compliance with HTTP standards.
+
+## Real-World Use Cases
+
+Thymian detects concrete, real-world problems that occur when HTTP implementations deviate from standards — from [request smuggling](/concepts/use-cases/request-smuggling-via-content-length/) and [cache poisoning](/concepts/use-cases/cache-poisoning-via-missing-vary/) to [duplicate charges from unsafe retries](/concepts/use-cases/duplicate-operations-from-unsafe-retries/) and [silent data loss from missing conditional requests](/concepts/use-cases/lost-update-problem/). See the full catalog of [use cases covered by RFC 9110 rules](/concepts/use-cases/).
