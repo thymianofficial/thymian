@@ -1,0 +1,228 @@
+---
+title: Thymian Configuration File
+description: Complete reference for `thymian.config.yaml`, including schema, defaults, precedence, and examples.
+---
+
+import { Aside, Steps } from '@astrojs/starlight/components';
+
+This page is the canonical reference for Thymian configuration.
+
+The default configuration filename is `thymian.config.yaml`.
+
+## Where configuration is loaded from
+
+Thymian resolves configuration in this order:
+
+<Steps>
+
+1. If you pass `--config <path>`, Thymian uses that file.
+2. Otherwise, Thymian looks for `thymian.config.yaml` in `--cwd` (or your current directory).
+3. If no file is found, Thymian uses built-in defaults.
+
+</Steps>
+
+<Aside type="note">
+  Auto-probe only checks `thymian.config.yaml` by default. If you want another filename or extension, pass it explicitly with `--config`.
+</Aside>
+
+## Precedence and overrides
+
+After loading config, CLI flags can override parts of it:
+
+- `--spec <type:path>` overrides `specifications`
+- `--traffic <type:path>` overrides `traffic`
+- `--rule-set <name>` extends/overrides `ruleSets` at runtime
+- `--rule-severity <off|error|warn|hint>` overrides `ruleSeverity`
+- `--log-level <trace|debug|info|warn|error|silent>` overrides `logLevel`
+- `--autoload/--no-autoload` controls plugin autoloading
+
+## Full configuration schema
+
+Top-level keys currently supported by the schema:
+
+| Key | Type | Default | Required | Description |
+| --- | --- | --- | --- | --- |
+| `autoload` | `boolean` | CLI-dependent (`--autoload` flag) | No | Enables automatic plugin loading from `plugins`. |
+| `logLevel` | `trace \| debug \| info \| warn \| error \| silent` | `info` (effective logger default) | No | Controls CLI log verbosity. |
+| `specifications` | `SpecificationInput[]` | `[]` | No | API descriptions to load (usually OpenAPI files). |
+| `traffic` | `TrafficInput[]` | `[]` | No | Recorded traffic inputs used by `thymian analyze`. |
+| `ruleSets` | `string[]` | `['@thymian/rules-rfc-9110', '@thymian/rules-api-description-validation']` | No | Rule set packages to load. |
+| `ruleSeverity` | `off \| error \| warn \| hint` | `error` | No | Minimum rule severity threshold. |
+| `rules` | `Record<string, unknown>` | `{}` | No | Per-rule configuration/overrides. |
+| `targetUrl` | `string` | none | No | Base URL used for live API testing workflows. |
+| `plugins` | `Record<string, PluginConfig>` | See generated defaults | Yes in the TypeScript interface | Plugin registrations and plugin options. |
+
+### `specifications[]` item shape
+
+Each entry supports:
+
+- `type` (`string`) - for example `openapi`
+- `location` (`string` or supported path source)
+- `options` (`object`, optional)
+
+Example:
+
+```yaml
+specifications:
+  - type: openapi
+    location: ./openapi.yaml
+```
+
+### `traffic[]` item shape
+
+Each entry supports:
+
+- `type` (`string`) - for example `fixture`
+- `location` (`string` or supported path source)
+- `options` (`object`, optional)
+
+Example:
+
+```yaml
+traffic:
+  - type: fixture
+    location: static
+```
+
+### `plugins` item shape
+
+Each plugin entry supports:
+
+- `path` (`string`, optional) - explicit module/file path
+- `verbose` (`boolean`, optional)
+- `options` (`object`, optional)
+
+Example:
+
+```yaml
+plugins:
+  '@thymian/plugin-openapi': {}
+  '@thymian/plugin-reporter':
+    options:
+      formatters:
+        text: {}
+```
+
+## Generated baseline config
+
+`thymian generate config` creates a config based on built-in defaults plus your selected specification(s).
+
+Typical generated baseline:
+
+```yaml
+specifications:
+  - type: openapi
+    location: ./openapi.yaml
+
+traffic: []
+
+ruleSets:
+  - '@thymian/rules-rfc-9110'
+  - '@thymian/rules-api-description-validation'
+
+ruleSeverity: error
+rules: {}
+
+plugins:
+  '@thymian/plugin-http-linter': {}
+  '@thymian/plugin-openapi': {}
+  '@thymian/plugin-request-dispatcher': {}
+  '@thymian/plugin-sampler': {}
+  '@thymian/plugin-reporter':
+    options:
+      formatters:
+        text: {}
+  '@thymian/plugin-http-tester': {}
+  '@thymian/plugin-http-analyzer': {}
+  '@thymian/plugin-har': {}
+```
+
+## Workflow-specific examples
+
+### Static linting only
+
+```yaml
+specifications:
+  - type: openapi
+    location: ./openapi.yaml
+
+ruleSets:
+  - '@thymian/rules-rfc-9110'
+
+plugins:
+  '@thymian/plugin-http-linter': {}
+  '@thymian/plugin-openapi': {}
+  '@thymian/plugin-reporter':
+    options:
+      formatters:
+        text: {}
+```
+
+### Live API testing
+
+```yaml
+specifications:
+  - type: openapi
+    location: ./openapi.yaml
+
+targetUrl: http://localhost:3000
+
+ruleSets:
+  - '@thymian/rules-rfc-9110'
+
+plugins:
+  '@thymian/plugin-openapi': {}
+  '@thymian/plugin-request-dispatcher': {}
+  '@thymian/plugin-sampler': {}
+  '@thymian/plugin-http-tester': {}
+  '@thymian/plugin-reporter':
+    options:
+      formatters:
+        text: {}
+```
+
+### Analyze recorded traffic
+
+```yaml
+traffic:
+  - type: fixture
+    location: static
+
+ruleSets:
+  - '@thymian/rules-rfc-9110'
+
+plugins:
+  '@thymian/plugin-http-analyzer': {}
+  '@thymian/plugin-reporter':
+    options:
+      formatters:
+        text: {}
+```
+
+## Validation behavior and failure modes
+
+If config parsing or schema validation fails, the CLI exits with code `2` and prints an error.
+
+Common issues:
+
+1. Unsupported file extension when loading with `--config`
+2. Invalid YAML/JSON syntax
+3. Invalid value types (for example non-array `ruleSets`)
+4. Missing specification with commands that require one
+
+## Practical tips
+
+- Prefer `thymian generate config` to bootstrap a correct baseline.
+- Keep plugin configuration minimal first, then add plugin `options` incrementally.
+- Use `--spec` for one-off checks without editing files.
+- Keep `ruleSeverity: error` in CI unless you explicitly want warnings/hints to gate builds.
+
+## Related pages
+
+- [Understanding the Configuration File](/introduction/getting-started/#understanding-the-configuration-file) — quick overview in the Getting Started guide
+- [Use `thymian lint` workflow](/tutorials/thymian-lint-workflow/)
+- [Use `thymian test` workflow](/tutorials/thymian-test-workflow/)
+- [Use `thymian analyze` workflow](/tutorials/thymian-analyze-workflow/)
+
+
+
