@@ -68,7 +68,10 @@ describe('generateRequestTypes', () => {
       const sourceFile = project.createSourceFile('generated.d.ts', dtsContent);
       const diagnostics = sourceFile.getPreEmitDiagnostics();
 
-      expect(diagnostics.length).toBeGreaterThanOrEqual(0);
+      expect(
+        diagnostics.length,
+        'Generated source file should not emit any diagnostics',
+      ).toBe(0);
     },
   );
 

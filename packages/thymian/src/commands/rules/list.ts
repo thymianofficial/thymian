@@ -72,31 +72,48 @@ export default class ListRules extends BaseCliRunCommand<typeof ListRules> {
 
     const csvPath = this.flags['to-csv'];
     if (csvPath) {
-      const stream = createWriteStream(join(this.flags.cwd, csvPath), 'utf-8');
+      const outputPath = join(this.flags.cwd, csvPath);
 
-      stream.on('error', (err) => {
-        this.error(
-          `Failed to write CSV report to ${join(this.flags.cwd, csvPath)}: ${err.message}`,
-        );
-      });
+      try {
+        const stream = createWriteStream(outputPath, 'utf-8');
 
-      await new Promise<void>((resolve) => {
-        stream.on('ready', () => {
-          stream.write('name,severity,static,test,analytics,informational\n');
-
-          resolve();
-        });
-      });
-
-      for (const rule of rules) {
         await new Promise<void>((resolve, reject) => {
-          stream.write(formatRuleToCsvLine(rule), (err) => {
-            if (err) {
-              reject(err);
-            }
-            resolve();
-          });
+          stream.write(
+            'name,severity,static,test,analytics,informational\n',
+            (err) => {
+              if (err) {
+                reject(err);
+                return;
+              }
+
+              resolve();
+            },
+          );
         });
+
+        for (const rule of sorted) {
+          await new Promise<void>((resolve, reject) => {
+            stream.write(formatRuleToCsvLine(rule), (err) => {
+              if (err) {
+                reject(err);
+                return;
+              }
+
+              resolve();
+            });
+          });
+        }
+
+        stream.end();
+
+        await new Promise<void>((resolve, reject) => {
+          stream.once('finish', resolve);
+          stream.once('error', reject);
+        });
+      } catch (err) {
+        this.error(
+          `Failed to write CSV report to ${outputPath}: ${err instanceof Error ? err.message : String(err)}`,
+        );
       }
     }
 

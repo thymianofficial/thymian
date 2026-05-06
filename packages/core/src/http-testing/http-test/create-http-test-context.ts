@@ -1,5 +1,3 @@
-import type { Logger } from 'src/logger/logger.js';
-
 import { ThymianEmitter } from '../../emitter/index.js';
 import {
   ThymianFormat,
@@ -10,6 +8,7 @@ import type {
   HttpRequestTemplate,
   HttpResponse,
 } from '../../http.js';
+import type { Logger } from '../../logger/logger.js';
 import { createHttpTestHookRunnerFromThymianEmitter } from './create-hook-runner.js';
 import type { HttpTestCase, HttpTestCaseStep } from './http-test-case.js';
 import type {

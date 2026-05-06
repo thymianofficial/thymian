@@ -3,30 +3,67 @@ import { describe, expect, it } from 'vitest';
 import { convertDefsToDefinitions } from '../src/hooks/generate-request-types.js';
 
 describe('generateRequestTypes', () => {
-  it('test', () => {
+  it('converts $defs to definitions and rewrites refs', () => {
     const result = convertDefsToDefinitions({
-      $ref: '#/definitions/CreateHookOption/properties/config',
+      $ref: '#/$defs/CreateHookOption/properties/config',
       $defs: {
         CreateHookOptionConfig: {
-          description:
-            'CreateHookOptionConfig has all config options in it\n' +
-            'required are "content_type" and "url" Required',
           type: 'object',
-          additionalProperties: [Object],
-          'x-go-package': 'code.gitea.io/gitea/modules/structs',
+          additionalProperties: {
+            type: 'string',
+          },
           required: [],
         },
         CreateHookOption: {
-          description: 'CreateHookOption options when create a hook',
           type: 'object',
-          required: [Array],
-          properties: [Object],
-          'x-go-package': 'code.gitea.io/gitea/modules/structs',
+          required: ['config'],
+          properties: {
+            config: {
+              $ref: '#/$defs/CreateHookOptionConfig',
+            },
+            fallbacks: {
+              type: 'array',
+              items: {
+                $ref: '#/$defs/CreateHookOptionConfig',
+              },
+            },
+          },
           additionalProperties: true,
         },
       },
     });
 
-    console.log(result);
+    expect(result).toEqual({
+      definitions: {
+        CreateHookOptionConfig: {
+          type: 'object',
+          additionalProperties: {
+            type: 'string',
+          },
+          required: [],
+        },
+        CreateHookOption: {
+          type: 'object',
+          required: ['config'],
+          properties: {
+            config: {
+              $ref: '#/definitions/CreateHookOptionConfig',
+            },
+            fallbacks: {
+              type: 'array',
+              items: {
+                $ref: '#/definitions/CreateHookOptionConfig',
+              },
+            },
+          },
+          additionalProperties: true,
+        },
+      },
+      allOf: [
+        {
+          $ref: '#/definitions/CreateHookOption/properties/config',
+        },
+      ],
+    });
   });
 });

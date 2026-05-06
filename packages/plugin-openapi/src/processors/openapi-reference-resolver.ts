@@ -89,7 +89,7 @@ function findByAnchor(current: unknown, anchor: string): unknown {
     return undefined;
   }
 
-  if ('$anchor' in current && current.$anchor === anchor) {
+  if (isObjectRecord(current) && current['$anchor'] === anchor) {
     return current;
   }
 

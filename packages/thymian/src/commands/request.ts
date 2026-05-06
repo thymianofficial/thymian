@@ -197,7 +197,7 @@ export default class RunRequest extends BaseCliRunCommand<typeof RunRequest> {
     this.printBody(response.body);
 
     Object.keys(response.trailers).forEach((key) => {
-      this.log(`${ux.colorize('cyan', key)}: ${response.headers[key]}`);
+      this.log(`${ux.colorize('cyan', key)}: ${response.trailers[key]}`);
     });
   }
 
