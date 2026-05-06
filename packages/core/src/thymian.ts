@@ -80,7 +80,7 @@ export type RegisteredPlugin<
 export class PluginRegistrationError extends ThymianBaseError {}
 
 export type ThymianOptions = {
-  timeout: number;
+  timeout?: number;
   idleTimeout: number;
   traceEvents: boolean;
   cwd: string;
@@ -102,6 +102,8 @@ export class Thymian {
 
   // Number of milliseconds that is waited for new events and actions to be emitted before shutting down the emitter.
   public static readonly DEFAULT_IDLE_TIMEOUT = 500;
+
+  public static readonly DEFAULT_TEST_TIMEOUT = 1000 * 60 * 5;
 
   // number of milliseconds that is waited for actions response and plugin registration
   public static readonly DEFAULT_TIMEOUT = 10000;
@@ -209,7 +211,7 @@ export class Thymian {
           });
       };
 
-      this.emitter.onError((event) => {
+      const errorSubscription = this.emitter.onError((event) => {
         if (closed && this.options.logAllErrors) {
           this.logger
             .child(event.source)
@@ -233,6 +235,9 @@ export class Thymian {
         .then(resolve)
         .catch((err) => {
           tryCloseThymian(err);
+        })
+        .finally(() => {
+          errorSubscription.unsubscribe();
         });
     });
   }
@@ -374,7 +379,7 @@ export class Thymian {
         options: input.options,
         targetUrl: input.targetUrl,
       },
-      { strategy: 'collect' },
+      { strategy: 'collect', timeout: Thymian.DEFAULT_TEST_TIMEOUT },
     );
 
     this.bridgeReports(results, format);

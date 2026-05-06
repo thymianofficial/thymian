@@ -41,7 +41,8 @@
     "./ajv": "./dist/ajv.js",
     "./chalk": "./dist/chalk.js",
     "./utils": "./dist/utils.js",
-    "./http-filter": "./dist/http-filter.js"
+    "./http-filter": "./dist/http-filter.js",
+    "./rxjs": "./dist/rxjs"
   },
   "dependencies": {
     "@fastify/deepmerge": "^3.1.0",

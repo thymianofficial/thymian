@@ -25,3 +25,4 @@ export * from './thymian.error.js';
 export * from './thymian.js';
 export * from './thymian-plugin.js';
 export * from './utils.js';
+export * as rxjs from 'rxjs';

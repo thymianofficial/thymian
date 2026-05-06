@@ -1,4 +1,6 @@
+import { createWriteStream } from 'node:fs';
 import { EOL } from 'node:os';
+import { join } from 'node:path';
 
 import {
   BaseCliRunCommand,
@@ -28,6 +30,9 @@ export default class ListRules extends BaseCliRunCommand<typeof ListRules> {
         'Filter rules by type (static, analytics, test, informational). Can be specified multiple times.',
       multiple: true,
       options: [...ruleTypes],
+    }),
+    ['to-csv']: Flags.string({
+      description: 'Output rules to CSV file.',
     }),
   };
 
@@ -65,6 +70,36 @@ export default class ListRules extends BaseCliRunCommand<typeof ListRules> {
       a.meta.name.localeCompare(b.meta.name),
     );
 
+    const csvPath = this.flags['to-csv'];
+    if (csvPath) {
+      const stream = createWriteStream(join(this.flags.cwd, csvPath), 'utf-8');
+
+      stream.on('error', (err) => {
+        this.error(
+          `Failed to write CSV report to ${join(this.flags.cwd, csvPath)}: ${err.message}`,
+        );
+      });
+
+      await new Promise<void>((resolve) => {
+        stream.on('ready', () => {
+          stream.write('name,severity,static,test,analytics,informational\n');
+
+          resolve();
+        });
+      });
+
+      for (const rule of rules) {
+        await new Promise<void>((resolve, reject) => {
+          stream.write(formatRuleToCsvLine(rule), (err) => {
+            if (err) {
+              reject(err);
+            }
+            resolve();
+          });
+        });
+      }
+    }
+
     const topicColor = this.config?.theme?.topic;
     const lines = sorted.map((rule) => formatRule(rule, topicColor));
 
@@ -72,6 +107,12 @@ export default class ListRules extends BaseCliRunCommand<typeof ListRules> {
     this.log();
     this.log(`${sorted.length} rule(s) loaded.`);
   }
+}
+
+function formatRuleToCsvLine(rule: Rule): string {
+  const { name, severity, type } = rule.meta;
+
+  return `"${name}", "${severity}", ${type.includes('static')}, ${type.includes('test')}, ${type.includes('analytics')}, ${type.includes('informational')}\n`;
 }
 
 function formatRule(rule: Rule, topicColor?: string): string {

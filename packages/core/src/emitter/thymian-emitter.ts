@@ -11,6 +11,7 @@ import {
   race,
   startWith,
   Subject,
+  type Subscription,
   take,
   takeUntil,
   timer,
@@ -93,11 +94,10 @@ export type EmitterState = {
   responses: Subject<ThymianResponseEvent<ThymianActionName>>;
   errors: Subject<ThymianErrorEvent<ErrorName>>;
   listeners: Map<ThymianActionName, number>;
-  completed: Set<string>;
 };
 
 export class ThymianEmitter {
-  static #hasBeenInitialized = false;
+  #hasBeenInitialized = false;
 
   private readonly options: ThymianEmitterOptions;
 
@@ -112,9 +112,6 @@ export class ThymianEmitter {
   readonly #errors: Subject<ThymianErrorEvent<ErrorName>>;
 
   readonly #listeners: Map<ThymianActionName, number>;
-
-  // TODO: this is a problem
-  readonly #completed: Set<string>;
 
   /**
    * Multiplier for the hard timeout limit relative to the idle debounce time.
@@ -137,13 +134,12 @@ export class ThymianEmitter {
     this.#events = state.events;
     this.#errors = state.errors;
     this.#listeners = state.listeners;
-    this.#completed = state.completed;
 
-    if (!ThymianEmitter.#hasBeenInitialized) {
+    if (!this.#hasBeenInitialized && this.options.traceEvents) {
       this.#events.subscribe(this.logEvent('event'));
       this.#responses.subscribe(this.logEvent('response event'));
 
-      ThymianEmitter.#hasBeenInitialized = true;
+      this.#hasBeenInitialized = true;
     }
   }
 
@@ -154,7 +150,6 @@ export class ThymianEmitter {
       responses: new Subject(),
       errors: new Subject(),
       listeners: new Map(),
-      completed: new Set(),
     };
   }
 
@@ -358,6 +353,9 @@ export class ThymianEmitter {
     ...args: EmitActionArgs<Name, Options>
   ): Promise<EmitActionReturnType<Name, Options>> {
     const [name, payload, options] = args;
+
+    this.logger.debug(`Emitted action "${name}".`);
+
     const opts: EmitActionOptions = {
       timeout: this.options.timeout,
       strategy: 'collect',
@@ -454,8 +452,6 @@ export class ThymianEmitter {
       (msg) => msg.payload,
     );
 
-    this.#completed.add(event.id);
-
     const duration = performance.now() - start;
 
     if (duration > opts.timeout) {
@@ -488,11 +484,10 @@ export class ThymianEmitter {
     return new ThymianEmitter(
       this.logger.child(source),
       {
-        completed: this.#completed,
         errors: this.#errors,
-        events: this.#events,
         listeners: this.#listeners,
         responses: this.#responses,
+        events: this.#events,
         source,
       },
       {
@@ -563,8 +558,8 @@ export class ThymianEmitter {
     };
   }
 
-  onError(fn: (error: ThymianErrorEvent<ErrorName>) => void): void {
-    this.#errors.subscribe(fn);
+  onError(fn: (error: ThymianErrorEvent<ErrorName>) => void): Subscription {
+    return this.#errors.subscribe(fn);
   }
 
   private logEvent(type: 'event' | 'response event') {

@@ -1,7 +1,9 @@
-import type {
-  HttpRequest,
-  HttpRequestTemplate,
-  HttpResponse,
+import {
+  hasResponseBody,
+  type HttpRequest,
+  type HttpRequestTemplate,
+  type HttpResponse,
+  statusCodeRange,
 } from '@thymian/core';
 import {
   and,
