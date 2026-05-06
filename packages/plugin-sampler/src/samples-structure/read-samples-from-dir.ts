@@ -1,6 +1,6 @@
 import { readdir, readFile } from 'node:fs/promises';
 import { type } from 'node:os';
-import { basename, join } from 'node:path';
+import { basename, dirname, join } from 'node:path';
 
 import { ThymianBaseError } from '@thymian/core';
 import { createJiti } from 'jiti';
@@ -118,9 +118,11 @@ export async function extractSample(path: string): Promise<HttpRequestSample> {
 
   if (fileSample.body) {
     if (isFileValue(fileSample.body)) {
-      const bodyPath = join(path, fileSample.body.$file);
+      const requestsDir = dirname(path);
 
-      checkForSafePath(bodyPath, path);
+      const bodyPath = join(requestsDir, fileSample.body.$file);
+
+      checkForSafePath(bodyPath, requestsDir);
 
       sample.body = {
         $content: await readFile(

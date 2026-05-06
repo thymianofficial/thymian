@@ -14,7 +14,7 @@ export function checkForSafePath(path: string, baseDir: string): void {
 
   if (!isSafe) {
     throw new ThymianBaseError(
-      'Access denied. The generated path is outside of the base directory.',
+      `Access denied. Path "${resolvedPath}" is outside of the base directory "${baseDir}".`,
       {
         name: 'PathTraversalError',
         ref: 'https://thymian.dev/references/errors/path-traversal-error/',

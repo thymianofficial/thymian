@@ -15,6 +15,7 @@ import type {} from '@thymian/plugin-request-dispatcher';
 
 import { generateSamplesForThymianFormat } from './generation/generate-samples-for-thymian-format.js';
 import {
+  type GeneratedTypes,
   generatedTypesToString,
   generateTypesForThymianFormat,
 } from './hooks/generate-request-types.js';
@@ -177,12 +178,24 @@ export const samplePlugin: ThymianPlugin<Partial<SamplerPluginOptions>> = {
         emitter,
       );
 
-      const generatedTypes = await generateTypesForThymianFormat(parsedFormat);
+      logger.debug('Generated samples for thymian format.');
+
+      let generatedTypes!: GeneratedTypes;
+
+      try {
+        generatedTypes = await generateTypesForThymianFormat(parsedFormat);
+      } catch (e) {
+        console.log(e);
+      }
+
+      logger.debug('Generated types for thymian format.');
 
       await writeSamplesToDir(samples, generatedTypes.keyToTransactionId, {
         path: basePath,
         mode: typeof overwrite === 'boolean' ? 'overwrite' : 'failIfExist',
       });
+
+      logger.debug(`Wrote samples at ${basePath}"`);
 
       await writeFile(
         join(basePath, 'types.d.ts'),

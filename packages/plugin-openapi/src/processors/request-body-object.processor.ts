@@ -18,6 +18,7 @@ export function processRequestBodyObjet(
     protocol: 'http' | 'https';
     sourceName: string;
   },
+  document: OpenApiV31.Document,
 ): PartialBy<ThymianHttpRequest, 'label' | 'sourceName'>[] {
   if (!requestBodyObject) {
     return [
@@ -54,6 +55,7 @@ export function processRequestBodyObjet(
 
         const { schema } = processMediaTypeObject(
           mediaTypeObject,
+          document,
           addEncoding,
           isMultipart,
         );

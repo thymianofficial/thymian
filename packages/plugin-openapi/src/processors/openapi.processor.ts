@@ -13,6 +13,7 @@ import { httpFilterExpressionToOperationFilter } from '../http-filter-expression
 import type { LocMapper } from '../loc-mapper/loc-mapper.js';
 import { extractServerInfo, type ServerInfo } from './extract-server-info.js';
 import { processLinkObjectParameters } from './link-object.processor.js';
+import { resolveOpenApiReference } from './openapi-reference-resolver.js';
 import { processParameterObjects } from './parameter-object.processor.js';
 import { processRequestBodyObjet } from './request-body-object.processor.js';
 import { processResponsesObject } from './responses-object.processor.js';
@@ -89,6 +90,7 @@ export class OpenapiProcessor {
 
   private processOperationObject(
     operationObject: OpenApiV31.OperationObject,
+    document: OpenApiV31.Document,
     params: Parameters,
     method: string,
     path: string,
@@ -104,9 +106,7 @@ export class OpenapiProcessor {
 
     const parameters = mergeParameters(
       params,
-      processParameterObjects(
-        operationObject.parameters as OpenApiV31.ParameterObject[],
-      ),
+      processParameterObjects(operationObject.parameters, document),
     );
 
     const operationServerInfo = extractServerInfo(
@@ -115,7 +115,13 @@ export class OpenapiProcessor {
     );
 
     const requests = processRequestBodyObjet(
-      operationObject.requestBody as OpenApiV31.RequestBodyObject,
+      operationObject.requestBody
+        ? resolveOpenApiReference<OpenApiV31.RequestBodyObject>(
+            operationObject.requestBody,
+            document,
+            'request body',
+          )
+        : undefined,
       parameters,
       this.locMapper,
       {
@@ -127,17 +133,20 @@ export class OpenapiProcessor {
         path: join(operationServerInfo.basePath, path),
         sourceName: this.sourceName,
       },
+      document,
     );
     const responsesAndLinks = processResponsesObject(
       operationObject.responses,
       parameters,
+      document,
     );
 
     const securitySchemes = this.globalSecuritySchemes.length
       ? this.globalSecuritySchemes
       : operationObject.security?.length
-        ? // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-          operationObject.security.map((sec) => Object.keys(sec)[0]!)
+        ? operationObject.security
+            .map((sec) => Object.keys(sec)[0]!)
+            .filter(Boolean)
         : [];
 
     for (const req of requests) {
@@ -200,8 +209,9 @@ export class OpenapiProcessor {
     const securitySchemes = processSecuritySchemes(
       (document.components?.securitySchemes as Record<
         string,
-        OpenApiV31.SecuritySchemeObject
+        OpenApiV31.SecuritySchemeObject | OpenApiV31.ReferenceObject
       >) ?? {},
+      document,
     );
 
     securitySchemes.forEach((scheme) => {
@@ -227,11 +237,19 @@ export class OpenapiProcessor {
         continue;
       }
 
+      const resolvedPathItem =
+        resolveOpenApiReference<OpenApiV31.PathItemObject>(
+          pathItem,
+          document,
+          'path item',
+        );
+
       const parameters = processParameterObjects(
-        pathItem.parameters as OpenApiV31.ParameterObject[] | undefined,
+        resolvedPathItem.parameters,
+        document,
       );
 
-      for (const [method, op] of Object.entries(pathItem)) {
+      for (const [method, op] of Object.entries(resolvedPathItem)) {
         if (!supportedMethods.includes(method)) {
           continue;
         }
@@ -239,7 +257,8 @@ export class OpenapiProcessor {
         const operation = op as OpenApiV31.OperationObject;
 
         const operationParameters = processParameterObjects(
-          operation.parameters as OpenApiV31.ParameterObject[],
+          operation.parameters,
+          document,
         );
 
         const allParameters = mergeParameters(parameters, operationParameters);
@@ -254,9 +273,9 @@ export class OpenapiProcessor {
             serverInfo,
           })
         ) {
-          this.logger.debug('Do not skip operation:' + operation.operationId);
           this.processOperationObject(
             operation,
+            document,
             allParameters,
             method,
             path,

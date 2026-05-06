@@ -15,10 +15,14 @@ import {
   processSchema,
 } from './json-schema.processor.js';
 import { processMediaTypeObject } from './media-type-object.processor.js';
+import { resolveOpenApiReference } from './openapi-reference-resolver.js';
 import type { Parameters } from './utils.js';
 
 export function processParameterObjects(
-  parameterObjects: OpenApiV31.ParameterObject[] | undefined,
+  parameterObjects:
+    | (OpenApiV31.ParameterObject | OpenApiV31.ReferenceObject)[]
+    | undefined,
+  document: OpenApiV31.Document,
 ): Parameters {
   const parameters: Parameters = {
     headers: {},
@@ -32,15 +36,21 @@ export function processParameterObjects(
   }
 
   for (const parameterObject of parameterObjects) {
-    const [name, param] = processParameterObject(parameterObject);
+    const resolvedParameter =
+      resolveOpenApiReference<OpenApiV31.ParameterObject>(
+        parameterObject,
+        document,
+        'parameter',
+      );
+    const [name, param] = processParameterObject(resolvedParameter, document);
 
-    if (parameterObject.in === 'query') {
+    if (resolvedParameter.in === 'query') {
       parameters.queryParameters[name] = param;
-    } else if (parameterObject.in === 'path') {
+    } else if (resolvedParameter.in === 'path') {
       parameters.pathParameters[name] = param;
-    } else if (parameterObject.in === 'cookie') {
+    } else if (resolvedParameter.in === 'cookie') {
       parameters.cookies[name] = param;
-    } else if (parameterObject.in === 'header') {
+    } else if (resolvedParameter.in === 'header') {
       parameters.headers[name] = param;
     }
   }
@@ -50,6 +60,7 @@ export function processParameterObjects(
 
 export function processParameterObject(
   parameterObject: OpenApiV31.ParameterObject,
+  document: OpenApiV31.Document,
 ): [string, Parameter] {
   let thymianSchema: ThymianSchema;
   let parameterContentType: string | undefined;
@@ -57,6 +68,7 @@ export function processParameterObject(
   if (parameterObject.schema) {
     thymianSchema = processSchema(
       parameterObject.schema as Draft202012SchemaObject,
+      { document },
     );
   } else if (parameterObject.content) {
     const entries = Object.entries(parameterObject.content);
@@ -75,6 +87,7 @@ export function processParameterObject(
 
     const { schema } = processMediaTypeObject(
       mediaTypeObject,
+      document,
       addEncoding,
       isMultipart,
     );
@@ -102,7 +115,11 @@ export function processParameterObject(
   Object.values(parameterObject.examples ?? {}).forEach((example) => {
     addExampleToSchema(
       thymianSchema,
-      (example as OpenApiV31.ExampleObject).value,
+      resolveOpenApiReference<OpenApiV31.ExampleObject>(
+        example,
+        document,
+        'example',
+      ).value,
     );
   });
 

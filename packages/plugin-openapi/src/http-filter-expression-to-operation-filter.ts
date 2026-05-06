@@ -7,6 +7,7 @@ import {
 import type { OpenAPIV3_1 as OpenApiV31 } from 'openapi-types';
 
 import type { ServerInfo } from './processors/extract-server-info.js';
+import { resolveOpenApiReference } from './processors/openapi-reference-resolver.js';
 import type { Parameters } from './processors/utils.js';
 
 export type OperationObjectFilterFn = (args: {
@@ -22,25 +23,16 @@ function joinUrls(baseUrl: string, path: string): string {
   return (baseUrl + path).replace(/\/\//g, '/');
 }
 
-/**
- * Helper to check if params contain a specific query parameter
- */
 function hasQueryParam(params: Parameters, param: string): boolean {
   return Object.keys(params.queryParameters).some((p) =>
     equalsIgnoreCase(p, param),
   );
 }
 
-/**
- * Helper to check if params contain a specific request header
- */
 function hasRequestHeader(params: Parameters, header: string): boolean {
   return Object.keys(params.headers).some((h) => equalsIgnoreCase(h, header));
 }
 
-/**
- * Helper to check if operation has response with specific status code
- */
 function hasResponseWithStatusCode(
   operationObject: OpenApiV31.OperationObject,
   code: number,
@@ -50,7 +42,6 @@ function hasResponseWithStatusCode(
   }
 
   return Object.keys(operationObject.responses).some((statusCode) => {
-    // Handle 'default' or numeric status codes
     if (statusCode === 'default') {
       return false;
     }
@@ -58,9 +49,6 @@ function hasResponseWithStatusCode(
   });
 }
 
-/**
- * Helper to check if operation has response in status code range
- */
 function hasResponseInStatusCodeRange(
   operationObject: OpenApiV31.OperationObject,
   start: number,
@@ -79,28 +67,25 @@ function hasResponseInStatusCodeRange(
   });
 }
 
-/**
- * Helper to check if operation has request body
- */
 function hasRequestBody(operationObject: OpenApiV31.OperationObject): boolean {
   return !!operationObject.requestBody;
 }
 
-/**
- * Helper to check if operation has request with specific media type
- */
 function hasRequestMediaType(
   operationObject: OpenApiV31.OperationObject,
   mediaType: string,
+  document: OpenApiV31.Document,
 ): boolean {
   if (!operationObject.requestBody) {
     return false;
   }
-  if ('$ref' in operationObject.requestBody) {
-    return false;
-  }
 
-  const content = operationObject.requestBody.content;
+  const content = resolveOpenApiReference<OpenApiV31.RequestBodyObject>(
+    operationObject.requestBody,
+    document,
+    'request body',
+  ).content;
+
   if (!content) {
     return false;
   }
@@ -108,85 +93,87 @@ function hasRequestMediaType(
   return Object.keys(content).some((mt) => equalsIgnoreCase(mt, mediaType));
 }
 
-/**
- * Helper to check if operation has response with specific media type
- */
 function hasResponseMediaType(
   operationObject: OpenApiV31.OperationObject,
   mediaType: string,
+  document: OpenApiV31.Document,
 ): boolean {
   if (!operationObject.responses) {
     return false;
   }
 
   return Object.values(operationObject.responses).some((response) => {
-    if ('$ref' in response) {
-      return false;
-    }
-    if (!response.content) {
+    const resolvedResponse = resolveOpenApiReference<OpenApiV31.ResponseObject>(
+      response,
+      document,
+      'response',
+    );
+
+    if (!resolvedResponse.content) {
       return false;
     }
 
-    return Object.keys(response.content).some((mt) =>
+    return Object.keys(resolvedResponse.content).some((mt) =>
       equalsIgnoreCase(mt, mediaType),
     );
   });
 }
 
-/**
- * Helper to check if operation has response header
- */
 function hasResponseHeader(
   operationObject: OpenApiV31.OperationObject,
   header: string,
+  document: OpenApiV31.Document,
 ): boolean {
   if (!operationObject.responses) {
     return false;
   }
 
   return Object.values(operationObject.responses).some((response) => {
-    if ('$ref' in response) {
-      return false;
-    }
-    if (!response.headers) {
+    const resolvedResponse = resolveOpenApiReference<OpenApiV31.ResponseObject>(
+      response,
+      document,
+      'response',
+    );
+
+    if (!resolvedResponse.headers) {
       return false;
     }
 
-    return Object.keys(response.headers).some((h) =>
+    return Object.keys(resolvedResponse.headers).some((h) =>
       equalsIgnoreCase(h, header),
     );
   });
 }
 
-/**
- * Helper to check if operation has response body
- */
-function hasResponseBody(operationObject: OpenApiV31.OperationObject): boolean {
+function hasResponseBody(
+  operationObject: OpenApiV31.OperationObject,
+  document: OpenApiV31.Document,
+): boolean {
   if (!operationObject.responses) {
     return false;
   }
 
   return Object.values(operationObject.responses).some((response) => {
-    if ('$ref' in response) {
-      return false;
-    }
-    return !!response.content && Object.keys(response.content).length > 0;
+    const resolvedResponse = resolveOpenApiReference<OpenApiV31.ResponseObject>(
+      response,
+      document,
+      'response',
+    );
+    return (
+      !!resolvedResponse.content &&
+      Object.keys(resolvedResponse.content).length > 0
+    );
   });
 }
 
-/**
- * Helper to check if operation is secured (has security requirement)
- */
 function isOperationSecured(
   operationObject: OpenApiV31.OperationObject,
   document: OpenApiV31.Document,
 ): boolean {
-  // Check operation-level security
   if (operationObject.security) {
     return operationObject.security.length > 0;
   }
 
-  // Check document-level security
   if (document.security) {
     return document.security.length > 0;
   }
@@ -248,8 +235,8 @@ const visitor = createFilterVisitor<OperationObjectFilterFn>({
       return () => false;
     }
 
-    return ({ operationObject }) =>
-      hasRequestMediaType(operationObject, mediaType);
+    return ({ operationObject, document }) =>
+      hasRequestMediaType(operationObject, mediaType, document);
   },
   visitUrl({ url }) {
     return ({ serverInfo, path }) => {
@@ -271,14 +258,15 @@ const visitor = createFilterVisitor<OperationObjectFilterFn>({
       hasResponseWithStatusCode(operationObject, code);
   },
   visitHasResponseBody({ hasBody }) {
-    return ({ operationObject }) =>
-      hasResponseBody(operationObject) === hasBody;
+    return ({ operationObject, document }) =>
+      hasResponseBody(operationObject, document) === hasBody;
   },
   visitResponseHeader({ header }) {
     if (typeof header === 'undefined') {
       return () => false;
     }
-    return ({ operationObject }) => hasResponseHeader(operationObject, header);
+    return ({ operationObject, document }) =>
+      hasResponseHeader(operationObject, header, document);
   },
   visitStatusCodeRange({ start, end }) {
     return ({ operationObject }) =>
@@ -289,8 +277,8 @@ const visitor = createFilterVisitor<OperationObjectFilterFn>({
       return () => false;
     }
 
-    return ({ operationObject }) =>
-      hasResponseMediaType(operationObject, mediaType);
+    return ({ operationObject, document }) =>
+      hasResponseMediaType(operationObject, mediaType, document);
   },
   visitResponseTrailer() {
     throw new Error('Response trailers are not currently supported.');
