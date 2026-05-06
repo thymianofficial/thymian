@@ -62,10 +62,14 @@ specifications:
   - type: openapi
     location: ./path/to/your/openapi.yaml
 
+rules: {}
+
 ruleSets:
   - '@thymian/rules-rfc-9110'
 
 ruleSeverity: error # will only show errors
+
+traffic: []
 
 plugins:
   '@thymian/plugin-openapi': {}
@@ -83,9 +87,16 @@ plugins:
 **Key sections:**
 
 - **`specifications`**: Lists your API specification files. Each entry has a `type` (e.g., `openapi`) and `location` (path to the file).
+- **`rules`**: Per-rule overrides. Use this to change a rule's severity or pass rule-specific options (empty `{}` means use defaults).
 - **`ruleSets`**: Which rule sets to apply. The default is `@thymian/rules-rfc-9110` for HTTP conformance rules.
 - **`ruleSeverity`**: The minimum severity level to report (`error`, `warn`, or `hint`).
+- **`traffic`**: Recorded traffic inputs for the `thymian analyze` workflow (empty `[]` means none configured).
 - **`plugins`**: The Thymian plugins to load. Plugins handle parsing, validation, reporting, and more.
+
+You can use this dedicated reference page for all supported keys, defaults, examples, and precedence rules:
+
+- [Thymian Configuration File](/references/configuration/)
+
 
 <Aside type="tip">
   You can list your loaded plugins via:
