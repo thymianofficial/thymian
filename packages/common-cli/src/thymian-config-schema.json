@@ -5,87 +5,107 @@
   "additionalProperties": false,
   "properties": {
     "autoload": {
-      "type": "boolean"
+      "type": "boolean",
+      "description": "Enables automatic plugin loading from `plugins`."
     },
     "logLevel": {
       "type": "string",
-      "enum": ["trace", "debug", "info", "warn", "error", "silent"]
+      "enum": ["trace", "debug", "info", "warn", "error", "silent"],
+      "description": "Controls CLI log verbosity."
     },
     "specifications": {
       "type": "array",
+      "description": "API descriptions to load (usually OpenAPI files).",
       "items": {
         "type": "object",
         "required": ["type", "location"],
         "additionalProperties": false,
         "properties": {
           "type": {
-            "type": "string"
+            "type": "string",
+            "description": "Specification format, for example `openapi`."
           },
-          "location": {},
+          "location": {
+            "description": "File path or supported path source."
+          },
           "options": {
             "type": "object",
-            "additionalProperties": true
+            "additionalProperties": true,
+            "description": "Specification-specific options."
           }
         }
       }
     },
     "traffic": {
       "type": "array",
+      "description": "Recorded traffic inputs used by `thymian analyze`.",
       "items": {
         "type": "object",
         "required": ["type", "location"],
         "additionalProperties": false,
         "properties": {
           "type": {
-            "type": "string"
+            "type": "string",
+            "description": "Traffic source format, for example `fixture`."
           },
-          "location": {},
+          "location": {
+            "description": "File path or supported path source."
+          },
           "options": {
             "type": "object",
-            "additionalProperties": true
+            "additionalProperties": true,
+            "description": "Traffic-specific options."
           }
         }
       }
     },
     "ruleSets": {
       "type": "array",
+      "description": "Rule set packages to load.",
       "items": {
         "type": "string"
       }
     },
     "ruleSeverity": {
       "type": "string",
-      "enum": ["off", "error", "warn", "hint"]
+      "enum": ["off", "error", "warn", "hint"],
+      "description": "Minimum rule severity threshold."
     },
     "targetUrl": {
       "type": "string",
-      "description": "Override the target URL for all test requests. When set, all requests are sent to this origin instead of the servers defined in the specification."
+      "description": "Base URL used for live API testing workflows. When set, all requests are sent to this origin instead of the servers defined in the specification."
     },
     "rules": {
       "type": "object",
+      "description": "Per-rule configuration/overrides. Each key is a rule ID. The value can be a severity string (`off | error | warn | hint`) or a rule config object.",
       "additionalProperties": {
         "oneOf": [
           {
             "type": "string",
-            "enum": ["error", "warn", "hint", "off"]
+            "enum": ["error", "warn", "hint", "off"],
+            "description": "Shorthand to override only the rule severity."
           },
           {
             "type": "object",
             "additionalProperties": true,
+            "description": "Full rule configuration object.",
             "properties": {
               "severity": {
                 "type": "string",
-                "enum": ["error", "warn", "hint", "off"]
+                "enum": ["error", "warn", "hint", "off"],
+                "description": "Override the rule severity."
               },
               "options": {
                 "type": "object",
-                "additionalProperties": true
+                "additionalProperties": true,
+                "description": "Rule-specific options."
               },
               "skipOrigins": {
                 "type": "array",
                 "items": {
                   "type": "string"
-                }
+                },
+                "description": "List of origin identifiers to ignore for this rule. When a result originates from one of these origins, it is suppressed."
               }
             }
           }
@@ -95,19 +115,23 @@
     "plugins": {
       "type": "object",
       "nullable": false,
+      "description": "Plugin registrations and plugin options. This is the only required top-level key.",
       "additionalProperties": {
         "type": "object",
         "additionalProperties": false,
         "properties": {
           "path": {
-            "type": "string"
+            "type": "string",
+            "description": "Explicit module/file path."
           },
           "verbose": {
-            "type": "boolean"
+            "type": "boolean",
+            "description": "Enable verbose logging for this plugin."
           },
           "options": {
             "type": "object",
-            "additionalProperties": true
+            "additionalProperties": true,
+            "description": "Plugin-specific options."
           }
         }
       }

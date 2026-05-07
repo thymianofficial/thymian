@@ -5,5 +5,10 @@
   "projectType": "library",
   "tags": ["scope:cli", "type:lib", "npm:public"],
   "// targets": "to see all targets run: nx show project common-cli --web",
-  "targets": {}
+  "targets": {
+    "generate-schema-docs": {
+      "dependsOn": ["build"],
+      "command": "node scripts/generate-config-schema-docs.js astro-docs/src/content/docs/references/configuration-schema.md"
+    }
+  }
 }
