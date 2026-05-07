@@ -1,13 +1,11 @@
 ---
-title: Thymian Configuration File
+title: Configuration File
 description: Complete reference for `thymian.config.yaml`, including schema, defaults, precedence, and examples.
 ---
 
 import { Aside, Steps } from '@astrojs/starlight/components';
 
 This page is the canonical reference for Thymian configuration.
-
-The default configuration filename is `thymian.config.yaml`.
 
 ## Where configuration is loaded from
 
@@ -22,38 +20,14 @@ Thymian resolves configuration in this order:
 </Steps>
 
 <Aside type="note">
-  Auto-probe only checks `thymian.config.yaml` by default. If you want another filename or extension, pass it explicitly with `--config`.
+  Thymian only checks `thymian.config.yaml` by default. If you want another filename or extension, pass it explicitly with `--config`.
 </Aside>
-
-## Precedence and overrides
-
-After loading config, CLI flags can override parts of it. Common overrides include:
-
-- `--spec <type:path>` overrides `specifications`
-- `--traffic <type:path>` overrides `traffic`
-- `--target-url <url>` overrides `targetUrl`
-- `--rule-set <name>` extends/overrides `ruleSets` at runtime
-- `--rule-severity <off|error|warn|hint>` overrides `ruleSeverity`
-- `--log-level <trace|debug|info|warn|error|silent>` overrides `logLevel`
-- `--debug` effectively overrides `logLevel` to `debug`
-- `--verbose` effectively overrides `logLevel` to `info`
-- `--autoload/--no-autoload` controls plugin autoloading
 
 ## Full configuration schema
 
-Top-level keys currently supported by the schema:
+The full configuration schema reference is auto-generated from the config JSON schema.
 
-| Key | Type | Default | Required | Description |
-| --- | --- | --- | --- | --- |
-| `autoload` | `boolean` | `true` | No | Enables automatic plugin loading from `plugins`. |
-| `logLevel` | `trace \| debug \| info \| warn \| error \| silent` | `warn` | No | Controls CLI log verbosity. |
-| `specifications` | `SpecificationInput[]` | `[]` | No | API descriptions to load (usually OpenAPI files). |
-| `traffic` | `TrafficInput[]` | `[]` | No | Recorded traffic inputs used by `thymian analyze`. |
-| `ruleSets` | `string[]` | `['@thymian/rules-rfc-9110', '@thymian/rules-api-description-validation']` | No | Rule set packages to load. |
-| `ruleSeverity` | `off \| error \| warn \| hint` | `error` | No | Minimum rule severity threshold. |
-| `rules` | `Record<string, RuleSeverity \| RuleConfig>` | `{}` | No | Per-rule configuration/overrides (see below). |
-| `targetUrl` | `string` | none | No | Base URL used for live API testing workflows. |
-| `plugins` | `Record<string, PluginConfig>` | See generated defaults | Yes | Plugin registrations and plugin options. |
+See [Configuration Schema](/references/configuration-schema/) for the complete list of supported keys, types, and defaults.
 
 ### `rules` entry shape
 
@@ -62,6 +36,7 @@ Each key in `rules` is a rule ID. The value can be either:
 - A **severity string** (`off | error | warn | hint`) to override the rule's default severity.
 - A **rule config object** with the following fields:
   - `severity` (`off | error | warn | hint`, optional) — override the rule severity.
+  - `type` (`string[]`, optional) — restrict the rule to specific rule types (e.g., `['request', 'response']`).
   - `skipOrigins` (`string[]`, optional) — list of origin identifiers to ignore for this rule. When a result originates from one of these origins, it is suppressed.
   - `options` (`object`, optional) — rule-specific options.
 
@@ -69,8 +44,8 @@ Example:
 
 ```yaml
 rules:
-  rfc-9110/status-code-semantics: warn
-  rfc-9110/content-type-header:
+  rfc9110/status-code-semantics: warn
+  rfc9110/content-type-header:
     severity: error
     skipOrigins:
       - 'GET /legacy-endpoint'
@@ -128,6 +103,20 @@ plugins:
       formatters:
         text: {}
 ```
+
+## Precedence and overrides
+
+After loading config, CLI flags can override parts of it. Common overrides include:
+
+- `--spec <type:path>` overrides `specifications`
+- `--traffic <type:path>` overrides `traffic`
+- `--target-url <url>` overrides `targetUrl`
+- `--rule-set <name>` extends `ruleSets` at runtime (appends and deduplicates)
+- `--rule-severity <off|error|warn|hint>` overrides `ruleSeverity`
+- `--log-level <trace|debug|info|warn|error|silent>` overrides `logLevel`
+- `--debug` effectively overrides `logLevel` to `debug`
+- `--verbose` effectively overrides `logLevel` to `info`
+- `--autoload/--no-autoload` controls plugin autoloading
 
 ## Generated baseline config
 
