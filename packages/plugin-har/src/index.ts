@@ -111,6 +111,7 @@ export function createHarPlugin(
             maxFileSize,
             clientRole,
             serverRole,
+            input.validateTrafficSource,
           );
 
           // Avoid spread (`allTransactions.push(...transactions)`) because

@@ -418,10 +418,12 @@ describe('Thymian', () => {
         specification: [{ type: 'openapi', location: '/tmp/api.yaml' }],
         traffic: [{ type: 'har', location: '/tmp/traffic.har' }],
         options: { includeTraces: true },
+        validateTrafficSource: true,
       });
 
       expect(trafficLoadSpy).toHaveBeenCalledWith({
         inputs: [{ type: 'har', location: '/tmp/traffic.har' }],
+        validateTrafficSource: true,
       });
       expect(formatLoadSpy).toHaveBeenCalledWith({
         inputs: [{ type: 'openapi', location: '/tmp/api.yaml' }],
@@ -450,6 +452,42 @@ describe('Thymian', () => {
             violations: [],
           },
         ],
+      });
+    });
+
+    it('analyze should default traffic-source validation to false', async () => {
+      const trafficLoadSpy = vitest.fn();
+
+      thymian.register(
+        createPluginFor(async (emitter) => {
+          emitter.onAction('core.traffic.load', (input, ctx) => {
+            trafficLoadSpy(input);
+            ctx.reply({ transactions: [] });
+          });
+
+          emitter.onAction('core.analyze', (_, ctx) => {
+            ctx.reply({
+              source: '@thymian/plugin-http-analyzer',
+              status: 'success',
+              violations: [],
+            });
+          });
+
+          emitter.onAction('core.report.flush', (_, ctx) => {
+            ctx.reply({ text: 'analyze report' });
+          });
+        }),
+      );
+
+      await thymian.ready();
+
+      await thymian.analyze({
+        traffic: [{ type: 'har', location: '/tmp/traffic.har' }],
+      });
+
+      expect(trafficLoadSpy).toHaveBeenCalledWith({
+        inputs: [{ type: 'har', location: '/tmp/traffic.har' }],
+        validateTrafficSource: false,
       });
     });
   });
