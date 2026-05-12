@@ -25,6 +25,7 @@ export async function loadTransactionsFromHar(
   maxFileSize: number,
   clientRole: HttpParticipantRole,
   serverRole: HttpParticipantRole,
+  validateTrafficSource: boolean,
 ): Promise<CapturedTransaction[]> {
   const filePath = isAbsolute(location) ? location : join(cwd, location);
 
@@ -60,16 +61,30 @@ export async function loadTransactionsFromHar(
   }
 
   if (!validateHar(parsed)) {
-    throw new ThymianBaseError(
-      `Invalid HAR structure in ${filePath}: ${getValidationErrors()}`,
+    const validationErrors = getValidationErrors();
+
+    if (validateTrafficSource) {
+      throw new ThymianBaseError(
+        `Invalid HAR structure in ${filePath}: ${validationErrors}`,
+      );
+    }
+
+    logger.warn(
+      `HAR schema validation failed for ${filePath}: ${validationErrors}.`,
     );
   }
 
-  const { transactions, skippedCount, skippedReasons } = transformHar(
-    parsed,
-    clientRole,
-    serverRole,
-  );
+  let transformed;
+
+  try {
+    transformed = transformHar(parsed as never, clientRole, serverRole);
+  } catch (err) {
+    throw new ThymianBaseError(`Failed to transform HAR file: ${filePath}`, {
+      cause: err instanceof Error ? err : undefined,
+    });
+  }
+
+  const { transactions, skippedCount, skippedReasons } = transformed;
 
   if (skippedCount > 0) {
     const uniqueReasons = [...new Set(skippedReasons)].join(', ');
