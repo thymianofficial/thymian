@@ -1,0 +1,754 @@
+---
+import { codeToHtml } from 'shiki';
+import thymianLogo from '../../assets/logo-light.svg';
+
+type ImageType = 'code-snippet' | 'side-by-side' | 'headline';
+type Platform = 'reddit' | 'x' | 'linkedin' | 'discord';
+type Variant = 'landscape' | 'square';
+
+interface Props {
+  type: ImageType;
+  platform?: Platform;
+  variant?: Variant;
+  /** Code for the main (or left) panel */
+  code?: string;
+  /** Language for the main panel */
+  lang?: string;
+  /** Code for the right panel (side-by-side only) */
+  rightCode?: string;
+  /** Language for the right panel */
+  rightLang?: string;
+  /** Label shown above the main code panel */
+  codeLabel?: string;
+  /** Label shown above the right code panel */
+  rightCodeLabel?: string;
+  /** Headline text (headline type only) */
+  headline?: string;
+  /** Sub-headline (headline type only) */
+  subheadline?: string;
+  /** Unique id to scope the download button */
+  id?: string;
+}
+
+const {
+  type,
+  platform = 'x',
+  variant = 'landscape',
+  code,
+  lang = 'typescript',
+  rightCode,
+  rightLang = 'http',
+  codeLabel,
+  rightCodeLabel,
+  headline,
+  subheadline,
+  id = `social-img-${Math.random().toString(36).slice(2, 8)}`,
+} = Astro.props;
+
+// Platform-native landscape dimensions; square is normalized to 1080x1080.
+const PLATFORM_DIMENSIONS: Record<Platform, { width: number; height: number }> = {
+  x: { width: 1200, height: 628 },
+  reddit: { width: 1200, height: 628 },
+  linkedin: { width: 1200, height: 627 },
+  discord: { width: 1200, height: 630 },
+};
+
+const DIMENSIONS: Record<Variant, { width: number; height: number }> = {
+  landscape: PLATFORM_DIMENSIONS[platform],
+  square: { width: 1080, height: 1080 },
+};
+
+const { width, height } = DIMENSIONS[variant];
+const previewScale = variant === 'square' ? 0.64 : 0.82;
+const previewWidth = Math.round(width * previewScale);
+const previewHeight = Math.round(height * previewScale);
+const isSquare = variant === 'square';
+const adaptiveScale = Math.max(0.9, Math.min(1.3, Math.sqrt((width / 1200) * (height / 628))));
+const adaptiveUiScale = Math.max(0.9, Math.min(1.15, (width / 1200) * (isSquare ? 0.96 : 1)));
+const adaptiveCodeScale = Math.max(0.9, Math.min(1.2, isSquare ? adaptiveScale * 0.98 : adaptiveScale));
+const adaptiveDensity = isSquare ? 0.9 : 1;
+const adaptiveCodeLineHeight = isSquare ? 1.36 : 1.42;
+
+// --- Bash argument wrapping ---
+function formatBashCode(codeStr: string): string {
+  const trimmed = codeStr.trim();
+  // Only format single-line bash commands with multiple -- arguments
+  if (trimmed.includes('\n')) return trimmed;
+  const parts = trimmed.split(/\s+(--)/);
+  if (parts.length <= 1) return trimmed;
+  // Reconstruct: first part stays, each --arg goes on a new line with backslash continuation
+  let result = (parts[0] ?? '').replace(/\s+$/, '');
+  for (let i = 1; i < parts.length; i += 2) {
+    const flag = parts[i] ?? '';
+    const rest = parts[i + 1] ?? '';
+    result += ' \\\n  ' + flag + rest;
+  }
+  return result;
+}
+
+// --- Code analysis for dynamic sizing ---
+function analyzeCode(codeStr: string): { lineCount: number; maxLineLen: number; isSingleLine: boolean } {
+  const lines = codeStr.trim().split('\n');
+  const maxLineLen = Math.max(...lines.map((l) => l.length));
+  return { lineCount: lines.length, maxLineLen, isSingleLine: lines.length === 1 };
+}
+
+// Process code for bash
+const isBash = lang === 'bash' || lang === 'shell' || lang === 'sh';
+const processedCode = code ? (isBash ? formatBashCode(code.trim()) : code.trim()) : '';
+const processedRightCode = rightCode?.trim() ?? '';
+
+const codeAnalysis = processedCode ? analyzeCode(processedCode) : null;
+const rightCodeAnalysis = processedRightCode ? analyzeCode(processedRightCode) : null;
+
+// Compute dynamic code font scale based on content volume
+function computeCodeFontScale(analysis: { lineCount: number; maxLineLen: number; isSingleLine: boolean } | null): number {
+  if (!analysis) return 1;
+  if (analysis.isSingleLine) return 1.8; // Prominent single line
+  // Scale down as content grows
+  const lineFactor = Math.max(0.6, Math.min(1.4, 8 / analysis.lineCount));
+  const widthFactor = Math.max(0.7, Math.min(1.3, 50 / analysis.maxLineLen));
+  return Math.max(0.65, Math.min(1.6, lineFactor * widthFactor));
+}
+
+const codeFontScale = computeCodeFontScale(codeAnalysis);
+const rightCodeFontScale = computeCodeFontScale(rightCodeAnalysis);
+// For side-by-side, use the smaller scale
+const effectiveCodeFontScale = type === 'side-by-side'
+  ? Math.min(codeFontScale, rightCodeFontScale)
+  : codeFontScale;
+
+const isSingleLine = codeAnalysis?.isSingleLine ?? false;
+
+// Render highlighted HTML via Shiki (server-side) — both themes
+const DARK_THEME = 'vitesse-dark';
+const LIGHT_THEME = 'vitesse-light';
+
+let mainHtmlDark = '';
+let mainHtmlLight = '';
+let rightHtmlDark = '';
+let rightHtmlLight = '';
+
+if (processedCode) {
+  try {
+    mainHtmlDark = await codeToHtml(processedCode, { lang, theme: DARK_THEME });
+  } catch {
+    mainHtmlDark = `<pre><code>${processedCode}</code></pre>`;
+  }
+  try {
+    mainHtmlLight = await codeToHtml(processedCode, { lang, theme: LIGHT_THEME });
+  } catch {
+    mainHtmlLight = `<pre><code>${processedCode}</code></pre>`;
+  }
+}
+
+if (processedRightCode) {
+  try {
+    rightHtmlDark = await codeToHtml(processedRightCode, { lang: rightLang, theme: DARK_THEME });
+  } catch {
+    rightHtmlDark = `<pre><code>${processedRightCode}</code></pre>`;
+  }
+  try {
+    rightHtmlLight = await codeToHtml(processedRightCode, { lang: rightLang, theme: LIGHT_THEME });
+  } catch {
+    rightHtmlLight = `<pre><code>${processedRightCode}</code></pre>`;
+  }
+}
+
+const downloadFilename = `thymian-${platform}-${id}.png`;
+---
+
+<div class="social-image-wrapper">
+  <!-- Preview label row -->
+  <div class="preview-meta-row">
+    <span class="preview-label">
+      Image Preview — {width}x{height} ({platform}, {variant})
+    </span>
+    <div class="preview-actions">
+      <button class="theme-toggle-btn" data-canvas-id={id} aria-label="Toggle dark/light theme">
+        <span class="theme-toggle-icon theme-toggle-icon--dark" title="Switch to light">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="5"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg>
+        </span>
+        <span class="theme-toggle-icon theme-toggle-icon--light" title="Switch to dark">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+        </span>
+      </button>
+      <button class="download-btn" data-image-id={id} data-filename={downloadFilename}>
+        <svg width="14" height="14" viewBox="0 0 14 14" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <path
+            d="M7 1.75v6.125M4.375 5.25 7 8.75l2.625-3.5M2.625 9.625v.875a1.75 1.75 0 0 0 1.75 1.75h5.25a1.75 1.75 0 0 0 1.75-1.75v-.875"
+            stroke="currentColor"
+            stroke-width="1.25"
+            stroke-linecap="round"
+            stroke-linejoin="round"></path>
+        </svg>
+        Download PNG
+      </button>
+    </div>
+  </div>
+
+  <div class="platform-dimensions" aria-label="Platform image dimensions">
+    <span class="platform-dimensions-label">Platform sizes:</span>
+    <span class={`dimension-pill ${platform === 'x' ? 'is-active' : ''}`}>X 1200x628</span>
+    <span class={`dimension-pill ${platform === 'reddit' ? 'is-active' : ''}`}>Reddit 1200x628</span>
+    <span class={`dimension-pill ${platform === 'linkedin' ? 'is-active' : ''}`}>LinkedIn 1200x627</span>
+    <span class={`dimension-pill ${platform === 'discord' ? 'is-active' : ''}`}>Discord 1200x630</span>
+    <span class={`dimension-pill ${variant === 'square' ? 'is-active' : ''}`}>Square 1080x1080</span>
+  </div>
+
+  <!-- The actual image canvas — everything inside this div is what gets exported -->
+  <div
+    class="social-image-canvas"
+    id={id}
+    data-theme="dark"
+    style={`width: min(100%, ${previewWidth}px); aspect-ratio: ${width} / ${height}; --type-scale: ${adaptiveScale.toFixed(3)}; --ui-scale: ${adaptiveUiScale.toFixed(3)}; --code-scale: ${adaptiveCodeScale.toFixed(3)}; --density: ${adaptiveDensity.toFixed(3)}; --code-line-height: ${adaptiveCodeLineHeight.toFixed(2)}; --code-font-scale: ${effectiveCodeFontScale.toFixed(3)};`}
+    data-export-width={width}
+    data-export-height={height}
+  >
+    <!-- Content card (sits on top of gradient background with margin) -->
+    <div class="img-content-card">
+      {
+        type === 'headline' && (
+          <div class="img-headline-layout">
+            <div class="img-headline-text">
+              <div class="img-headline-main">{headline ?? 'Your headline here'}</div>
+              {subheadline && <div class="img-headline-sub">{subheadline}</div>}
+            </div>
+            <div class="img-headline-badge">thymian.dev</div>
+          </div>
+        )
+      }
+
+      {
+        type === 'code-snippet' && processedCode && (
+          <div class={`img-code-layout ${isSingleLine ? 'img-code-layout--single' : ''}`}>
+            {codeLabel && <div class="img-code-label">{codeLabel}</div>}
+            <div class="img-code-block img-code-block--dark" set:html={mainHtmlDark} />
+            <div class="img-code-block img-code-block--light" set:html={mainHtmlLight} />
+          </div>
+        )
+      }
+
+      {
+        type === 'side-by-side' && (
+          <div class="img-side-by-side">
+            <div class="img-panel">
+              {rightCodeLabel && <div class="img-panel-label img-panel-label--left">{rightCodeLabel}</div>}
+              <div class="img-code-block img-code-block--dark" set:html={rightHtmlDark} />
+              <div class="img-code-block img-code-block--light" set:html={rightHtmlLight} />
+            </div>
+            <div class="img-panel-divider">
+              <svg
+                width="20"
+                height="20"
+                viewBox="0 0 20 20"
+                fill="none"
+                xmlns="http://www.w3.org/2000/svg"
+                aria-hidden="true"
+              >
+                <path
+                  d="M4 10h12M12 6l4 4-4 4"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                />
+              </svg>
+            </div>
+            <div class="img-panel">
+              {codeLabel && <div class="img-panel-label img-panel-label--right">{codeLabel}</div>}
+              <div class="img-code-block img-code-block--dark" set:html={mainHtmlDark} />
+              <div class="img-code-block img-code-block--light" set:html={mainHtmlLight} />
+            </div>
+          </div>
+        )
+      }
+    </div>
+
+    <!-- Footer on gradient: logo bottom-right, URL bottom-left -->
+    <div class="img-footer">
+      <span class="img-url">thymian.dev</span>
+      <span class="img-tagline-footer">HTTP Conformance & API Governance</span>
+      <img src={thymianLogo.src} alt="Thymian logo" class="img-logo-mark" crossorigin="anonymous" />
+    </div>
+  </div>
+</div>
+
+<!-- Client-side: theme toggle + html-to-image export -->
+<script>
+  import { toPng } from 'html-to-image';
+
+  // Theme toggle
+  document.querySelectorAll<HTMLButtonElement>('.theme-toggle-btn').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      const canvasId = btn.dataset.canvasId;
+      if (!canvasId) return;
+      const canvas = document.getElementById(canvasId);
+      if (!canvas) return;
+      const current = canvas.dataset.theme ?? 'dark';
+      canvas.dataset.theme = current === 'dark' ? 'light' : 'dark';
+    });
+  });
+
+  // Auto-detect Starlight theme on load
+  function detectStarlightTheme(): 'dark' | 'light' {
+    const root = document.documentElement;
+    const theme = root.dataset.theme ?? root.getAttribute('data-theme');
+    if (theme === 'light') return 'light';
+    return 'dark';
+  }
+
+  // Set initial theme based on Starlight
+  const initialTheme = detectStarlightTheme();
+  document.querySelectorAll<HTMLDivElement>('.social-image-canvas').forEach((canvas) => {
+    canvas.dataset.theme = initialTheme;
+  });
+
+  // Download
+  document.querySelectorAll<HTMLButtonElement>('.download-btn').forEach((btn) => {
+    btn.addEventListener('click', async () => {
+      const imageId = btn.dataset.imageId;
+      const filename = btn.dataset.filename ?? 'thymian-social.png';
+      if (!imageId) return;
+
+      const canvas = document.getElementById(imageId);
+      if (!canvas) return;
+
+      const exportWidth = parseInt(canvas.dataset.exportWidth ?? '1200', 10);
+      const exportHeight = parseInt(canvas.dataset.exportHeight ?? '628', 10);
+      const displayWidth = canvas.offsetWidth;
+      const scale = exportWidth / displayWidth;
+
+      btn.textContent = 'Generating…';
+      btn.setAttribute('disabled', '');
+
+      try {
+        const dataUrl = await toPng(canvas, {
+          width: exportWidth,
+          height: exportHeight,
+          style: {
+            transform: `scale(${scale})`,
+            transformOrigin: 'top left',
+            width: `${displayWidth}px`,
+          },
+          pixelRatio: 1,
+        });
+
+        const link = document.createElement('a');
+        link.download = filename;
+        link.href = dataUrl;
+        link.click();
+      } finally {
+        btn.innerHTML = `<svg width="14" height="14" viewBox="0 0 14 14" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <path d="M7 1.75v6.125M4.375 5.25 7 8.75l2.625-3.5M2.625 9.625v.875a1.75 1.75 0 0 0 1.75 1.75h5.25a1.75 1.75 0 0 0 1.75-1.75v-.875" stroke="currentColor" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg> Download PNG`;
+        btn.removeAttribute('disabled');
+      }
+    });
+  });
+</script>
+
+<style>
+  /* ─── Wrapper ─────────────────────────────────────────────── */
+  .social-image-wrapper {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    margin-bottom: 0.75rem;
+  }
+
+  .preview-meta-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+    flex-wrap: wrap;
+  }
+
+  .preview-label {
+    font-size: 0.75rem;
+    color: var(--sl-color-gray-4);
+    font-family: monospace;
+  }
+
+  .preview-actions {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+
+  .theme-toggle-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 30px;
+    height: 30px;
+    padding: 0;
+    background: var(--sl-color-gray-6);
+    border: 1px solid var(--sl-color-gray-5);
+    border-radius: 0.375rem;
+    color: var(--sl-color-gray-3);
+    cursor: pointer;
+    transition: border-color 0.15s, color 0.15s;
+  }
+
+  .theme-toggle-btn:hover {
+    border-color: var(--sl-color-accent);
+    color: var(--sl-color-accent);
+  }
+
+  /* Show/hide sun/moon icons based on canvas theme */
+  .theme-toggle-icon--light { display: none; }
+  .theme-toggle-icon--dark { display: flex; }
+
+  .download-btn {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    padding: 0.35rem 0.75rem;
+    background: linear-gradient(135deg, #017b64, #5ab12e);
+    color: white;
+    font-size: 0.75rem;
+    font-weight: 600;
+    border: none;
+    border-radius: 0.375rem;
+    cursor: pointer;
+    transition: opacity 0.15s;
+  }
+
+  .download-btn:hover {
+    opacity: 0.9;
+  }
+
+  .download-btn:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+  }
+
+  .platform-dimensions {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 0.4rem;
+  }
+
+  .platform-dimensions-label {
+    font-size: 0.72rem;
+    color: var(--sl-color-gray-4);
+    font-family: monospace;
+    margin-right: 0.15rem;
+  }
+
+  .dimension-pill {
+    font-size: 0.68rem;
+    font-weight: 600;
+    color: var(--sl-color-gray-3);
+    border: 1px solid var(--sl-color-gray-5);
+    background: var(--sl-color-gray-6);
+    border-radius: 999px;
+    padding: 0.17rem 0.45rem;
+    line-height: 1.35;
+  }
+
+  .dimension-pill.is-active {
+    color: var(--sl-color-accent);
+    border-color: var(--sl-color-accent-low, var(--sl-color-accent));
+    background: rgba(90, 177, 46, 0.08);
+  }
+
+  /* ─── Canvas (the exported area) ──────────────────────────── */
+  .social-image-canvas {
+    position: relative;
+    background: linear-gradient(135deg, #017b64 0%, #5ab12e 60%, #beeb63 100%);
+    border-radius: 8px;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    font-family: 'Inter', system-ui, sans-serif;
+    max-width: 100%;
+    padding: calc(16px * var(--ui-scale));
+    gap: calc(10px * var(--ui-scale));
+  }
+
+  /* ─── Content card ────────────────────────────────────────── */
+  .img-content-card {
+    flex: 1;
+    overflow: hidden;
+    display: flex;
+    align-items: stretch;
+    border-radius: calc(8px * var(--ui-scale));
+    padding: calc(12px * var(--ui-scale) * var(--density));
+  }
+
+  /* Dark theme content card */
+  .social-image-canvas[data-theme='dark'] .img-content-card {
+    background: #171819;
+  }
+
+  /* Light theme content card */
+  .social-image-canvas[data-theme='light'] .img-content-card {
+    background: #f8f8f9;
+  }
+
+  /* ─── Code block theme switching ──────────────────────────── */
+  .social-image-canvas[data-theme='dark'] .img-code-block--light,
+  .social-image-canvas[data-theme='light'] .img-code-block--dark {
+    display: none !important;
+  }
+
+  .social-image-canvas[data-theme='dark'] .img-code-block--dark,
+  .social-image-canvas[data-theme='light'] .img-code-block--light {
+    display: block;
+  }
+
+  /* ─── Footer (on gradient) ────────────────────────────────── */
+  .img-footer {
+    display: flex;
+    align-items: center;
+    flex-shrink: 0;
+    gap: calc(10px * var(--ui-scale));
+    padding: 0 calc(4px * var(--ui-scale));
+  }
+
+  .img-url {
+    font-size: calc(14px * var(--type-scale));
+    font-weight: 700;
+    color: #ffffff;
+    letter-spacing: 0.04em;
+  }
+
+  .img-tagline-footer {
+    font-size: calc(12px * var(--type-scale));
+    color: rgba(255, 255, 255, 0.7);
+    letter-spacing: 0.04em;
+  }
+
+  .img-logo-mark {
+    height: calc(24px * var(--ui-scale));
+    width: auto;
+    margin-left: auto;
+    display: block;
+    /* Force logo to white via CSS filter */
+    filter: brightness(0) invert(1);
+  }
+
+  /* ─── Headline layout ─────────────────────────────────────── */
+  .img-headline-layout {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: flex-start;
+    gap: calc(16px * var(--type-scale));
+    width: 100%;
+    padding: calc(8px * var(--ui-scale));
+  }
+
+  .social-image-canvas[data-theme='dark'] .img-headline-main {
+    color: #f6f6f7;
+  }
+
+  .social-image-canvas[data-theme='light'] .img-headline-main {
+    color: #171819;
+  }
+
+  .img-headline-main {
+    font-size: calc(32px * var(--type-scale));
+    font-weight: 800;
+    line-height: 1.2;
+    letter-spacing: -0.02em;
+  }
+
+  .social-image-canvas[data-theme='dark'] .img-headline-sub {
+    color: #898c8f;
+  }
+
+  .social-image-canvas[data-theme='light'] .img-headline-sub {
+    color: #56585b;
+  }
+
+  .img-headline-sub {
+    font-size: calc(18px * var(--type-scale));
+    line-height: 1.5;
+    max-width: 80%;
+  }
+
+  .img-headline-badge {
+    font-size: calc(12px * var(--type-scale));
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    padding: calc(4px * var(--ui-scale)) calc(12px * var(--ui-scale));
+    border-radius: 9999px;
+  }
+
+  .social-image-canvas[data-theme='dark'] .img-headline-badge {
+    color: #5ab12e;
+    border: 1px solid #458628;
+  }
+
+  .social-image-canvas[data-theme='light'] .img-headline-badge {
+    color: #017b64;
+    border: 1px solid #017b64;
+  }
+
+  /* ─── Code snippet layout ──────────────────────────────────── */
+  .img-code-layout {
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    gap: calc(6px * var(--ui-scale) * var(--density));
+  }
+
+  /* Single-line code: center vertically for prominence */
+  .img-code-layout--single {
+    justify-content: center;
+    align-items: stretch;
+  }
+
+  .img-code-label {
+    font-size: calc(10px * var(--type-scale));
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    font-family: monospace;
+  }
+
+  .social-image-canvas[data-theme='dark'] .img-code-label {
+    color: #898c8f;
+  }
+
+  .social-image-canvas[data-theme='light'] .img-code-label {
+    color: #56585b;
+  }
+
+  .img-code-block {
+    overflow: hidden;
+    font-size: calc(11px * var(--code-scale) * var(--code-font-scale));
+    line-height: var(--code-line-height);
+  }
+
+  /* Single-line: code block does not need to fill, just be prominent */
+  .img-code-layout:not(.img-code-layout--single) .img-code-block {
+    flex: 1;
+  }
+
+  /* Shiki output overrides */
+  .img-code-block :global(pre) {
+    margin: 0 !important;
+    padding: calc(6px * var(--ui-scale) * var(--density)) 0 !important;
+    background: transparent !important;
+    border: none !important;
+    overflow: hidden !important;
+    white-space: pre-wrap !important;
+    overflow-wrap: break-word !important;
+    word-break: break-word !important;
+    font-size: calc(11px * var(--code-scale) * var(--code-font-scale)) !important;
+    line-height: var(--code-line-height) !important;
+  }
+
+  /* Dark code pre bg */
+  .social-image-canvas[data-theme='dark'] .img-code-block :global(pre) {
+    background: transparent !important;
+  }
+
+  /* Light code pre bg */
+  .social-image-canvas[data-theme='light'] .img-code-block :global(pre) {
+    background: transparent !important;
+  }
+
+  /* Non-single-line: fill height */
+  .img-code-layout:not(.img-code-layout--single) .img-code-block :global(pre) {
+    height: 100% !important;
+  }
+
+  .img-code-block :global(code) {
+    font-family: 'JetBrains Mono', 'Fira Code', 'Cascadia Code', monospace !important;
+    font-size: calc(11px * var(--code-scale) * var(--code-font-scale)) !important;
+    white-space: pre-wrap !important;
+    word-break: break-word !important;
+  }
+
+  /* ─── Side-by-side layout ──────────────────────────────────── */
+  .img-side-by-side {
+    display: flex;
+    align-items: stretch;
+    gap: 0;
+    width: 100%;
+    height: 100%;
+  }
+
+  .img-panel {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: calc(4px * var(--ui-scale) * var(--density));
+    min-width: 0;
+    overflow: hidden;
+  }
+
+  .img-panel-divider {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0 calc(6px * var(--ui-scale));
+    flex-shrink: 0;
+  }
+
+  .social-image-canvas[data-theme='dark'] .img-panel-divider {
+    color: #5ab12e;
+  }
+
+  .social-image-canvas[data-theme='light'] .img-panel-divider {
+    color: #017b64;
+  }
+
+  .img-panel-divider svg {
+    width: calc(20px * var(--ui-scale));
+    height: calc(20px * var(--ui-scale));
+  }
+
+  .img-panel-label {
+    font-size: calc(9px * var(--type-scale));
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    font-family: monospace;
+    padding: calc(2px * var(--ui-scale)) calc(6px * var(--ui-scale));
+    border-radius: 4px;
+    width: fit-content;
+    flex-shrink: 0;
+    min-height: calc(18px * var(--ui-scale));
+    display: flex;
+    align-items: center;
+  }
+
+  .img-panel-label--left {
+    color: #f87171;
+    background: rgba(248, 113, 113, 0.1);
+    border: 1px solid rgba(248, 113, 113, 0.2);
+  }
+
+  .social-image-canvas[data-theme='light'] .img-panel-label--left {
+    color: #dc2626;
+    background: rgba(220, 38, 38, 0.08);
+    border: 1px solid rgba(220, 38, 38, 0.15);
+  }
+
+  .img-panel-label--right {
+    color: #5ab12e;
+    background: rgba(90, 177, 46, 0.1);
+    border: 1px solid rgba(90, 177, 46, 0.2);
+  }
+
+  .social-image-canvas[data-theme='light'] .img-panel-label--right {
+    color: #017b64;
+    background: rgba(1, 123, 100, 0.08);
+    border: 1px solid rgba(1, 123, 100, 0.15);
+  }
+
+  @media (max-width: 900px) {
+    .social-image-canvas {
+      width: 100% !important;
+    }
+  }
+</style>
