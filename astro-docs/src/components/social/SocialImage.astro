@@ -317,6 +317,7 @@ const downloadFilename = `thymian-${platform}-${id}.png`;
       const exportWidth = parseInt(canvas.dataset.exportWidth ?? '1200', 10);
       const exportHeight = parseInt(canvas.dataset.exportHeight ?? '628', 10);
       const displayWidth = canvas.offsetWidth;
+      const displayHeight = displayWidth * exportHeight / exportWidth;
       const scale = exportWidth / displayWidth;
 
       btn.textContent = 'Generating…';
@@ -330,6 +331,8 @@ const downloadFilename = `thymian-${platform}-${id}.png`;
             transform: `scale(${scale})`,
             transformOrigin: 'top left',
             width: `${displayWidth}px`,
+            height: `${displayHeight}px`,
+            margin: '0',
           },
           pixelRatio: 1,
         });
