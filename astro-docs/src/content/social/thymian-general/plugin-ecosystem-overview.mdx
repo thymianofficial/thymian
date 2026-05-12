@@ -1,0 +1,96 @@
+---
+title: "Thymian Plugin Ecosystem at a Glance"
+description: "Showcase the plugin-first architecture as a social storytelling angle."
+category: thymian-general
+draft: true
+publishStatus: ready
+docLinks:
+  - label: "Plugin Developer Guide"
+    url: "https://thymian.dev/guides/plugin-developers-guide/"
+  - label: "Hook System"
+    url: "https://thymian.dev/concepts/hook-system/"
+---
+
+import PlatformSection from '../../../components/social/PlatformSection.astro';
+import PostText from '../../../components/social/PostText.astro';
+import SocialImage from '../../../components/social/SocialImage.astro';
+
+
+<PlatformSection platform="reddit">
+  <PostText platform="reddit" label="Title">{'Thymian is plugin-first: if your API workflow is unique, you can extend everything'}</PostText>
+  <PostText platform="reddit">
+    {`Thymian's core and official features are plugins. You can ship your own plugins for company-specific rules, traffic enrichers, and report formats.
+
+This keeps the framework stable while letting teams customize deeply.
+
+https://thymian.dev/guides/plugin-developers-guide/`}
+  </PostText>
+  <SocialImage type="code-snippet" platform="reddit" lang="typescript" codeLabel="Plugin skeleton" code={`export default function plugin() {
+  return {
+    name: 'org-http-policy',
+    setup(ctx) {
+      ctx.registerRules([requireStrictCaching]);
+    },
+  };
+}`} />
+</PlatformSection>
+
+<PlatformSection platform="x">
+  <PostText platform="x">
+    {`Thymian is plugin-first.
+
+You can build company-specific HTTP policy checks, enrich traffic analysis, and customize reports without forking core.
+
+https://thymian.dev/guides/plugin-developers-guide/`}
+  </PostText>
+  <SocialImage type="code-snippet" platform="x" lang="typescript" codeLabel="Plugin skeleton" code={`export default function plugin() {
+  return {
+    name: 'org-http-policy',
+    setup(ctx) {
+      ctx.registerRules([requireStrictCaching]);
+    },
+  };
+}`} />
+</PlatformSection>
+
+<PlatformSection platform="linkedin">
+  <PostText platform="linkedin">
+    {`If your API governance tooling requires forks to customize behavior, scale becomes painful.
+
+Thymian's plugin-first architecture avoids that by making extension a default path:
+- custom rules
+- custom analyzers
+- custom reporters
+- organization-specific integration points
+
+That gives platform teams control without locking product teams into brittle workflows.
+
+https://thymian.dev/guides/plugin-developers-guide/`}
+  </PostText>
+  <SocialImage type="code-snippet" platform="linkedin" lang="typescript" codeLabel="Plugin skeleton" code={`export default function plugin() {
+  return {
+    name: 'org-http-policy',
+    setup(ctx) {
+      ctx.registerRules([requireStrictCaching]);
+    },
+  };
+}`} />
+</PlatformSection>
+
+<PlatformSection platform="discord">
+  <PostText platform="discord">
+    {`Plugin-first from day one.
+
+Need org-specific API rules? Build a Thymian plugin instead of maintaining a fork.
+
+https://thymian.dev/guides/plugin-developers-guide/`}
+  </PostText>
+  <SocialImage type="code-snippet" platform="discord" lang="typescript" codeLabel="Plugin skeleton" code={`export default function plugin() {
+  return {
+    name: 'org-http-policy',
+    setup(ctx) {
+      ctx.registerRules([requireStrictCaching]);
+    },
+  };
+}`} />
+</PlatformSection>

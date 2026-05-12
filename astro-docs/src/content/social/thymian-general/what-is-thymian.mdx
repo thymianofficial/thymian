@@ -1,0 +1,126 @@
+---
+title: "What is Thymian? HTTP Conformance for Modern APIs"
+description: "Introduce Thymian to a broad developer audience across all major social platforms."
+category: thymian-general
+draft: true
+publishStatus: ready
+docLinks:
+  - label: "What is Thymian?"
+    url: "https://thymian.dev/introduction/what-is-thymian/"
+  - label: "Getting Started"
+    url: "https://thymian.dev/introduction/getting-started/"
+  - label: "HTTP Conformance Explained"
+    url: "https://thymian.dev/introduction/http-conformance/"
+---
+
+import PlatformSection from '../../../components/social/PlatformSection.astro';
+import PostText from '../../../components/social/PostText.astro';
+import SocialImage from '../../../components/social/SocialImage.astro';
+
+
+## Reddit
+
+<PlatformSection platform="reddit">
+  <PostText platform="reddit" label="Title (keep under 300 chars)">
+Thymian — open-source HTTP conformance & API governance tool (write once, lint + test + analyze)
+  </PostText>
+
+  <PostText platform="reddit" label="Post body">
+Hey r/webdev 👋
+
+We just shipped **Thymian**, a free open-source tool that brings HTTP conformance testing to your API workflow.
+
+The core idea: write a rule once, then use it across three modes:
+
+- `thymian lint` — static analysis of your OpenAPI spec
+- `thymian test` — runtime validation against a live server
+- `thymian analyze` — analysis of recorded HAR traffic from production
+
+No more "it passes lint but breaks in production." One rule, three validation layers.
+
+Quick start (no install needed):
+
+```bash
+npx thymian lint --spec openapi:openapi.yaml
+```
+
+Happy to answer any questions. What HTTP edge cases do you run into most in production?
+
+🔗 https://thymian.dev
+  </PostText>
+
+  <SocialImage type="code-snippet" platform="reddit" lang="bash" codeLabel="Write once, validate everywhere" code={`npx thymian lint --spec openapi:./openapi.yaml
+npx thymian test --spec openapi:./openapi.yaml --target https://api.example.com
+npx thymian analyze --har ./traffic.har --spec openapi:./openapi.yaml`} />
+</PlatformSection>
+
+## X (Twitter)
+
+<PlatformSection platform="x">
+  <PostText platform="x">
+🌿 Thymian — open-source HTTP conformance testing
+
+Write a rule once → lint your spec, test your live API, analyze real traffic.
+
+One rule. Three validation layers. No surprises in production.
+
+npx thymian lint --spec openapi:openapi.yaml
+
+→ https://thymian.dev
+  </PostText>
+
+  <SocialImage type="code-snippet" platform="x" lang="bash" codeLabel="Write once, validate everywhere" code={`npx thymian lint --spec openapi:./openapi.yaml
+npx thymian test --spec openapi:./openapi.yaml --target https://api.example.com
+npx thymian analyze --har ./traffic.har --spec openapi:./openapi.yaml`} />
+</PlatformSection>
+
+## LinkedIn
+
+<PlatformSection platform="linkedin">
+  <PostText platform="linkedin">
+We built Thymian because we kept seeing the same problem: APIs that pass static linting but fail in production due to subtle HTTP non-conformance.
+
+The root cause? Most teams validate their API at one layer only — either the spec, or a live test, or production traffic. But HTTP bugs often only surface in one specific context.
+
+**Thymian solves this with a "Write Once, Validate Everywhere" model:**
+
+✅ `thymian lint` — catches spec violations before you ship
+✅ `thymian test` — validates your running service against real HTTP semantics
+✅ `thymian analyze` — scans recorded production traffic (HAR files) for violations
+
+The same rule runs across all three modes. No duplication. No gaps.
+
+It's open-source, zero-install for quick runs (`npx thymian`), and extensible via plugins.
+
+If you've ever dealt with cache poisoning, incorrect Content-Type handling, or missing RFC 9110 compliance — this is built for you.
+
+🔗 https://thymian.dev
+#API #HTTP #OpenSource #DevTools #WebDev
+  </PostText>
+
+  <SocialImage type="code-snippet" platform="linkedin" lang="bash" codeLabel="Write once, validate everywhere" code={`npx thymian lint --spec openapi:./openapi.yaml
+npx thymian test --spec openapi:./openapi.yaml --target https://api.example.com
+npx thymian analyze --har ./traffic.har --spec openapi:./openapi.yaml`} />
+</PlatformSection>
+
+## Discord
+
+<PlatformSection platform="discord">
+  <PostText platform="discord" label="Message text">
+🌿 **Thymian** — HTTP conformance & API governance, open-source
+
+Write a rule once → runs across lint, live testing, and production traffic analysis.
+
+```bash
+npx thymian lint --spec openapi:openapi.yaml
+```
+
+No install needed for a quick try. Plugin architecture for custom rules.
+
+→ https://thymian.dev
+  </PostText>
+
+  <SocialImage type="code-snippet" platform="discord" lang="bash" codeLabel="Write once, validate everywhere" code={`npx thymian lint --spec openapi:./openapi.yaml
+npx thymian test --spec openapi:./openapi.yaml --target https://api.example.com
+npx thymian analyze --har ./traffic.har --spec openapi:./openapi.yaml`} />
+</PlatformSection>

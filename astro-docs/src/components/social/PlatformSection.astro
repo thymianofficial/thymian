@@ -1,0 +1,103 @@
+---
+type Platform = 'reddit' | 'x' | 'linkedin' | 'discord';
+
+interface Props {
+  platform: Platform;
+}
+
+const { platform } = Astro.props;
+
+const PLATFORM_CONFIG: Record<Platform, { label: string; color: string; icon: string; charLimit?: number }> = {
+  reddit: {
+    label: 'Reddit',
+    color: '#FF4500',
+    icon: `<svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
+      <circle cx="10" cy="10" r="10" fill="#FF4500"/>
+      <path d="M16.67 10a1.46 1.46 0 0 0-2.47-1 7.12 7.12 0 0 0-3.85-1.23l.65-3.08 2.13.45a1 1 0 1 0 1-1 1 1 0 0 0-.97.68l-2.38-.5a.27.27 0 0 0-.32.2l-.73 3.44a7.14 7.14 0 0 0-3.89 1.23 1.46 1.46 0 1 0-1.61 2.39 2.87 2.87 0 0 0 0 .44c0 2.24 2.61 4.06 5.83 4.06s5.83-1.82 5.83-4.06a2.87 2.87 0 0 0 0-.44 1.46 1.46 0 0 0 .69-1.58zM7.27 11a1 1 0 1 1 1 1 1 1 0 0 1-1-1zm5.58 2.71a3.58 3.58 0 0 1-2.85.71 3.58 3.58 0 0 1-2.85-.71.19.19 0 0 1 .27-.27 3.21 3.21 0 0 0 2.58.55 3.21 3.21 0 0 0 2.58-.55.19.19 0 0 1 .27.27zm-.14-1.71a1 1 0 1 1 1-1 1 1 0 0 1-1 1z" fill="white"/>
+    </svg>`,
+  },
+  x: {
+    label: 'X (Twitter)',
+    color: '#000000',
+    icon: `<svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
+      <rect width="20" height="20" rx="4" fill="#000"/>
+      <path d="M11.25 9.12 15.83 4h-1.08l-3.97 4.62L7.72 4H4l4.8 6.99L4 16h1.08l4.2-4.88L12.28 16H16l-4.75-6.88zm-1.49 1.73-.49-.7L5.44 4.8h1.67l3.13 4.48.49.7 4.07 5.82h-1.67l-3.37-4.05z" fill="white"/>
+    </svg>`,
+    charLimit: 280,
+  },
+  linkedin: {
+    label: 'LinkedIn',
+    color: '#0A66C2',
+    icon: `<svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
+      <rect width="20" height="20" rx="4" fill="#0A66C2"/>
+      <path d="M5.37 8.03H3.26v6.74h2.11V8.03zM4.32 7.1a1.22 1.22 0 1 0 0-2.44 1.22 1.22 0 0 0 0 2.44zM16.74 14.77h-2.1v-3.28c0-.78-.02-1.79-1.09-1.79-1.09 0-1.26.85-1.26 1.73v3.34h-2.1V8.03h2.02v.92h.03c.28-.53.97-1.09 2-1.09 2.14 0 2.54 1.41 2.54 3.24v3.67z" fill="white"/>
+    </svg>`,
+    charLimit: 3000,
+  },
+  discord: {
+    label: 'Discord',
+    color: '#5865F2',
+    icon: `<svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
+      <rect width="20" height="20" rx="4" fill="#5865F2"/>
+      <path d="M14.3 5.56a11.6 11.6 0 0 0-2.88-.9.04.04 0 0 0-.05.02c-.12.22-.26.51-.36.73a10.7 10.7 0 0 0-3.22 0 7.27 7.27 0 0 0-.37-.73.04.04 0 0 0-.05-.02 11.55 11.55 0 0 0-2.88.9.04.04 0 0 0-.02.02C2.77 8.37 2.32 11.1 2.54 13.8a.05.05 0 0 0 .02.03 11.66 11.66 0 0 0 3.51 1.78.05.05 0 0 0 .05-.02c.27-.37.51-.76.72-1.17a.04.04 0 0 0-.02-.06 7.68 7.68 0 0 1-1.1-.52.04.04 0 0 1 0-.07c.07-.06.15-.11.22-.17a.04.04 0 0 1 .05 0c2.3 1.05 4.8 1.05 7.07 0a.04.04 0 0 1 .05 0c.07.06.15.12.22.17a.04.04 0 0 1 0 .07c-.35.2-.72.38-1.1.52a.04.04 0 0 0-.02.06c.21.41.46.8.72 1.17a.05.05 0 0 0 .05.02 11.63 11.63 0 0 0 3.52-1.78.05.05 0 0 0 .02-.03c.26-2.7-.45-5.41-1.88-7.62a.04.04 0 0 0-.02-.02zM7.86 12.27c-.7 0-1.27-.64-1.27-1.43s.56-1.43 1.27-1.43c.71 0 1.28.64 1.27 1.43 0 .79-.57 1.43-1.27 1.43zm4.7 0c-.7 0-1.27-.64-1.27-1.43s.56-1.43 1.27-1.43c.71 0 1.28.64 1.27 1.43 0 .79-.56 1.43-1.27 1.43z" fill="white"/>
+    </svg>`,
+    charLimit: 2000,
+  },
+};
+
+const config = PLATFORM_CONFIG[platform];
+---
+
+<section class="platform-section">
+  <div class="platform-header">
+    <span class="platform-icon" set:html={config.icon} />
+    <span class="platform-label" style={`color: ${config.color}`}>{config.label}</span>
+    {config.charLimit && <span class="char-limit-hint">max {config.charLimit.toLocaleString()} chars</span>}
+  </div>
+  <div class="platform-body">
+    <slot />
+  </div>
+</section>
+
+<style>
+  .platform-section {
+    margin-bottom: 3rem;
+    border: 1px solid var(--sl-color-gray-5);
+    border-radius: 0.75rem;
+    overflow: hidden;
+  }
+
+  .platform-header {
+    display: flex;
+    align-items: center;
+    gap: 0.625rem;
+    padding: 0.875rem 1.25rem;
+    background: var(--sl-color-gray-6);
+    border-bottom: 1px solid var(--sl-color-gray-5);
+  }
+
+  .platform-icon {
+    display: flex;
+    align-items: center;
+    flex-shrink: 0;
+  }
+
+  .platform-label {
+    font-weight: 700;
+    font-size: 1rem;
+  }
+
+  .char-limit-hint {
+    margin-left: auto;
+    font-size: 0.75rem;
+    color: var(--sl-color-gray-4);
+    font-family: monospace;
+  }
+
+  .platform-body {
+    padding: 1.5rem 1.25rem;
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+  }
+</style>

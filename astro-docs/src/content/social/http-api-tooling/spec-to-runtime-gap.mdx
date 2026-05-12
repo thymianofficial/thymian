@@ -1,0 +1,90 @@
+---
+title: "The Spec-to-Runtime Gap"
+description: "Tooling narrative: why static spec linting alone is insufficient."
+category: http-api-tooling
+draft: true
+publishStatus: ready
+docLinks:
+  - label: "Thymian Lint Workflow"
+    url: "https://thymian.dev/tutorials/thymian-lint-workflow/"
+  - label: "Thymian Test Workflow"
+    url: "https://thymian.dev/tutorials/thymian-test-workflow/"
+---
+
+import PlatformSection from '../../../components/social/PlatformSection.astro';
+import PostText from '../../../components/social/PostText.astro';
+import SocialImage from '../../../components/social/SocialImage.astro';
+
+
+<PlatformSection platform="reddit">
+  <PostText platform="reddit" label="Title">{'Spec linting is necessary, but runtime conformance is where the hidden failures are'}</PostText>
+  <PostText platform="reddit">
+    {`A clean OpenAPI spec does not guarantee protocol-correct behavior at runtime.
+
+The gap between documented responses and live behavior is exactly where many incidents begin.
+
+https://thymian.dev/tutorials/thymian-test-workflow/`}
+  </PostText>
+  <SocialImage type="side-by-side" platform="reddit" rightLang="yaml" rightCodeLabel="Spec is valid" rightCode={`responses:
+  "200":
+    description: OK
+    headers:
+      Content-Type:`} lang="http" codeLabel="Runtime can still drift" code={`HTTP/1.1 200 OK
+Cache-Control: public, no-store
+Content-Type: application/json`} />
+</PlatformSection>
+
+<PlatformSection platform="x">
+  <PostText platform="x">
+    {`Your OpenAPI can pass lint and still violate HTTP semantics at runtime.
+
+Spec checks are step one. Runtime conformance closes the gap.
+
+https://thymian.dev/tutorials/thymian-test-workflow/`}
+  </PostText>
+  <SocialImage type="side-by-side" platform="x" rightLang="yaml" rightCodeLabel="Spec is valid" rightCode={`responses:
+  "200":
+    description: OK
+    headers:
+      Content-Type:`} lang="http" codeLabel="Runtime can still drift" code={`HTTP/1.1 200 OK
+Cache-Control: public, no-store
+Content-Type: application/json`} />
+</PlatformSection>
+
+<PlatformSection platform="linkedin">
+  <PostText platform="linkedin">
+    {`The API tooling stack often splits responsibilities by phase:
+
+- design-time: spec linting
+- build-time: contract checks
+- runtime: debugging and incident response
+
+What is usually missing is a consistent conformance layer shared across phases. Without it, teams optimize one phase and inherit risk in another.
+
+https://thymian.dev/tutorials/thymian-lint-workflow/`}
+  </PostText>
+  <SocialImage type="side-by-side" platform="linkedin" rightLang="yaml" rightCodeLabel="Spec is valid" rightCode={`responses:
+  "200":
+    description: OK
+    headers:
+      Content-Type:`} lang="http" codeLabel="Runtime can still drift" code={`HTTP/1.1 200 OK
+Cache-Control: public, no-store
+Content-Type: application/json`} />
+</PlatformSection>
+
+<PlatformSection platform="discord">
+  <PostText platform="discord">
+    {`Spec checks alone are not enough.
+
+Run conformance checks on the live API too, not just OpenAPI files.
+
+https://thymian.dev/tutorials/thymian-test-workflow/`}
+  </PostText>
+  <SocialImage type="side-by-side" platform="discord" rightLang="yaml" rightCodeLabel="Spec is valid" rightCode={`responses:
+  "200":
+    description: OK
+    headers:
+      Content-Type:`} lang="http" codeLabel="Runtime can still drift" code={`HTTP/1.1 200 OK
+Cache-Control: public, no-store
+Content-Type: application/json`} />
+</PlatformSection>

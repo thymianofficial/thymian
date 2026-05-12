@@ -1,0 +1,78 @@
+---
+title: "Request Smuggling Detection Patterns"
+description: "Real-world scenario: detect dangerous transfer-encoding/content-length combinations."
+category: real-world-use-cases
+draft: true
+publishStatus: ready
+docLinks:
+  - label: "HTTP Conformance"
+    url: "https://thymian.dev/introduction/http-conformance/"
+  - label: "Thymian Analyze Workflow"
+    url: "https://thymian.dev/tutorials/thymian-analyze-workflow/"
+---
+
+import PlatformSection from '../../../components/social/PlatformSection.astro';
+import PostText from '../../../components/social/PostText.astro';
+import SocialImage from '../../../components/social/SocialImage.astro';
+
+
+<PlatformSection platform="reddit">
+  <PostText platform="reddit" label="Title">{'Request smuggling signals you can catch early with conformance checks'}</PostText>
+  <PostText platform="reddit">
+    {`One classic smuggling vector is ambiguous message framing (Content-Length + Transfer-Encoding).
+
+If upstream and downstream parse differently, attackers can desync the request stream.
+
+https://thymian.dev/tutorials/thymian-analyze-workflow/`}
+  </PostText>
+  <SocialImage type="side-by-side" platform="reddit" rightLang="http" rightCodeLabel="Ambiguous framing" rightCode={`Content-Length: 44
+Transfer-Encoding: chunked`} lang="typescript" codeLabel="Conformance rule" code={`httpRule('no-ambiguous-framing')
+  .match(({ request }) =>
+    request.headers['content-length'] &&
+    request.headers['transfer-encoding'])`} />
+</PlatformSection>
+
+<PlatformSection platform="x">
+  <PostText platform="x">
+    {`Request smuggling often starts with ambiguous framing.
+
+Content-Length + Transfer-Encoding in the same request is a high-risk signal.
+
+https://thymian.dev/tutorials/thymian-analyze-workflow/`}
+  </PostText>
+  <SocialImage type="side-by-side" platform="x" rightLang="http" rightCodeLabel="Ambiguous framing" rightCode={`Content-Length: 44
+Transfer-Encoding: chunked`} lang="typescript" codeLabel="Conformance rule" code={`httpRule('no-ambiguous-framing')
+  .match(({ request }) =>
+    request.headers['content-length'] &&
+    request.headers['transfer-encoding'])`} />
+</PlatformSection>
+
+<PlatformSection platform="linkedin">
+  <PostText platform="linkedin">
+    {`Request smuggling remains a practical risk in distributed HTTP architectures because each hop may parse framing differently.
+
+Conformance checks should continuously inspect for ambiguous framing combinations and enforce strict request normalization before routing.
+
+https://thymian.dev/introduction/http-conformance/`}
+  </PostText>
+  <SocialImage type="side-by-side" platform="linkedin" rightLang="http" rightCodeLabel="Ambiguous framing" rightCode={`Content-Length: 44
+Transfer-Encoding: chunked`} lang="typescript" codeLabel="Conformance rule" code={`httpRule('no-ambiguous-framing')
+  .match(({ request }) =>
+    request.headers['content-length'] &&
+    request.headers['transfer-encoding'])`} />
+</PlatformSection>
+
+<PlatformSection platform="discord">
+  <PostText platform="discord">
+    {`Request smuggling quick signal:
+
+If both Content-Length and Transfer-Encoding are present, flag it immediately.
+
+https://thymian.dev/introduction/http-conformance/`}
+  </PostText>
+  <SocialImage type="side-by-side" platform="discord" rightLang="http" rightCodeLabel="Ambiguous framing" rightCode={`Content-Length: 44
+Transfer-Encoding: chunked`} lang="typescript" codeLabel="Conformance rule" code={`httpRule('no-ambiguous-framing')
+  .match(({ request }) =>
+    request.headers['content-length'] &&
+    request.headers['transfer-encoding'])`} />
+</PlatformSection>

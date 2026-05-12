@@ -1,0 +1,74 @@
+---
+title: "Write Once, Validate Everywhere"
+description: "Story angle focused on Thymian's core promise across lint, test, and analyze."
+category: thymian-general
+draft: true
+publishStatus: ready
+docLinks:
+  - label: "What is Thymian?"
+    url: "https://thymian.dev/introduction/what-is-thymian/"
+  - label: "Thymian Test Workflow"
+    url: "https://thymian.dev/tutorials/thymian-test-workflow/"
+---
+
+import PlatformSection from '../../../components/social/PlatformSection.astro';
+import PostText from '../../../components/social/PostText.astro';
+import SocialImage from '../../../components/social/SocialImage.astro';
+
+
+<PlatformSection platform="reddit">
+  <PostText platform="reddit" label="Title">{"Thymian's biggest value: one rule definition that works across spec, runtime, and production traffic"}</PostText>
+  <PostText platform="reddit">
+    {`Most API tools force duplicated checks for spec linting, runtime testing, and traffic analysis. Thymian keeps one rule and runs it across all three.
+
+This is the part that removes drift between docs, CI checks, and production behavior.
+
+https://thymian.dev/introduction/what-is-thymian/`}
+  </PostText>
+  <SocialImage type="code-snippet" platform="reddit" lang="bash" codeLabel="One rule set, three modes" code={`thymian lint --spec openapi:./openapi.yaml
+thymian test --spec openapi:./openapi.yaml --target http://localhost:3000
+thymian analyze --har ./prod.har --spec openapi:./openapi.yaml`} />
+</PlatformSection>
+
+<PlatformSection platform="x">
+  <PostText platform="x">
+    {`One rule set for your OpenAPI spec, your live API, and your production HAR files.
+
+That's the Thymian model: Write Once, Validate Everywhere.
+
+https://thymian.dev/introduction/what-is-thymian/`}
+  </PostText>
+  <SocialImage type="code-snippet" platform="x" lang="bash" codeLabel="One rule set, three modes" code={`thymian lint --spec openapi:./openapi.yaml
+thymian test --spec openapi:./openapi.yaml --target http://localhost:3000
+thymian analyze --har ./prod.har --spec openapi:./openapi.yaml`} />
+</PlatformSection>
+
+<PlatformSection platform="linkedin">
+  <PostText platform="linkedin">
+    {`A lot of API quality programs fail because checks drift between teams and environments.
+
+- Spec lint rules in one tool
+- Runtime checks in another
+- Production investigations manually in logs
+
+Thymian's design principle is simple: one conformance rule definition reused across lint, runtime testing, and traffic analysis. That shared rule surface is what keeps governance consistent as teams scale.
+
+https://thymian.dev/introduction/what-is-thymian/`}
+  </PostText>
+  <SocialImage type="code-snippet" platform="linkedin" lang="bash" codeLabel="One rule set, three modes" code={`thymian lint --spec openapi:./openapi.yaml
+thymian test --spec openapi:./openapi.yaml --target http://localhost:3000
+thymian analyze --har ./prod.har --spec openapi:./openapi.yaml`} />
+</PlatformSection>
+
+<PlatformSection platform="discord">
+  <PostText platform="discord">
+    {`Thymian core idea: one rule set across lint + test + analyze.
+
+No more copy/paste checks between tools.
+
+https://thymian.dev/introduction/what-is-thymian/`}
+  </PostText>
+  <SocialImage type="code-snippet" platform="discord" lang="bash" codeLabel="One rule set, three modes" code={`thymian lint --spec openapi:./openapi.yaml
+thymian test --spec openapi:./openapi.yaml --target http://localhost:3000
+thymian analyze --har ./prod.har --spec openapi:./openapi.yaml`} />
+</PlatformSection>

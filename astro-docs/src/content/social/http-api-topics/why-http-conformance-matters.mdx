@@ -1,0 +1,124 @@
+---
+title: "Why HTTP Conformance Matters More Than You Think"
+description: "Explain the real-world consequences of HTTP non-conformance and why Thymian's approach is unique."
+category: http-api-topics
+draft: true
+publishStatus: ready
+docLinks:
+  - label: "HTTP Conformance — Thymian"
+    url: "https://thymian.dev/introduction/http-conformance/"
+  - label: "What is Thymian?"
+    url: "https://thymian.dev/introduction/what-is-thymian/"
+  - label: "Rule Types"
+    url: "https://thymian.dev/concepts/rule-types/"
+---
+
+import PlatformSection from '../../../components/social/PlatformSection.astro';
+import PostText from '../../../components/social/PostText.astro';
+import SocialImage from '../../../components/social/SocialImage.astro';
+
+
+## Reddit
+
+<PlatformSection platform="reddit">
+  <PostText platform="reddit" label="Title">
+HTTP "works on my machine" — why non-conformance breaks production in ways your tests don't catch
+  </PostText>
+
+  <PostText platform="reddit" label="Post body">
+Your API can return `200 OK` in every test and still be broken in production. Here's why.
+
+HTTP conformance is the set of rules defined in RFC 9110 that every HTTP participant — clients, proxies, CDNs, gateways — is expected to follow. When your API violates these rules, the failure mode isn't a test failure. It's a CDN that doesn't cache what it should, a mobile client that re-authenticates in an infinite loop, or a browser that ignores your CORS headers.
+
+These failures are:
+- **Silent** — no error is thrown, the API "works"
+- **Environment-specific** — works fine against your test server, breaks with the CDN in front
+- **Intermittent** — the CDN only caches certain responses, so failures are hard to reproduce
+
+The fix isn't more unit tests. It's conformance testing — checking your API's behavior against the HTTP specification itself.
+
+That's what Thymian does. Same rules work on your OpenAPI spec (before you ship), against your live server (in CI), and against real traffic from production (via HAR analysis).
+
+🔗 https://thymian.dev/introduction/http-conformance/
+  </PostText>
+
+  <SocialImage type="code-snippet" platform="reddit" lang="http" codeLabel="Silent production failure pattern" code={`POST /users -> 200 OK
+
+POST /users -> 201 Created
+Location: /users/42`} />
+</PlatformSection>
+
+## X (Twitter)
+
+<PlatformSection platform="x">
+  <PostText platform="x">
+Your API can pass all your tests and still be broken in production.
+
+HTTP non-conformance fails silently — CDN caches wrong, clients re-auth in loops, browsers ignore headers.
+
+These aren't test failures. They're spec violations.
+
+→ https://thymian.dev/introduction/http-conformance/
+  </PostText>
+
+  <SocialImage type="code-snippet" platform="x" lang="http" codeLabel="Silent production failure pattern" code={`POST /users -> 200 OK
+
+POST /users -> 201 Created
+Location: /users/42`} />
+</PlatformSection>
+
+## LinkedIn
+
+<PlatformSection platform="linkedin">
+  <PostText platform="linkedin">
+**One of the most insidious classes of API bugs is invisible to your test suite.**
+
+Your API returns `200 OK`. Tests pass. CI is green. You deploy.
+
+Then:
+- Your CDN caches a response it shouldn't (or doesn't cache one it should)
+- Mobile clients enter an authentication retry loop
+- Browser CORS preflight requests silently fail
+- Downstream services interpret error responses incorrectly
+
+The root cause? HTTP non-conformance — your API violates the semantics defined in RFC 9110 in subtle ways that unit tests and integration tests almost never catch, because those tests talk directly to your server, not through the full HTTP stack.
+
+This is why conformance testing is a distinct testing discipline from integration testing. You're not testing your business logic. You're testing your protocol behavior.
+
+Thymian addresses this by running the same conformance rules across three contexts:
+- Static analysis of your OpenAPI spec
+- Runtime testing against a live server
+- Analysis of recorded production traffic
+
+The spec violation you catch with `thymian lint` is the same one that would have caused a CDN caching anomaly in production.
+
+🔗 https://thymian.dev/introduction/http-conformance/
+#API #HTTP #APIDesign #WebDev #APISecurity
+  </PostText>
+
+  <SocialImage type="code-snippet" platform="linkedin" lang="http" codeLabel="Silent production failure pattern" code={`POST /users -> 200 OK
+
+POST /users -> 201 Created
+Location: /users/42`} />
+</PlatformSection>
+
+## Discord
+
+<PlatformSection platform="discord">
+  <PostText platform="discord">
+🌐 **Why HTTP conformance matters**
+
+Your API can pass all tests and still be broken in production — because HTTP non-conformance fails silently.
+
+CDNs cache wrong. Auth loops. CORS breaks. None of these show up in unit tests.
+
+Thymian catches spec violations before they become production incidents.
+
+→ https://thymian.dev/introduction/http-conformance/
+  </PostText>
+
+  <SocialImage type="code-snippet" platform="discord" lang="http" codeLabel="Silent production failure pattern" code={`POST /users -> 200 OK
+
+POST /users -> 201 Created
+Location: /users/42`} />
+</PlatformSection>

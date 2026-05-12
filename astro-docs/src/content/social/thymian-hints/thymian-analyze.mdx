@@ -1,0 +1,101 @@
+---
+title: "Analyze recorded HTTP traffic with thymian analyze"
+description: "Introduce thymian analyze for validating HAR files and recorded traffic against HTTP conformance rules."
+category: thymian-hints
+publishStatus: draft
+docLinks:
+  - label: "Using thymian analyze"
+    url: "https://thymian.dev/tutorials/thymian-analyze-workflow/"
+---
+
+import PlatformSection from '../../../components/social/PlatformSection.astro';
+import PostText from '../../../components/social/PostText.astro';
+import SocialImage from '../../../components/social/SocialImage.astro';
+
+## Reddit
+
+<PlatformSection platform="reddit">
+  <PostText platform="reddit" label="Title">{"thymian analyze: validate recorded HTTP traffic from staging or production against HTTP rules"}</PostText>
+  <PostText platform="reddit" label="Post body">
+{`\`thymian analyze\` lets you take a HAR file — exported from your browser, an API client, or a proxy — and validate the recorded traffic against HTTP conformance rules.
+
+It stores the traffic in a SQLite database and translates rules into SQL queries, so it handles large datasets efficiently.
+
+Useful when:
+- You want to inspect traffic from staging or production
+- Proxies, gateways, or caches influence HTTP behavior
+- You want to validate what actually happened, not what should happen
+
+You can also pass an OpenAPI spec to check whether the observed traffic matches your API description:
+
+\`\`\`
+npx thymian analyze --spec openapi:./openapi.yaml --traffic har:./traffic.har
+\`\`\`
+
+Full tutorial: https://thymian.dev/tutorials/thymian-analyze-workflow/`}
+  </PostText>
+  <SocialImage type="code-snippet" platform="reddit" lang="bash" codeLabel="thymian analyze" promoted code={`npx thymian analyze --traffic har:./traffic.har`} />
+</PlatformSection>
+
+## X (Twitter)
+
+<PlatformSection platform="x">
+  <PostText platform="x">
+{`Validate recorded HTTP traffic against conformance rules.
+
+npx thymian analyze --traffic har:./traffic.har
+
+Works with HAR files from browsers, API clients, or proxies. Finds issues introduced by gateways, caches, and middleware.
+
+https://thymian.dev/tutorials/thymian-analyze-workflow/`}
+  </PostText>
+  <SocialImage type="code-snippet" platform="x" lang="bash" codeLabel="thymian analyze" promoted code={`npx thymian analyze --traffic har:./traffic.har`} />
+</PlatformSection>
+
+## LinkedIn
+
+<PlatformSection platform="linkedin">
+  <PostText platform="linkedin">
+{`Your API might behave differently in production than in development. Proxies, gateways, CDNs, and caches all influence the final HTTP behavior.
+
+thymian analyze validates recorded HTTP traffic against conformance rules — so you can check what actually happened, not what should happen.
+
+How it works:
+→ Export a HAR file from your browser, API client, or proxy
+→ Run one command to validate the traffic
+→ Add an OpenAPI spec for additional API description checks
+→ Traffic is stored in SQLite for efficient analysis of large datasets
+
+npx thymian analyze --traffic har:./traffic.har
+
+This is especially useful for staging and production environments where the full HTTP path matters.
+
+Full tutorial: https://thymian.dev/tutorials/thymian-analyze-workflow/
+
+#API #HTTP #DevTools #OpenSource #APISecurity`}
+  </PostText>
+  <SocialImage type="code-snippet" platform="linkedin" lang="bash" codeLabel="thymian analyze" promoted code={`npx thymian analyze --traffic har:./traffic.har`} />
+</PlatformSection>
+
+## Discord
+
+<PlatformSection platform="discord">
+  <PostText platform="discord">
+{`**thymian analyze** — validate recorded HTTP traffic against conformance rules.
+
+\`\`\`bash
+npx thymian analyze --traffic har:./traffic.har
+\`\`\`
+
+Export a HAR file from your browser or API client and let Thymian check it for HTTP violations. Works great for inspecting staging/production traffic where proxies, gateways, and caches influence behavior.
+
+You can also pass an OpenAPI spec for additional validation:
+\`\`\`bash
+npx thymian analyze --spec openapi:./openapi.yaml --traffic har:./traffic.har
+\`\`\`
+
+Full tutorial → https://thymian.dev/tutorials/thymian-analyze-workflow/`}
+  </PostText>
+  <SocialImage type="code-snippet" platform="discord" lang="bash" codeLabel="thymian analyze" promoted code={`npx thymian analyze --traffic har:./traffic.har`} />
+</PlatformSection>
+

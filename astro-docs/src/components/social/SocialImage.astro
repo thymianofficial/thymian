@@ -26,6 +26,8 @@ interface Props {
   headline?: string;
   /** Sub-headline (headline type only) */
   subheadline?: string;
+  /** Promote code: centered, no line-break for shell */
+  promoted?: boolean;
   /** Unique id to scope the download button */
   id?: string;
 }
@@ -42,6 +44,7 @@ const {
   rightCodeLabel,
   headline,
   subheadline,
+  promoted = false,
   id = `social-img-${Math.random().toString(36).slice(2, 8)}`,
 } = Astro.props;
 
@@ -95,7 +98,7 @@ function analyzeCode(codeStr: string): { lineCount: number; maxLineLen: number; 
 
 // Process code for bash
 const isBash = lang === 'bash' || lang === 'shell' || lang === 'sh';
-const processedCode = code ? (isBash ? formatBashCode(code.trim()) : code.trim()) : '';
+const processedCode = code ? (isBash && !promoted ? formatBashCode(code.trim()) : code.trim()) : '';
 const processedRightCode = rightCode?.trim() ?? '';
 
 const codeAnalysis = processedCode ? analyzeCode(processedCode) : null;
@@ -221,7 +224,7 @@ const downloadFilename = `thymian-${platform}-${id}.png`;
 
       {
         type === 'code-snippet' && processedCode && (
-          <div class={`img-code-layout ${isSingleLine ? 'img-code-layout--single' : ''}`}>
+          <div class={`img-code-layout ${isSingleLine ? 'img-code-layout--single' : ''} ${promoted ? 'img-code-layout--promoted' : ''}`}>
             {codeLabel && <div class="img-code-label">{codeLabel}</div>}
             <div class="img-code-block img-code-block--dark" set:html={mainHtmlDark} />
             <div class="img-code-block img-code-block--light" set:html={mainHtmlLight} />
@@ -592,6 +595,13 @@ const downloadFilename = `thymian-${platform}-${id}.png`;
     align-items: stretch;
   }
 
+  /* Promoted code: centered both ways, no line-break for shell */
+  .img-code-layout--promoted {
+    justify-content: center;
+    align-items: center;
+    text-align: center;
+  }
+
   .img-code-label {
     font-size: calc(10px * var(--type-scale));
     font-weight: 600;
@@ -653,6 +663,19 @@ const downloadFilename = `thymian-${platform}-${id}.png`;
     font-size: calc(11px * var(--code-scale) * var(--code-font-scale)) !important;
     white-space: pre-wrap !important;
     word-break: break-word !important;
+  }
+
+  /* Promoted: override wrap rules — must come after base Shiki overrides */
+  .img-code-layout--promoted .img-code-block :global(pre) {
+    white-space: pre !important;
+    overflow-wrap: normal !important;
+    word-break: normal !important;
+    text-align: center !important;
+  }
+
+  .img-code-layout--promoted .img-code-block :global(code) {
+    white-space: pre !important;
+    word-break: normal !important;
   }
 
   /* ─── Side-by-side layout ──────────────────────────────────── */

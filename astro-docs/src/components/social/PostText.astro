@@ -1,0 +1,158 @@
+---
+type Platform = 'reddit' | 'x' | 'linkedin' | 'discord';
+
+interface Props {
+  platform: Platform;
+  label?: string;
+}
+
+const { platform, label = 'Post text' } = Astro.props;
+
+const CHAR_LIMITS: Record<Platform, number | null> = {
+  reddit: null,
+  x: 280,
+  linkedin: 3000,
+  discord: 2000,
+};
+
+const charLimit = CHAR_LIMITS[platform];
+const uniqueId = `post-text-${Math.random().toString(36).slice(2, 8)}`;
+---
+
+<div class="post-text-block">
+  <div class="post-text-label-row">
+    <span class="post-text-label">{label}</span>
+    {
+      charLimit && (
+        <span class="char-counter" id={`counter-${uniqueId}`} data-limit={charLimit}>
+          0 / {charLimit}
+        </span>
+      )
+    }
+  </div>
+  <div class="post-text-content" id={uniqueId}>
+    <slot />
+  </div>
+  <div class="post-text-actions">
+    <button class="copy-btn" data-target={uniqueId}>Copy text</button>
+  </div>
+</div>
+
+<script>
+  // Character counter + copy button for all PostText blocks on the page
+  document.querySelectorAll<HTMLElement>('.post-text-content').forEach((el) => {
+    const id = el.id;
+    const counter = document.getElementById(`counter-${id}`);
+    const limit = counter ? parseInt(counter.dataset.limit ?? '0', 10) : 0;
+
+    if (counter) {
+      const text = el.innerText ?? '';
+      const count = text.length;
+      counter.textContent = `${count} / ${limit}`;
+      if (count > limit) {
+        counter.classList.add('over-limit');
+      }
+    }
+  });
+
+  document.querySelectorAll<HTMLButtonElement>('.copy-btn').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      const targetId = btn.dataset.target;
+      if (!targetId) return;
+      const el = document.getElementById(targetId);
+      if (!el) return;
+      navigator.clipboard.writeText(el.innerText ?? '').then(() => {
+        const orig = btn.textContent;
+        btn.textContent = 'Copied!';
+        btn.classList.add('copied');
+        setTimeout(() => {
+          btn.textContent = orig;
+          btn.classList.remove('copied');
+        }, 2000);
+      });
+    });
+  });
+</script>
+
+<style>
+  .post-text-block {
+    background: var(--sl-color-gray-6);
+    border: 1px solid var(--sl-color-gray-5);
+    border-radius: 0.5rem;
+    overflow: hidden;
+  }
+
+  .post-text-label-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0.5rem 0.875rem;
+    background: var(--sl-color-gray-5);
+    font-size: 0.75rem;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: var(--sl-color-gray-3);
+  }
+
+  .post-text-label {
+    color: var(--sl-color-gray-2);
+  }
+
+  .char-counter {
+    font-family: monospace;
+    font-size: 0.75rem;
+    color: var(--sl-color-gray-4);
+  }
+
+  .char-counter.over-limit {
+    color: #f87171;
+    font-weight: 700;
+  }
+
+  .post-text-content {
+    padding: 1rem 0.875rem;
+    font-size: 0.9rem;
+    line-height: 1.7;
+    color: var(--sl-color-white);
+    white-space: pre-wrap;
+  }
+
+  .post-text-content :global(p) {
+    margin: 0 0 0.75em;
+  }
+
+  .post-text-content :global(p:last-child) {
+    margin-bottom: 0;
+  }
+
+  .post-text-actions {
+    padding: 0.5rem 0.875rem;
+    border-top: 1px solid var(--sl-color-gray-5);
+    display: flex;
+    justify-content: flex-end;
+  }
+
+  .copy-btn {
+    background: transparent;
+    border: 1px solid var(--sl-color-gray-4);
+    color: var(--sl-color-gray-3);
+    font-size: 0.75rem;
+    padding: 0.3rem 0.75rem;
+    border-radius: 0.375rem;
+    cursor: pointer;
+    transition:
+      color 0.15s,
+      border-color 0.15s;
+  }
+
+  .copy-btn:hover {
+    color: var(--sl-color-white);
+    border-color: var(--sl-color-gray-3);
+  }
+
+  .copy-btn.copied {
+    color: var(--sl-color-accent);
+    border-color: var(--sl-color-accent);
+  }
+</style>
