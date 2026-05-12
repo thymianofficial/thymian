@@ -198,7 +198,7 @@ const downloadFilename = `thymian-${platform}-${id}.png`;
 
   <!-- The actual image canvas — everything inside this div is what gets exported -->
   <div
-    class="social-image-canvas"
+    class="social-image-canvas not-content"
     id={id}
     data-theme="dark"
     style={`width: min(100%, ${previewWidth}px); aspect-ratio: ${width} / ${height}; --type-scale: ${adaptiveScale.toFixed(3)}; --ui-scale: ${adaptiveUiScale.toFixed(3)}; --code-scale: ${adaptiveCodeScale.toFixed(3)}; --density: ${adaptiveDensity.toFixed(3)}; --code-line-height: ${adaptiveCodeLineHeight.toFixed(2)}; --code-font-scale: ${effectiveCodeFontScale.toFixed(3)};`}
@@ -238,22 +238,6 @@ const downloadFilename = `thymian-${platform}-${id}.png`;
               <div class="img-code-block img-code-block--light" set:html={rightHtmlLight} />
             </div>
             <div class="img-panel-divider">
-              <svg
-                width="20"
-                height="20"
-                viewBox="0 0 20 20"
-                fill="none"
-                xmlns="http://www.w3.org/2000/svg"
-                aria-hidden="true"
-              >
-                <path
-                  d="M4 10h12M12 6l4 4-4 4"
-                  stroke="currentColor"
-                  stroke-width="2"
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                />
-              </svg>
             </div>
             <div class="img-panel">
               {codeLabel && <div class="img-panel-label img-panel-label--right">{codeLabel}</div>}
@@ -709,6 +693,7 @@ const downloadFilename = `thymian-${platform}-${id}.png`;
     width: calc(20px * var(--ui-scale));
     height: calc(20px * var(--ui-scale));
   }
+
 
   .img-panel-label {
     font-size: calc(9px * var(--type-scale));
