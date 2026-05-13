@@ -45,9 +45,6 @@ export async function generateTypeForSchema(
 
 export function convertDefsToDefinitions(input: any): unknown {
   if (input === null || typeof input !== 'object') {
-    if (typeof input === 'string') {
-      return input.replace(/\/\$defs\//g, '/definitions/');
-    }
     return input;
   }
 

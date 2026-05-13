@@ -66,4 +66,38 @@ describe('generateRequestTypes', () => {
       ],
     });
   });
+
+  it('does not rewrite non-reference strings that contain $defs paths', () => {
+    const result = convertDefsToDefinitions({
+      description: 'See #/$defs/Foo for more details.',
+      pattern: '^#/$defs/Foo$',
+      examples: ['#/$defs/Foo'],
+      properties: {
+        config: {
+          $ref: '#/$defs/Foo',
+        },
+      },
+      $defs: {
+        Foo: {
+          type: 'string',
+        },
+      },
+    });
+
+    expect(result).toEqual({
+      description: 'See #/$defs/Foo for more details.',
+      pattern: '^#/$defs/Foo$',
+      examples: ['#/$defs/Foo'],
+      properties: {
+        config: {
+          $ref: '#/definitions/Foo',
+        },
+      },
+      definitions: {
+        Foo: {
+          type: 'string',
+        },
+      },
+    });
+  });
 });
