@@ -6,7 +6,11 @@ import type { OpenAPIV3_1 } from 'openapi-types';
 import { describe, expect, it, vitest } from 'vitest';
 import yaml from 'yaml';
 
-import { loadAndUpgrade, openapiToThymianFormat } from '../src/load-openapi.js';
+import {
+  loadAndUpgrade,
+  openapiToThymianFormat,
+  validateOpenApi,
+} from '../src/load-openapi.js';
 
 const swaggerDocument = {
   swagger: '2.0',
@@ -780,6 +784,97 @@ describe('load-openapi', () => {
       expect(
         format.graph.filterEdges((_, edge) => edge.type === 'http-link'),
       ).toHaveLength(1);
+    });
+  });
+
+  describe('validateOpenApi', () => {
+    it('returns failed result for schema-invalid documents', async () => {
+      const result = await validateOpenApi(
+        'test/fixtures/invalid-openapi.yaml',
+        {
+          cwd: join(import.meta.dirname, '..'),
+          logger: new NoopLogger(),
+        },
+      );
+
+      expect(result.status).toBe('failed');
+      expect(result.issues.length).toBeGreaterThan(0);
+    });
+
+    it('returns success result for valid documents', async () => {
+      const result = await validateOpenApi('test/fixtures/petstore-v2.yaml', {
+        cwd: join(import.meta.dirname, '..'),
+        logger: new NoopLogger(),
+      });
+
+      expect(result).toEqual(
+        expect.objectContaining({
+          type: 'openapi',
+          status: 'success',
+          issues: [],
+        }),
+      );
+    });
+
+    it('returns error result for load failures instead of throwing', async () => {
+      const result = await validateOpenApi(
+        'test/fixtures/missing-openapi.yaml',
+        {
+          cwd: join(import.meta.dirname, '..'),
+          logger: new NoopLogger(),
+        },
+      );
+
+      expect(result).toEqual(
+        expect.objectContaining({
+          type: 'openapi',
+          location: 'test/fixtures/missing-openapi.yaml',
+          source: 'test/fixtures/missing-openapi.yaml',
+          status: 'error',
+          issues: [
+            expect.objectContaining({
+              code: 'OpenAPIFileNotFoundError',
+            }),
+          ],
+        }),
+      );
+    });
+
+    it('returns failed result for invalid references', async () => {
+      const result = await validateOpenApi(
+        JSON.stringify({
+          openapi: '3.1.0',
+          info: {
+            title: 'Test',
+            version: '1.0.0',
+          },
+          paths: {
+            '/test': {
+              get: {
+                responses: {
+                  '200': {
+                    description: 'OK',
+                    content: {
+                      'application/json': {
+                        schema: {
+                          $ref: '#/components/schemas/Missing',
+                        },
+                      },
+                    },
+                  },
+                },
+              },
+            },
+          },
+        }),
+        {
+          cwd: join(import.meta.dirname, '..'),
+          logger: new NoopLogger(),
+        },
+      );
+
+      expect(result.status).toBe('failed');
+      expect(result.issues.length).toBeGreaterThan(0);
     });
   });
 });

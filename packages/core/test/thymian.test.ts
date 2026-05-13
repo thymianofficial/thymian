@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vitest } from 'vitest';
 import {
   NoopLogger,
   PluginRegistrationError,
+  type SpecValidationResult,
   Thymian,
   ThymianFormat,
   type ThymianPlugin,
@@ -171,6 +172,72 @@ describe('Thymian', () => {
   });
 
   describe('validation workflows', () => {
+    it('validate should collect dedicated spec validation results', async () => {
+      const validateSpy = vitest.fn();
+
+      thymian.register(
+        createPluginFor(async (emitter) => {
+          emitter.onAction('core.validate-specs', (payload, ctx) => {
+            validateSpy(payload);
+            ctx.reply([
+              {
+                type: 'openapi',
+                location: '/tmp/api.yaml',
+                source: 'api.yaml',
+                status: 'success',
+                issues: [],
+              } satisfies SpecValidationResult,
+            ]);
+          });
+        }),
+      );
+
+      await thymian.ready();
+
+      const result = await thymian.validate({
+        specification: [{ type: 'openapi', location: '/tmp/api.yaml' }],
+      });
+
+      expect(validateSpy).toHaveBeenCalledWith({
+        inputs: [{ type: 'openapi', location: '/tmp/api.yaml' }],
+      });
+      expect(result).toEqual({
+        classification: 'clean-run',
+        results: [
+          {
+            type: 'openapi',
+            location: '/tmp/api.yaml',
+            source: 'api.yaml',
+            status: 'success',
+            issues: [],
+          },
+        ],
+      });
+    });
+
+    it('validate should classify unsupported spec types as tool errors', async () => {
+      await thymian.ready();
+
+      const result = await thymian.validate({
+        specification: [{ type: 'asyncapi', location: '/tmp/api.yaml' }],
+      });
+
+      expect(result.classification).toBe('tool-error');
+      expect(result.results).toEqual([
+        expect.objectContaining({
+          type: 'asyncapi',
+          location: '/tmp/api.yaml',
+          status: 'unsupported',
+          issues: [
+            {
+              message:
+                'No validator registered for specification type "asyncapi".',
+            },
+          ],
+        }),
+      ]);
+    });
+
     it('lint should load specification inputs and dispatch through the core entrypoint', async () => {
       const formatLoadSpy = vitest.fn();
       const coreLintSpy = vitest.fn();
