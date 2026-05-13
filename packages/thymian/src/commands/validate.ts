@@ -54,7 +54,7 @@ export default class Validate extends BaseCliRunCommand<typeof Validate> {
     }
 
     if (exitCode === 0) {
-      ux.stdout('All specifications are valid.');
+      ux.stdout('\nAll specifications are valid.');
     } else if (exitCode === 1) {
       ux.stdout(
         `\n${outcome.results.filter((r) => r.status === 'failed').length} of ${specifications.length} specifications are invalid.`,
