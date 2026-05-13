@@ -25,6 +25,7 @@ describe('thymian validate', () => {
 
     expect(exitCode).toBe(0);
     expect(stdout).toContain('✓ test.openapi.yaml');
+    expect(stdout).toContain('All specifications are valid');
   }, 90_000);
 
   it('fails for invalid OpenAPI specs', () => {
