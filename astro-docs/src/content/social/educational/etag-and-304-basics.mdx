@@ -1,0 +1,78 @@
+---
+title: "IGNORE - ETag and 304 Basics"
+description: "Educational post about validators and conditional requests."
+category: educational
+publishStatus: draft
+docLinks:
+  - label: "HTTP Conformance"
+    url: "https://thymian.dev/introduction/http-conformance/"
+  - label: "Thymian Analyze Workflow"
+    url: "https://thymian.dev/tutorials/thymian-analyze-workflow/"
+---
+
+import PlatformSection from '../../../components/social/PlatformSection.astro';
+import PostText from '../../../components/social/PostText.astro';
+import SocialImage from '../../../components/social/SocialImage.astro';
+
+
+<PlatformSection platform="reddit">
+  <PostText platform="reddit" label="Title">{'ETag + If-None-Match + 304: tiny headers, huge performance impact'}</PostText>
+  <PostText platform="reddit">
+    {`Conditional requests are one of the easiest wins for API performance.
+
+Server sends ETag. Client sends If-None-Match. If unchanged, server returns 304 without full payload.
+
+When implemented incorrectly, clients re-download data and caches behave inconsistently.
+
+https://thymian.dev/introduction/http-conformance/`}
+  </PostText>
+  <SocialImage type="code-snippet" platform="reddit" lang="http" codeLabel="Conditional request flow" code={`GET /users/42
+If-None-Match: "abc123"
+
+HTTP/1.1 304 Not Modified`} />
+</PlatformSection>
+
+<PlatformSection platform="x">
+  <PostText platform="x">
+    {`Small HTTP optimization with huge payoff:
+ETag + If-None-Match + 304.
+
+Less payload, faster clients, lower infra cost.
+
+https://thymian.dev/introduction/http-conformance/`}
+  </PostText>
+  <SocialImage type="code-snippet" platform="x" lang="http" codeLabel="Conditional request flow" code={`GET /users/42
+If-None-Match: "abc123"
+
+HTTP/1.1 304 Not Modified`} />
+</PlatformSection>
+
+<PlatformSection platform="linkedin">
+  <PostText platform="linkedin">
+    {`Many APIs miss easy performance savings by underusing conditional requests.
+
+A robust validator strategy (ETag, If-None-Match, 304) reduces bandwidth, latency, and edge processing without changing business logic.
+
+Conformance testing helps ensure this behavior remains stable across deployments.
+
+https://thymian.dev/tutorials/thymian-analyze-workflow/`}
+  </PostText>
+  <SocialImage type="code-snippet" platform="linkedin" lang="http" codeLabel="Conditional request flow" code={`GET /users/42
+If-None-Match: "abc123"
+
+HTTP/1.1 304 Not Modified`} />
+</PlatformSection>
+
+<PlatformSection platform="discord">
+  <PostText platform="discord">
+    {`Quick win: use ETags + 304 responses.
+
+Less data transfer, faster clients.
+
+https://thymian.dev/introduction/http-conformance/`}
+  </PostText>
+  <SocialImage type="code-snippet" platform="discord" lang="http" codeLabel="Conditional request flow" code={`GET /users/42
+If-None-Match: "abc123"
+
+HTTP/1.1 304 Not Modified`} />
+</PlatformSection>

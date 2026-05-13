@@ -1,0 +1,92 @@
+---
+title: "Catch API issues before you deploy with thymian lint"
+description: "Introduce thymian lint as the fastest way to validate an OpenAPI spec against HTTP conformance rules — no running server needed."
+category: thymian-hints
+publishStatus: ready
+docLinks:
+  - label: "Using thymian lint"
+    url: "https://thymian.dev/tutorials/thymian-lint-workflow/"
+---
+
+import PlatformSection from '../../../components/social/PlatformSection.astro';
+import PostText from '../../../components/social/PostText.astro';
+import SocialImage from '../../../components/social/SocialImage.astro';
+
+## Reddit
+
+<PlatformSection platform="reddit">
+  <PostText platform="reddit" label="Title">{"thymian lint: validate your OpenAPI spec against HTTP rules without a running server"}</PostText>
+  <PostText platform="reddit" label="Post body">
+{`\`thymian lint\` checks your OpenAPI specification against HTTP conformance rules — no server required. It catches things like missing \`WWW-Authenticate\` headers on 401 responses or incorrect status codes before you write any implementation code.
+
+The workflow is simple:
+
+1. Point it at your OpenAPI file
+2. Review the findings (each one tells you where, why, and which rule)
+3. Fix and rerun
+
+It's designed for the design stage, where changes are cheapest. Works great as a CI quality gate too.
+
+Full tutorial: https://thymian.dev/tutorials/thymian-lint-workflow/`}
+  </PostText>
+  <SocialImage type="code-snippet" platform="reddit" lang="bash" codeLabel="thymian lint" promoted code={`npx thymian lint --spec openapi:openapi.yaml`} />
+</PlatformSection>
+
+## X (Twitter)
+
+<PlatformSection platform="x">
+  <PostText platform="x">
+{`Catch missing headers, wrong status codes, and spec issues before deployment.
+
+npx thymian lint --spec openapi:openapi.yaml
+
+No running server needed.
+
+https://thymian.dev/tutorials/thymian-lint-workflow/`}
+  </PostText>
+  <SocialImage type="code-snippet" platform="x" lang="bash" codeLabel="thymian lint" promoted code={`npx thymian lint --spec openapi:openapi.yaml`} />
+</PlatformSection>
+
+## LinkedIn
+
+<PlatformSection platform="linkedin">
+  <PostText platform="linkedin">
+{`Your API spec is where HTTP issues should be caught — not in production.
+
+thymian lint validates your OpenAPI specification against HTTP conformance rules before you deploy or even start a server. One command gives you:
+
+→ Missing header detection (e.g., WWW-Authenticate on 401)
+→ Status code validation
+→ RFC-based rule references for every finding
+→ CI-friendly exit codes for quality gates
+
+The edit-and-rerun loop keeps your API contract clean at the design stage, where fixes are cheapest.
+
+npx thymian lint --spec openapi:openapi.yaml
+
+Full tutorial: https://thymian.dev/tutorials/thymian-lint-workflow/
+
+#API #OpenAPI #HTTP #DevTools #OpenSource`}
+  </PostText>
+  <SocialImage type="code-snippet" platform="linkedin" lang="bash" codeLabel="thymian lint" promoted code={`npx thymian lint --spec openapi:openapi.yaml`} />
+</PlatformSection>
+
+## Discord
+
+<PlatformSection platform="discord">
+  <PostText platform="discord">
+{`**thymian lint** — validate your OpenAPI spec against HTTP rules, no server needed.
+
+\`\`\`bash
+npx thymian lint --spec openapi:openapi.yaml
+\`\`\`
+
+It catches things like missing \`WWW-Authenticate\` headers on 401 responses, wrong status codes, and incomplete response definitions — all at the design stage.
+
+Each finding tells you **where** the problem is, **why** it matters, and **which rule** reported it.
+
+Full tutorial → https://thymian.dev/tutorials/thymian-lint-workflow/`}
+  </PostText>
+  <SocialImage type="code-snippet" platform="discord" lang="bash" codeLabel="thymian lint" promoted code={`npx thymian lint --spec openapi:openapi.yaml`} />
+</PlatformSection>
+
