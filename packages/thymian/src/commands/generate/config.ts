@@ -224,7 +224,7 @@ export default class GenerateConfig extends ThymianBaseCommand<
       '#',
       ...specCommentLines,
       '#',
-      '# For documentation, see: https://thymian.dev/docs/configuration',
+      '# For documentation, see: https://thymian.dev/references/configuration/',
       '#',
       '# Run `thymian lint` to validate your API specification.',
       '# Run `thymian test` to test a live API against the specification.',
