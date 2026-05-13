@@ -1,22 +1,21 @@
 ---
-title: "IGNORE - Cache Poisoning via HTTP Header Injection"
-description: "Show how Thymian can catch the HTTP patterns that lead to cache poisoning attacks."
+title: 'IGNORE - Cache Poisoning via HTTP Header Injection'
+description: 'Show how Thymian can catch the HTTP patterns that lead to cache poisoning attacks.'
 category: real-world-use-cases
 draft: false
 publishStatus: draft
 docLinks:
-  - label: "HTTP Rules Guide"
-    url: "https://thymian.dev/guides/http-rules/how-to-use-rules/"
-  - label: "Thymian Analyze Workflow"
-    url: "https://thymian.dev/tutorials/thymian-analyze-workflow/"
-  - label: "RFC 9110 — HTTP Semantics"
-    url: "https://thymian.dev/introduction/http-conformance/"
+  - label: 'HTTP Rules Guide'
+    url: 'https://thymian.dev/guides/http-rules/how-to-use-rules/'
+  - label: 'Thymian Analyze Workflow'
+    url: 'https://thymian.dev/tutorials/thymian-analyze-workflow/'
+  - label: 'RFC 9110 — HTTP Semantics'
+    url: 'https://thymian.dev/introduction/http-conformance/'
 ---
 
 import PlatformSection from '../../../components/social/PlatformSection.astro';
 import PostText from '../../../components/social/PostText.astro';
 import SocialImage from '../../../components/social/SocialImage.astro';
-
 
 ## Reddit
 
@@ -35,17 +34,24 @@ With Thymian, you can write a lint rule that flags any response that reflects an
 ```typescript
 import { httpRule } from '@thymian/core';
 
-const DANGEROUS_HEADERS = ['x-forwarded-host', 'x-original-url', 'x-rewrite-url'];
+const DANGEROUS_HEADERS = [
+  'x-forwarded-host',
+  'x-original-url',
+  'x-rewrite-url',
+];
 
 export default httpRule('no-reflected-cache-headers')
   .severity('error')
   .match(({ request, response }) =>
     DANGEROUS_HEADERS.some(
-      (h) => request.headers[h] && response.headers['cache-control']?.includes('public'),
+      (h) =>
+        request.headers[h] &&
+        response.headers['cache-control']?.includes('public'),
     ),
   )
   .report(() => ({
-    message: 'Response is publicly cached while reflecting a potentially attacker-controlled header.',
+    message:
+      'Response is publicly cached while reflecting a potentially attacker-controlled header.',
     docs: 'https://thymian.dev/guides/http-rules/how-to-use-rules/',
   }));
 ```
@@ -53,12 +59,13 @@ export default httpRule('no-reflected-cache-headers')
 Run this against your HAR files from production traffic:
 
 ```bash
-npx thymian analyze --har ./prod-traffic.har --spec openapi:openapi.yaml
+npx thymian analyze --traffic har:./prod-traffic.har --spec openapi:openapi.yaml
 ```
 
 It'll surface any request/response pair where this pattern fires — before an attacker does.
 
 🔗 Full docs: https://thymian.dev/tutorials/thymian-analyze-workflow/
+
   </PostText>
 
   <SocialImage type="side-by-side" platform="reddit" rightLang="http" rightCodeLabel="Attacker input" rightCode={`GET /api/data HTTP/1.1
@@ -79,6 +86,7 @@ Pattern: attacker sends X-Forwarded-Host → your origin reflects it → CDN cac
 Thymian can detect this in production HAR files before it becomes an incident.
 
 → https://thymian.dev/tutorials/thymian-analyze-workflow/
+
   </PostText>
 
   <SocialImage type="side-by-side" platform="x" rightLang="http" rightCodeLabel="Attacker input" rightCode={`GET /api/data HTTP/1.1
@@ -105,7 +113,7 @@ The fix isn't just "don't reflect headers." You need systematic detection across
 This is exactly what Thymian's analyze mode is built for. Point it at a HAR file from your CDN logs:
 
 ```bash
-npx thymian analyze --har ./prod-traffic.har
+npx thymian analyze --traffic har:./prod-traffic.har
 ```
 
 A custom rule flags every request/response pair where an attacker-injectable header appears alongside a `Cache-Control: public` response — before it becomes a vulnerability in the wild.
@@ -114,6 +122,7 @@ Thymian rules work across lint (spec), test (live server), and analyze (traffic)
 
 🔗 https://thymian.dev/tutorials/thymian-analyze-workflow/
 #APISecurity #WebSecurity #HTTP #CachePoisoning #DevSecOps
+
   </PostText>
 
   <SocialImage type="side-by-side" platform="linkedin" rightLang="http" rightCodeLabel="Attacker input" rightCode={`GET /api/data HTTP/1.1
@@ -132,12 +141,13 @@ X-Forwarded-Host: evil.com`} lang="typescript" codeLabel="Detection rule" code={
 Point `thymian analyze` at your production HAR files to catch request/response pairs where attacker-injectable headers (`X-Forwarded-Host`, etc.) appear alongside publicly-cached responses.
 
 ```bash
-npx thymian analyze --har ./prod-traffic.har
+npx thymian analyze --traffic har:./prod-traffic.har
 ```
 
 One rule → runs in lint, test, and analyze mode.
 
 → https://thymian.dev/tutorials/thymian-analyze-workflow/
+
   </PostText>
 
   <SocialImage type="side-by-side" platform="discord" rightLang="http" rightCodeLabel="Attacker input" rightCode={`GET /api/data HTTP/1.1

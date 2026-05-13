@@ -1,22 +1,21 @@
 ---
-title: "IGNORE - What is Thymian? HTTP Conformance for Modern APIs"
-description: "Introduce Thymian to a broad developer audience across all major social platforms."
+title: 'IGNORE - What is Thymian? HTTP Conformance for Modern APIs'
+description: 'Introduce Thymian to a broad developer audience across all major social platforms.'
 category: thymian-general
 draft: false
 publishStatus: draft
 docLinks:
-  - label: "What is Thymian?"
-    url: "https://thymian.dev/introduction/what-is-thymian/"
-  - label: "Getting Started"
-    url: "https://thymian.dev/introduction/getting-started/"
-  - label: "HTTP Conformance Explained"
-    url: "https://thymian.dev/introduction/http-conformance/"
+  - label: 'What is Thymian?'
+    url: 'https://thymian.dev/introduction/what-is-thymian/'
+  - label: 'Getting Started'
+    url: 'https://thymian.dev/introduction/getting-started/'
+  - label: 'HTTP Conformance Explained'
+    url: 'https://thymian.dev/introduction/http-conformance/'
 ---
 
 import PlatformSection from '../../../components/social/PlatformSection.astro';
 import PostText from '../../../components/social/PostText.astro';
 import SocialImage from '../../../components/social/SocialImage.astro';
-
 
 ## Reddit
 
@@ -47,11 +46,12 @@ npx thymian lint --spec openapi:openapi.yaml
 Happy to answer any questions. What HTTP edge cases do you run into most in production?
 
 🔗 https://thymian.dev
+
   </PostText>
 
   <SocialImage type="code-snippet" platform="reddit" lang="bash" codeLabel="Write once, validate everywhere" code={`npx thymian lint --spec openapi:./openapi.yaml
-npx thymian test --spec openapi:./openapi.yaml --target https://api.example.com
-npx thymian analyze --har ./traffic.har --spec openapi:./openapi.yaml`} />
+npx thymian test --spec openapi:./openapi.yaml --target-url https://api.example.com
+npx thymian analyze --traffic har:./traffic.har --spec openapi:./openapi.yaml`} />
 </PlatformSection>
 
 ## X (Twitter)
@@ -67,11 +67,12 @@ One rule. Three validation layers. No surprises in production.
 npx thymian lint --spec openapi:openapi.yaml
 
 → https://thymian.dev
+
   </PostText>
 
   <SocialImage type="code-snippet" platform="x" lang="bash" codeLabel="Write once, validate everywhere" code={`npx thymian lint --spec openapi:./openapi.yaml
-npx thymian test --spec openapi:./openapi.yaml --target https://api.example.com
-npx thymian analyze --har ./traffic.har --spec openapi:./openapi.yaml`} />
+npx thymian test --spec openapi:./openapi.yaml --target-url https://api.example.com
+npx thymian analyze --traffic har:./traffic.har --spec openapi:./openapi.yaml`} />
 </PlatformSection>
 
 ## LinkedIn
@@ -96,11 +97,12 @@ If you've ever dealt with cache poisoning, incorrect Content-Type handling, or m
 
 🔗 https://thymian.dev
 #API #HTTP #OpenSource #DevTools #WebDev
+
   </PostText>
 
   <SocialImage type="code-snippet" platform="linkedin" lang="bash" codeLabel="Write once, validate everywhere" code={`npx thymian lint --spec openapi:./openapi.yaml
-npx thymian test --spec openapi:./openapi.yaml --target https://api.example.com
-npx thymian analyze --har ./traffic.har --spec openapi:./openapi.yaml`} />
+npx thymian test --spec openapi:./openapi.yaml --target-url https://api.example.com
+npx thymian analyze --traffic har:./traffic.har --spec openapi:./openapi.yaml`} />
 </PlatformSection>
 
 ## Discord
@@ -118,9 +120,10 @@ npx thymian lint --spec openapi:openapi.yaml
 No install needed for a quick try. Plugin architecture for custom rules.
 
 → https://thymian.dev
+
   </PostText>
 
   <SocialImage type="code-snippet" platform="discord" lang="bash" codeLabel="Write once, validate everywhere" code={`npx thymian lint --spec openapi:./openapi.yaml
-npx thymian test --spec openapi:./openapi.yaml --target https://api.example.com
-npx thymian analyze --har ./traffic.har --spec openapi:./openapi.yaml`} />
+npx thymian test --spec openapi:./openapi.yaml --target-url https://api.example.com
+npx thymian analyze --traffic har:./traffic.har --spec openapi:./openapi.yaml`} />
 </PlatformSection>

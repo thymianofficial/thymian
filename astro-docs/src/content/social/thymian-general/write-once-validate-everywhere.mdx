@@ -1,20 +1,19 @@
 ---
-title: "IGNORE - Write Once, Validate Everywhere"
+title: 'IGNORE - Write Once, Validate Everywhere'
 description: "Story angle focused on Thymian's core promise across lint, test, and analyze."
 category: thymian-general
 draft: false
 publishStatus: draft
 docLinks:
-  - label: "What is Thymian?"
-    url: "https://thymian.dev/introduction/what-is-thymian/"
-  - label: "Thymian Test Workflow"
-    url: "https://thymian.dev/tutorials/thymian-test-workflow/"
+  - label: 'What is Thymian?'
+    url: 'https://thymian.dev/introduction/what-is-thymian/'
+  - label: 'Thymian Test Workflow'
+    url: 'https://thymian.dev/tutorials/thymian-test-workflow/'
 ---
 
 import PlatformSection from '../../../components/social/PlatformSection.astro';
 import PostText from '../../../components/social/PostText.astro';
 import SocialImage from '../../../components/social/SocialImage.astro';
-
 
 <PlatformSection platform="reddit">
   <PostText platform="reddit" label="Title">{"Thymian's biggest value: one rule definition that works across spec, runtime, and production traffic"}</PostText>
@@ -24,10 +23,11 @@ import SocialImage from '../../../components/social/SocialImage.astro';
 This is the part that removes drift between docs, CI checks, and production behavior.
 
 https://thymian.dev/introduction/what-is-thymian/`}
+
   </PostText>
   <SocialImage type="code-snippet" platform="reddit" lang="bash" codeLabel="One rule set, three modes" code={`thymian lint --spec openapi:./openapi.yaml
-thymian test --spec openapi:./openapi.yaml --target http://localhost:3000
-thymian analyze --har ./prod.har --spec openapi:./openapi.yaml`} />
+thymian test --spec openapi:./openapi.yaml --target-url http://localhost:3000
+thymian analyze --traffic har:./prod.har --spec openapi:./openapi.yaml`} />
 </PlatformSection>
 
 <PlatformSection platform="x">
@@ -37,10 +37,11 @@ thymian analyze --har ./prod.har --spec openapi:./openapi.yaml`} />
 That's the Thymian model: Write Once, Validate Everywhere.
 
 https://thymian.dev/introduction/what-is-thymian/`}
+
   </PostText>
   <SocialImage type="code-snippet" platform="x" lang="bash" codeLabel="One rule set, three modes" code={`thymian lint --spec openapi:./openapi.yaml
-thymian test --spec openapi:./openapi.yaml --target http://localhost:3000
-thymian analyze --har ./prod.har --spec openapi:./openapi.yaml`} />
+thymian test --spec openapi:./openapi.yaml --target-url http://localhost:3000
+thymian analyze --traffic har:./prod.har --spec openapi:./openapi.yaml`} />
 </PlatformSection>
 
 <PlatformSection platform="linkedin">
@@ -54,10 +55,11 @@ thymian analyze --har ./prod.har --spec openapi:./openapi.yaml`} />
 Thymian's design principle is simple: one conformance rule definition reused across lint, runtime testing, and traffic analysis. That shared rule surface is what keeps governance consistent as teams scale.
 
 https://thymian.dev/introduction/what-is-thymian/`}
+
   </PostText>
   <SocialImage type="code-snippet" platform="linkedin" lang="bash" codeLabel="One rule set, three modes" code={`thymian lint --spec openapi:./openapi.yaml
-thymian test --spec openapi:./openapi.yaml --target http://localhost:3000
-thymian analyze --har ./prod.har --spec openapi:./openapi.yaml`} />
+thymian test --spec openapi:./openapi.yaml --target-url http://localhost:3000
+thymian analyze --traffic har:./prod.har --spec openapi:./openapi.yaml`} />
 </PlatformSection>
 
 <PlatformSection platform="discord">
@@ -67,8 +69,9 @@ thymian analyze --har ./prod.har --spec openapi:./openapi.yaml`} />
 No more copy/paste checks between tools.
 
 https://thymian.dev/introduction/what-is-thymian/`}
+
   </PostText>
   <SocialImage type="code-snippet" platform="discord" lang="bash" codeLabel="One rule set, three modes" code={`thymian lint --spec openapi:./openapi.yaml
-thymian test --spec openapi:./openapi.yaml --target http://localhost:3000
-thymian analyze --har ./prod.har --spec openapi:./openapi.yaml`} />
+thymian test --spec openapi:./openapi.yaml --target-url http://localhost:3000
+thymian analyze --traffic har:./prod.har --spec openapi:./openapi.yaml`} />
 </PlatformSection>

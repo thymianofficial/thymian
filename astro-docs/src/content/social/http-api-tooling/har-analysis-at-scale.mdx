@@ -1,20 +1,19 @@
 ---
-title: "IGNORE - HAR Analysis at Scale"
-description: "Tooling angle focused on production traffic analysis and repeatable checks."
+title: 'IGNORE - HAR Analysis at Scale'
+description: 'Tooling angle focused on production traffic analysis and repeatable checks.'
 category: http-api-tooling
 draft: false
 publishStatus: draft
 docLinks:
-  - label: "Thymian Analyze Workflow"
-    url: "https://thymian.dev/tutorials/thymian-analyze-workflow/"
-  - label: "File-based Request Sampling"
-    url: "https://thymian.dev/concepts/file-based-request-sampling/"
+  - label: 'Thymian Analyze Workflow'
+    url: 'https://thymian.dev/tutorials/thymian-analyze-workflow/'
+  - label: 'File-based Request Sampling'
+    url: 'https://thymian.dev/concepts/file-based-request-sampling/'
 ---
 
 import PlatformSection from '../../../components/social/PlatformSection.astro';
 import PostText from '../../../components/social/PostText.astro';
 import SocialImage from '../../../components/social/SocialImage.astro';
-
 
 <PlatformSection platform="reddit">
   <PostText platform="reddit" label="Title">{'HAR analysis as an engineering workflow, not just debugging'}</PostText>
@@ -24,8 +23,9 @@ import SocialImage from '../../../components/social/SocialImage.astro';
 Thymian turns them into repeatable conformance checks so production traffic can be audited continuously.
 
 https://thymian.dev/tutorials/thymian-analyze-workflow/`}
+
   </PostText>
-  <SocialImage type="code-snippet" platform="reddit" lang="bash" codeLabel="HAR analysis in CI" code={`npx thymian analyze --har ./captures/prod.har --spec openapi:./openapi.yaml --output ./reports/conformance.json`} />
+  <SocialImage type="code-snippet" platform="reddit" lang="bash" codeLabel="HAR analysis in CI" code={`npx thymian analyze --traffic har:./captures/prod.har --spec openapi:./openapi.yaml --output ./reports/conformance.json`} />
 </PlatformSection>
 
 <PlatformSection platform="x">
@@ -33,8 +33,9 @@ https://thymian.dev/tutorials/thymian-analyze-workflow/`}
     {`HAR files should be part of continuous API quality checks, not only post-incident forensics.
 
 https://thymian.dev/tutorials/thymian-analyze-workflow/`}
+
   </PostText>
-  <SocialImage type="code-snippet" platform="x" lang="bash" codeLabel="HAR analysis in CI" code={`npx thymian analyze --har ./captures/prod.har --spec openapi:./openapi.yaml --output ./reports/conformance.json`} />
+  <SocialImage type="code-snippet" platform="x" lang="bash" codeLabel="HAR analysis in CI" code={`npx thymian analyze --traffic har:./captures/prod.har --spec openapi:./openapi.yaml --output ./reports/conformance.json`} />
 </PlatformSection>
 
 <PlatformSection platform="linkedin">
@@ -46,8 +47,9 @@ Instead of manually inspecting HAR exports after incidents, teams can run policy
 This shifts detection earlier and makes protocol regressions measurable.
 
 https://thymian.dev/tutorials/thymian-analyze-workflow/`}
+
   </PostText>
-  <SocialImage type="code-snippet" platform="linkedin" lang="bash" codeLabel="HAR analysis in CI" code={`npx thymian analyze --har ./captures/prod.har --spec openapi:./openapi.yaml --output ./reports/conformance.json`} />
+  <SocialImage type="code-snippet" platform="linkedin" lang="bash" codeLabel="HAR analysis in CI" code={`npx thymian analyze --traffic har:./captures/prod.har --spec openapi:./openapi.yaml --output ./reports/conformance.json`} />
 </PlatformSection>
 
 <PlatformSection platform="discord">
@@ -57,6 +59,7 @@ https://thymian.dev/tutorials/thymian-analyze-workflow/`}
 Treat captures as test inputs. Run conformance checks over them in CI.
 
 https://thymian.dev/tutorials/thymian-analyze-workflow/`}
+
   </PostText>
-  <SocialImage type="code-snippet" platform="discord" lang="bash" codeLabel="HAR analysis in CI" code={`npx thymian analyze --har ./captures/prod.har --spec openapi:./openapi.yaml --output ./reports/conformance.json`} />
+  <SocialImage type="code-snippet" platform="discord" lang="bash" codeLabel="HAR analysis in CI" code={`npx thymian analyze --traffic har:./captures/prod.har --spec openapi:./openapi.yaml --output ./reports/conformance.json`} />
 </PlatformSection>

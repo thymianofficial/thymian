@@ -387,9 +387,11 @@ const downloadFilename = `thymian-${platform}-${id}.png`;
     color: var(--sl-color-accent);
   }
 
-  /* Show/hide sun/moon icons based on canvas theme */
-  .theme-toggle-icon--light { display: none; }
-  .theme-toggle-icon--dark { display: flex; }
+  /* Show/hide sun/moon icons based on canvas theme — scoped via wrapper data-theme */
+  .social-image-wrapper:has([data-theme="dark"]) .theme-toggle-icon--dark { display: flex; }
+  .social-image-wrapper:has([data-theme="dark"]) .theme-toggle-icon--light { display: none; }
+  .social-image-wrapper:has([data-theme="light"]) .theme-toggle-icon--dark { display: none; }
+  .social-image-wrapper:has([data-theme="light"]) .theme-toggle-icon--light { display: flex; }
 
   .download-btn {
     display: flex;

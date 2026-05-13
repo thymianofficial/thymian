@@ -40,7 +40,7 @@ const CATEGORY_LABELS: Record<string, string> = {
         slug && category && (
           <>
             <span class="breadcrumb-sep">/</span>
-            <a href={`/social/${category}/`}>{CATEGORY_LABELS[category] ?? category}</a>
+            <a href="/social/">{CATEGORY_LABELS[category] ?? category}</a>
             <span class="breadcrumb-sep">/</span>
             <span>{slug}</span>
           </>
