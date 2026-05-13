@@ -5,6 +5,7 @@ import {
   mergeRuleSets,
   resolveRuleSeverity,
 } from '@thymian/common-cli';
+import { Flags } from '@thymian/common-cli/oclif';
 import type {} from '@thymian/plugin-har';
 import type {} from '@thymian/plugin-openapi';
 import type {} from '@thymian/plugin-reporter';
@@ -20,6 +21,15 @@ export default class Analyze extends BaseCliRunCommand<typeof Analyze> {
     '<%= config.bin %> <%= command.id %> --traffic har:./traffic.har',
     '<%= config.bin %> <%= command.id %> --spec openapi:./openapi.yaml --traffic har:./traffic.har',
   ];
+
+  static override flags = {
+    ['validate-traffic-source']: Flags.boolean({
+      default: false,
+      allowNo: true,
+      description:
+        'Validate included traffic sources and fail on source-schema validation errors.',
+    }),
+  };
 
   static override requiresSpecifications = false;
   static override requiresTraffic = true;
@@ -46,6 +56,7 @@ export default class Analyze extends BaseCliRunCommand<typeof Analyze> {
         rulesConfig: this.thymianConfig.rules,
         ruleFilter: createSeverityRuleFilter(ruleSeverity),
         validateSpecs: this.flags['validate-specs'],
+        validateTrafficSource: this.flags['validate-traffic-source'],
       });
     });
 

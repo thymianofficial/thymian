@@ -67,6 +67,7 @@ export interface AnalyzeWorkflowInput {
   ruleFilter?: RuleFilter;
   options?: Record<string, unknown>;
   validateSpecs?: boolean;
+  validateTrafficSource?: boolean;
 }
 
 export type RegisteredPlugin<
@@ -389,7 +390,10 @@ export class Thymian {
     const { rulesConfig, ruleFilter } = input;
 
     const [traffic, rules, format] = await Promise.all([
-      this.loadTraffic({ inputs: input.traffic }),
+      this.loadTraffic({
+        inputs: input.traffic,
+        validateTrafficSource: input.validateTrafficSource ?? false,
+      }),
       loadRules(input.rules ?? [], ruleFilter, rulesConfig, this.options.cwd),
       input.specification
         ? this.loadFormat(

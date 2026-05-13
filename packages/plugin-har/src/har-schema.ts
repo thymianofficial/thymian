@@ -4,17 +4,16 @@ import type { HarLog } from './har-types.js';
 
 /**
  * Minimal JSON Schema for HAR 1.2 structure validation.
- * Validates only the fields consumed by the plugin — additional
- * HAR properties are allowed via `additionalProperties: true`.
+ * Validates only the field types consumed by the plugin.
+ * All fields are optional because there is no official HAR JSON schema
+ * and exporters commonly produce partial variants.
  */
 const harLogSchema = {
   type: 'object' as const,
-  required: ['log'] as const,
   additionalProperties: true,
   properties: {
     log: {
       type: 'object' as const,
-      required: ['entries'] as const,
       additionalProperties: true,
       properties: {
         version: { type: 'string' as const },
@@ -22,13 +21,11 @@ const harLogSchema = {
           type: 'array' as const,
           items: {
             type: 'object' as const,
-            required: ['request', 'time'] as const,
             additionalProperties: true,
             properties: {
               time: { type: 'number' as const },
               request: {
                 type: 'object' as const,
-                required: ['method', 'url', 'headers'] as const,
                 additionalProperties: true,
                 properties: {
                   method: { type: 'string' as const },
@@ -37,7 +34,6 @@ const harLogSchema = {
                     type: 'array' as const,
                     items: {
                       type: 'object' as const,
-                      required: ['name', 'value'] as const,
                       additionalProperties: true,
                       properties: {
                         name: { type: 'string' as const },
@@ -59,7 +55,6 @@ const harLogSchema = {
               response: {
                 type: 'object' as const,
                 nullable: true,
-                required: ['status', 'headers', 'content'] as const,
                 additionalProperties: true,
                 properties: {
                   status: { type: 'number' as const },
@@ -67,7 +62,6 @@ const harLogSchema = {
                     type: 'array' as const,
                     items: {
                       type: 'object' as const,
-                      required: ['name', 'value'] as const,
                       additionalProperties: true,
                       properties: {
                         name: { type: 'string' as const },
@@ -77,7 +71,6 @@ const harLogSchema = {
                   },
                   content: {
                     type: 'object' as const,
-                    required: ['size'] as const,
                     additionalProperties: true,
                     properties: {
                       text: { type: 'string' as const, nullable: true },

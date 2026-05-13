@@ -11,6 +11,7 @@ export interface TrafficInput {
 
 export interface CoreTrafficLoadInput {
   inputs: TrafficInput[];
+  validateTrafficSource: boolean;
   options?: Record<string, unknown>;
 }
 
@@ -36,13 +37,17 @@ export const trafficInputSchema = {
 export const trafficLoadActionSchema = {
   type: 'object',
   nullable: false,
-  required: ['inputs'],
+  required: ['inputs', 'validateTrafficSource'],
   additionalProperties: false,
   properties: {
     inputs: {
       type: 'array',
       nullable: false,
       items: trafficInputSchema,
+    },
+    validateTrafficSource: {
+      type: 'boolean',
+      nullable: false,
     },
     options: {
       type: 'object',
