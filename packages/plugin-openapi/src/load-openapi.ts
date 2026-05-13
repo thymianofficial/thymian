@@ -266,12 +266,17 @@ export async function validateOpenApi(
   },
 ): Promise<SpecValidationResult> {
   const logger = options.logger ?? new NoopLogger();
+  let filePath: string | undefined;
+  let source = options.sourceName ?? value;
+
   try {
-    const { document, filePath } = await loadOpenApi(value, options.cwd);
+    const loadResult = await loadOpenApi(value, options.cwd);
+    const { document } = loadResult;
+    filePath = loadResult.filePath;
     const relativePath = filePath
       ? getRelativePath(filePath, options.cwd)
       : value;
-    const source = options.sourceName ?? relativePath;
+    source = options.sourceName ?? relativePath;
 
     const validationResult = await validate(document, { throwOnError: false });
 
@@ -332,8 +337,7 @@ export async function validateOpenApi(
     };
   } catch (error) {
     if (error instanceof ThymianBaseError) {
-      const source = options.sourceName ?? value;
-      return createToolErrorResult(value, source, error);
+      return createToolErrorResult(value, source, error, filePath);
     }
 
     throw error;
