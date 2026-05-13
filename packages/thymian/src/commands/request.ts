@@ -20,13 +20,6 @@ export default class RunRequest extends BaseCliRunCommand<typeof RunRequest> {
     validate: Flags.boolean({
       default: false,
     }),
-    timeout: Flags.integer({
-      default: 1000,
-      charAliases: ['t'],
-      description:
-        'Set the duration in ms to wait until a plugin is registered.',
-      helpGroup: 'BASE',
-    }),
   };
 
   override async run(): Promise<void> {
