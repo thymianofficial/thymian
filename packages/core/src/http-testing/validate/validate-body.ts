@@ -1,6 +1,6 @@
 import { parse } from 'secure-json-parse';
 
-import type { ThymianHttpResponse } from '../../index.js';
+import { type ThymianHttpResponse } from '../../index.js';
 import type { HttpTestCaseResult } from '../http-test/index.js';
 import { ajv } from './ajv.js';
 
@@ -21,7 +21,6 @@ export function validateJsonBody(
         },
       ];
     }
-
     const validate = ajv.compile(response.schema);
 
     validate(json);

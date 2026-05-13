@@ -7,10 +7,27 @@ import type {
 } from '@thymian/core';
 import type { OpenAPIV3_1 as OpenApiV31 } from 'openapi-types';
 
+import { resolveOpenApiReference } from './openapi-reference-resolver.js';
+
 export function processSecuritySchemes(
-  schemes: Record<string, OpenApiV31.SecuritySchemeObject>,
+  schemes: Record<
+    string,
+    OpenApiV31.SecuritySchemeObject | OpenApiV31.ReferenceObject
+  >,
+  document: OpenApiV31.Document,
 ): PartialBy<SecurityScheme, 'label' | 'sourceName'>[] {
   return Object.entries(schemes)
+    .map(
+      ([name, scheme]) =>
+        [
+          name,
+          resolveOpenApiReference<OpenApiV31.SecuritySchemeObject>(
+            scheme,
+            document,
+            'security scheme',
+          ),
+        ] as const,
+    )
     .filter(([, scheme]) => scheme.type === 'http' || scheme.type === 'apiKey')
     .map(([name, schemeObj]) => {
       if (schemeObj.type === 'apiKey') {

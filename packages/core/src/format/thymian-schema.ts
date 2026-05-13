@@ -65,6 +65,7 @@ export type ThymianSchema = {
   unevaluatedItems?: ThymianSchema | boolean;
 
   $ref?: string;
+  $defs?: Record<string, ThymianSchema>;
   $anchor?: string;
 
   xml?: {

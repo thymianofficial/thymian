@@ -431,6 +431,36 @@ describe('httpFilterExpressionToOperationFilter', () => {
         ),
       ).toBe(true);
     });
+
+    it('resolves referenced request bodies when matching media types', () => {
+      const filter = httpFilterExpressionToOperationFilter(
+        requestMediaType('application/json'),
+      );
+
+      expect(
+        filter(
+          createOperationArgs({
+            operationObject: {
+              requestBody: { $ref: '#/components/requestBodies/JsonBody' },
+            },
+            document: {
+              ...defaultDocument,
+              components: {
+                requestBodies: {
+                  JsonBody: {
+                    content: {
+                      'application/json': {
+                        schema: { type: 'object' },
+                      },
+                    },
+                  },
+                },
+              },
+            },
+          }),
+        ),
+      ).toBe(true);
+    });
   });
 
   describe('visitStatusCode', () => {
@@ -607,6 +637,39 @@ describe('httpFilterExpressionToOperationFilter', () => {
         ),
       ).toBe(false);
     });
+
+    it('resolves referenced responses when checking for response bodies', () => {
+      const filter = httpFilterExpressionToOperationFilter(
+        hasResponseBody(true),
+      );
+
+      expect(
+        filter(
+          createOperationArgs({
+            operationObject: {
+              responses: {
+                '200': { $ref: '#/components/responses/JsonResponse' },
+              },
+            },
+            document: {
+              ...defaultDocument,
+              components: {
+                responses: {
+                  JsonResponse: {
+                    description: 'Success',
+                    content: {
+                      'application/json': {
+                        schema: { type: 'object' },
+                      },
+                    },
+                  },
+                },
+              },
+            },
+          }),
+        ),
+      ).toBe(true);
+    });
   });
 
   describe('visitResponseHeader', () => {
@@ -673,6 +736,39 @@ describe('httpFilterExpressionToOperationFilter', () => {
         ),
       ).toBe(true);
     });
+
+    it('resolves referenced responses when matching response headers', () => {
+      const filter = httpFilterExpressionToOperationFilter(
+        responseHeader('x-rate-limit'),
+      );
+
+      expect(
+        filter(
+          createOperationArgs({
+            operationObject: {
+              responses: {
+                '200': { $ref: '#/components/responses/RateLimited' },
+              },
+            },
+            document: {
+              ...defaultDocument,
+              components: {
+                responses: {
+                  RateLimited: {
+                    description: 'Success',
+                    headers: {
+                      'X-Rate-Limit': {
+                        schema: { type: 'integer' },
+                      },
+                    },
+                  },
+                },
+              },
+            },
+          }),
+        ),
+      ).toBe(true);
+    });
   });
 
   describe('visitResponseMediaType', () => {
@@ -718,6 +814,39 @@ describe('httpFilterExpressionToOperationFilter', () => {
           }),
         ),
       ).toBe(false);
+    });
+
+    it('resolves referenced responses when matching response media types', () => {
+      const filter = httpFilterExpressionToOperationFilter(
+        responseMediaType('application/json'),
+      );
+
+      expect(
+        filter(
+          createOperationArgs({
+            operationObject: {
+              responses: {
+                '200': { $ref: '#/components/responses/JsonResponse' },
+              },
+            },
+            document: {
+              ...defaultDocument,
+              components: {
+                responses: {
+                  JsonResponse: {
+                    description: 'Success',
+                    content: {
+                      'application/json': {
+                        schema: { type: 'object' },
+                      },
+                    },
+                  },
+                },
+              },
+            },
+          }),
+        ),
+      ).toBe(true);
     });
   });
 

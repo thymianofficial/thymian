@@ -186,7 +186,7 @@ export async function loadAndUpgrade(
 
   logger.debug(`Upgraded ${sourceLabel} to version 3.1.`);
 
-  const dereferencedResult = dereference(upgradedObject, {
+  const dereferencedResult = dereference(structuredClone(upgradedObject), {
     throwOnError: false,
   });
 
@@ -208,7 +208,7 @@ export async function loadAndUpgrade(
   }
 
   return {
-    document: dereferencedResult.schema as OpenAPIV3_1.Document,
+    document: upgradedObject as OpenAPIV3_1.Document,
     original: document as OpenAPI.Document,
     filePath: filePath ? filePath : undefined,
   };

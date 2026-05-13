@@ -27,18 +27,21 @@ const dm = deepmerge();
 export function createHttpTestHookRunnerFromThymianEmitter(
   emitter: ThymianEmitter,
 ): HttpTestContext['runHook'] {
-  return async function runHook(name, payload) {
+  return async function runHook<Hook extends keyof HttpTestHooks>(
+    name: Hook,
+    payload: HttpTestHooks[Hook]['arg'],
+  ) {
     const actionName: `http-testing.${keyof HttpTestHooks}` = `http-testing.${name}`;
 
-    const result = await emitter.emitAction(actionName, payload, {
+    const hookResults = await emitter.emitAction(actionName, payload, {
       strategy: 'deep-merge',
     });
 
-    const value = dm(payload, result.result ?? {});
+    const value = dm(payload.value, hookResults.result ?? {});
 
     return {
-      ...result,
-      value,
-    };
+      ...hookResults,
+      result: value,
+    } as HttpTestHooks[Hook]['return'];
   };
 }

@@ -1,4 +1,5 @@
 import {
+  createContextFromEmitter,
   type Rule,
   type RuleRunnerAdapter,
   runRules,
@@ -8,14 +9,12 @@ import {
   type ThymianPlugin,
 } from '@thymian/core';
 
-import { createContext } from './create-context.js';
 import { createHttpTestDiagnosticsReport } from './create-diagnostics-report.js';
 import {
   HttpTestApiContext,
   type HttpTesterRuleDiagnostics,
 } from './http-test-api-context.js';
 
-export { createContext } from './create-context.js';
 export {
   HttpTestApiContext,
   type HttpTesterRuleDiagnostics,
@@ -53,7 +52,7 @@ export function createHttpTesterPlugin(
             }
           }
 
-          const context = createContext(
+          const context = createContextFromEmitter(
             thymianFormat,
             logger,
             emitter,

@@ -3,6 +3,7 @@ import type { OpenAPIV3_1 as OpenApiV31 } from 'openapi-types';
 
 import { processHeadersObject } from './headers-object.processor.js';
 import { processMediaTypeObject } from './media-type-object.processor.js';
+import { resolveOpenApiReference } from './openapi-reference-resolver.js';
 import type { Parameters } from './utils.js';
 
 export type ResponsesWithLinks = {
@@ -14,13 +15,25 @@ export function processResponseObject(
   responseObject: OpenApiV31.ResponseObject,
   statusCode: number,
   parameters: Parameters,
+  document: OpenApiV31.Document,
 ): ResponsesWithLinks {
   const headerParameters = processHeadersObject(
-    responseObject.headers as Record<string, OpenApiV31.HeaderObject>,
+    responseObject.headers as Record<
+      string,
+      OpenApiV31.HeaderObject | OpenApiV31.ReferenceObject
+    >,
+    document,
   );
   const links = Object.entries(responseObject.links ?? {}).map(
-    ([name, linkObj]) => ({ name, linkObj }),
-  ) as { name: string; linkObj: OpenApiV31.LinkObject }[];
+    ([name, linkObj]) => ({
+      name,
+      linkObj: resolveOpenApiReference<OpenApiV31.LinkObject>(
+        linkObj,
+        document,
+        'link',
+      ),
+    }),
+  );
 
   const responses: PartialBy<ThymianHttpResponse, 'label' | 'sourceName'>[] =
     [];
@@ -34,7 +47,7 @@ export function processResponseObject(
             mediaType !== 'application/x-www-form-urlencoded',
         )
         .map(([mediaType, mediaTypeObject]) => {
-          const { schema } = processMediaTypeObject(mediaTypeObject);
+          const { schema } = processMediaTypeObject(mediaTypeObject, document);
 
           return {
             type: 'http-response',

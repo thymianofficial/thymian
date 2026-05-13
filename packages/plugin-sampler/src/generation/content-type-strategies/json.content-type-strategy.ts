@@ -13,7 +13,7 @@ export class JsonContentTypeStrategy implements ContentTypeStrategy {
 
   async generate(schema: ThymianSchema): Promise<ContentSource> {
     return {
-      $content: sample(schema as SamplerSchema),
+      $content: sample(schema as SamplerSchema, {}, schema),
     };
   }
 }

@@ -13,6 +13,7 @@ import {
   type Draft202012SchemaObject,
   processSchema,
 } from './json-schema.processor.js';
+import { resolveOpenApiReference } from './openapi-reference-resolver.js';
 
 export function extractSerializationStyle(
   encodingObj: OpenApiV31.EncodingObject,
@@ -28,6 +29,7 @@ export function extractSerializationStyle(
 
 export function processMediaTypeObject(
   mediaTypeObject: OpenApiV31.MediaTypeObject,
+  document: OpenApiV31.Document,
   addEncodings = false,
   isMultipart = false,
 ): {
@@ -36,12 +38,21 @@ export function processMediaTypeObject(
   encoding?: Encoding;
 } {
   const schema = mediaTypeObject.schema
-    ? processSchema(mediaTypeObject.schema as Draft202012SchemaObject)
+    ? processSchema(mediaTypeObject.schema as Draft202012SchemaObject, {
+        document,
+      })
     : undefined;
 
   if (schema) {
     Object.values(mediaTypeObject.examples ?? {}).forEach((example) => {
-      addExampleToSchema(schema, (example as OpenApiV31.ExampleObject).value);
+      addExampleToSchema(
+        schema,
+        resolveOpenApiReference<OpenApiV31.ExampleObject>(
+          example,
+          document,
+          'example',
+        ).value,
+      );
     });
   }
 
@@ -49,7 +60,11 @@ export function processMediaTypeObject(
   if (isMultipart && mediaTypeObject.encoding) {
     Object.values(mediaTypeObject.encoding).forEach((encodingObject) => {
       headers = processHeadersObject(
-        encodingObject.headers as Record<string, OpenApiV31.HeaderObject>,
+        encodingObject.headers as Record<
+          string,
+          OpenApiV31.HeaderObject | OpenApiV31.ReferenceObject
+        >,
+        document,
       );
     });
   }
@@ -74,7 +89,11 @@ export function processMediaTypeObject(
         [propertyName]: {
           contentType: encodingObj.contentType,
           headers: processHeadersObject(
-            encodingObj.headers as Record<string, OpenApiV31.HeaderObject>,
+            encodingObj.headers as Record<
+              string,
+              OpenApiV31.HeaderObject | OpenApiV31.ReferenceObject
+            >,
+            document,
           ),
           serializationStyle: extractSerializationStyle(encodingObj),
         },
