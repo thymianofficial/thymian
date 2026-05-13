@@ -32,6 +32,7 @@ export default class Validate extends BaseCliRunCommand<typeof Validate> {
     });
 
     const exitCode = classificationToExitCode(outcome.classification);
+    const totalResults = outcome.results.length;
 
     for (const result of outcome.results) {
       const icon =
@@ -57,14 +58,16 @@ export default class Validate extends BaseCliRunCommand<typeof Validate> {
       ux.stdout('\nAll specifications are valid.');
     } else if (exitCode === 1) {
       ux.stdout(
-        `\n${outcome.results.filter((r) => r.status === 'failed').length} of ${specifications.length} specifications are invalid.`,
+        `\n${outcome.results.filter((r) => r.status === 'failed').length} of ${totalResults} specifications are invalid.`,
       );
     } else {
       ux.stdout(
-        `\n${outcome.results.filter((r) => r.status === 'unsupported' || r.status === 'error').length} of ${specifications.length} specifications could not be validated.`,
+        `\n${outcome.results.filter((r) => r.status === 'unsupported' || r.status === 'error').length} of ${totalResults} specifications could not be validated.`,
       );
     }
 
-    this.exit(exitCode);
+    if (exitCode !== 0) {
+      this.exit(exitCode);
+    }
   }
 }
