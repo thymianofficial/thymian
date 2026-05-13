@@ -1146,7 +1146,7 @@ describe('AnalyticsApiContext', () => {
               schema: { type: 'string' },
             },
           },
-          mediaType: 'application/json',
+          mediaType: '',
           pathParameters: {
             id: {
               name: 'id',

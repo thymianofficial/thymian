@@ -119,6 +119,8 @@ describe('thymian analyze with HAR file', () => {
         'info:',
         "  title: 'Parameterized API'",
         "  version: '1.0.0'",
+        'servers:',
+        "  - url: 'https://api.example.com'",
         'paths:',
         '  /users/{id}:',
         '    get:',

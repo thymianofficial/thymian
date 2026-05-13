@@ -215,13 +215,11 @@ export class AnalyticsApiContext implements AnalyzeContext {
       finalFilter,
       this.roles,
     )) {
-      const matchResult = this.format.matchHtpRequestByUrl(request.data.path);
-      const [, , transactionId] = matchResult?.reqId
-        ? (this.format
-            .getHttpResponsesOf(matchResult.reqId)
-            .find(([, res]) => res.statusCode === response.data.statusCode) ??
-          [])
-        : [];
+      const matchResult = this.format.matchTransaction(
+        request.data,
+        response.data,
+      );
+      const transactionId = matchResult?.[0];
 
       const location: RuleViolationLocation = transactionId
         ? {
