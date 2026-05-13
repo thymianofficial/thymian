@@ -199,7 +199,7 @@ describe('config resolution chain (integration)', () => {
     it('falls back to defaultConfig when no config file exists (triggers spec-search exit)', async () => {
       // No config file in cwdDir, no --spec
       // defaultConfig has empty specifications, so Step D/E/F should trigger
-      const { stderr, error } = await captureOutput(async () => {
+      const { error } = await captureOutput(async () => {
         await Lint.run(['--cwd', cwdDir, '--no-autoload']);
       });
 
@@ -429,7 +429,7 @@ describe('config resolution chain (integration)', () => {
       const emptyDir = join(tmpDir, 'no-specs');
       mkdirSync(emptyDir, { recursive: true });
 
-      const { stderr, error } = await captureOutput(async () => {
+      const { error } = await captureOutput(async () => {
         await Lint.run(['--cwd', emptyDir, '--no-autoload']);
       });
 
