@@ -123,8 +123,9 @@ function normalizeSchemaObject(
   context?: SchemaNormalizationContext,
 ): ThymianSchema {
   const result: Record<string, unknown> = {};
+  const hasExample = Object.hasOwn(schema, 'example');
 
-  if (Object.hasOwn(schema, 'example')) {
+  if (hasExample) {
     const examples = schema.examples ? structuredClone(schema.examples) : [];
 
     if (!Array.isArray(examples)) {
@@ -139,6 +140,10 @@ function normalizeSchemaObject(
 
   for (const [key, value] of Object.entries(schema)) {
     if (keysToRemove.has(key) || key === 'example') {
+      continue;
+    }
+
+    if (key === 'examples' && hasExample) {
       continue;
     }
 

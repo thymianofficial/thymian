@@ -23,7 +23,7 @@ export async function generateTypeForSchema(
   }
 
   const declaration = await compile(
-    convertDefsToDefinitions(schema) as JSONSchema,
+    convertDefsToDefinitions(structuredClone(schema)) as JSONSchema,
     typeName,
     {
       bannerComment: '',
@@ -44,23 +44,21 @@ export async function generateTypeForSchema(
 }
 
 export function convertDefsToDefinitions(input: any): unknown {
-  const schema = structuredClone(input);
-
-  if (schema === null || typeof schema !== 'object') {
-    if (typeof schema === 'string') {
-      return schema.replace(/\/\$defs\//g, '/definitions/');
+  if (input === null || typeof input !== 'object') {
+    if (typeof input === 'string') {
+      return input.replace(/\/\$defs\//g, '/definitions/');
     }
-    return schema;
+    return input;
   }
 
-  if (Array.isArray(schema)) {
-    return schema.map((item) => convertDefsToDefinitions(item));
+  if (Array.isArray(input)) {
+    return input.map((item) => convertDefsToDefinitions(item));
   }
 
-  const result = Object.keys(schema).reduce((acc: any, key) => {
+  const result = Object.keys(input).reduce((acc: any, key) => {
     const newKey = key === '$defs' ? 'definitions' : key;
 
-    let value = schema[key];
+    let value = input[key];
 
     if (key === '$ref' && typeof value === 'string') {
       value = value.replace(/\/\$defs\//g, '/definitions/');

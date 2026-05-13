@@ -86,13 +86,22 @@ export default class RunRequest extends BaseCliRunCommand<typeof RunRequest> {
       });
 
       if (modifySample) {
-        template = JSON.parse(
-          await prompts.editor({
-            message: 'Edit the sample',
-            waitForUserInput: false,
-            default: JSON.stringify(template, null, 2),
-          }),
-        );
+        try {
+          template = JSON.parse(
+            await prompts.editor({
+              message: 'Edit the sample',
+              waitForUserInput: false,
+              default: JSON.stringify(template, null, 2),
+            }),
+          );
+        } catch (err) {
+          this.error(
+            `Invalid JSON in edited sample: ${err instanceof Error ? err.message : String(err)}`,
+            {
+              exit: 2,
+            },
+          );
+        }
       }
 
       const test = httpTest(result, (transactions) => {
@@ -188,17 +197,13 @@ export default class RunRequest extends BaseCliRunCommand<typeof RunRequest> {
 
     this.log(ux.colorize('bold', `${protocol} ${statusColor}`));
 
-    Object.keys(response.headers).forEach((key) => {
-      this.log(`${ux.colorize('cyan', key)}: ${response.headers[key]}`);
-    });
+    this.printHeaders(response.headers);
 
     this.log();
 
     this.printBody(response.body);
 
-    Object.keys(response.trailers).forEach((key) => {
-      this.log(`${ux.colorize('cyan', key)}: ${response.trailers[key]}`);
-    });
+    this.printHeaders(response.trailers);
   }
 
   private printRawRequest(request: HttpRequest): void {
@@ -210,13 +215,7 @@ export default class RunRequest extends BaseCliRunCommand<typeof RunRequest> {
     this.log(ux.colorize('bold', `${method} ${path} HTTP/1.1`));
 
     this.log(`${ux.colorize('cyan', 'Host')}: ${urlObj.host}`);
-    Object.entries(request.headers ?? {}).forEach(([key, value]) => {
-      if (!value) {
-        return;
-      }
-      const headerValue = Array.isArray(value) ? value.join(', ') : value;
-      this.log(`${ux.colorize('cyan', key)}: ${headerValue}`);
-    });
+    this.printHeaders(request.headers);
 
     this.log();
     this.printBody(request.body);
@@ -250,5 +249,16 @@ export default class RunRequest extends BaseCliRunCommand<typeof RunRequest> {
     } catch (_) {
       console.log(body);
     }
+  }
+
+  private printHeaders(headers?: Record<string, unknown>): void {
+    Object.entries(headers ?? {}).forEach(([key, value]) => {
+      if (typeof value === 'undefined' || value === null || value === '') {
+        return;
+      }
+
+      const headerValue = Array.isArray(value) ? value.join(', ') : value;
+      this.log(`${ux.colorize('cyan', key)}: ${headerValue}`);
+    });
   }
 }

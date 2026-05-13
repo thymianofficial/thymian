@@ -1,6 +1,7 @@
 import { createWriteStream } from 'node:fs';
 import { EOL } from 'node:os';
 import { join } from 'node:path';
+import { finished } from 'node:stream/promises';
 
 import {
   BaseCliRunCommand,
@@ -75,41 +76,20 @@ export default class ListRules extends BaseCliRunCommand<typeof ListRules> {
       const outputPath = join(this.flags.cwd, csvPath);
 
       try {
-        const stream = createWriteStream(outputPath, 'utf-8');
+        const stream = createWriteStream(outputPath, { encoding: 'utf8' });
+        const streamFinished = finished(stream);
 
-        await new Promise<void>((resolve, reject) => {
-          stream.write(
-            'name,severity,static,test,analytics,informational\n',
-            (err) => {
-              if (err) {
-                reject(err);
-                return;
-              }
-
-              resolve();
-            },
-          );
-        });
+        await writeToStream(
+          stream,
+          'name,severity,static,test,analytics,informational\n',
+        );
 
         for (const rule of sorted) {
-          await new Promise<void>((resolve, reject) => {
-            stream.write(formatRuleToCsvLine(rule), (err) => {
-              if (err) {
-                reject(err);
-                return;
-              }
-
-              resolve();
-            });
-          });
+          await writeToStream(stream, formatRuleToCsvLine(rule));
         }
 
         stream.end();
-
-        await new Promise<void>((resolve, reject) => {
-          stream.once('finish', resolve);
-          stream.once('error', reject);
-        });
+        await streamFinished;
       } catch (err) {
         this.error(
           `Failed to write CSV report to ${outputPath}: ${err instanceof Error ? err.message : String(err)}`,
@@ -129,7 +109,36 @@ export default class ListRules extends BaseCliRunCommand<typeof ListRules> {
 function formatRuleToCsvLine(rule: Rule): string {
   const { name, severity, type } = rule.meta;
 
-  return `"${name}", "${severity}", ${type.includes('static')}, ${type.includes('test')}, ${type.includes('analytics')}, ${type.includes('informational')}\n`;
+  return (
+    [
+      escapeCsvField(name),
+      escapeCsvField(severity),
+      String(type.includes('static')),
+      String(type.includes('test')),
+      String(type.includes('analytics')),
+      String(type.includes('informational')),
+    ].join(',') + '\n'
+  );
+}
+
+function escapeCsvField(value: string): string {
+  return `"${value.replace(/\r\n|\r|\n/g, ' ').replaceAll('"', '""')}"`;
+}
+
+function writeToStream(
+  stream: ReturnType<typeof createWriteStream>,
+  chunk: string,
+): Promise<void> {
+  return new Promise<void>((resolve, reject) => {
+    stream.write(chunk, (err) => {
+      if (err) {
+        reject(err);
+        return;
+      }
+
+      resolve();
+    });
+  });
 }
 
 function formatRule(rule: Rule, topicColor?: string): string {
