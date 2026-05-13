@@ -1,5 +1,5 @@
 import { access } from 'node:fs/promises';
-import { resolve } from 'node:path';
+import { isAbsolute, relative, resolve, sep } from 'node:path';
 
 import { ThymianBaseError } from '@thymian/core';
 
@@ -8,13 +8,18 @@ export function sanitize(name: string): string {
 }
 
 export function checkForSafePath(path: string, baseDir: string): void {
-  const resolvedPath = resolve(baseDir, path);
+  const resolvedBaseDir = resolve(baseDir);
+  const resolvedPath = resolve(resolvedBaseDir, path);
+  const relativePath = relative(resolvedBaseDir, resolvedPath);
 
-  const isSafe = resolvedPath.startsWith(baseDir);
+  const isSafe =
+    relativePath !== '..' &&
+    !relativePath.startsWith(`..${sep}`) &&
+    !isAbsolute(relativePath);
 
   if (!isSafe) {
     throw new ThymianBaseError(
-      `Access denied. Path "${resolvedPath}" is outside of the base directory "${baseDir}".`,
+      `Access denied. Path "${resolvedPath}" is outside of the base directory "${resolvedBaseDir}".`,
       {
         name: 'PathTraversalError',
         ref: 'https://thymian.dev/references/errors/path-traversal-error/',
