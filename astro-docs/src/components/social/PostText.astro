@@ -39,39 +39,49 @@ const uniqueId = `post-text-${Math.random().toString(36).slice(2, 8)}`;
 </div>
 
 <script>
-  // Character counter + copy button for all PostText blocks on the page
-  document.querySelectorAll<HTMLElement>('.post-text-content').forEach((el) => {
-    const id = el.id;
-    const counter = document.getElementById(`counter-${id}`);
-    const limit = counter ? parseInt(counter.dataset.limit ?? '0', 10) : 0;
+  const INIT_ATTR = 'data-post-text-init';
 
-    if (counter) {
-      const text = el.innerText ?? '';
-      const count = text.length;
-      counter.textContent = `${count} / ${limit}`;
-      if (count > limit) {
-        counter.classList.add('over-limit');
+  function initPostText() {
+    // Character counter
+    document.querySelectorAll<HTMLElement>(`.post-text-content:not([${INIT_ATTR}])`).forEach((el) => {
+      el.setAttribute(INIT_ATTR, '');
+      const id = el.id;
+      const counter = document.getElementById(`counter-${id}`);
+      const limit = counter ? parseInt(counter.dataset.limit ?? '0', 10) : 0;
+
+      if (counter) {
+        const text = el.innerText ?? '';
+        const count = text.length;
+        counter.textContent = `${count} / ${limit}`;
+        if (count > limit) {
+          counter.classList.add('over-limit');
+        }
       }
-    }
-  });
+    });
 
-  document.querySelectorAll<HTMLButtonElement>('.copy-btn').forEach((btn) => {
-    btn.addEventListener('click', () => {
-      const targetId = btn.dataset.target;
-      if (!targetId) return;
-      const el = document.getElementById(targetId);
-      if (!el) return;
-      navigator.clipboard.writeText(el.innerText ?? '').then(() => {
-        const orig = btn.textContent;
-        btn.textContent = 'Copied!';
-        btn.classList.add('copied');
-        setTimeout(() => {
-          btn.textContent = orig;
-          btn.classList.remove('copied');
-        }, 2000);
+    // Copy button
+    document.querySelectorAll<HTMLButtonElement>(`.copy-btn:not([${INIT_ATTR}])`).forEach((btn) => {
+      btn.setAttribute(INIT_ATTR, '');
+      btn.addEventListener('click', () => {
+        const targetId = btn.dataset.target;
+        if (!targetId) return;
+        const el = document.getElementById(targetId);
+        if (!el) return;
+        navigator.clipboard.writeText(el.innerText ?? '').then(() => {
+          const orig = btn.textContent;
+          btn.textContent = 'Copied!';
+          btn.classList.add('copied');
+          setTimeout(() => {
+            btn.textContent = orig;
+            btn.classList.remove('copied');
+          }, 2000);
+        });
       });
     });
-  });
+  }
+
+  initPostText();
+  document.addEventListener('astro:after-swap', initPostText);
 </script>
 
 <style>

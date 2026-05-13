@@ -50,7 +50,7 @@ const config = PLATFORM_CONFIG[platform];
 
 <section class="platform-section">
   <div class="platform-header">
-    <span class="platform-icon" set:html={config.icon} />
+    <span class="platform-icon" aria-hidden="true" set:html={config.icon} />
     <span class="platform-label" style={`color: ${config.color}`}>{config.label}</span>
     {config.charLimit && <span class="char-limit-hint">max {config.charLimit.toLocaleString()} chars</span>}
   </div>

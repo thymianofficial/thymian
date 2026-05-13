@@ -273,7 +273,7 @@ Generates a branded social image preview with download-as-PNG functionality.
 **Image type guidelines:**
 
 - `code-snippet` — Best for single commands or short code examples. Use `promoted` for single-line commands to center them prominently on the image.
-- `side-by-side` — Best for before/after comparisons or request/response pairs. Use `rightCode`/`rightLang`/`rightCodeLabel` for the left panel and `code`/`lang`/`codeLabel` for the right panel.
+- `side-by-side` — Best for before/after comparisons or request/response pairs. Use `code`/`lang`/`codeLabel` for the left panel and `rightCode`/`rightLang`/`rightCodeLabel` for the right panel.
 - `headline` — Best for announcements or conceptual posts without code. Use `headline` and optionally `subheadline`.
 
 ## Writing Guidelines

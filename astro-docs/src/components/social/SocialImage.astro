@@ -131,16 +131,20 @@ let mainHtmlLight = '';
 let rightHtmlDark = '';
 let rightHtmlLight = '';
 
+function escapeHtml(s: string): string {
+  return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+
 if (processedCode) {
   try {
     mainHtmlDark = await codeToHtml(processedCode, { lang, theme: DARK_THEME });
   } catch {
-    mainHtmlDark = `<pre><code>${processedCode}</code></pre>`;
+    mainHtmlDark = `<pre><code>${escapeHtml(processedCode)}</code></pre>`;
   }
   try {
     mainHtmlLight = await codeToHtml(processedCode, { lang, theme: LIGHT_THEME });
   } catch {
-    mainHtmlLight = `<pre><code>${processedCode}</code></pre>`;
+    mainHtmlLight = `<pre><code>${escapeHtml(processedCode)}</code></pre>`;
   }
 }
 
@@ -148,12 +152,12 @@ if (processedRightCode) {
   try {
     rightHtmlDark = await codeToHtml(processedRightCode, { lang: rightLang, theme: DARK_THEME });
   } catch {
-    rightHtmlDark = `<pre><code>${processedRightCode}</code></pre>`;
+    rightHtmlDark = `<pre><code>${escapeHtml(processedRightCode)}</code></pre>`;
   }
   try {
     rightHtmlLight = await codeToHtml(processedRightCode, { lang: rightLang, theme: LIGHT_THEME });
   } catch {
-    rightHtmlLight = `<pre><code>${processedRightCode}</code></pre>`;
+    rightHtmlLight = `<pre><code>${escapeHtml(processedRightCode)}</code></pre>`;
   }
 }
 
@@ -263,19 +267,8 @@ const downloadFilename = `thymian-${platform}-${id}.png`;
 <script>
   import { toPng } from 'html-to-image';
 
-  // Theme toggle
-  document.querySelectorAll<HTMLButtonElement>('.theme-toggle-btn').forEach((btn) => {
-    btn.addEventListener('click', () => {
-      const canvasId = btn.dataset.canvasId;
-      if (!canvasId) return;
-      const canvas = document.getElementById(canvasId);
-      if (!canvas) return;
-      const current = canvas.dataset.theme ?? 'dark';
-      canvas.dataset.theme = current === 'dark' ? 'light' : 'dark';
-    });
-  });
+  const INIT_ATTR = 'data-social-image-init';
 
-  // Auto-detect Starlight theme on load
   function detectStarlightTheme(): 'dark' | 'light' {
     const root = document.documentElement;
     const theme = root.dataset.theme ?? root.getAttribute('data-theme');
@@ -283,57 +276,76 @@ const downloadFilename = `thymian-${platform}-${id}.png`;
     return 'dark';
   }
 
-  // Set initial theme based on Starlight
-  const initialTheme = detectStarlightTheme();
-  document.querySelectorAll<HTMLDivElement>('.social-image-canvas').forEach((canvas) => {
-    canvas.dataset.theme = initialTheme;
-  });
-
-  // Download
-  document.querySelectorAll<HTMLButtonElement>('.download-btn').forEach((btn) => {
-    btn.addEventListener('click', async () => {
-      const imageId = btn.dataset.imageId;
-      const filename = btn.dataset.filename ?? 'thymian-social.png';
-      if (!imageId) return;
-
-      const canvas = document.getElementById(imageId);
-      if (!canvas) return;
-
-      const exportWidth = parseInt(canvas.dataset.exportWidth ?? '1200', 10);
-      const exportHeight = parseInt(canvas.dataset.exportHeight ?? '628', 10);
-      const displayWidth = canvas.offsetWidth;
-      const displayHeight = displayWidth * exportHeight / exportWidth;
-      const scale = exportWidth / displayWidth;
-
-      btn.textContent = 'Generating…';
-      btn.setAttribute('disabled', '');
-
-      try {
-        const dataUrl = await toPng(canvas, {
-          width: exportWidth,
-          height: exportHeight,
-          style: {
-            transform: `scale(${scale})`,
-            transformOrigin: 'top left',
-            width: `${displayWidth}px`,
-            height: `${displayHeight}px`,
-            margin: '0',
-          },
-          pixelRatio: 1,
-        });
-
-        const link = document.createElement('a');
-        link.download = filename;
-        link.href = dataUrl;
-        link.click();
-      } finally {
-        btn.innerHTML = `<svg width="14" height="14" viewBox="0 0 14 14" fill="none" xmlns="http://www.w3.org/2000/svg">
-          <path d="M7 1.75v6.125M4.375 5.25 7 8.75l2.625-3.5M2.625 9.625v.875a1.75 1.75 0 0 0 1.75 1.75h5.25a1.75 1.75 0 0 0 1.75-1.75v-.875" stroke="currentColor" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round"/>
-        </svg> Download PNG`;
-        btn.removeAttribute('disabled');
-      }
+  function initSocialImage() {
+    // Theme toggle
+    document.querySelectorAll<HTMLButtonElement>(`.theme-toggle-btn:not([${INIT_ATTR}])`).forEach((btn) => {
+      btn.setAttribute(INIT_ATTR, '');
+      btn.addEventListener('click', () => {
+        const canvasId = btn.dataset.canvasId;
+        if (!canvasId) return;
+        const canvas = document.getElementById(canvasId);
+        if (!canvas) return;
+        const current = canvas.dataset.theme ?? 'dark';
+        canvas.dataset.theme = current === 'dark' ? 'light' : 'dark';
+      });
     });
-  });
+
+    // Set initial theme based on Starlight
+    const initialTheme = detectStarlightTheme();
+    document.querySelectorAll<HTMLDivElement>('.social-image-canvas').forEach((canvas) => {
+      canvas.dataset.theme = initialTheme;
+    });
+
+    // Download
+    document.querySelectorAll<HTMLButtonElement>(`.download-btn:not([${INIT_ATTR}])`).forEach((btn) => {
+      btn.setAttribute(INIT_ATTR, '');
+      btn.addEventListener('click', async () => {
+        const imageId = btn.dataset.imageId;
+        const filename = btn.dataset.filename ?? 'thymian-social.png';
+        if (!imageId) return;
+
+        const canvas = document.getElementById(imageId);
+        if (!canvas) return;
+
+        const exportWidth = parseInt(canvas.dataset.exportWidth ?? '1200', 10);
+        const exportHeight = parseInt(canvas.dataset.exportHeight ?? '628', 10);
+        const displayWidth = canvas.offsetWidth;
+        const displayHeight = displayWidth * exportHeight / exportWidth;
+        const scale = exportWidth / displayWidth;
+
+        btn.textContent = 'Generating…';
+        btn.setAttribute('disabled', '');
+
+        try {
+          const dataUrl = await toPng(canvas, {
+            width: exportWidth,
+            height: exportHeight,
+            style: {
+              transform: `scale(${scale})`,
+              transformOrigin: 'top left',
+              width: `${displayWidth}px`,
+              height: `${displayHeight}px`,
+              margin: '0',
+            },
+            pixelRatio: 1,
+          });
+
+          const link = document.createElement('a');
+          link.download = filename;
+          link.href = dataUrl;
+          link.click();
+        } finally {
+          btn.innerHTML = `<svg width="14" height="14" viewBox="0 0 14 14" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M7 1.75v6.125M4.375 5.25 7 8.75l2.625-3.5M2.625 9.625v.875a1.75 1.75 0 0 0 1.75 1.75h5.25a1.75 1.75 0 0 0 1.75-1.75v-.875" stroke="currentColor" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg> Download PNG`;
+          btn.removeAttribute('disabled');
+        }
+      });
+    });
+  }
+
+  initSocialImage();
+  document.addEventListener('astro:after-swap', initSocialImage);
 </script>
 
 <style>
