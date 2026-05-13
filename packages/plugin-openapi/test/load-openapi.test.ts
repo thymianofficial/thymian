@@ -816,6 +816,30 @@ describe('load-openapi', () => {
       );
     });
 
+    it('returns error result for load failures instead of throwing', async () => {
+      const result = await validateOpenApi(
+        'test/fixtures/missing-openapi.yaml',
+        {
+          cwd: join(import.meta.dirname, '..'),
+          logger: new NoopLogger(),
+        },
+      );
+
+      expect(result).toEqual(
+        expect.objectContaining({
+          type: 'openapi',
+          location: 'test/fixtures/missing-openapi.yaml',
+          source: 'test/fixtures/missing-openapi.yaml',
+          status: 'error',
+          issues: [
+            expect.objectContaining({
+              code: 'OpenAPIFileNotFoundError',
+            }),
+          ],
+        }),
+      );
+    });
+
     it('returns failed result for invalid references', async () => {
       const result = await validateOpenApi(
         JSON.stringify({
