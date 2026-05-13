@@ -34,11 +34,11 @@ export const specValidationIssueSchema = {
     },
     path: {
       type: 'string',
-      nullable: true,
+      nullable: false,
     },
     code: {
       type: 'string',
-      nullable: true,
+      nullable: false,
     },
   },
 } as unknown as JSONSchemaType<SpecValidationIssue>;
@@ -73,7 +73,7 @@ export const specValidationResultSchema = {
     },
     metadata: {
       type: 'object',
-      nullable: true,
+      nullable: false,
       required: [],
       additionalProperties: true,
     },
