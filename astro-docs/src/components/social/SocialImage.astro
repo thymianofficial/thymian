@@ -64,7 +64,6 @@ const DIMENSIONS: Record<Variant, { width: number; height: number }> = {
 const { width, height } = DIMENSIONS[variant];
 const previewScale = variant === 'square' ? 0.64 : 0.82;
 const previewWidth = Math.round(width * previewScale);
-const previewHeight = Math.round(height * previewScale);
 const isSquare = variant === 'square';
 const adaptiveScale = Math.max(0.9, Math.min(1.3, Math.sqrt((width / 1200) * (height / 628))));
 const adaptiveUiScale = Math.max(0.9, Math.min(1.15, (width / 1200) * (isSquare ? 0.96 : 1)));
@@ -236,16 +235,15 @@ const downloadFilename = `thymian-${platform}-${id}.png`;
         type === 'side-by-side' && (
           <div class="img-side-by-side">
             <div class="img-panel">
-              {rightCodeLabel && <div class="img-panel-label img-panel-label--left">{rightCodeLabel}</div>}
-              <div class="img-code-block img-code-block--dark" set:html={rightHtmlDark} />
-              <div class="img-code-block img-code-block--light" set:html={rightHtmlLight} />
-            </div>
-            <div class="img-panel-divider">
-            </div>
-            <div class="img-panel">
-              {codeLabel && <div class="img-panel-label img-panel-label--right">{codeLabel}</div>}
+              {codeLabel && <div class="img-panel-label img-panel-label--left">{codeLabel}</div>}
               <div class="img-code-block img-code-block--dark" set:html={mainHtmlDark} />
               <div class="img-code-block img-code-block--light" set:html={mainHtmlLight} />
+            </div>
+            <div class="img-panel-divider"></div>
+            <div class="img-panel">
+              {rightCodeLabel && <div class="img-panel-label img-panel-label--right">{rightCodeLabel}</div>}
+              <div class="img-code-block img-code-block--dark" set:html={rightHtmlDark} />
+              <div class="img-code-block img-code-block--light" set:html={rightHtmlLight} />
             </div>
           </div>
         )
@@ -704,6 +702,10 @@ const downloadFilename = `thymian-${platform}-${id}.png`;
     justify-content: center;
     padding: 0 calc(6px * var(--ui-scale));
     flex-shrink: 0;
+    width: 1px;
+    background: currentColor;
+    opacity: 0.25;
+    align-self: stretch;
   }
 
   .social-image-canvas[data-theme='dark'] .img-panel-divider {
@@ -712,11 +714,6 @@ const downloadFilename = `thymian-${platform}-${id}.png`;
 
   .social-image-canvas[data-theme='light'] .img-panel-divider {
     color: #017b64;
-  }
-
-  .img-panel-divider svg {
-    width: calc(20px * var(--ui-scale));
-    height: calc(20px * var(--ui-scale));
   }
 
 
