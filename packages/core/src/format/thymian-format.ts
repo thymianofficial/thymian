@@ -523,7 +523,11 @@ export class ThymianFormat {
     const reqMediaType = getContentType(req.headers);
     const resMediaType = getContentType(res.headers);
     const reqOriginUrl = normalizeUrl(req.origin);
-    const matchingEdges = (ignoreOrigin = false): string[] =>
+    const reqPath = new URL(req.path, reqOriginUrl).pathname;
+    const matchingEdges = (
+      matcher: (thymianReq: ThymianHttpRequest) => boolean,
+      ignoreOrigin = false,
+    ): string[] =>
       this.graph.reduceEdges(
         (matches, id, edge, _sourceId, _targetId, source, target) => {
           if (!isEdgeType(edge, 'http-transaction')) {
@@ -534,17 +538,13 @@ export class ThymianFormat {
           const thymianRes = target as ThymianHttpResponse;
 
           const origin = thymianRequestToOrigin(thymianReq);
-          const pathMatches =
-            equalsIgnoreCase(thymianReq.path, req.path) ||
-            !!match(thymianReq.path.replaceAll(/{([^}]+)}/gi, ':$1'))(req.path);
-
           const originMatches = ignoreOrigin
             ? true
             : equalsIgnoreCase(origin, reqOriginUrl.toString());
 
           if (
             equalsIgnoreCase(thymianReq.method, req.method) &&
-            pathMatches &&
+            matcher(thymianReq) &&
             originMatches &&
             thymianRes.statusCode === res.statusCode &&
             equalsIgnoreCase(reqMediaType, thymianReq.mediaType) &&
@@ -558,9 +558,27 @@ export class ThymianFormat {
         [] as string[],
       );
 
-    const strictMatches = matchingEdges();
+    const exactPathMatches = matchingEdges((thymianReq) =>
+      equalsIgnoreCase(thymianReq.path, reqPath),
+    );
 
-    if (strictMatches[0]) {
+    if (exactPathMatches.length === 1 && exactPathMatches[0]) {
+      return [
+        exactPathMatches[0],
+        ...this.graph.extremities(exactPathMatches[0]),
+      ];
+    }
+
+    if (exactPathMatches.length > 1) {
+      return undefined;
+    }
+
+    const strictMatches = matchingEdges(
+      (thymianReq) =>
+        !!match(thymianReq.path.replaceAll(/{([^}]+)}/gi, ':$1'))(reqPath),
+    );
+
+    if (strictMatches.length === 1 && strictMatches[0]) {
       return [strictMatches[0], ...this.graph.extremities(strictMatches[0])];
     }
 
@@ -568,7 +586,11 @@ export class ThymianFormat {
       return undefined;
     }
 
-    const relaxedMatches = matchingEdges(true);
+    const relaxedMatches = matchingEdges(
+      (thymianReq) =>
+        !!match(thymianReq.path.replaceAll(/{([^}]+)}/gi, ':$1'))(reqPath),
+      true,
+    );
 
     if (relaxedMatches.length !== 1) {
       return undefined;

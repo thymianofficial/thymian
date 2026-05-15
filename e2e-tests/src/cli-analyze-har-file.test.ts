@@ -1,4 +1,4 @@
-import { cpSync, writeFileSync } from 'node:fs';
+import { writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 
 import { describe, expect, it } from 'vitest';
@@ -106,11 +106,6 @@ describe('thymian analyze with HAR file', () => {
 
   it('should apply api-description-validation rules to HAR traffic with an OpenAPI spec', () => {
     copyFixturesToTempDir(join(fixturesDir, 'analyze-har'), getTempDir());
-
-    cpSync(
-      join(fixturesDir, 'static-lint', 'test.openapi.yaml'),
-      join(getTempDir(), 'test.openapi.yaml'),
-    );
 
     writeFileSync(
       join(getTempDir(), 'parameterized.openapi.yaml'),
