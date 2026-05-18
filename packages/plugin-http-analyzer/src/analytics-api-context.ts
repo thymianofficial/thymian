@@ -215,11 +215,16 @@ export class AnalyticsApiContext implements AnalyzeContext {
       finalFilter,
       this.roles,
     )) {
-      const matched = this.format.matchTransaction(request.data, response.data);
-      const location: RuleViolationLocation = matched
+      const matchResult = this.format.matchTransaction(
+        request.data,
+        response.data,
+      );
+      const transactionId = matchResult?.[0];
+
+      const location: RuleViolationLocation = transactionId
         ? {
             elementType: 'edge',
-            elementId: matched[0],
+            elementId: transactionId,
             label: httpTransactionToLabel(request.data, response.data),
           }
         : httpTransactionToLabel(request.data, response.data);

@@ -7,7 +7,6 @@ import {
   ThymianFormat,
   type ThymianHttpRequest,
   ThymianHttpResponse,
-  ThymianSchema,
 } from '../../src';
 
 describe('ThymianFormat', () => {
@@ -162,6 +161,372 @@ describe('ThymianFormat', () => {
           '',
         ),
       ).toThrow();
+    });
+  });
+
+  describe('matchTransaction', () => {
+    function createParameterizedFormat() {
+      const format = new ThymianFormat();
+      const [, , transactionId] = format.addHttpTransaction(
+        {
+          type: 'http-request',
+          host: 'api.example.com',
+          port: 443,
+          protocol: 'https',
+          path: '/users/{id}',
+          method: 'GET',
+          headers: {},
+          queryParameters: {},
+          cookies: {},
+          pathParameters: {
+            id: {
+              name: 'id',
+              in: 'path',
+              required: true,
+              schema: {
+                type: 'integer',
+              },
+            },
+          },
+          mediaType: '',
+          label: '',
+        },
+        {
+          type: 'http-response',
+          headers: {
+            'content-type': {
+              required: true,
+              schema: {
+                type: 'string',
+              },
+              style: {
+                explode: false,
+                style: 'simple',
+              },
+            },
+          },
+          mediaType: 'application/json',
+          statusCode: 200,
+        },
+        'test-source',
+      );
+
+      return { format, transactionId };
+    }
+
+    it('should match a transaction by templated path while keeping other constraints', () => {
+      const { format, transactionId } = createParameterizedFormat();
+
+      const result = format.matchTransaction(
+        {
+          origin: 'https://api.example.com',
+          path: '/users/not-a-number',
+          method: 'get',
+          headers: {},
+        },
+        {
+          statusCode: 200,
+          headers: {
+            'content-type': 'application/json',
+          },
+          trailers: {},
+          duration: 42,
+        },
+      );
+
+      expect(result).toBeDefined();
+      expect(result?.[0]).toBe(transactionId);
+    });
+
+    it('should still match exact paths', () => {
+      const { format, transactionId } = createParameterizedFormat();
+
+      const result = format.matchTransaction(
+        {
+          origin: 'https://api.example.com',
+          path: '/users/{id}',
+          method: 'get',
+          headers: {},
+        },
+        {
+          statusCode: 200,
+          headers: {
+            'content-type': 'application/json',
+          },
+          trailers: {},
+          duration: 42,
+        },
+      );
+
+      expect(result).toBeDefined();
+      expect(result?.[0]).toBe(transactionId);
+    });
+
+    it('should not match a transaction when the method differs', () => {
+      const { format } = createParameterizedFormat();
+
+      const result = format.matchTransaction(
+        {
+          origin: 'https://api.example.com',
+          path: '/users/123',
+          method: 'post',
+          headers: {},
+        },
+        {
+          statusCode: 200,
+          headers: {
+            'content-type': 'application/json',
+          },
+          trailers: {},
+          duration: 42,
+        },
+      );
+
+      expect(result).toBeUndefined();
+    });
+
+    it('should ignore charset parameter', () => {
+      const format = new ThymianFormat();
+
+      const [, , transactionId] = format.addHttpTransaction(
+        {
+          cookies: {},
+          headers: {},
+          host: 'localhost',
+          label: '',
+          mediaType: '',
+          method: 'get',
+          path: '/api/users',
+          pathParameters: {},
+          port: 3000,
+          protocol: 'http',
+          queryParameters: {},
+          sourceName: '',
+          type: 'http-request',
+        },
+        {
+          headers: {},
+          label: '',
+          mediaType: 'application/json',
+          sourceName: '',
+          statusCode: 200,
+          type: 'http-response',
+          schema: { type: 'object', properties: { name: { type: 'string' } } },
+        },
+        '',
+      );
+
+      const [matchedTransactionID] =
+        format.matchTransaction(
+          {
+            method: 'get',
+            origin: 'http://localhost:3000',
+            path: '/api/users',
+            headers: {},
+            body: undefined,
+          },
+          {
+            statusCode: 200,
+            headers: {
+              'content-type': 'application/json; charset=utf-8',
+            },
+            body: '{"name": "matthyk"}',
+            bodyEncoding: undefined,
+            trailers: {},
+            duration: 0,
+          },
+        ) ?? [];
+
+      expect(matchedTransactionID).toEqual(transactionId);
+    });
+
+    it('should match a transaction with a different origin when it is the only candidate', () => {
+      const { format, transactionId } = createParameterizedFormat();
+
+      const result = format.matchTransaction(
+        {
+          origin: 'https://other.example.com',
+          path: '/users/123',
+          method: 'get',
+          headers: {},
+        },
+        {
+          statusCode: 200,
+          headers: {
+            'content-type': 'application/json',
+          },
+          trailers: {},
+          duration: 42,
+        },
+      );
+
+      expect(result).toBeDefined();
+      expect(result?.[0]).toBe(transactionId);
+    });
+
+    it('should not match a transaction when the response status differs', () => {
+      const { format } = createParameterizedFormat();
+
+      const result = format.matchTransaction(
+        {
+          origin: 'https://api.example.com',
+          path: '/users/123',
+          method: 'get',
+          headers: {},
+        },
+        {
+          statusCode: 404,
+          headers: {
+            'content-type': 'application/json',
+          },
+          trailers: {},
+          duration: 42,
+        },
+      );
+
+      expect(result).toBeUndefined();
+    });
+
+    it('should not match a transaction when the request media type differs', () => {
+      const format = new ThymianFormat();
+      format.addHttpTransaction(
+        {
+          type: 'http-request',
+          host: 'api.example.com',
+          port: 443,
+          protocol: 'https',
+          path: '/users/{id}',
+          method: 'POST',
+          headers: {},
+          queryParameters: {},
+          cookies: {},
+          pathParameters: {},
+          mediaType: 'application/json',
+          label: '',
+        },
+        {
+          type: 'http-response',
+          headers: {},
+          mediaType: 'application/json',
+          statusCode: 200,
+        },
+        'test-source',
+      );
+
+      const result = format.matchTransaction(
+        {
+          origin: 'https://api.example.com',
+          path: '/users/123',
+          method: 'post',
+          headers: {
+            'content-type': 'text/plain',
+          },
+        },
+        {
+          statusCode: 200,
+          headers: {
+            'content-type': 'application/json',
+          },
+          trailers: {},
+          duration: 42,
+        },
+      );
+
+      expect(result).toBeUndefined();
+    });
+
+    it('should not match a transaction when the response media type differs', () => {
+      const { format } = createParameterizedFormat();
+
+      const result = format.matchTransaction(
+        {
+          origin: 'https://api.example.com',
+          path: '/users/123',
+          method: 'get',
+          headers: {},
+        },
+        {
+          statusCode: 200,
+          headers: {
+            'content-type': 'text/plain',
+          },
+          trailers: {},
+          duration: 42,
+        },
+      );
+
+      expect(result).toBeUndefined();
+    });
+
+    it('should not match when origin fallback produces multiple candidates', () => {
+      const format = new ThymianFormat();
+
+      format.addHttpTransaction(
+        {
+          type: 'http-request',
+          host: 'api-a.example.com',
+          port: 443,
+          protocol: 'https',
+          path: '/users/{id}',
+          method: 'GET',
+          headers: {},
+          queryParameters: {},
+          cookies: {},
+          pathParameters: {},
+          mediaType: '',
+          label: '',
+        },
+        {
+          type: 'http-response',
+          headers: {},
+          mediaType: 'application/json',
+          statusCode: 200,
+        },
+        'test-source-a',
+      );
+
+      format.addHttpTransaction(
+        {
+          type: 'http-request',
+          host: 'api-b.example.com',
+          port: 443,
+          protocol: 'https',
+          path: '/users/{id}',
+          method: 'GET',
+          headers: {},
+          queryParameters: {},
+          cookies: {},
+          pathParameters: {},
+          mediaType: '',
+          label: '',
+        },
+        {
+          type: 'http-response',
+          headers: {},
+          mediaType: 'application/json',
+          statusCode: 200,
+        },
+        'test-source-b',
+      );
+
+      const result = format.matchTransaction(
+        {
+          origin: 'https://other.example.com',
+          path: '/users/123',
+          method: 'get',
+          headers: {},
+        },
+        {
+          statusCode: 200,
+          headers: {
+            'content-type': 'application/json',
+          },
+          trailers: {},
+          duration: 42,
+        },
+      );
+
+      expect(result).toBeUndefined();
     });
   });
 

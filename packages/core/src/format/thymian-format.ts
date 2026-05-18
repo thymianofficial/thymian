@@ -18,6 +18,7 @@ import {
   getContentType,
   httpRequestToLabel,
   httpResponseToLabel,
+  matchesMediaType,
   normalizeUrl,
   type PartialBy,
   thymianRequestToOrigin,
@@ -520,37 +521,83 @@ export class ThymianFormat {
     req: HttpRequest,
     res: HttpResponse,
   ): [string, string, string] | undefined {
-    const edgeId = this.graph.findEdge(
-      (id, edge, sourceId, targetId, source, target) => {
-        if (!isEdgeType(edge, 'http-transaction')) {
-          return false;
-        }
+    const reqMediaType = getContentType(req.headers);
+    const resMediaType = getContentType(res.headers);
+    const reqOriginUrl = normalizeUrl(req.origin);
+    const reqPath = new URL(req.path, reqOriginUrl).pathname;
+    const matchingEdges = (
+      matcher: (thymianReq: ThymianHttpRequest) => boolean,
+      ignoreOrigin = false,
+    ): string[] =>
+      this.graph.reduceEdges(
+        (matches, id, edge, _sourceId, _targetId, source, target) => {
+          if (!isEdgeType(edge, 'http-transaction')) {
+            return matches;
+          }
 
-        const thymianReq = source as ThymianHttpRequest;
-        const thymianRes = target as ThymianHttpResponse;
+          const thymianReq = source as ThymianHttpRequest;
+          const thymianRes = target as ThymianHttpResponse;
 
-        const origin = thymianRequestToOrigin(thymianReq);
-        const reqMediaType = getContentType(req.headers);
-        const resMediaType = getContentType(res.headers);
+          const origin = thymianRequestToOrigin(thymianReq);
+          const originMatches = ignoreOrigin
+            ? true
+            : equalsIgnoreCase(origin, reqOriginUrl.toString());
 
-        const reqOriginUrl = normalizeUrl(req.origin);
+          if (
+            equalsIgnoreCase(thymianReq.method, req.method) &&
+            matcher(thymianReq) &&
+            originMatches &&
+            thymianRes.statusCode === res.statusCode &&
+            matchesMediaType(thymianReq, reqMediaType) &&
+            matchesMediaType(thymianRes, resMediaType)
+          ) {
+            matches.push(id);
+          }
 
-        return (
-          equalsIgnoreCase(thymianReq.method, req.method) &&
-          equalsIgnoreCase(thymianReq.path, req.path) &&
-          equalsIgnoreCase(origin, reqOriginUrl.toString()) &&
-          thymianRes.statusCode === res.statusCode &&
-          equalsIgnoreCase(reqMediaType, thymianReq.mediaType) &&
-          equalsIgnoreCase(resMediaType, thymianRes.mediaType)
-        );
-      },
+          return matches;
+        },
+        [] as string[],
+      );
+
+    const exactPathMatches = matchingEdges((thymianReq) =>
+      equalsIgnoreCase(thymianReq.path, reqPath),
     );
 
-    if (!edgeId) {
+    if (exactPathMatches.length === 1 && exactPathMatches[0]) {
+      return [
+        exactPathMatches[0],
+        ...this.graph.extremities(exactPathMatches[0]),
+      ];
+    }
+
+    if (exactPathMatches.length > 1) {
       return undefined;
     }
 
-    return [edgeId, ...this.graph.extremities(edgeId)];
+    const strictMatches = matchingEdges(
+      (thymianReq) =>
+        !!match(thymianReq.path.replaceAll(/{([^}]+)}/gi, ':$1'))(reqPath),
+    );
+
+    if (strictMatches.length === 1 && strictMatches[0]) {
+      return [strictMatches[0], ...this.graph.extremities(strictMatches[0])];
+    }
+
+    if (strictMatches.length > 1) {
+      return undefined;
+    }
+
+    const relaxedMatches = matchingEdges(
+      (thymianReq) =>
+        !!match(thymianReq.path.replaceAll(/{([^}]+)}/gi, ':$1'))(reqPath),
+      true,
+    );
+
+    if (relaxedMatches.length !== 1) {
+      return undefined;
+    }
+
+    return [relaxedMatches[0]!, ...this.graph.extremities(relaxedMatches[0]!)];
   }
 
   matchHtpRequestByUrl(url: string): MatchResult | undefined {
