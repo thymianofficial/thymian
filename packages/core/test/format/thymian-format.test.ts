@@ -7,7 +7,6 @@ import {
   ThymianFormat,
   type ThymianHttpRequest,
   ThymianHttpResponse,
-  ThymianSchema,
 } from '../../src';
 
 describe('ThymianFormat', () => {
@@ -284,6 +283,61 @@ describe('ThymianFormat', () => {
       );
 
       expect(result).toBeUndefined();
+    });
+
+    it('should ignore charset parameter', () => {
+      const format = new ThymianFormat();
+
+      const [, , transactionId] = format.addHttpTransaction(
+        {
+          cookies: {},
+          headers: {},
+          host: 'localhost',
+          label: '',
+          mediaType: '',
+          method: 'get',
+          path: '/api/users',
+          pathParameters: {},
+          port: 3000,
+          protocol: 'http',
+          queryParameters: {},
+          sourceName: '',
+          type: 'http-request',
+        },
+        {
+          headers: {},
+          label: '',
+          mediaType: 'application/json',
+          sourceName: '',
+          statusCode: 200,
+          type: 'http-response',
+          schema: { type: 'object', properties: { name: { type: 'string' } } },
+        },
+        '',
+      );
+
+      const [matchedTransactionID] =
+        format.matchTransaction(
+          {
+            method: 'get',
+            origin: 'http://localhost:3000',
+            path: '/api/users',
+            headers: {},
+            body: undefined,
+          },
+          {
+            statusCode: 200,
+            headers: {
+              'content-type': 'application/json; charset=utf-8',
+            },
+            body: '{"name": "matthyk"}',
+            bodyEncoding: undefined,
+            trailers: {},
+            duration: 0,
+          },
+        ) ?? [];
+
+      expect(matchedTransactionID).toEqual(transactionId);
     });
 
     it('should match a transaction with a different origin when it is the only candidate', () => {

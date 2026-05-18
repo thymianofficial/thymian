@@ -18,6 +18,7 @@ import {
   getContentType,
   httpRequestToLabel,
   httpResponseToLabel,
+  matchesMediaType,
   normalizeUrl,
   type PartialBy,
   thymianRequestToOrigin,
@@ -547,8 +548,8 @@ export class ThymianFormat {
             matcher(thymianReq) &&
             originMatches &&
             thymianRes.statusCode === res.statusCode &&
-            equalsIgnoreCase(reqMediaType, thymianReq.mediaType) &&
-            equalsIgnoreCase(resMediaType, thymianRes.mediaType)
+            matchesMediaType(thymianReq, reqMediaType) &&
+            matchesMediaType(thymianRes, resMediaType)
           ) {
             matches.push(id);
           }

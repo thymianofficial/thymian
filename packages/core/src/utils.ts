@@ -1,4 +1,5 @@
 import deepmerge from '@fastify/deepmerge';
+import { is } from 'type-is';
 
 import type {
   ThymianHttpRequest,
@@ -277,6 +278,22 @@ export function queryParamsFromRequest(
 export function createRegExpFromOriginWildcard(pattern: string): RegExp {
   const regexString = `${pattern.replace(/\./g, '\\.').replace(/\*/g, '.*')}/?(:\\d{1,5})?$`;
   return new RegExp(regexString);
+}
+
+export function matchesMediaType(
+  thyminReq: ThymianHttpRequest,
+  mediaType: string,
+): boolean;
+export function matchesMediaType(
+  thyminRes: ThymianHttpResponse,
+  mediaType: string,
+): boolean;
+export function matchesMediaType(
+  expected: ThymianHttpRequest | ThymianHttpResponse,
+  mediaType: string,
+): boolean {
+  // if the media type of the request or response is empty or undefined, there is no request/response body and we simply return true
+  return !expected.mediaType || !!is(mediaType, expected.mediaType);
 }
 
 export * from 'chalk';
