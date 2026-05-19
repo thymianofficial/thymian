@@ -1,0 +1,133 @@
+---
+import { getCollection, render } from 'astro:content';
+import SocialLayout from '../../../components/social/SocialLayout.astro';
+import DocLinks from '../../../components/social/DocLinks.astro';
+
+export async function getStaticPaths() {
+  const posts = await getCollection('social');
+  return posts.map((post) => {
+    const parts = post.id.split('/');
+    const category = parts[0];
+    const slug = parts.slice(1).join('/').replace(/\.(md|mdx)$/, '');
+    return {
+      params: { category, slug },
+      props: { post },
+    };
+  });
+}
+
+const { post } = Astro.props;
+const { Content } = await render(post);
+
+const PLATFORM_LABELS = ['Reddit', 'X (Twitter)', 'LinkedIn', 'Discord'];
+---
+
+<SocialLayout
+  title={post.data.title}
+  description={post.data.description}
+  category={post.data.category}
+  slug={Astro.params.slug}
+>
+  <div class="platforms-hint">
+    <span class="platforms-label">Platforms covered:</span>
+    {PLATFORM_LABELS.map((p) => <span class="platform-pill">{p}</span>)}
+  </div>
+
+  {
+    post.data.docLinks.length > 0 && (
+      <div class="doc-links-section">
+        <DocLinks links={post.data.docLinks} />
+      </div>
+    )
+  }
+
+  <div class="post-content">
+    <Content />
+  </div>
+</SocialLayout>
+
+<style>
+  .platforms-hint {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+    margin-bottom: 1.5rem;
+  }
+
+  .platforms-label {
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: var(--sl-color-gray-4);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+  }
+
+  .platform-pill {
+    font-size: 0.7rem;
+    font-weight: 600;
+    padding: 0.2rem 0.6rem;
+    background: var(--sl-color-gray-6);
+    border: 1px solid var(--sl-color-gray-5);
+    border-radius: 9999px;
+    color: var(--sl-color-gray-3);
+  }
+
+  .doc-links-section {
+    margin-bottom: 2rem;
+  }
+
+  .post-content {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+  }
+
+  /* Typography inside MDX content */
+  .post-content :global(h2) {
+    font-size: 1.25rem;
+    font-weight: 700;
+    color: var(--sl-color-gray-2);
+    margin: 2rem 0 1rem;
+    padding-bottom: 0.5rem;
+    border-bottom: 1px solid var(--sl-color-gray-5);
+  }
+
+  .post-content :global(h3) {
+    font-size: 1rem;
+    font-weight: 600;
+    color: var(--sl-color-gray-2);
+    margin: 1.5rem 0 0.75rem;
+  }
+
+  .post-content :global(p) {
+    color: var(--sl-color-gray-3);
+    font-size: 0.875rem;
+    line-height: 1.6;
+    margin: 0 0 0.75rem;
+  }
+
+  .post-content :global(code:not(pre code)) {
+    font-family: monospace;
+    font-size: 0.8em;
+    background: var(--sl-color-gray-6);
+    border: 1px solid var(--sl-color-gray-5);
+    border-radius: 4px;
+    padding: 0.1em 0.4em;
+    color: var(--sl-color-accent);
+  }
+
+  .post-content :global(pre) {
+    background: var(--sl-color-gray-6);
+    border: 1px solid var(--sl-color-gray-5);
+    border-radius: 0.5rem;
+    padding: 1rem;
+    overflow-x: auto;
+    margin: 0.5rem 0 1rem;
+  }
+
+  .post-content :global(pre code) {
+    font-size: 0.8rem;
+    line-height: 1.6;
+  }
+</style>

@@ -1,0 +1,79 @@
+---
+title: "IGNORE - Auth Header Confusion Across Proxies"
+description: "Real-world case: conflicting auth headers and proxy normalization issues."
+category: real-world-use-cases
+publishStatus: draft
+docLinks:
+  - label: "HTTP Conformance"
+    url: "https://thymian.dev/introduction/http-conformance/"
+  - label: "Thymian Test Workflow"
+    url: "https://thymian.dev/tutorials/thymian-test-workflow/"
+---
+
+import PlatformSection from '../../../components/social/PlatformSection.astro';
+import PostText from '../../../components/social/PostText.astro';
+import SocialImage from '../../../components/social/SocialImage.astro';
+
+
+<PlatformSection platform="reddit">
+  <PostText platform="reddit" label="Title">{'Auth header confusion: when multiple credentials create undefined behavior'}</PostText>
+  <PostText platform="reddit">
+    {`A common hard-to-debug issue: clients send duplicate or conflicting auth headers (for example both Authorization and X-API-Key) and different hops prefer different headers.
+
+Conformance policies should define precedence and reject ambiguous auth input.
+
+https://thymian.dev/tutorials/thymian-test-workflow/`}
+  </PostText>
+  <SocialImage type="side-by-side" platform="reddit" rightLang="http" rightCodeLabel="Conflicting auth" rightCode={`Authorization: Bearer user-token
+X-API-Key: service-key`} lang="typescript" codeLabel="Guard rule" code={`httpRule('single-auth-scheme')
+  .match(({ request }) =>
+    Boolean(request.headers.authorization) &&
+    Boolean(request.headers['x-api-key']))`} />
+</PlatformSection>
+
+<PlatformSection platform="x">
+  <PostText platform="x">
+    {`Auth bugs are often header precedence bugs.
+
+If a request includes multiple auth schemes, upstream/downstream can disagree and create security gaps.
+
+https://thymian.dev/tutorials/thymian-test-workflow/`}
+  </PostText>
+  <SocialImage type="side-by-side" platform="x" rightLang="http" rightCodeLabel="Conflicting auth" rightCode={`Authorization: Bearer user-token
+X-API-Key: service-key`} lang="typescript" codeLabel="Guard rule" code={`httpRule('single-auth-scheme')
+  .match(({ request }) =>
+    Boolean(request.headers.authorization) &&
+    Boolean(request.headers['x-api-key']))`} />
+</PlatformSection>
+
+<PlatformSection platform="linkedin">
+  <PostText platform="linkedin">
+    {`Security incidents around API authentication are not always about cryptography. Sometimes they are protocol hygiene issues.
+
+When multiple auth schemes are accepted in one request, routing layers can evaluate credentials differently, producing inconsistent authorization outcomes.
+
+Conformance checks should enforce a single accepted auth mechanism per endpoint context.
+
+https://thymian.dev/introduction/http-conformance/`}
+  </PostText>
+  <SocialImage type="side-by-side" platform="linkedin" rightLang="http" rightCodeLabel="Conflicting auth" rightCode={`Authorization: Bearer user-token
+X-API-Key: service-key`} lang="typescript" codeLabel="Guard rule" code={`httpRule('single-auth-scheme')
+  .match(({ request }) =>
+    Boolean(request.headers.authorization) &&
+    Boolean(request.headers['x-api-key']))`} />
+</PlatformSection>
+
+<PlatformSection platform="discord">
+  <PostText platform="discord">
+    {`Auth header tip:
+
+Do not accept overlapping auth schemes in one request unless precedence is explicit and tested.
+
+https://thymian.dev/introduction/http-conformance/`}
+  </PostText>
+  <SocialImage type="side-by-side" platform="discord" rightLang="http" rightCodeLabel="Conflicting auth" rightCode={`Authorization: Bearer user-token
+X-API-Key: service-key`} lang="typescript" codeLabel="Guard rule" code={`httpRule('single-auth-scheme')
+  .match(({ request }) =>
+    Boolean(request.headers.authorization) &&
+    Boolean(request.headers['x-api-key']))`} />
+</PlatformSection>

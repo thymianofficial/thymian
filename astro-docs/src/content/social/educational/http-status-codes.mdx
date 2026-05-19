@@ -1,0 +1,136 @@
+---
+title: "IGNORE - HTTP Status Codes: What Your API Is Actually Telling Clients"
+description: "Educational post explaining HTTP status code semantics and how incorrect status codes break client behavior."
+category: educational
+publishStatus: draft
+docLinks:
+  - label: "HTTP Conformance — Thymian"
+    url: "https://thymian.dev/introduction/http-conformance/"
+  - label: "RFC 9110 — HTTP Semantics"
+    url: "https://thymian.dev/introduction/http-conformance/"
+  - label: "What is an HTTP Rule?"
+    url: "https://thymian.dev/concepts/what-is-an-http-rule/"
+---
+
+import PlatformSection from '../../../components/social/PlatformSection.astro';
+import PostText from '../../../components/social/PostText.astro';
+import SocialImage from '../../../components/social/SocialImage.astro';
+
+
+## Reddit
+
+<PlatformSection platform="reddit">
+  <PostText platform="reddit" label="Title">
+Your API is lying to its clients — a guide to HTTP status code semantics most devs get wrong
+  </PostText>
+
+  <PostText platform="reddit" label="Post body">
+HTTP status codes aren't just numbers you return to indicate success or failure. They carry precise, machine-readable semantics that clients — browsers, CDNs, mobile apps — act on.
+
+Here are the most common violations I see in production APIs:
+
+**200 on a POST that creates a resource**
+RFC 9110 says POST creating a new resource should return `201 Created` + a `Location` header pointing to the new resource. Returning `200` breaks clients that check for `Location` to find the new URL.
+
+**404 vs 410**
+`404 Not Found` means "I don't know if this ever existed." `410 Gone` means "this existed and was permanently removed." CDNs cache `410` more aggressively. Use it when you remove endpoints intentionally.
+
+**401 vs 403**
+`401 Unauthorized` means "you need to authenticate." `403 Forbidden` means "you're authenticated but not allowed." Mixing these up breaks auth flows — a `401` triggers re-authentication logic in many clients.
+
+**200 with `Cache-Control: no-store`**
+If you return `200` with `no-store`, caches won't store it — but a `304 Not Modified` requires a cached response to compare against. The two work together; misusing either breaks conditional caching.
+
+You can lint all of these automatically:
+
+```bash
+npx thymian lint --spec openapi:./openapi.yaml
+```
+
+🔗 https://thymian.dev/introduction/http-conformance/
+  </PostText>
+
+  <SocialImage type="code-snippet" platform="reddit" lang="http" codeLabel="Status code semantics" code={`POST /users -> HTTP/1.1 201 Created
+Location: /users/42
+
+GET /legacy -> HTTP/1.1 410 Gone`} />
+</PlatformSection>
+
+## X (Twitter)
+
+<PlatformSection platform="x">
+  <PostText platform="x">
+📚 HTTP status codes carry machine-readable semantics. Getting them wrong breaks clients silently.
+
+200 on POST creation → clients miss the Location header
+404 vs 410 → CDNs cache differently
+401 vs 403 → auth flows break
+
+Thymian lints these automatically. → https://thymian.dev/introduction/http-conformance/
+  </PostText>
+
+  <SocialImage type="code-snippet" platform="x" lang="http" codeLabel="Status code semantics" code={`POST /users -> HTTP/1.1 201 Created
+Location: /users/42
+
+GET /legacy -> HTTP/1.1 410 Gone`} />
+</PlatformSection>
+
+## LinkedIn
+
+<PlatformSection platform="linkedin">
+  <PostText platform="linkedin">
+**HTTP status codes are not just human-readable labels. They are a machine protocol that browsers, CDNs, mobile clients, and API gateways act on — automatically.**
+
+Getting them wrong causes silent failures that are notoriously hard to debug.
+
+Here are four I fix most often in API reviews:
+
+**201 vs 200 on resource creation**
+`POST /users` returning `200` instead of `201 Created` + `Location: /users/42` breaks clients that rely on the `Location` header to find the new resource. This is §9.3.3 of RFC 9110.
+
+**410 vs 404 for removed endpoints**
+`410 Gone` signals permanent removal. CDNs cache `410` more aggressively. If you deprecated an endpoint, use `410` — not `404`.
+
+**401 vs 403**
+`401` triggers re-authentication. `403` means "authenticated, but forbidden." Mixing them up breaks auth middleware in virtually every framework.
+
+**304 and caching**
+`304 Not Modified` only works if the client has a cached `200` to compare against. Returning `304` to a client with no cache entry causes silent failures.
+
+These are all lintable. Write the rule once, and it applies to your spec, your live server, and your production HAR traffic.
+
+🔗 https://thymian.dev/introduction/http-conformance/
+#API #HTTP #WebDev #APIDevelopment #RFC9110
+  </PostText>
+
+  <SocialImage type="code-snippet" platform="linkedin" lang="http" codeLabel="Status code semantics" code={`POST /users -> HTTP/1.1 201 Created
+Location: /users/42
+
+GET /legacy -> HTTP/1.1 410 Gone`} />
+</PlatformSection>
+
+## Discord
+
+<PlatformSection platform="discord">
+  <PostText platform="discord">
+📚 **HTTP status code semantics — quick reference**
+
+Common mistakes that silently break clients:
+
+- `POST /resource → 200` should be `201 Created` + `Location` header (RFC 9110 §9.3.3)
+- `404` for removed endpoint should be `410 Gone` (CDNs cache differently)
+- `401 Unauthorized` ≠ `403 Forbidden` (triggers different auth logic in clients)
+
+All of these are auto-detectable with Thymian:
+```bash
+npx thymian lint --spec openapi:./openapi.yaml
+```
+
+→ https://thymian.dev/introduction/http-conformance/
+  </PostText>
+
+  <SocialImage type="code-snippet" platform="discord" lang="http" codeLabel="Status code semantics" code={`POST /users -> HTTP/1.1 201 Created
+Location: /users/42
+
+GET /legacy -> HTTP/1.1 410 Gone`} />
+</PlatformSection>

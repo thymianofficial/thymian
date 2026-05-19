@@ -1,0 +1,79 @@
+---
+title: "IGNORE - Content Negotiation Gotchas in Real APIs"
+description: "Educational/technical angle about Accept and Content-Type handling."
+category: http-api-topics
+publishStatus: draft
+docLinks:
+  - label: "HTTP Conformance"
+    url: "https://thymian.dev/introduction/http-conformance/"
+  - label: "What is an HTTP Rule?"
+    url: "https://thymian.dev/concepts/what-is-an-http-rule/"
+---
+
+import PlatformSection from '../../../components/social/PlatformSection.astro';
+import PostText from '../../../components/social/PostText.astro';
+import SocialImage from '../../../components/social/SocialImage.astro';
+
+
+<PlatformSection platform="reddit">
+  <PostText platform="reddit" label="Title">{'Content negotiation bugs: why APIs still mis-handle Accept and Content-Type'}</PostText>
+  <PostText platform="reddit">
+    {`Many APIs ignore Accept and always return JSON. That works until clients request something specific or intermediaries enforce protocol behavior.
+
+Conformance checks should verify that unsupported Accept values return proper responses and that Content-Type is explicit.
+
+https://thymian.dev/introduction/http-conformance/`}
+  </PostText>
+  <SocialImage type="side-by-side" platform="reddit" rightLang="http" rightCodeLabel="Incoming request" rightCode={`GET /users HTTP/1.1
+Accept: application/xml`} lang="http" codeLabel="Incorrect response" code={`HTTP/1.1 200 OK
+Content-Type: application/json`} />
+</PlatformSection>
+
+<PlatformSection platform="x">
+  <PostText platform="x">
+    {`APIs still fail content negotiation in subtle ways:
+
+- ignore Accept header
+- return mismatched Content-Type
+- send 200 where 406 is expected
+
+These are conformance bugs, not style issues.
+https://thymian.dev/introduction/http-conformance/`}
+  </PostText>
+  <SocialImage type="side-by-side" platform="x" rightLang="http" rightCodeLabel="Incoming request" rightCode={`GET /users HTTP/1.1
+Accept: application/xml`} lang="http" codeLabel="Incorrect response" code={`HTTP/1.1 200 OK
+Content-Type: application/json`} />
+</PlatformSection>
+
+<PlatformSection platform="linkedin">
+  <PostText platform="linkedin">
+    {`A recurring production issue: content negotiation assumptions.
+
+Backend teams often assume JSON everywhere, while clients, gateways, and SDKs rely on explicit Accept/Content-Type semantics.
+
+When that contract is violated, failures look random:
+- one client fails while others work
+- transformations at API gateway layer become inconsistent
+- caching behavior changes unexpectedly
+
+This is exactly where HTTP conformance checks provide clarity.
+
+https://thymian.dev/introduction/http-conformance/`}
+  </PostText>
+  <SocialImage type="side-by-side" platform="linkedin" rightLang="http" rightCodeLabel="Incoming request" rightCode={`GET /users HTTP/1.1
+Accept: application/xml`} lang="http" codeLabel="Incorrect response" code={`HTTP/1.1 200 OK
+Content-Type: application/json`} />
+</PlatformSection>
+
+<PlatformSection platform="discord">
+  <PostText platform="discord">
+    {`Content negotiation gotcha:
+
+If request says Accept: application/xml and API still returns JSON + 200, clients and proxies may break in non-obvious ways.
+
+https://thymian.dev/introduction/http-conformance/`}
+  </PostText>
+  <SocialImage type="side-by-side" platform="discord" rightLang="http" rightCodeLabel="Incoming request" rightCode={`GET /users HTTP/1.1
+Accept: application/xml`} lang="http" codeLabel="Incorrect response" code={`HTTP/1.1 200 OK
+Content-Type: application/json`} />
+</PlatformSection>
