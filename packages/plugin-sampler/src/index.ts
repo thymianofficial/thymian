@@ -177,12 +177,18 @@ export const samplePlugin: ThymianPlugin<Partial<SamplerPluginOptions>> = {
         emitter,
       );
 
+      logger.debug('Generated samples for thymian format.');
+
       const generatedTypes = await generateTypesForThymianFormat(parsedFormat);
+
+      logger.debug('Generated types for thymian format.');
 
       await writeSamplesToDir(samples, generatedTypes.keyToTransactionId, {
         path: basePath,
         mode: typeof overwrite === 'boolean' ? 'overwrite' : 'failIfExist',
       });
+
+      logger.debug(`Wrote samples at ${basePath}`);
 
       await writeFile(
         join(basePath, 'types.d.ts'),

@@ -2,6 +2,7 @@ import type { PartialBy, ThymianHttpResponse } from '@thymian/core';
 import { httpStatusCodeRanges, isHttpStatusCodeRange } from '@thymian/core';
 import type { OpenAPIV3_1 as OpenApiV31 } from 'openapi-types';
 
+import { resolveOpenApiReference } from './openapi-reference-resolver.js';
 import {
   processResponseObject,
   type ResponsesWithLinks,
@@ -11,6 +12,7 @@ import type { Parameters } from './utils.js';
 export function processResponsesObject(
   responsesObject: OpenApiV31.ResponsesObject | undefined,
   parameters: Parameters,
+  document: OpenApiV31.Document,
 ): ResponsesWithLinks[] {
   const responses: Record<
     string,
@@ -23,6 +25,12 @@ export function processResponsesObject(
   for (const [statusCode, responseObject] of Object.entries(
     responsesObject ?? {},
   )) {
+    const resolvedResponse = resolveOpenApiReference<OpenApiV31.ResponseObject>(
+      responseObject,
+      document,
+      'response',
+    );
+
     if (statusCode === 'default') {
       /* ignored */
     } else if (isHttpStatusCodeRange(statusCode)) {
@@ -31,9 +39,10 @@ export function processResponsesObject(
 
         if (!Object.hasOwn(responses, strCode)) {
           responses[strCode] = processResponseObject(
-            responseObject as OpenApiV31.ResponseObject,
+            resolvedResponse,
             code,
             parameters,
+            document,
           );
         }
       });
@@ -47,9 +56,10 @@ export function processResponsesObject(
       }
 
       responses[statusCode] = processResponseObject(
-        responseObject as OpenApiV31.ResponseObject,
+        resolvedResponse,
         statusCodeNumber,
         parameters,
+        document,
       );
     }
   }

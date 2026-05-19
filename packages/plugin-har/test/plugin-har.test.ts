@@ -52,6 +52,7 @@ describe('plugin-har', () => {
           location: '',
         },
       ],
+      validateTrafficSource: false,
     });
 
     expect(result.transactions).toHaveLength(0);
@@ -74,6 +75,7 @@ describe('plugin-har', () => {
           location: harFile,
         },
       ],
+      validateTrafficSource: false,
     });
 
     expect(result).toMatchObject({
@@ -109,13 +111,14 @@ describe('plugin-har', () => {
             location: harFile,
           },
         ],
+        validateTrafficSource: false,
       }),
     ).rejects.toThrowError(/as JSON/);
   });
 
-  it('should emit core.error for valid JSON but invalid HAR structure', async () => {
-    const harFile = join(tmpDir, 'not-har.har');
-    await writeFile(harFile, JSON.stringify({ foo: 'bar' }));
+  it('should still throw for malformed JSON when validation is enabled', async () => {
+    const harFile = join(tmpDir, 'bad-validated.har');
+    await writeFile(harFile, 'not-json{{{');
 
     const plugin = createHarPlugin();
 
@@ -131,8 +134,126 @@ describe('plugin-har', () => {
             location: harFile,
           },
         ],
+        validateTrafficSource: true,
+      }),
+    ).rejects.toThrowError(/as JSON/);
+  });
+
+  it('should warn but continue for transformable invalid HAR structure when validation is disabled', async () => {
+    const harFile = join(tmpDir, 'not-har.har');
+    await writeFile(
+      harFile,
+      JSON.stringify({
+        log: {
+          version: '1.2',
+          entries: [
+            {
+              ...validEntry,
+              response: {
+                ...validEntry.response,
+                content: { text: '{"id":1}', size: '8' },
+              },
+            },
+          ],
+        },
+      }),
+    );
+
+    const plugin = createHarPlugin();
+    const emitter = createMockEmitter();
+    const logger = createMockLogger();
+
+    await plugin.plugin(emitter, logger, { cwd: tmpDir });
+
+    const onActionCalls = vi.mocked(emitter.onAction).mock.calls;
+    const handler = onActionCalls.find(
+      (call) => call[0] === 'core.traffic.load',
+    )![1];
+
+    const replied = vi.fn();
+    await handler(
+      {
+        inputs: [
+          {
+            type: 'har',
+            location: harFile,
+          },
+        ],
+        validateTrafficSource: false,
+      },
+      {
+        reply: replied,
+      } as any,
+    );
+
+    expect(replied).toHaveBeenCalledWith({
+      transactions: [expect.any(Object)],
+    });
+    expect(logger.warn).toHaveBeenCalledWith(
+      expect.stringContaining('HAR schema validation failed'),
+    );
+  });
+
+  it('should throw for invalid HAR structure when validation is enabled', async () => {
+    const harFile = join(tmpDir, 'not-har.har');
+    await writeFile(
+      harFile,
+      JSON.stringify({
+        log: {
+          version: '1.2',
+          entries: [
+            {
+              ...validEntry,
+              response: {
+                ...validEntry.response,
+                content: { text: '{"id":1}', size: '8' },
+              },
+            },
+          ],
+        },
+      }),
+    );
+
+    const plugin = createHarPlugin();
+
+    const thymian = new Thymian().register(plugin);
+
+    await thymian.ready();
+
+    await expect(() =>
+      thymian.loadTraffic({
+        inputs: [
+          {
+            type: 'har',
+            location: harFile,
+          },
+        ],
+        validateTrafficSource: true,
       }),
     ).rejects.toThrowError(/Invalid HAR structure/);
+  });
+
+  it('should still throw when HAR is too sparse to transform even if schema validation is enabled', async () => {
+    const harFile = join(tmpDir, 'sparse.har');
+    await writeFile(harFile, JSON.stringify({}));
+
+    const plugin = createHarPlugin();
+
+    const thymian = new Thymian().register(plugin);
+
+    await thymian.ready();
+
+    await expect(() =>
+      thymian.loadTraffic({
+        inputs: [
+          {
+            type: 'har',
+            location: harFile,
+          },
+        ],
+        validateTrafficSource: true,
+      }),
+    ).rejects.toThrowError(/Failed to transform HAR file/);
   });
 
   it('should handle empty HAR file with zero entries', async () => {
@@ -151,9 +272,15 @@ describe('plugin-har', () => {
     )![1];
 
     const replied = vi.fn();
-    await handler({ inputs: [{ type: 'har', location: harFile }] }, {
-      reply: replied,
-    } as any);
+    await handler(
+      {
+        inputs: [{ type: 'har', location: harFile }],
+        validateTrafficSource: false,
+      },
+      {
+        reply: replied,
+      } as any,
+    );
 
     expect(replied).toHaveBeenCalledWith({ transactions: [] });
   });
@@ -174,9 +301,15 @@ describe('plugin-har', () => {
     )![1];
 
     const replied = vi.fn();
-    await handler({ inputs: [{ type: 'har', location: 'relative.har' }] }, {
-      reply: replied,
-    } as any);
+    await handler(
+      {
+        inputs: [{ type: 'har', location: 'relative.har' }],
+        validateTrafficSource: false,
+      },
+      {
+        reply: replied,
+      } as any,
+    );
 
     expect(replied).toHaveBeenCalledWith({
       transactions: [expect.any(Object)],
@@ -210,9 +343,15 @@ describe('plugin-har', () => {
     )![1];
 
     const replied = vi.fn();
-    await handler({ inputs: [{ type: 'har', location: harFile }] }, {
-      reply: replied,
-    } as any);
+    await handler(
+      {
+        inputs: [{ type: 'har', location: harFile }],
+        validateTrafficSource: false,
+      },
+      {
+        reply: replied,
+      } as any,
+    );
 
     expect(replied).toHaveBeenCalledWith({
       transactions: [expect.any(Object)],
@@ -242,6 +381,7 @@ describe('plugin-har', () => {
             location: harFile,
           },
         ],
+        validateTrafficSource: false,
       }),
     ).rejects.toThrowError(/exceeds maximum size/);
   });

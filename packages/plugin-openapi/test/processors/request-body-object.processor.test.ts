@@ -5,6 +5,15 @@ import { LocMapper } from '../../src/loc-mapper/loc-mapper.js';
 import { processRequestBodyObjet } from '../../src/processors/request-body-object.processor.js';
 import type { Parameters } from '../../src/processors/utils.js';
 
+const emptyDocument: OpenAPIV3_1.Document = {
+  openapi: '3.1.0',
+  info: {
+    title: 'Test API',
+    version: '1.0.0',
+  },
+  paths: {},
+};
+
 class MockLocMapper extends LocMapper {
   constructor() {
     super('', '');
@@ -36,6 +45,7 @@ describe('processRequestBodyObjet', () => {
       mockParameters,
       mockLocMapper,
       baseContext,
+      emptyDocument,
     );
 
     expect(result).toEqual([
@@ -76,6 +86,7 @@ describe('processRequestBodyObjet', () => {
         ...baseContext,
         operationId: 'testOperation',
       },
+      emptyDocument,
     );
 
     expect(result).toEqual([
@@ -117,6 +128,7 @@ describe('processRequestBodyObjet', () => {
       mockParameters,
       mockLocMapper,
       baseContext,
+      emptyDocument,
     );
 
     expect(result).toEqual([]);
@@ -144,6 +156,7 @@ describe('processRequestBodyObjet', () => {
       mockParameters,
       mockLocMapper,
       context,
+      emptyDocument,
     );
 
     expect(result[0]?.sourceLocation).toEqual({
@@ -166,6 +179,7 @@ describe('processRequestBodyObjet', () => {
       mockParameters,
       mockLocMapper,
       baseContext,
+      emptyDocument,
     );
 
     expect(result).toEqual([]);

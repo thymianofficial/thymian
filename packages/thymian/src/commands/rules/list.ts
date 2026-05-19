@@ -1,4 +1,7 @@
+import { createWriteStream } from 'node:fs';
 import { EOL } from 'node:os';
+import { join } from 'node:path';
+import { finished } from 'node:stream/promises';
 
 import {
   BaseCliRunCommand,
@@ -28,6 +31,9 @@ export default class ListRules extends BaseCliRunCommand<typeof ListRules> {
         'Filter rules by type (static, analytics, test, informational). Can be specified multiple times.',
       multiple: true,
       options: [...ruleTypes],
+    }),
+    ['to-csv']: Flags.string({
+      description: 'Output rules to CSV file.',
     }),
   };
 
@@ -65,6 +71,32 @@ export default class ListRules extends BaseCliRunCommand<typeof ListRules> {
       a.meta.name.localeCompare(b.meta.name),
     );
 
+    const csvPath = this.flags['to-csv'];
+    if (csvPath) {
+      const outputPath = join(this.flags.cwd, csvPath);
+
+      try {
+        const stream = createWriteStream(outputPath, { encoding: 'utf8' });
+        const streamFinished = finished(stream);
+
+        await writeToStream(
+          stream,
+          'name,severity,static,test,analytics,informational\n',
+        );
+
+        for (const rule of sorted) {
+          await writeToStream(stream, formatRuleToCsvLine(rule));
+        }
+
+        stream.end();
+        await streamFinished;
+      } catch (err) {
+        this.error(
+          `Failed to write CSV report to ${outputPath}: ${err instanceof Error ? err.message : String(err)}`,
+        );
+      }
+    }
+
     const topicColor = this.config?.theme?.topic;
     const lines = sorted.map((rule) => formatRule(rule, topicColor));
 
@@ -72,6 +104,41 @@ export default class ListRules extends BaseCliRunCommand<typeof ListRules> {
     this.log();
     this.log(`${sorted.length} rule(s) loaded.`);
   }
+}
+
+function formatRuleToCsvLine(rule: Rule): string {
+  const { name, severity, type } = rule.meta;
+
+  return (
+    [
+      escapeCsvField(name),
+      escapeCsvField(severity),
+      String(type.includes('static')),
+      String(type.includes('test')),
+      String(type.includes('analytics')),
+      String(type.includes('informational')),
+    ].join(',') + '\n'
+  );
+}
+
+function escapeCsvField(value: string): string {
+  return `"${value.replace(/\r\n|\r|\n/g, ' ').replaceAll('"', '""')}"`;
+}
+
+function writeToStream(
+  stream: ReturnType<typeof createWriteStream>,
+  chunk: string,
+): Promise<void> {
+  return new Promise<void>((resolve, reject) => {
+    stream.write(chunk, (err) => {
+      if (err) {
+        reject(err);
+        return;
+      }
+
+      resolve();
+    });
+  });
 }
 
 function formatRule(rule: Rule, topicColor?: string): string {

@@ -14,6 +14,8 @@ import {
   type HttpFilterExpression,
   type Logger,
   NoopLogger,
+  type SpecValidationIssue,
+  type SpecValidationResult,
   ThymianBaseError,
   type ThymianFormat,
 } from '@thymian/core';
@@ -50,6 +52,47 @@ export type LoadResult = {
   original: OpenAPI.Document;
   filePath?: string;
 };
+
+function mapValidationIssue(error: {
+  message: string;
+  code?: string;
+  path?: unknown;
+}): SpecValidationIssue {
+  const normalizedPath = Array.isArray(error.path)
+    ? error.path.join('.')
+    : typeof error.path === 'string'
+      ? error.path
+      : undefined;
+
+  return {
+    message: error.message,
+    code: error.code,
+    path: normalizedPath,
+  };
+}
+
+function createToolErrorResult(
+  value: string,
+  source: string,
+  error: ThymianBaseError,
+  filePath?: string,
+): SpecValidationResult {
+  return {
+    type: 'openapi',
+    location: value,
+    source,
+    status: 'error',
+    issues: [
+      {
+        message: error.message,
+        code: error.name,
+      },
+    ],
+    metadata: {
+      ...(filePath ? { filePath } : {}),
+    },
+  };
+}
 
 export async function loadOpenApi(
   value: string,
@@ -157,7 +200,7 @@ export async function loadAndUpgrade(
             validationResult.errors.map((e) => e.message).join('; '),
           ),
           suggestions: [
-            'This indicates that your OpenAPI document does not match the OpenAPI specification. Use `thymian openapi:validate` to get detailed validation errors',
+            'This indicates that your OpenAPI document does not match the OpenAPI specification. Use `thymian validate --spec openapi:<path>` to get detailed validation errors',
             'Ensure all required fields are present (openapi, info, paths)',
           ],
         },
@@ -186,7 +229,7 @@ export async function loadAndUpgrade(
 
   logger.debug(`Upgraded ${sourceLabel} to version 3.1.`);
 
-  const dereferencedResult = dereference(upgradedObject, {
+  const dereferencedResult = dereference(structuredClone(upgradedObject), {
     throwOnError: false,
   });
 
@@ -208,10 +251,97 @@ export async function loadAndUpgrade(
   }
 
   return {
-    document: dereferencedResult.schema as OpenAPIV3_1.Document,
+    document: upgradedObject as OpenAPIV3_1.Document,
     original: document as OpenAPI.Document,
     filePath: filePath ? filePath : undefined,
   };
+}
+
+export async function validateOpenApi(
+  value: string,
+  options: {
+    cwd: string;
+    logger?: Logger;
+    sourceName?: string;
+  },
+): Promise<SpecValidationResult> {
+  const logger = options.logger ?? new NoopLogger();
+  let filePath: string | undefined;
+  let source = options.sourceName ?? value;
+
+  try {
+    const loadResult = await loadOpenApi(value, options.cwd);
+    const { document } = loadResult;
+    filePath = loadResult.filePath;
+    const relativePath = filePath
+      ? getRelativePath(filePath, options.cwd)
+      : value;
+    source = options.sourceName ?? relativePath;
+
+    const validationResult = await validate(document, { throwOnError: false });
+
+    if (!validationResult.valid && validationResult.errors) {
+      const issues = validationResult.errors.map(mapValidationIssue);
+      const hasReferenceErrors = validationResult.errors.some(
+        (error) => error.code === 'INVALID_REFERENCE',
+      );
+
+      logger.info(`OpenAPI validation failed for '${source}'.`);
+
+      return {
+        type: 'openapi',
+        location: value,
+        source,
+        status: 'failed',
+        issues,
+        metadata: {
+          filePath,
+          hasReferenceErrors,
+        },
+      };
+    }
+
+    const upgradedObject = upgrade(structuredClone(document), '3.1');
+    const dereferencedResult = dereference(upgradedObject, {
+      throwOnError: false,
+    });
+
+    if (dereferencedResult?.errors?.length || !dereferencedResult.schema) {
+      logger.debug(`Cannot dereference '${source}'.`);
+      throw new ThymianBaseError(
+        `Dereferencing all internal references in '${source}' failed.`,
+        {
+          name: 'OpenAPIDereferenceError',
+          ref: 'https://thymian.dev/references/errors/openapi-dereference-error/',
+          cause: new Error(
+            dereferencedResult?.errors?.map((e) => e.message).join('; ') ?? '',
+          ),
+          suggestions: [
+            'Ensure all $refs are valid and resolve to a valid non-external location.',
+          ],
+        },
+      );
+    }
+
+    logger.debug(`Successfully validated '${source}'.`);
+
+    return {
+      type: 'openapi',
+      location: value,
+      source,
+      status: 'success',
+      issues: [],
+      metadata: {
+        filePath,
+      },
+    };
+  } catch (error) {
+    if (error instanceof ThymianBaseError) {
+      return createToolErrorResult(value, source, error, filePath);
+    }
+
+    throw error;
+  }
 }
 
 export async function openapiToThymianFormat(

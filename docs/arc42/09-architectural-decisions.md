@@ -20,6 +20,7 @@ This chapter documents the significant architectural decisions made for Thymian.
 | [ADR-0010](adr/0010-core-owned-infrastructure-actions.md)                      | Core-owned infrastructure actions                                  | Accepted | 2026-04-09 | —                                                                                                                      |
 | [ADR-0011](adr/0011-action-naming-conventions.md)                              | Action naming conventions (`core.<domain>.<verb>`)                 | Accepted | 2026-04-09 | —                                                                                                                      |
 | [ADR-0012](adr/0012-http-test-framework-absorption-into-core.md)               | HTTP test framework absorption into core                           | Accepted | 2026-04-09 | —                                                                                                                      |
+| [ADR-0013](adr/0013-thymian-format-must-not-contain-circular-references.md)    | Thymian format must not contain circular references                | Proposed | 2026-05-04 | [10.2.3](10-quality-requirements.md#102-quality-scenarios)                                                             |
 
 ## Creating New ADRs
 

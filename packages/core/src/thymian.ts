@@ -7,6 +7,8 @@ import type {
   CoreRequestSampleInput,
   CoreTrafficLoadInput,
   SpecificationInput,
+  SpecValidationOutcome,
+  SpecValidationResult,
   TrafficInput,
   ValidationResult,
   WorkflowClassification,
@@ -67,6 +69,11 @@ export interface AnalyzeWorkflowInput {
   ruleFilter?: RuleFilter;
   options?: Record<string, unknown>;
   validateSpecs?: boolean;
+  validateTrafficSource?: boolean;
+}
+
+export interface ValidateWorkflowInput {
+  specification: SpecificationInput[];
 }
 
 export type RegisteredPlugin<
@@ -79,7 +86,7 @@ export type RegisteredPlugin<
 export class PluginRegistrationError extends ThymianBaseError {}
 
 export type ThymianOptions = {
-  timeout: number;
+  timeout?: number;
   idleTimeout: number;
   traceEvents: boolean;
   cwd: string;
@@ -101,6 +108,8 @@ export class Thymian {
 
   // Number of milliseconds that is waited for new events and actions to be emitted before shutting down the emitter.
   public static readonly DEFAULT_IDLE_TIMEOUT = 500;
+
+  public static readonly DEFAULT_TEST_TIMEOUT = 1000 * 60 * 5;
 
   // number of milliseconds that is waited for actions response and plugin registration
   public static readonly DEFAULT_TIMEOUT = 10000;
@@ -208,7 +217,7 @@ export class Thymian {
           });
       };
 
-      this.emitter.onError((event) => {
+      const errorSubscription = this.emitter.onError((event) => {
         if (closed && this.options.logAllErrors) {
           this.logger
             .child(event.source)
@@ -232,6 +241,9 @@ export class Thymian {
         .then(resolve)
         .catch((err) => {
           tryCloseThymian(err);
+        })
+        .finally(() => {
+          errorSubscription.unsubscribe();
         });
     });
   }
@@ -373,7 +385,7 @@ export class Thymian {
         options: input.options,
         targetUrl: input.targetUrl,
       },
-      { strategy: 'collect' },
+      { strategy: 'collect', timeout: Thymian.DEFAULT_TEST_TIMEOUT },
     );
 
     this.bridgeReports(results, format);
@@ -389,7 +401,10 @@ export class Thymian {
     const { rulesConfig, ruleFilter } = input;
 
     const [traffic, rules, format] = await Promise.all([
-      this.loadTraffic({ inputs: input.traffic }),
+      this.loadTraffic({
+        inputs: input.traffic,
+        validateTrafficSource: input.validateTrafficSource ?? false,
+      }),
       loadRules(input.rules ?? [], ruleFilter, rulesConfig, this.options.cwd),
       input.specification
         ? this.loadFormat(
@@ -420,6 +435,55 @@ export class Thymian {
       classification: this.classifyResults(results),
       text: await this.flushReportText(),
       results,
+    };
+  }
+
+  async validate(input: ValidateWorkflowInput): Promise<SpecValidationOutcome> {
+    this.logger.info(
+      `Validating ${input.specification.length} specification(s)...`,
+    );
+
+    const results = (
+      await this.emitter.emitAction(
+        'core.validate-specs',
+        {
+          inputs: input.specification,
+        },
+        { strategy: 'collect' },
+      )
+    ).flat();
+
+    const completedResults = [...results];
+
+    for (const specification of input.specification) {
+      const hasResult = results.some(
+        (result) =>
+          result.type === specification.type &&
+          result.location === String(specification.location),
+      );
+
+      if (!hasResult) {
+        completedResults.push({
+          type: specification.type,
+          location: String(specification.location),
+          source: String(specification.location),
+          status: 'unsupported',
+          issues: [
+            {
+              message: `No validator registered for specification type "${specification.type}".`,
+            },
+          ],
+        });
+      }
+    }
+
+    const classification = this.classifySpecValidationResults(completedResults);
+
+    this.logger.info(`Validation complete: ${classification}.`);
+
+    return {
+      classification,
+      results: completedResults,
     };
   }
 
@@ -465,6 +529,25 @@ export class Thymian {
 
   private classifyResults(results: ValidationResult[]): WorkflowClassification {
     if (results.some((result) => result.status === 'error')) {
+      return 'tool-error';
+    }
+
+    if (results.some((result) => result.status === 'failed')) {
+      return 'findings';
+    }
+
+    return 'clean-run';
+  }
+
+  private classifySpecValidationResults(
+    results: SpecValidationResult[],
+  ): WorkflowClassification {
+    if (
+      results.some(
+        (result) =>
+          result.status === 'error' || result.status === 'unsupported',
+      )
+    ) {
       return 'tool-error';
     }
 

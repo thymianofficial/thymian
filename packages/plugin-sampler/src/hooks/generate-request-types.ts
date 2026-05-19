@@ -7,45 +7,6 @@ import {
 import CodeBlockWriter from 'code-block-writer';
 import { compile, type JSONSchema } from 'json-schema-to-typescript';
 
-function escapeJsonPointerSegment(segment: string | number): string {
-  return String(segment).replace(/~/g, '~0').replace(/\//g, '~1');
-}
-
-function normalizeCircularSchemaRefs<T>(schema: T): T {
-  const activeStack = new Map<object, string>();
-
-  const recurse = (current: unknown, path: string): unknown => {
-    if (typeof current !== 'object' || current === null) {
-      return current;
-    }
-
-    if (activeStack.has(current)) {
-      return { $ref: activeStack.get(current) };
-    }
-
-    activeStack.set(current, path);
-
-    let result: unknown;
-
-    if (Array.isArray(current)) {
-      result = current.map((item, index) => recurse(item, `${path}/${index}`));
-    } else {
-      result = Object.fromEntries(
-        Object.entries(current).map(([key, value]) => [
-          key,
-          recurse(value, `${path}/${escapeJsonPointerSegment(key)}`),
-        ]),
-      );
-    }
-
-    activeStack.delete(current);
-
-    return result;
-  };
-
-  return recurse(schema, '#') as T;
-}
-
 export async function generateTypeForSchema(
   schema: unknown,
   mediaType: string,
@@ -62,13 +23,16 @@ export async function generateTypeForSchema(
   }
 
   const declaration = await compile(
-    normalizeCircularSchemaRefs(schema) as JSONSchema,
+    convertDefsToDefinitions(structuredClone(schema)) as JSONSchema,
     typeName,
     {
       bannerComment: '',
       additionalProperties: true,
       style: {
         semi: false,
+      },
+      $refOptions: {
+        mutateInputSchema: true,
       },
     },
   );
@@ -77,6 +41,42 @@ export async function generateTypeForSchema(
     declarations: [declaration],
     type: typeName,
   };
+}
+
+export function convertDefsToDefinitions(input: any): unknown {
+  if (input === null || typeof input !== 'object') {
+    return input;
+  }
+
+  if (Array.isArray(input)) {
+    return input.map((item) => convertDefsToDefinitions(item));
+  }
+
+  const result = Object.keys(input).reduce((acc: any, key) => {
+    const newKey = key === '$defs' ? 'definitions' : key;
+
+    let value = input[key];
+
+    if (key === '$ref' && typeof value === 'string') {
+      value = value.replace(/\/\$defs\//g, '/definitions/');
+    } else {
+      value = convertDefsToDefinitions(value);
+    }
+
+    acc[newKey] = value;
+    return acc;
+  }, {});
+
+  // if there is a top-level $ref we need to wrap it into an "allOf" because
+  // json-schema-to-typescript fails for such a top-level "$ref"
+  if (result.$ref && result.definitions) {
+    const refValue = result.$ref;
+    delete result.$ref;
+
+    result.allOf = [{ $ref: refValue }];
+  }
+
+  return result;
 }
 
 export async function generateTypeForParameters(

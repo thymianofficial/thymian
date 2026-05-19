@@ -6,7 +6,11 @@ import type { OpenAPIV3_1 } from 'openapi-types';
 import { describe, expect, it, vitest } from 'vitest';
 import yaml from 'yaml';
 
-import { loadAndUpgrade, openapiToThymianFormat } from '../src/load-openapi.js';
+import {
+  loadAndUpgrade,
+  openapiToThymianFormat,
+  validateOpenApi,
+} from '../src/load-openapi.js';
 
 const swaggerDocument = {
   swagger: '2.0',
@@ -254,6 +258,71 @@ describe('load-openapi', () => {
           'OpenAPIDereferenceError',
         );
       }
+    });
+
+    it('returns upgraded documents without fully dereferencing recursive schemas', async () => {
+      const document = {
+        openapi: '3.1.0',
+        info: {
+          title: 'Recursive Test',
+          version: '1.0.0',
+        },
+        paths: {
+          '/nodes': {
+            get: {
+              responses: {
+                '200': {
+                  description: 'OK',
+                  content: {
+                    'application/json': {
+                      schema: {
+                        $ref: '#/components/schemas/Node',
+                      },
+                    },
+                  },
+                },
+              },
+            },
+          },
+        },
+        components: {
+          schemas: {
+            Node: {
+              type: 'object',
+              properties: {
+                name: { type: 'string' },
+                child: { $ref: '#/components/schemas/Node' },
+              },
+            },
+          },
+        },
+      };
+
+      const result = await loadAndUpgrade(
+        JSON.stringify(document),
+        process.cwd(),
+        new NoopLogger(),
+      );
+
+      expect(
+        result.document.paths?.['/nodes']?.get?.responses?.['200'],
+      ).toStrictEqual({
+        description: 'OK',
+        content: {
+          'application/json': {
+            schema: {
+              $ref: '#/components/schemas/Node',
+            },
+          },
+        },
+      });
+      expect(result.document.components?.schemas?.Node).toStrictEqual({
+        type: 'object',
+        properties: {
+          name: { type: 'string' },
+          child: { $ref: '#/components/schemas/Node' },
+        },
+      });
     });
   });
 
@@ -554,6 +623,258 @@ describe('load-openapi', () => {
       expect(transactions[0]?.thymianResId).not.toBe(
         transactions[1]?.thymianResId,
       );
+    });
+
+    it('transforms non-dereferenced OpenAPI references lazily', async () => {
+      const document: OpenAPIV3_1.Document = {
+        openapi: '3.1.0',
+        info: {
+          title: 'Referenced API',
+          version: '1.0.0',
+        },
+        paths: {
+          '/users/{id}': {
+            $ref: '#/components/pathItems/UserPath',
+          },
+        },
+        components: {
+          pathItems: {
+            UserPath: {
+              parameters: [{ $ref: '#/components/parameters/UserId' }],
+              get: {
+                operationId: 'getUser',
+                requestBody: { $ref: '#/components/requestBodies/UserFilter' },
+                responses: {
+                  '200': { $ref: '#/components/responses/UserResponse' },
+                },
+                security: [{ BearerAuth: [] }],
+              },
+            },
+          },
+          parameters: {
+            UserId: {
+              name: 'id',
+              in: 'path',
+              required: true,
+              schema: { type: 'string' },
+            },
+          },
+          requestBodies: {
+            UserFilter: {
+              required: true,
+              content: {
+                'application/json': {
+                  schema: { $ref: '#/components/schemas/UserFilter' },
+                },
+              },
+            },
+          },
+          responses: {
+            UserResponse: {
+              description: 'User',
+              headers: {
+                'x-trace-id': { $ref: '#/components/headers/TraceId' },
+              },
+              links: {
+                related: { $ref: '#/components/links/RelatedUser' },
+              },
+              content: {
+                'application/json': {
+                  schema: { $ref: '#/components/schemas/User' },
+                  examples: {
+                    default: { $ref: '#/components/examples/UserExample' },
+                  },
+                },
+              },
+            },
+          },
+          headers: {
+            TraceId: {
+              schema: { type: 'string' },
+            },
+          },
+          links: {
+            RelatedUser: {
+              operationId: 'getUser',
+              parameters: {
+                'path.id': '$response.body#/id',
+              },
+            },
+          },
+          examples: {
+            UserExample: {
+              value: {
+                id: '123',
+                name: 'Jane',
+              },
+            },
+          },
+          securitySchemes: {
+            BearerAuth: {
+              $ref: '#/components/securitySchemes/BearerAuthConcrete',
+            },
+            BearerAuthConcrete: {
+              type: 'http',
+              scheme: 'bearer',
+            },
+          },
+          schemas: {
+            UserFilter: {
+              type: 'object',
+              properties: {
+                includeInactive: { type: 'boolean' },
+              },
+            },
+            User: {
+              type: 'object',
+              properties: {
+                id: { type: 'string' },
+                name: { type: 'string' },
+              },
+            },
+          },
+        },
+      };
+
+      const format = await openapiToThymianFormat(document, {
+        filter: constant(true),
+        serverInfo: {
+          basePath: '',
+          port: 8080,
+          host: 'localhost',
+          protocol: 'http',
+        },
+      });
+
+      const [transaction] = format.getThymianHttpTransactions();
+
+      expect(transaction?.thymianReq.pathParameters.id).toMatchObject({
+        required: true,
+        schema: { type: 'string' },
+      });
+      expect(transaction?.thymianReq.body).toMatchObject({
+        $ref: '#/$defs/UserFilter',
+        $defs: {
+          UserFilter: {
+            type: 'object',
+            properties: {
+              includeInactive: { type: 'boolean' },
+            },
+          },
+        },
+      });
+      expect(transaction?.thymianRes.headers['x-trace-id']).toMatchObject({
+        schema: { type: 'string' },
+      });
+      expect(transaction?.thymianRes.schema).toMatchObject({
+        $ref: '#/$defs/User',
+        $defs: {
+          User: {
+            type: 'object',
+            properties: {
+              id: { type: 'string' },
+              name: { type: 'string' },
+            },
+          },
+        },
+      });
+      expect(
+        format.graph.filterNodes((_, node) => node.type === 'security-scheme'),
+      ).toHaveLength(2);
+      expect(
+        format.graph.filterEdges((_, edge) => edge.type === 'http-link'),
+      ).toHaveLength(1);
+    });
+  });
+
+  describe('validateOpenApi', () => {
+    it('returns failed result for schema-invalid documents', async () => {
+      const result = await validateOpenApi(
+        'test/fixtures/invalid-openapi.yaml',
+        {
+          cwd: join(import.meta.dirname, '..'),
+          logger: new NoopLogger(),
+        },
+      );
+
+      expect(result.status).toBe('failed');
+      expect(result.issues.length).toBeGreaterThan(0);
+    });
+
+    it('returns success result for valid documents', async () => {
+      const result = await validateOpenApi('test/fixtures/petstore-v2.yaml', {
+        cwd: join(import.meta.dirname, '..'),
+        logger: new NoopLogger(),
+      });
+
+      expect(result).toEqual(
+        expect.objectContaining({
+          type: 'openapi',
+          status: 'success',
+          issues: [],
+        }),
+      );
+    });
+
+    it('returns error result for load failures instead of throwing', async () => {
+      const result = await validateOpenApi(
+        'test/fixtures/missing-openapi.yaml',
+        {
+          cwd: join(import.meta.dirname, '..'),
+          logger: new NoopLogger(),
+        },
+      );
+
+      expect(result).toEqual(
+        expect.objectContaining({
+          type: 'openapi',
+          location: 'test/fixtures/missing-openapi.yaml',
+          source: 'test/fixtures/missing-openapi.yaml',
+          status: 'error',
+          issues: [
+            expect.objectContaining({
+              code: 'OpenAPIFileNotFoundError',
+            }),
+          ],
+        }),
+      );
+    });
+
+    it('returns failed result for invalid references', async () => {
+      const result = await validateOpenApi(
+        JSON.stringify({
+          openapi: '3.1.0',
+          info: {
+            title: 'Test',
+            version: '1.0.0',
+          },
+          paths: {
+            '/test': {
+              get: {
+                responses: {
+                  '200': {
+                    description: 'OK',
+                    content: {
+                      'application/json': {
+                        schema: {
+                          $ref: '#/components/schemas/Missing',
+                        },
+                      },
+                    },
+                  },
+                },
+              },
+            },
+          },
+        }),
+        {
+          cwd: join(import.meta.dirname, '..'),
+          logger: new NoopLogger(),
+        },
+      );
+
+      expect(result.status).toBe('failed');
+      expect(result.issues.length).toBeGreaterThan(0);
     });
   });
 });

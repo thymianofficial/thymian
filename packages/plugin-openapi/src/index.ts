@@ -2,13 +2,14 @@ import {
   constant,
   type HttpFilterExpression,
   type SerializedThymianFormat,
+  type SpecValidationResult,
   ThymianFormat,
   type ThymianNode,
   type ThymianPlugin,
 } from '@thymian/core';
 import type { OpenAPI } from 'openapi-types';
 
-import { loadAndTransform } from './load-openapi.js';
+import { loadAndTransform, validateOpenApi } from './load-openapi.js';
 import type { ServerInfo } from './processors/extract-server-info.js';
 
 declare module '@thymian/core' {
@@ -126,6 +127,37 @@ export const openApiPlugin: ThymianPlugin = {
         ctx.reply(format.export());
       },
     );
+
+    emitter.onAction('core.validate-specs', async ({ inputs }, ctx) => {
+      const descriptions = inputs
+        .filter((input) => input.type === 'openapi')
+        .map((input) => ({
+          source: String(input.location),
+          sourceName:
+            typeof input.options?.['sourceName'] === 'string'
+              ? input.options['sourceName']
+              : undefined,
+        }));
+
+      if (descriptions.length === 0) {
+        ctx.reply([]);
+        return;
+      }
+
+      const results: SpecValidationResult[] = [];
+
+      for (const description of descriptions) {
+        results.push(
+          await validateOpenApi(description.source, {
+            cwd: opts.cwd,
+            logger,
+            sourceName: description.sourceName,
+          }),
+        );
+      }
+
+      ctx.reply(results);
+    });
   },
 };
 

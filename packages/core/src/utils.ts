@@ -9,6 +9,7 @@ import {
   httpStatusCodeToPhrase,
   isValidHttpStatusCode,
 } from './http-status-codes/index.js';
+import { ThymianBaseError } from './thymian.error.js';
 
 export function timeoutPromise<T>(
   promise: Promise<T>,
@@ -215,20 +216,28 @@ export function getContentType(
 }
 
 export function normalizeUrl(urlString: string): string {
-  const url = new URL(urlString);
+  try {
+    const url = new URL(urlString);
 
-  if (
-    (url.protocol === 'http:' && url.port === '80') ||
-    (url.protocol === 'https:' && url.port === '443')
-  ) {
-    url.port = '';
+    if (
+      (url.protocol === 'http:' && url.port === '80') ||
+      (url.protocol === 'https:' && url.port === '443')
+    ) {
+      url.port = '';
+    }
+
+    if (url.pathname !== '/' && url.pathname.endsWith('/')) {
+      url.pathname = url.pathname.slice(0, -1);
+    }
+
+    return decodeURI(url.toString());
+  } catch (e) {
+    throw new ThymianBaseError('Cannot normalize url: ' + urlString, {
+      suggestions: ['Is the provided URL valid?'],
+      name: 'InvalidUrlError',
+      cause: e,
+    });
   }
-
-  if (url.pathname !== '/' && url.pathname.endsWith('/')) {
-    url.pathname = url.pathname.slice(0, -1);
-  }
-
-  return decodeURI(url.toString());
 }
 
 export function httpRequestToLabel(request: HttpRequest): string {
