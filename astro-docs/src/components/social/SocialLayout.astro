@@ -1,0 +1,124 @@
+---
+import StarlightPage from '@astrojs/starlight/components/StarlightPage.astro';
+
+interface Props {
+  title: string;
+  description?: string;
+  category?: string;
+  slug?: string;
+}
+
+const { title, description, category, slug } = Astro.props;
+
+const CATEGORY_LABELS: Record<string, string> = {
+  'thymian-general': 'Thymian General',
+  'http-api-topics': 'HTTP / API Topics',
+  'http-api-tooling': 'HTTP / API Tooling',
+  'real-world-use-cases': 'Real-World Use Cases',
+  educational: 'Educational',
+  'thymian-hints': 'Thymian Hints',
+};
+---
+
+<StarlightPage
+  frontmatter={{
+    title,
+    description,
+    head: [
+      { tag: 'meta', attrs: { name: 'robots', content: 'noindex, nofollow' } },
+    ],
+    tableOfContents: false,
+    editUrl: false,
+    pagefind: false,
+  }}
+  hasSidebar={false}
+>
+  <div class="social-page-header">
+    <nav class="breadcrumb" aria-label="Breadcrumb">
+      <a href="/social/">Social Hub</a>
+      {
+        slug && category && (
+          <>
+            <span class="breadcrumb-sep">/</span>
+            <a href="/social/">{CATEGORY_LABELS[category] ?? category}</a>
+            <span class="breadcrumb-sep">/</span>
+            <span>{slug}</span>
+          </>
+        )
+      }
+    </nav>
+
+    {category && <span class="category-badge">{CATEGORY_LABELS[category] ?? category}</span>}
+
+    {description && <p class="page-description">{description}</p>}
+
+    <div class="internal-notice">
+      🔒 Internal use only — not indexed by search engines, not linked from thymian.dev
+    </div>
+  </div>
+
+  <slot />
+</StarlightPage>
+
+<style>
+  .social-page-header {
+    margin-bottom: 2rem;
+    padding-bottom: 1.5rem;
+    border-bottom: 1px solid var(--sl-color-gray-5);
+  }
+
+  .breadcrumb {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.875rem;
+    color: var(--sl-color-gray-3);
+    margin-bottom: 1rem;
+  }
+
+  .breadcrumb a {
+    color: var(--sl-color-accent);
+    text-decoration: none;
+  }
+
+  .breadcrumb a:hover {
+    text-decoration: underline;
+  }
+
+  .breadcrumb-sep {
+    color: var(--sl-color-gray-4);
+  }
+
+  .category-badge {
+    display: inline-block;
+    padding: 0.25rem 0.75rem;
+    border-radius: 9999px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    background: var(--gradient-brand, linear-gradient(135deg, #017b64, #5ab12e));
+    color: white;
+    margin-bottom: 0.75rem;
+  }
+
+  .page-description {
+    margin: 0;
+    color: var(--sl-color-gray-3);
+    font-size: 1rem;
+    line-height: 1.6;
+  }
+
+  .internal-notice {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.625rem 1rem;
+    background: var(--sl-color-gray-6);
+    border: 1px solid var(--sl-color-gray-5);
+    border-radius: 0.5rem;
+    font-size: 0.8rem;
+    color: var(--sl-color-gray-4);
+    margin-top: 1rem;
+  }
+</style>

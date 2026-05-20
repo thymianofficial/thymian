@@ -1,6 +1,7 @@
 import {
   and,
   type CapturedTransaction,
+  httpTransactionToLabel,
   method,
   NoopLogger,
   not,
@@ -10,7 +11,11 @@ import {
   statusCode,
   statusCodeRange,
 } from '@thymian/core';
-import { createThymianFormat } from '@thymian/core-testing';
+import {
+  createHttpRequest,
+  createHttpResponse,
+  createThymianFormat,
+} from '@thymian/core-testing';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
 import { AnalyticsApiContext } from '../src/analytics-api-context.js';
@@ -1102,6 +1107,99 @@ describe('AnalyticsApiContext', () => {
       const result = contextWithRole.validateHttpTransactions(statusCode(200));
 
       expect(result).toHaveLength(1);
+    });
+
+    it('should resolve transaction edge locations for parameterized paths', async () => {
+      insertTransaction({
+        request: {
+          data: {
+            method: 'get',
+            origin: 'https://api.example.com',
+            path: '/users/not-a-number',
+            headers: {
+              accept: 'application/json',
+            },
+          },
+          meta: {},
+        },
+        response: {
+          data: {
+            statusCode: 200,
+            headers: {
+              'content-type': 'application/json',
+            },
+            trailers: {},
+            duration: 100,
+          },
+          meta: {},
+        },
+      });
+
+      const format = createThymianFormat();
+      const [, , transactionId] = format.addHttpTransaction(
+        createHttpRequest({
+          method: 'GET',
+          host: 'api.example.com',
+          path: '/users/{id}',
+          headers: {
+            accept: {
+              schema: { type: 'string' },
+            },
+          },
+          mediaType: '',
+          pathParameters: {
+            id: {
+              name: 'id',
+              in: 'path',
+              required: true,
+              schema: { type: 'integer' },
+            },
+          },
+        }),
+        createHttpResponse({
+          statusCode: 200,
+          mediaType: 'application/json',
+        }),
+        'test-source',
+      );
+
+      const context = new AnalyticsApiContext(
+        repository,
+        new NoopLogger(),
+        format,
+      );
+
+      const result = context.validateHttpTransactions(method('get'));
+
+      expect(result).toHaveLength(1);
+      expect(result).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            location: {
+              elementType: 'edge',
+              elementId: transactionId,
+              label: httpTransactionToLabel(
+                {
+                  method: 'get',
+                  origin: 'https://api.example.com',
+                  path: '/users/not-a-number',
+                  headers: {
+                    accept: 'application/json',
+                  },
+                },
+                {
+                  statusCode: 200,
+                  headers: {
+                    'content-type': 'application/json',
+                  },
+                  trailers: {},
+                  duration: 100,
+                },
+              ),
+            },
+          }),
+        ]),
+      );
     });
   });
 

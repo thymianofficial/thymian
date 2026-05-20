@@ -103,4 +103,107 @@ describe('thymian analyze with HAR file', () => {
 
     expect(result.exitCode).toBe(0);
   }, 90_000);
+
+  it('should apply api-description-validation rules to HAR traffic with an OpenAPI spec', () => {
+    copyFixturesToTempDir(join(fixturesDir, 'analyze-har'), getTempDir());
+
+    writeFileSync(
+      join(getTempDir(), 'parameterized.openapi.yaml'),
+      [
+        'openapi: 3.1.0',
+        'info:',
+        "  title: 'Parameterized API'",
+        "  version: '1.0.0'",
+        'servers:',
+        "  - url: 'https://api.example.com'",
+        'paths:',
+        '  /users/{id}:',
+        '    get:',
+        "      summary: 'Get user by id'",
+        "      operationId: 'getUser'",
+        '      parameters:',
+        "        - name: 'id'",
+        "          in: 'path'",
+        '          required: true',
+        '          schema:',
+        "            type: 'integer'",
+        '      responses:',
+        "        '200':",
+        "          description: 'OK'",
+        '          content:',
+        "            'application/json':",
+        '              schema:',
+        "                type: 'object'",
+        '                properties:',
+        '                  id:',
+        "                    type: 'integer'",
+      ].join('\n'),
+      'utf-8',
+    );
+
+    writeFileSync(
+      join(getTempDir(), 'parameterized.har'),
+      JSON.stringify({
+        log: {
+          version: '1.2',
+          entries: [
+            {
+              request: {
+                method: 'GET',
+                url: 'https://api.example.com/users/not-a-number',
+                headers: [{ name: 'Accept', value: 'application/json' }],
+              },
+              response: {
+                status: 200,
+                headers: [{ name: 'Content-Type', value: 'application/json' }],
+                content: {
+                  size: 21,
+                  mimeType: 'application/json',
+                  text: '{"id":"not-a-number"}',
+                },
+              },
+              time: 42,
+            },
+          ],
+        },
+      }),
+      'utf-8',
+    );
+
+    writeConfigToTempDir(
+      getTempDir(),
+      [
+        'ruleSets:',
+        "  - '@thymian/rules-api-description-validation'",
+        'plugins:',
+        "  '@thymian/plugin-har': {}",
+        "  '@thymian/plugin-http-analyzer': {}",
+        "  '@thymian/plugin-openapi': {}",
+        "  '@thymian/plugin-reporter':",
+        '    options:',
+        '      formatters:',
+        '        text: {}',
+      ].join('\n'),
+    );
+
+    const result = execThymianRaw(
+      [
+        'analyze',
+        '--traffic',
+        'har:parameterized.har',
+        '--spec',
+        'openapi:parameterized.openapi.yaml',
+      ],
+      {
+        cwd: getTempDir(),
+        allowFailure: true,
+      },
+    );
+
+    expect(result.exitCode).toBe(1);
+    expect(result.stdout).toContain(
+      'thymian/request-path-parameters-must-conform-to-schema',
+    );
+    expect(result.stdout).toContain('Invalid value for path parameter "id"');
+  }, 90_000);
 });

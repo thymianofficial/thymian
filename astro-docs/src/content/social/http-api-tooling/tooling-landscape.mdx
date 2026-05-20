@@ -1,0 +1,135 @@
+---
+title: "IGNORE - The HTTP API Tooling Landscape in 2026"
+description: "Where does Thymian fit in the ecosystem of API linters, test frameworks, and traffic analyzers?"
+category: http-api-tooling
+publishStatus: draft
+docLinks:
+  - label: "What is Thymian?"
+    url: "https://thymian.dev/introduction/what-is-thymian/"
+  - label: "Plugin Architecture"
+    url: "https://thymian.dev/guides/plugin-developers-guide/"
+  - label: "Thymian vs Other Tools"
+    url: "https://thymian.dev/introduction/what-is-thymian/"
+---
+
+import PlatformSection from '../../../components/social/PlatformSection.astro';
+import PostText from '../../../components/social/PostText.astro';
+import SocialImage from '../../../components/social/SocialImage.astro';
+
+
+## Reddit
+
+<PlatformSection platform="reddit">
+  <PostText platform="reddit" label="Title">
+API tooling landscape 2026: where spec linters, integration test frameworks, and traffic analyzers overlap (and where Thymian fits)
+  </PostText>
+
+  <PostText platform="reddit" label="Post body">
+The API tooling space has gotten crowded. Here's how I categorize it and where the gaps are:
+
+**Spec linters (Spectral, Redocly)**
+These lint your OpenAPI spec for style, completeness, and custom rules. They're static — they don't touch a running server. Great for catching spec issues early, but they can't tell you if your server actually behaves like the spec says.
+
+**API test frameworks (Postman, Pact, Hurl)**
+These test a running server. Postman and Pact focus on contract testing — does the server respond with the shape I expect? They're excellent for functional testing but don't cover HTTP protocol semantics.
+
+**Traffic analysis (Charles, Fiddler, mitmproxy)**
+These capture and inspect HTTP traffic. They're debugging tools — you see what's happening, but you don't get automated rule-based analysis.
+
+**The gap**: none of these tools use a shared rule set across spec, live server, and traffic. A rule you write for Spectral doesn't run against your live server. A Postman test doesn't analyze production HAR files.
+
+Thymian addresses this specifically — one rule definition runs in all three contexts. The HTTP conformance focus (RFC 9110) is also unique: it's not about your API's business rules, it's about whether your API speaks HTTP correctly.
+
+🔗 https://thymian.dev/introduction/what-is-thymian/
+  </PostText>
+
+  <SocialImage type="side-by-side" platform="reddit" rightLang="text" rightCodeLabel="Fragmented toolchain" rightCode={`Spec lint: Spectral/Redocly
+Contract test: Postman/Pact
+Traffic inspect: mitmproxy/Charles`} lang="text" codeLabel="Unified conformance layer" code={`One rule definition
+-> lint (spec)
+-> test (live)
+-> analyze (HAR traffic)`} />
+</PlatformSection>
+
+## X (Twitter)
+
+<PlatformSection platform="x">
+  <PostText platform="x">
+API tooling 2026:
+
+Spectral/Redocly → lint specs ✅
+Postman/Pact → test contracts ✅
+mitmproxy/Charles → inspect traffic ✅
+
+None of them share rules across all three layers.
+
+Thymian does. → https://thymian.dev/introduction/what-is-thymian/
+  </PostText>
+
+  <SocialImage type="side-by-side" platform="x" rightLang="text" rightCodeLabel="Fragmented toolchain" rightCode={`Spec lint: Spectral/Redocly
+Contract test: Postman/Pact
+Traffic inspect: mitmproxy/Charles`} lang="text" codeLabel="Unified conformance layer" code={`One rule definition
+-> lint (spec)
+-> test (live)
+-> analyze (HAR traffic)`} />
+</PlatformSection>
+
+## LinkedIn
+
+<PlatformSection platform="linkedin">
+  <PostText platform="linkedin">
+**The API tooling ecosystem in 2026 is rich — but there's a gap that most teams hit eventually.**
+
+Here's the landscape as I see it:
+
+**Spec linters (Spectral, Redocly CLI)**
+Great for catching OpenAPI spec issues statically. But they don't tell you if your server actually implements the spec.
+
+**Contract/integration test frameworks (Postman, Pact, Hurl)**
+Excellent for functional coverage. But they focus on response shape ("does this return a user object?"), not HTTP protocol semantics ("does this set the right Cache-Control headers?").
+
+**Traffic inspection tools (Charles, mitmproxy, Fiddler)**
+Powerful for debugging. But they're manual — no automated rule-based analysis across thousands of requests.
+
+**The gap:** There's no tool that lets you write a rule once and apply it across all three contexts: your spec (before shipping), your live server (in CI), and your production traffic (after the fact).
+
+This is exactly where Thymian lives. It's not trying to replace Spectral or Postman. It's filling the conformance testing layer that sits between spec correctness and functional correctness.
+
+If you're dealing with CDN caching anomalies, auth header edge cases, or RFC compliance audits — it's worth a look.
+
+🔗 https://thymian.dev/introduction/what-is-thymian/
+#API #HTTP #APIDesign #DevTools #OpenSource
+  </PostText>
+
+  <SocialImage type="side-by-side" platform="linkedin" rightLang="text" rightCodeLabel="Fragmented toolchain" rightCode={`Spec lint: Spectral/Redocly
+Contract test: Postman/Pact
+Traffic inspect: mitmproxy/Charles`} lang="text" codeLabel="Unified conformance layer" code={`One rule definition
+-> lint (spec)
+-> test (live)
+-> analyze (HAR traffic)`} />
+</PlatformSection>
+
+## Discord
+
+<PlatformSection platform="discord">
+  <PostText platform="discord">
+🔧 **API tooling landscape — where Thymian fits**
+
+- **Spectral / Redocly** → spec linting ✅
+- **Postman / Pact** → contract testing ✅
+- **mitmproxy / Charles** → traffic inspection ✅
+
+None share a rule set across all three.
+
+Thymian fills the conformance layer — one rule, three validation contexts.
+
+→ https://thymian.dev/introduction/what-is-thymian/
+  </PostText>
+
+  <SocialImage type="side-by-side" platform="discord" rightLang="text" rightCodeLabel="Fragmented toolchain" rightCode={`Spec lint: Spectral/Redocly
+Contract test: Postman/Pact
+Traffic inspect: mitmproxy/Charles`} lang="text" codeLabel="Unified conformance layer" code={`One rule definition
+-> lint (spec)
+-> test (live)
+-> analyze (HAR traffic)`} />
+</PlatformSection>

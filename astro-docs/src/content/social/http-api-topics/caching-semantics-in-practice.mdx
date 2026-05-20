@@ -1,0 +1,82 @@
+---
+title: "IGNORE - Caching Semantics in Practice"
+description: "Discuss cache-control, validators, and stale data issues from a protocol perspective."
+category: http-api-topics
+publishStatus: draft
+docLinks:
+  - label: "HTTP Conformance"
+    url: "https://thymian.dev/introduction/http-conformance/"
+  - label: "Thymian Analyze Workflow"
+    url: "https://thymian.dev/tutorials/thymian-analyze-workflow/"
+---
+
+import PlatformSection from '../../../components/social/PlatformSection.astro';
+import PostText from '../../../components/social/PostText.astro';
+import SocialImage from '../../../components/social/SocialImage.astro';
+
+
+<PlatformSection platform="reddit">
+  <PostText platform="reddit" label="Title">{'Caching semantics are where many APIs become inconsistent between environments'}</PostText>
+  <PostText platform="reddit">
+    {`Locally everything seems fine, but behind CDNs and proxies cache directives decide behavior.
+
+Common mistakes:
+- conflicting Cache-Control directives
+- weak/strong validator misuse
+- missing Vary causing cache pollution
+
+Conformance analysis on real traffic catches this early.
+
+https://thymian.dev/tutorials/thymian-analyze-workflow/`}
+  </PostText>
+  <SocialImage type="code-snippet" platform="reddit" lang="http" codeLabel="Cache header sanity check" code={`HTTP/1.1 200 OK
+Cache-Control: public, max-age=60
+ETag: "v17"
+Vary: Accept-Encoding, Accept-Language`} />
+</PlatformSection>
+
+<PlatformSection platform="x">
+  <PostText platform="x">
+    {`Most cache bugs are semantic mismatches, not infrastructure outages.
+
+Conflicting directives + missing Vary + weak validators = random stale data incidents.
+
+https://thymian.dev/tutorials/thymian-analyze-workflow/`}
+  </PostText>
+  <SocialImage type="code-snippet" platform="x" lang="http" codeLabel="Cache header sanity check" code={`HTTP/1.1 200 OK
+Cache-Control: public, max-age=60
+ETag: "v17"
+Vary: Accept-Encoding, Accept-Language`} />
+</PlatformSection>
+
+<PlatformSection platform="linkedin">
+  <PostText platform="linkedin">
+    {`Caching issues are often treated as platform-specific incidents, but many root causes are protocol-level inconsistencies.
+
+When Cache-Control, ETag, Last-Modified, and Vary are not aligned, downstream behavior differs by edge node, client, and gateway path.
+
+That is why cache semantics belong in API conformance policy, not only infra runbooks.
+
+https://thymian.dev/introduction/http-conformance/`}
+  </PostText>
+  <SocialImage type="code-snippet" platform="linkedin" lang="http" codeLabel="Cache header sanity check" code={`HTTP/1.1 200 OK
+Cache-Control: public, max-age=60
+ETag: "v17"
+Vary: Accept-Encoding, Accept-Language`} />
+</PlatformSection>
+
+<PlatformSection platform="discord">
+  <PostText platform="discord">
+    {`Cache semantics quick check:
+
+- avoid public/no-store conflicts
+- ensure Vary is complete
+- align validators (ETag / Last-Modified)
+
+https://thymian.dev/introduction/http-conformance/`}
+  </PostText>
+  <SocialImage type="code-snippet" platform="discord" lang="http" codeLabel="Cache header sanity check" code={`HTTP/1.1 200 OK
+Cache-Control: public, max-age=60
+ETag: "v17"
+Vary: Accept-Encoding, Accept-Language`} />
+</PlatformSection>

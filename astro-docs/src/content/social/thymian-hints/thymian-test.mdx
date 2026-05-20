@@ -1,0 +1,105 @@
+---
+title: "Test your running API with thymian test"
+description: "Introduce thymian test for sending real HTTP requests to a live API and validating responses against conformance rules."
+category: thymian-hints
+publishStatus: ready
+docLinks:
+  - label: "Using thymian test"
+    url: "https://thymian.dev/tutorials/thymian-test-workflow/"
+---
+
+import PlatformSection from '../../../components/social/PlatformSection.astro';
+import PostText from '../../../components/social/PostText.astro';
+import SocialImage from '../../../components/social/SocialImage.astro';
+
+## Reddit
+
+<PlatformSection platform="reddit">
+  <PostText platform="reddit" label="Title">{"thymian test: send real HTTP requests to your API and validate responses against HTTP rules"}</PostText>
+  <PostText platform="reddit" label="Post body">
+{`\`thymian test\` sends real HTTP requests to a running API and validates the responses against HTTP conformance rules.
+
+It catches implementation drift — places where the live behavior no longer matches HTTP expectations or your intended design. Things like:
+
+- Framework defaults that add unexpected headers
+- Missing middleware
+- Authentication flows that don't follow the spec
+- Env-specific behavior from proxies
+
+The workflow:
+
+1. Generate request samples from your OpenAPI spec with \`thymian sampler init\`
+2. Point \`thymian test\` at your running server
+3. Review findings — each one shows what the server actually returned vs. what the rules expect
+4. Fix and rerun
+
+If \`thymian lint\` asks "does the spec look correct?", then \`thymian test\` asks "does the running API actually behave correctly?"
+
+Full tutorial: https://thymian.dev/tutorials/thymian-test-workflow/`}
+  </PostText>
+  <SocialImage type="code-snippet" platform="reddit" lang="bash" codeLabel="thymian test" promoted code={`npx thymian test --spec openapi:openapi.yaml --target-url http://localhost:3000`} />
+</PlatformSection>
+
+## X (Twitter)
+
+<PlatformSection platform="x">
+  <PostText platform="x">
+{`Does your running API actually behave correctly?
+
+npx thymian test --spec openapi:openapi.yaml --target-url http://localhost:3000
+
+Sends real requests, validates responses against HTTP rules. Catches implementation drift.
+
+https://thymian.dev/tutorials/thymian-test-workflow/`}
+  </PostText>
+  <SocialImage type="code-snippet" platform="x" lang="bash" codeLabel="thymian test" promoted code={`npx thymian test --spec openapi:openapi.yaml --target-url http://localhost:3000`} />
+</PlatformSection>
+
+## LinkedIn
+
+<PlatformSection platform="linkedin">
+  <PostText platform="linkedin">
+{`Your OpenAPI spec says one thing. Your running API might do another.
+
+thymian test sends real HTTP requests to a live API and validates the responses against HTTP conformance rules. It catches implementation drift that spec linting alone can never find:
+
+→ Framework defaults adding unexpected headers
+→ Missing middleware or authentication issues
+→ Proxy or environment-specific behavior
+→ Implementation changes never reflected in the spec
+
+The workflow is straightforward:
+1. Generate request samples from your OpenAPI spec
+2. Point thymian test at your running server
+3. Review findings and fix
+
+npx thymian test --spec openapi:openapi.yaml --target-url http://localhost:3000
+
+If thymian lint asks "does the spec look correct?", thymian test asks "does the running API actually behave correctly?"
+
+Full tutorial: https://thymian.dev/tutorials/thymian-test-workflow/
+
+#API #HTTP #DevTools #OpenSource #APITesting`}
+  </PostText>
+  <SocialImage type="code-snippet" platform="linkedin" lang="bash" codeLabel="thymian test" promoted code={`npx thymian test --spec openapi:openapi.yaml --target-url http://localhost:3000`} />
+</PlatformSection>
+
+## Discord
+
+<PlatformSection platform="discord">
+  <PostText platform="discord">
+{`**thymian test** — validate a live API against HTTP conformance rules.
+
+\`\`\`bash
+npx thymian test --spec openapi:openapi.yaml --target-url http://localhost:3000
+\`\`\`
+
+Sends real requests to your running server and checks whether the responses follow HTTP rules. Catches things like framework defaults, missing middleware, and implementation drift that spec linting can't find.
+
+If \`thymian lint\` asks "does the spec look correct?", then \`thymian test\` asks "does the running API actually behave correctly?"
+
+Full tutorial → https://thymian.dev/tutorials/thymian-test-workflow/`}
+  </PostText>
+  <SocialImage type="code-snippet" platform="discord" lang="bash" codeLabel="thymian test" promoted code={`npx thymian test --spec openapi:openapi.yaml --target-url http://localhost:3000`} />
+</PlatformSection>
+

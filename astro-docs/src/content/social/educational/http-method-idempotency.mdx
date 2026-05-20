@@ -1,0 +1,76 @@
+---
+title: "IGNORE - HTTP Method Idempotency Explained"
+description: "Educational concept post around safe and idempotent method semantics."
+category: educational
+publishStatus: draft
+docLinks:
+  - label: "HTTP Conformance"
+    url: "https://thymian.dev/introduction/http-conformance/"
+  - label: "Rule Types"
+    url: "https://thymian.dev/concepts/rule-types/"
+---
+
+import PlatformSection from '../../../components/social/PlatformSection.astro';
+import PostText from '../../../components/social/PostText.astro';
+import SocialImage from '../../../components/social/SocialImage.astro';
+
+
+<PlatformSection platform="reddit">
+  <PostText platform="reddit" label="Title">{'PUT is idempotent, POST usually is not - why this matters for retries'}</PostText>
+  <PostText platform="reddit">
+    {`Idempotency is about repeated requests having the same effect.
+
+This matters for retry logic in clients and gateways:
+- retrying PUT is usually safe
+- retrying POST may duplicate side effects
+
+Protocol semantics should be explicit in API design and conformance checks.
+
+https://thymian.dev/introduction/http-conformance/`}
+  </PostText>
+  <SocialImage type="code-snippet" platform="reddit" lang="http" codeLabel="Retry-safe vs non-idempotent" code={`PUT /users/42  -> idempotent (safe to retry)
+POST /users    -> usually non-idempotent`} />
+</PlatformSection>
+
+<PlatformSection platform="x">
+  <PostText platform="x">
+    {`API retry bugs often come from method semantics misunderstandings.
+
+PUT should be idempotent.
+POST usually is not.
+
+Design retries around protocol semantics, not assumptions.
+https://thymian.dev/introduction/http-conformance/`}
+  </PostText>
+  <SocialImage type="code-snippet" platform="x" lang="http" codeLabel="Retry-safe vs non-idempotent" code={`PUT /users/42  -> idempotent (safe to retry)
+POST /users    -> usually non-idempotent`} />
+</PlatformSection>
+
+<PlatformSection platform="linkedin">
+  <PostText platform="linkedin">
+    {`A practical API reliability lesson: retry behavior depends on method semantics.
+
+When idempotency is ignored, infrastructure retries can amplify failures into data integrity issues.
+
+Teams should document and test method semantics explicitly, especially for write paths and asynchronous workflows.
+
+https://thymian.dev/introduction/http-conformance/`}
+  </PostText>
+  <SocialImage type="code-snippet" platform="linkedin" lang="http" codeLabel="Retry-safe vs non-idempotent" code={`PUT /users/42  -> idempotent (safe to retry)
+POST /users    -> usually non-idempotent`} />
+</PlatformSection>
+
+<PlatformSection platform="discord">
+  <PostText platform="discord">
+    {`Idempotency refresher:
+
+PUT/DELETE are expected to be idempotent.
+POST usually isn't.
+
+Retry strategies should respect that.
+
+https://thymian.dev/introduction/http-conformance/`}
+  </PostText>
+  <SocialImage type="code-snippet" platform="discord" lang="http" codeLabel="Retry-safe vs non-idempotent" code={`PUT /users/42  -> idempotent (safe to retry)
+POST /users    -> usually non-idempotent`} />
+</PlatformSection>

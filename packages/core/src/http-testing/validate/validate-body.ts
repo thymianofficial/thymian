@@ -1,4 +1,5 @@
 import { parse } from 'secure-json-parse';
+import { is } from 'type-is';
 
 import { type ThymianHttpResponse } from '../../index.js';
 import type { HttpTestCaseResult } from '../http-test/index.js';
@@ -62,7 +63,7 @@ export function validateBodyForResponse(
     return [];
   }
 
-  if (/^application\/[^+]*[+]?(json);?.*/.test(response.mediaType)) {
+  if (is(response.mediaType, ['*/vnd+json', '*/json', '+json', 'json'])) {
     return validateJsonBody(body, response);
   }
 
