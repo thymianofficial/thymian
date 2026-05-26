@@ -5,7 +5,7 @@ export default httpRule(
   'rfc9110/recipient-must-ignore-if-modified-since-for-non-get-head',
 )
   .severity('error')
-  .type('static', 'analytics')
+  .type('static', 'test', 'analytics')
   .url('https://www.rfc-editor.org/rfc/rfc9110.html#section-13.1.3')
   .description(
     'A recipient MUST ignore the If-Modified-Since header field if the request method is neither GET nor HEAD.',

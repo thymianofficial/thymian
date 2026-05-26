@@ -1,11 +1,17 @@
-import { constant, requestHeader, statusCodeRange } from '@thymian/core';
+import {
+  and,
+  constant,
+  not,
+  requestHeader,
+  statusCodeRange,
+} from '@thymian/core';
 import { httpRule, singleTestCase } from '@thymian/core';
 
 export default httpRule(
   'rfc9110/origin-server-must-not-perform-method-when-if-match-fails',
 )
   .severity('error')
-  .type('test')
+  .type('test', 'analytics')
   .url('https://www.rfc-editor.org/rfc/rfc9110.html#section-13.1.1')
   .description(
     'An origin server that evaluates an If-Match condition MUST NOT perform the requested method if the condition evaluates to false.',
@@ -16,6 +22,11 @@ export default httpRule(
   .appliesTo('origin server')
   .tags('conditional-requests', 'if-match', '412', 'precondition-failed')
   .rule((ctx) =>
+    ctx.validateCommonHttpTransactions(
+      and(requestHeader('if-match'), not(statusCodeRange(400, 499))),
+    ),
+  )
+  .overrideTest((ctx) =>
     ctx.httpTest(
       singleTestCase()
         .forTransactionsWith(requestHeader('if-match'))

@@ -17,7 +17,7 @@ export default httpRule(
   'rfc9110/origin-server-must-respond-304-or-412-when-if-none-match-fails',
 )
   .severity('error')
-  .type('static', 'test')
+  .type('static', 'test', 'analytics')
   .url('https://www.rfc-editor.org/rfc/rfc9110.html#section-13.1.2')
   .description(
     'An origin server that evaluates an If-None-Match condition MUST NOT perform the requested method if the condition evaluates to false; instead, the origin server MUST respond with either a) the 304 (Not Modified) status code if the request method is GET or HEAD or b) the 412 (Precondition Failed) status code for all other request methods.',

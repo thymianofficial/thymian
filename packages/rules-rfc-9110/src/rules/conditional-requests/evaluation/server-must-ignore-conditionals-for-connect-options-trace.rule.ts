@@ -5,7 +5,7 @@ export default httpRule(
   'rfc9110/server-must-ignore-conditionals-for-connect-options-trace',
 )
   .severity('error')
-  .type('static', 'analytics')
+  .type('static', 'test', 'analytics')
   .url('https://www.rfc-editor.org/rfc/rfc9110.html#section-13.2.1')
   .description(
     'A server MUST ignore the conditional request header fields defined by this specification when received with a request method that does not involve the selection or modification of a selected representation, such as CONNECT, OPTIONS, or TRACE.',

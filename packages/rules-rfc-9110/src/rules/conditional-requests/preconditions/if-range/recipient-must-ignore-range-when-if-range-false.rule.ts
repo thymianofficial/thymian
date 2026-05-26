@@ -1,11 +1,11 @@
-import { constant, not, requestHeader, statusCode } from '@thymian/core';
+import { and, constant, not, requestHeader, statusCode } from '@thymian/core';
 import { httpRule, singleTestCase } from '@thymian/core';
 
 export default httpRule(
   'rfc9110/recipient-must-ignore-range-when-if-range-false',
 )
   .severity('error')
-  .type('test')
+  .type('test', 'analytics')
   .url('https://www.rfc-editor.org/rfc/rfc9110.html#section-13.1.5')
   .description(
     'A recipient of an If-Range header field MUST ignore the Range header field if the If-Range condition evaluates to false. Otherwise, the recipient SHOULD process the Range header field as requested.',
@@ -16,6 +16,11 @@ export default httpRule(
   .appliesTo('server')
   .tags('conditional-requests', 'if-range', 'range', '206')
   .rule((ctx) =>
+    ctx.validateCommonHttpTransactions(
+      and(requestHeader('if-range'), requestHeader('range'), statusCode(206)),
+    ),
+  )
+  .overrideTest((ctx) =>
     ctx.httpTest(
       singleTestCase()
         .forTransactionsWith(requestHeader('if-match'))

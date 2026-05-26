@@ -15,7 +15,7 @@ export default httpRule(
   'rfc9110/origin-server-should-respond-304-when-if-modified-since-false',
 )
   .severity('warn')
-  .type('static', 'test')
+  .type('static', 'test', 'analytics')
   .url('https://www.rfc-editor.org/rfc/rfc9110.html#section-13.1.3')
   .description(
     'An origin server that evaluates an If-Modified-Since condition SHOULD NOT perform the requested method if the condition evaluates to false; instead, the origin server SHOULD generate a 304 (Not Modified) response, including only those metadata that are useful for identifying or updating a previously cached response.',
