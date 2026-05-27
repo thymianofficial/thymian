@@ -1,11 +1,11 @@
 ---
-title: "Back to Basics: Why HTTP Idempotency Matters"
-description: "Educational post about the practical value of idempotent HTTP methods when requests or responses get lost."
+title: 'Back to Basics: Why HTTP Idempotency Matters'
+description: 'Educational post about the practical value of idempotent HTTP methods when requests or responses get lost.'
 category: educational
 publishStatus: ready
 docLinks:
-  - label: "HTTP Conformance"
-    url: "https://thymian.dev/introduction/http-conformance/"
+  - label: 'HTTP Conformance'
+    url: 'https://thymian.dev/introduction/http-conformance/#idempotent-methods-idempotent'
 ---
 
 import PlatformSection from '../../../components/social/PlatformSection.astro';
@@ -36,6 +36,7 @@ It does **not** mean that nothing happens.
 It means that repeating the same request keeps the **intended effect** the same.
 
 So whether:
+
 - the first request never reached the origin server
 - the origin server processed it but the response got lost on the way back
 - an intermediary timed out and the client cannot tell what happened
@@ -43,18 +44,20 @@ So whether:
 ...the client can retry the \`DELETE\` request and still converge on the same result: the resource is absent.
 
 That is the real lesson:
+
 - use the capabilities the HTTP protocol already gives you
 - let clients rely on method semantics instead of guesswork
 - if you implement the origin server, respect the protocol and implement HTTP methods properly
 
 A lot of problems already have protocol-level answers if we actually use HTTP as designed.
 
-Docs: https://thymian.dev/introduction/http-conformance/
+Docs: https://thymian.dev/introduction/http-conformance/#idempotent-methods-idempotent
 
 Where have you seen idempotency make retry behavior easier to reason about?`}
+
   </PostText>
 
-  <SocialImage type="headline" platform="reddit" headline="Why HTTP idempotency matters" subheadline="Idempotency can solve practical API problems such as reliability issues. It is a good reminder that HTTP often already provides protocol-level solutions for problems teams try to solve themselves." />
+  <SocialImage type="headline" platform="reddit" headline="DELETE timed out. Retry or not?" subheadline="A client sends DELETE and never receives a response. Did the server process it? Should the client retry? Idempotency means the client can safely retry — because repeating the request keeps the intended effect the same." />
 </PlatformSection>
 
 ## X (Twitter)
@@ -68,10 +71,11 @@ DELETE timed out. Retry or not?
 If DELETE is implemented correctly, retrying it keeps the intended effect the same: the resource is gone.
 
 Use HTTP semantics.
-https://thymian.dev/introduction/http-conformance/`}
+https://thymian.dev/introduction/http-conformance/#idempotent-methods-idempotent`}
+
   </PostText>
 
-  <SocialImage type="headline" platform="x" headline="Why HTTP idempotency matters" subheadline="Idempotency can solve practical API problems such as reliability issues. It is a good reminder that HTTP often already provides protocol-level solutions for problems teams try to solve themselves." />
+  <SocialImage type="headline" platform="x" headline="DELETE timed out. Retry or not?" subheadline="A client sends DELETE and never receives a response. Did the server process it? Should the client retry? Idempotency means the client can safely retry — because repeating the request keeps the intended effect the same." />
 </PlatformSection>
 
 ## LinkedIn
@@ -102,12 +106,13 @@ That is one of the big benefits of using HTTP as designed:
 
 A lot of problems already have protocol-level answers if we actually use HTTP as designed.
 
-https://thymian.dev/introduction/http-conformance/
+https://thymian.dev/introduction/http-conformance/#idempotent-methods-idempotent
 
 #HTTP #API #RFC9110 #WebArchitecture #OpenSource`}
+
   </PostText>
 
-  <SocialImage type="headline" platform="linkedin" headline="Why HTTP idempotency matters" subheadline="Idempotency can solve practical API problems such as reliability issues. It is a good reminder that HTTP often already provides protocol-level solutions for problems teams try to solve themselves." />
+  <SocialImage type="headline" platform="linkedin" headline="DELETE timed out. Retry or not?" subheadline="A client sends DELETE and never receives a response. Did the server process it? Should the client retry? Idempotency means the client can safely retry — because repeating the request keeps the intended effect the same." />
 </PlatformSection>
 
 ## Discord
@@ -126,6 +131,7 @@ Why?
 Idempotent means repeated requests keep the **same intended effect**.
 
 So even if:
+
 - the first request was lost
 - the resource was deleted but the response was lost
 - an intermediary timed out
@@ -134,8 +140,9 @@ So even if:
 
 **Learning:** a lot of problems already have protocol-level answers. Use the capabilities of HTTP.
 
-https://thymian.dev/introduction/http-conformance/`}
+https://thymian.dev/introduction/http-conformance/#idempotent-methods-idempotent`}
+
   </PostText>
 
-  <SocialImage type="headline" platform="discord" headline="Why HTTP idempotency matters" subheadline="Idempotency can solve practical API problems such as reliability issues. It is a good reminder that HTTP often already provides protocol-level solutions for problems teams try to solve themselves." />
+  <SocialImage type="headline" platform="discord" headline="DELETE timed out. Retry or not?" subheadline="A client sends DELETE and never receives a response. Did the server process it? Should the client retry? Idempotency means the client can safely retry — because repeating the request keeps the intended effect the same." />
 </PlatformSection>
