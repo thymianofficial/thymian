@@ -1,0 +1,153 @@
+---
+title: "Your API's 403 Is Leaking Information"
+description: 'Educational post about why returning 403 Forbidden can be a security mistake, and how RFC 9110 explicitly allows using 404 Not Found to hide resource existence.'
+category: educational
+publishStatus: draft
+docLinks:
+  - label: 'HTTP Conformance — Thymian'
+    url: 'https://thymian.dev/introduction/http-conformance/'
+---
+
+import PlatformSection from '../../../components/social/PlatformSection.astro';
+import PostText from '../../../components/social/PostText.astro';
+import SocialImage from '../../../components/social/SocialImage.astro';
+
+## Reddit
+
+<PlatformSection platform="reddit">
+  <PostText platform="reddit" label="Title">
+    {`Your API's 403 is leaking information`}
+  </PostText>
+
+  <PostText platform="reddit" label="Post body">
+    {`When a user requests a resource they are not allowed to access, most APIs return \`403 Forbidden\`. Seems correct.
+
+But that response confirms the resource exists. An attacker can use this to enumerate what is behind your API.
+
+Example:
+
+\`\`\`
+GET /users/42/settings → 403 Forbidden
+GET /users/43/settings → 404 Not Found
+\`\`\`
+
+Now the attacker knows user 42 exists and user 43 does not. Repeat this a few thousand times and you have a full user directory.
+
+RFC 9110 (Section 15.5.4) addresses this directly. It says an origin server that wants to hide the current existence of a forbidden target resource MAY respond with \`404 Not Found\` instead.
+
+This is not a workaround. It is a deliberate protocol design choice. The RFC authors anticipated this exact scenario.
+
+When to use which:
+
+- **\`403 Forbidden\`** — when the client already knows the resource exists (e.g., they own it but lack a specific permission), or when hiding existence does not matter.
+- **\`404 Not Found\`** — when revealing existence itself is sensitive. User profiles, admin endpoints, internal resources, tenant-specific data.
+
+Thymian can surface these kinds of protocol-level semantics for you and your agents across the entire lifecycle — while linting your API description, testing implementations, and analyzing real traffic.
+
+Docs: https://thymian.dev/introduction/http-conformance/
+
+Do your APIs use 404 to hide resources, or do you always return 403?`}
+
+  </PostText>
+
+  <SocialImage type="side-by-side" platform="reddit" lang="http" codeLabel="Leaks existence" code={`GET /users/42/settings HTTP/1.1
+Host: api.example.com
+
+HTTP/1.1 403 Forbidden`} rightLang="http" rightCodeLabel="Hides existence" rightCode={`GET /users/42/settings HTTP/1.1
+Host: api.example.com
+
+HTTP/1.1 404 Not Found`} />
+
+</PlatformSection>
+
+## X (Twitter)
+
+<PlatformSection platform="x">
+  <PostText platform="x">
+    {`Your API's 403 is leaking information.
+
+It tells attackers the resource exists.
+
+RFC 9110 says you can return 404 instead — by design, not as a hack.
+
+https://thymian.dev/introduction/http-conformance/`}
+
+  </PostText>
+
+  <SocialImage type="side-by-side" platform="x" lang="http" codeLabel="Leaks existence" code={`GET /users/42/settings HTTP/1.1
+
+HTTP/1.1 403 Forbidden`} rightLang="http" rightCodeLabel="Hides existence" rightCode={`GET /users/42/settings HTTP/1.1
+
+HTTP/1.1 404 Not Found`} />
+
+</PlatformSection>
+
+## LinkedIn
+
+<PlatformSection platform="linkedin">
+  <PostText platform="linkedin">
+    {`Your API's 403 is leaking information.
+
+When a user requests a resource they cannot access, most APIs return 403 Forbidden. That seems like the right thing to do.
+
+But it confirms the resource exists. An attacker can exploit this to enumerate users, admin endpoints, or tenant-specific data.
+
+→ GET /users/42/settings → 403 Forbidden (user 42 exists)
+→ GET /users/43/settings → 404 Not Found (user 43 does not)
+
+RFC 9110 (Section 15.5.4) anticipated this. It explicitly states that an origin server MAY respond with 404 instead of 403 when it wants to hide the existence of a forbidden resource.
+
+This is not a workaround. It is a deliberate protocol design choice.
+
+When to use 403: the client already knows the resource exists, or hiding existence does not matter.
+When to use 404: revealing existence itself is sensitive — user profiles, internal endpoints, cross-tenant resources.
+
+Thymian surfaces these protocol-level semantics across the entire API lifecycle — linting descriptions, testing implementations, and analyzing captured traffic.
+
+https://thymian.dev/introduction/http-conformance/
+
+#HTTP #API #Security #RFC9110 #DevTools #OpenAPI`}
+
+  </PostText>
+
+  <SocialImage type="side-by-side" platform="linkedin" lang="http" codeLabel="Leaks existence" code={`GET /users/42/settings HTTP/1.1
+
+HTTP/1.1 403 Forbidden`} rightLang="http" rightCodeLabel="Hides existence" rightCode={`GET /users/42/settings HTTP/1.1
+
+HTTP/1.1 404 Not Found`} />
+
+</PlatformSection>
+
+## Discord
+
+<PlatformSection platform="discord">
+  <PostText platform="discord">
+    {`**Your API's 403 is leaking information.**
+
+Most APIs return \`403 Forbidden\` when a user cannot access a resource. But that confirms the resource exists.
+
+An attacker can use this to enumerate what is behind your API:
+
+- \`GET /users/42/settings\` → \`403 Forbidden\` — user 42 exists
+- \`GET /users/43/settings\` → \`404 Not Found\` — user 43 does not
+
+**RFC 9110 (Section 15.5.4)** says an origin server MAY respond with \`404\` instead of \`403\` to hide resource existence. This is by design, not a hack.
+
+**When to use which:**
+
+- **403** — client already knows the resource exists, or hiding existence does not matter
+- **404** — revealing existence is sensitive (user profiles, admin endpoints, tenant data)
+
+Thymian surfaces these protocol semantics across the lifecycle — lint, test, analyze.
+
+https://thymian.dev/introduction/http-conformance/`}
+
+  </PostText>
+
+  <SocialImage type="side-by-side" platform="discord" lang="http" codeLabel="Leaks existence" code={`GET /users/42/settings HTTP/1.1
+
+HTTP/1.1 403 Forbidden`} rightLang="http" rightCodeLabel="Hides existence" rightCode={`GET /users/42/settings HTTP/1.1
+
+HTTP/1.1 404 Not Found`} />
+
+</PlatformSection>
