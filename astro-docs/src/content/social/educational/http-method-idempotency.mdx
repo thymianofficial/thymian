@@ -1,76 +1,141 @@
 ---
-title: "IGNORE - HTTP Method Idempotency Explained"
-description: "Educational concept post around safe and idempotent method semantics."
+title: "Back to Basics: Why HTTP Idempotency Matters"
+description: "Educational post about the practical value of idempotent HTTP methods when requests or responses get lost."
 category: educational
-publishStatus: draft
+publishStatus: ready
 docLinks:
   - label: "HTTP Conformance"
     url: "https://thymian.dev/introduction/http-conformance/"
-  - label: "Rule Types"
-    url: "https://thymian.dev/concepts/rule-types/"
 ---
 
 import PlatformSection from '../../../components/social/PlatformSection.astro';
 import PostText from '../../../components/social/PostText.astro';
 import SocialImage from '../../../components/social/SocialImage.astro';
 
+## Reddit
 
 <PlatformSection platform="reddit">
-  <PostText platform="reddit" label="Title">{'PUT is idempotent, POST usually is not - why this matters for retries'}</PostText>
-  <PostText platform="reddit">
-    {`Idempotency is about repeated requests having the same effect.
-
-This matters for retry logic in clients and gateways:
-- retrying PUT is usually safe
-- retrying POST may duplicate side effects
-
-Protocol semantics should be explicit in API design and conformance checks.
-
-https://thymian.dev/introduction/http-conformance/`}
+  <PostText platform="reddit" label="Title">
+    {`Back to basics: Why HTTP idempotency matters`}
   </PostText>
-  <SocialImage type="code-snippet" platform="reddit" lang="http" codeLabel="Retry-safe vs non-idempotent" code={`PUT /users/42  -> idempotent (safe to retry)
-POST /users    -> usually non-idempotent`} />
+
+  <PostText platform="reddit" label="Post body">
+    {`Idempotency is one of those HTTP concepts most developers have heard before, but its value becomes obvious in a very practical situation.
+
+A client sends \`DELETE /users/42\`.
+The resource might already be deleted.
+But the client never receives the response.
+
+What should the client do now?
+
+If the origin server implemented \`DELETE\` correctly, the client can simply send the same request again.
+
+That is what idempotency buys you.
+
+It does **not** mean that nothing happens.
+It means that repeating the same request keeps the **intended effect** the same.
+
+So whether:
+- the first request never reached the origin server
+- the origin server processed it but the response got lost on the way back
+- an intermediary timed out and the client cannot tell what happened
+
+...the client can retry the \`DELETE\` request and still converge on the same result: the resource is absent.
+
+That is the real lesson:
+- use the capabilities the HTTP protocol already gives you
+- let clients rely on method semantics instead of guesswork
+- if you implement the origin server, respect the protocol and implement HTTP methods properly
+
+A lot of problems already have protocol-level answers if we actually use HTTP as designed.
+
+Docs: https://thymian.dev/introduction/http-conformance/
+
+Where have you seen idempotency make retry behavior easier to reason about?`}
+  </PostText>
+
+  <SocialImage type="headline" platform="reddit" headline="Why HTTP idempotency matters" subheadline="Idempotency can solve practical API problems such as reliability issues. It is a good reminder that HTTP often already provides protocol-level solutions for problems teams try to solve themselves." />
 </PlatformSection>
+
+## X (Twitter)
 
 <PlatformSection platform="x">
   <PostText platform="x">
-    {`API retry bugs often come from method semantics misunderstandings.
+    {`Back to basics: Why HTTP idempotency matters.
 
-PUT should be idempotent.
-POST usually is not.
+DELETE timed out. Retry or not?
 
-Design retries around protocol semantics, not assumptions.
+If DELETE is implemented correctly, retrying it keeps the intended effect the same: the resource is gone.
+
+Use HTTP semantics.
 https://thymian.dev/introduction/http-conformance/`}
   </PostText>
-  <SocialImage type="code-snippet" platform="x" lang="http" codeLabel="Retry-safe vs non-idempotent" code={`PUT /users/42  -> idempotent (safe to retry)
-POST /users    -> usually non-idempotent`} />
+
+  <SocialImage type="headline" platform="x" headline="Why HTTP idempotency matters" subheadline="Idempotency can solve practical API problems such as reliability issues. It is a good reminder that HTTP often already provides protocol-level solutions for problems teams try to solve themselves." />
 </PlatformSection>
+
+## LinkedIn
 
 <PlatformSection platform="linkedin">
   <PostText platform="linkedin">
-    {`A practical API reliability lesson: retry behavior depends on method semantics.
+    {`Back to basics: Why HTTP idempotency matters.
 
-When idempotency is ignored, infrastructure retries can amplify failures into data integrity issues.
+Idempotency is not an academic term. It solves a very practical API problem.
 
-Teams should document and test method semantics explicitly, especially for write paths and asynchronous workflows.
+A client sends DELETE for a resource and never receives the response. Did the request get lost? Did the origin process it? Should the client retry?
 
-https://thymian.dev/introduction/http-conformance/`}
+If DELETE is implemented according to HTTP semantics, the answer is straightforward: retry it.
+
+Idempotent does not mean “nothing happens”. It means repeating the same request preserves the intended effect.
+
+That matters when:
+✅ the request is lost before it reaches the origin
+✅ the origin deletes the resource but the response is lost on the way back
+✅ an intermediary times out and the client cannot tell what happened
+
+In all of those cases, the client can send DELETE again and converge on the same state: the resource is absent.
+
+That is one of the big benefits of using HTTP as designed:
+→ the protocol already contains recovery semantics for common failure scenarios
+→ clients can rely on method behavior instead of inventing custom retry rules
+→ origin servers need to respect the method semantics for this to work
+
+A lot of problems already have protocol-level answers if we actually use HTTP as designed.
+
+https://thymian.dev/introduction/http-conformance/
+
+#HTTP #API #RFC9110 #WebArchitecture #OpenSource`}
   </PostText>
-  <SocialImage type="code-snippet" platform="linkedin" lang="http" codeLabel="Retry-safe vs non-idempotent" code={`PUT /users/42  -> idempotent (safe to retry)
-POST /users    -> usually non-idempotent`} />
+
+  <SocialImage type="headline" platform="linkedin" headline="Why HTTP idempotency matters" subheadline="Idempotency can solve practical API problems such as reliability issues. It is a good reminder that HTTP often already provides protocol-level solutions for problems teams try to solve themselves." />
 </PlatformSection>
+
+## Discord
 
 <PlatformSection platform="discord">
   <PostText platform="discord">
-    {`Idempotency refresher:
+    {`**Back to basics: Why HTTP idempotency matters.**
 
-PUT/DELETE are expected to be idempotent.
-POST usually isn't.
+A client sends \`DELETE /users/42\` and never gets a response.
 
-Retry strategies should respect that.
+What should it do?
+
+If the origin server implemented \`DELETE\` correctly, it can **send the same DELETE again**.
+
+Why?
+Idempotent means repeated requests keep the **same intended effect**.
+
+So even if:
+- the first request was lost
+- the resource was deleted but the response was lost
+- an intermediary timed out
+
+...retrying DELETE still converges on the same result: the resource is gone.
+
+**Learning:** a lot of problems already have protocol-level answers. Use the capabilities of HTTP.
 
 https://thymian.dev/introduction/http-conformance/`}
   </PostText>
-  <SocialImage type="code-snippet" platform="discord" lang="http" codeLabel="Retry-safe vs non-idempotent" code={`PUT /users/42  -> idempotent (safe to retry)
-POST /users    -> usually non-idempotent`} />
+
+  <SocialImage type="headline" platform="discord" headline="Why HTTP idempotency matters" subheadline="Idempotency can solve practical API problems such as reliability issues. It is a good reminder that HTTP often already provides protocol-level solutions for problems teams try to solve themselves." />
 </PlatformSection>
