@@ -1,136 +1,151 @@
 ---
-title: "IGNORE - HTTP Status Codes: What Your API Is Actually Telling Clients"
-description: "Educational post explaining HTTP status code semantics and how incorrect status codes break client behavior."
+title: "HTTP Status Codes: The Main Source of Response Semantics"
+description: "Educational post about why HTTP status codes are more than success and failure labels, and how Thymian surfaces deeper status code semantics early."
 category: educational
-publishStatus: draft
+publishStatus: ready
 docLinks:
   - label: "HTTP Conformance — Thymian"
     url: "https://thymian.dev/introduction/http-conformance/"
-  - label: "RFC 9110 — HTTP Semantics"
-    url: "https://thymian.dev/introduction/http-conformance/"
-  - label: "What is an HTTP Rule?"
-    url: "https://thymian.dev/concepts/what-is-an-http-rule/"
+  - label: "Using thymian lint"
+    url: "https://thymian.dev/tutorials/thymian-lint-workflow/"
+  - label: "Using thymian test"
+    url: "https://thymian.dev/tutorials/thymian-test-workflow/"
+  - label: "Using thymian analyze"
+    url: "https://thymian.dev/tutorials/thymian-analyze-workflow/"
 ---
 
 import PlatformSection from '../../../components/social/PlatformSection.astro';
 import PostText from '../../../components/social/PostText.astro';
 import SocialImage from '../../../components/social/SocialImage.astro';
 
-
 ## Reddit
 
 <PlatformSection platform="reddit">
   <PostText platform="reddit" label="Title">
-Your API is lying to its clients — a guide to HTTP status code semantics most devs get wrong
+    {`HTTP status codes do more than say success or failure — they change the meaning of your API`}
   </PostText>
 
   <PostText platform="reddit" label="Post body">
-HTTP status codes aren't just numbers you return to indicate success or failure. They carry precise, machine-readable semantics that clients — browsers, CDNs, mobile apps — act on.
+    {`Most developers know the basic rule: don't return \`200 OK\` for a failed request.
 
-Here are the most common violations I see in production APIs:
+But HTTP status codes do much more than label success vs error. In HTTP, the status code is the main source of the response semantics.
 
-**200 on a POST that creates a resource**
-RFC 9110 says POST creating a new resource should return `201 Created` + a `Location` header pointing to the new resource. Returning `200` breaks clients that check for `Location` to find the new URL.
+A few examples:
 
-**404 vs 410**
-`404 Not Found` means "I don't know if this ever existed." `410 Gone` means "this existed and was permanently removed." CDNs cache `410` more aggressively. Use it when you remove endpoints intentionally.
+- \`404 Not Found\` vs \`410 Gone\`
+  \`404\` means the resource is not found.
+  \`410\` means it existed before and is intentionally gone.
 
-**401 vs 403**
-`401 Unauthorized` means "you need to authenticate." `403 Forbidden` means "you're authenticated but not allowed." Mixing these up breaks auth flows — a `401` triggers re-authentication logic in many clients.
+- \`403 Forbidden\` vs \`404 Not Found\`
+  RFC 9110 explicitly allows an origin server to respond with \`404\` instead of \`403\` if it wants to hide the existence of the resource.
 
-**200 with `Cache-Control: no-store`**
-If you return `200` with `no-store`, caches won't store it — but a `304 Not Modified` requires a cached response to compare against. The two work together; misusing either breaks conditional caching.
+Those are not cosmetic differences. They change what clients, caches, and other tooling can infer from the response.
 
-You can lint all of these automatically:
+This is exactly the kind of HTTP nuance Thymian can surface across the entire lifecycle. It gives you and your agents hints about protocol capabilities like these distinctions — and about violations in status code usage — while linting your OpenAPI description, testing implementations, and analyzing real traffic.
 
-```bash
-npx thymian lint --spec openapi:./openapi.yaml
-```
+\`\`\`bash
+npx thymian lint --spec openapi:openapi.yaml
+npx thymian test --spec openapi:openapi.yaml
+npx thymian analyze --traffic har:./traffic.har
+\`\`\`
 
-🔗 https://thymian.dev/introduction/http-conformance/
+Docs: https://thymian.dev/introduction/http-conformance/
+
+Which status code distinction do you see misused most often?`}
   </PostText>
 
-  <SocialImage type="code-snippet" platform="reddit" lang="http" codeLabel="Status code semantics" code={`POST /users -> HTTP/1.1 201 Created
-Location: /users/42
+  <SocialImage type="code-snippet" platform="reddit" lang="bash" codeLabel="Across the lifecycle" code={`npx thymian lint --spec openapi:openapi.yaml
 
-GET /legacy -> HTTP/1.1 410 Gone`} />
+npx thymian test --spec openapi:openapi.yaml
+
+npx thymian analyze --traffic har:./traffic.har`} />
 </PlatformSection>
 
 ## X (Twitter)
 
 <PlatformSection platform="x">
   <PostText platform="x">
-📚 HTTP status codes carry machine-readable semantics. Getting them wrong breaks clients silently.
+    {`HTTP status codes carry the main semantics of a response.
 
-200 on POST creation → clients miss the Location header
-404 vs 410 → CDNs cache differently
-401 vs 403 → auth flows break
+Not just 200 vs error:
+404 vs 410 matters
+403 vs 404 can hide resource existence
 
-Thymian lints these automatically. → https://thymian.dev/introduction/http-conformance/
+Thymian points out these HTTP nuances across the lifecycle.
+
+Lint. Test. Analyze.
+https://thymian.dev/introduction/http-conformance/`}
   </PostText>
 
-  <SocialImage type="code-snippet" platform="x" lang="http" codeLabel="Status code semantics" code={`POST /users -> HTTP/1.1 201 Created
-Location: /users/42
+  <SocialImage type="code-snippet" platform="x" lang="bash" codeLabel="Across the lifecycle" code={`npx thymian lint --spec openapi:openapi.yaml
 
-GET /legacy -> HTTP/1.1 410 Gone`} />
+ npx thymian test --spec openapi:openapi.yaml
+
+ npx thymian analyze --traffic har:./traffic.har`} />
 </PlatformSection>
 
 ## LinkedIn
 
 <PlatformSection platform="linkedin">
   <PostText platform="linkedin">
-**HTTP status codes are not just human-readable labels. They are a machine protocol that browsers, CDNs, mobile clients, and API gateways act on — automatically.**
+    {`HTTP status codes are the main source of semantics in an HTTP response.
+Most teams know not to send \`200 OK\` for a failed request. Fewer teams use status codes to express the more precise meaning the protocol already gives them.
 
-Getting them wrong causes silent failures that are notoriously hard to debug.
+Two examples matter a lot in practice:
 
-Here are four I fix most often in API reviews:
+→ \`404 Not Found\` vs \`410 Gone\`
+\`410\` does not just say “not here”. It says the resource existed and was intentionally removed.
 
-**201 vs 200 on resource creation**
-`POST /users` returning `200` instead of `201 Created` + `Location: /users/42` breaks clients that rely on the `Location` header to find the new resource. This is §9.3.3 of RFC 9110.
+→ \`403 Forbidden\` vs \`404 Not Found\`
+RFC 9110 explicitly allows an origin server to respond with \`404\` instead of \`403\` when it wants to hide the existence of a resource.
 
-**410 vs 404 for removed endpoints**
-`410 Gone` signals permanent removal. CDNs cache `410` more aggressively. If you deprecated an endpoint, use `410` — not `404`.
+These choices affect how clients, caches, gateways, and security-sensitive consumers interpret the response.
 
-**401 vs 403**
-`401` triggers re-authentication. `403` means "authenticated, but forbidden." Mixing them up breaks auth middleware in virtually every framework.
+Thymian recognizes these kinds of protocol semantics across the entire lifecycle. It can give you and your agents hints about possible HTTP functionality and about violations in status code usage while linting your API description, testing runtime behavior, and analyzing captured traffic.
 
-**304 and caching**
-`304 Not Modified` only works if the client has a cached `200` to compare against. Returning `304` to a client with no cache entry causes silent failures.
+npx thymian lint --spec openapi:openapi.yaml
+npx thymian test --spec openapi:openapi.yaml
+npx thymian analyze --spec openapi:openapi.yaml
 
-These are all lintable. Write the rule once, and it applies to your spec, your live server, and your production HAR traffic.
+Learn more: https://thymian.dev/introduction/http-conformance/
 
-🔗 https://thymian.dev/introduction/http-conformance/
-#API #HTTP #WebDev #APIDevelopment #RFC9110
+#HTTP #API #OpenAPI #DevTools #RFC9110 #Agents`}
   </PostText>
 
-  <SocialImage type="code-snippet" platform="linkedin" lang="http" codeLabel="Status code semantics" code={`POST /users -> HTTP/1.1 201 Created
-Location: /users/42
+  <SocialImage type="code-snippet" platform="linkedin" lang="bash" codeLabel="Across the lifecycle" code={`npx thymian lint --spec openapi:openapi.yaml
 
-GET /legacy -> HTTP/1.1 410 Gone`} />
+npx thymian test --spec openapi:openapi.yaml
+
+npx thymian analyze --traffic har:./traffic.har`} />
 </PlatformSection>
 
 ## Discord
 
 <PlatformSection platform="discord">
   <PostText platform="discord">
-📚 **HTTP status code semantics — quick reference**
+    {`**HTTP status codes are the main source of response semantics.**
 
-Common mistakes that silently break clients:
+Most people know one rule:
+- don't send \`200 OK\` for a failed request
 
-- `POST /resource → 200` should be `201 Created` + `Location` header (RFC 9110 §9.3.3)
-- `404` for removed endpoint should be `410 Gone` (CDNs cache differently)
-- `401 Unauthorized` ≠ `403 Forbidden` (triggers different auth logic in clients)
+But there are also more advanced distinctions:
+- \`404 Not Found\` vs \`410 Gone\`
+- \`403 Forbidden\` vs \`404 Not Found\` when the server wants to hide resource existence
 
-All of these are auto-detectable with Thymian:
-```bash
-npx thymian lint --spec openapi:./openapi.yaml
-```
+Thymian can surface these protocol hints for you and your agents across the **entire lifecycle** — while linting specs, testing implementations, and analyzing traffic.
 
-→ https://thymian.dev/introduction/http-conformance/
+\`\`\`bash
+npx thymian lint --spec openapi:openapi.yaml
+npx thymian test --spec openapi:openapi.yaml
+npx thymian analyze --spec openapi:openapi.yaml
+\`\`\`
+
+https://thymian.dev/introduction/http-conformance/`}
   </PostText>
 
-  <SocialImage type="code-snippet" platform="discord" lang="http" codeLabel="Status code semantics" code={`POST /users -> HTTP/1.1 201 Created
-Location: /users/42
+  <SocialImage type="code-snippet" platform="discord" lang="bash" codeLabel="Across the lifecycle" code={`npx thymian lint --spec openapi:openapi.yaml
 
-GET /legacy -> HTTP/1.1 410 Gone`} />
+npx thymian test --spec openapi:openapi.yaml
+
+npx thymian analyze --traffic har:./traffic.har`} />
 </PlatformSection>
