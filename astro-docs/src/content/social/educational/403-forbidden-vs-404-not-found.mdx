@@ -50,13 +50,12 @@ Do your APIs use 404 to hide resources, or do you always return 403?`}
 
   </PostText>
 
-  <SocialImage type="side-by-side" platform="reddit" lang="http" codeLabel="Leaks existence" code={`GET /users/42/settings HTTP/1.1
-Host: api.example.com
-
-HTTP/1.1 403 Forbidden`} rightLang="http" rightCodeLabel="Hides existence" rightCode={`GET /users/42/settings HTTP/1.1
-Host: api.example.com
-
-HTTP/1.1 404 Not Found`} />
+<SocialImage
+  type="headline"
+  platform="reddit"
+  headline="Your API's 403 is leaking information."
+  subheadline="Returning 403 Forbidden confirms the resource exists. RFC 9110 says an origin server MAY respond with 404 instead — to hide resource existence. This is not a hack. It is a deliberate protocol design choice."
+/>
 
 </PlatformSection>
 
@@ -74,11 +73,12 @@ https://thymian.dev/introduction/http-conformance/`}
 
   </PostText>
 
-  <SocialImage type="side-by-side" platform="x" lang="http" codeLabel="Leaks existence" code={`GET /users/42/settings HTTP/1.1
-
-HTTP/1.1 403 Forbidden`} rightLang="http" rightCodeLabel="Hides existence" rightCode={`GET /users/42/settings HTTP/1.1
-
-HTTP/1.1 404 Not Found`} />
+<SocialImage
+  type="headline"
+  platform="x"
+  headline="Your API's 403 is leaking information."
+  subheadline="Returning 403 Forbidden confirms the resource exists. RFC 9110 says an origin server MAY respond with 404 instead — to hide resource existence. This is not a hack. It is a deliberate protocol design choice."
+/>
 
 </PlatformSection>
 
@@ -110,11 +110,12 @@ https://thymian.dev/introduction/http-conformance/
 
   </PostText>
 
-  <SocialImage type="side-by-side" platform="linkedin" lang="http" codeLabel="Leaks existence" code={`GET /users/42/settings HTTP/1.1
-
-HTTP/1.1 403 Forbidden`} rightLang="http" rightCodeLabel="Hides existence" rightCode={`GET /users/42/settings HTTP/1.1
-
-HTTP/1.1 404 Not Found`} />
+<SocialImage
+  type="headline"
+  platform="linkedin"
+  headline="Your API's 403 is leaking information."
+  subheadline="Returning 403 Forbidden confirms the resource exists. RFC 9110 says an origin server MAY respond with 404 instead — to hide resource existence. This is not a hack. It is a deliberate protocol design choice."
+/>
 
 </PlatformSection>
 
@@ -144,10 +145,11 @@ https://thymian.dev/introduction/http-conformance/`}
 
   </PostText>
 
-  <SocialImage type="side-by-side" platform="discord" lang="http" codeLabel="Leaks existence" code={`GET /users/42/settings HTTP/1.1
-
-HTTP/1.1 403 Forbidden`} rightLang="http" rightCodeLabel="Hides existence" rightCode={`GET /users/42/settings HTTP/1.1
-
-HTTP/1.1 404 Not Found`} />
+<SocialImage
+  type="headline"
+  platform="discord"
+  headline="Your API's 403 is leaking information."
+  subheadline="Returning 403 Forbidden confirms the resource exists. RFC 9110 says an origin server MAY respond with 404 instead — to hide resource existence. This is not a hack. It is a deliberate protocol design choice."
+/>
 
 </PlatformSection>

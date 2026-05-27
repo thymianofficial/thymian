@@ -1,17 +1,17 @@
 ---
-title: "HTTP Status Codes: The Main Source of Response Semantics"
-description: "Educational post about why HTTP status codes are more than success and failure labels, and how Thymian surfaces deeper status code semantics early."
+title: 'HTTP Status Codes: The Main Source of Response Semantics'
+description: 'Educational post about why HTTP status codes are more than success and failure labels, and how Thymian surfaces deeper status code semantics early.'
 category: educational
-publishStatus: ready
+publishStatus: draft
 docLinks:
-  - label: "HTTP Conformance — Thymian"
-    url: "https://thymian.dev/introduction/http-conformance/"
-  - label: "Using thymian lint"
-    url: "https://thymian.dev/tutorials/thymian-lint-workflow/"
-  - label: "Using thymian test"
-    url: "https://thymian.dev/tutorials/thymian-test-workflow/"
-  - label: "Using thymian analyze"
-    url: "https://thymian.dev/tutorials/thymian-analyze-workflow/"
+  - label: 'HTTP Conformance — Thymian'
+    url: 'https://thymian.dev/introduction/http-conformance/'
+  - label: 'Using thymian lint'
+    url: 'https://thymian.dev/tutorials/thymian-lint-workflow/'
+  - label: 'Using thymian test'
+    url: 'https://thymian.dev/tutorials/thymian-test-workflow/'
+  - label: 'Using thymian analyze'
+    url: 'https://thymian.dev/tutorials/thymian-analyze-workflow/'
 ---
 
 import PlatformSection from '../../../components/social/PlatformSection.astro';
@@ -52,6 +52,7 @@ npx thymian analyze --traffic har:./traffic.har
 Docs: https://thymian.dev/introduction/http-conformance/
 
 Which status code distinction do you see misused most often?`}
+
   </PostText>
 
   <SocialImage type="code-snippet" platform="reddit" lang="bash" codeLabel="Across the lifecycle" code={`npx thymian lint --spec openapi:openapi.yaml
@@ -59,6 +60,7 @@ Which status code distinction do you see misused most often?`}
 npx thymian test --spec openapi:openapi.yaml
 
 npx thymian analyze --traffic har:./traffic.har`} />
+
 </PlatformSection>
 
 ## X (Twitter)
@@ -75,13 +77,15 @@ Thymian points out these HTTP nuances across the lifecycle.
 
 Lint. Test. Analyze.
 https://thymian.dev/introduction/http-conformance/`}
+
   </PostText>
 
   <SocialImage type="code-snippet" platform="x" lang="bash" codeLabel="Across the lifecycle" code={`npx thymian lint --spec openapi:openapi.yaml
 
- npx thymian test --spec openapi:openapi.yaml
+npx thymian test --spec openapi:openapi.yaml
 
- npx thymian analyze --traffic har:./traffic.har`} />
+npx thymian analyze --traffic har:./traffic.har`} />
+
 </PlatformSection>
 
 ## LinkedIn
@@ -110,6 +114,7 @@ npx thymian analyze --spec openapi:openapi.yaml
 Learn more: https://thymian.dev/introduction/http-conformance/
 
 #HTTP #API #OpenAPI #DevTools #RFC9110 #Agents`}
+
   </PostText>
 
   <SocialImage type="code-snippet" platform="linkedin" lang="bash" codeLabel="Across the lifecycle" code={`npx thymian lint --spec openapi:openapi.yaml
@@ -117,6 +122,7 @@ Learn more: https://thymian.dev/introduction/http-conformance/
 npx thymian test --spec openapi:openapi.yaml
 
 npx thymian analyze --traffic har:./traffic.har`} />
+
 </PlatformSection>
 
 ## Discord
@@ -126,9 +132,11 @@ npx thymian analyze --traffic har:./traffic.har`} />
     {`**HTTP status codes are the main source of response semantics.**
 
 Most people know one rule:
+
 - don't send \`200 OK\` for a failed request
 
 But there are also more advanced distinctions:
+
 - \`404 Not Found\` vs \`410 Gone\`
 - \`403 Forbidden\` vs \`404 Not Found\` when the server wants to hide resource existence
 
@@ -141,6 +149,7 @@ npx thymian analyze --spec openapi:openapi.yaml
 \`\`\`
 
 https://thymian.dev/introduction/http-conformance/`}
+
   </PostText>
 
   <SocialImage type="code-snippet" platform="discord" lang="bash" codeLabel="Across the lifecycle" code={`npx thymian lint --spec openapi:openapi.yaml
@@ -148,4 +157,5 @@ https://thymian.dev/introduction/http-conformance/`}
 npx thymian test --spec openapi:openapi.yaml
 
 npx thymian analyze --traffic har:./traffic.har`} />
+
 </PlatformSection>
