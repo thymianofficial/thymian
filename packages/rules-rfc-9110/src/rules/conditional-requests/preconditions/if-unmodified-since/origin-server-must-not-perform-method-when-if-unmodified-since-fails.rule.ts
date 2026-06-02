@@ -24,19 +24,13 @@ export default httpRule(
   )
   .appliesTo('origin server')
   .tags('conditional-requests', 'if-unmodified-since', '412')
-  .rule((ctx) =>
-    // TODO: Implement analytics-specific validation for If-Unmodified-Since failure detection.
-    // In analytics mode, this should check recorded traffic for transactions where
-    // If-Unmodified-Since was sent without If-Match, and the server responded with
-    // a success status when it should have responded 412 (based on Last-Modified comparison).
-    ctx.validateCommonHttpTransactions(
-      and(
-        requestHeader('if-unmodified-since'),
-        not(requestHeader('if-match')),
-        not(statusCodeRange(400, 499)),
-      ),
-    ),
-  )
+  // TODO: Implement analytics-specific validation for If-Unmodified-Since failure detection.
+  // In analytics mode, this should check recorded traffic for transactions where
+  // If-Unmodified-Since was sent without If-Match, and the server responded with a success
+  // status when it should have responded 412 (by comparing If-Unmodified-Since against the
+  // resource's observed Last-Modified / known state). validateCommonHttpTransactions is
+  // per-transaction and would false-positive on compliant 2xx responses, so no analytics
+  // rule is registered until that correlation exists.
   .overrideTest((ctx) =>
     ctx.httpTest(
       singleTestCase()

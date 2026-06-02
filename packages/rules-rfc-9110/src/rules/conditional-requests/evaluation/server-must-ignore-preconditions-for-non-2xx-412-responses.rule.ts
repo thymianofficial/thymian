@@ -12,7 +12,11 @@ export default httpRule(
   'rfc9110/server-must-ignore-preconditions-for-non-2xx-412-responses',
 )
   .severity('error')
-  .type('static', 'test', 'analytics')
+  // TODO: A `test` context for this rule needs a paired-request probe: send the request
+  // without preconditions to learn the natural status, then with preconditions to verify it
+  // is unchanged when the natural status is non-2xx/412. A single conditional request cannot
+  // establish what the response "would have been", so `test` is intentionally omitted here.
+  .type('static', 'analytics')
   .url('https://www.rfc-editor.org/rfc/rfc9110.html#section-13.2.1')
   .description(
     'A server MUST ignore all received preconditions if its response to the same request without those conditions, prior to processing the request content, would have been a status code other than a 2xx (Successful) or 412 (Precondition Failed). In other words, redirects and failures that can be detected before significant processing occurs take precedence over the evaluation of preconditions.',

@@ -1,4 +1,4 @@
-import { and, constant, not, requestHeader, statusCode } from '@thymian/core';
+import { constant, not, requestHeader, statusCode } from '@thymian/core';
 import { httpRule, singleTestCase } from '@thymian/core';
 
 export default httpRule(
@@ -15,11 +15,11 @@ export default httpRule(
   )
   .appliesTo('server')
   .tags('conditional-requests', 'if-range', 'range', '206')
-  .rule((ctx) =>
-    ctx.validateCommonHttpTransactions(
-      and(requestHeader('if-range'), requestHeader('range'), statusCode(206)),
-    ),
-  )
+  // TODO: Implement analytics-specific validation. A 206 response to an If-Range + Range
+  // request is the *expected* outcome when If-Range matches; it is only a violation when
+  // If-Range does NOT match the selected representation. Detecting that in recorded traffic
+  // requires comparing the If-Range value against the response's ETag/Last-Modified, which
+  // validateCommonHttpTransactions cannot express, so no analytics rule is registered yet.
   .overrideTest((ctx) =>
     ctx.httpTest(
       singleTestCase()

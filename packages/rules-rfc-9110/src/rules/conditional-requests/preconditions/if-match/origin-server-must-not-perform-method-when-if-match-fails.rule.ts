@@ -1,10 +1,4 @@
-import {
-  and,
-  constant,
-  not,
-  requestHeader,
-  statusCodeRange,
-} from '@thymian/core';
+import { constant, requestHeader, statusCodeRange } from '@thymian/core';
 import { httpRule, singleTestCase } from '@thymian/core';
 
 export default httpRule(
@@ -21,11 +15,11 @@ export default httpRule(
   )
   .appliesTo('origin server')
   .tags('conditional-requests', 'if-match', '412', 'precondition-failed')
-  .rule((ctx) =>
-    ctx.validateCommonHttpTransactions(
-      and(requestHeader('if-match'), not(statusCodeRange(400, 499))),
-    ),
-  )
+  // TODO: Implement analytics-specific validation. Detecting a violation in recorded
+  // traffic requires correlating each If-Match value against the resource's prior known
+  // ETag to infer an actual condition *failure*. validateCommonHttpTransactions is
+  // per-transaction and would false-positive on compliant 2xx responses to matching
+  // If-Match requests, so no analytics rule is registered until that correlation exists.
   .overrideTest((ctx) =>
     ctx.httpTest(
       singleTestCase()
