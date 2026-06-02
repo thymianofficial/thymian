@@ -5,7 +5,7 @@ export default httpRule(
   'rfc9110/origin-server-must-not-perform-method-when-if-match-fails',
 )
   .severity('error')
-  .type('test', 'analytics')
+  .type('test')
   .url('https://www.rfc-editor.org/rfc/rfc9110.html#section-13.1.1')
   .description(
     'An origin server that evaluates an If-Match condition MUST NOT perform the requested method if the condition evaluates to false.',
@@ -15,11 +15,10 @@ export default httpRule(
   )
   .appliesTo('origin server')
   .tags('conditional-requests', 'if-match', '412', 'precondition-failed')
-  // TODO: Implement analytics-specific validation. Detecting a violation in recorded
-  // traffic requires correlating each If-Match value against the resource's prior known
-  // ETag to infer an actual condition *failure*. validateCommonHttpTransactions is
-  // per-transaction and would false-positive on compliant 2xx responses to matching
-  // If-Match requests, so no analytics rule is registered until that correlation exists.
+  // Analytics is intentionally omitted: the precondition's reference validator
+  // is the resource state BEFORE the operation, which is not reconstructable
+  // from recorded traffic for state-changing methods — the response carries
+  // the post-change validator.
   .overrideTest((ctx) =>
     ctx.httpTest(
       singleTestCase()

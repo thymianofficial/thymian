@@ -4,6 +4,7 @@ import {
   compareETags,
   compareHttpDates,
   hasInvalidConditionalETagSyntax,
+  ifRangeMatchesRepresentation,
   isStrongETag,
   isValidHttpDate,
   isWeakETag,
@@ -312,5 +313,65 @@ describe('compareHttpDates', () => {
         'Sun, 06 Nov 1994 08:49:38 GMT',
       ),
     ).toBe(-1);
+  });
+});
+
+describe('ifRangeMatchesRepresentation', () => {
+  const date = 'Sun, 06 Nov 1994 08:49:37 GMT';
+  const otherDate = 'Mon, 07 Nov 1994 08:49:37 GMT';
+
+  describe('date validator', () => {
+    it('returns true when If-Range date matches Last-Modified exactly', () => {
+      expect(ifRangeMatchesRepresentation(date, undefined, date)).toBe(true);
+    });
+
+    it('returns false when If-Range date does not match Last-Modified', () => {
+      expect(ifRangeMatchesRepresentation(date, undefined, otherDate)).toBe(
+        false,
+      );
+    });
+
+    it('returns null when Last-Modified is absent', () => {
+      expect(ifRangeMatchesRepresentation(date, undefined, undefined)).toBe(
+        null,
+      );
+    });
+
+    it('ignores ETag when If-Range is a valid HTTP-date', () => {
+      expect(ifRangeMatchesRepresentation(date, '"abc"', date)).toBe(true);
+    });
+  });
+
+  describe('entity-tag validator (strong comparison)', () => {
+    it('returns true when If-Range strong ETag matches response ETag', () => {
+      expect(ifRangeMatchesRepresentation('"abc"', '"abc"', undefined)).toBe(
+        true,
+      );
+    });
+
+    it('returns false when If-Range ETag does not match response ETag', () => {
+      expect(ifRangeMatchesRepresentation('"abc"', '"xyz"', undefined)).toBe(
+        false,
+      );
+    });
+
+    it('returns false when If-Range is a weak ETag (strong comparison fails)', () => {
+      // RFC 9110 §13.1.5: If-Range uses strong comparison; weak ETags MUST NOT match
+      expect(ifRangeMatchesRepresentation('W/"abc"', '"abc"', undefined)).toBe(
+        false,
+      );
+    });
+
+    it('returns null when ETag is absent', () => {
+      expect(ifRangeMatchesRepresentation('"abc"', undefined, undefined)).toBe(
+        null,
+      );
+    });
+
+    it('ignores Last-Modified when If-Range is an entity-tag', () => {
+      expect(ifRangeMatchesRepresentation('"abc"', '"abc"', otherDate)).toBe(
+        true,
+      );
+    });
   });
 });

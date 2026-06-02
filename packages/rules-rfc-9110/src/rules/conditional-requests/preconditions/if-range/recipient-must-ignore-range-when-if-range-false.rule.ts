@@ -1,5 +1,14 @@
-import { constant, not, requestHeader, statusCode } from '@thymian/core';
+import {
+  and,
+  constant,
+  getHeader,
+  not,
+  requestHeader,
+  statusCode,
+} from '@thymian/core';
 import { httpRule, singleTestCase } from '@thymian/core';
+
+import { ifRangeMatchesRepresentation } from '../../utils.js';
 
 export default httpRule(
   'rfc9110/recipient-must-ignore-range-when-if-range-false',
@@ -15,11 +24,39 @@ export default httpRule(
   )
   .appliesTo('server')
   .tags('conditional-requests', 'if-range', 'range', '206')
-  // TODO: Implement analytics-specific validation. A 206 response to an If-Range + Range
-  // request is the *expected* outcome when If-Range matches; it is only a violation when
-  // If-Range does NOT match the selected representation. Detecting that in recorded traffic
-  // requires comparing the If-Range value against the response's ETag/Last-Modified, which
-  // validateCommonHttpTransactions cannot express, so no analytics rule is registered yet.
+  .overrideAnalyticsRule((ctx) =>
+    ctx.validateHttpTransactions(
+      and(requestHeader('if-range'), requestHeader('range'), statusCode(206)),
+      (req, res) => {
+        const ifRangeRaw = getHeader(req.headers, 'if-range');
+        const ifRange = Array.isArray(ifRangeRaw) ? ifRangeRaw[0] : ifRangeRaw;
+        if (!ifRange) {
+          return false;
+        }
+
+        const etagRaw = getHeader(res.headers, 'etag');
+        const etag = Array.isArray(etagRaw) ? etagRaw[0] : etagRaw;
+
+        const lastModifiedRaw = getHeader(res.headers, 'last-modified');
+        const lastModified = Array.isArray(lastModifiedRaw)
+          ? lastModifiedRaw[0]
+          : lastModifiedRaw;
+
+        const matches = ifRangeMatchesRepresentation(
+          ifRange,
+          etag,
+          lastModified,
+        );
+
+        return matches === false
+          ? {
+              message:
+                'Server responded 206 to a Range request whose If-Range condition is false (If-Range does not match the selected representation); it MUST ignore Range and respond 200.',
+            }
+          : false;
+      },
+    ),
+  )
   .overrideTest((ctx) =>
     ctx.httpTest(
       singleTestCase()

@@ -1,3 +1,4 @@
+import { and, constant, origin, path } from '@thymian/core';
 import { httpRule } from '@thymian/core';
 
 export default httpRule(
@@ -14,7 +15,37 @@ export default httpRule(
   )
   .appliesTo('client')
   .tags('conditional-requests', 'if-none-match', 'cache', 'optimization')
-  // TODO: Implement analytics rule to detect GET requests in recorded traffic that lack
-  // If-None-Match headers when prior responses for the same resource included ETag headers,
-  // indicating missed cache optimization opportunities.
+  .rule((ctx) =>
+    ctx.validateGroupedCommonHttpTransactions(
+      constant(),
+      and(origin(), path()),
+      (_key, txns) => {
+        const groupHasEtagResponse = txns.some(([, res]) =>
+          res.headers.some((h) => h === 'etag'),
+        );
+
+        if (!groupHasEtagResponse) {
+          return undefined;
+        }
+
+        const getWithout = txns.find(
+          ([req]) =>
+            req.method === 'GET' &&
+            !req.headers.some((h) => h === 'if-none-match'),
+        );
+
+        if (!getWithout) {
+          return undefined;
+        }
+
+        const [, , location] = getWithout;
+
+        return {
+          location,
+          message:
+            'A prior response for this resource included an ETag, but a GET request omitted If-None-Match — a missed conditional-request (cache update) optimization opportunity.',
+        };
+      },
+    ),
+  )
   .done();

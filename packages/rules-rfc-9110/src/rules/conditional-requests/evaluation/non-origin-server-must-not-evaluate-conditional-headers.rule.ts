@@ -14,8 +14,11 @@ export default httpRule(
   )
   .appliesTo('intermediary', 'proxy')
   .tags('conditional-requests', 'evaluation', 'forwarding')
-  // TODO: Implement analytics rule to detect intermediaries that evaluate conditional headers
-  // instead of forwarding them. In recorded traffic, this could be detected by comparing
-  // conditional request headers sent by clients against responses from intermediaries that
-  // return 304/412 when the origin server would not have.
+  // No automated rule is registered. This is an infrastructure (intermediary/proxy)
+  // rule: reliably distinguishing an intermediary from an origin server, and knowing
+  // what the origin's counterfactual response would have been, is not observable in
+  // generic recorded traffic. Per the infrastructure exception in issue #327's
+  // Acceptance Criteria, the rule remains analytics-classified because it COULD be
+  // validated in specific proxy deployments where the intermediary's identity and the
+  // origin's response are both captured.
   .done();

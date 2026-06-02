@@ -139,6 +139,48 @@ export function hasInvalidConditionalETagSyntax(headerValue: string): boolean {
 }
 
 /**
+ * Determines whether an If-Range header value matches the current selected
+ * representation, following RFC 9110 §13.1.5.
+ *
+ * If the If-Range value is a valid HTTP-date it is compared (as a date
+ * validator) against the response's Last-Modified value; otherwise it is
+ * treated as an entity-tag and compared against the response's ETag using
+ * **strong comparison** (RFC 9110 §13.1.5 requires strong comparison for
+ * If-Range).
+ *
+ * @param ifRange The trimmed value of the If-Range request header.
+ * @param etag The ETag value from the selected representation's response,
+ *   or `undefined` when not present.
+ * @param lastModified The Last-Modified value from the selected
+ *   representation's response, or `undefined` when not present.
+ * @returns `true` if the condition matches, `false` if it does not match,
+ *   or `null` when the necessary representation validator is absent and the
+ *   outcome cannot be determined. Callers should treat `null` as "unknown"
+ *   and refrain from reporting a violation.
+ */
+export function ifRangeMatchesRepresentation(
+  ifRange: string,
+  etag: string | undefined,
+  lastModified: string | undefined,
+): boolean | null {
+  const trimmed = ifRange.trim();
+
+  if (isValidHttpDate(trimmed)) {
+    // Date validator: compare against Last-Modified using exact equality
+    if (!lastModified) {
+      return null;
+    }
+    return compareHttpDates(trimmed, lastModified) === 0;
+  }
+
+  // Entity-tag validator: If-Range requires strong comparison (RFC 9110 §13.1.5)
+  if (!etag) {
+    return null;
+  }
+  return compareETags(trimmed, etag, false);
+}
+
+/**
  * Compares two HTTP dates
  * @param date1 First date string
  * @param date2 Second date string
