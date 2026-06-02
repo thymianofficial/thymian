@@ -28,10 +28,18 @@ export default httpRule(
           return undefined;
         }
 
-        const getWithout = txns.find(
-          ([req]) =>
-            req.method === 'GET' &&
-            !req.headers.some((h) => h === 'if-none-match'),
+        const getRequests = txns.filter(([req]) => req.method === 'GET');
+
+        // Only a *re-fetch* pattern is a missed optimization: the first
+        // retrieval has no stored representation yet, so omitting If-None-Match
+        // is correct. Require at least two GETs to the same resource before
+        // flagging, to avoid false positives on initial fetches.
+        if (getRequests.length < 2) {
+          return undefined;
+        }
+
+        const getWithout = getRequests.find(
+          ([req]) => !req.headers.some((h) => h === 'if-none-match'),
         );
 
         if (!getWithout) {
