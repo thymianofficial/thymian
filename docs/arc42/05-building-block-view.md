@@ -173,7 +173,7 @@ C4Component
 
     Component(httpTesting, "HTTP Test Framework", "Module", "Test DSL for live HTTP testing.<br>Pipeline-based test builder,<br>request/response validators,<br>serialization utilities")
 
-    Component(actions, "Action Contracts", "Types", "Typed action definitions for<br>core.lint, core.test, core.analyze,<br>core.format.load, core.traffic.load,<br>core.request.dispatch,<br>core.request.sample, core.report.flush")
+    Component(actions, "Action Contracts", "Types", "Typed action definitions for<br>core.lint, core.test, core.analyze,<br>core.format.load, core.traffic.load,<br>core.request.dispatch,<br>core.request.sample")
 
     Component(events, "Event Contracts", "Types", "Fire-and-forget event definitions:<br>core.error, core.register,<br>core.report, core.exit")
 
@@ -193,7 +193,7 @@ C4Component
 
 | Component              | Responsibility                                                                                                                                                                                                                                                                                                            |
 | ---------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `Thymian` class        | Top-level orchestrator. Exposes `lint()`, `test()`, `analyze()` as first-class workflow methods. Manages the plugin lifecycle (`register` → `ready` → workflow → `close`). Bridges validation results into structured report events.                                                                                      |
+| `Thymian` class        | Top-level orchestrator. Exposes `lint()`, `test()`, `analyze()` as first-class workflow methods. Manages the plugin lifecycle (`register` → `ready` → workflow → `close`). Collects `ToolRun[]` replies from plugins, assembles a single v4 `Report`, emits `core.report`, and returns `WorkflowOutcome { classification, report }`. |
 | `ThymianEmitter`       | Central event bus built on RxJS Subjects. Supports two messaging patterns: fire-and-forget **events** (`emit`/`on`) and blocking request/response **actions** (`emitAction`/`onAction`). Actions support collection strategies: `'collect'`, `'first'`, `'deep-merge'`. Child emitters provide per-plugin source tracing. |
 | `ThymianFormat`        | Graph-based intermediate representation of API specifications. Wraps a `graphology` `MultiDirectedGraph` with typed nodes (HTTP requests, responses, security schemes, samples) and edges (transactions, links, samples). Provides matching, filtering, and serialization.                                                |
 | Rule System            | Defines the `Rule` type (with optional `lintRule`, `testRule`, `analyzeRule` functions), context interfaces (`LintContext`, `TestContext`, `AnalyzeContext`), severity levels, rule sets, and the `RuleRunnerAdapter<Context>` pattern for mode-specific execution.                                                       |
@@ -219,4 +219,4 @@ The `plugin-sampler` package (`@thymian/plugin-sampler`) listens on the `core.re
 
 ### 5.2.6 Reporter
 
-The `plugin-reporter` package (`@thymian/plugin-reporter`) listens on the `core.report` event and the `core.report.flush` action. It formats structured `ThymianReport` data into human-readable output (text, CSV, or Markdown) and returns the formatted text via `core.report.flush`.
+The `plugin-reporter` package (`@thymian/plugin-reporter`) listens on the `core.report` event. It formats the v4 `Report` payload into human-readable file outputs (text, CSV, or Markdown). CLI terminal rendering is handled directly by the common CLI package, so `plugin-reporter` is optional for console output.

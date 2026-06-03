@@ -1,7 +1,5 @@
 import type { JSONSchemaType } from 'ajv/dist/2020.js';
 
-import type { WorkflowClassification } from './validation-result.js';
-
 export interface SpecValidationIssue {
   message: string;
   path?: string;
@@ -18,7 +16,7 @@ export interface SpecValidationResult {
 }
 
 export interface SpecValidationOutcome {
-  classification: WorkflowClassification;
+  classification: 'clean-run' | 'findings' | 'tool-error';
   results: SpecValidationResult[];
 }
 
