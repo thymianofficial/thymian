@@ -794,6 +794,239 @@ describe('ThymianFormat', () => {
 
       expect(format1.toHash()).not.toBe(format2.toHash());
     });
+
+    it('should ignore labels, source names, and source locations', () => {
+      const format1 = new ThymianFormat();
+      const [reqId1, resId1, transactionId1] = format1.addHttpTransaction(
+        transactions[0][0],
+        transactions[0][1],
+        '/Users/alice/project/openapi.yaml',
+      );
+
+      format1.graph.setNodeAttribute(reqId1, 'label', 'Alice request label');
+      format1.graph.setNodeAttribute(resId1, 'label', 'Alice response label');
+      format1.graph.setNodeAttribute(reqId1, 'sourceLocation', {
+        path: '/Users/alice/project/openapi.yaml',
+        position: { line: 1, column: 2, offset: 3 },
+      });
+      format1.graph.setNodeAttribute(resId1, 'sourceLocation', {
+        path: '/Users/alice/project/openapi.yaml',
+        position: { line: 4, column: 5, offset: 6 },
+      });
+      format1.graph.setEdgeAttribute(
+        transactionId1,
+        'label',
+        'Alice transaction label',
+      );
+      format1.graph.setEdgeAttribute(transactionId1, 'sourceLocation', {
+        path: '/Users/alice/project/openapi.yaml',
+        position: { line: 7, column: 8, offset: 9 },
+      });
+
+      const format2 = new ThymianFormat();
+      const [reqId2, resId2, transactionId2] = format2.addHttpTransaction(
+        transactions[0][0],
+        transactions[0][1],
+        'C:\\Users\\bob\\project\\openapi.yaml',
+      );
+
+      format2.graph.setNodeAttribute(reqId2, 'label', 'Bob request label');
+      format2.graph.setNodeAttribute(resId2, 'label', 'Bob response label');
+      format2.graph.setNodeAttribute(reqId2, 'sourceLocation', {
+        path: 'C:\\Users\\bob\\project\\openapi.yaml',
+        position: { line: 10, column: 11, offset: 12 },
+      });
+      format2.graph.setNodeAttribute(resId2, 'sourceLocation', {
+        path: 'C:\\Users\\bob\\project\\openapi.yaml',
+        position: { line: 13, column: 14, offset: 15 },
+      });
+      format2.graph.setEdgeAttribute(
+        transactionId2,
+        'label',
+        'Bob transaction label',
+      );
+      format2.graph.setEdgeAttribute(transactionId2, 'sourceLocation', {
+        path: 'C:\\Users\\bob\\project\\openapi.yaml',
+        position: { line: 16, column: 17, offset: 18 },
+      });
+
+      expect(format1.toHash()).toBe(format2.toHash());
+      expect(format1.export().attributes.hash).toBe(
+        format2.export().attributes.hash,
+      );
+    });
+
+    it('should generate stable IDs for labels, source names, and source locations', () => {
+      const format1 = new ThymianFormat();
+      const ids1 = format1.addHttpTransaction(
+        {
+          ...transactions[0][0],
+          label: 'Request label A',
+          sourceLocation: { path: '/Users/alice/project/openapi.yaml' },
+        },
+        {
+          ...transactions[0][1],
+          label: 'Response label A',
+          sourceLocation: { path: '/Users/alice/project/openapi.yaml' },
+        },
+        '/Users/alice/project/openapi.yaml',
+      );
+
+      const format2 = new ThymianFormat();
+      const ids2 = format2.addHttpTransaction(
+        {
+          ...transactions[0][0],
+          label: 'Request label B',
+          sourceLocation: { path: 'C:\\Users\\bob\\project\\openapi.yaml' },
+        },
+        {
+          ...transactions[0][1],
+          label: 'Response label B',
+          sourceLocation: { path: 'C:\\Users\\bob\\project\\openapi.yaml' },
+        },
+        'C:\\Users\\bob\\project\\openapi.yaml',
+      );
+
+      expect(ids1).toStrictEqual(ids2);
+    });
+
+    it('should recursively ignore labels, source names, and source locations', () => {
+      const format1 = new ThymianFormat();
+      format1.addRequest({
+        ...transactions[0][0],
+        sourceName: 'source1',
+        extensions: {
+          metadata: {
+            sourceName: '/Users/alice/project/openapi.yaml',
+            sourceLocation: { path: '/Users/alice/project/openapi.yaml' },
+            label: 'Alice metadata label',
+          },
+        },
+      });
+
+      const format2 = new ThymianFormat();
+      format2.addRequest({
+        ...transactions[0][0],
+        sourceName: 'source2',
+        extensions: {
+          metadata: {
+            sourceName: 'C:\\Users\\bob\\project\\openapi.yaml',
+            sourceLocation: { path: 'C:\\Users\\bob\\project\\openapi.yaml' },
+            label: 'Bob metadata label',
+          },
+        },
+      });
+
+      expect(format1.toHash()).toBe(format2.toHash());
+    });
+
+    it('should ignore source attribution on imported formats', () => {
+      const format = new ThymianFormat();
+      format.addHttpTransaction(
+        transactions[0][0],
+        transactions[0][1],
+        '/Users/alice/project/openapi.yaml',
+      );
+
+      const exported1 = format.export();
+      const exported2 = structuredClone(exported1);
+
+      exported1.nodes.forEach((node) => {
+        node.attributes.sourceName = '/Users/alice/project/openapi.yaml';
+        node.attributes.sourceLocation = {
+          path: '/Users/alice/project/openapi.yaml',
+        };
+      });
+      exported1.edges.forEach((edge) => {
+        edge.attributes.sourceName = '/Users/alice/project/openapi.yaml';
+        edge.attributes.sourceLocation = {
+          path: '/Users/alice/project/openapi.yaml',
+        };
+      });
+
+      exported2.nodes.forEach((node) => {
+        node.attributes.sourceName = 'C:\\Users\\bob\\project\\openapi.yaml';
+        node.attributes.sourceLocation = {
+          path: 'C:\\Users\\bob\\project\\openapi.yaml',
+        };
+      });
+      exported2.edges.forEach((edge) => {
+        edge.attributes.sourceName = 'C:\\Users\\bob\\project\\openapi.yaml';
+        edge.attributes.sourceLocation = {
+          path: 'C:\\Users\\bob\\project\\openapi.yaml',
+        };
+      });
+
+      expect(ThymianFormat.import(exported1).toHash()).toBe(
+        ThymianFormat.import(exported2).toHash(),
+      );
+    });
+
+    it('should include security schemes and HTTP links in semantic hashes', () => {
+      const format1 = new ThymianFormat();
+      const [reqId1, resId1] = format1.addHttpTransaction(
+        transactions[0][0],
+        transactions[0][1],
+        '/Users/alice/project/openapi.yaml',
+      );
+      const securityId1 = format1.addSecurityScheme({
+        scheme: 'api-key',
+        in: 'header',
+        sourceName: '/Users/alice/project/openapi.yaml',
+        sourceLocation: { path: '/Users/alice/project/openapi.yaml' },
+      });
+      format1.addEdge(reqId1, securityId1, {
+        type: 'is-secured',
+        sourceName: '/Users/alice/project/openapi.yaml',
+        sourceLocation: { path: '/Users/alice/project/openapi.yaml' },
+      });
+      format1.addHttpLink(resId1, reqId1, {
+        sourceName: '/Users/alice/project/openapi.yaml',
+        sourceLocation: { path: '/Users/alice/project/openapi.yaml' },
+      });
+
+      const format2 = new ThymianFormat();
+      const [reqId2, resId2] = format2.addHttpTransaction(
+        transactions[0][0],
+        transactions[0][1],
+        'C:\\Users\\bob\\project\\openapi.yaml',
+      );
+      const securityId2 = format2.addSecurityScheme({
+        scheme: 'api-key',
+        in: 'header',
+        sourceName: 'C:\\Users\\bob\\project\\openapi.yaml',
+        sourceLocation: { path: 'C:\\Users\\bob\\project\\openapi.yaml' },
+      });
+      format2.addEdge(reqId2, securityId2, {
+        type: 'is-secured',
+        sourceName: 'C:\\Users\\bob\\project\\openapi.yaml',
+        sourceLocation: { path: 'C:\\Users\\bob\\project\\openapi.yaml' },
+      });
+      format2.addHttpLink(resId2, reqId2, {
+        sourceName: 'C:\\Users\\bob\\project\\openapi.yaml',
+        sourceLocation: { path: 'C:\\Users\\bob\\project\\openapi.yaml' },
+      });
+
+      expect(format1.toHash()).toBe(format2.toHash());
+
+      const format3 = new ThymianFormat();
+      const [reqId3] = format3.addHttpTransaction(
+        transactions[0][0],
+        transactions[0][1],
+        '/Users/alice/project/openapi.yaml',
+      );
+      const securityId3 = format3.addSecurityScheme({
+        scheme: 'api-key',
+        in: 'query',
+        sourceName: '/Users/alice/project/openapi.yaml',
+      });
+      format3.addEdge(reqId3, securityId3, {
+        type: 'is-secured',
+        sourceName: '/Users/alice/project/openapi.yaml',
+      });
+
+      expect(format1.toHash()).not.toBe(format3.toHash());
+    });
   });
 
   describe('import with sourceName', () => {

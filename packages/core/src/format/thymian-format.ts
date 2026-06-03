@@ -131,6 +131,11 @@ export class ThymianFormat {
   readonly graph: ThymianGraph;
 
   static readonly ignoredNodeProperties: string[] = ['x', 'y'];
+  private static readonly ignoredHashProperties = [
+    'label',
+    'sourceLocation',
+    'sourceName',
+  ] as const;
 
   constructor(graph: ThymianGraph = new MultiDirectedGraph()) {
     this.graph = graph;
@@ -149,7 +154,7 @@ export class ThymianFormat {
       ...edge,
     };
 
-    const id = this.hash(source, target, this.hashObj(e));
+    const id = this.hash(source, target, this.semanticHashObj(e));
 
     if (this.graph.hasEdge(id)) {
       if (options.throwIfExists) {
@@ -215,7 +220,7 @@ export class ThymianFormat {
 
     // Generate unique ID by combining request ID with response hash
     // This ensures each request has its own response nodes, even if response content is identical
-    const responseNodeId = this.hash(requestId, this.hashObj(res));
+    const responseNodeId = this.hash(requestId, this.semanticHashObj(res));
 
     const resId = this.addResponse(res, responseNodeId);
 
@@ -289,7 +294,7 @@ export class ThymianFormat {
 
   addNode(
     node: ThymianNode,
-    id: string = this.hashObj(node),
+    id: string = this.semanticHashObj(node),
     options: {
       throwIfExists?: boolean;
     } = {},
@@ -688,13 +693,23 @@ export class ThymianFormat {
 
     this.graph
       .nodes()
+      .map((id) => this.semanticHashObj(this.graph.getNodeAttributes(id)))
       .sort()
-      .forEach((id) => hash.update(id));
+      .forEach((nodeHash) => hash.update(nodeHash));
 
     this.graph
       .edges()
+      .map((id) => {
+        const [source, target] = this.graph.extremities(id);
+
+        return this.hash(
+          this.semanticHashObj(this.graph.getNodeAttributes(source)),
+          this.semanticHashObj(this.graph.getNodeAttributes(target)),
+          this.semanticHashObj(this.graph.getEdgeAttributes(id)),
+        );
+      })
       .sort()
-      .forEach((id) => hash.update(id));
+      .forEach((edgeHash) => hash.update(edgeHash));
 
     return hash.digest('hex');
   }
@@ -834,5 +849,39 @@ export class ThymianFormat {
     }
 
     return createHash('sha1').update(stringify(obj)).digest('hex');
+  }
+
+  private semanticHashObj(obj: unknown): string {
+    if (typeof obj === 'undefined') {
+      return '';
+    }
+
+    if (!obj || typeof obj !== 'object' || Array.isArray(obj)) {
+      return this.hashObj(obj);
+    }
+
+    return this.hashObj(this.removeIgnoredHashProperties(obj));
+  }
+
+  private removeIgnoredHashProperties(obj: unknown): unknown {
+    if (!obj || typeof obj !== 'object') {
+      return obj;
+    }
+
+    if (Array.isArray(obj)) {
+      return obj.map((value) => this.removeIgnoredHashProperties(value));
+    }
+
+    const attributes = { ...(obj as Record<string, unknown>) };
+
+    ThymianFormat.ignoredHashProperties.forEach((property) => {
+      delete attributes[property];
+    });
+
+    Object.entries(attributes).forEach(([key, value]) => {
+      attributes[key] = this.removeIgnoredHashProperties(value);
+    });
+
+    return attributes;
   }
 }
