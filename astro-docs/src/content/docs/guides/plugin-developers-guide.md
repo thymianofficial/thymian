@@ -75,16 +75,27 @@ Sends an event to all registered listeners (fire-and-forget).
 
 ```typescript
 emitter.emit('core.report', {
-  source: 'my-plugin',
-  message: 'Analysis complete',
-  sections: [
+  reportId: 'report-1',
+  createdAt: new Date().toISOString(),
+  runs: [
     {
-      heading: 'GET /pets -> 200 OK',
-      items: [
+      runId: 'run-1',
+      tool: { name: 'my-plugin' },
+      runType: 'analyze',
+      runAt: new Date().toISOString(),
+      executions: [
         {
-          severity: 'warn',
-          message: 'Missing Cache-Control header',
-          ruleName: 'my-plugin/cache-control',
+          location: { type: 'custom', value: 'GET /pets → 200 OK' },
+          findings: [
+            {
+              id: 'finding-1',
+              kind: 'rule-violation',
+              ruleId: 'my-plugin/cache-control',
+              title: 'Missing Cache-Control header',
+              severity: 'warn',
+              message: { text: 'Missing Cache-Control header' },
+            },
+          ],
         },
       ],
     },
@@ -203,7 +214,7 @@ Events are fire-and-forget messages. Plugins listen with `emitter.on(...)`.
 | --------------- | --------------------------- | ------------------------------------------------------------------------------------------------------------------------ |
 | `core.error`    | `ThymianError`              | Emitted when an error occurs. Includes `name`, `message`, and optional `severity`, `exitCode`, `suggestions`, `code`.    |
 | `core.register` | `{ name, options, events }` | Emitted once per plugin during the loading phase. Lets other plugins discover registered peers.                          |
-| `core.report`   | `ThymianReport`             | Structured validation/analysis report. Contains `source`, `message`, and optional `sections` with severity-tagged items. |
+| `core.report`   | `Report`                    | Structured v4 report. Contains `runs`, each with `executions` and `findings`. |
 | `core.exit`     | `{ code? }`                 | Signals process exit with an optional exit code.                                                                         |
 
 ## Core Actions
@@ -222,17 +233,15 @@ Actions are request-response interactions. Plugins listen with `emitter.onAction
 
 | Action         | Request Payload                                          | Response Payload   | Strategy  | Description                                                         |
 | -------------- | -------------------------------------------------------- | ------------------ | --------- | ------------------------------------------------------------------- |
-| `core.lint`    | `{ format, rules?, rulesConfig?, options? }`             | `ValidationResult` | `collect` | Run lint rules against a format (static analysis, no live traffic). |
-| `core.test`    | `{ format, targetUrl?, rules?, rulesConfig?, options? }` | `ValidationResult` | `collect` | Run test rules against a live target URL.                           |
-| `core.analyze` | `{ traffic, format?, rules?, rulesConfig?, options? }`   | `ValidationResult` | `collect` | Run analysis rules against captured traffic.                        |
+| `core.lint`    | `{ format, rules?, rulesConfig?, options? }`             | `ToolRun[]` | `collect` | Run lint rules against a format (static analysis, no live traffic). |
+| `core.test`    | `{ format, targetUrl?, rules?, rulesConfig?, options? }` | `ToolRun[]` | `collect` | Run test rules against a live target URL.                           |
+| `core.analyze` | `{ traffic, format?, rules?, rulesConfig?, options? }`   | `ToolRun[]` | `collect` | Run analysis rules against captured traffic.                        |
 
-`ValidationResult` contains `source`, `status` (`'success'` | `'failed'` | `'error'`), `violations[]`, and optional `statistics`.
+Each workflow plugin replies with one or more `ToolRun` objects. Core assembles all collected runs into a single `Report`, emits that report on `core.report`, and returns it in `WorkflowOutcome`.
 
 ### Reporting
 
-| Action              | Request Payload | Response Payload | Strategy  | Description                                                                         |
-| ------------------- | --------------- | ---------------- | --------- | ----------------------------------------------------------------------------------- |
-| `core.report.flush` | `void`          | `{ text? }`      | `collect` | Tells reporter plugins to finalize their output. Returns the formatted report text. |
+There is no `core.report.flush` action in the v4 reporting model. The CLI renders terminal output directly from `WorkflowOutcome.report`, while optional reporter plugins consume the passive `core.report` event for file outputs.
 
 ### HTTP Request Handling
 
@@ -315,7 +324,7 @@ export default {
     // EVENT LISTENER: core.report
     // ============================================
     emitter.on('core.report', async (report) => {
-      logger.info('Report from', report.source, ':', report.message);
+      logger.info('Report emitted with', report.runs.length, 'tool run(s)');
     });
 
     logger.info('Plugin initialization completed - all handlers registered');
@@ -423,8 +432,9 @@ Use child emitters for better logging and organization:
 ```javascript
 const subEmitter = emitter.child('my-plugin:submodule');
 subEmitter.emit('core.report', {
-  source: 'my-plugin:submodule',
-  message: 'Sub-analysis complete',
+  reportId: 'report-2',
+  createdAt: new Date().toISOString(),
+  runs: [],
 });
 ```
 

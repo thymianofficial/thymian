@@ -16,7 +16,7 @@ Events are used for notifications that do not require acknowledgment, such as re
 | Event           | Payload                     | Purpose                                              |
 | --------------- | --------------------------- | ---------------------------------------------------- |
 | `core.register` | `{ name, events, options }` | Announces that a plugin has been registered          |
-| `core.report`   | `ThymianReport`             | Carries structured validation results for formatting |
+| `core.report`   | `Report`                    | Carries the assembled v4 report (`runs → executions → findings`) |
 | `core.error`    | `ThymianErrorEvent`         | Propagates structured errors with correlation        |
 | `core.exit`     | —                           | Signals system shutdown                              |
 
@@ -56,7 +56,6 @@ All core-owned actions follow the hierarchical pattern **`core.<domain>.<verb>`*
 | `core.analyze`          | Execute analysis of captured HTTP traffic         |
 | `core.request.dispatch` | Send an HTTP request and return the response      |
 | `core.request.sample`   | Generate an HTTP request template from samples    |
-| `core.report.flush`     | Flush buffered reports and return formatted text  |
 
 ### 8.1.4 Child Emitters
 

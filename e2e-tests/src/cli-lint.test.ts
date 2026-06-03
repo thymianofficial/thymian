@@ -22,8 +22,11 @@ describe('thymian lint', () => {
       allowFailure: true,
     });
 
-    expect(output).toMatch(/rules run successfully/);
-    expect(output).toMatch(/reported a violation/);
+    expect(output).toContain('@thymian/plugin-http-linter · lint ·');
+    expect(output).toContain(
+      'rfc9110/origin-server-with-clock-must-generate-date-for-2xx-3xx-4xx',
+    );
+    expect(output).toContain('Summary: 1 error(s), 0 warning(s), 0 hint(s), 0 info finding(s).');
   }, 90_000);
 
   it('should accept specification via --spec flag', () => {
@@ -34,7 +37,8 @@ describe('thymian lint', () => {
       { cwd: getTempDir(), allowFailure: true },
     );
 
-    expect(output).toMatch(/rules run successfully/);
+    expect(output).toContain('@thymian/plugin-http-linter · lint ·');
+    expect(output).toContain('Summary: 1 error(s), 0 warning(s), 0 hint(s), 0 info finding(s).');
   }, 90_000);
 
   it('should exit with non-zero code when findings are present', () => {
@@ -47,7 +51,7 @@ describe('thymian lint', () => {
     expect(exitCode).not.toBe(0);
   }, 90_000);
 
-  it('should print success message and exit 0 for a clean specification', () => {
+  it('should print a clean summary and exit 0 for a clean specification', () => {
     copyFixturesToTempDir(join(fixturesDir, 'clean-lint'), getTempDir());
 
     const { stdout, exitCode } = execThymianResult(['lint'], {
@@ -55,30 +59,33 @@ describe('thymian lint', () => {
     });
 
     expect(exitCode).toBe(0);
-    expect(stdout).toContain('No problems found');
+    expect(stdout).toContain('@thymian/plugin-http-linter · lint ·');
+    expect(stdout).toContain('Summary: 0 error(s), 0 warning(s), 0 hint(s), 0 info finding(s).');
   }, 90_000);
 
-  it('should output report text on stdout', () => {
+  it('should output rendered report text on stdout', () => {
     copyFixturesToTempDir(join(fixturesDir, 'static-lint'), getTempDir());
 
     const { stdout } = execThymianResult(['lint'], {
       cwd: getTempDir(),
     });
 
-    expect(stdout).toMatch(/errors?/);
-    expect(stdout).toMatch(/warnings?/);
-    expect(stdout).toMatch(/hints?/);
+    expect(stdout).toContain('@thymian/plugin-http-linter · lint ·');
+    expect(stdout).toContain('Summary:');
+    expect(stdout).toContain('error(s)');
+    expect(stdout).toContain('warning(s)');
+    expect(stdout).toContain('hint(s)');
   }, 90_000);
 
-  it('should use "warning" label (not "warn") for warning-severity items', () => {
+  it('should use summary wording with "warning(s)"', () => {
     copyFixturesToTempDir(join(fixturesDir, 'static-lint'), getTempDir());
 
     const { stdout } = execThymianResult(['lint'], {
       cwd: getTempDir(),
     });
 
-    expect(stdout).toContain('warning');
-    expect(stdout).not.toMatch(/⚠ warn[^i]/);
+    expect(stdout).toContain('warning(s)');
+    expect(stdout).not.toContain('warn(s)');
   }, 90_000);
 
   it('should exit with code 2 for an invalid (unparseable) spec', () => {
@@ -98,7 +105,7 @@ describe('thymian lint', () => {
     expect(stderr).toMatch(/error/i);
   }, 90_000);
 
-  it('should produce deterministic output across consecutive runs', () => {
+  it('should produce stable output structure across consecutive runs', () => {
     copyFixturesToTempDir(join(fixturesDir, 'static-lint'), getTempDir());
 
     const first = execThymianResult(['lint', '--suppress-feedback'], {
@@ -108,7 +115,10 @@ describe('thymian lint', () => {
       cwd: getTempDir(),
     });
 
-    expect(first.stdout).toBe(second.stdout);
+    const normalize = (value: string) =>
+      value.replace(/\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z/g, '<timestamp>');
+
+    expect(normalize(first.stdout)).toBe(normalize(second.stdout));
   }, 180_000);
 
   it('should separate report content (stdout) from operational messages (stderr)', () => {
@@ -118,15 +128,8 @@ describe('thymian lint', () => {
       cwd: getTempDir(),
     });
 
-    // Report content should be on stdout
-    expect(stdout).toMatch(/errors?/);
-    expect(stdout).toMatch(/hints?/);
-
-    // Operational messages (e.g. logs, warnings) should not leak into stdout
-    // stdout should only contain the formatted report
+    expect(stdout).toContain('Summary:');
     expect(stdout).not.toMatch(/Configuration loaded/);
-
-    // stderr should be a string (operational output goes here, if any)
     expect(typeof stderr).toBe('string');
   }, 90_000);
 });
