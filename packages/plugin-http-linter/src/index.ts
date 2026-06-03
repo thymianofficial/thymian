@@ -1,4 +1,6 @@
 import {
+  createToolRun,
+  executionsFromViolations,
   type EvaluatedRuleViolation,
   type Rule,
   type RuleRunnerAdapter,
@@ -8,7 +10,7 @@ import {
   type SingleRuleConfiguration,
   ThymianFormat,
   type ThymianPlugin,
-  type ThymianReport,
+  type ToolRun,
 } from '@thymian/core';
 
 import { StaticApiContext } from './static-api-context.js';
@@ -34,7 +36,7 @@ declare module '@thymian/core' {
         rulesConfig?: RulesConfiguration;
       };
       response: {
-        reports: ThymianReport[];
+        runs: ToolRun[];
         violations: EvaluatedRuleViolation[];
         valid: boolean;
       };
@@ -44,7 +46,6 @@ declare module '@thymian/core' {
 
 function createStaticLinterAdapter(
   logger: import('@thymian/core').Logger,
-  reportFn: (report: ThymianReport) => void,
   format: ThymianFormat,
   rulesConfig: RulesConfiguration,
 ): RuleRunnerAdapter<StaticApiContext> {
@@ -55,14 +56,28 @@ function createStaticLinterAdapter(
     createContext: (
       _rule: Rule,
       options: SingleRuleConfiguration | undefined,
-    ) =>
-      new StaticApiContext(
-        format,
-        logger,
-        reportFn,
-        (options ?? {}).skipOrigins,
-      ),
+    ) => new StaticApiContext(format, logger, (options ?? {}).skipOrigins),
   };
+}
+
+function createRuns(
+  pluginName: string,
+  format: ThymianFormat,
+  violations: EvaluatedRuleViolation[],
+): ToolRun[] {
+  const executions = executionsFromViolations(violations, format);
+
+  if (executions.length === 0) {
+    return [];
+  }
+
+  return [
+    createToolRun({
+      tool: { name: pluginName },
+      runType: 'lint',
+      executions,
+    }),
+  ];
 }
 
 export function createHttpLinterPlugin(
@@ -79,28 +94,16 @@ export function createHttpLinterPlugin(
         'core.lint',
         async ({ format, rules = [], rulesConfig = {} }, ctx) => {
           const thymianFormat = ThymianFormat.import(format);
-          const reportFn = (report: ThymianReport) =>
-            emitter.emit('core.report', report);
 
-          const { violations, statistics } = await runRules(
+          const { violations } = await runRules(
             logger,
             rules,
             thymianFormat,
             rulesConfig,
-            createStaticLinterAdapter(
-              logger,
-              reportFn,
-              thymianFormat,
-              rulesConfig,
-            ),
+            createStaticLinterAdapter(logger, thymianFormat, rulesConfig),
           );
 
-          ctx.reply({
-            source: pluginName,
-            status: violations.length === 0 ? 'success' : 'failed',
-            violations,
-            statistics,
-          });
+          ctx.reply(createRuns(pluginName, thymianFormat, violations));
         },
       );
 
@@ -108,24 +111,17 @@ export function createHttpLinterPlugin(
         'http-linter.lint-static',
         async ({ format, rules = [], rulesConfig = {} }, ctx) => {
           const thymianFormat = ThymianFormat.import(format);
-          const reports: ThymianReport[] = [];
-          const reportFn = (report: ThymianReport) => reports.push(report);
 
           const { violations } = await runRules(
             logger,
             rules,
             thymianFormat,
             rulesConfig,
-            createStaticLinterAdapter(
-              logger,
-              reportFn,
-              thymianFormat,
-              rulesConfig,
-            ),
+            createStaticLinterAdapter(logger, thymianFormat, rulesConfig),
           );
 
           ctx.reply({
-            reports,
+            runs: createRuns(pluginName, thymianFormat, violations),
             violations,
             valid: violations.length === 0,
           });

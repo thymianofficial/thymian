@@ -159,11 +159,11 @@ components:
       const lintResult = httpLintStaticResult.payload[0];
       expect(lintResult).toHaveProperty('valid');
       expect(lintResult).toHaveProperty('violations');
-      expect(lintResult).toHaveProperty('reports');
+      expect(lintResult).toHaveProperty('runs');
 
-      // Without rules provided, the linter returns valid: true
       expect(lintResult.valid).toBe(true);
       expect(lintResult.violations).toHaveLength(0);
+      expect(lintResult.runs).toHaveLength(1);
     } finally {
       ws.close();
     }

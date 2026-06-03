@@ -76,12 +76,6 @@ export abstract class BaseCliRunCommand<
         'Show guidance hints on stderr. Defaults to true for TTY, false for non-TTY.',
       helpGroup: 'BASE',
     }),
-    ['sort-reports-by']: Flags.string({
-      description: 'Control how validation findings are grouped in the report.',
-      helpGroup: 'BASE',
-      options: ['rule', 'endpoint', 'severity'],
-      default: 'endpoint',
-    }),
     ['log-level']: Flags.string({
       description:
         'Set log level (trace, debug, info, warn, error, silent). When set to trace, all events are traced.',
@@ -300,10 +294,6 @@ export abstract class BaseCliRunCommand<
       timeout: this.flags.timeout,
       cwd: this.flags.cwd,
       idleTimeout: this.flags['idle-timeout'],
-      sortReportsBy: this.flags['sort-reports-by'] as
-        | 'rule'
-        | 'endpoint'
-        | 'severity',
     });
 
     this.logger.info('Thymian instance created.');
@@ -346,7 +336,7 @@ export abstract class BaseCliRunCommand<
     if (err instanceof ThymianBaseError) {
       const cliError = new CLIError(err.message, {
         suggestions: err.options.suggestions,
-        exit: err.options.exitCode,
+        exit: 2,
         code: err.options.code,
       });
 

@@ -627,6 +627,7 @@ describe('HttpTestApiContext', () => {
           },
         ],
         failedCases: [],
+        findings: [],
       });
 
       await context.httpTest(

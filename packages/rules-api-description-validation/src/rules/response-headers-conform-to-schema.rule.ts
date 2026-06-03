@@ -14,6 +14,8 @@ import {
   validateHeaders,
 } from '@thymian/core';
 
+import { withStructuredFindings } from './report-utils.js';
+
 export default httpRule('thymian/response-headers-must-conform-to-schema')
   .severity('error')
   .type('test', 'analytics')
@@ -21,8 +23,10 @@ export default httpRule('thymian/response-headers-must-conform-to-schema')
     'Response headers must conform to the API description schema. Checks for missing required headers, additional undocumented headers, and validates existing headers against their schema.',
   )
   .summary('Response headers must conform to the API description schema')
-  .rule((ctx) =>
-    ctx.validateHttpTransactions(
+  .rule(async (ctx) => {
+    const findings: HttpTestCaseResult[] = [];
+
+    const result = await ctx.validateHttpTransactions(
       or(successfulStatusCode(), statusCodeRange(400, 499)),
       (
         _request: HttpRequest,
@@ -45,18 +49,21 @@ export default httpRule('thymian/response-headers-must-conform-to-schema')
           response.headers,
           transaction.thymianRes,
         );
+        findings.push(...results);
         const failures = results.filter((r) => r.type === 'assertion-failure');
 
         if (failures.length > 0) {
           return {
-            message: failures.map((f) => f.message).join('\n'),
+            message: `${failures.length} assertion(s) failed`,
           };
         }
 
         return false;
       },
-    ),
-  )
+    );
+
+    return withStructuredFindings(result, findings);
+  })
   .overrideTest(async (ctx) => {
     const testResult = await ctx.runHttpTest(
       singleTestCase()
@@ -67,7 +74,8 @@ export default httpRule('thymian/response-headers-must-conform-to-schema')
         .done(),
     );
 
-    return testResult.cases
+    const findings = testResult.cases.flatMap((testCase) => testCase.results);
+    const violations = testResult.cases
       .filter((testCase) => testCase.status === 'failed')
       .flatMap((testCase) => {
         const failures = testCase.results.filter(
@@ -83,8 +91,10 @@ export default httpRule('thymian/response-headers-must-conform-to-schema')
             elementType: 'edge',
             elementId: failure.transaction.transactionId,
           },
-          message: failure.message,
+          message: `${failures.length} assertion(s) failed`,
         }));
       });
+
+    return withStructuredFindings(violations, findings);
   })
   .done();

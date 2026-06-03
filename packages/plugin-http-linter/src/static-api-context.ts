@@ -7,7 +7,6 @@ import {
   type LintContext,
   type Logger,
   type PartialBy,
-  type ReportFn,
   type RuleFnResult,
   type RuleViolation,
   type RuleViolationLocation,
@@ -26,21 +25,23 @@ import { httpFilterToGroupByFn } from './visitors/http-filter-to-static-by-fn.js
 
 export class StaticApiContext implements LintContext {
   readonly format: ThymianFormat;
-  readonly report: ReportFn;
   private readonly violations: RuleViolation[] = [];
+  private readonly skippedOrigins: string[];
 
   constructor(
     format: ThymianFormat,
     private readonly logger: Logger,
-    report: ReportFn = () => undefined,
-    private readonly skippedOrigins: string[] = [],
+    reportOrSkippedOrigins?: (() => void) | string[],
+    legacySkippedOrigins: string[] = [],
   ) {
-    this.report = report;
-
-    if (skippedOrigins.length === 0) {
+    const skippedOrigins = Array.isArray(reportOrSkippedOrigins)
+      ? reportOrSkippedOrigins
+      : legacySkippedOrigins;
+    this.skippedOrigins = skippedOrigins;
+    if (this.skippedOrigins.length === 0) {
       this.format = format;
     } else {
-      const regExps = skippedOrigins.map(createRegExpFromOriginWildcard);
+      const regExps = this.skippedOrigins.map(createRegExpFromOriginWildcard);
 
       this.format = format.filter(
         ({ thymianReq }) =>

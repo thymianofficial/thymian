@@ -1,4 +1,4 @@
-import type { ThymianReportLocation } from '../events/report.event.js';
+import type { Location } from '../report/index.js';
 import type {
   HttpTransaction,
   ThymianHttpRequest,
@@ -19,8 +19,15 @@ import type {
 } from './rule-configuration.js';
 import type { RuleSeverity } from './rule-severity.js';
 import { isRuleSeverityLevel } from './rule-severity.js';
-import type { EvaluatedRuleViolation, RuleFnResult } from './rule-violation.js';
-import type { RuleViolation } from './rule-violation.js';
+import type {
+  EvaluatedRuleViolation,
+  RuleFinding,
+  RuleFnResult,
+} from './rule-violation.js';
+import {
+  isRuleExecutionResult,
+  type RuleViolation,
+} from './rule-violation.js';
 
 export function findDuplicates<T>(elements: T[]): T[] {
   return elements.filter(
@@ -32,11 +39,14 @@ export function resolveViolationLocation(
   violation: RuleViolation,
   format: ThymianFormat,
   ruleName: string,
-): { heading: string; location?: ThymianReportLocation } {
+): { heading: string; location: Location } {
   const { location } = violation;
 
   if (typeof location === 'string') {
-    return { heading: location };
+    return {
+      heading: location,
+      location: { type: 'custom', value: location },
+    };
   }
 
   if (location.elementType === 'node') {
@@ -52,26 +62,35 @@ export function resolveViolationLocation(
       );
     }
 
-    let heading = '';
+    let heading = location.label ?? '';
 
     if (isNodeType(node, 'http-request')) {
-      heading = thymianRequestToString(node);
+      heading = heading || thymianRequestToString(node);
     } else if (isNodeType(node, 'http-response')) {
-      heading = thymianResponseToString(node);
+      heading = heading || thymianResponseToString(node);
     }
 
-    const reportLocation: ThymianReportLocation = {};
-
-    if (node.sourceLocation) {
-      reportLocation.file = { ...node.sourceLocation };
+    if (node.sourceLocation && 'path' in node.sourceLocation) {
+      return {
+        heading,
+        location: {
+          type: 'file',
+          path: node.sourceLocation.path,
+          line: node.sourceLocation.position?.line,
+          column: node.sourceLocation.position?.column,
+        },
+      };
     }
 
-    reportLocation.format = {
-      elementType: 'node',
-      elementId: location.elementId,
+    return {
+      heading,
+      location: {
+        type: 'thymianFormat',
+        elementType: 'node',
+        elementId: location.elementId,
+        pointer: location.pointer ?? '',
+      },
     };
-
-    return { heading, location: reportLocation };
   }
 
   const [source, target] = format.graph.extremities(location.elementId);
@@ -89,20 +108,29 @@ export function resolveViolationLocation(
     );
   }
 
-  const heading = thymianHttpTransactionToString(req, res);
+  const heading = location.label ?? thymianHttpTransactionToString(req, res);
 
-  const reportLocation: ThymianReportLocation = {};
-
-  if (transaction.sourceLocation) {
-    reportLocation.file = { ...transaction.sourceLocation };
+  if (transaction.sourceLocation && 'path' in transaction.sourceLocation) {
+    return {
+      heading,
+      location: {
+        type: 'file',
+        path: transaction.sourceLocation.path,
+        line: transaction.sourceLocation.position?.line,
+        column: transaction.sourceLocation.position?.column,
+      },
+    };
   }
 
-  reportLocation.format = {
-    elementType: 'edge',
-    elementId: location.elementId,
+  return {
+    heading,
+    location: {
+      type: 'thymianFormat',
+      elementType: 'edge',
+      elementId: location.elementId,
+      pointer: location.pointer ?? '',
+    },
   };
-
-  return { heading, location: reportLocation };
 }
 
 export interface RuleRunnerStatistics {
@@ -118,6 +146,7 @@ export interface RunRulesResult<TDiagnostics = unknown> {
   violations: EvaluatedRuleViolation[];
   statistics: RuleRunnerStatistics;
   diagnosticsByRule: Partial<Record<string, TDiagnostics>>;
+  findingsByRule: Partial<Record<string, RuleFinding[]>>;
 }
 
 export type RuleRunnerAdapter<
@@ -171,6 +200,7 @@ export async function runRules<
 
   const violations: EvaluatedRuleViolation[] = [];
   const diagnosticsByRule: Partial<Record<string, TDiagnostics>> = {};
+  const findingsByRule: Partial<Record<string, RuleFinding[]>> = {};
   let rulesRun = 0;
   let rulesWithViolations = 0;
 
@@ -205,24 +235,40 @@ export async function runRules<
         diagnosticsByRule[rule.meta.name] = diagnostics;
       }
 
-      if (!result || (Array.isArray(result) && result.length === 0)) {
+      if (!result) {
         continue;
       }
 
-      const violationArray = Array.isArray(result) ? result : [result];
+      const normalized = isRuleExecutionResult(result)
+        ? result
+        : {
+            violations: Array.isArray(result) ? result : [result],
+            findings: undefined,
+          };
+
+      if (normalized.findings && normalized.findings.length > 0) {
+        findingsByRule[rule.meta.name] = normalized.findings;
+      }
+
+      if (normalized.violations.length === 0) {
+        continue;
+      }
 
       if (rule.meta.severity === 'off') {
         continue;
       }
       rulesWithViolations++;
 
-      for (const violation of violationArray) {
+      for (const violation of normalized.violations) {
         violations.push({
           ruleName: rule.meta.name,
           severity: rule.meta.severity as Exclude<RuleSeverity, 'off'>,
           violation: {
             message:
-              rule.meta.summary ?? rule.meta.description ?? rule.meta.name,
+              violation.message ??
+              rule.meta.summary ??
+              rule.meta.description ??
+              rule.meta.name,
             ...violation,
           },
         });
@@ -237,13 +283,11 @@ export async function runRules<
           },
         );
       } else {
-        throw new ThymianBaseError(
-          `Error running rule ${rule.meta.name}: ${e}`,
+        throw new ThymianBaseError(`Error running rule ${rule.meta.name}: ${e}`,
           {
             name: adapter.errorName,
             cause: e,
-          },
-        );
+          });
       }
     }
   }
@@ -255,5 +299,6 @@ export async function runRules<
       rulesWithViolations,
     },
     diagnosticsByRule,
+    findingsByRule,
   };
 }

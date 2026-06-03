@@ -13,12 +13,12 @@ import {
   httpRequestToCommonHttpRequest,
   type HttpResponse,
   httpResponseToCommonHttpResponse,
+  httpParticipantRoles,
   httpTransactionToLabel,
   type Logger,
   matchesOrigin,
   not,
   or,
-  type ReportFn,
   type RuleFnResult,
   type RuleViolation,
   type RuleViolationLocation,
@@ -29,30 +29,106 @@ import {
 
 import type { HttpTransactionRepository } from './db/http-transaction-repository.js';
 
+export interface AnalyticsApiContextOptions {
+  repository: HttpTransactionRepository;
+  logger: Logger;
+  format: ThymianFormat;
+  roles?: HttpParticipantRole[];
+  skippedOrigins?: string[];
+}
+
+function legacyOptionsToObject(
+  repository: HttpTransactionRepository,
+  logger: Logger | undefined,
+  format: ThymianFormat | undefined,
+  reportOrRoles?: (() => void) | HttpParticipantRole[],
+  rolesOrSkippedOrigins?: HttpParticipantRole[] | string[],
+  legacySkippedOrigins?: string[],
+): AnalyticsApiContextOptions {
+  if (!logger || !format) {
+    throw new TypeError('AnalyticsApiContext requires logger and format.');
+  }
+
+  const usesLegacyReportSignature = typeof reportOrRoles === 'function';
+  const looksLikeRoleArray =
+    Array.isArray(rolesOrSkippedOrigins) &&
+    rolesOrSkippedOrigins.every((value) =>
+      httpParticipantRoles.includes(value as HttpParticipantRole),
+    );
+  const roles = Array.isArray(reportOrRoles)
+    ? reportOrRoles
+    : usesLegacyReportSignature ||
+        (reportOrRoles === undefined && looksLikeRoleArray)
+      ? (rolesOrSkippedOrigins as HttpParticipantRole[] | undefined)
+      : undefined;
+  const skippedOrigins = usesLegacyReportSignature || looksLikeRoleArray
+    ? legacySkippedOrigins
+    : (rolesOrSkippedOrigins as string[] | undefined);
+
+  return {
+    repository,
+    logger,
+    format,
+    roles,
+    skippedOrigins,
+  };
+}
+
 export class AnalyticsApiContext implements AnalyzeContext {
+  readonly repository: HttpTransactionRepository;
   readonly format: ThymianFormat;
-  readonly report: ReportFn;
+  private readonly logger: Logger;
   private readonly violations: RuleViolation[] = [];
   private readonly roles?: HttpParticipantRole[];
   private readonly skippedOrigins: string[];
 
+  constructor(options: AnalyticsApiContextOptions);
   constructor(
-    readonly repository: HttpTransactionRepository,
-    private readonly logger: Logger,
+    repository: HttpTransactionRepository,
+    logger: Logger,
     format: ThymianFormat,
-    reportFn?: ReportFn,
-    roles?: HttpParticipantRole[],
-    skippedOrigins?: string[],
+    reportOrRoles?: (() => void) | HttpParticipantRole[],
+    rolesOrSkippedOrigins?: HttpParticipantRole[] | string[],
+    legacySkippedOrigins?: string[],
+  );
+  constructor(
+    optionsOrRepository: AnalyticsApiContextOptions | HttpTransactionRepository,
+    logger?: Logger,
+    format?: ThymianFormat,
+    reportOrRoles?: (() => void) | HttpParticipantRole[],
+    rolesOrSkippedOrigins?: HttpParticipantRole[] | string[],
+    legacySkippedOrigins?: string[],
   ) {
-    this.report = reportFn ?? (() => undefined);
-    this.skippedOrigins = skippedOrigins ?? [];
+    const options =
+      'repository' in optionsOrRepository
+        ? optionsOrRepository
+        : legacyOptionsToObject(
+            optionsOrRepository,
+            logger,
+            format,
+            reportOrRoles,
+            rolesOrSkippedOrigins,
+            legacySkippedOrigins,
+          );
+
+    const {
+      repository,
+      logger: contextLogger,
+      format: contextFormat,
+      roles,
+      skippedOrigins = [],
+    } = options;
+
+    this.repository = repository;
+    this.logger = contextLogger;
+    this.skippedOrigins = skippedOrigins;
 
     if (this.skippedOrigins.length === 0) {
-      this.format = format;
+      this.format = contextFormat;
     } else {
       const regExps = this.skippedOrigins.map(createRegExpFromOriginWildcard);
 
-      this.format = format.filter(
+      this.format = contextFormat.filter(
         ({ thymianReq }) =>
           !regExps.some((regExp) =>
             regExp.test(thymianRequestToOrigin(thymianReq)),
@@ -113,15 +189,12 @@ export class AnalyticsApiContext implements AnalyzeContext {
 
     finalFilter = this.addOriginsToFilter(finalFilter);
 
-    const results: RuleFnResult = [];
+    const results: RuleViolation[] = [];
 
     for (const {
       request,
       response,
-    } of this.repository.readTransactionsByHttpFilter(
-      finalFilter,
-      this.roles,
-    )) {
+    } of this.repository.readTransactionsByHttpFilter(finalFilter, this.roles)) {
       const violation = validateFn(
         httpRequestToCommonHttpRequest(request.data),
         httpResponseToCommonHttpResponse(response.data),
@@ -158,7 +231,7 @@ export class AnalyticsApiContext implements AnalyzeContext {
       RuleViolation | undefined
     >,
   ): Promise<RuleFnResult> | RuleFnResult {
-    const results: RuleFnResult = [];
+    const results: RuleViolation[] = [];
     const finalFilter = this.addOriginsToFilter(filter);
 
     const groups = this.repository.readAndGroupTransactionsByHttpFilter(
@@ -206,15 +279,12 @@ export class AnalyticsApiContext implements AnalyzeContext {
 
     finalFilter = this.addOriginsToFilter(finalFilter);
 
-    const results: RuleFnResult = [];
+    const results: RuleViolation[] = [];
 
     for (const {
       request,
       response,
-    } of this.repository.readTransactionsByHttpFilter(
-      finalFilter,
-      this.roles,
-    )) {
+    } of this.repository.readTransactionsByHttpFilter(finalFilter, this.roles)) {
       const matchResult = this.format.matchTransaction(
         request.data,
         response.data,
@@ -254,7 +324,7 @@ export class AnalyticsApiContext implements AnalyzeContext {
   ): Promise<RuleFnResult> | RuleFnResult {
     const finalFilter = this.addOriginsToFilter(filter);
 
-    const results: RuleFnResult = [];
+    const results: RuleViolation[] = [];
 
     for (const transaction of this.repository.readTransactionsByHttpFilter(
       finalFilter,
@@ -287,7 +357,7 @@ export class AnalyticsApiContext implements AnalyzeContext {
   validateCapturedHttpTraces(
     validate: ValidationFn<[CapturedTrace, string]>,
   ): RuleFnResult {
-    const results: RuleFnResult = [];
+    const results: RuleViolation[] = [];
 
     for (const trace of this.repository.readAllHttpTraces()) {
       const location = capturedTraceToString(trace);
