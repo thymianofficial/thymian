@@ -129,6 +129,12 @@ export const thymianConfigSchema = {
             type: 'boolean',
             description: 'Enable verbose logging for this plugin.',
           },
+          autoload: {
+            type: 'boolean',
+            description:
+              'When set to `false`, this plugin is skipped even though it is listed under `plugins`.',
+            default: true,
+          },
           options: {
             type: 'object',
             additionalProperties: true,
