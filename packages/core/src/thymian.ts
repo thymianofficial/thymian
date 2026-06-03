@@ -16,7 +16,11 @@ import type {
 } from './actions/index.js';
 import { validate } from './ajv.js';
 import { corePlugin } from './core-plugin.js';
-import { ThymianEmitter } from './emitter/index.js';
+import {
+  SchemaRegistry,
+  type StrictPayloadsMode,
+  ThymianEmitter,
+} from './emitter/index.js';
 import type {
   ThymianReport,
   ThymianReportItem,
@@ -93,6 +97,7 @@ export type ThymianOptions = {
   logAllErrors: boolean;
   logLevel?: LogLevel;
   sortReportsBy?: ReportSortMode;
+  strictPayloads: StrictPayloadsMode;
 };
 
 export class Thymian {
@@ -101,6 +106,8 @@ export class Thymian {
   readonly emitter: ThymianEmitter;
 
   readonly options: ThymianOptions;
+
+  readonly #schemaRegistry = new SchemaRegistry();
 
   #ready = false;
 
@@ -127,9 +134,12 @@ export class Thymian {
       cwd: process.cwd(),
       logAllErrors: false,
       logLevel,
+      strictPayloads: 'off',
       ...options,
       traceEvents,
     };
+
+    this.#schemaRegistry.register(corePlugin);
 
     const emitterLogger = logger.child('@thymian/core');
     this.emitter = new ThymianEmitter(
@@ -138,6 +148,8 @@ export class Thymian {
       {
         traceEvents: this.options.traceEvents,
         timeout: this.options.timeout,
+        strictPayloads: this.options.strictPayloads,
+        schemaRegistry: this.#schemaRegistry,
       },
     );
   }
@@ -173,6 +185,8 @@ export class Thymian {
     // eslint-disable-next-line @typescript-eslint/ban-ts-comment
     // @ts-expect-error
     this.plugins.push({ plugin: plugin, options: options ?? {} });
+
+    this.#schemaRegistry.register(plugin);
 
     return this;
   }

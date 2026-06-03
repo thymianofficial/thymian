@@ -1,35 +1,31 @@
+import type { JSONSchemaType } from 'ajv/dist/2020.js';
+
 import type { ThymianPluginEvents } from '../thymian-plugin.js';
 
 export type RegisterPluginEvent = {
   name: string;
-  options: unknown;
+  options: Record<string, unknown>;
   events: ThymianPluginEvents;
 };
 
-export const RegisterPluginEventSchema = {
+export const RegisterPluginEventSchema: JSONSchemaType<RegisterPluginEvent> = {
   type: 'object',
-  required: ['name', 'options', 'events', 'hooks'],
+  required: ['name', 'options', 'events'],
   properties: {
     name: { type: 'string' },
-    options: {},
+    options: { type: 'object', additionalProperties: true },
     events: {
       type: 'object',
       properties: {
-        emits: { type: 'object', additionalProperties: true },
-        listens: { type: 'array', items: { type: 'string' } },
+        provides: {
+          type: 'object',
+          additionalProperties: true,
+          nullable: true,
+        },
+        emits: { type: 'array', items: { type: 'string' }, nullable: true },
+        listensOn: { type: 'array', items: { type: 'string' }, nullable: true },
       },
       additionalProperties: false,
-    },
-    hooks: {
-      type: 'object',
-      additionalProperties: {
-        type: 'object',
-        properties: {
-          input: { type: 'object', additionalProperties: true },
-          output: { type: 'object', additionalProperties: true },
-        },
-        additionalProperties: false,
-      },
     },
   },
   additionalProperties: false,

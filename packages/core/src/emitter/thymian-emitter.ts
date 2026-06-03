@@ -36,6 +36,11 @@ import type {
 import type { ErrorName, ThymianErrorEvent } from './error-event.js';
 import type { EventPayload, ThymianEvent } from './events.js';
 import {
+  type PayloadCheck,
+  type PayloadKind,
+  SchemaRegistry,
+} from './schema-registry.js';
+import {
   isActionEventWithName,
   isEventWithName,
   isResponseOf,
@@ -57,9 +62,13 @@ export type ActionHandler<Name extends ThymianActionName> = (
   ctx: ActionContext<Name>,
 ) => Promise<void> | void;
 
+export type StrictPayloadsMode = 'off' | 'warn' | 'throw';
+
 export type ThymianEmitterOptions = {
   timeout: number;
   traceEvents: boolean;
+  strictPayloads: StrictPayloadsMode;
+  schemaRegistry: SchemaRegistry;
 };
 
 export type EmitActionOptions = {
@@ -126,6 +135,8 @@ export class ThymianEmitter {
     this.options = {
       timeout: 1000,
       traceEvents: false,
+      strictPayloads: 'off',
+      schemaRegistry: new SchemaRegistry(),
       ...options,
     };
 
@@ -249,6 +260,7 @@ export class ThymianEmitter {
     name: Name,
     payload: EventPayload<Name>,
   ): void {
+    this.checkPayload(name, 'event', payload);
     this.#events.next({
       id: randomUUID(),
       name,
@@ -377,6 +389,8 @@ export class ThymianEmitter {
       return undefined as EmitActionReturnType<Name, Options>;
     }
 
+    this.checkPayload(name, 'action.event', payload);
+
     const start = performance.now();
     const event: ThymianActionEvent<Name> = {
       id: randomUUID(),
@@ -498,6 +512,52 @@ export class ThymianEmitter {
     );
   }
 
+  private checkPayload(
+    name: string,
+    kind: PayloadKind,
+    payload: unknown,
+  ): void {
+    if (this.options.strictPayloads === 'off') {
+      return;
+    }
+
+    const result = this.options.schemaRegistry.check(name, kind, payload);
+    if (result.ok) {
+      return;
+    }
+
+    this.reportPayloadViolation(name, kind, result);
+  }
+
+  private reportPayloadViolation(
+    name: string,
+    kind: PayloadKind,
+    result: Exclude<PayloadCheck, { ok: true }>,
+  ): void {
+    const header = `[strict-payloads] ${kind} "${name}" from "${this.source}"`;
+    const detail =
+      result.reason === 'not-serializable'
+        ? result.violations
+            .map((v) => `  - ${v.path}: ${v.reason} (${v.kind})`)
+            .join('\n')
+        : `  - ${result.details}`;
+    const message = `${header} failed payload check:\n${detail}`;
+
+    if (this.options.strictPayloads === 'throw') {
+      const isSerialError = result.reason === 'not-serializable';
+      throw new ThymianBaseError(message, {
+        name: isSerialError
+          ? 'NonSerializablePayloadError'
+          : 'SchemaValidationError',
+        ref: isSerialError
+          ? 'https://thymian.dev/references/errors/non-serializable-payload-error/'
+          : 'https://thymian.dev/references/errors/schema-validation-error/',
+      });
+    }
+
+    this.logger.warn(message);
+  }
+
   private createActionContext<Name extends ThymianActionName>(
     name: Name,
     correlationId: string,
@@ -546,6 +606,7 @@ export class ThymianEmitter {
         }
       },
       reply: (payload) => {
+        this.checkPayload(name, 'action.response', payload);
         this.#responses.next({
           correlationId,
           name,

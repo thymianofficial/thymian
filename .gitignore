@@ -51,3 +51,9 @@ vitest.config.*.timestamp*
 .thymian
 .cursor/rules/nx-rules.mdc
 .github/instructions/nx.instructions.md
+
+# Other AI files
+.mcp.json
+
+# Claude memory
+memory

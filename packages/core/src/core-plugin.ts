@@ -73,8 +73,7 @@ export const corePlugin: ThymianPlugin = {
   },
   events: {
     provides: {
-      'core.register':
-        RegisterPluginEventSchema as unknown as JSONSchemaType<unknown>,
+      'core.register': RegisterPluginEventSchema,
       'core.report': thymianReportSchema as unknown as JSONSchemaType<unknown>,
     },
   },

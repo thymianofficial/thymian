@@ -211,4 +211,4 @@ export const thymianReportSchema: JSONSchemaType<ReportEvent> = {
       additionalProperties: true,
     },
   },
-} as unknown as JSONSchemaType<ReportEvent>;
+};
