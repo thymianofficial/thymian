@@ -74,10 +74,41 @@ export const thymianConfigSchema = {
     },
     rules: {
       type: 'object',
-      additionalProperties: true,
       description:
         'Optional. Per-rule configuration/overrides. Each key is a rule ID. The value can be a severity string (`off | error | warn | hint`) or a rule config object with `severity`, `skipOrigins`, and `options` fields.',
       default: {},
+      additionalProperties: {
+        oneOf: [
+          {
+            type: 'string',
+            enum: ['error', 'warn', 'hint', 'off'],
+            description: 'Shorthand to override only the rule severity.',
+          },
+          {
+            type: 'object',
+            additionalProperties: true,
+            description: 'Full rule configuration object.',
+            properties: {
+              severity: {
+                type: 'string',
+                enum: ['error', 'warn', 'hint', 'off'],
+                description: 'Override the rule severity.',
+              },
+              options: {
+                type: 'object',
+                additionalProperties: true,
+                description: 'Rule-specific options.',
+              },
+              skipOrigins: {
+                type: 'array',
+                items: { type: 'string' },
+                description:
+                  'List of origin identifiers to ignore for this rule. When a result originates from one of these origins, it is suppressed.',
+              },
+            },
+          },
+        ],
+      },
     },
     targetUrl: {
       type: 'string',
