@@ -690,10 +690,19 @@ export class ThymianFormat {
 
   toHash(): string {
     const hash = createHash('sha1');
+    const nodeHashes = new Map(
+      this.graph
+        .nodes()
+        .map(
+          (id) =>
+            [
+              id,
+              this.semanticHashObj(this.graph.getNodeAttributes(id)),
+            ] as const,
+        ),
+    );
 
-    this.graph
-      .nodes()
-      .map((id) => this.semanticHashObj(this.graph.getNodeAttributes(id)))
+    [...nodeHashes.values()]
       .sort()
       .forEach((nodeHash) => hash.update(nodeHash));
 
@@ -703,8 +712,8 @@ export class ThymianFormat {
         const [source, target] = this.graph.extremities(id);
 
         return this.hash(
-          this.semanticHashObj(this.graph.getNodeAttributes(source)),
-          this.semanticHashObj(this.graph.getNodeAttributes(target)),
+          nodeHashes.get(source) ?? '',
+          nodeHashes.get(target) ?? '',
           this.semanticHashObj(this.graph.getEdgeAttributes(id)),
         );
       })
@@ -856,7 +865,7 @@ export class ThymianFormat {
       return '';
     }
 
-    if (!obj || typeof obj !== 'object' || Array.isArray(obj)) {
+    if (!obj || typeof obj !== 'object') {
       return this.hashObj(obj);
     }
 
