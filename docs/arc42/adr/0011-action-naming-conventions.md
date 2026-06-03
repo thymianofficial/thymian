@@ -30,7 +30,6 @@ Core-owned actions follow the pattern **`core.<domain>.<verb>`**:
 | `core.analyze`          | _(workflow)_  | analyze       |
 | `core.request.dispatch` | request       | dispatch      |
 | `core.request.sample`   | request       | sample        |
-| `core.report.flush`     | report        | flush         |
 
 Lifecycle actions (`core.ready`, `core.close`) and top-level workflow actions (`core.lint`, `core.test`, `core.analyze`) use a two-segment form for brevity, since they are unambiguous.
 

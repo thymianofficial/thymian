@@ -87,21 +87,17 @@ sequenceDiagram
   HL->>HL: runRules(rules, format, adapter)
   Note over HL: Iterate rules, each creates<br>LintContext against the format graph
 
-  HL-->>E: reply({ source, status, violations, statistics })
+  HL-->>E: reply(toolRuns[])
   deactivate HL
 
-  E-->>T: results[]
+  E-->>T: toolRuns[][]
 
-  T->>T: bridgeReports(results, format)
+  T->>T: assemble Report from collected ToolRun[]
   T->>E: emit("core.report", report)
   E->>R: core.report
-  R->>R: Buffer report sections
+  R->>R: Persist optional file outputs
 
-  T->>E: emitAction("core.report.flush") [collect]
-  E->>R: core.report.flush
-  R-->>E: reply({ text })
-
-  T-->>CLI: WorkflowOutcome { classification, text, results }
+  T-->>CLI: WorkflowOutcome { classification, report }
   deactivate T
 ```
 
@@ -167,20 +163,16 @@ sequenceDiagram
 
   HT->>HT: Validate response against rules
 
-  HT-->>E: reply({ source, status, violations, statistics })
+  HT-->>E: reply(toolRuns[])
   deactivate HT
 
-  E-->>T: results[]
+  E-->>T: toolRuns[][]
 
-  T->>T: bridgeReports(results, format)
+  T->>T: assemble Report from collected ToolRun[]
   T->>E: emit("core.report", report)
   E->>R: core.report
 
-  T->>E: emitAction("core.report.flush") [collect]
-  E->>R: core.report.flush
-  R-->>E: reply({ text })
-
-  T-->>CLI: WorkflowOutcome { classification, text, results }
+  T-->>CLI: WorkflowOutcome { classification, report }
   deactivate T
 ```
 
@@ -236,20 +228,16 @@ sequenceDiagram
 
   HA->>HA: Close SQLite repository
 
-  HA-->>E: reply({ source, status, violations, statistics })
+  HA-->>E: reply(toolRuns[])
   deactivate HA
 
-  E-->>T: results[]
+  E-->>T: toolRuns[][]
 
-  T->>T: bridgeReports(results, format)
+  T->>T: assemble Report from collected ToolRun[]
   T->>E: emit("core.report", report)
   E->>R: core.report
 
-  T->>E: emitAction("core.report.flush") [collect]
-  E->>R: core.report.flush
-  R-->>E: reply({ text })
-
-  T-->>CLI: WorkflowOutcome { classification, text, results }
+  T-->>CLI: WorkflowOutcome { classification, report }
   deactivate T
 ```
 
@@ -268,5 +256,5 @@ All three workflows share these patterns:
 1. **Parallel loading:** Format/traffic and rules are loaded in parallel using `Promise.all`.
 2. **Core-owned orchestration:** The `Thymian` class orchestrates the workflow, while plugins implement the mode-specific execution. See [ADR-0007](adr/0007-core-owns-validation-entrypoints-plugins-own-execution.md).
 3. **Action collection strategy:** Workflow actions use `{ strategy: 'collect' }` to gather responses from all listening plugins. Infrastructure actions use `{ strategy: 'first' }` since only one plugin provides the capability.
-4. **Report bridging:** The `Thymian` class converts `ValidationResult` violations into structured `ThymianReport` events, which are consumed by the Reporter plugin.
+4. **Report assembly:** The `Thymian` class collects `ToolRun[]` replies from workflow plugins, assembles a single v4 `Report`, emits one `core.report` event, and returns the same report in `WorkflowOutcome`.
 5. **Classification:** Results are classified as `'clean-run'`, `'findings'`, or `'tool-error'` based on the presence and severity of violations.

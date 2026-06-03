@@ -40,11 +40,11 @@ export default httpRule(
       (_, transactions) => {
         const has415 = transactions.some(([, res]) => res.statusCode === 415);
         if (has415) {
-          return undefined;
+          return [];
         }
         // No 415 response for this endpoint — report the first transaction
         const [, , location] = transactions[0] ?? [];
-        return location ? { location } : undefined;
+        return location ? [{ location, violation: {}, findings: [] }] : [];
       },
     ),
   )

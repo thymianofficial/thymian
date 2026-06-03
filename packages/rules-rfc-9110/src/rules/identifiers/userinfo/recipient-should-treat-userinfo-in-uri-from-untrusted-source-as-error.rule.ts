@@ -1,4 +1,9 @@
-import { httpRule, or, protocol } from '@thymian/core';
+import {
+  httpRule,
+  or,
+  protocol,
+  type RuleViolationLocation,
+} from '@thymian/core';
 
 export default httpRule(
   'rfc9110/recipient-should-treat-userinfo-in-uri-from-untrusted-source-as-error',
@@ -14,17 +19,17 @@ export default httpRule(
   .rule((ctx, opts, logger) =>
     ctx.validateHttpTransactions(
       or(protocol('http'), protocol('https')),
-      (req, res) => {
+      (req, res, location) => {
         try {
           const url = new URL(req.path, req.origin);
 
-          return (
-            (!!url.username || !!url.password) &&
+          return (!!url.username || !!url.password) &&
             !(res.statusCode >= 400 && res.statusCode < 500)
-          );
+            ? [{ location, violation: {}, findings: [] }]
+            : [];
         } catch (e) {
           logger.error('Cannot run rule because of invalid URL:', e);
-          return false;
+          return [];
         }
       },
     ),

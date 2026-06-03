@@ -1,3 +1,4 @@
+import type { RuleViolationLocation } from '@thymian/core';
 import {
   and,
   getHeader,
@@ -25,7 +26,7 @@ export default httpRule(
   .rule((ctx) =>
     ctx.validateHttpTransactions(
       and(responseHeader('last-modified'), responseHeader('date')),
-      (req, res) => {
+      (req, res, _location: RuleViolationLocation) => {
         const lastModifiedHeader = getHeader(res.headers, 'last-modified');
         const dateHeader = getHeader(res.headers, 'date');
 
@@ -33,24 +34,29 @@ export default httpRule(
           typeof lastModifiedHeader !== 'string' ||
           typeof dateHeader !== 'string'
         ) {
-          return false;
+          return [];
         }
 
         const lastModifiedDate = new Date(lastModifiedHeader);
         const dateValue = new Date(dateHeader);
 
         if (isNaN(lastModifiedDate.getTime()) || isNaN(dateValue.getTime())) {
-          return false;
+          return [];
         }
 
         if (lastModifiedDate > dateValue) {
-          return {
-            message: `Last-Modified date (${lastModifiedHeader}) is later than Date header (${dateHeader})`,
-            location: httpTransactionToLabel(req, res),
-          };
+          return [
+            {
+              location: httpTransactionToLabel(req, res),
+              violation: {
+                message: `Last-Modified date (${lastModifiedHeader}) is later than Date header (${dateHeader})`,
+              },
+              findings: [],
+            },
+          ];
         }
 
-        return false;
+        return [];
       },
     ),
   )

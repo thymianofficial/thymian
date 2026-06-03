@@ -12,33 +12,37 @@ export default httpRule(
   )
   .summary('Server MUST NOT switch to protocol not indicated by client.')
   .rule((ctx) =>
-    ctx.validateHttpTransactions(requestHeader('upgrade'), (req, res) => {
-      const reqUpgradeHeader = getHeader(req.headers, 'upgrade');
-      const resUpgradeHeader = getHeader(res.headers, 'upgrade');
+    ctx.validateHttpTransactions(
+      requestHeader('upgrade'),
+      (req, res, location) => {
+        const reqUpgradeHeader = getHeader(req.headers, 'upgrade');
+        const resUpgradeHeader = getHeader(res.headers, 'upgrade');
 
-      if (reqUpgradeHeader && resUpgradeHeader) {
-        const reqUpgradeHeaderArray = Array.isArray(reqUpgradeHeader)
-          ? reqUpgradeHeader
-          : [reqUpgradeHeader];
-        const resUpgradeHeaderArray = Array.isArray(resUpgradeHeader)
-          ? resUpgradeHeader
-          : [resUpgradeHeader];
+        if (reqUpgradeHeader && resUpgradeHeader) {
+          const reqUpgradeHeaderArray = Array.isArray(reqUpgradeHeader)
+            ? reqUpgradeHeader
+            : [reqUpgradeHeader];
+          const resUpgradeHeaderArray = Array.isArray(resUpgradeHeader)
+            ? resUpgradeHeader
+            : [resUpgradeHeader];
 
-        const reqUpgradeProtocols = reqUpgradeHeaderArray
-          .join(', ')
-          .split(',')
-          .map((protocol) => protocol.trim().toLowerCase());
-        const resUpgradeProtocols = resUpgradeHeaderArray
-          .join(', ')
-          .split(',')
-          .map((protocol) => protocol.trim().toLowerCase());
+          const reqUpgradeProtocols = reqUpgradeHeaderArray
+            .join(', ')
+            .split(',')
+            .map((protocol) => protocol.trim().toLowerCase());
+          const resUpgradeProtocols = resUpgradeHeaderArray
+            .join(', ')
+            .split(',')
+            .map((protocol) => protocol.trim().toLowerCase());
 
-        return resUpgradeProtocols.some(
-          (protocol) => !reqUpgradeProtocols.includes(protocol),
-        );
-      }
+          const isViolation = resUpgradeProtocols.some(
+            (protocol) => !reqUpgradeProtocols.includes(protocol),
+          );
+          return isViolation ? [{ location, violation: {}, findings: [] }] : [];
+        }
 
-      return false;
-    }),
+        return [];
+      },
+    ),
   )
   .done();

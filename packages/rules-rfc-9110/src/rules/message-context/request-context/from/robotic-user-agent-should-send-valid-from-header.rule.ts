@@ -1,4 +1,10 @@
-import { and, getHeader, requestHeader } from '@thymian/core';
+import {
+  and,
+  getHeader,
+  type HttpResponse,
+  requestHeader,
+  type RuleViolationLocation,
+} from '@thymian/core';
 import { httpRule } from '@thymian/core';
 
 export default httpRule(
@@ -13,18 +19,23 @@ export default httpRule(
   .appliesTo('client')
   .rule((ctx) => ctx.validateCommonHttpTransactions(and(requestHeader('from'))))
   .overrideAnalyticsRule((ctx) =>
-    ctx.validateHttpTransactions(and(requestHeader('from')), (request) => {
-      const from = getHeader(request.headers, 'from');
+    ctx.validateHttpTransactions(
+      and(requestHeader('from')),
+      (request, _res: HttpResponse, location: RuleViolationLocation) => {
+        const from = getHeader(request.headers, 'from');
 
-      if (typeof from !== 'string') {
-        return false;
-      }
+        if (typeof from !== 'string') {
+          return [];
+        }
 
-      // when ABNF support is added, we should replace this regex with the ABNF defined in RFC 5322
-      // Basic email validation
-      const emailRegex =
-        /^[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*$/;
-      return !emailRegex.test(from);
-    }),
+        // when ABNF support is added, we should replace this regex with the ABNF defined in RFC 5322
+        // Basic email validation
+        const emailRegex =
+          /^[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*$/;
+        return !emailRegex.test(from)
+          ? [{ location, violation: {}, findings: [] }]
+          : [];
+      },
+    ),
   )
   .done();

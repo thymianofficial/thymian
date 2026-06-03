@@ -1,4 +1,8 @@
-import { httpRule, statusCode } from '@thymian/core';
+import {
+  httpRule,
+  type RuleViolationLocation,
+  statusCode,
+} from '@thymian/core';
 
 export default httpRule(
   'rfc9110/sender-recipient-should-support-8000-octet-uris',
@@ -10,20 +14,24 @@ export default httpRule(
     'It is RECOMMENDED that all senders and recipients support, at a minimum, URIs with lengths of 8000 octets in protocol elements.',
   )
   .rule((ctx, opts, logger) =>
-    ctx.validateHttpTransactions(statusCode(414), (req) => {
+    ctx.validateHttpTransactions(statusCode(414), (req, _res, location) => {
       try {
         const url = new URL(req.path, req.origin);
 
         if (new TextEncoder().encode(url.toString()).length <= 8000) {
-          return {
-            message: 'URI length is less than 8000 octets',
-          };
+          return [
+            {
+              location,
+              violation: { message: 'URI length is less than 8000 octets' },
+              findings: [],
+            },
+          ];
         }
       } catch (e) {
         logger.error('Cannot run rule because of invalid URL:', e);
       }
 
-      return false;
+      return [];
     }),
   )
   .done();

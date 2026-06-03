@@ -1,3 +1,4 @@
+import type { HttpResponse, RuleViolationLocation } from '@thymian/core';
 import { getHeader, requestHeader } from '@thymian/core';
 import { httpRule } from '@thymian/core';
 
@@ -14,37 +15,42 @@ export default httpRule(
     'Recipients MUST anticipate potentially large decimal numerals and prevent parsing errors due to integer conversion overflows.',
   )
   .rule((ctx, _, logger) =>
-    ctx.validateHttpTransactions(requestHeader('range'), (req) => {
-      const rangeHeaders = getHeader(req.headers, 'range');
+    ctx.validateHttpTransactions(
+      requestHeader('range'),
+      (req, _res: HttpResponse, location: RuleViolationLocation) => {
+        const rangeHeaders = getHeader(req.headers, 'range');
 
-      if (!rangeHeaders) {
-        return false;
-      }
-
-      const ranges = Array.isArray(rangeHeaders)
-        ? rangeHeaders
-        : [rangeHeaders];
-
-      return ranges.some((range) => {
-        const numbers = range.match(/\d+/g);
-
-        if (!numbers) {
-          return false;
+        if (!rangeHeaders) {
+          return [];
         }
 
-        return numbers.some((number) => {
-          try {
-            return BigInt(number) > BigInt(Number.MAX_SAFE_INTEGER);
-          } catch (e) {
-            logger.warn(`Cannot parse number in Range header to BigInt: ${e}`);
-            return {
-              message: `Invalid range: ${range}`,
-            };
-          }
-        });
-      });
+        const ranges = Array.isArray(rangeHeaders)
+          ? rangeHeaders
+          : [rangeHeaders];
 
-      return false;
-    }),
+        const hasLargeNumeral = ranges.some((range) => {
+          const numbers = range.match(/\d+/g);
+
+          if (!numbers) {
+            return false;
+          }
+
+          return numbers.some((number) => {
+            try {
+              return BigInt(number) > BigInt(Number.MAX_SAFE_INTEGER);
+            } catch (e) {
+              logger.warn(
+                `Cannot parse number in Range header to BigInt: ${e}`,
+              );
+              return true;
+            }
+          });
+        });
+
+        return hasLargeNumeral
+          ? [{ location, violation: {}, findings: [] }]
+          : [];
+      },
+    ),
   )
   .done();

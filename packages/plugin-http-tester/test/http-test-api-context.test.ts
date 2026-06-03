@@ -152,10 +152,11 @@ describe('HttpTestApiContext', () => {
 
       const result = await context.validateCommonHttpTransactions(
         statusCode(200),
-        (req, res) => {
-          return (
-            res.statusCode === 200 && !res.headers.includes('content-type')
-          );
+        (req, res, location) => {
+          if (res.statusCode === 200 && !res.headers.includes('content-type')) {
+            return [{ location, violation: {}, findings: [] }];
+          }
+          return [];
         },
       );
 
@@ -180,15 +181,17 @@ describe('HttpTestApiContext', () => {
 
       const result = await context.validateCommonHttpTransactions(
         statusCode(200),
-        () => {
-          return { message: 'Custom violation', location: '' };
-        },
+        (req, res, location) => [
+          {
+            location,
+            violation: { message: 'Custom violation' },
+            findings: [],
+          },
+        ],
       );
 
       expect(result).toHaveLength(1);
-      if (Array.isArray(result)) {
-        expect(result?.[0]?.message).toBe('Custom violation');
-      }
+      expect(result?.[0]?.violation?.message).toBe('Custom violation');
     });
 
     it('should ignore the skipped origins', async () => {
@@ -222,16 +225,20 @@ describe('HttpTestApiContext', () => {
 
       const result = await context.validateCommonHttpTransactions(
         statusCode(200),
-        () => {
-          return { message: 'Custom violation' };
-        },
+        (req, res, location) => [
+          {
+            location,
+            violation: { message: 'Custom violation' },
+            findings: [],
+          },
+        ],
       );
 
       expect(result).toHaveLength(1);
       expect(result).toEqual(
         expect.arrayContaining([
           expect.objectContaining({
-            location: { elementType: 'edge', elementId: id, pointer: '' },
+            location: { elementType: 'edge', elementId: id },
           }),
         ]),
       );
@@ -285,7 +292,7 @@ describe('HttpTestApiContext', () => {
         method(),
         (key) => {
           groupKeys.push(key);
-          return undefined;
+          return [];
         },
       );
 
@@ -363,15 +370,18 @@ describe('HttpTestApiContext', () => {
         port(),
         (key, transactions) => {
           if (!transactions.every(([, res]) => res.headers.includes('etag'))) {
-            return {
-              location: {
-                elementType: 'node',
-                elementId: 'test-violation',
+            return [
+              {
+                location: {
+                  elementType: 'node' as const,
+                  elementId: 'test-violation',
+                },
+                violation: { message: `no etag` },
+                findings: [],
               },
-              message: `no etag`,
-            };
+            ];
           }
-          return undefined;
+          return [];
         },
       );
 
@@ -379,7 +389,7 @@ describe('HttpTestApiContext', () => {
       expect(result).toEqual(
         expect.arrayContaining([
           expect.objectContaining({
-            message: `no etag`,
+            violation: { message: `no etag` },
           }),
         ]),
       );
@@ -429,16 +439,22 @@ describe('HttpTestApiContext', () => {
 
       const result = await context.validateHttpTransactions(
         method('get'),
-        (req, res) => ({
-          message: `Request to ${req.path} returned ${res.statusCode}`,
-        }),
+        (req, res, location) => [
+          {
+            location,
+            violation: {
+              message: `Request to ${req.path} returned ${res.statusCode}`,
+            },
+            findings: [],
+          },
+        ],
       );
 
       expect(result).toHaveLength(1);
       expect(result).toEqual(
         expect.arrayContaining([
           expect.objectContaining({
-            message: `Request to /users returned 200`,
+            violation: { message: `Request to /users returned 200` },
           }),
         ]),
       );
@@ -462,96 +478,22 @@ describe('HttpTestApiContext', () => {
 
       const result = await context.validateHttpTransactions(
         method('get'),
-        () => false,
+        () => [],
       );
 
       expect(result).toHaveLength(0);
     });
   });
 
-  describe('reportViolation', () => {
-    it('should accumulate violations and include them in validation results', async () => {
-      const format = createThymianFormatWithTransaction(
-        createHttpRequest({ method: 'get', path: '/users' }),
-        createHttpResponse({ statusCode: 200, headers: {} }),
-      );
-
-      const mockContext = createMockHttpTestContext({ format });
-      vi.mocked(mockContext.runRequest).mockResolvedValue({
-        statusCode: 200,
-        headers: {},
-        duration: 0,
-        trailers: {},
-      });
-
-      const context = new HttpTestApiContext('test-rule', mockContext);
-
-      // Report some violations
-      context.reportViolation({
-        location: 'manual-location-1',
-        message: 'Manual violation 1',
-      });
-      context.reportViolation({
-        location: 'manual-location-2',
-        message: 'Manual violation 2',
-      });
-
-      // Run validation that also returns a violation
-      const result = await context.validateHttpTransactions(
-        method('get'),
-        () => ({ message: 'Validation violation', severity: 'error' }),
-      );
-
-      expect(result).toHaveLength(3);
-      expect(result).toEqual(
-        expect.arrayContaining([
-          expect.objectContaining({
-            location: 'manual-location-1',
-            message: 'Manual violation 1',
-          }),
-          expect.objectContaining({
-            location: 'manual-location-2',
-            message: 'Manual violation 2',
-          }),
-          expect.objectContaining({
-            message: 'Validation violation',
-          }),
-        ]),
-      );
-    });
-
-    it('should include reported violations in validateCommonHttpTransactions', async () => {
-      const format = createThymianFormatWithTransaction(
-        createHttpRequest({ method: 'post', path: '/users' }),
-        createHttpResponse({ statusCode: 201, headers: {} }),
-      );
-
-      const mockContext = createMockHttpTestContext({ format });
-      const context = new HttpTestApiContext('test-rule', mockContext);
-
-      context.reportViolation({
-        location: 'reported-violation',
-        message: 'Custom reported violation',
-      });
-
-      const result = await context.validateCommonHttpTransactions(
-        method('post'),
-        () => false,
-      );
-
-      expect(result).toHaveLength(1);
-      expect(result).toEqual(
-        expect.arrayContaining([
-          expect.objectContaining({
-            location: 'reported-violation',
-            message: 'Custom reported violation',
-          }),
-        ]),
-      );
-    });
-  });
-
   describe('getRuleExecutionDiagnostics', () => {
+    it('should return undefined when no tests have been run', () => {
+      const format = createThymianFormat();
+      const mockContext = createMockHttpTestContext({ format });
+      const context = new HttpTestApiContext('test', mockContext);
+
+      expect(context.getRuleExecutionDiagnostics()).toBeUndefined();
+    });
+
     it('should expose skipped test cases as rule diagnostics', async () => {
       const format = createThymianFormatWithTransaction(
         createHttpRequest({ method: 'get', path: '/users' }),
@@ -577,17 +519,18 @@ describe('HttpTestApiContext', () => {
           .done(),
       );
 
-      expect(context.getRuleExecutionDiagnostics()).toMatchObject({
-        skippedCases: [
-          {
-            name: expect.any(String),
-            reason: 'Skip because status is 200',
-          },
-        ],
+      const diagnostics = context.getRuleExecutionDiagnostics();
+      expect(diagnostics).toHaveLength(1);
+      const skippedCase = diagnostics?.[0]?.testResult.cases.find(
+        (c) => c.status === 'skipped',
+      );
+      expect(skippedCase).toMatchObject({
+        name: expect.any(String),
+        reason: 'Skip because status is 200',
       });
     });
 
-    it('should accumulate diagnostics across multiple helper calls', async () => {
+    it('should accumulate diagnostics across multiple httpTest calls', async () => {
       const format = createThymianFormat();
       format.addHttpTransaction(
         createHttpRequest({ method: 'get', path: '/users' }),
@@ -611,44 +554,242 @@ describe('HttpTestApiContext', () => {
           .done(),
       );
 
-      await context.runHttpTest(
-        singleTestCase()
-          .forTransactionsWith(method('post'))
-          .run()
-          .skipIf(statusCode(200), 'Skip because status is 200 for POST')
-          .done(),
+      const diagnosticsAfterFirst = context.getRuleExecutionDiagnostics();
+      expect(diagnosticsAfterFirst).toHaveLength(1);
+      const casesAfterFirst =
+        diagnosticsAfterFirst?.[0]?.testResult.cases ?? [];
+      expect(
+        casesAfterFirst.filter((c) => c.status === 'skipped'),
+      ).toHaveLength(1);
+      expect(casesAfterFirst.filter((c) => c.status === 'failed')).toHaveLength(
+        0,
       );
-
-      expect(context.getRuleExecutionDiagnostics()).toEqual({
-        skippedCases: [
-          {
-            name: expect.any(String),
-            reason: 'Skip because status is 200',
-          },
-        ],
-        failedCases: [],
-      });
+      expect(casesAfterFirst.filter((c) => c.status === 'passed')).toHaveLength(
+        0,
+      );
 
       await context.httpTest(
         singleTestCase()
-          .forTransactionsWith(method('post'))
+          .forTransactionsWith(method('get'))
           .run()
-          .skipIf(statusCode(201), 'Skip because status is 201 for POST')
+          .skipIf(statusCode(200), 'Skip GET second time')
           .done(),
       );
 
-      expect(context.getRuleExecutionDiagnostics()).toMatchObject({
-        skippedCases: expect.arrayContaining([
-          {
-            name: expect.any(String),
-            reason: 'Skip because status is 200',
-          },
-          {
-            name: expect.any(String),
-            reason: 'Expected status code 201, but received 200.',
-          },
+      const diagnosticsAfterSecond = context.getRuleExecutionDiagnostics();
+      expect(diagnosticsAfterSecond).toHaveLength(2);
+      const allCases =
+        diagnosticsAfterSecond?.flatMap((r) => r.testResult.cases) ?? [];
+      const skippedCases = allCases.filter((c) => c.status === 'skipped');
+      expect(skippedCases).toMatchObject(
+        expect.arrayContaining([
+          expect.objectContaining({ reason: 'Skip because status is 200' }),
+          expect.objectContaining({ reason: 'Skip GET second time' }),
         ]),
+      );
+    });
+
+    it('should record passed test cases', async () => {
+      const format = createThymianFormatWithTransaction(
+        createHttpRequest({ method: 'get', path: '/users' }),
+        createHttpResponse({ statusCode: 200, headers: {} }),
+      );
+
+      const mockContext = createMockHttpTestContext({ format });
+      vi.mocked(mockContext.runRequest).mockResolvedValue({
+        statusCode: 200,
+        headers: {},
+        duration: 0,
+        trailers: {},
       });
+
+      const context = new HttpTestApiContext('pass-test', mockContext);
+
+      await context.httpTest(
+        singleTestCase().forTransactionsWith(method('get')).run().done(),
+      );
+
+      const diagnostics = context.getRuleExecutionDiagnostics();
+      expect(diagnostics).toHaveLength(1);
+      const passedCases =
+        diagnostics?.[0]?.testResult.cases.filter(
+          (c) => c.status === 'passed',
+        ) ?? [];
+      expect(passedCases).toHaveLength(1);
+      expect(passedCases[0]?.name).toEqual(expect.any(String));
+      expect(
+        diagnostics?.[0]?.testResult.cases.filter(
+          (c) => c.status === 'skipped',
+        ),
+      ).toHaveLength(0);
+      expect(
+        diagnostics?.[0]?.testResult.cases.filter((c) => c.status === 'failed'),
+      ).toHaveLength(0);
+    });
+
+    it('should capture dispatched http transactions in step data', async () => {
+      const format = createThymianFormatWithTransaction(
+        createHttpRequest({ method: 'get', path: '/users' }),
+        createHttpResponse({ statusCode: 200, headers: {} }),
+      );
+
+      const mockContext = createMockHttpTestContext({ format });
+      vi.mocked(mockContext.runRequest).mockResolvedValue({
+        statusCode: 200,
+        headers: {},
+        duration: 0,
+        trailers: {},
+      });
+
+      const context = new HttpTestApiContext('transaction-test', mockContext);
+
+      await context.httpTest(
+        singleTestCase()
+          .forTransactionsWith(method('get'))
+          .run()
+          .skipIf(statusCode(200), 'Skip because status is 200')
+          .done(),
+      );
+
+      await context.httpTest(
+        singleTestCase().forTransactionsWith(method('get')).run().done(),
+      );
+
+      const diagnostics = context.getRuleExecutionDiagnostics();
+      const allCases = diagnostics?.flatMap((r) => r.testResult.cases) ?? [];
+      const skippedCase = allCases.find((c) => c.status === 'skipped');
+      const passedCase = allCases.find((c) => c.status === 'passed');
+
+      const getStepTransactions = (
+        testCase: (typeof allCases)[number] | undefined,
+      ) =>
+        testCase?.steps.flatMap((s) =>
+          s.transactions
+            .filter((t) => t.request && t.response)
+            .map((t) => ({ request: t.request!, response: t.response! })),
+        ) ?? [];
+
+      expect(getStepTransactions(skippedCase)).toMatchObject([
+        {
+          request: expect.objectContaining({ method: 'get' }),
+          response: expect.objectContaining({ statusCode: 200 }),
+        },
+      ]);
+      expect(getStepTransactions(passedCase)).toMatchObject([
+        {
+          request: expect.objectContaining({ method: 'get' }),
+          response: expect.objectContaining({ statusCode: 200 }),
+        },
+      ]);
+    });
+  });
+
+  describe('placement skip for divergent locations', () => {
+    it('creates a placement when validateCommonHttpTransactions callback returns the provided location', async () => {
+      const format = createThymianFormatWithTransaction(
+        createHttpRequest({ method: 'get', path: '/items' }),
+        createHttpResponse({ statusCode: 200, headers: {} }),
+      );
+
+      const mockContext = createMockHttpTestContext({ format });
+      vi.mocked(mockContext.runRequest).mockResolvedValue({
+        statusCode: 200,
+        headers: {},
+        duration: 0,
+        trailers: {},
+      });
+
+      const context = new HttpTestApiContext('test-rule', mockContext);
+
+      await context.validateCommonHttpTransactions(
+        statusCode(200),
+        (_req, _res, location) => [{ location, violation: {}, findings: [] }],
+      );
+
+      const diagnostics = context.getRuleExecutionDiagnostics();
+      expect(diagnostics?.[0]?.placements).toHaveLength(1);
+    });
+
+    it('skips placement when validateCommonHttpTransactions callback returns a different location', async () => {
+      const format = createThymianFormatWithTransaction(
+        createHttpRequest({ method: 'get', path: '/items' }),
+        createHttpResponse({ statusCode: 200, headers: {} }),
+      );
+
+      const mockContext = createMockHttpTestContext({ format });
+      vi.mocked(mockContext.runRequest).mockResolvedValue({
+        statusCode: 200,
+        headers: {},
+        duration: 0,
+        trailers: {},
+      });
+
+      const context = new HttpTestApiContext('test-rule', mockContext);
+
+      await context.validateCommonHttpTransactions(statusCode(200), () => [
+        {
+          location: { elementType: 'edge', elementId: 'other-transaction' },
+          violation: {},
+          findings: [],
+        },
+      ]);
+
+      const diagnostics = context.getRuleExecutionDiagnostics();
+      // result is included in the returned violations but has no placement
+      expect(diagnostics?.[0]?.placements).toHaveLength(0);
+    });
+
+    it('creates a placement when validateHttpTransactions callback returns the provided location', async () => {
+      const format = createThymianFormatWithTransaction(
+        createHttpRequest({ method: 'get', path: '/items' }),
+        createHttpResponse({ statusCode: 200, headers: {} }),
+      );
+
+      const mockContext = createMockHttpTestContext({ format });
+      vi.mocked(mockContext.runRequest).mockResolvedValue({
+        statusCode: 200,
+        headers: {},
+        duration: 0,
+        trailers: {},
+      });
+
+      const context = new HttpTestApiContext('test-rule', mockContext);
+
+      await context.validateHttpTransactions(
+        statusCode(200),
+        (_req, _res, location) => [{ location, violation: {}, findings: [] }],
+      );
+
+      const diagnostics = context.getRuleExecutionDiagnostics();
+      expect(diagnostics?.[0]?.placements).toHaveLength(1);
+    });
+
+    it('skips placement when validateHttpTransactions callback returns a different location', async () => {
+      const format = createThymianFormatWithTransaction(
+        createHttpRequest({ method: 'get', path: '/items' }),
+        createHttpResponse({ statusCode: 200, headers: {} }),
+      );
+
+      const mockContext = createMockHttpTestContext({ format });
+      vi.mocked(mockContext.runRequest).mockResolvedValue({
+        statusCode: 200,
+        headers: {},
+        duration: 0,
+        trailers: {},
+      });
+
+      const context = new HttpTestApiContext('test-rule', mockContext);
+
+      await context.validateHttpTransactions(statusCode(200), () => [
+        {
+          location: { elementType: 'node', elementId: 'some-node' },
+          violation: {},
+          findings: [],
+        },
+      ]);
+
+      const diagnostics = context.getRuleExecutionDiagnostics();
+      expect(diagnostics?.[0]?.placements).toHaveLength(0);
     });
   });
 });

@@ -1,4 +1,8 @@
-import { getHeader, responseHeader } from '@thymian/core';
+import {
+  getHeader,
+  responseHeader,
+  type RuleViolationLocation,
+} from '@thymian/core';
 import { httpRule } from '@thymian/core';
 
 export default httpRule('rfc9110/proxy-must-not-generate-vary-wildcard')
@@ -11,16 +15,24 @@ export default httpRule('rfc9110/proxy-must-not-generate-vary-wildcard')
   .summary('A proxy MUST NOT generate "*" in a Vary field value.')
   .appliesTo('proxy')
   .rule((ctx) =>
-    ctx.validateHttpTransactions(responseHeader('vary'), (req) => {
-      const varyHeader = getHeader(req.headers, 'vary');
+    ctx.validateHttpTransactions(
+      responseHeader('vary'),
+      (_req, res, location: RuleViolationLocation) => {
+        const varyHeader = getHeader(res.headers, 'vary');
 
-      if (!varyHeader) {
-        return;
-      }
+        if (!varyHeader) {
+          return [];
+        }
 
-      const varyValues = Array.isArray(varyHeader) ? varyHeader : [varyHeader];
+        const varyValues = Array.isArray(varyHeader)
+          ? varyHeader
+          : [varyHeader];
 
-      return varyValues.flatMap((v) => v.split(',')).includes('*');
-    }),
+        const isViolation = varyValues
+          .flatMap((v) => v.split(','))
+          .includes('*');
+        return isViolation ? [{ location, violation: {}, findings: [] }] : [];
+      },
+    ),
   )
   .done();

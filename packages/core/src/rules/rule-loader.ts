@@ -79,7 +79,10 @@ async function loadRuleSet(
     for (const pattern of Array.isArray(ruleSet.pattern)
       ? ruleSet.pattern
       : [ruleSet.pattern]) {
-      const files = await glob(pattern, { cwd: dirname });
+      // Sort glob results so rule load order is deterministic. tinyglobby
+      // returns matches in filesystem traversal order, which varies between
+      // runs and would otherwise make downstream report output non-deterministic.
+      const files = (await glob(pattern, { cwd: dirname })).sort();
 
       for (const file of files) {
         rules.push(

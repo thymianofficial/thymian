@@ -1,4 +1,10 @@
-import { getHeader, or, requestHeader, responseHeader } from '@thymian/core';
+import {
+  getHeader,
+  or,
+  requestHeader,
+  responseHeader,
+  type RuleViolationLocation,
+} from '@thymian/core';
 import { httpRule } from '@thymian/core';
 
 import { parseChallenges } from '../utils/auth-parser.js';
@@ -24,7 +30,7 @@ export default httpRule(
         ...requestAuthenticationHeaders.map((h) => requestHeader(h)),
         ...responseAuthenticationHeaders.map((h) => responseHeader(h)),
       ),
-      (req, res) => {
+      (req, res, location: RuleViolationLocation) => {
         const headers = [
           ...requestAuthenticationHeaders.flatMap(
             (header) => getHeader(req.headers, header) ?? [],
@@ -41,13 +47,13 @@ export default httpRule(
             for (const param of challenge.parameters) {
               const lowerName = param.name.toLowerCase();
               if (seenParams.has(lowerName)) {
-                return true; // Violation found
+                return [{ location, violation: {}, findings: [] }]; // Violation found
               }
               seenParams.add(lowerName);
             }
           }
         }
-        return false;
+        return [];
       },
     ),
   )

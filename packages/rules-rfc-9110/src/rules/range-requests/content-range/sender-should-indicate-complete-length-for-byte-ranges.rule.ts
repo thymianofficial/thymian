@@ -1,3 +1,4 @@
+import type { RuleViolationLocation } from '@thymian/core';
 import { and, getHeader, responseHeader, statusCode } from '@thymian/core';
 import { httpRule } from '@thymian/core';
 
@@ -17,15 +18,17 @@ export default httpRule(
   .rule((ctx) =>
     ctx.validateHttpTransactions(
       and(statusCode(206), responseHeader('content-range')),
-      (req, res) => {
+      (req, res, location: RuleViolationLocation) => {
         const contentRange = getHeader(res.headers, 'content-range');
 
         if (typeof contentRange !== 'string') {
-          return false;
+          return [];
         }
 
         // Check if Content-Range ends with /* (unknown length) or has a specific length
-        return !contentRange.match(/bytes \d+-\d+\/(\d+|\*)/);
+        return !contentRange.match(/bytes \d+-\d+\/(\d+|\*)/)
+          ? [{ location, violation: {}, findings: [] }]
+          : [];
       },
     ),
   )

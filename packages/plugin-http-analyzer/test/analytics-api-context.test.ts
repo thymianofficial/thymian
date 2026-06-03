@@ -138,8 +138,11 @@ describe('AnalyticsApiContext', () => {
 
       const result = context.validateCommonHttpTransactions(
         statusCode(200),
-        (req, res) => {
-          return res.statusCode === 200;
+        (req, res, location) => {
+          if (res.statusCode === 200) {
+            return [{ location, violation: {}, findings: [] }];
+          }
+          return [];
         },
       );
 
@@ -168,13 +171,21 @@ describe('AnalyticsApiContext', () => {
 
       const result = context.validateCommonHttpTransactions(
         statusCode(200),
-        () => ({ message: 'Custom violation' }),
+        (req, res, location) => [
+          {
+            location,
+            violation: { message: 'Custom violation' },
+            findings: [],
+          },
+        ],
       );
 
       expect(result).toHaveLength(1);
       expect(result).toEqual(
         expect.arrayContaining([
-          expect.objectContaining({ message: 'Custom violation' }),
+          expect.objectContaining({
+            violation: { message: 'Custom violation' },
+          }),
         ]),
       );
     });
@@ -634,9 +645,15 @@ describe('AnalyticsApiContext', () => {
         path('/users'),
         (transaction, location) => {
           if (transaction.request.data.method === 'post') {
-            return { message: 'POST method found', severity: 'error' };
+            return [
+              {
+                location,
+                violation: { message: 'POST method found' },
+                findings: [],
+              },
+            ];
           }
-          return false;
+          return [];
         },
       );
 
@@ -644,15 +661,14 @@ describe('AnalyticsApiContext', () => {
       expect(result).toEqual(
         expect.arrayContaining([
           expect.objectContaining({
-            message: 'POST method found',
-            severity: 'error',
+            violation: { message: 'POST method found' },
             location: expect.stringContaining('/users'),
           }),
         ]),
       );
     });
 
-    it('should return true for boolean validation result', () => {
+    it('should return violation for non-empty violation result', () => {
       insertTransaction();
 
       const format = createThymianFormat();
@@ -664,7 +680,7 @@ describe('AnalyticsApiContext', () => {
 
       const result = context.validateCapturedHttpTransactions(
         path('/users'),
-        () => true,
+        (transaction, location) => [{ location, violation: {}, findings: [] }],
       );
 
       expect(result).toHaveLength(1);
@@ -739,7 +755,7 @@ describe('AnalyticsApiContext', () => {
 
       const result = context.validateCapturedHttpTransactions(
         path('/users'),
-        () => true,
+        (transaction, location) => [{ location, violation: {}, findings: [] }],
       );
 
       expect(result).toHaveLength(1);
@@ -795,7 +811,7 @@ describe('AnalyticsApiContext', () => {
         statusCode(),
         (key) => {
           groupKeys.push(key);
-          return undefined;
+          return [];
         },
       );
 
@@ -852,7 +868,7 @@ describe('AnalyticsApiContext', () => {
         method(),
         (key) => {
           groupKeys.push(key);
-          return undefined;
+          return [];
         },
       );
 
@@ -926,7 +942,7 @@ describe('AnalyticsApiContext', () => {
         (key, transactions) => {
           groupKeys.push(key);
           expect(transactions).toHaveLength(1);
-          return undefined;
+          return [];
         },
       );
 
@@ -1002,16 +1018,22 @@ describe('AnalyticsApiContext', () => {
 
       const result = context.validateHttpTransactions(
         method('get'),
-        (req, res) => ({
-          message: `Request to ${req.path} returned ${res.statusCode}`,
-        }),
+        (req, res, location) => [
+          {
+            location,
+            violation: {
+              message: `Request to ${req.path} returned ${res.statusCode}`,
+            },
+            findings: [],
+          },
+        ],
       );
 
       expect(result).toHaveLength(1);
       expect(result).toEqual(
         expect.arrayContaining([
           expect.objectContaining({
-            message: 'Request to /users returned 200',
+            violation: { message: 'Request to /users returned 200' },
           }),
         ]),
       );
@@ -1037,10 +1059,7 @@ describe('AnalyticsApiContext', () => {
         format,
       );
 
-      const result = context.validateHttpTransactions(
-        method('get'),
-        () => false,
-      );
+      const result = context.validateHttpTransactions(method('get'), () => []);
 
       expect(result).toHaveLength(0);
     });
@@ -1358,18 +1377,24 @@ describe('AnalyticsApiContext', () => {
         format,
       );
 
-      const result = context.validateCapturedHttpTraces((trace) => {
+      const result = context.validateCapturedHttpTraces((trace, location) => {
         if (trace.length === 1) {
-          return { message: 'Single transaction trace' };
+          return [
+            {
+              location,
+              violation: { message: 'Single transaction trace' },
+              findings: [],
+            },
+          ];
         }
-        return false;
+        return [];
       });
 
       expect(result).toHaveLength(1);
       expect(result).toEqual(
         expect.arrayContaining([
           expect.objectContaining({
-            message: 'Single transaction trace',
+            violation: { message: 'Single transaction trace' },
           }),
         ]),
       );
@@ -1492,18 +1517,21 @@ describe('AnalyticsApiContext', () => {
         format,
       );
 
-      const result = context.validateCapturedHttpTraces((trace) => {
+      const result = context.validateCapturedHttpTraces((trace, location) => {
         const [first, last] = trace;
 
         if (!first || !last) {
-          return false;
+          return [];
         }
 
-        return (
+        if (
           first.request.meta.role === 'proxy' &&
           last.response.meta.role === 'origin server' &&
           first.request.data.method === 'get'
-        );
+        ) {
+          return [{ location, violation: {}, findings: [] }];
+        }
+        return [];
       });
 
       expect(result).toHaveLength(1);

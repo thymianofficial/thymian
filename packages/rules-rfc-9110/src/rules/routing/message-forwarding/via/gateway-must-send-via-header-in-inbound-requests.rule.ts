@@ -15,7 +15,10 @@ export default httpRule(
   .rule((ctx) =>
     ctx.validateCapturedHttpTransactions(
       not(requestHeader('via')),
-      ({ request }) => request.meta.role === 'gateway',
+      (transaction, location) =>
+        transaction.request.meta.role === 'gateway'
+          ? [{ location, violation: {}, findings: [] }]
+          : [],
     ),
   )
   .done();

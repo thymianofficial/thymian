@@ -1,3 +1,4 @@
+import type { HttpResponse, RuleViolationLocation } from '@thymian/core';
 import { getHeader, requestHeader } from '@thymian/core';
 import { httpRule } from '@thymian/core';
 
@@ -39,22 +40,23 @@ export default httpRule(
   )
   .appliesTo('client')
   .rule((ctx) =>
-    ctx.validateHttpTransactions(requestHeader('range'), (req) => {
-      const rangeHeader = getHeader(req.headers, 'range');
+    ctx.validateHttpTransactions(
+      requestHeader('range'),
+      (req, _res: HttpResponse, location: RuleViolationLocation) => {
+        const rangeHeader = getHeader(req.headers, 'range');
 
-      if (!rangeHeader) {
-        return false;
-      }
+        if (!rangeHeader) {
+          return [];
+        }
 
-      const result = validateRangeOrder(rangeHeader);
+        const result = validateRangeOrder(rangeHeader);
 
-      if (result) {
-        return {
-          message: result,
-        };
-      } else {
-        return false;
-      }
-    }),
+        if (result) {
+          return [{ location, violation: { message: result }, findings: [] }];
+        } else {
+          return [];
+        }
+      },
+    ),
   )
   .done();

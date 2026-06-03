@@ -1,4 +1,8 @@
-import { getHeader, requestHeader } from '@thymian/core';
+import {
+  getHeader,
+  requestHeader,
+  type RuleViolationLocation,
+} from '@thymian/core';
 import { httpRule } from '@thymian/core';
 
 import { isWeakETag } from '../../utils.js';
@@ -17,26 +21,35 @@ export default httpRule(
   .tags('conditional-requests', 'if-range', 'etag', 'weak')
   .rule((ctx) => ctx.validateCommonHttpTransactions(requestHeader('if-range')))
   .overrideAnalyticsRule((ctx) =>
-    ctx.validateHttpTransactions(requestHeader('if-range'), (req) => {
-      const ifRange = getHeader(req.headers, 'if-range');
+    ctx.validateHttpTransactions(
+      requestHeader('if-range'),
+      (req, _res, location: RuleViolationLocation) => {
+        const ifRange = getHeader(req.headers, 'if-range');
 
-      if (typeof ifRange === 'string') {
-        return false;
-      }
+        if (typeof ifRange === 'undefined') {
+          return [];
+        }
 
-      const ranges = Array.isArray(ifRange) ? ifRange : [ifRange];
+        const ranges = Array.isArray(ifRange) ? ifRange : [ifRange];
 
-      const invalidRanges = ranges.filter(
-        (range) => range && range.trim().match(/^[Ww]?"/),
-      );
+        const invalidRanges = ranges.filter(
+          (range) => range && range.trim().match(/^[Ww]?"/),
+        );
 
-      if (invalidRanges.length > 0) {
-        return {
-          message: `If-Range header field contains a weak entity tag (marked with W/), which is not allowed. Value(s) used: ${invalidRanges.join(', ')}`,
-        };
-      }
+        if (invalidRanges.length > 0) {
+          return [
+            {
+              location,
+              violation: {
+                message: `If-Range header field contains a weak entity tag (marked with W/), which is not allowed. Value(s) used: ${invalidRanges.join(', ')}`,
+              },
+              findings: [],
+            },
+          ];
+        }
 
-      return false;
-    }),
+        return [];
+      },
+    ),
   )
   .done();

@@ -1,4 +1,3 @@
-import type { ReportFn } from '../events/report.event.js';
 import type { ThymianHttpRequest } from '../format/nodes/http-request.node.js';
 import type { ThymianHttpResponse } from '../format/nodes/http-response.node.js';
 import type { ThymianFormat } from '../format/thymian-format.js';
@@ -7,9 +6,9 @@ import type { HttpFilterExpression } from '../http-filter.js';
 import type { HttpTestResult } from '../http-testing/http-test/http-test.js';
 import type { HttpTestContextLocals } from '../http-testing/http-test/http-test-context.js';
 import type { HttpTestPipeline } from '../http-testing/http-test/http-test-pipeline.js';
-import type { PartialBy } from '../utils.js';
 import type { RuleExecutionDiagnosticsProvider } from './rule-runner.js';
 import type {
+  RuleFinding,
   RuleFnResult,
   RuleViolation,
   RuleViolationLocation,
@@ -35,20 +34,14 @@ export type CommonHttpResponse = {
   trailers: string[];
 };
 
-export type ValidationFn<
-  Args extends unknown[],
-  R =
-    | Omit<RuleViolation, 'location' | 'rule' | 'severity'>
-    | boolean
-    | undefined,
-> = (...args: Args) => R;
+export type ValidationFn<Args extends unknown[]> = (
+  ...args: Args
+) => RuleFnResult[];
 
 export interface ApiContext<
   TDiagnostics = unknown,
 > extends RuleExecutionDiagnosticsProvider<TDiagnostics> {
   readonly format: ThymianFormat;
-  readonly report: ReportFn;
-  reportViolation(violation: RuleViolation): void;
   validateCommonHttpTransactions(
     filter: HttpFilterExpression,
     validationFn?:
@@ -56,18 +49,14 @@ export interface ApiContext<
           [CommonHttpRequest, CommonHttpResponse, RuleViolationLocation]
         >
       | HttpFilterExpression,
-  ): Promise<RuleFnResult> | RuleFnResult;
+  ): Promise<RuleFnResult[]> | RuleFnResult[];
   validateGroupedCommonHttpTransactions(
     filter: HttpFilterExpression,
     groupBy: HttpFilterExpression,
     validationFn: ValidationFn<
-      [
-        string,
-        [CommonHttpRequest, CommonHttpResponse, RuleViolationLocation][],
-      ],
-      RuleViolation | undefined
+      [string, [CommonHttpRequest, CommonHttpResponse, RuleViolationLocation][]]
     >,
-  ): Promise<RuleFnResult> | RuleFnResult;
+  ): Promise<RuleFnResult[]> | RuleFnResult[];
 }
 
 export interface LiveApiContext<
@@ -78,7 +67,7 @@ export interface LiveApiContext<
     validation?:
       | ValidationFn<[HttpRequest, HttpResponse, RuleViolationLocation]>
       | HttpFilterExpression,
-  ): Promise<RuleFnResult> | RuleFnResult;
+  ): Promise<RuleFnResult[]> | RuleFnResult[];
 }
 
 export interface LintContext<
@@ -94,8 +83,9 @@ export interface LintContext<
       req: ThymianHttpRequest,
       res: ThymianHttpResponse,
       responses: ThymianHttpResponse[],
-    ) => PartialBy<RuleViolation, 'location'> | boolean,
-  ): Promise<RuleFnResult> | RuleFnResult;
+      // TODO check return type (boolean shouldn't be needed anymore)
+    ) => { violation?: RuleViolation; findings?: RuleFinding[] } | boolean,
+  ): Promise<RuleFnResult[]> | RuleFnResult[];
 }
 
 export interface TestContext<
@@ -103,7 +93,7 @@ export interface TestContext<
 > extends LiveApiContext<TDiagnostics> {
   httpTest(
     pipeline: HttpTestPipeline<HttpTestContextLocals>,
-  ): Promise<RuleFnResult> | RuleFnResult;
+  ): Promise<RuleFnResult[]>;
   runHttpTest(
     pipeline: HttpTestPipeline<HttpTestContextLocals>,
   ): Promise<HttpTestResult>;
@@ -115,8 +105,8 @@ export interface AnalyzeContext<
   validateCapturedHttpTransactions(
     filter: HttpFilterExpression,
     validate: ValidationFn<[CapturedTransaction, string]>,
-  ): Promise<RuleFnResult> | RuleFnResult;
+  ): Promise<RuleFnResult[]> | RuleFnResult[];
   validateCapturedHttpTraces(
     validate: ValidationFn<[CapturedTrace, string]>,
-  ): Promise<RuleFnResult> | RuleFnResult;
+  ): Promise<RuleFnResult[]> | RuleFnResult[];
 }

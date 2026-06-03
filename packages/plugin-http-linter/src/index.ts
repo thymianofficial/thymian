@@ -1,14 +1,19 @@
 import {
+  createToolRun,
   type EvaluatedRuleViolation,
+  executionsFromRunRulesResult,
   type Rule,
   type RuleRunnerAdapter,
   type RulesConfiguration,
+  rulesToRuleDescriptors,
   runRules,
+  type RunRulesResult,
+  runRulesResultToViolations,
   type SerializedThymianFormat,
   type SingleRuleConfiguration,
   ThymianFormat,
   type ThymianPlugin,
-  type ThymianReport,
+  type ToolRun,
 } from '@thymian/core';
 
 import { StaticApiContext } from './static-api-context.js';
@@ -34,7 +39,7 @@ declare module '@thymian/core' {
         rulesConfig?: RulesConfiguration;
       };
       response: {
-        reports: ThymianReport[];
+        runs: ToolRun[];
         violations: EvaluatedRuleViolation[];
         valid: boolean;
       };
@@ -44,7 +49,6 @@ declare module '@thymian/core' {
 
 function createStaticLinterAdapter(
   logger: import('@thymian/core').Logger,
-  reportFn: (report: ThymianReport) => void,
   format: ThymianFormat,
   rulesConfig: RulesConfiguration,
 ): RuleRunnerAdapter<StaticApiContext> {
@@ -55,14 +59,28 @@ function createStaticLinterAdapter(
     createContext: (
       _rule: Rule,
       options: SingleRuleConfiguration | undefined,
-    ) =>
-      new StaticApiContext(
-        format,
-        logger,
-        reportFn,
-        (options ?? {}).skipOrigins,
-      ),
+    ) => new StaticApiContext(format, logger, (options ?? {}).skipOrigins),
   };
+}
+
+function createRuns(
+  pluginName: string,
+  format: ThymianFormat,
+  ruleResults: RunRulesResult,
+  rules: Rule[] = [],
+): ToolRun[] {
+  const executions = executionsFromRunRulesResult(ruleResults, rules, format);
+
+  const ruleDescriptors = rulesToRuleDescriptors(rules, (r) => r.lintRule);
+
+  return [
+    createToolRun({
+      tool: { name: pluginName },
+      runType: 'lint',
+      executions,
+      rules: ruleDescriptors.length > 0 ? ruleDescriptors : undefined,
+    }),
+  ];
 }
 
 export function createHttpLinterPlugin(
@@ -79,28 +97,15 @@ export function createHttpLinterPlugin(
         'core.lint',
         async ({ format, rules = [], rulesConfig = {} }, ctx) => {
           const thymianFormat = ThymianFormat.import(format);
-          const reportFn = (report: ThymianReport) =>
-            emitter.emit('core.report', report);
 
-          const { violations, statistics } = await runRules(
+          const ruleResults = await runRules(
             logger,
             rules,
             thymianFormat,
             rulesConfig,
-            createStaticLinterAdapter(
-              logger,
-              reportFn,
-              thymianFormat,
-              rulesConfig,
-            ),
+            createStaticLinterAdapter(logger, thymianFormat, rulesConfig),
           );
-
-          ctx.reply({
-            source: pluginName,
-            status: violations.length === 0 ? 'success' : 'failed',
-            violations,
-            statistics,
-          });
+          ctx.reply(createRuns(pluginName, thymianFormat, ruleResults, rules));
         },
       );
 
@@ -108,24 +113,18 @@ export function createHttpLinterPlugin(
         'http-linter.lint-static',
         async ({ format, rules = [], rulesConfig = {} }, ctx) => {
           const thymianFormat = ThymianFormat.import(format);
-          const reports: ThymianReport[] = [];
-          const reportFn = (report: ThymianReport) => reports.push(report);
 
-          const { violations } = await runRules(
+          const ruleResults = await runRules(
             logger,
             rules,
             thymianFormat,
             rulesConfig,
-            createStaticLinterAdapter(
-              logger,
-              reportFn,
-              thymianFormat,
-              rulesConfig,
-            ),
+            createStaticLinterAdapter(logger, thymianFormat, rulesConfig),
           );
+          const violations = runRulesResultToViolations(ruleResults, rules);
 
           ctx.reply({
-            reports,
+            runs: createRuns(pluginName, thymianFormat, ruleResults, rules),
             violations,
             valid: violations.length === 0,
           });

@@ -11,7 +11,12 @@ import {
   responseWith,
   statusCode,
 } from '@thymian/core';
-import { httpRule, type RuleViolation, singleTestCase } from '@thymian/core';
+import {
+  httpRule,
+  type RuleFnResult,
+  type RuleViolation,
+  singleTestCase,
+} from '@thymian/core';
 
 import { createList } from '../../../../utils.js';
 
@@ -27,7 +32,7 @@ export const requiredHeadersFor304 = [
 export function checkHeaders(
   okResponseHeaders: string[],
   notModifiedHeaders: string[],
-): Omit<RuleViolation, 'location'> | undefined {
+): RuleViolation | undefined {
   const missingHeaders = requiredHeadersFor304.filter(
     (header) =>
       equalsIgnoreCase(header, ...okResponseHeaders) &&
@@ -81,19 +86,17 @@ export default httpRule(
           );
 
           if (violation) {
-            return {
-              ...violation,
-              location: notModifiedLocation,
-            };
+            return [{ location: notModifiedLocation, violation, findings: [] }];
           }
         }
 
-        return undefined;
+        return [];
       },
     ),
   )
-  .overrideTest((testContext) =>
-    testContext.httpTest(
+  .overrideTest(async (testContext) => {
+    const results: RuleFnResult[] = [];
+    await testContext.httpTest(
       singleTestCase()
         .forTransactionsWith(
           and(or(method('GET'), method('HEAD')), statusCode(200)),
@@ -122,16 +125,18 @@ export default httpRule(
           );
 
           if (violation) {
-            testContext.reportViolation({
-              ...violation,
+            results.push({
               location: {
                 elementType: 'edge',
                 elementId: notModifiedTransaction.source.transactionId,
               },
+              violation,
+              findings: [],
             });
           }
         })
         .done(),
-    ),
-  )
+    );
+    return results;
+  })
   .done();

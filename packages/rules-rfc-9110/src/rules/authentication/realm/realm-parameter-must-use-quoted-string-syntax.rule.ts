@@ -4,6 +4,7 @@ import {
   or,
   requestHeader,
   responseHeader,
+  type RuleViolationLocation,
   type ThymianHttpResponse,
 } from '@thymian/core';
 import { httpRule } from '@thymian/core';
@@ -29,7 +30,7 @@ export default httpRule('rfc9110/realm-parameter-must-use-quoted-string-syntax')
         ...requestAuthenticationHeaders.map((h) => requestHeader(h)),
         ...responseAuthenticationHeaders.map((h) => responseHeader(h)),
       ),
-      (req, res) => {
+      (req, res, location: RuleViolationLocation) => {
         const headers = [
           ...requestAuthenticationHeaders.flatMap(
             (header) => getHeader(req.headers, header) ?? [],
@@ -45,12 +46,12 @@ export default httpRule('rfc9110/realm-parameter-must-use-quoted-string-syntax')
             for (const param of challenge.parameters) {
               const isRealmParam = equalsIgnoreCase(param.name, 'realm');
               if (isRealmParam && !param.isQuoted) {
-                return true; // Violation: realm used token syntax instead of quoted-string
+                return [{ location, violation: {}, findings: [] }]; // Violation: realm used token syntax instead of quoted-string
               }
             }
           }
         }
-        return false;
+        return [];
       },
     ),
   )

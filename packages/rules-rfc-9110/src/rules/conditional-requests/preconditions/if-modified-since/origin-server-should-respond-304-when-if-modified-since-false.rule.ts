@@ -1,6 +1,5 @@
 import {
   and,
-  getHeader,
   method,
   not,
   or,
@@ -9,7 +8,7 @@ import {
   responseWith,
   statusCode,
 } from '@thymian/core';
-import { httpRule, singleTestCase } from '@thymian/core';
+import { httpRule, type RuleFnResult, singleTestCase } from '@thymian/core';
 
 export default httpRule(
   'rfc9110/origin-server-should-respond-304-when-if-modified-since-false',
@@ -33,8 +32,9 @@ export default httpRule(
       ),
     ),
   )
-  .overrideTest((ctx) =>
-    ctx.httpTest(
+  .overrideTest(async (ctx) => {
+    const results: RuleFnResult[] = [];
+    await ctx.httpTest(
       singleTestCase()
         .forTransactionsWith(
           and(or(method('GET'), method('HEAD')), statusCode(200)),
@@ -55,15 +55,18 @@ export default httpRule(
         )
         .transactions(([, notModifiedTransaction]) => {
           if (notModifiedTransaction.response.statusCode !== 304) {
-            ctx.reportViolation({
+            results.push({
               location: {
                 elementType: 'edge',
                 elementId: notModifiedTransaction.source.transactionId,
               },
+              violation: {},
+              findings: [],
             });
           }
         })
         .done(),
-    ),
-  )
+    );
+    return results;
+  })
   .done();

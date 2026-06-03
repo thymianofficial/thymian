@@ -1,4 +1,4 @@
-import { responseHeader } from '@thymian/core';
+import { responseHeader, type RuleViolationLocation } from '@thymian/core';
 import { httpRule } from '@thymian/core';
 
 import { parseContentRange } from './utils.js';
@@ -18,11 +18,11 @@ export default httpRule(
   .rule((ctx) =>
     ctx.validateHttpTransactions(
       responseHeader('content-range'),
-      (req, res) => {
+      (req, res, location: RuleViolationLocation) => {
         const contentRange = res.headers['content-range'];
 
         if (!contentRange) {
-          return false;
+          return [];
         }
 
         const ranges = parseContentRange(contentRange);
@@ -30,7 +30,9 @@ export default httpRule(
         return ranges.some(
           (range) =>
             range.end < range.start || (range.size && range.size <= range.end),
-        );
+        )
+          ? [{ location, violation: {}, findings: [] }]
+          : [];
       },
     ),
   )

@@ -9,6 +9,7 @@ import {
   createRegExpFromOriginWildcard,
   type HttpFilterExpression,
   type HttpParticipantRole,
+  httpParticipantRoles,
   type HttpRequest,
   httpRequestToCommonHttpRequest,
   type HttpResponse,
@@ -18,9 +19,7 @@ import {
   matchesOrigin,
   not,
   or,
-  type ReportFn,
   type RuleFnResult,
-  type RuleViolation,
   type RuleViolationLocation,
   ThymianFormat,
   thymianRequestToOrigin,
@@ -29,30 +28,106 @@ import {
 
 import type { HttpTransactionRepository } from './db/http-transaction-repository.js';
 
+export interface AnalyticsApiContextOptions {
+  repository: HttpTransactionRepository;
+  logger: Logger;
+  format: ThymianFormat;
+  roles?: HttpParticipantRole[];
+  skippedOrigins?: string[];
+}
+
+function legacyOptionsToObject(
+  repository: HttpTransactionRepository,
+  logger: Logger | undefined,
+  format: ThymianFormat | undefined,
+  reportOrRoles?: (() => void) | HttpParticipantRole[],
+  rolesOrSkippedOrigins?: HttpParticipantRole[] | string[],
+  legacySkippedOrigins?: string[],
+): AnalyticsApiContextOptions {
+  if (!logger || !format) {
+    throw new TypeError('AnalyticsApiContext requires logger and format.');
+  }
+
+  const usesLegacyReportSignature = typeof reportOrRoles === 'function';
+  const looksLikeRoleArray =
+    Array.isArray(rolesOrSkippedOrigins) &&
+    rolesOrSkippedOrigins.every((value) =>
+      httpParticipantRoles.includes(value as HttpParticipantRole),
+    );
+  const roles = Array.isArray(reportOrRoles)
+    ? reportOrRoles
+    : usesLegacyReportSignature ||
+        (reportOrRoles === undefined && looksLikeRoleArray)
+      ? (rolesOrSkippedOrigins as HttpParticipantRole[] | undefined)
+      : undefined;
+  const skippedOrigins =
+    usesLegacyReportSignature || looksLikeRoleArray
+      ? legacySkippedOrigins
+      : (rolesOrSkippedOrigins as string[] | undefined);
+
+  return {
+    repository,
+    logger,
+    format,
+    roles,
+    skippedOrigins,
+  };
+}
+
 export class AnalyticsApiContext implements AnalyzeContext {
+  readonly repository: HttpTransactionRepository;
   readonly format: ThymianFormat;
-  readonly report: ReportFn;
-  private readonly violations: RuleViolation[] = [];
+  private readonly logger: Logger;
   private readonly roles?: HttpParticipantRole[];
   private readonly skippedOrigins: string[];
 
+  constructor(options: AnalyticsApiContextOptions);
   constructor(
-    readonly repository: HttpTransactionRepository,
-    private readonly logger: Logger,
+    repository: HttpTransactionRepository,
+    logger: Logger,
     format: ThymianFormat,
-    reportFn?: ReportFn,
-    roles?: HttpParticipantRole[],
-    skippedOrigins?: string[],
+    reportOrRoles?: (() => void) | HttpParticipantRole[],
+    rolesOrSkippedOrigins?: HttpParticipantRole[] | string[],
+    legacySkippedOrigins?: string[],
+  );
+  constructor(
+    optionsOrRepository: AnalyticsApiContextOptions | HttpTransactionRepository,
+    logger?: Logger,
+    format?: ThymianFormat,
+    reportOrRoles?: (() => void) | HttpParticipantRole[],
+    rolesOrSkippedOrigins?: HttpParticipantRole[] | string[],
+    legacySkippedOrigins?: string[],
   ) {
-    this.report = reportFn ?? (() => undefined);
-    this.skippedOrigins = skippedOrigins ?? [];
+    const options =
+      'repository' in optionsOrRepository
+        ? optionsOrRepository
+        : legacyOptionsToObject(
+            optionsOrRepository,
+            logger,
+            format,
+            reportOrRoles,
+            rolesOrSkippedOrigins,
+            legacySkippedOrigins,
+          );
+
+    const {
+      repository,
+      logger: contextLogger,
+      format: contextFormat,
+      roles,
+      skippedOrigins = [],
+    } = options;
+
+    this.repository = repository;
+    this.logger = contextLogger;
+    this.skippedOrigins = skippedOrigins;
 
     if (this.skippedOrigins.length === 0) {
-      this.format = format;
+      this.format = contextFormat;
     } else {
       const regExps = this.skippedOrigins.map(createRegExpFromOriginWildcard);
 
-      this.format = format.filter(
+      this.format = contextFormat.filter(
         ({ thymianReq }) =>
           !regExps.some((regExp) =>
             regExp.test(thymianRequestToOrigin(thymianReq)),
@@ -67,10 +142,6 @@ export class AnalyticsApiContext implements AnalyzeContext {
           : role,
       );
     }
-  }
-
-  reportViolation(violation: RuleViolation): void {
-    this.violations.push(violation);
   }
 
   getRuleExecutionDiagnostics(): undefined {
@@ -97,7 +168,7 @@ export class AnalyticsApiContext implements AnalyzeContext {
           [CommonHttpRequest, CommonHttpResponse, RuleViolationLocation]
         >
       | HttpFilterExpression = filter,
-  ): Promise<RuleFnResult> | RuleFnResult {
+  ): Promise<RuleFnResult[]> | RuleFnResult[] {
     let finalFilter!: HttpFilterExpression;
     let validateFn!: ValidationFn<
       [CommonHttpRequest, CommonHttpResponse, RuleViolationLocation]
@@ -108,12 +179,14 @@ export class AnalyticsApiContext implements AnalyzeContext {
       validateFn = validate;
     } else {
       finalFilter = and(filter, validate);
-      validateFn = () => true;
+      validateFn = (req, res, location) => [
+        { location, violation: {}, findings: [] },
+      ];
     }
 
     finalFilter = this.addOriginsToFilter(finalFilter);
 
-    const results: RuleFnResult = [];
+    const results: RuleFnResult[] = [];
 
     for (const {
       request,
@@ -122,43 +195,27 @@ export class AnalyticsApiContext implements AnalyzeContext {
       finalFilter,
       this.roles,
     )) {
-      const violation = validateFn(
-        httpRequestToCommonHttpRequest(request.data),
-        httpResponseToCommonHttpResponse(response.data),
-        httpTransactionToLabel(request.data, response.data),
+      const location = httpTransactionToLabel(request.data, response.data);
+      results.push(
+        ...validateFn(
+          httpRequestToCommonHttpRequest(request.data),
+          httpResponseToCommonHttpResponse(response.data),
+          location,
+        ),
       );
-
-      if (violation) {
-        const location = httpTransactionToLabel(request.data, response.data);
-
-        if (violation === true) {
-          results.push({
-            location,
-          });
-        } else {
-          results.push({
-            location,
-            ...violation,
-          });
-        }
-      }
     }
 
-    return results.concat(this.violations);
+    return results;
   }
 
   validateGroupedCommonHttpTransactions(
     filter: HttpFilterExpression,
     groupBy: HttpFilterExpression,
     validationFn: ValidationFn<
-      [
-        string,
-        [CommonHttpRequest, CommonHttpResponse, RuleViolationLocation][],
-      ],
-      RuleViolation | undefined
+      [string, [CommonHttpRequest, CommonHttpResponse, RuleViolationLocation][]]
     >,
-  ): Promise<RuleFnResult> | RuleFnResult {
-    const results: RuleFnResult = [];
+  ): Promise<RuleFnResult[]> | RuleFnResult[] {
+    const results: RuleFnResult[] = [];
     const finalFilter = this.addOriginsToFilter(filter);
 
     const groups = this.repository.readAndGroupTransactionsByHttpFilter(
@@ -168,18 +225,16 @@ export class AnalyticsApiContext implements AnalyzeContext {
     );
 
     for (const [key, transactions] of groups) {
-      const violation = validationFn(
-        key,
-        transactions.map((t) => [
-          httpRequestToCommonHttpRequest(t.request.data),
-          httpResponseToCommonHttpResponse(t.response.data),
-          httpTransactionToLabel(t.request.data, t.response.data),
-        ]),
+      results.push(
+        ...validationFn(
+          key,
+          transactions.map((t) => [
+            httpRequestToCommonHttpRequest(t.request.data),
+            httpResponseToCommonHttpResponse(t.response.data),
+            httpTransactionToLabel(t.request.data, t.response.data),
+          ]),
+        ),
       );
-
-      if (violation) {
-        results.push(violation);
-      }
     }
 
     return results;
@@ -190,7 +245,7 @@ export class AnalyticsApiContext implements AnalyzeContext {
     validation:
       | ValidationFn<[HttpRequest, HttpResponse, RuleViolationLocation]>
       | HttpFilterExpression = filter,
-  ): Promise<RuleFnResult> | RuleFnResult {
+  ): Promise<RuleFnResult[]> | RuleFnResult[] {
     let finalFilter!: HttpFilterExpression;
     let validateFn!: ValidationFn<
       [HttpRequest, HttpResponse, RuleViolationLocation]
@@ -201,12 +256,14 @@ export class AnalyticsApiContext implements AnalyzeContext {
       validateFn = validation;
     } else {
       finalFilter = and(filter, validation);
-      validateFn = () => true;
+      validateFn = (req, res, location) => [
+        { location, violation: {}, findings: [] },
+      ];
     }
 
     finalFilter = this.addOriginsToFilter(finalFilter);
 
-    const results: RuleFnResult = [];
+    const results: RuleFnResult[] = [];
 
     for (const {
       request,
@@ -229,32 +286,19 @@ export class AnalyticsApiContext implements AnalyzeContext {
           }
         : httpTransactionToLabel(request.data, response.data);
 
-      const violation = validateFn(request.data, response.data, location);
-
-      if (violation) {
-        if (violation === true) {
-          results.push({
-            location,
-          });
-        } else {
-          results.push({
-            location,
-            ...violation,
-          });
-        }
-      }
+      results.push(...validateFn(request.data, response.data, location));
     }
 
-    return results.concat(this.violations);
+    return results;
   }
 
   validateCapturedHttpTransactions(
     filter: HttpFilterExpression,
     validate: ValidationFn<[CapturedTransaction, string]>,
-  ): Promise<RuleFnResult> | RuleFnResult {
+  ): Promise<RuleFnResult[]> | RuleFnResult[] {
     const finalFilter = this.addOriginsToFilter(filter);
 
-    const results: RuleFnResult = [];
+    const results: RuleFnResult[] = [];
 
     for (const transaction of this.repository.readTransactionsByHttpFilter(
       finalFilter,
@@ -265,49 +309,22 @@ export class AnalyticsApiContext implements AnalyzeContext {
         transaction.response.data,
       );
 
-      const violation = validate(transaction, location);
-
-      if (violation) {
-        if (violation === true) {
-          results.push({
-            location,
-          });
-        } else {
-          results.push({
-            location,
-            ...violation,
-          });
-        }
-      }
+      results.push(...validate(transaction, location));
     }
 
-    return results.concat(this.violations);
+    return results;
   }
 
   validateCapturedHttpTraces(
     validate: ValidationFn<[CapturedTrace, string]>,
-  ): RuleFnResult {
-    const results: RuleFnResult = [];
+  ): RuleFnResult[] {
+    const results: RuleFnResult[] = [];
 
     for (const trace of this.repository.readAllHttpTraces()) {
       const location = capturedTraceToString(trace);
-
-      const violation = validate(trace, location);
-
-      if (violation) {
-        if (violation === true) {
-          results.push({
-            location,
-          });
-        } else {
-          results.push({
-            location,
-            ...violation,
-          });
-        }
-      }
+      results.push(...validate(trace, location));
     }
 
-    return results.concat(this.violations);
+    return results;
   }
 }

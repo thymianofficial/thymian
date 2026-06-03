@@ -56,7 +56,7 @@ describe('StaticApiContext', () => {
       expect(result).toHaveLength(0);
     });
 
-    it('should support validation function returning boolean', () => {
+    it('should return violation for matching validation function', () => {
       const format = createThymianFormatWithTransaction(
         createHttpRequest({ method: 'get', path: '/users' }),
         createHttpResponse({ statusCode: 200, headers: {} }),
@@ -66,13 +66,13 @@ describe('StaticApiContext', () => {
 
       const result = context.validateCommonHttpTransactions(
         statusCode(200),
-        () => true,
+        (req, res, location) => [{ location, violation: {}, findings: [] }],
       );
 
       expect(result).toHaveLength(1);
     });
 
-    it('should support validation function returning violation object', () => {
+    it('should return violation with custom message', () => {
       const format = createThymianFormatWithTransaction(
         createHttpRequest({ method: 'get', path: '/users' }),
         createHttpResponse({ statusCode: 200, headers: {} }),
@@ -82,20 +82,26 @@ describe('StaticApiContext', () => {
 
       const result = context.validateCommonHttpTransactions(
         statusCode(200),
-        () => ({ message: 'Custom violation message' }),
+        (req, res, location) => [
+          {
+            location,
+            violation: { message: 'Custom violation message' },
+            findings: [],
+          },
+        ],
       );
 
       expect(result).toHaveLength(1);
       expect(result).toEqual(
         expect.arrayContaining([
           expect.objectContaining({
-            message: 'Custom violation message',
+            violation: { message: 'Custom violation message' },
           }),
         ]),
       );
     });
 
-    it('should not return violations when validation function returns false', () => {
+    it('should not return violations when validation function returns empty array', () => {
       const format = createThymianFormatWithTransaction(
         createHttpRequest({ method: 'get', path: '/users' }),
         createHttpResponse({ statusCode: 200, headers: {} }),
@@ -105,7 +111,7 @@ describe('StaticApiContext', () => {
 
       const result = context.validateCommonHttpTransactions(
         statusCode(200),
-        () => false,
+        () => [],
       );
 
       expect(result).toHaveLength(0);
@@ -257,14 +263,20 @@ describe('StaticApiContext', () => {
         statusCode(),
         (key, transactions) => {
           if (key === '200' && transactions.length !== 3) {
-            return {
-              location: {
-                elementType: 'node' as const,
-                elementId: 'group-violation',
+            return [
+              {
+                location: {
+                  elementType: 'node' as const,
+                  elementId: 'group-violation',
+                },
+                violation: {
+                  message: `Expected 3 transactions with status 200, got ${transactions.length}`,
+                },
+                findings: [],
               },
-              message: `Expected 3 transactions with status 200, got ${transactions.length}`,
-            };
+            ];
           }
+          return [];
         },
       );
 
@@ -273,7 +285,9 @@ describe('StaticApiContext', () => {
         expect.arrayContaining([
           expect.objectContaining({
             location: { elementType: 'node', elementId: 'group-violation' },
-            message: 'Expected 3 transactions with status 200, got 2',
+            violation: {
+              message: 'Expected 3 transactions with status 200, got 2',
+            },
           }),
         ]),
       );
@@ -287,7 +301,7 @@ describe('StaticApiContext', () => {
       const result = context.validateGroupedCommonHttpTransactions(
         method('get'),
         statusCode(),
-        () => undefined,
+        () => [],
       );
 
       expect(result).toHaveLength(0);
@@ -319,7 +333,7 @@ describe('StaticApiContext', () => {
         method(),
         (key) => {
           groupKeys.push(key);
-          return undefined;
+          return [];
         },
       );
 
@@ -354,14 +368,14 @@ describe('StaticApiContext', () => {
       const result = context.validateHttpTransactions(
         (req) => req.method === 'get',
         (req) => ({
-          message: `Found GET request to ${req.path}`,
+          violation: { message: `Found GET request to ${req.path}` },
         }),
       );
 
       expect(result).toHaveLength(1);
-      if (Array.isArray(result)) {
-        expect(result?.[0]?.message).toBe('Found GET request to /users');
-      }
+      expect(result?.[0]?.violation?.message).toBe(
+        'Found GET request to /users',
+      );
     });
 
     it('should handle multiple responses for the same request', () => {
