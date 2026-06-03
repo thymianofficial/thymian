@@ -6,13 +6,10 @@ import {
   formatLoadActionSchema,
   requestDispatchActionSchema,
   specValidationResultsSchema,
+  toolRunArraySchema,
   trafficLoadActionSchema,
-  validationResultSchema,
 } from './actions/index.js';
-import {
-  RegisterPluginEventSchema,
-  thymianReportSchema,
-} from './events/index.js';
+import { RegisterPluginEventSchema, reportSchema } from './events/index.js';
 import type { ThymianPlugin } from './thymian-plugin.js';
 
 export const VoidSchema = {} as JSONSchemaType<void>;
@@ -43,15 +40,15 @@ export const corePlugin: ThymianPlugin = {
       },
       'core.lint': {
         event: {} as JSONSchemaType<unknown>,
-        response: validationResultSchema,
+        response: toolRunArraySchema,
       },
       'core.test': {
         event: {} as JSONSchemaType<unknown>,
-        response: validationResultSchema,
+        response: toolRunArraySchema,
       },
       'core.analyze': {
         event: {} as JSONSchemaType<unknown>,
-        response: validationResultSchema,
+        response: toolRunArraySchema,
       },
       'core.validate-specs': {
         event: coreValidateSpecsActionSchema,
@@ -65,17 +62,13 @@ export const corePlugin: ThymianPlugin = {
         event: {} as JSONSchemaType<unknown>,
         response: {} as JSONSchemaType<unknown>,
       },
-      'core.report.flush': {
-        event: VoidSchema,
-        response: {} as JSONSchemaType<unknown>,
-      },
     },
   },
   events: {
     provides: {
       'core.register':
         RegisterPluginEventSchema as unknown as JSONSchemaType<unknown>,
-      'core.report': thymianReportSchema as unknown as JSONSchemaType<unknown>,
+      'core.report': reportSchema as unknown as JSONSchemaType<unknown>,
     },
   },
 };

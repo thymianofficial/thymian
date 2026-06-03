@@ -7,6 +7,8 @@ import {
   httpRequestToCommonHttpRequest,
   type HttpResponse,
   httpResponseToCommonHttpResponse,
+  httpTestResultToRuleFindings,
+  type RuleFinding,
   type RuleFnResult,
   type RuleViolation,
   type RuleViolationLocation,
@@ -46,8 +48,6 @@ function hasSource(
   return 'source' in transaction;
 }
 
-const noopReport = () => undefined;
-
 export interface HttpTesterRuleDiagnostics {
   skippedCases: Array<{
     name: string;
@@ -57,13 +57,13 @@ export interface HttpTesterRuleDiagnostics {
     name: string;
     reason: string;
   }>;
+  findings: RuleFinding[];
 }
 
 export class HttpTestApiContext<
   Locals extends HttpTestContextLocals = HttpTestContextLocals,
 > implements TestContext<HttpTesterRuleDiagnostics> {
   readonly format: ThymianFormat;
-  readonly report = noopReport;
   private readonly violations: RuleViolation[] = [];
   private readonly ctx: HttpTestContext<Locals>;
   private diagnostics?: HttpTesterRuleDiagnostics;
@@ -253,12 +253,14 @@ export class HttpTestApiContext<
   private collectSkippedAndFailedTestCases(testResult: HttpTestResult) {
     const skippedItems: HttpTesterRuleDiagnostics['skippedCases'] = [];
     const failedItems: HttpTesterRuleDiagnostics['failedCases'] = [];
+    const findings: RuleFinding[] = [];
 
     testResult.cases.forEach((testCase) => {
       if (testCase.status === 'skipped') {
         this.ctx.logger.debug(
           `HTTP test case "${testCase.name}" from test "${this.name}" is skipped.`,
         );
+        findings.push(...httpTestResultToRuleFindings(testCase.results));
         skippedItems.push({
           name: testCase.name,
           reason:
@@ -274,6 +276,8 @@ export class HttpTestApiContext<
         this.ctx.logger.debug(
           `HTTP test case "${testCase.name}" from test "${this.name}" failed.`,
         );
+
+        findings.push(...httpTestResultToRuleFindings(testCase.results));
 
         const assertionFailure = testCase.results.find(
           (r) => r.type === 'assertion-failure' && !!r.transaction,
@@ -305,7 +309,8 @@ export class HttpTestApiContext<
     if (
       !this.diagnostics &&
       skippedItems.length === 0 &&
-      failedItems.length === 0
+      failedItems.length === 0 &&
+      findings.length === 0
     ) {
       return;
     }
@@ -316,6 +321,7 @@ export class HttpTestApiContext<
         ...skippedItems,
       ],
       failedCases: [...(this.diagnostics?.failedCases ?? []), ...failedItems],
+      findings: [...(this.diagnostics?.findings ?? []), ...findings],
     };
   }
 

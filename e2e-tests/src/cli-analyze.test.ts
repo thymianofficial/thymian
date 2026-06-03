@@ -68,7 +68,7 @@ describe('thymian analyze', () => {
       expect(result.exitCode).toBe(1);
     }, 90_000);
 
-    it('should report rule violations with severity and rule name', () => {
+    it('should report rule violations with rule names in the rendered output', () => {
       copyFixturesToTempDir(join(fixturesDir, 'analyze'), getTempDir());
 
       const result = execThymianRaw(['analyze'], {
@@ -76,8 +76,10 @@ describe('thymian analyze', () => {
         allowFailure: true,
       });
 
-      expect(result.stdout).toMatch(/reported a violation/);
-      expect(result.stdout).toMatch(/warn/);
+      expect(result.stdout).toContain('@thymian/plugin-http-analyzer · analyze ·');
+      expect(result.stdout).toContain(
+        'rfc9110/origin-server-with-clock-must-generate-date-for-2xx-3xx-4xx',
+      );
     }, 90_000);
 
     it('should include a summary footer with error, warning and hint counts', () => {
@@ -88,10 +90,8 @@ describe('thymian analyze', () => {
         allowFailure: true,
       });
 
-      // The text formatter always outputs a summary line like:
-      // "Found 0 errors, 1 warnings and 0 hints."
       expect(result.stdout).toMatch(
-        /Found \d+ errors?, \d+ warnings? and \d+ hints?/,
+        /Summary: \d+ error\(s\), \d+ warning\(s\), \d+ hint\(s\), \d+ info finding\(s\)\./,
       );
     }, 90_000);
   });
@@ -105,12 +105,11 @@ describe('thymian analyze', () => {
         allowFailure: true,
       });
 
-      // Report text (rule violations, severity, summary) belongs on stdout.
-      expect(result.stdout).toMatch(/rules run successfully/);
-
-      // stderr must not contain report content.
-      expect(result.stderr).not.toMatch(/rules run successfully/);
-      expect(result.stderr).not.toMatch(/reported a violation/);
+      expect(result.stdout).toContain('Summary:');
+      expect(result.stderr).not.toContain('Summary:');
+      expect(result.stderr).not.toContain(
+        'rfc9110/origin-server-with-clock-must-generate-date-for-2xx-3xx-4xx',
+      );
     }, 90_000);
   });
 
@@ -164,10 +163,9 @@ describe('thymian analyze', () => {
         { cwd: getTempDir(), allowFailure: true },
       );
 
-      // The command should complete with findings (exit 1) — the traffic
-      // loader produces violations. NOT exit 2 (tool-error).
       expect(result.exitCode).not.toBe(2);
-      expect(result.stdout).toMatch(/rules run successfully/);
+      expect(result.stdout).toContain('@thymian/plugin-http-analyzer · analyze ·');
+      expect(result.stdout).toContain('Summary:');
     }, 90_000);
   });
 });

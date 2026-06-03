@@ -1,4 +1,3 @@
-import type { ReportFn } from '../events/report.event.js';
 import type { ThymianHttpRequest } from '../format/nodes/http-request.node.js';
 import type { ThymianHttpResponse } from '../format/nodes/http-response.node.js';
 import type { ThymianFormat } from '../format/thymian-format.js';
@@ -47,7 +46,6 @@ export interface ApiContext<
   TDiagnostics = unknown,
 > extends RuleExecutionDiagnosticsProvider<TDiagnostics> {
   readonly format: ThymianFormat;
-  readonly report: ReportFn;
   reportViolation(violation: RuleViolation): void;
   validateCommonHttpTransactions(
     filter: HttpFilterExpression,

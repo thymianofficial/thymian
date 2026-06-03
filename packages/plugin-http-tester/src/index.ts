@@ -1,5 +1,12 @@
 import {
   createContextFromEmitter,
+  createExecution,
+  createToolRun,
+  type EvaluatedRuleViolation,
+  executionsFromViolations,
+  mergeRuleFindings,
+  type RuleFinding,
+  ruleFindingsToFindingRecords,
   type Rule,
   type RuleRunnerAdapter,
   runRules,
@@ -7,9 +14,9 @@ import {
   ThymianBaseError,
   ThymianFormat,
   type ThymianPlugin,
+  type ToolRun,
 } from '@thymian/core';
 
-import { createHttpTestDiagnosticsReport } from './create-diagnostics-report.js';
 import {
   HttpTestApiContext,
   type HttpTesterRuleDiagnostics,
@@ -19,6 +26,96 @@ export {
   HttpTestApiContext,
   type HttpTesterRuleDiagnostics,
 } from './http-test-api-context.js';
+
+function diagnosticsToRuleFindings(
+  diagnostics: HttpTesterRuleDiagnostics,
+): RuleFinding[] {
+  return [
+    ...diagnostics.findings,
+    ...diagnostics.skippedCases.map((testCase) => ({
+      kind: 'test-case-skip',
+      title: testCase.name,
+      message: testCase.reason,
+      severity: 'info' as const,
+      reason: testCase.reason,
+    })),
+    ...diagnostics.failedCases.map((testCase) => ({
+      kind: 'test-case-fail',
+      title: testCase.name,
+      message: testCase.reason,
+      severity: 'error' as const,
+    })),
+  ];
+}
+
+function createRuns(
+  pluginName: string,
+  format: ThymianFormat,
+  violations: EvaluatedRuleViolation[],
+  findingsByRule: Partial<Record<string, RuleFinding[]>>,
+  diagnosticsByRule: Partial<Record<string, HttpTesterRuleDiagnostics>>,
+): ToolRun[] {
+  const executions = executionsFromViolations(violations, format);
+  const children = [
+    ...Object.entries(findingsByRule).map(([ruleName, findings]) =>
+      createExecution({
+        name: ruleName,
+        location: { type: 'custom', value: ruleName },
+        findings: ruleFindingsToFindingRecords(findings ?? [], ruleName),
+      }),
+    ),
+    ...Object.entries(diagnosticsByRule).map(([ruleName, diagnostics]) =>
+      createExecution({
+        name: ruleName,
+        location: { type: 'custom', value: ruleName },
+        findings: diagnostics
+          ? ruleFindingsToFindingRecords(
+              diagnosticsToRuleFindings(diagnostics),
+              ruleName,
+            )
+          : [],
+      }),
+    ),
+  ];
+
+  const mergedFindings = mergeRuleFindings(findingsByRule);
+
+  if (
+    executions.length === 0 &&
+    mergedFindings.length === 0 &&
+    children.length === 0
+  ) {
+    return [];
+  }
+
+  const rootExecution =
+    executions[0] ??
+    createExecution({
+      location: { type: 'custom', value: 'test' },
+      findings: [],
+    });
+
+  if (mergedFindings.length > 0) {
+    rootExecution.findings.push(...mergedFindings);
+  }
+
+  if (children.length > 0) {
+    rootExecution.children = [...(rootExecution.children ?? []), ...children];
+  }
+
+  const finalExecutions = executions.length > 0 ? executions : [rootExecution];
+  if (executions.length > 0 && rootExecution !== executions[0]) {
+    finalExecutions.unshift(rootExecution);
+  }
+
+  return [
+    createToolRun({
+      tool: { name: pluginName },
+      runType: 'test',
+      executions: finalExecutions,
+    }),
+  ];
+}
 
 export function createHttpTesterPlugin(
   pluginName = '@thymian/plugin-http-tester',
@@ -77,32 +174,18 @@ export function createHttpTesterPlugin(
               ),
           };
 
-          const { violations, statistics, diagnosticsByRule } = await runRules(
-            logger,
-            rules,
-            thymianFormat,
-            rulesConfig,
-            adapter,
-          );
+          const { violations, diagnosticsByRule, findingsByRule } =
+            await runRules(logger, rules, thymianFormat, rulesConfig, adapter);
 
-          const report = createHttpTestDiagnosticsReport(
-            pluginName,
-            diagnosticsByRule,
-          );
-
-          if (report) {
-            emitter.emit('core.report', report);
-          }
-
-          ctx.reply({
-            source: pluginName,
-            status: violations.length === 0 ? 'success' : 'failed',
-            violations,
-            statistics,
-            metadata: {
+          ctx.reply(
+            createRuns(
+              pluginName,
+              thymianFormat,
+              violations,
+              findingsByRule,
               diagnosticsByRule,
-            },
-          });
+            ),
+          );
         },
       );
     },
