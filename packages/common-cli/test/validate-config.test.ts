@@ -153,6 +153,20 @@ describe('validate-config', () => {
         expect(result.valid).toBe(true);
       });
 
+      it('should validate config with per-plugin autoload disabled', () => {
+        const config: ThymianConfig = {
+          plugins: {
+            '@thymian/plugin-openapi': {
+              autoload: false,
+            },
+          },
+        };
+
+        const result = validateConfig(config);
+
+        expect(result.valid).toBe(true);
+      });
+
       describe('error handling', () => {
         it('should invalidate config without plugins field', () => {
           const config = {

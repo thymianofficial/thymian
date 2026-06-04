@@ -1,0 +1,167 @@
+---
+title: Configuration File
+description: Complete reference for `thymian.config.yaml`, including schema, defaults, precedence, and examples.
+---
+
+import { Aside, Steps } from '@astrojs/starlight/components';
+
+This page is the canonical reference for Thymian configuration.
+
+## Where configuration is loaded from
+
+Thymian resolves configuration in this order:
+
+<Steps>
+
+1. If you pass `--config <path>`, Thymian uses that file.
+2. Otherwise, Thymian looks for `thymian.config.yaml` in `--cwd` (or your current directory).
+3. If no file is found, Thymian uses built-in defaults.
+
+</Steps>
+
+<Aside type="note">
+  Thymian only checks `thymian.config.yaml` by default. If you want another filename or extension, pass it explicitly with `--config`.
+</Aside>
+
+## Full configuration schema
+
+See [Configuration Schema](/references/configuration-schema/) for the complete list of supported keys, types, defaults, and descriptions.
+
+## Precedence and overrides
+
+After loading config, CLI flags can override parts of it. Common overrides include:
+
+- `--spec <type:path>` overrides `specifications`
+- `--traffic <type:path>` overrides `traffic`
+- `--target-url <url>` overrides `targetUrl`
+- `--rule-set <name>` extends `ruleSets` at runtime (appends and deduplicates)
+- `--rule-severity <off|error|warn|hint>` overrides `ruleSeverity`
+- `--log-level <trace|debug|info|warn|error|silent>` overrides `logLevel`
+- `--debug` effectively overrides `logLevel` to `debug`
+- `--verbose` effectively overrides `logLevel` to `info`
+- `--autoload/--no-autoload` controls plugin autoloading
+
+## Generated baseline config
+
+`thymian generate config` creates a config based on built-in defaults plus your selected specification(s).
+
+Typical generated baseline:
+
+```yaml
+specifications:
+  - type: openapi
+    location: ./openapi.yaml
+
+traffic: []
+
+ruleSets:
+  - '@thymian/rules-rfc-9110'
+  - '@thymian/rules-api-description-validation'
+
+ruleSeverity: error
+rules: {}
+
+plugins:
+  '@thymian/plugin-http-linter': {}
+  '@thymian/plugin-openapi': {}
+  '@thymian/plugin-request-dispatcher': {}
+  '@thymian/plugin-sampler': {}
+  '@thymian/plugin-reporter':
+    options:
+      formatters:
+        text: {}
+  '@thymian/plugin-http-tester': {}
+  '@thymian/plugin-http-analyzer': {}
+  '@thymian/plugin-har': {}
+```
+
+## Workflow-specific examples
+
+### Static linting only
+
+```yaml
+specifications:
+  - type: openapi
+    location: ./openapi.yaml
+
+ruleSets:
+  - '@thymian/rules-rfc-9110'
+
+plugins:
+  '@thymian/plugin-http-linter': {}
+  '@thymian/plugin-openapi': {}
+  '@thymian/plugin-reporter':
+    options:
+      formatters:
+        text: {}
+```
+
+### Live API testing
+
+```yaml
+specifications:
+  - type: openapi
+    location: ./openapi.yaml
+
+targetUrl: http://localhost:3000
+
+ruleSets:
+  - '@thymian/rules-rfc-9110'
+
+plugins:
+  '@thymian/plugin-openapi': {}
+  '@thymian/plugin-request-dispatcher': {}
+  '@thymian/plugin-sampler': {}
+  '@thymian/plugin-http-tester': {}
+  '@thymian/plugin-reporter':
+    options:
+      formatters:
+        text: {}
+```
+
+### Analyze recorded traffic
+
+```yaml
+traffic:
+  - type: fixture
+    location: static
+
+ruleSets:
+  - '@thymian/rules-rfc-9110'
+
+plugins:
+  '@thymian/plugin-http-analyzer': {}
+  '@thymian/plugin-reporter':
+    options:
+      formatters:
+        text: {}
+```
+
+## Validation behavior and failure modes
+
+If config parsing or schema validation fails, the CLI exits with code `2` and prints an error.
+
+Common issues:
+
+1. Unsupported file extension when loading with `--config`
+2. Invalid YAML/JSON syntax
+3. Invalid value types (for example non-array `ruleSets`)
+4. Unknown or misspelled top-level keys — the schema only allows the documented keys and rejects anything else
+5. Missing specification with commands that require one
+
+## Practical tips
+
+- Prefer `thymian generate config` to bootstrap a correct baseline.
+- Keep plugin configuration minimal first, then add plugin `options` incrementally.
+- Use `--spec` for one-off checks without editing files.
+- Keep `ruleSeverity: error` in CI unless you explicitly want warnings/hints to gate builds.
+
+## Related pages
+
+- [Understanding the Configuration File](/introduction/getting-started/#understanding-the-configuration-file) — quick overview in the Getting Started guide
+- [Use `thymian lint` workflow](/tutorials/thymian-lint-workflow/)
+- [Use `thymian test` workflow](/tutorials/thymian-test-workflow/)
+- [Use `thymian analyze` workflow](/tutorials/thymian-analyze-workflow/)
+
+
+
