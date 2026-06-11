@@ -1,4 +1,3 @@
-import type { Location } from '../report/index.js';
 import type {
   HttpTransaction,
   ThymianHttpRequest,
@@ -6,6 +5,7 @@ import type {
 } from '../format/index.js';
 import { isNodeType, ThymianFormat } from '../format/index.js';
 import type { Logger } from '../logger/logger.js';
+import type { Location } from '../report/index.js';
 import { ThymianBaseError } from '../thymian.error.js';
 import {
   thymianHttpTransactionToString,
@@ -24,10 +24,7 @@ import type {
   RuleFinding,
   RuleFnResult,
 } from './rule-violation.js';
-import {
-  isRuleExecutionResult,
-  type RuleViolation,
-} from './rule-violation.js';
+import { isRuleExecutionResult, type RuleViolation } from './rule-violation.js';
 
 export function findDuplicates<T>(elements: T[]): T[] {
   return elements.filter(
@@ -264,12 +261,12 @@ export async function runRules<
           ruleName: rule.meta.name,
           severity: rule.meta.severity as Exclude<RuleSeverity, 'off'>,
           violation: {
+            ...violation,
             message:
               violation.message ??
               rule.meta.summary ??
               rule.meta.description ??
               rule.meta.name,
-            ...violation,
           },
         });
       }
@@ -283,11 +280,13 @@ export async function runRules<
           },
         );
       } else {
-        throw new ThymianBaseError(`Error running rule ${rule.meta.name}: ${e}`,
+        throw new ThymianBaseError(
+          `Error running rule ${rule.meta.name}: ${e}`,
           {
             name: adapter.errorName,
             cause: e,
-          });
+          },
+        );
       }
     }
   }

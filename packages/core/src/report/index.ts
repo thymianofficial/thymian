@@ -1,14 +1,3 @@
-export {
-  createExecution,
-  createReport,
-  createToolRun,
-  executionsFromViolations,
-  httpTestResultToRuleFindings,
-  mergeRuleFindings,
-  ruleFindingsToFindingRecords,
-  ruleFindingToFindingRecord,
-  violationsToFindings,
-} from './report-builder.js';
 export type {
   Artifact,
   BaseFinding,
@@ -40,3 +29,13 @@ export type {
   AssertionFailure as ReportAssertionFailure,
   AssertionSuccess as ReportAssertionSuccess,
 } from './report.js';
+export {
+  createExecution,
+  createReport,
+  createToolRun,
+  executionsFromViolations,
+  httpTestResultToRuleFindings,
+  mergeRuleFindings,
+  ruleFindingsToFindingRecords,
+  ruleFindingToFindingRecord,
+} from './report-builder.js';

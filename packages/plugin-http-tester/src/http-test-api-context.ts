@@ -213,7 +213,6 @@ export class HttpTestApiContext<
                   location: {
                     elementType: 'edge',
                     elementId: source.transactionId,
-                    pointer: '',
                   } satisfies RuleViolationLocation,
                 });
               }
@@ -237,7 +236,6 @@ export class HttpTestApiContext<
                   location: {
                     elementType: 'edge',
                     elementId: source.transactionId,
-                    pointer: '',
                   } satisfies RuleViolationLocation,
                 });
               }
