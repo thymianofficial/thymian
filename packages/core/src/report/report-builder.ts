@@ -1,6 +1,9 @@
 import { randomUUID } from 'node:crypto';
 
-import type { SerializedThymianFormat, ThymianFormat } from '../format/index.js';
+import type {
+  SerializedThymianFormat,
+  ThymianFormat,
+} from '../format/index.js';
 import type { HttpTestCaseResult } from '../http-testing/http-test/http-test-case-result.js';
 import { resolveViolationLocation } from '../rules/rule-runner.js';
 import type {
@@ -69,20 +72,6 @@ export function createExecution(opts: {
     children: opts.children,
     httpTransactions: opts.httpTransactions,
   };
-}
-
-export function violationsToFindings(
-  violations: EvaluatedRuleViolation[],
-  _format: ThymianFormat,
-): FindingRecord[] {
-  return violations.map(({ ruleName, severity, violation }) => ({
-    id: randomUUID(),
-    kind: 'rule-violation',
-    ruleId: ruleName,
-    title: violation.message,
-    message: { text: violation.message },
-    severity,
-  }));
 }
 
 export function executionsFromViolations(
@@ -225,6 +214,8 @@ export function httpTestResultToRuleFindings(
           message: result.details ?? result.message,
           severity: 'error',
         } satisfies RuleFinding;
+      default:
+        return result satisfies never;
     }
   });
 }
