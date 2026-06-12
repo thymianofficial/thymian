@@ -1,5 +1,12 @@
-import { createReport, createToolRun, httpTestResultToRuleFindings } from '../src/report/index.js';
 import { describe, expect, it } from 'vitest';
+
+import {
+  createReport,
+  createToolRun,
+  httpTestResultToRuleFindings,
+  rulesToRuleDescriptors,
+} from '../src/report/index.js';
+import { httpRule } from '../src/rules/rule-builder.js';
 
 describe('report builders', () => {
   it('creates reports and tool runs with generated identifiers', () => {
@@ -32,7 +39,71 @@ describe('report builders', () => {
     ]);
 
     expect(findings).toHaveLength(2);
-    expect(findings[0]).toMatchObject({ kind: 'assertion-failure', severity: 'error' });
-    expect(findings[1]).toMatchObject({ kind: 'test-case-skip', severity: 'info' });
+    expect(findings[0]).toMatchObject({
+      kind: 'assertion-failure',
+      severity: 'error',
+    });
+    expect(findings[1]).toMatchObject({
+      kind: 'test-case-skip',
+      severity: 'info',
+    });
+  });
+
+  describe('rulesToRuleDescriptors', () => {
+    it('maps rule metadata to rule descriptors', () => {
+      const rule = httpRule('rfc9110/example')
+        .severity('warn')
+        .type('static', 'test')
+        .description('Longer rule description')
+        .summary('Short summary')
+        .explanation('Detailed explanation')
+        .url('https://example.com/docs/example')
+        .rule(() => undefined)
+        .done();
+
+      expect(rulesToRuleDescriptors([rule])).toEqual([
+        {
+          id: 'rfc9110/example',
+          severity: 'warn',
+          description: { text: 'Longer rule description' },
+          summary: { text: 'Short summary' },
+          explanation: { text: 'Detailed explanation' },
+          helpUri: 'https://example.com/docs/example',
+        },
+      ]);
+    });
+
+    it('omits optional descriptor fields that are not set on the rule', () => {
+      const rule = httpRule('rfc9110/minimal')
+        .severity('error')
+        .type('test')
+        .rule(() => undefined)
+        .done();
+
+      expect(rulesToRuleDescriptors([rule])).toEqual([
+        { id: 'rfc9110/minimal', severity: 'error' },
+      ]);
+    });
+
+    it('filters rules that are turned off or informational-only', () => {
+      const offRule = httpRule('rfc9110/disabled')
+        .severity('off')
+        .type('test')
+        .rule(() => undefined)
+        .done();
+      const informationalRule = httpRule('rfc9110/info-only')
+        .severity('warn')
+        .type('informational')
+        .done();
+      const activeRule = httpRule('rfc9110/active')
+        .severity('hint')
+        .type('test')
+        .rule(() => undefined)
+        .done();
+
+      expect(
+        rulesToRuleDescriptors([offRule, informationalRule, activeRule]),
+      ).toEqual([{ id: 'rfc9110/active', severity: 'hint' }]);
+    });
   });
 });

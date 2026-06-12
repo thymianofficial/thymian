@@ -25,12 +25,14 @@ import {
   type GroupedHttpTestCaseStep,
   httpTest,
   type HttpTestCase,
+  type HttpTestCaseResult,
   type HttpTestCaseStepTransaction,
   type HttpTestContext,
   type HttpTestContextLocals,
   type HttpTestPipeline,
   type HttpTestResult,
   mapToGroupedTestCase,
+  type ReportHttpTransaction,
   runRequests,
   singleTestCase,
 } from '@thymian/core';
@@ -57,7 +59,19 @@ export interface HttpTesterRuleDiagnostics {
     name: string;
     reason: string;
   }>;
+  /**
+   * Passed test cases as raw collection data. The per-assertion `results` are
+   * intentionally NOT flattened into `findings`; the mapping layer nests them
+   * under one `test-case-pass` summary finding per case.
+   */
+  passedCases: Array<{
+    name: string;
+    durationMilliseconds?: number;
+    results: HttpTestCaseResult[];
+  }>;
   findings: RuleFinding[];
+  /** HTTP transactions dispatched by the test cases, regardless of case status. */
+  httpTransactions: ReportHttpTransaction[];
 }
 
 export class HttpTestApiContext<
@@ -126,7 +140,7 @@ export class HttpTestApiContext<
 
     const testResult = await test(this.ctx);
 
-    this.collectSkippedAndFailedTestCases(testResult);
+    this.collectTestCaseDiagnostics(testResult);
 
     return testResult.cases
       .filter((testCase) => testCase.status === 'passed')
@@ -184,7 +198,7 @@ export class HttpTestApiContext<
 
     const testResult = await test(this.ctx);
 
-    this.collectSkippedAndFailedTestCases(testResult);
+    this.collectTestCaseDiagnostics(testResult);
 
     return testResult.cases
       .filter((testCase) => testCase.status === 'passed')
@@ -248,12 +262,22 @@ export class HttpTestApiContext<
       .concat(this.violations);
   }
 
-  private collectSkippedAndFailedTestCases(testResult: HttpTestResult) {
+  private collectTestCaseDiagnostics(testResult: HttpTestResult) {
     const skippedItems: HttpTesterRuleDiagnostics['skippedCases'] = [];
     const failedItems: HttpTesterRuleDiagnostics['failedCases'] = [];
+    const passedItems: HttpTesterRuleDiagnostics['passedCases'] = [];
     const findings: RuleFinding[] = [];
+    const httpTransactions: ReportHttpTransaction[] = [];
 
     testResult.cases.forEach((testCase) => {
+      for (const step of testCase.steps) {
+        for (const { request, response } of step.transactions) {
+          if (request) {
+            httpTransactions.push({ request, response });
+          }
+        }
+      }
+
       if (testCase.status === 'skipped') {
         this.ctx.logger.debug(
           `HTTP test case "${testCase.name}" from test "${this.name}" is skipped.`,
@@ -301,6 +325,14 @@ export class HttpTestApiContext<
                 .join('\n'),
           });
         }
+      } else if (testCase.status === 'passed') {
+        passedItems.push({
+          name: testCase.name,
+          ...(testCase.end !== undefined
+            ? { durationMilliseconds: testCase.end - testCase.start }
+            : {}),
+          results: testCase.results,
+        });
       }
     });
 
@@ -308,7 +340,9 @@ export class HttpTestApiContext<
       !this.diagnostics &&
       skippedItems.length === 0 &&
       failedItems.length === 0 &&
-      findings.length === 0
+      passedItems.length === 0 &&
+      findings.length === 0 &&
+      httpTransactions.length === 0
     ) {
       return;
     }
@@ -319,7 +353,12 @@ export class HttpTestApiContext<
         ...skippedItems,
       ],
       failedCases: [...(this.diagnostics?.failedCases ?? []), ...failedItems],
+      passedCases: [...(this.diagnostics?.passedCases ?? []), ...passedItems],
       findings: [...(this.diagnostics?.findings ?? []), ...findings],
+      httpTransactions: [
+        ...(this.diagnostics?.httpTransactions ?? []),
+        ...httpTransactions,
+      ],
     };
   }
 
@@ -328,7 +367,7 @@ export class HttpTestApiContext<
 
     const testResult = await testFn(this.ctx);
 
-    this.collectSkippedAndFailedTestCases(testResult);
+    this.collectTestCaseDiagnostics(testResult);
 
     return this.violations;
   }
@@ -369,7 +408,7 @@ export class HttpTestApiContext<
 
     const testResult = await test(this.ctx);
 
-    this.collectSkippedAndFailedTestCases(testResult);
+    this.collectTestCaseDiagnostics(testResult);
 
     return testResult.cases
       .filter((testCase) => testCase.status === 'passed')

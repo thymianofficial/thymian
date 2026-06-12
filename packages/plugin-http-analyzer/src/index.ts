@@ -1,17 +1,18 @@
 import { isAbsolute, join } from 'node:path';
 
 import {
-  createExecution,
-  createToolRun,
   type CapturedTrace,
   type CapturedTransaction,
-  executionsFromViolations,
+  createExecution,
+  createToolRun,
   type EvaluatedRuleViolation,
+  executionsFromViolations,
   type Logger,
   type ReportHttpTransaction,
   type Rule,
   type RuleRunnerAdapter,
   type RulesConfiguration,
+  rulesToRuleDescriptors,
   runRules,
   type SerializedThymianFormat,
   type SingleRuleConfiguration,
@@ -106,6 +107,7 @@ function createRuns(
   format: ThymianFormat,
   violations: EvaluatedRuleViolation[],
   transactions: CapturedTransaction[] = [],
+  rules: Rule[] = [],
 ): ToolRun[] {
   const executions = executionsFromViolations(violations, format);
   const httpTransactions = transactions.map(toReportHttpTransaction);
@@ -125,11 +127,14 @@ function createRuns(
     executions[0]!.httpTransactions = httpTransactions;
   }
 
+  const ruleDescriptors = rulesToRuleDescriptors(rules);
+
   return [
     createToolRun({
       tool: { name: pluginName },
       runType: 'analyze',
       executions,
+      rules: ruleDescriptors.length > 0 ? ruleDescriptors : undefined,
     }),
   ];
 }
@@ -241,6 +246,7 @@ export function createHttpAnalyzerPlugin(
               thymianFormat,
               violations,
               traffic.transactions ?? [],
+              rules,
             ),
           );
         },
@@ -258,15 +264,11 @@ export function createHttpAnalyzerPlugin(
             rules,
             thymianFormat,
             rulesConfig,
-            createAnalyzerAdapter(
-              logger,
-              thymianFormat,
-              initializedRepository,
-            ),
+            createAnalyzerAdapter(logger, thymianFormat, initializedRepository),
           );
 
           ctx.reply({
-            runs: createRuns(pluginName, thymianFormat, violations),
+            runs: createRuns(pluginName, thymianFormat, violations, [], rules),
             violations,
             valid: violations.length === 0,
           });
@@ -313,6 +315,7 @@ export function createHttpAnalyzerPlugin(
               thymianFormat,
               violations,
               transactions ?? [],
+              rules,
             ),
             violations,
             valid: violations.length === 0,
