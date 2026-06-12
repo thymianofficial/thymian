@@ -1,5 +1,10 @@
-import { createExecution, createReport, createToolRun } from '../src/report/index.js';
 import { describe, expect, it } from 'vitest';
+
+import {
+  createExecution,
+  createReport,
+  createToolRun,
+} from '../src/report/index.js';
 
 describe('report v4 model', () => {
   it('creates nested report structures', () => {
