@@ -5,10 +5,11 @@ import {
   type EvaluatedRuleViolation,
   executionsFromViolations,
   mergeRuleFindings,
+  type Rule,
   type RuleFinding,
   ruleFindingsToFindingRecords,
-  type Rule,
   type RuleRunnerAdapter,
+  rulesToRuleDescriptors,
   runRules,
   type SingleRuleConfiguration,
   ThymianBaseError,
@@ -54,6 +55,7 @@ function createRuns(
   violations: EvaluatedRuleViolation[],
   findingsByRule: Partial<Record<string, RuleFinding[]>>,
   diagnosticsByRule: Partial<Record<string, HttpTesterRuleDiagnostics>>,
+  rules: Rule[] = [],
 ): ToolRun[] {
   const executions = executionsFromViolations(violations, format);
   const children = [
@@ -108,11 +110,14 @@ function createRuns(
     finalExecutions.unshift(rootExecution);
   }
 
+  const ruleDescriptors = rulesToRuleDescriptors(rules);
+
   return [
     createToolRun({
       tool: { name: pluginName },
       runType: 'test',
       executions: finalExecutions,
+      rules: ruleDescriptors.length > 0 ? ruleDescriptors : undefined,
     }),
   ];
 }
@@ -184,6 +189,7 @@ export function createHttpTesterPlugin(
               violations,
               findingsByRule,
               diagnosticsByRule,
+              rules,
             ),
           );
         },

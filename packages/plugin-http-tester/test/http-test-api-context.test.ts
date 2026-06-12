@@ -627,7 +627,9 @@ describe('HttpTestApiContext', () => {
           },
         ],
         failedCases: [],
+        passedCases: [],
         findings: [],
+        httpTransactions: expect.any(Array),
       });
 
       await context.httpTest(
@@ -650,6 +652,80 @@ describe('HttpTestApiContext', () => {
           },
         ]),
       });
+    });
+
+    it('should record passed test cases without flattening their results into findings', async () => {
+      const format = createThymianFormatWithTransaction(
+        createHttpRequest({ method: 'get', path: '/users' }),
+        createHttpResponse({ statusCode: 200, headers: {} }),
+      );
+
+      const mockContext = createMockHttpTestContext({ format });
+      vi.mocked(mockContext.runRequest).mockResolvedValue({
+        statusCode: 200,
+        headers: {},
+        duration: 0,
+        trailers: {},
+      });
+
+      const context = new HttpTestApiContext('pass-test', mockContext);
+
+      await context.httpTest(
+        singleTestCase().forTransactionsWith(method('get')).run().done(),
+      );
+
+      const diagnostics = context.getRuleExecutionDiagnostics();
+
+      expect(diagnostics?.passedCases).toEqual([
+        {
+          name: expect.any(String),
+          durationMilliseconds: expect.any(Number),
+          results: expect.any(Array),
+        },
+      ]);
+      expect(diagnostics?.findings).toEqual([]);
+      expect(diagnostics?.skippedCases).toEqual([]);
+      expect(diagnostics?.failedCases).toEqual([]);
+    });
+
+    it('should capture dispatched http transactions regardless of case status', async () => {
+      const format = createThymianFormatWithTransaction(
+        createHttpRequest({ method: 'get', path: '/users' }),
+        createHttpResponse({ statusCode: 200, headers: {} }),
+      );
+
+      const mockContext = createMockHttpTestContext({ format });
+      vi.mocked(mockContext.runRequest).mockResolvedValue({
+        statusCode: 200,
+        headers: {},
+        duration: 0,
+        trailers: {},
+      });
+
+      const context = new HttpTestApiContext('transaction-test', mockContext);
+
+      await context.httpTest(
+        singleTestCase()
+          .forTransactionsWith(method('get'))
+          .run()
+          .skipIf(statusCode(200), 'Skip because status is 200')
+          .done(),
+      );
+
+      await context.httpTest(
+        singleTestCase().forTransactionsWith(method('get')).run().done(),
+      );
+
+      expect(context.getRuleExecutionDiagnostics()?.httpTransactions).toEqual([
+        {
+          request: expect.objectContaining({ method: 'get' }),
+          response: expect.objectContaining({ statusCode: 200 }),
+        },
+        {
+          request: expect.objectContaining({ method: 'get' }),
+          response: expect.objectContaining({ statusCode: 200 }),
+        },
+      ]);
     });
   });
 });

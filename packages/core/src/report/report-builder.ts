@@ -5,7 +5,9 @@ import type {
   ThymianFormat,
 } from '../format/index.js';
 import type { HttpTestCaseResult } from '../http-testing/http-test/http-test-case-result.js';
+import type { Rule } from '../rules/rule.js';
 import { resolveViolationLocation } from '../rules/rule-runner.js';
+import type { RuleSeverity } from '../rules/rule-severity.js';
 import type {
   EvaluatedRuleViolation,
   RuleFinding,
@@ -16,6 +18,7 @@ import type {
   Location,
   Report,
   ReportHttpTransaction,
+  RuleDescriptor,
   Tool,
   ToolRun,
 } from './report.js';
@@ -147,6 +150,32 @@ export function mergeRuleFindings(
   return Object.entries(findingsByRule).flatMap(([ruleName, findings]) =>
     ruleFindingsToFindingRecords(findings ?? [], ruleName),
   );
+}
+
+/**
+ * Map executed rules to report {@link RuleDescriptor}s for `ToolRun.rules`.
+ * Applies the same filter as `runRules`: rules turned off or informational-only
+ * are not part of a run and therefore get no descriptor.
+ */
+export function rulesToRuleDescriptors(rules: Rule[]): RuleDescriptor[] {
+  return rules
+    .filter(
+      (rule) =>
+        rule.meta.severity !== 'off' &&
+        !(rule.meta.type.length === 1 && rule.meta.type[0] === 'informational'),
+    )
+    .map((rule) => ({
+      id: rule.meta.name,
+      severity: rule.meta.severity as Exclude<RuleSeverity, 'off'>,
+      ...(rule.meta.description
+        ? { description: { text: rule.meta.description } }
+        : {}),
+      ...(rule.meta.summary ? { summary: { text: rule.meta.summary } } : {}),
+      ...(rule.meta.explanation
+        ? { explanation: { text: rule.meta.explanation } }
+        : {}),
+      ...(rule.meta.url ? { helpUri: rule.meta.url } : {}),
+    }));
 }
 
 export function httpTestResultToRuleFindings(

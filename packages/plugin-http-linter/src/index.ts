@@ -1,10 +1,11 @@
 import {
   createToolRun,
-  executionsFromViolations,
   type EvaluatedRuleViolation,
+  executionsFromViolations,
   type Rule,
   type RuleRunnerAdapter,
   type RulesConfiguration,
+  rulesToRuleDescriptors,
   runRules,
   type SerializedThymianFormat,
   type SingleRuleConfiguration,
@@ -64,6 +65,7 @@ function createRuns(
   pluginName: string,
   format: ThymianFormat,
   violations: EvaluatedRuleViolation[],
+  rules: Rule[] = [],
 ): ToolRun[] {
   const executions = executionsFromViolations(violations, format);
 
@@ -71,11 +73,14 @@ function createRuns(
     return [];
   }
 
+  const ruleDescriptors = rulesToRuleDescriptors(rules);
+
   return [
     createToolRun({
       tool: { name: pluginName },
       runType: 'lint',
       executions,
+      rules: ruleDescriptors.length > 0 ? ruleDescriptors : undefined,
     }),
   ];
 }
@@ -103,7 +108,7 @@ export function createHttpLinterPlugin(
             createStaticLinterAdapter(logger, thymianFormat, rulesConfig),
           );
 
-          ctx.reply(createRuns(pluginName, thymianFormat, violations));
+          ctx.reply(createRuns(pluginName, thymianFormat, violations, rules));
         },
       );
 
@@ -121,7 +126,7 @@ export function createHttpLinterPlugin(
           );
 
           ctx.reply({
-            runs: createRuns(pluginName, thymianFormat, violations),
+            runs: createRuns(pluginName, thymianFormat, violations, rules),
             violations,
             valid: violations.length === 0,
           });

@@ -38,4 +38,5 @@ export {
   mergeRuleFindings,
   ruleFindingsToFindingRecords,
   ruleFindingToFindingRecord,
+  rulesToRuleDescriptors,
 } from './report-builder.js';
