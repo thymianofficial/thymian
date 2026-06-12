@@ -9,11 +9,11 @@ import {
   createRegExpFromOriginWildcard,
   type HttpFilterExpression,
   type HttpParticipantRole,
+  httpParticipantRoles,
   type HttpRequest,
   httpRequestToCommonHttpRequest,
   type HttpResponse,
   httpResponseToCommonHttpResponse,
-  httpParticipantRoles,
   httpTransactionToLabel,
   type Logger,
   matchesOrigin,
@@ -61,9 +61,10 @@ function legacyOptionsToObject(
         (reportOrRoles === undefined && looksLikeRoleArray)
       ? (rolesOrSkippedOrigins as HttpParticipantRole[] | undefined)
       : undefined;
-  const skippedOrigins = usesLegacyReportSignature || looksLikeRoleArray
-    ? legacySkippedOrigins
-    : (rolesOrSkippedOrigins as string[] | undefined);
+  const skippedOrigins =
+    usesLegacyReportSignature || looksLikeRoleArray
+      ? legacySkippedOrigins
+      : (rolesOrSkippedOrigins as string[] | undefined);
 
   return {
     repository,
@@ -194,7 +195,10 @@ export class AnalyticsApiContext implements AnalyzeContext {
     for (const {
       request,
       response,
-    } of this.repository.readTransactionsByHttpFilter(finalFilter, this.roles)) {
+    } of this.repository.readTransactionsByHttpFilter(
+      finalFilter,
+      this.roles,
+    )) {
       const violation = validateFn(
         httpRequestToCommonHttpRequest(request.data),
         httpResponseToCommonHttpResponse(response.data),
@@ -284,7 +288,10 @@ export class AnalyticsApiContext implements AnalyzeContext {
     for (const {
       request,
       response,
-    } of this.repository.readTransactionsByHttpFilter(finalFilter, this.roles)) {
+    } of this.repository.readTransactionsByHttpFilter(
+      finalFilter,
+      this.roles,
+    )) {
       const matchResult = this.format.matchTransaction(
         request.data,
         response.data,
