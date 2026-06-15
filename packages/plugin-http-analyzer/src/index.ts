@@ -127,7 +127,7 @@ function createRuns(
     executions[0]!.httpTransactions = httpTransactions;
   }
 
-  const ruleDescriptors = rulesToRuleDescriptors(rules);
+  const ruleDescriptors = rulesToRuleDescriptors(rules, (r) => r.analyzeRule);
 
   return [
     createToolRun({

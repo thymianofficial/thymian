@@ -130,6 +130,13 @@ export function resolveViolationLocation(
   };
 }
 
+export function isRuleEnabled(rule: Rule): boolean {
+  return (
+    rule.meta.severity !== 'off' &&
+    !(rule.meta.type.length === 1 && rule.meta.type[0] === 'informational')
+  );
+}
+
 export interface RuleRunnerStatistics {
   rulesRun: number;
   rulesWithViolations: number;
@@ -189,11 +196,7 @@ export async function runRules<
     );
   }
 
-  const filteredRules = rules.filter(
-    (r) =>
-      r.meta.severity !== 'off' &&
-      !(r.meta.type.length === 1 && r.meta.type[0] === 'informational'),
-  );
+  const filteredRules = rules.filter(isRuleEnabled);
 
   const violations: EvaluatedRuleViolation[] = [];
   const diagnosticsByRule: Partial<Record<string, TDiagnostics>> = {};

@@ -61,7 +61,7 @@ describe('report builders', () => {
         .rule(() => undefined)
         .done();
 
-      expect(rulesToRuleDescriptors([rule])).toEqual([
+      expect(rulesToRuleDescriptors([rule], (r) => r.testRule)).toEqual([
         {
           id: 'rfc9110/example',
           severity: 'warn',
@@ -80,7 +80,7 @@ describe('report builders', () => {
         .rule(() => undefined)
         .done();
 
-      expect(rulesToRuleDescriptors([rule])).toEqual([
+      expect(rulesToRuleDescriptors([rule], (r) => r.testRule)).toEqual([
         { id: 'rfc9110/minimal', severity: 'error' },
       ]);
     });
@@ -102,8 +102,28 @@ describe('report builders', () => {
         .done();
 
       expect(
-        rulesToRuleDescriptors([offRule, informationalRule, activeRule]),
+        rulesToRuleDescriptors(
+          [offRule, informationalRule, activeRule],
+          (r) => r.testRule,
+        ),
       ).toEqual([{ id: 'rfc9110/active', severity: 'hint' }]);
+    });
+
+    it('excludes rules that the adapter mode does not run', () => {
+      const staticOnlyRule = httpRule('rfc9110/static-only')
+        .severity('warn')
+        .type('static')
+        .rule(() => undefined)
+        .done();
+      const testRule = httpRule('rfc9110/test-only')
+        .severity('error')
+        .type('test')
+        .rule(() => undefined)
+        .done();
+
+      expect(
+        rulesToRuleDescriptors([staticOnlyRule, testRule], (r) => r.testRule),
+      ).toEqual([{ id: 'rfc9110/test-only', severity: 'error' }]);
     });
   });
 });
