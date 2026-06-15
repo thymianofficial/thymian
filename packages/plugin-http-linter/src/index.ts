@@ -73,7 +73,7 @@ function createRuns(
     return [];
   }
 
-  const ruleDescriptors = rulesToRuleDescriptors(rules);
+  const ruleDescriptors = rulesToRuleDescriptors(rules, (r) => r.lintRule);
 
   return [
     createToolRun({

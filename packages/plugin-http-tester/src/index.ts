@@ -110,7 +110,7 @@ function createRuns(
     finalExecutions.unshift(rootExecution);
   }
 
-  const ruleDescriptors = rulesToRuleDescriptors(rules);
+  const ruleDescriptors = rulesToRuleDescriptors(rules, (r) => r.testRule);
 
   return [
     createToolRun({
