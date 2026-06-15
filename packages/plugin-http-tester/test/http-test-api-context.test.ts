@@ -680,7 +680,7 @@ describe('HttpTestApiContext', () => {
         {
           name: expect.any(String),
           durationMilliseconds: expect.any(Number),
-          results: expect.any(Array),
+          results: [],
         },
       ]);
       expect(diagnostics?.findings).toEqual([]);

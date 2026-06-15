@@ -6,7 +6,10 @@ import type {
 } from '../format/index.js';
 import type { HttpTestCaseResult } from '../http-testing/http-test/http-test-case-result.js';
 import type { Rule } from '../rules/rule.js';
-import { resolveViolationLocation } from '../rules/rule-runner.js';
+import {
+  isRuleEnabled,
+  resolveViolationLocation,
+} from '../rules/rule-runner.js';
 import type { RuleSeverity } from '../rules/rule-severity.js';
 import type {
   EvaluatedRuleViolation,
@@ -154,16 +157,16 @@ export function mergeRuleFindings(
 
 /**
  * Map executed rules to report {@link RuleDescriptor}s for `ToolRun.rules`.
- * Applies the same filter as `runRules`: rules turned off or informational-only
- * are not part of a run and therefore get no descriptor.
+ * Applies the same filter as `runRules` (enabled, not informational-only) plus
+ * an additional mode filter: only rules that the adapter would actually run
+ * (i.e. `getRuleFn(rule)` returns a truthy function) are included.
  */
-export function rulesToRuleDescriptors(rules: Rule[]): RuleDescriptor[] {
+export function rulesToRuleDescriptors(
+  rules: Rule[],
+  getRuleFn: (rule: Rule) => unknown,
+): RuleDescriptor[] {
   return rules
-    .filter(
-      (rule) =>
-        rule.meta.severity !== 'off' &&
-        !(rule.meta.type.length === 1 && rule.meta.type[0] === 'informational'),
-    )
+    .filter((rule) => isRuleEnabled(rule) && Boolean(getRuleFn(rule)))
     .map((rule) => ({
       id: rule.meta.name,
       severity: rule.meta.severity as Exclude<RuleSeverity, 'off'>,
