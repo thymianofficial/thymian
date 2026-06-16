@@ -168,13 +168,20 @@ describe('AnalyticsApiContext', () => {
 
       const result = context.validateCommonHttpTransactions(
         statusCode(200),
-        () => ({ message: 'Custom violation' }),
+        (req, res, location) => [
+          {
+            violation: { location, message: 'Custom violation' },
+            findings: [],
+          },
+        ],
       );
 
       expect(result).toHaveLength(1);
       expect(result).toEqual(
         expect.arrayContaining([
-          expect.objectContaining({ message: 'Custom violation' }),
+          expect.objectContaining({
+            violation: expect.objectContaining({ message: 'Custom violation' }),
+          }),
         ]),
       );
     });
@@ -219,7 +226,9 @@ describe('AnalyticsApiContext', () => {
       expect(result).toEqual(
         expect.arrayContaining([
           expect.objectContaining({
-            location: expect.stringMatching('https://api.example.com/posts'),
+            violation: expect.objectContaining({
+              location: expect.stringMatching('https://api.example.com/posts'),
+            }),
           }),
         ]),
       );
@@ -572,7 +581,9 @@ describe('AnalyticsApiContext', () => {
       expect(result).toEqual(
         expect.arrayContaining([
           expect.objectContaining({
-            location: expect.stringMatching('https://api.example.com/users'),
+            violation: expect.objectContaining({
+              location: expect.stringMatching('https://api.example.com/users'),
+            }),
           }),
         ]),
       );
@@ -634,7 +645,12 @@ describe('AnalyticsApiContext', () => {
         path('/users'),
         (transaction, location) => {
           if (transaction.request.data.method === 'post') {
-            return { message: 'POST method found', severity: 'error' };
+            return [
+              {
+                violation: { location, message: 'POST method found' },
+                findings: [],
+              },
+            ];
           }
           return false;
         },
@@ -644,9 +660,10 @@ describe('AnalyticsApiContext', () => {
       expect(result).toEqual(
         expect.arrayContaining([
           expect.objectContaining({
-            message: 'POST method found',
-            severity: 'error',
-            location: expect.stringContaining('/users'),
+            violation: expect.objectContaining({
+              message: 'POST method found',
+              location: expect.stringContaining('/users'),
+            }),
           }),
         ]),
       );
@@ -671,7 +688,9 @@ describe('AnalyticsApiContext', () => {
       expect(result).toEqual(
         expect.arrayContaining([
           expect.objectContaining({
-            location: expect.stringContaining(''),
+            violation: expect.objectContaining({
+              location: expect.stringContaining(''),
+            }),
           }),
         ]),
       );
@@ -1002,16 +1021,24 @@ describe('AnalyticsApiContext', () => {
 
       const result = context.validateHttpTransactions(
         method('get'),
-        (req, res) => ({
-          message: `Request to ${req.path} returned ${res.statusCode}`,
-        }),
+        (req, res, location) => [
+          {
+            violation: {
+              location,
+              message: `Request to ${req.path} returned ${res.statusCode}`,
+            },
+            findings: [],
+          },
+        ],
       );
 
       expect(result).toHaveLength(1);
       expect(result).toEqual(
         expect.arrayContaining([
           expect.objectContaining({
-            message: 'Request to /users returned 200',
+            violation: expect.objectContaining({
+              message: 'Request to /users returned 200',
+            }),
           }),
         ]),
       );
@@ -1175,28 +1202,30 @@ describe('AnalyticsApiContext', () => {
       expect(result).toEqual(
         expect.arrayContaining([
           expect.objectContaining({
-            location: {
-              elementType: 'edge',
-              elementId: transactionId,
-              label: httpTransactionToLabel(
-                {
-                  method: 'get',
-                  origin: 'https://api.example.com',
-                  path: '/users/not-a-number',
-                  headers: {
-                    accept: 'application/json',
+            violation: expect.objectContaining({
+              location: {
+                elementType: 'edge',
+                elementId: transactionId,
+                label: httpTransactionToLabel(
+                  {
+                    method: 'get',
+                    origin: 'https://api.example.com',
+                    path: '/users/not-a-number',
+                    headers: {
+                      accept: 'application/json',
+                    },
                   },
-                },
-                {
-                  statusCode: 200,
-                  headers: {
-                    'content-type': 'application/json',
+                  {
+                    statusCode: 200,
+                    headers: {
+                      'content-type': 'application/json',
+                    },
+                    trailers: {},
+                    duration: 100,
                   },
-                  trailers: {},
-                  duration: 100,
-                },
-              ),
-            },
+                ),
+              },
+            }),
           }),
         ]),
       );
@@ -1358,9 +1387,14 @@ describe('AnalyticsApiContext', () => {
         format,
       );
 
-      const result = context.validateCapturedHttpTraces((trace) => {
+      const result = context.validateCapturedHttpTraces((trace, location) => {
         if (trace.length === 1) {
-          return { message: 'Single transaction trace' };
+          return [
+            {
+              violation: { location, message: 'Single transaction trace' },
+              findings: [],
+            },
+          ];
         }
         return false;
       });
@@ -1369,7 +1403,9 @@ describe('AnalyticsApiContext', () => {
       expect(result).toEqual(
         expect.arrayContaining([
           expect.objectContaining({
-            message: 'Single transaction trace',
+            violation: expect.objectContaining({
+              message: 'Single transaction trace',
+            }),
           }),
         ]),
       );
@@ -1510,7 +1546,9 @@ describe('AnalyticsApiContext', () => {
       expect(result).toEqual(
         expect.arrayContaining([
           expect.objectContaining({
-            location: expect.stringContaining('https://proxy.example.com'),
+            violation: expect.objectContaining({
+              location: expect.stringContaining('https://proxy.example.com'),
+            }),
           }),
         ]),
       );

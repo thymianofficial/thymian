@@ -1,16 +1,19 @@
+import { randomUUID } from 'node:crypto';
+
 import {
   createContextFromEmitter,
   createExecution,
   createToolRun,
-  type EvaluatedRuleViolation,
-  executionsFromViolations,
-  mergeRuleFindings,
+  type Execution,
+  type FindingRecord,
+  type HttpTestCase,
+  type HttpTestCaseStep,
   type Rule,
-  type RuleFinding,
-  ruleFindingsToFindingRecords,
   type RuleRunnerAdapter,
   rulesToRuleDescriptors,
+  type RuleViolation,
   runRules,
+  type RunRulesResult,
   type SingleRuleConfiguration,
   ThymianBaseError,
   ThymianFormat,
@@ -28,86 +31,187 @@ export {
   type HttpTesterRuleDiagnostics,
 } from './http-test-api-context.js';
 
-function diagnosticsToRuleFindings(
-  diagnostics: HttpTesterRuleDiagnostics,
-): RuleFinding[] {
-  return [
-    ...diagnostics.findings,
-    ...diagnostics.skippedCases.map((testCase) => ({
+function buildStepExecution(
+  step: HttpTestCaseStep,
+  stepIndex: number,
+  violationByTxId: Map<string, RuleViolation>,
+  rule: Rule,
+): Execution {
+  const findings: FindingRecord[] = [];
+
+  for (const transaction of step.transactions) {
+    const txId = transaction.source?.transactionId;
+    if (txId) {
+      const violation = violationByTxId.get(txId);
+      if (violation) {
+        findings.push({
+          id: randomUUID(),
+          kind: 'rule-violation',
+          ruleId: rule.meta.name,
+          title:
+            violation.message ??
+            rule.meta.summary ??
+            rule.meta.description ??
+            rule.meta.name,
+          severity: rule.meta.severity as Exclude<
+            typeof rule.meta.severity,
+            'off'
+          >,
+          ...(violation.message
+            ? { message: { text: violation.message } }
+            : {}),
+        } satisfies FindingRecord);
+        violationByTxId.delete(txId);
+      }
+    }
+  }
+
+  const httpTransactions = step.transactions
+    .filter((t) => t.request !== undefined && t.response !== undefined)
+    .map((t) => ({
+      // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+      request: t.request!,
+      // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+      response: t.response!,
+    }));
+
+  return createExecution({
+    name: `Step ${stepIndex + 1}`,
+    location: { type: 'custom', value: `step-${stepIndex + 1}` },
+    findings,
+    httpTransactions:
+      httpTransactions.length > 0 ? httpTransactions : undefined,
+  });
+}
+
+function buildTestCaseExecution(
+  testCase: HttpTestCase,
+  violationByTxId: Map<string, RuleViolation>,
+  rule: Rule,
+): Execution {
+  const durationMilliseconds =
+    testCase.end !== undefined ? testCase.end - testCase.start : undefined;
+
+  const stepChildren = testCase.steps.map((step, i) =>
+    buildStepExecution(step, i, violationByTxId, rule),
+  );
+
+  let testCaseFinding: FindingRecord;
+
+  if (testCase.status === 'skipped') {
+    testCaseFinding = {
+      id: randomUUID(),
       kind: 'test-case-skip',
       title: testCase.name,
-      message: testCase.reason,
-      severity: 'info' as const,
-      reason: testCase.reason,
-    })),
-    ...diagnostics.failedCases.map((testCase) => ({
+      severity: 'info',
+      reason: testCase.reason ?? '',
+      ...(testCase.reason ? { message: { text: testCase.reason } } : {}),
+    } satisfies FindingRecord;
+  } else if (testCase.status === 'failed') {
+    testCaseFinding = {
+      id: randomUUID(),
       kind: 'test-case-fail',
       title: testCase.name,
-      message: testCase.reason,
-      severity: 'error' as const,
-    })),
-  ];
+      severity: 'error',
+      ...(testCase.reason ? { message: { text: testCase.reason } } : {}),
+      ...(durationMilliseconds !== undefined ? { durationMilliseconds } : {}),
+    } satisfies FindingRecord;
+  } else {
+    testCaseFinding = {
+      id: randomUUID(),
+      kind: 'test-case-pass',
+      title: testCase.name,
+      severity: 'info',
+      ...(durationMilliseconds !== undefined ? { durationMilliseconds } : {}),
+    } satisfies FindingRecord;
+  }
+
+  return createExecution({
+    name: testCase.name,
+    location: { type: 'custom', value: testCase.name },
+    findings: [testCaseFinding],
+    children: stepChildren.length > 0 ? stepChildren : undefined,
+  });
 }
 
 function createRuns(
   pluginName: string,
-  format: ThymianFormat,
-  violations: EvaluatedRuleViolation[],
-  findingsByRule: Partial<Record<string, RuleFinding[]>>,
-  diagnosticsByRule: Partial<Record<string, HttpTesterRuleDiagnostics>>,
+  ruleResults: RunRulesResult<HttpTesterRuleDiagnostics>,
   rules: Rule[] = [],
 ): ToolRun[] {
-  const executions = executionsFromViolations(violations, format);
-  const children = [
-    ...Object.entries(findingsByRule).map(([ruleName, findings]) =>
+  const ruleMap = new Map(rules.map((r) => [r.meta.name, r]));
+  const ruleExecutions: Execution[] = [];
+
+  for (const [ruleName, { ruleFnResult, diagnostics }] of Object.entries(
+    ruleResults,
+  )) {
+    const rule = ruleMap.get(ruleName);
+    if (!rule) {
+      continue;
+    }
+
+    if (!diagnostics) {
+      if (ruleFnResult.length === 0) {
+        continue;
+      }
+      // Rule returned violations directly without httpTest diagnostic collection
+      ruleExecutions.push(
+        createExecution({
+          name: ruleName,
+          location: { type: 'custom', value: ruleName },
+          findings: ruleFnResult.map(
+            ({ violation: v }) =>
+              ({
+                id: randomUUID(),
+                kind: 'rule-violation' as const,
+                ruleId: ruleName,
+                title:
+                  v.message ??
+                  rule.meta.summary ??
+                  rule.meta.description ??
+                  rule.meta.name,
+                severity: rule.meta.severity as Exclude<
+                  typeof rule.meta.severity,
+                  'off'
+                >,
+                ...(v.message ? { message: { text: v.message } } : {}),
+              }) satisfies FindingRecord,
+          ),
+        }),
+      );
+      continue;
+    }
+
+    const testCaseChildren: Execution[] = [];
+    for (const { testResult, ruleFnResult: callRuleFnResult } of diagnostics) {
+      const violationByTxId = new Map<string, RuleViolation>();
+      for (const { violation } of callRuleFnResult) {
+        if (
+          typeof violation.location !== 'string' &&
+          violation.location.elementId
+        ) {
+          violationByTxId.set(violation.location.elementId, violation);
+        }
+      }
+      for (const testCase of testResult.cases) {
+        testCaseChildren.push(
+          buildTestCaseExecution(testCase, violationByTxId, rule),
+        );
+      }
+    }
+
+    ruleExecutions.push(
       createExecution({
         name: ruleName,
         location: { type: 'custom', value: ruleName },
-        findings: ruleFindingsToFindingRecords(findings ?? [], ruleName),
+        findings: [],
+        children: testCaseChildren.length > 0 ? testCaseChildren : undefined,
       }),
-    ),
-    ...Object.entries(diagnosticsByRule).map(([ruleName, diagnostics]) =>
-      createExecution({
-        name: ruleName,
-        location: { type: 'custom', value: ruleName },
-        findings: diagnostics
-          ? ruleFindingsToFindingRecords(
-              diagnosticsToRuleFindings(diagnostics),
-              ruleName,
-            )
-          : [],
-      }),
-    ),
-  ];
+    );
+  }
 
-  const mergedFindings = mergeRuleFindings(findingsByRule);
-
-  if (
-    executions.length === 0 &&
-    mergedFindings.length === 0 &&
-    children.length === 0
-  ) {
+  if (ruleExecutions.length === 0) {
     return [];
-  }
-
-  const rootExecution =
-    executions[0] ??
-    createExecution({
-      location: { type: 'custom', value: 'test' },
-      findings: [],
-    });
-
-  if (mergedFindings.length > 0) {
-    rootExecution.findings.push(...mergedFindings);
-  }
-
-  if (children.length > 0) {
-    rootExecution.children = [...(rootExecution.children ?? []), ...children];
-  }
-
-  const finalExecutions = executions.length > 0 ? executions : [rootExecution];
-  if (executions.length > 0 && rootExecution !== executions[0]) {
-    finalExecutions.unshift(rootExecution);
   }
 
   const ruleDescriptors = rulesToRuleDescriptors(rules, (r) => r.testRule);
@@ -116,7 +220,7 @@ function createRuns(
     createToolRun({
       tool: { name: pluginName },
       runType: 'test',
-      executions: finalExecutions,
+      executions: ruleExecutions,
       rules: ruleDescriptors.length > 0 ? ruleDescriptors : undefined,
     }),
   ];
@@ -179,19 +283,15 @@ export function createHttpTesterPlugin(
               ),
           };
 
-          const { violations, diagnosticsByRule, findingsByRule } =
-            await runRules(logger, rules, thymianFormat, rulesConfig, adapter);
-
-          ctx.reply(
-            createRuns(
-              pluginName,
-              thymianFormat,
-              violations,
-              findingsByRule,
-              diagnosticsByRule,
-              rules,
-            ),
+          const ruleResults = await runRules(
+            logger,
+            rules,
+            thymianFormat,
+            rulesConfig,
+            adapter,
           );
+
+          ctx.reply(createRuns(pluginName, ruleResults, rules));
         },
       );
     },

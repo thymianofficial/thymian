@@ -66,8 +66,9 @@ describe('runRules', () => {
       },
     );
 
-    expect(result.diagnosticsByRule).toEqual({
-      'rule-with-diagnostics': { detail: 'captured diagnostics' },
+    expect(result['rule-with-diagnostics']?.diagnostics).toEqual({
+      detail: 'captured diagnostics',
     });
+    expect(result['rule-without-diagnostics']?.diagnostics).toBeUndefined();
   });
 });

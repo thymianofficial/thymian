@@ -70,10 +70,15 @@ export class StaticApiContext implements LintContext {
   ): RuleFnResult {
     const filterFn = httpFilterExpressionToFilter(filter);
 
-    return this.format
+    const rawEntries: RuleFnResult = this.format
       .getThymianHttpTransactions()
       .filter((transaction) => filterFn(transaction, this.format))
-      .reduce<RuleViolation[]>((violations, transaction) => {
+      .flatMap((transaction) => {
+        const location: RuleViolationLocation = {
+          elementType: 'edge',
+          elementId: transaction.transactionId,
+        };
+
         if (typeof validate === 'function') {
           const validationResult = validate(
             thymianToCommonHttpRequest(
@@ -84,57 +89,39 @@ export class StaticApiContext implements LintContext {
               transaction.thymianRes,
               transaction.thymianResId,
             ),
-            {
-              elementType: 'edge',
-              elementId: transaction.transactionId,
-            },
+            location,
           );
-          if (typeof validationResult === 'boolean' && validationResult) {
-            violations.push({
-              location: {
-                elementType: 'edge',
-                elementId: transaction.transactionId,
-              } satisfies RuleViolationLocation,
-            });
+          if (Array.isArray(validationResult)) {
+            return validationResult;
           }
-
-          if (validationResult && typeof validationResult === 'object') {
-            violations.push({
-              location: {
-                elementType: 'edge',
-                elementId: transaction.transactionId,
-              },
-              ...validationResult,
-            });
+          if (validationResult === true) {
+            return [{ violation: { location }, findings: [] }];
           }
+          return [];
         } else {
           const validateFn = httpFilterExpressionToFilter(validate);
-
-          if (validateFn(transaction, this.format)) {
-            violations.push({
-              location: {
-                elementType: 'edge',
-                elementId: transaction.transactionId,
-                pointer: '',
-              } satisfies RuleViolationLocation,
-            });
-          }
+          return validateFn(transaction, this.format)
+            ? [
+                {
+                  violation: { location: { ...location, pointer: '' } },
+                  findings: [],
+                },
+              ]
+            : [];
         }
+      });
 
-        return violations;
-      }, [])
-      .concat(this.violations);
+    return [
+      ...rawEntries,
+      ...this.violations.map((violation) => ({ violation, findings: [] })),
+    ];
   }
 
   validateGroupedCommonHttpTransactions(
     filter: HttpFilterExpression,
     groupBy: HttpFilterExpression,
     validationFn: ValidationFn<
-      [
-        string,
-        [CommonHttpRequest, CommonHttpResponse, RuleViolationLocation][],
-      ],
-      RuleViolation | undefined
+      [string, [CommonHttpRequest, CommonHttpResponse, RuleViolationLocation][]]
     >,
   ): RuleFnResult {
     const filterFn = httpFilterExpressionToFilter(filter);
@@ -152,8 +139,8 @@ export class StaticApiContext implements LintContext {
         {},
       );
 
-    return Object.entries(groups)
-      .reduce<RuleViolation[]>((violations, [key, group]) => {
+    const rawEntries: RuleFnResult = Object.entries(groups).flatMap(
+      ([key, group]) => {
         const validationResult = validationFn(
           key,
           group.map(
@@ -174,13 +161,17 @@ export class StaticApiContext implements LintContext {
           ),
         );
 
-        if (validationResult) {
-          violations.push(validationResult);
+        if (Array.isArray(validationResult)) {
+          return validationResult;
         }
+        return [];
+      },
+    );
 
-        return violations;
-      }, [])
-      .concat(this.violations);
+    return [
+      ...rawEntries,
+      ...this.violations.map((violation) => ({ violation, findings: [] })),
+    ];
   }
 
   validateHttpTransactions(
@@ -195,8 +186,8 @@ export class StaticApiContext implements LintContext {
       responses: ThymianHttpResponse[],
     ) => PartialBy<RuleViolation, 'location'> | boolean = filterFn,
   ): RuleFnResult {
-    return this.format.graph
-      .reduceNodes((violations, id, node) => {
+    const rawViolations = this.format.graph.reduceNodes(
+      (violations, id, node) => {
         if (!isNodeType(node, 'http-request')) {
           return violations;
         }
@@ -238,7 +229,13 @@ export class StaticApiContext implements LintContext {
         }
 
         return violations;
-      }, [] as RuleViolation[])
-      .concat(this.violations);
+      },
+      [] as RuleViolation[],
+    );
+
+    return [...rawViolations, ...this.violations].map((violation) => ({
+      violation,
+      findings: [],
+    }));
   }
 }

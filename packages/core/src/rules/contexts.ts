@@ -34,13 +34,9 @@ export type CommonHttpResponse = {
   trailers: string[];
 };
 
-export type ValidationFn<
-  Args extends unknown[],
-  R =
-    | Omit<RuleViolation, 'location' | 'rule' | 'severity'>
-    | boolean
-    | undefined,
-> = (...args: Args) => R;
+export type ValidationFn<Args extends unknown[]> = (
+  ...args: Args
+) => RuleFnResult | boolean | undefined;
 
 export interface ApiContext<
   TDiagnostics = unknown,
@@ -59,11 +55,7 @@ export interface ApiContext<
     filter: HttpFilterExpression,
     groupBy: HttpFilterExpression,
     validationFn: ValidationFn<
-      [
-        string,
-        [CommonHttpRequest, CommonHttpResponse, RuleViolationLocation][],
-      ],
-      RuleViolation | undefined
+      [string, [CommonHttpRequest, CommonHttpResponse, RuleViolationLocation][]]
     >,
   ): Promise<RuleFnResult> | RuleFnResult;
 }

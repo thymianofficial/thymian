@@ -31,7 +31,12 @@ describe('plugin-http-tester integration', () => {
       .severity('warn')
       .type('test')
       .summary('Example rule summary')
-      .rule(() => [{ location: 'example', message: 'violation' }])
+      .rule(() => [
+        {
+          violation: { location: 'example', message: 'violation' },
+          findings: [],
+        },
+      ])
       .done();
 
     const runs = await thymian.emitter.emitAction(
