@@ -3,21 +3,18 @@ import {
   type HttpRequest,
   type HttpResponse,
   httpRule,
-  type HttpTestCaseResult,
+  httpTestResultToRuleFindings,
+  type RuleFnResult,
   type RuleViolationLocation,
   validateBodyForRequest,
 } from '@thymian/core';
-
-import { withStructuredFindings } from './report-utils.js';
 
 export default httpRule('thymian/request-body-must-conform-to-schema')
   .severity('error')
   .type('analytics')
   .description('Request body must conform to the API description schema.')
   .rule(async (ctx) => {
-    const findings: HttpTestCaseResult[] = [];
-
-    const result = await ctx.validateHttpTransactions(
+    return ctx.validateHttpTransactions(
       constant(true),
       (
         request: HttpRequest,
@@ -40,19 +37,22 @@ export default httpRule('thymian/request-body-must-conform-to-schema')
           request.body,
           transaction.thymianReq,
         );
-        findings.push(...results);
         const failures = results.filter((r) => r.type === 'assertion-failure');
 
         if (failures.length > 0) {
-          return {
-            message: `${failures.length} assertion(s) failed`,
-          };
+          return [
+            {
+              violation: {
+                location,
+                message: `${failures.length} assertion(s) failed`,
+              },
+              findings: httpTestResultToRuleFindings(results),
+            },
+          ] satisfies RuleFnResult;
         }
 
         return false;
       },
     );
-
-    return withStructuredFindings(result, findings);
   })
   .done();

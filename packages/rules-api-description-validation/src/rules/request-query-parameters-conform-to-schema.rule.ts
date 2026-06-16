@@ -3,12 +3,9 @@ import {
   type HttpRequest,
   type HttpResponse,
   httpRule,
-  type HttpTestCaseResult,
   type RuleViolationLocation,
   validateRequestQueryParameters,
 } from '@thymian/core';
-
-import { withStructuredFindings } from './report-utils.js';
 
 export default httpRule(
   'thymian/request-query-parameters-must-conform-to-schema',
@@ -22,9 +19,7 @@ export default httpRule(
     'Request query parameters must conform to the API description schema',
   )
   .rule(async (ctx) => {
-    const findings: HttpTestCaseResult[] = [];
-
-    const result = await ctx.validateHttpTransactions(
+    return ctx.validateHttpTransactions(
       constant(true),
       (
         request: HttpRequest,
@@ -47,7 +42,6 @@ export default httpRule(
           request.path,
           transaction.thymianReq,
         );
-        findings.push(...results);
         const failures = results.filter((r) => r.type === 'assertion-failure');
 
         if (failures.length > 0) {
@@ -59,7 +53,5 @@ export default httpRule(
         return false;
       },
     );
-
-    return withStructuredFindings(result, findings);
   })
   .done();

@@ -21,10 +21,9 @@ import type { RuleSeverity } from './rule-severity.js';
 import { isRuleSeverityLevel } from './rule-severity.js';
 import type {
   EvaluatedRuleViolation,
-  RuleFinding,
   RuleFnResult,
+  RuleViolation,
 } from './rule-violation.js';
-import { isRuleExecutionResult, type RuleViolation } from './rule-violation.js';
 
 export function findDuplicates<T>(elements: T[]): T[] {
   return elements.filter(
@@ -137,21 +136,17 @@ export function isRuleEnabled(rule: Rule): boolean {
   );
 }
 
-export interface RuleRunnerStatistics {
-  rulesRun: number;
-  rulesWithViolations: number;
-}
-
 export interface RuleExecutionDiagnosticsProvider<TDiagnostics = unknown> {
   getRuleExecutionDiagnostics(): TDiagnostics | undefined;
 }
 
-export interface RunRulesResult<TDiagnostics = unknown> {
-  violations: EvaluatedRuleViolation[];
-  statistics: RuleRunnerStatistics;
-  diagnosticsByRule: Partial<Record<string, TDiagnostics>>;
-  findingsByRule: Partial<Record<string, RuleFinding[]>>;
-}
+export type RunRulesResult<TDiagnostics = unknown> = Record<
+  string,
+  {
+    diagnostics: TDiagnostics | undefined;
+    ruleFnResult: RuleFnResult;
+  }
+>;
 
 export type RuleRunnerAdapter<
   Context extends RuleExecutionDiagnosticsProvider<TDiagnostics>,
@@ -173,6 +168,42 @@ export type RuleRunnerAdapter<
     options: SingleRuleConfiguration | undefined,
   ): Context;
 };
+
+export function runRulesResultToViolations<TDiagnostics>(
+  result: RunRulesResult<TDiagnostics>,
+  rules: Rule[],
+): EvaluatedRuleViolation[] {
+  const ruleMap = new Map(rules.map((r) => [r.meta.name, r]));
+  const violations: EvaluatedRuleViolation[] = [];
+
+  for (const [ruleName, { ruleFnResult }] of Object.entries(result)) {
+    if (ruleFnResult.length === 0) {
+      continue;
+    }
+
+    const rule = ruleMap.get(ruleName);
+    if (!rule) {
+      continue;
+    }
+
+    for (const { violation } of ruleFnResult) {
+      violations.push({
+        ruleName,
+        severity: rule.meta.severity as Exclude<RuleSeverity, 'off'>,
+        violation: {
+          ...violation,
+          message:
+            violation.message ??
+            rule.meta.summary ??
+            rule.meta.description ??
+            rule.meta.name,
+        },
+      });
+    }
+  }
+
+  return violations;
+}
 
 export async function runRules<
   Context extends RuleExecutionDiagnosticsProvider<TDiagnostics>,
@@ -197,12 +228,7 @@ export async function runRules<
   }
 
   const filteredRules = rules.filter(isRuleEnabled);
-
-  const violations: EvaluatedRuleViolation[] = [];
-  const diagnosticsByRule: Partial<Record<string, TDiagnostics>> = {};
-  const findingsByRule: Partial<Record<string, RuleFinding[]>> = {};
-  let rulesRun = 0;
-  let rulesWithViolations = 0;
+  const result: RunRulesResult<TDiagnostics> = {};
 
   for (const rule of filteredRules) {
     const options = isRuleSeverityLevel(rulesConfig[rule.meta.name])
@@ -216,11 +242,9 @@ export async function runRules<
         continue;
       }
 
-      rulesRun++;
-
       const context = adapter.createContext(rule, options);
 
-      const result = await ruleFn(
+      const ruleFnResult = await ruleFn(
         context,
         {
           ...((options ?? {}).options ?? {}),
@@ -231,48 +255,7 @@ export async function runRules<
 
       const diagnostics = context.getRuleExecutionDiagnostics();
 
-      if (diagnostics !== undefined) {
-        diagnosticsByRule[rule.meta.name] = diagnostics;
-      }
-
-      if (!result) {
-        continue;
-      }
-
-      const normalized = isRuleExecutionResult(result)
-        ? result
-        : {
-            violations: Array.isArray(result) ? result : [result],
-            findings: undefined,
-          };
-
-      if (normalized.findings && normalized.findings.length > 0) {
-        findingsByRule[rule.meta.name] = normalized.findings;
-      }
-
-      if (normalized.violations.length === 0) {
-        continue;
-      }
-
-      if (rule.meta.severity === 'off') {
-        continue;
-      }
-      rulesWithViolations++;
-
-      for (const violation of normalized.violations) {
-        violations.push({
-          ruleName: rule.meta.name,
-          severity: rule.meta.severity as Exclude<RuleSeverity, 'off'>,
-          violation: {
-            ...violation,
-            message:
-              violation.message ??
-              rule.meta.summary ??
-              rule.meta.description ??
-              rule.meta.name,
-          },
-        });
-      }
+      result[rule.meta.name] = { diagnostics, ruleFnResult };
     } catch (e) {
       if (e instanceof ThymianBaseError) {
         throw new ThymianBaseError(
@@ -294,13 +277,5 @@ export async function runRules<
     }
   }
 
-  return {
-    violations,
-    statistics: {
-      rulesRun,
-      rulesWithViolations,
-    },
-    diagnosticsByRule,
-    findingsByRule,
-  };
+  return result;
 }

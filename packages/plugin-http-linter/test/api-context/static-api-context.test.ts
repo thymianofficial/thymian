@@ -37,7 +37,9 @@ describe('StaticApiContext', () => {
       expect(result).toEqual(
         expect.arrayContaining([
           expect.objectContaining({
-            location: { elementType: 'edge', elementId: edgeId, pointer: '' },
+            violation: expect.objectContaining({
+              location: { elementType: 'edge', elementId: edgeId, pointer: '' },
+            }),
           }),
         ]),
       );
@@ -82,14 +84,21 @@ describe('StaticApiContext', () => {
 
       const result = context.validateCommonHttpTransactions(
         statusCode(200),
-        () => ({ message: 'Custom violation message' }),
+        (req, res, location) => [
+          {
+            violation: { location, message: 'Custom violation message' },
+            findings: [],
+          },
+        ],
       );
 
       expect(result).toHaveLength(1);
       expect(result).toEqual(
         expect.arrayContaining([
           expect.objectContaining({
-            message: 'Custom violation message',
+            violation: expect.objectContaining({
+              message: 'Custom violation message',
+            }),
           }),
         ]),
       );
@@ -151,7 +160,9 @@ describe('StaticApiContext', () => {
       expect(result).toEqual(
         expect.arrayContaining([
           expect.objectContaining({
-            location: { elementType: 'edge', elementId: id, pointer: '' },
+            violation: expect.objectContaining({
+              location: { elementType: 'edge', elementId: id, pointer: '' },
+            }),
           }),
         ]),
       );
@@ -180,11 +191,13 @@ describe('StaticApiContext', () => {
       expect(result).toEqual(
         expect.arrayContaining([
           expect.objectContaining({
-            location: {
-              elementType: 'edge',
-              elementId: id,
-              pointer: '',
-            },
+            violation: expect.objectContaining({
+              location: {
+                elementType: 'edge',
+                elementId: id,
+                pointer: '',
+              },
+            }),
           }),
         ]),
       );
@@ -220,11 +233,13 @@ describe('StaticApiContext', () => {
       expect(result).toEqual(
         expect.arrayContaining([
           expect.objectContaining({
-            location: {
-              elementType: 'edge',
-              elementId: id,
-              pointer: '',
-            },
+            violation: expect.objectContaining({
+              location: {
+                elementType: 'edge',
+                elementId: id,
+                pointer: '',
+              },
+            }),
           }),
         ]),
       );
@@ -257,13 +272,18 @@ describe('StaticApiContext', () => {
         statusCode(),
         (key, transactions) => {
           if (key === '200' && transactions.length !== 3) {
-            return {
-              location: {
-                elementType: 'node' as const,
-                elementId: 'group-violation',
+            return [
+              {
+                violation: {
+                  location: {
+                    elementType: 'node' as const,
+                    elementId: 'group-violation',
+                  },
+                  message: `Expected 3 transactions with status 200, got ${transactions.length}`,
+                },
+                findings: [],
               },
-              message: `Expected 3 transactions with status 200, got ${transactions.length}`,
-            };
+            ];
           }
         },
       );
@@ -272,8 +292,10 @@ describe('StaticApiContext', () => {
       expect(result).toEqual(
         expect.arrayContaining([
           expect.objectContaining({
-            location: { elementType: 'node', elementId: 'group-violation' },
-            message: 'Expected 3 transactions with status 200, got 2',
+            violation: expect.objectContaining({
+              location: { elementType: 'node', elementId: 'group-violation' },
+              message: 'Expected 3 transactions with status 200, got 2',
+            }),
           }),
         ]),
       );
@@ -359,9 +381,9 @@ describe('StaticApiContext', () => {
       );
 
       expect(result).toHaveLength(1);
-      if (Array.isArray(result)) {
-        expect(result?.[0]?.message).toBe('Found GET request to /users');
-      }
+      expect(result?.[0]?.violation?.message).toBe(
+        'Found GET request to /users',
+      );
     });
 
     it('should handle multiple responses for the same request', () => {
@@ -420,10 +442,12 @@ describe('StaticApiContext', () => {
       expect(result).toEqual(
         expect.arrayContaining([
           expect.objectContaining({
-            location: {
-              elementType: 'edge',
-              elementId: transactionId,
-            },
+            violation: expect.objectContaining({
+              location: {
+                elementType: 'edge',
+                elementId: transactionId,
+              },
+            }),
           }),
         ]),
       );

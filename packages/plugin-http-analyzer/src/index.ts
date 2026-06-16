@@ -14,6 +14,7 @@ import {
   type RulesConfiguration,
   rulesToRuleDescriptors,
   runRules,
+  runRulesResultToViolations,
   type SerializedThymianFormat,
   type SingleRuleConfiguration,
   ThymianFormat,
@@ -230,13 +231,14 @@ export function createHttpAnalyzerPlugin(
             repo.insertHttpTransaction(transaction);
           }
 
-          const { violations } = await runRules(
+          const ruleResults = await runRules(
             logger,
             rules,
             thymianFormat,
             rulesConfig,
             createAnalyzerAdapter(logger, thymianFormat, repo),
           );
+          const violations = runRulesResultToViolations(ruleResults, rules);
 
           await repo.close();
 
@@ -259,13 +261,14 @@ export function createHttpAnalyzerPlugin(
             ? ThymianFormat.import(format)
             : new ThymianFormat();
 
-          const { violations } = await runRules(
+          const ruleResults = await runRules(
             logger,
             rules,
             thymianFormat,
             rulesConfig,
             createAnalyzerAdapter(logger, thymianFormat, initializedRepository),
           );
+          const violations = runRulesResultToViolations(ruleResults, rules);
 
           ctx.reply({
             runs: createRuns(pluginName, thymianFormat, violations, [], rules),
@@ -299,13 +302,14 @@ export function createHttpAnalyzerPlugin(
             ? ThymianFormat.import(format)
             : new ThymianFormat();
 
-          const { violations } = await runRules(
+          const ruleResults = await runRules(
             logger,
             rules,
             thymianFormat,
             rulesConfig,
             createAnalyzerAdapter(logger, thymianFormat, repo),
           );
+          const violations = runRulesResultToViolations(ruleResults, rules);
 
           await repo.close();
 

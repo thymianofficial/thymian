@@ -190,7 +190,7 @@ export class AnalyticsApiContext implements AnalyzeContext {
 
     finalFilter = this.addOriginsToFilter(finalFilter);
 
-    const results: RuleViolation[] = [];
+    const results: RuleFnResult = [];
 
     for (const {
       request,
@@ -199,43 +199,34 @@ export class AnalyticsApiContext implements AnalyzeContext {
       finalFilter,
       this.roles,
     )) {
-      const violation = validateFn(
+      const location = httpTransactionToLabel(request.data, response.data);
+      const validationResult = validateFn(
         httpRequestToCommonHttpRequest(request.data),
         httpResponseToCommonHttpResponse(response.data),
-        httpTransactionToLabel(request.data, response.data),
+        location,
       );
 
-      if (violation) {
-        const location = httpTransactionToLabel(request.data, response.data);
-
-        if (violation === true) {
-          results.push({
-            location,
-          });
-        } else {
-          results.push({
-            location,
-            ...violation,
-          });
-        }
+      if (Array.isArray(validationResult)) {
+        results.push(...validationResult);
+      } else if (validationResult === true) {
+        results.push({ violation: { location }, findings: [] });
       }
     }
 
-    return results.concat(this.violations);
+    return [
+      ...results,
+      ...this.violations.map((violation) => ({ violation, findings: [] })),
+    ];
   }
 
   validateGroupedCommonHttpTransactions(
     filter: HttpFilterExpression,
     groupBy: HttpFilterExpression,
     validationFn: ValidationFn<
-      [
-        string,
-        [CommonHttpRequest, CommonHttpResponse, RuleViolationLocation][],
-      ],
-      RuleViolation | undefined
+      [string, [CommonHttpRequest, CommonHttpResponse, RuleViolationLocation][]]
     >,
   ): Promise<RuleFnResult> | RuleFnResult {
-    const results: RuleViolation[] = [];
+    const results: RuleFnResult = [];
     const finalFilter = this.addOriginsToFilter(filter);
 
     const groups = this.repository.readAndGroupTransactionsByHttpFilter(
@@ -245,7 +236,7 @@ export class AnalyticsApiContext implements AnalyzeContext {
     );
 
     for (const [key, transactions] of groups) {
-      const violation = validationFn(
+      const validationResult = validationFn(
         key,
         transactions.map((t) => [
           httpRequestToCommonHttpRequest(t.request.data),
@@ -254,8 +245,8 @@ export class AnalyticsApiContext implements AnalyzeContext {
         ]),
       );
 
-      if (violation) {
-        results.push(violation);
+      if (Array.isArray(validationResult)) {
+        results.push(...validationResult);
       }
     }
 
@@ -283,7 +274,7 @@ export class AnalyticsApiContext implements AnalyzeContext {
 
     finalFilter = this.addOriginsToFilter(finalFilter);
 
-    const results: RuleViolation[] = [];
+    const results: RuleFnResult = [];
 
     for (const {
       request,
@@ -306,23 +297,23 @@ export class AnalyticsApiContext implements AnalyzeContext {
           }
         : httpTransactionToLabel(request.data, response.data);
 
-      const violation = validateFn(request.data, response.data, location);
+      const validationResult = validateFn(
+        request.data,
+        response.data,
+        location,
+      );
 
-      if (violation) {
-        if (violation === true) {
-          results.push({
-            location,
-          });
-        } else {
-          results.push({
-            location,
-            ...violation,
-          });
-        }
+      if (Array.isArray(validationResult)) {
+        results.push(...validationResult);
+      } else if (validationResult === true) {
+        results.push({ violation: { location }, findings: [] });
       }
     }
 
-    return results.concat(this.violations);
+    return [
+      ...results,
+      ...this.violations.map((violation) => ({ violation, findings: [] })),
+    ];
   }
 
   validateCapturedHttpTransactions(
@@ -331,7 +322,7 @@ export class AnalyticsApiContext implements AnalyzeContext {
   ): Promise<RuleFnResult> | RuleFnResult {
     const finalFilter = this.addOriginsToFilter(filter);
 
-    const results: RuleViolation[] = [];
+    const results: RuleFnResult = [];
 
     for (const transaction of this.repository.readTransactionsByHttpFilter(
       finalFilter,
@@ -342,49 +333,41 @@ export class AnalyticsApiContext implements AnalyzeContext {
         transaction.response.data,
       );
 
-      const violation = validate(transaction, location);
+      const validationResult = validate(transaction, location);
 
-      if (violation) {
-        if (violation === true) {
-          results.push({
-            location,
-          });
-        } else {
-          results.push({
-            location,
-            ...violation,
-          });
-        }
+      if (Array.isArray(validationResult)) {
+        results.push(...validationResult);
+      } else if (validationResult === true) {
+        results.push({ violation: { location }, findings: [] });
       }
     }
 
-    return results.concat(this.violations);
+    return [
+      ...results,
+      ...this.violations.map((violation) => ({ violation, findings: [] })),
+    ];
   }
 
   validateCapturedHttpTraces(
     validate: ValidationFn<[CapturedTrace, string]>,
   ): RuleFnResult {
-    const results: RuleViolation[] = [];
+    const results: RuleFnResult = [];
 
     for (const trace of this.repository.readAllHttpTraces()) {
       const location = capturedTraceToString(trace);
 
-      const violation = validate(trace, location);
+      const validationResult = validate(trace, location);
 
-      if (violation) {
-        if (violation === true) {
-          results.push({
-            location,
-          });
-        } else {
-          results.push({
-            location,
-            ...violation,
-          });
-        }
+      if (Array.isArray(validationResult)) {
+        results.push(...validationResult);
+      } else if (validationResult === true) {
+        results.push({ violation: { location }, findings: [] });
       }
     }
 
-    return results.concat(this.violations);
+    return [
+      ...results,
+      ...this.violations.map((violation) => ({ violation, findings: [] })),
+    ];
   }
 }

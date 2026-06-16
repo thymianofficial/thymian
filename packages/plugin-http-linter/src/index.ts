@@ -7,6 +7,7 @@ import {
   type RulesConfiguration,
   rulesToRuleDescriptors,
   runRules,
+  runRulesResultToViolations,
   type SerializedThymianFormat,
   type SingleRuleConfiguration,
   ThymianFormat,
@@ -100,13 +101,14 @@ export function createHttpLinterPlugin(
         async ({ format, rules = [], rulesConfig = {} }, ctx) => {
           const thymianFormat = ThymianFormat.import(format);
 
-          const { violations } = await runRules(
+          const ruleResults = await runRules(
             logger,
             rules,
             thymianFormat,
             rulesConfig,
             createStaticLinterAdapter(logger, thymianFormat, rulesConfig),
           );
+          const violations = runRulesResultToViolations(ruleResults, rules);
 
           ctx.reply(createRuns(pluginName, thymianFormat, violations, rules));
         },
@@ -117,13 +119,14 @@ export function createHttpLinterPlugin(
         async ({ format, rules = [], rulesConfig = {} }, ctx) => {
           const thymianFormat = ThymianFormat.import(format);
 
-          const { violations } = await runRules(
+          const ruleResults = await runRules(
             logger,
             rules,
             thymianFormat,
             rulesConfig,
             createStaticLinterAdapter(logger, thymianFormat, rulesConfig),
           );
+          const violations = runRulesResultToViolations(ruleResults, rules);
 
           ctx.reply({
             runs: createRuns(pluginName, thymianFormat, violations, rules),

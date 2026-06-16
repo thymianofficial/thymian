@@ -147,14 +147,6 @@ export function ruleFindingsToFindingRecords(
   );
 }
 
-export function mergeRuleFindings(
-  findingsByRule: Partial<Record<string, RuleFinding[]>>,
-): FindingRecord[] {
-  return Object.entries(findingsByRule).flatMap(([ruleName, findings]) =>
-    ruleFindingsToFindingRecords(findings ?? [], ruleName),
-  );
-}
-
 /**
  * Map executed rules to report {@link RuleDescriptor}s for `ToolRun.rules`.
  * Applies the same filter as `runRules` (enabled, not informational-only) plus
