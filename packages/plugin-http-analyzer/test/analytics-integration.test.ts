@@ -30,7 +30,12 @@ describe('plugin-http-analyzer integration', () => {
     const rule = httpRule('test/analyzer-rule')
       .severity('error')
       .type('analytics')
-      .rule(() => [{ location: 'example', message: 'violation' }])
+      .rule(() => [
+        {
+          violation: { location: 'example', message: 'violation' },
+          findings: [],
+        },
+      ])
       .done();
 
     const runs = await thymian.emitter.emitAction(

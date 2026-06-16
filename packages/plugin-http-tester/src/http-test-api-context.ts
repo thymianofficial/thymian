@@ -7,8 +7,6 @@ import {
   httpRequestToCommonHttpRequest,
   type HttpResponse,
   httpResponseToCommonHttpResponse,
-  httpTestResultToRuleFindings,
-  type RuleFinding,
   type RuleFnResult,
   type RuleViolation,
   type RuleViolationLocation,
@@ -25,14 +23,12 @@ import {
   type GroupedHttpTestCaseStep,
   httpTest,
   type HttpTestCase,
-  type HttpTestCaseResult,
   type HttpTestCaseStepTransaction,
   type HttpTestContext,
   type HttpTestContextLocals,
   type HttpTestPipeline,
   type HttpTestResult,
   mapToGroupedTestCase,
-  type ReportHttpTransaction,
   runRequests,
   singleTestCase,
 } from '@thymian/core';
@@ -50,29 +46,11 @@ function hasSource(
   return 'source' in transaction;
 }
 
-export interface HttpTesterRuleDiagnostics {
-  skippedCases: Array<{
-    name: string;
-    reason: string;
-  }>;
-  failedCases: Array<{
-    name: string;
-    reason: string;
-  }>;
-  /**
-   * Passed test cases as raw collection data. The per-assertion `results` are
-   * intentionally NOT flattened into `findings`; the mapping layer nests them
-   * under one `test-case-pass` summary finding per case.
-   */
-  passedCases: Array<{
-    name: string;
-    durationMilliseconds?: number;
-    results: HttpTestCaseResult[];
-  }>;
-  findings: RuleFinding[];
-  /** HTTP transactions dispatched by the test cases, regardless of case status. */
-  httpTransactions: ReportHttpTransaction[];
-}
+/** Per-call association of test result with the violations produced by that call. */
+export type HttpTesterRuleDiagnostics = Array<{
+  testResult: HttpTestResult;
+  ruleFnResult: RuleFnResult;
+}>;
 
 export class HttpTestApiContext<
   Locals extends HttpTestContextLocals = HttpTestContextLocals,
@@ -80,7 +58,7 @@ export class HttpTestApiContext<
   readonly format: ThymianFormat;
   private readonly violations: RuleViolation[] = [];
   private readonly ctx: HttpTestContext<Locals>;
-  private diagnostics?: HttpTesterRuleDiagnostics;
+  private readonly diagnosticEntries: HttpTesterRuleDiagnostics = [];
 
   constructor(
     private readonly name: string,
@@ -111,18 +89,16 @@ export class HttpTestApiContext<
   }
 
   getRuleExecutionDiagnostics(): HttpTesterRuleDiagnostics | undefined {
-    return this.diagnostics;
+    return this.diagnosticEntries.length > 0
+      ? this.diagnosticEntries
+      : undefined;
   }
 
   async validateGroupedCommonHttpTransactions(
     filterExpr: HttpFilterExpression,
     groupByExpression: HttpFilterExpression,
     validationFn: ValidationFn<
-      [
-        string,
-        [CommonHttpRequest, CommonHttpResponse, RuleViolationLocation][],
-      ],
-      RuleViolation | undefined
+      [string, [CommonHttpRequest, CommonHttpResponse, RuleViolationLocation][]]
     >,
   ): Promise<RuleFnResult> {
     const filterFn = httpFilterExpressionToFilter(filterExpr);
@@ -140,11 +116,12 @@ export class HttpTestApiContext<
 
     const testResult = await test(this.ctx);
 
-    this.collectTestCaseDiagnostics(testResult);
+    const callViolations: RuleFnResult = [];
+    this.collectTestCaseDiagnostics(testResult, callViolations);
 
-    return testResult.cases
+    testResult.cases
       .filter((testCase) => testCase.status === 'passed')
-      .reduce((violations, value) => {
+      .forEach((value) => {
         const testCase = value as HttpTestCase<[GroupedHttpTestCaseStep]>;
         const { source, transactions } = testCase.steps[0];
 
@@ -174,13 +151,19 @@ export class HttpTestApiContext<
           transactionsToValidate,
         );
 
-        if (validationResult) {
-          violations.push(validationResult);
+        if (Array.isArray(validationResult)) {
+          callViolations.push(...validationResult);
         }
+      });
 
-        return violations;
-      }, [] as RuleViolation[])
-      .concat(this.violations);
+    if (testResult.cases.length > 0) {
+      this.diagnosticEntries.push({ testResult, ruleFnResult: callViolations });
+    }
+
+    return [
+      ...callViolations,
+      ...this.violations.map((v) => ({ violation: v, findings: [] })),
+    ];
   }
 
   async validateCommonHttpTransactions(
@@ -198,14 +181,13 @@ export class HttpTestApiContext<
 
     const testResult = await test(this.ctx);
 
-    this.collectTestCaseDiagnostics(testResult);
+    const callViolations: RuleFnResult = [];
+    this.collectTestCaseDiagnostics(testResult, callViolations);
 
-    return testResult.cases
+    testResult.cases
       .filter((testCase) => testCase.status === 'passed')
-      .flatMap((testCase) =>
-        testCase.steps.flatMap((step) => {
-          const violations: RuleViolation[] = [];
-
+      .forEach((testCase) =>
+        testCase.steps.forEach((step) => {
           for (const transaction of step.transactions) {
             const { request, response, source } = transaction;
 
@@ -222,144 +204,81 @@ export class HttpTestApiContext<
                   elementId: source.transactionId,
                 },
               );
-              if (typeof validationResult === 'boolean' && validationResult) {
-                violations.push({
-                  location: {
-                    elementType: 'edge',
-                    elementId: source.transactionId,
-                  } satisfies RuleViolationLocation,
-                });
-              }
-
-              if (validationResult && typeof validationResult === 'object') {
-                violations.push({
-                  location: {
-                    elementType: 'edge',
-                    elementId: source.transactionId,
-                    pointer: '',
+              if (Array.isArray(validationResult)) {
+                callViolations.push(...validationResult);
+              } else if (validationResult === true) {
+                callViolations.push({
+                  violation: {
+                    location: {
+                      elementType: 'edge',
+                      elementId: source.transactionId,
+                    } satisfies RuleViolationLocation,
                   },
-                  ...validationResult,
+                  findings: [],
                 });
               }
             } else {
               const validateFn = httpFilterToTransactionValidationFn(validate);
 
-              const validationResult = validateFn(request, response);
-              if (typeof validationResult === 'boolean' && validationResult) {
-                violations.push({
-                  location: {
-                    elementType: 'edge',
-                    elementId: source.transactionId,
-                  } satisfies RuleViolationLocation,
+              if (validateFn(request, response)) {
+                callViolations.push({
+                  violation: {
+                    location: {
+                      elementType: 'edge',
+                      elementId: source.transactionId,
+                    } satisfies RuleViolationLocation,
+                  },
+                  findings: [],
                 });
               }
             }
           }
-
-          return violations;
         }),
-      )
-      .concat(this.violations);
+      );
+
+    if (testResult.cases.length > 0) {
+      this.diagnosticEntries.push({ testResult, ruleFnResult: callViolations });
+    }
+
+    return [
+      ...callViolations,
+      ...this.violations.map((v) => ({ violation: v, findings: [] })),
+    ];
   }
 
-  private collectTestCaseDiagnostics(testResult: HttpTestResult) {
-    const skippedItems: HttpTesterRuleDiagnostics['skippedCases'] = [];
-    const failedItems: HttpTesterRuleDiagnostics['failedCases'] = [];
-    const passedItems: HttpTesterRuleDiagnostics['passedCases'] = [];
-    const findings: RuleFinding[] = [];
-    const httpTransactions: ReportHttpTransaction[] = [];
-
-    testResult.cases.forEach((testCase) => {
-      for (const step of testCase.steps) {
-        for (const { request, response } of step.transactions) {
-          if (request) {
-            httpTransactions.push({ request, response });
-          }
-        }
-      }
-
+  private collectTestCaseDiagnostics(
+    testResult: HttpTestResult,
+    callViolations: RuleFnResult,
+  ) {
+    for (const testCase of testResult.cases) {
       if (testCase.status === 'skipped') {
         this.ctx.logger.debug(
           `HTTP test case "${testCase.name}" from test "${this.name}" is skipped.`,
         );
-        findings.push(...httpTestResultToRuleFindings(testCase.results));
-        skippedItems.push({
-          name: testCase.name,
-          reason:
-            testCase.reason ??
-            testCase.results
-              .filter(
-                (tc) => tc.type !== 'info' && tc.type !== 'assertion-success',
-              )
-              .map((tc) => tc.message)
-              .join('\n'),
-        });
       } else if (testCase.status === 'failed') {
         this.ctx.logger.debug(
           `HTTP test case "${testCase.name}" from test "${this.name}" failed.`,
         );
 
-        findings.push(...httpTestResultToRuleFindings(testCase.results));
-
         const assertionFailure = testCase.results.find(
-          (r) => r.type === 'assertion-failure' && !!r.transaction,
-        ) as AssertionFailure;
+          (r) =>
+            r.type === 'assertion-failure' &&
+            !!(r as AssertionFailure).transaction,
+        ) as AssertionFailure | undefined;
 
-        if (assertionFailure && assertionFailure.transaction) {
-          this.reportViolation({
-            location: {
-              elementType: 'edge',
-              elementId: assertionFailure.transaction.transactionId,
+        if (assertionFailure?.transaction) {
+          callViolations.push({
+            violation: {
+              location: {
+                elementType: 'edge',
+                elementId: assertionFailure.transaction.transactionId,
+              },
             },
-          });
-        } else {
-          failedItems.push({
-            name: testCase.name,
-            reason:
-              testCase.reason ??
-              testCase.results
-                .filter(
-                  (tc) => tc.type !== 'info' && tc.type !== 'assertion-success',
-                )
-                .map((tc) => tc.message)
-                .join('\n'),
+            findings: [],
           });
         }
-      } else if (testCase.status === 'passed') {
-        passedItems.push({
-          name: testCase.name,
-          ...(testCase.end !== undefined
-            ? { durationMilliseconds: testCase.end - testCase.start }
-            : {}),
-          results: testCase.results,
-        });
       }
-    });
-
-    if (
-      !this.diagnostics &&
-      skippedItems.length === 0 &&
-      failedItems.length === 0 &&
-      passedItems.length === 0 &&
-      findings.length === 0 &&
-      httpTransactions.length === 0
-    ) {
-      return;
     }
-
-    this.diagnostics = {
-      skippedCases: [
-        ...(this.diagnostics?.skippedCases ?? []),
-        ...skippedItems,
-      ],
-      failedCases: [...(this.diagnostics?.failedCases ?? []), ...failedItems],
-      passedCases: [...(this.diagnostics?.passedCases ?? []), ...passedItems],
-      findings: [...(this.diagnostics?.findings ?? []), ...findings],
-      httpTransactions: [
-        ...(this.diagnostics?.httpTransactions ?? []),
-        ...httpTransactions,
-      ],
-    };
   }
 
   async httpTest(pipeline: HttpTestPipeline<Locals>): Promise<RuleFnResult> {
@@ -367,9 +286,17 @@ export class HttpTestApiContext<
 
     const testResult = await testFn(this.ctx);
 
-    this.collectTestCaseDiagnostics(testResult);
+    const callViolations: RuleFnResult = [];
+    this.collectTestCaseDiagnostics(testResult, callViolations);
 
-    return this.violations;
+    if (testResult.cases.length > 0) {
+      this.diagnosticEntries.push({ testResult, ruleFnResult: callViolations });
+    }
+
+    return [
+      ...callViolations,
+      ...this.violations.map((v) => ({ violation: v, findings: [] })),
+    ];
   }
 
   async runHttpTest(
@@ -408,14 +335,13 @@ export class HttpTestApiContext<
 
     const testResult = await test(this.ctx);
 
-    this.collectTestCaseDiagnostics(testResult);
+    const callViolations: RuleFnResult = [];
+    this.collectTestCaseDiagnostics(testResult, callViolations);
 
-    return testResult.cases
+    testResult.cases
       .filter((testCase) => testCase.status === 'passed')
-      .flatMap((testCase) =>
-        testCase.steps.flatMap((step) => {
-          const violations: RuleViolation[] = [];
-
+      .forEach((testCase) =>
+        testCase.steps.forEach((step) => {
           for (const transaction of step.transactions) {
             const { request, response, source } = transaction;
 
@@ -430,31 +356,31 @@ export class HttpTestApiContext<
               elementId: source.transactionId,
             });
 
-            if (typeof validationResult === 'boolean' && validationResult) {
-              violations.push({
-                location: {
-                  elementType: 'edge',
-                  elementId: source.transactionId,
-                  pointer: '',
-                } satisfies RuleViolationLocation,
-              });
-            }
-
-            if (validationResult && typeof validationResult === 'object') {
-              violations.push({
-                location: {
-                  elementType: 'edge',
-                  elementId: source.transactionId,
-                  pointer: '',
+            if (Array.isArray(validationResult)) {
+              callViolations.push(...validationResult);
+            } else if (validationResult === true) {
+              callViolations.push({
+                violation: {
+                  location: {
+                    elementType: 'edge',
+                    elementId: source.transactionId,
+                    pointer: '',
+                  } satisfies RuleViolationLocation,
                 },
-                ...validationResult,
+                findings: [],
               });
             }
           }
-
-          return violations;
         }),
-      )
-      .concat(this.violations);
+      );
+
+    if (testResult.cases.length > 0) {
+      this.diagnosticEntries.push({ testResult, ruleFnResult: callViolations });
+    }
+
+    return [
+      ...callViolations,
+      ...this.violations.map((v) => ({ violation: v, findings: [] })),
+    ];
   }
 }
