@@ -1,8 +1,9 @@
 ---
 import type { CollectionEntry } from 'astro:content';
+import { SOCIAL_STATUS_LABELS, SOCIAL_STATUS_ORDER, type SocialPublishStatus } from './socialStatus';
 
 type PostEntry = CollectionEntry<'social'>;
-type PublishStatus = PostEntry['data']['publishStatus'];
+type PublishStatus = SocialPublishStatus;
 
 type StatusFilter = PublishStatus | 'all';
 
@@ -32,14 +33,6 @@ const CATEGORY_ICONS: Record<string, string> = {
   'thymian-hints': '💡',
 };
 
-const STATUS_LABELS: Record<PublishStatus, string> = {
-  draft: 'Draft',
-  ready: 'Ready',
-  published: 'Published',
-};
-
-const STATUS_ORDER: PublishStatus[] = ['draft', 'ready', 'published'];
-
 const allCategories = [...new Set(posts.map((p) => p.data.category))].sort();
 const grouped = allCategories.reduce<Record<string, PostEntry[]>>((acc, cat) => {
   acc[cat] = posts.filter((p) => p.data.category === cat);
@@ -60,13 +53,13 @@ const statusCounts = allPosts.reduce<Record<PublishStatus, number>>(
     All <span class="status-filter-count">{allPosts.length}</span>
   </a>
   {
-    STATUS_ORDER.map((status) => (
+    SOCIAL_STATUS_ORDER.map((status) => (
       <a
         href={`/social/status/${status}/`}
         class="status-filter-link"
         aria-current={currentStatus === status ? 'true' : 'false'}
       >
-        {STATUS_LABELS[status]} <span class="status-filter-count">{statusCounts[status]}</span>
+        {SOCIAL_STATUS_LABELS[status]} <span class="status-filter-count">{statusCounts[status]}</span>
       </a>
     ))
   }
