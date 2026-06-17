@@ -1,4 +1,4 @@
-import { httpRule, protocol } from '@thymian/core';
+import { httpRule, protocol, type RuleViolationLocation } from '@thymian/core';
 
 export default httpRule(
   'rfc9110/sender-must-not-generate-https-uri-with-empty-host',
@@ -10,13 +10,19 @@ export default httpRule(
     `A sender MUST NOT generate an 'https' URI with an empty host identifier.`,
   )
   .rule((ctx, opts, logger) =>
-    ctx.validateHttpTransactions(protocol('https'), (req) => {
-      try {
-        return new URL(req.path, req.origin).host === '';
-      } catch (e) {
-        logger.error('Cannot run rule because of invalid URL:', e);
-        return false;
-      }
-    }),
+    ctx.validateHttpTransactions(
+      protocol('https'),
+      (req, _res, location: RuleViolationLocation) => {
+        try {
+          const isViolation = new URL(req.path, req.origin).host === '';
+          return isViolation
+            ? [{ location, violationMessage: '', findings: [] }]
+            : [];
+        } catch (e) {
+          logger.error('Cannot run rule because of invalid URL:', e);
+          return [];
+        }
+      },
+    ),
   )
   .done();

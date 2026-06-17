@@ -39,13 +39,16 @@ export default httpRule(
         );
 
         if (forbiddenTrailers.length > 0) {
-          return {
-            message: `Response contains forbidden trailer field(s): ${forbiddenTrailers.join(', ')}. These fields cannot be sent in trailers.`,
-            location,
-          };
+          return [
+            {
+              location,
+              violationMessage: `Response contains forbidden trailer field(s): ${forbiddenTrailers.join(', ')}. These fields cannot be sent in trailers.`,
+              findings: [],
+            },
+          ];
         }
 
-        return false;
+        return [];
       },
     ),
   )

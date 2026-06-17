@@ -8,7 +8,7 @@ import {
   responseHeader,
   statusCode,
 } from '@thymian/core';
-import { httpRule, type RuleViolation, singleTestCase } from '@thymian/core';
+import { httpRule, singleTestCase } from '@thymian/core';
 
 import { createList } from '../../../../utils.js';
 import { representationFields } from '../../../fields.js';
@@ -16,7 +16,7 @@ import { requiredHeadersFor304 } from './server-must-generate-header-fields-for-
 
 export function checkHeaders(
   notModifiedHeaders: string[],
-): Omit<RuleViolation, 'location'> | undefined {
+): { violationMessage: string } | undefined {
   const additionalHeaders = representationFields.filter(
     (header) =>
       !equalsIgnoreCase(header, ...requiredHeadersFor304) &&
@@ -25,7 +25,7 @@ export function checkHeaders(
 
   if (additionalHeaders.length > 0) {
     return {
-      message: `304 Not Modified response SHOULD NOT include additional headers ${createList(
+      violationMessage: `304 Not Modified response SHOULD NOT include additional headers ${createList(
         additionalHeaders,
       )}.`,
     };
@@ -49,7 +49,18 @@ export default httpRule(
   .rule((ctx) =>
     ctx.validateCommonHttpTransactions(
       and(or(method('GET'), method('HEAD')), statusCode(304)),
-      (req, res) => checkHeaders(res.headers),
+      (req, res, location) => {
+        const result = checkHeaders(res.headers);
+        return result
+          ? [
+              {
+                location,
+                violationMessage: result.violationMessage,
+                findings: [],
+              },
+            ]
+          : [];
+      },
     ),
   )
   .overrideTest((testContext) =>
@@ -81,13 +92,13 @@ export default httpRule(
           );
 
           if (violation) {
-            testContext.reportViolation({
-              message: violation.message,
-              location: {
+            testContext.reportViolation(
+              {
                 elementType: 'edge',
                 elementId: notModifiedTransaction.source.transactionId,
               },
-            });
+              violation.violationMessage,
+            );
           }
         })
         .done(),

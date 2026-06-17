@@ -3,6 +3,8 @@ import {
   type HttpRequest,
   type HttpResponse,
   httpRule,
+  httpTestResultToRuleFindings,
+  type RuleFnResult,
   type RuleViolationLocation,
   validateRequestPathParameters,
 } from '@thymian/core';
@@ -23,9 +25,9 @@ export default httpRule(
         request: HttpRequest,
         _response: HttpResponse,
         location: RuleViolationLocation,
-      ) => {
+      ): RuleFnResult[] => {
         if (typeof location === 'string') {
-          return false;
+          return [];
         }
 
         const transaction = ctx.format.getThymianHttpTransactionById(
@@ -33,7 +35,7 @@ export default httpRule(
         );
 
         if (!transaction) {
-          return false;
+          return [];
         }
 
         const results = validateRequestPathParameters(
@@ -43,12 +45,16 @@ export default httpRule(
         const failures = results.filter((r) => r.type === 'assertion-failure');
 
         if (failures.length > 0) {
-          return {
-            message: `${failures.length} assertion(s) failed`,
-          };
+          return [
+            {
+              location,
+              violationMessage: `${failures.length} assertion(s) failed`,
+              findings: httpTestResultToRuleFindings(results),
+            },
+          ];
         }
 
-        return false;
+        return [];
       },
     );
   })

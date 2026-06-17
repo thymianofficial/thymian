@@ -10,20 +10,26 @@ export default httpRule('rfc9110/sender-must-send-upgrade-connection-option')
   )
   .summary('Sender MUST include "Upgrade" in Connection header.')
   .overrideAnalyticsRule((ctx) =>
-    ctx.validateHttpTransactions(requestHeader('upgrade'), (req) => {
-      const connectionHeader = getHeader(req.headers, 'connection');
+    ctx.validateHttpTransactions(
+      requestHeader('upgrade'),
+      (req, res, location) => {
+        const connectionHeader = getHeader(req.headers, 'connection');
 
-      if (!connectionHeader) {
-        return true;
-      }
+        if (!connectionHeader) {
+          return [{ location, violationMessage: '', findings: [] }];
+        }
 
-      const connectionHeaderValues = Array.isArray(connectionHeader)
-        ? connectionHeader
-        : [connectionHeader];
+        const connectionHeaderValues = Array.isArray(connectionHeader)
+          ? connectionHeader
+          : [connectionHeader];
 
-      return !connectionHeaderValues.find(
-        (value) => value.toLowerCase().trim() === 'upgrade',
-      );
-    }),
+        const isViolation = !connectionHeaderValues.find(
+          (value) => value.toLowerCase().trim() === 'upgrade',
+        );
+        return isViolation
+          ? [{ location, violationMessage: '', findings: [] }]
+          : [];
+      },
+    ),
   )
   .done();

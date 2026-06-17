@@ -1,4 +1,10 @@
-import { and, getHeader, requestHeader } from '@thymian/core';
+import {
+  and,
+  getHeader,
+  type HttpResponse,
+  requestHeader,
+  type RuleViolationLocation,
+} from '@thymian/core';
 import { httpRule } from '@thymian/core';
 
 export default httpRule(
@@ -14,17 +20,17 @@ export default httpRule(
   .overrideAnalyticsRule((ctx) =>
     ctx.validateHttpTransactions(
       and(requestHeader('user-agent')),
-      (request) => {
+      (request, _res: HttpResponse, location: RuleViolationLocation) => {
         const userAgent = getHeader(request.headers, 'user-agent');
         if (typeof userAgent !== 'string') {
-          return false;
+          return [];
         }
 
         // Parse User-Agent for product tokens: product/version
         // RFC 9110: product = token ["/" product-version]
         const productTokens = userAgent.match(/([^\s/]+)\/([^\s)]+)/g);
         if (!productTokens) {
-          return false;
+          return [];
         }
 
         for (const token of productTokens) {
@@ -50,11 +56,11 @@ export default httpRule(
           ];
 
           if (nonVersionPatterns.some((pattern) => pattern.test(version))) {
-            return true;
+            return [{ location, violationMessage: '', findings: [] }];
           }
         }
 
-        return false;
+        return [];
       },
     ),
   )

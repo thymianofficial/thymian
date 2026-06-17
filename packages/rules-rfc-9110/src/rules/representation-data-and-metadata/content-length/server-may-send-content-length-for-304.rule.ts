@@ -59,13 +59,13 @@ export default httpRule('rfc9110/server-may-send-content-length-for-304')
             typeof notModifiedLength === 'string' &&
             okResponseLength !== notModifiedLength
           ) {
-            ctx.reportViolation({
-              message: `Content-Length in HEAD response does not match GET response (${okResponseLength} != ${notModifiedLength}).`,
-              location: {
+            ctx.reportViolation(
+              {
                 elementType: 'edge',
                 elementId: okResponse.source.transactionId,
               },
-            });
+              `Content-Length in HEAD response does not match GET response (${okResponseLength} != ${notModifiedLength}).`,
+            );
           }
         })
         .done(),

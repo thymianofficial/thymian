@@ -6,11 +6,10 @@ import type { HttpFilterExpression } from '../http-filter.js';
 import type { HttpTestResult } from '../http-testing/http-test/http-test.js';
 import type { HttpTestContextLocals } from '../http-testing/http-test/http-test-context.js';
 import type { HttpTestPipeline } from '../http-testing/http-test/http-test-pipeline.js';
-import type { PartialBy } from '../utils.js';
 import type { RuleExecutionDiagnosticsProvider } from './rule-runner.js';
 import type {
+  RuleFinding,
   RuleFnResult,
-  RuleViolation,
   RuleViolationLocation,
 } from './rule-violation.js';
 import type { CapturedTrace, CapturedTransaction } from './traffic.js';
@@ -36,13 +35,13 @@ export type CommonHttpResponse = {
 
 export type ValidationFn<Args extends unknown[]> = (
   ...args: Args
-) => RuleFnResult | boolean | undefined;
+) => RuleFnResult[];
 
 export interface ApiContext<
   TDiagnostics = unknown,
 > extends RuleExecutionDiagnosticsProvider<TDiagnostics> {
   readonly format: ThymianFormat;
-  reportViolation(violation: RuleViolation): void;
+  reportViolation(location: RuleViolationLocation, message?: string): void;
   validateCommonHttpTransactions(
     filter: HttpFilterExpression,
     validationFn?:
@@ -50,14 +49,14 @@ export interface ApiContext<
           [CommonHttpRequest, CommonHttpResponse, RuleViolationLocation]
         >
       | HttpFilterExpression,
-  ): Promise<RuleFnResult> | RuleFnResult;
+  ): Promise<RuleFnResult[]> | RuleFnResult[];
   validateGroupedCommonHttpTransactions(
     filter: HttpFilterExpression,
     groupBy: HttpFilterExpression,
     validationFn: ValidationFn<
       [string, [CommonHttpRequest, CommonHttpResponse, RuleViolationLocation][]]
     >,
-  ): Promise<RuleFnResult> | RuleFnResult;
+  ): Promise<RuleFnResult[]> | RuleFnResult[];
 }
 
 export interface LiveApiContext<
@@ -68,7 +67,7 @@ export interface LiveApiContext<
     validation?:
       | ValidationFn<[HttpRequest, HttpResponse, RuleViolationLocation]>
       | HttpFilterExpression,
-  ): Promise<RuleFnResult> | RuleFnResult;
+  ): Promise<RuleFnResult[]> | RuleFnResult[];
 }
 
 export interface LintContext<
@@ -84,8 +83,8 @@ export interface LintContext<
       req: ThymianHttpRequest,
       res: ThymianHttpResponse,
       responses: ThymianHttpResponse[],
-    ) => PartialBy<RuleViolation, 'location'> | boolean,
-  ): Promise<RuleFnResult> | RuleFnResult;
+    ) => { violationMessage?: string; findings?: RuleFinding[] } | boolean,
+  ): Promise<RuleFnResult[]> | RuleFnResult[];
 }
 
 export interface TestContext<
@@ -93,7 +92,7 @@ export interface TestContext<
 > extends LiveApiContext<TDiagnostics> {
   httpTest(
     pipeline: HttpTestPipeline<HttpTestContextLocals>,
-  ): Promise<RuleFnResult> | RuleFnResult;
+  ): Promise<RuleFnResult[]> | RuleFnResult[];
   runHttpTest(
     pipeline: HttpTestPipeline<HttpTestContextLocals>,
   ): Promise<HttpTestResult>;
@@ -105,8 +104,8 @@ export interface AnalyzeContext<
   validateCapturedHttpTransactions(
     filter: HttpFilterExpression,
     validate: ValidationFn<[CapturedTransaction, string]>,
-  ): Promise<RuleFnResult> | RuleFnResult;
+  ): Promise<RuleFnResult[]> | RuleFnResult[];
   validateCapturedHttpTraces(
     validate: ValidationFn<[CapturedTrace, string]>,
-  ): Promise<RuleFnResult> | RuleFnResult;
+  ): Promise<RuleFnResult[]> | RuleFnResult[];
 }

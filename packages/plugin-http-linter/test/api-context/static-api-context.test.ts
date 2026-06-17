@@ -37,9 +37,7 @@ describe('StaticApiContext', () => {
       expect(result).toEqual(
         expect.arrayContaining([
           expect.objectContaining({
-            violation: expect.objectContaining({
-              location: { elementType: 'edge', elementId: edgeId, pointer: '' },
-            }),
+            location: { elementType: 'edge', elementId: edgeId, pointer: '' },
           }),
         ]),
       );
@@ -58,7 +56,7 @@ describe('StaticApiContext', () => {
       expect(result).toHaveLength(0);
     });
 
-    it('should support validation function returning boolean', () => {
+    it('should return violation for matching validation function', () => {
       const format = createThymianFormatWithTransaction(
         createHttpRequest({ method: 'get', path: '/users' }),
         createHttpResponse({ statusCode: 200, headers: {} }),
@@ -68,13 +66,15 @@ describe('StaticApiContext', () => {
 
       const result = context.validateCommonHttpTransactions(
         statusCode(200),
-        () => true,
+        (req, res, location) => [
+          { location, violationMessage: '', findings: [] },
+        ],
       );
 
       expect(result).toHaveLength(1);
     });
 
-    it('should support validation function returning violation object', () => {
+    it('should return violation with custom message', () => {
       const format = createThymianFormatWithTransaction(
         createHttpRequest({ method: 'get', path: '/users' }),
         createHttpResponse({ statusCode: 200, headers: {} }),
@@ -86,7 +86,8 @@ describe('StaticApiContext', () => {
         statusCode(200),
         (req, res, location) => [
           {
-            violation: { location, message: 'Custom violation message' },
+            location,
+            violationMessage: 'Custom violation message',
             findings: [],
           },
         ],
@@ -96,15 +97,13 @@ describe('StaticApiContext', () => {
       expect(result).toEqual(
         expect.arrayContaining([
           expect.objectContaining({
-            violation: expect.objectContaining({
-              message: 'Custom violation message',
-            }),
+            violationMessage: 'Custom violation message',
           }),
         ]),
       );
     });
 
-    it('should not return violations when validation function returns false', () => {
+    it('should not return violations when validation function returns empty array', () => {
       const format = createThymianFormatWithTransaction(
         createHttpRequest({ method: 'get', path: '/users' }),
         createHttpResponse({ statusCode: 200, headers: {} }),
@@ -114,7 +113,7 @@ describe('StaticApiContext', () => {
 
       const result = context.validateCommonHttpTransactions(
         statusCode(200),
-        () => false,
+        () => [],
       );
 
       expect(result).toHaveLength(0);
@@ -160,9 +159,7 @@ describe('StaticApiContext', () => {
       expect(result).toEqual(
         expect.arrayContaining([
           expect.objectContaining({
-            violation: expect.objectContaining({
-              location: { elementType: 'edge', elementId: id, pointer: '' },
-            }),
+            location: { elementType: 'edge', elementId: id, pointer: '' },
           }),
         ]),
       );
@@ -191,13 +188,11 @@ describe('StaticApiContext', () => {
       expect(result).toEqual(
         expect.arrayContaining([
           expect.objectContaining({
-            violation: expect.objectContaining({
-              location: {
-                elementType: 'edge',
-                elementId: id,
-                pointer: '',
-              },
-            }),
+            location: {
+              elementType: 'edge',
+              elementId: id,
+              pointer: '',
+            },
           }),
         ]),
       );
@@ -233,13 +228,11 @@ describe('StaticApiContext', () => {
       expect(result).toEqual(
         expect.arrayContaining([
           expect.objectContaining({
-            violation: expect.objectContaining({
-              location: {
-                elementType: 'edge',
-                elementId: id,
-                pointer: '',
-              },
-            }),
+            location: {
+              elementType: 'edge',
+              elementId: id,
+              pointer: '',
+            },
           }),
         ]),
       );
@@ -274,17 +267,16 @@ describe('StaticApiContext', () => {
           if (key === '200' && transactions.length !== 3) {
             return [
               {
-                violation: {
-                  location: {
-                    elementType: 'node' as const,
-                    elementId: 'group-violation',
-                  },
-                  message: `Expected 3 transactions with status 200, got ${transactions.length}`,
+                location: {
+                  elementType: 'node' as const,
+                  elementId: 'group-violation',
                 },
+                violationMessage: `Expected 3 transactions with status 200, got ${transactions.length}`,
                 findings: [],
               },
             ];
           }
+          return [];
         },
       );
 
@@ -292,10 +284,8 @@ describe('StaticApiContext', () => {
       expect(result).toEqual(
         expect.arrayContaining([
           expect.objectContaining({
-            violation: expect.objectContaining({
-              location: { elementType: 'node', elementId: 'group-violation' },
-              message: 'Expected 3 transactions with status 200, got 2',
-            }),
+            location: { elementType: 'node', elementId: 'group-violation' },
+            violationMessage: 'Expected 3 transactions with status 200, got 2',
           }),
         ]),
       );
@@ -309,7 +299,7 @@ describe('StaticApiContext', () => {
       const result = context.validateGroupedCommonHttpTransactions(
         method('get'),
         statusCode(),
-        () => undefined,
+        () => [],
       );
 
       expect(result).toHaveLength(0);
@@ -341,7 +331,7 @@ describe('StaticApiContext', () => {
         method(),
         (key) => {
           groupKeys.push(key);
-          return undefined;
+          return [];
         },
       );
 
@@ -376,14 +366,12 @@ describe('StaticApiContext', () => {
       const result = context.validateHttpTransactions(
         (req) => req.method === 'get',
         (req) => ({
-          message: `Found GET request to ${req.path}`,
+          violationMessage: `Found GET request to ${req.path}`,
         }),
       );
 
       expect(result).toHaveLength(1);
-      expect(result?.[0]?.violation?.message).toBe(
-        'Found GET request to /users',
-      );
+      expect(result?.[0]?.violationMessage).toBe('Found GET request to /users');
     });
 
     it('should handle multiple responses for the same request', () => {
@@ -442,12 +430,10 @@ describe('StaticApiContext', () => {
       expect(result).toEqual(
         expect.arrayContaining([
           expect.objectContaining({
-            violation: expect.objectContaining({
-              location: {
-                elementType: 'edge',
-                elementId: transactionId,
-              },
-            }),
+            location: {
+              elementType: 'edge',
+              elementId: transactionId,
+            },
           }),
         ]),
       );

@@ -26,10 +26,8 @@ export default httpRule(
         .transactions(([, transaction]) => {
           if (transaction.response.statusCode !== 303) {
             ctx.reportViolation({
-              location: {
-                elementType: 'edge',
-                elementId: transaction.source.transactionId,
-              },
+              elementType: 'edge',
+              elementId: transaction.source.transactionId,
             });
           }
         })

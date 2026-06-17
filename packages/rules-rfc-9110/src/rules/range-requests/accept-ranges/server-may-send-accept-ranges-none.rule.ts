@@ -1,4 +1,10 @@
-import { and, getHeader, not, requestHeader } from '@thymian/core';
+import {
+  and,
+  getHeader,
+  not,
+  requestHeader,
+  type RuleViolationLocation,
+} from '@thymian/core';
 import { httpRule } from '@thymian/core';
 
 export default httpRule('rfc9110/server-may-send-accept-ranges-none')
@@ -15,16 +21,19 @@ export default httpRule('rfc9110/server-may-send-accept-ranges-none')
   .rule((ctx) =>
     ctx.validateHttpTransactions(
       and(not(requestHeader('range'))),
-      (req, res) => {
+      (req, res, location: RuleViolationLocation) => {
         const acceptRanges = getHeader(res.headers, 'accept-ranges');
 
         if (!acceptRanges) {
-          return true;
+          return [{ location, violationMessage: '', findings: [] }];
         }
 
-        return (
-          Array.isArray(acceptRanges) ? acceptRanges : [acceptRanges]
-        ).every((range) => !range.match(/none/i));
+        return (Array.isArray(acceptRanges)
+          ? acceptRanges
+          : [acceptRanges]
+        ).every((range) => !range.match(/none/i))
+          ? [{ location, violationMessage: '', findings: [] }]
+          : [];
       },
     ),
   )
