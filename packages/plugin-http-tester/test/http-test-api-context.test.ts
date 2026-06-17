@@ -152,10 +152,11 @@ describe('HttpTestApiContext', () => {
 
       const result = await context.validateCommonHttpTransactions(
         statusCode(200),
-        (req, res) => {
-          return (
-            res.statusCode === 200 && !res.headers.includes('content-type')
-          );
+        (req, res, location) => {
+          if (res.statusCode === 200 && !res.headers.includes('content-type')) {
+            return [{ location, violationMessage: '', findings: [] }];
+          }
+          return [];
         },
       );
 
@@ -182,14 +183,15 @@ describe('HttpTestApiContext', () => {
         statusCode(200),
         (req, res, location) => [
           {
-            violation: { location, message: 'Custom violation' },
+            location,
+            violationMessage: 'Custom violation',
             findings: [],
           },
         ],
       );
 
       expect(result).toHaveLength(1);
-      expect(result?.[0]?.violation?.message).toBe('Custom violation');
+      expect(result?.[0]?.violationMessage).toBe('Custom violation');
     });
 
     it('should ignore the skipped origins', async () => {
@@ -225,7 +227,8 @@ describe('HttpTestApiContext', () => {
         statusCode(200),
         (req, res, location) => [
           {
-            violation: { location, message: 'Custom violation' },
+            location,
+            violationMessage: 'Custom violation',
             findings: [],
           },
         ],
@@ -235,9 +238,7 @@ describe('HttpTestApiContext', () => {
       expect(result).toEqual(
         expect.arrayContaining([
           expect.objectContaining({
-            violation: expect.objectContaining({
-              location: { elementType: 'edge', elementId: id },
-            }),
+            location: { elementType: 'edge', elementId: id },
           }),
         ]),
       );
@@ -291,7 +292,7 @@ describe('HttpTestApiContext', () => {
         method(),
         (key) => {
           groupKeys.push(key);
-          return undefined;
+          return [];
         },
       );
 
@@ -371,18 +372,16 @@ describe('HttpTestApiContext', () => {
           if (!transactions.every(([, res]) => res.headers.includes('etag'))) {
             return [
               {
-                violation: {
-                  location: {
-                    elementType: 'node' as const,
-                    elementId: 'test-violation',
-                  },
-                  message: `no etag`,
+                location: {
+                  elementType: 'node' as const,
+                  elementId: 'test-violation',
                 },
+                violationMessage: `no etag`,
                 findings: [],
               },
             ];
           }
-          return undefined;
+          return [];
         },
       );
 
@@ -390,9 +389,7 @@ describe('HttpTestApiContext', () => {
       expect(result).toEqual(
         expect.arrayContaining([
           expect.objectContaining({
-            violation: expect.objectContaining({
-              message: `no etag`,
-            }),
+            violationMessage: `no etag`,
           }),
         ]),
       );
@@ -444,10 +441,8 @@ describe('HttpTestApiContext', () => {
         method('get'),
         (req, res, location) => [
           {
-            violation: {
-              location,
-              message: `Request to ${req.path} returned ${res.statusCode}`,
-            },
+            location,
+            violationMessage: `Request to ${req.path} returned ${res.statusCode}`,
             findings: [],
           },
         ],
@@ -457,9 +452,7 @@ describe('HttpTestApiContext', () => {
       expect(result).toEqual(
         expect.arrayContaining([
           expect.objectContaining({
-            violation: expect.objectContaining({
-              message: `Request to /users returned 200`,
-            }),
+            violationMessage: `Request to /users returned 200`,
           }),
         ]),
       );
@@ -483,7 +476,7 @@ describe('HttpTestApiContext', () => {
 
       const result = await context.validateHttpTransactions(
         method('get'),
-        () => false,
+        () => [],
       );
 
       expect(result).toHaveLength(0);
@@ -508,21 +501,16 @@ describe('HttpTestApiContext', () => {
       const context = new HttpTestApiContext('test-rule', mockContext);
 
       // Report some violations
-      context.reportViolation({
-        location: 'manual-location-1',
-        message: 'Manual violation 1',
-      });
-      context.reportViolation({
-        location: 'manual-location-2',
-        message: 'Manual violation 2',
-      });
+      context.reportViolation('manual-location-1', 'Manual violation 1');
+      context.reportViolation('manual-location-2', 'Manual violation 2');
 
       // Run validation that also returns a violation
       const result = await context.validateHttpTransactions(
         method('get'),
         (req, res, location) => [
           {
-            violation: { location, message: 'Validation violation' },
+            location,
+            violationMessage: 'Validation violation',
             findings: [],
           },
         ],
@@ -532,21 +520,15 @@ describe('HttpTestApiContext', () => {
       expect(result).toEqual(
         expect.arrayContaining([
           expect.objectContaining({
-            violation: expect.objectContaining({
-              location: 'manual-location-1',
-              message: 'Manual violation 1',
-            }),
+            location: 'manual-location-1',
+            violationMessage: 'Manual violation 1',
           }),
           expect.objectContaining({
-            violation: expect.objectContaining({
-              location: 'manual-location-2',
-              message: 'Manual violation 2',
-            }),
+            location: 'manual-location-2',
+            violationMessage: 'Manual violation 2',
           }),
           expect.objectContaining({
-            violation: expect.objectContaining({
-              message: 'Validation violation',
-            }),
+            violationMessage: 'Validation violation',
           }),
         ]),
       );
@@ -561,24 +543,22 @@ describe('HttpTestApiContext', () => {
       const mockContext = createMockHttpTestContext({ format });
       const context = new HttpTestApiContext('test-rule', mockContext);
 
-      context.reportViolation({
-        location: 'reported-violation',
-        message: 'Custom reported violation',
-      });
+      context.reportViolation(
+        'reported-violation',
+        'Custom reported violation',
+      );
 
       const result = await context.validateCommonHttpTransactions(
         method('post'),
-        () => false,
+        () => [],
       );
 
       expect(result).toHaveLength(1);
       expect(result).toEqual(
         expect.arrayContaining([
           expect.objectContaining({
-            violation: expect.objectContaining({
-              location: 'reported-violation',
-              message: 'Custom reported violation',
-            }),
+            location: 'reported-violation',
+            violationMessage: 'Custom reported violation',
           }),
         ]),
       );

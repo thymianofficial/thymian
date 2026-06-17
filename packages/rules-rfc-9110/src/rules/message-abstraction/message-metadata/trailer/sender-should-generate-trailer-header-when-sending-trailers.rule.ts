@@ -1,4 +1,9 @@
-import { httpTransactionToLabel, not, responseHeader } from '@thymian/core';
+import {
+  httpTransactionToLabel,
+  not,
+  responseHeader,
+  type RuleViolationLocation,
+} from '@thymian/core';
 import { httpRule } from '@thymian/core';
 
 export default httpRule(
@@ -14,17 +19,23 @@ export default httpRule(
     'Senders SHOULD generate Trailer header when sending trailer fields.',
   )
   .rule((ctx) =>
-    ctx.validateHttpTransactions(not(responseHeader('trailer')), (req, res) => {
-      const trailerKeys = Object.keys(res.trailers);
+    ctx.validateHttpTransactions(
+      not(responseHeader('trailer')),
+      (req, res, _location: RuleViolationLocation) => {
+        const trailerKeys = Object.keys(res.trailers);
 
-      if (trailerKeys.length > 0) {
-        return {
-          message: `Response contains trailer fields (${trailerKeys.join(', ')}) but no Trailer header field was sent`,
-          location: httpTransactionToLabel(req, res),
-        };
-      }
+        if (trailerKeys.length > 0) {
+          return [
+            {
+              location: httpTransactionToLabel(req, res),
+              violationMessage: `Response contains trailer fields (${trailerKeys.join(', ')}) but no Trailer header field was sent`,
+              findings: [],
+            },
+          ];
+        }
 
-      return false;
-    }),
+        return [];
+      },
+    ),
   )
   .done();

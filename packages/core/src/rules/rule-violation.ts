@@ -9,11 +9,6 @@ export type RuleViolationLocation =
     }
   | string;
 
-export type RuleViolation = {
-  location: RuleViolationLocation;
-  message?: string;
-};
-
 export type RuleFindingSeverity = 'error' | 'warn' | 'info' | 'hint';
 
 export interface RuleFinding {
@@ -47,10 +42,18 @@ export interface RuleFinding {
 export type EvaluatedRuleViolation = {
   ruleName: string;
   severity: Exclude<RuleSeverity, 'off'>;
-  violation: Required<RuleViolation>;
+  location: RuleViolationLocation;
+  message: string;
 };
 
+/**
+ * The result of a single rule validation call.
+ * `violationMessage` being defined (even empty string) signals a violation.
+ * `violationMessage === undefined` signals a pass.
+ * An empty `violationMessage` falls back to the rule's meta summary/description.
+ */
 export type RuleFnResult = {
-  violation: RuleViolation;
+  location: RuleViolationLocation;
+  violationMessage?: string;
   findings: RuleFinding[];
-}[];
+};

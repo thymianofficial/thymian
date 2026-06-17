@@ -47,13 +47,11 @@ export default httpRule(
           ) &&
           prev.request.data !== curr.request.data
         ) {
-          ctx.reportViolation({
-            location,
-          });
+          ctx.reportViolation(location);
         }
       }
 
-      return false;
+      return [];
     }),
   )
   .done();

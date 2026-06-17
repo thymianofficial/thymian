@@ -11,7 +11,6 @@ import {
   type Rule,
   type RuleRunnerAdapter,
   rulesToRuleDescriptors,
-  type RuleViolation,
   runRules,
   type RunRulesResult,
   type SingleRuleConfiguration,
@@ -34,35 +33,29 @@ export {
 function buildStepExecution(
   step: HttpTestCaseStep,
   stepIndex: number,
-  violationByTxId: Map<string, RuleViolation>,
+  violationByTxId: Map<string, string>,
   rule: Rule,
 ): Execution {
   const findings: FindingRecord[] = [];
 
   for (const transaction of step.transactions) {
     const txId = transaction.source?.transactionId;
-    if (txId) {
-      const violation = violationByTxId.get(txId);
-      if (violation) {
-        findings.push({
-          id: randomUUID(),
-          kind: 'rule-violation',
-          ruleId: rule.meta.name,
-          title:
-            violation.message ??
-            rule.meta.summary ??
-            rule.meta.description ??
-            rule.meta.name,
-          severity: rule.meta.severity as Exclude<
-            typeof rule.meta.severity,
-            'off'
-          >,
-          ...(violation.message
-            ? { message: { text: violation.message } }
-            : {}),
-        } satisfies FindingRecord);
-        violationByTxId.delete(txId);
-      }
+    if (txId && violationByTxId.has(txId)) {
+      const message = violationByTxId.get(txId)!;
+      findings.push({
+        id: randomUUID(),
+        kind: 'rule-violation',
+        ruleId: rule.meta.name,
+        title:
+          message ||
+          (rule.meta.summary ?? rule.meta.description ?? rule.meta.name),
+        severity: rule.meta.severity as Exclude<
+          typeof rule.meta.severity,
+          'off'
+        >,
+        ...(message ? { message: { text: message } } : {}),
+      } satisfies FindingRecord);
+      violationByTxId.delete(txId);
     }
   }
 
@@ -86,7 +79,7 @@ function buildStepExecution(
 
 function buildTestCaseExecution(
   testCase: HttpTestCase,
-  violationByTxId: Map<string, RuleViolation>,
+  violationByTxId: Map<string, string>,
   rule: Rule,
 ): Execution {
   const durationMilliseconds =
@@ -151,7 +144,10 @@ function createRuns(
     }
 
     if (!diagnostics) {
-      if (ruleFnResult.length === 0) {
+      const violations = ruleFnResult.filter(
+        (r) => r.violationMessage !== undefined,
+      );
+      if (violations.length === 0) {
         continue;
       }
       // Rule returned violations directly without httpTest diagnostic collection
@@ -159,22 +155,24 @@ function createRuns(
         createExecution({
           name: ruleName,
           location: { type: 'custom', value: ruleName },
-          findings: ruleFnResult.map(
-            ({ violation: v }) =>
+          findings: violations.map(
+            ({ violationMessage }) =>
               ({
                 id: randomUUID(),
                 kind: 'rule-violation' as const,
                 ruleId: ruleName,
                 title:
-                  v.message ??
-                  rule.meta.summary ??
-                  rule.meta.description ??
-                  rule.meta.name,
+                  violationMessage ||
+                  (rule.meta.summary ??
+                    rule.meta.description ??
+                    rule.meta.name),
                 severity: rule.meta.severity as Exclude<
                   typeof rule.meta.severity,
                   'off'
                 >,
-                ...(v.message ? { message: { text: v.message } } : {}),
+                ...(violationMessage
+                  ? { message: { text: violationMessage } }
+                  : {}),
               }) satisfies FindingRecord,
           ),
         }),
@@ -184,13 +182,14 @@ function createRuns(
 
     const testCaseChildren: Execution[] = [];
     for (const { testResult, ruleFnResult: callRuleFnResult } of diagnostics) {
-      const violationByTxId = new Map<string, RuleViolation>();
-      for (const { violation } of callRuleFnResult) {
-        if (
-          typeof violation.location !== 'string' &&
-          violation.location.elementId
-        ) {
-          violationByTxId.set(violation.location.elementId, violation);
+      const violationByTxId = new Map<string, string>();
+      for (const result of callRuleFnResult) {
+        if (result.violationMessage === undefined) {
+          continue;
+        }
+        const loc = result.location;
+        if (typeof loc !== 'string' && loc.elementId) {
+          violationByTxId.set(loc.elementId, result.violationMessage);
         }
       }
       for (const testCase of testResult.cases) {

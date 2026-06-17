@@ -1,3 +1,4 @@
+import type { RuleViolationLocation } from '@thymian/core';
 import { getHeader, responseHeader } from '@thymian/core';
 import { httpRule } from '@thymian/core';
 
@@ -14,14 +15,19 @@ export default httpRule(
   )
   .summary('Servers SHOULD avoid backslash characters in entity tags.')
   .rule((ctx) =>
-    ctx.validateHttpTransactions(responseHeader('etag'), (req, res) => {
-      const etag = getHeader(res.headers, 'etag');
+    ctx.validateHttpTransactions(
+      responseHeader('etag'),
+      (req, res, location: RuleViolationLocation) => {
+        const etag = getHeader(res.headers, 'etag');
 
-      if (typeof etag !== 'string') {
-        return false;
-      }
+        if (typeof etag !== 'string') {
+          return [];
+        }
 
-      return etag.includes('\\');
-    }),
+        return etag.includes('\\')
+          ? [{ location, violationMessage: '', findings: [] }]
+          : [];
+      },
+    ),
   )
   .done();

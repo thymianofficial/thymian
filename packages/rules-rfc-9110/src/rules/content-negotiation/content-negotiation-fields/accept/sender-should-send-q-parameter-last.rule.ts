@@ -1,4 +1,8 @@
-import { getHeader, requestHeader } from '@thymian/core';
+import {
+  getHeader,
+  requestHeader,
+  type RuleViolationLocation,
+} from '@thymian/core';
 import { httpRule } from '@thymian/core';
 
 export default httpRule('rfc9110/sender-should-send-q-parameter-last')
@@ -10,34 +14,43 @@ export default httpRule('rfc9110/sender-should-send-q-parameter-last')
   )
   .rule((ctx) => ctx.validateCommonHttpTransactions(requestHeader('accept')))
   .overrideAnalyticsRule((ctx) =>
-    ctx.validateHttpTransactions(requestHeader('accept'), (req) => {
-      const accept = getHeader(req.headers, 'accept');
+    ctx.validateHttpTransactions(
+      requestHeader('accept'),
+      (req, _res, location: RuleViolationLocation) => {
+        const accept = getHeader(req.headers, 'accept');
 
-      if (!accept) {
-        return false;
-      }
+        if (!accept) {
+          return [];
+        }
 
-      const acceptHeaders = Array.isArray(accept) ? accept : [accept];
+        const acceptHeaders = Array.isArray(accept) ? accept : [accept];
 
-      const acceptValues = acceptHeaders.flatMap((header) => header.split(','));
-
-      const malformedValues = acceptValues.filter((accept) => {
-        const acceptParams = accept.split(';').map((param) => param.trim());
-        const qParamIndex = acceptParams.findIndex((param) =>
-          param.startsWith('q='),
+        const acceptValues = acceptHeaders.flatMap((header) =>
+          header.split(','),
         );
-        return qParamIndex !== acceptParams.length - 1;
-      });
 
-      if (malformedValues.length > 0) {
-        return {
-          message: `The weight parameter "q" SHOULD be send as last parameter. Malformed value(s) sent: ${malformedValues.join(
-            ', ',
-          )}`,
-        };
-      }
+        const malformedValues = acceptValues.filter((accept) => {
+          const acceptParams = accept.split(';').map((param) => param.trim());
+          const qParamIndex = acceptParams.findIndex((param) =>
+            param.startsWith('q='),
+          );
+          return qParamIndex !== acceptParams.length - 1;
+        });
 
-      return false;
-    }),
+        if (malformedValues.length > 0) {
+          return [
+            {
+              location,
+              violationMessage: `The weight parameter "q" SHOULD be send as last parameter. Malformed value(s) sent: ${malformedValues.join(
+                ', ',
+              )}`,
+              findings: [],
+            },
+          ];
+        }
+
+        return [];
+      },
+    ),
   )
   .done();

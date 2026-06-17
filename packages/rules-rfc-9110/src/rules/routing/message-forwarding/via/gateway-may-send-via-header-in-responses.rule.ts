@@ -13,7 +13,10 @@ export default httpRule('rfc9110/gateway-may-send-via-header-in-responses')
   .rule((ctx) =>
     ctx.validateCapturedHttpTransactions(
       not(responseHeader('via')),
-      ({ response }) => response.meta.role === 'gateway',
+      (transaction, location) =>
+        transaction.response.meta.role === 'gateway'
+          ? [{ location, violationMessage: '', findings: [] }]
+          : [],
     ),
   )
   .done();
