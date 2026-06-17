@@ -11,7 +11,7 @@ import {
   responseWith,
   statusCode,
 } from '@thymian/core';
-import { httpRule, type RuleViolation, singleTestCase } from '@thymian/core';
+import { httpRule, singleTestCase } from '@thymian/core';
 
 import { arrayDifference, createList } from '../../../../utils.js';
 import { requiredHeaders } from './server-must-generate-header-fields-for-206-response.rule.js';
@@ -30,7 +30,7 @@ export const representationHeaderFields = [
 export function checkHeaders(
   okResponseHeaders: string[],
   partialResponseHeaders: string[],
-): Omit<RuleViolation, 'location'> | undefined {
+): { violationMessage: string } | undefined {
   const requiredFields = requiredHeaders.filter((header) =>
     equalsIgnoreCase(header, ...okResponseHeaders),
   );
@@ -63,7 +63,7 @@ export function checkHeaders(
     }
 
     return {
-      message: `206 Partial Content response SHOULD NOT contain additional headers ${createList(
+      violationMessage: `206 Partial Content response SHOULD NOT contain additional headers ${createList(
         additionalRepresentationHeaders,
       )} OR the 206 response MUST contain all representation headers, the 200 OK response also contains. Therefore the partial response is missing header(s): ${createList(
         difference,
@@ -118,16 +118,19 @@ export default httpRule(
           );
 
           if (!violation) {
-            return;
+            return [];
           }
 
-          return {
-            ...violation,
-            location: partialTransactionLocation,
-          };
+          return [
+            {
+              location: partialTransactionLocation,
+              violationMessage: violation.violationMessage,
+              findings: [],
+            },
+          ];
         }
 
-        return;
+        return [];
       },
     ),
   )
@@ -156,16 +159,19 @@ export default httpRule(
           );
 
           if (!violation) {
-            return;
+            return [];
           }
 
-          return {
-            ...violation,
-            location: partialTransactionLocation,
-          };
+          return [
+            {
+              location: partialTransactionLocation,
+              violationMessage: violation.violationMessage,
+              findings: [],
+            },
+          ];
         }
 
-        return;
+        return [];
       },
     ),
   )
@@ -202,13 +208,13 @@ export default httpRule(
           );
 
           if (violation) {
-            testContext.reportViolation({
-              message: violation.message,
-              location: {
+            testContext.reportViolation(
+              {
                 elementType: 'edge',
                 elementId: partialTransactions.source.transactionId,
               },
-            });
+              violation.violationMessage,
+            );
           }
         })
         .done(),

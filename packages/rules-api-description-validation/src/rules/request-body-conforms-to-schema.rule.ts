@@ -20,9 +20,9 @@ export default httpRule('thymian/request-body-must-conform-to-schema')
         request: HttpRequest,
         _response: HttpResponse,
         location: RuleViolationLocation,
-      ) => {
+      ): RuleFnResult[] => {
         if (typeof location === 'string') {
-          return false;
+          return [];
         }
 
         const transaction = ctx.format.getThymianHttpTransactionById(
@@ -30,7 +30,7 @@ export default httpRule('thymian/request-body-must-conform-to-schema')
         );
 
         if (!transaction) {
-          return false;
+          return [];
         }
 
         const results = validateBodyForRequest(
@@ -42,16 +42,14 @@ export default httpRule('thymian/request-body-must-conform-to-schema')
         if (failures.length > 0) {
           return [
             {
-              violation: {
-                location,
-                message: `${failures.length} assertion(s) failed`,
-              },
+              location,
+              violationMessage: `${failures.length} assertion(s) failed`,
               findings: httpTestResultToRuleFindings(results),
             },
-          ] satisfies RuleFnResult;
+          ];
         }
 
-        return false;
+        return [];
       },
     );
   })

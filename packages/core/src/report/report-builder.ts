@@ -88,7 +88,7 @@ export function executionsFromViolations(
 
   for (const evaluatedViolation of violations) {
     const { heading, location } = resolveViolationLocation(
-      evaluatedViolation.violation,
+      evaluatedViolation.location,
       format,
       evaluatedViolation.ruleName,
     );
@@ -105,8 +105,8 @@ export function executionsFromViolations(
       id: randomUUID(),
       kind: 'rule-violation',
       ruleId: evaluatedViolation.ruleName,
-      title: evaluatedViolation.violation.message,
-      message: { text: evaluatedViolation.violation.message },
+      title: evaluatedViolation.message,
+      message: { text: evaluatedViolation.message },
       severity: evaluatedViolation.severity,
     });
 

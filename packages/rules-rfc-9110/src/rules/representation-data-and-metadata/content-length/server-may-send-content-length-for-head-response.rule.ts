@@ -49,13 +49,13 @@ export default httpRule(
             typeof getContentLength === 'string' &&
             headContentLength !== getContentLength
           ) {
-            ctx.reportViolation({
-              message: `Content-Length in HEAD response does not match GET response (${headContentLength} != ${getContentLength}).`,
-              location: {
+            ctx.reportViolation(
+              {
                 elementType: 'edge',
                 elementId: headTransaction.source.transactionId,
               },
-            });
+              `Content-Length in HEAD response does not match GET response (${headContentLength} != ${getContentLength}).`,
+            );
           }
         })
         .done(),

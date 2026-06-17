@@ -8,7 +8,6 @@ import {
   type HttpResponse,
   httpResponseToCommonHttpResponse,
   type RuleFnResult,
-  type RuleViolation,
   type RuleViolationLocation,
   type TestContext,
   ThymianBaseError,
@@ -49,14 +48,17 @@ function hasSource(
 /** Per-call association of test result with the violations produced by that call. */
 export type HttpTesterRuleDiagnostics = Array<{
   testResult: HttpTestResult;
-  ruleFnResult: RuleFnResult;
+  ruleFnResult: RuleFnResult[];
 }>;
 
 export class HttpTestApiContext<
   Locals extends HttpTestContextLocals = HttpTestContextLocals,
 > implements TestContext<HttpTesterRuleDiagnostics> {
   readonly format: ThymianFormat;
-  private readonly violations: RuleViolation[] = [];
+  private readonly pendingViolations: Array<{
+    location: RuleViolationLocation;
+    violationMessage?: string;
+  }> = [];
   private readonly ctx: HttpTestContext<Locals>;
   private readonly diagnosticEntries: HttpTesterRuleDiagnostics = [];
 
@@ -84,8 +86,8 @@ export class HttpTestApiContext<
     };
   }
 
-  reportViolation(violation: RuleViolation): void {
-    this.violations.push(violation);
+  reportViolation(location: RuleViolationLocation, message?: string): void {
+    this.pendingViolations.push({ location, violationMessage: message ?? '' });
   }
 
   getRuleExecutionDiagnostics(): HttpTesterRuleDiagnostics | undefined {
@@ -100,7 +102,7 @@ export class HttpTestApiContext<
     validationFn: ValidationFn<
       [string, [CommonHttpRequest, CommonHttpResponse, RuleViolationLocation][]]
     >,
-  ): Promise<RuleFnResult> {
+  ): Promise<RuleFnResult[]> {
     const filterFn = httpFilterExpressionToFilter(filterExpr);
     const groupByFn = httpFilterToGroupByFn(groupByExpression);
 
@@ -116,7 +118,7 @@ export class HttpTestApiContext<
 
     const testResult = await test(this.ctx);
 
-    const callViolations: RuleFnResult = [];
+    const callViolations: RuleFnResult[] = [];
     this.collectTestCaseDiagnostics(testResult, callViolations);
 
     testResult.cases
@@ -146,14 +148,9 @@ export class HttpTestApiContext<
             },
           ]);
 
-        const validationResult = validationFn(
-          source.key,
-          transactionsToValidate,
+        callViolations.push(
+          ...validationFn(source.key, transactionsToValidate),
         );
-
-        if (Array.isArray(validationResult)) {
-          callViolations.push(...validationResult);
-        }
       });
 
     if (testResult.cases.length > 0) {
@@ -162,7 +159,11 @@ export class HttpTestApiContext<
 
     return [
       ...callViolations,
-      ...this.violations.map((v) => ({ violation: v, findings: [] })),
+      ...this.pendingViolations.map(({ location, violationMessage }) => ({
+        location,
+        violationMessage,
+        findings: [],
+      })),
     ];
   }
 
@@ -173,7 +174,7 @@ export class HttpTestApiContext<
           [CommonHttpRequest, CommonHttpResponse, RuleViolationLocation]
         >
       | HttpFilterExpression = filterExpr,
-  ): Promise<RuleFnResult> {
+  ): Promise<RuleFnResult[]> {
     const test = httpTest(
       this.name,
       singleTestCase().forTransactionsWith(filterExpr).run().done(),
@@ -181,7 +182,7 @@ export class HttpTestApiContext<
 
     const testResult = await test(this.ctx);
 
-    const callViolations: RuleFnResult = [];
+    const callViolations: RuleFnResult[] = [];
     this.collectTestCaseDiagnostics(testResult, callViolations);
 
     testResult.cases
@@ -195,39 +196,28 @@ export class HttpTestApiContext<
               throw new Error('Invalid HTTP test case transaction.');
             }
 
-            if (typeof validate === 'function') {
-              const validationResult = validate(
-                httpRequestToCommonHttpRequest(request, source.thymianReqId),
-                httpResponseToCommonHttpResponse(response, source.thymianResId),
-                {
-                  elementType: 'edge',
-                  elementId: source.transactionId,
-                },
-              );
-              if (Array.isArray(validationResult)) {
-                callViolations.push(...validationResult);
-              } else if (validationResult === true) {
-                callViolations.push({
-                  violation: {
-                    location: {
-                      elementType: 'edge',
-                      elementId: source.transactionId,
-                    } satisfies RuleViolationLocation,
-                  },
-                  findings: [],
-                });
-              }
-            } else {
-              const validateFn = httpFilterToTransactionValidationFn(validate);
+            const location: RuleViolationLocation = {
+              elementType: 'edge',
+              elementId: source.transactionId,
+            };
 
-              if (validateFn(request, response)) {
+            if (typeof validate === 'function') {
+              callViolations.push(
+                ...validate(
+                  httpRequestToCommonHttpRequest(request, source.thymianReqId),
+                  httpResponseToCommonHttpResponse(
+                    response,
+                    source.thymianResId,
+                  ),
+                  location,
+                ),
+              );
+            } else {
+              const filterFn = httpFilterToTransactionValidationFn(validate);
+              if (filterFn(request, response)) {
                 callViolations.push({
-                  violation: {
-                    location: {
-                      elementType: 'edge',
-                      elementId: source.transactionId,
-                    } satisfies RuleViolationLocation,
-                  },
+                  location: { ...location, pointer: '' },
+                  violationMessage: '',
                   findings: [],
                 });
               }
@@ -242,13 +232,17 @@ export class HttpTestApiContext<
 
     return [
       ...callViolations,
-      ...this.violations.map((v) => ({ violation: v, findings: [] })),
+      ...this.pendingViolations.map(({ location, violationMessage }) => ({
+        location,
+        violationMessage,
+        findings: [],
+      })),
     ];
   }
 
   private collectTestCaseDiagnostics(
     testResult: HttpTestResult,
-    callViolations: RuleFnResult,
+    callViolations: RuleFnResult[],
   ) {
     for (const testCase of testResult.cases) {
       if (testCase.status === 'skipped') {
@@ -268,12 +262,11 @@ export class HttpTestApiContext<
 
         if (assertionFailure?.transaction) {
           callViolations.push({
-            violation: {
-              location: {
-                elementType: 'edge',
-                elementId: assertionFailure.transaction.transactionId,
-              },
+            location: {
+              elementType: 'edge',
+              elementId: assertionFailure.transaction.transactionId,
             },
+            violationMessage: '',
             findings: [],
           });
         }
@@ -281,12 +274,12 @@ export class HttpTestApiContext<
     }
   }
 
-  async httpTest(pipeline: HttpTestPipeline<Locals>): Promise<RuleFnResult> {
+  async httpTest(pipeline: HttpTestPipeline<Locals>): Promise<RuleFnResult[]> {
     const testFn = httpTest(this.name, pipeline);
 
     const testResult = await testFn(this.ctx);
 
-    const callViolations: RuleFnResult = [];
+    const callViolations: RuleFnResult[] = [];
     this.collectTestCaseDiagnostics(testResult, callViolations);
 
     if (testResult.cases.length > 0) {
@@ -295,7 +288,11 @@ export class HttpTestApiContext<
 
     return [
       ...callViolations,
-      ...this.violations.map((v) => ({ violation: v, findings: [] })),
+      ...this.pendingViolations.map(({ location, violationMessage }) => ({
+        location,
+        violationMessage,
+        findings: [],
+      })),
     ];
   }
 
@@ -322,12 +319,7 @@ export class HttpTestApiContext<
           ]
         >
       | HttpFilterExpression = filterExpr,
-  ): Promise<RuleFnResult> {
-    const validationFn =
-      typeof validation === 'function'
-        ? validation
-        : httpFilterToTransactionValidationFn(validation);
-
+  ): Promise<RuleFnResult[]> {
     const test = httpTest(
       this.name,
       singleTestCase().forTransactionsWith(filterExpr).run().done(),
@@ -335,7 +327,7 @@ export class HttpTestApiContext<
 
     const testResult = await test(this.ctx);
 
-    const callViolations: RuleFnResult = [];
+    const callViolations: RuleFnResult[] = [];
     this.collectTestCaseDiagnostics(testResult, callViolations);
 
     testResult.cases
@@ -351,24 +343,23 @@ export class HttpTestApiContext<
               );
             }
 
-            const validationResult = validationFn(request, response, {
+            const location: RuleViolationLocation = {
               elementType: 'edge',
               elementId: source.transactionId,
-            });
+              pointer: '',
+            };
 
-            if (Array.isArray(validationResult)) {
-              callViolations.push(...validationResult);
-            } else if (validationResult === true) {
-              callViolations.push({
-                violation: {
-                  location: {
-                    elementType: 'edge',
-                    elementId: source.transactionId,
-                    pointer: '',
-                  } satisfies RuleViolationLocation,
-                },
-                findings: [],
-              });
+            if (typeof validation === 'function') {
+              callViolations.push(...validation(request, response, location));
+            } else {
+              const filterFn = httpFilterToTransactionValidationFn(validation);
+              if (filterFn(request, response)) {
+                callViolations.push({
+                  location,
+                  violationMessage: '',
+                  findings: [],
+                });
+              }
             }
           }
         }),
@@ -380,7 +371,11 @@ export class HttpTestApiContext<
 
     return [
       ...callViolations,
-      ...this.violations.map((v) => ({ violation: v, findings: [] })),
+      ...this.pendingViolations.map(({ location, violationMessage }) => ({
+        location,
+        violationMessage,
+        findings: [],
+      })),
     ];
   }
 }

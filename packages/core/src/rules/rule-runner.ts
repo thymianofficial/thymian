@@ -22,7 +22,7 @@ import { isRuleSeverityLevel } from './rule-severity.js';
 import type {
   EvaluatedRuleViolation,
   RuleFnResult,
-  RuleViolation,
+  RuleViolationLocation,
 } from './rule-violation.js';
 
 export function findDuplicates<T>(elements: T[]): T[] {
@@ -32,12 +32,10 @@ export function findDuplicates<T>(elements: T[]): T[] {
 }
 
 export function resolveViolationLocation(
-  violation: RuleViolation,
+  location: RuleViolationLocation,
   format: ThymianFormat,
   ruleName: string,
 ): { heading: string; location: Location } {
-  const { location } = violation;
-
   if (typeof location === 'string') {
     return {
       heading: location,
@@ -144,7 +142,7 @@ export type RunRulesResult<TDiagnostics = unknown> = Record<
   string,
   {
     diagnostics: TDiagnostics | undefined;
-    ruleFnResult: RuleFnResult;
+    ruleFnResult: RuleFnResult[];
   }
 >;
 
@@ -161,7 +159,7 @@ export type RuleRunnerAdapter<
           mode: 'static' | 'analytics' | 'test';
         },
         logger: Logger,
-      ) => RuleFnResult | Promise<RuleFnResult>)
+      ) => RuleFnResult[] | Promise<RuleFnResult[]>)
     | undefined;
   createContext(
     rule: Rule,
@@ -177,27 +175,22 @@ export function runRulesResultToViolations<TDiagnostics>(
   const violations: EvaluatedRuleViolation[] = [];
 
   for (const [ruleName, { ruleFnResult }] of Object.entries(result)) {
-    if (ruleFnResult.length === 0) {
-      continue;
-    }
-
     const rule = ruleMap.get(ruleName);
     if (!rule) {
       continue;
     }
 
-    for (const { violation } of ruleFnResult) {
+    for (const entry of ruleFnResult) {
+      if (entry.violationMessage === undefined) {
+        continue;
+      }
       violations.push({
         ruleName,
         severity: rule.meta.severity as Exclude<RuleSeverity, 'off'>,
-        violation: {
-          ...violation,
-          message:
-            violation.message ??
-            rule.meta.summary ??
-            rule.meta.description ??
-            rule.meta.name,
-        },
+        location: entry.location,
+        message:
+          entry.violationMessage ||
+          (rule.meta.summary ?? rule.meta.description ?? rule.meta.name),
       });
     }
   }

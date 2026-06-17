@@ -13,7 +13,10 @@ export default httpRule('rfc9110/proxy-must-send-via-header')
   .rule((ctx) =>
     ctx.validateCapturedHttpTransactions(
       not(requestHeader('via')),
-      ({ request }) => request.meta.role === 'proxy',
+      (transaction, location) =>
+        transaction.request.meta.role === 'proxy'
+          ? [{ location, violationMessage: '', findings: [] }]
+          : [],
     ),
   )
   .done();

@@ -64,10 +64,8 @@ export default httpRule(
         .transactions(([, notModifiedTransaction]) => {
           if (notModifiedTransaction.response.statusCode !== 304) {
             ctx.reportViolation({
-              location: {
-                elementType: 'edge',
-                elementId: notModifiedTransaction.source.transactionId,
-              },
+              elementType: 'edge',
+              elementId: notModifiedTransaction.source.transactionId,
             });
           }
         })

@@ -33,7 +33,8 @@ describe('plugin-http-tester integration', () => {
       .summary('Example rule summary')
       .rule(() => [
         {
-          violation: { location: 'example', message: 'violation' },
+          location: 'example',
+          violationMessage: 'violation',
           findings: [],
         },
       ])

@@ -11,7 +11,7 @@ import {
   responseWith,
   statusCode,
 } from '@thymian/core';
-import { httpRule, type RuleViolation, singleTestCase } from '@thymian/core';
+import { httpRule, singleTestCase } from '@thymian/core';
 
 import { createList } from '../../../../utils.js';
 
@@ -27,7 +27,7 @@ export const requiredHeadersFor304 = [
 export function checkHeaders(
   okResponseHeaders: string[],
   notModifiedHeaders: string[],
-): Omit<RuleViolation, 'location'> | undefined {
+): { violationMessage: string } | undefined {
   const missingHeaders = requiredHeadersFor304.filter(
     (header) =>
       equalsIgnoreCase(header, ...okResponseHeaders) &&
@@ -36,7 +36,7 @@ export function checkHeaders(
 
   if (missingHeaders.length > 0) {
     return {
-      message: `304 Not Modified response MUST include headers ${createList(
+      violationMessage: `304 Not Modified response MUST include headers ${createList(
         missingHeaders,
       )} because these were included in the corresponding 200 OK response.`,
     };
@@ -81,14 +81,17 @@ export default httpRule(
           );
 
           if (violation) {
-            return {
-              ...violation,
-              location: notModifiedLocation,
-            };
+            return [
+              {
+                location: notModifiedLocation,
+                violationMessage: violation.violationMessage,
+                findings: [],
+              },
+            ];
           }
         }
 
-        return undefined;
+        return [];
       },
     ),
   )
@@ -122,13 +125,13 @@ export default httpRule(
           );
 
           if (violation) {
-            testContext.reportViolation({
-              ...violation,
-              location: {
+            testContext.reportViolation(
+              {
                 elementType: 'edge',
                 elementId: notModifiedTransaction.source.transactionId,
               },
-            });
+              violation.violationMessage,
+            );
           }
         })
         .done(),

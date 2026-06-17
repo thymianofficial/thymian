@@ -1,4 +1,9 @@
-import { getHeader, requestHeader } from '@thymian/core';
+import {
+  getHeader,
+  type HttpResponse,
+  requestHeader,
+  type RuleViolationLocation,
+} from '@thymian/core';
 import { httpRule } from '@thymian/core';
 
 export default httpRule(
@@ -12,25 +17,30 @@ export default httpRule(
   )
   .appliesTo('user-agent')
   .overrideAnalyticsRule((ctx) =>
-    ctx.validateHttpTransactions(requestHeader('referer'), (request) => {
-      const referer = getHeader(request.headers, 'referer');
+    ctx.validateHttpTransactions(
+      requestHeader('referer'),
+      (request, _res: HttpResponse, location: RuleViolationLocation) => {
+        const referer = getHeader(request.headers, 'referer');
 
-      if (typeof referer !== 'string') {
-        return false;
-      }
+        if (typeof referer !== 'string') {
+          return [];
+        }
 
-      if (!referer?.toLowerCase().startsWith('https://')) {
-        return false;
-      }
+        if (!referer?.toLowerCase().startsWith('https://')) {
+          return [];
+        }
 
-      // Extract origins
-      const requestUrl = request.origin.toLowerCase();
-      const refererOrigin = extractOrigin(referer);
-      const requestOrigin = extractOrigin(requestUrl);
+        // Extract origins
+        const requestUrl = request.origin.toLowerCase();
+        const refererOrigin = extractOrigin(referer);
+        const requestOrigin = extractOrigin(requestUrl);
 
-      // Violation: secure referer with different origin
-      return refererOrigin !== requestOrigin;
-    }),
+        // Violation: secure referer with different origin
+        return refererOrigin !== requestOrigin
+          ? [{ location, violationMessage: '', findings: [] }]
+          : [];
+      },
+    ),
   )
   .done();
 

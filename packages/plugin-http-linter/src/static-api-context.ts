@@ -6,9 +6,8 @@ import {
   isNodeType,
   type LintContext,
   type Logger,
-  type PartialBy,
+  type RuleFinding,
   type RuleFnResult,
-  type RuleViolation,
   type RuleViolationLocation,
   ThymianFormat,
   type ThymianHttpRequest,
@@ -25,7 +24,10 @@ import { httpFilterToGroupByFn } from './visitors/http-filter-to-static-by-fn.js
 
 export class StaticApiContext implements LintContext {
   readonly format: ThymianFormat;
-  private readonly violations: RuleViolation[] = [];
+  private readonly pendingViolations: Array<{
+    location: RuleViolationLocation;
+    violationMessage?: string;
+  }> = [];
   private readonly skippedOrigins: string[];
 
   constructor(
@@ -52,8 +54,8 @@ export class StaticApiContext implements LintContext {
     }
   }
 
-  reportViolation(violation: RuleViolation): void {
-    this.violations.push(violation);
+  reportViolation(location: RuleViolationLocation, message?: string): void {
+    this.pendingViolations.push({ location, violationMessage: message ?? '' });
   }
 
   getRuleExecutionDiagnostics(): undefined {
@@ -67,10 +69,10 @@ export class StaticApiContext implements LintContext {
           [CommonHttpRequest, CommonHttpResponse, RuleViolationLocation]
         >
       | HttpFilterExpression = filter,
-  ): RuleFnResult {
+  ): RuleFnResult[] {
     const filterFn = httpFilterExpressionToFilter(filter);
 
-    const rawEntries: RuleFnResult = this.format
+    const rawEntries: RuleFnResult[] = this.format
       .getThymianHttpTransactions()
       .filter((transaction) => filterFn(transaction, this.format))
       .flatMap((transaction) => {
@@ -80,7 +82,7 @@ export class StaticApiContext implements LintContext {
         };
 
         if (typeof validate === 'function') {
-          const validationResult = validate(
+          return validate(
             thymianToCommonHttpRequest(
               transaction.thymianReq,
               transaction.thymianReqId,
@@ -91,19 +93,13 @@ export class StaticApiContext implements LintContext {
             ),
             location,
           );
-          if (Array.isArray(validationResult)) {
-            return validationResult;
-          }
-          if (validationResult === true) {
-            return [{ violation: { location }, findings: [] }];
-          }
-          return [];
         } else {
           const validateFn = httpFilterExpressionToFilter(validate);
           return validateFn(transaction, this.format)
             ? [
                 {
-                  violation: { location: { ...location, pointer: '' } },
+                  location: { ...location, pointer: '' },
+                  violationMessage: '',
                   findings: [],
                 },
               ]
@@ -113,7 +109,11 @@ export class StaticApiContext implements LintContext {
 
     return [
       ...rawEntries,
-      ...this.violations.map((violation) => ({ violation, findings: [] })),
+      ...this.pendingViolations.map(({ location, violationMessage }) => ({
+        location,
+        violationMessage,
+        findings: [],
+      })),
     ];
   }
 
@@ -123,7 +123,7 @@ export class StaticApiContext implements LintContext {
     validationFn: ValidationFn<
       [string, [CommonHttpRequest, CommonHttpResponse, RuleViolationLocation][]]
     >,
-  ): RuleFnResult {
+  ): RuleFnResult[] {
     const filterFn = httpFilterExpressionToFilter(filter);
     const groupByFn = httpFilterToGroupByFn(groupBy);
 
@@ -139,9 +139,9 @@ export class StaticApiContext implements LintContext {
         {},
       );
 
-    const rawEntries: RuleFnResult = Object.entries(groups).flatMap(
-      ([key, group]) => {
-        const validationResult = validationFn(
+    const rawEntries: RuleFnResult[] = Object.entries(groups).flatMap(
+      ([key, group]) =>
+        validationFn(
           key,
           group.map(
             ({
@@ -159,18 +159,16 @@ export class StaticApiContext implements LintContext {
               },
             ],
           ),
-        );
-
-        if (Array.isArray(validationResult)) {
-          return validationResult;
-        }
-        return [];
-      },
+        ),
     );
 
     return [
       ...rawEntries,
-      ...this.violations.map((violation) => ({ violation, findings: [] })),
+      ...this.pendingViolations.map(({ location, violationMessage }) => ({
+        location,
+        violationMessage,
+        findings: [],
+      })),
     ];
   }
 
@@ -184,58 +182,65 @@ export class StaticApiContext implements LintContext {
       req: ThymianHttpRequest,
       res: ThymianHttpResponse,
       responses: ThymianHttpResponse[],
-    ) => PartialBy<RuleViolation, 'location'> | boolean = filterFn,
-  ): RuleFnResult {
-    const rawViolations = this.format.graph.reduceNodes(
-      (violations, id, node) => {
-        if (!isNodeType(node, 'http-request')) {
-          return violations;
-        }
+    ) =>
+      | { violationMessage?: string; findings?: RuleFinding[] }
+      | boolean = filterFn,
+  ): RuleFnResult[] {
+    const rawEntries = this.format.graph.reduceNodes((acc, id, node) => {
+      if (!isNodeType(node, 'http-request')) {
+        return acc;
+      }
 
-        const responsesWithIds = this.format.getHttpResponsesOf(id);
-        const responses = responsesWithIds.map(([, res]) => res);
+      const responsesWithIds = this.format.getHttpResponsesOf(id);
+      const responses = responsesWithIds.map(([, res]) => res);
 
-        for (const [resId, res] of responsesWithIds) {
-          if (filterFn(node, res, responses)) {
-            const result = validationFn(node, res, responses);
+      for (const [resId, res] of responsesWithIds) {
+        if (filterFn(node, res, responses)) {
+          const result = validationFn(node, res, responses);
 
-            const transactionId = this.format.graph.findEdge(
-              id,
-              resId,
-              (_, edge) => edge.type === 'http-transaction',
-            );
+          const transactionId = this.format.graph.findEdge(
+            id,
+            resId,
+            (_, edge) => edge.type === 'http-transaction',
+          );
 
-            if (!transactionId) {
-              throw new Error('Invalid HTTP transaction ID.');
-            }
+          if (!transactionId) {
+            throw new Error('Invalid HTTP transaction ID.');
+          }
 
-            if (typeof result === 'boolean' && result) {
-              violations.push({
-                location: {
-                  elementType: 'edge',
-                  elementId: transactionId,
-                },
-              });
-            } else if (result) {
-              violations.push({
-                location: {
-                  elementType: 'edge',
-                  elementId: transactionId,
-                },
-                ...result,
+          const location: RuleViolationLocation = {
+            elementType: 'edge',
+            elementId: transactionId,
+          };
+
+          if (result === true) {
+            acc.push({ location, violationMessage: '', findings: [] });
+          } else if (
+            result !== false &&
+            result !== undefined &&
+            result !== null
+          ) {
+            if (result.violationMessage !== undefined) {
+              acc.push({
+                location,
+                violationMessage: result.violationMessage,
+                findings: result.findings ?? [],
               });
             }
           }
         }
+      }
 
-        return violations;
-      },
-      [] as RuleViolation[],
-    );
+      return acc;
+    }, [] as RuleFnResult[]);
 
-    return [...rawViolations, ...this.violations].map((violation) => ({
-      violation,
-      findings: [],
-    }));
+    return [
+      ...rawEntries,
+      ...this.pendingViolations.map(({ location, violationMessage }) => ({
+        location,
+        violationMessage,
+        findings: [],
+      })),
+    ];
   }
 }

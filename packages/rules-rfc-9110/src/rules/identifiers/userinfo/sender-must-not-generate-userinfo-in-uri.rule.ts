@@ -1,3 +1,4 @@
+import type { RuleViolationLocation } from '@thymian/core';
 import { httpRule, or, protocol } from '@thymian/core';
 
 export default httpRule('rfc9110/sender-must-not-generate-userinfo-in-uri')
@@ -12,14 +13,16 @@ export default httpRule('rfc9110/sender-must-not-generate-userinfo-in-uri')
   .rule((ctx, opts, logger) =>
     ctx.validateCommonHttpTransactions(
       or(protocol('http'), protocol('https')),
-      (req) => {
+      (req, _res, location: RuleViolationLocation) => {
         try {
           const url = new URL(req.path, req.origin);
 
-          return !!url.username || !!url.password;
+          return !!url.username || !!url.password
+            ? [{ location, violationMessage: '', findings: [] }]
+            : [];
         } catch (e) {
           logger.error('Cannot run rule because of invalid URL:', e);
-          return false;
+          return [];
         }
       },
     ),
