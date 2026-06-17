@@ -1,0 +1,28 @@
+---
+import { getCollection } from 'astro:content';
+import SocialLayout from '../../../components/social/SocialLayout.astro';
+import SocialPostList from '../../../components/social/SocialPostList.astro';
+
+type PublishStatus = 'draft' | 'ready' | 'published';
+
+const STATUS_LABELS: Record<PublishStatus, string> = {
+  draft: 'Draft',
+  ready: 'Ready',
+  published: 'Published',
+};
+
+export function getStaticPaths() {
+  return (['draft', 'ready', 'published'] as PublishStatus[]).map((status) => ({
+    params: { status },
+    props: { status },
+  }));
+}
+
+const { status } = Astro.props as { status: PublishStatus };
+const allPosts = await getCollection('social');
+const posts = allPosts.filter((post) => post.data.publishStatus === status);
+---
+
+<SocialLayout title={`Social Media Hub · ${STATUS_LABELS[status]}`}>
+  <SocialPostList allPosts={allPosts} posts={posts} currentStatus={status} />
+</SocialLayout>
