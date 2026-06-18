@@ -33,7 +33,7 @@ describe('plugin-http-analyzer integration', () => {
       .rule(() => [
         {
           location: 'example',
-          violationMessage: 'violation',
+          violation: { message: 'violation' },
           findings: [],
         },
       ])

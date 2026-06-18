@@ -1,5 +1,6 @@
-import { TextFormatter } from '../src/formatters/text.js';
 import { describe, expect, it } from 'vitest';
+
+import { TextFormatter } from '../src/formatters/text.js';
 
 const report = {
   reportId: 'report-1',

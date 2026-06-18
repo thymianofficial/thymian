@@ -40,7 +40,9 @@ export default httpRule(
           return [
             {
               location,
-              violationMessage: `If-Range header field contains a weak entity tag (marked with W/), which is not allowed. Value(s) used: ${invalidRanges.join(', ')}`,
+              violation: {
+                message: `If-Range header field contains a weak entity tag (marked with W/), which is not allowed. Value(s) used: ${invalidRanges.join(', ')}`,
+              },
               findings: [],
             },
           ];

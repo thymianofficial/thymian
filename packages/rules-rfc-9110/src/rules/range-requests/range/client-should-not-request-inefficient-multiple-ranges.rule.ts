@@ -80,7 +80,7 @@ export default httpRule(
         const result = validateRangeEfficiency(rangeHeader);
 
         if (result) {
-          return [{ location, violationMessage: result, findings: [] }];
+          return [{ location, violation: { message: result }, findings: [] }];
         } else {
           return [];
         }

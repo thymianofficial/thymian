@@ -5,7 +5,7 @@ import {
   not,
   responseHeader,
 } from '@thymian/core';
-import { httpRule, singleTestCase } from '@thymian/core';
+import { httpRule, type RuleFnResult, singleTestCase } from '@thymian/core';
 
 export default httpRule(
   'rfc9110/server-may-send-content-length-for-head-response',
@@ -23,8 +23,9 @@ export default httpRule(
   .summary(
     'Servers MAY send Content-Length in HEAD responses (must match what GET would return).',
   )
-  .rule((ctx) =>
-    ctx.httpTest(
+  .rule(async (ctx) => {
+    const results: RuleFnResult[] = [];
+    await ctx.httpTest(
       singleTestCase()
         .forTransactionsWith(method('head'))
         .run({ checkResponse: false })
@@ -49,16 +50,20 @@ export default httpRule(
             typeof getContentLength === 'string' &&
             headContentLength !== getContentLength
           ) {
-            ctx.reportViolation(
-              {
+            results.push({
+              location: {
                 elementType: 'edge',
                 elementId: headTransaction.source.transactionId,
               },
-              `Content-Length in HEAD response does not match GET response (${headContentLength} != ${getContentLength}).`,
-            );
+              violation: {
+                message: `Content-Length in HEAD response does not match GET response (${headContentLength} != ${getContentLength}).`,
+              },
+              findings: [],
+            });
           }
         })
         .done(),
-    ),
-  )
+    );
+    return results;
+  })
   .done();

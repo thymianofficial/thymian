@@ -15,7 +15,7 @@ export default httpRule('rfc9110/proxy-must-send-via-header')
       not(requestHeader('via')),
       (transaction, location) =>
         transaction.request.meta.role === 'proxy'
-          ? [{ location, violationMessage: '', findings: [] }]
+          ? [{ location, violation: {}, findings: [] }]
           : [],
     ),
   )

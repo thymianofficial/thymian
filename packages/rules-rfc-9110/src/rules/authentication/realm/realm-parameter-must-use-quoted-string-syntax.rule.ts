@@ -46,7 +46,7 @@ export default httpRule('rfc9110/realm-parameter-must-use-quoted-string-syntax')
             for (const param of challenge.parameters) {
               const isRealmParam = equalsIgnoreCase(param.name, 'realm');
               if (isRealmParam && !param.isQuoted) {
-                return [{ location, violationMessage: '', findings: [] }]; // Violation: realm used token syntax instead of quoted-string
+                return [{ location, violation: {}, findings: [] }]; // Violation: realm used token syntax instead of quoted-string
               }
             }
           }

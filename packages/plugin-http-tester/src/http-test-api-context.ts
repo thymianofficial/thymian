@@ -17,7 +17,6 @@ import {
   type ValidationFn,
 } from '@thymian/core';
 import {
-  type AssertionFailure,
   generateRequests,
   type GroupedHttpTestCaseStep,
   httpTest,
@@ -55,10 +54,6 @@ export class HttpTestApiContext<
   Locals extends HttpTestContextLocals = HttpTestContextLocals,
 > implements TestContext<HttpTesterRuleDiagnostics> {
   readonly format: ThymianFormat;
-  private readonly pendingViolations: Array<{
-    location: RuleViolationLocation;
-    violationMessage?: string;
-  }> = [];
   private readonly ctx: HttpTestContext<Locals>;
   private readonly diagnosticEntries: HttpTesterRuleDiagnostics = [];
 
@@ -84,10 +79,6 @@ export class HttpTestApiContext<
       ...ctx,
       format: this.format,
     };
-  }
-
-  reportViolation(location: RuleViolationLocation, message?: string): void {
-    this.pendingViolations.push({ location, violationMessage: message ?? '' });
   }
 
   getRuleExecutionDiagnostics(): HttpTesterRuleDiagnostics | undefined {
@@ -119,7 +110,6 @@ export class HttpTestApiContext<
     const testResult = await test(this.ctx);
 
     const callViolations: RuleFnResult[] = [];
-    this.collectTestCaseDiagnostics(testResult, callViolations);
 
     testResult.cases
       .filter((testCase) => testCase.status === 'passed')
@@ -157,14 +147,7 @@ export class HttpTestApiContext<
       this.diagnosticEntries.push({ testResult, ruleFnResult: callViolations });
     }
 
-    return [
-      ...callViolations,
-      ...this.pendingViolations.map(({ location, violationMessage }) => ({
-        location,
-        violationMessage,
-        findings: [],
-      })),
-    ];
+    return callViolations;
   }
 
   async validateCommonHttpTransactions(
@@ -183,7 +166,6 @@ export class HttpTestApiContext<
     const testResult = await test(this.ctx);
 
     const callViolations: RuleFnResult[] = [];
-    this.collectTestCaseDiagnostics(testResult, callViolations);
 
     testResult.cases
       .filter((testCase) => testCase.status === 'passed')
@@ -217,7 +199,7 @@ export class HttpTestApiContext<
               if (filterFn(request, response)) {
                 callViolations.push({
                   location: { ...location, pointer: '' },
-                  violationMessage: '',
+                  violation: {},
                   findings: [],
                 });
               }
@@ -230,48 +212,7 @@ export class HttpTestApiContext<
       this.diagnosticEntries.push({ testResult, ruleFnResult: callViolations });
     }
 
-    return [
-      ...callViolations,
-      ...this.pendingViolations.map(({ location, violationMessage }) => ({
-        location,
-        violationMessage,
-        findings: [],
-      })),
-    ];
-  }
-
-  private collectTestCaseDiagnostics(
-    testResult: HttpTestResult,
-    callViolations: RuleFnResult[],
-  ) {
-    for (const testCase of testResult.cases) {
-      if (testCase.status === 'skipped') {
-        this.ctx.logger.debug(
-          `HTTP test case "${testCase.name}" from test "${this.name}" is skipped.`,
-        );
-      } else if (testCase.status === 'failed') {
-        this.ctx.logger.debug(
-          `HTTP test case "${testCase.name}" from test "${this.name}" failed.`,
-        );
-
-        const assertionFailure = testCase.results.find(
-          (r) =>
-            r.type === 'assertion-failure' &&
-            !!(r as AssertionFailure).transaction,
-        ) as AssertionFailure | undefined;
-
-        if (assertionFailure?.transaction) {
-          callViolations.push({
-            location: {
-              elementType: 'edge',
-              elementId: assertionFailure.transaction.transactionId,
-            },
-            violationMessage: '',
-            findings: [],
-          });
-        }
-      }
-    }
+    return callViolations;
   }
 
   async httpTest(pipeline: HttpTestPipeline<Locals>): Promise<RuleFnResult[]> {
@@ -280,20 +221,12 @@ export class HttpTestApiContext<
     const testResult = await testFn(this.ctx);
 
     const callViolations: RuleFnResult[] = [];
-    this.collectTestCaseDiagnostics(testResult, callViolations);
 
     if (testResult.cases.length > 0) {
       this.diagnosticEntries.push({ testResult, ruleFnResult: callViolations });
     }
 
-    return [
-      ...callViolations,
-      ...this.pendingViolations.map(({ location, violationMessage }) => ({
-        location,
-        violationMessage,
-        findings: [],
-      })),
-    ];
+    return callViolations;
   }
 
   async runHttpTest(
@@ -328,7 +261,6 @@ export class HttpTestApiContext<
     const testResult = await test(this.ctx);
 
     const callViolations: RuleFnResult[] = [];
-    this.collectTestCaseDiagnostics(testResult, callViolations);
 
     testResult.cases
       .filter((testCase) => testCase.status === 'passed')
@@ -356,7 +288,7 @@ export class HttpTestApiContext<
               if (filterFn(request, response)) {
                 callViolations.push({
                   location,
-                  violationMessage: '',
+                  violation: {},
                   findings: [],
                 });
               }
@@ -369,13 +301,6 @@ export class HttpTestApiContext<
       this.diagnosticEntries.push({ testResult, ruleFnResult: callViolations });
     }
 
-    return [
-      ...callViolations,
-      ...this.pendingViolations.map(({ location, violationMessage }) => ({
-        location,
-        violationMessage,
-        findings: [],
-      })),
-    ];
+    return callViolations;
   }
 }

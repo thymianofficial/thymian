@@ -56,7 +56,7 @@ export default httpRule(
           ];
 
           if (nonVersionPatterns.some((pattern) => pattern.test(version))) {
-            return [{ location, violationMessage: '', findings: [] }];
+            return [{ location, violation: {}, findings: [] }];
           }
         }
 

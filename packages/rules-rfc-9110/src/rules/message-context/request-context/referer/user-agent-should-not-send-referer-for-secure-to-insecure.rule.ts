@@ -37,7 +37,7 @@ export default httpRule(
 
         // Violation: secure referer with different origin
         return refererOrigin !== requestOrigin
-          ? [{ location, violationMessage: '', findings: [] }]
+          ? [{ location, violation: {}, findings: [] }]
           : [];
       },
     ),

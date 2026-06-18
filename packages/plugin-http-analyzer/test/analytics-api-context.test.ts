@@ -140,7 +140,7 @@ describe('AnalyticsApiContext', () => {
         statusCode(200),
         (req, res, location) => {
           if (res.statusCode === 200) {
-            return [{ location, violationMessage: '', findings: [] }];
+            return [{ location, violation: {}, findings: [] }];
           }
           return [];
         },
@@ -174,7 +174,7 @@ describe('AnalyticsApiContext', () => {
         (req, res, location) => [
           {
             location,
-            violationMessage: 'Custom violation',
+            violation: { message: 'Custom violation' },
             findings: [],
           },
         ],
@@ -183,7 +183,9 @@ describe('AnalyticsApiContext', () => {
       expect(result).toHaveLength(1);
       expect(result).toEqual(
         expect.arrayContaining([
-          expect.objectContaining({ violationMessage: 'Custom violation' }),
+          expect.objectContaining({
+            violation: { message: 'Custom violation' },
+          }),
         ]),
       );
     });
@@ -646,7 +648,7 @@ describe('AnalyticsApiContext', () => {
             return [
               {
                 location,
-                violationMessage: 'POST method found',
+                violation: { message: 'POST method found' },
                 findings: [],
               },
             ];
@@ -659,14 +661,14 @@ describe('AnalyticsApiContext', () => {
       expect(result).toEqual(
         expect.arrayContaining([
           expect.objectContaining({
-            violationMessage: 'POST method found',
+            violation: { message: 'POST method found' },
             location: expect.stringContaining('/users'),
           }),
         ]),
       );
     });
 
-    it('should return violation for non-empty violationMessage result', () => {
+    it('should return violation for non-empty violation result', () => {
       insertTransaction();
 
       const format = createThymianFormat();
@@ -678,9 +680,7 @@ describe('AnalyticsApiContext', () => {
 
       const result = context.validateCapturedHttpTransactions(
         path('/users'),
-        (transaction, location) => [
-          { location, violationMessage: '', findings: [] },
-        ],
+        (transaction, location) => [{ location, violation: {}, findings: [] }],
       );
 
       expect(result).toHaveLength(1);
@@ -755,9 +755,7 @@ describe('AnalyticsApiContext', () => {
 
       const result = context.validateCapturedHttpTransactions(
         path('/users'),
-        (transaction, location) => [
-          { location, violationMessage: '', findings: [] },
-        ],
+        (transaction, location) => [{ location, violation: {}, findings: [] }],
       );
 
       expect(result).toHaveLength(1);
@@ -1023,7 +1021,9 @@ describe('AnalyticsApiContext', () => {
         (req, res, location) => [
           {
             location,
-            violationMessage: `Request to ${req.path} returned ${res.statusCode}`,
+            violation: {
+              message: `Request to ${req.path} returned ${res.statusCode}`,
+            },
             findings: [],
           },
         ],
@@ -1033,7 +1033,7 @@ describe('AnalyticsApiContext', () => {
       expect(result).toEqual(
         expect.arrayContaining([
           expect.objectContaining({
-            violationMessage: 'Request to /users returned 200',
+            violation: { message: 'Request to /users returned 200' },
           }),
         ]),
       );
@@ -1382,7 +1382,7 @@ describe('AnalyticsApiContext', () => {
           return [
             {
               location,
-              violationMessage: 'Single transaction trace',
+              violation: { message: 'Single transaction trace' },
               findings: [],
             },
           ];
@@ -1394,7 +1394,7 @@ describe('AnalyticsApiContext', () => {
       expect(result).toEqual(
         expect.arrayContaining([
           expect.objectContaining({
-            violationMessage: 'Single transaction trace',
+            violation: { message: 'Single transaction trace' },
           }),
         ]),
       );
@@ -1529,7 +1529,7 @@ describe('AnalyticsApiContext', () => {
           last.response.meta.role === 'origin server' &&
           first.request.data.method === 'get'
         ) {
-          return [{ location, violationMessage: '', findings: [] }];
+          return [{ location, violation: {}, findings: [] }];
         }
         return [];
       });

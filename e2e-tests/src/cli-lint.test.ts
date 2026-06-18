@@ -26,7 +26,9 @@ describe('thymian lint', () => {
     expect(output).toContain(
       'rfc9110/origin-server-with-clock-must-generate-date-for-2xx-3xx-4xx',
     );
-    expect(output).toContain('Summary: 1 error(s), 0 warning(s), 0 hint(s), 0 info finding(s).');
+    expect(output).toContain(
+      'Summary: 1 error(s), 0 warning(s), 0 hint(s), 0 info finding(s).',
+    );
   }, 90_000);
 
   it('should accept specification via --spec flag', () => {
@@ -38,7 +40,9 @@ describe('thymian lint', () => {
     );
 
     expect(output).toContain('@thymian/plugin-http-linter · lint ·');
-    expect(output).toContain('Summary: 1 error(s), 0 warning(s), 0 hint(s), 0 info finding(s).');
+    expect(output).toContain(
+      'Summary: 1 error(s), 0 warning(s), 0 hint(s), 0 info finding(s).',
+    );
   }, 90_000);
 
   it('should exit with non-zero code when findings are present', () => {
@@ -60,7 +64,9 @@ describe('thymian lint', () => {
 
     expect(exitCode).toBe(0);
     expect(stdout).toContain('@thymian/plugin-http-linter · lint ·');
-    expect(stdout).toContain('Summary: 0 error(s), 0 warning(s), 0 hint(s), 0 info finding(s).');
+    expect(stdout).toContain(
+      'Summary: 0 error(s), 0 warning(s), 0 hint(s), 0 info finding(s).',
+    );
   }, 90_000);
 
   it('should output rendered report text on stdout', () => {
@@ -116,7 +122,10 @@ describe('thymian lint', () => {
     });
 
     const normalize = (value: string) =>
-      value.replace(/\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z/g, '<timestamp>');
+      value.replace(
+        /\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z/g,
+        '<timestamp>',
+      );
 
     expect(normalize(first.stdout)).toBe(normalize(second.stdout));
   }, 180_000);

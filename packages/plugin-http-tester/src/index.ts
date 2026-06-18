@@ -9,6 +9,7 @@ import {
   type HttpTestCase,
   type HttpTestCaseStep,
   type Rule,
+  ruleFindingToFindingRecord,
   type RuleRunnerAdapter,
   rulesToRuleDescriptors,
   runRules,
@@ -144,54 +145,63 @@ function createRuns(
     }
 
     if (!diagnostics) {
-      const violations = ruleFnResult.filter(
-        (r) => r.violationMessage !== undefined,
-      );
-      if (violations.length === 0) {
+      // Rule returned results directly without httpTest diagnostic collection.
+      // Surface both violations and findings-on-pass (Requirement 2).
+      const findings: FindingRecord[] = [];
+      for (const entry of ruleFnResult) {
+        if (entry.violation !== undefined) {
+          const message = entry.violation.message;
+          findings.push({
+            id: randomUUID(),
+            kind: 'rule-violation',
+            ruleId: ruleName,
+            title:
+              message ||
+              (rule.meta.summary ?? rule.meta.description ?? rule.meta.name),
+            severity: rule.meta.severity as Exclude<
+              typeof rule.meta.severity,
+              'off'
+            >,
+            ...(message ? { message: { text: message } } : {}),
+          } satisfies FindingRecord);
+        }
+        for (const finding of entry.findings) {
+          findings.push(ruleFindingToFindingRecord(finding, ruleName));
+        }
+      }
+
+      if (findings.length === 0) {
         continue;
       }
-      // Rule returned violations directly without httpTest diagnostic collection
+
       ruleExecutions.push(
         createExecution({
           name: ruleName,
           location: { type: 'custom', value: ruleName },
-          findings: violations.map(
-            ({ violationMessage }) =>
-              ({
-                id: randomUUID(),
-                kind: 'rule-violation' as const,
-                ruleId: ruleName,
-                title:
-                  violationMessage ||
-                  (rule.meta.summary ??
-                    rule.meta.description ??
-                    rule.meta.name),
-                severity: rule.meta.severity as Exclude<
-                  typeof rule.meta.severity,
-                  'off'
-                >,
-                ...(violationMessage
-                  ? { message: { text: violationMessage } }
-                  : {}),
-              }) satisfies FindingRecord,
-          ),
+          findings,
         }),
       );
       continue;
     }
 
-    const testCaseChildren: Execution[] = [];
-    for (const { testResult, ruleFnResult: callRuleFnResult } of diagnostics) {
-      const violationByTxId = new Map<string, string>();
-      for (const result of callRuleFnResult) {
-        if (result.violationMessage === undefined) {
-          continue;
-        }
-        const loc = result.location;
-        if (typeof loc !== 'string' && loc.elementId) {
-          violationByTxId.set(loc.elementId, result.violationMessage);
-        }
+    // Violations come from the rule's returned RuleFnResult[] (the authoritative
+    // source). `collectTestCaseDiagnostics` is metadata-only, so per-call
+    // diagnostics carry no violations; rules accumulate them into their return
+    // (e.g. the closure-accumulator pattern). Match each to its test case by
+    // transaction id.
+    const violationByTxId = new Map<string, string>();
+    for (const entry of ruleFnResult) {
+      if (entry.violation === undefined) {
+        continue;
       }
+      const loc = entry.location;
+      if (typeof loc !== 'string' && loc.elementId) {
+        violationByTxId.set(loc.elementId, entry.violation.message ?? '');
+      }
+    }
+
+    const testCaseChildren: Execution[] = [];
+    for (const { testResult } of diagnostics) {
       for (const testCase of testResult.cases) {
         testCaseChildren.push(
           buildTestCaseExecution(testCase, violationByTxId, rule),

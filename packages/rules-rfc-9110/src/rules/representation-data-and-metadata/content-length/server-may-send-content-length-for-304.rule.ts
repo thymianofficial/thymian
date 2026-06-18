@@ -8,7 +8,7 @@ import {
   responseHeader,
   statusCode,
 } from '@thymian/core';
-import { httpRule, singleTestCase } from '@thymian/core';
+import { httpRule, type RuleFnResult, singleTestCase } from '@thymian/core';
 
 export default httpRule('rfc9110/server-may-send-content-length-for-304')
   .severity('error')
@@ -24,8 +24,9 @@ export default httpRule('rfc9110/server-may-send-content-length-for-304')
   .summary(
     'Servers MAY send Content-Length in 304 responses if it matches what 200 would return.',
   )
-  .rule((ctx) =>
-    ctx.httpTest(
+  .rule(async (ctx) => {
+    const results: RuleFnResult[] = [];
+    await ctx.httpTest(
       singleTestCase()
         .forTransactionsWith(and(method('GET'), statusCode(200)))
         .run()
@@ -59,16 +60,20 @@ export default httpRule('rfc9110/server-may-send-content-length-for-304')
             typeof notModifiedLength === 'string' &&
             okResponseLength !== notModifiedLength
           ) {
-            ctx.reportViolation(
-              {
+            results.push({
+              location: {
                 elementType: 'edge',
                 elementId: okResponse.source.transactionId,
               },
-              `Content-Length in HEAD response does not match GET response (${okResponseLength} != ${notModifiedLength}).`,
-            );
+              violation: {
+                message: `Content-Length in HEAD response does not match GET response (${okResponseLength} != ${notModifiedLength}).`,
+              },
+              findings: [],
+            });
           }
         })
         .done(),
-    ),
-  )
+    );
+    return results;
+  })
   .done();

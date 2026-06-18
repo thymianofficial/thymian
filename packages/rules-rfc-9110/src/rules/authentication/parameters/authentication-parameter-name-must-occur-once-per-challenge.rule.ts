@@ -47,7 +47,7 @@ export default httpRule(
             for (const param of challenge.parameters) {
               const lowerName = param.name.toLowerCase();
               if (seenParams.has(lowerName)) {
-                return [{ location, violationMessage: '', findings: [] }]; // Violation found
+                return [{ location, violation: {}, findings: [] }]; // Violation found
               }
               seenParams.add(lowerName);
             }

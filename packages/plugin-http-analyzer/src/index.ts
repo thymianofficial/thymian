@@ -6,7 +6,7 @@ import {
   createExecution,
   createToolRun,
   type EvaluatedRuleViolation,
-  executionsFromViolations,
+  executionsFromRunRulesResult,
   type Logger,
   type ReportHttpTransaction,
   type Rule,
@@ -14,6 +14,7 @@ import {
   type RulesConfiguration,
   rulesToRuleDescriptors,
   runRules,
+  type RunRulesResult,
   runRulesResultToViolations,
   type SerializedThymianFormat,
   type SingleRuleConfiguration,
@@ -106,11 +107,11 @@ function toReportHttpTransaction(
 function createRuns(
   pluginName: string,
   format: ThymianFormat,
-  violations: EvaluatedRuleViolation[],
+  ruleResults: RunRulesResult,
   transactions: CapturedTransaction[] = [],
   rules: Rule[] = [],
 ): ToolRun[] {
-  const executions = executionsFromViolations(violations, format);
+  const executions = executionsFromRunRulesResult(ruleResults, rules, format);
   const httpTransactions = transactions.map(toReportHttpTransaction);
 
   if (executions.length === 0 && httpTransactions.length === 0) {
@@ -238,7 +239,6 @@ export function createHttpAnalyzerPlugin(
             rulesConfig,
             createAnalyzerAdapter(logger, thymianFormat, repo),
           );
-          const violations = runRulesResultToViolations(ruleResults, rules);
 
           await repo.close();
 
@@ -246,7 +246,7 @@ export function createHttpAnalyzerPlugin(
             createRuns(
               pluginName,
               thymianFormat,
-              violations,
+              ruleResults,
               traffic.transactions ?? [],
               rules,
             ),
@@ -271,7 +271,7 @@ export function createHttpAnalyzerPlugin(
           const violations = runRulesResultToViolations(ruleResults, rules);
 
           ctx.reply({
-            runs: createRuns(pluginName, thymianFormat, violations, [], rules),
+            runs: createRuns(pluginName, thymianFormat, ruleResults, [], rules),
             violations,
             valid: violations.length === 0,
           });
@@ -317,7 +317,7 @@ export function createHttpAnalyzerPlugin(
             runs: createRuns(
               pluginName,
               thymianFormat,
-              violations,
+              ruleResults,
               transactions ?? [],
               rules,
             ),

@@ -66,9 +66,7 @@ describe('StaticApiContext', () => {
 
       const result = context.validateCommonHttpTransactions(
         statusCode(200),
-        (req, res, location) => [
-          { location, violationMessage: '', findings: [] },
-        ],
+        (req, res, location) => [{ location, violation: {}, findings: [] }],
       );
 
       expect(result).toHaveLength(1);
@@ -87,7 +85,7 @@ describe('StaticApiContext', () => {
         (req, res, location) => [
           {
             location,
-            violationMessage: 'Custom violation message',
+            violation: { message: 'Custom violation message' },
             findings: [],
           },
         ],
@@ -97,7 +95,7 @@ describe('StaticApiContext', () => {
       expect(result).toEqual(
         expect.arrayContaining([
           expect.objectContaining({
-            violationMessage: 'Custom violation message',
+            violation: { message: 'Custom violation message' },
           }),
         ]),
       );
@@ -271,7 +269,9 @@ describe('StaticApiContext', () => {
                   elementType: 'node' as const,
                   elementId: 'group-violation',
                 },
-                violationMessage: `Expected 3 transactions with status 200, got ${transactions.length}`,
+                violation: {
+                  message: `Expected 3 transactions with status 200, got ${transactions.length}`,
+                },
                 findings: [],
               },
             ];
@@ -285,7 +285,9 @@ describe('StaticApiContext', () => {
         expect.arrayContaining([
           expect.objectContaining({
             location: { elementType: 'node', elementId: 'group-violation' },
-            violationMessage: 'Expected 3 transactions with status 200, got 2',
+            violation: {
+              message: 'Expected 3 transactions with status 200, got 2',
+            },
           }),
         ]),
       );
@@ -366,12 +368,14 @@ describe('StaticApiContext', () => {
       const result = context.validateHttpTransactions(
         (req) => req.method === 'get',
         (req) => ({
-          violationMessage: `Found GET request to ${req.path}`,
+          violation: { message: `Found GET request to ${req.path}` },
         }),
       );
 
       expect(result).toHaveLength(1);
-      expect(result?.[0]?.violationMessage).toBe('Found GET request to /users');
+      expect(result?.[0]?.violation?.message).toBe(
+        'Found GET request to /users',
+      );
     });
 
     it('should handle multiple responses for the same request', () => {

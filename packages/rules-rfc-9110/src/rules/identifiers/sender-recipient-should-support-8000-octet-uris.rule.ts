@@ -22,7 +22,7 @@ export default httpRule(
           return [
             {
               location,
-              violationMessage: 'URI length is less than 8000 octets',
+              violation: { message: 'URI length is less than 8000 octets' },
               findings: [],
             },
           ];

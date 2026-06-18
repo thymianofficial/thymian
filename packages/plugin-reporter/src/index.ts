@@ -29,7 +29,8 @@ export const reporterPlugin: ThymianPlugin<ReporterPluginOptions> = {
                 nullable: true,
               },
               path: {
-                description: 'File path where the plain text report will be saved',
+                description:
+                  'File path where the plain text report will be saved',
                 type: 'string',
                 nullable: true,
               },
@@ -42,7 +43,8 @@ export const reporterPlugin: ThymianPlugin<ReporterPluginOptions> = {
             type: 'object',
             properties: {
               path: {
-                description: 'File path where the markdown report will be saved',
+                description:
+                  'File path where the markdown report will be saved',
                 type: 'string',
                 nullable: true,
               },
