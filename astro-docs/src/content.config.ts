@@ -27,7 +27,7 @@ export const collections = {
       title: z.string(),
       description: z.string(),
       category: z.enum(SOCIAL_CATEGORIES),
-      publishStatus: z.enum(['draft', 'ready']).default('draft'),
+      publishStatus: z.enum(['draft', 'ready', 'published']).default('draft'),
       docLinks: z
         .array(
           z.object({

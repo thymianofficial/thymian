@@ -1,0 +1,139 @@
+---
+title: 'HTTP QUERY: safe request bodies for complex queries'
+description: 'Explain RFC 10008 and the HTTP QUERY method for safe, idempotent requests with request content.'
+category: http-api-topics
+publishStatus: ready
+docLinks:
+  - label: 'RFC 10008 — The HTTP QUERY Method'
+    url: 'https://www.rfc-editor.org/info/rfc10008'
+  - label: 'HTTP Conformance — Thymian'
+    url: 'https://thymian.dev/introduction/http-conformance/'
+---
+
+import PlatformSection from '../../../components/social/PlatformSection.astro';
+import PostText from '../../../components/social/PostText.astro';
+import SocialImage from '../../../components/social/SocialImage.astro';
+
+<PlatformSection platform="reddit">
+  <PostText platform="reddit" label="Title">{'When GET is too small and POST says the wrong thing: HTTP QUERY is here'}</PostText>
+  <PostText platform="reddit" label="Post body">
+    {`Have you ever used \`POST /search\` for a read-only operation because the query was too large or too complex for a URL?
+
+That is the problem the new HTTP \`QUERY\` method solves.
+
+RFC 10008 was just released in June 2026 and standardizes a method for safe, idempotent requests with request content.
+
+The gap it fills is pretty specific:
+
+- \`GET\` is safe and idempotent, but the query input usually has to live in the URI.
+- \`POST\` can carry request content, but it does not tell generic HTTP tooling that the operation is safe or idempotent.
+- \`QUERY\` carries request content like \`POST\`, while explicitly being safe and idempotent like \`GET\`.
+
+Example:
+
+\`\`\`http
+QUERY /feed HTTP/1.1
+Host: example.org
+Content-Type: application/x-www-form-urlencoded
+
+q=foo&limit=10&sort=-published
+\`\`\`
+
+That matters because HTTP semantics are used by more than your application code. Retries, caches, gateways, observability tools, generated clients, and security infrastructure all make decisions based on method semantics.
+
+A few important details from the RFC:
+
+- \`Content-Type\` is required and must match the query content.
+- Responses to \`QUERY\` are cacheable, but cache keys must include the request content and related metadata.
+- \`Accept-Query\` lets a resource advertise supported query media types.
+- \`Location\` and \`Content-Location\` can point clients to resources that can later be retrieved with \`GET\`.
+- Browser CORS preflight applies because \`QUERY\` is not a CORS-safelisted method.
+
+It is not “GET with a body.” It is a separate method for safe, idempotent server-side query processing.
+
+Curious how quickly clients, frameworks, gateways, and CDNs will adopt it.
+
+RFC: https://www.rfc-editor.org/info/rfc10008`}
+  </PostText>
+  <SocialImage type="headline" platform="reddit" headline="Ever used POST for big and complex queries?" subheadline="The newly published RFC 10008 introduces QUERY: a way to express complex read-only queries in the request body while keeping the request safe and idempotent, just like GET." />
+</PlatformSection>
+
+<PlatformSection platform="x">
+  <PostText platform="x">
+    {`Ever used POST for a read-only search because the query was too big for the URL?
+
+New RFC 10008, just released, defines HTTP QUERY: request content with safe/idempotent semantics.
+
+https://www.rfc-editor.org/info/rfc10008`}
+  </PostText>
+  <SocialImage type="headline" platform="x" headline="Ever used POST for big and complex queries?" subheadline="The newly published RFC 10008 introduces QUERY: a way to express complex read-only queries in the request body while keeping the request safe and idempotent, just like GET." />
+</PlatformSection>
+
+<PlatformSection platform="linkedin">
+  <PostText platform="linkedin">
+    {`**What should an API use when a read-only query is too complex for a URL, but \`POST\` communicates the wrong semantics?**
+
+That is the problem solved by HTTP \`QUERY\`.
+
+RFC 10008 was just released in June 2026 and defines a standard method for safe, idempotent requests with request content.
+
+This solves a common API design mismatch:
+
+- \`GET\` has clear safe/idempotent semantics, but complex query input often does not fit well in a URI.
+- \`POST\` accepts request content, but generic HTTP infrastructure cannot assume the operation is safe or idempotent.
+- \`QUERY\` accepts request content while explicitly being safe and idempotent.
+
+Example:
+
+\`QUERY /feed\`
+\`Content-Type: application/json\`
+
+\`{"q":"foo","limit":10,"sort":"-published"}\`
+
+That semantic distinction matters. HTTP method semantics influence automatic retries, caching behavior, intermediaries, client generation, observability, and security tooling.
+
+A few practical points from the RFC:
+
+✅ \`Content-Type\` is required and must match the query content
+✅ \`QUERY\` responses are cacheable, with cache keys incorporating request content and metadata
+✅ \`Accept-Query\` lets resources advertise supported query formats
+✅ \`Location\` and \`Content-Location\` can connect \`QUERY\` results to later \`GET\` requests
+✅ CORS preflight applies because \`QUERY\` is not CORS-safelisted
+
+The important nuance: \`QUERY\` is not “GET with a body.” It is its own HTTP method for safe, idempotent server-side query processing.
+
+Adoption will take time across frameworks, clients, gateways, and caches — but the semantics are now standardized.
+
+RFC 10008: https://www.rfc-editor.org/info/rfc10008
+
+#HTTP #API #APIDesign #WebDevelopment #RFC`}
+  </PostText>
+  <SocialImage type="headline" platform="linkedin" headline="Ever used POST for big and complex queries?" subheadline="The newly published RFC 10008 introduces QUERY: a way to express complex read-only queries in the request body while keeping the request safe and idempotent, just like GET." />
+</PlatformSection>
+
+<PlatformSection platform="discord">
+  <PostText platform="discord">
+    {`🌐 **Problem:** your read-only query is too large or complex for a URL, but \`POST\` does not communicate safe/idempotent semantics.
+
+**New in RFC 10008:** the HTTP \`QUERY\` method, just released in June 2026.
+
+Use case: safe, idempotent queries where the query input belongs in request content instead of the URI.
+
+\`\`\`http
+QUERY /feed HTTP/1.1
+Content-Type: application/json
+
+{"q":"foo","limit":10}
+\`\`\`
+
+The idea:
+- \`GET\`: safe/idempotent, but URI-based input
+- \`POST\`: request body, but semantics are not necessarily safe
+- \`QUERY\`: request body + safe/idempotent semantics
+
+Also worth noting: \`Content-Type\` is required, responses are cacheable, and \`Accept-Query\` can advertise supported query formats.
+
+RFC: https://www.rfc-editor.org/info/rfc10008`}
+  </PostText>
+  <SocialImage type="headline" platform="discord" headline="Ever used POST for big and complex queries?" subheadline="The newly published RFC 10008 introduces QUERY: a way to express complex read-only queries in the request body while keeping the request safe and idempotent, just like GET." />
+</PlatformSection>

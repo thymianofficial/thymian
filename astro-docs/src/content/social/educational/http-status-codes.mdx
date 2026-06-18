@@ -1,161 +1,131 @@
 ---
-title: 'HTTP Status Codes: The Main Source of Response Semantics'
-description: 'Educational post about why HTTP status codes are more than success and failure labels, and how Thymian surfaces deeper status code semantics early.'
+title: 'HTTP status codes are API behavior, not labels'
+description: 'Educational post about how HTTP status codes define response behavior for clients, caches, gateways, and API consumers.'
 category: educational
-publishStatus: draft
+publishStatus: ready
 docLinks:
   - label: 'HTTP Conformance — Thymian'
     url: 'https://thymian.dev/introduction/http-conformance/'
-  - label: 'Using thymian lint'
-    url: 'https://thymian.dev/tutorials/thymian-lint-workflow/'
-  - label: 'Using thymian test'
-    url: 'https://thymian.dev/tutorials/thymian-test-workflow/'
-  - label: 'Using thymian analyze'
-    url: 'https://thymian.dev/tutorials/thymian-analyze-workflow/'
 ---
 
 import PlatformSection from '../../../components/social/PlatformSection.astro';
 import PostText from '../../../components/social/PostText.astro';
 import SocialImage from '../../../components/social/SocialImage.astro';
 
-## Reddit
-
 <PlatformSection platform="reddit">
   <PostText platform="reddit" label="Title">
-    {`HTTP status codes do more than say success or failure — they change the meaning of your API`}
+    {`HTTP status codes are API behavior, not labels`}
   </PostText>
 
   <PostText platform="reddit" label="Post body">
-    {`Most developers know the basic rule: don't return \`200 OK\` for a failed request.
+    {`A status code is not just a short label for “worked” or “failed”.
 
-But HTTP status codes do much more than label success vs error. In HTTP, the status code is the main source of the response semantics.
+In HTTP, the status code tells clients what kind of response they received and what they can reasonably do next. That makes status codes part of your API behavior.
 
 A few examples:
 
-- \`404 Not Found\` vs \`410 Gone\`
-  \`404\` means the resource is not found.
-  \`410\` means it existed before and is intentionally gone.
+- \`202 Accepted\` means the request was accepted, but processing has not completed yet. Clients should not assume the work is done.
+- \`303 See Other\` points the client to another resource that can be retrieved with \`GET\`.
+- \`422 Unprocessable Content\` says the content is syntactically valid, but semantically invalid for the operation.
 
-- \`403 Forbidden\` vs \`404 Not Found\`
-  RFC 9110 explicitly allows an origin server to respond with \`404\` instead of \`403\` if it wants to hide the existence of the resource.
+Those differences matter because clients, caches, gateways, SDKs, generated docs, monitoring systems, and agents all read status codes as machine-readable behavior.
 
-Those are not cosmetic differences. They change what clients, caches, and other tooling can infer from the response.
+If an API returns \`200 OK\` with an error object, humans might understand it. Generic HTTP tooling will not.
 
-This is exactly the kind of HTTP nuance Thymian can surface across the entire lifecycle. It gives you and your agents hints about protocol capabilities like these distinctions — and about violations in status code usage — while linting your OpenAPI description, testing implementations, and analyzing real traffic.
+If an API returns \`500 Internal Server Error\` for validation problems, clients cannot distinguish “retry later” from “fix your request”.
 
-\`\`\`bash
-npx thymian lint --spec openapi:openapi.yaml
-npx thymian test --spec openapi:openapi.yaml
-npx thymian analyze --traffic har:./traffic.har
-\`\`\`
+If an API returns \`200 OK\` for asynchronous work that is merely accepted, clients lose the standard \`202 Accepted\` signal.
+
+Good status codes make APIs easier to automate, test, cache, monitor, and reason about.
 
 Docs: https://thymian.dev/introduction/http-conformance/
 
-Which status code distinction do you see misused most often?`}
-
+Which status code do you see misused most often?`}
   </PostText>
 
-  <SocialImage type="code-snippet" platform="reddit" lang="bash" codeLabel="Across the lifecycle" code={`npx thymian lint --spec openapi:openapi.yaml
-
-npx thymian test --spec openapi:openapi.yaml
-
-npx thymian analyze --traffic har:./traffic.har`} />
-
+  <SocialImage type="headline" platform="reddit" headline="HTTP status codes are API behavior" subheadline="They tell clients, caches, gateways, SDKs, and agents what happened — and what they can do next." />
 </PlatformSection>
-
-## X (Twitter)
 
 <PlatformSection platform="x">
   <PostText platform="x">
-    {`HTTP status codes carry the main semantics of a response.
+    {`HTTP status codes are API behavior, not labels.
 
-Not just 200 vs error:
-404 vs 410 matters
-403 vs 404 can hide resource existence
+202 means accepted, not done.
+303 points clients to another resource.
+422 means valid syntax, invalid meaning.
 
-Thymian points out these HTTP nuances across the lifecycle.
-
-Lint. Test. Analyze.
-https://thymian.dev/introduction/http-conformance/`}
-
+Clients, caches, gateways, SDKs, and agents read these semantics.`}
   </PostText>
 
-  <SocialImage type="code-snippet" platform="x" lang="bash" codeLabel="Across the lifecycle" code={`npx thymian lint --spec openapi:openapi.yaml
-
-npx thymian test --spec openapi:openapi.yaml
-
-npx thymian analyze --traffic har:./traffic.har`} />
-
+  <SocialImage type="headline" platform="x" headline="HTTP status codes are API behavior" subheadline="They tell clients, caches, gateways, SDKs, and agents what happened — and what they can do next." />
 </PlatformSection>
-
-## LinkedIn
 
 <PlatformSection platform="linkedin">
   <PostText platform="linkedin">
-    {`HTTP status codes are the main source of semantics in an HTTP response.
-Most teams know not to send \`200 OK\` for a failed request. Fewer teams use status codes to express the more precise meaning the protocol already gives them.
+    {`HTTP status codes are API behavior, not labels.
 
-Two examples matter a lot in practice:
+It is tempting to treat status codes as a small set of buckets:
 
-→ \`404 Not Found\` vs \`410 Gone\`
-\`410\` does not just say “not here”. It says the resource existed and was intentionally removed.
+- 2xx = success
+- 4xx = client problem
+- 5xx = server problem
 
-→ \`403 Forbidden\` vs \`404 Not Found\`
-RFC 9110 explicitly allows an origin server to respond with \`404\` instead of \`403\` when it wants to hide the existence of a resource.
+That is a useful start, but it misses the point.
 
-These choices affect how clients, caches, gateways, and security-sensitive consumers interpret the response.
+In HTTP, the status code defines the semantics of the response. It tells clients, caches, gateways, generated SDKs, monitoring systems, and agents what happened and what they can reasonably do next.
 
-Thymian recognizes these kinds of protocol semantics across the entire lifecycle. It can give you and your agents hints about possible HTTP functionality and about violations in status code usage while linting your API description, testing runtime behavior, and analyzing captured traffic.
+A few examples:
 
-npx thymian lint --spec openapi:openapi.yaml
-npx thymian test --spec openapi:openapi.yaml
-npx thymian analyze --spec openapi:openapi.yaml
+→ \`202 Accepted\`
+The request was accepted, but processing is not complete. The client should not treat the operation as finished.
+
+→ \`303 See Other\`
+The response points the client to another resource that can be retrieved with \`GET\`.
+
+→ \`422 Unprocessable Content\`
+The request content is syntactically valid, but semantically invalid for the operation.
+
+These distinctions are not cosmetic. They affect retries, error handling, caching, documentation, SDK behavior, observability, and automation.
+
+Examples of weak API behavior:
+
+- returning \`200 OK\` with an error object
+- returning \`500 Internal Server Error\` for validation problems
+- returning \`200 OK\` for asynchronous work that should be \`202 Accepted\`
+- collapsing distinct client-side problems into generic errors, even when \`422\` would be more precise
+
+Good status code usage makes APIs easier to consume because the protocol already carries useful machine-readable meaning.
+
+That is why HTTP conformance is not just about being “technically correct”. It is about making API behavior explicit and reliable.
 
 Learn more: https://thymian.dev/introduction/http-conformance/
 
-#HTTP #API #OpenAPI #DevTools #RFC9110 #Agents`}
-
+#HTTP #API #APIDesign #WebDevelopment #OpenAPI`}
   </PostText>
 
-  <SocialImage type="code-snippet" platform="linkedin" lang="bash" codeLabel="Across the lifecycle" code={`npx thymian lint --spec openapi:openapi.yaml
-
-npx thymian test --spec openapi:openapi.yaml
-
-npx thymian analyze --traffic har:./traffic.har`} />
-
+  <SocialImage type="headline" platform="linkedin" headline="HTTP status codes are API behavior" subheadline="They tell clients, caches, gateways, SDKs, and agents what happened — and what they can do next." />
 </PlatformSection>
-
-## Discord
 
 <PlatformSection platform="discord">
   <PostText platform="discord">
-    {`**HTTP status codes are the main source of response semantics.**
+    {`**HTTP status codes are API behavior, not labels.**
 
-Most people know one rule:
+They do more than say “success” or “error”. They tell clients what happened and what they can do next.
 
-- don't send \`200 OK\` for a failed request
+Examples:
 
-But there are also more advanced distinctions:
+- \`202 Accepted\`: processing is not done yet
+- \`303 See Other\`: retrieve another resource with \`GET\`
+- \`422 Unprocessable Content\`: valid syntax, invalid meaning
 
-- \`404 Not Found\` vs \`410 Gone\`
-- \`403 Forbidden\` vs \`404 Not Found\` when the server wants to hide resource existence
+Common problem:
 
-Thymian can surface these protocol hints for you and your agents across the **entire lifecycle** — while linting specs, testing implementations, and analyzing traffic.
+\`200 OK\` with an error body might be readable to a human, but generic HTTP tooling still sees success.
 
-\`\`\`bash
-npx thymian lint --spec openapi:openapi.yaml
-npx thymian test --spec openapi:openapi.yaml
-npx thymian analyze --spec openapi:openapi.yaml
-\`\`\`
+Good status codes make APIs easier to automate, test, monitor, and reason about.
 
 https://thymian.dev/introduction/http-conformance/`}
-
   </PostText>
 
-  <SocialImage type="code-snippet" platform="discord" lang="bash" codeLabel="Across the lifecycle" code={`npx thymian lint --spec openapi:openapi.yaml
-
-npx thymian test --spec openapi:openapi.yaml
-
-npx thymian analyze --traffic har:./traffic.har`} />
-
+  <SocialImage type="headline" platform="discord" headline="HTTP status codes are API behavior" subheadline="They tell clients, caches, gateways, SDKs, and agents what happened — and what they can do next." />
 </PlatformSection>

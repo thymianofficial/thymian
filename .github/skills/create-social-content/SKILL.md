@@ -35,7 +35,7 @@ Every `.mdx` file requires this frontmatter:
 title: 'Post Title'
 description: 'Brief description of the post purpose'
 category: thymian-hints # One of the categories above
-publishStatus: draft # 'draft' or 'ready'
+publishStatus: draft # 'draft', 'ready', or 'published'
 docLinks: # Optional array of related docs
   - label: 'Link Label'
     url: 'https://thymian.dev/...'

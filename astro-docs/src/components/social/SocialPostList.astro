@@ -1,0 +1,245 @@
+---
+import type { CollectionEntry } from 'astro:content';
+import { SOCIAL_STATUS_LABELS, SOCIAL_STATUS_ORDER, type SocialPublishStatus } from './socialStatus';
+
+type PostEntry = CollectionEntry<'social'>;
+type PublishStatus = SocialPublishStatus;
+
+type StatusFilter = PublishStatus | 'all';
+
+interface Props {
+  allPosts: PostEntry[];
+  posts: PostEntry[];
+  currentStatus?: StatusFilter;
+}
+
+const { allPosts, posts, currentStatus = 'all' } = Astro.props;
+
+const CATEGORY_LABELS: Record<string, string> = {
+  'thymian-general': 'Thymian General',
+  'http-api-topics': 'HTTP / API Topics',
+  'http-api-tooling': 'HTTP / API Tooling',
+  'real-world-use-cases': 'Real-World Use Cases',
+  educational: 'Educational',
+  'thymian-hints': 'Thymian Hints',
+};
+
+const CATEGORY_ICONS: Record<string, string> = {
+  'thymian-general': '🌿',
+  'http-api-topics': '🌐',
+  'http-api-tooling': '🔧',
+  'real-world-use-cases': '🛡️',
+  educational: '📚',
+  'thymian-hints': '💡',
+};
+
+const allCategories = [...new Set(posts.map((p) => p.data.category))].sort();
+const grouped = allCategories.reduce<Record<string, PostEntry[]>>((acc, cat) => {
+  acc[cat] = posts.filter((p) => p.data.category === cat);
+  return acc;
+}, {});
+
+const statusCounts = allPosts.reduce<Record<PublishStatus, number>>(
+  (counts, post) => {
+    counts[post.data.publishStatus] += 1;
+    return counts;
+  },
+  { draft: 0, ready: 0, published: 0 },
+);
+---
+
+<div class="status-filter" aria-label="Filter posts by status">
+  <a href="/social/" class="status-filter-link" aria-current={currentStatus === 'all' ? 'true' : 'false'}>
+    All <span class="status-filter-count">{allPosts.length}</span>
+  </a>
+  {
+    SOCIAL_STATUS_ORDER.map((status) => (
+      <a
+        href={`/social/status/${status}/`}
+        class="status-filter-link"
+        aria-current={currentStatus === status ? 'true' : 'false'}
+      >
+        {SOCIAL_STATUS_LABELS[status]} <span class="status-filter-count">{statusCounts[status]}</span>
+      </a>
+    ))
+  }
+</div>
+
+{posts.length === 0 && <p class="empty-state">No social posts match this status.</p>}
+
+{
+  allCategories.map((category) => (
+    <div class="category-group">
+      <h2 class="category-heading">
+        <span class="category-icon">{CATEGORY_ICONS[category] ?? '📌'}</span>
+        {CATEGORY_LABELS[category] ?? category}
+      </h2>
+      <div class="post-grid">
+        {grouped[category]?.map((post) => {
+          const [cat, ...slugParts] = post.id.split('/');
+          const slug = slugParts.join('/').replace(/\.(md|mdx)$/, '');
+          const href = `/social/${cat}/${slug}/`;
+          return (
+            <a href={href} class="post-card">
+              <div class="post-card-header">
+                <span class={`status-dot status-dot--${post.data.publishStatus}`} />
+                <span class="post-status">{post.data.publishStatus}</span>
+              </div>
+              <div class="post-card-title">{post.data.title}</div>
+              <div class="post-card-desc">{post.data.description}</div>
+              {post.data.docLinks.length > 0 && (
+                <div class="post-card-links">
+                  {post.data.docLinks.length} doc link{post.data.docLinks.length !== 1 ? 's' : ''}
+                </div>
+              )}
+            </a>
+          );
+        })}
+      </div>
+    </div>
+  ))
+}
+
+<style>
+  .status-filter {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    margin-bottom: 1.5rem;
+  }
+
+  .status-filter-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    padding: 0.35rem 0.75rem;
+    border: 1px solid var(--sl-color-gray-5);
+    border-radius: 9999px;
+    background: var(--sl-color-gray-6);
+    color: var(--sl-color-gray-3);
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-decoration: none;
+    transition:
+      border-color 0.15s,
+      color 0.15s,
+      background 0.15s;
+  }
+
+  .status-filter-link:hover,
+  .status-filter-link[aria-current='true'] {
+    border-color: var(--sl-color-accent);
+    background: color-mix(in srgb, var(--sl-color-accent) 12%, transparent);
+    color: var(--sl-color-white);
+  }
+
+  .status-filter-count {
+    color: var(--sl-color-gray-4);
+  }
+
+  .empty-state {
+    padding: 1rem 1.125rem;
+    border: 1px dashed var(--sl-color-gray-5);
+    border-radius: 0.625rem;
+    color: var(--sl-color-gray-3);
+  }
+
+  .category-group {
+    margin-bottom: 2.5rem;
+  }
+
+  .category-heading {
+    font-size: 0.8rem;
+    font-weight: 700;
+    color: var(--sl-color-gray-2);
+    margin: 0 0 1rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+  }
+
+  .category-icon {
+    font-size: 1rem;
+  }
+
+  .post-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 1rem;
+  }
+
+  .post-card {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    padding: 1rem 1.125rem;
+    background: var(--sl-color-gray-6);
+    border: 1px solid var(--sl-color-gray-5);
+    border-radius: 0.625rem;
+    text-decoration: none;
+    color: inherit;
+    transition:
+      border-color 0.15s,
+      background 0.15s;
+  }
+
+  .post-card:hover {
+    border-color: var(--sl-color-accent);
+    background: var(--sl-color-gray-7, var(--sl-color-gray-6));
+  }
+
+  .post-card-header {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+  }
+
+  .status-dot {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+
+  .status-dot--draft {
+    background: var(--sl-color-gray-4);
+  }
+
+  .status-dot--ready {
+    background: #16a34a;
+  }
+
+  .status-dot--published {
+    background: #dc2626;
+  }
+
+  .post-status {
+    font-size: 0.7rem;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--sl-color-gray-4);
+  }
+
+  .post-card-title {
+    font-size: 0.95rem;
+    font-weight: 600;
+    color: var(--sl-color-white);
+    line-height: 1.35;
+  }
+
+  .post-card-desc {
+    font-size: 0.8rem;
+    color: var(--sl-color-gray-3);
+    line-height: 1.5;
+  }
+
+  .post-card-links {
+    margin-top: auto;
+    padding-top: 0.5rem;
+    font-size: 0.75rem;
+    color: var(--sl-color-accent);
+  }
+</style>
