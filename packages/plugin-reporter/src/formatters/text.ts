@@ -27,7 +27,9 @@ function severityPrefix(severity: Severity): string {
 }
 
 function renderFinding(finding: FindingRecord, indent = '    '): string[] {
-  const lines = [`${indent}${severityPrefix(finding.severity)}: ${finding.title}`];
+  const lines = [
+    `${indent}${severityPrefix(finding.severity)}: ${finding.title}`,
+  ];
   if (finding.kind.startsWith('rule-') && 'ruleId' in finding) {
     lines.push(`${indent}  rule: ${finding.ruleId}`);
   }
@@ -45,14 +47,19 @@ function renderFinding(finding: FindingRecord, indent = '    '): string[] {
     lines.push(`${indent}  actual: ${JSON.stringify(assertionFailure.actual)}`);
   }
   if (finding.kind === 'test-case-skip') {
-    const skipped = finding as Extract<FindingRecord, { kind: 'test-case-skip' }>;
+    const skipped = finding as Extract<
+      FindingRecord,
+      { kind: 'test-case-skip' }
+    >;
     lines.push(`${indent}  reason: ${skipped.reason}`);
   }
   return lines;
 }
 
 function renderLocation(
-  location: NonNullable<Report['runs'][number]['executions']>[number]['location'],
+  location: NonNullable<
+    Report['runs'][number]['executions']
+  >[number]['location'],
 ): string {
   switch (location.type) {
     case 'custom':

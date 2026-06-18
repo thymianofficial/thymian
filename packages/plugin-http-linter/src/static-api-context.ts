@@ -8,6 +8,7 @@ import {
   type Logger,
   type RuleFinding,
   type RuleFnResult,
+  type RuleViolation,
   type RuleViolationLocation,
   ThymianFormat,
   type ThymianHttpRequest,
@@ -24,10 +25,6 @@ import { httpFilterToGroupByFn } from './visitors/http-filter-to-static-by-fn.js
 
 export class StaticApiContext implements LintContext {
   readonly format: ThymianFormat;
-  private readonly pendingViolations: Array<{
-    location: RuleViolationLocation;
-    violationMessage?: string;
-  }> = [];
   private readonly skippedOrigins: string[];
 
   constructor(
@@ -52,10 +49,6 @@ export class StaticApiContext implements LintContext {
           ),
       );
     }
-  }
-
-  reportViolation(location: RuleViolationLocation, message?: string): void {
-    this.pendingViolations.push({ location, violationMessage: message ?? '' });
   }
 
   getRuleExecutionDiagnostics(): undefined {
@@ -99,7 +92,7 @@ export class StaticApiContext implements LintContext {
             ? [
                 {
                   location: { ...location, pointer: '' },
-                  violationMessage: '',
+                  violation: {},
                   findings: [],
                 },
               ]
@@ -107,14 +100,7 @@ export class StaticApiContext implements LintContext {
         }
       });
 
-    return [
-      ...rawEntries,
-      ...this.pendingViolations.map(({ location, violationMessage }) => ({
-        location,
-        violationMessage,
-        findings: [],
-      })),
-    ];
+    return rawEntries;
   }
 
   validateGroupedCommonHttpTransactions(
@@ -162,14 +148,7 @@ export class StaticApiContext implements LintContext {
         ),
     );
 
-    return [
-      ...rawEntries,
-      ...this.pendingViolations.map(({ location, violationMessage }) => ({
-        location,
-        violationMessage,
-        findings: [],
-      })),
-    ];
+    return rawEntries;
   }
 
   validateHttpTransactions(
@@ -183,7 +162,7 @@ export class StaticApiContext implements LintContext {
       res: ThymianHttpResponse,
       responses: ThymianHttpResponse[],
     ) =>
-      | { violationMessage?: string; findings?: RuleFinding[] }
+      | { violation?: RuleViolation; findings?: RuleFinding[] }
       | boolean = filterFn,
   ): RuleFnResult[] {
     const rawEntries = this.format.graph.reduceNodes((acc, id, node) => {
@@ -214,16 +193,16 @@ export class StaticApiContext implements LintContext {
           };
 
           if (result === true) {
-            acc.push({ location, violationMessage: '', findings: [] });
+            acc.push({ location, violation: {}, findings: [] });
           } else if (
             result !== false &&
             result !== undefined &&
             result !== null
           ) {
-            if (result.violationMessage !== undefined) {
+            if (result.violation !== undefined) {
               acc.push({
                 location,
-                violationMessage: result.violationMessage,
+                violation: result.violation,
                 findings: result.findings ?? [],
               });
             }
@@ -234,13 +213,6 @@ export class StaticApiContext implements LintContext {
       return acc;
     }, [] as RuleFnResult[]);
 
-    return [
-      ...rawEntries,
-      ...this.pendingViolations.map(({ location, violationMessage }) => ({
-        location,
-        violationMessage,
-        findings: [],
-      })),
-    ];
+    return rawEntries;
   }
 }

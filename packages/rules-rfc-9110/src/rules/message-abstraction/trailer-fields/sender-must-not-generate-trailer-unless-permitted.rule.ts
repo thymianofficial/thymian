@@ -42,7 +42,9 @@ export default httpRule(
           return [
             {
               location,
-              violationMessage: `Response contains forbidden trailer field(s): ${forbiddenTrailers.join(', ')}. These fields cannot be sent in trailers.`,
+              violation: {
+                message: `Response contains forbidden trailer field(s): ${forbiddenTrailers.join(', ')}. These fields cannot be sent in trailers.`,
+              },
               findings: [],
             },
           ];

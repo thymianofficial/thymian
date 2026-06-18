@@ -27,7 +27,7 @@ export default httpRule(
 
         // Check for fragment (#)
         if (referer.includes('#')) {
-          return [{ location, violationMessage: '', findings: [] }];
+          return [{ location, violation: {}, findings: [] }];
         }
 
         // Check for userinfo (username:password@ or username@)
@@ -36,13 +36,13 @@ export default httpRule(
           const url = new URL(referer);
           // URL.username or URL.password being non-empty indicates userinfo presence
           if (url.username || url.password) {
-            return [{ location, violationMessage: '', findings: [] }];
+            return [{ location, violation: {}, findings: [] }];
           }
         } catch {
           // If URL parsing fails, check for @ before the first / after ://
           const match = referer.match(/^[^:]+:\/\/([^/]+)/);
           if (match && match[1]?.includes('@')) {
-            return [{ location, violationMessage: '', findings: [] }];
+            return [{ location, violation: {}, findings: [] }];
           }
         }
 

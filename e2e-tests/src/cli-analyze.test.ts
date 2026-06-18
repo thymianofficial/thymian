@@ -76,7 +76,9 @@ describe('thymian analyze', () => {
         allowFailure: true,
       });
 
-      expect(result.stdout).toContain('@thymian/plugin-http-analyzer · analyze ·');
+      expect(result.stdout).toContain(
+        '@thymian/plugin-http-analyzer · analyze ·',
+      );
       expect(result.stdout).toContain(
         'rfc9110/origin-server-with-clock-must-generate-date-for-2xx-3xx-4xx',
       );
@@ -164,7 +166,9 @@ describe('thymian analyze', () => {
       );
 
       expect(result.exitCode).not.toBe(2);
-      expect(result.stdout).toContain('@thymian/plugin-http-analyzer · analyze ·');
+      expect(result.stdout).toContain(
+        '@thymian/plugin-http-analyzer · analyze ·',
+      );
       expect(result.stdout).toContain('Summary:');
     }, 90_000);
   });

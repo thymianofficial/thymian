@@ -12,7 +12,9 @@ export type ReportAnalysis = {
 };
 
 function collectFindings(report: Report): FindingRecord[] {
-  const visit = (executions: Report['runs'][number]['executions']): FindingRecord[] =>
+  const visit = (
+    executions: Report['runs'][number]['executions'],
+  ): FindingRecord[] =>
     (executions ?? []).flatMap((execution) => [
       ...execution.findings,
       ...visit(execution.children),

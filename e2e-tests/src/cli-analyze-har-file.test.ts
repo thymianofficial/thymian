@@ -40,7 +40,9 @@ describe('thymian analyze with HAR file', () => {
     });
 
     expect(result.exitCode).toBe(1);
-    expect(result.stdout).toContain('@thymian/plugin-http-analyzer · analyze ·');
+    expect(result.stdout).toContain(
+      '@thymian/plugin-http-analyzer · analyze ·',
+    );
     expect(result.stdout).toContain(
       'rfc9110/origin-server-with-clock-must-generate-date-for-2xx-3xx-4xx',
     );
@@ -210,6 +212,8 @@ describe('thymian analyze with HAR file', () => {
     expect(result.stdout).toContain(
       'thymian/response-body-must-conforms-to-schema',
     );
-    expect(result.stdout).toContain('Summary: 2 error(s), 0 warning(s), 0 hint(s), 0 info finding(s).');
+    expect(result.stdout).toContain(
+      'Summary: 2 error(s), 0 warning(s), 0 hint(s), 0 info finding(s).',
+    );
   }, 90_000);
 });

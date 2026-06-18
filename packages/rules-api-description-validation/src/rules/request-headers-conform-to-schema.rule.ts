@@ -25,7 +25,18 @@ export default httpRule('thymian/request-headers-must-conform-to-schema')
         location: RuleViolationLocation,
       ): RuleFnResult[] => {
         if (typeof location === 'string') {
-          return [];
+          return [
+            {
+              location,
+              findings: [
+                {
+                  title: 'thymian/request-headers-must-conform-to-schema',
+                  kind: 'rule-skip',
+                  message: `No matching endpoint found in corresponding API description document.`,
+                },
+              ],
+            },
+          ];
         }
 
         const transaction = ctx.format.getThymianHttpTransactionById(
@@ -33,7 +44,18 @@ export default httpRule('thymian/request-headers-must-conform-to-schema')
         );
 
         if (!transaction) {
-          return [];
+          return [
+            {
+              location,
+              findings: [
+                {
+                  title: 'thymian/request-headers-must-conform-to-schema',
+                  kind: 'rule-skip',
+                  message: `Can't find transaction with given ID ${location.elementId} in Thymian format.`,
+                },
+              ],
+            },
+          ];
         }
 
         const results = validateRequestHeaders(
@@ -46,13 +68,13 @@ export default httpRule('thymian/request-headers-must-conform-to-schema')
           return [
             {
               location,
-              violationMessage: `${failures.length} assertion(s) failed`,
+              violation: { message: `${failures.length} assertion(s) failed` },
               findings: httpTestResultToRuleFindings(results),
             },
           ];
         }
 
-        return [];
+        return [{ location, findings: httpTestResultToRuleFindings(results) }];
       },
     );
   })

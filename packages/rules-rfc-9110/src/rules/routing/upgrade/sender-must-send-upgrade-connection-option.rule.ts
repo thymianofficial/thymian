@@ -16,7 +16,7 @@ export default httpRule('rfc9110/sender-must-send-upgrade-connection-option')
         const connectionHeader = getHeader(req.headers, 'connection');
 
         if (!connectionHeader) {
-          return [{ location, violationMessage: '', findings: [] }];
+          return [{ location, violation: {}, findings: [] }];
         }
 
         const connectionHeaderValues = Array.isArray(connectionHeader)
@@ -26,9 +26,7 @@ export default httpRule('rfc9110/sender-must-send-upgrade-connection-option')
         const isViolation = !connectionHeaderValues.find(
           (value) => value.toLowerCase().trim() === 'upgrade',
         );
-        return isViolation
-          ? [{ location, violationMessage: '', findings: [] }]
-          : [];
+        return isViolation ? [{ location, violation: {}, findings: [] }] : [];
       },
     ),
   )

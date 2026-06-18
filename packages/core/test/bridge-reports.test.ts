@@ -1,6 +1,11 @@
 import { describe, expect, it } from 'vitest';
 
-import { createExecution, createToolRun, type Report, Thymian } from '../src/index.js';
+import {
+  createExecution,
+  createToolRun,
+  type Report,
+  Thymian,
+} from '../src/index.js';
 
 describe('report assembly', () => {
   it('collects tool runs into a single report and emits core.report once', async () => {

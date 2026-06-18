@@ -18,7 +18,7 @@ export default httpRule('rfc9110/sender-must-not-generate-userinfo-in-uri')
           const url = new URL(req.path, req.origin);
 
           return !!url.username || !!url.password
-            ? [{ location, violationMessage: '', findings: [] }]
+            ? [{ location, violation: {}, findings: [] }]
             : [];
         } catch (e) {
           logger.error('Cannot run rule because of invalid URL:', e);

@@ -10,6 +10,7 @@ import type { RuleExecutionDiagnosticsProvider } from './rule-runner.js';
 import type {
   RuleFinding,
   RuleFnResult,
+  RuleViolation,
   RuleViolationLocation,
 } from './rule-violation.js';
 import type { CapturedTrace, CapturedTransaction } from './traffic.js';
@@ -41,7 +42,6 @@ export interface ApiContext<
   TDiagnostics = unknown,
 > extends RuleExecutionDiagnosticsProvider<TDiagnostics> {
   readonly format: ThymianFormat;
-  reportViolation(location: RuleViolationLocation, message?: string): void;
   validateCommonHttpTransactions(
     filter: HttpFilterExpression,
     validationFn?:
@@ -83,7 +83,8 @@ export interface LintContext<
       req: ThymianHttpRequest,
       res: ThymianHttpResponse,
       responses: ThymianHttpResponse[],
-    ) => { violationMessage?: string; findings?: RuleFinding[] } | boolean,
+      // TODO check return type (boolean shouldn't be needed anymore)
+    ) => { violation?: RuleViolation; findings?: RuleFinding[] } | boolean,
   ): Promise<RuleFnResult[]> | RuleFnResult[];
 }
 

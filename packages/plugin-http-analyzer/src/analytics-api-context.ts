@@ -78,10 +78,6 @@ export class AnalyticsApiContext implements AnalyzeContext {
   readonly repository: HttpTransactionRepository;
   readonly format: ThymianFormat;
   private readonly logger: Logger;
-  private readonly pendingViolations: Array<{
-    location: RuleViolationLocation;
-    violationMessage?: string;
-  }> = [];
   private readonly roles?: HttpParticipantRole[];
   private readonly skippedOrigins: string[];
 
@@ -148,10 +144,6 @@ export class AnalyticsApiContext implements AnalyzeContext {
     }
   }
 
-  reportViolation(location: RuleViolationLocation, message?: string): void {
-    this.pendingViolations.push({ location, violationMessage: message ?? '' });
-  }
-
   getRuleExecutionDiagnostics(): undefined {
     return undefined;
   }
@@ -188,7 +180,7 @@ export class AnalyticsApiContext implements AnalyzeContext {
     } else {
       finalFilter = and(filter, validate);
       validateFn = (req, res, location) => [
-        { location, violationMessage: '', findings: [] },
+        { location, violation: {}, findings: [] },
       ];
     }
 
@@ -213,14 +205,7 @@ export class AnalyticsApiContext implements AnalyzeContext {
       );
     }
 
-    return [
-      ...results,
-      ...this.pendingViolations.map(({ location, violationMessage }) => ({
-        location,
-        violationMessage,
-        findings: [],
-      })),
-    ];
+    return results;
   }
 
   validateGroupedCommonHttpTransactions(
@@ -272,7 +257,7 @@ export class AnalyticsApiContext implements AnalyzeContext {
     } else {
       finalFilter = and(filter, validation);
       validateFn = (req, res, location) => [
-        { location, violationMessage: '', findings: [] },
+        { location, violation: {}, findings: [] },
       ];
     }
 
@@ -304,14 +289,7 @@ export class AnalyticsApiContext implements AnalyzeContext {
       results.push(...validateFn(request.data, response.data, location));
     }
 
-    return [
-      ...results,
-      ...this.pendingViolations.map(({ location, violationMessage }) => ({
-        location,
-        violationMessage,
-        findings: [],
-      })),
-    ];
+    return results;
   }
 
   validateCapturedHttpTransactions(
@@ -334,14 +312,7 @@ export class AnalyticsApiContext implements AnalyzeContext {
       results.push(...validate(transaction, location));
     }
 
-    return [
-      ...results,
-      ...this.pendingViolations.map(({ location, violationMessage }) => ({
-        location,
-        violationMessage,
-        findings: [],
-      })),
-    ];
+    return results;
   }
 
   validateCapturedHttpTraces(
@@ -354,13 +325,6 @@ export class AnalyticsApiContext implements AnalyzeContext {
       results.push(...validate(trace, location));
     }
 
-    return [
-      ...results,
-      ...this.pendingViolations.map(({ location, violationMessage }) => ({
-        location,
-        violationMessage,
-        findings: [],
-      })),
-    ];
+    return results;
   }
 }

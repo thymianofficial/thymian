@@ -25,7 +25,7 @@ export default httpRule(
         }
 
         return etag.includes('\\')
-          ? [{ location, violationMessage: '', findings: [] }]
+          ? [{ location, violation: {}, findings: [] }]
           : [];
       },
     ),

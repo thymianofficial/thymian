@@ -11,7 +11,12 @@ import {
   responseWith,
   statusCode,
 } from '@thymian/core';
-import { httpRule, singleTestCase } from '@thymian/core';
+import {
+  httpRule,
+  type RuleFnResult,
+  type RuleViolation,
+  singleTestCase,
+} from '@thymian/core';
 
 import { createList } from '../../../../utils.js';
 
@@ -27,7 +32,7 @@ export const requiredHeadersFor304 = [
 export function checkHeaders(
   okResponseHeaders: string[],
   notModifiedHeaders: string[],
-): { violationMessage: string } | undefined {
+): RuleViolation | undefined {
   const missingHeaders = requiredHeadersFor304.filter(
     (header) =>
       equalsIgnoreCase(header, ...okResponseHeaders) &&
@@ -36,7 +41,7 @@ export function checkHeaders(
 
   if (missingHeaders.length > 0) {
     return {
-      violationMessage: `304 Not Modified response MUST include headers ${createList(
+      message: `304 Not Modified response MUST include headers ${createList(
         missingHeaders,
       )} because these were included in the corresponding 200 OK response.`,
     };
@@ -81,13 +86,7 @@ export default httpRule(
           );
 
           if (violation) {
-            return [
-              {
-                location: notModifiedLocation,
-                violationMessage: violation.violationMessage,
-                findings: [],
-              },
-            ];
+            return [{ location: notModifiedLocation, violation, findings: [] }];
           }
         }
 
@@ -95,8 +94,9 @@ export default httpRule(
       },
     ),
   )
-  .overrideTest((testContext) =>
-    testContext.httpTest(
+  .overrideTest(async (testContext) => {
+    const results: RuleFnResult[] = [];
+    await testContext.httpTest(
       singleTestCase()
         .forTransactionsWith(
           and(or(method('GET'), method('HEAD')), statusCode(200)),
@@ -125,16 +125,18 @@ export default httpRule(
           );
 
           if (violation) {
-            testContext.reportViolation(
-              {
+            results.push({
+              location: {
                 elementType: 'edge',
                 elementId: notModifiedTransaction.source.transactionId,
               },
-              violation.violationMessage,
-            );
+              violation,
+              findings: [],
+            });
           }
         })
         .done(),
-    ),
-  )
+    );
+    return results;
+  })
   .done();

@@ -17,7 +17,7 @@ export default httpRule(
       not(requestHeader('via')),
       (transaction, location) =>
         transaction.request.meta.role === 'gateway'
-          ? [{ location, violationMessage: '', findings: [] }]
+          ? [{ location, violation: {}, findings: [] }]
           : [],
     ),
   )

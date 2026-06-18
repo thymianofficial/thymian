@@ -28,7 +28,7 @@ export function classificationToExitCode(
 
 function collectFindings(report: Report): FindingRecord[] {
   const visit = (
-    executions: typeof report.runs[number]['executions'],
+    executions: (typeof report.runs)[number]['executions'],
   ): FindingRecord[] =>
     (executions ?? []).flatMap((execution) => [
       ...execution.findings,

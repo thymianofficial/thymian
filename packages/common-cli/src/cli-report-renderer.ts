@@ -1,17 +1,17 @@
 import { colorize } from '@oclif/core/ux';
 import {
-  isNodeType,
-  ThymianFormat,
-  thymianHttpTransactionToString,
-  thymianRequestToString,
-  thymianResponseToString,
   type FindingRecord,
   type HttpTransaction,
+  isNodeType,
   type Location,
   type Report,
   type Severity,
+  ThymianFormat,
   type ThymianHttpRequest,
   type ThymianHttpResponse,
+  thymianHttpTransactionToString,
+  thymianRequestToString,
+  thymianResponseToString,
 } from '@thymian/core';
 
 const COLORS: Record<Severity, string> = {
@@ -125,7 +125,10 @@ function renderFinding(finding: FindingRecord, indent = '    '): string[] {
   }
 
   if (finding.kind === 'test-case-skip') {
-    const skipped = finding as Extract<FindingRecord, { kind: 'test-case-skip' }>;
+    const skipped = finding as Extract<
+      FindingRecord,
+      { kind: 'test-case-skip' }
+    >;
     lines.push(`${indent}  reason: ${skipped.reason}`);
   }
 
@@ -167,7 +170,9 @@ export function renderReport(
   const lines: string[] = [];
   const format =
     options.format ??
-    (report.thymianFormat ? ThymianFormat.import(report.thymianFormat) : undefined);
+    (report.thymianFormat
+      ? ThymianFormat.import(report.thymianFormat)
+      : undefined);
 
   for (const run of report.runs) {
     lines.push(

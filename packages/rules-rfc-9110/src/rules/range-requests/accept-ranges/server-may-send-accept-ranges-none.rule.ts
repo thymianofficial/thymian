@@ -25,14 +25,14 @@ export default httpRule('rfc9110/server-may-send-accept-ranges-none')
         const acceptRanges = getHeader(res.headers, 'accept-ranges');
 
         if (!acceptRanges) {
-          return [{ location, violationMessage: '', findings: [] }];
+          return [{ location, violation: {}, findings: [] }];
         }
 
         return (Array.isArray(acceptRanges)
           ? acceptRanges
           : [acceptRanges]
         ).every((range) => !range.match(/none/i))
-          ? [{ location, violationMessage: '', findings: [] }]
+          ? [{ location, violation: {}, findings: [] }]
           : [];
       },
     ),

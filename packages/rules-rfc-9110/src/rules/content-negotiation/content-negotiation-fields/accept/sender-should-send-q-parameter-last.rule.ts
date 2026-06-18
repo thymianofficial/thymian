@@ -41,9 +41,11 @@ export default httpRule('rfc9110/sender-should-send-q-parameter-last')
           return [
             {
               location,
-              violationMessage: `The weight parameter "q" SHOULD be send as last parameter. Malformed value(s) sent: ${malformedValues.join(
-                ', ',
-              )}`,
+              violation: {
+                message: `The weight parameter "q" SHOULD be send as last parameter. Malformed value(s) sent: ${malformedValues.join(
+                  ', ',
+                )}`,
+              },
               findings: [],
             },
           ];

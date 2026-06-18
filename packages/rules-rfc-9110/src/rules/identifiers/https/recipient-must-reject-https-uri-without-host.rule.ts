@@ -15,9 +15,7 @@ export default httpRule('rfc9110/recipient-must-reject-https-uri-without-host')
           const isViolation =
             new URL(req.path, req.origin).host === '' &&
             !(res.statusCode >= 400 && res.statusCode < 500);
-          return isViolation
-            ? [{ location, violationMessage: '', findings: [] }]
-            : [];
+          return isViolation ? [{ location, violation: {}, findings: [] }] : [];
         } catch (e) {
           return [];
         }

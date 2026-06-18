@@ -34,6 +34,7 @@ export {
   createExecution,
   createReport,
   createToolRun,
+  executionsFromRunRulesResult,
   executionsFromViolations,
   httpTestResultToRuleFindings,
   ruleFindingsToFindingRecords,

@@ -38,9 +38,7 @@ export default httpRule(
           const isViolation = resUpgradeProtocols.some(
             (protocol) => !reqUpgradeProtocols.includes(protocol),
           );
-          return isViolation
-            ? [{ location, violationMessage: '', findings: [] }]
-            : [];
+          return isViolation ? [{ location, violation: {}, findings: [] }] : [];
         }
 
         return [];

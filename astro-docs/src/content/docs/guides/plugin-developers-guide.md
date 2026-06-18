@@ -210,12 +210,12 @@ thymian.run(fn)
 
 Events are fire-and-forget messages. Plugins listen with `emitter.on(...)`.
 
-| Event           | Payload                     | Description                                                                                                              |
-| --------------- | --------------------------- | ------------------------------------------------------------------------------------------------------------------------ |
-| `core.error`    | `ThymianError`              | Emitted when an error occurs. Includes `name`, `message`, and optional `severity`, `exitCode`, `suggestions`, `code`.    |
-| `core.register` | `{ name, options, events }` | Emitted once per plugin during the loading phase. Lets other plugins discover registered peers.                          |
-| `core.report`   | `Report`                    | Structured v4 report. Contains `runs`, each with `executions` and `findings`. |
-| `core.exit`     | `{ code? }`                 | Signals process exit with an optional exit code.                                                                         |
+| Event           | Payload                     | Description                                                                                                           |
+| --------------- | --------------------------- | --------------------------------------------------------------------------------------------------------------------- |
+| `core.error`    | `ThymianError`              | Emitted when an error occurs. Includes `name`, `message`, and optional `severity`, `exitCode`, `suggestions`, `code`. |
+| `core.register` | `{ name, options, events }` | Emitted once per plugin during the loading phase. Lets other plugins discover registered peers.                       |
+| `core.report`   | `Report`                    | Structured v4 report. Contains `runs`, each with `executions` and `findings`.                                         |
+| `core.exit`     | `{ code? }`                 | Signals process exit with an optional exit code.                                                                      |
 
 ## Core Actions
 
@@ -231,11 +231,11 @@ Actions are request-response interactions. Plugins listen with `emitter.onAction
 
 ### Validation Workflows
 
-| Action         | Request Payload                                          | Response Payload   | Strategy  | Description                                                         |
-| -------------- | -------------------------------------------------------- | ------------------ | --------- | ------------------------------------------------------------------- |
-| `core.lint`    | `{ format, rules?, rulesConfig?, options? }`             | `ToolRun[]` | `collect` | Run lint rules against a format (static analysis, no live traffic). |
-| `core.test`    | `{ format, targetUrl?, rules?, rulesConfig?, options? }` | `ToolRun[]` | `collect` | Run test rules against a live target URL.                           |
-| `core.analyze` | `{ traffic, format?, rules?, rulesConfig?, options? }`   | `ToolRun[]` | `collect` | Run analysis rules against captured traffic.                        |
+| Action         | Request Payload                                          | Response Payload | Strategy  | Description                                                         |
+| -------------- | -------------------------------------------------------- | ---------------- | --------- | ------------------------------------------------------------------- |
+| `core.lint`    | `{ format, rules?, rulesConfig?, options? }`             | `ToolRun[]`      | `collect` | Run lint rules against a format (static analysis, no live traffic). |
+| `core.test`    | `{ format, targetUrl?, rules?, rulesConfig?, options? }` | `ToolRun[]`      | `collect` | Run test rules against a live target URL.                           |
+| `core.analyze` | `{ traffic, format?, rules?, rulesConfig?, options? }`   | `ToolRun[]`      | `collect` | Run analysis rules against captured traffic.                        |
 
 Each workflow plugin replies with one or more `ToolRun` objects. Core assembles all collected runs into a single `Report`, emits that report on `core.report`, and returns it in `WorkflowOutcome`.
 

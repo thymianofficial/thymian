@@ -48,7 +48,7 @@ export default httpRule(
         });
 
         return hasLargeNumeral
-          ? [{ location, violationMessage: '', findings: [] }]
+          ? [{ location, violation: {}, findings: [] }]
           : [];
       },
     ),

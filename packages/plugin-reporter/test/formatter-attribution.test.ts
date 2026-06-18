@@ -1,6 +1,7 @@
+import { describe, expect, it } from 'vitest';
+
 import { reportToCsvLines } from '../src/formatters/csv.js';
 import { TextFormatter } from '../src/formatters/text.js';
-import { describe, expect, it } from 'vitest';
 
 const report = {
   reportId: 'report-1',

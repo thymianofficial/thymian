@@ -27,7 +27,7 @@ export default httpRule(
 
         // Check if Content-Range ends with /* (unknown length) or has a specific length
         return !contentRange.match(/bytes \d+-\d+\/(\d+|\*)/)
-          ? [{ location, violationMessage: '', findings: [] }]
+          ? [{ location, violation: {}, findings: [] }]
           : [];
       },
     ),

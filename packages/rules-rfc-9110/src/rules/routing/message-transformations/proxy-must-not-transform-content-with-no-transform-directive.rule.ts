@@ -1,4 +1,4 @@
-import { getHeader } from '@thymian/core';
+import { getHeader, type RuleFnResult } from '@thymian/core';
 import { httpRule } from '@thymian/core';
 
 export default httpRule(
@@ -18,6 +18,7 @@ export default httpRule(
   .appliesTo('proxy')
   .rule((ctx) =>
     ctx.validateCapturedHttpTraces((trace, location) => {
+      const results: RuleFnResult[] = [];
       for (let i = 1; i < trace.length; i++) {
         // contains response from proxy (if there is a proxy)
         const prev = trace[i - 1];
@@ -47,11 +48,11 @@ export default httpRule(
           ) &&
           prev.request.data !== curr.request.data
         ) {
-          ctx.reportViolation(location);
+          results.push({ location, violation: {}, findings: [] });
         }
       }
 
-      return [];
+      return results;
     }),
   )
   .done();
