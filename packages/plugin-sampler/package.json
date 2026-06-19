@@ -47,7 +47,7 @@
     "code-block-writer": "^13.0.3",
     "jiti": "^2.6.1",
     "json-schema-to-typescript": "^15.0.4",
-    "launch-editor": "^2.13.2",
+    "launch-editor": "^2.14.1",
     "openapi-sampler": "^1.7.2",
     "sharp": "^0.34.5",
     "tslib": "^2.3.0"
