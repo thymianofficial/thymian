@@ -93,7 +93,7 @@ export interface TestContext<
 > extends LiveApiContext<TDiagnostics> {
   httpTest(
     pipeline: HttpTestPipeline<HttpTestContextLocals>,
-  ): Promise<HttpTestResult>;
+  ): Promise<RuleFnResult[]>;
   runHttpTest(
     pipeline: HttpTestPipeline<HttpTestContextLocals>,
   ): Promise<HttpTestResult>;
