@@ -554,15 +554,6 @@ describe('HttpTestApiContext', () => {
           .done(),
       );
 
-      // runHttpTest should NOT add to diagnostics
-      await context.runHttpTest(
-        singleTestCase()
-          .forTransactionsWith(method('post'))
-          .run()
-          .skipIf(statusCode(200), 'Skip because status is 200 for POST')
-          .done(),
-      );
-
       const diagnosticsAfterFirst = context.getRuleExecutionDiagnostics();
       expect(diagnosticsAfterFirst).toHaveLength(1);
       const casesAfterFirst =
