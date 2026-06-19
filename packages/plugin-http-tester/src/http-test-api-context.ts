@@ -143,9 +143,7 @@ export class HttpTestApiContext<
         );
       });
 
-    if (testResult.cases.length > 0) {
-      this.diagnosticEntries.push({ testResult, ruleFnResult: callViolations });
-    }
+    this.diagnosticEntries.push({ testResult, ruleFnResult: callViolations });
 
     return callViolations;
   }
@@ -208,33 +206,29 @@ export class HttpTestApiContext<
         }),
       );
 
-    if (testResult.cases.length > 0) {
-      this.diagnosticEntries.push({ testResult, ruleFnResult: callViolations });
-    }
+    this.diagnosticEntries.push({ testResult, ruleFnResult: callViolations });
 
     return callViolations;
   }
 
-  async httpTest(pipeline: HttpTestPipeline<Locals>): Promise<RuleFnResult[]> {
+  async httpTest(pipeline: HttpTestPipeline<Locals>): Promise<HttpTestResult> {
     const testFn = httpTest(this.name, pipeline);
 
     const testResult = await testFn(this.ctx);
 
-    const callViolations: RuleFnResult[] = [];
+    this.diagnosticEntries.push({ testResult, ruleFnResult: [] });
 
-    if (testResult.cases.length > 0) {
-      this.diagnosticEntries.push({ testResult, ruleFnResult: callViolations });
-    }
-
-    return callViolations;
+    return testResult;
   }
 
+  /**
+   *
+   * @deprecated use `httpTest` instead.
+   */
   async runHttpTest(
     pipeline: HttpTestPipeline<Locals>,
   ): Promise<HttpTestResult> {
-    const testFn = httpTest(this.name, pipeline);
-
-    return testFn(this.ctx);
+    return this.httpTest(pipeline);
   }
 
   async validateHttpTransactions(
@@ -297,9 +291,7 @@ export class HttpTestApiContext<
         }),
       );
 
-    if (testResult.cases.length > 0) {
-      this.diagnosticEntries.push({ testResult, ruleFnResult: callViolations });
-    }
+    this.diagnosticEntries.push({ testResult, ruleFnResult: callViolations });
 
     return callViolations;
   }

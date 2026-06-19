@@ -132,13 +132,19 @@ export function executionsFromRunRulesResult<TDiagnostics>(
   format: ThymianFormat,
 ): Execution[] {
   const ruleMap = new Map(rules.map((r) => [r.meta.name, r]));
-  const grouped = new Map<string, Execution>();
+  const executions: Execution[] = [];
 
   for (const [ruleName, { ruleFnResult }] of Object.entries(result)) {
     const rule = ruleMap.get(ruleName);
     if (!rule) {
       continue;
     }
+
+    const ruleExecution = createExecution({
+      location: { type: 'custom', value: ruleName },
+      name: ruleName,
+      children: [],
+    });
 
     for (const entry of ruleFnResult) {
       // An entry with neither a violation nor findings carries no information
@@ -153,38 +159,39 @@ export function executionsFromRunRulesResult<TDiagnostics>(
         format,
         ruleName,
       );
-      const key = `${heading}::${JSON.stringify(location)}`;
-      const execution =
-        grouped.get(key) ??
-        createExecution({
-          location,
-          name: heading,
-          findings: [],
-        });
+      const singleRuleExecution = createExecution({
+        location,
+        name: heading,
+        findings: [],
+      });
 
       if (entry.violation !== undefined) {
         const message =
           entry.violation.message ||
           (rule.meta.summary ?? rule.meta.description ?? rule.meta.name);
-        execution.findings.push({
+        singleRuleExecution.findings.push({
           id: randomUUID(),
           kind: 'rule-violation',
           ruleId: ruleName,
-          title: message,
+          title: ruleName,
           message: { text: message },
           severity: rule.meta.severity as Exclude<RuleSeverity, 'off'>,
         });
       }
 
       for (const finding of entry.findings) {
-        execution.findings.push(ruleFindingToFindingRecord(finding, ruleName));
+        singleRuleExecution.findings.push(
+          ruleFindingToFindingRecord(finding, ruleName),
+        );
       }
 
-      grouped.set(key, execution);
+      ruleExecution.children?.push(singleRuleExecution);
     }
+
+    executions.push(ruleExecution);
   }
 
-  return [...grouped.values()];
+  return executions;
 }
 
 export function ruleFindingToFindingRecord(
