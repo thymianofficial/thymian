@@ -485,7 +485,6 @@ export class Thymian {
     return report;
   }
 
-
   private classifySpecValidationResults(
     results: SpecValidationResult[],
   ): SpecValidationOutcome['classification'] {

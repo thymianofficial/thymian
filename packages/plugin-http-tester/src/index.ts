@@ -5,14 +5,15 @@ import {
   createExecution,
   createToolRun,
   type Execution,
-  type FindingRecord,
-  type HttpTestCase,
-  type HttpTestCaseStep,
+  resolveViolationLocation,
   type Rule,
+  ruleFindingToFindingRecord,
   type RuleRunnerAdapter,
   rulesToRuleDescriptors,
+  type RuleViolationFinding,
   runRules,
   type RunRulesResult,
+  type Severity,
   type SingleRuleConfiguration,
   ThymianBaseError,
   ThymianFormat,
@@ -30,111 +31,17 @@ export {
   type HttpTesterRuleDiagnostics,
 } from './http-test-api-context.js';
 
-function buildStepExecution(
-  step: HttpTestCaseStep,
-  stepIndex: number,
-  violationByTxId: Map<string, string>,
-  rule: Rule,
-): Execution {
-  const findings: FindingRecord[] = [];
-
-  for (const transaction of step.transactions) {
-    const txId = transaction.source?.transactionId;
-    if (txId && violationByTxId.has(txId)) {
-      const message = violationByTxId.get(txId)!;
-      findings.push({
-        id: randomUUID(),
-        kind: 'rule-violation',
-        ruleId: rule.meta.name,
-        title:
-          message ||
-          (rule.meta.summary ?? rule.meta.description ?? rule.meta.name),
-        severity: rule.meta.severity as Exclude<
-          typeof rule.meta.severity,
-          'off'
-        >,
-        ...(message ? { message: { text: message } } : {}),
-      } satisfies FindingRecord);
-      violationByTxId.delete(txId);
-    }
-  }
-
-  const httpTransactions = step.transactions
-    .filter((t) => t.request !== undefined && t.response !== undefined)
-    .map((t) => ({
-      // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-      request: t.request!,
-      // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-      response: t.response!,
-    }));
-
-  return createExecution({
-    name: `Step ${stepIndex + 1}`,
-    location: { type: 'custom', value: `step-${stepIndex + 1}` },
-    findings,
-    httpTransactions:
-      httpTransactions.length > 0 ? httpTransactions : undefined,
-  });
-}
-
-function buildTestCaseExecution(
-  testCase: HttpTestCase,
-  violationByTxId: Map<string, string>,
-  rule: Rule,
-): Execution {
-  const durationMilliseconds =
-    testCase.end !== undefined ? testCase.end - testCase.start : undefined;
-
-  const stepChildren = testCase.steps.map((step, i) =>
-    buildStepExecution(step, i, violationByTxId, rule),
-  );
-
-  let testCaseFinding: FindingRecord;
-
-  if (testCase.status === 'skipped') {
-    testCaseFinding = {
-      id: randomUUID(),
-      kind: 'test-case-skip',
-      title: testCase.name,
-      severity: 'info',
-      reason: testCase.reason ?? '',
-      ...(testCase.reason ? { message: { text: testCase.reason } } : {}),
-    } satisfies FindingRecord;
-  } else if (testCase.status === 'failed') {
-    testCaseFinding = {
-      id: randomUUID(),
-      kind: 'test-case-fail',
-      title: testCase.name,
-      severity: 'error',
-      ...(testCase.reason ? { message: { text: testCase.reason } } : {}),
-      ...(durationMilliseconds !== undefined ? { durationMilliseconds } : {}),
-    } satisfies FindingRecord;
-  } else {
-    testCaseFinding = {
-      id: randomUUID(),
-      kind: 'test-case-pass',
-      title: testCase.name,
-      severity: 'info',
-      ...(durationMilliseconds !== undefined ? { durationMilliseconds } : {}),
-    } satisfies FindingRecord;
-  }
-
-  return createExecution({
-    name: testCase.name,
-    location: { type: 'custom', value: testCase.name },
-    findings: [testCaseFinding],
-    children: stepChildren.length > 0 ? stepChildren : undefined,
-  });
-}
-
 function createRuns(
   pluginName: string,
   ruleResults: RunRulesResult<HttpTesterRuleDiagnostics>,
   rules: Rule[] = [],
+  thymianFormat: ThymianFormat,
 ): ToolRun[] {
   const ruleMap = new Map(rules.map((r) => [r.meta.name, r]));
   const ruleExecutions: Execution[] = [];
 
+  // TODO: Skip diagnostics data for now. We currently lack a mapping between recorded HTTP test cases and the triggered rule violations. This information is also missing in the reporting data.
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   for (const [ruleName, { ruleFnResult, diagnostics }] of Object.entries(
     ruleResults,
   )) {
@@ -143,74 +50,52 @@ function createRuns(
       continue;
     }
 
-    if (!diagnostics) {
-      const violations = ruleFnResult.filter(
-        (r) => r.violationMessage !== undefined,
-      );
-      if (violations.length === 0) {
-        continue;
-      }
-      // Rule returned violations directly without httpTest diagnostic collection
-      ruleExecutions.push(
-        createExecution({
-          name: ruleName,
-          location: { type: 'custom', value: ruleName },
-          findings: violations.map(
-            ({ violationMessage }) =>
-              ({
-                id: randomUUID(),
-                kind: 'rule-violation' as const,
-                ruleId: ruleName,
-                title:
-                  violationMessage ||
-                  (rule.meta.summary ??
-                    rule.meta.description ??
-                    rule.meta.name),
-                severity: rule.meta.severity as Exclude<
-                  typeof rule.meta.severity,
-                  'off'
-                >,
-                ...(violationMessage
-                  ? { message: { text: violationMessage } }
-                  : {}),
-              }) satisfies FindingRecord,
-          ),
-        }),
-      );
-      continue;
-    }
+    const ruleExecution = createExecution({
+      location: { type: 'custom', value: ruleName },
+      findings: [],
+    });
 
-    const testCaseChildren: Execution[] = [];
-    for (const { testResult, ruleFnResult: callRuleFnResult } of diagnostics) {
-      const violationByTxId = new Map<string, string>();
-      for (const result of callRuleFnResult) {
-        if (result.violationMessage === undefined) {
-          continue;
-        }
-        const loc = result.location;
-        if (typeof loc !== 'string' && loc.elementId) {
-          violationByTxId.set(loc.elementId, result.violationMessage);
-        }
-      }
-      for (const testCase of testResult.cases) {
-        testCaseChildren.push(
-          buildTestCaseExecution(testCase, violationByTxId, rule),
-        );
-      }
-    }
+    for (const { location, violation, findings } of ruleFnResult) {
+      const resolvedLocation = resolveViolationLocation(
+        location,
+        thymianFormat,
+        ruleName,
+      );
 
-    ruleExecutions.push(
-      createExecution({
-        name: ruleName,
-        location: { type: 'custom', value: ruleName },
+      const singleRuleExecution = createExecution({
+        location: resolvedLocation.location,
         findings: [],
-        children: testCaseChildren.length > 0 ? testCaseChildren : undefined,
-      }),
-    );
-  }
+        name: resolvedLocation.heading,
+      });
 
-  if (ruleExecutions.length === 0) {
-    return [];
+      if (violation) {
+        const ruleViolationFinding: RuleViolationFinding = {
+          kind: 'rule-violation',
+          id: randomUUID(),
+          title:
+            violation.message ??
+            rule.meta.summary ??
+            rule.meta.description ??
+            rule.meta.name,
+          ruleId: rule.meta.name,
+          severity: rule.meta.severity as Severity, // rule severity won't be "off"
+        };
+
+        if (rule.meta.explanation) {
+          ruleViolationFinding.message = { text: rule.meta.explanation };
+        }
+
+        singleRuleExecution.findings.push(ruleViolationFinding);
+      }
+
+      for (const finding of findings) {
+        singleRuleExecution.findings.push(ruleFindingToFindingRecord(finding));
+      }
+
+      ruleExecution.children?.push(singleRuleExecution);
+    }
+
+    ruleExecutions.push(ruleExecution);
   }
 
   const ruleDescriptors = rulesToRuleDescriptors(rules, (r) => r.testRule);
@@ -290,7 +175,7 @@ export function createHttpTesterPlugin(
             adapter,
           );
 
-          ctx.reply(createRuns(pluginName, ruleResults, rules));
+          ctx.reply(createRuns(pluginName, ruleResults, rules, thymianFormat));
         },
       );
     },

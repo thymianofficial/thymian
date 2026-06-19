@@ -1,9 +1,11 @@
+import { join } from 'node:path';
+
+import { NoopLogger } from '@thymian/core';
+import { describe, expect, it } from 'vitest';
+
 import { reportToCsvLines } from '../src/formatters/csv.js';
 import { MarkdownFormatter } from '../src/formatters/markdown.js';
 import { TextFormatter } from '../src/formatters/text.js';
-import { NoopLogger } from '@thymian/core';
-import { join } from 'node:path';
-import { describe, expect, it } from 'vitest';
 
 const report = {
   reportId: 'report-1',
@@ -40,7 +42,9 @@ describe('formatter consistency for v4 reports', () => {
     text.report(report);
 
     const markdown = new MarkdownFormatter(new NoopLogger());
-    markdown.init({ path: join(process.cwd(), 'tmp', 'consistency-report.md') });
+    markdown.init({
+      path: join(process.cwd(), 'tmp', 'consistency-report.md'),
+    });
     markdown.report(report);
 
     const textOutput = await text.flush();

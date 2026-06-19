@@ -48,7 +48,9 @@ export default httpRule(
           return [
             {
               location: httpTransactionToLabel(req, res),
-              violationMessage: `Last-Modified date (${lastModifiedHeader}) is later than Date header (${dateHeader})`,
+              violation: {
+                message: `Last-Modified date (${lastModifiedHeader}) is later than Date header (${dateHeader})`,
+              },
               findings: [],
             },
           ];

@@ -40,7 +40,7 @@ export default httpRule(
         ];
 
         return advertisingKeywords.some((pattern) => pattern.test(userAgent))
-          ? [{ location, violationMessage: '', findings: [] }]
+          ? [{ location, violation: {}, findings: [] }]
           : [];
       },
     ),

@@ -42,5 +42,8 @@
   ],
   "dependencies": {
     "@thymian/core": "0.0.0-PLACEHOLDER"
+  },
+  "devDependencies": {
+    "@thymian/core-testing": "0.0.0-PLACEHOLDER"
   }
 }

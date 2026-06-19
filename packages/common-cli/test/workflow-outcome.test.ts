@@ -1,5 +1,6 @@
-import { handleWorkflowOutcome } from '../src/workflow-outcome.js';
 import { describe, expect, it, vi } from 'vitest';
+
+import { handleWorkflowOutcome } from '../src/workflow-outcome.js';
 
 describe('handleWorkflowOutcome', () => {
   it('renders the report and exits on non-clean outcomes', () => {

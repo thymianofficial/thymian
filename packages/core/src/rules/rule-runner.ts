@@ -181,7 +181,7 @@ export function runRulesResultToViolations<TDiagnostics>(
     }
 
     for (const entry of ruleFnResult) {
-      if (entry.violationMessage === undefined) {
+      if (entry.violation === undefined) {
         continue;
       }
       violations.push({
@@ -189,7 +189,7 @@ export function runRulesResultToViolations<TDiagnostics>(
         severity: rule.meta.severity as Exclude<RuleSeverity, 'off'>,
         location: entry.location,
         message:
-          entry.violationMessage ||
+          entry.violation.message ||
           (rule.meta.summary ?? rule.meta.description ?? rule.meta.name),
       });
     }

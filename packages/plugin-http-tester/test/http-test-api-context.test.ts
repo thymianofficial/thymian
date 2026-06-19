@@ -154,7 +154,7 @@ describe('HttpTestApiContext', () => {
         statusCode(200),
         (req, res, location) => {
           if (res.statusCode === 200 && !res.headers.includes('content-type')) {
-            return [{ location, violationMessage: '', findings: [] }];
+            return [{ location, violation: {}, findings: [] }];
           }
           return [];
         },
@@ -184,14 +184,14 @@ describe('HttpTestApiContext', () => {
         (req, res, location) => [
           {
             location,
-            violationMessage: 'Custom violation',
+            violation: { message: 'Custom violation' },
             findings: [],
           },
         ],
       );
 
       expect(result).toHaveLength(1);
-      expect(result?.[0]?.violationMessage).toBe('Custom violation');
+      expect(result?.[0]?.violation?.message).toBe('Custom violation');
     });
 
     it('should ignore the skipped origins', async () => {
@@ -228,7 +228,7 @@ describe('HttpTestApiContext', () => {
         (req, res, location) => [
           {
             location,
-            violationMessage: 'Custom violation',
+            violation: { message: 'Custom violation' },
             findings: [],
           },
         ],
@@ -376,7 +376,7 @@ describe('HttpTestApiContext', () => {
                   elementType: 'node' as const,
                   elementId: 'test-violation',
                 },
-                violationMessage: `no etag`,
+                violation: { message: `no etag` },
                 findings: [],
               },
             ];
@@ -389,7 +389,7 @@ describe('HttpTestApiContext', () => {
       expect(result).toEqual(
         expect.arrayContaining([
           expect.objectContaining({
-            violationMessage: `no etag`,
+            violation: { message: `no etag` },
           }),
         ]),
       );
@@ -442,7 +442,9 @@ describe('HttpTestApiContext', () => {
         (req, res, location) => [
           {
             location,
-            violationMessage: `Request to ${req.path} returned ${res.statusCode}`,
+            violation: {
+              message: `Request to ${req.path} returned ${res.statusCode}`,
+            },
             findings: [],
           },
         ],
@@ -452,7 +454,7 @@ describe('HttpTestApiContext', () => {
       expect(result).toEqual(
         expect.arrayContaining([
           expect.objectContaining({
-            violationMessage: `Request to /users returned 200`,
+            violation: { message: `Request to /users returned 200` },
           }),
         ]),
       );
@@ -480,88 +482,6 @@ describe('HttpTestApiContext', () => {
       );
 
       expect(result).toHaveLength(0);
-    });
-  });
-
-  describe('reportViolation', () => {
-    it('should accumulate violations and include them in validation results', async () => {
-      const format = createThymianFormatWithTransaction(
-        createHttpRequest({ method: 'get', path: '/users' }),
-        createHttpResponse({ statusCode: 200, headers: {} }),
-      );
-
-      const mockContext = createMockHttpTestContext({ format });
-      vi.mocked(mockContext.runRequest).mockResolvedValue({
-        statusCode: 200,
-        headers: {},
-        duration: 0,
-        trailers: {},
-      });
-
-      const context = new HttpTestApiContext('test-rule', mockContext);
-
-      // Report some violations
-      context.reportViolation('manual-location-1', 'Manual violation 1');
-      context.reportViolation('manual-location-2', 'Manual violation 2');
-
-      // Run validation that also returns a violation
-      const result = await context.validateHttpTransactions(
-        method('get'),
-        (req, res, location) => [
-          {
-            location,
-            violationMessage: 'Validation violation',
-            findings: [],
-          },
-        ],
-      );
-
-      expect(result).toHaveLength(3);
-      expect(result).toEqual(
-        expect.arrayContaining([
-          expect.objectContaining({
-            location: 'manual-location-1',
-            violationMessage: 'Manual violation 1',
-          }),
-          expect.objectContaining({
-            location: 'manual-location-2',
-            violationMessage: 'Manual violation 2',
-          }),
-          expect.objectContaining({
-            violationMessage: 'Validation violation',
-          }),
-        ]),
-      );
-    });
-
-    it('should include reported violations in validateCommonHttpTransactions', async () => {
-      const format = createThymianFormatWithTransaction(
-        createHttpRequest({ method: 'post', path: '/users' }),
-        createHttpResponse({ statusCode: 201, headers: {} }),
-      );
-
-      const mockContext = createMockHttpTestContext({ format });
-      const context = new HttpTestApiContext('test-rule', mockContext);
-
-      context.reportViolation(
-        'reported-violation',
-        'Custom reported violation',
-      );
-
-      const result = await context.validateCommonHttpTransactions(
-        method('post'),
-        () => [],
-      );
-
-      expect(result).toHaveLength(1);
-      expect(result).toEqual(
-        expect.arrayContaining([
-          expect.objectContaining({
-            location: 'reported-violation',
-            violationMessage: 'Custom reported violation',
-          }),
-        ]),
-      );
     });
   });
 
@@ -631,15 +551,6 @@ describe('HttpTestApiContext', () => {
           .forTransactionsWith(method('get'))
           .run()
           .skipIf(statusCode(200), 'Skip because status is 200')
-          .done(),
-      );
-
-      // runHttpTest should NOT add to diagnostics
-      await context.runHttpTest(
-        singleTestCase()
-          .forTransactionsWith(method('post'))
-          .run()
-          .skipIf(statusCode(200), 'Skip because status is 200 for POST')
           .done(),
       );
 

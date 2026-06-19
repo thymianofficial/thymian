@@ -23,7 +23,9 @@ export function mapSeverityToBadge(severity: Severity): string {
 }
 
 function formatLocation(
-  location: NonNullable<Report['runs'][number]['executions']>[number]['location'],
+  location: NonNullable<
+    Report['runs'][number]['executions']
+  >[number]['location'],
 ): string {
   switch (location.type) {
     case 'custom':

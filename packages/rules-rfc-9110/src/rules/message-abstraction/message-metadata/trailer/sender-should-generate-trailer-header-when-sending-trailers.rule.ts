@@ -28,7 +28,9 @@ export default httpRule(
           return [
             {
               location: httpTransactionToLabel(req, res),
-              violationMessage: `Response contains trailer fields (${trailerKeys.join(', ')}) but no Trailer header field was sent`,
+              violation: {
+                message: `Response contains trailer fields (${trailerKeys.join(', ')}) but no Trailer header field was sent`,
+              },
               findings: [],
             },
           ];

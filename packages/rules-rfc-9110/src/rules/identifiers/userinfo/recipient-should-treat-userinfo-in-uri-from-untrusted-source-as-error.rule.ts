@@ -25,7 +25,7 @@ export default httpRule(
 
           return (!!url.username || !!url.password) &&
             !(res.statusCode >= 400 && res.statusCode < 500)
-            ? [{ location, violationMessage: '', findings: [] }]
+            ? [{ location, violation: {}, findings: [] }]
             : [];
         } catch (e) {
           logger.error('Cannot run rule because of invalid URL:', e);

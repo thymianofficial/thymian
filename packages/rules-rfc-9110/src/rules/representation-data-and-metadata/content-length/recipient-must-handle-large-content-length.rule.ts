@@ -39,7 +39,9 @@ export default httpRule('rfc9110/recipient-must-handle-large-content-length')
             return [
               {
                 location: httpTransactionToLabel(req, res),
-                violationMessage: `Content-Length value ${numericValue.toString()} exceeds reasonable size limit (>1TB), potential overflow risk`,
+                violation: {
+                  message: `Content-Length value ${numericValue.toString()} exceeds reasonable size limit (>1TB), potential overflow risk`,
+                },
                 findings: [],
               },
             ];
@@ -48,7 +50,9 @@ export default httpRule('rfc9110/recipient-must-handle-large-content-length')
           return [
             {
               location: httpTransactionToLabel(req, res),
-              violationMessage: `Content-Length value "${contentLengthHeader}" is too large to parse safely`,
+              violation: {
+                message: `Content-Length value "${contentLengthHeader}" is too large to parse safely`,
+              },
               findings: [],
             },
           ];

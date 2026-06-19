@@ -1,5 +1,6 @@
-import { csvSafe, reportToCsvLines } from '../src/formatters/csv.js';
 import { describe, expect, it } from 'vitest';
+
+import { csvSafe, reportToCsvLines } from '../src/formatters/csv.js';
 
 const report = {
   reportId: 'report-1',

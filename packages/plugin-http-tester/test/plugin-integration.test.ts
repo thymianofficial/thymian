@@ -18,7 +18,9 @@ describe('plugin-http-tester integration', () => {
       { strategy: 'first' },
     );
 
-    expect(runs).toHaveLength(0);
+    // With no rules, createRuns still returns one ToolRun with empty executions.
+    expect(runs).toHaveLength(1);
+    expect(runs[0]?.executions).toHaveLength(0);
 
     await thymian.close();
   });
@@ -34,7 +36,7 @@ describe('plugin-http-tester integration', () => {
       .rule(() => [
         {
           location: 'example',
-          violationMessage: 'violation',
+          violation: { message: 'violation' },
           findings: [],
         },
       ])
@@ -59,6 +61,18 @@ describe('plugin-http-tester integration', () => {
         description: { text: 'Example rule summary' },
         summary: { text: 'Example rule summary' },
       },
+    ]);
+
+    // Execution tree: one parent per rule, one child per RuleFnResult entry.
+    expect(runs[0]?.executions).toHaveLength(1);
+    const parent = runs[0]!.executions[0]!;
+    expect(parent.children).toHaveLength(1);
+    expect(parent.children[0]!.findings).toEqual([
+      expect.objectContaining({
+        kind: 'rule-violation',
+        ruleId: 'test/example-rule',
+        severity: 'warn',
+      }),
     ]);
 
     await thymian.close();

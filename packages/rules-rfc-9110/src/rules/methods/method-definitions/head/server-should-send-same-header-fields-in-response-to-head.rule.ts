@@ -43,7 +43,9 @@ export default httpRule(
         return [
           {
             location: headLocation,
-            violationMessage: `Response to HEAD request is missing headers: ${createList(difference)}`,
+            violation: {
+              message: `Response to HEAD request is missing headers: ${createList(difference)}`,
+            },
             findings: [],
           },
         ];

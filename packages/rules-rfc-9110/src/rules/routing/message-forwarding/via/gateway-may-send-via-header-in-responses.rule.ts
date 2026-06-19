@@ -15,7 +15,7 @@ export default httpRule('rfc9110/gateway-may-send-via-header-in-responses')
       not(responseHeader('via')),
       (transaction, location) =>
         transaction.response.meta.role === 'gateway'
-          ? [{ location, violationMessage: '', findings: [] }]
+          ? [{ location, violation: {}, findings: [] }]
           : [],
     ),
   )

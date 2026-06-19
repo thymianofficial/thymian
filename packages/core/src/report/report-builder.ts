@@ -6,6 +6,7 @@ import type {
 } from '../format/index.js';
 import type { HttpTestCaseResult } from '../http-testing/http-test/http-test-case-result.js';
 import type { Rule } from '../rules/rule.js';
+import type { RunRulesResult } from '../rules/rule-runner.js';
 import {
   isRuleEnabled,
   resolveViolationLocation,
@@ -75,7 +76,7 @@ export function createExecution(opts: {
     description: opts.description,
     location: opts.location,
     findings: opts.findings ?? [],
-    children: opts.children,
+    children: opts.children ?? [],
     httpTransactions: opts.httpTransactions,
   };
 }
@@ -114,6 +115,83 @@ export function executionsFromViolations(
   }
 
   return [...grouped.values()];
+}
+
+/**
+ * Build report {@link Execution}s from a full {@link RunRulesResult}, consuming
+ * **both** the `violation` and the `findings` of every {@link RuleFnResult}.
+ *
+ * Unlike {@link executionsFromViolations} (violations only), this maps each
+ * entry's `findings` into additional {@link FindingRecord}s as well, so passing
+ * rules that report findings are not silently dropped. Entries are grouped into
+ * executions by their resolved location.
+ */
+export function executionsFromRunRulesResult<TDiagnostics>(
+  result: RunRulesResult<TDiagnostics>,
+  rules: Rule[],
+  format: ThymianFormat,
+): Execution[] {
+  const ruleMap = new Map(rules.map((r) => [r.meta.name, r]));
+  const executions: Execution[] = [];
+
+  for (const [ruleName, { ruleFnResult }] of Object.entries(result)) {
+    const rule = ruleMap.get(ruleName);
+    if (!rule) {
+      continue;
+    }
+
+    const ruleExecution = createExecution({
+      location: { type: 'custom', value: ruleName },
+      name: ruleName,
+      children: [],
+    });
+
+    for (const entry of ruleFnResult) {
+      // An entry with neither a violation nor findings carries no information
+      // (a pure pass). Emitting an empty execution for it would be noise, so we
+      // skip it — nothing is dropped.
+      if (entry.violation === undefined && entry.findings.length === 0) {
+        continue;
+      }
+
+      const { heading, location } = resolveViolationLocation(
+        entry.location,
+        format,
+        ruleName,
+      );
+      const singleRuleExecution = createExecution({
+        location,
+        name: heading,
+        findings: [],
+      });
+
+      if (entry.violation !== undefined) {
+        const message =
+          entry.violation.message ||
+          (rule.meta.summary ?? rule.meta.description ?? rule.meta.name);
+        singleRuleExecution.findings.push({
+          id: randomUUID(),
+          kind: 'rule-violation',
+          ruleId: ruleName,
+          title: ruleName,
+          message: { text: message },
+          severity: rule.meta.severity as Exclude<RuleSeverity, 'off'>,
+        });
+      }
+
+      for (const finding of entry.findings) {
+        singleRuleExecution.findings.push(
+          ruleFindingToFindingRecord(finding, ruleName),
+        );
+      }
+
+      ruleExecution.children?.push(singleRuleExecution);
+    }
+
+    executions.push(ruleExecution);
+  }
+
+  return executions;
 }
 
 export function ruleFindingToFindingRecord(

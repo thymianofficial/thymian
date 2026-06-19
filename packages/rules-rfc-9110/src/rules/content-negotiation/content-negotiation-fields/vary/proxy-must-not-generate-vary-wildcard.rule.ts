@@ -31,9 +31,7 @@ export default httpRule('rfc9110/proxy-must-not-generate-vary-wildcard')
         const isViolation = varyValues
           .flatMap((v) => v.split(','))
           .includes('*');
-        return isViolation
-          ? [{ location, violationMessage: '', findings: [] }]
-          : [];
+        return isViolation ? [{ location, violation: {}, findings: [] }] : [];
       },
     ),
   )

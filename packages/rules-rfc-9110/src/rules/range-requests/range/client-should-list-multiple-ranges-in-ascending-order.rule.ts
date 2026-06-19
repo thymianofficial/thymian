@@ -52,7 +52,7 @@ export default httpRule(
         const result = validateRangeOrder(rangeHeader);
 
         if (result) {
-          return [{ location, violationMessage: result, findings: [] }];
+          return [{ location, violation: { message: result }, findings: [] }];
         } else {
           return [];
         }

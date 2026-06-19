@@ -35,9 +35,7 @@ export default httpRule(
           return !value.trim().startsWith('"') && !value.startsWith('W/"');
         });
 
-        return isViolation
-          ? [{ location, violationMessage: '', findings: [] }]
-          : [];
+        return isViolation ? [{ location, violation: {}, findings: [] }] : [];
       },
     ),
   )

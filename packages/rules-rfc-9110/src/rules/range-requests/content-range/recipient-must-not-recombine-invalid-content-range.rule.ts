@@ -31,7 +31,7 @@ export default httpRule(
           (range) =>
             range.end < range.start || (range.size && range.size <= range.end),
         )
-          ? [{ location, violationMessage: '', findings: [] }]
+          ? [{ location, violation: {}, findings: [] }]
           : [];
       },
     ),

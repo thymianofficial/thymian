@@ -1,8 +1,10 @@
 import { describe, expect, it } from 'vitest';
 
+import { ThymianFormat } from '../src/index.js';
 import {
   createReport,
   createToolRun,
+  executionsFromRunRulesResult,
   httpTestResultToRuleFindings,
   rulesToRuleDescriptors,
 } from '../src/report/index.js';
@@ -46,6 +48,138 @@ describe('report builders', () => {
     expect(findings[1]).toMatchObject({
       kind: 'test-case-skip',
       severity: 'info',
+    });
+  });
+
+  describe('executionsFromRunRulesResult', () => {
+    const rule = httpRule('rfc9110/example')
+      .severity('error')
+      .type('analytics')
+      .summary('Example summary')
+      .rule(() => undefined)
+      .done();
+    const format = new ThymianFormat();
+
+    it('maps a violation to a rule-violation finding', () => {
+      const executions = executionsFromRunRulesResult(
+        {
+          'rfc9110/example': {
+            diagnostics: undefined,
+            ruleFnResult: [
+              {
+                location: 'custom/loc',
+                violation: { message: 'boom' },
+                findings: [],
+              },
+            ],
+          },
+        },
+        [rule],
+        format,
+      );
+
+      // One parent execution per rule; findings live on the child execution.
+      expect(executions).toHaveLength(1);
+      expect(executions[0]?.findings).toEqual([]);
+      expect(executions[0]?.children).toHaveLength(1);
+      expect(executions[0]?.children[0]?.findings).toEqual([
+        expect.objectContaining({
+          kind: 'rule-violation',
+          title: 'rfc9110/example',
+          message: { text: 'boom' },
+          severity: 'error',
+          ruleId: 'rfc9110/example',
+        }),
+      ]);
+    });
+
+    it('surfaces findings on a passing result with no violation (Requirement 2)', () => {
+      const executions = executionsFromRunRulesResult(
+        {
+          'rfc9110/example': {
+            diagnostics: undefined,
+            ruleFnResult: [
+              {
+                location: 'custom/loc',
+                findings: [{ kind: 'assertion-success', title: 'ok' }],
+              },
+            ],
+          },
+        },
+        [rule],
+        format,
+      );
+
+      expect(executions).toHaveLength(1);
+      expect(executions[0]?.children).toHaveLength(1);
+      expect(executions[0]?.children[0]?.findings).toEqual([
+        expect.objectContaining({ kind: 'assertion-success', title: 'ok' }),
+      ]);
+    });
+
+    it('combines a violation with its findings on the same result', () => {
+      const executions = executionsFromRunRulesResult(
+        {
+          'rfc9110/example': {
+            diagnostics: undefined,
+            ruleFnResult: [
+              {
+                location: 'custom/loc',
+                violation: { message: 'boom' },
+                findings: [{ kind: 'assertion-failure', title: 'bad' }],
+              },
+            ],
+          },
+        },
+        [rule],
+        format,
+      );
+
+      expect(executions).toHaveLength(1);
+      expect(executions[0]?.children[0]?.findings).toHaveLength(2);
+      expect(executions[0]?.children[0]?.findings.map((f) => f.kind)).toEqual([
+        'rule-violation',
+        'assertion-failure',
+      ]);
+    });
+
+    it('emits a parent execution but no child for pure-pass results (neither violation nor findings)', () => {
+      const executions = executionsFromRunRulesResult(
+        {
+          'rfc9110/example': {
+            diagnostics: undefined,
+            ruleFnResult: [{ location: 'custom/loc', findings: [] }],
+          },
+        },
+        [rule],
+        format,
+      );
+
+      // The parent execution per rule is always emitted; the pure-pass entry
+      // produces no child because it carries neither a violation nor findings.
+      expect(executions).toHaveLength(1);
+      expect(executions[0]?.children).toHaveLength(0);
+    });
+
+    it('falls back to the rule summary when the violation has no message', () => {
+      const executions = executionsFromRunRulesResult(
+        {
+          'rfc9110/example': {
+            diagnostics: undefined,
+            ruleFnResult: [
+              { location: 'custom/loc', violation: {}, findings: [] },
+            ],
+          },
+        },
+        [rule],
+        format,
+      );
+
+      expect(executions[0]?.children[0]?.findings[0]).toMatchObject({
+        kind: 'rule-violation',
+        title: 'rfc9110/example',
+        message: { text: 'Example summary' },
+      });
     });
   });
 

@@ -15,9 +15,7 @@ export default httpRule(
       (req, _res, location: RuleViolationLocation) => {
         try {
           const isViolation = new URL(req.path, req.origin).host === '';
-          return isViolation
-            ? [{ location, violationMessage: '', findings: [] }]
-            : [];
+          return isViolation ? [{ location, violation: {}, findings: [] }] : [];
         } catch (e) {
           logger.error('Cannot run rule because of invalid URL:', e);
           return [];

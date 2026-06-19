@@ -61,15 +61,17 @@ export default httpRule(
             return [
               {
                 location: partialTransactionLocation,
-                violationMessage: `206 Partial Content response MUST contain header${
-                  missingHeaders.length > 1 ? 's' : ''
-                } ${missingHeaders
-                  .map((h) => `"${h}"`)
-                  .join(
-                    ', ',
-                  )}, as the corresponding 200 OK responses contained ${
-                  missingHeaders.length > 1 ? 'these headers' : 'this header'
-                }.`,
+                violation: {
+                  message: `206 Partial Content response MUST contain header${
+                    missingHeaders.length > 1 ? 's' : ''
+                  } ${missingHeaders
+                    .map((h) => `"${h}"`)
+                    .join(
+                      ', ',
+                    )}, as the corresponding 200 OK responses contained ${
+                    missingHeaders.length > 1 ? 'these headers' : 'this header'
+                  }.`,
+                },
                 findings: [],
               },
             ];
@@ -117,13 +119,17 @@ export default httpRule(
           return [
             {
               location: partialTransactionLocation,
-              violationMessage: `206 Partial Content response MUST contain header${
-                missingHeaders.length > 1 ? 's' : ''
-              } ${missingHeaders
-                .map((h) => `"${h}"`)
-                .join(', ')}, as the corresponding 200 OK responses contained ${
-                missingHeaders.length > 1 ? 'these headers' : 'this header'
-              }.`,
+              violation: {
+                message: `206 Partial Content response MUST contain header${
+                  missingHeaders.length > 1 ? 's' : ''
+                } ${missingHeaders
+                  .map((h) => `"${h}"`)
+                  .join(
+                    ', ',
+                  )}, as the corresponding 200 OK responses contained ${
+                  missingHeaders.length > 1 ? 'these headers' : 'this header'
+                }.`,
+              },
               findings: [],
             },
           ];

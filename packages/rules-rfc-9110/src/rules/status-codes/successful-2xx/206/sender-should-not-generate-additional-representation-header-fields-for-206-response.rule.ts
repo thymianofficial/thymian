@@ -11,7 +11,12 @@ import {
   responseWith,
   statusCode,
 } from '@thymian/core';
-import { httpRule, singleTestCase } from '@thymian/core';
+import {
+  httpRule,
+  type RuleFnResult,
+  type RuleViolation,
+  singleTestCase,
+} from '@thymian/core';
 
 import { arrayDifference, createList } from '../../../../utils.js';
 import { requiredHeaders } from './server-must-generate-header-fields-for-206-response.rule.js';
@@ -30,7 +35,7 @@ export const representationHeaderFields = [
 export function checkHeaders(
   okResponseHeaders: string[],
   partialResponseHeaders: string[],
-): { violationMessage: string } | undefined {
+): RuleViolation | undefined {
   const requiredFields = requiredHeaders.filter((header) =>
     equalsIgnoreCase(header, ...okResponseHeaders),
   );
@@ -63,7 +68,7 @@ export function checkHeaders(
     }
 
     return {
-      violationMessage: `206 Partial Content response SHOULD NOT contain additional headers ${createList(
+      message: `206 Partial Content response SHOULD NOT contain additional headers ${createList(
         additionalRepresentationHeaders,
       )} OR the 206 response MUST contain all representation headers, the 200 OK response also contains. Therefore the partial response is missing header(s): ${createList(
         difference,
@@ -122,11 +127,7 @@ export default httpRule(
           }
 
           return [
-            {
-              location: partialTransactionLocation,
-              violationMessage: violation.violationMessage,
-              findings: [],
-            },
+            { location: partialTransactionLocation, violation, findings: [] },
           ];
         }
 
@@ -163,11 +164,7 @@ export default httpRule(
           }
 
           return [
-            {
-              location: partialTransactionLocation,
-              violationMessage: violation.violationMessage,
-              findings: [],
-            },
+            { location: partialTransactionLocation, violation, findings: [] },
           ];
         }
 
@@ -176,8 +173,9 @@ export default httpRule(
     ),
   )
   // TODO: let's think about later, if we should include this test
-  .overrideTest((testContext) =>
-    testContext.httpTest(
+  .overrideTest(async (testContext) => {
+    const results: RuleFnResult[] = [];
+    await testContext.httpTest(
       singleTestCase()
         .forTransactionsWith(
           and(
@@ -208,16 +206,18 @@ export default httpRule(
           );
 
           if (violation) {
-            testContext.reportViolation(
-              {
+            results.push({
+              location: {
                 elementType: 'edge',
                 elementId: partialTransactions.source.transactionId,
               },
-              violation.violationMessage,
-            );
+              violation,
+              findings: [],
+            });
           }
         })
         .done(),
-    ),
-  )
+    );
+    return results;
+  })
   .done();
