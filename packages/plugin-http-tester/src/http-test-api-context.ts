@@ -1,4 +1,5 @@
 import {
+  type AssertionFailure,
   type CommonHttpRequest,
   type CommonHttpResponse,
   createRegExpFromOriginWildcard,
@@ -211,7 +212,40 @@ export class HttpTestApiContext<
     return callViolations;
   }
 
-  async httpTest(pipeline: HttpTestPipeline<Locals>): Promise<HttpTestResult> {
+  async httpTest(pipeline: HttpTestPipeline<Locals>): Promise<RuleFnResult[]> {
+    const testFn = httpTest(this.name, pipeline);
+
+    const testResult = await testFn(this.ctx);
+
+    const ruleFnResult: RuleFnResult[] = [];
+
+    for (const testCase of testResult.cases) {
+      if (testCase.status === 'failed') {
+        const assertionFailure = testCase.results.find(
+          (r) => r.type === 'assertion-failure' && !!r.transaction,
+        ) as AssertionFailure;
+
+        if (assertionFailure && assertionFailure.transaction) {
+          ruleFnResult.push({
+            location: {
+              elementId: assertionFailure.transaction.transactionId,
+              elementType: 'edge',
+            },
+            violation: {},
+            findings: [],
+          });
+        }
+      }
+    }
+
+    this.diagnosticEntries.push({ testResult, ruleFnResult });
+
+    return ruleFnResult;
+  }
+
+  async runHttpTest(
+    pipeline: HttpTestPipeline<Locals>,
+  ): Promise<HttpTestResult> {
     const testFn = httpTest(this.name, pipeline);
 
     const testResult = await testFn(this.ctx);
@@ -219,16 +253,6 @@ export class HttpTestApiContext<
     this.diagnosticEntries.push({ testResult, ruleFnResult: [] });
 
     return testResult;
-  }
-
-  /**
-   *
-   * @deprecated use `httpTest` instead.
-   */
-  async runHttpTest(
-    pipeline: HttpTestPipeline<Locals>,
-  ): Promise<HttpTestResult> {
-    return this.httpTest(pipeline);
   }
 
   async validateHttpTransactions(
