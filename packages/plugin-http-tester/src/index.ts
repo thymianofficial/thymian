@@ -8,59 +8,73 @@ import {
   type FindingRecord,
   type HttpTestCase,
   type HttpTestCaseStep,
+  isCustomHttpTestCaseStep,
+  isGroupedHttpTestCaseStep,
+  isSingleHttpTestCaseStep,
+  type Location,
   resolveViolationLocation,
   type Rule,
   ruleFindingToFindingRecord,
+  type RuleFnResult,
   type RuleRunnerAdapter,
   rulesToRuleDescriptors,
-  type RuleViolationFinding,
   runRules,
   type RunRulesResult,
-  type Severity,
   type SingleRuleConfiguration,
   ThymianBaseError,
   ThymianFormat,
   type ThymianPlugin,
   type ToolRun,
 } from '@thymian/core';
-import { find } from 'rxjs';
 
 import {
   HttpTestApiContext,
   type HttpTesterRuleDiagnostics,
+  type RuleFnResultPlacement,
 } from './http-test-api-context.js';
 
 export {
   HttpTestApiContext,
   type HttpTesterRuleDiagnostics,
+  type RuleFnResultPlacement,
 } from './http-test-api-context.js';
 
+function ruleViolationToFindingRecord(
+  violation: NonNullable<RuleFnResult['violation']>,
+  rule: Rule,
+): FindingRecord {
+  const message = violation.message;
+  return {
+    id: randomUUID(),
+    kind: 'rule-violation',
+    ruleId: rule.meta.name,
+    title:
+      message || (rule.meta.summary ?? rule.meta.description ?? rule.meta.name),
+    severity: rule.meta.severity as Exclude<typeof rule.meta.severity, 'off'>,
+    ...(message
+      ? { message: { text: message } }
+      : rule.meta.explanation
+        ? { message: { text: rule.meta.explanation } }
+        : {}),
+  } satisfies FindingRecord;
+}
+
+// stepPlacements must be pre-filtered to this step (testCaseIndex + stepIndex match).
 function buildStepExecution(
   step: HttpTestCaseStep,
   stepIndex: number,
-  violationByTxId: Map<string, string>,
+  stepPlacements: RuleFnResultPlacement[],
   rule: Rule,
+  location: Location,
 ): Execution {
   const findings: FindingRecord[] = [];
 
-  for (const transaction of step.transactions) {
-    const txId = transaction.source?.transactionId;
-    if (txId && violationByTxId.has(txId)) {
-      const message = violationByTxId.get(txId)!;
-      findings.push({
-        id: randomUUID(),
-        kind: 'rule-violation',
-        ruleId: rule.meta.name,
-        title:
-          message ||
-          (rule.meta.summary ?? rule.meta.description ?? rule.meta.name),
-        severity: rule.meta.severity as Exclude<
-          typeof rule.meta.severity,
-          'off'
-        >,
-        ...(message ? { message: { text: message } } : {}),
-      } satisfies FindingRecord);
-      violationByTxId.delete(txId);
+  for (const { result } of stepPlacements) {
+    if (result.violation !== undefined) {
+      findings.push(ruleViolationToFindingRecord(result.violation, rule));
+    }
+    for (const finding of result.findings) {
+      findings.push(ruleFindingToFindingRecord(finding));
     }
   }
 
@@ -75,24 +89,43 @@ function buildStepExecution(
 
   return createExecution({
     name: `Step ${stepIndex + 1}`,
-    location: { type: 'custom', value: `step-${stepIndex + 1}` },
+    location,
     findings,
     httpTransactions:
       httpTransactions.length > 0 ? httpTransactions : undefined,
   });
 }
 
+function stepToLocation(step: HttpTestCaseStep): Location {
+  if (isSingleHttpTestCaseStep(step)) {
+    return {
+      type: 'thymianFormat',
+      elementType: 'edge',
+      elementId: step.source.transactionId,
+      pointer: '',
+    };
+  }
+  if (isGroupedHttpTestCaseStep(step)) {
+    return { type: 'custom', value: step.source.key };
+  }
+  if (isCustomHttpTestCaseStep(step)) {
+    const src = step.source;
+    const value =
+      src === null || typeof src !== 'object'
+        ? String(src)
+        : JSON.stringify(src);
+    return { type: 'custom', value };
+  }
+  return { type: 'custom', value: 'unknown' };
+}
+
 function buildTestCaseExecution(
   testCase: HttpTestCase,
-  violationByTxId: Map<string, string>,
-  rule: Rule,
+  extraFindings: FindingRecord[],
+  children: Execution[],
 ): Execution {
   const durationMilliseconds =
     testCase.end !== undefined ? testCase.end - testCase.start : undefined;
-
-  const stepChildren = testCase.steps.map((step, i) =>
-    buildStepExecution(step, i, violationByTxId, rule),
-  );
 
   let testCaseFinding: FindingRecord;
 
@@ -127,12 +160,13 @@ function buildTestCaseExecution(
   return createExecution({
     name: testCase.name,
     location: { type: 'custom', value: testCase.name },
-    findings: [testCaseFinding],
-    children: stepChildren.length > 0 ? stepChildren : undefined,
+    findings: [testCaseFinding, ...extraFindings],
+    children,
   });
 }
 
-function createRuns(
+// exported for testing
+export function createRuns(
   pluginName: string,
   ruleResults: RunRulesResult<HttpTesterRuleDiagnostics>,
   rules: Rule[] = [],
@@ -141,8 +175,6 @@ function createRuns(
   const ruleMap = new Map(rules.map((r) => [r.meta.name, r]));
   const ruleExecutions: Execution[] = [];
 
-  // TODO: Skip diagnostics data for now. We currently lack a mapping between recorded HTTP test cases and the triggered rule violations. This information is also missing in the reporting data.
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   for (const [ruleName, { ruleFnResult, diagnostics }] of Object.entries(
     ruleResults,
   )) {
@@ -151,55 +183,100 @@ function createRuns(
       continue;
     }
 
-    const ruleExecution = createExecution({
-      location: { type: 'custom', value: ruleName },
-      findings: [],
-    });
+    const consumedResults = new Set<RuleFnResult>();
+    const ruleChildren: Execution[] = [];
 
-    for (const { location, violation, findings } of ruleFnResult) {
+    if (diagnostics) {
+      for (const { testResult, placements } of diagnostics) {
+        testResult.cases.forEach((testCase, testCaseIndex) => {
+          const testCasePlacements = placements.filter(
+            (p) =>
+              p.testCaseIndex === testCaseIndex && p.stepIndex === undefined,
+          );
+          const testCaseFindings: FindingRecord[] = [];
+          for (const { result } of testCasePlacements) {
+            consumedResults.add(result);
+            if (result.violation !== undefined) {
+              testCaseFindings.push(
+                ruleViolationToFindingRecord(result.violation, rule),
+              );
+            }
+            for (const finding of result.findings) {
+              testCaseFindings.push(ruleFindingToFindingRecord(finding));
+            }
+          }
+
+          const stepExecutions = testCase.steps.map((step, stepIndex) => {
+            const stepPlacements = placements.filter(
+              (p) =>
+                p.testCaseIndex === testCaseIndex && p.stepIndex === stepIndex,
+            );
+            for (const { result } of stepPlacements) {
+              consumedResults.add(result);
+            }
+
+            return buildStepExecution(
+              step,
+              stepIndex,
+              stepPlacements,
+              rule,
+              stepToLocation(step),
+            );
+          });
+
+          ruleChildren.push(
+            buildTestCaseExecution(testCase, testCaseFindings, stepExecutions),
+          );
+        });
+      }
+    }
+
+    // Fallback: render results not placed by diagnostics using location-based layout
+    for (const result of ruleFnResult) {
+      if (consumedResults.has(result)) {
+        continue;
+      }
+
       const resolvedLocation = resolveViolationLocation(
-        location,
+        result.location,
         thymianFormat,
         ruleName,
       );
 
-      const singleRuleExecution = createExecution({
-        location: resolvedLocation.location,
-        findings: [],
-        name: resolvedLocation.heading,
-      });
+      const fallbackFindings: FindingRecord[] = [];
 
-      if (violation) {
-        const ruleViolationFinding: RuleViolationFinding = {
-          kind: 'rule-violation',
-          id: randomUUID(),
-          title:
-            violation.message ??
-            rule.meta.summary ??
-            rule.meta.description ??
-            rule.meta.name,
-          ruleId: rule.meta.name,
-          severity: rule.meta.severity as Severity, // rule severity won't be "off"
-        };
-
-        if (rule.meta.explanation) {
-          ruleViolationFinding.message = { text: rule.meta.explanation };
-        }
-
-        singleRuleExecution.findings.push(ruleViolationFinding);
+      if (result.violation) {
+        fallbackFindings.push(
+          ruleViolationToFindingRecord(result.violation, rule),
+        );
       }
 
-      for (const finding of findings) {
-        singleRuleExecution.findings.push(ruleFindingToFindingRecord(finding));
+      for (const finding of result.findings) {
+        fallbackFindings.push(ruleFindingToFindingRecord(finding));
       }
 
-      ruleExecution.children?.push(singleRuleExecution);
+      ruleChildren.push(
+        createExecution({
+          location: resolvedLocation.location,
+          findings: fallbackFindings,
+          name: resolvedLocation.heading,
+        }),
+      );
     }
 
-    ruleExecutions.push(ruleExecution);
+    ruleExecutions.push(
+      createExecution({
+        location: { type: 'custom', value: ruleName },
+        findings: [],
+        children: ruleChildren,
+      }),
+    );
   }
 
   const ruleDescriptors = rulesToRuleDescriptors(rules, (r) => r.testRule);
+  if (ruleExecutions.length === 0 && ruleDescriptors.length === 0) {
+    return [];
+  }
 
   return [
     createToolRun({
