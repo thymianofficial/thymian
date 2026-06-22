@@ -683,4 +683,113 @@ describe('HttpTestApiContext', () => {
       ]);
     });
   });
+
+  describe('placement skip for divergent locations', () => {
+    it('creates a placement when validateCommonHttpTransactions callback returns the provided location', async () => {
+      const format = createThymianFormatWithTransaction(
+        createHttpRequest({ method: 'get', path: '/items' }),
+        createHttpResponse({ statusCode: 200, headers: {} }),
+      );
+
+      const mockContext = createMockHttpTestContext({ format });
+      vi.mocked(mockContext.runRequest).mockResolvedValue({
+        statusCode: 200,
+        headers: {},
+        duration: 0,
+        trailers: {},
+      });
+
+      const context = new HttpTestApiContext('test-rule', mockContext);
+
+      await context.validateCommonHttpTransactions(
+        statusCode(200),
+        (_req, _res, location) => [{ location, violation: {}, findings: [] }],
+      );
+
+      const diagnostics = context.getRuleExecutionDiagnostics();
+      expect(diagnostics?.[0]?.placements).toHaveLength(1);
+    });
+
+    it('skips placement when validateCommonHttpTransactions callback returns a different location', async () => {
+      const format = createThymianFormatWithTransaction(
+        createHttpRequest({ method: 'get', path: '/items' }),
+        createHttpResponse({ statusCode: 200, headers: {} }),
+      );
+
+      const mockContext = createMockHttpTestContext({ format });
+      vi.mocked(mockContext.runRequest).mockResolvedValue({
+        statusCode: 200,
+        headers: {},
+        duration: 0,
+        trailers: {},
+      });
+
+      const context = new HttpTestApiContext('test-rule', mockContext);
+
+      await context.validateCommonHttpTransactions(statusCode(200), () => [
+        {
+          location: { elementType: 'edge', elementId: 'other-transaction' },
+          violation: {},
+          findings: [],
+        },
+      ]);
+
+      const diagnostics = context.getRuleExecutionDiagnostics();
+      // result is included in the returned violations but has no placement
+      expect(diagnostics?.[0]?.placements).toHaveLength(0);
+    });
+
+    it('creates a placement when validateHttpTransactions callback returns the provided location', async () => {
+      const format = createThymianFormatWithTransaction(
+        createHttpRequest({ method: 'get', path: '/items' }),
+        createHttpResponse({ statusCode: 200, headers: {} }),
+      );
+
+      const mockContext = createMockHttpTestContext({ format });
+      vi.mocked(mockContext.runRequest).mockResolvedValue({
+        statusCode: 200,
+        headers: {},
+        duration: 0,
+        trailers: {},
+      });
+
+      const context = new HttpTestApiContext('test-rule', mockContext);
+
+      await context.validateHttpTransactions(
+        statusCode(200),
+        (_req, _res, location) => [{ location, violation: {}, findings: [] }],
+      );
+
+      const diagnostics = context.getRuleExecutionDiagnostics();
+      expect(diagnostics?.[0]?.placements).toHaveLength(1);
+    });
+
+    it('skips placement when validateHttpTransactions callback returns a different location', async () => {
+      const format = createThymianFormatWithTransaction(
+        createHttpRequest({ method: 'get', path: '/items' }),
+        createHttpResponse({ statusCode: 200, headers: {} }),
+      );
+
+      const mockContext = createMockHttpTestContext({ format });
+      vi.mocked(mockContext.runRequest).mockResolvedValue({
+        statusCode: 200,
+        headers: {},
+        duration: 0,
+        trailers: {},
+      });
+
+      const context = new HttpTestApiContext('test-rule', mockContext);
+
+      await context.validateHttpTransactions(statusCode(200), () => [
+        {
+          location: { elementType: 'node', elementId: 'some-node' },
+          violation: {},
+          findings: [],
+        },
+      ]);
+
+      const diagnostics = context.getRuleExecutionDiagnostics();
+      expect(diagnostics?.[0]?.placements).toHaveLength(0);
+    });
+  });
 });

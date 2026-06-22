@@ -1,9 +1,8 @@
 import type {
-  HttpTransaction,
   ThymianHttpRequest,
   ThymianHttpResponse,
 } from '../format/index.js';
-import { isNodeType, ThymianFormat } from '../format/index.js';
+import { isEdgeType, isNodeType, ThymianFormat } from '../format/index.js';
 import type { Logger } from '../logger/logger.js';
 import type { Location } from '../report/index.js';
 import { ThymianBaseError } from '../thymian.error.js';
@@ -87,12 +86,7 @@ export function resolveViolationLocation(
     };
   }
 
-  const [source, target] = format.graph.extremities(location.elementId);
-  const transaction = format.getEdge<HttpTransaction>(location.elementId);
-  const req = format.getNode<ThymianHttpRequest>(source);
-  const res = format.getNode<ThymianHttpResponse>(target);
-
-  if (!req || !res || !transaction) {
+  if (!format.graph.hasEdge(location.elementId)) {
     throw new ThymianBaseError(
       `Invalid rule violation location for rule ${ruleName}.`,
       {
@@ -102,18 +96,31 @@ export function resolveViolationLocation(
     );
   }
 
-  const heading = location.label ?? thymianHttpTransactionToString(req, res);
+  // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+  const edge = format.getEdge(location.elementId)!;
 
-  if (transaction.sourceLocation && 'path' in transaction.sourceLocation) {
-    return {
-      heading,
-      location: {
-        type: 'file',
-        path: transaction.sourceLocation.path,
-        line: transaction.sourceLocation.position?.line,
-        column: transaction.sourceLocation.position?.column,
-      },
-    };
+  let heading: string;
+
+  if (isEdgeType(edge, 'http-transaction')) {
+    const [edgeSource, edgeTarget] = format.graph.extremities(
+      location.elementId,
+    );
+    const req = format.getNode<ThymianHttpRequest>(edgeSource);
+    const res = format.getNode<ThymianHttpResponse>(edgeTarget);
+
+    if (!req || !res) {
+      throw new ThymianBaseError(
+        `Invalid rule violation location for rule ${ruleName}.`,
+        {
+          name: 'InvalidRuleViolationLocationError',
+          ref: 'https://thymian.dev/references/errors/invalid-rule-violation-location-error/',
+        },
+      );
+    }
+
+    heading = location.label ?? thymianHttpTransactionToString(req, res);
+  } else {
+    heading = location.label ?? location.elementId;
   }
 
   return {
