@@ -139,7 +139,7 @@ describe('resolveViolationLocation', () => {
     expect(result.heading).toBeTruthy();
   });
 
-  it('returns thymianFormat edge location for a non-http-transaction edge, using elementId as heading', () => {
+  it('returns thymianFormat edge location for a non-http-transaction edge, using edge label as heading', () => {
     const format = new ThymianFormat();
     const [, resId] = format.addHttpTransaction(
       minimalRequest,
@@ -161,7 +161,8 @@ describe('resolveViolationLocation', () => {
       elementType: 'edge',
       elementId: linkId,
     });
-    expect(result.heading).toBe(linkId);
+    expect(result.heading).toBe(format.getEdge(linkId)!.label);
+    expect(result.heading).not.toBe(linkId);
   });
 
   it('throws when the edge does not exist in the format', () => {
@@ -173,6 +174,29 @@ describe('resolveViolationLocation', () => {
         'my-rule',
       ),
     ).toThrow(ThymianBaseError);
+  });
+
+  it('does not return file type for a node even when sourceLocation has a path', () => {
+    const format = new ThymianFormat();
+    const reqId = format.addRequest({
+      ...minimalRequest,
+      sourceLocation: {
+        path: '/some/spec.yaml',
+        position: { line: 5, column: 0, offset: 0 },
+      },
+    });
+
+    const result = resolveViolationLocation(
+      { elementType: 'node', elementId: reqId },
+      format,
+      'my-rule',
+    );
+
+    expect(result.location).toMatchObject({
+      type: 'thymianFormat',
+      elementType: 'node',
+      elementId: reqId,
+    });
   });
 
   it('does not return file type for an http-transaction edge even when sourceLocation has a path', () => {

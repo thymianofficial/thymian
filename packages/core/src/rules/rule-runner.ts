@@ -63,18 +63,6 @@ export function resolveViolationLocation(
       heading = heading || thymianResponseToString(node);
     }
 
-    if (node.sourceLocation && 'path' in node.sourceLocation) {
-      return {
-        heading,
-        location: {
-          type: 'file',
-          path: node.sourceLocation.path,
-          line: node.sourceLocation.position?.line,
-          column: node.sourceLocation.position?.column,
-        },
-      };
-    }
-
     return {
       heading,
       location: {
@@ -120,7 +108,7 @@ export function resolveViolationLocation(
 
     heading = location.label ?? thymianHttpTransactionToString(req, res);
   } else {
-    heading = location.label ?? location.elementId;
+    heading = location.label ?? edge.label;
   }
 
   return {
