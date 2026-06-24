@@ -114,16 +114,6 @@ function createRuns(
   const executions = executionsFromRunRulesResult(ruleResults, rules, format);
   const httpTransactions = transactions.map(toReportHttpTransaction);
 
-  if (executions.length === 0) {
-    executions.push(
-      createExecution({
-        location: { type: 'custom', value: 'analyze' },
-        httpTransactions,
-      }),
-    );
-  } else {
-    executions[0]!.httpTransactions = httpTransactions;
-  }
 
   const ruleDescriptors = rulesToRuleDescriptors(rules, (r) => r.analyzeRule);
 
