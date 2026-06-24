@@ -11,7 +11,12 @@ import {
   responseWith,
   statusCode,
 } from '@thymian/core';
-import { httpRule, type RuleViolation, singleTestCase } from '@thymian/core';
+import {
+  httpRule,
+  type RuleFnResult,
+  type RuleViolation,
+  singleTestCase,
+} from '@thymian/core';
 
 import { arrayDifference, createList } from '../../../../utils.js';
 import { requiredHeaders } from './server-must-generate-header-fields-for-206-response.rule.js';
@@ -30,7 +35,7 @@ export const representationHeaderFields = [
 export function checkHeaders(
   okResponseHeaders: string[],
   partialResponseHeaders: string[],
-): Omit<RuleViolation, 'location'> | undefined {
+): RuleViolation | undefined {
   const requiredFields = requiredHeaders.filter((header) =>
     equalsIgnoreCase(header, ...okResponseHeaders),
   );
@@ -118,16 +123,15 @@ export default httpRule(
           );
 
           if (!violation) {
-            return;
+            return [];
           }
 
-          return {
-            ...violation,
-            location: partialTransactionLocation,
-          };
+          return [
+            { location: partialTransactionLocation, violation, findings: [] },
+          ];
         }
 
-        return;
+        return [];
       },
     ),
   )
@@ -156,22 +160,22 @@ export default httpRule(
           );
 
           if (!violation) {
-            return;
+            return [];
           }
 
-          return {
-            ...violation,
-            location: partialTransactionLocation,
-          };
+          return [
+            { location: partialTransactionLocation, violation, findings: [] },
+          ];
         }
 
-        return;
+        return [];
       },
     ),
   )
   // TODO: let's think about later, if we should include this test
-  .overrideTest((testContext) =>
-    testContext.httpTest(
+  .overrideTest(async (testContext) => {
+    const results: RuleFnResult[] = [];
+    await testContext.httpTest(
       singleTestCase()
         .forTransactionsWith(
           and(
@@ -202,16 +206,18 @@ export default httpRule(
           );
 
           if (violation) {
-            testContext.reportViolation({
-              message: violation.message,
+            results.push({
               location: {
                 elementType: 'edge',
                 elementId: partialTransactions.source.transactionId,
               },
+              violation,
+              findings: [],
             });
           }
         })
         .done(),
-    ),
-  )
+    );
+    return results;
+  })
   .done();

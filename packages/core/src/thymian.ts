@@ -2,6 +2,7 @@ import semver from 'semver';
 
 import packageJson from '../package.json' with { type: 'json' };
 import type {
+  CoreAnalyzeInput,
   CoreFormatLoadInput,
   CoreRequestDispatchInput,
   CoreRequestSampleInput,
@@ -10,34 +11,23 @@ import type {
   SpecValidationOutcome,
   SpecValidationResult,
   TrafficInput,
-  ValidationResult,
-  WorkflowClassification,
-  WorkflowOutcome,
 } from './actions/index.js';
 import { validate } from './ajv.js';
 import { corePlugin } from './core-plugin.js';
 import { ThymianEmitter } from './emitter/index.js';
-import type {
-  ThymianReport,
-  ThymianReportItem,
-  ThymianReportLocation,
-  ThymianReportSection,
-} from './events/report.event.js';
 import { ThymianFormat } from './format/index.js';
 import type { HttpRequestTemplate, HttpResponse } from './http.js';
 import type { LogLevel } from './logger/log-level.js';
 import { shouldLog } from './logger/log-level.js';
 import type { Logger } from './logger/logger.js';
 import { NoopLogger } from './logger/noop.logger.js';
-import { type ReportSortMode, sortReports } from './report-sorter.js';
+import { createReport, type Report, type ToolRun } from './report/index.js';
 import {
   type LoadedTraffic,
   loadRules,
   type RuleFilter,
   type RulesConfiguration,
 } from './rules/index.js';
-import { resolveViolationLocation } from './rules/rule-runner.js';
-import type { EvaluatedRuleViolation } from './rules/rule-violation.js';
 import { ThymianBaseError } from './thymian.error.js';
 import type { ThymianPlugin } from './thymian-plugin.js';
 import { timeoutPromise } from './utils.js';
@@ -92,7 +82,6 @@ export type ThymianOptions = {
   cwd: string;
   logAllErrors: boolean;
   logLevel?: LogLevel;
-  sortReportsBy?: ReportSortMode;
 };
 
 export class Thymian {
@@ -327,7 +316,7 @@ export class Thymian {
    * Plugins own the mode-specific execution semantics behind these entrypoints.
    * This keeps the consumer-facing API stable while preserving plugin-based extensibility.
    */
-  async lint(input: LintWorkflowInput): Promise<WorkflowOutcome> {
+  async lint(input: LintWorkflowInput): Promise<Report> {
     const { rulesConfig, ruleFilter } = input;
 
     this.logger.info('Loading specification and rules...');
@@ -347,25 +336,18 @@ export class Thymian {
       `Loaded ${rules.length} rule(s). Running lint workflow...`,
     );
 
-    const results = await this.emitter.emitAction(
-      'core.lint',
-      { format: format.export(), rules, rulesConfig, options: input.options },
-      { strategy: 'collect' },
-    );
+    const toolRuns = (
+      await this.emitter.emitAction(
+        'core.lint',
+        { format: format.export(), rules, rulesConfig, options: input.options },
+        { strategy: 'collect' },
+      )
+    ).flat();
 
-    this.bridgeReports(results, format);
-
-    const classification = this.classifyResults(results);
-    this.logger.info(`Lint complete: ${classification}.`);
-
-    return {
-      classification,
-      text: await this.flushReportText(),
-      results,
-    };
+    return this.finalizeWorkflow(toolRuns, format.export());
   }
 
-  async test(input: TestWorkflowInput): Promise<WorkflowOutcome> {
+  async test(input: TestWorkflowInput): Promise<Report> {
     const { rulesConfig, ruleFilter } = input;
 
     const [format, rules] = await Promise.all([
@@ -376,28 +358,24 @@ export class Thymian {
       loadRules(input.rules ?? [], ruleFilter, rulesConfig, this.options.cwd),
     ]);
 
-    const results = await this.emitter.emitAction(
-      'core.test',
-      {
-        format: format.export(),
-        rules,
-        rulesConfig,
-        options: input.options,
-        targetUrl: input.targetUrl,
-      },
-      { strategy: 'collect', timeout: Thymian.DEFAULT_TEST_TIMEOUT },
-    );
+    const toolRuns = (
+      await this.emitter.emitAction(
+        'core.test',
+        {
+          format: format.export(),
+          rules,
+          rulesConfig,
+          options: input.options,
+          targetUrl: input.targetUrl,
+        },
+        { strategy: 'collect', timeout: Thymian.DEFAULT_TEST_TIMEOUT },
+      )
+    ).flat();
 
-    this.bridgeReports(results, format);
-
-    return {
-      classification: this.classifyResults(results),
-      text: await this.flushReportText(),
-      results,
-    };
+    return this.finalizeWorkflow(toolRuns, format.export());
   }
 
-  async analyze(input: AnalyzeWorkflowInput): Promise<WorkflowOutcome> {
+  async analyze(input: AnalyzeWorkflowInput): Promise<Report> {
     const { rulesConfig, ruleFilter } = input;
 
     const [traffic, rules, format] = await Promise.all([
@@ -417,25 +395,21 @@ export class Thymian {
         : Promise.resolve(undefined),
     ]);
 
-    const results = await this.emitter.emitAction(
-      'core.analyze',
-      {
-        traffic,
-        format: format?.export(),
-        rules,
-        rulesConfig,
-        options: input.options,
-      },
-      { strategy: 'collect' },
-    );
+    const toolRuns = (
+      await this.emitter.emitAction(
+        'core.analyze',
+        {
+          traffic,
+          format: format?.export(),
+          rules,
+          rulesConfig,
+          options: input.options,
+        } satisfies CoreAnalyzeInput,
+        { strategy: 'collect' },
+      )
+    ).flat();
 
-    this.bridgeReports(results, format ?? new ThymianFormat());
-
-    return {
-      classification: this.classifyResults(results),
-      text: await this.flushReportText(),
-      results,
-    };
+    return this.finalizeWorkflow(toolRuns, format?.export());
   }
 
   async validate(input: ValidateWorkflowInput): Promise<SpecValidationOutcome> {
@@ -499,49 +473,21 @@ export class Thymian {
     });
   }
 
-  private bridgeReports(
-    results: ValidationResult[],
-    format: ThymianFormat,
-  ): void {
-    // Collect all reports first so sorting can operate across them
-    const reports: ThymianReport[] = [];
+  private finalizeWorkflow(
+    toolRuns: ToolRun[],
+    format?: ReturnType<ThymianFormat['export']>,
+  ): Report {
+    const report = createReport(toolRuns, format);
+    this.emitter.emit('core.report', report);
 
-    for (const result of results) {
-      if (result.violations.length > 0) {
-        reports.push(
-          this.createReportFromViolations(
-            result.source,
-            result.violations,
-            format,
-            result,
-          ),
-        );
-      }
-    }
+    this.logger.info('Workflow complete.');
 
-    // Apply sort mode reshaping before emission
-    const sorted = sortReports(reports, this.options.sortReportsBy);
-
-    for (const report of sorted) {
-      this.emitter.emit('core.report', report);
-    }
-  }
-
-  private classifyResults(results: ValidationResult[]): WorkflowClassification {
-    if (results.some((result) => result.status === 'error')) {
-      return 'tool-error';
-    }
-
-    if (results.some((result) => result.status === 'failed')) {
-      return 'findings';
-    }
-
-    return 'clean-run';
+    return report;
   }
 
   private classifySpecValidationResults(
     results: SpecValidationResult[],
-  ): WorkflowClassification {
+  ): SpecValidationOutcome['classification'] {
     if (
       results.some(
         (result) =>
@@ -556,71 +502,6 @@ export class Thymian {
     }
 
     return 'clean-run';
-  }
-
-  private async flushReportText(): Promise<string | undefined> {
-    const [flushResult] = await this.emitter.emitAction(
-      'core.report.flush',
-      undefined,
-      { strategy: 'collect' },
-    );
-
-    return flushResult?.text;
-  }
-
-  private createReportFromViolations(
-    source: string,
-    violations: EvaluatedRuleViolation[],
-    format: ThymianFormat,
-    result: ValidationResult,
-  ): ThymianReport {
-    let message = '';
-    if (result.statistics) {
-      message = `${result.statistics.rulesRun} HTTP rules run successfully. ${result.statistics.rulesWithViolations} rules reported a violation.`;
-    }
-
-    // Group violations by their resolved location heading
-    const sectionMap = new Map<
-      string,
-      { location?: ThymianReportLocation; items: ThymianReportItem[] }
-    >();
-
-    for (const { ruleName, severity, violation } of violations) {
-      const { heading, location } = resolveViolationLocation(
-        violation,
-        format,
-        ruleName,
-      );
-
-      let section = sectionMap.get(heading);
-
-      if (!section) {
-        section = { location, items: [] };
-        sectionMap.set(heading, section);
-      }
-
-      const item: ThymianReportItem = {
-        severity,
-        message: violation.message,
-        ruleName,
-        location,
-      };
-
-      section.items.push(item);
-    }
-
-    const sections: ThymianReportSection[] = [];
-
-    for (const [heading, { location, items }] of sectionMap) {
-      sections.push({ heading, items, location });
-    }
-
-    return {
-      source,
-      message,
-      sections,
-      metadata: result.metadata,
-    };
   }
 
   private async loadRegisteredPlugins(): Promise<void> {

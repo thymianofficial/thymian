@@ -3,17 +3,23 @@ import { isAbsolute, join } from 'node:path';
 import {
   type CapturedTrace,
   type CapturedTransaction,
+  createExecution,
+  createToolRun,
   type EvaluatedRuleViolation,
+  executionsFromRunRulesResult,
   type Logger,
   type Rule,
   type RuleRunnerAdapter,
   type RulesConfiguration,
+  rulesToRuleDescriptors,
   runRules,
+  type RunRulesResult,
+  runRulesResultToViolations,
   type SerializedThymianFormat,
   type SingleRuleConfiguration,
   ThymianFormat,
   type ThymianPlugin,
-  type ThymianReport,
+  type ToolRun,
 } from '@thymian/core';
 
 import { AnalyticsApiContext } from './analytics-api-context.js';
@@ -34,7 +40,7 @@ declare module '@thymian/core' {
         rulesConfig?: RulesConfiguration;
       };
       response: {
-        reports: ThymianReport[];
+        runs: ToolRun[];
         violations: EvaluatedRuleViolation[];
         valid: boolean;
       };
@@ -47,7 +53,7 @@ declare module '@thymian/core' {
         rulesConfig?: RulesConfiguration;
       };
       response: {
-        reports: ThymianReport[];
+        runs: ToolRun[];
         violations: EvaluatedRuleViolation[];
         valid: boolean;
       };
@@ -70,7 +76,6 @@ export type HttpAnalyzerPluginOptions = {
 
 function createAnalyzerAdapter(
   logger: Logger,
-  reportFn: (report: ThymianReport) => void,
   format: ThymianFormat,
   repository: SqliteHttpTransactionRepository,
 ): RuleRunnerAdapter<AnalyticsApiContext> {
@@ -79,15 +84,35 @@ function createAnalyzerAdapter(
     mode: 'analytics',
     getRuleFn: (rule: Rule) => rule.analyzeRule,
     createContext: (rule: Rule, options: SingleRuleConfiguration | undefined) =>
-      new AnalyticsApiContext(
+      new AnalyticsApiContext({
         repository,
         logger,
         format,
-        reportFn,
-        rule.meta.appliesTo,
-        (options ?? {}).skipOrigins,
-      ),
+        roles: rule.meta.appliesTo,
+        skippedOrigins: (options ?? {}).skipOrigins,
+      }),
   };
+}
+
+function createRuns(
+  pluginName: string,
+  format: ThymianFormat,
+  ruleResults: RunRulesResult,
+  _transactions: CapturedTransaction[] = [],
+  rules: Rule[] = [],
+): ToolRun[] {
+  const executions = executionsFromRunRulesResult(ruleResults, rules, format);
+
+  const ruleDescriptors = rulesToRuleDescriptors(rules, (r) => r.analyzeRule);
+
+  return [
+    createToolRun({
+      tool: { name: pluginName },
+      runType: 'analyze',
+      executions,
+      rules: ruleDescriptors.length > 0 ? ruleDescriptors : undefined,
+    }),
+  ];
 }
 
 export function createHttpAnalyzerPlugin(
@@ -181,25 +206,25 @@ export function createHttpAnalyzerPlugin(
             repo.insertHttpTransaction(transaction);
           }
 
-          const reportFn = (report: ThymianReport) =>
-            emitter.emit('core.report', report);
-
-          const { violations, statistics } = await runRules(
+          const ruleResults = await runRules(
             logger,
             rules,
             thymianFormat,
             rulesConfig,
-            createAnalyzerAdapter(logger, reportFn, thymianFormat, repo),
+            createAnalyzerAdapter(logger, thymianFormat, repo),
           );
 
           await repo.close();
 
-          ctx.reply({
-            source: pluginName,
-            status: violations.length === 0 ? 'success' : 'failed',
-            violations,
-            statistics,
-          });
+          ctx.reply(
+            createRuns(
+              pluginName,
+              thymianFormat,
+              ruleResults,
+              traffic.transactions ?? [],
+              rules,
+            ),
+          );
         },
       );
 
@@ -209,24 +234,18 @@ export function createHttpAnalyzerPlugin(
           const thymianFormat = format
             ? ThymianFormat.import(format)
             : new ThymianFormat();
-          const reports: ThymianReport[] = [];
-          const reportFn = (report: ThymianReport) => reports.push(report);
 
-          const { violations } = await runRules(
+          const ruleResults = await runRules(
             logger,
             rules,
             thymianFormat,
             rulesConfig,
-            createAnalyzerAdapter(
-              logger,
-              reportFn,
-              thymianFormat,
-              initializedRepository,
-            ),
+            createAnalyzerAdapter(logger, thymianFormat, initializedRepository),
           );
+          const violations = runRulesResultToViolations(ruleResults, rules);
 
           ctx.reply({
-            reports,
+            runs: createRuns(pluginName, thymianFormat, ruleResults, [], rules),
             violations,
             valid: violations.length === 0,
           });
@@ -256,19 +275,26 @@ export function createHttpAnalyzerPlugin(
           const thymianFormat = format
             ? ThymianFormat.import(format)
             : new ThymianFormat();
-          const reports: ThymianReport[] = [];
-          const reportFn = (report: ThymianReport) => reports.push(report);
 
-          const { violations } = await runRules(
+          const ruleResults = await runRules(
             logger,
             rules,
             thymianFormat,
             rulesConfig,
-            createAnalyzerAdapter(logger, reportFn, thymianFormat, repo),
+            createAnalyzerAdapter(logger, thymianFormat, repo),
           );
+          const violations = runRulesResultToViolations(ruleResults, rules);
+
+          await repo.close();
 
           ctx.reply({
-            reports,
+            runs: createRuns(
+              pluginName,
+              thymianFormat,
+              ruleResults,
+              transactions ?? [],
+              rules,
+            ),
             violations,
             valid: violations.length === 0,
           });

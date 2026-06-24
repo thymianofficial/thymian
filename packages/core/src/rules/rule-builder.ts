@@ -151,7 +151,7 @@ class RuleBuilder<
   }
 
   url(url: string): this {
-    this.#rule.meta.description = url.trim();
+    this.#rule.meta.url = url.trim();
     return this;
   }
 

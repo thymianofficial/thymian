@@ -1,4 +1,8 @@
-import { getHeader, requestHeader } from '@thymian/core';
+import {
+  getHeader,
+  requestHeader,
+  type RuleViolationLocation,
+} from '@thymian/core';
 import { httpRule } from '@thymian/core';
 
 export default httpRule(
@@ -16,18 +20,23 @@ export default httpRule(
   .appliesTo('client')
   .tags('conditional-requests', 'if-range', 'evaluation')
   .rule((ctx) =>
-    ctx.validateHttpTransactions(requestHeader('if-range'), (req) => {
-      const ifRange = getHeader(req.headers, 'if-range');
+    ctx.validateHttpTransactions(
+      requestHeader('if-range'),
+      (req, _res, location: RuleViolationLocation) => {
+        const ifRange = getHeader(req.headers, 'if-range');
 
-      if (typeof ifRange === 'undefined') {
-        return false;
-      }
+        if (typeof ifRange === 'undefined') {
+          return [];
+        }
 
-      const values = Array.isArray(ifRange) ? ifRange : [ifRange];
+        const values = Array.isArray(ifRange) ? ifRange : [ifRange];
 
-      return values.some((value) => {
-        return !value.trim().startsWith('"') && !value.startsWith('W/"');
-      });
-    }),
+        const isViolation = values.some((value) => {
+          return !value.trim().startsWith('"') && !value.startsWith('W/"');
+        });
+
+        return isViolation ? [{ location, violation: {}, findings: [] }] : [];
+      },
+    ),
   )
   .done();

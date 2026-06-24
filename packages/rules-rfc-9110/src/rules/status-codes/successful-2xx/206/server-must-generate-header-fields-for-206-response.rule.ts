@@ -58,20 +58,27 @@ export default httpRule(
           );
 
           if (missingHeaders.length > 0) {
-            return {
-              message: `206 Partial Content response MUST contain header${
-                missingHeaders.length > 1 ? 's' : ''
-              } ${missingHeaders
-                .map((h) => `"${h}"`)
-                .join(', ')}, as the corresponding 200 OK responses contained ${
-                missingHeaders.length > 1 ? 'these headers' : 'this header'
-              }.`,
-              location: partialTransactionLocation,
-            };
+            return [
+              {
+                location: partialTransactionLocation,
+                violation: {
+                  message: `206 Partial Content response MUST contain header${
+                    missingHeaders.length > 1 ? 's' : ''
+                  } ${missingHeaders
+                    .map((h) => `"${h}"`)
+                    .join(
+                      ', ',
+                    )}, as the corresponding 200 OK responses contained ${
+                    missingHeaders.length > 1 ? 'these headers' : 'this header'
+                  }.`,
+                },
+                findings: [],
+              },
+            ];
           }
         }
 
-        return;
+        return [];
       },
     ),
   )
@@ -96,7 +103,7 @@ export default httpRule(
           !partialRequest ||
           !partialTransactionLocation
         ) {
-          return;
+          return [];
         }
 
         const missingHeaders = requiredHeaders.filter((headerName) => {
@@ -109,19 +116,26 @@ export default httpRule(
         });
 
         if (missingHeaders.length > 0) {
-          return {
-            message: `206 Partial Content response MUST contain header${
-              missingHeaders.length > 1 ? 's' : ''
-            } ${missingHeaders
-              .map((h) => `"${h}"`)
-              .join(', ')}, as the corresponding 200 OK responses contained ${
-              missingHeaders.length > 1 ? 'these headers' : 'this header'
-            }.`,
-            location: partialTransactionLocation,
-          };
+          return [
+            {
+              location: partialTransactionLocation,
+              violation: {
+                message: `206 Partial Content response MUST contain header${
+                  missingHeaders.length > 1 ? 's' : ''
+                } ${missingHeaders
+                  .map((h) => `"${h}"`)
+                  .join(
+                    ', ',
+                  )}, as the corresponding 200 OK responses contained ${
+                  missingHeaders.length > 1 ? 'these headers' : 'this header'
+                }.`,
+              },
+              findings: [],
+            },
+          ];
         }
 
-        return;
+        return [];
       },
     ),
   )

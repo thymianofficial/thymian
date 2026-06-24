@@ -20,11 +20,11 @@ export default httpRule('rfc9110/recipient-must-handle-large-content-length')
   .rule((ctx) =>
     ctx.validateHttpTransactions(
       responseHeader('content-length'),
-      (req, res) => {
+      (req, res, _location) => {
         const contentLengthHeader = getHeader(res.headers, 'content-length');
 
         if (typeof contentLengthHeader !== 'string') {
-          return false;
+          return [];
         }
 
         // Check for extremely large values that could cause issues
@@ -36,19 +36,29 @@ export default httpRule('rfc9110/recipient-must-handle-large-content-length')
           const numericValue = BigInt(contentLengthHeader);
 
           if (numericValue > BigInt(MAX_REASONABLE_SIZE)) {
-            return {
-              message: `Content-Length value ${numericValue.toString()} exceeds reasonable size limit (>1TB), potential overflow risk`,
-              location: httpTransactionToLabel(req, res),
-            };
+            return [
+              {
+                location: httpTransactionToLabel(req, res),
+                violation: {
+                  message: `Content-Length value ${numericValue.toString()} exceeds reasonable size limit (>1TB), potential overflow risk`,
+                },
+                findings: [],
+              },
+            ];
           }
         } catch (e) {
-          return {
-            message: `Content-Length value "${contentLengthHeader}" is too large to parse safely`,
-            location: httpTransactionToLabel(req, res),
-          };
+          return [
+            {
+              location: httpTransactionToLabel(req, res),
+              violation: {
+                message: `Content-Length value "${contentLengthHeader}" is too large to parse safely`,
+              },
+              findings: [],
+            },
+          ];
         }
 
-        return false;
+        return [];
       },
     ),
   )

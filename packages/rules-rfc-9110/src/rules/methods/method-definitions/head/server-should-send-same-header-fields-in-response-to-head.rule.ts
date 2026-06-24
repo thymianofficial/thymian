@@ -1,6 +1,6 @@
 import { equalsIgnoreCase } from '@thymian/core';
 import { and, method, or, statusCode, url } from '@thymian/core';
-import { httpRule, type RuleViolation } from '@thymian/core';
+import { httpRule } from '@thymian/core';
 
 import { arrayDifference, createList } from '../../../../utils.js';
 
@@ -28,7 +28,7 @@ export default httpRule(
           [];
 
         if (!getResponse || !headResponse || !getLocation || !headLocation) {
-          return undefined;
+          return [];
         }
 
         const difference = arrayDifference(
@@ -37,15 +37,18 @@ export default httpRule(
         );
 
         if (difference.length === 0) {
-          return undefined;
+          return [];
         }
 
-        return {
-          location: headLocation,
-          message: `Response to HEAD request is missing headers: ${createList(
-            difference,
-          )}`,
-        } satisfies RuleViolation;
+        return [
+          {
+            location: headLocation,
+            violation: {
+              message: `Response to HEAD request is missing headers: ${createList(difference)}`,
+            },
+            findings: [],
+          },
+        ];
       },
     ),
   )

@@ -13,12 +13,12 @@ Events are one-way notifications. The emitter dispatches an event and does not w
 
 Events are used for notifications that do not require acknowledgment, such as reporting results or announcing plugin registration.
 
-| Event           | Payload                     | Purpose                                              |
-| --------------- | --------------------------- | ---------------------------------------------------- |
-| `core.register` | `{ name, events, options }` | Announces that a plugin has been registered          |
-| `core.report`   | `ThymianReport`             | Carries structured validation results for formatting |
-| `core.error`    | `ThymianErrorEvent`         | Propagates structured errors with correlation        |
-| `core.exit`     | —                           | Signals system shutdown                              |
+| Event           | Payload                     | Purpose                                                          |
+| --------------- | --------------------------- | ---------------------------------------------------------------- |
+| `core.register` | `{ name, events, options }` | Announces that a plugin has been registered                      |
+| `core.report`   | `Report`                    | Carries the assembled v4 report (`runs → executions → findings`) |
+| `core.error`    | `ThymianErrorEvent`         | Propagates structured errors with correlation                    |
+| `core.exit`     | —                           | Signals system shutdown                                          |
 
 ### 8.1.2 Actions (Request/Response)
 
@@ -56,7 +56,6 @@ All core-owned actions follow the hierarchical pattern **`core.<domain>.<verb>`*
 | `core.analyze`          | Execute analysis of captured HTTP traffic         |
 | `core.request.dispatch` | Send an HTTP request and return the response      |
 | `core.request.sample`   | Generate an HTTP request template from samples    |
-| `core.report.flush`     | Flush buffered reports and return formatted text  |
 
 ### 8.1.4 Child Emitters
 

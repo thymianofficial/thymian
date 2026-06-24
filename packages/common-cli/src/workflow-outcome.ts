@@ -1,17 +1,20 @@
 import type { Command } from '@oclif/core';
 import { ux } from '@oclif/core';
-import type { WorkflowClassification, WorkflowOutcome } from '@thymian/core';
+import type { FindingRecord, Report } from '@thymian/core';
 
-/**
- * Default threshold for the high-count brownfield guidance message.
- * When total violation count exceeds this value, a contextual message
- * is emitted to help developers understand that many findings are normal
- * for brownfield APIs.
- */
+import { renderReport } from './cli-report-renderer.js';
+
 export const HIGH_COUNT_THRESHOLD = 20;
 
+export interface ReportClassificationOptions {
+  isFinding?: (finding: FindingRecord) => boolean;
+  isToolError?: (finding: FindingRecord) => boolean;
+}
+
+type CliReportClassification = 'clean-run' | 'findings' | 'tool-error';
+
 export function classificationToExitCode(
-  classification: WorkflowClassification,
+  classification: CliReportClassification,
 ): 0 | 1 | 2 {
   switch (classification) {
     case 'clean-run':
@@ -23,50 +26,74 @@ export function classificationToExitCode(
   }
 }
 
-/**
- * Emit post-report guidance hints to stderr via the command's `guidance()` method.
- *
- * Called internally by {@link handleWorkflowOutcome} before process exit so that
- * guidance is guaranteed to reach the user even when exit code is non-zero.
- */
+function collectFindings(report: Report): FindingRecord[] {
+  const visit = (
+    executions: (typeof report.runs)[number]['executions'],
+  ): FindingRecord[] =>
+    (executions ?? []).flatMap((execution) => [
+      ...execution.findings,
+      ...visit(execution.children),
+    ]);
+
+  return report.runs.flatMap((run) => visit(run.executions));
+}
+
+export function classifyReport(
+  report: Report,
+  options: ReportClassificationOptions = {},
+): CliReportClassification {
+  const findings = collectFindings(report);
+  const isToolError =
+    options.isToolError ??
+    ((finding: FindingRecord) => finding.kind === 'rule-failure');
+  const isFinding =
+    options.isFinding ??
+    ((finding: FindingRecord) =>
+      finding.severity === 'error' || finding.severity === 'warn');
+
+  if (findings.some(isToolError)) {
+    return 'tool-error';
+  }
+
+  if (findings.some(isFinding)) {
+    return 'findings';
+  }
+
+  return 'clean-run';
+}
+
 function emitGuidance(
   command: { guidance(message: string): void },
-  outcome: WorkflowOutcome,
+  report: Report,
+  classification: CliReportClassification,
 ): void {
-  if (outcome.classification !== 'findings') {
+  if (classification !== 'findings') {
     return;
   }
 
-  const totalViolations = outcome.results.reduce(
-    (sum, r) => sum + r.violations.length,
-    0,
-  );
+  const totalViolations = collectFindings(report).filter(
+    (finding) => finding.severity === 'error' || finding.severity === 'warn',
+  ).length;
 
   if (totalViolations > HIGH_COUNT_THRESHOLD) {
     command.guidance(
-      `\n${String.fromCodePoint(0x2139)} Running Thymian on an existing API often surfaces many findings. This doesn't mean your API is broken \u2014 it means there are HTTP conformance improvements available. Start with errors and work through them incrementally.`,
+      `\n${String.fromCodePoint(0x2139)} Running Thymian on an existing API often surfaces many findings. This doesn't mean your API is broken — it means there are HTTP conformance improvements available. Start with errors and work through them incrementally.`,
     );
   }
 }
 
-/**
- * Handle workflow outcome: print report text, emit guidance, and exit.
- *
- * Guidance is emitted **before** `command.exit()` because oclif's `exit()`
- * throws an `ExitError` that terminates the command — any code after it
- * is unreachable.
- */
 export function handleWorkflowOutcome(
   command: Pick<Command, 'exit'> & { guidance(message: string): void },
-  outcome: WorkflowOutcome,
+  report: Report,
+  options: ReportClassificationOptions = {},
 ): void {
-  if (outcome.text) {
-    ux.stdout(outcome.text);
-  }
+  ux.stdout(renderReport(report));
 
-  emitGuidance(command, outcome);
+  const classification = classifyReport(report, options);
 
-  const exitCode = classificationToExitCode(outcome.classification);
+  emitGuidance(command, report, classification);
+
+  const exitCode = classificationToExitCode(classification);
 
   if (exitCode !== 0) {
     command.exit(exitCode);

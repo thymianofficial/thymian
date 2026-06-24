@@ -1,4 +1,3 @@
-import type { ValidationFn } from '@thymian/core';
 import {
   createFilterVisitor,
   createRegExpFromOriginWildcard,
@@ -9,22 +8,21 @@ import {
   type HttpRequest,
   type HttpResponse,
   queryParamsFromRequest,
-  thymianRequestToOrigin,
   visitHttpFilter,
 } from '@thymian/core';
 
+type TransactionFilterFn = (req: HttpRequest, res: HttpResponse) => boolean;
+
 export function httpFilterToTransactionValidationFn(
   filterExpression: HttpFilterExpression,
-): ValidationFn<[HttpRequest, HttpResponse]> {
+): TransactionFilterFn {
   return visitHttpFilter(
     filterExpression,
     createTransactionValidationVisitor(),
-  ) as ValidationFn<[HttpRequest, HttpResponse]>;
+  ) as TransactionFilterFn;
 }
 
-function createTransactionValidationVisitor(): HttpFilterVisitor<
-  ValidationFn<[HttpRequest, HttpResponse]>
-> {
+function createTransactionValidationVisitor(): HttpFilterVisitor<TransactionFilterFn> {
   return createFilterVisitor({
     visitMethod(expr) {
       if (typeof expr.method === 'undefined') {
@@ -148,8 +146,7 @@ function createTransactionValidationVisitor(): HttpFilterVisitor<
 
       const regExp = createRegExpFromOriginWildcard(origin);
 
-      return (transaction) =>
-        regExp.test(thymianRequestToOrigin(transaction.thymianReq));
+      return (req: HttpRequest) => regExp.test(req.origin ?? '');
     },
   });
 }

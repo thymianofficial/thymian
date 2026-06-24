@@ -1,4 +1,4 @@
-import { httpRule, protocol } from '@thymian/core';
+import { httpRule, protocol, type RuleViolationLocation } from '@thymian/core';
 
 export default httpRule('rfc9110/recipient-must-reject-http-uri-without-host')
   .severity('error')
@@ -8,16 +8,19 @@ export default httpRule('rfc9110/recipient-must-reject-http-uri-without-host')
     `A recipient that processes a 'http' URI reference with empty host MUST reject it as invalid.`,
   )
   .rule((ctx, opts, logger) =>
-    ctx.validateHttpTransactions(protocol('http'), (req, res) => {
-      try {
-        return (
-          new URL(req.path, req.origin).host === '' &&
-          !(res.statusCode >= 400 && res.statusCode < 500)
-        );
-      } catch (e) {
-        logger.error('Cannot run rule because of invalid URL:', e);
-        return false;
-      }
-    }),
+    ctx.validateHttpTransactions(
+      protocol('http'),
+      (req, res, location: RuleViolationLocation) => {
+        try {
+          const isViolation =
+            new URL(req.path, req.origin).host === '' &&
+            !(res.statusCode >= 400 && res.statusCode < 500);
+          return isViolation ? [{ location, violation: {}, findings: [] }] : [];
+        } catch (e) {
+          logger.error('Cannot run rule because of invalid URL:', e);
+          return [];
+        }
+      },
+    ),
   )
   .done();

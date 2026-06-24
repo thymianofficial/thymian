@@ -1,7 +1,7 @@
 import * as path from 'node:path';
 import { stripVTControlCharacters } from 'node:util';
 
-import type { ThymianReport, ThymianReportSeverity } from '@thymian/core';
+import type { FindingRecord, Report, Severity } from '@thymian/core';
 import chalk from 'chalk';
 import { mkdir, writeFile } from 'fs/promises';
 
@@ -13,48 +13,66 @@ import {
   warnSymbol,
 } from '../style.js';
 
-/**
- * Visible column width of a severity prefix in a monospace terminal.
- *
- * Unicode symbols (✖ U+2716, ⚠ U+26A0, ℹ U+2139) each occupy one terminal
- * column in standard monospace fonts. We use hardcoded values instead of
- * `.length` on template strings because JavaScript's string length counts
- * UTF-16 code units, which may differ from visual column width for characters
- * outside the BMP. For these specific BMP symbols the values happen to match.
- *
- * Widths:  "✖ error: " = 9,  "⚠ warning: " = 11,  "ℹ hint: " = 8
- */
-function severityPrefixWidth(severity: ThymianReportSeverity): number {
+function severityPrefix(severity: Severity): string {
   switch (severity) {
     case 'error':
-      return 9; // "✖ error: "
+      return chalk.red(`${errorSymbol} error`);
     case 'warn':
-      return 11; // "⚠ warning: "
+      return chalk.yellow(`${warnSymbol} warning`);
     case 'hint':
-      return 8; // "ℹ hint: "
-    default:
-      return 0;
+      return chalk.blue(`${hintSymbol} hint`);
+    case 'info':
+      return chalk.cyan(`${hintSymbol} info`);
   }
 }
 
-/**
- * Regex matching severity-grouped section headings produced by the core report
- * sorter in severity mode, e.g. "Errors (3)", "Warnings (1)", "Hints (2)", "Info (1)".
- */
-const SEVERITY_HEADING_RE = /^(Errors|Warnings|Hints|Info)\s*\(\d+\)$/;
+function renderFinding(finding: FindingRecord, indent = '    '): string[] {
+  const lines = [
+    `${indent}${severityPrefix(finding.severity)}: ${finding.title}`,
+  ];
+  if (finding.kind.startsWith('rule-') && 'ruleId' in finding) {
+    lines.push(`${indent}  rule: ${finding.ruleId}`);
+  }
+  if (finding.message?.text && finding.message.text !== finding.title) {
+    lines.push(`${indent}  ${finding.message.text}`);
+  }
+  if (finding.kind === 'assertion-failure') {
+    const assertionFailure = finding as Extract<
+      FindingRecord,
+      { kind: 'assertion-failure' }
+    >;
+    lines.push(
+      `${indent}  expected: ${JSON.stringify(assertionFailure.expected)}`,
+    );
+    lines.push(`${indent}  actual: ${JSON.stringify(assertionFailure.actual)}`);
+  }
+  if (finding.kind === 'test-case-skip') {
+    const skipped = finding as Extract<
+      FindingRecord,
+      { kind: 'test-case-skip' }
+    >;
+    lines.push(`${indent}  reason: ${skipped.reason}`);
+  }
+  return lines;
+}
 
-export function formatSeverityPrefix(severity: ThymianReportSeverity): string {
-  if (severity === 'hint') {
-    return `${chalk.blue(`${hintSymbol} ${severity}`)}: `;
+function renderLocation(
+  location: NonNullable<
+    Report['runs'][number]['executions']
+  >[number]['location'],
+): string {
+  switch (location.type) {
+    case 'custom':
+      return location.value;
+    case 'file':
+      return [location.path, location.line, location.column]
+        .filter((part) => part !== undefined)
+        .join(':');
+    case 'url':
+      return location.url;
+    case 'thymianFormat':
+      return `format:${location.elementId}${location.pointer ? `#${location.pointer}` : ''}`;
   }
-  if (severity === 'warn') {
-    return `${chalk.yellow(`${warnSymbol} warning`)}: `;
-  }
-  if (severity === 'error') {
-    return `${chalk.red(`${errorSymbol} ${severity}`)}: `;
-  }
-
-  return '';
 }
 
 export type TextFormatterOptions = {
@@ -65,7 +83,7 @@ export type TextFormatterOptions = {
 export class TextFormatter implements Formatter<Partial<TextFormatterOptions>> {
   options!: TextFormatterOptions;
 
-  private readonly reportsMap: Map<string, ThymianReport[]> = new Map();
+  private readonly reports: Report[] = [];
 
   init(options: Partial<TextFormatterOptions>): void {
     this.options = {
@@ -75,121 +93,75 @@ export class TextFormatter implements Formatter<Partial<TextFormatterOptions>> {
   }
 
   async flush(): Promise<string | undefined> {
-    if (this.reportsMap.size === 0) {
+    if (this.reports.length === 0) {
       const message = `${chalk.green(successSymbol)} No problems found`;
 
       if (this.options.path) {
-        const plainText = stripVTControlCharacters(message);
         await mkdir(path.dirname(this.options.path), { recursive: true });
-        await writeFile(this.options.path, plainText, 'utf-8');
+        await writeFile(
+          this.options.path,
+          stripVTControlCharacters(message),
+          'utf-8',
+        );
       }
 
       return this.ensurePlainTextForNonTty(message);
     }
 
-    const analysis = analyze(this.reportsMap);
+    const analysis = analyze(this.reports);
     const lines: string[] = [];
 
     if (!this.options.summaryOnly) {
-      for (const [source, reports] of this.reportsMap.entries()) {
-        lines.push(
-          `${source} ${Array.from({
-            length: Math.max(1, 80 - source.length),
-          })
-            .map(() => '─')
-            .join('')}`,
-        );
-
+      for (const report of this.reports) {
+        lines.push(`Report ${report.reportId}`);
         lines.push('');
-
-        lines.push(
-          reports
-            .map((report) => report.message)
-            .filter(Boolean)
-            .join(' '),
-        );
-
-        lines.push('');
-
-        for (const report of reports) {
-          if (report.sections && report.sections.length > 0) {
-            for (const section of report.sections) {
-              const isSeverityGrouped = SEVERITY_HEADING_RE.test(
-                section.heading,
-              );
-
-              lines.push(`  ${chalk.bold(section.heading)}`);
-              lines.push('');
-
-              for (const item of section.items) {
-                // When grouped by severity the heading already conveys the
-                // severity level → skip the per-item severity prefix to
-                // avoid redundant "Errors (3)  ✖ error: …" lines.
-                const prefix = isSeverityGrouped
-                  ? ''
-                  : formatSeverityPrefix(item.severity);
-
-                // 4 spaces base indentation + prefix + message
-                lines.push(`    ${prefix}${item.message}`);
-
-                // When grouped by rule the heading already shows the rule
-                // name → skip the per-item rule name to avoid duplication.
-                const ruleRedundant = item.ruleName === section.heading;
-                if (item.ruleName && !ruleRedundant) {
-                  // Align rule name under message text:
-                  // 4 spaces base indent + prefix visible width
-                  const indent = isSeverityGrouped
-                    ? 4
-                    : 4 + severityPrefixWidth(item.severity);
-                  lines.push(
-                    `${' '.repeat(indent)}${chalk.dim(item.ruleName)}`,
-                  );
-                }
+        for (const run of report.runs) {
+          lines.push(`${run.tool.name} (${run.runType})`);
+          for (const execution of run.executions ?? []) {
+            lines.push(`  ${chalk.bold(renderLocation(execution.location))}`);
+            for (const finding of execution.findings) {
+              lines.push(...renderFinding(finding));
+            }
+            for (const child of execution.children ?? []) {
+              lines.push(`    ${chalk.bold(renderLocation(child.location))}`);
+              for (const finding of child.findings) {
+                lines.push(...renderFinding(finding, '      '));
               }
-
-              lines.push('');
             }
           }
+          lines.push('');
         }
       }
     }
 
-    lines.push('');
-    const { error, warn, hint } = analysis.statistics.severityCounts;
+    const { error, warn, hint, info } = analysis.statistics.severityCounts;
     lines.push(
-      `Found ${chalk.red(`${error} ${error === 1 ? 'error' : 'errors'}`)}, ${chalk.yellow(`${warn} ${warn === 1 ? 'warning' : 'warnings'}`)} and ${chalk.blue(`${hint} ${hint === 1 ? 'hint' : 'hints'}`)}.`,
+      `Summary: ${error} error(s), ${warn} warning(s), ${hint} hint(s), ${info} info finding(s) across ${analysis.statistics.numberOfRuns} run(s).`,
     );
 
-    const coloredOutput = lines.join('\n');
+    const output = lines.join('\n');
 
     if (this.options.path) {
-      const plainText = stripVTControlCharacters(coloredOutput);
       await mkdir(path.dirname(this.options.path), { recursive: true });
-      await writeFile(this.options.path, plainText, 'utf-8');
+      await writeFile(
+        this.options.path,
+        stripVTControlCharacters(output),
+        'utf-8',
+      );
     }
 
-    return this.ensurePlainTextForNonTty(coloredOutput);
+    return this.ensurePlainTextForNonTty(output);
   }
 
-  report(report: ThymianReport): void {
-    if (!this.reportsMap.has(report.source)) {
-      this.reportsMap.set(report.source, []);
-    }
-
-    this.reportsMap.get(report.source)?.push(report);
+  report(report: Report): void {
+    this.reports.push(report);
   }
 
-  /**
-   * Ensure output is plain text (no ANSI escape sequences) when stdout is not a TTY.
-   *
-   * Chalk auto-detects TTY and sets `chalk.level = 0` for non-TTY, which prevents
-   * new styling. However, if chalk level was forced or if any ANSI codes slip through
-   * from other sources, this safety net strips them for non-TTY output.
-   */
   private ensurePlainTextForNonTty(output: string): string {
     if (!process.stdout.isTTY) {
       return stripVTControlCharacters(output);
     }
+
     return output;
   }
 }

@@ -1,4 +1,10 @@
-import { and, getHeader, requestHeader } from '@thymian/core';
+import {
+  and,
+  getHeader,
+  type HttpResponse,
+  requestHeader,
+  type RuleViolationLocation,
+} from '@thymian/core';
 import { httpRule } from '@thymian/core';
 
 export default httpRule(
@@ -14,10 +20,10 @@ export default httpRule(
   .overrideAnalyticsRule((ctx) =>
     ctx.validateHttpTransactions(
       and(requestHeader('user-agent')),
-      (request) => {
+      (request, _res: HttpResponse, location: RuleViolationLocation) => {
         const userAgent = getHeader(request.headers, 'user-agent');
         if (typeof userAgent !== 'string') {
-          return false;
+          return [];
         }
 
         // Check for common advertising/promotional keywords
@@ -33,7 +39,9 @@ export default httpRule(
           /https?:\/\/[^\s)]+\.(com|net|org|io)(?!\/[a-zA-Z0-9-]+$)/i, // URLs that look promotional (not just domain/path)
         ];
 
-        return advertisingKeywords.some((pattern) => pattern.test(userAgent));
+        return advertisingKeywords.some((pattern) => pattern.test(userAgent))
+          ? [{ location, violation: {}, findings: [] }]
+          : [];
       },
     ),
   )

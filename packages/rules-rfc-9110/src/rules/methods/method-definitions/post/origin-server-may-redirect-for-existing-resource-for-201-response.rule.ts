@@ -1,5 +1,5 @@
 import { and, method, not, statusCode } from '@thymian/core';
-import { httpRule, singleTestCase } from '@thymian/core';
+import { httpRule, type RuleFnResult, singleTestCase } from '@thymian/core';
 
 export default httpRule(
   'rfc9110/origin-server-may-redirect-for-existing-resource-for-201-response',
@@ -16,8 +16,9 @@ export default httpRule(
       and(method('POST'), statusCode(201)),
     ),
   )
-  .overrideTest((ctx) =>
-    ctx.httpTest(
+  .overrideTest(async (ctx) => {
+    const results: RuleFnResult[] = [];
+    await ctx.httpTest(
       singleTestCase()
         .forTransactionsWith(and(method('POST'), statusCode(201)))
         .run()
@@ -25,15 +26,18 @@ export default httpRule(
         .replayStep((step) => step.run().done())
         .transactions(([, transaction]) => {
           if (transaction.response.statusCode !== 303) {
-            ctx.reportViolation({
+            results.push({
               location: {
                 elementType: 'edge',
                 elementId: transaction.source.transactionId,
               },
+              violation: {},
+              findings: [],
             });
           }
         })
         .done(),
-    ),
-  )
+    );
+    return results;
+  })
   .done();

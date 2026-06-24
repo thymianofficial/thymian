@@ -1,4 +1,5 @@
 export * from './base-cli-run-command.js';
+export * from './cli-report-renderer.js';
 export * from './default-config.js';
 export * from './error-cache.js';
 export * from './flags/rule-set-flag.js';

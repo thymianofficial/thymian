@@ -7,7 +7,6 @@ import type { CoreValidateSpecsAction } from './core-validate-specs.action.js';
 import type { FormatAction } from './format.action.js';
 import type { FormatLoadAction } from './format-load.action.js';
 import type { ReadyAction } from './ready.action.js';
-import type { ReportFlushAction } from './report-flush.action.js';
 import type { RequestDispatchAction } from './request-dispatch.action.js';
 import type { TrafficLoadAction } from './traffic-load.action.js';
 
@@ -20,7 +19,6 @@ export interface ThymianActions {
   'core.test': TestAction;
   'core.analyze': AnalyzeAction;
   'core.validate-specs': CoreValidateSpecsAction;
-  'core.report.flush': ReportFlushAction;
   'core.request.dispatch': RequestDispatchAction;
   'core.request.sample': RequestSampleAction;
   'core.format': FormatAction;
@@ -38,8 +36,7 @@ export * from './core-validation-input.js';
 export * from './format.action.js';
 export * from './format-load.action.js';
 export * from './ready.action.js';
-export * from './report-flush.action.js';
 export * from './request-dispatch.action.js';
 export * from './spec-validation-result.js';
+export * from './tool-run-array.schema.js';
 export * from './traffic-load.action.js';
-export * from './validation-result.js';

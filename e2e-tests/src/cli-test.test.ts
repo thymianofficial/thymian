@@ -61,7 +61,10 @@ describe('thymian test', () => {
       );
 
       expect(result.exitCode).toBe(0);
-      expect(result.stdout).toMatch(/Found 0 errors/);
+      expect(result.stdout).toContain('@thymian/plugin-http-tester');
+      expect(result.stdout).toMatch(
+        /Summary: 0 error\(s\), 0 warning\(s\), 0 hint\(s\), \d+ info finding\(s\)\./,
+      );
     } finally {
       await server.close();
     }
@@ -79,8 +82,10 @@ describe('thymian test', () => {
         { cwd: getTempDir() },
       );
 
-      // Output should contain rule result summaries
-      expect(result.output).toMatch(/Found 0 errors/);
+      expect(result.output).toContain('@thymian/plugin-http-tester');
+      expect(result.output).toMatch(
+        /Summary: 0 error\(s\), 0 warning\(s\), 0 hint\(s\), \d+ info finding\(s\)\./,
+      );
     } finally {
       await server.close();
     }
@@ -147,9 +152,9 @@ describe('thymian test', () => {
         { cwd: getTempDir(), allowFailure: true },
       );
 
-      // Skipped test cases are not violations, so exit code remains 0
       expect(result.exitCode).toBe(0);
-      expect(result.stdout).toMatch(/skipped and failed test cases/);
+      expect(result.stdout).toContain('@thymian/plugin-http-tester');
+      expect(result.stdout).toContain('Summary:');
     } finally {
       await server.close();
     }
@@ -192,7 +197,7 @@ describe('thymian test', () => {
       );
 
       expect(result.exitCode).toBe(1);
-      expect(result.stdout).toMatch(/ \d+ warnings?/);
+      expect(result.stdout).toContain('Summary:');
     } finally {
       await server.close();
     }
@@ -244,7 +249,9 @@ describe('thymian test', () => {
         { cwd: getTempDir() },
       );
 
-      expect(result.output).toMatch(/Found 0 errors/);
+      expect(result.output).toMatch(
+        /Summary: 0 error\(s\), 0 warning\(s\), 0 hint\(s\), \d+ info finding\(s\)\./,
+      );
     } finally {
       await server.close();
     }
@@ -285,8 +292,9 @@ describe('thymian test', () => {
         { cwd: getTempDir() },
       );
 
-      // The main report text should be on stdout
-      expect(result.stdout).toMatch(/Found 0 errors/);
+      expect(result.stdout).toMatch(
+        /Summary: 0 error\(s\), 0 warning\(s\), 0 hint\(s\), \d+ info finding\(s\)\./,
+      );
     } finally {
       await server.close();
     }
@@ -302,20 +310,23 @@ describe('thymian test', () => {
 
     try {
       const run1 = await execThymianRawAsync(
-        ['test', '--target-url', targetUrl],
+        ['test', '--target-url', targetUrl, '--suppress-feedback'],
         { cwd: getTempDir() },
       );
       const run2 = await execThymianRawAsync(
-        ['test', '--target-url', targetUrl],
+        ['test', '--target-url', targetUrl, '--suppress-feedback'],
         { cwd: getTempDir() },
       );
 
-      // Both runs should produce the same exit code
       expect(run1.exitCode).toBe(run2.exitCode);
 
-      // Both runs should match on the rules run output
-      expect(run1.stdout).toMatch(/Found 0 errors/);
-      expect(run2.stdout).toMatch(/Found 0 errors/);
+      const normalize = (value: string) =>
+        value.replace(
+          /\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z/g,
+          '<timestamp>',
+        );
+
+      expect(normalize(run1.stdout)).toBe(normalize(run2.stdout));
     } finally {
       await server.close();
     }
@@ -358,6 +369,9 @@ describe('thymian test', () => {
       });
 
       expect(result.exitCode).toBe(0);
+      expect(result.stdout).toMatch(
+        /Summary: 0 error\(s\), 0 warning\(s\), 0 hint\(s\), \d+ info finding\(s\)\./,
+      );
     } finally {
       await server.close();
     }

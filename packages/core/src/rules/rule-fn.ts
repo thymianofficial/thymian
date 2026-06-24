@@ -9,4 +9,4 @@ export type RuleFn<
   context: Context,
   options: Options & { mode: 'static' | 'analytics' | 'test' },
   logger: Logger,
-) => RuleFnResult | Promise<RuleFnResult>;
+) => RuleFnResult[] | Promise<RuleFnResult[]>;

@@ -1,44 +1,53 @@
-import type { ThymianReport, ThymianReportSeverity } from '@thymian/core';
+import type { FindingRecord, Report, Severity } from '@thymian/core';
 
 export type ThymianReportStatistics = {
   numberOfReports: number;
-  numberOfItems: number;
-  severityCounts: Record<ThymianReportSeverity, number>;
+  numberOfRuns: number;
+  numberOfFindings: number;
+  severityCounts: Record<Severity, number>;
 };
 
 export type ReportAnalysis = {
   statistics: ThymianReportStatistics;
 };
 
-export function analyze(reports: Map<string, ThymianReport[]>): ReportAnalysis {
-  const severityCounts: Record<ThymianReportSeverity, number> = {
+function collectFindings(report: Report): FindingRecord[] {
+  const visit = (
+    executions: Report['runs'][number]['executions'],
+  ): FindingRecord[] =>
+    (executions ?? []).flatMap((execution) => [
+      ...execution.findings,
+      ...visit(execution.children),
+    ]);
+
+  return report.runs.flatMap((run) => visit(run.executions));
+}
+
+export function analyze(reports: Report[]): ReportAnalysis {
+  const severityCounts: Record<Severity, number> = {
     error: 0,
     warn: 0,
     hint: 0,
     info: 0,
   };
 
-  let reportCounter = 0;
-  let reportItemsCounter = 0;
-  for (const [, r] of reports.entries()) {
-    reportCounter += r.length;
+  let runCounter = 0;
+  let findingsCounter = 0;
 
-    for (const report of r) {
-      for (const section of report.sections ?? []) {
-        reportItemsCounter += section.items.length;
+  for (const report of reports) {
+    runCounter += report.runs.length;
 
-        for (const item of section.items ?? []) {
-          severityCounts[item.severity] =
-            (severityCounts[item.severity] ?? 0) + 1;
-        }
-      }
+    for (const finding of collectFindings(report)) {
+      findingsCounter += 1;
+      severityCounts[finding.severity] += 1;
     }
   }
 
   return {
     statistics: {
-      numberOfReports: reportCounter,
-      numberOfItems: reportItemsCounter,
+      numberOfReports: reports.length,
+      numberOfRuns: runCounter,
+      numberOfFindings: findingsCounter,
       severityCounts,
     },
   };
@@ -49,7 +58,7 @@ export interface Formatter<Options = Record<PropertyKey, unknown>> {
 
   init(options: Options): void | Promise<void>;
 
-  report(report: ThymianReport): void | Promise<void>;
+  report(report: Report): void | Promise<void>;
 
   flush(): string | undefined | Promise<string | undefined>;
 }
