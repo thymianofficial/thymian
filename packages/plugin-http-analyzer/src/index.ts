@@ -8,7 +8,6 @@ import {
   type EvaluatedRuleViolation,
   executionsFromRunRulesResult,
   type Logger,
-  type ReportHttpTransaction,
   type Rule,
   type RuleRunnerAdapter,
   type RulesConfiguration,
@@ -92,15 +91,6 @@ function createAnalyzerAdapter(
         roles: rule.meta.appliesTo,
         skippedOrigins: (options ?? {}).skipOrigins,
       }),
-  };
-}
-
-function toReportHttpTransaction(
-  transaction: CapturedTransaction,
-): ReportHttpTransaction {
-  return {
-    request: transaction.request.data,
-    response: transaction.response.data,
   };
 }
 
