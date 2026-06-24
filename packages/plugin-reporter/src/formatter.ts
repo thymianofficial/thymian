@@ -1,27 +1,17 @@
-import type { FindingRecord, Report, Severity } from '@thymian/core';
+import { collectFindings, type Report, type Severity } from '@thymian/core';
 
 export type ThymianReportStatistics = {
   numberOfReports: number;
   numberOfRuns: number;
   numberOfFindings: number;
   severityCounts: Record<Severity, number>;
+  /** Number of findings per `kind`, collected recursively across the tree. */
+  kindCounts: Record<string, number>;
 };
 
 export type ReportAnalysis = {
   statistics: ThymianReportStatistics;
 };
-
-function collectFindings(report: Report): FindingRecord[] {
-  const visit = (
-    executions: Report['runs'][number]['executions'],
-  ): FindingRecord[] =>
-    (executions ?? []).flatMap((execution) => [
-      ...execution.findings,
-      ...visit(execution.children),
-    ]);
-
-  return report.runs.flatMap((run) => visit(run.executions));
-}
 
 export function analyze(reports: Report[]): ReportAnalysis {
   const severityCounts: Record<Severity, number> = {
@@ -30,6 +20,7 @@ export function analyze(reports: Report[]): ReportAnalysis {
     hint: 0,
     info: 0,
   };
+  const kindCounts: Record<string, number> = {};
 
   let runCounter = 0;
   let findingsCounter = 0;
@@ -37,9 +28,14 @@ export function analyze(reports: Report[]): ReportAnalysis {
   for (const report of reports) {
     runCounter += report.runs.length;
 
-    for (const finding of collectFindings(report)) {
-      findingsCounter += 1;
-      severityCounts[finding.severity] += 1;
+    for (const run of report.runs) {
+      for (const finding of collectFindings(run.executions, {
+        includeNested: true,
+      })) {
+        findingsCounter += 1;
+        severityCounts[finding.severity] += 1;
+        kindCounts[finding.kind] = (kindCounts[finding.kind] ?? 0) + 1;
+      }
     }
   }
 
@@ -49,6 +45,7 @@ export function analyze(reports: Report[]): ReportAnalysis {
       numberOfRuns: runCounter,
       numberOfFindings: findingsCounter,
       severityCounts,
+      kindCounts,
     },
   };
 }

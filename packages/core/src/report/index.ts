@@ -41,3 +41,19 @@ export {
   ruleFindingToFindingRecord,
   rulesToRuleDescriptors,
 } from './report-builder.js';
+export {
+  collectFindings,
+  walkExecutions,
+  walkFindings,
+} from './report-traversal.js';
+export type {
+  ExecutionVisit,
+  FindingVisit,
+  WalkFindingsOptions,
+} from './report-traversal.js';
+export {
+  buildRuleIndex,
+  findingDetails,
+  findingRuleId,
+} from './finding-render.js';
+export type { FindingDetail } from './finding-render.js';

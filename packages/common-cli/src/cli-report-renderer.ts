@@ -1,10 +1,15 @@
 import { colorize } from '@oclif/core/ux';
 import {
+  buildRuleIndex,
+  collectFindings,
   type FindingRecord,
+  findingDetails,
+  findingRuleId,
   type HttpTransaction,
   isNodeType,
   type Location,
   type Report,
+  type RuleDescriptor,
   type Severity,
   ThymianFormat,
   type ThymianHttpRequest,
@@ -12,6 +17,7 @@ import {
   thymianHttpTransactionToString,
   thymianRequestToString,
   thymianResponseToString,
+  walkExecutions,
 } from '@thymian/core';
 
 const COLORS: Record<Severity, string> = {
@@ -101,11 +107,16 @@ function formatLocation(location: Location, format?: ThymianFormat): string {
   }
 }
 
-function renderFinding(finding: FindingRecord, indent = '    '): string[] {
+function renderFinding(
+  finding: FindingRecord,
+  ruleIndex: ReadonlyMap<string, RuleDescriptor>,
+  indent = '    ',
+): string[] {
   const headline = `${symbolForSeverity(finding.severity)} ${finding.title}`;
+  const ruleId = findingRuleId(finding);
   const lines = [
     `${indent}${colorizeText(headline, finding.severity)}${
-      'ruleId' in finding ? ` ${finding.ruleId}` : ''
+      ruleId ? ` ${ruleId}` : ''
     }`,
   ];
 
@@ -113,23 +124,16 @@ function renderFinding(finding: FindingRecord, indent = '    '): string[] {
     lines.push(`${indent}  ${finding.message.text}`);
   }
 
-  if (finding.kind === 'assertion-failure') {
-    const assertionFailure = finding as Extract<
-      FindingRecord,
-      { kind: 'assertion-failure' }
-    >;
-    lines.push(
-      `${indent}  expected: ${JSON.stringify(assertionFailure.expected)}`,
-    );
-    lines.push(`${indent}  actual: ${JSON.stringify(assertionFailure.actual)}`);
+  for (const detail of findingDetails(finding, ruleIndex)) {
+    // `rule` is already shown inline on the headline above.
+    if (detail.label === 'rule') {
+      continue;
+    }
+    lines.push(`${indent}  ${detail.label}: ${detail.value}`);
   }
 
-  if (finding.kind === 'test-case-skip') {
-    const skipped = finding as Extract<
-      FindingRecord,
-      { kind: 'test-case-skip' }
-    >;
-    lines.push(`${indent}  reason: ${skipped.reason}`);
+  for (const relationship of finding.nestedFindings ?? []) {
+    lines.push(...renderFinding(relationship.finding, ruleIndex, `${indent}  `));
   }
 
   return lines;
@@ -143,17 +147,12 @@ function collectSeverityCounts(report: Report): Record<Severity, number> {
     hint: 0,
   };
 
-  const visit = (executions: Report['runs'][number]['executions']): void => {
-    for (const execution of executions ?? []) {
-      for (const finding of execution.findings) {
-        counts[finding.severity] += 1;
-      }
-      visit(execution.children);
-    }
-  };
-
   for (const run of report.runs) {
-    visit(run.executions);
+    for (const finding of collectFindings(run.executions, {
+      includeNested: true,
+    })) {
+      counts[finding.severity] += 1;
+    }
   }
 
   return counts;
@@ -184,16 +183,12 @@ export function renderReport(
     );
     lines.push('');
 
-    for (const execution of run.executions ?? []) {
-      lines.push(`  ${formatLocation(execution.location, format)}`);
+    const ruleIndex = buildRuleIndex(run.rules);
+    for (const { execution, depth } of walkExecutions(run.executions)) {
+      const indent = '  '.repeat(depth + 1);
+      lines.push(`${indent}${formatLocation(execution.location, format)}`);
       for (const finding of execution.findings) {
-        lines.push(...renderFinding(finding));
-      }
-      for (const child of execution.children ?? []) {
-        lines.push(`    ${formatLocation(child.location, format)}`);
-        for (const finding of child.findings) {
-          lines.push(...renderFinding(finding, '      '));
-        }
+        lines.push(...renderFinding(finding, ruleIndex, `${indent}  `));
       }
     }
 

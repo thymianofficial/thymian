@@ -34,11 +34,15 @@ const report = {
 };
 
 describe('MarkdownFormatter', () => {
-  it('writes markdown from a v4 report', async () => {
+  it('writes markdown from a v4 report and returns its content', async () => {
     const formatter = new MarkdownFormatter(new NoopLogger());
     formatter.init({ path: join(process.cwd(), 'tmp', 'report.md') });
     formatter.report(report);
 
-    await expect(formatter.flush()).resolves.toBeUndefined();
+    const output = await formatter.flush();
+
+    expect(output).toContain('# Thymian Report');
+    expect(output).toContain('rule/id');
+    expect(output).toContain('Problem');
   });
 });
