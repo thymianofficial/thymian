@@ -1,7 +1,12 @@
 import * as path from 'node:path';
 import { stripVTControlCharacters } from 'node:util';
 
-import type { FindingRecord, Report, Severity } from '@thymian/core';
+import type { FindingRecord, Report, RuleDescriptor, Severity } from '@thymian/core';
+import {
+  buildRuleIndex,
+  findingDetails,
+  walkExecutions,
+} from '@thymian/core';
 import chalk from 'chalk';
 import { mkdir, writeFile } from 'fs/promises';
 
@@ -26,33 +31,27 @@ function severityPrefix(severity: Severity): string {
   }
 }
 
-function renderFinding(finding: FindingRecord, indent = '    '): string[] {
+function renderFinding(
+  finding: FindingRecord,
+  ruleIndex: ReadonlyMap<string, RuleDescriptor>,
+  indent: string,
+): string[] {
   const lines = [
     `${indent}${severityPrefix(finding.severity)}: ${finding.title}`,
   ];
-  if (finding.kind.startsWith('rule-') && 'ruleId' in finding) {
-    lines.push(`${indent}  rule: ${finding.ruleId}`);
-  }
+
   if (finding.message?.text && finding.message.text !== finding.title) {
     lines.push(`${indent}  ${finding.message.text}`);
   }
-  if (finding.kind === 'assertion-failure') {
-    const assertionFailure = finding as Extract<
-      FindingRecord,
-      { kind: 'assertion-failure' }
-    >;
-    lines.push(
-      `${indent}  expected: ${JSON.stringify(assertionFailure.expected)}`,
-    );
-    lines.push(`${indent}  actual: ${JSON.stringify(assertionFailure.actual)}`);
+
+  for (const detail of findingDetails(finding, ruleIndex)) {
+    lines.push(`${indent}  ${detail.label}: ${detail.value}`);
   }
-  if (finding.kind === 'test-case-skip') {
-    const skipped = finding as Extract<
-      FindingRecord,
-      { kind: 'test-case-skip' }
-    >;
-    lines.push(`${indent}  reason: ${skipped.reason}`);
+
+  for (const relationship of finding.nestedFindings ?? []) {
+    lines.push(...renderFinding(relationship.finding, ruleIndex, `${indent}  `));
   }
+
   return lines;
 }
 
@@ -117,16 +116,12 @@ export class TextFormatter implements Formatter<Partial<TextFormatterOptions>> {
         lines.push('');
         for (const run of report.runs) {
           lines.push(`${run.tool.name} (${run.runType})`);
-          for (const execution of run.executions ?? []) {
-            lines.push(`  ${chalk.bold(renderLocation(execution.location))}`);
+          const ruleIndex = buildRuleIndex(run.rules);
+          for (const { execution, depth } of walkExecutions(run.executions)) {
+            const indent = '  '.repeat(depth + 1);
+            lines.push(`${indent}${chalk.bold(renderLocation(execution.location))}`);
             for (const finding of execution.findings) {
-              lines.push(...renderFinding(finding));
-            }
-            for (const child of execution.children ?? []) {
-              lines.push(`    ${chalk.bold(renderLocation(child.location))}`);
-              for (const finding of child.findings) {
-                lines.push(...renderFinding(finding, '      '));
-              }
+              lines.push(...renderFinding(finding, ruleIndex, `${indent}  `));
             }
           }
           lines.push('');

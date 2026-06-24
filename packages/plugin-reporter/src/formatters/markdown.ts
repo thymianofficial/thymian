@@ -1,6 +1,12 @@
 import * as path from 'node:path';
 
 import type { Logger, Report, Severity } from '@thymian/core';
+import {
+  buildRuleIndex,
+  findingDetails,
+  findingRuleId,
+  walkFindings,
+} from '@thymian/core';
 import { mkdir, writeFile } from 'fs/promises';
 
 import { analyze, type Formatter } from '../formatter.js';
@@ -8,6 +14,10 @@ import { errorSymbol, hintSymbol, warnSymbol } from '../style.js';
 
 export const details = (text: string): string =>
   `\n<details>\n<summary>More details</summary>\n${text}\n</details>`;
+
+function escapeCell(text: string): string {
+  return text.replaceAll('|', '\\|').replaceAll('\n', ' ');
+}
 
 export function mapSeverityToBadge(severity: Severity): string {
   if (severity === 'error') {
@@ -81,25 +91,37 @@ export class MarkdownFormatter implements Formatter<MarkdownFormatterOptions> {
       for (const run of report.runs) {
         lines.push(`### ${run.tool.name} (${run.runType})`);
         lines.push('');
-        lines.push('| Location | Severity | Kind | Title | Rule | Message |');
-        lines.push('| --- | --- | --- | --- | --- | --- |');
+        lines.push(
+          '| Location | Severity | Kind | Title | Rule | Message | Details |',
+        );
+        lines.push('| --- | --- | --- | --- | --- | --- | --- |');
 
-        for (const execution of run.executions ?? []) {
-          for (const finding of execution.findings) {
-            lines.push(
-              `| ${formatLocation(execution.location)} | ${mapSeverityToBadge(finding.severity)} | ${finding.kind} | ${finding.title} | ${'ruleId' in finding ? finding.ruleId : ''} | ${(finding.message?.text ?? '').replaceAll('|', '\\|')} |`,
-            );
-          }
+        const ruleIndex = buildRuleIndex(run.rules);
+        for (const { execution, finding, nestedDepth } of walkFindings(
+          run.executions,
+          { includeNested: true },
+        )) {
+          const titlePrefix =
+            nestedDepth > 0 ? `${'&nbsp;'.repeat(nestedDepth * 4)}↳ ` : '';
+          const detail = findingDetails(finding, ruleIndex)
+            .filter((d) => d.label !== 'rule')
+            .map((d) => `${d.label}: ${d.value}`)
+            .join('; ');
+          lines.push(
+            `| ${escapeCell(formatLocation(execution.location))} | ${mapSeverityToBadge(finding.severity)} | ${finding.kind} | ${titlePrefix}${escapeCell(finding.title)} | ${findingRuleId(finding) ?? ''} | ${escapeCell(finding.message?.text ?? '')} | ${escapeCell(detail)} |`,
+          );
         }
 
         lines.push('');
       }
     }
 
+    const output = lines.join('\n');
+
     await mkdir(path.dirname(this.options.path), { recursive: true });
-    await writeFile(this.options.path, lines.join('\n'), 'utf-8');
+    await writeFile(this.options.path, output, 'utf-8');
     this.logger.debug(`Wrote Markdown report to ${this.options.path}.`);
 
-    return undefined;
+    return output;
   }
 }

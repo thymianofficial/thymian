@@ -1,8 +1,12 @@
 import { createWriteStream, type WriteStream } from 'node:fs';
 
 import type { Logger, Report } from '@thymian/core';
+import { buildRuleIndex, findingDetails, findingRuleId, walkFindings } from '@thymian/core';
 
 import type { Formatter } from '../formatter.js';
+
+const CSV_HEADER =
+  'run_id,run_type,tool,execution_location,execution_depth,finding_kind,finding_id,nested_depth,parent_finding_id,severity,title,message,rule_id,detail\n';
 
 export type CsvFormatterOptions = {
   path: string;
@@ -55,9 +59,7 @@ export class CsvFormatter implements Formatter<CsvFormatterOptions> {
 
     return new Promise((resolve) => {
       this.stream.on('ready', () => {
-        this.stream.write(
-          'run_id,run_type,tool,execution_location,finding_kind,finding_id,severity,title,message,rule_id\n',
-        );
+        this.stream.write(CSV_HEADER);
 
         resolve();
       });
@@ -88,12 +90,18 @@ export function reportToCsvLines(report: Report): string[] {
   const lines: string[] = [];
 
   for (const run of report.runs) {
-    for (const execution of run.executions ?? []) {
-      for (const finding of execution.findings) {
-        lines.push(
-          `${csvSafe(run.runId)},${csvSafe(run.runType)},${csvSafe(run.tool.name)},${csvSafe(formatLocation(execution.location))},${csvSafe(finding.kind)},${csvSafe(finding.id)},${csvSafe(finding.severity)},${csvSafe(finding.title)},${csvSafe(finding.message?.text)},${csvSafe('ruleId' in finding ? finding.ruleId : undefined)}\n`,
-        );
-      }
+    const ruleIndex = buildRuleIndex(run.rules);
+    for (const { execution, finding, depth, nestedDepth, parentFindingId } of walkFindings(
+      run.executions,
+      { includeNested: true },
+    )) {
+      const detail = findingDetails(finding, ruleIndex)
+        .filter((d) => d.label !== 'rule')
+        .map((d) => `${d.label}=${d.value}`)
+        .join('; ');
+      lines.push(
+        `${csvSafe(run.runId)},${csvSafe(run.runType)},${csvSafe(run.tool.name)},${csvSafe(formatLocation(execution.location))},${depth},${csvSafe(finding.kind)},${csvSafe(finding.id)},${nestedDepth},${csvSafe(parentFindingId)},${csvSafe(finding.severity)},${csvSafe(finding.title)},${csvSafe(finding.message?.text)},${csvSafe(findingRuleId(finding))},${csvSafe(detail)}\n`,
+      );
     }
   }
 

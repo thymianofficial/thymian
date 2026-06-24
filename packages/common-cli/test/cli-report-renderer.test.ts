@@ -83,4 +83,75 @@ describe('cli report renderer', () => {
 
     expect(output).toContain('GET /pets - application/json');
   });
+
+  it('recursively renders nested executions and per-kind details', () => {
+    const output = renderReport({
+      reportId: 'report-1',
+      createdAt: new Date().toISOString(),
+      runs: [
+        {
+          runId: 'run-1',
+          tool: { name: '@thymian/plugin-http-tester' },
+          runType: 'test',
+          runAt: new Date().toISOString(),
+          rules: [
+            {
+              id: 'example/rule',
+              severity: 'error',
+              name: 'Example rule',
+              helpUri: 'https://example.com/rule',
+            },
+          ],
+          executions: [
+            {
+              location: { type: 'custom', value: 'GET /pets' },
+              findings: [
+                {
+                  id: 'rv-1',
+                  kind: 'rule-violation',
+                  ruleId: 'example/rule',
+                  title: 'A violation',
+                  severity: 'error',
+                  message: { text: 'A violation' },
+                },
+              ],
+              children: [
+                {
+                  location: { type: 'custom', value: 'case: happy' },
+                  findings: [
+                    {
+                      id: 'tc-pass',
+                      kind: 'test-case-pass',
+                      title: 'passes',
+                      severity: 'info',
+                      durationMilliseconds: 7,
+                      nestedFindings: [
+                        {
+                          type: 'composed-of',
+                          finding: {
+                            id: 'a-1',
+                            kind: 'assertion-success',
+                            title: 'status ok',
+                            severity: 'info',
+                          },
+                        },
+                      ],
+                    },
+                  ],
+                },
+              ],
+            },
+          ],
+        },
+      ],
+    });
+
+    // inline ruleId on headline + descriptor help line
+    expect(output).toContain('example/rule');
+    expect(output).toContain('help: https://example.com/rule');
+    // nested execution and nested assertion are both rendered
+    expect(output).toContain('case: happy');
+    expect(output).toContain('duration: 7ms');
+    expect(output).toContain('status ok');
+  });
 });
