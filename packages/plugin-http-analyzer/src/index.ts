@@ -108,12 +108,10 @@ function createRuns(
   pluginName: string,
   format: ThymianFormat,
   ruleResults: RunRulesResult,
-  transactions: CapturedTransaction[] = [],
+  _transactions: CapturedTransaction[] = [],
   rules: Rule[] = [],
 ): ToolRun[] {
   const executions = executionsFromRunRulesResult(ruleResults, rules, format);
-  const httpTransactions = transactions.map(toReportHttpTransaction);
-
 
   const ruleDescriptors = rulesToRuleDescriptors(rules, (r) => r.analyzeRule);
 

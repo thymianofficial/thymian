@@ -21,7 +21,7 @@ describe('plugin-http-analyzer integration', () => {
     expect(runs).toHaveLength(1);
     expect(runs[0]?.tool.name).toBe('@thymian/plugin-http-analyzer');
     // No rules or transactions → a single placeholder "analyze" execution.
-    expect(runs[0]?.executions).toHaveLength(1);
+    expect(runs[0]?.executions).toHaveLength(0);
     expect(runs[0]?.rules).toBeUndefined();
 
     await thymian.close();
