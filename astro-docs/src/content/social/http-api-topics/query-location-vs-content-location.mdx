@@ -1,0 +1,173 @@
+---
+title: 'HTTP QUERY: Location vs Content-Location'
+description: 'Explain how Location and Content-Location differ in successful HTTP QUERY responses.'
+category: http-api-topics
+publishStatus: ready
+docLinks:
+  - label: 'RFC 10008 — The HTTP QUERY Method'
+    url: 'https://www.rfc-editor.org/info/rfc10008'
+  - label: 'HTTP Conformance — Thymian'
+    url: 'https://thymian.dev/introduction/http-conformance/'
+---
+
+import PlatformSection from '../../../components/social/PlatformSection.astro';
+import PostText from '../../../components/social/PostText.astro';
+import SocialImage from '../../../components/social/SocialImage.astro';
+
+<PlatformSection platform="reddit">
+  <PostText platform="reddit" label="Title">{'HTTP QUERY: Location vs Content-Location'}</PostText>
+  <PostText platform="reddit" label="Post body">
+    {`Last week, we talked about the QUERY method. And since we love diving deep into things, we want to take a closer look today.
+
+When a \`QUERY\` request succeeds with a 2xx response, that response can include both \`Location\` and \`Content-Location\`.
+
+So the question is: what is the difference between them?
+
+This is one of those HTTP details that can feel confusing because the header names sound almost interchangeable. They are not. In the context of a successful \`QUERY\` response, they point to two different ideas.
+
+**The breakdown:**
+
+- 🔁 **\`Location\` = the query itself**
+  Think of this as a stored query. If you later send a \`GET\` request to that URI, the server can re-execute the search/filter live and return fresh, up-to-date data.
+
+- 📌 **\`Content-Location\` = this specific result**
+  Think of this as a stored result or snapshot. If you later send a \`GET\` request to that URI, you get the data state from that specific point in time, without recalculating the query.
+
+Example:
+
+\`\`\`http
+QUERY /products HTTP/1.1
+Content-Type: application/json
+
+{"color":"red","type":"shoes","maxPrice":50}
+\`\`\`
+
+A successful response could say:
+
+\`\`\`http
+HTTP/1.1 200 OK
+Location: /queries/red-shoes-under-50
+Content-Location: /query-results/2026-06-26T10-15-00Z
+\`\`\`
+
+**The analogy: shoe shopping**
+
+- 🔁 **\`Location\`** is a bookmarked search link for "red shoes under $50". If you click it tomorrow, you might see new shoes that were just added to the store.
+
+- 📌 **\`Content-Location\`** is a snapshot of the exact list of shoes you saw at that specific second. If you open it tomorrow, it shows the exact same historical results.
+
+**Key takeaway:** \`Location\` points to something you can run again. \`Content-Location\` points to what you got this time.
+
+Have you started experimenting with the \`QUERY\` method in your projects yet?
+
+RFC 10008: https://www.rfc-editor.org/info/rfc10008
+
+#WebDevelopment #HTTP #Backend #API`}
+  </PostText>
+  <SocialImage type="headline" platform="reddit" headline="Location vs Content-Location" subheadline="In a successful HTTP QUERY response: one can point to the stored query, the other to the exact result snapshot." />
+</PlatformSection>
+
+<PlatformSection platform="x">
+  <PostText platform="x">
+    {`Last week, we talked about the QUERY method. A successful QUERY response can include both Location and Content-Location:
+
+Location = rerun the query.
+Content-Location = retrieve that exact result snapshot.
+
+https://www.rfc-editor.org/info/rfc10008
+#HTTP #API #Backend`}
+  </PostText>
+  <SocialImage type="headline" platform="x" headline="Location vs Content-Location" subheadline="In a successful HTTP QUERY response: one can point to the stored query, the other to the exact result snapshot." />
+</PlatformSection>
+
+<PlatformSection platform="linkedin">
+  <PostText platform="linkedin">
+    {`Last week, we talked about the QUERY method. And since we love diving deep into things, we want to take a closer look today.
+
+When a HTTP \`QUERY\` request succeeds with a 2xx response, that response can include both \`Location\` and \`Content-Location\`.
+
+Today’s detail: **what is the difference between them?**
+
+The “aha!” moment is that these headers can look similar at first glance. Both can give you a URI. Both can be used with a later \`GET\`. But they do not mean the same thing.
+
+**The breakdown:**
+
+🔁 **\`Location\`: references the query itself**
+
+Think of this as a stored query.
+
+If the response includes:
+
+\`Location: /queries/red-shoes-under-50\`
+
+Then a later \`GET\` to that URI can re-execute the search/filter live and return fresh data.
+
+📌 **\`Content-Location\`: references this specific result**
+
+Think of this as a stored result or snapshot.
+
+If the response includes:
+
+\`Content-Location: /query-results/2026-06-26T10-15-00Z\`
+
+Then a later \`GET\` to that URI retrieves the data state from that exact moment, without recalculating the query.
+
+**The shoe shopping analogy:**
+
+🔁 **\`Location\`** is a bookmarked search link for "red shoes under $50".
+
+If you click it tomorrow, you might see new shoes that were just added to the store.
+
+📌 **\`Content-Location\`** is a snapshot of the exact list of shoes you saw at that specific second.
+
+If you open it tomorrow, it shows the exact same historical results.
+
+**Key takeaway:** \`Location\` points to something you can run again. \`Content-Location\` points to what you got this time.
+
+That distinction matters for clients, caches, audit trails, reporting flows, and any API where “fresh result” and “same result as before” are meaningfully different.
+
+Have you started experimenting with the \`QUERY\` method in your projects yet?
+
+RFC 10008: https://www.rfc-editor.org/info/rfc10008
+
+#WebDevelopment #HTTP #Backend #API`}
+  </PostText>
+  <SocialImage type="headline" platform="linkedin" headline="Location vs Content-Location" subheadline="In a successful HTTP QUERY response: one can point to the stored query, the other to the exact result snapshot." />
+</PlatformSection>
+
+<PlatformSection platform="discord">
+  <PostText platform="discord">
+    {`Last week, we talked about the QUERY method. And since we love diving deep into things, we want to take a closer look today.
+
+When a \`QUERY\` request succeeds with a 2xx response, that response can include both \`Location\` and \`Content-Location\`.
+
+Today: **what is the difference between them?**
+
+The confusing part: both headers can point to a URI you can later fetch with \`GET\`. But they point to different things.
+
+🔁 **\`Location\` = the query itself**
+- Stored query
+- Later \`GET\` re-executes the search/filter
+- Result can change as fresh data appears
+
+📌 **\`Content-Location\` = this exact result**
+- Stored result / snapshot
+- Later \`GET\` retrieves that same point-in-time state
+- No recalculation of the query
+
+**Shoe shopping analogy**
+
+🔁 \`Location\` is a bookmarked search for "red shoes under $50". Open it tomorrow, and new shoes might appear.
+
+📌 \`Content-Location\` is the exact list you saw at that second. Open it tomorrow, and it shows the same historical results.
+
+**Key takeaway:** \`Location\` is “run this again.” \`Content-Location\` is “show me what you showed me then.”
+
+Have you started experimenting with \`QUERY\` yet?
+
+RFC 10008: https://www.rfc-editor.org/info/rfc10008
+
+#WebDevelopment #HTTP #Backend #API`}
+  </PostText>
+  <SocialImage type="headline" platform="discord" headline="Location vs Content-Location" subheadline="In a successful HTTP QUERY response: one can point to the stored query, the other to the exact result snapshot." />
+</PlatformSection>
