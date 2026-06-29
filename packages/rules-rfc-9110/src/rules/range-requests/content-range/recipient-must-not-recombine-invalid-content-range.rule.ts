@@ -1,4 +1,8 @@
-import { responseHeader, type RuleViolationLocation } from '@thymian/core';
+import {
+  getHeader,
+  responseHeader,
+  type RuleViolationLocation,
+} from '@thymian/core';
 import { httpRule } from '@thymian/core';
 
 import { parseContentRange } from './utils.js';
@@ -7,6 +11,13 @@ export default httpRule(
   'rfc9110/recipient-must-not-recombine-invalid-content-range',
 )
   .severity('error')
+  // Implementable (outcome 1): the recipient's recombination decision is
+  // internal and unobservable, but the *precondition* it guards against — a
+  // sender emitting a Content-Range whose range-resp is structurally invalid
+  // (last-pos < first-pos, or complete-length <= last-pos) — is fully visible
+  // on the response. Flagging that invalid Content-Range is the actionable,
+  // observable signal: any recipient receiving it is required to refuse
+  // recombination, so the response itself is the conformance hazard.
   .type('analytics')
   .url('https://www.rfc-editor.org/rfc/rfc9110.html#name-content-range')
   .description(
@@ -15,11 +26,14 @@ export default httpRule(
   .summary(
     'Recipient must not recombine content with invalid Content-Range values.',
   )
+  .appliesTo('origin server')
   .rule((ctx) =>
     ctx.validateHttpTransactions(
       responseHeader('content-range'),
-      (req, res, location: RuleViolationLocation) => {
-        const contentRange = res.headers['content-range'];
+      (_req, res, location: RuleViolationLocation) => {
+        // Read the header case-insensitively (HAR lowercases names; generated
+        // traffic may preserve original casing).
+        const contentRange = getHeader(res.headers, 'content-range');
 
         if (!contentRange) {
           return [];
@@ -27,12 +41,34 @@ export default httpRule(
 
         const ranges = parseContentRange(contentRange);
 
-        return ranges.some(
+        const invalid = ranges.filter(
           (range) =>
-            range.end < range.start || (range.size && range.size <= range.end),
-        )
-          ? [{ location, violation: {}, findings: [] }]
-          : [];
+            range.end < range.start ||
+            (range.size !== null && range.size <= range.end),
+        );
+
+        if (invalid.length === 0) {
+          return [];
+        }
+
+        return [
+          {
+            location,
+            violation: {
+              message: `The response carries an invalid Content-Range: ${invalid
+                .map(
+                  (range) =>
+                    `${range.unit} ${range.start}-${range.end}/${
+                      range.size ?? '*'
+                    }`,
+                )
+                .join(
+                  ', ',
+                )}. A range-resp with last-pos < first-pos, or complete-length <= last-pos, is invalid; any recipient MUST NOT attempt to recombine it with a stored representation.`,
+            },
+            findings: [],
+          },
+        ];
       },
     ),
   )
