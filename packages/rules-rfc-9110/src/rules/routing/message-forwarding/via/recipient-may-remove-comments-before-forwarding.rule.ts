@@ -4,6 +4,9 @@ export default httpRule(
   'rfc9110/recipient-may-remove-comments-before-forwarding',
 )
   .severity('hint')
+  // Pure permission: a recipient MAY remove optional Via comments before
+  // forwarding. Both keeping and removing comments are conformant, so there is
+  // nothing non-conformant to detect.
   .type('informational')
   .url('https://www.rfc-editor.org/rfc/rfc9110.html#name-via')
   .description(

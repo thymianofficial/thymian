@@ -4,6 +4,11 @@ export default httpRule(
   'rfc9110/firewall-intermediary-should-not-forward-internal-hosts',
 )
   .severity('warn')
+  // Whether a forwarded received-by host lies "within the firewall region"
+  // depends on the deployment's internal topology, which is not encoded in the
+  // message. An observer cannot distinguish an internal host from an external
+  // one from the Via value alone, so conformance is not decidable from captured
+  // traffic.
   .type('informational')
   .url('https://www.rfc-editor.org/rfc/rfc9110.html#name-via')
   .description(

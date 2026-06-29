@@ -4,6 +4,9 @@ export default httpRule(
   'rfc9110/server-must-ignore-upgrade-in-http-1.0-request',
 )
   .severity('error')
+  // Requires the server to internally ignore the Upgrade field on an HTTP/1.0
+  // request. "Ignoring" is the absence of an action and produces no distinguishing
+  // signal in the response or recorded traffic, so conformance cannot be observed.
   .type('informational')
   .url('https://www.rfc-editor.org/rfc/rfc9110.html#name-upgrade')
   .description(

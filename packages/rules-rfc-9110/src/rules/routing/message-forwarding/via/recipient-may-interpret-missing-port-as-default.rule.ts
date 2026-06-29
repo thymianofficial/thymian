@@ -4,6 +4,9 @@ export default httpRule(
   'rfc9110/recipient-may-interpret-missing-port-as-default',
 )
   .severity('hint')
+  // Pure permission describing an internal recipient interpretation (treating a
+  // missing Via port as the protocol default). The interpretation is internal
+  // to the recipient and leaves no observable trace in the message.
   .type('informational')
   .url('https://www.rfc-editor.org/rfc/rfc9110.html#name-via')
   .description(

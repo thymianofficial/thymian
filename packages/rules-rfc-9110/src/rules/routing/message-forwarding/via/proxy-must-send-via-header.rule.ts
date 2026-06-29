@@ -15,7 +15,16 @@ export default httpRule('rfc9110/proxy-must-send-via-header')
       not(requestHeader('via')),
       (transaction, location) =>
         transaction.request.meta.role === 'proxy'
-          ? [{ location, violation: {}, findings: [] }]
+          ? [
+              {
+                location,
+                violation: {
+                  message:
+                    'A request forwarded by a proxy does not carry a Via header field. A proxy MUST add an appropriate Via header to every message it forwards (for loop avoidance and protocol tracking).',
+                },
+                findings: [],
+              },
+            ]
           : [],
     ),
   )

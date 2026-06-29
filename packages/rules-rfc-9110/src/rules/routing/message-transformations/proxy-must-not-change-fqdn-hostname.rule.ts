@@ -2,7 +2,12 @@ import { httpRule } from '@thymian/core';
 
 export default httpRule('rfc9110/proxy-must-not-change-fqdn-hostname')
   .severity('error')
-  .type('informational')
+  // Detecting this MUST NOT requires comparing the host the proxy *received* in
+  // the target URI with the host it *forwarded* — a before/after linkage
+  // available only from traffic recorded at the proxy, not from a single
+  // transaction or a typical HAR. Stays analytics scoped to proxy with no rule
+  // function until the framework can correlate the inbound/outbound pair.
+  .type('analytics')
   .url(
     'https://www.rfc-editor.org/rfc/rfc9110.html#name-message-transformations',
   )
