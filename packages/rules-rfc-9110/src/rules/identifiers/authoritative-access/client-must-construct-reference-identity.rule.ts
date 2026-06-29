@@ -2,6 +2,12 @@ import { httpRule } from '@thymian/core';
 
 export default httpRule('rfc9110/client-must-construct-reference-identity')
   .severity('error')
+  // Informational (outcome 2): this MUST governs an internal step of the client's
+  // TLS identity-verification algorithm (deriving an IP-ID vs DNS-ID reference
+  // identity from the target host, per RFC 6125). It is purely client-side
+  // verification logic that leaves no signal in any HTTP request, response, or
+  // recorded traffic. No lint/test/analyze function can observe it. Kept as
+  // documentation; security-relevant (see PR security section).
   .type('informational')
   .url(
     'https://www.rfc-editor.org/rfc/rfc9110.html#name-https-certificate-verification',

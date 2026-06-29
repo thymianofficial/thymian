@@ -2,6 +2,12 @@ import { httpRule } from '@thymian/core';
 
 export default httpRule('rfc9110/client-must-verify-service-identity')
   .severity('error')
+  // Informational (outcome 2): this MUST requires the client to confirm the
+  // service's identity matches the URI's origin server before using a secured
+  // connection. This is internal client-side verification performed during TLS
+  // establishment; conformance or violation leaves no trace in HTTP messages or
+  // recorded traffic. No lint/test/analyze function can observe it. Kept as
+  // documentation; security-relevant (see PR security section).
   .type('informational')
   .url(
     'https://www.rfc-editor.org/rfc/rfc9110.html#name-https-certificate-verification',

@@ -4,6 +4,11 @@ export default httpRule(
   'rfc9110/client-may-access-by-resolving-host-to-ip-address',
 )
   .severity('hint')
+  // Informational (outcome 2): a permissive MAY describing one allowed way a
+  // client may dereference an origin (DNS resolution + TCP connect). It states
+  // a capability with no non-conformant condition, and the underlying name
+  // resolution / connection establishment happens below HTTP and is not visible
+  // in any transaction or recorded traffic. Nothing to validate. Kept as guidance.
   .type('informational')
   .url('https://www.rfc-editor.org/rfc/rfc9110.html#name-http-origins')
   .description(
