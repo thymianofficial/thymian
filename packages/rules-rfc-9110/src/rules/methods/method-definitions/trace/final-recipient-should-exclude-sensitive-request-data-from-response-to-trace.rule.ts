@@ -15,7 +15,6 @@ const sensitiveHeaders = [
   'authorization',
   'proxy-authorization',
   'cookie',
-  'set-cookie',
   'x-api-key',
 ];
 

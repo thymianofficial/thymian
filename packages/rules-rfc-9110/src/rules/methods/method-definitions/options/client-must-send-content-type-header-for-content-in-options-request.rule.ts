@@ -8,10 +8,17 @@ import {
 } from '@thymian/core';
 
 // Request-side rule: it constrains what the *client* sends (an OPTIONS request
-// carrying content must declare a Content-Type). `analyze` validates real
-// client requests; `static` validates whether the OpenAPI description that
-// declares an OPTIONS request body also declares the media type. `test` is
-// intentionally absent because Thymian is the sender there.
+// carrying content must declare a Content-Type). It is therefore `analyze`
+// only — in `test` Thymian is the sender, so request content is not under user
+// control. `static` (lint) is intentionally NOT used: this check looks for a
+// `content-type` entry in the request's header NAMES, but in the spec
+// projection `CommonHttpRequest.headers = Object.keys(node.headers)` exposes
+// only explicitly-declared header PARAMETERS. An OpenAPI request media type is
+// declared via the requestBody content map (projected to `req.mediaType` /
+// `req.body`), essentially never as a `Content-Type` header parameter, so a
+// lint slot would flag almost every OPTIONS operation with a requestBody — a
+// systematic false positive. The header-name check is meaningful only against
+// real recorded requests (`analyze`).
 //
 // Only header-name *presence* is checkable from the common projection (header
 // VALUES are not exposed there), so this rule flags a missing Content-Type
@@ -20,7 +27,7 @@ export default httpRule(
   'rfc9110/client-must-send-content-type-header-for-content-in-options-request',
 )
   .severity('error')
-  .type('static', 'analytics')
+  .type('analytics')
   .url('https://www.rfc-editor.org/rfc/rfc9110.html#name-options')
   .description(
     'A client that generates an OPTIONS request containing content MUST send a valid Content-Type header field describing the representation media type.',
