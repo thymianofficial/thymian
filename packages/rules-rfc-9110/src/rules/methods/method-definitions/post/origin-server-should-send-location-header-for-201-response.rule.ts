@@ -1,6 +1,17 @@
-import { and, method, not, responseHeader, statusCode } from '@thymian/core';
+import {
+  and,
+  type CommonHttpRequest,
+  type CommonHttpResponse,
+  method,
+  statusCode,
+} from '@thymian/core';
 import { httpRule } from '@thymian/core';
 
+// Response-side / server-behavior rule operating on a response header name
+// (Location) only, so the common projection serves all three contexts:
+// `static` over the described 201 response, `test` over the live response, and
+// `analyze` over recorded responses (HAR response role 'origin server' matches
+// appliesTo).
 export default httpRule(
   'rfc9110/origin-server-should-send-location-header-for-201-response',
 )
@@ -17,7 +28,26 @@ export default httpRule(
   .rule((context) =>
     context.validateCommonHttpTransactions(
       and(method('POST'), statusCode(201)),
-      not(responseHeader('location')),
+      (_req: CommonHttpRequest, res: CommonHttpResponse, location) => {
+        const hasLocation = res.headers.some(
+          (header) => header.toLowerCase() === 'location',
+        );
+
+        if (hasLocation) {
+          return [];
+        }
+
+        return [
+          {
+            location,
+            violation: {
+              message:
+                'A 201 (Created) response to POST SHOULD include a Location header field identifying the primary resource created, but none is present.',
+            },
+            findings: [],
+          },
+        ];
+      },
     ),
   )
   .done();

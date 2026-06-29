@@ -1,5 +1,11 @@
 import { httpRule } from '@thymian/core';
 
+// Informational: this is API-design guidance gated on the service's intent
+// ("selects a proper URI on behalf of the client"). Whether a given endpoint
+// is conceptually a server-selects-the-URI operation is a semantic design
+// judgement, not something derivable from the method/status/headers of a
+// message. The SHOULD therefore cannot be mechanically checked; the rule ships
+// no function.
 export default httpRule(
   'rfc9110/service-that-selects-uri-for-client-should-use-post-instead-of-put',
 )

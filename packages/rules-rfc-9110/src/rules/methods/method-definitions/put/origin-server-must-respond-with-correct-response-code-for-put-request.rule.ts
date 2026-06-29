@@ -1,13 +1,19 @@
 import {
   and,
+  type CommonHttpRequest,
+  type CommonHttpResponse,
   method,
-  not,
-  or,
-  statusCode,
   statusCodeRange,
 } from '@thymian/core';
 import { httpRule } from '@thymian/core';
 
+const allowedSuccessStatusCodes = [200, 201, 204];
+
+// Response-side / server-behavior rule on the status code only, so the common
+// projection serves all three contexts: `static` over the described PUT
+// success responses, `test` over the live response, and `analyze` over
+// recorded responses. A successful PUT must complete with 200, 201 or 204; any
+// other 2xx is a violation.
 export default httpRule(
   'rfc9110/origin-server-must-respond-with-correct-response-code-for-put-request',
 )
@@ -24,7 +30,21 @@ export default httpRule(
   .rule((context) =>
     context.validateCommonHttpTransactions(
       and(method('PUT'), statusCodeRange(200, 299)),
-      not(or(statusCode(200), statusCode(201), statusCode(204))),
+      (_req: CommonHttpRequest, res: CommonHttpResponse, location) => {
+        if (allowedSuccessStatusCodes.includes(res.statusCode)) {
+          return [];
+        }
+
+        return [
+          {
+            location,
+            violation: {
+              message: `A successful PUT MUST return 201 (Created) when it creates a resource, or 200 (OK) / 204 (No Content) when it modifies one, but this response used ${res.statusCode}.`,
+            },
+            findings: [],
+          },
+        ];
+      },
     ),
   )
   .done();
