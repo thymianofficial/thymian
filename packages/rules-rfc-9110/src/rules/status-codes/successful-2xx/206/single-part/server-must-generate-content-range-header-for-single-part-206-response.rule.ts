@@ -17,7 +17,7 @@ export default httpRule(
   .description(
     'If a single part is being transferred, the server generating the 206 response MUST generate a Content-Range header field, describing what range of the selected representation is enclosed, and a content consisting of the range.',
   )
-  .appliesTo('server')
+  .appliesTo('server', 'origin server')
   .rule((ctx) =>
     ctx.validateCommonHttpTransactions(
       and(method('GET'), statusCode(206)),

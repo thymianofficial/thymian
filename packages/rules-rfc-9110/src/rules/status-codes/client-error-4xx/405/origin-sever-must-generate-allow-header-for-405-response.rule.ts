@@ -5,7 +5,7 @@ export default httpRule(
   'rfc9110/origin-sever-must-generate-allow-header-for-405-response',
 )
   .severity('error')
-  .type('static', 'analytics')
+  .type('static', 'analytics', 'test')
   .url(
     'https://www.rfc-editor.org/rfc/rfc9110.html#name-405-method-not-allowed',
   )

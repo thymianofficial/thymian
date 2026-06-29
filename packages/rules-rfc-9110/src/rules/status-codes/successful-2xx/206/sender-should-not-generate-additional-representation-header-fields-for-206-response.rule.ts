@@ -92,6 +92,7 @@ export default httpRule(
   .summary(
     'A sender SHOULD NOT sent additional representation header fields or MUST generate all representation headers for a 206 Partial Content response.',
   )
+  .appliesTo('origin server')
   .rule((ctx) =>
     ctx.validateGroupedCommonHttpTransactions(
       /*

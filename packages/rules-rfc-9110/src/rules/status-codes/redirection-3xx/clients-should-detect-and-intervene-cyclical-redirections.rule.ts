@@ -4,6 +4,8 @@ export default httpRule(
   'rfc9110/clients-should-detect-and-intervene-cyclical-redirections',
 )
   .severity('warn')
+  // Internal user-agent loop-detection policy; not observable from traffic.
+  // Informational.
   .type('informational')
   .description(
     'A client SHOULD detect and intervene in cyclical redirections (i.e., "infinite" redirection loops).',

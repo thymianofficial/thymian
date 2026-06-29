@@ -4,6 +4,8 @@ export default httpRule(
   'rfc9110/client-must-inspect-content-range-header-in-multiple-parts-206-response',
 )
   .severity('error')
+  // Internal client requirement to inspect per-part Content-Range; not
+  // observable from the wire. Informational.
   .type('informational')
   .url('https://datatracker.ietf.org/doc/html/rfc9110#name-multiple-parts')
   .description(

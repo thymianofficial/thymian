@@ -4,6 +4,8 @@ export default httpRule(
   'rfc9110/server-should-generate-content-type-header-in-body-for-206-response',
 )
   .severity('warn')
+  // Concerns the Content-Type header inside each multipart body part, which
+  // the framework does not expose. Informational.
   .type('informational')
   .url('https://datatracker.ietf.org/doc/html/rfc9110#name-multiple-parts')
   .description(

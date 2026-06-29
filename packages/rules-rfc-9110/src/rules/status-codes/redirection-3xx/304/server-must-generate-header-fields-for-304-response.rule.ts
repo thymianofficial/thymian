@@ -4,11 +4,8 @@ import {
   method,
   not,
   or,
-  origin,
-  path,
   requestHeader,
   responseHeader,
-  responseWith,
   statusCode,
 } from '@thymian/core';
 import {
@@ -59,7 +56,7 @@ export default httpRule(
   .description(
     'The server generating a 304 response MUST generate any of the following header fields that would have been sent in a 200 (OK) response to the same request: Content-Location, Date, ETag, Vary, Cache-Control, Expires.',
   )
-  .appliesTo('server')
+  .appliesTo('server', 'origin server')
   .rule((ctx) =>
     ctx.validateGroupedCommonHttpTransactions(
       and(
