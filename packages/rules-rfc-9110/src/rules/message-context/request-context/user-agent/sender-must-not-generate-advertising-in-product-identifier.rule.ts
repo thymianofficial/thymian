@@ -1,7 +1,6 @@
 import {
   and,
   getHeader,
-  type HttpResponse,
   requestHeader,
   type RuleViolationLocation,
 } from '@thymian/core';
@@ -11,16 +10,20 @@ export default httpRule(
   'rfc9110/sender-must-not-generate-advertising-in-product-identifier',
 )
   .severity('error')
+  // Request-side, analytics-only (#327): needs the User-Agent *value* (only on
+  // recorded traffic via the live request model). Not `test` (Thymian generates
+  // the request) nor `static` (value not in the common projection).
   .type('analytics')
   .url('https://www.rfc-editor.org/rfc/rfc9110.html#name-user-agent')
   .description(
     'A sender MUST NOT generate advertising or other nonessential information within the product identifier.',
   )
-  .appliesTo('client')
+  // Request-side: HAR requests default to the `user-agent` role.
+  .appliesTo('client', 'user-agent')
   .overrideAnalyticsRule((ctx) =>
     ctx.validateHttpTransactions(
       and(requestHeader('user-agent')),
-      (request, _res: HttpResponse, location: RuleViolationLocation) => {
+      (request, _res, location: RuleViolationLocation) => {
         const userAgent = getHeader(request.headers, 'user-agent');
         if (typeof userAgent !== 'string') {
           return [];
@@ -40,7 +43,15 @@ export default httpRule(
         ];
 
         return advertisingKeywords.some((pattern) => pattern.test(userAgent))
-          ? [{ location, violation: {}, findings: [] }]
+          ? [
+              {
+                location,
+                violation: {
+                  message: `The User-Agent header value "${userAgent}" appears to contain advertising or other nonessential information. A sender MUST NOT generate advertising within the product identifier.`,
+                },
+                findings: [],
+              },
+            ]
           : [];
       },
     ),

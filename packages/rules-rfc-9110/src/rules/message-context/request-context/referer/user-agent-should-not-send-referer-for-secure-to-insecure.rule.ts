@@ -1,6 +1,5 @@
 import {
   getHeader,
-  type HttpResponse,
   requestHeader,
   type RuleViolationLocation,
 } from '@thymian/core';
@@ -10,16 +9,23 @@ export default httpRule(
   'rfc9110/user-agent-should-not-send-referer-for-secure-to-insecure',
 )
   .severity('warn')
+  // Request-side, analytics-only (#327): needs the Referer *value* and the
+  // request origin to compare origins — available only on recorded traffic via
+  // the live request model. Not `test` (Thymian generates the request) nor
+  // `static` (value not in the common projection). Security-relevant: a
+  // cross-origin Referer originating from a secure resource can leak the
+  // referring URL to a different origin.
   .type('analytics')
   .url('https://www.rfc-editor.org/rfc/rfc9110.html#name-referer')
   .description(
     'A user agent SHOULD NOT send a Referer header field if the referring resource was accessed with a secure protocol and the request target has an origin differing from that of the referring resource, unless the referring resource explicitly allows Referer to be sent.',
   )
+  // Request-side: HAR requests default to the `user-agent` role.
   .appliesTo('user-agent')
   .overrideAnalyticsRule((ctx) =>
     ctx.validateHttpTransactions(
       requestHeader('referer'),
-      (request, _res: HttpResponse, location: RuleViolationLocation) => {
+      (request, _res, location: RuleViolationLocation) => {
         const referer = getHeader(request.headers, 'referer');
 
         if (typeof referer !== 'string') {
@@ -35,10 +41,25 @@ export default httpRule(
         const refererOrigin = extractOrigin(referer);
         const requestOrigin = extractOrigin(requestUrl);
 
-        // Violation: secure referer with different origin
-        return refererOrigin !== requestOrigin
-          ? [{ location, violation: {}, findings: [] }]
-          : [];
+        // Only flag when both origins parsed and differ; an unparseable origin
+        // (null) must not produce a false positive.
+        if (
+          refererOrigin === null ||
+          requestOrigin === null ||
+          refererOrigin === requestOrigin
+        ) {
+          return [];
+        }
+
+        return [
+          {
+            location,
+            violation: {
+              message: `A Referer header referring to a secure resource (${referer.trim()}) was sent to a different origin (${requestOrigin}). A user agent SHOULD NOT send the Referer cross-origin from a secure referring resource unless that resource explicitly allows it.`,
+            },
+            findings: [],
+          },
+        ];
       },
     ),
   )

@@ -4,6 +4,10 @@ export default httpRule(
   'rfc9110/server-should-indicate-if-closing-the-connection-when-sending-final-status-code-without-full-request',
 )
   .severity('warn')
+  // Informational (#327): conformance depends on connection-management framing
+  // (whether the server signals it will close vs. keep reading the request
+  // content), which is HTTP/1.1 connection-level state not represented in a
+  // captured request/response transaction. No rule function.
   .type('informational')
   .url('https://www.rfc-editor.org/rfc/rfc9110.html#name-expect')
   .description(
