@@ -4,6 +4,10 @@ export default httpRule(
   'rfc9110/user-agent-may-send-preference-headers-for-proactive-negotiation',
 )
   .severity('hint')
+  // Informational (unchanged): a permissive "MAY" allowing the user agent to
+  // send preference headers to aid proactive negotiation. There is no condition
+  // under which sending — or not sending — them is non-conformant, so no
+  // execution context can produce a meaningful pass/fail. Correctly classified.
   .type('informational')
   .url('https://www.rfc-editor.org/rfc/rfc9110.html#name-proactive-negotiation')
   .summary(
