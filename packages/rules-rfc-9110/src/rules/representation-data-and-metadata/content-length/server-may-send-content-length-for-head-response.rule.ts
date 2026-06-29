@@ -11,6 +11,11 @@ export default httpRule(
   'rfc9110/server-may-send-content-length-for-head-response',
 )
   .severity('error')
+  // Implementable now (outcome 1): the MAY hides a MUST NOT — if a HEAD response
+  // carries Content-Length, its value MUST equal what a GET to the same target
+  // would have sent. Verifiable as live server behavior by replaying the HEAD as
+  // a GET and comparing Content-Length. Requires the test-only `httpTest` replay
+  // pipeline, hence `.type('test')` only.
   .type('test')
   .appliesTo('server')
   .url('https://www.rfc-editor.org/rfc/rfc9110.html#section-8.6')

@@ -1,19 +1,21 @@
-import {
-  and,
-  not,
-  origin,
-  path,
-  requestHeader,
-  responseWith,
-  statusCode,
-} from '@thymian/core';
 import { httpRule } from '@thymian/core';
 
 export default httpRule(
   'rfc9110/origin-server-may-respond-415-for-unacceptable-content-coding',
 )
   .severity('hint')
-  .type('analytics', 'static')
+  // Informational (outcome 2): this is a permissive MAY — an origin server is
+  // free to respond with 415 for an unacceptable request content coding, but
+  // is equally free NOT to (it may decode, ignore, or otherwise process the
+  // request). There is therefore no non-conformant condition to detect.
+  //
+  // The previous implementation flagged every request carrying Content-Encoding
+  // that did NOT receive a 415 as a violation, which inverts the requirement:
+  // it punished servers for exercising the permission the RFC grants. Whether a
+  // given content coding is "unacceptable" to the server is also server-internal
+  // state that cannot be observed from the transaction. Reclassified to
+  // informational with no rule function.
+  .type('informational')
   .appliesTo('origin server')
   .url('https://www.rfc-editor.org/rfc/rfc9110.html#section-8.4')
   .description(
@@ -21,31 +23,5 @@ export default httpRule(
   )
   .summary(
     'Origin servers MAY respond with 415 for unacceptable content-coding in requests.',
-  )
-  .rule((ctx) =>
-    ctx.validateCommonHttpTransactions(
-      and(
-        requestHeader('content-encoding'),
-        not(responseWith(statusCode(415))),
-      ),
-    ),
-  )
-  .overrideAnalyticsRule((ctx) =>
-    // responseWith() cannot be compiled to SQL, so for analytics mode
-    // we group by endpoint and check within each group whether any
-    // transaction with Content-Encoding received a 415 response.
-    ctx.validateGroupedCommonHttpTransactions(
-      requestHeader('content-encoding'),
-      and(origin(), path()),
-      (_, transactions) => {
-        const has415 = transactions.some(([, res]) => res.statusCode === 415);
-        if (has415) {
-          return [];
-        }
-        // No 415 response for this endpoint — report the first transaction
-        const [, , location] = transactions[0] ?? [];
-        return location ? [{ location, violation: {}, findings: [] }] : [];
-      },
-    ),
   )
   .done();

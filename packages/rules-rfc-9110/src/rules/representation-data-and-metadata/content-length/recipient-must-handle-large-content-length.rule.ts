@@ -1,13 +1,27 @@
 import {
   getHeader,
-  httpTransactionToLabel,
   responseHeader,
+  type RuleViolationLocation,
 } from '@thymian/core';
 import { httpRule } from '@thymian/core';
 
+// Roughly 1 TB. A real Content-Length above this is extraordinarily unusual and
+// is a strong indicator of a malformed or hostile value crafted to provoke
+// integer-overflow / precision-loss parsing bugs in recipients.
+const MAX_REASONABLE_SIZE = BigInt(2) ** BigInt(40);
+
 export default httpRule('rfc9110/recipient-must-handle-large-content-length')
   .severity('warn')
+  // Implementable now (outcome 1): the underlying MUST targets the RECIPIENT's
+  // parser robustness, which is internal and not directly observable. What IS
+  // observable is the Content-Length VALUE a sender put on the wire, so this
+  // rule surfaces values that are non-numeric/unparseable or implausibly large
+  // (>1 TB) — the inputs that drive the overflow/precision hazards the RFC warns
+  // about. Reading the field value requires the live/captured projection, so it
+  // is typed `test` + `analytics`. `appliesTo('origin server')` so the analyze
+  // rule fires on HAR responses (default response role).
   .type('test', 'analytics')
+  .appliesTo('origin server')
   .url('https://www.rfc-editor.org/rfc/rfc9110.html#section-8.6')
   .description(
     `A recipient MUST anticipate potentially large decimal numerals and prevent parsing errors due to integer
@@ -20,38 +34,40 @@ export default httpRule('rfc9110/recipient-must-handle-large-content-length')
   .rule((ctx) =>
     ctx.validateHttpTransactions(
       responseHeader('content-length'),
-      (req, res, _location) => {
+      (_req, res, location: RuleViolationLocation) => {
         const contentLengthHeader = getHeader(res.headers, 'content-length');
 
         if (typeof contentLengthHeader !== 'string') {
           return [];
         }
 
-        // Check for extremely large values that could cause issues
-        // JavaScript Number.MAX_SAFE_INTEGER is 2^53 - 1
-        // But we'll warn for values > 2^40 (1TB) as that's unusually large
-        const MAX_REASONABLE_SIZE = Math.pow(2, 40); // 1 TB
+        const trimmed = contentLengthHeader.trim();
 
-        try {
-          const numericValue = BigInt(contentLengthHeader);
-
-          if (numericValue > BigInt(MAX_REASONABLE_SIZE)) {
-            return [
-              {
-                location: httpTransactionToLabel(req, res),
-                violation: {
-                  message: `Content-Length value ${numericValue.toString()} exceeds reasonable size limit (>1TB), potential overflow risk`,
-                },
-                findings: [],
-              },
-            ];
-          }
-        } catch (e) {
+        // A well-formed Content-Length is a single non-negative decimal numeral
+        // (RFC 9110 Section 8.6). Anything else (non-numeric, signed, or a
+        // comma-separated list such as "42, 42") cannot be parsed safely as a
+        // length and is the exact class of value the recipient MUST guard
+        // against.
+        if (!/^\d+$/.test(trimmed)) {
           return [
             {
-              location: httpTransactionToLabel(req, res),
+              location,
               violation: {
-                message: `Content-Length value "${contentLengthHeader}" is too large to parse safely`,
+                message: `Content-Length value "${contentLengthHeader}" is not a single decimal numeral and cannot be parsed safely; recipients MUST guard against such values (request smuggling / parsing-error risk).`,
+              },
+              findings: [],
+            },
+          ];
+        }
+
+        const numericValue = BigInt(trimmed);
+
+        if (numericValue > MAX_REASONABLE_SIZE) {
+          return [
+            {
+              location,
+              violation: {
+                message: `Content-Length value ${numericValue.toString()} exceeds a reasonable size limit (>1 TB); such large numerals are a potential integer-overflow / precision-loss hazard for recipients.`,
               },
               findings: [],
             },

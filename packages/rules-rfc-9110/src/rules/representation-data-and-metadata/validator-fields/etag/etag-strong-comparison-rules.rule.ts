@@ -2,6 +2,11 @@ import { httpRule } from '@thymian/core';
 
 export default httpRule('rfc9110/etag-strong-comparison-rules')
   .severity('off')
+  // Informational (outcome 2): this defines the strong entity-tag COMPARISON
+  // ALGORITHM that a recipient applies internally when evaluating conditional
+  // requests (If-Match, If-Range). It prescribes no field a sender must emit
+  // and is purely the recipient's internal matching logic, which is not
+  // observable from the transaction. Reference material, kept informational.
   .type('informational')
   .appliesTo('server', 'client', 'intermediary')
   .url('https://www.rfc-editor.org/rfc/rfc9110.html#section-8.8.3.2')

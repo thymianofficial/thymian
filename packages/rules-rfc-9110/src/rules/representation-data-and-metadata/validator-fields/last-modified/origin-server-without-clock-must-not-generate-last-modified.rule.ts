@@ -4,6 +4,14 @@ export default httpRule(
   'rfc9110/origin-server-without-clock-must-not-generate-last-modified',
 )
   .severity('error')
+  // Informational (outcome 2): conformance hinges on whether the origin server
+  // HAS a clock and whether a Last-Modified value was assigned locally versus by
+  // an external clock-bearing system. Neither fact is observable from the
+  // transaction (a present Last-Modified is not itself a violation), so it
+  // cannot be validated automatically. The observable, clock-bearing sibling
+  // case is handled by
+  // `origin-server-with-clock-must-not-generate-future-last-modified`.
+  // Confirmable only by code review / system configuration analysis.
   .type('informational')
   .appliesTo('origin server')
   .url('https://www.rfc-editor.org/rfc/rfc9110.html#section-8.8.2.1')

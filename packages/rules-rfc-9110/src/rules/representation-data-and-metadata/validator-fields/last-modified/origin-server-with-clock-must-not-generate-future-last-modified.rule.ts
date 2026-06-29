@@ -1,16 +1,17 @@
 import type { RuleViolationLocation } from '@thymian/core';
-import {
-  and,
-  getHeader,
-  httpTransactionToLabel,
-  responseHeader,
-} from '@thymian/core';
+import { and, getHeader, responseHeader } from '@thymian/core';
 import { httpRule } from '@thymian/core';
 
 export default httpRule(
   'rfc9110/origin-server-with-clock-must-not-generate-future-last-modified',
 )
   .severity('error')
+  // Implementable now (outcome 1): a response-side check comparing the
+  // Last-Modified field VALUE against the Date field VALUE, which needs the
+  // live/captured projection, hence `test` + `analytics`. `appliesTo('origin
+  // server')` matches the default HAR response role so the analyze rule fires on
+  // recorded traffic. (Only the "with a clock" case is detectable; a server
+  // without a clock is covered by the separate informational rule.)
   .type('test', 'analytics')
   .appliesTo('origin server')
   .url('https://www.rfc-editor.org/rfc/rfc9110.html#section-8.8.2.1')
@@ -26,7 +27,7 @@ export default httpRule(
   .rule((ctx) =>
     ctx.validateHttpTransactions(
       and(responseHeader('last-modified'), responseHeader('date')),
-      (req, res, _location: RuleViolationLocation) => {
+      (_req, res, location: RuleViolationLocation) => {
         const lastModifiedHeader = getHeader(res.headers, 'last-modified');
         const dateHeader = getHeader(res.headers, 'date');
 
@@ -47,9 +48,9 @@ export default httpRule(
         if (lastModifiedDate > dateValue) {
           return [
             {
-              location: httpTransactionToLabel(req, res),
+              location,
               violation: {
-                message: `Last-Modified date (${lastModifiedHeader}) is later than Date header (${dateHeader})`,
+                message: `The Last-Modified date (${lastModifiedHeader}) is later than the Date header (${dateHeader}). An origin server with a clock MUST NOT generate a Last-Modified value later than its message origination time.`,
               },
               findings: [],
             },

@@ -4,6 +4,13 @@ export default httpRule(
   'rfc9110/etag-must-differ-for-different-content-encodings',
 )
   .severity('error')
+  // Informational (outcome 2): detecting a violation requires obtaining two or
+  // more representations of the SAME resource with different Content-Encodings
+  // and comparing their strong ETags. The rule framework evaluates one
+  // transaction (or a status-grouped set) at a time and cannot drive the
+  // content negotiation needed to fetch distinct encoded variants of one
+  // resource and correlate their entity tags, so there is no observable
+  // non-conformant condition to flag.
   .type('informational')
   .appliesTo('origin server')
   .url('https://www.rfc-editor.org/rfc/rfc9110.html#section-8.8.3.3')
