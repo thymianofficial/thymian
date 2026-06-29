@@ -5,6 +5,14 @@ import {
 } from '@thymian/core';
 import { httpRule } from '@thymian/core';
 
+/**
+ * Well-known media-range parameter names that are almost always intended to
+ * scope a media range (not as Accept extension parameters). If one of these
+ * appears after the "q" weight in an Accept value, the sender most likely
+ * mis-ordered it and it will be silently treated as an accept-ext parameter.
+ */
+const mediaRangeParameterNames = new Set(['charset', 'level', 'boundary']);
+
 export default httpRule('rfc9110/sender-should-send-q-parameter-last')
   .severity('warn')
   // Request-side rule: it constrains how the *sender* orders parameters in the
@@ -43,7 +51,25 @@ export default httpRule('rfc9110/sender-should-send-q-parameter-last')
 
           // The rule only applies to senders that actually use a weight. A
           // value without a "q" parameter is not malformed.
-          return qParamIndex !== -1 && qParamIndex !== params.length - 1;
+          if (qParamIndex === -1) {
+            return false;
+          }
+
+          // Per RFC 9110 Section 12.5.1, the first "q" parameter separates the
+          // media-range parameters (which precede it) from accept-ext
+          // parameters (which follow it). A parameter appearing after "q" is
+          // therefore a *valid* accept-ext and must NOT be flagged. The SHOULD
+          // is violated only when a media-range parameter is placed after the
+          // weight, where it is silently reinterpreted as an accept-ext. We
+          // detect that via the well-known media-range parameter names, which
+          // avoids false positives on legitimate accept-ext parameters.
+          return params
+            .slice(qParamIndex + 1)
+            .some((param) =>
+              mediaRangeParameterNames.has(
+                param.split('=')[0]?.trim().toLowerCase() ?? '',
+              ),
+            );
         });
 
         if (malformedValues.length > 0) {
@@ -51,7 +77,7 @@ export default httpRule('rfc9110/sender-should-send-q-parameter-last')
             {
               location,
               violation: {
-                message: `The weight parameter "q" SHOULD be sent as the last parameter. Malformed value(s) sent: ${malformedValues
+                message: `The weight parameter "q" SHOULD be sent last, after all media-range parameters. The following value(s) place a media-range parameter after "q", where it is reinterpreted as an accept-extension parameter: ${malformedValues
                   .map((value) => value.trim())
                   .join(', ')}`,
               },
