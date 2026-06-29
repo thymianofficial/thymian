@@ -1,5 +1,10 @@
 import { httpRule } from '@thymian/core';
 
+// Informational (outcome 2): a MUST NOT about the HTTP protocol version a
+// client sends. The HTTP version token is transport control data not surfaced
+// by the rule framework (no version field on HttpRequest; common projection is
+// header names / status / media type / body only). Determining "conformance to
+// a version" is also internal client state. Not observable.
 export default httpRule('rfc9110/client-must-not-send-non-conformant-version')
   .severity('error')
   .type('informational')
