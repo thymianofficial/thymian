@@ -1,11 +1,22 @@
-import { and, method, or, requestHeader, statusCodeRange } from '@thymian/core';
 import { httpRule } from '@thymian/core';
 
+/**
+ * Informational (outcome 2). Permissive MAY: when an If-Unmodified-Since
+ * condition fails on a state-changing request that appears already applied, the
+ * origin server *may* answer 2xx instead of 412. Both are conformant, and a 2xx
+ * for an already-applied change is indistinguishable from a normal success
+ * without knowledge of prior resource state, which the framework lacks. The
+ * previous implementation flagged 4xx responses to state-changing
+ * If-Unmodified-Since requests, but a 4xx (e.g. 412) is the primary conformant
+ * behavior — the opposite of a violation. Reclassified to informational. The
+ * hard MUST NOT (do not perform the method when the condition fails) is enforced
+ * by `origin-server-must-not-perform-method-when-if-unmodified-since-fails`.
+ */
 export default httpRule(
   'rfc9110/origin-server-may-respond-with-2xx-response-even-condition-failed-for-unmodified-since',
 )
   .severity('hint')
-  .type('test', 'static', 'analytics')
+  .type('informational')
   .url('https://www.rfc-editor.org/rfc/rfc9110.html#section-13.1.1')
   .description(
     'An origin server that evaluates an If-Unmodified-Since condition MUST NOT perform the requested method if the condition evaluates to false. Instead, the origin server MAY indicate that the conditional request failed by responding with a 412 (Precondition Failed) status code. Alternatively, if the request is a state-changing operation that appears to have already been applied to the selected representation, the origin server MAY respond with a 2xx (Successful) status code (i.e., the change requested by the user agent has already succeeded, but the user agent might not be aware of it, perhaps because the prior response was lost or an equivalent change was made by some other user agent).',
@@ -19,14 +30,5 @@ export default httpRule(
     'if-unmodified-since',
     '412',
     'precondition-failed',
-  )
-  .rule((ctx) =>
-    ctx.validateCommonHttpTransactions(
-      and(
-        requestHeader('if-unmodified-since'),
-        statusCodeRange(400, 499),
-        or(method('DELETE'), method('POST'), method('PATCH'), method('PUT')),
-      ),
-    ),
   )
   .done();

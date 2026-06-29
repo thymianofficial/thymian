@@ -1,5 +1,13 @@
 import { httpRule } from '@thymian/core';
 
+/**
+ * Informational (outcome 2). This MUST constrains which comparison function the
+ * recipient applies internally to If-None-Match (weak comparison). The choice is
+ * not exposed on the wire; distinguishing weak from strong comparison would
+ * require the server to mint a controllable weak variant of a representation's
+ * ETag and observing divergent outcomes, which the framework cannot arrange
+ * generically. Documentation only.
+ */
 export default httpRule(
   'rfc9110/recipient-must-use-weak-comparison-for-if-none-match',
 )
@@ -12,6 +20,6 @@ export default httpRule(
   .summary(
     'Recipient MUST use weak comparison function for If-None-Match ETags.',
   )
-  .appliesTo('server', 'cache')
+  .appliesTo('server', 'origin server', 'cache')
   .tags('conditional-requests', 'if-none-match', 'etag')
   .done();

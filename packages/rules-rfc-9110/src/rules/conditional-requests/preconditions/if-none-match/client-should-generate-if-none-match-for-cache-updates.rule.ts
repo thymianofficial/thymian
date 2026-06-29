@@ -1,5 +1,14 @@
 import { httpRule } from '@thymian/core';
 
+/**
+ * Informational (outcome 2). This is a client-side SHOULD that is conditional on
+ * the client *desiring to update stored responses that already carry entity
+ * tags* — i.e. it depends on the client's private cache state, which is not
+ * present in the request and which the framework cannot observe. There is no
+ * non-conformant request to detect (omitting If-None-Match is fine when the
+ * client has no stored response to revalidate), and being client-side the rule
+ * could never belong in `test` anyway. Documentation only.
+ */
 export default httpRule(
   'rfc9110/client-should-generate-if-none-match-for-cache-updates',
 )
@@ -12,6 +21,6 @@ export default httpRule(
   .summary(
     'Client SHOULD generate If-None-Match for cache updates when stored responses have entity tags.',
   )
-  .appliesTo('client')
+  .appliesTo('client', 'user-agent')
   .tags('conditional-requests', 'if-none-match', 'cache', 'optimization')
   .done();

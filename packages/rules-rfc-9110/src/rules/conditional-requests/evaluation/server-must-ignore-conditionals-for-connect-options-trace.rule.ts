@@ -1,6 +1,42 @@
-import { and, method, or, requestHeader, statusCode } from '@thymian/core';
+import {
+  and,
+  type CommonHttpRequest,
+  type CommonHttpResponse,
+  method,
+  or,
+  requestHeader,
+  type RuleViolationLocation,
+  statusCode,
+} from '@thymian/core';
 import { httpRule } from '@thymian/core';
 
+const conditionalHeaders = [
+  'if-match',
+  'if-none-match',
+  'if-modified-since',
+  'if-unmodified-since',
+  'if-range',
+];
+
+function hasHeader(headers: string[], name: string): boolean {
+  return headers.some((header) => header.toLowerCase() === name);
+}
+
+function presentConditionalHeaders(req: CommonHttpRequest): string[] {
+  return conditionalHeaders.filter((header) => hasHeader(req.headers, header));
+}
+
+/**
+ * Response-side, observable rule (outcome 1). The conditional request header
+ * fields must be ignored for methods that do not select or modify a
+ * representation (CONNECT/OPTIONS/TRACE). A server that *did* evaluate them
+ * would surface a conditional-outcome status (304 Not Modified or 412
+ * Precondition Failed). We detect the non-conformant case from header NAMES +
+ * status alone, so the common projection is sufficient and the check is
+ * identical across lint (the described transaction) and analyze (recorded
+ * traffic). `appliesTo` includes `origin server` so the rule also fires on HAR
+ * responses (the HAR default response role) in addition to `server`.
+ */
 export default httpRule(
   'rfc9110/server-must-ignore-conditionals-for-connect-options-trace',
 )
@@ -13,7 +49,7 @@ export default httpRule(
   .summary(
     'Server MUST ignore conditional headers for CONNECT, OPTIONS, or TRACE methods.',
   )
-  .appliesTo('server')
+  .appliesTo('server', 'origin server')
   .tags('conditional-requests', 'evaluation', 'methods')
   .rule((ctx) =>
     ctx.validateCommonHttpTransactions(
@@ -24,10 +60,29 @@ export default httpRule(
           requestHeader('if-none-match'),
           requestHeader('if-modified-since'),
           requestHeader('if-unmodified-since'),
+          requestHeader('if-range'),
         ),
-        // If server evaluated conditionals, it would return 304 or 412
+        // A conditional-outcome status reveals that the server evaluated the
+        // precondition instead of ignoring it.
         or(statusCode(304), statusCode(412)),
       ),
+      (
+        req: CommonHttpRequest,
+        res: CommonHttpResponse,
+        location: RuleViolationLocation,
+      ) => [
+        {
+          location,
+          violation: {
+            message: `A ${req.method} request carrying conditional header field(s) ${presentConditionalHeaders(
+              req,
+            ).join(
+              ', ',
+            )} received a ${res.statusCode} response. Because ${req.method} does not select or modify a representation, the server MUST ignore conditional header fields rather than evaluate them (a 304/412 indicates they were evaluated).`,
+          },
+          findings: [],
+        },
+      ],
     ),
   )
   .done();
