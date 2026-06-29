@@ -1,11 +1,14 @@
 import { httpRule } from '@thymian/core';
 
-// TODO: Implement ABNF validation and logic for two-digit year interpretation
-// Requires parsing rfc850-date format and applying 50-year rule for 2-digit years
 export default httpRule(
   'rfc9110/recipient-must-interpret-two-digit-years-correctly',
 )
   .severity('error')
+  // Informational: this MUST governs how the recipient interprets a two-digit
+  // rfc850-date year (the 50-year sliding-window rule). It is an internal
+  // interpretation decision inside the recipient; it does not alter the bytes
+  // of any message, so there is nothing observable for lint, test, or analyze
+  // to validate. Recorded for documentation only.
   .type('informational')
   .url('https://www.rfc-editor.org/rfc/rfc9110.html#section-5.6.7')
   .description(

@@ -1,14 +1,19 @@
 import { httpRule } from '@thymian/core';
 
-// TODO: Implement ABNF validation for invalid character detection
-// Requires detecting CR (%x0D), LF (%x0A), or NUL (%x00) in field values
-// Can be implemented in analytics context to validate message handling
 export default httpRule(
   'rfc9110/recipient-must-reject-or-replace-invalid-characters',
 )
   .severity('error')
-  // We need to make this informational for now since we do not yet have the functionality to craft or send an intentionally invalid HTTP request.
-  // To test this rule against a real HTTP server, we would have to establish a TCP connection ourselves and manually construct the HTTP request.
+  // Informational (security-relevant — CR/LF/NUL injection): validating this
+  // MUST requires sending a request whose field value contains a raw CR, LF,
+  // or NUL and observing that the recipient rejects the message or replaces
+  // the octet with SP. Thymian's HTTP stack cannot craft and transmit such a
+  // deliberately invalid request (the client library forbids these octets in
+  // header values), so the trigger condition cannot be produced in test; and a
+  // conformant recipient that has already rejected/replaced the octet leaves
+  // no observable trace of the original invalid input in recorded traffic.
+  // With no way to generate the input and no preserved signal to analyze, it
+  // is recorded for documentation only.
   .type('informational')
   .url('https://www.rfc-editor.org/rfc/rfc9110.html#section-5.5')
   .description(

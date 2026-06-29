@@ -1,12 +1,13 @@
 import { httpRule } from '@thymian/core';
 
-// TODO: Implement ABNF validation for #rule list parsing with empty elements
-// Requires parsing recipient-side #rule syntax and filtering empty elements:
-//   #element => [ element ] *( OWS "," OWS [ element ] )
 export default httpRule(
   'rfc9110/recipient-must-parse-and-ignore-empty-list-elements',
 )
   .severity('error')
+  // Informational: this MUST governs the recipient's internal parsing (ignore
+  // a reasonable number of empty list elements). It is an internal behavior of
+  // the recipient that emits no observable difference in the messages Thymian
+  // can lint, test, or analyze. Recorded for documentation only.
   .type('informational')
   .url('https://www.rfc-editor.org/rfc/rfc9110.html#section-5.6.1')
   .description(

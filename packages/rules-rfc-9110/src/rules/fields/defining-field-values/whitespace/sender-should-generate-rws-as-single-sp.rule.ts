@@ -1,11 +1,12 @@
 import { httpRule } from '@thymian/core';
 
-// TODO: Implement ABNF validation for RWS generation
-// Requires detecting RWS positions and validating single SP generation:
-//   RWS = 1*( SP / HTAB ) ; required whitespace
-// Can be implemented in static context to validate outgoing messages
 export default httpRule('rfc9110/sender-should-generate-rws-as-single-sp')
   .severity('warn')
+  // Informational: RWS is raw required whitespace between tokens on the wire.
+  // The HTTP layer normalizes field values before Thymian observes them, so
+  // the sender's original RWS representation (single SP vs. a longer run of
+  // SP/HTAB) is not preserved for lint, test, or analyze, nor in HAR parsed
+  // headers. Nothing observable to flag. Recorded for documentation only.
   .type('informational')
   .url('https://www.rfc-editor.org/rfc/rfc9110.html#section-5.6.3')
   .description(

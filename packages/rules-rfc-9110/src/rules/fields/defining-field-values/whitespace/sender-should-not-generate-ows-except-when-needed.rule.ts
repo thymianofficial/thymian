@@ -1,12 +1,14 @@
 import { httpRule } from '@thymian/core';
 
-// TODO: Implement ABNF validation for unnecessary OWS detection
-// Requires detecting OWS where not needed for readability
-// Can be implemented in static context to validate outgoing messages
 export default httpRule(
   'rfc9110/sender-should-not-generate-ows-except-when-needed',
 )
   .severity('warn')
+  // Informational: this SHOULD constrains where a sender places raw optional
+  // whitespace on the wire. That octet-level OWS is normalized by the HTTP
+  // layer before Thymian observes parsed field values, and does not survive
+  // into HAR parsed headers, so there is no preserved representation to flag
+  // for lint, test, or analyze. Recorded for documentation only.
   .type('informational')
   .url('https://www.rfc-editor.org/rfc/rfc9110.html#section-5.6.3')
   .description(

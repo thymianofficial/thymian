@@ -1,12 +1,15 @@
 import { httpRule } from '@thymian/core';
 
-// TODO: Implement ABNF validation for CTL character detection
-// Requires detecting CTL characters (%x00-1F, %x7F) excluding CR/LF/NUL
-// Context-aware validation needed to determine "safe contexts"
 export default httpRule(
   'rfc9110/recipient-may-retain-ctl-characters-in-safe-contexts',
 )
   .severity('off')
+  // Informational: a permissive MAY allowing the recipient to retain certain
+  // CTL characters "for the sake of robustness" within a safe context. There
+  // is no non-conformant condition to flag, and "safe context" is an
+  // application-specific judgement internal to the recipient — not observable
+  // in the messages Thymian can lint, test, or analyze. Recorded for
+  // documentation only.
   .type('informational')
   .url('https://www.rfc-editor.org/rfc/rfc9110.html#section-5.5')
   .description(

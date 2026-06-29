@@ -4,6 +4,11 @@ export default httpRule(
   'rfc9110/server-must-not-apply-request-until-entire-header-received',
 )
   .severity('error')
+  // Informational: this MUST constrains the server's internal processing
+  // timing — it must not act on a request before the full header section is
+  // received. This is an internal ordering/timing property of the server with
+  // no observable signal in the completed request/response that Thymian can
+  // lint, test, or analyze. Recorded for documentation only.
   .type('informational')
   .url('https://www.rfc-editor.org/rfc/rfc9110.html#section-5.3')
   .description(

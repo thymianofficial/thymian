@@ -1,13 +1,16 @@
 import { httpRule } from '@thymian/core';
 
-// TODO: Implement ABNF validation for comment syntax and quoted-pair detection
-// Requires parsing comment and detecting unnecessary quoted-pairs:
-//   comment = "(" *( ctext / quoted-pair / comment ) ")"
-// Can be implemented in static context to validate outgoing messages
 export default httpRule(
   'rfc9110/sender-should-not-generate-quoted-pairs-in-comments-except-for-parens-backslash',
 )
   .severity('warn')
+  // Informational: detecting an unnecessary quoted-pair inside a comment
+  // requires locating comments — a construct only some fields (e.g. User-Agent,
+  // Server, Via) permit — and parsing their nested parenthesis grammar. The
+  // framework provides no per-field grammar registry to know where comments
+  // are syntactically valid, so a generic scan would misfire. Honestly
+  // deferred to informational rather than shipping an unsound check. Recorded
+  // for documentation only.
   .type('informational')
   .url('https://www.rfc-editor.org/rfc/rfc9110.html#section-5.6.4')
   .description(
