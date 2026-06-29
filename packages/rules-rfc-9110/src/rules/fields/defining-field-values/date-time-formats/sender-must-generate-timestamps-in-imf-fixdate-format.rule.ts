@@ -11,16 +11,16 @@ import { createList } from '../../../../utils.js';
 /**
  * Response header fields whose value is defined as a single HTTP-date by RFC
  * 9110 / RFC 9111. Per Section 5.6.7 a sender MUST generate these timestamps in
- * the IMF-fixdate format. We restrict the check to these well-known fields
- * because only they are guaranteed to be HTTP-date typed; checking arbitrary
- * fields would produce false positives on values that merely resemble a date.
+ * the IMF-fixdate format. We restrict the check to these well-known
+ * response-side fields because only they are guaranteed to be HTTP-date typed;
+ * checking arbitrary fields would produce false positives on values that merely
+ * resemble a date. (The conditional If-Modified-Since / If-Unmodified-Since
+ * fields are request-only per RFC 9110 §13.1.3/§13.1.4 and so are not listed.)
  */
 const httpDateResponseHeaders = [
   'date',
   'expires',
   'last-modified',
-  'if-modified-since',
-  'if-unmodified-since',
   'retry-after',
 ];
 

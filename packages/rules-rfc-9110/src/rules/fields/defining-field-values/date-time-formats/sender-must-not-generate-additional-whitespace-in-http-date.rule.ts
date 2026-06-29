@@ -10,16 +10,12 @@ import { createList } from '../../../../utils.js';
 
 /**
  * Response header fields whose value is a single HTTP-date (see Section 5.6.7).
- * Only these well-known HTTP-date typed fields are inspected, to avoid
- * false-positives on unrelated fields that happen to contain whitespace.
+ * Only these well-known response-side HTTP-date typed fields are inspected, to
+ * avoid false-positives on unrelated fields that happen to contain whitespace.
+ * (The conditional If-Modified-Since / If-Unmodified-Since fields are
+ * request-only per RFC 9110 §13.1.3/§13.1.4 and so are not listed.)
  */
-const httpDateResponseHeaders = [
-  'date',
-  'expires',
-  'last-modified',
-  'if-modified-since',
-  'if-unmodified-since',
-];
+const httpDateResponseHeaders = ['date', 'expires', 'last-modified'];
 
 function headerToValues(value: string | string[] | undefined): string[] {
   if (value === undefined) {
