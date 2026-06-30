@@ -10,15 +10,11 @@ export default httpRule(
   'rfc9110/sender-should-not-generate-non-version-info-in-product-version',
 )
   .severity('warn')
-  // Request-side, analytics-only (#327): needs the User-Agent *value* (only on
-  // recorded traffic via the live request model). Not `test` (Thymian generates
-  // the request) nor `static` (value not in the common projection).
   .type('analytics')
   .url('https://www.rfc-editor.org/rfc/rfc9110.html#name-user-agent')
   .description(
     'A sender SHOULD NOT generate information in product-version that is not a version identifier (i.e., successive versions of the same product name ought to differ only in the product-version portion of the product identifier).',
   )
-  // Request-side: HAR requests default to the `user-agent` role.
   .appliesTo('client', 'user-agent')
   .overrideAnalyticsRule((ctx) =>
     ctx.validateHttpTransactions(

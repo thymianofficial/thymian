@@ -4,11 +4,6 @@ export default httpRule(
   'rfc9110/client-should-repeat-request-without-expect-for-417',
 )
   .severity('hint')
-  // Informational (#327): describes a client retry strategy spanning two
-  // separate requests (a 417, then a repeat without the expectation). Detecting
-  // conformance requires correlating a follow-up request to the original, which
-  // is not reliably reconstructable from a captured transaction. No rule
-  // function.
   .type('informational')
   .url('https://www.rfc-editor.org/rfc/rfc9110.html#name-expect')
   .description(

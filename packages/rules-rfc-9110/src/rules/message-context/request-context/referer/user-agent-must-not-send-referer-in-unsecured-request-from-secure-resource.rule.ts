@@ -11,11 +11,6 @@ export default httpRule(
   'rfc9110/user-agent-must-not-send-referer-in-unsecured-request-from-secure-resource',
 )
   .severity('error')
-  // Request-side, analytics-only (#327): the referring resource (the Referer
-  // value) must be inspected to see whether it was accessed over a secure
-  // protocol. That requires the header *value*, available only on recorded
-  // traffic via the live request model. Not `test` (Thymian generates the
-  // request) and not `static` (value not exposed by the common projection).
   .type('analytics')
   .url('https://www.rfc-editor.org/rfc/rfc9110.html#name-referer')
   .description(
@@ -24,7 +19,6 @@ export default httpRule(
   .summary(
     'A user agent MUST NOT send a Referer referring to an https resource in an unsecured http request.',
   )
-  // Request-side: HAR requests default to the `user-agent` role.
   .appliesTo('user-agent')
   .overrideAnalyticsRule((ctx) =>
     // Pre-filter to unsecured (http) requests carrying a Referer; then confirm

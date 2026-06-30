@@ -10,15 +10,11 @@ export default httpRule(
   'rfc9110/sender-must-not-generate-advertising-in-product-identifier',
 )
   .severity('error')
-  // Request-side, analytics-only (#327): needs the User-Agent *value* (only on
-  // recorded traffic via the live request model). Not `test` (Thymian generates
-  // the request) nor `static` (value not in the common projection).
   .type('analytics')
   .url('https://www.rfc-editor.org/rfc/rfc9110.html#name-user-agent')
   .description(
     'A sender MUST NOT generate advertising or other nonessential information within the product identifier.',
   )
-  // Request-side: HAR requests default to the `user-agent` role.
   .appliesTo('client', 'user-agent')
   .overrideAnalyticsRule((ctx) =>
     ctx.validateHttpTransactions(

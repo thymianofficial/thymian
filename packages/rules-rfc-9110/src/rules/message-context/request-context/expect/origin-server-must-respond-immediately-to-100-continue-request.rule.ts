@@ -4,11 +4,6 @@ export default httpRule(
   'rfc9110/origin-server-must-respond-immediately-to-100-continue-request',
 )
   .severity('hint')
-  // Informational (#327): a MUST about *immediacy* of the response to a
-  // 100-continue request. Both the satisfying behaviours (immediate final
-  // status OR immediate 100 Continue) are conformant, and the interim 100
-  // Continue + its timing are not represented in a captured request/response
-  // transaction. No detectable non-conformant case. No rule function.
   .type('informational')
   .url('https://www.rfc-editor.org/rfc/rfc9110.html#name-expect')
   .description(

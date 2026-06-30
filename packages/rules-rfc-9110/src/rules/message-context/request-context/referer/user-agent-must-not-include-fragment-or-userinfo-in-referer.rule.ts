@@ -9,17 +9,11 @@ export default httpRule(
   'rfc9110/user-agent-must-not-include-fragment-or-userinfo-in-referer',
 )
   .severity('error')
-  // Request-side, analytics-only (#327): requires the Referer *value* (only on
-  // recorded traffic via the live request model). Not `test` (Thymian generates
-  // the request) nor `static` (value not in the common projection).
-  // Security-relevant: leaking userinfo (credentials) or a fragment in Referer
-  // can expose secrets or sensitive in-page state to a third-party origin.
   .type('analytics')
   .url('https://www.rfc-editor.org/rfc/rfc9110.html#name-referer')
   .description(
     'A user agent MUST NOT include the fragment and userinfo components of the URI reference, if any, when generating the Referer field value.',
   )
-  // Request-side: HAR requests default to the `user-agent` role.
   .appliesTo('user-agent')
   .overrideAnalyticsRule((ctx) =>
     ctx.validateHttpTransactions(
