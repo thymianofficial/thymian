@@ -4,11 +4,6 @@ export default httpRule(
   'rfc9110/client-should-continue-sending-request-when-response-arrives',
 )
   .severity('warn')
-  // This is an internal user-agent behaviour (whether a client keeps sending a
-  // request body after an early response arrives). It is a SHOULD about the
-  // sender's own send-loop, leaves no distinguishing signal in captured
-  // request/response data, and the previous `analytics` typing shipped no rule
-  // function. Reclassified to informational.
   .type('informational')
   .url('https://www.rfc-editor.org/rfc/rfc9110.html#name-response-correlation')
   .description(

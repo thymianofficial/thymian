@@ -5,11 +5,6 @@ export default httpRule(
   'rfc9110/user-agent-must-generate-host-or-authority-header',
 )
   .severity('error')
-  // Request-side rule validated against recorded traffic only. It checks the
-  // presence of a request header NAME (Host or :authority), which is observable
-  // on captured requests from a real user agent. `test` is excluded because
-  // Thymian generates the request itself (it always emits authority info), and
-  // `lint` has no real sender.
   .type('analytics')
   .url('https://www.rfc-editor.org/rfc/rfc9110.html#name-host-and-authority')
   .description(

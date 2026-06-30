@@ -4,11 +4,6 @@ export default httpRule(
   'rfc9110/origin-server-must-reject-requests-not-meeting-scheme-requirements',
 )
   .severity('error')
-  // SECURITY-RELEVANT (rejecting misdirected requests): "scheme-specific
-  // requirements" are not enumerable from the HTTP message alone, and detecting
-  // a violation would require knowing both the scheme's requirements and that
-  // the server failed to reject — an oracle Thymian does not have. No observable
-  // signal in the transaction. Kept informational.
   .type('informational')
   .url(
     'https://www.rfc-editor.org/rfc/rfc9110.html#name-rejecting-misdirected-reque',

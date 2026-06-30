@@ -7,12 +7,6 @@ export default httpRule(
   'rfc9110/server-must-not-switch-to-non-indicated-protocol',
 )
   .severity('error')
-  // Response-side server-behaviour rule. Comparing the response's Upgrade
-  // protocol(s) against the request's requires header VALUES, so it uses
-  // validateHttpTransactions on a LiveApiContext. Meaningful in both test
-  // (Thymian observes the live response to a request it sent) and analyze
-  // (recorded traffic). Scoped to 'origin server' so it also fires on HAR
-  // responses.
   .type('test', 'analytics')
   .url('https://www.rfc-editor.org/rfc/rfc9110.html#name-upgrade')
   .description(

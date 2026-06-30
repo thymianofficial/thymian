@@ -4,10 +4,6 @@ export default httpRule(
   'rfc9110/server-must-send-100-before-101-with-expect-header',
 )
   .severity('error')
-  // Constrains the ordering of interim (1xx) responses: a 100 (Continue) must
-  // precede a 101 (Switching Protocols). Interim 1xx responses are not retained
-  // as distinct transactions by the test harness or in typical HAR captures, so
-  // the relative ordering of the two interim responses is not observable.
   .type('informational')
   .url('https://www.rfc-editor.org/rfc/rfc9110.html#name-upgrade')
   .description(

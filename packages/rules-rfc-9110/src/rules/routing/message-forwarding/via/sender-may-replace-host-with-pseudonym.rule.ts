@@ -2,13 +2,6 @@ import { httpRule } from '@thymian/core';
 
 export default httpRule('rfc9110/sender-may-replace-host-with-pseudonym')
   .severity('hint')
-  // Informational (outcome 2): replacing the received-by host with a pseudonym
-  // is an explicit permission (MAY) exercised only when the real host is
-  // considered sensitive. There is no non-conformant condition, and an observer
-  // cannot distinguish a pseudonym from a real host name in a Via value anyway.
-  // The previous implementation flagged every request that carried both a Host/
-  // :authority and a Via header as a finding, which is not the rule at all. It
-  // is reclassified to informational.
   .type('informational')
   .url('https://www.rfc-editor.org/rfc/rfc9110.html#name-via')
   .description(

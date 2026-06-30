@@ -38,13 +38,6 @@ export default httpRule(
   'rfc9110/sender-must-not-send-end-to-end-fields-as-connection-options',
 )
   .severity('error')
-  // Implementable from recorded traffic (outcome 1): the Connection header
-  // value enumerates the sender's connection options, and listing a known
-  // end-to-end field there is a directly observable violation. Connection is
-  // sent by either side, so the check reads VALUES on both the request and the
-  // response via the analyze LiveApiContext. It is request- AND response-side,
-  // so it is only meaningful on real recorded traffic (`analyze`), not in
-  // `test` (Thymian controls what it sends) or `lint` (no real sender).
   .type('analytics')
   .url('https://www.rfc-editor.org/rfc/rfc9110.html#name-connection')
   .description(

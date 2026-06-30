@@ -4,11 +4,6 @@ export default httpRule(
   'rfc9110/proxy-should-not-modify-endpoint-and-representation-headers',
 )
   .severity('warn')
-  // Detecting modification of endpoint/representation header fields requires
-  // comparing the inbound and forwarded messages at the proxy; a single
-  // captured message does not reveal whether a field was altered in transit.
-  // Infra-dependent, available only from proxy-recorded traffic. No rule
-  // function.
   .type('analytics')
   .url(
     'https://www.rfc-editor.org/rfc/rfc9110.html#name-message-transformations',

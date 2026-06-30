@@ -5,13 +5,6 @@ export default httpRule(
   'rfc9110/server-must-send-upgrade-header-in-101-response',
 )
   .severity('error')
-  // Response-side server-behaviour rule. Only the *presence* of the Upgrade
-  // header (a header name) is needed, so the same check is meaningful in all
-  // three contexts via the common projection: lint validates the described 101
-  // response, test validates the live response, analyze validates recorded
-  // responses. Scoped to 'origin server' so it also fires on HAR responses
-  // (whose default response role is 'origin server'); 'server' alone would not
-  // match the HAR default.
   .type('static', 'test', 'analytics')
   .url('https://www.rfc-editor.org/rfc/rfc9110.html#name-upgrade')
   .description(

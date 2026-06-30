@@ -4,10 +4,6 @@ export default httpRule(
   'rfc9110/recipient-should-use-case-insensitive-comparison-for-protocol-names',
 )
   .severity('warn')
-  // Governs an internal recipient algorithm: how a recipient compares received
-  // protocol names against its own supported set. That comparison is entirely
-  // internal to the recipient and leaves no observable trace in the request, the
-  // live response, or recorded traffic, so no context can validate conformance.
   .type('informational')
   .url('https://www.rfc-editor.org/rfc/rfc9110.html#name-upgrade')
   .description(

@@ -32,14 +32,6 @@ export default httpRule(
   'rfc9110/sender-must-list-connection-specific-field-in-connection-header',
 )
   .severity('error')
-  // Implementable from recorded traffic (outcome 1): when a known
-  // connection-control field (e.g. Keep-Alive, Proxy-Connection) is present on
-  // a message, the Connection header must list its name. Both the presence of
-  // the control field and the Connection option list are observable from the
-  // captured message. Connection-specific fields are sent by either side, so
-  // the check inspects both request and response. Only meaningful on real
-  // recorded traffic (`analyze`): in `test` Thymian controls what it sends, and
-  // in `lint` there is no real sender/connection.
   .type('analytics')
   .url('https://www.rfc-editor.org/rfc/rfc9110.html#name-connection')
   .description(

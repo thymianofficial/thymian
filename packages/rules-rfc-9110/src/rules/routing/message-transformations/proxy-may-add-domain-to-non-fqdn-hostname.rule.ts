@@ -2,9 +2,6 @@ import { httpRule } from '@thymian/core';
 
 export default httpRule('rfc9110/proxy-may-add-domain-to-non-fqdn-hostname')
   .severity('hint')
-  // Pure permission: a proxy MAY add its own domain to a non-FQDN host when
-  // forwarding. Both adding and not adding are conformant, so there is no
-  // non-conformant condition to validate.
   .type('informational')
   .url(
     'https://www.rfc-editor.org/rfc/rfc9110.html#name-message-transformations',

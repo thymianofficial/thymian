@@ -5,12 +5,6 @@ export default httpRule(
   'rfc9110/server-must-send-upgrade-header-in-426-response',
 )
   .severity('error')
-  // Response-side server-behaviour rule needing only the presence of the
-  // Upgrade header name, so a single shared check is meaningful across lint
-  // (described 426 response), test (live response) and analyze (recorded
-  // response) via the common projection. Scoped to 'origin server' as well as
-  // 'server' so it also fires on HAR responses (default response role
-  // 'origin server').
   .type('static', 'test', 'analytics')
   .url('https://www.rfc-editor.org/rfc/rfc9110.html#name-upgrade')
   .description(

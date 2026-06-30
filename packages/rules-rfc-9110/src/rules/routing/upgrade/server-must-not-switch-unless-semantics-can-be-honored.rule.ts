@@ -4,10 +4,6 @@ export default httpRule(
   'rfc9110/server-must-not-switch-unless-semantics-can-be-honored',
 )
   .severity('error')
-  // Conformance depends on whether the new protocol can honor the received
-  // message's semantics: a semantic-equivalence judgement about protocol
-  // capabilities that is not derivable from the HTTP message fields and has no
-  // observable failure signature in a single transaction.
   .type('informational')
   .url('https://www.rfc-editor.org/rfc/rfc9110.html#name-upgrade')
   .description(

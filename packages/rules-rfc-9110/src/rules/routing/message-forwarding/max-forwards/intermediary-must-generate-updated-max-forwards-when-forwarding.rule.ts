@@ -4,12 +4,6 @@ export default httpRule(
   'rfc9110/intermediary-must-generate-updated-max-forwards-when-forwarding',
 )
   .severity('error')
-  // OUTCOME 3 (infrastructure-deferred): confirming the forwarded Max-Forwards
-  // equals min(received-1, local max) requires correlating the inbound and
-  // forwarded request at the intermediary — infra-dependent, not derivable from
-  // a single transaction or typical HAR. The before/after linkage is only
-  // available from traffic recorded AT the intermediary, so this stays analytics
-  // with NO rule function.
   .type('analytics')
   .url('https://www.rfc-editor.org/rfc/rfc9110.html#name-max-forwards')
   .description(
