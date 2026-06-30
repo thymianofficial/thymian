@@ -2,13 +2,6 @@ import { httpRule } from '@thymian/core';
 
 export default httpRule('rfc9110/content-location-semantics-for-2xx-response')
   .severity('off')
-  // Informational (outcome 2): this describes what Content-Location MEANS in a
-  // 2xx response and grants the recipient a permission ("MAY consider the
-  // content to be a current representation ...") when its value matches the
-  // target URI. It states no obligation on the sender and no non-conformant
-  // condition to detect — sending, or not sending, Content-Location is both
-  // legal. Pure interpretive guidance, so it stays informational with no rule
-  // function.
   .type('informational')
   .appliesTo('origin server')
   .url('https://www.rfc-editor.org/rfc/rfc9110.html#section-8.7')

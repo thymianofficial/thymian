@@ -21,14 +21,6 @@ function parseContentEncoding(value: string | string[]): string[] {
 
 export default httpRule('rfc9110/content-encoding-should-not-include-identity')
   .severity('warn')
-  // Response-side check on the Content-Encoding field VALUE, so it needs the
-  // live/captured projection (the common projection exposes header names only).
-  // Typed `test` (Thymian observes the server response) and `analytics`
-  // (recorded responses). `appliesTo('origin server')` so the rule fires on
-  // HAR responses (default response role) as well as in test. The previous
-  // value-filter (responseHeader('content-encoding', 'identity')) only matched
-  // an exact field value of "identity" and missed lists such as
-  // "gzip, identity"; the field value is now parsed.
   .type('test', 'analytics')
   .appliesTo('origin server')
   .url('https://www.rfc-editor.org/rfc/rfc9110.html#section-8.4')

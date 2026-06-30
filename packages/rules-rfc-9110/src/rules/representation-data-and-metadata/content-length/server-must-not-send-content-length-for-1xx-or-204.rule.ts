@@ -11,11 +11,6 @@ export default httpRule(
   'rfc9110/server-must-not-send-content-length-for-1xx-or-204',
 )
   .severity('error')
-  // Implementable now (outcome 1): a forbidden-header-presence check needing
-  // only the Content-Length header NAME and the status code, so the common
-  // projection serves static/test/analyze via one shared `.rule()`.
-  // `appliesTo('origin server')` matches the default HAR response role so the
-  // analyze rule fires on recorded traffic.
   .type('static', 'test', 'analytics')
   .appliesTo('origin server')
   .url('https://www.rfc-editor.org/rfc/rfc9110.html#section-8.6')

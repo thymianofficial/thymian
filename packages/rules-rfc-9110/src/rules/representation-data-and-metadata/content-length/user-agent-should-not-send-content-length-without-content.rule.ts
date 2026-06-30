@@ -12,12 +12,6 @@ export default httpRule(
   'rfc9110/user-agent-should-not-send-content-length-without-content',
 )
   .severity('warn')
-  // Request-side rule (outcome 4 → analyze-only): it constrains what the USER
-  // AGENT sends, which Thymian controls during `test` (so the SHOULD NOT cannot
-  // be meaningfully exercised there) and which has no live sender at `lint`
-  // time. It is therefore validated only against recorded traffic, where the
-  // request comes from a real client. `appliesTo('user-agent','client')`
-  // matches the default HAR request role so the rule fires on HAR requests.
   .type('analytics')
   .appliesTo('user-agent', 'client')
   .url('https://www.rfc-editor.org/rfc/rfc9110.html#section-8.6')

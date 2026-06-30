@@ -12,13 +12,6 @@ import { httpRule, type RuleFnResult, singleTestCase } from '@thymian/core';
 
 export default httpRule('rfc9110/server-may-send-content-length-for-304')
   .severity('error')
-  // Implementable now (outcome 1): the MAY hides a MUST NOT — if a 304 carries
-  // Content-Length, its value MUST equal what a 200 to the same request would
-  // have sent. This is verifiable as live server behavior: replay the request
-  // as a conditional GET, obtain the 304, and compare its Content-Length to the
-  // baseline 200. That needs the test-only `httpTest` replay pipeline, hence
-  // `.type('test')` only (lint has no live response; analyze cannot synthesize
-  // the conditional replay).
   .type('test')
   .appliesTo('server')
   .url('https://www.rfc-editor.org/rfc/rfc9110.html#section-8.6')

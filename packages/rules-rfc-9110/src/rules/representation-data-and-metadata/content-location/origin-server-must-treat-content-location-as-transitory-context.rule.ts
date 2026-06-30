@@ -4,12 +4,6 @@ export default httpRule(
   'rfc9110/origin-server-must-treat-content-location-as-transitory-context',
 )
   .severity('error')
-  // Informational (outcome 2): this MUST constrains the origin server's
-  // INTERNAL handling of a Content-Location received in a request — it must not
-  // persist it as representation metadata nor let it alter request semantics.
-  // That is purely server-side processing state with no externally observable
-  // signature in the transaction, so it cannot be validated by lint/test/
-  // analyze and stays informational. (Confirmable only by code review.)
   .type('informational')
   .appliesTo('origin server')
   .url('https://www.rfc-editor.org/rfc/rfc9110.html#section-8.7')

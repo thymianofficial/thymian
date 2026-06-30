@@ -3,14 +3,6 @@ import { httpRule } from '@thymian/core';
 
 export default httpRule('rfc9110/origin-server-should-send-etag')
   .severity('warn')
-  // Implementable now (outcome 1): a response-side presence check needing only
-  // the ETag header NAME and status code, so the common projection serves
-  // static/test/analyze via one shared `.rule()`. `appliesTo('origin server')`
-  // matches the default HAR response role so the analyze rule fires on recorded
-  // traffic. The SHOULD is conditional ("for which detection of changes can be
-  // reasonably and consistently determined"); that condition is server-internal
-  // and unobservable, so this is intentionally a `warn`-level heuristic flagging
-  // missing ETags on successful responses.
   .type('static', 'test', 'analytics')
   .appliesTo('origin server')
   .url('https://www.rfc-editor.org/rfc/rfc9110.html#section-8.8.3.1')

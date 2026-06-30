@@ -12,11 +12,6 @@ export default httpRule(
   'rfc9110/origin-server-should-send-content-length-when-size-known',
 )
   .severity('warn')
-  // Implementable now (outcome 1): response-side presence check needing only
-  // header NAMES, status code, and body presence, so the common projection
-  // covers static/test/analyze with one shared `.rule()`. `appliesTo('origin
-  // server')` matches the default HAR response role so the analyze rule fires
-  // on recorded traffic.
   .type('static', 'test', 'analytics')
   .appliesTo('origin server')
   .url('https://www.rfc-editor.org/rfc/rfc9110.html#section-8.6')

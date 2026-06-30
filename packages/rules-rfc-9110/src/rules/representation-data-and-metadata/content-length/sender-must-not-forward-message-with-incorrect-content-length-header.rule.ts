@@ -4,15 +4,6 @@ export default httpRule(
   'rfc9110/sender-must-not-forward-message-with-incorrect-content-length-header',
 )
   .severity('error')
-  // Informational (outcome 2): this is the security-motivated form of the
-  // "MUST NOT forward an incorrect Content-Length" requirement (request
-  // smuggling / response splitting). Detecting it requires comparing the
-  // forwarded Content-Length against the actual received message framing at a
-  // forwarding intermediary — the true byte length and the upstream framing,
-  // neither of which the framework exposes. It is intermediary-forwarding
-  // behavior, not an observable property of a single transaction, so it stays
-  // informational. See `recipient-must-handle-large-content-length` for the
-  // observable ABNF/overflow checks that ARE implemented.
   .type('informational')
   .appliesTo('intermediary')
   .url('https://www.rfc-editor.org/rfc/rfc9110.html#section-8.6')

@@ -6,12 +6,6 @@ export default httpRule(
   'rfc9110/origin-server-should-avoid-backslash-in-entity-tags',
 )
   .severity('warn')
-  // Implementable now (outcome 1): a response-side check on the ETag field
-  // VALUE (does it contain a backslash), which needs the live/captured
-  // projection, so it is typed `test` + `analytics`. `appliesTo('origin
-  // server')` matches the default HAR response role so the analyze rule fires
-  // on recorded traffic. (Dropped the redundant bare 'server' role, which does
-  // not match HAR defaults.)
   .type('test', 'analytics')
   .appliesTo('origin server')
   .url('https://www.rfc-editor.org/rfc/rfc9110.html#section-8.8.3')

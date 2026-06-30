@@ -13,18 +13,6 @@ const MAX_REASONABLE_SIZE = BigInt(2) ** BigInt(40);
 
 export default httpRule('rfc9110/recipient-must-handle-large-content-length')
   .severity('warn')
-  // Implementable now (outcome 1): the underlying MUST targets the RECIPIENT's
-  // parser robustness, which is internal and not directly observable. What IS
-  // observable is the Content-Length VALUE(s) a sender put on the wire, so this
-  // rule surfaces (a) multiple/conflicting Content-Length values — whether as
-  // repeated header lines (a string[] from the HAR transformer) or a
-  // comma-separated list such as "42, 42" — which are a message-framing /
-  // request-smuggling hazard the recipient MUST reject, and (b) individual
-  // values that are non-numeric/unparseable or implausibly large (>1 TB), the
-  // inputs that drive the overflow/precision hazards the RFC warns about.
-  // Reading the field value requires the live/captured projection, so it is
-  // typed `test` + `analytics`. `appliesTo('origin server')` so the analyze
-  // rule fires on HAR responses (default response role).
   .type('test', 'analytics')
   .appliesTo('origin server')
   .url('https://www.rfc-editor.org/rfc/rfc9110.html#section-8.6')
