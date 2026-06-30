@@ -4,11 +4,6 @@ import { httpRule } from '@thymian/core';
 
 import { arrayDifference, createList } from '../../../../utils.js';
 
-// Response-side / server-behavior rule. It pairs a GET and a HEAD response for
-// the same URL and compares response header *names* (the common projection is
-// sufficient). The same grouped-common check serves all three contexts:
-// `static` over described responses, `test` over live GET/HEAD pairs, and
-// `analyze` over recorded pairs.
 export default httpRule(
   'rfc9110/server-should-send-same-header-fields-in-response-to-head',
 )
@@ -18,7 +13,6 @@ export default httpRule(
   .description(
     'The server SHOULD send the same header fields in response to a HEAD request as it would have sent if the request method had been GET.',
   )
-  // 'origin server' is included so the rule fires on HAR responses.
   .appliesTo('server', 'origin server')
   .rule((ctx) =>
     ctx.validateGroupedCommonHttpTransactions(

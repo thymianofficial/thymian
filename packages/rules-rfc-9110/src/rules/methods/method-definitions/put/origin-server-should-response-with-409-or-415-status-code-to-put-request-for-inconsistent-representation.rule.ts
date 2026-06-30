@@ -1,13 +1,5 @@
 import { httpRule } from '@thymian/core';
 
-// Informational (reclassified from static/analytics): the SHOULD is gated on a
-// server-internal condition ("when a PUT representation is inconsistent with
-// the target resource") that no message exposes, and even then 409/415 are
-// only *suggested* — the server may instead make the representation consistent
-// and succeed. The previous implementation flagged every PUT whose status was
-// not 409/415 as a violation, which fires on all successful PUTs and is
-// clearly wrong. With neither the triggering condition nor a definite required
-// status observable, the rule ships no function.
 export default httpRule(
   'rfc9110/origin-server-should-response-with-409-or-415-status-code-to-put-request-for-inconsistent-representation',
 )

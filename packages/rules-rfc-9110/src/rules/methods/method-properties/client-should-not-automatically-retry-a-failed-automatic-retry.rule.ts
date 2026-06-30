@@ -1,10 +1,5 @@
 import { httpRule } from '@thymian/core';
 
-// Informational: this constrains the client's internal retry policy across
-// multiple requests over time. There is no field in any single message marking
-// a request as "an automatic retry of a failed automatic retry", and our
-// captured-traffic model does not reconstruct a client's retry lineage, so the
-// SHOULD NOT is not observable. The rule ships no function.
 export default httpRule(
   'rfc9110/client-should-not-automatically-retry-a-failed-automatic-retry',
 )

@@ -1,9 +1,5 @@
 import { httpRule } from '@thymian/core';
 
-// Informational: "verifying" the PUT representation against the server's
-// configured constraints is an internal processing step. Its occurrence is not
-// signaled by any message, and the server's configured constraints are not
-// observable, so the SHOULD cannot be checked. The rule ships no function.
 export default httpRule(
   'rfc9110/origin-server-should-verify-constraints-for-target-resource-for-put-request',
 )

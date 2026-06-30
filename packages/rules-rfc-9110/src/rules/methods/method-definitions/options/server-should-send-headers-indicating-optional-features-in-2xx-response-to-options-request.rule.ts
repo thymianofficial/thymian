@@ -13,10 +13,6 @@ import { httpRule } from '@thymian/core';
 // successful OPTIONS response advertises at least Allow.
 const featureHeaders = ['allow'];
 
-// Response-side / server-behavior rule operating on response header names only,
-// so the common projection serves all three contexts: `static` over the
-// described OPTIONS 2xx response, `test` over the live response, and `analyze`
-// over recorded responses.
 export default httpRule(
   'rfc9110/server-should-send-headers-indicating-optional-features-in-2xx-response-to-options-request',
 )
@@ -26,7 +22,6 @@ export default httpRule(
   .description(
     'A server generating a successful response to OPTIONS SHOULD send any header that might indicate optional features implemented by the server and applicable to the target resource (e.g., Allow), including potential extensions not defined by this specification.',
   )
-  // 'origin server' is included so the rule fires on HAR responses.
   .appliesTo('server', 'origin server')
   .rule((ctx) =>
     ctx.validateCommonHttpTransactions(

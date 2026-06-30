@@ -9,12 +9,6 @@ import { httpRule } from '@thymian/core';
 
 const expectedStatusCodes = [200, 202, 204];
 
-// Response-side / server-behavior rule: it checks the status code the origin
-// server returns for a successfully applied DELETE. Only the status code is
-// needed, so the common projection serves all three declared contexts:
-// `static` validates the success status declared in the OpenAPI description,
-// `test` validates the live response, and `analyze` validates recorded
-// responses (default HAR response role 'origin server' matches appliesTo).
 export default httpRule(
   'rfc9110/origin-server-should-send-correct-successful-status-code-to-delete-request',
 )

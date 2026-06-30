@@ -19,11 +19,6 @@ const sensitiveHeaders = [
   'x-api-key',
 ];
 
-// Request-side rule: it constrains what the *client* sends in a TRACE request.
-// It is therefore `analyze` only — in `test` Thymian is the sender, so the
-// presence of these fields is not under user control. `static` is not used
-// because TRACE requests carrying credentials are rarely modeled in an OpenAPI
-// description (this is about real client behavior, not the declared shape).
 export default httpRule(
   'rfc9110/client-must-not-generate-fields-containing-sensitive-data-in-trace-request',
 )
@@ -33,7 +28,6 @@ export default httpRule(
   .description(
     'A client MUST NOT generate fields in a TRACE request containing sensitive data that might be disclosed by the response.',
   )
-  // Request-side roles so the rule matches HAR requests (default 'user-agent').
   .appliesTo('client', 'user-agent')
   .rule((ctx) =>
     ctx.validateCommonHttpTransactions(

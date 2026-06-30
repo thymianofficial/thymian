@@ -7,11 +7,6 @@ import {
 } from '@thymian/core';
 import { httpRule } from '@thymian/core';
 
-// Response-side / server-behavior rule operating on a response header name
-// (Location) only, so the common projection serves all three contexts:
-// `static` over the described 201 response, `test` over the live response, and
-// `analyze` over recorded responses (HAR response role 'origin server' matches
-// appliesTo).
 export default httpRule(
   'rfc9110/origin-server-should-send-location-header-for-201-response',
 )

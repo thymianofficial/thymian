@@ -9,11 +9,6 @@ import { httpRule } from '@thymian/core';
 
 const allowedSuccessStatusCodes = [200, 201, 204];
 
-// Response-side / server-behavior rule on the status code only, so the common
-// projection serves all three contexts: `static` over the described PUT
-// success responses, `test` over the live response, and `analyze` over
-// recorded responses. A successful PUT must complete with 200, 201 or 204; any
-// other 2xx is a violation.
 export default httpRule(
   'rfc9110/origin-server-must-respond-with-correct-response-code-for-put-request',
 )
