@@ -2,9 +2,6 @@ import { httpRule } from '@thymian/core';
 
 export default httpRule('rfc9110/proxy-must-forward-1xx-responses')
   .severity('error')
-  // Interim 1xx responses are not represented as discrete transactions in
-  // captured traffic (HAR records the final response), so a proxy's forwarding
-  // of them cannot be observed. Informational.
   .type('informational')
   .url('https://www.rfc-editor.org/rfc/rfc9110.html#name-informational-1xx')
   .description(

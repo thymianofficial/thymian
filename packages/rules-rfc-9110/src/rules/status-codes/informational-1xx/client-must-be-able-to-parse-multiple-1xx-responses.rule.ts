@@ -4,8 +4,6 @@ export default httpRule(
   'rfc9110/client-must-be-able-to-parse-multiple-1xx-responses',
 )
   .severity('error')
-  // Internal client parsing capability for interim 1xx responses; not
-  // observable from recorded final-response traffic. Informational.
   .type('informational')
   .url('https://datatracker.ietf.org/doc/html/rfc9110#name-informational-1xx')
   .description(

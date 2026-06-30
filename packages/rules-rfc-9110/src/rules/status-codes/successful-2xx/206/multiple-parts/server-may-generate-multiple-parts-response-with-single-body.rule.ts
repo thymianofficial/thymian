@@ -4,7 +4,6 @@ export default httpRule(
   'rfc9110/server-may-generate-multiple-parts-response-with-single-body',
 )
   .severity('hint')
-  // Permissive MAY; no non-conformant condition to observe. Informational.
   .type('informational')
   .url('https://datatracker.ietf.org/doc/html/rfc9110#name-multiple-parts')
   .description(

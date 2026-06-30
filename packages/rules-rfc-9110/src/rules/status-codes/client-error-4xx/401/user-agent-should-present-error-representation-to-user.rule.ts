@@ -4,9 +4,6 @@ export default httpRule(
   'rfc9110/user-agent-should-present-error-representation-to-user',
 )
   .severity('warn')
-  // Internal user-agent presentation behavior (whether to show the error
-  // representation to the user). Not observable from request/response traffic.
-  // Informational.
   .type('informational')
   .url('https://www.rfc-editor.org/rfc/rfc9110.html#name-401-unauthorized')
   .description(

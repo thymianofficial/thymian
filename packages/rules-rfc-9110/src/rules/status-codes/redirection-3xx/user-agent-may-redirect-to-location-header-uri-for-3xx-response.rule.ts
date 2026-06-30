@@ -4,8 +4,6 @@ export default httpRule(
   'rfc9110/user-agent-may-redirect-to-location-header-uri-for-3xx-response',
 )
   .severity('hint')
-  // Permissive MAY describing internal user-agent redirect behavior; no
-  // non-conformant condition to observe. Informational.
   .type('informational')
   .url('https://www.rfc-editor.org/rfc/rfc9110.html#name-redirection-3xx')
   .appliesTo('user-agent')

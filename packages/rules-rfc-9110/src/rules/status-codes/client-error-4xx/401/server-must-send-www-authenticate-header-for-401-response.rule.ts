@@ -38,9 +38,6 @@ export default httpRule(
   .description(
     'The server generating a 401 response MUST send a WWW-Authenticate header field containing at least one challenge applicable to the target resource.',
   )
-  // Response-side server-behavior check. Include 'origin server' so the
-  // analyze context fires on HAR (HAR response role defaults to 'origin
-  // server'; a bare 'server' role would match neither HAR default).
   .appliesTo('server', 'origin server')
   .rule((ctx) =>
     ctx.validateCommonHttpTransactions(
