@@ -18,17 +18,6 @@ export default httpRule(
   'rfc9110/server-must-ignore-range-header-for-unrecognized-method',
 )
   .severity('error')
-  // Implementable (outcome 1): observable from a single transaction using only
-  // the common projection (header NAMES + status code), so the check is
-  // identical in `lint` (validates the described response shapes) and `analyze`
-  // (validates recorded traffic). The violation is server-side evidence that a
-  // non-GET request's Range was NOT ignored: a 206 (Partial Content) status or
-  // a Content-Range response header on a method other than GET. Merely
-  // receiving a Range/If-Range request header on a non-GET is conformant
-  // (the server is allowed — indeed required — to ignore it), so those are not
-  // flagged. The `static,analytics` union resolves to the base ApiContext,
-  // which exposes only validateCommonHttpTransactions. Header name matched
-  // case-insensitively.
   .type('static', 'analytics')
   .url('https://www.rfc-editor.org/rfc/rfc9110.html#name-range')
   .description(

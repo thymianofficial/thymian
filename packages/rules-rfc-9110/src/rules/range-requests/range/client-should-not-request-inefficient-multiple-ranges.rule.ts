@@ -61,11 +61,6 @@ export default httpRule(
   'rfc9110/client-should-not-request-inefficient-multiple-ranges',
 )
   .severity('warn')
-  // Implementable (outcome 1): a request-side ("client SHOULD NOT") rule, valid
-  // only in `analyze` — during `test` Thymian generates the request, so the
-  // client's range-splitting choice is not under user control. It reads the
-  // Range request header VALUES on the AnalyzeContext's validateHttpTransactions.
-  // appliesTo includes 'user-agent' so it matches HAR-imported requests.
   .type('analytics')
   .url('https://www.rfc-editor.org/rfc/rfc9110.html#name-range')
   .description(

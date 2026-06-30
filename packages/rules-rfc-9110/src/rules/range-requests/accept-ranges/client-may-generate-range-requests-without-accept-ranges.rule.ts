@@ -4,13 +4,6 @@ export default httpRule(
   'rfc9110/client-may-generate-range-requests-without-accept-ranges',
 )
   .severity('hint')
-  // Informational (outcome 2): a pure "MAY" permission granted to the client.
-  // A client generating (or not generating) a range request without having
-  // seen Accept-Ranges is always conformant, so there is no non-conformant
-  // condition to observe. The previous filter-only rule flagged every GET that
-  // did not carry a Range header as a violation, which is meaningless — it
-  // reports ordinary requests as failures and has nothing to do with the
-  // permission this clause grants.
   .type('informational')
   .url('https://www.rfc-editor.org/rfc/rfc9110.html#name-accept-ranges')
   .description(

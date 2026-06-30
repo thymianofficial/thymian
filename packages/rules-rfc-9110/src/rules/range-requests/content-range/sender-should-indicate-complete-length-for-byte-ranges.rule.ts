@@ -6,13 +6,6 @@ export default httpRule(
   'rfc9110/sender-should-indicate-complete-length-for-byte-ranges',
 )
   .severity('warn')
-  // Implementable (outcome 1): a response-side, server-behavior check on the
-  // 206 Content-Range the server sends. Thymian is the sender during `test`
-  // and the response is observed, so the check is meaningful in both `test`
-  // and `analyze`. Read on `LiveApiContext` via getHeader so header VALUES are
-  // available. `*` is the sanctioned marker for an unknown complete-length and
-  // is treated as conformant; only a byte-range Content-Range that omits the
-  // complete-length form entirely is flagged.
   .type('analytics', 'test')
   .url('https://www.rfc-editor.org/rfc/rfc9110.html#name-content-range')
   .description(

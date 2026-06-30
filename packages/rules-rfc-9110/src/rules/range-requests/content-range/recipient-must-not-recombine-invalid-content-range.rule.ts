@@ -11,13 +11,6 @@ export default httpRule(
   'rfc9110/recipient-must-not-recombine-invalid-content-range',
 )
   .severity('error')
-  // Implementable (outcome 1): the recipient's recombination decision is
-  // internal and unobservable, but the *precondition* it guards against — a
-  // sender emitting a Content-Range whose range-resp is structurally invalid
-  // (last-pos < first-pos, or complete-length <= last-pos) — is fully visible
-  // on the response. Flagging that invalid Content-Range is the actionable,
-  // observable signal: any recipient receiving it is required to refuse
-  // recombination, so the response itself is the conformance hazard.
   .type('analytics')
   .url('https://www.rfc-editor.org/rfc/rfc9110.html#name-content-range')
   .description(

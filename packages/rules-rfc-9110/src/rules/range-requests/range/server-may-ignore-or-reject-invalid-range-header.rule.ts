@@ -4,14 +4,6 @@ export default httpRule(
   'rfc9110/server-may-ignore-or-reject-invalid-range-header',
 )
   .severity('hint')
-  // Informational (outcome 2): a "MAY" permission (with a security rationale —
-  // invalid/overlapping/unordered ranges can signal a broken client or a DoS
-  // attempt). Because it only *permits* the server to ignore or reject such
-  // requests, every server response is conformant, so there is no
-  // non-conformant condition to detect. The companion request-side rules
-  // (client-should-list-multiple-ranges-in-ascending-order,
-  // client-should-not-request-inefficient-multiple-ranges) already surface the
-  // suspicious client behavior this permission responds to.
   .type('informational')
   .url('https://www.rfc-editor.org/rfc/rfc9110.html#name-range')
   .description(
