@@ -4,11 +4,6 @@ export default httpRule(
   'rfc9110/recipient-may-combine-field-lines-with-same-name',
 )
   .severity('off')
-  // Informational: a permissive MAY describing an internal recipient choice
-  // (combine same-name field lines into one comma-separated value). There is
-  // no non-conformant condition to detect, and the choice has no observable
-  // effect Thymian can lint, test, or analyze. Recorded for documentation
-  // only.
   .type('informational')
   .url('https://www.rfc-editor.org/rfc/rfc9110.html#section-5.3')
   .description(

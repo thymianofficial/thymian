@@ -4,15 +4,6 @@ export default httpRule(
   'rfc9110/sender-must-not-generate-multiple-field-lines-unless-allowed',
 )
   .severity('error')
-  // Informational: detecting this MUST has two blockers. (1) Observability:
-  // HTTP libraries parse repeated same-name field lines into a single combined
-  // value (or array), so the fact that a sender emitted multiple lines is not
-  // reliably preserved in the parsed messages Thymian sees, nor in HAR. (2)
-  // Even if duplicates were visible, the rule only forbids them when the
-  // field's definition does NOT allow a comma-separated #(list) recombination
-  // — deciding that requires a per-field grammar registry the framework does
-  // not provide. Honestly deferred to informational. Recorded for
-  // documentation only.
   .type('informational')
   .url('https://www.rfc-editor.org/rfc/rfc9110.html#section-5.3')
   .description(

@@ -37,13 +37,6 @@ export default httpRule(
   'rfc9110/sender-must-not-generate-additional-whitespace-in-http-date',
 )
   .severity('error')
-  // Sender-side rule observed on the response side: the origin server is the
-  // sender of these response timestamps. During `test` only the server's
-  // response is observable (Thymian sends the request); during `analyze` the
-  // response is present in recorded traffic. Lint is excluded because the
-  // OpenAPI description does not pin concrete timestamp values. The check needs
-  // header VALUES, so it uses validateHttpTransactions + getHeader rather than
-  // the names-only common projection.
   .type('test', 'analytics')
   .url('https://www.rfc-editor.org/rfc/rfc9110.html#section-5.6.7')
   .description(

@@ -71,14 +71,6 @@ export default httpRule(
   'rfc9110/sender-must-generate-timestamps-in-imf-fixdate-format',
 )
   .severity('error')
-  // Sender-side rule made observable on the response side: the origin server is
-  // the sender of these response timestamps. During `test` Thymian sends the
-  // request, so only the server's response timestamps can be observed; during
-  // `analyze` the same response timestamps are present in recorded traffic.
-  // (Lint is excluded: the OpenAPI description does not pin concrete timestamp
-  // values, so there is nothing to validate at design time.) The check reads
-  // header VALUES, so it uses validateHttpTransactions + getHeader rather than
-  // the common projection (which exposes header names only).
   .type('test', 'analytics')
   .url('https://www.rfc-editor.org/rfc/rfc9110.html#section-5.6.7')
   .description(
