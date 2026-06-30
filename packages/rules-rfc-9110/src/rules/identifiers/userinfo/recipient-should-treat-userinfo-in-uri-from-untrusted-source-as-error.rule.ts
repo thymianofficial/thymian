@@ -4,14 +4,6 @@ export default httpRule(
   'rfc9110/recipient-should-treat-userinfo-in-uri-from-untrusted-source-as-error',
 )
   .severity('warn')
-  // Response-/recipient-side rule (outcome 1, already implemented). The
-  // observable non-conformance is a recipient that accepted (did not reject with
-  // a 4xx) a target URI carrying userinfo. This is server/recipient behavior, so
-  // it is not meaningful in `test` (Thymian does not generate userinfo URIs) nor
-  // in `lint`; it stays `analytics`. appliesTo includes `origin server` so the
-  // analyze role filter matches HAR responses; `server` is kept for non-HAR
-  // captures. Security-relevant: userinfo in a URI is a phishing/authority-
-  // obfuscation vector (see PR security section).
   .type('analytics')
   .url(
     'https://www.rfc-editor.org/rfc/rfc9110.html#name-deprecation-of-userinfo-in-http',
