@@ -19,10 +19,6 @@ export default httpRule(
   .summary(
     'Servers that fail a request with a 415 status for reasons unrelated to content codings MUST NOT include the Accept-Encoding header field.',
   )
-  // Includes 'origin server' so the analyze path matches recorded traffic:
-  // HAR import tags responses with the 'origin server' role, and this rule
-  // validates a response the server emits, so role-filtering on 'server' alone
-  // would never select default-imported HAR transactions.
   .appliesTo('server', 'origin server')
   .rule((ctx) =>
     ctx.validateCommonHttpTransactions(

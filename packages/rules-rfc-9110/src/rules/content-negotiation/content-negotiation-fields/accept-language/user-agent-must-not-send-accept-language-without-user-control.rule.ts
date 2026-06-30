@@ -4,13 +4,6 @@ export default httpRule(
   'rfc9110/user-agent-must-not-send-accept-language-without-user-control',
 )
   .severity('hint')
-  // Informational: the precondition that triggers this MUST NOT — that the user
-  // agent "does not provide user control" over linguistic preference — is
-  // internal user-agent state. It cannot be derived from the API description, a
-  // live response, or recorded traffic: observing an Accept-Language header
-  // says nothing about whether the agent exposes user control over it.
-  // Genuinely unobservable, so it is informational rather than a declared-but-
-  // empty `analytics` rule.
   .type('informational')
   .url('https://www.rfc-editor.org/rfc/rfc9110.html#name-accept-language')
   .description(
