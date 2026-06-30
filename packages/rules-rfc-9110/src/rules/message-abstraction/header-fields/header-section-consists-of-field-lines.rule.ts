@@ -1,8 +1,5 @@
 import { httpRule } from '@thymian/core';
 
-// Informational (outcome 2): a structural/terminology definition of the
-// "header section". It states no requirement on any message, so there is
-// nothing to validate.
 export default httpRule('rfc9110/header-section-consists-of-field-lines')
   .severity('hint')
   .type('informational')

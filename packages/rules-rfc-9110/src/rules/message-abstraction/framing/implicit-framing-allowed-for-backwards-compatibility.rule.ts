@@ -1,9 +1,5 @@
 import { httpRule } from '@thymian/core';
 
-// Informational (outcome 2): a permissive, definitional statement about
-// connection-closure (implicit) framing. Framing is a transport/connection
-// concern below the abstraction the rule framework observes, and the statement
-// imposes no testable requirement.
 export default httpRule(
   'rfc9110/implicit-framing-allowed-for-backwards-compatibility',
 )

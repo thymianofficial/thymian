@@ -1,9 +1,5 @@
 import { httpRule } from '@thymian/core';
 
-// Informational (outcome 2): permissive "MAY" describing internal recipient
-// behavior (replacing an invalid Date value with the reception time). It is a
-// local processing choice with no non-conformant condition observable in the
-// transaction, so there is nothing to validate.
 export default httpRule('rfc9110/recipient-may-replace-invalid-date')
   .severity('hint')
   .type('informational')

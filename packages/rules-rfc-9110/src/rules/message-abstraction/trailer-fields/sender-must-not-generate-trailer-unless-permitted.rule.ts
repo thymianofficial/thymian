@@ -18,14 +18,6 @@ const FORBIDDEN_TRAILER_FIELDS = new Set([
   'www-authenticate',
 ]);
 
-// Implemented (outcome 1): a response-side MUST NOT that needs only the trailer
-// field *names* (does a forbidden field appear in the trailers?). The single
-// `analytics` type infers AnalyzeContext; `validateCommonHttpTransactions`
-// exposes `res.trailers` as the trailer-name list (Object.keys of the trailer
-// section), which is exactly what this check requires. Names are compared
-// case-insensitively. Scoped to the response sender via
-// `appliesTo('server','origin server')` so it fires on HAR responses, whose
-// role defaults to `origin server`.
 export default httpRule(
   'rfc9110/sender-must-not-generate-trailer-unless-permitted',
 )
