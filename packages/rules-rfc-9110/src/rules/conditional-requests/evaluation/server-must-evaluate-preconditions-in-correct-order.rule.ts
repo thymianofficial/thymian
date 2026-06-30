@@ -1,15 +1,5 @@
 import { httpRule } from '@thymian/core';
 
-/**
- * Informational (outcome 2). This MUST fixes the *internal order* in which a
- * recipient evaluates multiple simultaneously-present preconditions. The
- * ordering is not directly observable: only the final status is on the wire,
- * and for most input combinations several orderings yield the same status. The
- * externally-checkable consequences of the ordering (a recipient must ignore
- * If-Modified-Since when If-None-Match is present, and ignore If-Unmodified-
- * Since when If-Match is present) are captured by their own dedicated rules.
- * The ordering rule itself remains documentation only.
- */
 export default httpRule(
   'rfc9110/server-must-evaluate-preconditions-in-correct-order',
 )

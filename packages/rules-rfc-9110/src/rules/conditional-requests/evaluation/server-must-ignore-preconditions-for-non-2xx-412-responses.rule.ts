@@ -1,21 +1,5 @@
 import { httpRule } from '@thymian/core';
 
-/**
- * Informational (outcome 2). This MUST is defined in terms of a counterfactual:
- * the server must ignore preconditions when its response *to the same request
- * without those conditions* would have been something other than 2xx or 412.
- * Conformance therefore cannot be decided from a single observed transaction —
- * a 3xx/4xx/5xx response to a conditional request is exactly the conforming
- * outcome the rule describes (the redirect/error took precedence and the
- * precondition was correctly ignored), not a violation. The previous
- * implementation flagged every conditional request that received a non-2xx/412
- * status, which inverts the rule and fires on entirely conforming traffic
- * (redirects, 404s, auth failures). Deciding a violation would require
- * re-issuing the request without the conditional headers and comparing — which
- * the framework's read-only static/analyze contexts cannot do, and which the
- * `test` context cannot meaningfully attempt because the precedence outcome is
- * resource- and state-dependent. Reclassified to informational.
- */
 export default httpRule(
   'rfc9110/server-must-ignore-preconditions-for-non-2xx-412-responses',
 )

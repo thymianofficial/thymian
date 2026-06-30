@@ -1,18 +1,5 @@
 import { httpRule } from '@thymian/core';
 
-/**
- * Informational (outcome 2). This is a permissive MAY: when an If-Match
- * condition fails on a state-changing request that appears to have already been
- * applied, the origin server *may* answer 2xx instead of 412. Both 2xx and 412
- * are conformant, so there is no non-conformant outcome to detect. Worse, a 2xx
- * for an already-applied change is indistinguishable from a normal success
- * without knowing the resource's prior state, which the framework does not
- * have. The previous implementation flagged 4xx responses to state-changing
- * If-Match requests, but a 4xx (e.g. 412) is the primary conformant behavior —
- * exactly the opposite of a violation. Reclassified to informational. The hard
- * MUST NOT (do not perform the method when the condition is false) is enforced
- * by `origin-server-must-not-perform-method-when-if-match-fails`.
- */
 export default httpRule(
   'rfc9110/origin-server-may-respond-with-2xx-response-even-condition-failed',
 )

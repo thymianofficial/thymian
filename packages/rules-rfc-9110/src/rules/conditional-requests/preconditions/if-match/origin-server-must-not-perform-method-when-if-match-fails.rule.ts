@@ -1,15 +1,6 @@
 import { constant, requestHeader, statusCodeRange } from '@thymian/core';
 import { httpRule, singleTestCase } from '@thymian/core';
 
-/**
- * Implemented as a `test` rule (outcome 1). This is a genuine, observable
- * server-behavior MUST NOT: when If-Match fails the origin server must not
- * perform the method. Thymian actively forces a failing precondition (an
- * If-Match value that cannot match any current ETag) on a transaction that
- * already exercises If-Match, then asserts the server declined the method with
- * a 4xx (typically 412). This is a sender-driven probe, which only the `test`
- * context can perform, so it is intentionally test-only.
- */
 export default httpRule(
   'rfc9110/origin-server-must-not-perform-method-when-if-match-fails',
 )

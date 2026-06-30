@@ -1,11 +1,5 @@
 import { httpRule } from '@thymian/core';
 
-/**
- * Informational (outcome 2). The trigger condition — "the resource does not
- * have a modification date available" — is internal server state not exposed on
- * the wire, so the framework cannot decide whether ignoring If-Unmodified-Since
- * was required. No observable non-conformant signal exists. Documentation only.
- */
 export default httpRule(
   'rfc9110/recipient-must-ignore-if-unmodified-since-header-if-no-date-available',
 )

@@ -1,13 +1,5 @@
 import { httpRule } from '@thymian/core';
 
-/**
- * Informational (outcome 2). Permissive MAY: a cache or intermediary is allowed
- * to ignore If-Unmodified-Since. Both honoring and ignoring it are conformant,
- * so there is no non-conformant outcome to detect. The previous implementation
- * called `validateHttpTransactions(requestHeader('if-unmodified-since'))` with
- * no validation function, which flags *every* request carrying the header as a
- * violation — incorrect for a MAY. Reclassified to informational.
- */
 export default httpRule(
   'rfc9110/cache-or-intermediary-may-ignore-if-unmodified-since',
 )
