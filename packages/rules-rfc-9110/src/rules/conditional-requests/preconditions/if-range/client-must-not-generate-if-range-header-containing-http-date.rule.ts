@@ -1,5 +1,19 @@
 import { httpRule } from '@thymian/core';
 
+/**
+ * Informational (outcome 2). The MUST NOT is conditional: a client may generate
+ * an If-Range HTTP-date *when it has no entity tag for the representation and
+ * the date is a strong validator*. Whether the client holds an entity tag is
+ * private client state, and "the date is a strong validator" depends on the
+ * origin server's Date/Last-Modified relationship at the time the validator was
+ * obtained — neither is recoverable from the request on the wire. The previous
+ * implementation flagged *every* If-Range carrying an HTTP-date, which
+ * mis-flags exactly the permitted exception case. Because the conformant and
+ * non-conformant cases are indistinguishable from observable data, this is
+ * documentation only. (The unconditionally-forbidden sub-case — a *weak* entity
+ * tag in If-Range — is detected by
+ * `client-must-not-generate-if-range-with-weak-etag`.)
+ */
 export default httpRule(
   'rfc9110/client-must-not-generate-if-range-header-containing-http-date',
 )

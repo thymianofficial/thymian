@@ -9,6 +9,22 @@ import {
 } from '@thymian/core';
 import { httpRule, singleTestCase } from '@thymian/core';
 
+/**
+ * Response-side, observable rule (outcome 1). A server must ignore If-Range when
+ * the request carries no Range header; returning a 206 Partial Content in that
+ * situation reveals the If-Range was (incorrectly) acted upon. The static and
+ * analyze slots use the common projection (header NAMES + status: If-Range
+ * present, Range absent, status 206), which is sufficient and identical across
+ * those contexts. `appliesTo` includes `origin server` so the rule fires on HAR
+ * responses.
+ *
+ * The `test` slot is an active probe: it takes a transaction that already
+ * exercises both If-Range and Range, removes the Range header, replays, and
+ * asserts the server did not answer 206 (it must have ignored the now-orphaned
+ * If-Range). The previous `overrideTest` performed the same replay but made no
+ * assertion (`.run().done()` only), so it could never surface a violation; an
+ * `expectForTransactions(not(206))` assertion has been added.
+ */
 export default httpRule('rfc9110/server-must-ignore-if-range-without-range')
   .severity('error')
   .type('static', 'test', 'analytics')

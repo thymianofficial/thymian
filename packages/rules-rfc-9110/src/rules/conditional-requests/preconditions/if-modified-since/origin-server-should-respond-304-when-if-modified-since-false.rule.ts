@@ -9,6 +9,18 @@ import {
 import { httpRule, requestHeader, type RuleFnResult } from '@thymian/core';
 import { singleTestCase } from '@thymian/core';
 
+/**
+ * Implemented as a `test` rule (outcome 1). The previous `static`/`analytics`
+ * slot used a filter-only check that flagged every If-Modified-Since request
+ * not answered with 304 — but a 200 is the *conformant* response whenever the
+ * representation actually changed, so that check produced false positives on
+ * normal traffic and could not tell whether the condition was true or false.
+ * Deciding the condition requires controlling the request's If-Modified-Since
+ * value relative to the resource's Last-Modified, which only the sender-driven
+ * `test` context can do. We replay a fresh GET/HEAD with If-Modified-Since set
+ * to the resource's own Last-Modified (so the condition evaluates to false /
+ * "not modified") and assert the server answers 304. Reclassified to test-only.
+ */
 export default httpRule(
   'rfc9110/origin-server-should-respond-304-when-if-modified-since-false',
 )

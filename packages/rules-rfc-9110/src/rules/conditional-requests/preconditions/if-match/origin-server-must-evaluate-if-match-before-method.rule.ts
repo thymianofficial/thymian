@@ -1,5 +1,13 @@
 import { httpRule } from '@thymian/core';
 
+/**
+ * Informational (outcome 2). This MUST governs internal evaluation timing — the
+ * If-Match condition must be checked before the method is performed. The
+ * ordering is not observable on the wire; the externally visible consequence
+ * (the method must not be performed when the condition fails) is enforced by
+ * `origin-server-must-not-perform-method-when-if-match-fails`. Documentation
+ * only.
+ */
 export default httpRule(
   'rfc9110/origin-server-must-evaluate-if-match-before-method',
 )

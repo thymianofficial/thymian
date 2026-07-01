@@ -1,5 +1,17 @@
 import { httpRule } from '@thymian/core';
 
+/**
+ * Informational (outcome 2). Permissive MAY: when an If-Unmodified-Since
+ * condition fails on a state-changing request that appears already applied, the
+ * origin server *may* answer 2xx instead of 412. Both are conformant, and a 2xx
+ * for an already-applied change is indistinguishable from a normal success
+ * without knowledge of prior resource state, which the framework lacks. The
+ * previous implementation flagged 4xx responses to state-changing
+ * If-Unmodified-Since requests, but a 4xx (e.g. 412) is the primary conformant
+ * behavior — the opposite of a violation. Reclassified to informational. The
+ * hard MUST NOT (do not perform the method when the condition fails) is enforced
+ * by `origin-server-must-not-perform-method-when-if-unmodified-since-fails`.
+ */
 export default httpRule(
   'rfc9110/origin-server-may-respond-with-2xx-response-even-condition-failed-for-unmodified-since',
 )

@@ -1,5 +1,19 @@
 import { httpRule } from '@thymian/core';
 
+/**
+ * Informational (outcome 2). Permissive MAY: when an If-Unmodified-Since
+ * condition fails the origin server *may* respond 412, but it may instead
+ * respond 2xx (when the state-changing operation appears already applied).
+ * Because 412 is permitted but not required, neither a 412 nor a non-412
+ * response is by itself a violation. The previous static rule flagged every
+ * If-Unmodified-Since request not answered with 412, and the `overrideTest`
+ * forced a stale If-Unmodified-Since and *required* a 412 — both treat a MAY as
+ * a MUST and would mis-flag conformant servers that legitimately answer 2xx.
+ * The genuine, enforceable obligation — the server MUST NOT perform the method
+ * when the condition fails — is tested by
+ * `origin-server-must-not-perform-method-when-if-unmodified-since-fails`.
+ * Reclassified to informational.
+ */
 export default httpRule(
   'rfc9110/origin-server-may-respond-with-412-response-to-unmodified-since',
 )

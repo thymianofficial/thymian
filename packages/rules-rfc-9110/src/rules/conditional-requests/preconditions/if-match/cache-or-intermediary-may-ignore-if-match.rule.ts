@@ -1,5 +1,13 @@
 import { httpRule } from '@thymian/core';
 
+/**
+ * Informational (outcome 2). This is a permissive MAY: a cache or intermediary
+ * is allowed to ignore If-Match. There is no non-conformant outcome to detect —
+ * both honoring and ignoring the header are conformant. The previous
+ * implementation called `validateHttpTransactions(requestHeader('if-match'))`
+ * with no validation function, which flags *every* request carrying If-Match as
+ * a violation; that is incorrect for a MAY. Reclassified to informational.
+ */
 export default httpRule('rfc9110/cache-or-intermediary-may-ignore-if-match')
   .severity('hint')
   .type('informational')

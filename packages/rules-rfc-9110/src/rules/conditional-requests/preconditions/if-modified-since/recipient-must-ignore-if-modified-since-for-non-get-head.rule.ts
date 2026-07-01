@@ -10,6 +10,16 @@ import {
 } from '@thymian/core';
 import { httpRule } from '@thymian/core';
 
+/**
+ * Response-side, observable rule (outcome 1). A recipient must ignore
+ * If-Modified-Since on a method other than GET or HEAD. A 304 Not Modified
+ * answer to such a request reveals that the recipient evaluated (honored) the
+ * header instead of ignoring it — a non-conformant outcome detectable from
+ * method + header NAME + status, so the common projection suffices and the
+ * check is identical for lint (described transaction) and analyze. `appliesTo`
+ * includes `origin server` so the rule fires on HAR responses (the HAR default
+ * response role).
+ */
 export default httpRule(
   'rfc9110/recipient-must-ignore-if-modified-since-for-non-get-head',
 )
