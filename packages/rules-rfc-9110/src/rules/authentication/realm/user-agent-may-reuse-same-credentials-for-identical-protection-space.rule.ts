@@ -4,6 +4,18 @@ export default httpRule(
   'rfc9110/user-agent-may-reuse-same-credentials-for-identical-protection-space',
 )
   .severity('hint')
+  // Informational (outcome 2): a permissive MAY describing user-agent-internal
+  // state — once a request is authorized, the user agent is allowed (but not
+  // required) to reuse the same credentials for other requests in the same
+  // protection space, for a duration of its own choosing. Both reusing and not
+  // reusing are conformant, the duration is implementation-defined, and the
+  // protection space is user-agent-internal, so there is no observable
+  // non-conformant condition to validate.
+  //
+  // This file previously lacked the `.rule.ts` suffix required by the rule-set
+  // glob (`rules/**/*.rule.js`), so it was never loaded; its rule name also did
+  // not match the file. It has been renamed to `.rule.ts` and the rule name
+  // aligned to the filename so the (informational) rule is honestly registered.
   .type('informational')
   .url(
     'https://www.rfc-editor.org/rfc/rfc9110.html#name-establishing-a-protection-s',

@@ -12,6 +12,15 @@ import { responseAuthenticationHeaders } from '../utils/authentication-header-na
 
 export default httpRule('rfc9110/realm-parameter-must-use-quoted-string-syntax')
   .severity('error')
+  // Implementable (outcome 1): the `realm` auth-param is a *challenge*
+  // parameter — it appears only in the server-generated WWW-Authenticate /
+  // Proxy-Authenticate response headers, never in request credentials
+  // (Authorization carries no `realm`). It is therefore a server-behavior
+  // check: meaningful in `test` (validate the live response Thymian receives)
+  // and in `analyze` (recorded traffic). The earlier implementation also
+  // scanned request auth headers, which was dead code for this rule; that scan
+  // has been dropped so the rule is scoped to the response challenges it
+  // actually governs.
   .type('test', 'analytics')
   .url(
     'https://www.rfc-editor.org/rfc/rfc9110.html#name-establishing-a-protection-s',
@@ -22,6 +31,8 @@ export default httpRule('rfc9110/realm-parameter-must-use-quoted-string-syntax')
   .summary(
     'A sender MUST only generate the quoted-string syntax for realm parameter values.',
   )
+  // Challenges are emitted by the origin server (401) or a proxy (407); include
+  // 'origin server' so response-side analyze fires on HAR.
   .appliesTo('origin server', 'proxy')
   .rule((ctx) =>
     ctx.validateHttpTransactions(
