@@ -2,10 +2,15 @@ import {
   and,
   type CommonHttpRequest,
   type CommonHttpResponse,
+  getHeader,
+  type HttpRequest,
+  type HttpResponse,
   method,
   or,
   requestHeader,
-  statusCodeRange,
+  type RuleFnResult,
+  type RuleViolationLocation,
+  statusCode,
 } from '@thymian/core';
 import { httpRule } from '@thymian/core';
 
@@ -26,14 +31,108 @@ const negotiationRequestHeaders = [
   'accept-charset',
 ];
 
+/**
+ * Status codes that are at least heuristically cacheable per RFC 9111
+ * Section 4.2.2, so a stored response could later be reused.
+ */
+const cacheableStatusCodes = [
+  200, 203, 204, 206, 300, 301, 308, 404, 405, 410, 414, 501,
+];
+
+/**
+ * The transactions this rule targets: a safe, cacheable method returning a
+ * (heuristically) cacheable status code for a request that expressed
+ * proactive-negotiation preferences, so the response was likely tailored to
+ * them.
+ */
+const negotiatedCacheableResponse = and(
+  or(method('GET'), method('HEAD')),
+  or(...cacheableStatusCodes.map((code) => statusCode(code))),
+  or(...negotiationRequestHeaders.map((header) => requestHeader(header))),
+);
+
 function hasHeader(headers: string[], name: string): boolean {
   return headers.some((header) => header.toLowerCase() === name);
 }
 
+/** Negotiation headers present in a common (design-time) request projection. */
 function presentNegotiationHeaders(req: CommonHttpRequest): string[] {
   return negotiationRequestHeaders.filter((header) =>
     hasHeader(req.headers, header),
   );
+}
+
+function headerToString(
+  value: string | string[] | undefined,
+): string | undefined {
+  if (value === undefined) {
+    return undefined;
+  }
+  return Array.isArray(value) ? value.join(',') : value;
+}
+
+/** The field-names listed in a `Vary` value, lower-cased. */
+function parseVary(value: string): string[] {
+  return value
+    .split(',')
+    .map((field) => field.trim().toLowerCase())
+    .filter((field) => field.length > 0);
+}
+
+/**
+ * Value-based check shared by the test and analytics contexts, where the real
+ * request/response headers (with values) are available. Beyond presence, it
+ * verifies that a `Vary` header actually covers a negotiation dimension that
+ * the request exercised — a `Vary` listing none of the negotiated headers
+ * leaves that dimension unprotected against cache reuse.
+ */
+function validateVaryValue(
+  req: HttpRequest,
+  res: HttpResponse,
+  location: RuleViolationLocation,
+): RuleFnResult[] {
+  const presentHeaders = negotiationRequestHeaders.filter(
+    (header) => getHeader(req.headers, header) !== undefined,
+  );
+
+  const varyValue = headerToString(getHeader(res.headers, 'vary'));
+
+  if (!varyValue || !varyValue.trim()) {
+    return [
+      {
+        location,
+        violation: {
+          message: `A cacheable ${req.method} response was returned for a request carrying proactive-negotiation header field(s) ${createList(
+            presentHeaders,
+          )} but does not include a Vary header field. The origin server SHOULD generate a Vary header so shared caches do not reuse this representation for requests expressing different preferences (a cache-poisoning hazard).`,
+        },
+        findings: [],
+      },
+    ];
+  }
+
+  const varyFields = parseVary(varyValue);
+
+  // `Vary: *` varies on everything, so every negotiated dimension is covered.
+  if (varyFields.includes('*')) {
+    return [];
+  }
+
+  if (presentHeaders.some((header) => varyFields.includes(header))) {
+    return [];
+  }
+
+  return [
+    {
+      location,
+      violation: {
+        message: `A cacheable ${req.method} response carries a Vary header (${varyValue.trim()}) that lists none of the proactive-negotiation header field(s) ${createList(
+          presentHeaders,
+        )} exercised by the request. The origin server SHOULD list the negotiated field(s) in Vary so shared caches do not reuse this representation for requests expressing different preferences (a cache-poisoning hazard).`,
+      },
+      findings: [],
+    },
+  ];
 }
 
 export default httpRule('rfc9110/origin-server-should-generate-vary-header')
@@ -47,36 +146,46 @@ export default httpRule('rfc9110/origin-server-should-generate-vary-header')
     'An origin server SHOULD generate a Vary header field on a cacheable response when it wishes that response to be selectively reused for subsequent requests.',
   )
   .appliesTo('origin server')
-  .rule((ctx) =>
+  // Static context sees only header names (no values), so it can only check
+  // that a `Vary` header is present when a negotiation request header is.
+  .overrideStaticRule((ctx) =>
     ctx.validateCommonHttpTransactions(
-      and(
-        // Only safe, cacheable methods can yield a stored, reusable response.
-        or(method('GET'), method('HEAD')),
-        // A 2xx response is the cacheable, negotiable case this rule targets.
-        statusCodeRange(200, 299),
-        // The request expressed proactive-negotiation preferences, so the
-        // response was likely tailored to them.
-        or(...negotiationRequestHeaders.map((header) => requestHeader(header))),
-      ),
-      (req: CommonHttpRequest, res: CommonHttpResponse, location) => {
+      negotiatedCacheableResponse,
+      (
+        req: CommonHttpRequest,
+        res: CommonHttpResponse,
+        location: RuleViolationLocation,
+      ) => {
         if (hasHeader(res.headers, 'vary')) {
           return [];
         }
-
-        const negotiationHeaders = presentNegotiationHeaders(req);
 
         return [
           {
             location,
             violation: {
               message: `A cacheable ${req.method} response was returned for a request carrying proactive-negotiation header field(s) ${createList(
-                negotiationHeaders,
+                presentNegotiationHeaders(req),
               )} but does not include a Vary header field. The origin server SHOULD generate a Vary header so shared caches do not reuse this representation for requests expressing different preferences (a cache-poisoning hazard).`,
             },
             findings: [],
           },
         ];
       },
+    ),
+  )
+  // Test and analytics have the actual header values, so they additionally
+  // check that the `Vary` value covers a negotiated dimension.
+  .overrideTest((ctx) =>
+    ctx.validateHttpTransactions(
+      negotiatedCacheableResponse,
+      validateVaryValue,
+    ),
+  )
+  .overrideAnalyticsRule((ctx) =>
+    ctx.validateHttpTransactions(
+      negotiatedCacheableResponse,
+      validateVaryValue,
     ),
   )
   .done();

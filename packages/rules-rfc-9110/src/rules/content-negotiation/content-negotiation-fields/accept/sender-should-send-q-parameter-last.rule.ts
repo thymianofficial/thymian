@@ -20,7 +20,6 @@ export default httpRule('rfc9110/sender-should-send-q-parameter-last')
   .summary(
     'Senders using weights SHOULD send "q" last (after all media-range parameters).',
   )
-  .appliesTo('client', 'user-agent')
   .rule((ctx) =>
     ctx.validateHttpTransactions(
       requestHeader('accept'),

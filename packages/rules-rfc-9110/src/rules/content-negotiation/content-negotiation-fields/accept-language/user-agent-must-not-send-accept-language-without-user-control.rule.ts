@@ -3,7 +3,7 @@ import { httpRule } from '@thymian/core';
 export default httpRule(
   'rfc9110/user-agent-must-not-send-accept-language-without-user-control',
 )
-  .severity('hint')
+  .severity('error')
   .type('informational')
   .url('https://www.rfc-editor.org/rfc/rfc9110.html#name-accept-language')
   .description(
