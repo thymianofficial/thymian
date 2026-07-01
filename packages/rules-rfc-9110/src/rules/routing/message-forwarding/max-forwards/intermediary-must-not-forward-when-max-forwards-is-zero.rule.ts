@@ -4,6 +4,10 @@ export default httpRule(
   'rfc9110/intermediary-must-not-forward-when-max-forwards-is-zero',
 )
   .severity('error')
+  // Infra-deferred: detecting that an intermediary forwarded despite a received
+  // Max-Forwards of zero requires observing an inbound request with value 0 AND a
+  // corresponding forwarded request at the same hop. That per-hop correlation is only
+  // recoverable from captured multi-hop traces where the intermediary role is recorded.
   .type('analytics')
   .url('https://www.rfc-editor.org/rfc/rfc9110.html#name-max-forwards')
   .description(

@@ -4,6 +4,7 @@ export default httpRule(
   'rfc9110/server-may-send-upgrade-header-in-other-responses',
 )
   .severity('hint')
+  // Informational: permissive MAY — sending Upgrade in non-101/426 responses is optional advertising, so its presence or absence is never a violation.
   .type('informational')
   .url('https://www.rfc-editor.org/rfc/rfc9110.html#name-upgrade')
   .description(

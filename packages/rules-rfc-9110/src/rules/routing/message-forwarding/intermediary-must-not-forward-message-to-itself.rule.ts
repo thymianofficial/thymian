@@ -4,6 +4,10 @@ export default httpRule(
   'rfc9110/intermediary-must-not-forward-message-to-itself',
 )
   .severity('error')
+  // Infra-deferred: detecting an intermediary forwarding a message to itself requires
+  // recognizing the same node as both sender and next-hop recipient across a forwarding
+  // chain. That per-hop identity correlation is only recoverable from captured multi-hop
+  // traces at a deployment where the intermediary role and its addresses are recorded.
   .type('analytics')
   .url('https://www.rfc-editor.org/rfc/rfc9110.html#name-message-forwarding')
   .description(

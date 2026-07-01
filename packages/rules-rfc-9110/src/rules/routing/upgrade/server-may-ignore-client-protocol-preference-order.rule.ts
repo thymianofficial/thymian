@@ -4,6 +4,7 @@ export default httpRule(
   'rfc9110/server-may-ignore-client-protocol-preference-order',
 )
   .severity('hint')
+  // Informational: permissive MAY — honoring the client protocol preference order is optional, so any observed order is compliant and nothing can be flagged.
   .type('informational')
   .url('https://www.rfc-editor.org/rfc/rfc9110.html#name-upgrade')
   .description(

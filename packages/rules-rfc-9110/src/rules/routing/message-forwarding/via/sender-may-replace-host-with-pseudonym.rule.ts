@@ -2,6 +2,7 @@ import { httpRule } from '@thymian/core';
 
 export default httpRule('rfc9110/sender-may-replace-host-with-pseudonym')
   .severity('hint')
+  // Informational: permissive MAY — replacing a Via host with a pseudonym is optional, and a pseudonym is indistinguishable from a real host name, so nothing can be validated.
   .type('informational')
   .url('https://www.rfc-editor.org/rfc/rfc9110.html#name-via')
   .description(

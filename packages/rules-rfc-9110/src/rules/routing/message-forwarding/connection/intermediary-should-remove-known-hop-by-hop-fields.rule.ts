@@ -4,6 +4,10 @@ export default httpRule(
   'rfc9110/intermediary-should-remove-known-hop-by-hop-fields',
 )
   .severity('warn')
+  // Infra-deferred: verifying hop-by-hop fields (Keep-Alive, TE, Upgrade, etc.) were
+  // stripped requires comparing the field set the intermediary RECEIVED against what it
+  // FORWARDED. That inbound-vs-forwarded correlation is only recoverable from captured
+  // multi-hop traces at a deployment where the intermediary role is recorded.
   .type('analytics')
   .url('https://www.rfc-editor.org/rfc/rfc9110.html#name-connection')
   .description(

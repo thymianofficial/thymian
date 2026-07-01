@@ -4,6 +4,7 @@ export default httpRule(
   'rfc9110/recipient-may-ignore-max-forwards-for-other-methods',
 )
   .severity('hint')
+  // Informational: permissive MAY — ignoring Max-Forwards for methods other than TRACE/OPTIONS is allowed, so either behavior is compliant and nothing can be flagged.
   .type('informational')
   .url('https://www.rfc-editor.org/rfc/rfc9110.html#name-max-forwards')
   .description(

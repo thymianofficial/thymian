@@ -4,6 +4,7 @@ export default httpRule(
   'rfc9110/proxy-may-transform-content-without-no-transform-directive',
 )
   .severity('hint')
+  // Informational: permissive MAY — a proxy transforming content when no-transform is absent is allowed, so any transformation observed is compliant and nothing can be flagged.
   .type('informational')
   .url(
     'https://www.rfc-editor.org/rfc/rfc9110.html#name-message-transformations',

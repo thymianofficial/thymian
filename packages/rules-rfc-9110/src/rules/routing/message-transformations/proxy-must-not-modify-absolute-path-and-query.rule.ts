@@ -2,6 +2,10 @@ import { httpRule } from '@thymian/core';
 
 export default httpRule('rfc9110/proxy-must-not-modify-absolute-path-and-query')
   .severity('error')
+  // Infra-deferred: detecting a modified absolute-path/query requires comparing the
+  // target URI the proxy RECEIVED against the one it FORWARDED to the next inbound
+  // server. That inbound-vs-forwarded correlation is only recoverable from captured
+  // multi-hop traces at a deployment where the proxy role is recorded.
   .type('analytics')
   .url(
     'https://www.rfc-editor.org/rfc/rfc9110.html#name-message-transformations',

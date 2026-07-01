@@ -4,6 +4,7 @@ export default httpRule(
   'rfc9110/intermediary-may-combine-via-entries-with-identical-protocols',
 )
   .severity('hint')
+  // Informational: permissive MAY — combining Via entries with identical protocols is optional, so either form is compliant and nothing can be flagged.
   .type('informational')
   .url('https://www.rfc-editor.org/rfc/rfc9110.html#name-via')
   .description(

@@ -4,6 +4,7 @@ export default httpRule(
   'rfc9110/recipient-may-remove-comments-before-forwarding',
 )
   .severity('hint')
+  // Informational: permissive MAY — stripping Via comments before forwarding is optional; verifying it would also need the inbound-vs-forwarded pair, which is unavailable here.
   .type('informational')
   .url('https://www.rfc-editor.org/rfc/rfc9110.html#name-via')
   .description(

@@ -4,6 +4,7 @@ export default httpRule(
   'rfc9110/sender-should-not-combine-via-entries-unless-same-organization',
 )
   .severity('warn')
+  // Informational: whether combined Via entries belong to the same organization is deployment/administrative knowledge not present in the message.
   .type('informational')
   .url('https://www.rfc-editor.org/rfc/rfc9110.html#name-via')
   .description(

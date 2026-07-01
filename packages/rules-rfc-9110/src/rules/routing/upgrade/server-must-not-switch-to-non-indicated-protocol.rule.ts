@@ -1,5 +1,6 @@
 import { getHeader, requestHeader } from '@thymian/core';
 import { httpRule } from '@thymian/core';
+import type { HttpResponse, RuleViolationLocation } from '@thymian/core';
 
 import { createList } from '../../../utils.js';
 
@@ -7,17 +8,22 @@ export default httpRule(
   'rfc9110/server-must-not-switch-to-non-indicated-protocol',
 )
   .severity('error')
-  .type('test', 'analytics')
+  // Request<->response correlation on the Upgrade header: the check compares the
+  // protocols the CLIENT indicated in its request Upgrade header against those the
+  // server echoes in the response. In 'test' the request is Thymian-generated and
+  // carries no client Upgrade header, so the filter is inert there. Only recorded
+  // real-client traffic ('analytics') carries both sides, so this runs analytics-only.
+  .type('analytics')
   .url('https://www.rfc-editor.org/rfc/rfc9110.html#name-upgrade')
   .description(
     "A server MUST NOT switch to a protocol that was not indicated by the client in the corresponding request's Upgrade header field. The server can only switch to protocols explicitly requested by the client.",
   )
   .summary('Server MUST NOT switch to protocol not indicated by client.')
   .appliesTo('server', 'origin server')
-  .rule((ctx) =>
+  .overrideAnalyticsRule((ctx) =>
     ctx.validateHttpTransactions(
       requestHeader('upgrade'),
-      (req, res, location) => {
+      (req, res: HttpResponse, location: RuleViolationLocation) => {
         const reqUpgradeHeader = getHeader(req.headers, 'upgrade');
         const resUpgradeHeader = getHeader(res.headers, 'upgrade');
 

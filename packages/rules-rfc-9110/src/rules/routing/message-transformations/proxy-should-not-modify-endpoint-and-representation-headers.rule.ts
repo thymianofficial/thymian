@@ -4,6 +4,10 @@ export default httpRule(
   'rfc9110/proxy-should-not-modify-endpoint-and-representation-headers',
 )
   .severity('warn')
+  // Infra-deferred: detecting a proxy that altered endpoint/representation headers
+  // requires comparing the header values the proxy RECEIVED against those it FORWARDED.
+  // That inbound-vs-forwarded correlation is only recoverable from captured multi-hop
+  // traces at a deployment where the proxy role is recorded.
   .type('analytics')
   .url(
     'https://www.rfc-editor.org/rfc/rfc9110.html#name-message-transformations',
