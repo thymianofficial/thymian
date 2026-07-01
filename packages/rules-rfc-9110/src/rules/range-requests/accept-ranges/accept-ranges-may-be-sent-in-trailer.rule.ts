@@ -2,6 +2,9 @@ import { httpRule } from '@thymian/core';
 
 export default httpRule('rfc9110/accept-ranges-may-be-sent-in-trailer')
   .severity('hint')
+  // Informational (outcome 2): a permissive "MAY" with a non-binding preference.
+  // Sending Accept-Ranges in a trailer, as a header, or not at all are all
+  // conformant, so there is no non-conformant condition to detect.
   .type('informational')
   .url('https://www.rfc-editor.org/rfc/rfc9110.html#name-accept-ranges')
   .description(

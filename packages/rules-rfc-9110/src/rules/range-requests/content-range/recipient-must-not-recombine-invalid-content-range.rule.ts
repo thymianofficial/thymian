@@ -11,7 +11,13 @@ export default httpRule(
   'rfc9110/recipient-must-not-recombine-invalid-content-range',
 )
   .severity('error')
-  .type('analytics')
+  // Implementable (outcome 1): the recipient's recombination decision is
+  // internal, but the precondition it guards — a sender emitting a structurally
+  // invalid Content-Range (last-pos < first-pos, or complete-length <= last-pos)
+  // — is fully visible on the response VALUE. Response-side, so it is meaningful
+  // in both `test` (Thymian observes the response) and `analyze`; read the VALUE
+  // via getHeader on the real-data (LiveApiContext) validateHttpTransactions.
+  .type('analytics', 'test')
   .url('https://www.rfc-editor.org/rfc/rfc9110.html#name-content-range')
   .description(
     'A Content-Range field value is invalid if it contains a range-resp that has a last-pos value less than its first-pos value, or a complete-length value less than or equal to its last-pos value. The recipient of an invalid Content-Range MUST NOT attempt to recombine the received content with a stored representation.',

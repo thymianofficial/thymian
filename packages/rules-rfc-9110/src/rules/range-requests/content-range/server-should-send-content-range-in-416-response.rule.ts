@@ -1,19 +1,68 @@
 import {
   and,
-  type CommonHttpResponse,
+  getHeader,
+  type HttpResponse,
   requestHeader,
+  type RuleViolationLocation,
   statusCode,
 } from '@thymian/core';
 import { httpRule } from '@thymian/core';
 
-function hasHeader(headers: string[], name: string): boolean {
-  return headers.some((header) => header.toLowerCase() === name);
+// The 416 unsatisfied-range form is "bytes */complete-length" (or "bytes */*"
+// when the length is unknown). Presence of the Content-Range NAME alone is not
+// enough — the clause requires this specific value shape, which the common
+// projection cannot see. Match case-insensitively.
+const UNSATISFIED_RANGE = /^bytes\s+\*\/(\d+|\*)$/i;
+
+function evaluate(res: HttpResponse, location: RuleViolationLocation) {
+  const contentRange = getHeader(res.headers, 'content-range');
+  const values = Array.isArray(contentRange)
+    ? contentRange
+    : contentRange != null
+      ? [contentRange]
+      : [];
+
+  if (values.length === 0) {
+    return [
+      {
+        location,
+        violation: {
+          message:
+            'A 416 (Range Not Satisfiable) response to a request carrying a Range header omits the Content-Range header field. The server SHOULD send Content-Range with an unsatisfied-range value ("bytes */complete-length") so the client learns the current representation length.',
+        },
+        findings: [],
+      },
+    ];
+  }
+
+  if (values.some((value) => UNSATISFIED_RANGE.test(value.trim()))) {
+    return [];
+  }
+
+  return [
+    {
+      location,
+      violation: {
+        message: `A 416 (Range Not Satisfiable) response carries a Content-Range ("${values
+          .map((value) => value.trim())
+          .join(
+            ', ',
+          )}") that is not in the unsatisfied-range form. A 416 SHOULD send Content-Range as "bytes */complete-length" (or "bytes */*" when the length is unknown) so the client learns the current representation length.`,
+      },
+      findings: [],
+    },
+  ];
 }
 
 export default httpRule(
   'rfc9110/server-should-send-content-range-in-416-response',
 )
   .severity('warn')
+  // Implementable (outcome 1): a response-side, server-behavior check. The 416
+  // Content-Range VALUE must carry the unsatisfied-range form (bytes */len), so
+  // the common projection (header NAMES only) is insufficient — read the VALUE
+  // via getHeader on the real-data context. Meaningful in both `test` (Thymian
+  // observes the response) and `analyze`.
   .type('analytics', 'test')
   .url('https://www.rfc-editor.org/rfc/rfc9110.html#name-content-range')
   .description(
@@ -23,25 +72,16 @@ export default httpRule(
     'Server should send Content-Range with unsatisfied-range in 416 responses.',
   )
   .appliesTo('server', 'origin server')
-  .rule((ctx) =>
-    ctx.validateCommonHttpTransactions(
+  .overrideTest((ctx) =>
+    ctx.validateHttpTransactions(
       and(statusCode(416), requestHeader('range')),
-      (_req, res: CommonHttpResponse, location) => {
-        if (hasHeader(res.headers, 'content-range')) {
-          return [];
-        }
-
-        return [
-          {
-            location,
-            violation: {
-              message:
-                'A 416 (Range Not Satisfiable) response to a request carrying a Range header omits the Content-Range header field. The server SHOULD send Content-Range with an unsatisfied-range value (complete-length) so the client learns the current representation length.',
-            },
-            findings: [],
-          },
-        ];
-      },
+      (_req, res, location) => evaluate(res, location),
+    ),
+  )
+  .overrideAnalyticsRule((ctx) =>
+    ctx.validateHttpTransactions(
+      and(statusCode(416), requestHeader('range')),
+      (_req, res, location) => evaluate(res, location),
     ),
   )
   .done();

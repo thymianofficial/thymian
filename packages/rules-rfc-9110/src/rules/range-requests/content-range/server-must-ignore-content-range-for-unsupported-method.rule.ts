@@ -4,6 +4,10 @@ export default httpRule(
   'rfc9110/server-must-ignore-content-range-for-unsupported-method',
 )
   .severity('error')
+  // Informational (outcome 2): the server must *ignore* a Content-Range received
+  // in a REQUEST whose method has no defined Content-Range support. "Ignoring" is
+  // internal (the request is processed as if the field were absent) and produces
+  // no distinguishing wire signal, so there is no observable non-conformance.
   .type('informational')
   .url('https://www.rfc-editor.org/rfc/rfc9110.html#name-content-range')
   .description(

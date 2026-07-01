@@ -4,6 +4,11 @@ export default httpRule(
   'rfc9110/server-should-send-416-response-for-unsatisfiable-range',
 )
   .severity('warn')
+  // Informational (outcome 2): the SHOULD is gated on server-internal
+  // preconditions (Range supported, valid specifier, unsupported unit OR the
+  // range unsatisfiable against the selected representation). "Unsatisfiable" /
+  // "unsupported unit" cannot be determined from spec or traffic without knowing
+  // the representation length and supported units. Symmetric to the 206 rule.
   .type('informational')
   .url('https://www.rfc-editor.org/rfc/rfc9110.html#name-range')
   .description(

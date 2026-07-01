@@ -4,6 +4,11 @@ export default httpRule(
   'rfc9110/server-should-send-206-response-for-satisfiable-range',
 )
   .severity('warn')
+  // Informational (outcome 2): the SHOULD applies only once server-internal
+  // preconditions all hold (Range supported for the resource, valid specifier
+  // with a supported unit, and satisfiable against the selected representation) —
+  // none observable. 200 (Range ignored), 416, and 304 are all conformant, so
+  // flagging "not 206" is false-positive-ridden.
   .type('informational')
   .url('https://www.rfc-editor.org/rfc/rfc9110.html#name-range')
   .description(
