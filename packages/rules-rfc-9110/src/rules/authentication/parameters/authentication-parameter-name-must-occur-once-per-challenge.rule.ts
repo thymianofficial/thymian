@@ -34,7 +34,7 @@ function scanForDuplicateParameterNames(
             {
               location,
               violation: {
-                message: `The authentication parameter "${param.name}" occurs more than once in a single challenge of "${headerValue}". Each authentication parameter name MUST only occur once per challenge.`,
+                message: `The authentication parameter "${param.name}" occurs more than once in a single challenge. Each authentication parameter name MUST only occur once per challenge.`,
               },
               findings: [],
             },
@@ -72,9 +72,6 @@ export default httpRule(
   .summary(
     'Each authentication parameter name MUST only occur once per challenge (matched case-insensitively).',
   )
-  // Fire on HAR for both directions: response challenges (origin server /
-  // proxy) and request credentials (client / user-agent).
-  .appliesTo('origin server', 'proxy', 'client', 'user-agent')
   // In `test` only the RESPONSE side is observable: the request is
   // Thymian-generated and always well-formed, so a request-side scan is inert.
   .overrideTest((ctx) =>

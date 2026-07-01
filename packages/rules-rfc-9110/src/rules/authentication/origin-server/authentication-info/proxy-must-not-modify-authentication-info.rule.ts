@@ -2,8 +2,8 @@ import { getHeader, httpRule, type RuleFnResult } from '@thymian/core';
 
 export default httpRule('rfc9110/proxy-must-not-modify-authentication-info')
   .severity('error')
-  // Infrastructure-deferred (outcome 3): this MUST NOT governs a *proxy hop* —
-  // a proxy must forward the Authentication-Info response field byte-for-byte.
+  // Analytics (implemented): this MUST NOT governs a *proxy hop* — a proxy
+  // must forward the Authentication-Info response field byte-for-byte.
   // Detecting a violation requires correlating the response a proxy received
   // with the response it forwarded (the inbound and outbound sides of the same
   // hop). That two-sided, per-hop linkage is only available from traffic
@@ -41,9 +41,10 @@ export default httpRule('rfc9110/proxy-must-not-modify-authentication-info')
           'authentication-info',
         );
 
-        // A proxy that never received an Authentication-Info field cannot have
-        // modified one; only compare when it is present on the inbound side.
-        if (received === undefined) {
+        // Nothing to compare only when neither hop carried the field. Present
+        // on exactly one side means the proxy added or removed it — itself a
+        // modification this MUST NOT forbids.
+        if (forwarded === undefined && received === undefined) {
           continue;
         }
 

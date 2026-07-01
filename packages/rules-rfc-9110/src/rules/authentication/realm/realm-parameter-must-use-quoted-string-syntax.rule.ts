@@ -31,9 +31,6 @@ export default httpRule('rfc9110/realm-parameter-must-use-quoted-string-syntax')
   .summary(
     'A sender MUST only generate the quoted-string syntax for realm parameter values.',
   )
-  // Challenges are emitted by the origin server (401) or a proxy (407); include
-  // 'origin server' so response-side analyze fires on HAR.
-  .appliesTo('origin server', 'proxy')
   .rule((ctx) =>
     ctx.validateHttpTransactions(
       or(...responseAuthenticationHeaders.map((h) => responseHeader(h))),
@@ -52,7 +49,7 @@ export default httpRule('rfc9110/realm-parameter-must-use-quoted-string-syntax')
                   {
                     location,
                     violation: {
-                      message: `The realm parameter in "${headerValue}" uses token syntax (realm=${param.value}). For historical reasons a sender MUST only generate the quoted-string syntax for realm parameter values (realm="${param.value}").`,
+                      message: `The realm parameter uses token syntax (realm=${param.value}) but for historical reasons a sender MUST only generate the quoted-string syntax for realm parameter values (realm="${param.value}").`,
                     },
                     findings: [],
                   },

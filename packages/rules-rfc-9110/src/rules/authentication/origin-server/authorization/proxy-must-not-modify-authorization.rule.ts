@@ -2,8 +2,8 @@ import { getHeader, httpRule, type RuleFnResult } from '@thymian/core';
 
 export default httpRule('rfc9110/proxy-must-not-modify-authorization')
   .severity('error')
-  // Infrastructure-deferred (outcome 3): this MUST NOT governs a *proxy hop* —
-  // a proxy forwarding a request must not alter its Authorization header field.
+  // Analytics (implemented): this MUST NOT governs a *proxy hop* — a proxy
+  // forwarding a request must not alter its Authorization header field.
   // Detecting a violation requires correlating the request a proxy received
   // with the request it forwarded (the inbound and outbound sides of the same
   // hop). That two-sided, per-hop linkage is only available from traffic
@@ -34,9 +34,10 @@ export default httpRule('rfc9110/proxy-must-not-modify-authorization')
         const forwarded = getHeader(prev.request.data.headers, 'authorization');
         const received = getHeader(curr.request.data.headers, 'authorization');
 
-        // A proxy that never received an Authorization field cannot have
-        // modified one; only compare when it is present on the inbound side.
-        if (received === undefined) {
+        // Nothing to compare only when neither hop carried the field. Present
+        // on exactly one side means the proxy added or removed it — itself a
+        // modification this MUST NOT forbids.
+        if (forwarded === undefined && received === undefined) {
           continue;
         }
 
