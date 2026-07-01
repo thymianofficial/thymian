@@ -1,5 +1,4 @@
 import {
-  and,
   getHeader,
   httpRule,
   responseHeader,
@@ -61,8 +60,13 @@ export default httpRule(
       return tokens.sort().join(',');
     };
 
+    // Consider every response carrying a (strong) ETag — NOT only those with a
+    // Content-Encoding. The canonical violation is an unencoded representation
+    // ("identity") sharing a strong ETag with an encoded one, so restricting to
+    // responses that have Content-Encoding would miss it. Responses without a
+    // Content-Encoding are treated as the unencoded ("identity") variant below.
     return ctx.validateCapturedHttpTransactions(
-      and(responseHeader('etag'), responseHeader('content-encoding')),
+      responseHeader('etag'),
       (transaction, location): RuleFnResult[] => {
         const etagRaw = firstValue(
           getHeader(transaction.response.data.headers, 'etag'),
