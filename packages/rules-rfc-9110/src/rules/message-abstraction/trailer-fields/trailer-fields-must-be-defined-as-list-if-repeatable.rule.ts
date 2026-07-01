@@ -1,5 +1,10 @@
 import { httpRule } from '@thymian/core';
 
+// Informational (outcome 2): this MUST is a constraint on how a *field is
+// defined* in its specification (repeatable trailer fields MUST be defined as
+// list-based), not on the content of any individual message. There is no
+// per-transaction observation — and no OpenAPI modeling of trailer-field
+// definitions — that the rule framework can use to detect a violation.
 export default httpRule(
   'rfc9110/trailer-fields-must-be-defined-as-list-if-repeatable',
 )

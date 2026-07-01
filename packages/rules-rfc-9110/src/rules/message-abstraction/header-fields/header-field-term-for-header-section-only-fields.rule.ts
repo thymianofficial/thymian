@@ -1,5 +1,8 @@
 import { httpRule } from '@thymian/core';
 
+// Informational (outcome 2): a terminology definition (what the spec means by
+// "header field"). It imposes no requirement on any message, so there is
+// nothing to validate.
 export default httpRule(
   'rfc9110/header-field-term-for-header-section-only-fields',
 )

@@ -1,5 +1,12 @@
 import { httpRule } from '@thymian/core';
 
+// Informational (outcome 2): this MUST NOT constrains an internal recipient
+// decision — whether it merges a received trailer field into the header
+// section. That merge happens inside the recipient/intermediary and is not
+// visible in the transaction Thymian observes, so there is no non-conformant
+// condition to detect. (Security-relevant: unsafe trailer-to-header merging is
+// a request-smuggling / header-injection vector, but it remains an
+// intermediary-internal behavior that the rule framework cannot observe.)
 export default httpRule('rfc9110/recipient-must-not-merge-trailers-unsafely')
   .severity('error')
   .type('informational')

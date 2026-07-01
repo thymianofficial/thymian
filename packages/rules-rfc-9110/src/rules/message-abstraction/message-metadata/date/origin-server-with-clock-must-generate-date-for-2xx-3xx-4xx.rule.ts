@@ -1,6 +1,17 @@
 import { and, not, or, responseHeader, statusCodeRange } from '@thymian/core';
 import { httpRule } from '@thymian/core';
 
+// Implemented (outcome 1): a response-side server-behavior MUST that needs only
+// the *presence* of the Date header on 2xx/3xx/4xx responses. Header-name
+// presence is available in every context via the common projection, so a single
+// shared `.rule()` runs identically at lint (described responses), test (live
+// responses Thymian elicits), and analyze (recorded responses). The "with a
+// clock" qualifier is not observable, but a missing Date on these status
+// classes is the dominant, honest non-conformance signal. `appliesTo('origin
+// server')` keeps it scoped to the responding origin and lets it fire on HAR
+// (whose responses default to the `origin server` role). The multi-type union
+// (static,analytics,test) infers the base ApiContext, so only the common
+// projection is available — which is all this presence check requires.
 export default httpRule(
   'rfc9110/origin-server-with-clock-must-generate-date-for-2xx-3xx-4xx',
 )
