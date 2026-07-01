@@ -1,10 +1,19 @@
 import * as path from 'node:path';
 import { stripVTControlCharacters } from 'node:util';
 
-import type { FindingRecord, Report, RuleDescriptor, Severity } from '@thymian/core';
+import type {
+  Execution,
+  ExecutionStatus,
+  FindingRecord,
+  Location,
+  Report,
+  RuleDescriptor,
+  Severity,
+} from '@thymian/core';
 import {
   buildRuleIndex,
   findingDetails,
+  resolveExecutionSeverity,
   walkExecutions,
 } from '@thymian/core';
 import chalk from 'chalk';
@@ -31,35 +40,47 @@ function severityPrefix(severity: Severity): string {
   }
 }
 
-function renderFinding(
-  finding: FindingRecord,
-  ruleIndex: ReadonlyMap<string, RuleDescriptor>,
-  indent: string,
-): string[] {
-  const lines = [
-    `${indent}${severityPrefix(finding.severity)}: ${finding.title}`,
-  ];
+function renderStatus(
+  status: ExecutionStatus,
+  severity: Severity | undefined,
+): string {
+  switch (status.kind) {
+    case 'passed': {
+      const duration =
+        status.durationMilliseconds !== undefined
+          ? ` (${status.durationMilliseconds}ms)`
+          : '';
+      return `${chalk.green(successSymbol)} passed${duration}`;
+    }
+    case 'failed': {
+      const prefix = severityPrefix(severity ?? 'error');
+      const reason = status.reason ? `: ${status.reason}` : '';
+      const duration =
+        status.durationMilliseconds !== undefined
+          ? ` (${status.durationMilliseconds}ms)`
+          : '';
+      return `${prefix} failed${reason}${duration}`;
+    }
+    case 'skipped':
+      return `skipped${status.reason ? `: ${status.reason}` : ''}`;
+  }
+}
+
+function renderFinding(finding: FindingRecord, indent: string): string[] {
+  const lines = [`${indent}[${finding.kind}] ${finding.title}`];
 
   if (finding.message?.text && finding.message.text !== finding.title) {
     lines.push(`${indent}  ${finding.message.text}`);
   }
 
-  for (const detail of findingDetails(finding, ruleIndex)) {
+  for (const detail of findingDetails(finding)) {
     lines.push(`${indent}  ${detail.label}: ${detail.value}`);
-  }
-
-  for (const relationship of finding.nestedFindings ?? []) {
-    lines.push(...renderFinding(relationship.finding, ruleIndex, `${indent}  `));
   }
 
   return lines;
 }
 
-function renderLocation(
-  location: NonNullable<
-    Report['runs'][number]['executions']
-  >[number]['location'],
-): string {
+function renderLocation(location: Location): string {
   switch (location.type) {
     case 'custom':
       return location.value;
@@ -72,6 +93,40 @@ function renderLocation(
     case 'thymianFormat':
       return `format:${location.elementId}${location.pointer ? `#${location.pointer}` : ''}`;
   }
+}
+
+function renderExecution(
+  execution: Execution,
+  ruleIndex: ReadonlyMap<string, RuleDescriptor>,
+): string[] {
+  const label =
+    execution.kind === 'test'
+      ? execution.name
+      : renderLocation(execution.location);
+  const lines = [
+    `  ${chalk.bold(label)}${execution.ruleId ? ` (${execution.ruleId})` : ''}`,
+  ];
+
+  const severity = resolveExecutionSeverity(execution, ruleIndex);
+  lines.push(`    ${renderStatus(execution.status, severity)}`);
+
+  if (execution.kind === 'test') {
+    for (const step of execution.steps) {
+      if (step.findings.length === 0) {
+        continue;
+      }
+      lines.push(`    ${step.name} — ${renderLocation(step.location)}`);
+      for (const finding of step.findings) {
+        lines.push(...renderFinding(finding, '      '));
+      }
+    }
+  } else {
+    for (const finding of execution.findings) {
+      lines.push(...renderFinding(finding, '    '));
+    }
+  }
+
+  return lines;
 }
 
 export type TextFormatterOptions = {
@@ -117,12 +172,8 @@ export class TextFormatter implements Formatter<Partial<TextFormatterOptions>> {
         for (const run of report.runs) {
           lines.push(`${run.tool.name} (${run.runType})`);
           const ruleIndex = buildRuleIndex(run.rules);
-          for (const { execution, depth } of walkExecutions(run.executions)) {
-            const indent = '  '.repeat(depth + 1);
-            lines.push(`${indent}${chalk.bold(renderLocation(execution.location))}`);
-            for (const finding of execution.findings) {
-              lines.push(...renderFinding(finding, ruleIndex, `${indent}  `));
-            }
+          for (const { execution } of walkExecutions(run.executions)) {
+            lines.push(...renderExecution(execution, ruleIndex));
           }
           lines.push('');
         }

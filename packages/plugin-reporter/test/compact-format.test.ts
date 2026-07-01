@@ -11,19 +11,14 @@ const report = {
       tool: { name: 'tool' },
       runType: 'lint',
       runAt: new Date().toISOString(),
+      rules: [{ id: 'rule/id', severity: 'error' as const }],
       executions: [
         {
-          location: { type: 'custom', value: 'GET /pets' },
-          findings: [
-            {
-              id: 'finding-1',
-              kind: 'rule-violation',
-              ruleId: 'rule/id',
-              title: 'Problem',
-              severity: 'error' as const,
-              message: { text: 'Problem' },
-            },
-          ],
+          kind: 'lint' as const,
+          ruleId: 'rule/id',
+          status: { kind: 'failed' as const, reason: 'Problem' },
+          location: { type: 'custom' as const, value: 'GET /pets' },
+          findings: [],
         },
       ],
     },

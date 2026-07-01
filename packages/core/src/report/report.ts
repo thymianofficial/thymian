@@ -115,29 +115,21 @@ export interface Invocation {
   workingDirectory?: string;
 }
 
-/** Relationship between findings, used to model nested causes/composition. */
-export interface FindingRelationship {
-  /** Related finding. */
-  finding: FindingRecord;
-  /** Optional explanation of the relationship. */
-  description?: string;
-  /** Relationship kind. Known values are causal/compositional, but extensible. */
-  type: 'caused-by' | 'composed-of' | (string & {});
-}
-
-/** Common shape shared by all report findings. */
+/**
+ * Common shape shared by all report findings.
+ *
+ * Findings represent *detail* collected during an execution. Rule/test outcomes
+ * ("violation"/"passed"/"skipped") are no longer findings — they live on the
+ * owning {@link Execution}'s {@link ExecutionStatus}. Findings therefore carry
+ * neither a `severity` (a violation's severity is derived from its execution's
+ * `ruleId`/`status`) nor a `ruleId` (a finding inherits its execution's rule).
+ */
 export interface BaseFinding {
   /** Stable identifier within the report. */
   id: string;
   /** Discriminator describing what kind of fact this finding represents. */
   kind:
     | 'rule-violation'
-    | 'rule-success'
-    | 'rule-failure'
-    | 'rule-skip'
-    | 'test-case-pass'
-    | 'test-case-fail'
-    | 'test-case-skip'
     | 'informational'
     | 'assertion-failure'
     | 'assertion-success'
@@ -146,40 +138,15 @@ export interface BaseFinding {
   title: string;
   /** Optional longer message. */
   message?: Message;
-  /** Severity for prioritization and consumer-specific exit-code decisions. */
-  severity: Severity;
-  /** Optional related/nested findings for assertions inside test cases, causes, etc. */
-  nestedFindings?: FindingRelationship[];
 }
 
-/** Rule violation found during lint/test/analyze execution. */
+/**
+ * Rule violation detail retained at *step* granularity in the tester so a failed
+ * step stays visible. Rule attribution is intentionally not represented here —
+ * the owning {@link TestCaseExecution}'s `ruleId` identifies the rule.
+ */
 export interface RuleViolationFinding extends BaseFinding {
   kind: 'rule-violation';
-  /** Rule that produced this violation. This id refers to an entry in the containing ToolRun.rules list. */
-  ruleId: string;
-}
-
-/** Positive rule result. Usually hidden in compact CLI output. */
-export interface RuleSuccess extends BaseFinding {
-  kind: 'rule-success';
-  /** Rule that succeeded. This id refers to an entry in the containing ToolRun.rules list. */
-  ruleId: string;
-}
-
-/** Tool/rule execution failure, distinct from a rule violation in the API. */
-export interface RuleFailure extends BaseFinding {
-  kind: 'rule-failure';
-  /** Rule that failed to execute. This id refers to an entry in the containing ToolRun.rules list. */
-  ruleId: string;
-}
-
-/** Rule that was skipped intentionally. */
-export interface RuleSkip extends BaseFinding {
-  kind: 'rule-skip';
-  /** Rule that was skipped. This id refers to an entry in the containing ToolRun.rules list. */
-  ruleId: string;
-  /** Reason the rule was skipped. */
-  reason: string;
 }
 
 /** Successful assertion result. Usually verbose/debug output only. */
@@ -196,27 +163,6 @@ export interface AssertionFailure extends BaseFinding {
   actual?: unknown;
 }
 
-/** Successful HTTP/API test case result. Usually summary or verbose output only. */
-export interface TestCasePass extends BaseFinding {
-  kind: 'test-case-pass';
-  /** Test case duration in milliseconds, if measured. */
-  durationMilliseconds?: number;
-}
-
-/** Failed HTTP/API test case result. */
-export interface TestCaseFail extends BaseFinding {
-  kind: 'test-case-fail';
-  /** Test case duration in milliseconds, if measured. */
-  durationMilliseconds?: number;
-}
-
-/** Skipped HTTP/API test case result. */
-export interface TestCaseSkip extends BaseFinding {
-  kind: 'test-case-skip';
-  /** Reason the case was skipped. */
-  reason: string;
-}
-
 /** Non-rule informational message collected during execution. */
 export interface Informational extends BaseFinding {
   kind: 'informational';
@@ -225,12 +171,6 @@ export interface Informational extends BaseFinding {
 /** Any fact collected during a tool run that is relevant for reporting. */
 export type FindingRecord =
   | RuleViolationFinding
-  | RuleSuccess
-  | RuleFailure
-  | RuleSkip
-  | TestCasePass
-  | TestCaseFail
-  | TestCaseSkip
   | Informational
   | AssertionFailure
   | AssertionSuccess
@@ -280,24 +220,100 @@ export type Location =
     };
 
 /**
- * Execution groups findings around a concrete subject which is located via the
- * location property. Executions can be nested to model hierarchies such as
- * endpoint → test case → assertion.
+ * Outcome of an execution — a SARIF-`result`-like `kind` (outcome) that is kept
+ * separate from severity (which, per SARIF, only applies to `failed`). `failed`
+ * ≡ a rule violation; `skipped` ≡ the old `rule-skip`.
  */
-export interface Execution {
-  /** Optional display name for this execution group. */
-  name?: string;
-  /** Optional longer description of what was executed/validated. */
-  description?: string;
+export type ExecutionStatus =
+  | {
+      kind: 'passed';
+      /** Execution duration in milliseconds, if measured. */
+      durationMilliseconds?: number;
+    }
+  | {
+      kind: 'failed';
+      /** Custom violation/failure message; renderers fall back to the rule when absent. */
+      reason?: string;
+      /** Execution duration in milliseconds, if measured. */
+      durationMilliseconds?: number;
+      /**
+       * Overrides the rule's configured severity for this specific failure.
+       * When absent, severity is resolved from the execution's `ruleId`. MUST
+       * only be set on `failed` status.
+       */
+      severity?: Severity;
+    }
+  | {
+      kind: 'skipped';
+      /** Reason the execution was skipped. */
+      reason?: string;
+    };
+
+/**
+ * Abstract base for every execution. An execution is a rule evaluated against a
+ * subject, producing an outcome ({@link ExecutionStatus}) — modelled after a
+ * SARIF `result`. Concrete shapes are selected by the closed `kind` discriminator.
+ */
+export interface ExecutionBase {
+  /** Discriminator selecting the concrete execution type / run type. */
+  kind: 'lint' | 'test' | 'analyze';
+  /**
+   * Rule this execution evaluated. Optional to support future generic/ruleless
+   * runners; for thymian lint/analyze/test it is always set.
+   */
+  ruleId?: string;
+  /** Outcome of the execution. */
+  status: ExecutionStatus;
+}
+
+/** Lint execution: one rule evaluated against one location. */
+export interface LintExecution extends ExecutionBase {
+  kind: 'lint';
   /** Subject/location this execution is about. */
   location: Location;
-  /** Findings collected for this execution. */
+  /** Detail findings (assertion/informational). Empty in the common passing case. */
   findings: FindingRecord[];
-  /** Nested executions for more detailed grouping. */
-  children?: Execution[];
-  /** HTTP transactions collected while executing this group. */
+}
+
+/**
+ * Analyze execution: identical shape to {@link LintExecution} today (distinct
+ * `kind` tag). `httpTransactions` evidence is a future tailoring point.
+ */
+export interface AnalyzeExecution extends ExecutionBase {
+  kind: 'analyze';
+  /** Subject/location this execution is about. */
+  location: Location;
+  /** Detail findings (assertion/informational). Empty in the common passing case. */
+  findings: FindingRecord[];
+}
+
+/** A single step of a test case; findings live here, not on the test execution. */
+export interface TestStep {
+  /** Display name of the step. */
+  name: string;
+  /** Subject/location this step is about. */
+  location: Location;
+  /** Findings collected for this step (assertion/informational/rule-violation). */
+  findings: FindingRecord[];
+  /** HTTP transactions collected while executing this step. */
   httpTransactions?: ReportHttpTransaction[];
 }
+
+/** Test execution: maps to one test case and carries its steps. */
+export interface TestCaseExecution extends ExecutionBase {
+  kind: 'test';
+  /** Test case name. */
+  name: string;
+  /** Steps of the test case. Findings live on the steps. */
+  steps: TestStep[];
+}
+
+/**
+ * A single execution produced by a tool run. Non-recursive, per-run-type, over a
+ * shared {@link ExecutionBase}. There is no `children` nesting: a run is a flat
+ * list of leaf executions.
+ */
+export type Execution = LintExecution | TestCaseExecution | AnalyzeExecution;
 
 /** One run of one tool/plugin for a workflow mode such as lint/test/analyze. */
 export interface ToolRun {
@@ -305,8 +321,8 @@ export interface ToolRun {
   runId: string;
   /** Tool/plugin that produced the data. */
   tool: Tool;
-  /** Workflow/run kind. Known core values are lint/test/analyze, but extensible. */
-  runType: 'lint' | 'test' | 'analyze' | (string & {});
+  /** Workflow/run kind. Closed union — every execution's `kind` matches this. */
+  runType: 'lint' | 'test' | 'analyze';
   /** ISO timestamp when the run was created/started. */
   runAt: string;
   /** Duration in milliseconds, if measured. */
@@ -323,6 +339,9 @@ export interface ToolRun {
   rules?: RuleDescriptor[];
 }
 
+/** Version/hash identifying a specific serialized Thymian format. */
+export type ThymianFormatVersion = string;
+
 /** Root report emitted by core after collecting all plugin tool runs. */
 export interface Report {
   /** Stable report identifier. */
@@ -331,6 +350,10 @@ export interface Report {
   createdAt: string;
   /** Tool runs with collected information. A single plugin may contribute multiple tool runs. */
   runs: ToolRun[];
-  /** Serialized format used by the workflow, if available, for resolving thymianFormat locations during rendering. */
-  thymianFormat?: SerializedThymianFormat;
+  /**
+   * Serialized formats used by the runs in this report, keyed by version, for
+   * resolving `thymianFormat` locations during rendering. A run selects its
+   * format via `ToolRun.thymianFormatVersion`.
+   */
+  thymianFormat?: Record<ThymianFormatVersion, SerializedThymianFormat>;
 }
