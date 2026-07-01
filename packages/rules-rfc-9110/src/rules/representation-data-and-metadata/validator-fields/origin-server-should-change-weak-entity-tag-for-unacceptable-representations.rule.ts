@@ -4,6 +4,10 @@ export default httpRule(
   'rfc9110/origin-server-should-change-weak-entity-tag-for-unacceptable-representations',
 )
   .severity('off')
+  // Informational: whether a prior representation is "unacceptable as a
+  // substitute" is a server-internal semantic judgment. No context can tell a
+  // correctly-unchanged weak tag from one that should have changed; verified by
+  // code review of the ETag generation policy.
   .type('informational')
   .appliesTo('origin server')
   .url('https://www.rfc-editor.org/rfc/rfc9110.html#section-8.8.1')

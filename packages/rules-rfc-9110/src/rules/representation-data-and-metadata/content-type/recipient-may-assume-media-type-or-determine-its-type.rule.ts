@@ -4,6 +4,9 @@ export default httpRule(
   'rfc9110/recipient-may-assume-media-type-or-determine-its-type',
 )
   .severity('warn')
+  // Informational: pure recipient latitude (MAY assume octet-stream or sniff).
+  // Nothing observable on the wire distinguishes a conforming choice from a
+  // non-conforming one, so there is no violation to detect in any context.
   .type('informational')
   .appliesTo('client', 'user-agent')
   .url('https://www.rfc-editor.org/rfc/rfc9110.html#section-8.3')

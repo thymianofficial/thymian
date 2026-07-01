@@ -4,6 +4,10 @@ export default httpRule(
   'rfc9110/origin-server-without-clock-must-not-generate-last-modified',
 )
   .severity('error')
+  // Informational: the trigger condition is "server has no clock", which is
+  // deployment configuration invisible on the wire. Whether a Last-Modified was
+  // locally generated or assigned by another system also cannot be observed;
+  // verified by code review and system-configuration analysis.
   .type('informational')
   .appliesTo('origin server')
   .url('https://www.rfc-editor.org/rfc/rfc9110.html#section-8.8.2.1')

@@ -4,6 +4,9 @@ export default httpRule(
   'rfc9110/multiple-languages-may-be-listed-for-multiple-audiences',
 )
   .severity('hint')
+  // Informational: pure permission (MAY list multiple languages). Whether a
+  // multi-language value is appropriate depends on the intended audience, which
+  // is not observable, and either choice is conformant.
   .type('informational')
   .appliesTo('origin server')
   .description(

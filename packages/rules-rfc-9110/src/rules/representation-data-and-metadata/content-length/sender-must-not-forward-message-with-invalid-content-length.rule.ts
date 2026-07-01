@@ -4,6 +4,10 @@ export default httpRule(
   'rfc9110/sender-must-not-forward-message-with-invalid-content-length',
 )
   .severity('error')
+  // Informational: this is a forwarding obligation on an intermediary (do not
+  // pass on an ABNF-invalid Content-Length). Confirming a message was forwarded
+  // rather than originated requires intermediary-role correlation the engine
+  // lacks, so it is verified by code review.
   .type('informational')
   .appliesTo('intermediary')
   .url('https://www.rfc-editor.org/rfc/rfc9110.html#section-8.6')
