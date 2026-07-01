@@ -2,6 +2,12 @@ import { httpRule } from '@thymian/core';
 
 export default httpRule('rfc9110/server-must-respond-4xx-for-oversized-fields')
   .severity('error')
+  // Outcome 2 (informational — genuinely unobservable): triggering this rule
+  // requires sending a request whose header field line/value/set exceeds the
+  // server's internal processing limit, but that threshold is unknown and
+  // server-specific, and Thymian generates well-formed requests from the spec
+  // rather than deliberately oversized ones — so the 4xx-vs-not distinction
+  // cannot be provoked or verified from generated traffic.
   .type('informational')
   .url('https://www.rfc-editor.org/rfc/rfc9110.html#section-5.4')
   .description(
@@ -10,5 +16,6 @@ export default httpRule('rfc9110/server-must-respond-4xx-for-oversized-fields')
   .summary(
     'Server MUST respond with 4xx status code when receiving oversized fields.',
   )
-  .appliesTo('server')
+  .appliesTo('origin server')
+  .tags('fields', 'field-limits', 'server')
   .done();

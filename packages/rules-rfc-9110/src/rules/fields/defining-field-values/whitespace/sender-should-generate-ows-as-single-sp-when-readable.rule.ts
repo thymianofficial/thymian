@@ -4,6 +4,10 @@ export default httpRule(
   'rfc9110/sender-should-generate-ows-as-single-sp-when-readable',
 )
   .severity('warn')
+  // Informational (not reliably observable): OWS positions are defined per-field
+  // by each field's ABNF; without those grammars the framework cannot tell OWS
+  // apart from significant value whitespace, and this is a stylistic SHOULD with
+  // no hard observable outcome.
   .type('informational')
   .url('https://www.rfc-editor.org/rfc/rfc9110.html#section-5.6.3')
   .description(

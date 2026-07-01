@@ -4,6 +4,9 @@ export default httpRule(
   'rfc9110/recipient-may-combine-field-lines-with-same-name',
 )
   .severity('off')
+  // Informational (permissive MAY + unobservable): combining same-name field
+  // lines is an optional internal recipient choice with no required outcome, and
+  // the recombined form is not re-emitted for Thymian to observe.
   .type('informational')
   .url('https://www.rfc-editor.org/rfc/rfc9110.html#section-5.3')
   .description(

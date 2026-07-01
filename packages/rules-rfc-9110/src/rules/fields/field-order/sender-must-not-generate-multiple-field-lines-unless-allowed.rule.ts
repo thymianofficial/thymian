@@ -4,6 +4,11 @@ export default httpRule(
   'rfc9110/sender-must-not-generate-multiple-field-lines-unless-allowed',
 )
   .severity('error')
+  // Informational (not reliably observable): flagging a repeated field line
+  // requires knowing whether that field's definition permits list recombination
+  // (#(values)); this needs a complete per-field registry of list-typed fields
+  // that the framework does not have, so any generic check would misfire on
+  // legitimately repeatable fields.
   .type('informational')
   .url('https://www.rfc-editor.org/rfc/rfc9110.html#section-5.3')
   .description(
