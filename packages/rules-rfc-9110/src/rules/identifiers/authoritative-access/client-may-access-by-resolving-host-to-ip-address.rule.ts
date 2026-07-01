@@ -4,6 +4,9 @@ export default httpRule(
   'rfc9110/client-may-access-by-resolving-host-to-ip-address',
 )
   .severity('hint')
+  // Informational (#327): permissive MAY describing a client's DNS/TCP access
+  // procedure — no violation to detect, and the resolution/connection steps
+  // occur below the recorded HTTP layer.
   .type('informational')
   .url('https://www.rfc-editor.org/rfc/rfc9110.html#name-http-origins')
   .description(
