@@ -1,5 +1,9 @@
 import { httpRule } from '@thymian/core';
 
+// Informational: "relying on a private (out-of-band) agreement" to receive
+// HEAD content is a property of the server's design intent, not of any
+// observable HTTP message. Nothing in a request, response, or recorded trace
+// reveals such reliance, so the SHOULD NOT cannot be checked. No function.
 export default httpRule(
   'rfc9110/origin-server-should-not-rely-on-private-agreements-for-head-requests',
 )

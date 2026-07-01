@@ -1,5 +1,11 @@
 import { httpRule } from '@thymian/core';
 
+// Informational: detecting a proxy's automatic retry requires observing that
+// the proxy re-sent the same non-idempotent request upstream after a failure —
+// i.e. correlating multiple upstream attempts of one logical request at the
+// proxy. A single captured transaction does not mark a request as a retry, and
+// a typical HAR does not expose the proxy's upstream re-attempts, so the retry
+// behavior is not observable in our model. The rule ships no function.
 export default httpRule(
   'rfc9110/proxy-must-not-automatically-retry-non-idempontent-requests',
 )
