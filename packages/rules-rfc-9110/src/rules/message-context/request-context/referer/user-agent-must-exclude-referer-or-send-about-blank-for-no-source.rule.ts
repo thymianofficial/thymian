@@ -4,6 +4,9 @@ export default httpRule(
   'rfc9110/user-agent-must-exclude-referer-or-send-about-blank-for-no-source',
 )
   .severity('hint')
+  // Informational: the trigger condition (target URI obtained from a source
+  // with no URI, e.g. keyboard input or a bookmark) is user-agent-internal
+  // provenance that is not observable from the request; surfaced as guidance.
   .type('informational')
   .url('https://www.rfc-editor.org/rfc/rfc9110.html#name-referer')
   .description(

@@ -4,6 +4,8 @@ export default httpRule(
   'rfc9110/client-may-proceed-to-send-content-without-receiving-100-response',
 )
   .severity('hint')
+  // Informational: this is a permission (client MAY proceed to send content),
+  // not a testable constraint; there is no violating behaviour to detect.
   .type('informational')
   .url('https://www.rfc-editor.org/rfc/rfc9110.html#name-expect')
   .description(

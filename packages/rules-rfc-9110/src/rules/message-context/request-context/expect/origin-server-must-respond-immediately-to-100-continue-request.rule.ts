@@ -4,6 +4,9 @@ export default httpRule(
   'rfc9110/origin-server-must-respond-immediately-to-100-continue-request',
 )
   .severity('hint')
+  // Informational: "immediate" is a timing requirement with no wire signature,
+  // and distinguishing an origin server's own response from a proxy-generated
+  // one needs role attribution; surfaced as guidance only.
   .type('informational')
   .url('https://www.rfc-editor.org/rfc/rfc9110.html#name-expect')
   .description(

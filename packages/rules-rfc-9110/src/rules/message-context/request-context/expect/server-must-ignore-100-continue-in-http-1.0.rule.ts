@@ -2,6 +2,9 @@ import { httpRule } from '@thymian/core';
 
 export default httpRule('rfc9110/server-must-ignore-100-continue-in-http-1.0')
   .severity('hint')
+  // Informational: "ignore the expectation" is the absence of a behaviour; a
+  // conforming server produces no distinguishing signal, so there is nothing to
+  // check from traffic.
   .type('informational')
   .url('https://www.rfc-editor.org/rfc/rfc9110.html#name-expect')
   .description(
