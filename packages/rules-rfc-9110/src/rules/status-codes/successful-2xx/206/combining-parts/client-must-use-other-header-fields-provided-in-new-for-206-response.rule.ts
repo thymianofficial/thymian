@@ -4,6 +4,8 @@ export default httpRule(
   'rfc9110/client-must-use-other-header-fields-provided-in-new-for-206-response',
 )
   .severity('error')
+  // Internal client cache-update behavior when combining partial responses;
+  // not observable from emitted traffic. Informational.
   .type('informational')
   .url('https://www.rfc-editor.org/rfc/rfc9110.html#name-combining-parts')
   .description(

@@ -3,6 +3,13 @@ import { httpRule } from '@thymian/core';
 
 export default httpRule('rfc9110/proxy-must-not-send-421-response')
   .severity('error')
+  // The prohibition applies only to *proxies*: an origin server MAY legitimately
+  // generate a 421 (Misdirected Request). The rule therefore needs the sender's
+  // role, which is only available on captured (recorded) transactions, so it is
+  // analyze-only. The previous implementation flagged every 421 via the common
+  // projection (no role check), incorrectly reporting conformant origin-server
+  // 421 responses. This now inspects the captured response role and flags only
+  // 421 responses emitted by a proxy.
   .type('analytics')
   .url(
     'https://www.rfc-editor.org/rfc/rfc9110.html#name-421-misdirected-request',

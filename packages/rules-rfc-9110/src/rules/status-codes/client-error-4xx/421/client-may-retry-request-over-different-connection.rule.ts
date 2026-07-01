@@ -4,6 +4,8 @@ export default httpRule(
   'rfc9110/client-may-retry-request-over-different-connection',
 )
   .severity('hint')
+  // Permissive MAY describing an internal client retry decision over a
+  // different connection; no non-conformant condition to observe. Informational.
   .type('informational')
   .url(
     'https://www.rfc-editor.org/rfc/rfc9110.html#name-421-misdirected-request',

@@ -4,6 +4,11 @@ export default httpRule(
   'rfc9110/server-may-send-retry-after-header-for-503-response',
 )
   .severity('hint')
+  // Permissive MAY: the server *may* send a Retry-After on a 503. Its absence
+  // is therefore not a violation. The previous implementation declared
+  // static/analytics and flagged every 503 that lacked Retry-After, which
+  // contradicts the MAY and produces noise. Reclassified to informational
+  // (no function).
   .type('informational')
   .url('https://www.rfc-editor.org/rfc/rfc9110.html#name-server-error-5xx')
   .description(

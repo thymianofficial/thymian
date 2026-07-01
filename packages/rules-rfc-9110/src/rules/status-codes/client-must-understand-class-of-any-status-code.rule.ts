@@ -4,6 +4,8 @@ export default httpRule(
   'rfc9110/client-must-understand-class-of-any-status-code',
 )
   .severity('error')
+  // Internal client parsing/understanding requirement; not observable from
+  // the wire. Informational.
   .type('informational')
   .url('https://www.rfc-editor.org/rfc/rfc9110.html#name-status-codes')
   .description(
