@@ -27,15 +27,21 @@ function headerToString(
   return Array.isArray(value) ? value.join(', ') : value;
 }
 
+// Analytics-only: this SHOULD check needs a REAL sensitive request header
+// VALUE echoed into the TRACE response body. In 'test' the request is
+// Thymian-generated and carries no genuine secret, so the value-echo check is
+// inert there; the honest home is 'analytics', where recorded TRACE responses
+// contain real client header values reflected back in the response content.
 export default httpRule(
   'rfc9110/final-recipient-should-exclude-sensitive-request-data-from-response-to-trace',
 )
   .severity('warn')
-  .type('test', 'analytics')
+  .type('analytics')
   .url('https://www.rfc-editor.org/rfc/rfc9110.html#name-trace')
   .description(
     'The final recipient of the request SHOULD exclude any request fields that are likely to contain sensitive data when that recipient generates the response content.',
   )
+  // 'origin server' is included so the rule fires on HAR responses.
   .appliesTo('server', 'origin server')
   .rule((ctx) =>
     ctx.validateHttpTransactions(
