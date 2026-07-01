@@ -2,9 +2,10 @@ import { randomUUID } from 'node:crypto';
 
 import {
   createContextFromEmitter,
-  createExecution,
+  createTestCaseExecution,
+  createTestStep,
   createToolRun,
-  type Execution,
+  type ExecutionStatus,
   type FindingRecord,
   type HttpTestCase,
   type HttpTestCaseStep,
@@ -12,6 +13,7 @@ import {
   isGroupedHttpTestCaseStep,
   isSingleHttpTestCaseStep,
   type Location,
+  type Logger,
   resolveViolationLocation,
   type Rule,
   ruleFindingToFindingRecord,
@@ -21,6 +23,8 @@ import {
   runRules,
   type RunRulesResult,
   type SingleRuleConfiguration,
+  type TestCaseExecution,
+  type TestStep,
   ThymianBaseError,
   ThymianFormat,
   type ThymianPlugin,
@@ -39,7 +43,12 @@ export {
   type RuleFnResultPlacement,
 } from './http-test-api-context.js';
 
-function ruleViolationToFindingRecord(
+/**
+ * A step-level rule violation is kept so a failed step stays visible, but
+ * WITHOUT a `ruleId` — rule attribution at step granularity is intentionally not
+ * represented; the owning {@link TestCaseExecution}'s `ruleId` identifies the rule.
+ */
+function ruleViolationToStepFinding(
   violation: NonNullable<RuleFnResult['violation']>,
   rule: Rule,
 ): FindingRecord {
@@ -47,10 +56,8 @@ function ruleViolationToFindingRecord(
   return {
     id: randomUUID(),
     kind: 'rule-violation',
-    ruleId: rule.meta.name,
     title:
       message || (rule.meta.summary ?? rule.meta.description ?? rule.meta.name),
-    severity: rule.meta.severity as Exclude<typeof rule.meta.severity, 'off'>,
     ...(message
       ? { message: { text: message } }
       : rule.meta.explanation
@@ -60,21 +67,24 @@ function ruleViolationToFindingRecord(
 }
 
 // stepPlacements must be pre-filtered to this step (testCaseIndex + stepIndex match).
-function buildStepExecution(
+function buildTestStep(
   step: HttpTestCaseStep,
   stepIndex: number,
   stepPlacements: RuleFnResultPlacement[],
   rule: Rule,
   location: Location,
-): Execution {
+): TestStep {
   const findings: FindingRecord[] = [];
 
   for (const { result } of stepPlacements) {
     if (result.violation !== undefined) {
-      findings.push(ruleViolationToFindingRecord(result.violation, rule));
+      findings.push(ruleViolationToStepFinding(result.violation, rule));
     }
     for (const finding of result.findings) {
-      findings.push(ruleFindingToFindingRecord(finding));
+      const record = ruleFindingToFindingRecord(finding);
+      if (record) {
+        findings.push(record);
+      }
     }
   }
 
@@ -87,7 +97,7 @@ function buildStepExecution(
       response: t.response!,
     }));
 
-  return createExecution({
+  return createTestStep({
     name: `Step ${stepIndex + 1}`,
     location,
     findings,
@@ -119,50 +129,59 @@ function stepToLocation(step: HttpTestCaseStep): Location {
   return { type: 'custom', value: 'unknown' };
 }
 
-function buildTestCaseExecution(
+/** Signals gathered from a test case's rule results that drive its status. */
+interface TestCaseSignals {
+  /** A rule reported a violation somewhere in this case. */
+  hasViolation: boolean;
+  /** First violation message, if any. */
+  violationReason?: string;
+  /** A `rule-skip` finding was reported for this case. */
+  hasRuleSkip: boolean;
+  /** First rule-skip reason, if any. */
+  ruleSkipReason?: string;
+}
+
+/**
+ * Map a test case to an {@link ExecutionStatus}. The execution status reflects
+ * whether the *rule* found something, NOT the raw HTTP test-case outcome:
+ * - a rule violation ⇒ `failed` (the only path to `failed`);
+ * - otherwise a `rule-skip` signal, a skipped case, or a case that could not be
+ *   executed (HTTP-level failure without a violation) ⇒ `skipped`;
+ * - otherwise ⇒ `passed`.
+ */
+function computeTestCaseStatus(
   testCase: HttpTestCase,
-  extraFindings: FindingRecord[],
-  children: Execution[],
-): Execution {
+  signals: TestCaseSignals,
+): ExecutionStatus {
   const durationMilliseconds =
     testCase.end !== undefined ? testCase.end - testCase.start : undefined;
 
-  let testCaseFinding: FindingRecord;
-
-  if (testCase.status === 'skipped') {
-    testCaseFinding = {
-      id: randomUUID(),
-      kind: 'test-case-skip',
-      title: testCase.name,
-      severity: 'info',
-      reason: testCase.reason ?? '',
-      ...(testCase.reason ? { message: { text: testCase.reason } } : {}),
-    } satisfies FindingRecord;
-  } else if (testCase.status === 'failed') {
-    testCaseFinding = {
-      id: randomUUID(),
-      kind: 'test-case-fail',
-      title: testCase.name,
-      severity: 'error',
-      ...(testCase.reason ? { message: { text: testCase.reason } } : {}),
+  if (signals.hasViolation) {
+    return {
+      kind: 'failed',
+      ...(signals.violationReason ? { reason: signals.violationReason } : {}),
       ...(durationMilliseconds !== undefined ? { durationMilliseconds } : {}),
-    } satisfies FindingRecord;
-  } else {
-    testCaseFinding = {
-      id: randomUUID(),
-      kind: 'test-case-pass',
-      title: testCase.name,
-      severity: 'info',
-      ...(durationMilliseconds !== undefined ? { durationMilliseconds } : {}),
-    } satisfies FindingRecord;
+    };
   }
 
-  return createExecution({
-    name: testCase.name,
-    location: { type: 'custom', value: testCase.name },
-    findings: [testCaseFinding, ...extraFindings],
-    children,
-  });
+  if (signals.hasRuleSkip) {
+    return {
+      kind: 'skipped',
+      ...(signals.ruleSkipReason ? { reason: signals.ruleSkipReason } : {}),
+    };
+  }
+
+  if (testCase.status === 'skipped' || testCase.status === 'failed') {
+    return {
+      kind: 'skipped',
+      ...(testCase.reason ? { reason: testCase.reason } : {}),
+    };
+  }
+
+  return {
+    kind: 'passed',
+    ...(durationMilliseconds !== undefined ? { durationMilliseconds } : {}),
+  };
 }
 
 // exported for testing
@@ -171,9 +190,10 @@ export function createRuns(
   ruleResults: RunRulesResult<HttpTesterRuleDiagnostics>,
   rules: Rule[] = [],
   thymianFormat: ThymianFormat,
+  logger: Logger,
 ): ToolRun[] {
   const ruleMap = new Map(rules.map((r) => [r.meta.name, r]));
-  const ruleExecutions: Execution[] = [];
+  const executions: TestCaseExecution[] = [];
 
   for (const [ruleName, { ruleFnResult, diagnostics }] of Object.entries(
     ruleResults,
@@ -184,38 +204,52 @@ export function createRuns(
     }
 
     const consumedResults = new Set<RuleFnResult>();
-    const ruleChildren: Execution[] = [];
 
     if (diagnostics) {
       for (const { testResult, placements } of diagnostics) {
         testResult.cases.forEach((testCase, testCaseIndex) => {
-          const testCasePlacements = placements.filter(
-            (p) =>
-              p.testCaseIndex === testCaseIndex && p.stepIndex === undefined,
-          );
-          const testCaseFindings: FindingRecord[] = [];
-          for (const { result } of testCasePlacements) {
+          // Case-level placements (no step index) no longer become findings —
+          // the case outcome lives on `status`. Accumulate violation/rule-skip
+          // signals across every placement (case- and step-level) to derive it.
+          const signals: TestCaseSignals = {
+            hasViolation: false,
+            hasRuleSkip: false,
+          };
+          const noteResult = (result: RuleFnResult): void => {
             consumedResults.add(result);
             if (result.violation !== undefined) {
-              testCaseFindings.push(
-                ruleViolationToFindingRecord(result.violation, rule),
-              );
+              signals.hasViolation = true;
+              if (signals.violationReason === undefined) {
+                signals.violationReason = result.violation.message;
+              }
             }
             for (const finding of result.findings) {
-              testCaseFindings.push(ruleFindingToFindingRecord(finding));
+              if (finding.kind === 'rule-skip') {
+                signals.hasRuleSkip = true;
+                if (signals.ruleSkipReason === undefined) {
+                  signals.ruleSkipReason = finding.reason ?? finding.message;
+                }
+              }
             }
+          };
+
+          for (const { result } of placements.filter(
+            (p) =>
+              p.testCaseIndex === testCaseIndex && p.stepIndex === undefined,
+          )) {
+            noteResult(result);
           }
 
-          const stepExecutions = testCase.steps.map((step, stepIndex) => {
+          const steps = testCase.steps.map((step, stepIndex) => {
             const stepPlacements = placements.filter(
               (p) =>
                 p.testCaseIndex === testCaseIndex && p.stepIndex === stepIndex,
             );
             for (const { result } of stepPlacements) {
-              consumedResults.add(result);
+              noteResult(result);
             }
 
-            return buildStepExecution(
+            return buildTestStep(
               step,
               stepIndex,
               stepPlacements,
@@ -224,14 +258,21 @@ export function createRuns(
             );
           });
 
-          ruleChildren.push(
-            buildTestCaseExecution(testCase, testCaseFindings, stepExecutions),
+          executions.push(
+            createTestCaseExecution({
+              name: testCase.name,
+              ruleId: ruleName,
+              status: computeTestCaseStatus(testCase, signals),
+              steps,
+            }),
           );
         });
       }
     }
 
-    // Fallback: render results not placed by diagnostics using location-based layout
+    // Fallback: results not placed by diagnostics have no test-case/step slot in
+    // the strict model. This path is verified unreachable in production; emit a
+    // failed test case (folding any diagnostic text into the reason) and warn.
     for (const result of ruleFnResult) {
       if (consumedResults.has(result)) {
         continue;
@@ -243,34 +284,36 @@ export function createRuns(
         ruleName,
       );
 
-      const fallbackFindings: FindingRecord[] = [];
-
-      if (result.violation) {
-        fallbackFindings.push(
-          ruleViolationToFindingRecord(result.violation, rule),
-        );
+      const reasonParts: string[] = [];
+      if (result.violation?.message) {
+        reasonParts.push(result.violation.message);
       }
-
       for (const finding of result.findings) {
-        fallbackFindings.push(ruleFindingToFindingRecord(finding));
+        if (finding.title) {
+          reasonParts.push(finding.title);
+        }
       }
+      const reason = reasonParts.join('; ') || undefined;
 
-      ruleChildren.push(
-        createExecution({
-          location: resolvedLocation.location,
-          findings: fallbackFindings,
+      // A violation ⇒ failed; anything else couldn't be placed/executed ⇒ skipped.
+      const status: ExecutionStatus =
+        result.violation !== undefined
+          ? { kind: 'failed', ...(reason ? { reason } : {}) }
+          : { kind: 'skipped', ...(reason ? { reason } : {}) };
+
+      logger.warn(
+        `${pluginName}: rule "${ruleName}" produced an unplaced result at ${resolvedLocation.heading}; emitting a ${status.kind} test case.`,
+      );
+
+      executions.push(
+        createTestCaseExecution({
           name: resolvedLocation.heading,
+          ruleId: ruleName,
+          status,
+          steps: [],
         }),
       );
     }
-
-    ruleExecutions.push(
-      createExecution({
-        location: { type: 'custom', value: ruleName },
-        findings: [],
-        children: ruleChildren,
-      }),
-    );
   }
 
   const ruleDescriptors = rulesToRuleDescriptors(rules, (r) => r.testRule);
@@ -279,7 +322,7 @@ export function createRuns(
     createToolRun({
       tool: { name: pluginName },
       runType: 'test',
-      executions: ruleExecutions,
+      executions,
       rules: ruleDescriptors.length > 0 ? ruleDescriptors : undefined,
     }),
   ];
@@ -350,7 +393,9 @@ export function createHttpTesterPlugin(
             adapter,
           );
 
-          ctx.reply(createRuns(pluginName, ruleResults, rules, thymianFormat));
+          ctx.reply(
+            createRuns(pluginName, ruleResults, rules, thymianFormat, logger),
+          );
         },
       );
     },

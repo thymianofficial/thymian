@@ -25,7 +25,7 @@ describe('report builders', () => {
     expect(report.reportId).toBeTruthy();
   });
 
-  it('maps http test results to v4 findings', () => {
+  it('maps http test results to rule findings (test-case outcomes are status now)', () => {
     const findings = httpTestResultToRuleFindings([
       {
         type: 'assertion-failure',
@@ -45,10 +45,9 @@ describe('report builders', () => {
       kind: 'assertion-failure',
       severity: 'error',
     });
-    expect(findings[1]).toMatchObject({
-      kind: 'test-case-skip',
-      severity: 'info',
-    });
+    // `skip`/`timeout`/`invalid-transaction` are dead in the lint/analyze path
+    // and map defensively to `informational` (test-case outcomes are `status`).
+    expect(findings[1]).toMatchObject({ kind: 'informational' });
   });
 
   describe('executionsFromRunRulesResult', () => {
@@ -60,7 +59,7 @@ describe('report builders', () => {
       .done();
     const format = new ThymianFormat();
 
-    it('maps a violation to a rule-violation finding', () => {
+    it('maps a violation to a failed status (AC2)', () => {
       const executions = executionsFromRunRulesResult(
         {
           'rfc9110/example': {
@@ -79,19 +78,19 @@ describe('report builders', () => {
       );
 
       expect(executions).toHaveLength(1);
-      expect(executions[0]?.children).toHaveLength(1);
-      expect(executions[0]?.children?.[0]?.findings).toEqual([
-        expect.objectContaining({
-          kind: 'rule-violation',
-          title: 'rfc9110/example',
-          severity: 'error',
-          ruleId: 'rfc9110/example',
-          message: { text: 'boom' },
-        }),
-      ]);
+      expect(executions[0]).toMatchObject({
+        kind: 'lint',
+        ruleId: 'rfc9110/example',
+        status: { kind: 'failed', reason: 'boom' },
+        findings: [],
+      });
+      // Severity is not stored on the status; it resolves from the ruleId.
+      expect(
+        (executions[0]?.status as { severity?: unknown }).severity,
+      ).toBeUndefined();
     });
 
-    it('surfaces findings on a passing result with no violation (Requirement 2)', () => {
+    it('surfaces findings on a passing result with no violation (AC5)', () => {
       const executions = executionsFromRunRulesResult(
         {
           'rfc9110/example': {
@@ -109,13 +108,13 @@ describe('report builders', () => {
       );
 
       expect(executions).toHaveLength(1);
-      expect(executions[0]?.children).toHaveLength(1);
-      expect(executions[0]?.children?.[0]?.findings).toEqual([
+      expect(executions[0]?.status.kind).toBe('passed');
+      expect((executions[0] as { findings: unknown[] }).findings).toEqual([
         expect.objectContaining({ kind: 'assertion-success', title: 'ok' }),
       ]);
     });
 
-    it('combines a violation with its findings on the same result', () => {
+    it('keeps detail findings alongside a violation status (no synthetic rule-violation)', () => {
       const executions = executionsFromRunRulesResult(
         {
           'rfc9110/example': {
@@ -134,14 +133,13 @@ describe('report builders', () => {
       );
 
       expect(executions).toHaveLength(1);
-      expect(executions[0]?.children).toHaveLength(1);
-      expect(executions[0]?.children?.[0]?.findings).toHaveLength(2);
-      expect(executions[0]?.children?.[0]?.findings.map((f) => f.kind)).toEqual(
-        ['rule-violation', 'assertion-failure'],
-      );
+      expect(executions[0]?.status.kind).toBe('failed');
+      const findings = (executions[0] as { findings: { kind: string }[] })
+        .findings;
+      expect(findings.map((f) => f.kind)).toEqual(['assertion-failure']);
     });
 
-    it('emits an empty parent but no child for a pure-pass result', () => {
+    it('emits a passed execution for a pure-pass result (AC3)', () => {
       const executions = executionsFromRunRulesResult(
         {
           'rfc9110/example': {
@@ -154,7 +152,52 @@ describe('report builders', () => {
       );
 
       expect(executions).toHaveLength(1);
-      expect(executions[0]?.children).toHaveLength(0);
+      expect(executions[0]?.status.kind).toBe('passed');
+      expect((executions[0] as { findings: unknown[] }).findings).toEqual([]);
+    });
+
+    it('maps a rule-skip-only result to a skipped status (AC4)', () => {
+      const executions = executionsFromRunRulesResult(
+        {
+          'rfc9110/example': {
+            diagnostics: undefined,
+            ruleFnResult: [
+              {
+                location: 'custom/loc',
+                findings: [
+                  { kind: 'rule-skip', title: 'skip', reason: 'no endpoint' },
+                ],
+              },
+            ],
+          },
+        },
+        [rule],
+        format,
+      );
+
+      expect(executions).toHaveLength(1);
+      expect(executions[0]?.status).toMatchObject({
+        kind: 'skipped',
+        reason: 'no endpoint',
+      });
+      // rule-skip is a producer signal, never a report finding.
+      expect((executions[0] as { findings: unknown[] }).findings).toEqual([]);
+    });
+
+    it('marks the execution kind as analyze when requested (AC10)', () => {
+      const executions = executionsFromRunRulesResult(
+        {
+          'rfc9110/example': {
+            diagnostics: undefined,
+            ruleFnResult: [{ location: 'custom/loc', findings: [] }],
+          },
+        },
+        [rule],
+        format,
+        'analyze',
+      );
+
+      expect(executions[0]?.kind).toBe('analyze');
     });
 
     it('falls back to the rule summary when the violation has no message', () => {
@@ -171,10 +214,9 @@ describe('report builders', () => {
         format,
       );
 
-      expect(executions[0]?.children?.[0]?.findings[0]).toMatchObject({
-        kind: 'rule-violation',
-        title: 'rfc9110/example',
-        message: { text: 'Example summary' },
+      expect(executions[0]?.status).toMatchObject({
+        kind: 'failed',
+        reason: 'Example summary',
       });
     });
   });

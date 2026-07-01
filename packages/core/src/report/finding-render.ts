@@ -1,8 +1,18 @@
-import type { FindingRecord, RuleDescriptor } from './report.js';
+import type {
+  Execution,
+  FindingRecord,
+  RuleDescriptor,
+  Severity,
+} from './report.js';
+
+/** Minimal logger surface used for defensive severity-resolution warnings. */
+export interface SeverityWarnLogger {
+  warn(message: string): void;
+}
 
 /** A single label/value detail extracted from a finding for rendering. */
 export interface FindingDetail {
-  /** Stable label, e.g. `rule`, `expected`, `actual`, `reason`, `duration`. */
+  /** Stable label, e.g. `expected`, `actual`. */
   label: string;
   /** Plain-text value. */
   value: string;
@@ -21,73 +31,74 @@ export function buildRuleIndex(
   return index;
 }
 
-/** Extract the `ruleId` of any finding that carries one, else `undefined`. */
-export function findingRuleId(finding: FindingRecord): string | undefined {
-  return 'ruleId' in finding && typeof finding.ruleId === 'string'
-    ? finding.ruleId
-    : undefined;
+/**
+ * Resolve the effective {@link Severity} of an execution.
+ *
+ * Only `failed` executions have a severity (per SARIF, a "level" applies only to
+ * failing results). For a failed execution the severity is `status.severity`
+ * (an override) if present, else the rule's configured severity looked up via
+ * `ruleId`, else `'error'` as a last-resort fallback (with a warning). Non-failed
+ * executions return `undefined`; if one nonetheless carries a `severity`, that is
+ * a model violation — it is warned about and ignored.
+ */
+export function resolveExecutionSeverity(
+  execution: Execution,
+  ruleIndex: ReadonlyMap<string, RuleDescriptor>,
+  logger?: SeverityWarnLogger,
+): Severity | undefined {
+  const { status } = execution;
+
+  if (status.kind !== 'failed') {
+    if (
+      'severity' in status &&
+      (status as { severity?: unknown }).severity !== undefined
+    ) {
+      logger?.warn(
+        `severity on non-'failed' status (kind '${status.kind}'); ignoring it.`,
+      );
+    }
+    return undefined;
+  }
+
+  if (status.severity !== undefined) {
+    return status.severity;
+  }
+
+  const fromRule =
+    execution.ruleId !== undefined
+      ? ruleIndex.get(execution.ruleId)?.severity
+      : undefined;
+  if (fromRule !== undefined) {
+    return fromRule;
+  }
+
+  logger?.warn(
+    `Could not resolve severity for failed execution${
+      execution.ruleId ? ` (rule '${execution.ruleId}')` : ''
+    }; defaulting to 'error'.`,
+  );
+  return 'error';
 }
 
 /**
  * Extract the kind-specific detail lines for a finding as plain label/value
  * pairs. Renderers decide layout (indented lines, table cells, CSV columns) and
- * apply their own coloring. When a {@link RuleDescriptor} index is provided,
- * rule findings are enriched with the descriptor's name/summary/helpUri.
+ * apply their own coloring.
+ *
+ * Rule identity and outcome detail (reason, duration, skip reason) no longer
+ * live on findings — they are carried by the owning execution's `ruleId` and
+ * {@link ExecutionStatus} and are rendered at the execution level.
  */
-export function findingDetails(
-  finding: FindingRecord,
-  ruleIndex?: ReadonlyMap<string, RuleDescriptor>,
-): FindingDetail[] {
+export function findingDetails(finding: FindingRecord): FindingDetail[] {
   const details: FindingDetail[] = [];
 
-  const ruleId = findingRuleId(finding);
-  if (ruleId !== undefined) {
-    details.push({ label: 'rule', value: ruleId });
-
-    const descriptor = ruleIndex?.get(ruleId);
-    if (descriptor) {
-      if (descriptor.name) {
-        details.push({ label: 'rule name', value: descriptor.name });
-      }
-      if (descriptor.summary?.text) {
-        details.push({ label: 'summary', value: descriptor.summary.text });
-      }
-      if (descriptor.helpUri) {
-        details.push({ label: 'help', value: descriptor.helpUri });
-      }
-    }
-  }
-
-  switch (finding.kind) {
-    case 'rule-skip':
-    case 'test-case-skip': {
-      const { reason } = finding as { reason?: string };
-      if (reason) {
-        details.push({ label: 'reason', value: reason });
-      }
-      break;
-    }
-    case 'assertion-failure': {
-      const { expected, actual } = finding as {
-        expected?: unknown;
-        actual?: unknown;
-      };
-      details.push({ label: 'expected', value: JSON.stringify(expected) });
-      details.push({ label: 'actual', value: JSON.stringify(actual) });
-      break;
-    }
-    case 'test-case-pass':
-    case 'test-case-fail': {
-      const { durationMilliseconds } = finding as {
-        durationMilliseconds?: number;
-      };
-      if (durationMilliseconds !== undefined) {
-        details.push({ label: 'duration', value: `${durationMilliseconds}ms` });
-      }
-      break;
-    }
-    default:
-      break;
+  if (finding.kind === 'assertion-failure') {
+    const { expected, actual } = finding as {
+      expected?: unknown;
+      actual?: unknown;
+    };
+    details.push({ label: 'expected', value: JSON.stringify(expected) });
+    details.push({ label: 'actual', value: JSON.stringify(actual) });
   }
 
   return details;

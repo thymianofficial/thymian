@@ -1,22 +1,23 @@
 import { createWriteStream, type WriteStream } from 'node:fs';
 
-import type { Logger, Report } from '@thymian/core';
-import { buildRuleIndex, findingDetails, findingRuleId, walkFindings } from '@thymian/core';
+import type { Execution, Location, Logger, Report } from '@thymian/core';
+import {
+  buildRuleIndex,
+  findingDetails,
+  resolveExecutionSeverity,
+  walkExecutions,
+} from '@thymian/core';
 
 import type { Formatter } from '../formatter.js';
 
 const CSV_HEADER =
-  'run_id,run_type,tool,execution_location,execution_depth,finding_kind,finding_id,nested_depth,parent_finding_id,severity,title,message,rule_id,detail\n';
+  'run_id,run_type,tool,rule_id,location,row_type,status,severity,finding_kind,finding_id,title,message,detail\n';
 
 export type CsvFormatterOptions = {
   path: string;
 };
 
-function formatLocation(
-  location: NonNullable<
-    Report['runs'][number]['executions']
-  >[number]['location'],
-): string {
+function formatLocation(location: Location): string {
   switch (location.type) {
     case 'custom':
       return location.value;
@@ -29,6 +30,12 @@ function formatLocation(
     case 'thymianFormat':
       return `format:${location.elementId}${location.pointer ? `#${location.pointer}` : ''}`;
   }
+}
+
+function executionLabel(execution: Execution): string {
+  return execution.kind === 'test'
+    ? execution.name
+    : formatLocation(execution.location);
 }
 
 export class CsvFormatter implements Formatter<CsvFormatterOptions> {
@@ -91,17 +98,44 @@ export function reportToCsvLines(report: Report): string[] {
 
   for (const run of report.runs) {
     const ruleIndex = buildRuleIndex(run.rules);
-    for (const { execution, finding, depth, nestedDepth, parentFindingId } of walkFindings(
-      run.executions,
-      { includeNested: true },
-    )) {
-      const detail = findingDetails(finding, ruleIndex)
-        .filter((d) => d.label !== 'rule')
-        .map((d) => `${d.label}=${d.value}`)
-        .join('; ');
+
+    for (const { execution } of walkExecutions(run.executions)) {
+      const ruleId = execution.ruleId ?? '';
+      const status = execution.status;
+      const severity = resolveExecutionSeverity(execution, ruleIndex);
+      const reason = status.kind === 'passed' ? '' : (status.reason ?? '');
+      const duration =
+        status.kind !== 'skipped' && status.durationMilliseconds !== undefined
+          ? `duration=${status.durationMilliseconds}ms`
+          : '';
+
+      // One row per execution so failed/skipped executions stay visible even
+      // when they carry no detail findings.
       lines.push(
-        `${csvSafe(run.runId)},${csvSafe(run.runType)},${csvSafe(run.tool.name)},${csvSafe(formatLocation(execution.location))},${depth},${csvSafe(finding.kind)},${csvSafe(finding.id)},${nestedDepth},${csvSafe(parentFindingId)},${csvSafe(finding.severity)},${csvSafe(finding.title)},${csvSafe(finding.message?.text)},${csvSafe(findingRuleId(finding))},${csvSafe(detail)}\n`,
+        `${csvSafe(run.runId)},${csvSafe(run.runType)},${csvSafe(run.tool.name)},${csvSafe(ruleId)},${csvSafe(executionLabel(execution))},execution,${csvSafe(status.kind)},${csvSafe(severity)},,,,${csvSafe(reason)},${csvSafe(duration)}\n`,
       );
+
+      const findingsWithLocation =
+        execution.kind === 'test'
+          ? execution.steps.flatMap((step) =>
+              step.findings.map((finding) => ({
+                finding,
+                location: formatLocation(step.location),
+              })),
+            )
+          : execution.findings.map((finding) => ({
+              finding,
+              location: formatLocation(execution.location),
+            }));
+
+      for (const { finding, location } of findingsWithLocation) {
+        const detail = findingDetails(finding)
+          .map((d) => `${d.label}=${d.value}`)
+          .join('; ');
+        lines.push(
+          `${csvSafe(run.runId)},${csvSafe(run.runType)},${csvSafe(run.tool.name)},${csvSafe(ruleId)},${csvSafe(location)},finding,,,${csvSafe(finding.kind)},${csvSafe(finding.id)},${csvSafe(finding.title)},${csvSafe(finding.message?.text)},${csvSafe(detail)}\n`,
+        );
+      }
     }
   }
 

@@ -3,7 +3,6 @@ import { isAbsolute, join } from 'node:path';
 import {
   type CapturedTrace,
   type CapturedTransaction,
-  createExecution,
   createToolRun,
   type EvaluatedRuleViolation,
   executionsFromRunRulesResult,
@@ -101,7 +100,12 @@ function createRuns(
   _transactions: CapturedTransaction[] = [],
   rules: Rule[] = [],
 ): ToolRun[] {
-  const executions = executionsFromRunRulesResult(ruleResults, rules, format);
+  const executions = executionsFromRunRulesResult(
+    ruleResults,
+    rules,
+    format,
+    'analyze',
+  );
 
   const ruleDescriptors = rulesToRuleDescriptors(rules, (r) => r.analyzeRule);
 

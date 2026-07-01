@@ -4,7 +4,7 @@ import { describe, expect, it } from 'vitest';
 import { renderReport } from '../src/cli-report-renderer.js';
 
 describe('cli report renderer', () => {
-  it('renders tool runs and findings', () => {
+  it('renders tool runs and execution status', () => {
     const output = renderReport({
       reportId: 'report-1',
       createdAt: new Date().toISOString(),
@@ -14,19 +14,14 @@ describe('cli report renderer', () => {
           tool: { name: '@thymian/plugin-http-linter' },
           runType: 'lint',
           runAt: new Date().toISOString(),
+          rules: [{ id: 'example/rule', severity: 'warn' }],
           executions: [
             {
+              kind: 'lint',
+              ruleId: 'example/rule',
+              status: { kind: 'failed', reason: 'A warning' },
               location: { type: 'custom', value: 'GET /pets' },
-              findings: [
-                {
-                  id: 'finding-1',
-                  kind: 'rule-violation',
-                  ruleId: 'example/rule',
-                  title: 'A warning',
-                  severity: 'warn',
-                  message: { text: 'A warning' },
-                },
-              ],
+              findings: [],
             },
           ],
         },
@@ -35,6 +30,7 @@ describe('cli report renderer', () => {
 
     expect(output).toContain('@thymian/plugin-http-linter');
     expect(output).toContain('GET /pets');
+    expect(output).toContain('failed: A warning');
     expect(output).toContain('Summary:');
   });
 
@@ -66,6 +62,9 @@ describe('cli report renderer', () => {
             runAt: new Date().toISOString(),
             executions: [
               {
+                kind: 'lint',
+                ruleId: 'example/rule',
+                status: { kind: 'passed' },
                 location: {
                   type: 'thymianFormat',
                   elementType: 'node',
@@ -84,7 +83,7 @@ describe('cli report renderer', () => {
     expect(output).toContain('GET /pets - application/json');
   });
 
-  it('recursively renders nested executions and per-kind details', () => {
+  it('renders test executions with status, steps and finding detail', () => {
     const output = renderReport({
       reportId: 'report-1',
       createdAt: new Date().toISOString(),
@@ -104,38 +103,19 @@ describe('cli report renderer', () => {
           ],
           executions: [
             {
-              location: { type: 'custom', value: 'GET /pets' },
-              findings: [
+              kind: 'test',
+              ruleId: 'example/rule',
+              status: { kind: 'passed', durationMilliseconds: 7 },
+              name: 'happy path',
+              steps: [
                 {
-                  id: 'rv-1',
-                  kind: 'rule-violation',
-                  ruleId: 'example/rule',
-                  title: 'A violation',
-                  severity: 'error',
-                  message: { text: 'A violation' },
-                },
-              ],
-              children: [
-                {
+                  name: 'Step 1',
                   location: { type: 'custom', value: 'case: happy' },
                   findings: [
                     {
-                      id: 'tc-pass',
-                      kind: 'test-case-pass',
-                      title: 'passes',
-                      severity: 'info',
-                      durationMilliseconds: 7,
-                      nestedFindings: [
-                        {
-                          type: 'composed-of',
-                          finding: {
-                            id: 'a-1',
-                            kind: 'assertion-success',
-                            title: 'status ok',
-                            severity: 'info',
-                          },
-                        },
-                      ],
+                      id: 'a-1',
+                      kind: 'assertion-success',
+                      title: 'status ok',
                     },
                   ],
                 },
@@ -146,12 +126,9 @@ describe('cli report renderer', () => {
       ],
     });
 
-    // inline ruleId on headline + descriptor help line
     expect(output).toContain('example/rule');
-    expect(output).toContain('help: https://example.com/rule');
-    // nested execution and nested assertion are both rendered
+    expect(output).toContain('passed (7ms)');
     expect(output).toContain('case: happy');
-    expect(output).toContain('duration: 7ms');
     expect(output).toContain('status ok');
   });
 });

@@ -11,15 +11,17 @@ export type RuleViolationLocation =
 
 export type RuleFindingSeverity = 'error' | 'warn' | 'info' | 'hint';
 
+/**
+ * The rule-author input union (distinct from the report `FindingRecord` output
+ * union). Findings carry *meta* information only — a rule violation is already
+ * represented by a `RuleFnResult` with its `violation` property set, so there is
+ * no `rule-violation` finding kind here. `rule-skip` is a producer signal the
+ * report builder maps to `status: skipped`; it is intentionally NOT a report
+ * finding kind either (see `ruleFindingToFindingRecord`).
+ */
 export interface RuleFinding {
   kind:
-    | 'rule-violation'
-    | 'rule-success'
-    | 'rule-failure'
     | 'rule-skip'
-    | 'test-case-pass'
-    | 'test-case-fail'
-    | 'test-case-skip'
     | 'informational'
     | 'assertion-failure'
     | 'assertion-success'

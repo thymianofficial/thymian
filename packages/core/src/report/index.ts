@@ -1,13 +1,22 @@
+export type { FindingDetail, SeverityWarnLogger } from './finding-render.js';
+export {
+  buildRuleIndex,
+  findingDetails,
+  resolveExecutionSeverity,
+} from './finding-render.js';
 export type {
+  AnalyzeExecution,
   Artifact,
   BaseFinding,
   BodyContent,
   Execution,
+  ExecutionBase,
+  ExecutionStatus,
   FindingRecord,
-  FindingRelationship,
   Headers,
   Informational,
   Invocation,
+  LintExecution,
   Location,
   Message,
   Report,
@@ -15,14 +24,11 @@ export type {
   ReportHttpResponse,
   ReportHttpTransaction,
   RuleDescriptor,
-  RuleFailure,
-  RuleSkip,
-  RuleSuccess,
   RuleViolationFinding,
   Severity,
-  TestCaseFail,
-  TestCasePass,
-  TestCaseSkip,
+  TestCaseExecution,
+  TestStep,
+  ThymianFormatVersion,
   Tool,
   ToolRun,
 } from './report.js';
@@ -31,8 +37,11 @@ export type {
   AssertionSuccess as ReportAssertionSuccess,
 } from './report.js';
 export {
-  createExecution,
+  createAnalyzeExecution,
+  createLintExecution,
   createReport,
+  createTestCaseExecution,
+  createTestStep,
   createToolRun,
   executionsFromRunRulesResult,
   executionsFromViolations,
@@ -41,19 +50,9 @@ export {
   ruleFindingToFindingRecord,
   rulesToRuleDescriptors,
 } from './report-builder.js';
+export type { ExecutionVisit, FindingVisit } from './report-traversal.js';
 export {
   collectFindings,
   walkExecutions,
   walkFindings,
 } from './report-traversal.js';
-export type {
-  ExecutionVisit,
-  FindingVisit,
-  WalkFindingsOptions,
-} from './report-traversal.js';
-export {
-  buildRuleIndex,
-  findingDetails,
-  findingRuleId,
-} from './finding-render.js';
-export type { FindingDetail } from './finding-render.js';

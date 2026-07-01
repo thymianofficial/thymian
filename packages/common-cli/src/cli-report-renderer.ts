@@ -1,14 +1,15 @@
 import { colorize } from '@oclif/core/ux';
 import {
   buildRuleIndex,
-  collectFindings,
-  type FindingRecord,
+  type Execution,
+  type ExecutionStatus,
   findingDetails,
-  findingRuleId,
+  type FindingRecord,
   type HttpTransaction,
   isNodeType,
   type Location,
   type Report,
+  resolveExecutionSeverity,
   type RuleDescriptor,
   type Severity,
   ThymianFormat,
@@ -107,33 +108,77 @@ function formatLocation(location: Location, format?: ThymianFormat): string {
   }
 }
 
-function renderFinding(
-  finding: FindingRecord,
-  ruleIndex: ReadonlyMap<string, RuleDescriptor>,
-  indent = '    ',
-): string[] {
-  const headline = `${symbolForSeverity(finding.severity)} ${finding.title}`;
-  const ruleId = findingRuleId(finding);
-  const lines = [
-    `${indent}${colorizeText(headline, finding.severity)}${
-      ruleId ? ` ${ruleId}` : ''
-    }`,
-  ];
+function renderFinding(finding: FindingRecord, indent = '    '): string[] {
+  const lines = [`${indent}${finding.title}`];
 
   if (finding.message?.text && finding.message.text !== finding.title) {
     lines.push(`${indent}  ${finding.message.text}`);
   }
 
-  for (const detail of findingDetails(finding, ruleIndex)) {
-    // `rule` is already shown inline on the headline above.
-    if (detail.label === 'rule') {
-      continue;
-    }
+  for (const detail of findingDetails(finding)) {
     lines.push(`${indent}  ${detail.label}: ${detail.value}`);
   }
 
-  for (const relationship of finding.nestedFindings ?? []) {
-    lines.push(...renderFinding(relationship.finding, ruleIndex, `${indent}  `));
+  return lines;
+}
+
+function renderStatus(
+  status: ExecutionStatus,
+  severity: Severity | undefined,
+): string {
+  switch (status.kind) {
+    case 'passed': {
+      const duration =
+        status.durationMilliseconds !== undefined
+          ? ` (${status.durationMilliseconds}ms)`
+          : '';
+      return `${symbolForSeverity('info')} passed${duration}`;
+    }
+    case 'failed': {
+      const resolved = severity ?? 'error';
+      const reason = status.reason ? `: ${status.reason}` : '';
+      const duration =
+        status.durationMilliseconds !== undefined
+          ? ` (${status.durationMilliseconds}ms)`
+          : '';
+      return colorizeText(
+        `${symbolForSeverity(resolved)} failed${reason}${duration}`,
+        resolved,
+      );
+    }
+    case 'skipped':
+      return `${symbolForSeverity('hint')} skipped${status.reason ? `: ${status.reason}` : ''}`;
+  }
+}
+
+function renderExecution(
+  execution: Execution,
+  ruleIndex: ReadonlyMap<string, RuleDescriptor>,
+  format: ThymianFormat | undefined,
+): string[] {
+  const label =
+    execution.kind === 'test'
+      ? execution.name
+      : formatLocation(execution.location, format);
+  const lines = [`  ${label}${execution.ruleId ? ` ${execution.ruleId}` : ''}`];
+
+  const severity = resolveExecutionSeverity(execution, ruleIndex);
+  lines.push(`    ${renderStatus(execution.status, severity)}`);
+
+  if (execution.kind === 'test') {
+    for (const step of execution.steps) {
+      if (step.findings.length === 0) {
+        continue;
+      }
+      lines.push(`    ${step.name} ${formatLocation(step.location, format)}`);
+      for (const finding of step.findings) {
+        lines.push(...renderFinding(finding, '      '));
+      }
+    }
+  } else {
+    for (const finding of execution.findings) {
+      lines.push(...renderFinding(finding, '    '));
+    }
   }
 
   return lines;
@@ -148,14 +193,36 @@ function collectSeverityCounts(report: Report): Record<Severity, number> {
   };
 
   for (const run of report.runs) {
-    for (const finding of collectFindings(run.executions, {
-      includeNested: true,
-    })) {
-      counts[finding.severity] += 1;
+    const ruleIndex = buildRuleIndex(run.rules);
+    for (const { execution } of walkExecutions(run.executions)) {
+      const severity = resolveExecutionSeverity(execution, ruleIndex);
+      if (severity !== undefined) {
+        counts[severity] += 1;
+      }
     }
   }
 
   return counts;
+}
+
+/** Resolve the ThymianFormat a given run used, from the report's version map. */
+function resolveRunFormat(
+  formats: Report['thymianFormat'],
+  version: string | undefined,
+): ThymianFormat | undefined {
+  if (!formats) {
+    return undefined;
+  }
+
+  const entries = Object.entries(formats);
+  const serialized =
+    version !== undefined && formats[version]
+      ? formats[version]
+      : entries.length === 1
+        ? entries[0]?.[1]
+        : undefined;
+
+  return serialized ? ThymianFormat.import(serialized) : undefined;
 }
 
 export function renderReport(
@@ -167,13 +234,12 @@ export function renderReport(
   }
 
   const lines: string[] = [];
-  const format =
-    options.format ??
-    (report.thymianFormat
-      ? ThymianFormat.import(report.thymianFormat)
-      : undefined);
 
   for (const run of report.runs) {
+    const format =
+      options.format ??
+      resolveRunFormat(report.thymianFormat, run.thymianFormatVersion);
+
     lines.push(
       `${run.tool.name} ${Array.from({
         length: Math.max(1, 80 - run.tool.name.length),
@@ -184,12 +250,8 @@ export function renderReport(
     lines.push('');
 
     const ruleIndex = buildRuleIndex(run.rules);
-    for (const { execution, depth } of walkExecutions(run.executions)) {
-      const indent = '  '.repeat(depth + 1);
-      lines.push(`${indent}${formatLocation(execution.location, format)}`);
-      for (const finding of execution.findings) {
-        lines.push(...renderFinding(finding, ruleIndex, `${indent}  `));
-      }
+    for (const { execution } of walkExecutions(run.executions)) {
+      lines.push(...renderExecution(execution, ruleIndex, format));
     }
 
     lines.push('');

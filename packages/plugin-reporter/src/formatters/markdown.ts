@@ -1,11 +1,17 @@
 import * as path from 'node:path';
 
-import type { Logger, Report, Severity } from '@thymian/core';
+import type {
+  Execution,
+  Location,
+  Logger,
+  Report,
+  Severity,
+} from '@thymian/core';
 import {
   buildRuleIndex,
   findingDetails,
-  findingRuleId,
-  walkFindings,
+  resolveExecutionSeverity,
+  walkExecutions,
 } from '@thymian/core';
 import { mkdir, writeFile } from 'fs/promises';
 
@@ -32,11 +38,7 @@ export function mapSeverityToBadge(severity: Severity): string {
   return 'info';
 }
 
-function formatLocation(
-  location: NonNullable<
-    Report['runs'][number]['executions']
-  >[number]['location'],
-): string {
+function formatLocation(location: Location): string {
   switch (location.type) {
     case 'custom':
       return location.value;
@@ -49,6 +51,13 @@ function formatLocation(
     case 'thymianFormat':
       return `format:${location.elementId}${location.pointer ? `#${location.pointer}` : ''}`;
   }
+}
+
+/** Label identifying what an execution is about (location, or test case name). */
+function executionLabel(execution: Execution): string {
+  return execution.kind === 'test'
+    ? execution.name
+    : formatLocation(execution.location);
 }
 
 export type MarkdownFormatterOptions = {
@@ -75,41 +84,66 @@ export class MarkdownFormatter implements Formatter<MarkdownFormatterOptions> {
       return undefined;
     }
 
-    const analysis = analyze(this.reports);
+    const analysis = analyze(this.reports, this.logger);
+    const { error, warn, hint, info } = analysis.statistics.severityCounts;
     const lines: string[] = [];
     lines.push('# Thymian Report');
     lines.push('');
     lines.push(
-      `Generated from ${analysis.statistics.numberOfReports} report(s), ${analysis.statistics.numberOfRuns} run(s), and ${analysis.statistics.numberOfFindings} finding(s).`,
+      `Found ${error} error(s), ${warn} warning(s), ${hint} hint(s), and ${info} info finding(s).`,
     );
     lines.push('');
 
     for (const report of this.reports) {
-      lines.push(`## Report ${report.reportId}`);
-      lines.push('');
-
       for (const run of report.runs) {
-        lines.push(`### ${run.tool.name} (${run.runType})`);
+        lines.push(`## ${run.tool.name} (${run.runType})`);
         lines.push('');
         lines.push(
-          '| Location | Severity | Kind | Title | Rule | Message | Details |',
+          '| Location | Rule | Status | Severity | Kind | Title | Message | Details |',
         );
-        lines.push('| --- | --- | --- | --- | --- | --- | --- |');
+        lines.push('| --- | --- | --- | --- | --- | --- | --- | --- |');
 
         const ruleIndex = buildRuleIndex(run.rules);
-        for (const { execution, finding, nestedDepth } of walkFindings(
-          run.executions,
-          { includeNested: true },
-        )) {
-          const titlePrefix =
-            nestedDepth > 0 ? `${'&nbsp;'.repeat(nestedDepth * 4)}↳ ` : '';
-          const detail = findingDetails(finding, ruleIndex)
-            .filter((d) => d.label !== 'rule')
-            .map((d) => `${d.label}: ${d.value}`)
-            .join('; ');
-          lines.push(
-            `| ${escapeCell(formatLocation(execution.location))} | ${mapSeverityToBadge(finding.severity)} | ${finding.kind} | ${titlePrefix}${escapeCell(finding.title)} | ${findingRuleId(finding) ?? ''} | ${escapeCell(finding.message?.text ?? '')} | ${escapeCell(detail)} |`,
+        for (const { execution } of walkExecutions(run.executions)) {
+          const severity = resolveExecutionSeverity(
+            execution,
+            ruleIndex,
+            this.logger,
           );
+          const status = execution.status;
+          const statusReason =
+            status.kind === 'passed' ? '' : (status.reason ?? '');
+          const duration =
+            status.kind !== 'skipped' &&
+            status.durationMilliseconds !== undefined
+              ? `duration: ${status.durationMilliseconds}ms`
+              : '';
+
+          lines.push(
+            `| ${escapeCell(executionLabel(execution))} | ${escapeCell(execution.ruleId ?? '')} | ${status.kind} | ${severity ? mapSeverityToBadge(severity) : ''} |  |  | ${escapeCell(statusReason)} | ${escapeCell(duration)} |`,
+          );
+
+          const findingsWithLocation =
+            execution.kind === 'test'
+              ? execution.steps.flatMap((step) =>
+                  step.findings.map((finding) => ({
+                    finding,
+                    location: formatLocation(step.location),
+                  })),
+                )
+              : execution.findings.map((finding) => ({
+                  finding,
+                  location: formatLocation(execution.location),
+                }));
+
+          for (const { finding, location } of findingsWithLocation) {
+            const detail = findingDetails(finding)
+              .map((d) => `${d.label}: ${d.value}`)
+              .join('; ');
+            lines.push(
+              `| ${escapeCell(location)} | ${escapeCell(execution.ruleId ?? '')} |  |  | ${finding.kind} | ${escapeCell(finding.title)} | ${escapeCell(finding.message?.text ?? '')} | ${escapeCell(detail)} |`,
+            );
+          }
         }
 
         lines.push('');
