@@ -2,9 +2,9 @@ import { httpRule } from '@thymian/core';
 
 export default httpRule('rfc9110/recipient-should-treat-x-gzip-as-gzip')
   .severity('hint')
-  // Informational: constrains how a recipient DECODES an "x-gzip" coding
-  // internally (treat it as "gzip"). That decoding choice is implementation-
-  // internal and emits no distinct wire artifact; verified by code review.
+  // Constrains how a recipient decodes an "x-gzip" coding internally (treat it
+  // as "gzip"). That decoding choice is implementation-internal and emits no
+  // distinct wire artifact.
   .type('informational')
   .appliesTo('client', 'user-agent')
   .url('https://www.rfc-editor.org/rfc/rfc9110.html#section-8.4.1.3')

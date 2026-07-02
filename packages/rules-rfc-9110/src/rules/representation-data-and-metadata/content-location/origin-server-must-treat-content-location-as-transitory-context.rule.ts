@@ -4,10 +4,9 @@ export default httpRule(
   'rfc9110/origin-server-must-treat-content-location-as-transitory-context',
 )
   .severity('error')
-  // Informational: this constrains server-internal handling of a request
-  // Content-Location (do not persist it as representation metadata or use it to
-  // alter request semantics). That handling leaves no observable wire artifact;
-  // verified by code review.
+  // Constrains server-internal handling of a request Content-Location (do not
+  // persist it as representation metadata or use it to alter request semantics).
+  // That handling leaves no observable wire artifact.
   .type('informational')
   .appliesTo('origin server')
   .url('https://www.rfc-editor.org/rfc/rfc9110.html#section-8.7')

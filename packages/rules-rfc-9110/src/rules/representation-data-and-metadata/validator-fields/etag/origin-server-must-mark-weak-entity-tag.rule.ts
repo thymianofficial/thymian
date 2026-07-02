@@ -2,10 +2,9 @@ import { httpRule } from '@thymian/core';
 
 export default httpRule('rfc9110/origin-server-must-mark-weak-entity-tag')
   .severity('error')
-  // Informational: deciding a tag MUST be marked weak depends on whether its
-  // generation meets strong-validator characteristics (changes on every
-  // observable data change) - a property of the server's ETag algorithm, not of
-  // the header value. Verified by code review of that generation logic.
+  // Deciding a tag must be marked weak depends on whether its generation meets
+  // strong-validator characteristics (changes on every observable data change) -
+  // a property of the server's ETag algorithm, not of the header value.
   .type('informational')
   .appliesTo('origin server')
   .url('https://www.rfc-editor.org/rfc/rfc9110.html#section-8.8.3')

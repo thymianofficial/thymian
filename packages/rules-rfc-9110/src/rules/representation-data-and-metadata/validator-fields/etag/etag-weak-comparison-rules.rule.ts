@@ -2,10 +2,9 @@ import { httpRule } from '@thymian/core';
 
 export default httpRule('rfc9110/etag-weak-comparison-rules')
   .severity('off')
-  // Informational: this defines the weak-comparison ALGORITHM a recipient must
-  // apply internally when matching entity tags. The comparison happens inside
-  // the implementation and produces no distinct wire artifact, so conformance
-  // is verified by code review, not by observing traffic.
+  // Defines the weak-comparison algorithm a recipient must apply internally when
+  // matching entity tags. The comparison happens inside the implementation and
+  // produces no distinct wire artifact.
   .type('informational')
   .appliesTo('server', 'client', 'intermediary')
   .url('https://www.rfc-editor.org/rfc/rfc9110.html#section-8.8.3.2')

@@ -4,10 +4,9 @@ export default httpRule(
   'rfc9110/sender-must-not-forward-message-with-incorrect-content-length-header',
 )
   .severity('error')
-  // Informational: whether a forwarded Content-Length is "known to be
-  // incorrect" (relative to received framing) requires the upstream message
-  // framing and intermediary role that the engine does not have; the smuggling
-  // risk this guards is verified by code review, not on the wire.
+  // Whether a forwarded Content-Length is "known to be incorrect" (relative to
+  // received framing) requires the upstream message framing and intermediary
+  // role that the engine does not have.
   .type('informational')
   .appliesTo('intermediary')
   .url('https://www.rfc-editor.org/rfc/rfc9110.html#section-8.6')

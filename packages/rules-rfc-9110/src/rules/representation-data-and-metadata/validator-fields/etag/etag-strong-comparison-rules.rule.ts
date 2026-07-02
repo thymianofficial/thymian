@@ -2,10 +2,9 @@ import { httpRule } from '@thymian/core';
 
 export default httpRule('rfc9110/etag-strong-comparison-rules')
   .severity('off')
-  // Informational: this defines the strong-comparison ALGORITHM a recipient
-  // must apply internally when matching entity tags. The comparison is an
-  // implementation-internal step with no distinct wire artifact, so conformance
-  // is verified by code review, not by observing traffic.
+  // Defines the strong-comparison algorithm a recipient must apply internally
+  // when matching entity tags. The comparison is an implementation-internal step
+  // with no distinct wire artifact.
   .type('informational')
   .appliesTo('server', 'client', 'intermediary')
   .url('https://www.rfc-editor.org/rfc/rfc9110.html#section-8.8.3.2')

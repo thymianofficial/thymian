@@ -2,8 +2,8 @@ import { httpRule } from '@thymian/core';
 
 export default httpRule('rfc9110/sender-may-send-etag-in-trailer')
   .severity('hint')
-  // Informational: pure permission (MAY send ETag in a trailer). Either
-  // placement is conformant, so there is no violation to flag in any context.
+  // Pure permission (MAY send ETag in a trailer): either placement is
+  // conformant.
   .type('informational')
   .appliesTo('origin server')
   .url('https://www.rfc-editor.org/rfc/rfc9110.html#section-8.8.3')

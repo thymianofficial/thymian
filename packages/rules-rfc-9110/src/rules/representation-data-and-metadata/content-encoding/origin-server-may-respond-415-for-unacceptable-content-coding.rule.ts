@@ -4,9 +4,8 @@ export default httpRule(
   'rfc9110/origin-server-may-respond-415-for-unacceptable-content-coding',
 )
   .severity('hint')
-  // Informational: pure permission (origin server MAY answer 415). Both
-  // responding 415 and accepting the coding are conformant, so there is no
-  // violation condition to detect.
+  // Pure permission (origin server MAY answer 415): both responding 415 and
+  // accepting the coding are conformant.
   .type('informational')
   .appliesTo('origin server')
   .url('https://www.rfc-editor.org/rfc/rfc9110.html#section-8.4')
