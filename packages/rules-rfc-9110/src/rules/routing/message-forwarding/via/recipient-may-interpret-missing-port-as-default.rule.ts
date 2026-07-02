@@ -4,7 +4,7 @@ export default httpRule(
   'rfc9110/recipient-may-interpret-missing-port-as-default',
 )
   .severity('hint')
-  // Informational: permissive MAY — interpreting an absent Via port as the default is an internal recipient decision with no observable artifact.
+  // Interpreting an absent Via port as the default is an internal recipient decision with no observable artifact.
   .type('informational')
   .url('https://www.rfc-editor.org/rfc/rfc9110.html#name-via')
   .description(

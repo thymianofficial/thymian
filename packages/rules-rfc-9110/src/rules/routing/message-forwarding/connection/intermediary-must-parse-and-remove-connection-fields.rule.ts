@@ -4,7 +4,7 @@ export default httpRule(
   'rfc9110/intermediary-must-parse-and-remove-connection-fields',
 )
   .severity('error')
-  // Infra-deferred: verifying the intermediary parsed Connection and removed the named
+  // Verifying the intermediary parsed Connection and removed the named
   // connection-option fields (plus the Connection header itself) requires comparing what
   // it RECEIVED against what it FORWARDED. That inbound-vs-forwarded correlation is only
   // recoverable from captured multi-hop traces where the intermediary role is recorded.

@@ -6,8 +6,7 @@ export default httpRule(
 )
   .severity('error')
   // 101 (Switching Protocols) is an interim response absent from the static spec
-  // projection (schemas do not model interim responses), so the 'static' arm can never
-  // match; the check runs only against real messages in 'test'/'analytics'.
+  // projection, because schemas do not model interim responses.
   .type('test', 'analytics')
   .url('https://www.rfc-editor.org/rfc/rfc9110.html#name-upgrade')
   .description(

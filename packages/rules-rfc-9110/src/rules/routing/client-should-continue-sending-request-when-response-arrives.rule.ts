@@ -4,7 +4,7 @@ export default httpRule(
   'rfc9110/client-should-continue-sending-request-when-response-arrives',
 )
   .severity('warn')
-  // Informational: whether a client keeps sending its request body while a response arrives is an internal client timing decision with no observable on-the-wire artifact to validate.
+  // Whether a client keeps sending its request body while a response arrives is an internal client timing decision with no observable on-the-wire artifact to validate.
   .type('informational')
   .url('https://www.rfc-editor.org/rfc/rfc9110.html#name-response-correlation')
   .description(

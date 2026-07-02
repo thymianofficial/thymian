@@ -4,7 +4,7 @@ export default httpRule(
   'rfc9110/firewall-intermediary-should-replace-internal-hosts-with-pseudonyms',
 )
   .severity('warn')
-  // Informational: recognizing which received-by hosts are internal (and thus should be pseudonymized) needs deployment topology knowledge Thymian lacks.
+  // Recognizing which received-by hosts are internal (and thus should be pseudonymized) needs deployment topology knowledge Thymian lacks.
   .type('informational')
   .url('https://www.rfc-editor.org/rfc/rfc9110.html#name-via')
   .description(

@@ -4,7 +4,7 @@ export default httpRule(
   'rfc9110/intermediary-must-generate-updated-max-forwards-when-forwarding',
 )
   .severity('error')
-  // Infra-deferred: verifying the forwarded Max-Forwards equals min(received-1, max)
+  // Verifying the forwarded Max-Forwards equals min(received-1, max)
   // requires correlating the value the intermediary RECEIVED with the value it FORWARDED
   // at the same hop. That inbound-vs-forwarded pairing is only recoverable from captured
   // multi-hop traces at a deployment where the intermediary role is recorded.

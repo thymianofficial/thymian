@@ -4,7 +4,7 @@ export default httpRule(
   'rfc9110/origin-server-must-reject-requests-not-meeting-scheme-requirements',
 )
   .severity('error')
-  // Informational: judging whether a request met the scheme requirements needs the connection/transport context (e.g. TLS state) that is not available from the HTTP message alone.
+  // Judging whether a request met the scheme requirements needs the connection/transport context (e.g. TLS state) that is not available from the HTTP message alone.
   .type('informational')
   .url(
     'https://www.rfc-editor.org/rfc/rfc9110.html#name-rejecting-misdirected-reque',

@@ -8,11 +8,9 @@ export default httpRule(
   'rfc9110/server-must-not-switch-to-non-indicated-protocol',
 )
   .severity('error')
-  // Request<->response correlation on the Upgrade header: the check compares the
-  // protocols the CLIENT indicated in its request Upgrade header against those the
-  // server echoes in the response. In 'test' the request is Thymian-generated and
-  // carries no client Upgrade header, so the filter is inert there. Only recorded
-  // real-client traffic ('analytics') carries both sides, so this runs analytics-only.
+  // Compares the protocols the CLIENT indicated in its request Upgrade header
+  // against those the server echoes in the response. Both sides are only present in
+  // recorded real-client traffic, which is why this runs as an analytics override.
   .type('analytics')
   .url('https://www.rfc-editor.org/rfc/rfc9110.html#name-upgrade')
   .description(

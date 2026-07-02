@@ -2,7 +2,7 @@ import { httpRule } from '@thymian/core';
 
 export default httpRule('rfc9110/server-may-ignore-upgrade-header')
   .severity('hint')
-  // Informational: permissive MAY — a server ignoring Upgrade is an allowed internal decision, so neither outcome is a violation.
+  // Permissive MAY — a server ignoring Upgrade is an allowed internal decision, so neither outcome is a violation.
   .type('informational')
   .url('https://www.rfc-editor.org/rfc/rfc9110.html#name-upgrade')
   .description(

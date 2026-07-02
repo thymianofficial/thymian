@@ -2,7 +2,7 @@ import { httpRule } from '@thymian/core';
 
 export default httpRule('rfc9110/client-may-send-upgrade-header')
   .severity('hint')
-  // Informational: permissive MAY — a client sending Upgrade is optional, so its presence or absence is never a violation and there is nothing to validate.
+  // Permissive MAY — a client sending Upgrade is optional, so its presence or absence is never a violation.
   .type('informational')
   .url('https://www.rfc-editor.org/rfc/rfc9110.html#name-upgrade')
   .description(

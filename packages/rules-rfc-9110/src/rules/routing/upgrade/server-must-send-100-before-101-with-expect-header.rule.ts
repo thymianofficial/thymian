@@ -4,7 +4,7 @@ export default httpRule(
   'rfc9110/server-must-send-100-before-101-with-expect-header',
 )
   .severity('error')
-  // Informational: validating the 100-before-101 ordering requires correlating multiple interim responses on one request, which the current observation model does not expose.
+  // Validating the 100-before-101 ordering requires correlating multiple interim responses on one request, which the current observation model does not expose.
   .type('informational')
   .url('https://www.rfc-editor.org/rfc/rfc9110.html#name-upgrade')
   .description(

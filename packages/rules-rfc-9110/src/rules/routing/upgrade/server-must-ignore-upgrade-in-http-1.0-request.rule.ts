@@ -4,7 +4,7 @@ export default httpRule(
   'rfc9110/server-must-ignore-upgrade-in-http-1.0-request',
 )
   .severity('error')
-  // Informational: confirming the server ignored Upgrade on an HTTP/1.0 request requires knowing it did NOT act on it; a compliant server produces an ordinary response indistinguishable from one that never received Upgrade.
+  // Confirming the server ignored Upgrade on an HTTP/1.0 request requires knowing it did NOT act on it; a compliant server produces an ordinary response indistinguishable from one that never received Upgrade.
   .type('informational')
   .url('https://www.rfc-editor.org/rfc/rfc9110.html#name-upgrade')
   .description(

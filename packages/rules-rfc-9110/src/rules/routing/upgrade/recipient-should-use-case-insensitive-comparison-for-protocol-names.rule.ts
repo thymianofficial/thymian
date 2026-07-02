@@ -4,7 +4,7 @@ export default httpRule(
   'rfc9110/recipient-should-use-case-insensitive-comparison-for-protocol-names',
 )
   .severity('warn')
-  // Informational: whether a recipient compared protocol names case-insensitively is an internal implementation detail with no distinguishing on-the-wire artifact.
+  // Whether a recipient compared protocol names case-insensitively is an internal implementation detail with no distinguishing on-the-wire artifact.
   .type('informational')
   .url('https://www.rfc-editor.org/rfc/rfc9110.html#name-upgrade')
   .description(

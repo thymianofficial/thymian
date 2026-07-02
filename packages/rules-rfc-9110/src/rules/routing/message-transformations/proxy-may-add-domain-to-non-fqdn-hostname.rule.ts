@@ -2,7 +2,7 @@ import { httpRule } from '@thymian/core';
 
 export default httpRule('rfc9110/proxy-may-add-domain-to-non-fqdn-hostname')
   .severity('hint')
-  // Informational: permissive MAY — completing a non-FQDN host with a local domain is an optional proxy behavior, so its presence is never a violation.
+  // Permissive MAY — completing a non-FQDN host with a local domain is an optional proxy behavior, so its presence is never a violation.
   .type('informational')
   .url(
     'https://www.rfc-editor.org/rfc/rfc9110.html#name-message-transformations',
