@@ -51,17 +51,16 @@ export default httpRule(
   'rfc9110/authentication-parameter-name-must-occur-once-per-challenge',
 )
   .severity('error')
-  // Implementable (outcome 1): a syntactic conformance check on the auth-param
-  // syntax carried in authentication header field VALUES, read via `getHeader`.
-  // It applies both to challenges (WWW-Authenticate / Proxy-Authenticate,
-  // server-sent) and to credentials (Authorization / Proxy-Authorization,
-  // client-sent). Split by context so each side is validated only where it is
-  // observable:
+  // A syntactic conformance check on the auth-param syntax carried in
+  // authentication header field VALUES, read via `getHeader`. It applies both
+  // to challenges (WWW-Authenticate / Proxy-Authenticate, server-sent) and to
+  // credentials (Authorization / Proxy-Authorization, client-sent). Split by
+  // context so each side is validated only where it is observable:
   //   - `test`: Thymian generates the request, so only the server-generated
   //     RESPONSE challenges are meaningful; a request-side scan would be inert
-  //     (the request is always well-formed). See overrideTest below.
+  //     (the request is always well-formed).
   //   - `analytics`: recorded traffic carries real request AND response header
-  //     values, so BOTH directions are validated. See overrideAnalyticsRule.
+  //     values, so BOTH directions are validated.
   .type('test', 'analytics')
   .url(
     'https://www.rfc-editor.org/rfc/rfc9110.html#name-authentication-parameters',

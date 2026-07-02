@@ -2,15 +2,11 @@ import { getHeader, httpRule, type RuleFnResult } from '@thymian/core';
 
 export default httpRule('rfc9110/proxy-must-not-modify-www-authenticate')
   .severity('error')
-  // Analytics (implemented): this MUST NOT governs a *proxy hop* — a proxy
-  // forwarding a response must not alter its WWW-Authenticate header
-  // field. Detecting a violation requires correlating the response a proxy
-  // received with the response it forwarded (the inbound and outbound sides of
-  // the same hop). That two-sided, per-hop linkage is only available from
-  // traffic captured at the proxy itself, so the rule is typed `analytics`,
-  // scoped to the `proxy` role, and validated over captured traces by comparing
-  // the WWW-Authenticate value across adjacent hops whose response role is
-  // `proxy`.
+  // This MUST NOT governs a *proxy hop* — a proxy forwarding a response must
+  // not alter its WWW-Authenticate header field. Detecting a violation requires
+  // correlating the response a proxy received with the response it forwarded
+  // (the inbound and outbound sides of the same hop). That two-sided, per-hop
+  // linkage is only available from traffic captured at the proxy itself.
   .type('analytics')
   .url(
     'https://www.rfc-editor.org/rfc/rfc9110.html#name-authenticating-users-to-ori',
