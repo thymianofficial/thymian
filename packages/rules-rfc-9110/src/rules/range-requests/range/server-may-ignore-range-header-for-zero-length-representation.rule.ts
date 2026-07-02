@@ -4,9 +4,8 @@ export default httpRule(
   'rfc9110/server-may-ignore-range-header-for-zero-length-representation',
 )
   .severity('hint')
-  // Informational (outcome 2): a "MAY" permission. Ignoring the Range header for a
-  // zero-length representation is allowed but not required, so there is no
-  // non-conformant condition. It also depends on the server-internal fact that
+  // A "MAY" permission. Ignoring the Range header for a zero-length representation
+  // is allowed but not required. It also depends on the server-internal fact that
   // the selected representation has zero length, which is not reliably observable.
   .type('informational')
   .url('https://www.rfc-editor.org/rfc/rfc9110.html#name-range')

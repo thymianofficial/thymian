@@ -58,11 +58,9 @@ export default httpRule(
   'rfc9110/server-should-send-content-range-in-416-response',
 )
   .severity('warn')
-  // Implementable (outcome 1): a response-side, server-behavior check. The 416
-  // Content-Range VALUE must carry the unsatisfied-range form (bytes */len), so
-  // the common projection (header NAMES only) is insufficient — read the VALUE
-  // via getHeader on the real-data context. Meaningful in both `test` (Thymian
-  // observes the response) and `analyze`.
+  // A response-side, server-behavior check. The 416 Content-Range value must
+  // carry the unsatisfied-range form (bytes */len), so the common projection
+  // (header names only) is insufficient.
   .type('analytics', 'test')
   .url('https://www.rfc-editor.org/rfc/rfc9110.html#name-content-range')
   .description(

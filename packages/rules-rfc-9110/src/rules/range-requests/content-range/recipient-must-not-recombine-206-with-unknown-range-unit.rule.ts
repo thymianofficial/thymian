@@ -4,10 +4,10 @@ export default httpRule(
   'rfc9110/recipient-must-not-recombine-206-with-unknown-range-unit',
 )
   .severity('error')
-  // Informational (outcome 2): this MUST NOT constrains the recipient's internal
-  // data-handling (whether it recombines partial content with a stored
-  // representation). Recombination happens entirely inside the recipient and
-  // produces no header, status, or body signal on the wire.
+  // This MUST NOT constrains the recipient's internal data-handling (whether it
+  // recombines partial content with a stored representation). Recombination
+  // happens entirely inside the recipient and produces no header, status, or body
+  // signal on the wire.
   .type('informational')
   .url('https://www.rfc-editor.org/rfc/rfc9110.html#name-content-range')
   .description(

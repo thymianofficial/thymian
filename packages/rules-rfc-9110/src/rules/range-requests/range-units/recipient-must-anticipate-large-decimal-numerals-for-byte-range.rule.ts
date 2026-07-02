@@ -4,10 +4,10 @@ export default httpRule(
   'rfc9110/recipient-must-anticipate-large-decimal-numerals-for-byte-range',
 )
   .severity('error')
-  // Informational (outcome 2): this MUST constrains a recipient's internal parser
-  // robustness (tolerating arbitrarily large byte-range numerals without
-  // overflow). That is a property of the parser, not a wire message; large
-  // numerals are legal input recipients must tolerate, not a violation.
+  // This MUST constrains a recipient's internal parser robustness (tolerating
+  // arbitrarily large byte-range numerals without overflow). That is a property of
+  // the parser, not a wire message; large numerals are legal input recipients must
+  // tolerate, not a violation.
   .type('informational')
   .url('https://www.rfc-editor.org/rfc/rfc9110.html#name-byte-ranges')
   .description(
