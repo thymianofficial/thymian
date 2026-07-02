@@ -14,7 +14,6 @@ import { describe, expect, it } from 'vitest';
 import { analyze } from '../src/formatter.js';
 import { reportToCsvLines } from '../src/formatters/csv.js';
 import { MarkdownFormatter } from '../src/formatters/markdown.js';
-import { TextFormatter } from '../src/formatters/text.js';
 
 const rules: RuleDescriptor[] = [
   {
@@ -133,26 +132,6 @@ describe('analyze statistics (AC11)', () => {
   });
 });
 
-describe('TextFormatter rendering (AC13)', () => {
-  it('renders execution status, rule id and step findings', async () => {
-    const formatter = new TextFormatter();
-    formatter.init({ summaryOnly: false });
-    formatter.report(report);
-
-    const output = (await formatter.flush()) ?? '';
-
-    expect(output).toContain('rfc9110/host');
-    expect(output).toContain('failed: Missing Host header');
-    expect(output).toContain('skipped: rule disabled in config');
-    expect(output).toContain('skipped: no auth token');
-    expect(output).toContain('expected: 200');
-    expect(output).toContain('actual: 500');
-    expect(output).toContain('status is 200');
-    expect(output).toContain('GET /pets returns 200');
-    expect(output).toContain('Summary: 2 error(s)');
-  });
-});
-
 describe('CSV flattening (AC13)', () => {
   it('emits a row per execution and per finding', () => {
     const lines = reportToCsvLines(report);
@@ -172,17 +151,23 @@ describe('CSV flattening (AC13)', () => {
 });
 
 describe('MarkdownFormatter rendering (AC13)', () => {
-  it('renders status rows and finding detail columns', async () => {
+  it('renders the human layout for lint status rows and test step findings', async () => {
     const formatter = new MarkdownFormatter(new NoopLogger());
     formatter.init({ path: join(process.cwd(), 'tmp', 'hierarchical.md') });
     formatter.report(report);
 
     const output = (await formatter.flush()) ?? '';
 
+    expect(output).toContain('### GET /pets');
     expect(output).toContain(
-      '| Location | Rule | Status | Severity | Kind | Title | Message | Details |',
+      '| error | `rfc9110/host` | Missing Host header |',
     );
-    expect(output).toContain('expected: 200; actual: 500');
-    expect(output).toContain('Found 2 error(s)');
+    expect(output).toContain('### GET /dogs');
+    expect(output).toContain(
+      '| skipped | `rfc9110/host` | rule disabled in config |',
+    );
+    expect(output).toContain('### POST /pets fails · _✖ failed_');
+    expect(output).toContain('— expected: 200, actual: 500');
+    expect(output).not.toContain('GET /pets returns 200');
   });
 });

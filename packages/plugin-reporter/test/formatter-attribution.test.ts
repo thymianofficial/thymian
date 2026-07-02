@@ -1,7 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
 import { reportToCsvLines } from '../src/formatters/csv.js';
-import { TextFormatter } from '../src/formatters/text.js';
 
 const report = {
   reportId: 'report-1',
@@ -27,17 +26,10 @@ const report = {
 };
 
 describe('formatter attribution preservation', () => {
-  it('keeps rule attribution in text and csv outputs', async () => {
-    const formatter = new TextFormatter();
-    formatter.init({ summaryOnly: false });
-    formatter.report(report);
-
-    const text = await formatter.flush();
+  it('keeps rule attribution in csv output', () => {
     const csv = reportToCsvLines(report).join('');
 
-    expect(text).toContain('rule/id');
     expect(csv).toContain('rule/id');
-    expect(text).toContain('Problem');
     expect(csv).toContain('Problem');
   });
 });

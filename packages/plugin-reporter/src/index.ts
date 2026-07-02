@@ -17,26 +17,6 @@ export const reporterPlugin: ThymianPlugin<ReporterPluginOptions> = {
         description: 'Configuration for different report formatters',
         type: 'object',
         properties: {
-          text: {
-            nullable: true,
-            description: 'Configuration for the text formatter',
-            type: 'object',
-            properties: {
-              summaryOnly: {
-                description:
-                  'When true, only shows the summary without detailed reports',
-                type: 'boolean',
-                nullable: true,
-              },
-              path: {
-                description:
-                  'File path where the plain text report will be saved',
-                type: 'string',
-                nullable: true,
-              },
-            },
-            additionalProperties: false,
-          },
           markdown: {
             description: 'Configuration for the Markdown formatter',
             nullable: true,
@@ -79,7 +59,6 @@ export const reporterPlugin: ThymianPlugin<ReporterPluginOptions> = {
   async plugin(emitter, logger, { formatters: userFormatters, cwd }) {
     const formatters = Object.fromEntries(
       Object.entries({
-        text: {},
         ...(userFormatters ?? {}),
       }).filter(([, options]) => options != null),
     ) as Formatters;

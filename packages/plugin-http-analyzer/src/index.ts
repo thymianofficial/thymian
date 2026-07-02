@@ -115,6 +115,7 @@ function createRuns(
       runType: 'analyze',
       executions,
       rules: ruleDescriptors.length > 0 ? ruleDescriptors : undefined,
+      thymianFormatVersion: format.toHash(),
     }),
   ];
 }

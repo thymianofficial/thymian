@@ -84,6 +84,7 @@ function createRuns(
       runType: 'lint',
       executions,
       rules: ruleDescriptors.length > 0 ? ruleDescriptors : undefined,
+      thymianFormatVersion: format.toHash(),
     }),
   ];
 }

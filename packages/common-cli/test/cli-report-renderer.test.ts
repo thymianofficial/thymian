@@ -127,7 +127,7 @@ describe('cli report renderer', () => {
     });
 
     expect(output).toContain('example/rule');
-    expect(output).toContain('passed (7ms)');
+    expect(output).toContain('passed (7.00ms)');
     expect(output).toContain('case: happy');
     expect(output).toContain('status ok');
   });
