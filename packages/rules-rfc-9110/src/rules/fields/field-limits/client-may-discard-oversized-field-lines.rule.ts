@@ -2,10 +2,9 @@ import { httpRule } from '@thymian/core';
 
 export default httpRule('rfc9110/client-may-discard-oversized-field-lines')
   .severity('off')
-  // Informational (permissive MAY + unobservable): discarding/truncating
-  // oversized field lines is optional internal client behaviour with no
-  // required outcome, and Thymian (acting as the client) cannot observe another
-  // client's discard decisions.
+  // Discarding/truncating oversized field lines is optional internal client
+  // behaviour with no required outcome, and Thymian (acting as the client)
+  // cannot observe another client's discard decisions.
   .type('informational')
   .url('https://www.rfc-editor.org/rfc/rfc9110.html#section-5.4')
   .description(

@@ -4,10 +4,9 @@ export default httpRule(
   'rfc9110/sender-should-not-generate-ows-except-when-needed',
 )
   .severity('warn')
-  // Informational (not reliably observable): OWS positions are defined per-field
-  // by each field's ABNF; without those grammars the framework cannot identify
-  // superfluous OWS, and this is a stylistic SHOULD with no hard observable
-  // outcome.
+  // OWS positions are defined per-field by each field's ABNF; without those
+  // grammars the framework cannot identify superfluous OWS, and this is a
+  // stylistic SHOULD with no hard observable outcome.
   .type('informational')
   .url('https://www.rfc-editor.org/rfc/rfc9110.html#section-5.6.3')
   .description(

@@ -30,10 +30,10 @@ export default httpRule('rfc9110/proxy-must-not-change-field-line-order')
   )
   .appliesTo('proxy')
   .tags('fields', 'field-order', 'proxy')
-  // Outcome 1: observable only from proxy-recorded traffic. Reordering of
-  // same-name field lines is invisible in a single message; it is detectable
-  // only by correlating a proxy's inbound request hop with the request it
-  // forwards, so this runs over captured per-hop traces.
+  // Observable only from proxy-recorded traffic. Reordering of same-name field
+  // lines is invisible in a single message; it is detectable only by
+  // correlating a proxy's inbound request hop with the request it forwards, so
+  // this runs over captured per-hop traces.
   .rule((ctx) =>
     ctx.validateCapturedHttpTraces((trace, location) => {
       const results: RuleFnResult[] = [];

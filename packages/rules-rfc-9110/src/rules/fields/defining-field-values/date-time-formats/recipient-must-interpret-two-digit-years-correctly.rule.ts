@@ -4,9 +4,9 @@ export default httpRule(
   'rfc9110/recipient-must-interpret-two-digit-years-correctly',
 )
   .severity('error')
-  // Informational (unobservable): how a recipient interprets an rfc850 two-digit
-  // year is an internal decision that produces no distinguishable artifact in
-  // the traffic Thymian can observe.
+  // How a recipient interprets an rfc850 two-digit year is an internal decision
+  // that produces no distinguishable artifact in the traffic Thymian can
+  // observe.
   .type('informational')
   .url('https://www.rfc-editor.org/rfc/rfc9110.html#section-5.6.7')
   .description(

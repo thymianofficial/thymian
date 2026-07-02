@@ -4,9 +4,9 @@ export default httpRule(
   'rfc9110/parser-must-exclude-whitespace-from-field-values',
 )
   .severity('error')
-  // Informational (unobservable): stripping leading/trailing whitespace before
-  // evaluating a field value is internal recipient parsing behaviour; the
-  // trimmed value is not re-emitted, so there is no observable signal.
+  // Stripping leading/trailing whitespace before evaluating a field value is
+  // internal recipient parsing behaviour; the trimmed value is not re-emitted,
+  // so there is no observable signal.
   .type('informational')
   .url('https://www.rfc-editor.org/rfc/rfc9110.html#section-5.5')
   .description(

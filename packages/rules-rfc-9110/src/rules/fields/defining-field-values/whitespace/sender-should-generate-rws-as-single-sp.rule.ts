@@ -2,10 +2,9 @@ import { httpRule } from '@thymian/core';
 
 export default httpRule('rfc9110/sender-should-generate-rws-as-single-sp')
   .severity('warn')
-  // Informational (not reliably observable): RWS positions are defined per-field
-  // by each field's ABNF; without those grammars a generic scan cannot locate
-  // RWS separators, and this is a stylistic SHOULD with no hard observable
-  // outcome.
+  // RWS positions are defined per-field by each field's ABNF; without those
+  // grammars a generic scan cannot locate RWS separators, and this is a
+  // stylistic SHOULD with no hard observable outcome.
   .type('informational')
   .url('https://www.rfc-editor.org/rfc/rfc9110.html#section-5.6.3')
   .description(

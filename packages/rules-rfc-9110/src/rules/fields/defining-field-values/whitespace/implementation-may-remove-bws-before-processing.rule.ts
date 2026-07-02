@@ -4,9 +4,9 @@ export default httpRule(
   'rfc9110/implementation-may-remove-bws-before-processing',
 )
   .severity('off')
-  // Informational (permissive MAY + unobservable): removal of BWS is optional
-  // internal recipient behaviour before interpreting/forwarding; there is no
-  // required outcome to check and no observable signal in Thymian's traffic.
+  // Removal of BWS is optional internal recipient behaviour before
+  // interpreting/forwarding; there is no required outcome to check and no
+  // observable signal in Thymian's traffic.
   .type('informational')
   .url('https://www.rfc-editor.org/rfc/rfc9110.html#section-5.6.3')
   .description(

@@ -4,9 +4,9 @@ export default httpRule(
   'rfc9110/recipient-may-retain-ctl-characters-in-safe-contexts',
 )
   .severity('off')
-  // Informational (permissive MAY + unobservable): retaining other CTL octets in
-  // safe contexts is an optional internal recipient allowance with no required
-  // outcome and no observable signal in Thymian's traffic.
+  // Retaining other CTL octets in safe contexts is an optional internal
+  // recipient allowance with no required outcome and no observable signal in
+  // Thymian's traffic.
   .type('informational')
   .url('https://www.rfc-editor.org/rfc/rfc9110.html#section-5.5')
   .description(
