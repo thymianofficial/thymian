@@ -1,7 +1,7 @@
 import { httpRule } from '@thymian/core';
 
-// Informational (outcome 2): a terminology definition ("header fields" are the
-// fields sent before content). No requirement to validate.
+// A terminology definition ("header fields" are the fields sent before
+// content). No requirement to validate.
 export default httpRule('rfc9110/header-fields-sent-before-content')
   .severity('hint')
   .type('informational')

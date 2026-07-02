@@ -1,9 +1,9 @@
 import { httpRule } from '@thymian/core';
 
-// Informational (outcome 2): a SHOULD about which HTTP protocol version a
-// server puts in its response. The response version token is transport control
-// data not surfaced by the rule framework, and "highest conformant version" is
-// internal server capability. Not observable from a transaction.
+// A SHOULD about which HTTP protocol version a server puts in its response. The
+// response version token is transport control data not surfaced by the rule
+// framework, and "highest conformant version" is internal server capability.
+// Not observable from a transaction.
 export default httpRule(
   'rfc9110/server-should-send-response-version-equal-to-highest-conformant',
 )

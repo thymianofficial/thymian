@@ -1,11 +1,10 @@
 import { httpRule } from '@thymian/core';
 
-// Informational (outcome 2): a MUST NOT about the HTTP protocol version a
-// server sends in its response. The response version token is transport control
-// data not exposed by the rule framework (HttpResponse has no version field;
-// the common projection is status / header names / media type / body / trailer
-// names only), and "conformance to a version" is internal server state. Not
-// observable.
+// A MUST NOT about the HTTP protocol version a server sends in its response.
+// The response version token is transport control data not exposed by the rule
+// framework (HttpResponse has no version field; the common projection is
+// status / header names / media type / body / trailer names only), and
+// "conformance to a version" is internal server state. Not observable.
 export default httpRule('rfc9110/server-must-not-send-non-conformant-version')
   .severity('error')
   .type('informational')

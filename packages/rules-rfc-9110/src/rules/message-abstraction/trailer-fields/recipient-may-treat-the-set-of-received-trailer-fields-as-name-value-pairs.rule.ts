@@ -1,8 +1,8 @@
 import { httpRule } from '@thymian/core';
 
-// Informational (outcome 2): permissive "MAY" describing how a recipient MAY
-// internally model received trailers. It is internal recipient processing with
-// no observable non-conformant condition in any transaction.
+// Permissive "MAY" describing how a recipient MAY internally model received
+// trailers. It is internal recipient processing with no observable
+// non-conformant condition in any transaction.
 export default httpRule(
   'rfc9110/recipient-may-treat-the-set-of-received-trailer-fields-as-name-value-pairs',
 )

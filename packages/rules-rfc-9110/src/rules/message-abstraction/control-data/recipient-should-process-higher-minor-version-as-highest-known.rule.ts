@@ -1,9 +1,9 @@
 import { httpRule } from '@thymian/core';
 
-// Informational (outcome 2): a SHOULD about how a recipient internally
-// processes a message whose minor version exceeds what it implements. This is
-// internal recipient processing logic, and the HTTP version is transport
-// control data not surfaced by the rule framework. Not observable.
+// A SHOULD about how a recipient internally processes a message whose minor
+// version exceeds what it implements. This is internal recipient processing
+// logic, and the HTTP version is transport control data not surfaced by the
+// rule framework. Not observable.
 export default httpRule(
   'rfc9110/recipient-should-process-higher-minor-version-as-highest-known',
 )

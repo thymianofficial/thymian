@@ -1,8 +1,8 @@
 import { httpRule } from '@thymian/core';
 
-// Informational (outcome 2): a purely definitional statement (each HTTP version
-// defines its own framing mechanism). It states no requirement on any message,
-// so there is nothing to validate.
+// A purely definitional statement (each HTTP version defines its own framing
+// mechanism). It states no requirement on any message, so there is nothing to
+// validate.
 export default httpRule('rfc9110/each-http-version-defines-own-framing')
   .severity('hint')
   .type('informational')

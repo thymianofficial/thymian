@@ -1,10 +1,9 @@
 import { httpRule } from '@thymian/core';
 
-// Informational (outcome 2): conformance is conditioned on whether the origin
-// server has a clock, which is internal server state not exposed in any
-// transaction. Without knowing the server lacks a clock, a present (or absent)
-// Date header cannot be classified as a violation, so there is no observable
-// non-conformant condition.
+// Conformance is conditioned on whether the origin server has a clock, which is
+// internal server state not exposed in any transaction. Without knowing the
+// server lacks a clock, a present (or absent) Date header cannot be classified
+// as a violation, so there is no observable non-conformant condition.
 export default httpRule(
   'rfc9110/origin-server-without-clock-must-not-generate-date',
 )

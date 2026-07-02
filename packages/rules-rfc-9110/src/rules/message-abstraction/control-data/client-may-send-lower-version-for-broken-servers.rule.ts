@@ -1,11 +1,11 @@
 import { httpRule } from '@thymian/core';
 
-// Informational (outcome 2): a permissive "MAY" about the HTTP protocol version
-// a client sends. The HTTP version token lives on the request/status line and
-// is not exposed by the rule framework (HttpRequest/HttpResponse carry no
-// version field, and the common projection covers only header names, status,
-// media type, and body). There is also no observable condition — it is a
-// conditional allowance after a prior failed request.
+// A permissive "MAY" about the HTTP protocol version a client sends. The HTTP
+// version token lives on the request/status line and is not exposed by the rule
+// framework (HttpRequest/HttpResponse carry no version field, and the common
+// projection covers only header names, status, media type, and body). There is
+// also no observable condition — it is a conditional allowance after a prior
+// failed request.
 export default httpRule(
   'rfc9110/client-may-send-lower-version-for-broken-servers',
 )
