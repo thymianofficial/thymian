@@ -1,12 +1,11 @@
 import { getHeader, httpRule, type RuleFnResult } from '@thymian/core';
 
-// Infra-deferred (analytics, proxy role): the MUST NOT is about a proxy
-// *generating* a Max-Forwards field it did not receive. This is observable by
-// correlating adjacent hops of the same request chain — the request a proxy
-// received (without Max-Forwards) vs the request it forwarded (with a newly
-// added Max-Forwards) — via validateCapturedHttpTraces over recorded proxy
-// traffic. It cannot run in 'static' or 'test' (no real cross-hop data), so it
-// is homed in 'analytics' on captured traces.
+// The MUST NOT is about a proxy *generating* a Max-Forwards field it did not
+// receive. This is observable by correlating adjacent hops of the same request
+// chain — the request a proxy received (without Max-Forwards) vs the request it
+// forwarded (with a newly added Max-Forwards) — via validateCapturedHttpTraces
+// over recorded proxy traffic. It cannot run against static or generated-test
+// data, which carries no real cross-hop information.
 export default httpRule(
   'rfc9110/proxy-must-not-generate-new-max-forwards-header',
 )

@@ -27,11 +27,11 @@ function headerToString(
   return Array.isArray(value) ? value.join(', ') : value;
 }
 
-// Analytics-only: this SHOULD check needs a REAL sensitive request header
-// VALUE echoed into the TRACE response body. In 'test' the request is
-// Thymian-generated and carries no genuine secret, so the value-echo check is
-// inert there; the honest home is 'analytics', where recorded TRACE responses
-// contain real client header values reflected back in the response content.
+// This SHOULD check needs a REAL sensitive request header VALUE echoed into the
+// TRACE response body. In a generated test the request is Thymian-generated and
+// carries no genuine secret, so the value-echo check is inert there; recorded
+// TRACE responses contain real client header values reflected back in the
+// response content.
 export default httpRule(
   'rfc9110/final-recipient-should-exclude-sensitive-request-data-from-response-to-trace',
 )

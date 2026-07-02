@@ -1,10 +1,10 @@
 import { httpRule } from '@thymian/core';
 
-// Informational: this MUST describes byte-level tunnel-teardown behavior of a
-// CONNECT intermediary (flushing outstanding data, closing both connections,
+// This MUST describes byte-level tunnel-teardown behavior of a CONNECT
+// intermediary (flushing outstanding data, closing both connections,
 // discarding the remainder) at the TCP/stream layer. It is not expressed in
 // any HTTP message, status, or header, so it is invisible to lint, test, and
-// analyze alike. The rule therefore ships no function.
+// analyze alike.
 export default httpRule(
   'rfc9110/intermediary-must-attempt-to-send-outstanding-data-coming-from-closed-side-for-connect-request',
 )

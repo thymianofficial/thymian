@@ -1,10 +1,10 @@
 import { httpRule } from '@thymian/core';
 
-// Informational: this MUST governs internal client behavior — how the client
-// interprets (ignores) Content-Length / Transfer-Encoding on a successful
-// CONNECT response. "Ignoring" a header is an internal processing decision
-// that leaves no trace on the wire, so it cannot be observed from a response,
-// from recorded traffic, or by testing. The rule therefore ships no function.
+// This MUST governs internal client behavior — how the client interprets
+// (ignores) Content-Length / Transfer-Encoding on a successful CONNECT
+// response. "Ignoring" a header is an internal processing decision that leaves
+// no trace on the wire, so it cannot be observed from a response, from recorded
+// traffic, or by testing.
 export default httpRule(
   'rfc9110/client-must-ignore-content-length-or-transfer-encoding-headers-in-response-to-connect',
 )

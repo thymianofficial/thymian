@@ -1,12 +1,8 @@
 import { httpRule } from '@thymian/core';
 
-// Informational (reclassified from static/analytics): this is a purely
-// permissive MAY — a client is allowed, but never required, to send a
-// Max-Forwards header on an OPTIONS request. The previous implementation
-// flagged the *absence* of Max-Forwards on every OPTIONS request as a
-// violation, which inverts the spec (it would mark conformant requests as
-// faulty). There is no non-conformant condition to detect, so the rule ships
-// no function.
+// This is a purely permissive MAY — a client is allowed, but never required, to
+// send a Max-Forwards header on an OPTIONS request. There is no non-conformant
+// condition to detect.
 export default httpRule(
   'rfc9110/client-may-send-max-forwards-header-in-option-request',
 )
