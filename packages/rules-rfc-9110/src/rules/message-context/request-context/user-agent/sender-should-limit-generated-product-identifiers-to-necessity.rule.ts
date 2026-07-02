@@ -4,9 +4,8 @@ export default httpRule(
   'rfc9110/sender-should-limit-generated-product-identifiers-to-necessity',
 )
   .severity('warn')
-  // Informational: "limit to what is necessary to identify the product" is a
-  // subjective design judgment with no objective threshold to test against; it
-  // is surfaced as guidance rather than an automated check.
+  // "limit to what is necessary to identify the product" is a subjective design
+  // judgment with no objective threshold to test against.
   .type('informational')
   .url('https://www.rfc-editor.org/rfc/rfc9110.html#name-user-agent')
   .description(

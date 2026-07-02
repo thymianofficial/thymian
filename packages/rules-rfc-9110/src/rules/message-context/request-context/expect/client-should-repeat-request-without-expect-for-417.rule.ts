@@ -4,9 +4,8 @@ export default httpRule(
   'rfc9110/client-should-repeat-request-without-expect-for-417',
 )
   .severity('hint')
-  // Informational: correlating a 417 response to a later retried request from
-  // the same client requires cross-message client-behaviour correlation that is
-  // not available; surfaced as guidance only.
+  // Correlating a 417 response to a later retried request from the same client
+  // requires cross-message client-behaviour correlation that is not available.
   .type('informational')
   .url('https://www.rfc-editor.org/rfc/rfc9110.html#name-expect')
   .description(

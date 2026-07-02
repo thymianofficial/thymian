@@ -4,9 +4,9 @@ export default httpRule(
   'rfc9110/client-should-not-wait-for-an-indefinite-period-for-100-response',
 )
   .severity('warn')
-  // Informational: "SHOULD NOT wait for an indefinite period" is client-side
-  // timing behaviour that leaves no signature in the request/response messages;
-  // not observable from traffic.
+  // "SHOULD NOT wait for an indefinite period" is client-side timing behaviour
+  // that leaves no signature in the request/response messages; not observable
+  // from traffic.
   .type('informational')
   .url('https://www.rfc-editor.org/rfc/rfc9110.html#name-expect')
   .description(

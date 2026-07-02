@@ -4,9 +4,9 @@ export default httpRule(
   'rfc9110/user-agent-must-inherit-fragment-for-3xx-without-fragment',
 )
   .severity('hint')
-  // Informational: this constrains how the user agent internally processes the
-  // redirect (fragment inheritance), which happens client-side and leaves no
-  // signature in the response message; not observable from traffic.
+  // This constrains how the user agent internally processes the redirect
+  // (fragment inheritance), which happens client-side and leaves no signature
+  // in the response message; not observable from traffic.
   .type('informational')
   .url('https://www.rfc-editor.org/rfc/rfc9110.html#name-location')
   .description(
