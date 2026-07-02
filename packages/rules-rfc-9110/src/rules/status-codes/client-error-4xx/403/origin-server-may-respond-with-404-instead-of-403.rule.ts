@@ -6,9 +6,7 @@ export default httpRule(
   .severity('hint')
   // Permissive MAY: an origin server MAY answer with 404 instead of 403 to
   // hide a resource's existence. Both 403 and 404 are conformant, so there is
-  // no non-conformant condition to detect. The previous implementation
-  // declared static/analytics/test and flagged every 403 response, which is
-  // noise rather than a violation. Reclassified to informational (no function).
+  // no non-conformant condition to detect.
   .type('informational')
   .url('https://www.rfc-editor.org/rfc/rfc9110.html#name-403-forbidden')
   .description(

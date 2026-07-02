@@ -4,7 +4,7 @@ export default httpRule('rfc9110/server-must-generate-upgrade-header-field')
   .severity('error')
   // Concerns the interim 101 response. 1xx interim responses are not captured
   // as discrete transactions (only the final response is recorded), so the
-  // Upgrade header on a 101 cannot be observed. Informational.
+  // Upgrade header on a 101 cannot be observed.
   .type('informational')
   .url(
     'https://www.rfc-editor.org/rfc/rfc9110.html#name-101-switching-protocols',

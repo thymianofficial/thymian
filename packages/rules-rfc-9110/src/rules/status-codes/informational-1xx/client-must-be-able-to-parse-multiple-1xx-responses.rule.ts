@@ -5,7 +5,7 @@ export default httpRule(
 )
   .severity('error')
   // Internal client parsing capability for interim 1xx responses; not
-  // observable from recorded final-response traffic. Informational.
+  // observable from recorded final-response traffic.
   .type('informational')
   .url('https://datatracker.ietf.org/doc/html/rfc9110#name-informational-1xx')
   .description(

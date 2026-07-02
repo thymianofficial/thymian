@@ -6,7 +6,7 @@ export default httpRule(
   .severity('error')
   // Requires determining that the request asked for exactly one range; range
   // counting from the Range header is unreliable across syntaxes and the
-  // single-part precondition cannot be established robustly. Informational.
+  // single-part precondition cannot be established robustly.
   .type('informational')
   .url('https://datatracker.ietf.org/doc/html/rfc9110#name-multiple-parts')
   .description(

@@ -5,7 +5,7 @@ export default httpRule(
 )
   .severity('error')
   // Internal client parsing/understanding requirement; not observable from
-  // the wire. Informational.
+  // the wire.
   .type('informational')
   .url('https://www.rfc-editor.org/rfc/rfc9110.html#name-status-codes')
   .description(

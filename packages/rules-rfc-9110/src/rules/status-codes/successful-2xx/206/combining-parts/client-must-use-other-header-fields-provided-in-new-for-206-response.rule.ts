@@ -5,7 +5,7 @@ export default httpRule(
 )
   .severity('error')
   // Internal client cache-update behavior when combining partial responses;
-  // not observable from emitted traffic. Informational.
+  // not observable from emitted traffic.
   .type('informational')
   .url('https://www.rfc-editor.org/rfc/rfc9110.html#name-combining-parts')
   .description(

@@ -5,7 +5,7 @@ export default httpRule(
 )
   .severity('warn')
   // Concerns the ordering of parts within the multipart body, which the
-  // framework does not expose. Informational.
+  // framework does not expose.
   .type('informational')
   .url('https://datatracker.ietf.org/doc/html/rfc9110#name-multiple-parts')
   .description(

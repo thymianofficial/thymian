@@ -4,7 +4,7 @@ export default httpRule('rfc9110/proxy-must-forward-1xx-responses')
   .severity('error')
   // Interim 1xx responses are not represented as discrete transactions in
   // captured traffic (HAR records the final response), so a proxy's forwarding
-  // of them cannot be observed. Informational.
+  // of them cannot be observed.
   .type('informational')
   .url('https://www.rfc-editor.org/rfc/rfc9110.html#name-informational-1xx')
   .description(

@@ -5,7 +5,6 @@ export default httpRule(
 )
   .severity('warn')
   // Internal user-agent display behavior; not observable from traffic.
-  // Informational.
   .type('informational')
   .url('https://www.rfc-editor.org/rfc/rfc9110.html#name-server-error-5xx')
   .description(

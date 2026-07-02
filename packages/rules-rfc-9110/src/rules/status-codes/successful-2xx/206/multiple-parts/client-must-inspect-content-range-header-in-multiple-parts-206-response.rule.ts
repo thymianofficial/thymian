@@ -5,7 +5,7 @@ export default httpRule(
 )
   .severity('error')
   // Internal client requirement to inspect per-part Content-Range; not
-  // observable from the wire. Informational.
+  // observable from the wire.
   .type('informational')
   .url('https://datatracker.ietf.org/doc/html/rfc9110#name-multiple-parts')
   .description(

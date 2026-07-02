@@ -5,7 +5,7 @@ export default httpRule(
 )
   .severity('error')
   // Conditioned on an internal client capability (whether it can process
-  // multipart/byteranges), which is not observable from traffic. Informational.
+  // multipart/byteranges), which is not observable from traffic.
   .type('informational')
   .url('https://datatracker.ietf.org/doc/html/rfc9110#name-multiple-parts')
   .description(

@@ -5,9 +5,7 @@ export default httpRule(
 )
   .severity('hint')
   // Permissive MAY describing an internal client retry decision; no
-  // non-conformant condition exists to detect. The previous classification
-  // declared `analytics` but shipped no rule function. Reclassified to
-  // informational.
+  // non-conformant condition exists to detect.
   .type('informational')
   .url('https://www.rfc-editor.org/rfc/rfc9110.html#name-403-forbidden')
   .description(

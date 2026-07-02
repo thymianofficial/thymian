@@ -5,7 +5,7 @@ export default httpRule('rfc9110/client-must-process-combined-response-correct')
   // Client-side MUST governing how the client internally processes/combines the
   // received range parts. This is an internal client computation, not a
   // property of any request or response message, so it cannot be observed from
-  // captured traffic. Informational.
+  // captured traffic.
   .type('informational')
   .url('https://www.rfc-editor.org/rfc/rfc9110.html#name-combining-parts')
   .description(

@@ -5,7 +5,7 @@ export default httpRule(
 )
   .severity('error')
   // Internal client requirement to inspect Content-Type/Content-Range before
-  // use; not observable from the wire. Informational.
+  // use; not observable from the wire.
   .type('informational')
   .appliesTo('client')
   .url('https://www.rfc-editor.org/rfc/rfc9110.html#name-206-partial-content')

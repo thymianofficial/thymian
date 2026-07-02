@@ -7,7 +7,6 @@ export default httpRule(
   // Concerns headers inside each multipart body part. The common projection
   // and live HttpResponse expose only top-level header names, not per-part
   // MIME headers, so this cannot be validated with the existing framework.
-  // Informational.
   .type('informational')
   .description(
     'Within the header area of each body part in the multipart content, the server MUST generate a Content-Range header field corresponding to the range being enclosed in that body part.',

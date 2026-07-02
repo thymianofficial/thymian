@@ -7,7 +7,6 @@ export default httpRule(
   // Triggered only 'if multiple parts are being transferred', a condition that
   // requires parsing the multipart body. The framework does not expose parsed
   // body parts, so the multi-part precondition cannot be established.
-  // Informational.
   .type('informational')
   .url('https://datatracker.ietf.org/doc/html/rfc9110#name-multiple-parts')
   .description(

@@ -5,7 +5,7 @@ export default httpRule(
 )
   .severity('warn')
   // Concerns the Content-Type header inside each multipart body part, which
-  // the framework does not expose. Informational.
+  // the framework does not expose.
   .type('informational')
   .url('https://datatracker.ietf.org/doc/html/rfc9110#name-multiple-parts')
   .description(

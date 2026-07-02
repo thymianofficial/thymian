@@ -5,7 +5,6 @@ export default httpRule(
 )
   .severity('hint')
   // Permissive MAY about coalescing ranges; no non-conformant condition.
-  // Informational.
   .type('informational')
   .url('https://datatracker.ietf.org/doc/html/rfc9110#name-multiple-parts')
   .description(

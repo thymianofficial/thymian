@@ -5,7 +5,7 @@ export default httpRule(
 )
   .severity('warn')
   // Internal client handling of out-of-range status codes; not observable
-  // from emitted traffic. Informational.
+  // from emitted traffic.
   .type('informational')
   .url('https://www.rfc-editor.org/rfc/rfc9110.html#name-status-codes')
   .description(

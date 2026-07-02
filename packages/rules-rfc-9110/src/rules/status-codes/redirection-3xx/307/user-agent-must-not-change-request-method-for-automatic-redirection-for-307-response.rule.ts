@@ -6,7 +6,7 @@ export default httpRule(
   .severity('error')
   // Constrains how a user agent constructs an automatic follow-up request.
   // Reliably attributing a later request to an automatic 307 redirect (vs a
-  // fresh user action) is not possible from captured traffic. Informational.
+  // fresh user action) is not possible from captured traffic.
   .type('informational')
   .url(
     'https://www.rfc-editor.org/rfc/rfc9110.html#name-307-temporary-redirect',
