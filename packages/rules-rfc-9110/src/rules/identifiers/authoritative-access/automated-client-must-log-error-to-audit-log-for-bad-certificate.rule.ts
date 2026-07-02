@@ -4,9 +4,8 @@ export default httpRule(
   'rfc9110/automated-client-must-log-error-to-audit-log-for-bad-certificate',
 )
   .severity('error')
-  // Informational (#327): unobservable. Writing to a local audit log is a
-  // client-side side effect entirely outside the HTTP message exchange Thymian
-  // records.
+  // Writing to a local audit log is a client-side side effect entirely outside
+  // the HTTP message exchange Thymian records.
   .type('informational')
   .url(
     'https://www.rfc-editor.org/rfc/rfc9110.html#name-https-certificate-verificat',

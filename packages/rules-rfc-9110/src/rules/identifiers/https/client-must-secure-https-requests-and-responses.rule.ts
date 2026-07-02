@@ -4,9 +4,9 @@ export default httpRule(
   'rfc9110/client-must-secure-https-requests-and-responses',
 )
   .severity('error')
-  // Informational (#327): unobservable. Whether a client secured its transport
-  // (TLS) and refused unencrypted responses is a connection-layer property; it
-  // is not visible in the recorded HTTP message content Thymian analyzes.
+  // Whether a client secured its transport (TLS) and refused unencrypted
+  // responses is a connection-layer property; it is not visible in the recorded
+  // HTTP message content Thymian analyzes.
   .type('informational')
   .url('https://www.rfc-editor.org/rfc/rfc9110.html#name-https-uri-scheme')
   .description(
