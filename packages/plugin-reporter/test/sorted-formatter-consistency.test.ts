@@ -5,7 +5,6 @@ import { describe, expect, it } from 'vitest';
 
 import { reportToCsvLines } from '../src/formatters/csv.js';
 import { MarkdownFormatter } from '../src/formatters/markdown.js';
-import { TextFormatter } from '../src/formatters/text.js';
 
 const report = {
   reportId: 'report-1',
@@ -32,21 +31,16 @@ const report = {
 
 describe('formatter consistency for v4 reports', () => {
   it('renders the same finding identity across formatters', async () => {
-    const text = new TextFormatter();
-    text.init({ summaryOnly: false });
-    text.report(report);
-
     const markdown = new MarkdownFormatter(new NoopLogger());
     markdown.init({
       path: join(process.cwd(), 'tmp', 'consistency-report.md'),
     });
     markdown.report(report);
 
-    const textOutput = await text.flush();
     const csvOutput = reportToCsvLines(report).join('');
-    await markdown.flush();
+    const markdownOutput = await markdown.flush();
 
-    expect(textOutput).toContain('rule/id');
+    expect(markdownOutput).toContain('rule/id');
     expect(csvOutput).toContain('rule/id');
   });
 });

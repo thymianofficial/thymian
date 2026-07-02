@@ -324,6 +324,7 @@ export function createRuns(
       runType: 'test',
       executions,
       rules: ruleDescriptors.length > 0 ? ruleDescriptors : undefined,
+      thymianFormatVersion: thymianFormat.toHash(),
     }),
   ];
 }

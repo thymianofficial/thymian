@@ -130,7 +130,7 @@ function renderStatus(
     case 'passed': {
       const duration =
         status.durationMilliseconds !== undefined
-          ? ` (${status.durationMilliseconds}ms)`
+          ? ` (${status.durationMilliseconds.toFixed(2)}ms)`
           : '';
       return `${symbolForSeverity('info')} passed${duration}`;
     }
@@ -139,7 +139,7 @@ function renderStatus(
       const reason = status.reason ? `: ${status.reason}` : '';
       const duration =
         status.durationMilliseconds !== undefined
-          ? ` (${status.durationMilliseconds}ms)`
+          ? ` (${status.durationMilliseconds.toFixed(2)}ms)`
           : '';
       return colorizeText(
         `${symbolForSeverity(resolved)} failed${reason}${duration}`,

@@ -133,6 +133,9 @@ describe('createRuns', () => {
     expect(runs[0]!.tool.name).toBe(PLUGIN);
     expect(runs[0]!.executions).toHaveLength(0);
     expect(runs[0]!.rules).toBeUndefined();
+    // Must match the hash `finalizeWorkflow` uses to key `report.thymianFormat`,
+    // or the reporter can never resolve `thymianFormat` locations.
+    expect(runs[0]!.thymianFormatVersion).toBe(FORMAT.toHash());
   });
 
   it('emits one flat test-case execution per case (no rule wrapper)', () => {

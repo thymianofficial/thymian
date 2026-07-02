@@ -321,10 +321,13 @@ describe('thymian test', () => {
       expect(run1.exitCode).toBe(run2.exitCode);
 
       const normalize = (value: string) =>
-        value.replace(
-          /\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z/g,
-          '<timestamp>',
-        );
+        value
+          .replace(
+            /\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z/g,
+            '<timestamp>',
+          )
+          // Real execution durations legitimately vary between runs.
+          .replace(/\(\d+(?:\.\d+)?ms\)/g, '(<duration>)');
 
       expect(normalize(run1.stdout)).toBe(normalize(run2.stdout));
     } finally {
