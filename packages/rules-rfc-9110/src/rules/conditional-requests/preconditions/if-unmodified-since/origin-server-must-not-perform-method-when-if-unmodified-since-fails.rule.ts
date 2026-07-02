@@ -11,13 +11,12 @@ import {
 import { httpRule, singleTestCase } from '@thymian/core';
 
 /**
- * Implemented as a `test` rule (outcome 1). Genuine, observable server-behavior
- * MUST NOT: when the If-Unmodified-Since condition is false the origin server
- * must not perform the method. We replay a GET/HEAD with If-Unmodified-Since set
- * 10 seconds *before* the resource's own Last-Modified value, so the condition
- * is false (the representation was modified after that instant), and assert the
+ * When the If-Unmodified-Since condition is false the origin server must not
+ * perform the method. We replay a GET/HEAD with If-Unmodified-Since set 10
+ * seconds *before* the resource's own Last-Modified value, so the condition is
+ * false (the representation was modified after that instant), and assert the
  * server declined with a 4xx (typically 412). This is a sender-driven probe,
- * which only the `test` context can perform, so it is intentionally test-only.
+ * which only the `test` context can perform.
  */
 export default httpRule(
   'rfc9110/origin-server-must-not-perform-method-when-if-unmodified-since-fails',

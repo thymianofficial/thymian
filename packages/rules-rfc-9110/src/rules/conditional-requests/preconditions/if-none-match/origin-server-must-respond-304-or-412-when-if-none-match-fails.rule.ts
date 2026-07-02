@@ -10,17 +10,13 @@ import {
 import { httpRule, type RuleFnResult, singleTestCase } from '@thymian/core';
 
 /**
- * Implemented as a `test` rule (outcome 1). The previous `static` slot used a
- * filter-only check that flagged GET/HEAD responses that were not 304 (and
- * other methods not 412). That is wrong: when the If-None-Match condition is
- * *true* (no stored tag matches the current representation) the conforming
- * answer is a normal 200, and the rule only requires 304/412 when the condition
- * is *false*. Whether the condition is false depends on the request's
- * If-None-Match value relative to the current ETag, which only the
- * sender-driven `test` context can control. We replay a fresh GET/HEAD with
- * If-None-Match set to the resource's own ETag (so the condition is false /
- * "matches") and assert the origin server answers 304. Reclassified to
- * test-only.
+ * The rule only requires 304/412 when the If-None-Match condition is *false*;
+ * when the condition is *true* (no stored tag matches the current
+ * representation) the conforming answer is a normal 200. Whether the condition
+ * is false depends on the request's If-None-Match value relative to the current
+ * ETag, which only the sender-driven `test` context can control. We replay a
+ * fresh GET/HEAD with If-None-Match set to the resource's own ETag (so the
+ * condition is false / "matches") and assert the origin server answers 304.
  */
 export default httpRule(
   'rfc9110/origin-server-must-respond-304-or-412-when-if-none-match-fails',

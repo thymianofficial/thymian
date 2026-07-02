@@ -1,12 +1,11 @@
 import { httpRule } from '@thymian/core';
 
 /**
- * Informational (outcome 2). This MUST is about internal evaluation timing
- * (check If-Unmodified-Since before performing the method), which is not
- * observable on the wire. Its externally checkable consequence — declining the
- * method (4xx/412) when the condition fails — is actively probed by
+ * This MUST is about internal evaluation timing (check If-Unmodified-Since
+ * before performing the method), which is not observable on the wire. Its
+ * externally checkable consequence — declining the method (4xx/412) when the
+ * condition fails — is actively probed by
  * `origin-server-must-not-perform-method-when-if-unmodified-since-fails`.
- * Documentation only.
  */
 export default httpRule(
   'rfc9110/origin-server-must-evaluate-if-unmodified-since',

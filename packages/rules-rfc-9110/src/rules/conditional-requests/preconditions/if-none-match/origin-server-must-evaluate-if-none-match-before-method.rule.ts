@@ -1,12 +1,11 @@
 import { httpRule } from '@thymian/core';
 
 /**
- * Informational (outcome 2). This MUST is about internal evaluation timing
- * (check If-None-Match before performing the method), which is not observable
- * on the wire. Its externally checkable consequence — answering 304 or 412 when
- * the condition fails — is actively probed by
- * `origin-server-must-respond-304-or-412-when-if-none-match-fails`. Documentation
- * only.
+ * This MUST is about internal evaluation timing (check If-None-Match before
+ * performing the method), which is not observable on the wire. Its externally
+ * checkable consequence — answering 304 or 412 when the condition fails — is
+ * actively probed by
+ * `origin-server-must-respond-304-or-412-when-if-none-match-fails`.
  */
 export default httpRule(
   'rfc9110/origin-server-must-evaluate-if-none-match-before-method',

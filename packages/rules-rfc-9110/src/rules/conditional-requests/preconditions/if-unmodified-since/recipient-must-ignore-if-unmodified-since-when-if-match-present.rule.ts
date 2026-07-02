@@ -1,14 +1,12 @@
 import { httpRule } from '@thymian/core';
 
 /**
- * Informational (outcome 2). Sending both If-Match and If-Unmodified-Since is
- * explicitly allowed (combined for interoperability with older intermediaries);
- * the rule only requires that the recipient *ignore* If-Unmodified-Since when
- * If-Match is present. Whether it was ignored is internal — the precondition
- * outcome is driven by If-Match in either case, so no observable signal
- * distinguishes conforming from non-conforming behavior. The previous
- * implementation flagged every request carrying both headers as a violation,
- * mis-flagging entirely conformant requests. Reclassified to informational.
+ * Sending both If-Match and If-Unmodified-Since is explicitly allowed (combined
+ * for interoperability with older intermediaries); the rule only requires that
+ * the recipient *ignore* If-Unmodified-Since when If-Match is present. Whether
+ * it was ignored is internal — the precondition outcome is driven by If-Match in
+ * either case, so no observable signal distinguishes conforming from
+ * non-conforming behavior.
  */
 export default httpRule(
   'rfc9110/recipient-must-ignore-if-unmodified-since-when-if-match-present',

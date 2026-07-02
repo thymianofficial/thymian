@@ -1,11 +1,11 @@
 import { httpRule } from '@thymian/core';
 
 /**
- * Informational (outcome 2). The condition "the resource does not have a
- * modification date available" is internal server state that is not exposed on
- * the wire — the framework cannot know whether a given resource has a
- * modification date, so it cannot decide whether ignoring If-Modified-Since was
- * required. No observable non-conformant signal exists. Documentation only.
+ * The condition "the resource does not have a modification date available" is
+ * internal server state that is not exposed on the wire — the framework cannot
+ * know whether a given resource has a modification date, so it cannot decide
+ * whether ignoring If-Modified-Since was required. No observable non-conformant
+ * signal exists.
  */
 export default httpRule(
   'rfc9110/recipient-must-ignore-if-modified-since-header-if-no-date-available',

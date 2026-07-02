@@ -1,12 +1,12 @@
 import { httpRule } from '@thymian/core';
 
 /**
- * Informational (outcome 2). This MUST is about internal evaluation timing
- * (evaluate If-Range before performing the method), which is not observable on
- * the wire. The externally checkable consequences are split across
+ * This MUST is about internal evaluation timing (evaluate If-Range before
+ * performing the method), which is not observable on the wire. The externally
+ * checkable consequences are split across
  * `recipient-must-ignore-range-when-if-range-false` (the condition-false case)
  * and `recipient-should-process-range-header-if-if-range-matches` (the
- * condition-true case). Documentation only.
+ * condition-true case).
  */
 export default httpRule('rfc9110/server-must-evaluate-if-range')
   .severity('error')

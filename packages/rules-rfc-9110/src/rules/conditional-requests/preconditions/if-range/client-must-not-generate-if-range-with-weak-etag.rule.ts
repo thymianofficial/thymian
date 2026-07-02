@@ -8,16 +8,12 @@ import { httpRule } from '@thymian/core';
 import { isWeakETag } from '../../utils.js';
 
 /**
- * Request-side rule implemented in `analytics` only (outcome 4 reclassification
- * + outcome 1 implementation). A client must never put a *weak* entity tag in
- * If-Range; unlike the HTTP-date case this is unconditional, and weakness is
- * fully observable from the request header value (the `W/` marker). Because the
- * constraint is on what the client sends, it cannot run in `test` (Thymian
- * generates the request) and has no description to validate in `lint`; it is
- * therefore analyze-only, scoped to the client roles so it fires on HAR
- * requests. The previous code attached a no-op filter-only `.rule()` (later
- * overwritten by `overrideAnalyticsRule`); that dead branch has been removed in
- * favor of a single value-reading `.rule()`.
+ * A client must never put a *weak* entity tag in If-Range; unlike the HTTP-date
+ * case this is unconditional, and weakness is fully observable from the request
+ * header value (the `W/` marker). Because the constraint is on what the client
+ * sends, it cannot run in `test` (Thymian generates the request) and has no
+ * description to validate in `lint`; it is therefore analyze-only, scoped to the
+ * client roles so it fires on HAR requests.
  */
 export default httpRule(
   'rfc9110/client-must-not-generate-if-range-with-weak-etag',

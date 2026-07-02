@@ -27,15 +27,14 @@ function presentConditionalHeaders(req: CommonHttpRequest): string[] {
 }
 
 /**
- * Response-side, observable rule (outcome 1). The conditional request header
- * fields must be ignored for methods that do not select or modify a
- * representation (CONNECT/OPTIONS/TRACE). A server that *did* evaluate them
- * would surface a conditional-outcome status (304 Not Modified or 412
- * Precondition Failed). We detect the non-conformant case from header NAMES +
- * status alone, so the common projection is sufficient and the check is
- * identical across lint (the described transaction) and analyze (recorded
- * traffic). `appliesTo` includes `origin server` so the rule also fires on HAR
- * responses (the HAR default response role) in addition to `server`.
+ * The conditional request header fields must be ignored for methods that do not
+ * select or modify a representation (CONNECT/OPTIONS/TRACE). A server that *did*
+ * evaluate them would surface a conditional-outcome status (304 Not Modified or
+ * 412 Precondition Failed). The non-conformant case is detectable from header
+ * NAMES + status alone, so the common projection is sufficient and the check is
+ * identical across the described transaction and recorded traffic. `appliesTo`
+ * includes `origin server` so the rule also fires on HAR responses (the HAR
+ * default response role) in addition to `server`.
  */
 export default httpRule(
   'rfc9110/server-must-ignore-conditionals-for-connect-options-trace',
