@@ -8,7 +8,7 @@ import {
   createToolRun,
 } from '../src/report/index.js';
 
-describe('report v4 model', () => {
+describe('flat per-runType report model', () => {
   it('creates flat, per-runType executions with status', () => {
     const execution = createLintExecution({
       location: { type: 'custom', value: 'GET /pets' },

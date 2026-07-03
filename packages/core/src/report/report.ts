@@ -222,7 +222,8 @@ export type Location =
 /**
  * Outcome of an execution — a SARIF-`result`-like `kind` (outcome) that is kept
  * separate from severity (which, per SARIF, only applies to `failed`). `failed`
- * ≡ a rule violation; `skipped` ≡ the old `rule-skip`.
+ * ≡ a rule violation; `skipped` ≡ an execution that did not run (e.g. its rule
+ * opted out).
  */
 export type ExecutionStatus =
   | {
