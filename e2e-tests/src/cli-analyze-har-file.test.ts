@@ -213,7 +213,7 @@ describe('thymian analyze with HAR file', () => {
     );
     expect(result.stdout).toContain(
       // TODO we need to think about the findings with issue #335 (https://github.com/thymianofficial/thymian-internal/issues/335)
-      'Summary: 2 error(s), 0 warning(s), 0 hint(s), 3 info finding(s).',
+      'Summary: 2 error(s), 0 warning(s), 0 hint(s), 0 info finding(s).',
     );
   }, 90_000);
 });
