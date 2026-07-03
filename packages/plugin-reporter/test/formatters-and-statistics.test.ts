@@ -169,5 +169,8 @@ describe('MarkdownFormatter rendering (AC13)', () => {
     expect(output).toContain('### POST /pets fails · _✖ failed_');
     expect(output).toContain('— expected: 200, actual: 500');
     expect(output).not.toContain('GET /pets returns 200');
+    // GET /cats' informational finding has no `message`; the Message cell
+    // must fall back to the finding's (always-present) title.
+    expect(output).toContain('| info | `rfc9110/host` | noted |');
   });
 });

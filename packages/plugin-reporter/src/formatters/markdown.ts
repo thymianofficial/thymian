@@ -177,7 +177,7 @@ function buildLintAnalyzeSection(
     for (const finding of execution.findings) {
       if (finding.kind === 'informational') {
         rows.push(
-          `| info | ${ruleCell} | ${escapeCell(finding.message?.text ?? '')} |`,
+          `| info | ${ruleCell} | ${escapeCell(finding.message?.text ?? finding.title)} |`,
         );
       }
     }
