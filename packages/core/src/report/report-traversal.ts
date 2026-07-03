@@ -7,9 +7,7 @@ export interface ExecutionVisit {
 }
 
 /**
- * Walk the executions of a run. Executions are non-recursive (there is no
- * `children` nesting), so this is a flat iteration kept as a generator for a
- * stable call site across renderers.
+ * Walk the executions of a run.
  */
 export function* walkExecutions(
   executions: Execution[] | undefined,
