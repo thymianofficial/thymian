@@ -34,25 +34,25 @@ export const FORMATTER_REGISTRY: {
   markdown: {
     factory: (logger) => new MarkdownFormatter(logger),
     prepareOptions: (options, pluginOptions) => ({
+      ...options,
       path: join(
         pluginOptions.cwd,
         typeof options.path === 'string'
           ? options.path
           : '.thymian/reports/report.md',
       ),
-      ...options,
     }),
   },
   csv: {
     factory: (logger) => new CsvFormatter(logger),
     prepareOptions: (options, { cwd }) => ({
+      ...options,
       path: join(
         cwd,
         typeof options.path === 'string'
           ? options.path
           : '.thymian/reports/report.csv',
       ),
-      ...options,
     }),
   },
 } as const;
