@@ -153,7 +153,7 @@ describe('CSV flattening (AC13)', () => {
 describe('MarkdownFormatter rendering (AC13)', () => {
   it('renders the human layout for lint status rows and test step findings', async () => {
     const formatter = new MarkdownFormatter(new NoopLogger());
-    formatter.init({ path: join(process.cwd(), 'tmp', 'hierarchical.md') });
+    formatter.init({ path: join(process.cwd(), 'tmp', 'formatters.md') });
     formatter.report(report);
 
     const output = (await formatter.flush()) ?? '';

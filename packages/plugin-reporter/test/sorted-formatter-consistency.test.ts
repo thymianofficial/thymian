@@ -29,7 +29,7 @@ const report = {
   ],
 };
 
-describe('formatter consistency for v4 reports', () => {
+describe('formatter consistency across formatters', () => {
   it('renders the same finding identity across formatters', async () => {
     const markdown = new MarkdownFormatter(new NoopLogger());
     markdown.init({

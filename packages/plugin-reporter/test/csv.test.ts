@@ -44,7 +44,7 @@ const report = {
 };
 
 describe('CSV formatter helpers', () => {
-  it('serializes v4 report findings into CSV rows', () => {
+  it('serializes report findings into CSV rows', () => {
     const lines = reportToCsvLines(report);
     expect(lines[0]).toContain('run-1');
     expect(lines[0]).toContain('rule/id');
