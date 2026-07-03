@@ -26,7 +26,7 @@ const SINGLE_ENTRY_CACHE_KEY = '\0single-entry';
  * Build a resolver that turns `thymianFormat` locations into endpoint strings
  * (e.g. `POST /orders`) by looking up `report.thymianFormat[runVersion]`.
  * Mirrors `common-cli/src/cli-report-renderer.ts`'s `formatThymianFormatLocation`
- * without modifying that file. Falls back to the raw `format:{elementId}` form
+ * to keep formatter output consistent. Falls back to the raw `format:{elementId}` form
  * when there is no matching version, graph, or resolvable node/edge.
  *
  * Defensively mirrors that same file's `resolveRunFormat` single-entry
