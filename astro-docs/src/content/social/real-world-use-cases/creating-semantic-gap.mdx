@@ -1,0 +1,117 @@
+---
+title: 'The Semantic Gap Is Easy to Create'
+description: 'A simple unsafe GET endpoint is enough to create a real semantic gap between user agents and your origin server.'
+category: real-world-use-cases
+publishStatus: ready
+docLinks:
+  - label: 'HTTP Conformance'
+    url: 'https://thymian.dev/introduction/http-conformance/'
+  - label: 'Thymian Test Workflow'
+    url: 'https://thymian.dev/tutorials/thymian-test-workflow/'
+---
+
+import PlatformSection from '../../../components/social/PlatformSection.astro';
+import PostText from '../../../components/social/PostText.astro';
+import SocialImage from '../../../components/social/SocialImage.astro';
+
+## Reddit
+
+<PlatformSection platform="reddit">
+  <PostText platform="reddit" label="Title">
+The semantic gap is easy to create
+  </PostText>
+
+  <PostText platform="reddit" label="Post body">
+Last week we explained what the **Semantic Gap** is.
+
+This week: how easy it is to create one.
+
+Now assume you implement a `GET` endpoint that is not safe and not idempotent.
+
+User agents will assume they can safely repeat that `GET` request.
+
+So a crawler, SDK, browser, or AI agent may call it again, retry it, or follow it automatically.
+
+But if your origin server changes state every time it receives that request, you now have a real problem.
+
+The user agent interprets `GET /resource/123` as a safe read.
+
+The server interprets the same request as a state-changing operation.
+
+That difference in interpretation is the Semantic Gap in action.
+
+Docs: https://thymian.dev/introduction/http-conformance/
+
+Have you seen an unsafe `GET` endpoint in the wild?
+  </PostText>
+
+  <SocialImage type="side-by-side" platform="reddit" lang="http" codeLabel="What the client sees" code={`GET /resource/123 HTTP/1.1`} rightLang="text" rightCodeLabel="What the server does" rightCode={`Delete resource 123`} />
+</PlatformSection>
+
+## X (Twitter)
+
+<PlatformSection platform="x">
+  <PostText platform="x">
+Last week: what the semantic gap is.
+
+This week: how easy it is to create one.
+
+Now assume your `GET` endpoint is not safe or idempotent. User agents may still repeat it while your server changes state.
+
+https://thymian.dev/introduction/http-conformance/
+  </PostText>
+
+  <SocialImage type="side-by-side" platform="x" lang="http" codeLabel="What the client sees" code={`GET /resource/123 HTTP/1.1`} rightLang="text" rightCodeLabel="What the server does" rightCode={`Delete resource 123`} />
+</PlatformSection>
+
+## LinkedIn
+
+<PlatformSection platform="linkedin">
+  <PostText platform="linkedin">
+Last week we explained the Semantic Gap.
+
+This week, here is how easy it is to create one.
+
+Now assume you implement a GET endpoint that is not safe and not idempotent.
+
+User agents will still assume that GET is safe to repeat. So a crawler, SDK, browser, or AI agent may rerun the request, retry it, or follow it automatically.
+
+But if your origin server changes state every time it receives that request, the same message now means different things to different participants.
+
+The client sees a read.
+The server performs a state change.
+
+That difference in interpretation creates a real operational problem.
+
+More context: https://thymian.dev/introduction/http-conformance/
+
+#HTTP #APIDesign #APISecurity #AI #DevTools
+  </PostText>
+
+  <SocialImage type="side-by-side" platform="linkedin" lang="http" codeLabel="What the client sees" code={`GET /resource/123 HTTP/1.1`} rightLang="text" rightCodeLabel="What the server does" rightCode={`Delete resource 123`} />
+</PlatformSection>
+
+## Discord
+
+<PlatformSection platform="discord">
+  <PostText platform="discord">
+**Last week we explained the Semantic Gap.**
+
+This week: how easy it is to create one.
+
+Now assume you implement a `GET` endpoint that is not safe and not idempotent.
+
+User agents may still repeat it freely because they interpret it as safe.
+
+But your origin server changes state each time it receives that request.
+
+Client: safe read
+Server: state change
+
+That difference creates a real problem.
+
+https://thymian.dev/introduction/http-conformance/
+  </PostText>
+
+  <SocialImage type="side-by-side" platform="discord" lang="http" codeLabel="What the client sees" code={`GET /resource/123 HTTP/1.1`} rightLang="text" rightCodeLabel="What the server does" rightCode={`Delete resource 123`} />
+</PlatformSection>
