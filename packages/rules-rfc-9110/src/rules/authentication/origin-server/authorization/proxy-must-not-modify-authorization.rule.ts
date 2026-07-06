@@ -1,5 +1,7 @@
 import { getHeader, httpRule, type RuleFnResult } from '@thymian/core';
 
+import { equalHeaderValues } from '../../utils/header-value-equality.js';
+
 export default httpRule('rfc9110/proxy-must-not-modify-authorization')
   .severity('error')
   // This MUST NOT governs a *proxy hop* — a proxy forwarding a request must not
@@ -38,7 +40,7 @@ export default httpRule('rfc9110/proxy-must-not-modify-authorization')
           continue;
         }
 
-        if (JSON.stringify(forwarded) !== JSON.stringify(received)) {
+        if (!equalHeaderValues(forwarded, received)) {
           results.push({
             location,
             violation: {
