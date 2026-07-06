@@ -4,6 +4,14 @@ export default httpRule(
   'rfc9110/cache-must-not-use-response-without-matching-vary-headers',
 )
   .severity('error')
+  // Governs a cache's reuse decision: serving a stored response to a later
+  // request whose values for the Vary-listed header fields differ from the
+  // original request. Detecting a violation requires correlating two requests
+  // and knowing that the second was answered from cache with the first's
+  // stored representation. That cache-hit linkage is not available from a
+  // single transaction and is not reliably reconstructable from a HAR; it
+  // would take traffic recorded at a cache that annotates hits and the
+  // selecting header values.
   .type('informational')
   .url('https://www.rfc-editor.org/rfc/rfc9110.html#name-vary')
   .description(
