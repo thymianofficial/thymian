@@ -19,7 +19,7 @@ export default httpRule(
   .summary(
     'Servers that fail a request with a 415 status for reasons unrelated to content codings MUST NOT include the Accept-Encoding header field.',
   )
-  .appliesTo('server', 'origin server')
+  .appliesTo('server')
   .rule((ctx) =>
     ctx.validateCommonHttpTransactions(
       and(

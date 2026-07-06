@@ -38,7 +38,6 @@ export default httpRule('rfc9110/codings-value-may-be-given-quality-value')
   .description(
     'Each codings value MAY be given an associated quality value (weight) representing the preference for that encoding, as defined in Section 12.4.2.',
   )
-  .appliesTo('client', 'user-agent')
   // Static context can only observe that the request carries Accept-Encoding,
   // so it always surfaces the hint about the available quality-value mechanism.
   .rule((ctx) =>
