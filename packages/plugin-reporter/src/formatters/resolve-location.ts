@@ -56,7 +56,15 @@ export function createLocationResolver(report: Report): LocationResolver {
       return undefined;
     }
 
-    const format = ThymianFormat.import(serialized);
+    let format: ThymianFormat;
+    try {
+      format = ThymianFormat.import(serialized);
+    } catch {
+      // Malformed/unsupported serialized format data — fall back to the raw
+      // `format:{elementId}` string instead of failing the whole reporter.
+      return undefined;
+    }
+
     formatCache.set(cacheKey, format);
     return format;
   }

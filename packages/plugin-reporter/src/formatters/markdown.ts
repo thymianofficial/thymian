@@ -38,6 +38,14 @@ function escapeCell(text: string): string {
   return text.replaceAll('|', '\\|').replaceAll('\n', ' ');
 }
 
+/** Escapes text interpolated into raw HTML (e.g. inside `<details><summary>`). */
+function escapeHtml(text: string): string {
+  return text
+    .replaceAll('&', '&amp;')
+    .replaceAll('<', '&lt;')
+    .replaceAll('>', '&gt;');
+}
+
 function severityWord(severity: Severity): string {
   return severity === 'warn' ? 'warning' : severity;
 }
@@ -265,7 +273,7 @@ function buildTestSection(
     const rule = execution.ruleId ? ruleIndex.get(execution.ruleId) : undefined;
     const severity = resolveExecutionSeverity(execution, ruleIndex, logger);
     const severityPrefix = severity ? `${severityWord(severity)} · ` : '';
-    const ruleCell = `<code>${execution.ruleId ?? 'unnamed check'}</code>`;
+    const ruleCell = `<code>${escapeHtml(execution.ruleId ?? 'unnamed check')}</code>`;
     const message =
       execution.status.kind === 'failed'
         ? (execution.status.reason ??
@@ -275,7 +283,7 @@ function buildTestSection(
         : (execution.status.reason ?? rule?.summary?.text ?? '');
 
     lines.push(
-      `<details><summary>${severityPrefix}${ruleCell} · ${message}</summary>`,
+      `<details><summary>${severityPrefix}${ruleCell} · ${escapeHtml(message)}</summary>`,
     );
     lines.push('');
 

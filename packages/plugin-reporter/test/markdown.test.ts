@@ -361,3 +361,30 @@ describe('MarkdownFormatter location fallback (AC13)', () => {
     expect(output).toContain('### format:abc123');
   });
 });
+
+describe('MarkdownFormatter summary HTML escaping', () => {
+  it('escapes HTML-significant characters in the outer <summary> text', async () => {
+    const report = createReport([
+      createToolRun({
+        tool: { name: '@thymian/plugin-http-tester' },
+        runType: 'test',
+        rules: [{ id: 'r&<>ule', severity: 'error' }],
+        executions: [
+          createTestCaseExecution({
+            name: 'Case with unsafe reason',
+            ruleId: 'r&<>ule',
+            status: { kind: 'failed', reason: '<b>&"bad"</b>' },
+            steps: [],
+          }),
+        ],
+      }),
+    ]);
+
+    const output = await render(report);
+
+    expect(output).toContain(
+      '<summary>error · <code>r&amp;&lt;&gt;ule</code> · &lt;b&gt;&amp;"bad"&lt;/b&gt;</summary>',
+    );
+    expect(output).not.toContain('<b>&"bad"</b>');
+  });
+});

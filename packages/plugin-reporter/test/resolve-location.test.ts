@@ -143,6 +143,29 @@ describe('createLocationResolver (AC13)', () => {
     expect(result).toBe('format:missing');
   });
 
+  it('falls back to the raw format:{elementId} string when the serialized format is malformed', () => {
+    const resolve = createLocationResolver({
+      reportId: 'r-1',
+      createdAt: new Date(0).toISOString(),
+      runs: [],
+      // Not a valid SerializedThymianFormat — graphology's `import()` throws
+      // because `nodes` must be an array.
+      thymianFormat: { v1: { nodes: 'not-an-array' } as never },
+    });
+
+    const result = resolve(
+      {
+        type: 'thymianFormat',
+        elementType: 'node',
+        elementId: 'abc123',
+        pointer: '',
+      },
+      'v1',
+    );
+
+    expect(result).toBe('format:abc123');
+  });
+
   it('delegates non-thymianFormat locations to plain formatting', () => {
     const resolve = createLocationResolver({
       reportId: 'r-1',
