@@ -161,9 +161,13 @@ export function executionsFromViolations(
 /**
  * Determine the {@link ExecutionStatus} and detail findings for a single
  * {@link RuleFnResult} entry. Outcomes that used to be findings now live on the
- * status: a `violation` → `failed`; a `rule-skip`-only result → `skipped`;
- * otherwise `passed`. `rule-skip` is a producer signal and is never emitted as a
- * report finding.
+ * status: a `violation` → `failed`; a `rule-skip` signal → `skipped`; otherwise
+ * `passed`. `rule-skip` is a producer signal and is never emitted as a report
+ * finding, but any *other* findings on the same entry still are — a rule-skip
+ * alongside e.g. an `informational` finding must not be reported as `passed`
+ * (BaggersIO PR-311 finding 10), matching `plugin-http-tester`'s `noteResult`,
+ * which treats the two signals independently rather than gating one on the
+ * other's absence.
  */
 function statusAndFindingsFromEntry(
   entry: { violation?: { message?: string }; findings: RuleFinding[] },
@@ -185,15 +189,18 @@ function statusAndFindingsFromEntry(
     };
   }
 
-  if (detailFindings.length === 0) {
-    const skip = entry.findings.find((finding) => finding.kind === 'rule-skip');
-    if (skip) {
-      const reason = skip.reason ?? skip.message;
-      return {
-        status: { kind: 'skipped', ...(reason ? { reason } : {}) },
-        findings: [],
-      };
-    }
+  const ruleSkips = entry.findings.filter(
+    (finding) => finding.kind === 'rule-skip',
+  );
+  if (ruleSkips.length > 0) {
+    const reason = ruleSkips
+      .map((finding) => finding.reason ?? finding.message)
+      .filter((r): r is string => r !== undefined)
+      .join('; ');
+    return {
+      status: { kind: 'skipped', ...(reason ? { reason } : {}) },
+      findings: detailFindings,
+    };
   }
 
   return { status: { kind: 'passed' }, findings: detailFindings };

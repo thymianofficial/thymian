@@ -184,6 +184,63 @@ describe('report builders', () => {
       expect((executions[0] as { findings: unknown[] }).findings).toEqual([]);
     });
 
+    it('maps a rule-skip alongside another finding to skipped, not passed (regression, BaggersIO PR-311 finding 10)', () => {
+      const executions = executionsFromRunRulesResult(
+        {
+          'rfc9110/example': {
+            diagnostics: undefined,
+            ruleFnResult: [
+              {
+                location: 'custom/loc',
+                findings: [
+                  { kind: 'rule-skip', title: 'skip', reason: 'no endpoint' },
+                  { kind: 'informational', title: 'noted', message: 'fyi' },
+                ],
+              },
+            ],
+          },
+        },
+        [rule],
+        format,
+      );
+
+      expect(executions).toHaveLength(1);
+      expect(executions[0]?.status).toMatchObject({
+        kind: 'skipped',
+        reason: 'no endpoint',
+      });
+      // The co-occurring informational finding is not discarded.
+      const findings = (executions[0] as { findings: { kind: string }[] })
+        .findings;
+      expect(findings.map((f) => f.kind)).toEqual(['informational']);
+    });
+
+    it('joins multiple rule-skip reasons on a single entry', () => {
+      const executions = executionsFromRunRulesResult(
+        {
+          'rfc9110/example': {
+            diagnostics: undefined,
+            ruleFnResult: [
+              {
+                location: 'custom/loc',
+                findings: [
+                  { kind: 'rule-skip', title: 'skip 1', reason: 'reason A' },
+                  { kind: 'rule-skip', title: 'skip 2', reason: 'reason B' },
+                ],
+              },
+            ],
+          },
+        },
+        [rule],
+        format,
+      );
+
+      expect(executions[0]?.status).toMatchObject({
+        kind: 'skipped',
+        reason: 'reason A; reason B',
+      });
+    });
+
     it('marks the execution kind as analyze when requested (AC10)', () => {
       const executions = executionsFromRunRulesResult(
         {
