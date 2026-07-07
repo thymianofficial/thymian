@@ -27,7 +27,7 @@ describe('thymian lint', () => {
       'rfc9110/origin-server-with-clock-must-generate-date-for-2xx-3xx-4xx',
     );
     expect(output).toContain(
-      'Summary: 1 error(s), 0 warning(s), 0 hint(s), 0 info finding(s).',
+      'Summary: 1 error(s), 0 warning(s), 0 hint(s), 0 info(s).',
     );
   }, 90_000);
 
@@ -41,7 +41,7 @@ describe('thymian lint', () => {
 
     expect(output).toContain('@thymian/plugin-http-linter');
     expect(output).toContain(
-      'Summary: 1 error(s), 0 warning(s), 0 hint(s), 0 info finding(s).',
+      'Summary: 1 error(s), 0 warning(s), 0 hint(s), 0 info(s).',
     );
   }, 90_000);
 
@@ -65,7 +65,7 @@ describe('thymian lint', () => {
     expect(exitCode).toBe(0);
     expect(stdout).toContain('@thymian/plugin-http-linter');
     expect(stdout).toContain(
-      'Summary: 0 error(s), 0 warning(s), 0 hint(s), 0 info finding(s).',
+      'Summary: 0 error(s), 0 warning(s), 0 hint(s), 0 info(s).',
     );
   }, 90_000);
 

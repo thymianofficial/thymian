@@ -5,19 +5,13 @@ import {
   type ExecutionStatus,
   findingDetails,
   type FindingRecord,
-  type HttpTransaction,
-  isNodeType,
-  type Location,
+  formatLocation,
   type Report,
   resolveExecutionSeverity,
+  resolveThymianFormatForRun,
   type RuleDescriptor,
   type Severity,
-  ThymianFormat,
-  type ThymianHttpRequest,
-  type ThymianHttpResponse,
-  thymianHttpTransactionToString,
-  thymianRequestToString,
-  thymianResponseToString,
+  type ThymianFormat,
   walkExecutions,
 } from '@thymian/core';
 
@@ -46,65 +40,6 @@ function symbolForSeverity(severity: Severity): string {
       return 'ℹ';
     case 'info':
       return '•';
-  }
-}
-
-function fallbackThymianFormatLocation(
-  location: Extract<Location, { type: 'thymianFormat' }>,
-): string {
-  return `format:${location.elementId}${location.pointer ? `#${location.pointer}` : ''}`;
-}
-
-function formatThymianFormatLocation(
-  location: Extract<Location, { type: 'thymianFormat' }>,
-  format?: ThymianFormat,
-): string {
-  if (!format) {
-    return fallbackThymianFormatLocation(location);
-  }
-
-  if (location.elementType === 'node') {
-    const node = format.getNode(location.elementId);
-
-    if (node && isNodeType(node, 'http-request')) {
-      return thymianRequestToString(node);
-    }
-
-    if (node && isNodeType(node, 'http-response')) {
-      return thymianResponseToString(node);
-    }
-
-    return fallbackThymianFormatLocation(location);
-  }
-
-  try {
-    const [source, target] = format.graph.extremities(location.elementId);
-    const transaction = format.getEdge<HttpTransaction>(location.elementId);
-    const request = format.getNode<ThymianHttpRequest>(source);
-    const response = format.getNode<ThymianHttpResponse>(target);
-
-    if (transaction && request && response) {
-      return thymianHttpTransactionToString(request, response);
-    }
-  } catch {
-    return fallbackThymianFormatLocation(location);
-  }
-
-  return fallbackThymianFormatLocation(location);
-}
-
-function formatLocation(location: Location, format?: ThymianFormat): string {
-  switch (location.type) {
-    case 'custom':
-      return location.value;
-    case 'file':
-      return [location.path, location.line, location.column]
-        .filter((part) => part !== undefined)
-        .join(':');
-    case 'url':
-      return location.url;
-    case 'thymianFormat':
-      return formatThymianFormatLocation(location, format);
   }
 }
 
@@ -205,26 +140,6 @@ function collectSeverityCounts(report: Report): Record<Severity, number> {
   return counts;
 }
 
-/** Resolve the ThymianFormat a given run used, from the report's version map. */
-function resolveRunFormat(
-  formats: Report['thymianFormat'],
-  version: string | undefined,
-): ThymianFormat | undefined {
-  if (!formats) {
-    return undefined;
-  }
-
-  const entries = Object.entries(formats);
-  const serialized =
-    version !== undefined && formats[version]
-      ? formats[version]
-      : entries.length === 1
-        ? entries[0]?.[1]
-        : undefined;
-
-  return serialized ? ThymianFormat.import(serialized) : undefined;
-}
-
 export function renderReport(
   report: Report,
   options: { format?: ThymianFormat } = {},
@@ -238,7 +153,10 @@ export function renderReport(
   for (const run of report.runs) {
     const format =
       options.format ??
-      resolveRunFormat(report.thymianFormat, run.thymianFormatVersion);
+      resolveThymianFormatForRun(
+        report.thymianFormat,
+        run.thymianFormatVersion,
+      );
 
     lines.push(
       `${run.tool.name} ${Array.from({
@@ -257,9 +175,14 @@ export function renderReport(
     lines.push('');
   }
 
+  // Counts failed executions by resolved severity (see collectSeverityCounts /
+  // resolveExecutionSeverity) — not `informational`-kind findings, which are
+  // never counted here and can render in the body while this stays 0
+  // (BaggersIO PR-311 finding 6). Labelled uniformly as severities, not
+  // "finding(s)", to avoid implying otherwise.
   const counts = collectSeverityCounts(report);
   lines.push(
-    `Summary: ${counts.error} error(s), ${counts.warn} warning(s), ${counts.hint} hint(s), ${counts.info} info finding(s).`,
+    `Summary: ${counts.error} error(s), ${counts.warn} warning(s), ${counts.hint} hint(s), ${counts.info} info(s).`,
   );
 
   return lines.join('\n').trimEnd();

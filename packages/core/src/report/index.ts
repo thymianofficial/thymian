@@ -4,6 +4,13 @@ export {
   findingDetails,
   resolveExecutionSeverity,
 } from './finding-render.js';
+export type { LocationResolver } from './location-format.js';
+export {
+  createLocationResolver,
+  formatLocation,
+  formatThymianFormatLocation,
+  resolveThymianFormatForRun,
+} from './location-format.js';
 export type {
   AnalyzeExecution,
   Artifact,

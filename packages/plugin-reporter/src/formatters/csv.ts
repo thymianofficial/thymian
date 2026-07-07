@@ -1,9 +1,11 @@
 import { createWriteStream, type WriteStream } from 'node:fs';
 
-import type { Execution, Location, Logger, Report } from '@thymian/core';
+import type { Execution, Logger, Report } from '@thymian/core';
 import {
   buildRuleIndex,
+  createLocationResolver,
   findingDetails,
+  type LocationResolver,
   resolveExecutionSeverity,
   walkExecutions,
 } from '@thymian/core';
@@ -17,25 +19,14 @@ export type CsvFormatterOptions = {
   path: string;
 };
 
-function formatLocation(location: Location): string {
-  switch (location.type) {
-    case 'custom':
-      return location.value;
-    case 'file':
-      return [location.path, location.line, location.column]
-        .filter((part) => part !== undefined)
-        .join(':');
-    case 'url':
-      return location.url;
-    case 'thymianFormat':
-      return `format:${location.elementId}${location.pointer ? `#${location.pointer}` : ''}`;
-  }
-}
-
-function executionLabel(execution: Execution): string {
+function executionLabel(
+  execution: Execution,
+  resolveLocation: LocationResolver,
+  runVersion: string | undefined,
+): string {
   return execution.kind === 'test'
     ? execution.name
-    : formatLocation(execution.location);
+    : resolveLocation(execution.location, runVersion);
 }
 
 export class CsvFormatter implements Formatter<CsvFormatterOptions> {
@@ -95,9 +86,11 @@ export class CsvFormatter implements Formatter<CsvFormatterOptions> {
 
 export function reportToCsvLines(report: Report): string[] {
   const lines: string[] = [];
+  const resolveLocation = createLocationResolver(report);
 
   for (const run of report.runs) {
     const ruleIndex = buildRuleIndex(run.rules);
+    const runVersion = run.thymianFormatVersion;
 
     for (const { execution } of walkExecutions(run.executions)) {
       const ruleId = execution.ruleId ?? '';
@@ -108,11 +101,12 @@ export function reportToCsvLines(report: Report): string[] {
         status.kind !== 'skipped' && status.durationMilliseconds !== undefined
           ? `duration=${status.durationMilliseconds}ms`
           : '';
+      const label = executionLabel(execution, resolveLocation, runVersion);
 
       // One row per execution so failed/skipped executions stay visible even
       // when they carry no detail findings.
       lines.push(
-        `${csvSafe(run.runId)},${csvSafe(run.runType)},${csvSafe(run.tool.name)},${csvSafe(ruleId)},${csvSafe(executionLabel(execution))},execution,${csvSafe(status.kind)},${csvSafe(severity)},,,,${csvSafe(reason)},${csvSafe(duration)}\n`,
+        `${csvSafe(run.runId)},${csvSafe(run.runType)},${csvSafe(run.tool.name)},${csvSafe(ruleId)},${csvSafe(label)},execution,${csvSafe(status.kind)},${csvSafe(severity)},,,,${csvSafe(reason)},${csvSafe(duration)}\n`,
       );
 
       const findingsWithLocation =
@@ -120,12 +114,12 @@ export function reportToCsvLines(report: Report): string[] {
           ? execution.steps.flatMap((step) =>
               step.findings.map((finding) => ({
                 finding,
-                location: formatLocation(step.location),
+                location: resolveLocation(step.location, runVersion),
               })),
             )
           : execution.findings.map((finding) => ({
               finding,
-              location: formatLocation(execution.location),
+              location: resolveLocation(execution.location, runVersion),
             }));
 
       for (const { finding, location } of findingsWithLocation) {

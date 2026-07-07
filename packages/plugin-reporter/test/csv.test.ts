@@ -2,12 +2,15 @@ import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 
 import {
+  createAnalyzeExecution,
+  createLintExecution,
   createReport,
   createTestCaseExecution,
   createTestStep,
   createToolRun,
   NoopLogger,
   type RuleDescriptor,
+  ThymianFormat,
 } from '@thymian/core';
 import { describe, expect, it } from 'vitest';
 
@@ -121,5 +124,87 @@ describe('CSV model alignment (AC16)', () => {
     expect(findingRow).toContain('assertion-failure');
     expect(findingRow).toContain('expected=200');
     expect(findingRow).toContain('actual=404');
+  });
+
+  it('emits a finding row for assertion-failure findings on analyze executions (BaggersIO PR-311 finding 2; markdown was the gap, CSV already covers this)', () => {
+    const analyzeReport = createReport([
+      createToolRun({
+        tool: { name: '@thymian/plugin-http-analyzer' },
+        runType: 'analyze',
+        rules,
+        executions: [
+          createAnalyzeExecution({
+            location: { type: 'custom', value: 'POST /orders' },
+            ruleId: 'order-lifecycle',
+            status: { kind: 'failed', reason: '1 assertion(s) failed' },
+            findings: [
+              {
+                id: 'af-analyze-1',
+                kind: 'assertion-failure',
+                title: 'status mismatch',
+                expected: 200,
+                actual: 404,
+              },
+            ],
+          }),
+        ],
+      }),
+    ]);
+
+    const lines = reportToCsvLines(analyzeReport);
+    const findingRow = lines.find((l) => l.includes('af-analyze-1'));
+
+    expect(findingRow).toBeDefined();
+    expect(findingRow).toContain('assertion-failure');
+    expect(findingRow).toContain('expected=200');
+    expect(findingRow).toContain('actual=404');
+  });
+});
+
+describe('CSV thymianFormat location resolution (BaggersIO PR-311 finding 5)', () => {
+  it('resolves a thymianFormat location to an endpoint string, matching markdown/CLI instead of the raw format:{elementId} form', () => {
+    const format = new ThymianFormat();
+    const requestId = format.addRequest({
+      sourceName: 'openapi.yaml',
+      protocol: 'https',
+      host: 'api.example.com',
+      port: 443,
+      method: 'post',
+      path: '/orders',
+      mediaType: '',
+      headers: {},
+      queryParameters: {},
+      cookies: {},
+      pathParameters: {},
+    });
+
+    const report = createReport(
+      [
+        createToolRun({
+          tool: { name: '@thymian/plugin-http-linter' },
+          runType: 'lint',
+          thymianFormatVersion: 'v1',
+          executions: [
+            createLintExecution({
+              location: {
+                type: 'thymianFormat',
+                elementType: 'node',
+                elementId: requestId,
+                pointer: '',
+              },
+              status: { kind: 'failed', reason: 'broken' },
+            }),
+          ],
+        }),
+      ],
+      { v1: format.export() },
+    );
+
+    const lines = reportToCsvLines(report);
+    const executionRow = lines.find((l) => l.includes(',execution,'));
+
+    expect(executionRow).toBeDefined();
+    expect(executionRow).toContain('POST /orders');
+    expect(executionRow).not.toContain(`format:${requestId}`);
   });
 });
