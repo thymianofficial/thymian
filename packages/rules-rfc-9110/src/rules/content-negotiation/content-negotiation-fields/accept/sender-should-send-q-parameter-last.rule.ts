@@ -5,15 +5,24 @@ import {
 } from '@thymian/core';
 import { httpRule } from '@thymian/core';
 
+import { createList } from '../../../../utils.js';
+
+/**
+ * Well-known media-range parameter names that are almost always intended to
+ * scope a media range (not as Accept extension parameters). If one of these
+ * appears after the "q" weight in an Accept value, the sender most likely
+ * mis-ordered it and it will be silently treated as an accept-ext parameter.
+ */
+const mediaRangeParameterNames = new Set(['charset', 'level', 'boundary']);
+
 export default httpRule('rfc9110/sender-should-send-q-parameter-last')
   .severity('warn')
-  .type('analytics', 'static')
+  .type('analytics')
   .url('https://www.rfc-editor.org/rfc/rfc9110.html#name-accept')
   .summary(
     'Senders using weights SHOULD send "q" last (after all media-range parameters).',
   )
-  .rule((ctx) => ctx.validateCommonHttpTransactions(requestHeader('accept')))
-  .overrideAnalyticsRule((ctx) =>
+  .rule((ctx) =>
     ctx.validateHttpTransactions(
       requestHeader('accept'),
       (req, _res, location: RuleViolationLocation) => {
@@ -29,12 +38,33 @@ export default httpRule('rfc9110/sender-should-send-q-parameter-last')
           header.split(','),
         );
 
-        const malformedValues = acceptValues.filter((accept) => {
-          const acceptParams = accept.split(';').map((param) => param.trim());
-          const qParamIndex = acceptParams.findIndex((param) =>
-            param.startsWith('q='),
+        const malformedValues = acceptValues.filter((value) => {
+          const params = value.split(';').map((param) => param.trim());
+          const qParamIndex = params.findIndex((param) =>
+            param.toLowerCase().startsWith('q='),
           );
-          return qParamIndex !== acceptParams.length - 1;
+
+          // The rule only applies to senders that actually use a weight. A
+          // value without a "q" parameter is not malformed.
+          if (qParamIndex === -1) {
+            return false;
+          }
+
+          // Per RFC 9110 Section 12.5.1, the first "q" parameter separates the
+          // media-range parameters (which precede it) from accept-ext
+          // parameters (which follow it). A parameter appearing after "q" is
+          // therefore a *valid* accept-ext and must NOT be flagged. The SHOULD
+          // is violated only when a media-range parameter is placed after the
+          // weight, where it is silently reinterpreted as an accept-ext. We
+          // detect that via the well-known media-range parameter names, which
+          // avoids false positives on legitimate accept-ext parameters.
+          return params
+            .slice(qParamIndex + 1)
+            .some((param) =>
+              mediaRangeParameterNames.has(
+                param.split('=')[0]?.trim().toLowerCase() ?? '',
+              ),
+            );
         });
 
         if (malformedValues.length > 0) {
@@ -42,8 +72,8 @@ export default httpRule('rfc9110/sender-should-send-q-parameter-last')
             {
               location,
               violation: {
-                message: `The weight parameter "q" SHOULD be send as last parameter. Malformed value(s) sent: ${malformedValues.join(
-                  ', ',
+                message: `The weight parameter "q" SHOULD be sent last, after all media-range parameters. The following value(s) place a media-range parameter after "q", where it is reinterpreted as an accept-extension parameter: ${createList(
+                  malformedValues.map((value) => value.trim()),
                 )}`,
               },
               findings: [],
