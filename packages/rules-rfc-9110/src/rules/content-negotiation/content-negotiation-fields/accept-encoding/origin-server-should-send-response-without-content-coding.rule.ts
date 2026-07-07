@@ -127,7 +127,7 @@ export default httpRule(
             violation: {
               message: `The response was encoded with content coding(s) ${createList(
                 unacceptable,
-              )} that the request's Accept-Encoding (${acceptEncoding.trim()}) does not list as acceptable. When no acceptable coding is available, the origin server SHOULD send the response without any content coding (unless identity is indicated as unacceptable).`,
+              )} that the request's Accept-Encoding (${acceptEncoding.trim()}) does not list as acceptable. The origin server SHOULD send the response without any content coding (identity) unless identity is indicated as unacceptable.`,
             },
             findings: [],
           },

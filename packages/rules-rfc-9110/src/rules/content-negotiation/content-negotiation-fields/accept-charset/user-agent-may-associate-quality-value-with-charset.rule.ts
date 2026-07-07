@@ -6,13 +6,23 @@ import {
 import { httpRule } from '@thymian/core';
 
 /**
- * The informational hint surfaced to the user. It both advertises the MAY
- * (a quality value may be attached to each charset) and notes that
- * Accept-Charset is deprecated by RFC 9110 (Section 12.5.2): senders should
- * omit it and rely on UTF-8 as the charset.
+ * Accept-Charset is deprecated by RFC 9110 (Section 12.5.2). This note applies
+ * whenever the header is present — independent of whether a quality value is
+ * used — so it is always surfaced.
  */
-const hintMessage =
-  'A user agent MAY associate a quality value with each charset in Accept-Charset to indicate its relative preference (Section 12.4.2). Note that Accept-Charset is deprecated by RFC 9110 (Section 12.5.2); user agents should omit it and rely on UTF-8.';
+const deprecationNote =
+  'Note that Accept-Charset is deprecated by RFC 9110 (Section 12.5.2); user agents should omit it and rely on UTF-8.';
+
+/**
+ * The permissive MAY: a quality value may be attached to each charset to
+ * indicate relative preference (Section 12.4.2). Only worth surfacing when the
+ * sender is not already using a quality value.
+ */
+const qualityValueHint =
+  'A user agent MAY associate a quality value with each charset in Accept-Charset to indicate its relative preference (Section 12.4.2).';
+
+/** The full hint: the permissive MAY followed by the deprecation note. */
+const fullHint = `${qualityValueHint} ${deprecationNote}`;
 
 function headerToString(
   value: string | string[] | undefined,
@@ -47,18 +57,18 @@ export default httpRule(
   )
   .appliesTo('user-agent')
   // Static context can only observe that the request carries Accept-Charset, so
-  // it always surfaces the hint (which also flags the deprecation).
+  // it always surfaces the full hint (the MAY plus the deprecation note).
   .rule((ctx) =>
     ctx.validateCommonHttpTransactions(
       requestHeader('accept-charset'),
       (_req, _res, location: RuleViolationLocation) => [
-        { location, violation: { message: hintMessage }, findings: [] },
+        { location, violation: { message: fullHint }, findings: [] },
       ],
     ),
   )
-  // Analytics has the actual header value: only surface the "you may attach a
-  // quality value" hint when none of the charsets already carry one. The
-  // deprecation note still applies, so the hint is emitted in that case.
+  // Analytics has the actual header value. The deprecation note is always
+  // surfaced while Accept-Charset is present; the "you may attach a quality
+  // value" hint is added only when none of the charsets already carry one.
   .overrideAnalyticsRule((ctx) =>
     ctx.validateHttpTransactions(
       requestHeader('accept-charset'),
@@ -67,13 +77,15 @@ export default httpRule(
           getHeader(req.headers, 'accept-charset'),
         );
 
-        if (!acceptCharset || hasQualityValue(acceptCharset)) {
+        if (!acceptCharset) {
           return [];
         }
 
-        return [
-          { location, violation: { message: hintMessage }, findings: [] },
-        ];
+        const message = hasQualityValue(acceptCharset)
+          ? deprecationNote
+          : fullHint;
+
+        return [{ location, violation: { message }, findings: [] }];
       },
     ),
   )

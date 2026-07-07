@@ -102,7 +102,7 @@ function validateVaryValue(
       {
         location,
         violation: {
-          message: `Response SHOULD contain Vary header with values: ${createList(presentHeaders)}.`,
+          message: `Response SHOULD contain Vary header with field name(s): ${createList(presentHeaders)}.`,
         },
         findings: [],
       },
@@ -124,7 +124,7 @@ function validateVaryValue(
     {
       location,
       violation: {
-        message: `Response Vary header (${varyValue.trim()}) SHOULD contain at least one of the negotiated values: ${createList(presentHeaders)}.`,
+        message: `Response Vary header (${varyValue.trim()}) SHOULD list at least one of the negotiated field name(s): ${createList(presentHeaders)}.`,
       },
       findings: [],
     },
@@ -160,7 +160,7 @@ export default httpRule('rfc9110/origin-server-should-generate-vary-header')
           {
             location,
             violation: {
-              message: `Response SHOULD contain Vary header with values: ${createList(presentNegotiationHeaders(req))}.`,
+              message: `Response SHOULD contain Vary header with field name(s): ${createList(presentNegotiationHeaders(req))}.`,
             },
             findings: [],
           },
