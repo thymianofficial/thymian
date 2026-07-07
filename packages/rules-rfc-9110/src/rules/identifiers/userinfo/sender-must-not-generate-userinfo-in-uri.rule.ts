@@ -1,14 +1,9 @@
-import { httpRule } from '@thymian/core';
+import type { RuleViolationLocation } from '@thymian/core';
+import { httpRule, or, protocol } from '@thymian/core';
 
 export default httpRule('rfc9110/sender-must-not-generate-userinfo-in-uri')
   .severity('error')
-  // HAR ingestion normalizes the target URI via `new URL(url).origin`, which
-  // STRIPS any userinfo subcomponent before we ever see the request. The only
-  // userinfo that survives in real traffic lives inside URI-bearing header
-  // VALUES (e.g. Referer), and that case is already covered by
-  // message-context/request-context/referer/
-  // user-agent-must-not-include-fragment-or-userinfo-in-referer.
-  .type('informational')
+  .type('static', 'analytics')
   .url(
     'https://www.rfc-editor.org/rfc/rfc9110.html#name-deprecation-of-userinfo-in-http',
   )
@@ -16,4 +11,21 @@ export default httpRule('rfc9110/sender-must-not-generate-userinfo-in-uri')
     "A sender MUST NOT generate the userinfo subcomponent (and its '@' delimiter) when an 'http' or 'https' URI reference is generated within a message as a target URI or field value.",
   )
   .appliesTo('client', 'user-agent')
+  .rule((ctx, opts, logger) =>
+    ctx.validateCommonHttpTransactions(
+      or(protocol('http'), protocol('https')),
+      (req, _res, location: RuleViolationLocation) => {
+        try {
+          const url = new URL(req.target ?? req.path, req.origin);
+
+          return !!url.username || !!url.password
+            ? [{ location, violation: {}, findings: [] }]
+            : [];
+        } catch (e) {
+          logger.error('Cannot run rule because of invalid URL:', e);
+          return [];
+        }
+      },
+    ),
+  )
   .done();
