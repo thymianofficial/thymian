@@ -1,27 +1,56 @@
-import { httpRule } from '@thymian/core';
+import {
+  and,
+  constant,
+  httpRule,
+  not,
+  requestHeader,
+  type RuleFnResult,
+  singleTestCase,
+  statusCode,
+  statusCodeRange,
+} from '@thymian/core';
 
-/**
- * This MUST is defined in terms of a counterfactual: the server must ignore
- * preconditions when its response *to the same request without those
- * conditions* would have been something other than 2xx or 412. Conformance
- * therefore cannot be decided from a single observed transaction — a 3xx/4xx/5xx
- * response to a conditional request is exactly the conforming outcome the rule
- * describes (the redirect/error took precedence and the precondition was
- * correctly ignored), not a violation. Deciding a violation would require
- * re-issuing the request without the conditional headers and comparing, which
- * the framework cannot do because the precedence outcome is resource- and
- * state-dependent.
- */
 export default httpRule(
   'rfc9110/server-must-ignore-preconditions-for-non-2xx-412-responses',
 )
   .severity('error')
-  .type('informational')
+  .type('test')
   .url('https://www.rfc-editor.org/rfc/rfc9110.html#section-13.2.1')
   .description(
     'A server MUST ignore all received preconditions if its response to the same request without those conditions, prior to processing the request content, would have been a status code other than a 2xx (Successful) or 412 (Precondition Failed). In other words, redirects and failures that can be detected before significant processing occurs take precedence over the evaluation of preconditions.',
   )
   .summary('Server MUST ignore preconditions if response would be non-2xx/412.')
-  .appliesTo('server', 'origin server', 'cache')
+  .appliesTo('origin server')
   .tags('conditional-requests', 'evaluation', 'precedence')
+  .rule(async (ctx) => {
+    const results: RuleFnResult[] = [];
+    await ctx.httpTest(
+      singleTestCase()
+        // Base transactions whose unconditional response is neither 2xx nor 412:
+        // for these the server must ignore preconditions entirely.
+        .forTransactionsWith(
+          and(not(statusCodeRange(200, 299)), not(statusCode(412))),
+        )
+        // Add a precondition that, if (wrongly) evaluated, would fail with 412.
+        .set(requestHeader('if-match'), constant('"thymian-no-match"'))
+        .run({ checkStatusCode: false })
+        .transactions(([probe]) => {
+          if (probe.response.statusCode === 412) {
+            results.push({
+              location: {
+                elementType: 'edge',
+                elementId: probe.source.transactionId,
+              },
+              violation: {
+                message:
+                  'A request whose unconditional response is non-2xx/412 returned 412 once an If-Match precondition was added. The server MUST ignore preconditions when the response would be non-2xx/412; the 412 shows the precondition was evaluated instead of ignored.',
+              },
+              findings: [],
+            });
+          }
+        })
+        .done(),
+    );
+    return results;
+  })
   .done();
