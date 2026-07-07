@@ -5,6 +5,8 @@ import {
 } from '@thymian/core';
 import { httpRule } from '@thymian/core';
 
+import { createList } from '../../../../utils.js';
+
 /**
  * Well-known media-range parameter names that are almost always intended to
  * scope a media range (not as Accept extension parameters). If one of these
@@ -70,9 +72,9 @@ export default httpRule('rfc9110/sender-should-send-q-parameter-last')
             {
               location,
               violation: {
-                message: `The weight parameter "q" SHOULD be sent last, after all media-range parameters. The following value(s) place a media-range parameter after "q", where it is reinterpreted as an accept-extension parameter: ${malformedValues
-                  .map((value) => value.trim())
-                  .join(', ')}`,
+                message: `The weight parameter "q" SHOULD be sent last, after all media-range parameters. The following value(s) place a media-range parameter after "q", where it is reinterpreted as an accept-extension parameter: ${createList(
+                  malformedValues.map((value) => value.trim()),
+                )}`,
               },
               findings: [],
             },

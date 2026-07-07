@@ -102,9 +102,7 @@ function validateVaryValue(
       {
         location,
         violation: {
-          message: `A cacheable ${req.method} response was returned for a request carrying proactive-negotiation header field(s) ${createList(
-            presentHeaders,
-          )} but does not include a Vary header field. The origin server SHOULD generate a Vary header so shared caches do not reuse this representation for requests expressing different preferences (a cache-poisoning hazard).`,
+          message: `Response SHOULD contain Vary header with values: ${createList(presentHeaders)}.`,
         },
         findings: [],
       },
@@ -126,9 +124,7 @@ function validateVaryValue(
     {
       location,
       violation: {
-        message: `A cacheable ${req.method} response carries a Vary header (${varyValue.trim()}) that lists none of the proactive-negotiation header field(s) ${createList(
-          presentHeaders,
-        )} exercised by the request. The origin server SHOULD list the negotiated field(s) in Vary so shared caches do not reuse this representation for requests expressing different preferences (a cache-poisoning hazard).`,
+        message: `Response Vary header (${varyValue.trim()}) SHOULD contain at least one of the negotiated values: ${createList(presentHeaders)}.`,
       },
       findings: [],
     },
@@ -164,9 +160,7 @@ export default httpRule('rfc9110/origin-server-should-generate-vary-header')
           {
             location,
             violation: {
-              message: `A cacheable ${req.method} response was returned for a request carrying proactive-negotiation header field(s) ${createList(
-                presentNegotiationHeaders(req),
-              )} but does not include a Vary header field. The origin server SHOULD generate a Vary header so shared caches do not reuse this representation for requests expressing different preferences (a cache-poisoning hazard).`,
+              message: `Response SHOULD contain Vary header with values: ${createList(presentNegotiationHeaders(req))}.`,
             },
             findings: [],
           },
