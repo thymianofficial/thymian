@@ -1,13 +1,20 @@
-import { httpRule } from '@thymian/core';
+import { getHeader, httpRule, type RuleFnResult } from '@thymian/core';
+
+import { equalHeaderValues } from '../utils/forwarding.js';
+
+const REPRESENTATION_HEADERS = [
+  'content-type',
+  'content-encoding',
+  'content-language',
+  'content-location',
+  'etag',
+  'last-modified',
+];
 
 export default httpRule(
   'rfc9110/proxy-should-not-modify-endpoint-and-representation-headers',
 )
   .severity('warn')
-  // Detecting a proxy that altered endpoint/representation headers
-  // requires comparing the header values the proxy RECEIVED against those it FORWARDED.
-  // That inbound-vs-forwarded correlation is only recoverable from captured multi-hop
-  // traces at a deployment where the proxy role is recorded.
   .type('analytics')
   .url(
     'https://www.rfc-editor.org/rfc/rfc9110.html#name-message-transformations',
@@ -17,4 +24,40 @@ export default httpRule(
   )
   .summary('Proxy SHOULD NOT modify endpoint and representation headers.')
   .appliesTo('proxy')
+  .rule((ctx) =>
+    ctx.validateCapturedHttpTraces((trace, location) => {
+      const results: RuleFnResult[] = [];
+      for (let i = 1; i < trace.length; i++) {
+        // forwarded = response the proxy sent to the client;
+        // received = response it got from the next server.
+        const forwarded = trace[i - 1];
+        const received = trace[i];
+        if (
+          !forwarded ||
+          !received ||
+          forwarded.response.meta.role !== 'proxy'
+        ) {
+          continue;
+        }
+        const modified = REPRESENTATION_HEADERS.filter((name) => {
+          const before = getHeader(received.response.data.headers, name);
+          const after = getHeader(forwarded.response.data.headers, name);
+          if (before === undefined && after === undefined) {
+            return false;
+          }
+          return !equalHeaderValues(before, after);
+        });
+        if (modified.length > 0) {
+          results.push({
+            location,
+            violation: {
+              message: `A proxy modified representation metadata header field(s) (${modified.join(', ')}) while forwarding the response.`,
+            },
+            findings: [],
+          });
+        }
+      }
+      return results;
+    }),
+  )
   .done();

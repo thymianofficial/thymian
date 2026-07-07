@@ -1,11 +1,9 @@
-import { httpRule } from '@thymian/core';
+import { httpRule, type RuleFnResult } from '@thymian/core';
+
+const normalizePath = (path: string): string => (path === '' ? '/' : path);
 
 export default httpRule('rfc9110/proxy-must-not-modify-absolute-path-and-query')
   .severity('error')
-  // Detecting a modified absolute-path/query requires comparing the
-  // target URI the proxy RECEIVED against the one it FORWARDED to the next inbound
-  // server. That inbound-vs-forwarded correlation is only recoverable from captured
-  // multi-hop traces at a deployment where the proxy role is recorded.
   .type('analytics')
   .url(
     'https://www.rfc-editor.org/rfc/rfc9110.html#name-message-transformations',
@@ -15,4 +13,37 @@ export default httpRule('rfc9110/proxy-must-not-modify-absolute-path-and-query')
   )
   .summary('Proxy MUST NOT modify absolute-path and query parts of target URI.')
   .appliesTo('proxy')
+  .rule((ctx) =>
+    ctx.validateCapturedHttpTraces((trace, location) => {
+      const results: RuleFnResult[] = [];
+      for (let i = 1; i < trace.length; i++) {
+        const forwarded = trace[i - 1];
+        const received = trace[i];
+        if (
+          !forwarded ||
+          !received ||
+          forwarded.request.meta.role !== 'proxy'
+        ) {
+          continue;
+        }
+        const receivedPath = normalizePath(received.request.data.path);
+        const forwardedPath = normalizePath(forwarded.request.data.path);
+        // Empty-path -> "/" or "*" is an allowed protocol normalization.
+        if (
+          forwardedPath !== '*' &&
+          receivedPath !== '*' &&
+          forwardedPath !== receivedPath
+        ) {
+          results.push({
+            location,
+            violation: {
+              message: `A proxy modified the absolute-path or query while forwarding (received "${receivedPath}", forwarded "${forwardedPath}").`,
+            },
+            findings: [],
+          });
+        }
+      }
+      return results;
+    }),
+  )
   .done();

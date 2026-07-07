@@ -1,13 +1,11 @@
-import { httpRule } from '@thymian/core';
+import { getHeader, httpRule, type RuleFnResult } from '@thymian/core';
+
+import { parseMaxForwards } from '../../utils/forwarding.js';
 
 export default httpRule(
   'rfc9110/intermediary-must-generate-updated-max-forwards-when-forwarding',
 )
   .severity('error')
-  // Verifying the forwarded Max-Forwards equals min(received-1, max)
-  // requires correlating the value the intermediary RECEIVED with the value it FORWARDED
-  // at the same hop. That inbound-vs-forwarded pairing is only recoverable from captured
-  // multi-hop traces at a deployment where the intermediary role is recorded.
   .type('analytics')
   .url('https://www.rfc-editor.org/rfc/rfc9110.html#name-max-forwards')
   .description(
@@ -15,4 +13,46 @@ export default httpRule(
   )
   .summary('Intermediary MUST generate updated Max-Forwards when forwarding.')
   .appliesTo('intermediary')
+  .rule((ctx) =>
+    ctx.validateCapturedHttpTraces((trace, location) => {
+      const results: RuleFnResult[] = [];
+      for (let i = 1; i < trace.length; i++) {
+        const forwarded = trace[i - 1];
+        const received = trace[i];
+        if (
+          !forwarded ||
+          !received ||
+          forwarded.request.meta.role !== 'intermediary'
+        ) {
+          continue;
+        }
+        const method = received.request.data.method.toUpperCase();
+        if (method !== 'TRACE' && method !== 'OPTIONS') {
+          continue;
+        }
+        const receivedValue = parseMaxForwards(
+          getHeader(received.request.data.headers, 'max-forwards'),
+        );
+        const forwardedValue = parseMaxForwards(
+          getHeader(forwarded.request.data.headers, 'max-forwards'),
+        );
+        if (receivedValue === undefined || receivedValue <= 0) {
+          continue;
+        }
+        if (
+          forwardedValue === undefined ||
+          forwardedValue > receivedValue - 1
+        ) {
+          results.push({
+            location,
+            violation: {
+              message: `An intermediary forwarding a ${method} request MUST generate a Max-Forwards no greater than the received value minus one (received ${receivedValue}, forwarded ${forwardedValue ?? 'none'}).`,
+            },
+            findings: [],
+          });
+        }
+      }
+      return results;
+    }),
+  )
   .done();

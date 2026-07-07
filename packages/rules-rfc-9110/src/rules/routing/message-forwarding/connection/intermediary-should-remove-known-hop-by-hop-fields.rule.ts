@@ -1,13 +1,17 @@
-import { httpRule } from '@thymian/core';
+import { getHeader, httpRule, type RuleFnResult } from '@thymian/core';
+
+const KNOWN_HOP_BY_HOP = [
+  'proxy-connection',
+  'keep-alive',
+  'te',
+  'transfer-encoding',
+  'upgrade',
+];
 
 export default httpRule(
   'rfc9110/intermediary-should-remove-known-hop-by-hop-fields',
 )
   .severity('warn')
-  // Verifying hop-by-hop fields (Keep-Alive, TE, Upgrade, etc.) were
-  // stripped requires comparing the field set the intermediary RECEIVED against what it
-  // FORWARDED. That inbound-vs-forwarded correlation is only recoverable from captured
-  // multi-hop traces at a deployment where the intermediary role is recorded.
   .type('analytics')
   .url('https://www.rfc-editor.org/rfc/rfc9110.html#name-connection')
   .description(
@@ -15,4 +19,35 @@ export default httpRule(
   )
   .summary('Intermediary SHOULD remove known hop-by-hop fields.')
   .appliesTo('intermediary')
+  .rule((ctx) =>
+    ctx.validateCapturedHttpTraces((trace, location) => {
+      const results: RuleFnResult[] = [];
+      for (let i = 1; i < trace.length; i++) {
+        const forwarded = trace[i - 1];
+        const received = trace[i];
+        if (
+          !forwarded ||
+          !received ||
+          forwarded.request.meta.role !== 'intermediary'
+        ) {
+          continue;
+        }
+        const notRemoved = KNOWN_HOP_BY_HOP.filter(
+          (name) =>
+            getHeader(received.request.data.headers, name) !== undefined &&
+            getHeader(forwarded.request.data.headers, name) !== undefined,
+        );
+        if (notRemoved.length > 0) {
+          results.push({
+            location,
+            violation: {
+              message: `An intermediary forwarded known hop-by-hop header field(s) (${notRemoved.join(', ')}) without removing them before forwarding.`,
+            },
+            findings: [],
+          });
+        }
+      }
+      return results;
+    }),
+  )
   .done();

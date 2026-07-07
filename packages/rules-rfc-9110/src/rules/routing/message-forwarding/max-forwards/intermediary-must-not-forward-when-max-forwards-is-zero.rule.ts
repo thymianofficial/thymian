@@ -1,13 +1,11 @@
-import { httpRule } from '@thymian/core';
+import { getHeader, httpRule, type RuleFnResult } from '@thymian/core';
+
+import { parseMaxForwards } from '../../utils/forwarding.js';
 
 export default httpRule(
   'rfc9110/intermediary-must-not-forward-when-max-forwards-is-zero',
 )
   .severity('error')
-  // Detecting that an intermediary forwarded despite a received
-  // Max-Forwards of zero requires observing an inbound request with value 0 AND a
-  // corresponding forwarded request at the same hop. That per-hop correlation is only
-  // recoverable from captured multi-hop traces where the intermediary role is recorded.
   .type('analytics')
   .url('https://www.rfc-editor.org/rfc/rfc9110.html#name-max-forwards')
   .description(
@@ -15,4 +13,39 @@ export default httpRule(
   )
   .summary('Intermediary MUST NOT forward request when Max-Forwards is zero.')
   .appliesTo('intermediary')
+  .rule((ctx) =>
+    ctx.validateCapturedHttpTraces((trace, location) => {
+      const results: RuleFnResult[] = [];
+      for (let i = 1; i < trace.length; i++) {
+        // A forwarded leg emitted by the intermediary paired with the request
+        // it received: if the received Max-Forwards was 0, forwarding is forbidden.
+        const forwarded = trace[i - 1];
+        const received = trace[i];
+        if (
+          !forwarded ||
+          !received ||
+          forwarded.request.meta.role !== 'intermediary'
+        ) {
+          continue;
+        }
+        const method = received.request.data.method.toUpperCase();
+        if (method !== 'TRACE' && method !== 'OPTIONS') {
+          continue;
+        }
+        const receivedValue = parseMaxForwards(
+          getHeader(received.request.data.headers, 'max-forwards'),
+        );
+        if (receivedValue === 0) {
+          results.push({
+            location,
+            violation: {
+              message: `An intermediary forwarded a ${method} request that arrived with Max-Forwards: 0 instead of responding as the final recipient.`,
+            },
+            findings: [],
+          });
+        }
+      }
+      return results;
+    }),
+  )
   .done();

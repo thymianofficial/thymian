@@ -1,11 +1,7 @@
-import { httpRule } from '@thymian/core';
+import { httpRule, type RuleFnResult } from '@thymian/core';
 
 export default httpRule('rfc9110/proxy-must-not-change-fqdn-hostname')
   .severity('error')
-  // Detecting a changed FQDN host name requires comparing the target
-  // URI authority the proxy RECEIVED against the one it FORWARDED to the next server.
-  // That inbound-vs-forwarded correlation is only recoverable from captured multi-hop
-  // traces at a deployment where the proxy role is recorded.
   .type('analytics')
   .url(
     'https://www.rfc-editor.org/rfc/rfc9110.html#name-message-transformations',
@@ -17,4 +13,50 @@ export default httpRule('rfc9110/proxy-must-not-change-fqdn-hostname')
     'Proxy MUST NOT change host name when it is a fully qualified domain name.',
   )
   .appliesTo('proxy')
+  .rule((ctx) =>
+    ctx.validateCapturedHttpTraces((trace, location) => {
+      const results: RuleFnResult[] = [];
+      for (let i = 1; i < trace.length; i++) {
+        // forwarded = request the proxy sent onward; received = request it got.
+        const forwarded = trace[i - 1];
+        const received = trace[i];
+        if (
+          !forwarded ||
+          !received ||
+          forwarded.request.meta.role !== 'proxy'
+        ) {
+          continue;
+        }
+        let receivedHost: string;
+        let forwardedHost: string;
+        try {
+          receivedHost = new URL(
+            received.request.data.path,
+            received.request.data.origin,
+          ).hostname;
+          forwardedHost = new URL(
+            forwarded.request.data.path,
+            forwarded.request.data.origin,
+          ).hostname;
+        } catch {
+          continue;
+        }
+        // Only guard fully qualified domain names (a name, not an IP literal).
+        if (
+          receivedHost &&
+          /[a-zA-Z]/.test(receivedHost) &&
+          forwardedHost !== receivedHost
+        ) {
+          results.push({
+            location,
+            violation: {
+              message: `A proxy changed the target host name while forwarding (received "${receivedHost}", forwarded "${forwardedHost}").`,
+            },
+            findings: [],
+          });
+        }
+      }
+      return results;
+    }),
+  )
   .done();
