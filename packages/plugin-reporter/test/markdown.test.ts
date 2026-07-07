@@ -1,6 +1,7 @@
 import { join } from 'node:path';
 
 import {
+  createAnalyzeExecution,
   createLintExecution,
   createReport,
   createTestCaseExecution,
@@ -214,6 +215,81 @@ describe('MarkdownFormatter lint/analyze bodies (AC5-AC8)', () => {
     const output = await render(report);
 
     expect(output).not.toContain('### GET /pets');
+  });
+});
+
+describe('MarkdownFormatter lint/analyze assertion-failure findings', () => {
+  it('renders assertion-failure findings as failed rows with expected/actual (BaggersIO PR-311 finding 2)', async () => {
+    const report = createReport([
+      createToolRun({
+        tool: { name: '@thymian/plugin-http-analyzer' },
+        runType: 'analyze',
+        rules: [{ id: 'schema-conforms', severity: 'error' }],
+        executions: [
+          createAnalyzeExecution({
+            location: { type: 'custom', value: 'POST /orders' },
+            ruleId: 'schema-conforms',
+            status: { kind: 'failed', reason: '1 assertion(s) failed' },
+            findings: [
+              {
+                id: 'af-1',
+                kind: 'assertion-failure',
+                title: 'status code',
+                message: { text: 'unexpected status code' },
+                expected: 200,
+                actual: 404,
+              },
+              {
+                id: 'as-1',
+                kind: 'assertion-success',
+                title: 'headers',
+                message: { text: 'headers ok' },
+              },
+            ],
+          }),
+        ],
+      }),
+    ]);
+
+    const output = await render(report);
+
+    expect(output).toContain(
+      '| failed | `schema-conforms` | unexpected status code — expected: 200, actual: 404 |',
+    );
+    // assertion-success stays omitted, consistent with the omit-passed policy.
+    expect(output).not.toContain('headers ok');
+  });
+
+  it('omits the expected/actual suffix entirely when both are undefined (regression for #7)', async () => {
+    const report = createReport([
+      createToolRun({
+        tool: { name: '@thymian/plugin-http-analyzer' },
+        runType: 'analyze',
+        rules: [{ id: 'schema-conforms', severity: 'error' }],
+        executions: [
+          createAnalyzeExecution({
+            location: { type: 'custom', value: 'POST /orders' },
+            ruleId: 'schema-conforms',
+            status: { kind: 'failed', reason: '1 assertion(s) failed' },
+            findings: [
+              {
+                id: 'af-2',
+                kind: 'assertion-failure',
+                title: 'no detail',
+                message: { text: 'missing required header' },
+              },
+            ],
+          }),
+        ],
+      }),
+    ]);
+
+    const output = await render(report);
+
+    expect(output).toContain(
+      '| failed | `schema-conforms` | missing required header |',
+    );
+    expect(output).not.toContain('undefined');
   });
 });
 

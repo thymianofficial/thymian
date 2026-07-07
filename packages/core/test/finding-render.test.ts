@@ -50,6 +50,34 @@ describe('findingDetails', () => {
       findingDetails({ id: '3', kind: 'rule-violation', title: 't' }),
     ).toEqual([]);
   });
+
+  it('omits expected/actual individually when undefined, instead of stringifying "undefined" (regression, BaggersIO PR-311 finding 7)', () => {
+    expect(
+      findingDetails({
+        id: '1',
+        kind: 'assertion-failure',
+        title: 't',
+      } as FindingRecord),
+    ).toEqual([]);
+
+    expect(
+      findingDetails({
+        id: '2',
+        kind: 'assertion-failure',
+        title: 't',
+        expected: 200,
+      } as FindingRecord),
+    ).toEqual([{ label: 'expected', value: '200' }]);
+
+    expect(
+      findingDetails({
+        id: '3',
+        kind: 'assertion-failure',
+        title: 't',
+        actual: 404,
+      } as FindingRecord),
+    ).toEqual([{ label: 'actual', value: '404' }]);
+  });
 });
 
 describe('resolveExecutionSeverity', () => {

@@ -97,8 +97,12 @@ export function findingDetails(finding: FindingRecord): FindingDetail[] {
       expected?: unknown;
       actual?: unknown;
     };
-    details.push({ label: 'expected', value: JSON.stringify(expected) });
-    details.push({ label: 'actual', value: JSON.stringify(actual) });
+    if (expected !== undefined) {
+      details.push({ label: 'expected', value: JSON.stringify(expected) });
+    }
+    if (actual !== undefined) {
+      details.push({ label: 'actual', value: JSON.stringify(actual) });
+    }
   }
 
   return details;

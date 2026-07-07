@@ -2,6 +2,7 @@ import * as path from 'node:path';
 
 import type {
   Execution,
+  FindingRecord,
   Logger,
   Report,
   ReportHttpTransaction,
@@ -66,6 +67,27 @@ function findingKindWord(kind: string): string {
 
 function pluralize(count: number, singular: string): string {
   return count === 1 ? singular : `${singular}s`;
+}
+
+/**
+ * Build the `— expected: …, actual: …` suffix for an `assertion-failure`
+ * finding from its {@link findingDetails}. Omits either half when the
+ * corresponding detail is absent, and returns `''` when neither is present.
+ */
+function assertionFailureSuffix(finding: FindingRecord): string {
+  const detail = findingDetails(finding);
+  const expected = detail.find((d) => d.label === 'expected')?.value;
+  const actual = detail.find((d) => d.label === 'actual')?.value;
+
+  const parts: string[] = [];
+  if (expected !== undefined) {
+    parts.push(`expected: ${expected}`);
+  }
+  if (actual !== undefined) {
+    parts.push(`actual: ${actual}`);
+  }
+
+  return parts.length > 0 ? `— ${parts.join(', ')}` : '';
 }
 
 /** Deterministic `YYYY-MM-DD HH:mm` from the most recent report's ISO timestamp. */
@@ -187,6 +209,11 @@ function buildLintAnalyzeSection(
         rows.push(
           `| info | ${ruleCell} | ${escapeCell(finding.message?.text ?? finding.title)} |`,
         );
+      } else if (finding.kind === 'assertion-failure') {
+        const suffix = assertionFailureSuffix(finding);
+        const base = finding.message?.text ?? finding.title;
+        const message = suffix ? `${base} ${suffix}` : base;
+        rows.push(`| failed | ${ruleCell} | ${escapeCell(message)} |`);
       }
     }
   }
@@ -303,11 +330,12 @@ function buildTestSection(
           let message = finding.message?.text ?? '';
 
           if (finding.kind === 'assertion-failure') {
-            const detail = findingDetails(finding);
-            const expected = detail.find((d) => d.label === 'expected')?.value;
-            const actual = detail.find((d) => d.label === 'actual')?.value;
-            const suffix = `— expected: ${expected}, actual: ${actual}`;
-            message = message ? `${message} ${suffix}` : suffix;
+            const suffix = assertionFailureSuffix(finding);
+            message = suffix
+              ? message
+                ? `${message} ${suffix}`
+                : suffix
+              : message;
           }
 
           lines.push(
