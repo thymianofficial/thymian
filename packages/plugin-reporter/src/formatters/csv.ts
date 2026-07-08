@@ -1,4 +1,6 @@
 import { createWriteStream, type WriteStream } from 'node:fs';
+import { mkdir } from 'node:fs/promises';
+import { dirname } from 'node:path';
 
 import type { Execution, Logger, Report } from '@thymian/core';
 import {
@@ -37,26 +39,41 @@ export class CsvFormatter implements Formatter<CsvFormatterOptions> {
   constructor(private readonly logger: Logger) {}
 
   flush(): Promise<string | undefined> {
-    return new Promise((resolve) => {
+    return new Promise((resolve, reject) => {
+      this.stream.once('error', reject);
       this.stream.end(() => {
+        this.stream.removeListener('error', reject);
         this.logger.debug(`Wrote CSV report to ${this.options.path}`);
         resolve(undefined);
       });
     });
   }
 
-  init(options: CsvFormatterOptions): Promise<void> {
+  async init(options: CsvFormatterOptions): Promise<void> {
     this.options = options;
+
+    await mkdir(dirname(options.path), { recursive: true });
+
     this.stream = createWriteStream(options.path, 'utf-8');
 
-    this.stream.on('error', (err) => {
-      this.logger.error(
-        `Failed to write CSV report to ${this.options.path}: ${err.message}`,
-      );
-    });
+    return new Promise((resolve, reject) => {
+      const onError = (err: Error) => {
+        this.logger.error(
+          `Failed to write CSV report to ${this.options.path}: ${err.message}`,
+        );
+        reject(err);
+      };
 
-    return new Promise((resolve) => {
+      this.stream.once('error', onError);
+
       this.stream.on('ready', () => {
+        this.stream.removeListener('error', onError);
+        this.stream.on('error', (err) => {
+          this.logger.error(
+            `Failed to write CSV report to ${this.options.path}: ${err.message}`,
+          );
+        });
+
         this.stream.write(CSV_HEADER);
 
         resolve();
