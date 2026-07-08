@@ -1,6 +1,12 @@
 export type HttpRequest = {
   origin: string;
   path: string;
+  /**
+   * Full request target URI as captured (absolute-form), retaining
+   * subcomponents such as userinfo that `origin` normalizes away. Populated by
+   * sources that record the complete URI (e.g. HAR); undefined otherwise.
+   */
+  target?: string;
   method: string;
   bodyEncoding?: string;
   body?: string;

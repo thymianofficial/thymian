@@ -15,7 +15,7 @@ export default httpRule('rfc9110/sender-must-not-generate-userinfo-in-uri')
       or(protocol('http'), protocol('https')),
       (req, _res, location: RuleViolationLocation) => {
         try {
-          const url = new URL(req.path, req.origin);
+          const url = new URL(req.target ?? req.path, req.origin);
 
           return !!url.username || !!url.password
             ? [{ location, violation: {}, findings: [] }]

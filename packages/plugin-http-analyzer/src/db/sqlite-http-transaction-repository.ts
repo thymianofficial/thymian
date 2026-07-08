@@ -172,6 +172,7 @@ export class SqliteHttpTransactionRepository implements HttpTransactionRepositor
         req.origin as req_origin,
         req.path as req_path,
         req.method as req_method,
+        req.target as req_target,
         req.body as req_body,
         req.body_encoding as req_body_encoding,
         res.id as res_id,
@@ -200,6 +201,7 @@ export class SqliteHttpTransactionRepository implements HttpTransactionRepositor
         req_origin: string;
         req_path: string;
         req_method: string;
+        req_target?: string;
         req_body?: string;
         req_body_encoding?: string;
         req_role_name: HttpParticipantRole;
@@ -218,6 +220,7 @@ export class SqliteHttpTransactionRepository implements HttpTransactionRepositor
             origin: row.req_origin,
             path: row.req_path,
             method: row.req_method,
+            target: row.req_target || undefined,
             body: row.req_body || undefined,
             bodyEncoding: row.req_body_encoding || undefined,
             headers: this.readRequestHeadersById(row.req_id),
@@ -430,6 +433,7 @@ export class SqliteHttpTransactionRepository implements HttpTransactionRepositor
         origin: string;
         path: string;
         method: string;
+        target?: string;
         body: string | undefined;
         body_encoding: string | undefined;
         role_id: number;
@@ -461,6 +465,7 @@ export class SqliteHttpTransactionRepository implements HttpTransactionRepositor
         origin: requestRow.origin,
         path: pathValue,
         method: requestRow.method,
+        target: requestRow.target || undefined,
         bodyEncoding: requestRow.body_encoding || undefined,
         body: requestRow.body || undefined,
         headers: requestHeaders,
@@ -565,8 +570,8 @@ export class SqliteHttpTransactionRepository implements HttpTransactionRepositor
 
     // Insert request
     const requestStmt = this.db.prepare(`
-      INSERT INTO http_request (origin, path, method, body_encoding, body, role_id)
-      VALUES (?, ?, ?, ?, ?, ?)
+      INSERT INTO http_request (origin, path, method, target, body_encoding, body, role_id)
+      VALUES (?, ?, ?, ?, ?, ?, ?)
     `);
 
     const url = new URL(
@@ -578,6 +583,7 @@ export class SqliteHttpTransactionRepository implements HttpTransactionRepositor
       url.origin,
       url.pathname,
       transaction.request.data.method,
+      transaction.request.data.target || null,
       transaction.request.data.bodyEncoding || null,
       transaction.request.data.body || null,
       requestRoleId,

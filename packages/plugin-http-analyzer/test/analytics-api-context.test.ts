@@ -1222,6 +1222,142 @@ describe('AnalyticsApiContext', () => {
     });
   });
 
+  describe('request target userinfo preservation', () => {
+    // Regression: HAR ingestion used to reduce the request URI to origin+path,
+    // stripping userinfo before rules could see it. `target` must survive the
+    // DB round-trip so userinfo rules can run on captured traffic.
+    const userinfoUrl = 'https://user:pass@api.example.com/users';
+
+    function hasUserinfo(req: {
+      target?: string;
+      path: string;
+      origin: string;
+    }): boolean {
+      const url = new URL(req.target ?? req.path, req.origin);
+      return !!url.username || !!url.password;
+    }
+
+    it('exposes captured userinfo via HttpRequest.target', async () => {
+      insertTransaction({
+        request: {
+          data: {
+            method: 'get',
+            origin: 'https://api.example.com',
+            path: '/users',
+            target: userinfoUrl,
+            headers: {},
+          },
+          meta: {},
+        },
+      });
+
+      const context = new AnalyticsApiContext(
+        repository,
+        new NoopLogger(),
+        createThymianFormat(),
+      );
+
+      const result = context.validateHttpTransactions(
+        method('get'),
+        (req, _res, location) =>
+          hasUserinfo(req) ? [{ location, violation: {}, findings: [] }] : [],
+      );
+
+      expect(result).toHaveLength(1);
+    });
+
+    it('exposes captured userinfo via CommonHttpRequest.target', async () => {
+      insertTransaction({
+        request: {
+          data: {
+            method: 'get',
+            origin: 'https://api.example.com',
+            path: '/users',
+            target: userinfoUrl,
+            headers: {},
+          },
+          meta: {},
+        },
+      });
+
+      const context = new AnalyticsApiContext(
+        repository,
+        new NoopLogger(),
+        createThymianFormat(),
+      );
+
+      const result = context.validateCommonHttpTransactions(
+        method('get'),
+        (req, _res, location) =>
+          hasUserinfo(req) ? [{ location, violation: {}, findings: [] }] : [],
+      );
+
+      expect(result).toHaveLength(1);
+    });
+
+    it('reports no userinfo for a plain target URI', async () => {
+      insertTransaction({
+        request: {
+          data: {
+            method: 'get',
+            origin: 'https://api.example.com',
+            path: '/users',
+            target: 'https://api.example.com/users',
+            headers: {},
+          },
+          meta: {},
+        },
+      });
+
+      const context = new AnalyticsApiContext(
+        repository,
+        new NoopLogger(),
+        createThymianFormat(),
+      );
+
+      const result = context.validateHttpTransactions(
+        method('get'),
+        (req, _res, location) =>
+          hasUserinfo(req) ? [{ location, violation: {}, findings: [] }] : [],
+      );
+
+      expect(result).toHaveLength(0);
+    });
+
+    it('exposes captured userinfo through the grouped read path (readRequestById)', async () => {
+      insertTransaction({
+        request: {
+          data: {
+            method: 'get',
+            origin: 'https://api.example.com',
+            path: '/users',
+            target: userinfoUrl,
+            headers: {},
+          },
+          meta: {},
+        },
+      });
+
+      const context = new AnalyticsApiContext(
+        repository,
+        new NoopLogger(),
+        createThymianFormat(),
+      );
+
+      let sawUserinfo = false;
+      context.validateGroupedCommonHttpTransactions(
+        method('get'),
+        method(),
+        (_key, transactions) => {
+          sawUserinfo = transactions.some(([req]) => hasUserinfo(req));
+          return [];
+        },
+      );
+
+      expect(sawUserinfo).toBe(true);
+    });
+  });
+
   describe('Complex filter scenarios', () => {
     it('should handle statusCodeRange filter', async () => {
       insertTransaction({

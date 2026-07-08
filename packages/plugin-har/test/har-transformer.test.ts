@@ -95,6 +95,7 @@ describe('transformHarEntry', () => {
           method: 'get',
           origin: 'https://api.example.com',
           path: '/users',
+          target: 'https://api.example.com/users',
           headers: { accept: 'application/json' },
           body: undefined,
         },
@@ -135,6 +136,24 @@ describe('transformHarEntry', () => {
 
     const result = transformHarEntry(entry, 'user-agent', 'origin server');
     expect(result?.request.data.body).toBe('{"name":"test"}');
+  });
+
+  it('should preserve userinfo in target while stripping it from origin/path', () => {
+    const entry: HarEntry = {
+      ...baseEntry,
+      request: {
+        ...baseEntry.request,
+        url: 'https://user:pass@api.example.com/secure?token=1',
+      },
+    };
+
+    const result = transformHarEntry(entry, 'user-agent', 'origin server');
+
+    expect(result?.request.data.target).toBe(
+      'https://user:pass@api.example.com/secure?token=1',
+    );
+    expect(result?.request.data.origin).toBe('https://api.example.com');
+    expect(result?.request.data.path).toBe('/secure?token=1');
   });
 
   it('should map content.encoding to bodyEncoding', () => {
