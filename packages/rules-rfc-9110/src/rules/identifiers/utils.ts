@@ -20,9 +20,12 @@ export function targetUriHasEmptyHost(target: string): boolean {
   }
 
   const authority = authorityMatch[1] ?? '';
-  const host = authority
-    .slice(authority.lastIndexOf('@') + 1)
-    .replace(/:\d*$/, '');
+  const hostAndPort = authority.slice(authority.lastIndexOf('@') + 1);
+  // An IPv6 host is bracketed and may contain ':'; everything after the first
+  // ':' outside brackets is the port — malformed non-numeric ports included.
+  const host = hostAndPort.startsWith('[')
+    ? hostAndPort.slice(0, hostAndPort.indexOf(']') + 1)
+    : (hostAndPort.split(':', 1)[0] ?? '');
 
   return host === '';
 }

@@ -14,6 +14,7 @@ describe('targetUriHasEmptyHost', () => {
     expect(targetUriHasEmptyHost('http://user:pass@/path')).toBe(true);
     expect(targetUriHasEmptyHost('http://@/path')).toBe(true);
     expect(targetUriHasEmptyHost('https://:8080/path')).toBe(true);
+    expect(targetUriHasEmptyHost('https://:abc/path')).toBe(true);
   });
 
   it('accepts targets with a host', () => {
