@@ -7,7 +7,7 @@ export default httpRule('rfc9110/recipient-must-reject-http-uri-without-host')
   .description(
     `A recipient that processes a 'http' URI reference with empty host MUST reject it as invalid.`,
   )
-  .appliesTo('origin server', 'server')
+  .appliesTo('server')
   .rule((ctx, opts, logger) =>
     ctx.validateHttpTransactions(
       protocol('http'),

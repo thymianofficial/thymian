@@ -9,7 +9,7 @@ export default httpRule(
   .description(
     'It is RECOMMENDED that all senders and recipients support, at a minimum, URIs with lengths of 8000 octets in protocol elements.',
   )
-  .appliesTo('origin server', 'server')
+  .appliesTo('server')
   .rule((ctx, opts, logger) =>
     ctx.validateHttpTransactions(statusCode(414), (req, _res, location) => {
       try {

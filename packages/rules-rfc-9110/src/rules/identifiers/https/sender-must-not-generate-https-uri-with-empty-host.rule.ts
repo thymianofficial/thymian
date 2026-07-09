@@ -9,7 +9,7 @@ export default httpRule(
   .description(
     `A sender MUST NOT generate an 'https' URI with an empty host identifier.`,
   )
-  .appliesTo('client', 'user-agent')
+  .appliesTo('client')
   .rule((ctx, opts, logger) =>
     ctx.validateHttpTransactions(
       protocol('https'),

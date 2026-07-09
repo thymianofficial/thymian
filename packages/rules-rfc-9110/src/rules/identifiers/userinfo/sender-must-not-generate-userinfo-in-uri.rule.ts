@@ -10,7 +10,7 @@ export default httpRule('rfc9110/sender-must-not-generate-userinfo-in-uri')
   .description(
     "A sender MUST NOT generate the userinfo subcomponent (and its '@' delimiter) when an 'http' or 'https' URI reference is generated within a message as a target URI or field value.",
   )
-  .appliesTo('client', 'user-agent')
+  .appliesTo('client')
   .rule((ctx, opts, logger) =>
     ctx.validateCommonHttpTransactions(
       or(protocol('http'), protocol('https')),
