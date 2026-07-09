@@ -218,7 +218,11 @@ export class SqliteHttpTransactionRepository implements HttpTransactionRepositor
         request: {
           data: {
             origin: row.req_origin,
-            path: row.req_path,
+            path: this.buildRequestPath(
+              row.req_id,
+              row.req_path,
+              row.req_origin,
+            ),
             method: row.req_method,
             target: row.req_target || undefined,
             body: row.req_body || undefined,
@@ -452,18 +456,11 @@ export class SqliteHttpTransactionRepository implements HttpTransactionRepositor
     }
 
     const requestHeaders = this.readRequestHeadersById(id);
-    const queryParameters = this.readQueryParametersById(id);
-
-    const pathValue = queryParameters
-      ? new URL(requestRow.path, requestRow.origin).pathname +
-        '?' +
-        queryParameters
-      : requestRow.path;
 
     return {
       data: {
         origin: requestRow.origin,
-        path: pathValue,
+        path: this.buildRequestPath(id, requestRow.path, requestRow.origin),
         method: requestRow.method,
         target: requestRow.target || undefined,
         bodyEncoding: requestRow.body_encoding || undefined,
@@ -499,6 +496,16 @@ export class SqliteHttpTransactionRepository implements HttpTransactionRepositor
     }
 
     return queryParameters.toString();
+  }
+
+  // The query string is stripped from `path` on insert and persisted separately,
+  // so every read path must re-append it to reconstruct the stored request path.
+  private buildRequestPath(id: number, path: string, origin: string): string {
+    const queryParameters = this.readQueryParametersById(id);
+
+    return queryParameters
+      ? new URL(path, origin).pathname + '?' + queryParameters
+      : path;
   }
 
   private readResponseHeadersById(

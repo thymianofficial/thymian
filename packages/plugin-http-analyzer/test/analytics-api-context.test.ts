@@ -1358,6 +1358,95 @@ describe('AnalyticsApiContext', () => {
     });
   });
 
+  describe('query string preservation across read paths', () => {
+    // Regression: the query string is stripped from `path` on insert and
+    // persisted separately, then re-appended on read. The flat read path
+    // (readTransactionsByHttpFilter) used to skip that re-append, silently
+    // dropping query parameters — and with them CommonHttpRequest.queryParameters
+    // — for non-grouped validations, while the grouped path (readRequestById)
+    // kept them. Both paths must now reconstruct the same query string.
+    const pathWithQuery = '/users?role=admin&status=active';
+
+    function insertQueryTransaction(): void {
+      insertTransaction({
+        request: {
+          data: {
+            method: 'get',
+            origin: 'https://api.example.com',
+            path: pathWithQuery,
+            headers: {},
+          },
+          meta: {},
+        },
+      });
+    }
+
+    it('preserves the query string on HttpRequest.path via the flat read path', () => {
+      insertQueryTransaction();
+
+      const context = new AnalyticsApiContext(
+        repository,
+        new NoopLogger(),
+        createThymianFormat(),
+      );
+
+      const paths: string[] = [];
+      context.validateHttpTransactions(method('get'), (req) => {
+        paths.push(req.path);
+        return [];
+      });
+
+      expect(paths).toEqual([pathWithQuery]);
+    });
+
+    it('exposes query parameters on CommonHttpRequest via the flat read path', () => {
+      insertQueryTransaction();
+
+      const context = new AnalyticsApiContext(
+        repository,
+        new NoopLogger(),
+        createThymianFormat(),
+      );
+
+      let queryParameters: string[] = [];
+      context.validateCommonHttpTransactions(method('get'), (req) => {
+        queryParameters = req.queryParameters;
+        return [];
+      });
+
+      expect(queryParameters).toEqual(['role', 'status']);
+    });
+
+    it('reconstructs identical paths on the flat and grouped read paths', () => {
+      insertQueryTransaction();
+
+      const context = new AnalyticsApiContext(
+        repository,
+        new NoopLogger(),
+        createThymianFormat(),
+      );
+
+      let flatPath: string | undefined;
+      context.validateHttpTransactions(method('get'), (req) => {
+        flatPath = req.path;
+        return [];
+      });
+
+      let groupedPath: string | undefined;
+      context.validateGroupedCommonHttpTransactions(
+        method('get'),
+        method(),
+        (_key, transactions) => {
+          groupedPath = transactions[0]?.[0].path;
+          return [];
+        },
+      );
+
+      expect(flatPath).toBe(pathWithQuery);
+      expect(flatPath).toBe(groupedPath);
+    });
+  });
+
   describe('Complex filter scenarios', () => {
     it('should handle statusCodeRange filter', async () => {
       insertTransaction({
