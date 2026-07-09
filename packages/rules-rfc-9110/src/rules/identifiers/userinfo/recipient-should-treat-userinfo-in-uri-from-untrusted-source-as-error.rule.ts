@@ -21,7 +21,7 @@ export default httpRule(
       or(protocol('http'), protocol('https')),
       (req, res, location) => {
         try {
-          const url = new URL(req.path, req.origin);
+          const url = new URL(req.target ?? req.path, req.origin);
 
           return (!!url.username || !!url.password) &&
             !(res.statusCode >= 400 && res.statusCode < 500)

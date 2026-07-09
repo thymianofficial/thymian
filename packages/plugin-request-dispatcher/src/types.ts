@@ -7,6 +7,7 @@ export const httpRequestSchema: JSONSchemaType<HttpRequest> = {
   properties: {
     origin: { type: 'string', nullable: false },
     path: { type: 'string', nullable: false },
+    target: { type: 'string', nullable: true },
     method: { type: 'string', nullable: false },
     body: { type: 'string', nullable: true },
     bodyEncoding: { type: 'string', nullable: true },
