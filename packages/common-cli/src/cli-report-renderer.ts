@@ -1,17 +1,18 @@
 import { colorize } from '@oclif/core/ux';
 import {
+  buildRuleIndex,
+  type Execution,
+  type ExecutionStatus,
+  findingDetails,
   type FindingRecord,
-  type HttpTransaction,
-  isNodeType,
-  type Location,
+  formatLocation,
   type Report,
+  resolveExecutionSeverity,
+  resolveThymianFormatForRun,
+  type RuleDescriptor,
   type Severity,
-  ThymianFormat,
-  type ThymianHttpRequest,
-  type ThymianHttpResponse,
-  thymianHttpTransactionToString,
-  thymianRequestToString,
-  thymianResponseToString,
+  type ThymianFormat,
+  walkExecutions,
 } from '@thymian/core';
 
 const COLORS: Record<Severity, string> = {
@@ -42,94 +43,77 @@ function symbolForSeverity(severity: Severity): string {
   }
 }
 
-function fallbackThymianFormatLocation(
-  location: Extract<Location, { type: 'thymianFormat' }>,
-): string {
-  return `format:${location.elementId}${location.pointer ? `#${location.pointer}` : ''}`;
-}
-
-function formatThymianFormatLocation(
-  location: Extract<Location, { type: 'thymianFormat' }>,
-  format?: ThymianFormat,
-): string {
-  if (!format) {
-    return fallbackThymianFormatLocation(location);
-  }
-
-  if (location.elementType === 'node') {
-    const node = format.getNode(location.elementId);
-
-    if (node && isNodeType(node, 'http-request')) {
-      return thymianRequestToString(node);
-    }
-
-    if (node && isNodeType(node, 'http-response')) {
-      return thymianResponseToString(node);
-    }
-
-    return fallbackThymianFormatLocation(location);
-  }
-
-  try {
-    const [source, target] = format.graph.extremities(location.elementId);
-    const transaction = format.getEdge<HttpTransaction>(location.elementId);
-    const request = format.getNode<ThymianHttpRequest>(source);
-    const response = format.getNode<ThymianHttpResponse>(target);
-
-    if (transaction && request && response) {
-      return thymianHttpTransactionToString(request, response);
-    }
-  } catch {
-    return fallbackThymianFormatLocation(location);
-  }
-
-  return fallbackThymianFormatLocation(location);
-}
-
-function formatLocation(location: Location, format?: ThymianFormat): string {
-  switch (location.type) {
-    case 'custom':
-      return location.value;
-    case 'file':
-      return [location.path, location.line, location.column]
-        .filter((part) => part !== undefined)
-        .join(':');
-    case 'url':
-      return location.url;
-    case 'thymianFormat':
-      return formatThymianFormatLocation(location, format);
-  }
-}
-
 function renderFinding(finding: FindingRecord, indent = '    '): string[] {
-  const headline = `${symbolForSeverity(finding.severity)} ${finding.title}`;
-  const lines = [
-    `${indent}${colorizeText(headline, finding.severity)}${
-      'ruleId' in finding ? ` ${finding.ruleId}` : ''
-    }`,
-  ];
+  const lines = [`${indent}${finding.title}`];
 
   if (finding.message?.text && finding.message.text !== finding.title) {
     lines.push(`${indent}  ${finding.message.text}`);
   }
 
-  if (finding.kind === 'assertion-failure') {
-    const assertionFailure = finding as Extract<
-      FindingRecord,
-      { kind: 'assertion-failure' }
-    >;
-    lines.push(
-      `${indent}  expected: ${JSON.stringify(assertionFailure.expected)}`,
-    );
-    lines.push(`${indent}  actual: ${JSON.stringify(assertionFailure.actual)}`);
+  for (const detail of findingDetails(finding)) {
+    lines.push(`${indent}  ${detail.label}: ${detail.value}`);
   }
 
-  if (finding.kind === 'test-case-skip') {
-    const skipped = finding as Extract<
-      FindingRecord,
-      { kind: 'test-case-skip' }
-    >;
-    lines.push(`${indent}  reason: ${skipped.reason}`);
+  return lines;
+}
+
+function renderStatus(
+  status: ExecutionStatus,
+  severity: Severity | undefined,
+): string {
+  switch (status.kind) {
+    case 'passed': {
+      const duration =
+        status.durationMilliseconds !== undefined
+          ? ` (${status.durationMilliseconds.toFixed(2)}ms)`
+          : '';
+      return `${symbolForSeverity('info')} passed${duration}`;
+    }
+    case 'failed': {
+      const resolved = severity ?? 'error';
+      const reason = status.reason ? `: ${status.reason}` : '';
+      const duration =
+        status.durationMilliseconds !== undefined
+          ? ` (${status.durationMilliseconds.toFixed(2)}ms)`
+          : '';
+      return colorizeText(
+        `${symbolForSeverity(resolved)} failed${reason}${duration}`,
+        resolved,
+      );
+    }
+    case 'skipped':
+      return `${symbolForSeverity('hint')} skipped${status.reason ? `: ${status.reason}` : ''}`;
+  }
+}
+
+function renderExecution(
+  execution: Execution,
+  ruleIndex: ReadonlyMap<string, RuleDescriptor>,
+  format: ThymianFormat | undefined,
+): string[] {
+  const label =
+    execution.kind === 'test'
+      ? execution.name
+      : formatLocation(execution.location, format);
+  const lines = [`  ${label}${execution.ruleId ? ` ${execution.ruleId}` : ''}`];
+
+  const severity = resolveExecutionSeverity(execution, ruleIndex);
+  lines.push(`    ${renderStatus(execution.status, severity)}`);
+
+  if (execution.kind === 'test') {
+    for (const step of execution.steps) {
+      if (step.findings.length === 0) {
+        continue;
+      }
+      lines.push(`    ${step.name} ${formatLocation(step.location, format)}`);
+      for (const finding of step.findings) {
+        lines.push(...renderFinding(finding, '      '));
+      }
+    }
+  } else {
+    for (const finding of execution.findings) {
+      lines.push(...renderFinding(finding, '    '));
+    }
   }
 
   return lines;
@@ -143,17 +127,14 @@ function collectSeverityCounts(report: Report): Record<Severity, number> {
     hint: 0,
   };
 
-  const visit = (executions: Report['runs'][number]['executions']): void => {
-    for (const execution of executions ?? []) {
-      for (const finding of execution.findings) {
-        counts[finding.severity] += 1;
-      }
-      visit(execution.children);
-    }
-  };
-
   for (const run of report.runs) {
-    visit(run.executions);
+    const ruleIndex = buildRuleIndex(run.rules);
+    for (const { execution } of walkExecutions(run.executions)) {
+      const severity = resolveExecutionSeverity(execution, ruleIndex);
+      if (severity !== undefined) {
+        counts[severity] += 1;
+      }
+    }
   }
 
   return counts;
@@ -168,13 +149,15 @@ export function renderReport(
   }
 
   const lines: string[] = [];
-  const format =
-    options.format ??
-    (report.thymianFormat
-      ? ThymianFormat.import(report.thymianFormat)
-      : undefined);
 
   for (const run of report.runs) {
+    const format =
+      options.format ??
+      resolveThymianFormatForRun(
+        report.thymianFormat,
+        run.thymianFormatVersion,
+      );
+
     lines.push(
       `${run.tool.name} ${Array.from({
         length: Math.max(1, 80 - run.tool.name.length),
@@ -184,25 +167,22 @@ export function renderReport(
     );
     lines.push('');
 
-    for (const execution of run.executions ?? []) {
-      lines.push(`  ${formatLocation(execution.location, format)}`);
-      for (const finding of execution.findings) {
-        lines.push(...renderFinding(finding));
-      }
-      for (const child of execution.children ?? []) {
-        lines.push(`    ${formatLocation(child.location, format)}`);
-        for (const finding of child.findings) {
-          lines.push(...renderFinding(finding, '      '));
-        }
-      }
+    const ruleIndex = buildRuleIndex(run.rules);
+    for (const { execution } of walkExecutions(run.executions)) {
+      lines.push(...renderExecution(execution, ruleIndex, format));
     }
 
     lines.push('');
   }
 
+  // Counts failed executions by resolved severity (see collectSeverityCounts /
+  // resolveExecutionSeverity) — not `informational`-kind findings, which are
+  // never counted here and can render in the body while this stays 0
+  // (BaggersIO PR-311 finding 6). Labelled uniformly as severities, not
+  // "finding(s)", to avoid implying otherwise.
   const counts = collectSeverityCounts(report);
   lines.push(
-    `Summary: ${counts.error} error(s), ${counts.warn} warning(s), ${counts.hint} hint(s), ${counts.info} info finding(s).`,
+    `Summary: ${counts.error} error(s), ${counts.warn} warning(s), ${counts.hint} hint(s), ${counts.info} info(s).`,
   );
 
   return lines.join('\n').trimEnd();

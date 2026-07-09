@@ -18,19 +18,14 @@ describe('handleWorkflowOutcome', () => {
           tool: { name: 'tool' },
           runType: 'lint',
           runAt: new Date().toISOString(),
+          rules: [{ id: 'rule/id', severity: 'warn' }],
           executions: [
             {
+              kind: 'lint',
+              ruleId: 'rule/id',
+              status: { kind: 'failed', reason: 'Finding' },
               location: { type: 'custom', value: 'exec' },
-              findings: [
-                {
-                  id: 'finding-1',
-                  kind: 'rule-violation',
-                  ruleId: 'rule/id',
-                  title: 'Finding',
-                  severity: 'warn',
-                  message: { text: 'Finding' },
-                },
-              ],
+              findings: [],
             },
           ],
         },

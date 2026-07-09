@@ -8,20 +8,24 @@ You specified a formatter that doesn't exist. Formatters control how Thymian rep
 
 Available formatters:
 
-- `cli` - Command-line output (default)
-- `markdown` - Markdown format
-- `csv` - Comma-separated values (CSV)
+- `markdown` - Markdown format (written to a file)
+- `csv` - Comma-separated values (CSV, written to a file)
+
+The CLI also prints a plain-text summary to stdout on every run; that is not a
+configurable `plugin-reporter` formatter.
 
 ## The Solution
 
 Check your configuration file for typos in the formatter name:
 
 ```yaml
-# thymian-conf.yml
-reporter:
-  formatters:
-    cli: {} # ✅ Valid
-    my-custom: {} # ❌ Unknown formatter
+# thymian.config.yaml
+plugins:
+  '@thymian/plugin-reporter':
+    options:
+      formatters:
+        markdown: {} # ✅ Valid
+        my-custom: {} # ❌ Unknown formatter
 ```
 
 If you want to add a custom formatter, you need to create a plugin that listens to the `core.report` event:
