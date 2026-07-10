@@ -1,4 +1,4 @@
-import { cpSync } from 'node:fs';
+import { cpSync, existsSync } from 'node:fs';
 import { join } from 'node:path';
 
 import { describe, expect, it } from 'vitest';
@@ -24,7 +24,7 @@ describe('thymian analyze', () => {
           "  '@thymian/plugin-reporter':",
           '    options:',
           '      formatters:',
-          '        text: {}',
+          '        markdown: {}',
         ].join('\n'),
       );
 
@@ -91,7 +91,7 @@ describe('thymian analyze', () => {
       });
 
       expect(result.stdout).toMatch(
-        /Summary: \d+ error\(s\), \d+ warning\(s\), \d+ hint\(s\), \d+ info finding\(s\)\./,
+        /Summary: \d+ error\(s\), \d+ warning\(s\), \d+ hint\(s\), \d+ info\(s\)\./,
       );
     }, 90_000);
   });
@@ -135,7 +135,7 @@ describe('thymian analyze', () => {
           "  '@thymian/plugin-reporter':",
           '    options:',
           '      formatters:',
-          '        text: {}',
+          '        markdown: {}',
         ].join('\n'),
       );
 
@@ -143,6 +143,11 @@ describe('thymian analyze', () => {
 
       // Exit 0 = clean-run (no violations)
       expect(result.exitCode).toBe(0);
+
+      // The markdown formatter actually ran and wrote its default report.
+      expect(existsSync(join(getTempDir(), '.thymian/reports/report.md'))).toBe(
+        true,
+      );
     }, 90_000);
   });
 

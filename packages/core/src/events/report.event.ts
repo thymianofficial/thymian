@@ -4,6 +4,122 @@ import type { Report } from '../report/index.js';
 
 export type ReportEvent = Report;
 
+/**
+ * Loose location schema shared by `Execution.location` and `TestStep.location`.
+ * `Location` is a closed union (`thymianFormat` | `url` | `file` | `custom`);
+ * this only asserts `type` is present and leaves per-variant fields
+ * (`elementId`, `url`, `path`, `value`, …) to `additionalProperties`.
+ */
+const locationSchema = {
+  type: 'object',
+  nullable: false,
+  required: ['type'],
+  additionalProperties: true,
+  properties: {
+    type: { type: 'string', nullable: false },
+    elementType: {
+      type: 'string',
+      enum: ['node', 'edge'],
+      nullable: true,
+    },
+  },
+} as unknown as JSONSchemaType<unknown>;
+
+/**
+ * `FindingRecord` schema. Severity no longer lives on findings — it is
+ * resolved from the owning execution's `ruleId`/`status` (see
+ * `resolveExecutionSeverity`) — so it is intentionally absent here.
+ */
+const findingSchema = {
+  type: 'object',
+  nullable: false,
+  required: ['id', 'kind', 'title'],
+  additionalProperties: true,
+  properties: {
+    id: { type: 'string', nullable: false },
+    kind: { type: 'string', nullable: false },
+    title: { type: 'string', nullable: false },
+  },
+} as unknown as JSONSchemaType<unknown>;
+
+/**
+ * `Execution` schema. Report Format v4 (issue #323/#334) replaced the
+ * hierarchical `Execution.children`/`nestedFindings` shape with a flat,
+ * per-runType union: `LintExecution`/`AnalyzeExecution` (`location` +
+ * `findings`) and `TestCaseExecution` (`name` + `steps`, no `location`).
+ * `kind` and `status` are the only fields common to every variant, so only
+ * those are `required`; the rest are optional and validated loosely rather
+ * than as a strict discriminated union (ajv's `JSONSchemaType` cannot express
+ * "required iff kind === X" without repeating the whole union per branch).
+ */
+const executionSchema = {
+  type: 'object',
+  nullable: false,
+  required: ['kind', 'status'],
+  additionalProperties: true,
+  properties: {
+    kind: {
+      type: 'string',
+      enum: ['lint', 'analyze', 'test'],
+      nullable: false,
+    },
+    ruleId: { type: 'string', nullable: true },
+    status: {
+      type: 'object',
+      nullable: false,
+      required: ['kind'],
+      additionalProperties: true,
+      properties: {
+        kind: {
+          type: 'string',
+          enum: ['passed', 'failed', 'skipped'],
+          nullable: false,
+        },
+        reason: { type: 'string', nullable: true },
+        durationMilliseconds: { type: 'number', nullable: true },
+        severity: {
+          type: 'string',
+          enum: ['error', 'warn', 'info', 'hint'],
+          nullable: true,
+        },
+      },
+    },
+    // Present on LintExecution/AnalyzeExecution only.
+    location: { ...locationSchema, nullable: true },
+    findings: {
+      type: 'array',
+      nullable: true,
+      items: findingSchema,
+    },
+    // Present on TestCaseExecution only.
+    name: { type: 'string', nullable: true },
+    steps: {
+      type: 'array',
+      nullable: true,
+      items: {
+        type: 'object',
+        nullable: false,
+        required: ['name', 'location', 'findings'],
+        additionalProperties: true,
+        properties: {
+          name: { type: 'string', nullable: false },
+          location: locationSchema,
+          findings: {
+            type: 'array',
+            nullable: false,
+            items: findingSchema,
+          },
+          httpTransactions: {
+            type: 'array',
+            nullable: true,
+            items: {} as JSONSchemaType<unknown>,
+          },
+        },
+      } as unknown as JSONSchemaType<unknown>,
+    },
+  },
+} as unknown as JSONSchemaType<unknown>;
+
 export const reportSchema = {
   type: 'object',
   nullable: false,
@@ -37,60 +153,7 @@ export const reportSchema = {
           executions: {
             type: 'array',
             nullable: true,
-            items: {
-              type: 'object',
-              nullable: false,
-              required: ['location', 'findings'],
-              additionalProperties: true,
-              properties: {
-                name: { type: 'string', nullable: true },
-                description: { type: 'string', nullable: true },
-                location: {
-                  type: 'object',
-                  nullable: false,
-                  required: ['type'],
-                  additionalProperties: true,
-                  properties: {
-                    type: { type: 'string', nullable: false },
-                    elementType: {
-                      type: 'string',
-                      enum: ['node', 'edge'],
-                      nullable: true,
-                    },
-                  },
-                },
-                findings: {
-                  type: 'array',
-                  nullable: false,
-                  items: {
-                    type: 'object',
-                    nullable: false,
-                    required: ['id', 'kind', 'title', 'severity'],
-                    additionalProperties: true,
-                    properties: {
-                      id: { type: 'string', nullable: false },
-                      kind: { type: 'string', nullable: false },
-                      title: { type: 'string', nullable: false },
-                      severity: {
-                        type: 'string',
-                        enum: ['error', 'warn', 'info', 'hint'],
-                        nullable: false,
-                      },
-                    },
-                  },
-                },
-                children: {
-                  type: 'array',
-                  nullable: true,
-                  items: {} as JSONSchemaType<unknown>,
-                },
-                httpTransactions: {
-                  type: 'array',
-                  nullable: true,
-                  items: {} as JSONSchemaType<unknown>,
-                },
-              },
-            },
+            items: executionSchema,
           },
           rules: {
             type: 'array',
@@ -111,6 +174,11 @@ export const reportSchema = {
           },
         },
       },
+    },
+    thymianFormat: {
+      type: 'object',
+      nullable: true,
+      additionalProperties: true,
     },
   },
 } as unknown as JSONSchemaType<ReportEvent>;
