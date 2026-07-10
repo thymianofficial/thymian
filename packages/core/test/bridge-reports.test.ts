@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import {
-  createExecution,
+  createLintExecution,
   createToolRun,
   type Report,
   Thymian,
@@ -17,18 +17,10 @@ describe('report assembly', () => {
           tool: { name: 'test-plugin' },
           runType: 'lint',
           executions: [
-            createExecution({
+            createLintExecution({
               location: { type: 'custom', value: 'lint' },
-              findings: [
-                {
-                  id: 'finding-1',
-                  kind: 'rule-violation',
-                  ruleId: 'example/rule',
-                  title: 'Example warning',
-                  severity: 'warn',
-                  message: { text: 'Example warning' },
-                },
-              ],
+              ruleId: 'example/rule',
+              status: { kind: 'failed', reason: 'Example warning' },
             }),
           ],
         }),
