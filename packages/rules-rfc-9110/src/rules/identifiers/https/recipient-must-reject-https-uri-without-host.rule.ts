@@ -1,5 +1,7 @@
 import { httpRule, protocol, type RuleViolationLocation } from '@thymian/core';
 
+import { targetUriHasEmptyHost } from '../utils.js';
+
 export default httpRule('rfc9110/recipient-must-reject-https-uri-without-host')
   .severity('error')
   .type('analytics')
@@ -7,16 +9,21 @@ export default httpRule('rfc9110/recipient-must-reject-https-uri-without-host')
   .description(
     `A recipient that processes a 'https' URI reference with empty host MUST reject it as invalid.`,
   )
+  .appliesTo('server')
   .rule((ctx, opts, logger) =>
     ctx.validateHttpTransactions(
       protocol('https'),
       (req, res, location: RuleViolationLocation) => {
         try {
+          const hasEmptyHost =
+            req.target !== undefined
+              ? targetUriHasEmptyHost(req.target)
+              : new URL(req.path, req.origin).host === '';
           const isViolation =
-            new URL(req.path, req.origin).host === '' &&
-            !(res.statusCode >= 400 && res.statusCode < 500);
+            hasEmptyHost && !(res.statusCode >= 400 && res.statusCode < 500);
           return isViolation ? [{ location, violation: {}, findings: [] }] : [];
         } catch (e) {
+          logger.error('Cannot run rule because of invalid URL:', e);
           return [];
         }
       },

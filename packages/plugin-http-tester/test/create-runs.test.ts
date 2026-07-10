@@ -2,11 +2,13 @@ import {
   httpRule,
   type HttpTestCase,
   type HttpTestCaseStep,
+  type Logger,
   type RuleFnResult,
+  type TestCaseExecution,
   ThymianFormat,
   type ThymianHttpTransaction,
 } from '@thymian/core';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 
 import {
   createRuns,
@@ -16,6 +18,16 @@ import {
 
 const PLUGIN = 'test-plugin';
 const FORMAT = new ThymianFormat();
+
+function makeLogger(): Logger {
+  return {
+    debug: vi.fn(),
+    info: vi.fn(),
+    warn: vi.fn(),
+    error: vi.fn(),
+    child: vi.fn(),
+  } as unknown as Logger;
+}
 
 const rule = httpRule('test/rule')
   .severity('warn')
@@ -80,11 +92,11 @@ function makePassedCase(name: string, steps: HttpTestCaseStep[]): HttpTestCase {
   return { name, status: 'passed', start: 0, end: 100, steps, results: [] };
 }
 
-function makeFailedCase(name: string): HttpTestCase {
+function makeFailedCase(name: string, reason?: string): HttpTestCase {
   return {
     name,
     status: 'failed',
-    reason: 'assertion failed',
+    ...(reason !== undefined ? { reason } : {}),
     start: 0,
     steps: [],
     results: [],
@@ -109,16 +121,24 @@ function ruleResults(
   return { [rule.meta.name]: { ruleFnResult, diagnostics } };
 }
 
+/** Executions are flat TestCaseExecutions (no rule-grouping wrapper). */
+function testCases(runExecutions: unknown): TestCaseExecution[] {
+  return (runExecutions ?? []) as TestCaseExecution[];
+}
+
 describe('createRuns', () => {
   it('always emits a tool run, even with no executions or descriptors', () => {
-    const runs = createRuns(PLUGIN, {}, [], FORMAT);
+    const runs = createRuns(PLUGIN, {}, [], FORMAT, makeLogger());
     expect(runs).toHaveLength(1);
     expect(runs[0]!.tool.name).toBe(PLUGIN);
     expect(runs[0]!.executions).toHaveLength(0);
     expect(runs[0]!.rules).toBeUndefined();
+    // Must match the hash `finalizeWorkflow` uses to key `report.thymianFormat`,
+    // or the reporter can never resolve `thymianFormat` locations.
+    expect(runs[0]!.thymianFormatVersion).toBe(FORMAT.toHash());
   });
 
-  it('builds a rule execution child for each test case', () => {
+  it('emits one flat test-case execution per case (no rule wrapper)', () => {
     const cases = [
       makePassedCase('case-a', [makeStep()]),
       makePassedCase('case-b', []),
@@ -136,14 +156,17 @@ describe('createRuns', () => {
       ruleResults([result], diagnostics),
       [rule],
       FORMAT,
+      makeLogger(),
     );
-    const ruleExecution = run!.executions![0];
-    expect(ruleExecution!.children).toHaveLength(2);
-    expect(ruleExecution!.children![0]!.name).toBe('case-a');
-    expect(ruleExecution!.children![1]!.name).toBe('case-b');
+    const cases2 = testCases(run!.executions);
+    expect(cases2).toHaveLength(2);
+    expect(cases2[0]!.kind).toBe('test');
+    expect(cases2[0]!.ruleId).toBe('test/rule');
+    expect(cases2[0]!.name).toBe('case-a');
+    expect(cases2[1]!.name).toBe('case-b');
   });
 
-  it('emits test-case-pass finding for passed case', () => {
+  it('maps a passed case to a passed status with duration (AC6)', () => {
     const cases = [makePassedCase('my-test', [])];
     const diagnostics: HttpTesterRuleDiagnostics = [
       { testResult: { name: 'run', duration: 0, cases }, placements: [] },
@@ -154,14 +177,41 @@ describe('createRuns', () => {
       ruleResults([], diagnostics),
       [rule],
       FORMAT,
+      makeLogger(),
     );
-    const testCaseExecution = run!.executions![0]!.children![0]!;
-    expect(testCaseExecution.findings[0]!.kind).toBe('test-case-pass');
-    expect(testCaseExecution.findings[0]!.title).toBe('my-test');
+    const testCase = testCases(run!.executions)[0]!;
+    expect(testCase.status).toMatchObject({
+      kind: 'passed',
+      durationMilliseconds: 100,
+    });
+    expect('findings' in testCase).toBe(false);
   });
 
-  it('emits test-case-fail finding for failed case', () => {
-    const cases = [makeFailedCase('failing-test')];
+  it('maps a rule violation to a failed status (AC7)', () => {
+    const violation = makeResult('assertion failed');
+    const cases = [makePassedCase('failing-test', [makeStep()])];
+    const placements: RuleFnResultPlacement[] = [
+      { result: violation, testCaseIndex: 0, stepIndex: 0 },
+    ];
+    const diagnostics: HttpTesterRuleDiagnostics = [
+      { testResult: { name: 'run', duration: 0, cases }, placements },
+    ];
+
+    const [run] = createRuns(
+      PLUGIN,
+      ruleResults([violation], diagnostics),
+      [rule],
+      FORMAT,
+      makeLogger(),
+    );
+    expect(testCases(run!.executions)[0]!.status).toMatchObject({
+      kind: 'failed',
+      reason: 'assertion failed',
+    });
+  });
+
+  it('maps a failed case WITHOUT a violation to skipped (could not execute)', () => {
+    const cases = [makeFailedCase('failing-test', 'connection refused')];
     const diagnostics: HttpTesterRuleDiagnostics = [
       { testResult: { name: 'run', duration: 0, cases }, placements: [] },
     ];
@@ -171,13 +221,43 @@ describe('createRuns', () => {
       ruleResults([], diagnostics),
       [rule],
       FORMAT,
+      makeLogger(),
     );
-    const finding = run!.executions![0]!.children![0]!.findings[0]!;
-    expect(finding.kind).toBe('test-case-fail');
-    expect(finding.severity).toBe('error');
+    expect(testCases(run!.executions)[0]!.status).toMatchObject({
+      kind: 'skipped',
+      reason: 'connection refused',
+    });
   });
 
-  it('emits test-case-skip finding for skipped case', () => {
+  it('maps a rule-skip finding to a skipped status (and drops the finding)', () => {
+    const skipResult: RuleFnResult = {
+      location: { elementType: 'edge', elementId: 'tx-1' },
+      findings: [{ kind: 'rule-skip', title: 'skip', reason: 'no endpoint' }],
+    };
+    const cases = [makePassedCase('my-test', [makeStep()])];
+    const placements: RuleFnResultPlacement[] = [
+      { result: skipResult, testCaseIndex: 0, stepIndex: 0 },
+    ];
+    const diagnostics: HttpTesterRuleDiagnostics = [
+      { testResult: { name: 'run', duration: 0, cases }, placements },
+    ];
+
+    const [run] = createRuns(
+      PLUGIN,
+      ruleResults([skipResult], diagnostics),
+      [rule],
+      FORMAT,
+      makeLogger(),
+    );
+    const testCase = testCases(run!.executions)[0]!;
+    expect(testCase.status).toMatchObject({
+      kind: 'skipped',
+      reason: 'no endpoint',
+    });
+    expect(testCase.steps[0]!.findings).toHaveLength(0);
+  });
+
+  it('maps a skipped case to a skipped status (AC8)', () => {
     const cases = [makeSkippedCase('skipped-test')];
     const diagnostics: HttpTesterRuleDiagnostics = [
       { testResult: { name: 'run', duration: 0, cases }, placements: [] },
@@ -188,13 +268,15 @@ describe('createRuns', () => {
       ruleResults([], diagnostics),
       [rule],
       FORMAT,
+      makeLogger(),
     );
-    const finding = run!.executions![0]!.children![0]!.findings[0]!;
-    expect(finding.kind).toBe('test-case-skip');
-    expect(finding.severity).toBe('info');
+    expect(testCases(run!.executions)[0]!.status).toMatchObject({
+      kind: 'skipped',
+      reason: 'no matching traffic',
+    });
   });
 
-  it('produces a step execution for each step', () => {
+  it('produces a step for each step', () => {
     const cases = [makePassedCase('my-test', [makeStep(), makeStep()])];
     const diagnostics: HttpTesterRuleDiagnostics = [
       { testResult: { name: 'run', duration: 0, cases }, placements: [] },
@@ -205,14 +287,15 @@ describe('createRuns', () => {
       ruleResults([], diagnostics),
       [rule],
       FORMAT,
+      makeLogger(),
     );
-    const testCaseExecution = run!.executions![0]!.children![0]!;
-    expect(testCaseExecution.children).toHaveLength(2);
-    expect(testCaseExecution.children![0]!.name).toBe('Step 1');
-    expect(testCaseExecution.children![1]!.name).toBe('Step 2');
+    const testCase = testCases(run!.executions)[0]!;
+    expect(testCase.steps).toHaveLength(2);
+    expect(testCase.steps[0]!.name).toBe('Step 1');
+    expect(testCase.steps[1]!.name).toBe('Step 2');
   });
 
-  it('attaches httpTransactions to the step execution', () => {
+  it('attaches httpTransactions to the step', () => {
     const cases = [makePassedCase('my-test', [makeStep(true)])];
     const diagnostics: HttpTesterRuleDiagnostics = [
       { testResult: { name: 'run', duration: 0, cases }, placements: [] },
@@ -223,12 +306,14 @@ describe('createRuns', () => {
       ruleResults([], diagnostics),
       [rule],
       FORMAT,
+      makeLogger(),
     );
-    const stepExecution = run!.executions![0]!.children![0]!.children![0]!;
-    expect(stepExecution.httpTransactions).toHaveLength(1);
+    expect(
+      testCases(run!.executions)[0]!.steps[0]!.httpTransactions,
+    ).toHaveLength(1);
   });
 
-  it('places a step-level violation on the correct step', () => {
+  it('places a step-level violation (without ruleId) on the correct step (F11)', () => {
     const cases = [makePassedCase('my-test', [makeStep(), makeStep()])];
     const stepOneResult = makeResult('step-two-violation');
     const placements: RuleFnResultPlacement[] = [
@@ -243,15 +328,16 @@ describe('createRuns', () => {
       ruleResults([stepOneResult], diagnostics),
       [rule],
       FORMAT,
+      makeLogger(),
     );
-    const testCaseExecution = run!.executions![0]!.children![0]!;
-    expect(testCaseExecution.children![0]!.findings).toHaveLength(0); // step 1: no violation
-    expect(testCaseExecution.children![1]!.findings[0]!.kind).toBe(
-      'rule-violation',
-    ); // step 2: has violation
+    const testCase = testCases(run!.executions)[0]!;
+    expect(testCase.steps[0]!.findings).toHaveLength(0);
+    const violation = testCase.steps[1]!.findings[0]!;
+    expect(violation.kind).toBe('rule-violation');
+    expect('ruleId' in violation).toBe(false);
   });
 
-  it('places a test-case-level placement on the case, not a step', () => {
+  it('folds a case-level violation into the case status (no case findings)', () => {
     const cases = [makePassedCase('my-test', [makeStep()])];
     const testCaseResult = makeResult('test-case-violation');
     const placements: RuleFnResultPlacement[] = [
@@ -266,13 +352,18 @@ describe('createRuns', () => {
       ruleResults([testCaseResult], diagnostics),
       [rule],
       FORMAT,
+      makeLogger(),
     );
-    const testCaseExecution = run!.executions![0]!.children![0]!;
-    // test-case-pass finding + rule-violation from test-case-level placement
-    expect(testCaseExecution.findings).toHaveLength(2);
-    expect(testCaseExecution.findings[1]!.kind).toBe('rule-violation');
-    // step has no violation
-    expect(testCaseExecution.children![0]!.findings).toHaveLength(0);
+    const testCase = testCases(run!.executions)[0]!;
+    // A violation drives the case to `failed` even though the HTTP case passed,
+    // is consumed (no fallback), and produces no case-level findings.
+    expect(run!.executions).toHaveLength(1);
+    expect('findings' in testCase).toBe(false);
+    expect(testCase.status).toMatchObject({
+      kind: 'failed',
+      reason: 'test-case-violation',
+    });
+    expect(testCase.steps[0]!.findings).toHaveLength(0);
   });
 
   it('does not double-render placed results via the fallback', () => {
@@ -290,18 +381,19 @@ describe('createRuns', () => {
       ruleResults([placedResult], diagnostics),
       [rule],
       FORMAT,
+      makeLogger(),
     );
-    const ruleExecution = run!.executions![0]!;
-    // only the one test-case child, no extra fallback child
-    expect(ruleExecution.children).toHaveLength(1);
-    expect(ruleExecution.children![0]!.name).toBe('my-test');
+    const cases2 = testCases(run!.executions);
+    expect(cases2).toHaveLength(1);
+    expect(cases2[0]!.name).toBe('my-test');
   });
 
-  it('renders unplaced results through the location-based fallback', () => {
+  it('emits a failed test case + warns for an unplaced violation result (AC9)', () => {
     const cases = [makePassedCase('my-test', [])];
     const placedResult = makeResult('placed');
     const unplacedResult: RuleFnResult = {
       location: 'GET /unplaced',
+      violation: { message: 'unplaced boom' },
       findings: [],
     };
     const placements: RuleFnResultPlacement[] = [
@@ -311,34 +403,39 @@ describe('createRuns', () => {
       { testResult: { name: 'run', duration: 0, cases }, placements },
     ];
 
+    const logger = makeLogger();
     const [run] = createRuns(
       PLUGIN,
       ruleResults([placedResult, unplacedResult], diagnostics),
       [rule],
       FORMAT,
+      logger,
     );
-    const ruleExecution = run!.executions![0]!;
-    // test-case child + one fallback child for the unplaced result
-    expect(ruleExecution.children).toHaveLength(2);
-    expect(ruleExecution.children![1]!.name).toBe('GET /unplaced');
+    const cases2 = testCases(run!.executions);
+    expect(cases2).toHaveLength(2);
+    expect(cases2[1]!.name).toBe('GET /unplaced');
+    expect(cases2[1]!.status.kind).toBe('failed');
+    expect(logger.warn).toHaveBeenCalledTimes(1);
   });
 
   describe('step locations', () => {
-    it('uses thymianFormat edge location for a single step', () => {
-      const step = makeSingleStep('tx-abc');
+    function stepLocationFor(step: HttpTestCaseStep) {
       const cases = [makePassedCase('my-test', [step])];
       const diagnostics: HttpTesterRuleDiagnostics = [
         { testResult: { name: 'run', duration: 0, cases }, placements: [] },
       ];
-
       const [run] = createRuns(
         PLUGIN,
         ruleResults([], diagnostics),
         [rule],
         FORMAT,
+        makeLogger(),
       );
-      const stepExecution = run!.executions![0]!.children![0]!.children![0]!;
-      expect(stepExecution.location).toEqual({
+      return testCases(run!.executions)[0]!.steps[0]!.location;
+    }
+
+    it('uses thymianFormat edge location for a single step', () => {
+      expect(stepLocationFor(makeSingleStep('tx-abc'))).toEqual({
         type: 'thymianFormat',
         elementType: 'edge',
         elementId: 'tx-abc',
@@ -347,60 +444,23 @@ describe('createRuns', () => {
     });
 
     it('uses custom key location for a grouped step', () => {
-      const step = makeGroupedStep('my-group');
-      const cases = [makePassedCase('my-test', [step])];
-      const diagnostics: HttpTesterRuleDiagnostics = [
-        { testResult: { name: 'run', duration: 0, cases }, placements: [] },
-      ];
-
-      const [run] = createRuns(
-        PLUGIN,
-        ruleResults([], diagnostics),
-        [rule],
-        FORMAT,
-      );
-      const stepExecution = run!.executions![0]!.children![0]!.children![0]!;
-      expect(stepExecution.location).toEqual({
+      expect(stepLocationFor(makeGroupedStep('my-group'))).toEqual({
         type: 'custom',
         value: 'my-group',
       });
     });
 
     it('uses JSON-stringified location for a custom step with object source', () => {
-      const step = makeCustomStep({ method: 'GET', path: '/test' });
-      const cases = [makePassedCase('my-test', [step])];
-      const diagnostics: HttpTesterRuleDiagnostics = [
-        { testResult: { name: 'run', duration: 0, cases }, placements: [] },
-      ];
-
-      const [run] = createRuns(
-        PLUGIN,
-        ruleResults([], diagnostics),
-        [rule],
-        FORMAT,
-      );
-      const stepExecution = run!.executions![0]!.children![0]!.children![0]!;
-      expect(stepExecution.location).toEqual({
+      expect(
+        stepLocationFor(makeCustomStep({ method: 'GET', path: '/test' })),
+      ).toEqual({
         type: 'custom',
         value: JSON.stringify({ method: 'GET', path: '/test' }),
       });
     });
 
     it('uses stringified location for a custom step with primitive source', () => {
-      const step = makeCustomStep('my-primitive-source');
-      const cases = [makePassedCase('my-test', [step])];
-      const diagnostics: HttpTesterRuleDiagnostics = [
-        { testResult: { name: 'run', duration: 0, cases }, placements: [] },
-      ];
-
-      const [run] = createRuns(
-        PLUGIN,
-        ruleResults([], diagnostics),
-        [rule],
-        FORMAT,
-      );
-      const stepExecution = run!.executions![0]!.children![0]!.children![0]!;
-      expect(stepExecution.location).toEqual({
+      expect(stepLocationFor(makeCustomStep('my-primitive-source'))).toEqual({
         type: 'custom',
         value: 'my-primitive-source',
       });

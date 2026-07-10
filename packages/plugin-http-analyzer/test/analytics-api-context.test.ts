@@ -588,6 +588,179 @@ describe('AnalyticsApiContext', () => {
         ]),
       );
     });
+
+    it('should match all server-side participant roles for the server role', async () => {
+      insertTransaction({
+        request: {
+          data: {
+            method: 'get',
+            origin: 'https://api.example.com',
+            path: '/users',
+            headers: {},
+          },
+          meta: {
+            role: 'user-agent',
+          },
+        },
+        response: {
+          data: {
+            statusCode: 200,
+            headers: {},
+            trailers: {},
+            duration: 100,
+          },
+          meta: {
+            role: 'origin server',
+          },
+        },
+      });
+      insertTransaction({
+        request: {
+          data: {
+            method: 'get',
+            origin: 'https://api.example.de',
+            path: '/users',
+            headers: {},
+          },
+          meta: {
+            role: 'gateway',
+          },
+        },
+        response: {
+          data: {
+            statusCode: 200,
+            headers: {},
+            trailers: {},
+            duration: 100,
+          },
+          meta: {
+            role: 'cache',
+          },
+        },
+      });
+      insertTransaction({
+        request: {
+          data: {
+            method: 'get',
+            origin: 'https://api.example.org',
+            path: '/users',
+            headers: {},
+          },
+          meta: {
+            role: 'client',
+          },
+        },
+        response: {
+          data: {
+            statusCode: 200,
+            headers: {},
+            trailers: {},
+            duration: 100,
+          },
+          meta: {
+            role: 'user-agent',
+          },
+        },
+      });
+
+      const format = createThymianFormat();
+      const context = new AnalyticsApiContext(
+        repository,
+        new NoopLogger(),
+        format,
+        undefined,
+        ['server'],
+      );
+
+      const result = await context.validateCommonHttpTransactions(
+        path('/users'),
+      );
+
+      expect(result).toHaveLength(2);
+      expect(result).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            location: expect.stringContaining('https://api.example.com/users'),
+          }),
+          expect.objectContaining({
+            location: expect.stringContaining('https://api.example.de/users'),
+          }),
+        ]),
+      );
+    });
+
+    it('should match user-agent requests for the client role', async () => {
+      insertTransaction({
+        request: {
+          data: {
+            method: 'get',
+            origin: 'https://api.example.com',
+            path: '/users',
+            headers: {},
+          },
+          meta: {
+            role: 'user-agent',
+          },
+        },
+        response: {
+          data: {
+            statusCode: 200,
+            headers: {},
+            trailers: {},
+            duration: 100,
+          },
+          meta: {
+            role: 'origin server',
+          },
+        },
+      });
+      insertTransaction({
+        request: {
+          data: {
+            method: 'get',
+            origin: 'https://api.example.de',
+            path: '/users',
+            headers: {},
+          },
+          meta: {
+            role: 'proxy',
+          },
+        },
+        response: {
+          data: {
+            statusCode: 200,
+            headers: {},
+            trailers: {},
+            duration: 100,
+          },
+          meta: {
+            role: 'origin server',
+          },
+        },
+      });
+
+      const format = createThymianFormat();
+      const context = new AnalyticsApiContext(
+        repository,
+        new NoopLogger(),
+        format,
+        undefined,
+        ['client'],
+      );
+
+      const result = await context.validateCommonHttpTransactions(
+        path('/users'),
+      );
+
+      expect(result).toHaveLength(1);
+      expect(result).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            location: expect.stringContaining('https://api.example.com/users'),
+          }),
+        ]),
+      );
+    });
   });
 
   describe('validateCapturedHttpTransactions', () => {
@@ -1219,6 +1392,231 @@ describe('AnalyticsApiContext', () => {
           }),
         ]),
       );
+    });
+  });
+
+  describe('request target userinfo preservation', () => {
+    // Regression: HAR ingestion used to reduce the request URI to origin+path,
+    // stripping userinfo before rules could see it. `target` must survive the
+    // DB round-trip so userinfo rules can run on captured traffic.
+    const userinfoUrl = 'https://user:pass@api.example.com/users';
+
+    function hasUserinfo(req: {
+      target?: string;
+      path: string;
+      origin: string;
+    }): boolean {
+      const url = new URL(req.target ?? req.path, req.origin);
+      return !!url.username || !!url.password;
+    }
+
+    it('exposes captured userinfo via HttpRequest.target', async () => {
+      insertTransaction({
+        request: {
+          data: {
+            method: 'get',
+            origin: 'https://api.example.com',
+            path: '/users',
+            target: userinfoUrl,
+            headers: {},
+          },
+          meta: {},
+        },
+      });
+
+      const context = new AnalyticsApiContext(
+        repository,
+        new NoopLogger(),
+        createThymianFormat(),
+      );
+
+      const result = context.validateHttpTransactions(
+        method('get'),
+        (req, _res, location) =>
+          hasUserinfo(req) ? [{ location, violation: {}, findings: [] }] : [],
+      );
+
+      expect(result).toHaveLength(1);
+    });
+
+    it('exposes captured userinfo via CommonHttpRequest.target', async () => {
+      insertTransaction({
+        request: {
+          data: {
+            method: 'get',
+            origin: 'https://api.example.com',
+            path: '/users',
+            target: userinfoUrl,
+            headers: {},
+          },
+          meta: {},
+        },
+      });
+
+      const context = new AnalyticsApiContext(
+        repository,
+        new NoopLogger(),
+        createThymianFormat(),
+      );
+
+      const result = context.validateCommonHttpTransactions(
+        method('get'),
+        (req, _res, location) =>
+          hasUserinfo(req) ? [{ location, violation: {}, findings: [] }] : [],
+      );
+
+      expect(result).toHaveLength(1);
+    });
+
+    it('reports no userinfo for a plain target URI', async () => {
+      insertTransaction({
+        request: {
+          data: {
+            method: 'get',
+            origin: 'https://api.example.com',
+            path: '/users',
+            target: 'https://api.example.com/users',
+            headers: {},
+          },
+          meta: {},
+        },
+      });
+
+      const context = new AnalyticsApiContext(
+        repository,
+        new NoopLogger(),
+        createThymianFormat(),
+      );
+
+      const result = context.validateHttpTransactions(
+        method('get'),
+        (req, _res, location) =>
+          hasUserinfo(req) ? [{ location, violation: {}, findings: [] }] : [],
+      );
+
+      expect(result).toHaveLength(0);
+    });
+
+    it('exposes captured userinfo through the grouped read path (readRequestById)', async () => {
+      insertTransaction({
+        request: {
+          data: {
+            method: 'get',
+            origin: 'https://api.example.com',
+            path: '/users',
+            target: userinfoUrl,
+            headers: {},
+          },
+          meta: {},
+        },
+      });
+
+      const context = new AnalyticsApiContext(
+        repository,
+        new NoopLogger(),
+        createThymianFormat(),
+      );
+
+      let sawUserinfo = false;
+      context.validateGroupedCommonHttpTransactions(
+        method('get'),
+        method(),
+        (_key, transactions) => {
+          sawUserinfo = transactions.some(([req]) => hasUserinfo(req));
+          return [];
+        },
+      );
+
+      expect(sawUserinfo).toBe(true);
+    });
+  });
+
+  describe('query string preservation across read paths', () => {
+    // Regression: the query string is stripped from `path` on insert and
+    // persisted separately, then re-appended on read. The flat read path
+    // (readTransactionsByHttpFilter) used to skip that re-append, silently
+    // dropping query parameters — and with them CommonHttpRequest.queryParameters
+    // — for non-grouped validations, while the grouped path (readRequestById)
+    // kept them. Both paths must now reconstruct the same query string.
+    const pathWithQuery = '/users?role=admin&status=active';
+
+    function insertQueryTransaction(): void {
+      insertTransaction({
+        request: {
+          data: {
+            method: 'get',
+            origin: 'https://api.example.com',
+            path: pathWithQuery,
+            headers: {},
+          },
+          meta: {},
+        },
+      });
+    }
+
+    it('preserves the query string on HttpRequest.path via the flat read path', () => {
+      insertQueryTransaction();
+
+      const context = new AnalyticsApiContext(
+        repository,
+        new NoopLogger(),
+        createThymianFormat(),
+      );
+
+      const paths: string[] = [];
+      context.validateHttpTransactions(method('get'), (req) => {
+        paths.push(req.path);
+        return [];
+      });
+
+      expect(paths).toEqual([pathWithQuery]);
+    });
+
+    it('exposes query parameters on CommonHttpRequest via the flat read path', () => {
+      insertQueryTransaction();
+
+      const context = new AnalyticsApiContext(
+        repository,
+        new NoopLogger(),
+        createThymianFormat(),
+      );
+
+      let queryParameters: string[] = [];
+      context.validateCommonHttpTransactions(method('get'), (req) => {
+        queryParameters = req.queryParameters;
+        return [];
+      });
+
+      expect(queryParameters).toEqual(['role', 'status']);
+    });
+
+    it('reconstructs identical paths on the flat and grouped read paths', () => {
+      insertQueryTransaction();
+
+      const context = new AnalyticsApiContext(
+        repository,
+        new NoopLogger(),
+        createThymianFormat(),
+      );
+
+      let flatPath: string | undefined;
+      context.validateHttpTransactions(method('get'), (req) => {
+        flatPath = req.path;
+        return [];
+      });
+
+      let groupedPath: string | undefined;
+      context.validateGroupedCommonHttpTransactions(
+        method('get'),
+        method(),
+        (_key, transactions) => {
+          groupedPath = transactions[0]?.[0].path;
+          return [];
+        },
+      );
+
+      expect(flatPath).toBe(pathWithQuery);
+      expect(flatPath).toBe(groupedPath);
     });
   });
 
