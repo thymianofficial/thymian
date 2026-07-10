@@ -16,6 +16,7 @@ export default httpRule(
   .description(
     `A recipient SHOULD parse for userinfo and treat its presence as an error; it is likely being used to obscure the authority for the sake of phishing attacks.`,
   )
+  .appliesTo('server')
   .rule((ctx, opts, logger) =>
     ctx.validateHttpTransactions(
       or(protocol('http'), protocol('https')),
