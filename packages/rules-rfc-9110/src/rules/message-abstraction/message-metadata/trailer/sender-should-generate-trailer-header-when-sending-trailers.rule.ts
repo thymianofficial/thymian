@@ -6,14 +6,14 @@ import { httpRule } from '@thymian/core';
 // actual trailer fields. A response that carries trailer fields but no Trailer
 // header in its header section is the observable non-conformance. It is
 // response-side (the server is the sender of the response trailers), so `test`
-// is meaningful and `appliesTo('server','origin server')` lets it fire on HAR
-// (responses default to the `origin server` role).
+// is meaningful and it is scoped to the response sender via
+// `appliesTo('server')`.
 export default httpRule(
   'rfc9110/sender-should-generate-trailer-header-when-sending-trailers',
 )
   .severity('warn')
   .type('analytics', 'test')
-  .appliesTo('server', 'origin server')
+  .appliesTo('server')
   .url('https://www.rfc-editor.org/rfc/rfc9110.html#section-6.6.2')
   .description(
     'A sender that intends to generate one or more trailer fields in a message SHOULD generate a Trailer header field in the header section of that message to indicate which fields might be present in the trailers.',
