@@ -1,14 +1,19 @@
 import type { Command } from '@oclif/core';
 import { ux } from '@oclif/core';
-import type { FindingRecord, Report } from '@thymian/core';
+import type { Execution, Report } from '@thymian/core';
 
 import { renderReport } from './cli-report-renderer.js';
 
 export const HIGH_COUNT_THRESHOLD = 20;
 
+/**
+ * Predicates that decide the CLI outcome from a report's executions. Outcomes
+ * are now carried by each execution's `status` (a `failed` status ≡ a rule
+ * violation), so classification is execution-based rather than finding-based.
+ */
 export interface ReportClassificationOptions {
-  isFinding?: (finding: FindingRecord) => boolean;
-  isToolError?: (finding: FindingRecord) => boolean;
+  isFinding?: (execution: Execution) => boolean;
+  isToolError?: (execution: Execution) => boolean;
 }
 
 type CliReportClassification = 'clean-run' | 'findings' | 'tool-error';
@@ -26,36 +31,28 @@ export function classificationToExitCode(
   }
 }
 
-function collectFindings(report: Report): FindingRecord[] {
-  const visit = (
-    executions: (typeof report.runs)[number]['executions'],
-  ): FindingRecord[] =>
-    (executions ?? []).flatMap((execution) => [
-      ...execution.findings,
-      ...visit(execution.children),
-    ]);
-
-  return report.runs.flatMap((run) => visit(run.executions));
+function collectExecutions(report: Report): Execution[] {
+  return report.runs.flatMap((run) => run.executions ?? []);
 }
 
 export function classifyReport(
   report: Report,
   options: ReportClassificationOptions = {},
 ): CliReportClassification {
-  const findings = collectFindings(report);
-  const isToolError =
-    options.isToolError ??
-    ((finding: FindingRecord) => finding.kind === 'rule-failure');
+  const executions = collectExecutions(report);
+  // Technical "couldn't run" now maps to a `failed` status (there is no distinct
+  // tool-error signal in the model), so by default nothing is a tool error;
+  // callers may still opt in via a custom predicate.
+  const isToolError = options.isToolError ?? (() => false);
   const isFinding =
     options.isFinding ??
-    ((finding: FindingRecord) =>
-      finding.severity === 'error' || finding.severity === 'warn');
+    ((execution: Execution) => execution.status.kind === 'failed');
 
-  if (findings.some(isToolError)) {
+  if (executions.some(isToolError)) {
     return 'tool-error';
   }
 
-  if (findings.some(isFinding)) {
+  if (executions.some(isFinding)) {
     return 'findings';
   }
 
@@ -71,8 +68,8 @@ function emitGuidance(
     return;
   }
 
-  const totalViolations = collectFindings(report).filter(
-    (finding) => finding.severity === 'error' || finding.severity === 'warn',
+  const totalViolations = collectExecutions(report).filter(
+    (execution) => execution.status.kind === 'failed',
   ).length;
 
   if (totalViolations > HIGH_COUNT_THRESHOLD) {

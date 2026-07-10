@@ -28,7 +28,7 @@ describe('thymian analyze with HAR file', () => {
         "  '@thymian/plugin-reporter':",
         '    options:',
         '      formatters:',
-        '        text: {}',
+        '        markdown: {}',
       ].join('\n'),
     );
 
@@ -45,7 +45,7 @@ describe('thymian analyze with HAR file', () => {
       'rfc9110/origin-server-with-clock-must-generate-date-for-2xx-3xx-4xx',
     );
     expect(result.stdout).toMatch(
-      /Summary: \d+ error\(s\), \d+ warning\(s\), \d+ hint\(s\), \d+ info finding\(s\)\./,
+      /Summary: \d+ error\(s\), \d+ warning\(s\), \d+ hint\(s\), \d+ info\(s\)\./,
     );
   }, 90_000);
 
@@ -95,7 +95,7 @@ describe('thymian analyze with HAR file', () => {
         "  '@thymian/plugin-reporter':",
         '    options:',
         '      formatters:',
-        '        text: {}',
+        '        markdown: {}',
       ].join('\n'),
     );
 
@@ -185,7 +185,7 @@ describe('thymian analyze with HAR file', () => {
         "  '@thymian/plugin-reporter':",
         '    options:',
         '      formatters:',
-        '        text: {}',
+        '        markdown: {}',
       ].join('\n'),
     );
 
@@ -212,8 +212,8 @@ describe('thymian analyze with HAR file', () => {
       'thymian/response-body-must-conforms-to-schema',
     );
     expect(result.stdout).toContain(
-      // TODO the amount of errors needs to be set to 2 again and we also need to think about the findings with issue #335 (https://github.com/thymianofficial/thymian-internal/issues/335)
-      'Summary: 4 error(s), 0 warning(s), 0 hint(s), 3 info finding(s).',
+      // TODO we need to think about the findings with issue #335 (https://github.com/thymianofficial/thymian-internal/issues/335)
+      'Summary: 2 error(s), 0 warning(s), 0 hint(s), 0 info(s).',
     );
   }, 90_000);
 });

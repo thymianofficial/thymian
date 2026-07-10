@@ -15,6 +15,37 @@ export const httpParticipantRoles = [
 
 export type HttpParticipantRole = (typeof httpParticipantRoles)[number];
 
+// Captured traffic stores one concrete role per message and repositories match
+// role names exactly, so umbrella roles must be expanded to every concrete
+// role they subsume before filtering. 'server' covers every participant that
+// can receive and respond to requests; 'client' covers every participant that
+// originates requests.
+const httpParticipantRoleHierarchy: Partial<
+  Record<HttpParticipantRole, readonly HttpParticipantRole[]>
+> = {
+  server: [
+    'server',
+    'origin server',
+    'cache',
+    'proxy',
+    'gateway',
+    'tunnel',
+    'intermediary',
+  ],
+  client: ['client', 'user-agent'],
+  intermediary: ['intermediary', 'proxy', 'gateway', 'tunnel'],
+};
+
+export function expandHttpParticipantRoles(
+  roles: readonly HttpParticipantRole[],
+): HttpParticipantRole[] {
+  return [
+    ...new Set(
+      roles.flatMap((role) => httpParticipantRoleHierarchy[role] ?? [role]),
+    ),
+  ];
+}
+
 export const ruleTypes = [
   'static',
   'analytics',

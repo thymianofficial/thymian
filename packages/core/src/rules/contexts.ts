@@ -18,6 +18,8 @@ import type { CapturedTrace, CapturedTransaction } from './traffic.js';
 export type CommonHttpRequest = {
   origin: string;
   path: string;
+  /** Full request target URI as captured; see {@link HttpRequest.target}. */
+  target?: string;
   method: string;
   headers: string[];
   queryParameters: string[];
