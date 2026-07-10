@@ -588,6 +588,179 @@ describe('AnalyticsApiContext', () => {
         ]),
       );
     });
+
+    it('should match all server-side participant roles for the server role', async () => {
+      insertTransaction({
+        request: {
+          data: {
+            method: 'get',
+            origin: 'https://api.example.com',
+            path: '/users',
+            headers: {},
+          },
+          meta: {
+            role: 'user-agent',
+          },
+        },
+        response: {
+          data: {
+            statusCode: 200,
+            headers: {},
+            trailers: {},
+            duration: 100,
+          },
+          meta: {
+            role: 'origin server',
+          },
+        },
+      });
+      insertTransaction({
+        request: {
+          data: {
+            method: 'get',
+            origin: 'https://api.example.de',
+            path: '/users',
+            headers: {},
+          },
+          meta: {
+            role: 'gateway',
+          },
+        },
+        response: {
+          data: {
+            statusCode: 200,
+            headers: {},
+            trailers: {},
+            duration: 100,
+          },
+          meta: {
+            role: 'cache',
+          },
+        },
+      });
+      insertTransaction({
+        request: {
+          data: {
+            method: 'get',
+            origin: 'https://api.example.org',
+            path: '/users',
+            headers: {},
+          },
+          meta: {
+            role: 'client',
+          },
+        },
+        response: {
+          data: {
+            statusCode: 200,
+            headers: {},
+            trailers: {},
+            duration: 100,
+          },
+          meta: {
+            role: 'user-agent',
+          },
+        },
+      });
+
+      const format = createThymianFormat();
+      const context = new AnalyticsApiContext(
+        repository,
+        new NoopLogger(),
+        format,
+        undefined,
+        ['server'],
+      );
+
+      const result = await context.validateCommonHttpTransactions(
+        path('/users'),
+      );
+
+      expect(result).toHaveLength(2);
+      expect(result).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            location: expect.stringContaining('https://api.example.com/users'),
+          }),
+          expect.objectContaining({
+            location: expect.stringContaining('https://api.example.de/users'),
+          }),
+        ]),
+      );
+    });
+
+    it('should match user-agent requests for the client role', async () => {
+      insertTransaction({
+        request: {
+          data: {
+            method: 'get',
+            origin: 'https://api.example.com',
+            path: '/users',
+            headers: {},
+          },
+          meta: {
+            role: 'user-agent',
+          },
+        },
+        response: {
+          data: {
+            statusCode: 200,
+            headers: {},
+            trailers: {},
+            duration: 100,
+          },
+          meta: {
+            role: 'origin server',
+          },
+        },
+      });
+      insertTransaction({
+        request: {
+          data: {
+            method: 'get',
+            origin: 'https://api.example.de',
+            path: '/users',
+            headers: {},
+          },
+          meta: {
+            role: 'proxy',
+          },
+        },
+        response: {
+          data: {
+            statusCode: 200,
+            headers: {},
+            trailers: {},
+            duration: 100,
+          },
+          meta: {
+            role: 'origin server',
+          },
+        },
+      });
+
+      const format = createThymianFormat();
+      const context = new AnalyticsApiContext(
+        repository,
+        new NoopLogger(),
+        format,
+        undefined,
+        ['client'],
+      );
+
+      const result = await context.validateCommonHttpTransactions(
+        path('/users'),
+      );
+
+      expect(result).toHaveLength(1);
+      expect(result).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            location: expect.stringContaining('https://api.example.com/users'),
+          }),
+        ]),
+      );
+    });
   });
 
   describe('validateCapturedHttpTransactions', () => {
