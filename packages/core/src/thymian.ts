@@ -12,6 +12,11 @@ import type {
   SpecValidationResult,
   TrafficInput,
 } from './actions/index.js';
+import {
+  workflowAnalyzeActionSchema,
+  workflowLintActionSchema,
+  workflowTestActionSchema,
+} from './actions/index.js';
 import { validate } from './ajv.js';
 import { corePlugin } from './core-plugin.js';
 import { ThymianEmitter } from './emitter/index.js';
@@ -129,6 +134,45 @@ export class Thymian {
         timeout: this.options.timeout,
       },
     );
+
+    // Expose the whole-workflow entrypoints as WS-reachable actions. Unlike the
+    // detail actions (core.lint/test/analyze, handled by plugins), these are
+    // handled here because they route to this instance's lint()/test()/
+    // analyze(). The emit/WS path does not validate payloads against the
+    // declared schema, so each handler validates its own input first.
+    //
+    // Caller-side timeout contract: the outer emitAction reply window is the
+    // *caller's* options.timeout (default DEFAULT_TIMEOUT = 10s). test()/
+    // analyze() can run far longer (test() runs core.test with
+    // DEFAULT_TEST_TIMEOUT = 5min), so a WS client MUST pass an options.timeout
+    // >= that inner budget plus setup/teardown margin (e.g. 6min for test).
+    // Otherwise the outer action times out and returns empty/undefined WITHOUT
+    // throwing, while this handler's ctx.reply is dropped. The handler cannot
+    // widen the caller's window. Enforced by the #300 client. (See AC9.)
+    this.emitter.onAction('core.workflow.lint', async (input, ctx) => {
+      if (!validate(workflowLintActionSchema, input)) {
+        throw new ThymianBaseError('Invalid core.workflow.lint input.', {
+          name: 'InvalidActionInputError',
+        });
+      }
+      ctx.reply(await this.lint(input));
+    });
+    this.emitter.onAction('core.workflow.test', async (input, ctx) => {
+      if (!validate(workflowTestActionSchema, input)) {
+        throw new ThymianBaseError('Invalid core.workflow.test input.', {
+          name: 'InvalidActionInputError',
+        });
+      }
+      ctx.reply(await this.test(input));
+    });
+    this.emitter.onAction('core.workflow.analyze', async (input, ctx) => {
+      if (!validate(workflowAnalyzeActionSchema, input)) {
+        throw new ThymianBaseError('Invalid core.workflow.analyze input.', {
+          name: 'InvalidActionInputError',
+        });
+      }
+      ctx.reply(await this.analyze(input));
+    });
   }
 
   register<T extends Record<PropertyKey, unknown>>(
