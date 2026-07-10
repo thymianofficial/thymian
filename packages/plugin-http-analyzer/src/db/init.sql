@@ -14,6 +14,7 @@ CREATE TABLE IF NOT EXISTS http_request (
     origin TEXT NOT NULL,
     path TEXT NOT NULL,
     method TEXT NOT NULL,
+    target TEXT,
     body_encoding TEXT,
     body TEXT,
     role_id INTEGER,

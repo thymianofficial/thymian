@@ -8,10 +8,11 @@ describe('plugin-http-linter integration', () => {
     const thymian = new Thymian();
     await thymian.register(httpLinterPlugin, {}).ready();
 
+    const format = new ThymianFormat();
     const runs = await thymian.emitter.emitAction(
       'core.lint',
       {
-        format: new ThymianFormat().export(),
+        format: format.export(),
         rules: [],
         rulesConfig: {},
       },
@@ -21,6 +22,9 @@ describe('plugin-http-linter integration', () => {
     expect(runs).toHaveLength(1);
     expect(runs[0]?.tool.name).toBe('@thymian/plugin-http-linter');
     expect(runs[0]?.executions).toHaveLength(0);
+    // `thymianFormatVersion` must match the hash `finalizeWorkflow` uses to key
+    // `report.thymianFormat`, or the reporter can never resolve locations.
+    expect(runs[0]?.thymianFormatVersion).toBe(format.toHash());
 
     await thymian.close();
   });

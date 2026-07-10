@@ -62,6 +62,7 @@ export function httpRequestToCommonHttpRequest(
   return {
     origin: request.origin,
     path: request.path,
+    target: request.target,
     method: request.method,
     headers: Object.keys(request.headers ?? {}),
     queryParameters: Array.from(

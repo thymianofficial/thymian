@@ -59,7 +59,7 @@ describe('thymian generate config', () => {
     expect(plugins).toHaveProperty('@thymian/plugin-http-analyzer');
 
     expect(plugins['@thymian/plugin-reporter']).toEqual({
-      options: { formatters: { text: {} } },
+      options: { formatters: {} },
     });
   }, 90_000);
 });
