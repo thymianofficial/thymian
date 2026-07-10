@@ -4,7 +4,9 @@ import { expandHttpParticipantRoles } from '../../src/rules/rule-meta.js';
 
 describe('expandHttpParticipantRoles', () => {
   it('expands server to all server-side participant roles', () => {
-    expect(expandHttpParticipantRoles(['server'])).toEqual(
+    const expanded = expandHttpParticipantRoles(['server']);
+
+    expect(expanded).toEqual(
       expect.arrayContaining([
         'server',
         'origin server',
@@ -15,7 +17,7 @@ describe('expandHttpParticipantRoles', () => {
         'intermediary',
       ]),
     );
-    expect(expandHttpParticipantRoles(['server'])).toHaveLength(7);
+    expect(expanded).toHaveLength(7);
   });
 
   it('does not expand server to client-side roles', () => {
@@ -33,10 +35,12 @@ describe('expandHttpParticipantRoles', () => {
   });
 
   it('expands intermediary to all intermediary roles', () => {
-    expect(expandHttpParticipantRoles(['intermediary'])).toEqual(
+    const expanded = expandHttpParticipantRoles(['intermediary']);
+
+    expect(expanded).toEqual(
       expect.arrayContaining(['intermediary', 'proxy', 'gateway', 'tunnel']),
     );
-    expect(expandHttpParticipantRoles(['intermediary'])).toHaveLength(4);
+    expect(expanded).toHaveLength(4);
   });
 
   it('keeps concrete roles unchanged', () => {

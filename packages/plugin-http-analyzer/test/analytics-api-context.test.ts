@@ -680,10 +680,10 @@ describe('AnalyticsApiContext', () => {
       expect(result).toEqual(
         expect.arrayContaining([
           expect.objectContaining({
-            location: expect.stringMatching('https://api.example.com/users'),
+            location: expect.stringContaining('https://api.example.com/users'),
           }),
           expect.objectContaining({
-            location: expect.stringMatching('https://api.example.de/users'),
+            location: expect.stringContaining('https://api.example.de/users'),
           }),
         ]),
       );
@@ -756,7 +756,7 @@ describe('AnalyticsApiContext', () => {
       expect(result).toEqual(
         expect.arrayContaining([
           expect.objectContaining({
-            location: expect.stringMatching('https://api.example.com/users'),
+            location: expect.stringContaining('https://api.example.com/users'),
           }),
         ]),
       );
