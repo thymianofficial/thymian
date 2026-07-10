@@ -1,8 +1,4 @@
-import {
-  httpRule,
-  type RuleViolationLocation,
-  statusCode,
-} from '@thymian/core';
+import { httpRule, statusCode } from '@thymian/core';
 
 export default httpRule(
   'rfc9110/sender-recipient-should-support-8000-octet-uris',
@@ -13,6 +9,7 @@ export default httpRule(
   .description(
     'It is RECOMMENDED that all senders and recipients support, at a minimum, URIs with lengths of 8000 octets in protocol elements.',
   )
+  .appliesTo('server')
   .rule((ctx, opts, logger) =>
     ctx.validateHttpTransactions(statusCode(414), (req, _res, location) => {
       try {

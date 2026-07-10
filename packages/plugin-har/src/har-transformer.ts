@@ -57,6 +57,7 @@ export function transformHarEntry(
         method: entry.request.method.toLowerCase(),
         origin,
         path,
+        target: entry.request.url,
         headers: transformHarHeaders(entry.request.headers),
         body: entry.request.postData?.text,
       },
