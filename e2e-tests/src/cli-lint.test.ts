@@ -27,7 +27,7 @@ describe('thymian lint', () => {
       'rfc9110/origin-server-with-clock-must-generate-date-for-2xx-3xx-4xx',
     );
     expect(output).toContain(
-      'Summary: 1 error(s), 0 warning(s), 0 hint(s), 0 info finding(s).',
+      'Summary: 1 error(s), 0 warning(s), 0 hint(s), 0 info(s).',
     );
   }, 90_000);
 
@@ -41,7 +41,7 @@ describe('thymian lint', () => {
 
     expect(output).toContain('@thymian/plugin-http-linter');
     expect(output).toContain(
-      'Summary: 1 error(s), 0 warning(s), 0 hint(s), 0 info finding(s).',
+      'Summary: 1 error(s), 0 warning(s), 0 hint(s), 0 info(s).',
     );
   }, 90_000);
 
@@ -65,7 +65,7 @@ describe('thymian lint', () => {
     expect(exitCode).toBe(0);
     expect(stdout).toContain('@thymian/plugin-http-linter');
     expect(stdout).toContain(
-      'Summary: 0 error(s), 0 warning(s), 0 hint(s), 0 info finding(s).',
+      'Summary: 0 error(s), 0 warning(s), 0 hint(s), 0 info(s).',
     );
   }, 90_000);
 
@@ -122,10 +122,10 @@ describe('thymian lint', () => {
     });
 
     const normalize = (value: string) =>
-      value.replace(
-        /\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z/g,
-        '<timestamp>',
-      );
+      value
+        .replace(/\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z/g, '<timestamp>')
+        // Real execution durations legitimately vary between runs.
+        .replace(/\(\d+(?:\.\d+)?ms\)/g, '(<duration>)');
 
     expect(normalize(first.stdout)).toBe(normalize(second.stdout));
   }, 180_000);

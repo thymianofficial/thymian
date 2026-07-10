@@ -16,12 +16,13 @@ export default httpRule(
   .description(
     `A recipient SHOULD parse for userinfo and treat its presence as an error; it is likely being used to obscure the authority for the sake of phishing attacks.`,
   )
+  .appliesTo('server')
   .rule((ctx, opts, logger) =>
     ctx.validateHttpTransactions(
       or(protocol('http'), protocol('https')),
       (req, res, location) => {
         try {
-          const url = new URL(req.path, req.origin);
+          const url = new URL(req.target ?? req.path, req.origin);
 
           return (!!url.username || !!url.password) &&
             !(res.statusCode >= 400 && res.statusCode < 500)

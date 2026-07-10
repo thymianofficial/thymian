@@ -4,7 +4,10 @@ export default httpRule(
   'rfc9110/authority-should-not-use-equivalent-uris-for-distinct-resources',
 )
   .severity('warn')
-  .type('static')
+  // Deciding that two normalization-equivalent URIs identify DISTINCT resources
+  // requires resource-semantic knowledge the authority holds; it cannot be
+  // inferred from recorded HTTP messages alone.
+  .type('informational')
   .url(
     'https://www.rfc-editor.org/rfc/rfc9110.html#name-https-normalization-and-comparison',
   )

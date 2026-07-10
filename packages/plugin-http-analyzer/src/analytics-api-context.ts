@@ -7,6 +7,7 @@ import {
   type CommonHttpRequest,
   type CommonHttpResponse,
   createRegExpFromOriginWildcard,
+  expandHttpParticipantRoles,
   type HttpFilterExpression,
   type HttpParticipantRole,
   httpParticipantRoles,
@@ -136,11 +137,7 @@ export class AnalyticsApiContext implements AnalyzeContext {
     }
 
     if (roles) {
-      this.roles = roles.flatMap((role) =>
-        role === 'intermediary'
-          ? (['proxy', 'tunnel', 'gateway', 'intermediary'] as const)
-          : role,
-      );
+      this.roles = expandHttpParticipantRoles(roles);
     }
   }
 

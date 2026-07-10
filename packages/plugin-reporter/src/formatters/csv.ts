@@ -1,30 +1,34 @@
 import { createWriteStream, type WriteStream } from 'node:fs';
+import { mkdir } from 'node:fs/promises';
+import { dirname } from 'node:path';
 
-import type { Logger, Report } from '@thymian/core';
+import type { Execution, Logger, Report } from '@thymian/core';
+import {
+  buildRuleIndex,
+  createLocationResolver,
+  findingDetails,
+  type LocationResolver,
+  resolveExecutionSeverity,
+  walkExecutions,
+} from '@thymian/core';
 
 import type { Formatter } from '../formatter.js';
+
+const CSV_HEADER =
+  'run_id,run_type,tool,rule_id,location,row_type,status,severity,finding_kind,finding_id,title,message,detail\n';
 
 export type CsvFormatterOptions = {
   path: string;
 };
 
-function formatLocation(
-  location: NonNullable<
-    Report['runs'][number]['executions']
-  >[number]['location'],
+function executionLabel(
+  execution: Execution,
+  resolveLocation: LocationResolver,
+  runVersion: string | undefined,
 ): string {
-  switch (location.type) {
-    case 'custom':
-      return location.value;
-    case 'file':
-      return [location.path, location.line, location.column]
-        .filter((part) => part !== undefined)
-        .join(':');
-    case 'url':
-      return location.url;
-    case 'thymianFormat':
-      return `format:${location.elementId}${location.pointer ? `#${location.pointer}` : ''}`;
-  }
+  return execution.kind === 'test'
+    ? execution.name
+    : resolveLocation(execution.location, runVersion);
 }
 
 export class CsvFormatter implements Formatter<CsvFormatterOptions> {
@@ -35,29 +39,42 @@ export class CsvFormatter implements Formatter<CsvFormatterOptions> {
   constructor(private readonly logger: Logger) {}
 
   flush(): Promise<string | undefined> {
-    return new Promise((resolve) => {
+    return new Promise((resolve, reject) => {
+      this.stream.once('error', reject);
       this.stream.end(() => {
+        this.stream.removeListener('error', reject);
         this.logger.debug(`Wrote CSV report to ${this.options.path}`);
         resolve(undefined);
       });
     });
   }
 
-  init(options: CsvFormatterOptions): Promise<void> {
+  async init(options: CsvFormatterOptions): Promise<void> {
     this.options = options;
+
+    await mkdir(dirname(options.path), { recursive: true });
+
     this.stream = createWriteStream(options.path, 'utf-8');
 
-    this.stream.on('error', (err) => {
-      this.logger.error(
-        `Failed to write CSV report to ${this.options.path}: ${err.message}`,
-      );
-    });
-
-    return new Promise((resolve) => {
-      this.stream.on('ready', () => {
-        this.stream.write(
-          'run_id,run_type,tool,execution_location,finding_kind,finding_id,severity,title,message,rule_id\n',
+    return new Promise((resolve, reject) => {
+      const onError = (err: Error) => {
+        this.logger.error(
+          `Failed to write CSV report to ${this.options.path}: ${err.message}`,
         );
+        reject(err);
+      };
+
+      this.stream.once('error', onError);
+
+      this.stream.on('ready', () => {
+        this.stream.removeListener('error', onError);
+        this.stream.on('error', (err) => {
+          this.logger.error(
+            `Failed to write CSV report to ${this.options.path}: ${err.message}`,
+          );
+        });
+
+        this.stream.write(CSV_HEADER);
 
         resolve();
       });
@@ -86,12 +103,48 @@ export class CsvFormatter implements Formatter<CsvFormatterOptions> {
 
 export function reportToCsvLines(report: Report): string[] {
   const lines: string[] = [];
+  const resolveLocation = createLocationResolver(report);
 
   for (const run of report.runs) {
-    for (const execution of run.executions ?? []) {
-      for (const finding of execution.findings) {
+    const ruleIndex = buildRuleIndex(run.rules);
+    const runVersion = run.thymianFormatVersion;
+
+    for (const { execution } of walkExecutions(run.executions)) {
+      const ruleId = execution.ruleId ?? '';
+      const status = execution.status;
+      const severity = resolveExecutionSeverity(execution, ruleIndex);
+      const reason = status.kind === 'passed' ? '' : (status.reason ?? '');
+      const duration =
+        status.kind !== 'skipped' && status.durationMilliseconds !== undefined
+          ? `duration=${status.durationMilliseconds}ms`
+          : '';
+      const label = executionLabel(execution, resolveLocation, runVersion);
+
+      // One row per execution so failed/skipped executions stay visible even
+      // when they carry no detail findings.
+      lines.push(
+        `${csvSafe(run.runId)},${csvSafe(run.runType)},${csvSafe(run.tool.name)},${csvSafe(ruleId)},${csvSafe(label)},execution,${csvSafe(status.kind)},${csvSafe(severity)},,,,${csvSafe(reason)},${csvSafe(duration)}\n`,
+      );
+
+      const findingsWithLocation =
+        execution.kind === 'test'
+          ? execution.steps.flatMap((step) =>
+              step.findings.map((finding) => ({
+                finding,
+                location: resolveLocation(step.location, runVersion),
+              })),
+            )
+          : execution.findings.map((finding) => ({
+              finding,
+              location: resolveLocation(execution.location, runVersion),
+            }));
+
+      for (const { finding, location } of findingsWithLocation) {
+        const detail = findingDetails(finding)
+          .map((d) => `${d.label}=${d.value}`)
+          .join('; ');
         lines.push(
-          `${csvSafe(run.runId)},${csvSafe(run.runType)},${csvSafe(run.tool.name)},${csvSafe(formatLocation(execution.location))},${csvSafe(finding.kind)},${csvSafe(finding.id)},${csvSafe(finding.severity)},${csvSafe(finding.title)},${csvSafe(finding.message?.text)},${csvSafe('ruleId' in finding ? finding.ruleId : undefined)}\n`,
+          `${csvSafe(run.runId)},${csvSafe(run.runType)},${csvSafe(run.tool.name)},${csvSafe(ruleId)},${csvSafe(location)},finding,,,${csvSafe(finding.kind)},${csvSafe(finding.id)},${csvSafe(finding.title)},${csvSafe(finding.message?.text)},${csvSafe(detail)}\n`,
         );
       }
     }

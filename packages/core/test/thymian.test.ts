@@ -1,6 +1,11 @@
 import { describe, expect, it } from 'vitest';
 
-import { createExecution, createToolRun, Thymian } from '../src/index.js';
+import {
+  createLintExecution,
+  createTestCaseExecution,
+  createToolRun,
+  Thymian,
+} from '../src/index.js';
 
 describe('Thymian workflows', () => {
   it('returns clean-run with an assembled report when no findings exist', async () => {
@@ -12,9 +17,10 @@ describe('Thymian workflows', () => {
           tool: { name: 'clean-plugin' },
           runType: 'lint',
           executions: [
-            createExecution({
+            createLintExecution({
               location: { type: 'custom', value: 'lint' },
-              findings: [],
+              ruleId: 'example/rule',
+              status: { kind: 'passed' },
             }),
           ],
         }),
@@ -37,18 +43,11 @@ describe('Thymian workflows', () => {
           tool: { name: 'warn-plugin' },
           runType: 'test',
           executions: [
-            createExecution({
-              location: { type: 'custom', value: 'test' },
-              findings: [
-                {
-                  id: 'finding-1',
-                  kind: 'rule-violation',
-                  ruleId: 'example/rule',
-                  title: 'Warning finding',
-                  severity: 'warn',
-                  message: { text: 'Warning finding' },
-                },
-              ],
+            createTestCaseExecution({
+              name: 'a failing case',
+              ruleId: 'example/rule',
+              status: { kind: 'failed', reason: 'Warning finding' },
+              steps: [],
             }),
           ],
         }),

@@ -91,6 +91,37 @@ export type RuleFnResult = {
   than dropped silently. Plain `return []` guards elsewhere remain inert (a pure
   pass with no findings is skipped by the consumer regardless).
 
+## Addendum (2026-07-07): the target `Execution` shape went flat
+
+This ADR's `RuleFnResult` decision (violation/findings signalling, centralized
+consumption via `executionsFromRunRulesResult`) is unchanged and still
+accurate. What changed afterwards, in Story 5 (#334), is the shape of the
+report `Execution` that `RuleFnResult`s are mapped _into_:
+
+- At the time this ADR was accepted, `Execution` was hierarchical:
+  `Execution.children` (recursive) plus `nestedFindings`.
+- Story 5 replaced that with a **flat, per-runType** model: `LintExecution`/
+  `AnalyzeExecution` (`location` + `findings`, no children) and
+  `TestCaseExecution` (`name` + `steps`, findings live on the step). There is
+  no `children`/`nestedFindings` anywhere in the current model — a run is a
+  flat list of leaf executions (`packages/core/src/report/report.ts`).
+- The finding-kind set also shrank to `rule-violation | informational |
+assertion-failure | assertion-success`, and severity moved off findings
+  onto `ExecutionStatus`/rule lookup (`resolveExecutionSeverity`), consistent
+  with this ADR's "findings are consumed centrally" principle but not
+  something this ADR originally specified.
+- One consequence worth calling out: `assertion-failure`/`assertion-success`
+  findings (e.g. from the `*-conforms-to-schema` rules) surface on **`lint`
+  and `analyze`** executions, not just on test steps — the same
+  `executionsFromRunRulesResult` → `statusAndFindingsFromEntry` path this ADR
+  describes handles both run types identically. PR #311 fixed a rendering gap
+  where the markdown formatter's lint/analyze section rendered only
+  `informational` findings and silently dropped `assertion-failure` detail.
+
+No standalone ADR for the flat `Execution` model exists yet; until one is
+written, `_bmad-output/implementation-artifacts/tech-spec-report-datamodel-per-runtype-executions.md`
+is the source of record for that decision.
+
 ## Related
 
 - [ADR-0007](0007-core-owns-validation-entrypoints-plugins-own-execution.md):
@@ -100,11 +131,15 @@ export type RuleFnResult = {
   concern; `RuleViolation`/`RuleFnResult` live in core and are consumed centrally.
 - [ADR-0012](0012-http-test-framework-absorption-into-core.md): HTTP test
   framework in core, whose results feed `RuleFnResult.findings`.
+- [ADR-0015](0015-cli-exit-status-is-severity-independent.md): What determines
+  the CLI exit status, downstream of the `ExecutionStatus` this ADR's
+  `RuleFnResult`s are mapped into.
 
 ---
 
 ## Status History
 
-| Date       | Status   | Notes                                                                                           |
-| ---------- | -------- | ----------------------------------------------------------------------------------------------- |
-| 2026-06-18 | Accepted | Reintroduce `RuleViolation`, restore findings-on-pass, remove `reportViolation` (Story 4, #333) |
+| Date       | Status   | Notes                                                                                                                                                                       |
+| ---------- | -------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 2026-06-18 | Accepted | Reintroduce `RuleViolation`, restore findings-on-pass, remove `reportViolation` (Story 4, #333)                                                                             |
+| 2026-07-07 | Accepted | Addendum: note the flat per-runType `Execution` model (Story 5, #334) that superseded the hierarchical `children`/`nestedFindings` shape this ADR's consumer originally fed |

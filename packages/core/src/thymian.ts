@@ -477,7 +477,10 @@ export class Thymian {
     toolRuns: ToolRun[],
     format?: ReturnType<ThymianFormat['export']>,
   ): Report {
-    const report = createReport(toolRuns, format);
+    const thymianFormat = format
+      ? { [format.attributes.hash]: format }
+      : undefined;
+    const report = createReport(toolRuns, thymianFormat);
     this.emitter.emit('core.report', report);
 
     this.logger.info('Workflow complete.');
