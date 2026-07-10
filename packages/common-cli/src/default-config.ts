@@ -16,9 +16,7 @@ export const defaultConfig: ThymianConfig = {
     '@thymian/plugin-sampler': {},
     '@thymian/plugin-reporter': {
       options: {
-        formatters: {
-          text: {},
-        },
+        formatters: {},
       },
     },
     '@thymian/plugin-http-tester': {},

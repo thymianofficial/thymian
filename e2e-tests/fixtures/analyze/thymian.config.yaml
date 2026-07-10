@@ -10,4 +10,4 @@ plugins:
   '@thymian/plugin-reporter':
     options:
       formatters:
-        text: {}
+        markdown: {}

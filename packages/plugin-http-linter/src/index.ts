@@ -69,7 +69,12 @@ function createRuns(
   ruleResults: RunRulesResult,
   rules: Rule[] = [],
 ): ToolRun[] {
-  const executions = executionsFromRunRulesResult(ruleResults, rules, format);
+  const executions = executionsFromRunRulesResult(
+    ruleResults,
+    rules,
+    format,
+    'lint',
+  );
 
   const ruleDescriptors = rulesToRuleDescriptors(rules, (r) => r.lintRule);
 
@@ -79,6 +84,7 @@ function createRuns(
       runType: 'lint',
       executions,
       rules: ruleDescriptors.length > 0 ? ruleDescriptors : undefined,
+      thymianFormatVersion: format.toHash(),
     }),
   ];
 }
