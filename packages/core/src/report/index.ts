@@ -57,6 +57,15 @@ export {
   ruleFindingToFindingRecord,
   rulesToRuleDescriptors,
 } from './report-builder.js';
+export {
+  errorSymbol,
+  hintSymbol,
+  infoSymbol,
+  SEVERITY_COLORS,
+  skippedSymbol,
+  successSymbol,
+  warnSymbol,
+} from './report-style.js';
 export type { ExecutionVisit, FindingVisit } from './report-traversal.js';
 export {
   collectFindings,
