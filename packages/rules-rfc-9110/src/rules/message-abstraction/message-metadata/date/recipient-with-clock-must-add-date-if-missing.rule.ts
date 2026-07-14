@@ -1,5 +1,10 @@
 import { httpRule } from '@thymian/core';
 
+// This MUST governs the internal behavior of a recipient with a clock
+// (caches/forwards a response, adding Date if missing). It depends on internal
+// recipient state (having a clock) and on what the recipient subsequently does
+// downstream, neither of which is observable from a single recorded
+// transaction, so there is no non-conformant condition to flag.
 export default httpRule('rfc9110/recipient-with-clock-must-add-date-if-missing')
   .severity('error')
   .type('informational')
