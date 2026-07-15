@@ -5,7 +5,6 @@ import {
   type ReportAssertionFailure,
   successSymbol,
 } from '@thymian/core';
-import { AssertionFailure } from '@thymian/core/src/report/report.js';
 
 import { indent } from './utils.js';
 
