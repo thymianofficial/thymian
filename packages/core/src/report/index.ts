@@ -53,6 +53,9 @@ export {
   executionsFromRunRulesResult,
   executionsFromViolations,
   httpTestResultToRuleFindings,
+  isAnalyzeExecution,
+  isLintExecution,
+  isTestCaseExecution,
   ruleFindingsToFindingRecords,
   ruleFindingToFindingRecord,
   rulesToRuleDescriptors,
@@ -66,6 +69,7 @@ export {
   successSymbol,
   warnSymbol,
 } from './report-style.js';
+export * from './report-style.js';
 export type { ExecutionVisit, FindingVisit } from './report-traversal.js';
 export {
   collectFindings,

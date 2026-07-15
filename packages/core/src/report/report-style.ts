@@ -13,3 +13,16 @@ export const SEVERITY_COLORS: Record<Severity, string> = {
   hint: '#0969da',
   info: '#57606a',
 };
+
+export const SEVERITY_SYMBOLS: Record<
+  Severity | 'skipped' | 'failed' | 'passed',
+  string
+> = {
+  failed: errorSymbol,
+  passed: successSymbol,
+  skipped: skippedSymbol,
+  error: errorSymbol,
+  hint: hintSymbol,
+  info: infoSymbol,
+  warn: warnSymbol,
+};
