@@ -1,3 +1,4 @@
+import type { Logger } from '../logger/logger.js';
 import type {
   Execution,
   FindingRecord,
@@ -44,7 +45,7 @@ export function buildRuleIndex(
 export function resolveExecutionSeverity(
   execution: Execution,
   ruleIndex: ReadonlyMap<string, RuleDescriptor>,
-  logger?: SeverityWarnLogger,
+  logger?: Logger,
 ): Severity | undefined {
   const { status } = execution;
 

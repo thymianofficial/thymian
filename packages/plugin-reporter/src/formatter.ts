@@ -1,9 +1,9 @@
 import {
   buildRuleIndex,
+  type Logger,
   type Report,
   resolveExecutionSeverity,
   type Severity,
-  type SeverityWarnLogger,
   walkExecutions,
   walkFindings,
 } from '@thymian/core';
@@ -31,10 +31,7 @@ export type ReportAnalysis = {
   statistics: ThymianReportStatistics;
 };
 
-export function analyze(
-  reports: Report[],
-  logger?: SeverityWarnLogger,
-): ReportAnalysis {
+export function analyze(reports: Report[], logger?: Logger): ReportAnalysis {
   const severityCounts: Record<Severity, number> = {
     error: 0,
     warn: 0,
