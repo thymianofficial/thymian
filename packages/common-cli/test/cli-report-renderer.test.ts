@@ -357,7 +357,7 @@ describe('cli report renderer', () => {
     expect(output).toContain('› example/rule');
   });
 
-  it('renders finding titles by kind without assertion detail payloads', () => {
+  it('renders assertion expected/actual details and drops superseded kinds', () => {
     const output = stripAnsi(
       renderReport({
         reportId: 'report-1',
@@ -399,14 +399,14 @@ describe('cli report renderer', () => {
       }),
     );
 
-    // Assertion failures render as their title only; expected/actual payloads
-    // are not emitted.
+    // Assertion failures render their title plus the expected/actual details
+    // that are present; missing fields are omitted cleanly.
     expect(output).toContain('✖ expected status');
+    expect(output).toContain('expected: 200');
     expect(output).toContain('✖ expected content type');
-    expect(output).not.toContain('expected: 200');
-    expect(output).not.toContain('text/plain');
-    // Unknown finding kinds fall back to the info symbol.
-    expect(output).toContain('ℹ legacy rule failure');
+    expect(output).toContain('actual: "text/plain"');
+    // Superseded/unknown finding kinds are not rendered at all.
+    expect(output).not.toContain('legacy rule failure');
   });
 
   it('renders multi-step test executions as a step tree with resolved locations', () => {

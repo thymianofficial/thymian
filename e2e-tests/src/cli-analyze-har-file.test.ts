@@ -45,7 +45,7 @@ describe('thymian analyze with HAR file', () => {
       'rfc9110/origin-server-with-clock-must-generate-date-for-2xx-3xx-4xx',
     );
     expect(result.stdout).toMatch(
-      /Summary: \d+ error\(s\), \d+ warning\(s\), \d+ hint\(s\), \d+ info\(s\)\./,
+      /Summary: \d+ errors?, \d+ warnings?, \d+ hints?, \d+ infos?\./,
     );
   }, 90_000);
 
@@ -211,9 +211,10 @@ describe('thymian analyze with HAR file', () => {
     expect(result.stdout).toContain(
       'thymian/response-body-must-conforms-to-schema',
     );
+    // Two failed analyze executions (path parameter + response body), each
+    // counted once by resolved severity under the execution-based summary.
     expect(result.stdout).toContain(
-      // TODO we need to think about the findings with issue #335 (https://github.com/thymianofficial/thymian-internal/issues/335)
-      'Summary: 2 error(s), 0 warning(s), 0 hint(s), 0 info(s).',
+      'Summary: 2 errors, 0 warnings, 0 hints, 0 infos.',
     );
   }, 90_000);
 });
