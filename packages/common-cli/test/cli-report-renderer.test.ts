@@ -48,6 +48,8 @@ describe('cli report renderer', () => {
   it('renders thymian format locations through the core location resolver', () => {
     const format = new ThymianFormat();
     const requestId = format.addRequest({
+      label: '',
+      type: 'http-request',
       sourceName: 'openapi.yaml',
       protocol: 'https',
       host: 'api.example.com',
@@ -379,6 +381,7 @@ describe('cli report renderer', () => {
                     kind: 'assertion-failure',
                     title: 'expected status',
                     expected: 200,
+                    actual: 201,
                   },
                   {
                     id: 'supported-2',
@@ -403,8 +406,8 @@ describe('cli report renderer', () => {
     // that are present; missing fields are omitted cleanly.
     expect(output).toContain('✖ expected status');
     expect(output).toContain('expected: 200');
+    expect(output).toContain('actual: 201');
     expect(output).toContain('✖ expected content type');
-    expect(output).toContain('actual: "text/plain"');
     // Superseded/unknown finding kinds are not rendered at all.
     expect(output).not.toContain('legacy rule failure');
   });
