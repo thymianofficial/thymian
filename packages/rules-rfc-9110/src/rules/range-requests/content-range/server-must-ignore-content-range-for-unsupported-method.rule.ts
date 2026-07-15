@@ -16,5 +16,5 @@ export default httpRule(
   .summary(
     'Server must ignore a Content-Range request header for methods with no defined Content-Range support.',
   )
-  .appliesTo('origin server')
+  .appliesTo('server')
   .done();

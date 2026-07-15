@@ -23,7 +23,6 @@ export default httpRule(
   .summary(
     'Recipient must not recombine content with invalid Content-Range values.',
   )
-  .appliesTo('origin server')
   .rule((ctx) =>
     ctx.validateHttpTransactions(
       responseHeader('content-range'),
@@ -59,9 +58,7 @@ export default httpRule(
                       range.size ?? '*'
                     }`,
                 )
-                .join(
-                  ', ',
-                )}. A range-resp with last-pos < first-pos, or complete-length <= last-pos, is invalid; any recipient MUST NOT attempt to recombine it with a stored representation.`,
+                .join(', ')}.`,
             },
             findings: [],
           },

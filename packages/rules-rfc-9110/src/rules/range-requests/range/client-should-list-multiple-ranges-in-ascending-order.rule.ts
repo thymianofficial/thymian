@@ -40,7 +40,7 @@ export default httpRule(
   .summary(
     'Client should list multiple ranges in ascending order unless there is a specific need to request a later part earlier.',
   )
-  .appliesTo('client', 'user-agent')
+  .appliesTo('client')
   .rule((ctx) =>
     ctx.validateHttpTransactions(
       requestHeader('range'),

@@ -28,14 +28,14 @@ function evaluate(res: HttpResponse, location: RuleViolationLocation) {
         location,
         violation: {
           message:
-            'A 416 (Range Not Satisfiable) response to a request carrying a Range header omits the Content-Range header field. The server SHOULD send Content-Range with an unsatisfied-range value ("bytes */complete-length") so the client learns the current representation length.',
+            'A 416 (Range Not Satisfiable) response to a Range request omits Content-Range. The server SHOULD send an unsatisfied-range value ("bytes */complete-length").',
         },
         findings: [],
       },
     ];
   }
 
-  if (values.some((value) => UNSATISFIED_RANGE.test(value.trim()))) {
+  if (values.every((value) => UNSATISFIED_RANGE.test(value.trim()))) {
     return [];
   }
 
@@ -43,11 +43,11 @@ function evaluate(res: HttpResponse, location: RuleViolationLocation) {
     {
       location,
       violation: {
-        message: `A 416 (Range Not Satisfiable) response carries a Content-Range ("${values
+        message: `A 416 response carries a Content-Range ("${values
           .map((value) => value.trim())
           .join(
             ', ',
-          )}") that is not in the unsatisfied-range form. A 416 SHOULD send Content-Range as "bytes */complete-length" (or "bytes */*" when the length is unknown) so the client learns the current representation length.`,
+          )}") that is not the unsatisfied-range form ("bytes */complete-length").`,
       },
       findings: [],
     },
@@ -69,7 +69,7 @@ export default httpRule(
   .summary(
     'Server should send Content-Range with unsatisfied-range in 416 responses.',
   )
-  .appliesTo('server', 'origin server')
+  .appliesTo('server')
   .overrideTest((ctx) =>
     ctx.validateHttpTransactions(
       and(statusCode(416), requestHeader('range')),

@@ -4,6 +4,7 @@ import {
   httpRule,
   method,
   not,
+  or,
   requestHeader,
   responseHeader,
   type RuleFnResult,
@@ -31,11 +32,15 @@ export default httpRule(
       singleTestCase()
         .forTransactionsWith(and(method('GET'), statusCode(200)))
         .run()
-        // Only meaningful when the server itself advertises byte-range support;
-        // otherwise ignoring a Range is conformant.
+        // Only meaningful when the server advertises range support at all. No
+        // Accept-Ranges header, or "Accept-Ranges: none", means the server does
+        // not support range requests, so answering with 200 is conformant.
         .skipIf(
-          not(responseHeader('accept-ranges', 'bytes')),
-          'Target does not advertise byte-range support (Accept-Ranges: bytes)',
+          or(
+            not(responseHeader('accept-ranges')),
+            responseHeader('accept-ranges', 'none'),
+          ),
+          'Target does not advertise range support (no Accept-Ranges header, or Accept-Ranges: none)',
         )
         // bytes=0-0 is a valid, byte-unit specifier that is satisfiable for any
         // representation of at least one octet.
@@ -56,7 +61,7 @@ export default httpRule(
               },
               violation: {
                 message:
-                  'A server advertising Accept-Ranges: bytes returned 200 for a satisfiable Range request (bytes=0-0) instead of 206 Partial Content.',
+                  'A server advertising range support (Accept-Ranges) returned 200 for a satisfiable byte-range request (bytes=0-0) instead of 206 Partial Content.',
               },
               findings: [],
             });

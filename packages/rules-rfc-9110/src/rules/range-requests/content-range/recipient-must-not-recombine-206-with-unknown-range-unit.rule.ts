@@ -16,5 +16,4 @@ export default httpRule(
   .summary(
     'Recipient must not recombine 206 responses with unknown Content-Range units.',
   )
-  .appliesTo('user-agent', 'cache')
   .done();

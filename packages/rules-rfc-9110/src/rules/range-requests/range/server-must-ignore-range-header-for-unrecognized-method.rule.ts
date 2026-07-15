@@ -11,7 +11,8 @@ import {
 import { httpRule } from '@thymian/core';
 
 function hasHeader(headers: string[], name: string): boolean {
-  return headers.some((header) => header.toLowerCase() === name);
+  const normalized = name.trim().toLowerCase();
+  return headers.some((header) => header.trim().toLowerCase() === normalized);
 }
 
 export default httpRule(
@@ -30,7 +31,7 @@ export default httpRule(
   .summary(
     'A server must ignore a Range header field received with a method (other than GET) for which range handling is not defined.',
   )
-  .appliesTo('server', 'origin server')
+  .appliesTo('server')
   .rule((ctx) =>
     ctx.validateCommonHttpTransactions(
       and(
@@ -58,7 +59,7 @@ export default httpRule(
             violation: {
               message: `A ${req.method} request was answered with ${partialEvidence.join(
                 ' and ',
-              )}, indicating the server applied range handling. GET is the only method for which range handling is defined; for any other method the server MUST ignore the Range header field.`,
+              )}, indicating the server applied range handling.`,
             },
             findings: [],
           },

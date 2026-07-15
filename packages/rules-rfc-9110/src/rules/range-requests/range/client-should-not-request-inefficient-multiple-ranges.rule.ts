@@ -72,7 +72,7 @@ export default httpRule(
   .summary(
     'A client should not request multiple ranges that are less efficient than a single encompassing range.',
   )
-  .appliesTo('client', 'user-agent')
+  .appliesTo('client')
   .rule((ctx) =>
     ctx.validateHttpTransactions(
       requestHeader('range'),
