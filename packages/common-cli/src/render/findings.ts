@@ -34,10 +34,10 @@ function renderFinding(
 
       if (expected && actual) {
         lines.push(
-          `${indent(indentationLevel + 1)}expected: ${truncate(JSON.stringify(actual))}`,
+          `${indent(indentationLevel + 2)}expected: ${truncate(JSON.stringify(expected))}`,
         );
         lines.push(
-          `${indent(indentationLevel + 1)}actual: ${truncate(JSON.stringify(actual))}`,
+          `${indent(indentationLevel + 2)}actual: ${truncate(JSON.stringify(actual))}`,
         );
       }
 
