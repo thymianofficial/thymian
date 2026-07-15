@@ -2,8 +2,10 @@ import {
   errorSymbol,
   type FindingRecord,
   infoSymbol,
+  type ReportAssertionFailure,
   successSymbol,
 } from '@thymian/core';
+import { AssertionFailure } from '@thymian/core/src/report/report.js';
 
 import { indent } from './utils.js';
 
@@ -11,21 +13,49 @@ export function renderFindings(
   findings: FindingRecord[],
   indentationLevel: number,
 ): string[] {
-  return findings
-    .map((finding) => {
-      if (finding.kind === 'informational') {
-        return `${infoSymbol} ${finding.title}`;
-      } else if (finding.kind === 'assertion-success') {
-        return `${successSymbol} ${finding.title}`;
-      } else if (finding.kind === 'assertion-failure') {
-        return `${errorSymbol} ${finding.title}`;
-      } else if (finding.kind === 'rule-violation') {
-        return ``;
-      } else {
-        // default to info symbol for unknown findings
-        return `${infoSymbol} ${finding.title}`;
+  return findings.flatMap((finding) =>
+    renderFinding(finding, indentationLevel),
+  );
+}
+
+function renderFinding(
+  finding: FindingRecord,
+  indentationLevel: number,
+): string[] {
+  switch (finding.kind) {
+    case 'informational':
+      return [indent(indentationLevel) + `${infoSymbol} ${finding.title}`];
+    case 'assertion-success':
+      return [indent(indentationLevel) + `${successSymbol} ${finding.title}`];
+    case 'assertion-failure': {
+      const lines = [
+        indent(indentationLevel) + `${errorSymbol} ${finding.title}`,
+      ];
+      const { expected, actual } = finding as ReportAssertionFailure;
+
+      if (expected && actual) {
+        lines.push(
+          `${indent(indentationLevel + 1)}expected: ${truncate(JSON.stringify(actual))}`,
+        );
+        lines.push(
+          `${indent(indentationLevel + 1)}actual: ${truncate(JSON.stringify(actual))}`,
+        );
       }
-    })
-    .filter(Boolean)
-    .map((finding) => indent(indentationLevel) + finding);
+
+      return lines;
+    }
+    case 'rule-violation':
+      // Rule identity and outcome render at the execution level, so the
+      // rule-violation finding itself has no additional body to render.
+      return [];
+    default:
+      // Superseded/unknown finding kinds are intentionally not rendered.
+      return [];
+  }
+}
+
+export function truncate(str: string, maxLength = 30): string {
+  return str.length > maxLength
+    ? str.substring(0, maxLength - 4) + ' ...'
+    : str;
 }
