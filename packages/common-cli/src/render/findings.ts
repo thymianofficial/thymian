@@ -32,7 +32,7 @@ function renderFinding(
       ];
       const { expected, actual } = finding as ReportAssertionFailure;
 
-      if (expected && actual) {
+      if (actual !== undefined && expected !== undefined) {
         lines.push(
           `${indent(indentationLevel + 2)}expected: ${truncate(JSON.stringify(expected))}`,
         );

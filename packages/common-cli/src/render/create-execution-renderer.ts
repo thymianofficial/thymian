@@ -19,7 +19,7 @@ export type GroupExecutionsFn<
 export type RenderExecutionDetailsFn<
   T extends LintExecution | TestCaseExecution | AnalyzeExecution,
 > = (
-  executions: T,
+  execution: T,
   indentationLevel: number,
   locationResolver: LocationResolver,
   toolRun: ToolRun,
@@ -81,6 +81,11 @@ export function createExecutionsRenderer<
 
         lines.push(indent(indentationLevel + 1) + statusLine);
 
+        // The rule id is only rendered when we have the resolved descriptor,
+        // because `rule` is itself looked up from `execution.ruleId` via the
+        // rule index. If the descriptor is missing, `rule.id` and
+        // `execution.ruleId` would be identical, so guarding on `rule` does not
+        // hide any additional identifying information.
         if (rule) {
           lines.push(
             indent(indentationLevel + 6) + ux.colorize('dim', '› ' + rule.id),

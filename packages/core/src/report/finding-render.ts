@@ -6,11 +6,6 @@ import type {
   Severity,
 } from './report.js';
 
-/** Minimal logger surface used for defensive severity-resolution warnings. */
-export interface SeverityWarnLogger {
-  warn(message: string): void;
-}
-
 /** A single label/value detail extracted from a finding for rendering. */
 export interface FindingDetail {
   /** Stable label, e.g. `expected`, `actual`. */

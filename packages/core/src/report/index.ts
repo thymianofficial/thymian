@@ -1,4 +1,4 @@
-export type { FindingDetail, SeverityWarnLogger } from './finding-render.js';
+export type { FindingDetail } from './finding-render.js';
 export {
   buildRuleIndex,
   findingDetails,
