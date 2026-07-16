@@ -26,7 +26,7 @@ author: qupaya
 ## Non-negotiables
 
 1. **Never edit `meta.json`.** The expected status code is not stored in the sample — it comes from the API spec.
-2. Fix a failure by editing `requests/0-request.json` **or adding a hook** (`*.beforeEach.ts` / `*.authorize.ts`) — nothing else.
+2. Fix a failure by editing `requests/0-request.json` **or adding a hook** (`*.beforeEach.ts` / `*.authorize.ts`) — unless it is a genuine contract mismatch (e.g. 201 where 200 is documented): that is fixed in the **spec or the API**, never in the sample.
 3. **Always pass `{ runHooks: false }` as the 3rd argument** of chain-building `utils.request` calls. `{ authorize: false }` does **not** skip auth.
 4. **Guard setup hooks** so negative samples stay negative: `if (context.thymianRes.statusCode === 404) return request;`.
 5. Run from the config's directory with the API already running: `cd <api-dir> && npx thymian sampler check -c <config>`.
@@ -56,7 +56,7 @@ So a failure means one of:
 
 Discover the layout instead of assuming — paths vary per project:
 
-- **Config**: a `thymian.config*.yaml` (e.g. `thymian.config.yaml` or `thymian.config.test.yaml`). It points at the spec and the server host/port/basePath.
+- **Config**: a `thymian.config*.yaml` (e.g. `thymian.config.yaml` or `thymian.config.test.yaml`). It points at the API specification(s) (`specifications`) and the API under test (`targetUrl`).
 - **Samples root**: under `.thymian/samples/<Spec_Name>/<host>/<port>/<basePath>/...`.
 - **Sample path encodes the transaction**: `<route>/@<METHOD>/<requestMediaType>/<status>/<responseMediaType>/` — the media-type folders exist only when the transaction has a request/response body; their names are sanitized (`/` → `__`, e.g. `application__json`), no brackets.
   - Path parameters are folders in **literal** brackets: `event/[id]/@GET/200/application__json/`.
@@ -74,7 +74,7 @@ cd path/to/api && npx thymian sampler check -c thymian.config.test.yaml
 | ---------------------------------------------------------- | ---------------------------------------------------------------- |
 | `npx thymian sampler check -c <config>`                    | Run all sampled transactions against the live API                |
 | `npx thymian sampler check -c <config> --incremental`      | Process sequentially; offers hook generation on failures         |
-| `npx thymian sampler init --spec openapi:<spec>`           | Generate initial samples from the spec                           |
+| `npx thymian sampler init`                                 | Generate initial samples from the config's `specifications`      |
 | `npx thymian sampler init --overwrite`                     | Re-generate request samples after the spec changed (keeps hooks) |
 | `npx thymian sampler generate hook --for-transaction <id>` | Scaffold a hook for one transaction                              |
 
@@ -195,7 +195,7 @@ After any spec change, run `npx thymian sampler init --overwrite` to regenerate 
 | `utils.randomString(len?)`                 | Unique values for names / external refs                                                                                                              |
 | `utils.skip(reason)`                       | Skip this transaction                                                                                                                                |
 | `utils.fail(msg)`                          | Fail immediately (the message becomes the transaction's Reason)                                                                                      |
-| `utils.info/warn(...)`                     | Log to report (often **not** shown by the text reporter — see pitfalls)                                                                              |
+| `utils.info/warn(...)`                     | Add info/warning findings to the report (visibility depends on the reporter — see gotchas)                                                           |
 | `utils.assertionSuccess/Failure(...)`      | Record assertions (a failure doesn't stop the test)                                                                                                  |
 
 ### The `runHooks` trap (the bug that wastes hours)
@@ -234,7 +234,7 @@ Result: the documented status matches reality and the transaction is green.
 - **Placeholder values** (`"string"`, `0`, a sample ISO date) come from spec examples and frequently cause `400`/`500` — replace with valid data.
 - **A `404`-expecting sample must keep a non-existent id** — guard setup hooks with `if (context.thymianRes.statusCode !== <success>) return request;`.
 - **`--incremental` is the fastest way to triage** — it can scaffold a hook per failing transaction interactively.
-- **`utils.info(...)` is often not shown** by the text reporter. To surface a value while debugging, branch and `utils.fail('DBG ...')` — the message appears as the transaction's Reason.
+- **Don't rely on `utils.info(...)` for debugging** — depending on the reporter and verbosity it may not surface. The reliable way to inspect a value is a temporary `utils.fail('DBG ' + value)` — the message is printed as the transaction's `Reason:`.
 - **Some documented statuses can be genuinely unreachable** (e.g. validation that can never reject, or auth that always succeeds in a mock env). Those stay red as real findings — don't contort a hook to fake them; record the finding instead.
 
 ## Troubleshooting

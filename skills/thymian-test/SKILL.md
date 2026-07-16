@@ -5,14 +5,16 @@ description: >-
   warnings, hints, info) for any API. USE WHEN running `thymian test`, when it
   reports "Summary: X error(s), Y warning(s), Z hint(s), W info(s).",
   when a conformance rule fires (e.g.
-  `response-headers-must-conform-to-schema`, `response-body-must-conform-to-schema`,
-  or `rfc9110/*` rules for `WWW-Authenticate`, `Location`, `ETag`, `Last-Modified`,
-  or conditional requests), or when the user mentions thymian test, conformance
+  `thymian/response-headers-must-conform-to-schema`,
+  `thymian/response-body-must-conforms-to-schema`, or `rfc9110/*` rules such as
+  `rfc9110/origin-server-should-send-etag` and
+  `rfc9110/origin-server-should-send-last-modified`), or when the user mentions thymian test, conformance
   rules, rule sets (rfc-9110, api-description-validation), ruleSeverity, or
   driving errors/warnings to zero. Covers the three resolution paths (fix the
   API, document the spec, downgrade the rule) and the spec-change/sampler-rehash
   coupling. Do NOT use for `thymian sampler check` status-code failures
-  ("Expected status X, received Y" — use the thymian-sampler-check skill) or
+  ("Expected status code X, but received Y" — use the thymian-sampler-check
+  skill) or
   `thymian lint` static-only spec analysis.
 version: 1.0.0
 author: qupaya
@@ -83,12 +85,12 @@ Read the rule id and the affected response, then pick the fitting path — usual
 
 Use when the finding reflects a real defect in what the API returns. These are the highest-value fixes and should not be silenced:
 
-- **Response body doesn't match the documented schema** (`…response-body-must-conform-to-schema` / api-description-validation). Common causes and fixes:
+- **Response body doesn't match the documented schema** (`thymian/response-body-must-conforms-to-schema` / api-description-validation). Common causes and fixes:
   - A field can be null but the schema isn't `nullable` → mark it `nullable` (or stop returning null).
   - Wrong JSON type → the value is serialized as the wrong type (e.g. a DB driver returns a tinyint `0/1` instead of a boolean, or a numeric id is documented as a string). Coerce/retype at the boundary so the response matches the contract.
 - **Missing RFC-mandated header on an error/redirect** that you agree the API should send (e.g. `WWW-Authenticate` on a real `401`, `Location` on a `201`). Emit the header in the handler/guard/interceptor.
 
-⚠️ **Every header you ADD must also be documented in the spec** (path 2) — otherwise it just converts into a new `response-headers-must-conform-to-schema` finding.
+⚠️ **Every header you ADD must also be documented in the spec** (path 2) — otherwise it just converts into a new `thymian/response-headers-must-conform-to-schema` finding.
 
 ### Path 2 — Document reality in the spec
 
@@ -110,10 +112,10 @@ Set `severity: warn` or `hint` (keep it visible) or `off` (hide it), **with a co
 
 > Rule-of-thumb mapping (rule id → likely path):
 >
-> - `…response-body-must-conform-to-schema` → **Path 1** (real DTO/type bug).
-> - `…response-headers-must-conform-to-schema` → **Path 2** (document) for headers you intend to keep; **Path 3** (downgrade) for framework headers.
-> - `rfc9110/…must-send-www-authenticate…`, `…location-header-for-201…` → **Path 1 + Path 2** (emit it, then document it).
-> - `rfc9110/…should-send-etag`, `…should-send-last-modified`, `…304-or-412-when-if-none-match-fails` → **Path 1** if you want the feature, else **Path 3** (downgrade with rationale).
+> - `thymian/response-body-must-conforms-to-schema` → **Path 1** (real DTO/type bug).
+> - `thymian/response-headers-must-conform-to-schema` → **Path 2** (document) for headers you intend to keep; **Path 3** (downgrade) for framework headers.
+> - Findings about RFC-mandated headers the API should emit (e.g. `WWW-Authenticate` on a real `401`) → **Path 1 + Path 2** (emit it, then document it).
+> - `rfc9110/origin-server-should-send-etag`, `rfc9110/origin-server-should-send-last-modified`, and other SHOULD-level niceties → **Path 1** if you want the feature, else **Path 3** (downgrade with rationale).
 
 ## The coupling that surprises people: spec changes re-hash the sampler
 
@@ -129,12 +131,12 @@ Then re-run **both** `thymian test` and `thymian sampler check` — a header/bod
 ## Examples
 
 **Example 1 — nullable body finding (Path 1)**
-User says: _"`response-body-must-conform-to-schema` errors because `description` comes back null"_.
+User says: _"`thymian/response-body-must-conforms-to-schema` errors because `description` comes back null"_.
 Actions: a real schema bug → mark `description` `nullable` in the response DTO/spec (or stop returning null). Note the spec edit invalidates the sampler hashes → `sampler init --overwrite` + restart the server before re-running.
 Result: that error clears across every transaction that returned the field.
 
 **Example 2 — framework-header noise (Path 3)**
-User says: _"`response-headers-must-conform-to-schema` is firing for helmet's `cross-origin-resource-policy` on every endpoint"_.
+User says: _"`thymian/response-headers-must-conform-to-schema` is firing for helmet's `cross-origin-resource-policy` on every endpoint"_.
 Actions: not a contract defect → either document the header in the spec (Path 2, e.g. a document transformer) or set just that rule to `severity: warn` in the config `rules:` block with a comment explaining it's framework-added. Do not blanket-silence other rules to force a green run.
 Result: the framework-header noise is triaged; genuine errors stay visible.
 
@@ -165,4 +167,4 @@ Cause: the API isn't running on the configured host/port. Solution: start the AP
 Cause: a stale server build is still serving the old responses (no hot-reload). Solution: rebuild/restart the API (or its container) and re-run.
 
 **Symptom: warning count doesn't drop after emitting a header**
-Cause: the header is now sent but undocumented, so it shifted into `response-headers-must-conform-to-schema`. Solution: document the header in the spec (Path 2), regenerate, restart, re-check.
+Cause: the header is now sent but undocumented, so it shifted into `thymian/response-headers-must-conform-to-schema`. Solution: document the header in the spec (Path 2), regenerate, restart, re-check.
