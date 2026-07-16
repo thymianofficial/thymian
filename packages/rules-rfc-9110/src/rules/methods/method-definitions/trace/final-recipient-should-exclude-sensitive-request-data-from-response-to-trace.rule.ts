@@ -8,15 +8,7 @@ import {
 } from '@thymian/core';
 
 import { createList } from '../../../../utils.js';
-
-// Header fields that are likely to carry sensitive data and therefore SHOULD
-// NOT be echoed back in the reflected message of a TRACE response.
-const sensitiveHeaders = [
-  'authorization',
-  'proxy-authorization',
-  'cookie',
-  'x-api-key',
-];
+import { sensitiveHeaders } from './trace-sensitive-headers.js';
 
 function headerToString(
   value: string | string[] | undefined,

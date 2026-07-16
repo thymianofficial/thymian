@@ -1,10 +1,4 @@
-import {
-  and,
-  type CommonHttpRequest,
-  type CommonHttpResponse,
-  method,
-  statusCode,
-} from '@thymian/core';
+import { and, method, not, responseHeader, statusCode } from '@thymian/core';
 import { httpRule } from '@thymian/core';
 
 export default httpRule(
@@ -23,26 +17,7 @@ export default httpRule(
   .rule((context) =>
     context.validateCommonHttpTransactions(
       and(method('POST'), statusCode(201)),
-      (_req: CommonHttpRequest, res: CommonHttpResponse, location) => {
-        const hasLocation = res.headers.some(
-          (header) => header.toLowerCase() === 'location',
-        );
-
-        if (hasLocation) {
-          return [];
-        }
-
-        return [
-          {
-            location,
-            violation: {
-              message:
-                'A 201 (Created) response to POST SHOULD include a Location header field identifying the primary resource created, but none is present.',
-            },
-            findings: [],
-          },
-        ];
-      },
+      not(responseHeader('location')),
     ),
   )
   .done();

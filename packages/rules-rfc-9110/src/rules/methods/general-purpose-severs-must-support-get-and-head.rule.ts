@@ -1,10 +1,5 @@
 import { method, not, or, statusCode } from '@thymian/core';
-import {
-  type CommonHttpRequest,
-  type CommonHttpResponse,
-  httpRule,
-  singleTestCase,
-} from '@thymian/core';
+import { httpRule, singleTestCase } from '@thymian/core';
 
 export default httpRule(
   'rfc9110/general-purpose-severs-must-support-get-and-head',
@@ -15,26 +10,11 @@ export default httpRule(
   .description(
     'All general-purpose servers MUST support the methods GET and HEAD.',
   )
-  .appliesTo('server', 'origin server')
+  .appliesTo('server')
   .rule((ctx) =>
     ctx.validateCommonHttpTransactions(
       or(method('get'), method('head')),
-      (_req: CommonHttpRequest, res: CommonHttpResponse, location) => {
-        if (res.statusCode !== 501) {
-          return [];
-        }
-
-        return [
-          {
-            location,
-            violation: {
-              message:
-                'A general-purpose server MUST support GET and HEAD, but this request was answered with 501 (Not Implemented).',
-            },
-            findings: [],
-          },
-        ];
-      },
+      statusCode(501),
     ),
   )
   .overrideTest((ctx) =>

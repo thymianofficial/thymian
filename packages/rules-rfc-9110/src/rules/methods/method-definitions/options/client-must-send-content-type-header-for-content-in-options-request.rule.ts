@@ -16,7 +16,7 @@ export default httpRule(
   .description(
     'A client that generates an OPTIONS request containing content MUST send a valid Content-Type header field describing the representation media type.',
   )
-  .appliesTo('client', 'user-agent')
+  .appliesTo('client')
   .rule((ctx) =>
     ctx.validateCommonHttpTransactions(
       and(method('OPTIONS'), hasRequestBody()),

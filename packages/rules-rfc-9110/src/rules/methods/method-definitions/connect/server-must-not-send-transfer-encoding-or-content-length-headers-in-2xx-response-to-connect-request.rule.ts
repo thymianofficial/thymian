@@ -26,7 +26,7 @@ export default httpRule(
   .description(
     'A server MUST NOT send any Transfer-Encoding or Content-Length header fields in a 2xx (Successful) response to CONNECT.',
   )
-  .appliesTo('server', 'origin server')
+  .appliesTo('server')
   .rule((ctx) =>
     ctx.validateCommonHttpTransactions(
       and(method('CONNECT'), statusCodeRange(200, 299)),
@@ -41,9 +41,9 @@ export default httpRule(
           {
             location,
             violation: {
-              message: `A 2xx (Successful) response to CONNECT MUST NOT carry ${createList(
+              message: `A 2xx (Successful) response to CONNECT MUST NOT carry headers: ${createList(
                 present,
-              )}, because after a successful CONNECT the connection becomes a tunnel and these framing header fields are meaningless.`,
+              )}.`,
             },
             findings: [],
           },

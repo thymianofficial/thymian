@@ -13,7 +13,7 @@ export default httpRule(
   .description(
     'The server SHOULD send the same header fields in response to a HEAD request as it would have sent if the request method had been GET.',
   )
-  .appliesTo('server', 'origin server')
+  .appliesTo('server')
   .rule((ctx) =>
     ctx.validateGroupedCommonHttpTransactions(
       and(statusCode(200), or(method('GET'), method('HEAD'))),

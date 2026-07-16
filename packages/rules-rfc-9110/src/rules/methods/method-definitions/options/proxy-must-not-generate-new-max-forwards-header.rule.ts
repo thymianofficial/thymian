@@ -25,7 +25,7 @@ export default httpRule(
         const prev = trace[i - 1];
         const curr = trace[i];
 
-        if (!prev || !curr || prev.request.meta.role !== 'proxy') {
+        if (!prev || !curr || prev.response.meta.role !== 'proxy') {
           continue;
         }
 
@@ -35,7 +35,14 @@ export default httpRule(
         // Violation: the proxy forwarded a Max-Forwards field even though the
         // request it received did not carry one.
         if (received === undefined && forwarded !== undefined) {
-          results.push({ location, violation: {}, findings: [] });
+          results.push({
+            location,
+            violation: {
+              message:
+                'A proxy MUST NOT generate a Max-Forwards header field while forwarding a request unless the request was received with one, but this proxy added Max-Forwards to a request that arrived without it.',
+            },
+            findings: [],
+          });
         }
       }
 
