@@ -63,7 +63,7 @@ describe('thymian test', () => {
       expect(result.exitCode).toBe(0);
       expect(result.stdout).toContain('@thymian/plugin-http-tester');
       expect(result.stdout).toMatch(
-        /Summary: 0 error\(s\), 0 warning\(s\), 0 hint\(s\), \d+ info\(s\)\./,
+        /Summary: 0 errors, 0 warnings, 0 hints, \d+ infos?\./,
       );
     } finally {
       await server.close();
@@ -84,7 +84,7 @@ describe('thymian test', () => {
 
       expect(result.output).toContain('@thymian/plugin-http-tester');
       expect(result.output).toMatch(
-        /Summary: 0 error\(s\), 0 warning\(s\), 0 hint\(s\), \d+ info\(s\)\./,
+        /Summary: 0 errors, 0 warnings, 0 hints, \d+ infos?\./,
       );
     } finally {
       await server.close();
@@ -250,7 +250,7 @@ describe('thymian test', () => {
       );
 
       expect(result.output).toMatch(
-        /Summary: 0 error\(s\), 0 warning\(s\), 0 hint\(s\), \d+ info\(s\)\./,
+        /Summary: 0 errors, 0 warnings, 0 hints, \d+ infos?\./,
       );
     } finally {
       await server.close();
@@ -293,7 +293,7 @@ describe('thymian test', () => {
       );
 
       expect(result.stdout).toMatch(
-        /Summary: 0 error\(s\), 0 warning\(s\), 0 hint\(s\), \d+ info\(s\)\./,
+        /Summary: 0 errors, 0 warnings, 0 hints, \d+ infos?\./,
       );
     } finally {
       await server.close();
@@ -373,7 +373,7 @@ describe('thymian test', () => {
 
       expect(result.exitCode).toBe(0);
       expect(result.stdout).toMatch(
-        /Summary: 0 error\(s\), 0 warning\(s\), 0 hint\(s\), \d+ info\(s\)\./,
+        /Summary: 0 errors, 0 warnings, 0 hints, \d+ infos?\./,
       );
     } finally {
       await server.close();
