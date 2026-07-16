@@ -1,9 +1,7 @@
 const SINGLE_INDENTATION = '  ';
 
 export function indent(times: number): string {
-  return Array.from({ length: times })
-    .map(() => SINGLE_INDENTATION)
-    .join('');
+  return SINGLE_INDENTATION.repeat(times);
 }
 
 export function pluralize(word: string, length: number): string {

@@ -64,11 +64,9 @@ export function renderReport(
 
   for (const [idx, run] of report.runs.entries()) {
     lines.push(
-      `${run.tool.name} · ${run.runType} · ${Array.from({
-        length: Math.max(1, 70 - run.tool.name.length),
-      })
-        .map(() => '─')
-        .join('')}`,
+      `${run.tool.name} · ${run.runType} · ${'─'.repeat(
+        Math.max(1, 70 - run.tool.name.length),
+      )}`,
     );
     lines.push('');
 

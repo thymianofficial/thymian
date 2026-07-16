@@ -26,7 +26,11 @@ export const renderTestCaseExecution: RenderExecutionDetailsFn<
     lines.push(
       `${indent(indentationLevel)}${idx === lastStepIdx ? '└──' : '├──'} ${step.name}: ${locationResolver(step.location, toolRun.thymianFormatVersion)}`,
     );
-    lines.push(...renderFindings(step.findings, indentationLevel + 3));
+    lines.push(
+      ...renderFindings(step.findings, indentationLevel + 3, {
+        renderRuleViolationTitle: true,
+      }),
+    );
   }
 
   return lines;
