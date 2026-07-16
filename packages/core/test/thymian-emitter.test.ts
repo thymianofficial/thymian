@@ -140,6 +140,32 @@ describe('ThymianEmitter', () => {
     expect(errorSpy).not.toBeCalled();
   });
 
+  it('should throw ActionTimeoutError when a registered handler never replies in strict mode', async () => {
+    // Handler is registered (takeNum > 0) but never calls ctx.reply().
+    emitter.onAction('action', () => {
+      // intentionally never replies
+    });
+
+    await expect(
+      emitter.emitAction('action', '5', { timeout: 50 }),
+    ).rejects.toMatchObject({
+      name: 'ActionTimeoutError',
+    });
+  });
+
+  it('should resolve empty on handler timeout when strict mode is disabled', async () => {
+    emitter.onAction('action', () => {
+      // intentionally never replies
+    });
+
+    const result = await emitter.emitAction('action', '5', {
+      timeout: 50,
+      strict: false,
+    });
+
+    expect(result).toStrictEqual([]);
+  });
+
   it('should idle if no events are emitted when Thymian is closed', async () => {
     const logger = new NoopLogger();
     const debugSpy = vitest.spyOn(logger, 'debug');

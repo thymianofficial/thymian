@@ -53,6 +53,15 @@ describe('core.workflow.* input schemas', () => {
         }),
       ).toBe(false);
     });
+
+    it('rejects rulesConfig: null (would crash loadRules downstream)', () => {
+      expect(
+        ajv.validate(workflowLintActionSchema, {
+          specification: [],
+          rulesConfig: null,
+        }),
+      ).toBe(false);
+    });
   });
 
   describe('workflowTestActionSchema', () => {
@@ -102,6 +111,15 @@ describe('core.workflow.* input schemas', () => {
         }),
       ).toBe(false);
     });
+
+    it('rejects rulesConfig: null (would crash loadRules downstream)', () => {
+      expect(
+        ajv.validate(workflowTestActionSchema, {
+          specification: [],
+          rulesConfig: null,
+        }),
+      ).toBe(false);
+    });
   });
 
   describe('workflowAnalyzeActionSchema', () => {
@@ -148,6 +166,15 @@ describe('core.workflow.* input schemas', () => {
       expect(
         ajv.validate(workflowAnalyzeActionSchema, {
           traffic: 'traffic.har',
+        }),
+      ).toBe(false);
+    });
+
+    it('rejects rulesConfig: null (would crash loadRules downstream)', () => {
+      expect(
+        ajv.validate(workflowAnalyzeActionSchema, {
+          traffic: [],
+          rulesConfig: null,
         }),
       ).toBe(false);
     });

@@ -408,14 +408,35 @@ export class ThymianEmitter {
     this.#events.next(event);
 
     const results = (await resultsPromise) as (
-      | ThymianResponseEvent<Name>
-      | ThymianErrorEvent<Name>
+      ThymianResponseEvent<Name> | ThymianErrorEvent<Name>
     )[];
 
     if (results.length === 0) {
       this.logger.debug(
         `No response event received for action "${name}" within ${opts.timeout}ms.`,
       );
+
+      // A registered handler was expected to reply but none did within the
+      // window: this is a genuine timeout. In strict mode surface it as a
+      // thrown error rather than silently resolving empty/undefined — otherwise
+      // long-running actions (e.g. core.workflow.test, which can run minutes)
+      // fail invisibly when the caller's timeout is too short.
+      //
+      // `takeNum === 0` means there was no handler to wait for (e.g. an
+      // unhandled `core.*` action); that fast-path still resolves empty, which
+      // callers like loadFormat/loadTraffic rely on when no plugin is present.
+      if (opts.strict && takeNum > 0) {
+        throw new ThymianBaseError(
+          `No response event received for action "${name}" within ${opts.timeout}ms.`,
+          {
+            name: 'ActionTimeoutError',
+            ref: 'https://thymian.dev/references/errors/action-timeout-error/',
+            suggestions: [
+              `Increase the action timeout via options.timeout (currently ${opts.timeout}ms) to allow the handler to finish.`,
+            ],
+          },
+        );
+      }
     }
 
     const errors = results.filter((r) =>

@@ -24,6 +24,12 @@ export type WorkflowAnalyzeAction = Action<AnalyzeWorkflowInput, Report>;
 // serializable `ruleFilter` field present on the `*WorkflowInput` types, so a
 // `satisfies JSONSchemaType<…>` would not compile. `additionalProperties: false`
 // still rejects a `ruleFilter` (or any extra) property at validation time.
+//
+// Optional properties are NOT `nullable`: the `*WorkflowInput` types never allow
+// `null` (a field is skipped by omission, not by passing `null`). Marking e.g.
+// `rulesConfig` nullable would let a client send `null` past validation and then
+// crash downstream in `loadRules` (which indexes into it as an object),
+// bypassing the fail-fast `InvalidActionInputError` contract.
 export const workflowLintActionSchema = {
   type: 'object',
   nullable: false,
@@ -35,20 +41,18 @@ export const workflowLintActionSchema = {
       nullable: false,
       items: specificationInputSchema,
     },
-    rules: { type: 'array', nullable: true, items: { type: 'string' } },
+    rules: { type: 'array', items: { type: 'string' } },
     rulesConfig: {
       type: 'object',
-      nullable: true,
       required: [],
       additionalProperties: true,
     },
     options: {
       type: 'object',
-      nullable: true,
       required: [],
       additionalProperties: true,
     },
-    validateSpecs: { type: 'boolean', nullable: true },
+    validateSpecs: { type: 'boolean' },
   },
 } as unknown as JSONSchemaType<LintWorkflowInput>;
 
@@ -63,21 +67,19 @@ export const workflowTestActionSchema = {
       nullable: false,
       items: specificationInputSchema,
     },
-    rules: { type: 'array', nullable: true, items: { type: 'string' } },
+    rules: { type: 'array', items: { type: 'string' } },
     rulesConfig: {
       type: 'object',
-      nullable: true,
       required: [],
       additionalProperties: true,
     },
     options: {
       type: 'object',
-      nullable: true,
       required: [],
       additionalProperties: true,
     },
-    validateSpecs: { type: 'boolean', nullable: true },
-    targetUrl: { type: 'string', nullable: true },
+    validateSpecs: { type: 'boolean' },
+    targetUrl: { type: 'string' },
   },
 } as unknown as JSONSchemaType<TestWorkflowInput>;
 
@@ -89,24 +91,21 @@ export const workflowAnalyzeActionSchema = {
   properties: {
     specification: {
       type: 'array',
-      nullable: true,
       items: specificationInputSchema,
     },
     traffic: { type: 'array', nullable: false, items: trafficInputSchema },
-    rules: { type: 'array', nullable: true, items: { type: 'string' } },
+    rules: { type: 'array', items: { type: 'string' } },
     rulesConfig: {
       type: 'object',
-      nullable: true,
       required: [],
       additionalProperties: true,
     },
     options: {
       type: 'object',
-      nullable: true,
       required: [],
       additionalProperties: true,
     },
-    validateSpecs: { type: 'boolean', nullable: true },
-    validateTrafficSource: { type: 'boolean', nullable: true },
+    validateSpecs: { type: 'boolean' },
+    validateTrafficSource: { type: 'boolean' },
   },
 } as unknown as JSONSchemaType<AnalyzeWorkflowInput>;

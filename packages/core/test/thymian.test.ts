@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from 'vitest';
 
 import {
   ajv,
+  createAnalyzeExecution,
   createLintExecution,
   createReport,
   createTestCaseExecution,
@@ -135,15 +136,22 @@ describe('core.workflow.* actions', () => {
     const invalid = {} as unknown as LintWorkflowInput;
 
     // Assert it rejects for the RIGHT reason: the handler's
-    // InvalidActionInputError, not some unrelated throw.
+    // InvalidActionInputError, not some unrelated throw. The message must also
+    // carry the AJV failure detail (which field/why) — that detail is the only
+    // thing the WS proxy forwards to the #300 client.
     await expect(
       t.emitter.emitAction('core.workflow.lint', invalid, {
         strategy: 'first',
       }),
     ).rejects.toMatchObject({
       name: 'InvalidActionInputError',
-      message: 'Invalid core.workflow.lint input.',
+      message: expect.stringContaining('Invalid core.workflow.lint input'),
     });
+    await expect(
+      t.emitter.emitAction('core.workflow.lint', invalid, {
+        strategy: 'first',
+      }),
+    ).rejects.toThrow(/specification/);
 
     expect(lintSpy).not.toHaveBeenCalled();
 
@@ -189,6 +197,73 @@ describe('core.workflow.* actions', () => {
     const report = await t.emitter.emitAction(
       'core.workflow.lint',
       { specification: [] },
+      { strategy: 'first' },
+    );
+
+    expect(ajv.validate(reportSchema, report)).toBe(true);
+    expect(ajv.errors).toBeNull();
+
+    await t.close();
+  });
+
+  it('produces a Report from core.workflow.test that validates against reportSchema (AC4)', async () => {
+    const t = new Thymian();
+
+    // Stub the detail action so the real test() workflow can complete without
+    // a tester plugin registered.
+    t.emitter.onAction('core.test', async (_event, ctx) => {
+      ctx.reply([
+        createToolRun({
+          tool: { name: 'stub-tester' },
+          runType: 'test',
+          executions: [
+            createTestCaseExecution({
+              name: 'a passing case',
+              ruleId: 'example/rule',
+              status: { kind: 'passed' },
+              steps: [],
+            }),
+          ],
+        }),
+      ]);
+    });
+
+    const report = await t.emitter.emitAction(
+      'core.workflow.test',
+      { specification: [] },
+      { strategy: 'first' },
+    );
+
+    expect(ajv.validate(reportSchema, report)).toBe(true);
+    expect(ajv.errors).toBeNull();
+
+    await t.close();
+  });
+
+  it('produces a Report from core.workflow.analyze that validates against reportSchema (AC4)', async () => {
+    const t = new Thymian();
+
+    // Stub the detail action so the real analyze() workflow can complete without
+    // an analyzer plugin registered.
+    t.emitter.onAction('core.analyze', async (_event, ctx) => {
+      ctx.reply([
+        createToolRun({
+          tool: { name: 'stub-analyzer' },
+          runType: 'analyze',
+          executions: [
+            createAnalyzeExecution({
+              location: { type: 'custom', value: 'analyze' },
+              ruleId: 'example/rule',
+              status: { kind: 'passed' },
+            }),
+          ],
+        }),
+      ]);
+    });
+
+    const report = await t.emitter.emitAction(
+      'core.workflow.analyze',
+      { traffic: [] },
       { strategy: 'first' },
     );
 

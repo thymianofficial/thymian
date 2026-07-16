@@ -17,7 +17,7 @@ import {
   workflowLintActionSchema,
   workflowTestActionSchema,
 } from './actions/index.js';
-import { validate } from './ajv.js';
+import { ajv, type JSONSchemaType, validate } from './ajv.js';
 import { corePlugin } from './core-plugin.js';
 import { ThymianEmitter } from './emitter/index.js';
 import { ThymianFormat } from './format/index.js';
@@ -141,38 +141,66 @@ export class Thymian {
     // analyze(). The emit/WS path does not validate payloads against the
     // declared schema, so each handler validates its own input first.
     //
+    // Trust boundary: these actions run whole workflows (test() issues outbound
+    // HTTP to a caller-supplied targetUrl) in a single WS call. That is a
+    // deliberate, marginal expansion of an already trusted-local WS surface —
+    // core.format.load / core.traffic.load / core.request.dispatch are already
+    // WS-reachable — not a new boundary.
+    //
     // Caller-side timeout contract: the outer emitAction reply window is the
     // *caller's* options.timeout (default DEFAULT_TIMEOUT = 10s). test()/
     // analyze() can run far longer (test() runs core.test with
     // DEFAULT_TEST_TIMEOUT = 5min), so a WS client MUST pass an options.timeout
     // >= that inner budget plus setup/teardown margin (e.g. 6min for test).
-    // Otherwise the outer action times out and returns empty/undefined WITHOUT
-    // throwing, while this handler's ctx.reply is dropped. The handler cannot
+    // Otherwise the outer action times out; the emitter now surfaces that as a
+    // thrown ActionTimeoutError (strict mode) rather than silently resolving
+    // empty, while this handler's ctx.reply is dropped. The handler cannot
     // widen the caller's window. Enforced by the #300 client. (See AC9.)
     this.emitter.onAction('core.workflow.lint', async (input, ctx) => {
-      if (!validate(workflowLintActionSchema, input)) {
-        throw new ThymianBaseError('Invalid core.workflow.lint input.', {
-          name: 'InvalidActionInputError',
-        });
-      }
+      this.#assertValidWorkflowInput(
+        'core.workflow.lint',
+        workflowLintActionSchema,
+        input,
+      );
       ctx.reply(await this.lint(input));
     });
     this.emitter.onAction('core.workflow.test', async (input, ctx) => {
-      if (!validate(workflowTestActionSchema, input)) {
-        throw new ThymianBaseError('Invalid core.workflow.test input.', {
-          name: 'InvalidActionInputError',
-        });
-      }
+      this.#assertValidWorkflowInput(
+        'core.workflow.test',
+        workflowTestActionSchema,
+        input,
+      );
       ctx.reply(await this.test(input));
     });
     this.emitter.onAction('core.workflow.analyze', async (input, ctx) => {
-      if (!validate(workflowAnalyzeActionSchema, input)) {
-        throw new ThymianBaseError('Invalid core.workflow.analyze input.', {
-          name: 'InvalidActionInputError',
-        });
-      }
+      this.#assertValidWorkflowInput(
+        'core.workflow.analyze',
+        workflowAnalyzeActionSchema,
+        input,
+      );
       ctx.reply(await this.analyze(input));
     });
+  }
+
+  // Validate a workflow action payload, throwing InvalidActionInputError with
+  // the AJV failure detail on rejection. The detail is placed in the message
+  // (not just `suggestions`) because the WS proxy serializes errors down to
+  // { name, message } — so the message is the only channel that reaches the
+  // #300 WS client. `validate()` populates `ajv.errors` synchronously on the
+  // shared instance, so it is read immediately after the failed call.
+  #assertValidWorkflowInput<T>(
+    actionName: string,
+    schema: JSONSchemaType<T>,
+    input: unknown,
+  ): asserts input is T {
+    if (!validate(schema, input)) {
+      const detail = ajv.errorsText(ajv.errors, { dataVar: 'input' });
+      throw new ThymianBaseError(`Invalid ${actionName} input: ${detail}.`, {
+        name: 'InvalidActionInputError',
+        ref: 'https://thymian.dev/references/errors/invalid-action-input-error/',
+        suggestions: [detail],
+      });
+    }
   }
 
   register<T extends Record<PropertyKey, unknown>>(
@@ -282,7 +310,10 @@ export class Thymian {
   }
 
   async close(): Promise<void> {
-    await this.emitter.emitAction('core.close');
+    // Shutdown is best-effort: a plugin whose core.close handler stalls must not
+    // turn teardown into a thrown ActionTimeoutError. strict:false keeps the
+    // emitter's silent-empty behavior for this action only.
+    await this.emitter.emitAction('core.close', undefined, { strict: false });
 
     // This let the ThymianEmitter wait 500 ms for the last events to be emitted before shutting down.
     await this.emitter.shutdown(this.options.idleTimeout);
