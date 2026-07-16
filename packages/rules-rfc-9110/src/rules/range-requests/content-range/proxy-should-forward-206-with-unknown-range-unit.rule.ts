@@ -4,6 +4,10 @@ export default httpRule(
   'rfc9110/proxy-should-forward-206-with-unknown-range-unit',
 )
   .severity('warn')
+  // This SHOULD governs a proxy's internal forwarding decision. Detecting
+  // non-forwarding would require correlating the proxy's upstream and downstream
+  // messages AND knowing it did not "understand" the range unit (internal
+  // capability).
   .type('informational')
   .url('https://www.rfc-editor.org/rfc/rfc9110.html#name-content-range')
   .description(
