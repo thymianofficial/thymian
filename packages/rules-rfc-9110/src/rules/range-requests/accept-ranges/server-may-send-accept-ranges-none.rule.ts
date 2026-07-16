@@ -31,9 +31,21 @@ export default httpRule('rfc9110/server-may-send-accept-ranges-none')
             ? [acceptRanges]
             : [];
 
-        return !values.some((value) => value.trim().toLowerCase() === 'none')
-          ? [{ location, violation: {}, findings: [] }]
-          : [];
+        return values.some((value) => value.trim().toLowerCase() === 'none')
+          ? [{ location, findings: [] }]
+          : [
+              {
+                location,
+                findings: [
+                  {
+                    kind: 'informational',
+                    title: 'Server did not opt out of range requests',
+                    message:
+                      'Response carried an Accept-Ranges header advertising a unit other than "none".',
+                  },
+                ],
+              },
+            ];
       },
     ),
   )
