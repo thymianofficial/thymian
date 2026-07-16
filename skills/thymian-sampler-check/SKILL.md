@@ -23,6 +23,14 @@ author: qupaya
 **Use when**: running or fixing `thymian sampler check`; editing samples/hooks under `.thymian/samples/`
 **Sibling skill**: for rule-based conformance findings (errors/warnings) use **thymian-test** instead.
 
+## Non-negotiables
+
+1. **Never edit `meta.json`.** The expected status code is not stored in the sample — it comes from the API spec.
+2. Fix a failure by editing `requests/0-request.json` **or adding a hook** (`*.beforeEach.ts` / `*.authorize.ts`) — nothing else.
+3. **Always pass `{ runHooks: false }` as the 3rd argument** of chain-building `utils.request` calls. `{ authorize: false }` does **not** skip auth.
+4. **Guard setup hooks** so negative samples stay negative: `if (context.thymianRes.statusCode === 404) return request;`.
+5. Run from the config's directory with the API already running: `cd <api-dir> && npx thymian sampler check -c <config>`.
+
 ## The one thing to get right
 
 A failing sampler check is **NOT fixed by editing an expected status code**, because the expected status code is **not stored in the sample**. It is read from the API specification (the OpenAPI/`swagger.json` referenced by the config).
@@ -223,8 +231,6 @@ Result: the documented status matches reality and the transaction is green.
 
 ## Gotchas
 
-- **Don't run from the wrong directory** — `Config not found`. Run from where the config lives, in the same command as the `cd`.
-- **Don't paraphrase a fix as "edit the expected status in `meta.json`"** — there is no status there.
 - **Placeholder values** (`"string"`, `0`, a sample ISO date) come from spec examples and frequently cause `400`/`500` — replace with valid data.
 - **A `404`-expecting sample must keep a non-existent id** — guard setup hooks with `if (context.thymianRes.statusCode !== <success>) return request;`.
 - **`--incremental` is the fastest way to triage** — it can scaffold a hook per failing transaction interactively.

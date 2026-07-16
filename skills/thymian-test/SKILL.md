@@ -25,6 +25,14 @@ author: qupaya
 **Use when**: triaging or resolving `thymian test` errors/warnings against a running API
 **Sibling skill**: for status-code/content-type contract failures use **thymian-sampler-check** instead.
 
+## Non-negotiables
+
+1. A `test` finding is a **rule violation** — never fix it by editing a sample or `meta.json`.
+2. Resolve each rule id by exactly **one** path: fix the API, document the spec, or downgrade the rule (non-defects only, always with a comment).
+3. A header you **add** to the API must also be **documented** in the spec — otherwise the finding just moves to another rule.
+4. After **any** spec change: `npx thymian sampler init --overwrite`, re-apply hand-edited bodies, restart the server, then re-run **both** `thymian test` and `thymian sampler check`.
+5. **Do not mass-downgrade rules to force a green run.**
+
 ## What `thymian test` actually checks (and how it differs)
 
 `thymian test` dispatches requests against the **live API** and evaluates the responses against the **loaded rule sets** — typically `@thymian/rules-rfc-9110` (HTTP RFC semantics) and `@thymian/rules-api-description-validation` (does the live response match what the spec documents). It is the runtime counterpart to `thymian lint` (static, spec-only, no HTTP).
@@ -137,10 +145,7 @@ Result: the framework-header noise is triaged; genuine errors stay visible.
 
 ## Gotchas
 
-- **A `test` finding is never fixed by editing a sample.** Samples drive _which_ requests get sent; the finding is about whether the _response_ conforms. Fix the API, the spec, or the rule severity.
-- **Adding a header without documenting it just moves the warning** from one rule (missing header) to another (header not in schema). Do Path 1 and Path 2 together.
 - **Runtime changes need a server/container restart** to take effect — a finding that "won't go away" after a code change usually means the old build is still serving (common with Docker on macOS, where file-watch misses host edits).
-- **A green run from mass-downgrading is a false win.** Errors going to 0 because every rule is `warn`/`off` hides real defects. Reserve downgrades for framework noise and SHOULD-level niceties, and comment the reason.
 - **Type-coercion bugs are easy to miss**: a value that _looks_ right in the JSON (e.g. `1`) can still violate the schema (expected boolean `true`). Read the rule's expected-vs-actual detail, not just the field name.
 - **`thymian lint` ≠ `thymian test`.** If the user only wants the spec validated statically (no running API), that's `lint`. `test` requires a live endpoint.
 
