@@ -58,7 +58,13 @@ export function renderReport(
   const lines: string[] = [''];
   const reportForLocationResolution =
     options.format !== undefined
-      ? { ...report, thymianFormat: { __cli: options.format.export() } }
+      ? {
+          ...report,
+          thymianFormat: {
+            ...(report.thymianFormat ?? {}),
+            [options.format.toHash()]: options.format.export(),
+          },
+        }
       : report;
   const resolveLocation = createLocationResolver(reportForLocationResolution);
 
