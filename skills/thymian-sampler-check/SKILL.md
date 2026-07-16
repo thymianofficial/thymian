@@ -38,7 +38,7 @@ A failing sampler check is **NOT fixed by editing an expected status code**, bec
 A sample directory contains only the **request** plus metadata:
 
 - `requests/0-request.json` — the request that gets sent (`origin`, `path`, `method`, `headers`, `query`, `body`, `pathParameters`, `authorize`).
-- `meta.json` — only `{ "sourceTransaction": "<hash>", "samplingStrategy": {...} }`. **No status code lives here. Never "fix" a status in `meta.json`.**
+- `meta.json` (per sample dir) — only `{ "sourceTransaction": "<hash>", "samplingStrategy": {...} }`. **No status code lives here. Never "fix" a status in `meta.json`.** (The samples **root** also has a `meta.json` holding the tree-wide spec hash and timestamp — equally hands-off.)
 - optional hook files (`*.beforeEach.ts`, `*.authorize.ts`, `*.afterEach.ts`).
 
 `thymian sampler check` sends each request against the **live API** and verifies the response **status + content-type** match what the **spec documents** for that transaction.
@@ -58,8 +58,8 @@ Discover the layout instead of assuming — paths vary per project:
 
 - **Config**: a `thymian.config*.yaml` (e.g. `thymian.config.yaml` or `thymian.config.test.yaml`). It points at the spec and the server host/port/basePath.
 - **Samples root**: under `.thymian/samples/<Spec_Name>/<host>/<port>/<basePath>/...`.
-- **Sample path encodes the transaction**: `<route>/@<METHOD>/[<reqContentType>]/<status>/[<resContentType>]/`.
-  - Path params are folders in brackets: `event/[id]/@GET/200/application__json/`.
+- **Sample path encodes the transaction**: `<route>/@<METHOD>/<requestMediaType>/<status>/<responseMediaType>/` — the media-type folders exist only when the transaction has a request/response body; their names are sanitized (`/` → `__`, e.g. `application__json`), no brackets.
+  - Path parameters are folders in **literal** brackets: `event/[id]/@GET/200/application__json/`.
 - **Hook type defs**: `.thymian/samples/types.d.ts`.
 
 **Run from the directory that holds the config** — it is per-project, not necessarily at the repo root. Keep the `cd` in the same command, since it does not reliably persist between separate shell invocations:
@@ -245,8 +245,8 @@ Cause: running from a directory without the config. Solution: `cd` into the conf
 **Symptom: every transaction errors with connection refused**
 Cause: the API isn't running on the configured host/port. Solution: start the API / its compose stack first.
 
-**Error: "samples were generated at … regenerate" (check aborts)**
-Cause: the spec changed, so the per-transaction spec hashes are stale. Solution: `npx thymian sampler init --overwrite`, then re-apply any hand-edited request bodies and delete sample dirs for responses no longer in the spec.
+**Error: `VersionMismatchError` — "The loaded samples were generated at … Did you forget to regenerate the samples?" (check aborts)**
+Cause: the spec changed, so its hash no longer matches the `version` stored in the samples-root `meta.json` (one hash for the whole tree). Solution: `npx thymian sampler init --overwrite`, then re-apply any hand-edited request bodies and delete sample dirs for responses no longer in the spec.
 
 **Symptom: a previously-green negative test (401/409) now passes as 200, or a `{id}` test regressed to 404/500**
 Cause: usually the `runHooks` trap — a chained `utils.request` is missing `{ runHooks: false }`. Solution: add it; use `utils.fail('DBG ...')` to print created ids/refs while diagnosing. If the API runs in a container that doesn't hot-reload, a stale server can also cause this — restart it.

@@ -3,7 +3,7 @@ name: thymian-test
 description: >-
   Diagnose and resolve `thymian test` HTTP conformance findings (errors,
   warnings, hints, info) for any API. USE WHEN running `thymian test`, when it
-  reports "Summary: X error(s), Y warning(s), Z hint(s), W info finding(s)",
+  reports "Summary: X error(s), Y warning(s), Z hint(s), W info(s).",
   when a conformance rule fires (e.g.
   `response-headers-must-conform-to-schema`, `response-body-must-conform-to-schema`,
   or `rfc9110/*` rules for `WWW-Authenticate`, `Location`, `ETag`, `Last-Modified`,
@@ -28,7 +28,7 @@ author: qupaya
 ## Non-negotiables
 
 1. A `test` finding is a **rule violation** — never fix it by editing a sample or `meta.json`.
-2. Resolve each rule id by exactly **one** path: fix the API, document the spec, or downgrade the rule (non-defects only, always with a comment).
+2. Pick each rule id's resolution path **deliberately**: fix the API, document the spec, or downgrade the rule (non-defects only, always with a comment). Some findings need the first two **together** (see 3).
 3. A header you **add** to the API must also be **documented** in the spec — otherwise the finding just moves to another rule.
 4. After **any** spec change: `npx thymian sampler init --overwrite`, re-apply hand-edited bodies, restart the server, then re-run **both** `thymian test` and `thymian sampler check`.
 5. **Do not mass-downgrade rules to force a green run.**
@@ -49,7 +49,7 @@ A `test` finding is a **rule violation**, not a status mismatch. So the fix is n
 
 ## The result model: severities
 
-The text report ends with `Summary: X error(s), Y warning(s), Z hint(s), W info finding(s) across N run(s).` Each finding has a **severity**:
+The report ends with `Summary: X error(s), Y warning(s), Z hint(s), W info(s).` Each finding has a **severity**:
 
 - `error` — a contract/RFC defect that should block. The usual goal is **0 errors**.
 - `warn` — surfaced but non-blocking. Triage these; many are SHOULD-level niceties or framework behavior.
@@ -57,23 +57,27 @@ The text report ends with `Summary: X error(s), Y warning(s), Z hint(s), W info 
 - `info` — informational findings (e.g. emitted by tools/hooks). Not assignable to a rule.
 - `off` — config-only: suppresses a rule entirely.
 
-Rule severity is set in the config (`thymian.config*.yaml`); the configurable values are `error | warn | hint | off` (`info` is a finding severity only):
+Rules are configured in `thymian.config*.yaml` with two distinct knobs (`info` is a finding severity only — it cannot be assigned to a rule):
+
+- `ruleSeverity` — a **minimum severity threshold** deciding which rules run at all: `error` (the default) runs only error-severity rules, `warn` adds warn rules, `hint` runs every active rule, `off` runs none.
+- `rules:` — override an **individual** rule's severity (`error | warn | hint | off`), as a string shorthand or an object.
 
 ```yaml
 ruleSets:
   - '@thymian/rules-rfc-9110'
   - '@thymian/rules-api-description-validation'
-ruleSeverity: warn # default for all rules in the loaded sets
+ruleSeverity: hint # minimum severity threshold: which rules run (default: error)
 rules:
-  some/rule-id:
-    severity: warn # per-rule override (error | warn | hint | off)
+  some/rule-id: warn # shorthand — override this rule's severity
+  other/rule-id:
+    severity: off # object form (also takes options, skipOrigins)
 ```
 
 **Don't chase a green run by blindly silencing rules.** Downgrading is a legitimate resolution **only** for findings that are not real contract defects (see path 3). Always leave a comment explaining why.
 
 ## The three resolution paths
 
-Read the rule id and the affected response, then pick **one**:
+Read the rule id and the affected response, then pick the fitting path — usually one, but an added header always needs Path 1 **and** Path 2:
 
 ### Path 1 — Fix the API to conform (the genuine bugs)
 
@@ -102,7 +106,7 @@ Use when the rule flags behavior that is **not** an API-contract defect and can'
 - Framework/infrastructure headers added outside the API contract (e.g. helmet's `cross-origin-resource-policy`, the web framework's `etag`, `cache-control`, `pragma`, `expires`) that would bloat the spec to document per-response.
 - SHOULD-level RFC niceties the API deliberately doesn't implement in this environment (e.g. `Last-Modified` on aggregate/list endpoints with no single modification time; conditional-request `If-None-Match` → `304/412` handling you've decided not to build).
 
-Set `severity: warn` or `hint` (keep it visible) or `off` (hide it), **with a comment** stating the rationale. Prefer `warn`/`hint` so the team keeps a visible backlog rather than silently dropping coverage.
+Set `severity: warn` or `hint` (keep it visible) or `off` (hide it), **with a comment** stating the rationale. Prefer `warn`/`hint` so the team keeps a visible backlog rather than silently dropping coverage — but remember a downgraded rule only runs when `ruleSeverity` includes its severity.
 
 > Rule-of-thumb mapping (rule id → likely path):
 >
@@ -113,7 +117,7 @@ Set `severity: warn` or `hint` (keep it visible) or `off` (hide it), **with a co
 
 ## The coupling that surprises people: spec changes re-hash the sampler
 
-If the sampler plugin is configured, `thymian test` and `thymian sampler check` share the recorded transactions, and each sample carries a **spec hash**. **Editing the spec (or regenerating it) invalidates those hashes — both `test` and `check` then abort** with a "samples were generated at … regenerate" message. After any spec change you must:
+If the sampler plugin is configured, `thymian test` and `thymian sampler check` share the recorded transactions, and the samples tree stores the **hash of the spec it was generated from** (the `version` in the samples-root `meta.json` — one hash for the whole tree). **Editing the spec (or regenerating it) changes the spec's hash — both `test` and `check` then abort** with a `VersionMismatchError` ("The loaded samples were generated at … Did you forget to regenerate the samples?"). After any spec change you must:
 
 1. `npx thymian sampler init --overwrite` (regenerates request bodies + hashes, keeps hooks).
 2. **Re-apply any hand-edited request bodies** that `--overwrite` clobbered (restore from git).
@@ -151,8 +155,8 @@ Result: the framework-header noise is triaged; genuine errors stay visible.
 
 ## Troubleshooting
 
-**Error: "samples were generated at … regenerate" (test aborts)**
-Cause: the spec changed, invalidating the sampler's per-transaction hashes. Solution: `npx thymian sampler init --overwrite`, re-apply hand-edited bodies, delete orphan sample dirs, then re-run.
+**Error: `VersionMismatchError` — "The loaded samples were generated at … Did you forget to regenerate the samples?" (test aborts)**
+Cause: the spec changed, so its hash no longer matches the `version` stored in the samples-root `meta.json`. Solution: `npx thymian sampler init --overwrite`, re-apply hand-edited bodies, delete orphan sample dirs, then re-run.
 
 **Symptom: every transaction errors with connection refused**
 Cause: the API isn't running on the configured host/port. Solution: start the API first (`test` needs a live endpoint).
