@@ -422,10 +422,13 @@ export class ThymianEmitter {
       // long-running actions (e.g. core.workflow.test, which can run minutes)
       // fail invisibly when the caller's timeout is too short.
       //
-      // `takeNum === 0` means there was no handler to wait for (e.g. an
-      // unhandled `core.*` action); that fast-path still resolves empty, which
-      // callers like loadFormat/loadTraffic rely on when no plugin is present.
-      if (opts.strict && takeNum > 0) {
+      // Gate on `numOfListeners`, NOT `takeNum`: with `strategy: 'first'`,
+      // `takeNum` is 1 even when no handler is registered, so an unhandled
+      // `core.*` action would wrongly throw. `numOfListeners === 0` means there
+      // was no handler to wait for (e.g. core.request.sample with no sampler
+      // plugin); that case still resolves empty, which callers like
+      // loadFormat/loadTraffic/sample/dispatch rely on when no plugin is present.
+      if (opts.strict && numOfListeners > 0) {
         throw new ThymianBaseError(
           `No response event received for action "${name}" within ${opts.timeout}ms.`,
           {

@@ -28,6 +28,12 @@ declare module '../src/actions/index.js' {
         b?: number;
       };
     };
+    // A `core.`-prefixed action so tests can exercise an unhandled core.* action
+    // (a non-core name hits the early no-listener fast-path instead).
+    'core.no-listener-probe': {
+      event: string;
+      response: number;
+    };
   }
 }
 
@@ -164,6 +170,18 @@ describe('ThymianEmitter', () => {
     });
 
     expect(result).toStrictEqual([]);
+  });
+
+  it('should NOT throw on timeout for an unhandled core.* action even with strategy first (no handler registered)', async () => {
+    // No onAction handler registered → numOfListeners === 0. With strategy
+    // 'first', takeNum is still 1, so the guard must key off numOfListeners
+    // (not takeNum) to avoid throwing when no handler ever existed.
+    const result = await emitter.emitAction('core.no-listener-probe', '1', {
+      strategy: 'first',
+      timeout: 50,
+    });
+
+    expect(result).toBeUndefined();
   });
 
   it('should idle if no events are emitted when Thymian is closed', async () => {
