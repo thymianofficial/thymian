@@ -1,10 +1,10 @@
 import {
   and,
   constant,
+  getHeader,
   httpRule,
   method,
   not,
-  or,
   requestHeader,
   responseHeader,
   type RuleFnResult,
@@ -25,22 +25,20 @@ export default httpRule(
     'Server should send 206 response when Range header conditions are met and range is satisfiable.',
   )
   .appliesTo('origin server')
-  .tags('range-requests', 'range', '206')
   .rule(async (ctx) => {
     const results: RuleFnResult[] = [];
     await ctx.httpTest(
       singleTestCase()
         .forTransactionsWith(and(method('GET'), statusCode(200)))
         .run()
-        // Only meaningful when the server advertises range support at all. No
-        // Accept-Ranges header, or "Accept-Ranges: none", means the server does
-        // not support range requests, so answering with 200 is conformant.
+        // Only meaningful when the server advertises range support at all. A
+        // missing Accept-Ranges header means the server does not support range
+        // requests, so answering the probe with 200 is conformant. ("Accept-
+        // Ranges: none" is handled below, case-insensitively, because the test
+        // compiler's header-value match is exact/case-sensitive.)
         .skipIf(
-          or(
-            not(responseHeader('accept-ranges')),
-            responseHeader('accept-ranges', 'none'),
-          ),
-          'Target does not advertise range support (no Accept-Ranges header, or Accept-Ranges: none)',
+          not(responseHeader('accept-ranges')),
+          'Target does not advertise range support (no Accept-Ranges header)',
         )
         // bytes=0-0 is a valid, byte-unit specifier that is satisfiable for any
         // representation of at least one octet.
@@ -50,7 +48,25 @@ export default httpRule(
             .run({ checkStatusCode: false })
             .done(),
         )
-        .transactions(([, ranged]) => {
+        .transactions(([original, ranged]) => {
+          // "Accept-Ranges: none" explicitly advertises no range support, so a
+          // 200 is conformant. Matched case-insensitively on the original
+          // response since the test compiler's value match is case-sensitive.
+          const acceptRanges = getHeader(
+            original.response?.headers,
+            'accept-ranges',
+          );
+          const advertisesNone = (
+            Array.isArray(acceptRanges)
+              ? acceptRanges
+              : acceptRanges != null
+                ? [acceptRanges]
+                : []
+          ).some((value) => value.trim().toLowerCase() === 'none');
+          if (advertisesNone) {
+            return;
+          }
+
           // 416 (empty representation) is conformant; only a full 200 means the
           // advertised, satisfiable range was ignored.
           if (ranged.response.statusCode === 200) {

@@ -20,7 +20,6 @@ export default httpRule(
     'Origin server should respond with 400 to a Content-Range PUT on a resource that does not support partial PUT.',
   )
   .appliesTo('origin server')
-  .tags('range-requests', 'partial-put', '400')
   // Static: a PUT operation that declares no 206 response does not support
   // partial PUT, so it SHOULD also declare a 400 for the Content-Range-on-PUT
   // case. Anchored on the operation's first declared response so it is flagged
@@ -42,9 +41,13 @@ export default httpRule(
       }),
     ),
   )
-  // Test: replay each captured PUT with an added Content-Range request header. A
-  // server that does not support partial PUT SHOULD answer 400; a 206 means it
-  // does support it (also conformant). Any other status is a violation.
+  // Test: probe only PUT operations that do NOT declare a 206 response — i.e.
+  // resources that do not advertise partial-PUT support — by replaying with an
+  // added Content-Range request header. Such a resource SHOULD answer 400; a 206
+  // means it does support partial PUT after all (also conformant). Any other
+  // status is a violation. Operations that declare a 206 are skipped, so a
+  // normal success status (200/204) on a partial-PUT-supporting resource is not
+  // flagged.
   .overrideTest(async (ctx) => {
     const results: RuleFnResult[] = [];
 
@@ -58,7 +61,19 @@ export default httpRule(
             .run({ checkStatusCode: false })
             .done(),
         )
-        .transactions(([, ranged]) => {
+        .transactions(([original, ranged]) => {
+          // A declared 206 response means the operation advertises partial-PUT
+          // support, so it is out of scope for this SHOULD (which constrains the
+          // unsupported case only). Skip it to avoid false positives on ordinary
+          // 200/204 success responses.
+          const declaresPartialPutSupport = ctx.format
+            .getNeighboursOfType(original.source.thymianReqId, 'http-response')
+            .some(([, response]) => response.statusCode === 206);
+
+          if (declaresPartialPutSupport) {
+            return;
+          }
+
           const status = ranged.response.statusCode;
 
           if (status !== 400 && status !== 206) {

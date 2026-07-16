@@ -17,8 +17,9 @@ export default httpRule('rfc9110/server-may-send-accept-ranges-none')
   )
   .appliesTo('server')
   // "Accept-Ranges: none" is a conformant MAY, so this surfaces (as analytics)
-  // the responses where a server explicitly advises against range requests on
-  // the request path, rather than reporting a violation.
+  // responses that carry an Accept-Ranges header advertising a unit other than
+  // "none" (i.e. the server did not opt out of range requests), rather than
+  // reporting a violation.
   .rule((ctx) =>
     ctx.validateHttpTransactions(
       responseHeader('accept-ranges'),
@@ -30,7 +31,7 @@ export default httpRule('rfc9110/server-may-send-accept-ranges-none')
             ? [acceptRanges]
             : [];
 
-        return values.some((value) => value.trim().toLowerCase() === 'none')
+        return !values.some((value) => value.trim().toLowerCase() === 'none')
           ? [{ location, violation: {}, findings: [] }]
           : [];
       },
