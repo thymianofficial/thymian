@@ -122,8 +122,18 @@ For 2xx transactions that need real auth, add an `*.authorize.ts` that obtains a
 
 ```ts
 import { AuthorizeHook } from '@thymian/hooks';
+
 const hook: AuthorizeHook = async (request, context, utils) => {
-  request.headers['authorization'] = 'Bearer <token>'; // or fetch one via utils.request(..., { authorize: false })
+  // Fetch the token with { runHooks: false } (options, 3rd parameter) so this
+  // authorize hook doesn't run again for the login request itself (recursion).
+  const login = await utils.request(
+    'POST http://localhost:3000/auth/login',
+    {
+      body: { username: 'admin', password: 'secret' },
+    },
+    { runHooks: false },
+  );
+  request.headers['authorization'] = `Bearer ${login.body.token}`;
   return request;
 };
 export default hook;
@@ -171,20 +181,21 @@ After any spec change, run `npx thymian sampler init --overwrite` to regenerate 
 
 ### `utils` API
 
-| Method                                       | Use                                                                                                                 |
-| -------------------------------------------- | ------------------------------------------------------------------------------------------------------------------- |
-| `utils.request(urlOrMethodUrl, args, opts?)` | Make a type-safe call to set up state. Pass `{ runHooks: false }` / `{ authorize: false }` to avoid infinite loops. |
-| `utils.randomString(len?)`                   | Unique values for names / external refs                                                                             |
-| `utils.skip(reason)`                         | Skip this transaction                                                                                               |
-| `utils.fail(msg)`                            | Fail immediately (the message becomes the transaction's Reason)                                                     |
-| `utils.info/warn(...)`                       | Log to report (often **not** shown by the text reporter — see pitfalls)                                             |
-| `utils.assertionSuccess/Failure(...)`        | Record assertions (a failure doesn't stop the test)                                                                 |
+| Method                                     | Use                                                                                                                                                  |
+| ------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `utils.request('METHOD url', args, opts?)` | Type-safe call to set up state. `opts` (3rd param): `{ runHooks?, authorize?, forStatusCode? }`. Pass `{ runHooks: false }` to avoid infinite loops. |
+| `utils.randomString(len?)`                 | Unique values for names / external refs                                                                                                              |
+| `utils.skip(reason)`                       | Skip this transaction                                                                                                                                |
+| `utils.fail(msg)`                          | Fail immediately (the message becomes the transaction's Reason)                                                                                      |
+| `utils.info/warn(...)`                     | Log to report (often **not** shown by the text reporter — see pitfalls)                                                                              |
+| `utils.assertionSuccess/Failure(...)`      | Record assertions (a failure doesn't stop the test)                                                                                                  |
 
 ### The `runHooks` trap (the bug that wastes hours)
 
 `utils.request` **runs sample hooks by default.** When a setup hook builds a chain of resources via `utils.request`, the target endpoint's **own** setup hook also fires and can hijack your data (e.g. a create hook randomizes a field so later lookups 404, or re-points a child to a different parent so downstream logic reads the wrong state).
 
 - **Always pass `{ runHooks: false }` as the 3rd arg** for chain-building `utils.request` calls.
+- `runHooks` defaults to `true`, and the **authorize hook runs whenever `runHooks` is true** — `{ authorize: false }` does **not** skip it. The only way to skip hooks (including authorize) is `{ runHooks: false }`; add `authorize: true` on top of that to re-enable **just** the authorize hook for a call that needs credentials but no other setup.
 - Consequence: with `runHooks: false` the target's own randomization no longer runs, so **you must set unique values yourself** (e.g. a unique `name`/external ref) or the create returns `409`.
 - To call a **parametrized** endpoint, use the template form with a `path` arg (a concrete URL that doesn't match a spec template is rejected): `utils.request('GET .../{id}/...', { path: { id }, query, headers }, { runHooks: false })`.
 - Telltale: the created entity's id/ref in the response differs from what you sent, or a negative-case test (409/deadline) passes as 200.

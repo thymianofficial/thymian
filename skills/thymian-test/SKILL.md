@@ -1,9 +1,10 @@
 ---
 name: thymian-test
 description: >-
-  Diagnose and resolve `thymian test` HTTP conformance findings (errors and
-  warnings) for any API. USE WHEN running `thymian test`, when it reports
-  "Found N errors, M warnings", when a conformance rule fires (e.g.
+  Diagnose and resolve `thymian test` HTTP conformance findings (errors,
+  warnings, hints, info) for any API. USE WHEN running `thymian test`, when it
+  reports "Summary: X error(s), Y warning(s), Z hint(s), W info finding(s)",
+  when a conformance rule fires (e.g.
   `response-headers-must-conform-to-schema`, `response-body-must-conform-to-schema`,
   or `rfc9110/*` rules for `WWW-Authenticate`, `Location`, `ETag`, `Last-Modified`,
   or conditional requests), or when the user mentions thymian test, conformance
@@ -38,15 +39,17 @@ This is a different question from `thymian sampler check`:
 
 A `test` finding is a **rule violation**, not a status mismatch. So the fix is never "edit a sample" — it is one of the three resolution paths below.
 
-## The result model: errors vs warnings
+## The result model: severities
 
-Output looks like `Found N errors, M warnings`. Each rule has a **severity**:
+The text report ends with `Summary: X error(s), Y warning(s), Z hint(s), W info finding(s) across N run(s).` Each finding has a **severity**:
 
 - `error` — a contract/RFC defect that should block. The usual goal is **0 errors**.
 - `warn` — surfaced but non-blocking. Triage these; many are SHOULD-level niceties or framework behavior.
-- `off` — suppressed entirely.
+- `hint` — lowest rule severity; a suggestion worth a look, never blocking.
+- `info` — informational findings (e.g. emitted by tools/hooks). Not assignable to a rule.
+- `off` — config-only: suppresses a rule entirely.
 
-Severity is set in the config (`thymian.config*.yaml`):
+Rule severity is set in the config (`thymian.config*.yaml`); the configurable values are `error | warn | hint | off` (`info` is a finding severity only):
 
 ```yaml
 ruleSets:
@@ -55,7 +58,7 @@ ruleSets:
 ruleSeverity: warn # default for all rules in the loaded sets
 rules:
   some/rule-id:
-    severity: warn # per-rule override (error | warn | off)
+    severity: warn # per-rule override (error | warn | hint | off)
 ```
 
 **Don't chase a green run by blindly silencing rules.** Downgrading is a legitimate resolution **only** for findings that are not real contract defects (see path 3). Always leave a comment explaining why.
@@ -91,7 +94,7 @@ Use when the rule flags behavior that is **not** an API-contract defect and can'
 - Framework/infrastructure headers added outside the API contract (e.g. helmet's `cross-origin-resource-policy`, the web framework's `etag`, `cache-control`, `pragma`, `expires`) that would bloat the spec to document per-response.
 - SHOULD-level RFC niceties the API deliberately doesn't implement in this environment (e.g. `Last-Modified` on aggregate/list endpoints with no single modification time; conditional-request `If-None-Match` → `304/412` handling you've decided not to build).
 
-Set `severity: warn` (keep it visible) or `off` (hide it), **with a comment** stating the rationale. Prefer `warn` so the team keeps a visible backlog rather than silently dropping coverage.
+Set `severity: warn` or `hint` (keep it visible) or `off` (hide it), **with a comment** stating the rationale. Prefer `warn`/`hint` so the team keeps a visible backlog rather than silently dropping coverage.
 
 > Rule-of-thumb mapping (rule id → likely path):
 >
@@ -126,7 +129,7 @@ Result: the framework-header noise is triaged; genuine errors stay visible.
 ## Workflow checklist
 
 1. `cd` into the config's directory; ensure the API is running on the configured host/port.
-2. `npx thymian test -c <config>` → read `Found N errors, M warnings`. Focus on errors first.
+2. `npx thymian test -c <config>` → read the `Summary:` line (error/warning/hint/info counts). Focus on errors first.
 3. Group findings by **rule id** (each rule usually fires across many transactions for the same root cause — fix the cause once).
 4. For each rule, pick a resolution path: fix the API (1), document the spec (2), or downgrade the rule (3, non-defects only, with a comment).
 5. If you changed the spec, run the regenerate/re-apply/delete-orphans/restart sequence above.

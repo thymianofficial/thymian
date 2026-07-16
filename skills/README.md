@@ -12,7 +12,7 @@ They carry no repository-specific knowledge — install them anywhere you run `t
 | Skill                                                       | Use when                                                                                                                                              |
 | ----------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------- |
 | [`thymian-sampler-check`](./thymian-sampler-check/SKILL.md) | Fixing `thymian sampler check` status-code / content-type failures (`Expected status X, but received Y`) — samples & hooks under `.thymian/samples/`. |
-| [`thymian-test`](./thymian-test/SKILL.md)                   | Resolving `thymian test` conformance findings (`Found N errors, M warnings`) — RFC-9110 & api-description-validation rules.                           |
+| [`thymian-test`](./thymian-test/SKILL.md)                   | Resolving `thymian test` conformance findings (the `Summary:` error/warning/hint/info counts) — RFC-9110 & api-description-validation rules.          |
 
 The two are siblings and cross-reference each other; installing both is recommended.
 
