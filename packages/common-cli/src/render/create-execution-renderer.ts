@@ -51,7 +51,7 @@ export function createExecutionsRenderer<
 
         return grouped;
       },
-      {} as Record<string, T[]>,
+      Object.create(null) as Record<string, T[]>,
     );
 
     const lines: string[] = [];
