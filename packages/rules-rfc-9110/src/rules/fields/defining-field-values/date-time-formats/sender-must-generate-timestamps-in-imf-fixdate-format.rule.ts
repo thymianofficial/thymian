@@ -79,7 +79,6 @@ export default httpRule(
   .summary(
     'Sender MUST generate HTTP-date timestamps in the IMF-fixdate format.',
   )
-  .appliesTo('origin server')
   .tags('fields', 'date-time')
   .rule((ctx) =>
     ctx.validateHttpTransactions(
@@ -116,9 +115,9 @@ export default httpRule(
           {
             location,
             violation: {
-              message: `The response carries HTTP-date timestamp(s) not in the required IMF-fixdate format (e.g. "Sun, 06 Nov 1994 08:49:37 GMT"). Offending field value(s): ${createList(
+              message: `The response carries HTTP-date timestamp(s) not in the required IMF-fixdate format: ${createList(
                 malformed,
-              )}. A sender MUST generate HTTP-date timestamps in IMF-fixdate; the obsolete rfc850 and asctime formats MUST NOT be generated.`,
+              )}. `,
             },
             findings: [],
           },

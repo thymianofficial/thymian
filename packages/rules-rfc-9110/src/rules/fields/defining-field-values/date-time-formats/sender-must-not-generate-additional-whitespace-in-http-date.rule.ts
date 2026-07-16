@@ -13,15 +13,31 @@ import { createList } from '../../../../utils.js';
  * Only these well-known response-side HTTP-date typed fields are inspected, to
  * avoid false-positives on unrelated fields that happen to contain whitespace.
  * (The conditional If-Modified-Since / If-Unmodified-Since fields are
- * request-only per RFC 9110 §13.1.3/§13.1.4 and so are not listed.)
+ * request-only per RFC 9110 §13.1.3/§13.1.4 and so are not listed.) Retry-After
+ * is included because it may carry an HTTP-date; its alternative delay-seconds
+ * form is skipped below.
  */
-const httpDateResponseHeaders = ['date', 'expires', 'last-modified'];
+const httpDateResponseHeaders = [
+  'date',
+  'expires',
+  'last-modified',
+  'retry-after',
+];
 
 function headerToValues(value: string | string[] | undefined): string[] {
   if (value === undefined) {
     return [];
   }
   return Array.isArray(value) ? value : [value];
+}
+
+/**
+ * Retry-After may be either an HTTP-date or a non-negative integer
+ * (delay-seconds). Only the date form is constrained by this rule, so a purely
+ * numeric value is out of scope.
+ */
+function isDelaySeconds(value: string): boolean {
+  return /^\d+$/.test(value.trim());
 }
 
 /**
@@ -46,7 +62,6 @@ export default httpRule(
     'Sender MUST NOT generate additional whitespace in HTTP-date beyond the grammar.',
   )
   .appliesTo('origin server')
-  .tags('fields', 'date-time', 'whitespace')
   .rule((ctx) =>
     ctx.validateHttpTransactions(
       or(...httpDateResponseHeaders.map((name) => responseHeader(name))),
@@ -57,6 +72,11 @@ export default httpRule(
           const values = headerToValues(getHeader(res.headers, headerName));
 
           for (const value of values) {
+            // Retry-After accepts delay-seconds; that form is not an HTTP-date.
+            if (headerName === 'retry-after' && isDelaySeconds(value)) {
+              continue;
+            }
+
             if (value && hasAdditionalWhitespace(value)) {
               offending.push(`${headerName}: ${value}`);
             }
@@ -71,7 +91,7 @@ export default httpRule(
           {
             location,
             violation: {
-              message: `The response carries HTTP-date field value(s) with whitespace beyond the single SP characters defined by the IMF-fixdate grammar (no HTAB, no repeated spaces, no leading/trailing whitespace are permitted). Offending field value(s): ${createList(
+              message: `The response carries HTTP-date field value(s) with additional whitespace: ${createList(
                 offending,
               )}.`,
             },

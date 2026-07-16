@@ -13,12 +13,14 @@ import { createList } from '../../../../utils.js';
  * the list (#element) construct. We restrict the check to this curated set
  * because only these are guaranteed list-typed; scanning arbitrary fields for
  * commas would misfire on values (e.g. dates) that legitimately contain them.
+ * Cache-Control is intentionally excluded: its quoted-string directive
+ * parameters may legally contain commas that a generic comma split would
+ * misread as empty list elements.
  */
 const listTypedResponseHeaders = [
   'vary',
   'allow',
   'content-encoding',
-  'cache-control',
   'accept-ranges',
 ];
 
@@ -50,7 +52,6 @@ export default httpRule('rfc9110/sender-must-not-generate-empty-list-elements')
     'In any production that uses the list construct, a sender MUST NOT generate empty list elements.',
   )
   .summary('Sender MUST NOT generate empty list elements.')
-  .appliesTo('origin server')
   .tags('fields', 'lists')
   .rule((ctx) =>
     ctx.validateHttpTransactions(
@@ -76,7 +77,7 @@ export default httpRule('rfc9110/sender-must-not-generate-empty-list-elements')
           {
             location,
             violation: {
-              message: `The response carries a list-typed field with empty list element(s) (a leading/trailing comma or a doubled comma). A sender MUST NOT generate empty list elements. Offending field value(s): ${createList(
+              message: `The response carries a list-typed field with empty list element(s): ${createList(
                 offending,
               )}.`,
             },

@@ -13,14 +13,16 @@ const DROPPABLE = new Set([
   'host',
 ]);
 
-const connectionOptionNames = (value: string | string[] | undefined): string[] =>
+const connectionOptionNames = (
+  value: string | string[] | undefined,
+): string[] =>
   (value === undefined ? [] : Array.isArray(value) ? value : [value])
     .flatMap((entry) => entry.split(','))
     .map((entry) => entry.trim().toLowerCase())
     .filter((entry) => entry.length > 0);
 
 export default httpRule('rfc9110/proxy-must-forward-unrecognized-header-fields')
-  .severity('warn')
+  .severity('error')
   .type('analytics')
   .url('https://www.rfc-editor.org/rfc/rfc9110.html#section-5.1')
   .description(
@@ -28,19 +30,16 @@ export default httpRule('rfc9110/proxy-must-forward-unrecognized-header-fields')
   )
   .summary('Proxy MUST forward unrecognized header fields unless excepted.')
   .appliesTo('proxy')
-  .tags('fields', 'field-names', 'proxy')
   .rule((ctx) =>
     ctx.validateCapturedHttpTraces((trace, location) => {
       const results: RuleFnResult[] = [];
       for (let i = 1; i < trace.length; i++) {
-        // forwarded = request the proxy sent onward; received = request it got.
-        const forwarded = trace[i - 1];
-        const received = trace[i];
-        if (
-          !forwarded ||
-          !received ||
-          forwarded.request.meta.role !== 'proxy'
-        ) {
+        // In a captured trace the proxy's own leg carries meta.role === 'proxy';
+        // `received` is that leg (the request the proxy got) and `forwarded` is
+        // the next hop (the request the proxy sent onward).
+        const received = trace[i - 1];
+        const forwarded = trace[i];
+        if (!received || !forwarded || received.request.meta.role !== 'proxy') {
           continue;
         }
         const excepted = new Set([
@@ -60,7 +59,7 @@ export default httpRule('rfc9110/proxy-must-forward-unrecognized-header-fields')
           results.push({
             location,
             violation: {
-              message: `A proxy did not forward header field(s) (${dropped.join(', ')}) present on the received request. Unless configured to block them, a proxy must forward unrecognized fields.`,
+              message: `A proxy did not forward header field(s) (${dropped.join(', ')}) present on the received request.`,
             },
             findings: [],
           });

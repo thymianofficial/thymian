@@ -4,7 +4,7 @@ export default httpRule(
   'rfc9110/new-fields-should-limit-values-to-visible-ascii',
 )
   .severity('warn')
-  // This SHOULD constrains authors of *new field specifications*, not messages
+  // This SHOULD constrain authors of *new field specifications*, not messages
   // on the wire. There is no HTTP transaction that can conform to or violate it,
   // so it is not observable.
   .type('informational')

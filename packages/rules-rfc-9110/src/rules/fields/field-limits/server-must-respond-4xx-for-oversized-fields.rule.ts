@@ -16,6 +16,6 @@ export default httpRule('rfc9110/server-must-respond-4xx-for-oversized-fields')
   .summary(
     'Server MUST respond with 4xx status code when receiving oversized fields.',
   )
-  .appliesTo('origin server')
+  .appliesTo('server')
   .tags('fields', 'field-limits', 'server')
   .done();
