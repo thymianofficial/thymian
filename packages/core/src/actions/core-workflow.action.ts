@@ -15,18 +15,34 @@ import type { Action } from './action.js';
 import { specificationInputSchema } from './format-load.action.js';
 import { trafficInputSchema } from './traffic-load.action.js';
 
-export type WorkflowLintAction = Action<LintWorkflowInput, Report>;
-export type WorkflowTestAction = Action<TestWorkflowInput, Report>;
-export type WorkflowAnalyzeAction = Action<AnalyzeWorkflowInput, Report>;
+// Serializable action-input types: the WS/action boundary cannot carry the
+// non-serializable `ruleFilter` (a function) present on the `*WorkflowInput`
+// method-input types, so it is omitted here. This keeps the action `event`
+// type (and the AJV schemas below) aligned with what a WS client can actually
+// send and what the schemas validate. `ruleFilter` stays on the internal
+// `lint()`/`test()`/`analyze()` method inputs, fed by in-process callers.
+export type LintWorkflowActionInput = Omit<LintWorkflowInput, 'ruleFilter'>;
+export type TestWorkflowActionInput = Omit<TestWorkflowInput, 'ruleFilter'>;
+export type AnalyzeWorkflowActionInput = Omit<
+  AnalyzeWorkflowInput,
+  'ruleFilter'
+>;
+
+export type WorkflowLintAction = Action<LintWorkflowActionInput, Report>;
+export type WorkflowTestAction = Action<TestWorkflowActionInput, Report>;
+export type WorkflowAnalyzeAction = Action<AnalyzeWorkflowActionInput, Report>;
 
 // The `as unknown as JSONSchemaType<…>` double-cast on each schema is
-// load-bearing, not stylistic: the schemas intentionally omit the non-
-// serializable `ruleFilter` field present on the `*WorkflowInput` types, so a
-// `satisfies JSONSchemaType<…>` would not compile. `additionalProperties: false`
-// still rejects a `ruleFilter` (or any extra) property at validation time.
+// load-bearing, not stylistic: the schemas compose pre-cast sub-schemas
+// (`specificationInputSchema` / `trafficInputSchema`, themselves `unknown`-cast
+// because `location` is `unknown`), which a single `as` cannot verify — the
+// same pattern as `formatLoadActionSchema`. The type argument is the
+// ruleFilter-free `*WorkflowActionInput`, so `validate()` asserts exactly the
+// contract these schemas enforce (`additionalProperties: false` still rejects
+// `ruleFilter` or any extra property at runtime).
 //
-// Optional properties are NOT `nullable`: the `*WorkflowInput` types never allow
-// `null` (a field is skipped by omission, not by passing `null`). Marking e.g.
+// Optional properties are NOT `nullable`: the input types never allow `null`
+// (a field is skipped by omission, not by passing `null`). Marking e.g.
 // `rulesConfig` nullable would let a client send `null` past validation and then
 // crash downstream in `loadRules` (which indexes into it as an object),
 // bypassing the fail-fast `InvalidActionInputError` contract.
@@ -54,7 +70,7 @@ export const workflowLintActionSchema = {
     },
     validateSpecs: { type: 'boolean' },
   },
-} as unknown as JSONSchemaType<LintWorkflowInput>;
+} as unknown as JSONSchemaType<LintWorkflowActionInput>;
 
 export const workflowTestActionSchema = {
   type: 'object',
@@ -81,7 +97,7 @@ export const workflowTestActionSchema = {
     validateSpecs: { type: 'boolean' },
     targetUrl: { type: 'string' },
   },
-} as unknown as JSONSchemaType<TestWorkflowInput>;
+} as unknown as JSONSchemaType<TestWorkflowActionInput>;
 
 export const workflowAnalyzeActionSchema = {
   type: 'object',
@@ -108,4 +124,4 @@ export const workflowAnalyzeActionSchema = {
     validateSpecs: { type: 'boolean' },
     validateTrafficSource: { type: 'boolean' },
   },
-} as unknown as JSONSchemaType<AnalyzeWorkflowInput>;
+} as unknown as JSONSchemaType<AnalyzeWorkflowActionInput>;
