@@ -4,6 +4,9 @@ export default httpRule(
   'rfc9110/client-must-not-assume-future-range-support-from-accept-ranges',
 )
   .severity('error')
+  // This MUST NOT governs an internal assumption the client makes about future
+  // behavior. No header, status, or body signal on the wire reveals whether a
+  // client "assumed" future range support.
   .type('informational')
   .url('https://www.rfc-editor.org/rfc/rfc9110.html#name-accept-ranges')
   .description(

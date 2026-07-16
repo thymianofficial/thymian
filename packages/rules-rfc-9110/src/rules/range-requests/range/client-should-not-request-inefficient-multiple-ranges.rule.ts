@@ -61,10 +61,16 @@ export default httpRule(
   'rfc9110/client-should-not-request-inefficient-multiple-ranges',
 )
   .severity('warn')
+  // A request-side ("client SHOULD NOT") rule, valid only in `analyze` — in
+  // `test` Thymian generates the request, so the client's range-splitting choice
+  // is not user-controlled.
   .type('analytics')
   .url('https://www.rfc-editor.org/rfc/rfc9110.html#name-range')
   .description(
     'A client SHOULD NOT request multiple ranges that are inherently less efficient to process and transfer than a single range that encompasses the same data.',
+  )
+  .summary(
+    'A client should not request multiple ranges that are less efficient than a single encompassing range.',
   )
   .appliesTo('client')
   .rule((ctx) =>

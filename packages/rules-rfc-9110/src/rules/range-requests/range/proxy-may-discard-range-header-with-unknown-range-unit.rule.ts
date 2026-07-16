@@ -10,6 +10,9 @@ export default httpRule(
   .description(
     'A proxy MAY discard a Range header field that contains a range unit it does not understand.',
   )
+  .summary(
+    'A proxy may discard a Range header field that contains a range unit it does not understand.',
+  )
   .appliesTo('proxy')
   .rule((ctx) => ctx.validateHttpTransactions(requestHeader('range')))
   .done();
