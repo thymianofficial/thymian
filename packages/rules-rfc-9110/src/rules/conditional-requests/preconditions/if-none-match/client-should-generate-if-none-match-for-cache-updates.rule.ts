@@ -21,6 +21,5 @@ export default httpRule(
   .summary(
     'Client SHOULD generate If-None-Match for cache updates when stored responses have entity tags.',
   )
-  .appliesTo('client', 'user-agent')
-  .tags('conditional-requests', 'if-none-match', 'cache', 'optimization')
+  .appliesTo('client')
   .done();

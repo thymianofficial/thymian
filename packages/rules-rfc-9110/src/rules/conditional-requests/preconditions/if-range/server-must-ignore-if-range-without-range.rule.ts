@@ -14,8 +14,7 @@ import { httpRule, singleTestCase } from '@thymian/core';
  * returning a 206 Partial Content in that situation reveals the If-Range was
  * (incorrectly) acted upon. The static and analyze slots use the common
  * projection (header NAMES + status: If-Range present, Range absent, status
- * 206), which is sufficient and identical across those contexts. `appliesTo`
- * includes `origin server` so the rule fires on HAR responses.
+ * 206), which is sufficient and identical across those contexts.
  *
  * The `test` slot is an active probe: it takes a transaction that already
  * exercises both If-Range and Range, removes the Range header, replays, and
@@ -30,8 +29,7 @@ export default httpRule('rfc9110/server-must-ignore-if-range-without-range')
     'A server MUST ignore an If-Range header field received in a request that does not contain a Range header field. An origin server MUST ignore an If-Range header field received in a request for a target resource that does not support Range requests.',
   )
   .summary('Server MUST ignore If-Range without Range header field.')
-  .appliesTo('server', 'origin server')
-  .tags('conditional-requests', 'if-range', 'range')
+  .appliesTo('server')
   .rule((ctx) =>
     ctx.validateCommonHttpTransactions(
       and(

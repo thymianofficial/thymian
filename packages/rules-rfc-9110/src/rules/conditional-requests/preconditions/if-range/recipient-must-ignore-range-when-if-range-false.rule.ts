@@ -21,8 +21,7 @@ export default httpRule(
   .summary(
     'Recipient MUST ignore Range when If-Range condition is false; SHOULD respond with 200.',
   )
-  .appliesTo('server', 'origin server')
-  .tags('conditional-requests', 'if-range', 'range', '206')
+  .appliesTo('server')
   .rule((ctx) =>
     ctx.httpTest(
       singleTestCase()

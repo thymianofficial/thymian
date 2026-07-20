@@ -21,7 +21,6 @@ export default httpRule(
   )
   .summary('Server MUST ignore preconditions if response would be non-2xx/412.')
   .appliesTo('origin server')
-  .tags('conditional-requests', 'evaluation', 'precedence')
   .rule(async (ctx) => {
     const results: RuleFnResult[] = [];
     await ctx.httpTest(
@@ -29,7 +28,15 @@ export default httpRule(
         // Base transactions whose unconditional response is neither 2xx nor 412:
         // for these the server must ignore preconditions entirely.
         .forTransactionsWith(
-          and(not(statusCodeRange(200, 299)), not(statusCode(412))),
+          and(
+            not(statusCodeRange(200, 299)),
+            not(statusCode(412)),
+            not(requestHeader('if-match')),
+            not(requestHeader('if-none-match')),
+            not(requestHeader('if-modified-since')),
+            not(requestHeader('if-unmodified-since')),
+            not(requestHeader('if-range')),
+          ),
         )
         // Add a precondition that, if (wrongly) evaluated, would fail with 412.
         .set(requestHeader('if-match'), constant('"thymian-no-match"'))

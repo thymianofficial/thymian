@@ -25,8 +25,7 @@ export default httpRule(
     'A client MUST NOT generate an If-Range header field containing an entity tag that is marked as weak.',
   )
   .summary('Client MUST NOT generate If-Range with weak entity tag.')
-  .appliesTo('client', 'user-agent')
-  .tags('conditional-requests', 'if-range', 'etag', 'weak')
+  .appliesTo('client')
   .rule((ctx) =>
     ctx.validateHttpTransactions(
       requestHeader('if-range'),
@@ -54,9 +53,9 @@ export default httpRule(
           {
             location,
             violation: {
-              message: `The If-Range header field contains a weak entity tag (${weakTags.join(
+              message: `The If-Range header field contains a weak entity tag: ${weakTags.join(
                 ', ',
-              )}). Clients MUST NOT generate If-Range with a weak entity tag, since If-Range requires a strong validator.`,
+              )}.`,
             },
             findings: [],
           },

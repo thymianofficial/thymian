@@ -19,6 +19,5 @@ export default httpRule(
   .summary(
     'Recipient MUST ignore If-Modified-Since when the resource has no modification date available.',
   )
-  .appliesTo('server', 'origin server', 'cache')
-  .tags('conditional-requests', 'if-modified-since', 'evaluation')
+  .appliesTo('server')
   .done();

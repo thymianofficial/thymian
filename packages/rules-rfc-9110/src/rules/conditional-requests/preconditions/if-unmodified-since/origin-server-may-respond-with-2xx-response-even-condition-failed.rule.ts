@@ -22,10 +22,4 @@ export default httpRule(
     'If the request is a state-changing operation that appears to have already been applied to the selected representation, the origin server MAY respond with a 2xx (Successful) status code.',
   )
   .appliesTo('origin server')
-  .tags(
-    'conditional-requests',
-    'if-unmodified-since',
-    '412',
-    'precondition-failed',
-  )
   .done();

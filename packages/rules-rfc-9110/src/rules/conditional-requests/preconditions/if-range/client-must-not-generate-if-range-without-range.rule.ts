@@ -27,8 +27,7 @@ export default httpRule(
     'A client MUST NOT generate an If-Range header field in a request that does not contain a Range header field.',
   )
   .summary('Client MUST NOT generate If-Range without Range header field.')
-  .appliesTo('client', 'user-agent')
-  .tags('conditional-requests', 'if-range', 'range')
+  .appliesTo('client')
   .rule((ctx) =>
     ctx.validateCommonHttpTransactions(
       and(requestHeader('if-range'), not(requestHeader('range'))),

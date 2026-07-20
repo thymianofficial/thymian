@@ -21,7 +21,6 @@ export default httpRule(
     'Origin server MUST NOT perform method when If-Match evaluates to false',
   )
   .appliesTo('origin server')
-  .tags('conditional-requests', 'if-match', '412', 'precondition-failed')
   .rule((ctx) =>
     ctx.httpTest(
       singleTestCase()

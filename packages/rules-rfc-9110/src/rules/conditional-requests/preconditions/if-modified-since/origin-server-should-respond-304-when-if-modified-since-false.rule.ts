@@ -1,27 +1,29 @@
 import {
   and,
+  httpRule,
   method,
   not,
   or,
+  requestHeader,
   responseHeader,
+  responseWith,
+  type RuleFnResult,
+  singleTestCase,
   statusCode,
 } from '@thymian/core';
-import { httpRule, requestHeader, type RuleFnResult } from '@thymian/core';
-import { singleTestCase } from '@thymian/core';
 
 /**
- * Deciding whether the If-Modified-Since condition is true or false requires
- * controlling the request's If-Modified-Since value relative to the resource's
- * Last-Modified, which only the sender-driven `test` context can do. We replay a
+ * `static` lints the described transaction (an If-Modified-Since request should
+ * be able to produce a 304). `test` actively probes real behavior: it replays a
  * fresh GET/HEAD with If-Modified-Since set to the resource's own Last-Modified
- * (so the condition evaluates to false / "not modified") and assert the server
+ * (so the condition evaluates to false / "not modified") and asserts the server
  * answers 304.
  */
 export default httpRule(
   'rfc9110/origin-server-should-respond-304-when-if-modified-since-false',
 )
   .severity('warn')
-  .type('test')
+  .type('static', 'test')
   .url('https://www.rfc-editor.org/rfc/rfc9110.html#section-13.1.3')
   .description(
     'An origin server that evaluates an If-Modified-Since condition SHOULD NOT perform the requested method if the condition evaluates to false; instead, the origin server SHOULD generate a 304 (Not Modified) response, including only those metadata that are useful for identifying or updating a previously cached response.',
@@ -30,8 +32,15 @@ export default httpRule(
     'Origin server SHOULD respond with 304 when If-Modified-Since condition is false.',
   )
   .appliesTo('origin server')
-  .tags('conditional-requests', 'if-modified-since', '304')
-  .rule(async (ctx) => {
+  .rule((ctx) =>
+    ctx.validateCommonHttpTransactions(
+      and(
+        requestHeader('if-modified-since'),
+        not(responseWith(statusCode(304))),
+      ),
+    ),
+  )
+  .overrideTest(async (ctx) => {
     const results: RuleFnResult[] = [];
     await ctx.httpTest(
       singleTestCase()

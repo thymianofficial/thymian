@@ -20,5 +20,4 @@ export default httpRule(
     'Origin server SHOULD evaluate If-Modified-Since when If-None-Match is not present.',
   )
   .appliesTo('origin server')
-  .tags('conditional-requests', 'if-modified-since', 'evaluation')
   .done();

@@ -32,9 +32,7 @@ function presentConditionalHeaders(req: CommonHttpRequest): string[] {
  * evaluate them would surface a conditional-outcome status (304 Not Modified or
  * 412 Precondition Failed). The non-conformant case is detectable from header
  * NAMES + status alone, so the common projection is sufficient and the check is
- * identical across the described transaction and recorded traffic. `appliesTo`
- * includes `origin server` so the rule also fires on HAR responses (the HAR
- * default response role) in addition to `server`.
+ * identical across the described transaction and recorded traffic.
  */
 export default httpRule(
   'rfc9110/server-must-ignore-conditionals-for-connect-options-trace',
@@ -48,8 +46,7 @@ export default httpRule(
   .summary(
     'Server MUST ignore conditional headers for CONNECT, OPTIONS, or TRACE methods.',
   )
-  .appliesTo('server', 'origin server')
-  .tags('conditional-requests', 'evaluation', 'methods')
+  .appliesTo('server')
   .rule((ctx) =>
     ctx.validateCommonHttpTransactions(
       and(
@@ -75,9 +72,7 @@ export default httpRule(
           violation: {
             message: `A ${req.method} request carrying conditional header field(s) ${presentConditionalHeaders(
               req,
-            ).join(
-              ', ',
-            )} received a ${res.statusCode} response. Because ${req.method} does not select or modify a representation, the server MUST ignore conditional header fields rather than evaluate them (a 304/412 indicates they were evaluated).`,
+            ).join(', ')} received a ${res.statusCode} response.`,
           },
           findings: [],
         },

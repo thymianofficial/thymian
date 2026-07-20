@@ -16,8 +16,7 @@ import { httpRule } from '@thymian/core';
  * evaluated (honored) the header instead of ignoring it — a non-conformant
  * outcome detectable from method + header NAME + status, so the common
  * projection suffices and the check is identical for the described transaction
- * and recorded traffic. `appliesTo` includes `origin server` so the rule fires
- * on HAR responses (the HAR default response role).
+ * and recorded traffic.
  */
 export default httpRule(
   'rfc9110/recipient-must-ignore-if-modified-since-for-non-get-head',
@@ -31,8 +30,7 @@ export default httpRule(
   .summary(
     'Recipient MUST ignore If-Modified-Since for methods other than GET or HEAD.',
   )
-  .appliesTo('server', 'origin server', 'cache')
-  .tags('conditional-requests', 'if-modified-since', 'methods')
+  .appliesTo('server')
   .rule((ctx) =>
     ctx.validateCommonHttpTransactions(
       and(
@@ -46,7 +44,7 @@ export default httpRule(
         {
           location,
           violation: {
-            message: `A ${req.method} request carrying If-Modified-Since received a 304 Not Modified response. Recipients MUST ignore If-Modified-Since for methods other than GET or HEAD, so the condition must not have been evaluated.`,
+            message: `A ${req.method} request carrying If-Modified-Since received a 304 Not Modified response.`,
           },
           findings: [],
         },

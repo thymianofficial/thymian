@@ -22,5 +22,4 @@ export default httpRule(
     'Origin server MUST ignore If-Range when the target resource does not support Range requests.',
   )
   .appliesTo('origin server')
-  .tags('conditional-requests', 'if-range', 'evaluation')
   .done();

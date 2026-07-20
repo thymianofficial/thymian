@@ -22,5 +22,4 @@ export default httpRule(
     'Non-origin server that cannot act as cache MUST NOT evaluate conditional headers.',
   )
   .appliesTo('intermediary', 'proxy')
-  .tags('conditional-requests', 'evaluation', 'forwarding')
   .done();

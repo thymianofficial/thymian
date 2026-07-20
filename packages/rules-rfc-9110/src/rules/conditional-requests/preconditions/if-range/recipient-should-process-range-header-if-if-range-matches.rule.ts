@@ -22,6 +22,5 @@ export default httpRule(
   .summary(
     'Recipient SHOULD process the Range header field when the If-Range condition matches.',
   )
-  .appliesTo('server', 'origin server')
-  .tags('conditional-requests', 'if-range', 'evaluation')
+  .appliesTo('server')
   .done();

@@ -1,18 +1,14 @@
+import { requestHeader } from '@thymian/core';
 import { httpRule } from '@thymian/core';
 
-/**
- * This is a permissive MAY: a cache or intermediary is allowed to ignore
- * If-Match. There is no non-conformant outcome to detect — both honoring and
- * ignoring the header are conformant.
- */
 export default httpRule('rfc9110/cache-or-intermediary-may-ignore-if-match')
   .severity('hint')
-  .type('informational')
+  .type('analytics')
   .url('https://www.rfc-editor.org/rfc/rfc9110.html#section-13.1.1')
   .description(
     'A cache or intermediary MAY ignore If-Match because its interoperability features are only necessary for an origin server.',
   )
   .summary('Cache or intermediary MAY ignore If-Match header field.')
   .appliesTo('cache', 'intermediary')
-  .tags('conditional-requests', 'if-match', 'cache')
+  .rule((ctx) => ctx.validateHttpTransactions(requestHeader('if-match')))
   .done();

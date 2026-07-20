@@ -23,5 +23,4 @@ export default httpRule(
     'Origin server MUST use strong comparison function for If-Match ETags.',
   )
   .appliesTo('origin server')
-  .tags('conditional-requests', 'if-match', 'etag')
   .done();

@@ -22,5 +22,4 @@ export default httpRule(
     'Server MUST evaluate preconditions in the order: If-Match, If-Unmodified-Since, If-None-Match, If-Modified-Since, If-Range.',
   )
   .appliesTo('server', 'cache', 'origin server')
-  .tags('conditional-requests', 'evaluation', 'precedence', 'order')
   .done();

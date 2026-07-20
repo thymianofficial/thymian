@@ -21,8 +21,7 @@ export default httpRule(
   .summary(
     'Recipient MUST ignore If-Unmodified-Since when If-Match is present.',
   )
-  .appliesTo('origin server')
-  .tags('conditional-requests', 'if-unmodified-since', 'if-match')
+  .appliesTo('server')
   .rule(async (ctx) => {
     const results: RuleFnResult[] = [];
     await ctx.httpTest(

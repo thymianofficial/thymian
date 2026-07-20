@@ -31,7 +31,6 @@ export default httpRule(
     'Origin server MUST NOT perform method when If-Unmodified-Since fails; MUST respond with 412 or 2xx.',
   )
   .appliesTo('origin server')
-  .tags('conditional-requests', 'if-unmodified-since', '412')
   .rule((ctx) =>
     ctx.httpTest(
       singleTestCase()

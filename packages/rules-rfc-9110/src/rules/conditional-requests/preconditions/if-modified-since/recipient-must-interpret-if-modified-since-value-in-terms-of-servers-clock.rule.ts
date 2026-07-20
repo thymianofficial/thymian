@@ -19,6 +19,4 @@ export default httpRule(
   .summary(
     "Recipient MUST interpret the If-Modified-Since timestamp in terms of the origin server's clock.",
   )
-  .appliesTo('server', 'origin server', 'cache')
-  .tags('conditional-requests', 'if-modified-since', 'evaluation')
   .done();

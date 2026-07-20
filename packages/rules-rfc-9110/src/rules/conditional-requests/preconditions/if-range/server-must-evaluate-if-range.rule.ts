@@ -18,6 +18,5 @@ export default httpRule('rfc9110/server-must-evaluate-if-range')
   .summary(
     'Server MUST evaluate If-Range condition before performing the method.',
   )
-  .appliesTo('server', 'origin server')
-  .tags('conditional-requests', 'if-range', 'evaluation')
+  .appliesTo('server')
   .done();

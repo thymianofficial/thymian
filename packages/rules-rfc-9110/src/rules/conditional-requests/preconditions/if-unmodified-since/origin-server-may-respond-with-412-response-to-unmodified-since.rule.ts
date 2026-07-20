@@ -22,10 +22,4 @@ export default httpRule(
     'An origin server MAY indicate that the conditional request failed by responding with a 412 (Precondition Failed) status code.',
   )
   .appliesTo('origin server')
-  .tags(
-    'conditional-requests',
-    'if-unmodified-since',
-    '412',
-    'precondition-failed',
-  )
   .done();

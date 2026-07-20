@@ -20,5 +20,4 @@ export default httpRule(
     'Origin server MUST evaluate If-None-Match condition before performing the method.',
   )
   .appliesTo('origin server')
-  .tags('conditional-requests', 'if-none-match', 'evaluation')
   .done();

@@ -20,5 +20,4 @@ export default httpRule(
     'Server MUST evaluate preconditions after normal checks and before processing request content.',
   )
   .appliesTo('server', 'cache', 'origin server')
-  .tags('conditional-requests', 'evaluation', 'timing')
   .done();
