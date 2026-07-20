@@ -87,7 +87,7 @@
   },
   "devDependencies": {
     "@oclif/test": "^4.1.13",
-    "@types/node": "^18.19.112",
+    "@types/node": "^22.15.1",
     "tsx": "^4.20.3"
   }
 }
