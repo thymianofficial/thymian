@@ -113,6 +113,24 @@ describe('validateSamplerOutput', () => {
     await expect(stat(samplePath)).rejects.toThrow();
   }, 30_000);
 
+  it('treats a non-directory samples path as an empty actual set', async () => {
+    const samplePath = join(tempDir, 'samples-as-file');
+    await writeFile(samplePath, 'not a directory');
+
+    const report = await validateSamplerOutput({
+      format,
+      emitter,
+      samplePath,
+    });
+
+    // A file where the samples directory is expected must not crash `readdir`;
+    // every expected artifact should simply be reported as missing.
+    expect(report.failures.length).toBe(report.checkedArtifacts);
+    expect(
+      report.failures.every((failure) => failure.type === 'missing-artifact'),
+    ).toBe(true);
+  }, 30_000);
+
   it('reports stale root metadata when the format hash differs', async () => {
     await writeExpectedFiles(tempDir, emitter);
 

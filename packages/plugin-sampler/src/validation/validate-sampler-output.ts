@@ -1,4 +1,4 @@
-import { readdir, readFile } from 'node:fs/promises';
+import { readdir, readFile, stat } from 'node:fs/promises';
 import { join, relative, sep } from 'node:path';
 
 import { diff as diffJson, type Difference } from '@scalar/json-magic/diff';
@@ -11,7 +11,6 @@ import {
   generateTypesForThymianFormat,
 } from '../hooks/generate-request-types.js';
 import { writeSamplesToDir } from '../samples-structure/write-samples-to-dir.js';
-import { entryExists } from '../utils.js';
 
 export type SamplerValidationFindingType =
   | 'missing-artifact'
@@ -172,7 +171,17 @@ async function collectActualSamplerFiles(
 ): Promise<Map<string, Buffer>> {
   const actualFiles = new Map<string, Buffer>();
 
-  if (!(await entryExists(samplePath))) {
+  // A missing path — or a non-directory sitting where the samples directory is
+  // expected — means nothing generated is present. Treat both as an empty
+  // actual set so drift is reported instead of `readdir` crashing on ENOTDIR.
+  let stats;
+  try {
+    stats = await stat(samplePath);
+  } catch {
+    return actualFiles;
+  }
+
+  if (!stats.isDirectory()) {
     return actualFiles;
   }
 
