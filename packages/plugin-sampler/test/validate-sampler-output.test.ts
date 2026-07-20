@@ -68,8 +68,9 @@ describe('validateSamplerOutput', () => {
     await writeExpectedFiles(tempDir, emitter);
     await writeFile(join(tempDir, 'orphan.json'), '{}');
     await writeFile(join(tempDir, 'custom.beforeEach.ts'), 'export default {}');
-    // `notbeforeEach.ts` matches the sampler's (substring) hook loading, so it
-    // is treated as a hook and must not be flagged as an unexpected artifact.
+    // `notbeforeEach.ts` is NOT a hook: the anchored hook pattern only matches
+    // `beforeEach.<ext>` at a boundary (start or after `.`/`/`), so it must be
+    // flagged as an unexpected artifact like any other non-hook file.
     await writeFile(join(tempDir, 'notbeforeEach.ts'), 'export default {}');
 
     const report = await validateSamplerOutput({
@@ -78,12 +79,19 @@ describe('validateSamplerOutput', () => {
       samplePath: tempDir,
     });
 
-    expect(report.failures).toEqual([
-      expect.objectContaining({
-        type: 'unexpected-artifact',
-        path: 'orphan.json',
-      }),
-    ]);
+    expect(report.failures).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          type: 'unexpected-artifact',
+          path: 'orphan.json',
+        }),
+        expect.objectContaining({
+          type: 'unexpected-artifact',
+          path: 'notbeforeEach.ts',
+        }),
+      ]),
+    );
+    expect(report.failures).toHaveLength(2);
   }, 30_000);
 
   it('reports missing artifacts without creating a missing samples directory', async () => {
