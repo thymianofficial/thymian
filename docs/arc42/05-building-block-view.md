@@ -131,7 +131,7 @@ C4Container
 | HTTP Analyzer                    | `packages/plugin-http-analyzer`             | `@thymian/plugin-http-analyzer`             |
 | OpenAPI Loader                   | `packages/plugin-openapi`                   | `@thymian/plugin-openapi`                   |
 | Text / CSV / Markdown Reporter   | `packages/plugin-reporter`                  | `@thymian/plugin-reporter`                  |
-| HAR Loader                       | `packages/plugin-http-analyzer`             | (built into the analyzer plugin)            |
+| HAR Loader                       | `packages/plugin-har`                       | `@thymian/plugin-har`                       |
 | Request Dispatcher               | `packages/plugin-request-dispatcher`        | `@thymian/plugin-request-dispatcher`        |
 | Sampler                          | `packages/plugin-sampler`                   | `@thymian/plugin-sampler`                   |
 | WebSocket Proxy                  | `packages/plugin-websocket-proxy`           | `@thymian/plugin-websocket-proxy`           |
