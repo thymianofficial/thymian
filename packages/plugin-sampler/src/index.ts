@@ -1,4 +1,3 @@
-import { writeFile } from 'node:fs/promises';
 import { isAbsolute, join } from 'node:path';
 
 import {
@@ -19,7 +18,6 @@ import {
   generateTypesForThymianFormat,
 } from './hooks/generate-request-types.js';
 import { HookRunner } from './hooks/hook-runner.js';
-import { tsConfig } from './hooks/ts-config.js';
 import { requestSampleToRequestTemplate } from './request-sample-to-request-template.js';
 import { RequestSampler } from './request-sampler.js';
 import { getPathTransactionId } from './samples-structure/get-path-transaction-id.js';
@@ -27,6 +25,10 @@ import { readSamplesFromDir } from './samples-structure/read-samples-from-dir.js
 import type { SamplesStructure } from './samples-structure/samples-tree-structure.js';
 import { writeSamplesToDir } from './samples-structure/write-samples-to-dir.js';
 import { entryExists } from './utils.js';
+import {
+  type SamplerValidationReport,
+  validateSamplerOutput,
+} from './validation/validate-sampler-output.js';
 
 declare module '@thymian/core' {
   interface ThymianActions {
@@ -36,6 +38,14 @@ declare module '@thymian/core' {
         overwrite?: boolean;
       };
       response: void;
+    };
+
+    'sampler.validate': {
+      event: {
+        format: SerializedThymianFormat;
+        forPath?: string;
+      };
+      response: SamplerValidationReport;
     };
 
     'core.request.sample': {
@@ -66,6 +76,50 @@ declare module '@thymian/core' {
 export type SamplerPluginOptions = {
   path: string;
 };
+
+const samplerValidateActionSchema = {
+  event: {
+    type: 'object',
+    required: ['format'],
+    properties: {
+      format: {},
+      forPath: { type: 'string' },
+    },
+  },
+  response: {
+    type: 'object',
+    required: ['samplePath', 'checkedArtifacts', 'failures'],
+    properties: {
+      samplePath: { type: 'string' },
+      checkedArtifacts: { type: 'integer' },
+      failures: {
+        type: 'array',
+        items: {
+          type: 'object',
+          required: ['type', 'path', 'message'],
+          properties: {
+            type: {
+              type: 'string',
+              enum: [
+                'missing-artifact',
+                'changed-artifact',
+                'stale-root-metadata',
+                'metadata-out-of-sync',
+                'unexpected-artifact',
+                'invalid-json',
+              ],
+            },
+            path: { type: 'string' },
+            message: { type: 'string' },
+            expected: { type: 'string' },
+            actual: { type: 'string' },
+            changes: { type: 'array' },
+          },
+        },
+      },
+    },
+  },
+} as const;
 
 export const samplePlugin: ThymianPlugin<Partial<SamplerPluginOptions>> = {
   name: '@thymian/plugin-sampler',
@@ -107,6 +161,13 @@ export const samplePlugin: ThymianPlugin<Partial<SamplerPluginOptions>> = {
           },
         },
       },
+      // The strict `JSONSchemaType<T>` target can't be satisfied by this
+      // hand-written `as const` schema (readonly literals + a deliberately
+      // loose `format: {}`, which ajv validates at runtime). Suppress the
+      // structural check the same way `sampler.init` does above, for parity.
+      // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+      // @ts-expect-error
+      'sampler.validate': samplerValidateActionSchema,
     },
   },
   plugin: async (emitter, logger, options) => {
@@ -186,21 +247,27 @@ export const samplePlugin: ThymianPlugin<Partial<SamplerPluginOptions>> = {
       await writeSamplesToDir(samples, generatedTypes.keyToTransactionId, {
         path: basePath,
         mode: typeof overwrite === 'boolean' ? 'overwrite' : 'failIfExist',
+        typeArtifacts: {
+          typesContent: generatedTypesToString(generatedTypes),
+        },
       });
 
       logger.debug(`Wrote samples at ${basePath}`);
 
-      await writeFile(
-        join(basePath, 'types.d.ts'),
-        generatedTypesToString(generatedTypes),
-      );
-
-      await writeFile(
-        join(basePath, 'tsconfig.json'),
-        JSON.stringify(tsConfig, null, 2),
-      );
-
       ctx.reply();
+    });
+
+    emitter.onAction('sampler.validate', async ({ format, forPath }, ctx) => {
+      const parsedFormat = ThymianFormat.import(format);
+
+      ctx.reply(
+        await validateSamplerOutput({
+          format: parsedFormat,
+          emitter,
+          samplePath: basePath,
+          forPath,
+        }),
+      );
     });
 
     emitter.onAction('core.request.sample', async ({ transaction }, ctx) => {
