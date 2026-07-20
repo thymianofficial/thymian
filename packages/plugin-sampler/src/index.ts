@@ -1,4 +1,3 @@
-import { writeFile } from 'node:fs/promises';
 import { isAbsolute, join } from 'node:path';
 
 import {
@@ -19,7 +18,6 @@ import {
   generateTypesForThymianFormat,
 } from './hooks/generate-request-types.js';
 import { HookRunner } from './hooks/hook-runner.js';
-import { tsConfig } from './hooks/ts-config.js';
 import { requestSampleToRequestTemplate } from './request-sample-to-request-template.js';
 import { RequestSampler } from './request-sampler.js';
 import { getPathTransactionId } from './samples-structure/get-path-transaction-id.js';
@@ -85,7 +83,7 @@ const samplerValidateActionSchema = {
     required: ['format'],
     properties: {
       format: {},
-      forPath: { type: 'string', nullable: true },
+      forPath: { type: 'string' },
     },
   },
   response: {
@@ -113,9 +111,9 @@ const samplerValidateActionSchema = {
             },
             path: { type: 'string' },
             message: { type: 'string' },
-            expected: { type: 'string', nullable: true },
-            actual: { type: 'string', nullable: true },
-            changes: { type: 'array', nullable: true },
+            expected: { type: 'string' },
+            actual: { type: 'string' },
+            changes: { type: 'array' },
           },
         },
       },
@@ -165,9 +163,11 @@ export const samplePlugin: ThymianPlugin<Partial<SamplerPluginOptions>> = {
       },
       // The strict `JSONSchemaType<T>` target can't be satisfied by this
       // hand-written `as const` schema (readonly literals + a deliberately
-      // loose `format: {}`, which ajv validates at runtime). `never` is the
-      // bottom type, so it assigns past the check.
-      'sampler.validate': samplerValidateActionSchema as never,
+      // loose `format: {}`, which ajv validates at runtime). Suppress the
+      // structural check the same way `sampler.init` does above, for parity.
+      // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+      // @ts-expect-error
+      'sampler.validate': samplerValidateActionSchema,
     },
   },
   plugin: async (emitter, logger, options) => {
@@ -247,19 +247,12 @@ export const samplePlugin: ThymianPlugin<Partial<SamplerPluginOptions>> = {
       await writeSamplesToDir(samples, generatedTypes.keyToTransactionId, {
         path: basePath,
         mode: typeof overwrite === 'boolean' ? 'overwrite' : 'failIfExist',
+        typeArtifacts: {
+          typesContent: generatedTypesToString(generatedTypes),
+        },
       });
 
       logger.debug(`Wrote samples at ${basePath}`);
-
-      await writeFile(
-        join(basePath, 'types.d.ts'),
-        generatedTypesToString(generatedTypes),
-      );
-
-      await writeFile(
-        join(basePath, 'tsconfig.json'),
-        JSON.stringify(tsConfig, null, 2),
-      );
 
       ctx.reply();
     });

@@ -197,6 +197,36 @@ describe('validateSamplerOutput', () => {
     ]);
   }, 30_000);
 
+  it('reports a changed artifact when non-hash root metadata drifts', async () => {
+    await writeExpectedFiles(tempDir, emitter);
+
+    const metaPath = join(tempDir, 'meta.json');
+    const meta = JSON.parse(await readFile(metaPath, 'utf8'));
+    // Keep the format hash (`/version/version`) intact and drift an unrelated
+    // field: this is an ordinary content change, not stale format metadata.
+    meta.transactions = { ...(meta.transactions ?? {}), injected: 'drift' };
+    await writeFile(metaPath, JSON.stringify(meta));
+
+    const report = await validateSamplerOutput({
+      format,
+      emitter,
+      samplePath: tempDir,
+    });
+
+    expect(report.failures).toEqual([
+      expect.objectContaining({
+        type: 'changed-artifact',
+        path: 'meta.json',
+        changes: expect.arrayContaining([
+          expect.objectContaining({
+            type: 'add',
+            pointer: '/transactions/injected',
+          }),
+        ]),
+      }),
+    ]);
+  }, 30_000);
+
   it('ignores timestamp-only root metadata differences', async () => {
     await writeExpectedFiles(tempDir, emitter);
 

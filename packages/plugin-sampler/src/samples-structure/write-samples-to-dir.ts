@@ -3,6 +3,7 @@ import { basename, format, join } from 'node:path';
 
 import { ThymianBaseError } from '@thymian/core';
 
+import { tsConfig } from '../hooks/ts-config.js';
 import {
   type ContentSource,
   type HttpRequestSample,
@@ -217,6 +218,15 @@ export type WriteOptions = {
   mode?: 'failIfExist' | 'overwrite';
   mkdir?: CreateDir;
   writeToFile?: WriteToFile;
+  /**
+   * When provided, the generated `types.d.ts` and `tsconfig.json` hook
+   * artifacts are emitted through the same `writeToFile` seam as the rest of
+   * the samples. Keeping these writes here guarantees `sampler.init` (on disk)
+   * and the validation flow (in memory) can never drift in how they emit them.
+   */
+  typeArtifacts?: {
+    typesContent: string;
+  };
 };
 
 export async function writeSamplesToDir(
@@ -286,4 +296,16 @@ export async function writeSamplesToDir(
 
     return dirPath;
   });
+
+  if (options.typeArtifacts) {
+    await writeToFile(
+      join(options.path, 'types.d.ts'),
+      options.typeArtifacts.typesContent,
+    );
+
+    await writeToFile(
+      join(options.path, 'tsconfig.json'),
+      JSON.stringify(tsConfig, null, 2),
+    );
+  }
 }

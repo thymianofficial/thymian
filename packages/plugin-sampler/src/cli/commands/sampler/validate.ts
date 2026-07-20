@@ -1,6 +1,5 @@
 import { BaseCliRunCommand, oclif } from '@thymian/common-cli';
 import {
-  errorSymbol,
   type Severity,
   SEVERITY_COLORS,
   SEVERITY_SYMBOLS,
@@ -43,7 +42,7 @@ export default class Validate extends BaseCliRunCommand<typeof Validate> {
     }),
     ['for-path']: oclif.Flags.string({
       description:
-        'Validate a single generated artifact by its relative path (e.g. meta.json) and show its full diff.',
+        'Validate a single generated artifact by its relative path (e.g. meta.json) and show its full diff. Note: the full artifact set is still regenerated internally, so this scopes the output, not the work.',
     }),
   };
 
@@ -88,6 +87,15 @@ export default class Validate extends BaseCliRunCommand<typeof Validate> {
       // A scoped run reports 0 checked artifacts only when the path is not a
       // known generated artifact — surface that as an error in every mode.
       if (forPath !== undefined && report.checkedArtifacts === 0) {
+        if (this.jsonEnabled()) {
+          // Keep machine output consistent: emit the (empty) report as JSON and
+          // signal the usage error through the exit code instead of throwing,
+          // which would abort before any JSON is printed.
+          process.exitCode = 2;
+
+          return report;
+        }
+
         this.error(
           `No generated sampler artifact found at path "${forPath}".`,
           {
@@ -122,17 +130,32 @@ export default class Validate extends BaseCliRunCommand<typeof Validate> {
       // `--for-path` targets one artifact, so its diff is always shown;
       // otherwise details are opt-in via `--full-diffs`.
       const showDiffs = this.flags['full-diffs'] || forPath !== undefined;
-      const failed = report.failures.length;
 
       for (const failure of report.failures) {
         this.logFailure(failure, showDiffs);
       }
 
       const checked = report.checkedArtifacts;
+      // `checkedArtifacts` counts only expected (generated) artifacts, so keep
+      // unexpected extras in their own tally — otherwise "N failed" against
+      // "Checked M" reads as "N of M generated artifacts failed" when the extras
+      // were never part of that set.
+      const unexpected = report.failures.filter(
+        (failure) => failure.type === 'unexpected-artifact',
+      ).length;
+      const outOfSync = report.failures.length - unexpected;
+
+      const summaryParts: string[] = [];
+      if (outOfSync > 0) {
+        summaryParts.push(`${outOfSync} out of sync`);
+      }
+      if (unexpected > 0) {
+        summaryParts.push(`${unexpected} unexpected`);
+      }
 
       this.log();
       this.log(
-        `Checked ${checked} generated ${checked === 1 ? 'artifact' : 'artifacts'} in ${report.samplePath}. ${colorize(SEVERITY_COLORS.error, `${failed} failed`)}.`,
+        `Checked ${checked} generated ${checked === 1 ? 'artifact' : 'artifacts'} in ${report.samplePath}. ${colorize(SEVERITY_COLORS.error, `${summaryParts.join(', ')}.`)}`,
       );
 
       this.exit(1);

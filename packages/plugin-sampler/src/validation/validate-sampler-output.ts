@@ -10,7 +10,6 @@ import {
   generatedTypesToString,
   generateTypesForThymianFormat,
 } from '../hooks/generate-request-types.js';
-import { tsConfig } from '../hooks/ts-config.js';
 import { writeSamplesToDir } from '../samples-structure/write-samples-to-dir.js';
 import { entryExists } from '../utils.js';
 
@@ -82,16 +81,10 @@ export async function createExpectedSamplerFiles({
           : Buffer.from(content, encoding as BufferEncoding | undefined),
       );
     },
+    typeArtifacts: {
+      typesContent: generatedTypesToString(generatedTypes),
+    },
   });
-
-  expectedFiles.set(
-    'types.d.ts',
-    Buffer.from(generatedTypesToString(generatedTypes)),
-  );
-  expectedFiles.set(
-    'tsconfig.json',
-    Buffer.from(JSON.stringify(tsConfig, null, 2)),
-  );
 
   return expectedFiles;
 }
@@ -150,12 +143,20 @@ export async function validateSamplerOutput({
   }
 
   if (forPath !== undefined) {
-    const known = expectedFiles.has(forPath) || actualFiles.has(forPath);
+    // Normalize so a platform-native argument (e.g. `a\b.json` on Windows)
+    // matches the `/`-joined keys used throughout the report.
+    const normalizedForPath = normalizeRelativePath(forPath);
+    // Only a generated (expected) artifact counts as "known" — pointing
+    // `--for-path` at an on-disk-only file must surface as an unknown-path
+    // usage error, not silently scope to that extra file.
+    const known = expectedFiles.has(normalizedForPath);
 
     return {
       samplePath,
       checkedArtifacts: known ? 1 : 0,
-      failures: failures.filter((failure) => failure.path === forPath),
+      failures: failures.filter(
+        (failure) => failure.path === normalizedForPath,
+      ),
     };
   }
 
@@ -231,7 +232,7 @@ function mismatchTypeForChangedPath(
   }
 
   if (path === 'meta.json') {
-    return 'stale-root-metadata';
+    return rootMetadataMismatchType(expected, actual);
   }
 
   if (path.endsWith('/meta.json')) {
@@ -239,6 +240,26 @@ function mismatchTypeForChangedPath(
   }
 
   return 'changed-artifact';
+}
+
+// The root `meta.json` is only "stale" when the format hash (`/version/version`)
+// differs — that means the artifacts were generated against a different API
+// format. Drift in other root fields (e.g. `types`, `transactions`) is an
+// ordinary content change and should not claim the metadata is out of date.
+function rootMetadataMismatchType(
+  expected: Buffer,
+  actual: Buffer,
+): 'stale-root-metadata' | 'changed-artifact' {
+  const expectedObject = parseJsonObject(expected);
+  const actualObject = parseJsonObject(actual);
+
+  if (!expectedObject || !actualObject) {
+    return 'stale-root-metadata';
+  }
+
+  return readVersionHash(expectedObject) !== readVersionHash(actualObject)
+    ? 'stale-root-metadata'
+    : 'changed-artifact';
 }
 
 function messageForChangedPath(
@@ -267,9 +288,7 @@ function isInvalidJsonChange(expected: Buffer, actual: Buffer): boolean {
   const actualJson = parseJsonValue(actual);
 
   return (
-    expectedJson.valid &&
-    isJsonObjectLike(expectedJson.value) &&
-    !actualJson.valid
+    expectedJson.valid && isJsonObject(expectedJson.value) && !actualJson.valid
   );
 }
 
@@ -284,10 +303,7 @@ function createJsonDiffDetails(
     return undefined;
   }
 
-  if (
-    !isJsonObjectLike(expectedJson.value) ||
-    !isJsonObjectLike(actualJson.value)
-  ) {
+  if (!isJsonObject(expectedJson.value) || !isJsonObject(actualJson.value)) {
     return undefined;
   }
 
@@ -396,10 +412,6 @@ function parseJsonValue(
 
 function isJsonObject(value: unknown): value is Record<string, unknown> {
   return !!value && typeof value === 'object' && !Array.isArray(value);
-}
-
-function isJsonObjectLike(value: unknown): value is Record<string, unknown> {
-  return !!value && typeof value === 'object';
 }
 
 function readJsonPath(value: unknown, path: string[]): unknown {

@@ -45,7 +45,7 @@ describe('thymian sampler validate', () => {
     expect(result.exitCode).toBe(1);
     expect(result.output).toContain('changed-artifact: types.d.ts');
     expect(result.output).toMatch(
-      /Checked \d+ generated artifacts in .+\. \d+ failed\./,
+      /Checked \d+ generated artifacts in .+\. \d+ out of sync\./,
     );
     expect(result.output).not.toContain('sampler init');
     expect(result.output).not.toContain('Re-run:');
@@ -169,6 +169,22 @@ describe('thymian sampler validate', () => {
     expect(result.output).toContain('does-not-exist.json');
   }, 180_000);
 
+  it('emits a JSON report and exit 2 when --json --for-path targets an unknown artifact', () => {
+    copyFixturesToTempDir(join(fixturesDir, 'dynamic-test'), getTempDir());
+    execThymian(['sampler', 'init'], { cwd: getTempDir() });
+
+    const result = execThymianRaw(
+      ['sampler', 'validate', '--json', '--for-path', 'does-not-exist.json'],
+      { cwd: getTempDir(), allowFailure: true },
+    );
+
+    expect(result.exitCode).toBe(2);
+
+    const report = JSON.parse(result.stdout);
+    expect(report.checkedArtifacts).toBe(0);
+    expect(report.failures).toEqual([]);
+  }, 180_000);
+
   it('emits a machine-readable report and non-zero exit with --json', () => {
     copyFixturesToTempDir(join(fixturesDir, 'dynamic-test'), getTempDir());
     execThymian(['sampler', 'init'], { cwd: getTempDir() });
@@ -262,8 +278,8 @@ describe('thymian sampler validate', () => {
     });
 
     expect(result.exitCode).toBe(0);
-    expect(result.output).toContain(
-      'Sampler validation passed: 5 generated artifacts are in sync.',
+    expect(result.output).toMatch(
+      /Sampler validation passed: \d+ generated artifacts are in sync\./,
     );
   }, 180_000);
 });
