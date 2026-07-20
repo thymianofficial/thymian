@@ -4,24 +4,32 @@
 
 When making commits, use one of the following scopes to indicate the area of the codebase your change affects:
 
-| Scope              | Description                                                       |
-| ------------------ | ----------------------------------------------------------------- |
-| repo               | Changes affecting repository-wide configuration, tooling, or docs |
-| release            | Release-related changes                                           |
-| deps               | Dependency updates and changes                                    |
-| cli                | Command-line interface and related commands                       |
-| core               | Core framework logic, plugin system, and main APIs                |
-| format-validator   | Plugin for format validation                                      |
-| http-linter        | Plugin for HTTP linting                                           |
-| http-testing       | Library for HTTP testing utilities                                |
-| openapi            | Plugin for OpenAPI support                                        |
-| reporter           | Plugin for reporting features                                     |
-| request-dispatcher | Plugin for request dispatching                                    |
-| rfc-9110-rules     | Library for reusable HTTP rules based on RFC 9110                 |
-| sampler            | Plugin for sampling logic                                         |
-| test-utils         | Shared test utilities                                             |
-| websocket-proxy    | Plugin for WebSocket proxy functionality                          |
-| astro-docs         | Changes to the Astro/Starlight documentation                      |
+> The authoritative list is `scope-enum` in [commitlint.config.js](commitlint.config.js) —
+> commits with any other (or no) scope are rejected by the commit hook. Keep this table in
+> sync when adding or renaming packages.
+
+| Scope                            | Description                                                                            |
+| -------------------------------- | -------------------------------------------------------------------------------------- |
+| repo                             | Repository-wide configuration, tooling, workflows, or docs (incl. the Astro docs site) |
+| release                          | Release tooling and pipelines                                                          |
+| deps                             | Dependency updates and changes                                                         |
+| cli                              | Cross-cutting CLI concerns                                                             |
+| thymian                          | The `thymian` CLI product package                                                      |
+| common-cli                       | Shared CLI base library (`@thymian/common-cli`)                                        |
+| core                             | Core framework: workflows, contracts, rule system (`@thymian/core`)                    |
+| core-testing                     | Test utilities for core (`@thymian/core-testing`)                                      |
+| plugin-http-linter               | Static lint plugin                                                                     |
+| plugin-http-tester               | Live HTTP testing plugin                                                               |
+| plugin-http-analyzer             | Traffic analysis plugin                                                                |
+| plugin-har                       | HAR loader plugin                                                                      |
+| plugin-openapi                   | OpenAPI loader plugin                                                                  |
+| plugin-reporter                  | Report file formatters plugin                                                          |
+| plugin-request-dispatcher        | HTTP request dispatch plugin                                                           |
+| plugin-sampler                   | Sample/request generation plugin                                                       |
+| plugin-websocket-proxy           | WebSocket remote-plugin transport                                                      |
+| rules-rfc-9110                   | RFC 9110 rule set                                                                      |
+| rules-api-description-validation | API description validation rule set                                                    |
+| e2e                              | End-to-end test workspace                                                              |
 
 Use these scopes in your commit messages for clarity and traceability.
 
@@ -35,13 +43,17 @@ Refer to this list when contributing to ensure consistent commit messages.
 
 ## Module boundaries
 
+> Enforced by `@nx/enforce-module-boundaries` in [eslint.config.mjs](eslint.config.mjs) —
+> that file is the source of truth.
+
 ### Dimension "scope"
 
-| Tag            | Allowed Dependencies                      | Description                                                    |
-| -------------- | ----------------------------------------- | -------------------------------------------------------------- |
-| `scope:cli`    | `scope:core`, `scope:cli`                 | CLI functionality (package.json dependencies are runtime only) |
-| `scope:core`   | `scope:core`                              | Core functionlity like event system or Thymian format types    |
-| `scope:plugin` | `scope:core`, `scope:cli`, `scope:plugin` | Plugins                                                        |
+| Tag            | Allowed Dependencies                                     | Description                                                                                                         |
+| -------------- | -------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------- |
+| `scope:cli`    | `scope:core`, `scope:cli`, `scope:plugin`, `scope:rules` | CLI packages (the `thymian` app aggregates plugins and rule sets)                                                   |
+| `scope:core`   | `scope:core`                                             | Core framework (contracts, rule system, Thymian format)                                                             |
+| `scope:plugin` | `scope:core`, `scope:cli`, `scope:plugin`                | Plugins (note: plugins may **not** depend on `scope:rules` — rules reach plugins via the core loader, per ADR-0009) |
+| `scope:rules`  | constrained via `type`/`npm` dimensions                  | Rule set packages; depend only on `@thymian/core` in practice                                                       |
 
 ### Dimension "type"
 
@@ -50,8 +62,18 @@ Refer to this list when contributing to ensure consistent commit messages.
 | `type:app`         | All types                      | Executable packages or nx apps                                                                               |
 | `type:lib`         | `type:lib`                     | A library                                                                                                    |
 | `type:lib-feature` | `type:lib`, `type:lib-feature` | Features add functionality to libraries. E.g. publishable config, rule-sets or just splitted out source code |
-| `type:testing`     | All types                      | Testing libraries that should be accessible to all other projects for testing purposes                       |
 | `type:e2e`         | All types                      | End-to-end tests and testing utilities                                                                       |
+
+In **test files** (`**/test/**`, `*.test.ts`, `*.spec.ts`) every constraint additionally
+allows `type:testing`, so testing libraries are reachable from any project's tests without
+being a production dependency.
+
+### Dimension "npm"
+
+| Tag           | Allowed Dependencies        | Description                                              |
+| ------------- | --------------------------- | -------------------------------------------------------- |
+| `npm:public`  | `npm:public`                | Published packages may only depend on published packages |
+| `npm:private` | `npm:public`, `npm:private` | Private projects may depend on anything                  |
 
 ## Releases
 
@@ -263,7 +285,9 @@ No commits since last release match conventional commit format or no changes det
 Check:
 
 1. `npm` environment is configured with approval gates
-2. `NPM_TOKEN` secret is set
+2. npm **trusted publishing (OIDC)** is configured for every published package — the
+   workflow uses `id-token: write` and no npm token (`NODE_AUTH_TOKEN` is deliberately
+   empty); brand-new packages need a one-time `npm run bootstrap-npm-packages`
 3. User is in allowlist
 4. Release tag format is valid semver
 
