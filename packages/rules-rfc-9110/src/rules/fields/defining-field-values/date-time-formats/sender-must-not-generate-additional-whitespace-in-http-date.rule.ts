@@ -61,7 +61,6 @@ export default httpRule(
   .summary(
     'Sender MUST NOT generate additional whitespace in HTTP-date beyond the grammar.',
   )
-  .appliesTo('origin server')
   .rule((ctx) =>
     ctx.validateHttpTransactions(
       or(...httpDateResponseHeaders.map((name) => responseHeader(name))),

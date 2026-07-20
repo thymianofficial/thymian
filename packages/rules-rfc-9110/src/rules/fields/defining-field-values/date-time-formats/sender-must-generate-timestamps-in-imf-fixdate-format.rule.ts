@@ -117,7 +117,7 @@ export default httpRule(
             violation: {
               message: `The response carries HTTP-date timestamp(s) not in the required IMF-fixdate format: ${createList(
                 malformed,
-              )}. `,
+              )}.`,
             },
             findings: [],
           },
