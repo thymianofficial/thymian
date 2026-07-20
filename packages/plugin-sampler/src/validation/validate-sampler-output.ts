@@ -371,7 +371,19 @@ function preserveRootMetadataTimestamp(
     return;
   }
 
-  expectedJson.version = actualJson.version;
+  const expectedVersionObject = expectedJson.version;
+  const actualVersionObject = actualJson.version;
+
+  if (
+    !isJsonObject(expectedVersionObject) ||
+    !isJsonObject(actualVersionObject)
+  ) {
+    return;
+  }
+
+  // Only the timestamp is allowed to differ run-to-run; copy just that field so
+  // drift in any other `version.*` field (added later) is still validated.
+  expectedVersionObject.timestamp = actualVersionObject.timestamp;
   expectedFiles.set('meta.json', Buffer.from(JSON.stringify(expectedJson)));
 }
 
