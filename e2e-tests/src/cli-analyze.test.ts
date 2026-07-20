@@ -91,7 +91,7 @@ describe('thymian analyze', () => {
       });
 
       expect(result.stdout).toMatch(
-        /Summary: \d+ error\(s\), \d+ warning\(s\), \d+ hint\(s\), \d+ info\(s\)\./,
+        /Summary: \d+ errors?, \d+ warnings?, \d+ hints?, \d+ infos?\./,
       );
     }, 90_000);
   });

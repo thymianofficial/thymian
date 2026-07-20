@@ -2,7 +2,7 @@ import type { Command } from '@oclif/core';
 import { ux } from '@oclif/core';
 import type { Execution, Report } from '@thymian/core';
 
-import { renderReport } from './cli-report-renderer.js';
+import { renderReport } from './render/cli-report.js';
 
 export const HIGH_COUNT_THRESHOLD = 20;
 

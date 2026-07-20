@@ -1,14 +1,10 @@
+import type { Logger } from '../logger/logger.js';
 import type {
   Execution,
   FindingRecord,
   RuleDescriptor,
   Severity,
 } from './report.js';
-
-/** Minimal logger surface used for defensive severity-resolution warnings. */
-export interface SeverityWarnLogger {
-  warn(message: string): void;
-}
 
 /** A single label/value detail extracted from a finding for rendering. */
 export interface FindingDetail {
@@ -44,7 +40,7 @@ export function buildRuleIndex(
 export function resolveExecutionSeverity(
   execution: Execution,
   ruleIndex: ReadonlyMap<string, RuleDescriptor>,
-  logger?: SeverityWarnLogger,
+  logger?: Logger,
 ): Severity | undefined {
   const { status } = execution;
 
