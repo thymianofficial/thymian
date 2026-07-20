@@ -22,6 +22,8 @@ import {
 import type { PathToNodeType } from './structure-meta-on-disc.js';
 import { traverse, traverseAsync } from './traverse.js';
 
+export type CreateDir = (path: string) => Promise<void>;
+
 export type WriteToFile = (
   path: string,
   content: string | Buffer,
@@ -213,6 +215,8 @@ export async function transformParameters({
 export type WriteOptions = {
   path: string;
   mode?: 'failIfExist' | 'overwrite';
+  mkdir?: CreateDir;
+  writeToFile?: WriteToFile;
 };
 
 export async function writeSamplesToDir(
@@ -222,21 +226,29 @@ export async function writeSamplesToDir(
 ): Promise<void> {
   const mode = options.mode ?? 'failIfExist';
 
-  const writeToFile: WriteToFile = async (path, content, encoding) => {
-    if (mode === 'failIfExist' && (await entryExists(path))) {
-      throw new ThymianBaseError(
-        `File/Directory at path "${path}" already exists. Use "overwrite" mode to overwrite it.`,
-        {
-          name: 'PathAlreadyExistsError',
-          ref: 'https://thymian.dev/references/errors/path-already-exists-error/',
-        },
-      );
-    }
+  const mkdirDir: CreateDir =
+    options.mkdir ??
+    (async (path) => {
+      await mkdir(path, { recursive: true });
+    });
 
-    await writeFile(path, content, encoding as BufferEncoding);
-  };
+  const writeToFile: WriteToFile =
+    options.writeToFile ??
+    (async (path, content, encoding) => {
+      if (mode === 'failIfExist' && (await entryExists(path))) {
+        throw new ThymianBaseError(
+          `File/Directory at path "${path}" already exists. Use "overwrite" mode to overwrite it.`,
+          {
+            name: 'PathAlreadyExistsError',
+            ref: 'https://thymian.dev/references/errors/path-already-exists-error/',
+          },
+        );
+      }
 
-  await mkdir(options.path, { recursive: true });
+      await writeFile(path, content, encoding as BufferEncoding);
+    });
+
+  await mkdirDir(options.path);
 
   await writeToFile(
     join(options.path, 'meta.json'),
@@ -257,13 +269,13 @@ export async function writeSamplesToDir(
     const dirPath = join(currentPath, folderName);
 
     if (nodeIsType(node, 'samples')) {
-      await mkdir(dirPath, { recursive: true });
+      await mkdirDir(dirPath);
 
       const metaPath = join(dirPath, 'meta.json');
 
       await writeToFile(metaPath, JSON.stringify(node.meta, null, 2));
     } else if (nodeIsType(node, 'requests')) {
-      await mkdir(dirPath, { recursive: true });
+      await mkdirDir(dirPath);
 
       for (const [idx, sample] of node.value.entries()) {
         const name = `${idx}-request`;

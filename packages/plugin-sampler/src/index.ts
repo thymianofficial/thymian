@@ -27,6 +27,10 @@ import { readSamplesFromDir } from './samples-structure/read-samples-from-dir.js
 import type { SamplesStructure } from './samples-structure/samples-tree-structure.js';
 import { writeSamplesToDir } from './samples-structure/write-samples-to-dir.js';
 import { entryExists } from './utils.js';
+import {
+  type SamplerValidationReport,
+  validateSamplerOutput,
+} from './validation/validate-sampler-output.js';
 
 declare module '@thymian/core' {
   interface ThymianActions {
@@ -36,6 +40,14 @@ declare module '@thymian/core' {
         overwrite?: boolean;
       };
       response: void;
+    };
+
+    'sampler.validate': {
+      event: {
+        format: SerializedThymianFormat;
+        forPath?: string;
+      };
+      response: SamplerValidationReport;
     };
 
     'core.request.sample': {
@@ -66,6 +78,50 @@ declare module '@thymian/core' {
 export type SamplerPluginOptions = {
   path: string;
 };
+
+const samplerValidateActionSchema = {
+  event: {
+    type: 'object',
+    required: ['format'],
+    properties: {
+      format: {},
+      forPath: { type: 'string', nullable: true },
+    },
+  },
+  response: {
+    type: 'object',
+    required: ['samplePath', 'checkedArtifacts', 'failures'],
+    properties: {
+      samplePath: { type: 'string' },
+      checkedArtifacts: { type: 'integer' },
+      failures: {
+        type: 'array',
+        items: {
+          type: 'object',
+          required: ['type', 'path', 'message'],
+          properties: {
+            type: {
+              type: 'string',
+              enum: [
+                'missing-artifact',
+                'changed-artifact',
+                'stale-root-metadata',
+                'metadata-out-of-sync',
+                'unexpected-artifact',
+                'invalid-json',
+              ],
+            },
+            path: { type: 'string' },
+            message: { type: 'string' },
+            expected: { type: 'string', nullable: true },
+            actual: { type: 'string', nullable: true },
+            changes: { type: 'array', nullable: true },
+          },
+        },
+      },
+    },
+  },
+} as const;
 
 export const samplePlugin: ThymianPlugin<Partial<SamplerPluginOptions>> = {
   name: '@thymian/plugin-sampler',
@@ -107,6 +163,11 @@ export const samplePlugin: ThymianPlugin<Partial<SamplerPluginOptions>> = {
           },
         },
       },
+      // The strict `JSONSchemaType<T>` target can't be satisfied by this
+      // hand-written `as const` schema (readonly literals + a deliberately
+      // loose `format: {}`, which ajv validates at runtime). `never` is the
+      // bottom type, so it assigns past the check.
+      'sampler.validate': samplerValidateActionSchema as never,
     },
   },
   plugin: async (emitter, logger, options) => {
@@ -201,6 +262,19 @@ export const samplePlugin: ThymianPlugin<Partial<SamplerPluginOptions>> = {
       );
 
       ctx.reply();
+    });
+
+    emitter.onAction('sampler.validate', async ({ format, forPath }, ctx) => {
+      const parsedFormat = ThymianFormat.import(format);
+
+      ctx.reply(
+        await validateSamplerOutput({
+          format: parsedFormat,
+          emitter,
+          samplePath: basePath,
+          forPath,
+        }),
+      );
     });
 
     emitter.onAction('core.request.sample', async ({ transaction }, ctx) => {
