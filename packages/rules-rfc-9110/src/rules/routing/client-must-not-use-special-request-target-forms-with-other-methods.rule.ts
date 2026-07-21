@@ -1,4 +1,4 @@
-import { method } from '@thymian/core';
+import { constant } from '@thymian/core';
 import { httpRule } from '@thymian/core';
 
 export default httpRule(
@@ -15,20 +15,33 @@ export default httpRule(
   .summary(
     'Special request target forms MUST NOT be used with methods other than CONNECT or OPTIONS.',
   )
-  .appliesTo('client', 'user-agent')
+  .appliesTo('client')
   .rule((ctx) =>
-    ctx.validateHttpTransactions(method(), (req, _res, location) => {
-      // Asterisk-form: a request-target of exactly "*" (optionally as a bare
-      // path) is reserved for OPTIONS.
-      const target = req.path.trim();
-      const isAsteriskForm = target === '*';
+    ctx.validateHttpTransactions(constant(true), (req, _res, location) => {
+      const method = req.method.toUpperCase();
+      const target = (req.target ?? req.path).trim();
 
-      if (isAsteriskForm && req.method.toUpperCase() !== 'OPTIONS') {
+      // Asterisk-form: a request-target of exactly "*" is reserved for OPTIONS.
+      if (target === '*' && method !== 'OPTIONS') {
         return [
           {
             location,
             violation: {
-              message: `The asterisk-form request target ("*") was used with method ${req.method}. The "*" target is reserved for OPTIONS; it MUST NOT be used with other methods.`,
+              message: `The asterisk-form request target ("*") was used with method ${req.method}.`,
+            },
+            findings: [],
+          },
+        ];
+      }
+
+      // Authority-form (host:port without path, query or scheme) is reserved
+      // for CONNECT.
+      if (/^[^/?#]+:\d+$/.test(target) && method !== 'CONNECT') {
+        return [
+          {
+            location,
+            violation: {
+              message: `The authority-form request target ("${target}") was used with method ${req.method}.`,
             },
             findings: [],
           },
