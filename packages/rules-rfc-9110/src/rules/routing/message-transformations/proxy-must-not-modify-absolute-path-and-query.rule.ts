@@ -1,5 +1,7 @@
 import { httpRule, type RuleFnResult } from '@thymian/core';
 
+import { forwardingHops } from '../utils/forwarding.js';
+
 const normalizePath = (path: string): string => (path === '' ? '/' : path);
 
 export default httpRule('rfc9110/proxy-must-not-modify-absolute-path-and-query')
@@ -16,18 +18,9 @@ export default httpRule('rfc9110/proxy-must-not-modify-absolute-path-and-query')
   .rule((ctx) =>
     ctx.validateCapturedHttpTraces((trace, location) => {
       const results: RuleFnResult[] = [];
-      for (let i = 1; i < trace.length; i++) {
-        const forwarded = trace[i - 1];
-        const received = trace[i];
-        if (
-          !forwarded ||
-          !received ||
-          forwarded.request.meta.role !== 'proxy'
-        ) {
-          continue;
-        }
-        const receivedPath = normalizePath(received.request.data.path);
-        const forwardedPath = normalizePath(forwarded.request.data.path);
+      for (const { inbound, outbound } of forwardingHops(trace, ['proxy'])) {
+        const receivedPath = normalizePath(inbound.request.data.path);
+        const forwardedPath = normalizePath(outbound.request.data.path);
         // Empty-path -> "/" or "*" is an allowed protocol normalization.
         if (
           forwardedPath !== '*' &&

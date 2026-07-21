@@ -1,5 +1,7 @@
 import { getHeader, httpRule, type RuleFnResult } from '@thymian/core';
 
+import { forwardingHops } from '../../utils/forwarding.js';
+
 const KNOWN_HOP_BY_HOP = [
   'proxy-connection',
   'keep-alive',
@@ -22,20 +24,11 @@ export default httpRule(
   .rule((ctx) =>
     ctx.validateCapturedHttpTraces((trace, location) => {
       const results: RuleFnResult[] = [];
-      for (let i = 1; i < trace.length; i++) {
-        const forwarded = trace[i - 1];
-        const received = trace[i];
-        if (
-          !forwarded ||
-          !received ||
-          forwarded.request.meta.role !== 'intermediary'
-        ) {
-          continue;
-        }
+      for (const { inbound, outbound } of forwardingHops(trace)) {
         const notRemoved = KNOWN_HOP_BY_HOP.filter(
           (name) =>
-            getHeader(received.request.data.headers, name) !== undefined &&
-            getHeader(forwarded.request.data.headers, name) !== undefined,
+            getHeader(inbound.request.data.headers, name) !== undefined &&
+            getHeader(outbound.request.data.headers, name) !== undefined,
         );
         if (notRemoved.length > 0) {
           results.push({

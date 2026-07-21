@@ -1,6 +1,6 @@
 import { getHeader, httpRule, type RuleFnResult } from '@thymian/core';
 
-import { equalHeaderValues } from '../utils/forwarding.js';
+import { equalHeaderValues, forwardingHops } from '../utils/forwarding.js';
 
 const REPRESENTATION_HEADERS = [
   'content-type',
@@ -27,21 +27,13 @@ export default httpRule(
   .rule((ctx) =>
     ctx.validateCapturedHttpTraces((trace, location) => {
       const results: RuleFnResult[] = [];
-      for (let i = 1; i < trace.length; i++) {
-        // forwarded = response the proxy sent to the client;
-        // received = response it got from the next server.
-        const forwarded = trace[i - 1];
-        const received = trace[i];
-        if (
-          !forwarded ||
-          !received ||
-          forwarded.response.meta.role !== 'proxy'
-        ) {
-          continue;
-        }
+      for (const { inbound, outbound } of forwardingHops(trace, ['proxy'])) {
+        // For responses the direction reverses: the proxy receives the
+        // outbound leg's response from upstream and forwards it downstream
+        // as the inbound leg's response.
         const modified = REPRESENTATION_HEADERS.filter((name) => {
-          const before = getHeader(received.response.data.headers, name);
-          const after = getHeader(forwarded.response.data.headers, name);
+          const before = getHeader(outbound.response.data.headers, name);
+          const after = getHeader(inbound.response.data.headers, name);
           if (before === undefined && after === undefined) {
             return false;
           }

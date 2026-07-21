@@ -1,6 +1,9 @@
 import { getHeader, httpRule, type RuleFnResult } from '@thymian/core';
 
-import { connectionOptionNames } from '../../utils/forwarding.js';
+import {
+  connectionOptionNames,
+  forwardingHops,
+} from '../../utils/forwarding.js';
 
 export default httpRule(
   'rfc9110/intermediary-must-parse-and-remove-connection-fields',
@@ -18,31 +21,22 @@ export default httpRule(
   .rule((ctx) =>
     ctx.validateCapturedHttpTraces((trace, location) => {
       const results: RuleFnResult[] = [];
-      for (let i = 1; i < trace.length; i++) {
-        // forwarded = message as the intermediary sent it onward;
-        // received = message as the intermediary received it.
-        const forwarded = trace[i - 1];
-        const received = trace[i];
-        if (
-          !forwarded ||
-          !received ||
-          forwarded.request.meta.role !== 'intermediary'
-        ) {
-          continue;
-        }
+      for (const { inbound, outbound } of forwardingHops(trace)) {
+        // Options named in the received (inbound) Connection header must not
+        // survive on the request the intermediary forwarded onward (outbound).
         const optionNames = connectionOptionNames(
-          getHeader(received.request.data.headers, 'connection'),
+          getHeader(inbound.request.data.headers, 'connection'),
         );
         const survivors = optionNames.filter(
           (name) =>
             name !== 'close' &&
-            getHeader(forwarded.request.data.headers, name) !== undefined,
+            getHeader(outbound.request.data.headers, name) !== undefined,
         );
         if (survivors.length > 0) {
           results.push({
             location,
             violation: {
-              message: `An intermediary forwarded connection-specific header field(s) (${survivors.join(', ')}) named in the received Connection header field. It MUST remove them before forwarding.`,
+              message: `An intermediary forwarded connection-specific header field(s) (${survivors.join(', ')}) named in the received Connection header field.`,
             },
             findings: [],
           });

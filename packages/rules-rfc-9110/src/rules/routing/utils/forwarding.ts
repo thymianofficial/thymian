@@ -1,4 +1,69 @@
+import {
+  type CapturedTrace,
+  type CapturedTransaction,
+  expandHttpParticipantRoles,
+  type HttpParticipantRole,
+} from '@thymian/core';
+
 type HeaderValue = string | string[] | undefined;
+
+export type ForwardingHop = {
+  /**
+   * Transaction on the user-agent side of the forwarding participant
+   * (`trace[i - 1]`): its request is the message the participant received,
+   * its response is the message the participant sent back downstream.
+   */
+  inbound: CapturedTransaction;
+  /**
+   * Transaction on the origin side of the forwarding participant
+   * (`trace[i]`): its request is the message the participant forwarded
+   * onward, its response is the message it received from upstream.
+   */
+  outbound: CapturedTransaction;
+};
+
+/**
+ * Pairs adjacent transactions of a captured trace into forwarding hops.
+ *
+ * Captured traces are ordered root-first (see `sortTraceTransactions` in
+ * plugin-http-analyzer): `trace[0]` is the transaction observed at the edge,
+ * closest to the user agent, and each later entry is the onward transaction
+ * produced by the forwarding participant between it and its predecessor.
+ * Because `meta.role` names the participant that produced a message, that
+ * middle participant is identified by `outbound.request.meta.role` (it sent
+ * the onward request) or `inbound.response.meta.role` (it sent the downstream
+ * response).
+ *
+ * Only hops whose middle participant matches one of the given roles are
+ * returned; umbrella roles are expanded, so the default `['intermediary']`
+ * also matches concrete `proxy`, `gateway` and `tunnel` stamps. Traces with
+ * fewer than two transactions (e.g. single-transaction HAR imports) yield no
+ * hops.
+ */
+export function forwardingHops(
+  trace: CapturedTrace,
+  roles: readonly HttpParticipantRole[] = ['intermediary'],
+): ForwardingHop[] {
+  const accepted = new Set(expandHttpParticipantRoles(roles));
+  const matches = (role: HttpParticipantRole | undefined): boolean =>
+    role !== undefined && accepted.has(role);
+
+  const hops: ForwardingHop[] = [];
+  for (let i = 1; i < trace.length; i++) {
+    const inbound = trace[i - 1];
+    const outbound = trace[i];
+    if (!inbound || !outbound) {
+      continue;
+    }
+    if (
+      matches(outbound.request.meta.role) ||
+      matches(inbound.response.meta.role)
+    ) {
+      hops.push({ inbound, outbound });
+    }
+  }
+  return hops;
+}
 
 export function headerValues(value: HeaderValue): string[] {
   if (value === undefined) {

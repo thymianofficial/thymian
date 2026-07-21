@@ -1,5 +1,7 @@
 import { httpRule, type RuleFnResult } from '@thymian/core';
 
+import { forwardingHops } from '../utils/forwarding.js';
+
 export default httpRule('rfc9110/proxy-must-not-change-fqdn-hostname')
   .severity('error')
   .type('analytics')
@@ -16,34 +18,27 @@ export default httpRule('rfc9110/proxy-must-not-change-fqdn-hostname')
   .rule((ctx) =>
     ctx.validateCapturedHttpTraces((trace, location) => {
       const results: RuleFnResult[] = [];
-      for (let i = 1; i < trace.length; i++) {
-        // forwarded = request the proxy sent onward; received = request it got.
-        const forwarded = trace[i - 1];
-        const received = trace[i];
-        if (
-          !forwarded ||
-          !received ||
-          forwarded.request.meta.role !== 'proxy'
-        ) {
-          continue;
-        }
+      for (const { inbound, outbound } of forwardingHops(trace, ['proxy'])) {
         let receivedHost: string;
         let forwardedHost: string;
         try {
           receivedHost = new URL(
-            received.request.data.path,
-            received.request.data.origin,
+            inbound.request.data.path,
+            inbound.request.data.origin,
           ).hostname;
           forwardedHost = new URL(
-            forwarded.request.data.path,
-            forwarded.request.data.origin,
+            outbound.request.data.path,
+            outbound.request.data.origin,
           ).hostname;
         } catch {
           continue;
         }
-        // Only guard fully qualified domain names (a name, not an IP literal).
+        // Only guard fully qualified domain names: an IPv6 literal keeps its
+        // brackets in URL.hostname and contains hex letters, so a letter test
+        // alone would misclassify it as a name.
         if (
           receivedHost &&
+          !receivedHost.startsWith('[') &&
           /[a-zA-Z]/.test(receivedHost) &&
           forwardedHost !== receivedHost
         ) {

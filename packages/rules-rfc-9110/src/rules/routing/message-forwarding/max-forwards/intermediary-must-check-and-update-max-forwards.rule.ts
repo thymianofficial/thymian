@@ -1,6 +1,6 @@
 import { getHeader, httpRule, type RuleFnResult } from '@thymian/core';
 
-import { parseMaxForwards } from '../../utils/forwarding.js';
+import { forwardingHops, parseMaxForwards } from '../../utils/forwarding.js';
 
 export default httpRule(
   'rfc9110/intermediary-must-check-and-update-max-forwards',
@@ -16,25 +16,16 @@ export default httpRule(
   .rule((ctx) =>
     ctx.validateCapturedHttpTraces((trace, location) => {
       const results: RuleFnResult[] = [];
-      for (let i = 1; i < trace.length; i++) {
-        const forwarded = trace[i - 1];
-        const received = trace[i];
-        if (
-          !forwarded ||
-          !received ||
-          forwarded.request.meta.role !== 'intermediary'
-        ) {
-          continue;
-        }
-        const method = received.request.data.method.toUpperCase();
+      for (const { inbound, outbound } of forwardingHops(trace)) {
+        const method = inbound.request.data.method.toUpperCase();
         if (method !== 'TRACE' && method !== 'OPTIONS') {
           continue;
         }
         const receivedValue = parseMaxForwards(
-          getHeader(received.request.data.headers, 'max-forwards'),
+          getHeader(inbound.request.data.headers, 'max-forwards'),
         );
         const forwardedValue = parseMaxForwards(
-          getHeader(forwarded.request.data.headers, 'max-forwards'),
+          getHeader(outbound.request.data.headers, 'max-forwards'),
         );
         if (receivedValue === undefined) {
           continue;

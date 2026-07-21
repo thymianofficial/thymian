@@ -1,6 +1,6 @@
 import { getHeader, httpRule, type RuleFnResult } from '@thymian/core';
 
-import { parseMaxForwards } from '../../utils/forwarding.js';
+import { forwardingHops, parseMaxForwards } from '../../utils/forwarding.js';
 
 export default httpRule(
   'rfc9110/intermediary-must-not-forward-when-max-forwards-is-zero',
@@ -16,24 +16,15 @@ export default httpRule(
   .rule((ctx) =>
     ctx.validateCapturedHttpTraces((trace, location) => {
       const results: RuleFnResult[] = [];
-      for (let i = 1; i < trace.length; i++) {
-        // A forwarded leg emitted by the intermediary paired with the request
-        // it received: if the received Max-Forwards was 0, forwarding is forbidden.
-        const forwarded = trace[i - 1];
-        const received = trace[i];
-        if (
-          !forwarded ||
-          !received ||
-          forwarded.request.meta.role !== 'intermediary'
-        ) {
-          continue;
-        }
-        const method = received.request.data.method.toUpperCase();
+      // The existence of an outbound leg means the intermediary forwarded the
+      // request; if the inbound Max-Forwards was 0, forwarding is forbidden.
+      for (const { inbound } of forwardingHops(trace)) {
+        const method = inbound.request.data.method.toUpperCase();
         if (method !== 'TRACE' && method !== 'OPTIONS') {
           continue;
         }
         const receivedValue = parseMaxForwards(
-          getHeader(received.request.data.headers, 'max-forwards'),
+          getHeader(inbound.request.data.headers, 'max-forwards'),
         );
         if (receivedValue === 0) {
           results.push({
