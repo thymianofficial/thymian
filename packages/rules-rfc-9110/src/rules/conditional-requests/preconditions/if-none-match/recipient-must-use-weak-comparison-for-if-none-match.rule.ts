@@ -19,5 +19,4 @@ export default httpRule(
   .summary(
     'Recipient MUST use weak comparison function for If-None-Match ETags.',
   )
-  .appliesTo('server')
   .done();

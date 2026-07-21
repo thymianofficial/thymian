@@ -18,5 +18,4 @@ export default httpRule(
   .summary(
     'Recipient MUST ignore If-Unmodified-Since when the resource has no modification date available.',
   )
-  .appliesTo('server')
   .done();

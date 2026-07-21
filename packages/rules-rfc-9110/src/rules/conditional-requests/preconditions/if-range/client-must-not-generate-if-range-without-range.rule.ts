@@ -36,7 +36,7 @@ export default httpRule(
           location,
           violation: {
             message:
-              'The request carries an If-Range header field but no Range header field. Clients MUST NOT generate If-Range without an accompanying Range header field.',
+              'The request carries an If-Range header field but no Range header field.',
           },
           findings: [],
         },

@@ -50,7 +50,7 @@ export default httpRule(
               },
               violation: {
                 message:
-                  'A request whose unconditional response is non-2xx/412 returned 412 once an If-Match precondition was added. The server MUST ignore preconditions when the response would be non-2xx/412; the 412 shows the precondition was evaluated instead of ignored.',
+                  'A request whose unconditional response is non-2xx/412 returned 412 once an If-Match precondition was added.',
               },
               findings: [],
             });

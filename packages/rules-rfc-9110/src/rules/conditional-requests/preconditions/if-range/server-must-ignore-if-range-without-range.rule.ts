@@ -42,7 +42,7 @@ export default httpRule('rfc9110/server-must-ignore-if-range-without-range')
           location,
           violation: {
             message:
-              'The request carried an If-Range header field but no Range header field, yet the server returned 206 Partial Content. A server MUST ignore If-Range when no Range header field is present.',
+              'The request carried an If-Range header field but no Range header field, yet the server returned 206 Partial Content.',
           },
           findings: [],
         },

@@ -22,7 +22,6 @@ export default httpRule(
   .summary(
     'Recipient MUST ignore If-Modified-Since when If-None-Match is present.',
   )
-  .appliesTo('server')
   .rule((ctx) =>
     ctx.validateCommonHttpTransactions(
       and(requestHeader('if-none-match'), requestHeader('if-modified-since')),
@@ -55,7 +54,7 @@ export default httpRule(
               },
               violation: {
                 message:
-                  'A request carrying a non-matching If-None-Match (condition true) together with an If-Modified-Since that alone evaluates to "not modified" received 304. When If-None-Match is present the recipient MUST ignore If-Modified-Since; the 304 shows it did not.',
+                  'A request carrying a non-matching If-None-Match (condition true) together with an If-Modified-Since that alone evaluates to "not modified" received 304.',
               },
               findings: [],
             });

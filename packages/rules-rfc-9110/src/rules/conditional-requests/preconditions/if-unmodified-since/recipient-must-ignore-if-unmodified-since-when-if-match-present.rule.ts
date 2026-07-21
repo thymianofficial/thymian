@@ -21,7 +21,6 @@ export default httpRule(
   .summary(
     'Recipient MUST ignore If-Unmodified-Since when If-Match is present.',
   )
-  .appliesTo('server')
   .rule(async (ctx) => {
     const results: RuleFnResult[] = [];
     await ctx.httpTest(
@@ -47,7 +46,7 @@ export default httpRule(
               },
               violation: {
                 message:
-                  'A request carrying If-Match: * (condition true) together with an If-Unmodified-Since that alone evaluates to failed received 412. When If-Match is present the recipient MUST ignore If-Unmodified-Since; the 412 shows it did not.',
+                  'A request carrying If-Match: * (condition true) together with an If-Unmodified-Since that alone evaluates to failed received 412.',
               },
               findings: [],
             });

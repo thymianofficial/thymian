@@ -75,7 +75,7 @@ export default httpRule(
                 elementId: notModifiedTransaction.source.transactionId,
               },
               violation: {
-                message: `A GET/HEAD request replayed with If-None-Match set to the resource's own ETag (so the condition evaluates to false / the tag matches) received a ${notModifiedTransaction.response.statusCode} response instead of 304 Not Modified. When If-None-Match fails for a GET/HEAD request the origin server MUST respond with 304.`,
+                message: `A GET/HEAD request replayed with If-None-Match set to the resource's own ETag (so the condition evaluates to false / the tag matches) received a ${notModifiedTransaction.response.statusCode} response instead of 304 Not Modified.`,
               },
               findings: [],
             });

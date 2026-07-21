@@ -69,7 +69,7 @@ export default httpRule(
                 elementId: notModifiedTransaction.source.transactionId,
               },
               violation: {
-                message: `A GET/HEAD request replayed with If-Modified-Since set to the resource's own Last-Modified value (so the condition is false) received a ${notModifiedTransaction.response.statusCode} response instead of 304 Not Modified. The origin server SHOULD generate a 304 response when the If-Modified-Since condition evaluates to false.`,
+                message: `A GET/HEAD request replayed with If-Modified-Since set to the resource's own Last-Modified value (so the condition is false) received a ${notModifiedTransaction.response.statusCode} response instead of 304 Not Modified.`,
               },
               findings: [],
             });
