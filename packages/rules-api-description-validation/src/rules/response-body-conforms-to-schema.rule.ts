@@ -71,7 +71,9 @@ export default httpRule('thymian/response-body-must-conforms-to-schema')
           return [
             {
               location,
-              violation: { message: `${failures.length} assertion(s) failed` },
+              violation: {
+                message: `Response body does not conform to the schema (${failures.length} issue${failures.length === 1 ? '' : 's'})`,
+              },
               findings: httpTestResultToRuleFindings(results),
             },
           ];

@@ -33,7 +33,10 @@ export function expectForTransactions<Steps extends HttpTestCaseStep[]>(
       return { current, ctx };
     }
 
-    for (const transaction of step.transactions) {
+    // `expectForTransaction` always validates the last (most recent) step.
+    const stepIdx = current.steps.length - 1;
+
+    for (const [transactionIdx, transaction] of step.transactions.entries()) {
       try {
         fn(transaction);
       } catch (e) {
@@ -46,6 +49,9 @@ export function expectForTransactions<Steps extends HttpTestCaseStep[]>(
             expected: e.expected,
             actual: e.actual,
             transaction: transaction.source,
+            // Tag the failure with its position so the report can trace it back
+            // to the exact step and HTTP transaction (see BaseFinding.transactionIndex).
+            location: { stepIdx, transactionIdx },
           });
 
           return ctx.fail(current, e.message);

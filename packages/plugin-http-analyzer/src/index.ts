@@ -66,8 +66,7 @@ declare module '@thymian/core' {
 }
 
 export type HttpAnalyzerStorage =
-  | { type: 'memory' }
-  | { type: 'sqlite'; path?: string };
+  { type: 'memory' } | { type: 'sqlite'; path?: string };
 
 export type HttpAnalyzerPluginOptions = {
   storage?: HttpAnalyzerStorage;
@@ -99,6 +98,7 @@ function createRuns(
   ruleResults: RunRulesResult,
   _transactions: CapturedTransaction[] = [],
   rules: Rule[] = [],
+  thymianFormatVersion?: string,
 ): ToolRun[] {
   const executions = executionsFromRunRulesResult(
     ruleResults,
@@ -115,7 +115,9 @@ function createRuns(
       runType: 'analyze',
       executions,
       rules: ruleDescriptors.length > 0 ? ruleDescriptors : undefined,
-      thymianFormatVersion: format.toHash(),
+      // Reuse the hash carried by the serialized input format when present;
+      // fall back to recomputation (e.g. when no format was supplied).
+      thymianFormatVersion: thymianFormatVersion ?? format.toHash(),
     }),
   ];
 }
@@ -228,6 +230,7 @@ export function createHttpAnalyzerPlugin(
               ruleResults,
               traffic.transactions ?? [],
               rules,
+              format?.attributes.hash,
             ),
           );
         },
@@ -250,7 +253,14 @@ export function createHttpAnalyzerPlugin(
           const violations = runRulesResultToViolations(ruleResults, rules);
 
           ctx.reply({
-            runs: createRuns(pluginName, thymianFormat, ruleResults, [], rules),
+            runs: createRuns(
+              pluginName,
+              thymianFormat,
+              ruleResults,
+              [],
+              rules,
+              format?.attributes.hash,
+            ),
             violations,
             valid: violations.length === 0,
           });
@@ -299,6 +309,7 @@ export function createHttpAnalyzerPlugin(
               ruleResults,
               transactions ?? [],
               rules,
+              format?.attributes.hash,
             ),
             violations,
             valid: violations.length === 0,

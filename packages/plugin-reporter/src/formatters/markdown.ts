@@ -134,7 +134,7 @@ function countOutcomes(executions: Execution[] | undefined): {
   let skipped = 0;
   let passed = 0;
 
-  for (const { execution } of walkExecutions(executions)) {
+  for (const execution of walkExecutions(executions)) {
     if (execution.status.kind === 'failed') {
       failed += 1;
     } else if (execution.status.kind === 'skipped') {
@@ -169,7 +169,7 @@ function buildLintAnalyzeSection(
   const ruleIndex = buildRuleIndex(run.rules);
   const groups = new Map<string, string[]>();
 
-  for (const { execution } of walkExecutions(run.executions)) {
+  for (const execution of walkExecutions(run.executions)) {
     if (execution.kind !== 'lint' && execution.kind !== 'analyze') {
       continue;
     }
@@ -185,7 +185,9 @@ function buildLintAnalyzeSection(
 
     const rule = execution.ruleId ? ruleIndex.get(execution.ruleId) : undefined;
     const ruleCell = execution.ruleId
-      ? `\`${execution.ruleId}\``
+      ? rule?.helpUri
+        ? `[\`${execution.ruleId}\`](${rule.helpUri})`
+        : `\`${execution.ruleId}\``
       : 'unnamed check';
 
     if (execution.status.kind === 'failed') {
@@ -285,7 +287,7 @@ function buildTestSection(
 
   const ruleIndex = buildRuleIndex(run.rules);
 
-  for (const { execution } of walkExecutions(run.executions)) {
+  for (const execution of walkExecutions(run.executions)) {
     if (execution.kind !== 'test' || execution.status.kind === 'passed') {
       continue;
     }
@@ -300,7 +302,10 @@ function buildTestSection(
     const rule = execution.ruleId ? ruleIndex.get(execution.ruleId) : undefined;
     const severity = resolveExecutionSeverity(execution, ruleIndex, logger);
     const severityPrefix = severity ? `${severityWord(severity)} · ` : '';
-    const ruleCell = `<code>${escapeHtml(execution.ruleId ?? 'unnamed check')}</code>`;
+    const ruleLabel = escapeHtml(execution.ruleId ?? 'unnamed check');
+    const ruleCell = rule?.helpUri
+      ? `<a href="${escapeHtml(rule.helpUri)}"><code>${ruleLabel}</code></a>`
+      : `<code>${ruleLabel}</code>`;
     const message =
       execution.status.kind === 'failed'
         ? (execution.status.reason ??

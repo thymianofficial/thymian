@@ -3,6 +3,7 @@ import { match } from 'path-to-regexp';
 import type { ThymianHttpRequest } from '../../index.js';
 import type { HttpTestCaseResult } from '../http-test/index.js';
 import { ajv } from './ajv.js';
+import { describeSchemaError, schemaErrorDetail } from './schema-error.js';
 
 function extractPathParameters(
   actualPath: string,
@@ -44,32 +45,38 @@ export function validateExistingPathParameter(
 ): HttpTestCaseResult[] {
   return Object.entries(pathParams)
     .filter(([name]) => Object.hasOwn(request.pathParameters, name))
-    .map(([name, value]) => {
+    .flatMap(([name, value]): HttpTestCaseResult[] => {
       if (request.pathParameters[name]?.schema) {
         const validate = ajv.compile(request.pathParameters[name]?.schema);
 
         validate(value);
 
-        if (validate.errors) {
-          return {
+        if (validate.errors && validate.errors.length > 0) {
+          // One assertion-failure per schema error rather than a joined message.
+          return validate.errors.map((err) => ({
             type: 'assertion-failure',
-            message: `Invalid value for path parameter "${name}": ${validate.errors.map((err) => err.message).join(', ')}.`,
+            message: describeSchemaError(err, `path parameter "${name}"`),
+            ...schemaErrorDetail(err),
             timestamp: Date.now(),
-          };
-        } else {
-          return {
+          }));
+        }
+
+        return [
+          {
             type: 'assertion-success',
             message: `Valid path parameter "${name}".`,
             timestamp: Date.now(),
-          };
-        }
+          },
+        ];
       }
 
-      return {
-        type: 'info',
-        message: `No schema provided for path parameter "${name}".`,
-        timestamp: Date.now(),
-      };
+      return [
+        {
+          type: 'info',
+          message: `No schema provided for path parameter "${name}".`,
+          timestamp: Date.now(),
+        },
+      ];
     });
 }
 

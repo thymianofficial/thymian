@@ -8,12 +8,16 @@ import {
   type ExecutionStatus,
   type FindingRecord,
   type HttpTestCase,
+  type HttpTestCaseResult,
   type HttpTestCaseStep,
+  type HttpTestResult,
+  httpTestResultToRuleFindings,
   isCustomHttpTestCaseStep,
   isGroupedHttpTestCaseStep,
   isSingleHttpTestCaseStep,
   type Location,
   type Logger,
+  type ReportHttpTransaction,
   resolveViolationLocation,
   type Rule,
   ruleFindingToFindingRecord,
@@ -66,36 +70,85 @@ function ruleViolationToStepFinding(
   } satisfies FindingRecord;
 }
 
-// stepPlacements must be pre-filtered to this step (testCaseIndex + stepIndex match).
 function buildTestStep(
   step: HttpTestCaseStep,
   stepIndex: number,
-  stepPlacements: RuleFnResultPlacement[],
+  casePlacements: RuleFnResultPlacement[],
+  caseResults: readonly HttpTestCaseResult[],
   rule: Rule,
   location: Location,
 ): TestStep {
-  const findings: FindingRecord[] = [];
+  // Associate results with this step by their placement `stepIndex` (which the
+  // context derives from each result's `location.stepIdx`), rather than relying
+  // on the caller to pre-filter.
+  const stepPlacements = casePlacements.filter(
+    (p) => p.stepIndex === stepIndex,
+  );
+
+  // Build the step's transactions, keeping a map from a transaction's raw index
+  // in `step.transactions` to its index in the (filtered) `httpTransactions`, so
+  // a finding's `transactionIndex` can be re-based onto the exposed array.
+  const httpTransactions: ReportHttpTransaction[] = [];
+  const rawToExposedTxIndex = new Map<number, number>();
+  step.transactions.forEach((t, rawIdx) => {
+    if (t.request !== undefined && t.response !== undefined) {
+      rawToExposedTxIndex.set(rawIdx, httpTransactions.length);
+      httpTransactions.push({ request: t.request, response: t.response });
+    }
+  });
+
+  const rebaseTransactionIndex = (finding: FindingRecord): FindingRecord => {
+    if (finding.transactionIndex === undefined) {
+      return finding;
+    }
+    const exposed = rawToExposedTxIndex.get(finding.transactionIndex);
+    if (exposed === undefined) {
+      const rest = { ...finding };
+      delete rest.transactionIndex;
+      return rest;
+    }
+    return { ...finding, transactionIndex: exposed };
+  };
+
+  // Detail findings come from two sources, both funneled through the shared
+  // HttpTestCaseResult/RuleFinding → FindingRecord mappers so all mapping lives
+  // in one place: rule-based validation results carried on `RuleFnResult.findings`,
+  // and the case's raw `HttpTestCaseResult`s tied to this step by `location.stepIdx`.
+  const detailRecords: FindingRecord[] = [];
 
   for (const { result } of stepPlacements) {
-    if (result.violation !== undefined) {
-      findings.push(ruleViolationToStepFinding(result.violation, rule));
-    }
     for (const finding of result.findings) {
       const record = ruleFindingToFindingRecord(finding);
       if (record) {
-        findings.push(record);
+        detailRecords.push(rebaseTransactionIndex(record));
       }
     }
   }
 
-  const httpTransactions = step.transactions
-    .filter((t) => t.request !== undefined && t.response !== undefined)
-    .map((t) => ({
-      // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-      request: t.request!,
-      // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-      response: t.response!,
-    }));
+  const stepResults = caseResults.filter(
+    (result) => result.location?.stepIdx === stepIndex,
+  );
+  for (const finding of httpTestResultToRuleFindings(stepResults)) {
+    const record = ruleFindingToFindingRecord(finding);
+    if (record) {
+      detailRecords.push(rebaseTransactionIndex(record));
+    }
+  }
+
+  // A violation with no failure detail still needs a visible marker; when detail
+  // findings already convey the failure, don't add a duplicate generic marker.
+  const violation = stepPlacements.find(
+    ({ result }) => result.violation !== undefined,
+  )?.result.violation;
+  const hasFailureDetail = detailRecords.some(
+    (f) => f.kind === 'assertion-failure' || f.kind === 'rule-violation',
+  );
+
+  const findings: FindingRecord[] = [];
+  if (violation !== undefined && !hasFailureDetail) {
+    findings.push(ruleViolationToStepFinding(violation, rule));
+  }
+  findings.push(...detailRecords);
 
   return createTestStep({
     name: `Step ${stepIndex + 1}`,
@@ -184,6 +237,61 @@ function computeTestCaseStatus(
   };
 }
 
+/**
+ * Combine the placements the context recorded with placements synthesized for
+ * rule results that reference an executed transaction but weren't placed.
+ *
+ * A rule may collect violations from a `.transactions()` inspection callback and
+ * return them directly (rather than failing the test case), so the context never
+ * records a placement for them. Each such result still carries the transaction's
+ * edge id, so we match it back to the test case/step that ran that transaction —
+ * letting it render on the right step instead of falling through to the unplaced
+ * fallback.
+ */
+function resolvePlacements(
+  testResult: HttpTestResult,
+  contextPlacements: RuleFnResultPlacement[],
+  ruleFnResult: RuleFnResult[],
+  alreadyConsumed: ReadonlySet<RuleFnResult>,
+): RuleFnResultPlacement[] {
+  const positionByEdgeId = new Map<
+    string,
+    { testCaseIndex: number; stepIndex: number }
+  >();
+  testResult.cases.forEach((testCase, testCaseIndex) => {
+    testCase.steps.forEach((step, stepIndex) => {
+      for (const transaction of step.transactions) {
+        const id = transaction.source?.transactionId;
+        if (id !== undefined && !positionByEdgeId.has(id)) {
+          positionByEdgeId.set(id, { testCaseIndex, stepIndex });
+        }
+      }
+    });
+  });
+
+  const placed = new Set(
+    contextPlacements.map((placement) => placement.result),
+  );
+  const synthesized: RuleFnResultPlacement[] = [];
+  for (const result of ruleFnResult) {
+    if (placed.has(result) || alreadyConsumed.has(result)) {
+      continue;
+    }
+    const { location } = result;
+    const edgeId =
+      typeof location !== 'string' && location.elementType === 'edge'
+        ? location.elementId
+        : undefined;
+    const position =
+      edgeId !== undefined ? positionByEdgeId.get(edgeId) : undefined;
+    if (position !== undefined) {
+      synthesized.push({ result, ...position });
+    }
+  }
+
+  return [...contextPlacements, ...synthesized];
+}
+
 // exported for testing
 export function createRuns(
   pluginName: string,
@@ -191,6 +299,7 @@ export function createRuns(
   rules: Rule[] = [],
   thymianFormat: ThymianFormat,
   logger: Logger,
+  thymianFormatVersion?: string,
 ): ToolRun[] {
   const ruleMap = new Map(rules.map((r) => [r.meta.name, r]));
   const executions: TestCaseExecution[] = [];
@@ -207,7 +316,17 @@ export function createRuns(
 
     if (diagnostics) {
       for (const { testResult, placements } of diagnostics) {
+        const resolvedPlacements = resolvePlacements(
+          testResult,
+          placements,
+          ruleFnResult,
+          consumedResults,
+        );
         testResult.cases.forEach((testCase, testCaseIndex) => {
+          const casePlacements = resolvedPlacements.filter(
+            (p) => p.testCaseIndex === testCaseIndex,
+          );
+
           // Case-level placements (no step index) no longer become findings —
           // the case outcome lives on `status`. Accumulate violation/rule-skip
           // signals across every placement (case- and step-level) to derive it.
@@ -215,7 +334,7 @@ export function createRuns(
             hasViolation: false,
             hasRuleSkip: false,
           };
-          const noteResult = (result: RuleFnResult): void => {
+          for (const { result } of casePlacements) {
             consumedResults.add(result);
             if (result.violation !== undefined) {
               signals.hasViolation = true;
@@ -231,32 +350,18 @@ export function createRuns(
                 }
               }
             }
-          };
-
-          for (const { result } of placements.filter(
-            (p) =>
-              p.testCaseIndex === testCaseIndex && p.stepIndex === undefined,
-          )) {
-            noteResult(result);
           }
 
-          const steps = testCase.steps.map((step, stepIndex) => {
-            const stepPlacements = placements.filter(
-              (p) =>
-                p.testCaseIndex === testCaseIndex && p.stepIndex === stepIndex,
-            );
-            for (const { result } of stepPlacements) {
-              noteResult(result);
-            }
-
-            return buildTestStep(
+          const steps = testCase.steps.map((step, stepIndex) =>
+            buildTestStep(
               step,
               stepIndex,
-              stepPlacements,
+              casePlacements,
+              testCase.results,
               rule,
               stepToLocation(step),
-            );
-          });
+            ),
+          );
 
           executions.push(
             createTestCaseExecution({
@@ -270,9 +375,10 @@ export function createRuns(
       }
     }
 
-    // Fallback: results not placed by diagnostics have no test-case/step slot in
-    // the strict model. This path is verified unreachable in production; emit a
-    // failed test case (folding any diagnostic text into the reason) and warn.
+    // Fallback: a result that could not be attached to any executed test
+    // case/step (it references no known transaction, e.g. a rule reporting at a
+    // non-edge location). Emit a standalone test case (folding any diagnostic
+    // text into the reason) and warn, so the result is still surfaced.
     for (const result of ruleFnResult) {
       if (consumedResults.has(result)) {
         continue;
@@ -324,7 +430,9 @@ export function createRuns(
       runType: 'test',
       executions,
       rules: ruleDescriptors.length > 0 ? ruleDescriptors : undefined,
-      thymianFormatVersion: thymianFormat.toHash(),
+      // Reuse the hash carried by the serialized input format when provided,
+      // instead of recomputing it here.
+      thymianFormatVersion: thymianFormatVersion ?? thymianFormat.toHash(),
     }),
   ];
 }
@@ -395,7 +503,14 @@ export function createHttpTesterPlugin(
           );
 
           ctx.reply(
-            createRuns(pluginName, ruleResults, rules, thymianFormat, logger),
+            createRuns(
+              pluginName,
+              ruleResults,
+              rules,
+              thymianFormat,
+              logger,
+              format.attributes.hash,
+            ),
           );
         },
       );

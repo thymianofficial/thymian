@@ -1,5 +1,4 @@
 import {
-  type AssertionFailure,
   type CommonHttpRequest,
   type CommonHttpResponse,
   createRegExpFromOriginWildcard,
@@ -143,24 +142,24 @@ export class HttpTestApiContext<
 
       const transactionsToValidate = transactions
         .filter(hasSource)
-        .map<
-          [CommonHttpRequest, CommonHttpResponse, RuleViolationLocation]
-        >((transaction) => [
-          httpRequestToCommonHttpRequest(
-            // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-            transaction.request!,
-            transaction.source.thymianReqId,
-          ),
-          httpResponseToCommonHttpResponse(
-            // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-            transaction.response!,
-            transaction.source.thymianResId,
-          ),
-          {
-            elementId: transaction.source.transactionId,
-            elementType: 'edge',
-          },
-        ]);
+        .map<[CommonHttpRequest, CommonHttpResponse, RuleViolationLocation]>(
+          (transaction) => [
+            httpRequestToCommonHttpRequest(
+              // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+              transaction.request!,
+              transaction.source.thymianReqId,
+            ),
+            httpResponseToCommonHttpResponse(
+              // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+              transaction.response!,
+              transaction.source.thymianResId,
+            ),
+            {
+              elementId: transaction.source.transactionId,
+              elementType: 'edge',
+            },
+          ],
+        );
 
       const results = validationFn(source.key, transactionsToValidate);
       callViolations.push(...results);
@@ -263,6 +262,10 @@ export class HttpTestApiContext<
           | undefined;
 
         if (assertionFailure && assertionFailure.transaction) {
+          // Mark the case as violated for status derivation, but keep the
+          // assertion detail on the raw test-case `results`; the report mapping
+          // (index.ts `buildTestStep`) maps those results into findings so all
+          // HttpTestCaseResult → report mapping lives in one place.
           const result: RuleFnResult = {
             location: {
               elementId: assertionFailure.transaction.transactionId,

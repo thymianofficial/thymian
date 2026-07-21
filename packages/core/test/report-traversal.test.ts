@@ -44,7 +44,7 @@ const executions: Execution[] = [
 describe('walkExecutions', () => {
   it('yields every execution as a flat list', () => {
     const visits = [...walkExecutions(executions)];
-    expect(visits.map((v) => v.execution.ruleId)).toEqual([
+    expect(visits.map((execution) => execution.ruleId)).toEqual([
       'rule-a',
       'rule-b',
       'rule-c',

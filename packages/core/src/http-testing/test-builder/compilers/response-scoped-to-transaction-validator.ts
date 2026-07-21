@@ -19,6 +19,7 @@ export function compileResponseScopedExpressionToTransactionValidationFn(
         assert.strictEqual(
           transaction.response?.headers['content-type'],
           expression.mediaType,
+          `Response Content-Type should be "${expression.mediaType}"`,
         );
     case 'responseTrailer':
       if (typeof expression.trailer === 'undefined') {
@@ -30,18 +31,27 @@ export function compileResponseScopedExpressionToTransactionValidationFn(
           assert.strictEqual(
             transaction.response?.trailers[expression.trailer!],
             expression.value,
+            `Response trailer "${expression.trailer}" should be "${expression.value}"`,
           );
         } else {
-          assert.ok(transaction.response?.trailers[expression.trailer!]);
+          assert.ok(
+            transaction.response?.trailers[expression.trailer!],
+            `Response should include trailer "${expression.trailer}"`,
+          );
         }
       };
     case 'constant':
       return () => Boolean(expression.value);
     case 'statusCode':
       return (transaction) =>
-        assert.strictEqual(transaction.response?.statusCode, expression.code);
+        assert.strictEqual(
+          transaction.response?.statusCode,
+          expression.code,
+          `Response status code should be ${expression.code}`,
+        );
     case 'hasResponseBody':
-      return (transaction) => assert.ok(transaction.response?.body);
+      return (transaction) =>
+        assert.ok(transaction.response?.body, 'Response should have a body');
     case 'responseHeader': {
       if (typeof expression.header === 'undefined') {
         return () => true;
@@ -54,14 +64,16 @@ export function compileResponseScopedExpressionToTransactionValidationFn(
             expression.header!,
             ...Object.keys(transaction.response?.headers ?? {}),
           ),
+          `Response should include header "${expression.header}"`,
         );
     }
     case 'statusCodeRange':
       return (transaction) => {
-        assert.ok(transaction.response?.statusCode);
-        assert.ok(Number.isInteger(transaction.response?.statusCode));
-        assert.ok(transaction.response.statusCode >= expression.start);
-        assert.ok(transaction.response.statusCode <= expression.end);
+        const range = `Response status code should be between ${expression.start} and ${expression.end}`;
+        assert.ok(transaction.response?.statusCode, range);
+        assert.ok(Number.isInteger(transaction.response?.statusCode), range);
+        assert.ok(transaction.response.statusCode >= expression.start, range);
+        assert.ok(transaction.response.statusCode <= expression.end, range);
       };
     case 'and':
       return (transaction) =>

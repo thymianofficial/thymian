@@ -418,6 +418,60 @@ describe('createRuns', () => {
     expect(logger.warn).toHaveBeenCalledTimes(1);
   });
 
+  it('attaches a returned edge result to the step whose transaction it references', () => {
+    // Simulates a rule that collects a violation in a `.transactions()` callback
+    // and returns it without failing the case, so the context recorded no
+    // placement — the result still references the executed transaction by edge id.
+    const result: RuleFnResult = {
+      location: { elementType: 'edge', elementId: 'tx-42' },
+      violation: {},
+      findings: [],
+    };
+    const step = {
+      type: 'single',
+      source: { transactionId: 'tx-42' },
+      transactions: [
+        {
+          request: { origin: 'http://localhost', path: '/x', method: 'GET' },
+          response: { statusCode: 200, headers: {} },
+          source: { transactionId: 'tx-42' },
+        },
+      ],
+    } as unknown as HttpTestCaseStep;
+    const cases: HttpTestCase[] = [
+      {
+        name: 'GET /x',
+        status: 'passed',
+        start: 0,
+        end: 5,
+        steps: [step],
+        results: [],
+      } as unknown as HttpTestCase,
+    ];
+    const diagnostics: HttpTesterRuleDiagnostics = [
+      { testResult: { name: 'run', duration: 0, cases }, placements: [] },
+    ];
+
+    const logger = makeLogger();
+    const [run] = createRuns(
+      PLUGIN,
+      ruleResults([result], diagnostics),
+      [rule],
+      FORMAT,
+      logger,
+    );
+    const cases2 = testCases(run!.executions);
+
+    // Attached to the matching case (now failed) — no extra unplaced fallback case.
+    expect(cases2).toHaveLength(1);
+    expect(cases2[0]!.name).toBe('GET /x');
+    expect(cases2[0]!.status.kind).toBe('failed');
+    expect(
+      cases2[0]!.steps[0]!.findings.some((f) => f.kind === 'rule-violation'),
+    ).toBe(true);
+    expect(logger.warn).not.toHaveBeenCalled();
+  });
+
   describe('step locations', () => {
     function stepLocationFor(step: HttpTestCaseStep) {
       const cases = [makePassedCase('my-test', [step])];

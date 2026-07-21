@@ -43,14 +43,14 @@ const findingSchema = {
 } as unknown as JSONSchemaType<unknown>;
 
 /**
- * `Execution` schema. Report Format v4 (issue #323/#334) replaced the
- * hierarchical `Execution.children`/`nestedFindings` shape with a flat,
- * per-runType union: `LintExecution`/`AnalyzeExecution` (`location` +
- * `findings`) and `TestCaseExecution` (`name` + `steps`, no `location`).
- * `kind` and `status` are the only fields common to every variant, so only
- * those are `required`; the rest are optional and validated loosely rather
- * than as a strict discriminated union (ajv's `JSONSchemaType` cannot express
- * "required iff kind === X" without repeating the whole union per branch).
+ * `Execution` schema. Executions are a flat, per-runType union of leaf
+ * executions: `LintExecution`/`AnalyzeExecution`
+ * (`location` + `findings`) and `TestCaseExecution` (`name` + `steps`, no
+ * `location`); executions do not nest. `kind` and `status` are the only fields
+ * common to every variant, so only those are `required`; the rest are optional
+ * and validated loosely rather than as a strict discriminated union (ajv's
+ * `JSONSchemaType` cannot express "required iff kind === X" without repeating
+ * the whole union per branch).
  */
 const executionSchema = {
   type: 'object',
