@@ -12,5 +12,4 @@ export default httpRule(
   .summary(
     'Sender MUST NOT generate multiple field lines with the same name unless the field definition allows it.',
   )
-  .tags('fields', 'field-order')
   .done();

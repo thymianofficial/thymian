@@ -15,5 +15,4 @@ export default httpRule(
   .summary(
     'Recipient MAY retain other CTL characters in field values when in safe contexts.',
   )
-  .tags('fields', 'field-values')
   .done();

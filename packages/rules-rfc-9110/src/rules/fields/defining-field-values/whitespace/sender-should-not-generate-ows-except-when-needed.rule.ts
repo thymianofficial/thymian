@@ -15,5 +15,4 @@ export default httpRule(
   .summary(
     'Sender SHOULD NOT generate optional whitespace except when needed for overwriting invalid elements.',
   )
-  .tags('fields', 'whitespace')
   .done();

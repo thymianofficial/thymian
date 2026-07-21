@@ -16,5 +16,4 @@ export default httpRule(
   .summary(
     'Field parsing implementations MUST exclude leading/trailing whitespace before evaluating field values.',
   )
-  .tags('fields', 'field-values', 'parsing')
   .done();
