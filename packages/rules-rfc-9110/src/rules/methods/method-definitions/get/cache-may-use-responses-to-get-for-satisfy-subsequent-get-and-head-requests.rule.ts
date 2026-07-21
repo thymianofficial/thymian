@@ -13,7 +13,7 @@ export default httpRule(
   .type('informational')
   .url('https://www.rfc-editor.org/rfc/rfc9110.html#name-get')
   .description(
-    'a cache MAY use it to satisfy subsequent GET and HEAD requests unless otherwise indicated by the Cache-Control header field.',
+    'A cache MAY use it to satisfy subsequent GET and HEAD requests unless otherwise indicated by the Cache-Control header field.',
   )
   .appliesTo('cache')
   .done();

@@ -39,7 +39,7 @@ export default httpRule(
             location,
             violation: {
               message:
-                'A proxy MUST NOT generate a Max-Forwards header field while forwarding a request unless the request was received with one, but this proxy added Max-Forwards to a request that arrived without it.',
+                'A proxy MUST NOT generate a Max-Forwards header field while forwarding a request unless the request was received with one.',
             },
             findings: [],
           });

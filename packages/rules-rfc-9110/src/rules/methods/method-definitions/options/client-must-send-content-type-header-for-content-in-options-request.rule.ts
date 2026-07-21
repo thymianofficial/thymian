@@ -1,10 +1,10 @@
 import {
   and,
-  type CommonHttpRequest,
-  type CommonHttpResponse,
   hasRequestBody,
   httpRule,
   method,
+  not,
+  requestHeader,
 } from '@thymian/core';
 
 export default httpRule(
@@ -20,26 +20,7 @@ export default httpRule(
   .rule((ctx) =>
     ctx.validateCommonHttpTransactions(
       and(method('OPTIONS'), hasRequestBody()),
-      (req: CommonHttpRequest, _res: CommonHttpResponse, location) => {
-        const hasContentType = req.headers.some(
-          (header) => header.toLowerCase() === 'content-type',
-        );
-
-        if (hasContentType) {
-          return [];
-        }
-
-        return [
-          {
-            location,
-            violation: {
-              message:
-                'An OPTIONS request that carries content MUST include a Content-Type header field describing the representation media type, but none is present.',
-            },
-            findings: [],
-          },
-        ];
-      },
+      not(requestHeader('content-type')),
     ),
   )
   .done();

@@ -33,8 +33,7 @@ export default httpRule(
   .description(
     'The final recipient of the request SHOULD exclude any request fields that are likely to contain sensitive data when that recipient generates the response content.',
   )
-  // 'origin server' is included so the rule fires on HAR responses.
-  .appliesTo('server', 'origin server')
+  .appliesTo('server')
   .rule((ctx) =>
     ctx.validateHttpTransactions(
       and(method('TRACE'), hasResponseBody()),
@@ -67,7 +66,7 @@ export default httpRule(
             violation: {
               message: `The reflected TRACE response content echoes the value of sensitive request header field(s) ${createList(
                 leaked,
-              )}. The final recipient SHOULD exclude request fields likely to contain sensitive data when generating the response content.`,
+              )}.`,
             },
             findings: [],
           },

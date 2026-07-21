@@ -1,8 +1,9 @@
 import {
   and,
-  type CommonHttpRequest,
-  type CommonHttpResponse,
   method,
+  not,
+  or,
+  responseHeader,
   successfulStatusCode,
 } from '@thymian/core';
 import { httpRule } from '@thymian/core';
@@ -11,7 +12,7 @@ import { httpRule } from '@thymian/core';
 // features (supported methods) applicable to the target resource. We can only
 // observe header *names*, so we approximate the SHOULD by checking that a
 // successful OPTIONS response advertises at least Allow.
-const featureHeaders = ['allow'];
+const headerNames = ['allow'];
 
 export default httpRule(
   'rfc9110/server-should-send-headers-indicating-optional-features-in-2xx-response-to-options-request',
@@ -22,30 +23,11 @@ export default httpRule(
   .description(
     'A server generating a successful response to OPTIONS SHOULD send any header that might indicate optional features implemented by the server and applicable to the target resource (e.g., Allow), including potential extensions not defined by this specification.',
   )
-  .appliesTo('server', 'origin server')
+  .appliesTo('server')
   .rule((ctx) =>
     ctx.validateCommonHttpTransactions(
       and(method('OPTIONS'), successfulStatusCode()),
-      (_req: CommonHttpRequest, res: CommonHttpResponse, location) => {
-        const present = featureHeaders.some((name) =>
-          res.headers.some((header) => header.toLowerCase() === name),
-        );
-
-        if (present) {
-          return [];
-        }
-
-        return [
-          {
-            location,
-            violation: {
-              message:
-                'A successful response to OPTIONS SHOULD advertise the optional features applicable to the target resource (e.g., via an Allow header), but this response includes no such header.',
-            },
-            findings: [],
-          },
-        ];
-      },
+      not(or(...headerNames.map((name) => responseHeader(name)))),
     ),
   )
   .done();
