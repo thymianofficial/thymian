@@ -22,7 +22,7 @@ export default httpRule(
                 location,
                 violation: {
                   message:
-                    'An inbound request forwarded by an HTTP-to-HTTP gateway does not carry a Via header field. A gateway MUST add an appropriate Via header to each inbound request message.',
+                    'An inbound request forwarded by an HTTP-to-HTTP gateway does not carry a Via header field.',
                 },
                 findings: [],
               },

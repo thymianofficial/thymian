@@ -11,7 +11,7 @@ export default httpRule(
     'A server that sends a 426 (Upgrade Required) response MUST send an Upgrade header field to indicate the acceptable protocols, in order of descending preference. This informs the client which protocols it should use.',
   )
   .summary('Server MUST send Upgrade header in 426 response.')
-  .appliesTo('server', 'origin server')
+  .appliesTo('server')
   .rule((ctx) =>
     ctx.validateCommonHttpTransactions(
       and(statusCode(426), not(responseHeader('upgrade'))),
@@ -22,7 +22,7 @@ export default httpRule(
           location,
           violation: {
             message:
-              'A 426 (Upgrade Required) response was returned without an Upgrade header field. The server MUST send an Upgrade header listing the acceptable protocol(s) in descending preference.',
+              'A 426 (Upgrade Required) response was returned without an Upgrade header field.',
           },
           findings: [],
         },

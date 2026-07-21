@@ -9,5 +9,4 @@ export default httpRule('rfc9110/sender-may-replace-host-with-pseudonym')
     'The received-by portion of the Via header is normally the host and optional port number of a recipient server or client that subsequently forwarded the message. However, if the real host is considered to be sensitive information, a sender MAY replace it with a pseudonym.',
   )
   .summary('Sender MAY replace host with pseudonym in Via header.')
-  .appliesTo('intermediary')
   .done();

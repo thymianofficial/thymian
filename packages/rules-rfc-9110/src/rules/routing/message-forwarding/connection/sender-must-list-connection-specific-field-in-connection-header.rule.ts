@@ -4,12 +4,13 @@ import { httpRule } from '@thymian/core';
 import { createList } from '../../../../utils.js';
 
 /**
- * Well-known fields that supply control information for/about the current
- * connection and therefore MUST be named in the Connection header when present
- * (RFC 9110 Section 7.6.1, with the hop-by-hop fields enumerated in the
- * Connection section). `Connection` itself and `Upgrade` are excluded:
- * `Connection` is the field doing the listing, and a present `Upgrade` is
- * covered by a dedicated rule.
+ * Well-known legacy fields that supply control information for/about the
+ * current connection and therefore MUST be named in the Connection header
+ * when present (RFC 9110 Section 7.6.1). The RFC does not enumerate such
+ * fields; Keep-Alive and Proxy-Connection are the unambiguous well-known
+ * cases. `Connection` itself and `Upgrade` are excluded: `Connection` is the
+ * field doing the listing, and a present `Upgrade` is covered by a dedicated
+ * rule.
  */
 const connectionSpecificFields = ['keep-alive', 'proxy-connection'];
 
@@ -79,7 +80,7 @@ export default httpRule(
             violation: {
               message: `Connection-specific control field(s) ${createList(
                 unlisted,
-              )} are present but not named in the Connection header. The sender MUST list each such field name in Connection so recipients treat them as hop-by-hop.`,
+              )} are present but not named in the Connection header.`,
             },
             findings: [],
           },

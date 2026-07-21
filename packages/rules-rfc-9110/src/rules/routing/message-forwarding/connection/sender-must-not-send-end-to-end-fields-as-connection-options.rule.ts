@@ -63,7 +63,7 @@ export default httpRule(
             violation: {
               message: `The Connection header lists option(s) ${createList(
                 Array.from(new Set(offending)),
-              )} that name end-to-end field(s) intended for all recipients. A sender MUST NOT mark such fields as connection options (hop-by-hop).`,
+              )} that name end-to-end field(s) intended for all recipients.`,
             },
             findings: [],
           },

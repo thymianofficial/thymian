@@ -15,18 +15,6 @@ export default httpRule(
   .rule((ctx) =>
     ctx.validateHttpTransactions(
       and(not(requestHeader('host')), not(requestHeader(':authority'))),
-      // The filter selects requests carrying neither Host nor :authority, so
-      // every matched request is a violation.
-      (_req, _res, location) => [
-        {
-          location,
-          violation: {
-            message:
-              'The request carries neither a Host header field nor an ":authority" pseudo-header field. A user agent MUST supply the target URI authority via one of them.',
-          },
-          findings: [],
-        },
-      ],
     ),
   )
   .done();

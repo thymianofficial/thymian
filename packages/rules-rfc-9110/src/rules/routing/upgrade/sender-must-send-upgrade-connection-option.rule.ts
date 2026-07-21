@@ -9,7 +9,6 @@ export default httpRule('rfc9110/sender-must-send-upgrade-connection-option')
     'A sender of Upgrade MUST also send an "Upgrade" connection option in the Connection header field to inform intermediaries not to forward this field. This ensures the Upgrade header is treated as a hop-by-hop header.',
   )
   .summary('Sender MUST include "Upgrade" in Connection header.')
-  .appliesTo('client', 'user-agent')
   .rule((ctx) =>
     ctx.validateHttpTransactions(
       requestHeader('upgrade'),
@@ -36,7 +35,7 @@ export default httpRule('rfc9110/sender-must-send-upgrade-connection-option')
                 location,
                 violation: {
                   message:
-                    'A request carried an Upgrade header but the Connection header did not list the "Upgrade" connection option. A sender of Upgrade MUST also send an "Upgrade" connection option so intermediaries treat the field as hop-by-hop.',
+                    'A request carried an Upgrade header but the Connection header did not list the "Upgrade" connection option.',
                 },
                 findings: [],
               },

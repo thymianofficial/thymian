@@ -13,7 +13,7 @@ export default httpRule(
     'A server that sends a 101 (Switching Protocols) response MUST send an Upgrade header field to indicate the new protocol(s) to which the connection is being switched. This informs the client which protocol is now in use.',
   )
   .summary('Server MUST send Upgrade header in 101 response.')
-  .appliesTo('server', 'origin server')
+  .appliesTo('server')
   .rule((ctx) =>
     ctx.validateCommonHttpTransactions(
       and(statusCode(101), not(responseHeader('upgrade'))),
@@ -24,7 +24,7 @@ export default httpRule(
           location,
           violation: {
             message:
-              'A 101 (Switching Protocols) response was returned without an Upgrade header field. The server MUST send an Upgrade header to indicate the protocol(s) the connection is being switched to.',
+              'A 101 (Switching Protocols) response was returned without an Upgrade header field.',
           },
           findings: [],
         },
