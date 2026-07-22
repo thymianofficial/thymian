@@ -73,17 +73,14 @@ function ruleViolationToStepFinding(
 function buildTestStep(
   step: HttpTestCaseStep,
   stepIndex: number,
-  casePlacements: RuleFnResultPlacement[],
+  stepPlacements: RuleFnResultPlacement[],
   caseResults: readonly HttpTestCaseResult[],
   rule: Rule,
   location: Location,
 ): TestStep {
-  // Associate results with this step by their placement `stepIndex` (which the
-  // context derives from each result's `location.stepIdx`), rather than relying
-  // on the caller to pre-filter.
-  const stepPlacements = casePlacements.filter(
-    (p) => p.stepIndex === stepIndex,
-  );
+  // `stepPlacements` are the placements the caller has already grouped for this
+  // step (by each placement's `stepIndex`, derived from the result's
+  // `location.stepIdx`).
 
   // Build the step's transactions, keeping a map from a transaction's raw index
   // in `step.transactions` to its index in the (filtered) `httpTransactions`, so
@@ -364,11 +361,26 @@ export function createRuns(
             }
           }
 
+          // Group the case's placements by step once, so each step reads its
+          // own slice instead of re-scanning all case placements per step.
+          const placementsByStep = new Map<number, RuleFnResultPlacement[]>();
+          for (const placement of casePlacements) {
+            if (placement.stepIndex === undefined) {
+              continue; // case-level placement — not tied to a step
+            }
+            const list = placementsByStep.get(placement.stepIndex);
+            if (list) {
+              list.push(placement);
+            } else {
+              placementsByStep.set(placement.stepIndex, [placement]);
+            }
+          }
+
           const steps = testCase.steps.map((step, stepIndex) =>
             buildTestStep(
               step,
               stepIndex,
-              casePlacements,
+              placementsByStep.get(stepIndex) ?? [],
               testCase.results,
               rule,
               stepToLocation(step),
