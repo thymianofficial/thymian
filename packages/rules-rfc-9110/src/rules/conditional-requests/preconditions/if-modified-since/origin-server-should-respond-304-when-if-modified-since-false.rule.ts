@@ -1,15 +1,24 @@
 import {
   and,
+  httpRule,
   method,
   not,
   or,
   requestHeader,
   responseHeader,
   responseWith,
+  type RuleFnResult,
+  singleTestCase,
   statusCode,
 } from '@thymian/core';
-import { httpRule, type RuleFnResult, singleTestCase } from '@thymian/core';
 
+/**
+ * `static` lints the described transaction (an If-Modified-Since request should
+ * be able to produce a 304). `test` actively probes real behavior: it replays a
+ * fresh GET/HEAD with If-Modified-Since set to the resource's own Last-Modified
+ * (so the condition evaluates to false / "not modified") and asserts the server
+ * answers 304.
+ */
 export default httpRule(
   'rfc9110/origin-server-should-respond-304-when-if-modified-since-false',
 )
@@ -23,7 +32,6 @@ export default httpRule(
     'Origin server SHOULD respond with 304 when If-Modified-Since condition is false.',
   )
   .appliesTo('origin server')
-  .tags('conditional-requests', 'if-modified-since', '304')
   .rule((ctx) =>
     ctx.validateCommonHttpTransactions(
       and(
@@ -60,7 +68,9 @@ export default httpRule(
                 elementType: 'edge',
                 elementId: notModifiedTransaction.source.transactionId,
               },
-              violation: {},
+              violation: {
+                message: `A GET/HEAD request replayed with If-Modified-Since set to the resource's own Last-Modified value (so the condition is false) received a ${notModifiedTransaction.response.statusCode} response instead of 304 Not Modified.`,
+              },
               findings: [],
             });
           }

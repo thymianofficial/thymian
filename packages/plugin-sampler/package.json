@@ -41,6 +41,7 @@
     "!**/*.tsbuildinfo"
   ],
   "dependencies": {
+    "@scalar/json-magic": "^0.9.0",
     "@thymian/common-cli": "0.0.0-PLACEHOLDER",
     "@thymian/core": "0.0.0-PLACEHOLDER",
     "@thymian/plugin-request-dispatcher": "0.0.0-PLACEHOLDER",
@@ -49,7 +50,7 @@
     "json-schema-to-typescript": "^15.0.4",
     "launch-editor": "^2.14.1",
     "openapi-sampler": "^1.7.2",
-    "sharp": "^0.34.5",
+    "sharp": "^0.35.0",
     "tslib": "^2.3.0"
   },
   "oclif": {

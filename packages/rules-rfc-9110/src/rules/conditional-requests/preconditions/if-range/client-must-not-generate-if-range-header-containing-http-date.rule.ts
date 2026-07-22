@@ -18,7 +18,6 @@ export default httpRule(
     'A client MUST NOT generate an If-Range header field containing an HTTP-date.',
   )
   .appliesTo('client')
-  .tags('conditional-requests', 'if-range', 'evaluation')
   .rule((ctx) =>
     ctx.validateHttpTransactions(
       requestHeader('if-range'),

@@ -1,8 +1,6 @@
 import {
-  and,
   getHeader,
-  not,
-  requestHeader,
+  responseHeader,
   type RuleViolationLocation,
 } from '@thymian/core';
 import { httpRule } from '@thymian/core';
@@ -18,22 +16,36 @@ export default httpRule('rfc9110/server-may-send-accept-ranges-none')
     'Server may send "Accept-Ranges: none" to advise against range requests.',
   )
   .appliesTo('server')
+  // "Accept-Ranges: none" is a conformant MAY, so this surfaces (as analytics)
+  // responses that carry an Accept-Ranges header advertising a unit other than
+  // "none" (i.e. the server did not opt out of range requests), rather than
+  // reporting a violation.
   .rule((ctx) =>
     ctx.validateHttpTransactions(
-      and(not(requestHeader('range'))),
-      (req, res, location: RuleViolationLocation) => {
+      responseHeader('accept-ranges'),
+      (_req, res, location: RuleViolationLocation) => {
         const acceptRanges = getHeader(res.headers, 'accept-ranges');
-
-        if (!acceptRanges) {
-          return [{ location, violation: {}, findings: [] }];
-        }
-
-        return (Array.isArray(acceptRanges)
+        const values = Array.isArray(acceptRanges)
           ? acceptRanges
-          : [acceptRanges]
-        ).every((range) => !range.match(/none/i))
-          ? [{ location, violation: {}, findings: [] }]
-          : [];
+          : acceptRanges != null
+            ? [acceptRanges]
+            : [];
+
+        return values.some((value) => value.trim().toLowerCase() === 'none')
+          ? [{ location, findings: [] }]
+          : [
+              {
+                location,
+                findings: [
+                  {
+                    kind: 'informational',
+                    title: 'Server did not opt out of range requests',
+                    message:
+                      'Response carried an Accept-Ranges header advertising a unit other than "none".',
+                  },
+                ],
+              },
+            ];
       },
     ),
   )

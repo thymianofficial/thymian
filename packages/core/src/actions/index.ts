@@ -4,6 +4,11 @@ import type { LintAction } from './core-lint.action.js';
 import type { RequestSampleAction } from './core-request-sample.action.js';
 import type { TestAction } from './core-test.action.js';
 import type { CoreValidateSpecsAction } from './core-validate-specs.action.js';
+import type {
+  WorkflowAnalyzeAction,
+  WorkflowLintAction,
+  WorkflowTestAction,
+} from './core-workflow.action.js';
 import type { FormatAction } from './format.action.js';
 import type { FormatLoadAction } from './format-load.action.js';
 import type { ReadyAction } from './ready.action.js';
@@ -18,6 +23,9 @@ export interface ThymianActions {
   'core.lint': LintAction;
   'core.test': TestAction;
   'core.analyze': AnalyzeAction;
+  'core.workflow.lint': WorkflowLintAction;
+  'core.workflow.test': WorkflowTestAction;
+  'core.workflow.analyze': WorkflowAnalyzeAction;
   'core.validate-specs': CoreValidateSpecsAction;
   'core.request.dispatch': RequestDispatchAction;
   'core.request.sample': RequestSampleAction;
@@ -33,6 +41,7 @@ export * from './core-request-sample.action.js';
 export * from './core-test.action.js';
 export * from './core-validate-specs.action.js';
 export * from './core-validation-input.js';
+export * from './core-workflow.action.js';
 export * from './format.action.js';
 export * from './format-load.action.js';
 export * from './ready.action.js';

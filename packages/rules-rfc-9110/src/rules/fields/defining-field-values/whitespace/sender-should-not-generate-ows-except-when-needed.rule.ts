@@ -1,12 +1,12 @@
 import { httpRule } from '@thymian/core';
 
-// TODO: Implement ABNF validation for unnecessary OWS detection
-// Requires detecting OWS where not needed for readability
-// Can be implemented in static context to validate outgoing messages
 export default httpRule(
   'rfc9110/sender-should-not-generate-ows-except-when-needed',
 )
   .severity('warn')
+  // OWS positions are defined per-field by each field's ABNF; without those
+  // grammars the framework cannot identify superfluous OWS, and this is a
+  // stylistic SHOULD with no hard observable outcome.
   .type('informational')
   .url('https://www.rfc-editor.org/rfc/rfc9110.html#section-5.6.3')
   .description(
@@ -15,5 +15,4 @@ export default httpRule(
   .summary(
     'Sender SHOULD NOT generate optional whitespace except when needed for overwriting invalid elements.',
   )
-  .tags('fields', 'whitespace')
   .done();

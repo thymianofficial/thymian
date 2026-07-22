@@ -1,5 +1,10 @@
 import { httpRule } from '@thymian/core';
 
+// This MUST governs how a client internally parses and caches a response (it
+// must keep the corresponding request in mind, e.g. HEAD responses look like
+// GET responses but must not be parsed as such). That is internal client
+// behavior with no observable on-the-wire condition the rule framework can
+// validate.
 export default httpRule('rfc9110/client-must-retain-knowledge-of-request')
   .severity('error')
   .type('informational')

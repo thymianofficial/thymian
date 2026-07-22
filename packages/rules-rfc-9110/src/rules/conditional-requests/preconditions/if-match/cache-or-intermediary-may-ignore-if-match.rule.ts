@@ -10,6 +10,5 @@ export default httpRule('rfc9110/cache-or-intermediary-may-ignore-if-match')
   )
   .summary('Cache or intermediary MAY ignore If-Match header field.')
   .appliesTo('cache', 'intermediary')
-  .tags('conditional-requests', 'if-match', 'cache')
   .rule((ctx) => ctx.validateHttpTransactions(requestHeader('if-match')))
   .done();
