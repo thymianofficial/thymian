@@ -378,3 +378,21 @@ export function httpTestResultToRuleFindings(
     }
   });
 }
+
+export function isLintExecution(
+  execution: Execution,
+): execution is LintExecution {
+  return execution.kind === 'lint';
+}
+
+export function isTestCaseExecution(
+  execution: Execution,
+): execution is TestCaseExecution {
+  return execution.kind === 'test';
+}
+
+export function isAnalyzeExecution(
+  execution: Execution,
+): execution is AnalyzeExecution {
+  return execution.kind === 'analyze';
+}

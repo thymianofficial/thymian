@@ -8,6 +8,9 @@ import {
   specValidationResultsSchema,
   toolRunArraySchema,
   trafficLoadActionSchema,
+  workflowAnalyzeActionSchema,
+  workflowLintActionSchema,
+  workflowTestActionSchema,
 } from './actions/index.js';
 import { RegisterPluginEventSchema, reportSchema } from './events/index.js';
 import type { ThymianPlugin } from './thymian-plugin.js';
@@ -49,6 +52,18 @@ export const corePlugin: ThymianPlugin = {
       'core.analyze': {
         event: {} as JSONSchemaType<unknown>,
         response: toolRunArraySchema,
+      },
+      'core.workflow.lint': {
+        event: workflowLintActionSchema,
+        response: reportSchema,
+      },
+      'core.workflow.test': {
+        event: workflowTestActionSchema,
+        response: reportSchema,
+      },
+      'core.workflow.analyze': {
+        event: workflowAnalyzeActionSchema,
+        response: reportSchema,
       },
       'core.validate-specs': {
         event: coreValidateSpecsActionSchema,

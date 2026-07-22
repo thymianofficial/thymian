@@ -26,9 +26,7 @@ describe('thymian lint', () => {
     expect(output).toContain(
       'rfc9110/origin-server-with-clock-must-generate-date-for-2xx-3xx-4xx',
     );
-    expect(output).toContain(
-      'Summary: 1 error(s), 0 warning(s), 0 hint(s), 0 info(s).',
-    );
+    expect(output).toContain('Summary: 1 error, 0 warnings, 0 hints, 0 infos.');
   }, 90_000);
 
   it('should accept specification via --spec flag', () => {
@@ -40,9 +38,7 @@ describe('thymian lint', () => {
     );
 
     expect(output).toContain('@thymian/plugin-http-linter');
-    expect(output).toContain(
-      'Summary: 1 error(s), 0 warning(s), 0 hint(s), 0 info(s).',
-    );
+    expect(output).toContain('Summary: 1 error, 0 warnings, 0 hints, 0 infos.');
   }, 90_000);
 
   it('should exit with non-zero code when findings are present', () => {
@@ -65,7 +61,7 @@ describe('thymian lint', () => {
     expect(exitCode).toBe(0);
     expect(stdout).toContain('@thymian/plugin-http-linter');
     expect(stdout).toContain(
-      'Summary: 0 error(s), 0 warning(s), 0 hint(s), 0 info(s).',
+      'Summary: 0 errors, 0 warnings, 0 hints, 0 infos.',
     );
   }, 90_000);
 
@@ -78,19 +74,19 @@ describe('thymian lint', () => {
 
     expect(stdout).toContain('@thymian/plugin-http-linter');
     expect(stdout).toContain('Summary:');
-    expect(stdout).toContain('error(s)');
-    expect(stdout).toContain('warning(s)');
-    expect(stdout).toContain('hint(s)');
+    expect(stdout).toContain('error');
+    expect(stdout).toContain('warnings');
+    expect(stdout).toContain('hints');
   }, 90_000);
 
-  it('should use summary wording with "warning(s)"', () => {
+  it('should use summary wording with "warnings"', () => {
     copyFixturesToTempDir(join(fixturesDir, 'static-lint'), getTempDir());
 
     const { stdout } = execThymianResult(['lint'], {
       cwd: getTempDir(),
     });
 
-    expect(stdout).toContain('warning(s)');
+    expect(stdout).toContain('warnings');
     expect(stdout).not.toContain('warn(s)');
   }, 90_000);
 
