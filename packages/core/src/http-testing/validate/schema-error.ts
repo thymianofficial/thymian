@@ -52,6 +52,23 @@ export function describeSchemaError(
       : 'a required property is missing';
   }
 
+  if (
+    error.keyword === 'additionalProperties' ||
+    error.keyword === 'unevaluatedProperties'
+  ) {
+    const params = error.params as {
+      additionalProperty?: string;
+      unevaluatedProperty?: string;
+    };
+    const extra = params.additionalProperty ?? params.unevaluatedProperty;
+    const prop = base && extra ? `${base}.${extra}` : (extra ?? base);
+    return prop
+      ? `property "${prop}" is not allowed`
+      : subject
+        ? `${subject} has an unexpected property`
+        : 'an unexpected property is present';
+  }
+
   const what = error.message ?? 'is invalid';
 
   if (base) {

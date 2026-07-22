@@ -86,6 +86,45 @@ describe('describeSchemaError', () => {
       ),
     ).toBe('must be object');
   });
+
+  it('names the offending key for an additionalProperties error', () => {
+    expect(
+      describeSchemaError(
+        error({
+          keyword: 'additionalProperties',
+          instancePath: '/user',
+          params: { additionalProperty: 'extra' },
+          message: 'must NOT have additional properties',
+        }),
+      ),
+    ).toBe('property "user.extra" is not allowed');
+  });
+
+  it('names a root-level additionalProperties key', () => {
+    expect(
+      describeSchemaError(
+        error({
+          keyword: 'additionalProperties',
+          instancePath: '',
+          params: { additionalProperty: 'extra' },
+          message: 'must NOT have additional properties',
+        }),
+      ),
+    ).toBe('property "extra" is not allowed');
+  });
+
+  it('names the offending key for an unevaluatedProperties error', () => {
+    expect(
+      describeSchemaError(
+        error({
+          keyword: 'unevaluatedProperties',
+          instancePath: '/payload',
+          params: { unevaluatedProperty: 'stray' },
+          message: 'must NOT have unevaluated properties',
+        }),
+      ),
+    ).toBe('property "payload.stray" is not allowed');
+  });
 });
 
 describe('schemaErrorDetail', () => {
