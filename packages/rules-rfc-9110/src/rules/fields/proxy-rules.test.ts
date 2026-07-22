@@ -42,7 +42,7 @@ function runOnTrace(
  */
 function hop(
   role: HttpParticipantRole,
-  headers: Record<string, string | string[] | undefined>,
+  headers: Record<string, string | string[] | undefined> | undefined,
 ): CapturedTransaction {
   return {
     request: {
@@ -124,5 +124,14 @@ describe('proxy-must-forward-unrecognized-header-fields', () => {
     expect(message).toContain('x-real');
     expect(message).not.toContain('x-hop');
     expect(message).not.toContain('connection');
+  });
+
+  it('does not flag when the forwarded leg has no captured headers', () => {
+    const trace: CapturedTrace = [
+      hop('proxy', { 'x-custom': 'v' }),
+      hop('origin server', undefined),
+    ];
+
+    expect(runOnTrace(forwardRule, trace)).toHaveLength(0);
   });
 });

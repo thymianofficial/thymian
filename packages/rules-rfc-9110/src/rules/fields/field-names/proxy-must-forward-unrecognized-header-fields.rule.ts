@@ -42,18 +42,24 @@ export default httpRule('rfc9110/proxy-must-forward-unrecognized-header-fields')
         if (!received || !forwarded || received.request.meta.role !== 'proxy') {
           continue;
         }
+        const receivedHeaders = received.request.data.headers;
+        const forwardedHeaders = forwarded.request.data.headers;
+        // Incomplete capture: without both legs' headers we cannot distinguish a
+        // dropped field from an unrecorded one, so skip rather than emit false
+        // positives for every received field.
+        if (!receivedHeaders || !forwardedHeaders) {
+          continue;
+        }
         const excepted = new Set([
           ...DROPPABLE,
-          ...connectionOptionNames(
-            getHeader(received.request.data.headers, 'connection'),
-          ),
+          ...connectionOptionNames(getHeader(receivedHeaders, 'connection')),
         ]);
-        const dropped = Object.keys(received.request.data.headers ?? {})
+        const dropped = Object.keys(receivedHeaders)
           .map((name) => name.toLowerCase())
           .filter(
             (name) =>
               !excepted.has(name) &&
-              getHeader(forwarded.request.data.headers, name) === undefined,
+              getHeader(forwardedHeaders, name) === undefined,
           );
         if (dropped.length > 0) {
           results.push({
