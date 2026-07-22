@@ -1,11 +1,11 @@
-import { and, method, not, or, statusCode } from '@thymian/core';
+import { method, not, or, statusCode } from '@thymian/core';
 import { httpRule, singleTestCase } from '@thymian/core';
 
 export default httpRule(
   'rfc9110/general-purpose-severs-must-support-get-and-head',
 )
   .severity('error')
-  .type('test')
+  .type('test', 'analytics')
   .url('https://www.rfc-editor.org/rfc/rfc9110.html#name-overview')
   .description(
     'All general-purpose servers MUST support the methods GET and HEAD.',

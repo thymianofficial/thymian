@@ -1,5 +1,10 @@
 import { httpRule } from '@thymian/core';
 
+// The MUST is gated on the server's intent ("wishes to have it applied to a
+// different resource"). Whether the server wants to redirect the state change
+// elsewhere is internal intent that no message exposes, so the triggering
+// condition is unobservable. (A bare "PUT got a 3xx" check would not validate
+// this rule — it cannot tell an intended relocation from any other redirect.)
 export default httpRule(
   'rfc9110/origin-server-must-send-3xx-response-if-state-change-should-be-applied-to-other-resource',
 )

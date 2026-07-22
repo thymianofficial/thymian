@@ -8,6 +8,10 @@ import {
 } from '@thymian/core';
 import { httpRule } from '@thymian/core';
 
+// The Allow header is the canonical, interoperable signal of the optional
+// features (supported methods) applicable to the target resource. We can only
+// observe header *names*, so we approximate the SHOULD by checking that a
+// successful OPTIONS response advertises at least Allow.
 const headerNames = ['allow'];
 
 export default httpRule(

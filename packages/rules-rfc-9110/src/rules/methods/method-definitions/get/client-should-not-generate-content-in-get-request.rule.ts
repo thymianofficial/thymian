@@ -1,5 +1,4 @@
-import { and, hasRequestBody, method } from '@thymian/core';
-import { httpRule } from '@thymian/core';
+import { and, hasRequestBody, httpRule, method } from '@thymian/core';
 
 export default httpRule(
   'rfc9110/client-should-not-generate-content-in-get-request',
