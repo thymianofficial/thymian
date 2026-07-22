@@ -259,6 +259,13 @@ function resolvePlacements(
   ruleFnResult: RuleFnResult[],
   alreadyConsumed: ReadonlySet<RuleFnResult>,
 ): RuleFnResultPlacement[] {
+  // Known limitation: an unplaced result carries only an edge id (no step
+  // index), so when the same `source.transactionId` runs in more than one
+  // step/case (e.g. a replayed step reuses the previous step's source — see
+  // replay-previous-step.operator), we cannot tell which occurrence the result
+  // belongs to. We deterministically attach it to the FIRST occurrence; a
+  // precise fix needs the producer to tag the result with its originating step.
+  // See https://github.com/thymianofficial/thymian-internal/issues/423.
   const positionByEdgeId = new Map<
     string,
     { testCaseIndex: number; stepIndex: number }
