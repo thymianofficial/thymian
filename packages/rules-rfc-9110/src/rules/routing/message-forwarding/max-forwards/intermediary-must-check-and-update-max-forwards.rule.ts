@@ -27,7 +27,11 @@ export default httpRule(
         const forwardedValue = parseMaxForwards(
           getHeader(outbound.request.data.headers, 'max-forwards'),
         );
-        if (receivedValue === undefined) {
+        // received === 0 is reported by must-not-forward-when-max-forwards-is-zero;
+        // an absent or insufficiently-decremented forwarded value (received > 0)
+        // is reported by must-generate-updated-max-forwards-when-forwarding. This
+        // rule flags only a forwarded value that is present but not decremented.
+        if (receivedValue === undefined || receivedValue <= 0) {
           continue;
         }
         if (forwardedValue !== undefined && forwardedValue >= receivedValue) {

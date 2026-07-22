@@ -22,45 +22,25 @@ export default httpRule(
     ctx.validateCapturedHttpTraces((trace, location) => {
       const results: RuleFnResult[] = [];
       for (const { inbound, outbound } of forwardingHops(trace)) {
+        // Each header field named by a received connection-option must be
+        // removed before forwarding; it must not survive on the request the
+        // intermediary forwarded onward. The Connection header field itself may
+        // legitimately be replaced with the intermediary's own control options
+        // for the next hop (which can reuse the same option names), so a
+        // repeated option name is not by itself observable as a violation.
         const optionNames = connectionOptionNames(
           getHeader(inbound.request.data.headers, 'connection'),
         );
-
-        // 1. Each header field named by a received connection-option must be
-        //    removed; it must not survive on the request forwarded onward.
         const survivors = optionNames.filter(
           (name) =>
             name !== 'close' &&
             getHeader(outbound.request.data.headers, name) !== undefined,
         );
-
-        // 2. The Connection header field itself must be removed or replaced
-        //    with the intermediary's own control options: the received
-        //    connection-option names must not reappear in the forwarded
-        //    Connection header.
-        const forwardedOptions = connectionOptionNames(
-          getHeader(outbound.request.data.headers, 'connection'),
-        );
-        const relisted = optionNames.filter(
-          (name) => name !== 'close' && forwardedOptions.includes(name),
-        );
-
-        const problems: string[] = [];
         if (survivors.length > 0) {
-          problems.push(
-            `forwarded connection-specific header field(s) (${survivors.join(', ')}) named in the received Connection header field`,
-          );
-        }
-        if (relisted.length > 0) {
-          problems.push(
-            `forwarded the received Connection header field without removing or replacing it (it still lists connection-option(s) ${relisted.join(', ')})`,
-          );
-        }
-        if (problems.length > 0) {
           results.push({
             location,
             violation: {
-              message: `An intermediary ${problems.join(' and ')}.`,
+              message: `An intermediary forwarded connection-specific header field(s) (${survivors.join(', ')}) named in the received Connection header field.`,
             },
             findings: [],
           });
