@@ -11,6 +11,7 @@ import {
   forwardingHops,
   headerValues,
   parseMaxForwards,
+  splitTopLevelCommas,
 } from './forwarding.js';
 
 function transaction(roles: {
@@ -172,5 +173,34 @@ describe('parseMaxForwards', () => {
     expect(parseMaxForwards([' 3 ', '9'])).toBe(3);
     expect(parseMaxForwards('abc')).toBeUndefined();
     expect(parseMaxForwards(undefined)).toBeUndefined();
+  });
+});
+
+describe('splitTopLevelCommas', () => {
+  it('splits on top-level commas', () => {
+    expect(splitTopLevelCommas('1.1 a, 1.1 b')).toEqual(['1.1 a', ' 1.1 b']);
+  });
+
+  it('ignores commas inside parenthesised comments', () => {
+    expect(splitTopLevelCommas('1.1 a (x, y), 1.1 b')).toEqual([
+      '1.1 a (x, y)',
+      ' 1.1 b',
+    ]);
+  });
+
+  it('handles nested comments and quoted-pairs', () => {
+    expect(splitTopLevelCommas('1.1 a (outer (in, ner)), 1.1 b')).toEqual([
+      '1.1 a (outer (in, ner))',
+      ' 1.1 b',
+    ]);
+    expect(splitTopLevelCommas('1.1 a (esc\\), still), 1.1 b')).toEqual([
+      '1.1 a (esc\\), still)',
+      ' 1.1 b',
+    ]);
+  });
+
+  it('returns the whole value when there is no top-level comma', () => {
+    expect(splitTopLevelCommas('1.1 a (x, y)')).toEqual(['1.1 a (x, y)']);
+    expect(splitTopLevelCommas('')).toEqual(['']);
   });
 });

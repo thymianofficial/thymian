@@ -17,16 +17,7 @@ export default httpRule(
       not(requestHeader('via')),
       (transaction, location) =>
         transaction.request.meta.role === 'gateway'
-          ? [
-              {
-                location,
-                violation: {
-                  message:
-                    'An inbound request forwarded by an HTTP-to-HTTP gateway does not carry a Via header field.',
-                },
-                findings: [],
-              },
-            ]
+          ? [{ location, violation: {}, findings: [] }]
           : [],
     ),
   )

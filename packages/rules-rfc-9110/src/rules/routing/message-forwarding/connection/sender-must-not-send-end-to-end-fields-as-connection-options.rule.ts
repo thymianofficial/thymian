@@ -2,6 +2,7 @@ import { getHeader, or, requestHeader, responseHeader } from '@thymian/core';
 import { httpRule } from '@thymian/core';
 
 import { createList } from '../../../../utils.js';
+import { connectionOptionNames } from '../../utils/forwarding.js';
 
 /**
  * A representative set of well-known fields that are intended for all
@@ -23,17 +24,6 @@ const endToEndFields = new Set([
   'authorization',
 ]);
 
-function connectionOptions(value: string | string[] | undefined): string[] {
-  if (value === undefined) {
-    return [];
-  }
-  const values = Array.isArray(value) ? value : [value];
-  return values
-    .flatMap((entry) => entry.split(','))
-    .map((option) => option.trim().toLowerCase())
-    .filter((option) => option.length > 0);
-}
-
 export default httpRule(
   'rfc9110/sender-must-not-send-end-to-end-fields-as-connection-options',
 )
@@ -49,8 +39,8 @@ export default httpRule(
       or(requestHeader('connection'), responseHeader('connection')),
       (req, res, location) => {
         const offending = [
-          ...connectionOptions(getHeader(req.headers, 'connection')),
-          ...connectionOptions(getHeader(res.headers, 'connection')),
+          ...connectionOptionNames(getHeader(req.headers, 'connection')),
+          ...connectionOptionNames(getHeader(res.headers, 'connection')),
         ].filter((option) => endToEndFields.has(option));
 
         if (offending.length === 0) {

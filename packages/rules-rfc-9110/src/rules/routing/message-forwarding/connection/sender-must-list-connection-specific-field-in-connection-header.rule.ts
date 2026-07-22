@@ -2,6 +2,7 @@ import { getHeader, or, requestHeader, responseHeader } from '@thymian/core';
 import { httpRule } from '@thymian/core';
 
 import { createList } from '../../../../utils.js';
+import { connectionOptionNames } from '../../utils/forwarding.js';
 
 /**
  * Well-known legacy fields that supply control information for/about the
@@ -13,17 +14,6 @@ import { createList } from '../../../../utils.js';
  * rule.
  */
 const connectionSpecificFields = ['keep-alive', 'proxy-connection'];
-
-function connectionOptions(value: string | string[] | undefined): string[] {
-  if (value === undefined) {
-    return [];
-  }
-  const values = Array.isArray(value) ? value : [value];
-  return values
-    .flatMap((entry) => entry.split(','))
-    .map((option) => option.trim().toLowerCase())
-    .filter((option) => option.length > 0);
-}
 
 function headerNames(headers: Record<string, unknown> | undefined): string[] {
   return Object.keys(headers ?? {}).map((name) => name.toLowerCase());
@@ -62,8 +52,8 @@ export default httpRule(
         }
 
         const listedOptions = new Set([
-          ...connectionOptions(getHeader(req.headers, 'connection')),
-          ...connectionOptions(getHeader(res.headers, 'connection')),
+          ...connectionOptionNames(getHeader(req.headers, 'connection')),
+          ...connectionOptionNames(getHeader(res.headers, 'connection')),
         ]);
 
         const unlisted = Array.from(presentControlFields).filter(

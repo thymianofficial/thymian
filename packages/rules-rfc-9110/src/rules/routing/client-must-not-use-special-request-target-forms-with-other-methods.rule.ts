@@ -15,7 +15,6 @@ export default httpRule(
   .summary(
     'Special request target forms MUST NOT be used with methods other than CONNECT or OPTIONS.',
   )
-  .appliesTo('client')
   .rule((ctx) =>
     ctx.validateHttpTransactions(constant(true), (req, _res, location) => {
       const method = req.method.toUpperCase();

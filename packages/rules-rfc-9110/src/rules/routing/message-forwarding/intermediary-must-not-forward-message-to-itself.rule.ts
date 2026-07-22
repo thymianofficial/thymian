@@ -1,6 +1,13 @@
-import { getHeader, httpRule, type RuleFnResult } from '@thymian/core';
+import {
+  expandHttpParticipantRoles,
+  getHeader,
+  httpRule,
+  type RuleFnResult,
+} from '@thymian/core';
 
-import { headerValues } from '../utils/forwarding.js';
+import { headerValues, splitTopLevelCommas } from '../utils/forwarding.js';
+
+const intermediaryRoles = new Set(expandHttpParticipantRoles(['intermediary']));
 
 export default httpRule(
   'rfc9110/intermediary-must-not-forward-message-to-itself',
@@ -19,7 +26,8 @@ export default httpRule(
     ctx.validateCapturedHttpTraces((trace, location) => {
       const results: RuleFnResult[] = [];
       for (const transaction of trace) {
-        if (transaction.request.meta.role !== 'intermediary') {
+        const role = transaction.request.meta.role;
+        if (!role || !intermediaryRoles.has(role)) {
           continue;
         }
         // A received-by identifier repeated in the Via chain means the message
@@ -27,7 +35,7 @@ export default httpRule(
         const receivedBy = headerValues(
           getHeader(transaction.request.data.headers, 'via'),
         )
-          .flatMap((entry) => entry.split(','))
+          .flatMap((entry) => splitTopLevelCommas(entry))
           .map((entry) => entry.trim().split(/\s+/)[1]?.toLowerCase())
           .filter((entry): entry is string => Boolean(entry));
         const looped = receivedBy.some(

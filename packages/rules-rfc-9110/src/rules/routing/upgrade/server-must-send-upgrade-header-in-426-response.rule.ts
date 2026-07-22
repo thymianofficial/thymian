@@ -17,16 +17,7 @@ export default httpRule(
       and(statusCode(426), not(responseHeader('upgrade'))),
       // The filter already selects 426 responses that lack an Upgrade header,
       // so every matched transaction is a violation.
-      (_req, _res, location) => [
-        {
-          location,
-          violation: {
-            message:
-              'A 426 (Upgrade Required) response was returned without an Upgrade header field.',
-          },
-          findings: [],
-        },
-      ],
+      (_req, _res, location) => [{ location, violation: {}, findings: [] }],
     ),
   )
   .done();

@@ -72,6 +72,41 @@ export function headerValues(value: HeaderValue): string[] {
   return Array.isArray(value) ? value : [value];
 }
 
+/**
+ * Splits a comma-separated header value on top-level commas only, ignoring
+ * commas inside parenthesised comments. Via entries may carry `(...)` comments
+ * that themselves contain commas, so a naive `split(',')` would corrupt the
+ * received-by tokens. Nested comments and quoted-pairs (`\)`) are handled.
+ */
+export function splitTopLevelCommas(value: string): string[] {
+  const parts: string[] = [];
+  let depth = 0;
+  let current = '';
+  for (let i = 0; i < value.length; i++) {
+    const char = value[i];
+    if (char === '\\' && depth > 0) {
+      // Quoted-pair inside a comment: keep the escaped pair verbatim so the
+      // escaped character cannot be misread as a paren or comma.
+      current += char + (value[i + 1] ?? '');
+      i++;
+      continue;
+    }
+    if (char === '(') {
+      depth++;
+    } else if (char === ')' && depth > 0) {
+      depth--;
+    }
+    if (char === ',' && depth === 0) {
+      parts.push(current);
+      current = '';
+    } else {
+      current += char;
+    }
+  }
+  parts.push(current);
+  return parts;
+}
+
 export function equalHeaderValues(a: HeaderValue, b: HeaderValue): boolean {
   const normalize = (value: HeaderValue): string[] =>
     headerValues(value)

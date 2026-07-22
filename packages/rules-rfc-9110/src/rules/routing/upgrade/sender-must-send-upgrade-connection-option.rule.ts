@@ -28,18 +28,7 @@ export default httpRule('rfc9110/sender-must-send-upgrade-connection-option')
           .flatMap((value) => value.split(','))
           .some((option) => option.trim().toLowerCase() === 'upgrade');
 
-        return listsUpgrade
-          ? []
-          : [
-              {
-                location,
-                violation: {
-                  message:
-                    'A request carried an Upgrade header but the Connection header did not list the "Upgrade" connection option.',
-                },
-                findings: [],
-              },
-            ];
+        return listsUpgrade ? [] : [{ location, violation: {}, findings: [] }];
       },
     ),
   )

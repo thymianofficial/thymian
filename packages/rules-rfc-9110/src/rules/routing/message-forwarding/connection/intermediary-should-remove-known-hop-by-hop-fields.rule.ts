@@ -1,6 +1,6 @@
 import { getHeader, httpRule, type RuleFnResult } from '@thymian/core';
 
-import { forwardingHops } from '../../utils/forwarding.js';
+import { equalHeaderValues, forwardingHops } from '../../utils/forwarding.js';
 
 const KNOWN_HOP_BY_HOP = [
   'proxy-connection',
@@ -25,16 +25,23 @@ export default httpRule(
     ctx.validateCapturedHttpTraces((trace, location) => {
       const results: RuleFnResult[] = [];
       for (const { inbound, outbound } of forwardingHops(trace)) {
-        const notRemoved = KNOWN_HOP_BY_HOP.filter(
-          (name) =>
-            getHeader(inbound.request.data.headers, name) !== undefined &&
-            getHeader(outbound.request.data.headers, name) !== undefined,
-        );
-        if (notRemoved.length > 0) {
+        // The rule is SHOULD "remove or replace": a field whose value changed
+        // across the hop was replaced and is compliant. Only a field forwarded
+        // unchanged (present on both legs with an equal value) is flagged.
+        const forwardedUnchanged = KNOWN_HOP_BY_HOP.filter((name) => {
+          const received = getHeader(inbound.request.data.headers, name);
+          const forwarded = getHeader(outbound.request.data.headers, name);
+          return (
+            received !== undefined &&
+            forwarded !== undefined &&
+            equalHeaderValues(received, forwarded)
+          );
+        });
+        if (forwardedUnchanged.length > 0) {
           results.push({
             location,
             violation: {
-              message: `An intermediary forwarded known hop-by-hop header field(s) (${notRemoved.join(', ')}) without removing them before forwarding.`,
+              message: `An intermediary forwarded known hop-by-hop header field(s) (${forwardedUnchanged.join(', ')}) unchanged instead of removing or replacing them before forwarding.`,
             },
             findings: [],
           });

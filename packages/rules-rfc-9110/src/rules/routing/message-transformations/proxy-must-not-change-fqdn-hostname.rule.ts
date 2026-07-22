@@ -33,13 +33,17 @@ export default httpRule('rfc9110/proxy-must-not-change-fqdn-hostname')
         } catch {
           continue;
         }
-        // Only guard fully qualified domain names: an IPv6 literal keeps its
-        // brackets in URL.hostname and contains hex letters, so a letter test
-        // alone would misclassify it as a name.
+        // Only guard fully qualified domain names: an FQDN has at least one dot
+        // and at least one letter (which also excludes bare IPv4). An IPv6
+        // literal keeps its brackets in URL.hostname, so it is excluded
+        // explicitly. A single-label host like "myhost" is not an FQDN, so
+        // completing it to a domain is allowed and handled by the sibling rule
+        // proxy-may-add-domain-to-non-fqdn-hostname.
         if (
           receivedHost &&
           !receivedHost.startsWith('[') &&
           /[a-zA-Z]/.test(receivedHost) &&
+          receivedHost.includes('.') &&
           forwardedHost !== receivedHost
         ) {
           results.push({
