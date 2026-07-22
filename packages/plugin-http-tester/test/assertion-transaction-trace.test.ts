@@ -1,10 +1,15 @@
+import { strict as assert } from 'node:assert';
+
 import {
   createHttpTestContext,
+  expect as expectAssertion,
   type HttpRequest,
   type HttpRequestTemplate,
   type HttpResponse,
   httpRule,
   type HttpTestContext,
+  type HttpTestContextLocals,
+  type HttpTestPipeline,
   type Logger,
   method,
   NoopLogger,
@@ -127,5 +132,61 @@ describe('assertion failure → transaction traceability', () => {
     // that failed the `expect status 500` assertion is fully traceable.
     expect(tracedTransaction!.response?.statusCode).toBe(200);
     expect(tracedTransaction!.request.method.toLowerCase()).toBe('get');
+  });
+
+  it('maps a failed top-level `expect` (no transaction) to a failed status, not skipped', async () => {
+    // A top-level `expect` assertion failure produces an assertion-failure
+    // result with NO transaction. It must still surface the case as `failed`
+    // (with the assertion message as the reason) rather than silently being
+    // reported as skipped and dropped from pass/fail counts.
+    const format = createThymianFormatWithTransaction(
+      createHttpRequest({ method: 'get', path: '/users' }),
+      createHttpResponse({ statusCode: 200, headers: {} }),
+    );
+
+    const context = new HttpTestApiContext(
+      'top-level-expect-test',
+      mockContextReturning(format, {
+        statusCode: 200,
+        headers: {},
+        duration: 0,
+        trailers: {},
+      }),
+    );
+
+    const base = singleTestCase()
+      .forTransactionsWith(method('get'))
+      .run()
+      .done();
+    const pipeline: HttpTestPipeline<HttpTestContextLocals> = (transactions) =>
+      base(transactions).pipe(
+        expectAssertion(() => {
+          assert.equal('actual', 'expected', 'top-level assertion failed');
+        }),
+      );
+
+    const ruleFnResult = await context.httpTest(pipeline);
+    const diagnostics = context.getRuleExecutionDiagnostics();
+
+    const rule = httpRule('test/top-level-expect')
+      .severity('error')
+      .type('test')
+      .summary('Top-level expect')
+      .rule(() => [])
+      .done();
+
+    const [run] = createRuns(
+      'test-plugin',
+      { [rule.meta.name]: { ruleFnResult, diagnostics } },
+      [rule],
+      format,
+      makeLogger(),
+    );
+
+    const cases = (run?.executions ?? []) as TestCaseExecution[];
+    expect(cases.filter((c) => c.status.kind === 'skipped')).toHaveLength(0);
+    const failedCase = cases.find((c) => c.status.kind === 'failed');
+    expect(failedCase).toBeDefined();
+    expect(failedCase!.status.kind).toBe('failed');
   });
 });

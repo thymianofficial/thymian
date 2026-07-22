@@ -254,36 +254,55 @@ export class HttpTestApiContext<
     const placements: RuleFnResultPlacement[] = [];
 
     testResult.cases.forEach((testCase, testCaseIndex) => {
-      if (testCase.status === 'failed') {
-        const assertionFailure = testCase.results.find(
-          (r) => r.type === 'assertion-failure' && !!r.transaction,
-        ) as
-          | Extract<HttpTestCaseResult, { type: 'assertion-failure' }>
-          | undefined;
+      if (testCase.status !== 'failed') {
+        return;
+      }
 
-        if (assertionFailure && assertionFailure.transaction) {
-          // Mark the case as violated for status derivation, but keep the
-          // assertion detail on the raw test-case `results`; the report mapping
-          // (index.ts `buildTestStep`) maps those results into findings so all
-          // HttpTestCaseResult → report mapping lives in one place.
-          const result: RuleFnResult = {
+      // A `failed` case is a real *test* failure only when an assertion actually
+      // failed. Prefer an assertion failure anchored to a transaction so the
+      // violation renders on the right edge/step; otherwise take any assertion
+      // failure (e.g. from a top-level `expect`) and surface it at the case level.
+      const assertionFailures = testCase.results.filter(
+        (r) => r.type === 'assertion-failure',
+      ) as Extract<HttpTestCaseResult, { type: 'assertion-failure' }>[];
+      const assertionFailure =
+        assertionFailures.find((r) => !!r.transaction) ?? assertionFailures[0];
+
+      // No assertion failed ⇒ the case could not be executed (an HTTP-level
+      // failure); computeTestCaseStatus intentionally surfaces that as skipped,
+      // so leave it unplaced.
+      if (assertionFailure === undefined) {
+        return;
+      }
+
+      // Mark the case as violated for status derivation, keeping the assertion
+      // detail on the raw test-case `results`; the report mapping (index.ts
+      // `buildTestStep`) maps those results into findings so all
+      // HttpTestCaseResult → report mapping lives in one place. When the failure
+      // is anchored to a transaction we locate it on that edge; otherwise it is
+      // a case-level violation.
+      const result: RuleFnResult = assertionFailure.transaction
+        ? {
             location: {
               elementId: assertionFailure.transaction.transactionId,
               elementType: 'edge',
             },
             violation: {},
             findings: [],
+          }
+        : {
+            location: `${this.name}:${testCase.name}`,
+            violation: {},
+            findings: [],
           };
-          ruleFnResult.push(result);
-          // stepIndex is undefined when the assertion failure has no step location,
-          // making this a test-case-level placement (intentional — see createRuns).
-          placements.push({
-            result,
-            testCaseIndex,
-            stepIndex: assertionFailure.location?.stepIdx,
-          });
-        }
-      }
+      ruleFnResult.push(result);
+      // stepIndex is undefined when the assertion failure has no step location,
+      // making this a test-case-level placement (intentional — see createRuns).
+      placements.push({
+        result,
+        testCaseIndex,
+        stepIndex: assertionFailure.location?.stepIdx,
+      });
     });
 
     this.diagnosticEntries.push({ testResult, placements });
