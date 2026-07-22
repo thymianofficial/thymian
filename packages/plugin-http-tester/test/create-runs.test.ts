@@ -210,6 +210,67 @@ describe('createRuns', () => {
     });
   });
 
+  it('keeps a distinct violation.message on the step even when failure detail exists', () => {
+    // A rule result that carries BOTH its own rationale (violation.message) and
+    // an assertion-failure finding: the rationale must not be suppressed by the
+    // presence of the detail — both should reach the step.
+    const result: RuleFnResult = {
+      location: { elementType: 'edge', elementId: 'tx-1' },
+      violation: { message: 'rule-specific rationale' },
+      findings: [{ kind: 'assertion-failure', title: 'value mismatch' }],
+    };
+    const cases = [makePassedCase('failing-test', [makeStep()])];
+    const placements: RuleFnResultPlacement[] = [
+      { result, testCaseIndex: 0, stepIndex: 0 },
+    ];
+    const diagnostics: HttpTesterRuleDiagnostics = [
+      { testResult: { name: 'run', duration: 0, cases }, placements },
+    ];
+
+    const [run] = createRuns(
+      PLUGIN,
+      ruleResults([result], diagnostics),
+      [rule],
+      FORMAT,
+      makeLogger(),
+    );
+
+    const stepFindings = testCases(run!.executions)[0]!.steps[0]!.findings;
+    expect(stepFindings.some((f) => f.kind === 'assertion-failure')).toBe(true);
+    const marker = stepFindings.find((f) => f.kind === 'rule-violation');
+    expect(marker).toBeDefined();
+    expect(marker!.message?.text).toBe('rule-specific rationale');
+  });
+
+  it('suppresses the generic marker when detail exists and the violation has no message', () => {
+    // The common case: an empty violation (no distinct rationale) alongside an
+    // assertion-failure detail should NOT add a duplicate generic marker.
+    const result: RuleFnResult = {
+      location: { elementType: 'edge', elementId: 'tx-1' },
+      violation: {},
+      findings: [{ kind: 'assertion-failure', title: 'value mismatch' }],
+    };
+    const cases = [makePassedCase('failing-test', [makeStep()])];
+    const placements: RuleFnResultPlacement[] = [
+      { result, testCaseIndex: 0, stepIndex: 0 },
+    ];
+    const diagnostics: HttpTesterRuleDiagnostics = [
+      { testResult: { name: 'run', duration: 0, cases }, placements },
+    ];
+
+    const [run] = createRuns(
+      PLUGIN,
+      ruleResults([result], diagnostics),
+      [rule],
+      FORMAT,
+      makeLogger(),
+    );
+
+    const stepFindings = testCases(run!.executions)[0]!.steps[0]!.findings;
+    expect(stepFindings.some((f) => f.kind === 'rule-violation')).toBe(false);
+    expect(stepFindings.some((f) => f.kind === 'assertion-failure')).toBe(true);
+  });
+
   it('maps a failed case WITHOUT a violation to skipped (could not execute)', () => {
     const cases = [makeFailedCase('failing-test', 'connection refused')];
     const diagnostics: HttpTesterRuleDiagnostics = [

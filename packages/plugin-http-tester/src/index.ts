@@ -136,7 +136,9 @@ function buildTestStep(
   }
 
   // A violation with no failure detail still needs a visible marker; when detail
-  // findings already convey the failure, don't add a duplicate generic marker.
+  // findings already convey the failure, don't add a duplicate generic marker —
+  // UNLESS the violation carries its own message (a distinct rationale that the
+  // detail records don't convey), in which case keep it so it isn't dropped.
   const violation = stepPlacements.find(
     ({ result }) => result.violation !== undefined,
   )?.result.violation;
@@ -145,7 +147,10 @@ function buildTestStep(
   );
 
   const findings: FindingRecord[] = [];
-  if (violation !== undefined && !hasFailureDetail) {
+  if (
+    violation !== undefined &&
+    (!hasFailureDetail || violation.message !== undefined)
+  ) {
     findings.push(ruleViolationToStepFinding(violation, rule));
   }
   findings.push(...detailRecords);
