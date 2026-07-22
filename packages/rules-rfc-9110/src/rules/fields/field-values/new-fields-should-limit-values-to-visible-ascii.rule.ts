@@ -1,12 +1,12 @@
 import { httpRule } from '@thymian/core';
 
-// TODO: Implement ABNF validation for VCHAR character detection
-// Requires validating field values only contain VCHAR (%x21-7E), SP (%x20), and HTAB (%x09)
-// Can be implemented in static context to validate outgoing field values
 export default httpRule(
   'rfc9110/new-fields-should-limit-values-to-visible-ascii',
 )
   .severity('warn')
+  // This SHOULD constrain authors of *new field specifications*, not messages
+  // on the wire. There is no HTTP transaction that can conform to or violate it,
+  // so it is not observable.
   .type('informational')
   .url('https://www.rfc-editor.org/rfc/rfc9110.html#section-5.5')
   .description(

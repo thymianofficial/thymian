@@ -1,8 +1,26 @@
+import { getHeader, type RuleFnResult } from '@thymian/core';
 import { httpRule } from '@thymian/core';
+
+/**
+ * Normalizes a header value into an ordered list of individual field-line
+ * values. When a field with the same name appeared on multiple lines the
+ * captured value is an array whose order mirrors the order the lines were
+ * received/sent in; a single line is a lone string.
+ */
+function fieldLineValues(
+  value: string | string[] | undefined,
+): string[] | undefined {
+  if (value === undefined) {
+    return undefined;
+  }
+  const list = Array.isArray(value) ? value : [value];
+  // Only multi-line fields carry an order that can be reordered.
+  return list.length > 1 ? list.map((v) => v.trim()) : undefined;
+}
 
 export default httpRule('rfc9110/proxy-must-not-change-field-line-order')
   .severity('error')
-  .type('informational')
+  .type('analytics')
   .url('https://www.rfc-editor.org/rfc/rfc9110.html#section-5.3')
   .description(
     'The order in which field lines with the same name are received is therefore significant to the interpretation of the field value; a proxy MUST NOT change the order of these field line values when forwarding a message.',
@@ -11,4 +29,69 @@ export default httpRule('rfc9110/proxy-must-not-change-field-line-order')
     'Proxy MUST NOT change the order of field line values when forwarding.',
   )
   .appliesTo('proxy')
+  // Observable only from proxy-recorded traffic. Reordering of same-name field
+  // lines is invisible in a single message; it is detectable only by
+  // correlating a proxy's inbound request hop with the request it forwards, so
+  // this runs over captured per-hop traces.
+  .rule((ctx) =>
+    ctx.validateCapturedHttpTraces((trace, location) => {
+      const results: RuleFnResult[] = [];
+
+      for (let i = 1; i < trace.length; i++) {
+        // In a captured trace the proxy's own leg carries meta.role === 'proxy';
+        // `prev` is that leg (its request is what the proxy received) and `curr`
+        // is the next hop (its request is what the proxy forwarded onward).
+        const prev = trace[i - 1];
+        const curr = trace[i];
+
+        if (!prev || !curr || prev.request.meta.role !== 'proxy') {
+          continue;
+        }
+
+        const inbound = prev.request.data.headers;
+        const outbound = curr.request.data.headers;
+
+        if (!inbound || !outbound) {
+          continue;
+        }
+
+        // Compare the relative order of every same-name multi-line field.
+        const seen = new Set<string>();
+        const changed: string[] = [];
+        for (const rawName of Object.keys(inbound)) {
+          const name = rawName.toLowerCase();
+          if (seen.has(name)) {
+            continue;
+          }
+          seen.add(name);
+
+          const before = fieldLineValues(getHeader(inbound, name));
+          const after = fieldLineValues(getHeader(outbound, name));
+
+          if (!before || !after || before.length !== after.length) {
+            // If the field was combined/split or dropped, its ordering can no
+            // longer be meaningfully compared here and is intentionally out of
+            // scope for this rule.
+            continue;
+          }
+
+          if (before.some((value, idx) => value !== after[idx])) {
+            changed.push(name);
+          }
+        }
+
+        for (const name of changed) {
+          results.push({
+            location,
+            violation: {
+              message: `The proxy changed the relative order of the "${name}" field line values when forwarding the request.`,
+            },
+            findings: [],
+          });
+        }
+      }
+
+      return results;
+    }),
+  )
   .done();

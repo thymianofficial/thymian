@@ -1,11 +1,12 @@
 import { httpRule } from '@thymian/core';
 
-// TODO: Implement ABNF validation for BWS detection
-// Requires identifying BWS positions in grammar for optional removal
 export default httpRule(
   'rfc9110/implementation-may-remove-bws-before-processing',
 )
   .severity('off')
+  // Removal of BWS is optional internal recipient behaviour before
+  // interpreting/forwarding; there is no required outcome to check and no
+  // observable signal in Thymian's traffic.
   .type('informational')
   .url('https://www.rfc-editor.org/rfc/rfc9110.html#section-5.6.3')
   .description(

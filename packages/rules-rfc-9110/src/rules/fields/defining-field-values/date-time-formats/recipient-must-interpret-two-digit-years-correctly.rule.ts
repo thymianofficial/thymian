@@ -1,11 +1,12 @@
 import { httpRule } from '@thymian/core';
 
-// TODO: Implement ABNF validation and logic for two-digit year interpretation
-// Requires parsing rfc850-date format and applying 50-year rule for 2-digit years
 export default httpRule(
   'rfc9110/recipient-must-interpret-two-digit-years-correctly',
 )
   .severity('error')
+  // How a recipient interprets an rfc850 two-digit year is an internal decision
+  // that produces no distinguishable artifact in the traffic Thymian can
+  // observe.
   .type('informational')
   .url('https://www.rfc-editor.org/rfc/rfc9110.html#section-5.6.7')
   .description(

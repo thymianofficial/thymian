@@ -4,6 +4,9 @@ export default httpRule(
   'rfc9110/server-must-not-apply-request-until-entire-header-received',
 )
   .severity('error')
+  // Whether a server defers applying a request until the full header section
+  // arrives is an internal timing/ordering decision with no distinguishable
+  // signal in a completed transaction that Thymian records.
   .type('informational')
   .url('https://www.rfc-editor.org/rfc/rfc9110.html#section-5.3')
   .description(

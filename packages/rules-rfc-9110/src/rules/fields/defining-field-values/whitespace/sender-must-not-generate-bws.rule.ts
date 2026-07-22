@@ -1,12 +1,12 @@
 import { httpRule } from '@thymian/core';
 
-// TODO: Implement ABNF validation for BWS detection
-// Requires parsing BWS (bad whitespace) = OWS in historically allowed positions
-//   BWS = OWS ; "bad" whitespace
-//   OWS = *( SP / HTAB )
-// Can be implemented in static context to validate outgoing messages
 export default httpRule('rfc9110/sender-must-not-generate-bws')
   .severity('error')
+  // BWS is defined only relative to each field's ABNF (the specific grammar
+  // positions that historically allow optional whitespace). Detecting it in an
+  // emitted value would require per-field grammars for every response field,
+  // which the framework lacks, so a generic whitespace scan cannot distinguish
+  // BWS from value content.
   .type('informational')
   .url('https://www.rfc-editor.org/rfc/rfc9110.html#section-5.6.3')
   .description(
