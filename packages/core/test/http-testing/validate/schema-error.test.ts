@@ -167,4 +167,33 @@ describe('schemaErrorDetail', () => {
       ),
     ).toEqual({});
   });
+
+  it('does not mislabel a maxLength bound as the expected value', () => {
+    // ajv (verbose) sets params.limit=3 and error.schema=3 for `maxLength: 3`.
+    // Pairing 3 as `expected` against actual "abcd" would be misleading; the
+    // message already states the bound, so no pair is emitted.
+    expect(
+      schemaErrorDetail(
+        error({
+          keyword: 'maxLength',
+          params: { limit: 3 },
+          schema: 3,
+          data: 'abcd',
+        }),
+      ),
+    ).toEqual({});
+  });
+
+  it('does not mislabel a numeric maximum bound as the expected value', () => {
+    expect(
+      schemaErrorDetail(
+        error({
+          keyword: 'maximum',
+          params: { comparison: '<=', limit: 10 },
+          schema: 10,
+          data: 15,
+        }),
+      ),
+    ).toEqual({});
+  });
 });

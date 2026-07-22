@@ -78,6 +78,23 @@ export function describeSchemaError(
   return subject ? `${subject} ${what}` : what;
 }
 
+/**
+ * Keywords whose failing `error.schema`/`params.limit` is a numeric bound rather
+ * than an expected value, so they must not produce an `expected`/`actual` pair.
+ */
+const BOUNDARY_KEYWORDS = new Set<string>([
+  'maxLength',
+  'minLength',
+  'maximum',
+  'minimum',
+  'exclusiveMaximum',
+  'exclusiveMinimum',
+  'maxItems',
+  'minItems',
+  'maxProperties',
+  'minProperties',
+]);
+
 function isPrimitive(value: unknown): boolean {
   return (
     value === null ||
@@ -107,6 +124,15 @@ export function schemaErrorDetail(error: ErrorObject): {
     return {};
   }
 
+  // Boundary keywords express a limit, not an expected value: ajv sets
+  // `params.limit` (and `error.schema`) to the bound, so pairing it as
+  // `expected` would mislabel e.g. `maxLength: 3` on "abcd" as
+  // `expected: 3, actual: "abcd"`. The human-readable message already states
+  // the bound ("must NOT have more than 3 characters"), so emit no pair here.
+  if (BOUNDARY_KEYWORDS.has(error.keyword)) {
+    return {};
+  }
+
   const params = error.params as Record<string, unknown>;
   const expected =
     params.type ??
@@ -114,7 +140,6 @@ export function schemaErrorDetail(error: ErrorObject): {
     params.allowedValue ??
     params.pattern ??
     params.format ??
-    params.limit ??
     (isPrimitive(error.schema) ? error.schema : undefined);
 
   return expected !== undefined ? { expected, actual } : {};
