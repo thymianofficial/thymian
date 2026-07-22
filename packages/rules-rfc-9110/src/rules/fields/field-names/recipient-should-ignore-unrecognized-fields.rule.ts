@@ -8,5 +8,4 @@ export default httpRule('rfc9110/recipient-should-ignore-unrecognized-fields')
     'Other recipients SHOULD ignore unrecognized header and trailer fields.',
   )
   .summary('Recipients (other than proxies) SHOULD ignore unrecognized fields.')
-  .tags('fields', 'field-names')
   .done();

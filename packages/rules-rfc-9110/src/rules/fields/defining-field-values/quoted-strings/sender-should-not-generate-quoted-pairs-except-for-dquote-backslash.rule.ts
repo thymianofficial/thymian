@@ -15,5 +15,4 @@ export default httpRule(
   .summary(
     'Sender SHOULD NOT generate quoted-pairs in quoted-strings except to quote DQUOTE and backslash.',
   )
-  .tags('fields', 'quoted-strings')
   .done();

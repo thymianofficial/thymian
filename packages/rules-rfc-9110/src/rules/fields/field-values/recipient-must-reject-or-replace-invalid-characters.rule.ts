@@ -17,5 +17,4 @@ export default httpRule(
   .summary(
     'Recipient MUST either reject messages or replace CR, LF, or NUL characters with SP in field values.',
   )
-  .tags('fields', 'field-values', 'security')
   .done();

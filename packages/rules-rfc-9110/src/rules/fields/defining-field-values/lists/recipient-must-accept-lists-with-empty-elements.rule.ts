@@ -15,5 +15,4 @@ export default httpRule(
   .summary(
     'Recipient MUST accept lists with empty elements in the specified syntax.',
   )
-  .tags('fields', 'lists', 'parsing')
   .done();

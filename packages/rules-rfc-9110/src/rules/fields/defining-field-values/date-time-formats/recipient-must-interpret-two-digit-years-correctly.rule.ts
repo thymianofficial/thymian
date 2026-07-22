@@ -14,5 +14,4 @@ export default httpRule(
   .summary(
     'Recipient MUST interpret two-digit years >50 years in the future as representing the past.',
   )
-  .tags('fields', 'date-time', 'parsing')
   .done();

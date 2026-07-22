@@ -11,5 +11,4 @@ export default httpRule('rfc9110/proxy-must-not-change-field-line-order')
     'Proxy MUST NOT change the order of field line values when forwarding.',
   )
   .appliesTo('proxy')
-  .tags('fields', 'field-order', 'proxy')
   .done();

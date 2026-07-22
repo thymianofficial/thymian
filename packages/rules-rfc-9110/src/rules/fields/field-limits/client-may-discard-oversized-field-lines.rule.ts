@@ -11,5 +11,4 @@ export default httpRule('rfc9110/client-may-discard-oversized-field-lines')
     'Client MAY discard or truncate oversized field lines if semantics allow.',
   )
   .appliesTo('client')
-  .tags('fields', 'field-limits', 'client')
   .done();

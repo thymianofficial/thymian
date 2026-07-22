@@ -1,5 +1,12 @@
 import { httpRule } from '@thymian/core';
 
+/**
+ * This SHOULD describes internal evaluation timing ("evaluate the condition
+ * prior to performing the method"), which is not directly observable. Its
+ * externally checkable consequence — the server SHOULD answer 304 when the
+ * If-Modified-Since condition is false — is actively probed by
+ * `origin-server-should-respond-304-when-if-modified-since-false`.
+ */
 export default httpRule(
   'rfc9110/origin-server-should-evaluate-if-modified-since',
 )
@@ -13,5 +20,4 @@ export default httpRule(
     'Origin server SHOULD evaluate If-Modified-Since when If-None-Match is not present.',
   )
   .appliesTo('origin server')
-  .tags('conditional-requests', 'if-modified-since', 'evaluation')
   .done();

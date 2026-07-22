@@ -14,5 +14,4 @@ export default httpRule('rfc9110/recipient-must-accept-all-http-date-formats')
   .summary(
     'Recipient parsing timestamp values MUST accept all three HTTP-date formats.',
   )
-  .tags('fields', 'date-time', 'parsing')
   .done();

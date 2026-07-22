@@ -13,5 +13,4 @@ export default httpRule(
     'Server MUST NOT apply a request until the entire request header section is received.',
   )
   .appliesTo('server')
-  .tags('fields', 'field-order', 'server')
   .done();

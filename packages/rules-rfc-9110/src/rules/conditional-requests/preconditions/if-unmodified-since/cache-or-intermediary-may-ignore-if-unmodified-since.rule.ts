@@ -10,9 +10,8 @@ export default httpRule(
   .description(
     'A cache or intermediary MAY ignore If-Unmodified-Since because its interoperability features are only necessary for an origin server.',
   )
-  .summary('Cache or intermediary MAY ignore If-Unmodified-since header field.')
+  .summary('Cache or intermediary MAY ignore If-Unmodified-Since header field.')
   .appliesTo('cache', 'intermediary')
-  .tags('conditional-requests', 'if-match', 'cache')
   .rule((ctx) =>
     ctx.validateHttpTransactions(requestHeader('if-unmodified-since')),
   )

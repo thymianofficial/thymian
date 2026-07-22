@@ -1,11 +1,9 @@
 import * as http from 'node:http';
 
 type OmitIndexSignature<T> = {
-  [K in keyof T as string extends K
-    ? never
-    : number extends K
-      ? never
-      : K]: T[K];
+  [
+    K in keyof T as string extends K ? never : number extends K ? never : K
+  ]: T[K];
 };
 
 export type HttpHeader =
@@ -73,9 +71,7 @@ export type LogicalExpression =
 export type Constant = { type: 'constant'; kind: 'logic'; value: unknown };
 
 export type HttpFilterExpression =
-  | RequestFilterExpression
-  | ResponseFilterExpression
-  | LogicalExpression;
+  RequestFilterExpression | ResponseFilterExpression | LogicalExpression;
 
 export const methods = (...methods: HttpMethod[]): LogicalExpression => ({
   type: 'or',
@@ -207,6 +203,12 @@ export const constant = (value?: unknown): Constant => ({
   kind: 'logic',
   value,
 });
+
+export const isConstant = (value: unknown): value is Constant =>
+  typeof value === 'object' &&
+  value !== null &&
+  (value as Constant).type === 'constant' &&
+  (value as Constant).kind === 'logic';
 
 export const origin = (origin?: string): RequestFilterExpression => ({
   type: 'origin',

@@ -9,5 +9,4 @@ export default httpRule('rfc9110/proxy-must-forward-unrecognized-header-fields')
   )
   .summary('Proxy MUST forward unrecognized header fields unless excepted.')
   .appliesTo('proxy')
-  .tags('fields', 'field-names', 'proxy')
   .done();

@@ -16,5 +16,4 @@ export default httpRule(
   .summary(
     'Sender SHOULD NOT generate quoted-pairs in comments except to quote parentheses and backslash.',
   )
-  .tags('fields', 'quoted-strings', 'comments')
   .done();

@@ -14,5 +14,4 @@ export default httpRule(
   .summary(
     'OWS or RWS content MAY be replaced with a single SP before interpretation or forwarding.',
   )
-  .tags('fields', 'whitespace')
   .done();

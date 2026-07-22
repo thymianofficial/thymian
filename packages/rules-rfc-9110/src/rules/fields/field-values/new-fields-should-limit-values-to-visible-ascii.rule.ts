@@ -15,5 +15,4 @@ export default httpRule(
   .summary(
     'Specifications for new fields SHOULD limit values to visible ASCII, SP, and HTAB.',
   )
-  .tags('fields', 'field-values', 'specification')
   .done();

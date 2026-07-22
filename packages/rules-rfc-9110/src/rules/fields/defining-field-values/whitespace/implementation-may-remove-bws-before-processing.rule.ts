@@ -12,5 +12,4 @@ export default httpRule(
     'Any content known to be defined as BWS MAY be removed before interpreting it or forwarding the message downstream.',
   )
   .summary('BWS content MAY be removed before interpretation or forwarding.')
-  .tags('fields', 'whitespace')
   .done();

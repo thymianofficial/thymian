@@ -15,5 +15,4 @@ export default httpRule(
   .summary(
     'Sender MUST NOT generate additional whitespace in HTTP-date beyond the grammar.',
   )
-  .tags('fields', 'date-time', 'whitespace')
   .done();
