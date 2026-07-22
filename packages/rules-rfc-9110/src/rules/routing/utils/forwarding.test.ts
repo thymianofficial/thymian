@@ -174,6 +174,16 @@ describe('parseMaxForwards', () => {
     expect(parseMaxForwards('abc')).toBeUndefined();
     expect(parseMaxForwards(undefined)).toBeUndefined();
   });
+
+  it('rejects partially-numeric, list, and negative values', () => {
+    expect(parseMaxForwards('5abc')).toBeUndefined();
+    expect(parseMaxForwards('5, 6')).toBeUndefined();
+    expect(parseMaxForwards('-1')).toBeUndefined();
+  });
+
+  it('parses zero (the boundary the zero-handling rules rely on)', () => {
+    expect(parseMaxForwards('0')).toBe(0);
+  });
 });
 
 describe('splitTopLevelCommas', () => {

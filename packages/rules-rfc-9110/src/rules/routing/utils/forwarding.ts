@@ -125,10 +125,12 @@ export function connectionOptionNames(value: HeaderValue): string[] {
 }
 
 export function parseMaxForwards(value: HeaderValue): number | undefined {
-  const first = headerValues(value)[0];
-  if (first === undefined) {
+  // Max-Forwards is 1*DIGIT (RFC 9110 Section 7.6.2). Number.parseInt would
+  // leniently accept partial/invalid input ("5abc" -> 5, "5, 6" -> 5,
+  // "-1" -> -1), so require the trimmed token to be an unsigned integer first.
+  const first = headerValues(value)[0]?.trim();
+  if (first === undefined || !/^\d+$/.test(first)) {
     return undefined;
   }
-  const parsed = Number.parseInt(first.trim(), 10);
-  return Number.isNaN(parsed) ? undefined : parsed;
+  return Number.parseInt(first, 10);
 }
