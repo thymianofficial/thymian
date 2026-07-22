@@ -47,6 +47,23 @@ function escapeHtml(text: string): string {
     .replaceAll('>', '&gt;');
 }
 
+/**
+ * Renders the "Rule" cell: the rule id as inline code, linked to its `helpUri`
+ * when present. Uses an HTML anchor (not a markdown `[text](url)` link) so a
+ * `helpUri` containing `)`, whitespace, etc. cannot break out of the link.
+ * Callers placing this inside a `|`-delimited table cell must still run the
+ * result through `escapeCell` to neutralise any `|`.
+ */
+function renderRuleCell(
+  ruleId: string | undefined,
+  helpUri: string | undefined,
+): string {
+  const label = escapeHtml(ruleId ?? 'unnamed check');
+  return helpUri
+    ? `<a href="${escapeHtml(helpUri)}"><code>${label}</code></a>`
+    : `<code>${label}</code>`;
+}
+
 function severityWord(severity: Severity): string {
   return severity === 'warn' ? 'warning' : severity;
 }
@@ -184,11 +201,11 @@ function buildLintAnalyzeSection(
     }
 
     const rule = execution.ruleId ? ruleIndex.get(execution.ruleId) : undefined;
-    const ruleCell = execution.ruleId
-      ? rule?.helpUri
-        ? `[\`${execution.ruleId}\`](${rule.helpUri})`
-        : `\`${execution.ruleId}\``
-      : 'unnamed check';
+    // HTML anchor (via renderRuleCell), then escapeCell so a `|` in the id/uri
+    // can't break the surrounding markdown table row.
+    const ruleCell = escapeCell(
+      renderRuleCell(execution.ruleId, rule?.helpUri),
+    );
 
     if (execution.status.kind === 'failed') {
       const severity =
@@ -302,10 +319,7 @@ function buildTestSection(
     const rule = execution.ruleId ? ruleIndex.get(execution.ruleId) : undefined;
     const severity = resolveExecutionSeverity(execution, ruleIndex, logger);
     const severityPrefix = severity ? `${severityWord(severity)} · ` : '';
-    const ruleLabel = escapeHtml(execution.ruleId ?? 'unnamed check');
-    const ruleCell = rule?.helpUri
-      ? `<a href="${escapeHtml(rule.helpUri)}"><code>${ruleLabel}</code></a>`
-      : `<code>${ruleLabel}</code>`;
+    const ruleCell = renderRuleCell(execution.ruleId, rule?.helpUri);
     const message =
       execution.status.kind === 'failed'
         ? (execution.status.reason ??

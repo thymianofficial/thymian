@@ -158,8 +158,10 @@ describe('MarkdownFormatter rendering', () => {
 
     const output = (await formatter.flush()) ?? '';
 
-    // The rule has a `helpUri`, so the rule cell renders as a markdown link.
-    const ruleLink = '[`rfc9110/host`](https://example.com/rules/host)';
+    // The rule has a `helpUri`, so the rule cell renders as a linked code label
+    // (an HTML anchor, so a `helpUri` containing `)`/whitespace can't break out).
+    const ruleLink =
+      '<a href="https://example.com/rules/host"><code>rfc9110/host</code></a>';
     expect(output).toContain('### GET /pets');
     expect(output).toContain(`| error | ${ruleLink} | Missing Host header |`);
     expect(output).toContain('### GET /dogs');
