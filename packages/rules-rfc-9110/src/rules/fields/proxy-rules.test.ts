@@ -10,13 +10,37 @@ import proxyMustForwardUnrecognizedHeaderFields from './field-names/proxy-must-f
 import proxyMustNotChangeFieldLineOrder from './field-order/proxy-must-not-change-field-line-order.rule.js';
 
 type AnalyzeOnlyRule = {
-  analyzeRule?: (ctx: unknown) => RuleFnResult[];
+  analyzeRule?: (
+    context: unknown,
+    options: { mode: 'static' | 'analytics' | 'test' },
+    logger: unknown,
+  ) => RuleFnResult[] | Promise<RuleFnResult[]>;
+};
+
+const noop = (): void => undefined;
+
+/**
+ * Minimal stub matching the logger the rule runner passes as the third
+ * argument. The proxy rules never read it, but supplying it lets the harness
+ * invoke rules with their real (context, options, logger) signature.
+ */
+const testLogger: Record<string, unknown> = {
+  namespace: 'test',
+  debug: noop,
+  info: noop,
+  warn: noop,
+  error: noop,
+  trace: noop,
+  out: noop,
+  child: () => testLogger,
 };
 
 /**
  * Runs a captured-trace analytics rule against a single synthetic trace by
  * providing a minimal context whose validateCapturedHttpTraces invokes the
- * rule's callback with that trace.
+ * rule's callback with that trace. The rule is called with the real
+ * (context, options, logger) signature used by the rule runner; a rule that
+ * returns a Promise fails loudly rather than silently passing.
  */
 function runOnTrace(
   rule: AnalyzeOnlyRule,
@@ -31,7 +55,13 @@ function runOnTrace(
       validate: (t: CapturedTrace, location: string) => RuleFnResult[],
     ) => validate(trace, 'trace-location'),
   };
-  return analyze(ctx);
+  const result = analyze(ctx, { mode: 'analytics' }, testLogger);
+  if (result instanceof Promise) {
+    throw new Error(
+      'analyzeRule returned a Promise; this synchronous harness supports only sync rules',
+    );
+  }
+  return result;
 }
 
 /**
