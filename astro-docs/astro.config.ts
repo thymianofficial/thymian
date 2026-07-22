@@ -83,22 +83,22 @@ export default defineConfig({
         {
           label: 'Tutorials',
           collapsed: true,
-          autogenerate: { directory: 'tutorials' },
+          items: [{ autogenerate: { directory: 'tutorials' } }],
         },
         {
           label: 'Guides',
           collapsed: true,
-          autogenerate: { directory: 'guides' },
+          items: [{ autogenerate: { directory: 'guides' } }],
         },
         {
           label: 'References',
           collapsed: true,
-          autogenerate: { directory: 'references' },
+          items: [{ autogenerate: { directory: 'references' } }],
         },
         {
           label: 'Concepts',
           collapsed: true,
-          autogenerate: { directory: 'concepts' },
+          items: [{ autogenerate: { directory: 'concepts' } }],
         },
       ],
       components: {
