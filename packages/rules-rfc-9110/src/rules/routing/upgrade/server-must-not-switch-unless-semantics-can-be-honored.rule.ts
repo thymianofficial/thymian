@@ -4,6 +4,7 @@ export default httpRule(
   'rfc9110/server-must-not-switch-unless-semantics-can-be-honored',
 )
   .severity('error')
+  // Whether the server could honor the original request semantics after switching is a property of the negotiated new protocol, not observable from the HTTP exchange.
   .type('informational')
   .url('https://www.rfc-editor.org/rfc/rfc9110.html#name-upgrade')
   .description(

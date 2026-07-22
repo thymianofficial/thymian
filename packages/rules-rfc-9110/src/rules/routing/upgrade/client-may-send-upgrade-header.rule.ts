@@ -1,4 +1,4 @@
-import { not, requestHeader } from '@thymian/core';
+import { requestHeader } from '@thymian/core';
 import { httpRule } from '@thymian/core';
 
 export default httpRule('rfc9110/client-may-send-upgrade-header')
@@ -10,5 +10,7 @@ export default httpRule('rfc9110/client-may-send-upgrade-header')
   )
   .summary('Client MAY send Upgrade header to invite protocol switch.')
   .appliesTo('client')
-  .rule((ctx) => ctx.validateHttpTransactions(not(requestHeader('upgrade'))))
+  // Surfaces use of the optional mechanism: the hint fires when a request
+  // carries an Upgrade header, never on its absence.
+  .rule((ctx) => ctx.validateHttpTransactions(requestHeader('upgrade')))
   .done();

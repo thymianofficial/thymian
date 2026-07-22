@@ -5,7 +5,9 @@ export default httpRule(
   'rfc9110/server-must-send-upgrade-header-in-101-response',
 )
   .severity('error')
-  .type('analytics')
+  // 101 (Switching Protocols) is an interim response absent from the static spec
+  // projection, because schemas do not model interim responses.
+  .type('test', 'analytics')
   .url('https://www.rfc-editor.org/rfc/rfc9110.html#name-upgrade')
   .description(
     'A server that sends a 101 (Switching Protocols) response MUST send an Upgrade header field to indicate the new protocol(s) to which the connection is being switched. This informs the client which protocol is now in use.',
@@ -13,8 +15,11 @@ export default httpRule(
   .summary('Server MUST send Upgrade header in 101 response.')
   .appliesTo('server')
   .rule((ctx) =>
-    ctx.validateHttpTransactions(
+    ctx.validateCommonHttpTransactions(
       and(statusCode(101), not(responseHeader('upgrade'))),
+      // The filter already selects 101 responses that lack an Upgrade header,
+      // so every matched transaction is a violation.
+      (_req, _res, location) => [{ location, violation: {}, findings: [] }],
     ),
   )
   .done();

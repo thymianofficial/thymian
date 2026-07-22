@@ -2,6 +2,7 @@ import { httpRule } from '@thymian/core';
 
 export default httpRule('rfc9110/intermediary-must-implement-connection-header')
   .severity('error')
+  // "Implement the Connection header" is a capability requirement; conformance shows up only in downstream forwarding behavior, not as a single observable message artifact.
   .type('informational')
   .url('https://www.rfc-editor.org/rfc/rfc9110.html#name-message-forwarding')
   .description(
