@@ -48,7 +48,7 @@ export default httpRule(
           {
             location,
             violation: {
-              message: `A Referer header referring to a secure resource (${referer.trim()}) was sent to a different origin (${requestOrigin}). A user agent SHOULD NOT send the Referer cross-origin from a secure referring resource unless that resource explicitly allows it.`,
+              message: `A Referer header referring to a secure resource (${referer.trim()}) was sent to a different origin (${requestOrigin}).`,
             },
             findings: [],
           },

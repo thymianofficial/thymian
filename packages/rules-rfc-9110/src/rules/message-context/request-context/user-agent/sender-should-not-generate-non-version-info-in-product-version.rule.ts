@@ -15,7 +15,6 @@ export default httpRule(
   .description(
     'A sender SHOULD NOT generate information in product-version that is not a version identifier (i.e., successive versions of the same product name ought to differ only in the product-version portion of the product identifier).',
   )
-  .appliesTo('client', 'user-agent')
   .overrideAnalyticsRule((ctx) =>
     ctx.validateHttpTransactions(
       and(requestHeader('user-agent')),
@@ -59,7 +58,7 @@ export default httpRule(
               {
                 location,
                 violation: {
-                  message: `The User-Agent product token "${token}" carries non-version information in its product-version ("${version}"). A sender SHOULD NOT generate anything but a version identifier there.`,
+                  message: `The User-Agent product token "${token}" carries non-version information in its product-version ("${version}").`,
                 },
                 findings: [],
               },

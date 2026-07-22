@@ -43,7 +43,7 @@ export default httpRule(
           {
             location,
             violation: {
-              message: `An unsecured (http) request carries a Referer header referring to a secure resource (${referer.trim()}). A user agent MUST NOT leak a Referer that was accessed with a secure protocol into an unsecured request.`,
+              message: `An unsecured (http) request carries a Referer header referring to a secure resource (${referer.trim()}).`,
             },
             findings: [],
           },

@@ -18,7 +18,7 @@ export default httpRule(
   .summary(
     'A From header field sent by a (robotic) user agent SHOULD contain a valid mailbox.',
   )
-  .appliesTo('client', 'user-agent')
+  .appliesTo('user-agent')
   .rule((ctx) =>
     ctx.validateHttpTransactions(
       and(requestHeader('from')),
@@ -38,7 +38,7 @@ export default httpRule(
               {
                 location,
                 violation: {
-                  message: `The From header field value "${from.trim()}" is not a valid mailbox. A (robotic) user agent SHOULD send a valid From header so the operator can be contacted.`,
+                  message: `The From header field value "${from.trim()}" is not a valid mailbox.`,
                 },
                 findings: [],
               },

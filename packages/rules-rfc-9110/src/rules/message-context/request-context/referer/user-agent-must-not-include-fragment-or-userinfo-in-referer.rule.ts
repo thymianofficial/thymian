@@ -30,7 +30,7 @@ export default httpRule(
             {
               location,
               violation: {
-                message: `The Referer header value "${referer}" contains a fragment component. A user agent MUST NOT include the fragment when generating the Referer field value.`,
+                message: `The Referer header value "${referer}" contains a fragment component.`,
               },
               findings: [],
             },
@@ -47,7 +47,7 @@ export default httpRule(
               {
                 location,
                 violation: {
-                  message: `The Referer header value "${referer}" contains a userinfo component (credentials). A user agent MUST NOT include userinfo when generating the Referer field value.`,
+                  message: `The Referer header value "${referer}" contains a userinfo component (credentials).`,
                 },
                 findings: [],
               },
@@ -61,7 +61,7 @@ export default httpRule(
               {
                 location,
                 violation: {
-                  message: `The Referer header value "${referer}" appears to contain a userinfo component (credentials). A user agent MUST NOT include userinfo when generating the Referer field value.`,
+                  message: `The Referer header value "${referer}" appears to contain a userinfo component (credentials).`,
                 },
                 findings: [],
               },

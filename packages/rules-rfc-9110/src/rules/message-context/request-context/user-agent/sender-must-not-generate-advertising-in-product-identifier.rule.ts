@@ -15,7 +15,6 @@ export default httpRule(
   .description(
     'A sender MUST NOT generate advertising or other nonessential information within the product identifier.',
   )
-  .appliesTo('client', 'user-agent')
   .overrideAnalyticsRule((ctx) =>
     ctx.validateHttpTransactions(
       and(requestHeader('user-agent')),
@@ -43,7 +42,7 @@ export default httpRule(
               {
                 location,
                 violation: {
-                  message: `The User-Agent header value "${userAgent}" appears to contain advertising or other nonessential information. A sender MUST NOT generate advertising within the product identifier.`,
+                  message: `The User-Agent header value "${userAgent}" appears to contain advertising or other nonessential information.`,
                 },
                 findings: [],
               },

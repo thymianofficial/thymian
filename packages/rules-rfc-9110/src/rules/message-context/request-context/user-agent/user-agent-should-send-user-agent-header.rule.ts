@@ -16,8 +16,7 @@ export default httpRule('rfc9110/user-agent-should-send-user-agent-header')
         {
           location,
           violation: {
-            message:
-              'The request does not carry a User-Agent header field. A user agent SHOULD send a User-Agent header in each request unless specifically configured not to.',
+            message: 'The request does not carry a User-Agent header field.',
           },
           findings: [],
         },
