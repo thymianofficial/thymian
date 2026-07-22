@@ -39,12 +39,19 @@ function escapeCell(text: string): string {
   return text.replaceAll('|', '\\|').replaceAll('\n', ' ');
 }
 
-/** Escapes text interpolated into raw HTML (e.g. inside `<details><summary>`). */
+/**
+ * Escapes text interpolated into raw HTML — both element content
+ * (e.g. inside `<details><summary>`) and double/single-quoted attribute
+ * values (e.g. `href="…"`). Quotes are escaped so a value cannot break out
+ * of its attribute; escaping them in element content is harmless.
+ */
 function escapeHtml(text: string): string {
   return text
     .replaceAll('&', '&amp;')
     .replaceAll('<', '&lt;')
-    .replaceAll('>', '&gt;');
+    .replaceAll('>', '&gt;')
+    .replaceAll('"', '&quot;')
+    .replaceAll("'", '&#39;');
 }
 
 /**
