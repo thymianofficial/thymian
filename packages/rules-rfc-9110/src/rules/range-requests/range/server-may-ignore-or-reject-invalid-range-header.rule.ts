@@ -4,6 +4,9 @@ export default httpRule(
   'rfc9110/server-may-ignore-or-reject-invalid-range-header',
 )
   .severity('hint')
+  // A "MAY" permission — the server may ignore or reject invalid/overlapping/
+  // unordered ranges. The companion request-side rules already surface the
+  // suspicious client behavior this permission responds to.
   .type('informational')
   .url('https://www.rfc-editor.org/rfc/rfc9110.html#name-range')
   .description(

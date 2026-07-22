@@ -7,6 +7,14 @@ import { httpRule } from '@thymian/core';
 
 import { isWeakETag } from '../../utils.js';
 
+/**
+ * A client must never put a *weak* entity tag in If-Range; unlike the HTTP-date
+ * case this is unconditional, and weakness is fully observable from the request
+ * header value (the `W/` marker). Because the constraint is on what the client
+ * sends, it cannot run in `test` (Thymian generates the request) and has no
+ * description to validate in `lint`; it is therefore analyze-only, scoped to the
+ * client roles so it fires on HAR requests.
+ */
 export default httpRule(
   'rfc9110/client-must-not-generate-if-range-with-weak-etag',
 )
@@ -18,9 +26,7 @@ export default httpRule(
   )
   .summary('Client MUST NOT generate If-Range with weak entity tag.')
   .appliesTo('client')
-  .tags('conditional-requests', 'if-range', 'etag', 'weak')
-  .rule((ctx) => ctx.validateCommonHttpTransactions(requestHeader('if-range')))
-  .overrideAnalyticsRule((ctx) =>
+  .rule((ctx) =>
     ctx.validateHttpTransactions(
       requestHeader('if-range'),
       (req, _res, location: RuleViolationLocation) => {
@@ -30,25 +36,30 @@ export default httpRule(
           return [];
         }
 
-        const ranges = Array.isArray(ifRange) ? ifRange : [ifRange];
+        const values = Array.isArray(ifRange) ? ifRange : [ifRange];
 
-        const invalidRanges = ranges.filter(
-          (range) => range && range.trim().match(/^[Ww]?"/),
+        // Only entity-tag values can be weak; HTTP-date values (covered by a
+        // separate rule) start with a weekday name, not a W/ quoted tag.
+        const weakTags = values.filter(
+          (value) =>
+            /^[Ww]\/\s*"/.test(value.trim()) && isWeakETag(value.trim()),
         );
 
-        if (invalidRanges.length > 0) {
-          return [
-            {
-              location,
-              violation: {
-                message: `If-Range header field contains a weak entity tag (marked with W/), which is not allowed. Value(s) used: ${invalidRanges.join(', ')}`,
-              },
-              findings: [],
-            },
-          ];
+        if (weakTags.length === 0) {
+          return [];
         }
 
-        return [];
+        return [
+          {
+            location,
+            violation: {
+              message: `The If-Range header field contains a weak entity tag: ${weakTags.join(
+                ', ',
+              )}.`,
+            },
+            findings: [],
+          },
+        ];
       },
     ),
   )
