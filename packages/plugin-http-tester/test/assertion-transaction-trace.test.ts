@@ -189,4 +189,76 @@ describe('assertion failure → transaction traceability', () => {
     expect(failedCase).toBeDefined();
     expect(failedCase!.status.kind).toBe('failed');
   });
+
+  it('renders a schema-validation (checkBody) failure on its step with a transaction link', async () => {
+    // The GET /users response is declared with a schema requiring an integer
+    // `id`; the live response body violates it, so run-requests emits a schema
+    // assertion-failure. Its per-property detail must render on the step (and
+    // trace back to the transaction) rather than being silently dropped.
+    const format = createThymianFormatWithTransaction(
+      createHttpRequest({ method: 'get', path: '/users' }),
+      createHttpResponse({
+        statusCode: 200,
+        mediaType: 'application/json',
+        schema: {
+          type: 'object',
+          required: ['id'],
+          properties: { id: { type: 'integer' } },
+        },
+      }),
+    );
+
+    const context = new HttpTestApiContext(
+      'schema-detail-test',
+      mockContextReturning(format, {
+        statusCode: 200,
+        headers: {},
+        body: JSON.stringify({ id: 'not-an-integer' }),
+        duration: 0,
+        trailers: {},
+      }),
+    );
+
+    const ruleFnResult = await context.httpTest(
+      singleTestCase()
+        .forTransactionsWith(method('get'))
+        .run({ checkBody: true })
+        .done(),
+    );
+    const diagnostics = context.getRuleExecutionDiagnostics();
+
+    const rule = httpRule('test/response-body-schema')
+      .severity('error')
+      .type('test')
+      .summary('Response body conforms to schema')
+      .rule(() => [])
+      .done();
+
+    const [run] = createRuns(
+      'test-plugin',
+      { [rule.meta.name]: { ruleFnResult, diagnostics } },
+      [rule],
+      format,
+      makeLogger(),
+    );
+
+    const cases = (run?.executions ?? []) as TestCaseExecution[];
+    const failedCase = cases.find((c) => c.status.kind === 'failed');
+    expect(failedCase).toBeDefined();
+
+    const owningStep = failedCase!.steps.find((step) =>
+      step.findings.some((f) => f.kind === 'assertion-failure'),
+    );
+    expect(owningStep).toBeDefined();
+
+    const assertionFailure = owningStep!.findings.find(
+      (f) => f.kind === 'assertion-failure',
+    );
+    expect(assertionFailure).toBeDefined();
+    // The per-property schema detail is preserved (not dropped)...
+    expect(assertionFailure!.title).toContain('property "id"');
+    // ...and it traces back to a captured transaction on its step.
+    expect(assertionFailure!.transactionIndex).toBeDefined();
+    expect(owningStep!.httpTransactions).toBeDefined();
+  });
 });

@@ -58,7 +58,7 @@ export function runRequests<
         );
       }
 
-      for (const transaction of step.transactions) {
+      for (const [transactionIdx, transaction] of step.transactions.entries()) {
         if (options.origin) {
           transaction.requestTemplate = {
             ...transaction.requestTemplate,
@@ -226,6 +226,11 @@ export function runRequests<
               ...results.map((r) => {
                 if (r.type === 'assertion-failure') {
                   r.transaction = transaction.source;
+                  // Tag the failure with its position so the report can trace it
+                  // back to the exact step and HTTP transaction (mirrors
+                  // expectForTransactions). Without a location, buildTestStep
+                  // can't associate the detail with a step and drops it.
+                  r.location = { stepIdx, transactionIdx };
                 }
 
                 return r;
