@@ -7,5 +7,4 @@
 # Test fixture: intentionally invalid YAML for e2e error-handling tests
 /e2e-tests/fixtures/analyze/invalid-spec.yaml
 
-
-.nx/self-healing
+/.nx/self-healing
