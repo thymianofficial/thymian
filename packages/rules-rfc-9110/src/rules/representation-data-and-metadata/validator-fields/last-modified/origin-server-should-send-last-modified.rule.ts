@@ -22,6 +22,16 @@ export default httpRule('rfc9110/origin-server-should-send-last-modified')
         // Should have at least one validator
         not(responseHeader('last-modified')),
       ),
+      (_req, _res, location) => [
+        {
+          location,
+          violation: {
+            message:
+              'The successful response does not include a Last-Modified header field. An origin server SHOULD send Last-Modified for any representation whose modification date can be reasonably and consistently determined, to enable conditional requests and cache freshness evaluation.',
+          },
+          findings: [],
+        },
+      ],
     ),
   )
   .done();

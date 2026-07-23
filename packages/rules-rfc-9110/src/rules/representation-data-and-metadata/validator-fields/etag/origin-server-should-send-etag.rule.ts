@@ -22,6 +22,16 @@ export default httpRule('rfc9110/origin-server-should-send-etag')
         // Should have at least one validator
         not(responseHeader('etag')),
       ),
+      (_req, _res, location) => [
+        {
+          location,
+          violation: {
+            message:
+              'The successful response does not include an ETag header field. An origin server SHOULD send an ETag for any representation whose changes can be reasonably and consistently determined, to enable conditional requests and cache validation.',
+          },
+          findings: [],
+        },
+      ],
     ),
   )
   .done();

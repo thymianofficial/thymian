@@ -4,6 +4,9 @@ export default httpRule(
   'rfc9110/origin-server-should-obtain-last-modified-close-to-date-generation',
 )
   .severity('off')
+  // Constrains WHEN the server samples Last-Modified relative to generating
+  // Date, an internal timing detail. Even with both header values, the observed
+  // skew reflects real resource age, not a defect.
   .type('informational')
   .appliesTo('origin server')
   .url('https://www.rfc-editor.org/rfc/rfc9110.html#section-8.8.2.1')

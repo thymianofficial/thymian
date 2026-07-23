@@ -1,10 +1,5 @@
 import type { RuleViolationLocation } from '@thymian/core';
-import {
-  and,
-  getHeader,
-  httpTransactionToLabel,
-  responseHeader,
-} from '@thymian/core';
+import { and, getHeader, responseHeader } from '@thymian/core';
 import { httpRule } from '@thymian/core';
 
 export default httpRule(
@@ -26,7 +21,7 @@ export default httpRule(
   .rule((ctx) =>
     ctx.validateHttpTransactions(
       and(responseHeader('last-modified'), responseHeader('date')),
-      (req, res, _location: RuleViolationLocation) => {
+      (_req, res, location: RuleViolationLocation) => {
         const lastModifiedHeader = getHeader(res.headers, 'last-modified');
         const dateHeader = getHeader(res.headers, 'date');
 
@@ -47,9 +42,9 @@ export default httpRule(
         if (lastModifiedDate > dateValue) {
           return [
             {
-              location: httpTransactionToLabel(req, res),
+              location,
               violation: {
-                message: `Last-Modified date (${lastModifiedHeader}) is later than Date header (${dateHeader})`,
+                message: `The Last-Modified date (${lastModifiedHeader}) is later than the Date header (${dateHeader}). An origin server with a clock MUST NOT generate a Last-Modified value later than its message origination time.`,
               },
               findings: [],
             },

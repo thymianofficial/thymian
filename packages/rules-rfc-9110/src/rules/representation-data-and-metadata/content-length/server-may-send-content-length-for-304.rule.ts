@@ -66,7 +66,7 @@ export default httpRule('rfc9110/server-may-send-content-length-for-304')
                 elementId: okResponse.source.transactionId,
               },
               violation: {
-                message: `Content-Length in HEAD response does not match GET response (${okResponseLength} != ${notModifiedLength}).`,
+                message: `Content-Length in the 304 Not Modified response does not match the 200 OK response to the same request (${okResponseLength} != ${notModifiedLength}). A server MUST NOT send Content-Length in a 304 unless it equals the octet count a 200 response would have sent.`,
               },
               findings: [],
             });

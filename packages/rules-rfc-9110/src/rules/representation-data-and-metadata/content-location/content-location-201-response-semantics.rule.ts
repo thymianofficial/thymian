@@ -2,7 +2,12 @@ import { httpRule } from '@thymian/core';
 
 export default httpRule('rfc9110/content-location-201-response-semantics')
   .severity('hint')
+  // Whether Content-Location matching (or differing from) Location in a 201 is
+  // correct depends on what the returned content actually represents - a
+  // semantic fact the engine cannot judge. Either arrangement is valid on the
+  // wire.
   .type('informational')
+  .appliesTo('origin server')
   .url('https://www.rfc-editor.org/rfc/rfc9110.html#section-8.7')
   .description(
     `For a 201 (Created) response, if the Content-Location field value is identical to the Location header field value,

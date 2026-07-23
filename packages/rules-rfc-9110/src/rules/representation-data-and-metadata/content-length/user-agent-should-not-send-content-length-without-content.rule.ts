@@ -43,6 +43,15 @@ export default httpRule(
         requestHeader('content-length'),
         not(hasRequestBody()),
       ),
+      (req, _res, location) => [
+        {
+          location,
+          violation: {
+            message: `A ${req.method} request carries a Content-Length header field but no content. A user agent SHOULD NOT send Content-Length when the request has no content and the method does not anticipate one.`,
+          },
+          findings: [],
+        },
+      ],
     ),
   )
   .done();

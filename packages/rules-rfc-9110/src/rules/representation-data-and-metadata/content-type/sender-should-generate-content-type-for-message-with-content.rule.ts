@@ -6,7 +6,7 @@ export default httpRule(
 )
   .severity('warn')
   .type('static', 'test', 'analytics')
-  .appliesTo('server')
+  .appliesTo('origin server')
   .url('https://www.rfc-editor.org/rfc/rfc9110.html#section-8.3')
   .description(
     `A sender that generates a message containing content SHOULD generate a Content-Type header field
@@ -18,6 +18,16 @@ export default httpRule(
   .rule((ctx) =>
     ctx.validateCommonHttpTransactions(
       and(hasResponseBody(), not(responseHeader('content-type'))),
+      (_req, _res, location) => [
+        {
+          location,
+          violation: {
+            message:
+              'The response contains content but no Content-Type header field. A sender SHOULD generate Content-Type unless the media type of the enclosed representation is unknown.',
+          },
+          findings: [],
+        },
+      ],
     ),
   )
   .overrideStaticRule((ctx) =>
