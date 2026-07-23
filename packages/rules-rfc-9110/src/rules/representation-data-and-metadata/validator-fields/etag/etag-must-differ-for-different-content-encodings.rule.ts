@@ -52,8 +52,13 @@ export default httpRule(
         .flatMap((s) => s.split(','))
         .map((s) => s.trim().toLowerCase())
         .filter((s) => s.length > 0 && s !== 'identity');
-      // Order-insensitive canonical form of the applied content codings.
-      return tokens.sort().join(',');
+      // Canonical form is the SET of applied codings: order- and
+      // multiplicity-insensitive. Strictly, "gzip, gzip" (double-encoded)
+      // differs from "gzip", but redundant duplicate listings from buggy
+      // senders are indistinguishable from genuine double encoding on the
+      // wire, so both collapse to one token to avoid false conflicts on an
+      // error-severity rule.
+      return [...new Set(tokens)].sort().join(',');
     };
 
     // Consider every response carrying a (strong) ETag — NOT only those with a
