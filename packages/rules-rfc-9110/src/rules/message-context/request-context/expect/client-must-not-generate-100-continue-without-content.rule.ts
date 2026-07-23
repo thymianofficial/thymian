@@ -1,4 +1,11 @@
-import { and, hasRequestBody, not, requestHeader } from '@thymian/core';
+import {
+  and,
+  getHeader,
+  hasRequestBody,
+  not,
+  requestHeader,
+  type RuleViolationLocation,
+} from '@thymian/core';
 import { httpRule } from '@thymian/core';
 
 export default httpRule(
@@ -13,7 +20,31 @@ export default httpRule(
   .appliesTo('client')
   .overrideAnalyticsRule((ctx) =>
     ctx.validateHttpTransactions(
-      and(requestHeader('expect', '100-continue'), not(hasRequestBody())),
+      and(requestHeader('expect'), not(hasRequestBody())),
+      (request, _res, location: RuleViolationLocation) => {
+        const expect = getHeader(request.headers, 'expect');
+        // Expectation names are compared case-insensitively and the Expect
+        // field is a comma-separated list, so the value cannot be matched
+        // with an exact-value filter.
+        const expectations = (
+          Array.isArray(expect) ? expect : expect != null ? [expect] : []
+        )
+          .flatMap((value) => value.split(','))
+          .map((value) => value.trim().toLowerCase());
+
+        return expectations.includes('100-continue')
+          ? [
+              {
+                location,
+                violation: {
+                  message:
+                    'The request generates a 100-continue expectation but does not include content.',
+                },
+                findings: [],
+              },
+            ]
+          : [];
+      },
     ),
   )
   .done();
