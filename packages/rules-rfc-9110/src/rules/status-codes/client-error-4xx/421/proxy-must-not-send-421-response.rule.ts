@@ -24,7 +24,7 @@ export default httpRule('rfc9110/proxy-must-not-send-421-response')
                 location,
                 violation: {
                   message:
-                    'A proxy generated a 421 (Misdirected Request) response. A proxy MUST NOT generate a 421 response; this status is reserved for origin servers.',
+                    'A proxy generated a 421 (Misdirected Request) response. A proxy MUST NOT generate a 421 response; only a server that can respond authoritatively to the request (such as the origin server) may generate it.',
                 },
                 findings: [],
               },
