@@ -90,8 +90,9 @@ export default httpRule(
     'A sender that generates a 206 response to a request with an If-Range header field SHOULD NOT generate other representation header fields beyond those required because the client already has a prior response containing those header fields. Otherwise, a sender MUST generate all of the representation header fields that would have been sent in a 200 (OK) response to the same request.',
   )
   .summary(
-    'A sender SHOULD NOT sent additional representation header fields or MUST generate all representation headers for a 206 Partial Content response.',
+    'A sender SHOULD NOT send additional representation header fields or MUST generate all representation headers for a 206 Partial Content response.',
   )
+  .appliesTo('origin server')
   .rule((ctx) =>
     ctx.validateGroupedCommonHttpTransactions(
       /*

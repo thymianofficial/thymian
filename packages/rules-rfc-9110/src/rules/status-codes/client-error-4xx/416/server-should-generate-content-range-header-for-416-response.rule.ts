@@ -12,7 +12,7 @@ export default httpRule(
   .description(
     'A server that generates a 416 response to a byte-range request SHOULD generate a Content-Range header field specifying the current length of the selected representation.',
   )
-  .appliesTo('server')
+  .appliesTo('server', 'origin server')
   .rule((ctx) =>
     ctx.validateCommonHttpTransactions(
       statusCode(416),
