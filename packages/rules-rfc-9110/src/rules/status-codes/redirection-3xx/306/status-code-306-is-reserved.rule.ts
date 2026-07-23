@@ -9,7 +9,5 @@ export default httpRule('rfc9110/status-code-306-is-reserved')
     'The 306 status code was defined in a previous version of this specification, is no longer used, and the code is reserved.',
   )
   .appliesTo('server', 'origin server')
-  .rule((ctx) =>
-    ctx.validateCommonHttpTransactions(statusCode(306), statusCode(306)),
-  )
+  .rule((ctx) => ctx.validateCommonHttpTransactions(statusCode(306)))
   .done();

@@ -1,17 +1,14 @@
 import {
   getHeader,
+  type HttpResponse,
   not,
   responseHeader,
-  statusCode,
-  type HttpResponse,
   type RuleViolationLocation,
+  statusCode,
 } from '@thymian/core';
 import { httpRule } from '@thymian/core';
 
-function hasNonEmptyHeaderValue(value: string | string[] | undefined): boolean {
-  const list = Array.isArray(value) ? value : value != null ? [value] : [];
-  return list.some((v) => v.trim().length > 0);
-}
+import { hasNonEmptyHeaderValue } from '../../utils/headers.js';
 
 export default httpRule(
   'rfc9110/server-should-generate-location-header-for-302-response',

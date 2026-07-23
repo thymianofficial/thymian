@@ -1,10 +1,10 @@
 import {
   getHeader,
+  type HttpResponse,
   not,
   responseHeader,
-  statusCode,
-  type HttpResponse,
   type RuleViolationLocation,
+  statusCode,
 } from '@thymian/core';
 import { httpRule } from '@thymian/core';
 
@@ -20,7 +20,7 @@ function allowMethodTokens(value: string | string[] | undefined): string[] {
 }
 
 export default httpRule(
-  'rfc9110/origin-sever-must-generate-allow-header-for-405-response',
+  'rfc9110/origin-server-must-generate-allow-header-for-405-response',
 )
   .severity('error')
   .type('static', 'analytics', 'test')

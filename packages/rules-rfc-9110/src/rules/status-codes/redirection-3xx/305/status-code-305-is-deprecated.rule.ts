@@ -9,7 +9,5 @@ export default httpRule('rfc9110/status-code-305-is-deprecated')
     'The 305 (Use Proxy) status code was defined in a previous version of this specification and is now deprecated.',
   )
   .appliesTo('server', 'origin server')
-  .rule((ctx) =>
-    ctx.validateCommonHttpTransactions(statusCode(305), statusCode(305)),
-  )
+  .rule((ctx) => ctx.validateCommonHttpTransactions(statusCode(305)))
   .done();
