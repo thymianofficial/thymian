@@ -10,6 +10,9 @@ import { httpRule } from '@thymian/core';
 // is a strong indicator of a malformed or hostile value crafted to provoke
 // integer-overflow / precision-loss parsing bugs in recipients.
 const MAX_REASONABLE_SIZE = BigInt(2) ** BigInt(40);
+// Any numeral with more digits than MAX_REASONABLE_SIZE is necessarily larger
+// than it, so digit count alone rules out most hostile values cheaply.
+const MAX_REASONABLE_DIGITS = MAX_REASONABLE_SIZE.toString().length;
 
 export default httpRule('rfc9110/recipient-must-handle-large-content-length')
   .severity('warn')
@@ -53,20 +56,39 @@ export default httpRule('rfc9110/recipient-must-handle-large-content-length')
 
         const results: RuleFnResult[] = [];
 
+        // A present Content-Length header whose value is empty or whitespace-
+        // only carries no decimal numeral at all (Content-Length = 1*DIGIT)
+        // and must not be ignored: downstream parsers disagree on how to
+        // frame such a message.
+        if (tokens.length === 0) {
+          return [
+            {
+              location,
+              violation: {
+                message:
+                  'The response carries a Content-Length header field with an empty value, which is not a valid decimal numeral (Content-Length = 1*DIGIT) and cannot be parsed safely.',
+              },
+              findings: [],
+            },
+          ];
+        }
+
         // More than one Content-Length value (whether across repeated header
-        // lines or within a comma-separated list) is itself a framing
-        // violation: a recipient MUST reject such a message because downstream
-        // parsers may disagree on which value delimits the body (request
-        // smuggling / response splitting).
+        // lines or within a comma-separated list) is a message-framing hazard,
+        // but RFC 9110 Section 8.6 distinguishes two cases: the same decimal
+        // value repeated (e.g. "42, 42") may be either rejected or replaced
+        // with a single instance by the recipient, while differing values
+        // leave downstream parsers to disagree on which value delimits the
+        // body and MUST be rejected (request smuggling / response splitting).
         if (tokens.length > 1) {
+          const listed = tokens.map((token) => `"${token}"`).join(', ');
+          const conflicting = new Set(tokens).size > 1;
           results.push({
             location,
             violation: {
-              message: `The response carries multiple/conflicting Content-Length values (${tokens
-                .map((token) => `"${token}"`)
-                .join(
-                  ', ',
-                )}). Multiple Content-Length header lines or comma-separated values are a message-framing hazard that a recipient MUST reject (request smuggling / response splitting).`,
+              message: conflicting
+                ? `The response carries conflicting Content-Length values (${listed}). Differing Content-Length header lines or comma-separated values are a message-framing hazard that a recipient MUST reject (request smuggling / response splitting).`
+                : `The response carries the same Content-Length value repeated (${listed}). A recipient MUST either reject the message or replace the repeated values with a single instance; a sender ought to generate a single Content-Length value.`,
             },
             findings: [],
           });
@@ -88,13 +110,20 @@ export default httpRule('rfc9110/recipient-must-handle-large-content-length')
             continue;
           }
 
-          if (BigInt(token) > MAX_REASONABLE_SIZE) {
+          // Strip leading zeros so the digit-count bound below is exact, then
+          // flag oversized numerals by digit count alone where possible —
+          // this avoids materializing a BigInt from an arbitrarily long
+          // hostile numeral and parses at most once otherwise.
+          const digits = token.replace(/^0+(?=\d)/, '');
+          if (
+            digits.length > MAX_REASONABLE_DIGITS ||
+            (digits.length === MAX_REASONABLE_DIGITS &&
+              BigInt(digits) > MAX_REASONABLE_SIZE)
+          ) {
             results.push({
               location,
               violation: {
-                message: `Content-Length value ${BigInt(
-                  token,
-                ).toString()} exceeds a reasonable size limit (>1 TB); such large numerals are a potential integer-overflow / precision-loss hazard for recipients.`,
+                message: `Content-Length value ${digits} exceeds a reasonable size limit (>1 TB); such large numerals are a potential integer-overflow / precision-loss hazard for recipients.`,
               },
               findings: [],
             });

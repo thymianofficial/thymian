@@ -46,10 +46,6 @@ export default httpRule(
     // strong tag has been seen with two differing encodings.
     const seen = new Map<string, Map<string, Set<string>>>();
 
-    const firstValue = (
-      v: string | string[] | undefined,
-    ): string | undefined => (Array.isArray(v) ? v[0] : v);
-
     const normalizeEncoding = (v: string | string[] | undefined): string => {
       const list = Array.isArray(v) ? v : v != null ? [v] : [];
       const tokens = list
@@ -68,15 +64,26 @@ export default httpRule(
     return ctx.validateCapturedHttpTransactions(
       responseHeader('etag'),
       (transaction, location): RuleFnResult[] => {
-        const etagRaw = firstValue(
-          getHeader(transaction.response.data.headers, 'etag'),
-        );
-        if (etagRaw == null) return [];
+        const etagHeader = getHeader(transaction.response.data.headers, 'etag');
+        const etagValues = Array.isArray(etagHeader)
+          ? etagHeader
+          : etagHeader != null
+            ? [etagHeader]
+            : [];
+        // ETag is a singleton field; a response with multiple ETag field
+        // lines is malformed and carries no single attributable entity tag,
+        // so skip it instead of arbitrarily picking one value.
+        const etagRaw = etagValues.length === 1 ? etagValues[0] : undefined;
+        if (etagRaw == null) {
+          return [];
+        }
 
         const etag = etagRaw.trim();
         // Only strong entity tags carry the byte-equivalence guarantee that
         // makes sharing across encodings a violation. Skip weak tags (W/...).
-        if (etag.startsWith('W/') || etag.startsWith('w/')) return [];
+        if (etag.startsWith('W/') || etag.startsWith('w/')) {
+          return [];
+        }
 
         const encoding = normalizeEncoding(
           getHeader(transaction.response.data.headers, 'content-encoding'),
