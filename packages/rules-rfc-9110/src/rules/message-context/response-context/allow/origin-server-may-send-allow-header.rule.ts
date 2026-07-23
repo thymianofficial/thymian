@@ -1,6 +1,6 @@
 import { httpRule } from '@thymian/core';
 
-export default httpRule('rfc9110/origin-sever-may-send-allow-header')
+export default httpRule('rfc9110/origin-server-may-send-allow-header')
   .severity('hint')
   // This is a permission (MAY send Allow), not a testable constraint; there is
   // no violating behaviour to detect.
