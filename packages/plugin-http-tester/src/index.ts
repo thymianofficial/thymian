@@ -136,18 +136,39 @@ function buildTestStep(
   // findings already convey the failure, don't add a duplicate generic marker —
   // UNLESS the violation carries its own message (a distinct rationale that the
   // detail records don't convey), in which case keep it so it isn't dropped.
-  const violation = stepPlacements.find(
-    ({ result }) => result.violation !== undefined,
-  )?.result.violation;
+  // Every violation-bearing placement is considered (not just the first), so a
+  // step carrying multiple violations with distinct messages renders each; the
+  // generic marker and identical messages are collapsed to one.
+  const violations = stepPlacements
+    .map(({ result }) => result.violation)
+    .filter((v) => v !== undefined);
   const hasFailureDetail = detailRecords.some(
     (f) => f.kind === 'assertion-failure' || f.kind === 'rule-violation',
   );
 
   const findings: FindingRecord[] = [];
-  if (
-    violation !== undefined &&
-    (!hasFailureDetail || violation.message !== undefined)
-  ) {
+  const seenMessages = new Set<string>();
+  let emittedGenericMarker = false;
+  for (const violation of violations) {
+    // Suppress a generic marker only when detail already conveys the failure
+    // AND the violation adds no distinct rationale of its own.
+    if (hasFailureDetail && violation.message === undefined) {
+      continue;
+    }
+    if (violation.message === undefined) {
+      // All message-less violations render the same generic marker (the rule's
+      // summary); emit it at most once.
+      if (emittedGenericMarker) {
+        continue;
+      }
+      emittedGenericMarker = true;
+    } else {
+      // Distinct messages each render; identical messages collapse to one.
+      if (seenMessages.has(violation.message)) {
+        continue;
+      }
+      seenMessages.add(violation.message);
+    }
     findings.push(ruleViolationToStepFinding(violation, rule));
   }
   findings.push(...detailRecords);
@@ -255,6 +276,7 @@ function resolvePlacements(
   contextPlacements: RuleFnResultPlacement[],
   ruleFnResult: RuleFnResult[],
   alreadyConsumed: ReadonlySet<RuleFnResult>,
+  allPlacedResults: ReadonlySet<RuleFnResult>,
 ): RuleFnResultPlacement[] {
   // Known limitation: an unplaced result carries only an edge id (no step
   // index), so when the same `source.transactionId` runs in more than one
@@ -278,12 +300,13 @@ function resolvePlacements(
     });
   });
 
-  const placed = new Set(
-    contextPlacements.map((placement) => placement.result),
-  );
+  // `allPlacedResults` spans EVERY diagnostics entry, not just this one: a
+  // result placed by another `ctx.httpTest()`/`ctx.validate*()` call must never
+  // be synthesized into a different entry that merely ran the same edge id, or
+  // one failure double-reports and flips a passing case from another call.
   const synthesized: RuleFnResultPlacement[] = [];
   for (const result of ruleFnResult) {
-    if (placed.has(result) || alreadyConsumed.has(result)) {
+    if (allPlacedResults.has(result) || alreadyConsumed.has(result)) {
       continue;
     }
     const { location } = result;
@@ -324,12 +347,18 @@ export function createRuns(
     const consumedResults = new Set<RuleFnResult>();
 
     if (diagnostics) {
+      // Every result placed by ANY diagnostics entry, computed once. Guards
+      // synthesis against cross-entry leaks (see resolvePlacements).
+      const allPlacedResults = new Set(
+        diagnostics.flatMap((d) => d.placements).map((p) => p.result),
+      );
       for (const { testResult, placements } of diagnostics) {
         const resolvedPlacements = resolvePlacements(
           testResult,
           placements,
           ruleFnResult,
           consumedResults,
+          allPlacedResults,
         );
         testResult.cases.forEach((testCase, testCaseIndex) => {
           const casePlacements = resolvedPlacements.filter(

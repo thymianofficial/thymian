@@ -271,6 +271,61 @@ describe('createRuns', () => {
     expect(stepFindings.some((f) => f.kind === 'assertion-failure')).toBe(true);
   });
 
+  it('renders every distinct violation message on a step, not just the first', () => {
+    // Two violation-bearing placements land on the same step (e.g. two failing
+    // transactions in one grouped step). Both messages must reach the step —
+    // selecting only the first would silently drop the second's rationale.
+    const first = makeResult('first violation');
+    const second = makeResult('second violation');
+    const cases = [makePassedCase('my-test', [makeStep()])];
+    const placements: RuleFnResultPlacement[] = [
+      { result: first, testCaseIndex: 0, stepIndex: 0 },
+      { result: second, testCaseIndex: 0, stepIndex: 0 },
+    ];
+    const diagnostics: HttpTesterRuleDiagnostics = [
+      { testResult: { name: 'run', duration: 0, cases }, placements },
+    ];
+
+    const [run] = createRuns(
+      PLUGIN,
+      ruleResults([first, second], diagnostics),
+      [rule],
+      FORMAT,
+      makeLogger(),
+    );
+    const messages = testCases(run!.executions)[0]!
+      .steps[0]!.findings.filter((f) => f.kind === 'rule-violation')
+      .map((f) => f.message?.text);
+    expect(messages).toContain('first violation');
+    expect(messages).toContain('second violation');
+  });
+
+  it('collapses identical violation messages on a step to a single marker', () => {
+    const a = makeResult('same message');
+    const b = makeResult('same message');
+    const cases = [makePassedCase('my-test', [makeStep()])];
+    const placements: RuleFnResultPlacement[] = [
+      { result: a, testCaseIndex: 0, stepIndex: 0 },
+      { result: b, testCaseIndex: 0, stepIndex: 0 },
+    ];
+    const diagnostics: HttpTesterRuleDiagnostics = [
+      { testResult: { name: 'run', duration: 0, cases }, placements },
+    ];
+
+    const [run] = createRuns(
+      PLUGIN,
+      ruleResults([a, b], diagnostics),
+      [rule],
+      FORMAT,
+      makeLogger(),
+    );
+    expect(
+      testCases(run!.executions)[0]!.steps[0]!.findings.filter(
+        (f) => f.kind === 'rule-violation',
+      ),
+    ).toHaveLength(1);
+  });
+
   it('maps a failed case WITHOUT a violation to skipped (could not execute)', () => {
     const cases = [makeFailedCase('failing-test', 'connection refused')];
     const diagnostics: HttpTesterRuleDiagnostics = [
@@ -531,6 +586,88 @@ describe('createRuns', () => {
       cases2[0]!.steps[0]!.findings.some((f) => f.kind === 'rule-violation'),
     ).toBe(true);
     expect(logger.warn).not.toHaveBeenCalled();
+  });
+
+  it('does not leak a placement from one diagnostics entry into another', () => {
+    // A rule makes two context calls that both run `tx-1`: a passing validate*()
+    // (entry A, no placement recorded) and a failing httpTest() (entry B, which
+    // places the failing result). The failure must render ONLY in entry B — the
+    // shared `ruleFnResult` must not be synthesized into entry A, which would
+    // flip its passing case to failed AND double-report the single failure.
+    const failing: RuleFnResult = {
+      location: { elementType: 'edge', elementId: 'tx-1' },
+      violation: { message: 'assertion failed in entry B' },
+      findings: [],
+    };
+    const makeEdgeStep = (): HttpTestCaseStep =>
+      ({
+        type: 'single',
+        source: { transactionId: 'tx-1' },
+        transactions: [
+          {
+            request: { origin: 'http://localhost', path: '/x', method: 'GET' },
+            response: { statusCode: 200, headers: {} },
+            source: { transactionId: 'tx-1' },
+          },
+        ],
+      }) as unknown as HttpTestCaseStep;
+    const makeEdgeCase = (name: string): HttpTestCase =>
+      ({
+        name,
+        status: 'passed',
+        start: 0,
+        end: 5,
+        steps: [makeEdgeStep()],
+        results: [],
+      }) as unknown as HttpTestCase;
+
+    const diagnostics: HttpTesterRuleDiagnostics = [
+      {
+        testResult: {
+          name: 'validate',
+          duration: 0,
+          cases: [makeEdgeCase('case-a')],
+        },
+        placements: [],
+      },
+      {
+        testResult: {
+          name: 'httpTest',
+          duration: 0,
+          cases: [makeEdgeCase('case-b')],
+        },
+        placements: [{ result: failing, testCaseIndex: 0, stepIndex: 0 }],
+      },
+    ];
+
+    const [run] = createRuns(
+      PLUGIN,
+      ruleResults([failing], diagnostics),
+      [rule],
+      FORMAT,
+      makeLogger(),
+    );
+    const cases = testCases(run!.executions);
+    expect(cases).toHaveLength(2);
+
+    const caseA = cases.find((c) => c.name === 'case-a')!;
+    const caseB = cases.find((c) => c.name === 'case-b')!;
+
+    // entry A's case stays passed — the failure belongs to entry B.
+    expect(caseA.status.kind).toBe('passed');
+    expect(
+      caseA.steps
+        .flatMap((s) => s.findings)
+        .some((f) => f.kind === 'rule-violation'),
+    ).toBe(false);
+
+    // entry B renders the failure exactly once.
+    expect(caseB.status.kind).toBe('failed');
+    expect(
+      caseB.steps
+        .flatMap((s) => s.findings)
+        .filter((f) => f.kind === 'rule-violation'),
+    ).toHaveLength(1);
   });
 
   describe('step locations', () => {
