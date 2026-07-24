@@ -19,6 +19,9 @@ export interface Message {
 /**
  * External or generated file that belongs to a tool run, such as HAR files,
  * screenshots, generated requests, raw logs, or exported diagnostics.
+ *
+ * Reserved public surface: referenced by {@link ToolRun.artifacts} but not yet
+ * populated by any producer. Kept as an intentional extension point.
  */
 export interface Artifact {
   /** Stable identifier within the report. */
@@ -35,21 +38,6 @@ export interface Artifact {
   mimeType?: string;
 }
 
-/** HTTP header bag as represented in report payloads. */
-export type Headers = Record<string, string | string[]>;
-
-/** Generic body representation for future report-owned HTTP payloads/artifacts. */
-export interface BodyContent {
-  /** Textual body content, if it is safe and useful to inline. */
-  text?: string;
-  /** Base64-encoded body content for binary payloads. */
-  binaryBase64?: string;
-  /** Media type of the body content. */
-  mimeType?: string;
-  /** Encoding marker for consumers that need to decode the body. */
-  encoding?: 'plain' | 'base64' | (string & {});
-}
-
 /** HTTP request shape reused from the core HTTP model. */
 export type ReportHttpRequest = HttpRequest;
 
@@ -57,10 +45,12 @@ export type ReportHttpRequest = HttpRequest;
 export type ReportHttpResponse = HttpResponse;
 
 /**
- * Captured HTTP transaction associated with an execution. It is intentionally
- * attached to executions, not findings, because multiple findings can originate
- * from the same transaction and renderers may decide how much transaction detail
- * to show.
+ * Captured HTTP transaction collected while running a test. Transactions are
+ * attached at {@link TestStep} granularity (see {@link TestStep.httpTransactions}),
+ * not to individual findings, because multiple findings can originate from the
+ * same transaction and renderers may decide how much transaction detail to show.
+ * A finding may point at a specific transaction within its step via
+ * {@link BaseFinding.transactionIndex}.
  */
 export interface ReportHttpTransaction {
   /** Captured request. */
@@ -94,7 +84,14 @@ export interface RuleDescriptor {
   }>;
 }
 
-/** Invocation describes one process/command that contributed to a tool run. */
+/**
+ * Invocation describes one process/command that contributed to a tool run.
+ *
+ * Reserved public surface: the model carries it and {@link ToolRun.invocations}
+ * references it, but no producer populates it yet. Kept (not removed) as an
+ * intentional SARIF-parity extension point for capturing CLI/process invocation
+ * detail in a future story.
+ */
 export interface Invocation {
   /** Optional invocation identifier. */
   id?: string;
@@ -127,7 +124,11 @@ export interface Invocation {
 export interface BaseFinding {
   /** Stable identifier within the report. */
   id: string;
-  /** Discriminator describing what kind of fact this finding represents. */
+  /**
+   * Discriminator describing what kind of fact this finding represents. Kept
+   * open (`string & {}`) so producers can emit custom finding kinds; consumers
+   * should handle unknown kinds gracefully.
+   */
   kind:
     | 'rule-violation'
     | 'informational'
@@ -138,6 +139,14 @@ export interface BaseFinding {
   title: string;
   /** Optional longer message. */
   message?: Message;
+  /**
+   * Zero-based index into the owning {@link TestStep.httpTransactions} of the
+   * transaction this finding is about, when it is tied to a specific transaction.
+   * Lets a consumer trace a finding (e.g. an assertion failure or an invalid
+   * transaction) back to the exact HTTP exchange. Undefined when no single
+   * transaction applies (e.g. lint/analyze findings, or step-wide findings).
+   */
+  transactionIndex?: number;
 }
 
 /**
@@ -316,14 +325,16 @@ export interface TestCaseExecution extends ExecutionBase {
  */
 export type Execution = LintExecution | TestCaseExecution | AnalyzeExecution;
 
-/** One run of one tool/plugin for a workflow mode such as lint/test/analyze. */
-export interface ToolRun {
+/**
+ * Fields shared by every {@link ToolRun}, independent of its run type. The
+ * discriminating `runType` and the type-correlated `executions` are added per
+ * arm of the {@link ToolRun} union.
+ */
+export interface ToolRunBase {
   /** Stable identifier for this run within the report. */
   runId: string;
   /** Tool/plugin that produced the data. */
   tool: Tool;
-  /** Workflow/run kind. Closed union — every execution's `kind` matches this. */
-  runType: 'lint' | 'test' | 'analyze';
   /** ISO timestamp when the run was created/started. */
   runAt: string;
   /** Duration in milliseconds, if measured. */
@@ -334,11 +345,24 @@ export interface ToolRun {
   artifacts?: Artifact[];
   /** External command/process invocations that contributed to this run. */
   invocations?: Invocation[];
-  /** Execution groups produced by this run. Omitted/empty means the plugin collected no reportable information. */
-  executions?: Execution[];
   /** List of rules that were checked during this run, including both passed and failed rules. */
   rules?: RuleDescriptor[];
 }
+
+/**
+ * One run of one tool/plugin for a workflow mode such as lint/test/analyze.
+ *
+ * Modelled as a discriminated union on `runType`: the run kind fixes the
+ * concrete execution type, so a `lint` run can only carry {@link LintExecution}s,
+ * a `test` run only {@link TestCaseExecution}s, and an `analyze` run only
+ * {@link AnalyzeExecution}s. This makes it impossible to attach executions whose
+ * `kind` disagrees with the run's `runType`. `executions` omitted/empty means the
+ * plugin collected no reportable information.
+ */
+export type ToolRun =
+  | (ToolRunBase & { runType: 'lint'; executions?: LintExecution[] })
+  | (ToolRunBase & { runType: 'test'; executions?: TestCaseExecution[] })
+  | (ToolRunBase & { runType: 'analyze'; executions?: AnalyzeExecution[] });
 
 /** Version/hash identifying a specific serialized Thymian format. */
 export type ThymianFormatVersion = string;

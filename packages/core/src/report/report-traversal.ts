@@ -1,19 +1,14 @@
 import type { Execution, FindingRecord, TestStep } from './report.js';
 
-/** One visited execution. Executions are a flat, non-recursive list per run. */
-export interface ExecutionVisit {
-  /** The visited execution. */
-  execution: Execution;
-}
-
 /**
- * Walk the executions of a run.
+ * Walk the executions of a run. Executions are a flat, non-recursive list per
+ * run, so this simply yields each {@link Execution} in order.
  */
 export function* walkExecutions(
   executions: Execution[] | undefined,
-): Generator<ExecutionVisit> {
+): Generator<Execution> {
   for (const execution of executions ?? []) {
-    yield { execution };
+    yield execution;
   }
 }
 
@@ -35,7 +30,7 @@ export interface FindingVisit {
 export function* walkFindings(
   executions: Execution[] | undefined,
 ): Generator<FindingVisit> {
-  for (const { execution } of walkExecutions(executions)) {
+  for (const execution of walkExecutions(executions)) {
     if (execution.kind === 'test') {
       for (const step of execution.steps) {
         for (const finding of step.findings) {

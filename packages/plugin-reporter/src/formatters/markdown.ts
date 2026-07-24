@@ -39,12 +39,36 @@ function escapeCell(text: string): string {
   return text.replaceAll('|', '\\|').replaceAll('\n', ' ');
 }
 
-/** Escapes text interpolated into raw HTML (e.g. inside `<details><summary>`). */
+/**
+ * Escapes text interpolated into raw HTML — both element content
+ * (e.g. inside `<details><summary>`) and double/single-quoted attribute
+ * values (e.g. `href="…"`). Quotes are escaped so a value cannot break out
+ * of its attribute; escaping them in element content is harmless.
+ */
 function escapeHtml(text: string): string {
   return text
     .replaceAll('&', '&amp;')
     .replaceAll('<', '&lt;')
-    .replaceAll('>', '&gt;');
+    .replaceAll('>', '&gt;')
+    .replaceAll('"', '&quot;')
+    .replaceAll("'", '&#39;');
+}
+
+/**
+ * Renders the "Rule" cell: the rule id as inline code, linked to its `helpUri`
+ * when present. Uses an HTML anchor (not a markdown `[text](url)` link) so a
+ * `helpUri` containing `)`, whitespace, etc. cannot break out of the link.
+ * Callers placing this inside a `|`-delimited table cell must still run the
+ * result through `escapeCell` to neutralise any `|`.
+ */
+function renderRuleCell(
+  ruleId: string | undefined,
+  helpUri: string | undefined,
+): string {
+  const label = escapeHtml(ruleId ?? 'unnamed check');
+  return helpUri
+    ? `<a href="${escapeHtml(helpUri)}"><code>${label}</code></a>`
+    : `<code>${label}</code>`;
 }
 
 function severityWord(severity: Severity): string {
@@ -134,7 +158,7 @@ function countOutcomes(executions: Execution[] | undefined): {
   let skipped = 0;
   let passed = 0;
 
-  for (const { execution } of walkExecutions(executions)) {
+  for (const execution of walkExecutions(executions)) {
     if (execution.status.kind === 'failed') {
       failed += 1;
     } else if (execution.status.kind === 'skipped') {
@@ -169,7 +193,7 @@ function buildLintAnalyzeSection(
   const ruleIndex = buildRuleIndex(run.rules);
   const groups = new Map<string, string[]>();
 
-  for (const { execution } of walkExecutions(run.executions)) {
+  for (const execution of walkExecutions(run.executions)) {
     if (execution.kind !== 'lint' && execution.kind !== 'analyze') {
       continue;
     }
@@ -184,9 +208,11 @@ function buildLintAnalyzeSection(
     }
 
     const rule = execution.ruleId ? ruleIndex.get(execution.ruleId) : undefined;
-    const ruleCell = execution.ruleId
-      ? `\`${execution.ruleId}\``
-      : 'unnamed check';
+    // HTML anchor (via renderRuleCell), then escapeCell so a `|` in the id/uri
+    // can't break the surrounding markdown table row.
+    const ruleCell = escapeCell(
+      renderRuleCell(execution.ruleId, rule?.helpUri),
+    );
 
     if (execution.status.kind === 'failed') {
       const severity =
@@ -285,7 +311,7 @@ function buildTestSection(
 
   const ruleIndex = buildRuleIndex(run.rules);
 
-  for (const { execution } of walkExecutions(run.executions)) {
+  for (const execution of walkExecutions(run.executions)) {
     if (execution.kind !== 'test' || execution.status.kind === 'passed') {
       continue;
     }
@@ -300,7 +326,7 @@ function buildTestSection(
     const rule = execution.ruleId ? ruleIndex.get(execution.ruleId) : undefined;
     const severity = resolveExecutionSeverity(execution, ruleIndex, logger);
     const severityPrefix = severity ? `${severityWord(severity)} · ` : '';
-    const ruleCell = `<code>${escapeHtml(execution.ruleId ?? 'unnamed check')}</code>`;
+    const ruleCell = renderRuleCell(execution.ruleId, rule?.helpUri);
     const message =
       execution.status.kind === 'failed'
         ? (execution.status.reason ??

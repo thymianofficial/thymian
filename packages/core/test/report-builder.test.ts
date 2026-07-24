@@ -41,10 +41,11 @@ describe('report builders', () => {
     ]);
 
     expect(findings).toHaveLength(2);
+    // Findings carry no severity — it is resolved from the execution's ruleId/status.
     expect(findings[0]).toMatchObject({
       kind: 'assertion-failure',
-      severity: 'error',
     });
+    expect(findings[0]).not.toHaveProperty('severity');
     // `skip`/`timeout`/`invalid-transaction` are dead in the lint/analyze path
     // and map defensively to `informational` (test-case outcomes are `status`).
     expect(findings[1]).toMatchObject({ kind: 'informational' });
@@ -59,7 +60,7 @@ describe('report builders', () => {
       .done();
     const format = new ThymianFormat();
 
-    it('maps a violation to a failed status (AC2)', () => {
+    it('maps a violation to a failed status', () => {
       const executions = executionsFromRunRulesResult(
         {
           'rfc9110/example': {
@@ -90,7 +91,7 @@ describe('report builders', () => {
       ).toBeUndefined();
     });
 
-    it('surfaces findings on a passing result with no violation (AC5)', () => {
+    it('surfaces findings on a passing result with no violation', () => {
       const executions = executionsFromRunRulesResult(
         {
           'rfc9110/example': {
@@ -139,7 +140,7 @@ describe('report builders', () => {
       expect(findings.map((f) => f.kind)).toEqual(['assertion-failure']);
     });
 
-    it('emits a passed execution for a pure-pass result (AC3)', () => {
+    it('emits a passed execution for a pure-pass result', () => {
       const executions = executionsFromRunRulesResult(
         {
           'rfc9110/example': {
@@ -156,7 +157,7 @@ describe('report builders', () => {
       expect((executions[0] as { findings: unknown[] }).findings).toEqual([]);
     });
 
-    it('maps a rule-skip-only result to a skipped status (AC4)', () => {
+    it('maps a rule-skip-only result to a skipped status', () => {
       const executions = executionsFromRunRulesResult(
         {
           'rfc9110/example': {
@@ -184,7 +185,7 @@ describe('report builders', () => {
       expect((executions[0] as { findings: unknown[] }).findings).toEqual([]);
     });
 
-    it('maps a rule-skip alongside another finding to skipped, not passed (regression, BaggersIO PR-311 finding 10)', () => {
+    it('maps a rule-skip alongside another finding to skipped, not passed', () => {
       const executions = executionsFromRunRulesResult(
         {
           'rfc9110/example': {
@@ -241,7 +242,7 @@ describe('report builders', () => {
       });
     });
 
-    it('marks the execution kind as analyze when requested (AC10)', () => {
+    it('marks the execution kind as analyze when requested', () => {
       const executions = executionsFromRunRulesResult(
         {
           'rfc9110/example': {
