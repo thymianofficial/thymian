@@ -90,7 +90,7 @@ const typeCounts = PARTICIPATION_TYPE_ORDER.reduce<
   <h2 id="events-upcoming-heading" class="event-section-heading">Upcoming</h2>
   {
     upcoming.length > 0 ? (
-      <div class="event-grid">
+      <div class="event-stack">
         {upcoming.map((event) => (
           <EventCard event={event} timeframe="upcoming" />
         ))}
@@ -105,7 +105,7 @@ const typeCounts = PARTICIPATION_TYPE_ORDER.reduce<
   <h2 id="events-past-heading" class="event-section-heading">Past</h2>
   {
     past.length > 0 ? (
-      <div class="event-grid">
+      <div class="event-stack">
         {past.map((event) => (
           <EventCard event={event} timeframe="past" />
         ))}
@@ -124,17 +124,19 @@ const typeCounts = PARTICIPATION_TYPE_ORDER.reduce<
     margin-bottom: 2rem;
   }
 
+  /* Inactive pill: transparent fill + pinned ≥3:1 border + gray-800/teal-300 text. */
   .type-filter-link {
     display: inline-flex;
     align-items: center;
-    gap: 0.35rem;
-    padding: 0.35rem 0.75rem;
-    border: 1px solid var(--sl-color-gray-5);
+    gap: 0.4rem;
+    padding: 0.4rem 0.85rem;
+    border: 1px solid var(--ev-pill-border);
     border-radius: 9999px;
-    background: var(--sl-color-gray-6);
-    color: var(--sl-color-gray-3);
+    background: var(--ev-pill-inactive-bg, transparent);
+    color: var(--ev-pill-inactive-fg);
     font-size: 0.75rem;
-    font-weight: 600;
+    font-weight: 700;
+    letter-spacing: 0.02em;
     text-decoration: none;
     transition:
       border-color 0.15s,
@@ -142,15 +144,34 @@ const typeCounts = PARTICIPATION_TYPE_ORDER.reduce<
       background 0.15s;
   }
 
-  .type-filter-link:hover,
+  /*
+    Active pill = SOLID fill (white on teal-700 light / near-black on teal-400
+    dark), NEVER a light tint under accent text. The former white-on-12%-accent
+    `aria-current` style computed 4.03:1 — the exact bug this redesign kills.
+  */
   .type-filter-link[aria-current='true'] {
-    border-color: var(--sl-color-accent);
-    background: color-mix(in srgb, var(--sl-color-accent) 12%, transparent);
-    color: var(--sl-color-white);
+    border-color: var(--ev-pill-active-bg);
+    background: var(--ev-pill-active-bg);
+    color: var(--ev-pill-active-fg);
+  }
+
+  .type-filter-link[aria-current='true'] .type-filter-count {
+    color: var(--ev-pill-active-fg);
+  }
+
+  /* Hover only nudges the border toward the accent; contrast is unchanged. */
+  .type-filter-link:not([aria-current='true']):hover {
+    border-color: var(--ev-accent-border);
+    color: var(--ev-accent-text);
   }
 
   .type-filter-count {
-    color: var(--sl-color-gray-4);
+    color: var(--ev-fg-faint);
+  }
+
+  .type-filter-link:focus-visible {
+    outline: 2px solid var(--ev-focus-ring);
+    outline-offset: 2px;
   }
 
   .event-section {
@@ -158,24 +179,28 @@ const typeCounts = PARTICIPATION_TYPE_ORDER.reduce<
   }
 
   .event-section-heading {
-    font-size: 0.8rem;
-    font-weight: 700;
-    color: var(--sl-color-gray-2);
-    margin: 0 0 1rem;
+    font-size: 0.82rem;
+    font-weight: 800;
+    color: var(--ev-fg-faint);
+    margin: 1.875rem 0 0.875rem;
     text-transform: uppercase;
-    letter-spacing: 0.06em;
+    letter-spacing: 0.2em;
+    line-height: 1.4;
   }
 
-  .event-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  /* Full-width bands, single-column stack — not a boxed card grid. */
+  .event-stack {
+    display: flex;
+    flex-direction: column;
     gap: 1rem;
   }
 
   .empty-state {
     padding: 1rem 1.125rem;
-    border: 1px dashed var(--sl-color-gray-5);
-    border-radius: 0.625rem;
-    color: var(--sl-color-gray-3);
+    border: 1px dashed var(--ev-line);
+    border-radius: 0.75rem;
+    color: var(--ev-empty-line);
+    font-size: 0.98rem;
+    background: var(--ev-band-bg);
   }
 </style>

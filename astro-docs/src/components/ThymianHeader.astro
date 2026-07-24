@@ -126,14 +126,20 @@ const shouldRenderSearch =
     color: var(--sl-color-white);
   }
 
+  /*
+    On-accent text must stay light in BOTH themes: `--sl-color-black` inverts to
+    near-black under `data-theme='dark'`, which rendered #171819 on teal-600
+    (3.4:1 — a WCAG AA failure the dark-mode axe scan catches). White on the
+    teal accent is 5.36:1 and matches how light mode already renders this CTA.
+  */
   .header-nav-link.enterprise-cta {
-    color: var(--sl-color-black);
+    color: #ffffff;
     background-color: var(--sl-color-accent);
     font-weight: 600;
   }
 
   .header-nav-link.enterprise-cta:hover {
-    color: var(--sl-color-black);
+    color: #ffffff;
     background-color: var(--sl-color-accent-high);
   }
 </style>

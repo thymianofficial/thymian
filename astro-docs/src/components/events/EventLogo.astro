@@ -35,10 +35,12 @@ const monogram = ([...brand][0] ?? '').toUpperCase();
 
 <style>
   .event-card-logo {
+    flex: 0 0 auto;
     display: flex;
-    align-items: center;
-    gap: 0.6rem;
-    height: 2.75rem;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.5rem;
+    width: 70px;
   }
 
   .event-card-logo-img {
@@ -48,30 +50,32 @@ const monogram = ([...brand][0] ?? '').toUpperCase();
     object-fit: contain;
   }
 
-  .event-card-logo--text {
-    gap: 0.55rem;
-  }
-
+  /*
+    The text-only fallback is an intentional, designed brand element — a 70px
+    tile filled with the signature gradient's solid dark-teal end, carrying the
+    uppercased initial. Not a broken/placeholder image.
+  */
   .event-card-logo-monogram {
     display: inline-flex;
     align-items: center;
     justify-content: center;
     flex-shrink: 0;
-    width: 2.75rem;
-    height: 2.75rem;
-    border-radius: 0.5rem;
-    font-size: 1.35rem;
-    font-weight: 700;
+    width: 70px;
+    height: 70px;
+    border-radius: 0.75rem;
+    font-size: 1.5rem;
+    font-weight: 800;
+    letter-spacing: 0.02em;
     line-height: 1;
-    color: var(--sl-color-accent-high, var(--sl-color-accent));
-    background: color-mix(in srgb, var(--sl-color-accent) 16%, transparent);
-    border: 1px solid color-mix(in srgb, var(--sl-color-accent) 38%, transparent);
+    color: var(--ev-tile-fg);
+    background: var(--ev-gradient-tile);
   }
 
   .event-card-logo-brand {
-    font-size: 0.95rem;
-    font-weight: 600;
+    font-size: 0.82rem;
+    font-weight: 700;
     line-height: 1.25;
-    color: var(--sl-color-white);
+    color: var(--ev-fg-muted);
+    word-break: break-word;
   }
 </style>

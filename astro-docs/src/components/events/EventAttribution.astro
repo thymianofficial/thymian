@@ -33,8 +33,9 @@ const guest = resolveGuestAttribution(attribution);
 <style>
   .event-attribution {
     margin: 0;
-    font-size: 0.85rem;
-    color: var(--sl-color-gray-2);
+    font-size: 0.92rem;
+    line-height: 1.5;
+    color: var(--ev-fg-faint);
   }
 
   .event-card-label {
@@ -44,19 +45,23 @@ const guest = resolveGuestAttribution(attribution);
     font-weight: 700;
     letter-spacing: 0.06em;
     text-transform: uppercase;
-    color: var(--sl-color-gray-4);
+    color: var(--ev-fg-faint);
   }
 
   .event-attribution-host {
-    color: var(--sl-color-gray-1, var(--sl-color-white));
+    color: var(--ev-fg);
   }
 
   .event-attribution a {
-    color: var(--sl-color-accent-high, var(--sl-color-accent));
-    text-decoration: none;
+    color: var(--ev-accent-text);
+    text-decoration: underline;
+    text-underline-offset: 2px;
+    font-weight: 700;
   }
 
-  .event-attribution a:hover {
-    text-decoration: underline;
+  .event-attribution a:focus-visible {
+    outline: 2px solid var(--ev-focus-ring);
+    outline-offset: 2px;
+    border-radius: 2px;
   }
 </style>

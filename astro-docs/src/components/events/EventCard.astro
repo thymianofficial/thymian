@@ -39,113 +39,170 @@ const brand = resolveEventBrand({ title, attribution });
 ---
 
 <article class="event-card" data-participation={participation}>
+  <span class="event-card-edge" aria-hidden="true"></span>
+
   <EventLogo logo={logo} brand={brand} />
 
-  <div class="event-card-badges">
-    <span class="badge badge--type">
-      {PARTICIPATION_TYPE_LABELS[participation]}
-    </span>
-    <span class={`badge badge--mode badge--mode-${mode}`}>
-      {PARTICIPATION_MODE_LABELS[mode]}
-    </span>
-  </div>
+  <div class="event-card-body">
+    <div class="event-card-badges">
+      <span
+        class={`badge badge--type ${participation === 'booth' ? 'badge--type-alt' : ''}`}
+      >
+        {PARTICIPATION_TYPE_LABELS[participation]}
+      </span>
+      <span class={`badge badge--mode badge--mode-${mode}`}>
+        {PARTICIPATION_MODE_LABELS[mode]}
+      </span>
+    </div>
 
-  <h3 class="event-card-title">{title}</h3>
+    <h3 class="event-card-title">{title}</h3>
 
-  {
-    speakerNames.length > 0 && (
-      <p class="event-card-speakers">
-        <span class="event-card-label">Speakers</span>
-        {speakerNames.join(', ')}
-      </p>
-    )
-  }
-
-  <EventAttribution attribution={attribution} />
-
-  <div class="event-card-meta">
     {
-      online ? (
-        <span class="event-place event-place--online">
-          <span class="event-place-icon" aria-hidden="true">
-            🌐
-          </span>
-          Online
-        </span>
-      ) : (
-        <span class="event-place event-place--physical">
-          <span class="event-place-icon" aria-hidden="true">
-            📍
-          </span>
-          {location}
-        </span>
+      speakerNames.length > 0 && (
+        <p class="event-card-speakers">
+          <span class="event-card-label">Speakers</span>
+          {speakerNames.join(', ')}
+        </p>
       )
     }
-    <span class="event-date">{formatDisplay(date)}</span>
+
+    <EventAttribution attribution={attribution} />
+
+    <div class="event-card-meta">
+      {
+        online ? (
+          <span class="event-place event-place--online">
+            <span class="event-place-icon" aria-hidden="true">
+              🌐
+            </span>
+            Online
+          </span>
+        ) : (
+          <span class="event-place event-place--physical">
+            <span class="event-place-icon" aria-hidden="true">
+              📍
+            </span>
+            {location}
+          </span>
+        )
+      }
+    </div>
+
+    <EventLinks links={links} timeframe={timeframe} />
   </div>
 
-  <EventLinks links={links} />
+  <div class="event-card-rail">
+    <span class="event-date">{formatDisplay(date)}</span>
+  </div>
 </article>
 
 <style>
+  /* Full-width band: [gradient edge][logo tile][body][date rail]. */
   .event-card {
+    position: relative;
+    display: flex;
+    gap: 1.375rem;
+    align-items: stretch;
+    padding: 1.375rem 1.625rem 1.375rem 1.375rem;
+    background: var(--ev-band-bg);
+    border: 1px solid var(--ev-line);
+    border-radius: 1rem;
+    overflow: hidden;
+    transition:
+      transform 0.15s ease,
+      box-shadow 0.15s ease;
+  }
+
+  /* Soft edge-glow + subtle lift on hover (no resting shadow). */
+  .event-card:hover {
+    transform: translateY(-2px);
+    box-shadow: -6px 0 18px -8px color-mix(in srgb, #017b64 60%, transparent);
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .event-card,
+    .event-card:hover {
+      transform: none;
+      box-shadow: none;
+      transition: none;
+    }
+  }
+
+  /* Decorative signature gradient edge — graphic only, never a text background. */
+  .event-card-edge {
+    position: absolute;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    width: 7px;
+    background: var(--ev-gradient-signature);
+  }
+
+  .event-card-body {
+    flex: 1;
+    min-width: 0;
     display: flex;
     flex-direction: column;
-    gap: 0.6rem;
-    padding: 1.125rem 1.25rem;
-    background: var(--sl-color-gray-6);
-    border: 1px solid var(--sl-color-gray-5);
-    border-radius: 0.625rem;
+    gap: 0.5rem;
   }
 
   .event-card-badges {
     display: flex;
     flex-wrap: wrap;
-    gap: 0.4rem;
+    gap: 0.5rem;
+    align-items: center;
   }
 
   .badge {
     display: inline-flex;
     align-items: center;
-    padding: 0.2rem 0.6rem;
+    padding: 0.25rem 0.7rem;
     border-radius: 9999px;
     font-size: 0.7rem;
-    font-weight: 600;
-    letter-spacing: 0.05em;
+    font-weight: 800;
+    letter-spacing: 0.07em;
     text-transform: uppercase;
+    line-height: 1;
   }
 
+  /* Type badge — teal fill for talk/livestream/podcast/paper/panel … */
   .badge--type {
-    background: color-mix(in srgb, var(--sl-color-accent) 18%, transparent);
-    color: var(--sl-color-accent-high, var(--sl-color-accent));
-    border: 1px solid
-      color-mix(in srgb, var(--sl-color-accent) 40%, transparent);
+    background: var(--ev-badge-bg);
+    color: var(--ev-badge-fg);
   }
 
+  /* … lime fill for booth (tinted-fill + dark/pale-safe text). */
+  .badge--type-alt {
+    background: var(--ev-badge-alt-bg);
+    color: var(--ev-badge-alt-fg);
+  }
+
+  /*
+    Mode badge = OUTLINE pill (transparent fill, accent text + ≥3:1 accent
+    border). Replaces the old hardcoded #16a34a green fill + white text, which
+    never cleared AA. Both presenting/attending share the outline so no fill can
+    ever tempt a white label.
+  */
   .badge--mode {
-    background: var(--sl-color-gray-5);
-    color: var(--sl-color-gray-2);
-    border: 1px solid var(--sl-color-gray-4);
-  }
-
-  .badge--mode-presenting {
-    background: color-mix(in srgb, #16a34a 20%, transparent);
-    color: var(--sl-color-white);
-    border-color: color-mix(in srgb, #16a34a 45%, transparent);
+    background: transparent;
+    color: var(--ev-accent-text);
+    border: 1.5px solid var(--ev-accent-border);
   }
 
   .event-card-title {
-    margin: 0;
-    font-size: 1.05rem;
-    font-weight: 600;
-    line-height: 1.35;
-    color: var(--sl-color-white);
+    margin: 0.125rem 0 0.25rem;
+    font-size: 1.55rem;
+    font-weight: 800;
+    letter-spacing: -0.03em;
+    line-height: 1.1;
+    color: var(--ev-fg);
   }
 
   .event-card-speakers {
     margin: 0;
-    font-size: 0.85rem;
-    color: var(--sl-color-gray-2);
+    font-size: 0.98rem;
+    color: var(--ev-fg-muted);
+    line-height: 1.5;
   }
 
   .event-card-label {
@@ -155,7 +212,7 @@ const brand = resolveEventBrand({ title, attribution });
     font-weight: 700;
     letter-spacing: 0.06em;
     text-transform: uppercase;
-    color: var(--sl-color-gray-4);
+    color: var(--ev-fg-faint);
   }
 
   .event-card-meta {
@@ -163,9 +220,8 @@ const brand = resolveEventBrand({ title, attribution });
     flex-wrap: wrap;
     align-items: center;
     gap: 0.5rem 1rem;
-    margin-top: auto;
-    padding-top: 0.4rem;
-    font-size: 0.85rem;
+    font-size: 0.98rem;
+    color: var(--ev-fg-muted);
   }
 
   .event-place {
@@ -174,20 +230,45 @@ const brand = resolveEventBrand({ title, attribution });
     gap: 0.35rem;
   }
 
-  .event-place--online {
-    color: var(--sl-color-accent-high, var(--sl-color-accent));
-  }
-
+  .event-place--online,
   .event-place--physical {
-    color: var(--sl-color-gray-2);
+    color: var(--ev-fg-muted);
   }
 
   .event-place-icon {
     font-size: 0.9rem;
   }
 
+  .event-card-rail {
+    flex: 0 0 auto;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+  }
+
   .event-date {
-    color: var(--sl-color-gray-3);
-    font-weight: 600;
+    color: var(--ev-fg);
+    font-weight: 800;
+    font-size: 0.86rem;
+    line-height: 1.2;
+    text-align: right;
+    white-space: nowrap;
+  }
+
+  /* Below ~600px: wrap; the date rail drops under the body and left-aligns. */
+  @media (max-width: 600px) {
+    .event-card {
+      flex-wrap: wrap;
+    }
+
+    .event-card-rail {
+      align-items: flex-start;
+      order: 3;
+      flex-basis: 100%;
+    }
+
+    .event-date {
+      text-align: left;
+    }
   }
 </style>
