@@ -51,3 +51,7 @@ vitest.config.*.timestamp*
 .thymian
 .cursor/rules/nx-rules.mdc
 .github/instructions/nx.instructions.md
+
+.nx/migrate-runs
+.nx/polygraph
+.nx/self-healing

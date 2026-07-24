@@ -41,6 +41,7 @@
     "!**/*.tsbuildinfo"
   ],
   "dependencies": {
-    "@thymian/core": "0.0.0-PLACEHOLDER"
+    "@thymian/core": "0.0.0-PLACEHOLDER",
+    "tslib": "^2.3.0"
   }
 }
