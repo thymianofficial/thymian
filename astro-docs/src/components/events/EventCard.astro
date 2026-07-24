@@ -1,0 +1,168 @@
+---
+import type { CollectionEntry } from 'astro:content';
+
+import { blogAuthors } from '../../data/team';
+import { formatDisplay } from '../../schema/event-date';
+import {
+  PARTICIPATION_MODE_LABELS,
+  PARTICIPATION_TYPE_LABELS,
+} from './eventMeta';
+
+interface Props {
+  event: CollectionEntry<'events'>;
+}
+
+const { event } = Astro.props;
+const { title, participation, mode, speakers, location, online, date } =
+  event.data;
+
+const speakerNames = speakers.map((key) => blogAuthors[key]?.name ?? key);
+---
+
+<article class="event-card" data-participation={participation}>
+  <div class="event-card-badges">
+    <span class="badge badge--type">
+      {PARTICIPATION_TYPE_LABELS[participation]}
+    </span>
+    <span class={`badge badge--mode badge--mode-${mode}`}>
+      {PARTICIPATION_MODE_LABELS[mode]}
+    </span>
+  </div>
+
+  <h3 class="event-card-title">{title}</h3>
+
+  {
+    speakerNames.length > 0 && (
+      <p class="event-card-speakers">
+        <span class="event-card-label">Speakers</span>
+        {speakerNames.join(', ')}
+      </p>
+    )
+  }
+
+  <div class="event-card-meta">
+    {
+      online ? (
+        <span class="event-place event-place--online">
+          <span class="event-place-icon" aria-hidden="true">
+            🌐
+          </span>
+          Online
+        </span>
+      ) : (
+        <span class="event-place event-place--physical">
+          <span class="event-place-icon" aria-hidden="true">
+            📍
+          </span>
+          {location}
+        </span>
+      )
+    }
+    <span class="event-date">{formatDisplay(date)}</span>
+  </div>
+</article>
+
+<style>
+  .event-card {
+    display: flex;
+    flex-direction: column;
+    gap: 0.6rem;
+    padding: 1.125rem 1.25rem;
+    background: var(--sl-color-gray-6);
+    border: 1px solid var(--sl-color-gray-5);
+    border-radius: 0.625rem;
+  }
+
+  .event-card-badges {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.4rem;
+  }
+
+  .badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.2rem 0.6rem;
+    border-radius: 9999px;
+    font-size: 0.7rem;
+    font-weight: 600;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+  }
+
+  .badge--type {
+    background: color-mix(in srgb, var(--sl-color-accent) 18%, transparent);
+    color: var(--sl-color-accent-high, var(--sl-color-accent));
+    border: 1px solid
+      color-mix(in srgb, var(--sl-color-accent) 40%, transparent);
+  }
+
+  .badge--mode {
+    background: var(--sl-color-gray-5);
+    color: var(--sl-color-gray-2);
+    border: 1px solid var(--sl-color-gray-4);
+  }
+
+  .badge--mode-presenting {
+    background: color-mix(in srgb, #16a34a 20%, transparent);
+    color: var(--sl-color-white);
+    border-color: color-mix(in srgb, #16a34a 45%, transparent);
+  }
+
+  .event-card-title {
+    margin: 0;
+    font-size: 1.05rem;
+    font-weight: 600;
+    line-height: 1.35;
+    color: var(--sl-color-white);
+  }
+
+  .event-card-speakers {
+    margin: 0;
+    font-size: 0.85rem;
+    color: var(--sl-color-gray-2);
+  }
+
+  .event-card-label {
+    display: inline-block;
+    margin-inline-end: 0.4rem;
+    font-size: 0.7rem;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--sl-color-gray-4);
+  }
+
+  .event-card-meta {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.5rem 1rem;
+    margin-top: auto;
+    padding-top: 0.4rem;
+    font-size: 0.85rem;
+  }
+
+  .event-place {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+  }
+
+  .event-place--online {
+    color: var(--sl-color-accent-high, var(--sl-color-accent));
+  }
+
+  .event-place--physical {
+    color: var(--sl-color-gray-2);
+  }
+
+  .event-place-icon {
+    font-size: 0.9rem;
+  }
+
+  .event-date {
+    color: var(--sl-color-gray-3);
+    font-weight: 600;
+  }
+</style>

@@ -1,0 +1,43 @@
+---
+import StarlightPage from '@astrojs/starlight/components/StarlightPage.astro';
+
+interface Props {
+  title: string;
+  description?: string;
+}
+
+const { title, description } = Astro.props;
+---
+
+<StarlightPage
+  frontmatter={{
+    title,
+    description,
+    tableOfContents: false,
+    editUrl: false,
+  }}
+  hasSidebar={false}
+>
+  {
+    description && (
+      <div class="events-page-header">
+        <p class="page-description">{description}</p>
+      </div>
+    )
+  }
+
+  <slot />
+</StarlightPage>
+
+<style>
+  .events-page-header {
+    margin-bottom: 2rem;
+  }
+
+  .page-description {
+    margin: 0;
+    color: var(--sl-color-gray-3);
+    font-size: 1rem;
+    line-height: 1.6;
+  }
+</style>

@@ -17,6 +17,7 @@ const pages = [
   { name: 'Get Started', path: '/get-started/' },
   { name: 'Accessibility Statement', path: '/legal/accessibility-statement/' },
   { name: 'Enterprise', path: '/enterprise/' },
+  { name: 'Events', path: '/events/' },
 ];
 
 for (const { name, path } of pages) {
