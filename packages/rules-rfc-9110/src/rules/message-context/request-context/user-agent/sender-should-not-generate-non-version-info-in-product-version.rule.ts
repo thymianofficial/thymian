@@ -1,7 +1,6 @@
 import {
   and,
   getHeader,
-  type HttpResponse,
   requestHeader,
   type RuleViolationLocation,
 } from '@thymian/core';
@@ -16,11 +15,10 @@ export default httpRule(
   .description(
     'A sender SHOULD NOT generate information in product-version that is not a version identifier (i.e., successive versions of the same product name ought to differ only in the product-version portion of the product identifier).',
   )
-  .appliesTo('client')
   .overrideAnalyticsRule((ctx) =>
     ctx.validateHttpTransactions(
       and(requestHeader('user-agent')),
-      (request, _res: HttpResponse, location: RuleViolationLocation) => {
+      (request, _res, location: RuleViolationLocation) => {
         const userAgent = getHeader(request.headers, 'user-agent');
         if (typeof userAgent !== 'string') {
           return [];
@@ -56,7 +54,15 @@ export default httpRule(
           ];
 
           if (nonVersionPatterns.some((pattern) => pattern.test(version))) {
-            return [{ location, violation: {}, findings: [] }];
+            return [
+              {
+                location,
+                violation: {
+                  message: `The User-Agent product token "${token}" carries non-version information in its product-version ("${version}").`,
+                },
+                findings: [],
+              },
+            ];
           }
         }
 

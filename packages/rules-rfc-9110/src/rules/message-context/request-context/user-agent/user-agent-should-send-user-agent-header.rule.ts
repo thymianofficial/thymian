@@ -1,4 +1,4 @@
-import { not, requestHeader } from '@thymian/core';
+import { not, requestHeader, type RuleViolationLocation } from '@thymian/core';
 import { httpRule } from '@thymian/core';
 
 export default httpRule('rfc9110/user-agent-should-send-user-agent-header')
@@ -10,6 +10,17 @@ export default httpRule('rfc9110/user-agent-should-send-user-agent-header')
   )
   .appliesTo('user-agent')
   .rule((ctx) =>
-    ctx.validateCommonHttpTransactions(not(requestHeader('user-agent'))),
+    ctx.validateCommonHttpTransactions(
+      not(requestHeader('user-agent')),
+      (_req, _res, location: RuleViolationLocation) => [
+        {
+          location,
+          violation: {
+            message: 'The request does not carry a User-Agent header field.',
+          },
+          findings: [],
+        },
+      ],
+    ),
   )
   .done();

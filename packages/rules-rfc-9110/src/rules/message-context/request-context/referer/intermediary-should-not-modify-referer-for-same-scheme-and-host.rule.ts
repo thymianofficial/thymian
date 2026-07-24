@@ -1,10 +1,13 @@
 import { httpRule } from '@thymian/core';
 
-// could be analytics at some point
 export default httpRule(
   'rfc9110/intermediary-should-not-modify-referer-for-same-scheme-and-host',
 )
   .severity('hint')
+  // Detecting an intermediary "modifying" Referer requires comparing the field
+  // value across adjacent proxy hops. This is a candidate for a captured-trace
+  // analytics check, but only where per-hop recorded traffic with intermediary
+  // role is available.
   .type('informational')
   .url('https://www.rfc-editor.org/rfc/rfc9110.html#name-referer')
   .description(

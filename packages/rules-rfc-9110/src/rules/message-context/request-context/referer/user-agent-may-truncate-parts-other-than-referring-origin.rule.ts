@@ -4,8 +4,10 @@ export default httpRule(
   'rfc9110/user-agent-may-truncate-parts-other-than-referring-origin',
 )
   .severity('hint')
+  // This is a permission (MAY truncate), not a testable constraint; there is no
+  // violating behaviour to detect from traffic.
   .type('informational')
-  .url('https://www.rfc-editor.org/rfc/rfc9110.html#name-expect')
+  .url('https://www.rfc-editor.org/rfc/rfc9110.html#name-referer')
   .description(
     'The Referer header field value need not convey the full URI of the referring resource; a user agent MAY truncate parts other than the referring origin.',
   )

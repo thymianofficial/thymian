@@ -4,6 +4,9 @@ export default httpRule(
   'rfc9110/server-should-indicate-if-closing-the-connection-when-sending-final-status-code-without-full-request',
 )
   .severity('warn')
+  // The trigger ("responds before reading the entire request content") is
+  // server-internal state not observable from the response, and whether the
+  // connection was actually closed is transport-level.
   .type('informational')
   .url('https://www.rfc-editor.org/rfc/rfc9110.html#name-expect')
   .description(
