@@ -3,8 +3,10 @@ import { describe, expect, it } from 'vitest';
 import {
   comparePastEvents,
   compareUpcomingEvents,
+  resolveEventBrand,
   resolveEventLinks,
   resolveGuestAttribution,
+  resolveLogoAlt,
   type SortableEvent,
 } from '../src/components/events/eventMeta';
 import { type Attribution } from '../src/schema/attribution';
@@ -185,5 +187,64 @@ describe('resolveGuestAttribution (AD-13 honest attribution)', () => {
     expect(
       resolveGuestAttribution({ hostGuest: 'guest', externalHost: 'X' }),
     ).toBeNull();
+  });
+});
+
+describe('resolveEventBrand', () => {
+  it('uses a valid guest external host as the brand', () => {
+    const attribution: Attribution = {
+      hostGuest: 'guest',
+      externalHost: 'My Coding Zone',
+      platform: 'YouTube',
+    };
+    expect(resolveEventBrand({ title: 'Some Talk', attribution })).toBe(
+      'My Coding Zone',
+    );
+  });
+
+  it('falls back to the title for a host event', () => {
+    expect(
+      resolveEventBrand({
+        title: 'Thymian Launch',
+        attribution: { hostGuest: 'host' },
+      }),
+    ).toBe('Thymian Launch');
+  });
+
+  it('falls back to the title when attribution is absent', () => {
+    expect(resolveEventBrand({ title: 'FrosCon Booth' })).toBe('FrosCon Booth');
+  });
+
+  it('falls back to the title for a guest with invalid/empty fields', () => {
+    expect(
+      resolveEventBrand({
+        title: 'A Panel',
+        attribution: {
+          hostGuest: 'guest',
+          externalHost: '   ',
+          platform: 'YouTube',
+        },
+      }),
+    ).toBe('A Panel');
+  });
+
+  it('trims a whitespace-padded external host', () => {
+    expect(
+      resolveEventBrand({
+        title: 'A Talk',
+        attribution: {
+          hostGuest: 'guest',
+          externalHost: '  My Coding Zone  ',
+          platform: 'YouTube',
+        },
+      }),
+    ).toBe('My Coding Zone');
+  });
+});
+
+describe('resolveLogoAlt', () => {
+  it('formats the resolved brand as "<brand> logo"', () => {
+    expect(resolveLogoAlt('FrankenJS')).toBe('FrankenJS logo');
+    expect(resolveLogoAlt('Webist Paper')).toBe('Webist Paper logo');
   });
 });

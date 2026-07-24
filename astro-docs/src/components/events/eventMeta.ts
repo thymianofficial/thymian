@@ -102,3 +102,28 @@ export function resolveGuestAttribution(
     attribution.platform.trim().length > 0;
   return hasHost && hasPlatform ? attribution : null;
 }
+
+/**
+ * The brand identity to surface for an event's logo/lockup. A valid Guest
+ * appearance credits the external host that owns the stage (honest attribution),
+ * so its `externalHost` is the brand; otherwise (Host or absent/invalid guest)
+ * the event's own `title` is the brand. The result is trimmed so a
+ * whitespace-padded host/title never leaks into the visible label or alt text.
+ */
+export function resolveEventBrand(input: {
+  title: string;
+  attribution?: Attribution;
+}): string {
+  const { title, attribution } = input;
+  return (resolveGuestAttribution(attribution)?.externalHost ?? title).trim();
+}
+
+/**
+ * The `alt` text for an event logo — the mandatory, meaningful description
+ * `<Image>` requires — derived from the already-resolved brand
+ * (`"<brand> logo"`). This is the single source of truth for the alt format;
+ * `EventLogo.astro` renders it directly.
+ */
+export function resolveLogoAlt(brand: string): string {
+  return `${brand} logo`;
+}

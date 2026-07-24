@@ -1,8 +1,23 @@
+import { type SchemaContext, z } from 'astro:content';
 import { describe, expect, it } from 'vitest';
 
 import { attributionSchema } from '../src/schema/attribution';
 import { eventsSchema } from '../src/schema/events';
 import { TEAM_KEYS } from '../src/schema/team-keys';
+
+// `eventsSchema` is now a `SchemaContext` factory so its optional `logo` field
+// can use the content-collection `image()` helper. Tests never supply `logo`,
+// so `.optional()` short-circuits and this fake is never invoked at runtime; it
+// only has to type-check (tsconfig `include: ["**/*"]` type-checks test/ too).
+const image = (() =>
+  z.object({
+    src: z.string(),
+    width: z.number(),
+    height: z.number(),
+    format: z.string(),
+  })) as unknown as SchemaContext['image'];
+
+const schema = eventsSchema({ image });
 
 const aTeamKey = TEAM_KEYS[0] as string;
 const anotherTeamKey = (TEAM_KEYS[1] ?? TEAM_KEYS[0]) as string;
@@ -57,7 +72,7 @@ describe('attributionSchema', () => {
 
 describe('eventsSchema — speakers', () => {
   it('accepts an empty speakers array (booth case)', () => {
-    const r = eventsSchema.safeParse({
+    const r = schema.safeParse({
       ...baseEvent,
       participation: 'booth',
       mode: 'attending',
@@ -70,12 +85,12 @@ describe('eventsSchema — speakers', () => {
   });
 
   it('accepts known team keys', () => {
-    const r = eventsSchema.safeParse({ ...baseEvent, speakers: [aTeamKey] });
+    const r = schema.safeParse({ ...baseEvent, speakers: [aTeamKey] });
     expect(r.success).toBe(true);
   });
 
   it('rejects an unknown speaker key on the speakers path', () => {
-    const r = eventsSchema.safeParse({
+    const r = schema.safeParse({
       ...baseEvent,
       speakers: ['nobodyHere'],
     });
@@ -88,7 +103,7 @@ describe('eventsSchema — speakers', () => {
   });
 
   it('rejects duplicate speaker keys', () => {
-    const r = eventsSchema.safeParse({
+    const r = schema.safeParse({
       ...baseEvent,
       speakers: [aTeamKey, aTeamKey],
     });
@@ -96,7 +111,7 @@ describe('eventsSchema — speakers', () => {
   });
 
   it('accepts two distinct known speakers', () => {
-    const r = eventsSchema.safeParse({
+    const r = schema.safeParse({
       ...baseEvent,
       speakers: [aTeamKey, anotherTeamKey],
     });
@@ -106,12 +121,12 @@ describe('eventsSchema — speakers', () => {
 
 describe('eventsSchema — place XOR', () => {
   it('accepts a physical-only event', () => {
-    const r = eventsSchema.safeParse({ ...baseEvent, location: 'Munich' });
+    const r = schema.safeParse({ ...baseEvent, location: 'Munich' });
     expect(r.success).toBe(true);
   });
 
   it('accepts an online-only event', () => {
-    const r = eventsSchema.safeParse({
+    const r = schema.safeParse({
       ...baseEvent,
       location: undefined,
       online: true,
@@ -120,7 +135,7 @@ describe('eventsSchema — place XOR', () => {
   });
 
   it('rejects both physical and online', () => {
-    const r = eventsSchema.safeParse({
+    const r = schema.safeParse({
       ...baseEvent,
       location: 'Munich',
       online: true,
@@ -129,14 +144,14 @@ describe('eventsSchema — place XOR', () => {
   });
 
   it('rejects neither physical nor online', () => {
-    const r = eventsSchema.safeParse({ ...baseEvent, location: undefined });
+    const r = schema.safeParse({ ...baseEvent, location: undefined });
     expect(r.success).toBe(false);
   });
 });
 
 describe('eventsSchema — participation type', () => {
   it('rejects a participation type outside the enum', () => {
-    const r = eventsSchema.safeParse({
+    const r = schema.safeParse({
       ...baseEvent,
       participation: 'keynote',
     });
@@ -146,11 +161,11 @@ describe('eventsSchema — participation type', () => {
 
 describe('eventsSchema — register/resource links', () => {
   it('accepts an event with no link fields (both optional)', () => {
-    expect(eventsSchema.safeParse(baseEvent).success).toBe(true);
+    expect(schema.safeParse(baseEvent).success).toBe(true);
   });
 
   it('accepts valid register + resource URLs', () => {
-    const r = eventsSchema.safeParse({
+    const r = schema.safeParse({
       ...baseEvent,
       registerUrl: 'https://example.com/signup',
       resourceUrl: 'https://example.com/recording',
@@ -159,7 +174,7 @@ describe('eventsSchema — register/resource links', () => {
   });
 
   it('rejects a non-URL registerUrl (build-time validation)', () => {
-    const r = eventsSchema.safeParse({
+    const r = schema.safeParse({
       ...baseEvent,
       registerUrl: 'not a url',
     });
@@ -167,10 +182,17 @@ describe('eventsSchema — register/resource links', () => {
   });
 
   it('rejects a non-URL resourceUrl (build-time validation)', () => {
-    const r = eventsSchema.safeParse({
+    const r = schema.safeParse({
       ...baseEvent,
       resourceUrl: 'not a url',
     });
     expect(r.success).toBe(false);
+  });
+});
+
+describe('eventsSchema — logo (optional, build-safe)', () => {
+  it('accepts an event with no logo (logo is optional)', () => {
+    const r = schema.safeParse(baseEvent);
+    expect(r.success).toBe(true);
   });
 });

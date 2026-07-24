@@ -5,9 +5,11 @@ import { blogAuthors } from '../../data/team';
 import { formatDisplay } from '../../schema/event-date';
 import EventAttribution from './EventAttribution.astro';
 import EventLinks from './EventLinks.astro';
+import EventLogo from './EventLogo.astro';
 import {
   PARTICIPATION_MODE_LABELS,
   PARTICIPATION_TYPE_LABELS,
+  resolveEventBrand,
   resolveEventLinks,
 } from './eventMeta';
 
@@ -28,13 +30,17 @@ const {
   attribution,
   registerUrl,
   resourceUrl,
+  logo,
 } = event.data;
 
 const speakerNames = speakers.map((key) => blogAuthors[key]?.name ?? key);
 const links = resolveEventLinks({ timeframe, registerUrl, resourceUrl });
+const brand = resolveEventBrand({ title, attribution });
 ---
 
 <article class="event-card" data-participation={participation}>
+  <EventLogo logo={logo} brand={brand} />
+
   <div class="event-card-badges">
     <span class="badge badge--type">
       {PARTICIPATION_TYPE_LABELS[participation]}
