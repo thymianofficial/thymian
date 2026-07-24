@@ -89,6 +89,18 @@ See https://delucis.github.io/starlight-llms-txt/.
 
 See [Action banner documentation](src/components/action-banner/README.md).
 
+## Dependency notes
+
+### Why `cookie` is a direct dependency
+
+`cookie` is pinned as a direct dependency **on purpose — do not remove it as "unused"** (our own
+code never imports it). Astro 7 depends on `cookie@2` (ESM, exports `parseCookie`) and externalizes
+it in the static **prerender** bundle. The monorepo root also hoists `cookie@0.7` (CommonJS, pulled
+in by `verdaccio` → `express`, a dev-only tool for the local registry). Without this pin, the
+prerender resolves the hoisted `cookie@0.7` — which lacks `parseCookie` — and `astro build` fails.
+Pinning `cookie@^2` under `astro-docs` makes the prerender resolve Astro's version; `express` /
+`verdaccio` keep `cookie@0.7`, so there are no side effects.
+
 ## 🧞 Commands
 
 Don't use the astro CLI commands directly! Use the Nx commands instead.
