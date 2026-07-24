@@ -92,7 +92,7 @@ const typeCounts = PARTICIPATION_TYPE_ORDER.reduce<
     upcoming.length > 0 ? (
       <div class="event-grid">
         {upcoming.map((event) => (
-          <EventCard event={event} />
+          <EventCard event={event} timeframe="upcoming" />
         ))}
       </div>
     ) : (
@@ -107,7 +107,7 @@ const typeCounts = PARTICIPATION_TYPE_ORDER.reduce<
     past.length > 0 ? (
       <div class="event-grid">
         {past.map((event) => (
-          <EventCard event={event} />
+          <EventCard event={event} timeframe="past" />
         ))}
       </div>
     ) : (

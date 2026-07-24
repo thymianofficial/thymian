@@ -3,20 +3,35 @@ import type { CollectionEntry } from 'astro:content';
 
 import { blogAuthors } from '../../data/team';
 import { formatDisplay } from '../../schema/event-date';
+import EventAttribution from './EventAttribution.astro';
+import EventLinks from './EventLinks.astro';
 import {
   PARTICIPATION_MODE_LABELS,
   PARTICIPATION_TYPE_LABELS,
+  resolveEventLinks,
 } from './eventMeta';
 
 interface Props {
   event: CollectionEntry<'events'>;
+  timeframe: 'upcoming' | 'past';
 }
 
-const { event } = Astro.props;
-const { title, participation, mode, speakers, location, online, date } =
-  event.data;
+const { event, timeframe } = Astro.props;
+const {
+  title,
+  participation,
+  mode,
+  speakers,
+  location,
+  online,
+  date,
+  attribution,
+  registerUrl,
+  resourceUrl,
+} = event.data;
 
 const speakerNames = speakers.map((key) => blogAuthors[key]?.name ?? key);
+const links = resolveEventLinks({ timeframe, registerUrl, resourceUrl });
 ---
 
 <article class="event-card" data-participation={participation}>
@@ -40,6 +55,8 @@ const speakerNames = speakers.map((key) => blogAuthors[key]?.name ?? key);
     )
   }
 
+  <EventAttribution attribution={attribution} />
+
   <div class="event-card-meta">
     {
       online ? (
@@ -60,6 +77,8 @@ const speakerNames = speakers.map((key) => blogAuthors[key]?.name ?? key);
     }
     <span class="event-date">{formatDisplay(date)}</span>
   </div>
+
+  <EventLinks links={links} />
 </article>
 
 <style>

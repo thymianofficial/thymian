@@ -53,6 +53,8 @@ export const eventsSchema = z
     online: z.boolean().optional(),
     date: eventDateSchema,
     attribution: attributionSchema.optional(),
+    registerUrl: z.string().url().optional(),
+    resourceUrl: z.string().url().optional(),
   })
   .refine(
     (e) => {

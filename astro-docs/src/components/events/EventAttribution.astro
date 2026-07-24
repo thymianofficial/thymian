@@ -1,0 +1,62 @@
+---
+import type { Attribution } from '../../schema/attribution';
+import { resolveGuestAttribution } from './eventMeta';
+
+interface Props {
+  attribution?: Attribution;
+}
+
+const { attribution } = Astro.props;
+
+// AD-13 (honest attribution): a host event (or absent attribution) has no
+// external host to credit, so `guest` is null and no markup is emitted. A guest
+// is surfaced only with a non-empty external host + platform (see the helper).
+const guest = resolveGuestAttribution(attribution);
+---
+
+{
+  guest && (
+    <p class="event-attribution">
+      <span class="event-card-label">Guest of</span>
+      {guest.externalUrl ? (
+        <a href={guest.externalUrl} target="_blank" rel="noopener noreferrer">
+          {guest.externalHost}
+        </a>
+      ) : (
+        <span class="event-attribution-host">{guest.externalHost}</span>
+      )}{' '}
+      on {guest.platform}
+    </p>
+  )
+}
+
+<style>
+  .event-attribution {
+    margin: 0;
+    font-size: 0.85rem;
+    color: var(--sl-color-gray-2);
+  }
+
+  .event-card-label {
+    display: inline-block;
+    margin-inline-end: 0.4rem;
+    font-size: 0.7rem;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--sl-color-gray-4);
+  }
+
+  .event-attribution-host {
+    color: var(--sl-color-gray-1, var(--sl-color-white));
+  }
+
+  .event-attribution a {
+    color: var(--sl-color-accent-high, var(--sl-color-accent));
+    text-decoration: none;
+  }
+
+  .event-attribution a:hover {
+    text-decoration: underline;
+  }
+</style>

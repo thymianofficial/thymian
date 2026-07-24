@@ -143,3 +143,34 @@ describe('eventsSchema — participation type', () => {
     expect(r.success).toBe(false);
   });
 });
+
+describe('eventsSchema — register/resource links', () => {
+  it('accepts an event with no link fields (both optional)', () => {
+    expect(eventsSchema.safeParse(baseEvent).success).toBe(true);
+  });
+
+  it('accepts valid register + resource URLs', () => {
+    const r = eventsSchema.safeParse({
+      ...baseEvent,
+      registerUrl: 'https://example.com/signup',
+      resourceUrl: 'https://example.com/recording',
+    });
+    expect(r.success).toBe(true);
+  });
+
+  it('rejects a non-URL registerUrl (build-time validation)', () => {
+    const r = eventsSchema.safeParse({
+      ...baseEvent,
+      registerUrl: 'not a url',
+    });
+    expect(r.success).toBe(false);
+  });
+
+  it('rejects a non-URL resourceUrl (build-time validation)', () => {
+    const r = eventsSchema.safeParse({
+      ...baseEvent,
+      resourceUrl: 'not a url',
+    });
+    expect(r.success).toBe(false);
+  });
+});
