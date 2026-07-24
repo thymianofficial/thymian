@@ -1,0 +1,206 @@
+---
+import type { CollectionEntry } from 'astro:content';
+
+import { classify, type EventDate } from '../../schema/event-date';
+import { type ParticipationType } from '../../schema/events';
+import EventCard from './EventCard.astro';
+import {
+  compareUpcomingEvents,
+  comparePastEvents,
+  PARTICIPATION_TYPE_LABELS,
+  PARTICIPATION_TYPE_ORDER,
+} from './eventMeta';
+
+type EventEntry = CollectionEntry<'events'>;
+type TypeFilter = ParticipationType | 'all';
+
+interface Props {
+  allEvents: EventEntry[];
+  events: EventEntry[];
+  currentType?: TypeFilter;
+  buildDate?: Date;
+}
+
+const {
+  allEvents,
+  events,
+  currentType = 'all',
+  buildDate = new Date(),
+} = Astro.props;
+
+const upcoming: EventEntry[] = [];
+const past: EventEntry[] = [];
+for (const event of events) {
+  if (classify(event.data.date as EventDate, buildDate) === 'upcoming') {
+    upcoming.push(event);
+  } else {
+    past.push(event);
+  }
+}
+
+upcoming.sort((a, b) =>
+  compareUpcomingEvents(
+    { date: a.data.date as EventDate, title: a.data.title },
+    { date: b.data.date as EventDate, title: b.data.title },
+  ),
+);
+past.sort((a, b) =>
+  comparePastEvents(
+    { date: a.data.date as EventDate, title: a.data.title },
+    { date: b.data.date as EventDate, title: b.data.title },
+  ),
+);
+
+const typeCounts = PARTICIPATION_TYPE_ORDER.reduce<
+  Record<ParticipationType, number>
+>(
+  (counts, type) => {
+    counts[type] = allEvents.filter(
+      (e) => e.data.participation === type,
+    ).length;
+    return counts;
+  },
+  { talk: 0, livestream: 0, podcast: 0, booth: 0, paper: 0, panel: 0 },
+);
+---
+
+<nav class="type-filter" aria-label="Filter events by type">
+  <a
+    href="/events/"
+    class="type-filter-link"
+    aria-current={currentType === 'all' ? 'true' : 'false'}
+  >
+    All <span class="type-filter-count">{allEvents.length}</span>
+  </a>
+  {
+    PARTICIPATION_TYPE_ORDER.map((type) => (
+      <a
+        href={`/events/type/${type}/`}
+        class="type-filter-link"
+        aria-current={currentType === type ? 'true' : 'false'}
+      >
+        {PARTICIPATION_TYPE_LABELS[type]}{' '}
+        <span class="type-filter-count">{typeCounts[type]}</span>
+      </a>
+    ))
+  }
+</nav>
+
+<section class="event-section" aria-labelledby="events-upcoming-heading">
+  <h2 id="events-upcoming-heading" class="event-section-heading">Upcoming</h2>
+  {
+    upcoming.length > 0 ? (
+      <div class="event-stack">
+        {upcoming.map((event) => (
+          <EventCard event={event} timeframe="upcoming" />
+        ))}
+      </div>
+    ) : (
+      <p class="empty-state">No upcoming events.</p>
+    )
+  }
+</section>
+
+<section class="event-section" aria-labelledby="events-past-heading">
+  <h2 id="events-past-heading" class="event-section-heading">Past</h2>
+  {
+    past.length > 0 ? (
+      <div class="event-stack">
+        {past.map((event) => (
+          <EventCard event={event} timeframe="past" />
+        ))}
+      </div>
+    ) : (
+      <p class="empty-state">No past events.</p>
+    )
+  }
+</section>
+
+<style>
+  .type-filter {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    margin-bottom: 2rem;
+  }
+
+  /* Inactive pill: transparent fill + pinned ≥3:1 border + gray-800/teal-300 text. */
+  .type-filter-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    padding: 0.4rem 0.85rem;
+    border: 1px solid var(--ev-pill-border);
+    border-radius: 9999px;
+    background: var(--ev-pill-inactive-bg, transparent);
+    color: var(--ev-pill-inactive-fg);
+    font-size: 0.75rem;
+    font-weight: 700;
+    letter-spacing: 0.02em;
+    text-decoration: none;
+    transition:
+      border-color 0.15s,
+      color 0.15s,
+      background 0.15s;
+  }
+
+  /*
+    Active pill = SOLID fill (white on teal-700 light / near-black on teal-400
+    dark), NEVER a light tint under accent text. The former white-on-12%-accent
+    `aria-current` style computed 4.03:1 — the exact bug this redesign kills.
+  */
+  .type-filter-link[aria-current='true'] {
+    border-color: var(--ev-pill-active-bg);
+    background: var(--ev-pill-active-bg);
+    color: var(--ev-pill-active-fg);
+  }
+
+  .type-filter-link[aria-current='true'] .type-filter-count {
+    color: var(--ev-pill-active-fg);
+  }
+
+  /* Hover only nudges the border toward the accent; contrast is unchanged. */
+  .type-filter-link:not([aria-current='true']):hover {
+    border-color: var(--ev-accent-border);
+    color: var(--ev-accent-text);
+  }
+
+  .type-filter-count {
+    color: var(--ev-fg-faint);
+  }
+
+  .type-filter-link:focus-visible {
+    outline: 2px solid var(--ev-focus-ring);
+    outline-offset: 2px;
+  }
+
+  .event-section {
+    margin-bottom: 2.5rem;
+  }
+
+  .event-section-heading {
+    font-size: 0.82rem;
+    font-weight: 800;
+    color: var(--ev-fg-faint);
+    margin: 1.875rem 0 0.875rem;
+    text-transform: uppercase;
+    letter-spacing: 0.2em;
+    line-height: 1.4;
+  }
+
+  /* Full-width bands, single-column stack — not a boxed card grid. */
+  .event-stack {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+  }
+
+  .empty-state {
+    padding: 1rem 1.125rem;
+    border: 1px dashed var(--ev-line);
+    border-radius: 0.75rem;
+    color: var(--ev-empty-line);
+    font-size: 0.98rem;
+    background: var(--ev-band-bg);
+  }
+</style>

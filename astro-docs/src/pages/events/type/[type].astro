@@ -1,0 +1,29 @@
+---
+import { getCollection } from 'astro:content';
+
+import EventList from '../../../components/events/EventList.astro';
+import EventsLayout from '../../../components/events/EventsLayout.astro';
+import { PARTICIPATION_TYPE_LABELS } from '../../../components/events/eventMeta';
+import {
+  PARTICIPATION_TYPES,
+  type ParticipationType,
+} from '../../../schema/events';
+
+export function getStaticPaths() {
+  return PARTICIPATION_TYPES.map((type) => ({
+    params: { type },
+    props: { type },
+  }));
+}
+
+const { type } = Astro.props as { type: ParticipationType };
+const allEvents = await getCollection('events');
+const events = allEvents.filter((e) => e.data.participation === type);
+---
+
+<EventsLayout
+  title={`Events — ${PARTICIPATION_TYPE_LABELS[type]}`}
+  description={`Thymian ${PARTICIPATION_TYPE_LABELS[type].toLowerCase()} appearances — upcoming and past.`}
+>
+  <EventList allEvents={allEvents} events={events} currentType={type} />
+</EventsLayout>

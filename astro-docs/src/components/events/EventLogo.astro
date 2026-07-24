@@ -1,0 +1,81 @@
+---
+import type { ImageMetadata } from 'astro';
+import { Image } from 'astro:assets';
+
+import { resolveLogoAlt } from './eventMeta';
+
+interface Props {
+  logo?: ImageMetadata;
+  brand: string;
+}
+
+const { logo, brand } = Astro.props;
+
+// Decorative monogram for the text-only fallback: first character of the brand,
+// uppercased. `aria-hidden` because the visible brand text already carries the
+// meaning for assistive tech. Code-point-aware indexing keeps emoji / astral
+// first characters (surrogate pairs) intact instead of rendering half a glyph.
+const monogram = ([...brand][0] ?? '').toUpperCase();
+---
+
+{
+  logo ? (
+    <div class="event-card-logo">
+      <Image src={logo} alt={resolveLogoAlt(brand)} class="event-card-logo-img" />
+    </div>
+  ) : (
+    <div class="event-card-logo event-card-logo--text">
+      <span class="event-card-logo-monogram" aria-hidden="true">
+        {monogram}
+      </span>
+      <span class="event-card-logo-brand">{brand}</span>
+    </div>
+  )
+}
+
+<style>
+  .event-card-logo {
+    flex: 0 0 auto;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.5rem;
+    width: 70px;
+  }
+
+  .event-card-logo-img {
+    max-height: 2.75rem;
+    width: auto;
+    max-width: 100%;
+    object-fit: contain;
+  }
+
+  /*
+    The text-only fallback is an intentional, designed brand element — a 70px
+    tile filled with the signature gradient's solid dark-teal end, carrying the
+    uppercased initial. Not a broken/placeholder image.
+  */
+  .event-card-logo-monogram {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    width: 70px;
+    height: 70px;
+    border-radius: 0.75rem;
+    font-size: 1.5rem;
+    font-weight: 800;
+    letter-spacing: 0.02em;
+    line-height: 1;
+    color: var(--ev-tile-fg);
+    background: var(--ev-gradient-tile);
+  }
+
+  .event-card-logo-brand {
+    font-size: 0.82rem;
+    font-weight: 700;
+    line-height: 1.25;
+    color: var(--ev-fg-muted);
+    word-break: break-word;
+  }
+</style>

@@ -1,0 +1,15 @@
+---
+import { getCollection } from 'astro:content';
+
+import EventList from '../../components/events/EventList.astro';
+import EventsLayout from '../../components/events/EventsLayout.astro';
+
+const allEvents = await getCollection('events');
+---
+
+<EventsLayout
+  title="Events"
+  description="Where Thymian is speaking, exhibiting, and appearing — upcoming and past."
+>
+  <EventList allEvents={allEvents} events={allEvents} currentType="all" />
+</EventsLayout>
