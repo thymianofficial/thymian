@@ -20,6 +20,37 @@ export const PARTICIPATION_TYPE_LABELS = {
   panel: 'Panel',
 } satisfies Record<ParticipationType, string>;
 
+/**
+ * The OG-image page map for the Events section, keyed by each page's
+ * `starlightRoute.id` (the value `route-data.ts` reads). Events render as inline
+ * cards on a fixed page set — the `/events/` index (`events`) plus one page per
+ * participation type (`events/type/<type>`) — so the keys are these PAGE ids, not
+ * per-event-entry ids. The type-page keys are derived from `PARTICIPATION_TYPES`
+ * + labels — the same source `[type].astro`'s `getStaticPaths` routes from — so
+ * they track the type-page inventory automatically (adding/removing a type keeps
+ * both in lockstep). The `events` index key is fixed, matching the static
+ * `/events/` route. Consumed by `src/pages/og/[...route].ts`.
+ */
+export function eventOgPages(): Record<
+  string,
+  { title: string; description: string }
+> {
+  const pages: Record<string, { title: string; description: string }> = {
+    events: {
+      title: 'Events',
+      description:
+        'Where Thymian is speaking, exhibiting, and appearing — upcoming and past.',
+    },
+  };
+  for (const type of PARTICIPATION_TYPES) {
+    pages[`events/type/${type}`] = {
+      title: `Events — ${PARTICIPATION_TYPE_LABELS[type]}`,
+      description: `Thymian ${PARTICIPATION_TYPE_LABELS[type].toLowerCase()} appearances — upcoming and past.`,
+    };
+  }
+  return pages;
+}
+
 /** Display labels for presenting vs attending. */
 export const PARTICIPATION_MODE_LABELS = {
   presenting: 'Presenting',

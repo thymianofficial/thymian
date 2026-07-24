@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import {
   comparePastEvents,
   compareUpcomingEvents,
+  eventOgPages,
   resolveEventBrand,
   resolveEventLinks,
   resolveGuestAttribution,
@@ -11,6 +12,7 @@ import {
 } from '../src/components/events/eventMeta';
 import { type Attribution } from '../src/schema/attribution';
 import { type EventDate } from '../src/schema/event-date';
+import { PARTICIPATION_TYPES } from '../src/schema/events';
 
 const exact = (iso: string): EventDate => ({
   precision: 'exact',
@@ -246,5 +248,22 @@ describe('resolveLogoAlt', () => {
   it('formats the resolved brand as "<brand> logo"', () => {
     expect(resolveLogoAlt('FrankenJS')).toBe('FrankenJS logo');
     expect(resolveLogoAlt('Webist Paper')).toBe('Webist Paper logo');
+  });
+});
+
+describe('eventOgPages', () => {
+  it('keys exactly the events index + one page per participation type', () => {
+    const expected = [
+      'events',
+      ...PARTICIPATION_TYPES.map((t) => `events/type/${t}`),
+    ];
+    expect(Object.keys(eventOgPages()).sort()).toEqual([...expected].sort());
+  });
+
+  it('gives every page a non-empty title and description', () => {
+    for (const page of Object.values(eventOgPages())) {
+      expect(page.title.length).toBeGreaterThan(0);
+      expect(page.description.length).toBeGreaterThan(0);
+    }
   });
 });

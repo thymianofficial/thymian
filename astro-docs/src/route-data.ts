@@ -3,7 +3,7 @@ import { defineRouteMiddleware } from '@astrojs/starlight/route-data';
 export const onRequest = defineRouteMiddleware((context) => {
   // Get the URL of the generated image for the current page using its ID
   const pageId = context.locals.starlightRoute.id || 'index';
-  const ogImageUrl = new URL(`/og/${pageId}.png`, context.site);
+  const ogImageUrl = new URL(`/og/${pageId}.jpeg`, context.site);
 
   // Get the array of all tags to include in the `<head>` of the current page.
   const { head } = context.locals.starlightRoute;
