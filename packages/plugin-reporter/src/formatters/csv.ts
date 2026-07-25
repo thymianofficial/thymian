@@ -109,7 +109,7 @@ export function reportToCsvLines(report: Report): string[] {
     const ruleIndex = buildRuleIndex(run.rules);
     const runVersion = run.thymianFormatVersion;
 
-    for (const { execution } of walkExecutions(run.executions)) {
+    for (const execution of walkExecutions(run.executions)) {
       const ruleId = execution.ruleId ?? '';
       const status = execution.status;
       const severity = resolveExecutionSeverity(execution, ruleIndex);

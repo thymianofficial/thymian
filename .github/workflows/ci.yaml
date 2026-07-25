@@ -54,7 +54,10 @@ jobs:
       fail-fast: false
       matrix:
         version: [20, 22, 24]
-        os: [ubuntu-latest, windows-latest, macos-latest]
+        # Pin Windows to 2022: windows-latest now maps to the VS 2026 (v18) image,
+        # which node-gyp 10 (bundled with Node 20/22's npm) cannot detect, breaking
+        # any better-sqlite3 source-build fallback. VS 2022 is detectable.
+        os: [ubuntu-latest, windows-2022, macos-latest]
     runs-on: ${{ matrix.os }}
     steps:
       - name: Check out repository

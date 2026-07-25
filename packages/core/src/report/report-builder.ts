@@ -41,16 +41,24 @@ export function createReport(
   };
 }
 
-export function createToolRun(opts: {
+/**
+ * Build a {@link ToolRun}. Generic over `runType` so the `executions` type is
+ * correlated with the run kind (a `lint` run only accepts {@link LintExecution}s,
+ * etc.) — matching the discriminated {@link ToolRun} union.
+ */
+export function createToolRun<TRunType extends ToolRun['runType']>(opts: {
   tool: Tool;
-  runType: 'lint' | 'test' | 'analyze';
-  executions?: Execution[];
+  runType: TRunType;
+  executions?: Extract<ToolRun, { runType: TRunType }>['executions'];
   rules?: ToolRun['rules'];
   duration?: number;
   thymianFormatVersion?: string;
   artifacts?: ToolRun['artifacts'];
   invocations?: ToolRun['invocations'];
 }): ToolRun {
+  // The object is built with a fixed `runType`/`executions` pair, but TypeScript
+  // cannot correlate the generic `TRunType` back to a single union arm from an
+  // object literal, so we assert the constructed run to the union.
   return {
     runId: randomUUID(),
     tool: opts.tool,
@@ -62,39 +70,53 @@ export function createToolRun(opts: {
     invocations: opts.invocations,
     executions: opts.executions,
     rules: opts.rules,
+  } as ToolRun;
+}
+
+/**
+ * Build a leaf (lint/analyze) execution. Lint and analyze executions share an
+ * identical shape and differ only by their `kind` tag, so both are produced by
+ * this single parameterized factory; the public {@link createLintExecution} /
+ * {@link createAnalyzeExecution} are thin, type-narrowing wrappers over it.
+ */
+function createLeafExecution(
+  kind: 'lint',
+  opts: LeafExecutionOptions,
+): LintExecution;
+function createLeafExecution(
+  kind: 'analyze',
+  opts: LeafExecutionOptions,
+): AnalyzeExecution;
+function createLeafExecution(
+  kind: 'lint' | 'analyze',
+  opts: LeafExecutionOptions,
+): LintExecution | AnalyzeExecution {
+  return {
+    kind,
+    ...(opts.ruleId !== undefined ? { ruleId: opts.ruleId } : {}),
+    status: opts.status,
+    location: opts.location,
+    findings: opts.findings ?? [],
   };
+}
+
+interface LeafExecutionOptions {
+  location: Location;
+  status: ExecutionStatus;
+  ruleId?: string;
+  findings?: FindingRecord[];
 }
 
 /** Build a {@link LintExecution} (one rule evaluated against one location). */
-export function createLintExecution(opts: {
-  location: Location;
-  status: ExecutionStatus;
-  ruleId?: string;
-  findings?: FindingRecord[];
-}): LintExecution {
-  return {
-    kind: 'lint',
-    ...(opts.ruleId !== undefined ? { ruleId: opts.ruleId } : {}),
-    status: opts.status,
-    location: opts.location,
-    findings: opts.findings ?? [],
-  };
+export function createLintExecution(opts: LeafExecutionOptions): LintExecution {
+  return createLeafExecution('lint', opts);
 }
 
 /** Build an {@link AnalyzeExecution} (one rule evaluated against one location). */
-export function createAnalyzeExecution(opts: {
-  location: Location;
-  status: ExecutionStatus;
-  ruleId?: string;
-  findings?: FindingRecord[];
-}): AnalyzeExecution {
-  return {
-    kind: 'analyze',
-    ...(opts.ruleId !== undefined ? { ruleId: opts.ruleId } : {}),
-    status: opts.status,
-    location: opts.location,
-    findings: opts.findings ?? [],
-  };
+export function createAnalyzeExecution(
+  opts: LeafExecutionOptions,
+): AnalyzeExecution {
+  return createLeafExecution('analyze', opts);
 }
 
 /** Build a {@link TestCaseExecution}; findings live on its {@link TestStep}s. */
@@ -138,7 +160,7 @@ export function createTestStep(opts: {
 export function executionsFromViolations(
   violations: EvaluatedRuleViolation[],
   format: ThymianFormat,
-): Execution[] {
+): LintExecution[] {
   return violations.map((evaluatedViolation) => {
     const { location } = resolveViolationLocation(
       evaluatedViolation.location,
@@ -164,9 +186,8 @@ export function executionsFromViolations(
  * status: a `violation` → `failed`; a `rule-skip` signal → `skipped`; otherwise
  * `passed`. `rule-skip` is a producer signal and is never emitted as a report
  * finding, but any *other* findings on the same entry still are — a rule-skip
- * alongside e.g. an `informational` finding must not be reported as `passed`
- * (BaggersIO PR-311 finding 10), matching `plugin-http-tester`'s `noteResult`,
- * which treats the two signals independently rather than gating one on the
+ * alongside e.g. an `informational` finding must not be reported as `passed`.
+ * The two signals are treated independently rather than gating one on the
  * other's absence.
  */
 function statusAndFindingsFromEntry(
@@ -217,12 +238,27 @@ export function executionsFromRunRulesResult<TDiagnostics>(
   result: RunRulesResult<TDiagnostics>,
   rules: Rule[],
   format: ThymianFormat,
+): LintExecution[];
+export function executionsFromRunRulesResult<TDiagnostics>(
+  result: RunRulesResult<TDiagnostics>,
+  rules: Rule[],
+  format: ThymianFormat,
+  kind: 'lint',
+): LintExecution[];
+export function executionsFromRunRulesResult<TDiagnostics>(
+  result: RunRulesResult<TDiagnostics>,
+  rules: Rule[],
+  format: ThymianFormat,
+  kind: 'analyze',
+): AnalyzeExecution[];
+export function executionsFromRunRulesResult<TDiagnostics>(
+  result: RunRulesResult<TDiagnostics>,
+  rules: Rule[],
+  format: ThymianFormat,
   kind: 'lint' | 'analyze' = 'lint',
-): Execution[] {
+): (LintExecution | AnalyzeExecution)[] {
   const ruleMap = new Map(rules.map((r) => [r.meta.name, r]));
-  const executions: Execution[] = [];
-  const build =
-    kind === 'analyze' ? createAnalyzeExecution : createLintExecution;
+  const executions: (LintExecution | AnalyzeExecution)[] = [];
 
   for (const [ruleName, { ruleFnResult }] of Object.entries(result)) {
     const rule = ruleMap.get(ruleName);
@@ -238,7 +274,21 @@ export function executionsFromRunRulesResult<TDiagnostics>(
       );
       const { status, findings } = statusAndFindingsFromEntry(entry, rule);
 
-      executions.push(build({ location, ruleId: ruleName, status, findings }));
+      executions.push(
+        kind === 'analyze'
+          ? createLeafExecution('analyze', {
+              location,
+              ruleId: ruleName,
+              status,
+              findings,
+            })
+          : createLeafExecution('lint', {
+              location,
+              ruleId: ruleName,
+              status,
+              findings,
+            }),
+      );
     }
   }
 
@@ -269,6 +319,9 @@ export function ruleFindingToFindingRecord(
     ...(finding.message ? { message: { text: finding.message } } : {}),
     ...(finding.expected !== undefined ? { expected: finding.expected } : {}),
     ...(finding.actual !== undefined ? { actual: finding.actual } : {}),
+    ...(finding.transactionIndex !== undefined
+      ? { transactionIndex: finding.transactionIndex }
+      : {}),
   } satisfies FindingRecord;
 }
 
@@ -310,43 +363,45 @@ export function httpTestResultToRuleFindings(
   results: HttpTestCaseResult[],
 ): RuleFinding[] {
   return results.map((result) => {
+    // Findings carry no severity: it is resolved from the execution's
+    // `ruleId`/`status`. Transaction linkage (`result.location.transactionIdx`)
+    // is carried through so an assertion failure / invalid transaction in the
+    // final report can be traced back to the exact HTTP exchange.
+    const transactionIndex = result.location?.transactionIdx;
     switch (result.type) {
       case 'assertion-success':
+        // The title is the human-readable message (e.g. the assertion
+        // description), not the low-level assert operator, so it reads well when
+        // printed on its own in the CLI.
         return {
           kind: 'assertion-success',
-          title: result.assertion ?? result.message,
-          message: result.message,
-          severity: 'info',
+          title: result.message,
         } satisfies RuleFinding;
       case 'assertion-failure':
         return {
           kind: 'assertion-failure',
-          title: result.assertion ?? result.message,
-          message: result.message,
-          severity: 'error',
+          title: result.message,
           expected: result.expected,
           actual: result.actual,
+          ...(transactionIndex !== undefined ? { transactionIndex } : {}),
         } satisfies RuleFinding;
       case 'execution-error':
         return {
           kind: 'informational',
           title: result.error,
           message: result.message,
-          severity: 'error',
         } satisfies RuleFinding;
       case 'warning':
         return {
           kind: 'informational',
           title: result.message,
           message: result.details ?? result.message,
-          severity: 'warn',
         } satisfies RuleFinding;
       case 'info':
         return {
           kind: 'informational',
           title: result.message,
           message: result.details ?? result.message,
-          severity: 'info',
         } satisfies RuleFinding;
       // `timeout`/`skip`/`invalid-transaction` are produced only by the test
       // runner, never by the lint/analyze rule path that consumes this helper.
@@ -357,21 +412,19 @@ export function httpTestResultToRuleFindings(
           kind: 'informational',
           title: result.message,
           message: result.message,
-          severity: 'error',
         } satisfies RuleFinding;
       case 'skip':
         return {
           kind: 'informational',
           title: result.message,
           message: result.reason ?? result.message,
-          severity: 'info',
         } satisfies RuleFinding;
       case 'invalid-transaction':
         return {
           kind: 'informational',
           title: result.message,
           message: result.details ?? result.message,
-          severity: 'error',
+          ...(transactionIndex !== undefined ? { transactionIndex } : {}),
         } satisfies RuleFinding;
       default:
         return result satisfies never;

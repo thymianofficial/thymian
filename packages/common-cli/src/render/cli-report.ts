@@ -3,9 +3,6 @@ import {
   type AnalyzeExecution,
   buildRuleIndex,
   createLocationResolver,
-  isAnalyzeExecution,
-  isLintExecution,
-  isTestCaseExecution,
   type LintExecution,
   type Report,
   resolveExecutionSeverity,
@@ -36,7 +33,7 @@ export function collectSeverityCounts(
 
   for (const run of report.runs) {
     const ruleIndex = buildRuleIndex(run.rules);
-    for (const { execution } of walkExecutions(run.executions)) {
+    for (const execution of walkExecutions(run.executions)) {
       const severity = resolveExecutionSeverity(execution, ruleIndex);
       if (severity !== undefined) {
         counts[severity] += 1;
@@ -91,10 +88,9 @@ export function renderReport(
         1,
       );
 
-      const executions = run.executions.filter(
-        (execution) =>
-          isLintExecution(execution) || isAnalyzeExecution(execution),
-      );
+      // `ToolRun` is a discriminated union on `runType`, so a lint/analyze run's
+      // executions are already lint/analyze — no runtime filtering needed.
+      const executions: (LintExecution | AnalyzeExecution)[] = run.executions;
 
       lines.push(...render(executions, ruleIndex, resolveLocation, run));
     } else {
@@ -104,9 +100,7 @@ export function renderReport(
         1,
       );
 
-      const executions = run.executions.filter((execution) =>
-        isTestCaseExecution(execution),
-      );
+      const executions: TestCaseExecution[] = run.executions;
 
       lines.push(...render(executions, ruleIndex, resolveLocation, run));
     }

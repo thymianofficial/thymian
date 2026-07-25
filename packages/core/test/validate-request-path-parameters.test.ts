@@ -187,8 +187,29 @@ describe('validateRequestPathParameters', () => {
       expect(results).toHaveLength(1);
       expect(results[0]).toMatchObject({
         type: 'assertion-failure',
-        message: expect.stringContaining('Invalid value for path parameter'),
+        message: 'path parameter "userId" must be integer',
       });
+    });
+
+    it('should emit one assertion-failure per schema error', () => {
+      const request = createRequest({
+        pathParameters: {
+          userId: {
+            required: true,
+            // A value can violate both constraints at once.
+            schema: { type: 'string', minLength: 5, pattern: '^[0-9]+$' },
+            style: DEFAULT_PATH_SERIALIZATION_STYLE,
+          },
+        },
+      });
+
+      const results = validateExistingPathParameter({ userId: 'ab' }, request);
+
+      const failures = results.filter((r) => r.type === 'assertion-failure');
+      expect(failures.length).toBeGreaterThanOrEqual(2);
+      expect(
+        failures.every((r) => r.message.startsWith('path parameter "userId"')),
+      ).toBe(true);
     });
 
     it('should return info when no schema is provided for parameter', () => {

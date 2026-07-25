@@ -203,18 +203,49 @@ describe('MarkdownFormatter lint/analyze bodies (AC5-AC8)', () => {
     const output = await render(report);
 
     expect(output).toContain('### POST /orders');
-    expect(output).toContain('| warning | `content-type-charset` | msg |');
     expect(output).toContain(
-      '| info | `content-type-charset` | auth-scheme deprecated |',
+      '| warning | <code>content-type-charset</code> | msg |',
+    );
+    expect(output).toContain(
+      '| info | <code>content-type-charset</code> | auth-scheme deprecated |',
     );
     expect(output).toContain('### GET /widgets');
-    expect(output).toContain('| error | unnamed check | broken |');
+    expect(output).toContain('| error | <code>unnamed check</code> | broken |');
   });
 
   it('omits passed executions with no findings and their location (AC7)', async () => {
     const output = await render(report);
 
     expect(output).not.toContain('### GET /pets');
+  });
+
+  it('escapes a helpUri containing `)` so the table row is not corrupted', async () => {
+    const helpUri = 'https://x/rules?a=1)&b=2';
+    const linkedReport = createReport([
+      createToolRun({
+        tool: { name: '@thymian/plugin-http-linter' },
+        runType: 'lint',
+        rules: [{ id: 'tricky-uri', severity: 'error', helpUri }],
+        executions: [
+          createLintExecution({
+            location: { type: 'custom', value: 'GET /x' },
+            ruleId: 'tricky-uri',
+            status: { kind: 'failed', reason: 'boom' },
+          }),
+        ],
+      }),
+    ]);
+
+    const output = await render(linkedReport);
+
+    // Rendered as an HTML anchor (not a markdown `[text](url)` link), so the
+    // `)` stays inside the href instead of truncating the link and leaking the
+    // rest of the URL into the table row.
+    expect(output).toContain(
+      `| error | <a href="${helpUri.replaceAll('&', '&amp;')}"><code>tricky-uri</code></a> | boom |`,
+    );
+    // The corrupt markdown-link form must not appear.
+    expect(output).not.toContain(`](${helpUri})`);
   });
 });
 
@@ -254,7 +285,7 @@ describe('MarkdownFormatter lint/analyze assertion-failure findings', () => {
     const output = await render(report);
 
     expect(output).toContain(
-      '| failed | `schema-conforms` | unexpected status code — expected: 200, actual: 404 |',
+      '| failed | <code>schema-conforms</code> | unexpected status code — expected: 200, actual: 404 |',
     );
     // assertion-success stays omitted, consistent with the omit-passed policy.
     expect(output).not.toContain('headers ok');
@@ -287,7 +318,7 @@ describe('MarkdownFormatter lint/analyze assertion-failure findings', () => {
     const output = await render(report);
 
     expect(output).toContain(
-      '| failed | `schema-conforms` | missing required header |',
+      '| failed | <code>schema-conforms</code> | missing required header |',
     );
     expect(output).not.toContain('undefined');
   });
@@ -459,8 +490,35 @@ describe('MarkdownFormatter summary HTML escaping', () => {
     const output = await render(report);
 
     expect(output).toContain(
-      '<summary>error · <code>r&amp;&lt;&gt;ule</code> · &lt;b&gt;&amp;"bad"&lt;/b&gt;</summary>',
+      '<summary>error · <code>r&amp;&lt;&gt;ule</code> · &lt;b&gt;&amp;&quot;bad&quot;&lt;/b&gt;</summary>',
     );
     expect(output).not.toContain('<b>&"bad"</b>');
+  });
+
+  it('escapes quotes in a helpUri so it cannot break out of the href attribute', async () => {
+    const helpUri = 'https://x/rules"><script>alert(1)</script>';
+    const report = createReport([
+      createToolRun({
+        tool: { name: '@thymian/plugin-http-linter' },
+        runType: 'lint',
+        rules: [{ id: 'quote-uri', severity: 'error', helpUri }],
+        executions: [
+          createLintExecution({
+            location: { type: 'custom', value: 'GET /x' },
+            ruleId: 'quote-uri',
+            status: { kind: 'failed', reason: 'boom' },
+          }),
+        ],
+      }),
+    ]);
+
+    const output = await render(report);
+
+    // The `"` must be entity-escaped so the attribute value stays intact and
+    // the injected `<script>` cannot escape into raw markup.
+    expect(output).toContain(
+      `<a href="https://x/rules&quot;&gt;&lt;script&gt;alert(1)&lt;/script&gt;"><code>quote-uri</code></a>`,
+    );
+    expect(output).not.toContain('"><script>alert(1)</script>');
   });
 });

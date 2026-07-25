@@ -32,7 +32,7 @@ export function classificationToExitCode(
 }
 
 function collectExecutions(report: Report): Execution[] {
-  return report.runs.flatMap((run) => run.executions ?? []);
+  return report.runs.flatMap((run): Execution[] => run.executions ?? []);
 }
 
 export function classifyReport(

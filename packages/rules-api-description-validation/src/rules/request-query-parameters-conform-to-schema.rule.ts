@@ -74,7 +74,9 @@ export default httpRule(
           return [
             {
               location,
-              violation: { message: `${failures.length} assertion(s) failed` },
+              violation: {
+                message: `Request query parameters do not conform to the schema (${failures.length} issue${failures.length === 1 ? '' : 's'})`,
+              },
               findings: httpTestResultToRuleFindings(results),
             },
           ];

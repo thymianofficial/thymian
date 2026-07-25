@@ -8,12 +8,16 @@ import {
   type ExecutionStatus,
   type FindingRecord,
   type HttpTestCase,
+  type HttpTestCaseResult,
   type HttpTestCaseStep,
+  type HttpTestResult,
+  httpTestResultToRuleFindings,
   isCustomHttpTestCaseStep,
   isGroupedHttpTestCaseStep,
   isSingleHttpTestCaseStep,
   type Location,
   type Logger,
+  type ReportHttpTransaction,
   resolveViolationLocation,
   type Rule,
   ruleFindingToFindingRecord,
@@ -66,36 +70,108 @@ function ruleViolationToStepFinding(
   } satisfies FindingRecord;
 }
 
-// stepPlacements must be pre-filtered to this step (testCaseIndex + stepIndex match).
 function buildTestStep(
   step: HttpTestCaseStep,
   stepIndex: number,
   stepPlacements: RuleFnResultPlacement[],
+  caseResults: readonly HttpTestCaseResult[],
   rule: Rule,
   location: Location,
 ): TestStep {
-  const findings: FindingRecord[] = [];
+  // `stepPlacements` are the placements the caller has already grouped for this
+  // step (by each placement's `stepIndex`, derived from the result's
+  // `location.stepIdx`).
+
+  // Build the step's transactions, keeping a map from a transaction's raw index
+  // in `step.transactions` to its index in the (filtered) `httpTransactions`, so
+  // a finding's `transactionIndex` can be re-based onto the exposed array.
+  const httpTransactions: ReportHttpTransaction[] = [];
+  const rawToExposedTxIndex = new Map<number, number>();
+  step.transactions.forEach((t, rawIdx) => {
+    if (t.request !== undefined && t.response !== undefined) {
+      rawToExposedTxIndex.set(rawIdx, httpTransactions.length);
+      httpTransactions.push({ request: t.request, response: t.response });
+    }
+  });
+
+  const rebaseTransactionIndex = (finding: FindingRecord): FindingRecord => {
+    if (finding.transactionIndex === undefined) {
+      return finding;
+    }
+    const exposed = rawToExposedTxIndex.get(finding.transactionIndex);
+    if (exposed === undefined) {
+      const rest = { ...finding };
+      delete rest.transactionIndex;
+      return rest;
+    }
+    return { ...finding, transactionIndex: exposed };
+  };
+
+  // Detail findings come from two sources, both funneled through the shared
+  // HttpTestCaseResult/RuleFinding → FindingRecord mappers so all mapping lives
+  // in one place: rule-based validation results carried on `RuleFnResult.findings`,
+  // and the case's raw `HttpTestCaseResult`s tied to this step by `location.stepIdx`.
+  const detailRecords: FindingRecord[] = [];
 
   for (const { result } of stepPlacements) {
-    if (result.violation !== undefined) {
-      findings.push(ruleViolationToStepFinding(result.violation, rule));
-    }
     for (const finding of result.findings) {
       const record = ruleFindingToFindingRecord(finding);
       if (record) {
-        findings.push(record);
+        detailRecords.push(rebaseTransactionIndex(record));
       }
     }
   }
 
-  const httpTransactions = step.transactions
-    .filter((t) => t.request !== undefined && t.response !== undefined)
-    .map((t) => ({
-      // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-      request: t.request!,
-      // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-      response: t.response!,
-    }));
+  const stepResults = caseResults.filter(
+    (result) => result.location?.stepIdx === stepIndex,
+  );
+  for (const finding of httpTestResultToRuleFindings(stepResults)) {
+    const record = ruleFindingToFindingRecord(finding);
+    if (record) {
+      detailRecords.push(rebaseTransactionIndex(record));
+    }
+  }
+
+  // A violation with no failure detail still needs a visible marker; when detail
+  // findings already convey the failure, don't add a duplicate generic marker —
+  // UNLESS the violation carries its own message (a distinct rationale that the
+  // detail records don't convey), in which case keep it so it isn't dropped.
+  // Every violation-bearing placement is considered (not just the first), so a
+  // step carrying multiple violations with distinct messages renders each; the
+  // generic marker and identical messages are collapsed to one.
+  const violations = stepPlacements
+    .map(({ result }) => result.violation)
+    .filter((v) => v !== undefined);
+  const hasFailureDetail = detailRecords.some(
+    (f) => f.kind === 'assertion-failure' || f.kind === 'rule-violation',
+  );
+
+  const findings: FindingRecord[] = [];
+  const seenMessages = new Set<string>();
+  let emittedGenericMarker = false;
+  for (const violation of violations) {
+    // Suppress a generic marker only when detail already conveys the failure
+    // AND the violation adds no distinct rationale of its own.
+    if (hasFailureDetail && violation.message === undefined) {
+      continue;
+    }
+    if (violation.message === undefined) {
+      // All message-less violations render the same generic marker (the rule's
+      // summary); emit it at most once.
+      if (emittedGenericMarker) {
+        continue;
+      }
+      emittedGenericMarker = true;
+    } else {
+      // Distinct messages each render; identical messages collapse to one.
+      if (seenMessages.has(violation.message)) {
+        continue;
+      }
+      seenMessages.add(violation.message);
+    }
+    findings.push(ruleViolationToStepFinding(violation, rule));
+  }
+  findings.push(...detailRecords);
 
   return createTestStep({
     name: `Step ${stepIndex + 1}`,
@@ -184,6 +260,70 @@ function computeTestCaseStatus(
   };
 }
 
+/**
+ * Combine the placements the context recorded with placements synthesized for
+ * rule results that reference an executed transaction but weren't placed.
+ *
+ * A rule may collect violations from a `.transactions()` inspection callback and
+ * return them directly (rather than failing the test case), so the context never
+ * records a placement for them. Each such result still carries the transaction's
+ * edge id, so we match it back to the test case/step that ran that transaction —
+ * letting it render on the right step instead of falling through to the unplaced
+ * fallback.
+ */
+function resolvePlacements(
+  testResult: HttpTestResult,
+  contextPlacements: RuleFnResultPlacement[],
+  ruleFnResult: RuleFnResult[],
+  alreadyConsumed: ReadonlySet<RuleFnResult>,
+  allPlacedResults: ReadonlySet<RuleFnResult>,
+): RuleFnResultPlacement[] {
+  // Known limitation: an unplaced result carries only an edge id (no step
+  // index), so when the same `source.transactionId` runs in more than one
+  // step/case (e.g. a replayed step reuses the previous step's source — see
+  // replay-previous-step.operator), we cannot tell which occurrence the result
+  // belongs to. We deterministically attach it to the FIRST occurrence; a
+  // precise fix needs the producer to tag the result with its originating step.
+  // See https://github.com/thymianofficial/thymian-internal/issues/423.
+  const positionByEdgeId = new Map<
+    string,
+    { testCaseIndex: number; stepIndex: number }
+  >();
+  testResult.cases.forEach((testCase, testCaseIndex) => {
+    testCase.steps.forEach((step, stepIndex) => {
+      for (const transaction of step.transactions) {
+        const id = transaction.source?.transactionId;
+        if (id !== undefined && !positionByEdgeId.has(id)) {
+          positionByEdgeId.set(id, { testCaseIndex, stepIndex });
+        }
+      }
+    });
+  });
+
+  // `allPlacedResults` spans EVERY diagnostics entry, not just this one: a
+  // result placed by another `ctx.httpTest()`/`ctx.validate*()` call must never
+  // be synthesized into a different entry that merely ran the same edge id, or
+  // one failure double-reports and flips a passing case from another call.
+  const synthesized: RuleFnResultPlacement[] = [];
+  for (const result of ruleFnResult) {
+    if (allPlacedResults.has(result) || alreadyConsumed.has(result)) {
+      continue;
+    }
+    const { location } = result;
+    const edgeId =
+      typeof location !== 'string' && location.elementType === 'edge'
+        ? location.elementId
+        : undefined;
+    const position =
+      edgeId !== undefined ? positionByEdgeId.get(edgeId) : undefined;
+    if (position !== undefined) {
+      synthesized.push({ result, ...position });
+    }
+  }
+
+  return [...contextPlacements, ...synthesized];
+}
+
 // exported for testing
 export function createRuns(
   pluginName: string,
@@ -191,6 +331,7 @@ export function createRuns(
   rules: Rule[] = [],
   thymianFormat: ThymianFormat,
   logger: Logger,
+  thymianFormatVersion?: string,
 ): ToolRun[] {
   const ruleMap = new Map(rules.map((r) => [r.meta.name, r]));
   const executions: TestCaseExecution[] = [];
@@ -206,8 +347,24 @@ export function createRuns(
     const consumedResults = new Set<RuleFnResult>();
 
     if (diagnostics) {
+      // Every result placed by ANY diagnostics entry, computed once. Guards
+      // synthesis against cross-entry leaks (see resolvePlacements).
+      const allPlacedResults = new Set(
+        diagnostics.flatMap((d) => d.placements).map((p) => p.result),
+      );
       for (const { testResult, placements } of diagnostics) {
+        const resolvedPlacements = resolvePlacements(
+          testResult,
+          placements,
+          ruleFnResult,
+          consumedResults,
+          allPlacedResults,
+        );
         testResult.cases.forEach((testCase, testCaseIndex) => {
+          const casePlacements = resolvedPlacements.filter(
+            (p) => p.testCaseIndex === testCaseIndex,
+          );
+
           // Case-level placements (no step index) no longer become findings —
           // the case outcome lives on `status`. Accumulate violation/rule-skip
           // signals across every placement (case- and step-level) to derive it.
@@ -215,7 +372,7 @@ export function createRuns(
             hasViolation: false,
             hasRuleSkip: false,
           };
-          const noteResult = (result: RuleFnResult): void => {
+          for (const { result } of casePlacements) {
             consumedResults.add(result);
             if (result.violation !== undefined) {
               signals.hasViolation = true;
@@ -231,32 +388,33 @@ export function createRuns(
                 }
               }
             }
-          };
-
-          for (const { result } of placements.filter(
-            (p) =>
-              p.testCaseIndex === testCaseIndex && p.stepIndex === undefined,
-          )) {
-            noteResult(result);
           }
 
-          const steps = testCase.steps.map((step, stepIndex) => {
-            const stepPlacements = placements.filter(
-              (p) =>
-                p.testCaseIndex === testCaseIndex && p.stepIndex === stepIndex,
-            );
-            for (const { result } of stepPlacements) {
-              noteResult(result);
+          // Group the case's placements by step once, so each step reads its
+          // own slice instead of re-scanning all case placements per step.
+          const placementsByStep = new Map<number, RuleFnResultPlacement[]>();
+          for (const placement of casePlacements) {
+            if (placement.stepIndex === undefined) {
+              continue; // case-level placement — not tied to a step
             }
+            const list = placementsByStep.get(placement.stepIndex);
+            if (list) {
+              list.push(placement);
+            } else {
+              placementsByStep.set(placement.stepIndex, [placement]);
+            }
+          }
 
-            return buildTestStep(
+          const steps = testCase.steps.map((step, stepIndex) =>
+            buildTestStep(
               step,
               stepIndex,
-              stepPlacements,
+              placementsByStep.get(stepIndex) ?? [],
+              testCase.results,
               rule,
               stepToLocation(step),
-            );
-          });
+            ),
+          );
 
           executions.push(
             createTestCaseExecution({
@@ -270,9 +428,10 @@ export function createRuns(
       }
     }
 
-    // Fallback: results not placed by diagnostics have no test-case/step slot in
-    // the strict model. This path is verified unreachable in production; emit a
-    // failed test case (folding any diagnostic text into the reason) and warn.
+    // Fallback: a result that could not be attached to any executed test
+    // case/step (it references no known transaction, e.g. a rule reporting at a
+    // non-edge location). Emit a standalone test case (folding any diagnostic
+    // text into the reason) and warn, so the result is still surfaced.
     for (const result of ruleFnResult) {
       if (consumedResults.has(result)) {
         continue;
@@ -324,7 +483,9 @@ export function createRuns(
       runType: 'test',
       executions,
       rules: ruleDescriptors.length > 0 ? ruleDescriptors : undefined,
-      thymianFormatVersion: thymianFormat.toHash(),
+      // Reuse the hash carried by the serialized input format when provided,
+      // instead of recomputing it here.
+      thymianFormatVersion: thymianFormatVersion ?? thymianFormat.toHash(),
     }),
   ];
 }
@@ -395,7 +556,14 @@ export function createHttpTesterPlugin(
           );
 
           ctx.reply(
-            createRuns(pluginName, ruleResults, rules, thymianFormat, logger),
+            createRuns(
+              pluginName,
+              ruleResults,
+              rules,
+              thymianFormat,
+              logger,
+              format.attributes.hash,
+            ),
           );
         },
       );

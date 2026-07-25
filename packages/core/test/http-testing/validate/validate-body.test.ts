@@ -66,6 +66,7 @@ describe('validateJsonBody', () => {
             required: ['name'],
             properties: {
               name: { type: 'string' },
+              age: { type: 'integer' },
             },
           },
         },
@@ -75,8 +76,63 @@ describe('validateJsonBody', () => {
     expect(validateJsonBody('{"user":{}}', response)).toStrictEqual([
       {
         type: 'assertion-failure',
-        message:
-          "Invalid response body: /user must have required property 'name'",
+        message: 'property "user.name" is required',
+        timestamp: expect.any(Number),
+      },
+    ]);
+  });
+
+  it('emits one assertion-failure per schema error', () => {
+    const response: ThymianHttpResponse = {
+      type: 'http-response',
+      label: '200 OK',
+      headers: {},
+      mediaType: 'application/json',
+      statusCode: 200,
+      schema: {
+        type: 'object',
+        required: ['name', 'email'],
+        properties: {
+          name: { type: 'string' },
+          email: { type: 'string' },
+        },
+      },
+    };
+
+    // The payload is missing both required properties → two distinct errors.
+    const results = validateJsonBody('{}', response);
+
+    expect(results).toHaveLength(2);
+    expect(results.every((r) => r.type === 'assertion-failure')).toBe(true);
+    expect(results.map((r) => r.message)).toEqual(
+      expect.arrayContaining([
+        'property "name" is required',
+        'property "email" is required',
+      ]),
+    );
+  });
+
+  it('reports the expected constraint and actual value for a type mismatch', () => {
+    const response: ThymianHttpResponse = {
+      type: 'http-response',
+      label: '200 OK',
+      headers: {},
+      mediaType: 'application/json',
+      statusCode: 200,
+      schema: {
+        type: 'object',
+        properties: {
+          age: { type: 'integer' },
+        },
+      },
+    };
+
+    expect(validateJsonBody('{"age":1.2}', response)).toStrictEqual([
+      {
+        type: 'assertion-failure',
+        message: 'property "age" must be integer',
+        expected: 'integer',
+        actual: 1.2,
         timestamp: expect.any(Number),
       },
     ]);

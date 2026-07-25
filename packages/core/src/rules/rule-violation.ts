@@ -9,8 +9,6 @@ export type RuleViolationLocation =
     }
   | string;
 
-export type RuleFindingSeverity = 'error' | 'warn' | 'info' | 'hint';
-
 /**
  * The rule-author input union (distinct from the report `FindingRecord` output
  * union). Findings carry *meta* information only — a rule violation is already
@@ -18,6 +16,9 @@ export type RuleFindingSeverity = 'error' | 'warn' | 'info' | 'hint';
  * no `rule-violation` finding kind here. `rule-skip` is a producer signal the
  * report builder maps to `status: skipped`; it is intentionally NOT a report
  * finding kind either (see `ruleFindingToFindingRecord`).
+ *
+ * Findings carry no `severity`: a violation's severity is resolved from its
+ * execution's `ruleId`/`status`.
  */
 export interface RuleFinding {
   kind:
@@ -28,13 +29,18 @@ export interface RuleFinding {
     | (string & {});
   title: string;
   message?: string;
-  severity?: RuleFindingSeverity;
   ruleId?: string;
   expected?: unknown;
   actual?: unknown;
   reason?: string;
   durationMilliseconds?: number;
   metadata?: Record<string, unknown>;
+  /**
+   * Zero-based index into the owning test step's transactions of the transaction
+   * this finding is about, when tied to a specific transaction. Carried through
+   * to {@link BaseFinding.transactionIndex} in the report.
+   */
+  transactionIndex?: number;
 }
 
 /**

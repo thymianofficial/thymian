@@ -68,6 +68,7 @@ function createRuns(
   format: ThymianFormat,
   ruleResults: RunRulesResult,
   rules: Rule[] = [],
+  thymianFormatVersion?: string,
 ): ToolRun[] {
   const executions = executionsFromRunRulesResult(
     ruleResults,
@@ -84,7 +85,9 @@ function createRuns(
       runType: 'lint',
       executions,
       rules: ruleDescriptors.length > 0 ? ruleDescriptors : undefined,
-      thymianFormatVersion: format.toHash(),
+      // Reuse the hash already carried by the serialized format instead of
+      // recomputing `toHash()`; fall back to recomputation if it is absent.
+      thymianFormatVersion: thymianFormatVersion ?? format.toHash(),
     }),
   ];
 }
@@ -111,7 +114,15 @@ export function createHttpLinterPlugin(
             rulesConfig,
             createStaticLinterAdapter(logger, thymianFormat, rulesConfig),
           );
-          ctx.reply(createRuns(pluginName, thymianFormat, ruleResults, rules));
+          ctx.reply(
+            createRuns(
+              pluginName,
+              thymianFormat,
+              ruleResults,
+              rules,
+              format.attributes.hash,
+            ),
+          );
         },
       );
 
@@ -130,7 +141,13 @@ export function createHttpLinterPlugin(
           const violations = runRulesResultToViolations(ruleResults, rules);
 
           ctx.reply({
-            runs: createRuns(pluginName, thymianFormat, ruleResults, rules),
+            runs: createRuns(
+              pluginName,
+              thymianFormat,
+              ruleResults,
+              rules,
+              format.attributes.hash,
+            ),
             violations,
             valid: violations.length === 0,
           });

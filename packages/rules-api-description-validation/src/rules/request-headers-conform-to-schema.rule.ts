@@ -68,7 +68,9 @@ export default httpRule('thymian/request-headers-must-conform-to-schema')
           return [
             {
               location,
-              violation: { message: `${failures.length} assertion(s) failed` },
+              violation: {
+                message: `Request headers do not conform to the schema (${failures.length} issue${failures.length === 1 ? '' : 's'})`,
+              },
               findings: httpTestResultToRuleFindings(results),
             },
           ];
