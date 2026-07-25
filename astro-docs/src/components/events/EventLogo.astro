@@ -28,7 +28,6 @@ const monogram = ([...brand][0] ?? '').toUpperCase();
       <span class="event-card-logo-monogram" aria-hidden="true">
         {monogram}
       </span>
-      <span class="event-card-logo-brand">{brand}</span>
     </div>
   )
 }
@@ -69,13 +68,5 @@ const monogram = ([...brand][0] ?? '').toUpperCase();
     line-height: 1;
     color: var(--ev-tile-fg);
     background: var(--ev-gradient-tile);
-  }
-
-  .event-card-logo-brand {
-    font-size: 0.82rem;
-    font-weight: 700;
-    line-height: 1.25;
-    color: var(--ev-fg-muted);
-    word-break: break-word;
   }
 </style>

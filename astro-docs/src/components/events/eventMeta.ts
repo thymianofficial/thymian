@@ -104,9 +104,40 @@ export function resolveEventLinks(input: {
   }
   if (timeframe === 'past') {
     const url = resourceUrl?.trim();
-    return url ? [{ label: 'View resource', url }] : [];
+    return url ? [{ label: resolveResourceLabel(url), url }] : [];
   }
   return [];
+}
+
+/**
+ * A human, action-shaped label for a past event's resource link, derived from
+ * the destination host (e.g. "Watch on YouTube") rather than the generic
+ * "View resource". Falls back to "Watch the recording" for hosts we don't
+ * recognise, and only if the URL is unparseable.
+ */
+export function resolveResourceLabel(url: string): string {
+  let host = '';
+  try {
+    host = new URL(url).hostname.replace(/^www\./, '').toLowerCase();
+  } catch {
+    return 'Watch the recording';
+  }
+  if (host === 'youtu.be' || host.endsWith('youtube.com')) {
+    return 'Watch on YouTube';
+  }
+  if (host.endsWith('twitch.tv')) {
+    return 'Watch on Twitch';
+  }
+  if (host.endsWith('vimeo.com')) {
+    return 'Watch on Vimeo';
+  }
+  if (host.endsWith('spotify.com')) {
+    return 'Listen on Spotify';
+  }
+  if (host.endsWith('podcasts.apple.com')) {
+    return 'Listen on Apple Podcasts';
+  }
+  return 'Watch the recording';
 }
 
 /**

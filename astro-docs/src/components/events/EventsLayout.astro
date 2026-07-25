@@ -38,7 +38,7 @@ const { title, description } = Astro.props;
 <style>
   /* ── Events-local design tokens — LIGHT (default) ──────────────────────── */
   .events-root {
-    --ev-page-bg: #f6f6f7; /* gray-100 */
+    --ev-page-bg: transparent; /* no imposed grey canvas — inherit site content bg */
     --ev-band-bg: #ffffff;
     --ev-fg: #171819; /* gray-900 — body */
     --ev-fg-muted: #36383b; /* gray-700 — meta */
@@ -69,15 +69,14 @@ const { title, description } = Astro.props;
 
     background: var(--ev-page-bg);
     color: var(--ev-fg);
-    /* Bleed the events surface to the edges of Starlight's content column so the
-       page-bg reads as an intentional canvas the white bands lift off of. */
-    margin: -1.5rem -1rem 0;
-    padding: 1.5rem 1rem 3rem;
+    /* No imposed page canvas — the bands sit directly on Starlight's content
+       background; their border + gradient edge carry the separation. */
+    padding: 0 0 3rem;
   }
 
   /* ── Events-local design tokens — DARK (data-theme='dark') ─────────────── */
   :global(:root[data-theme='dark']) .events-root {
-    --ev-page-bg: #0e0f10;
+    --ev-page-bg: transparent; /* no imposed grey canvas — inherit site content bg */
     --ev-band-bg: #1c1e20;
     --ev-fg: #f6f6f7; /* gray-100 */
     --ev-fg-muted: #c1c2c4; /* gray-300 */

@@ -107,14 +107,28 @@ describe('resolveEventLinks', () => {
     ).toEqual([]);
   });
 
-  it('surfaces a resource link for a past event with resourceUrl', () => {
+  it('surfaces a resource link for a past event with a platform-derived label', () => {
+    expect(
+      resolveEventLinks({
+        timeframe: 'past',
+        resourceUrl: 'https://www.youtube.com/watch?v=1IvUSEnGkZ8',
+      }),
+    ).toEqual([
+      {
+        label: 'Watch on YouTube',
+        url: 'https://www.youtube.com/watch?v=1IvUSEnGkZ8',
+      },
+    ]);
+  });
+
+  it('falls back to a generic watch label for an unrecognised resource host', () => {
     expect(
       resolveEventLinks({
         timeframe: 'past',
         resourceUrl: 'https://example.com/recording',
       }),
     ).toEqual([
-      { label: 'View resource', url: 'https://example.com/recording' },
+      { label: 'Watch the recording', url: 'https://example.com/recording' },
     ]);
   });
 
