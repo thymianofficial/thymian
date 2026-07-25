@@ -20,7 +20,7 @@ const monogram = ([...brand][0] ?? '').toUpperCase();
 
 {
   logo ? (
-    <div class="event-card-logo">
+    <div class="event-card-logo event-card-logo--image">
       <Image src={logo} alt={resolveLogoAlt(brand)} class="event-card-logo-img" />
     </div>
   ) : (
@@ -40,6 +40,23 @@ const monogram = ([...brand][0] ?? '').toUpperCase();
     align-items: flex-start;
     gap: 0.5rem;
     width: 70px;
+  }
+
+  /*
+    Real brand logos sit on a neutral light chip so a dark artwork (e.g.
+    FrosCon's dark-blue wordmark, CC BY-ND — used unmodified) stays legible on
+    the DARK events band too. The chip is theme-safe (identical in both themes);
+    in light mode it blends into the white band, in dark mode it supplies the
+    light backdrop the artwork needs. The monogram fallback path is untouched.
+  */
+  .event-card-logo--image {
+    justify-content: center;
+    width: auto;
+    max-width: 100px;
+    padding: 0.4rem 0.5rem;
+    border-radius: 0.6rem;
+    background: #ffffff;
+    border: 1px solid #e2e4e5;
   }
 
   .event-card-logo-img {

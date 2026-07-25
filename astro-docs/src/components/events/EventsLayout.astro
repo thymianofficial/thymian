@@ -32,6 +32,26 @@ const { title, description } = Astro.props;
     </div>
 
     <slot />
+
+    {/*
+      Visible attribution required by CC BY-ND 3.0 DE for the one license-cleared
+      event logo (FrosCon). Kept small/unobtrusive; the artwork itself is used
+      unmodified (NoDerivs). Other event logos are not displayed pending
+      permission, so no further credits are needed here.
+    */}
+    <footer class="events-credits">
+      <p>
+        FrosCon logo © FrOSCon e.V., licensed under{' '}
+        <a
+          href="https://creativecommons.org/licenses/by-nd/3.0/de/"
+          rel="license noopener noreferrer"
+          target="_blank"
+        >
+          CC BY-ND 3.0 DE
+        </a>
+        .
+      </p>
+    </footer>
   </div>
 </StarlightPage>
 
@@ -124,5 +144,23 @@ const { title, description } = Astro.props;
     font-size: 1.05rem;
     font-weight: 400;
     line-height: 1.5;
+  }
+
+  /* Small, unobtrusive logo-license credit line (CC BY-ND attribution). */
+  .events-credits {
+    margin-top: 2rem;
+    padding-top: 1rem;
+    border-top: 1px solid var(--ev-line);
+  }
+
+  .events-credits p {
+    margin: 0;
+    color: var(--ev-fg-faint);
+    font-size: 0.78rem;
+    line-height: 1.5;
+  }
+
+  .events-credits a {
+    color: var(--ev-accent-text);
   }
 </style>

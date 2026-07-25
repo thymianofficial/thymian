@@ -5,5 +5,6 @@ mode: presenting
 speakers: []
 location: Angers, France
 date:
-  precision: tba
+  precision: exact
+  date: 2026-10-27
 ---
