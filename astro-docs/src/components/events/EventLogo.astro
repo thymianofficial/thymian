@@ -83,4 +83,38 @@ const monogram = ([...brand][0] ?? '').toUpperCase();
     color: var(--ev-tile-fg);
     background: var(--ev-gradient-tile);
   }
+
+  /*
+    The compact 92×60 box suits mobile, but looks lost in the much wider band on
+    tablet/desktop — so the logo box grows on larger viewports. Width stays
+    uniform across every card at each breakpoint, so the bodies still align.
+  */
+  @media (min-width: 601px) {
+    .event-card-logo {
+      flex-basis: 132px;
+      width: 132px;
+      height: 84px;
+    }
+
+    .event-card-logo--image {
+      padding: 0.5rem 0.65rem;
+    }
+
+    .event-card-logo-monogram {
+      font-size: 2rem;
+      border-radius: 0.7rem;
+    }
+  }
+
+  @media (min-width: 1024px) {
+    .event-card-logo {
+      flex-basis: 152px;
+      width: 152px;
+      height: 96px;
+    }
+
+    .event-card-logo-monogram {
+      font-size: 2.3rem;
+    }
+  }
 </style>
