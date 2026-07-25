@@ -8,4 +8,5 @@ location: Munich
 date:
   precision: exact
   date: 2026-07-08
+logo: ../../assets/events/apidays-mark.png
 ---

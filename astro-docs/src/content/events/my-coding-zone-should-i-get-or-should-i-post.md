@@ -14,4 +14,5 @@ attribution:
   platform: YouTube
   externalUrl: https://www.youtube.com/watch?v=1IvUSEnGkZ8
 resourceUrl: https://www.youtube.com/watch?v=1IvUSEnGkZ8
+logo: ../../assets/events/my-coding-zone-icon.png
 ---
