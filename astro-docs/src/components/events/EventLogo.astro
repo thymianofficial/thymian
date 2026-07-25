@@ -33,53 +33,51 @@ const monogram = ([...brand][0] ?? '').toUpperCase();
 }
 
 <style>
+  /*
+    One fixed logo column — IDENTICAL width for every card (image chip AND
+    monogram tile) so the bodies all start at the same x and stay aligned. The
+    card row is top-aligned, so this box sits flush with the badges + date.
+  */
   .event-card-logo {
-    flex: 0 0 auto;
-    display: flex;
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 0.5rem;
-    width: 70px;
+    flex: 0 0 92px;
+    width: 92px;
+    height: 60px;
   }
 
   /*
-    Real brand logos sit on a neutral light chip so a dark artwork (e.g.
-    FrosCon's dark-blue wordmark, CC BY-ND — used unmodified) stays legible on
-    the DARK events band too. The chip is theme-safe (identical in both themes);
-    in light mode it blends into the white band, in dark mode it supplies the
-    light backdrop the artwork needs. The monogram fallback path is untouched.
+    Real brand logos sit on a neutral light chip (same 92×60 footprint as the
+    monogram tile) so a dark artwork (e.g. FrosCon's dark-blue wordmark, CC BY-ND
+    — used unmodified) stays legible on the DARK events band too. Theme-safe:
+    identical in both themes; artwork centered + contained, never cropped.
   */
   .event-card-logo--image {
+    display: flex;
+    align-items: center;
     justify-content: center;
-    width: auto;
-    max-width: 100px;
-    padding: 0.4rem 0.5rem;
+    padding: 0.35rem 0.5rem;
     border-radius: 0.6rem;
     background: #ffffff;
     border: 1px solid #e2e4e5;
   }
 
   .event-card-logo-img {
-    max-height: 2.75rem;
-    width: auto;
     max-width: 100%;
+    max-height: 100%;
     object-fit: contain;
   }
 
   /*
-    The text-only fallback is an intentional, designed brand element — a 70px
-    tile filled with the signature gradient's solid dark-teal end, carrying the
-    uppercased initial. Not a broken/placeholder image.
+    Text-only fallback: the SAME 92×60 box filled with the signature gradient and
+    the brand initial — an intentional designed tile, not a broken image.
   */
   .event-card-logo-monogram {
-    display: inline-flex;
+    display: flex;
     align-items: center;
     justify-content: center;
-    flex-shrink: 0;
-    width: 70px;
-    height: 70px;
-    border-radius: 0.75rem;
-    font-size: 1.5rem;
+    width: 100%;
+    height: 100%;
+    border-radius: 0.6rem;
+    font-size: 1.6rem;
     font-weight: 800;
     letter-spacing: 0.02em;
     line-height: 1;
