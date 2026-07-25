@@ -132,6 +132,31 @@ describe('resolveEventLinks', () => {
     ]);
   });
 
+  it('does not treat a look-alike host as a known platform (host-boundary safe)', () => {
+    expect(
+      resolveEventLinks({
+        timeframe: 'past',
+        resourceUrl: 'https://evilyoutube.com/watch?v=x',
+      }),
+    ).toEqual([
+      {
+        label: 'Watch the recording',
+        url: 'https://evilyoutube.com/watch?v=x',
+      },
+    ]);
+  });
+
+  it('labels a genuine subdomain by its platform', () => {
+    expect(
+      resolveEventLinks({
+        timeframe: 'past',
+        resourceUrl: 'https://open.spotify.com/episode/x',
+      }),
+    ).toEqual([
+      { label: 'Listen on Spotify', url: 'https://open.spotify.com/episode/x' },
+    ]);
+  });
+
   it('surfaces no link for a past event without resourceUrl', () => {
     expect(resolveEventLinks({ timeframe: 'past' })).toEqual([]);
   });

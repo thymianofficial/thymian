@@ -110,6 +110,16 @@ export function resolveEventLinks(input: {
 }
 
 /**
+ * True when `host` is exactly `domain` or a real subdomain of it (`sub.domain`).
+ * The leading-dot check is deliberate: a bare `host.endsWith(domain)` would also
+ * match an attacker-controlled `evildomain.com` (it "ends with" the domain
+ * without the dot boundary) — the incomplete-URL-sanitization pitfall.
+ */
+function isHost(host: string, domain: string): boolean {
+  return host === domain || host.endsWith(`.${domain}`);
+}
+
+/**
  * A human, action-shaped label for a past event's resource link, derived from
  * the destination host (e.g. "Watch on YouTube") rather than the generic
  * "View resource". Falls back to "Watch the recording" for hosts we don't
@@ -118,23 +128,23 @@ export function resolveEventLinks(input: {
 export function resolveResourceLabel(url: string): string {
   let host = '';
   try {
-    host = new URL(url).hostname.replace(/^www\./, '').toLowerCase();
+    host = new URL(url).hostname.toLowerCase();
   } catch {
     return 'Watch the recording';
   }
-  if (host === 'youtu.be' || host.endsWith('youtube.com')) {
+  if (host === 'youtu.be' || isHost(host, 'youtube.com')) {
     return 'Watch on YouTube';
   }
-  if (host.endsWith('twitch.tv')) {
+  if (isHost(host, 'twitch.tv')) {
     return 'Watch on Twitch';
   }
-  if (host.endsWith('vimeo.com')) {
+  if (isHost(host, 'vimeo.com')) {
     return 'Watch on Vimeo';
   }
-  if (host.endsWith('spotify.com')) {
+  if (isHost(host, 'spotify.com')) {
     return 'Listen on Spotify';
   }
-  if (host.endsWith('podcasts.apple.com')) {
+  if (isHost(host, 'podcasts.apple.com')) {
     return 'Listen on Apple Podcasts';
   }
   return 'Watch the recording';
