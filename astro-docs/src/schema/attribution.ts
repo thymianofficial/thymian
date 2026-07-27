@@ -17,17 +17,18 @@ export const HOST_GUEST = ['host', 'guest'] as const;
 export const attributionSchema = z
   .object({
     hostGuest: z.enum(HOST_GUEST),
-    externalHost: z.string().optional(),
-    platform: z.string().optional(),
-    externalUrl: z.string().url().optional(),
+    externalHost: z.string().trim().optional(),
+    platform: z.string().trim().optional(),
+    externalUrl: z.string().trim().url().optional(),
   })
   .refine(
     (a) =>
       a.hostGuest !== 'guest' ||
+      // Fields are schema-trimmed, so whitespace-only input is already ''.
       (a.externalHost !== undefined &&
-        a.externalHost.trim().length > 0 &&
+        a.externalHost.length > 0 &&
         a.platform !== undefined &&
-        a.platform.trim().length > 0),
+        a.platform.length > 0),
     {
       message:
         'A guest attribution must set both a non-empty `externalHost` and `platform` (the `externalUrl` stays optional).',

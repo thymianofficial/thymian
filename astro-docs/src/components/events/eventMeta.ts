@@ -122,8 +122,8 @@ function isHost(host: string, domain: string): boolean {
 /**
  * A human, action-shaped label for a past event's resource link, derived from
  * the destination host (e.g. "Watch on YouTube") rather than the generic
- * "View resource". Falls back to "Watch the recording" for hosts we don't
- * recognise, and only if the URL is unparseable.
+ * "View resource". Falls back to "Watch the recording" both for hosts we
+ * don't recognise and for unparseable URLs.
  */
 export function resolveResourceLabel(url: string): string {
   let host = '';
@@ -166,13 +166,20 @@ export function resolveGuestAttribution(
   if (attribution === undefined || attribution.hostGuest !== 'guest') {
     return null;
   }
-  const hasHost =
-    attribution.externalHost !== undefined &&
-    attribution.externalHost.trim().length > 0;
-  const hasPlatform =
-    attribution.platform !== undefined &&
-    attribution.platform.trim().length > 0;
-  return hasHost && hasPlatform ? attribution : null;
+  const externalHost = attribution.externalHost?.trim();
+  const platform = attribution.platform?.trim();
+  if (!externalHost || !platform) {
+    return null;
+  }
+  // Return a normalized copy: the schema already trims validated content, but
+  // this keeps the invariant for un-validated callers (Epic 9 reuse) so padded
+  // input never leaks into rendered attribution text or links.
+  return {
+    ...attribution,
+    externalHost,
+    platform,
+    externalUrl: attribution.externalUrl?.trim(),
+  };
 }
 
 /**
@@ -198,4 +205,44 @@ export function resolveEventBrand(input: {
  */
 export function resolveLogoAlt(brand: string): string {
   return `${brand} logo`;
+}
+
+/** A visible license credit a rendered event logo obliges us to show. */
+export interface LogoCredit {
+  /** Event entry ids whose logo this credit covers. */
+  entryIds: readonly string[];
+  /** Plain-text credit line, e.g. `FrosCon logo © FrOSCon e.V.`. */
+  text: string;
+  licenseName: string;
+  licenseUrl: string;
+}
+
+/**
+ * Logo licenses that require a visible credit, keyed by the event entries that
+ * use the asset. Only license-obliged logos belong here (e.g. CC BY-ND);
+ * logos used with plain permission need no entry.
+ */
+export const LOGO_CREDITS: readonly LogoCredit[] = [
+  {
+    entryIds: ['froscon-community-booth'],
+    text: 'FrosCon logo © FrOSCon e.V.',
+    licenseName: 'CC BY-ND 3.0 DE',
+    licenseUrl: 'https://creativecommons.org/licenses/by-nd/3.0/de/',
+  },
+];
+
+/**
+ * The credits a page must display for the event set it actually renders — a
+ * credit applies only when a covered entry is present AND carries a `logo`
+ * (text-only fallbacks display no third-party artwork, so they oblige
+ * nothing). Consumed by `EventsLayout.astro`'s credits footer.
+ */
+export function resolveLogoCredits(
+  events: readonly { id: string; data: { logo?: unknown } }[],
+): LogoCredit[] {
+  return LOGO_CREDITS.filter((credit) =>
+    events.some(
+      (e) => credit.entryIds.includes(e.id) && e.data.logo !== undefined,
+    ),
+  );
 }

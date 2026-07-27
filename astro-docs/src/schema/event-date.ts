@@ -70,7 +70,11 @@ export function classify(d: EventDate, buildDate: Date): 'upcoming' | 'past' {
   return calendarDay(eff) >= calendarDay(buildDate) ? 'upcoming' : 'past';
 }
 
-/** Comparator for Upcoming events: ascending by date, TBA (null) last. */
+/**
+ * Comparator for Upcoming events: ascending by UTC calendar day, TBA (null)
+ * last. Day granularity matches `classify()` — a time-of-day on an `exact`
+ * date never affects ordering.
+ */
 export function compareUpcoming(a: EventDate, b: EventDate): number {
   const ea = effectiveDate(a);
   const eb = effectiveDate(b);
@@ -83,10 +87,13 @@ export function compareUpcoming(a: EventDate, b: EventDate): number {
   if (eb === null) {
     return -1;
   }
-  return ea.getTime() - eb.getTime();
+  return calendarDay(ea) - calendarDay(eb);
 }
 
-/** Comparator for Past events: descending by date (most recent first). */
+/**
+ * Comparator for Past events: descending by UTC calendar day (most recent
+ * first), at the same day granularity as `classify()`.
+ */
 export function comparePast(a: EventDate, b: EventDate): number {
   const ea = effectiveDate(a);
   const eb = effectiveDate(b);
@@ -100,7 +107,7 @@ export function comparePast(a: EventDate, b: EventDate): number {
   if (eb === null) {
     return -1;
   }
-  return eb.getTime() - ea.getTime();
+  return calendarDay(eb) - calendarDay(ea);
 }
 
 /**
@@ -108,8 +115,11 @@ export function comparePast(a: EventDate, b: EventDate): number {
  *  - `month`  → `Month YYYY` (e.g. `September 2026`).
  *  - `exact`  → a formatted full date (e.g. `September 15, 2026`).
  *  - `tba`    → the literal `Date TBA`.
+ *
+ * The locale defaults to `en-US` (the site's content language) instead of the
+ * runtime default, so rendered dates are deterministic across build machines.
  */
-export function formatDisplay(d: EventDate, locale?: string): string {
+export function formatDisplay(d: EventDate, locale = 'en-US'): string {
   switch (d.precision) {
     case 'tba': {
       return 'Date TBA';

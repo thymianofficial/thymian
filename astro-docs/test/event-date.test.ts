@@ -80,6 +80,15 @@ describe('compareUpcoming', () => {
       tba,
     ]);
   });
+
+  it('compares at calendar-day granularity (time-of-day ignored, like classify)', () => {
+    expect(
+      compareUpcoming(
+        exact('2026-08-01T23:59:00Z'),
+        exact('2026-08-01T00:01:00Z'),
+      ),
+    ).toBe(0);
+  });
 });
 
 describe('comparePast', () => {
@@ -94,6 +103,12 @@ describe('comparePast', () => {
       exact('2026-03-01'),
       exact('2026-01-01'),
     ]);
+  });
+
+  it('compares at calendar-day granularity (time-of-day ignored, like classify)', () => {
+    expect(
+      comparePast(exact('2026-01-01T18:00:00Z'), exact('2026-01-01T06:00:00Z')),
+    ).toBe(0);
   });
 });
 
@@ -110,5 +125,10 @@ describe('formatDisplay', () => {
 
   it('renders TBA as the literal `Date TBA`', () => {
     expect(formatDisplay(tba, 'en-US')).toBe('Date TBA');
+  });
+
+  it('defaults to en-US so output is deterministic across build machines', () => {
+    expect(formatDisplay(exact('2026-09-15'))).toBe('September 15, 2026');
+    expect(formatDisplay(month(2026, 9))).toBe('September 2026');
   });
 });

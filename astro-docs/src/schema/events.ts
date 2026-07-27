@@ -32,7 +32,10 @@ export type ParticipationMode = (typeof PARTICIPATION_MODES)[number];
 export const eventsSchema = ({ image }: SchemaContext) =>
   z
     .object({
-      title: z.string(),
+      title: z
+        .string()
+        .trim()
+        .min(1, 'An event `title` must not be empty or whitespace-only.'),
       participation: z.enum(PARTICIPATION_TYPES),
       mode: z.enum(PARTICIPATION_MODES),
       speakers: z
@@ -58,18 +61,18 @@ export const eventsSchema = ({ image }: SchemaContext) =>
             });
           }
         }),
-      location: z.string().optional(),
+      location: z.string().trim().optional(),
       online: z.boolean().optional(),
       date: eventDateSchema,
       attribution: attributionSchema.optional(),
-      registerUrl: z.string().url().optional(),
-      resourceUrl: z.string().url().optional(),
+      registerUrl: z.string().trim().url().optional(),
+      resourceUrl: z.string().trim().url().optional(),
       logo: image().optional(),
     })
     .refine(
       (e) => {
-        const hasLocation =
-          e.location !== undefined && e.location.trim().length > 0;
+        // `location` is already schema-trimmed, so a whitespace-only value is ''.
+        const hasLocation = e.location !== undefined && e.location.length > 0;
         const isOnline = e.online === true;
         // Place is physical XOR online — exactly one.
         return hasLocation !== isOnline;

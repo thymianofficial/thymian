@@ -1,12 +1,16 @@
 ---
 import StarlightPage from '@astrojs/starlight/components/StarlightPage.astro';
 
+import type { LogoCredit } from './eventMeta';
+
 interface Props {
   title: string;
   description?: string;
+  /** License credits for the logos this page actually renders (may be empty). */
+  credits?: LogoCredit[];
 }
 
-const { title, description } = Astro.props;
+const { title, description, credits = [] } = Astro.props;
 ---
 
 <StarlightPage
@@ -42,24 +46,31 @@ const { title, description } = Astro.props;
     <slot />
 
     {/*
-      Visible attribution required by CC BY-ND 3.0 DE for the one license-cleared
-      event logo (FrosCon). Kept small/unobtrusive; the artwork itself is used
-      unmodified (NoDerivs). Other event logos are not displayed pending
-      permission, so no further credits are needed here.
+      Visible attribution for license-obliged logos (e.g. FrosCon's CC BY-ND
+      3.0 DE, used unmodified per NoDerivs) — rendered only when the page's
+      event set actually shows such a logo, so no page credits artwork it
+      doesn't display. Credits are resolved per page via `resolveLogoCredits`;
+      logos used with plain permission carry no credit obligation.
     */}
-    <footer class="events-credits">
-      <p>
-        FrosCon logo © FrOSCon e.V., licensed under{' '}
-        <a
-          href="https://creativecommons.org/licenses/by-nd/3.0/de/"
-          rel="license noopener noreferrer"
-          target="_blank"
-        >
-          CC BY-ND 3.0 DE
-        </a>
-        .
-      </p>
-    </footer>
+    {
+      credits.length > 0 && (
+        <footer class="events-credits">
+          {credits.map((credit) => (
+            <p>
+              {credit.text}, licensed under{' '}
+              <a
+                href={credit.licenseUrl}
+                rel="license noopener noreferrer"
+                target="_blank"
+              >
+                {credit.licenseName}
+              </a>
+              .
+            </p>
+          ))}
+        </footer>
+      )
+    }
   </div>
 </StarlightPage>
 

@@ -51,13 +51,9 @@ past.sort((a, b) =>
   ),
 );
 
-const typeCounts = PARTICIPATION_TYPE_ORDER.reduce<
-  Record<ParticipationType, number>
->(
-  (counts, type) => {
-    counts[type] = allEvents.filter(
-      (e) => e.data.participation === type,
-    ).length;
+const typeCounts = allEvents.reduce<Record<ParticipationType, number>>(
+  (counts, e) => {
+    counts[e.data.participation] += 1;
     return counts;
   },
   { talk: 0, livestream: 0, podcast: 0, booth: 0, paper: 0, panel: 0 },
@@ -68,7 +64,7 @@ const typeCounts = PARTICIPATION_TYPE_ORDER.reduce<
   <a
     href="/events/"
     class="type-filter-link"
-    aria-current={currentType === 'all' ? 'true' : 'false'}
+    aria-current={currentType === 'all' ? 'page' : undefined}
   >
     All <span class="type-filter-count">{allEvents.length}</span>
   </a>
@@ -77,7 +73,7 @@ const typeCounts = PARTICIPATION_TYPE_ORDER.reduce<
       <a
         href={`/events/type/${type}/`}
         class="type-filter-link"
-        aria-current={currentType === type ? 'true' : 'false'}
+        aria-current={currentType === type ? 'page' : undefined}
       >
         {PARTICIPATION_TYPE_LABELS[type]}{' '}
         <span class="type-filter-count">{typeCounts[type]}</span>
@@ -149,18 +145,18 @@ const typeCounts = PARTICIPATION_TYPE_ORDER.reduce<
     dark), NEVER a light tint under accent text. The former white-on-12%-accent
     `aria-current` style computed 4.03:1 — the exact bug this redesign kills.
   */
-  .type-filter-link[aria-current='true'] {
+  .type-filter-link[aria-current='page'] {
     border-color: var(--ev-pill-active-bg);
     background: var(--ev-pill-active-bg);
     color: var(--ev-pill-active-fg);
   }
 
-  .type-filter-link[aria-current='true'] .type-filter-count {
+  .type-filter-link[aria-current='page'] .type-filter-count {
     color: var(--ev-pill-active-fg);
   }
 
   /* Hover only nudges the border toward the accent; contrast is unchanged. */
-  .type-filter-link:not([aria-current='true']):hover {
+  .type-filter-link:not([aria-current='page']):hover {
     border-color: var(--ev-accent-border);
     color: var(--ev-accent-text);
   }

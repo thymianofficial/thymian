@@ -68,6 +68,21 @@ describe('attributionSchema', () => {
     });
     expect(r.success).toBe(false);
   });
+
+  it('trims whitespace-padded externalHost/platform/externalUrl', () => {
+    const r = attributionSchema.safeParse({
+      hostGuest: 'guest',
+      externalHost: '  My Coding Zone  ',
+      platform: '  YouTube  ',
+      externalUrl: '  https://youtube.com/mycodingzone  ',
+    });
+    expect(r.success).toBe(true);
+    if (r.success) {
+      expect(r.data.externalHost).toBe('My Coding Zone');
+      expect(r.data.platform).toBe('YouTube');
+      expect(r.data.externalUrl).toBe('https://youtube.com/mycodingzone');
+    }
+  });
 });
 
 describe('eventsSchema — speakers', () => {
@@ -186,6 +201,52 @@ describe('eventsSchema — register/resource links', () => {
       ...baseEvent,
       resourceUrl: 'not a url',
     });
+    expect(r.success).toBe(false);
+  });
+
+  it('trims whitespace-padded URLs instead of hard-failing the build', () => {
+    const r = schema.safeParse({
+      ...baseEvent,
+      registerUrl: '  https://example.com/signup  ',
+      resourceUrl: ' https://example.com/recording ',
+    });
+    expect(r.success).toBe(true);
+    if (r.success) {
+      expect(r.data.registerUrl).toBe('https://example.com/signup');
+      expect(r.data.resourceUrl).toBe('https://example.com/recording');
+    }
+  });
+});
+
+describe('eventsSchema — normalization (title, location)', () => {
+  it('rejects an empty or whitespace-only title', () => {
+    expect(schema.safeParse({ ...baseEvent, title: '' }).success).toBe(false);
+    expect(schema.safeParse({ ...baseEvent, title: '   ' }).success).toBe(
+      false,
+    );
+  });
+
+  it('trims a whitespace-padded title', () => {
+    const r = schema.safeParse({ ...baseEvent, title: '  Some Event  ' });
+    expect(r.success).toBe(true);
+    if (r.success) {
+      expect(r.data.title).toBe('Some Event');
+    }
+  });
+
+  it('trims a whitespace-padded location', () => {
+    const r = schema.safeParse({
+      ...baseEvent,
+      location: '  Munich, Germany  ',
+    });
+    expect(r.success).toBe(true);
+    if (r.success) {
+      expect(r.data.location).toBe('Munich, Germany');
+    }
+  });
+
+  it('still rejects a whitespace-only location with no `online` (place XOR)', () => {
+    const r = schema.safeParse({ ...baseEvent, location: '   ' });
     expect(r.success).toBe(false);
   });
 });

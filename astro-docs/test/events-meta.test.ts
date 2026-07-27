@@ -8,6 +8,7 @@ import {
   resolveEventLinks,
   resolveGuestAttribution,
   resolveLogoAlt,
+  resolveLogoCredits,
   type SortableEvent,
 } from '../src/components/events/eventMeta';
 import { type Attribution } from '../src/schema/attribution';
@@ -229,6 +230,22 @@ describe('resolveGuestAttribution (AD-13 honest attribution)', () => {
       resolveGuestAttribution({ hostGuest: 'guest', externalHost: 'X' }),
     ).toBeNull();
   });
+
+  it('returns a normalized copy for whitespace-padded guest fields', () => {
+    expect(
+      resolveGuestAttribution({
+        hostGuest: 'guest',
+        externalHost: '  My Coding Zone  ',
+        platform: '  YouTube  ',
+        externalUrl: '  https://youtube.com/mycodingzone  ',
+      }),
+    ).toEqual({
+      hostGuest: 'guest',
+      externalHost: 'My Coding Zone',
+      platform: 'YouTube',
+      externalUrl: 'https://youtube.com/mycodingzone',
+    });
+  });
 });
 
 describe('resolveEventBrand', () => {
@@ -304,5 +321,27 @@ describe('eventOgPages', () => {
       expect(page.title.length).toBeGreaterThan(0);
       expect(page.description.length).toBeGreaterThan(0);
     }
+  });
+});
+
+describe('resolveLogoCredits', () => {
+  const logo = { src: '/x.png' };
+  const froscon = { id: 'froscon-community-booth', data: { logo } };
+  const other = { id: 'frankenjs-spice-up-your-api', data: { logo } };
+
+  it('surfaces the FrosCon credit when its logo renders on the page', () => {
+    const credits = resolveLogoCredits([froscon, other]);
+    expect(credits).toHaveLength(1);
+    expect(credits[0]?.licenseName).toBe('CC BY-ND 3.0 DE');
+  });
+
+  it('surfaces no credit when no covered entry is on the page', () => {
+    expect(resolveLogoCredits([other])).toEqual([]);
+  });
+
+  it('surfaces no credit when the covered entry has no logo (text fallback)', () => {
+    expect(
+      resolveLogoCredits([{ id: 'froscon-community-booth', data: {} }]),
+    ).toEqual([]);
   });
 });
