@@ -36,6 +36,7 @@ const {
 const speakerNames = speakers.map((key) => blogAuthors[key]?.name ?? key);
 const links = resolveEventLinks({ timeframe, registerUrl, resourceUrl });
 const brand = resolveEventBrand({ title, attribution });
+const place = online ? 'Online' : location;
 ---
 
 <article class="event-card" data-participation={participation}>
@@ -44,16 +45,9 @@ const brand = resolveEventBrand({ title, attribution });
   <EventLogo logo={logo} brand={brand} />
 
   <div class="event-card-body">
-    <div class="event-card-badges">
-      <span
-        class={`badge badge--type ${participation === 'booth' ? 'badge--type-alt' : ''}`}
-      >
-        {PARTICIPATION_TYPE_LABELS[participation]}
-      </span>
-      <span class={`badge badge--mode badge--mode-${mode}`}>
-        {PARTICIPATION_MODE_LABELS[mode]}
-      </span>
-    </div>
+    <p class="event-card-placedate">
+      {place}<span class="event-card-date">{formatDisplay(date)}</span>
+    </p>
 
     <h3 class="event-card-title">{title}</h3>
 
@@ -68,36 +62,23 @@ const brand = resolveEventBrand({ title, attribution });
 
     <EventAttribution attribution={attribution} />
 
-    <div class="event-card-meta">
-      {
-        online ? (
-          <span class="event-place event-place--online">
-            <span class="event-place-icon" aria-hidden="true">
-              🌐
-            </span>
-            Online
-          </span>
-        ) : (
-          <span class="event-place event-place--physical">
-            <span class="event-place-icon" aria-hidden="true">
-              📍
-            </span>
-            {location}
-          </span>
-        )
-      }
+    <div class="event-card-badges">
+      <span
+        class={`badge badge--type ${participation === 'booth' ? 'badge--type-alt' : ''}`}
+      >
+        {PARTICIPATION_TYPE_LABELS[participation]}
+      </span>
+      <span class={`badge badge--mode badge--mode-${mode}`}>
+        {PARTICIPATION_MODE_LABELS[mode]}
+      </span>
     </div>
 
     <EventLinks links={links} timeframe={timeframe} />
   </div>
-
-  <div class="event-card-rail">
-    <span class="event-date">{formatDisplay(date)}</span>
-  </div>
 </article>
 
 <style>
-  /* Full-width band: [gradient edge][logo tile][body][date rail]. */
+  /* Full-width band: [gradient edge][logo tile][body]. */
   .event-card {
     position: relative;
     display: flex;
@@ -215,60 +196,27 @@ const brand = resolveEventBrand({ title, attribution });
     color: var(--ev-fg-faint);
   }
 
-  .event-card-meta {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    gap: 0.5rem 1rem;
-    font-size: 0.98rem;
+  /*
+    Top meta line: "Location, Date" (e.g. "Munich, July 8, 2026"). The date is
+    inline in the content flow — not a separate right-side rail — so it always
+    aligns with the card content and can't break awkwardly on narrow screens.
+  */
+  .event-card-placedate {
+    margin: 0;
+    font-size: 0.92rem;
+    line-height: 1.4;
     color: var(--ev-fg-muted);
   }
 
-  .event-place {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.35rem;
-  }
-
-  .event-place--online,
-  .event-place--physical {
-    color: var(--ev-fg-muted);
-  }
-
-  .event-place-icon {
-    font-size: 0.9rem;
-  }
-
-  .event-card-rail {
-    flex: 0 0 auto;
-    display: flex;
-    flex-direction: column;
-    align-items: flex-end;
-  }
-
-  .event-date {
+  .event-card-date {
+    font-weight: 600;
     color: var(--ev-fg);
-    font-weight: 800;
-    font-size: 0.86rem;
-    line-height: 1.2;
-    text-align: right;
-    white-space: nowrap;
   }
 
-  /* Below ~600px: wrap; the date rail drops under the body and left-aligns. */
-  @media (max-width: 600px) {
-    .event-card {
-      flex-wrap: wrap;
-    }
-
-    .event-card-rail {
-      align-items: flex-start;
-      order: 3;
-      flex-basis: 100%;
-    }
-
-    .event-date {
-      text-align: left;
-    }
+  /* Comma+space separator, added in CSS so the markup stays whitespace-safe. */
+  .event-card-date::before {
+    content: ', ';
+    font-weight: 400;
+    color: var(--ev-fg-muted);
   }
 </style>
