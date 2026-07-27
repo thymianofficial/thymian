@@ -20,7 +20,8 @@ Thymian resolves configuration in this order:
 </Steps>
 
 <Aside type="note">
-  Thymian only checks `thymian.config.yaml` by default. If you want another filename or extension, pass it explicitly with `--config`.
+  Thymian only checks `thymian.config.yaml` by default. If you want another
+  filename or extension, pass it explicitly with `--config`.
 </Aside>
 
 ## Full configuration schema
@@ -137,6 +138,79 @@ plugins:
         markdown: {}
 ```
 
+## Report formatters
+
+`@thymian/plugin-reporter` writes one file per configured formatter. Each formatter accepts an
+optional `path`: a relative path is resolved against `--cwd`, and an absolute path is used as-is.
+
+```yaml
+plugins:
+  '@thymian/plugin-reporter':
+    options:
+      formatters:
+        markdown: {} # .thymian/reports/report.md
+        csv:
+          path: reports/findings.csv
+        json: {} # .thymian/reports/report.json
+```
+
+| Formatter  | Default path                   | Use it for                                             |
+| ---------- | ------------------------------ | ------------------------------------------------------ |
+| `markdown` | `.thymian/reports/report.md`   | Human review, PR comments, CI job summaries            |
+| `csv`      | `.thymian/reports/report.csv`  | Tabular analysis in spreadsheets or BI tools           |
+| `json`     | `.thymian/reports/report.json` | Automation and post-processing of the full report data |
+
+### When to use the Markdown formatter
+
+Pick `markdown` when a person or AI agent reads the result — in a pull request, a CI job summary, or locally:
+
+- **Review in GitHub**: the document uses inline HTML (`<details>` blocks, a `<sub>` legend,
+  colored `<span>` counts), so it pastes straight into a PR comment or `$GITHUB_STEP_SUMMARY`.
+- **Triage at a glance**: a severity roll-up, a per-run outcome table, and lint findings grouped
+  under the endpoint they belong to.
+- **Failures only**: passed test cases and passed executions without findings are left out, so the
+  document stays focused on what needs attention.
+
+Locations are resolved to readable endpoint strings such as
+`POST /orders - application/json → 201 CREATED`, and the raw request/response of a failed test step
+is tucked into a nested `<details>` block. Table cells are single-line, so multi-line messages are
+flattened, and `expected`/`actual` values are folded into the message rather than kept as fields.
+
+### When to use the CSV formatter
+
+Pick `csv` when you want to sort, filter, or pivot results in a spreadsheet or BI tool:
+
+- **Tabular analysis**: thirteen fixed columns, one record per line, nothing nested to unwrap.
+- **Complete outcome tally**: unlike markdown, every execution gets a row — passed, failed, and
+  skipped alike — so you can compute pass rates instead of only counting failures.
+- **Two row types**: a `row_type=execution` row carries the outcome (`status` and resolved
+  `severity`), and each `row_type=finding` row beneath it carries one assertion or informational
+  detail.
+
+The columns are `run_id`, `run_type`, `tool`, `rule_id`, `location`, `row_type`, `status`,
+`severity`, `finding_kind`, `finding_id`, `title`, `message`, and `detail`. Structured values are
+flattened into `detail` as `key=value` pairs (`expected=200; actual=404`). HTTP transactions are not
+included.
+
+### When to use the JSON formatter
+
+Pick `json` when code — rather than a reader — consumes the output, and you need the complete
+report:
+
+- **Post-processing and integrations** that would otherwise have to parse markdown or CSV.
+- **Archiving a run** so its full result set can be re-examined later.
+- **Detail the other formatters omit**, such as passed executions, finding identifiers, run-level
+  artifacts and invocations, and the serialized Thymian format graph that locations reference.
+
+The file contains the canonical report payload exactly as Thymian emitted it on the `core.report`
+event, with no presentation transforms applied. The top level is always a **JSON array** of report
+objects, so a session that produces several reports stays complete. A single-workflow run yields a
+one-element array.
+
+Locations are stored as **references**, not rendered endpoint strings: a `thymianFormat` location
+carries `elementId`/`elementType` that you resolve against the run's entry in the report's
+`thymianFormat` map (selected by `ToolRun.thymianFormatVersion`).
+
 ## Validation behavior and failure modes
 
 If config parsing or schema validation fails, the CLI exits with code `2` and prints an error.
@@ -162,6 +236,3 @@ Common issues:
 - [Use `thymian lint` workflow](/tutorials/thymian-lint-workflow/)
 - [Use `thymian test` workflow](/tutorials/thymian-test-workflow/)
 - [Use `thymian analyze` workflow](/tutorials/thymian-analyze-workflow/)
-
-
-

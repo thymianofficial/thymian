@@ -1,4 +1,4 @@
-import { join } from 'node:path';
+import { resolve } from 'node:path';
 
 import { NoopLogger } from '@thymian/core';
 import { describe, expect, it } from 'vitest';
@@ -14,7 +14,7 @@ describe('FORMATTER_REGISTRY.markdown.prepareOptions', () => {
       pluginOptions,
     );
 
-    expect(prepared.path).toBe(join('/base', 'custom/report.md'));
+    expect(prepared.path).toBe(resolve('/base', 'custom/report.md'));
   });
 
   it('falls back to the default path when none is configured', () => {
@@ -23,7 +23,7 @@ describe('FORMATTER_REGISTRY.markdown.prepareOptions', () => {
       pluginOptions,
     );
 
-    expect(prepared.path).toBe(join('/base', '.thymian/reports/report.md'));
+    expect(prepared.path).toBe(resolve('/base', '.thymian/reports/report.md'));
   });
 
   it('does not let an explicit undefined path wipe the default', () => {
@@ -32,7 +32,20 @@ describe('FORMATTER_REGISTRY.markdown.prepareOptions', () => {
       pluginOptions,
     );
 
-    expect(prepared.path).toBe(join('/base', '.thymian/reports/report.md'));
+    expect(prepared.path).toBe(resolve('/base', '.thymian/reports/report.md'));
+  });
+
+  it('keeps an absolute configured path instead of prefixing cwd', () => {
+    // `resolve` with a single argument yields a platform-absolute path, so this
+    // covers Windows drive-rooted paths as well as POSIX ones.
+    const absolutePath = resolve('/absolute/report.md');
+
+    const prepared = FORMATTER_REGISTRY.markdown.prepareOptions(
+      { path: absolutePath },
+      pluginOptions,
+    );
+
+    expect(prepared.path).toBe(absolutePath);
   });
 });
 
@@ -43,12 +56,23 @@ describe('FORMATTER_REGISTRY.csv.prepareOptions', () => {
       pluginOptions,
     );
 
-    expect(prepared.path).toBe(join('/base', 'custom/report.csv'));
+    expect(prepared.path).toBe(resolve('/base', 'custom/report.csv'));
   });
 
   it('falls back to the default path when none is configured', () => {
     const prepared = FORMATTER_REGISTRY.csv.prepareOptions({}, pluginOptions);
 
-    expect(prepared.path).toBe(join('/base', '.thymian/reports/report.csv'));
+    expect(prepared.path).toBe(resolve('/base', '.thymian/reports/report.csv'));
+  });
+
+  it('keeps an absolute configured path instead of prefixing cwd', () => {
+    const absolutePath = resolve('/absolute/report.csv');
+
+    const prepared = FORMATTER_REGISTRY.csv.prepareOptions(
+      { path: absolutePath },
+      pluginOptions,
+    );
+
+    expect(prepared.path).toBe(absolutePath);
   });
 });

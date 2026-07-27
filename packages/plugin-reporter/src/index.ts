@@ -44,6 +44,20 @@ export const reporterPlugin: ThymianPlugin<ReporterPluginOptions> = {
             },
             additionalProperties: false,
           },
+          json: {
+            description:
+              'Configuration for the JSON formatter, which writes the canonical report payload for machine consumption',
+            nullable: true,
+            type: 'object',
+            properties: {
+              path: {
+                description: 'File path where the JSON report will be saved',
+                type: 'string',
+                nullable: true,
+              },
+            },
+            additionalProperties: false,
+          },
         },
         additionalProperties: false,
       },
