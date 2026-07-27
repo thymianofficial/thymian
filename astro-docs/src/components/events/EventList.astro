@@ -56,7 +56,12 @@ const typeCounts = allEvents.reduce<Record<ParticipationType, number>>(
     counts[e.data.participation] += 1;
     return counts;
   },
-  { talk: 0, livestream: 0, podcast: 0, booth: 0, paper: 0, panel: 0 },
+  // Seed derived from the type inventory so counts stay in lockstep with
+  // routing/labels when a participation type is added or removed.
+  Object.fromEntries(PARTICIPATION_TYPE_ORDER.map((type) => [type, 0])) as Record<
+    ParticipationType,
+    number
+  >,
 );
 ---
 
