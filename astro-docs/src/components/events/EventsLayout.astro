@@ -25,7 +25,15 @@ const { title, description } = Astro.props;
     `data-theme='dark'`) and never touch `src/styles/global.css`. Tokens cascade
     by inheritance to every events component (EventList, EventCard, EventLogo, …).
   */}
-  <div class="events-root">
+  {/*
+    `not-content` opts the events UI out of Starlight's `.sl-markdown-content`
+    auto-margins (the `X + Y { margin-top: 1rem }` prose rule), which otherwise
+    pushed elements like `.event-card-body` 16px below the logo and doubled the
+    card spacing. Our components own all their spacing (flex `gap` + explicit
+    margins) and fully self-style their links, so nothing from Starlight's
+    content defaults is needed here.
+  */}
+  <div class="events-root not-content">
     <div class="events-hero">
       <div class="events-hero-bar" aria-hidden="true"></div>
       {description && <p class="events-lede">{description}</p>}
