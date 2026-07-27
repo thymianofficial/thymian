@@ -29,3 +29,6 @@ pnpm-debug.log*
 
 # plugin documentation is added automatically
 src/content/docs/plugins/
+
+# playwright artifacts
+test-results/
