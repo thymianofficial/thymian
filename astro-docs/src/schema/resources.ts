@@ -20,9 +20,13 @@ export type ResourceType = (typeof RESOURCE_TYPES)[number];
  * Plain `z.object` (no `SchemaContext` factory): unlike `events`, there is no
  * `image()` field here. `attribution` is REQUIRED (vs `.optional()` on events)
  * because every resource is externally-hosted media with a real host/guest
- * nature (AD-13 credibility guarantee). `originEvent` uses Astro's native
- * `reference('events')` so a dangling id fails the build/`astro sync` — no
- * hand-rolled existence guard.
+ * nature (AD-13 credibility guarantee). `originEvent` uses
+ * `reference('events')`, but under Astro 7.1.3 that check is WARN-ONLY — a
+ * dangling id yields `getEntry → undefined` plus a console warning, NOT a build
+ * error. The AD-6 build-time integrity guard therefore lives in
+ * `src/lib/cross-links.ts`: `resolveOriginEvent` / `assertOriginEventsResolve`
+ * THROW on a dangling reference so `astro build` fails loudly instead of
+ * rendering a silent broken link.
  */
 export const resourcesSchema = z.object({
   title: z

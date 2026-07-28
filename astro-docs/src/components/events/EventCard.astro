@@ -2,6 +2,10 @@
 import type { CollectionEntry } from 'astro:content';
 
 import { blogAuthors } from '../../data/team';
+import {
+  resourcesForEvent,
+  urlForEntry,
+} from '../../lib/cross-links';
 import { formatDisplay } from '../../schema/event-date';
 import EventAttribution from './EventAttribution.astro';
 import EventLinks from './EventLinks.astro';
@@ -16,9 +20,11 @@ import {
 interface Props {
   event: CollectionEntry<'events'>;
   timeframe: 'upcoming' | 'past';
+  allResources: CollectionEntry<'resources'>[];
+  eventsById: Map<string, CollectionEntry<'events'>>;
 }
 
-const { event, timeframe } = Astro.props;
+const { event, timeframe, allResources, eventsById } = Astro.props;
 const {
   title,
   participation,
@@ -37,6 +43,11 @@ const speakerNames = speakers.map((key) => blogAuthors[key]?.name ?? key);
 const links = resolveEventLinks({ timeframe, registerUrl, resourceUrl });
 const brand = resolveEventBrand({ title, attribution });
 const place = online ? 'Online' : location;
+
+// Derived produced-Resources (never hand-authored): resources whose
+// `originEvent` names this event, via the single shared cross-link module.
+// Sparse — an empty list renders no block.
+const produced = resourcesForEvent(event.id, allResources, eventsById);
 ---
 
 <article class="event-card" data-participation={participation}>
@@ -74,6 +85,32 @@ const place = online ? 'Online' : location;
     </div>
 
     <EventLinks links={links} timeframe={timeframe} />
+
+    {
+      /*
+        9.4 Event→Resources: a DISTINCT, separately-labelled block from the
+        external `resourceUrl` CTA above (complement, not a duplicate "watch"
+        link). Each item is a same-tab INTERNAL cross-link to the Resources
+        library (coarse `/resources/` target, meaningful resource-title label,
+        no external glyph, no target=_blank). Renders only when non-empty.
+      */
+      produced.length > 0 && (
+        <div class="event-produced">
+          <p class="event-produced-label" id={`produced-${event.id}`}>
+            Resources from this event
+          </p>
+          <ul class="event-produced-list" aria-labelledby={`produced-${event.id}`}>
+            {produced.map((resource) => (
+              <li class="event-produced-item">
+                <a class="event-produced-link" href={urlForEntry(resource)}>
+                  {resource.data.title}
+                </a>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )
+    }
   </div>
 </article>
 
@@ -218,5 +255,48 @@ const place = online ? 'Online' : location;
     content: ', ';
     font-weight: 400;
     color: var(--ev-fg-muted);
+  }
+
+  /*
+    Event→Resources block (9.4). A distinct, labelled list of same-tab INTERNAL
+    cross-links — separate from the external `resourceUrl` CTA in EventLinks.
+  */
+  .event-produced {
+    margin-top: 0.5rem;
+    padding-top: 0.5rem;
+    border-top: 1px solid var(--ev-line, #e5e7eb);
+  }
+
+  .event-produced-label {
+    margin: 0 0 0.35rem;
+    font-size: 0.7rem;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--ev-fg-faint, #6b7280);
+  }
+
+  .event-produced-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.25rem;
+  }
+
+  .event-produced-link {
+    color: var(--ev-accent-text, #046151);
+    font-size: 0.95rem;
+    font-weight: 600;
+    text-decoration: underline;
+    text-underline-offset: 2px;
+    border-radius: 0.25rem;
+  }
+
+  .event-produced-link:focus-visible {
+    outline: 2px solid var(--ev-focus-ring, #017b64);
+    outline-offset: 2px;
   }
 </style>

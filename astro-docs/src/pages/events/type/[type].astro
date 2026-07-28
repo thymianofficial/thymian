@@ -8,6 +8,10 @@ import {
   resolveLogoCredits,
 } from '../../../components/events/eventMeta';
 import {
+  assertOriginEventsResolve,
+  indexEventsById,
+} from '../../../lib/cross-links';
+import {
   PARTICIPATION_TYPES,
   type ParticipationType,
 } from '../../../schema/events';
@@ -22,6 +26,11 @@ export function getStaticPaths() {
 const { type } = Astro.props as { type: ParticipationType };
 const allEvents = await getCollection('events');
 const events = allEvents.filter((e) => e.data.participation === type);
+const allResources = await getCollection('resources');
+const eventsById = indexEventsById(allEvents);
+// AD-6 guard on the events render path too, so the dangling-reference build
+// failure never depends implicitly on the /resources pages also building.
+assertOriginEventsResolve(allResources, eventsById);
 ---
 
 <EventsLayout
@@ -29,5 +38,11 @@ const events = allEvents.filter((e) => e.data.participation === type);
   description={`Thymian ${PARTICIPATION_TYPE_LABELS[type].toLowerCase()} appearances — upcoming and past.`}
   credits={resolveLogoCredits(events)}
 >
-  <EventList allEvents={allEvents} events={events} currentType={type} />
+  <EventList
+    allEvents={allEvents}
+    events={events}
+    allResources={allResources}
+    eventsById={eventsById}
+    currentType={type}
+  />
 </EventsLayout>

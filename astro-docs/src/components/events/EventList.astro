@@ -17,6 +17,8 @@ type TypeFilter = ParticipationType | 'all';
 interface Props {
   allEvents: EventEntry[];
   events: EventEntry[];
+  allResources: CollectionEntry<'resources'>[];
+  eventsById: Map<string, EventEntry>;
   currentType?: TypeFilter;
   buildDate?: Date;
 }
@@ -24,6 +26,8 @@ interface Props {
 const {
   allEvents,
   events,
+  allResources,
+  eventsById,
   currentType = 'all',
   buildDate = new Date(),
 } = Astro.props;
@@ -93,7 +97,12 @@ const typeCounts = allEvents.reduce<Record<ParticipationType, number>>(
     upcoming.length > 0 ? (
       <div class="event-stack">
         {upcoming.map((event) => (
-          <EventCard event={event} timeframe="upcoming" />
+          <EventCard
+            event={event}
+            timeframe="upcoming"
+            allResources={allResources}
+            eventsById={eventsById}
+          />
         ))}
       </div>
     ) : (
@@ -108,7 +117,12 @@ const typeCounts = allEvents.reduce<Record<ParticipationType, number>>(
     past.length > 0 ? (
       <div class="event-stack">
         {past.map((event) => (
-          <EventCard event={event} timeframe="past" />
+          <EventCard
+            event={event}
+            timeframe="past"
+            allResources={allResources}
+            eventsById={eventsById}
+          />
         ))}
       </div>
     ) : (
