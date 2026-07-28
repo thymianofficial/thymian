@@ -53,6 +53,7 @@ const pages = [
   { name: 'Accessibility Statement', path: '/legal/accessibility-statement/' },
   { name: 'Enterprise', path: '/enterprise/' },
   { name: 'Events', path: '/events/' },
+  { name: 'Resources', path: '/resources/' },
 ];
 
 for (const { name, path } of pages) {
@@ -96,6 +97,40 @@ test('Events type route (/events/type/talk/) should have no WCAG AA violations i
 }) => {
   await forceDarkTheme(page);
   await page.goto('/events/type/talk/');
+  await page.waitForLoadState('networkidle');
+  await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
+  await expectNoViolations(page);
+});
+
+/*
+ * Resources mirrors the Events teal-token discipline and stays teal in BOTH
+ * themes, so — exactly as for Events — the light-mode `/resources/` scan above
+ * is not enough on its own. These scans cover dark mode and a type route
+ * (multi-word slug `recorded-talk`) so a regression in either fails the gate.
+ */
+test('Resources (/resources/) should have no WCAG AA violations in dark mode', async ({
+  page,
+}) => {
+  await forceDarkTheme(page);
+  await page.goto('/resources/');
+  await page.waitForLoadState('networkidle');
+  await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
+  await expectNoViolations(page);
+});
+
+test('Resources type route (/resources/type/recorded-talk/) should have no WCAG AA violations', async ({
+  page,
+}) => {
+  await page.goto('/resources/type/recorded-talk/');
+  await page.waitForLoadState('networkidle');
+  await expectNoViolations(page);
+});
+
+test('Resources type route (/resources/type/recorded-talk/) should have no WCAG AA violations in dark mode', async ({
+  page,
+}) => {
+  await forceDarkTheme(page);
+  await page.goto('/resources/type/recorded-talk/');
   await page.waitForLoadState('networkidle');
   await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
   await expectNoViolations(page);

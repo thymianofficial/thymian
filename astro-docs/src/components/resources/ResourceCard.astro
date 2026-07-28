@@ -1,0 +1,136 @@
+---
+import type { CollectionEntry } from 'astro:content';
+
+import ResourceAttribution from './ResourceAttribution.astro';
+import { RESOURCE_TYPE_LABELS } from './resourceMeta';
+
+interface Props {
+  resource: CollectionEntry<'resources'>;
+}
+
+const { resource } = Astro.props;
+const { title, resourceType, attribution } = resource.data;
+---
+
+<article class="resource-card" data-resource-type={resourceType}>
+  <span class="resource-card-edge" aria-hidden="true"></span>
+
+  {/*
+    9.3 seam: embed-vs-linkout player renders here (when `embeddable`, an
+    inline player from `url`; otherwise a link-out affordance). Not implemented
+    in 9.2 — no player/link surfaced yet.
+  */}
+
+  <div class="resource-card-body">
+    <div class="resource-card-badges">
+      <span class="badge badge--type">
+        {RESOURCE_TYPE_LABELS[resourceType]}
+      </span>
+    </div>
+
+    {/*
+      Single-library page: StarlightPage renders the page title as the `<h1>`
+      and there is no intervening section heading (no Upcoming/Past split), so
+      each card title is a direct `<h2>` under the `<h1>` — h1→h2, no skipped
+      level (Events uses `<h3>` only because it nests under `<h2>` bucket
+      headings). Visual size is owned by `.resource-card-title`, not the tag.
+    */}
+    <h2 class="resource-card-title">{title}</h2>
+
+    <ResourceAttribution attribution={attribution} />
+
+    {/*
+      9.4 seam: when `originEvent` is set, a cross-link back to the origin
+      event's card/page renders here. 9.2 does NOT resolve `originEvent`.
+    */}
+    {/*
+      9.5 seam: OG-image generation for resource pages is extended in
+      `src/pages/og/[...route].ts` — no OG key extension in 9.2.
+    */}
+  </div>
+</article>
+
+<style>
+  /* Full-width band: [gradient edge][body]. */
+  .resource-card {
+    position: relative;
+    display: flex;
+    gap: 1.375rem;
+    align-items: flex-start;
+    padding: 1.375rem 1.625rem 1.375rem 1.625rem;
+    background: var(--ev-band-bg);
+    border: 1px solid var(--ev-line);
+    border-radius: 1rem;
+    overflow: hidden;
+    transition:
+      transform 0.15s ease,
+      box-shadow 0.15s ease;
+  }
+
+  /* Soft edge-glow + subtle lift on hover (no resting shadow). */
+  .resource-card:hover {
+    transform: translateY(-2px);
+    box-shadow: -6px 0 18px -8px color-mix(in srgb, #017b64 60%, transparent);
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .resource-card,
+    .resource-card:hover {
+      transform: none;
+      box-shadow: none;
+      transition: none;
+    }
+  }
+
+  /* Decorative signature gradient edge — graphic only, never a text background. */
+  .resource-card-edge {
+    position: absolute;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    width: 7px;
+    background: var(--ev-gradient-signature);
+  }
+
+  .resource-card-body {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+
+  .resource-card-badges {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    align-items: center;
+  }
+
+  .badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.25rem 0.7rem;
+    border-radius: 9999px;
+    font-size: 0.7rem;
+    font-weight: 800;
+    letter-spacing: 0.07em;
+    text-transform: uppercase;
+    line-height: 1;
+  }
+
+  /* Type badge — teal fill for every resource type. */
+  .badge--type {
+    background: var(--ev-badge-bg);
+    color: var(--ev-badge-fg);
+  }
+
+  .resource-card-title {
+    margin: 0.125rem 0 0.25rem;
+    font-size: 1.55rem;
+    font-weight: 800;
+    letter-spacing: -0.03em;
+    line-height: 1.1;
+    color: var(--ev-fg);
+  }
+</style>

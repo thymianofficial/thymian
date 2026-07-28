@@ -1,0 +1,160 @@
+---
+import type { CollectionEntry } from 'astro:content';
+
+import { type ResourceType } from '../../schema/resources';
+import ResourceCard from './ResourceCard.astro';
+import {
+  compareResources,
+  RESOURCE_TYPE_LABELS,
+  RESOURCE_TYPE_ORDER,
+  resourceTypeSlug,
+} from './resourceMeta';
+
+type ResourceEntry = CollectionEntry<'resources'>;
+type TypeFilter = ResourceType | 'all';
+
+interface Props {
+  allResources: ResourceEntry[];
+  resources: ResourceEntry[];
+  currentType?: TypeFilter;
+}
+
+const { allResources, resources, currentType = 'all' } = Astro.props;
+
+// Single date-sorted library (no Upcoming/Past split). The 9.1 schema has no
+// resource date, so each entry sorts with `date: undefined` and the order falls
+// deterministically to title A→Z via `compareResources`.
+const sorted = [...resources].sort((a, b) =>
+  compareResources(
+    { title: a.data.title },
+    { title: b.data.title },
+  ),
+);
+
+const typeCounts = allResources.reduce<Record<ResourceType, number>>(
+  (counts, r) => {
+    counts[r.data.resourceType] += 1;
+    return counts;
+  },
+  // Seed derived from the type inventory so counts stay in lockstep with
+  // routing/labels when a resource type is added or removed.
+  Object.fromEntries(RESOURCE_TYPE_ORDER.map((type) => [type, 0])) as Record<
+    ResourceType,
+    number
+  >,
+);
+---
+
+<nav class="type-filter" aria-label="Filter resources by type">
+  <a
+    href="/resources/"
+    class="type-filter-link"
+    aria-current={currentType === 'all' ? 'page' : undefined}
+  >
+    All <span class="type-filter-count">{allResources.length}</span>
+  </a>
+  {
+    RESOURCE_TYPE_ORDER.map((type) => (
+      <a
+        href={`/resources/type/${resourceTypeSlug(type)}/`}
+        class="type-filter-link"
+        aria-current={currentType === type ? 'page' : undefined}
+      >
+        {RESOURCE_TYPE_LABELS[type]}{' '}
+        <span class="type-filter-count">{typeCounts[type]}</span>
+      </a>
+    ))
+  }
+</nav>
+
+<section class="resource-section">
+  {
+    sorted.length > 0 ? (
+      <div class="resource-stack">
+        {sorted.map((resource) => (
+          <ResourceCard resource={resource} />
+        ))}
+      </div>
+    ) : (
+      <p class="empty-state">No resources yet — check back soon.</p>
+    )
+  }
+</section>
+
+<style>
+  .type-filter {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    margin-bottom: 2rem;
+  }
+
+  /* Inactive pill: transparent fill + pinned ≥3:1 border + gray-800/teal-300 text. */
+  .type-filter-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    padding: 0.4rem 0.85rem;
+    border: 1px solid var(--ev-pill-border);
+    border-radius: 9999px;
+    background: var(--ev-pill-inactive-bg, transparent);
+    color: var(--ev-pill-inactive-fg);
+    font-size: 0.75rem;
+    font-weight: 700;
+    letter-spacing: 0.02em;
+    text-decoration: none;
+    transition:
+      border-color 0.15s,
+      color 0.15s,
+      background 0.15s;
+  }
+
+  /*
+    Active pill = SOLID fill (white on teal-700 light / near-black on teal-400
+    dark), NEVER a light tint under accent text (that pairing fails AA).
+  */
+  .type-filter-link[aria-current='page'] {
+    border-color: var(--ev-pill-active-bg);
+    background: var(--ev-pill-active-bg);
+    color: var(--ev-pill-active-fg);
+  }
+
+  .type-filter-link[aria-current='page'] .type-filter-count {
+    color: var(--ev-pill-active-fg);
+  }
+
+  /* Hover only nudges the border toward the accent; contrast is unchanged. */
+  .type-filter-link:not([aria-current='page']):hover {
+    border-color: var(--ev-accent-border);
+    color: var(--ev-accent-text);
+  }
+
+  .type-filter-count {
+    color: var(--ev-fg-faint);
+  }
+
+  .type-filter-link:focus-visible {
+    outline: 2px solid var(--ev-focus-ring);
+    outline-offset: 2px;
+  }
+
+  .resource-section {
+    margin-bottom: 2.5rem;
+  }
+
+  /* Full-width bands, single-column stack — not a boxed card grid. */
+  .resource-stack {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+  }
+
+  .empty-state {
+    padding: 1rem 1.125rem;
+    border: 1px dashed var(--ev-line);
+    border-radius: 0.75rem;
+    color: var(--ev-empty-line);
+    font-size: 0.98rem;
+    background: var(--ev-band-bg);
+  }
+</style>
