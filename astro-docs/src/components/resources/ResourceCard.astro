@@ -2,6 +2,7 @@
 import type { CollectionEntry } from 'astro:content';
 
 import ResourceAttribution from './ResourceAttribution.astro';
+import ResourceEmbed from './ResourceEmbed.astro';
 import { RESOURCE_TYPE_LABELS } from './resourceMeta';
 
 interface Props {
@@ -16,9 +17,11 @@ const { title, resourceType, attribution } = resource.data;
   <span class="resource-card-edge" aria-hidden="true"></span>
 
   {/*
-    9.3 seam: embed-vs-linkout player renders here (when `embeddable`, an
-    inline player from `url`; otherwise a link-out affordance). Not implemented
-    in 9.2 — no player/link surfaced yet.
+    9.3 media surface (embed-vs-link-out) mounts at the BOTTOM of
+    `.resource-card-body` as <ResourceEmbed> — mirroring how EventCard composes
+    EventLinks. It is deliberately NOT placed here: this spot is a direct child
+    of the `[edge][body]` flex row, where a full-width player would become a
+    third flex column and break the band layout.
   */}
 
   <div class="resource-card-body">
@@ -38,6 +41,8 @@ const { title, resourceType, attribution } = resource.data;
     <h2 class="resource-card-title">{title}</h2>
 
     <ResourceAttribution attribution={attribution} />
+
+    <ResourceEmbed resource={resource} />
 
     {/*
       9.4 seam: when `originEvent` is set, a cross-link back to the origin

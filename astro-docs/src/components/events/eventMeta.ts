@@ -9,6 +9,7 @@ import {
   type ParticipationMode,
   type ParticipationType,
 } from '../../schema/events';
+import { isHost } from '../hostMatch';
 
 /** Display labels for each participation type (also the filter-pill labels). */
 export const PARTICIPATION_TYPE_LABELS = {
@@ -107,16 +108,6 @@ export function resolveEventLinks(input: {
     return url ? [{ label: resolveResourceLabel(url), url }] : [];
   }
   return [];
-}
-
-/**
- * True when `host` is exactly `domain` or a real subdomain of it (`sub.domain`).
- * The leading-dot check is deliberate: a bare `host.endsWith(domain)` would also
- * match an attacker-controlled `evildomain.com` (it "ends with" the domain
- * without the dot boundary) — the incomplete-URL-sanitization pitfall.
- */
-function isHost(host: string, domain: string): boolean {
-  return host === domain || host.endsWith(`.${domain}`);
 }
 
 /**
