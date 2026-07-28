@@ -3,11 +3,13 @@ import { describe, expect, it } from 'vitest';
 import {
   compareResources,
   resolveGuestAttribution,
+  resourceOgPages,
   resourceTypeFromSlug,
   resourceTypeSlug,
   type SortableResource,
 } from '../src/components/resources/resourceMeta';
 import { type Attribution } from '../src/schema/attribution';
+import { RESOURCE_TYPES } from '../src/schema/resources';
 
 const res = (title: string, date?: Date): SortableResource => ({ title, date });
 
@@ -74,6 +76,23 @@ describe('resourceTypeSlug / resourceTypeFromSlug', () => {
     expect(resourceTypeFromSlug('recorded talk')).toBeUndefined();
     expect(resourceTypeFromSlug('nope')).toBeUndefined();
     expect(resourceTypeFromSlug('')).toBeUndefined();
+  });
+});
+
+describe('resourceOgPages', () => {
+  it('keys exactly the resources index + one page per resource type', () => {
+    const expected = [
+      'resources',
+      ...RESOURCE_TYPES.map((t) => `resources/type/${resourceTypeSlug(t)}`),
+    ];
+    expect(Object.keys(resourceOgPages()).sort()).toEqual([...expected].sort());
+  });
+
+  it('gives every page a non-empty title and description', () => {
+    for (const page of Object.values(resourceOgPages())) {
+      expect(page.title.length).toBeGreaterThan(0);
+      expect(page.description.length).toBeGreaterThan(0);
+    }
   });
 });
 

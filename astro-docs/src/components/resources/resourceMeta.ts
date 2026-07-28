@@ -17,6 +17,41 @@ export const RESOURCE_TYPE_LABELS = {
   paper: 'Paper',
 } satisfies Record<ResourceType, string>;
 
+/**
+ * The OG-image page map for the Resources section, keyed by each page's
+ * `starlightRoute.id` (the value `route-data.ts` reads). Resources render as
+ * inline cards on a fixed page set — the `/resources/` index (`resources`) plus
+ * one page per resource type (`resources/type/<slug>`) — so the keys are these
+ * PAGE ids, not per-resource-entry ids (AD-4). The type-page keys are derived
+ * from `RESOURCE_TYPES` — the same source `[type].astro`'s `getStaticPaths`
+ * routes from — so they track the type-page inventory automatically
+ * (adding/removing a type keeps both in lockstep). Unlike `eventOgPages()`,
+ * whose participation enum values are already URL-safe single words, resource
+ * enum values are MULTI-WORD, so each type key MUST be slugged via
+ * `resourceTypeSlug` to match the shipped route id. The `resources` index key is
+ * fixed, matching the static `/resources/` route. Consumed by
+ * `src/pages/og/[...route].ts`.
+ */
+export function resourceOgPages(): Record<
+  string,
+  { title: string; description: string }
+> {
+  const pages: Record<string, { title: string; description: string }> = {
+    resources: {
+      title: 'Resources',
+      description:
+        'Talks, webinars, podcast episodes, and papers Thymian produced or took part in.',
+    },
+  };
+  for (const type of RESOURCE_TYPES) {
+    pages[`resources/type/${resourceTypeSlug(type)}`] = {
+      title: `Resources — ${RESOURCE_TYPE_LABELS[type]}`,
+      description: `Browse Thymian ${RESOURCE_TYPE_LABELS[type].toLowerCase()} resources.`,
+    };
+  }
+  return pages;
+}
+
 /** Canonical display / filter order for resource types (the enum tuple). */
 export const RESOURCE_TYPE_ORDER = RESOURCE_TYPES;
 
