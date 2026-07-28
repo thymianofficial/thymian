@@ -5,6 +5,7 @@ import { defineCollection, z } from 'astro:content';
 import { blogSchema } from 'starlight-blog/schema';
 
 import { eventsSchema } from './schema/events';
+import { resourcesSchema } from './schema/resources';
 
 const SOCIAL_CATEGORIES = [
   'thymian-general',
@@ -44,5 +45,10 @@ export const collections = {
   events: defineCollection({
     loader: glob({ pattern: '**/*.{md,mdx}', base: './src/content/events' }),
     schema: eventsSchema,
+  }),
+
+  resources: defineCollection({
+    loader: glob({ pattern: '**/*.{md,mdx}', base: './src/content/resources' }),
+    schema: resourcesSchema,
   }),
 };
