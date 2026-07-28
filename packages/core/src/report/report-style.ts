@@ -26,3 +26,23 @@ export const SEVERITY_SYMBOLS: Record<
   info: infoSymbol,
   warn: warnSymbol,
 };
+
+/**
+ * The strategy used to group findings in report output, controlled by the
+ * `--sort-reports-by` CLI flag. `endpoint` (the default) reproduces the
+ * historical grouping on every surface.
+ */
+export type SortReportsBy = 'rule' | 'endpoint' | 'severity';
+
+/**
+ * Order in which severity groups are rendered under `--sort-reports-by=severity`.
+ * Most-to-least severe (`error` → `warn` → `hint` → `info`), matching the CLI
+ * Summary line and `SEVERITY_COLORS`/`SEVERITY_SYMBOLS` key order — deliberately
+ * NOT alphabetical.
+ */
+export const SEVERITY_GROUP_ORDER: readonly Severity[] = [
+  'error',
+  'warn',
+  'hint',
+  'info',
+];

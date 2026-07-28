@@ -7,6 +7,8 @@ import type {
   Report,
   ReportHttpTransaction,
   Severity,
+  SortReportsBy,
+  TestCaseExecution,
   ToolRun,
 } from '@thymian/core';
 import {
@@ -15,6 +17,8 @@ import {
   httpStatusCodeToPhrase,
   isValidHttpStatusCode,
   resolveExecutionSeverity,
+  SEVERITY_GROUP_ORDER,
+  SEVERITY_SYMBOLS,
   walkExecutions,
 } from '@thymian/core';
 import { mkdir, writeFile } from 'fs/promises';
@@ -73,6 +77,140 @@ function renderRuleCell(
 
 function severityWord(severity: Severity): string {
   return severity === 'warn' ? 'warning' : severity;
+}
+
+/**
+ * The heading a failed/skipped execution is grouped under for a given
+ * `--sort-reports-by` mode. `endpoint` keeps the historical key (location for
+ * lint/analyze, test-case name for test); `rule`/`severity` regroup uniformly.
+ */
+function executionGroupKey(
+  execution: Execution,
+  sortReportsBy: SortReportsBy,
+  ruleIndex: ReturnType<typeof buildRuleIndex>,
+  resolveLocation: LocationResolver,
+  run: ToolRun,
+  logger: Logger,
+): string {
+  if (sortReportsBy === 'rule') {
+    return execution.ruleId ?? 'unnamed check';
+  }
+  if (sortReportsBy === 'severity') {
+    return (
+      resolveExecutionSeverity(execution, ruleIndex, logger) ??
+      // Skipped executions have no severity; give them their own group rather
+      // than mislabelling them as errors.
+      (execution.status.kind === 'skipped' ? 'skipped' : 'error')
+    );
+  }
+  return execution.kind === 'test'
+    ? execution.name
+    : resolveLocation(execution.location, run.thymianFormatVersion);
+}
+
+/**
+ * Orders group headings for a mode: `endpoint` keeps insertion (walk) order;
+ * `rule` sorts alphabetically; `severity` follows `SEVERITY_GROUP_ORDER`
+ * (non-severity keys last).
+ */
+function orderGroupKeys(
+  keys: string[],
+  sortReportsBy: SortReportsBy,
+): string[] {
+  if (sortReportsBy === 'severity') {
+    const order: readonly string[] = SEVERITY_GROUP_ORDER;
+    const rank = (key: string): number => {
+      const index = order.indexOf(key);
+      return index === -1 ? order.length : index;
+    };
+    return [...keys].sort((a, b) => rank(a) - rank(b) || a.localeCompare(b));
+  }
+  if (sortReportsBy === 'rule') {
+    return [...keys].sort((a, b) => a.localeCompare(b));
+  }
+  return keys;
+}
+
+/** Pluralizes a severity word for `severity`-mode group headings. */
+function pluralizeSeverityWord(severity: string): string {
+  switch (severity) {
+    case 'error':
+      return 'errors';
+    case 'warn':
+      return 'warnings';
+    case 'info':
+      return 'infos';
+    case 'hint':
+      return 'hints';
+    default:
+      return severity;
+  }
+}
+
+/**
+ * Group-heading text for a mode, mirroring the CLI report: `rule` shows the
+ * rule's severity, id and violation count; `severity` shows the symbol, the
+ * pluralized severity and count; `endpoint` keeps the raw key (resolved
+ * location / test-case name).
+ */
+function groupHeadingText(
+  key: string,
+  sortReportsBy: SortReportsBy,
+  count: number,
+  ruleIndex: ReturnType<typeof buildRuleIndex>,
+): string {
+  if (sortReportsBy === 'rule') {
+    const severity = ruleIndex.get(key)?.severity ?? 'error';
+    return `${SEVERITY_SYMBOLS[severity]} ${severity}: ${key} (${count})`;
+  }
+  if (sortReportsBy === 'severity') {
+    const symbol =
+      key === 'skipped'
+        ? SEVERITY_SYMBOLS.skipped
+        : SEVERITY_SYMBOLS[key as Severity];
+    return `${symbol} ${pluralizeSeverityWord(key).toUpperCase()} (${count})`;
+  }
+  return key;
+}
+
+/**
+ * Column layout for a lint/analyze table. `rule`/`severity` swap in a Location
+ * column — the identity the group heading no longer carries — and drop the
+ * column now redundant with the heading (Rule / Severity respectively).
+ */
+function lintAnalyzeTableHeader(sortReportsBy: SortReportsBy): string[] {
+  // Drop the column the group heading already carries: `rule` drops Severity
+  // and Rule (both implied by the rule heading); `severity` drops Severity.
+  const columns =
+    sortReportsBy === 'rule'
+      ? ['Location', 'Message']
+      : sortReportsBy === 'severity'
+        ? ['Rule', 'Location', 'Message']
+        : ['Severity', 'Rule', 'Message'];
+  return [
+    `| ${columns.join(' | ')} |`,
+    `| ${columns.map(() => '---').join(' | ')} |`,
+  ];
+}
+
+/** Builds one lint/analyze table row with the column layout for the mode. */
+function renderLintAnalyzeRow(
+  sortReportsBy: SortReportsBy,
+  cells: {
+    statusLabel: string;
+    ruleCell: string;
+    locationCell: string;
+    message: string;
+  },
+): string {
+  const { statusLabel, ruleCell, locationCell, message } = cells;
+  if (sortReportsBy === 'rule') {
+    return `| ${locationCell} | ${message} |`;
+  }
+  if (sortReportsBy === 'severity') {
+    return `| ${ruleCell} | ${locationCell} | ${message} |`;
+  }
+  return `| ${statusLabel} | ${ruleCell} | ${message} |`;
 }
 
 function findingKindWord(kind: string): string {
@@ -185,26 +323,32 @@ function buildLintAnalyzeSection(
   run: ToolRun,
   resolveLocation: LocationResolver,
   logger: Logger,
+  sortReportsBy: SortReportsBy,
 ): string[] {
   const lines: string[] = [];
   lines.push(`## ${run.tool.name} · ${run.runType}`);
   lines.push('');
 
   const ruleIndex = buildRuleIndex(run.rules);
-  const groups = new Map<string, string[]>();
+  const groups = new Map<string, { rows: string[]; count: number }>();
 
   for (const execution of walkExecutions(run.executions)) {
     if (execution.kind !== 'lint' && execution.kind !== 'analyze') {
       continue;
     }
 
-    const location = resolveLocation(
-      execution.location,
-      run.thymianFormatVersion,
+    const groupKey = executionGroupKey(
+      execution,
+      sortReportsBy,
+      ruleIndex,
+      resolveLocation,
+      run,
+      logger,
     );
-    const rows = groups.get(location) ?? [];
-    if (!groups.has(location)) {
-      groups.set(location, rows);
+    let group = groups.get(groupKey);
+    if (!group) {
+      group = { rows: [], count: 0 };
+      groups.set(groupKey, group);
     }
 
     const rule = execution.ruleId ? ruleIndex.get(execution.ruleId) : undefined;
@@ -213,6 +357,23 @@ function buildLintAnalyzeSection(
     const ruleCell = escapeCell(
       renderRuleCell(execution.ruleId, rule?.helpUri),
     );
+    // Location is the group heading under `endpoint`, but a table column under
+    // `rule`/`severity` so it is not lost.
+    const locationCell = escapeCell(
+      resolveLocation(execution.location, run.thymianFormatVersion),
+    );
+
+    if (execution.status.kind !== 'passed') {
+      group.count += 1;
+    }
+
+    const row = (statusLabel: string, message: string): string =>
+      renderLintAnalyzeRow(sortReportsBy, {
+        statusLabel,
+        ruleCell,
+        locationCell,
+        message: escapeCell(message),
+      });
 
     if (execution.status.kind === 'failed') {
       const severity =
@@ -222,38 +383,35 @@ function buildLintAnalyzeSection(
         rule?.summary?.text ??
         rule?.description?.text ??
         '';
-      rows.push(
-        `| ${severityWord(severity)} | ${ruleCell} | ${escapeCell(message)} |`,
-      );
+      group.rows.push(row(severityWord(severity), message));
     } else if (execution.status.kind === 'skipped') {
       const message = execution.status.reason ?? rule?.summary?.text ?? '';
-      rows.push(`| skipped | ${ruleCell} | ${escapeCell(message)} |`);
+      group.rows.push(row('skipped', message));
     }
 
     for (const finding of execution.findings) {
       if (finding.kind === 'informational') {
-        rows.push(
-          `| info | ${ruleCell} | ${escapeCell(finding.message?.text ?? finding.title)} |`,
-        );
+        group.rows.push(row('info', finding.message?.text ?? finding.title));
       } else if (finding.kind === 'assertion-failure') {
         const suffix = assertionFailureSuffix(finding);
         const base = finding.message?.text ?? finding.title;
-        const message = suffix ? `${base} ${suffix}` : base;
-        rows.push(`| failed | ${ruleCell} | ${escapeCell(message)} |`);
+        group.rows.push(row('failed', suffix ? `${base} ${suffix}` : base));
       }
     }
   }
 
-  for (const [location, rows] of groups) {
-    if (rows.length === 0) {
+  for (const groupKey of orderGroupKeys([...groups.keys()], sortReportsBy)) {
+    const group = groups.get(groupKey);
+    if (!group || group.rows.length === 0) {
       continue;
     }
 
-    lines.push(`### ${location}`);
+    lines.push(
+      `### ${groupHeadingText(groupKey, sortReportsBy, group.count, ruleIndex)}`,
+    );
     lines.push('');
-    lines.push('| Severity | Rule | Message |');
-    lines.push('| --- | --- | --- |');
-    lines.push(...rows);
+    lines.push(...lintAnalyzeTableHeader(sortReportsBy));
+    lines.push(...group.rows);
     lines.push('');
   }
 
@@ -299,11 +457,109 @@ function formatHttpTransaction(transaction: ReportHttpTransaction): string {
   return lines.join('\n').trimEnd();
 }
 
+/** Renders one failed/skipped test case under the given heading prefix (`###`/`####`). */
+function renderTestCase(
+  execution: TestCaseExecution,
+  headingPrefix: string,
+  resolveLocation: LocationResolver,
+  run: ToolRun,
+  ruleIndex: ReturnType<typeof buildRuleIndex>,
+  logger: Logger,
+  sortReportsBy: SortReportsBy,
+): string[] {
+  const lines: string[] = [];
+
+  const statusGlyph =
+    execution.status.kind === 'failed' ? errorSymbol : skippedSymbol;
+  lines.push(
+    `${headingPrefix} ${execution.name} · _${statusGlyph} ${execution.status.kind}_`,
+  );
+  lines.push('');
+
+  const rule = execution.ruleId ? ruleIndex.get(execution.ruleId) : undefined;
+  const severity = resolveExecutionSeverity(execution, ruleIndex, logger);
+  const ruleCell = renderRuleCell(execution.ruleId, rule?.helpUri);
+  const message =
+    execution.status.kind === 'failed'
+      ? (execution.status.reason ??
+        rule?.summary?.text ??
+        rule?.description?.text ??
+        '')
+      : execution.status.kind === 'skipped'
+        ? (execution.status.reason ?? rule?.summary?.text ?? '')
+        : '';
+
+  // The summary omits whatever the group heading already carries: the severity
+  // under `severity` grouping, the rule under `rule` grouping.
+  const summaryParts: string[] = [];
+  if (sortReportsBy !== 'severity' && severity) {
+    summaryParts.push(severityWord(severity));
+  }
+  if (sortReportsBy !== 'rule') {
+    summaryParts.push(ruleCell);
+  }
+  summaryParts.push(escapeHtml(message));
+
+  lines.push(`<details><summary>${summaryParts.join(' · ')}</summary>`);
+  lines.push('');
+
+  execution.steps.forEach((step, index) => {
+    const stepLocation = resolveLocation(
+      step.location,
+      run.thymianFormatVersion,
+    );
+    lines.push(`**Step ${index + 1}** · ${stepLocation}`);
+    lines.push('');
+
+    if (step.findings.length > 0) {
+      lines.push('| Kind | Title | Message |');
+      lines.push('| --- | --- | --- |');
+      for (const finding of step.findings) {
+        const kind = findingKindWord(finding.kind);
+        let message = finding.message?.text ?? '';
+
+        if (finding.kind === 'assertion-failure') {
+          const suffix = assertionFailureSuffix(finding);
+          message = suffix
+            ? message
+              ? `${message} ${suffix}`
+              : suffix
+            : message;
+        }
+
+        lines.push(
+          `| ${kind} | ${escapeCell(finding.title)} | ${escapeCell(message)} |`,
+        );
+      }
+      lines.push('');
+    }
+
+    if (step.httpTransactions?.length) {
+      lines.push('<details><summary>HTTP transaction</summary>');
+      lines.push('');
+      for (const transaction of step.httpTransactions) {
+        lines.push('```http');
+        lines.push(formatHttpTransaction(transaction));
+        lines.push('```');
+        lines.push('');
+      }
+      lines.push('</details>');
+      lines.push('');
+    }
+  });
+
+  lines.push('</details>');
+  lines.push('');
+
+  return lines;
+}
+
 /** Renders test run bodies: per-test-case `<details>` narrative with per-finding step rows. */
 function buildTestSection(
   run: ToolRun,
   resolveLocation: LocationResolver,
   logger: Logger,
+  sortReportsBy: SortReportsBy,
 ): string[] {
   const lines: string[] = [];
   lines.push(`## ${run.tool.name} · test`);
@@ -311,82 +567,72 @@ function buildTestSection(
 
   const ruleIndex = buildRuleIndex(run.rules);
 
-  for (const execution of walkExecutions(run.executions)) {
-    if (execution.kind !== 'test' || execution.status.kind === 'passed') {
+  const cases = [...walkExecutions(run.executions)].filter(
+    (execution): execution is TestCaseExecution =>
+      execution.kind === 'test' && execution.status.kind !== 'passed',
+  );
+
+  // `endpoint` keeps the flat, per-case `###` layout unchanged.
+  if (sortReportsBy === 'endpoint') {
+    for (const execution of cases) {
+      lines.push(
+        ...renderTestCase(
+          execution,
+          '###',
+          resolveLocation,
+          run,
+          ruleIndex,
+          logger,
+          sortReportsBy,
+        ),
+      );
+    }
+    return lines;
+  }
+
+  // `rule`/`severity` add a `###` group heading; each case drops to `####` so
+  // its name survives under the (rule id / severity) group.
+  const groups = new Map<string, TestCaseExecution[]>();
+  for (const execution of cases) {
+    const key = executionGroupKey(
+      execution,
+      sortReportsBy,
+      ruleIndex,
+      resolveLocation,
+      run,
+      logger,
+    );
+    const groupCases = groups.get(key) ?? [];
+    if (!groups.has(key)) {
+      groups.set(key, groupCases);
+    }
+    groupCases.push(execution);
+  }
+
+  for (const key of orderGroupKeys([...groups.keys()], sortReportsBy)) {
+    const groupCases = groups.get(key) ?? [];
+    if (groupCases.length === 0) {
       continue;
     }
-
-    const statusGlyph =
-      execution.status.kind === 'failed' ? errorSymbol : skippedSymbol;
+    // `groupCases` are all failed/skipped (passed cases were filtered out), so
+    // their length is the violation count for the heading.
     lines.push(
-      `### ${execution.name} · _${statusGlyph} ${execution.status.kind}_`,
+      `### ${groupHeadingText(key, sortReportsBy, groupCases.length, ruleIndex)}`,
     );
     lines.push('');
-
-    const rule = execution.ruleId ? ruleIndex.get(execution.ruleId) : undefined;
-    const severity = resolveExecutionSeverity(execution, ruleIndex, logger);
-    const severityPrefix = severity ? `${severityWord(severity)} · ` : '';
-    const ruleCell = renderRuleCell(execution.ruleId, rule?.helpUri);
-    const message =
-      execution.status.kind === 'failed'
-        ? (execution.status.reason ??
-          rule?.summary?.text ??
-          rule?.description?.text ??
-          '')
-        : (execution.status.reason ?? rule?.summary?.text ?? '');
-
-    lines.push(
-      `<details><summary>${severityPrefix}${ruleCell} · ${escapeHtml(message)}</summary>`,
-    );
-    lines.push('');
-
-    execution.steps.forEach((step, index) => {
-      const stepLocation = resolveLocation(
-        step.location,
-        run.thymianFormatVersion,
+    for (const execution of groupCases) {
+      lines.push(
+        ...renderTestCase(
+          execution,
+          '####',
+          resolveLocation,
+          run,
+          ruleIndex,
+          logger,
+          sortReportsBy,
+        ),
       );
-      lines.push(`**Step ${index + 1}** · ${stepLocation}`);
-      lines.push('');
-
-      if (step.findings.length > 0) {
-        lines.push('| Kind | Title | Message |');
-        lines.push('| --- | --- | --- |');
-        for (const finding of step.findings) {
-          const kind = findingKindWord(finding.kind);
-          let message = finding.message?.text ?? '';
-
-          if (finding.kind === 'assertion-failure') {
-            const suffix = assertionFailureSuffix(finding);
-            message = suffix
-              ? message
-                ? `${message} ${suffix}`
-                : suffix
-              : message;
-          }
-
-          lines.push(
-            `| ${kind} | ${escapeCell(finding.title)} | ${escapeCell(message)} |`,
-          );
-        }
-        lines.push('');
-      }
-
-      if (step.httpTransactions?.length) {
-        lines.push('<details><summary>HTTP transaction</summary>');
-        lines.push('');
-        for (const transaction of step.httpTransactions) {
-          lines.push('```http');
-          lines.push(formatHttpTransaction(transaction));
-          lines.push('```');
-          lines.push('');
-        }
-        lines.push('</details>');
-        lines.push('');
-      }
-    });
-
-    lines.push('</details>');
-    lines.push('');
+    }
   }
 
   return lines;
@@ -401,10 +647,20 @@ export class MarkdownFormatter implements Formatter<MarkdownFormatterOptions> {
 
   private readonly reports: Report[] = [];
 
+  /**
+   * Grouping strategy injected by the reporter plugin from `--sort-reports-by`.
+   * Kept off {@link MarkdownFormatterOptions} so the user-facing formatter
+   * config schema stays `{ path }`; defaults to `endpoint`.
+   */
+  private sortReportsBy: SortReportsBy = 'endpoint';
+
   constructor(private readonly logger: Logger) {}
 
-  init(options: MarkdownFormatterOptions): void {
+  init(
+    options: MarkdownFormatterOptions & { sortReportsBy?: SortReportsBy },
+  ): void {
     this.options = options;
+    this.sortReportsBy = options.sortReportsBy ?? 'endpoint';
   }
 
   report(report: Report): void {
@@ -442,13 +698,19 @@ export class MarkdownFormatter implements Formatter<MarkdownFormatterOptions> {
     }
     lines.push('');
 
+    const sortReportsBy = this.sortReportsBy;
     for (const report of this.reports) {
       const resolveLocation = createLocationResolver(report);
       for (const run of report.runs) {
         lines.push(
           ...(run.runType === 'test'
-            ? buildTestSection(run, resolveLocation, this.logger)
-            : buildLintAnalyzeSection(run, resolveLocation, this.logger)),
+            ? buildTestSection(run, resolveLocation, this.logger, sortReportsBy)
+            : buildLintAnalyzeSection(
+                run,
+                resolveLocation,
+                this.logger,
+                sortReportsBy,
+              )),
         );
       }
     }

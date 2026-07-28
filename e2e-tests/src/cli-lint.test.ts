@@ -126,6 +126,37 @@ describe('thymian lint', () => {
     expect(normalize(first.stdout)).toBe(normalize(second.stdout));
   }, 180_000);
 
+  it('should accept --sort-reports-by and still render the report', () => {
+    copyFixturesToTempDir(join(fixturesDir, 'static-lint'), getTempDir());
+
+    const { stdout, exitCode } = execThymianResult(
+      ['lint', '--sort-reports-by', 'severity'],
+      { cwd: getTempDir() },
+    );
+
+    // Findings are present, so the exit code stays non-zero; the flag is
+    // accepted and the report is grouped/rendered as usual.
+    expect(exitCode).not.toBe(0);
+    expect(stdout).toContain(
+      'rfc9110/origin-server-with-clock-must-generate-date-for-2xx-3xx-4xx',
+    );
+    expect(stdout).toContain('Summary: 1 error, 0 warnings, 0 hints, 0 infos.');
+  }, 90_000);
+
+  it('should reject an invalid --sort-reports-by value listing the options', () => {
+    copyFixturesToTempDir(join(fixturesDir, 'static-lint'), getTempDir());
+
+    const { exitCode, stderr } = execThymianResult(
+      ['lint', '--sort-reports-by', 'nonsense'],
+      { cwd: getTempDir() },
+    );
+
+    expect(exitCode).toBe(2);
+    expect(stderr).toContain('rule');
+    expect(stderr).toContain('endpoint');
+    expect(stderr).toContain('severity');
+  }, 90_000);
+
   it('should separate report content (stdout) from operational messages (stderr)', () => {
     copyFixturesToTempDir(join(fixturesDir, 'static-lint'), getTempDir());
 

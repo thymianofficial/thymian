@@ -6,6 +6,7 @@ import {
   resolveRuleSeverity,
 } from '@thymian/common-cli';
 import { Flags } from '@thymian/common-cli/oclif';
+import type { SortReportsBy } from '@thymian/core';
 import type {} from '@thymian/plugin-openapi';
 import type {} from '@thymian/plugin-reporter';
 import type {} from '@thymian/plugin-sampler';
@@ -55,6 +56,14 @@ export default class Test extends BaseCliRunCommand<typeof Test> {
       });
     });
 
-    handleWorkflowOutcome(this, outcome);
+    handleWorkflowOutcome(
+      this,
+      outcome,
+      {},
+      {
+        sortReportsBy: this.flags['sort-reports-by'] as
+          SortReportsBy | undefined,
+      },
+    );
   }
 }

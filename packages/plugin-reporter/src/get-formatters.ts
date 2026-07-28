@@ -1,6 +1,10 @@
 import { resolve } from 'node:path';
 
-import { type Logger, ThymianBaseError } from '@thymian/core';
+import {
+  type Logger,
+  type SortReportsBy,
+  ThymianBaseError,
+} from '@thymian/core';
 
 import type { Formatter } from './formatter.js';
 import { CsvFormatter, type CsvFormatterOptions } from './formatters/csv.js';
@@ -83,6 +87,7 @@ export async function getFormatters(
   config: ReporterPluginOptions['formatters'] = {},
   cwd: string,
   logger: Logger,
+  sortReportsBy?: SortReportsBy,
 ): Promise<Formatter[]> {
   return Promise.all(
     Object.entries(config).map(async ([name, options]) => {
@@ -108,8 +113,9 @@ export async function getFormatters(
         logger,
       });
 
-      // we know that the options are valid, so we can safely cast them
-      await formatter.init(preparedOptions as never);
+      // we know that the options are valid, so we can safely cast them.
+      // `sortReportsBy` rides along for every formatter; only markdown reads it.
+      await formatter.init({ ...preparedOptions, sortReportsBy } as never);
 
       return formatter;
     }),

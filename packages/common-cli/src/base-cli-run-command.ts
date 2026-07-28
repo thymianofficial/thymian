@@ -114,6 +114,12 @@ export abstract class BaseCliRunCommand<
       helpGroup: 'BASE',
       options: ['off', 'error', 'warn', 'hint'],
     }),
+    ['sort-reports-by']: Flags.string({
+      description:
+        'Group report findings by rule, endpoint, or severity (default: endpoint). Affects the CLI report and any configured reporter that supports grouping.',
+      helpGroup: 'BASE',
+      options: ['rule', 'endpoint', 'severity'],
+    }),
     timeout: Flags.integer({
       default: Thymian.DEFAULT_TIMEOUT,
       charAliases: ['t'],
@@ -302,6 +308,7 @@ export abstract class BaseCliRunCommand<
       this.debug('Autoloading Thymian plugins.');
       this.logger.info('Autoloading plugins from configuration...');
       await this.addPluginsToThymianConfig();
+      this.applyOptionsToPlugins();
       await this.registerPluginsFromConfig();
     }
 
@@ -438,6 +445,46 @@ export abstract class BaseCliRunCommand<
         override.value,
       );
     }
+  }
+
+  /**
+   * Maps CLI flags onto plugin options before plugins are registered — the one
+   * place where a flag is wired to a specific plugin's config. Add future
+   * flag→plugin mappings here.
+   *
+   * Currently: `--sort-reports-by` is forwarded to the reporter plugin so its
+   * file formatters group findings to match the CLI report. The terminal
+   * renderer receives the flag via a separate channel (`handleWorkflowOutcome`).
+   */
+  protected applyOptionsToPlugins(): void {
+    const sortReportsBy = this.flags['sort-reports-by'];
+    if (sortReportsBy !== undefined) {
+      this.setPluginOption(
+        '@thymian/plugin-reporter',
+        'sortReportsBy',
+        sortReportsBy,
+      );
+    }
+  }
+
+  /**
+   * Sets a single option on a plugin's config — but ONLY when that plugin is
+   * already configured, so wiring a flag never auto-registers a plugin the user
+   * did not ask for, and leaves any existing config/`-o` value untouched when
+   * the flag is absent (callers guard on that).
+   */
+  private setPluginOption(
+    pluginName: string,
+    key: string,
+    value: unknown,
+  ): void {
+    const plugin = this.thymianConfig.plugins[pluginName];
+    if (!plugin) {
+      return;
+    }
+
+    plugin.options ??= {};
+    (plugin.options as Record<string, unknown>)[key] = value;
   }
 
   /**

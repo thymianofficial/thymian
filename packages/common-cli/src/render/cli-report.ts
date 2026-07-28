@@ -8,18 +8,24 @@ import {
   resolveExecutionSeverity,
   type Severity,
   SEVERITY_COLORS,
+  type SortReportsBy,
   type TestCaseExecution,
   type ThymianFormat,
   walkExecutions,
 } from '@thymian/core';
 
-import { createExecutionsRenderer } from './create-execution-renderer.js';
+import {
+  createExecutionsRenderer,
+  selectEntry,
+  selectGroupBy,
+  selectHeading,
+} from './create-execution-renderer.js';
 import { renderLintAndAnalyzeExecution } from './lint-analyze-executions.js';
 import {
   groupTestCaseExecutions,
   renderTestCaseExecution,
 } from './test-executions.js';
-import { pluralize } from './utils.js';
+import { pluralize, sortRecordByKey, sortRecordBySeverity } from './utils.js';
 
 export function collectSeverityCounts(
   report: Report,
@@ -46,8 +52,9 @@ export function collectSeverityCounts(
 
 export function renderReport(
   report: Report,
-  options: { format?: ThymianFormat } = {},
+  options: { format?: ThymianFormat; sortReportsBy?: SortReportsBy } = {},
 ): string {
+  const sortReportsBy: SortReportsBy = options.sortReportsBy ?? 'endpoint';
   if (report.runs.length === 0) {
     return 'No tool runs were reported.';
   }
@@ -80,12 +87,26 @@ export function renderReport(
       continue;
     }
 
+    // `endpoint` (default) keeps each surface's historical grouping; `rule` and
+    // `severity` regroup uniformly across run types. `severity` orders its groups
+    // by `SEVERITY_GROUP_ORDER`; the others fall back to alphabetical.
+    const sortGroups =
+      sortReportsBy === 'severity' ? sortRecordBySeverity : sortRecordByKey;
+
     if (run.runType === 'lint' || run.runType === 'analyze') {
       const render = createExecutionsRenderer<LintExecution | AnalyzeExecution>(
-        (execution) =>
+        selectGroupBy(sortReportsBy, ruleIndex, (execution) =>
           resolveLocation(execution.location, run.thymianFormatVersion),
-        renderLintAndAnalyzeExecution,
+        ),
+        selectHeading(sortReportsBy),
+        selectEntry(
+          sortReportsBy,
+          renderLintAndAnalyzeExecution,
+          (execution, locationResolver, toolRun) =>
+            locationResolver(execution.location, toolRun.thymianFormatVersion),
+        ),
         1,
+        sortGroups,
       );
 
       // `ToolRun` is a discriminated union on `runType`, so a lint/analyze run's
@@ -95,9 +116,15 @@ export function renderReport(
       lines.push(...render(executions, ruleIndex, resolveLocation, run));
     } else {
       const render = createExecutionsRenderer<TestCaseExecution>(
-        groupTestCaseExecutions,
-        renderTestCaseExecution,
+        selectGroupBy(sortReportsBy, ruleIndex, groupTestCaseExecutions),
+        selectHeading(sortReportsBy),
+        selectEntry(
+          sortReportsBy,
+          renderTestCaseExecution,
+          (execution) => execution.name,
+        ),
         1,
+        sortGroups,
       );
 
       const executions: TestCaseExecution[] = run.executions;
