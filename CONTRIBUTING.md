@@ -57,12 +57,12 @@ Refer to this list when contributing to ensure consistent commit messages.
 
 ### Dimension "type"
 
-| Tag                | Allowed Dependencies           | Description                                                                                                  |
-| ------------------ | ------------------------------ | ------------------------------------------------------------------------------------------------------------ |
-| `type:app`         | All types                      | Executable packages or nx apps                                                                               |
-| `type:lib`         | `type:lib`                     | A library                                                                                                    |
-| `type:lib-feature` | `type:lib`, `type:lib-feature` | Features add functionality to libraries. E.g. publishable config, rule-sets or just splitted out source code |
-| `type:e2e`         | All types                      | End-to-end tests and testing utilities                                                                       |
+| Tag                | Allowed Dependencies           | Description                                                                                               |
+| ------------------ | ------------------------------ | --------------------------------------------------------------------------------------------------------- |
+| `type:app`         | All types                      | Executable packages or nx apps                                                                            |
+| `type:lib`         | `type:lib`                     | A library                                                                                                 |
+| `type:lib-feature` | `type:lib`, `type:lib-feature` | Features add functionality to libraries. E.g. publishable config, rule-sets or just split out source code |
+| `type:e2e`         | All types                      | End-to-end tests and testing utilities                                                                    |
 
 In **test files** (`**/test/**`, `*.test.ts`, `*.spec.ts`) every constraint additionally
 allows `type:testing`, so testing libraries are reachable from any project's tests without
