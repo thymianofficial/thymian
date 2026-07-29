@@ -10,7 +10,7 @@ export default httpRule(
   .description(
     'The server SHOULD generate content containing a list of available representation characteristics and corresponding resource identifiers from which the user or user agent can choose the one most appropriate.',
   )
-  .appliesTo('server', 'origin server')
+  .appliesTo('server')
   .rule((ctx) =>
     ctx.validateCommonHttpTransactions(statusCode(406), not(hasResponseBody())),
   )

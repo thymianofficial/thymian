@@ -10,7 +10,7 @@ export default httpRule(
   .description(
     'If the condition is temporary, the server SHOULD generate a Retry-After header field to indicate that it is temporary and after what time the client may try again.',
   )
-  .appliesTo('server', 'origin server')
+  .appliesTo('server')
   .rule((ctx) =>
     ctx.validateCommonHttpTransactions(
       statusCode(413),

@@ -16,7 +16,7 @@ export default httpRule(
   .description(
     'Except when responding to a HEAD request, the server SHOULD send a representation containing an explanation of the error situation, and whether it is a temporary or permanent condition.',
   )
-  .appliesTo('server', 'origin server')
+  .appliesTo('server')
   .rule((ctx) =>
     ctx.validateCommonHttpTransactions(
       and(statusCodeRange(500, 599), not(method('HEAD'))),

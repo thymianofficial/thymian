@@ -50,10 +50,7 @@ export default httpRule(
           ? [
               {
                 location,
-                violation: {
-                  message:
-                    'A 405 (Method Not Allowed) response is missing a non-empty Allow header field. The origin server MUST generate an Allow header field listing the target resource’s currently supported methods.',
-                },
+                violation: {},
                 findings: [],
               },
             ]
@@ -70,10 +67,7 @@ export default httpRule(
           ? [
               {
                 location,
-                violation: {
-                  message:
-                    'A 405 (Method Not Allowed) response is missing a non-empty Allow header field. The origin server MUST generate an Allow header field listing the target resource’s currently supported methods.',
-                },
+                violation: {},
                 findings: [],
               },
             ]

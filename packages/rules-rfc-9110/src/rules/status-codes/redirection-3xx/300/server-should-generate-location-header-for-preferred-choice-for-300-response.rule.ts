@@ -10,7 +10,7 @@ export default httpRule(
   .description(
     "If the server has a preferred choice, the server SHOULD generate a Location header field containing a preferred choice's URI reference.",
   )
-  .appliesTo('server', 'origin server')
+  .appliesTo('server')
   .rule((ctx) =>
     ctx.validateCommonHttpTransactions(
       statusCode(300),

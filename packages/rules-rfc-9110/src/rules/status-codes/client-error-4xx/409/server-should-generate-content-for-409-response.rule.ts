@@ -10,7 +10,7 @@ export default httpRule(
   .description(
     'The server SHOULD generate content that includes enough information for a user to recognize the source of the conflict.',
   )
-  .appliesTo('server', 'origin server')
+  .appliesTo('server')
   .rule((ctx) =>
     ctx.validateCommonHttpTransactions(statusCode(409), not(hasResponseBody())),
   )

@@ -19,7 +19,7 @@ export default httpRule(
   .description(
     'The server SHOULD generate a Location header field in the response containing a preferred URI reference for the new permanent URI.',
   )
-  .appliesTo('server', 'origin server')
+  .appliesTo('server')
   // Static floor asserts the Location header name is present. The real-data
   // overrides additionally read the VALUE to catch an empty "Location:" that
   // satisfies presence but carries no URI reference.
@@ -38,10 +38,7 @@ export default httpRule(
           : [
               {
                 location,
-                violation: {
-                  message:
-                    'A 301 (Moved Permanently) response is missing a non-empty Location header field. The server SHOULD generate a Location header field containing a preferred URI reference for the new permanent URI.',
-                },
+                violation: {},
                 findings: [],
               },
             ],
@@ -56,10 +53,7 @@ export default httpRule(
           : [
               {
                 location,
-                violation: {
-                  message:
-                    'A 301 (Moved Permanently) response is missing a non-empty Location header field. The server SHOULD generate a Location header field containing a preferred URI reference for the new permanent URI.',
-                },
+                violation: {},
                 findings: [],
               },
             ],

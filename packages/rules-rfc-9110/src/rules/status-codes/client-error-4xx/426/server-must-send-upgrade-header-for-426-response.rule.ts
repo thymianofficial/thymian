@@ -19,7 +19,7 @@ export default httpRule(
   .description(
     'The server MUST send an Upgrade header field in a 426 response to indicate the required protocol(s).',
   )
-  .appliesTo('server', 'origin server')
+  .appliesTo('server')
   // Static floor: the spec exposes only header NAMES, so we assert Upgrade is
   // declared. The real-data overrides additionally read the VALUE to catch an
   // empty "Upgrade:" that satisfies presence but names no protocol.
@@ -38,10 +38,7 @@ export default httpRule(
           : [
               {
                 location,
-                violation: {
-                  message:
-                    'A 426 (Upgrade Required) response is missing a non-empty Upgrade header field. The server MUST send an Upgrade header field indicating the required protocol(s).',
-                },
+                violation: {},
                 findings: [],
               },
             ],
@@ -56,10 +53,7 @@ export default httpRule(
           : [
               {
                 location,
-                violation: {
-                  message:
-                    'A 426 (Upgrade Required) response is missing a non-empty Upgrade header field. The server MUST send an Upgrade header field indicating the required protocol(s).',
-                },
+                violation: {},
                 findings: [],
               },
             ],

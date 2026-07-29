@@ -39,10 +39,7 @@ export default httpRule(
           : [
               {
                 location,
-                violation: {
-                  message:
-                    'A proxy generated a 407 (Proxy Authentication Required) response without a valid Proxy-Authenticate header field. The proxy MUST send a Proxy-Authenticate header field containing a challenge applicable to that proxy for the request.',
-                },
+                violation: {},
                 findings: [],
               },
             ];
