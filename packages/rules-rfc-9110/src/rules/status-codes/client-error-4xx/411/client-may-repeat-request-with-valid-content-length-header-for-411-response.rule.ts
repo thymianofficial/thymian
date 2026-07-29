@@ -4,6 +4,8 @@ export default httpRule(
   'rfc9110/client-may-repeat-request-with-valid-content-length-header-for-411-response',
 )
   .severity('hint')
+  // Permissive MAY describing an internal client retry decision; no
+  // non-conformant condition to observe.
   .type('informational')
   .url('https://www.rfc-editor.org/rfc/rfc9110.html#name-411-length-required')
   .description(

@@ -4,11 +4,8 @@ import {
   method,
   not,
   or,
-  origin,
-  path,
   requestHeader,
   responseHeader,
-  responseWith,
   statusCode,
 } from '@thymian/core';
 import {

@@ -5,7 +5,7 @@ export default httpRule(
   'rfc9110/server-should-generate-representation-for-505-response',
 )
   .severity('warn')
-  .type('static', 'analytics')
+  .type('static', 'analytics', 'test')
   .url(
     'https://www.rfc-editor.org/rfc/rfc9110.html#name-505-http-version-not-suppor',
   )
