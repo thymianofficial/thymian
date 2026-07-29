@@ -4,6 +4,7 @@ export default httpRule(
   'rfc9110/server-must-list-protocols-in-layer-ascending-order',
 )
   .severity('error')
+  // Ascending layer order is a semantic property of the advertised protocol tokens that Thymian cannot rank without protocol-layer knowledge.
   .type('informational')
   .url('https://www.rfc-editor.org/rfc/rfc9110.html#name-upgrade')
   .description(

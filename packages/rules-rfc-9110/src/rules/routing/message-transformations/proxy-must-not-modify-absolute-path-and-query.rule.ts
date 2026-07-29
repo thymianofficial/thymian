@@ -1,8 +1,12 @@
-import { httpRule } from '@thymian/core';
+import { httpRule, type RuleFnResult } from '@thymian/core';
+
+import { forwardingHops } from '../utils/forwarding.js';
+
+const normalizePath = (path: string): string => (path === '' ? '/' : path);
 
 export default httpRule('rfc9110/proxy-must-not-modify-absolute-path-and-query')
   .severity('error')
-  .type('informational')
+  .type('analytics')
   .url(
     'https://www.rfc-editor.org/rfc/rfc9110.html#name-message-transformations',
   )
@@ -11,4 +15,28 @@ export default httpRule('rfc9110/proxy-must-not-modify-absolute-path-and-query')
   )
   .summary('Proxy MUST NOT modify absolute-path and query parts of target URI.')
   .appliesTo('proxy')
+  .rule((ctx) =>
+    ctx.validateCapturedHttpTraces((trace, location) => {
+      const results: RuleFnResult[] = [];
+      for (const { inbound, outbound } of forwardingHops(trace, ['proxy'])) {
+        const receivedPath = normalizePath(inbound.request.data.path);
+        const forwardedPath = normalizePath(outbound.request.data.path);
+        // Empty-path -> "/" or "*" is an allowed protocol normalization.
+        if (
+          forwardedPath !== '*' &&
+          receivedPath !== '*' &&
+          forwardedPath !== receivedPath
+        ) {
+          results.push({
+            location,
+            violation: {
+              message: `A proxy modified the absolute-path or query while forwarding (received "${receivedPath}", forwarded "${forwardedPath}").`,
+            },
+            findings: [],
+          });
+        }
+      }
+      return results;
+    }),
+  )
   .done();

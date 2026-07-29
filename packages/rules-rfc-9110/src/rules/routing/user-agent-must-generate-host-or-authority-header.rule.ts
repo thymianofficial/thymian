@@ -10,6 +10,7 @@ export default httpRule(
   .description(
     'A user agent MUST generate a Host header field in a request unless it sends that information as an ":authority" pseudo-header field. The target URI\'s authority information is critical for handling a request.',
   )
+  .summary('User agent MUST generate a Host or :authority header in a request.')
   .appliesTo('user-agent')
   .rule((ctx) =>
     ctx.validateHttpTransactions(
