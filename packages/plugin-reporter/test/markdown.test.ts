@@ -541,6 +541,87 @@ describe('MarkdownFormatter --sort-reports-by grouping', () => {
     expect(output).toContain('| <code>gamma/rule</code> | GET /b | n/a |');
   });
 
+  it('excludes passed executions (and their info findings) from rule/severity groups', async () => {
+    const report = createReport([
+      createToolRun({
+        tool: { name: '@thymian/plugin-http-linter' },
+        runType: 'lint',
+        rules: [{ id: 'hinty', severity: 'hint' }],
+        executions: [
+          createLintExecution({
+            location: { type: 'custom', value: 'GET /passed' },
+            ruleId: 'hinty',
+            status: { kind: 'passed' },
+            findings: [
+              {
+                id: 'i-1',
+                kind: 'informational',
+                title: 'fyi',
+                message: { text: 'fyi detail' },
+              },
+            ],
+          }),
+        ],
+      }),
+    ]);
+
+    // severity mode: only a passed execution exists, so there is nothing to
+    // group — no bogus `### ✖ ERRORS (0)` heading and no mis-filed info row.
+    const severity = await renderSorted(report, 'severity');
+    expect(severity).not.toContain('ERRORS');
+    expect(severity).not.toContain('fyi detail');
+
+    // rule mode: the passed execution contributes no group at all.
+    const rule = await renderSorted(report, 'rule');
+    expect(rule).not.toContain('hinty');
+    expect(rule).not.toContain('fyi detail');
+
+    // endpoint mode still surfaces the informational finding under its location.
+    const endpoint = await render(report);
+    expect(endpoint).toContain('### GET /passed');
+    expect(endpoint).toContain('fyi detail');
+  });
+
+  it('rule heading falls back to the execution severity when the rule has no descriptor', async () => {
+    const report = createReport([
+      createToolRun({
+        tool: { name: '@thymian/plugin-http-linter' },
+        runType: 'lint',
+        rules: [], // no descriptor for `ghost/rule`
+        executions: [
+          createLintExecution({
+            location: { type: 'custom', value: 'GET /a' },
+            ruleId: 'ghost/rule',
+            status: { kind: 'failed', severity: 'warn', reason: 'w' },
+          }),
+        ],
+      }),
+    ]);
+
+    const output = await renderSorted(report, 'rule');
+    // Severity resolved from the execution (status.severity), matching the CLI
+    // `ruleHeading`/`groupSeverity` fallback — not the hardcoded `error`.
+    expect(output).toContain('### ⚠ warn: ghost/rule (1)');
+    expect(output).not.toContain('error: ghost/rule');
+  });
+
+  it('escapes HTML metacharacters in a rule id used as a heading', async () => {
+    const report = createReport([
+      createToolRun({
+        tool: { name: '@thymian/plugin-http-linter' },
+        runType: 'lint',
+        rules: [{ id: 'x/<b>oops</b>', severity: 'error' }],
+        executions: [
+          failedLint('GET /a', { ruleId: 'x/<b>oops</b>', reason: 'boom' }),
+        ],
+      }),
+    ]);
+
+    const output = await renderSorted(report, 'rule');
+    expect(output).toContain('### ✖ error: x/&lt;b&gt;oops&lt;/b&gt; (1)');
+    expect(output).not.toContain('### ✖ error: x/<b>oops</b>');
+  });
+
   it('regroups test cases under a rule heading with #### sub-headings', async () => {
     const testReport = createReport([
       createToolRun({

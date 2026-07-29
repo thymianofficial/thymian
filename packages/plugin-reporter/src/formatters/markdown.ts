@@ -148,20 +148,44 @@ function pluralizeSeverityWord(severity: string): string {
 }
 
 /**
+ * First resolvable execution severity in a group — mirrors the CLI's
+ * `groupSeverity` so the `rule` heading falls back to the same value on both
+ * surfaces when the rule has no descriptor.
+ */
+function firstResolvedSeverity(
+  executions: Execution[],
+  ruleIndex: ReturnType<typeof buildRuleIndex>,
+  logger: Logger,
+): Severity | undefined {
+  for (const execution of executions) {
+    const severity = resolveExecutionSeverity(execution, ruleIndex, logger);
+    if (severity !== undefined) {
+      return severity;
+    }
+  }
+  return undefined;
+}
+
+/**
  * Group-heading text for a mode, mirroring the CLI report: `rule` shows the
  * rule's severity, id and violation count; `severity` shows the symbol, the
  * pluralized severity and count; `endpoint` keeps the raw key (resolved
- * location / test-case name).
+ * location / test-case name). `fallbackSeverity` (the group's first resolved
+ * severity) matches the CLI when the rule id has no descriptor.
  */
 function groupHeadingText(
   key: string,
   sortReportsBy: SortReportsBy,
   count: number,
   ruleIndex: ReturnType<typeof buildRuleIndex>,
+  fallbackSeverity?: Severity,
 ): string {
   if (sortReportsBy === 'rule') {
-    const severity = ruleIndex.get(key)?.severity ?? 'error';
-    return `${SEVERITY_SYMBOLS[severity]} ${severity}: ${key} (${count})`;
+    const severity =
+      ruleIndex.get(key)?.severity ?? fallbackSeverity ?? 'error';
+    // The rule id is user-authored; escape it like table cells so a `<…>` /
+    // metacharacter id cannot inject raw markup into the heading.
+    return `${SEVERITY_SYMBOLS[severity]} ${severity}: ${escapeHtml(key)} (${count})`;
   }
   if (sortReportsBy === 'severity') {
     const symbol =
@@ -330,10 +354,23 @@ function buildLintAnalyzeSection(
   lines.push('');
 
   const ruleIndex = buildRuleIndex(run.rules);
-  const groups = new Map<string, { rows: string[]; count: number }>();
+  const groups = new Map<
+    string,
+    { rows: string[]; count: number; executions: Execution[] }
+  >();
 
   for (const execution of walkExecutions(run.executions)) {
     if (execution.kind !== 'lint' && execution.kind !== 'analyze') {
+      continue;
+    }
+
+    // Under `rule`/`severity` grouping a passed execution has no meaningful
+    // group key (its severity is undefined → would fall into the `error`
+    // bucket) and is not a violation, so exclude it and its informational
+    // findings — matching the CLI grouped renderer, which skips passed
+    // executions. `endpoint` groups by location and keeps them, so its output
+    // is unchanged.
+    if (sortReportsBy !== 'endpoint' && execution.status.kind === 'passed') {
       continue;
     }
 
@@ -347,9 +384,10 @@ function buildLintAnalyzeSection(
     );
     let group = groups.get(groupKey);
     if (!group) {
-      group = { rows: [], count: 0 };
+      group = { rows: [], count: 0, executions: [] };
       groups.set(groupKey, group);
     }
+    group.executions.push(execution);
 
     const rule = execution.ruleId ? ruleIndex.get(execution.ruleId) : undefined;
     // HTML anchor (via renderRuleCell), then escapeCell so a `|` in the id/uri
@@ -407,7 +445,13 @@ function buildLintAnalyzeSection(
     }
 
     lines.push(
-      `### ${groupHeadingText(groupKey, sortReportsBy, group.count, ruleIndex)}`,
+      `### ${groupHeadingText(
+        groupKey,
+        sortReportsBy,
+        group.count,
+        ruleIndex,
+        firstResolvedSeverity(group.executions, ruleIndex, logger),
+      )}`,
     );
     lines.push('');
     lines.push(...lintAnalyzeTableHeader(sortReportsBy));
@@ -617,7 +661,13 @@ function buildTestSection(
     // `groupCases` are all failed/skipped (passed cases were filtered out), so
     // their length is the violation count for the heading.
     lines.push(
-      `### ${groupHeadingText(key, sortReportsBy, groupCases.length, ruleIndex)}`,
+      `### ${groupHeadingText(
+        key,
+        sortReportsBy,
+        groupCases.length,
+        ruleIndex,
+        firstResolvedSeverity(groupCases, ruleIndex, logger),
+      )}`,
     );
     lines.push('');
     for (const execution of groupCases) {

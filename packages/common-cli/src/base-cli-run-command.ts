@@ -455,6 +455,12 @@ export abstract class BaseCliRunCommand<
    * Currently: `--sort-reports-by` is forwarded to the reporter plugin so its
    * file formatters group findings to match the CLI report. The terminal
    * renderer receives the flag via a separate channel (`handleWorkflowOutcome`).
+   *
+   * PRECEDENCE: this runs AFTER `overridePluginOptions()` (the `-o` path), so
+   * an explicitly-passed `--sort-reports-by` intentionally WINS over — and
+   * overwrites — any `-o …options.sortReportsBy=…` or config-file value. When
+   * the flag is absent (`undefined`) nothing is written, so the `-o`/config
+   * value is left in place.
    */
   protected applyOptionsToPlugins(): void {
     const sortReportsBy = this.flags['sort-reports-by'];
@@ -470,8 +476,9 @@ export abstract class BaseCliRunCommand<
   /**
    * Sets a single option on a plugin's config — but ONLY when that plugin is
    * already configured, so wiring a flag never auto-registers a plugin the user
-   * did not ask for, and leaves any existing config/`-o` value untouched when
-   * the flag is absent (callers guard on that).
+   * did not ask for. Overwrites any existing value for `key` (see
+   * {@link applyOptionsToPlugins} for the flag-wins precedence); callers guard
+   * on the flag being present.
    */
   private setPluginOption(
     pluginName: string,
