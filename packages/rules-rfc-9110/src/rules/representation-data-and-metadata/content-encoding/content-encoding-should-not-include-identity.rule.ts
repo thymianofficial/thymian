@@ -22,7 +22,7 @@ function parseContentEncoding(value: string | string[]): string[] {
 export default httpRule('rfc9110/content-encoding-should-not-include-identity')
   .severity('warn')
   .type('test', 'analytics')
-  .appliesTo('origin server')
+  .appliesTo('server')
   .url('https://www.rfc-editor.org/rfc/rfc9110.html#section-8.4')
   .description(
     `The coding named "identity" is reserved for its special role in Accept-Encoding and thus SHOULD NOT be included in Content-Encoding.`,
@@ -49,7 +49,7 @@ export default httpRule('rfc9110/content-encoding-should-not-include-identity')
             location,
             violation: {
               message:
-                'The Content-Encoding header lists the "identity" coding. "identity" is reserved for its special role in Accept-Encoding and SHOULD NOT be included in Content-Encoding.',
+                'The Content-Encoding header lists the "identity" coding.',
             },
             findings: [],
           },

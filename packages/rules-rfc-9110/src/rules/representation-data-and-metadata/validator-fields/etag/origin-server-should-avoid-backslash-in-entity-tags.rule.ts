@@ -7,7 +7,7 @@ export default httpRule(
 )
   .severity('warn')
   .type('test', 'analytics')
-  .appliesTo('origin server')
+  .appliesTo('server')
   .url('https://www.rfc-editor.org/rfc/rfc9110.html#section-8.8.3')
   .description(
     `Previously, opaque-tag was defined to be a quoted-string; thus, some recipients might perform backslash unescaping.
@@ -34,8 +34,7 @@ export default httpRule(
           {
             location,
             violation: {
-              message:
-                'The ETag entity tag contains a backslash. Because opaque-tag was historically a quoted-string, some recipients may perform backslash unescaping; servers SHOULD avoid backslash characters in entity tags.',
+              message: 'The ETag entity tag contains a backslash.',
             },
             findings: [],
           },

@@ -38,7 +38,7 @@ export default httpRule(
           location,
           violation: {
             message:
-              'The response carries content with no Transfer-Encoding and no Content-Length header. An origin server SHOULD send Content-Length when the content size is known before the header section is complete.',
+              'The response carries content with no Transfer-Encoding and no Content-Length header.',
           },
           findings: [],
         },

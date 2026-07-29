@@ -1,13 +1,19 @@
+import {
+  and,
+  hasRequestBody,
+  hasResponseBody,
+  not,
+  or,
+  requestHeader,
+  responseHeader,
+} from '@thymian/core';
 import { httpRule } from '@thymian/core';
 
 export default httpRule(
   'rfc9110/recipient-may-assume-media-type-or-determine-its-type',
 )
   .severity('warn')
-  // Pure recipient latitude (MAY assume octet-stream or sniff). Nothing
-  // observable on the wire distinguishes a conforming choice from a
-  // non-conforming one.
-  .type('informational')
+  .type('analytics')
   .appliesTo('client', 'user-agent')
   .url('https://www.rfc-editor.org/rfc/rfc9110.html#section-8.3')
   .description(
@@ -15,5 +21,14 @@ export default httpRule(
   )
   .summary(
     'When Content-Type is absent, a recipient MAY assume application/octet-stream or sniff the body.',
+  )
+  .rule((ctx) =>
+    ctx.validateHttpTransactions(
+      or(hasRequestBody(), hasResponseBody()),
+      or(
+        and(hasRequestBody(), not(requestHeader('content-type'))),
+        and(hasResponseBody(), not(responseHeader('content-type'))),
+      ),
+    ),
   )
   .done();

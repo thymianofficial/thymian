@@ -25,7 +25,7 @@ export default httpRule(
         {
           location,
           violation: {
-            message: `A ${res.statusCode} response to a CONNECT request includes a Content-Length header field. A server MUST NOT send Content-Length in any 2xx response to CONNECT.`,
+            message: `A ${res.statusCode} response to a CONNECT request includes a Content-Length header field.`,
           },
           findings: [],
         },

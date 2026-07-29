@@ -44,7 +44,7 @@ export default httpRule(
             {
               location,
               violation: {
-                message: `The Last-Modified date (${lastModifiedHeader}) is later than the Date header (${dateHeader}). An origin server with a clock MUST NOT generate a Last-Modified value later than its message origination time.`,
+                message: `The Last-Modified date (${lastModifiedHeader}) is later than the Date header (${dateHeader}).`,
               },
               findings: [],
             },

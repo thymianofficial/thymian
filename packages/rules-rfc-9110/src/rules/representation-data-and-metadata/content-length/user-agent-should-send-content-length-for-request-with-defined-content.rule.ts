@@ -23,7 +23,7 @@ export default httpRule(
         {
           location,
           violation: {
-            message: `A ${req.method} request sends neither Transfer-Encoding nor Content-Length. A user agent SHOULD send Content-Length when the method defines a meaning for enclosed content and Transfer-Encoding is not used.`,
+            message: `A ${req.method} request sends neither Transfer-Encoding nor Content-Length.`,
           },
           findings: [],
         },

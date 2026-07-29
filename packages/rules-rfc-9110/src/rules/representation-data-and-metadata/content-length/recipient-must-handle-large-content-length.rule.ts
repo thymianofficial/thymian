@@ -17,7 +17,6 @@ const MAX_REASONABLE_DIGITS = MAX_REASONABLE_SIZE.toString().length;
 export default httpRule('rfc9110/recipient-must-handle-large-content-length')
   .severity('warn')
   .type('test', 'analytics')
-  .appliesTo('origin server')
   .url('https://www.rfc-editor.org/rfc/rfc9110.html#section-8.6')
   .description(
     `A recipient MUST anticipate potentially large decimal numerals and prevent parsing errors due to integer
@@ -66,7 +65,7 @@ export default httpRule('rfc9110/recipient-must-handle-large-content-length')
               location,
               violation: {
                 message:
-                  'The response carries a Content-Length header field with an empty value, which is not a valid decimal numeral (Content-Length = 1*DIGIT) and cannot be parsed safely.',
+                  'The response carries a Content-Length header field with an empty value.',
               },
               findings: [],
             },
@@ -87,8 +86,8 @@ export default httpRule('rfc9110/recipient-must-handle-large-content-length')
             location,
             violation: {
               message: conflicting
-                ? `The response carries conflicting Content-Length values (${listed}). Differing Content-Length header lines or comma-separated values are a message-framing hazard that a recipient MUST reject (request smuggling / response splitting).`
-                : `The response carries the same Content-Length value repeated (${listed}). A recipient MUST either reject the message or replace the repeated values with a single instance; a sender ought to generate a single Content-Length value.`,
+                ? `The response carries conflicting Content-Length values (${listed}).`
+                : `The response carries the same Content-Length value repeated (${listed}).`,
             },
             findings: [],
           });
@@ -103,7 +102,7 @@ export default httpRule('rfc9110/recipient-must-handle-large-content-length')
             results.push({
               location,
               violation: {
-                message: `Content-Length value "${token}" is not a single decimal numeral and cannot be parsed safely; recipients MUST guard against such values (request smuggling / parsing-error risk).`,
+                message: `Content-Length value "${token}" is not a single decimal numeral and cannot be parsed safely.`,
               },
               findings: [],
             });
@@ -123,7 +122,7 @@ export default httpRule('rfc9110/recipient-must-handle-large-content-length')
             results.push({
               location,
               violation: {
-                message: `Content-Length value ${digits} exceeds a reasonable size limit (>1 TB); such large numerals are a potential integer-overflow / precision-loss hazard for recipients.`,
+                message: `Content-Length value ${digits} exceeds a reasonable size limit (>1 TB).`,
               },
               findings: [],
             });

@@ -9,7 +9,6 @@ export default httpRule(
   // and test/analytics expose body content but the rule engine does not parse
   // multipart boundaries.
   .type('informational')
-  .appliesTo('origin server')
   .url('https://www.rfc-editor.org/rfc/rfc9110.html#section-8.3.3')
   .description(
     'A sender MUST generate only CRLF to represent line breaks between body parts.',
