@@ -1,6 +1,5 @@
 import {
   getHeader,
-  type HttpResponse,
   requestHeader,
   type RuleViolationLocation,
 } from '@thymian/core';
@@ -19,7 +18,7 @@ export default httpRule(
   .overrideAnalyticsRule((ctx) =>
     ctx.validateHttpTransactions(
       requestHeader('referer'),
-      (request, _res: HttpResponse, location: RuleViolationLocation) => {
+      (request, _res, location: RuleViolationLocation) => {
         const referer = getHeader(request.headers, 'referer');
 
         if (typeof referer !== 'string') {
@@ -35,10 +34,25 @@ export default httpRule(
         const refererOrigin = extractOrigin(referer);
         const requestOrigin = extractOrigin(requestUrl);
 
-        // Violation: secure referer with different origin
-        return refererOrigin !== requestOrigin
-          ? [{ location, violation: {}, findings: [] }]
-          : [];
+        // Only flag when both origins parsed and differ; an unparseable origin
+        // (null) must not produce a false positive.
+        if (
+          refererOrigin === null ||
+          requestOrigin === null ||
+          refererOrigin === requestOrigin
+        ) {
+          return [];
+        }
+
+        return [
+          {
+            location,
+            violation: {
+              message: `A Referer header referring to a secure resource (${referer.trim()}) was sent to a different origin (${requestOrigin}).`,
+            },
+            findings: [],
+          },
+        ];
       },
     ),
   )

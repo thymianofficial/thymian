@@ -1,7 +1,6 @@
 import {
   and,
   getHeader,
-  type HttpResponse,
   requestHeader,
   type RuleViolationLocation,
 } from '@thymian/core';
@@ -16,11 +15,10 @@ export default httpRule(
   .description(
     'A sender MUST NOT generate advertising or other nonessential information within the product identifier.',
   )
-  .appliesTo('client')
   .overrideAnalyticsRule((ctx) =>
     ctx.validateHttpTransactions(
       and(requestHeader('user-agent')),
-      (request, _res: HttpResponse, location: RuleViolationLocation) => {
+      (request, _res, location: RuleViolationLocation) => {
         const userAgent = getHeader(request.headers, 'user-agent');
         if (typeof userAgent !== 'string') {
           return [];
@@ -40,7 +38,15 @@ export default httpRule(
         ];
 
         return advertisingKeywords.some((pattern) => pattern.test(userAgent))
-          ? [{ location, violation: {}, findings: [] }]
+          ? [
+              {
+                location,
+                violation: {
+                  message: `The User-Agent header value "${userAgent}" appears to contain advertising or other nonessential information.`,
+                },
+                findings: [],
+              },
+            ]
           : [];
       },
     ),
