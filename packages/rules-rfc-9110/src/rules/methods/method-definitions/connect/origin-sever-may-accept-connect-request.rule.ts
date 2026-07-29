@@ -3,7 +3,7 @@ import { httpRule } from '@thymian/core';
 
 export default httpRule('rfc9110/origin-sever-may-accept-connect-request')
   .severity('hint')
-  .type('static', 'analytics', 'test')
+  .type('test', 'analytics')
   .url('https://www.rfc-editor.org/rfc/rfc9110.html#name-connect')
   .description(
     'An origin server MAY accept a CONNECT request, but most origin servers do not implement CONNECT',

@@ -1,11 +1,21 @@
 import {
   and,
+  type CommonHttpRequest,
+  type CommonHttpResponse,
   method,
-  or,
-  responseHeader,
   statusCodeRange,
 } from '@thymian/core';
 import { httpRule } from '@thymian/core';
+
+import { createList } from '../../../../utils.js';
+
+const forbiddenHeaders = ['transfer-encoding', 'content-length'];
+
+function presentForbiddenHeaders(headers: string[]): string[] {
+  return forbiddenHeaders.filter((forbidden) =>
+    headers.some((header) => header.toLowerCase() === forbidden),
+  );
+}
 
 export default httpRule(
   'rfc9110/server-must-not-send-transfer-encoding-or-content-length-headers-in-2xx-response-to-connect-request',
@@ -20,7 +30,25 @@ export default httpRule(
   .rule((ctx) =>
     ctx.validateCommonHttpTransactions(
       and(method('CONNECT'), statusCodeRange(200, 299)),
-      or(responseHeader('transfer-encoding'), responseHeader('content-length')),
+      (_req: CommonHttpRequest, res: CommonHttpResponse, location) => {
+        const present = presentForbiddenHeaders(res.headers);
+
+        if (present.length === 0) {
+          return [];
+        }
+
+        return [
+          {
+            location,
+            violation: {
+              message: `A 2xx (Successful) response to CONNECT MUST NOT carry headers: ${createList(
+                present,
+              )}.`,
+            },
+            findings: [],
+          },
+        ];
+      },
     ),
   )
   .done();

@@ -1,5 +1,4 @@
-import { and, hasRequestBody, method } from '@thymian/core';
-import { httpRule } from '@thymian/core';
+import { and, hasResponseBody, httpRule, method } from '@thymian/core';
 
 export default httpRule(
   'rfc9110/server-must-not-send-content-in-response-to-head',
@@ -12,6 +11,6 @@ export default httpRule(
   )
   .appliesTo('server')
   .rule((ctx) =>
-    ctx.validateCommonHttpTransactions(and(method('HEAD'), hasRequestBody())),
+    ctx.validateCommonHttpTransactions(and(method('HEAD'), hasResponseBody())),
   )
   .done();

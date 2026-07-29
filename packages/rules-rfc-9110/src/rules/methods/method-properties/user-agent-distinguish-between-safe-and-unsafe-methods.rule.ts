@@ -1,5 +1,9 @@
 import { httpRule } from '@thymian/core';
 
+// This SHOULD is about a user agent's *presentation* to a human (surfacing that
+// an action is unsafe before it is requested). That is UI/UX behavior with no
+// representation on the wire, so it cannot be observed from a request, a
+// response, or recorded traffic.
 export default httpRule(
   'rfc9110/user-agent-distinguish-between-safe-and-unsafe-methods',
 )

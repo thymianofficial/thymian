@@ -1,8 +1,6 @@
-import { method, or, requestHeader } from '@thymian/core';
-import { httpRule } from '@thymian/core';
+import { httpRule, method, or, requestHeader } from '@thymian/core';
 
-// TODO: Add more headers
-const sensitiveHeaders = ['Authorization', 'Proxy-Authorization', 'X-API-Key'];
+import { sensitiveHeaders } from './trace-sensitive-headers.js';
 
 export default httpRule(
   'rfc9110/client-must-not-generate-fields-containing-sensitive-data-in-trace-request',
