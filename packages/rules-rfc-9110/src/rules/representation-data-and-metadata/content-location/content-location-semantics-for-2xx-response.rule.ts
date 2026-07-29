@@ -2,8 +2,10 @@ import { httpRule } from '@thymian/core';
 
 export default httpRule('rfc9110/content-location-semantics-for-2xx-response')
   .severity('off')
+  // Describes recipient-side MAY semantics for interpreting Content-Location in
+  // a 2xx response. It states no sender obligation.
   .type('informational')
-  .appliesTo('server')
+  .appliesTo('origin server')
   .url('https://www.rfc-editor.org/rfc/rfc9110.html#section-8.7')
   .description(
     `The "Content-Location" header field references a URI that can be used as an identifier for a specific resource

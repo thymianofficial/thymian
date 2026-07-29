@@ -1,5 +1,6 @@
 import {
   and,
+  getHeader,
   hasRequestBody,
   method,
   not,
@@ -43,6 +44,37 @@ export default httpRule(
         requestHeader('content-length'),
         not(hasRequestBody()),
       ),
+      (req, _res, location) => {
+        const contentLength = getHeader(req.headers, 'content-length');
+
+        if (contentLength === undefined) {
+          return [];
+        }
+
+        const lines = Array.isArray(contentLength)
+          ? contentLength
+          : [contentLength];
+
+        const tokens = lines
+          .flatMap((line) => line.split(','))
+          .map((token) => token.trim());
+
+        // A Content-Length of exactly "0" is consistent with a request that
+        // has no content and is not a violation.
+        if (tokens.every((token) => token === '0')) {
+          return [];
+        }
+
+        return [
+          {
+            location,
+            violation: {
+              message: `A ${req.method} request carries a Content-Length header field but no content.`,
+            },
+            findings: [],
+          },
+        ];
+      },
     ),
   )
   .done();

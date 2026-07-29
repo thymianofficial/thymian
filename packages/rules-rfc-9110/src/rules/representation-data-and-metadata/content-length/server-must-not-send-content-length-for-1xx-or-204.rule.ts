@@ -22,8 +22,19 @@ export default httpRule(
   )
   .rule((ctx) =>
     ctx.validateCommonHttpTransactions(
-      and(or(statusCodeRange(100, 199), statusCode(204))),
-      responseHeader('content-length'),
+      and(
+        or(statusCodeRange(100, 199), statusCode(204)),
+        responseHeader('content-length'),
+      ),
+      (_req, res, location) => [
+        {
+          location,
+          violation: {
+            message: `A ${res.statusCode} response includes a Content-Length header field.`,
+          },
+          findings: [],
+        },
+      ],
     ),
   )
   .done();

@@ -1,4 +1,4 @@
-import { and, getHeader, method, not, or, requestHeader } from '@thymian/core';
+import { and, method, not, or, requestHeader } from '@thymian/core';
 import { httpRule } from '@thymian/core';
 
 export default httpRule(
@@ -19,6 +19,15 @@ export default httpRule(
         not(requestHeader('transfer-encoding')),
         not(requestHeader('content-length')),
       ),
+      (req, _res, location) => [
+        {
+          location,
+          violation: {
+            message: `A ${req.method} request sends neither Transfer-Encoding nor Content-Length.`,
+          },
+          findings: [],
+        },
+      ],
     ),
   )
   .done();

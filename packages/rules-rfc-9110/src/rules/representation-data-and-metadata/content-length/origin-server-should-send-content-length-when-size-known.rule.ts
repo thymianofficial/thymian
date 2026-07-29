@@ -33,6 +33,16 @@ export default httpRule(
         not(statusCode(204)),
         not(statusCode(304)),
       ),
+      (_req, _res, location) => [
+        {
+          location,
+          violation: {
+            message:
+              'The response carries content with no Transfer-Encoding and no Content-Length header.',
+          },
+          findings: [],
+        },
+      ],
     ),
   )
   .done();

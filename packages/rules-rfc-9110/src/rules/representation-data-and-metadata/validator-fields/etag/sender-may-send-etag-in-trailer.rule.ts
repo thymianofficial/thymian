@@ -4,7 +4,6 @@ import { httpRule } from '@thymian/core';
 export default httpRule('rfc9110/sender-may-send-etag-in-trailer')
   .severity('hint')
   .type('test', 'analytics')
-  .appliesTo('server')
   .url('https://www.rfc-editor.org/rfc/rfc9110.html#section-8.8.3')
   .description(
     `A sender MAY send the ETag field in a trailer section. However, since trailers are often ignored, it is

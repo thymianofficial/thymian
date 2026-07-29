@@ -6,9 +6,11 @@ export default httpRule(
 )
   .severity('hint')
   .type('analytics')
+  .appliesTo('origin server')
   .description(
     'Multiple languages MAY be listed for content that is intended for multiple audiences.',
   )
+  .summary('Multiple languages MAY be listed in Content-Language.')
   .rule((ctx) =>
     ctx.validateHttpTransactions(responseHeader('content-language')),
   )
