@@ -1,15 +1,17 @@
+import { not, responseHeader } from '@thymian/core';
 import { httpRule } from '@thymian/core';
 
 export default httpRule(
   'rfc9110/origin-server-may-generate-server-header-field',
 )
   .severity('hint')
-  // This is a permission (MAY generate Server), not a testable constraint;
-  // there is no violating behaviour to detect.
-  .type('informational')
+  .type('static', 'analytics', 'test')
   .url('https://www.rfc-editor.org/rfc/rfc9110.html#name-server')
   .description(
     'An origin server MAY generate a Server header field in its responses.',
   )
   .appliesTo('origin server')
+  .rule((ctx) =>
+    ctx.validateCommonHttpTransactions(not(responseHeader('server'))),
+  )
   .done();
