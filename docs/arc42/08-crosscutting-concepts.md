@@ -54,6 +54,7 @@ All core-owned actions follow the hierarchical pattern **`core.<domain>.<verb>`*
 | `core.lint`             | Execute static linting of ThymianFormat           |
 | `core.test`             | Execute live HTTP testing against a target server |
 | `core.analyze`          | Execute analysis of captured HTTP traffic         |
+| `core.report.convert`   | Convert external tool reports into Thymian reports |
 | `core.request.dispatch` | Send an HTTP request and return the response      |
 | `core.request.sample`   | Generate an HTTP request template from samples    |
 
