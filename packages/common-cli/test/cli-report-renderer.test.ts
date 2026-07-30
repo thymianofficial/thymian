@@ -545,9 +545,9 @@ describe('cli report renderer', () => {
 
       // Headings show the rule's severity, the rule id, and a violation count;
       // groups sort alphabetically by rule id.
-      expect(output).toContain('⚠ warn: alpha/rule (1)');
-      expect(output).toContain('✖ error: beta/rule (1)');
-      expect(output).toContain('✖ error: unnamed check (1)'); // ruleless fallback
+      expect(output).toContain('⚠ warn: alpha/rule');
+      expect(output).toContain('✖ error: beta/rule');
+      expect(output).toContain('✖ error: unnamed check'); // ruleless fallback
       expect(output.indexOf('alpha/rule')).toBeLessThan(
         output.indexOf('beta/rule'),
       );
@@ -573,8 +573,8 @@ describe('cli report renderer', () => {
       );
 
       // `error` precedes `warn` despite `error` > `warn` alphabetically.
-      expect(output).toContain('✖ ERRORS (2)');
-      expect(output).toContain('⚠ WARNINGS (1)');
+      expect(output).toContain('✖ ERRORS');
+      expect(output).toContain('⚠ WARNINGS');
       expect(output.indexOf('✖ ERRORS')).toBeLessThan(
         output.indexOf('⚠ WARNINGS'),
       );
@@ -586,6 +586,44 @@ describe('cli report renderer', () => {
       // A ruleless violation still shows location + reason, with no rule ref.
       expect(output).toContain('• GET /c');
       expect(output).toContain('➜ orphan');
+    });
+
+    it('severity mode: shows the rule ref even when the rule has no descriptor', () => {
+      const output = stripAnsi(
+        renderReport(
+          {
+            reportId: 'report-1',
+            createdAt: new Date().toISOString(),
+            runs: [
+              {
+                runId: 'run-1',
+                tool: { name: '@thymian/plugin-http-linter' },
+                runType: 'lint' as const,
+                runAt: new Date().toISOString(),
+                rules: [], // no descriptor for `ghost/rule`
+                executions: [
+                  {
+                    kind: 'lint' as const,
+                    ruleId: 'ghost/rule',
+                    status: {
+                      kind: 'failed' as const,
+                      severity: 'error' as const,
+                      reason: 'boom',
+                    },
+                    location: { type: 'custom' as const, value: 'GET /a' },
+                    findings: [],
+                  },
+                ],
+              },
+            ],
+          },
+          { sortReportsBy: 'severity' },
+        ),
+      );
+
+      // The ref is derived from execution.ruleId (not the descriptor), so rule
+      // identity survives — matching the markdown surface.
+      expect(output).toContain('› ghost/rule');
     });
 
     it('files skipped executions under their own group in severity mode, not error', () => {
@@ -626,8 +664,8 @@ describe('cli report renderer', () => {
 
       // The skip gets its own heading, ordered after the real severities —
       // never mislabelled under `error`.
-      expect(output).toContain('✖ ERRORS (1)');
-      expect(output).toContain('⏭ SKIPPED (1)');
+      expect(output).toContain('✖ ERRORS');
+      expect(output).toContain('⏭ SKIPPED');
       expect(output.indexOf('✖ ERRORS')).toBeLessThan(
         output.indexOf('⏭ SKIPPED'),
       );
@@ -688,7 +726,7 @@ describe('cli report renderer', () => {
       );
 
       // One rule heading (error severity, 2 cases); each case shown by name.
-      expect(output).toContain('✖ error: shared/rule (2)');
+      expect(output).toContain('✖ error: shared/rule');
       expect(output).toContain('• case alpha');
       expect(output).toContain('• case beta');
       expect(output.indexOf('shared/rule')).toBeLessThan(

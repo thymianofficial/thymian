@@ -5,7 +5,6 @@ import {
   mergeRuleSets,
   resolveRuleSeverity,
 } from '@thymian/common-cli';
-import type { SortReportsBy } from '@thymian/core';
 import type {} from '@thymian/plugin-openapi';
 import type {} from '@thymian/plugin-reporter';
 import type {} from '@thymian/plugin-sampler';
@@ -48,10 +47,7 @@ export default class Lint extends BaseCliRunCommand<typeof Lint> {
       this,
       outcome,
       {},
-      {
-        sortReportsBy: this.flags['sort-reports-by'] as
-          SortReportsBy | undefined,
-      },
+      { sortReportsBy: this.flags['sort-reports-by'] },
     );
   }
 }

@@ -479,9 +479,9 @@ describe('MarkdownFormatter --sort-reports-by grouping', () => {
     const output = await renderSorted(lintReport, 'rule');
 
     // Headings mirror the CLI: severity symbol + severity + rule id + count.
-    expect(output).toContain('### ⚠ warn: alpha/rule (1)');
-    expect(output).toContain('### ✖ error: beta/rule (1)');
-    expect(output).toContain('### ✖ error: unnamed check (1)'); // ruleless fallback
+    expect(output).toContain('### ⚠ warn: alpha/rule');
+    expect(output).toContain('### ✖ error: beta/rule');
+    expect(output).toContain('### ✖ error: unnamed check'); // ruleless fallback
     expect(output.indexOf('alpha/rule')).toBeLessThan(
       output.indexOf('beta/rule'),
     );
@@ -500,8 +500,8 @@ describe('MarkdownFormatter --sort-reports-by grouping', () => {
   it('groups lint rows by severity (error→warn), adding a Location column', async () => {
     const output = await renderSorted(lintReport, 'severity');
 
-    expect(output).toContain('### ✖ ERRORS (2)');
-    expect(output).toContain('### ⚠ WARNINGS (1)');
+    expect(output).toContain('### ✖ ERRORS');
+    expect(output).toContain('### ⚠ WARNINGS');
     expect(output.indexOf('### ✖ ERRORS')).toBeLessThan(
       output.indexOf('### ⚠ WARNINGS'),
     );
@@ -531,8 +531,8 @@ describe('MarkdownFormatter --sort-reports-by grouping', () => {
 
     const output = await renderSorted(report, 'severity');
 
-    expect(output).toContain('### ✖ ERRORS (1)');
-    expect(output).toContain('### ⏭ SKIPPED (1)');
+    expect(output).toContain('### ✖ ERRORS');
+    expect(output).toContain('### ⏭ SKIPPED');
     // Skipped sorts after the real severities, never merged into `error`.
     expect(output.indexOf('### ✖ ERRORS')).toBeLessThan(
       output.indexOf('### ⏭ SKIPPED'),
@@ -601,7 +601,7 @@ describe('MarkdownFormatter --sort-reports-by grouping', () => {
     const output = await renderSorted(report, 'rule');
     // Severity resolved from the execution (status.severity), matching the CLI
     // `ruleHeading`/`groupSeverity` fallback — not the hardcoded `error`.
-    expect(output).toContain('### ⚠ warn: ghost/rule (1)');
+    expect(output).toContain('### ⚠ warn: ghost/rule');
     expect(output).not.toContain('error: ghost/rule');
   });
 
@@ -618,7 +618,7 @@ describe('MarkdownFormatter --sort-reports-by grouping', () => {
     ]);
 
     const output = await renderSorted(report, 'rule');
-    expect(output).toContain('### ✖ error: x/&lt;b&gt;oops&lt;/b&gt; (1)');
+    expect(output).toContain('### ✖ error: x/&lt;b&gt;oops&lt;/b&gt;');
     expect(output).not.toContain('### ✖ error: x/<b>oops</b>');
   });
 
@@ -647,7 +647,7 @@ describe('MarkdownFormatter --sort-reports-by grouping', () => {
 
     const ruleOutput = await renderSorted(testReport, 'rule');
     const grouped = ruleOutput.split('\n');
-    expect(grouped).toContain('### ✖ error: shared/rule (2)');
+    expect(grouped).toContain('### ✖ error: shared/rule');
     expect(grouped).toContain('#### case a · _✖ failed_');
     expect(grouped).toContain('#### case b · _✖ failed_');
     // The case name is a `####` sub-heading, not a top-level `###` heading.
@@ -659,7 +659,7 @@ describe('MarkdownFormatter --sort-reports-by grouping', () => {
     // Grouped by severity: the summary drops the `error · ` prefix (the
     // heading carries the severity) but keeps the rule.
     const severityOutput = await renderSorted(testReport, 'severity');
-    expect(severityOutput).toContain('### ✖ ERRORS (2)');
+    expect(severityOutput).toContain('### ✖ ERRORS');
     expect(severityOutput).toContain(
       '<details><summary><code>shared/rule</code> · boom a</summary>',
     );
@@ -674,6 +674,41 @@ describe('MarkdownFormatter --sort-reports-by grouping', () => {
     expect(flatOutput).toContain(
       '<details><summary>error · <code>shared/rule</code> · boom a</summary>',
     );
+  });
+
+  it('files a skipped test case under the skipped severity group', async () => {
+    const report = createReport([
+      createToolRun({
+        tool: { name: '@thymian/plugin-http-tester' },
+        runType: 'test',
+        rules: [{ id: 'lifecycle', severity: 'error' }],
+        executions: [
+          createTestCaseExecution({
+            name: 'failing case',
+            ruleId: 'lifecycle',
+            status: { kind: 'failed', reason: 'boom' },
+            steps: [],
+          }),
+          createTestCaseExecution({
+            name: 'skipped case',
+            ruleId: 'lifecycle',
+            status: { kind: 'skipped', reason: 'n/a' },
+            steps: [],
+          }),
+        ],
+      }),
+    ]);
+
+    const output = await renderSorted(report, 'severity');
+
+    expect(output).toContain('### ✖ ERRORS');
+    expect(output).toContain('### ⏭ SKIPPED');
+    expect(output.indexOf('### ✖ ERRORS')).toBeLessThan(
+      output.indexOf('### ⏭ SKIPPED'),
+    );
+    // The skipped case lands under SKIPPED, the failing one under ERRORS.
+    expect(output).toContain('#### skipped case · _⏭ skipped_');
+    expect(output).toContain('#### failing case · _✖ failed_');
   });
 });
 

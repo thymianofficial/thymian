@@ -3,18 +3,22 @@ import {
   type AnalyzeExecution,
   type LintExecution,
   type LocationResolver,
+  pluralizeSeverity,
   resolveExecutionSeverity,
+  resolveGroupSeverity,
   type RuleDescriptor,
   type Severity,
   SEVERITY_COLORS,
   SEVERITY_SYMBOLS,
+  severityGroupKey,
   type SortReportsBy,
   type TestCaseExecution,
   type ToolRun,
+  UNNAMED_CHECK_LABEL,
 } from '@thymian/core';
 
 import { renderStatus } from './status.js';
-import { indent, pluralizeSeverity, sortRecordByKey } from './utils.js';
+import { indent, sortRecordByKey } from './utils.js';
 
 type Groupable = LintExecution | TestCaseExecution | AnalyzeExecution;
 
@@ -122,13 +126,9 @@ export function selectGroupBy<T extends Groupable>(
 ): GroupExecutionsFn<T> {
   switch (sortReportsBy) {
     case 'rule':
-      return (execution) => execution.ruleId ?? 'unnamed check';
+      return (execution) => execution.ruleId ?? UNNAMED_CHECK_LABEL;
     case 'severity':
-      return (execution) =>
-        resolveExecutionSeverity(execution, ruleIndex) ??
-        // Skipped executions have no severity; give them their own group
-        // rather than mislabelling them as errors.
-        (execution.status.kind === 'skipped' ? 'skipped' : 'error');
+      return (execution) => severityGroupKey(execution, ruleIndex);
     case 'endpoint':
       return endpointKey;
   }
@@ -179,51 +179,34 @@ export function selectEntry<T extends Groupable>(
 const endpointHeading: RenderGroupHeadingFn<Groupable> = (key) =>
   ux.colorize('underline', key);
 
-/** `rule`: the rule's severity symbol, then the rule id underlined. */
+/** `rule`: the rule's severity symbol + word, then the rule id underlined. */
 const ruleHeading: RenderGroupHeadingFn<Groupable> = (
   key,
   group,
   ruleIndex,
 ) => {
   const severity =
-    ruleIndex.get(key)?.severity ?? groupSeverity(group, ruleIndex);
-  return `${colorizedSeveritySymbol(severity)} ${ux.colorize(SEVERITY_COLORS[severity], severity)}: ${ux.colorize('underline', key)} (${group.filter((execution) => execution.status.kind !== 'passed').length})`;
+    ruleIndex.get(key)?.severity ??
+    resolveGroupSeverity(group, ruleIndex) ??
+    'error';
+  return `${colorizedSeveritySymbol(severity)} ${ux.colorize(SEVERITY_COLORS[severity], severity)}: ${ux.colorize('underline', key)}`;
 };
 
 /** `severity`: the severity symbol, then the pluralized severity word. */
-const severityHeading: RenderGroupHeadingFn<Groupable> = (key, group) => {
-  const count = group.filter(
-    (execution) => execution.status.kind !== 'passed',
-  ).length;
+const severityHeading: RenderGroupHeadingFn<Groupable> = (key) => {
   const label = ux.colorize('underline', pluralizeSeverity(key).toUpperCase());
   // Keys here are always severity words or the `skipped` bucket; `skipped` has
   // a symbol but no severity color, so it is rendered uncolored.
-  const heading =
-    key === 'skipped'
-      ? `${SEVERITY_SYMBOLS.skipped} ${label}`
-      : ux.colorize(
-          SEVERITY_COLORS[key as Severity],
-          `${SEVERITY_SYMBOLS[key as Severity]} ${label}`,
-        );
-  return `${heading} (${count})`;
+  return key === 'skipped'
+    ? `${SEVERITY_SYMBOLS.skipped} ${label}`
+    : ux.colorize(
+        SEVERITY_COLORS[key as Severity],
+        `${SEVERITY_SYMBOLS[key as Severity]} ${label}`,
+      );
 };
 
 function colorizedSeveritySymbol(severity: Severity): string {
   return ux.colorize(SEVERITY_COLORS[severity], SEVERITY_SYMBOLS[severity]);
-}
-
-/** Best-effort heading severity when no rule descriptor resolves one. */
-function groupSeverity(
-  group: Groupable[],
-  ruleIndex: ReadonlyMap<string, RuleDescriptor>,
-): Severity {
-  for (const execution of group) {
-    const severity = resolveExecutionSeverity(execution, ruleIndex);
-    if (severity !== undefined) {
-      return severity;
-    }
-  }
-  return 'error';
 }
 
 // --- Entry renderers -------------------------------------------------------
@@ -307,27 +290,33 @@ function groupedEntryRenderer<T extends Groupable>(
       'reason' in execution.status ? execution.status.reason : undefined;
     const message = reason ?? rule?.summary?.text ?? rule?.description?.text;
 
+    // Derive the rule ref from `execution.ruleId`, not the resolved descriptor:
+    // under severity grouping the heading is the severity, so a descriptor-less
+    // rule would otherwise lose its identity here (the markdown surface keeps
+    // it). The descriptor is still used for the message fallback above.
     const ruleRef =
-      options.showRule && rule ? ` ${ux.colorize('dim', '› ' + rule.id)}` : '';
+      options.showRule && execution.ruleId
+        ? ux.colorize('dim', '› ' + execution.ruleId)
+        : '';
 
-    let detailIndentionLevel = indentationLevel + 1;
+    let detailIndentationLevel = indentationLevel + 1;
 
     const lines = [`${indent(indentationLevel)}${symbol} ${label}`];
 
     if (message) {
       lines.push(indent(indentationLevel + 1) + '➜ ' + message);
       // if we print a message we must increase the indentation of the details
-      detailIndentionLevel++;
+      detailIndentationLevel++;
     }
 
-    if (options.showRule && ruleRef) {
+    if (ruleRef) {
       lines.push(indent(indentationLevel + 1) + ruleRef);
     }
 
     lines.push(
       ...renderDetails(
         execution,
-        detailIndentionLevel,
+        detailIndentationLevel,
         locationResolver,
         toolRun,
       ),

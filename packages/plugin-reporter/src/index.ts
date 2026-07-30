@@ -1,5 +1,6 @@
 import {
   type Report,
+  SORT_REPORTS_BY_VALUES,
   type SortReportsBy,
   type ThymianPlugin,
 } from '@thymian/core';
@@ -75,7 +76,7 @@ export const reporterPlugin: ThymianPlugin<ReporterPluginOptions> = {
           'How report findings are grouped (rule, endpoint, or severity). Normally set from the --sort-reports-by CLI flag; affects the markdown formatter only.',
         nullable: true,
         type: 'string',
-        enum: ['rule', 'endpoint', 'severity'],
+        enum: [...SORT_REPORTS_BY_VALUES],
       },
     },
   },

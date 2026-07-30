@@ -11,6 +11,8 @@ import {
   isPlugin,
   type Logger,
   type LogLevel,
+  SORT_REPORTS_BY_VALUES,
+  type SortReportsBy,
   type SpecificationInput,
   TextLogger,
   Thymian,
@@ -19,6 +21,7 @@ import {
   type TrafficInput,
 } from '@thymian/core';
 
+import { applyReporterSortReportsBy } from './apply-plugin-options.js';
 import { ErrorCache } from './error-cache.js';
 import { Feedback } from './feedback.js';
 import { deepSet, optionFlag } from './flags/option-flag.js';
@@ -114,12 +117,12 @@ export abstract class BaseCliRunCommand<
       helpGroup: 'BASE',
       options: ['off', 'error', 'warn', 'hint'],
     }),
-    ['sort-reports-by']: Flags.string({
+    ['sort-reports-by']: Flags.custom<SortReportsBy>({
       description:
         'Group report findings by rule, endpoint, or severity (default: endpoint). Affects the CLI report and any configured reporter that supports grouping.',
       helpGroup: 'BASE',
-      options: ['rule', 'endpoint', 'severity'],
-    }),
+      options: [...SORT_REPORTS_BY_VALUES],
+    })(),
     timeout: Flags.integer({
       default: Thymian.DEFAULT_TIMEOUT,
       charAliases: ['t'],
@@ -450,48 +453,19 @@ export abstract class BaseCliRunCommand<
   /**
    * Maps CLI flags onto plugin options before plugins are registered — the one
    * place where a flag is wired to a specific plugin's config. Add future
-   * flag→plugin mappings here.
+   * flag→plugin mappings here. The mapping logic lives in
+   * `apply-plugin-options.ts` so it can be unit-tested without a command.
    *
-   * Currently: `--sort-reports-by` is forwarded to the reporter plugin so its
-   * file formatters group findings to match the CLI report. The terminal
-   * renderer receives the flag via a separate channel (`handleWorkflowOutcome`).
-   *
-   * PRECEDENCE: this runs AFTER `overridePluginOptions()` (the `-o` path), so
-   * an explicitly-passed `--sort-reports-by` intentionally WINS over — and
-   * overwrites — any `-o …options.sortReportsBy=…` or config-file value. When
-   * the flag is absent (`undefined`) nothing is written, so the `-o`/config
-   * value is left in place.
+   * Currently: `--sort-reports-by` is forwarded to the reporter plugin (see
+   * `applyReporterSortReportsBy` for the flag-wins precedence over `-o`/config
+   * and the never-auto-register guard). The terminal renderer receives the flag
+   * via a separate channel (`handleWorkflowOutcome`).
    */
   protected applyOptionsToPlugins(): void {
-    const sortReportsBy = this.flags['sort-reports-by'];
-    if (sortReportsBy !== undefined) {
-      this.setPluginOption(
-        '@thymian/plugin-reporter',
-        'sortReportsBy',
-        sortReportsBy,
-      );
-    }
-  }
-
-  /**
-   * Sets a single option on a plugin's config — but ONLY when that plugin is
-   * already configured, so wiring a flag never auto-registers a plugin the user
-   * did not ask for. Overwrites any existing value for `key` (see
-   * {@link applyOptionsToPlugins} for the flag-wins precedence); callers guard
-   * on the flag being present.
-   */
-  private setPluginOption(
-    pluginName: string,
-    key: string,
-    value: unknown,
-  ): void {
-    const plugin = this.thymianConfig.plugins[pluginName];
-    if (!plugin) {
-      return;
-    }
-
-    plugin.options ??= {};
-    (plugin.options as Record<string, unknown>)[key] = value;
+    applyReporterSortReportsBy(
+      this.thymianConfig,
+      this.flags['sort-reports-by'],
+    );
   }
 
   /**

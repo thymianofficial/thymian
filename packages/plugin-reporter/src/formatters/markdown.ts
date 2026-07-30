@@ -13,12 +13,16 @@ import type {
 } from '@thymian/core';
 import {
   buildRuleIndex,
+  compareSeverityGroupKeys,
   findingDetails,
   httpStatusCodeToPhrase,
   isValidHttpStatusCode,
+  pluralizeSeverity,
   resolveExecutionSeverity,
-  SEVERITY_GROUP_ORDER,
+  resolveGroupSeverity,
   SEVERITY_SYMBOLS,
+  severityGroupKey,
+  UNNAMED_CHECK_LABEL,
   walkExecutions,
 } from '@thymian/core';
 import { mkdir, writeFile } from 'fs/promises';
@@ -93,15 +97,10 @@ function executionGroupKey(
   logger: Logger,
 ): string {
   if (sortReportsBy === 'rule') {
-    return execution.ruleId ?? 'unnamed check';
+    return execution.ruleId ?? UNNAMED_CHECK_LABEL;
   }
   if (sortReportsBy === 'severity') {
-    return (
-      resolveExecutionSeverity(execution, ruleIndex, logger) ??
-      // Skipped executions have no severity; give them their own group rather
-      // than mislabelling them as errors.
-      (execution.status.kind === 'skipped' ? 'skipped' : 'error')
-    );
+    return severityGroupKey(execution, ruleIndex, logger);
   }
   return execution.kind === 'test'
     ? execution.name
@@ -110,20 +109,15 @@ function executionGroupKey(
 
 /**
  * Orders group headings for a mode: `endpoint` keeps insertion (walk) order;
- * `rule` sorts alphabetically; `severity` follows `SEVERITY_GROUP_ORDER`
- * (non-severity keys last).
+ * `rule` sorts alphabetically; `severity` follows the shared core comparator
+ * (error→warn→hint→info, non-severity keys last).
  */
 function orderGroupKeys(
   keys: string[],
   sortReportsBy: SortReportsBy,
 ): string[] {
   if (sortReportsBy === 'severity') {
-    const order: readonly string[] = SEVERITY_GROUP_ORDER;
-    const rank = (key: string): number => {
-      const index = order.indexOf(key);
-      return index === -1 ? order.length : index;
-    };
-    return [...keys].sort((a, b) => rank(a) - rank(b) || a.localeCompare(b));
+    return [...keys].sort(compareSeverityGroupKeys);
   }
   if (sortReportsBy === 'rule') {
     return [...keys].sort((a, b) => a.localeCompare(b));
@@ -131,52 +125,16 @@ function orderGroupKeys(
   return keys;
 }
 
-/** Pluralizes a severity word for `severity`-mode group headings. */
-function pluralizeSeverityWord(severity: string): string {
-  switch (severity) {
-    case 'error':
-      return 'errors';
-    case 'warn':
-      return 'warnings';
-    case 'info':
-      return 'infos';
-    case 'hint':
-      return 'hints';
-    default:
-      return severity;
-  }
-}
-
-/**
- * First resolvable execution severity in a group — mirrors the CLI's
- * `groupSeverity` so the `rule` heading falls back to the same value on both
- * surfaces when the rule has no descriptor.
- */
-function firstResolvedSeverity(
-  executions: Execution[],
-  ruleIndex: ReturnType<typeof buildRuleIndex>,
-  logger: Logger,
-): Severity | undefined {
-  for (const execution of executions) {
-    const severity = resolveExecutionSeverity(execution, ruleIndex, logger);
-    if (severity !== undefined) {
-      return severity;
-    }
-  }
-  return undefined;
-}
-
 /**
  * Group-heading text for a mode, mirroring the CLI report: `rule` shows the
- * rule's severity, id and violation count; `severity` shows the symbol, the
- * pluralized severity and count; `endpoint` keeps the raw key (resolved
- * location / test-case name). `fallbackSeverity` (the group's first resolved
- * severity) matches the CLI when the rule id has no descriptor.
+ * rule's severity + id; `severity` shows the symbol + pluralized severity;
+ * `endpoint` keeps the raw key (resolved location / test-case name).
+ * `fallbackSeverity` (the group's first resolved severity) matches the CLI when
+ * the rule id has no descriptor.
  */
 function groupHeadingText(
   key: string,
   sortReportsBy: SortReportsBy,
-  count: number,
   ruleIndex: ReturnType<typeof buildRuleIndex>,
   fallbackSeverity?: Severity,
 ): string {
@@ -185,14 +143,14 @@ function groupHeadingText(
       ruleIndex.get(key)?.severity ?? fallbackSeverity ?? 'error';
     // The rule id is user-authored; escape it like table cells so a `<…>` /
     // metacharacter id cannot inject raw markup into the heading.
-    return `${SEVERITY_SYMBOLS[severity]} ${severity}: ${escapeHtml(key)} (${count})`;
+    return `${SEVERITY_SYMBOLS[severity]} ${severity}: ${escapeHtml(key)}`;
   }
   if (sortReportsBy === 'severity') {
     const symbol =
       key === 'skipped'
         ? SEVERITY_SYMBOLS.skipped
         : SEVERITY_SYMBOLS[key as Severity];
-    return `${symbol} ${pluralizeSeverityWord(key).toUpperCase()} (${count})`;
+    return `${symbol} ${pluralizeSeverity(key).toUpperCase()}`;
   }
   return key;
 }
@@ -342,7 +300,11 @@ function buildOverviewRow(run: ToolRun): string {
   return `| ${escapeCell(run.tool.name)} | ${run.runType} | ${outcome} | ${duration} |`;
 }
 
-/** Renders lint/analyze run bodies: location-grouped `Severity | Rule | Message` tables. */
+/**
+ * Renders lint/analyze run bodies as grouped tables. The column layout and
+ * group heading vary by `--sort-reports-by`; `endpoint` (default) keeps the
+ * historical location-grouped `Severity | Rule | Message` layout.
+ */
 function buildLintAnalyzeSection(
   run: ToolRun,
   resolveLocation: LocationResolver,
@@ -354,10 +316,7 @@ function buildLintAnalyzeSection(
   lines.push('');
 
   const ruleIndex = buildRuleIndex(run.rules);
-  const groups = new Map<
-    string,
-    { rows: string[]; count: number; executions: Execution[] }
-  >();
+  const groups = new Map<string, { rows: string[]; executions: Execution[] }>();
 
   for (const execution of walkExecutions(run.executions)) {
     if (execution.kind !== 'lint' && execution.kind !== 'analyze') {
@@ -384,7 +343,7 @@ function buildLintAnalyzeSection(
     );
     let group = groups.get(groupKey);
     if (!group) {
-      group = { rows: [], count: 0, executions: [] };
+      group = { rows: [], executions: [] };
       groups.set(groupKey, group);
     }
     group.executions.push(execution);
@@ -400,10 +359,6 @@ function buildLintAnalyzeSection(
     const locationCell = escapeCell(
       resolveLocation(execution.location, run.thymianFormatVersion),
     );
-
-    if (execution.status.kind !== 'passed') {
-      group.count += 1;
-    }
 
     const row = (statusLabel: string, message: string): string =>
       renderLintAnalyzeRow(sortReportsBy, {
@@ -448,9 +403,8 @@ function buildLintAnalyzeSection(
       `### ${groupHeadingText(
         groupKey,
         sortReportsBy,
-        group.count,
         ruleIndex,
-        firstResolvedSeverity(group.executions, ruleIndex, logger),
+        resolveGroupSeverity(group.executions, ruleIndex, logger),
       )}`,
     );
     lines.push('');
@@ -658,15 +612,12 @@ function buildTestSection(
     if (groupCases.length === 0) {
       continue;
     }
-    // `groupCases` are all failed/skipped (passed cases were filtered out), so
-    // their length is the violation count for the heading.
     lines.push(
       `### ${groupHeadingText(
         key,
         sortReportsBy,
-        groupCases.length,
         ruleIndex,
-        firstResolvedSeverity(groupCases, ruleIndex, logger),
+        resolveGroupSeverity(groupCases, ruleIndex, logger),
       )}`,
     );
     lines.push('');
