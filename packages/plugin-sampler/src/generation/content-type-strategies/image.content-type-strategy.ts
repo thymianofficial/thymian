@@ -24,14 +24,13 @@ export class ImageContentTypeStrategy implements ContentTypeStrategy {
     _schema: ThymianSchema,
     contentType: string,
   ): Promise<ContentSource> {
-    const asset = /^image\/(png)/i.test(contentType)
-      ? 'sample-256.png'
-      : 'sample-256.jpg';
+    const isPng = /^image\/png/i.test(contentType);
+    const asset = isPng ? 'sample-256.png' : 'sample-256.jpg';
 
     return {
       $encoding: 'base64',
       $buffer: await readFile(join(ASSETS_DIR, asset)),
-      $ext: 'png',
+      $ext: isPng ? 'png' : 'jpg',
     };
   }
 }

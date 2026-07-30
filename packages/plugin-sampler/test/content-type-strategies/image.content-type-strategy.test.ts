@@ -51,7 +51,7 @@ describe('ImageContentTypeStrategy', () => {
       }
 
       expect(result.$encoding).toBe('base64');
-      expect(result.$ext).toBe('png');
+      expect(result.$ext).toBe('jpg');
       expect(result.$buffer.length).toBeGreaterThan(0);
       // JPEG signature: FF D8 FF
       expect([...result.$buffer.subarray(0, 3)]).toEqual([0xff, 0xd8, 0xff]);
