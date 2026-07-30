@@ -6,6 +6,22 @@
   "tags": ["scope:plugin", "type:lib", "npm:public"],
   "// targets": "to see all targets run: nx show project plugin-sampler --web",
   "targets": {
+    "build": {
+      "dependsOn": ["^build", "copy-assets"]
+    },
+    "copy-assets": {
+      "cache": true,
+      "inputs": [
+        "{projectRoot}/src/generation/content-type-strategies/assets/**/*"
+      ],
+      "outputs": [
+        "{projectRoot}/dist/generation/content-type-strategies/assets"
+      ],
+      "command": "node -e \"require('fs').cpSync('src/generation/content-type-strategies/assets','dist/generation/content-type-strategies/assets',{recursive:true})\"",
+      "options": {
+        "cwd": "packages/plugin-sampler"
+      }
+    },
     "generate-docs": {
       "dependsOn": ["build"],
       "command": "oclif readme --no-aliases --readme-path ../../astro-docs/src/content/docs/references/Plugins/Sampler/cli.md",
