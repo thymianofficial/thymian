@@ -1,5 +1,7 @@
+import { experimental_AstroContainer as AstroContainer } from 'astro/container';
 import { describe, expect, it } from 'vitest';
 
+import ConsentEmbed from '../src/components/media/ConsentEmbed.astro';
 import { resolveResourceEmbed } from '../src/components/resources/resourceMeta';
 import { type ResourceType } from '../src/schema/resources';
 
@@ -158,5 +160,78 @@ describe('resolveResourceEmbed — type-appropriate link labels', () => {
       url: 'https://example.com/webinar',
       label: 'Watch the recording',
     });
+  });
+});
+
+/*
+ * The click-to-load consent gate (GDPR 2-Klick). These render the reusable
+ * ConsentEmbed to static HTML and assert the AC8 contract: the INITIAL render
+ * must issue zero third-party requests — no live iframe `src`, no YouTube/ytimg
+ * thumbnail, no preconnect — while still carrying the real embed URL in a
+ * `data-` attribute and an always-present fail-safe link-out (AC3′).
+ */
+describe('ConsentEmbed — click-to-load gate (static render)', () => {
+  const EMBED_SRC = 'https://www.youtube-nocookie.com/embed/dQw4w9WgXcQ';
+  const WATCH_URL = 'https://www.youtube.com/watch?v=dQw4w9WgXcQ';
+
+  const render = async (): Promise<string> => {
+    const container = await AstroContainer.create();
+    return container.renderToString(ConsentEmbed, {
+      props: {
+        src: EMBED_SRC,
+        provider: 'YouTube',
+        providerOwner: 'Google',
+        title: 'My Talk',
+        embedTitle: 'My Talk — embedded player',
+        fallback: { url: WATCH_URL, label: 'Watch on YouTube' },
+      },
+    });
+  };
+
+  it('renders a neutral local placeholder with a real <button> play control', async () => {
+    const html = await render();
+    expect(html).toContain('data-consent-placeholder');
+    expect(html).toMatch(/<button[^>]*type="button"[^>]*data-consent-play/);
+  });
+
+  it('carries the embed URL in data-embed-src only — no live iframe on load', async () => {
+    const html = await render();
+    // Real URL is present, but only as a data attribute (inert).
+    expect(html).toContain(`data-embed-src="${EMBED_SRC}"`);
+    // No player is materialised in the initial HTML.
+    expect(html).not.toContain('<iframe');
+  });
+
+  it('issues no pre-consent third-party contact (AC8)', async () => {
+    const html = await render();
+    // youtube-nocookie must never appear inside a live src="" or href="".
+    // The leading \s anchors to a real attribute boundary so this does NOT
+    // false-match the inert `data-embed-src="…"` carrier.
+    expect(html).not.toMatch(/\ssrc="[^"]*youtube-nocookie/);
+    expect(html).not.toMatch(/\shref="[^"]*youtube-nocookie/);
+    // No YouTube/Google thumbnail or image request of any kind.
+    expect(html).not.toContain('<img');
+    expect(html).not.toContain('img.youtube.com');
+    expect(html).not.toContain('i.ytimg.com');
+    expect(html).not.toContain('ytimg.com');
+    // No connection hints to the embed host either.
+    expect(html).not.toMatch(/rel="(preconnect|dns-prefetch)"/);
+  });
+
+  it('always renders the fail-safe external link-out (AC3′ no-JS path)', async () => {
+    const html = await render();
+    expect(html).toContain(`href="${WATCH_URL}"`);
+    expect(html).toContain('target="_blank"');
+    expect(html).toContain('rel="noopener noreferrer"');
+    expect(html).toContain('Watch on YouTube');
+  });
+
+  it('names the resource + provider in the button and the privacy notice', async () => {
+    const html = await render();
+    // Accessible name names the resource and states it loads external content.
+    expect(html).toMatch(/aria-label="Play [^"]*My Talk[^"]*YouTube \(Google\)/);
+    // Visible notice surfaces the provider and links to the privacy policy.
+    expect(html).toContain('YouTube (Google)');
+    expect(html).toContain('href="/legal/data-privacy/"');
   });
 });
