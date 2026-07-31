@@ -9,6 +9,7 @@ import {
   resolveGuestAttribution,
   resolveLogoAlt,
   resolveLogoCredits,
+  resolvePlatformLabel,
   type SortableEvent,
 } from '../src/components/events/eventMeta';
 import { type Attribution } from '../src/schema/attribution';
@@ -186,6 +187,25 @@ describe('resolveEventLinks', () => {
     ).toEqual([
       { label: 'Register to attend', url: 'https://example.com/register' },
     ]);
+  });
+});
+
+describe('resolvePlatformLabel (structural unrecognised signal)', () => {
+  it('labels a recognised platform host', () => {
+    expect(resolvePlatformLabel('https://www.youtube.com/watch?v=x')).toBe(
+      'Watch on YouTube',
+    );
+    expect(resolvePlatformLabel('https://open.spotify.com/episode/abc')).toBe(
+      'Listen on Spotify',
+    );
+  });
+
+  it('signals an unrecognised host as undefined — never a sentinel string', () => {
+    expect(resolvePlatformLabel('https://example.com/talk')).toBeUndefined();
+  });
+
+  it('signals an unparseable URL as undefined too', () => {
+    expect(resolvePlatformLabel('not a url')).toBeUndefined();
   });
 });
 

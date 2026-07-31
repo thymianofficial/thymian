@@ -127,3 +127,34 @@ export function resourcesForEvent(
   );
   return sortResourcesByEffectiveDate(produced, eventsById);
 }
+
+/**
+ * The produced Resources of EVERY event, grouped in ONE pass over the resource
+ * set — the list-page complement of {@link resourcesForEvent} (which stays the
+ * single-event query). `EventList` builds this once per page and hands each
+ * card its slice, instead of re-filtering + re-sorting the full set per card
+ * (O(events × resources)). Each group is sorted by the single shared basis;
+ * an event no resource names has no entry (readers default to `[]`).
+ */
+export function indexResourcesByOriginEvent(
+  allResources: ResourceEntry[],
+  eventsById: Map<string, EventEntry>,
+): Map<string, ResourceEntry[]> {
+  const byEvent = new Map<string, ResourceEntry[]>();
+  for (const resource of allResources) {
+    const originId = resource.data.originEvent?.id;
+    if (originId === undefined) {
+      continue;
+    }
+    const group = byEvent.get(originId);
+    if (group === undefined) {
+      byEvent.set(originId, [resource]);
+    } else {
+      group.push(resource);
+    }
+  }
+  for (const [eventId, group] of byEvent) {
+    byEvent.set(eventId, sortResourcesByEffectiveDate(group, eventsById));
+  }
+  return byEvent;
+}

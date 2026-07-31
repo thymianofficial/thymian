@@ -1,0 +1,65 @@
+---
+/**
+ * CtaLink — the house CTA pill for external destinations, in its two shapes:
+ * `primary` = solid fill (Events "Register to attend"), `ghost` = outline
+ * (resource link-outs). The ONE copy of the pill — EventLinks, ResourceEmbed
+ * and ConsentEmbed each carried a near-verbatim clone before — so a style
+ * tweak lands here once. Always opens in a new tab with
+ * `rel="noopener noreferrer"` and the shared external-link glyph; the slot
+ * carries the visible label.
+ *
+ * Consumes the `--ev-*` tokens the mounting surface seeds (EventsLayout /
+ * ResourcesLayout), each with a light-theme fallback so the pill never renders
+ * with an undefined token when reused outside those roots (ConsentEmbed mounts
+ * on any embed surface — Epic 10/11 reuse).
+ */
+import ExternalLinkIcon from './ExternalLinkIcon.astro';
+
+interface Props {
+  href: string;
+  variant: 'primary' | 'ghost';
+}
+
+const { href, variant } = Astro.props;
+---
+
+<a
+  class={`cta cta--${variant}`}
+  href={href}
+  target="_blank"
+  rel="noopener noreferrer"
+>
+  <slot />
+  <ExternalLinkIcon />
+</a>
+
+<style>
+  .cta {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.45rem;
+    padding: 0.5rem 1rem;
+    border-radius: 9999px;
+    font-size: 0.9rem;
+    font-weight: 800;
+    text-decoration: none;
+  }
+
+  /* Primary CTA — white on teal-700 (light) / near-black on teal-400 (dark). */
+  .cta--primary {
+    background: var(--ev-cta-bg, #046151);
+    color: var(--ev-cta-fg, #ffffff);
+  }
+
+  /* Ghost CTA — transparent fill, accent text + ≥3:1 accent border. */
+  .cta--ghost {
+    background: transparent;
+    color: var(--ev-accent-text, #046151);
+    border: 1.5px solid var(--ev-accent-border, #046151);
+  }
+
+  .cta:focus-visible {
+    outline: 2px solid var(--ev-focus-ring, #017b64);
+    outline-offset: 2px;
+  }
+</style>

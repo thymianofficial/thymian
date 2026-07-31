@@ -19,6 +19,8 @@
  * With JS off — or when a player is blocked by X-Frame-Options/CSP — the button
  * does nothing and this link is the usable path; the tile never dead-ends.
  */
+import CtaLink from '../CtaLink.astro';
+
 interface Props {
   /**
    * The privacy-safe embed URL (e.g. a `youtube-nocookie` `/embed/<id>` URL).
@@ -110,29 +112,9 @@ const buttonLabel = `Play “${title}” — loads video from ${providerDisplay}
     JS-off visitor or a blocked player still has a working outward path.
   */}
   <p class="consent-embed-actions">
-    <a
-      class="consent-embed-cta"
-      href={fallback.url}
-      target="_blank"
-      rel="noopener noreferrer"
-    >
+    <CtaLink href={fallback.url} variant="ghost">
       {fallback.label}
-      <svg
-        width="14"
-        height="14"
-        viewBox="0 0 14 14"
-        fill="none"
-        xmlns="http://www.w3.org/2000/svg"
-        aria-hidden="true"
-      >
-        <path
-          d="M5.25 2.625H2.625A.875.875 0 0 0 1.75 3.5v7.875a.875.875 0 0 0 .875.875H10.5a.875.875 0 0 0 .875-.875V8.75M8.75 1.75h3.5v3.5M7 7l5.25-5.25"
-          stroke="currentColor"
-          stroke-width="1.25"
-          stroke-linecap="round"
-          stroke-linejoin="round"></path>
-      </svg>
-    </a>
+    </CtaLink>
   </p>
 </div>
 
@@ -244,39 +226,11 @@ const buttonLabel = `Play “${title}” — loads video from ${providerDisplay}
     outline-offset: 2px;
   }
 
+  /* The link-out itself is the shared ghost CtaLink pill (token fallbacks
+     included there, so the gate stays reusable outside seeded roots). */
   .consent-embed-actions {
     margin: 0;
     display: flex;
-  }
-
-  /*
-    Ghost-pill link-out, mirroring the former ResourceEmbed `.resource-cta`:
-    transparent fill, accent text + ≥3:1 accent border, visible focus ring.
-    Consumes the `--ev-*` tokens the surface seeds (each with a light-theme
-    fallback so the control never renders with an undefined token when reused
-    outside `.resources-root`).
-  */
-  .consent-embed-cta {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.45rem;
-    padding: 0.5rem 1rem;
-    border-radius: 9999px;
-    font-size: 0.9rem;
-    font-weight: 800;
-    text-decoration: none;
-    background: transparent;
-    color: var(--ev-accent-text, #046151);
-    border: 1.5px solid var(--ev-accent-border, #046151);
-  }
-
-  .consent-embed-cta svg {
-    flex-shrink: 0;
-  }
-
-  .consent-embed-cta:focus-visible {
-    outline: 2px solid var(--ev-focus-ring, #017b64);
-    outline-offset: 2px;
   }
 </style>
 
@@ -286,6 +240,8 @@ const buttonLabel = `Play “${title}” — loads video from ${providerDisplay}
    * visitor's explicit activation. Per-activation consent — nothing is stored,
    * no `localStorage`. Native `<button>` gives Enter/Space for free.
    */
+  const INIT_ATTR = 'data-consent-embed-init';
+
   function activate(gate: Element): void {
     const button = gate.querySelector<HTMLButtonElement>('[data-consent-play]');
     const frame = gate.querySelector<HTMLElement>('[data-consent-frame]');
@@ -318,8 +274,19 @@ const buttonLabel = `Play “${title}” — loads video from ${providerDisplay}
     });
   }
 
-  // Support multiple gates on one page — each wired independently.
-  document
-    .querySelectorAll('.consent-embed')
-    .forEach((gate) => activate(gate));
+  // Support multiple gates on one page — each wired independently, exactly
+  // once (INIT_ATTR guards re-runs). Re-init on `astro:after-swap` matches the
+  // house idiom for interactive components, so the gate keeps working after a
+  // soft navigation if the ClientRouter is ever enabled.
+  function initConsentEmbeds(): void {
+    document
+      .querySelectorAll(`.consent-embed:not([${INIT_ATTR}])`)
+      .forEach((gate) => {
+        gate.setAttribute(INIT_ATTR, '');
+        activate(gate);
+      });
+  }
+
+  initConsentEmbeds();
+  document.addEventListener('astro:after-swap', initConsentEmbeds);
 </script>

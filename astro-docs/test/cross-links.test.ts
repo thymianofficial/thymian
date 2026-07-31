@@ -4,6 +4,7 @@ import { describe, expect, it } from 'vitest';
 import {
   assertOriginEventsResolve,
   indexEventsById,
+  indexResourcesByOriginEvent,
   resolveOriginEvent,
   resourceEffectiveDate,
   resourcesForEvent,
@@ -212,5 +213,44 @@ describe('resourcesForEvent (derived, filter + sort + cardinality)', () => {
   it('returns [] for an event no resource names (0 cardinality)', () => {
     expect(resourcesForEvent('conf', [], eventsById)).toEqual([]);
     expect(resourcesForEvent('unlinked', allResources, eventsById)).toEqual([]);
+  });
+});
+
+describe('indexResourcesByOriginEvent (one-pass grouping for list pages)', () => {
+  const eventsById = indexEventsById([
+    event('conf', exact('2026-08-01')),
+    event('meetup', exact('2026-07-01')),
+  ]);
+  const allResources = [
+    resource('talk-a', 'Zeta from conf', 'conf'),
+    resource('talk-b', 'Alpha from conf', 'conf'),
+    resource('talk-c', 'From meetup', 'meetup'),
+    resource('orphan', 'No origin'),
+  ];
+
+  it('groups every linked resource under its origin event, each group sorted', () => {
+    const byEvent = indexResourcesByOriginEvent(allResources, eventsById);
+    expect(byEvent.get('conf')?.map((r) => r.data.title)).toEqual([
+      'Alpha from conf',
+      'Zeta from conf',
+    ]);
+    expect(byEvent.get('meetup')?.map((r) => r.id)).toEqual(['talk-c']);
+  });
+
+  it('has no entry for an unlinked event and never groups origin-less resources', () => {
+    const byEvent = indexResourcesByOriginEvent(allResources, eventsById);
+    expect(byEvent.has('unlinked')).toBe(false);
+    expect([...byEvent.values()].flat().map((r) => r.id)).not.toContain(
+      'orphan',
+    );
+  });
+
+  it('agrees with the single-event query for every event', () => {
+    const byEvent = indexResourcesByOriginEvent(allResources, eventsById);
+    for (const id of ['conf', 'meetup']) {
+      expect(byEvent.get(id)).toEqual(
+        resourcesForEvent(id, allResources, eventsById),
+      );
+    }
   });
 });

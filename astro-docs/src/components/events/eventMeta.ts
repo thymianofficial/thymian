@@ -111,17 +111,21 @@ export function resolveEventLinks(input: {
 }
 
 /**
- * A human, action-shaped label for a past event's resource link, derived from
- * the destination host (e.g. "Watch on YouTube") rather than the generic
- * "View resource". Falls back to "Watch the recording" both for hosts we
- * don't recognise and for unparseable URLs.
+ * The recognised-platform label for a resource URL, derived from the
+ * destination host (e.g. "Watch on YouTube", "Listen on Spotify") — or
+ * `undefined` for hosts we don't recognise and for unparseable URLs. The
+ * "unrecognised" signal is STRUCTURAL (`undefined`), never a sentinel display
+ * string, so each consumer picks its own generic fallback verb without
+ * coupling to this module's wording: events fall back video-centrically
+ * ({@link resolveResourceLabel}), resources per type
+ * (`resolveResourceLinkLabel`).
  */
-export function resolveResourceLabel(url: string): string {
+export function resolvePlatformLabel(url: string): string | undefined {
   let host = '';
   try {
     host = new URL(url).hostname.toLowerCase();
   } catch {
-    return 'Watch the recording';
+    return undefined;
   }
   if (host === 'youtu.be' || isHost(host, 'youtube.com')) {
     return 'Watch on YouTube';
@@ -138,7 +142,17 @@ export function resolveResourceLabel(url: string): string {
   if (isHost(host, 'podcasts.apple.com')) {
     return 'Listen on Apple Podcasts';
   }
-  return 'Watch the recording';
+  return undefined;
+}
+
+/**
+ * A human, action-shaped label for a past event's resource link, derived from
+ * the destination host (e.g. "Watch on YouTube") rather than the generic
+ * "View resource". An event's `resourceUrl` is video-centric by contract, so
+ * an unrecognised platform falls back to "Watch the recording".
+ */
+export function resolveResourceLabel(url: string): string {
+  return resolvePlatformLabel(url) ?? 'Watch the recording';
 }
 
 /**

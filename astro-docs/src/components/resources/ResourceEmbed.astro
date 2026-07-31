@@ -1,6 +1,7 @@
 ---
 import type { CollectionEntry } from 'astro:content';
 
+import CtaLink from '../CtaLink.astro';
 import ConsentEmbed from '../media/ConsentEmbed.astro';
 import { resolveResourceEmbed } from './resourceMeta';
 
@@ -46,32 +47,15 @@ const providerInfo =
         fallback={media.fallback}
       />
     ) : (
-      /* Link resource: the CTA is the primary (and only) affordance. */
+      /*
+        Link resource: the CTA is the primary (and only) affordance — the
+        shared ghost CtaLink pill (the embed branch's link-out lives in
+        ConsentEmbed, on the same pill).
+      */
       <p class="resource-embed-actions">
-        <a
-          class="resource-cta"
-          href={media.url}
-          target="_blank"
-          rel="noopener noreferrer"
-        >
+        <CtaLink href={media.url} variant="ghost">
           {media.label}
-          <svg
-            width="14"
-            height="14"
-            viewBox="0 0 14 14"
-            fill="none"
-            xmlns="http://www.w3.org/2000/svg"
-            aria-hidden="true"
-          >
-            <path
-              d="M5.25 2.625H2.625A.875.875 0 0 0 1.75 3.5v7.875a.875.875 0 0 0 .875.875H10.5a.875.875 0 0 0 .875-.875V8.75M8.75 1.75h3.5v3.5M7 7l5.25-5.25"
-              stroke="currentColor"
-              stroke-width="1.25"
-              stroke-linecap="round"
-              stroke-linejoin="round"
-            />
-          </svg>
-        </a>
+        </CtaLink>
       </p>
     )
   }
@@ -88,35 +72,5 @@ const providerInfo =
   .resource-embed-actions {
     margin: 0;
     display: flex;
-  }
-
-  /*
-    Ghost-pill link-out for the link-resource branch, mirroring EventLinks
-    `.cta--ghost`: transparent fill, accent text + ≥3:1 accent border, visible
-    focus ring. Consumes the `--ev-*` tokens 9.2 seeds on `.resources-root`
-    (each with a light-theme fallback so the surface never renders with an
-    undefined token). The embed branch's link-out lives in ConsentEmbed.
-  */
-  .resource-cta {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.45rem;
-    padding: 0.5rem 1rem;
-    border-radius: 9999px;
-    font-size: 0.9rem;
-    font-weight: 800;
-    text-decoration: none;
-    background: transparent;
-    color: var(--ev-accent-text, #046151);
-    border: 1.5px solid var(--ev-accent-border, #046151);
-  }
-
-  .resource-cta svg {
-    flex-shrink: 0;
-  }
-
-  .resource-cta:focus-visible {
-    outline: 2px solid var(--ev-focus-ring, #017b64);
-    outline-offset: 2px;
   }
 </style>

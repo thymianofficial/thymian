@@ -1,5 +1,5 @@
 import { RESOURCE_TYPES, type ResourceType } from '../../schema/resources';
-import { resolveResourceLabel } from '../events/eventMeta';
+import { resolvePlatformLabel } from '../events/eventMeta';
 import { isHost } from '../hostMatch';
 
 /**
@@ -155,7 +155,7 @@ function youtubeEmbedSrc(parsed: URL): string | undefined {
 
 /**
  * Type-appropriate generic link-out labels — the fallback verb when the host is
- * not one `resolveResourceLabel` recognises. A `paper` is read (never watched);
+ * not one `resolvePlatformLabel` recognises. A `paper` is read (never watched);
  * an audio `podcast episode` is listened to, not watched.
  */
 const GENERIC_LINK_LABEL = {
@@ -167,23 +167,17 @@ const GENERIC_LINK_LABEL = {
 
 /**
  * A type-appropriate, human link-out label. Recognised video/audio platforms
- * reuse the shared `resolveResourceLabel` host→label map ("Watch on YouTube",
- * "Listen on Spotify", …). That helper is video-centric, though: its generic
- * fallback is literally "Watch the recording", the wrong verb for a `paper` or
- * an unrecognised-host `podcast episode`, so those fall to {@link
- * GENERIC_LINK_LABEL} instead. Papers never consult the video map at all.
+ * reuse the shared `resolvePlatformLabel` host→label map ("Watch on YouTube",
+ * "Listen on Spotify", …); an unrecognised host signals structurally
+ * (`undefined`) and falls to the type's {@link GENERIC_LINK_LABEL} — the
+ * events-side "Watch…" generic would be the wrong verb for a `paper` or an
+ * audio `podcast episode`. Papers never consult the platform map at all.
  */
 function resolveResourceLinkLabel(type: ResourceType, url: string): string {
   if (type === 'paper') {
     return GENERIC_LINK_LABEL.paper;
   }
-  const platformLabel = resolveResourceLabel(url);
-  // `resolveResourceLabel` returns this exact string only when it recognises no
-  // host; swap in the type-appropriate generic then, otherwise keep its precise
-  // platform label.
-  return platformLabel === 'Watch the recording'
-    ? GENERIC_LINK_LABEL[type]
-    : platformLabel;
+  return resolvePlatformLabel(url) ?? GENERIC_LINK_LABEL[type];
 }
 
 /**

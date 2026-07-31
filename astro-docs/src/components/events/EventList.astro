@@ -1,6 +1,7 @@
 ---
 import type { CollectionEntry } from 'astro:content';
 
+import { indexResourcesByOriginEvent } from '../../lib/cross-links';
 import { classify, type EventDate } from '../../schema/event-date';
 import { type ParticipationType } from '../../schema/events';
 import EventCard from './EventCard.astro';
@@ -55,6 +56,11 @@ past.sort((a, b) =>
   ),
 );
 
+// Derived produced-Resources (never hand-authored), grouped ONCE for the whole
+// page via the single shared cross-link module — each card receives its
+// pre-sorted slice instead of re-scanning the full resource set per card.
+const resourcesByEvent = indexResourcesByOriginEvent(allResources, eventsById);
+
 const typeCounts = allEvents.reduce<Record<ParticipationType, number>>(
   (counts, e) => {
     counts[e.data.participation] += 1;
@@ -100,8 +106,7 @@ const typeCounts = allEvents.reduce<Record<ParticipationType, number>>(
           <EventCard
             event={event}
             timeframe="upcoming"
-            allResources={allResources}
-            eventsById={eventsById}
+            producedResources={resourcesByEvent.get(event.id) ?? []}
           />
         ))}
       </div>
@@ -120,8 +125,7 @@ const typeCounts = allEvents.reduce<Record<ParticipationType, number>>(
           <EventCard
             event={event}
             timeframe="past"
-            allResources={allResources}
-            eventsById={eventsById}
+            producedResources={resourcesByEvent.get(event.id) ?? []}
           />
         ))}
       </div>
