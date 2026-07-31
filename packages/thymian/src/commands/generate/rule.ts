@@ -140,6 +140,11 @@ export default class GenerateRule extends ThymianBaseCommand<
         { name: 'informational', value: 'informational' },
       ],
       required: true,
+      validate: (choices) =>
+        choices.some((choice) => choice.value === 'informational') &&
+        choices.length > 1
+          ? "'informational' cannot be combined with other rule types."
+          : true,
     });
 
     const appliesTo = await checkbox<HttpParticipantRole>({

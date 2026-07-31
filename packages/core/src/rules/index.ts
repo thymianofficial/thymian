@@ -4,6 +4,7 @@ export * from './contexts.js';
 export * from './rule.js';
 export * from './rule-builder.js';
 export * from './rule-configuration.js';
+export * from './rule-execution-invariant.js';
 export * from './rule-filter.js';
 export * from './rule-fn.js';
 export * from './rule-loader.js';
