@@ -315,32 +315,32 @@ class RuleBuilder<
   }
 }
 
-// Compile-time conformance check (never called): an `implements` clause
-// cannot express the conditional `done` property, so assert here that
-// RuleBuilder still structurally satisfies the public builder interfaces.
-// Interface states with a non-callable `done` deliberately narrow the class
-// and can never be supertypes of it, so the provable states are asserted:
-// full conformance for informational rules (which also covers all meta-
-// property methods) and the coverage-complete DefineRules end state for
-// executable rules. `severity` and `type` are covered by the `implements`
-// clause on the class.
+// The instantiation fails to compile unless Sub is assignable to Super.
+type Satisfies<Sub extends Super, Super> = Sub;
+
+// Compile-time conformance check: an `implements` clause cannot express the
+// conditional `done` property, so assert here that RuleBuilder still
+// structurally satisfies the public builder interfaces. Interface states
+// with a non-callable `done` deliberately narrow the class and can never be
+// supertypes of it, so the provable states are asserted: full conformance
+// for informational rules (which also covers all meta-property methods) and
+// the coverage-complete DefineRules end state for executable rules.
+// `severity` and `type` are covered by the `implements` clause on the class.
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
-function assertRuleBuilderConformance(
-  executable: RuleBuilder<
-    Record<PropertyKey, unknown>,
-    ['static', 'analytics', 'test']
+type AssertRuleBuilderConformance = [
+  Satisfies<
+    RuleBuilder<Record<PropertyKey, unknown>, ['static', 'analytics', 'test']>,
+    DefineRules<
+      ['static', 'analytics', 'test'],
+      Record<PropertyKey, unknown>,
+      'static' | 'analytics' | 'test'
+    >
   >,
-  informational: RuleBuilder<Record<PropertyKey, unknown>, ['informational']>,
-): [
-  DefineRules<
-    ['static', 'analytics', 'test'],
-    Record<PropertyKey, unknown>,
-    'static' | 'analytics' | 'test'
+  Satisfies<
+    RuleBuilder<Record<PropertyKey, unknown>, ['informational']>,
+    DefineOptionalRuleMetaProperties<['informational']>
   >,
-  DefineOptionalRuleMetaProperties<['informational']>,
-] {
-  return [executable, informational];
-}
+];
 
 export function httpRule(name: string): DefineRuleSeverity {
   if (name.includes(' ')) {
