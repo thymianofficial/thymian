@@ -1,6 +1,6 @@
 import type { Command } from '@oclif/core';
 import { ux } from '@oclif/core';
-import type { Execution, Report } from '@thymian/core';
+import type { Execution, Report, SortReportsBy } from '@thymian/core';
 
 import { renderReport } from './render/cli-report.js';
 
@@ -83,8 +83,9 @@ export function handleWorkflowOutcome(
   command: Pick<Command, 'exit'> & { guidance(message: string): void },
   report: Report,
   options: ReportClassificationOptions = {},
+  renderOptions: { sortReportsBy?: SortReportsBy } = {},
 ): void {
-  ux.stdout(renderReport(report));
+  ux.stdout(renderReport(report, renderOptions));
 
   const classification = classifyReport(report, options);
 

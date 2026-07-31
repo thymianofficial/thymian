@@ -4,6 +4,7 @@ export {
   findingDetails,
   resolveExecutionSeverity,
 } from './finding-render.js';
+export * from './grouping.js';
 export type { LocationResolver } from './location-format.js';
 export {
   createLocationResolver,

@@ -1,3 +1,5 @@
+import { compareSeverityGroupKeys } from '@thymian/core';
+
 const SINGLE_INDENTATION = '  ';
 
 export function indent(times: number): string {
@@ -13,5 +15,19 @@ export function sortRecordByKey<T>(
 ): Record<string, T> {
   return Object.fromEntries(
     Object.entries(record).sort(([keyA], [keyB]) => keyA.localeCompare(keyB)),
+  );
+}
+
+/**
+ * Orders record keys for `--sort-reports-by=severity` grouping via the shared
+ * core comparator (`error` → `warn` → `hint` → `info`, non-severities last).
+ */
+export function sortRecordBySeverity<T>(
+  record: Record<string, T>,
+): Record<string, T> {
+  return Object.fromEntries(
+    Object.entries(record).sort(([keyA], [keyB]) =>
+      compareSeverityGroupKeys(keyA, keyB),
+    ),
   );
 }

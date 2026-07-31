@@ -29,6 +29,19 @@ function render(report: ReturnType<typeof createReport>): Promise<string> {
   return formatter.flush().then((output) => output ?? '');
 }
 
+function renderSorted(
+  report: ReturnType<typeof createReport>,
+  sortReportsBy: 'rule' | 'endpoint' | 'severity',
+): Promise<string> {
+  const formatter = new MarkdownFormatter(new NoopLogger());
+  formatter.init({
+    path: join(process.cwd(), 'tmp', 'markdown.test.md'),
+    sortReportsBy,
+  });
+  formatter.report(report);
+  return formatter.flush().then((output) => output ?? '');
+}
+
 function failedLint(
   location: string,
   opts: { ruleId?: string; reason?: string } = {},
@@ -440,6 +453,262 @@ describe('MarkdownFormatter test bodies (AC9-AC12)', () => {
     expect((output.match(/<details>/g) ?? []).length).toBe(
       (output.match(/<\/details>/g) ?? []).length,
     );
+  });
+});
+
+describe('MarkdownFormatter --sort-reports-by grouping', () => {
+  const lintRules: RuleDescriptor[] = [
+    { id: 'alpha/rule', severity: 'warn' },
+    { id: 'beta/rule', severity: 'error' },
+  ];
+
+  const lintReport = createReport([
+    createToolRun({
+      tool: { name: '@thymian/plugin-http-linter' },
+      runType: 'lint',
+      rules: lintRules,
+      executions: [
+        failedLint('GET /a', { ruleId: 'beta/rule', reason: 'e1' }),
+        failedLint('POST /b', { ruleId: 'alpha/rule', reason: 'w1' }),
+        failedLint('GET /c', { reason: 'orphan' }),
+      ],
+    }),
+  ]);
+
+  it('groups lint rows by rule (mirrored heading), adding a Location column', async () => {
+    const output = await renderSorted(lintReport, 'rule');
+
+    // Headings mirror the CLI: severity symbol + severity + rule id + count.
+    expect(output).toContain('### ⚠ warn: alpha/rule');
+    expect(output).toContain('### ✖ error: beta/rule');
+    expect(output).toContain('### ✖ error: unnamed check'); // ruleless fallback
+    expect(output.indexOf('alpha/rule')).toBeLessThan(
+      output.indexOf('beta/rule'),
+    );
+    expect(output.indexOf('beta/rule')).toBeLessThan(
+      output.indexOf('unnamed check'),
+    );
+
+    // Location is now a column (no longer lost); Severity and Rule are dropped
+    // because the heading already carries both.
+    expect(output).toContain('| Location | Message |');
+    expect(output).toContain('| POST /b | w1 |');
+    expect(output).toContain('| GET /a | e1 |');
+    expect(output).not.toContain('| Severity | Location | Message |');
+  });
+
+  it('groups lint rows by severity (error→warn), adding a Location column', async () => {
+    const output = await renderSorted(lintReport, 'severity');
+
+    expect(output).toContain('### ✖ ERRORS');
+    expect(output).toContain('### ⚠ WARNINGS');
+    expect(output.indexOf('### ✖ ERRORS')).toBeLessThan(
+      output.indexOf('### ⚠ WARNINGS'),
+    );
+
+    // Rule + Location columns; the Severity column (now the heading) is dropped.
+    expect(output).toContain('| Rule | Location | Message |');
+    expect(output).toContain('| <code>beta/rule</code> | GET /a | e1 |');
+    expect(output).toContain('| <code>alpha/rule</code> | POST /b | w1 |');
+  });
+
+  it('files skipped executions under a dedicated group in severity mode', async () => {
+    const report = createReport([
+      createToolRun({
+        tool: { name: '@thymian/plugin-http-linter' },
+        runType: 'lint',
+        rules: [{ id: 'beta/rule', severity: 'error' }],
+        executions: [
+          failedLint('GET /a', { ruleId: 'beta/rule', reason: 'e1' }),
+          createLintExecution({
+            location: { type: 'custom', value: 'GET /b' },
+            ruleId: 'gamma/rule',
+            status: { kind: 'skipped', reason: 'n/a' },
+          }),
+        ],
+      }),
+    ]);
+
+    const output = await renderSorted(report, 'severity');
+
+    expect(output).toContain('### ✖ ERRORS');
+    expect(output).toContain('### ⏭ SKIPPED');
+    // Skipped sorts after the real severities, never merged into `error`.
+    expect(output.indexOf('### ✖ ERRORS')).toBeLessThan(
+      output.indexOf('### ⏭ SKIPPED'),
+    );
+    // The skip keeps its location in the added column.
+    expect(output).toContain('| <code>gamma/rule</code> | GET /b | n/a |');
+  });
+
+  it('excludes passed executions (and their info findings) from rule/severity groups', async () => {
+    const report = createReport([
+      createToolRun({
+        tool: { name: '@thymian/plugin-http-linter' },
+        runType: 'lint',
+        rules: [{ id: 'hinty', severity: 'hint' }],
+        executions: [
+          createLintExecution({
+            location: { type: 'custom', value: 'GET /passed' },
+            ruleId: 'hinty',
+            status: { kind: 'passed' },
+            findings: [
+              {
+                id: 'i-1',
+                kind: 'informational',
+                title: 'fyi',
+                message: { text: 'fyi detail' },
+              },
+            ],
+          }),
+        ],
+      }),
+    ]);
+
+    // severity mode: only a passed execution exists, so there is nothing to
+    // group — no bogus `### ✖ ERRORS (0)` heading and no mis-filed info row.
+    const severity = await renderSorted(report, 'severity');
+    expect(severity).not.toContain('ERRORS');
+    expect(severity).not.toContain('fyi detail');
+
+    // rule mode: the passed execution contributes no group at all.
+    const rule = await renderSorted(report, 'rule');
+    expect(rule).not.toContain('hinty');
+    expect(rule).not.toContain('fyi detail');
+
+    // endpoint mode still surfaces the informational finding under its location.
+    const endpoint = await render(report);
+    expect(endpoint).toContain('### GET /passed');
+    expect(endpoint).toContain('fyi detail');
+  });
+
+  it('rule heading falls back to the execution severity when the rule has no descriptor', async () => {
+    const report = createReport([
+      createToolRun({
+        tool: { name: '@thymian/plugin-http-linter' },
+        runType: 'lint',
+        rules: [], // no descriptor for `ghost/rule`
+        executions: [
+          createLintExecution({
+            location: { type: 'custom', value: 'GET /a' },
+            ruleId: 'ghost/rule',
+            status: { kind: 'failed', severity: 'warn', reason: 'w' },
+          }),
+        ],
+      }),
+    ]);
+
+    const output = await renderSorted(report, 'rule');
+    // Severity resolved from the execution (status.severity), matching the CLI
+    // `ruleHeading`/`groupSeverity` fallback — not the hardcoded `error`.
+    expect(output).toContain('### ⚠ warn: ghost/rule');
+    expect(output).not.toContain('error: ghost/rule');
+  });
+
+  it('escapes HTML metacharacters in a rule id used as a heading', async () => {
+    const report = createReport([
+      createToolRun({
+        tool: { name: '@thymian/plugin-http-linter' },
+        runType: 'lint',
+        rules: [{ id: 'x/<b>oops</b>', severity: 'error' }],
+        executions: [
+          failedLint('GET /a', { ruleId: 'x/<b>oops</b>', reason: 'boom' }),
+        ],
+      }),
+    ]);
+
+    const output = await renderSorted(report, 'rule');
+    expect(output).toContain('### ✖ error: x/&lt;b&gt;oops&lt;/b&gt;');
+    expect(output).not.toContain('### ✖ error: x/<b>oops</b>');
+  });
+
+  it('regroups test cases under a rule heading with #### sub-headings', async () => {
+    const testReport = createReport([
+      createToolRun({
+        tool: { name: '@thymian/plugin-http-tester' },
+        runType: 'test',
+        rules: [{ id: 'shared/rule', severity: 'error' }],
+        executions: [
+          createTestCaseExecution({
+            name: 'case a',
+            ruleId: 'shared/rule',
+            status: { kind: 'failed', reason: 'boom a' },
+            steps: [],
+          }),
+          createTestCaseExecution({
+            name: 'case b',
+            ruleId: 'shared/rule',
+            status: { kind: 'failed', reason: 'boom b' },
+            steps: [],
+          }),
+        ],
+      }),
+    ]);
+
+    const ruleOutput = await renderSorted(testReport, 'rule');
+    const grouped = ruleOutput.split('\n');
+    expect(grouped).toContain('### ✖ error: shared/rule');
+    expect(grouped).toContain('#### case a · _✖ failed_');
+    expect(grouped).toContain('#### case b · _✖ failed_');
+    // The case name is a `####` sub-heading, not a top-level `###` heading.
+    expect(grouped.some((line) => line.startsWith('### case a'))).toBe(false);
+    // The summary keeps the severity but drops the rule (it is the heading).
+    expect(ruleOutput).toContain('<details><summary>error · boom a</summary>');
+    expect(ruleOutput).not.toContain('shared/rule</code> · boom a');
+
+    // Grouped by severity: the summary drops the `error · ` prefix (the
+    // heading carries the severity) but keeps the rule.
+    const severityOutput = await renderSorted(testReport, 'severity');
+    expect(severityOutput).toContain('### ✖ ERRORS');
+    expect(severityOutput).toContain(
+      '<details><summary><code>shared/rule</code> · boom a</summary>',
+    );
+    expect(severityOutput).not.toContain('error · <code>shared/rule</code>');
+
+    // Default keeps the historical flat, per-case `###` layout, with both the
+    // severity and the rule in the summary.
+    const flatOutput = await render(testReport);
+    const flat = flatOutput.split('\n');
+    expect(flat).toContain('### case a · _✖ failed_');
+    expect(flat.some((line) => line.startsWith('#### '))).toBe(false);
+    expect(flatOutput).toContain(
+      '<details><summary>error · <code>shared/rule</code> · boom a</summary>',
+    );
+  });
+
+  it('files a skipped test case under the skipped severity group', async () => {
+    const report = createReport([
+      createToolRun({
+        tool: { name: '@thymian/plugin-http-tester' },
+        runType: 'test',
+        rules: [{ id: 'lifecycle', severity: 'error' }],
+        executions: [
+          createTestCaseExecution({
+            name: 'failing case',
+            ruleId: 'lifecycle',
+            status: { kind: 'failed', reason: 'boom' },
+            steps: [],
+          }),
+          createTestCaseExecution({
+            name: 'skipped case',
+            ruleId: 'lifecycle',
+            status: { kind: 'skipped', reason: 'n/a' },
+            steps: [],
+          }),
+        ],
+      }),
+    ]);
+
+    const output = await renderSorted(report, 'severity');
+
+    expect(output).toContain('### ✖ ERRORS');
+    expect(output).toContain('### ⏭ SKIPPED');
+    expect(output.indexOf('### ✖ ERRORS')).toBeLessThan(
+      output.indexOf('### ⏭ SKIPPED'),
+    );
+    // The skipped case lands under SKIPPED, the failing one under ERRORS.
+    expect(output).toContain('#### skipped case · _⏭ skipped_');
+    expect(output).toContain('#### failing case · _✖ failed_');
   });
 });
 

@@ -482,6 +482,261 @@ describe('cli report renderer', () => {
     expect(output).not.toContain('api.example.com');
   });
 
+  describe('--sort-reports-by grouping', () => {
+    const lintReport = {
+      reportId: 'report-1',
+      createdAt: new Date().toISOString(),
+      runs: [
+        {
+          runId: 'run-1',
+          tool: { name: '@thymian/plugin-http-linter' },
+          runType: 'lint' as const,
+          runAt: new Date().toISOString(),
+          rules: [
+            { id: 'alpha/rule', severity: 'warn' as const },
+            { id: 'beta/rule', severity: 'error' as const },
+          ],
+          executions: [
+            {
+              kind: 'lint' as const,
+              ruleId: 'beta/rule',
+              status: { kind: 'failed' as const, reason: 'e1' },
+              location: { type: 'custom' as const, value: 'GET /a' },
+              findings: [],
+            },
+            {
+              kind: 'lint' as const,
+              ruleId: 'alpha/rule',
+              status: { kind: 'failed' as const, reason: 'w1' },
+              location: { type: 'custom' as const, value: 'POST /b' },
+              findings: [],
+            },
+            {
+              kind: 'lint' as const,
+              status: { kind: 'failed' as const, reason: 'orphan' },
+              location: { type: 'custom' as const, value: 'GET /c' },
+              findings: [],
+            },
+          ],
+        },
+      ],
+    };
+
+    const headingLine = (output: string, key: string): number =>
+      output.split('\n').findIndex((line) => line === `  ${key}`);
+
+    it('endpoint (default) groups by resolved location, alphabetically', () => {
+      const output = stripAnsi(renderReport(lintReport));
+
+      // A location-less rule is grouped under its endpoint, sorted A→Z.
+      expect(headingLine(output, 'GET /a')).toBeGreaterThanOrEqual(0);
+      expect(headingLine(output, 'GET /c')).toBeGreaterThan(
+        headingLine(output, 'GET /a'),
+      );
+      expect(headingLine(output, 'POST /b')).toBeGreaterThan(
+        headingLine(output, 'GET /c'),
+      );
+    });
+
+    it('rule mode: severity+rule heading with count, per-violation location and reason', () => {
+      const output = stripAnsi(
+        renderReport(lintReport, { sortReportsBy: 'rule' }),
+      );
+
+      // Headings show the rule's severity, the rule id, and a violation count;
+      // groups sort alphabetically by rule id.
+      expect(output).toContain('⚠ warn: alpha/rule');
+      expect(output).toContain('✖ error: beta/rule');
+      expect(output).toContain('✖ error: unnamed check'); // ruleless fallback
+      expect(output.indexOf('alpha/rule')).toBeLessThan(
+        output.indexOf('beta/rule'),
+      );
+      expect(output.indexOf('beta/rule')).toBeLessThan(
+        output.indexOf('unnamed check'),
+      );
+
+      // Each violation shows its location (bulleted) then its reason — the
+      // location that endpoint grouping used to carry, no longer lost.
+      expect(output).toContain('• POST /b');
+      expect(output).toContain('➜ w1');
+      expect(output).toContain('• GET /a');
+      expect(output).toContain('➜ e1');
+      expect(output).toContain('• GET /c');
+      expect(output).toContain('➜ orphan');
+      // The rule is the heading, so it is not repeated per violation.
+      expect(output).not.toContain('› beta/rule');
+    });
+
+    it('severity mode: pluralized heading (error→warn) with location, rule, reason', () => {
+      const output = stripAnsi(
+        renderReport(lintReport, { sortReportsBy: 'severity' }),
+      );
+
+      // `error` precedes `warn` despite `error` > `warn` alphabetically.
+      expect(output).toContain('✖ ERRORS');
+      expect(output).toContain('⚠ WARNINGS');
+      expect(output.indexOf('✖ ERRORS')).toBeLessThan(
+        output.indexOf('⚠ WARNINGS'),
+      );
+
+      // Each violation shows its location, reason, and the violated rule.
+      expect(output).toContain('• GET /a');
+      expect(output).toContain('➜ e1');
+      expect(output).toContain('› beta/rule');
+      // A ruleless violation still shows location + reason, with no rule ref.
+      expect(output).toContain('• GET /c');
+      expect(output).toContain('➜ orphan');
+    });
+
+    it('severity mode: shows the rule ref even when the rule has no descriptor', () => {
+      const output = stripAnsi(
+        renderReport(
+          {
+            reportId: 'report-1',
+            createdAt: new Date().toISOString(),
+            runs: [
+              {
+                runId: 'run-1',
+                tool: { name: '@thymian/plugin-http-linter' },
+                runType: 'lint' as const,
+                runAt: new Date().toISOString(),
+                rules: [], // no descriptor for `ghost/rule`
+                executions: [
+                  {
+                    kind: 'lint' as const,
+                    ruleId: 'ghost/rule',
+                    status: {
+                      kind: 'failed' as const,
+                      severity: 'error' as const,
+                      reason: 'boom',
+                    },
+                    location: { type: 'custom' as const, value: 'GET /a' },
+                    findings: [],
+                  },
+                ],
+              },
+            ],
+          },
+          { sortReportsBy: 'severity' },
+        ),
+      );
+
+      // The ref is derived from execution.ruleId (not the descriptor), so rule
+      // identity survives — matching the markdown surface.
+      expect(output).toContain('› ghost/rule');
+    });
+
+    it('files skipped executions under their own group in severity mode, not error', () => {
+      const output = stripAnsi(
+        renderReport(
+          {
+            reportId: 'report-1',
+            createdAt: new Date().toISOString(),
+            runs: [
+              {
+                runId: 'run-1',
+                tool: { name: '@thymian/plugin-http-linter' },
+                runType: 'lint' as const,
+                runAt: new Date().toISOString(),
+                rules: [{ id: 'beta/rule', severity: 'error' as const }],
+                executions: [
+                  {
+                    kind: 'lint' as const,
+                    ruleId: 'beta/rule',
+                    status: { kind: 'failed' as const, reason: 'e1' },
+                    location: { type: 'custom' as const, value: 'GET /a' },
+                    findings: [],
+                  },
+                  {
+                    kind: 'lint' as const,
+                    ruleId: 'gamma/rule',
+                    status: { kind: 'skipped' as const, reason: 'n/a' },
+                    location: { type: 'custom' as const, value: 'GET /b' },
+                    findings: [],
+                  },
+                ],
+              },
+            ],
+          },
+          { sortReportsBy: 'severity' },
+        ),
+      );
+
+      // The skip gets its own heading, ordered after the real severities —
+      // never mislabelled under `error`.
+      expect(output).toContain('✖ ERRORS');
+      expect(output).toContain('⏭ SKIPPED');
+      expect(output.indexOf('✖ ERRORS')).toBeLessThan(
+        output.indexOf('⏭ SKIPPED'),
+      );
+      // The skip keeps its location + reason.
+      expect(output).toContain('skipped: GET /b');
+      expect(output).toContain('➜ n/a');
+    });
+
+    it('keeps each test case name visible when regrouped by rule', () => {
+      const testReport = {
+        reportId: 'report-1',
+        createdAt: new Date().toISOString(),
+        runs: [
+          {
+            runId: 'run-1',
+            tool: { name: '@thymian/plugin-http-tester' },
+            runType: 'test' as const,
+            runAt: new Date().toISOString(),
+            rules: [{ id: 'shared/rule', severity: 'error' as const }],
+            executions: [
+              {
+                kind: 'test' as const,
+                ruleId: 'shared/rule',
+                status: { kind: 'failed' as const },
+                name: 'case alpha',
+                steps: [
+                  {
+                    name: 'Step 1',
+                    location: { type: 'custom' as const, value: 'GET /a' },
+                    findings: [
+                      { id: 'f-1', kind: 'assertion-failure', title: 'boom a' },
+                    ],
+                  },
+                ],
+              },
+              {
+                kind: 'test' as const,
+                ruleId: 'shared/rule',
+                status: { kind: 'failed' as const },
+                name: 'case beta',
+                steps: [
+                  {
+                    name: 'Step 1',
+                    location: { type: 'custom' as const, value: 'GET /b' },
+                    findings: [
+                      { id: 'f-2', kind: 'assertion-failure', title: 'boom b' },
+                    ],
+                  },
+                ],
+              },
+            ],
+          },
+        ],
+      };
+
+      const output = stripAnsi(
+        renderReport(testReport, { sortReportsBy: 'rule' }),
+      );
+
+      // One rule heading (error severity, 2 cases); each case shown by name.
+      expect(output).toContain('✖ error: shared/rule');
+      expect(output).toContain('• case alpha');
+      expect(output).toContain('• case beta');
+      expect(output.indexOf('shared/rule')).toBeLessThan(
+        output.indexOf('case alpha'),
+      );
+      // Findings still render beneath each case.
+      expect(output).toContain('✖ boom a');
+    });
+  });
+
   it('emits only standard SGR color sequences that strip to plain text', () => {
     const rendered = renderReport({
       reportId: 'report-1',
