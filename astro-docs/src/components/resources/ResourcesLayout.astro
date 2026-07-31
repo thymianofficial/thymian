@@ -1,0 +1,135 @@
+---
+import StarlightPage from '@astrojs/starlight/components/StarlightPage.astro';
+
+interface Props {
+  title: string;
+  description?: string;
+}
+
+const { title, description } = Astro.props;
+---
+
+<StarlightPage
+  frontmatter={{
+    title,
+    description,
+    tableOfContents: false,
+    editUrl: false,
+  }}
+  hasSidebar={false}
+>
+  {/*
+    `.resources-root` seeds the SAME scoped design tokens (`--ev-*`) as Events,
+    from the brand teal hexes (DESIGN.md). Resources deliberately stays teal in
+    BOTH themes, so we never read `--sl-color-accent` (which reseeds to the
+    green/leaf ramp under `data-theme='dark'`) and never touch
+    `src/styles/global.css`. Tokens cascade by inheritance to every resources
+    component (ResourceList, ResourceCard, ResourceAttribution, …).
+  */}
+  {/*
+    `not-content` opts the resources UI out of Starlight's `.sl-markdown-content`
+    auto-margins (the `X + Y { margin-top: 1rem }` prose rule). Our components own
+    all their spacing (flex `gap` + explicit margins) and fully self-style their
+    links, so nothing from Starlight's content defaults is needed here.
+  */}
+  <div class="resources-root not-content">
+    <div class="resources-hero">
+      <div class="resources-hero-bar" aria-hidden="true"></div>
+      {description && <p class="resources-lede">{description}</p>}
+    </div>
+
+    <slot />
+  </div>
+</StarlightPage>
+
+<style>
+  /* ── Resources-local design tokens — LIGHT (default) ───────────────────── */
+  .resources-root {
+    --ev-page-bg: transparent; /* no imposed grey canvas — inherit site content bg */
+    --ev-band-bg: #ffffff;
+    --ev-fg: #171819; /* gray-900 — body */
+    --ev-fg-muted: #36383b; /* gray-700 — meta */
+    --ev-fg-faint: #56585b; /* gray-500 — attribution / group headers */
+    --ev-line: #e2e4e5; /* decorative hairline */
+    --ev-accent-text: #046151; /* teal-700 — links, outline badge text */
+    --ev-accent-border: #046151; /* teal-700 — mode badge + ghost CTA border (≥3:1) */
+    --ev-cta-bg: #046151; /* teal-700 */
+    --ev-cta-fg: #ffffff;
+    --ev-badge-bg: #0a3b32; /* teal-900 */
+    --ev-badge-fg: #e6f6f3; /* teal-50 */
+    --ev-badge-alt-bg: #e1f3d3; /* lime-100 */
+    --ev-badge-alt-fg: #162e0c; /* lime-950 */
+    --ev-tile-fg: #e6f6f3; /* teal-50 — monogram initials on the tile's dark end */
+    --ev-pill-active-bg: #046151; /* teal-700 — SOLID fill */
+    --ev-pill-active-fg: #ffffff; /* white on teal-700 ~7.4:1 */
+    --ev-pill-inactive-fg: #25272a; /* gray-800 */
+    --ev-pill-border: #56585b; /* gray-500 — ≥3:1 boundary */
+    --ev-focus-ring: #017b64; /* teal-600 — ≥3:1 on band + page */
+    --ev-empty-line: #56585b; /* gray-500 */
+    --ev-gradient-signature: linear-gradient(
+      180deg,
+      #017b64 0%,
+      #5ab12e 60%,
+      #beeb63 100%
+    );
+    --ev-gradient-tile: linear-gradient(150deg, #084d40 0%, #017b64 100%);
+
+    background: var(--ev-page-bg);
+    color: var(--ev-fg);
+    /* No imposed page canvas — the bands sit directly on Starlight's content
+       background; their border + gradient edge carry the separation. */
+    padding: 0 0 3rem;
+  }
+
+  /* ── Resources-local design tokens — DARK (data-theme='dark') ──────────── */
+  :global(:root[data-theme='dark']) .resources-root {
+    --ev-page-bg: transparent; /* no imposed grey canvas — inherit site content bg */
+    --ev-band-bg: #1c1e20;
+    --ev-fg: #f6f6f7; /* gray-100 */
+    --ev-fg-muted: #c1c2c4; /* gray-300 */
+    --ev-fg-faint: #898c8f; /* gray-400 */
+    --ev-line: #2c2f32;
+    --ev-accent-text: #74cfbf; /* teal-300 — 9.09:1 on band */
+    --ev-accent-border: #3eb7a1; /* teal-400 — mode badge + ghost CTA border (≥3:1) */
+    --ev-cta-bg: #3eb7a1; /* teal-400 */
+    --ev-cta-fg: #0e0f10; /* near-black */
+    --ev-badge-bg: #084d40; /* teal-800 */
+    --ev-badge-fg: #cdeee8; /* teal-100 */
+    --ev-badge-alt-bg: #254b16; /* lime-900 */
+    --ev-badge-alt-fg: #e1f3d3; /* lime-100 */
+    --ev-tile-fg: #e6f6f3; /* teal-50 */
+    --ev-pill-active-bg: #3eb7a1; /* teal-400 — SOLID fill */
+    --ev-pill-active-fg: #0e0f10; /* near-black on teal-400 ~6.4:1 */
+    --ev-pill-inactive-fg: #74cfbf; /* teal-300 */
+    --ev-pill-border: #898c8f; /* gray-400 — ≥3:1 boundary */
+    --ev-focus-ring: #74cfbf; /* teal-300 */
+    --ev-empty-line: #898c8f; /* gray-400 */
+  }
+
+  .resources-hero {
+    margin: 0 0 0.5rem;
+  }
+
+  /* Decorative signature rule — the brand's one flourish. Never behind text. */
+  .resources-hero-bar {
+    width: 64px;
+    height: 8px;
+    border-radius: 6px;
+    margin-bottom: 1rem;
+    background: linear-gradient(
+      90deg,
+      #017b64 0%,
+      #5ab12e 60%,
+      #beeb63 100%
+    );
+  }
+
+  .resources-lede {
+    margin: 0;
+    max-width: 46ch;
+    color: var(--ev-fg-muted);
+    font-size: 1.05rem;
+    font-weight: 400;
+    line-height: 1.5;
+  }
+</style>

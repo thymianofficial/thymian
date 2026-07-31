@@ -1,0 +1,19 @@
+---
+import { getCollection } from 'astro:content';
+
+import ResourceList from '../../components/resources/ResourceList.astro';
+import ResourcesLayout from '../../components/resources/ResourcesLayout.astro';
+
+const allResources = await getCollection('resources');
+---
+
+<ResourcesLayout
+  title="Resources"
+  description="Talks, webinars, podcast episodes, and papers Thymian produced or took part in."
+>
+  <ResourceList
+    allResources={allResources}
+    resources={allResources}
+    currentType="all"
+  />
+</ResourcesLayout>
