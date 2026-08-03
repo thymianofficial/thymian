@@ -21,6 +21,9 @@ export default httpRule(
   .description(
     'The server SHOULD generate a Location header field in the response containing a URI reference for the different URI.',
   )
+  .explanation(
+    'When you return a 307 (Temporary Redirect), include a Location header field whose value is the URI the client should use for this request right now. This matters because 307 tells the client the resource is temporarily somewhere else, and the user agent relies on the Location value to follow the redirect automatically. Without a usable Location, the client has no target to go to and the redirect fails, so make sure the header is present and carries a real URI reference, not an empty value.',
+  )
   .appliesTo('server')
   // Static floor asserts the Location header name is present. The real-data
   // overrides additionally read the VALUE to catch an empty "Location:" that

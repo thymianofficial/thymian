@@ -30,6 +30,9 @@ export default httpRule(
   .description(
     "The origin server MUST generate an Allow header field in a 405 response containing a list of the target resource's currently supported methods.",
   )
+  .explanation(
+    'A 405 (Method Not Allowed) means the server recognizes the request method but the target resource does not support it. In that response the server must include an Allow header listing the methods the resource does accept. It matters because 405 alone tells the client only that its method was wrong, not what to try instead; the Allow list lets the client (or a developer) immediately see the valid methods and correct the request without guesswork.',
+  )
   .appliesTo('origin server')
   // Static floor: the spec only exposes header NAMES, so we can only assert
   // the Allow header is declared. The real-data contexts below additionally

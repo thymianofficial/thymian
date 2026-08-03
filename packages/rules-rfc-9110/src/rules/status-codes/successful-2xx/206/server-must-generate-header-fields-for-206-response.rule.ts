@@ -31,6 +31,9 @@ export default httpRule(
       ', ',
     )}`,
   )
+  .explanation(
+    'When a server returns 206 Partial Content, any of Date, Cache-Control, ETag, Expires, Content-Location, and Vary that it would have sent on a full 200 OK response for the same request must also appear on the partial response. These headers carry caching, validation, and content-negotiation information that stays true whether the client gets the whole body or just a range, so dropping them on the 206 would leave caches and clients unable to validate, revalidate, or correctly reuse the partial content.',
+  )
   .rule((ctx) =>
     ctx.validateGroupedCommonHttpTransactions(
       or(

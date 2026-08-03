@@ -19,6 +19,9 @@ export default httpRule(
   .description(
     'The server MUST send an Upgrade header field in a 426 response to indicate the required protocol(s).',
   )
+  .explanation(
+    'When a server returns 426 to say it will only handle the request over a different protocol, it must include an Upgrade header naming which protocol(s) the client should switch to (for example, Upgrade: HTTP/3.0). This matters because 426 is an invitation to upgrade rather than a plain refusal; without the Upgrade header the client is told to change protocols but never told which one, so it cannot act and the exchange is stuck.',
+  )
   .appliesTo('server')
   // Static floor: the spec exposes only header NAMES, so we assert Upgrade is
   // declared. The real-data overrides additionally read the VALUE to catch an

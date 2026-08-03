@@ -10,6 +10,9 @@ export default httpRule(
     'If the conditional request originated with an outbound client, such as a user agent with its own cache sending a conditional GET to a shared proxy, then the proxy SHOULD forward the 304 response to that client.',
   )
   .summary('Proxy SHOULD forward a 304 response to the outbound client.')
+  .explanation(
+    'When an outbound client (such as a user agent with its own cache) sends a conditional request through a shared proxy and the origin answers 304 Not Modified, the proxy should pass that 304 back to the client rather than substituting a full 200 with a body. This matters because a 304 tells the client its cached copy is still valid; forwarding it lets the client reuse what it already has, which is the whole point of the conditional request and avoids transferring content the client did not need.',
+  )
   .appliesTo('proxy')
   .rule((ctx) =>
     ctx.validateCapturedHttpTraces((trace, location) => {

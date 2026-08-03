@@ -48,6 +48,9 @@ export default httpRule(
   .summary(
     'A sender SHOULD NOT generate additional representation metadata for a 304 response.',
   )
+  .explanation(
+    "When you return a 304 (Not Modified), only send the small set of header fields needed to keep the client's cache correct (such as ETag, Date, Vary, and cache-control fields); leave out other representation metadata like Content-Type or Content-Length. This matters because the whole point of a 304 is to save work when the client already has a good cached copy, so re-sending metadata it already holds just wastes bytes, and stale or conflicting metadata can confuse how the cached copy is used. The one exception is metadata that genuinely helps update the cache, like Last-Modified when there is no ETag.",
+  )
   .description(
     'Since the goal of a 304 response is to minimize information transfer when the recipient already has one or more cached representations, a sender SHOULD NOT generate representation metadata other than the above listed fields unless said metadata exists for the purpose of guiding cache updates (e.g., Last-Modified might be useful if the response does not have an ETag field).',
   )

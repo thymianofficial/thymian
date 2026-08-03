@@ -10,6 +10,9 @@ export default httpRule(
   .description(
     'For request methods other than HEAD, the server SHOULD generate content in the 300 response containing a list of representation metadata and URI reference(s) from which the user or user agent can choose the one most preferred.',
   )
+  .explanation(
+    'When a server returns 300 to say the resource has several alternative representations, its response body (for anything other than a HEAD request) should list those alternatives with their metadata and URIs so the user or client can pick the one they want. This matters because 300 exists to let the client choose; without a body listing the options there is nothing to choose from, and the response gives the client no way to proceed.',
+  )
   .appliesTo('server')
   .rule((ctx) =>
     ctx.validateCommonHttpTransactions(
