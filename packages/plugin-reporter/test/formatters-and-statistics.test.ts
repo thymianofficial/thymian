@@ -144,7 +144,9 @@ describe('CSV flattening', () => {
     expect(failedExecution).toContain('error');
 
     // The assertion-failure finding carries its expected/actual detail.
-    const assertion = lines.find((l) => l.includes('af-1'));
+    // Match the finding_id as a full CSV column — a bare substring match can
+    // collide with random run UUIDs (e.g. '431273af-181a-…' contains 'af-1').
+    const assertion = lines.find((l) => l.includes(',af-1,'));
     expect(assertion).toContain('finding');
     expect(assertion).toContain('expected=200');
   });
