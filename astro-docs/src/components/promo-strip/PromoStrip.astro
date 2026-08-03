@@ -1,0 +1,235 @@
+---
+import { getCollection } from 'astro:content';
+
+import { indexEventsById, urlForEntry } from '../../lib/cross-links';
+import { formatDisplay, type EventDate } from '../../schema/event-date';
+import { PARTICIPATION_TYPE_LABELS } from '../events/eventMeta';
+import {
+  RESOURCE_TYPE_LABELS,
+  resolveGuestAttribution,
+} from '../resources/resourceMeta';
+import { selectPromoItems } from './promoStripMeta';
+
+const allEvents = await getCollection('events');
+const allResources = await getCollection('resources');
+const eventsById = indexEventsById(allEvents);
+
+// NFR-7 (build-time freshness bound): this is the one place the actual clock
+// is read. `selectPromoItems` itself is PURE and never calls `new Date()`.
+const buildDate = new Date();
+
+const { events, latestResource } = selectPromoItems(
+  allEvents,
+  allResources,
+  eventsById,
+  buildDate,
+);
+
+// AD-13 (honest attribution): a Host resource (or absent attribution) has no
+// external host to credit, so this is `null` and no attribution line renders.
+const resourceGuest = latestResource
+  ? resolveGuestAttribution(latestResource.data.attribution)
+  : null;
+---
+
+{/*
+  `.promo-strip` seeds its OWN `--ev-*` token subset (scoped `<style>` below):
+  the homepage splash has no `.events-root`/`.resources-root` ancestor to
+  inherit from, so every `--ev-*` reference here must be self-supplied or it
+  resolves to nothing (invalid colors, transparent text, no card background).
+  This deliberately does not reuse `EventCard`/`ResourceCard` — full-width
+  bands built for the Events/Resources single-column stack are the wrong
+  altitude here; this renders compact strip-local card markup instead.
+
+  10.1 scope: `events` is whatever `selectPromoItems` returns for the
+  `upcoming` arm (≤3, pre-ordered) — an empty array simply renders no event
+  cards, never special-cased here (that precedence lives in the module,
+  10.2). `latestResource` is independent of the event branch, so it can
+  render even when `events` is empty.
+*/}
+<div class="promo-strip">
+  <ul class="promo-strip-list" role="list">
+    {
+      events.map((event) => {
+        const { title, participation, location, online, date } = event.data;
+        const place = online ? 'Online' : location;
+        return (
+          <li>
+            <a class="promo-card" href={urlForEntry(event)}>
+              <span class="promo-card-badge">
+                {PARTICIPATION_TYPE_LABELS[participation]}
+              </span>
+              <h3 class="promo-card-title">{title}</h3>
+              <p class="promo-card-meta">
+                {place}
+                <span class="promo-card-date">
+                  {formatDisplay(date as EventDate)}
+                </span>
+              </p>
+              <span class="promo-card-cta">View event</span>
+            </a>
+          </li>
+        );
+      })
+    }
+    {
+      latestResource && (
+        <li>
+          <a class="promo-card" href={urlForEntry(latestResource)}>
+            <span class="promo-card-badge">
+              {RESOURCE_TYPE_LABELS[latestResource.data.resourceType]}
+            </span>
+            <h3 class="promo-card-title">{latestResource.data.title}</h3>
+            {resourceGuest && (
+              <p class="promo-card-attribution">
+                Guest of {resourceGuest.externalHost} on{' '}
+                {resourceGuest.platform}
+              </p>
+            )}
+            <span class="promo-card-cta">View resource</span>
+          </a>
+        </li>
+      )
+    }
+  </ul>
+</div>
+
+<style>
+  /* ── Promo-strip-local design tokens — LIGHT (default) ───────────────────
+     Self-seeded subset of the Events/Resources `--ev-*` teal contract
+     (DESIGN.md WCAG AA table), copied verbatim — never re-derived. */
+  .promo-strip {
+    --ev-band-bg: #ffffff;
+    --ev-fg: #171819;
+    --ev-fg-muted: #36383b;
+    --ev-fg-faint: #56585b;
+    --ev-line: #e2e4e5;
+    --ev-accent-text: #046151;
+    --ev-badge-bg: #0a3b32;
+    --ev-badge-fg: #e6f6f3;
+    --ev-focus-ring: #017b64;
+
+    color: var(--ev-fg);
+  }
+
+  /* ── Promo-strip-local design tokens — DARK (data-theme='dark') ──────────
+     Never read `--sl-color-accent`: `global.css` reseeds that ramp to
+     green/leaf under dark mode, breaking the teal contract. Never edit
+     `global.css` either — see Dev Notes → Token-scope trap. */
+  :global(:root[data-theme='dark']) .promo-strip {
+    --ev-band-bg: #1c1e20;
+    --ev-fg: #f6f6f7;
+    --ev-fg-muted: #c1c2c4;
+    --ev-fg-faint: #898c8f;
+    --ev-line: #2c2f32;
+    --ev-accent-text: #74cfbf;
+    --ev-badge-bg: #084d40;
+    --ev-badge-fg: #cdeee8;
+    --ev-focus-ring: #74cfbf;
+  }
+
+  .promo-strip-list {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+    gap: 1rem;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  /* Full card is the link (no nested interactive content), so the whole tile
+     is a click/tap target — a deliberately simpler surface than the
+     full-width Event/Resource bands (see Dev Notes → Token-scope trap). */
+  .promo-card {
+    display: flex;
+    height: 100%;
+    flex-direction: column;
+    gap: 0.5rem;
+    padding: 1.25rem 1.375rem;
+    background: var(--ev-band-bg);
+    border: 1px solid var(--ev-line);
+    border-radius: 1rem;
+    color: inherit;
+    text-decoration: none;
+    transition:
+      transform 0.15s ease,
+      box-shadow 0.15s ease;
+  }
+
+  .promo-card:hover {
+    transform: translateY(-2px);
+    box-shadow: -6px 0 18px -8px color-mix(in srgb, #017b64 60%, transparent);
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .promo-card,
+    .promo-card:hover {
+      transform: none;
+      box-shadow: none;
+      transition: none;
+    }
+  }
+
+  .promo-card:focus-visible {
+    outline: 2px solid var(--ev-focus-ring);
+    outline-offset: 2px;
+  }
+
+  .promo-card-badge {
+    align-self: flex-start;
+    padding: 0.25rem 0.7rem;
+    border-radius: 9999px;
+    background: var(--ev-badge-bg);
+    color: var(--ev-badge-fg);
+    font-size: 0.7rem;
+    font-weight: 800;
+    letter-spacing: 0.07em;
+    text-transform: uppercase;
+    line-height: 1;
+  }
+
+  .promo-card-title {
+    margin: 0;
+    font-size: 1.15rem;
+    font-weight: 800;
+    letter-spacing: -0.02em;
+    line-height: 1.3;
+    color: var(--ev-fg);
+  }
+
+  .promo-card-meta,
+  .promo-card-attribution {
+    margin: 0;
+    font-size: 0.85rem;
+    line-height: 1.5;
+    color: var(--ev-fg-muted);
+  }
+
+  .promo-card-attribution {
+    color: var(--ev-fg-faint);
+  }
+
+  .promo-card-date {
+    font-weight: 600;
+    color: var(--ev-fg);
+  }
+
+  /* Comma+space separator, added in CSS so the markup stays whitespace-safe
+     (matches the `EventCard.astro` idiom). */
+  .promo-card-date::before {
+    content: ', ';
+    font-weight: 400;
+    color: var(--ev-fg-muted);
+  }
+
+  /* Pushed to the card's bottom edge (via the flex column's auto margin) so
+     every card's visible affordance lines up regardless of varying content
+     heights above it. */
+  .promo-card-cta {
+    margin-top: auto;
+    padding-top: 0.25rem;
+    font-size: 0.85rem;
+    font-weight: 700;
+    color: var(--ev-accent-text);
+  }
+</style>
