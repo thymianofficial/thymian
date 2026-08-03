@@ -14,6 +14,9 @@ export default httpRule('rfc9110/proxy-must-not-modify-absolute-path-and-query')
     'A proxy MUST NOT modify the "absolute-path" and "query" parts of the received target URI when forwarding it to the next inbound server except as required by that forwarding protocol. For example, a proxy forwarding a request to an origin server via HTTP/1.1 will replace an empty path with "/" or "*", depending on the request method.',
   )
   .summary('Proxy MUST NOT modify absolute-path and query parts of target URI.')
+  .explanation(
+    'A proxy must forward the path and query string of the target URI exactly as received, changing them only where the forwarding protocol itself demands it, such as substituting "/" or "*" for an empty path in HTTP/1.1. The path and query identify the specific resource and parameters the client asked for, so any unnecessary rewrite would silently point the request at a different resource. Passing them through unchanged is what guarantees the origin server sees the request the client actually made.',
+  )
   .appliesTo('proxy')
   .rule((ctx) =>
     ctx.validateCapturedHttpTraces((trace, location) => {

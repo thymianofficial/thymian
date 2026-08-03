@@ -20,6 +20,9 @@ export default httpRule(
     "Intermediaries SHOULD remove or replace fields that are known to require removal before forwarding, whether or not they appear as a connection-option, after applying those fields' semantics. This includes but is not limited to: Proxy-Connection, Keep-Alive, TE, Transfer-Encoding, and Upgrade.",
   )
   .summary('Intermediary SHOULD remove known hop-by-hop fields.')
+  .explanation(
+    'A proxy should strip or replace certain well-known connection-management fields, Proxy-Connection, Keep-Alive, TE, Transfer-Encoding, and Upgrade, before forwarding, even when they are not explicitly named in the Connection header. These fields describe the single hop between two endpoints, not the whole chain, and their semantics should be applied and then dropped. Forwarding them unchanged can cause the next hop to mishandle framing, keep-alive, or upgrades, leading to connection errors or request smuggling risks.',
+  )
   .appliesTo('intermediary')
   .rule((ctx) =>
     ctx.validateCapturedHttpTraces((trace, location) => {

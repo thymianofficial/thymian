@@ -29,6 +29,9 @@ export default httpRule(
     "A server MUST NOT switch to a protocol that was not indicated by the client in the corresponding request's Upgrade header field. The server can only switch to protocols explicitly requested by the client.",
   )
   .summary('Server MUST NOT switch to protocol not indicated by client.')
+  .explanation(
+    "When a server upgrades the connection, it may only switch to a protocol that the client actually named in its request Upgrade header; it cannot pick some other protocol on its own. The server may reorder the client's preferences or choose among them, but it must stay within that list. This matters because the client only knows how to speak the protocols it offered, so switching to an unrequested one would leave the client unable to understand the connection, breaking the exchange.",
+  )
   .appliesTo('server')
   .overrideAnalyticsRule((ctx) =>
     ctx.validateHttpTransactions(

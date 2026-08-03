@@ -21,6 +21,9 @@ export default httpRule(
   .summary(
     'Intermediary MUST NOT forward message to itself without loop protection.',
   )
+  .explanation(
+    'A proxy must not forward a request to itself unless it has a safeguard against endless loops. It should recognize its own names, aliases, and IP addresses and answer such requests directly instead of relaying them onward. Without this, a message can bounce back to the same intermediary over and over, forming an infinite forwarding loop that exhausts connections and resources and never produces a response. The Via chain is used here to detect a hop the message has already passed through.',
+  )
   .appliesTo('intermediary')
   .rule((ctx) =>
     ctx.validateCapturedHttpTraces((trace, location) => {

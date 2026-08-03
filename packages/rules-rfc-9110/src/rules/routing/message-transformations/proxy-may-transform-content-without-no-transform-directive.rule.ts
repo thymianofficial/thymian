@@ -14,6 +14,9 @@ export default httpRule(
     'A proxy MAY transform the content of a message that does not contain a no-transform cache directive. A proxy that transforms the content of a 200 (OK) response can inform downstream recipients that a transformation has been applied by changing the response status code to 203 (Non-Authoritative Information).',
   )
   .summary('Proxy MAY transform content without no-transform directive.')
+  .explanation(
+    'When a response does not carry a no-transform cache directive, a proxy is allowed to alter the content it forwards, for example transcoding an image to save space or bandwidth. This is a permitted optimization, not an error. If it rewrites the content of a 200 (OK) response, the proxy can flag that by switching the status to 203 (Non-Authoritative Information) so downstream recipients know the payload is no longer exactly what the origin sent. This rule simply surfaces where such a transformation occurred.',
+  )
   .appliesTo('proxy')
   // Surfaces use of the optional mechanism: the hint fires when a proxy is
   // observed transforming response content (the body it forwarded downstream

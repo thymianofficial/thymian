@@ -13,6 +13,9 @@ export default httpRule(
     'A server that sends a 101 (Switching Protocols) response MUST send an Upgrade header field to indicate the new protocol(s) to which the connection is being switched. This informs the client which protocol is now in use.',
   )
   .summary('Server MUST send Upgrade header in 101 response.')
+  .explanation(
+    'A 101 (Switching Protocols) response must always carry an Upgrade header naming the protocol or protocols the connection is switching to. The 101 status only says a switch is happening; the Upgrade header says which protocol. It matters because without it the client is told the connection has changed but has no way to know what to speak next, leaving both ends out of sync and the connection unusable.',
+  )
   .appliesTo('server')
   .rule((ctx) =>
     ctx.validateCommonHttpTransactions(

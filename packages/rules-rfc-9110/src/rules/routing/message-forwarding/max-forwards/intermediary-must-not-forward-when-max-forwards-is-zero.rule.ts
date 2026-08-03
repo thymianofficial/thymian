@@ -12,6 +12,9 @@ export default httpRule(
     'If the received Max-Forwards value is zero (0), the intermediary MUST NOT forward the request; instead, the intermediary MUST respond as the final recipient. This prevents infinite forwarding loops in TRACE and OPTIONS requests.',
   )
   .summary('Intermediary MUST NOT forward request when Max-Forwards is zero.')
+  .explanation(
+    'When a TRACE or OPTIONS request arrives at an intermediary already carrying Max-Forwards: 0, the intermediary must stop and answer the request itself instead of passing it on to the next server. Zero means the client has budgeted no further hops. Honoring it is what prevents a request from being relayed indefinitely and lets the client pinpoint which intermediary sits at a given distance down the chain.',
+  )
   .appliesTo('intermediary')
   .rule((ctx) =>
     ctx.validateCapturedHttpTraces((trace, location) => {

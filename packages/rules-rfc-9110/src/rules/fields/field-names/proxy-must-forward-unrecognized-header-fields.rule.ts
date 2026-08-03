@@ -29,6 +29,9 @@ export default httpRule('rfc9110/proxy-must-forward-unrecognized-header-fields')
     'A proxy MUST forward unrecognized header fields unless the field name is listed in the Connection header field (Section 7.6.1) or the proxy is specifically configured to block, or otherwise transform, such fields.',
   )
   .summary('Proxy MUST forward unrecognized header fields unless excepted.')
+  .explanation(
+    'When a proxy relays a request, it should pass along header fields it does not itself recognize rather than stripping them, unless the field is named in the Connection header (a hop-by-hop control) or the proxy is explicitly configured to remove or transform it. This lets new HTTP features and extensions travel end-to-end and work correctly even though the intermediaries in between were deployed before those features existed, so the protocol can evolve without upgrading every proxy on the path.',
+  )
   .appliesTo('proxy')
   .rule((ctx) =>
     ctx.validateCapturedHttpTraces((trace, location) => {

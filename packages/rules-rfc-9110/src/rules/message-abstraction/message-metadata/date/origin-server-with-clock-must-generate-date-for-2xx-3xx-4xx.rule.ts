@@ -23,6 +23,9 @@ export default httpRule(
   .summary(
     'Origin servers with a clock MUST generate Date header in 2xx, 3xx, and 4xx responses.',
   )
+  .explanation(
+    "An origin server that has a working clock must stamp every 2xx (Successful), 3xx (Redirection), and 4xx (Client Error) response with a Date header giving the time the response was generated. Caches and clients rely on this timestamp to compute a response's age, detect clock skew, and decide how long a cached response stays fresh. Without Date on these responses, caching and freshness calculations become unreliable, so omitting it on a clock-bearing server is a conformance error.",
+  )
   .rule((ctx) =>
     ctx.validateCommonHttpTransactions(
       and(

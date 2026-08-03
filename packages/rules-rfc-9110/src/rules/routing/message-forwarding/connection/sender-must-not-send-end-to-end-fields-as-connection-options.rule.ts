@@ -34,6 +34,9 @@ export default httpRule(
     'A sender MUST NOT send a connection option corresponding to a field that is intended for all recipients of the content. For example, Cache-Control is never appropriate as a connection option. This ensures end-to-end fields are not incorrectly marked as hop-by-hop.',
   )
   .summary('Sender MUST NOT use end-to-end fields as connection options.')
+  .explanation(
+    'The Connection header should only name fields meant for the immediate hop, never fields intended for everyone along the chain. So you must not list something like Cache-Control (or other end-to-end representation fields) as a connection option. Doing so marks an end-to-end field as hop-by-hop, causing intermediaries to strip it before it reaches its intended recipients, which breaks caching directives and other behaviour the field was supposed to control across the whole path.',
+  )
   .rule((ctx) =>
     ctx.validateHttpTransactions(
       or(requestHeader('connection'), responseHeader('connection')),
