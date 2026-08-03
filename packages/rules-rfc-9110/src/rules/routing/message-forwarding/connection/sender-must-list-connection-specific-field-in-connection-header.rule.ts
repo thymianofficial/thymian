@@ -29,6 +29,9 @@ export default httpRule(
     'When a field aside from Connection is used to supply control information for or about the current connection, the sender MUST list the corresponding field name within the Connection header field. This enables proper hop-by-hop vs end-to-end field distinction.',
   )
   .summary('Sender MUST list connection-specific fields in Connection header.')
+  .explanation(
+    'Whenever you send a field that carries control information about the current connection (such as Keep-Alive or Proxy-Connection), you must also name that field in the Connection header. That listing is what tells recipients the field is meant only for this hop, so intermediaries strip it before forwarding. Without it, the field looks like ordinary end-to-end data and gets passed down the chain, where it can misconfigure later connections or be misinterpreted as improperly forwarded.',
+  )
   .rule((ctx) =>
     ctx.validateHttpTransactions(
       or(

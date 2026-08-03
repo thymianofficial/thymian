@@ -14,6 +14,9 @@ export default httpRule('rfc9110/proxy-must-not-change-fqdn-hostname')
   .summary(
     'Proxy MUST NOT change host name when it is a fully qualified domain name.',
   )
+  .explanation(
+    'If the target URI already names a complete, fully qualified host such as www.example.com, a proxy must forward it with that host name intact and must not rewrite it. A fully qualified name unambiguously identifies the intended destination, so altering it would misroute the request to the wrong server. (A proxy may still complete a bare, non-qualified host by appending its own domain, but that is a different case.) Preserving the host is what keeps the request reaching where the client meant it to go.',
+  )
   .appliesTo('proxy')
   .rule((ctx) =>
     ctx.validateCapturedHttpTraces((trace, location) => {

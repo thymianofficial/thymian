@@ -21,6 +21,9 @@ export default httpRule(
   .summary(
     'Senders SHOULD generate Trailer header when sending trailer fields.',
   )
+  .explanation(
+    'If you plan to send any trailer fields after the message content, list their names up front in a Trailer header field in the header section. This gives the recipient advance notice of what metadata to expect after the body, so it can prepare to process those fields on the fly (for example, verifying a checksum or signature computed while the content streams in). It also leaves a hint of what was lost if an intermediary drops the trailer section in transit.',
+  )
   .rule((ctx) =>
     ctx.validateHttpTransactions(
       not(responseHeader('trailer')),

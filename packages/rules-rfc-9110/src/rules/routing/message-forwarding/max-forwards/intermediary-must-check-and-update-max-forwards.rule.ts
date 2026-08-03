@@ -12,6 +12,9 @@ export default httpRule(
     'Each intermediary that receives a TRACE or OPTIONS request containing a Max-Forwards header field MUST check and update its value prior to forwarding the request. The Max-Forwards mechanism limits the number of times a request can be forwarded.',
   )
   .summary('Intermediary MUST check and update Max-Forwards value.')
+  .explanation(
+    'When a proxy or gateway relays a TRACE or OPTIONS request that carries a Max-Forwards count, it must read that number and lower it before passing the request along, rather than forwarding it untouched. Max-Forwards is a hop counter that lets a client bound how far its request travels, which is how you diagnose requests that loop or stall somewhere mid-chain. If intermediaries forward it without decrementing, the counter never reaches zero and the safeguard against endless forwarding is defeated.',
+  )
   .appliesTo('intermediary')
   .rule((ctx) =>
     ctx.validateCapturedHttpTraces((trace, location) => {

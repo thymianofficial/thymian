@@ -14,6 +14,9 @@ export default httpRule(
   .summary(
     'Intermediary MUST respond as final recipient when Max-Forwards is zero.',
   )
+  .explanation(
+    "When a TRACE or OPTIONS request reaches an intermediary with Max-Forwards: 0, that intermediary becomes the endpoint: it must generate the response itself rather than forward the request onward. A zero count is the client's instruction that this hop is as far as the request should go. Responding as the final recipient is what makes Max-Forwards a usable diagnostic, letting the client probe a specific point in the forwarding chain and receive an answer from it.",
+  )
   .appliesTo('intermediary')
   .rule((ctx) =>
     ctx.validateCapturedHttpTraces((trace, location) => {

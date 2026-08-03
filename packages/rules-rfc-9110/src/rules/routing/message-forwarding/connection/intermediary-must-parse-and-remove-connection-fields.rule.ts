@@ -17,6 +17,9 @@ export default httpRule(
   .summary(
     'Intermediary MUST parse and remove Connection fields before forwarding.',
   )
+  .explanation(
+    'Before a proxy passes a message on, it must read the incoming Connection header, and for every field name listed there it must strip out that matching header or trailer, then drop the Connection header itself (or replace it with its own options for the next hop). Those listed fields are meant only for the current connection ("hop-by-hop"); if they leak downstream they can misconfigure or confuse the next recipient. Removing them keeps connection-specific control information from being blindly forwarded.',
+  )
   .appliesTo('intermediary')
   .rule((ctx) =>
     ctx.validateCapturedHttpTraces((trace, location) => {

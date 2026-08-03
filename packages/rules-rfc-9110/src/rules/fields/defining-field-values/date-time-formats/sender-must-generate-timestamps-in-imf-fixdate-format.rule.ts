@@ -79,6 +79,9 @@ export default httpRule(
   .summary(
     'Sender MUST generate HTTP-date timestamps in the IMF-fixdate format.',
   )
+  .explanation(
+    "Whenever a sender writes a date in a header defined as HTTP-date (such as Date, Expires, or Last-Modified), it must use exactly one format: IMF-fixdate, for example 'Sun, 06 Nov 1994 08:49:37 GMT'. Two older date formats exist but must never be generated. Pinning senders to this single fixed layout, always in GMT, means every recipient can parse timestamps reliably, which is essential for caching, expiration, and conditional requests to work correctly across implementations.",
+  )
   .rule((ctx) =>
     ctx.validateHttpTransactions(
       or(...httpDateResponseHeaders.map((name) => responseHeader(name))),

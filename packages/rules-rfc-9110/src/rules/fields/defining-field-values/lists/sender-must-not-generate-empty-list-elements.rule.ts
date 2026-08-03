@@ -52,6 +52,9 @@ export default httpRule('rfc9110/sender-must-not-generate-empty-list-elements')
     'In any production that uses the list construct, a sender MUST NOT generate empty list elements.',
   )
   .summary('Sender MUST NOT generate empty list elements.')
+  .explanation(
+    'For any header defined as a comma-separated list (such as Vary or Allow), a sender must not emit empty entries, meaning no leading comma, no trailing comma, and no two commas with nothing but whitespace between them. Although recipients are told to tolerate such gaps, producing them is sloppy and risks confusing stricter parsers. Keeping list values clean, with a real value between every comma, avoids ambiguity and interoperability problems across differing implementations.',
+  )
   .rule((ctx) =>
     ctx.validateHttpTransactions(
       or(...listTypedResponseHeaders.map((name) => responseHeader(name))),

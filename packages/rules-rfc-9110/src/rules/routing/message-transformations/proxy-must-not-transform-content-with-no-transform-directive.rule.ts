@@ -15,6 +15,9 @@ export default httpRule(
   .summary(
     'Proxy MUST NOT transform content when no-transform directive is present.',
   )
+  .explanation(
+    'When a response carries the no-transform cache directive, a proxy must forward its content byte-for-byte and must not alter it, for instance by transcoding or recompressing the payload. That directive is an explicit signal that the exact content matters, which is critical when integrity checks or digital signatures depend on it or for data like medical images and scientific results. Changes that leave the content itself unchanged, such as adding or removing transfer codings, are still allowed. Honoring no-transform is what preserves end-to-end content integrity.',
+  )
   .appliesTo('proxy')
   .rule((ctx) =>
     ctx.validateCapturedHttpTraces((trace, location) => {

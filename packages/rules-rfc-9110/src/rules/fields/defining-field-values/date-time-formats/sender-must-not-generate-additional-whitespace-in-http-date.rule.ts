@@ -61,6 +61,9 @@ export default httpRule(
   .summary(
     'Sender MUST NOT generate additional whitespace in HTTP-date beyond the grammar.',
   )
+  .explanation(
+    'An HTTP-date must contain only the exact single spaces the grammar prescribes; a sender must not add extra whitespace, such as tabs, doubled spaces, or leading or trailing padding. The date format is deliberately rigid so recipients can parse it with a simple fixed pattern. Even harmless-looking extra spaces can cause a strict parser to reject the timestamp, which then breaks caching and expiration logic that depends on reading these dates.',
+  )
   .rule((ctx) =>
     ctx.validateHttpTransactions(
       or(...httpDateResponseHeaders.map((name) => responseHeader(name))),

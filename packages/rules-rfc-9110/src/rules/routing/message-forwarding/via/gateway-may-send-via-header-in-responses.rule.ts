@@ -9,6 +9,9 @@ export default httpRule('rfc9110/gateway-may-send-via-header-in-responses')
     'An HTTP-to-HTTP gateway MAY send a Via header field in forwarded response messages. This is optional for responses, unlike requests where it is required.',
   )
   .summary('Gateway MAY send Via header in forwarded responses.')
+  .explanation(
+    'A gateway is permitted, but not required, to add a Via header to responses it forwards back toward the client. Via records which intermediaries a message passed through, so including it on responses gives downstream recipients extra visibility into the response path and the protocol versions along it. Because it is optional here, its presence is fine and its absence is equally acceptable; this rule simply surfaces where a gateway chose to use it.',
+  )
   .appliesTo('gateway')
   // Surfaces use of the optional mechanism: the hint fires when a gateway
   // response carries a Via header, never on its absence. It runs on captured

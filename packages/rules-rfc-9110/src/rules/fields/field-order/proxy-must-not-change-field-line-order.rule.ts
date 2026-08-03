@@ -28,6 +28,9 @@ export default httpRule('rfc9110/proxy-must-not-change-field-line-order')
   .summary(
     'Proxy MUST NOT change the order of field line values when forwarding.',
   )
+  .explanation(
+    'When the same header field name appears on several lines, their order carries meaning: the combined value is those line values joined in the order they arrived. A proxy relaying the message must keep that order exactly as received and must not shuffle the lines. If it reorders them, the recipient reconstructs a different combined value than the sender intended, silently corrupting the field and breaking correct interpretation of headers whose meaning depends on sequence.',
+  )
   .appliesTo('proxy')
   // Observable only from proxy-recorded traffic. Reordering of same-name field
   // lines is invisible in a single message; it is detectable only by

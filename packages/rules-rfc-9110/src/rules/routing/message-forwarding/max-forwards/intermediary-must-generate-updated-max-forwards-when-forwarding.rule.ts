@@ -12,6 +12,9 @@ export default httpRule(
     "If the received Max-Forwards value is greater than zero, the intermediary MUST generate an updated Max-Forwards field in the forwarded message with a field value that is the lesser of a) the received value decremented by one (1) or b) the recipient's maximum supported value for Max-Forwards.",
   )
   .summary('Intermediary MUST generate updated Max-Forwards when forwarding.')
+  .explanation(
+    'If the Max-Forwards count arrives greater than zero, the intermediary must forward the request with a new count that is the received value minus one (or lower, if its own supported maximum is smaller). In other words, every hop reduces the counter by at least one. This steady decrement is what guarantees the count eventually hits zero, so a looping or overly long forwarding chain gets stopped and the client can see exactly how far its trace reached.',
+  )
   .appliesTo('intermediary')
   .rule((ctx) =>
     ctx.validateCapturedHttpTraces((trace, location) => {

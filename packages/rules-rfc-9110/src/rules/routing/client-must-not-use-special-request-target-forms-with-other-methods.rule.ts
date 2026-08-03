@@ -15,6 +15,9 @@ export default httpRule(
   .summary(
     'Special request target forms MUST NOT be used with methods other than CONNECT or OPTIONS.',
   )
+  .explanation(
+    'Two request targets have special meaning tied to specific methods: a bare host:port (the authority form) is only for CONNECT to name a tunnel destination, and a lone asterisk ("*") is only for OPTIONS to mean "the server as a whole". You must not use either form with any other method. These shapes are not normal paths, so pairing them with, say, a GET leaves the server unable to reliably determine which resource you meant, causing misrouting or rejection.',
+  )
   .rule((ctx) =>
     ctx.validateHttpTransactions(constant(true), (req, _res, location) => {
       const method = req.method.toUpperCase();
