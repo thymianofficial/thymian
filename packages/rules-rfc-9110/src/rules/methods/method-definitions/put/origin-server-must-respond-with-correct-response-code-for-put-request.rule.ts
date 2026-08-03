@@ -20,6 +20,9 @@ export default httpRule(
   .description(
     'If the target resource does not have a current representation and the PUT successfully creates one, then the origin server MUST inform the user agent by sending a 201 (Created) response. If the target resource does have a current representation and that representation is successfully modified in accordance with the state of the enclosed representation, then the origin server MUST send either a 200 (OK) or a 204 (No Content) response to indicate successful completion of the request.',
   )
+  .explanation(
+    'A successful PUT must be answered with the status code that reflects what happened: 201 (Created) when it brought a brand-new resource into existence, and 200 (OK) or 204 (No Content) when it replaced the state of one that already existed. This matters because the client relies on the code to tell created apart from updated; using the wrong one, or some other 2xx, misleads the client about whether a resource was newly made and undermines any logic that branches on that distinction.',
+  )
   .appliesTo('origin server')
   .rule((context) =>
     context.validateCommonHttpTransactions(

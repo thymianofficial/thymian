@@ -10,6 +10,9 @@ export default httpRule(
   .description(
     "If the result of processing a POST would be equivalent to a representation of an existing resource, an origin server MAY redirect the user agent to that resource by sending a 303 (See Other) response with the existing resource's identifier in the Location field.",
   )
+  .explanation(
+    "When a POST would produce something equivalent to a resource that already exists, your origin server is allowed to answer with a 303 (See Other) pointing at that existing resource's URL via the Location field, instead of creating a duplicate. This matters because it hands the client a stable identifier and lets the representation be fetched with a cache-friendly GET, avoiding redundant copies at the cost of one extra round trip. It is optional, so this surfaces as advisory rather than a violation.",
+  )
   .appliesTo('origin server')
   .rule((context) =>
     context.validateCommonHttpTransactions(

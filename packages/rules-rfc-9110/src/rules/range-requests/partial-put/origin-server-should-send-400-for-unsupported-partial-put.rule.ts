@@ -19,6 +19,9 @@ export default httpRule(
   .summary(
     'Origin server should respond with 400 to a Content-Range PUT on a resource that does not support partial PUT.',
   )
+  .explanation(
+    'A Content-Range on a PUT asks the server to overwrite only part of the resource at a given offset. If this resource does not support that partial-PUT behavior, reject the request with 400 (Bad Request) rather than accepting it. Otherwise the server might treat the partial content as a full replacement and silently destroy the rest of the resource, so refusing up front protects the client from data loss it never intended.',
+  )
   .appliesTo('origin server')
   // Static: a PUT operation that declares no 206 response does not support
   // partial PUT, so it SHOULD also declare a 400 for the Content-Range-on-PUT

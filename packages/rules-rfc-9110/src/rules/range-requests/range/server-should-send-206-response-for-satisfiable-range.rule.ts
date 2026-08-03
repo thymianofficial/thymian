@@ -24,6 +24,9 @@ export default httpRule(
   .summary(
     'Server should send 206 response when Range header conditions are met and range is satisfiable.',
   )
+  .explanation(
+    'When the server supports ranges for a resource and receives a valid, satisfiable Range request, it should return 206 (Partial Content) with just the requested byte range instead of sending the whole resource with 200. Delivering only the asked-for slice is the whole point of range requests: it saves bandwidth and lets clients resume interrupted downloads or fetch just the part they need, which fails if the server keeps sending the full representation.',
+  )
   .appliesTo('origin server')
   .rule(async (ctx) => {
     const results: RuleFnResult[] = [];

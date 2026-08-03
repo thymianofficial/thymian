@@ -23,6 +23,9 @@ export default httpRule(
   .description(
     'A server generating a successful response to OPTIONS SHOULD send any header that might indicate optional features implemented by the server and applicable to the target resource (e.g., Allow), including potential extensions not defined by this specification.',
   )
+  .explanation(
+    "When your server answers an OPTIONS request successfully, it should advertise what the target resource supports by sending headers such as Allow that name the applicable optional features. This matters because the whole point of OPTIONS is to let a client discover a resource's capabilities without acting on it; a bare 2xx response with no such headers tells the client nothing, defeating that purpose and forcing it to guess which methods and features are available.",
+  )
   .appliesTo('server')
   .rule((ctx) =>
     ctx.validateCommonHttpTransactions(

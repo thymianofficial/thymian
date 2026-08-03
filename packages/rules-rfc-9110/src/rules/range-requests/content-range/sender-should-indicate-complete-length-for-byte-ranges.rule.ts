@@ -27,6 +27,9 @@ export default httpRule(
   .summary(
     'Sender should indicate complete length in Content-Range unless unknown.',
   )
+  .explanation(
+    'When you send a byte range, spell out the total size of the whole resource after the slash in Content-Range (for example "bytes 0-1023/8192"), and only use "*" there if you genuinely cannot determine that size. Knowing the full length lets the client show accurate download progress, decide whether it already has everything, and reassemble multiple ranges correctly, so hiding it behind "*" when you actually know it makes clients guess needlessly.',
+  )
   .appliesTo('server')
   .rule((ctx) =>
     ctx.validateHttpTransactions(

@@ -17,6 +17,9 @@ export default httpRule(
   .description(
     'If a DELETE method is successfully applied, the origin server SHOULD send 202 (Accepted), 204 (No Content) or 200 (OK).',
   )
+  .explanation(
+    'When a DELETE succeeds, the origin server should answer with one of three specific codes: 202 if the deletion is accepted but not yet carried out, 204 if it is done and there is nothing more to say, or 200 if it is done and the response includes a body describing the outcome. Using these expected codes lets clients reliably tell that the deletion worked and how much detail to expect, rather than guessing from an unusual or ambiguous success status.',
+  )
   .appliesTo('origin server')
   .rule((ctx) =>
     ctx.validateCommonHttpTransactions(

@@ -23,6 +23,9 @@ export default httpRule(
   .summary(
     'Recipient must not recombine content with invalid Content-Range values.',
   )
+  .explanation(
+    'A Content-Range is nonsensical if its range runs backwards (last byte before first byte) or claims a total length that is not bigger than the last byte it reports. When you receive one like that, do not stitch the partial content back into any copy you already hold. Trusting an impossible range would corrupt the reassembled representation, so the safe move is to reject it rather than merge garbage into stored data.',
+  )
   .rule((ctx) =>
     ctx.validateHttpTransactions(
       responseHeader('content-range'),
