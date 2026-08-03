@@ -46,6 +46,9 @@ export default httpRule(
   .summary(
     'Server MUST ignore conditional headers for CONNECT, OPTIONS, or TRACE methods.',
   )
+  .explanation(
+    'For methods like CONNECT, OPTIONS, and TRACE that neither select nor modify a representation, the server must disregard any conditional headers (If-Match, If-None-Match, If-Modified-Since, If-Unmodified-Since, If-Range) and respond as if they were absent. Since there is no representation to compare against, a precondition has nothing meaningful to test. Evaluating one anyway would produce a spurious 304 or 412, so ignoring them keeps these methods behaving predictably.',
+  )
   .appliesTo('server')
   .rule((ctx) =>
     ctx.validateCommonHttpTransactions(

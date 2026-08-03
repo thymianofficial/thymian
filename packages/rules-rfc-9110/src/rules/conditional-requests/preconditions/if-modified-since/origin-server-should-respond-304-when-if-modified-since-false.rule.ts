@@ -31,6 +31,9 @@ export default httpRule(
   .summary(
     'Origin server SHOULD respond with 304 when If-Modified-Since condition is false.',
   )
+  .explanation(
+    'When a GET or HEAD carries If-Modified-Since and the resource has not changed since the date the client supplied, the server should skip sending the body again and instead reply 304 Not Modified with just the metadata needed to refresh a cached copy. This is the core of efficient caching: the client already holds an up-to-date copy, so re-transferring the whole representation wastes bandwidth and time. Answering 304 lets the client reuse what it has while confirming it is still current.',
+  )
   .appliesTo('origin server')
   .rule((ctx) =>
     ctx.validateCommonHttpTransactions(

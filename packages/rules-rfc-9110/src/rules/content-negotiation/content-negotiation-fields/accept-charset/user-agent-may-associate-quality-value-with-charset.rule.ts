@@ -55,6 +55,9 @@ export default httpRule(
   .summary(
     'A user agent MAY associate a quality value with each charset in Accept-Charset. Note that this header is deprecated by RFC 9110; prefer relying on UTF-8.',
   )
+  .explanation(
+    'A client is allowed, but never required, to attach a quality value (a q= weight) to each charset in Accept-Charset to express how strongly it prefers one over another. This is purely optional. More importantly, RFC 9110 deprecates Accept-Charset altogether: modern clients should simply omit it and let servers default to UTF-8. Sending it adds little value and clutters requests, so the practical guidance is to drop the header rather than fine-tune its weights.',
+  )
   .appliesTo('user-agent')
   // Static context can only observe that the request carries Accept-Charset, so
   // it always surfaces the full hint (the MAY plus the deprecation note).

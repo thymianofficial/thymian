@@ -19,6 +19,9 @@ export default httpRule(
   .summary(
     'Servers that fail a request with a 415 status for reasons unrelated to content codings MUST NOT include the Accept-Encoding header field.',
   )
+  .explanation(
+    "A 415 (Unsupported Media Type) can be raised either because the request's content coding was unacceptable or for unrelated media-type reasons. When the rejection has nothing to do with content codings, the server must not attach an Accept-Encoding header to the response. Including it would falsely signal that the failure was about encodings, misleading the client into retrying with a different content coding when the real problem lies elsewhere.",
+  )
   .appliesTo('server')
   .rule((ctx) =>
     ctx.validateCommonHttpTransactions(

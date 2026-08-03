@@ -21,6 +21,9 @@ export default httpRule(
   .summary(
     'Recipient MUST ignore If-Unmodified-Since when If-Match is present.',
   )
+  .explanation(
+    'If a request carries both If-Match and If-Unmodified-Since, the server must evaluate only If-Match and ignore the date entirely. If-Match compares entity-tags, which is a more precise test than comparing timestamps, so the two are only sent together to help older intermediaries that do not understand If-Match. This keeps conditional requests behaving consistently: the stronger validator wins, and a stale date does not cause a spurious 412 when the entity-tag condition actually holds.',
+  )
   .rule(async (ctx) => {
     const results: RuleFnResult[] = [];
     await ctx.httpTest(

@@ -16,6 +16,9 @@ export default httpRule('rfc9110/proxy-must-not-modify-authorization')
   .description(
     'A proxy forwarding a request MUST NOT modify any Authorization header fields in that request.',
   )
+  .explanation(
+    "When a proxy relays a request onward, it must leave the Authorization header untouched and pass the client's credentials through byte-for-byte. The Authorization field is how a user agent proves its identity to the origin server, and many authentication schemes bind those credentials to their exact bytes. If a proxy rewrites the header, the origin server sees different credentials than the client sent, so authentication fails and the client is wrongly rejected.",
+  )
   .appliesTo('proxy')
   .rule((ctx) =>
     ctx.validateCapturedHttpTraces((trace, location) => {

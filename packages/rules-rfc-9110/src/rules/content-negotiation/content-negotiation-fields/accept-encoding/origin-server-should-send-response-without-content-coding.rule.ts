@@ -92,6 +92,9 @@ export default httpRule(
   .summary(
     'The origin server SHOULD send a response without any content coding unless the identity coding is indicated as unacceptable.',
   )
+  .explanation(
+    'When a client sends Accept-Encoding but the server has no representation whose encoding the client marked as acceptable, the server should fall back to sending the response unencoded (identity) rather than applying an encoding the client did not ask for. The only exception is when the client explicitly ruled out identity too. This ensures the client can still read the body: sending an unrequested content coding risks the client being unable to decode it.',
+  )
   .appliesTo('origin server')
   .rule((ctx) =>
     ctx.validateHttpTransactions(
