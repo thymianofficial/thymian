@@ -19,6 +19,9 @@ export default httpRule(
   .summary(
     'A user agent MUST NOT send a Referer referring to an https resource in an unsecured http request.',
   )
+  .explanation(
+    "If the page you came from was loaded over a secure protocol (https), you must not reveal its address in the Referer of a request sent over plain, unsecured http. The secure page's URL may contain confidential context, and putting it in an http request would send it in the clear where any network observer could read it. Dropping the Referer in this secure-to-insecure case prevents that leak.",
+  )
   .appliesTo('user-agent')
   .overrideAnalyticsRule((ctx) =>
     // Pre-filter to unsecured (http) requests carrying a Referer; then confirm

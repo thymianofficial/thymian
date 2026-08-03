@@ -14,6 +14,9 @@ export default httpRule(
   .description(
     'A user agent SHOULD NOT send a Referer header field if the referring resource was accessed with a secure protocol and the request target has an origin differing from that of the referring resource, unless the referring resource explicitly allows Referer to be sent.',
   )
+  .explanation(
+    "When the referring page was loaded over a secure protocol and you are now requesting a resource on a different origin, you should leave the Referer off unless that referring page has explicitly opted to allow it. The Referer can expose the secure page's address, which may reveal browsing history or confidential context; withholding it across origin boundaries protects the user's privacy while still permitting same-origin analytics and back-links.",
+  )
   .appliesTo('user-agent')
   .overrideAnalyticsRule((ctx) =>
     ctx.validateHttpTransactions(

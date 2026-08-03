@@ -27,6 +27,9 @@ export default httpRule(
     'Content-Language MAY be applied to any media type -- it is not limited to textual documents.',
   )
   .summary('Content-Language MAY be applied to any media type.')
+  .explanation(
+    'Content-Language describes the natural language of the intended audience, and you are free to attach it to anything -- an image, an audio file, a PDF -- not just plain text. It matters because the header is about who the content is for, not what format it is in, so restricting it to text/* documents would needlessly hide useful language information from clients that negotiate or filter by language.',
+  )
   .rule((ctx) =>
     ctx.validateHttpTransactions(
       responseHeader('content-language'),

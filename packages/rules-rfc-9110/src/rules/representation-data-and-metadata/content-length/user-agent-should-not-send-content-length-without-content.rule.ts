@@ -30,6 +30,9 @@ export default httpRule(
   .summary(
     'User agents SHOULD NOT send Content-Length when request has no content.',
   )
+  .explanation(
+    'When a client sends a request that has no body and whose method does not expect one -- such as GET, HEAD, DELETE, CONNECT, OPTIONS, or TRACE -- it should not attach a non-zero Content-Length header. It matters because a Content-Length on a bodyless request signals data that never arrives, which can confuse servers and intermediaries about message framing and, in the worst case, be leveraged for request smuggling.',
+  )
   .overrideAnalyticsRule((ctx) =>
     ctx.validateHttpTransactions(
       and(

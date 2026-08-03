@@ -39,6 +39,9 @@ export default httpRule(
   .summary(
     'Strong ETags MUST differ between encoded and unencoded representations.',
   )
+  .explanation(
+    'If your server sends the same resource in different content encodings (say a gzipped version and a plain version), each encoded form has to carry its own distinct strong ETag rather than reusing one tag for all of them. Strong ETags promise byte-for-byte identical content, so a cache or a range request that trusts a shared tag could stitch together bytes from the wrong encoding, corrupting the response. Giving each encoding its own tag keeps caching and partial fetches correct.',
+  )
   .overrideAnalyticsRule((ctx) => {
     // Correlate across the recorded corpus: for each resource identity
     // (origin + path) map each strong opaque ETag to the set of distinct

@@ -15,6 +15,9 @@ export default httpRule(
   .description(
     'A sender SHOULD NOT generate information in product-version that is not a version identifier (i.e., successive versions of the same product name ought to differ only in the product-version portion of the product identifier).',
   )
+  .explanation(
+    'In a User-Agent product token of the form name/version, put only an actual version identifier after the slash, not descriptive words or other free text. The convention is that successive releases of the same product differ solely in that version portion, so servers and analytics can reliably tell versions apart and correlate behavior. Cramming non-version text there makes the field harder to parse and defeats that consistent version comparison.',
+  )
   .overrideAnalyticsRule((ctx) =>
     ctx.validateHttpTransactions(
       and(requestHeader('user-agent')),

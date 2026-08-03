@@ -23,6 +23,9 @@ export default httpRule(
   .summary(
     'Servers MAY send Content-Length in HEAD responses (must match what GET would return).',
   )
+  .explanation(
+    "A HEAD response has no body, but a server may still send a Content-Length -- and when it does, that value must equal the number of bytes a GET on the same resource would have returned. It matters because clients use HEAD precisely to learn a resource's size before downloading it; if the advertised length differs from what GET would deliver, callers make wrong decisions about buffering, progress, or whether to fetch at all.",
+  )
   .rule(async (ctx) => {
     const results: RuleFnResult[] = [];
     await ctx.httpTest(

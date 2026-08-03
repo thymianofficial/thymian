@@ -18,6 +18,9 @@ export default httpRule(
   .summary(
     'Origin servers MUST NOT generate Last-Modified dates later than the Date header.',
   )
+  .explanation(
+    'A server that has a clock must never claim a resource was last modified at a time later than the moment it generated the response, that is, later than its own Date header. If internal metadata yields a future modification time, the server must clamp it down to the response Date. A future Last-Modified confuses caches and conditional-request logic, which compare that timestamp against the current time and can end up serving stale content or making the wrong freshness decisions.',
+  )
   .rule((ctx) =>
     ctx.validateHttpTransactions(
       and(responseHeader('last-modified'), responseHeader('date')),

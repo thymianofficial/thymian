@@ -14,6 +14,9 @@ export default httpRule(
   .summary(
     'Servers MUST NOT send Content-Length header in 2xx responses to CONNECT requests.',
   )
+  .explanation(
+    'A 2xx response to a CONNECT request switches the connection into a tunnel rather than returning a normal message body, so the server must not include a Content-Length header on it. It matters because after a successful CONNECT everything on the connection is opaque tunnelled data with no HTTP framing; a Content-Length would falsely mark a body boundary and confuse how the tunnelled bytes are interpreted.',
+  )
   .rule((ctx) =>
     ctx.validateCommonHttpTransactions(
       and(
