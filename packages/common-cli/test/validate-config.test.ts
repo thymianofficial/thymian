@@ -178,7 +178,7 @@ describe('validate-config', () => {
           expect(result.valid).toBe(false);
           if (result.valid === false) {
             expect(result.message).toContain(
-              "must have required property 'plugins'",
+              "is missing the required field 'plugins'",
             );
           }
         });
@@ -192,7 +192,7 @@ describe('validate-config', () => {
 
           expect(result.valid).toBe(false);
           if (result.valid === false) {
-            expect(result.message).toContain('must be object');
+            expect(result.message).toContain('/plugins must be an object');
           }
         });
 
@@ -206,7 +206,7 @@ describe('validate-config', () => {
 
           expect(result.valid).toBe(false);
           if (result.valid === false) {
-            expect(result.message).toContain('must be boolean');
+            expect(result.message).toContain('/autoload must be a boolean');
           }
         });
 
@@ -220,9 +220,8 @@ describe('validate-config', () => {
 
           expect(result.valid).toBe(false);
           if (result.valid === false) {
-            expect(result.message).toContain(
-              'must NOT have additional properties',
-            );
+            expect(result.message).toContain('unexpected property');
+            expect(result.message).toContain('unknownProperty');
           }
         });
 
@@ -263,7 +262,7 @@ describe('validate-config', () => {
 
           expect(result.valid).toBe(false);
           if (result.valid === false) {
-            expect(result.message).toContain('must have required property');
+            expect(result.message).toContain('is missing the required field');
           }
         });
       });

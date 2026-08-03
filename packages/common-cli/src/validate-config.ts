@@ -1,6 +1,6 @@
 import { EOL } from 'node:os';
 
-import { ajv } from '@thymian/core';
+import { ajv, formatAjvErrors } from '@thymian/core';
 
 import thymianSchema from './thymian-config-schema.json' with { type: 'json' };
 
@@ -21,11 +21,14 @@ export function validateConfig(config: unknown): ConfigValidationResult {
   if (valid) {
     return { valid };
   } else {
+    const { message, details } = formatAjvErrors(validationFn.errors);
+
     return {
       valid,
       message:
-        validationFn.errors?.map((e) => EOL + '   * ' + e.message).join('') ??
-        'Unknown error',
+        details.length > 0
+          ? details.map((detail) => EOL + '   * ' + detail).join('')
+          : message,
     };
   }
 }
