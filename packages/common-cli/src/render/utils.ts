@@ -31,29 +31,61 @@ function termwidth(stream: NodeJS.WriteStream): number {
   return width;
 }
 
-/**
- * The terminal width oclif itself wraps help/errors at: `OCLIF_COLUMNS` env,
- * then `settings.columns` (`globalThis.oclif`), else the clamped real
- * `process.stdout` width. Computed per-call so `OCLIF_COLUMNS` and stdout
- * changes are honoured (e.g. in tests).
- */
-export function terminalWidth(): number {
-  const columns =
-    Number.parseInt(process.env.OCLIF_COLUMNS ?? '', 10) || settings.columns;
+/** A positive integer parsed from `value`, or `undefined` if it is not one. */
+function positiveInt(value: string | number | undefined): number | undefined {
+  const parsed = typeof value === 'string' ? Number.parseInt(value, 10) : value;
 
-  return columns || termwidth(process.stdout);
+  return typeof parsed === 'number' && Number.isInteger(parsed) && parsed > 0
+    ? parsed
+    : undefined;
 }
 
 /**
- * ANSI-aware hard wrap at the current terminal width, reserving `indentColumns`
+ * The terminal width oclif itself wraps help/errors at: an explicit
+ * `OCLIF_COLUMNS` env, then `settings.columns` (`globalThis.oclif`), else the
+ * clamped real `process.stdout` width. Computed per-call so `OCLIF_COLUMNS` and
+ * stdout changes are honoured (e.g. in tests). Only *positive* overrides are
+ * accepted, so a bogus `OCLIF_COLUMNS` (e.g. `-1` or a non-number) falls
+ * through instead of collapsing every line to a single column.
+ *
+ * Returns `Infinity` when stdout is not a TTY and no width was pinned: piped or
+ * redirected output must be emitted verbatim so paths, JSON and other tokens
+ * survive `grep`/copy-paste rather than being reflowed at an arbitrary width.
+ */
+export function terminalWidth(): number {
+  const override =
+    positiveInt(process.env.OCLIF_COLUMNS) ?? positiveInt(settings.columns);
+
+  if (override !== undefined) {
+    return override;
+  }
+
+  return process.stdout.isTTY
+    ? termwidth(process.stdout)
+    : Number.POSITIVE_INFINITY;
+}
+
+/**
+ * ANSI-aware soft wrap at the current terminal width, reserving `indentColumns`
  * for indentation already consumed on the line (glyphs + leading spaces).
  * Returns the wrapped text WITHOUT re-applying the indent — callers that need
  * hanging indentation should use {@link wrapIndented}.
+ *
+ * When there is no finite target width (non-TTY, no pinned columns) the text is
+ * returned verbatim. Wrapping is soft (`hard: false`) so unbreakable tokens —
+ * file paths, URLs, JSON blobs, rule identifiers — are never split mid-token
+ * and stay copy-paste/`grep`-able; only whitespace-separated prose reflows.
  */
 export function wrap(text: string, indentColumns = 0): string {
-  const width = Math.max(terminalWidth() - indentColumns, 1);
+  const available = terminalWidth();
 
-  return wrapAnsi(text, width, { hard: true });
+  if (!Number.isFinite(available)) {
+    return text;
+  }
+
+  const width = Math.max(available - indentColumns, 1);
+
+  return wrapAnsi(text, width, { hard: false });
 }
 
 /**
@@ -75,6 +107,12 @@ export function wrapIndented(
   firstPrefix: string,
   continuationColumns = visibleWidth(firstPrefix),
 ): string[] {
+  // Empty content would otherwise emit a lone prefix/glyph line (e.g. a bare
+  // tree branch with nothing after it); render nothing instead.
+  if (text === '') {
+    return [];
+  }
+
   const wrapped = wrap(text, continuationColumns).split('\n');
   const continuation = ' '.repeat(continuationColumns);
 

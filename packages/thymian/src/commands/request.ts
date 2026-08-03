@@ -205,7 +205,10 @@ export default class RunRequest extends BaseCliRunCommand<typeof RunRequest> {
         ? ux.colorize('green', `${status} ${statusText}`)
         : ux.colorize('red', `${status} ${statusText}`);
 
-    this.log(wrap(ux.colorize('bold', `${protocol} ${statusColor}`)));
+    // Raw HTTP wire values are emitted verbatim (never wrapped): reflowing a
+    // status line or header would break copy-paste and alter values that
+    // contain significant whitespace.
+    this.log(ux.colorize('bold', `${protocol} ${statusColor}`));
 
     this.printHeaders(response.headers);
 
@@ -222,9 +225,9 @@ export default class RunRequest extends BaseCliRunCommand<typeof RunRequest> {
     const path = urlObj.pathname + urlObj.search;
     const method = ux.colorize('blue', request.method.toUpperCase());
 
-    this.log(wrap(ux.colorize('bold', `${method} ${path} HTTP/1.1`)));
+    this.log(ux.colorize('bold', `${method} ${path} HTTP/1.1`));
 
-    this.log(wrap(`${ux.colorize('cyan', 'Host')}: ${urlObj.host}`));
+    this.log(`${ux.colorize('cyan', 'Host')}: ${urlObj.host}`);
     this.printHeaders(request.headers);
 
     this.log();
@@ -268,7 +271,9 @@ export default class RunRequest extends BaseCliRunCommand<typeof RunRequest> {
       }
 
       const headerValue = Array.isArray(value) ? value.join(', ') : value;
-      this.log(wrap(`${ux.colorize('cyan', key)}: ${headerValue}`));
+      // Header values are wire data — emit verbatim, never wrapped (see
+      // printRawHttp).
+      this.log(`${ux.colorize('cyan', key)}: ${headerValue}`);
     });
   }
 }

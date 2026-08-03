@@ -101,7 +101,7 @@ export default class ListRules extends BaseCliRunCommand<typeof ListRules> {
 
     const topicColor = this.config?.theme?.topic;
     const lines = sorted.flatMap((rule) =>
-      wrapIndented(formatRule(rule, topicColor).trimStart(), '  '),
+      wrapIndented(formatRule(rule, topicColor), '  '),
     );
 
     this.log(lines.join(EOL));
@@ -152,7 +152,9 @@ function formatRule(rule: Rule, topicColor?: string): string {
   const coloredSeverity = colorizeSeverity(severity);
   const types = type.join(', ');
 
-  const parts = [`  ${coloredName}`, `[${coloredSeverity}]`, `(${types})`];
+  // The caller owns the list indentation (via `wrapIndented('  ', …)`), so the
+  // rule text is built without a leading indent.
+  const parts = [coloredName, `[${coloredSeverity}]`, `(${types})`];
 
   if (summary) {
     parts.push(`- ${summary}`);

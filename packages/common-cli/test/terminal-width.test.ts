@@ -55,10 +55,23 @@ describe('terminalWidth', () => {
     expect(terminalWidth()).toBe(100);
   });
 
-  it('falls back to a stable 80 for non-TTY output', () => {
+  it('reports no finite width for non-TTY output (so it is not wrapped)', () => {
     setTty(false);
 
-    expect(terminalWidth()).toBe(80);
+    expect(terminalWidth()).toBe(Number.POSITIVE_INFINITY);
+  });
+
+  it('ignores a non-positive or non-numeric OCLIF_COLUMNS', () => {
+    setTty(true, 120);
+
+    process.env.OCLIF_COLUMNS = '-1';
+    expect(terminalWidth()).toBe(120);
+
+    process.env.OCLIF_COLUMNS = '0';
+    expect(terminalWidth()).toBe(120);
+
+    process.env.OCLIF_COLUMNS = 'wide';
+    expect(terminalWidth()).toBe(120);
   });
 
   it('falls back to oclif settings.columns when OCLIF_COLUMNS is unset', () => {
@@ -100,6 +113,10 @@ describe('terminalWidth', () => {
 
 describe('wrap', () => {
   const originalColumns = process.env.OCLIF_COLUMNS;
+  const originalDescriptor = Object.getOwnPropertyDescriptor(
+    process.stdout,
+    'isTTY',
+  );
 
   afterEach(() => {
     if (originalColumns === undefined) {
@@ -107,11 +124,15 @@ describe('wrap', () => {
     } else {
       process.env.OCLIF_COLUMNS = originalColumns;
     }
+
+    if (originalDescriptor) {
+      Object.defineProperty(process.stdout, 'isTTY', originalDescriptor);
+    }
   });
 
-  it('hard-wraps long text at the terminal width', () => {
+  it('soft-wraps whitespace-separated prose at the terminal width', () => {
     process.env.OCLIF_COLUMNS = '20';
-    const text = 'x'.repeat(50);
+    const text = 'the quick brown fox jumps over the lazy dog';
 
     const wrapped = wrap(text);
     const lines = wrapped.split('\n');
@@ -122,9 +143,30 @@ describe('wrap', () => {
     }
   });
 
+  it('never splits an unbreakable token mid-token', () => {
+    process.env.OCLIF_COLUMNS = '20';
+    const path =
+      'specs/deeply/nested/openapi-specification-file-v3.yaml#/components';
+
+    // A token with no break points must stay on a single line so it can still
+    // be copy-pasted and grepped, even though it overflows the width.
+    expect(wrap(path)).toBe(path);
+  });
+
+  it('emits text verbatim when there is no finite width (non-TTY)', () => {
+    delete process.env.OCLIF_COLUMNS;
+    Object.defineProperty(process.stdout, 'isTTY', {
+      configurable: true,
+      value: false,
+    });
+    const text = 'the quick brown fox jumps over the lazy dog';
+
+    expect(wrap(text)).toBe(text);
+  });
+
   it('reserves indentColumns from the available width', () => {
     process.env.OCLIF_COLUMNS = '20';
-    const text = 'x'.repeat(50);
+    const text = 'the quick brown fox jumps over the lazy dog';
 
     const wrapped = wrap(text, 5);
 
@@ -165,6 +207,10 @@ describe('wrapIndented', () => {
     } else {
       process.env.OCLIF_COLUMNS = originalColumns;
     }
+  });
+
+  it('renders nothing for empty content (no dangling glyph line)', () => {
+    expect(wrapIndented('', '  ├── ')).toEqual([]);
   });
 
   it('applies the glyph to the first line only and hang-indents the rest', () => {

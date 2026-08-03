@@ -802,13 +802,9 @@ describe('cli report renderer', () => {
 
       const lines = output.split('\n');
 
-      // Prose lines stay within the pinned 50-col width. The run-heading
-      // separator (`tool · type · ────`) is a fixed-shape divider, not wrapped
-      // prose, so it is exempt.
+      // Every line — prose and the width-aware run-heading divider alike — stays
+      // within the pinned 50-col width.
       for (const line of lines) {
-        if (line.includes('·')) {
-          continue;
-        }
         expect(line.length).toBeLessThanOrEqual(50);
       }
 

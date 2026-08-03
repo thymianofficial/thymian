@@ -29,6 +29,7 @@ import {
   pluralize,
   sortRecordByKey,
   sortRecordBySeverity,
+  terminalWidth,
   wrap,
 } from './utils.js';
 
@@ -55,6 +56,20 @@ export function collectSeverityCounts(
   return counts;
 }
 
+/**
+ * `tool · type · ────` run separator, sized so the rule line fills the terminal
+ * width like the rest of the render layer (falling back to 80 columns when there
+ * is no finite width, e.g. piped output). The dash run always keeps at least one
+ * character so narrow terminals still show a divider.
+ */
+function runHeading(toolName: string, runType: string): string {
+  const prefix = `${toolName} · ${runType} · `;
+  const width = terminalWidth();
+  const fill = Number.isFinite(width) ? width : 80;
+
+  return prefix + '─'.repeat(Math.max(1, fill - prefix.length));
+}
+
 export function renderReport(
   report: Report,
   options: { format?: ThymianFormat; sortReportsBy?: SortReportsBy } = {},
@@ -78,11 +93,7 @@ export function renderReport(
   const resolveLocation = createLocationResolver(reportForLocationResolution);
 
   for (const [idx, run] of report.runs.entries()) {
-    lines.push(
-      `${run.tool.name} · ${run.runType} · ${'─'.repeat(
-        Math.max(1, 70 - run.tool.name.length),
-      )}`,
-    );
+    lines.push(runHeading(run.tool.name, run.runType));
     lines.push('');
 
     const ruleIndex = buildRuleIndex(run.rules);
