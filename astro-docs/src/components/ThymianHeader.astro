@@ -7,12 +7,14 @@ import SocialIcons from 'virtual:starlight/components/SocialIcons';
 import ThemeSelect from 'virtual:starlight/components/ThemeSelect';
 
 import ExampleBanner from './action-banner/ExampleBanner.astro';
+import SiteNav from './navigation/SiteNav.astro';
 import { NAV_LINKS, resolveAriaCurrent } from '../data/navigation';
 
 const shouldRenderSearch =
   config.pagefind || config.components.Search !== '@astrojs/starlight/components/Search.astro';
 
 const pillLinks = NAV_LINKS.filter((link) => link.placement === 'pills+panel');
+const { hasSidebar } = Astro.locals.starlightRoute;
 ---
 
 <ExampleBanner />
@@ -43,6 +45,7 @@ const pillLinks = NAV_LINKS.filter((link) => link.placement === 'pills+panel');
     </div>
     <ThemeSelect />
   </div>
+  {!hasSidebar && <SiteNav />}
 </div>
 
 <style>
@@ -116,8 +119,17 @@ const pillLinks = NAV_LINKS.filter((link) => link.placement === 'pills+panel');
     gap: 0.5rem;
   }
 
+  /*
+    No `display` here on purpose: the `sl-hidden md:sl-flex` utility classes on
+    the element itself own visibility (none below 800px, flex at >=800px).
+    Those Starlight utilities live in `@layer starlight.utils`, and an
+    unlayered `display` declaration here would ALWAYS beat them regardless of
+    viewport (unlayered styles outrank every layer in the cascade) - which is
+    exactly the bug this comment replaced: the pills were never actually
+    hidden below 800px. `.right-group` below never had this bug because it
+    never declared its own `display` either.
+  */
   .header-nav-links {
-    display: flex;
     align-items: center;
     gap: 0.25rem;
     margin-inline-end: 1rem;

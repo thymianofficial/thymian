@@ -1,0 +1,255 @@
+---
+import { Icon } from '@astrojs/starlight/components';
+import SocialIcons from 'virtual:starlight/components/SocialIcons';
+import ThemeSelect from 'virtual:starlight/components/ThemeSelect';
+
+import { NAV_LINKS, resolveAriaCurrent } from '../../data/navigation';
+
+const panelId = 'site-nav-panel';
+---
+
+<thymian-site-nav>
+  <button
+    type="button"
+    aria-expanded="false"
+    aria-controls={panelId}
+    aria-label={Astro.locals.t('menuButton.accessibleLabel')}
+    class="site-nav-button sl-flex md:sl-hidden print:hidden"
+  >
+    <Icon name="bars" class="open-menu" />
+    <Icon name="close" class="close-menu" />
+  </button>
+  <div id={panelId} class="site-nav-panel" hidden>
+    <nav aria-label="Site" class="site-nav-links">
+      {
+        NAV_LINKS.map((link) => (
+          <a
+            href={link.href}
+            class:list={['site-nav-link', { 'enterprise-cta': link.isCta }]}
+            aria-current={resolveAriaCurrent(link.href, Astro.url.pathname)}
+          >
+            {link.label}
+          </a>
+        ))
+      }
+    </nav>
+    <div class="site-nav-socials">
+      <SocialIcons />
+    </div>
+    <div class="site-nav-theme">
+      <ThemeSelect />
+    </div>
+  </div>
+</thymian-site-nav>
+
+<script>
+  class ThymianSiteNav extends HTMLElement {
+    button: HTMLButtonElement;
+    panel: HTMLElement;
+
+    constructor() {
+      super();
+      this.button = this.querySelector('button')!;
+      this.panel = this.querySelector('.site-nav-panel')!;
+
+      this.button.addEventListener('click', () => this.toggleExpanded());
+      document.addEventListener('keyup', (e) => this.closeOnEscape(e));
+      this.panel.addEventListener('click', (e) => {
+        if ((e.target as HTMLElement).closest('a')) this.setExpanded(false);
+      });
+      matchMedia('(min-width: 50em)').addEventListener('change', () => this.setExpanded(false));
+    }
+
+    setExpanded(expanded: boolean) {
+      this.button.setAttribute('aria-expanded', String(expanded));
+      this.panel.hidden = !expanded;
+      // Targets `documentElement`, not `body` like upstream's copy of this
+      // mechanism: `document.scrollingElement` on this site is `<html>`
+      // (neither element is height-constrained into an internal scroll
+      // box), so `body { overflow: hidden }` alone never blocks scrolling
+      // here - verified empirically, not assumed from the upstream source.
+      document.documentElement.toggleAttribute('data-mobile-menu-expanded', expanded);
+      document.querySelectorAll<HTMLElement>('.main-frame, .sl-skip-link').forEach((el) => {
+        el.toggleAttribute('inert', expanded);
+      });
+    }
+
+    toggleExpanded() {
+      this.setExpanded(this.button.getAttribute('aria-expanded') !== 'true');
+    }
+
+    closeOnEscape(e: KeyboardEvent) {
+      if (e.code === 'Escape' && this.button.getAttribute('aria-expanded') === 'true') {
+        this.setExpanded(false);
+        this.button.focus();
+      }
+    }
+  }
+
+  customElements.define('thymian-site-nav', ThymianSiteNav);
+</script>
+
+<style>
+  thymian-site-nav {
+    display: contents;
+  }
+
+  /*
+    In-flow in the header row (not upstream's `position: fixed`, which it needs
+    because its toggle renders inside `nav.sidebar`; ours renders inside the
+    header itself). Visuals mirror the native `starlight-menu-button` (circle,
+    shadow, theme-flipped colors) but resized: upstream's `--sl-menu-button-size`
+    is 2rem (32px) - below the WCAG 2.5.8 44px target floor - so this is sized
+    directly rather than inheriting that token.
+  */
+  .site-nav-button {
+    position: relative;
+    flex-shrink: 0;
+    border: 0;
+    border-radius: 50%;
+    width: 44px;
+    height: 44px;
+    padding: 0.5rem;
+    background-color: var(--sl-color-white);
+    color: var(--sl-color-black);
+    box-shadow: var(--sl-shadow-md);
+    cursor: pointer;
+  }
+
+  .site-nav-button[aria-expanded='true'] {
+    background-color: var(--sl-color-gray-2);
+    box-shadow: none;
+  }
+
+  .site-nav-button[aria-expanded='true'] .open-menu {
+    display: none;
+  }
+
+  .site-nav-button:not([aria-expanded='true']) .close-menu {
+    display: none;
+  }
+
+  :global([data-theme='light']) .site-nav-button {
+    background-color: var(--sl-color-black);
+    color: var(--sl-color-white);
+  }
+
+  :global([data-theme='light']) .site-nav-button[aria-expanded='true'] {
+    background-color: var(--sl-color-gray-5);
+  }
+
+  /*
+    Mirrors the native drawer pane (`.sidebar-pane` in Starlight's
+    PageFrame.astro) - same surface/offset/z-index - but toggled via
+    `hidden`/`display` (the spec-pinned mechanism) rather than upstream's
+    `visibility` + sibling-combinator trick.
+  */
+  .site-nav-panel {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+    position: fixed;
+    z-index: var(--sl-z-index-menu);
+    inset-block: var(--sl-nav-height) 0;
+    inset-inline-start: 0;
+    width: 100%;
+    background-color: var(--sl-color-black);
+    overflow-y: auto;
+    padding: 1rem var(--sl-nav-pad-x);
+    opacity: 1;
+    transition-property: opacity, display;
+    transition-duration: 0.2s;
+    transition-timing-function: ease;
+    transition-behavior: allow-discrete;
+  }
+
+  .site-nav-panel[hidden] {
+    display: none;
+    opacity: 0;
+  }
+
+  @starting-style {
+    .site-nav-panel:not([hidden]) {
+      opacity: 0;
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .site-nav-panel {
+      transition-duration: 0ms;
+    }
+  }
+
+  .site-nav-links {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+    padding-block: 0.5rem 1rem;
+    border-bottom: 1px solid var(--sl-color-gray-6);
+  }
+
+  .site-nav-link {
+    display: inline-flex;
+    align-items: center;
+    min-height: 24px;
+    padding: 0.5rem 1rem;
+    font-size: var(--sl-text-sm);
+    font-weight: 500;
+    color: var(--sl-color-gray-2);
+    text-decoration: none;
+    border-radius: 99rem;
+    transition: color 0.15s ease, background-color 0.15s ease;
+  }
+
+  .site-nav-link:hover {
+    color: var(--sl-color-white);
+  }
+
+  .site-nav-link[aria-current]:not(.enterprise-cta) {
+    font-weight: 600;
+    color: var(--sl-color-white);
+  }
+
+  /* Pinned dark CTA fills - reuses 13.1's --tnav-* mechanism (ThymianHeader.astro). */
+  .site-nav-link.enterprise-cta {
+    --tnav-cta-bg: var(--sl-color-accent);
+    --tnav-cta-bg-hover: var(--sl-color-accent-high);
+    color: #ffffff;
+    background-color: var(--tnav-cta-bg);
+    font-weight: 600;
+  }
+
+  .site-nav-link.enterprise-cta:hover {
+    color: #ffffff;
+    background-color: var(--tnav-cta-bg-hover);
+  }
+
+  :global(:root[data-theme='dark']) .site-nav-link.enterprise-cta {
+    --tnav-cta-bg: #376e1b;
+    --tnav-cta-bg-hover: #275114;
+  }
+
+  .site-nav-socials {
+    display: flex;
+    gap: 1rem;
+    align-items: center;
+    padding-block: 1rem;
+    border-bottom: 1px solid var(--sl-color-gray-6);
+  }
+
+  .site-nav-theme {
+    padding-block: 1rem;
+  }
+</style>
+
+<style is:global>
+  [data-mobile-menu-expanded] {
+    overflow: hidden;
+  }
+
+  @media (min-width: 50rem) {
+    [data-mobile-menu-expanded] {
+      overflow: auto;
+    }
+  }
+</style>
