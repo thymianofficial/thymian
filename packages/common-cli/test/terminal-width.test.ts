@@ -13,11 +13,13 @@ const visibleWidth = (value: string): number => stripAnsi(value).length;
 
 describe('terminalWidth', () => {
   const originalColumns = process.env.OCLIF_COLUMNS;
+  const hadSettingsColumns = 'columns' in settings;
   const originalSettingsColumns = settings.columns;
   const originalDescriptor = Object.getOwnPropertyDescriptor(
     process.stdout,
     'isTTY',
   );
+  const originalGetWindowSize = process.stdout.getWindowSize;
 
   beforeEach(() => {
     delete process.env.OCLIF_COLUMNS;
@@ -31,11 +33,21 @@ describe('terminalWidth', () => {
       process.env.OCLIF_COLUMNS = originalColumns;
     }
 
-    settings.columns = originalSettingsColumns;
+    // Restore `settings.columns` faithfully: delete it when it was originally
+    // absent rather than leaving an explicit `undefined` behind.
+    if (hadSettingsColumns) {
+      settings.columns = originalSettingsColumns;
+    } else {
+      delete settings.columns;
+    }
 
     if (originalDescriptor) {
       Object.defineProperty(process.stdout, 'isTTY', originalDescriptor);
     }
+
+    // `setTty` may have stubbed `getWindowSize`; restore the real one so it does
+    // not leak into later tests.
+    process.stdout.getWindowSize = originalGetWindowSize;
   });
 
   const setTty = (isTTY: boolean, columns?: number): void => {
@@ -71,6 +83,11 @@ describe('terminalWidth', () => {
     expect(terminalWidth()).toBe(120);
 
     process.env.OCLIF_COLUMNS = 'wide';
+    expect(terminalWidth()).toBe(120);
+
+    // Partially-numeric values are rejected (strict `Number(...)`, not
+    // `parseInt`), so `"80cols"` does not accidentally pin the width to 80.
+    process.env.OCLIF_COLUMNS = '80cols';
     expect(terminalWidth()).toBe(120);
   });
 
@@ -211,6 +228,21 @@ describe('wrapIndented', () => {
 
   it('renders nothing for empty content (no dangling glyph line)', () => {
     expect(wrapIndented('', '  ├── ')).toEqual([]);
+  });
+
+  it('hang-indents by terminal-column width for wide-glyph prefixes', () => {
+    process.env.OCLIF_COLUMNS = '20';
+    // `你` is a double-width (2-column) glyph; the prefix `你 ` occupies 3
+    // columns even though its `.length` is 2. Continuation lines must align to
+    // the 3-column content position, matching where `wrap-ansi` breaks.
+    const lines = wrapIndented('word '.repeat(20).trim(), '你 ');
+
+    expect(lines.length).toBeGreaterThan(1);
+    expect(lines[0]!.startsWith('你 ')).toBe(true);
+    for (const line of lines.slice(1)) {
+      expect(line.startsWith('   ')).toBe(true); // 3 spaces, not 2
+      expect(line[3]).not.toBe(' ');
+    }
   });
 
   it('applies the glyph to the first line only and hang-indents the rest', () => {

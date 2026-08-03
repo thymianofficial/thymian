@@ -1,5 +1,6 @@
 import { settings } from '@oclif/core';
 import { compareSeverityGroupKeys } from '@thymian/core';
+import stringWidth from 'string-width';
 import wrapAnsi from 'wrap-ansi';
 
 const SINGLE_INDENTATION = '  ';
@@ -31,13 +32,20 @@ function termwidth(stream: NodeJS.WriteStream): number {
   return width;
 }
 
-/** A positive integer parsed from `value`, or `undefined` if it is not one. */
+/**
+ * A positive integer parsed from `value`, or `undefined` if it is not one.
+ * Strings are parsed strictly via `Number(...)` (not `parseInt`), so a
+ * partially-numeric override like `"80cols"` is rejected rather than silently
+ * pinning the width to 80.
+ */
 function positiveInt(value: string | number | undefined): number | undefined {
-  const parsed = typeof value === 'string' ? Number.parseInt(value, 10) : value;
+  if (value === undefined) {
+    return undefined;
+  }
 
-  return typeof parsed === 'number' && Number.isInteger(parsed) && parsed > 0
-    ? parsed
-    : undefined;
+  const parsed = typeof value === 'string' ? Number(value) : value;
+
+  return Number.isInteger(parsed) && parsed > 0 ? parsed : undefined;
 }
 
 /**
@@ -121,12 +129,15 @@ export function wrapIndented(
   );
 }
 
-const ESC = String.fromCharCode(27);
-const ANSI_PATTERN = new RegExp(`${ESC}\\[[0-9;]*m`, 'g');
-
-/** Visible column width of a string, ignoring ANSI SGR escape codes. */
+/**
+ * Visible terminal-column width of a string. Uses `string-width` — the same
+ * measurement `wrap-ansi` applies to content — so hanging-indent columns stay
+ * consistent with where the wrapped text actually breaks, including for wide
+ * (CJK/emoji) glyphs and surrogate pairs where a raw `.length` would diverge.
+ * ANSI SGR escape codes are ignored (stripped internally by `string-width`).
+ */
 function visibleWidth(value: string): number {
-  return value.replace(ANSI_PATTERN, '').length;
+  return stringWidth(value);
 }
 
 export function pluralize(word: string, length: number): string {
