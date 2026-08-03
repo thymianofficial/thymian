@@ -4,6 +4,7 @@ import {
   handleWorkflowOutcome,
   mergeRuleSets,
   resolveRuleSeverity,
+  toRuleSetInputs,
 } from '@thymian/common-cli';
 import { Flags } from '@thymian/common-cli/oclif';
 import type {} from '@thymian/plugin-har';
@@ -38,9 +39,8 @@ export default class Analyze extends BaseCliRunCommand<typeof Analyze> {
     const specifications = this.thymianConfig.specifications ?? [];
     const traffic = this.thymianConfig.traffic ?? [];
 
-    const ruleSets = mergeRuleSets(
-      this.thymianConfig.ruleSets,
-      this.flags['rule-set'],
+    const { rules, ruleProfiles } = toRuleSetInputs(
+      mergeRuleSets(this.thymianConfig.ruleSets, this.flags['rule-set']),
     );
 
     const ruleSeverity = resolveRuleSeverity(
@@ -52,7 +52,8 @@ export default class Analyze extends BaseCliRunCommand<typeof Analyze> {
       return await this.thymian.analyze({
         specification: specifications.length > 0 ? specifications : undefined,
         traffic,
-        rules: ruleSets,
+        rules,
+        ruleProfiles,
         rulesConfig: this.thymianConfig.rules,
         ruleFilter: createSeverityRuleFilter(ruleSeverity),
         validateSpecs: this.flags['validate-specs'],

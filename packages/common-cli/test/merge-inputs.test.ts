@@ -7,6 +7,7 @@ import {
   mergeSpecifications,
   mergeTraffic,
   resolveRuleSeverity,
+  toRuleSetInputs,
 } from '../src/merge-inputs.js';
 
 function createMockRule(severity: 'off' | 'error' | 'warn' | 'hint'): Rule {
@@ -75,45 +76,85 @@ describe('merge-inputs', () => {
   });
 
   describe('mergeRuleSets', () => {
-    it('should merge config and flag rule sets', () => {
+    it('should merge config and flag rule sets, defaulting to recommended', () => {
       const result = mergeRuleSets(
         ['@thymian/rules-rfc-9110'],
         ['@thymian/custom-rules'],
       );
 
       expect(result).toEqual([
-        '@thymian/rules-rfc-9110',
-        '@thymian/custom-rules',
+        { name: '@thymian/rules-rfc-9110', profile: 'recommended' },
+        { name: '@thymian/custom-rules', profile: 'recommended' },
       ]);
     });
 
-    it('should deduplicate rule set names', () => {
+    it('should normalize a bare string entry to the recommended profile', () => {
+      expect(mergeRuleSets(['@thymian/rules-rfc-9110'], undefined)).toEqual([
+        { name: '@thymian/rules-rfc-9110', profile: 'recommended' },
+      ]);
+    });
+
+    it('should normalize an object entry without profile to recommended', () => {
+      expect(
+        mergeRuleSets([{ name: '@thymian/rules-rfc-9110' }], undefined),
+      ).toEqual([{ name: '@thymian/rules-rfc-9110', profile: 'recommended' }]);
+    });
+
+    it('should preserve an explicit profile on an object entry', () => {
+      expect(
+        mergeRuleSets(
+          [{ name: '@thymian/rules-rfc-9110', profile: 'strict' }],
+          undefined,
+        ),
+      ).toEqual([{ name: '@thymian/rules-rfc-9110', profile: 'strict' }]);
+    });
+
+    it('should treat flag rule sets as recommended bare strings', () => {
+      expect(mergeRuleSets(undefined, ['@thymian/rules-rfc-9110'])).toEqual([
+        { name: '@thymian/rules-rfc-9110', profile: 'recommended' },
+      ]);
+    });
+
+    it('should deduplicate by name, keeping the first profile selection', () => {
       const result = mergeRuleSets(
-        ['@thymian/rules-rfc-9110', '@thymian/custom-rules'],
+        [
+          { name: '@thymian/rules-rfc-9110', profile: 'strict' },
+          '@thymian/custom-rules',
+        ],
         ['@thymian/rules-rfc-9110', '@thymian/other-rules'],
       );
 
       expect(result).toEqual([
-        '@thymian/rules-rfc-9110',
-        '@thymian/custom-rules',
-        '@thymian/other-rules',
+        { name: '@thymian/rules-rfc-9110', profile: 'strict' },
+        { name: '@thymian/custom-rules', profile: 'recommended' },
+        { name: '@thymian/other-rules', profile: 'recommended' },
       ]);
-    });
-
-    it('should handle undefined config', () => {
-      const result = mergeRuleSets(undefined, ['@thymian/rules-rfc-9110']);
-
-      expect(result).toEqual(['@thymian/rules-rfc-9110']);
-    });
-
-    it('should handle undefined flags', () => {
-      const result = mergeRuleSets(['@thymian/rules-rfc-9110'], undefined);
-
-      expect(result).toEqual(['@thymian/rules-rfc-9110']);
     });
 
     it('should return empty array when both are undefined', () => {
       expect(mergeRuleSets(undefined, undefined)).toEqual([]);
+    });
+  });
+
+  describe('toRuleSetInputs', () => {
+    it('splits normalized selections into rules and ruleProfiles', () => {
+      const result = toRuleSetInputs([
+        { name: '@thymian/rules-rfc-9110', profile: 'strict' },
+        { name: '@thymian/custom-rules', profile: 'recommended' },
+      ]);
+
+      expect(result.rules).toEqual([
+        '@thymian/rules-rfc-9110',
+        '@thymian/custom-rules',
+      ]);
+      expect(result.ruleProfiles).toEqual({
+        '@thymian/rules-rfc-9110': 'strict',
+        '@thymian/custom-rules': 'recommended',
+      });
+    });
+
+    it('returns empty structures for an empty selection', () => {
+      expect(toRuleSetInputs([])).toEqual({ rules: [], ruleProfiles: {} });
     });
   });
 

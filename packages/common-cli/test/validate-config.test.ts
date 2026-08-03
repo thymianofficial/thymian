@@ -85,6 +85,42 @@ describe('validate-config', () => {
         expect(result.valid).toBe(true);
       });
 
+      it('should validate ruleSets object entry without a profile', () => {
+        const config: ThymianConfig = {
+          plugins: {},
+          ruleSets: [{ name: '@thymian/rules-rfc-9110' }],
+        };
+
+        const result = validateConfig(config);
+
+        expect(result.valid).toBe(true);
+      });
+
+      it('should validate ruleSets object entry with a valid profile', () => {
+        const config: ThymianConfig = {
+          plugins: {},
+          ruleSets: [{ name: '@thymian/rules-rfc-9110', profile: 'strict' }],
+        };
+
+        const result = validateConfig(config);
+
+        expect(result.valid).toBe(true);
+      });
+
+      it('should validate a mix of bare-string and object ruleSets entries', () => {
+        const config: ThymianConfig = {
+          plugins: {},
+          ruleSets: [
+            '@thymian/rules-api-description-validation',
+            { name: '@thymian/rules-rfc-9110', profile: 'minimal' },
+          ],
+        };
+
+        const result = validateConfig(config);
+
+        expect(result.valid).toBe(true);
+      });
+
       it('should validate ThymianConfig with ruleSeverity', () => {
         const config: ThymianConfig = {
           plugins: {},
@@ -223,6 +259,39 @@ describe('validate-config', () => {
             expect(result.message).toContain('unexpected property');
             expect(result.message).toContain('unknownProperty');
           }
+        });
+
+        it('should invalidate a ruleSets object entry with an unknown profile', () => {
+          const config = {
+            plugins: {},
+            ruleSets: [{ name: '@thymian/rules-rfc-9110', profile: 'bogus' }],
+          };
+
+          const result = validateConfig(config);
+
+          expect(result.valid).toBe(false);
+        });
+
+        it('should invalidate a ruleSets object entry missing name', () => {
+          const config = {
+            plugins: {},
+            ruleSets: [{ profile: 'recommended' }],
+          };
+
+          const result = validateConfig(config);
+
+          expect(result.valid).toBe(false);
+        });
+
+        it('should invalidate a ruleSets object entry with additional properties', () => {
+          const config = {
+            plugins: {},
+            ruleSets: [{ name: '@thymian/rules-rfc-9110', extra: true }],
+          };
+
+          const result = validateConfig(config);
+
+          expect(result.valid).toBe(false);
         });
 
         it('should invalidate null config', () => {

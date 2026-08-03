@@ -59,12 +59,39 @@ export const thymianConfigSchema = {
     },
     ruleSets: {
       type: 'array',
-      description: 'Optional. Rule set packages to load.',
+      description:
+        'Optional. Rule set packages to load. Each entry is either the package name (which resolves to the `recommended` profile) or an object `{ name, profile }` selecting `recommended | strict | minimal`.',
       default: [
         '@thymian/rules-rfc-9110',
         '@thymian/rules-api-description-validation',
       ],
-      items: { type: 'string' },
+      items: {
+        oneOf: [
+          {
+            type: 'string',
+            description:
+              'Rule set package name. Resolves to the `recommended` profile.',
+          },
+          {
+            type: 'object',
+            required: ['name'],
+            additionalProperties: false,
+            description: 'Rule set package with an explicit profile selection.',
+            properties: {
+              name: {
+                type: 'string',
+                description: 'Rule set package name.',
+              },
+              profile: {
+                type: 'string',
+                enum: ['recommended', 'strict', 'minimal'],
+                description:
+                  'Recommended rule-configuration profile to apply. Defaults to `recommended`.',
+              },
+            },
+          },
+        ],
+      },
     },
     ruleSeverity: {
       type: 'string',

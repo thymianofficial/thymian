@@ -4,6 +4,7 @@ import {
   handleWorkflowOutcome,
   mergeRuleSets,
   resolveRuleSeverity,
+  toRuleSetInputs,
 } from '@thymian/common-cli';
 import { Flags } from '@thymian/common-cli/oclif';
 import type {} from '@thymian/plugin-openapi';
@@ -32,9 +33,8 @@ export default class Test extends BaseCliRunCommand<typeof Test> {
   override async run(): Promise<void> {
     const specifications = this.thymianConfig.specifications ?? [];
 
-    const ruleSets = mergeRuleSets(
-      this.thymianConfig.ruleSets,
-      this.flags['rule-set'],
+    const { rules, ruleProfiles } = toRuleSetInputs(
+      mergeRuleSets(this.thymianConfig.ruleSets, this.flags['rule-set']),
     );
 
     const ruleSeverity = resolveRuleSeverity(
@@ -47,7 +47,8 @@ export default class Test extends BaseCliRunCommand<typeof Test> {
     const outcome = await this.thymian.run(async () => {
       return await this.thymian.test({
         specification: specifications,
-        rules: ruleSets,
+        rules,
+        ruleProfiles,
         rulesConfig: this.thymianConfig.rules,
         ruleFilter: createSeverityRuleFilter(ruleSeverity),
         targetUrl,

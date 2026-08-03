@@ -4,6 +4,13 @@ import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { captureOutput } from '@oclif/test';
+import type { RuleSetEntry } from '@thymian/common-cli';
+import {
+  mergeRuleSets,
+  thymianConfigSchema,
+  toRuleSetInputs,
+} from '@thymian/common-cli';
+import { ajv } from '@thymian/core';
 import {
   afterAll,
   afterEach,
@@ -338,6 +345,41 @@ describe('generate config (integration)', () => {
       expect(configContent).toContain('specifications:');
       expect(configContent).toContain('plugins:');
       expect(configContent).toContain('ruleSets:');
+    });
+
+    it('produces a config that validates and whose ruleSets resolve to recommended', async () => {
+      const testDir = join(tmpDir, 'recommended-resolving');
+      mkdirSync(testDir, { recursive: true });
+
+      writeFileSync(
+        join(testDir, 'spec.yaml'),
+        'openapi: "3.0.0"\ninfo:\n  title: Test\n  version: 1.0.0\npaths: {}\n',
+      );
+
+      await captureOutput(async () => {
+        await GenerateConfig.run(['--cwd', testDir, '--no-interactive']);
+      });
+
+      const loadedConfig = await loadGeneratedConfig(
+        join(testDir, 'thymian.config.yaml'),
+      );
+
+      // The scaffolded config must satisfy the published schema.
+      const validate = ajv.compile(thymianConfigSchema);
+      expect(validate(loadedConfig)).toBe(true);
+
+      // The emitted ruleSets are bare strings; every one must resolve to the
+      // recommended profile through the normal merge/split path.
+      const ruleSets = loadedConfig.ruleSets as RuleSetEntry[];
+      expect(ruleSets.every((entry) => typeof entry === 'string')).toBe(true);
+
+      const { ruleProfiles } = toRuleSetInputs(
+        mergeRuleSets(ruleSets, undefined),
+      );
+
+      expect(Object.values(ruleProfiles)).toEqual(
+        ruleSets.map(() => 'recommended'),
+      );
     });
 
     it('includes default plugins in generated config', async () => {
