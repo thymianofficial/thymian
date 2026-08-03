@@ -33,6 +33,9 @@ export default httpRule(
   .description(
     'The final recipient of the request SHOULD exclude any request fields that are likely to contain sensitive data when that recipient generates the response content.',
   )
+  .explanation(
+    'When your server is the final recipient of a TRACE and builds the reflected response body, it should strip out request fields likely to hold sensitive data rather than echoing them back verbatim. This matters because TRACE mirrors the request into the response, so faithfully reflecting fields like credentials or cookies would expose them; filtering them out protects secrets even when a client mistakenly included them, acting as a safety net on the receiving end.',
+  )
   .appliesTo('server')
   .rule((ctx) =>
     ctx.validateHttpTransactions(

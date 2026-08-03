@@ -15,6 +15,9 @@ export default httpRule('rfc9110/server-may-send-accept-ranges-none')
   .summary(
     'Server may send "Accept-Ranges: none" to advise against range requests.',
   )
+  .explanation(
+    'A server that supports no range requests at all for a resource may send "Accept-Ranges: none" to tell the client not to bother trying a range request on that path. This matters because it saves the client from attempting partial requests that would just be rejected, and the "none" unit is reserved solely for this opt-out. It is optional, so this surfaces informationally when a response advertises some unit other than "none" rather than flagging a violation.',
+  )
   .appliesTo('server')
   // "Accept-Ranges: none" is a conformant MAY, so this surfaces (as analytics)
   // responses that carry an Accept-Ranges header advertising a unit other than

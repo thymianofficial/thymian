@@ -40,6 +40,9 @@ export default httpRule(
   .summary(
     'Client should list multiple ranges in ascending order unless there is a specific need to request a later part earlier.',
   )
+  .explanation(
+    'When you ask for several byte ranges at once, list them in increasing order, the same order they appear in the full resource, unless you have a real reason to fetch a later part first. Ordered ranges let the server read and stream the representation in one forward pass; jumbled ranges force extra seeking and can look like a broken client or an attack, so servers may treat scrambled requests less favourably.',
+  )
   .appliesTo('client')
   .rule((ctx) =>
     ctx.validateHttpTransactions(

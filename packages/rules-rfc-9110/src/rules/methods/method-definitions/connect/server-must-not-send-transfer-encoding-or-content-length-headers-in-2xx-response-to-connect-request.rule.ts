@@ -26,6 +26,9 @@ export default httpRule(
   .description(
     'A server MUST NOT send any Transfer-Encoding or Content-Length header fields in a 2xx (Successful) response to CONNECT.',
   )
+  .explanation(
+    'When a server answers a CONNECT request with a 2xx success, it must not include Transfer-Encoding or Content-Length headers. A successful CONNECT means the connection immediately switches to a raw tunnel after the response headers, and everything that follows is tunneled data from the destination, not an HTTP message body. Sending those framing headers would falsely imply a normal response body, confusing the client about where the tunnel begins and corrupting the tunneled stream.',
+  )
   .appliesTo('server')
   .rule((ctx) =>
     ctx.validateCommonHttpTransactions(

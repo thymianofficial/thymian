@@ -23,6 +23,9 @@ export default httpRule(
   .description(
     'A client MAY send a Max-Forwards header field in an OPTIONS request to target a specific recipient in the request chain.',
   )
+  .explanation(
+    'On an OPTIONS request a client may optionally include a Max-Forwards header, which limits how many proxies the request may pass through so a specific intermediary in the chain answers it instead of the origin. Its absence is never wrong, but when present the value must be a plain non-negative integer, since each proxy decrements it and must respond as the final recipient once it reaches zero. A malformed value breaks that hop-counting and leaves the intended recipient ambiguous.',
+  )
   .appliesTo('client')
   .rule((ctx) =>
     ctx.validateHttpTransactions(

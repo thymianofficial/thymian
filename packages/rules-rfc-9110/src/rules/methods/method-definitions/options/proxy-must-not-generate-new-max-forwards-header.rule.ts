@@ -15,6 +15,9 @@ export default httpRule(
   .description(
     'A proxy MUST NOT generate a Max-Forwards header field while forwarding a request unless that request was received with a Max-Forwards field.',
   )
+  .explanation(
+    "A proxy may only pass along a Max-Forwards header if the request it received already carried one; it must never invent a Max-Forwards value the client did not send. This matters because Max-Forwards lets a client cap how many hops its OPTIONS or TRACE request travels through. If a proxy fabricates one, it silently changes the client's intended targeting and could cause the request to stop short of where the client meant it to reach.",
+  )
   .appliesTo('proxy')
   .overrideAnalyticsRule((ctx) =>
     ctx.validateCapturedHttpTraces((trace, location) => {

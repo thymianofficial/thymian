@@ -13,6 +13,9 @@ export default httpRule(
   .description(
     'The server SHOULD send the same header fields in response to a HEAD request as it would have sent if the request method had been GET.',
   )
+  .explanation(
+    "A response to HEAD should carry the same header fields the server would have returned for the equivalent GET, just without the body. Since the whole point of HEAD is to inspect a resource's metadata cheaply, clients rely on those headers to learn its type, size, and freshness before deciding whether to fetch it. Dropping headers that GET would include defeats that purpose and can mislead callers about the resource. A few fields determined only while generating content may legitimately be omitted.",
+  )
   .appliesTo('server')
   .rule((ctx) =>
     ctx.validateGroupedCommonHttpTransactions(

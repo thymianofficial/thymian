@@ -10,6 +10,9 @@ export default httpRule(
   .description(
     'All general-purpose servers MUST support the methods GET and HEAD.',
   )
+  .explanation(
+    'Any server meant for general use must handle GET and HEAD requests rather than rejecting them as not implemented; every other method is optional. This matters because GET and HEAD are the baseline of the Web: clients, caches, crawlers, and link checkers assume they can always retrieve a resource or its metadata. A server that fails to support them cannot interoperate with the wider ecosystem, since callers have no reliable way to read what the server exposes.',
+  )
   .appliesTo('server')
   .rule((ctx) =>
     ctx.validateCommonHttpTransactions(

@@ -72,6 +72,9 @@ export default httpRule(
   .summary(
     'A client should not request multiple ranges that are less efficient than a single encompassing range.',
   )
+  .explanation(
+    'Do not split a request into many byte ranges when a single range covering the same span would be cheaper to fetch, such as overlapping ranges or tiny ranges separated by only a few bytes. Multipart range responses carry per-part overhead and make the server do more work, so a request that fragments what is essentially one contiguous chunk wastes bandwidth and processing and can even look like a denial-of-service pattern.',
+  )
   .appliesTo('client')
   .rule((ctx) =>
     ctx.validateHttpTransactions(
