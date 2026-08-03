@@ -60,7 +60,7 @@ describe('PROMO_EVENT_LIMIT', () => {
   });
 });
 
-describe('selectPromoItems — upcoming branch (Story 10.1 scope)', () => {
+describe('selectPromoItems — upcoming branch + month-precision boundary (Stories 10.1 + 10.2)', () => {
   it('caps at PROMO_EVENT_LIMIT (3), nearest-first, when more than 3 are Upcoming', () => {
     const events = [
       event('e5', exact('2026-12-01'), 'December'),
@@ -223,6 +223,20 @@ describe('selectPromoItems — past branch (Story 10.2)', () => {
     expect(result.branch).toBe('past');
     expect(result.events).toEqual([]);
     expect(result.latestResource?.id).toBe('r1');
+  });
+
+  it('honors a custom limit override on the Past arm', () => {
+    const events = [
+      event('p1', exact('2026-07-01'), 'Past A'),
+      event('p2', exact('2026-06-01'), 'Past B'),
+      event('p3', exact('2026-05-01'), 'Past C'),
+    ];
+    const eventsById = indexEventsById(events);
+    const result = selectPromoItems(events, [], eventsById, BUILD_DATE, 1);
+
+    expect(result.branch).toBe('past');
+    expect(result.events).toHaveLength(1);
+    expect(result.events[0]?.id).toBe('p1');
   });
 });
 
