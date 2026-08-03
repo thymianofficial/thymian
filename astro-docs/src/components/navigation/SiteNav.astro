@@ -16,8 +16,8 @@ const panelId = 'site-nav-panel';
     aria-label={Astro.locals.t('menuButton.accessibleLabel')}
     class="site-nav-button sl-flex md:sl-hidden print:hidden"
   >
-    <Icon name="bars" class="open-menu" size="1.5rem" />
-    <Icon name="close" class="close-menu" size="1.5rem" />
+    <Icon name="bars" class="open-menu" />
+    <Icon name="close" class="close-menu" />
   </button>
   <div id={panelId} class="site-nav-panel" hidden>
     <nav aria-label="Site" class="site-nav-links">
@@ -97,14 +97,19 @@ const panelId = 'site-nav-panel';
   /*
     In-flow in the header row (not upstream's `position: fixed`, which it needs
     because its toggle renders inside `nav.sidebar`; ours renders inside the
-    header itself). Visuals mirror the native `starlight-menu-button` (circle,
-    shadow, theme-flipped colors) but resized: upstream's `--sl-menu-button-size`
-    is 2rem (32px) - below the WCAG 2.5.8 44px target floor - so this is sized
-    directly rather than inheriting that token. `align-items`/`justify-content`
-    center the icon regardless of the button/icon size mismatch that floor
-    creates; no `display` here on purpose - the `sl-flex md:sl-hidden` utility
-    classes on the element own visibility (flex below 800px, none at/above it,
-    via `@layer starlight.utils`), and an unlayered `display` here would always
+    header itself). Visuals mirror the native `starlight-menu-button` exactly
+    (circle, shadow, theme-flipped colors, 32px = --sl-menu-button-size, 16px
+    icon at Starlight's Icon.astro default `1em` size) at explicit user
+    request, matching the native docs-route button pixel-for-pixel rather
+    than the 44px WCAG 2.5.8 touch-target floor the story's own Dev Notes
+    originally called for - a deliberate, acknowledged deviation (see the
+    story's Dev Agent Record). `align-items`/`justify-content` center the
+    icon (belt-and-suspenders: at this size the padded content box already
+    exactly equals the icon, same as upstream, so alignment is a no-op here
+    but keeps the rule correct if either value ever changes independently);
+    no `display` here on purpose - the `sl-flex md:sl-hidden` utility classes
+    on the element own visibility (flex below 800px, none at/above it, via
+    `@layer starlight.utils`), and an unlayered `display` here would always
     outrank them regardless of viewport (same class of bug fixed in
     ThymianHeader.astro's `.header-nav-links`; see that file's comment).
   */
@@ -115,8 +120,8 @@ const panelId = 'site-nav-panel';
     justify-content: center;
     border: 0;
     border-radius: 50%;
-    width: 44px;
-    height: 44px;
+    width: 32px;
+    height: 32px;
     padding: 0.5rem;
     background-color: var(--sl-color-white);
     color: var(--sl-color-black);
