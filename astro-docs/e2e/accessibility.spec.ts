@@ -1,5 +1,6 @@
-import AxeBuilder from '@axe-core/playwright';
-import { expect, type Page, test } from '@playwright/test';
+import { expect, test } from '@playwright/test';
+
+import { expectNoViolations, forceDarkTheme } from './navigation/nav-shared';
 
 /**
  * Automated accessibility tests using axe-core.
@@ -11,41 +12,6 @@ import { expect, type Page, test } from '@playwright/test';
  *
  * The Playwright config starts the Astro preview server automatically.
  */
-
-/** Run the axe WCAG 2 A/AA scan and assert zero violations. */
-async function expectNoViolations(page: Page): Promise<void> {
-  const results = await new AxeBuilder({ page })
-    .withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa'])
-    .analyze();
-
-  const violations = results.violations.map((v) => ({
-    id: v.id,
-    impact: v.impact,
-    description: v.description,
-    nodes: v.nodes.length,
-  }));
-
-  expect(violations, `Found ${violations.length} a11y violation(s)`).toEqual(
-    [],
-  );
-}
-
-/**
- * Force Starlight's dark theme. Starlight keys its theme off a `data-theme`
- * attribute on `<html>` and persists the choice in the `starlight-theme`
- * localStorage key; seeding both before navigation means Starlight's own inline
- * theme script applies dark on load (and stays dark through any client re-run).
- */
-async function forceDarkTheme(page: Page): Promise<void> {
-  await page.addInitScript(() => {
-    try {
-      localStorage.setItem('starlight-theme', 'dark');
-    } catch {
-      /* localStorage may be unavailable; the attribute below still applies. */
-    }
-    document.documentElement.dataset.theme = 'dark';
-  });
-}
 
 const pages = [
   { name: 'Home', path: '/' },
