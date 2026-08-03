@@ -18,6 +18,9 @@ export default httpRule(
   .summary(
     'A From header field sent by a (robotic) user agent SHOULD contain a valid mailbox.',
   )
+  .explanation(
+    'If an automated agent (a robot, crawler, or bot) sends a From header, its value should be a real, working email address for the person responsible for the agent. The header exists precisely so a server operator can reach that person when the robot causes problems, such as sending excessive, unwanted, or invalid requests. A malformed or unreachable address defeats that purpose and leaves operators with no way to contact whoever runs the automated client.',
+  )
   .appliesTo('user-agent')
   .rule((ctx) =>
     ctx.validateHttpTransactions(

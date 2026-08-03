@@ -14,6 +14,9 @@ export default httpRule(
   .description(
     'A user agent MUST NOT include the fragment and userinfo components of the URI reference, if any, when generating the Referer field value.',
   )
+  .explanation(
+    'When building a Referer value from the URL of the referring page, strip off the fragment (the part after #) and any userinfo (a username or password before the @ in the URL). These parts are not needed to identify the referring resource and are often sensitive. Because the Referer is sent to the destination server and commonly logged, leaking embedded credentials or in-page fragment state would expose private information to third parties.',
+  )
   .appliesTo('user-agent')
   .overrideAnalyticsRule((ctx) =>
     ctx.validateHttpTransactions(

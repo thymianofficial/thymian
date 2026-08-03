@@ -17,6 +17,9 @@ export default httpRule(
   .description(
     'A client MUST NOT generate a 100-continue expectation in a request that does not include content.',
   )
+  .explanation(
+    'Only send an Expect: 100-continue in a request that actually carries a body. The whole point of that expectation is to ask the server for a go-ahead before the client streams (presumably large) content, so it makes no sense on a request with no content to send. Attaching it to a bodyless request just confuses the server about whether more data is coming, potentially causing it to wait needlessly or handle the exchange incorrectly.',
+  )
   .appliesTo('client')
   .overrideAnalyticsRule((ctx) =>
     ctx.validateHttpTransactions(

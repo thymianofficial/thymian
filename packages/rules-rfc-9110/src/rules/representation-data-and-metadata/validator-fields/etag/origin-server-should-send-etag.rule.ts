@@ -14,6 +14,9 @@ export default httpRule('rfc9110/origin-server-should-send-etag')
   .summary(
     'Origin servers SHOULD send ETag header when change detection can be determined.',
   )
+  .explanation(
+    'Whenever your server can reasonably tell when a resource has changed, it should attach an ETag validator to the response. Clients and caches use that tag in conditional requests to ask "has this changed since the version I hold?", letting the server answer with a small 304 Not Modified instead of resending the whole body. Providing ETags cuts redundant transfers and improves availability, scalability, and reliability under load.',
+  )
   .rule((ctx) =>
     ctx.validateCommonHttpTransactions(
       and(

@@ -17,6 +17,9 @@ export default httpRule(
   .description(
     'A sender of TE MUST also send a "TE" connection option within the Connection header field to inform intermediaries not to forward this field.',
   )
+  .explanation(
+    'Whenever you send a TE header, also list "te" as a connection option in the Connection header. TE describes a capability of the immediate connection (which transfer codings and trailers the client accepts), not something meant for the far end. Naming it in Connection marks it as hop-by-hop so that a proxy consumes it rather than blindly forwarding it. Without this, an intermediary could pass on a TE that no longer reflects the next hop\'s actual capabilities, breaking transfer-coding negotiation.',
+  )
   // Static context sees only header NAMES, so it can only assert structurally
   // that a request carrying TE also carries a Connection header. The RFC
   // requirement is on the Connection VALUE (it must list the "te" option),

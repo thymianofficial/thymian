@@ -14,6 +14,9 @@ export default httpRule(
     Servers therefore ought to avoid backslash characters in entity tags.`,
   )
   .summary('Servers SHOULD avoid backslash characters in entity tags.')
+  .explanation(
+    'Do not put backslash characters inside the value of an ETag. Older specifications treated entity tags as quoted strings, so some recipients still try to unescape backslashes; a backslash in your tag can therefore be silently altered by such a recipient. That changes the tag the client stores and later sends back, breaking conditional requests and cache validation. Keeping tags free of backslashes avoids these mismatches across differing implementations.',
+  )
   .rule((ctx) =>
     ctx.validateHttpTransactions(
       responseHeader('etag'),

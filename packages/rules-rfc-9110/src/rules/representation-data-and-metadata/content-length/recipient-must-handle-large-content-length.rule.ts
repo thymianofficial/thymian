@@ -26,6 +26,9 @@ export default httpRule('rfc9110/recipient-must-handle-large-content-length')
   .summary(
     'Content-Length values should be checked for integer overflow risks.',
   )
+  .explanation(
+    'There is no upper bound on how large a Content-Length value can be, so anything reading it must cope with very large decimal numbers without overflowing or losing precision when converting them to an integer. It matters because a naive parser can wrap around or truncate a huge value and then mis-frame where the message body ends, and because Content-Length delimits messages in HTTP/1.1 that framing error can be exploited for request smuggling or response splitting.',
+  )
   .rule((ctx) =>
     ctx.validateHttpTransactions(
       responseHeader('content-length'),

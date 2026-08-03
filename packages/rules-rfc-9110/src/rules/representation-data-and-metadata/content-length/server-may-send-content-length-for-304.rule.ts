@@ -24,6 +24,9 @@ export default httpRule('rfc9110/server-may-send-content-length-for-304')
   .summary(
     'Servers MAY send Content-Length in 304 responses if it matches what 200 would return.',
   )
+  .explanation(
+    'A 304 Not Modified response has no body, but a server may still include a Content-Length -- and if it does, that value must equal the byte count a 200 OK to the same request would have carried. It matters because caches use Content-Length to describe the stored representation; a value that disagrees with what the full 200 response would return misleads the cache about the resource size and can corrupt cache validation.',
+  )
   .rule(async (ctx) => {
     const results: RuleFnResult[] = [];
     await ctx.httpTest(

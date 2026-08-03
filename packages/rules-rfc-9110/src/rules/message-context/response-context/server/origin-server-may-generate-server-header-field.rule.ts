@@ -10,6 +10,9 @@ export default httpRule(
   .description(
     'An origin server MAY generate a Server header field in its responses.',
   )
+  .explanation(
+    'An origin server is allowed, but not required, to include a Server header that names the software handling the request, typically with its version. This is optional and purely informational: clients use it to scope reported interoperability problems, to tailor requests around known server quirks, and for analytics about server software. Keep in mind that overly detailed values can leak internal implementation details, so many operators either omit it or keep it minimal.',
+  )
   .appliesTo('origin server')
   .rule((ctx) =>
     ctx.validateCommonHttpTransactions(not(responseHeader('server'))),

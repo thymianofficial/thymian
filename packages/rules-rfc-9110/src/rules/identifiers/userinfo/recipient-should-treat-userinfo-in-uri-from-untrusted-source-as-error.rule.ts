@@ -16,6 +16,9 @@ export default httpRule(
   .description(
     `A recipient SHOULD parse for userinfo and treat its presence as an error; it is likely being used to obscure the authority for the sake of phishing attacks.`,
   )
+  .explanation(
+    'Before acting on an http or https URI that came from an untrusted source, a recipient should check for a userinfo part (the user:password@ segment before the host) and treat its presence as an error. The userinfo component is deprecated in HTTP URIs, and when present it is commonly used to hide the real host so a link looks like it points somewhere trustworthy. Rejecting such URIs helps defend users against phishing that disguises the true authority.',
+  )
   .appliesTo('server')
   .rule((ctx, opts, logger) =>
     ctx.validateHttpTransactions(
