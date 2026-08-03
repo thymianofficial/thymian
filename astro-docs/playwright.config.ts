@@ -16,8 +16,25 @@ export default defineConfig({
 
   projects: [
     {
+      // V2 (810x1080) and V3 (1280x800) both run here via per-file
+      // `test.use({ viewport })` - only the V1 matrix file is excluded
+      // (it needs real mobile context flags, not just a resized desktop
+      // viewport).
       name: 'chromium',
-      use: { ...devices['Desktop Chrome'] },
+      use: {
+        ...devices['Desktop Chrome'],
+        viewport: { width: 1280, height: 800 },
+      },
+      testIgnore: '**/nav-matrix-v1.spec.ts',
+    },
+    {
+      // No named Playwright device profile equals the spec's V1 pin
+      // (390x844) - spread Pixel 7 for real chromium-native mobile
+      // flags/UA, then override the viewport explicitly so a future
+      // Playwright upgrade can't silently drift the matrix.
+      name: 'mobile-chromium',
+      use: { ...devices['Pixel 7'], viewport: { width: 390, height: 844 } },
+      testMatch: '**/nav-matrix-v1.spec.ts',
     },
   ],
 
