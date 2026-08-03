@@ -18,7 +18,7 @@ const eventsById = indexEventsById(allEvents);
 // is read. `selectPromoItems` itself is PURE and never calls `new Date()`.
 const buildDate = new Date();
 
-const { events, latestResource } = selectPromoItems(
+const { branch, events, latestResource } = selectPromoItems(
   allEvents,
   allResources,
   eventsById,
@@ -48,6 +48,13 @@ const resourceGuest = latestResource
   cards, never special-cased here (that precedence lives in the module,
   10.2). `latestResource` is independent of the event branch, so it can
   render even when `events` is empty.
+
+  10.2 adds one more, static card gated on `branch === 'evergreen'`: fixed
+  copy + a link to `/events/`, no collection reads, cannot throw — the FR-15
+  true zero-content floor. `events`/`latestResource` are already empty by
+  construction whenever this branch fires (both collections empty), so this
+  is never combined with the two data-driven blocks above in practice; the
+  `branch` check is the authoritative gate, not an inference from emptiness.
 
   Heading level: card titles render as `<h2>` (see `ResourceCard.astro`'s
   h2-vs-h3 convention comment), because this component isn't mounted on any
@@ -117,6 +124,19 @@ const resourceGuest = latestResource
                 </p>
               ))}
             <span class="promo-card-cta">View resource</span>
+          </div>
+        </li>
+      )
+    }
+    {
+      branch === 'evergreen' && (
+        <li>
+          <div class="promo-card">
+            <h2 class="promo-card-title">
+              <a class="promo-card-link" href="/events/">
+                Thymian is speaking soon — follow us
+              </a>
+            </h2>
           </div>
         </li>
       )

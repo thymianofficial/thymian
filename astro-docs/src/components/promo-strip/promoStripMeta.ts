@@ -2,7 +2,7 @@ import type { CollectionEntry } from 'astro:content';
 
 import { sortResourcesByEffectiveDate } from '../../lib/cross-links';
 import { classify, type EventDate } from '../../schema/event-date';
-import { compareUpcomingEvents } from '../events/eventMeta';
+import { comparePastEvents, compareUpcomingEvents } from '../events/eventMeta';
 
 type EventEntry = CollectionEntry<'events'>;
 type ResourceEntry = CollectionEntry<'resources'>;
@@ -29,8 +29,9 @@ type ResourceEntry = CollectionEntry<'resources'>;
 export const PROMO_EVENT_LIMIT = 3;
 
 /**
- * Which FR-15 arm produced a {@link PromoSelection}. Story 10.1 implements the
- * `upcoming` arm only; `past` and `evergreen` are Story 10.2 (#445).
+ * Which FR-15 arm produced a {@link PromoSelection}: `upcoming` when ≥1
+ * Upcoming Event exists; `past` when 0 Upcoming but ≥1 Past Event, or when 0
+ * Events but ≥1 Resource; `evergreen` only when both collections are empty.
  */
 export type PromoBranch = 'upcoming' | 'past' | 'evergreen';
 
@@ -38,10 +39,9 @@ export type PromoBranch = 'upcoming' | 'past' | 'evergreen';
 export interface PromoSelection {
   branch: PromoBranch;
   /**
-   * ≤ `PROMO_EVENT_LIMIT`, pre-ordered (nearest-first). Empty on the eventual
-   * 'evergreen' branch (Story 10.2), and also possible today on 'upcoming'
-   * when there are 0 Upcoming Events (Story 10.2 has not yet added the
-   * 'past'/'evergreen' arms).
+   * ≤ `PROMO_EVENT_LIMIT`, pre-ordered (nearest-first on 'upcoming',
+   * most-recent-first on 'past'). Empty on the 'evergreen' branch and on the
+   * 'past' branch's Resource-only variant (0 Events, ≥1 Resource).
    */
   events: EventEntry[];
   /** The single latest Resource, independent of the event branch; `undefined` when none exists. */
@@ -66,9 +66,12 @@ export interface PromoSelection {
  * resource-only site still shows its latest Resource), so `latestResource` is
  * never gated on `events.length`.
  *
- * 10.1/10.2 boundary: only the `upcoming` arm is implemented. With 0 Upcoming
- * Events this must not throw — it returns `{ branch: 'upcoming', events: [],
- * latestResource }`, leaving the `past`/`evergreen` precedence to 10.2.
+ * Full FR-15 precedence: (1) ≥1 Upcoming → `'upcoming'`, ≤`limit`
+ * nearest-first; (2) 0 Upcoming, ≥1 Past → `'past'`, ≤`limit`
+ * most-recent-first via `comparePastEvents`; (3) 0 Events, ≥1 Resource →
+ * `'past'`, `events: []`; (4) 0 Events and 0 Resources → `'evergreen'`,
+ * `events: []`. The Past arm is an `else`, never a top-up: a single Upcoming
+ * Event is never padded from Past to reach `limit`.
  */
 export function selectPromoItems(
   allEvents: EventEntry[],
@@ -87,8 +90,31 @@ export function selectPromoItems(
   );
 
   if (upcoming.length === 0) {
-    // Story 10.2 (#445): past + evergreen arms
-    return { branch: 'upcoming', events: [], latestResource };
+    const past = allEvents.filter(
+      (event) => classify(event.data.date as EventDate, buildDate) === 'past',
+    );
+
+    if (past.length === 0) {
+      // 0 Events total: a Resource-only site is still 'past' (FR-15 row 3),
+      // never 'evergreen' — that branch is the true zero-content floor (row
+      // 4), reached only when allResources is ALSO empty.
+      return {
+        branch: allResources.length === 0 ? 'evergreen' : 'past',
+        events: [],
+        latestResource,
+      };
+    }
+
+    const events = past
+      .sort((a, b) =>
+        comparePastEvents(
+          { date: a.data.date as EventDate, title: a.data.title },
+          { date: b.data.date as EventDate, title: b.data.title },
+        ),
+      )
+      .slice(0, limit);
+
+    return { branch: 'past', events, latestResource };
   }
 
   const events = upcoming

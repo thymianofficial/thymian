@@ -125,14 +125,17 @@ describe('selectPromoItems — upcoming branch (Story 10.1 scope)', () => {
     const events = [event('sept', month(2026, 9), 'September Panel')];
     const eventsById = indexEventsById(events);
 
-    // Effective date = 2026-09-01. A build date the day after is already Past.
+    // Effective date = 2026-09-01. A build date the day after is already
+    // Past, so this now falls to the Past arm (Story 10.2) instead of
+    // vanishing — 0 Upcoming + 1 Past is branch:'past', not an empty result.
     const past = selectPromoItems(
       events,
       [],
       eventsById,
       new Date('2026-09-02'),
     );
-    expect(past.events).toEqual([]);
+    expect(past.branch).toBe('past');
+    expect(past.events.map((e) => e.id)).toEqual(['sept']);
 
     // A build date before the 1st is still Upcoming.
     const upcoming = selectPromoItems(
@@ -141,6 +144,7 @@ describe('selectPromoItems — upcoming branch (Story 10.1 scope)', () => {
       eventsById,
       new Date('2026-08-31'),
     );
+    expect(upcoming.branch).toBe('upcoming');
     expect(upcoming.events.map((e) => e.id)).toEqual(['sept']);
   });
 
@@ -158,34 +162,116 @@ describe('selectPromoItems — upcoming branch (Story 10.1 scope)', () => {
   });
 });
 
-describe('selectPromoItems — 0 Upcoming Events (10.2 boundary; must not throw)', () => {
-  it('returns branch "upcoming" with an empty events array when every event is Past', () => {
+describe('selectPromoItems — past branch (Story 10.2)', () => {
+  it('falls back to branch "past" with ≤PROMO_EVENT_LIMIT most-recent-first Past events when there are 0 Upcoming', () => {
+    const events = [
+      event('p1', exact('2026-07-01'), 'Past A'),
+      event('p2', exact('2026-06-01'), 'Past B'),
+      event('p3', exact('2026-05-01'), 'Past C'),
+      event('p4', exact('2024-10-23'), 'Past D'),
+    ];
+    const eventsById = indexEventsById(events);
+    const result = selectPromoItems(events, [], eventsById, BUILD_DATE);
+
+    expect(result.branch).toBe('past');
+    expect(result.events).toHaveLength(3);
+    expect(result.events.map((e) => e.data.title)).toEqual([
+      'Past A',
+      'Past B',
+      'Past C',
+    ]);
+  });
+
+  it('orders Past via comparePastEvents (most-recent-first), breaking a same-day tie by title A→Z — never a reversed compareUpcomingEvents', () => {
+    const events = [
+      event('z', exact('2026-06-01'), 'Zeta'),
+      event('a', exact('2026-06-01'), 'Alpha'),
+    ];
+    const eventsById = indexEventsById(events);
+    const result = selectPromoItems(events, [], eventsById, BUILD_DATE);
+
+    expect(result.events.map((e) => e.data.title)).toEqual(['Alpha', 'Zeta']);
+  });
+
+  it('returns branch "past" with latestResource undefined when every event is Past and there are 0 Resources', () => {
     const events = [event('p1', exact('2024-10-23'), 'FrankenJS')];
     const eventsById = indexEventsById(events);
     const result = selectPromoItems(events, [], eventsById, BUILD_DATE);
 
     expect(result).toEqual({
-      branch: 'upcoming',
-      events: [],
+      branch: 'past',
+      events: [events[0]],
       latestResource: undefined,
     });
   });
 
-  it('returns branch "upcoming" with an empty events array when there are no events at all', () => {
-    const result = selectPromoItems([], [], new Map(), BUILD_DATE);
-
-    expect(result.branch).toBe('upcoming');
-    expect(result.events).toEqual([]);
-  });
-
-  it('still resolves latestResource with 0 Upcoming Events (FR-15 asymmetry: resource-only is not evergreen)', () => {
+  it('resolves latestResource alongside a surfaced Past event (0 Upcoming, 1 Past that is also a Resource origin)', () => {
     const events = [event('jul', exact('2026-07-10'), 'My Coding Zone')];
     const resources = [resource('rec', 'The Recording', 'jul')];
     const eventsById = indexEventsById(events);
     const result = selectPromoItems(events, resources, eventsById, BUILD_DATE);
 
-    expect(result.events).toEqual([]);
+    expect(result.branch).toBe('past');
+    expect(result.events.map((e) => e.id)).toEqual(['jul']);
     expect(result.latestResource?.id).toBe('rec');
+  });
+
+  it('is "past" (not "evergreen") when there are 0 Events but ≥1 Resource — a resource-only site is never evergreen', () => {
+    const resources = [resource('r1', 'Standalone Resource')];
+    const result = selectPromoItems([], resources, new Map(), BUILD_DATE);
+
+    expect(result.branch).toBe('past');
+    expect(result.events).toEqual([]);
+    expect(result.latestResource?.id).toBe('r1');
+  });
+});
+
+describe('selectPromoItems — evergreen branch (Story 10.2)', () => {
+  it('returns branch "evergreen" only for true zero content: 0 Events and 0 Resources', () => {
+    const result = selectPromoItems([], [], new Map(), BUILD_DATE);
+
+    expect(result).toEqual({
+      branch: 'evergreen',
+      events: [],
+      latestResource: undefined,
+    });
+  });
+});
+
+describe('selectPromoItems — branch-matrix edge cases (Story 10.2)', () => {
+  it('keeps a lone TBA event on the Upcoming branch — TBA never reaches the Past arm', () => {
+    const events = [event('tba-only', tba, 'TBA Talk')];
+    const eventsById = indexEventsById(events);
+    const result = selectPromoItems(events, [], eventsById, BUILD_DATE);
+
+    expect(result.branch).toBe('upcoming');
+    expect(result.events.map((e) => e.id)).toEqual(['tba-only']);
+  });
+
+  it('treats an event dated exactly buildDate as Upcoming (today counts as Upcoming)', () => {
+    const events = [event('today', exact('2026-08-03'), 'Today Talk')];
+    const eventsById = indexEventsById(events);
+    const result = selectPromoItems(events, [], eventsById, BUILD_DATE);
+
+    expect(result.branch).toBe('upcoming');
+    expect(result.events.map((e) => e.id)).toEqual(['today']);
+  });
+
+  it('is deterministic: identical inputs and buildDate yield an identical result across repeated calls', () => {
+    const events = [
+      event('p1', exact('2026-06-01'), 'Past B'),
+      event('p2', exact('2026-07-01'), 'Past A'),
+    ];
+    const resources = [resource('rec', 'The Recording', 'p2')];
+    const eventsById = indexEventsById(events);
+
+    const first = selectPromoItems(events, resources, eventsById, BUILD_DATE);
+    const second = selectPromoItems(events, resources, eventsById, BUILD_DATE);
+
+    expect(second).toEqual(first);
+    expect(second.events.map((e) => e.id)).toEqual(
+      first.events.map((e) => e.id),
+    );
   });
 });
 
