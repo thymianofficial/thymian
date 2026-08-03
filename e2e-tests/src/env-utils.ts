@@ -17,6 +17,12 @@ export function getCleanEnv(): Record<string, string> {
   }
   env['FORCE_COLOR'] = '0';
 
+  // Pin the wrap width so custom-rendered CLI output wraps at a deterministic
+  // 80 columns regardless of the test runner's TTY (mirrors oclif's own
+  // `stdtermwidth` source). Without this, `terminalWidth()` would read the
+  // runner's real/absent TTY width and vary between environments.
+  env['OCLIF_COLUMNS'] = '80';
+
   // Force production mode so that oclif's ts-path.js does NOT attempt to
   // remap the compiled `dist/commands` directory back to the `src/commands`
   // source path.  The published npm package only ships `dist/`, so the

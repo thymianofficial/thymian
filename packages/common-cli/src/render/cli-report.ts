@@ -25,7 +25,12 @@ import {
   groupTestCaseExecutions,
   renderTestCaseExecution,
 } from './test-executions.js';
-import { pluralize, sortRecordByKey, sortRecordBySeverity } from './utils.js';
+import {
+  pluralize,
+  sortRecordByKey,
+  sortRecordBySeverity,
+  wrap,
+} from './utils.js';
 
 export function collectSeverityCounts(
   report: Report,
@@ -142,7 +147,9 @@ export function renderReport(
   lines.push('');
   lines.push('');
   lines.push(
-    `Summary: ${counts.error} ${ux.colorize(SEVERITY_COLORS.error, pluralize('error', counts.error))}, ${counts.warn} ${ux.colorize(SEVERITY_COLORS.warn, pluralize('warning', counts.warn))}, ${counts.hint} ${ux.colorize(SEVERITY_COLORS.hint, pluralize('hint', counts.hint))}, ${counts.info} ${ux.colorize(SEVERITY_COLORS.info, pluralize('info', counts.info))}.`,
+    wrap(
+      `Summary: ${counts.error} ${ux.colorize(SEVERITY_COLORS.error, pluralize('error', counts.error))}, ${counts.warn} ${ux.colorize(SEVERITY_COLORS.warn, pluralize('warning', counts.warn))}, ${counts.hint} ${ux.colorize(SEVERITY_COLORS.hint, pluralize('hint', counts.hint))}, ${counts.info} ${ux.colorize(SEVERITY_COLORS.info, pluralize('info', counts.info))}.`,
+    ),
   );
 
   return lines.join('\n').trimEnd();

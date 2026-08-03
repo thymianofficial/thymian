@@ -1,5 +1,5 @@
 import { ThymianFormat } from '@thymian/core';
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it } from 'vitest';
 
 import { renderReport } from '../src/render/cli-report.js';
 
@@ -734,6 +734,106 @@ describe('cli report renderer', () => {
       );
       // Findings still render beneath each case.
       expect(output).toContain('✖ boom a');
+    });
+  });
+
+  describe('wraps long leaf prose while preserving indentation and tree alignment', () => {
+    const originalColumns = process.env.OCLIF_COLUMNS;
+
+    afterEach(() => {
+      if (originalColumns === undefined) {
+        delete process.env.OCLIF_COLUMNS;
+      } else {
+        process.env.OCLIF_COLUMNS = originalColumns;
+      }
+    });
+
+    it('hang-indents a long multi-step finding under its tree branch', () => {
+      process.env.OCLIF_COLUMNS = '50';
+
+      const longTitle =
+        'the response body did not match the expected schema and this message is deliberately long enough to force wrapping';
+
+      const output = stripAnsi(
+        renderReport({
+          reportId: 'report-1',
+          createdAt: new Date().toISOString(),
+          runs: [
+            {
+              runId: 'run-1',
+              tool: { name: '@thymian/plugin-http-tester' },
+              runType: 'test',
+              runAt: new Date().toISOString(),
+              executions: [
+                {
+                  kind: 'test',
+                  status: { kind: 'failed' },
+                  name: 'happy path',
+                  steps: [
+                    {
+                      name: 'Step 1',
+                      location: { type: 'custom', value: 'GET /pets' },
+                      findings: [
+                        {
+                          id: 'a-1',
+                          kind: 'assertion-success',
+                          title: 'ok',
+                        },
+                      ],
+                    },
+                    {
+                      name: 'Step 2',
+                      location: { type: 'custom', value: 'POST /pets' },
+                      findings: [
+                        {
+                          id: 'a-2',
+                          kind: 'assertion-failure',
+                          title: longTitle,
+                        },
+                      ],
+                    },
+                  ],
+                },
+              ],
+            },
+          ],
+        }),
+      );
+
+      const lines = output.split('\n');
+
+      // Prose lines stay within the pinned 50-col width. The run-heading
+      // separator (`tool · type · ────`) is a fixed-shape divider, not wrapped
+      // prose, so it is exempt.
+      for (const line of lines) {
+        if (line.includes('·')) {
+          continue;
+        }
+        expect(line.length).toBeLessThanOrEqual(50);
+      }
+
+      // The finding wrapped onto more than one line.
+      const firstFindingLineIdx = lines.findIndex((line) =>
+        line.includes('✖ the response body did not'),
+      );
+      expect(firstFindingLineIdx).toBeGreaterThanOrEqual(0);
+
+      const firstFindingLine = lines[firstFindingLineIdx]!;
+      const continuationLine = lines[firstFindingLineIdx + 1]!;
+
+      // The glyph appears on the first line only; continuation hangs under the
+      // content column (after `✖ `) and never repeats the glyph.
+      const glyphColumn = firstFindingLine.indexOf('✖');
+      const contentColumn = glyphColumn + 2; // '✖ '
+      expect(continuationLine).not.toContain('✖');
+      expect(continuationLine.slice(0, contentColumn)).toBe(
+        ' '.repeat(contentColumn),
+      );
+      expect(continuationLine.trimStart().length).toBeGreaterThan(0);
+
+      // Tree branch glyphs still render for the steps.
+      expect(output).toContain('├── Step 1: GET /pets');
+      expect(output).toContain('└── Step 2: POST /pets');
     });
   });
 

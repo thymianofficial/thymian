@@ -1,4 +1,10 @@
-import { BaseCliRunCommand, oclif, prompts } from '@thymian/common-cli';
+import {
+  BaseCliRunCommand,
+  oclif,
+  prompts,
+  wrap,
+  wrapIndented,
+} from '@thymian/common-cli';
 import { Flags, ux } from '@thymian/common-cli/oclif';
 import {
   createContextFromEmitter,
@@ -128,17 +134,21 @@ export default class RunRequest extends BaseCliRunCommand<typeof RunRequest> {
       testResults.cases.forEach((testResult) => {
         if (testResult.status === 'failed') {
           this.log(
-            oclif.ux.colorize(
-              'red',
-              `✖ ${testResult.name}: ${testResult.reason}`,
+            wrap(
+              oclif.ux.colorize(
+                'red',
+                `✖ ${testResult.name}: ${testResult.reason}`,
+              ),
             ),
           );
         }
         if (testResult.status === 'skipped') {
           this.log(
-            oclif.ux.colorize(
-              'yellow',
-              `⚠ ${testResult.name}: ${testResult.reason}`,
+            wrap(
+              oclif.ux.colorize(
+                'yellow',
+                `⚠ ${testResult.name}: ${testResult.reason}`,
+              ),
             ),
           );
         }
@@ -166,9 +176,16 @@ export default class RunRequest extends BaseCliRunCommand<typeof RunRequest> {
           );
 
           if (assertionFailure.length > 0) {
-            this.log(ux.colorize('red', 'The following assertions failed:'));
+            this.log(
+              wrap(ux.colorize('red', 'The following assertions failed:')),
+            );
             assertionFailure.forEach((r) => {
-              this.log(ux.colorize('red', `  * ${r.message}`));
+              this.log(
+                wrapIndented(
+                  ux.colorize('red', r.message),
+                  ux.colorize('red', '  * '),
+                ).join('\n'),
+              );
             });
           }
         }
@@ -188,7 +205,7 @@ export default class RunRequest extends BaseCliRunCommand<typeof RunRequest> {
         ? ux.colorize('green', `${status} ${statusText}`)
         : ux.colorize('red', `${status} ${statusText}`);
 
-    this.log(ux.colorize('bold', `${protocol} ${statusColor}`));
+    this.log(wrap(ux.colorize('bold', `${protocol} ${statusColor}`)));
 
     this.printHeaders(response.headers);
 
@@ -205,9 +222,9 @@ export default class RunRequest extends BaseCliRunCommand<typeof RunRequest> {
     const path = urlObj.pathname + urlObj.search;
     const method = ux.colorize('blue', request.method.toUpperCase());
 
-    this.log(ux.colorize('bold', `${method} ${path} HTTP/1.1`));
+    this.log(wrap(ux.colorize('bold', `${method} ${path} HTTP/1.1`)));
 
-    this.log(`${ux.colorize('cyan', 'Host')}: ${urlObj.host}`);
+    this.log(wrap(`${ux.colorize('cyan', 'Host')}: ${urlObj.host}`));
     this.printHeaders(request.headers);
 
     this.log();
@@ -251,7 +268,7 @@ export default class RunRequest extends BaseCliRunCommand<typeof RunRequest> {
       }
 
       const headerValue = Array.isArray(value) ? value.join(', ') : value;
-      this.log(`${ux.colorize('cyan', key)}: ${headerValue}`);
+      this.log(wrap(`${ux.colorize('cyan', key)}: ${headerValue}`));
     });
   }
 }

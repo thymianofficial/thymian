@@ -3,6 +3,7 @@ import {
   oclif,
   prompts,
   ThymianBaseCommand,
+  wrap,
 } from '@thymian/common-cli';
 import open from 'open';
 
@@ -22,12 +23,14 @@ export class Feedback extends ThymianBaseCommand<typeof Feedback> {
   override async run(): Promise<void> {
     const lastError = await this.errorCache?.read();
 
-    this.log('✨ Thank you for your feedback! ✨');
+    this.log(wrap('✨ Thank you for your feedback! ✨'));
     this.log();
 
     if (lastError) {
       this.log(
-        `${oclif.ux.colorize('yellow', '⚠')} It looks like you encountered an error while running the ${oclif.ux.colorize('cyan', lastError.commandName)} command recently.`,
+        wrap(
+          `${oclif.ux.colorize('yellow', '⚠')} It looks like you encountered an error while running the ${oclif.ux.colorize('cyan', lastError.commandName)} command recently.`,
+        ),
       );
       this.log();
 

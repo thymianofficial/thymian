@@ -5,7 +5,7 @@ import type {
   RenderExecutionDetailsFn,
 } from './create-execution-renderer.js';
 import { renderFindings } from './findings.js';
-import { indent } from './utils.js';
+import { indent, wrapIndented } from './utils.js';
 
 export const groupTestCaseExecutions: GroupExecutionsFn<TestCaseExecution> = (
   execution,
@@ -24,7 +24,10 @@ export const renderTestCaseExecution: RenderExecutionDetailsFn<
   for (const [idx, step] of execution.steps.entries()) {
     lines.push(indent(indentationLevel) + '│');
     lines.push(
-      `${indent(indentationLevel)}${idx === lastStepIdx ? '└──' : '├──'} ${step.name}: ${locationResolver(step.location, toolRun.thymianFormatVersion)}`,
+      ...wrapIndented(
+        `${step.name}: ${locationResolver(step.location, toolRun.thymianFormatVersion)}`,
+        `${indent(indentationLevel)}${idx === lastStepIdx ? '└──' : '├──'} `,
+      ),
     );
     lines.push(
       ...renderFindings(step.findings, indentationLevel + 3, {
