@@ -31,6 +31,9 @@ export default httpRule(
   .summary(
     'Origin server MUST respond with 304 for GET/HEAD or 412 for other methods when If-None-Match fails.',
   )
+  .explanation(
+    "If-None-Match tells the server 'only act if the resource does NOT match one of these tags'. When one of the tags does match (the condition is false), the server must not perform the method; instead it answers 304 Not Modified for GET or HEAD, and 412 Precondition Failed for any other method. The 304 lets a client reuse its cached copy without a re-download, while the 412 stops an unsafe operation such as a PUT from clobbering a resource the client wrongly assumed was still absent or unchanged.",
+  )
   .appliesTo('origin server')
   .rule((ctx) =>
     ctx.validateCommonHttpTransactions(

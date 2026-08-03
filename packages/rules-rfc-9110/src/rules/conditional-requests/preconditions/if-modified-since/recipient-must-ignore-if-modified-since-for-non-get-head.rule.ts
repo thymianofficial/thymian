@@ -30,6 +30,9 @@ export default httpRule(
   .summary(
     'Recipient MUST ignore If-Modified-Since for methods other than GET or HEAD.',
   )
+  .explanation(
+    "If-Modified-Since only makes sense on GET or HEAD, where the point is to avoid re-sending an unchanged body. When it arrives on any other method, the recipient must pretend the header isn't there and process the request normally. Honoring it elsewhere and returning 304 would be a conformance bug: a 304 on, say, a POST or PUT would mislead the client into thinking its action was skipped as unchanged, breaking the well-defined meaning of conditional retrieval.",
+  )
   .appliesTo('server')
   .rule((ctx) =>
     ctx.validateCommonHttpTransactions(

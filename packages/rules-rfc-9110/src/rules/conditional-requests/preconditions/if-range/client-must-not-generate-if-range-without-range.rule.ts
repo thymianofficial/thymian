@@ -27,6 +27,9 @@ export default httpRule(
     'A client MUST NOT generate an If-Range header field in a request that does not contain a Range header field.',
   )
   .summary('Client MUST NOT generate If-Range without Range header field.')
+  .explanation(
+    'A client must only send If-Range together with a Range header. If-Range exists solely to decide whether the server should honor a requested byte range or send the whole thing instead, so it is meaningless on a request that asks for no range at all. Sending it alone signals a broken or confused client; well-behaved servers will simply ignore the orphaned header, but omitting it keeps requests clean and avoids relying on that lenient behavior.',
+  )
   .appliesTo('client')
   .rule((ctx) =>
     ctx.validateCommonHttpTransactions(

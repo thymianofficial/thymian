@@ -11,6 +11,9 @@ export default httpRule('rfc9110/client-may-send-if-unmodified-since-header')
   .summary(
     'A client MAY send an If-Unmodified-Since header field in a GET request.',
   )
+  .explanation(
+    "A client is permitted to add If-Unmodified-Since to a GET to say 'only give me this if it hasn't changed since this date; otherwise fail with 412'. In practice this is only genuinely useful for range requests, where the client wants to complete a partial copy and does not want a fresh, different representation. For that resume-a-download case If-Range is usually the better fit, since it fetches the whole current copy instead of failing outright when the resource has moved on.",
+  )
   .appliesTo('client')
   .rule((ctx) =>
     ctx.validateCommonHttpTransactions(

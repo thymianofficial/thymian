@@ -21,6 +21,9 @@ export default httpRule(
   .summary(
     'Recipient MUST ignore Range when If-Range condition is false; SHOULD respond with 200.',
   )
+  .explanation(
+    "If-Range means 'give me the requested byte range only if my copy is still current; otherwise give me the whole thing'. When the If-Range validator no longer matches the resource (the condition is false), the recipient must disregard the Range header and return the complete, up-to-date representation rather than a 206 Partial Content. This is what makes If-Range safe: it guarantees a client resuming a download never glues fresh bytes onto a stale partial copy, so it always ends up with a consistent whole representation.",
+  )
   .rule((ctx) =>
     ctx.httpTest(
       singleTestCase()

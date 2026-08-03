@@ -25,6 +25,9 @@ export default httpRule(
     'A client MUST NOT generate an If-Range header field containing an entity tag that is marked as weak.',
   )
   .summary('Client MUST NOT generate If-Range with weak entity tag.')
+  .explanation(
+    "A client must never put a weak entity tag (one marked with the W/ prefix) into If-Range. If-Range is evaluated with strong comparison, meaning it must guarantee byte-for-byte identity before the server resumes a partial transfer. A weak tag only promises the representation is semantically equivalent, not identical, so trusting it here could let the server splice a range from a subtly different version of the resource onto the client's partial copy, corrupting the reassembled content.",
+  )
   .appliesTo('client')
   .rule((ctx) =>
     ctx.validateHttpTransactions(

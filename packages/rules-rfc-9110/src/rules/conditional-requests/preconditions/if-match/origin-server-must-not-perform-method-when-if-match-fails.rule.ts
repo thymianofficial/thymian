@@ -20,6 +20,9 @@ export default httpRule(
   .summary(
     'Origin server MUST NOT perform method when If-Match evaluates to false',
   )
+  .explanation(
+    "When a request carries If-Match, the client is saying 'only do this if the resource still matches the entity tag I have'. If none of the given tags match the resource's current ETag, the server must refuse to carry out the request rather than act on stale assumptions, typically answering 412 Precondition Failed. This is what prevents the 'lost update' problem: two clients editing the same resource in parallel can't unknowingly overwrite each other's changes, because a request built against an out-of-date version is rejected instead of applied.",
+  )
   .appliesTo('origin server')
   .rule((ctx) =>
     ctx.httpTest(

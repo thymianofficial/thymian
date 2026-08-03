@@ -20,6 +20,9 @@ export default httpRule(
     'A server MUST ignore all received preconditions if its response to the same request without those conditions, prior to processing the request content, would have been a status code other than a 2xx (Successful) or 412 (Precondition Failed). In other words, redirects and failures that can be detected before significant processing occurs take precedence over the evaluation of preconditions.',
   )
   .summary('Server MUST ignore preconditions if response would be non-2xx/412.')
+  .explanation(
+    "A server should only evaluate a request's preconditions when the request would otherwise succeed (2xx) or would specifically fail the precondition (412). If the same request without any conditions would already have produced some other outcome, such as a redirect or an early error, the server must ignore the preconditions and return that outcome. In short, redirects and failures detectable up front take priority, so a client is not misled by a 412 when the real problem lay elsewhere.",
+  )
   .appliesTo('origin server')
   .rule(async (ctx) => {
     const results: RuleFnResult[] = [];

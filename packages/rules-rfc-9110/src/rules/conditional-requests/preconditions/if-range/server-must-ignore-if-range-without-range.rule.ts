@@ -29,6 +29,9 @@ export default httpRule('rfc9110/server-must-ignore-if-range-without-range')
     'A server MUST ignore an If-Range header field received in a request that does not contain a Range header field. An origin server MUST ignore an If-Range header field received in a request for a target resource that does not support Range requests.',
   )
   .summary('Server MUST ignore If-Range without Range header field.')
+  .explanation(
+    "If a request carries If-Range but no Range header (or targets a resource that doesn't support ranges), the server must treat the If-Range as if it weren't there and answer with a normal full response, never a 206 Partial Content. If-Range only has meaning as a gate on range processing, so acting on it without a Range to process is a bug. Returning 206 in that case would hand the client a partial body it never asked for, which it cannot correctly reassemble.",
+  )
   .appliesTo('server')
   .rule((ctx) =>
     ctx.validateCommonHttpTransactions(

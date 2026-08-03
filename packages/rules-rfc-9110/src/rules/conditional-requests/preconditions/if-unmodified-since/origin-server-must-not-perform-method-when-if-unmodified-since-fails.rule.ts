@@ -30,6 +30,9 @@ export default httpRule(
   .summary(
     'Origin server MUST NOT perform method when If-Unmodified-Since fails; MUST respond with 412 or 2xx.',
   )
+  .explanation(
+    "When a client sends If-Unmodified-Since, it is saying 'only do this if the resource has not changed since this time'. If the resource was in fact modified after that time, the server must not carry out the request; it should refuse with 412 (Precondition Failed), or answer 2xx if the change it asked for turns out to already be applied. This lets clients avoid overwriting or acting on data that changed underneath them, preventing lost updates in concurrent edits.",
+  )
   .appliesTo('origin server')
   .rule((ctx) =>
     ctx.httpTest(
