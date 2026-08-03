@@ -1,6 +1,7 @@
 ---
 import type { CollectionEntry } from 'astro:content';
 
+import { indexResourcesByOriginEvent } from '../../lib/cross-links';
 import { classify, type EventDate } from '../../schema/event-date';
 import { type ParticipationType } from '../../schema/events';
 import EventCard from './EventCard.astro';
@@ -17,6 +18,8 @@ type TypeFilter = ParticipationType | 'all';
 interface Props {
   allEvents: EventEntry[];
   events: EventEntry[];
+  allResources: CollectionEntry<'resources'>[];
+  eventsById: Map<string, EventEntry>;
   currentType?: TypeFilter;
   buildDate?: Date;
 }
@@ -24,6 +27,8 @@ interface Props {
 const {
   allEvents,
   events,
+  allResources,
+  eventsById,
   currentType = 'all',
   buildDate = new Date(),
 } = Astro.props;
@@ -50,6 +55,11 @@ past.sort((a, b) =>
     { date: b.data.date as EventDate, title: b.data.title },
   ),
 );
+
+// Derived produced-Resources (never hand-authored), grouped ONCE for the whole
+// page via the single shared cross-link module — each card receives its
+// pre-sorted slice instead of re-scanning the full resource set per card.
+const resourcesByEvent = indexResourcesByOriginEvent(allResources, eventsById);
 
 const typeCounts = allEvents.reduce<Record<ParticipationType, number>>(
   (counts, e) => {
@@ -93,7 +103,11 @@ const typeCounts = allEvents.reduce<Record<ParticipationType, number>>(
     upcoming.length > 0 ? (
       <div class="event-stack">
         {upcoming.map((event) => (
-          <EventCard event={event} timeframe="upcoming" />
+          <EventCard
+            event={event}
+            timeframe="upcoming"
+            producedResources={resourcesByEvent.get(event.id) ?? []}
+          />
         ))}
       </div>
     ) : (
@@ -108,7 +122,11 @@ const typeCounts = allEvents.reduce<Record<ParticipationType, number>>(
     past.length > 0 ? (
       <div class="event-stack">
         {past.map((event) => (
-          <EventCard event={event} timeframe="past" />
+          <EventCard
+            event={event}
+            timeframe="past"
+            producedResources={resourcesByEvent.get(event.id) ?? []}
+          />
         ))}
       </div>
     ) : (

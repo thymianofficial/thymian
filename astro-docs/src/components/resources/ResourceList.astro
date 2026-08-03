@@ -1,35 +1,37 @@
 ---
 import type { CollectionEntry } from 'astro:content';
 
+import {
+  resolveOriginEvent,
+  sortResourcesByEffectiveDate,
+} from '../../lib/cross-links';
 import { type ResourceType } from '../../schema/resources';
 import ResourceCard from './ResourceCard.astro';
 import {
-  compareResources,
   RESOURCE_TYPE_LABELS,
   RESOURCE_TYPE_ORDER,
   resourceTypeSlug,
 } from './resourceMeta';
 
 type ResourceEntry = CollectionEntry<'resources'>;
+type EventEntry = CollectionEntry<'events'>;
 type TypeFilter = ResourceType | 'all';
 
 interface Props {
   allResources: ResourceEntry[];
   resources: ResourceEntry[];
+  eventsById: Map<string, EventEntry>;
   currentType?: TypeFilter;
 }
 
-const { allResources, resources, currentType = 'all' } = Astro.props;
+const { allResources, resources, eventsById, currentType = 'all' } =
+  Astro.props;
 
-// Single date-sorted library (no Upcoming/Past split). The 9.1 schema has no
-// resource date, so each entry sorts with `date: undefined` and the order falls
-// deterministically to title A→Z via `compareResources`.
-const sorted = [...resources].sort((a, b) =>
-  compareResources(
-    { title: a.data.title },
-    { title: b.data.title },
-  ),
-);
+// Single date-sorted library (no Upcoming/Past split). Sort by each resource's
+// effective date (= its origin-event date) via the shared cross-link module,
+// which delegates to `compareResources`: undated / no-origin-event last, then
+// title A→Z. Origin-event resolution is the AD-6 throwing primitive.
+const sorted = sortResourcesByEffectiveDate(resources, eventsById);
 
 const typeCounts = allResources.reduce<Record<ResourceType, number>>(
   (counts, r) => {
@@ -72,7 +74,10 @@ const typeCounts = allResources.reduce<Record<ResourceType, number>>(
     sorted.length > 0 ? (
       <div class="resource-stack">
         {sorted.map((resource) => (
-          <ResourceCard resource={resource} />
+          <ResourceCard
+            resource={resource}
+            originEvent={resolveOriginEvent(resource, eventsById)}
+          />
         ))}
       </div>
     ) : (

@@ -1,0 +1,292 @@
+---
+/**
+ * ConsentEmbed — a reusable "2-Klick" (click-to-load) consent gate for
+ * third-party media embeds (GDPR Art. 6(1)(a) / §25 TDDDG).
+ *
+ * WHY: a `youtube-nocookie` iframe still contacts Google on load (visitor IP →
+ * US transfer) before any consent. This gate renders a NEUTRAL LOCAL
+ * placeholder that makes ZERO third-party requests — no iframe `src`, no
+ * YouTube/ytimg thumbnail, no `preconnect`/`dns-prefetch`. The real embed URL
+ * rides only in a `data-embed-src` attribute (never a live `src`). The player is
+ * built and inserted client-side ONLY on the visitor's explicit activation, and
+ * consent is per-activation (nothing stored).
+ *
+ * REUSE: this is the single gate for every embed surface — Resources (9.3),
+ * the Epic 10 promo strip, and the Epic 11 hub all mount it. Keep it neutral
+ * (no resource-specific assumptions) so those consumers can reuse it verbatim.
+ *
+ * FAIL-SAFE (AC3′): the ghost-pill external link-out is always in static HTML.
+ * With JS off — or when a player is blocked by X-Frame-Options/CSP — the button
+ * does nothing and this link is the usable path; the tile never dead-ends.
+ */
+import CtaLink from '../CtaLink.astro';
+
+interface Props {
+  /**
+   * The privacy-safe embed URL (e.g. a `youtube-nocookie` `/embed/<id>` URL).
+   * Carried ONLY in `data-embed-src` — never emitted as a live `src` — so the
+   * static page issues no request to the embed host before activation (AC8).
+   */
+  src: string;
+  /** Provider display name shown in the notice + accessible name, e.g. `"YouTube"`. */
+  provider: string;
+  /**
+   * Optional data controller behind the provider, e.g. `"Google"`. When set it
+   * is surfaced as `"<provider> (<owner>)"` in the notice and the button's
+   * accessible name, making the third-country transfer explicit.
+   */
+  providerOwner?: string;
+  /** Human name of the resource — names the play button for assistive tech. */
+  title: string;
+  /**
+   * `title` applied to the loaded `<iframe>` (keyboard-reachable, meaningful).
+   * Defaults to {@link Props.title}.
+   */
+  embedTitle?: string;
+  /**
+   * The always-present fail-safe external link-out (AC3′). Opens in a new tab
+   * with `rel="noopener noreferrer"`.
+   */
+  fallback: { url: string; label: string };
+  /** Privacy-policy URL the notice links to. Defaults to the site's page. */
+  privacyHref?: string;
+}
+
+const {
+  src,
+  provider,
+  providerOwner,
+  title,
+  embedTitle,
+  fallback,
+  privacyHref = '/legal/data-privacy/',
+} = Astro.props;
+
+const providerDisplay = providerOwner
+  ? `${provider} (${providerOwner})`
+  : provider;
+
+// Accessible name NAMES the resource and states that activating loads external
+// third-party content (AC6′). The visible title + notice below repeat this for
+// sighted users.
+const buttonLabel = `Play “${title}” — loads video from ${providerDisplay}`;
+---
+
+<div class="consent-embed">
+  <div class="consent-embed-frame" data-consent-frame>
+    <div class="consent-embed-placeholder" data-consent-placeholder>
+      <p class="consent-embed-title">{title}</p>
+      <button
+        type="button"
+        class="consent-embed-play"
+        data-consent-play
+        data-embed-src={src}
+        data-embed-title={embedTitle ?? title}
+        aria-label={buttonLabel}
+      >
+        <svg
+          class="consent-embed-play-icon"
+          width="26"
+          height="26"
+          viewBox="0 0 24 24"
+          fill="none"
+          xmlns="http://www.w3.org/2000/svg"
+          aria-hidden="true"
+        >
+          <path d="M8 5.5v13l11-6.5-11-6.5Z" fill="currentColor"></path>
+        </svg>
+        <span class="consent-embed-play-label" aria-hidden="true">Play</span>
+      </button>
+      <p class="consent-embed-notice">
+        Clicking loads the video from {providerDisplay}, transferring your data
+        (incl. IP address) to the provider. See our{' '}
+        <a class="consent-embed-privacy-link" href={privacyHref}>
+          privacy policy
+        </a>.
+      </p>
+    </div>
+  </div>
+
+  {/*
+    AC3′ fail-safe: always-present external link-out. Static HTML, so a
+    JS-off visitor or a blocked player still has a working outward path.
+  */}
+  <p class="consent-embed-actions">
+    <CtaLink href={fallback.url} variant="ghost">
+      {fallback.label}
+    </CtaLink>
+  </p>
+</div>
+
+<style>
+  .consent-embed {
+    display: flex;
+    flex-direction: column;
+    gap: 0.625rem;
+    margin-top: 0.25rem;
+  }
+
+  /* Responsive 16:9 shell — the placeholder (and, post-consent, the injected
+     iframe) fill it absolutely. Same shape as the former inline player. */
+  .consent-embed-frame {
+    position: relative;
+    width: 100%;
+    aspect-ratio: 16 / 9;
+    border-radius: 0.75rem;
+    overflow: hidden;
+    /* A fixed dark "poster" surface: light-on-dark text below clears AA in BOTH
+       themes because these colors don't track the theme. Kept a SOLID color
+       (not a gradient) so axe can evaluate text contrast deterministically. */
+    background: #0a1512;
+    border: 1px solid var(--ev-line, #e2e4e5);
+  }
+
+  .consent-embed-frame :global(iframe) {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    border: 0;
+  }
+
+  /* Neutral LOCAL placeholder — no external asset of any kind. */
+  .consent-embed-placeholder {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 0.75rem;
+    padding: 1rem 1.25rem;
+    text-align: center;
+  }
+
+  .consent-embed-title {
+    margin: 0;
+    font-size: 1rem;
+    font-weight: 700;
+    line-height: 1.3;
+    color: #ffffff;
+    /* Keep the title from crowding small cards. */
+    max-width: 32ch;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+
+  .consent-embed-play {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.55rem;
+    padding: 0.6rem 1.1rem 0.6rem 0.95rem;
+    border-radius: 9999px;
+    border: 0;
+    cursor: pointer;
+    font-size: 0.95rem;
+    font-weight: 800;
+    color: #06231d;
+    background: #ffffff;
+  }
+
+  .consent-embed-play:hover {
+    background: #eafff8;
+  }
+
+  .consent-embed-play-icon {
+    flex-shrink: 0;
+    color: #046151;
+  }
+
+  .consent-embed-play:focus-visible {
+    outline: 3px solid var(--ev-focus-ring, #5fe3c7);
+    outline-offset: 3px;
+  }
+
+  .consent-embed-notice {
+    margin: 0;
+    max-width: 46ch;
+    font-size: 0.8rem;
+    line-height: 1.45;
+    /* rgba white → AA on the dark poster in both themes. */
+    color: rgba(255, 255, 255, 0.88);
+  }
+
+  .consent-embed-privacy-link {
+    color: #ffffff;
+    font-weight: 600;
+    text-decoration: underline;
+    text-underline-offset: 2px;
+    border-radius: 0.2rem;
+  }
+
+  .consent-embed-privacy-link:focus-visible {
+    outline: 2px solid var(--ev-focus-ring, #5fe3c7);
+    outline-offset: 2px;
+  }
+
+  /* The link-out itself is the shared ghost CtaLink pill (token fallbacks
+     included there, so the gate stays reusable outside seeded roots). */
+  .consent-embed-actions {
+    margin: 0;
+    display: flex;
+  }
+</style>
+
+<script>
+  /*
+   * Progressive enhancement (AC1′): build & insert the real player only on the
+   * visitor's explicit activation. Per-activation consent — nothing is stored,
+   * no `localStorage`. Native `<button>` gives Enter/Space for free.
+   */
+  const INIT_ATTR = 'data-consent-embed-init';
+
+  function activate(gate: Element): void {
+    const button = gate.querySelector<HTMLButtonElement>('[data-consent-play]');
+    const frame = gate.querySelector<HTMLElement>('[data-consent-frame]');
+    const placeholder = gate.querySelector<HTMLElement>(
+      '[data-consent-placeholder]',
+    );
+    if (!button || !frame) {
+      return;
+    }
+
+    button.addEventListener('click', () => {
+      const src = button.getAttribute('data-embed-src');
+      if (!src) {
+        return;
+      }
+      const iframe = document.createElement('iframe');
+      iframe.src = src;
+      iframe.title = button.getAttribute('data-embed-title') ?? '';
+      iframe.loading = 'lazy';
+      iframe.referrerPolicy = 'strict-origin-when-cross-origin';
+      iframe.allow = 'encrypted-media; fullscreen; picture-in-picture';
+      iframe.setAttribute('allowfullscreen', '');
+
+      // Remove the placeholder so only the player remains in the frame.
+      placeholder?.remove();
+      frame.appendChild(iframe);
+
+      // Keyboard continuity: land focus on the freshly loaded player.
+      iframe.focus();
+    });
+  }
+
+  // Support multiple gates on one page — each wired independently, exactly
+  // once (INIT_ATTR guards re-runs). Re-init on `astro:after-swap` matches the
+  // house idiom for interactive components, so the gate keeps working after a
+  // soft navigation if the ClientRouter is ever enabled.
+  function initConsentEmbeds(): void {
+    document
+      .querySelectorAll(`.consent-embed:not([${INIT_ATTR}])`)
+      .forEach((gate) => {
+        gate.setAttribute(INIT_ATTR, '');
+        activate(gate);
+      });
+  }
+
+  initConsentEmbeds();
+  document.addEventListener('astro:after-swap', initConsentEmbeds);
+</script>

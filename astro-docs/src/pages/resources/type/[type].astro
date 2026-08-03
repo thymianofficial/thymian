@@ -8,6 +8,10 @@ import {
   resourceTypeSlug,
 } from '../../../components/resources/resourceMeta';
 import {
+  assertOriginEventsResolve,
+  indexEventsById,
+} from '../../../lib/cross-links';
+import {
   RESOURCE_TYPES,
   type ResourceType,
 } from '../../../schema/resources';
@@ -22,6 +26,11 @@ export function getStaticPaths() {
 const { type } = Astro.props as { type: ResourceType };
 const allResources = await getCollection('resources');
 const resources = allResources.filter((r) => r.data.resourceType === type);
+const allEvents = await getCollection('events');
+const eventsById = indexEventsById(allEvents);
+// AD-6 build-time guard over the FULL resource set (not just this type's slice)
+// so a dangling originEvent is caught on every resource page.
+assertOriginEventsResolve(allResources, eventsById);
 ---
 
 <ResourcesLayout
@@ -31,6 +40,7 @@ const resources = allResources.filter((r) => r.data.resourceType === type);
   <ResourceList
     allResources={allResources}
     resources={resources}
+    eventsById={eventsById}
     currentType={type}
   />
 </ResourcesLayout>
