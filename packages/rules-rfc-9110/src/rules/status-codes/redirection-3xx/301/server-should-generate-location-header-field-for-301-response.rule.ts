@@ -19,6 +19,9 @@ export default httpRule(
   .description(
     'The server SHOULD generate a Location header field in the response containing a preferred URI reference for the new permanent URI.',
   )
+  .explanation(
+    'When a server returns 301 to say a resource has permanently moved, it should include a Location header giving the new permanent URI where the resource now lives. This matters because 301 signals a permanent move; the Location value is what lets clients automatically follow the redirect and update stored links to the new address, so omitting it tells the client the resource moved but never says where.',
+  )
   .appliesTo('server')
   // Static floor asserts the Location header name is present. The real-data
   // overrides additionally read the VALUE to catch an empty "Location:" that

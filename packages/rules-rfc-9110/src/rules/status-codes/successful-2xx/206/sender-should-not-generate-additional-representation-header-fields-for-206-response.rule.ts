@@ -92,6 +92,9 @@ export default httpRule(
   .summary(
     'A sender SHOULD NOT send additional representation header fields or MUST generate all representation headers for a 206 Partial Content response.',
   )
+  .explanation(
+    "When a 206 Partial Content response is sent for a conditional range request (one carrying an If-Range header), the client already holds an earlier full response with the representation metadata, so the server should avoid resending extra representation headers like Content-Encoding, ETag, or Last-Modified. If the server does include such headers, it must then include the full set it would have sent in a 200 OK. This keeps the client's picture of the representation consistent, so it doesn't stitch together a partial body against stale or mismatched metadata.",
+  )
   .rule((ctx) =>
     ctx.validateGroupedCommonHttpTransactions(
       /*

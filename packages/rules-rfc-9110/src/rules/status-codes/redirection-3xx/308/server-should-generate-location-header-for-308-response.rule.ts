@@ -21,6 +21,9 @@ export default httpRule(
   .description(
     'The server SHOULD generate a Location header field in the response containing a preferred URI reference for the new permanent URI.',
   )
+  .explanation(
+    'When you return a 308 (Permanent Redirect), include a Location header field whose value is the new permanent URI for the resource. This matters because 308 tells clients the resource has moved for good, and the user agent uses the Location value to follow the redirect and, where supported, to update stored links to point at the new address. Without a usable Location the client cannot reach the resource and cannot learn the correct permanent URI, so ensure the header is present and holds a real URI reference rather than an empty value.',
+  )
   .appliesTo('server')
   // Static floor asserts the Location header name is present. The real-data
   // overrides additionally read the VALUE to catch an empty "Location:" that

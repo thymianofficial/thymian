@@ -38,6 +38,9 @@ export default httpRule(
   .description(
     'The server generating a 401 response MUST send a WWW-Authenticate header field containing at least one challenge applicable to the target resource.',
   )
+  .explanation(
+    'When a server returns 401 (Unauthorized), it must include a WWW-Authenticate header describing at least one authentication challenge that applies to the requested resource. The 401 says credentials are missing or invalid; the challenge tells the client how to authenticate. It matters because without the challenge the client knows only that it was denied, not which authentication scheme or realm to use, so it cannot construct a proper Authorization header and retry.',
+  )
   .appliesTo('server')
   .rule((ctx) =>
     ctx.validateCommonHttpTransactions(

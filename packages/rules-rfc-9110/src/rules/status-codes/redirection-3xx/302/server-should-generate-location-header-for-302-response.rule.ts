@@ -19,6 +19,9 @@ export default httpRule(
   .description(
     'The server SHOULD generate a Location header field in the response containing a URI reference for the different URI.',
   )
+  .explanation(
+    'When a server returns 302 to say a resource is temporarily at a different URI, it should include a Location header giving that temporary URI. This matters because the Location value is what lets a client automatically follow the redirect to the current location; because the move is only temporary the client keeps using the original URI for future requests, but for this response it needs the Location to know where to go now.',
+  )
   .appliesTo('server')
   // Static floor asserts the Location header name is present. The real-data
   // overrides additionally read the VALUE to catch an empty "Location:" that
