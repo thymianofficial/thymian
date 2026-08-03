@@ -37,6 +37,7 @@ const { hasSidebar } = Astro.locals.starlightRoute;
         ))
       }
     </nav>
+    {!hasSidebar && <SiteNav />}
   </div>
   <slot />
   <div class="sl-hidden md:sl-flex print:hidden right-group">
@@ -45,7 +46,6 @@ const { hasSidebar } = Astro.locals.starlightRoute;
     </div>
     <ThemeSelect />
   </div>
-  {!hasSidebar && <SiteNav />}
 </div>
 
 <style>
