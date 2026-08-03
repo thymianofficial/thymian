@@ -25,8 +25,10 @@ const { events, latestResource } = selectPromoItems(
   buildDate,
 );
 
-// AD-13 (honest attribution): a Host resource (or absent attribution) has no
-// external host to credit, so this is `null` and no attribution line renders.
+// AD-13 (honest attribution): a Host resource has no external host to credit,
+// so this is `null` and no attribution line renders (`attribution` itself is
+// required on resources — only Host vs Guest varies, unlike events, where
+// attribution is optional).
 const resourceGuest = latestResource
   ? resolveGuestAttribution(latestResource.data.attribution)
   : null;
@@ -46,6 +48,13 @@ const resourceGuest = latestResource
   cards, never special-cased here (that precedence lives in the module,
   10.2). `latestResource` is independent of the event branch, so it can
   render even when `events` is empty.
+
+  Heading level: card titles render as `<h2>` (see `ResourceCard.astro`'s
+  h2-vs-h3 convention comment), because this component isn't mounted on any
+  page yet — Story 10.3 decides placement — so there is no known `<h2>`
+  bucket-heading ancestor to nest under. Revisit if 10.3's placement turns out
+  to introduce its own wrapping heading, which would make this a skip-to-h3
+  case instead.
 */}
 <div class="promo-strip">
   <ul class="promo-strip-list" role="list">
@@ -55,11 +64,17 @@ const resourceGuest = latestResource
         const place = online ? 'Online' : location;
         return (
           <li>
-            <a class="promo-card" href={urlForEntry(event)}>
-              <span class="promo-card-badge">
+            <div class="promo-card">
+              <span
+                class={`promo-card-badge ${participation === 'booth' ? 'promo-card-badge-alt' : ''}`}
+              >
                 {PARTICIPATION_TYPE_LABELS[participation]}
               </span>
-              <h3 class="promo-card-title">{title}</h3>
+              <h2 class="promo-card-title">
+                <a class="promo-card-link" href={urlForEntry(event)}>
+                  {title}
+                </a>
+              </h2>
               <p class="promo-card-meta">
                 {place}
                 <span class="promo-card-date">
@@ -67,7 +82,7 @@ const resourceGuest = latestResource
                 </span>
               </p>
               <span class="promo-card-cta">View event</span>
-            </a>
+            </div>
           </li>
         );
       })
@@ -75,19 +90,34 @@ const resourceGuest = latestResource
     {
       latestResource && (
         <li>
-          <a class="promo-card" href={urlForEntry(latestResource)}>
+          <div class="promo-card">
             <span class="promo-card-badge">
               {RESOURCE_TYPE_LABELS[latestResource.data.resourceType]}
             </span>
-            <h3 class="promo-card-title">{latestResource.data.title}</h3>
-            {resourceGuest && (
-              <p class="promo-card-attribution">
-                Guest of {resourceGuest.externalHost} on{' '}
-                {resourceGuest.platform}
-              </p>
-            )}
+            <h2 class="promo-card-title">
+              <a class="promo-card-link" href={urlForEntry(latestResource)}>
+                {latestResource.data.title}
+              </a>
+            </h2>
+            {resourceGuest &&
+              (resourceGuest.externalUrl ? (
+                <a
+                  href={resourceGuest.externalUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  class="promo-card-attribution-link"
+                >
+                  Guest of {resourceGuest.externalHost} on{' '}
+                  {resourceGuest.platform}
+                </a>
+              ) : (
+                <p class="promo-card-attribution">
+                  Guest of {resourceGuest.externalHost} on{' '}
+                  {resourceGuest.platform}
+                </p>
+              ))}
             <span class="promo-card-cta">View resource</span>
-          </a>
+          </div>
         </li>
       )
     }
@@ -107,6 +137,8 @@ const resourceGuest = latestResource
     --ev-accent-text: #046151;
     --ev-badge-bg: #0a3b32;
     --ev-badge-fg: #e6f6f3;
+    --ev-badge-alt-bg: #e1f3d3;
+    --ev-badge-alt-fg: #162e0c;
     --ev-focus-ring: #017b64;
 
     color: var(--ev-fg);
@@ -125,22 +157,29 @@ const resourceGuest = latestResource
     --ev-accent-text: #74cfbf;
     --ev-badge-bg: #084d40;
     --ev-badge-fg: #cdeee8;
+    --ev-badge-alt-bg: #254b16;
+    --ev-badge-alt-fg: #e1f3d3;
     --ev-focus-ring: #74cfbf;
   }
 
   .promo-strip-list {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+    grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
     gap: 1rem;
     margin: 0;
     padding: 0;
     list-style: none;
   }
 
-  /* Full card is the link (no nested interactive content), so the whole tile
-     is a click/tap target — a deliberately simpler surface than the
-     full-width Event/Resource bands (see Dev Notes → Token-scope trap). */
+  /* A positioning container, not itself a link (unlike the full-width
+     Event/Resource bands — see Dev Notes → Token-scope trap): `.promo-card-link`
+     below stretches its `::after` to cover this whole tile (the well-known
+     "stretched link" pattern), making the entire card a click/tap target
+     while still letting the Resource card's external-host attribution link
+     stay a SEPARATE, independently-clickable secondary link — never nesting
+     one `<a>` inside another. */
   .promo-card {
+    position: relative;
     display: flex;
     height: 100%;
     flex-direction: column;
@@ -149,8 +188,6 @@ const resourceGuest = latestResource
     background: var(--ev-band-bg);
     border: 1px solid var(--ev-line);
     border-radius: 1rem;
-    color: inherit;
-    text-decoration: none;
     transition:
       transform 0.15s ease,
       box-shadow 0.15s ease;
@@ -170,7 +207,22 @@ const resourceGuest = latestResource
     }
   }
 
-  .promo-card:focus-visible {
+  /* The primary link: wraps only the card title, but its `::after` stretches
+     (via `inset: 0`) to cover the whole `.promo-card` tile above — so the
+     visible focus ring below lands on the title text (the actual focusable
+     element), while mouse/touch users can click/tap anywhere on the card. */
+  .promo-card-link {
+    color: inherit;
+    text-decoration: none;
+  }
+
+  .promo-card-link::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+  }
+
+  .promo-card-link:focus-visible {
     outline: 2px solid var(--ev-focus-ring);
     outline-offset: 2px;
   }
@@ -188,6 +240,13 @@ const resourceGuest = latestResource
     line-height: 1;
   }
 
+  /* … lime fill for a Booth event's badge (tinted-fill + dark/pale-safe
+     text), mirroring `EventCard.astro`'s `badge--type-alt`. */
+  .promo-card-badge-alt {
+    background: var(--ev-badge-alt-bg);
+    color: var(--ev-badge-alt-fg);
+  }
+
   .promo-card-title {
     margin: 0;
     font-size: 1.15rem;
@@ -198,7 +257,8 @@ const resourceGuest = latestResource
   }
 
   .promo-card-meta,
-  .promo-card-attribution {
+  .promo-card-attribution,
+  .promo-card-attribution-link {
     margin: 0;
     font-size: 0.85rem;
     line-height: 1.5;
@@ -207,6 +267,25 @@ const resourceGuest = latestResource
 
   .promo-card-attribution {
     color: var(--ev-fg-faint);
+  }
+
+  /* A SEPARATE secondary link (never nested inside `.promo-card-link` — that
+     would be invalid HTML). Sits above the `.promo-card-link::after` stretch
+     overlay via an explicit z-index (which always outranks that overlay's
+     z-index:auto), so it stays independently clickable/focusable instead of
+     being swallowed by the card-wide click target. */
+  .promo-card-attribution-link {
+    position: relative;
+    z-index: 1;
+    color: var(--ev-accent-text);
+    text-decoration: underline;
+    text-underline-offset: 2px;
+  }
+
+  .promo-card-attribution-link:focus-visible {
+    outline: 2px solid var(--ev-focus-ring);
+    outline-offset: 2px;
+    border-radius: 2px;
   }
 
   .promo-card-date {

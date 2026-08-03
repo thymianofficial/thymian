@@ -37,7 +37,12 @@ export type PromoBranch = 'upcoming' | 'past' | 'evergreen';
 /** The strip's composed selection for one build. */
 export interface PromoSelection {
   branch: PromoBranch;
-  /** ≤ `PROMO_EVENT_LIMIT`, pre-ordered (nearest-first). Empty only on 'evergreen'. */
+  /**
+   * ≤ `PROMO_EVENT_LIMIT`, pre-ordered (nearest-first). Empty on the eventual
+   * 'evergreen' branch (Story 10.2), and also possible today on 'upcoming'
+   * when there are 0 Upcoming Events (Story 10.2 has not yet added the
+   * 'past'/'evergreen' arms).
+   */
   events: EventEntry[];
   /** The single latest Resource, independent of the event branch; `undefined` when none exists. */
   latestResource: ResourceEntry | undefined;
