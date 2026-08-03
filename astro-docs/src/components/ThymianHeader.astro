@@ -1,16 +1,18 @@
 ---
 import config from 'virtual:starlight/user-config';
 
-import LanguageSelect from 'virtual:starlight/components/LanguageSelect';
 import Search from 'virtual:starlight/components/Search';
 import SiteTitle from 'virtual:starlight/components/SiteTitle';
 import SocialIcons from 'virtual:starlight/components/SocialIcons';
 import ThemeSelect from 'virtual:starlight/components/ThemeSelect';
 
 import ExampleBanner from './action-banner/ExampleBanner.astro';
+import { NAV_LINKS, resolveAriaCurrent } from '../data/navigation';
 
 const shouldRenderSearch =
   config.pagefind || config.components.Search !== '@astrojs/starlight/components/Search.astro';
+
+const pillLinks = NAV_LINKS.filter((link) => link.placement === 'pills+panel');
 ---
 
 <ExampleBanner />
@@ -20,28 +22,26 @@ const shouldRenderSearch =
   </div>
   <div class="sl-flex search-nav-group print:hidden">
     {shouldRenderSearch && <Search />}
-    <nav class="sl-hidden md:sl-flex header-nav-links" aria-label="Main">
-      <a href="/enterprise/" class="header-nav-link enterprise-cta">
-        Enterprise
-      </a>
-      <a href="mailto:support@thymian.dev" class="header-nav-link">
-        Contact
-      </a>
-      <a href="/events/" class="header-nav-link">
-        Events
-      </a>
-      <a href="/resources/" class="header-nav-link">
-        Resources
-      </a>
+    <nav class="sl-hidden md:sl-flex header-nav-links" aria-label="Site">
+      {
+        pillLinks.map((link) => (
+          <a
+            href={link.href}
+            class:list={['header-nav-link', { 'enterprise-cta': link.isCta }]}
+            aria-current={resolveAriaCurrent(link.href, Astro.url.pathname)}
+          >
+            {link.label}
+          </a>
+        ))
+      }
     </nav>
   </div>
   <slot />
   <div class="sl-hidden md:sl-flex print:hidden right-group">
-    <div class="sl-flex social-icons">
+    <div class="sl-hidden lg:sl-flex social-icons">
       <SocialIcons />
     </div>
     <ThemeSelect />
-    <LanguageSelect />
   </div>
 </div>
 
@@ -56,10 +56,19 @@ const shouldRenderSearch =
     }
 
     .title-wrapper {
-      overflow: clip;
+      flex-shrink: 0;
+      /*
+        min-width guards the floor inside the >=50rem grid band too: `.header`
+        switches to `display: grid` there (below), where `flex-shrink` has no
+        effect on the item's track size - only an explicit min-width pins it.
+        The logo `<img>` itself is `max-width: 100%` (Starlight's SiteTitle),
+        so it is capped by this element's CONTENT box - under the global
+        `box-sizing: border-box` reset, min-width sets the BORDER box, so the
+        padding must be added back to keep >= 120px of actual content width.
+      */
+      min-width: calc(120px + 0.5rem);
       padding: 0.25rem;
       margin: -0.25rem;
-      min-width: 0;
     }
 
     .right-group,
@@ -117,8 +126,9 @@ const shouldRenderSearch =
   .header-nav-link {
     display: inline-flex;
     align-items: center;
-    padding: 0.375rem 0.75rem;
-    font-size: var(--sl-text-sm);
+    min-height: 24px;
+    padding: 0.25rem 0.625rem;
+    font-size: var(--sl-text-xs);
     font-weight: 500;
     color: var(--sl-color-gray-2);
     text-decoration: none;
@@ -127,24 +137,59 @@ const shouldRenderSearch =
     transition: color 0.15s ease, background-color 0.15s ease;
   }
 
+  @media (min-width: 72rem) {
+    .header-nav-link {
+      padding: 0.375rem 0.75rem;
+      font-size: var(--sl-text-sm);
+    }
+  }
+
   .header-nav-link:hover {
+    color: var(--sl-color-white);
+  }
+
+  /*
+    Active-section cue (spec AC14): non-color weight 600 + the shipped hover
+    foreground, never color-only. Excludes the CTA (see the note on the CTA
+    rule below) — `:not(.enterprise-cta)` + keeping the CTA rules last in
+    source order are BOTH required, since the two selectors share specificity.
+  */
+  .header-nav-link[aria-current]:not(.enterprise-cta) {
+    font-weight: 600;
     color: var(--sl-color-white);
   }
 
   /*
     On-accent text must stay light in BOTH themes: `--sl-color-black` inverts to
     near-black under `data-theme='dark'`, which rendered #171819 on teal-600
-    (3.4:1 — a WCAG AA failure the dark-mode axe scan catches). White on the
-    teal accent is 5.36:1 and matches how light mode already renders this CTA.
+    (3.40:1 — a WCAG AA failure the dark-mode axe scan catches). White on the
+    light-mode teal accent is 5.23:1 (the shipped 5.36:1 was a miscomputation),
+    still AA. Dark mode does NOT track the accent: the dark seed `#5ab12e` is
+    2.71:1 under white, and `--sl-color-accent-high` resolves to a light tint
+    (~1.38:1 under white) in dark — both fail, and axe never scans hover states
+    to catch it conditionally. The dark fills below are therefore pinned
+    unconditionally via `--tnav-*` custom properties: rest `#376e1b` (6.16:1),
+    hover `#275114` (9.24:1). Text stays white in every state/theme — never
+    restyle it dark. `.enterprise-cta` has the same (0,2,0) specificity as the
+    `[aria-current]` active-pill rule above, so on `/enterprise/` (where the
+    CTA legitimately carries `aria-current="page"`) these rules must stay
+    LAST in source order to win.
   */
   .header-nav-link.enterprise-cta {
+    --tnav-cta-bg: var(--sl-color-accent);
+    --tnav-cta-bg-hover: var(--sl-color-accent-high);
     color: #ffffff;
-    background-color: var(--sl-color-accent);
+    background-color: var(--tnav-cta-bg);
     font-weight: 600;
   }
 
   .header-nav-link.enterprise-cta:hover {
     color: #ffffff;
-    background-color: var(--sl-color-accent-high);
+    background-color: var(--tnav-cta-bg-hover);
+  }
+
+  :global(:root[data-theme='dark']) .header-nav-link.enterprise-cta {
+    --tnav-cta-bg: #376e1b;
+    --tnav-cta-bg-hover: #275114;
   }
 </style>
