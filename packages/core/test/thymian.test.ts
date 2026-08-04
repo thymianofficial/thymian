@@ -1,3 +1,4 @@
+import type { JSONSchemaType } from 'ajv/dist/2020.js';
 import { describe, expect, it, vi } from 'vitest';
 
 import {
@@ -8,9 +9,11 @@ import {
   createTestCaseExecution,
   createToolRun,
   type LintWorkflowInput,
+  PluginRegistrationError,
   reportSchema,
   Thymian,
   ThymianBaseError,
+  type ThymianPlugin,
 } from '../src/index.js';
 
 describe('Thymian workflows', () => {
@@ -271,5 +274,61 @@ describe('core.workflow.* actions', () => {
     expect(ajv.errors).toBeNull();
 
     await t.close();
+  });
+});
+
+describe('Thymian.register plugin-options validation', () => {
+  type PluginOptions = {
+    endpoint: string;
+    retries: number;
+  };
+
+  const optionsSchema: JSONSchemaType<PluginOptions> = {
+    type: 'object',
+    properties: {
+      endpoint: { type: 'string' },
+      retries: { type: 'number', minimum: 0 },
+    },
+    required: ['endpoint', 'retries'],
+    additionalProperties: false,
+  };
+
+  const buildPlugin = (): ThymianPlugin<PluginOptions> => ({
+    name: '@example/plugin',
+    version: '*',
+    plugin: async () => undefined,
+    options: optionsSchema,
+  });
+
+  it('throws PluginRegistrationError with human-readable detail for invalid options', () => {
+    const thymian = new Thymian();
+
+    let thrown: unknown;
+    try {
+      thymian.register(buildPlugin(), {
+        retries: -1,
+      } as unknown as PluginOptions);
+    } catch (error) {
+      thrown = error;
+    }
+
+    expect(thrown).toBeInstanceOf(PluginRegistrationError);
+    const error = thrown as PluginRegistrationError;
+
+    expect(error.message).toMatch(/^Invalid options for plugin "/);
+    expect(error.message).toContain('@example/plugin');
+    // Carries the human-readable Ajv detail after the stable stem.
+    expect(error.message).toContain('endpoint');
+  });
+
+  it('registers without throwing for valid options', () => {
+    const thymian = new Thymian();
+
+    expect(() =>
+      thymian.register(buildPlugin(), {
+        endpoint: 'https://example.com',
+        retries: 3,
+      }),
+    ).not.toThrow();
   });
 });

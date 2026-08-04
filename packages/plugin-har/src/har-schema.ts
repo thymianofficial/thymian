@@ -1,4 +1,4 @@
-import { ajv } from '@thymian/core';
+import { ajv, formatAjvErrors } from '@thymian/core';
 
 import type { HarLog } from './har-types.js';
 
@@ -96,5 +96,5 @@ export function validateHar(data: unknown): data is HarLog {
 }
 
 export function getValidationErrors(): string {
-  return ajv.errorsText(validateFn.errors);
+  return formatAjvErrors(validateFn.errors).message;
 }
