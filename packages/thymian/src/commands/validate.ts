@@ -1,6 +1,8 @@
 import {
   BaseCliRunCommand,
   classificationToExitCode,
+  wrap,
+  wrapIndented,
 } from '@thymian/common-cli';
 import { ux } from '@thymian/common-cli/oclif';
 
@@ -42,12 +44,15 @@ export default class Validate extends BaseCliRunCommand<typeof Validate> {
             ? '✖'
             : '⚠';
 
-      ux.stdout(`${icon} ${result.location}`);
+      ux.stdout(wrapIndented(result.location, `${icon} `).join('\n'));
 
       if (result.issues.length > 0) {
         for (const issue of result.issues) {
           ux.stdout(
-            `    - ${issue.message}${issue.path ? ` (at ${issue.path})` : ''}`,
+            wrapIndented(
+              `${issue.message}${issue.path ? ` (at ${issue.path})` : ''}`,
+              '    - ',
+            ).join('\n'),
           );
         }
         ux.stdout();
@@ -55,14 +60,20 @@ export default class Validate extends BaseCliRunCommand<typeof Validate> {
     }
 
     if (exitCode === 0) {
-      ux.stdout('\nAll specifications are valid.');
+      ux.stdout('\n' + wrap('All specifications are valid.'));
     } else if (exitCode === 1) {
       ux.stdout(
-        `\n${outcome.results.filter((r) => r.status === 'failed').length} of ${totalResults} specifications are invalid.`,
+        '\n' +
+          wrap(
+            `${outcome.results.filter((r) => r.status === 'failed').length} of ${totalResults} specifications are invalid.`,
+          ),
       );
     } else {
       ux.stdout(
-        `\n${outcome.results.filter((r) => r.status === 'unsupported' || r.status === 'error').length} of ${totalResults} specifications could not be validated.`,
+        '\n' +
+          wrap(
+            `${outcome.results.filter((r) => r.status === 'unsupported' || r.status === 'error').length} of ${totalResults} specifications could not be validated.`,
+          ),
       );
     }
 

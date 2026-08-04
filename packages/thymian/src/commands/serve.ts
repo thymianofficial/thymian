@@ -1,4 +1,4 @@
-import { BaseCliRunCommand } from '@thymian/common-cli';
+import { BaseCliRunCommand, wrap } from '@thymian/common-cli';
 
 export default class Serve extends BaseCliRunCommand<typeof Serve> {
   static override description = 'Run Thymian in serve mode.';
@@ -36,6 +36,6 @@ export default class Serve extends BaseCliRunCommand<typeof Serve> {
 
     await this.thymian.ready();
 
-    this.log(`Thymian is now in "serve" mode. Press "${quit}" to exit.`);
+    this.log(wrap(`Thymian is now in "serve" mode. Press "${quit}" to exit.`));
   }
 }

@@ -1,6 +1,6 @@
 import { EOL } from 'node:os';
 
-import { BaseCliRunCommand } from '@thymian/common-cli';
+import { BaseCliRunCommand, wrap } from '@thymian/common-cli';
 import { ux } from '@thymian/common-cli/oclif';
 
 export default class List extends BaseCliRunCommand<typeof List> {
@@ -11,7 +11,7 @@ export default class List extends BaseCliRunCommand<typeof List> {
       this.log(
         this.thymian.plugins
           .map((plugin) =>
-            ux.colorize(this.config?.theme?.topic, plugin.plugin.name),
+            wrap(ux.colorize(this.config?.theme?.topic, plugin.plugin.name)),
           )
           .join(EOL),
       );

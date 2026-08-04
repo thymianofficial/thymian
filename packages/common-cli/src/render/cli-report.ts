@@ -25,7 +25,13 @@ import {
   groupTestCaseExecutions,
   renderTestCaseExecution,
 } from './test-executions.js';
-import { pluralize, sortRecordByKey, sortRecordBySeverity } from './utils.js';
+import {
+  pluralize,
+  sortRecordByKey,
+  sortRecordBySeverity,
+  terminalWidth,
+  wrap,
+} from './utils.js';
 
 export function collectSeverityCounts(
   report: Report,
@@ -48,6 +54,20 @@ export function collectSeverityCounts(
   }
 
   return counts;
+}
+
+/**
+ * `tool · type · ────` run separator, sized so the rule line fills the terminal
+ * width like the rest of the render layer (falling back to 80 columns when there
+ * is no finite width, e.g. piped output). The dash run always keeps at least one
+ * character so narrow terminals still show a divider.
+ */
+function runHeading(toolName: string, runType: string): string {
+  const prefix = `${toolName} · ${runType} · `;
+  const width = terminalWidth();
+  const fill = Number.isFinite(width) ? width : 80;
+
+  return prefix + '─'.repeat(Math.max(1, fill - prefix.length));
 }
 
 export function renderReport(
@@ -73,11 +93,7 @@ export function renderReport(
   const resolveLocation = createLocationResolver(reportForLocationResolution);
 
   for (const [idx, run] of report.runs.entries()) {
-    lines.push(
-      `${run.tool.name} · ${run.runType} · ${'─'.repeat(
-        Math.max(1, 70 - run.tool.name.length),
-      )}`,
-    );
+    lines.push(runHeading(run.tool.name, run.runType));
     lines.push('');
 
     const ruleIndex = buildRuleIndex(run.rules);
@@ -142,7 +158,9 @@ export function renderReport(
   lines.push('');
   lines.push('');
   lines.push(
-    `Summary: ${counts.error} ${ux.colorize(SEVERITY_COLORS.error, pluralize('error', counts.error))}, ${counts.warn} ${ux.colorize(SEVERITY_COLORS.warn, pluralize('warning', counts.warn))}, ${counts.hint} ${ux.colorize(SEVERITY_COLORS.hint, pluralize('hint', counts.hint))}, ${counts.info} ${ux.colorize(SEVERITY_COLORS.info, pluralize('info', counts.info))}.`,
+    wrap(
+      `Summary: ${counts.error} ${ux.colorize(SEVERITY_COLORS.error, pluralize('error', counts.error))}, ${counts.warn} ${ux.colorize(SEVERITY_COLORS.warn, pluralize('warning', counts.warn))}, ${counts.hint} ${ux.colorize(SEVERITY_COLORS.hint, pluralize('hint', counts.hint))}, ${counts.info} ${ux.colorize(SEVERITY_COLORS.info, pluralize('info', counts.info))}.`,
+    ),
   );
 
   return lines.join('\n').trimEnd();

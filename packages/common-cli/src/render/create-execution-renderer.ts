@@ -18,7 +18,7 @@ import {
 } from '@thymian/core';
 
 import { renderStatus } from './status.js';
-import { indent, sortRecordByKey } from './utils.js';
+import { indent, sortRecordByKey, wrapIndented } from './utils.js';
 
 type Groupable = LintExecution | TestCaseExecution | AnalyzeExecution;
 
@@ -88,7 +88,10 @@ export function createExecutionsRenderer<T extends Groupable>(
       }
 
       lines.push(
-        indent(indentationLevel) + renderHeading(key, group, ruleIndex),
+        ...wrapIndented(
+          renderHeading(key, group, ruleIndex),
+          indent(indentationLevel),
+        ),
       );
       lines.push('');
 
@@ -231,7 +234,7 @@ function endpointEntryRenderer<T extends Groupable>(
       rule?.summary?.text ?? rule?.description?.text ?? rule?.name,
     );
 
-    const lines = [indent(indentationLevel) + statusLine];
+    const lines = wrapIndented(statusLine, indent(indentationLevel));
 
     // The rule id is only rendered when we have the resolved descriptor,
     // because `rule` is itself looked up from `execution.ruleId` via the rule
@@ -301,10 +304,10 @@ function groupedEntryRenderer<T extends Groupable>(
 
     let detailIndentationLevel = indentationLevel + 1;
 
-    const lines = [`${indent(indentationLevel)}${symbol} ${label}`];
+    const lines = wrapIndented(label, `${indent(indentationLevel)}${symbol} `);
 
     if (message) {
-      lines.push(indent(indentationLevel + 1) + '➜ ' + message);
+      lines.push(...wrapIndented(message, `${indent(indentationLevel + 1)}➜ `));
       // if we print a message we must increase the indentation of the details
       detailIndentationLevel++;
     }
