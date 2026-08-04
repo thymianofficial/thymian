@@ -2,7 +2,7 @@ import { method, not, or, statusCode } from '@thymian/core';
 import { httpRule, singleTestCase } from '@thymian/core';
 
 export default httpRule(
-  'rfc9110/general-purpose-severs-must-support-get-and-head',
+  'rfc9110/general-purpose-servers-must-support-get-and-head',
 )
   .severity('error')
   .type('test', 'analytics')

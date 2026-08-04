@@ -1,7 +1,7 @@
 import { method, statusCode } from '@thymian/core';
 import { httpRule } from '@thymian/core';
 
-export default httpRule('rfc9110/origin-sever-may-accept-connect-request')
+export default httpRule('rfc9110/origin-server-may-accept-connect-request')
   .severity('hint')
   .type('test', 'analytics')
   .url('https://www.rfc-editor.org/rfc/rfc9110.html#name-connect')
