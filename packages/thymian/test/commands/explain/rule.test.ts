@@ -72,6 +72,11 @@ describe('explain rule command', () => {
     });
 
     expect(stdout).toContain('rfc9110/example-rule');
+    expect(stdout).toContain('SUMMARY');
+    expect(stdout).toContain('A short one-liner.');
+    expect(stdout).toContain('DESCRIPTION');
+    expect(stdout).toContain('A longer description of what the rule checks.');
+    expect(stdout).toContain('EXPLANATION');
     expect(stdout).toContain(
       'This matters because interoperability depends on it.',
     );
@@ -79,6 +84,8 @@ describe('explain rule command', () => {
     expect(stdout).toContain('Do the recommended thing to fix it.');
     expect(stdout).toContain('SEVERITY');
     expect(stdout).toContain('error');
+    expect(stdout).toContain('APPLIES TO');
+    expect(stdout).toContain('origin server, client');
     expect(stdout).toContain('REFERENCE');
     expect(stdout).toContain(
       'https://www.rfc-editor.org/rfc/rfc9110.html#name-overview',
@@ -145,7 +152,7 @@ describe('explain rule command', () => {
     expect(filter(makeRule({ name: 'o', severity: 'off' }))).toBe(true);
   });
 
-  it('omits the "Applies to" line for an empty appliesTo array', async () => {
+  it('omits the "APPLIES TO" section for an empty appliesTo array', async () => {
     mockedLoadRules.mockResolvedValue([
       makeRule({
         name: 'rfc9110/empty-applies-to',
@@ -159,6 +166,6 @@ describe('explain rule command', () => {
       await ExplainRule.run(['rfc9110/empty-applies-to', '--no-autoload']);
     });
 
-    expect(stdout).not.toContain('Applies to:');
+    expect(stdout).not.toContain('APPLIES TO');
   });
 });

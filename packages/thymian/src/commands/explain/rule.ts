@@ -90,30 +90,38 @@ function formatRuleDetail(rule: Rule): string[] {
 
   const lines: string[] = [];
 
-  lines.push('');
-  lines.push(oclif.ux.colorize('bold', 'RULE'));
-  lines.push(name);
-  lines.push('');
+  // Each section is a blank spacer + bold heading + value. Optional fields are
+  // pushed only when present, so absent fields leave no empty heading (AC3).
+  const section = (heading: string, value: string): void => {
+    lines.push('', oclif.ux.colorize('bold', heading), value);
+  };
 
-  lines.push(oclif.ux.colorize('bold', 'SEVERITY'));
-  lines.push(formatSeverity(severity));
+  section('RULE', name);
+
+  if (summary) {
+    section('SUMMARY', summary);
+  }
+
+  if (description) {
+    section('DESCRIPTION', description);
+  }
 
   if (explanation) {
-    lines.push('');
-    lines.push(oclif.ux.colorize('bold', 'EXPLANATION'));
-    lines.push(explanation);
+    section('EXPLANATION', explanation);
   }
 
   if (recommendation) {
-    lines.push('');
-    lines.push(oclif.ux.colorize('bold', 'RECOMMENDATION'));
-    lines.push(recommendation);
+    section('RECOMMENDATION', recommendation);
+  }
+
+  section('SEVERITY', formatSeverity(severity));
+
+  if (appliesTo && appliesTo.length > 0) {
+    section('APPLIES TO', appliesTo.join(', '));
   }
 
   if (url) {
-    lines.push('');
-    lines.push(oclif.ux.colorize('bold', 'REFERENCE'));
-    lines.push(url);
+    section('REFERENCE', url);
   }
 
   return lines;
