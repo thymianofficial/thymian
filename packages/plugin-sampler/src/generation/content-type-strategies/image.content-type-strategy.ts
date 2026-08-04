@@ -1,59 +1,36 @@
+import { readFile } from 'node:fs/promises';
+import { join } from 'node:path';
+
 import type { ThymianSchema } from '@thymian/core';
-import sharp from 'sharp';
 
 import type { ContentSource } from '../../http-request-sample.js';
 import type { ContentTypeStrategy } from './content-type-strategy.js';
 
-export type ImageContentTypeStrategyOptions = {
-  width: number;
-  height: number;
-};
+const ASSETS_DIR = join(import.meta.dirname, 'assets');
 
+/**
+ * Produces a placeholder body for image/* request bodies. The bytes come from
+ * pre-generated static assets (256x256 solid colour) read from disk instead of
+ * being synthesised at runtime, so the package carries no image-processing
+ * dependency. The content is throwaway placeholder data, so fixed bytes are
+ * behaviourally equivalent to the previous random-pixel generation.
+ */
 export class ImageContentTypeStrategy implements ContentTypeStrategy {
-  private readonly options: ImageContentTypeStrategyOptions;
-
-  constructor(options: Partial<ImageContentTypeStrategyOptions> = {}) {
-    this.options = {
-      width: 256,
-      height: 256,
-      ...options,
-    };
-  }
-
   matches(contentType: string): boolean {
-    // TODO: fill regex https://sharp.pixelplumbing.com/api-output/
     return /^image\/(jpeg|png|jpg)/i.test(contentType);
   }
+
   async generate(
-    schema: ThymianSchema,
+    _schema: ThymianSchema,
     contentType: string,
   ): Promise<ContentSource> {
-    let content = sharp(this.randomPixelsBuffer(), {
-      raw: {
-        width: this.options.width,
-        height: this.options.height,
-        channels: 3,
-      },
-    });
-
-    content = /^image\/(png)/i.test(contentType)
-      ? content.png()
-      : content.jpeg();
+    const isPng = /^image\/png/i.test(contentType);
+    const asset = isPng ? 'sample-256.png' : 'sample-256.jpg';
 
     return {
       $encoding: 'base64',
-      $buffer: await content.toBuffer(),
-      $ext: 'png',
+      $buffer: await readFile(join(ASSETS_DIR, asset)),
+      $ext: isPng ? 'png' : 'jpg',
     };
-  }
-
-  private randomPixelsBuffer(): Buffer {
-    const buffer = Buffer.alloc(this.options.height * this.options.width * 3);
-
-    for (let i = 0; i < buffer.length; i++) {
-      buffer[i] = Math.floor(Math.random() * 256);
-    }
-
-    return buffer;
   }
 }

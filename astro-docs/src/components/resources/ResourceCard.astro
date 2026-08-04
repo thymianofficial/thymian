@@ -1,0 +1,189 @@
+---
+import type { CollectionEntry } from 'astro:content';
+
+import { urlForEntry } from '../../lib/cross-links';
+import ResourceAttribution from './ResourceAttribution.astro';
+import ResourceEmbed from './ResourceEmbed.astro';
+import { RESOURCE_TYPE_LABELS } from './resourceMeta';
+
+interface Props {
+  resource: CollectionEntry<'resources'>;
+  /**
+   * The resolved origin Event, injected by `ResourceList` (via the shared
+   * `resolveOriginEvent`). Absent → no cross-link renders (sparse).
+   */
+  originEvent?: CollectionEntry<'events'>;
+}
+
+const { resource, originEvent } = Astro.props;
+const { title, resourceType, attribution } = resource.data;
+---
+
+<article class="resource-card" data-resource-type={resourceType}>
+  <span class="resource-card-edge" aria-hidden="true"></span>
+
+  {/*
+    9.3 media surface (embed-vs-link-out) mounts at the BOTTOM of
+    `.resource-card-body` as <ResourceEmbed> — mirroring how EventCard composes
+    EventLinks. It is deliberately NOT placed here: this spot is a direct child
+    of the `[edge][body]` flex row, where a full-width player would become a
+    third flex column and break the band layout.
+  */}
+
+  <div class="resource-card-body">
+    <div class="resource-card-badges">
+      <span class="badge badge--type">
+        {RESOURCE_TYPE_LABELS[resourceType]}
+      </span>
+    </div>
+
+    {/*
+      Single-library page: StarlightPage renders the page title as the `<h1>`
+      and there is no intervening section heading (no Upcoming/Past split), so
+      each card title is a direct `<h2>` under the `<h1>` — h1→h2, no skipped
+      level (Events uses `<h3>` only because it nests under `<h2>` bucket
+      headings). Visual size is owned by `.resource-card-title`, not the tag.
+    */}
+    <h2 class="resource-card-title">{title}</h2>
+
+    <ResourceAttribution attribution={attribution} />
+
+    <ResourceEmbed resource={resource} />
+
+    {/*
+      9.4 seam: when `originEvent` resolves (injected by ResourceList via the
+      shared `resolveOriginEvent`), a same-tab cross-link back to the origin
+      event renders here (coarse `/events/` target, meaningful title label).
+      Absent → nothing renders (sparse).
+    */}
+    {
+      originEvent && (
+        <p class="resource-origin-event">
+          <span class="resource-origin-event-label">From the event</span>
+          <a class="resource-origin-event-link" href={urlForEntry(originEvent)}>
+            {originEvent.data.title}
+          </a>
+        </p>
+      )
+    }
+    {/*
+      9.5 seam: OG-image generation for resource pages is extended in
+      `src/pages/og/[...route].ts` — no OG key extension in 9.2.
+    */}
+  </div>
+</article>
+
+<style>
+  /* Full-width band: [gradient edge][body]. */
+  .resource-card {
+    position: relative;
+    display: flex;
+    gap: 1.375rem;
+    align-items: flex-start;
+    padding: 1.375rem 1.625rem 1.375rem 1.625rem;
+    background: var(--ev-band-bg);
+    border: 1px solid var(--ev-line);
+    border-radius: 1rem;
+    overflow: hidden;
+    transition:
+      transform 0.15s ease,
+      box-shadow 0.15s ease;
+  }
+
+  /* Soft edge-glow + subtle lift on hover (no resting shadow). */
+  .resource-card:hover {
+    transform: translateY(-2px);
+    box-shadow: -6px 0 18px -8px color-mix(in srgb, #017b64 60%, transparent);
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .resource-card,
+    .resource-card:hover {
+      transform: none;
+      box-shadow: none;
+      transition: none;
+    }
+  }
+
+  /* Decorative signature gradient edge — graphic only, never a text background. */
+  .resource-card-edge {
+    position: absolute;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    width: 7px;
+    background: var(--ev-gradient-signature);
+  }
+
+  .resource-card-body {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+
+  .resource-card-badges {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    align-items: center;
+  }
+
+  .badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.25rem 0.7rem;
+    border-radius: 9999px;
+    font-size: 0.7rem;
+    font-weight: 800;
+    letter-spacing: 0.07em;
+    text-transform: uppercase;
+    line-height: 1;
+  }
+
+  /* Type badge — teal fill for every resource type. */
+  .badge--type {
+    background: var(--ev-badge-bg);
+    color: var(--ev-badge-fg);
+  }
+
+  .resource-card-title {
+    margin: 0.125rem 0 0.25rem;
+    font-size: 1.55rem;
+    font-weight: 800;
+    letter-spacing: -0.03em;
+    line-height: 1.1;
+    color: var(--ev-fg);
+  }
+
+  /* Resource→Event cross-link (9.4). Same-tab internal link, no external glyph. */
+  .resource-origin-event {
+    margin: 0.25rem 0 0;
+    font-size: 0.92rem;
+    line-height: 1.5;
+    color: var(--ev-fg-muted, #4b5563);
+  }
+
+  .resource-origin-event-label {
+    margin-inline-end: 0.4rem;
+    font-size: 0.7rem;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--ev-fg-faint, #6b7280);
+  }
+
+  .resource-origin-event-link {
+    color: var(--ev-accent-text, #046151);
+    font-weight: 600;
+    text-decoration: underline;
+    text-underline-offset: 2px;
+    border-radius: 0.25rem;
+  }
+
+  .resource-origin-event-link:focus-visible {
+    outline: 2px solid var(--ev-focus-ring, #017b64);
+    outline-offset: 2px;
+  }
+</style>

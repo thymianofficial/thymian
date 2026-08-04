@@ -1,15 +1,24 @@
 import {
   and,
+  httpRule,
   method,
   not,
   or,
   requestHeader,
   responseHeader,
   responseWith,
+  type RuleFnResult,
+  singleTestCase,
   statusCode,
 } from '@thymian/core';
-import { httpRule, type RuleFnResult, singleTestCase } from '@thymian/core';
 
+/**
+ * `static` lints the described transaction (an If-None-Match request should
+ * produce 304 for GET/HEAD or 412 for other methods when the condition fails).
+ * `test` actively probes real behavior: it replays a fresh GET/HEAD with
+ * If-None-Match set to the resource's own ETag (so the condition is false / the
+ * tag matches) and asserts the origin server answers 304.
+ */
 export default httpRule(
   'rfc9110/origin-server-must-respond-304-or-412-when-if-none-match-fails',
 )
@@ -22,8 +31,10 @@ export default httpRule(
   .summary(
     'Origin server MUST respond with 304 for GET/HEAD or 412 for other methods when If-None-Match fails.',
   )
+  .explanation(
+    "If-None-Match tells the server 'only act if the resource does NOT match one of these tags'. When one of the tags does match (the condition is false), the server must not perform the method; instead it answers 304 Not Modified for GET or HEAD, and 412 Precondition Failed for any other method. The 304 lets a client reuse its cached copy without a re-download, while the 412 stops an unsafe operation such as a PUT from clobbering a resource the client wrongly assumed was still absent or unchanged.",
+  )
   .appliesTo('origin server')
-  .tags('conditional-requests', 'if-none-match', '304', '412')
   .rule((ctx) =>
     ctx.validateCommonHttpTransactions(
       and(
@@ -50,8 +61,8 @@ export default httpRule(
         )
         .run()
         .skipIf(
-          not(or(responseHeader('etag'), responseHeader('last-modified'))),
-          '200 OK response does not include ETag or Last-Modified header.',
+          not(responseHeader('etag')),
+          '200 OK response does not include an ETag header, so an If-None-Match match cannot be triggered.',
         )
         .replayStep((step) =>
           step
@@ -66,7 +77,9 @@ export default httpRule(
                 elementType: 'edge',
                 elementId: notModifiedTransaction.source.transactionId,
               },
-              violation: {},
+              violation: {
+                message: `A GET/HEAD request replayed with If-None-Match set to the resource's own ETag (so the condition evaluates to false / the tag matches) received a ${notModifiedTransaction.response.statusCode} response instead of 304 Not Modified.`,
+              },
               findings: [],
             });
           }

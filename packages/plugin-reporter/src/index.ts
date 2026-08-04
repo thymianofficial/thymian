@@ -1,9 +1,19 @@
-import { type Report, type ThymianPlugin } from '@thymian/core';
+import {
+  type Report,
+  SORT_REPORTS_BY_VALUES,
+  type SortReportsBy,
+  type ThymianPlugin,
+} from '@thymian/core';
 
 import { type Formatters, getFormatters } from './get-formatters.js';
 
 export type ReporterPluginOptions = {
   formatters?: Partial<Formatters>;
+  /**
+   * How report findings are grouped. Normally injected from the
+   * `--sort-reports-by` CLI flag; only the markdown formatter honours it.
+   */
+  sortReportsBy?: SortReportsBy;
 };
 
 export const reporterPlugin: ThymianPlugin<ReporterPluginOptions> = {
@@ -44,8 +54,29 @@ export const reporterPlugin: ThymianPlugin<ReporterPluginOptions> = {
             },
             additionalProperties: false,
           },
+          json: {
+            description:
+              'Configuration for the JSON formatter, which writes the canonical report payload for machine consumption',
+            nullable: true,
+            type: 'object',
+            properties: {
+              path: {
+                description: 'File path where the JSON report will be saved',
+                type: 'string',
+                nullable: true,
+              },
+            },
+            additionalProperties: false,
+          },
         },
         additionalProperties: false,
+      },
+      sortReportsBy: {
+        description:
+          'How report findings are grouped (rule, endpoint, or severity). Normally set from the --sort-reports-by CLI flag; affects the markdown formatter only.',
+        nullable: true,
+        type: 'string',
+        enum: [...SORT_REPORTS_BY_VALUES],
       },
     },
   },
@@ -56,7 +87,11 @@ export const reporterPlugin: ThymianPlugin<ReporterPluginOptions> = {
   actions: {
     listensOn: ['core.close'],
   },
-  async plugin(emitter, logger, { formatters: userFormatters, cwd }) {
+  async plugin(
+    emitter,
+    logger,
+    { formatters: userFormatters, cwd, sortReportsBy },
+  ) {
     const formatters = Object.fromEntries(
       Object.entries({
         ...(userFormatters ?? {}),
@@ -64,7 +99,12 @@ export const reporterPlugin: ThymianPlugin<ReporterPluginOptions> = {
     ) as Formatters;
 
     let hasFlushed = false;
-    const reporters = await getFormatters(formatters, cwd, logger);
+    const reporters = await getFormatters(
+      formatters,
+      cwd,
+      logger,
+      sortReportsBy,
+    );
 
     const flushReporters = async (): Promise<void> => {
       if (hasFlushed) {

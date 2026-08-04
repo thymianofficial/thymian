@@ -4,6 +4,8 @@ export default httpRule(
   'rfc9110/server-must-not-send-1xx-response-to-1.0-client',
 )
   .severity('error')
+  // Requires correlating the HTTP protocol version of the client with interim
+  // 1xx responses, which are not represented in captured transactions.
   .type('informational')
   .url('https://www.rfc-editor.org/rfc/rfc9110.html#name-informational-1xx')
   .description(

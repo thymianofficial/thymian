@@ -26,3 +26,16 @@ export const SEVERITY_SYMBOLS: Record<
   info: infoSymbol,
   warn: warnSymbol,
 };
+
+/**
+ * Order in which severity groups are rendered under `--sort-reports-by=severity`.
+ * Most-to-least severe (`error` → `warn` → `hint` → `info`), matching the CLI
+ * Summary line and `SEVERITY_COLORS`/`SEVERITY_SYMBOLS` key order — deliberately
+ * NOT alphabetical.
+ */
+export const SEVERITY_GROUP_ORDER: readonly Severity[] = [
+  'error',
+  'warn',
+  'hint',
+  'info',
+];

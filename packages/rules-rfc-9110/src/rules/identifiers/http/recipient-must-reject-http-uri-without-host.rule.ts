@@ -9,6 +9,9 @@ export default httpRule('rfc9110/recipient-must-reject-http-uri-without-host')
   .description(
     `A recipient that processes a 'http' URI reference with empty host MUST reject it as invalid.`,
   )
+  .explanation(
+    'An http URI must name a host (like example.com) in its authority component; that host identifies the origin server that owns the resource. If a server receives an http URI whose host is empty, it must treat the URI as invalid and reject it rather than trying to process it. An http URI with no host does not identify any server, so accepting it would leave the request pointing nowhere and could open the door to ambiguity or misrouting.',
+  )
   .appliesTo('server')
   .rule((ctx, opts, logger) =>
     ctx.validateHttpTransactions(

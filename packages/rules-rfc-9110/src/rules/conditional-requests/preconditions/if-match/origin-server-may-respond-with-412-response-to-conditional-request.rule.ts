@@ -19,8 +19,10 @@ export default httpRule(
   .summary(
     'An origin server MAY indicate that the conditional request failed by responding with a 412 (Precondition Failed) status code.',
   )
+  .explanation(
+    'When an origin server evaluates an If-Match condition that turns out false, it must not carry out the requested method, and one permitted way to report this is to return a 412 (Precondition Failed) status. This gives the client a clear, standard signal that the target representation has changed since the entity tag it supplied, so its request was deliberately aborted rather than silently succeeding, which is what prevents accidental overwrites in the lost-update scenario.',
+  )
   .appliesTo('origin server')
-  .tags('conditional-requests', 'if-match', '412', 'precondition-failed')
   .rule((ctx) =>
     ctx.validateCommonHttpTransactions(
       requestHeader('if-match'),

@@ -11,6 +11,9 @@ export default httpRule(
     'An HTTP-to-HTTP gateway MUST send an appropriate Via header field in each inbound request message. This enables tracking of the message path and protocol capabilities along the request/response chain.',
   )
   .summary('Gateway MUST send Via header in inbound requests.')
+  .explanation(
+    'When an HTTP-to-HTTP gateway forwards a request toward the origin server, it must add itself to the Via header. Via is the running record of every proxy and gateway a message crossed, along with the protocol versions they used. Requiring the gateway to add its entry keeps that trail complete, which is what lets operators track the message path, detect and break forwarding loops, and judge which protocol features are safe to use along the chain.',
+  )
   .appliesTo('gateway')
   .rule((ctx) =>
     ctx.validateCapturedHttpTransactions(

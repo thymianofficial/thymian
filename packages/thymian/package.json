@@ -49,7 +49,6 @@
   "dependencies": {
     "@oclif/plugin-help": "^6.2.29",
     "@oclif/plugin-not-found": "^3.2.57",
-    "@oclif/plugin-plugins": "^5.4.43",
     "@oclif/plugin-version": "^2.2.30",
     "@thymian/common-cli": "0.0.0-PLACEHOLDER",
     "@thymian/plugin-http-analyzer": "0.0.0-PLACEHOLDER",
@@ -87,7 +86,7 @@
   },
   "devDependencies": {
     "@oclif/test": "^4.1.13",
-    "@types/node": "^18.19.112",
+    "@types/node": "^22.15.1",
     "tsx": "^4.20.3"
   }
 }

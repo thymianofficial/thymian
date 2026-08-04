@@ -11,6 +11,8 @@ import {
   isPlugin,
   type Logger,
   type LogLevel,
+  SORT_REPORTS_BY_VALUES,
+  type SortReportsBy,
   type SpecificationInput,
   TextLogger,
   Thymian,
@@ -19,6 +21,7 @@ import {
   type TrafficInput,
 } from '@thymian/core';
 
+import { applyReporterSortReportsBy } from './apply-plugin-options.js';
 import { ErrorCache } from './error-cache.js';
 import { Feedback } from './feedback.js';
 import { deepSet, optionFlag } from './flags/option-flag.js';
@@ -114,6 +117,12 @@ export abstract class BaseCliRunCommand<
       helpGroup: 'BASE',
       options: ['off', 'error', 'warn', 'hint'],
     }),
+    ['sort-reports-by']: Flags.custom<SortReportsBy>({
+      description:
+        'Group report findings by rule, endpoint, or severity (default: endpoint). Affects the CLI report and any configured reporter that supports grouping.',
+      helpGroup: 'BASE',
+      options: [...SORT_REPORTS_BY_VALUES],
+    })(),
     timeout: Flags.integer({
       default: Thymian.DEFAULT_TIMEOUT,
       charAliases: ['t'],
@@ -302,6 +311,7 @@ export abstract class BaseCliRunCommand<
       this.debug('Autoloading Thymian plugins.');
       this.logger.info('Autoloading plugins from configuration...');
       await this.addPluginsToThymianConfig();
+      this.applyOptionsToPlugins();
       await this.registerPluginsFromConfig();
     }
 
@@ -438,6 +448,24 @@ export abstract class BaseCliRunCommand<
         override.value,
       );
     }
+  }
+
+  /**
+   * Maps CLI flags onto plugin options before plugins are registered — the one
+   * place where a flag is wired to a specific plugin's config. Add future
+   * flag→plugin mappings here. The mapping logic lives in
+   * `apply-plugin-options.ts` so it can be unit-tested without a command.
+   *
+   * Currently: `--sort-reports-by` is forwarded to the reporter plugin (see
+   * `applyReporterSortReportsBy` for the flag-wins precedence over `-o`/config
+   * and the never-auto-register guard). The terminal renderer receives the flag
+   * via a separate channel (`handleWorkflowOutcome`).
+   */
+  protected applyOptionsToPlugins(): void {
+    applyReporterSortReportsBy(
+      this.thymianConfig,
+      this.flags['sort-reports-by'],
+    );
   }
 
   /**

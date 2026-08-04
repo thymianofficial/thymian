@@ -46,6 +46,7 @@
   },
   "dependencies": {
     "@fastify/deepmerge": "^3.1.0",
+    "@segment/ajv-human-errors": "^2.16.0",
     "ajv": "^8.18.0",
     "ajv-formats": "^3.0.1",
     "chalk": "^5.4.1",
@@ -56,6 +57,7 @@
     "secure-json-parse": "^4.1.0",
     "semver": "^7.7.3",
     "tinyglobby": "^0.2.15",
+    "tslib": "^2.3.0",
     "type-is": "^1.6.18",
     "url-template": "^3.1.1"
   },

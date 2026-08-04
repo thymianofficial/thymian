@@ -1,11 +1,12 @@
 import { httpRule } from '@thymian/core';
 
-// TODO: Implement ABNF validation for OWS/RWS normalization
-// Requires detecting OWS/RWS positions and optionally normalizing to single SP
 export default httpRule(
   'rfc9110/implementation-may-replace-ows-or-rws-with-single-sp',
 )
   .severity('off')
+  // Collapsing OWS/RWS to a single SP is optional internal behaviour before
+  // interpreting/forwarding; there is no required outcome to check from observed
+  // traffic.
   .type('informational')
   .url('https://www.rfc-editor.org/rfc/rfc9110.html#section-5.6.3')
   .description(
@@ -14,5 +15,4 @@ export default httpRule(
   .summary(
     'OWS or RWS content MAY be replaced with a single SP before interpretation or forwarding.',
   )
-  .tags('fields', 'whitespace')
   .done();

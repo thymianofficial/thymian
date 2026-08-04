@@ -17,8 +17,10 @@ export default httpRule(
   .summary(
     'A client MUST NOT generate an If-Range header field containing an HTTP-date.',
   )
+  .explanation(
+    "If-Range lets a client resume a partial download only if the representation hasn't changed. A client should put an entity tag there whenever it has one; it may only fall back to a date when it holds no entity tag for the representation AND that date qualifies as a strong validator. Dates are a coarse way to detect change, so using one carelessly risks the server treating a modified resource as unchanged and stitching together bytes from two different versions, producing a corrupted result.",
+  )
   .appliesTo('client')
-  .tags('conditional-requests', 'if-range', 'evaluation')
   .rule((ctx) =>
     ctx.validateHttpTransactions(
       requestHeader('if-range'),

@@ -36,12 +36,14 @@
     "openapi-types": "^12.1.3"
   },
   "dependencies": {
+    "@scalar/json-magic": "^0.9.0",
     "@scalar/openapi-parser": "^0.23.2",
     "@scalar/openapi-upgrader": "^0.1.4",
     "@thymian/common-cli": "0.0.0-PLACEHOLDER",
     "@thymian/core": "0.0.0-PLACEHOLDER",
     "jsonc-parser": "^3.2.0",
     "tinyglobby": "^0.2.14",
+    "tslib": "^2.3.0",
     "yaml": "^2.8.3"
   },
   "oclif": {

@@ -1,0 +1,299 @@
+---
+import type { CollectionEntry } from 'astro:content';
+
+import { blogAuthors } from '../../data/team';
+import { urlForEntry } from '../../lib/cross-links';
+import { formatDisplay } from '../../schema/event-date';
+import EventAttribution from './EventAttribution.astro';
+import EventLinks from './EventLinks.astro';
+import EventLogo from './EventLogo.astro';
+import {
+  PARTICIPATION_MODE_LABELS,
+  PARTICIPATION_TYPE_LABELS,
+  resolveEventBrand,
+  resolveEventLinks,
+} from './eventMeta';
+
+interface Props {
+  event: CollectionEntry<'events'>;
+  timeframe: 'upcoming' | 'past';
+  /**
+   * This event's produced Resources — derived (never hand-authored) and
+   * pre-sorted by `EventList` via `indexResourcesByOriginEvent`, so each card
+   * renders its slice without re-scanning the full resource set. Sparse — an
+   * empty list renders no block.
+   */
+  producedResources: CollectionEntry<'resources'>[];
+}
+
+const { event, timeframe, producedResources } = Astro.props;
+const {
+  title,
+  participation,
+  mode,
+  speakers,
+  location,
+  online,
+  date,
+  attribution,
+  registerUrl,
+  resourceUrl,
+  logo,
+} = event.data;
+
+const speakerNames = speakers.map((key) => blogAuthors[key]?.name ?? key);
+const links = resolveEventLinks({ timeframe, registerUrl, resourceUrl });
+const brand = resolveEventBrand({ title, attribution });
+const place = online ? 'Online' : location;
+---
+
+<article class="event-card" data-participation={participation}>
+  <span class="event-card-edge" aria-hidden="true"></span>
+
+  <EventLogo logo={logo} brand={brand} />
+
+  <div class="event-card-body">
+    <p class="event-card-placedate">
+      {place}<span class="event-card-date">{formatDisplay(date)}</span>
+    </p>
+
+    <h3 class="event-card-title">{title}</h3>
+
+    {
+      speakerNames.length > 0 && (
+        <p class="event-card-speakers">
+          <span class="event-card-label">Speakers</span>
+          {speakerNames.join(', ')}
+        </p>
+      )
+    }
+
+    <EventAttribution attribution={attribution} />
+
+    <div class="event-card-badges">
+      <span
+        class={`badge badge--type ${participation === 'booth' ? 'badge--type-alt' : ''}`}
+      >
+        {PARTICIPATION_TYPE_LABELS[participation]}
+      </span>
+      <span class={`badge badge--mode badge--mode-${mode}`}>
+        {PARTICIPATION_MODE_LABELS[mode]}
+      </span>
+    </div>
+
+    <EventLinks links={links} timeframe={timeframe} />
+
+    {
+      /*
+        9.4 Event→Resources: a DISTINCT, separately-labelled block from the
+        external `resourceUrl` CTA above (complement, not a duplicate "watch"
+        link). Each item is a same-tab INTERNAL cross-link to the Resources
+        library (coarse `/resources/` target, meaningful resource-title label,
+        no external glyph, no target=_blank). Renders only when non-empty.
+      */
+      producedResources.length > 0 && (
+        <div class="event-produced">
+          <p class="event-produced-label" id={`produced-${event.id}`}>
+            Resources from this event
+          </p>
+          <ul class="event-produced-list" aria-labelledby={`produced-${event.id}`}>
+            {producedResources.map((resource) => (
+              <li class="event-produced-item">
+                <a class="event-produced-link" href={urlForEntry(resource)}>
+                  {resource.data.title}
+                </a>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )
+    }
+  </div>
+</article>
+
+<style>
+  /* Full-width band: [gradient edge][logo tile][body]. */
+  .event-card {
+    position: relative;
+    display: flex;
+    gap: 1.375rem;
+    align-items: flex-start;
+    padding: 1.375rem 1.625rem 1.375rem 1.375rem;
+    background: var(--ev-band-bg);
+    border: 1px solid var(--ev-line);
+    border-radius: 1rem;
+    overflow: hidden;
+    transition:
+      transform 0.15s ease,
+      box-shadow 0.15s ease;
+  }
+
+  /* Soft edge-glow + subtle lift on hover (no resting shadow). */
+  .event-card:hover {
+    transform: translateY(-2px);
+    box-shadow: -6px 0 18px -8px color-mix(in srgb, #017b64 60%, transparent);
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .event-card,
+    .event-card:hover {
+      transform: none;
+      box-shadow: none;
+      transition: none;
+    }
+  }
+
+  /* Decorative signature gradient edge — graphic only, never a text background. */
+  .event-card-edge {
+    position: absolute;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    width: 7px;
+    background: var(--ev-gradient-signature);
+  }
+
+  .event-card-body {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+
+  .event-card-badges {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    align-items: center;
+  }
+
+  .badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.25rem 0.7rem;
+    border-radius: 9999px;
+    font-size: 0.7rem;
+    font-weight: 800;
+    letter-spacing: 0.07em;
+    text-transform: uppercase;
+    line-height: 1;
+  }
+
+  /* Type badge — teal fill for talk/livestream/podcast/paper/panel … */
+  .badge--type {
+    background: var(--ev-badge-bg);
+    color: var(--ev-badge-fg);
+  }
+
+  /* … lime fill for booth (tinted-fill + dark/pale-safe text). */
+  .badge--type-alt {
+    background: var(--ev-badge-alt-bg);
+    color: var(--ev-badge-alt-fg);
+  }
+
+  /*
+    Mode badge = OUTLINE pill (transparent fill, accent text + ≥3:1 accent
+    border). Replaces the old hardcoded #16a34a green fill + white text, which
+    never cleared AA. Both presenting/attending share the outline so no fill can
+    ever tempt a white label.
+  */
+  .badge--mode {
+    background: transparent;
+    color: var(--ev-accent-text);
+    border: 1.5px solid var(--ev-accent-border);
+  }
+
+  .event-card-title {
+    margin: 0.125rem 0 0.25rem;
+    font-size: 1.55rem;
+    font-weight: 800;
+    letter-spacing: -0.03em;
+    line-height: 1.1;
+    color: var(--ev-fg);
+  }
+
+  .event-card-speakers {
+    margin: 0;
+    font-size: 0.98rem;
+    color: var(--ev-fg-muted);
+    line-height: 1.5;
+  }
+
+  .event-card-label {
+    display: inline-block;
+    margin-inline-end: 0.4rem;
+    font-size: 0.7rem;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--ev-fg-faint);
+  }
+
+  /*
+    Top meta line: "Location, Date" (e.g. "Munich, July 8, 2026"). The date is
+    inline in the content flow — not a separate right-side rail — so it always
+    aligns with the card content and can't break awkwardly on narrow screens.
+  */
+  .event-card-placedate {
+    margin: 0;
+    font-size: 0.92rem;
+    line-height: 1.4;
+    color: var(--ev-fg-muted);
+  }
+
+  .event-card-date {
+    font-weight: 600;
+    color: var(--ev-fg);
+  }
+
+  /* Comma+space separator, added in CSS so the markup stays whitespace-safe. */
+  .event-card-date::before {
+    content: ', ';
+    font-weight: 400;
+    color: var(--ev-fg-muted);
+  }
+
+  /*
+    Event→Resources block (9.4). A distinct, labelled list of same-tab INTERNAL
+    cross-links — separate from the external `resourceUrl` CTA in EventLinks.
+  */
+  .event-produced {
+    margin-top: 0.5rem;
+    padding-top: 0.5rem;
+    border-top: 1px solid var(--ev-line, #e5e7eb);
+  }
+
+  .event-produced-label {
+    margin: 0 0 0.35rem;
+    font-size: 0.7rem;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--ev-fg-faint, #6b7280);
+  }
+
+  .event-produced-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.25rem;
+  }
+
+  .event-produced-link {
+    color: var(--ev-accent-text, #046151);
+    font-size: 0.95rem;
+    font-weight: 600;
+    text-decoration: underline;
+    text-underline-offset: 2px;
+    border-radius: 0.25rem;
+  }
+
+  .event-produced-link:focus-visible {
+    outline: 2px solid var(--ev-focus-ring, #017b64);
+    outline-offset: 2px;
+  }
+</style>

@@ -1,4 +1,6 @@
 ---
+import ExternalLinkIcon from '../ExternalLinkIcon.astro';
+
 interface DocLink {
   label: string;
   url: string;
@@ -18,22 +20,7 @@ const { links, title = 'Documentation Links' } = Astro.props;
     {
       links.map((link) => (
         <li class="doc-links-item">
-          <svg
-            width="14"
-            height="14"
-            viewBox="0 0 14 14"
-            fill="none"
-            xmlns="http://www.w3.org/2000/svg"
-            aria-hidden="true"
-          >
-            <path
-              d="M5.25 2.625H2.625A.875.875 0 0 0 1.75 3.5v7.875a.875.875 0 0 0 .875.875H10.5a.875.875 0 0 0 .875-.875V8.75M8.75 1.75h3.5v3.5M7 7l5.25-5.25"
-              stroke="currentColor"
-              stroke-width="1.25"
-              stroke-linecap="round"
-              stroke-linejoin="round"
-            />
-          </svg>
+          <ExternalLinkIcon />
           <a href={link.url} target="_blank" rel="noopener noreferrer">
             {link.label}
             <span class="doc-links-url">{link.url}</span>
@@ -79,8 +66,9 @@ const { links, title = 'Documentation Links' } = Astro.props;
     font-size: 0.875rem;
   }
 
-  .doc-links-item svg {
-    flex-shrink: 0;
+  /* The shared icon is a child component, so its svg needs :global() to be
+     reached from this scope (flex-shrink lives in the icon itself). */
+  .doc-links-item :global(svg) {
     margin-top: 0.1em;
     color: var(--sl-color-accent);
   }

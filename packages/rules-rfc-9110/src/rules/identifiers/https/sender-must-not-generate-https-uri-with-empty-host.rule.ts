@@ -11,6 +11,9 @@ export default httpRule(
   .description(
     `A sender MUST NOT generate an 'https' URI with an empty host identifier.`,
   )
+  .explanation(
+    'Whenever a client produces an https URI, that URI must include a non-empty host (such as example.com), because the host identifies the origin server responsible for the resource. Emitting an https URI with an empty host is forbidden. A hostless URI points to no server, so any recipient would be unable to route or resolve it and is required to reject it as invalid, breaking the request.',
+  )
   .appliesTo('client')
   .rule((ctx, opts, logger) =>
     ctx.validateHttpTransactions(

@@ -19,6 +19,7 @@ import {
   csvSafe,
   reportToCsvLines,
 } from '../src/formatters/csv.js';
+import { getFormatters } from '../src/get-formatters.js';
 
 const CSV_HEADER =
   'run_id,run_type,tool,rule_id,location,row_type,status,severity,finding_kind,finding_id,title,message,detail';
@@ -55,6 +56,27 @@ describe('CSV formatter helpers', () => {
 
   it('escapes CSV cells', () => {
     expect(csvSafe('hello, world')).toBe('"hello, world"');
+  });
+});
+
+describe('CsvFormatter ignores --sort-reports-by (flag-invariant)', () => {
+  it('produces byte-identical CSV for every sort mode', async () => {
+    const outputs = await Promise.all(
+      (['endpoint', 'rule', 'severity'] as const).map(async (mode) => {
+        const [formatter] = await getFormatters(
+          { csv: { path: join(process.cwd(), 'tmp', `csv-${mode}.csv`) } },
+          process.cwd(),
+          new NoopLogger(),
+          mode,
+        );
+        await formatter!.report(report);
+        return (await formatter!.flush()) ?? '';
+      }),
+    );
+
+    // Grouping is a presentation concern; the flat CSV export never changes.
+    expect(outputs[1]).toBe(outputs[0]);
+    expect(outputs[2]).toBe(outputs[0]);
   });
 });
 

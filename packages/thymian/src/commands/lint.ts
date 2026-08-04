@@ -43,6 +43,11 @@ export default class Lint extends BaseCliRunCommand<typeof Lint> {
       });
     });
 
-    handleWorkflowOutcome(this, outcome);
+    handleWorkflowOutcome(
+      this,
+      outcome,
+      {},
+      { sortReportsBy: this.flags['sort-reports-by'] },
+    );
   }
 }

@@ -20,10 +20,24 @@ export default httpRule(
   .summary(
     'Servers MUST NOT send Content-Length header in 1xx or 204 responses.',
   )
+  .explanation(
+    'Responses with a 1xx informational status or a 204 No Content status never carry a body, so a server must not put a Content-Length header on them. It matters because these statuses are defined to have no content; adding a Content-Length implies a body that will never arrive, which confuses recipients about message framing and, over HTTP/1.1, can desynchronise the connection or open the door to request smuggling.',
+  )
   .rule((ctx) =>
     ctx.validateCommonHttpTransactions(
-      and(or(statusCodeRange(100, 199), statusCode(204))),
-      responseHeader('content-length'),
+      and(
+        or(statusCodeRange(100, 199), statusCode(204)),
+        responseHeader('content-length'),
+      ),
+      (_req, res, location) => [
+        {
+          location,
+          violation: {
+            message: `A ${res.statusCode} response includes a Content-Length header field.`,
+          },
+          findings: [],
+        },
+      ],
     ),
   )
   .done();

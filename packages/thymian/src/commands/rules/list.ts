@@ -9,6 +9,8 @@ import {
   mergeRuleSets,
   oclif,
   resolveRuleSeverity,
+  wrap,
+  wrapIndented,
 } from '@thymian/common-cli';
 import { Flags } from '@thymian/common-cli/oclif';
 import { loadRules, type Rule, type RuleType, ruleTypes } from '@thymian/core';
@@ -63,7 +65,7 @@ export default class ListRules extends BaseCliRunCommand<typeof ListRules> {
       : rules;
 
     if (filtered.length === 0) {
-      this.log('No rules found.');
+      this.log(wrap('No rules found.'));
       return;
     }
 
@@ -98,11 +100,13 @@ export default class ListRules extends BaseCliRunCommand<typeof ListRules> {
     }
 
     const topicColor = this.config?.theme?.topic;
-    const lines = sorted.map((rule) => formatRule(rule, topicColor));
+    const lines = sorted.flatMap((rule) =>
+      wrapIndented(formatRule(rule, topicColor), '  '),
+    );
 
     this.log(lines.join(EOL));
     this.log();
-    this.log(`${sorted.length} rule(s) loaded.`);
+    this.log(wrap(`${sorted.length} rule(s) loaded.`));
   }
 }
 
@@ -148,7 +152,9 @@ function formatRule(rule: Rule, topicColor?: string): string {
   const coloredSeverity = colorizeSeverity(severity);
   const types = type.join(', ');
 
-  const parts = [`  ${coloredName}`, `[${coloredSeverity}]`, `(${types})`];
+  // The caller owns the list indentation (via `wrapIndented('  ', …)`), so the
+  // rule text is built without a leading indent.
+  const parts = [coloredName, `[${coloredSeverity}]`, `(${types})`];
 
   if (summary) {
     parts.push(`- ${summary}`);

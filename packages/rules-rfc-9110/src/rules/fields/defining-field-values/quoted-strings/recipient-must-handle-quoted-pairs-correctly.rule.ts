@@ -1,11 +1,10 @@
 import { httpRule } from '@thymian/core';
 
-// TODO: Implement ABNF validation for quoted-pair parsing
-// Requires parsing quoted-string and quoted-pair:
-//   quoted-string = DQUOTE *( qdtext / quoted-pair ) DQUOTE
-//   quoted-pair = "\" ( HTAB / SP / VCHAR / obs-text )
 export default httpRule('rfc9110/recipient-must-handle-quoted-pairs-correctly')
   .severity('error')
+  // How a recipient unescapes quoted-pairs is internal parsing behaviour; the
+  // resulting interpreted value is never re-emitted on the wire, so there is
+  // nothing for Thymian to observe.
   .type('informational')
   .url('https://www.rfc-editor.org/rfc/rfc9110.html#section-5.6.4')
   .description(
@@ -14,5 +13,4 @@ export default httpRule('rfc9110/recipient-must-handle-quoted-pairs-correctly')
   .summary(
     'Recipient processing quoted-strings MUST handle quoted-pairs as if replaced by the octet following the backslash.',
   )
-  .tags('fields', 'quoted-strings', 'parsing')
   .done();

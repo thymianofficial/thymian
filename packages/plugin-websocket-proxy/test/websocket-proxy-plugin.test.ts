@@ -125,7 +125,9 @@ describe('Websocket Proxy Plugin', () => {
       ],
     });
 
-    const ready = thymian.ready();
+    const readyRejects = expect(thymian.ready()).rejects.toThrow(
+      'Cannot establish a connection to a WebSocket client within 10ms.',
+    );
 
     const ws = new WebSocket(`ws://127.0.0.1:${port}`);
     await new Promise((r) => ws.on('open', r));
@@ -137,9 +139,7 @@ describe('Websocket Proxy Plugin', () => {
     // this should trigger the timeout
     // ws.send(JSON.stringify({ type: 'ready' }));
 
-    await expect(() => ready).rejects.toThrowError(
-      'Cannot establish a connection to a WebSocket client within 10ms.',
-    );
+    await readyRejects;
 
     // Clean up to prevent unhandled rejection
     ws.close();

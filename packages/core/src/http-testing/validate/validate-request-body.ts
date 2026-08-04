@@ -3,6 +3,7 @@ import { parse } from 'secure-json-parse';
 import type { ThymianHttpRequest } from '../../index.js';
 import type { HttpTestCaseResult } from '../http-test/index.js';
 import { ajv } from './ajv.js';
+import { describeSchemaError, schemaErrorDetail } from './schema-error.js';
 
 export function validateJsonRequestBody(
   body: string,
@@ -26,14 +27,15 @@ export function validateJsonRequestBody(
 
     validate(json);
 
-    if (validate.errors) {
-      return [
-        {
-          type: 'assertion-failure',
-          message: `Invalid request body: ${validate.errors.map((err) => err.instancePath + ' ' + err.message).join(', ')}`,
-          timestamp: Date.now(),
-        },
-      ];
+    if (validate.errors && validate.errors.length > 0) {
+      // Emit one assertion-failure per schema error instead of collapsing all of
+      // them into a single joined message, so each error is reported on its own.
+      return validate.errors.map((err) => ({
+        type: 'assertion-failure',
+        message: describeSchemaError(err, 'request body'),
+        ...schemaErrorDetail(err),
+        timestamp: Date.now(),
+      }));
     }
 
     return [

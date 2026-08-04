@@ -61,6 +61,6 @@ describe('har-schema', () => {
 
   it('validateHar should reject non-object payloads', () => {
     expect(validateHar('not-a-har')).toBe(false);
-    expect(getValidationErrors()).toContain('must be object');
+    expect(getValidationErrors()).toContain('must be an object');
   });
 });

@@ -4,11 +4,8 @@ import {
   method,
   not,
   or,
-  origin,
-  path,
   requestHeader,
   responseHeader,
-  responseWith,
   statusCode,
 } from '@thymian/core';
 import {
@@ -58,6 +55,9 @@ export default httpRule(
   .url('https://www.rfc-editor.org/rfc/rfc9110.html#name-304-not-modified')
   .description(
     'The server generating a 304 response MUST generate any of the following header fields that would have been sent in a 200 (OK) response to the same request: Content-Location, Date, ETag, Vary, Cache-Control, Expires.',
+  )
+  .explanation(
+    'When you answer a conditional request with 304 (Not Modified), you must repeat certain header fields that you would have sent on the equivalent 200 (OK) response, specifically Content-Location, Date, ETag, Vary, Cache-Control, and Expires. This matters because a 304 tells the client to reuse its cached copy as if it were the full response, so the cache relies on these fields to know how fresh the copy is, which validator it carries, and how to vary or revalidate it. If they are dropped, the client can serve stale content or lose track of the correct cache entry.',
   )
   .appliesTo('server')
   .rule((ctx) =>

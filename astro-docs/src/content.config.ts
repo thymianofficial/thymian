@@ -4,6 +4,9 @@ import { glob } from 'astro/loaders';
 import { defineCollection, z } from 'astro:content';
 import { blogSchema } from 'starlight-blog/schema';
 
+import { eventsSchema } from './schema/events';
+import { resourcesSchema } from './schema/resources';
+
 const SOCIAL_CATEGORIES = [
   'thymian-general',
   'http-api-topics',
@@ -37,5 +40,15 @@ export const collections = {
         )
         .default([]),
     }),
+  }),
+
+  events: defineCollection({
+    loader: glob({ pattern: '**/*.{md,mdx}', base: './src/content/events' }),
+    schema: eventsSchema,
+  }),
+
+  resources: defineCollection({
+    loader: glob({ pattern: '**/*.{md,mdx}', base: './src/content/resources' }),
+    schema: resourcesSchema,
   }),
 };

@@ -10,6 +10,14 @@ import {
 } from '@thymian/core';
 import { httpRule, singleTestCase } from '@thymian/core';
 
+/**
+ * When the If-Unmodified-Since condition is false the origin server must not
+ * perform the method. We replay a GET/HEAD with If-Unmodified-Since set 10
+ * seconds *before* the resource's own Last-Modified value, so the condition is
+ * false (the representation was modified after that instant), and assert the
+ * server declined with a 4xx (typically 412). This is a sender-driven probe,
+ * which only the `test` context can perform.
+ */
 export default httpRule(
   'rfc9110/origin-server-must-not-perform-method-when-if-unmodified-since-fails',
 )
@@ -22,8 +30,10 @@ export default httpRule(
   .summary(
     'Origin server MUST NOT perform method when If-Unmodified-Since fails; MUST respond with 412 or 2xx.',
   )
+  .explanation(
+    "When a client sends If-Unmodified-Since, it is saying 'only do this if the resource has not changed since this time'. If the resource was in fact modified after that time, the server must not carry out the request; it should refuse with 412 (Precondition Failed), or answer 2xx if the change it asked for turns out to already be applied. This lets clients avoid overwriting or acting on data that changed underneath them, preventing lost updates in concurrent edits.",
+  )
   .appliesTo('origin server')
-  .tags('conditional-requests', 'if-unmodified-since', '412')
   .rule((ctx) =>
     ctx.httpTest(
       singleTestCase()

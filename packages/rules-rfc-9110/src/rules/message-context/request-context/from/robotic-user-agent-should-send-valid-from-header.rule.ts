@@ -1,7 +1,6 @@
 import {
   and,
   getHeader,
-  type HttpResponse,
   requestHeader,
   type RuleViolationLocation,
 } from '@thymian/core';
@@ -11,17 +10,22 @@ export default httpRule(
   'rfc9110/robotic-user-agent-should-send-valid-from-header',
 )
   .severity('warn')
-  .type('static', 'analytics')
+  .type('analytics')
   .url('https://www.rfc-editor.org/rfc/rfc9110.html#name-from')
   .description(
     'A robotic user agent SHOULD send a valid From header field so that the person responsible for running the robot can be contacted if problems occur on servers.',
   )
-  .appliesTo('client')
-  .rule((ctx) => ctx.validateCommonHttpTransactions(and(requestHeader('from'))))
-  .overrideAnalyticsRule((ctx) =>
+  .summary(
+    'A From header field sent by a (robotic) user agent SHOULD contain a valid mailbox.',
+  )
+  .explanation(
+    'If an automated agent (a robot, crawler, or bot) sends a From header, its value should be a real, working email address for the person responsible for the agent. The header exists precisely so a server operator can reach that person when the robot causes problems, such as sending excessive, unwanted, or invalid requests. A malformed or unreachable address defeats that purpose and leaves operators with no way to contact whoever runs the automated client.',
+  )
+  .appliesTo('user-agent')
+  .rule((ctx) =>
     ctx.validateHttpTransactions(
       and(requestHeader('from')),
-      (request, _res: HttpResponse, location: RuleViolationLocation) => {
+      (request, _res, location: RuleViolationLocation) => {
         const from = getHeader(request.headers, 'from');
 
         if (typeof from !== 'string') {
@@ -32,8 +36,16 @@ export default httpRule(
         // Basic email validation
         const emailRegex =
           /^[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*$/;
-        return !emailRegex.test(from)
-          ? [{ location, violation: {}, findings: [] }]
+        return !emailRegex.test(from.trim())
+          ? [
+              {
+                location,
+                violation: {
+                  message: `The From header field value "${from.trim()}" is not a valid mailbox.`,
+                },
+                findings: [],
+              },
+            ]
           : [];
       },
     ),

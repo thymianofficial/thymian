@@ -5,10 +5,13 @@ export default httpRule(
   'rfc9110/server-should-generate-location-header-for-preferred-choice-for-300-response',
 )
   .severity('warn')
-  .type('static', 'analytics')
+  .type('static', 'analytics', 'test')
   .url('https://www.rfc-editor.org/rfc/rfc9110.html#name-300-multiple-choices')
   .description(
     "If the server has a preferred choice, the server SHOULD generate a Location header field containing a preferred choice's URI reference.",
+  )
+  .explanation(
+    "When a server returns 300 with several alternatives and it has a favorite among them, it should point to that one with a Location header carrying the preferred alternative's URI. This matters because it lets a user agent redirect automatically to the recommended representation rather than forcing the user to sift through the whole list, giving a smoother default while still leaving the other choices available.",
   )
   .appliesTo('server')
   .rule((ctx) =>

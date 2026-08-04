@@ -5,6 +5,7 @@ import {
 } from '../../index.js';
 import type { HttpTestCaseResult } from '../http-test/index.js';
 import { ajv } from './ajv.js';
+import { describeSchemaError, schemaErrorDetail } from './schema-error.js';
 
 export const commonHttpHeaders = [
   'date',
@@ -90,32 +91,38 @@ export function validateExistingHeader(
 ): HttpTestCaseResult[] {
   return Object.entries(headers)
     .filter(([name]) => Object.hasOwn(response.headers, name))
-    .map(([name, value]) => {
+    .flatMap(([name, value]): HttpTestCaseResult[] => {
       if (response.headers[name]?.schema) {
         const validate = ajv.compile(response.headers[name]?.schema);
 
         validate(value);
 
-        if (validate.errors) {
-          return {
+        if (validate.errors && validate.errors.length > 0) {
+          // One assertion-failure per schema error rather than a joined message.
+          return validate.errors.map((err) => ({
             type: 'assertion-failure',
-            message: `Invalid value for header ${name}: ${validate.errors.map((err) => err.message).join(', ')}.`,
+            message: describeSchemaError(err, `header "${name}"`),
+            ...schemaErrorDetail(err),
             timestamp: Date.now(),
-          };
-        } else {
-          return {
+          }));
+        }
+
+        return [
+          {
             type: 'assertion-success',
             message: `Valid header ${name}.`,
             timestamp: Date.now(),
-          };
-        }
+          },
+        ];
       }
 
-      return {
-        type: 'info',
-        message: `No schema provided for header ${name}.`,
-        timestamp: Date.now(),
-      };
+      return [
+        {
+          type: 'info',
+          message: `No schema provided for header ${name}.`,
+          timestamp: Date.now(),
+        },
+      ];
     });
 }
 

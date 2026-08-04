@@ -4,6 +4,9 @@ export default httpRule(
   'rfc9110/recipient-may-combine-field-lines-with-same-name',
 )
   .severity('off')
+  // Combining same-name field lines is an optional internal recipient choice
+  // with no required outcome, and the recombined form is not re-emitted for
+  // Thymian to observe.
   .type('informational')
   .url('https://www.rfc-editor.org/rfc/rfc9110.html#section-5.3')
   .description(
@@ -12,5 +15,4 @@ export default httpRule(
   .summary(
     'Recipient MAY combine multiple field lines with the same name into one field line.',
   )
-  .tags('fields', 'field-order')
   .done();

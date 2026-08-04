@@ -71,6 +71,9 @@ export default httpRule(
   .summary(
     'Each authentication parameter name MUST only occur once per challenge (matched case-insensitively).',
   )
+  .explanation(
+    'Within a single authentication challenge or credential, each parameter name may appear only once, and names are compared ignoring case, so realm and Realm count as the same name. Repeating a name is not allowed. This keeps each name/value pair unambiguous: recipients can rely on a generic parser to read one value per parameter instead of having to guess which of several duplicates applies, which is essential for reliable interoperability across authentication schemes.',
+  )
   // In `test` only the RESPONSE side is observable: the request is
   // Thymian-generated and always well-formed, so a request-side scan is inert.
   .overrideTest((ctx) =>

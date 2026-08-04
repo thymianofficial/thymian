@@ -1,0 +1,29 @@
+---
+import { getCollection } from 'astro:content';
+
+import ResourceList from '../../components/resources/ResourceList.astro';
+import ResourcesLayout from '../../components/resources/ResourcesLayout.astro';
+import {
+  assertOriginEventsResolve,
+  indexEventsById,
+} from '../../lib/cross-links';
+
+const allResources = await getCollection('resources');
+const allEvents = await getCollection('events');
+const eventsById = indexEventsById(allEvents);
+// AD-6 build-time guard over the FULL resource set (throws on any dangling
+// originEvent — Astro reference() is warn-only).
+assertOriginEventsResolve(allResources, eventsById);
+---
+
+<ResourcesLayout
+  title="Resources"
+  description="Talks, webinars, podcast episodes, and papers Thymian produced or took part in."
+>
+  <ResourceList
+    allResources={allResources}
+    resources={allResources}
+    eventsById={eventsById}
+    currentType="all"
+  />
+</ResourcesLayout>

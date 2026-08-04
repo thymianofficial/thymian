@@ -1,9 +1,12 @@
 import { getCollection } from 'astro:content';
 import { OGImageRoute } from 'astro-og-canvas';
 
+import { eventOgPages } from '../../components/events/eventMeta';
+import { resourceOgPages } from '../../components/resources/resourceMeta';
+
 const docs = await getCollection('docs');
 
-const pages = Object.fromEntries(
+const docPages = Object.fromEntries(
   docs.map((doc) => [
     doc.id,
     {
@@ -12,6 +15,15 @@ const pages = Object.fromEntries(
     },
   ]),
 );
+
+// Events and resources are keyed by their page `starlightRoute.id` (`events`,
+// `events/type/<type>`; `resources`, `resources/type/<slug>`) because their
+// cards render inline on a fixed page set — there are NO per-event or
+// per-resource detail routes, so we must NOT key by per-entry ids (AD-4).
+// Neither section is added to `llms.txt` in v1: `starlight-llms-txt` is
+// hardwired to `getCollection('docs')` with no extension hook, so hand-rolling a
+// parallel generator is out of scope (AD-5).
+const pages = { ...docPages, ...eventOgPages(), ...resourceOgPages() };
 
 export const { getStaticPaths, GET } = await OGImageRoute({
   param: 'route',

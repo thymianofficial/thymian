@@ -37,6 +37,9 @@ export default httpRule(
   .summary(
     'Senders MUST NOT generate trailer fields unless explicitly permitted by field definition.',
   )
+  .explanation(
+    "Only put a field in the trailer section (after the content) if that field's definition actually allows it there. Many fields must be read before the content arrives because they govern framing, routing, authentication, request modifiers, response controls, or content format, so placing them in trailers is too late to be useful. This matters because recipients and intermediaries often discard trailers or cannot safely act on a field that arrives after the body, so a field sent as a trailer that belongs in the header section will simply be ignored or mishandled.",
+  )
   .rule((ctx) =>
     ctx.validateCommonHttpTransactions(
       or(...[...FORBIDDEN_TRAILER_FIELDS].map((name) => responseTrailer(name))),

@@ -50,7 +50,7 @@ export function analyze(reports: Report[], logger?: Logger): ReportAnalysis {
     for (const run of report.runs) {
       const ruleIndex = buildRuleIndex(run.rules);
 
-      for (const { execution } of walkExecutions(run.executions)) {
+      for (const execution of walkExecutions(run.executions)) {
         statusCounts[execution.status.kind] += 1;
 
         const severity = resolveExecutionSeverity(execution, ruleIndex, logger);

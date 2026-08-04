@@ -32,6 +32,12 @@
         "cwd": "astro-docs"
       }
     },
+    "test": {
+      "command": "vitest run",
+      "options": {
+        "cwd": "astro-docs"
+      }
+    },
     "generateCliDocs": {
       "dependsOn": ["^generate-docs"]
     },

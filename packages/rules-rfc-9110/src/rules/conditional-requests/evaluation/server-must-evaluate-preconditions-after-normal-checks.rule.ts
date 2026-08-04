@@ -1,5 +1,12 @@
 import { httpRule } from '@thymian/core';
 
+/**
+ * This MUST constrains the *internal sequencing* of server-side processing —
+ * preconditions must be evaluated after normal request checks and just before
+ * the method's action. Sequencing is not exposed in the request/response on the
+ * wire, so no observable signal distinguishes a conforming from a
+ * non-conforming ordering.
+ */
 export default httpRule(
   'rfc9110/server-must-evaluate-preconditions-after-normal-checks',
 )
@@ -13,5 +20,4 @@ export default httpRule(
     'Server MUST evaluate preconditions after normal checks and before processing request content.',
   )
   .appliesTo('server', 'cache', 'origin server')
-  .tags('conditional-requests', 'evaluation', 'timing')
   .done();

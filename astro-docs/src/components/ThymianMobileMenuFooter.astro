@@ -1,24 +1,28 @@
 ---
-import LanguageSelect from 'virtual:starlight/components/LanguageSelect';
 import SocialIcons from 'virtual:starlight/components/SocialIcons';
 import ThemeSelect from 'virtual:starlight/components/ThemeSelect';
+
+import { NAV_LINKS, resolveAriaCurrent } from '../data/navigation';
 ---
 
-<div class="mobile-nav-links">
-  <a href="/enterprise/" class="mobile-nav-link mobile-enterprise-cta">
-    Enterprise
-  </a>
-  <a href="/blog/" class="mobile-nav-link">Blog</a>
-  <a href="mailto:support@thymian.dev" class="mobile-nav-link">
-    Contact
-  </a>
-</div>
+<nav aria-label="Site" class="mobile-nav-links">
+  {
+    NAV_LINKS.map((link) => (
+      <a
+        href={link.href}
+        class:list={['mobile-nav-link', { 'mobile-enterprise-cta': link.isCta }]}
+        aria-current={resolveAriaCurrent(link.href, Astro.url.pathname)}
+      >
+        {link.label}
+      </a>
+    ))
+  }
+</nav>
 <div class="mobile-preferences sl-flex">
   <div class="social-icons">
     <SocialIcons />
   </div>
   <ThemeSelect />
-  <LanguageSelect />
 </div>
 
 <style>
@@ -44,6 +48,7 @@ import ThemeSelect from 'virtual:starlight/components/ThemeSelect';
 
   .mobile-nav-links {
     display: flex;
+    flex-wrap: wrap;
     gap: 0.5rem;
     padding: 0.75rem 0;
     border-top: 1px solid var(--sl-color-gray-6);
@@ -53,6 +58,7 @@ import ThemeSelect from 'virtual:starlight/components/ThemeSelect';
     display: inline-flex;
     align-items: center;
     justify-content: center;
+    min-height: 24px;
     padding: 0.5rem 1rem;
     font-size: var(--sl-text-sm);
     font-weight: 500;
@@ -67,14 +73,31 @@ import ThemeSelect from 'virtual:starlight/components/ThemeSelect';
     color: var(--sl-color-white);
   }
 
+  .mobile-nav-link[aria-current]:not(.mobile-enterprise-cta) {
+    font-weight: 600;
+    color: var(--sl-color-white);
+  }
+
+  /*
+    On-accent text stays light in both themes; dark fills are pinned via the
+    same --tnav-* mechanism as ThymianHeader.astro/SiteNav.astro (never
+    restated as a fourth set of hexes).
+  */
   .mobile-enterprise-cta {
-    color: var(--sl-color-black);
-    background-color: var(--sl-color-accent);
+    --tnav-cta-bg: var(--sl-color-accent);
+    --tnav-cta-bg-hover: var(--sl-color-accent-high);
+    color: #ffffff;
+    background-color: var(--tnav-cta-bg);
     font-weight: 600;
   }
 
   .mobile-enterprise-cta:hover {
-    color: var(--sl-color-black);
-    background-color: var(--sl-color-accent-high);
+    color: #ffffff;
+    background-color: var(--tnav-cta-bg-hover);
+  }
+
+  :global(:root[data-theme='dark']) .mobile-enterprise-cta {
+    --tnav-cta-bg: #376e1b;
+    --tnav-cta-bg-hover: #275114;
   }
 </style>

@@ -4,6 +4,7 @@ export {
   findingDetails,
   resolveExecutionSeverity,
 } from './finding-render.js';
+export * from './grouping.js';
 export type { LocationResolver } from './location-format.js';
 export {
   createLocationResolver,
@@ -15,12 +16,10 @@ export type {
   AnalyzeExecution,
   Artifact,
   BaseFinding,
-  BodyContent,
   Execution,
   ExecutionBase,
   ExecutionStatus,
   FindingRecord,
-  Headers,
   Informational,
   Invocation,
   LintExecution,
@@ -38,6 +37,7 @@ export type {
   ThymianFormatVersion,
   Tool,
   ToolRun,
+  ToolRunBase,
 } from './report.js';
 export type {
   AssertionFailure as ReportAssertionFailure,
@@ -61,7 +61,7 @@ export {
   rulesToRuleDescriptors,
 } from './report-builder.js';
 export * from './report-style.js';
-export type { ExecutionVisit, FindingVisit } from './report-traversal.js';
+export type { FindingVisit } from './report-traversal.js';
 export {
   collectFindings,
   walkExecutions,

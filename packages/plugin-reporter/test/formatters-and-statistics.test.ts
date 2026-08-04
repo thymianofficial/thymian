@@ -104,7 +104,7 @@ const report = createReport([
   }),
 ]);
 
-describe('analyze statistics (AC11)', () => {
+describe('analyze statistics', () => {
   it('counts statuses, resolved severities and surviving finding kinds', () => {
     const { statistics } = analyze([report]);
 
@@ -132,7 +132,7 @@ describe('analyze statistics (AC11)', () => {
   });
 });
 
-describe('CSV flattening (AC13)', () => {
+describe('CSV flattening', () => {
   it('emits a row per execution and per finding', () => {
     const lines = reportToCsvLines(report);
 
@@ -144,13 +144,15 @@ describe('CSV flattening (AC13)', () => {
     expect(failedExecution).toContain('error');
 
     // The assertion-failure finding carries its expected/actual detail.
-    const assertion = lines.find((l) => l.includes('af-1'));
+    // Match the finding_id as a full CSV column — a bare substring match can
+    // collide with random run UUIDs (e.g. '431273af-181a-…' contains 'af-1').
+    const assertion = lines.find((l) => l.includes(',af-1,'));
     expect(assertion).toContain('finding');
     expect(assertion).toContain('expected=200');
   });
 });
 
-describe('MarkdownFormatter rendering (AC13)', () => {
+describe('MarkdownFormatter rendering', () => {
   it('renders the human layout for lint status rows and test step findings', async () => {
     const formatter = new MarkdownFormatter(new NoopLogger());
     formatter.init({ path: join(process.cwd(), 'tmp', 'formatters.md') });
@@ -158,19 +160,21 @@ describe('MarkdownFormatter rendering (AC13)', () => {
 
     const output = (await formatter.flush()) ?? '';
 
+    // The rule has a `helpUri`, so the rule cell renders as a linked code label
+    // (an HTML anchor, so a `helpUri` containing `)`/whitespace can't break out).
+    const ruleLink =
+      '<a href="https://example.com/rules/host"><code>rfc9110/host</code></a>';
     expect(output).toContain('### GET /pets');
-    expect(output).toContain(
-      '| error | `rfc9110/host` | Missing Host header |',
-    );
+    expect(output).toContain(`| error | ${ruleLink} | Missing Host header |`);
     expect(output).toContain('### GET /dogs');
     expect(output).toContain(
-      '| skipped | `rfc9110/host` | rule disabled in config |',
+      `| skipped | ${ruleLink} | rule disabled in config |`,
     );
     expect(output).toContain('### POST /pets fails · _✖ failed_');
     expect(output).toContain('— expected: 200, actual: 500');
     expect(output).not.toContain('GET /pets returns 200');
     // GET /cats' informational finding has no `message`; the Message cell
     // must fall back to the finding's (always-present) title.
-    expect(output).toContain('| info | `rfc9110/host` | noted |');
+    expect(output).toContain(`| info | ${ruleLink} | noted |`);
   });
 });

@@ -68,6 +68,9 @@ export default httpRule('rfc9110/realm-parameter-must-use-quoted-string-syntax')
   .summary(
     'A sender MUST only generate the quoted-string syntax for realm parameter values.',
   )
+  .explanation(
+    'When you emit a realm authentication parameter, its value must be written as a quoted string (realm="value"), never as a bare token (realm=value), even though the auth-param grammar technically permits both forms. This is a historical compatibility requirement: many long-deployed clients only accept the quoted form, so generating the token form risks those clients failing to parse the realm and mishandling the authentication challenge.',
+  )
   // In `test` only the RESPONSE side is observable: the request is
   // Thymian-generated and always well-formed, so a request-side scan is inert.
   .overrideTest((ctx) =>

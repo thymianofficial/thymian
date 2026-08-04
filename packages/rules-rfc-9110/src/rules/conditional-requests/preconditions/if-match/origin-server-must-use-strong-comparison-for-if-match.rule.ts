@@ -1,5 +1,15 @@
 import { httpRule } from '@thymian/core';
 
+/**
+ * This MUST constrains *which comparison function* the origin server applies
+ * internally to If-Match entity tags (strong vs. weak). The choice of
+ * comparison function is not exposed in any single response; distinguishing it
+ * would require crafting weak/strong ETag pairs that differ only in weakness and
+ * observing divergent precondition outcomes, which depends on the server minting
+ * a controllable weak ETag for the same representation — not something the
+ * framework can arrange generically. The security-relevant intent (preventing
+ * lost updates) is realized by the must-not-perform-method rule.
+ */
 export default httpRule(
   'rfc9110/origin-server-must-use-strong-comparison-for-if-match',
 )
@@ -13,5 +23,4 @@ export default httpRule(
     'Origin server MUST use strong comparison function for If-Match ETags.',
   )
   .appliesTo('origin server')
-  .tags('conditional-requests', 'if-match', 'etag')
   .done();

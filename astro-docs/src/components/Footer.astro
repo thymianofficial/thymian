@@ -1,5 +1,6 @@
 ---
 import Default from '@astrojs/starlight/components/Footer.astro';
+import SocialIcons from 'virtual:starlight/components/SocialIcons';
 import {getCollection} from 'astro:content';
 
 const STRIP_EXT_REGEX = /\.[^/.]+$/;
@@ -23,6 +24,9 @@ const sortedLegalDocs = (await getCollection('docs', ({id}) => id.startsWith('le
 <Default>
     <slot/>
 </Default>
+<div class="sl-hidden md:sl-flex lg:sl-hidden footer-social-row">
+  <SocialIcons />
+</div>
 {sortedLegalDocs.length > 0 && (
 <nav aria-label="Legal documents" class="my-12">
   <h2 class="text-sm font-semibold text-zinc-900 dark:text-zinc-100 mb-2">Legal documents</h2>
@@ -44,3 +48,11 @@ const sortedLegalDocs = (await getCollection('docs', ({id}) => id.startsWith('le
   </ul>
 </nav>
   )}
+
+<style>
+  .footer-social-row {
+    gap: 1rem;
+    align-items: center;
+    margin-top: 3rem;
+  }
+</style>

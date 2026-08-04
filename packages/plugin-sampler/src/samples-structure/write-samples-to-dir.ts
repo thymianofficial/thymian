@@ -3,6 +3,7 @@ import { basename, format, join } from 'node:path';
 
 import { ThymianBaseError } from '@thymian/core';
 
+import { tsConfig } from '../hooks/ts-config.js';
 import {
   type ContentSource,
   type HttpRequestSample,
@@ -21,6 +22,8 @@ import {
 } from './samples-tree-structure.js';
 import type { PathToNodeType } from './structure-meta-on-disc.js';
 import { traverse, traverseAsync } from './traverse.js';
+
+export type CreateDir = (path: string) => Promise<void>;
 
 export type WriteToFile = (
   path: string,
@@ -213,6 +216,17 @@ export async function transformParameters({
 export type WriteOptions = {
   path: string;
   mode?: 'failIfExist' | 'overwrite';
+  mkdir?: CreateDir;
+  writeToFile?: WriteToFile;
+  /**
+   * When provided, the generated `types.d.ts` and `tsconfig.json` hook
+   * artifacts are emitted through the same `writeToFile` seam as the rest of
+   * the samples. Keeping these writes here guarantees `sampler.init` (on disk)
+   * and the validation flow (in memory) can never drift in how they emit them.
+   */
+  typeArtifacts?: {
+    typesContent: string;
+  };
 };
 
 export async function writeSamplesToDir(
@@ -222,21 +236,29 @@ export async function writeSamplesToDir(
 ): Promise<void> {
   const mode = options.mode ?? 'failIfExist';
 
-  const writeToFile: WriteToFile = async (path, content, encoding) => {
-    if (mode === 'failIfExist' && (await entryExists(path))) {
-      throw new ThymianBaseError(
-        `File/Directory at path "${path}" already exists. Use "overwrite" mode to overwrite it.`,
-        {
-          name: 'PathAlreadyExistsError',
-          ref: 'https://thymian.dev/references/errors/path-already-exists-error/',
-        },
-      );
-    }
+  const mkdirDir: CreateDir =
+    options.mkdir ??
+    (async (path) => {
+      await mkdir(path, { recursive: true });
+    });
 
-    await writeFile(path, content, encoding as BufferEncoding);
-  };
+  const writeToFile: WriteToFile =
+    options.writeToFile ??
+    (async (path, content, encoding) => {
+      if (mode === 'failIfExist' && (await entryExists(path))) {
+        throw new ThymianBaseError(
+          `File/Directory at path "${path}" already exists. Use "overwrite" mode to overwrite it.`,
+          {
+            name: 'PathAlreadyExistsError',
+            ref: 'https://thymian.dev/references/errors/path-already-exists-error/',
+          },
+        );
+      }
 
-  await mkdir(options.path, { recursive: true });
+      await writeFile(path, content, encoding as BufferEncoding);
+    });
+
+  await mkdirDir(options.path);
 
   await writeToFile(
     join(options.path, 'meta.json'),
@@ -257,13 +279,13 @@ export async function writeSamplesToDir(
     const dirPath = join(currentPath, folderName);
 
     if (nodeIsType(node, 'samples')) {
-      await mkdir(dirPath, { recursive: true });
+      await mkdirDir(dirPath);
 
       const metaPath = join(dirPath, 'meta.json');
 
       await writeToFile(metaPath, JSON.stringify(node.meta, null, 2));
     } else if (nodeIsType(node, 'requests')) {
-      await mkdir(dirPath, { recursive: true });
+      await mkdirDir(dirPath);
 
       for (const [idx, sample] of node.value.entries()) {
         const name = `${idx}-request`;
@@ -274,4 +296,16 @@ export async function writeSamplesToDir(
 
     return dirPath;
   });
+
+  if (options.typeArtifacts) {
+    await writeToFile(
+      join(options.path, 'types.d.ts'),
+      options.typeArtifacts.typesContent,
+    );
+
+    await writeToFile(
+      join(options.path, 'tsconfig.json'),
+      JSON.stringify(tsConfig, null, 2),
+    );
+  }
 }

@@ -6,6 +6,7 @@ import {
   defaultConfig,
   specFlag,
   ThymianBaseCommand,
+  wrap,
 } from '@thymian/common-cli';
 import { Flags, ux } from '@thymian/common-cli/oclif';
 import { confirm, input, select } from '@thymian/common-cli/prompts';
@@ -62,7 +63,7 @@ export default class GenerateConfig extends ThymianBaseCommand<
     // Continuation flow: if default config exists and no explicit output, offer named config
     if (!this.flags.output && existsSync(outputPath)) {
       if (interactive) {
-        this.log(`A configuration file already exists at ${outputPath}.`);
+        this.log(wrap(`A configuration file already exists at ${outputPath}.`));
         const customPath = await input({
           message:
             'Enter a path for the new configuration file (e.g. my-api.config.yaml):',
@@ -131,7 +132,9 @@ export default class GenerateConfig extends ThymianBaseCommand<
           // In non-interactive mode with multiple specs, use the first one
           selectedSpecs = [{ type: 'openapi', location: detectedFiles[0]! }];
           this.log(
-            `Multiple specification files detected. Using the first one: ${detectedFiles[0]}`,
+            wrap(
+              `Multiple specification files detected. Using the first one: ${detectedFiles[0]}`,
+            ),
           );
         }
       }
@@ -149,7 +152,9 @@ export default class GenerateConfig extends ThymianBaseCommand<
     await writeFile(outputPath, yamlContent, { encoding: 'utf-8' });
 
     this.log(
-      `${ux.colorize('green', 'Configuration written to')} ${relative(cwd, outputPath)}`,
+      wrap(
+        `${ux.colorize('green', 'Configuration written to')} ${relative(cwd, outputPath)}`,
+      ),
     );
   }
 
@@ -158,7 +163,7 @@ export default class GenerateConfig extends ThymianBaseCommand<
   ): Promise<string> {
     if (detectedFiles.length === 0) {
       // No files detected — ask for manual entry
-      this.log('No OpenAPI/Swagger specification files detected.');
+      this.log(wrap('No OpenAPI/Swagger specification files detected.'));
       const manualPath = await input({
         message: 'Enter the path to your OpenAPI specification file:',
       });

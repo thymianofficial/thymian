@@ -14,6 +14,9 @@ export default httpRule('rfc9110/origin-server-should-send-last-modified')
   .summary(
     'Origin servers SHOULD send Last-Modified header when modification date can be determined.',
   )
+  .explanation(
+    'When your server can reasonably determine when a resource was last changed, it should include a Last-Modified date on the response. Clients and caches use that timestamp in conditional requests to check whether their stored copy is still current, so the server can reply 304 Not Modified rather than resending unchanged data. Supplying Last-Modified reduces wasteful transfers and helps the service scale and stay available.',
+  )
   .rule((ctx) =>
     ctx.validateCommonHttpTransactions(
       and(

@@ -3,26 +3,35 @@ import {
   type AnalyzeExecution,
   buildRuleIndex,
   createLocationResolver,
-  isAnalyzeExecution,
-  isLintExecution,
-  isTestCaseExecution,
   type LintExecution,
   type Report,
   resolveExecutionSeverity,
   type Severity,
   SEVERITY_COLORS,
+  type SortReportsBy,
   type TestCaseExecution,
   type ThymianFormat,
   walkExecutions,
 } from '@thymian/core';
 
-import { createExecutionsRenderer } from './create-execution-renderer.js';
+import {
+  createExecutionsRenderer,
+  selectEntry,
+  selectGroupBy,
+  selectHeading,
+} from './create-execution-renderer.js';
 import { renderLintAndAnalyzeExecution } from './lint-analyze-executions.js';
 import {
   groupTestCaseExecutions,
   renderTestCaseExecution,
 } from './test-executions.js';
-import { pluralize } from './utils.js';
+import {
+  pluralize,
+  sortRecordByKey,
+  sortRecordBySeverity,
+  terminalWidth,
+  wrap,
+} from './utils.js';
 
 export function collectSeverityCounts(
   report: Report,
@@ -36,7 +45,7 @@ export function collectSeverityCounts(
 
   for (const run of report.runs) {
     const ruleIndex = buildRuleIndex(run.rules);
-    for (const { execution } of walkExecutions(run.executions)) {
+    for (const execution of walkExecutions(run.executions)) {
       const severity = resolveExecutionSeverity(execution, ruleIndex);
       if (severity !== undefined) {
         counts[severity] += 1;
@@ -47,10 +56,25 @@ export function collectSeverityCounts(
   return counts;
 }
 
+/**
+ * `tool · type · ────` run separator, sized so the rule line fills the terminal
+ * width like the rest of the render layer (falling back to 80 columns when there
+ * is no finite width, e.g. piped output). The dash run always keeps at least one
+ * character so narrow terminals still show a divider.
+ */
+function runHeading(toolName: string, runType: string): string {
+  const prefix = `${toolName} · ${runType} · `;
+  const width = terminalWidth();
+  const fill = Number.isFinite(width) ? width : 80;
+
+  return prefix + '─'.repeat(Math.max(1, fill - prefix.length));
+}
+
 export function renderReport(
   report: Report,
-  options: { format?: ThymianFormat } = {},
+  options: { format?: ThymianFormat; sortReportsBy?: SortReportsBy } = {},
 ): string {
+  const sortReportsBy: SortReportsBy = options.sortReportsBy ?? 'endpoint';
   if (report.runs.length === 0) {
     return 'No tool runs were reported.';
   }
@@ -69,11 +93,7 @@ export function renderReport(
   const resolveLocation = createLocationResolver(reportForLocationResolution);
 
   for (const [idx, run] of report.runs.entries()) {
-    lines.push(
-      `${run.tool.name} · ${run.runType} · ${'─'.repeat(
-        Math.max(1, 70 - run.tool.name.length),
-      )}`,
-    );
+    lines.push(runHeading(run.tool.name, run.runType));
     lines.push('');
 
     const ruleIndex = buildRuleIndex(run.rules);
@@ -83,30 +103,47 @@ export function renderReport(
       continue;
     }
 
+    // `endpoint` (default) keeps each surface's historical grouping; `rule` and
+    // `severity` regroup uniformly across run types. `severity` orders its groups
+    // by `SEVERITY_GROUP_ORDER`; the others fall back to alphabetical.
+    const sortGroups =
+      sortReportsBy === 'severity' ? sortRecordBySeverity : sortRecordByKey;
+
     if (run.runType === 'lint' || run.runType === 'analyze') {
       const render = createExecutionsRenderer<LintExecution | AnalyzeExecution>(
-        (execution) =>
+        selectGroupBy(sortReportsBy, ruleIndex, (execution) =>
           resolveLocation(execution.location, run.thymianFormatVersion),
-        renderLintAndAnalyzeExecution,
+        ),
+        selectHeading(sortReportsBy),
+        selectEntry(
+          sortReportsBy,
+          renderLintAndAnalyzeExecution,
+          (execution, locationResolver, toolRun) =>
+            locationResolver(execution.location, toolRun.thymianFormatVersion),
+        ),
         1,
+        sortGroups,
       );
 
-      const executions = run.executions.filter(
-        (execution) =>
-          isLintExecution(execution) || isAnalyzeExecution(execution),
-      );
+      // `ToolRun` is a discriminated union on `runType`, so a lint/analyze run's
+      // executions are already lint/analyze — no runtime filtering needed.
+      const executions: (LintExecution | AnalyzeExecution)[] = run.executions;
 
       lines.push(...render(executions, ruleIndex, resolveLocation, run));
     } else {
       const render = createExecutionsRenderer<TestCaseExecution>(
-        groupTestCaseExecutions,
-        renderTestCaseExecution,
+        selectGroupBy(sortReportsBy, ruleIndex, groupTestCaseExecutions),
+        selectHeading(sortReportsBy),
+        selectEntry(
+          sortReportsBy,
+          renderTestCaseExecution,
+          (execution) => execution.name,
+        ),
         1,
+        sortGroups,
       );
 
-      const executions = run.executions.filter((execution) =>
-        isTestCaseExecution(execution),
-      );
+      const executions: TestCaseExecution[] = run.executions;
 
       lines.push(...render(executions, ruleIndex, resolveLocation, run));
     }
@@ -121,7 +158,9 @@ export function renderReport(
   lines.push('');
   lines.push('');
   lines.push(
-    `Summary: ${counts.error} ${ux.colorize(SEVERITY_COLORS.error, pluralize('error', counts.error))}, ${counts.warn} ${ux.colorize(SEVERITY_COLORS.warn, pluralize('warning', counts.warn))}, ${counts.hint} ${ux.colorize(SEVERITY_COLORS.hint, pluralize('hint', counts.hint))}, ${counts.info} ${ux.colorize(SEVERITY_COLORS.info, pluralize('info', counts.info))}.`,
+    wrap(
+      `Summary: ${counts.error} ${ux.colorize(SEVERITY_COLORS.error, pluralize('error', counts.error))}, ${counts.warn} ${ux.colorize(SEVERITY_COLORS.warn, pluralize('warning', counts.warn))}, ${counts.hint} ${ux.colorize(SEVERITY_COLORS.hint, pluralize('hint', counts.hint))}, ${counts.info} ${ux.colorize(SEVERITY_COLORS.info, pluralize('info', counts.info))}.`,
+    ),
   );
 
   return lines.join('\n').trimEnd();

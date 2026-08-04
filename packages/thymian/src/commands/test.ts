@@ -55,6 +55,11 @@ export default class Test extends BaseCliRunCommand<typeof Test> {
       });
     });
 
-    handleWorkflowOutcome(this, outcome);
+    handleWorkflowOutcome(
+      this,
+      outcome,
+      {},
+      { sortReportsBy: this.flags['sort-reports-by'] },
+    );
   }
 }

@@ -17,7 +17,7 @@ import {
   workflowLintActionSchema,
   workflowTestActionSchema,
 } from './actions/index.js';
-import { ajv, type JSONSchemaType, validate } from './ajv.js';
+import { ajv, formatAjvErrors, type JSONSchemaType, validate } from './ajv.js';
 import { corePlugin } from './core-plugin.js';
 import { ThymianEmitter } from './emitter/index.js';
 import { ThymianFormat } from './format/index.js';
@@ -187,18 +187,20 @@ export class Thymian {
   // (not just `suggestions`) because the WS proxy serializes errors down to
   // { name, message } — so the message is the only channel that reaches the
   // #300 WS client. `validate()` populates `ajv.errors` synchronously on the
-  // shared instance, so it is read immediately after the failed call.
+  // shared instance, so it is read immediately after the failed call. We route
+  // through `formatAjvErrors` (rather than raw `errorsText`) so the message
+  // matches the human-readable phrasing used by the other validation paths.
   #assertValidWorkflowInput<T>(
     actionName: string,
     schema: JSONSchemaType<T>,
     input: unknown,
   ): asserts input is T {
     if (!validate(schema, input)) {
-      const detail = ajv.errorsText(ajv.errors, { dataVar: 'input' });
-      throw new ThymianBaseError(`Invalid ${actionName} input: ${detail}.`, {
+      const { message } = formatAjvErrors(ajv.errors);
+      throw new ThymianBaseError(`Invalid ${actionName} input: ${message}.`, {
         name: 'InvalidActionInputError',
         ref: 'https://thymian.dev/references/errors/invalid-action-input-error/',
-        suggestions: [detail],
+        suggestions: [message],
       });
     }
   }
@@ -225,8 +227,9 @@ export class Thymian {
       const validOptions = validate(plugin.options, options);
 
       if (!validOptions) {
+        const { message } = formatAjvErrors(ajv.errors);
         throw new PluginRegistrationError(
-          `Invalid options for plugin "${plugin.name}".`,
+          `Invalid options for plugin "${plugin.name}": ${message}`,
         );
       }
     }

@@ -1,0 +1,32 @@
+---
+import { getCollection } from 'astro:content';
+
+import EventList from '../../components/events/EventList.astro';
+import EventsLayout from '../../components/events/EventsLayout.astro';
+import { resolveLogoCredits } from '../../components/events/eventMeta';
+import {
+  assertOriginEventsResolve,
+  indexEventsById,
+} from '../../lib/cross-links';
+
+const allEvents = await getCollection('events');
+const allResources = await getCollection('resources');
+const eventsById = indexEventsById(allEvents);
+// AD-6 guard on the events render path too, so the dangling-reference build
+// failure never depends implicitly on the /resources pages also building.
+assertOriginEventsResolve(allResources, eventsById);
+---
+
+<EventsLayout
+  title="Events"
+  description="Where Thymian is speaking, exhibiting, and appearing — upcoming and past."
+  credits={resolveLogoCredits(allEvents)}
+>
+  <EventList
+    allEvents={allEvents}
+    events={allEvents}
+    allResources={allResources}
+    eventsById={eventsById}
+    currentType="all"
+  />
+</EventsLayout>

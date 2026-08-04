@@ -6,7 +6,7 @@ import {
   successSymbol,
 } from '@thymian/core';
 
-import { indent } from './utils.js';
+import { indent, wrapIndented } from './utils.js';
 
 export function renderFindings(
   findings: FindingRecord[],
@@ -25,21 +25,34 @@ function renderFinding(
 ): string[] {
   switch (finding.kind) {
     case 'informational':
-      return [indent(indentationLevel) + `${infoSymbol} ${finding.title}`];
+      return wrapIndented(
+        finding.title,
+        `${indent(indentationLevel)}${infoSymbol} `,
+      );
     case 'assertion-success':
-      return [indent(indentationLevel) + `${successSymbol} ${finding.title}`];
+      return wrapIndented(
+        finding.title,
+        `${indent(indentationLevel)}${successSymbol} `,
+      );
     case 'assertion-failure': {
-      const lines = [
-        indent(indentationLevel) + `${errorSymbol} ${finding.title}`,
-      ];
+      const lines = wrapIndented(
+        finding.title,
+        `${indent(indentationLevel)}${errorSymbol} `,
+      );
       const { expected, actual } = finding as ReportAssertionFailure;
 
       if (actual !== undefined && expected !== undefined) {
         lines.push(
-          `${indent(indentationLevel + 2)}expected: ${JSON.stringify(expected)}`,
+          ...wrapIndented(
+            `expected: ${JSON.stringify(expected)}`,
+            indent(indentationLevel + 2),
+          ),
         );
         lines.push(
-          `${indent(indentationLevel + 2)}actual: ${JSON.stringify(actual)}`,
+          ...wrapIndented(
+            `actual: ${JSON.stringify(actual)}`,
+            indent(indentationLevel + 2),
+          ),
         );
       }
 
@@ -52,7 +65,10 @@ function renderFinding(
       // reaches that status line, so render each step's title here to avoid
       // silently dropping the other steps' violations.
       return options.renderRuleViolationTitle
-        ? [indent(indentationLevel) + `${errorSymbol} ${finding.title}`]
+        ? wrapIndented(
+            finding.title,
+            `${indent(indentationLevel)}${errorSymbol} `,
+          )
         : [];
     default:
       // Superseded/unknown finding kinds are intentionally not rendered.

@@ -1,0 +1,47 @@
+---
+import CtaLink from '../CtaLink.astro';
+import type { EventCardLink } from './eventMeta';
+
+interface Props {
+  links: EventCardLink[];
+  timeframe: 'upcoming' | 'past';
+}
+
+const { links, timeframe } = Astro.props;
+
+// Upcoming "Register to attend" is the primary (solid) CTA; past "View
+// resource" is the ghost (outline) CTA — the shared CtaLink pill owns both
+// shapes. Purely presentational — the resolved links (label/url) are
+// unchanged (see resolveEventLinks + its tests).
+const variant = timeframe === 'upcoming' ? 'primary' : 'ghost';
+---
+
+{
+  links.length > 0 && (
+    <ul class="event-links-list">
+      {links.map((link) => (
+        <li class="event-links-item">
+          <CtaLink href={link.url} variant={variant}>
+            {link.label}
+          </CtaLink>
+        </li>
+      ))}
+    </ul>
+  )
+}
+
+<style>
+  .event-links-list {
+    list-style: none;
+    margin: 0.5rem 0 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.5rem;
+  }
+
+  .event-links-item {
+    display: flex;
+  }
+</style>

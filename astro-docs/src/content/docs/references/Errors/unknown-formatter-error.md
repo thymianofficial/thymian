@@ -10,6 +10,7 @@ Available formatters:
 
 - `markdown` - Markdown format (written to a file)
 - `csv` - Comma-separated values (CSV, written to a file)
+- `json` - Canonical report payload as JSON (written to a file)
 
 The CLI also prints a plain-text summary to stdout on every run; that is not a
 configurable `plugin-reporter` formatter.

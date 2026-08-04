@@ -1,5 +1,6 @@
 import {
   and,
+  getHeader,
   hasRequestBody,
   method,
   not,
@@ -29,6 +30,9 @@ export default httpRule(
   .summary(
     'User agents SHOULD NOT send Content-Length when request has no content.',
   )
+  .explanation(
+    'When a client sends a request that has no body and whose method does not expect one -- such as GET, HEAD, DELETE, CONNECT, OPTIONS, or TRACE -- it should not attach a non-zero Content-Length header. It matters because a Content-Length on a bodyless request signals data that never arrives, which can confuse servers and intermediaries about message framing and, in the worst case, be leveraged for request smuggling.',
+  )
   .overrideAnalyticsRule((ctx) =>
     ctx.validateHttpTransactions(
       and(
@@ -43,6 +47,37 @@ export default httpRule(
         requestHeader('content-length'),
         not(hasRequestBody()),
       ),
+      (req, _res, location) => {
+        const contentLength = getHeader(req.headers, 'content-length');
+
+        if (contentLength === undefined) {
+          return [];
+        }
+
+        const lines = Array.isArray(contentLength)
+          ? contentLength
+          : [contentLength];
+
+        const tokens = lines
+          .flatMap((line) => line.split(','))
+          .map((token) => token.trim());
+
+        // A Content-Length of exactly "0" is consistent with a request that
+        // has no content and is not a violation.
+        if (tokens.every((token) => token === '0')) {
+          return [];
+        }
+
+        return [
+          {
+            location,
+            violation: {
+              message: `A ${req.method} request carries a Content-Length header field but no content.`,
+            },
+            findings: [],
+          },
+        ];
+      },
     ),
   )
   .done();

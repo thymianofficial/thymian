@@ -1,5 +1,10 @@
 import { httpRule } from '@thymian/core';
 
+// This governs the client's internal retry policy and is gated on client-only
+// knowledge ("some means to know the semantics are idempotent / that the
+// request was never applied"). Neither whether a retry was "automatic" nor the
+// client's out-of-band knowledge is visible in any message, and our model does
+// not reconstruct retry lineage, so the SHOULD NOT is not observable.
 export default httpRule(
   'rfc9110/client-should-not-automatically-retry-request-with-non-idempotent-method',
 )

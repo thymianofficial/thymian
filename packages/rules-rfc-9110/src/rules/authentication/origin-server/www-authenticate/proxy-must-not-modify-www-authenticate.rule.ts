@@ -16,6 +16,9 @@ export default httpRule('rfc9110/proxy-must-not-modify-www-authenticate')
   .description(
     'A proxy forwarding a response MUST NOT modify any WWW-Authenticate header fields in that response.',
   )
+  .explanation(
+    "When a proxy passes a response back toward the client, it must forward every WWW-Authenticate header exactly as it received it, without editing, adding, or removing any challenge. This field is the origin server's authentication challenge, telling the client which schemes, realms, and parameters to use. If a proxy alters it, the client may build the wrong credentials or pick the wrong scheme, breaking the authentication exchange with the origin server.",
+  )
   .appliesTo('proxy')
   .rule((ctx) =>
     ctx.validateCapturedHttpTraces((trace, location) => {

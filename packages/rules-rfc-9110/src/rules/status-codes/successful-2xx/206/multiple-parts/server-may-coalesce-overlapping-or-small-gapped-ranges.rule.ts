@@ -4,6 +4,7 @@ export default httpRule(
   'rfc9110/server-may-coalesce-overlapping-or-small-gapped-ranges',
 )
   .severity('hint')
+  // Permissive MAY about coalescing ranges; no non-conformant condition.
   .type('informational')
   .url('https://datatracker.ietf.org/doc/html/rfc9110#name-multiple-parts')
   .description(

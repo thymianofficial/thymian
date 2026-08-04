@@ -17,6 +17,9 @@ export default httpRule('rfc9110/proxy-must-not-modify-authentication-info')
   .description(
     'A proxy forwarding a response is not allowed to modify the Authentication-Info field value in any way.',
   )
+  .explanation(
+    "When a proxy passes a response along, it must forward the Authentication-Info header exactly as it received it, without changing, reordering, adding, or dropping anything in the value. This field carries scheme-specific information the origin server sends after accepting the client's credentials (for example a finalization message that authenticates the server). If a proxy alters it, that end-to-end signal can be corrupted and the authentication handshake between client and origin server can break.",
+  )
   .appliesTo('proxy')
   .rule((ctx) =>
     ctx.validateCapturedHttpTraces((trace, location) => {

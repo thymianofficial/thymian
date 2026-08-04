@@ -16,6 +16,9 @@ export default httpRule('rfc9110/accept-ranges-may-be-sent-in-trailer')
   .summary(
     'Accept-Ranges may be sent in a trailer, but the header field is preferred for failed-transfer recovery.',
   )
+  .explanation(
+    'A server is permitted to place Accept-Ranges in the trailer section, but sending it as a normal header is preferred. This matters because Accept-Ranges tells a client whether it can resume a large transfer with a range request, and the trailer arrives only after the whole body has been sent, too late to help recover a transfer that failed mid-content. Putting it in the header lets the client know up front, so this surfaces as advice rather than a violation.',
+  )
   .appliesTo('server')
   // Sending Accept-Ranges in a trailer is a conformant MAY, but the header form
   // is preferred (a trailer arrives too late to help a client restart a failed

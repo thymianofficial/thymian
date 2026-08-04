@@ -14,7 +14,6 @@ export default [
             'tslib',
             '@oclif/plugin-help',
             '@oclif/plugin-not-found',
-            '@oclif/plugin-plugins',
             '@oclif/plugin-version',
             '@thymian/cli-reporter',
             '@thymian/format-validator',

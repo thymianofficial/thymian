@@ -1,10 +1,5 @@
 import type { RuleViolationLocation } from '@thymian/core';
-import {
-  and,
-  getHeader,
-  httpTransactionToLabel,
-  responseHeader,
-} from '@thymian/core';
+import { and, getHeader, responseHeader } from '@thymian/core';
 import { httpRule } from '@thymian/core';
 
 export default httpRule(
@@ -23,10 +18,13 @@ export default httpRule(
   .summary(
     'Origin servers MUST NOT generate Last-Modified dates later than the Date header.',
   )
+  .explanation(
+    'A server that has a clock must never claim a resource was last modified at a time later than the moment it generated the response, that is, later than its own Date header. If internal metadata yields a future modification time, the server must clamp it down to the response Date. A future Last-Modified confuses caches and conditional-request logic, which compare that timestamp against the current time and can end up serving stale content or making the wrong freshness decisions.',
+  )
   .rule((ctx) =>
     ctx.validateHttpTransactions(
       and(responseHeader('last-modified'), responseHeader('date')),
-      (req, res, _location: RuleViolationLocation) => {
+      (_req, res, location: RuleViolationLocation) => {
         const lastModifiedHeader = getHeader(res.headers, 'last-modified');
         const dateHeader = getHeader(res.headers, 'date');
 
@@ -47,9 +45,9 @@ export default httpRule(
         if (lastModifiedDate > dateValue) {
           return [
             {
-              location: httpTransactionToLabel(req, res),
+              location,
               violation: {
-                message: `Last-Modified date (${lastModifiedHeader}) is later than Date header (${dateHeader})`,
+                message: `The Last-Modified date (${lastModifiedHeader}) is later than the Date header (${dateHeader}).`,
               },
               findings: [],
             },

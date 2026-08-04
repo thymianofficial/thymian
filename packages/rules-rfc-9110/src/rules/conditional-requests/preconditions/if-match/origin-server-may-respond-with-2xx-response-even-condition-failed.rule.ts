@@ -1,4 +1,4 @@
-import { and, method, or, requestHeader, statusCodeRange } from '@thymian/core';
+import { and, method, or, requestHeader, statusCode } from '@thymian/core';
 import { httpRule } from '@thymian/core';
 
 export default httpRule(
@@ -13,13 +13,15 @@ export default httpRule(
   .summary(
     'If the request is a state-changing operation that appears to have already been applied to the selected representation, the origin server MAY respond with a 2xx (Successful) status code.',
   )
+  .explanation(
+    "When an If-Match condition fails, the origin server must not perform the method, but it does have a choice of response. Normally it returns 412, yet if the request is a state-changing operation that appears to have already been applied, it may instead return a 2xx success. This handles the case where the client's change actually went through but it never saw the confirmation (a lost response or an equivalent change by another agent), letting the server acknowledge success rather than confusing the client with a failure.",
+  )
   .appliesTo('origin server')
-  .tags('conditional-requests', 'if-match', '412', 'precondition-failed')
   .rule((ctx) =>
     ctx.validateCommonHttpTransactions(
       and(
         requestHeader('if-match'),
-        statusCodeRange(400, 499),
+        statusCode(412),
         or(method('DELETE'), method('POST'), method('PATCH'), method('PUT')),
       ),
     ),

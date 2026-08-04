@@ -60,6 +60,11 @@ export default class Analyze extends BaseCliRunCommand<typeof Analyze> {
       });
     });
 
-    handleWorkflowOutcome(this, outcome);
+    handleWorkflowOutcome(
+      this,
+      outcome,
+      {},
+      { sortReportsBy: this.flags['sort-reports-by'] },
+    );
   }
 }

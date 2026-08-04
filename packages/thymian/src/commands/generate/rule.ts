@@ -2,7 +2,7 @@ import { writeFile } from 'node:fs/promises';
 import { EOL } from 'node:os';
 import { join, relative } from 'node:path';
 
-import { ThymianBaseCommand } from '@thymian/common-cli';
+import { ThymianBaseCommand, wrap } from '@thymian/common-cli';
 import { Flags, ux } from '@thymian/common-cli/oclif';
 import { checkbox, input, select } from '@thymian/common-cli/prompts';
 import {
@@ -140,6 +140,11 @@ export default class GenerateRule extends ThymianBaseCommand<
         { name: 'informational', value: 'informational' },
       ],
       required: true,
+      validate: (choices) =>
+        choices.some((choice) => choice.value === 'informational') &&
+        choices.length > 1
+          ? "'informational' cannot be combined with other rule types."
+          : true,
     });
 
     const appliesTo = await checkbox<HttpParticipantRole>({
@@ -186,7 +191,9 @@ export default class GenerateRule extends ThymianBaseCommand<
       const outputPath = join(this.flags.cwd, this.flags.output);
       await writeFile(outputPath, template, { encoding: 'utf-8' });
       this.log(
-        `${ux.colorize('green', 'Rule written to')} ${relative(this.flags.cwd, outputPath)}`,
+        wrap(
+          `${ux.colorize('green', 'Rule written to')} ${relative(this.flags.cwd, outputPath)}`,
+        ),
       );
     } else {
       this.log(template);

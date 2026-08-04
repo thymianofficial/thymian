@@ -1,15 +1,24 @@
 import {
   and,
+  httpRule,
   method,
   not,
   or,
   requestHeader,
   responseHeader,
   responseWith,
+  type RuleFnResult,
+  singleTestCase,
   statusCode,
 } from '@thymian/core';
-import { httpRule, type RuleFnResult, singleTestCase } from '@thymian/core';
 
+/**
+ * `static` lints the described transaction (an If-Modified-Since request should
+ * be able to produce a 304). `test` actively probes real behavior: it replays a
+ * fresh GET/HEAD with If-Modified-Since set to the resource's own Last-Modified
+ * (so the condition evaluates to false / "not modified") and asserts the server
+ * answers 304.
+ */
 export default httpRule(
   'rfc9110/origin-server-should-respond-304-when-if-modified-since-false',
 )
@@ -22,8 +31,10 @@ export default httpRule(
   .summary(
     'Origin server SHOULD respond with 304 when If-Modified-Since condition is false.',
   )
+  .explanation(
+    'When a GET or HEAD carries If-Modified-Since and the resource has not changed since the date the client supplied, the server should skip sending the body again and instead reply 304 Not Modified with just the metadata needed to refresh a cached copy. This is the core of efficient caching: the client already holds an up-to-date copy, so re-transferring the whole representation wastes bandwidth and time. Answering 304 lets the client reuse what it has while confirming it is still current.',
+  )
   .appliesTo('origin server')
-  .tags('conditional-requests', 'if-modified-since', '304')
   .rule((ctx) =>
     ctx.validateCommonHttpTransactions(
       and(
@@ -60,7 +71,9 @@ export default httpRule(
                 elementType: 'edge',
                 elementId: notModifiedTransaction.source.transactionId,
               },
-              violation: {},
+              violation: {
+                message: `A GET/HEAD request replayed with If-Modified-Since set to the resource's own Last-Modified value (so the condition is false) received a ${notModifiedTransaction.response.statusCode} response instead of 304 Not Modified.`,
+              },
               findings: [],
             });
           }

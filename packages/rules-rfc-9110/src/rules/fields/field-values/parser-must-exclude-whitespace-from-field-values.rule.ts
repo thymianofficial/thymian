@@ -1,13 +1,12 @@
 import { httpRule } from '@thymian/core';
 
-// TODO: Implement ABNF validation for field-value format (field-content, field-vchar)
-// Requires parsing field-value ABNF to detect and validate whitespace handling:
-//   field-value = *field-content
-//   field-content = field-vchar [ 1*( SP / HTAB / field-vchar ) field-vchar ]
 export default httpRule(
   'rfc9110/parser-must-exclude-whitespace-from-field-values',
 )
   .severity('error')
+  // Stripping leading/trailing whitespace before evaluating a field value is
+  // internal recipient parsing behaviour; the trimmed value is not re-emitted,
+  // so there is no observable signal.
   .type('informational')
   .url('https://www.rfc-editor.org/rfc/rfc9110.html#section-5.5')
   .description(
@@ -16,5 +15,4 @@ export default httpRule(
   .summary(
     'Field parsing implementations MUST exclude leading/trailing whitespace before evaluating field values.',
   )
-  .tags('fields', 'field-values', 'parsing')
   .done();

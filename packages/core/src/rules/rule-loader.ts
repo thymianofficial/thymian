@@ -10,25 +10,32 @@ import { isRecord } from '../utils.js';
 import { validate } from './ajv-validate.js';
 import type { Rule } from './rule.js';
 import type { RulesConfiguration } from './rule-configuration.js';
+import {
+  checkRuleExecutionInvariant,
+  checkRuleTypeDeclaration,
+  describeRuleExecutionInvariantViolation,
+  type RuleExecutionInvariantViolation,
+  ruleFnPropertyByType,
+} from './rule-execution-invariant.js';
 import type { RuleFilter } from './rule-filter.js';
 import type { RuleSet } from './rule-set.js';
 import { isRuleSeverityLevel } from './rule-severity.js';
 
 const require = createRequire(import.meta.url);
 
-type RecordWithFunctions<Properties extends string[]> = Record<
+type RecordWithFunctions<Property extends PropertyKey> = Record<
   PropertyKey,
   unknown
 > &
-  Record<Properties[number], (...args: unknown[]) => unknown>;
+  Record<Property, (...args: unknown[]) => unknown>;
 
-const ruleFunctionProperties = ['lintRule', 'testRule', 'analyzeRule'] as const;
+const ruleFunctionProperties = Object.values(ruleFnPropertyByType);
 
-type RuleFunctionProperties = typeof ruleFunctionProperties;
+type RuleFunctionProperty = (typeof ruleFunctionProperties)[number];
 
 function areFunctionPropertiesIfDefined(
   obj: Record<PropertyKey, unknown>,
-): obj is RecordWithFunctions<[...RuleFunctionProperties]> {
+): obj is RecordWithFunctions<RuleFunctionProperty> {
   return ruleFunctionProperties.every((property) => {
     if (!Object.hasOwn(obj, property)) {
       return true;
@@ -46,6 +53,111 @@ export function isRule(rule: unknown): rule is Rule {
   }
 
   return areFunctionPropertiesIfDefined(rule);
+}
+
+function throwInvalidRuleError(
+  rule: Rule,
+  violation: RuleExecutionInvariantViolation,
+  source: string,
+  extraSuggestions: string[],
+): never {
+  const { message, suggestions } = describeRuleExecutionInvariantViolation(
+    rule.meta.name,
+    violation,
+  );
+
+  throw new ThymianBaseError(`${message} (loaded from ${source})`, {
+    suggestions: [...suggestions, ...extraSuggestions],
+    name: 'InvalidRuleError',
+    ref: 'https://thymian.dev/references/errors/invalid-rule-error/',
+  });
+}
+
+// Rule filters dereference meta.type, so a malformed type declaration must
+// be rejected before the rule filter runs — even a disabled rule cannot be
+// filtered reliably when its declaration is garbage.
+function assertRuleTypeDeclaration(rule: Rule, source: string): void {
+  const violation = checkRuleTypeDeclaration(rule);
+
+  if (violation) {
+    throwInvalidRuleError(rule, violation, source, []);
+  }
+}
+
+// Guards the rule execution invariant at load time, where it is airtight:
+// it also covers rules that bypass the httpRule builder (hand-constructed
+// rule objects) and rules whose `type` was reassigned via configuration.
+// Callers run this only on rules that passed the rule filter, so a broken
+// rule in a third-party package can always be unblocked by disabling it.
+// The 'informational-rule-with-execution-function' violation is deliberately
+// tolerated here: configuration may downgrade an executable rule to
+// 'informational' to stop executing it, which leaves its (now unused)
+// execution functions in place.
+function assertRuleExecutionInvariant(
+  rule: Rule,
+  source: string,
+  extraSuggestions: string[] = [],
+): void {
+  const violation = checkRuleExecutionInvariant(rule);
+
+  if (
+    !violation ||
+    violation.reason === 'informational-rule-with-execution-function'
+  ) {
+    return;
+  }
+
+  throwInvalidRuleError(rule, violation, source, extraSuggestions);
+}
+
+function typeOverrideSuggestions(
+  rule: Rule,
+  options: RulesConfiguration,
+): string[] {
+  const ruleOptions = options[rule.meta.name];
+
+  return isRecord(ruleOptions) && ruleOptions.type
+    ? [
+        `Check the "type" override for rule "${rule.meta.name}" in your Thymian config file.`,
+      ]
+    : [];
+}
+
+// Applies per-rule configuration overrides onto a copy of the rule, so the
+// cached module object is never mutated.
+function applyRuleConfiguration(rule: Rule, options: RulesConfiguration): Rule {
+  const configured = {
+    ...rule,
+    meta: {
+      ...rule.meta,
+    },
+  };
+
+  const ruleOptions = options[configured.meta.name];
+
+  if (isRecord(ruleOptions)) {
+    configured.meta.severity = ruleOptions.severity ?? configured.meta.severity;
+    configured.meta.type = ruleOptions.type ?? configured.meta.type;
+
+    if (ruleOptions.options && configured.meta.options) {
+      if (!validate(configured.meta.options, ruleOptions.options)) {
+        throw new ThymianBaseError(
+          `Options for rule "${configured.meta.name}" does not match the schema of the rule.`,
+          {
+            suggestions: [
+              'Check the options for the rule in your Thymian config file.',
+            ],
+            name: 'InvalidRuleOptionError',
+            ref: 'https://thymian.dev/references/errors/invalid-rule-option/',
+          },
+        );
+      }
+    }
+  } else if (isRuleSeverityLevel(ruleOptions)) {
+    configured.meta.severity = ruleOptions;
+  }
+
+  return configured;
 }
 
 export function isRuleSet(ruleSet: unknown): ruleSet is RuleSet {
@@ -68,7 +180,28 @@ async function loadRuleSet(
   cwd: string,
 ): Promise<Rule[]> {
   if (ruleSet.rules) {
-    return ruleSet.rules.filter(ruleFilter);
+    const source = `rule set "${ruleSet.name}"`;
+    const rules: Rule[] = [];
+
+    for (const inlineRule of ruleSet.rules) {
+      const rule = applyRuleConfiguration(inlineRule, options);
+
+      assertRuleTypeDeclaration(rule, source);
+
+      if (!ruleFilter(rule)) {
+        continue;
+      }
+
+      assertRuleExecutionInvariant(
+        rule,
+        source,
+        typeOverrideSuggestions(rule, options),
+      );
+
+      rules.push(rule);
+    }
+
+    return rules;
   }
 
   const rules: Rule[] = [];
@@ -154,44 +287,21 @@ export async function loadRules(
   const ruleOrRuleSet = module.default;
 
   if (isRule(ruleOrRuleSet)) {
-    // Create a shallow copy of the rule to avoid mutating the cached module
-    const rule = {
-      ...ruleOrRuleSet,
-      meta: {
-        ...ruleOrRuleSet.meta,
-      },
-    };
+    const rule = applyRuleConfiguration(ruleOrRuleSet, options);
 
-    const { name } = rule.meta;
-    const ruleOptions = options[name];
+    assertRuleTypeDeclaration(rule, location);
 
-    if (isRecord(ruleOptions)) {
-      rule.meta.severity = ruleOptions.severity ?? rule.meta.severity;
-      rule.meta.type = ruleOptions.type ?? rule.meta.type;
-
-      if (ruleOptions.options && rule.meta.options) {
-        if (!validate(rule.meta.options, ruleOptions.options)) {
-          throw new ThymianBaseError(
-            `Options for rule "${rule.meta.name}" does not match the schema of the rule.`,
-            {
-              suggestions: [
-                'Check the options for the rule in your Thymian config file.',
-              ],
-              name: 'InvalidRuleOptionError',
-              ref: 'https://thymian.dev/references/errors/invalid-rule-option/',
-            },
-          );
-        }
-      }
-    } else if (isRuleSeverityLevel(ruleOptions)) {
-      rule.meta.severity = ruleOptions;
+    if (!ruleFilter(rule)) {
+      return [];
     }
 
-    if (ruleFilter(rule)) {
-      return [rule];
-    }
+    assertRuleExecutionInvariant(
+      rule,
+      location,
+      typeOverrideSuggestions(rule, options),
+    );
 
-    return [];
+    return [rule];
   }
 
   if (isRuleSet(ruleOrRuleSet)) {

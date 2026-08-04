@@ -90,7 +90,10 @@ export default httpRule(
     'A sender that generates a 206 response to a request with an If-Range header field SHOULD NOT generate other representation header fields beyond those required because the client already has a prior response containing those header fields. Otherwise, a sender MUST generate all of the representation header fields that would have been sent in a 200 (OK) response to the same request.',
   )
   .summary(
-    'A sender SHOULD NOT sent additional representation header fields or MUST generate all representation headers for a 206 Partial Content response.',
+    'A sender SHOULD NOT send additional representation header fields or MUST generate all representation headers for a 206 Partial Content response.',
+  )
+  .explanation(
+    "When a 206 Partial Content response is sent for a conditional range request (one carrying an If-Range header), the client already holds an earlier full response with the representation metadata, so the server should avoid resending extra representation headers like Content-Encoding, ETag, or Last-Modified. If the server does include such headers, it must then include the full set it would have sent in a 200 OK. This keeps the client's picture of the representation consistent, so it doesn't stitch together a partial body against stale or mismatched metadata.",
   )
   .rule((ctx) =>
     ctx.validateGroupedCommonHttpTransactions(

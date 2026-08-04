@@ -1,34 +1,42 @@
 import type { RequestFilterExpression } from '../../index.js';
-import { type HttpRequestTemplate, setHeader } from '../../index.js';
+import {
+  type HttpRequestTemplate,
+  isConstant,
+  setHeader,
+} from '../../index.js';
 
 export function overrideTemplate(
   template: HttpRequestTemplate,
   toRequest: RequestFilterExpression,
   value: unknown,
 ): HttpRequestTemplate {
+  // .set() accepts constant() expressions; unwrap them so the template holds
+  // the raw value instead of the expression object.
+  const rawValue = isConstant(value) ? value.value : value;
+
   switch (toRequest.type) {
     case 'method':
-      template.method = value as string;
+      template.method = rawValue as string;
       break;
     case 'requestHeader':
       if (typeof toRequest.header === 'undefined') {
         break;
       }
 
-      setHeader(template.headers, toRequest.header, value);
+      setHeader(template.headers, toRequest.header, rawValue);
       break;
     case 'queryParam':
       if (typeof toRequest.param === 'undefined') {
         break;
       }
 
-      setHeader(template.query, toRequest.param, value);
+      setHeader(template.query, toRequest.param, rawValue);
       break;
     case 'path':
-      template.path = value as string;
+      template.path = rawValue as string;
       break;
     case 'origin':
-      template.origin = value as string;
+      template.origin = rawValue as string;
       break;
     case 'requestMediaType':
       setHeader(template.headers, 'content-type', toRequest.mediaType);

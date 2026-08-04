@@ -1,0 +1,76 @@
+---
+import type { CollectionEntry } from 'astro:content';
+
+import CtaLink from '../CtaLink.astro';
+import ConsentEmbed from '../media/ConsentEmbed.astro';
+import { resolveResourceEmbed } from './resourceMeta';
+
+interface Props {
+  resource: CollectionEntry<'resources'>;
+}
+
+const { resource } = Astro.props;
+const { title, resourceType, url, embeddable } = resource.data;
+const media = resolveResourceEmbed({ resourceType, url, embeddable, title });
+
+/**
+ * Provider display metadata, keyed by the resolver's provider id. The gate
+ * surfaces the data controller ("Google") so the third-country transfer is
+ * explicit in the consent notice + button name. Unknown providers fall back to
+ * the raw id with no owner. Threading it through keeps `resolveResourceEmbed`
+ * the single embed-vs-link decision point (AC5).
+ */
+const PROVIDER_LABELS: Record<string, { name: string; owner?: string }> = {
+  youtube: { name: 'YouTube', owner: 'Google' },
+};
+const providerInfo =
+  media.kind === 'embed'
+    ? (PROVIDER_LABELS[media.provider] ?? { name: media.provider })
+    : null;
+---
+
+<div class="resource-embed">
+  {
+    media.kind === 'embed' ? (
+      /*
+        Click-to-load consent gate (GDPR 2-Klick): a neutral local placeholder
+        that makes NO third-party request until the visitor activates it, then
+        loads the `youtube-nocookie` player in place. The gate also carries the
+        AC3′ fail-safe link-out, so this branch owns the full embed surface.
+      */
+      <ConsentEmbed
+        src={media.src}
+        provider={providerInfo!.name}
+        providerOwner={providerInfo!.owner}
+        title={title}
+        embedTitle={media.title}
+        fallback={media.fallback}
+      />
+    ) : (
+      /*
+        Link resource: the CTA is the primary (and only) affordance — the
+        shared ghost CtaLink pill (the embed branch's link-out lives in
+        ConsentEmbed, on the same pill).
+      */
+      <p class="resource-embed-actions">
+        <CtaLink href={media.url} variant="ghost">
+          {media.label}
+        </CtaLink>
+      </p>
+    )
+  }
+</div>
+
+<style>
+  .resource-embed {
+    display: flex;
+    flex-direction: column;
+    gap: 0.625rem;
+    margin-top: 0.25rem;
+  }
+
+  .resource-embed-actions {
+    margin: 0;
+    display: flex;
+  }
+</style>

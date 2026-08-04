@@ -1,11 +1,21 @@
 import {
   and,
+  type CommonHttpRequest,
+  type CommonHttpResponse,
   method,
-  or,
-  responseHeader,
   statusCodeRange,
 } from '@thymian/core';
 import { httpRule } from '@thymian/core';
+
+import { createList } from '../../../../utils.js';
+
+const forbiddenHeaders = ['transfer-encoding', 'content-length'];
+
+function presentForbiddenHeaders(headers: string[]): string[] {
+  return forbiddenHeaders.filter((forbidden) =>
+    headers.some((header) => header.toLowerCase() === forbidden),
+  );
+}
 
 export default httpRule(
   'rfc9110/server-must-not-send-transfer-encoding-or-content-length-headers-in-2xx-response-to-connect-request',
@@ -16,11 +26,32 @@ export default httpRule(
   .description(
     'A server MUST NOT send any Transfer-Encoding or Content-Length header fields in a 2xx (Successful) response to CONNECT.',
   )
+  .explanation(
+    'When a server answers a CONNECT request with a 2xx success, it must not include Transfer-Encoding or Content-Length headers. A successful CONNECT means the connection immediately switches to a raw tunnel after the response headers, and everything that follows is tunneled data from the destination, not an HTTP message body. Sending those framing headers would falsely imply a normal response body, confusing the client about where the tunnel begins and corrupting the tunneled stream.',
+  )
   .appliesTo('server')
   .rule((ctx) =>
     ctx.validateCommonHttpTransactions(
       and(method('CONNECT'), statusCodeRange(200, 299)),
-      or(responseHeader('transfer-encoding'), responseHeader('content-length')),
+      (_req: CommonHttpRequest, res: CommonHttpResponse, location) => {
+        const present = presentForbiddenHeaders(res.headers);
+
+        if (present.length === 0) {
+          return [];
+        }
+
+        return [
+          {
+            location,
+            violation: {
+              message: `A 2xx (Successful) response to CONNECT MUST NOT carry headers: ${createList(
+                present,
+              )}.`,
+            },
+            findings: [],
+          },
+        ];
+      },
     ),
   )
   .done();

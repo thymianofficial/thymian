@@ -10,7 +10,9 @@ import {
 describe('generateRequestTypes', () => {
   it(
     'should generate request type definitions as a string - small',
-    { timeout: 10000 },
+    // ts-morph pulls in the full TS compiler; its cold import can exceed 10s on
+    // slow (esp. Windows) CI runners, so give the import headroom.
+    { timeout: 30_000 },
     async () => {
       const format = new ThymianFormat();
 
@@ -77,7 +79,7 @@ describe('generateRequestTypes', () => {
 
   it(
     'should generate request type definitions as a string - large',
-    { timeout: 10_000 },
+    { timeout: 30_000 },
     async () => {
       const format = ThymianFormat.import(
         {

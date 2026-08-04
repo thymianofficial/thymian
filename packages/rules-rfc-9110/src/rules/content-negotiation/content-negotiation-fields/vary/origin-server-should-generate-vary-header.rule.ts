@@ -141,6 +141,9 @@ export default httpRule('rfc9110/origin-server-should-generate-vary-header')
   .summary(
     'An origin server SHOULD generate a Vary header field on a cacheable response when it wishes that response to be selectively reused for subsequent requests.',
   )
+  .explanation(
+    'When a server tailors a cacheable response to request headers such as Accept-Language or Accept-Encoding, it should add a Vary header naming those headers. Vary tells caches which request headers made this response specific, so a stored copy is only reused for later requests that match on them. Without it, a shared cache may hand a response built for one client (say, French content) to another client that asked for something different, causing cache poisoning and wrong content being served.',
+  )
   .appliesTo('origin server')
   // Static context sees only header names (no values), so it can only check
   // that a `Vary` header is present when a negotiation request header is.

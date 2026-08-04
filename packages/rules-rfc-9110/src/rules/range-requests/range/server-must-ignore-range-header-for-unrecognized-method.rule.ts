@@ -31,6 +31,9 @@ export default httpRule(
   .summary(
     'A server must ignore a Range header field received with a method (other than GET) for which range handling is not defined.',
   )
+  .explanation(
+    'Range requests are only defined for GET, so if a Range header arrives on any other method (or a method the server does not recognize), the server must act as if the header were not there and respond normally, never with 206 or a Content-Range. Honoring a range on, say, a POST or PUT would give meaning to something the spec leaves undefined, producing surprising, non-interoperable behavior that clients cannot rely on.',
+  )
   .appliesTo('server')
   .rule((ctx) =>
     ctx.validateCommonHttpTransactions(
