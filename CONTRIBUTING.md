@@ -1,5 +1,10 @@
 # Contributing to Thymian
 
+## Prerequisites
+
+Thymian requires **Node.js 22 or newer**. All published packages declare `"engines": { "node": ">=22" }`, and CI
+builds and tests on Node **22** and **24**.
+
 ## Commit Message Scopes
 
 When making commits, use one of the following scopes to indicate the area of the codebase your change affects:

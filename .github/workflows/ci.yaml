@@ -52,9 +52,9 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        version: [20, 22, 24]
+        version: [22, 24]
         # Pin Windows to 2022: windows-latest now maps to the VS 2026 (v18) image,
-        # which node-gyp 10 (bundled with Node 20/22's npm) cannot detect, breaking
+        # which node-gyp 10 (bundled with Node 22's npm) cannot detect, breaking
         # any better-sqlite3 source-build fallback. VS 2022 is detectable.
         os: [ubuntu-latest, windows-2022, macos-latest]
     runs-on: ${{ matrix.os }}
@@ -73,7 +73,6 @@ jobs:
         run: npm ci
       - uses: nrwl/nx-set-shas@v4
       - name: Build
-        # Astro 6 requires Node >=22.12, so skip the astro project on the Node 20 lane.
-        run: npx nx affected:build ${{ matrix.version == 20 && '--exclude astro' || '' }}
+        run: npx nx affected:build
       - name: Test
         run: npx nx affected:test

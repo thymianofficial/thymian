@@ -27,6 +27,10 @@ Thymian is a language-agnostic, open-source **HTTP conformance and API governanc
 
 ## 🚀 Quick Installation
 
+### Requirements
+
+Thymian requires **Node.js 22 or newer** — the supported _LTS_ versions are **22** and **24**.
+
 ### Installation
 
 You won't need to install Thymian locally, we will just use `npx` for this.
