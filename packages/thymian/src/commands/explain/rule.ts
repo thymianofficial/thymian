@@ -12,7 +12,9 @@ import {
 
 export default class ExplainRule extends BaseCliRunCommand<typeof ExplainRule> {
   static override description =
-    'Explain a single rule: what it checks, why it matters, and how to act on it.';
+    'Explain a single rule: what it checks, why it matters, and how to act on it. ' +
+    'Any rule in the configured rule sets can be explained regardless of its ' +
+    'severity, so the inherited --rule-severity flag has no effect here.';
 
   static override examples = [
     '<%= config.bin %> <%= command.id %> rfc9110/origin-server-should-send-501-response-for-unrecognized-method',
@@ -52,9 +54,10 @@ export default class ExplainRule extends BaseCliRunCommand<typeof ExplainRule> {
       );
     }
 
-    // Canonical lookup keyed by the stable `<ruleset>/<name>` id that reports use.
-    const ruleMap = new Map(rules.map((rule) => [rule.meta.name, rule]));
-    const rule = ruleMap.get(this.args.ruleName);
+    // Look up by the stable `<ruleset>/<name>` id that reports use. `find`
+    // takes the first match, so an earlier rule set wins over a later
+    // same-named rule instead of it being silently shadowed.
+    const rule = rules.find((r) => r.meta.name === this.args.ruleName);
 
     if (!rule) {
       this.error(
@@ -68,9 +71,9 @@ export default class ExplainRule extends BaseCliRunCommand<typeof ExplainRule> {
 
 /**
  * Render focused, educational detail for a single rule. Optional fields are
- * omitted entirely when absent — no empty headings or placeholders. Field order
- * follows UX Decision 11: id → summary → description → "Why this matters"
- * (explanation) → "Recommendation" → Severity → Applies to → Reference.
+ * omitted entirely when absent — no empty headings or placeholders. Section
+ * order (per UX Decision 11): RULE → SUMMARY → DESCRIPTION → EXPLANATION →
+ * RECOMMENDATION → SEVERITY → APPLIES TO → REFERENCE.
  *
  * Content is identical across TTY and non-TTY; only color (stripped by
  * `oclif.ux.colorize` when the stream is not a TTY) differs. Unicode severity

@@ -90,6 +90,21 @@ describe('explain rule command', () => {
     expect(stdout).toContain(
       'https://www.rfc-editor.org/rfc/rfc9110.html#name-overview',
     );
+
+    // Field order is a documented contract (UX Decision 11), not just presence.
+    const sectionOrder = [
+      'RULE',
+      'SUMMARY',
+      'DESCRIPTION',
+      'EXPLANATION',
+      'RECOMMENDATION',
+      'SEVERITY',
+      'APPLIES TO',
+      'REFERENCE',
+    ];
+    const positions = sectionOrder.map((heading) => stdout.indexOf(heading));
+    expect(positions.every((p) => p >= 0)).toBe(true);
+    expect(positions).toEqual([...positions].sort((a, b) => a - b));
   });
 
   it('fails cleanly with a non-zero exit for an unknown rule', async () => {
@@ -121,17 +136,26 @@ describe('explain rule command', () => {
     expect(first.stdout).toEqual(second.stdout);
   });
 
-  it('emits plain, symbol-preserving output in non-TTY mode', async () => {
+  it('keeps content identical across color modes, preserving the severity symbol', async () => {
     mockedLoadRules.mockResolvedValue([fullyPopulated]);
 
-    const { stdout } = await captureOutput(async () => {
+    const run = async (): Promise<void> => {
       await ExplainRule.run(['rfc9110/example-rule', '--no-autoload']);
-    });
+    };
 
-    // Captured (non-TTY) output carries no ANSI color escapes...
-    expect(stdout).not.toContain(ANSI_ESCAPE);
-    // ...but the Unicode severity symbol is preserved.
-    expect(stdout).toContain(ERROR_SYMBOL);
+    // Default capture strips ANSI; the second keeps it (`stripAnsi: false`) so
+    // the comparison is non-vacuous — the helper's default would otherwise hide
+    // any escapes the command emitted.
+    const { stdout: stripped } = await captureOutput(run);
+    const { stdout: raw } = await captureOutput(run, { stripAnsi: false });
+
+    // Color is purely presentational (via `ux.colorize`): stripping ANSI from
+    // the raw render must reproduce the plain render exactly — AC5's "content
+    // identical across modes, only presentation changes".
+    const ansiPattern = new RegExp(`${ANSI_ESCAPE}\\[[0-9;]*m`, 'g');
+    expect(raw.replace(ansiPattern, '')).toEqual(stripped);
+    // The Unicode severity symbol is content, not color — it survives stripping.
+    expect(stripped).toContain(ERROR_SYMBOL);
   });
 
   it('loads rules threshold-independently — filter admits warn/hint/off', async () => {
@@ -146,7 +170,13 @@ describe('explain rule command', () => {
     // (incl. disabled `off` rules) — otherwise a real warn/hint rule the user
     // names would be reported as "Unknown rule".
     expect(mockedLoadRules).toHaveBeenCalledTimes(1);
-    const filter = mockedLoadRules.mock.calls[0]![1];
+    // `loadRules`' filter param is optional (defaults to `() => true`), so the
+    // captured arg is `RuleFilter | undefined`; assert + narrow before calling.
+    const filter = mockedLoadRules.mock.calls[0]?.[1];
+    expect(filter).toBeDefined();
+    if (!filter) {
+      return;
+    }
     expect(filter(makeRule({ name: 'w', severity: 'warn' }))).toBe(true);
     expect(filter(makeRule({ name: 'h', severity: 'hint' }))).toBe(true);
     expect(filter(makeRule({ name: 'o', severity: 'off' }))).toBe(true);
@@ -167,5 +197,39 @@ describe('explain rule command', () => {
     });
 
     expect(stdout).not.toContain('APPLIES TO');
+  });
+
+  it('renders an `off`-severity rule without a symbol or error', async () => {
+    mockedLoadRules.mockResolvedValue([
+      makeRule({
+        name: 'rfc9110/disabled-rule',
+        severity: 'off',
+        description: 'A disabled rule can still be explained.',
+      }),
+    ]);
+
+    const { stdout, error } = await captureOutput(async () => {
+      await ExplainRule.run(['rfc9110/disabled-rule', '--no-autoload']);
+    });
+
+    expect(error).toBeUndefined();
+    expect(stdout).toContain('SEVERITY');
+    expect(stdout).toContain('off');
+    // `off` has no report symbol; it must not borrow another severity's glyph.
+    expect(stdout).not.toContain(SEVERITY_SYMBOLS.error);
+  });
+
+  it('errors clearly when no rules are loaded', async () => {
+    mockedLoadRules.mockResolvedValue([]);
+
+    const { error } = await captureOutput(async () => {
+      await ExplainRule.run(['rfc9110/anything', '--no-autoload']);
+    });
+
+    expect(error).toBeDefined();
+    expect(error!.message).toContain('No rules are loaded');
+    expect(
+      (error as { oclif?: { exit?: number } }).oclif?.exit,
+    ).toBeGreaterThan(0);
   });
 });
