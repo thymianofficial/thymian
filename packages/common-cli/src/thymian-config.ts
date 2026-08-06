@@ -1,5 +1,6 @@
 import type {
   LogLevel,
+  ReportInput,
   RulesConfiguration,
   RuleSeverity,
   SpecificationInput,
@@ -33,6 +34,7 @@ export interface ThymianConfig {
   logLevel?: LogLevel;
   specifications?: SpecificationInput[];
   traffic?: TrafficInput[];
+  reports?: ReportInput[];
   ruleSets?: RuleSetEntry[];
   ruleSeverity?: RuleSeverity;
   rules?: RulesConfiguration;

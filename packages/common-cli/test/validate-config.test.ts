@@ -74,6 +74,33 @@ describe('validate-config', () => {
         expect(result.valid).toBe(true);
       });
 
+      it('should validate ThymianConfig with reports array', () => {
+        const config: ThymianConfig = {
+          plugins: {},
+          reports: [{ type: 'spectral', location: './report.json' }],
+        };
+
+        const result = validateConfig(config);
+
+        expect(result.valid).toBe(true);
+      });
+
+      it('should invalidate a reports entry missing the required type', () => {
+        const config = {
+          plugins: {},
+          reports: [{ location: './report.json' }],
+        };
+
+        const result = validateConfig(config);
+
+        expect(result.valid).toBe(false);
+        if (result.valid === false) {
+          expect(result.message).toContain(
+            "is missing the required field 'type'",
+          );
+        }
+      });
+
       it('should validate ThymianConfig with ruleSets', () => {
         const config: ThymianConfig = {
           plugins: {},
