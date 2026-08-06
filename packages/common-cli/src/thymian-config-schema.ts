@@ -67,7 +67,11 @@ export const thymianConfigSchema = {
         required: ['type', 'location'],
         additionalProperties: false,
         properties: {
-          type: { type: 'string', description: 'For example `spectral`.' },
+          type: {
+            type: 'string',
+            minLength: 1,
+            description: 'For example `spectral`.',
+          },
           location: { description: 'File path or supported path source.' },
           options: {
             type: 'object',

@@ -85,6 +85,17 @@ describe('validate-config', () => {
         expect(result.valid).toBe(true);
       });
 
+      it('should invalidate a reports entry with an empty-string type', () => {
+        const config = {
+          plugins: {},
+          reports: [{ type: '', location: './report.json' }],
+        };
+
+        const result = validateConfig(config);
+
+        expect(result.valid).toBe(false);
+      });
+
       it('should invalidate a reports entry missing the required type', () => {
         const config = {
           plugins: {},
