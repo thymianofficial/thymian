@@ -14,7 +14,7 @@
         "character": 30
       }
     },
-    "source": "api.yaml"
+    "source": "test.openapi.yaml"
   },
   {
     "code": "info-contact",
@@ -31,7 +31,7 @@
         "character": 16
       }
     },
-    "source": "api.yaml"
+    "source": "test.openapi.yaml"
   },
   {
     "code": "info-description",
@@ -48,7 +48,7 @@
         "character": 16
       }
     },
-    "source": "api.yaml"
+    "source": "test.openapi.yaml"
   },
   {
     "code": "operation-description",
@@ -65,7 +65,7 @@
         "character": 30
       }
     },
-    "source": "api.yaml"
+    "source": "test.openapi.yaml"
   },
   {
     "code": "operation-tags",
@@ -82,7 +82,7 @@
         "character": 30
       }
     },
-    "source": "api.yaml"
+    "source": "test.openapi.yaml"
   },
   {
     "code": "operation-description",
@@ -99,7 +99,7 @@
         "character": 30
       }
     },
-    "source": "api.yaml"
+    "source": "test.openapi.yaml"
   },
   {
     "code": "operation-tags",
@@ -116,6 +116,6 @@
         "character": 30
       }
     },
-    "source": "api.yaml"
+    "source": "test.openapi.yaml"
   }
 ]
