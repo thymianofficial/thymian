@@ -34,6 +34,7 @@ After loading config, CLI flags can override parts of it. Common overrides inclu
 
 - `--spec <type:path>` overrides `specifications`
 - `--traffic <type:path>` overrides `traffic`
+- `--report <type:path>` overrides `reports` (used by `thymian report convert`)
 - `--target-url <url>` overrides `targetUrl`
 - `--rule-set <name>` extends `ruleSets` at runtime (appends and deduplicates)
 - `--rule-severity <off|error|warn|hint>` overrides `ruleSeverity`
@@ -74,6 +75,7 @@ plugins:
   '@thymian/plugin-http-tester': {}
   '@thymian/plugin-http-analyzer': {}
   '@thymian/plugin-har': {}
+  '@thymian/plugin-spectral': {}
 ```
 
 ## Workflow-specific examples
@@ -119,6 +121,30 @@ plugins:
       formatters:
         markdown: {}
 ```
+
+### Convert external reports
+
+`reports` declares the pre-generated external reports that `thymian report convert` imports; the optional `specifications` entries let the converter map findings onto your API description. `--report` flags replace the `reports` entries, exactly like `--spec` replaces `specifications`.
+
+```yaml
+reports:
+  - type: spectral
+    location: ./report.json
+
+specifications:
+  - type: openapi
+    location: ./openapi.yaml
+
+plugins:
+  '@thymian/plugin-openapi': {}
+  '@thymian/plugin-spectral': {}
+  '@thymian/plugin-reporter':
+    options:
+      formatters:
+        markdown: {}
+```
+
+See [Importing Spectral results](/tutorials/spectral-integration/) for the full flow.
 
 ### Analyze recorded traffic
 
@@ -236,3 +262,4 @@ Common issues:
 - [Use `thymian lint` workflow](/tutorials/thymian-lint-workflow/)
 - [Use `thymian test` workflow](/tutorials/thymian-test-workflow/)
 - [Use `thymian analyze` workflow](/tutorials/thymian-analyze-workflow/)
+- [Importing Spectral results](/tutorials/spectral-integration/)

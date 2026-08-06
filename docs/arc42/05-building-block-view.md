@@ -132,6 +132,7 @@ C4Container
 | OpenAPI Loader                   | `packages/plugin-openapi`                   | `@thymian/plugin-openapi`                   |
 | Text / CSV / Markdown Reporter   | `packages/plugin-reporter`                  | `@thymian/plugin-reporter`                  |
 | HAR Loader                       | `packages/plugin-har`                       | `@thymian/plugin-har`                       |
+| Spectral Report Converter        | `packages/plugin-spectral`                  | `@thymian/plugin-spectral`                  |
 | Request Dispatcher               | `packages/plugin-request-dispatcher`        | `@thymian/plugin-request-dispatcher`        |
 | Sampler                          | `packages/plugin-sampler`                   | `@thymian/plugin-sampler`                   |
 | WebSocket Proxy                  | `packages/plugin-websocket-proxy`           | `@thymian/plugin-websocket-proxy`           |

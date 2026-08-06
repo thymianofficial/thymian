@@ -1,0 +1,109 @@
+---
+title: Importing Spectral results
+description: Convert pre-generated Spectral JSON output into Thymian reports with thymian report convert, and gate CI on the combined result.
+---
+
+import { Aside } from '@astrojs/starlight/components';
+
+If your team already lints OpenAPI documents with [Spectral](https://github.com/stoplightio/spectral), `thymian report convert` imports those results into Thymian reporting: Spectral findings become first-class Thymian findings that render, format, and gate CI exactly like native lint results.
+
+<Aside type="note">
+  **Thymian never executes Spectral.** You run Spectral yourself — locally or in
+  CI — and Thymian consumes the JSON report it produced. Thymian has no
+  dependency on Spectral.
+</Aside>
+
+## When to Use `thymian report convert`
+
+Use it when you have existing Spectral output and want it in the Thymian pipeline:
+
+- you are migrating from Spectral and want both result sets in one report format
+- your CI already runs Spectral and you want Thymian's formatters (markdown, CSV, JSON) and exit-code gating on those results
+- you want Spectral findings mapped onto the endpoints of your API description
+
+## Supported input format
+
+The converter accepts exactly one format: **the JSON array produced by Spectral's `json` formatter** (`spectral lint -f json`). Each result carries `code`, `message`, `severity` (0–3), `path`, `range`, `source`, and optionally `documentationUrl`.
+
+Spectral's other output formats — text, stylish, YAML, SARIF, and friends — are **not** supported. Re-run Spectral with `-f json` if you have something else.
+
+## Step by Step Instructions
+
+### Step 1: Produce a Spectral JSON report
+
+Run Spectral as usual, choosing the JSON formatter and writing to a file:
+
+```bash
+npx @stoplight/spectral-cli lint -f json -o report.json api.yaml
+```
+
+This happens entirely outside Thymian — in CI, keep your existing Spectral step and just persist the JSON output.
+
+### Step 2: Convert it into a Thymian report
+
+Pass the report as a typed input. The `<type>:<location>` syntax splits on the **first** colon, so locations may themselves contain colons (URLs, Windows paths); bare paths without a type are rejected:
+
+```bash
+npx thymian report convert --report spectral:./report.json --spec openapi:./api.yaml
+```
+
+The `--spec` input is optional. When you provide it, Thymian loads the API description and maps findings onto its endpoints where possible; findings it cannot map keep their file locations from the Spectral report.
+
+### Step 3: Read the result
+
+The converted report renders like any other Thymian report. Rule ids are namespaced `spectral/<code>` so they never collide with Thymian rules, and each finding keeps its Spectral message, severity, and source location:
+
+```console
+@thymian/plugin-spectral · lint · ──────────────────────────────────────────────
+
+  api.yaml:2:6
+
+    ⚠ warn: Info object must have "contact" object.
+              › spectral/info-contact
+
+    ⚠ warn: Info "description" must be present and non-empty string.
+              › spectral/info-description
+
+Summary: 0 errors, 7 warnings, 0 hints, 0 infos.
+```
+
+Severities map one-to-one: Spectral `0`/`1`/`2`/`3` become `error`/`warn`/`info`/`hint`.
+
+### Step 4: Gate CI on the exit code
+
+Exit codes follow the same policy as every Thymian workflow, applied to the converted findings:
+
+- `1` — the converted report contains failed findings (even though the conversion itself succeeded)
+- `0` — the converted report is clean
+- `2` — usage or tool error: the report file is missing or malformed, or a `--report` type no installed plugin claims
+
+An unclaimed type fails fast before anything renders, naming the input and listing the report types supported in that run.
+
+### Step 5: Save the inputs in your configuration file
+
+Both inputs can live in `thymian.config.yaml` instead of flags, mirroring how `specifications` works:
+
+```yaml
+reports:
+  - type: spectral
+    location: ./report.json
+
+specifications:
+  - type: openapi
+    location: ./api.yaml
+```
+
+With that in place, a bare `npx thymian report convert` does the same conversion. You can bootstrap the entry with `thymian generate config --for-report spectral:./report.json`.
+
+Flags take precedence: `--report` replaces the config file's `reports` entirely, exactly like `--spec` replaces `specifications`. See the [Configuration File](/references/configuration/) reference for the full precedence rules.
+
+### Step 6: Add file formatters if you want artifacts
+
+The standard report formatters apply unchanged — configure `@thymian/plugin-reporter` (or pass `--option` overrides) and the converted report is written as markdown, CSV, or JSON like any other run.
+
+## What to expect from the mapping
+
+- Every Spectral finding becomes a **lint** finding — the converted report is a lint report.
+- Messages, severities, rule codes, and source locations survive the conversion; `documentationUrl` becomes the rule's help link.
+- Endpoint mapping via `--spec` is best-effort: findings positioned at or after an endpoint's location in the same source file attach to that endpoint; everything else falls back to a `file:line:column` location.
+- Unknown severity numbers convert conservatively as `error` (with a warning) — findings are never dropped.
