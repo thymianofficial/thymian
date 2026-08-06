@@ -3,15 +3,23 @@ import type { Location, ThymianFormat } from '@thymian/core';
 import type { SpectralResult } from './spectral-types.js';
 
 /**
- * Does the finding's `source` refer to the node's source file? Spectral often
- * emits absolute paths while format nodes carry the path the spec was loaded
- * from — match exactly, or when one path is a `/`-suffix of the other.
+ * Does the finding's `source` refer to the node's source file? Spectral emits
+ * OS-native absolute paths while format nodes carry the path the spec was
+ * loaded from — backslashes are normalized so Windows sources match too, then
+ * paths match exactly or when one is a `/`-suffix of the other.
  */
 function sourceMatches(source: string, nodePath: string): boolean {
+  const normalizedSource = source.replaceAll('\\', '/');
+  const normalizedNodePath = nodePath.replaceAll('\\', '/');
+
+  if (!normalizedSource || !normalizedNodePath) {
+    return false;
+  }
+
   return (
-    source === nodePath ||
-    source.endsWith(`/${nodePath}`) ||
-    nodePath.endsWith(`/${source}`)
+    normalizedSource === normalizedNodePath ||
+    normalizedSource.endsWith(`/${normalizedNodePath}`) ||
+    normalizedNodePath.endsWith(`/${normalizedSource}`)
   );
 }
 
@@ -43,18 +51,12 @@ export function mapLocation(
     let bestColumn = 0;
 
     format.graph.forEachNode((id, node) => {
-      const sourceLocation = (
-        node as {
-          sourceLocation?: {
-            path?: string;
-            position?: { line: number; column: number };
-          };
-        }
-      ).sourceLocation;
+      const { sourceLocation } = node;
 
+      // URI-sourced nodes cannot match a Spectral file source — skip them.
       if (
         !sourceLocation?.position ||
-        typeof sourceLocation.path !== 'string' ||
+        !('path' in sourceLocation) ||
         !sourceMatches(source, sourceLocation.path)
       ) {
         return;

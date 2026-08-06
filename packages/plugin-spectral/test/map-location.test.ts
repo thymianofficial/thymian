@@ -100,6 +100,19 @@ describe('mapLocation', () => {
     );
   });
 
+  it('matches Windows-style absolute sources against POSIX node paths', () => {
+    const { format, nodeId } = formatWithNodeAt(5);
+
+    const location = mapLocation(
+      result({ source: 'C:\\Users\\dev\\project\\api.yaml' }),
+      format,
+    );
+
+    expect(location).toEqual(
+      expect.objectContaining({ type: 'thymianFormat', elementId: nodeId }),
+    );
+  });
+
   it('matches when the finding source is an absolute variant of the node path', () => {
     const { format, nodeId } = formatWithNodeAt(5);
 

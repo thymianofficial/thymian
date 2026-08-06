@@ -9,27 +9,43 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
 
+function isNonNegativeInteger(value: unknown): boolean {
+  return typeof value === 'number' && Number.isInteger(value) && value >= 0;
+}
+
 function isPosition(value: unknown): boolean {
   return (
     isRecord(value) &&
-    typeof value['line'] === 'number' &&
-    typeof value['character'] === 'number'
+    isNonNegativeInteger(value['line']) &&
+    isNonNegativeInteger(value['character'])
   );
 }
 
+function isStringWhenPresent(value: unknown): boolean {
+  return value === undefined || typeof value === 'string';
+}
+
+// Validates the full declared SpectralResult contract — the `as
+// SpectralResult[]` cast below vouches for exactly what is checked here, so
+// every required field the mapping code dereferences must be covered.
 function isSpectralResult(value: unknown): value is SpectralResult {
   if (!isRecord(value)) {
     return false;
   }
 
   const range = value['range'];
+  const code = value['code'];
 
   return (
+    (typeof code === 'string' || typeof code === 'number') &&
     typeof value['message'] === 'string' &&
     typeof value['severity'] === 'number' &&
+    Array.isArray(value['path']) &&
     isRecord(range) &&
     isPosition(range['start']) &&
-    isPosition(range['end'])
+    isPosition(range['end']) &&
+    isStringWhenPresent(value['source']) &&
+    isStringWhenPresent(value['documentationUrl'])
   );
 }
 
@@ -81,7 +97,7 @@ export async function loadSpectralReport(
   for (const [index, entry] of parsed.entries()) {
     if (!isSpectralResult(entry)) {
       throw new ThymianBaseError(
-        `Unsupported Spectral report "${inputLabel}": result ${index.toString()} is missing the required message/severity/range shape.`,
+        `Unsupported Spectral report "${inputLabel}": result ${index.toString()} does not match the \`spectral lint -f json\` result shape (code/message/severity/path/range).`,
       );
     }
   }

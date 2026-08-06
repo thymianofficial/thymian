@@ -175,6 +175,95 @@ describe('plugin-spectral', () => {
     await thymian.close();
   });
 
+  it('rejects entries missing code or path instead of degrading (review #481)', async () => {
+    const validEntry = {
+      code: 'a-rule',
+      message: 'msg',
+      severity: 1,
+      path: [],
+      range: {
+        start: { line: 0, character: 0 },
+        end: { line: 0, character: 1 },
+      },
+    };
+
+    const thymian = new Thymian().register(createSpectralPlugin());
+    await thymian.ready();
+
+    const noCode = join(tmpDir, 'no-code.json');
+    await writeFile(
+      noCode,
+      JSON.stringify([{ ...validEntry, code: undefined }]),
+    );
+    await expect(() =>
+      thymian.reportConvert({
+        reports: [{ type: 'spectral', location: noCode }],
+      }),
+    ).rejects.toThrowError(/spectral:.*no-code\.json/);
+
+    const noPath = join(tmpDir, 'no-path.json');
+    await writeFile(noPath, JSON.stringify([{ ...validEntry, path: 'nope' }]));
+    await expect(() =>
+      thymian.reportConvert({
+        reports: [{ type: 'spectral', location: noPath }],
+      }),
+    ).rejects.toThrowError(/spectral:.*no-path\.json/);
+
+    await thymian.close();
+  });
+
+  it('rejects non-string source and negative range values, naming the input', async () => {
+    const thymian = new Thymian().register(createSpectralPlugin());
+    await thymian.ready();
+
+    const badSource = join(tmpDir, 'bad-source.json');
+    await writeFile(
+      badSource,
+      JSON.stringify([
+        {
+          code: 'a-rule',
+          message: 'msg',
+          severity: 1,
+          path: [],
+          range: {
+            start: { line: 0, character: 0 },
+            end: { line: 0, character: 1 },
+          },
+          source: 42,
+        },
+      ]),
+    );
+    await expect(() =>
+      thymian.reportConvert({
+        reports: [{ type: 'spectral', location: badSource }],
+      }),
+    ).rejects.toThrowError(/spectral:.*bad-source\.json/);
+
+    const negativeRange = join(tmpDir, 'negative-range.json');
+    await writeFile(
+      negativeRange,
+      JSON.stringify([
+        {
+          code: 'a-rule',
+          message: 'msg',
+          severity: 1,
+          path: [],
+          range: {
+            start: { line: -1, character: 0 },
+            end: { line: 0, character: 1 },
+          },
+        },
+      ]),
+    );
+    await expect(() =>
+      thymian.reportConvert({
+        reports: [{ type: 'spectral', location: negativeRange }],
+      }),
+    ).rejects.toThrowError(/spectral:.*negative-range\.json/);
+
+    await thymian.close();
+  });
+
   it('tolerates unknown extra fields and converts unknown severities conservatively', async () => {
     const oddFile = join(tmpDir, 'odd.json');
     await writeFile(
