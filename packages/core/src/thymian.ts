@@ -2,11 +2,13 @@ import semver from 'semver';
 
 import packageJson from '../package.json' with { type: 'json' };
 import type {
+  ConvertedRunFragment,
   CoreAnalyzeInput,
   CoreFormatLoadInput,
   CoreRequestDispatchInput,
   CoreRequestSampleInput,
   CoreTrafficLoadInput,
+  ReportInput,
   SpecificationInput,
   SpecValidationOutcome,
   SpecValidationResult,
@@ -68,6 +70,23 @@ export interface AnalyzeWorkflowInput {
   options?: Record<string, unknown>;
   validateSpecs?: boolean;
   validateTrafficSource?: boolean;
+}
+
+export interface ReportConvertWorkflowInput {
+  reports: ReportInput[];
+  specification?: SpecificationInput[];
+  options?: Record<string, unknown>;
+  validateSpecs?: boolean;
+}
+
+export interface ReportConvertOutcome {
+  report: Report;
+  /**
+   * Report inputs no registered listener claimed, derived from the union of
+   * `core.report.convert` replies (ADR-0016/0017). Never thrown — enforcement
+   * (a usage error naming the input) is the caller's job (CLI, Story 14.2).
+   */
+  unclaimed: ReportInput[];
 }
 
 export interface ValidateWorkflowInput {
@@ -509,6 +528,93 @@ export class Thymian {
     ).flat();
 
     return this.finalizeWorkflow(toolRuns, format?.export());
+  }
+
+  /**
+   * Core-owned `report convert` collect action (ADR-0016): broadcasts typed
+   * report inputs to plugin listeners, which claim the input types they
+   * understand and reply {@link ConvertedRunFragment}s. Type resolution stays
+   * plugin-claimed (ADR-0017) — an input with no matching reply is returned in
+   * `unclaimed`, never thrown; enforcement is the caller's job.
+   *
+   * Report inputs are treated as a set: duplicates (same `type` and
+   * stringified `location`) are collapsed to their first occurrence before
+   * dispatch, so one claimed input yields its converted run(s) exactly once.
+   */
+  async reportConvert(
+    input: ReportConvertWorkflowInput,
+  ): Promise<ReportConvertOutcome> {
+    const seenInputs = new Set<string>();
+    const reports = input.reports.filter((reportInput) => {
+      const key = `${reportInput.type}:${String(reportInput.location)}`;
+
+      if (seenInputs.has(key)) {
+        return false;
+      }
+
+      seenInputs.add(key);
+      return true;
+    });
+
+    const format = input.specification?.length
+      ? await this.loadFormat(
+          {
+            inputs: input.specification,
+            validateSpecs: input.validateSpecs ?? false,
+          },
+          { emitFormat: false },
+        )
+      : undefined;
+
+    const fragments: ConvertedRunFragment[] = (
+      await this.emitter.emitAction(
+        'core.report.convert',
+        {
+          inputs: reports,
+          format: format?.export(),
+          options: input.options,
+        },
+        { strategy: 'collect' },
+      )
+    ).flat();
+
+    const unclaimed: ReportInput[] = [];
+    const matchedFragments = new Set<ConvertedRunFragment>();
+
+    const toolRuns = reports.flatMap((reportInput) => {
+      const matches = fragments.filter(
+        (fragment) =>
+          fragment.input.type === reportInput.type &&
+          fragment.input.location === String(reportInput.location),
+      );
+
+      if (matches.length === 0) {
+        unclaimed.push(reportInput);
+        return [];
+      }
+
+      matches.forEach((fragment) => matchedFragments.add(fragment));
+      return matches.map((fragment) => fragment.run);
+    });
+
+    const surplus = fragments.filter(
+      (fragment) => !matchedFragments.has(fragment),
+    );
+
+    if (surplus.length > 0) {
+      this.logger.warn(
+        `Discarding ${surplus.length} converted run fragment(s) claiming input(s) not part of this request: ${surplus
+          .map(
+            (fragment) => `${fragment.input.type}:${fragment.input.location}`,
+          )
+          .join(', ')}`,
+      );
+    }
+
+    return {
+      report: this.finalizeWorkflow(toolRuns, format?.export()),
+      unclaimed,
+    };
   }
 
   async validate(input: ValidateWorkflowInput): Promise<SpecValidationOutcome> {
