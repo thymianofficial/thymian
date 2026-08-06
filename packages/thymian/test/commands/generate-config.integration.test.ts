@@ -279,6 +279,37 @@ describe('generate config (integration)', () => {
       expect(configContent).toContain('# Report input: spectral:./report.json');
     });
 
+    it('collects all provided --for-report values and hints at report convert', async () => {
+      const testDir = join(tmpDir, 'for-report-multiple');
+      mkdirSync(testDir, { recursive: true });
+
+      await captureOutput(async () => {
+        await GenerateConfig.run([
+          '--cwd',
+          testDir,
+          '--no-interactive',
+          '--for-spec',
+          'openapi:./petstore.yaml',
+          '--for-report',
+          'spectral:./a.json',
+          '--for-report',
+          'spectral:./b.json',
+        ]);
+      });
+
+      const configPath = join(testDir, 'thymian.config.yaml');
+      const loadedConfig = await loadGeneratedConfig(configPath);
+      expect(loadedConfig.reports).toEqual([
+        { type: 'spectral', location: './a.json' },
+        { type: 'spectral', location: './b.json' },
+      ]);
+
+      const configContent = await readFile(configPath, 'utf-8');
+      expect(configContent).toContain(
+        'Run `thymian report convert` to import the configured external reports.',
+      );
+    });
+
     it('omits the reports key when --for-report is not provided', async () => {
       const testDir = join(tmpDir, 'no-for-report');
       mkdirSync(testDir, { recursive: true });
