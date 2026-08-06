@@ -51,9 +51,8 @@ export default class ReportConvert extends BaseCliRunCommand<
     // registered plugin claims it, so the supported list is derived from
     // this run's claims — before any report rendering.
     if (outcome.unclaimed.length > 0) {
-      const unclaimedList = outcome.unclaimed
-        .map((input) => `"${input.type}:${String(input.location)}"`)
-        .join(', ');
+      const formatInput = (input: ReportInput) =>
+        `"${input.type}:${String(input.location)}"`;
 
       const supportedTypes = [
         ...new Set(
@@ -70,21 +69,48 @@ export default class ReportConvert extends BaseCliRunCommand<
         ),
       ];
 
-      if (supportedTypes.length > 0) {
+      if (supportedTypes.length === 0) {
         this.error(
-          `No registered plugin claims report input ${unclaimedList}. Supported report types in this run: ${supportedTypes.join(', ')}.`,
-          { exit: 2 },
+          `No converter plugin claimed any report input (${outcome.unclaimed.map(formatInput).join(', ')}).`,
+          {
+            exit: 2,
+            suggestions: [
+              'Is a converter plugin (e.g. @thymian/plugin-spectral) installed and autoloaded?',
+            ],
+          },
+        );
+      }
+
+      // Support is a per-type property, but claiming happens per input: an
+      // input can go unclaimed even though its type is supported (e.g. a
+      // wrong location) — that case must not read as "unsupported type".
+      const unsupported = outcome.unclaimed.filter(
+        (input) => !supportedTypes.includes(input.type),
+      );
+      const unclaimedOfSupportedType = outcome.unclaimed.filter((input) =>
+        supportedTypes.includes(input.type),
+      );
+
+      const problems: string[] = [];
+
+      if (unsupported.length > 0) {
+        problems.push(
+          `No registered plugin claims report input${unsupported.length > 1 ? 's' : ''} ${unsupported.map(formatInput).join(', ')}.`,
+        );
+      }
+
+      if (unclaimedOfSupportedType.length > 0) {
+        const list = unclaimedOfSupportedType.map(formatInput).join(', ');
+        problems.push(
+          unclaimedOfSupportedType.length > 1
+            ? `Report inputs ${list} have a supported type but were not claimed — check the locations.`
+            : `Report input ${list} has a supported type but was not claimed — check the location.`,
         );
       }
 
       this.error(
-        `No converter plugin claimed any report input (${unclaimedList}).`,
-        {
-          exit: 2,
-          suggestions: [
-            'Is a converter plugin (e.g. @thymian/plugin-spectral) installed and autoloaded?',
-          ],
-        },
+        `${problems.join(' ')} Supported report types in this run: ${supportedTypes.join(', ')}.`,
+        { exit: 2 },
       );
     }
 

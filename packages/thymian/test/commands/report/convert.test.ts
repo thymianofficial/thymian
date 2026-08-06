@@ -3,6 +3,7 @@ import { existsSync, mkdirSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
+import { Config } from '@oclif/core';
 import { captureOutput } from '@oclif/test';
 import {
   afterAll,
@@ -217,9 +218,68 @@ describe('report convert command', () => {
     ).toBe(2);
   });
 
-  it('shows the no-claimant hint when nothing was claimed (AC 4)', async () => {
+  it('distinguishes an unclaimed input of a supported type from an unsupported type (AC 4)', async () => {
     mockState.reportConvertResult = {
       report: fixtureReport(false),
+      unclaimed: [{ type: 'spectral', location: './missing.json' }],
+    };
+
+    const { error } = await captureOutput(async () => {
+      await ReportConvert.run([
+        '--report',
+        'spectral:./claimed.json',
+        '--report',
+        'spectral:./missing.json',
+        '--no-autoload',
+      ]);
+    });
+
+    expect(error?.message).toContain(
+      'Report input "spectral:./missing.json" has a supported type but was not claimed — check the location',
+    );
+    expect(error?.message).not.toContain('No registered plugin claims');
+    expect(error?.message).toContain(
+      'Supported report types in this run: spectral',
+    );
+    expect(
+      (error as { oclif?: { exit?: number } } | undefined)?.oclif?.exit,
+    ).toBe(2);
+  });
+
+  it('names every unclaimed input with plural-safe wording (AC 4)', async () => {
+    mockState.reportConvertResult = {
+      report: fixtureReport(false),
+      unclaimed: [
+        { type: 'foo', location: './a.json' },
+        { type: 'bar', location: './b.json' },
+      ],
+    };
+
+    const { error } = await captureOutput(async () => {
+      await ReportConvert.run([
+        '--report',
+        'spectral:./claimed.json',
+        '--report',
+        'foo:./a.json',
+        '--report',
+        'bar:./b.json',
+        '--no-autoload',
+      ]);
+    });
+
+    expect(error?.message).toContain(
+      'No registered plugin claims report inputs "foo:./a.json", "bar:./b.json".',
+    );
+    expect(error?.message).toContain(
+      'Supported report types in this run: spectral',
+    );
+  });
+
+  it('shows the no-claimant hint when nothing was claimed (AC 4)', async () => {
+    // All inputs unclaimed implies no runs — a report with runs alongside a
+    // fully-unclaimed input list is a state core cannot produce.
+    mockState.reportConvertResult = {
+      report: createReport([]),
       unclaimed: [{ type: 'foo', location: './r.json' }],
     };
 
@@ -235,6 +295,25 @@ describe('report convert command', () => {
     expect(
       (error as { oclif?: { exit?: number } } | undefined)?.oclif?.exit,
     ).toBe(2);
+  });
+
+  it('forwards --validate-specs as validateSpecs: true', async () => {
+    await captureOutput(async () => {
+      await ReportConvert.run([
+        '--report',
+        'spectral:./report.json',
+        '--spec',
+        'openapi:./api.yaml',
+        '--validate-specs',
+        '--no-autoload',
+      ]);
+    });
+
+    expect(mockState.reportConvertInput).toEqual(
+      expect.objectContaining({
+        validateSpecs: true,
+      }),
+    );
   });
 
   it('fails with exit 2 when no report input is found anywhere', async () => {
@@ -264,8 +343,27 @@ describe('report convert command', () => {
     });
 
     expect(error).toBeUndefined();
-    expect(stdout.length).toBeGreaterThan(0);
+    // renderReport emits a heading per run naming the tool — assert actual
+    // report content was rendered, not just any stray byte on stdout.
+    expect(stdout).toContain('@thymian/plugin-spectral');
   });
+
+  // Needs the built package: oclif discovers commands from dist/commands
+  // (package.json "oclif.commands"), and the test target does not depend on
+  // build. Skips visibly instead of failing on an unbuilt checkout.
+  it.skipIf(
+    !existsSync(join(__dirname, '../../../dist/commands/report/convert.js')),
+  )(
+    'registers convert under the report topic with the --report flag (AC 1)',
+    async () => {
+      const config = await Config.load(join(__dirname, '../../..'));
+
+      const loadable = config.findCommand('report:convert', { must: true });
+      const command = await loadable.load();
+
+      expect(command.flags['report']).toBeDefined();
+    },
+  );
 
   it('exits 1 when the converted report contains failed executions (ADR-0015)', async () => {
     mockState.reportConvertResult = {
