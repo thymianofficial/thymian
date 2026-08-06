@@ -4,6 +4,7 @@ import {
   reportFlag,
 } from '@thymian/common-cli';
 import type { ReportInput } from '@thymian/core';
+import type {} from '@thymian/plugin-spectral';
 
 export default class ReportConvert extends BaseCliRunCommand<
   typeof ReportConvert
