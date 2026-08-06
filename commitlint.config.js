@@ -19,6 +19,7 @@ export default {
         'plugin-reporter',
         'plugin-request-dispatcher',
         'plugin-sampler',
+        'plugin-spectral',
         'plugin-websocket-proxy',
         'rules-api-description-validation',
         'rules-rfc-9110',
