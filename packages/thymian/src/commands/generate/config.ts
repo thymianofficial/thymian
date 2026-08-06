@@ -4,6 +4,7 @@ import { join, relative } from 'node:path';
 
 import {
   defaultConfig,
+  reportFlag,
   specFlag,
   ThymianBaseCommand,
   wrap,
@@ -11,7 +12,7 @@ import {
 import { Flags, ux } from '@thymian/common-cli/oclif';
 import { confirm, input, select } from '@thymian/common-cli/prompts';
 import { stringify } from '@thymian/common-cli/yaml';
-import type { SpecificationInput } from '@thymian/core';
+import type { ReportInput, SpecificationInput } from '@thymian/core';
 import { searchForOpenApiFiles } from '@thymian/plugin-openapi';
 
 const DEFAULT_CONFIG_FILENAME = 'thymian.config.yaml';
@@ -48,6 +49,10 @@ export default class GenerateConfig extends ThymianBaseCommand<
     ['for-spec']: specFlag({
       description:
         'Specification input in the format <type>:<location>. Skips auto-detection and adds each provided specification directly.',
+    }),
+    ['for-report']: reportFlag({
+      description:
+        'External report input in the format <type>:<location> (e.g. spectral:./report.json). Adds a reports entry for `thymian report convert`.',
     }),
   };
 
@@ -140,14 +145,21 @@ export default class GenerateConfig extends ThymianBaseCommand<
       }
     }
 
-    // Build config from defaults
+    const reports = this.flags['for-report'] ?? [];
+
+    // Build config from defaults; the reports key only appears when requested
     const config = {
       ...defaultConfig,
       specifications: selectedSpecs,
+      ...(reports.length > 0 ? { reports } : {}),
     };
 
     // Generate well-commented YAML
-    const yamlContent = this.generateCommentedConfig(config, selectedSpecs);
+    const yamlContent = this.generateCommentedConfig(
+      config,
+      selectedSpecs,
+      reports,
+    );
 
     await writeFile(outputPath, yamlContent, { encoding: 'utf-8' });
 
@@ -213,13 +225,21 @@ export default class GenerateConfig extends ThymianBaseCommand<
   private generateCommentedConfig(
     config: typeof defaultConfig & {
       specifications: SpecificationInput[];
+      reports?: ReportInput[];
     },
     specifications: SpecificationInput[],
+    reports: ReportInput[] = [],
   ): string {
     const yaml = stringify(config);
     const specCommentLines = specifications.map(
       (spec) =>
         `# Specification: ${spec.type.replaceAll(/[\n\r]/g, '')}:${String(spec.location).replaceAll(/[\n\r]/g, '')}`,
+    );
+    specCommentLines.push(
+      ...reports.map(
+        (report) =>
+          `# Report input: ${report.type.replaceAll(/[\n\r]/g, '')}:${String(report.location).replaceAll(/[\n\r]/g, '')}`,
+      ),
     );
 
     // Prepend a comment header explaining the config

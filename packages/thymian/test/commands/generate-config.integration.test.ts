@@ -253,6 +253,52 @@ describe('generate config (integration)', () => {
       expect(configContent).toContain('# Specification: openapi:./orders.yaml');
     });
 
+    it('generates config with report inputs when --for-report is provided', async () => {
+      const testDir = join(tmpDir, 'for-report');
+      mkdirSync(testDir, { recursive: true });
+
+      await captureOutput(async () => {
+        await GenerateConfig.run([
+          '--cwd',
+          testDir,
+          '--no-interactive',
+          '--for-spec',
+          'openapi:./petstore.yaml',
+          '--for-report',
+          'spectral:./report.json',
+        ]);
+      });
+
+      const configPath = join(testDir, 'thymian.config.yaml');
+      const loadedConfig = await loadGeneratedConfig(configPath);
+      expect(loadedConfig.reports).toEqual([
+        { type: 'spectral', location: './report.json' },
+      ]);
+
+      const configContent = await readFile(configPath, 'utf-8');
+      expect(configContent).toContain('# Report input: spectral:./report.json');
+    });
+
+    it('omits the reports key when --for-report is not provided', async () => {
+      const testDir = join(tmpDir, 'no-for-report');
+      mkdirSync(testDir, { recursive: true });
+
+      await captureOutput(async () => {
+        await GenerateConfig.run([
+          '--cwd',
+          testDir,
+          '--no-interactive',
+          '--for-spec',
+          'openapi:./petstore.yaml',
+        ]);
+      });
+
+      const loadedConfig = await loadGeneratedConfig(
+        join(testDir, 'thymian.config.yaml'),
+      );
+      expect(loadedConfig.reports).toBeUndefined();
+    });
+
     it('generates config with --for-spec even when no spec files exist in cwd', async () => {
       const testDir = join(tmpDir, 'for-spec-no-files');
       mkdirSync(testDir, { recursive: true });
