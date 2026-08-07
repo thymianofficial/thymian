@@ -107,7 +107,7 @@ function createRuns(
     'analyze',
   );
 
-  const ruleDescriptors = rulesToRuleDescriptors(rules, (r) => r.analyzeRule);
+  const ruleDescriptors = rulesToRuleDescriptors(rules, 'analytics');
 
   return [
     createToolRun({

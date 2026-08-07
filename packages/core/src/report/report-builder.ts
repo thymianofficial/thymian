@@ -3,10 +3,11 @@ import { randomUUID } from 'node:crypto';
 import type { ThymianFormat } from '../format/index.js';
 import type { HttpTestCaseResult } from '../http-testing/http-test/http-test-case-result.js';
 import type { Rule } from '../rules/rule.js';
+import type { ExecutableRuleType } from '../rules/rule-execution-invariant.js';
 import type { RunRulesResult } from '../rules/rule-runner.js';
 import {
-  isRuleEnabled,
   resolveViolationLocation,
+  ruleRunsInMode,
 } from '../rules/rule-runner.js';
 import type { RuleSeverity } from '../rules/rule-severity.js';
 import type {
@@ -335,16 +336,17 @@ export function ruleFindingsToFindingRecords(
 
 /**
  * Map executed rules to report {@link RuleDescriptor}s for `ToolRun.rules`.
- * Applies the same filter as `runRules` (enabled, not informational-only) plus
- * an additional mode filter: only rules that the adapter would actually run
- * (i.e. `getRuleFn(rule)` returns a truthy function) are included.
+ * Applies the exact same gate as `runRules` via {@link ruleRunsInMode}: a rule
+ * is included only when it is enabled and its `meta.type` declares the given
+ * mode, so the descriptor list never claims a rule ran that the runner skipped
+ * (e.g. one whose `type` a profile narrowed out of this mode).
  */
 export function rulesToRuleDescriptors(
   rules: Rule[],
-  getRuleFn: (rule: Rule) => unknown,
+  mode: ExecutableRuleType,
 ): RuleDescriptor[] {
   return rules
-    .filter((rule) => isRuleEnabled(rule) && Boolean(getRuleFn(rule)))
+    .filter((rule) => ruleRunsInMode(rule, mode))
     .map((rule) => ({
       id: rule.meta.name,
       severity: rule.meta.severity as Exclude<RuleSeverity, 'off'>,

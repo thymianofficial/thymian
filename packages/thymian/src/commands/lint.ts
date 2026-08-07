@@ -4,6 +4,7 @@ import {
   handleWorkflowOutcome,
   mergeRuleSets,
   resolveRuleSeverity,
+  toRuleSetInputs,
 } from '@thymian/common-cli';
 import type {} from '@thymian/plugin-openapi';
 import type {} from '@thymian/plugin-reporter';
@@ -23,9 +24,8 @@ export default class Lint extends BaseCliRunCommand<typeof Lint> {
   override async run(): Promise<void> {
     const specifications = this.thymianConfig.specifications ?? [];
 
-    const ruleSets = mergeRuleSets(
-      this.thymianConfig.ruleSets,
-      this.flags['rule-set'],
+    const { rules, ruleProfiles } = toRuleSetInputs(
+      mergeRuleSets(this.thymianConfig.ruleSets, this.flags['rule-set']),
     );
 
     const ruleSeverity = resolveRuleSeverity(
@@ -36,7 +36,8 @@ export default class Lint extends BaseCliRunCommand<typeof Lint> {
     const outcome = await this.thymian.run(async () => {
       return await this.thymian.lint({
         specification: specifications,
-        rules: ruleSets,
+        rules,
+        ruleProfiles,
         rulesConfig: this.thymianConfig.rules,
         ruleFilter: createSeverityRuleFilter(ruleSeverity),
         validateSpecs: this.flags['validate-specs'],

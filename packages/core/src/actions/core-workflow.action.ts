@@ -58,6 +58,11 @@ export const workflowLintActionSchema = {
       items: specificationInputSchema,
     },
     rules: { type: 'array', items: { type: 'string' } },
+    ruleProfiles: {
+      type: 'object',
+      required: [],
+      additionalProperties: { type: 'string' },
+    },
     rulesConfig: {
       type: 'object',
       required: [],
@@ -84,6 +89,11 @@ export const workflowTestActionSchema = {
       items: specificationInputSchema,
     },
     rules: { type: 'array', items: { type: 'string' } },
+    ruleProfiles: {
+      type: 'object',
+      required: [],
+      additionalProperties: { type: 'string' },
+    },
     rulesConfig: {
       type: 'object',
       required: [],
@@ -111,6 +121,11 @@ export const workflowAnalyzeActionSchema = {
     },
     traffic: { type: 'array', nullable: false, items: trafficInputSchema },
     rules: { type: 'array', items: { type: 'string' } },
+    ruleProfiles: {
+      type: 'object',
+      required: [],
+      additionalProperties: { type: 'string' },
+    },
     rulesConfig: {
       type: 'object',
       required: [],

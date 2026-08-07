@@ -9,6 +9,7 @@ import {
   mergeRuleSets,
   oclif,
   resolveRuleSeverity,
+  toRuleSetInputs,
   wrap,
   wrapIndented,
 } from '@thymian/common-cli';
@@ -40,9 +41,8 @@ export default class ListRules extends BaseCliRunCommand<typeof ListRules> {
   };
 
   override async run(): Promise<void> {
-    const ruleSets = mergeRuleSets(
-      this.thymianConfig.ruleSets,
-      this.flags['rule-set'],
+    const { rules: ruleSpecifiers, ruleProfiles } = toRuleSetInputs(
+      mergeRuleSets(this.thymianConfig.ruleSets, this.flags['rule-set']),
     );
 
     const ruleSeverity = resolveRuleSeverity(
@@ -51,10 +51,11 @@ export default class ListRules extends BaseCliRunCommand<typeof ListRules> {
     );
 
     const rules = await loadRules(
-      ruleSets,
+      ruleSpecifiers,
       createSeverityRuleFilter(ruleSeverity),
       this.thymianConfig.rules,
       this.flags.cwd,
+      ruleProfiles,
     );
 
     const typeFilter = this.flags.type as RuleType[] | undefined;

@@ -16,6 +16,7 @@ import type {
   RulesConfiguration,
   SingleRuleConfiguration,
 } from './rule-configuration.js';
+import type { ExecutableRuleType } from './rule-execution-invariant.js';
 import type { RuleSeverity } from './rule-severity.js';
 import { isRuleSeverityLevel } from './rule-severity.js';
 import type {
@@ -129,6 +130,17 @@ export function isRuleEnabled(rule: Rule): boolean {
   );
 }
 
+// `meta.type` is the authority for whether a rule runs in a given execution
+// mode. Dispatching on the mere presence of an execution function is not
+// enough: a profile (or user `rules:{}` config) can narrow a rule's type — e.g.
+// drop `static` — while the now-unused function property stays on the rule, so
+// only a type check makes that narrowing actually stop execution. The load-time
+// execution invariant guarantees a declared executable type has its function,
+// so this never skips a rule that legitimately should run.
+export function ruleRunsInMode(rule: Rule, mode: ExecutableRuleType): boolean {
+  return isRuleEnabled(rule) && rule.meta.type.includes(mode);
+}
+
 export interface RuleExecutionDiagnosticsProvider<TDiagnostics = unknown> {
   getRuleExecutionDiagnostics(): TDiagnostics | undefined;
 }
@@ -215,7 +227,9 @@ export async function runRules<
     );
   }
 
-  const filteredRules = rules.filter(isRuleEnabled);
+  const filteredRules = rules.filter((rule) =>
+    ruleRunsInMode(rule, adapter.mode),
+  );
   const result: RunRulesResult<TDiagnostics> = {};
 
   for (const rule of filteredRules) {

@@ -40,6 +40,7 @@ import { timeoutPromise } from './utils.js';
 export interface LintWorkflowInput {
   specification: SpecificationInput[];
   rules?: string[];
+  ruleProfiles?: Record<string, string>;
   rulesConfig?: RulesConfiguration;
   ruleFilter?: RuleFilter;
   options?: Record<string, unknown>;
@@ -49,6 +50,7 @@ export interface LintWorkflowInput {
 export interface TestWorkflowInput {
   specification: SpecificationInput[];
   rules?: string[];
+  ruleProfiles?: Record<string, string>;
   rulesConfig?: RulesConfiguration;
   ruleFilter?: RuleFilter;
   options?: Record<string, unknown>;
@@ -60,6 +62,7 @@ export interface AnalyzeWorkflowInput {
   specification?: SpecificationInput[];
   traffic: TrafficInput[];
   rules?: string[];
+  ruleProfiles?: Record<string, string>;
   rulesConfig?: RulesConfiguration;
   ruleFilter?: RuleFilter;
   options?: Record<string, unknown>;
@@ -407,7 +410,13 @@ export class Thymian {
         },
         { emitFormat: false },
       ),
-      loadRules(input.rules ?? [], ruleFilter, rulesConfig, this.options.cwd),
+      loadRules(
+        input.rules ?? [],
+        ruleFilter,
+        rulesConfig,
+        this.options.cwd,
+        input.ruleProfiles,
+      ),
     ]);
 
     this.logger.info(
@@ -433,7 +442,13 @@ export class Thymian {
         inputs: input.specification,
         validateSpecs: input.validateSpecs ?? false,
       }),
-      loadRules(input.rules ?? [], ruleFilter, rulesConfig, this.options.cwd),
+      loadRules(
+        input.rules ?? [],
+        ruleFilter,
+        rulesConfig,
+        this.options.cwd,
+        input.ruleProfiles,
+      ),
     ]);
 
     const toolRuns = (
@@ -461,7 +476,13 @@ export class Thymian {
         inputs: input.traffic,
         validateTrafficSource: input.validateTrafficSource ?? false,
       }),
-      loadRules(input.rules ?? [], ruleFilter, rulesConfig, this.options.cwd),
+      loadRules(
+        input.rules ?? [],
+        ruleFilter,
+        rulesConfig,
+        this.options.cwd,
+        input.ruleProfiles,
+      ),
       input.specification
         ? this.loadFormat(
             {

@@ -1,8 +1,14 @@
 specifications:
   - type: openapi
     location: test.openapi.yaml
+# Pinned to the `strict` profile so this spec deterministically produces a
+# single static-lint error (the missing-Date rule). The default `recommended`
+# profile deliberately narrows that rule to analytics/test only, so it does not
+# run at lint — `strict` keeps these error-path lint tests independent of
+# recommended-profile tuning.
 ruleSets:
-  - '@thymian/rules-rfc-9110'
+  - name: '@thymian/rules-rfc-9110'
+    profile: strict
 plugins:
   '@thymian/plugin-http-linter': {}
   '@thymian/plugin-openapi': {}

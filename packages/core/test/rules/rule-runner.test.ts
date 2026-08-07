@@ -105,6 +105,57 @@ describe('runRules', () => {
     });
     expect(result['rule-without-diagnostics']?.diagnostics).toBeUndefined();
   });
+
+  it('does not run a rule in a mode its meta.type excludes, even if the mode function is present', async () => {
+    // A profile (or user config) narrowed this rule's type to `test`, but the
+    // now-unused `lintRule` function is still on the object. Dispatch must key
+    // on meta.type, not function presence, so the static runner skips it.
+    const narrowedRule: Rule = {
+      meta: {
+        name: 'narrowed-to-test',
+        type: ['test'],
+        options: {
+          type: 'object',
+          properties: {},
+          required: [],
+          additionalProperties: false,
+        },
+        severity: 'error',
+      },
+      lintRule: () => [] as RuleFnResult,
+      testRule: () => [] as RuleFnResult,
+    };
+
+    const staticResult = await runRules<TestRuleContext>(
+      new NoopLogger(),
+      [narrowedRule],
+      new ThymianFormat(),
+      {},
+      {
+        errorName: 'TestRuleRunnerError',
+        mode: 'static',
+        getRuleFn: (rule) => rule.lintRule,
+        createContext: () => new TestRuleContext(),
+      },
+    );
+
+    expect(staticResult['narrowed-to-test']).toBeUndefined();
+
+    const testResult = await runRules<TestRuleContext>(
+      new NoopLogger(),
+      [narrowedRule],
+      new ThymianFormat(),
+      {},
+      {
+        errorName: 'TestRuleRunnerError',
+        mode: 'test',
+        getRuleFn: (rule) => rule.testRule,
+        createContext: () => new TestRuleContext(),
+      },
+    );
+
+    expect(testResult['narrowed-to-test']).toBeDefined();
+  });
 });
 
 describe('resolveViolationLocation', () => {
