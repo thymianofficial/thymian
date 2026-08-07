@@ -23,6 +23,8 @@ This chapter documents the significant architectural decisions made for Thymian.
 | [ADR-0013](adr/0013-thymian-format-must-not-contain-circular-references.md)    | Thymian format must not contain circular references                    | Proposed | 2026-05-04 | [10.2.3](10-quality-requirements.md#102-quality-scenarios)                                                             |
 | [ADR-0014](adr/0014-rule-results-carry-violations-and-findings.md)             | Rule results carry violations and findings via a single `RuleFnResult` | Accepted | 2026-06-18 | —                                                                                                                      |
 | [ADR-0015](adr/0015-cli-exit-status-is-severity-independent.md)                | CLI exit status is severity-independent                                | Accepted | 2026-07-07 | —                                                                                                                      |
+| [ADR-0016](adr/0016-two-stage-report-actions.md)                               | Two-stage report actions under `thymian report`                        | Accepted | 2026-07-30 | [10.2.1](10-quality-requirements.md#102-quality-scenarios), [10.2.3](10-quality-requirements.md#102-quality-scenarios) |
+| [ADR-0017](adr/0017-typed-input-arguments.md)                                  | Typed input arguments (`<type>:<location>`)                            | Accepted | 2026-07-30 | [10.2.1](10-quality-requirements.md#102-quality-scenarios), [10.2.3](10-quality-requirements.md#102-quality-scenarios) |
 
 ## Creating New ADRs
 
