@@ -200,4 +200,131 @@ describe('load rules', () => {
     expect(rules).toHaveLength(1);
     expect(rules[0]?.meta.type).toEqual(['informational']);
   });
+
+  describe('rule profiles', () => {
+    const ruleSetPath = join(
+      import.meta.dirname,
+      'fixtures',
+      'rule-sets',
+      'with-profiles.mjs',
+    );
+
+    function findRule(
+      rules: Awaited<ReturnType<typeof loadRules>>,
+      name: string,
+    ) {
+      return rules.find((rule) => rule.meta.name === name);
+    }
+
+    it('applies the selected profile before the user rules config', async () => {
+      const rules = await loadRules(
+        ruleSetPath,
+        () => true,
+        {},
+        process.cwd(),
+        {
+          [ruleSetPath]: 'recommended',
+        },
+      );
+
+      // recommended demotes profile-a error -> hint and narrows profile-b
+      // type to drop `static`.
+      expect(findRule(rules, 'profile-a')?.meta.severity).toBe('hint');
+      expect(findRule(rules, 'profile-b')?.meta.type).toEqual([
+        'analytics',
+        'test',
+      ]);
+    });
+
+    it('lets the user rules config win over the profile', async () => {
+      const rules = await loadRules(
+        ruleSetPath,
+        () => true,
+        // profile demotes profile-a to hint; user pins it back to error.
+        { 'profile-a': 'error' },
+        process.cwd(),
+        { [ruleSetPath]: 'recommended' },
+      );
+
+      expect(findRule(rules, 'profile-a')?.meta.severity).toBe('error');
+    });
+
+    it('treats an unknown profile name as no-op (shipped defaults)', async () => {
+      const rules = await loadRules(
+        ruleSetPath,
+        () => true,
+        {},
+        process.cwd(),
+        {
+          [ruleSetPath]: 'does-not-exist',
+        },
+      );
+
+      expect(findRule(rules, 'profile-a')?.meta.severity).toBe('error');
+      expect(findRule(rules, 'profile-b')?.meta.type).toEqual([
+        'static',
+        'test',
+        'analytics',
+      ]);
+    });
+
+    it('applies no profile overrides for the strict (empty) profile', async () => {
+      const rules = await loadRules(
+        ruleSetPath,
+        () => true,
+        {},
+        process.cwd(),
+        {
+          [ruleSetPath]: 'strict',
+        },
+      );
+
+      expect(findRule(rules, 'profile-a')?.meta.severity).toBe('error');
+      expect(findRule(rules, 'profile-b')?.meta.type).toEqual([
+        'static',
+        'test',
+        'analytics',
+      ]);
+    });
+
+    it('defaults to the recommended profile when no selection is threaded', async () => {
+      const rules = await loadRules(ruleSetPath, () => true, {}, process.cwd());
+
+      expect(findRule(rules, 'profile-a')?.meta.severity).toBe('hint');
+    });
+
+    it('ignores unknown rule ids listed in a profile', async () => {
+      const rules = await loadRules(
+        ruleSetPath,
+        () => true,
+        {},
+        process.cwd(),
+        {
+          [ruleSetPath]: 'recommended',
+        },
+      );
+
+      // The profile only lists profile-a/profile-b; there are no other rules,
+      // so the load neither throws nor invents rules.
+      expect(rules).toHaveLength(2);
+    });
+
+    it('lets a profile severity demotion drop a rule under the floor filter', async () => {
+      // profile-a ships as error; recommended demotes it to hint, so a floor
+      // filter that only keeps error/warn rules now excludes it. profile-b
+      // ships as warn and survives — proving the filter runs on the
+      // fully-resolved (post-profile) severity.
+      const rules = await loadRules(
+        ruleSetPath,
+        (rule) =>
+          rule.meta.severity === 'error' || rule.meta.severity === 'warn',
+        {},
+        process.cwd(),
+        { [ruleSetPath]: 'recommended' },
+      );
+
+      expect(findRule(rules, 'profile-a')).toBeUndefined();
+      expect(findRule(rules, 'profile-b')).toBeDefined();
+    });
+  });
 });

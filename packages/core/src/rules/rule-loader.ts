@@ -172,19 +172,52 @@ export function isRuleSet(ruleSet: unknown): ruleSet is RuleSet {
   );
 }
 
+// The profile name selected for a rule set when its `profiles` map is missing
+// the requested key, or when no explicit selection was threaded through. A
+// bare/absent config entry resolves to `recommended` upstream; this default
+// keeps a direct `loadRules(...)` call (e.g. a plugin) on the same profile.
+const DEFAULT_RULE_PROFILE = 'recommended';
+
+// Resolves the override map a rule set applies for the selected profile.
+// Missing `profiles` or an unknown profile name yields an empty map (no-op),
+// so an unlisted rule id or profile name is silently ignored (no throw).
+function resolveProfileConfig(
+  ruleSet: RuleSet,
+  profileName: string,
+): RulesConfiguration {
+  return ruleSet.profiles?.[profileName] ?? {};
+}
+
+// Applies the selected profile's overrides before the user `rules:{}` config,
+// so resolution order per rule is: shipped default -> profile -> user config
+// (user always wins). Both passes reuse `applyRuleConfiguration`, so a profile
+// value validates and merges through exactly the same path as a `rules:` entry.
+function applyProfileThenConfig(
+  rule: Rule,
+  profileConfig: RulesConfiguration,
+  options: RulesConfiguration,
+): Rule {
+  return applyRuleConfiguration(
+    applyRuleConfiguration(rule, profileConfig),
+    options,
+  );
+}
+
 async function loadRuleSet(
   ruleSet: RuleSet,
   basePath: string,
   ruleFilter: RuleFilter,
   options: RulesConfiguration,
   cwd: string,
+  ruleProfiles: Record<string, string>,
+  profileConfig: RulesConfiguration,
 ): Promise<Rule[]> {
   if (ruleSet.rules) {
     const source = `rule set "${ruleSet.name}"`;
     const rules: Rule[] = [];
 
     for (const inlineRule of ruleSet.rules) {
-      const rule = applyRuleConfiguration(inlineRule, options);
+      const rule = applyProfileThenConfig(inlineRule, profileConfig, options);
 
       assertRuleTypeDeclaration(rule, source);
 
@@ -224,6 +257,8 @@ async function loadRuleSet(
             ruleFilter,
             options,
             cwd,
+            ruleProfiles,
+            profileConfig,
           )),
         );
       }
@@ -238,6 +273,11 @@ export async function loadRules(
   ruleFilter: RuleFilter = () => true,
   options: RulesConfiguration = {},
   cwd: string = process.cwd(),
+  ruleProfiles: Record<string, string> = {},
+  // The already-resolved profile overrides for the enclosing rule set, threaded
+  // through the pattern-glob recursion. Empty at the top level; a rule set fills
+  // it from its own `profiles` map before recursing into its member rules.
+  profileConfig: RulesConfiguration = {},
 ): Promise<Rule[]> {
   if (!input || (Array.isArray(input) && input.length === 0)) {
     return [];
@@ -246,7 +286,9 @@ export async function loadRules(
   if (Array.isArray(input)) {
     return (
       await Promise.all(
-        input.map((entry) => loadRules(entry, ruleFilter, options, cwd)),
+        input.map((entry) =>
+          loadRules(entry, ruleFilter, options, cwd, ruleProfiles),
+        ),
       )
     ).flat();
   }
@@ -287,7 +329,7 @@ export async function loadRules(
   const ruleOrRuleSet = module.default;
 
   if (isRule(ruleOrRuleSet)) {
-    const rule = applyRuleConfiguration(ruleOrRuleSet, options);
+    const rule = applyProfileThenConfig(ruleOrRuleSet, profileConfig, options);
 
     assertRuleTypeDeclaration(rule, location);
 
@@ -305,7 +347,17 @@ export async function loadRules(
   }
 
   if (isRuleSet(ruleOrRuleSet)) {
-    return loadRuleSet(ruleOrRuleSet, resolved, ruleFilter, options, cwd);
+    const profileName = ruleProfiles[input] ?? DEFAULT_RULE_PROFILE;
+
+    return loadRuleSet(
+      ruleOrRuleSet,
+      resolved,
+      ruleFilter,
+      options,
+      cwd,
+      ruleProfiles,
+      resolveProfileConfig(ruleOrRuleSet, profileName),
+    );
   }
 
   return [];

@@ -475,7 +475,7 @@ export function createRuns(
     }
   }
 
-  const ruleDescriptors = rulesToRuleDescriptors(rules, (r) => r.testRule);
+  const ruleDescriptors = rulesToRuleDescriptors(rules, 'test');
 
   return [
     createToolRun({

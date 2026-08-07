@@ -291,7 +291,7 @@ describe('report builders', () => {
         .rule(() => undefined)
         .done();
 
-      expect(rulesToRuleDescriptors([rule], (r) => r.testRule)).toEqual([
+      expect(rulesToRuleDescriptors([rule], 'test')).toEqual([
         {
           id: 'rfc9110/example',
           severity: 'warn',
@@ -310,7 +310,7 @@ describe('report builders', () => {
         .rule(() => undefined)
         .done();
 
-      expect(rulesToRuleDescriptors([rule], (r) => r.testRule)).toEqual([
+      expect(rulesToRuleDescriptors([rule], 'test')).toEqual([
         { id: 'rfc9110/minimal', severity: 'error' },
       ]);
     });
@@ -334,7 +334,7 @@ describe('report builders', () => {
       expect(
         rulesToRuleDescriptors(
           [offRule, informationalRule, activeRule],
-          (r) => r.testRule,
+          'test',
         ),
       ).toEqual([{ id: 'rfc9110/active', severity: 'hint' }]);
     });
@@ -352,7 +352,7 @@ describe('report builders', () => {
         .done();
 
       expect(
-        rulesToRuleDescriptors([staticOnlyRule, testRule], (r) => r.testRule),
+        rulesToRuleDescriptors([staticOnlyRule, testRule], 'test'),
       ).toEqual([{ id: 'rfc9110/test-only', severity: 'error' }]);
     });
   });
