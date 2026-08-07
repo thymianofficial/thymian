@@ -3,7 +3,7 @@
 ## Prerequisites
 
 Thymian requires **Node.js 22 or newer**. All published packages declare `"engines": { "node": ">=22" }`, and CI
-builds and tests on Node **22** and **24**.
+builds and tests on Node **22**, **24** and **26**.
 
 ## Commit Message Scopes
 

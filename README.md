@@ -29,7 +29,7 @@ Thymian is a language-agnostic, open-source **HTTP conformance and API governanc
 
 ### Requirements
 
-Thymian requires **Node.js 22 or newer** — the supported _LTS_ versions are **22** and **24**.
+Thymian requires **Node.js 22 or newer**. We build and test on Node **22**, **24** and **26**.
 
 ### Installation
 
