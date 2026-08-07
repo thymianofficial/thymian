@@ -578,28 +578,34 @@ export class Thymian {
       )
     ).flat();
 
+    const fragmentsByKey = new Map<string, ConvertedRunFragment[]>();
+    for (const fragment of fragments) {
+      const key = `${fragment.input.type}:${fragment.input.location}`;
+      const bucket = fragmentsByKey.get(key);
+
+      if (bucket) {
+        bucket.push(fragment);
+      } else {
+        fragmentsByKey.set(key, [fragment]);
+      }
+    }
+
     const unclaimed: ReportInput[] = [];
-    const matchedFragments = new Set<ConvertedRunFragment>();
 
     const toolRuns = reports.flatMap((reportInput) => {
-      const matches = fragments.filter(
-        (fragment) =>
-          fragment.input.type === reportInput.type &&
-          fragment.input.location === String(reportInput.location),
-      );
+      const key = `${reportInput.type}:${String(reportInput.location)}`;
+      const matches = fragmentsByKey.get(key);
 
-      if (matches.length === 0) {
+      if (!matches) {
         unclaimed.push(reportInput);
         return [];
       }
 
-      matches.forEach((fragment) => matchedFragments.add(fragment));
+      fragmentsByKey.delete(key);
       return matches.map((fragment) => fragment.run);
     });
 
-    const surplus = fragments.filter(
-      (fragment) => !matchedFragments.has(fragment),
-    );
+    const surplus = [...fragmentsByKey.values()].flat();
 
     if (surplus.length > 0) {
       this.logger.warn(
