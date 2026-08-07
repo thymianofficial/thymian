@@ -1,6 +1,11 @@
 import { EOL } from 'node:os';
 
-import { BaseCliRunCommand, mergeRuleSets, oclif } from '@thymian/common-cli';
+import {
+  BaseCliRunCommand,
+  mergeRuleSets,
+  oclif,
+  toRuleSetInputs,
+} from '@thymian/common-cli';
 import { Args } from '@thymian/common-cli/oclif';
 import {
   loadRules,
@@ -32,9 +37,8 @@ export default class ExplainRule extends BaseCliRunCommand<typeof ExplainRule> {
   };
 
   override async run(): Promise<void> {
-    const ruleSets = mergeRuleSets(
-      this.thymianConfig.ruleSets,
-      this.flags['rule-set'],
+    const { rules: ruleSpecifiers, ruleProfiles } = toRuleSetInputs(
+      mergeRuleSets(this.thymianConfig.ruleSets, this.flags['rule-set']),
     );
 
     // `explain` is a threshold-independent lookup: load every rule in the
@@ -42,10 +46,11 @@ export default class ExplainRule extends BaseCliRunCommand<typeof ExplainRule> {
     // user names can be explained regardless of the active severity threshold.
     // (Unlike `rules list`, whose purpose is to show what is currently active.)
     const rules = await loadRules(
-      ruleSets,
+      ruleSpecifiers,
       () => true,
       this.thymianConfig.rules,
       this.flags.cwd,
+      ruleProfiles,
     );
 
     if (rules.length === 0) {

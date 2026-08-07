@@ -2,6 +2,8 @@ import type { JSONSchemaType } from 'ajv/dist/2020.js';
 
 import packageJson from '../package.json' with { type: 'json' };
 import {
+  convertedRunFragmentArraySchema,
+  coreReportConvertActionSchema,
   coreValidateSpecsActionSchema,
   formatLoadActionSchema,
   requestDispatchActionSchema,
@@ -64,6 +66,10 @@ export const corePlugin: ThymianPlugin = {
       'core.workflow.analyze': {
         event: workflowAnalyzeActionSchema,
         response: reportSchema,
+      },
+      'core.report.convert': {
+        event: coreReportConvertActionSchema,
+        response: convertedRunFragmentArraySchema,
       },
       'core.validate-specs': {
         event: coreValidateSpecsActionSchema,

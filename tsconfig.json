@@ -16,6 +16,9 @@
       "path": "./packages/plugin-sampler"
     },
     {
+      "path": "./packages/plugin-spectral"
+    },
+    {
       "path": "./packages/plugin-websocket-proxy"
     },
     {

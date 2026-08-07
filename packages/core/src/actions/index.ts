@@ -1,6 +1,7 @@
 import type { CloseAction } from './close.action.js';
 import type { AnalyzeAction } from './core-analyze.action.js';
 import type { LintAction } from './core-lint.action.js';
+import type { ReportConvertAction } from './core-report-convert.action.js';
 import type { RequestSampleAction } from './core-request-sample.action.js';
 import type { TestAction } from './core-test.action.js';
 import type { CoreValidateSpecsAction } from './core-validate-specs.action.js';
@@ -26,6 +27,7 @@ export interface ThymianActions {
   'core.workflow.lint': WorkflowLintAction;
   'core.workflow.test': WorkflowTestAction;
   'core.workflow.analyze': WorkflowAnalyzeAction;
+  'core.report.convert': ReportConvertAction;
   'core.validate-specs': CoreValidateSpecsAction;
   'core.request.dispatch': RequestDispatchAction;
   'core.request.sample': RequestSampleAction;
@@ -37,6 +39,7 @@ export type ThymianActionName = keyof ThymianActions;
 export * from './close.action.js';
 export * from './core-analyze.action.js';
 export * from './core-lint.action.js';
+export * from './core-report-convert.action.js';
 export * from './core-request-sample.action.js';
 export * from './core-test.action.js';
 export * from './core-validate-specs.action.js';
