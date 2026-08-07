@@ -167,6 +167,20 @@ const resourceGuest = latestResource
     --ev-badge-alt-fg: #162e0c;
     --ev-focus-ring: #017b64;
 
+    /* Matches every other splash-page/section root on Home and Enterprise -
+       Home's own `.df-section` (Differentiator.astro) and `.lifecycle-section`
+       (LifecycleGrid.astro) hardcode this same 80rem literally, exactly like
+       here; Enterprise's four sections instead read a shared
+       `--ep-section-max-width` custom property that also resolves to 80rem.
+       This strip intentionally hardcodes the literal value rather than
+       reading that Enterprise-scoped property, matching the majority (Home)
+       convention and preserving the component's own page-agnostic
+       self-sufficiency contract (see the token-scope note above) - reading
+       an Enterprise-only property would break when mounted on Home. Without
+       this cap, the strip stretches to the page's full ambient width instead
+       of sitting centered like its neighbors. */
+    max-width: 80rem;
+    margin-inline: auto;
     color: var(--ev-fg);
   }
 
@@ -199,16 +213,40 @@ const resourceGuest = latestResource
     font-weight: 700;
     letter-spacing: 0.08em;
     text-transform: uppercase;
+    text-align: center;
     color: var(--ev-fg-muted);
   }
 
+  /* Flex + `justify-content: center` (not CSS Grid) so a short row (today:
+     2 events + 1 resource) centers as a group instead of hugging the left
+     edge - mirrors `Differentiator.astro`'s `.df-legend`, the established
+     pattern for this codebase's own variable-count, center-aligned rows.
+     The prior `grid-template-columns: repeat(auto-fill, minmax(240px, 1fr))`
+     could not do this: its `1fr` tracks always stretch to consume the full
+     row width (including empty phantom tracks past the last real card),
+     leaving no free space for `justify-content` to distribute. Verified
+     empirically (before/after screenshots, both pages, desktop + 390px
+     mobile) rather than assumed. */
   .promo-strip-list {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
     gap: 1rem;
     margin: 0;
     padding: 0;
     list-style: none;
+  }
+
+  /* `>` direct-child: `.promo-strip-list`'s `<li>`s are the map()'d list
+     items directly, no wrapper (verified against the template above). Basis
+     240px matches the prior grid's own minimum column width, keeping today's
+     ~3-card row roughly the same per-card width as before; 300px caps how
+     wide a card can grow so 1-2 cards don't stretch to dominate the row once
+     centered (`PROMO_EVENT_LIMIT` caps events at 3, plus one resource card,
+     so at most 4 cards ever render). */
+  .promo-strip-list > li {
+    flex: 1 1 240px;
+    max-width: 300px;
   }
 
   /* A positioning container, not itself a link (unlike the full-width
