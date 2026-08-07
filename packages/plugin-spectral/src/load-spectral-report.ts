@@ -58,8 +58,8 @@ function isSpectralResult(value: unknown): value is SpectralResult {
  * @param inputLabel the offending input's identity (`type:location`), used in
  *   every error message so failures trace back to the CLI input (AC 5).
  * @throws {ThymianBaseError} if the file is unreadable, not valid JSON, not a
- *   result array, or an entry misses the required `message`/`severity`/`range`
- *   shape.
+ *   result array, or an entry misses the required
+ *   `code`/`message`/`severity`/`path`/`range` shape.
  */
 export async function loadSpectralReport(
   location: string,

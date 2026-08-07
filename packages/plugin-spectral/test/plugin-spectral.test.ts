@@ -135,7 +135,7 @@ describe('plugin-spectral', () => {
       thymian.reportConvert({
         reports: [{ type: 'spectral', location: badFile }],
       }),
-    ).rejects.toThrowError(new RegExp(`spectral:${badFile}`));
+    ).rejects.toThrowError(`spectral:${badFile}`);
 
     await thymian.close();
   });
