@@ -14,7 +14,7 @@
     "cookie": "^2.0.1",
     "deterministic-object-hash": "^2.0.2",
     "html-to-image": "^1.11.13",
-    "mermaid": "^11.15.0",
+    "mermaid": "^11.16.1",
     "sharp": "^0.35.0",
     "starlight-blog": "^0.28.0",
     "starlight-links-validator": "^0.25.2",

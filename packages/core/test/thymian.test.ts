@@ -277,6 +277,301 @@ describe('core.workflow.* actions', () => {
   });
 });
 
+describe('Thymian.reportConvert()', () => {
+  it('dispatches inputs and the serialized format to core.report.convert listeners', async () => {
+    const t = new Thymian();
+    let receivedPayload: unknown;
+
+    t.emitter.onAction('core.report.convert', async (payload, ctx) => {
+      receivedPayload = payload;
+      ctx.reply([]);
+    });
+
+    await t.reportConvert({
+      reports: [{ type: 'spectral', location: './report.json' }],
+      specification: [{ type: 'openapi', location: 'api.yaml' }],
+    });
+
+    expect(receivedPayload).toMatchObject({
+      inputs: [{ type: 'spectral', location: './report.json' }],
+    });
+    expect((receivedPayload as { format?: unknown }).format).toBeDefined();
+
+    await t.close();
+  });
+
+  it('passes format: undefined when no specification is given', async () => {
+    const t = new Thymian();
+    let receivedPayload: unknown;
+
+    t.emitter.onAction('core.report.convert', async (payload, ctx) => {
+      receivedPayload = payload;
+      ctx.reply([]);
+    });
+
+    await t.reportConvert({
+      reports: [{ type: 'spectral', location: './report.json' }],
+    });
+
+    expect((receivedPayload as { format?: unknown }).format).toBeUndefined();
+
+    await t.close();
+  });
+
+  it('assembles one run per input, in input order, into a Report validating against reportSchema', async () => {
+    const t = new Thymian();
+
+    t.emitter.onAction('core.report.convert', async (payload, ctx) => {
+      ctx.reply(
+        payload.inputs.map((input) => ({
+          input: { type: input.type, location: String(input.location) },
+          run: createToolRun({
+            tool: { name: '@thymian/plugin-spectral' },
+            runType: 'lint',
+            executions: [
+              createLintExecution({
+                location: { type: 'custom', value: String(input.location) },
+                ruleId: 'spectral/example',
+                status: { kind: 'failed', reason: 'converted finding' },
+              }),
+            ],
+          }),
+        })),
+      );
+    });
+
+    const outcome = await t.reportConvert({
+      reports: [
+        { type: 'spectral', location: './a.json' },
+        { type: 'spectral', location: './b.json' },
+      ],
+    });
+
+    expect(outcome.report.runs).toHaveLength(2);
+    expect(
+      outcome.report.runs.map((run) => run.executions?.[0]?.location),
+    ).toEqual([
+      { type: 'custom', value: './a.json' },
+      { type: 'custom', value: './b.json' },
+    ]);
+    expect(outcome.unclaimed).toEqual([]);
+    expect(ajv.validate(reportSchema, outcome.report)).toBe(true);
+    expect(ajv.errors).toBeNull();
+
+    await t.close();
+  });
+
+  it('includes runs from multiple listeners that claim the same input (ADR-0017)', async () => {
+    const t = new Thymian();
+
+    const makeFragmentReply =
+      (toolName: string) =>
+      async (
+        payload: { inputs: { type: string; location: unknown }[] },
+        ctx: { reply: (v: unknown) => void },
+      ) => {
+        ctx.reply(
+          payload.inputs.map((input) => ({
+            input: { type: input.type, location: String(input.location) },
+            run: createToolRun({
+              tool: { name: toolName },
+              runType: 'lint',
+              executions: [],
+            }),
+          })),
+        );
+      };
+
+    t.emitter.onAction('core.report.convert', makeFragmentReply('plugin-a'));
+    t.emitter.onAction('core.report.convert', makeFragmentReply('plugin-b'));
+
+    const outcome = await t.reportConvert({
+      reports: [{ type: 'spectral', location: './r.json' }],
+    });
+
+    expect(outcome.report.runs.map((run) => run.tool.name).sort()).toEqual([
+      'plugin-a',
+      'plugin-b',
+    ]);
+    expect(outcome.unclaimed).toEqual([]);
+
+    await t.close();
+  });
+
+  it('derives unclaimed inputs from the reply union without throwing', async () => {
+    const t = new Thymian();
+
+    t.emitter.onAction('core.report.convert', async (payload, ctx) => {
+      ctx.reply(
+        payload.inputs
+          .filter((input) => input.type === 'spectral')
+          .map((input) => ({
+            input: { type: input.type, location: String(input.location) },
+            run: createToolRun({
+              tool: { name: '@thymian/plugin-spectral' },
+              runType: 'lint',
+              executions: [],
+            }),
+          })),
+      );
+    });
+
+    const outcome = await t.reportConvert({
+      reports: [
+        { type: 'spectral', location: './claimed.json' },
+        { type: 'unknown-type', location: './unclaimed.json' },
+      ],
+    });
+
+    expect(outcome.report.runs).toHaveLength(1);
+    expect(outcome.unclaimed).toEqual([
+      { type: 'unknown-type', location: './unclaimed.json' },
+    ]);
+
+    await t.close();
+  });
+
+  it('marks every input unclaimed and returns an empty-runs Report when no listener is registered', async () => {
+    const t = new Thymian();
+
+    const outcome = await t.reportConvert({
+      reports: [{ type: 'spectral', location: './r.json' }],
+    });
+
+    expect(outcome.report.runs).toEqual([]);
+    expect(outcome.unclaimed).toEqual([
+      { type: 'spectral', location: './r.json' },
+    ]);
+    expect(ajv.validate(reportSchema, outcome.report)).toBe(true);
+
+    await t.close();
+  });
+
+  it('does not stall or fail when a listener replies with an empty array', async () => {
+    const t = new Thymian();
+
+    t.emitter.onAction('core.report.convert', async (_payload, ctx) => {
+      ctx.reply([]);
+    });
+
+    const outcome = await t.reportConvert({
+      reports: [{ type: 'spectral', location: './r.json' }],
+    });
+
+    expect(outcome.report.runs).toEqual([]);
+    expect(outcome.unclaimed).toEqual([
+      { type: 'spectral', location: './r.json' },
+    ]);
+
+    await t.close();
+  });
+
+  it('collapses duplicate report inputs (same type and stringified location) before dispatch', async () => {
+    const t = new Thymian();
+    let receivedInputs: unknown;
+
+    t.emitter.onAction('core.report.convert', async (payload, ctx) => {
+      receivedInputs = payload.inputs;
+      ctx.reply(
+        payload.inputs.map((input) => ({
+          input: { type: input.type, location: String(input.location) },
+          run: createToolRun({
+            tool: { name: '@thymian/plugin-spectral' },
+            runType: 'lint',
+            executions: [],
+          }),
+        })),
+      );
+    });
+
+    const outcome = await t.reportConvert({
+      reports: [
+        { type: 'spectral', location: './r.json' },
+        { type: 'spectral', location: './r.json' },
+      ],
+    });
+
+    expect(receivedInputs).toEqual([
+      { type: 'spectral', location: './r.json' },
+    ]);
+    expect(outcome.report.runs).toHaveLength(1);
+    expect(outcome.unclaimed).toEqual([]);
+
+    await t.close();
+  });
+
+  it('propagates a listener error as a workflow failure instead of an unclaimed input', async () => {
+    const t = new Thymian();
+
+    t.emitter.onAction('core.report.convert', async () => {
+      throw new Error('conversion exploded');
+    });
+
+    await expect(
+      t.reportConvert({
+        reports: [{ type: 'spectral', location: './r.json' }],
+      }),
+    ).rejects.toThrow('conversion exploded');
+
+    await t.close();
+  });
+
+  it('executes as a full workflow through Thymian.run() (AC1)', async () => {
+    const t = new Thymian();
+
+    t.emitter.onAction('core.report.convert', async (payload, ctx) => {
+      ctx.reply(
+        payload.inputs.map((input) => ({
+          input: { type: input.type, location: String(input.location) },
+          run: createToolRun({
+            tool: { name: '@thymian/plugin-spectral' },
+            runType: 'lint',
+            executions: [],
+          }),
+        })),
+      );
+    });
+
+    const outcome = await t.run(() =>
+      t.reportConvert({
+        reports: [{ type: 'spectral', location: './r.json' }],
+      }),
+    );
+
+    expect(outcome.report.runs).toHaveLength(1);
+    expect(outcome.unclaimed).toEqual([]);
+  });
+
+  it('emits the core.report event with the assembled report (accepted core.report overload)', async () => {
+    const t = new Thymian();
+    const emitted: unknown[] = [];
+    t.emitter.on('core.report', (report) => {
+      emitted.push(report);
+    });
+
+    t.emitter.onAction('core.report.convert', async (payload, ctx) => {
+      ctx.reply(
+        payload.inputs.map((input) => ({
+          input: { type: input.type, location: String(input.location) },
+          run: createToolRun({
+            tool: { name: '@thymian/plugin-spectral' },
+            runType: 'lint',
+            executions: [],
+          }),
+        })),
+      );
+    });
+
+    const outcome = await t.reportConvert({
+      reports: [{ type: 'spectral', location: './r.json' }],
+    });
+
+    expect(emitted).toEqual([outcome.report]);
+
+    await t.close();
+  });
+});
+
 describe('Thymian.register plugin-options validation', () => {
   type PluginOptions = {
     endpoint: string;

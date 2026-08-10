@@ -25,6 +25,7 @@
     "@thymian/plugin-websocket-proxy",
     "@thymian/rules-api-description-validation",
     "@thymian/rules-rfc-9110",
-    "@thymian/plugin-har"
+    "@thymian/plugin-har",
+    "@thymian/plugin-spectral"
   ]
 }

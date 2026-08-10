@@ -57,6 +57,30 @@ export const thymianConfigSchema = {
         },
       },
     },
+    reports: {
+      type: 'array',
+      description:
+        'Optional. External report inputs used by `thymian report convert`.',
+      default: [],
+      items: {
+        type: 'object',
+        required: ['type', 'location'],
+        additionalProperties: false,
+        properties: {
+          type: {
+            type: 'string',
+            minLength: 1,
+            description: 'For example `spectral`.',
+          },
+          location: { description: 'File path or supported path source.' },
+          options: {
+            type: 'object',
+            additionalProperties: true,
+            description: 'Report-specific options.',
+          },
+        },
+      },
+    },
     ruleSets: {
       type: 'array',
       description:

@@ -1,0 +1,14 @@
+reports:
+  - type: spectral
+    location: spectral-findings.json
+specifications:
+  - type: openapi
+    location: test.openapi.yaml
+plugins:
+  '@thymian/plugin-openapi': {}
+  '@thymian/plugin-spectral': {}
+  '@thymian/plugin-reporter':
+    options:
+      formatters:
+        markdown: {}
+        csv: {}
