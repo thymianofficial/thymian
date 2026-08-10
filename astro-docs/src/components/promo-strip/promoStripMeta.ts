@@ -3,9 +3,12 @@ import type { CollectionEntry } from 'astro:content';
 import { sortResourcesByEffectiveDate } from '../../lib/cross-links';
 import { classify, type EventDate } from '../../schema/event-date';
 import { comparePastEvents, compareUpcomingEvents } from '../events/eventMeta';
+import { PROMO_EVENT_LIMIT } from './promoStripLimit';
 
 type EventEntry = CollectionEntry<'events'>;
 type ResourceEntry = CollectionEntry<'resources'>;
+
+export { PROMO_EVENT_LIMIT };
 
 /**
  * Homepage promo strip selection (FR-14/FR-15, Epic 10 — CAP-4). Composes the
@@ -20,13 +23,6 @@ type ResourceEntry = CollectionEntry<'resources'>;
  * (build-time freshness bound) anchored to a single clock read at the call
  * site instead of scattered across this module.
  */
-
-/**
- * Cap on the number of Upcoming Event cards the strip surfaces. A CAP, never a
- * fill target: with fewer Upcoming Events than this, the strip shows fewer
- * cards — it is never topped up from Past.
- */
-export const PROMO_EVENT_LIMIT = 3;
 
 /**
  * Which FR-15 arm produced a {@link PromoSelection}: `upcoming` when ≥1
@@ -58,8 +54,12 @@ export interface PromoSelection {
  *    `compareUpcomingEvents` (`src/components/events/eventMeta.ts`).
  *  - Latest Resource → `sortResourcesByEffectiveDate(allResources,
  *    eventsById)[0]` (`src/lib/cross-links.ts`), run over the FULL resource set
- *    in one call (never pre-filtered) so the AD-6 dangling-`originEvent` guard
- *    in `resolveOriginEvent` stays exercised on this path too.
+ *    in one call (never pre-filtered). This does NOT reliably exercise the
+ *    AD-6 dangling-`originEvent` guard in `resolveOriginEvent` on its own —
+ *    `Array.prototype.sort` never invokes its comparator for 0/1-element
+ *    arrays, so a single dangling resource can slip past this call. The
+ *    guard's actual build-time coverage comes from the unconditional
+ *    `assertOriginEventsResolve` sweep on the `/resources` pages.
  *
  * The latest Resource is resolved independently of the event branch: per
  * FR-15, 0 Upcoming Events + ≥1 Resource is NOT the evergreen case (a

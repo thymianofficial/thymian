@@ -1,21 +1,8 @@
 import AxeBuilder from '@axe-core/playwright';
 import { expect, type Page, test } from '@playwright/test';
 
+import { PROMO_EVENT_LIMIT } from '../src/components/promo-strip/promoStripLimit';
 import { forceDarkTheme } from './navigation/nav-shared';
-
-/**
- * Mirrors `PROMO_EVENT_LIMIT` from
- * `../src/components/promo-strip/promoStripMeta.ts` (currently 3).
- * Deliberately NOT imported: that module resolves `classify` from
- * `src/schema/event-date.ts`, which does `import { z } from 'astro:content'`
- * as a real runtime value (not a type) - a virtual module Astro's own Vite
- * pipeline resolves but that Playwright's plain Node ESM loader cannot
- * ("Only URLs with a scheme in: file, data, and node are supported by the
- * default ESM loader. Received protocol 'astro:'"), confirmed by reproducing
- * the failure. No existing spec in this directory imports from `src/` for
- * the same reason. Keep this value in sync with the source by hand.
- */
-const PROMO_EVENT_LIMIT = 3;
 
 /**
  * Both pages that mount `PromoStrip`: Home (`index.mdx`) renders it as the
