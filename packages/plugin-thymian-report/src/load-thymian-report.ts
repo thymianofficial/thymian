@@ -43,7 +43,9 @@ export async function loadThymianReports(
 
   let parsed: unknown;
   try {
-    parsed = JSON.parse(content);
+    // Tolerate a UTF-8 BOM (common for files saved by Windows editors) —
+    // JSON.parse rejects it with a misleading syntax error otherwise.
+    parsed = JSON.parse(content.replace(/^\uFEFF/, ''));
   } catch (err) {
     throw new ThymianBaseError(
       `Failed to parse Thymian report "${inputLabel}" as JSON.`,

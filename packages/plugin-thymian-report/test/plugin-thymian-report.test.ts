@@ -163,6 +163,24 @@ describe('plugin-thymian-report', () => {
     await thymian.close();
   });
 
+  it('tolerates a UTF-8 BOM at the start of the report file', async () => {
+    const reportFile = await writeReportFile(
+      'bom.json',
+      `\uFEFF${JSON.stringify(sampleReport())}`,
+    );
+    const thymian = new Thymian().register(createThymianReportPlugin());
+    await thymian.ready();
+
+    const outcome = await thymian.reportConvert({
+      reports: [{ type: 'thymian', location: reportFile }],
+    });
+
+    expect(outcome.unclaimed).toEqual([]);
+    expect(outcome.report.runs).toHaveLength(1);
+
+    await thymian.close();
+  });
+
   it('throws a ThymianBaseError naming the input for a missing file', async () => {
     const missing = join(tmpDir, 'does-not-exist.json');
     const thymian = new Thymian().register(createThymianReportPlugin());
