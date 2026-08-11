@@ -60,7 +60,7 @@ export const thymianConfigSchema = {
     reports: {
       type: 'array',
       description:
-        'Optional. External report inputs used by `thymian report convert`.',
+        'Optional. Typed report inputs used by `thymian report convert` and `thymian report merge`.',
       default: [],
       items: {
         type: 'object',
