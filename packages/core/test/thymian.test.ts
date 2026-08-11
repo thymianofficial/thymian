@@ -571,6 +571,49 @@ describe('Thymian.reportConvert()', () => {
     await t.close();
   });
 
+  it('treats prototype-member hash keys as plain data and skips junk map values (#507 review)', async () => {
+    const t = new Thymian();
+
+    const format = {
+      attributes: { hash: 'constructor' },
+      nodes: [],
+      edges: [],
+    };
+
+    t.emitter.onAction('core.report.convert', async (payload, ctx) => {
+      ctx.reply(
+        payload.inputs.map((input) => ({
+          input: { type: input.type, location: String(input.location) },
+          run: createToolRun({
+            tool: { name: 'hostile-reader' },
+            runType: 'lint',
+            executions: [],
+            thymianFormatVersion: 'constructor',
+          }),
+          // 'constructor' collides with an Object.prototype member; 'bad'
+          // carries a junk value a hand-edited persisted map could contain.
+          thymianFormat: {
+            constructor: format,
+            bad: null,
+          } as unknown as NonNullable<
+            import('../src/index.js').Report['thymianFormat']
+          >,
+        })),
+      );
+    });
+
+    const outcome = await t.reportConvert({
+      reports: [{ type: 'thymian', location: './hostile.json' }],
+    });
+
+    expect(outcome.report.thymianFormat?.['constructor']).toBe(format);
+    expect(Object.keys(outcome.report.thymianFormat ?? {})).toEqual([
+      'constructor',
+    ]);
+
+    await t.close();
+  });
+
   it('leaves report.thymianFormat undefined when no fragment carries a map and no spec is given', async () => {
     const t = new Thymian();
 

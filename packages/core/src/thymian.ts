@@ -594,7 +594,11 @@ export class Thymian {
     // Union of fragment-carried format maps (#507): first occurrence wins per
     // hash — equal hashes mean equal serialized graphs, so collisions are
     // benign. Collected in assembly (input) order alongside the runs.
-    const fragmentFormats: NonNullable<Report['thymianFormat']> = {};
+    // Null-prototype object: persisted files are external input, so a hash
+    // key like 'constructor' or '__proto__' must behave as plain data.
+    const fragmentFormats: NonNullable<Report['thymianFormat']> = Object.create(
+      null,
+    ) as NonNullable<Report['thymianFormat']>;
 
     const toolRuns = reports.flatMap((reportInput) => {
       const key = `${reportInput.type}:${String(reportInput.location)}`;
@@ -611,7 +615,15 @@ export class Thymian {
           for (const [hash, serialized] of Object.entries(
             fragment.thymianFormat,
           )) {
-            fragmentFormats[hash] ??= serialized;
+            // Skip junk values (e.g. null from a hand-edited persisted map)
+            // rather than copying them into the merged report.
+            if (!serialized || typeof serialized !== 'object') {
+              continue;
+            }
+
+            if (!Object.hasOwn(fragmentFormats, hash)) {
+              fragmentFormats[hash] = serialized;
+            }
           }
         }
         return fragment.run;
