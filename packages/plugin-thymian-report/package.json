@@ -1,0 +1,47 @@
+{
+  "name": "@thymian/plugin-thymian-report",
+  "version": "0.0.0-PLACEHOLDER",
+  "description": "Thymian plugin that reads persisted Thymian JSON reports back into the report pipeline (report merge)",
+  "license": "AGPL-3.0-only",
+  "bugs": {
+    "url": "https://github.com/thymianofficial/thymian/issues"
+  },
+  "homepage": "https://thymian.dev",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/thymianofficial/thymian.git",
+    "directory": "packages/plugin-thymian-report"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "engines": {
+    "node": ">=22"
+  },
+  "keywords": [
+    "thymian",
+    "report-converter",
+    "report-merge",
+    "api-conformance"
+  ],
+  "main": "./dist/index.js",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "type": "module",
+  "exports": {
+    "./package.json": "./package.json",
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "!**/*.tsbuildinfo"
+  ],
+  "dependencies": {
+    "@thymian/core": "0.0.0-PLACEHOLDER",
+    "tslib": "^2.3.0"
+  }
+}

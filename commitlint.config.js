@@ -26,6 +26,7 @@ export default {
         'thymian',
         'e2e',
         'plugin-har',
+        'plugin-thymian-report',
       ],
     ],
     'scope-empty': [2, 'never'],

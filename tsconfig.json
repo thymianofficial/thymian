@@ -56,6 +56,9 @@
     },
     {
       "path": "./packages/plugin-har"
+    },
+    {
+      "path": "./packages/plugin-thymian-report"
     }
   ]
 }
