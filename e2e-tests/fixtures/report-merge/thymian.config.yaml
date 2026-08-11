@@ -15,3 +15,4 @@ plugins:
       formatters:
         markdown: {}
         json: {}
+        csv: {}

@@ -1,0 +1,13 @@
+openapi: 3.1.0
+info:
+  title: 'Second Test API'
+  description: 'Second Test API'
+  version: '1.0.0'
+paths:
+  /api/goodbye:
+    get:
+      summary: 'GET api/goodbye'
+      operationId: 'goodbye'
+      responses:
+        '200':
+          description: 'OK'

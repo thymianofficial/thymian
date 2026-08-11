@@ -64,7 +64,7 @@ describe('thymian report merge', () => {
         '-o',
         '@thymian/plugin-reporter.formatters.json.path=converted.json',
       ],
-      { cwd: getTempDir(), allowFailure: true },
+      { cwd: getTempDir() },
     );
     expect(convert.exitCode).toBe(1); // findings, not an error
     expect(existsSync(join(getTempDir(), 'converted.json'))).toBe(true);
@@ -95,6 +95,98 @@ describe('thymian report merge', () => {
     expect(markdown).toContain('fixture-linter-b2');
   }, 90_000);
 
+  it('should resolve locations per run when merged inputs carry two different format hashes (AC 3)', () => {
+    copyFixturesToTempDir(join(fixturesDir, 'report-merge'), getTempDir());
+
+    // Persist two converted reports against two DIFFERENT specs — each
+    // embeds its own format map under a distinct hash.
+    execThymianResult(
+      [
+        'report',
+        'convert',
+        '--report',
+        'spectral:spectral-findings.json',
+        '--spec',
+        'openapi:test.openapi.yaml',
+        '-o',
+        '@thymian/plugin-reporter.formatters.json.path=c1.json',
+      ],
+      { cwd: getTempDir() },
+    );
+    execThymianResult(
+      [
+        'report',
+        'convert',
+        '--report',
+        'spectral:spectral-findings.json',
+        '--spec',
+        'openapi:test2.openapi.yaml',
+        '-o',
+        '@thymian/plugin-reporter.formatters.json.path=c2.json',
+      ],
+      { cwd: getTempDir() },
+    );
+
+    const { exitCode } = execThymianResult(
+      [
+        'report',
+        'merge',
+        '--report',
+        'thymian:c1.json',
+        '--report',
+        'thymian:c2.json',
+        '-o',
+        '@thymian/plugin-reporter.formatters.markdown.path=two-hashes.md',
+        '-o',
+        '@thymian/plugin-reporter.formatters.json.path=two-hashes.json',
+      ],
+      { cwd: getTempDir() },
+    );
+
+    expect(exitCode).toBe(1);
+    const merged = JSON.parse(
+      readFileSync(join(getTempDir(), 'two-hashes.json'), 'utf-8'),
+    ) as {
+      runs: { thymianFormatVersion?: string }[];
+      thymianFormat?: Record<string, unknown>;
+    }[];
+    // Both format maps survive the merge under distinct hashes, and each
+    // run still points at its own hash.
+    const hashes = Object.keys(merged[0]?.thymianFormat ?? {});
+    expect(hashes).toHaveLength(2);
+    expect(
+      merged[0]?.runs.map((run) => run.thymianFormatVersion).sort(),
+    ).toEqual([...hashes].sort());
+    // With two entries the sole-entry fallback is out of play — resolution
+    // must go through each run's own hash. Run 1's endpoint-resolved
+    // location must still render (run 2's findings keep file locations:
+    // the spectral fixture's source doesn't map onto test2's paths), and
+    // no location may degrade to the raw `format:<hash>` fallback text.
+    const markdown = readFileSync(join(getTempDir(), 'two-hashes.md'), 'utf-8');
+    expect(markdown).toContain('200 OK - */*');
+    expect(markdown).not.toContain('format:');
+  }, 90_000);
+
+  it('should merge two foreign inputs (foreign+foreign pairing, AC 1)', () => {
+    copyFixturesToTempDir(join(fixturesDir, 'report-merge'), getTempDir());
+
+    const { stdout, exitCode } = execThymianResult(
+      [
+        'report',
+        'merge',
+        '--report',
+        'spectral:spectral-findings.json',
+        '--report',
+        'spectral:spectral-clean.json',
+      ],
+      { cwd: getTempDir() },
+    );
+
+    expect(exitCode).toBe(1);
+    // Two distinct spectral inputs → two converted runs in one report.
+    expect(stdout.match(/@thymian\/plugin-spectral · lint/g)?.length).toBe(2);
+  }, 90_000);
+
   it('should concatenate thymian+thymian runs in input order and reverse with the flags (AC 1, 6)', () => {
     copyFixturesToTempDir(join(fixturesDir, 'report-merge'), getTempDir());
 
@@ -107,7 +199,7 @@ describe('thymian report merge', () => {
         '--report',
         'thymian:thymian-two-reports.json',
       ],
-      { cwd: getTempDir(), allowFailure: true },
+      { cwd: getTempDir() },
     );
 
     const indexA = forward.stdout.indexOf('fixture-linter-a');
@@ -126,7 +218,7 @@ describe('thymian report merge', () => {
         '--report',
         'thymian:thymian-report.json',
       ],
-      { cwd: getTempDir(), allowFailure: true },
+      { cwd: getTempDir() },
     );
 
     expect(reversed.stdout.indexOf('fixture-linter-b1')).toBeLessThan(
@@ -139,7 +231,7 @@ describe('thymian report merge', () => {
 
     const { stdout, exitCode } = execThymianResult(
       ['report', 'merge', '--report', 'thymian:thymian-report.json'],
-      { cwd: getTempDir(), allowFailure: true },
+      { cwd: getTempDir() },
     );
 
     expect(exitCode).toBe(1);
@@ -159,12 +251,17 @@ describe('thymian report merge', () => {
         '--report',
         'thymian:thymian-report.json',
       ],
-      { cwd: getTempDir(), allowFailure: true },
+      { cwd: getTempDir() },
     );
 
     expect(exitCode).toBe(1);
-    // The run renders exactly once — not doubled.
-    expect(stdout.match(/fixture-linter-a/g)).toHaveLength(1);
+    // The duplicate input collapses to a single contribution — assert on the
+    // written report's structure, not on rendered-text occurrence counts.
+    expect(stdout).toContain('fixture-linter-a');
+    const written = JSON.parse(
+      readFileSync(join(getTempDir(), '.thymian/reports/report.json'), 'utf-8'),
+    ) as { runs: unknown[] }[];
+    expect(written[0]?.runs).toHaveLength(1);
   }, 90_000);
 
   it('should drive report merge from config-file reports when no flags are given (AC 7)', () => {
@@ -172,17 +269,19 @@ describe('thymian report merge', () => {
 
     const { stdout, exitCode } = execThymianResult(['report', 'merge'], {
       cwd: getTempDir(),
-      allowFailure: true,
     });
 
     expect(exitCode).toBe(1);
     expect(stdout).toContain('fixture-linter-a');
     expect(stdout).toContain('@thymian/plugin-spectral');
-    // The config file also enables the markdown+json formatters.
+    // The config file also enables the markdown+json+csv formatters (AC 5).
     expect(existsSync(join(getTempDir(), '.thymian/reports/report.md'))).toBe(
       true,
     );
     expect(existsSync(join(getTempDir(), '.thymian/reports/report.json'))).toBe(
+      true,
+    );
+    expect(existsSync(join(getTempDir(), '.thymian/reports/report.csv'))).toBe(
       true,
     );
   }, 90_000);
@@ -191,7 +290,6 @@ describe('thymian report merge', () => {
     // Deliberately no fixture copy: no config file, no flags.
     const { stderr, exitCode } = execThymianResult(['report', 'merge'], {
       cwd: getTempDir(),
-      allowFailure: true,
     });
 
     expect(exitCode).toBe(2);
@@ -206,7 +304,7 @@ describe('thymian report merge', () => {
 
     const { stderr, exitCode } = execThymianResult(
       ['report', 'merge', '--report', 'thymian:broken.json'],
-      { cwd: getTempDir(), allowFailure: true },
+      { cwd: getTempDir() },
     );
 
     expect(exitCode).toBe(2);
@@ -229,7 +327,7 @@ describe('thymian report merge', () => {
 
     const { stderr, exitCode } = execThymianResult(
       ['report', 'merge', '--report', 'thymian:not-a-report.json'],
-      { cwd: getTempDir(), allowFailure: true },
+      { cwd: getTempDir() },
     );
 
     expect(exitCode).toBe(2);
@@ -253,7 +351,7 @@ describe('thymian report merge', () => {
         '--report',
         'unknown-format:other.json',
       ],
-      { cwd: getTempDir(), allowFailure: true },
+      { cwd: getTempDir() },
     );
 
     expect(exitCode).toBe(2);
@@ -273,7 +371,7 @@ describe('thymian report merge', () => {
         '-o',
         '@thymian/plugin-reporter.formatters.markdown.path=out/custom-merged.md',
       ],
-      { cwd: getTempDir(), allowFailure: true },
+      { cwd: getTempDir() },
     );
 
     const markdown = readFileSync(
@@ -298,11 +396,9 @@ describe('thymian report merge', () => {
 
     const first = execThymianResult(args, {
       cwd: getTempDir(),
-      allowFailure: true,
     });
     const second = execThymianResult(args, {
       cwd: getTempDir(),
-      allowFailure: true,
     });
 
     expect(first.exitCode).toBe(1);
@@ -315,7 +411,7 @@ describe('thymian report merge', () => {
 
     const { stdout, stderr } = execThymianResult(
       ['report', 'merge', '--report', 'thymian:thymian-report.json'],
-      { cwd: getTempDir(), allowFailure: true },
+      { cwd: getTempDir() },
     );
 
     expect(stdout).toContain('Summary:');
