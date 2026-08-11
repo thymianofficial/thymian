@@ -23,5 +23,6 @@ export const defaultConfig: ThymianConfig = {
     '@thymian/plugin-http-analyzer': {},
     '@thymian/plugin-har': {},
     '@thymian/plugin-spectral': {},
+    '@thymian/plugin-thymian-report': {},
   },
 };
