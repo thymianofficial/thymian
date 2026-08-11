@@ -32,8 +32,12 @@ A Thymian report contains an array of tool runs. Merging concatenates the runs o
   A `thymian:` input must be a **Thymian JSON report** — either the JSON
   formatter's native output (an *array* of reports; every report in the array is
   merged) or a single bare report object. Files that fail structural validation
-  are rejected with an error naming the input.
+  are rejected with an error naming the input, as are files that contain no runs
+  at all (an empty array, or only run-less reports); in a multi-report file,
+  individual reports without runs are skipped.
 </Aside>
+
+The merged output is deterministic apart from freshly minted identity: the same inputs in the same order produce the same report (modulo the new report id and timestamps), and reversing the input order reorders the runs accordingly. The one caveat: when several plugins claim the _same_ input, the relative order of their contributed runs is not guaranteed.
 
 ## Converting External Formats on the Way In
 
