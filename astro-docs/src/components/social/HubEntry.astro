@@ -1,0 +1,193 @@
+---
+import type { CollectionEntry } from 'astro:content';
+
+import { urlForEntry } from '../../lib/cross-links';
+import type { PromoImageResult } from '../../lib/promo-image';
+import type { PromoFacts, PromoPost } from '../../lib/promo-post';
+import PlatformSection from './PlatformSection.astro';
+import PostText from './PostText.astro';
+import PromoImage from './PromoImage.astro';
+
+/**
+ * The Epic 11 hub's per-entry page BODY (Story 11.3, AC6/AC7/AC11/AC12).
+ * Prop-driven — no `getCollection` here, ever; the page shell
+ * (`src/pages/social/events-resources/[collection]/[entry].astro`) does all
+ * data fetching and passes the result in. `facts` (#447), `posts` (#447) and
+ * `image` (#448) are consumed exactly as their owning stories produce them —
+ * never re-derived, never re-branched, never forked.
+ *
+ * Render order (fixed, AC6): `.hub-entry-header` -> `.hub-promo-image` ->
+ * four `PlatformSection`s (one per `posts` entry, already in
+ * `PROMO_PLATFORMS` order) -> one `PostText` per `post.blocks` entry (five
+ * total: reddit 2, the other three 1 each). No `<h2>`s anywhere in this
+ * file — the entry title is already the page `<h1>` via Starlight, and the
+ * five `aria-label`s below carry the structure instead.
+ */
+
+interface Props {
+  entry: CollectionEntry<'events'> | CollectionEntry<'resources'>;
+  facts: PromoFacts;
+  /** Exactly 4, in `PROMO_PLATFORMS` order, 5 blocks total. NOT a
+   *  platform-keyed `Record`, NOT four plain strings. */
+  posts: PromoPost[];
+  image: PromoImageResult;
+}
+
+const { entry, facts, posts, image } = Astro.props;
+
+const publicLinkLabel =
+  entry.collection === 'events'
+    ? 'View the public Events page'
+    : 'View the public Resources page';
+---
+
+<div class="hub-entry">
+  <header class="hub-entry-header">
+    <dl>
+      <dt>Kind</dt>
+      <dd>{facts.kindLabel}</dd>
+      {
+        facts.modeLabel !== undefined && (
+          <>
+            <dt>Mode</dt>
+            <dd>{facts.modeLabel}</dd>
+          </>
+        )
+      }
+      {
+        facts.dateDisplay !== undefined && (
+          <>
+            <dt>Date</dt>
+            <dd>{facts.dateDisplay}</dd>
+          </>
+        )
+      }
+      {
+        facts.place !== undefined && (
+          <>
+            <dt>Place</dt>
+            <dd>{facts.place}</dd>
+          </>
+        )
+      }
+      {
+        facts.speakerNames.length > 0 && (
+          <>
+            <dt>Speakers</dt>
+            <dd>{facts.speakerNames.join(', ')}</dd>
+          </>
+        )
+      }
+      {
+        facts.guestCredit !== undefined && (
+          <>
+            <dt>Guest credit</dt>
+            <dd>{`Guest of ${facts.guestCredit.externalHost} on ${facts.guestCredit.platform}`}</dd>
+          </>
+        )
+      }
+    </dl>
+    <a class="hub-entry-public-link" href={urlForEntry(entry)}>
+      {publicLinkLabel}
+    </a>
+  </header>
+
+  <div class="hub-promo-image"><PromoImage image={image} entryId={entry.id} /></div>
+
+  {
+    posts.map((post) => (
+      <PlatformSection platform={post.platform}>
+        {post.blocks.map((block) => (
+          <PostText platform={post.platform} label={block.label}><div
+            class="hub-post-editable" contenteditable="true" role="textbox" aria-multiline="true"
+            aria-label={`${post.platform} — ${block.label ?? 'post text'}`} spellcheck="true">{block.text}</div></PostText>
+        ))}
+      </PlatformSection>
+    ))
+  }
+</div>
+
+<style>
+  .hub-entry {
+    display: flex;
+    flex-direction: column;
+    gap: 2rem;
+    /* Self-seeded focus ring — mirrors PromoImage.astro's own workaround for
+       the token-scope trap: no --ev-*/--sl-color-accent read for anything
+       load-bearing in this story's own markup. */
+    --hub-focus-ring: #017b64;
+  }
+
+  :global(:root[data-theme='dark']) .hub-entry {
+    --hub-focus-ring: #74cfbf;
+  }
+
+  .hub-entry-header {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+    padding: 1.25rem;
+    background: var(--sl-color-gray-6);
+    border: 1px solid var(--sl-color-gray-5);
+    border-radius: 0.75rem;
+  }
+
+  .hub-entry-header dl {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    gap: 0.5rem 1rem;
+    margin: 0;
+  }
+
+  .hub-entry-header dt {
+    margin: 0;
+    font-size: 0.75rem;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    /* Proven-safe pairing (AC14 baseline table): --sl-color-white on
+       gray-6 measures 14.98:1 dark / 15.31:1 light — dt/dd differ by weight
+       and case only, never by color, so neither can trip color-contrast. */
+    color: var(--sl-color-white);
+  }
+
+  .hub-entry-header dd {
+    margin: 0;
+    font-size: 0.95rem;
+    color: var(--sl-color-white);
+  }
+
+  .hub-entry-public-link {
+    align-self: flex-start;
+  }
+
+  .hub-promo-image {
+    max-width: 40rem;
+  }
+
+  .hub-post-editable {
+    /* Deliberately redundant with .post-text-content's inherited
+       white-space: pre-wrap (Dev Notes) — the copy target is the slot
+       wrapper, not this div, but the visible wrapping must match. */
+    white-space: pre-wrap;
+  }
+
+  .hub-post-editable:focus-visible {
+    outline: 2px solid var(--hub-focus-ring);
+    outline-offset: 2px;
+    border-radius: 0.25rem;
+  }
+
+  /* AC11's explicit link colour: never inherit Starlight's
+     accent-derived link colour (--sl-color-accent is forbidden here). */
+  .hub-entry a {
+    color: var(--sl-color-white);
+    text-decoration: underline;
+  }
+
+  .hub-entry a:focus-visible {
+    outline: 2px solid var(--hub-focus-ring);
+    outline-offset: 2px;
+    border-radius: 2px;
+  }
+</style>

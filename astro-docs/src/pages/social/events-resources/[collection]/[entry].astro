@@ -1,0 +1,99 @@
+---
+import type { CollectionEntry } from 'astro:content';
+import { getCollection } from 'astro:content';
+
+import HubEntry from '../../../../components/social/HubEntry.astro';
+import SocialLayout from '../../../../components/social/SocialLayout.astro';
+import {
+  assertOriginEventsResolve,
+  indexEventsById,
+} from '../../../../lib/cross-links';
+import { resolvePromoImage } from '../../../../lib/promo-image';
+import {
+  composePromoPosts,
+  resolvePromoFacts,
+  type PromoInput,
+  type PromoSubject,
+} from '../../../../lib/promo-post';
+
+/**
+ * The Epic 11 hub's per-entry route (Story 11.3, AC1/AC3/AC8/AC9/AC10/AC12).
+ * A thin data shell only: `getStaticPaths` + `getCollection` + the AD-6
+ * guard + the three module calls (11.1/11.2) + one `<HubEntry>`. Nothing
+ * else — the rendering itself lives in `HubEntry.astro`.
+ */
+
+type EventEntry = CollectionEntry<'events'>;
+type ResourceEntry = CollectionEntry<'resources'>;
+
+export async function getStaticPaths() {
+  const [allEvents, allResources] = await Promise.all([
+    getCollection('events'),
+    getCollection('resources'),
+  ]);
+  const entries: (EventEntry | ResourceEntry)[] = [
+    ...allEvents,
+    ...allResources,
+  ];
+  return entries.map((entry) => ({
+    params: { collection: entry.collection, entry: entry.id },
+    props: { entry },
+  }));
+}
+
+interface Props {
+  entry: EventEntry | ResourceEntry;
+}
+
+const { entry } = Astro.props;
+
+// 1. Both collections, freshly loaded in the page frontmatter (a `Map` isn't
+//    serialisable through `getStaticPaths`, and this page needs `eventsById`
+//    for `resolvePromoImage` and both 11.1 calls below).
+const allEvents = await getCollection('events');
+const allResources = await getCollection('resources');
+
+// 2. The AD-6 build-time guard, over the FULL resource set, on this render
+//    path too — Astro 7.1.3 `reference()` is warn-only.
+const eventsById = indexEventsById(allEvents);
+assertOriginEventsResolve(allResources, eventsById);
+
+// 3. Narrow Astro.site (URL | undefined) — never assert.
+const siteUrl = Astro.site;
+if (!siteUrl) {
+  throw new Error(
+    'astro.config.ts must set `site` — promo posts need absolute URLs (#447 AC5).',
+  );
+}
+
+// 4. Build the subject from the resolved entry.
+const subject: PromoSubject =
+  entry.collection === 'events'
+    ? { kind: 'event', entry }
+    : { kind: 'resource', entry };
+
+const buildDate = new Date();
+
+// 5. resolvePromoImage FIRST (11.2) — its `credit` feeds `imageCredit` below.
+const promoImage = resolvePromoImage(entry, eventsById);
+
+// 6. Compose the complete, 3-part licence notice (#448 AC9 / #447 AC11) —
+//    never reach into LOGO_CREDITS / resolveLogoCredits directly.
+const imageCredit =
+  promoImage.kind === 'logo' && promoImage.credit
+    ? `${promoImage.credit.text}, licensed under ${promoImage.credit.licenseName} (${promoImage.credit.licenseUrl}).`
+    : undefined;
+
+// 7-8. One PromoInput, built once, passed to both 11.1 calls.
+const promoInput: PromoInput = { subject, eventsById, siteUrl, buildDate };
+const facts = resolvePromoFacts(promoInput);
+const posts = composePromoPosts({ ...promoInput, imageCredit });
+---
+
+<SocialLayout
+  title={entry.data.title}
+  category="events-resources"
+  slug={entry.id}
+>
+  <HubEntry entry={entry} facts={facts} posts={posts} image={promoImage} />
+</SocialLayout>

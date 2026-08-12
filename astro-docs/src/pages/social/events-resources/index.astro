@@ -1,0 +1,153 @@
+---
+import { getCollection } from 'astro:content';
+
+import {
+  compareUpcomingEvents,
+  comparePastEvents,
+} from '../../../components/events/eventMeta';
+import SocialLayout from '../../../components/social/SocialLayout.astro';
+import { hubPathForEntry } from '../../../components/social/socialHubPaths';
+import {
+  assertOriginEventsResolve,
+  indexEventsById,
+  sortResourcesByEffectiveDate,
+} from '../../../lib/cross-links';
+import { classify, type EventDate } from '../../../schema/event-date';
+
+/**
+ * The Epic 11 hub's landing route (Story 11.3, AC2/AC3/AC10) — the "Events &
+ * Resources category" UJ-3 refers to. Lists every event and resource, each
+ * linking to its per-entry hub page via `hubPathForEntry` (AC13).
+ * Grouping/order is delegated, never re-derived.
+ */
+
+const allEvents = await getCollection('events');
+const allResources = await getCollection('resources');
+
+const eventsById = indexEventsById(allEvents);
+// The AD-6 build-time guard, over the FULL resource set, on this render path
+// too — Astro 7.1.3 `reference()` is warn-only.
+assertOriginEventsResolve(allResources, eventsById);
+
+const buildDate = new Date();
+
+const upcomingEvents = allEvents.filter(
+  (event) => classify(event.data.date as EventDate, buildDate) === 'upcoming',
+);
+const pastEvents = allEvents.filter(
+  (event) => classify(event.data.date as EventDate, buildDate) === 'past',
+);
+
+upcomingEvents.sort((a, b) =>
+  compareUpcomingEvents(
+    { date: a.data.date as EventDate, title: a.data.title },
+    { date: b.data.date as EventDate, title: b.data.title },
+  ),
+);
+pastEvents.sort((a, b) =>
+  comparePastEvents(
+    { date: a.data.date as EventDate, title: a.data.title },
+    { date: b.data.date as EventDate, title: b.data.title },
+  ),
+);
+
+const sortedResources = sortResourcesByEffectiveDate(allResources, eventsById);
+---
+
+<SocialLayout
+  title="Events & Resources"
+  description="Branded posts, ready to copy, for every Event and Resource."
+  category="events-resources"
+>
+  <div class="hub-index">
+    <section aria-labelledby="hub-upcoming-heading">
+      <h2 id="hub-upcoming-heading">Upcoming events</h2>
+      {
+        upcomingEvents.length > 0 ? (
+          <ul>
+            {upcomingEvents.map((event) => (
+              <li>
+                <a href={hubPathForEntry(event)}>{event.data.title}</a>
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <p class="hub-index-empty">No upcoming events.</p>
+        )
+      }
+    </section>
+
+    <section aria-labelledby="hub-past-heading">
+      <h2 id="hub-past-heading">Past events</h2>
+      {
+        pastEvents.length > 0 ? (
+          <ul>
+            {pastEvents.map((event) => (
+              <li>
+                <a href={hubPathForEntry(event)}>{event.data.title}</a>
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <p class="hub-index-empty">No past events.</p>
+        )
+      }
+    </section>
+
+    <section aria-labelledby="hub-resources-heading">
+      <h2 id="hub-resources-heading">Resources</h2>
+      {
+        sortedResources.length > 0 ? (
+          <ul>
+            {sortedResources.map((resource) => (
+              <li>
+                <a href={hubPathForEntry(resource)}>{resource.data.title}</a>
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <p class="hub-index-empty">No resources yet.</p>
+        )
+      }
+    </section>
+  </div>
+</SocialLayout>
+
+<style>
+  .hub-index {
+    display: flex;
+    flex-direction: column;
+    gap: 2rem;
+  }
+
+  .hub-index ul {
+    display: flex;
+    flex-direction: column;
+    gap: 0.625rem;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  .hub-index-empty {
+    margin: 0;
+    color: var(--sl-color-white);
+  }
+
+  /* Same explicit link colour rule as HubEntry.astro: never inherit
+     Starlight's accent-derived link colour. */
+  .hub-index a {
+    color: var(--sl-color-white);
+    text-decoration: underline;
+  }
+
+  .hub-index a:focus-visible {
+    outline: 2px solid #017b64;
+    outline-offset: 2px;
+    border-radius: 2px;
+  }
+
+  :global(:root[data-theme='dark']) .hub-index a:focus-visible {
+    outline-color: #74cfbf;
+  }
+</style>

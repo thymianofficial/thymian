@@ -7,5 +7,36 @@ const allPosts = await getCollection('social');
 ---
 
 <SocialLayout title="Social Media Hub">
+  <div class="hub-link-block">
+    <a href="/social/events-resources/">
+      Events &amp; Resources — branded, ready-to-copy posts for every Event
+      and Resource
+    </a>
+  </div>
   <SocialPostList allPosts={allPosts} posts={allPosts} />
 </SocialLayout>
+
+<style>
+  .hub-link-block {
+    margin-bottom: 1.5rem;
+    padding: 0.625rem 1rem;
+    background: var(--sl-color-gray-6);
+    border: 1px solid var(--sl-color-gray-5);
+    border-radius: 0.5rem;
+  }
+
+  .hub-link-block a {
+    color: var(--sl-color-white);
+    text-decoration: underline;
+  }
+
+  .hub-link-block a:focus-visible {
+    outline: 2px solid #017b64;
+    outline-offset: 2px;
+    border-radius: 2px;
+  }
+
+  :global(:root[data-theme='dark']) .hub-link-block a:focus-visible {
+    outline-color: #74cfbf;
+  }
+</style>

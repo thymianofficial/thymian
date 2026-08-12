@@ -314,6 +314,11 @@ When creating the same message for multiple platforms:
 
 ## Validation Checklist
 
+This checklist covers hand-authored `astro-docs/src/content/social/**` MDX posts only —
+`/social/events-resources/**` is generated build-time from the `events`/`resources` collections and
+renders exactly one image per entry across all four platforms (AD-14), so its "one `SocialImage` per
+platform" / "`SocialImage` platform matches its parent `PlatformSection`" rules below do not apply there.
+
 When creating social content, verify:
 
 - [ ] Frontmatter has all required fields (`title`, `description`, `category`, `publishStatus`)
