@@ -1,0 +1,131 @@
+---
+import { Image } from 'astro:assets';
+
+import type { PromoImageResult } from '../../lib/promo-image';
+import SocialImage from './SocialImage.astro';
+
+/**
+ * The render primitive for `resolvePromoImage`'s two mutually-exclusive
+ * branches (`src/lib/promo-image.ts`, AD-14). Renders exactly the branch it
+ * is given — no re-branching downstream, no client JS of its own.
+ *
+ * `logo` → an unmodified `<Image>` on a white chip (`background: #ffffff`
+ * LITERALLY, in BOTH themes — never a theme-reactive token: FrosCon's
+ * dark-navy wordmark, CC BY-ND — used unmodified — must stay legible on a
+ * dark page too). This copies `EventLogo.astro`'s CHIP RULE, not the
+ * component itself (its fallback is the wrong one here, and it reads
+ * `--ev-*` tokens by inheritance from an `.events-root` ancestor this hub
+ * does not have). A licence-credit line renders when `image.credit` is set,
+ * in `EventsLayout.astro`'s exact markup shape (`rel="license"`, linked
+ * licence name) — the CC BY-ND attribution obligation. No download
+ * affordance: this branch is a preview only (the licence is NoDerivatives),
+ * and reusing `SocialImage`'s `.social-image-canvas` / `.download-btn` class
+ * names would silently attach ITS exporter to this markup, so neither is
+ * used here.
+ *
+ * `card` → the existing `SocialImage type="headline"` branded card, with NO
+ * `platform` prop (its default `'x'`/1200×628 is the single canonical size,
+ * AD-14) and an explicit, deterministic `id` (`promo-${entryId}`).
+ *
+ * Token-scope trap: no `.events-root`/`.resources-root` ancestor exists on
+ * the future hub page, so a bare `var(--ev-…)` would resolve to nothing.
+ * Starlight's own `--sl-color-gray-*` DO cascade globally (legitimate here
+ * for the credit line's text and the chip's border) — but the chip
+ * background is a literal `#ffffff`, never a variable, and `--sl-color-accent`
+ * is never read (`global.css` reseeds it to green under dark mode). The one
+ * custom property this component needs (a focus ring) is self-seeded on its
+ * own root for both themes.
+ */
+
+interface Props {
+  image: PromoImageResult;
+  entryId: string;
+}
+
+const { image, entryId } = Astro.props;
+---
+
+{
+  image.kind === 'logo' ? (
+    <div class="promo-image-logo">
+      <div class="promo-image-logo-chip">
+        <Image
+          src={image.image}
+          alt={image.alt}
+          class="promo-image-logo-img"
+        />
+      </div>
+      {image.credit && (
+        <p class="promo-image-credit">
+          {image.credit.text}, licensed under{' '}
+          <a
+            href={image.credit.licenseUrl}
+            rel="license noopener noreferrer"
+            target="_blank"
+          >
+            {image.credit.licenseName}
+          </a>
+          .
+        </p>
+      )}
+    </div>
+  ) : (
+    <SocialImage
+      type="headline"
+      headline={image.headline}
+      subheadline={image.subheadline}
+      id={`promo-${entryId}`}
+    />
+  )
+}
+
+<style>
+  .promo-image-logo {
+    /* Self-seeded — see the header comment's Token-scope-trap note. */
+    --promo-image-focus-ring: #017b64;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+
+  :global(:root[data-theme='dark']) .promo-image-logo {
+    --promo-image-focus-ring: #74cfbf;
+  }
+
+  .promo-image-logo-chip {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 160px;
+    padding: 1rem 1.25rem;
+    border: 1px solid var(--sl-color-gray-5);
+    border-radius: 0.75rem;
+    /* AC9: literally #ffffff in BOTH themes — never a theme-reactive token. */
+    background: #ffffff;
+  }
+
+  .promo-image-logo-img {
+    max-width: 100%;
+    max-height: 100%;
+    object-fit: contain;
+  }
+
+  .promo-image-credit {
+    margin: 0;
+    font-size: 0.78rem;
+    line-height: 1.5;
+    color: var(--sl-color-gray-3);
+  }
+
+  .promo-image-credit a {
+    color: var(--sl-color-gray-2);
+    text-decoration: underline;
+    text-underline-offset: 2px;
+  }
+
+  .promo-image-credit a:focus-visible {
+    outline: 2px solid var(--promo-image-focus-ring);
+    outline-offset: 2px;
+    border-radius: 2px;
+  }
+</style>
