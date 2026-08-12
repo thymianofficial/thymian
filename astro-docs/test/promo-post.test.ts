@@ -731,6 +731,50 @@ describe('composePromoPosts — phrasing (AC8)', () => {
       }
     }
   });
+
+  it('joinNames: two speakers join with "and", three+ join with an Oxford comma', () => {
+    const [keyA, keyB, keyC] = TEAM_KEYS;
+    const nameA = blogAuthors[keyA as string]?.name ?? (keyA as string);
+    const nameB = blogAuthors[keyB as string]?.name ?? (keyB as string);
+    const nameC = blogAuthors[keyC as string]?.name ?? (keyC as string);
+
+    const twoPosts = composePromoPosts(
+      eventInput(
+        event('e-two-speakers', { speakers: [keyA as string, keyB as string] }),
+      ),
+    );
+    const twoLede = firstBlock(findPost(twoPosts, 'x')).text;
+    expect(twoLede).toContain(`${nameA} and ${nameB}`);
+
+    const threePosts = composePromoPosts(
+      eventInput(
+        event('e-three-speakers', {
+          speakers: [keyA as string, keyB as string, keyC as string],
+        }),
+      ),
+    );
+    const threeLede = firstBlock(findPost(threePosts, 'x')).text;
+    expect(threeLede).toContain(`${nameA}, ${nameB}, and ${nameC}`);
+  });
+
+  it('resource ledes: a paper resource with a speaking origin event credits the speaker(s) ("authored by")', () => {
+    const originEvent = event('paper-origin-event', {
+      participation: 'paper',
+      mode: 'presenting',
+      speakers: [TEAM_KEY],
+    });
+    const posts = composePromoPosts(
+      resourceInput(
+        resource('paper-with-authors', {
+          resourceType: 'paper',
+          originEvent: 'paper-origin-event',
+        }),
+        indexEventsById([originEvent]),
+      ),
+    );
+    const x = firstBlock(findPost(posts, 'x')).text;
+    expect(x).toContain(`authored by ${TEAM_NAME}`);
+  });
 });
 
 // ---------------------------------------------------------------------------

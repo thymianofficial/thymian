@@ -288,13 +288,22 @@ type EventLedeFn = (context: EventLedeContext) => string;
 type EventLedeKey = `${ParticipationType}:${ParticipationMode}`;
 
 /** Grammatical for all 12 `ParticipationType × ParticipationMode`
- *  combinations, so adding a new type/mode can never crash the composer. */
+ *  combinations, so adding a new type/mode can never crash the composer.
+ *  "Attending" reads naturally without "at" ("attending this podcast"),
+ *  while "presenting" (and any future mode) keeps it ("presenting at this
+ *  podcast") — a bare template would render "attending at this podcast" for
+ *  every attending-mode default, which is stilted rather than incorrect. */
 const DEFAULT_EVENT_LEDE: EventLedeFn = ({
   speakerNames,
   kindLabel,
   modeLabel,
-}) =>
-  `${who(speakerNames)} is ${modeLabel.toLowerCase()} at this ${kindLabel.toLowerCase()}.`;
+}) => {
+  const kind = kindLabel.toLowerCase();
+  const mode = modeLabel.toLowerCase();
+  return mode === 'attending'
+    ? `${who(speakerNames)} is attending this ${kind}.`
+    : `${who(speakerNames)} is ${mode} at this ${kind}.`;
+};
 
 /** The four combinations reachable from seed content each get their own,
  *  more natural phrasing; the other 8 of 12 fall to {@link DEFAULT_EVENT_LEDE}. */
@@ -375,8 +384,9 @@ function composeLede(facts: PromoFacts): string {
     : resourceLede(facts);
 }
 
-/** 3-5 `#tag` tokens on one line (LinkedIn only), derived from facts —
- *  never a hand-typed hashtag list, so it tracks the entry's own kind. */
+/** 3-4 `#tag` tokens on one line (LinkedIn only; AC7's gate accepts 3-5),
+ *  derived from facts — never a hand-typed hashtag list, so it tracks the
+ *  entry's own kind. */
 function buildHashtags(facts: PromoFacts): string {
   const kindTag = facts.kindLabel.replace(/[^A-Za-z0-9]/g, '');
   const tags = ['Thymian', 'API', 'HTTP', kindTag].filter(
