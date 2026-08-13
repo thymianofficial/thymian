@@ -1,8 +1,8 @@
 # ADR-0017: Typed input arguments (`<type>:<location>`)
 
-| Status   | Date       | Supersedes | Superseded by |
-| -------- | ---------- | ---------- | ------------- |
-| Accepted | 2026-07-30 | —          | —             |
+| Status                        | Date       | Supersedes | Superseded by |
+| ----------------------------- | ---------- | ---------- | ------------- |
+| Accepted (amended 2026-08-12) | 2026-07-30 | —          | —             |
 
 ## Context
 
@@ -21,6 +21,8 @@ thymian report convert --report spectral:path-to/report.json --spec openapi:path
 **Parse rule** (unchanged from `spec-flag.ts` / `traffic-flag.ts`): split on the first colon; type and location are both required; the location may itself contain colons (`openapi:https://example.com/api.yaml`, `openapi:C:\specs\api.yaml`). There is no additional syntax constraint on the type token, no file-extension sniffing, and no bare-path fallback.
 
 **Type resolution** stays plugin-claimed: core broadcasts typed inputs on core-owned `'collect'` actions, and each plugin filters for the types it understands. A type is supported exactly when at least one registered plugin claims it. Multiple plugins may claim the same type — standard `'collect'` semantics — in which case each claimant contributes its runs. New input types therefore ship as plugin **claims**, with no change to core parsing.
+
+_Amended 2026-08-12 (thymian-internal#507 course correction):_
 
 A claim lives in an existing plugin whenever that plugin's domain already covers the format; a **new plugin package** is justified only when the input domain brings its own dependency surface or conversion logic, and it requires an accepted ADR naming the package before implementation — as [ADR-0016](0016-two-stage-report-actions.md) did for `@thymian/plugin-spectral` ([ADR-0008](0008-package-naming-conventions.md) governs naming; this paragraph adds the ratification gate). The native `thymian:` report input is claimed by `@thymian/plugin-reporter`, which owns the persisted-report file boundary in both directions: its JSON formatter writes the exact `Report[]` payload the loader reads back (validated against `reportSchema`, accepting `Report[]` or a bare `Report`).
 
