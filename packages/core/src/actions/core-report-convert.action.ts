@@ -1,7 +1,7 @@
 import type { JSONSchemaType } from 'ajv/dist/2020.js';
 
 import type { SerializedThymianFormat } from '../format/index.js';
-import type { ToolRun } from '../report/index.js';
+import type { ThymianFormatVersion, ToolRun } from '../report/index.js';
 import type { Action } from './action.js';
 
 /**
@@ -33,6 +33,15 @@ export interface CoreReportConvertInput {
 export interface ConvertedRunFragment {
   input: { type: string; location: string };
   run: ToolRun;
+  /**
+   * Serialized formats used by `run`, keyed by format hash — the same shape
+   * as `Report.thymianFormat`. Listeners whose input already carries format
+   * maps (e.g. a persisted Thymian report, #507) pass them through here so
+   * `thymianFormat`-typed locations stay resolvable in the assembled report;
+   * `Thymian.reportConvert()` unions all fragment maps by hash (first
+   * occurrence wins — equal hashes mean equal graphs).
+   */
+  thymianFormat?: Record<ThymianFormatVersion, SerializedThymianFormat>;
 }
 
 /**
@@ -123,6 +132,15 @@ export const convertedRunFragmentArraySchema = {
           type: { type: 'string', nullable: false },
           location: { type: 'string', nullable: false },
         },
+      },
+      // Same shape as `Report.thymianFormat`: a hash-keyed map of serialized
+      // formats; the values aren't usefully expressible as JSON Schema (see
+      // `format` above), so only the container is checked. Optional by
+      // omission, not `nullable`.
+      thymianFormat: {
+        type: 'object',
+        required: [],
+        additionalProperties: true,
       },
       run: {
         type: 'object',

@@ -500,6 +500,147 @@ describe('Thymian.reportConvert()', () => {
     await t.close();
   });
 
+  it('unions fragment thymianFormat maps by hash into the assembled report (#507)', async () => {
+    const t = new Thymian();
+
+    const formatA = { attributes: { hash: 'hash-a' }, nodes: [], edges: [] };
+    const formatADuplicate = {
+      attributes: { hash: 'hash-a' },
+      nodes: [],
+      edges: [],
+    };
+    const formatB = { attributes: { hash: 'hash-b' }, nodes: [], edges: [] };
+
+    // Two independent listeners, each claiming its own input type and
+    // carrying its own format map; hash-a arrives twice (identical graphs).
+    t.emitter.onAction('core.report.convert', async (payload, ctx) => {
+      ctx.reply(
+        payload.inputs
+          .filter((input) => input.type === 'thymian')
+          .map((input) => ({
+            input: { type: input.type, location: String(input.location) },
+            run: createToolRun({
+              tool: { name: 'thymian-report-reader' },
+              runType: 'lint',
+              executions: [],
+              thymianFormatVersion: 'hash-a',
+            }),
+            thymianFormat: { 'hash-a': formatA },
+          })),
+      );
+    });
+    t.emitter.onAction('core.report.convert', async (payload, ctx) => {
+      ctx.reply(
+        payload.inputs
+          .filter((input) => input.type === 'other')
+          .map((input) => ({
+            input: { type: input.type, location: String(input.location) },
+            run: createToolRun({
+              tool: { name: 'other-reader' },
+              runType: 'lint',
+              executions: [],
+              thymianFormatVersion: 'hash-b',
+            }),
+            thymianFormat: { 'hash-a': formatADuplicate, 'hash-b': formatB },
+          })),
+      );
+    });
+
+    const outcome = await t.reportConvert({
+      reports: [
+        { type: 'thymian', location: './a.json' },
+        { type: 'other', location: './b.json' },
+      ],
+    });
+
+    expect(outcome.report.thymianFormat).toBeDefined();
+    expect(Object.keys(outcome.report.thymianFormat ?? {}).sort()).toEqual([
+      'hash-a',
+      'hash-b',
+    ]);
+    // First occurrence wins on duplicate hashes (identical graphs anyway).
+    expect(outcome.report.thymianFormat?.['hash-a']).toBe(formatA);
+    expect(outcome.report.thymianFormat?.['hash-b']).toBe(formatB);
+    // Runs keep pointing at their own hash.
+    expect(outcome.report.runs.map((run) => run.thymianFormatVersion)).toEqual([
+      'hash-a',
+      'hash-b',
+    ]);
+    expect(ajv.validate(reportSchema, outcome.report)).toBe(true);
+
+    await t.close();
+  });
+
+  it('treats prototype-member hash keys as plain data and skips junk map values (#507 review)', async () => {
+    const t = new Thymian();
+
+    const format = {
+      attributes: { hash: 'constructor' },
+      nodes: [],
+      edges: [],
+    };
+
+    t.emitter.onAction('core.report.convert', async (payload, ctx) => {
+      ctx.reply(
+        payload.inputs.map((input) => ({
+          input: { type: input.type, location: String(input.location) },
+          run: createToolRun({
+            tool: { name: 'hostile-reader' },
+            runType: 'lint',
+            executions: [],
+            thymianFormatVersion: 'constructor',
+          }),
+          // 'constructor' collides with an Object.prototype member; 'bad'
+          // and 'worse' carry junk values a hand-edited persisted map could
+          // contain (arrays are typeof 'object' too).
+          thymianFormat: {
+            constructor: format,
+            bad: null,
+            worse: [],
+          } as unknown as NonNullable<
+            import('../src/index.js').Report['thymianFormat']
+          >,
+        })),
+      );
+    });
+
+    const outcome = await t.reportConvert({
+      reports: [{ type: 'thymian', location: './hostile.json' }],
+    });
+
+    expect(outcome.report.thymianFormat?.['constructor']).toBe(format);
+    expect(Object.keys(outcome.report.thymianFormat ?? {})).toEqual([
+      'constructor',
+    ]);
+
+    await t.close();
+  });
+
+  it('leaves report.thymianFormat undefined when no fragment carries a map and no spec is given', async () => {
+    const t = new Thymian();
+
+    t.emitter.onAction('core.report.convert', async (payload, ctx) => {
+      ctx.reply(
+        payload.inputs.map((input) => ({
+          input: { type: input.type, location: String(input.location) },
+          run: createToolRun({
+            tool: { name: '@thymian/plugin-spectral' },
+            runType: 'lint',
+            executions: [],
+          }),
+        })),
+      );
+    });
+
+    const outcome = await t.reportConvert({
+      reports: [{ type: 'spectral', location: './r.json' }],
+    });
+
+    expect(outcome.report.thymianFormat).toBeUndefined();
+
+    await t.close();
+  });
+
   it('propagates a listener error as a workflow failure instead of an unclaimed input', async () => {
     const t = new Thymian();
 

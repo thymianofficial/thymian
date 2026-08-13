@@ -591,6 +591,14 @@ export class Thymian {
     }
 
     const unclaimed: ReportInput[] = [];
+    // Union of fragment-carried format maps (#507): first occurrence wins per
+    // hash — equal hashes mean equal serialized graphs, so collisions are
+    // benign. Collected in assembly (input) order alongside the runs.
+    // Null-prototype object: persisted files are external input, so a hash
+    // key like 'constructor' or '__proto__' must behave as plain data.
+    const fragmentFormats: NonNullable<Report['thymianFormat']> = Object.create(
+      null,
+    ) as NonNullable<Report['thymianFormat']>;
 
     const toolRuns = reports.flatMap((reportInput) => {
       const key = `${reportInput.type}:${String(reportInput.location)}`;
@@ -602,7 +610,29 @@ export class Thymian {
       }
 
       fragmentsByKey.delete(key);
-      return matches.map((fragment) => fragment.run);
+      return matches.map((fragment) => {
+        if (fragment.thymianFormat) {
+          for (const [hash, serialized] of Object.entries(
+            fragment.thymianFormat,
+          )) {
+            // Skip junk values (e.g. null or [] from a hand-edited persisted
+            // map — arrays are typeof 'object' too) rather than copying them
+            // into the merged report.
+            if (
+              !serialized ||
+              typeof serialized !== 'object' ||
+              Array.isArray(serialized)
+            ) {
+              continue;
+            }
+
+            if (!Object.hasOwn(fragmentFormats, hash)) {
+              fragmentFormats[hash] = serialized;
+            }
+          }
+        }
+        return fragment.run;
+      });
     });
 
     const surplus = [...fragmentsByKey.values()].flat();
@@ -618,7 +648,11 @@ export class Thymian {
     }
 
     return {
-      report: this.finalizeWorkflow(toolRuns, format?.export()),
+      report: this.finalizeWorkflow(
+        toolRuns,
+        format?.export(),
+        Object.keys(fragmentFormats).length > 0 ? fragmentFormats : undefined,
+      ),
       unclaimed,
     };
   }
@@ -687,10 +721,23 @@ export class Thymian {
   private finalizeWorkflow(
     toolRuns: ToolRun[],
     format?: ReturnType<ThymianFormat['export']>,
+    additionalFormats?: Report['thymianFormat'],
   ): Report {
-    const thymianFormat = format
-      ? { [format.attributes.hash]: format }
-      : undefined;
+    let thymianFormat: Report['thymianFormat'];
+
+    if (format || additionalFormats) {
+      // Null-prototype like the fragment union above: hash keys are external
+      // data, so prototype members must not shadow or leak into lookups.
+      thymianFormat = Object.assign(
+        Object.create(null) as NonNullable<Report['thymianFormat']>,
+        additionalFormats,
+      );
+      if (format) {
+        // Keep an already-present entry (same hash ⇒ same graph).
+        thymianFormat[format.attributes.hash] ??= format;
+      }
+    }
+
     const report = createReport(toolRuns, thymianFormat);
     this.emitter.emit('core.report', report);
 

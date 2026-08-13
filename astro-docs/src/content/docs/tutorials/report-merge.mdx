@@ -1,0 +1,91 @@
+---
+title: Merging reports
+description: Combine multiple reports — Thymian JSON reports or convertible external formats like Spectral — into one Thymian report with thymian report merge.
+---
+
+import { Aside } from '@astrojs/starlight/components';
+
+`thymian report merge` combines any number of reports into a single Thymian report: persisted Thymian JSON reports pass through unchanged, and external formats (for example [Spectral](/tutorials/spectral-integration/)) are converted on the way in. The result is one report that renders, formats, and gates CI exactly like the output of a native workflow run.
+
+```sh
+thymian report merge \
+  --report thymian:./my-thymian-report.json \
+  --report spectral:./my-spectral-report.json
+```
+
+## When to Use `thymian report merge`
+
+- you run several tools (or several Thymian runs) and want **one consolidated report** for reviewers, dashboards, or CI
+- you persist per-stage reports in a pipeline and want a single roll-up artifact at the end
+- you are migrating from another linter and want its results side by side with Thymian's in one document
+
+## How Inputs Are Combined
+
+A Thymian report contains an array of tool runs. Merging concatenates the runs of every input, in the order the inputs were given, into one fresh report:
+
+- two reports with one run each merge into **one report with two runs** — runs are never folded into each other
+- each run keeps its identity: its `runId`, timestamps, rule metadata (severity resolution stays per-run), and API-format reference travel unchanged
+- the serialized API formats of all inputs are carried over into the merged report's `thymianFormat` record, so endpoint-resolved locations keep rendering — no re-supplying of specs needed for already-converted inputs
+- exact duplicate inputs (same type and path) are collapsed to their first occurrence; a single input is a valid "identity merge"
+
+<Aside type="note">
+  A `thymian:` input must be a **Thymian JSON report** — either the JSON
+  formatter's native output (an *array* of reports; every report in the array is
+  merged) or a single bare report object. Files that fail structural validation
+  are rejected with an error naming the input, as are files that contain no runs
+  at all (an empty array, or only run-less reports); in a multi-report file,
+  individual reports without runs are skipped.
+</Aside>
+
+The merged output is deterministic apart from freshly minted identity: the same inputs in the same order produce the same report (modulo the new report id and timestamps), and reversing the input order reorders the runs accordingly. The one caveat: when several plugins claim the _same_ input, the relative order of their contributed runs is not guaranteed.
+
+## Converting External Formats on the Way In
+
+External inputs go through the same conversion as [`thymian report convert`](/tutorials/spectral-integration/). If the converter should map findings onto the endpoints of your API description, pass the spec too:
+
+```sh
+thymian report merge \
+  --report thymian:./previous-report.json \
+  --report spectral:./spectral-report.json \
+  --spec openapi:./api.yaml
+```
+
+The spec is only needed for the conversion step — Thymian inputs that were already converted against a spec carry their format mapping with them.
+
+## Writing the Merged Report to Files
+
+File output works like every other workflow: enable formatters in your configuration file or override their paths ad hoc:
+
+```sh
+thymian report merge \
+  --report thymian:./a.json --report thymian:./b.json \
+  -o '@thymian/plugin-reporter.formatters.markdown.path=merged.md' \
+  -o '@thymian/plugin-reporter.formatters.json.path=merged.json'
+```
+
+Or persistently, in `thymian.config.yaml` — which can also carry the report inputs themselves, so a bare `thymian report merge` works:
+
+```yaml
+reports:
+  - type: thymian
+    location: previous-report.json
+  - type: spectral
+    location: spectral-report.json
+plugins:
+  '@thymian/plugin-reporter':
+    options:
+      formatters:
+        markdown: {}
+        json: {}
+```
+
+`--report` flags replace the configured `reports` entirely when both are present.
+
+## Exit Codes and CI Gating
+
+The merged report gates like any other: exit `1` when any merged run contains a failed execution, `0` when clean, `2` for usage or tool errors. Severity never affects gating — a warnings-only merged report still exits `1`.
+
+<Aside type="caution">
+  Merging the same results twice doubles the summary counts — the merge is a
+  plain union of runs, findings are not deduplicated across inputs.
+</Aside>
