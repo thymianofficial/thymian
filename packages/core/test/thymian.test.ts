@@ -591,10 +591,12 @@ describe('Thymian.reportConvert()', () => {
             thymianFormatVersion: 'constructor',
           }),
           // 'constructor' collides with an Object.prototype member; 'bad'
-          // carries a junk value a hand-edited persisted map could contain.
+          // and 'worse' carry junk values a hand-edited persisted map could
+          // contain (arrays are typeof 'object' too).
           thymianFormat: {
             constructor: format,
             bad: null,
+            worse: [],
           } as unknown as NonNullable<
             import('../src/index.js').Report['thymianFormat']
           >,

@@ -615,9 +615,14 @@ export class Thymian {
           for (const [hash, serialized] of Object.entries(
             fragment.thymianFormat,
           )) {
-            // Skip junk values (e.g. null from a hand-edited persisted map)
-            // rather than copying them into the merged report.
-            if (!serialized || typeof serialized !== 'object') {
+            // Skip junk values (e.g. null or [] from a hand-edited persisted
+            // map — arrays are typeof 'object' too) rather than copying them
+            // into the merged report.
+            if (
+              !serialized ||
+              typeof serialized !== 'object' ||
+              Array.isArray(serialized)
+            ) {
               continue;
             }
 
@@ -721,7 +726,12 @@ export class Thymian {
     let thymianFormat: Report['thymianFormat'];
 
     if (format || additionalFormats) {
-      thymianFormat = { ...additionalFormats };
+      // Null-prototype like the fragment union above: hash keys are external
+      // data, so prototype members must not shadow or leak into lookups.
+      thymianFormat = Object.assign(
+        Object.create(null) as NonNullable<Report['thymianFormat']>,
+        additionalFormats,
+      );
       if (format) {
         // Keep an already-present entry (same hash ⇒ same graph).
         thymianFormat[format.attributes.hash] ??= format;
