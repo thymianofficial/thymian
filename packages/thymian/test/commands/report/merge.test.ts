@@ -67,7 +67,7 @@ const __dirname = fileURLToPath(new URL('.', import.meta.url));
 function mergedReport(failed: boolean) {
   return createReport([
     createToolRun({
-      tool: { name: '@thymian/plugin-reporter' },
+      tool: { name: 'fixture-thymian-source' },
       runType: 'lint',
       executions: failed
         ? [
@@ -311,7 +311,7 @@ describe('report merge command', () => {
     expect(error).toBeUndefined();
     // renderReport emits a heading per run naming the tool — both source
     // runs must appear in the merged render.
-    expect(stdout).toContain('@thymian/plugin-reporter');
+    expect(stdout).toContain('fixture-thymian-source');
     expect(stdout).toContain('@thymian/plugin-spectral');
   });
 
