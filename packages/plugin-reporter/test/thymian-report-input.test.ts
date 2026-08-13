@@ -11,7 +11,7 @@ import {
 } from '@thymian/core';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
-import { createThymianReportPlugin } from '../src/index.js';
+import { reporterPlugin } from '../src/index.js';
 
 function sampleReport(options?: {
   toolName?: string;
@@ -39,11 +39,11 @@ function sampleReport(options?: {
   return createReport(runs, options?.thymianFormat);
 }
 
-describe('plugin-thymian-report', () => {
+describe('thymian-report-input', () => {
   let tmpDir: string;
 
   beforeEach(async () => {
-    tmpDir = await mkdtemp(join(tmpdir(), 'plugin-thymian-report-'));
+    tmpDir = await mkdtemp(join(tmpdir(), 'thymian-report-input-'));
   });
 
   afterEach(async () => {
@@ -65,7 +65,7 @@ describe('plugin-thymian-report', () => {
 
   it('claims only thymian inputs; other types stay unclaimed', async () => {
     const reportFile = await writeReportFile('report.json', sampleReport());
-    const thymian = new Thymian().register(createThymianReportPlugin());
+    const thymian = new Thymian().register(reporterPlugin, { formatters: {} });
     await thymian.ready();
 
     const outcome = await thymian.reportConvert({
@@ -84,7 +84,7 @@ describe('plugin-thymian-report', () => {
   });
 
   it('replies an empty fragment list without stalling when nothing is claimed', async () => {
-    const thymian = new Thymian().register(createThymianReportPlugin());
+    const thymian = new Thymian().register(reporterPlugin, { formatters: {} });
     await thymian.ready();
 
     const outcome = await thymian.reportConvert({
@@ -100,7 +100,7 @@ describe('plugin-thymian-report', () => {
   it('passes runs through as-is from a bare Report object (identity preserved)', async () => {
     const source = sampleReport({ toolName: 'source-tool' });
     const reportFile = await writeReportFile('bare.json', source);
-    const thymian = new Thymian().register(createThymianReportPlugin());
+    const thymian = new Thymian().register(reporterPlugin, { formatters: {} });
     await thymian.ready();
 
     const outcome = await thymian.reportConvert({
@@ -121,7 +121,7 @@ describe('plugin-thymian-report', () => {
     const first = sampleReport({ toolName: 'array-tool-a', runCount: 2 });
     const second = sampleReport({ toolName: 'array-tool-b', runCount: 2 });
     const reportFile = await writeReportFile('array.json', [first, second]);
-    const thymian = new Thymian().register(createThymianReportPlugin());
+    const thymian = new Thymian().register(reporterPlugin, { formatters: {} });
     await thymian.ready();
 
     const outcome = await thymian.reportConvert({
@@ -147,7 +147,7 @@ describe('plugin-thymian-report', () => {
       thymianFormat: { 'persisted-hash': serialized },
     });
     const reportFile = await writeReportFile('with-format.json', source);
-    const thymian = new Thymian().register(createThymianReportPlugin());
+    const thymian = new Thymian().register(reporterPlugin, { formatters: {} });
     await thymian.ready();
 
     const outcome = await thymian.reportConvert({
@@ -168,7 +168,7 @@ describe('plugin-thymian-report', () => {
       'bom.json',
       `\uFEFF${JSON.stringify(sampleReport())}`,
     );
-    const thymian = new Thymian().register(createThymianReportPlugin());
+    const thymian = new Thymian().register(reporterPlugin, { formatters: {} });
     await thymian.ready();
 
     const outcome = await thymian.reportConvert({
@@ -183,7 +183,7 @@ describe('plugin-thymian-report', () => {
 
   it('throws a ThymianBaseError naming the input for a missing file', async () => {
     const missing = join(tmpDir, 'does-not-exist.json');
-    const thymian = new Thymian().register(createThymianReportPlugin());
+    const thymian = new Thymian().register(reporterPlugin, { formatters: {} });
     await thymian.ready();
 
     await expect(
@@ -197,7 +197,7 @@ describe('plugin-thymian-report', () => {
 
   it('throws a ThymianBaseError naming the input for a non-JSON file', async () => {
     const reportFile = await writeReportFile('broken.json', '{not json');
-    const thymian = new Thymian().register(createThymianReportPlugin());
+    const thymian = new Thymian().register(reporterPlugin, { formatters: {} });
     await thymian.ready();
 
     await expect(
@@ -214,7 +214,7 @@ describe('plugin-thymian-report', () => {
       reportId: 'r-1',
       // createdAt and runs missing — fails reportSchema.
     });
-    const thymian = new Thymian().register(createThymianReportPlugin());
+    const thymian = new Thymian().register(reporterPlugin, { formatters: {} });
     await thymian.ready();
 
     await expect(
@@ -228,7 +228,7 @@ describe('plugin-thymian-report', () => {
 
   it('throws a ThymianBaseError naming the input for an empty report array', async () => {
     const reportFile = await writeReportFile('empty.json', []);
-    const thymian = new Thymian().register(createThymianReportPlugin());
+    const thymian = new Thymian().register(reporterPlugin, { formatters: {} });
     await thymian.ready();
 
     await expect(
@@ -242,7 +242,7 @@ describe('plugin-thymian-report', () => {
 
   it('throws a ThymianBaseError naming the input when no report contains any run', async () => {
     const reportFile = await writeReportFile('no-runs.json', createReport([]));
-    const thymian = new Thymian().register(createThymianReportPlugin());
+    const thymian = new Thymian().register(reporterPlugin, { formatters: {} });
     await thymian.ready();
 
     await expect(
@@ -257,7 +257,8 @@ describe('plugin-thymian-report', () => {
   it('resolves a relative location against the plugin cwd option', async () => {
     await writeReportFile('relative.json', sampleReport());
     const thymian = new Thymian(undefined, { cwd: tmpDir }).register(
-      createThymianReportPlugin(),
+      reporterPlugin,
+      { formatters: {} },
     );
     await thymian.ready();
 

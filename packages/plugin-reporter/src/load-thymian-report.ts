@@ -12,12 +12,12 @@ import {
 /**
  * Reads a persisted Thymian JSON report file and returns its reports.
  *
- * Accepts both the `@thymian/plugin-reporter` JSON formatter's native output
- * (an **array** of reports — a session can emit several) and a bare single
- * `Report` object. Each report is validated structurally against the loose
- * `reportSchema` (`additionalProperties: true` — the persisted-report
- * compatibility contract), never strict-parsed, so reports written by newer
- * or older Thymian versions stay readable as long as the core shape holds.
+ * Accepts both this package's JSON formatter's native output (an **array** of
+ * reports — a session can emit several) and a bare single `Report` object.
+ * Each report is validated structurally against the loose `reportSchema`
+ * (`additionalProperties: true` — the persisted-report compatibility
+ * contract), never strict-parsed, so reports written by newer or older
+ * Thymian versions stay readable as long as the core shape holds.
  *
  * @param inputLabel the offending input's identity (`type:location`), used in
  *   every error message so failures trace back to the CLI input.

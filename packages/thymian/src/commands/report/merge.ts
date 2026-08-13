@@ -5,7 +5,7 @@ import {
   reportFlag,
 } from '@thymian/common-cli';
 import type { ReportInput } from '@thymian/core';
-import type {} from '@thymian/plugin-thymian-report';
+import type {} from '@thymian/plugin-reporter';
 
 export default class ReportMerge extends BaseCliRunCommand<typeof ReportMerge> {
   static override description =

@@ -6,6 +6,7 @@ import {
 } from '@thymian/core';
 
 import { type Formatters, getFormatters } from './get-formatters.js';
+import { registerThymianReportInput } from './thymian-report-input.js';
 
 export type ReporterPluginOptions = {
   formatters?: Partial<Formatters>;
@@ -85,7 +86,7 @@ export const reporterPlugin: ThymianPlugin<ReporterPluginOptions> = {
     listensOn: ['core.report'],
   },
   actions: {
-    listensOn: ['core.close'],
+    listensOn: ['core.close', 'core.report.convert'],
   },
   async plugin(
     emitter,
@@ -123,6 +124,10 @@ export const reporterPlugin: ThymianPlugin<ReporterPluginOptions> = {
       await flushReporters();
       ctx.reply();
     });
+
+    // Read side of the persisted-report file boundary: claim native
+    // `thymian:` report inputs on core.report.convert (ADR-0017 amendment).
+    registerThymianReportInput(emitter, logger, cwd);
   },
 };
 

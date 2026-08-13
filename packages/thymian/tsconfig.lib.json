@@ -31,9 +31,6 @@
       "path": "../plugin-websocket-proxy/tsconfig.lib.json"
     },
     {
-      "path": "../plugin-thymian-report/tsconfig.lib.json"
-    },
-    {
       "path": "../plugin-spectral/tsconfig.lib.json"
     },
     {

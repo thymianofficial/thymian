@@ -23,9 +23,6 @@
       "path": "../plugin-websocket-proxy"
     },
     {
-      "path": "../plugin-thymian-report"
-    },
-    {
       "path": "../plugin-spectral"
     },
     {

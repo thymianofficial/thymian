@@ -9,7 +9,6 @@ specifications:
 plugins:
   '@thymian/plugin-openapi': {}
   '@thymian/plugin-spectral': {}
-  '@thymian/plugin-thymian-report': {}
   '@thymian/plugin-reporter':
     options:
       formatters:
