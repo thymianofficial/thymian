@@ -7,10 +7,12 @@ import {
   createLintExecution,
   createReport,
   createToolRun,
+  NoopLogger,
   Thymian,
 } from '@thymian/core';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
+import { JsonFormatter } from '../src/formatters/json.js';
 import { reporterPlugin } from '../src/index.js';
 
 function sampleReport(options?: {
@@ -250,6 +252,36 @@ describe('thymian-report-input', () => {
         reports: [{ type: 'thymian', location: reportFile }],
       }),
     ).rejects.toThrow(`thymian:${reportFile}`);
+
+    await thymian.close();
+  });
+
+  it('round-trips a report written by this package: JSON formatter out, thymian: claim back in', async () => {
+    const source = sampleReport({ toolName: 'round-trip-tool', runCount: 2 });
+    const reportPath = join(tmpDir, 'round-trip.json');
+
+    // Write side: persist through the real JSON formatter — the exact
+    // payload the loader is contracted to read back.
+    const formatter = new JsonFormatter(new NoopLogger());
+    formatter.init({ path: reportPath });
+    formatter.report(source);
+    await formatter.flush();
+
+    // Read side: claim the persisted file via core.report.convert.
+    const thymian = new Thymian().register(reporterPlugin, { formatters: {} });
+    await thymian.ready();
+
+    const outcome = await thymian.reportConvert({
+      reports: [{ type: 'thymian', location: reportPath }],
+    });
+
+    expect(outcome.unclaimed).toEqual([]);
+    // Runs survive the full write/read cycle identity-preserved.
+    expect(outcome.report.runs.map((run) => run.runId)).toEqual(
+      source.runs.map((run) => run.runId),
+    );
+    expect(outcome.report.runs[0]?.runAt).toBe(source.runs[0]?.runAt);
+    expect(outcome.report.runs[0]?.tool.name).toBe('round-trip-tool');
 
     await thymian.close();
   });

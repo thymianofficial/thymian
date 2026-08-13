@@ -93,6 +93,12 @@ export const reporterPlugin: ThymianPlugin<ReporterPluginOptions> = {
     logger,
     { formatters: userFormatters, cwd, sortReportsBy },
   ) {
+    // Read side of the persisted-report file boundary: claim native
+    // `thymian:` report inputs on core.report.convert (ADR-0017 amendment).
+    // Registered before the first await so the declared listener exists even
+    // if formatter setup rejects.
+    registerThymianReportInput(emitter, logger, cwd);
+
     const formatters = Object.fromEntries(
       Object.entries({
         ...(userFormatters ?? {}),
@@ -124,10 +130,6 @@ export const reporterPlugin: ThymianPlugin<ReporterPluginOptions> = {
       await flushReporters();
       ctx.reply();
     });
-
-    // Read side of the persisted-report file boundary: claim native
-    // `thymian:` report inputs on core.report.convert (ADR-0017 amendment).
-    registerThymianReportInput(emitter, logger, cwd);
   },
 };
 
