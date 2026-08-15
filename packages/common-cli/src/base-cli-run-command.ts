@@ -319,23 +319,6 @@ export abstract class BaseCliRunCommand<
   }
 
   protected override async catch(err: CommandError): Promise<void> {
-    // When this command was reached via @oclif/plugin-not-found's "did you
-    // mean …?" suggestion, process.argv still holds the original unknown
-    // command (e.g. `explain my-rule`). oclif core's top-level handle()
-    // renders parse errors with showHelp(process.argv.slice(2)); for the
-    // unknown id that throws "command not found" and the emergency catch dumps
-    // raw stack traces. Repoint process.argv at the command that actually ran
-    // so showHelp resolves it — matching the direct-invocation path. Safe: this
-    // is the fatal-exit path and nothing downstream reads argv afterwards.
-    // Upstream bug: https://github.com/oclif/plugin-not-found/issues/1132
-    if ((err as { showHelp?: boolean }).showHelp && this.id) {
-      process.argv = [
-        process.argv[0]!,
-        process.argv[1]!,
-        ...this.id.split(':'),
-      ];
-    }
-
     await this.feedback?.error();
     const versionDetails = this.config.versionDetails;
 
@@ -375,6 +358,25 @@ export abstract class BaseCliRunCommand<
       }
 
       return super.catch(cliError);
+    }
+
+    // When this command was reached via @oclif/plugin-not-found's "did you
+    // mean …?" suggestion, process.argv still holds the original unknown
+    // command (e.g. `explain my-rule`). oclif core's top-level handle()
+    // renders parse errors with showHelp(process.argv.slice(2)); for the
+    // unknown id that throws "command not found" and the emergency catch dumps
+    // raw stack traces. Repoint process.argv at the command that actually ran
+    // so showHelp resolves it — matching the direct-invocation path. This must
+    // happen last, right before handle() (the only consumer): earlier reads —
+    // e.g. the error-cache write above — must still see the argv the user
+    // actually typed, so the diagnostic record preserves the real invocation.
+    // Upstream bug: https://github.com/oclif/plugin-not-found/issues/1132
+    if ((err as { showHelp?: boolean }).showHelp && this.id) {
+      process.argv = [
+        process.argv[0]!,
+        process.argv[1]!,
+        ...this.id.split(':'),
+      ];
     }
 
     return super.catch(err);
