@@ -1,0 +1,13 @@
+{
+  "name": "repro-cli",
+  "version": "0.0.0",
+  "type": "module",
+  "oclif": {
+    "bin": "repro",
+    "topicSeparator": " ",
+    "commands": "./commands",
+    "hooks": {
+      "command_not_found": "./hooks/not-found.js"
+    }
+  }
+}
