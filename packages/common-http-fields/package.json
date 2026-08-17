@@ -1,0 +1,50 @@
+{
+  "name": "@thymian/common-http-fields",
+  "version": "0.0.0-PLACEHOLDER",
+  "description": "Shared HTTP field primitives for Thymian rule sets: natively-Structured-Fields registry, non-SF guard, and the normalized header view",
+  "license": "AGPL-3.0-only",
+  "bugs": {
+    "url": "https://github.com/thymianofficial/thymian/issues"
+  },
+  "homepage": "https://thymian.dev",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/thymianofficial/thymian.git",
+    "directory": "packages/common-http-fields"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "engines": {
+    "node": ">=22"
+  },
+  "keywords": [
+    "thymian",
+    "api-governance",
+    "http",
+    "http-fields",
+    "http-headers",
+    "structured-fields",
+    "rfc-9651"
+  ],
+  "type": "module",
+  "main": "./dist/index.js",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    "./package.json": "./package.json",
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "!**/*.tsbuildinfo"
+  ],
+  "dependencies": {
+    "tslib": "^2.3.0"
+  },
+  "devDependencies": {}
+}

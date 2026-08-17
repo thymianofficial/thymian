@@ -1,0 +1,9 @@
+{
+  "name": "common-http-fields",
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "packages/common-http-fields/src",
+  "projectType": "library",
+  "tags": ["scope:core", "type:lib", "npm:public"],
+  "// targets": "to see all targets run: nx show project common-http-fields --web",
+  "targets": {}
+}
