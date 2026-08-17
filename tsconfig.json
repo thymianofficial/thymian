@@ -55,6 +55,9 @@
       "path": "./packages/common-cli"
     },
     {
+      "path": "./packages/common-http-fields"
+    },
+    {
       "path": "./packages/plugin-har"
     }
   ]

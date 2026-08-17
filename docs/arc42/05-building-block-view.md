@@ -140,11 +140,12 @@ C4Container
 
 Additional non-diagram packages:
 
-| Package                    | Purpose                                                            |
-| -------------------------- | ------------------------------------------------------------------ |
-| `packages/common-cli`      | Shared CLI base classes and helpers                                |
-| `packages/core-testing`    | Test utilities for the core package                                |
-| `packages/plugin-spectral` | Converts Spectral JSON reports into Thymian lint reports (Epic 14) |
+| Package                       | Purpose                                                                                                                                             |
+| ----------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `packages/common-cli`         | Shared CLI base classes and helpers                                                                                                                 |
+| `packages/common-http-fields` | Shared HTTP field primitives read by the `rules-*` packages: the normalized header view and the natively-Structured-Fields registry/guard (Epic 15) |
+| `packages/core-testing`       | Test utilities for the core package                                                                                                                 |
+| `packages/plugin-spectral`    | Converts Spectral JSON reports into Thymian lint reports (Epic 14)                                                                                  |
 
 ### Key Architectural Changes from Epic 1
 

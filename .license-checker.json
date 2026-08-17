@@ -13,6 +13,7 @@
   "excludePackages": [
     "thymian",
     "@thymian/common-cli",
+    "@thymian/common-http-fields",
     "@thymian/core",
     "@thymian/core-testing",
     "@thymian/plugin-http-analyzer",

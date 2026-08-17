@@ -10,6 +10,7 @@ export default {
         'deps',
         'cli',
         'common-cli',
+        'common-http-fields',
         'core',
         'core-testing',
         'plugin-http-analyzer',

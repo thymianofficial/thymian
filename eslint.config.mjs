@@ -6,7 +6,12 @@ const depConstraintsProduction = [
   // scope:cli can only access core, cli, plugin, and rules (thymian CLI app aggregates plugins)
   {
     sourceTag: 'scope:cli',
-    onlyDependOnLibsWithTags: ['scope:core', 'scope:cli', 'scope:plugin', 'scope:rules'],
+    onlyDependOnLibsWithTags: [
+      'scope:core',
+      'scope:cli',
+      'scope:plugin',
+      'scope:rules',
+    ],
   },
   // scope:core can only access scope:core
   {
@@ -17,6 +22,21 @@ const depConstraintsProduction = [
   {
     sourceTag: 'scope:plugin',
     onlyDependOnLibsWithTags: ['scope:core', 'scope:cli', 'scope:plugin'],
+  },
+  // scope:rules can access ONLY core-scoped libraries — never a plugin, never another rules-*.
+  //
+  // Until now `scope:rules` appeared solely as a permitted TARGET of scope:cli, so rule packages
+  // had no enforced source constraint at all and "rules-* depend only on @thymian/core" was
+  // documentation rather than lint. This entry makes it real.
+  //
+  // Shared rule-support libraries (`@thymian/common-http-fields`) are tagged `scope:core` rather
+  // than getting a new `scope:common` dimension value: `core-testing` is already `scope:core`, and
+  // `common-cli` is `scope:cli` — i.e. `common-*` packages are tagged by DOMAIN, not by a "common"
+  // scope. That keeps this a one-entry change instead of three, and scope:core's own
+  // core-only constraint already stops a support library reaching sideways.
+  {
+    sourceTag: 'scope:rules',
+    onlyDependOnLibsWithTags: ['scope:core'],
   },
 
   // Dimension: type

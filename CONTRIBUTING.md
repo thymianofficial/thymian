@@ -21,6 +21,7 @@ When making commits, use one of the following scopes to indicate the area of the
 | cli                              | Cross-cutting CLI concerns                                                             |
 | thymian                          | The `thymian` CLI product package                                                      |
 | common-cli                       | Shared CLI base library (`@thymian/common-cli`)                                        |
+| common-http-fields               | Shared HTTP field primitives for rule sets (`@thymian/common-http-fields`)             |
 | core                             | Core framework: workflows, contracts, rule system (`@thymian/core`)                    |
 | core-testing                     | Test utilities for core (`@thymian/core-testing`)                                      |
 | plugin-http-linter               | Static lint plugin                                                                     |
@@ -53,12 +54,12 @@ Refer to this list when contributing to ensure consistent commit messages.
 
 ### Dimension "scope"
 
-| Tag            | Allowed Dependencies                                     | Description                                                                                                         |
-| -------------- | -------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------- |
-| `scope:cli`    | `scope:core`, `scope:cli`, `scope:plugin`, `scope:rules` | CLI packages (the `thymian` app aggregates plugins and rule sets)                                                   |
-| `scope:core`   | `scope:core`                                             | Core framework (contracts, rule system, Thymian format)                                                             |
-| `scope:plugin` | `scope:core`, `scope:cli`, `scope:plugin`                | Plugins (note: plugins may **not** depend on `scope:rules` — rules reach plugins via the core loader, per ADR-0009) |
-| `scope:rules`  | constrained via `type`/`npm` dimensions                  | Rule set packages; depend only on `@thymian/core` in practice                                                       |
+| Tag            | Allowed Dependencies                                     | Description                                                                                                                                                                                                                                                  |
+| -------------- | -------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `scope:cli`    | `scope:core`, `scope:cli`, `scope:plugin`, `scope:rules` | CLI packages (the `thymian` app aggregates plugins and rule sets)                                                                                                                                                                                            |
+| `scope:core`   | `scope:core`                                             | Core framework (contracts, rule system, Thymian format)                                                                                                                                                                                                      |
+| `scope:plugin` | `scope:core`, `scope:cli`, `scope:plugin`                | Plugins (note: plugins may **not** depend on `scope:rules` — rules reach plugins via the core loader, per ADR-0009)                                                                                                                                          |
+| `scope:rules`  | `scope:core`                                             | Rule set packages. The qualifying property is the `scope:core` **tag**, not a name prefix — so `@thymian/core` and `@thymian/common-http-fields` are reachable, but `@thymian/common-cli` is not (it is `scope:cli`). Never a plugin, never another rule set |
 
 ### Dimension "type"
 
