@@ -6,7 +6,6 @@ import {
   ThymianBaseError,
   ThymianFormat,
   type ThymianHttpTransaction,
-  thymianHttpTransactionToString,
   type ThymianPlugin,
   type ThymianSchema,
 } from '@thymian/core';
@@ -182,7 +181,7 @@ export const samplePlugin: ThymianPlugin<Partial<SamplerPluginOptions>> = {
     let format: ThymianFormat | undefined;
     let samples: SamplesStructure | undefined;
 
-    const requestSampler = new RequestSampler(basePath);
+    const requestSampler = new RequestSampler();
     const hookRunner = new HookRunner(
       basePath,
       async (request) => {
@@ -200,11 +199,13 @@ export const samplePlugin: ThymianPlugin<Partial<SamplerPluginOptions>> = {
     );
 
     async function initializeSamplerAndHookRunner(format: ThymianFormat) {
+      // v1 hook discovery + `sampler.path-from-transaction` only — removed in 575.9 / 575.10.
+      // Samples themselves never come from here any more.
       samples = (await entryExists(basePath))
         ? await readSamplesFromDir(basePath)
         : undefined;
 
-      await requestSampler.init(samples);
+      await requestSampler.init(format, emitter);
       await hookRunner.init(format, samples);
     }
 
@@ -281,34 +282,13 @@ export const samplePlugin: ThymianPlugin<Partial<SamplerPluginOptions>> = {
       const sample = requestSampler.sampleForTransaction(
         transaction.transactionId,
       );
-      if (!sample) {
-        const currentFormatVersion = format.toHash();
-        if (currentFormatVersion !== requestSampler.version()) {
-          throw new ThymianBaseError(
-            `Cannot sample for transaction "${thymianHttpTransactionToString(
-              transaction.thymianReq,
-              transaction.thymianRes,
-            )}", because it based on version "${currentFormatVersion}" but the loaded samples are based on version "${requestSampler.version()}".`,
-            {
-              name: 'VersionMismatchError',
-              suggestions: [
-                `The loaded samples were generated at ${requestSampler.timestamp()}. Did you forget to regenerate the samples?`,
-                '$ thymian sampler init',
-              ],
-              ref: 'https://thymian.dev/guides/samples/update-samples',
-            },
-          );
-        }
 
+      if (!sample) {
+        // Unreachable by construction: the projection is built from the same format
+        // the transaction was read from. Internal invariant, not a user-facing error.
         throw new ThymianBaseError(
-          `Cannot sample for transaction ${thymianHttpTransactionToString(
-            transaction.thymianReq,
-            transaction.thymianRes,
-          )} with transaction ID ${transaction.transactionId}`,
-          {
-            name: 'TransactionSampleNotFoundError',
-            ref: 'https://thymian.dev/references/errors/transaction-sample-not-found-error/',
-          },
+          `Transaction "${transaction.transactionId}" is not in the sample projection built from the loaded format.`,
+          { name: 'SampleProjectionMissingTransactionError' },
         );
       }
 

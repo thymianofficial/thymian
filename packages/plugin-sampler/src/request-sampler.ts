@@ -1,111 +1,26 @@
-import { ThymianBaseError } from '@thymian/core';
+import type { ThymianEmitter, ThymianFormat } from '@thymian/core';
 
+import { projectSamplesForThymianFormat } from './generation/project-samples-for-format.js';
 import type { HttpRequestSample } from './http-request-sample.js';
-import { readSamplesFromDir } from './samples-structure/read-samples-from-dir.js';
-import {
-  nodeIsType,
-  type SamplesNode,
-  type SamplesStructure,
-} from './samples-structure/samples-tree-structure.js';
-import { traverse } from './samples-structure/traverse.js';
-import { entryExists } from './utils.js';
 
-export function readSamplesNodesFromTree(
-  tree: SamplesStructure,
-): Map<string, SamplesNode> {
-  const result = new Map<string, SamplesNode>();
-
-  traverse(tree, null, (node, ctx) => {
-    if (nodeIsType(node, 'samples')) {
-      result.set(node.meta.sourceTransaction, node);
-    }
-
-    return ctx;
-  });
-
-  return result;
-}
-
+/**
+ * Serves `core.request.sample` from an in-memory projection of the loaded format.
+ *
+ * Samples are virtual: nothing here is read from disk, so there is no baseline a
+ * sample could be stale against and no `thymian sampler init` precondition.
+ */
 export class RequestSampler {
-  constructor(
-    private readonly basePath: string,
-    samples?: SamplesStructure,
-  ) {
-    if (samples) {
-      this.sampleNodes = readSamplesNodesFromTree(samples);
-      this.samples = samples;
-      this.initialized = true;
-    }
-  }
+  private samples: Map<string, HttpRequestSample> = new Map();
 
-  private samples!: SamplesStructure;
-  private initialized = false;
-  private sampleNodes: Map<string, SamplesNode> = new Map();
-
-  version(): string {
-    return this.samples.meta.version;
-  }
-
-  timestamp(): string {
-    try {
-      return new Date(this.samples.meta.timestamp).toISOString();
-    } catch (e) {
-      throw new ThymianBaseError(
-        `Invalid timestamp in samples meta: ${this.samples.meta.timestamp}`,
-        {
-          name: 'InvalidSampleTimestampError',
-          ref: 'https://thymian.dev/references/errors/invalid-sample-timestamp-error/',
-          cause: e,
-        },
-      );
-    }
-  }
-
-  async init(samples?: SamplesStructure): Promise<void> {
-    if (this.initialized) {
-      return;
-    }
-
-    if (!(await entryExists(this.basePath))) {
-      return;
-    }
-
-    this.samples = samples ?? (await readSamplesFromDir(this.basePath));
-
-    this.sampleNodes = readSamplesNodesFromTree(this.samples);
-
-    this.initialized = true;
+  /**
+   * (Re)builds the projection from `format`. Called on every `core.format`, which
+   * is what keeps the samples in lockstep with the loaded API description.
+   */
+  async init(format: ThymianFormat, emitter: ThymianEmitter): Promise<void> {
+    this.samples = await projectSamplesForThymianFormat(format, emitter);
   }
 
   sampleForTransaction(transactionId: string): HttpRequestSample | undefined {
-    if (!this.initialized) {
-      throw new ThymianBaseError(
-        'Cannot sample for transaction before @thymian/plugin-sampler was initialized.',
-        {
-          suggestions: ['Did you run "thymian sampler init"?'],
-          name: 'SamplerNotInitializedError',
-        },
-      );
-    }
-
-    const node = this.sampleNodes.get(transactionId);
-
-    if (!node) {
-      return;
-    }
-
-    const { samplingStrategy } = node.meta;
-    const samples = node.children
-      .filter((child) => nodeIsType(child, 'requests'))
-      .flatMap((child) => child.value);
-
-    if (samplingStrategy.type === 'random') {
-      const randomIndex = Math.floor(Math.random() * samples.length);
-      return samples[randomIndex];
-    } else if (samplingStrategy.type === 'fixed') {
-      return samples[0];
-    } else {
-      throw new Error(`Unsupported sampling strategy ${samplingStrategy}`);
-    }
+    return this.samples.get(transactionId);
   }
 }

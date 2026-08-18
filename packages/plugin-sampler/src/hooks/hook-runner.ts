@@ -42,6 +42,15 @@ export class HookRunner {
       return;
     }
 
+    // Samples are virtual, so a workspace may legitimately have no v1 samples tree at
+    // all. Initialize with an empty hook set BEFORE bailing out on a missing directory:
+    // the three hook entry points then fall through as clean pass-throughs instead of
+    // throwing. (v1 hook discovery is replaced wholesale in story 575.9.)
+    this.format = format;
+    this.hooks = new Map();
+    this.urlToTransactionId = {};
+    this.initialized = true;
+
     if (!(await entryExists(this.path))) {
       return;
     }
@@ -54,8 +63,6 @@ export class HookRunner {
     this.urlToTransactionId = meta.transactions;
 
     this.hooks = loadHooksFromSamples(samples);
-    this.format = format;
-    this.initialized = true;
   }
 
   async afterEachResponse(
@@ -66,7 +73,6 @@ export class HookRunner {
         'Cannot run hooks before @thymian/plugin-sampler is initialized.',
         {
           name: 'HookRunnerNotInitialized',
-          suggestions: ['Did you run "thymian sampler init"?'],
         },
       );
     }
@@ -132,7 +138,6 @@ export class HookRunner {
         'Cannot run hooks before @thymian/plugin-sampler is initialized.',
         {
           name: 'HookRunnerNotInitialized',
-          suggestions: ['Did you run "thymian sampler init"?'],
         },
       );
     }
@@ -202,7 +207,6 @@ export class HookRunner {
         'Cannot run hooks before @thymian/plugin-sampler is initialized.',
         {
           name: 'HookRunnerNotInitialized',
-          suggestions: ['Did you run "thymian sampler init"?'],
         },
       );
     }
