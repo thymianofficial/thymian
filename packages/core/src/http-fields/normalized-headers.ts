@@ -1,9 +1,16 @@
 /**
  * Runtime header record shape shared by `HttpRequest`/`HttpResponse` (see
  * `../http.ts`): header name to a single value, multiple values (same-name
- * multiplicity), or `undefined` (treated as absent).
+ * multiplicity), or `null`/`undefined` (treated as absent). `null` is wider
+ * than `../http.ts`'s own `headers` type (which never emits it) -- captured
+ * traffic ingested from JSON has no `undefined`, only `null`, for a missing
+ * value, and `fromRuntimeHeaders` below already treats it as absent, so the
+ * type should say so rather than forcing callers to cast around it.
  */
-export type RuntimeHeaderRecord = Record<string, string | string[] | undefined>;
+export type RuntimeHeaderRecord = Record<
+  string,
+  string | string[] | null | undefined
+>;
 
 /**
  * Case-insensitive, multiplicity-preserving view over a runtime header

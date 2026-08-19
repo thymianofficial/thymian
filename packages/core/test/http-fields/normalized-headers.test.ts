@@ -84,7 +84,7 @@ describe('fromRuntimeHeaders', () => {
   });
 
   it('treats a null header value as absent, like undefined', () => {
-    const headers = fromRuntimeHeaders({ 'x-foo': null as unknown as string });
+    const headers = fromRuntimeHeaders({ 'x-foo': null });
 
     expect(headers.has('x-foo')).toBe(false);
     expect(headers.get('x-foo')).toBeUndefined();

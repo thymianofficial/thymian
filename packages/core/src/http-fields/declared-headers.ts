@@ -52,16 +52,31 @@ export type DeclaredHeaderLookup = (name: string) => DeclaredHeaderFacts;
 export function fromDeclaredHeaders(
   record: DeclaredHeaderRecord,
 ): DeclaredHeaderLookup {
+  // Precomputed once per call to `fromDeclaredHeaders`, not per lookup --
+  // callers may query many header names per request/response, and this
+  // turns each of those from an O(n) `Object.keys` scan into an O(1) get.
+  // First case-insensitive match in `Object.keys(record)` order wins (same
+  // as the scan it replaces): only the first occurrence of a lower-cased
+  // name is recorded.
+  const keyByLowerName = new Map<string, string>();
+
+  for (const key of Object.keys(record)) {
+    const lowerName = key.toLowerCase();
+
+    if (!keyByLowerName.has(lowerName)) {
+      keyByLowerName.set(lowerName, key);
+    }
+  }
+
   return (name: string): DeclaredHeaderFacts => {
-    const key = Object.keys(record).find(
-      (candidate) => candidate.toLowerCase() === name.toLowerCase(),
-    );
+    const key = keyByLowerName.get(name.toLowerCase());
 
     if (key === undefined) {
       return { present: false, required: false };
     }
 
-    // `key` came from `Object.keys(record)`, so this lookup always hits.
+    // `key` came from `keyByLowerName`, built from `Object.keys(record)`,
+    // so this lookup always hits.
     // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
     const parameter = record[key]!;
     const pin = derivePin(parameter.schema);
@@ -75,6 +90,25 @@ export function fromDeclaredHeaders(
 }
 
 /**
+ * Shallow-copies an array or object pin value so callers cannot corrupt the
+ * caller's own declared spec model -- potentially shared across every rule
+ * inspecting this header -- by mutating a returned pin. Primitives (and
+ * `null`) pass through unchanged; they're already immutable, so there is
+ * nothing to protect.
+ */
+function copyPinValue(value: unknown): unknown {
+  if (Array.isArray(value)) {
+    return [...value];
+  }
+
+  if (typeof value === 'object' && value !== null) {
+    return { ...value };
+  }
+
+  return value;
+}
+
+/**
  * Derives the L2 pin fact from a header's own direct schema keywords, in
  * `const` > `enum` > `pattern` > `default` precedence (tested; a schema
  * pinning more than one keyword at once is not itself validated -- this is
@@ -83,15 +117,11 @@ export function fromDeclaredHeaders(
  */
 function derivePin(schema: ThymianSchema): PinFact | undefined {
   if (schema.const !== undefined) {
-    return { kind: 'const', value: schema.const };
+    return { kind: 'const', value: copyPinValue(schema.const) };
   }
 
   if (schema.enum !== undefined) {
-    // Copied, not the caller's own array reference -- schema.enum belongs
-    // to the caller's declared spec model, potentially shared across every
-    // rule inspecting this header, and must not be corruptible by a
-    // consumer mutating the returned pin fact.
-    return { kind: 'enum', value: [...schema.enum] };
+    return { kind: 'enum', value: schema.enum.map(copyPinValue) };
   }
 
   if (schema.pattern !== undefined) {
@@ -99,7 +129,7 @@ function derivePin(schema: ThymianSchema): PinFact | undefined {
   }
 
   if (schema.default !== undefined) {
-    return { kind: 'default', value: schema.default };
+    return { kind: 'default', value: copyPinValue(schema.default) };
   }
 
   return undefined;
