@@ -18,12 +18,20 @@ describe('projectSamplesForThymianFormat', () => {
     expect(transactions.length).toBeGreaterThan(0);
     expect(projection.size).toBe(transactions.length);
 
+    // The fixture gives every transaction a distinct path, which is what makes the
+    // per-transaction assertions below discriminating: an implementation that keyed
+    // the map correctly but generated every sample from `transactions[0]` would pass
+    // a bare `toBeDefined()` check and fail this one.
+    expect(new Set(transactions.map((t) => t.thymianReq.path)).size).toBe(
+      transactions.length,
+    );
+
     for (const transaction of transactions) {
       const sample = projection.get(transaction.transactionId);
 
       expect(sample).toBeDefined();
-      expect(sample?.method).toBeDefined();
-      expect(sample?.path).toBeDefined();
+      expect(sample?.method).toBe(transaction.thymianReq.method);
+      expect(sample?.path).toBe(transaction.thymianReq.path);
     }
   }, 30_000);
 

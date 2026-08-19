@@ -49,9 +49,15 @@ describe('RequestSampler', () => {
     await sampler.init(format, new ThymianEmitter());
 
     for (const transaction of format.getThymianHttpTransactions()) {
-      expect(
-        sampler.sampleForTransaction(transaction.transactionId),
-      ).toBeDefined();
+      const sample = sampler.sampleForTransaction(transaction.transactionId);
+
+      // Asserting against the originating transaction, not just `toBeDefined()`:
+      // the fixture's paths are distinct, so an implementation that answered every
+      // id with `transactions[0]`'s sample would pass a definedness check and fail
+      // here. This is AC1's central invariant.
+      expect(sample).toBeDefined();
+      expect(sample?.method).toBe(transaction.thymianReq.method);
+      expect(sample?.path).toBe(transaction.thymianReq.path);
     }
   }, 30_000);
 

@@ -76,9 +76,20 @@ describe('thymian test', () => {
   }, 180_000);
 
   it('should leave no .thymian directory behind when nothing writes files', async () => {
+    // Counted at the server, across every route, so the case can prove AC2's
+    // "produces requests" half directly rather than inferring it from the report.
+    let requestCount = 0;
+
     const { server, targetUrl } = await setupTestEnvironment(
       'dynamic-test',
       getTempDir(),
+      (instance) => {
+        instance.addHook('onRequest', async () => {
+          requestCount += 1;
+        });
+
+        addDefaultHelloHandler(instance);
+      },
     );
 
     try {
@@ -87,18 +98,46 @@ describe('thymian test', () => {
       // What is left is a workspace containing nothing but a spec and a config.
       const configPath = join(getTempDir(), 'thymian.config.yaml');
       const config = readFileSync(configPath, 'utf-8');
-      const reporterAt = config.indexOf("  '@thymian/plugin-reporter':");
 
-      expect(reporterAt).toBeGreaterThan(-1);
-      writeFileSync(configPath, config.slice(0, reporterAt));
+      expect(config).toContain("'@thymian/plugin-reporter'");
+
+      // Remove exactly the reporter's block — its key line plus the indented
+      // continuation lines under it. Slicing the file at the key's offset would
+      // truncate to EOF, which is only correct while the reporter happens to be
+      // the last key in the fixture: any key appended after it would be silently
+      // dropped and this case would keep passing against a degraded run.
+      const stripped = config.replace(
+        /^ {2}'@thymian\/plugin-reporter':(?:\n(?: {3,}.*)?)*\n?/m,
+        '',
+      );
+
+      expect(stripped).not.toContain('@thymian/plugin-reporter');
+      expect(stripped).toContain("'@thymian/plugin-sampler'");
+      expect(stripped).toContain("'@thymian/plugin-http-tester'");
+
+      writeFileSync(configPath, stripped);
 
       const result = await execThymianRawAsync(
         ['test', '--target-url', targetUrl],
         { cwd: getTempDir() },
       );
 
+      // Gate "successful" exactly as the happy path above does. `exitCode === 0`
+      // plus a bare `Summary:` also holds for a run that produced no test cases at
+      // all. Both strings below come from `common-cli`'s report renderer, not from
+      // the reporter that was just stripped, so they cost nothing here.
       expect(result.exitCode).toBe(0);
-      expect(result.stdout).toContain('Summary:');
+      expect(result.stdout).toContain('@thymian/plugin-http-tester');
+      expect(result.stdout).toMatch(
+        /Summary: 0 errors, 0 warnings, 0 hints, \d+ infos?\./,
+      );
+
+      // A clean run reports no findings of any severity, so every counter in that
+      // summary is 0 and the line cannot by itself separate "ran the tests" from
+      // "had nothing to run". The request counter can, and it is the half of AC2
+      // this case exists to demonstrate: requests were produced from the spec
+      // alone, with no `sampler init` and nothing on disk.
+      expect(requestCount).toBeGreaterThan(0);
 
       // No `sampler init`, no samples on disk, nothing written.
       expect(existsSync(join(getTempDir(), '.thymian'))).toBe(false);
