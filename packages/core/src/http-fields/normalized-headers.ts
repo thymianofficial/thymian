@@ -14,7 +14,12 @@ export type RuntimeHeaderRecord = Record<string, string | string[] | undefined>;
 export interface NormalizedHeaders {
   /** Whether any value is present for `name` (case-insensitive). */
   has(name: string): boolean;
-  /** The first value for `name`, or `undefined` if absent. */
+  /**
+   * The first value for `name`, or `undefined` if absent. For a header
+   * that may legally repeat (e.g. `Set-Cookie`), this silently discards
+   * every value after the first -- use {@link getAll} instead whenever a
+   * rule cares about duplicate/multi-value detection.
+   */
   get(name: string): string | undefined;
   /** Every value for `name`, in encounter order (empty array if absent). */
   getAll(name: string): string[];

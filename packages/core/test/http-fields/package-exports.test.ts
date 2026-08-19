@@ -5,6 +5,7 @@ import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 
 import packageJson from '../../package.json' with { type: 'json' };
+import { fromRuntimeHeaders } from '../../src/index.js';
 
 // `nx run core:build` must run before this test for the dist assertions
 // below to pass (see spec Design Notes: this replaces a package-name-import
@@ -32,6 +33,10 @@ describe('@thymian/core package exports (AC 1: ./http-fields subpath)', () => {
     expect(
       existsSync(resolve(packageRoot, 'dist/http-fields/index.d.ts')),
     ).toBe(true);
+  });
+
+  it('re-exports http-fields from the root barrel, like every other subpath', () => {
+    expect(typeof fromRuntimeHeaders).toBe('function');
   });
 });
 
