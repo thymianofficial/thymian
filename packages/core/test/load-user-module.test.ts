@@ -1,5 +1,5 @@
-import { existsSync } from 'node:fs';
-import { mkdir, mkdtemp, rm } from 'node:fs/promises';
+import { existsSync, realpathSync } from 'node:fs';
+import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { basename, isAbsolute, join } from 'node:path';
 
@@ -19,6 +19,13 @@ import { loadUserModule, resolveUserModule } from '../src/load-user-module.js';
 const fixtures = join(import.meta.dirname, 'fixtures', 'user-modules');
 
 const BARE_PACKAGE = '@thymian/rules-rfc-9110';
+
+/**
+ * True when the filesystem under the fixtures is case-insensitive (default macOS, Windows). The
+ * casing-normalisation behaviour can only be observed there — on a case-sensitive volume a
+ * mis-cased specifier simply does not exist.
+ */
+const CASE_INSENSITIVE_FS = existsSync(join(fixtures, 'PLAIN.TS'));
 
 /**
  * Resolves a specifier and asserts the contract every resolvable case shares: a defined,
@@ -79,6 +86,30 @@ describe('load user module', () => {
 
       expect(module.default).toBe('split-ts-via-helper');
     });
+
+    it('wraps a non-object `export =` so the missing-default check cannot throw', async () => {
+      const resolved = await resolveOrFail(join(fixtures, 'primitive.cts'));
+      const module = await loadUserModule(resolved);
+
+      // Without the wrap this is the bare string, and `'default' in module` throws
+      // "Cannot use 'in' operator to search for 'default' in primitive-cts".
+      expect(() => 'default' in module).not.toThrow();
+      expect('default' in module).toBe(true);
+      expect(module.default).toBe('primitive-cts');
+    });
+
+    it('evaluates a TypeScript module once across concurrent loads', async () => {
+      const resolved = await resolveOrFail(join(fixtures, 'side-effect.ts'));
+
+      // jiti populates its cache only once a load *completes*, so without in-flight
+      // de-duplication four concurrent loads evaluate the module four times and hand back
+      // four distinct namespaces.
+      const modules = await Promise.all(
+        [1, 2, 3, 4].map(() => loadUserModule(resolved)),
+      );
+
+      expect(modules.map((module) => module.default)).toEqual([1, 1, 1, 1]);
+    });
   });
 
   describe('resolution', () => {
@@ -111,6 +142,35 @@ describe('load user module', () => {
       ).resolves.toBeUndefined();
     });
 
+    it('declines a declaration file whose extension is not lower-case', async () => {
+      // `Legacy.D.ts` is literal on disk, so this holds on case-sensitive volumes too.
+      await expect(
+        resolveUserModule(join(fixtures, 'Legacy.D.ts'), fixtures),
+      ).resolves.toBeUndefined();
+    });
+
+    it('declines a .tsx specifier rather than handing it to a transform that cannot parse it', async () => {
+      await expect(
+        resolveUserModule(join(fixtures, 'component.tsx'), fixtures),
+      ).resolves.toBeUndefined();
+    });
+
+    it.skipIf(!CASE_INSENSITIVE_FS)(
+      'normalises a mis-cased TypeScript specifier to its on-disk casing',
+      async () => {
+        // Both resolvers echo the caller's spelling, so without normalisation this reaches the
+        // dispatch as `.TS`, matches no branch, and dies with ERR_UNKNOWN_FILE_EXTENSION —
+        // on two of the three CI platforms but not on ubuntu.
+        const resolved = await resolveOrFail(join(fixtures, 'PLAIN.TS'));
+
+        expect(basename(resolved)).toBe('plain.ts');
+
+        const module = await loadUserModule(resolved);
+
+        expect(module.default).toBe('plain-ts');
+      },
+    );
+
     it('returns undefined for an unresolvable specifier', async () => {
       await expect(
         resolveUserModule('@thymian/definitely-not-a-real-package', fixtures),
@@ -124,25 +184,86 @@ describe('load user module', () => {
         resolveUserModule('node:fs', fixtures),
       ).resolves.toBeUndefined();
     });
+
+    it('never resolves a relative specifier against core own directory', async () => {
+      // `require` is anchored to core's install directory. A relative specifier absent from the
+      // user's cwd must come back unresolved, never as one of Thymian's own modules.
+      const emptyCwd = await mkdtemp(join(tmpdir(), 'thymian-empty-cwd-'));
+
+      try {
+        for (const specifier of [
+          './index.js',
+          './utils.js',
+          './thymian.js',
+          '../src/utils.ts',
+        ]) {
+          await expect(
+            resolveUserModule(specifier, emptyCwd),
+          ).resolves.toBeUndefined();
+        }
+      } finally {
+        await rm(emptyCwd, { recursive: true, force: true });
+      }
+    });
   });
 
   describe('preferCwdRelative', () => {
     let decoyCwd = '';
 
     beforeAll(async () => {
-      // A same-named directory in cwd is exactly what hijacks a bare package specifier.
-      decoyCwd = await mkdtemp(join(tmpdir(), 'thymian-decoy-cwd-'));
-      await mkdir(join(decoyCwd, BARE_PACKAGE), { recursive: true });
+      // `tmpdir()` is a symlink on macOS (`/var` -> `/private/var`) and resolved paths are
+      // realpathed, so the base has to be realpathed too for `startsWith` to mean anything.
+      decoyCwd = realpathSync.native(
+        await mkdtemp(join(tmpdir(), 'thymian-decoy-cwd-')),
+      );
+
+      // A *loadable* decoy: a same-named directory in cwd that resolves as a real package. This
+      // is the dangerous shape — left unguarded it runs the decoy's code under the name of the
+      // installed package.
+      const decoyPackage = join(decoyCwd, BARE_PACKAGE);
+
+      await mkdir(decoyPackage, { recursive: true });
+      await writeFile(
+        join(decoyPackage, 'package.json'),
+        JSON.stringify({ name: BARE_PACKAGE, main: 'index.js' }),
+      );
+      await writeFile(
+        join(decoyPackage, 'index.js'),
+        "export default 'DECOY';\n",
+      );
+
+      // A bare *subpath* specifier that names a real file in cwd. The cwd preference must still
+      // apply here, or `rules: ['my-rules/index.js']` would regress.
+      await mkdir(join(decoyCwd, 'my-rules'), { recursive: true });
+      await writeFile(
+        join(decoyCwd, 'my-rules', 'index.js'),
+        "export default 'local-subpath';\n",
+      );
     });
 
     afterAll(async () => {
       await rm(decoyCwd, { recursive: true, force: true });
     });
 
-    it('is hijacked by a same-named directory in cwd when left at its default', async () => {
-      await expect(
-        resolveUserModule(BARE_PACKAGE, decoyCwd),
-      ).resolves.toBeUndefined();
+    it('does not let a loadable same-named directory in cwd shadow an installed package', async () => {
+      const resolved = await resolveOrFail(BARE_PACKAGE, decoyCwd);
+
+      expect(resolved.startsWith(decoyCwd)).toBe(false);
+      expect(resolved).toContain(join('rules-rfc-9110', 'dist'));
+
+      const module = await loadUserModule(resolved);
+
+      expect(module.default).not.toBe('DECOY');
+    }, 15_000);
+
+    it('still prefers a cwd-relative file named by a bare subpath specifier', async () => {
+      const resolved = await resolveOrFail('my-rules/index.js', decoyCwd);
+
+      expect(resolved.startsWith(decoyCwd)).toBe(true);
+
+      const module = await loadUserModule(resolved);
+
+      expect(module.default).toBe('local-subpath');
     });
 
     it('resolves the installed package when preferCwdRelative is false', async () => {
@@ -157,6 +278,7 @@ describe('load user module', () => {
       }
 
       expect(isAbsolute(resolved)).toBe(true);
+      expect(resolved.startsWith('file:')).toBe(false);
       expect(resolved.startsWith(decoyCwd)).toBe(false);
       expect(resolved).toContain(join('rules-rfc-9110', 'dist'));
     }, 15_000);
@@ -221,5 +343,72 @@ describe('load user module', () => {
 
       expect(jitiFactoryCalls).toBe(1);
     });
+  });
+
+  describe('when jiti is unavailable or misbehaving', () => {
+    afterEach(() => {
+      vi.doUnmock('jiti');
+      vi.resetModules();
+    });
+
+    it('returns undefined instead of throwing, and does not poison later loads', async () => {
+      vi.resetModules();
+      vi.doMock('jiti', () => {
+        throw new Error('simulated broken jiti install');
+      });
+
+      const broken = await import('../src/load-user-module.js');
+
+      // Resolution must stay silent: the caller owns the user-facing message, and a raw
+      // "simulated broken jiti install" surfacing from a *resolution* attempt would replace it.
+      await expect(
+        broken.resolveUserModule(join(fixtures, 'helper'), fixtures),
+      ).resolves.toBeUndefined();
+
+      // Still undefined, not a cached rejection escaping as a throw.
+      await expect(
+        broken.resolveUserModule(join(fixtures, 'helper'), fixtures),
+      ).resolves.toBeUndefined();
+
+      // A rejected first import must not be memoised: once jiti works, resolution works.
+      vi.doUnmock('jiti');
+      vi.resetModules();
+
+      const repaired = await import('../src/load-user-module.js');
+      const resolved = await repaired.resolveUserModule(
+        join(fixtures, 'helper'),
+        fixtures,
+      );
+
+      expect(resolved).toBeDefined();
+      expect(basename(String(resolved))).toBe('helper.ts');
+    });
+
+    it.each([
+      ['a specifier jiti cannot resolve', undefined],
+      ['a non-file URL', 'https://example.test/rule.ts'],
+      ['a file URL for a path that does not exist', 'file:///nope/missing.ts'],
+    ])(
+      'declines %s from the jiti fallback',
+      async (_label, esmResolveResult) => {
+        vi.resetModules();
+        vi.doMock('jiti', () => ({
+          createJiti: () => ({
+            esmResolve: () => esmResolveResult,
+            import: () => {
+              throw new Error('should never be reached');
+            },
+          }),
+        }));
+
+        const loader = await import('../src/load-user-module.js');
+
+        // An extensionless specifier misses `existsSync` and `require.resolve`, so it is the
+        // shortest route into the jiti fallback where these three guards live.
+        await expect(
+          loader.resolveUserModule(join(fixtures, 'helper'), fixtures),
+        ).resolves.toBeUndefined();
+      },
+    );
   });
 });
