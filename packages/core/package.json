@@ -45,6 +45,7 @@
     "./chalk": "./dist/chalk.js",
     "./utils": "./dist/utils.js",
     "./http-filter": "./dist/http-filter.js",
+    "./http-fields": "./dist/http-fields/index.js",
     "./rxjs": "./dist/rxjs.js"
   },
   "dependencies": {
