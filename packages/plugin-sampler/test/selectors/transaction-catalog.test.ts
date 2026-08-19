@@ -1,9 +1,10 @@
-import { readFileSync } from 'node:fs';
+import { readdirSync, readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 
 import {
   type ThymianError,
   ThymianFormat,
+  type ThymianFormatLocation,
   type ThymianHttpRequest,
   type ThymianHttpResponse,
 } from '@thymian/core';
@@ -26,6 +27,10 @@ function catchError(fn: () => unknown): ThymianError {
   throw new Error('Expected the call to throw, but it returned normally.');
 }
 
+function suggestionsOf(error: ThymianError): string[] {
+  return error.options.suggestions ?? [];
+}
+
 type TransactionSpec = {
   method: string;
   path: string;
@@ -33,7 +38,10 @@ type TransactionSpec = {
   status: number;
   responseMediaType?: string;
   host?: string;
+  protocol?: 'http' | 'https';
   source?: string;
+  sourceLocation?: ThymianFormatLocation;
+  description?: string;
 };
 
 /**
@@ -52,9 +60,11 @@ function formatFrom(specs: TransactionSpec[]): ThymianFormat {
       path: spec.path,
       host: spec.host ?? 'localhost',
       port: 8080,
-      protocol: 'http',
+      protocol: spec.protocol ?? 'http',
       mediaType: spec.requestMediaType ?? '',
       sourceName: source,
+      ...(spec.sourceLocation ? { sourceLocation: spec.sourceLocation } : {}),
+      ...(spec.description ? { description: spec.description } : {}),
     });
     const response: ThymianHttpResponse = createHttpResponse({
       statusCode: spec.status,
@@ -111,6 +121,52 @@ describe('TransactionCatalog', () => {
     }
 
     expect(catalog.entries()).toHaveLength(transactions.length);
+  });
+
+  /**
+   * The generated fixture emits one shape only — request `mediaType: ''`,
+   * response `application/json`, an already-slashed path — so bijectivity over
+   * it stays green even if the request-media part is dropped. This fixture
+   * varies every axis the selector is built from.
+   */
+  it('is bijective over a format that varies every selector axis', () => {
+    const format = formatFrom([
+      ...baseSpecs,
+      {
+        method: 'POST',
+        path: '/astronauts',
+        requestMediaType: 'application/xml',
+        status: 201,
+        responseMediaType: 'application/json',
+      },
+      {
+        method: 'GET',
+        path: '/launches',
+        status: 200,
+        responseMediaType: 'application/xml',
+      },
+      { method: 'get', path: 'unslashed', status: 200 },
+    ]);
+    const transactions = format.getThymianHttpTransactions();
+    const catalog = TransactionCatalog.fromThymianFormat(format);
+
+    expect(catalog.size).toBe(transactions.length);
+    expect(catalog.selectors()).toEqual([
+      'GET /launches -> 200 (application/json)',
+      'POST /astronauts (application/json) -> 201 (application/json)',
+      'DELETE /astronauts/{id} -> 204',
+      'POST /astronauts (application/xml) -> 201 (application/json)',
+      'GET /launches -> 200 (application/xml)',
+      'GET /unslashed -> 200',
+    ]);
+
+    for (const transaction of transactions) {
+      const selector = catalog.selectorFor(transaction.transactionId);
+
+      expect(catalog.resolve(String(selector)).transactionId).toBe(
+        transaction.transactionId,
+      );
+    }
   });
 
   it('mirrors getThymianHttpTransactions order and is stable across builds', () => {
@@ -228,6 +284,22 @@ describe('TransactionCatalog', () => {
     ).toBe('application/xml');
   });
 
+  it('refuses to index a transaction whose rendering is not a selector', () => {
+    // `responses: { OK: … }` survives `plugin-openapi`'s `n < 100 || n > 599`
+    // guard (both comparisons are false for NaN) and reaches the catalog as
+    // `statusCode: NaN`. Indexing it would put an unparseable key in the map.
+    const error = catchError(() =>
+      TransactionCatalog.fromThymianFormat(
+        formatFrom([{ method: 'GET', path: '/pets', status: Number.NaN }]),
+      ),
+    );
+
+    expect(error.name).toBe('MalformedSelectorError');
+    expect(error.message).toBe(
+      '"GET /pets -> NaN" is not a valid transaction selector.',
+    );
+  });
+
   it('throws SelectorCollisionError naming both sources', () => {
     const format = formatFrom([
       {
@@ -259,13 +331,134 @@ describe('TransactionCatalog', () => {
     expect(error.name).toBe('SelectorCollisionError');
     expect(error.message).toContain('GET /users -> 200 (application/json)');
 
-    const suggestions = (error.options.suggestions ?? []).join('\n');
+    const suggestions = suggestionsOf(error).join('\n');
 
     expect(suggestions).toContain('source-one');
     expect(suggestions).toContain('source-two');
     expect(suggestions).toContain('http://api.one.example:8080');
     expect(suggestions).toContain('http://api.two.example:8080');
     expect(suggestions).toContain('Load the sources separately');
+  });
+
+  it('quotes the source location of each colliding transaction', () => {
+    const error = catchError(() =>
+      TransactionCatalog.fromThymianFormat(
+        formatFrom([
+          {
+            method: 'GET',
+            path: '/users',
+            status: 200,
+            host: 'api.one.example',
+            source: 'source-one',
+            sourceLocation: {
+              path: 'a.yaml',
+              position: { line: 6, column: 5, offset: 42 },
+            },
+          },
+          {
+            method: 'GET',
+            path: '/users',
+            status: 200,
+            host: 'api.two.example',
+            source: 'source-two',
+            sourceLocation: {
+              path: 'b.yaml',
+              position: { line: 15, column: 5, offset: 99 },
+            },
+          },
+        ]),
+      ),
+    );
+
+    expect(error.name).toBe('SelectorCollisionError');
+    expect(suggestionsOf(error)[0]).toBe(
+      'Source "source-one" describes it at http://api.one.example:8080/ (a.yaml:6:5).',
+    );
+    expect(suggestionsOf(error)[1]).toBe(
+      'Source "source-two" describes it at http://api.two.example:8080/ (b.yaml:15:5).',
+    );
+  });
+
+  /**
+   * Reachable from a single valid document: node identity ignores only `label`,
+   * `sourceLocation` and `sourceName`, so two operations that differ in
+   * anything a selector does not carry — a description, a query parameter, a
+   * header, `bodyRequired`, or a base path re-added by an operation-level
+   * `servers` override — arrive as two transactions and collide. Telling that
+   * user to "load the sources separately" is advice they cannot follow.
+   */
+  it('does not tell a same-source collision to load its sources separately', () => {
+    const format = formatFrom([
+      {
+        method: 'GET',
+        path: '/v1/pets',
+        status: 200,
+        source: 'only-source',
+        description: 'Lists pets.',
+        sourceLocation: {
+          path: 's.yaml',
+          position: { line: 6, column: 5, offset: 42 },
+        },
+      },
+      {
+        method: 'GET',
+        path: '/v1/pets',
+        status: 200,
+        source: 'only-source',
+        description: 'Lists pets, again.',
+        sourceLocation: {
+          path: 's.yaml',
+          position: { line: 15, column: 5, offset: 99 },
+        },
+      },
+    ]);
+
+    expect(format.getThymianHttpTransactions()).toHaveLength(2);
+
+    const error = catchError(() =>
+      TransactionCatalog.fromThymianFormat(format),
+    );
+
+    expect(error.name).toBe('SelectorCollisionError');
+
+    const suggestions = suggestionsOf(error);
+
+    expect(suggestions.join('\n')).not.toContain('Load the sources separately');
+    expect(suggestions.join('\n')).toContain('same source');
+    expect(suggestions[0]).toContain('s.yaml:6:5');
+    expect(suggestions[1]).toContain('s.yaml:15:5');
+  });
+
+  /**
+   * `thymianRequestToOrigin` runs `normalizeUrl`, which throws `InvalidUrlError`
+   * for an empty host — an OpenAPI `servers` entry like `file:///tmp/api`
+   * produces one. That must not replace the collision the user needs.
+   */
+  it('still reports the collision when an origin cannot be normalized', () => {
+    const error = catchError(() =>
+      TransactionCatalog.fromThymianFormat(
+        formatFrom([
+          {
+            method: 'GET',
+            path: '/users',
+            status: 200,
+            host: '',
+            source: 'source-one',
+          },
+          {
+            method: 'GET',
+            path: '/users',
+            status: 200,
+            host: 'api.two.example',
+            source: 'source-two',
+          },
+        ]),
+      ),
+    );
+
+    expect(error.name).toBe('SelectorCollisionError');
+    expect(suggestionsOf(error)[0]).toBe('Source "source-one" describes it.');
+    expect(suggestionsOf(error)[1]).toContain('http://api.two.example:8080');
   });
 
   it('reports a dangling but well-formed selector with near-miss suggestions', () => {
@@ -276,7 +469,7 @@ describe('TransactionCatalog', () => {
 
     expect(error.name).toBe('UnknownSelectorError');
     expect(error.message).toContain(dangling);
-    expect((error.options.suggestions ?? []).join('\n')).toContain(
+    expect(suggestionsOf(error).join('\n')).toContain(
       'GET /launches -> 200 (application/json)',
     );
     expect(catalog.tryResolve(dangling)).toBeUndefined();
@@ -296,17 +489,36 @@ describe('TransactionCatalog', () => {
     );
 
     const error = catchError(() => catalog.resolve('GET /launches -> 418'));
-    const candidates = (error.options.suggestions ?? []).filter((suggestion) =>
-      suggestion.includes('/launches'),
+
+    // The whole suggestion list, in order — not a pre-filtered slice of it, so
+    // deleting the path filter or the ranking in `nearMisses` fails here.
+    expect(suggestionsOf(error)).toEqual([
+      'Did you mean one of these selectors?',
+      '"GET /launches -> 200"',
+      '"GET /launches -> 404"',
+      '"GET /launches -> 500"',
+      '"GET /launches -> 503"',
+      '"GET /launches -> 502"',
+    ]);
+  });
+
+  it('lists same-path candidates under another method after the same-method ones', () => {
+    const catalog = TransactionCatalog.fromThymianFormat(
+      formatFrom([
+        { method: 'POST', path: '/launches', status: 201 },
+        { method: 'GET', path: '/launches', status: 200 },
+        { method: 'DELETE', path: '/launches', status: 204 },
+      ]),
     );
 
-    expect(candidates).toHaveLength(5);
-    expect(candidates.every((candidate) => candidate.includes('GET'))).toBe(
-      true,
-    );
-    expect(candidates.some((candidate) => candidate.includes('/other'))).toBe(
-      false,
-    );
+    const error = catchError(() => catalog.resolve('GET /launches -> 418'));
+
+    expect(suggestionsOf(error)).toEqual([
+      'Did you mean one of these selectors?',
+      '"GET /launches -> 200"',
+      '"POST /launches -> 201"',
+      '"DELETE /launches -> 204"',
+    ]);
   });
 
   it('omits the candidate list when nothing shares the path', () => {
@@ -315,7 +527,29 @@ describe('TransactionCatalog', () => {
     const error = catchError(() => catalog.resolve('GET /nowhere -> 200'));
 
     expect(error.name).toBe('UnknownSelectorError');
-    expect((error.options.suggestions ?? []).join('\n')).not.toContain('->');
+    expect(suggestionsOf(error)).toEqual([
+      'Check the path against the loaded API description — no transaction with that path is loaded.',
+    ]);
+  });
+
+  /**
+   * With nothing loaded at all, "no transaction with that path is loaded" sends
+   * the user after a path typo that is not the problem.
+   */
+  it('says nothing is loaded when the catalog is empty', () => {
+    const catalog = TransactionCatalog.fromThymianFormat(new ThymianFormat());
+
+    expect(catalog.size).toBe(0);
+
+    const error = catchError(() => catalog.resolve('GET /launches -> 200'));
+
+    expect(error.name).toBe('UnknownSelectorError');
+    expect(suggestionsOf(error).join('\n')).toContain(
+      'No transactions are loaded',
+    );
+    expect(suggestionsOf(error).join('\n')).not.toContain(
+      'no transaction with that path',
+    );
   });
 
   it('throws MalformedSelectorError for input that is not a selector', () => {
@@ -331,6 +565,23 @@ describe('TransactionCatalog', () => {
     ).toBeUndefined();
   });
 
+  /**
+   * A hand-authored selector that forgets the leading slash is not a selector,
+   * and the diagnostic has to say so *and* show the canonical spelling — not
+   * fall through to the least useful "no transaction with that path" line.
+   */
+  it('suggests the canonical spelling for a path without a leading slash', () => {
+    const catalog = TransactionCatalog.fromThymianFormat(formatFrom(baseSpecs));
+
+    const error = catchError(() => catalog.resolve('GET launches -> 200'));
+
+    expect(error.name).toBe('MalformedSelectorError');
+    expect(suggestionsOf(error).join('\n')).toContain(
+      'Did you mean "GET /launches -> 200"?',
+    );
+    expect(catalog.tryResolve('GET launches -> 200')).toBeUndefined();
+  });
+
   it('returns undefined from selectorFor for an unknown transaction id', () => {
     const catalog = TransactionCatalog.fromThymianFormat(formatFrom(baseSpecs));
 
@@ -338,20 +589,22 @@ describe('TransactionCatalog', () => {
   });
 
   it('never reaches the filesystem or the samples tree', () => {
-    const sources = [
-      'selector.ts',
-      'selector-errors.ts',
-      'transaction-catalog.ts',
-    ].map((file) =>
-      readFileSync(
-        fileURLToPath(new URL(`../../src/selectors/${file}`, import.meta.url)),
-        'utf-8',
-      ),
+    const directory = fileURLToPath(
+      new URL('../../src/selectors/', import.meta.url),
     );
+    const files = readdirSync(directory, {
+      recursive: true,
+      withFileTypes: true,
+    }).filter((entry) => entry.isFile() && entry.name.endsWith('.ts'));
 
-    for (const source of sources) {
-      expect(source).not.toMatch(/from\s+'node:fs/);
-      expect(source).not.toMatch(/samples-structure/);
+    expect(files.length).toBeGreaterThan(0);
+
+    for (const file of files) {
+      const source = readFileSync(`${file.parentPath}/${file.name}`, 'utf-8');
+
+      expect(source, file.name).not.toMatch(/\bnode:fs\b/);
+      expect(source, file.name).not.toMatch(/\bfs\/promises\b/);
+      expect(source, file.name).not.toMatch(/samples-structure/);
     }
   });
 });

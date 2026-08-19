@@ -39,21 +39,28 @@ export type SelectorParts = {
 };
 
 /**
- * The one anchored pattern the grammar is expressed in. Methods are uppercase
- * (the canonical form), paths carry no whitespace, media types carry no
- * parentheses, and every separator is exactly one space.
+ * The one anchored pattern the grammar is expressed in, and the single source of
+ * truth for what a selector *is*: `formatSelector` asserts its own output
+ * against it, and `parseSelector` accepts nothing else. Keeping the two
+ * languages identical is what makes the catalog a bijection.
+ *
+ * Methods are an uppercased RFC 9110 §5.6.2 `tchar` token (the canonical form),
+ * paths carry no whitespace and begin with `/` — exactly as `selectorPath`
+ * renders them — statuses carry no leading zeros because `String(number)` never
+ * emits one, media types carry no parentheses, and every separator is exactly
+ * one space.
  */
 const SELECTOR_PATTERN =
-  /^([A-Z0-9!#$%&'*+.^_|~-]+) (\S+)(?: \(([^()]+)\))? -> (\d+)(?: \(([^()]+)\))?$/;
+  /^([A-Z0-9!#$%&'*+.^_`|~-]+) (\/\S*)(?: \(([^()]+)\))? -> (0|[1-9]\d*)(?: \(([^()]+)\))?$/;
 
 /**
- * The same pattern with the method matched case-insensitively. Used only to
- * turn "you wrote the method in lowercase" into an actionable suggestion.
+ * The grammar relaxed on exactly the two axes a hand-authored selector slips on
+ * — method case and the leading slash — plus leading zeros in the status. Used
+ * ONLY to turn a rejection into a "did you mean …?" suggestion; it never
+ * decides whether a selector is valid.
  */
-const CASE_INSENSITIVE_SELECTOR_PATTERN = new RegExp(
-  SELECTOR_PATTERN.source,
-  'i',
-);
+const LENIENT_SELECTOR_PATTERN =
+  /^([A-Za-z0-9!#$%&'*+.^_`|~-]+) (\S+)(?: \(([^()]+)\))? -> (\d+)(?: \(([^()]+)\))?$/;
 
 /**
  * The only normalization a selector path receives: the leading slash
@@ -87,7 +94,13 @@ export function formatSelector(
 
   const selector = `${method} ${path}${requestMedia} -> ${status}${responseMedia}`;
 
-  assertUnambiguous(selector, path, req.mediaType, res.mediaType);
+  assertUnambiguous(selector, {
+    method,
+    path,
+    status,
+    requestMediaType: req.mediaType,
+    responseMediaType: res.mediaType,
+  });
 
   return selector;
 }
@@ -110,7 +123,7 @@ export function parseSelector(value: string): SelectorParts {
   const match = SELECTOR_PATTERN.exec(value);
 
   if (!match) {
-    throw malformedSelectorError(value, lowercaseMethodHint(value));
+    throw malformedSelectorError(value, canonicalFormHint(value));
   }
 
   const method = match[1];
@@ -133,48 +146,85 @@ export function parseSelector(value: string): SelectorParts {
   };
 }
 
-function assertUnambiguous(
-  selector: string,
-  path: string,
-  requestMediaType: string,
-  responseMediaType: string,
-): void {
+type RenderedParts = {
+  method: string;
+  path: string;
+  status: string;
+  requestMediaType: string;
+  responseMediaType: string;
+};
+
+function assertUnambiguous(selector: string, parts: RenderedParts): void {
   // Reachable: a traffic-derived `req.path` is taken verbatim off the wire and
   // may carry a query string or whitespace, unlike a spec-derived path. Such a
   // rendering cannot round-trip, so it fails loudly at catalog build rather
   // than becoming an unparseable key.
-  if (/\s/.test(path)) {
+  if (/\s/.test(parts.path)) {
     throw malformedSelectorError(selector, [
-      `The request path "${path}" contains whitespace, which a selector cannot represent.`,
+      `The request path "${parts.path}" contains whitespace, which a selector cannot represent.`,
     ]);
   }
 
-  if (path.includes('->')) {
+  if (parts.path.includes('->')) {
     throw malformedSelectorError(selector, [
-      `The request path "${path}" contains "->", which a selector uses as its separator.`,
+      `The request path "${parts.path}" contains "->", which a selector uses as its separator.`,
     ]);
   }
 
-  for (const mediaType of [requestMediaType, responseMediaType]) {
+  for (const mediaType of [parts.requestMediaType, parts.responseMediaType]) {
     if (mediaType.includes('(') || mediaType.includes(')')) {
       throw malformedSelectorError(selector, [
         `The media type "${mediaType}" contains a parenthesis, which a selector uses to delimit media types.`,
       ]);
     }
   }
+
+  // The backstop the three checks above cannot provide: the rendering is only a
+  // selector if the grammar accepts it back. Without this, an out-of-grammar
+  // METHOD or status silently becomes a catalog key that `parseSelector`
+  // rejects, and the bijection this file advertises is false. Reachable today
+  // through the status: `responses-object.processor.ts` guards a response key
+  // with `n < 100 || n > 599`, and both comparisons are `false` for `NaN`, so a
+  // non-numeric key yields `statusCode: NaN` and a `-> NaN` rendering.
+  if (!SELECTOR_PATTERN.test(selector)) {
+    throw malformedSelectorError(selector, [
+      `The transaction renders as "${selector}", which the selector grammar cannot represent.`,
+      `Check its method ("${parts.method}") and its status ("${parts.status}") — a status must be a non-negative integer without leading zeros.`,
+    ]);
+  }
 }
 
-function lowercaseMethodHint(value: string): string[] {
-  const match = CASE_INSENSITIVE_SELECTOR_PATTERN.exec(value);
-  const method = match?.[1];
+/**
+ * Suggests the canonical spelling of a value that is *nearly* a selector:
+ * lowercase method, missing leading slash, zero-padded status. Returns nothing
+ * when the value is not recognizable or already canonical.
+ */
+function canonicalFormHint(value: string): string[] {
+  const match = LENIENT_SELECTOR_PATTERN.exec(value);
 
-  if (!method) {
+  if (!match) {
+    return [];
+  }
+
+  const method = match[1];
+  const path = match[2];
+  const status = match[4];
+
+  if (method === undefined || path === undefined || status === undefined) {
+    return [];
+  }
+
+  const requestMedia = match[3] ? ` (${match[3]})` : '';
+  const responseMedia = match[5] ? ` (${match[5]})` : '';
+  const canonical = `${method.toUpperCase()} ${selectorPath(
+    path,
+  )}${requestMedia} -> ${Number(status)}${responseMedia}`;
+
+  if (canonical === value || !SELECTOR_PATTERN.test(canonical)) {
     return [];
   }
 
   return [
-    `A selector spells its method in uppercase. Did you mean "${method.toUpperCase()}${value.slice(
-      method.length,
-    )}"?`,
+    `A selector spells its method in uppercase and its path with a leading "/". Did you mean "${canonical}"?`,
   ];
 }

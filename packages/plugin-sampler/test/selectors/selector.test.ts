@@ -1,4 +1,8 @@
-import type { ThymianError } from '@thymian/core';
+import type {
+  ThymianError,
+  ThymianHttpRequest,
+  ThymianHttpResponse,
+} from '@thymian/core';
 import {
   createHttpRequest,
   createHttpResponse,
@@ -10,6 +14,7 @@ import {
   formatSelector,
   parseSelector,
   selectorForTransaction,
+  selectorPath,
 } from '../../src/selectors/selector.js';
 
 /**
@@ -26,6 +31,13 @@ function catchError(fn: () => unknown): ThymianError {
 
   throw new Error('Expected the call to throw, but it returned normally.');
 }
+
+function suggestionsOf(error: ThymianError): string[] {
+  return error.options.suggestions ?? [];
+}
+
+const GRAMMAR_SUGGESTION =
+  'Write a selector as METHOD SP path [ SP "(" requestMediaType ")" ] SP "->" SP status [ SP "(" responseMediaType ")" ].';
 
 describe('formatSelector', () => {
   it('renders the three specification examples byte-for-byte', () => {
@@ -205,53 +217,140 @@ describe('formatSelector', () => {
     );
   });
 
-  it('refuses to render a selector that could not round-trip', () => {
+  describe('refuses to render a selector that could not round-trip', () => {
     const response = createHttpResponse({ statusCode: 200, mediaType: '' });
 
-    expect(
-      catchError(() =>
+    it('names the path when it carries whitespace', () => {
+      const error = catchError(() =>
         formatSelector(
           createHttpRequest({ path: '/a b', mediaType: '' }),
           response,
         ),
-      ).name,
-    ).toBe('MalformedSelectorError');
+      );
 
-    expect(
-      catchError(() =>
+      expect(error.name).toBe('MalformedSelectorError');
+      expect(suggestionsOf(error)[0]).toBe(
+        'The request path "/a b" contains whitespace, which a selector cannot represent.',
+      );
+    });
+
+    it('names the path when a traffic-derived query string carries whitespace', () => {
+      const error = catchError(() =>
         formatSelector(
           createHttpRequest({ path: '/search?q=a b', mediaType: '' }),
           response,
         ),
-      ).name,
-    ).toBe('MalformedSelectorError');
+      );
 
-    expect(
-      catchError(() =>
+      expect(error.name).toBe('MalformedSelectorError');
+      expect(suggestionsOf(error)[0]).toBe(
+        'The request path "/search?q=a b" contains whitespace, which a selector cannot represent.',
+      );
+    });
+
+    it('names the path when it carries the arrow separator', () => {
+      const error = catchError(() =>
         formatSelector(
           createHttpRequest({ path: '/a->b', mediaType: '' }),
           response,
         ),
-      ).name,
-    ).toBe('MalformedSelectorError');
+      );
 
-    expect(
-      catchError(() =>
+      expect(error.name).toBe('MalformedSelectorError');
+      expect(suggestionsOf(error)[0]).toBe(
+        'The request path "/a->b" contains "->", which a selector uses as its separator.',
+      );
+    });
+
+    it('names the offending request media type', () => {
+      const error = catchError(() =>
         formatSelector(
           createHttpRequest({ path: '/a', mediaType: 'application/json)' }),
           response,
         ),
-      ).name,
-    ).toBe('MalformedSelectorError');
+      );
 
-    expect(
-      catchError(() =>
+      expect(error.name).toBe('MalformedSelectorError');
+      expect(suggestionsOf(error)[0]).toBe(
+        'The media type "application/json)" contains a parenthesis, which a selector uses to delimit media types.',
+      );
+    });
+
+    it('names the offending response media type', () => {
+      const error = catchError(() =>
         formatSelector(
           createHttpRequest({ path: '/a', mediaType: '' }),
           createHttpResponse({ statusCode: 200, mediaType: 'text/(plain)' }),
         ),
-      ).name,
-    ).toBe('MalformedSelectorError');
+      );
+
+      expect(error.name).toBe('MalformedSelectorError');
+      expect(suggestionsOf(error)[0]).toBe(
+        'The media type "text/(plain)" contains a parenthesis, which a selector uses to delimit media types.',
+      );
+    });
+
+    // Regression guard for the review finding: `assertUnambiguous` used to
+    // check the path and the media types but never the method or the status, so
+    // a non-numeric OpenAPI response key (`responses: { OK: … }` survives
+    // `n < 100 || n > 599`, both false for NaN) rendered `GET /pets -> NaN` —
+    // a catalog key the grammar's `(\d+)` cannot parse back.
+    it('rejects a NaN status rather than emitting an unparseable key', () => {
+      const error = catchError(() =>
+        formatSelector(
+          createHttpRequest({ method: 'GET', path: '/pets', mediaType: '' }),
+          createHttpResponse({ statusCode: Number.NaN, mediaType: '' }),
+        ),
+      );
+
+      expect(error.name).toBe('MalformedSelectorError');
+      expect(error.message).toBe(
+        '"GET /pets -> NaN" is not a valid transaction selector.',
+      );
+      expect(suggestionsOf(error).join('\n')).toContain('its status ("NaN")');
+      expect(() => parseSelector('GET /pets -> NaN')).toThrow();
+    });
+
+    const outOfGrammarStatuses: [string, number][] = [
+      ['a negative status', -1],
+      ['a fractional status', 200.5],
+    ];
+
+    it.each(outOfGrammarStatuses)('rejects %s', (_label, statusCode) => {
+      expect(
+        catchError(() =>
+          formatSelector(
+            createHttpRequest({ method: 'GET', path: '/pets', mediaType: '' }),
+            createHttpResponse({ statusCode, mediaType: '' }),
+          ),
+        ).name,
+      ).toBe('MalformedSelectorError');
+    });
+
+    it('rejects a method the grammar cannot represent', () => {
+      const error = catchError(() =>
+        formatSelector(
+          createHttpRequest({ method: 'GE T', path: '/pets', mediaType: '' }),
+          response,
+        ),
+      );
+
+      expect(error.name).toBe('MalformedSelectorError');
+      expect(suggestionsOf(error).join('\n')).toContain('its method ("GE T")');
+    });
+
+    it('accepts every RFC 9110 tchar in a method, including the backtick', () => {
+      expect(
+        formatSelector(
+          createHttpRequest({
+            method: "M-`!#$%&'*+.^_|~",
+            path: '/x',
+            mediaType: '',
+          }),
+          createHttpResponse({ statusCode: 200, mediaType: '' }),
+        ),
+      ).toBe("M-`!#$%&'*+.^_|~ /x -> 200");
+    });
   });
 
   it('emits a traffic-derived query string verbatim when it is unambiguous', () => {
@@ -284,6 +383,59 @@ describe('selectorForTransaction', () => {
 });
 
 describe('parseSelector', () => {
+  /**
+   * Deliberately not `createThymianFormatWithTransactions`: that fixture emits
+   * one shape only, with request `mediaType: ''` and an already-slashed path,
+   * so a round trip over it stays green even if the request-media rendering or
+   * the leading-slash normalization is deleted.
+   */
+  const roundTripCases: [string, ThymianHttpRequest, ThymianHttpResponse][] = [
+    [
+      'response media only',
+      createHttpRequest({ method: 'GET', path: '/launches', mediaType: '' }),
+      createHttpResponse({ statusCode: 200, mediaType: 'application/json' }),
+    ],
+    [
+      'both media parts',
+      createHttpRequest({
+        method: 'POST',
+        path: '/astronauts',
+        mediaType: 'application/json',
+      }),
+      createHttpResponse({ statusCode: 201, mediaType: 'application/json' }),
+    ],
+    [
+      'request media only, templated path',
+      createHttpRequest({
+        method: 'PUT',
+        path: '/astronauts/{id}',
+        mediaType: 'application/xml',
+      }),
+      createHttpResponse({ statusCode: 200, mediaType: '' }),
+    ],
+    [
+      'neither media part',
+      createHttpRequest({ method: 'DELETE', path: '/x', mediaType: '' }),
+      createHttpResponse({ statusCode: 204, mediaType: '' }),
+    ],
+    [
+      // The leading slash the format does NOT guarantee, and a lowercase method.
+      'an unslashed path and a lowercase method',
+      createHttpRequest({ method: 'get', path: 'launches', mediaType: '' }),
+      createHttpResponse({ statusCode: 503, mediaType: 'text/plain' }),
+    ],
+  ];
+
+  it.each(roundTripCases)('round-trips %s', (_label, request, response) => {
+    const parts = parseSelector(formatSelector(request, response));
+
+    expect(parts.method).toBe(request.method.toUpperCase());
+    expect(parts.path).toBe(selectorPath(request.path));
+    expect(parts.status).toBe(response.statusCode);
+    expect(parts.requestMediaType).toBe(request.mediaType || undefined);
+    expect(parts.responseMediaType).toBe(response.mediaType || undefined);
+  });
+
   it('round-trips every transaction of a generated format', () => {
     const format = createThymianFormatWithTransactions(20);
     const transactions = format.getThymianHttpTransactions();
@@ -295,7 +447,7 @@ describe('parseSelector', () => {
       const parts = parseSelector(selector);
 
       expect(parts.method).toBe(transaction.thymianReq.method.toUpperCase());
-      expect(parts.path).toBe(transaction.thymianReq.path);
+      expect(parts.path).toBe(selectorPath(transaction.thymianReq.path));
       expect(parts.status).toBe(transaction.thymianRes.statusCode);
       expect(parts.requestMediaType).toBe(
         transaction.thymianReq.mediaType || undefined,
@@ -328,29 +480,67 @@ describe('parseSelector', () => {
     });
   });
 
+  /**
+   * The third column is the canonical spelling the diagnostic must suggest, or
+   * `undefined` when the input is too far gone to be a near-miss. Asserting it
+   * per row is what makes the table discriminating — `error.name` alone is
+   * constant across every row and would survive deleting the whole parser.
+   */
   it.each([
-    ['empty input', ''],
-    ['no status', 'GET /x'],
-    ['no method', '/x -> 200'],
-    ['wrong arrow', 'GET /x => 200'],
-    ['double spaces', 'GET /x  ->  200'],
-    ['lowercase method', 'get /x -> 200'],
-    ['unbalanced paren', 'GET /x -> 200 (application/json'],
+    ['empty input', '', undefined],
+    ['no status', 'GET /x', undefined],
+    ['no method', '/x -> 200', undefined],
+    ['wrong arrow', 'GET /x => 200', undefined],
+    ['double spaces', 'GET /x  ->  200', undefined],
+    ['lowercase method', 'get /x -> 200', 'GET /x -> 200'],
+    [
+      'a path without a leading slash',
+      'GET launches -> 200',
+      'GET /launches -> 200',
+    ],
+    ['a zero-padded status', 'GET /x -> 0200', 'GET /x -> 200'],
+    ['unbalanced paren', 'GET /x -> 200 (application/json', undefined],
     [
       "core's display string",
       'GET /launches - application/json → 200 OK - application/json',
+      undefined,
     ],
-  ])('refuses to parse %s', (_label, input) => {
+  ])('refuses to parse %s', (_label, input, canonical) => {
     const error = catchError(() => parseSelector(input));
 
     expect(error.name).toBe('MalformedSelectorError');
-    expect(error.message).toContain(input);
-    expect(error.options.suggestions?.length).toBeGreaterThan(0);
+    expect(error.message).toBe(
+      `"${input}" is not a valid transaction selector.`,
+    );
+
+    const suggestions = suggestionsOf(error);
+
+    expect(suggestions).toContain(GRAMMAR_SUGGESTION);
+
+    const hint = suggestions.find((suggestion) =>
+      suggestion.includes('Did you mean'),
+    );
+
+    if (canonical === undefined) {
+      expect(hint).toBeUndefined();
+    } else {
+      expect(hint).toContain(`"${canonical}"`);
+    }
   });
 
-  it('suggests the uppercased form for a lowercase method', () => {
-    const error = catchError(() => parseSelector('get /x -> 200'));
+  it('accepts the canonical form each hint suggests', () => {
+    for (const input of [
+      'get /x -> 200',
+      'GET launches -> 200',
+      'GET /x -> 0200',
+    ]) {
+      const hint = suggestionsOf(catchError(() => parseSelector(input))).find(
+        (suggestion) => suggestion.includes('Did you mean'),
+      );
+      const canonical = /"([^"]+)"\?$/.exec(hint ?? '')?.[1];
 
-    expect(error.options.suggestions?.join('\n')).toContain('GET /x -> 200');
+      expect(canonical).toBeDefined();
+      expect(() => parseSelector(String(canonical))).not.toThrow();
+    }
   });
 });

@@ -119,6 +119,15 @@ export class TransactionCatalog {
   }
 
   private suggestionsFor(parts: SelectorParts): string[] {
+    // An empty catalog is a state core explicitly warns about ("No nodes found
+    // in Thymian format"). Sending the user after a path typo would be wrong
+    // advice: no path would have resolved.
+    if (this.size === 0) {
+      return [
+        'No transactions are loaded, so no selector can resolve. Check that your configured specifications were found and describe at least one operation.',
+      ];
+    }
+
     const candidates = this.nearMisses(parts);
 
     if (candidates.length === 0) {
@@ -142,8 +151,14 @@ export class TransactionCatalog {
     const sameMethod: Selector[] = [];
     const otherMethod: Selector[] = [];
 
+    // Both sides are normalized. `parseSelector` only accepts a path that
+    // already begins with "/", but normalizing here keeps the comparison
+    // correct rather than merely lucky, and keeps `nearMisses` usable from a
+    // caller that did not come through the parser.
+    const path = selectorPath(parts.path);
+
     for (const [selector, transaction] of this.orderedEntries) {
-      if (selectorPath(transaction.thymianReq.path) !== parts.path) {
+      if (selectorPath(transaction.thymianReq.path) !== path) {
         continue;
       }
 

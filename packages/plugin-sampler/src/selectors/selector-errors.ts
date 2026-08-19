@@ -32,18 +32,39 @@ function locationToString(
   return `${file}:${location.position.line}:${location.position.column}`;
 }
 
+/**
+ * `thymianRequestToOrigin` runs the origin through `normalizeUrl`, which throws
+ * `InvalidUrlError` when `protocol://host:port` is not a URL — an OpenAPI
+ * `servers` entry like `file:///tmp/api` leaves `host` empty. That error must
+ * never replace the collision the user actually needs to read.
+ */
+function originOf(transaction: ThymianHttpTransaction): string | undefined {
+  try {
+    return thymianRequestToOrigin(transaction.thymianReq);
+  } catch {
+    return undefined;
+  }
+}
+
 function describeTransaction(transaction: ThymianHttpTransaction): string {
-  const origin = thymianRequestToOrigin(transaction.thymianReq);
+  const origin = originOf(transaction);
   const location = locationToString(
     transaction.transaction.sourceLocation ??
       transaction.thymianReq.sourceLocation,
   );
 
   return (
-    `Source "${transaction.transaction.sourceName}" describes it at ${origin}` +
+    `Source "${transaction.transaction.sourceName}" describes it` +
+    (origin ? ` at ${origin}` : '') +
     (location ? ` (${location}).` : '.')
   );
 }
+
+const CROSS_SOURCE_ADVICE =
+  'A selector is host-stripped, so two sources that expose the same method, path, status and media types collide. Load the sources separately — a source-discriminator syntax does not exist.';
+
+const SAME_SOURCE_ADVICE =
+  'Both transactions come from the same source, so loading the sources separately cannot help. A selector is host-stripped and carries no query parameters or headers, so two operations in one description collide when they differ only in those — or when a server or operation-level "servers" entry re-adds a base path another operation already spells out. Give the two operations distinct paths, methods, statuses or media types.';
 
 /**
  * Two transactions in the loaded format render the same selector. Fail-fast:
@@ -62,7 +83,9 @@ export function selectorCollisionError(
       suggestions: [
         describeTransaction(first),
         describeTransaction(second),
-        'A selector is host-stripped, so two sources that expose the same method, path, status and media types collide. Load the sources separately — a source-discriminator syntax does not exist.',
+        first.transaction.sourceName === second.transaction.sourceName
+          ? SAME_SOURCE_ADVICE
+          : CROSS_SOURCE_ADVICE,
       ],
     },
   );
