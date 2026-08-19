@@ -40,9 +40,12 @@ describe('@thymian/core package exports (AC 1: ./http-fields subpath)', () => {
   });
 });
 
-describe('@thymian/core package.json dependencies (AC 4)', () => {
-  it('adds no new dependency -- structured-headers stays deferred to story 643.2', () => {
-    expect(packageJson.dependencies).not.toHaveProperty('structured-headers');
+describe('@thymian/core package.json dependencies (AC 3, story 643.2)', () => {
+  it('adds structured-headers as a runtime dependency, not a dev dependency', () => {
+    expect(packageJson.dependencies).toHaveProperty(
+      'structured-headers',
+      '^2.0.3',
+    );
     expect(packageJson.devDependencies).not.toHaveProperty(
       'structured-headers',
     );
