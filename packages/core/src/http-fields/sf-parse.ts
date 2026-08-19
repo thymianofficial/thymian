@@ -86,8 +86,19 @@ export function parseSfField(
         return { ok: true, fieldType, value: parseList(joined) };
       case 'item':
         return { ok: true, fieldType, value: parseItem(joined) };
-      default:
-        return fieldType satisfies never;
+      default: {
+        // Compiler-enforced exhaustiveness: if `SfFieldType` ever grows a
+        // new member, this assignment fails to type-check. The throw is the
+        // runtime backstop -- injected registry data (see `sf-fields.ts`)
+        // is not itself type-checked, so a bad `fieldType` value could reach
+        // here at runtime; returning it as a fake `SfParseResult` would
+        // silently corrupt the `ok`/`refused` discriminant every caller
+        // relies on, so this must fail loudly instead.
+        const _exhaustive: never = fieldType;
+        throw new Error(
+          `Unreachable: unknown SF field type "${String(_exhaustive)}"`,
+        );
+      }
     }
   } catch (error) {
     if (error instanceof ParseError) {

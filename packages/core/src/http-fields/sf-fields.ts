@@ -11,7 +11,12 @@ export type SfFieldType = 'dictionary' | 'list' | 'item';
  * `field-grammar/` story. Do not hardcode entries here; this table is
  * injected data, populated by a future story, not this one.
  */
-export const NATIVELY_SF_HEADERS: Record<string, SfFieldType> = {};
+// Frozen: this is also `createSfHeaderRegistry`'s live default parameter
+// binding, so an accidental in-place write by an importer would otherwise
+// silently corrupt the shared canonical table for every subsequent
+// no-argument call.
+export const NATIVELY_SF_HEADERS: Readonly<Record<string, SfFieldType>> =
+  Object.freeze({});
 
 /**
  * A case-insensitive lookup over a natively-SF header allowlist.
@@ -32,10 +37,17 @@ export interface SfHeaderRegistry {
  * argument is itself a valid, always-refusing registry.
  */
 export function createSfHeaderRegistry(
-  entries: Record<string, SfFieldType> = NATIVELY_SF_HEADERS,
+  entries: Readonly<Record<string, SfFieldType>> = NATIVELY_SF_HEADERS,
 ): SfHeaderRegistry {
   const index = new Map<string, SfFieldType>();
 
+  // Case-variant duplicate keys in `entries` (e.g. both `X-Test` and
+  // `x-test` present) resolve via last-write-wins, per `Object.entries`
+  // iteration (== object key insertion) order -- intentional, not an
+  // oversight; unlike the sibling `declared-headers.ts` (which documents
+  // and tests its own analogous collision as first-match-wins), there is no
+  // "first" registration to prefer here, so the last entry simply
+  // overwrites the index slot as each is set.
   for (const [name, fieldType] of Object.entries(entries)) {
     index.set(name.toLowerCase(), fieldType);
   }

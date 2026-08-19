@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
+import { fromRuntimeHeaders } from '../../src/http-fields/normalized-headers.js';
 import {
   createSfHeaderRegistry,
   NATIVELY_SF_HEADERS,
@@ -34,6 +35,15 @@ describe('createSfHeaderRegistry', () => {
 
     expect(registry.isNativelySf('x-some-other-header')).toBe(false);
     expect(registry.fieldTypeOf('x-some-other-header')).toBeUndefined();
+  });
+
+  it('resolves a case-variant duplicate key via last-write-wins', () => {
+    const registry = createSfHeaderRegistry({
+      'X-Test': 'item',
+      'x-test': 'list',
+    });
+
+    expect(registry.fieldTypeOf('x-test')).toBe('list');
   });
 });
 
@@ -91,6 +101,26 @@ describe('parseSfField', () => {
 
     expect(split.ok).toBe(true);
     expect(split).toEqual(joined);
+  });
+
+  it('accepts a real NormalizedHeaders.getAll() return value end-to-end', () => {
+    const registry = createSfHeaderRegistry({ 'X-Test-List': 'list' });
+    const headers = fromRuntimeHeaders({
+      'X-Test-List': ['sugar', 'tea, rum'],
+    });
+
+    const result = parseSfField(
+      registry,
+      'X-Test-List',
+      headers.getAll('X-Test-List'),
+    );
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) {
+      throw new Error('expected ok result');
+    }
+    expect(result.fieldType).toBe('list');
+    expect((result.value as unknown[]).length).toBe(3);
   });
 
   it('returns a parse-failure outcome (not thrown) for registered-but-invalid grammar', () => {
