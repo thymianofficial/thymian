@@ -1,3 +1,5 @@
+import { mkdtemp, rm, writeFile } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -92,6 +94,35 @@ describe('load rules from TypeScript sources', () => {
         /Cannot resolve rule source \.\/does-not-exist\.rule\./,
       );
     });
+
+    it.each([
+      ['rules.yaml', 'only JavaScript and TypeScript modules can be loaded'],
+      ['types.d.ts', 'a TypeScript declaration file contains no runtime code'],
+    ])(
+      'says why %s cannot be loaded instead of calling it unresolvable',
+      async (fileName, reason) => {
+        // The file is RIGHT THERE. While the seam answered `string | undefined`, this reported
+        // `Cannot resolve rule source ./rules.yaml.` — telling the user a file they are looking
+        // at cannot be found, because the sentence `unloadableReason` had already produced was
+        // discarded at the seam boundary. The specifier stays in the message either way; only
+        // the verb and the explanation change.
+        const cwd = await mkdtemp(join(tmpdir(), 'thymian-rule-reason-'));
+
+        try {
+          await writeFile(join(cwd, fileName), 'stub\n');
+
+          await expect(
+            loadRules(`./${fileName}`, () => true, {}, cwd),
+          ).rejects.toThrow(
+            new RegExp(
+              `Cannot load rule source \\./${fileName.replaceAll('.', '\\.')}: ${reason}\\.`,
+            ),
+          );
+        } finally {
+          await rm(cwd, { recursive: true, force: true });
+        }
+      },
+    );
 
     it('reports a missing default export naming the resolved path', async () => {
       await expect(

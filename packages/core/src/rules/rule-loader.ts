@@ -370,19 +370,29 @@ export async function loadRules(
   // Resolution and loading both go through the shared user-module seam, which is what makes a
   // TypeScript rule loadable: it dispatches on the RESOLVED extension, sending `.ts`/`.mts`/`.cts`
   // through jiti and everything else — every built-in JavaScript rule included — through a plain
-  // dynamic import that never pays for jiti. `resolveUserModule` never throws; it answers
-  // `undefined`, which is what keeps this error message owned here.
+  // dynamic import that never pays for jiti. `resolveUserModule` never throws; it answers a
+  // result, which is what keeps this error message owned here.
   const resolved = await resolveUserModule(input, cwd);
 
-  if (resolved === undefined) {
-    throw new ThymianBaseError(`Cannot resolve rule source ${input}.`, {
-      name: 'RuleLoadError',
-      ref: 'https://thymian.dev/references/errors/rule-load-error/',
-    });
+  if (!resolved.ok) {
+    // Two failures, two sentences. `reason` is present only when the specifier resolved to a
+    // real file that was then refused for what it IS — a `.yaml`, a `.d.ts` — so reporting
+    // "cannot resolve" there tells the user a file they are looking at cannot be found. With no
+    // reason there is genuinely nothing to add beyond "not found", and the seam says so by
+    // omitting it rather than by inventing a vague one.
+    throw new ThymianBaseError(
+      resolved.reason === undefined
+        ? `Cannot resolve rule source ${input}.`
+        : `Cannot load rule source ${input}: ${resolved.reason}.`,
+      {
+        name: 'RuleLoadError',
+        ref: 'https://thymian.dev/references/errors/rule-load-error/',
+      },
+    );
   }
 
-  const module = await loadUserModule(resolved);
-  const source = describeRuleSource(input, resolved);
+  const module = await loadUserModule(resolved.path);
+  const source = describeRuleSource(input, resolved.path);
 
   if (!('default' in module)) {
     throw new ThymianBaseError(
@@ -430,7 +440,7 @@ export async function loadRules(
 
     return loadRuleSet(
       ruleOrRuleSet,
-      resolved,
+      resolved.path,
       ruleFilter,
       options,
       cwd,
