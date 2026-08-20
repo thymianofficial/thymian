@@ -660,8 +660,38 @@ describe('parseSelector', () => {
       ['a pasted absolute URL', 'GET https://api.example.com/launches -> 200'],
       ['an origin with a port', 'GET api.example.com:8080/launches -> 200'],
       ['an input with no path at all', 'GET (application/json) -> 200'],
+      // The guard used to key off a `:` and a leading `(` only, so everything
+      // below still had a slash prepended. Both cases above happen to carry a
+      // colon, which is why the gap survived the round-2 fix.
+      ['a scheme-less host', 'GET api.example.com/launches -> 200'],
+      ['a www host', 'GET www.example.com/a -> 200'],
+      ['a relative path', 'GET ../launches -> 200'],
+      ['a bare query string', 'GET ?q=1 -> 200'],
+      ['a bare fragment', 'GET #frag -> 200'],
     ])('invents no path from %s', (_label, input) => {
       expect(hintFor(input)).toBeUndefined();
+    });
+
+    /**
+     * The mirror image of the same guard, and the half that was silently
+     * over-strict: a `:` *inside* a path segment is an ordinary path character
+     * (`{id}:activate` is a legal OpenAPI path), so refusing the whole hint on
+     * "a `:` anywhere" swallowed the method-case and zero-padding corrections
+     * too. What disqualifies a slash-less value is a `:` before the first `/`.
+     */
+    it.each([
+      [
+        'a multi-segment path',
+        'GET v1/pets/{petId} -> 200',
+        'A selector spells its path with a leading "/". Did you mean "GET /v1/pets/{petId} -> 200"?',
+      ],
+      [
+        'a path whose segment carries a colon',
+        'get users/{id}:activate -> 0200',
+        'A selector spells its method in uppercase, spells its path with a leading "/" and spells its status without leading zeros. Did you mean "GET /users/{id}:activate -> 200"?',
+      ],
+    ])('still corrects %s that lost its leading slash', (_l, input, hint) => {
+      expect(hintFor(input)).toBe(hint);
     });
 
     /**

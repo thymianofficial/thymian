@@ -24,14 +24,16 @@ It also happens **inside a single description**, because a selector carries neit
 - One operation carries a server or operation-level `servers` entry whose base path re-adds a prefix that another operation already spells out, so `/v1/pets` and `/pets` collapse onto the same selector.
 - Two operations share a method, path, status and media types and differ only in query parameters, headers, `description` or `bodyRequired`.
 
-Listing the same description twice is _not_ a cause: identical operations are merged before the catalog is built, so they arrive as one transaction, not two.
+Listing the same description twice is a cause only when the two entries carry different options: a `serverInfo` override is taken per `specifications` entry, so one file listed twice under two different origins produces two transactions. Two listings with identical options are merged before the catalog is built and arrive as one.
+
+Thymian does not tell you which of the two situations you are in, because it cannot: a source _name_ is not a source identity. `sourceName` defaults to the description's `info.title`, an explicit one is never required, and a description may carry an empty title or none at all — so two documents can print the same name. The error prints the evidence for both situations and names the remedy for each.
 
 ## The Solution
 
 To resolve this:
 
-1. Read the two lines in the error's suggestions. They name each colliding transaction's source, its origin, and — when the description carries position information — the file and line it came from. When both lines name the same source, the collision is inside one description; the file positions, where the description carries them, are what tells the two apart.
+1. Read the two lines in the error's suggestions. Each names a colliding transaction's source, its origin, and — when the description carries position information — the file and line it came from. Compare the **files**, not the names: two documents that share an `info.title` print the same name. A line quotes no file when the operation carries no `operationId`, which is what Thymian resolves a position from.
 
-2. If the two transactions come from **different** sources, load them separately, in separate runs or separate configurations. There is no source-discriminator syntax in a selector, by design.
+2. If the two lines point at **different** documents, load them separately, in separate runs or separate configurations. There is no source-discriminator syntax in a selector, by design.
 
-3. If they come from the **same** source, give them selectors that differ. Remove the base path that one of them duplicates, or make the operations differ in method, path, status code or media type — a difference that lives only in a query parameter or a header is invisible to a selector.
+3. If they point at **one** document, give the two operations selectors that differ. Remove the base path that one of them duplicates, or make them differ in method, path, status code or media type — a difference that lives only in a query parameter or a header is invisible to a selector.

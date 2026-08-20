@@ -37,7 +37,11 @@ In these cases the error's suggestions name the component at fault, and only tha
 
 To resolve this:
 
-1. Rewrite the value to match the grammar above. The error's suggestions include a worked example, and a `Did you mean …?` correction when the value is a selector spelled non-canonically — a lowercase method, a path missing its leading slash, a zero-padded status, or any combination. The sentence in front of the correction states which of those it applied. There is no correction when the value is not recognizable as a selector, or when no canonical form of it exists: `GET /x -> 007` is not offered as `GET /x -> 7`, because `7` is not a status code either.
+1. Rewrite the value to match the grammar above. The error's suggestions include a worked example, and a `Did you mean …?` correction when the value is a selector spelled non-canonically — a lowercase method, a path missing its leading slash, a zero-padded status, or any combination. The sentence in front of the correction states which of those it applied.
+
+   There is no correction when the value is not a path that merely lost its slash. A pasted URL, a bare host such as `api.example.com/launches`, a relative path, a bare query string and a bare fragment are never turned into a path by prepending one — the judgement is made on everything before the first `/`, so a legal path whose segment carries a colon (`users/{id}:activate`) still gets its correction.
+
+   There is also no correction when no canonical form exists: `GET /x -> 007` is not offered as `GET /x -> 7`, because stripping the padding leaves no three-digit status code to canonicalize to. The grammar carries no status-range rule of its own — `GET /x -> 7` is a well-formed selector, and so are `-> 99` and `-> 1000` — so what is refused is the rewrite, not the status.
 
 2. Do not use the display string from reports, rule headings or test-case names as a selector. Take the selector from the API description instead.
 

@@ -31,6 +31,28 @@ function suggestionsOf(error: ThymianError): string[] {
   return error.options.suggestions ?? [];
 }
 
+/**
+ * The advice a collision carries, verbatim and unconditional. Every collision
+ * gets exactly these three lines, so each case below pins the whole tail rather
+ * than a phrase: that is what makes a reintroduced same-source/cross-source
+ * branch fail here instead of passing whichever fixture happens to agree with
+ * it.
+ *
+ * There is no branch because there is nothing sound to branch on. A source
+ * *name* is not a source identity: `sourceName` defaults to
+ * `document.info.title`
+ * (`plugin-openapi/src/processors/openapi.processor.ts:204`) and the config
+ * never requires an explicit one, so two documents may share one, carry an
+ * empty one, or carry none at all. Three name-based discriminators were tried —
+ * the edge name, the union of edge/request/response names, and the response
+ * name alone — and each emitted the inverse advice for some reachable shape.
+ */
+const COLLISION_ADVICE = [
+  'A selector is host-stripped and carries no query parameters or headers, so two transactions collide whenever they agree on method, path, status and media types — whether they come from one description or two.',
+  'If the two lines above point at different documents, load those sources separately — a source-discriminator syntax does not exist.',
+  'If they point at one document, give the two operations distinct paths, methods, statuses or media types.',
+];
+
 type TransactionSpec = {
   method: string;
   path: string;
@@ -70,6 +92,10 @@ function formatFrom(specs: TransactionSpec[]): ThymianFormat {
       statusCode: spec.status,
       mediaType: spec.responseMediaType ?? '',
       sourceName: source,
+      // Also on the response node, which is where `plugin-openapi` puts it
+      // (`openapi.processor.ts:161-175`) and the only carrier a diagnostic may
+      // read it from: a request node is deduped across sources.
+      ...(spec.sourceLocation ? { sourceLocation: spec.sourceLocation } : {}),
     });
 
     format.addHttpTransaction(request, response, source);
@@ -79,7 +105,16 @@ function formatFrom(specs: TransactionSpec[]): ThymianFormat {
 }
 
 type OpenApiShapedSpec = {
-  source: string;
+  /**
+   * The description's `info.title`, which is what `sourceName` defaults to
+   * (`plugin-openapi/src/processors/openapi.processor.ts:204`). Every value it
+   * can really take has to be expressible here, because a source *name* is not
+   * a source identity: two documents may share one, a document may carry an
+   * empty one, and `undefined` models a document with **no** `info.title` at
+   * all — schema validation only *warns* about the missing key, so the load
+   * proceeds.
+   */
+  source?: string;
   /** Lands on the response node, which is where OpenAPI puts it. */
   responseDescription: string;
   sourceLocation?: ThymianFormatLocation;
@@ -102,6 +137,11 @@ function openApiShapedFormat(specs: OpenApiShapedSpec[]): ThymianFormat {
   const format = new ThymianFormat();
 
   for (const spec of specs) {
+    // The cast reproduces the type violation a real load carries: `sourceName`
+    // is typed `string`, but it is filled from `document.info.title`, which is
+    // `undefined` when the key is absent.
+    const sourceName = spec.source as string;
+
     // Byte-identical across sources: no `servers` block in either document, so
     // both default to the same origin, and `sourceName` is in
     // `ignoredHashProperties` — the second source dedupes into the first's node.
@@ -114,7 +154,7 @@ function openApiShapedFormat(specs: OpenApiShapedSpec[]): ThymianFormat {
         protocol: 'http',
         mediaType: '',
       }),
-      sourceName: spec.source,
+      sourceName,
     });
 
     format.addResponseToRequest(
@@ -125,13 +165,64 @@ function openApiShapedFormat(specs: OpenApiShapedSpec[]): ThymianFormat {
           mediaType: 'application/json',
           description: spec.responseDescription,
         }),
-        sourceName: spec.source,
+        sourceName,
         ...(spec.sourceLocation ? { sourceLocation: spec.sourceLocation } : {}),
       },
       {
-        sourceName: spec.source,
+        sourceName,
         ...(spec.sourceLocation ? { sourceLocation: spec.sourceLocation } : {}),
       },
+    );
+  }
+
+  return format;
+}
+
+/**
+ * The shape in which a *foreign* source owns the deduped request node.
+ *
+ * `Service A` declares `GET /v1/pets` with only a `404`, so it creates the
+ * request node; `Service B` declares the same request, dedupes into A's node,
+ * and then collides with itself on `200 (application/json)`. Core resolves an
+ * edge's name as `sourceName ?? req.sourceName`
+ * (`core/src/format/thymian-format.ts:233`), so **every** edge here reports
+ * `Service A` while both colliding response nodes report `Service B` — a
+ * single-description collision that any name-pooling discriminator reads as
+ * cross-source, and whose "load the sources separately" remedy cannot be
+ * followed: loading `Service B` alone still collides.
+ */
+function foreignRequestOwnerFormat(): ThymianFormat {
+  const format = new ThymianFormat();
+  const request = createHttpRequest({
+    method: 'GET',
+    path: '/v1/pets',
+    host: 'localhost',
+    port: 8080,
+    protocol: 'http',
+    mediaType: '',
+  });
+
+  format.addResponseToRequest(
+    format.addRequest({ ...request, sourceName: 'Service A' }),
+    {
+      ...createHttpResponse({ statusCode: 404, mediaType: '' }),
+      sourceName: 'Service A',
+    },
+    { sourceName: 'Service A' },
+  );
+
+  for (const description of ['Lists pets.', 'Lists pets, again.']) {
+    format.addResponseToRequest(
+      format.addRequest({ ...request, sourceName: 'Service B' }),
+      {
+        ...createHttpResponse({
+          statusCode: 200,
+          mediaType: 'application/json',
+          description,
+        }),
+        sourceName: 'Service B',
+      },
+      { sourceName: 'Service B' },
     );
   }
 
@@ -397,7 +488,7 @@ describe('TransactionCatalog', () => {
     expect(suggestions).toContain('source-two');
     expect(suggestions).toContain('http://api.one.example:8080');
     expect(suggestions).toContain('http://api.two.example:8080');
-    expect(suggestions).toContain('Load the sources separately');
+    expect(suggestionsOf(error).slice(2)).toEqual(COLLISION_ADVICE);
   });
 
   it('quotes the source location of each colliding transaction', () => {
@@ -437,56 +528,6 @@ describe('TransactionCatalog', () => {
     expect(suggestionsOf(error)[1]).toBe(
       'Source "source-two" describes it at http://api.two.example:8080 (b.yaml:15:5).',
     );
-  });
-
-  /**
-   * Reachable from a single valid document: node identity ignores only `label`,
-   * `sourceLocation` and `sourceName`, so two operations that differ in
-   * anything a selector does not carry — a description, a query parameter, a
-   * header, `bodyRequired`, or a base path re-added by an operation-level
-   * `servers` override — arrive as two transactions and collide. Telling that
-   * user to "load the sources separately" is advice they cannot follow.
-   */
-  it('does not tell a same-source collision to load its sources separately', () => {
-    const format = formatFrom([
-      {
-        method: 'GET',
-        path: '/v1/pets',
-        status: 200,
-        source: 'only-source',
-        description: 'Lists pets.',
-        sourceLocation: {
-          path: 's.yaml',
-          position: { line: 6, column: 5, offset: 42 },
-        },
-      },
-      {
-        method: 'GET',
-        path: '/v1/pets',
-        status: 200,
-        source: 'only-source',
-        description: 'Lists pets, again.',
-        sourceLocation: {
-          path: 's.yaml',
-          position: { line: 15, column: 5, offset: 99 },
-        },
-      },
-    ]);
-
-    expect(format.getThymianHttpTransactions()).toHaveLength(2);
-
-    const error = catchError(() =>
-      TransactionCatalog.fromThymianFormat(format),
-    );
-
-    expect(error.name).toBe('SelectorCollisionError');
-
-    const suggestions = suggestionsOf(error);
-
-    expect(suggestions.join('\n')).not.toContain('Load the sources separately');
-    expect(suggestions.join('\n')).toContain('same source');
-    expect(suggestions[0]).toContain('s.yaml:6:5');
-    expect(suggestions[1]).toContain('s.yaml:15:5');
   });
 
   /**
@@ -567,39 +608,282 @@ describe('TransactionCatalog', () => {
       );
     });
 
-    it('advises loading the sources separately', () => {
-      const suggestions = suggestionsOf(
-        catchError(() =>
-          TransactionCatalog.fromThymianFormat(
-            openApiShapedFormat(twoDescriptions),
-          ),
-        ),
-      ).join('\n');
+  });
 
-      expect(suggestions).toContain('Load the sources separately');
-      expect(suggestions).not.toContain('same source');
+  /**
+   * A collision reaches the user as three lines of advice that never claim
+   * which kind of collision it is, above two lines that print the evidence.
+   * Each case below is a shape that broke a previous, classifying message; all
+   * of them assert the SAME tail, and what varies is only the naming and the
+   * location pointer the reader classifies from.
+   */
+  describe('the collision advice', () => {
+    function adviceFor(format: ThymianFormat): string[] {
+      return suggestionsOf(
+        catchError(() => TransactionCatalog.fromThymianFormat(format)),
+      );
+    }
+
+    /**
+     * Reachable from a single valid document: node identity ignores only
+     * `label`, `sourceLocation` and `sourceName`, so two operations that differ
+     * in anything a selector does not carry — a description, a query parameter,
+     * a header, `bodyRequired`, or a base path re-added by an operation-level
+     * `servers` override — arrive as two transactions and collide. Round 1
+     * rejected telling that user to "load the sources separately"; the advice
+     * now offers that remedy conditionally, beside the one they can follow.
+     */
+    it('is the same for one description colliding with itself', () => {
+      const format = openApiShapedFormat([
+        {
+          source: 'only-source',
+          responseDescription: 'Lists users.',
+          sourceLocation: {
+            path: 's.yaml',
+            position: { line: 6, column: 5, offset: 42 },
+          },
+        },
+        {
+          source: 'only-source',
+          responseDescription: 'Lists users, again.',
+          sourceLocation: {
+            path: 's.yaml',
+            position: { line: 15, column: 5, offset: 99 },
+          },
+        },
+      ]);
+
+      expect(format.getThymianHttpTransactions()).toHaveLength(2);
+
+      const suggestions = adviceFor(format);
+
+      expect(suggestions.slice(0, 2)).toEqual([
+        'Source "only-source" describes it at http://localhost:8080 (s.yaml:6:5).',
+        'Source "only-source" describes it at http://localhost:8080 (s.yaml:15:5).',
+      ]);
+      expect(suggestions.slice(2)).toEqual(COLLISION_ADVICE);
+    });
+
+    /**
+     * The shape no name-based discriminator can see, and the flagship
+     * cross-source cause the reference page itself names: a staging and a
+     * production description of one API share an `info.title`, so `sourceName`
+     * is identical on both sides while the two transactions come from two
+     * files. Only the quoted locations tell them apart — which is exactly why
+     * the message must not decide for the reader.
+     */
+    it('is the same for two documents that share an info.title', () => {
+      const format = openApiShapedFormat([
+        {
+          source: 'Petstore API',
+          responseDescription: 'The staging users.',
+          sourceLocation: {
+            path: 'staging.yaml',
+            position: { line: 8, column: 7, offset: 61 },
+          },
+        },
+        {
+          source: 'Petstore API',
+          responseDescription: 'The production users.',
+          sourceLocation: {
+            path: 'production.yaml',
+            position: { line: 12, column: 7, offset: 88 },
+          },
+        },
+      ]);
+
+      expect(format.getThymianHttpTransactions()).toHaveLength(2);
+
+      const suggestions = adviceFor(format);
+
+      // One name, two documents: the pair a name-based test reads as "same
+      // source" and the locations read as two.
+      expect(suggestions.slice(0, 2)).toEqual([
+        'Source "Petstore API" describes it at http://localhost:8080 (staging.yaml:8:7).',
+        'Source "Petstore API" describes it at http://localhost:8080 (production.yaml:12:7).',
+      ]);
+      expect(suggestions.slice(2)).toEqual(COLLISION_ADVICE);
+    });
+
+    /**
+     * An empty `info.title` used to be filtered out of the name pool, so an
+     * unnamed source could never disagree with anything and the pool collapsed
+     * to one name. It is now named as what it is, and keeps its own location.
+     */
+    it('is the same when one description carries an empty info.title', () => {
+      const suggestions = adviceFor(
+        openApiShapedFormat([
+          {
+            source: '',
+            responseDescription: 'The unnamed users.',
+            sourceLocation: {
+              path: 'unnamed.yaml',
+              position: { line: 4, column: 3, offset: 20 },
+            },
+          },
+          {
+            source: 'Petstore API',
+            responseDescription: 'The named users.',
+            sourceLocation: {
+              path: 'named.yaml',
+              position: { line: 9, column: 5, offset: 70 },
+            },
+          },
+        ]),
+      );
+
+      expect(suggestions.slice(0, 2)).toEqual([
+        'An unnamed source describes it at http://localhost:8080 (unnamed.yaml:4:3).',
+        'Source "Petstore API" describes it at http://localhost:8080 (named.yaml:9:5).',
+      ]);
+      expect(suggestions.slice(2)).toEqual(COLLISION_ADVICE);
+    });
+
+    /**
+     * `info.title` is required by the OpenAPI schema, but validation only
+     * *warns*, so a document without it loads and `sourceName` arrives
+     * `undefined`. Filtering the names on `.length` turned that into a raw
+     * `TypeError` and destroyed the diagnostic outright — the one thing a
+     * collision error must never do.
+     */
+    it('is the same when no description carries an info.title', () => {
+      const error = catchError(() =>
+        TransactionCatalog.fromThymianFormat(
+          openApiShapedFormat([
+            {
+              responseDescription: 'The A users.',
+              sourceLocation: {
+                path: 'a.yaml',
+                position: { line: 5, column: 3, offset: 30 },
+              },
+            },
+            {
+              responseDescription: 'The B users.',
+              sourceLocation: {
+                path: 'b.yaml',
+                position: { line: 7, column: 3, offset: 44 },
+              },
+            },
+          ]),
+        ),
+      );
+
+      expect(error.name).toBe('SelectorCollisionError');
+      expect(error.message).toContain('GET /users -> 200 (application/json)');
+
+      const suggestions = suggestionsOf(error);
+
+      expect(suggestions.slice(0, 2)).toEqual([
+        'An unnamed source describes it at http://localhost:8080 (a.yaml:5:3).',
+        'An unnamed source describes it at http://localhost:8080 (b.yaml:7:3).',
+      ]);
+      expect(suggestions.slice(2)).toEqual(COLLISION_ADVICE);
+    });
+
+    /**
+     * Every source name empty inside ONE document: the name pool was empty, its
+     * size was 0 rather than 1, and the collision was told to load its sources
+     * separately. The locations are the only discriminator here, so they have
+     * to survive being unnamed.
+     */
+    it('is the same when every source name in one document is empty', () => {
+      const suggestions = adviceFor(
+        openApiShapedFormat([
+          {
+            source: '',
+            responseDescription: 'Lists users.',
+            sourceLocation: {
+              path: 's.yaml',
+              position: { line: 6, column: 5, offset: 42 },
+            },
+          },
+          {
+            source: '',
+            responseDescription: 'Lists users, again.',
+            sourceLocation: {
+              path: 's.yaml',
+              position: { line: 15, column: 5, offset: 99 },
+            },
+          },
+        ]),
+      );
+
+      expect(suggestions.slice(0, 2)).toEqual([
+        'An unnamed source describes it at http://localhost:8080 (s.yaml:6:5).',
+        'An unnamed source describes it at http://localhost:8080 (s.yaml:15:5).',
+      ]);
+      expect(suggestions.slice(2)).toEqual(COLLISION_ADVICE);
+    });
+
+    /**
+     * A foreign source owns the deduped request node, with no empty name
+     * anywhere: the pooled names were `{Service A, Service B}` while the
+     * collision sat entirely inside `Service B`, so the advice named two
+     * sources and told the user to separate something that still collides on
+     * its own.
+     */
+    it('is the same when a foreign source owns the deduped request node', () => {
+      const format = foreignRequestOwnerFormat();
+      const transactions = format.getThymianHttpTransactions();
+
+      expect(transactions).toHaveLength(3);
+      expect(new Set(transactions.map((t) => t.thymianReqId)).size).toBe(1);
+      expect(transactions.map((t) => t.transaction.sourceName)).toEqual([
+        'Service A',
+        'Service A',
+        'Service A',
+      ]);
+
+      const suggestions = adviceFor(format);
+
+      expect(suggestions.slice(0, 2)).toEqual([
+        'Source "Service B" describes it at http://localhost:8080.',
+        'Source "Service B" describes it at http://localhost:8080.',
+      ]);
+      expect(suggestions.slice(2)).toEqual(COLLISION_ADVICE);
     });
   });
 
   /**
-   * The other half of the guard: the same-source branch must still be reachable
-   * through the producer-faithful shape, or the fix would just be "always say
-   * cross-source".
+   * The name and the location must come off ONE carrier. Core rewrites an
+   * edge's `sourceName` to the deduped request node's
+   * (`thymian-format.ts:233`) but leaves the producer's `sourceLocation`
+   * untouched, so pairing a name from one carrier with a location from another
+   * printed source A's name over source B's file.
    */
-  it('keeps the same-source advice when one description collides with itself', () => {
-    const format = openApiShapedFormat([
-      { source: 'only-source', responseDescription: 'Lists users.' },
-      { source: 'only-source', responseDescription: 'Lists users, again.' },
-    ]);
-
-    expect(format.getThymianHttpTransactions()).toHaveLength(2);
-
+  it('never quotes one source name against another source location', () => {
     const suggestions = suggestionsOf(
-      catchError(() => TransactionCatalog.fromThymianFormat(format)),
-    ).join('\n');
+      catchError(() =>
+        TransactionCatalog.fromThymianFormat(
+          openApiShapedFormat([
+            {
+              source: 'Petstore A',
+              responseDescription: 'The A users.',
+              sourceLocation: {
+                path: 'a.yaml',
+                position: { line: 6, column: 5, offset: 42 },
+              },
+            },
+            {
+              source: '',
+              responseDescription: 'The B users.',
+              sourceLocation: {
+                path: 'b2.yaml',
+                position: { line: 9, column: 5, offset: 70 },
+              },
+            },
+          ]),
+        ),
+      ),
+    );
 
-    expect(suggestions).toContain('same source');
-    expect(suggestions).not.toContain('Load the sources separately');
+    expect(suggestions[0]).toBe(
+      'Source "Petstore A" describes it at http://localhost:8080 (a.yaml:6:5).',
+    );
+    expect(suggestions[1]).toBe(
+      'An unnamed source describes it at http://localhost:8080 (b2.yaml:9:5).',
+    );
+    expect(suggestions[1]).not.toContain('Petstore A');
   });
 
   /**

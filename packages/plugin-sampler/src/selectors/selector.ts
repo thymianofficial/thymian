@@ -264,14 +264,33 @@ function renderingFaults(parts: RenderedParts): string[] {
 /**
  * Whether prepending the missing leading slash would be a correction rather than
  * an invention. `selectorPath` prepends unconditionally and `SELECTOR_PATTERN`
- * accepts the result, so without this the hint manufactures paths: a pasted URL
- * becomes `/https://api.example.com/launches`, and an input that omitted the
- * path entirely promotes its media type into the path slot,
- * `/(application/json)`. A `":"` is a scheme or an authority port and a leading
- * `"("` is a media type; neither is a path that lost its slash.
+ * accepts the result, so without this the hint manufactures paths.
+ *
+ * A path that merely lost its slash begins with a path *segment*. The judgement
+ * is therefore made on the first segment alone — everything up to the first
+ * `/` — because that is where the things that are not a path live: a `:` there
+ * is a scheme (`https://api.example.com/launches`) or an authority port
+ * (`api.example.com:8080/launches`), and a `.` there is a host label
+ * (`api.example.com/launches`, `www.example.com/a`) or a relative-path marker
+ * (`../launches`). A leading `(`, `?` or `#` is a media type promoted into the
+ * path slot, a bare query string or a bare fragment.
+ *
+ * Judging the first segment only is what keeps a legal slash-less path eligible:
+ * `users/{id}:activate` carries its `:` inside a segment name, and testing for a
+ * `:` anywhere refused it the method-case and zero-padding corrections too.
  */
 function canonicalizablePath(path: string): boolean {
-  return path.startsWith('/') || !(path.includes(':') || path.startsWith('('));
+  if (path.startsWith('/')) {
+    return true;
+  }
+
+  if (/^[(?#]/.test(path)) {
+    return false;
+  }
+
+  const firstSegment = path.split('/', 1)[0] ?? path;
+
+  return !(firstSegment.includes(':') || firstSegment.includes('.'));
 }
 
 /**

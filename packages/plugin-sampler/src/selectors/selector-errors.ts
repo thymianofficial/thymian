@@ -55,63 +55,62 @@ function originOf(req: ThymianHttpRequest): string | undefined {
 }
 
 /**
- * The source that actually declared a transaction, most reliable part first.
+ * The source pointer a diagnostic prints.
  *
- * The edge's `sourceName` is the *least* reliable of the three and must never be
- * used alone: core derives it as `sourceName ?? req.sourceName`
- * (`core/src/format/thymian-format.ts:233`, and it overwrites whatever the
- * producer passed), while `sourceName` sits in `ignoredHashProperties`
- * (`:134-138`) so a request node is deduped *across* sources. Two descriptions
- * declaring the same request on the same origin therefore hang both edges off
- * source A's request node, and both edges report source A.
- *
- * The response node is the part that cannot be shared while a collision exists:
- * its id is `hash(requestId, semanticHash(res))`, so two sources share it only
- * when the whole transaction is identical — and identical transactions merge
- * into one, leaving nothing to collide.
+ * `sourceName` is typed `string` on every node and edge, but it is not one at
+ * runtime: `plugin-openapi` defaults it to `document.info.title`
+ * (`processors/openapi.processor.ts:204`), the config never requires an explicit
+ * one (`common-cli/src/thymian-config-schema.ts:31-36`), and schema validation
+ * only *warns* about a missing `title`. So it can arrive `''` or `undefined`,
+ * and an unnamed source is named as such — it must never render as
+ * `Source ""`, and it must never turn the diagnostic the user needs into a
+ * `TypeError`.
  */
-function sourceNamesOf(transaction: ThymianHttpTransaction): string[] {
-  return [
-    transaction.thymianRes.sourceName,
-    transaction.thymianReq.sourceName,
-    transaction.transaction.sourceName,
-  ].filter((sourceName) => sourceName.length > 0);
-}
-
 function describeSource(
-  sourceName: string,
+  sourceName: string | undefined,
   origin: string | undefined,
   location: ThymianFormatLocation | undefined,
 ): string {
   const where = locationToString(location);
 
   return (
-    `Source "${sourceName}" describes it` +
+    (sourceName
+      ? `Source "${sourceName}" describes it`
+      : 'An unnamed source describes it') +
     (origin ? ` at ${origin}` : '') +
     (where ? ` (${where}).` : '.')
   );
 }
 
+/**
+ * Names a transaction from its RESPONSE node, and takes the location from the
+ * same producer — never from a mixture.
+ *
+ * Of the three carriers of a `sourceName`, the response node is the only one
+ * that belongs to the description that actually declared this transaction. A
+ * request node is deduped *across* sources, because `sourceName` sits in
+ * `ignoredHashProperties` (`core/src/format/thymian-format.ts:134-138`), and the
+ * edge then inherits that deduped name: core resolves it as
+ * `sourceName ?? req.sourceName` (`:233`), overwriting whatever the producer
+ * passed. A response node cannot be shared while a collision exists — its id is
+ * `hash(requestId, semanticHash(res))`, so two sources share it only when the
+ * whole transaction is identical, and then it merges and there is nothing to
+ * collide.
+ *
+ * Mixing carriers is what printed source A's name over source B's file: core
+ * rewrites an edge's `sourceName` but leaves the producer's `sourceLocation`
+ * alone, so a name from one carrier and a location from another describe two
+ * different documents. The edge is consulted for the location only, where it is
+ * the same producer's as the response node's — the two are minted by one
+ * `addResponseToRequest` call.
+ */
 function describeTransaction(transaction: ThymianHttpTransaction): string {
-  const sourceName =
-    sourceNamesOf(transaction)[0] ?? transaction.transaction.sourceName;
-
-  // Only a location that belongs to the source being named may be quoted.
-  // Quoting the deduped request node's location would send a user reading about
-  // source B into source A's file.
-  const candidates: [string, ThymianFormatLocation | undefined][] = [
-    [
-      transaction.transaction.sourceName,
+  return describeSource(
+    transaction.thymianRes.sourceName,
+    originOf(transaction.thymianReq),
+    transaction.thymianRes.sourceLocation ??
       transaction.transaction.sourceLocation,
-    ],
-    [transaction.thymianRes.sourceName, transaction.thymianRes.sourceLocation],
-    [transaction.thymianReq.sourceName, transaction.thymianReq.sourceLocation],
-  ];
-  const location = candidates.find(
-    ([name, at]) => at !== undefined && name === sourceName,
-  )?.[1];
-
-  return describeSource(sourceName, originOf(transaction.thymianReq), location);
+  );
 }
 
 /**
@@ -119,42 +118,44 @@ function describeTransaction(transaction: ThymianHttpTransaction): string {
  * represent. Such a transaction has no catalog entry and no
  * `ThymianHttpTransaction` to hand — only the pair being rendered — but the
  * error aborts the whole format load, so it owes the user the same pointer to
- * the document to edit that a collision gives.
+ * the document to edit that a collision gives. Same carrier discipline as
+ * {@link describeTransaction}: the response node, and nothing else.
  */
 export function describeRenderedTransaction(
   req: ThymianHttpRequest,
   res: ThymianHttpResponse,
 ): string {
-  const sourceName = res.sourceName || req.sourceName;
-  const location =
-    (res.sourceName === sourceName ? res.sourceLocation : undefined) ??
-    (req.sourceName === sourceName ? req.sourceLocation : undefined);
-
-  return describeSource(sourceName, originOf(req), location);
+  return describeSource(res.sourceName, originOf(req), res.sourceLocation);
 }
-
-const CROSS_SOURCE_ADVICE =
-  'A selector is host-stripped, so two sources that expose the same method, path, status and media types collide. Load the sources separately — a source-discriminator syntax does not exist.';
-
-const SAME_SOURCE_ADVICE =
-  'Both transactions come from the same source, so loading the sources separately cannot help. A selector is host-stripped and carries no query parameters or headers, so two operations in one description collide when they differ only in those — or when a server or operation-level "servers" entry re-adds a base path another operation already spells out. Give the two operations distinct paths, methods, statuses or media types.';
 
 /**
- * The same-source advice tells the user that separating the sources cannot
- * help, so it may only be given when nothing on either transaction names a
- * second source. Any disagreement — and the response nodes disagree exactly
- * when two descriptions collide on one origin — is cross-source, which is also
- * the safe default: its advice stays true of a same-source collision, whereas
- * the same-source advice is flatly wrong of a cross-source one.
+ * The advice every collision gets, whichever kind it is.
+ *
+ * There is deliberately **no** same-source/cross-source classification, and no
+ * fourth attempt at one should be added. Telling the two apart needs a
+ * per-specification identity, and the graph carries only a source *name*:
+ * `sourceName` defaults to `document.info.title`
+ * (`plugin-openapi/src/processors/openapi.processor.ts:204`) and the config
+ * never requires an explicit one, so a staging and a production description of
+ * one API — the flagship cross-source cause — are indistinguishable by any
+ * name-based test, an unnamed description is indistinguishable from every other
+ * unnamed one, and a request node deduped across sources hands its name to an
+ * edge that never declared it. Three name-based discriminators were tried (the
+ * edge name; the union of edge, request and response names; the response name
+ * alone) and each emitted the inverse advice for some reachable shape. Any
+ * further attempt is blocked on core exposing a per-specification identity on
+ * the graph.
+ *
+ * So the advice names both remedies without asserting which applies. The two
+ * lines above it already print each transaction's source and, where the
+ * description carries one, its file and position — the evidence a classifier
+ * never had, handed to the one reader who can use it.
  */
-function isSameSourceCollision(
-  first: ThymianHttpTransaction,
-  second: ThymianHttpTransaction,
-): boolean {
-  return (
-    new Set([...sourceNamesOf(first), ...sourceNamesOf(second)]).size === 1
-  );
-}
+const COLLISION_ADVICE = [
+  'A selector is host-stripped and carries no query parameters or headers, so two transactions collide whenever they agree on method, path, status and media types — whether they come from one description or two.',
+  'If the two lines above point at different documents, load those sources separately — a source-discriminator syntax does not exist.',
+  'If they point at one document, give the two operations distinct paths, methods, statuses or media types.',
+];
 
 /**
  * Two transactions in the loaded format render the same selector. Fail-fast:
@@ -173,9 +174,7 @@ export function selectorCollisionError(
       suggestions: [
         describeTransaction(first),
         describeTransaction(second),
-        isSameSourceCollision(first, second)
-          ? SAME_SOURCE_ADVICE
-          : CROSS_SOURCE_ADVICE,
+        ...COLLISION_ADVICE,
       ],
     },
   );
