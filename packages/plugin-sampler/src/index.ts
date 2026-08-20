@@ -19,12 +19,12 @@ import {
 import { HookRunner } from './hooks/hook-runner.js';
 import { requestSampleToRequestTemplate } from './request-sample-to-request-template.js';
 import { RequestSampler } from './request-sampler.js';
+import { resolveSamplerPaths } from './sampler-paths.js';
 import { getPathTransactionId } from './samples-structure/get-path-transaction-id.js';
-import { readSamplesFromDir } from './samples-structure/read-samples-from-dir.js';
+import { readSamplesFromDirIfUsable } from './samples-structure/read-samples-from-dir.js';
 import type { SamplesStructure } from './samples-structure/samples-tree-structure.js';
 import { writeSamplesToDir } from './samples-structure/write-samples-to-dir.js';
 import { TransactionCatalog } from './selectors/transaction-catalog.js';
-import { entryExists } from './utils.js';
 import {
   type SamplerValidationReport,
   validateSamplerOutput,
@@ -179,13 +179,18 @@ export const samplePlugin: ThymianPlugin<Partial<SamplerPluginOptions>> = {
         : join(options.cwd, options.path);
     }
 
+    // Every v2 sampler path derives from this one helper (spec §2). `basePath`
+    // above stays the **v1** samples tree: `sampler.path-from-transaction`,
+    // `sampler init` and `sampler validate` still depend on it until 575.10.
+    const samplerPaths = resolveSamplerPaths(options.cwd);
+
     let format: ThymianFormat | undefined;
     let samples: SamplesStructure | undefined;
     let transactionCatalog: TransactionCatalog | undefined;
 
     const requestSampler = new RequestSampler();
     const hookRunner = new HookRunner(
-      basePath,
+      samplerPaths.hooksDir,
       async (request) => {
         return await emitter.emitAction(
           'core.request.dispatch',
@@ -204,23 +209,24 @@ export const samplePlugin: ThymianPlugin<Partial<SamplerPluginOptions>> = {
       // The selector index for the loaded format: one selector per transaction,
       // built before anything touches disk so a cross-source collision fails the
       // load rather than half of it. Rebuilt on every format load and never
-      // cached across loads. Nothing consumes it yet — the generated type
-      // surface, transaction filters and hook targets resolve through it in
-      // later stories.
+      // cached across loads. Hook targets resolve through it; the generated type
+      // surface and transaction filters join in later stories.
       transactionCatalog = TransactionCatalog.fromThymianFormat(format);
 
       logger.debug(
         `Indexed ${transactionCatalog.size} transaction selector(s).`,
       );
 
-      // v1 hook discovery + `sampler.path-from-transaction` only — removed in 575.9 / 575.10.
-      // Samples themselves never come from here any more.
-      samples = (await entryExists(basePath))
-        ? await readSamplesFromDir(basePath)
-        : undefined;
+      // `sampler.path-from-transaction` only — removed in 575.10. Samples
+      // themselves never come from here any more, and neither do hooks: v1 tree
+      // hook discovery went away in 575.9. The read is guarded (#613) so a
+      // leftover, empty or half-written tree cannot fail a run that needs no
+      // tree; `sampler.path-from-transaction` then throws its own
+      // `SamplesNotLoadedError` if something actually invokes it.
+      samples = await readSamplesFromDirIfUsable(basePath, logger);
 
       await requestSampler.init(format, emitter);
-      await hookRunner.init(format, samples);
+      await hookRunner.init(format, transactionCatalog);
     }
 
     emitter.onAction('core.format', async (f, ctx) => {

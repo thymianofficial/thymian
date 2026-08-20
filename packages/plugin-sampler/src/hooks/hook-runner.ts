@@ -1,6 +1,3 @@
-import { readFile } from 'node:fs/promises';
-import { join } from 'node:path';
-
 import type { HttpTestCaseResult, HttpTestHooks } from '@thymian/core';
 import {
   type HttpRequest,
@@ -11,58 +8,80 @@ import {
   thymianHttpTransactionToString,
 } from '@thymian/core';
 
-import { readSamplesFromDir } from '../samples-structure/read-samples-from-dir.js';
-import type {
-  Hooks,
-  SamplesStructure,
-} from '../samples-structure/samples-tree-structure.js';
-import type { StructureMetaOnDisc } from '../samples-structure/structure-meta-on-disc.js';
-import { entryExists } from '../utils.js';
-import { createHookUtils } from './create-hook-utils.js';
+import type { TransactionCatalog } from '../selectors/transaction-catalog.js';
+import { buildRequestKeyIndex, createHookUtils } from './create-hook-utils.js';
 import { FailError, SkipError } from './hook-errors.js';
-import { loadHooksFromSamples } from './load-hooks-from-samples.js';
+import {
+  hookResolutionError,
+  loadUserHooks,
+  type TransactionHooks,
+} from './load-user-hooks.js';
 
 export class HookRunner {
   private initialized = false;
-  private hooks: Map<string, Hooks> = new Map();
-  private urlToTransactionId: Record<string, string> = {};
+  private hooks: Map<string, TransactionHooks> = new Map();
+  private resolveTransactionId: (key: string) => string | undefined = () =>
+    undefined;
   private format!: ThymianFormat;
 
   constructor(
-    private readonly path: string,
+    private readonly hooksDir: string,
     private readonly runRequest: (req: HttpRequest) => Promise<HttpResponse>,
     private readonly logger: Logger,
   ) {}
 
+  /**
+   * (Re)binds the hook map against `format`'s freshly built selector catalog.
+   *
+   * There is **no init latch** (#614). Every `core.format` rebuilds, exactly as
+   * `RequestSampler.init` already does — a long-lived process
+   * (`core.workflow.test` over WS/IDE) otherwise keeps the map pinned to the
+   * first format it ever saw. That was inert while the map was always empty; it
+   * is not inert now that the map is resolved against one specific format's
+   * catalog, because a stale binding is precisely the dangling-target state the
+   * load-time resolution exists to prevent.
+   *
+   * `initialized` is set **after** the loader returns and the map is installed,
+   * and cleared on entry, so neither a loader throw nor a failed re-bind can
+   * leave the runner marked initialized with a half-built map. A workspace with
+   * no hooks directory still initializes: the loader returns an empty result
+   * without throwing, so the three entry points below stay clean pass-throughs.
+   *
+   * @throws `HookResolutionError` listing **every** unresolvable hook, before
+   * any request is dispatched — `core.format` precedes dispatch. The throw lives
+   * here rather than in the `core.format` handler so no caller can bind a
+   * half-resolved map by forgetting to check `hasErrors`; 575.10's `validate`
+   * renders the same diagnostics by calling `loadUserHooks` directly.
+   */
   async init(
     format: ThymianFormat,
-    samplesStructure?: SamplesStructure,
+    catalog: TransactionCatalog,
   ): Promise<void> {
-    if (this.initialized) {
-      return;
-    }
-
-    // Samples are virtual, so a workspace may legitimately have no v1 samples tree at
-    // all. Initialize with an empty hook set BEFORE bailing out on a missing directory:
-    // the three hook entry points then fall through as clean pass-throughs instead of
-    // throwing. (v1 hook discovery is replaced wholesale in story 575.9.)
+    this.initialized = false;
     this.format = format;
     this.hooks = new Map();
-    this.urlToTransactionId = {};
-    this.initialized = true;
+    this.resolveTransactionId = buildRequestKeyIndex(catalog);
 
-    if (!(await entryExists(this.path))) {
-      return;
+    const result = await loadUserHooks(this.hooksDir, catalog);
+
+    for (const diagnostic of result.diagnostics) {
+      if (diagnostic.severity !== 'error') {
+        this.logger.debug(
+          `Sampler hook: ${diagnostic.file || '<hooks>'} ${diagnostic.reason}`,
+        );
+      }
     }
 
-    const samples = samplesStructure ?? (await readSamplesFromDir(this.path));
-    const meta = JSON.parse(
-      await readFile(join(this.path, 'meta.json'), 'utf-8'),
-    ) as StructureMetaOnDisc;
+    if (result.hasErrors) {
+      throw hookResolutionError(result.diagnostics);
+    }
 
-    this.urlToTransactionId = meta.transactions;
+    this.logger.debug(
+      `Loaded ${result.perTransaction.size} transaction hook binding(s) from ${result.fileCount} hook file(s).`,
+    );
 
-    this.hooks = loadHooksFromSamples(samples);
+    this.hooks = result.perTransaction;
+    this.initialized = true;
   }
 
   async afterEachResponse(
@@ -90,12 +109,12 @@ export class HookRunner {
       this.format,
       this.runRequest,
       this,
-      this.urlToTransactionId,
+      this.resolveTransactionId,
       testResults,
       this.logger,
     );
 
-    for (const afterEach of hooks?.afterEachResponse ?? []) {
+    for (const afterEach of hooks?.afterEach ?? []) {
       try {
         result = await afterEach(result, ctx, utils);
       } catch (e) {
@@ -148,7 +167,9 @@ export class HookRunner {
       ? this.hooks.get(ctx.transactionId)
       : undefined;
 
-    const authorize = hooks?.authorize?.at(-1);
+    // Precedence (targeted over global) was decided at load time, so there is
+    // exactly one candidate here or none.
+    const authorize = hooks?.authorize;
 
     if (!authorize) {
       return {
@@ -161,7 +182,7 @@ export class HookRunner {
       this.format,
       this.runRequest,
       this,
-      this.urlToTransactionId,
+      this.resolveTransactionId,
       testResults,
       this.logger,
     );
@@ -224,12 +245,12 @@ export class HookRunner {
       this.format,
       this.runRequest,
       this,
-      this.urlToTransactionId,
+      this.resolveTransactionId,
       testResults,
       this.logger,
     );
 
-    for (const beforeEach of hooks?.beforeEachRequest ?? []) {
+    for (const beforeEach of hooks?.beforeEach ?? []) {
       try {
         result = await beforeEach(result, ctx, utils);
       } catch (e) {

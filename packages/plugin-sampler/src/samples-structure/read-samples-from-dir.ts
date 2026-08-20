@@ -2,25 +2,14 @@ import { readdir, readFile } from 'node:fs/promises';
 import { type } from 'node:os';
 import { basename, dirname, join } from 'node:path';
 
-import { ThymianBaseError } from '@thymian/core';
-import { createJiti } from 'jiti';
+import { type Logger, ThymianBaseError } from '@thymian/core';
 
-import {
-  AFTER_EACH_HOOK,
-  AUTHORIZE_HOOK,
-  BEFORE_EACH_HOOK,
-  SAMPLE_FILE,
-} from '../constants.js';
-import type {
-  AfterEachResponseHook,
-  AuthorizeHook,
-  BeforeEachRequestHook,
-} from '../hooks/hook-types.js';
+import { SAMPLE_FILE } from '../constants.js';
 import type {
   ContentSource,
   HttpRequestSample,
 } from '../http-request-sample.js';
-import { checkForSafePath } from '../utils.js';
+import { checkForSafePath, entryExists } from '../utils.js';
 import {
   type FileRequestSample,
   isFileValue,
@@ -39,24 +28,6 @@ import type {
   PathToNodeType,
   StructureMetaOnDisc,
 } from './structure-meta-on-disc.js';
-
-const jiti = createJiti(import.meta.url);
-
-export async function tryImport<T>(path: string): Promise<T> {
-  const module = await jiti.import<T>(path, { default: true });
-
-  if (module === null || typeof module !== 'function') {
-    throw new ThymianBaseError(`Could not import hook from "${path}".`, {
-      name: 'HookImportError',
-      ref: 'https://thymian.dev/references/errors/hook-import-error/',
-      suggestions: [
-        'Check that the hook file exists and the hook function is exported as default.',
-      ],
-    });
-  }
-
-  return module;
-}
 
 export async function extractParameterValues(
   parameters: Record<string, Value>,
@@ -181,39 +152,28 @@ export async function extractSamplesNode<
   };
 }
 
+/**
+ * The empty hook set, without reading the directory.
+ *
+ * v1 discovered hooks by importing `beforeEach.ts` / `afterEach.ts` /
+ * `authorize.ts` out of every node of the samples tree. Story 575.9 replaced that
+ * wholesale with `loadUserHooks`, which scans `.thymian/sampler/hooks/` — so
+ * nothing reads `node.hooks` any more. Importing those files anyway would execute
+ * user module side effects for hooks that are then discarded, and could raise a
+ * `HookImportError` for a file the sampler no longer uses.
+ *
+ * The function and its return shape survive so `mergeHooks` in `merge-tree.ts` is
+ * unaffected. Both die in 575.10 with the rest of the tree.
+ */
 export async function extractHooksFromDir(dir: string): Promise<Hooks> {
-  const hooks: Hooks = {
+  // Kept in the signature: the three call sites and `mergeHooks` are unchanged.
+  void dir;
+
+  return {
     afterEachResponse: [],
     authorize: [],
     beforeEachRequest: [],
   };
-
-  for (const dirent of await readdir(dir, {
-    recursive: false,
-    withFileTypes: true,
-  })) {
-    if (dirent.isFile()) {
-      const filePath = join(dir, dirent.name);
-
-      if (BEFORE_EACH_HOOK.test(dirent.name)) {
-        hooks.beforeEachRequest.push(
-          await tryImport<BeforeEachRequestHook>(filePath),
-        );
-      }
-
-      if (AFTER_EACH_HOOK.test(dirent.name)) {
-        hooks.afterEachResponse.push(
-          await tryImport<AfterEachResponseHook>(filePath),
-        );
-      }
-
-      if (AUTHORIZE_HOOK.test(dirent.name)) {
-        hooks.authorize.push(await tryImport<AuthorizeHook>(filePath));
-      }
-    }
-  }
-
-  return hooks;
 }
 
 export function dirNameToValue(
@@ -311,4 +271,41 @@ export async function readSamplesFromDir(
   }
 
   return samples;
+}
+
+/**
+ * The samples tree, or `undefined` when there is nothing usable there — never an
+ * exception (#613, AC 12).
+ *
+ * `entryExists` only `access()`es the directory, while `meta.json` is read
+ * unguarded here and again in `extractSamplesNode`. A leftover, empty or
+ * interrupted `.thymian/samples` therefore raised ENOENT (or a JSON parse error)
+ * inside `core.format` and killed a `thymian test` that requires no tree at all.
+ * Story 575.1's AC 1 already named an **empty** tree alongside "absent or stale",
+ * so this is closer to an unmet acceptance criterion than to a deferral.
+ *
+ * Degrading to `undefined` is safe because exactly one thing still needs the tree:
+ * `sampler.path-from-transaction`, which throws its own `SamplesNotLoadedError`
+ * when something actually invokes it. The honest failure stays confined to the one
+ * command that needs a tree.
+ */
+export async function readSamplesFromDirIfUsable(
+  dir: string,
+  logger: Logger,
+): Promise<SamplesStructure | undefined> {
+  if (!(await entryExists(dir))) {
+    return undefined;
+  }
+
+  try {
+    return await readSamplesFromDir(dir);
+  } catch (error) {
+    logger.debug(
+      `Ignoring the samples tree at "${dir}": it exists but could not be read (${
+        error instanceof Error ? error.message : String(error)
+      }). Only "sampler.path-from-transaction" needs it.`,
+    );
+
+    return undefined;
+  }
 }
