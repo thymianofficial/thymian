@@ -85,6 +85,18 @@ describe('getHeader', () => {
 
     expect(getHeader(headers, 'Set-Cookie')).toBeUndefined();
   });
+
+  it('returns the array unchanged when the sole contributing duplicate key holds an array value', () => {
+    const headers = { 'Set-Cookie': undefined, 'set-cookie': ['a=1', 'b=2'] };
+
+    expect(getHeader(headers, 'Set-Cookie')).toEqual(['a=1', 'b=2']);
+  });
+
+  it('returns undefined for a single present key whose own value is undefined (not the same as the header being absent entirely)', () => {
+    const headers = { 'X-Foo': undefined };
+
+    expect(getHeader(headers, 'x-foo')).toBeUndefined();
+  });
 });
 
 describe('getContentType', () => {
