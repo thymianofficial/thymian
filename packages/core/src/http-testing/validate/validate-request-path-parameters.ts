@@ -1,6 +1,10 @@
 import { match } from 'path-to-regexp';
 
 import type { ThymianHttpRequest } from '../../index.js';
+import {
+  deserializePathParameter,
+  unsupportedStyleMessage,
+} from '../deserialize-parameter.js';
 import type { HttpTestCaseResult } from '../http-test/index.js';
 import { ajv } from './ajv.js';
 import { describeSchemaError, schemaErrorDetail } from './schema-error.js';
@@ -9,9 +13,13 @@ function extractPathParameters(
   actualPath: string,
   templatePath: string,
 ): Record<string, string> | undefined {
-  const pathWithoutQuery = actualPath.split('?')[0] ?? actualPath;
+  // Neither the query string nor a `#` fragment is part of the path.
+  const pathWithoutQuery =
+    actualPath.split('?')[0]?.split('#')[0] ?? actualPath;
   const normalizedTemplate = templatePath.replaceAll(/{([^}]+)}/gi, ':$1');
-  const matchFn = match(normalizedTemplate);
+  // `decode: false` keeps the value percent-encoded, so a delimiter inside an
+  // item (`/users/a%2Cb`) survives splitting; each item is decoded afterwards.
+  const matchFn = match(normalizedTemplate, { decode: false });
   const result = matchFn(pathWithoutQuery);
 
   if (!result) {
@@ -21,6 +29,14 @@ function extractPathParameters(
   return Object.fromEntries(
     Object.entries(result.params).map(([key, value]) => [key, String(value)]),
   );
+}
+
+function decodePathComponent(raw: string): string {
+  try {
+    return decodeURIComponent(raw);
+  } catch {
+    return raw;
+  }
 }
 
 export function checkForMissingPathParameters(
@@ -46,10 +62,35 @@ export function validateExistingPathParameter(
   return Object.entries(pathParams)
     .filter(([name]) => Object.hasOwn(request.pathParameters, name))
     .flatMap(([name, value]): HttpTestCaseResult[] => {
-      if (request.pathParameters[name]?.schema) {
-        const validate = ajv.compile(request.pathParameters[name]?.schema);
+      const parameter = request.pathParameters[name];
 
-        validate(value);
+      if (parameter?.schema) {
+        // Wire values are strings; `style`/`explode` describe how the
+        // described type was serialized into them. Rebuild it before
+        // validating, or every non-string parameter fails on type.
+        const deserialized = deserializePathParameter(
+          value,
+          parameter.schema,
+          parameter.style,
+          decodePathComponent,
+        );
+
+        if (!deserialized.supported) {
+          return [
+            {
+              type: 'info',
+              message: unsupportedStyleMessage(
+                `Path parameter "${name}"`,
+                deserialized,
+              ),
+              timestamp: Date.now(),
+            },
+          ];
+        }
+
+        const validate = ajv.compile(parameter.schema);
+
+        validate(deserialized.value);
 
         if (validate.errors && validate.errors.length > 0) {
           // One assertion-failure per schema error rather than a joined message.

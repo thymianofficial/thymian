@@ -286,3 +286,66 @@ describe('validateRequestPathParameters', () => {
     });
   });
 });
+
+describe('validateRequestPathParameters — typed wire values (gh-624)', () => {
+  function requestWithPathSchema(schema: unknown): ThymianHttpRequest {
+    return createRequest({
+      path: '/users/{userId}',
+      pathParameters: {
+        userId: {
+          required: true,
+          schema: schema as never,
+          style: DEFAULT_PATH_SERIALIZATION_STYLE,
+        },
+      },
+    });
+  }
+
+  it('accepts an integer path parameter that arrived as a wire string', () => {
+    const results = validateRequestPathParameters(
+      '/users/42',
+      requestWithPathSchema({ type: 'integer', minimum: 1 }),
+    );
+
+    expect(results.filter((r) => r.type === 'assertion-failure')).toEqual([]);
+    expect(results).toContainEqual(
+      expect.objectContaining({
+        type: 'assertion-success',
+        message: 'Valid path parameter "userId".',
+      }),
+    );
+  });
+
+  it('still rejects a non-numeric path parameter', () => {
+    const results = validateRequestPathParameters(
+      '/users/abc',
+      requestWithPathSchema({ type: 'integer' }),
+    );
+
+    expect(results).toContainEqual(
+      expect.objectContaining({
+        type: 'assertion-failure',
+        message: 'path parameter "userId" must be integer',
+        actual: 'abc',
+      }),
+    );
+  });
+
+  it('reports an unsupported path style as info, never as a failure', () => {
+    const request = createRequest({
+      path: '/users/{userId}',
+      pathParameters: {
+        userId: {
+          required: true,
+          schema: { type: 'integer' } as never,
+          style: { style: 'matrix', explode: false },
+        },
+      },
+    });
+
+    const results = validateRequestPathParameters('/users/42', request);
+
+    expect(results.filter((r) => r.type === 'assertion-failure')).toEqual([]);
+    expect(results).toContainEqual(expect.objectContaining({ type: 'info' }));
+  });
+});

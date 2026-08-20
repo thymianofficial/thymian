@@ -3,6 +3,10 @@ import {
   objHasKeyIgnoreCase,
   type ThymianHttpResponse,
 } from '../../index.js';
+import {
+  deserializeHeaderParameter,
+  unsupportedStyleMessage,
+} from '../deserialize-parameter.js';
 import type { HttpTestCaseResult } from '../http-test/index.js';
 import { ajv } from './ajv.js';
 import { describeSchemaError, schemaErrorDetail } from './schema-error.js';
@@ -92,10 +96,35 @@ export function validateExistingHeader(
   return Object.entries(headers)
     .filter(([name]) => Object.hasOwn(response.headers, name))
     .flatMap(([name, value]): HttpTestCaseResult[] => {
-      if (response.headers[name]?.schema) {
-        const validate = ajv.compile(response.headers[name]?.schema);
+      const parameter = response.headers[name];
 
-        validate(value);
+      if (parameter?.schema) {
+        // Wire values are strings; `style`/`explode` describe how the
+        // described type was serialized into them. Rebuild it before
+        // validating, or every non-string parameter fails on type.
+        const deserialized = deserializeHeaderParameter(
+          name,
+          value,
+          parameter.schema,
+          parameter.style,
+        );
+
+        if (!deserialized.supported) {
+          return [
+            {
+              type: 'info',
+              message: unsupportedStyleMessage(
+                `Header "${name}"`,
+                deserialized,
+              ),
+              timestamp: Date.now(),
+            },
+          ];
+        }
+
+        const validate = ajv.compile(parameter.schema);
+
+        validate(deserialized.value);
 
         if (validate.errors && validate.errors.length > 0) {
           // One assertion-failure per schema error rather than a joined message.
