@@ -165,6 +165,78 @@ describe('load user module', () => {
       );
     }, 15_000);
 
+    // The concurrent fixtures reach the loader through `globalThis`, not through an import: jiti
+    // hands an importing fixture its OWN copy of the seam, and a cycle built across two copies
+    // exercises neither one's machinery. See fixtures/user-modules/loader-under-test.ts.
+    beforeAll(() => {
+      (globalThis as Record<string, unknown>).__thymianLoadUserModule =
+        loadUserModule;
+    });
+
+    afterAll(() => {
+      delete (globalThis as Record<string, unknown>).__thymianLoadUserModule;
+    });
+
+    it('reports a cycle formed by two concurrent roots instead of deadlocking', async () => {
+      // A DIFFERENT defect from the test above, and invisible to the machinery that catches that
+      // one. Each root's evaluation chain holds only its own path, so when root A's top level
+      // waits for `b` and root B's waits for `a`, neither chain contains the other's module: the
+      // in-flight entry is awaited, the chain is never extended, and the two promises await each
+      // other. Reproduced against the built dist before the fix — Node printed "Detected unsettled
+      // top-level await" and exited without settling either root.
+      //
+      // `loadRules` fans out over array input with `Promise.all`, so this is reachable from a
+      // user's `rules: [...]`, not just from a fixture.
+      const roots = Promise.allSettled([
+        loadUserModule(join(fixtures, 'concurrent-cycle-a.ts')),
+        loadUserModule(join(fixtures, 'concurrent-cycle-b.ts')),
+      ]);
+
+      const settled = await roots;
+
+      // Both roots settle at all — that is the deadlock assertion, and it is why this test asserts
+      // on `allSettled` rather than awaiting a rejection.
+      expect(settled.map((outcome) => outcome.status)).toEqual([
+        'rejected',
+        'rejected',
+      ]);
+
+      for (const outcome of settled) {
+        expect(outcome).toMatchObject({
+          reason: expect.objectContaining({
+            name: 'UserModuleLoadError',
+            // The RING, not just the words "import cycle": the error has to name the loop the user
+            // has to break, and a detector that reported the two modules which happened to notice
+            // each other would name the wrong pair.
+            message: expect.stringMatching(
+              /import cycle .*concurrent-cycle-[ab]\.ts -> .*concurrent-cycle-[ab]\.ts -> .*concurrent-cycle-[ab]\.ts/,
+            ),
+          }),
+        });
+      }
+    }, 20_000);
+
+    it('lets two concurrent roots share a dependency without calling it a cycle', async () => {
+      // The false positive that a cruder fix produces. Refusing every cross-root wait, or treating
+      // any in-flight entry as a cycle, turns this legitimate shape — two rule files importing one
+      // helper, loaded together by `loadRules` — into a spurious cycle error. It also pins that
+      // waiting is what makes exactly-once hold: the helper must evaluate ONCE and both roots must
+      // receive the same namespace object.
+      const [x, y] = await Promise.all([
+        loadUserModule(join(fixtures, 'concurrent-dep-x.ts')),
+        loadUserModule(join(fixtures, 'concurrent-dep-y.ts')),
+      ]);
+
+      expect(x.default).toBe('concurrent-dep-x');
+      expect(y.default).toBe('concurrent-dep-y');
+
+      // `===`, not a deep match: two evaluations would produce equal-looking distinct objects.
+      expect(x.shared).toBe(y.shared);
+      expect(
+        (x.shared as { default: { evaluations: number } }).default.evaluations,
+      ).toBe(1);
+    }, 20_000);
+
     it('refuses a relative path rather than guessing a base', async () => {
       // The two branches anchored a relative path differently: process.cwd() natively, core's
       // install directory through jiti.

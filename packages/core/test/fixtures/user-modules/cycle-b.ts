@@ -2,9 +2,9 @@
 // than `new URL(...).pathname`.
 import { fileURLToPath } from 'node:url';
 
-import { loadUserModule } from '../../../src/load-user-module.js';
+import { loaderUnderTest } from './loader-under-test.js';
 
-export const partner = await loadUserModule(
+export const partner = await loaderUnderTest()(
   fileURLToPath(new URL('./cycle-a.ts', import.meta.url)),
 );
 

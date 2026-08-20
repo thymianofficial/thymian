@@ -9,9 +9,9 @@
 // Observed on all three windows-2022 legs of the CI matrix.
 import { fileURLToPath } from 'node:url';
 
-import { loadUserModule } from '../../../src/load-user-module.js';
+import { loaderUnderTest } from './loader-under-test.js';
 
-export const partner = await loadUserModule(
+export const partner = await loaderUnderTest()(
   fileURLToPath(new URL('./cycle-b.ts', import.meta.url)),
 );
 

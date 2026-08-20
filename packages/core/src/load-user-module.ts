@@ -15,7 +15,9 @@
  *    everything else through a plain dynamic `import()`.
  * 3. **Never import-then-retry, and never evaluate twice.** A module's top-level side effects
  *    must run exactly once — across BOTH dispatch branches, across every spelling of its path,
- *    and under concurrency. A cycle is reported rather than deadlocked.
+ *    and under concurrency. A cycle is reported rather than deadlocked — including a cycle formed
+ *    by two concurrent roots waiting on each other, which needs the wait-for graph
+ *    ({@link blockedOn}) and not just the evaluation chain.
  * 4. **jiti only for TypeScript, imported lazily.** `loadRules` runs on every single invocation
  *    for all built-in rules, and those are JavaScript; that path must never pay for jiti.
  *
@@ -494,6 +496,11 @@ function canonicalise(resolvedPath: string): string {
  * its own return can settle, and the process hangs silently — Node exits 13, "Detected unsettled
  * top-level await". `AsyncLocalStorage` carries the chain into module top-level code on both
  * branches (verified), so re-entry is detectable and can be reported instead of hung.
+ *
+ * It catches re-entry on ONE path and nothing more, which is all a per-path structure can do. Two
+ * roots entering concurrently and waiting on each other is the same defect through a door no chain
+ * can see; {@link blockedOn} is what closes that one, and the two work together rather than either
+ * replacing the other.
  */
 const evaluationChain = new AsyncLocalStorage<readonly string[]>();
 
@@ -502,11 +509,124 @@ const evaluationChain = new AsyncLocalStorage<readonly string[]>();
  * load *completes*, so without this two concurrent loads of one file evaluate it twice and return
  * two distinct namespaces — the double-evaluation contract item 3 forbids. Node's own loader
  * de-duplicates in flight, so the native branch needs no equivalent.
+ *
+ * De-duplication ONLY. Whether a wait is safe to join is {@link blockedOn}'s question, and the two
+ * are deliberately not the same lookup — see there for what conflating them cost.
  */
 const inFlightTypeScriptLoads = new Map<
   string,
   Promise<Record<string, unknown>>
 >();
+
+/**
+ * Which in-flight evaluation is blocked on which — the wait-for graph.
+ *
+ * Separate state from {@link inFlightTypeScriptLoads} on purpose. That map answers "is this file
+ * already loading", and the evaluation chain answers "am I already inside this file"; NEITHER can
+ * answer "would waiting for this file close a ring", and making one lookup serve both is what
+ * deadlocked two concurrent roots. `loadRules` fans out with `Promise.all`, so:
+ *
+ * - root A starts `a` with chain `[a]`; root B starts `b` with chain `[b]`
+ * - `a`'s top level asks for `b`: chain `[a]` does not contain `b`, so the in-flight entry is
+ *   awaited and the chain is never extended
+ * - `b`'s top level does the mirror image, and the two promises await each other
+ *
+ * The missing information is *dynamic*, which is why no per-path chain can supply it: at the moment
+ * B decides, the fact that matters is that `a`'s evaluation is ALREADY waiting on `b`. Threading
+ * the chain as an explicit parameter instead of through `AsyncLocalStorage` carries exactly the
+ * same per-path information and misses this identically.
+ *
+ * Keyed by the canonical path of the module doing the waiting, holding every path it currently
+ * awaits — a top level may await several at once. Entries live only for the duration of a wait.
+ */
+const blockedOn = new Map<string, Set<string>>();
+
+/**
+ * The chain of waits leading from `start` to `target`, or `undefined` when `start` is not waiting
+ * on `target` however indirectly. Returns the path rather than a boolean so the error can name the
+ * real ring (`b -> a -> b`) instead of the two modules that happened to notice it.
+ *
+ * Depth is bounded by the number of modules evaluating concurrently, so a plain guarded DFS is the
+ * right size of machinery here. `seen` makes it safe against the rings it is looking for.
+ */
+function waitPathTo(
+  start: string,
+  target: string,
+  seen: Set<string> = new Set(),
+): readonly string[] | undefined {
+  if (seen.has(start)) {
+    return undefined;
+  }
+
+  seen.add(start);
+
+  for (const next of blockedOn.get(start) ?? []) {
+    if (next === target) {
+      return [start, target];
+    }
+
+    const rest = waitPathTo(next, target, seen);
+
+    if (rest !== undefined) {
+      return [start, ...rest];
+    }
+  }
+
+  return undefined;
+}
+
+/**
+ * Awaits another evaluation's in-flight load with the wait recorded, so that a third evaluation
+ * arriving mid-wait can see this one and report the ring instead of joining the pile-up.
+ *
+ * The edge is removed in `finally` rather than on success: a rejected load frees the waiter just as
+ * a resolved one does, and a stale edge would make the next unrelated wait look like a cycle.
+ */
+async function awaitRecorded(
+  waiter: string,
+  awaited: string,
+  pending: Promise<Record<string, unknown>>,
+): Promise<Record<string, unknown>> {
+  let edges = blockedOn.get(waiter);
+
+  if (edges === undefined) {
+    edges = new Set();
+    blockedOn.set(waiter, edges);
+  }
+
+  edges.add(awaited);
+
+  try {
+    return await pending;
+  } finally {
+    edges.delete(awaited);
+
+    if (edges.size === 0) {
+      blockedOn.delete(waiter);
+    }
+  }
+}
+
+/**
+ * One sentence for both ways a cycle is found — self re-entry on one path, and two paths waiting on
+ * each other — because to a user they are the same defect and want the same fix. `ring` is rendered
+ * as given, so each caller passes a closed loop.
+ */
+function cycleError(
+  canonical: string,
+  ring: readonly string[],
+): ThymianBaseError {
+  return new ThymianBaseError(
+    `Cannot load user module ${canonical}: it is already being evaluated, so the import cycle ` +
+      `${ring.join(' -> ')} can never complete.`,
+    {
+      name: 'UserModuleLoadError',
+      suggestions: [
+        'Break the cycle by importing the shared module directly instead of loading it through Thymian.',
+      ],
+    },
+  );
+}
 
 async function importNatively(
   resolvedPath: string,
@@ -578,16 +698,7 @@ export async function loadUserModule(
   const chain = evaluationChain.getStore() ?? [];
 
   if (chain.includes(canonical)) {
-    throw new ThymianBaseError(
-      `Cannot load user module ${canonical}: it is already being evaluated, so the import cycle ` +
-        `${[...chain, canonical].join(' -> ')} can never complete.`,
-      {
-        name: 'UserModuleLoadError',
-        suggestions: [
-          'Break the cycle by importing the shared module directly instead of loading it through Thymian.',
-        ],
-      },
-    );
+    throw cycleError(canonical, [...chain, canonical]);
   }
 
   const nested = [...chain, canonical];
@@ -599,7 +710,25 @@ export async function loadUserModule(
   const pending = inFlightTypeScriptLoads.get(canonical);
 
   if (pending !== undefined) {
-    return await pending;
+    // Another evaluation owns this load. Waiting for it is not just allowed but required — it is
+    // what makes "exactly once" hold under concurrency — with one exception: when that evaluation
+    // is itself waiting, directly or transitively, on the module being evaluated right here. Then
+    // the waits close a ring that no return can break.
+    const waiter = chain.at(-1);
+
+    if (waiter === undefined) {
+      // A root call. Nothing is being evaluated on this path, so joining a wait cannot close a
+      // ring — at worst this caller waits for a cycle someone else is about to report.
+      return await pending;
+    }
+
+    const ring = waitPathTo(canonical, waiter);
+
+    if (ring !== undefined) {
+      throw cycleError(canonical, [waiter, ...ring]);
+    }
+
+    return await awaitRecorded(waiter, canonical, pending);
   }
 
   const load = evaluationChain.run(nested, () => importThroughJiti(canonical));
