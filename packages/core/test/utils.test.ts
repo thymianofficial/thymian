@@ -1,14 +1,23 @@
 import { describe, expect, it } from 'vitest';
 
-import { getContentType, getHeader } from '../src/utils.js';
+import type { HttpResponse } from '../src/http.js';
+import {
+  getContentType,
+  getHeader,
+  httpResponseToLabel,
+} from '../src/utils.js';
 
-// Characterization tests for `getHeader`'s behavior -- see
-// spec-643-4-reimplement-getheader-on-the-http-fields-engine. These pin down
-// every non-duplicate-key input so the reimplementation is proven
+// Characterization tests for `getHeader`'s behavior. These pin down every
+// non-duplicate-key input so the reimplementation (which delegates its
+// case-variant duplicate-key merge to the `http-fields` engine) is proven
 // byte-for-byte identical to the legacy implementation for those cases. The
 // case-variant duplicate-key test is the one sanctioned exception: it
-// originally asserted today's buggy first-match-only output and has since
-// been flipped to the fixed (merged) output below.
+// originally asserted the old buggy first-match-only output and has since
+// been flipped to the fixed (merged) output below. The remaining tests cover
+// the counting fix: "how many matches" must count keys holding a *defined*
+// value, not raw key existence, so an all-undefined duplicate resolves to
+// `undefined` (never a truthy empty array) and a duplicate with exactly one
+// defined value resolves to that plain value (never a 1-element array).
 describe('getHeader', () => {
   it('returns the value for a single case-insensitive key match (string value)', () => {
     const headers = { 'Content-Type': 'text/html' };
@@ -43,6 +52,24 @@ describe('getHeader', () => {
 
     expect(getHeader(headers, 'Set-Cookie')).toEqual(['a=1', 'b=2']);
   });
+
+  it('returns undefined when both case-variant duplicate keys are present but undefined', () => {
+    const headers = { 'X-Foo': undefined, 'x-foo': undefined };
+
+    expect(getHeader(headers, 'X-Foo')).toBeUndefined();
+  });
+
+  it('returns the plain value when one case-variant duplicate key is undefined and the other holds a real value', () => {
+    const headers = { 'Content-Type': undefined, 'content-type': 'text/html' };
+
+    expect(getHeader(headers, 'content-type')).toBe('text/html');
+  });
+
+  it('flattens a case-variant duplicate merge when one of the values is itself an array', () => {
+    const headers = { 'Set-Cookie': ['a=1'], 'set-cookie': 'b=2' };
+
+    expect(getHeader(headers, 'Set-Cookie')).toEqual(['a=1', 'b=2']);
+  });
 });
 
 describe('getContentType', () => {
@@ -55,5 +82,21 @@ describe('getContentType', () => {
     expect(() => getContentType(headers)).toThrow(
       'Multiple content-type headers found.',
     );
+  });
+});
+
+describe('httpResponseToLabel', () => {
+  it('derives the media type from the first value of a genuine duplicate content-type header', () => {
+    const response: HttpResponse = {
+      statusCode: 200,
+      headers: {
+        'Content-Type': 'text/html',
+        'content-type': 'text/plain',
+      },
+      trailers: {},
+      duration: 0,
+    };
+
+    expect(httpResponseToLabel(response)).toBe('200 ok text/html');
   });
 });

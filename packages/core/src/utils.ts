@@ -97,13 +97,17 @@ export function getHeader(
     (k) => k.toLowerCase() === headerName.toLowerCase(),
   );
 
-  if (matches.length === 0) {
+  const defined = matches.filter(
+    (k) => headers[k] !== undefined && headers[k] !== null,
+  );
+
+  if (defined.length === 0) {
     return undefined;
   }
 
-  if (matches.length === 1) {
+  if (defined.length === 1) {
     // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-    return headers[matches[0]!];
+    return headers[defined[0]!];
   }
 
   return fromRuntimeHeaders(headers).getAll(headerName);
