@@ -28,13 +28,16 @@
  *   Declining lets the caller say "cannot resolve", which is the more useful message.
  *   `.node` and `.wasm` are deliberately NOT declined: Node genuinely imports both, so a valid
  *   addon or wasm module loads through the native branch (verified).
- * Bare specifiers are resolved from the **user's project first**, then from core's own install
- * directory. A package the user named in their config is theirs, so a globally installed CLI must
- * not answer with its own copy of a colliding name; core's anchor stays as a fallback so
- * Thymian's bundled rule packages keep resolving when the user's project does not carry them.
+ * Bare specifiers resolve installed packages first — the user's project, then core's own install
+ * directory — and only fall back to `<cwd>/<specifier>` when nothing is installed under that name.
+ * Two reasons for that order: a package the user named in their config is theirs, so a globally
+ * installed CLI must not answer with its own copy of a colliding name; and preferring the cwd path
+ * up front is what let a same-named file or directory shadow an installed package and silently run
+ * in its place. Core's anchor stays so Thymian's bundled rule packages keep resolving when the
+ * user's project does not carry them.
  */
 
-import { existsSync, realpathSync, statSync } from 'node:fs';
+import { existsSync, realpathSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import * as path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
@@ -148,19 +151,6 @@ function getJiti(): Promise<Jiti> {
   return jitiInstance;
 }
 
-/** True for specifiers Node resolves against the importer rather than the `node_modules` chain. */
-function isPathLike(specifier: string): boolean {
-  return RELATIVE_SPECIFIER.test(specifier) || path.isAbsolute(specifier);
-}
-
-function isFile(candidate: string): boolean {
-  try {
-    return statSync(candidate).isFile();
-  } catch {
-    return false;
-  }
-}
-
 async function resolveThroughJiti(
   location: string,
   cwd: string,
@@ -204,11 +194,11 @@ async function resolveThroughJiti(
 
 export interface ResolveUserModuleOptions {
   /**
-   * Try `<cwd>/<specifier>` on disk before `require.resolve`. Default `true`.
+   * Fall back to `<cwd>/<specifier>` when nothing is installed under that name. Default `true`.
    *
-   * Governs **bare** specifiers only, and applies to them only when they name a *file*, so a
-   * same-named directory in `cwd` can no longer shadow an installed package. Relative specifiers
-   * are always anchored at `cwd` regardless of this flag — they are unambiguously paths.
+   * A *fallback*, not a preference: installed packages are resolved first, so a same-named file
+   * or directory in `cwd` can never shadow one. Governs **bare** specifiers only — relative
+   * specifiers are always anchored at `cwd` regardless of this flag, being unambiguously paths.
    */
   preferCwdRelative?: boolean;
 }
@@ -235,7 +225,7 @@ export async function resolveUserModule(
 ): Promise<string | undefined> {
   const { preferCwdRelative = true } = options;
 
-  let location = specifier;
+  let resolved: string | undefined;
 
   if (RELATIVE_SPECIFIER.test(specifier)) {
     // A relative specifier is relative to the USER's cwd, never to core's install directory —
@@ -244,25 +234,33 @@ export async function resolveUserModule(
     // (`./index.js` resolves core's barrel), so anchor it here instead of delegating.
     // Unconditional: `preferCwdRelative` governs bare names, and a relative specifier is
     // unambiguously a path.
-    location = path.resolve(cwd, specifier);
-  } else if (preferCwdRelative) {
-    const fileLocation = path.resolve(cwd, specifier);
+    const location = path.resolve(cwd, specifier);
 
-    // A bare specifier is only preferred when it names a file. A same-named directory in `cwd`
-    // would otherwise win and then either fail to resolve or — worse — load a decoy package's
-    // code under the name of an installed one.
+    resolved =
+      resolveThroughRequire(location, cwd) ??
+      (await resolveThroughJiti(location, cwd));
+  } else {
+    // Installed packages FIRST. Preferring `<cwd>/<specifier>` up front is what let a same-named
+    // file or directory shadow — and silently execute in place of — an installed package.
+    resolved = resolveThroughRequire(specifier, cwd);
+
     if (
-      existsSync(fileLocation) &&
-      (isPathLike(specifier) || isFile(fileLocation))
+      resolved === undefined &&
+      preferCwdRelative &&
+      !path.isAbsolute(specifier)
     ) {
-      location = fileLocation;
+      // Nothing is installed under that name, so a local file or directory of that name is what
+      // the user meant. Resolving the absolute path (rather than using it verbatim) keeps a
+      // directory holding `index.js` or a `package.json` `main` working, which is the shape
+      // today's `rule-loader` accepts for `rules: ['my-rules']`.
+      const fileLocation = path.resolve(cwd, specifier);
+
+      if (existsSync(fileLocation)) {
+        resolved = resolveThroughRequire(fileLocation, cwd);
+      }
     }
-  }
 
-  let resolved = resolveThroughRequire(location, cwd);
-
-  if (resolved === undefined) {
-    resolved = await resolveThroughJiti(location, cwd);
+    resolved ??= await resolveThroughJiti(specifier, cwd);
   }
 
   if (resolved === undefined) {

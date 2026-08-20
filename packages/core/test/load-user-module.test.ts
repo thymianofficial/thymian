@@ -327,9 +327,7 @@ describe('load user module', () => {
         await mkdtemp(join(tmpdir(), 'thymian-decoy-cwd-')),
       );
 
-      // A *loadable* decoy: a same-named directory in cwd that resolves as a real package. This
-      // is the dangerous shape — left unguarded it runs the decoy's code under the name of the
-      // installed package.
+      // A *loadable* decoy directory named after an installed package.
       const decoyPackage = join(decoyCwd, BARE_PACKAGE);
 
       await mkdir(decoyPackage, { recursive: true });
@@ -339,15 +337,33 @@ describe('load user module', () => {
       );
       await writeFile(
         join(decoyPackage, 'index.js'),
-        "export default 'DECOY';\n",
+        "export default 'DECOY-DIR';\n",
       );
 
-      // A bare *subpath* specifier that names a real file in cwd. The cwd preference must still
-      // apply here, or `rules: ['my-rules/index.js']` would regress.
+      // A decoy *file* named after a package core really depends on. Extensionless, so
+      // `existsSync` sees it — this is the shape a file-vs-directory gate cannot catch.
+      await writeFile(
+        join(decoyCwd, 'graphology'),
+        "export default 'DECOY-FILE';\n",
+      );
+
+      // A local rule *directory* with no installed package of that name: the legitimate case
+      // that must keep resolving, because today's `rule-loader` resolves it.
       await mkdir(join(decoyCwd, 'my-rules'), { recursive: true });
       await writeFile(
         join(decoyCwd, 'my-rules', 'index.js'),
-        "export default 'local-subpath';\n",
+        "export default 'local-dir';\n",
+      );
+
+      // Same, via `package.json` `main` rather than `index.js`.
+      await mkdir(join(decoyCwd, 'pkg-rules'), { recursive: true });
+      await writeFile(
+        join(decoyCwd, 'pkg-rules', 'package.json'),
+        JSON.stringify({ name: 'pkg-rules', main: 'main.js' }),
+      );
+      await writeFile(
+        join(decoyCwd, 'pkg-rules', 'main.js'),
+        "export default 'local-main';\n",
       );
     });
 
@@ -355,28 +371,58 @@ describe('load user module', () => {
       await rm(decoyCwd, { recursive: true, force: true });
     });
 
-    it('does not let a loadable same-named directory in cwd shadow an installed package', async () => {
-      const resolved = await resolveOrFail(BARE_PACKAGE, decoyCwd);
+    it.each([
+      ['a directory decoy', BARE_PACKAGE, 'DECOY-DIR'],
+      ['an extensionless file decoy', 'graphology', 'DECOY-FILE'],
+    ])(
+      'does not let %s in cwd shadow an installed package',
+      async (_label, specifier, decoyMarker) => {
+        // Installed-first ordering is what stops this. A file-vs-directory gate cannot: the
+        // file decoy is indistinguishable from a legitimate local module by shape alone.
+        const resolved = await resolveOrFail(specifier, decoyCwd);
 
-      expect(resolved.startsWith(decoyCwd)).toBe(false);
-      expect(resolved).toContain(join('rules-rfc-9110', 'dist'));
+        expect(resolved.startsWith(decoyCwd)).toBe(false);
 
-      const module = await loadUserModule(resolved);
+        const module = await loadUserModule(resolved);
 
-      expect(module.default).not.toBe('DECOY');
-    }, 15_000);
+        expect(module.default).not.toBe(decoyMarker);
+      },
+      15_000,
+    );
 
-    it('still prefers a cwd-relative file named by a bare subpath specifier', async () => {
-      const resolved = await resolveOrFail('my-rules/index.js', decoyCwd);
+    it.each([
+      ['a directory holding index.js', 'my-rules', 'local-dir'],
+      ['a directory with a package.json main', 'pkg-rules', 'local-main'],
+      ['a bare subpath naming a file', 'my-rules/index.js', 'local-dir'],
+    ])(
+      'falls back to %s when nothing is installed under that name',
+      async (_label, specifier, expected) => {
+        // `rules: ['my-rules']` resolves through today's `rule-loader`, so the seam must accept
+        // it too. An `isFile()` gate on the cwd step broke exactly this.
+        const resolved = await resolveOrFail(specifier, decoyCwd);
 
-      expect(resolved.startsWith(decoyCwd)).toBe(true);
+        expect(resolved.startsWith(decoyCwd)).toBe(true);
 
-      const module = await loadUserModule(resolved);
+        const module = await loadUserModule(resolved);
 
-      expect(module.default).toBe('local-subpath');
+        expect(module.default).toBe(expected);
+      },
+    );
+
+    it('skips the cwd fallback entirely when preferCwdRelative is false', async () => {
+      // The observable difference the flag makes: with the fallback off, a local-only rule
+      // directory is not resolvable at all. Nothing else in the suite distinguishes the flag,
+      // so without this test the option can be deleted with the suite still green.
+      await expect(
+        resolveUserModule('my-rules', decoyCwd, { preferCwdRelative: false }),
+      ).resolves.toBeUndefined();
+
+      await expect(
+        resolveUserModule('my-rules', decoyCwd, { preferCwdRelative: true }),
+      ).resolves.toBeDefined();
     });
 
-    it('resolves the installed package when preferCwdRelative is false', async () => {
+    it('resolves an installed package identically with the fallback off', async () => {
       const resolved = await resolveUserModule(BARE_PACKAGE, decoyCwd, {
         preferCwdRelative: false,
       });
