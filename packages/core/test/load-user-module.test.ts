@@ -155,6 +155,27 @@ describe('load user module', () => {
       },
     );
 
+    it('pins the export= boundary: primitives wrap, objects do not', async () => {
+      // The wrap covers only non-records, so the boundary is narrower than it looks. Documented
+      // and pinned rather than left implicit, because the UNWRAPPED side is the natural rule-set
+      // shape and a downstream implementer would otherwise meet it as a mystery.
+      const wrapped = await loadUserModule(
+        await resolveOrFail(join(fixtures, 'primitive.cts')),
+      );
+
+      expect('default' in wrapped).toBe(true);
+
+      const unwrapped = await loadUserModule(
+        await resolveOrFail(join(fixtures, 'object-export.cts')),
+      );
+
+      // Deliberate: through jiti's proxy this shape cannot be told apart from a module with only
+      // named exports, so synthesising a default would let a named-only module pass as a rule.
+      // Callers therefore report "does not use default export" for it, which is correct.
+      expect('default' in unwrapped).toBe(false);
+      expect(unwrapped.name).toBe('object-export');
+    });
+
     it('evaluates a TypeScript module once across concurrent loads', async () => {
       const resolved = await resolveOrFail(join(fixtures, 'side-effect.ts'));
 

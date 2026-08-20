@@ -25,6 +25,12 @@
  * - **Only JavaScript and TypeScript are loadable**, enforced as an allow-list at resolution so
  *   the caller phrases the error. See {@link LOADABLE_EXTENSION} for why each excluded extension
  *   is excluded — including `.node`, which is not importable on the `engines.node` floor at all.
+ * - **tsconfig `paths` aliases are not honoured in a user TypeScript module.** jiti is given no
+ *   `alias` option and does not read the user's `tsconfig.json`, so a rule importing `@lib/x.js`
+ *   under `paths: { "@lib/*": [...] }` resolves and then fails at load with a raw
+ *   `MODULE_NOT_FOUND`. Nested *package* imports from the user's own `node_modules` DO work; it is
+ *   specifically the alias case. Probably the first limitation a real user writing TypeScript
+ *   rules meets, so it wants a decision rather than silence.
  * Bare specifiers resolve installed packages first — the user's project, then core's own install
  * directory — and only fall back to `<cwd>/<specifier>` when nothing is installed under that name.
  * Two reasons for that order: a package the user named in their config is theirs, so a globally
@@ -60,11 +66,29 @@ const require = createRequire(import.meta.url);
  * Only **bare** specifiers are affected: a relative one is already an absolute path by the time it
  * gets here, and both anchors resolve an absolute path identically.
  */
+/**
+ * Cwd-anchored resolvers, memoised. `resolveThroughRequire` runs for every specifier — including
+ * every built-in rule on every invocation, the path the file header singles out as needing to stay
+ * cheap — and `cwd` is stable within a run, so building the anchor each time was pure waste.
+ */
+const cwdRequireCache = new Map<string, NodeJS.Require>();
+
+function requireFrom(cwd: string): NodeJS.Require {
+  let anchored = cwdRequireCache.get(cwd);
+
+  if (anchored === undefined) {
+    anchored = createRequire(pathToFileURL(path.join(cwd, '_')));
+    cwdRequireCache.set(cwd, anchored);
+  }
+
+  return anchored;
+}
+
 function resolveThroughRequire(
   location: string,
   cwd: string,
 ): string | undefined {
-  const anchors = [createRequire(pathToFileURL(path.join(cwd, '_'))), require];
+  const anchors = [requireFrom(cwd), require];
 
   for (const anchor of anchors) {
     try {
@@ -366,6 +390,14 @@ async function importThroughJiti(
 
   // `export = <primitive>` yields the bare value, so `'default' in module` would throw a
   // `TypeError`. A non-object export can only ever have been a default.
+  //
+  // Note the boundary this draws, which is narrower than it looks: `isRecord` excludes
+  // primitives, arrays and functions, so those gain a `default` — but `export = { … }`, the
+  // natural rule-set shape, is a record and passes through unwrapped, where jiti's proxy answers
+  // `'default' in module` with `false`. That is the SAME limitation as `module.exports = { … }`
+  // documented in the file header, and for the same reason: through the proxy it is
+  // indistinguishable from a module with only named exports, so synthesising a default here
+  // would let a named-only module masquerade as a rule. Pinned by test, not left implicit.
   return isRecord(module) ? module : { default: module };
 }
 
