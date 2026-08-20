@@ -1,10 +1,45 @@
 import { ThymianEmitter } from '@thymian/core';
-import { createThymianFormatWithTransactions } from '@thymian/core-testing';
+import {
+  createArraySchema,
+  createCreatedResponse,
+  createIntegerSchema,
+  createObjectSchema,
+  createParameter,
+  createPostRequest,
+  createStringSchema,
+  createThymianFormatWithTransactions,
+} from '@thymian/core-testing';
 import { describe, expect, it } from 'vitest';
 
 import { projectSamplesForThymianFormat } from '../src/generation/project-samples-for-format.js';
 
 const format = createThymianFormatWithTransactions(20);
+
+// The 20 factory transactions carry no body and no parameters, so every sample
+// they project is a small record of string constants — `ContentSourceGenerator`,
+// `openapi-sampler` and the content-type strategies are never entered, and AC3's
+// "byte-identical across runs and across processes" would be asserted only over
+// literals. This transaction routes a JSON body and a generated query parameter
+// through the real generators, including a `date-time` string, which is where a
+// reintroduced `new Date()` on the sampling path would show up.
+format.addHttpTransaction(
+  createPostRequest({
+    path: '/generated-content',
+    body: createObjectSchema({
+      id: createIntegerSchema(),
+      name: createStringSchema(),
+      tags: createArraySchema(createStringSchema()),
+      createdAt: createStringSchema({ format: 'date-time' }),
+    }),
+    queryParameters: {
+      since: createParameter({
+        schema: createStringSchema({ format: 'date-time' }),
+      }),
+    },
+  }),
+  createCreatedResponse(),
+  'test-source',
+);
 
 describe('projectSamplesForThymianFormat', () => {
   it('projects exactly one sample per transaction, keyed by transactionId', async () => {

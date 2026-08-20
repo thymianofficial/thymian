@@ -6,6 +6,7 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
 import { generateSamplesForThymianFormat } from '../src/generation/generate-samples-for-thymian-format.js';
 import { generateTypesForThymianFormat } from '../src/hooks/generate-request-types.js';
+import type { HttpRequestSample } from '../src/http-request-sample.js';
 import { readSamplesFromDir } from '../src/samples-structure/read-samples-from-dir.js';
 import {
   type BaseNode,
@@ -17,12 +18,27 @@ import { createTempDir } from './utils.js';
 
 const format = createThymianFormatWithTransactions(20);
 
-function sourceTransactionsOf(tree: BaseNode): string[] {
-  const found: string[] = [];
+type RoundTrippedSamples = {
+  sourceTransaction: string;
+  requests: HttpRequestSample[];
+};
+
+/**
+ * Collects every samples node together with the request payloads that came back
+ * out of its `requests/` directory. `read-samples-from-dir` builds the samples
+ * node from `meta.json` alone, so collecting only `meta.sourceTransaction` would
+ * pass even against a write path that emitted empty or garbled `*-request.json`
+ * files — the payloads are what make this a real round-trip.
+ */
+function roundTrippedSamplesOf(tree: BaseNode): RoundTrippedSamples[] {
+  const found: RoundTrippedSamples[] = [];
 
   traverse(tree, null, (node, ctx) => {
     if (nodeIsType(node, 'samples')) {
-      found.push(node.meta.sourceTransaction);
+      found.push({
+        sourceTransaction: node.meta.sourceTransaction,
+        requests: node.children.flatMap((child) => child.value),
+      });
     }
 
     return ctx;
@@ -62,12 +78,36 @@ describe('generateSamplesForThymianFormat', () => {
 
     const readBack = await readSamplesFromDir(tempDir);
 
-    const transactionIds = format
-      .getThymianHttpTransactions()
-      .map((transaction) => transaction.transactionId);
-
-    expect(sourceTransactionsOf(readBack).sort()).toEqual(
-      [...transactionIds].sort(),
+    const expectedByTransactionId = new Map(
+      format.getThymianHttpTransactions().map((transaction) => [
+        transaction.transactionId,
+        {
+          method: transaction.thymianReq.method,
+          path: transaction.thymianReq.path,
+        },
+      ]),
     );
+
+    const roundTripped = roundTrippedSamplesOf(readBack);
+
+    expect(
+      roundTripped.map((samples) => samples.sourceTransaction).sort(),
+    ).toEqual([...expectedByTransactionId.keys()].sort());
+
+    // The payload half: exactly one request per samples node, and it is the one
+    // generated for THAT transaction. This is what the docstring's "generate ->
+    // write -> read round-trip" claim rests on — `meta.sourceTransaction` alone
+    // never leaves the `meta.json` written beside `requests/`.
+    for (const { sourceTransaction, requests } of roundTripped) {
+      const expected = expectedByTransactionId.get(sourceTransaction);
+
+      expect(expected).toBeDefined();
+      expect(
+        requests.map((request) => ({
+          method: request.method,
+          path: request.path,
+        })),
+      ).toEqual([expected]);
+    }
   }, 30_000);
 });

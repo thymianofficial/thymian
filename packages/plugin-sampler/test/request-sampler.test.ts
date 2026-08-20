@@ -1,5 +1,9 @@
 import { ThymianEmitter } from '@thymian/core';
-import { createThymianFormatWithTransactions } from '@thymian/core-testing';
+import {
+  createHttpRequest,
+  createHttpResponse,
+  createThymianFormatWithTransactions,
+} from '@thymian/core-testing';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { RequestSampler } from '../src/request-sampler.js';
@@ -96,14 +100,49 @@ describe('RequestSampler', () => {
 
     await sampler.init(format, emitter);
 
-    const otherFormat = createThymianFormatWithTransactions(2);
+    // The second format must be built from transactions DISJOINT from the first.
+    // `createThymianFormatWithTransactions(n)` numbers its paths from 0 and
+    // `transactionId` is a content hash, so `createThymianFormatWithTransactions(2)`
+    // would produce a strict SUBSET of `format`'s ids — every lookup below would
+    // then be answered by the first projection and the test could not fail.
+    const otherFormat = createThymianFormatWithTransactions([
+      [
+        createHttpRequest({ path: '/other-transaction-0' }),
+        createHttpResponse(),
+      ],
+      [
+        createHttpRequest({ path: '/other-transaction-1' }),
+        createHttpResponse(),
+      ],
+    ]);
+
+    const otherFormatIds = otherFormat
+      .getThymianHttpTransactions()
+      .map((transaction) => transaction.transactionId);
+    const idsOnlyInFirstFormat = format
+      .getThymianHttpTransactions()
+      .map((transaction) => transaction.transactionId)
+      .filter((id) => !otherFormatIds.includes(id));
+
+    // Guards the disjointness the assertions below rely on.
+    expect(idsOnlyInFirstFormat.length).toBeGreaterThan(0);
+
+    for (const id of idsOnlyInFirstFormat) {
+      expect(sampler.sampleForTransaction(id)).toBeDefined();
+    }
 
     await sampler.init(otherFormat, emitter);
 
-    for (const transaction of otherFormat.getThymianHttpTransactions()) {
-      expect(
-        sampler.sampleForTransaction(transaction.transactionId),
-      ).toBeDefined();
+    for (const id of otherFormatIds) {
+      expect(sampler.sampleForTransaction(id)).toBeDefined();
+    }
+
+    // The projection is REPLACED, not merged. This is the assertion that bites:
+    // it is the only thing in the suite that fails if `init` ever caches or
+    // early-returns instead of rebuilding — the staleness a `format.toHash()`
+    // cache would reintroduce.
+    for (const id of idsOnlyInFirstFormat) {
+      expect(sampler.sampleForTransaction(id)).toBeUndefined();
     }
   }, 30_000);
 });
