@@ -41,6 +41,7 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 
 import type { Jiti } from 'jiti';
 
+import { ThymianBaseError } from './thymian.error.js';
 import { isRecord } from './utils.js';
 
 const require = createRequire(import.meta.url);
@@ -94,6 +95,27 @@ const UNSUPPORTED_EXTENSION = /\.(?:[cm]?[jt]sx|json)$/i;
  * exists to stop. Checked before {@link TYPESCRIPT_EXTENSION}, which `.d.ts` also matches.
  */
 const DECLARATION_FILE = /\.d\.[cm]?ts$/i;
+
+/**
+ * Why a resolved path can never be loaded, or `undefined` when it can.
+ *
+ * Shared by both halves of the seam so they cannot drift: `resolveUserModule` turns a reason into
+ * `undefined`, and `loadUserModule` turns it into a framed error. Without the second check a path
+ * obtained some other way — a `loadRuleSet` glob, a config `path` — bypasses the guard entirely,
+ * and a `.d.ts` then imports as an EMPTY module, so the caller reports "does not use default
+ * export": the exact confusion the guard exists to prevent.
+ */
+function unloadableReason(resolvedPath: string): string | undefined {
+  if (DECLARATION_FILE.test(resolvedPath)) {
+    return 'a TypeScript declaration file contains no runtime code';
+  }
+
+  if (UNSUPPORTED_EXTENSION.test(resolvedPath)) {
+    return 'no dispatch branch can load this file extension';
+  }
+
+  return undefined;
+}
 
 /** `./x`, `../x`, `.` or `..` — specifiers Node resolves against the importer, not `node_modules`. */
 const RELATIVE_SPECIFIER = /^\.\.?(?:[/\\]|$)/;
@@ -265,10 +287,7 @@ export async function resolveUserModule(
     return undefined;
   }
 
-  if (
-    DECLARATION_FILE.test(normalised) ||
-    UNSUPPORTED_EXTENSION.test(normalised)
-  ) {
+  if (unloadableReason(normalised) !== undefined) {
     return undefined;
   }
 
@@ -306,6 +325,21 @@ async function importThroughJiti(
 export async function loadUserModule(
   resolvedPath: string,
 ): Promise<Record<string, unknown>> {
+  const reason = unloadableReason(resolvedPath);
+
+  if (reason !== undefined) {
+    throw new ThymianBaseError(
+      `Cannot load user module ${resolvedPath}: ${reason}.`,
+      {
+        name: 'UserModuleLoadError',
+        suggestions: [
+          'Point at the implementation file rather than its declarations or a non-module asset.',
+          'Resolve the specifier with resolveUserModule first — it declines paths that cannot be loaded.',
+        ],
+      },
+    );
+  }
+
   if (!TYPESCRIPT_EXTENSION.test(resolvedPath)) {
     const module: unknown = await import(pathToFileURL(resolvedPath).href);
 

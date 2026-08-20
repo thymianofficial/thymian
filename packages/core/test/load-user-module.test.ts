@@ -112,6 +112,42 @@ describe('load user module', () => {
     });
   });
 
+  describe('loadUserModule guards', () => {
+    // `loadUserModule` is exported alongside `resolveUserModule`, so a caller can reach it with a
+    // path the resolver would have declined — a `loadRuleSet` glob or a config `path`. Left
+    // unguarded a `.d.ts` imports as an EMPTY module and the caller reports "does not use default
+    // export", which is precisely the confusion the resolver's guard prevents.
+    it.each([
+      ['a declaration file', 'types.d.ts'],
+      ['a declaration file spelled with a capital D', 'Legacy.D.ts'],
+      ['a .tsx file', 'component.tsx'],
+      ['a .jsx file', 'component.jsx'],
+      ['a .json file', 'rules.json'],
+    ])('refuses %s with a framed error', async (_label, fileName) => {
+      await expect(
+        loadUserModule(join(fixtures, fileName)),
+      ).rejects.toThrowError(
+        expect.objectContaining({ name: 'UserModuleLoadError' }),
+      );
+    });
+
+    it('explains a declaration file rather than returning an empty module', async () => {
+      // The regression that matters: this used to RESOLVE to `{}` with no `default`, so the
+      // failure surfaced as a misleading complaint about the user's export style.
+      await expect(
+        loadUserModule(join(fixtures, 'types.d.ts')),
+      ).rejects.toThrow(/contains no runtime code/);
+    });
+
+    it('still loads a path the resolver accepts', async () => {
+      const resolved = await resolveOrFail(join(fixtures, 'plain.ts'));
+
+      await expect(loadUserModule(resolved)).resolves.toMatchObject({
+        default: 'plain-ts',
+      });
+    });
+  });
+
   describe('resolution', () => {
     it('resolves an extensionless specifier to its .ts file', async () => {
       // `helper`, not `plain`: the `plain.*` fixtures deliberately share a basename to cover
