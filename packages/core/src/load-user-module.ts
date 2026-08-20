@@ -22,13 +22,9 @@
  *   to a module with only named exports (`interopDefault: false` does not separate them either).
  *   Synthesising a default would let a named-only module masquerade as a rule, so this seam
  *   reports it as "no default export" rather than guessing. Tracked as epic follow-up work.
- * - **JSX and `.json` are declined at resolution.** Neither dispatch branch can load them: jiti's
- *   `jsx` option is off by default (a `.tsx` yields a bare `ParseError` with no file or line) and
- *   Node rejects `.jsx` outright, while `.json` needs an `import ... with { type: 'json' }`
- *   attribute this seam deliberately does not pass — nothing in Thymian consumes a JSON rule set.
- *   Declining lets the caller say "cannot resolve", which is the more useful message.
- *   `.node` and `.wasm` are deliberately NOT declined: Node genuinely imports both, so a valid
- *   addon or wasm module loads through the native branch (verified).
+ * - **Only JavaScript and TypeScript are loadable**, enforced as an allow-list at resolution so
+ *   the caller phrases the error. See {@link LOADABLE_EXTENSION} for why each excluded extension
+ *   is excluded — including `.node`, which is not importable on the `engines.node` floor at all.
  * Bare specifiers resolve installed packages first — the user's project, then core's own install
  * directory — and only fall back to `<cwd>/<specifier>` when nothing is installed under that name.
  * Two reasons for that order: a package the user named in their config is theirs, so a globally
@@ -85,14 +81,26 @@ function resolveThroughRequire(
 const TYPESCRIPT_EXTENSION = /\.[cm]?ts$/;
 
 /**
- * Extensions no dispatch branch can load, declined at resolution so the caller phrases the error
- * rather than surfacing a raw `ParseError`, `ERR_UNKNOWN_FILE_EXTENSION` or
- * `ERR_IMPORT_ATTRIBUTE_MISSING`. Covers the JSX family (`.jsx`/`.tsx` and their `.m`/`.c`
- * variants) and `.json` — the latter resolves without any user typo, since `.json` is in jiti's
- * default extension list. `.node` and `.wasm` are absent on purpose: Node imports both, so a
- * valid addon or wasm module must keep working.
+ * The extensions a user module may have — an ALLOW-list, because the loadable set is the closed
+ * one and the unloadable set is not. A deny-list was tried and found wanting twice: `require.resolve`
+ * answers with any existing absolute file regardless of extension, so everything unenumerated
+ * resolved and then died in the native importer with a raw error. `.yaml`, `.yml`, `.md`, `.txt`,
+ * `.toml`, `.json5` and `.jsonc` all gave `ERR_UNKNOWN_FILE_EXTENSION` unframed — the very class
+ * of error `.json` had been declined to prevent.
+ *
+ * Deliberately excluded, each for its own reason:
+ * - The JSX family (`.jsx`/`.tsx` and `.m`/`.c` variants): jiti's `jsx` option is off by default,
+ *   so a `.tsx` yields a bare `ParseError` with no file or line, and Node rejects `.jsx` outright.
+ * - `.json`: needs an `import ... with { type: 'json' }` attribute this seam does not pass, and
+ *   nothing in Thymian consumes a JSON rule set. It resolves without any user typo, since `.json`
+ *   is in jiti's own default extension list.
+ * - `.node`: NOT importable on Node 22 at all — the `engines.node` floor and in the CI matrix —
+ *   where it gives `ERR_UNKNOWN_FILE_EXTENSION`; addon imports need `--experimental-addon-modules`,
+ *   which only exists on much later versions. Measured on 22.19 and 26.7.
+ * - `.wasm`: does load on 22 and 26, but needs `--experimental-wasm-modules` on Node 20 (also in
+ *   the matrix), and a valid wasm module exports no `default`, so it cannot carry a rule anyway.
  */
-const UNSUPPORTED_EXTENSION = /\.(?:[cm]?[jt]sx|json)$/i;
+const LOADABLE_EXTENSION = /\.[cm]?[jt]s$/;
 
 /**
  * Declaration files are never loadable. Case-insensitive: on Windows and default macOS volumes a
@@ -115,8 +123,8 @@ function unloadableReason(resolvedPath: string): string | undefined {
     return 'a TypeScript declaration file contains no runtime code';
   }
 
-  if (UNSUPPORTED_EXTENSION.test(resolvedPath)) {
-    return 'no dispatch branch can load this file extension';
+  if (!LOADABLE_EXTENSION.test(resolvedPath)) {
+    return 'only JavaScript and TypeScript modules can be loaded';
   }
 
   return undefined;

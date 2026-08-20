@@ -260,29 +260,49 @@ describe('load user module', () => {
       },
     );
 
-    it('does not decline extensions Node genuinely imports', async () => {
-      // `.node` and `.wasm` are deliberately NOT in UNSUPPORTED_EXTENSION — Node imports both,
-      // so declining them would break a working case. Only resolution is asserted here: the
-      // load is Node's business, and Vitest's module runner refuses to `import()` wasm at all
-      // ("ESM integration proposal for Wasm is not supported"). Loading a minimal valid wasm
-      // module through `loadUserModule` was verified out-of-band under plain Node.
-      const nativeExtCwd = await mkdtemp(join(tmpdir(), 'thymian-native-ext-'));
+    it('declines every extension outside the JavaScript/TypeScript allow-list', async () => {
+      // `require.resolve` answers with any existing absolute file regardless of extension, so a
+      // deny-list left all of these resolving and then dying in the native importer with a raw
+      // ERR_UNKNOWN_FILE_EXTENSION. `.node` is here because it is not importable on Node 22 at
+      // all (the engines floor); `.wasm` because it needs a flag on Node 20 and exports no
+      // default, so it cannot carry a rule.
+      const cwd = await mkdtemp(join(tmpdir(), 'thymian-allowlist-'));
 
       try {
-        // Magic + version: a complete wasm module that exports nothing.
-        await writeFile(
-          join(nativeExtCwd, 'mod.wasm'),
-          Buffer.from([0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00]),
-        );
-        await writeFile(join(nativeExtCwd, 'addon.node'), 'stub\n');
+        const declined = [
+          'rules.yaml',
+          'rules.yml',
+          'rules.toml',
+          'rules.json5',
+          'rules.jsonc',
+          'notes.md',
+          'notes.txt',
+          'addon.node',
+          'mod.wasm',
+        ];
 
-        for (const specifier of ['./mod.wasm', './addon.node']) {
+        for (const name of declined) {
+          await writeFile(join(cwd, name), 'stub\n');
+        }
+
+        for (const name of declined) {
           await expect(
-            resolveUserModule(specifier, nativeExtCwd),
+            resolveUserModule(`./${name}`, cwd),
+            `expected ./${name} to be declined`,
+          ).resolves.toBeUndefined();
+        }
+
+        // The allow-list itself still admits every loadable shape.
+        for (const name of ['rule.js', 'rule.mjs', 'rule.cjs']) {
+          await writeFile(join(cwd, name), 'export default 1;\n');
+
+          await expect(
+            resolveUserModule(`./${name}`, cwd),
+            `expected ./${name} to resolve`,
           ).resolves.toBeDefined();
         }
       } finally {
-        await rm(nativeExtCwd, { recursive: true, force: true });
+        await rm(cwd, { recursive: true, force: true });
       }
     });
 
