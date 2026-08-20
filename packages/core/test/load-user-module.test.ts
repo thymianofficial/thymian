@@ -37,17 +37,42 @@ async function resolveOrFail(
   specifier: string,
   cwd: string = fixtures,
 ): Promise<string> {
-  const resolved = await resolveUserModule(specifier, cwd);
+  const result = await resolveUserModule(specifier, cwd);
 
-  if (resolved === undefined) {
-    throw new Error(`Expected "${specifier}" to resolve from ${cwd}.`);
+  if (!result.ok) {
+    throw new Error(
+      `Expected "${specifier}" to resolve from ${cwd}` +
+        (result.reason === undefined ? '.' : `, but: ${result.reason}.`),
+    );
   }
 
-  expect(isAbsolute(resolved)).toBe(true);
-  expect(resolved.startsWith('file:')).toBe(false);
-  expect(existsSync(resolved)).toBe(true);
+  expect(isAbsolute(result.path)).toBe(true);
+  expect(result.path.startsWith('file:')).toBe(false);
+  expect(existsSync(result.path)).toBe(true);
 
-  return resolved;
+  return result.path;
+}
+
+/**
+ * Asserts a specifier is declined, and hands back the failure so a caller can go on to assert the
+ * REASON. Kept separate from `resolveOrFail` because the two halves of the discriminated result
+ * are the thing under test: a bare `toBeUndefined()` could not tell "no such file" apart from
+ * "exists but unloadable", which is exactly the conflation the result type exists to end.
+ */
+async function expectDeclined(
+  specifier: string,
+  cwd: string = fixtures,
+  options?: Parameters<typeof resolveUserModule>[2],
+): Promise<{ readonly ok: false; readonly reason?: string }> {
+  const result = await resolveUserModule(specifier, cwd, options);
+
+  if (result.ok) {
+    throw new Error(
+      `Expected "${specifier}" to be declined from ${cwd}, got ${result.path}.`,
+    );
+  }
+
+  return result;
 }
 
 describe('load user module', () => {
@@ -259,22 +284,24 @@ describe('load user module', () => {
     it('declines an explicit declaration-file specifier', async () => {
       // jiti resolves and imports a `.d.ts` successfully, as an empty module. Without the
       // guard the user would see "does not use default export" instead of "cannot resolve".
-      await expect(
-        resolveUserModule(join(fixtures, 'types.d.ts'), fixtures),
-      ).resolves.toBeUndefined();
+      const declined = await expectDeclined(join(fixtures, 'types.d.ts'));
+
+      expect(declined.reason).toBe(
+        'a TypeScript declaration file contains no runtime code',
+      );
     });
 
     it('declines a declaration file whose extension is not lower-case', async () => {
       // `Legacy.D.ts` is literal on disk, so this holds on case-sensitive volumes too.
-      await expect(
-        resolveUserModule(join(fixtures, 'Legacy.D.ts'), fixtures),
-      ).resolves.toBeUndefined();
+      await expectDeclined(join(fixtures, 'Legacy.D.ts'));
     });
 
     it('declines a .tsx specifier rather than handing it to a transform that cannot parse it', async () => {
-      await expect(
-        resolveUserModule(join(fixtures, 'component.tsx'), fixtures),
-      ).resolves.toBeUndefined();
+      const declined = await expectDeclined(join(fixtures, 'component.tsx'));
+
+      expect(declined.reason).toBe(
+        'only JavaScript and TypeScript modules can be loaded',
+      );
     });
 
     it.each([
@@ -283,9 +310,7 @@ describe('load user module', () => {
     ])(
       'declines %s, which no dispatch branch can load',
       async (_label, fileName) => {
-        await expect(
-          resolveUserModule(join(fixtures, fileName), fixtures),
-        ).resolves.toBeUndefined();
+        await expectDeclined(join(fixtures, fileName));
       },
     );
 
@@ -415,10 +440,14 @@ describe('load user module', () => {
         }
 
         for (const name of declined) {
-          await expect(
-            resolveUserModule(`./${name}`, cwd),
-            `expected ./${name} to be declined`,
-          ).resolves.toBeUndefined();
+          const declined = await expectDeclined(`./${name}`, cwd);
+
+          // The REASON, not just the decline: this is the sentence the caller phrases its error
+          // with, and returning it is the whole point of the discriminated result.
+          expect(
+            declined.reason,
+            `expected ./${name} to be declined with a reason`,
+          ).toBe('only JavaScript and TypeScript modules can be loaded');
         }
 
         // The allow-list itself still admits every loadable shape.
@@ -428,7 +457,7 @@ describe('load user module', () => {
           await expect(
             resolveUserModule(`./${name}`, cwd),
             `expected ./${name} to resolve`,
-          ).resolves.toBeDefined();
+          ).resolves.toMatchObject({ ok: true });
         }
       } finally {
         await rm(cwd, { recursive: true, force: true });
@@ -452,17 +481,19 @@ describe('load user module', () => {
     );
 
     it('returns undefined for an unresolvable specifier', async () => {
-      await expect(
-        resolveUserModule('@thymian/definitely-not-a-real-package', fixtures),
-      ).resolves.toBeUndefined();
+      const declined = await expectDeclined(
+        '@thymian/definitely-not-a-real-package',
+      );
+
+      // No reason: nothing is known beyond "not found", and the caller's own
+      // "cannot resolve <specifier>" is the right sentence for that.
+      expect(declined.reason).toBeUndefined();
     });
 
     it('returns undefined for a Node builtin specifier', async () => {
       // `require.resolve` answers builtins with the bare id (`node:fs`), which is not an
       // absolute path and not a loadable user module.
-      await expect(
-        resolveUserModule('node:fs', fixtures),
-      ).resolves.toBeUndefined();
+      await expectDeclined('node:fs');
     });
 
     it('prefers the user project node_modules over core own for a colliding name', async () => {
@@ -513,9 +544,7 @@ describe('load user module', () => {
           './thymian.js',
           '../src/utils.ts',
         ]) {
-          await expect(
-            resolveUserModule(specifier, emptyCwd),
-          ).resolves.toBeUndefined();
+          await expectDeclined(specifier, emptyCwd);
         }
       } finally {
         await rm(emptyCwd, { recursive: true, force: true });
@@ -619,30 +648,28 @@ describe('load user module', () => {
       // The observable difference the flag makes: with the fallback off, a local-only rule
       // directory is not resolvable at all. Nothing else in the suite distinguishes the flag,
       // so without this test the option can be deleted with the suite still green.
-      await expect(
-        resolveUserModule('my-rules', decoyCwd, { preferCwdRelative: false }),
-      ).resolves.toBeUndefined();
+      await expectDeclined('my-rules', decoyCwd, { preferCwdRelative: false });
 
       await expect(
         resolveUserModule('my-rules', decoyCwd, { preferCwdRelative: true }),
-      ).resolves.toBeDefined();
+      ).resolves.toMatchObject({ ok: true });
     });
 
     it('resolves an installed package identically with the fallback off', async () => {
-      const resolved = await resolveUserModule(BARE_PACKAGE, decoyCwd, {
+      const result = await resolveUserModule(BARE_PACKAGE, decoyCwd, {
         preferCwdRelative: false,
       });
 
-      if (resolved === undefined) {
+      if (!result.ok) {
         throw new Error(
           `Expected "${BARE_PACKAGE}" to resolve from ${decoyCwd}.`,
         );
       }
 
-      expect(isAbsolute(resolved)).toBe(true);
-      expect(resolved.startsWith('file:')).toBe(false);
-      expect(resolved.startsWith(decoyCwd)).toBe(false);
-      expect(resolved).toContain(join('rules-rfc-9110', 'dist'));
+      expect(isAbsolute(result.path)).toBe(true);
+      expect(result.path.startsWith('file:')).toBe(false);
+      expect(result.path.startsWith(decoyCwd)).toBe(false);
+      expect(result.path).toContain(join('rules-rfc-9110', 'dist'));
     }, 15_000);
   });
 
@@ -680,12 +707,16 @@ describe('load user module', () => {
       });
 
       const loader = await import('../src/load-user-module.js');
-      const resolved = await loader.resolveUserModule(
+      const result = await loader.resolveUserModule(
         join(fixtures, 'plain.ts'),
         fixtures,
       );
 
-      await loader.loadUserModule(String(resolved));
+      if (!result.ok) {
+        throw new Error('Expected the TypeScript fixture to resolve.');
+      }
+
+      await loader.loadUserModule(result.path);
 
       expect(captured).toMatchObject({ extensions: ['.ts', '.mts', '.cts'] });
     });
@@ -720,13 +751,13 @@ describe('load user module', () => {
         join(fixtures, 'plain.mjs'),
         join(fixtures, 'plain.js'),
       ]) {
-        const resolved = await loader.resolveUserModule(specifier, fixtures);
+        const result = await loader.resolveUserModule(specifier, fixtures);
 
-        if (resolved === undefined) {
+        if (!result.ok) {
           throw new Error(`Expected "${specifier}" to resolve.`);
         }
 
-        await loader.loadUserModule(resolved);
+        await loader.loadUserModule(result.path);
       }
 
       // A bare JS package installed ONLY in the user's project. This is the case that used to
@@ -749,16 +780,16 @@ describe('load user module', () => {
         );
         await writeFile(join(pkg, 'index.js'), "export default 'user-js';\n");
 
-        const resolved = await loader.resolveUserModule(
+        const result = await loader.resolveUserModule(
           'user-js-rules',
           userProject,
         );
 
-        if (resolved === undefined) {
+        if (!result.ok) {
           throw new Error('Expected "user-js-rules" to resolve.');
         }
 
-        await loader.loadUserModule(resolved);
+        await loader.loadUserModule(result.path);
       } finally {
         await rm(userProject, { recursive: true, force: true });
       }
@@ -770,16 +801,16 @@ describe('load user module', () => {
       const loader = await import('../src/load-user-module.js');
 
       for (const fileName of ['plain.ts', 'plain.mts']) {
-        const resolved = await loader.resolveUserModule(
+        const result = await loader.resolveUserModule(
           join(fixtures, fileName),
           fixtures,
         );
 
-        if (resolved === undefined) {
+        if (!result.ok) {
           throw new Error(`Expected "${fileName}" to resolve.`);
         }
 
-        await loader.loadUserModule(resolved);
+        await loader.loadUserModule(result.path);
       }
 
       expect(jitiFactoryCalls).toBe(1);
@@ -804,25 +835,25 @@ describe('load user module', () => {
       // "simulated broken jiti install" surfacing from a *resolution* attempt would replace it.
       await expect(
         broken.resolveUserModule(join(fixtures, 'helper'), fixtures),
-      ).resolves.toBeUndefined();
+      ).resolves.toEqual({ ok: false });
 
-      // Still undefined, not a cached rejection escaping as a throw.
+      // Still a plain decline, not a cached rejection escaping as a throw.
       await expect(
         broken.resolveUserModule(join(fixtures, 'helper'), fixtures),
-      ).resolves.toBeUndefined();
+      ).resolves.toEqual({ ok: false });
 
       // A rejected first import must not be memoised: once jiti works, resolution works.
       vi.doUnmock('jiti');
       vi.resetModules();
 
       const repaired = await import('../src/load-user-module.js');
-      const resolved = await repaired.resolveUserModule(
+      const result = await repaired.resolveUserModule(
         join(fixtures, 'helper'),
         fixtures,
       );
 
-      expect(resolved).toBeDefined();
-      expect(basename(String(resolved))).toBe('helper.ts');
+      expect(result.ok).toBe(true);
+      expect(basename(result.ok ? result.path : '')).toBe('helper.ts');
     });
 
     it.each([
@@ -848,7 +879,7 @@ describe('load user module', () => {
         // shortest route into the jiti fallback where these three guards live.
         await expect(
           loader.resolveUserModule(join(fixtures, 'helper'), fixtures),
-        ).resolves.toBeUndefined();
+        ).resolves.toEqual({ ok: false });
       },
     );
   });

@@ -5,8 +5,12 @@
  * 1. **Resolve first, load second.** The two steps are separate and separately inspectable:
  *    callers need the resolved path in its own right (`loadRuleSet` uses it as a glob base) and
  *    they need resolution failure to stay distinguishable from load failure, so each keeps its
- *    own user-facing error message. `resolveUserModule` therefore never throws — it answers
- *    `undefined` and lets the caller phrase the error.
+ *    own user-facing error message. `resolveUserModule` therefore never throws — it answers a
+ *    {@link ResolveUserModuleResult} and lets the caller phrase the error. That result is a
+ *    DISCRIMINATED UNION rather than `string | undefined` because "does not exist" and "exists
+ *    but is not loadable" need different sentences: the seam is the only place that knows which
+ *    it is, and every call site would otherwise re-derive it from the specifier it already
+ *    failed to resolve.
  * 2. **Dispatch on the *resolved* extension, before any import.** TypeScript goes through jiti,
  *    everything else through a plain dynamic `import()`.
  * 3. **Never import-then-retry, and never evaluate twice.** A module's top-level side effects
@@ -22,9 +26,10 @@
  *   to a module with only named exports (`interopDefault: false` does not separate them either).
  *   Synthesising a default would let a named-only module masquerade as a rule, so this seam
  *   reports it as "no default export" rather than guessing. Tracked as epic follow-up work.
- * - **Only JavaScript and TypeScript are loadable**, enforced as an allow-list at resolution so
- *   the caller phrases the error. See {@link LOADABLE_EXTENSION} for why each excluded extension
- *   is excluded — including `.node`, which is not importable on the `engines.node` floor at all.
+ * - **Only JavaScript and TypeScript are loadable**, enforced as an allow-list at resolution,
+ *   which hands the caller a `reason` to phrase the error with. See {@link LOADABLE_EXTENSION}
+ *   for why each excluded extension is excluded — including `.node`, which is not importable on
+ *   the `engines.node` floor at all.
  * - **tsconfig `paths` aliases are not honoured in a user TypeScript module.** jiti is given no
  *   `alias` option and does not read the user's `tsconfig.json`, so a rule importing `@lib/x.js`
  *   under `paths: { "@lib/*": [...] }` resolves and then fails at load with a raw
@@ -192,8 +197,10 @@ const DECLARATION_FILE = /\.d\.[cm]?ts$/i;
 /**
  * Why a resolved path can never be loaded, or `undefined` when it can.
  *
- * Shared by both halves of the seam so they cannot drift: `resolveUserModule` turns a reason into
- * `undefined`, and `loadUserModule` turns it into a framed error. Without the second check a path
+ * Shared by both halves of the seam so they cannot drift: `resolveUserModule` passes a reason out
+ * as {@link ResolveUserModuleResult.reason}, and `loadUserModule` turns it into a framed error.
+ * One sentence, one source — the two halves can never disagree about WHY a path is unloadable.
+ * Without the second check a path
  * obtained some other way — a `loadRuleSet` glob, a config `path` — bypasses the guard entirely,
  * and a `.d.ts` then imports as an EMPTY module, so the caller reports "does not use default
  * export": the exact confusion the guard exists to prevent.
@@ -299,6 +306,56 @@ async function resolveThroughJiti(
   return existsSync(resolvedPath) ? resolvedPath : undefined;
 }
 
+/**
+ * Runs an absolute filesystem location through all three resolvers, in the one order that holds
+ * for a path: Node, then the extensions Node does not guess ({@link resolveThroughGuessing}),
+ * then jiti for the ones neither knows — `.ts` and NodeNext `.js`→`.ts`.
+ *
+ * Shared by the relative branch and the bare `<cwd>/<specifier>` fallback so the two cannot
+ * drift. They had: the fallback stopped after the guessing step and gated the whole block on
+ * `existsSync(<cwd>/<specifier>)`, so `rules: ['my-rule']` against a `<cwd>/my-rule.ts` resolved
+ * to nothing — the gate tested the EXTENSIONLESS spelling, which does not exist, and the jiti step
+ * it then fell through to was handed the BARE name, which searches `node_modules` only. The very
+ * same file resolved fine spelled `./my-rule`. Extensionless local TypeScript is the headline case
+ * for this seam, and it is the shape `rule-loader` accepts today, so both branches now run this.
+ *
+ * No existence gate: every resolver here is already existence-checked internally
+ * (`require.resolve` throws, {@link resolveThroughGuessing} calls `isFile`, and
+ * {@link resolveThroughJiti} ends on `existsSync`), so the gate only ever removed reachable
+ * answers.
+ */
+async function resolveLocation(
+  location: string,
+  cwd: string,
+): Promise<string | undefined> {
+  return (
+    resolveThroughRequire(location, cwd) ??
+    resolveThroughGuessing(location) ??
+    (await resolveThroughJiti(location, cwd))
+  );
+}
+
+/**
+ * The outcome of a resolution attempt.
+ *
+ * A discriminated union rather than `string | undefined` because the two failure modes are not
+ * interchangeable to a user: "there is no such file" and "the file is right there but Thymian
+ * cannot load it" want different sentences, and only this seam knows which one applies. Returning
+ * `undefined` for both meant the precise sentence {@link unloadableReason} had just produced was
+ * discarded one line later, and a `rules: ['./rules.yaml']` was reported as unresolvable.
+ *
+ * `reason` is optional, not `string | null`, because most failures genuinely have nothing to add
+ * beyond "not found" — a caller writes `result.reason ?? <its own default>` and is done. Callers
+ * own the *sentence*; this seam owns the *fact*, which is the same split the contract's item 1
+ * describes.
+ */
+export type ResolveUserModuleResult =
+  | { readonly ok: true; readonly path: string }
+  | { readonly ok: false; readonly reason?: string };
+
+/** Not resolvable, with no more to say about it than that. */
+const NOT_RESOLVED: ResolveUserModuleResult = { ok: false };
+
 export interface ResolveUserModuleOptions {
   /**
    * Fall back to `<cwd>/<specifier>` when nothing is installed under that name. Default `true`.
@@ -311,8 +368,9 @@ export interface ResolveUserModuleOptions {
 }
 
 /**
- * Resolves a user-supplied module specifier to an absolute filesystem path, or `undefined` when
- * the specifier does not name a loadable user module. Never throws.
+ * Resolves a user-supplied module specifier. Never throws — every failure comes back as
+ * `{ ok: false }`, carrying a `reason` when the seam knows something the caller could not work
+ * out for itself. On success, `path` is an absolute filesystem path, never a `file://` URL.
  *
  * Resolution order stops at the first hit: `require.resolve`, then a `.mjs`/`.cjs` extension
  * guess ({@link resolveThroughGuessing}), then jiti's `esmResolve` — with the `<cwd>/<specifier>`
@@ -325,12 +383,13 @@ export interface ResolveUserModuleOptions {
  *   and whose `node_modules` ancestor chain is searched for **bare** specifiers before core's own
  *   (see {@link resolveThroughRequire}).
  * @param options See {@link ResolveUserModuleOptions}.
+ * @returns See {@link ResolveUserModuleResult}.
  */
 export async function resolveUserModule(
   specifier: string,
   cwd: string = process.cwd(),
   options: ResolveUserModuleOptions = {},
-): Promise<string | undefined> {
+): Promise<ResolveUserModuleResult> {
   const { preferCwdRelative = true } = options;
 
   let resolved: string | undefined;
@@ -342,18 +401,17 @@ export async function resolveUserModule(
     // (`./index.js` resolves core's barrel), so anchor it here instead of delegating.
     // Unconditional: `preferCwdRelative` governs bare names, and a relative specifier is
     // unambiguously a path.
-    const location = path.resolve(cwd, specifier);
-
-    resolved =
-      resolveThroughRequire(location, cwd) ??
-      resolveThroughGuessing(location) ??
-      (await resolveThroughJiti(location, cwd));
+    resolved = await resolveLocation(path.resolve(cwd, specifier), cwd);
   } else {
-    // Installed packages FIRST. Preferring `<cwd>/<specifier>` up front is what let a same-named
-    // file or directory shadow — and silently execute in place of — an installed package.
+    // Installed packages FIRST — through all three resolvers, not just the first two. jiti is
+    // what resolves an installed package whose entry point is TypeScript, which `require.resolve`
+    // cannot; running it here rather than after the cwd fallback is what keeps the documented
+    // order honest. Preferring `<cwd>/<specifier>` up front is what let a same-named local file
+    // or directory shadow — and silently execute in place of — an installed package.
     resolved =
       resolveThroughRequire(specifier, cwd) ??
-      resolveThroughGuessing(specifier);
+      resolveThroughGuessing(specifier) ??
+      (await resolveThroughJiti(specifier, cwd));
 
     if (
       resolved === undefined &&
@@ -364,27 +422,19 @@ export async function resolveUserModule(
       // the user meant. Resolving the absolute path (rather than using it verbatim) keeps a
       // directory holding `index.js` or a `package.json` `main` working, which is the shape
       // today's `rule-loader` accepts for `rules: ['my-rules']`.
-      const fileLocation = path.resolve(cwd, specifier);
-
-      if (existsSync(fileLocation)) {
-        resolved =
-          resolveThroughRequire(fileLocation, cwd) ??
-          resolveThroughGuessing(fileLocation);
-      }
+      resolved = await resolveLocation(path.resolve(cwd, specifier), cwd);
     }
-
-    resolved ??= await resolveThroughJiti(specifier, cwd);
   }
 
   if (resolved === undefined) {
-    return undefined;
+    return NOT_RESOLVED;
   }
 
   if (!path.isAbsolute(resolved)) {
     // `require.resolve` answers a builtin specifier with the bare id (`fs`, `node:fs`). That is
     // not a loadable user module, and passing it on would turn into a nonsense
     // `file://<cwd>/node:fs` import rather than the caller's "cannot resolve" message.
-    return undefined;
+    return NOT_RESOLVED;
   }
 
   let normalised: string;
@@ -395,14 +445,20 @@ export async function resolveUserModule(
     // branch. Symlinks are unaffected: both resolvers already return realpaths.
     normalised = realpathSync.native(resolved);
   } catch {
-    return undefined;
+    return NOT_RESOLVED;
   }
 
-  if (unloadableReason(normalised) !== undefined) {
-    return undefined;
+  const reason = unloadableReason(normalised);
+
+  if (reason !== undefined) {
+    // The one failure the caller cannot work out for itself: the path EXISTS and resolved
+    // cleanly, and is refused only because of what it is. Reported as `{ ok: false }` with no
+    // reason, this became "cannot resolve <path>" — telling the user a file they are looking at
+    // cannot be found.
+    return { ok: false, reason };
   }
 
-  return normalised;
+  return { ok: true, path: normalised };
 }
 
 /**
