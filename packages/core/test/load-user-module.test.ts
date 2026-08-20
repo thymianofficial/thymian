@@ -281,6 +281,106 @@ describe('load user module', () => {
       },
     );
 
+    describe('extensionless .mjs and .cjs', () => {
+      // Narrowing jiti's `extensions` to TypeScript also narrows what it GUESSES with: jiti
+      // derives `additionalExts` from `extensions` by dropping only `.js`, so `.mjs` and `.cjs`
+      // leave the guessing list along with the registry. Node's CJS resolver inside
+      // `require.resolve` never tried them either (`.js`, `.json`, `.node` only), which left a
+      // hole between the two resolvers — measured against jiti 2.6.1: extensionless `./a` with
+      // `a.mjs` on disk resolved with the default list and returned `undefined` with the narrowed
+      // one. `resolveThroughGuessing` fills it, and these pin both the hole and its ordering.
+      let cwd: string;
+
+      beforeAll(async () => {
+        cwd = await mkdtemp(join(tmpdir(), 'thymian-guess-'));
+
+        await writeFile(join(cwd, 'only-mjs.mjs'), 'export default "mjs";\n');
+        await writeFile(join(cwd, 'only-cjs.cjs'), 'module.exports = "cjs";\n');
+
+        // Precedence fixtures: each basename exists in two spellings at once.
+        await writeFile(join(cwd, 'js-and-mjs.js'), 'export default "js";\n');
+        await writeFile(join(cwd, 'js-and-mjs.mjs'), 'export default "mjs";\n');
+        await writeFile(join(cwd, 'mjs-and-ts.mjs'), 'export default "mjs";\n');
+        await writeFile(join(cwd, 'mjs-and-ts.ts'), 'export default "ts";\n');
+        await writeFile(
+          join(cwd, 'mjs-and-cjs.mjs'),
+          'export default "mjs";\n',
+        );
+        await writeFile(
+          join(cwd, 'mjs-and-cjs.cjs'),
+          'module.exports = "cjs";\n',
+        );
+
+        await mkdir(join(cwd, 'dir-mjs'));
+        await writeFile(
+          join(cwd, 'dir-mjs', 'index.mjs'),
+          'export default "mjs";\n',
+        );
+        await mkdir(join(cwd, 'dir-cjs'));
+        await writeFile(
+          join(cwd, 'dir-cjs', 'index.cjs'),
+          'module.exports = "cjs";\n',
+        );
+      });
+
+      afterAll(async () => {
+        await rm(cwd, { recursive: true, force: true });
+      });
+
+      it.each([
+        ['./only-mjs', 'only-mjs.mjs'],
+        ['./only-cjs', 'only-cjs.cjs'],
+      ])('resolves the extensionless %s to %s', async (specifier, expected) => {
+        const resolved = await resolveOrFail(specifier, cwd);
+
+        expect(basename(resolved)).toBe(expected);
+      });
+
+      it('resolves an absolute extensionless specifier too, which takes the other branch', async () => {
+        // Absolute specifiers are not RELATIVE_SPECIFIER matches, so they travel the bare-name
+        // path — the same path every `join(fixtures, …)` test in this file uses.
+        const resolved = await resolveOrFail(join(cwd, 'only-mjs'), cwd);
+
+        expect(basename(resolved)).toBe('only-mjs.mjs');
+      });
+
+      it.each([
+        ['./dir-mjs', 'index.mjs'],
+        ['./dir-cjs', 'index.cjs'],
+      ])(
+        'resolves %s, a directory carrying only %s',
+        async (specifier, expected) => {
+          const resolved = await resolveOrFail(specifier, cwd);
+
+          expect(basename(resolved)).toBe(expected);
+        },
+      );
+
+      it('loads what it guessed, so resolution and dispatch agree', async () => {
+        const module = await loadUserModule(
+          await resolveOrFail('./only-mjs', cwd),
+        );
+
+        expect(module.default).toBe('mjs');
+      });
+
+      it.each([
+        // Guessing runs AFTER `require.resolve`, so a sibling `.js` still wins…
+        ['a sibling .js over .mjs', './js-and-mjs', 'js-and-mjs.js'],
+        // …and BEFORE the jiti fallback, so `.mjs` still wins over a sibling `.ts`…
+        ['.mjs over a sibling .ts', './mjs-and-ts', 'mjs-and-ts.mjs'],
+        // …and within the guess itself, `.mjs` precedes `.cjs`.
+        ['.mjs over a sibling .cjs', './mjs-and-cjs', 'mjs-and-cjs.mjs'],
+      ])(
+        'prefers %s, reproducing unnarrowed jiti order',
+        async (_label, specifier, expected) => {
+          const resolved = await resolveOrFail(specifier, cwd);
+
+          expect(basename(resolved)).toBe(expected);
+        },
+      );
+    });
+
     it('declines every extension outside the JavaScript/TypeScript allow-list', async () => {
       // `require.resolve` answers with any existing absolute file regardless of extension, so a
       // deny-list left all of these resolving and then dying in the native importer with a raw

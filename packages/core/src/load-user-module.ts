@@ -42,7 +42,7 @@
  */
 
 import { AsyncLocalStorage } from 'node:async_hooks';
-import { existsSync, realpathSync } from 'node:fs';
+import { existsSync, realpathSync, statSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import * as path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
@@ -96,6 +96,61 @@ function resolveThroughRequire(
       return anchor.resolve(location);
     } catch {
       // Not resolvable from this anchor — fall through to the next, then to jiti.
+    }
+  }
+
+  return undefined;
+}
+
+function isFile(candidate: string): boolean {
+  try {
+    return statSync(candidate).isFile();
+  } catch {
+    // Missing, or a path whose parent is not a directory — either way, not a module.
+    return false;
+  }
+}
+
+/**
+ * The extensions this seam has to guess for itself, in the order unnarrowed jiti guessed them.
+ *
+ * Narrowing jiti's `extensions` (see {@link getJiti}) narrows what it *guesses* with too, and
+ * Node's CJS resolver inside `require.resolve` only ever tried `.js`, `.json` and `.node` — so
+ * without this step an extensionless `./my-rule` no longer finds a `my-rule.mjs` on disk.
+ */
+const GUESSED_EXTENSION = ['.mjs', '.cjs'];
+
+/**
+ * Completes extensionless resolution for the two extensions that fall between the resolvers.
+ *
+ * Ordering is what keeps this a gap-filler rather than a preference: {@link resolveThroughRequire}
+ * runs BEFORE it, so a sibling `.js` still wins, and {@link resolveThroughJiti} runs AFTER it, so
+ * `.mjs`/`.cjs` still win over a sibling `.ts`. That reproduces jiti's own default order
+ * (`.js`, `.mjs`, `.cjs`, `.ts`, …) exactly, which is the point — the narrowing is meant to change
+ * which registry a module lands in, not which file a specifier names.
+ *
+ * Only absolute locations, because guessing is a filesystem question: a bare specifier is a
+ * package name until the caller has turned it into a path.
+ */
+function resolveThroughGuessing(location: string): string | undefined {
+  if (!path.isAbsolute(location)) {
+    return undefined;
+  }
+
+  for (const extension of GUESSED_EXTENSION) {
+    const candidate = `${location}${extension}`;
+
+    if (isFile(candidate)) {
+      return candidate;
+    }
+  }
+
+  // Then the directory forms, the same file-before-directory order Node applies to `.js`.
+  for (const extension of GUESSED_EXTENSION) {
+    const candidate = path.join(location, `index${extension}`);
+
+    if (isFile(candidate)) {
+      return candidate;
     }
   }
 
@@ -180,9 +235,16 @@ function getJiti(): Promise<Jiti> {
       // of registering it itself. With the default list, a `.js` module imported by both a
       // natively-loaded JS rule and a jiti-loaded TS rule lands in two registries and evaluates
       // TWICE, handing the two rules non-identical objects — measured, and the thing contract
-      // item 3 forbids. Narrowing unifies them: one evaluation, `===` identical. Resolution is
-      // unaffected (the list governs extension *guessing*, and every case here was measured
-      // identical), because explicit paths and `.js`→`.ts` NodeNext mapping still work.
+      // item 3 forbids. Narrowing unifies them: one evaluation, `===` identical.
+      //
+      // It is NOT resolution-neutral, though. jiti derives its guessing list (`additionalExts`)
+      // from `extensions` by dropping only `.js`, so narrowing takes `.mjs`, `.cjs` and the JSX
+      // family out of extension GUESSING as well as out of the registry — measured on 2.6.1:
+      // an extensionless `./my-rule` against a `my-rule.mjs` went from resolved to `undefined`.
+      // The JSX family is declined by {@link LOADABLE_EXTENSION} either way, and `.mjs`/`.cjs`
+      // are guessed back by {@link resolveThroughGuessing}, so the narrowing costs the registry
+      // its `.js` entry and costs resolution nothing. Explicit paths and `.js`→`.ts` NodeNext
+      // mapping are unaffected.
       createJiti(import.meta.url, {
         extensions: ['.ts', '.mts', '.cts'],
       }),
@@ -252,10 +314,11 @@ export interface ResolveUserModuleOptions {
  * Resolves a user-supplied module specifier to an absolute filesystem path, or `undefined` when
  * the specifier does not name a loadable user module. Never throws.
  *
- * Resolution order stops at the first hit: `existsSync` on `<cwd>/<specifier>`, then
- * `require.resolve`, then jiti's `esmResolve`. `require.resolve` already handles TypeScript with
- * an explicit extension, so the jiti fallback is reached for *resolution* only by extensionless
- * and NodeNext `.js`→`.ts` specifiers.
+ * Resolution order stops at the first hit: `require.resolve`, then a `.mjs`/`.cjs` extension
+ * guess ({@link resolveThroughGuessing}), then jiti's `esmResolve` — with the `<cwd>/<specifier>`
+ * fallback for bare names slotted in before that last step. `require.resolve` already handles
+ * TypeScript with an explicit extension, so the jiti fallback is reached for *resolution* only by
+ * extensionless and NodeNext `.js`→`.ts` specifiers.
  *
  * @param specifier The user's rule, rule-set or plugin specifier.
  * @param cwd Directory that path-like specifiers resolve against, that anchors the jiti fallback,
@@ -283,11 +346,14 @@ export async function resolveUserModule(
 
     resolved =
       resolveThroughRequire(location, cwd) ??
+      resolveThroughGuessing(location) ??
       (await resolveThroughJiti(location, cwd));
   } else {
     // Installed packages FIRST. Preferring `<cwd>/<specifier>` up front is what let a same-named
     // file or directory shadow — and silently execute in place of — an installed package.
-    resolved = resolveThroughRequire(specifier, cwd);
+    resolved =
+      resolveThroughRequire(specifier, cwd) ??
+      resolveThroughGuessing(specifier);
 
     if (
       resolved === undefined &&
@@ -301,7 +367,9 @@ export async function resolveUserModule(
       const fileLocation = path.resolve(cwd, specifier);
 
       if (existsSync(fileLocation)) {
-        resolved = resolveThroughRequire(fileLocation, cwd);
+        resolved =
+          resolveThroughRequire(fileLocation, cwd) ??
+          resolveThroughGuessing(fileLocation);
       }
     }
 
