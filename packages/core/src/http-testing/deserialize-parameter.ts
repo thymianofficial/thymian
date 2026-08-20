@@ -597,12 +597,19 @@ export function deserializeQueryParameter(
   serializationStyle: SerializationStyle = QUERY_DEFAULT_STYLE,
 ): DeserializeResult {
   const { style, explode } = serializationStyle ?? QUERY_DEFAULT_STYLE;
+  const raw = items.length === 1 ? (items[0] as string) : items;
 
   if (style !== 'form') {
-    return unsupported(serializationStyle);
-  }
+    // A style describes how a structured value was flattened onto the wire.
+    // A scalar has no structure to restore, so an unsupported style costs
+    // nothing: the wire value already IS the value, and skipping validation
+    // would silently drop `maxLength`/`pattern`/`enum` checks that used to run.
+    if (isStructural(schema)) {
+      return unsupported(serializationStyle);
+    }
 
-  const raw = items.length === 1 ? (items[0] as string) : items;
+    return deserializeItems(items, raw, schema, explode);
+  }
 
   return deserializeItems(items, raw, schema, explode);
 }
@@ -653,7 +660,18 @@ function deserializeSimple(
   const serializationStyle = style ?? SIMPLE_DEFAULT_STYLE;
 
   if (serializationStyle.style !== 'simple') {
-    return unsupported(serializationStyle);
+    // See deserializeQueryParameter: only a structured value loses meaning
+    // under a style we cannot reverse.
+    if (isStructural(schema)) {
+      return unsupported(serializationStyle);
+    }
+
+    return deserializeItems(
+      Array.isArray(raw) ? raw : [raw],
+      raw,
+      schema,
+      serializationStyle.explode,
+    );
   }
 
   const structural = isStructural(schema);

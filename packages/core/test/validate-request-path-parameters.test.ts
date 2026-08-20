@@ -332,12 +332,15 @@ describe('validateRequestPathParameters — typed wire values (gh-624)', () => {
   });
 
   it('reports an unsupported path style as info, never as a failure', () => {
+    // An array cannot be reconstructed from a `matrix` wire form; a scalar
+    // needs no reconstruction and keeps its validation (see the deserializer
+    // suite), so the unsupported path is only reachable for structured values.
     const request = createRequest({
       path: '/users/{userId}',
       pathParameters: {
         userId: {
           required: true,
-          schema: { type: 'integer' } as never,
+          schema: { type: 'array', items: { type: 'integer' } } as never,
           style: { style: 'matrix', explode: false },
         },
       },

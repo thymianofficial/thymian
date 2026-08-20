@@ -271,12 +271,20 @@ describe('deserializePathParameter', () => {
     ).toEqual({ role: 'admin', level: 3 });
   });
 
-  it.each(['label', 'matrix'] as const)('reports %s as unsupported', (name) => {
-    expect(
-      deserializePathParameter('42', { type: 'integer' }, style(name, false))
-        .supported,
-    ).toBe(false);
-  });
+  it.each(['label', 'matrix'] as const)(
+    'reports %s as unsupported for a structured value',
+    (name) => {
+      // Scalars under an unsupported style keep their validation; only a
+      // structured value genuinely cannot be reconstructed.
+      expect(
+        deserializePathParameter(
+          '3,4,5',
+          { type: 'array', items: { type: 'integer' } },
+          style(name, false),
+        ).supported,
+      ).toBe(false);
+    },
+  );
 });
 
 describe('deserializeHeaderParameter', () => {
@@ -710,5 +718,73 @@ describe('RFC 9110 list folding (review round 2)', () => {
         ),
       ),
     ).toEqual([1, 2, 3]);
+  });
+});
+
+describe('unsupported styles only forfeit STRUCTURED values', () => {
+  // A style describes how a structured value was flattened onto the wire.
+  // A scalar has no structure to restore, so an unsupported style must not
+  // cost it the schema checks that never depended on the style.
+  it.each(['label', 'matrix'] as const)(
+    'still validates a string-typed path parameter under %s',
+    (name) => {
+      const result = deserializePathParameter(
+        'abcdef',
+        { type: 'string', maxLength: 3 },
+        style(name, false),
+      );
+
+      expect(result.supported).toBe(true);
+      expect(value(result)).toBe('abcdef');
+    },
+  );
+
+  it.each(['spaceDelimited', 'pipeDelimited'] as const)(
+    'still validates an integer-typed query parameter under %s',
+    (name) => {
+      const result = deserializeQueryParameter(
+        ['2026'],
+        { type: 'integer' },
+        style(name, true),
+      );
+
+      expect(result.supported).toBe(true);
+      expect(value(result)).toBe(2026);
+    },
+  );
+
+  it('still reports an unsupported style for an ARRAY-typed parameter', () => {
+    expect(
+      deserializeQueryParameter(
+        ['1|2'],
+        { type: 'array', items: { type: 'integer' } },
+        style('pipeDelimited', true),
+      ).supported,
+    ).toBe(false);
+  });
+
+  it('still reports an unsupported style for an OBJECT-typed parameter', () => {
+    expect(
+      deserializePathParameter(
+        '.role.admin',
+        { type: 'object', properties: { role: { type: 'string' } } },
+        style('label', true),
+      ).supported,
+    ).toBe(false);
+  });
+
+  it('resolves the schema through $ref before deciding', () => {
+    // The structural test must resolve too, or a $ref'd array silently
+    // takes the scalar path.
+    expect(
+      deserializeQueryParameter(
+        ['1|2'],
+        {
+          $ref: '#/$defs/Ids',
+          $defs: { Ids: { type: 'array', items: { type: 'integer' } } },
+        },
+        style('pipeDelimited', true),
+      ).supported,
+    ).toBe(false);
   });
 });
