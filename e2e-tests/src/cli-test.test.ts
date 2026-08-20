@@ -1,4 +1,4 @@
-import { readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 
 import fastify, { type FastifyInstance } from 'fastify';
@@ -6,7 +6,6 @@ import { describe, expect, it } from 'vitest';
 
 import {
   copyFixturesToTempDir,
-  execThymian,
   execThymianRaw,
   execThymianRawAsync,
   fixturesDir,
@@ -15,8 +14,11 @@ import {
 import { getAvailablePort } from './port-utils.js';
 
 /**
- * Helper: copy a fixture to temp dir, run `sampler init`, and start a test server.
+ * Helper: copy a fixture to temp dir and start a test server.
  * Returns the server and its port so tests can use `--target-url`.
+ *
+ * No `sampler init`: samples are generated in memory from the loaded specification,
+ * so `thymian test` needs nothing on disk.
  */
 async function setupTestEnvironment(
   fixtureName: string,
@@ -24,9 +26,6 @@ async function setupTestEnvironment(
   handler: (server: FastifyInstance) => void = addDefaultHelloHandler,
 ) {
   copyFixturesToTempDir(join(fixturesDir, fixtureName), tempDir);
-
-  // Generate samples so the sampler plugin can produce request templates
-  execThymian(['sampler', 'init'], { cwd: tempDir });
 
   const port = await getAvailablePort();
   const server = fastify();
@@ -65,6 +64,83 @@ describe('thymian test', () => {
       expect(result.stdout).toMatch(
         /Summary: 0 errors, 0 warnings, 0 hints, \d+ infos?\./,
       );
+
+      // Samples are virtual: the run needed no `sampler init` and the sampler
+      // materialized nothing. `.thymian/` exists only because this fixture asks
+      // plugin-reporter for a markdown report (`.thymian/reports/report.md`).
+      expect(existsSync(join(getTempDir(), '.thymian', 'samples'))).toBe(false);
+      expect(readdirSync(join(getTempDir(), '.thymian'))).toEqual(['reports']);
+    } finally {
+      await server.close();
+    }
+  }, 180_000);
+
+  it('should leave no .thymian directory behind when nothing writes files', async () => {
+    // Counted at the server, across every route, so the case can prove AC2's
+    // "produces requests" half directly rather than inferring it from the report.
+    let requestCount = 0;
+
+    const { server, targetUrl } = await setupTestEnvironment(
+      'dynamic-test',
+      getTempDir(),
+      (instance) => {
+        instance.addHook('onRequest', async () => {
+          requestCount += 1;
+        });
+
+        addDefaultHelloHandler(instance);
+      },
+    );
+
+    try {
+      // Drop plugin-reporter's markdown formatter — writing `.thymian/reports/report.md`
+      // is the only reason this workspace would grow a `.thymian/` directory at all.
+      // What is left is a workspace containing nothing but a spec and a config.
+      const configPath = join(getTempDir(), 'thymian.config.yaml');
+      const config = readFileSync(configPath, 'utf-8');
+
+      expect(config).toContain("'@thymian/plugin-reporter'");
+
+      // Remove exactly the reporter's block — its key line plus the indented
+      // continuation lines under it. Slicing the file at the key's offset would
+      // truncate to EOF, which is only correct while the reporter happens to be
+      // the last key in the fixture: any key appended after it would be silently
+      // dropped and this case would keep passing against a degraded run.
+      const stripped = config.replace(
+        /^ {2}'@thymian\/plugin-reporter':(?:\n(?: {3,}.*)?)*\n?/m,
+        '',
+      );
+
+      expect(stripped).not.toContain('@thymian/plugin-reporter');
+      expect(stripped).toContain("'@thymian/plugin-sampler'");
+      expect(stripped).toContain("'@thymian/plugin-http-tester'");
+
+      writeFileSync(configPath, stripped);
+
+      const result = await execThymianRawAsync(
+        ['test', '--target-url', targetUrl],
+        { cwd: getTempDir() },
+      );
+
+      // Gate "successful" exactly as the happy path above does. `exitCode === 0`
+      // plus a bare `Summary:` also holds for a run that produced no test cases at
+      // all. Both strings below come from `common-cli`'s report renderer, not from
+      // the reporter that was just stripped, so they cost nothing here.
+      expect(result.exitCode).toBe(0);
+      expect(result.stdout).toContain('@thymian/plugin-http-tester');
+      expect(result.stdout).toMatch(
+        /Summary: 0 errors, 0 warnings, 0 hints, \d+ infos?\./,
+      );
+
+      // A clean run reports no findings of any severity, so every counter in that
+      // summary is 0 and the line cannot by itself separate "ran the tests" from
+      // "had nothing to run". The request counter can, and it is the half of AC2
+      // this case exists to demonstrate: requests were produced from the spec
+      // alone, with no `sampler init` and nothing on disk.
+      expect(requestCount).toBeGreaterThan(0);
+
+      // No `sampler init`, no samples on disk, nothing written.
+      expect(existsSync(join(getTempDir(), '.thymian'))).toBe(false);
     } finally {
       await server.close();
     }
@@ -162,7 +238,6 @@ describe('thymian test', () => {
 
   it('should exit 2 when server is unreachable (tool error)', async () => {
     copyFixturesToTempDir(join(fixturesDir, 'dynamic-test'), getTempDir());
-    execThymian(['sampler', 'init'], { cwd: getTempDir() });
 
     // Use a port that has nothing listening — no server in this test, so
     // spawnSync is fine (no event-loop contention).
@@ -357,7 +432,6 @@ describe('thymian test', () => {
 
     try {
       copyFixturesToTempDir(join(fixturesDir, 'dynamic-test'), getTempDir());
-      execThymian(['sampler', 'init'], { cwd: getTempDir() });
 
       // Write config with targetUrl baked in
       const configPath = join(getTempDir(), 'thymian.config.yaml');
