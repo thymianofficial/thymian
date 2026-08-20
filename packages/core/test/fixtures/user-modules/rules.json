@@ -1,0 +1,4 @@
+{
+  "name": "json-rule-set",
+  "note": "Fixture: resolvable without any user typo, because .json is in jiti's default extension list. Must be declined at resolution rather than reaching a native import that demands an import attribute."
+}

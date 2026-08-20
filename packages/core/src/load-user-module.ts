@@ -21,9 +21,13 @@
  *   to a module with only named exports (`interopDefault: false` does not separate them either).
  *   Synthesising a default would let a named-only module masquerade as a rule, so this seam
  *   reports it as "no default export" rather than guessing. Tracked as epic follow-up work.
- * - **`.tsx`/`.mtsx`/`.ctsx` are declined at resolution.** jiti's `jsx` option is off by default,
- *   so dispatching them to jiti yields a bare `ParseError` with no file or line. Declining lets
- *   the caller say "cannot resolve", which is the more useful message.
+ * - **JSX and `.json` are declined at resolution.** Neither dispatch branch can load them: jiti's
+ *   `jsx` option is off by default (a `.tsx` yields a bare `ParseError` with no file or line) and
+ *   Node rejects `.jsx` outright, while `.json` needs an `import ... with { type: 'json' }`
+ *   attribute this seam deliberately does not pass — nothing in Thymian consumes a JSON rule set.
+ *   Declining lets the caller say "cannot resolve", which is the more useful message.
+ *   `.node` and `.wasm` are deliberately NOT declined: Node genuinely imports both, so a valid
+ *   addon or wasm module loads through the native branch (verified).
  * - **A *bare* specifier that resolves only from the user's project still instantiates jiti**,
  *   even when it is plain JavaScript. `require` is anchored to core's install directory, so a
  *   package present only in the user's `node_modules` misses it and reaches the jiti fallback
@@ -48,10 +52,14 @@ const require = createRequire(import.meta.url);
 const TYPESCRIPT_EXTENSION = /\.[cm]?ts$/;
 
 /**
- * Extensions the dispatch has no working branch for. Declined at resolution so the caller phrases
- * the error, rather than surfacing a jiti `ParseError` or a Node `ERR_UNKNOWN_FILE_EXTENSION`.
+ * Extensions no dispatch branch can load, declined at resolution so the caller phrases the error
+ * rather than surfacing a raw `ParseError`, `ERR_UNKNOWN_FILE_EXTENSION` or
+ * `ERR_IMPORT_ATTRIBUTE_MISSING`. Covers the JSX family (`.jsx`/`.tsx` and their `.m`/`.c`
+ * variants) and `.json` — the latter resolves without any user typo, since `.json` is in jiti's
+ * default extension list. `.node` and `.wasm` are absent on purpose: Node imports both, so a
+ * valid addon or wasm module must keep working.
  */
-const UNSUPPORTED_EXTENSION = /\.[cm]?tsx$/i;
+const UNSUPPORTED_EXTENSION = /\.(?:[cm]?[jt]sx|json)$/i;
 
 /**
  * Declaration files are never loadable. Case-insensitive: on Windows and default macOS volumes a

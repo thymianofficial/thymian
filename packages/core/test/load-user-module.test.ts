@@ -155,6 +155,44 @@ describe('load user module', () => {
       ).resolves.toBeUndefined();
     });
 
+    it.each([
+      ['a .jsx specifier', 'component.jsx'],
+      ['a .json specifier', 'rules.json'],
+    ])(
+      'declines %s, which no dispatch branch can load',
+      async (_label, fileName) => {
+        await expect(
+          resolveUserModule(join(fixtures, fileName), fixtures),
+        ).resolves.toBeUndefined();
+      },
+    );
+
+    it('does not decline extensions Node genuinely imports', async () => {
+      // `.node` and `.wasm` are deliberately NOT in UNSUPPORTED_EXTENSION — Node imports both,
+      // so declining them would break a working case. Only resolution is asserted here: the
+      // load is Node's business, and Vitest's module runner refuses to `import()` wasm at all
+      // ("ESM integration proposal for Wasm is not supported"). Loading a minimal valid wasm
+      // module through `loadUserModule` was verified out-of-band under plain Node.
+      const nativeExtCwd = await mkdtemp(join(tmpdir(), 'thymian-native-ext-'));
+
+      try {
+        // Magic + version: a complete wasm module that exports nothing.
+        await writeFile(
+          join(nativeExtCwd, 'mod.wasm'),
+          Buffer.from([0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00]),
+        );
+        await writeFile(join(nativeExtCwd, 'addon.node'), 'stub\n');
+
+        for (const specifier of ['./mod.wasm', './addon.node']) {
+          await expect(
+            resolveUserModule(specifier, nativeExtCwd),
+          ).resolves.toBeDefined();
+        }
+      } finally {
+        await rm(nativeExtCwd, { recursive: true, force: true });
+      }
+    });
+
     it.skipIf(!CASE_INSENSITIVE_FS)(
       'normalises a mis-cased TypeScript specifier to its on-disk casing',
       async () => {
