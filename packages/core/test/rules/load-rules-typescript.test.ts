@@ -108,7 +108,66 @@ describe('load rules from TypeScript sources', () => {
       await expect(
         loadRules('./no-default.rule', () => true, {}, rulesTs),
       ).rejects.toThrow(
-        /Rule or rule set at .*no-default\.rule\.ts does not use default export\./,
+        /Rule or rule set at \.\/no-default\.rule \(.*no-default\.rule\.ts\) does not use default export\./,
+      );
+    });
+
+    it('keeps the specifier alongside the resolved path for a cwd-fallback specifier', async () => {
+      // AC2 unfreezes TWO shapes and this is the second one: a BARE specifier that resolves through
+      // `<cwd>/<specifier>` because nothing is installed under that name. It takes a different
+      // branch of the seam than the relative case above, and it is the shape whose old locally
+      // computed `location` was capable of naming a file that was never loaded.
+      await expect(
+        loadRules(
+          'rules-ts/no-default.rule.ts',
+          () => true,
+          {},
+          join(import.meta.dirname, 'fixtures'),
+        ),
+      ).rejects.toThrow(
+        /Rule or rule set at rules-ts\/no-default\.rule\.ts \(.*no-default\.rule\.ts\) does not use default export\./,
+      );
+    });
+
+    it('loads a bare specifier that resolves through the cwd fallback', async () => {
+      const rules = await loadRules(
+        'rules-ts/simple.rule.ts',
+        () => true,
+        {},
+        join(import.meta.dirname, 'fixtures'),
+      );
+
+      expect(ruleNames(rules)).toEqual(['simple-ts']);
+    });
+
+    it('names the specifier the user typed alongside the path that was loaded', async () => {
+      // Same mechanism as a bare PACKAGE specifier, which is the case that motivated this: a package
+      // resolves to a deep `dist/` path nobody typed, and naming only that lost the identity from
+      // the user's config. Exercised here with a cwd-fallback specifier because it needs no
+      // installed fixture package; `describeRuleSource` does not distinguish the two.
+      const error = await loadRules(
+        'rules-ts/never-runs.rule.ts',
+        () => true,
+        {},
+        join(import.meta.dirname, 'fixtures'),
+      ).then(
+        () => undefined,
+        (reason: unknown) => reason,
+      );
+
+      expect((error as Error).message).toMatch(
+        /\(loaded from rules-ts\/never-runs\.rule\.ts \(.*never-runs\.rule\.ts\)\)/,
+      );
+    });
+
+    it('reports an execution-invariant violation for a TypeScript rule, naming the resolved path', async () => {
+      // Reaches `assertRuleExecutionInvariant` through the jiti path. Without a TypeScript fixture
+      // that actually violates an invariant, the `source` argument those two helpers receive is
+      // never observed, and swapping it back would leave the whole suite green.
+      await expect(
+        loadRules(join(rulesTs, 'never-runs.rule.ts')),
+      ).rejects.toThrow(
+        /Rule "never-runs-ts" has no execution function for declared type\(s\): static\..*never-runs\.rule\.ts/,
       );
     });
 
@@ -182,8 +241,11 @@ describe('load rules from TypeScript sources', () => {
   });
 
   describe('rule set pattern globs', () => {
-    // First coverage of `loadRuleSet`'s glob branch at all — both pre-existing rule-set fixtures
-    // use an inline `rules` array.
+    // First DIRECT coverage of `loadRuleSet`'s glob branch: both pre-existing rule-set fixtures in
+    // this package use an inline `rules` array. The branch itself was never uncovered — both shipped
+    // rule packages reach their rules through it (`pattern: 'rules/**/*.rule.js'`), exercised
+    // cross-package by `packages/rules-rfc-9110/src/profiles.test.ts`. That also means this filter
+    // sits on the JavaScript path, which is why `loads every JavaScript match` below exists.
     it('loads every TypeScript match, in deterministic order', async () => {
       const rules = await loadRules(join(ruleSetsTs, 'pattern.ruleset.ts'));
 
@@ -197,6 +259,85 @@ describe('load rules from TypeScript sources', () => {
       const rules = await loadRules(join(ruleSetsTs, 'pattern-ts.ruleset.ts'));
 
       expect(ruleNames(rules)).toEqual(['globbed-ts-a', 'globbed-ts-b']);
+    });
+
+    it('loads every JavaScript match, the shape both shipped rule packages use', async () => {
+      // `pattern: 'rules/**/*.rule.js'` is what `rules-rfc-9110` and
+      // `rules-api-description-validation` ship, so this branch carries every built-in rule. A
+      // filter accidentally narrowed to TypeScript would drop all of them silently; nothing else in
+      // this package would notice.
+      const rules = await loadRules(join(ruleSetsTs, 'pattern-js.ruleset.ts'));
+
+      expect(ruleNames(rules)).toEqual(['globbed-js-a', 'globbed-js-b']);
+    });
+
+    it('loads every glob of a string[] pattern', async () => {
+      // The loop handles an array explicitly and nothing covered it. Mixes a TypeScript glob with a
+      // JavaScript one so both dispatch branches run inside one rule set.
+      const rules = await loadRules(
+        join(ruleSetsTs, 'pattern-array.ruleset.ts'),
+      );
+
+      expect(ruleNames(rules)).toEqual([
+        'globbed-ts-a',
+        'globbed-ts-b',
+        'globbed-js-a',
+        'globbed-js-b',
+      ]);
+    });
+
+    it('applies the rule set profile to a globbed rule', async () => {
+      // The glob loop forwards `profileConfig` into its recursion. Every other profile fixture uses
+      // an inline `rules` array, so this is the only test that proves a profile reaches a rule
+      // loaded through the pattern branch.
+      const ruleSetPath = join(ruleSetsTs, 'pattern-with-profiles.ruleset.ts');
+
+      const rules = await loadRules(
+        ruleSetPath,
+        () => true,
+        {},
+        process.cwd(),
+        { [ruleSetPath]: 'recommended' },
+      );
+
+      expect(findRule(rules, 'globbed-ts-a')?.meta.severity).toBe('hint');
+      expect(findRule(rules, 'globbed-ts-b')?.meta.severity).toBe('error');
+    });
+
+    it('lets the user rules config win over a globbed profile override', async () => {
+      const ruleSetPath = join(ruleSetsTs, 'pattern-with-profiles.ruleset.ts');
+
+      const rules = await loadRules(
+        ruleSetPath,
+        () => true,
+        { 'globbed-ts-a': 'error' },
+        process.cwd(),
+        { [ruleSetPath]: 'recommended' },
+      );
+
+      expect(findRule(rules, 'globbed-ts-a')?.meta.severity).toBe('error');
+    });
+
+    it('throws when a pattern matches files but keeps none of them', async () => {
+      // A skipped file is silent by design, but a pattern that kept NOTHING is a mistake every
+      // time — a typo'd extension, a directory of declarations. Silent, it returns zero rules and
+      // the run passes having validated nothing.
+      await expect(
+        loadRules(join(ruleSetsTs, 'pattern-none.ruleset.ts')),
+      ).rejects.toThrow(
+        /Rule set "pattern-none-ts" pattern \.\/nonmodules\/\*\*\/\* matched 2 file\(s\), none of which can be loaded as a rule\./,
+      );
+    });
+
+    it('does not throw when a rule filter excludes every rule it loaded', async () => {
+      // The counterpart to the test above, and why the guard counts FILES rather than rules: a
+      // filter legitimately rejecting everything must stay a clean empty result.
+      const rules = await loadRules(
+        join(ruleSetsTs, 'pattern.ruleset.ts'),
+        () => false,
+      );
+
+      expect(rules).toEqual([]);
     });
 
     it('skips every non-module match of a wide-open glob', async () => {
@@ -234,13 +375,19 @@ describe('load rules from TypeScript sources', () => {
       const { loadRules: freshLoadRules } =
         await import('../../src/rules/rule-loader.js');
 
-      // The 182 built-in rules, loaded as a package, plus a local `.mjs` fixture. This is the
+      // Every built-in rule, loaded as a package, plus a local `.mjs` fixture. This is the
       // "no measurable cold-start regression" criterion, asserted as a fact instead of a
       // wall-clock measurement.
-      await freshLoadRules('@thymian/rules-rfc-9110');
-      await freshLoadRules(
+      const builtIns = await freshLoadRules('@thymian/rules-rfc-9110');
+      const local = await freshLoadRules(
         join(import.meta.dirname, 'fixtures', 'rules', 'a.rule.mjs'),
       );
+
+      // Assert what loaded, not just that nothing threw. This package reaches its rules through
+      // the glob branch this story modified, so a filter narrowed to TypeScript would return an
+      // empty array here and the jiti assertion below would still pass.
+      expect(builtIns.length).toBeGreaterThan(100);
+      expect(ruleNames(local)).toEqual(['a']);
 
       expect(jitiFactoryCalls).toBe(0);
     }, 15_000);
@@ -260,6 +407,31 @@ describe('load rules from TypeScript sources', () => {
 
       await freshLoadRules(join(rulesTs, 'mts.rule.mts'));
 
+      expect(jitiFactoryCalls).toBe(1);
+    });
+
+    it('loads both split-file reproductions through jiti, not through the test runner', async () => {
+      // The reproduction tests above cannot prove this on their own: vitest transforms a dynamic
+      // `import()` of a `.ts` file, and vite resolves `./helper` and `./helper.js` itself, so both
+      // stayed green on the unfixed loader. Asserting that the rule loaded AND that jiti is what
+      // loaded it pins the mechanism the reproductions actually depend on — jiti's extension
+      // guessing for an import made INSIDE a user module.
+      const { loadRules: freshLoadRules } =
+        await import('../../src/rules/rule-loader.js');
+
+      const extensionless = await freshLoadRules(
+        join(rulesTs, 'split-extensionless.rule.ts'),
+      );
+      const nodenext = await freshLoadRules(
+        join(rulesTs, 'split-nodenext.rule.ts'),
+      );
+
+      expect(extensionless.map((rule) => rule.meta.name)).toEqual([
+        'split-extensionless',
+      ]);
+      expect(nodenext.map((rule) => rule.meta.name)).toEqual([
+        'split-nodenext',
+      ]);
       expect(jitiFactoryCalls).toBe(1);
     });
   });
