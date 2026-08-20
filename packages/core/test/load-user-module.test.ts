@@ -223,6 +223,42 @@ describe('load user module', () => {
       ).resolves.toBeUndefined();
     });
 
+    it('prefers the user project node_modules over core own for a colliding name', async () => {
+      // `graphology` is a real dependency of core, so before the two-anchor cascade the CLI's own
+      // copy won and the user's pinned one was unreachable. A package the user named in their
+      // config is theirs.
+      const userProject = await mkdtemp(
+        join(tmpdir(), 'thymian-user-project-'),
+      );
+
+      try {
+        const pkg = join(userProject, 'node_modules', 'graphology');
+
+        await mkdir(pkg, { recursive: true });
+        await writeFile(
+          join(pkg, 'package.json'),
+          JSON.stringify({
+            name: 'graphology',
+            main: 'index.js',
+            type: 'module',
+          }),
+        );
+        await writeFile(join(pkg, 'index.js'), "export default 'USER-COPY';\n");
+
+        const resolved = await resolveOrFail('graphology', userProject);
+
+        expect(resolved.startsWith(realpathSync.native(userProject))).toBe(
+          true,
+        );
+
+        const module = await loadUserModule(resolved);
+
+        expect(module.default).toBe('USER-COPY');
+      } finally {
+        await rm(userProject, { recursive: true, force: true });
+      }
+    });
+
     it('never resolves a relative specifier against core own directory', async () => {
       // `require` is anchored to core's install directory. A relative specifier absent from the
       // user's cwd must come back unresolved, never as one of Thymian's own modules.
@@ -358,6 +394,40 @@ describe('load user module', () => {
         }
 
         await loader.loadUserModule(resolved);
+      }
+
+      // A bare JS package installed ONLY in the user's project. This is the case that used to
+      // miss core's anchor and fall through to the jiti fallback, so a plain-JavaScript rule
+      // package paid for jiti — the assertion below passed before only because every other
+      // fixture happened to be reachable from core's own tree.
+      const userProject = await mkdtemp(join(tmpdir(), 'thymian-user-js-'));
+
+      try {
+        const pkg = join(userProject, 'node_modules', 'user-js-rules');
+
+        await mkdir(pkg, { recursive: true });
+        await writeFile(
+          join(pkg, 'package.json'),
+          JSON.stringify({
+            name: 'user-js-rules',
+            main: 'index.js',
+            type: 'module',
+          }),
+        );
+        await writeFile(join(pkg, 'index.js'), "export default 'user-js';\n");
+
+        const resolved = await loader.resolveUserModule(
+          'user-js-rules',
+          userProject,
+        );
+
+        if (resolved === undefined) {
+          throw new Error('Expected "user-js-rules" to resolve.');
+        }
+
+        await loader.loadUserModule(resolved);
+      } finally {
+        await rm(userProject, { recursive: true, force: true });
       }
 
       expect(jitiFactoryCalls).toBe(0);

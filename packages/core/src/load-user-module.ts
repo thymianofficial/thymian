@@ -14,7 +14,7 @@
  * 4. **jiti only for TypeScript, imported lazily.** `loadRules` runs on every single invocation
  *    for all built-in rules, and those are JavaScript; that path must never pay for jiti.
  *
- * Three limitations are deliberate and measured against jiti 2.6.1, not oversights:
+ * Two limitations are deliberate and measured against jiti 2.6.1, not oversights:
  *
  * - **TypeScript sources must use `export default`.** `module.exports = …` in a `.ts`/`.cts` file
  *   produces a namespace with no `default` key, and jiti's interop makes that shape *identical*
@@ -28,13 +28,10 @@
  *   Declining lets the caller say "cannot resolve", which is the more useful message.
  *   `.node` and `.wasm` are deliberately NOT declined: Node genuinely imports both, so a valid
  *   addon or wasm module loads through the native branch (verified).
- * - **A *bare* specifier that resolves only from the user's project still instantiates jiti**,
- *   even when it is plain JavaScript. `require` is anchored to core's install directory, so a
- *   package present only in the user's `node_modules` misses it and reaches the jiti fallback
- *   (measured with `JITI_DEBUG=1`). Contract item 4 therefore holds for Thymian's own bundled
- *   rules — the ones loaded on every invocation — but not for every JavaScript module. Closing
- *   it means re-anchoring `require` at `cwd`, which changes bare-specifier resolution for a
- *   globally installed CLI; deliberately not done here.
+ * Bare specifiers are resolved from the **user's project first**, then from core's own install
+ * directory. A package the user named in their config is theirs, so a globally installed CLI must
+ * not answer with its own copy of a colliding name; core's anchor stays as a fallback so
+ * Thymian's bundled rule packages keep resolving when the user's project does not carry them.
  */
 
 import { existsSync, realpathSync, statSync } from 'node:fs';
@@ -47,6 +44,36 @@ import type { Jiti } from 'jiti';
 import { isRecord } from './utils.js';
 
 const require = createRequire(import.meta.url);
+
+/**
+ * Resolves through Node's own resolver, trying the **user's project before core's install
+ * directory**.
+ *
+ * Anchoring only at core's directory (the single `require` above) meant a package present only in
+ * the user's `node_modules` was invisible to it and fell through to the jiti fallback — so a
+ * plain-JavaScript rule package paid for jiti, breaking contract item 4 (confirmed with
+ * `JITI_DEBUG=1`). It also meant a name the user installed lost to a Thymian dependency of the
+ * same name, which for a globally installed CLI is the wrong answer twice over.
+ *
+ * Only **bare** specifiers are affected: a relative one is already an absolute path by the time it
+ * gets here, and both anchors resolve an absolute path identically.
+ */
+function resolveThroughRequire(
+  location: string,
+  cwd: string,
+): string | undefined {
+  const anchors = [createRequire(pathToFileURL(path.join(cwd, '_'))), require];
+
+  for (const anchor of anchors) {
+    try {
+      return anchor.resolve(location);
+    } catch {
+      // Not resolvable from this anchor — fall through to the next, then to jiti.
+    }
+  }
+
+  return undefined;
+}
 
 /** Extensions jiti handles. `.tsx` is excluded on purpose — see the file header. */
 const TYPESCRIPT_EXTENSION = /\.[cm]?ts$/;
@@ -174,10 +201,9 @@ export interface ResolveUserModuleOptions {
  * and NodeNext `.js`→`.ts` specifiers.
  *
  * @param specifier The user's rule, rule-set or plugin specifier.
- * @param cwd Directory that path-like specifiers resolve against, and that anchors the jiti
- *   fallback. **Bare** specifiers are resolved through `require.resolve`, which is anchored to
- *   core's own install directory and walks its `node_modules` ancestor chain — `cwd` does not
- *   move that base.
+ * @param cwd Directory that path-like specifiers resolve against, that anchors the jiti fallback,
+ *   and whose `node_modules` ancestor chain is searched for **bare** specifiers before core's own
+ *   (see {@link resolveThroughRequire}).
  * @param options See {@link ResolveUserModuleOptions}.
  */
 export async function resolveUserModule(
@@ -211,11 +237,9 @@ export async function resolveUserModule(
     }
   }
 
-  let resolved: string | undefined;
+  let resolved = resolveThroughRequire(location, cwd);
 
-  try {
-    resolved = require.resolve(location);
-  } catch {
+  if (resolved === undefined) {
     resolved = await resolveThroughJiti(location, cwd);
   }
 
