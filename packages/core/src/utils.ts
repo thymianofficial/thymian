@@ -97,17 +97,39 @@ export function getHeader(
     (k) => k.toLowerCase() === headerName.toLowerCase(),
   );
 
-  const defined = matches.filter(
-    (k) => headers[k] !== undefined && headers[k] !== null,
-  );
-
-  if (defined.length === 0) {
+  if (matches.length === 0) {
     return undefined;
   }
 
-  if (defined.length === 1) {
+  if (matches.length === 1) {
+    // Legacy line, verbatim: a single case-insensitive match returns its raw
+    // value unconditionally, with zero value-shape inspection, so this path
+    // can never diverge from the pre-change byte-for-byte guarantee.
     // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-    return headers[defined[0]!];
+    return headers[matches[0]!];
+  }
+
+  // Two or more case-variant duplicate keys: filter down to the ones that
+  // actually contribute a value, using the exact same "is this absent" test
+  // `fromRuntimeHeaders` uses internally (undefined/null, and empty arrays,
+  // are absent; an empty string is not).
+  const contributing = matches.filter((k) => {
+    const v = headers[k];
+
+    if (v === undefined || v === null) {
+      return false;
+    }
+
+    return !(Array.isArray(v) && v.length === 0);
+  });
+
+  if (contributing.length === 0) {
+    return undefined;
+  }
+
+  if (contributing.length === 1) {
+    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+    return headers[contributing[0]!];
   }
 
   return fromRuntimeHeaders(headers).getAll(headerName);

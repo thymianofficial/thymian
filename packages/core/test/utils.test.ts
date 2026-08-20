@@ -70,6 +70,21 @@ describe('getHeader', () => {
 
     expect(getHeader(headers, 'Set-Cookie')).toEqual(['a=1', 'b=2']);
   });
+
+  it('returns the plain value when one case-variant duplicate key holds an empty array and the other a real value', () => {
+    const headers = { 'Set-Cookie': [] as string[], 'set-cookie': 'b=2' };
+
+    expect(getHeader(headers, 'Set-Cookie')).toBe('b=2');
+  });
+
+  it('returns undefined when both case-variant duplicate keys hold an empty array', () => {
+    const headers = {
+      'Set-Cookie': [] as string[],
+      'set-cookie': [] as string[],
+    };
+
+    expect(getHeader(headers, 'Set-Cookie')).toBeUndefined();
+  });
 });
 
 describe('getContentType', () => {
@@ -82,6 +97,15 @@ describe('getContentType', () => {
     expect(() => getContentType(headers)).toThrow(
       'Multiple content-type headers found.',
     );
+  });
+
+  it('does not throw when one case-variant duplicate content-type key holds an empty array and the other a real value', () => {
+    const headers = {
+      'Content-Type': [] as string[],
+      'content-type': 'text/html',
+    };
+
+    expect(getContentType(headers)).toBe('text/html');
   });
 });
 
