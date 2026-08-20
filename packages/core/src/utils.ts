@@ -6,6 +6,7 @@ import type {
   ThymianHttpResponse,
 } from './format/index.js';
 import type { HttpRequest, HttpResponse } from './http.js';
+import { fromRuntimeHeaders } from './http-fields/index.js';
 import {
   httpStatusCodeToPhrase,
   isValidHttpStatusCode,
@@ -55,9 +56,11 @@ export function matchObjects(source: unknown, target: unknown): boolean {
 }
 
 export type KeysWithStringOrNumberValue<T> = keyof {
-  [P in keyof T as T[P] extends (string | undefined) | (number | undefined)
-    ? P
-    : never]: P;
+  [
+    P in keyof T as T[P] extends (string | undefined) | (number | undefined)
+      ? P
+      : never
+  ]: P;
 };
 
 export type StringAndNumberProperties<T> = Partial<{
@@ -78,21 +81,58 @@ export function zipArrays<A, B>(as: A[], bs: B[]): [A, B][] {
   return bs.map((b, i) => [as[i]!, b]);
 }
 
+/**
+ * @deprecated Use `@thymian/core/http-fields`'s `fromRuntimeHeaders(headers)`
+ * instead. This function's single-match path is preserved byte-for-byte for
+ * existing callers, but case-variant duplicate keys now merge into one array
+ * via `fromRuntimeHeaders(...).getAll(...)` rather than silently returning
+ * only the first match -- new code should use the `http-fields` engine
+ * directly instead of this legacy read helper.
+ */
 export function getHeader(
   headers: Record<string, string | string[] | undefined> = {},
   headerName: string,
 ): string | string[] | undefined {
-  const headerNames = Object.keys(headers);
-
-  const found = headerNames.find(
-    (name) => name.toLowerCase() === headerName.toLowerCase(),
+  const matches = Object.keys(headers).filter(
+    (k) => k.toLowerCase() === headerName.toLowerCase(),
   );
 
-  if (found) {
-    return headers[found];
+  if (matches.length === 0) {
+    return undefined;
   }
 
-  return undefined;
+  if (matches.length === 1) {
+    // Legacy line, verbatim: a single case-insensitive match returns its raw
+    // value unconditionally, with zero value-shape inspection, so this path
+    // can never diverge from the pre-change byte-for-byte guarantee.
+    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+    return headers[matches[0]!];
+  }
+
+  // Two or more case-variant duplicate keys: filter down to the ones that
+  // actually contribute a value, using the exact same "is this absent" test
+  // `fromRuntimeHeaders` uses internally (undefined/null, and empty arrays,
+  // are absent; an empty string is not).
+  const contributing = matches.filter((k) => {
+    const v = headers[k];
+
+    if (v === undefined || v === null) {
+      return false;
+    }
+
+    return !(Array.isArray(v) && v.length === 0);
+  });
+
+  if (contributing.length === 0) {
+    return undefined;
+  }
+
+  if (contributing.length === 1) {
+    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+    return headers[contributing[0]!];
+  }
+
+  return fromRuntimeHeaders(headers).getAll(headerName);
 }
 
 export function deleteHeader<T extends Record<string, unknown> | undefined>(

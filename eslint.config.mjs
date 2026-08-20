@@ -18,6 +18,11 @@ const depConstraintsProduction = [
     sourceTag: 'scope:plugin',
     onlyDependOnLibsWithTags: ['scope:core', 'scope:cli', 'scope:plugin'],
   },
+  // scope:rules can only access core (rules packages depend only on @thymian/core)
+  {
+    sourceTag: 'scope:rules',
+    onlyDependOnLibsWithTags: ['scope:core'],
+  },
 
   // Dimension: type
   // type:app can access everything

@@ -45,6 +45,7 @@
     "./chalk": "./dist/chalk.js",
     "./utils": "./dist/utils.js",
     "./http-filter": "./dist/http-filter.js",
+    "./http-fields": "./dist/http-fields/index.js",
     "./rxjs": "./dist/rxjs.js"
   },
   "dependencies": {
@@ -59,6 +60,7 @@
     "safe-stable-stringify": "^2.5.0",
     "secure-json-parse": "^4.1.0",
     "semver": "^7.7.3",
+    "structured-headers": "^2.0.3",
     "tinyglobby": "^0.2.15",
     "tslib": "^2.3.0",
     "type-is": "^1.6.18",
