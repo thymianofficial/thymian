@@ -339,6 +339,96 @@ describe('formatSelector', () => {
       expect(suggestionsOf(error).join('\n')).toContain('its method ("GE T")');
     });
 
+    /**
+     * A format-time rejection aborts the whole load, and every reachable
+     * trigger is a spec key the user never typed as a status — so the abort is
+     * only actionable if it says which document to edit. `SelectorCollisionError`
+     * already names `sourceName` and `sourceLocation` for both sides.
+     */
+    it('names the source and location of the transaction it could not render', () => {
+      const error = catchError(() =>
+        formatSelector(
+          createHttpRequest({
+            method: 'GET',
+            path: '/pets',
+            host: 'api.example.com',
+            port: 443,
+            protocol: 'https',
+            mediaType: '',
+            sourceName: 'petstore',
+          }),
+          createHttpResponse({
+            statusCode: Number.NaN,
+            mediaType: '',
+            sourceName: 'petstore',
+            sourceLocation: {
+              path: 'petstore.yaml',
+              position: { line: 24, column: 9, offset: 512 },
+            },
+          }),
+        ),
+      );
+
+      expect(suggestionsOf(error)).toContain(
+        'Source "petstore" describes it at https://api.example.com (petstore.yaml:24:9).',
+      );
+    });
+
+    it('names the source of an unrenderable path too', () => {
+      const error = catchError(() =>
+        formatSelector(
+          createHttpRequest({
+            path: '/a b',
+            mediaType: '',
+            sourceName: 'traffic.har',
+          }),
+          createHttpResponse({
+            statusCode: 200,
+            mediaType: '',
+            sourceName: 'traffic.har',
+          }),
+        ),
+      );
+
+      expect(suggestionsOf(error)[0]).toBe(
+        'The request path "/a b" contains whitespace, which a selector cannot represent.',
+      );
+      expect(suggestionsOf(error)[1]).toContain('Source "traffic.har"');
+    });
+
+    /**
+     * The backstop used to print both components unconditionally, so a
+     * malformed method was answered with "a status must be a non-negative
+     * integer" about a status that was already fine.
+     */
+    it('does not lecture about the status when the method is at fault', () => {
+      const suggestions = suggestionsOf(
+        catchError(() =>
+          formatSelector(
+            createHttpRequest({ method: 'GE T', path: '/pets', mediaType: '' }),
+            response,
+          ),
+        ),
+      ).join('\n');
+
+      expect(suggestions).toContain('its method ("GE T")');
+      expect(suggestions).not.toContain('its status');
+    });
+
+    it('does not lecture about the method when the status is at fault', () => {
+      const suggestions = suggestionsOf(
+        catchError(() =>
+          formatSelector(
+            createHttpRequest({ method: 'GET', path: '/pets', mediaType: '' }),
+            createHttpResponse({ statusCode: Number.NaN, mediaType: '' }),
+          ),
+        ),
+      ).join('\n');
+
+      expect(suggestions).toContain('its status ("NaN")');
+      expect(suggestions).not.toContain('its method');
+    });
+
     it('accepts every RFC 9110 tchar in a method, including the backtick', () => {
       expect(
         formatSelector(
@@ -526,6 +616,81 @@ describe('parseSelector', () => {
     } else {
       expect(hint).toContain(`"${canonical}"`);
     }
+  });
+
+  describe('the canonical-form hint', () => {
+    function hintFor(value: string): string | undefined {
+      return suggestionsOf(catchError(() => parseSelector(value))).find(
+        (suggestion) => suggestion.includes('Did you mean'),
+      );
+    }
+
+    /**
+     * The sentence used to hardcode method case and the leading slash for every
+     * normalization, so a zero-padded status was answered with advice about two
+     * things that were already right.
+     */
+    it.each([
+      [
+        'get /x -> 200',
+        'A selector spells its method in uppercase. Did you mean "GET /x -> 200"?',
+      ],
+      [
+        'GET launches -> 200',
+        'A selector spells its path with a leading "/". Did you mean "GET /launches -> 200"?',
+      ],
+      [
+        'GET /x -> 0200',
+        'A selector spells its status without leading zeros. Did you mean "GET /x -> 200"?',
+      ],
+      [
+        'get launches -> 0200',
+        'A selector spells its method in uppercase, spells its path with a leading "/" and spells its status without leading zeros. Did you mean "GET /launches -> 200"?',
+      ],
+    ])('states only the correction it made for %s', (input, expected) => {
+      expect(hintFor(input)).toBe(expected);
+    });
+
+    /**
+     * `selectorPath` prepends the missing slash unconditionally and
+     * `SELECTOR_PATTERN` accepts the result, so the hint used to manufacture
+     * paths out of values that are not paths at all.
+     */
+    it.each([
+      ['a pasted absolute URL', 'GET https://api.example.com/launches -> 200'],
+      ['an origin with a port', 'GET api.example.com:8080/launches -> 200'],
+      ['an input with no path at all', 'GET (application/json) -> 200'],
+    ])('invents no path from %s', (_label, input) => {
+      expect(hintFor(input)).toBeUndefined();
+    });
+
+    /**
+     * A status code is exactly three digits (RFC 9110 §15). `Number(status)`
+     * reinterpreted instead of canonicalizing: it turned "007" into "7" and
+     * "0000" into "0", suggesting selectors no transaction can carry.
+     */
+    it.each([
+      ['a padded status that is not a status code', 'GET /x -> 007'],
+      ['an all-zero status', 'GET /x -> 0000'],
+    ])('invents no status from %s', (_label, input) => {
+      expect(hintFor(input)).toBeUndefined();
+    });
+
+    /**
+     * The guard at the end of `canonicalFormHint`: a suggestion is only offered
+     * if it is itself a selector. Leaving "007" alone therefore costs the
+     * method correction too — which is the right trade, because every
+     * alternative suggests a status no transaction can carry.
+     */
+    it('stays silent rather than half-correcting an uncanonicalizable status', () => {
+      expect(hintFor('get /x -> 007')).toBeUndefined();
+    });
+
+    it('still corrects the method when the status is short but canonical', () => {
+      expect(hintFor('get /x -> 20')).toBe(
+        'A selector spells its method in uppercase. Did you mean "GET /x -> 20"?',
+      );
+    });
   });
 
   it('accepts the canonical form each hint suggests', () => {

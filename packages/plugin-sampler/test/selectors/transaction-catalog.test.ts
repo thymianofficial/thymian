@@ -78,6 +78,66 @@ function formatFrom(specs: TransactionSpec[]): ThymianFormat {
   return format;
 }
 
+type OpenApiShapedSpec = {
+  source: string;
+  /** Lands on the response node, which is where OpenAPI puts it. */
+  responseDescription: string;
+  sourceLocation?: ThymianFormatLocation;
+};
+
+/**
+ * Builds the graph the way `plugin-openapi` actually builds it
+ * (`openapi.processor.ts:151-175`): one `addRequest` per source, then
+ * `addResponseToRequest` with the response and the edge attributes — and
+ * crucially *without* the 4th `sourceName` argument, which core does not expose
+ * to the processor.
+ *
+ * `formatFrom` cannot express this shape. It goes through `addHttpTransaction`,
+ * sets `sourceName` on both nodes itself, and every colliding fixture built with
+ * it gives the two sides different `host`s — so its request nodes never dedupe.
+ * No real producer does either of those things, which is why a collision fixture
+ * built on it cannot see a misattributed source.
+ */
+function openApiShapedFormat(specs: OpenApiShapedSpec[]): ThymianFormat {
+  const format = new ThymianFormat();
+
+  for (const spec of specs) {
+    // Byte-identical across sources: no `servers` block in either document, so
+    // both default to the same origin, and `sourceName` is in
+    // `ignoredHashProperties` — the second source dedupes into the first's node.
+    const reqId = format.addRequest({
+      ...createHttpRequest({
+        method: 'GET',
+        path: '/users',
+        host: 'localhost',
+        port: 8080,
+        protocol: 'http',
+        mediaType: '',
+      }),
+      sourceName: spec.source,
+    });
+
+    format.addResponseToRequest(
+      reqId,
+      {
+        ...createHttpResponse({
+          statusCode: 200,
+          mediaType: 'application/json',
+          description: spec.responseDescription,
+        }),
+        sourceName: spec.source,
+        ...(spec.sourceLocation ? { sourceLocation: spec.sourceLocation } : {}),
+      },
+      {
+        sourceName: spec.source,
+        ...(spec.sourceLocation ? { sourceLocation: spec.sourceLocation } : {}),
+      },
+    );
+  }
+
+  return format;
+}
+
 const baseSpecs: TransactionSpec[] = [
   {
     method: 'GET',
@@ -372,10 +432,10 @@ describe('TransactionCatalog', () => {
 
     expect(error.name).toBe('SelectorCollisionError');
     expect(suggestionsOf(error)[0]).toBe(
-      'Source "source-one" describes it at http://api.one.example:8080/ (a.yaml:6:5).',
+      'Source "source-one" describes it at http://api.one.example:8080 (a.yaml:6:5).',
     );
     expect(suggestionsOf(error)[1]).toBe(
-      'Source "source-two" describes it at http://api.two.example:8080/ (b.yaml:15:5).',
+      'Source "source-two" describes it at http://api.two.example:8080 (b.yaml:15:5).',
     );
   });
 
@@ -427,6 +487,119 @@ describe('TransactionCatalog', () => {
     expect(suggestions.join('\n')).toContain('same source');
     expect(suggestions[0]).toContain('s.yaml:6:5');
     expect(suggestions[1]).toContain('s.yaml:15:5');
+  });
+
+  /**
+   * Regression guard for the second-pass review finding. The discriminator used
+   * to be the *edge* `sourceName`, which core derives as
+   * `sourceName ?? req.sourceName` (`thymian-format.ts:233`). Because
+   * `sourceName` sits in `ignoredHashProperties`, a request node is deduped
+   * across sources, so both edges of a two-description collision on one origin
+   * report the *first* source: the second source was never named, and the
+   * flagship cross-source case was told "loading the sources separately cannot
+   * help" — the exact inverse of the fix.
+   *
+   * The fixture has to be the shape `plugin-openapi` produces, not
+   * `formatFrom`'s: that helper's differing hosts keep the request nodes apart
+   * and hide the defect entirely.
+   */
+  describe('a cross-source collision that shares one origin', () => {
+    const twoDescriptions: OpenApiShapedSpec[] = [
+      {
+        source: 'users-a',
+        responseDescription: 'The users of service A.',
+        sourceLocation: {
+          path: 'users-a.yaml',
+          position: { line: 8, column: 7, offset: 61 },
+        },
+      },
+      {
+        source: 'users-b',
+        responseDescription: 'The users of service B.',
+        sourceLocation: {
+          path: 'users-b.yaml',
+          position: { line: 12, column: 7, offset: 88 },
+        },
+      },
+    ];
+
+    // The fixture is only faithful if it reproduces the dedupe: two
+    // transactions hanging off ONE request node, so that every edge — the old
+    // discriminator — reports the first source while the response nodes, the
+    // one part a collision cannot share, still report their own.
+    it('is built on a deduped request node, as plugin-openapi builds it', () => {
+      const transactions =
+        openApiShapedFormat(twoDescriptions).getThymianHttpTransactions();
+
+      expect(transactions).toHaveLength(2);
+      expect(transactions[0]?.thymianReqId).toBe(transactions[1]?.thymianReqId);
+      expect(transactions.map((t) => t.transaction.sourceName)).toEqual([
+        'users-a',
+        'users-a',
+      ]);
+      expect(transactions.map((t) => t.thymianReq.sourceName)).toEqual([
+        'users-a',
+        'users-a',
+      ]);
+      expect(transactions.map((t) => t.thymianRes.sourceName)).toEqual([
+        'users-a',
+        'users-b',
+      ]);
+    });
+
+    it('names the second source, and quotes its own location', () => {
+      const error = catchError(() =>
+        TransactionCatalog.fromThymianFormat(
+          openApiShapedFormat(twoDescriptions),
+        ),
+      );
+
+      expect(error.name).toBe('SelectorCollisionError');
+
+      const suggestions = suggestionsOf(error);
+
+      expect(suggestions[1]).toContain('Source "users-b"');
+      expect(suggestions[0]).toBe(
+        'Source "users-a" describes it at http://localhost:8080 (users-a.yaml:8:7).',
+      );
+      expect(suggestions[1]).toBe(
+        'Source "users-b" describes it at http://localhost:8080 (users-b.yaml:12:7).',
+      );
+    });
+
+    it('advises loading the sources separately', () => {
+      const suggestions = suggestionsOf(
+        catchError(() =>
+          TransactionCatalog.fromThymianFormat(
+            openApiShapedFormat(twoDescriptions),
+          ),
+        ),
+      ).join('\n');
+
+      expect(suggestions).toContain('Load the sources separately');
+      expect(suggestions).not.toContain('same source');
+    });
+  });
+
+  /**
+   * The other half of the guard: the same-source branch must still be reachable
+   * through the producer-faithful shape, or the fix would just be "always say
+   * cross-source".
+   */
+  it('keeps the same-source advice when one description collides with itself', () => {
+    const format = openApiShapedFormat([
+      { source: 'only-source', responseDescription: 'Lists users.' },
+      { source: 'only-source', responseDescription: 'Lists users, again.' },
+    ]);
+
+    expect(format.getThymianHttpTransactions()).toHaveLength(2);
+
+    const suggestions = suggestionsOf(
+      catchError(() => TransactionCatalog.fromThymianFormat(format)),
+    ).join('\n');
+
+    expect(suggestions).toContain('same source');
+    expect(suggestions).not.toContain('Load the sources separately');
   });
 
   /**

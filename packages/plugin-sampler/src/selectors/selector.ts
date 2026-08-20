@@ -4,7 +4,10 @@ import type {
   ThymianHttpTransaction,
 } from '@thymian/core';
 
-import { malformedSelectorError } from './selector-errors.js';
+import {
+  describeRenderedTransaction,
+  malformedSelectorError,
+} from './selector-errors.js';
 
 /**
  * A fully-qualified transaction selector:
@@ -54,10 +57,15 @@ const SELECTOR_PATTERN =
   /^([A-Z0-9!#$%&'*+.^_`|~-]+) (\/\S*)(?: \(([^()]+)\))? -> (0|[1-9]\d*)(?: \(([^()]+)\))?$/;
 
 /**
- * The grammar relaxed on exactly the two axes a hand-authored selector slips on
- * — method case and the leading slash — plus leading zeros in the status. Used
- * ONLY to turn a rejection into a "did you mean …?" suggestion; it never
- * decides whether a selector is valid.
+ * The grammar relaxed on exactly the three axes a hand-authored selector slips
+ * on — method case, the leading slash, and a zero-padded status. Used ONLY to
+ * turn a rejection into a "did you mean …?" suggestion; it never decides whether
+ * a selector is valid.
+ *
+ * The path group stays lenient about the leading slash because that is the slip
+ * this pattern exists for, which means the hint — not the grammar — has to be
+ * the thing that refuses to invent a path out of something that is not one; see
+ * {@link canonicalizablePath}.
  */
 const LENIENT_SELECTOR_PATTERN =
   /^([A-Za-z0-9!#$%&'*+.^_`|~-]+) (\S+)(?: \(([^()]+)\))? -> (\d+)(?: \(([^()]+)\))?$/;
@@ -94,13 +102,18 @@ export function formatSelector(
 
   const selector = `${method} ${path}${requestMedia} -> ${status}${responseMedia}`;
 
-  assertUnambiguous(selector, {
-    method,
-    path,
-    status,
-    requestMediaType: req.mediaType,
-    responseMediaType: res.mediaType,
-  });
+  assertUnambiguous(
+    selector,
+    {
+      method,
+      path,
+      status,
+      requestMediaType: req.mediaType,
+      responseMediaType: res.mediaType,
+    },
+    req,
+    res,
+  );
 
   return selector;
 }
@@ -154,20 +167,40 @@ type RenderedParts = {
   responseMediaType: string;
 };
 
-function assertUnambiguous(selector: string, parts: RenderedParts): void {
+/**
+ * The two components `assertUnambiguous`'s path and media-type checks do not
+ * cover, spelled out separately so its backstop can name the one that is
+ * actually at fault instead of lecturing about both.
+ */
+const METHOD_PATTERN = /^[A-Z0-9!#$%&'*+.^_`|~-]+$/;
+const STATUS_PATTERN = /^(0|[1-9]\d*)$/;
+
+function assertUnambiguous(
+  selector: string,
+  parts: RenderedParts,
+  req: ThymianHttpRequest,
+  res: ThymianHttpResponse,
+): void {
   // Reachable: a traffic-derived `req.path` is taken verbatim off the wire and
   // may carry a query string or whitespace, unlike a spec-derived path. Such a
   // rendering cannot round-trip, so it fails loudly at catalog build rather
   // than becoming an unparseable key.
+  //
+  // Every throw below aborts the whole format load, and every reachable trigger
+  // is a value the user never typed as a selector, so each one names the source
+  // and location of the transaction that could not be rendered — the same
+  // pointer `SelectorCollisionError` gives for both sides of a collision.
   if (/\s/.test(parts.path)) {
     throw malformedSelectorError(selector, [
       `The request path "${parts.path}" contains whitespace, which a selector cannot represent.`,
+      describeRenderedTransaction(req, res),
     ]);
   }
 
   if (parts.path.includes('->')) {
     throw malformedSelectorError(selector, [
       `The request path "${parts.path}" contains "->", which a selector uses as its separator.`,
+      describeRenderedTransaction(req, res),
     ]);
   }
 
@@ -175,6 +208,7 @@ function assertUnambiguous(selector: string, parts: RenderedParts): void {
     if (mediaType.includes('(') || mediaType.includes(')')) {
       throw malformedSelectorError(selector, [
         `The media type "${mediaType}" contains a parenthesis, which a selector uses to delimit media types.`,
+        describeRenderedTransaction(req, res),
       ]);
     }
   }
@@ -189,9 +223,104 @@ function assertUnambiguous(selector: string, parts: RenderedParts): void {
   if (!SELECTOR_PATTERN.test(selector)) {
     throw malformedSelectorError(selector, [
       `The transaction renders as "${selector}", which the selector grammar cannot represent.`,
-      `Check its method ("${parts.method}") and its status ("${parts.status}") — a status must be a non-negative integer without leading zeros.`,
+      ...renderingFaults(parts),
+      describeRenderedTransaction(req, res),
     ]);
   }
+}
+
+/**
+ * Names the component that is out of grammar. The path and the media types are
+ * excluded by the checks above, so only the method and the status are left — but
+ * naming both unconditionally told a user whose method was `GE T` that "a status
+ * must be a non-negative integer", about a status that was already fine.
+ */
+function renderingFaults(parts: RenderedParts): string[] {
+  const faults: string[] = [];
+
+  if (!METHOD_PATTERN.test(parts.method)) {
+    faults.push(
+      `Check its method ("${parts.method}") — a method is one or more RFC 9110 §5.6.2 tchar characters and carries no whitespace.`,
+    );
+  }
+
+  if (!STATUS_PATTERN.test(parts.status)) {
+    faults.push(
+      `Check its status ("${parts.status}") — a status must be a non-negative integer without leading zeros.`,
+    );
+  }
+
+  // Unreachable while the grammar has exactly these five components; kept so
+  // that adding a sixth cannot produce a hint-less abort.
+  if (faults.length === 0) {
+    faults.push(
+      `Check its method ("${parts.method}") and its status ("${parts.status}") against the grammar below.`,
+    );
+  }
+
+  return faults;
+}
+
+/**
+ * Whether prepending the missing leading slash would be a correction rather than
+ * an invention. `selectorPath` prepends unconditionally and `SELECTOR_PATTERN`
+ * accepts the result, so without this the hint manufactures paths: a pasted URL
+ * becomes `/https://api.example.com/launches`, and an input that omitted the
+ * path entirely promotes its media type into the path slot,
+ * `/(application/json)`. A `":"` is a scheme or an authority port and a leading
+ * `"("` is a media type; neither is a path that lost its slash.
+ */
+function canonicalizablePath(path: string): boolean {
+  return path.startsWith('/') || !(path.includes(':') || path.startsWith('('));
+}
+
+/**
+ * Strips a status's zero padding, but only when what is left is a status code —
+ * three digits, per RFC 9110 §15. `Number(status)` reinterpreted instead of
+ * canonicalizing: it turned `007` into `7` and `0000` into `0`, suggesting
+ * selectors no transaction can carry. A status that cannot be canonicalized is
+ * returned unchanged, so the hint still corrects the method or the path.
+ */
+function canonicalStatus(status: string): string {
+  const stripped = status.replace(/^0+/, '');
+
+  return /^[1-9]\d\d$/.test(stripped) ? stripped : status;
+}
+
+function joinWithAnd(items: string[]): string {
+  if (items.length < 2) {
+    return items.join('');
+  }
+
+  return `${items.slice(0, -1).join(', ')} and ${items[items.length - 1] ?? ''}`;
+}
+
+/**
+ * States only the corrections the hint actually made. The sentence used to
+ * hardcode method case and the leading slash for all three normalizations, so
+ * `GET /x -> 0200` was answered with advice about two things that were already
+ * right.
+ */
+function describeNormalizations(
+  method: string,
+  path: string,
+  status: string,
+): string {
+  const rules: string[] = [];
+
+  if (method !== method.toUpperCase()) {
+    rules.push('spells its method in uppercase');
+  }
+
+  if (!path.startsWith('/')) {
+    rules.push('spells its path with a leading "/"');
+  }
+
+  if (canonicalStatus(status) !== status) {
+    rules.push('spells its status without leading zeros');
+  }
+
+  return rules.length > 0 ? `A selector ${joinWithAnd(rules)}. ` : '';
 }
 
 /**
@@ -214,17 +343,21 @@ function canonicalFormHint(value: string): string[] {
     return [];
   }
 
+  if (!canonicalizablePath(path)) {
+    return [];
+  }
+
   const requestMedia = match[3] ? ` (${match[3]})` : '';
   const responseMedia = match[5] ? ` (${match[5]})` : '';
   const canonical = `${method.toUpperCase()} ${selectorPath(
     path,
-  )}${requestMedia} -> ${Number(status)}${responseMedia}`;
+  )}${requestMedia} -> ${canonicalStatus(status)}${responseMedia}`;
 
   if (canonical === value || !SELECTOR_PATTERN.test(canonical)) {
     return [];
   }
 
   return [
-    `A selector spells its method in uppercase and its path with a leading "/". Did you mean "${canonical}"?`,
+    `${describeNormalizations(method, path, status)}Did you mean "${canonical}"?`,
   ];
 }
