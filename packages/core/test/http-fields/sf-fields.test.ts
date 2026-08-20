@@ -8,7 +8,7 @@ import {
 import { parseSfField } from '../../src/http-fields/sf-parse.js';
 
 describe('NATIVELY_SF_HEADERS', () => {
-  it('ships empty -- no header is registered until a future story populates it', () => {
+  it('ships empty -- no header is registered until the header-grammar work populates it', () => {
     expect(NATIVELY_SF_HEADERS).toEqual({});
   });
 });

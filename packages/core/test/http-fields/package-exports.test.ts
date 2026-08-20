@@ -9,7 +9,7 @@ import { fromRuntimeHeaders } from '../../src/index.js';
 // output (js + d.ts); duplicating that here would make this suite depend on
 // build ordering (`nx test core` has no `dependsOn: ['build']`), which is
 // brittle on a clean workspace/CI run where `dist/` isn't present yet.
-describe('@thymian/core package exports (AC 1: ./http-fields subpath)', () => {
+describe('@thymian/core package exports (./http-fields subpath)', () => {
   it('declares "./http-fields" in the exports map as a plain string, like "./utils"/"./http-filter"', () => {
     const exportsMap = packageJson.exports as Record<string, unknown>;
 
@@ -23,7 +23,7 @@ describe('@thymian/core package exports (AC 1: ./http-fields subpath)', () => {
   });
 });
 
-describe('@thymian/core package.json dependencies (AC 3, story 643.2)', () => {
+describe('@thymian/core package.json dependencies', () => {
   it('adds structured-headers as a runtime dependency, not a dev dependency', () => {
     expect(packageJson.dependencies).toHaveProperty(
       'structured-headers',

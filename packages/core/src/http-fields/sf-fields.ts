@@ -7,9 +7,9 @@ export type SfFieldType = 'dictionary' | 'list' | 'item';
 /**
  * The canonical natively-SF header allowlist. Ships EMPTY by design -- every
  * row requires a defining-spec citation (the header's own registration
- * document, e.g. an RFC or OSHP entry) and is authored later, in epic 646's
- * `field-grammar/` story. Do not hardcode entries here; this table is
- * injected data, populated by a future story, not this one.
+ * document, e.g. an RFC or OSHP entry), authored later by the header-grammar
+ * work. Do not hardcode entries here; this table is injected data, populated
+ * once that work lands, not by this module.
  */
 // Frozen: this is also `createSfHeaderRegistry`'s live default parameter
 // binding, so an accidental in-place write by an importer would otherwise
