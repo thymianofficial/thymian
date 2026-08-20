@@ -125,10 +125,18 @@ describe('load user module', () => {
 
     it('reports an import cycle instead of hanging', async () => {
       // Undetected this never settles — Node exits 13, "Detected unsettled top-level await".
+      //
+      // The MESSAGE is asserted, not just the error name. `unloadableReason` throws
+      // `UserModuleLoadError` too, so a name-only check also passes for a fixture that merely
+      // failed to load — which is how a `new URL(…).pathname` in the fixtures stayed invisible
+      // here while turning this into a raw MODULE_NOT_FOUND on all three windows-2022 legs.
       await expect(
         loadUserModule(join(fixtures, 'cycle-a.ts')),
       ).rejects.toThrowError(
-        expect.objectContaining({ name: 'UserModuleLoadError' }),
+        expect.objectContaining({
+          name: 'UserModuleLoadError',
+          message: expect.stringContaining('import cycle'),
+        }),
       );
     }, 15_000);
 
