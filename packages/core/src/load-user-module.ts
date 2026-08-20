@@ -15,7 +15,7 @@
  * 4. **jiti only for TypeScript, imported lazily.** `loadRules` runs on every single invocation
  *    for all built-in rules, and those are JavaScript; that path must never pay for jiti.
  *
- * Two limitations are deliberate and measured against jiti 2.6.1, not oversights:
+ * Three limitations are deliberate and measured against jiti 2.6.1, not oversights:
  *
  * - **TypeScript sources must use `export default`.** `module.exports = …` in a `.ts`/`.cts` file
  *   produces a namespace with no `default` key, and jiti's interop makes that shape *identical*
@@ -30,7 +30,8 @@
  *   under `paths: { "@lib/*": [...] }` resolves and then fails at load with a raw
  *   `MODULE_NOT_FOUND`. Nested *package* imports from the user's own `node_modules` DO work; it is
  *   specifically the alias case. Probably the first limitation a real user writing TypeScript
- *   rules meets, so it wants a decision rather than silence.
+ *   rules meets. Recorded as deliberately unsupported in story 34.5's documentation criteria.
+ *
  * Bare specifiers resolve installed packages first — the user's project, then core's own install
  * directory — and only fall back to `<cwd>/<specifier>` when nothing is installed under that name.
  * Two reasons for that order: a package the user named in their config is theirs, so a globally
@@ -54,19 +55,6 @@ import { isRecord } from './utils.js';
 const require = createRequire(import.meta.url);
 
 /**
- * Resolves through Node's own resolver, trying the **user's project before core's install
- * directory**.
- *
- * Anchoring only at core's directory (the single `require` above) meant a package present only in
- * the user's `node_modules` was invisible to it and fell through to the jiti fallback — so a
- * plain-JavaScript rule package paid for jiti, breaking contract item 4 (confirmed with
- * `JITI_DEBUG=1`). It also meant a name the user installed lost to a Thymian dependency of the
- * same name, which for a globally installed CLI is the wrong answer twice over.
- *
- * Only **bare** specifiers are affected: a relative one is already an absolute path by the time it
- * gets here, and both anchors resolve an absolute path identically.
- */
-/**
  * Cwd-anchored resolvers, memoised. `resolveThroughRequire` runs for every specifier — including
  * every built-in rule on every invocation, the path the file header singles out as needing to stay
  * cheap — and `cwd` is stable within a run, so building the anchor each time was pure waste.
@@ -84,6 +72,19 @@ function requireFrom(cwd: string): NodeJS.Require {
   return anchored;
 }
 
+/**
+ * Resolves through Node's own resolver, trying the **user's project before core's install
+ * directory**.
+ *
+ * Anchoring only at core's directory (the bare `require` above) meant a package present only in
+ * the user's `node_modules` was invisible to it and fell through to the jiti fallback — so a
+ * plain-JavaScript rule package paid for jiti, breaking contract item 4 (confirmed with
+ * `JITI_DEBUG=1`). It also meant a name the user installed lost to a Thymian dependency of the
+ * same name, which for a globally installed CLI is the wrong answer twice over.
+ *
+ * Only **bare** specifiers are affected: a relative one is already an absolute path by the time it
+ * gets here, and both anchors resolve an absolute path identically.
+ */
 function resolveThroughRequire(
   location: string,
   cwd: string,
