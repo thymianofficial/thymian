@@ -65,9 +65,21 @@ const require = createRequire(import.meta.url);
  * Cwd-anchored resolvers, memoised. `resolveThroughRequire` runs for every specifier — including
  * every built-in rule on every invocation, the path the file header singles out as needing to stay
  * cheap — and `cwd` is stable within a run, so building the anchor each time was pure waste.
+ *
+ * Keyed by an **absolute** directory, which {@link resolveUserModule} guarantees by resolving its
+ * `cwd` argument once on entry. The key has to be normalised because a *relative* `cwd` is
+ * otherwise interpreted at two different times: `pathToFileURL` resolves it against
+ * `process.cwd()` when the anchor is BUILT, while every other resolver resolves it again on each
+ * CALL. After a `process.chdir` those disagree, the memo hands back an anchor pointing at the old
+ * directory, and `require.resolve` misses a package that is plainly installed — so resolution
+ * degrades to the jiti fallback and a plain-JavaScript package pays for jiti, which contract item 4
+ * forbids. Measured with `JITI_DEBUG=1`: jiti initialised on the second call and not on a control
+ * call with an absolute `cwd`. Normalising also collapses `.`, `./x/..` and the absolute spelling of
+ * one directory onto a single entry instead of one per spelling.
  */
 const cwdRequireCache = new Map<string, NodeJS.Require>();
 
+/** @param cwd An absolute directory — see {@link cwdRequireCache}. */
 function requireFrom(cwd: string): NodeJS.Require {
   let anchored = cwdRequireCache.get(cwd);
 
@@ -397,6 +409,12 @@ export async function resolveUserModule(
 ): Promise<ResolveUserModuleResult> {
   const { preferCwdRelative = true } = options;
 
+  // Normalised ONCE, here, so every resolver below and the {@link cwdRequireCache} key agree on
+  // which directory `cwd` names. A relative `cwd` is resolved against `process.cwd()` — the
+  // behaviour it already had, now stated and now consistent rather than depending on when each
+  // resolver happened to look. See {@link cwdRequireCache} for what the inconsistency cost.
+  const base = path.resolve(cwd);
+
   let resolved: string | undefined;
 
   if (RELATIVE_SPECIFIER.test(specifier)) {
@@ -406,7 +424,7 @@ export async function resolveUserModule(
     // (`./index.js` resolves core's barrel), so anchor it here instead of delegating.
     // Unconditional: `preferCwdRelative` governs bare names, and a relative specifier is
     // unambiguously a path.
-    resolved = await resolveLocation(path.resolve(cwd, specifier), cwd);
+    resolved = await resolveLocation(path.resolve(base, specifier), base);
   } else {
     // Installed packages FIRST — through all three resolvers, not just the first two. The third
     // one earns its place: a bare SUBPATH whose target is TypeScript (`my-pkg/rules`, or its
@@ -420,9 +438,9 @@ export async function resolveUserModule(
     // is what let a same-named local file or directory shadow — and silently execute in place
     // of — an installed package.
     resolved =
-      resolveThroughRequire(specifier, cwd) ??
+      resolveThroughRequire(specifier, base) ??
       resolveThroughGuessing(specifier) ??
-      (await resolveThroughJiti(specifier, cwd));
+      (await resolveThroughJiti(specifier, base));
 
     if (
       resolved === undefined &&
@@ -433,7 +451,7 @@ export async function resolveUserModule(
       // the user meant. Resolving the absolute path (rather than using it verbatim) keeps a
       // directory holding `index.js` or a `package.json` `main` working, which is the shape
       // today's `rule-loader` accepts for `rules: ['my-rules']`.
-      resolved = await resolveLocation(path.resolve(cwd, specifier), cwd);
+      resolved = await resolveLocation(path.resolve(base, specifier), base);
     }
   }
 

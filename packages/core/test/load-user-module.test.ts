@@ -958,6 +958,56 @@ describe('load user module', () => {
       expect(jitiFactoryCalls).toBe(0);
     }, 15_000);
 
+    it('keeps require.resolve working for a relative cwd across a chdir', async () => {
+      // The require anchor is memoised per directory, and a RELATIVE `cwd` names a different
+      // directory before and after a `chdir`. Keyed by the raw string, the second call got the
+      // first call's anchor: `require.resolve` missed a package that was plainly installed and
+      // resolution fell through to the jiti fallback — a plain-JavaScript package paying for jiti,
+      // which contract item 4 forbids. Measured with `JITI_DEBUG=1` before the fix.
+      //
+      // Asserted through the jiti counter rather than the returned path, because the path came back
+      // CORRECT either way: jiti found what the stale anchor had missed. Only the cost differed,
+      // which is exactly the kind of regression a result assertion cannot see.
+      const loader = await import('../src/load-user-module.js');
+      const original = process.cwd();
+      const root = await mkdtemp(join(tmpdir(), 'thymian-relative-cwd-'));
+
+      try {
+        for (const name of ['first', 'second']) {
+          const pkg = join(root, name, 'node_modules', `${name}-rules`);
+
+          await mkdir(pkg, { recursive: true });
+          await writeFile(
+            join(pkg, 'package.json'),
+            JSON.stringify({
+              name: `${name}-rules`,
+              main: 'index.js',
+              type: 'module',
+            }),
+          );
+          await writeFile(join(pkg, 'index.js'), `export default '${name}';\n`);
+        }
+
+        process.chdir(join(root, 'first'));
+
+        await expect(
+          loader.resolveUserModule('first-rules', '.'),
+        ).resolves.toMatchObject({ ok: true });
+
+        // Same relative spelling, different directory.
+        process.chdir(join(root, 'second'));
+
+        await expect(
+          loader.resolveUserModule('second-rules', '.'),
+        ).resolves.toMatchObject({ ok: true });
+
+        expect(jitiFactoryCalls).toBe(0);
+      } finally {
+        process.chdir(original);
+        await rm(root, { recursive: true, force: true });
+      }
+    }, 15_000);
+
     it('imports jiti exactly once across two TypeScript loads', async () => {
       const loader = await import('../src/load-user-module.js');
 
