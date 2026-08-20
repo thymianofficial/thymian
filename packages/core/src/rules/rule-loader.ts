@@ -1,10 +1,8 @@
-import { existsSync } from 'node:fs';
-import { createRequire } from 'node:module';
 import * as path from 'node:path';
-import { pathToFileURL } from 'node:url';
 
 import { glob } from 'tinyglobby';
 
+import { loadUserModule, resolveUserModule } from '../load-user-module.js';
 import { ThymianBaseError } from '../thymian.error.js';
 import { isRecord } from '../utils.js';
 import { validate } from './ajv-validate.js';
@@ -20,8 +18,6 @@ import {
 import type { RuleFilter } from './rule-filter.js';
 import type { RuleSet } from './rule-set.js';
 import { isRuleSeverityLevel } from './rule-severity.js';
-
-const require = createRequire(import.meta.url);
 
 type RecordWithFunctions<Property extends PropertyKey> = Record<
   PropertyKey,
@@ -203,6 +199,22 @@ function applyProfileThenConfig(
   );
 }
 
+/**
+ * The extensions a globbed rule-set match may have, mirroring the allow-list inside
+ * `resolveUserModule` — a match this does not admit is one the seam declines, so admitting it could
+ * only ever produce an error. Kept case-sensitive for exactly that reason: the seam normalises a
+ * resolved path to its on-disk casing and then tests the same case-sensitive pattern, so a
+ * `Rule.TS` is not loadable there and must not be waved through here either.
+ */
+const LOADABLE_RULE_FILE = /\.[cm]?[jt]s$/;
+
+/**
+ * Declaration files are never loadable — they contain no runtime code. Case-insensitive to match
+ * the seam, because on Windows and default macOS volumes a `Types.D.TS` resolves fine and a
+ * case-sensitive guard would wave through the exact file it exists to stop.
+ */
+const DECLARATION_FILE = /\.d\.[cm]?ts$/i;
+
 async function loadRuleSet(
   ruleSet: RuleSet,
   basePath: string,
@@ -248,7 +260,18 @@ async function loadRuleSet(
       // Sort glob results so rule load order is deterministic. tinyglobby
       // returns matches in filesystem traversal order, which varies between
       // runs and would otherwise make downstream report output non-deterministic.
-      const files = (await glob(pattern, { cwd: dirname })).sort();
+      //
+      // Then drop what cannot be a module at all. A pattern is a plain glob, so `**/*.ts` picks up
+      // a neighbouring `types.d.ts` and `**/*` also picks up a `rules.json` or a `README.md`; the
+      // seam declines every one of them, so without this filter the whole rule set dies on
+      // `Cannot resolve rule source` naming a file that plainly exists and that the user never
+      // meant to load. A skipped match is not an error and produces no diagnostic.
+      const files = (await glob(pattern, { cwd: dirname }))
+        .sort()
+        .filter(
+          (file) =>
+            LOADABLE_RULE_FILE.test(file) && !DECLARATION_FILE.test(file),
+        );
 
       for (const file of files) {
         rules.push(
@@ -293,32 +316,36 @@ export async function loadRules(
     ).flat();
   }
 
-  let location = input;
-  const fileLocation = path.resolve(cwd, input);
+  // Resolution and loading both go through the shared user-module seam, which is what makes a
+  // TypeScript rule loadable: it dispatches on the RESOLVED extension, sending `.ts`/`.mts`/`.cts`
+  // through jiti and everything else — the 182 built-in JavaScript rules included — through a plain
+  // dynamic import that never pays for jiti. `resolveUserModule` never throws; it answers
+  // `undefined`, which is what keeps this error message owned here.
+  const resolved = await resolveUserModule(input, cwd);
 
-  if (existsSync(fileLocation)) {
-    location = fileLocation;
-  }
-
-  let resolved: string;
-
-  try {
-    resolved = require.resolve(location);
-  } catch {
+  if (resolved === undefined) {
     throw new ThymianBaseError(`Cannot resolve rule source ${input}.`, {
       name: 'RuleLoadError',
       ref: 'https://thymian.dev/references/errors/rule-load-error/',
     });
   }
 
-  const module = await import(pathToFileURL(resolved).href);
+  const module = await loadUserModule(resolved);
 
   if (!('default' in module)) {
     throw new ThymianBaseError(
-      `Rule or rule set at ${location} does not use default export.`,
+      // Names the RESOLVED path rather than the specifier: `…/simple.rule.ts` is the file to open,
+      // where `./simple.rule` left the user to work it out — and for a name that is both installed
+      // and present in `cwd`, a locally recomputed path would name a file that was never loaded.
+      `Rule or rule set at ${resolved} does not use default export.`,
       {
         suggestions: [
-          'Use "export default" or "module.exports =" to export your rule (set).',
+          // Scoped rather than blanket: `module.exports =` in a `.ts`/`.cts` source produces a
+          // namespace with no `default` key that jiti's interop cannot tell apart from a
+          // named-only module, so the seam cannot honour it. Suggesting it to a TypeScript author
+          // told them to do something that provably fails.
+          'Use "export default" to export your rule (set), or "module.exports =" in a CommonJS JavaScript file.',
+          'A TypeScript source must use "export default" — "module.exports =" there produces a namespace with no default export, indistinguishable from a module with only named exports.',
         ],
         name: 'RuleLoadError',
         ref: 'https://thymian.dev/references/errors/rule-load-error/',
@@ -331,7 +358,7 @@ export async function loadRules(
   if (isRule(ruleOrRuleSet)) {
     const rule = applyProfileThenConfig(ruleOrRuleSet, profileConfig, options);
 
-    assertRuleTypeDeclaration(rule, location);
+    assertRuleTypeDeclaration(rule, resolved);
 
     if (!ruleFilter(rule)) {
       return [];
@@ -339,7 +366,7 @@ export async function loadRules(
 
     assertRuleExecutionInvariant(
       rule,
-      location,
+      resolved,
       typeOverrideSuggestions(rule, options),
     );
 
