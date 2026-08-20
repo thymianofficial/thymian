@@ -1,5 +1,5 @@
 import { existsSync, realpathSync } from 'node:fs';
-import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises';
+import { mkdir, mkdtemp, rm, symlink, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { basename, isAbsolute, join } from 'node:path';
 
@@ -97,6 +97,63 @@ describe('load user module', () => {
       expect('default' in module).toBe(true);
       expect(module.default).toBe('primitive-cts');
     });
+
+    it('treats a symlink and its target as the same module', async () => {
+      // Identity, not a counter: `side-effect.ts` is loaded by other tests too. Keyed on the raw
+      // string these two spellings are two entries and the body runs once per spelling.
+      // (An earlier version of this test used `join(fixtures, 'nested', '..', name)` — which
+      // `path.join` normalises at construction, so both paths were already the same string and
+      // the test could not fail.)
+      const linkDir = await mkdtemp(join(tmpdir(), 'thymian-symlink-'));
+
+      try {
+        const link = join(linkDir, 'aliased.ts');
+
+        await symlink(join(fixtures, 'side-effect.ts'), link);
+
+        const viaLink = await loadUserModule(link);
+        const direct = await loadUserModule(join(fixtures, 'side-effect.ts'));
+
+        // Compares the exported evaluation counter, not the namespace: jiti hands back a FRESH
+        // interop proxy per import even for a cached module, so object identity is not a usable
+        // signal. Two identities for one file would give consecutive counter values.
+        expect(viaLink.default).toBe(direct.default);
+      } finally {
+        await rm(linkDir, { recursive: true, force: true });
+      }
+    });
+
+    it('reports an import cycle instead of hanging', async () => {
+      // Undetected this never settles — Node exits 13, "Detected unsettled top-level await".
+      await expect(
+        loadUserModule(join(fixtures, 'cycle-a.ts')),
+      ).rejects.toThrowError(
+        expect.objectContaining({ name: 'UserModuleLoadError' }),
+      );
+    }, 15_000);
+
+    it('refuses a relative path rather than guessing a base', async () => {
+      // The two branches anchored a relative path differently: process.cwd() natively, core's
+      // install directory through jiti.
+      await expect(loadUserModule('./plain.ts')).rejects.toThrow(
+        /absolute path is required/,
+      );
+    });
+
+    it.skipIf(!CASE_INSENSITIVE_FS)(
+      'treats two casings of one path as the same module',
+      async () => {
+        // Only `resolveUserModule` normalised casing, so a glob- or config-supplied `PLAIN.TS`
+        // reaching `loadUserModule` directly matched no dispatch branch and died raw. Asserted
+        // as identity because that discriminates under Vitest, where a raw `.TS` import happens
+        // to succeed; the plain-Node dispatch failure is covered by the external harness.
+        const upper = await loadUserModule(join(fixtures, 'PLAIN.TS'));
+        const lower = await loadUserModule(join(fixtures, 'plain.ts'));
+
+        expect(upper.default).toBe(lower.default);
+        expect(upper.default).toBe('plain-ts');
+      },
+    );
 
     it('evaluates a TypeScript module once across concurrent loads', async () => {
       const resolved = await resolveOrFail(join(fixtures, 'side-effect.ts'));
@@ -438,6 +495,51 @@ describe('load user module', () => {
       expect(resolved.startsWith(decoyCwd)).toBe(false);
       expect(resolved).toContain(join('rules-rfc-9110', 'dist'));
     }, 15_000);
+  });
+
+  describe('jiti configuration', () => {
+    afterEach(() => {
+      vi.doUnmock('jiti');
+      vi.resetModules();
+    });
+
+    it('narrows jiti to TypeScript extensions so .js stays with Node', async () => {
+      // WHY this asserts the option rather than its consequence: with jiti's default extension
+      // list, a `.js` module imported by both a natively-loaded JS rule and a jiti-loaded TS
+      // rule lands in two registries and evaluates twice, handing the two rules non-identical
+      // objects. That consequence is NOT observable here — Vitest's module runner intercepts
+      // `import()`, so jiti's delegation never reaches Node's loader and the two registries stay
+      // split regardless of this option. Measured against the BUILT loader under plain Node:
+      // 2 evaluations and `===` false with the defaults, 1 and `===` true with this narrowing.
+      // The standing external harness asserts the consequence; this asserts the cause, so
+      // removing the option still turns a test red.
+      vi.resetModules();
+
+      let captured: unknown;
+
+      vi.doMock('jiti', async () => {
+        const actual = await vi.importActual<typeof import('jiti')>('jiti');
+
+        return {
+          ...actual,
+          createJiti: (parentUrl: string, options?: unknown) => {
+            captured = options;
+
+            return actual.createJiti(parentUrl, options as never);
+          },
+        };
+      });
+
+      const loader = await import('../src/load-user-module.js');
+      const resolved = await loader.resolveUserModule(
+        join(fixtures, 'plain.ts'),
+        fixtures,
+      );
+
+      await loader.loadUserModule(String(resolved));
+
+      expect(captured).toMatchObject({ extensions: ['.ts', '.mts', '.cts'] });
+    });
   });
 
   describe('lazy jiti import', () => {

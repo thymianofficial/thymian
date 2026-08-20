@@ -10,7 +10,8 @@
  * 2. **Dispatch on the *resolved* extension, before any import.** TypeScript goes through jiti,
  *    everything else through a plain dynamic `import()`.
  * 3. **Never import-then-retry, and never evaluate twice.** A module's top-level side effects
- *    must run exactly once, so concurrent loads of one file share a single in-flight import.
+ *    must run exactly once — across BOTH dispatch branches, across every spelling of its path,
+ *    and under concurrency. A cycle is reported rather than deadlocked.
  * 4. **jiti only for TypeScript, imported lazily.** `loadRules` runs on every single invocation
  *    for all built-in rules, and those are JavaScript; that path must never pay for jiti.
  *
@@ -37,6 +38,7 @@
  * user's project does not carry them.
  */
 
+import { AsyncLocalStorage } from 'node:async_hooks';
 import { existsSync, realpathSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import * as path from 'node:path';
@@ -136,11 +138,21 @@ function getJiti(): Promise<Jiti> {
   // import is the only `jiti` reference in the built output — that is what keeps it lazy.
   jitiInstance ??= import('jiti')
     .then(({ createJiti }) =>
-      // Defaults only. `interopDefault` already defaults to `true`, and `fsCache` degrades
-      // gracefully rather than throwing when its directory is unwritable (measured against
-      // 2.6.1) — so a read-only or containerised CI needs no Thymian-specific cache option.
+      // `interopDefault` already defaults to `true`, and `fsCache` degrades gracefully rather
+      // than throwing when its directory is unwritable (measured against 2.6.1) — so a
+      // read-only or containerised CI needs no Thymian-specific cache option.
       // `JITI_FS_CACHE=false` is the existing escape hatch if one is ever wanted.
-      createJiti(import.meta.url),
+      //
+      // `extensions` is narrowed to TypeScript so jiti DELEGATES `.js` to Node's loader instead
+      // of registering it itself. With the default list, a `.js` module imported by both a
+      // natively-loaded JS rule and a jiti-loaded TS rule lands in two registries and evaluates
+      // TWICE, handing the two rules non-identical objects — measured, and the thing contract
+      // item 3 forbids. Narrowing unifies them: one evaluation, `===` identical. Resolution is
+      // unaffected (the list governs extension *guessing*, and every case here was measured
+      // identical), because explicit paths and `.js`→`.ts` NodeNext mapping still work.
+      createJiti(import.meta.url, {
+        extensions: ['.ts', '.mts', '.cts'],
+      }),
     )
     .catch((error: unknown) => {
       jitiInstance = undefined;
@@ -293,6 +305,33 @@ export async function resolveUserModule(
 }
 
 /**
+ * Collapses the spellings of one file to a single identity: `/base/x.ts`, `/base/sub/../x.ts` and
+ * a symlink to it must not look like three modules. Without this the in-flight map keys on the raw
+ * string and the same file evaluates once per spelling. Also fixes the dispatch for a mis-cased
+ * path reaching this function directly (a `loadRuleSet` glob, a config `path`): only
+ * `resolveUserModule` normalised casing, so `PLAIN.TS` matched no branch and died raw.
+ */
+function canonicalise(resolvedPath: string): string {
+  try {
+    return realpathSync.native(resolvedPath);
+  } catch {
+    // Not on disk — keep the caller's path so the import surfaces the real error.
+    return path.resolve(resolvedPath);
+  }
+}
+
+/**
+ * The chain of user modules being evaluated on this async path.
+ *
+ * Node's loader and jiti's registry each resolve their own import cycles, but the in-flight map
+ * cannot: a module that re-enters this seam during its own evaluation would await a promise only
+ * its own return can settle, and the process hangs silently — Node exits 13, "Detected unsettled
+ * top-level await". `AsyncLocalStorage` carries the chain into module top-level code on both
+ * branches (verified), so re-entry is detectable and can be reported instead of hung.
+ */
+const evaluationChain = new AsyncLocalStorage<readonly string[]>();
+
+/**
  * In-flight TypeScript loads, keyed by resolved path. jiti only populates its module cache once a
  * load *completes*, so without this two concurrent loads of one file evaluate it twice and return
  * two distinct namespaces — the double-evaluation contract item 3 forbids. Node's own loader
@@ -302,6 +341,14 @@ const inFlightTypeScriptLoads = new Map<
   string,
   Promise<Record<string, unknown>>
 >();
+
+async function importNatively(
+  resolvedPath: string,
+): Promise<Record<string, unknown>> {
+  const module: unknown = await import(pathToFileURL(resolvedPath).href);
+
+  return isRecord(module) ? module : { default: module };
+}
 
 async function importThroughJiti(
   resolvedPath: string,
@@ -323,11 +370,27 @@ async function importThroughJiti(
 export async function loadUserModule(
   resolvedPath: string,
 ): Promise<Record<string, unknown>> {
-  const reason = unloadableReason(resolvedPath);
+  if (!path.isAbsolute(resolvedPath)) {
+    // Documented precondition, previously unchecked — and failing silently rather than loudly:
+    // the native branch would anchor a relative path at `process.cwd()` while the jiti branch
+    // anchored it at CORE's install directory, so one input searched two different trees.
+    throw new ThymianBaseError(
+      `Cannot load user module ${resolvedPath}: an absolute path is required.`,
+      {
+        name: 'UserModuleLoadError',
+        suggestions: [
+          'Resolve the specifier with resolveUserModule first — it always answers an absolute path.',
+        ],
+      },
+    );
+  }
+
+  const canonical = canonicalise(resolvedPath);
+  const reason = unloadableReason(canonical);
 
   if (reason !== undefined) {
     throw new ThymianBaseError(
-      `Cannot load user module ${resolvedPath}: ${reason}.`,
+      `Cannot load user module ${canonical}: ${reason}.`,
       {
         name: 'UserModuleLoadError',
         suggestions: [
@@ -338,25 +401,40 @@ export async function loadUserModule(
     );
   }
 
-  if (!TYPESCRIPT_EXTENSION.test(resolvedPath)) {
-    const module: unknown = await import(pathToFileURL(resolvedPath).href);
+  const chain = evaluationChain.getStore() ?? [];
 
-    return isRecord(module) ? module : { default: module };
+  if (chain.includes(canonical)) {
+    throw new ThymianBaseError(
+      `Cannot load user module ${canonical}: it is already being evaluated, so the import cycle ` +
+        `${[...chain, canonical].join(' -> ')} can never complete.`,
+      {
+        name: 'UserModuleLoadError',
+        suggestions: [
+          'Break the cycle by importing the shared module directly instead of loading it through Thymian.',
+        ],
+      },
+    );
   }
 
-  const pending = inFlightTypeScriptLoads.get(resolvedPath);
+  const nested = [...chain, canonical];
+
+  if (!TYPESCRIPT_EXTENSION.test(canonical)) {
+    return await evaluationChain.run(nested, () => importNatively(canonical));
+  }
+
+  const pending = inFlightTypeScriptLoads.get(canonical);
 
   if (pending !== undefined) {
     return await pending;
   }
 
-  const load = importThroughJiti(resolvedPath);
+  const load = evaluationChain.run(nested, () => importThroughJiti(canonical));
 
-  inFlightTypeScriptLoads.set(resolvedPath, load);
+  inFlightTypeScriptLoads.set(canonical, load);
 
   try {
     return await load;
   } finally {
-    inFlightTypeScriptLoads.delete(resolvedPath);
+    inFlightTypeScriptLoads.delete(canonical);
   }
 }
