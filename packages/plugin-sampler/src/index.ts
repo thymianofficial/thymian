@@ -23,6 +23,7 @@ import { getPathTransactionId } from './samples-structure/get-path-transaction-i
 import { readSamplesFromDir } from './samples-structure/read-samples-from-dir.js';
 import type { SamplesStructure } from './samples-structure/samples-tree-structure.js';
 import { writeSamplesToDir } from './samples-structure/write-samples-to-dir.js';
+import { TransactionCatalog } from './selectors/transaction-catalog.js';
 import { entryExists } from './utils.js';
 import {
   type SamplerValidationReport,
@@ -180,6 +181,7 @@ export const samplePlugin: ThymianPlugin<Partial<SamplerPluginOptions>> = {
 
     let format: ThymianFormat | undefined;
     let samples: SamplesStructure | undefined;
+    let transactionCatalog: TransactionCatalog | undefined;
 
     const requestSampler = new RequestSampler();
     const hookRunner = new HookRunner(
@@ -199,6 +201,18 @@ export const samplePlugin: ThymianPlugin<Partial<SamplerPluginOptions>> = {
     );
 
     async function initializeSamplerAndHookRunner(format: ThymianFormat) {
+      // The selector index for the loaded format: one selector per transaction,
+      // built before anything touches disk so a cross-source collision fails the
+      // load rather than half of it. Rebuilt on every format load and never
+      // cached across loads. Nothing consumes it yet — the generated type
+      // surface, transaction filters and hook targets resolve through it in
+      // later stories.
+      transactionCatalog = TransactionCatalog.fromThymianFormat(format);
+
+      logger.debug(
+        `Indexed ${transactionCatalog.size} transaction selector(s).`,
+      );
+
       // v1 hook discovery + `sampler.path-from-transaction` only — removed in 575.9 / 575.10.
       // Samples themselves never come from here any more.
       samples = (await entryExists(basePath))
