@@ -600,6 +600,47 @@ describe('load user module', () => {
         join(decoyCwd, 'pkg-rules', 'main.js'),
         "export default 'local-main';\n",
       );
+
+      // Local TypeScript, in the three spellings a bare specifier can name it: extensionless
+      // file, directory with a TypeScript index, and the NodeNext `.js` spelling of a `.ts`
+      // file. None of these is an installed package, and none of them existed under the exact
+      // spelling the fallback used to gate on.
+      await writeFile(
+        join(decoyCwd, 'ts-rule.ts'),
+        "const rule: string = 'local-ts-file';\nexport default rule;\n",
+      );
+
+      await mkdir(join(decoyCwd, 'ts-dir'), { recursive: true });
+      await writeFile(
+        join(decoyCwd, 'ts-dir', 'index.ts'),
+        "const rule: string = 'local-ts-dir';\nexport default rule;\n",
+      );
+
+      await writeFile(
+        join(decoyCwd, 'nodenext-rule.ts'),
+        "const rule: string = 'local-ts-nodenext';\nexport default rule;\n",
+      );
+
+      // A bare SUBPATH collision: the same `<pkg>/rules` path exists both installed and in cwd,
+      // and only jiti can resolve either — `require.resolve` refuses a `.ts` subpath. This is
+      // what pins the jiti step to the INSTALLED candidate rather than the cwd one.
+      const installedSubpath = join(decoyCwd, 'node_modules', 'subpath-rules');
+
+      await mkdir(installedSubpath, { recursive: true });
+      await writeFile(
+        join(installedSubpath, 'package.json'),
+        JSON.stringify({ name: 'subpath-rules', type: 'module' }),
+      );
+      await writeFile(
+        join(installedSubpath, 'rules.ts'),
+        "const rule: string = 'INSTALLED-SUBPATH';\nexport default rule;\n",
+      );
+
+      await mkdir(join(decoyCwd, 'subpath-rules'), { recursive: true });
+      await writeFile(
+        join(decoyCwd, 'subpath-rules', 'rules.ts'),
+        "const rule: string = 'DECOY-SUBPATH';\nexport default rule;\n",
+      );
     });
 
     afterAll(async () => {
@@ -641,6 +682,54 @@ describe('load user module', () => {
         const module = await loadUserModule(resolved);
 
         expect(module.default).toBe(expected);
+      },
+    );
+
+    it.each([
+      ['an extensionless local .ts file', 'ts-rule', 'local-ts-file'],
+      ['a local directory with a TypeScript index', 'ts-dir', 'local-ts-dir'],
+      [
+        'the NodeNext .js spelling of a local .ts file',
+        'nodenext-rule.js',
+        'local-ts-nodenext',
+      ],
+    ])(
+      'falls back to %s named by a BARE specifier',
+      async (_label, specifier, expected) => {
+        // The headline case for this seam, and the shape `rule-loader` accepts today, yet none
+        // of these resolved: the fallback gated on `existsSync(<cwd>/<specifier>)` — the
+        // EXTENSIONLESS spelling, which is not what is on disk — and the jiti step it fell
+        // through to was handed the BARE name, which searches `node_modules` only. Measured:
+        // bare `ts-rule` came back `undefined` from jiti while `<cwd>/ts-rule` came back
+        // `ts-rule.ts`. The identical file resolved fine spelled `./ts-rule`.
+        const resolved = await resolveOrFail(specifier, decoyCwd);
+
+        expect(resolved.startsWith(decoyCwd)).toBe(true);
+
+        const module = await loadUserModule(resolved);
+
+        expect(module.default).toBe(expected);
+      },
+    );
+
+    it.each([
+      ['a bare TypeScript subpath', 'subpath-rules/rules'],
+      ['its NodeNext .js spelling', 'subpath-rules/rules.js'],
+    ])(
+      'resolves %s to the installed package, not the same path in cwd',
+      async (_label, specifier) => {
+        // Both candidates exist and only jiti can resolve either, so this is decided purely by
+        // WHICH candidate the jiti step is given first. Running it on the cwd path before the
+        // bare one — the shape the fix could easily have taken — resolves the decoy instead and
+        // turns this red, which is the whole reason installed-first is ordered by candidate
+        // rather than by resolver.
+        const resolved = await resolveOrFail(specifier, decoyCwd);
+
+        expect(resolved).toContain(join('node_modules', 'subpath-rules'));
+
+        const module = await loadUserModule(resolved);
+
+        expect(module.default).toBe('INSTALLED-SUBPATH');
       },
     );
 

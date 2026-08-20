@@ -372,11 +372,14 @@ export interface ResolveUserModuleOptions {
  * `{ ok: false }`, carrying a `reason` when the seam knows something the caller could not work
  * out for itself. On success, `path` is an absolute filesystem path, never a `file://` URL.
  *
- * Resolution order stops at the first hit: `require.resolve`, then a `.mjs`/`.cjs` extension
- * guess ({@link resolveThroughGuessing}), then jiti's `esmResolve` — with the `<cwd>/<specifier>`
- * fallback for bare names slotted in before that last step. `require.resolve` already handles
- * TypeScript with an explicit extension, so the jiti fallback is reached for *resolution* only by
- * extensionless and NodeNext `.js`→`.ts` specifiers.
+ * Resolution stops at the first hit and runs the same three-resolver chain
+ * ({@link resolveLocation}) over at most two candidates: the specifier itself, and — for a bare
+ * name nothing is installed under — `<cwd>/<specifier>`. Within a candidate the order is
+ * `require.resolve`, then a `.mjs`/`.cjs` extension guess ({@link resolveThroughGuessing}), then
+ * jiti's `esmResolve`. `require.resolve` already handles TypeScript with an explicit extension, so
+ * the jiti step is reached for *resolution* only by extensionless and NodeNext `.js`→`.ts`
+ * specifiers. The candidates are exhausted in that order, not the resolvers: a bare name that only
+ * jiti can resolve inside `node_modules` still beats a same-named local file.
  *
  * @param specifier The user's rule, rule-set or plugin specifier.
  * @param cwd Directory that path-like specifiers resolve against, that anchors the jiti fallback,
@@ -403,11 +406,17 @@ export async function resolveUserModule(
     // unambiguously a path.
     resolved = await resolveLocation(path.resolve(cwd, specifier), cwd);
   } else {
-    // Installed packages FIRST — through all three resolvers, not just the first two. jiti is
-    // what resolves an installed package whose entry point is TypeScript, which `require.resolve`
-    // cannot; running it here rather than after the cwd fallback is what keeps the documented
-    // order honest. Preferring `<cwd>/<specifier>` up front is what let a same-named local file
-    // or directory shadow — and silently execute in place of — an installed package.
+    // Installed packages FIRST — through all three resolvers, not just the first two. The third
+    // one earns its place: a bare SUBPATH whose target is TypeScript (`my-pkg/rules`, or its
+    // NodeNext `my-pkg/rules.js` spelling, against a `node_modules/my-pkg/rules.ts`) is refused
+    // by `require.resolve` and answered by jiti — measured, both spellings. A package whose
+    // `main` is TypeScript needs no help here; `require.resolve` already returns it.
+    //
+    // So this step has to run before the cwd fallback, not after it: otherwise a local
+    // `<cwd>/my-pkg/rules.ts` would shadow the installed `my-pkg/rules.ts`, which is the one
+    // thing the installed-first order exists to prevent. Preferring `<cwd>/<specifier>` up front
+    // is what let a same-named local file or directory shadow — and silently execute in place
+    // of — an installed package.
     resolved =
       resolveThroughRequire(specifier, cwd) ??
       resolveThroughGuessing(specifier) ??
