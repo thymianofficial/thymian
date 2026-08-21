@@ -5,6 +5,7 @@ import { glob } from 'tinyglobby';
 
 import {
   loadUserModule,
+  miscasedExtension,
   resolveUserModule,
   unloadableReason,
 } from '../load-user-module.js';
@@ -340,17 +341,75 @@ async function loadRuleSet(
       // testing one shape here and importing a different one below. A match whose realpath cannot
       // be resolved (a broken symlink, ENOENT) is treated as not loadable, the same as any other
       // declined file.
-      const files = matched.filter((file) => {
+      //
+      // One decline is NOT silent, though. A module refused only for how its extension is cased is
+      // not in the "cannot be a module at all" class this filter exists to drop — nothing this seam
+      // uses can load it, yet it is shaped like code (#690). What makes it worth failing on is not
+      // that assumption on its own, which is unreliable — `.TS` is also MPEG transport stream and
+      // `.MTS` is AVCHD — but the combination below: it disappeared behind siblings that DID load,
+      // so the rule set looks healthy while silently running without it.
+      //
+      // Hence the gate. When NOTHING loaded, the all-declined guard further down is the better
+      // diagnosis and keeps its place; an unconditional throw here would also kill the run over a
+      // file the user cannot rename, since `ignore` matches the GLOB path while tinyglobby follows
+      // symlinked directories into dependencies and build output. Reported offender is the first in
+      // `matched`, which is sorted, so the message is deterministic.
+      const files: string[] = [];
+      const miscased: { file: string; resolved: string; extension: string }[] =
+        [];
+
+      for (const file of matched) {
+        const joined = path.join(dirname, file);
         let resolved: string;
 
         try {
-          resolved = realpathSync.native(path.join(dirname, file));
+          resolved = realpathSync.native(joined);
         } catch {
-          return false;
+          continue;
         }
 
-        return unloadableReason(resolved) === undefined;
-      });
+        const extension = miscasedExtension(resolved);
+
+        if (extension !== undefined) {
+          miscased.push({ file, resolved, extension });
+
+          continue;
+        }
+
+        if (unloadableReason(resolved) === undefined) {
+          files.push(file);
+        }
+      }
+
+      const offender = miscased[0];
+
+      if (offender !== undefined && files.length > 0) {
+        // Sourced from `unloadableReason`, never hand-written: this file already relies on that
+        // being the ONE place a refusal is explained, and a second copy of the sentence would drift
+        // from the seam's with nothing to catch it.
+        const reason = unloadableReason(offender.resolved);
+        // Names the realpath too when it differs, so a symlinked match cannot quote a `.JS` while
+        // naming a `.ts` file — which would make the rename suggestion a no-op.
+        const named =
+          offender.resolved === path.join(dirname, offender.file)
+            ? offender.file
+            : `${offender.file} (${offender.resolved})`;
+
+        throw new ThymianBaseError(
+          `Rule set "${ruleSet.name}" pattern ${pattern} matched ${named}: ${reason}.`,
+          {
+            // Exclusion leads deliberately. The file may be a media asset that must NOT be renamed
+            // — renaming `00000.MTS` makes it a loadable match that then dies on a binary parse —
+            // or it may live inside a dependency the user has no right to touch.
+            suggestions: [
+              `Exclude it from ${pattern}, or narrow the pattern, if the file is not a rule — an upper-case ".TS" or ".MTS" is also a media extension, and a match reached through a symlinked directory may not be yours to rename.`,
+              `If it is a rule, rename it so its extension is lower-case ("${offender.extension.toLowerCase()}").`,
+            ],
+            name: 'RuleLoadError',
+            ref: 'https://thymian.dev/references/errors/rule-load-error/',
+          },
+        );
+      }
 
       // An individual skip is silent — that is the point of the filter. But a pattern that matched
       // files and kept NONE of them is a mistake every time: a typo'd extension, a pattern aimed at
@@ -466,6 +525,14 @@ async function loadRulesInChain(
       {
         name: 'RuleLoadError',
         ref: 'https://thymian.dev/references/errors/rule-load-error/',
+        // Judged from the SPECIFIER, since a declined result carries no path. That covers the case
+        // the user hits — they typed the mis-cased name — but not a lower-case specifier resolving
+        // to a mis-cased file on a case-insensitive volume; there the message still names the
+        // casing, it just goes unaccompanied.
+        suggestions:
+          miscasedExtension(input) === undefined
+            ? []
+            : ['Rename the file so its extension is lower-case.'],
       },
     );
   }

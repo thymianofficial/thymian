@@ -211,6 +211,19 @@ const TYPESCRIPT_EXTENSION = /\.[cm]?ts$/;
  *   which only exists on much later versions. Measured on 22.19 and 26.7.
  * - `.wasm`: does load on 22 and 26, but needs `--experimental-wasm-modules` on Node 20 (also in
  *   the matrix), and a valid wasm module exports no `default`, so it cannot carry a rule anyway.
+ *
+ * Case-SENSITIVE, and that is a measured decision rather than an oversight (#690). On a
+ * case-insensitive volume an on-disk `Upper.Rule.JS` resolves perfectly well, but nothing this
+ * seam uses can load it: `import()` AND jiti — narrowed to `.ts`/`.mts`/`.cts` above — both answer
+ * `ERR_UNKNOWN_FILE_EXTENSION` for `.JS` and for `.TS`. Measured on v26.7.0 only, unlike the
+ * version-floor claims above; Node's extension lookup is case-sensitive on the 20/22 matrix too,
+ * but that was not re-measured. Relaxing this test to `/i` therefore buys nothing and costs the
+ * framing: the file is waved through to exactly that raw error. {@link miscasedExtension} explains
+ * such a refusal instead of loosening it.
+ *
+ * Scoped to the ESM loader on purpose: `require('./A.JS')` SUCCEEDS, because CommonJS falls back to
+ * the `.js` handler for an unregistered extension. This seam imports, so the refusal is right — but
+ * a user who checks the claim in a `require` REPL must not find it overstated.
  */
 const LOADABLE_EXTENSION = /\.[cm]?[jt]s$/;
 
@@ -220,6 +233,45 @@ const LOADABLE_EXTENSION = /\.[cm]?[jt]s$/;
  * exists to stop. Checked before {@link TYPESCRIPT_EXTENSION}, which `.d.ts` also matches.
  */
 const DECLARATION_FILE = /\.d\.[cm]?ts$/i;
+
+/** The case-insensitive twin of {@link LOADABLE_EXTENSION}. See {@link miscasedExtension}. */
+const MISCASED_EXTENSION = /\.[cm]?[jt]s$/i;
+
+/**
+ * The offending extension when a path is refused ONLY because of how that extension is cased, or
+ * `undefined` when the path is loadable, or unloadable for some other reason.
+ *
+ * {@link LOADABLE_EXTENSION} and {@link MISCASED_EXTENSION} disagree on exactly one input — a real
+ * module whose on-disk extension is not lower-case — and that input is the only one needing its own
+ * sentence. Declaration files are excluded so this agrees with {@link unloadableReason}'s
+ * precedence: an upper-case `Legacy.D.TS` is refused for containing no runtime code, which stays
+ * true whatever its casing, and must not be reported as a casing mistake.
+ *
+ * Returns the MATCHED extension rather than `path.extname`, so a real extension is reported
+ * verbatim — but a STEM-LESS dotfile is excluded for exactly the reason `path.extname` answers `''`
+ * there: a file named a bare `.JS` has no extension at all, and Node loads it through the package
+ * `type` (measured, v26.7.0). Calling that a casing mistake would send the user to rename a file
+ * that already works, and would make the glob filter fatal on it.
+ *
+ * Exported so `rule-loader.ts`'s glob filter can separate "cannot be a module at all" (silently
+ * dropped) from "is a module, refused only for its casing" (fatal) without parsing a sentence.
+ */
+export function miscasedExtension(resolvedPath: string): string | undefined {
+  if (
+    DECLARATION_FILE.test(resolvedPath) ||
+    LOADABLE_EXTENSION.test(resolvedPath)
+  ) {
+    return undefined;
+  }
+
+  const matched = MISCASED_EXTENSION.exec(resolvedPath)?.[0];
+
+  if (matched === undefined || path.basename(resolvedPath) === matched) {
+    return undefined;
+  }
+
+  return matched;
+}
 
 /**
  * Why a resolved path can never be loaded, or `undefined` when it can.
@@ -235,6 +287,14 @@ const DECLARATION_FILE = /\.d\.[cm]?ts$/i;
 export function unloadableReason(resolvedPath: string): string | undefined {
   if (DECLARATION_FILE.test(resolvedPath)) {
     return 'a TypeScript declaration file contains no runtime code';
+  }
+
+  const miscased = miscasedExtension(resolvedPath);
+
+  if (miscased !== undefined) {
+    // Not "only JavaScript and TypeScript modules can be loaded" — the file the user is looking at
+    // plainly IS one, so that sentence reads as a lie and hides the one-word fix (#690).
+    return `its extension "${miscased}" must be lower-case — Node's ESM loader and jiti recognise no other spelling`;
   }
 
   if (!LOADABLE_EXTENSION.test(resolvedPath)) {
@@ -761,10 +821,16 @@ export async function loadUserModule(
       `Cannot load user module ${canonical}: ${reason}.`,
       {
         name: 'UserModuleLoadError',
-        suggestions: [
-          'Point at the implementation file rather than its declarations or a non-module asset.',
-          'Resolve the specifier with resolveUserModule first — it declines paths that cannot be loaded.',
-        ],
+        // Matched to the diagnosis. "Point at the implementation file rather than its declarations"
+        // is FALSE for a mis-cased module — it IS the implementation file, which is the same class
+        // of lie #690 exists to remove.
+        suggestions:
+          miscasedExtension(canonical) === undefined
+            ? [
+                'Point at the implementation file rather than its declarations or a non-module asset.',
+                'Resolve the specifier with resolveUserModule first — it declines paths that cannot be loaded.',
+              ]
+            : ['Rename the file so its extension is lower-case.'],
       },
     );
   }
