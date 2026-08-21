@@ -1,4 +1,5 @@
-import { mkdtemp, rm, symlink, writeFile } from 'node:fs/promises';
+import { realpathSync } from 'node:fs';
+import { mkdir, mkdtemp, rm, symlink, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { basename, dirname, join } from 'node:path';
 
@@ -378,6 +379,159 @@ describe('load rules from TypeScript sources', () => {
       const rules = await loadRules(join(ruleSetsTs, 'pattern-all.ruleset.ts'));
 
       expect(ruleNames(rules)).toEqual(['globbed-ts-a', 'globbed-ts-b']);
+    });
+  });
+
+  // The filter used to be a local copy of the seam's own allow-list, tested against the raw glob
+  // spelling rather than a realpath — so it disagreed with the seam in both directions on a
+  // symlink. These pin the fix (#689, #691): the filter now shares `unloadableReason` with the seam
+  // and tests it against each match's `realpathSync.native` result, exactly the input shape the
+  // seam itself uses.
+  describe('symlinked glob matches (realpath-aware filter)', () => {
+    const loadableTarget = join(ruleSetsTs, 'globbed', 'a.rule.ts');
+    const declarationTarget = join(ruleSetsTs, 'globbed', 'types.d.ts');
+
+    /**
+     * Builds a temp rule set whose `pattern` glob reaches into a `rules/` subdirectory of symlinks,
+     * per `entries` (name -> absolute realpath target). The rule-set file itself lives OUTSIDE that
+     * subdirectory so the pattern can never match it and self-recurse — a separate concern (#688).
+     */
+    async function loadFromSymlinkedPattern(
+      entries: Record<string, string>,
+    ): Promise<Awaited<ReturnType<typeof loadRules>>> {
+      const dir = await mkdtemp(join(tmpdir(), 'thymian-glob-symlink-'));
+
+      try {
+        const rulesDir = join(dir, 'rules');
+
+        await mkdir(rulesDir);
+
+        for (const [name, target] of Object.entries(entries)) {
+          await symlink(target, join(rulesDir, name));
+        }
+
+        await writeFile(
+          join(dir, 'symlinks.ruleset.ts'),
+          "export default { name: 'symlinked-ts', pattern: './rules/*.ts' };\n",
+        );
+
+        return await loadRules(join(dir, 'symlinks.ruleset.ts'));
+      } finally {
+        await rm(dir, { recursive: true, force: true });
+      }
+    }
+
+    it('keeps a .ts symlink to a loadable .ts file', async () => {
+      const rules = await loadFromSymlinkedPattern({
+        'link.rule.ts': loadableTarget,
+      });
+
+      expect(ruleNames(rules)).toEqual(['globbed-ts-a']);
+    });
+
+    it("filters out a .ts symlink to a .d.ts file, without throwing (paired with a keeper so it is not the pattern's only match)", async () => {
+      const rules = await loadFromSymlinkedPattern({
+        'link.rule.ts': loadableTarget,
+        'link-to-declaration.rule.ts': declarationTarget,
+      });
+
+      expect(ruleNames(rules)).toEqual(['globbed-ts-a']);
+    });
+
+    it('keeps a .d.ts symlink to a loadable .ts file (previously dropped silently, the bug this fix corrects)', async () => {
+      const rules = await loadFromSymlinkedPattern({
+        'link.d.ts': loadableTarget,
+      });
+
+      expect(ruleNames(rules)).toEqual(['globbed-ts-a']);
+    });
+
+    it('throws "none loadable" when every match is an unloadable symlink (declaration-target only)', async () => {
+      // The pre-existing "matched but kept none" throw (see the raw-file case above) must still
+      // fire when EVERY match is filtered out via a symlink's realpath, not just a raw declaration
+      // file — the realpath-aware filter must not accidentally make this throw unreachable.
+      await expect(
+        loadFromSymlinkedPattern({
+          'link-a.rule.ts': declarationTarget,
+          'link-b.rule.ts': declarationTarget,
+        }),
+      ).rejects.toThrow(
+        /Rule set "symlinked-ts" pattern \.\/rules\/\*\.ts matched 2 file\(s\), none of which can be loaded as a rule\./,
+      );
+    });
+
+    /**
+     * Mocks `realpathSync.native` (via `vi.spyOn`, restored with `mockRestore` in `finally`) to
+     * throw for exactly one glob match — by path SUFFIX, not equality: `dirname` inside
+     * `rule-loader.ts` comes from the ruleset's own already-realpath'd resolved path
+     * (`resolveUserModule` normalises it), while `dir` here is the pre-canonicalisation path
+     * `mkdtemp` handed back — on macOS those differ by the `/var` -> `/private/var` symlink, so an
+     * exact-string match would silently never fire and the test would pass for the wrong reason
+     * (nothing filtered, every path resolving through the real implementation regardless).
+     */
+    async function loadWithFailingRealpath(
+      failing: 'ENOENT' | 'EACCES',
+    ): Promise<Awaited<ReturnType<typeof loadRules>>> {
+      const dir = await mkdtemp(join(tmpdir(), 'thymian-glob-symlink-race-'));
+      const original = realpathSync.native;
+      const nativeSpy = vi.spyOn(realpathSync, 'native');
+
+      try {
+        const rulesDir = join(dir, 'rules');
+
+        await mkdir(rulesDir);
+        await symlink(loadableTarget, join(rulesDir, 'keeper.rule.ts'));
+        await symlink(loadableTarget, join(rulesDir, 'vanishes.rule.ts'));
+
+        await writeFile(
+          join(dir, 'symlinks.ruleset.ts'),
+          "export default { name: 'symlinked-ts', pattern: './rules/*.ts' };\n",
+        );
+
+        const vanishingSuffix = join('rules', 'vanishes.rule.ts');
+
+        nativeSpy.mockImplementation((...args: Parameters<typeof original>) => {
+          const [target] = args;
+
+          if (target.toString().endsWith(vanishingSuffix)) {
+            const error = new Error(
+              `${failing}: realpath '${String(target)}'`,
+            ) as NodeJS.ErrnoException;
+
+            error.code = failing;
+
+            throw error;
+          }
+
+          return original(...args);
+        });
+
+        return await loadRules(join(dir, 'symlinks.ruleset.ts'));
+      } finally {
+        nativeSpy.mockRestore();
+        await rm(dir, { recursive: true, force: true });
+      }
+    }
+
+    it('filters out a match whose realpath cannot be resolved (ENOENT), without throwing', async () => {
+      // tinyglobby's own crawl already declines a symlink whose target is missing AT GLOB TIME —
+      // confirmed empirically, and consistent with `followSymbolicLinks: true` needing a successful
+      // stat to admit an entry — so a *dangling-from-the-start* symlink never reaches this filter
+      // through the production call. What the filter's `catch` guards against is the narrower race
+      // that survives that: the target existing when tinyglobby stats it and being gone by the time
+      // this filter re-resolves it moments later (removed, or a flaky mount).
+      const rules = await loadWithFailingRealpath('ENOENT');
+
+      expect(ruleNames(rules)).toEqual(['globbed-ts-a']);
+    });
+
+    it('filters out a match whose realpath rejects with a non-ENOENT error (EACCES), without throwing', async () => {
+      // The filter's `catch` is deliberately error-code-agnostic (a permissions failure or a
+      // symlink cycle is treated the same as a dangling target) — this pins that as intentional
+      // rather than an artifact of only ever having exercised the ENOENT case.
+      const rules = await loadWithFailingRealpath('EACCES');
+
+      expect(ruleNames(rules)).toEqual(['globbed-ts-a']);
     });
   });
 

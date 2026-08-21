@@ -14,7 +14,11 @@ import {
   vi,
 } from 'vitest';
 
-import { loadUserModule, resolveUserModule } from '../src/load-user-module.js';
+import {
+  loadUserModule,
+  resolveUserModule,
+  unloadableReason,
+} from '../src/load-user-module.js';
 
 const fixtures = join(import.meta.dirname, 'fixtures', 'user-modules');
 
@@ -328,6 +332,24 @@ describe('load user module', () => {
       await expect(loadUserModule(resolved)).resolves.toMatchObject({
         default: 'plain-ts',
       });
+    });
+  });
+
+  describe('unloadableReason', () => {
+    // Exported for `rule-loader.ts`'s glob filter (#689, #691) — pinning its exact return values
+    // directly, since external code now depends on them, not just on `resolveUserModule` and
+    // `loadUserModule` observing them indirectly.
+    it.each([
+      ['types.d.ts', 'a TypeScript declaration file contains no runtime code'],
+      ['Legacy.D.ts', 'a TypeScript declaration file contains no runtime code'],
+      ['rules.json', 'only JavaScript and TypeScript modules can be loaded'],
+      ['component.tsx', 'only JavaScript and TypeScript modules can be loaded'],
+    ])('reports why %s is unloadable', (fileName, reason) => {
+      expect(unloadableReason(join(fixtures, fileName))).toBe(reason);
+    });
+
+    it('returns undefined for a loadable path', () => {
+      expect(unloadableReason(join(fixtures, 'plain.ts'))).toBeUndefined();
     });
   });
 
