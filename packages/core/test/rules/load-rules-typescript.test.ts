@@ -1,4 +1,4 @@
-import { mkdtemp, rm, writeFile } from 'node:fs/promises';
+import { mkdtemp, rm, symlink, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
@@ -465,5 +465,164 @@ describe('load rules from TypeScript sources', () => {
       ]);
       expect(jitiFactoryCalls).toBe(1);
     });
+  });
+});
+
+// Regression cover for #688: a rule set reachable from itself through pattern globs used to recurse
+// without bound — no output, no error, no exit, until a CI runner timed out. Every case that used to
+// hang is wrapped in `settlesWithin`, so a reintroduction fails in seconds with a message naming the
+// bug instead of hanging the suite. (A genuine regression leaves the runaway recursion running until
+// vitest tears the worker down; that is the cost of proving termination at all.)
+describe('rule-set glob recursion (#688)', () => {
+  const cycles = join(import.meta.dirname, 'fixtures', 'rule-set-cycles');
+
+  const TIMED_OUT = Symbol('timed-out');
+
+  async function settlesWithin<T>(work: Promise<T>, ms = 5000): Promise<T> {
+    let timer: NodeJS.Timeout | undefined;
+
+    try {
+      const outcome = await Promise.race([
+        work,
+        new Promise<typeof TIMED_OUT>((resolve) => {
+          timer = setTimeout(() => resolve(TIMED_OUT), ms);
+        }),
+      ]);
+
+      if (outcome === TIMED_OUT) {
+        throw new Error(
+          `loadRules did not settle within ${ms}ms — the #688 rule-set recursion is back.`,
+        );
+      }
+
+      return outcome;
+    } finally {
+      clearTimeout(timer);
+    }
+  }
+
+  // Splits the rendered loop back out of the message so the test can prove it CLOSES, rather than
+  // merely asserting some arrow-joined text is present.
+  function ringOf(message: string): string[] {
+    const rendered = message.split('rule-set cycle ')[1];
+
+    return (rendered ?? '')
+      .replace(' can never finish loading.', '')
+      .split(' -> ');
+  }
+
+  it('loads the siblings of a self-matching rule set, skipping itself', async () => {
+    const rules = await settlesWithin(
+      loadRules(join(cycles, 'self-with-siblings', 'self.ruleset.ts')),
+    );
+
+    expect(ruleNames(rules)).toEqual(['self-sibling-x', 'self-sibling-y']);
+  });
+
+  it('returns no rules for a self-matching rule set that is alone in its directory', async () => {
+    // The self-match is removed BEFORE story 34.2's match accounting, so this must not surface as
+    // `matched 1 file(s), none of which can be loaded as a rule` — the one file it matched loads
+    // perfectly well, it is just this rule set itself, and the user could not act on that advice.
+    const rules = await settlesWithin(
+      loadRules(join(cycles, 'self-alone', 'alone.ruleset.ts')),
+    );
+
+    expect(rules).toEqual([]);
+  });
+
+  it("still reports a non-module left in a self-matching rule set's glob", async () => {
+    // Self-match removal must not swallow 34.2's guard: after this rule set drops itself the glob
+    // still holds a `NOTES.md`, and that is still a mistake worth failing on.
+    await expect(
+      settlesWithin(
+        loadRules(join(cycles, 'self-with-nonmodule', 'set.ruleset.ts')),
+      ),
+    ).rejects.toThrow(
+      /matched 1 file\(s\), none of which can be loaded as a rule/,
+    );
+  });
+
+  it('reports an indirect cycle between two rule sets instead of hanging', async () => {
+    const error = await settlesWithin(
+      loadRules(join(cycles, 'cycle', 'a.ruleset.ts')),
+    ).then(
+      () => undefined,
+      (thrown: unknown) => thrown,
+    );
+
+    expect(error).toBeInstanceOf(ThymianBaseError);
+    expect((error as ThymianBaseError).name).toBe('RuleLoadError');
+    expect((error as Error).message).toContain('is reachable from itself');
+
+    // Neither file matches ITSELF, so only the ancestry chain can catch this one.
+    const ring = ringOf((error as Error).message);
+
+    expect(ring).toHaveLength(3);
+    expect(ring[0]).toBe(ring[2]);
+    expect(ring[0]).toMatch(/cycle\/a\.ruleset\.ts$/);
+    expect(ring[1]).toMatch(/cycle\/b\.ruleset\.ts$/);
+  });
+
+  it('excludes an ancestor outside the cycle from the reported ring', async () => {
+    // `p` globs `q`, which globs `r`, which globs back to `q` — the loop is `q -> r -> q`, and `p`
+    // is only an ancestor. Reporting the whole traversal (`p -> q -> r -> q`) instead of slicing
+    // from the actual repeat would misname `p` as being in the cycle.
+    const error = await settlesWithin(
+      loadRules(join(cycles, 'cycle-with-ancestor', 'p.ruleset.ts')),
+    ).then(
+      () => undefined,
+      (thrown: unknown) => thrown,
+    );
+
+    expect(error).toBeInstanceOf(ThymianBaseError);
+    expect((error as Error).message).toContain('is reachable from itself');
+
+    const ring = ringOf((error as Error).message);
+
+    expect(ring).toHaveLength(3);
+    expect(ring[0]).toBe(ring[2]);
+    expect(ring[0]).toMatch(/cycle-with-ancestor\/q\.ruleset\.ts$/);
+    expect(ring[1]).toMatch(/cycle-with-ancestor\/r\.ruleset\.ts$/);
+    expect(ring.some((entry) => /\/p\.ruleset\.ts$/.test(entry))).toBe(false);
+  });
+
+  it('loads a rule reached twice through a diamond without reporting a cycle', async () => {
+    // A diamond is not a cycle. This is the case a cumulative visited set would break: the second
+    // arm would find the shared rule already seen and silently contribute nothing.
+    const rules = await settlesWithin(
+      loadRules(join(cycles, 'diamond', 'a.ruleset.ts')),
+    );
+
+    expect(ruleNames(rules)).toEqual(['diamond-shared', 'diamond-shared']);
+  });
+
+  it('reports a symlinked self-reference instead of hanging', async () => {
+    // Path equality cannot see this: the symlink is a different name in the same directory. It
+    // falls through to the chain, which resolves both names to one canonical path — so the
+    // documented degradation is a clear error, never a hang.
+    const dir = await mkdtemp(join(tmpdir(), 'rule-set-symlink-'));
+
+    try {
+      await writeFile(
+        join(dir, 'real.ruleset.ts'),
+        "export default { name: 'symlinked', pattern: './**/*' };\n",
+      );
+      await symlink(
+        join(dir, 'real.ruleset.ts'),
+        join(dir, 'alias.ruleset.ts'),
+      );
+
+      const error = await settlesWithin(
+        loadRules(join(dir, 'real.ruleset.ts')),
+      ).then(
+        () => undefined,
+        (thrown: unknown) => thrown,
+      );
+
+      expect(error).toBeInstanceOf(ThymianBaseError);
+      expect((error as Error).message).toContain('is reachable from itself');
+    } finally {
+      await rm(dir, { recursive: true, force: true });
+    }
   });
 });
