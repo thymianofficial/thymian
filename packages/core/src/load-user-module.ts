@@ -232,7 +232,7 @@ const DECLARATION_FILE = /\.d\.[cm]?ts$/i;
  * and a `.d.ts` then imports as an EMPTY module, so the caller reports "does not use default
  * export": the exact confusion the guard exists to prevent.
  */
-function unloadableReason(resolvedPath: string): string | undefined {
+export function unloadableReason(resolvedPath: string): string | undefined {
   if (DECLARATION_FILE.test(resolvedPath)) {
     return 'a TypeScript declaration file contains no runtime code';
   }

@@ -1,8 +1,13 @@
+import { realpathSync } from 'node:fs';
 import * as path from 'node:path';
 
 import { glob } from 'tinyglobby';
 
-import { loadUserModule, resolveUserModule } from '../load-user-module.js';
+import {
+  loadUserModule,
+  resolveUserModule,
+  unloadableReason,
+} from '../load-user-module.js';
 import { ThymianBaseError } from '../thymian.error.js';
 import { isRecord } from '../utils.js';
 import { validate } from './ajv-validate.js';
@@ -213,37 +218,6 @@ function applyProfileThenConfig(
 }
 
 /**
- * The extensions a globbed rule-set match may have. Character-for-character `LOADABLE_EXTENSION` in
- * `load-user-module.ts`, and case-sensitive for the same reason: the seam normalises a resolved path
- * to its on-disk casing and then tests this same case-sensitive pattern, so an `Upper.Rule.JS` is
- * not loadable there and must not be waved through here either.
- */
-const LOADABLE_RULE_FILE = /\.[cm]?[jt]s$/;
-
-/**
- * Declaration files are never loadable — they contain no runtime code. Case-insensitive like the
- * seam's copy, though only the `d` can ever reach it: a `Types.D.TS` already fails the
- * case-sensitive {@link LOADABLE_RULE_FILE}, so the flag earns its keep on `Types.D.ts` alone.
- */
-const DECLARATION_FILE = /\.d\.[cm]?ts$/i;
-
-/**
- * Whether a globbed match is something the seam can load at all.
- *
- * Declaration files are tested FIRST, the order `load-user-module.ts`'s `unloadableReason` uses and
- * for its stated reason — `.d.ts` also matches the loadable pattern, so a declaration check that ran
- * second would be dead code for any spelling the loadable pattern happens to admit.
- *
- * This duplicates a predicate the seam already composes but does not export. The duplication is
- * deliberate for now (story 34.2 may not edit `load-user-module.ts`) and tracked as deferred work:
- * if the seam ever widens — its `.tsx` exclusion is called deliberate but the export-shape
- * limitation is called follow-up work — this copy silently drops the newly loadable files.
- */
-function isLoadableRuleFile(file: string): boolean {
-  return !DECLARATION_FILE.test(file) && LOADABLE_RULE_FILE.test(file);
-}
-
-/**
  * A rule set that is reachable from itself through pattern globs can never finish loading, so it is
  * reported rather than pursued.
  *
@@ -359,7 +333,24 @@ async function loadRuleSet(
       // neighbouring `types.d.ts` and `**/*` also picks up a `rules.json` or a `README.md`; the seam
       // declines every one of them, so without this the whole rule set dies on `Cannot resolve rule
       // source` naming a file that plainly exists and that the user never meant to load.
-      const files = matched.filter(isLoadableRuleFile);
+      //
+      // The loadability test itself runs on the match's REALPATH, not the raw glob spelling — the
+      // same predicate the seam applies, given the same kind of input the seam gives it (a resolved
+      // path, not a filename) — so a symlink agrees with the seam in both directions instead of
+      // testing one shape here and importing a different one below. A match whose realpath cannot
+      // be resolved (a broken symlink, ENOENT) is treated as not loadable, the same as any other
+      // declined file.
+      const files = matched.filter((file) => {
+        let resolved: string;
+
+        try {
+          resolved = realpathSync.native(path.join(dirname, file));
+        } catch {
+          return false;
+        }
+
+        return unloadableReason(resolved) === undefined;
+      });
 
       // An individual skip is silent — that is the point of the filter. But a pattern that matched
       // files and kept NONE of them is a mistake every time: a typo'd extension, a pattern aimed at
