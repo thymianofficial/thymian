@@ -1,6 +1,6 @@
 import { mkdtemp, rm, symlink, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { basename, dirname, join } from 'node:path';
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -511,6 +511,21 @@ describe('rule-set glob recursion (#688)', () => {
       .split(' -> ');
   }
 
+  // Checks a ring entry's last two path segments via `node:path`, never a hardcoded `/` regex:
+  // the ring holds real canonical filesystem paths, and on Windows those are backslash-separated,
+  // so a forward-slash regex silently never matches there — including in a `.some(...) === false`
+  // assertion, where a mismatched regex passes for the wrong reason instead of failing.
+  function ringEntryIs(
+    fullPath: string,
+    parentDir: string,
+    fileName: string,
+  ): boolean {
+    return (
+      basename(fullPath) === fileName &&
+      basename(dirname(fullPath)) === parentDir
+    );
+  }
+
   it('loads the siblings of a self-matching rule set, skipping itself', async () => {
     const rules = await settlesWithin(
       loadRules(join(cycles, 'self-with-siblings', 'self.ruleset.ts')),
@@ -559,8 +574,8 @@ describe('rule-set glob recursion (#688)', () => {
 
     expect(ring).toHaveLength(3);
     expect(ring[0]).toBe(ring[2]);
-    expect(ring[0]).toMatch(/cycle\/a\.ruleset\.ts$/);
-    expect(ring[1]).toMatch(/cycle\/b\.ruleset\.ts$/);
+    expect(ringEntryIs(ring[0] ?? '', 'cycle', 'a.ruleset.ts')).toBe(true);
+    expect(ringEntryIs(ring[1] ?? '', 'cycle', 'b.ruleset.ts')).toBe(true);
   });
 
   it('excludes an ancestor outside the cycle from the reported ring', async () => {
@@ -581,9 +596,17 @@ describe('rule-set glob recursion (#688)', () => {
 
     expect(ring).toHaveLength(3);
     expect(ring[0]).toBe(ring[2]);
-    expect(ring[0]).toMatch(/cycle-with-ancestor\/q\.ruleset\.ts$/);
-    expect(ring[1]).toMatch(/cycle-with-ancestor\/r\.ruleset\.ts$/);
-    expect(ring.some((entry) => /\/p\.ruleset\.ts$/.test(entry))).toBe(false);
+    expect(
+      ringEntryIs(ring[0] ?? '', 'cycle-with-ancestor', 'q.ruleset.ts'),
+    ).toBe(true);
+    expect(
+      ringEntryIs(ring[1] ?? '', 'cycle-with-ancestor', 'r.ruleset.ts'),
+    ).toBe(true);
+    expect(
+      ring.some((entry) =>
+        ringEntryIs(entry, 'cycle-with-ancestor', 'p.ruleset.ts'),
+      ),
+    ).toBe(false);
   });
 
   it('loads a rule reached twice through a diamond without reporting a cycle', async () => {
