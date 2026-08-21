@@ -1,6 +1,4 @@
-import { createRequire } from 'node:module';
-import { isAbsolute, resolve } from 'node:path';
-import { pathToFileURL } from 'node:url';
+import { isAbsolute } from 'node:path';
 import { inspect } from 'node:util';
 
 import { Command, Flags, Interfaces, settings, ux } from '@oclif/core';
@@ -8,7 +6,6 @@ import { CLIError } from '@oclif/core/errors';
 import type { CommandError } from '@oclif/core/interfaces';
 import {
   isLogLevel,
-  isPlugin,
   type Logger,
   type LogLevel,
   SORT_REPORTS_BY_VALUES,
@@ -31,9 +28,8 @@ import { trafficFlag } from './flags/traffic-flag.js';
 import { getConfig } from './get-config.js';
 import type { ThymianSpecSearchResult } from './hooks/spec-search-hook.js';
 import type { ThymianTrafficSearchResult } from './hooks/traffic-search-hook.js';
+import { loadPluginModule as loadPluginModuleImpl } from './load-plugin-module.js';
 import type { ThymianConfig } from './thymian-config.js';
-
-const require = createRequire(import.meta.url);
 
 export type CommandFlags<T extends typeof Command> = Interfaces.InferredFlags<
   (typeof BaseCliRunCommand)['baseFlags'] & T['flags']
@@ -505,43 +501,16 @@ export abstract class BaseCliRunCommand<
     nameOrPath: string,
     isRelativePath = false,
   ): Promise<ThymianPlugin> {
-    const options = this.thymianConfig.plugins[nameOrPath] ?? {};
-    const location =
-      isRelativePath || typeof options.path === 'string'
-        ? resolve(this.flags.cwd, options.path ?? nameOrPath)
-        : nameOrPath;
-
-    let pluginModule;
-
-    this.debug('Load plugin module from location "%s".', location);
-
-    try {
-      const resolvedPath = require.resolve(location);
-      pluginModule = (await import(pathToFileURL(resolvedPath).href)).default;
-    } catch (e) {
-      this.logger.debug(
-        'Failed to load plugin module from "%s": %s',
-        location,
-        inspect(e),
-      );
-      throw new ThymianBaseError(
-        `Failed to load plugin module "${options.path ?? nameOrPath}".`,
-        {
-          name: 'PluginLoadError',
-          cause: e,
-        },
-      );
-    }
-
-    if (!isPlugin(pluginModule)) {
-      throw new CLIError(
-        `"${
-          options.path ?? nameOrPath
-        }" does not default export a valid Thymian plugin.`,
-      );
-    }
-
-    return pluginModule;
+    return loadPluginModuleImpl(
+      nameOrPath,
+      this.thymianConfig,
+      this.flags.cwd,
+      isRelativePath,
+      {
+        debug: this.debug.bind(this),
+        loggerDebug: this.logger.debug.bind(this.logger),
+      },
+    );
   }
 
   protected async registerPlugin(
