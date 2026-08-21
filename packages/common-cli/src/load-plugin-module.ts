@@ -5,6 +5,7 @@ import { CLIError } from '@oclif/core/errors';
 import {
   isPlugin,
   isRecord,
+  isThymianError,
   loadUserModule,
   resolveUserModule,
   ThymianBaseError,
@@ -53,6 +54,15 @@ export function describePluginLoadFailure(
   error: unknown,
 ): DescribePluginLoadFailureResult {
   const reason = pluginLoadFailureReason(error);
+
+  // A caught error that is already a framed ThymianError (e.g. loadUserModule's cycle-detection
+  // or mis-cased-extension errors from packages/core) carries its own curated suggestions under
+  // `options`, not under a top-level `.code` — check this first so they aren't discarded in
+  // favour of a generic `[]` just because they don't match the code-based mapping below.
+  if (isThymianError(error) && error.options?.suggestions?.length) {
+    return { reason, suggestions: error.options.suggestions };
+  }
+
   const code =
     isRecord(error) && typeof error.code === 'string' ? error.code : undefined;
 
@@ -81,14 +91,35 @@ export function describePluginLoadFailure(
   return { reason, suggestions: [] };
 }
 
+/**
+ * Only the first line of whatever produced the reason — Node's MODULE_NOT_FOUND message carries a
+ * multi-line "Require stack:" trailer, and a jiti syntax error's second line is an absolute local
+ * path; neither belongs in the default, non-`--debug` message this composes into (the full detail
+ * is still reachable via `cause` and the existing `--debug` dump, both untouched). Punctuation is
+ * normalized so every composed message reads as a finished sentence, regardless of whether the
+ * reason came from a raw `Error.message` (no trailing period) or an already-punctuated one composed
+ * elsewhere in this file.
+ */
 function pluginLoadFailureReason(error: unknown): string {
   if (!(error instanceof Error)) {
-    return inspect(error, { depth: 3 });
+    return normalizeReason(inspect(error, { depth: 3 }));
   }
 
-  const message = error.message.trim();
+  const firstLine = firstLineOf(error.message);
 
-  return message.length > 0 ? message : inspect(error, { depth: 3 });
+  return firstLine.length > 0
+    ? normalizeReason(firstLine)
+    : normalizeReason(inspect(error, { depth: 3 }));
+}
+
+function firstLineOf(text: string): string {
+  return (text.split('\n', 1)[0] ?? '').trim();
+}
+
+function normalizeReason(text: string): string {
+  const line = firstLineOf(text);
+
+  return line.length === 0 || /[.!?]$/.test(line) ? line : `${line}.`;
 }
 
 function moduleNotFoundSuggestion(reason: string): string {

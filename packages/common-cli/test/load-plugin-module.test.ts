@@ -2,7 +2,13 @@ import { copyFile, mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
-import { isPlugin, loadUserModule, resolveUserModule } from '@thymian/core';
+import {
+  isPlugin,
+  isThymianError,
+  loadUserModule,
+  resolveUserModule,
+  ThymianBaseError,
+} from '@thymian/core';
 import { describe, expect, it, vi } from 'vitest';
 
 import {
@@ -13,9 +19,12 @@ import type { ThymianConfig } from '../src/thymian-config.js';
 
 const FIXTURES_DIR = join(import.meta.dirname, 'fixtures', 'plugins');
 
-function pluginErrorSuggestions(error: Error): string[] {
-  return (error as unknown as { options: { suggestions: string[] } }).options
-    .suggestions;
+function pluginErrorSuggestions(error: unknown): string[] {
+  if (!isThymianError(error)) {
+    throw new Error(`Expected a ThymianError, got: ${String(error)}`);
+  }
+
+  return error.options?.suggestions ?? [];
 }
 
 function configWith(
@@ -342,13 +351,13 @@ describe('loadPluginModule', () => {
     it('uses the message for an Error with content', () => {
       const result = describePluginLoadFailure(new Error('boom'));
 
-      expect(result.reason).toBe('boom');
+      expect(result.reason).toBe('boom.');
     });
 
     it('does not prepend the error name to the message', () => {
       const result = describePluginLoadFailure(new TypeError('boom'));
 
-      expect(result.reason).toBe('boom');
+      expect(result.reason).toBe('boom.');
     });
 
     it('falls back to inspect for a non-Error throw', () => {
@@ -362,6 +371,47 @@ describe('loadPluginModule', () => {
 
       expect(result.reason).not.toBe('');
       expect(result.reason).not.toMatch(/: $/);
+    });
+
+    it('does not leak a multi-line stack trace into the reason for an empty-message Error', () => {
+      const result = describePluginLoadFailure(new Error(''));
+
+      expect(result.reason).not.toContain('\n');
+      expect(result.reason).not.toContain('    at ');
+    });
+
+    it('takes only the first line of a multi-line Error message', () => {
+      const error = new Error(
+        "Cannot find module './helper'\nRequire stack:\n- /abs/path/plugin.ts",
+      );
+      const result = describePluginLoadFailure(error);
+
+      expect(result.reason).toBe("Cannot find module './helper'.");
+    });
+
+    it('does not double a trailing period that is already present', () => {
+      const result = describePluginLoadFailure(
+        new Error('already punctuated.'),
+      );
+
+      expect(result.reason).toBe('already punctuated.');
+    });
+
+    it('propagates suggestions already authored on a caught ThymianError instead of discarding them', () => {
+      const cycleError = new ThymianBaseError(
+        'Cannot load user module /abs/plugin.ts: it is already being evaluated.',
+        {
+          name: 'UserModuleLoadError',
+          suggestions: [
+            'Break the cycle by importing the shared module directly instead of loading it through Thymian.',
+          ],
+        },
+      );
+      const result = describePluginLoadFailure(cycleError);
+
+      expect(result.suggestions).toEqual([
+        'Break the cycle by importing the shared module directly instead of loading it through Thymian.',
+      ]);
     });
 
     it('falls back to inspect when the Error message is whitespace-only', () => {
@@ -447,7 +497,7 @@ describe('loadPluginModule', () => {
       ).catch((e: unknown) => e as Error);
 
       expect(error.message).toBe(
-        'Failed to load plugin module "./fixtures/plugins/throws-on-load-plugin.ts": boom',
+        'Failed to load plugin module "./fixtures/plugins/throws-on-load-plugin.ts": boom.',
       );
     });
 
