@@ -91,6 +91,18 @@ describe('loadPluginModule', () => {
         await rm(cwd, { recursive: true, force: true });
       }
     });
+
+    it('loads a plain CommonJS plugin (module.exports, no ESM default marker)', async () => {
+      const plugin = await loadPluginModule(
+        './fixtures/plugins/cjs-plugin.cjs',
+        configWith(),
+        import.meta.dirname,
+        true,
+      );
+
+      expect(plugin.name).toBe('cjs-plugin');
+      expect(plugin.version).toBe('1.0.0');
+    });
   });
 
   describe('preferCwdRelative: false (AC3)', () => {
@@ -127,6 +139,25 @@ describe('loadPluginModule', () => {
 
       try {
         const resolved = await resolveUserModule(name, cwd, {
+          preferCwdRelative: false,
+        });
+
+        expect(resolved.ok).toBe(true);
+      } finally {
+        await rm(cwd, { recursive: true, force: true });
+      }
+    });
+
+    it("still resolves via core's own install directory when the user's project has no match at all", async () => {
+      // No `node_modules` anywhere under this cwd, so the first anchor (the user's project) can
+      // never answer — this specifically exercises the SECOND anchor, core's own install
+      // directory, which the other bare-package tests above never reach because their fake
+      // package always satisfies the first anchor. `yaml` is a real, already-installed
+      // dependency reachable from core's anchor via the workspace's hoisted `node_modules`.
+      const cwd = await mkdtemp(join(tmpdir(), 'thymian-plugin-empty-cwd-'));
+
+      try {
+        const resolved = await resolveUserModule('yaml', cwd, {
           preferCwdRelative: false,
         });
 
@@ -246,6 +277,20 @@ describe('loadPluginModule', () => {
         loadPluginModule('my-plugin', config, import.meta.dirname),
       ).rejects.toThrow(
         'Failed to load plugin module "./fixtures/plugins/does-not-exist.ts".',
+      );
+    });
+
+    it("carries resolveUserModule's reason through as the cause message, for a file that resolves but is declined for its extension", async () => {
+      const error = await loadPluginModule(
+        './fixtures/plugins/not-code.json',
+        configWith(),
+        import.meta.dirname,
+        true,
+      ).catch((e: unknown) => e);
+
+      expect((error as Error).cause).toBeInstanceOf(Error);
+      expect(((error as Error).cause as Error).message).toBe(
+        'only JavaScript and TypeScript modules can be loaded',
       );
     });
   });
