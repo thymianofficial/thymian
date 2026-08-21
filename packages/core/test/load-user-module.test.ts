@@ -563,9 +563,218 @@ describe('load user module', () => {
     });
 
     it('returns undefined for a Node builtin specifier', async () => {
-      // `require.resolve` answers builtins with the bare id (`node:fs`), which is not an
-      // absolute path and not a loadable user module.
+      // `require.resolve` answers builtins with the bare id (`node:fs`), which is not an absolute
+      // path and not a loadable user module. Still declined after the plain-name `<cwd>` fallback
+      // (thymian-internal#687) — but now because `node:fs` is NOT a plain id, so it keeps its
+      // non-absolute value and the absolute-path guard refuses it. `node:fs` never reaches
+      // `path.resolve`; `builtin-colliding names` below covers the spellings that do.
       await expectDeclined('node:fs');
+    });
+
+    describe('builtin-colliding names', () => {
+      // `require.resolve` reports a bare-requirable builtin as the bare id, which the resolver
+      // chain read as a hit — so the `<cwd>` candidate was unreachable (thymian-internal#687).
+      // One helper, one fixture shape: duplicating setup let "same fixture, opposite verdict"
+      // pairs drift with nothing to catch it.
+      async function withFixture(
+        build: (cwd: string) => Promise<void>,
+        run: (cwd: string) => Promise<void>,
+      ): Promise<void> {
+        const cwd = await mkdtemp(join(tmpdir(), 'thymian-builtin-'));
+
+        try {
+          await build(cwd);
+          await run(cwd);
+        } finally {
+          // Never let cleanup replace a real assertion failure with an unlink error.
+          await rm(cwd, { recursive: true, force: true }).catch(
+            () => undefined,
+          );
+        }
+      }
+
+      async function writeModule(dir: string, marker: string): Promise<void> {
+        const name = basename(dir);
+
+        await mkdir(dir, { recursive: true });
+        await writeFile(
+          join(dir, 'package.json'),
+          JSON.stringify({ name, main: 'index.js', type: 'module' }),
+        );
+        await writeFile(join(dir, 'index.js'), `export default '${marker}';\n`);
+      }
+
+      it('falls back to a local directory named after a Node builtin', async () => {
+        await withFixture(
+          (cwd) => writeModule(join(cwd, 'http'), 'LOCAL'),
+          async (cwd) => {
+            const resolved = await resolveOrFail('http', cwd);
+
+            expect(resolved).toBe(
+              join(realpathSync.native(cwd), 'http', 'index.js'),
+            );
+            expect((await loadUserModule(resolved)).default).toBe('LOCAL');
+          },
+        );
+      });
+
+      it('declines a same-named plain FILE, which is an ordinary helper name', async () => {
+        // `util.js`, `os.js`, `path.js` are commonplace at a project root. Running one for
+        // `rules: ['util']` would be an accident, so only a DIRECTORY qualifies.
+        await withFixture(
+          async (cwd) => {
+            await writeFile(join(cwd, 'util.js'), "export default 'HELPER';\n");
+          },
+          async (cwd) => {
+            const declined = await expectDeclined('util', cwd);
+
+            // And no `reason`: nothing loadable was named, so this is plain "not found".
+            expect(declined.reason).toBeUndefined();
+          },
+        );
+      });
+
+      it('declines when the only local candidate is a non-module', async () => {
+        // `<cwd>/http.json` is not a directory, so it is never tried — the user gets "cannot
+        // resolve http" rather than a sentence about JSON support for a file they never named.
+        await withFixture(
+          async (cwd) => {
+            await writeFile(join(cwd, 'http.json'), '{"note":"config"}\n');
+          },
+          async (cwd) => {
+            const declined = await expectDeclined('http', cwd);
+
+            expect(declined.reason).toBeUndefined();
+          },
+        );
+      });
+
+      it('still accepts a plain FILE for an ordinary bare name', async () => {
+        // Guards against over-fixing: the directory rule applies ONLY to discarded builtin ids.
+        await withFixture(
+          async (cwd) => {
+            await writeFile(
+              join(cwd, 'myrules.js'),
+              "export default 'PLAIN';\n",
+            );
+          },
+          async (cwd) => {
+            const resolved = await resolveOrFail('myrules', cwd);
+
+            expect(resolved).toBe(join(realpathSync.native(cwd), 'myrules.js'));
+          },
+        );
+      });
+
+      it('lets a local directory win over a same-named installed package', async () => {
+        // Deliberate, and the one place installed-first bends. The installed copy is created AND
+        // asserted reachable by subpath, so this fixture cannot rot into decoration: bare `util`
+        // answers local precisely because Node answers the BUILTIN for the bare name, leaving the
+        // installed copy unreachable that way.
+        await withFixture(
+          async (cwd) => {
+            await writeModule(join(cwd, 'util'), 'LOCAL');
+            await writeModule(join(cwd, 'node_modules', 'util'), 'INSTALLED');
+          },
+          async (cwd) => {
+            const bare = await resolveOrFail('util', cwd);
+
+            expect(bare).toBe(
+              join(realpathSync.native(cwd), 'util', 'index.js'),
+            );
+            expect((await loadUserModule(bare)).default).toBe('LOCAL');
+
+            const subpath = await resolveOrFail('util/index.js', cwd);
+
+            expect(subpath).toBe(
+              join(
+                realpathSync.native(cwd),
+                'node_modules',
+                'util',
+                'index.js',
+              ),
+            );
+            expect((await loadUserModule(subpath)).default).toBe('INSTALLED');
+          },
+        );
+      });
+
+      it('honours preferCwdRelative for a builtin-colliding name, both ways', async () => {
+        // Both flag values against ONE fixture is what makes this discriminating.
+        await withFixture(
+          (cwd) => writeModule(join(cwd, 'http'), 'LOCAL'),
+          async (cwd) => {
+            const enabled = await resolveUserModule('http', cwd, {
+              preferCwdRelative: true,
+            });
+
+            expect(enabled.ok && enabled.path).toBe(
+              join(realpathSync.native(cwd), 'http', 'index.js'),
+            );
+
+            // Plugins pass `false` and never had a cwd fallback; the fix must not hand them one.
+            const declined = await expectDeclined('http', cwd, {
+              preferCwdRelative: false,
+            });
+
+            expect(declined.reason).toBeUndefined();
+          },
+        );
+      });
+
+      it.each(['fs/promises', 'inspector/promises'])(
+        'declines the builtin subpath %s even with a local candidate',
+        async (specifier) => {
+          // Not a plain id, so not discarded — the absolute-path guard refuses it. Two spellings,
+          // because the guard's only other regression test is Windows-skipped below.
+          await withFixture(
+            async (cwd) => {
+              const [dir, file] = specifier.split('/');
+
+              await mkdir(join(cwd, dir), { recursive: true });
+              await writeFile(
+                join(cwd, dir, `${file}.mjs`),
+                "export default 'LOCAL-SUBPATH';\n",
+              );
+            },
+            async (cwd) => {
+              const declined = await expectDeclined(specifier, cwd);
+
+              expect(declined.reason).toBeUndefined();
+            },
+          );
+        },
+      );
+
+      it('declines a node:-prefixed specifier even with a local candidate', async () => {
+        // `node:fs` is the explicit builtin spelling and never reaches `path.resolve`.
+        await withFixture(
+          async (cwd) => {
+            // A ':' is illegal in a Windows path component, so the candidate is unconstructible
+            // there — which is itself why the specifier can never resolve on Windows. The
+            // assertion below still runs on every platform.
+            if (process.platform !== 'win32') {
+              await writeModule(join(cwd, 'node:fs'), 'LOCAL-NODE-FS');
+            }
+          },
+          async (cwd) => {
+            await expectDeclined('node:fs', cwd);
+          },
+        );
+      });
+
+      it('declines a plain builtin name with nothing local at all', async () => {
+        // Isolated cwd on purpose: against the shared fixture root this would silently flip the
+        // day someone adds an `fs.*` fixture for an unrelated test.
+        await withFixture(
+          async () => undefined,
+          async (cwd) => {
+            const declined = await expectDeclined('fs', cwd);
+
+            expect(declined.reason).toBeUndefined();
+          },
+        );
+      });
     });
 
     it('prefers the user project node_modules over core own for a colliding name', async () => {

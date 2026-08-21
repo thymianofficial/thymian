@@ -46,6 +46,14 @@
  * up front is what let a same-named file or directory shadow an installed package and silently run
  * in its place. Core's anchor stays so Thymian's bundled rule packages keep resolving when the
  * user's project does not carry them.
+ *
+ * ONE exception, defined by what Node's resolver ANSWERS rather than by a list of names: a plain
+ * specifier `require.resolve` reports as a bare builtin id. That is the *bare-requirable* builtins
+ * only — `http`, `util`, `punycode` — and NOT the `node:`-prefix-only ones, since
+ * `require.resolve('sqlite')` throws and so resolves installed-first like any other name. For that
+ * set the installed copy is unreachable by bare specifier through Node's own resolver anyway, so a
+ * `<cwd>` DIRECTORY of the same name is allowed to win. A same-named plain FILE is not: `util.js`
+ * is an ordinary helper filename, and running it for `rules: ['util']` would be an accident.
  */
 
 import { AsyncLocalStorage } from 'node:async_hooks';
@@ -128,6 +136,11 @@ function isFile(candidate: string): boolean {
     // Missing, or a path whose parent is not a directory — either way, not a module.
     return false;
   }
+}
+
+/** An existing directory. Keeps the discarded-builtin-id fallback to directories — see below. */
+function isDirectory(candidate: string): boolean {
+  return statSync(candidate, { throwIfNoEntry: false })?.isDirectory() === true;
 }
 
 /**
@@ -230,6 +243,15 @@ function unloadableReason(resolvedPath: string): string | undefined {
 
   return undefined;
 }
+
+/**
+ * A resolver answer that is a plain single segment — no separator, no `:`. `require.resolve` reports
+ * a Node builtin as the bare id rather than a path, and only the PLAIN spelling of one is ambiguous
+ * enough to be worth a `<cwd>` fallback: a builtin SUBPATH (`fs/promises`) and the explicit `node:`
+ * spelling name the builtin unambiguously, so they keep their non-absolute value and are refused by
+ * the absolute-path guard at the end of {@link resolveUserModule}.
+ */
+const PLAIN_ID = /^[^/\\:]+$/;
 
 /** `./x`, `../x`, `.` or `..` — specifiers Node resolves against the importer, not `node_modules`. */
 const RELATIVE_SPECIFIER = /^\.\.?(?:[/\\]|$)/;
@@ -375,7 +397,9 @@ export interface ResolveUserModuleOptions {
    * Fall back to `<cwd>/<specifier>` when nothing is installed under that name. Default `true`.
    *
    * A *fallback*, not a preference: installed packages are resolved first, so a same-named file
-   * or directory in `cwd` can never shadow one. Governs **bare** specifiers only — relative
+   * or directory in `cwd` cannot shadow one — except that a `<cwd>` DIRECTORY may win for a
+   * bare-requirable builtin name, whose installed path Node's resolver never answers (see the file
+   * header). Governs **bare** specifiers only — relative
    * specifiers are always anchored at `cwd` regardless of this flag, being unambiguously paths.
    */
   preferCwdRelative?: boolean;
@@ -388,7 +412,8 @@ export interface ResolveUserModuleOptions {
  *
  * Resolution stops at the first hit and runs the same three-resolver chain
  * ({@link resolveLocation}) over at most two candidates: the specifier itself, and — for a bare
- * name nothing is installed under — `<cwd>/<specifier>`. Within a candidate the order is
+ * name nothing is installed under, or whose only answer was a bare builtin id — `<cwd>/<specifier>`,
+ * which for the builtin-id case must be a directory. Within a candidate the order is
  * `require.resolve`, then a `.mjs`/`.cjs` extension guess ({@link resolveThroughGuessing}), then
  * jiti's `esmResolve`. `require.resolve` already handles TypeScript with an explicit extension, so
  * the jiti step is reached for *resolution* only by extensionless and NodeNext `.js`→`.ts`
@@ -442,6 +467,26 @@ export async function resolveUserModule(
       resolveThroughGuessing(specifier) ??
       (await resolveThroughJiti(specifier, base));
 
+    // A plain non-absolute answer is not an answer. `require.resolve` reports a Node builtin as the
+    // bare id (`http`), which is truthy — so the `??` chain stopped there and the candidate below
+    // was never tried. A user whose config said `rules: ['http']`, meaning their own `<cwd>/http/`
+    // directory of rules, was told "cannot resolve http" with the directory sitting on disk.
+    //
+    // Narrow on purpose ({@link PLAIN_ID}): `fs/promises` and `node:fs` name the builtin
+    // unambiguously, so they are NOT discarded and the absolute-path guard below refuses them —
+    // which is what keeps that guard load-bearing. It also keeps `node:fs` away from
+    // `path.resolve` for the builtin `node:` names, where on Windows the joined path would be an
+    // NTFS alternate-data-stream reference. A `node:`-spelled NON-builtin (a typo, or a
+    // prefix-only name on an older runtime) is not answered as a bare id at all, so it still
+    // reaches `path.resolve`; the guarantee is about what the resolver answered, not the spelling.
+    // {@link PLAIN_ID} alone defines the discard set — the thing to look at before widening this.
+    // No `path.isAbsolute` test is needed: no absolute spelling on any platform can match it.
+    const discardedBareId = resolved !== undefined && PLAIN_ID.test(resolved);
+
+    if (discardedBareId) {
+      resolved = undefined;
+    }
+
     if (
       resolved === undefined &&
       preferCwdRelative &&
@@ -451,7 +496,18 @@ export async function resolveUserModule(
       // the user meant. Resolving the absolute path (rather than using it verbatim) keeps a
       // directory holding `index.js` or a `package.json` `main` working, which is the shape
       // today's `rule-loader` accepts for `rules: ['my-rules']`.
-      resolved = await resolveLocation(path.resolve(base, specifier), base);
+      const candidate = path.resolve(base, specifier);
+
+      // For a name reached here only by discarding a builtin id, the candidate must be a
+      // DIRECTORY. `util.js`, `os.js`, `path.js`, `events.js` are ordinary root-level helper
+      // filenames; executing one for `rules: ['util']` is an accident, where a directory named
+      // after a builtin is deliberate. Ordinary bare names keep accepting a plain file, as before.
+      // It also keeps the answer honest when the only local candidate is a non-module:
+      // `<cwd>/http.json` is not a directory, so this reports a plain "not found" rather than a
+      // `reason` about JSON support for a file the user never named.
+      if (!discardedBareId || isDirectory(candidate)) {
+        resolved = await resolveLocation(candidate, base);
+      }
     }
   }
 
