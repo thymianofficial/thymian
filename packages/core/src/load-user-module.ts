@@ -45,7 +45,9 @@
  * installed CLI must not answer with its own copy of a colliding name; and preferring the cwd path
  * up front is what let a same-named file or directory shadow an installed package and silently run
  * in its place. Core's anchor stays so Thymian's bundled rule packages keep resolving when the
- * user's project does not carry them.
+ * user's project does not carry them. This precedence holds for {@link resolveThroughExportsMap}
+ * too, by construction — it walks the same two anchors, in the same order, rather than restating
+ * the policy.
  *
  * ONE exception, defined by what Node's resolver ANSWERS rather than by a list of names: a plain
  * specifier `require.resolve` reports as a bare builtin id. That is the *bare-requirable* builtins
@@ -57,12 +59,13 @@
  */
 
 import { AsyncLocalStorage } from 'node:async_hooks';
-import { existsSync, realpathSync, statSync } from 'node:fs';
+import { existsSync, readFileSync, realpathSync, statSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import * as path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
 import type { Jiti } from 'jiti';
+import { exports as resolveExportsMap } from 'resolve.exports';
 
 import { ThymianBaseError } from './thymian.error.js';
 import { isRecord } from './utils.js';
@@ -183,6 +186,117 @@ function resolveThroughGuessing(location: string): string | undefined {
 
     if (isFile(candidate)) {
       return candidate;
+    }
+  }
+
+  return undefined;
+}
+
+/**
+ * Splits a bare specifier into the package name `require.resolve.paths` needs and the `exports`
+ * map target Node's own key convention uses (`.` for the package root, `./sub/path` otherwise).
+ * Scoped packages (`@scope/name`, `@scope/name/sub`) take their first TWO segments as the name —
+ * the same rule Node's own bare-specifier resolution applies.
+ */
+function splitBareSpecifier(specifier: string): {
+  packageName: string;
+  target: string;
+} {
+  const segments = specifier.split('/');
+  const packageName = specifier.startsWith('@')
+    ? segments.slice(0, 2).join('/')
+    : (segments[0] ?? specifier);
+  const rest = specifier.slice(packageName.length);
+
+  return { packageName, target: rest === '' ? '.' : `.${rest}` };
+}
+
+/**
+ * Resolves a bare specifier through its package's `exports` map, honouring ESM conditions
+ * (`node`, `import`, `default`) — the gap `require.resolve` cannot close, because CJS's
+ * `require.resolve` only ever applies the CJS condition set. An ESM-only package (`exports` with
+ * an `import` condition and no `require`/`default` match) throws `ERR_PACKAGE_PATH_NOT_EXPORTED`
+ * from {@link resolveThroughRequire} and, before this function existed, only jiti's own
+ * `esmResolve` could resolve it — which meant importing jiti just to answer a RESOLUTION question,
+ * for a package that may turn out to be plain JavaScript. That is the cost contract item 4
+ * forbids; this function pays it with a ~1 KB, zero-dependency library instead.
+ *
+ * Directory discovery deliberately reuses {@link resolveThroughRequire}'s own two anchors —
+ * `requireFrom(cwd)` (the user's project) then `require` (core's own install directory) — via
+ * `resolve.paths`, which walks the same `node_modules` ancestor chain Node's own ESM resolver
+ * would. This is what makes the user-before-core precedence (see the file header) hold for this
+ * resolver too, without a second implementation of that policy. `resolve.paths` answers `null` for
+ * a Node builtin id (no `node_modules` search applies) or when nothing is installed under that
+ * name from that anchor — both are a plain miss here, not an error.
+ *
+ * `resolve.exports` itself never touches the filesystem — it only matches conditions against an
+ * already-parsed `package.json`. A malformed `package.json` is a miss for that directory, not a
+ * thrown error: another candidate directory, or the next resolver in the chain, may still answer.
+ */
+function resolveThroughExportsMap(
+  specifier: string,
+  cwd: string,
+): string | undefined {
+  const { packageName, target } = splitBareSpecifier(specifier);
+
+  for (const anchor of [requireFrom(cwd), require]) {
+    let candidateDirs: string[] | null;
+
+    try {
+      candidateDirs = anchor.resolve.paths(packageName);
+    } catch {
+      candidateDirs = null;
+    }
+
+    if (candidateDirs === null) {
+      continue;
+    }
+
+    for (const dir of candidateDirs) {
+      const packageDir = path.join(dir, packageName);
+      const packageJsonPath = path.join(packageDir, 'package.json');
+
+      if (!isFile(packageJsonPath)) {
+        continue;
+      }
+
+      let pkg: unknown;
+
+      try {
+        pkg = JSON.parse(readFileSync(packageJsonPath, 'utf8'));
+      } catch {
+        continue;
+      }
+
+      if (!isRecord(pkg)) {
+        continue;
+      }
+
+      let matches: readonly string[] | void;
+
+      try {
+        // No options: defaults are exactly `['node', 'import', 'default']`, matching how every
+        // path this seam resolves is actually consumed — `await import()`, or jiti. Never
+        // `require()`.
+        matches = resolveExportsMap(pkg, target);
+      } catch {
+        continue;
+      }
+
+      if (!matches) {
+        continue;
+      }
+
+      // A fallback array (`"exports": {".": ["./a.mjs", "./b.mjs"]}`) is valid per the exports
+      // spec — try each candidate in order and use the first that exists on disk, rather than
+      // assuming the match is unique.
+      for (const match of matches) {
+        const candidate = path.join(packageDir, match);
+
+        if (isFile(candidate)) {
+          return candidate;
+        }
+      }
     }
   }
 
@@ -470,15 +584,24 @@ export interface ResolveUserModuleOptions {
  * `{ ok: false }`, carrying a `reason` when the seam knows something the caller could not work
  * out for itself. On success, `path` is an absolute filesystem path, never a `file://` URL.
  *
- * Resolution stops at the first hit and runs the same three-resolver chain
- * ({@link resolveLocation}) over at most two candidates: the specifier itself, and — for a bare
- * name nothing is installed under, or whose only answer was a bare builtin id — `<cwd>/<specifier>`,
- * which for the builtin-id case must be a directory. Within a candidate the order is
- * `require.resolve`, then a `.mjs`/`.cjs` extension guess ({@link resolveThroughGuessing}), then
- * jiti's `esmResolve`. `require.resolve` already handles TypeScript with an explicit extension, so
- * the jiti step is reached for *resolution* only by extensionless and NodeNext `.js`→`.ts`
- * specifiers. The candidates are exhausted in that order, not the resolvers: a bare name that only
- * jiti can resolve inside `node_modules` still beats a same-named local file.
+ * Resolution stops at the first hit, over at most two candidates: the specifier itself, and — for
+ * a bare name nothing is installed under, or whose only answer was a bare builtin id —
+ * `<cwd>/<specifier>`, which for the builtin-id case must be a directory. The two candidates run
+ * DIFFERENT resolver chains, because only the first can be a package name:
+ *
+ * - A **bare** specifier: `require.resolve`, then a `.mjs`/`.cjs` extension guess
+ *   ({@link resolveThroughGuessing}, a no-op for a bare name), then
+ *   {@link resolveThroughExportsMap} (ESM `exports` conditions `require.resolve`'s CJS condition
+ *   set cannot match), then jiti's `esmResolve`.
+ * - The **relative** specifier and the `<cwd>/<specifier>` fallback candidate ({@link
+ *   resolveLocation}): the same three steps MINUS the exports-map one — a filesystem path is never
+ *   a package name, so matching it against a package's `exports` map is meaningless.
+ *
+ * `require.resolve` already handles TypeScript with an explicit extension, so the jiti step is
+ * reached for *resolution* only by extensionless and NodeNext `.js`→`.ts` specifiers, or by a bare
+ * specifier `resolveThroughExportsMap` cannot match. The candidates are exhausted in that order,
+ * not the resolvers: a bare name that only jiti can resolve inside `node_modules` still beats a
+ * same-named local file.
  *
  * @param specifier The user's rule, rule-set or plugin specifier.
  * @param cwd Directory that path-like specifiers resolve against, that anchors the jiti fallback,
@@ -525,6 +648,7 @@ export async function resolveUserModule(
     resolved =
       resolveThroughRequire(specifier, base) ??
       resolveThroughGuessing(specifier) ??
+      resolveThroughExportsMap(specifier, base) ??
       (await resolveThroughJiti(specifier, base));
 
     // A plain non-absolute answer is not an answer. `require.resolve` reports a Node builtin as the

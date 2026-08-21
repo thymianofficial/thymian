@@ -1,7 +1,7 @@
 import { existsSync, realpathSync } from 'node:fs';
 import { mkdir, mkdtemp, rm, symlink, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
-import { basename, isAbsolute, join } from 'node:path';
+import { basename, dirname, isAbsolute, join } from 'node:path';
 
 import {
   afterAll,
@@ -1329,6 +1329,330 @@ describe('load user module', () => {
 
       expect(jitiFactoryCalls).toBe(1);
     });
+  });
+
+  describe('resolveThroughExportsMap (conditions-aware bare-specifier resolution)', () => {
+    // Mirrors the "lazy jiti import" describe block's own pattern, independently: these tests
+    // assert on jiti's ABSENCE (an ESM-only package must never need it) or on `resolve.exports`'s
+    // presence/absence (proving whether the new step ran at all), so each needs its own fresh
+    // module registry. Every test below resolves through a freshly `import()`ed `loader`, never
+    // through this file's static top-level `resolveUserModule`/`loadUserModule` bindings — those
+    // were captured before any mock existed and would silently bypass both mocks, the same
+    // false-pass-for-the-wrong-reason trap the "lazy jiti import" block's own comments warn about.
+    let jitiFactoryCalls = 0;
+    let exportsMapCalls = 0;
+
+    beforeEach(() => {
+      jitiFactoryCalls = 0;
+      exportsMapCalls = 0;
+      vi.resetModules();
+      vi.doMock('jiti', async () => {
+        jitiFactoryCalls += 1;
+
+        return await vi.importActual<typeof import('jiti')>('jiti');
+      });
+      vi.doMock('resolve.exports', async () => {
+        const actual =
+          await vi.importActual<typeof import('resolve.exports')>(
+            'resolve.exports',
+          );
+
+        return {
+          ...actual,
+          exports: (...args: Parameters<typeof actual.exports>) => {
+            exportsMapCalls += 1;
+
+            return actual.exports(...args);
+          },
+        };
+      });
+    });
+
+    afterEach(() => {
+      vi.doUnmock('jiti');
+      vi.doUnmock('resolve.exports');
+      vi.resetModules();
+    });
+
+    /** Writes a minimal package to `dir/node_modules/name`, returning the package directory. */
+    async function writePackage(
+      dir: string,
+      name: string,
+      packageJson: Record<string, unknown>,
+      files: Record<string, string>,
+    ): Promise<string> {
+      const pkgDir = join(dir, 'node_modules', name);
+
+      await mkdir(pkgDir, { recursive: true });
+      await writeFile(
+        join(pkgDir, 'package.json'),
+        JSON.stringify({ name, ...packageJson }),
+      );
+
+      for (const [fileName, contents] of Object.entries(files)) {
+        const filePath = join(pkgDir, fileName);
+
+        await mkdir(dirname(filePath), { recursive: true });
+        await writeFile(filePath, contents);
+      }
+
+      return pkgDir;
+    }
+
+    it('resolves an ESM-only package without ever importing jiti', async () => {
+      const loader = await import('../src/load-user-module.js');
+      const userProject = await mkdtemp(join(tmpdir(), 'thymian-esm-only-'));
+
+      try {
+        await writePackage(
+          userProject,
+          'esm-only-pkg',
+          { type: 'module', exports: { '.': { import: './index.mjs' } } },
+          { 'index.mjs': "export default 'esm-only';\n" },
+        );
+
+        const result = await loader.resolveUserModule(
+          'esm-only-pkg',
+          userProject,
+        );
+
+        if (!result.ok) {
+          throw new Error('Expected "esm-only-pkg" to resolve.');
+        }
+
+        const module = await loader.loadUserModule(result.path);
+
+        expect(module.default).toBe('esm-only');
+        expect(jitiFactoryCalls).toBe(0);
+        expect(exportsMapCalls).toBeGreaterThan(0);
+      } finally {
+        await rm(userProject, { recursive: true, force: true });
+      }
+    }, 15_000);
+
+    it('resolves a subpath through the exports map', async () => {
+      const loader = await import('../src/load-user-module.js');
+      const userProject = await mkdtemp(join(tmpdir(), 'thymian-esm-subpath-'));
+
+      try {
+        await writePackage(
+          userProject,
+          'esm-subpath-pkg',
+          {
+            type: 'module',
+            exports: { './utils': { import: './dist/utils.mjs' } },
+          },
+          { 'dist/utils.mjs': "export default 'esm-subpath-utils';\n" },
+        );
+
+        const result = await loader.resolveUserModule(
+          'esm-subpath-pkg/utils',
+          userProject,
+        );
+
+        if (!result.ok) {
+          throw new Error('Expected "esm-subpath-pkg/utils" to resolve.');
+        }
+
+        const module = await loader.loadUserModule(result.path);
+
+        expect(module.default).toBe('esm-subpath-utils');
+        expect(jitiFactoryCalls).toBe(0);
+      } finally {
+        await rm(userProject, { recursive: true, force: true });
+      }
+    }, 15_000);
+
+    it('resolves a scoped package with a subpath', async () => {
+      const loader = await import('../src/load-user-module.js');
+      const userProject = await mkdtemp(join(tmpdir(), 'thymian-esm-scoped-'));
+
+      try {
+        await writePackage(
+          userProject,
+          '@thymian-test/esm-scoped-pkg',
+          {
+            type: 'module',
+            exports: { './rules': { import: './rules.mjs' } },
+          },
+          { 'rules.mjs': "export default 'esm-scoped-rules';\n" },
+        );
+
+        const result = await loader.resolveUserModule(
+          '@thymian-test/esm-scoped-pkg/rules',
+          userProject,
+        );
+
+        if (!result.ok) {
+          throw new Error(
+            'Expected "@thymian-test/esm-scoped-pkg/rules" to resolve.',
+          );
+        }
+
+        const module = await loader.loadUserModule(result.path);
+
+        expect(module.default).toBe('esm-scoped-rules');
+        expect(jitiFactoryCalls).toBe(0);
+      } finally {
+        await rm(userProject, { recursive: true, force: true });
+      }
+    }, 15_000);
+
+    it('leaves a dual-published package on its existing CJS-conditioned path, untouched', async () => {
+      const loader = await import('../src/load-user-module.js');
+      const userProject = await mkdtemp(
+        join(tmpdir(), 'thymian-dual-published-'),
+      );
+
+      try {
+        await writePackage(
+          userProject,
+          'dual-published-pkg',
+          {
+            type: 'commonjs',
+            exports: {
+              '.': { import: './index.mjs', require: './index.cjs' },
+            },
+          },
+          {
+            'index.mjs': "export default 'dual-esm';\n",
+            'index.cjs': "module.exports = { default: 'dual-cjs' };\n",
+          },
+        );
+
+        const result = await loader.resolveUserModule(
+          'dual-published-pkg',
+          userProject,
+        );
+
+        if (!result.ok) {
+          throw new Error('Expected "dual-published-pkg" to resolve.');
+        }
+
+        // require.resolve applies the CJS condition set and answers the `.cjs` half — preserved
+        // behaviour this story does not change (see the story's Dev Notes and AC5).
+        expect(result.path.endsWith('index.cjs')).toBe(true);
+        expect(exportsMapCalls).toBe(0);
+      } finally {
+        await rm(userProject, { recursive: true, force: true });
+      }
+    }, 15_000);
+
+    it("prefers the user project's copy over one installed in core's own directory", async () => {
+      const loader = await import('../src/load-user-module.js');
+      const userProject = await mkdtemp(
+        join(tmpdir(), 'thymian-esm-precedence-'),
+      );
+      // A real directory `require.resolve.paths` walks from `load-user-module.ts`'s own
+      // location — the only way to exercise the "core" anchor honestly, matching how
+      // `BARE_PACKAGE` (an actual workspace dependency) is used elsewhere in this file for the
+      // same reason. Removed in `finally` regardless of outcome.
+      const coreAnchorDir = join(import.meta.dirname, '..');
+      const packageName = 'thymian-test-core-anchor-precedence-esm';
+
+      try {
+        await writePackage(
+          coreAnchorDir,
+          packageName,
+          { type: 'module', exports: { '.': { import: './index.mjs' } } },
+          { 'index.mjs': "export default 'from-core';\n" },
+        );
+        await writePackage(
+          userProject,
+          packageName,
+          { type: 'module', exports: { '.': { import: './index.mjs' } } },
+          { 'index.mjs': "export default 'from-user';\n" },
+        );
+
+        const result = await loader.resolveUserModule(packageName, userProject);
+
+        if (!result.ok) {
+          throw new Error(`Expected "${packageName}" to resolve.`);
+        }
+
+        expect(result.path.startsWith(realpathSync.native(userProject))).toBe(
+          true,
+        );
+
+        const module = await loader.loadUserModule(result.path);
+
+        expect(module.default).toBe('from-user');
+      } finally {
+        await rm(userProject, { recursive: true, force: true });
+        await rm(join(coreAnchorDir, 'node_modules', packageName), {
+          recursive: true,
+          force: true,
+        });
+      }
+    }, 15_000);
+
+    it('tries every candidate in an exports fallback array, in order', async () => {
+      const loader = await import('../src/load-user-module.js');
+      const userProject = await mkdtemp(
+        join(tmpdir(), 'thymian-esm-fallback-'),
+      );
+
+      try {
+        await writePackage(
+          userProject,
+          'esm-fallback-pkg',
+          {
+            type: 'module',
+            // './missing.mjs' is never written to disk — the first candidate must be tried and
+            // skipped, not assumed to be the only one.
+            exports: { '.': { import: ['./missing.mjs', './index.mjs'] } },
+          },
+          { 'index.mjs': "export default 'esm-fallback';\n" },
+        );
+
+        const result = await loader.resolveUserModule(
+          'esm-fallback-pkg',
+          userProject,
+        );
+
+        if (!result.ok) {
+          throw new Error('Expected "esm-fallback-pkg" to resolve.');
+        }
+
+        const module = await loader.loadUserModule(result.path);
+
+        expect(module.default).toBe('esm-fallback');
+      } finally {
+        await rm(userProject, { recursive: true, force: true });
+      }
+    }, 15_000);
+
+    it('falls through to jiti, unresolved, for an exports map with no matching condition', async () => {
+      const loader = await import('../src/load-user-module.js');
+      const userProject = await mkdtemp(
+        join(tmpdir(), 'thymian-esm-no-match-'),
+      );
+
+      try {
+        await writePackage(
+          userProject,
+          'browser-only-pkg',
+          {
+            type: 'module',
+            // Neither `import`, `require` nor `default` — require.resolve AND
+            // resolveThroughExportsMap both miss, so this proves the miss is silent rather than
+            // a thrown error, and that resolution still reaches (and exhausts) jiti's fallback.
+            exports: { '.': { browser: './index.browser.mjs' } },
+          },
+          { 'index.browser.mjs': "export default 'browser-only';\n" },
+        );
+
+        const result = await loader.resolveUserModule(
+          'browser-only-pkg',
+          userProject,
+        );
+
+        expect(result.ok).toBe(false);
+        expect(jitiFactoryCalls).toBe(1);
+      } finally {
+        await rm(userProject, { recursive: true, force: true });
+      }
+    }, 15_000);
   });
 
   describe('when jiti is unavailable or misbehaving', () => {
