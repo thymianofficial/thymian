@@ -84,6 +84,11 @@ export default [
       '**/vitest.config.*.timestamp*',
       'node_modules',
       '**/.astro',
+      // Deliberately unparseable — a fixture for a genuine TypeScript syntax error (story 34.4).
+      // `**/`-prefixed like the other entries here: this array is shared into each package's own
+      // eslint.config.mjs, where ESLint resolves ignore patterns relative to that package's own
+      // cwd, not this file's location — a repo-root-relative path silently never matches there.
+      '**/test/fixtures/plugins/syntax-error-plugin.ts',
     ],
   },
   {

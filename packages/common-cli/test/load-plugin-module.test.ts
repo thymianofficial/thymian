@@ -5,10 +5,18 @@ import { join } from 'node:path';
 import { isPlugin, loadUserModule, resolveUserModule } from '@thymian/core';
 import { describe, expect, it, vi } from 'vitest';
 
-import { loadPluginModule } from '../src/load-plugin-module.js';
+import {
+  describePluginLoadFailure,
+  loadPluginModule,
+} from '../src/load-plugin-module.js';
 import type { ThymianConfig } from '../src/thymian-config.js';
 
 const FIXTURES_DIR = join(import.meta.dirname, 'fixtures', 'plugins');
+
+function pluginErrorSuggestions(error: Error): string[] {
+  return (error as unknown as { options: { suggestions: string[] } }).options
+    .suggestions;
+}
 
 function configWith(
   plugins: Record<string, { path?: string; autoload?: boolean }> = {},
@@ -239,7 +247,8 @@ describe('loadPluginModule', () => {
           true,
         ),
       ).rejects.toThrow(
-        'Failed to load plugin module "./fixtures/plugins/does-not-exist.ts".',
+        'Failed to load plugin module "./fixtures/plugins/does-not-exist.ts": ' +
+          'Cannot resolve plugin "./fixtures/plugins/does-not-exist.ts".',
       );
     });
 
@@ -276,7 +285,8 @@ describe('loadPluginModule', () => {
       await expect(
         loadPluginModule('my-plugin', config, import.meta.dirname),
       ).rejects.toThrow(
-        'Failed to load plugin module "./fixtures/plugins/does-not-exist.ts".',
+        'Failed to load plugin module "./fixtures/plugins/does-not-exist.ts": ' +
+          'Cannot resolve plugin "./fixtures/plugins/does-not-exist.ts".',
       );
     });
 
@@ -290,7 +300,8 @@ describe('loadPluginModule', () => {
 
       expect((error as Error).cause).toBeInstanceOf(Error);
       expect(((error as Error).cause as Error).message).toBe(
-        'only JavaScript and TypeScript modules can be loaded',
+        'Cannot load plugin "./fixtures/plugins/not-code.json": only JavaScript ' +
+          'and TypeScript modules can be loaded.',
       );
     });
   });
@@ -324,6 +335,165 @@ describe('loadPluginModule', () => {
       );
 
       expect(plugin.name).toBe('ts-plugin');
+    });
+  });
+
+  describe('describePluginLoadFailure', () => {
+    it('uses the message for an Error with content', () => {
+      const result = describePluginLoadFailure(new Error('boom'));
+
+      expect(result.reason).toBe('boom');
+    });
+
+    it('does not prepend the error name to the message', () => {
+      const result = describePluginLoadFailure(new TypeError('boom'));
+
+      expect(result.reason).toBe('boom');
+    });
+
+    it('falls back to inspect for a non-Error throw', () => {
+      const result = describePluginLoadFailure('boom');
+
+      expect(result.reason).toContain('boom');
+    });
+
+    it('falls back to inspect when the Error message is empty', () => {
+      const result = describePluginLoadFailure(new Error(''));
+
+      expect(result.reason).not.toBe('');
+      expect(result.reason).not.toMatch(/: $/);
+    });
+
+    it('falls back to inspect when the Error message is whitespace-only', () => {
+      const result = describePluginLoadFailure(new Error('   '));
+
+      expect(result.reason.trim()).not.toBe('');
+    });
+
+    it('suggests checking the import for ERR_MODULE_NOT_FOUND', () => {
+      const error = Object.assign(new Error("Cannot find module './helper'"), {
+        code: 'ERR_MODULE_NOT_FOUND',
+      });
+      const result = describePluginLoadFailure(error);
+
+      expect(result.suggestions).toHaveLength(1);
+      expect(result.suggestions[0]).toContain('./helper');
+    });
+
+    it('suggests checking the import for MODULE_NOT_FOUND', () => {
+      const error = Object.assign(new Error("Cannot find module './helper'"), {
+        code: 'MODULE_NOT_FOUND',
+      });
+      const result = describePluginLoadFailure(error);
+
+      expect(result.suggestions).toHaveLength(1);
+    });
+
+    it('degrades to a generic suggestion when the specifier cannot be parsed out', () => {
+      const error = Object.assign(new Error('module resolution failed'), {
+        code: 'ERR_MODULE_NOT_FOUND',
+      });
+      const result = describePluginLoadFailure(error);
+
+      expect(result.suggestions).toEqual([
+        'Check that the import resolves and that its package is installed.',
+      ]);
+    });
+
+    it('invents no suggestion for an unrecognised failure', () => {
+      const result = describePluginLoadFailure(new Error('boom'));
+
+      expect(result.suggestions).toEqual([]);
+    });
+  });
+
+  describe('story 34.4 — the reason and suggestions surface in the message', () => {
+    it('names a missing import (ERR_MODULE_NOT_FOUND/MODULE_NOT_FOUND) as the reason, with a suggestion', async () => {
+      const error = await loadPluginModule(
+        './fixtures/plugins/missing-import-plugin.ts',
+        configWith(),
+        import.meta.dirname,
+        true,
+      ).catch((e: unknown) => e as Error);
+
+      expect(error.message).toContain(
+        'Failed to load plugin module "./fixtures/plugins/missing-import-plugin.ts": ',
+      );
+      expect(error.message).toContain('does-not-exist');
+      expect(error.message).not.toMatch(/: $/);
+      expect(pluginErrorSuggestions(error)).not.toHaveLength(0);
+    });
+
+    it('names a genuine TypeScript syntax error as the reason', async () => {
+      const error = await loadPluginModule(
+        './fixtures/plugins/syntax-error-plugin.ts',
+        configWith(),
+        import.meta.dirname,
+        true,
+      ).catch((e: unknown) => e as Error);
+
+      expect(error.message).toContain(
+        'Failed to load plugin module "./fixtures/plugins/syntax-error-plugin.ts": ',
+      );
+      expect(error.message).not.toMatch(/: $/);
+    });
+
+    it('names an Error thrown at module evaluation as the reason', async () => {
+      const error = await loadPluginModule(
+        './fixtures/plugins/throws-on-load-plugin.ts',
+        configWith(),
+        import.meta.dirname,
+        true,
+      ).catch((e: unknown) => e as Error);
+
+      expect(error.message).toBe(
+        'Failed to load plugin module "./fixtures/plugins/throws-on-load-plugin.ts": boom',
+      );
+    });
+
+    it('names an unresolvable specifier as "Cannot resolve", with a suggestion', async () => {
+      const error = await loadPluginModule(
+        './fixtures/plugins/does-not-exist.ts',
+        configWith(),
+        import.meta.dirname,
+        true,
+      ).catch((e: unknown) => e as Error);
+
+      expect(error.message).toBe(
+        'Failed to load plugin module "./fixtures/plugins/does-not-exist.ts": ' +
+          'Cannot resolve plugin "./fixtures/plugins/does-not-exist.ts".',
+      );
+      expect(pluginErrorSuggestions(error)).not.toHaveLength(0);
+    });
+
+    it("renders a *.d.ts specifier's rendered reason, not merely that it failed", async () => {
+      const error = await loadPluginModule(
+        './fixtures/plugins/types.d.ts',
+        configWith(),
+        import.meta.dirname,
+        true,
+      ).catch((e: unknown) => e as Error);
+
+      expect(error.message).toBe(
+        'Failed to load plugin module "./fixtures/plugins/types.d.ts": ' +
+          'Cannot load plugin "./fixtures/plugins/types.d.ts": a TypeScript declaration file ' +
+          'contains no runtime code.',
+      );
+    });
+
+    it('falls back to inspect for a non-Error throw, with no bare trailing colon', async () => {
+      const error = await loadPluginModule(
+        './fixtures/plugins/throws-non-error-plugin.ts',
+        configWith(),
+        import.meta.dirname,
+        true,
+      ).catch((e: unknown) => e as Error);
+
+      expect(error.message).toContain(
+        'Failed to load plugin module "./fixtures/plugins/throws-non-error-plugin.ts": ',
+      );
+      expect(error.message).toContain('boom');
+      expect(error.message).not.toMatch(/: $/);
     });
   });
 });

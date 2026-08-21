@@ -7,4 +7,7 @@
 # Test fixture: intentionally invalid YAML for e2e error-handling tests
 /e2e-tests/fixtures/analyze/invalid-spec.yaml
 
+# Test fixture: deliberately unparseable TypeScript for a genuine syntax-error case (story 34.4)
+/packages/common-cli/test/fixtures/plugins/syntax-error-plugin.ts
+
 /.nx/self-healing
