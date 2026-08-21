@@ -1,0 +1,3 @@
+{
+  "note": "Fixture: not a module. A `**/*` rule-set pattern matches it; the glob loop must skip it."
+}
