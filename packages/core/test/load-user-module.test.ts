@@ -16,6 +16,7 @@ import {
 
 import {
   loadUserModule,
+  miscasedExtension,
   resolveUserModule,
   unloadableReason,
 } from '../src/load-user-module.js';
@@ -307,6 +308,7 @@ describe('load user module', () => {
     it.each([
       ['a declaration file', 'types.d.ts'],
       ['a declaration file spelled with a capital D', 'Legacy.D.ts'],
+      ['a module whose extension is upper-case', 'Upper.Rule.JS'],
       ['a .tsx file', 'component.tsx'],
       ['a .jsx file', 'component.jsx'],
       ['a .json file', 'rules.json'],
@@ -326,6 +328,14 @@ describe('load user module', () => {
       ).rejects.toThrow(/contains no runtime code/);
     });
 
+    it('blames the casing, not the language, for an upper-case extension', async () => {
+      // Both loaders were measured to refuse `.JS` outright (`ERR_UNKNOWN_FILE_EXTENSION`), so the
+      // refusal is right and only its sentence was wrong (#690).
+      await expect(
+        loadUserModule(join(fixtures, 'Upper.Rule.JS')),
+      ).rejects.toThrow(/extension "\.JS" must be lower-case/);
+    });
+
     it('still loads a path the resolver accepts', async () => {
       const resolved = await resolveOrFail(join(fixtures, 'plain.ts'));
 
@@ -342,14 +352,66 @@ describe('load user module', () => {
     it.each([
       ['types.d.ts', 'a TypeScript declaration file contains no runtime code'],
       ['Legacy.D.ts', 'a TypeScript declaration file contains no runtime code'],
+      [
+        'Upper.Decl.D.TS',
+        'a TypeScript declaration file contains no runtime code',
+      ],
       ['rules.json', 'only JavaScript and TypeScript modules can be loaded'],
       ['component.tsx', 'only JavaScript and TypeScript modules can be loaded'],
+      [
+        'Upper.Rule.JS',
+        `its extension ".JS" must be lower-case — Node's ESM loader and jiti recognise no other spelling`,
+      ],
     ])('reports why %s is unloadable', (fileName, reason) => {
       expect(unloadableReason(join(fixtures, fileName))).toBe(reason);
     });
 
     it('returns undefined for a loadable path', () => {
       expect(unloadableReason(join(fixtures, 'plain.ts'))).toBeUndefined();
+    });
+
+    it('never tells the user a JavaScript module is not a JavaScript module', () => {
+      // The #690 regression in one assertion: the old sentence was applied to a file that plainly
+      // IS a JavaScript module, so it read as a lie and hid the one-word fix.
+      const reason = unloadableReason(join(fixtures, 'Upper.Rule.JS'));
+
+      expect(reason).toContain('.JS');
+      expect(reason).not.toContain(
+        'only JavaScript and TypeScript modules can be loaded',
+      );
+    });
+  });
+
+  describe('miscasedExtension', () => {
+    // Exported so the rule-set glob filter can separate "not a module at all" (silently dropped)
+    // from "a module refused only for its casing" (fatal) without parsing a reason sentence.
+    it('names the offending extension', () => {
+      expect(miscasedExtension(join(fixtures, 'Upper.Rule.JS'))).toBe('.JS');
+    });
+
+    it.each([['.JS'], ['.TS'], ['.mjs']])(
+      'returns undefined for the stem-less dotfile %s',
+      (fileName) => {
+        // A bare `.JS` has NO extension — `path.extname` answers `''` — and Node loads it through
+        // the package `type` (measured, v26.7.0). Reporting a casing mistake would send the user to
+        // rename a working file, and would make the glob filter fatal on it. Asserted on synthetic
+        // paths rather than fixtures because `dot: false` keeps dotfiles out of rule-set globs, so
+        // no fixture could exercise it.
+        expect(miscasedExtension(join(fixtures, fileName))).toBeUndefined();
+      },
+    );
+
+    it.each([
+      ['a loadable lower-case module', 'plain.ts'],
+      ['a file that is no module at all', 'rules.json'],
+      ['a .tsx file, excluded whatever its casing', 'component.tsx'],
+      ['an upper-case declaration file', 'Upper.Decl.D.TS'],
+    ])('returns undefined for %s', (_label, fileName) => {
+      // The declaration case pins the precedence AS IT STANDS: `DECLARATION_FILE` claims the path
+      // first, so the casing branch never sees it and the glob filter drops it silently rather than
+      // failing on it. Note this pins the ORDERING, not a verdict on that guard's breadth — it also
+      // claims a `Feature.D.TS` whose basename merely ends in `.D`, which is tracked separately.
+      expect(miscasedExtension(join(fixtures, fileName))).toBeUndefined();
     });
   });
 
@@ -382,6 +444,16 @@ describe('load user module', () => {
 
       expect(declined.reason).toBe(
         'a TypeScript declaration file contains no runtime code',
+      );
+    });
+
+    it('declines a module whose extension is upper-case, naming the casing', async () => {
+      // Reported as `{ ok: false, reason }` so the caller frames it, rather than as a bare
+      // "cannot resolve" for a file the user is looking at.
+      const declined = await expectDeclined(join(fixtures, 'Upper.Rule.JS'));
+
+      expect(declined.reason).toBe(
+        `its extension ".JS" must be lower-case — Node's ESM loader and jiti recognise no other spelling`,
       );
     });
 

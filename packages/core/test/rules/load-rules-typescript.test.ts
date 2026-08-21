@@ -380,6 +380,81 @@ describe('load rules from TypeScript sources', () => {
 
       expect(ruleNames(rules)).toEqual(['globbed-ts-a', 'globbed-ts-b']);
     });
+
+    it('fails on a mis-cased module even though a sibling rule loads fine', async () => {
+      // The one decline that is NOT silent (#690). `./miscased/**/*` sweeps up an `Upper.Rule.JS`
+      // and a perfectly good `sibling.rule.ts`. Nothing this seam uses can load the former, so a
+      // silent drop would leave the rule set looking healthy while running without it — and the
+      // all-declined guard cannot catch it, because the sibling keeps the kept-count above zero.
+      await expect(
+        loadRules(join(ruleSetsTs, 'pattern-miscased.ruleset.ts')),
+      ).rejects.toThrow(
+        /Rule set "pattern-miscased-ts" pattern \.\/miscased\/\*\*\/\* matched miscased[/\\]Upper\.Rule\.JS: its extension "\.JS" must be lower-case/,
+      );
+    });
+
+    it('never blames the language for a mis-cased module', async () => {
+      // The #690 sentence, at the glob surface: the file plainly IS a JavaScript module, so the old
+      // wording read as a lie. Asserted as an ABSENCE, which the message-shape test above cannot do.
+      //
+      // Inspected off the caught error rather than through `rejects.toThrow`, which takes a string,
+      // regex or error shape — handing it `expect.not.stringContaining` type-casts cleanly and then
+      // passes whatever the message says. Verified by mutation: with the casing branch reverted to
+      // the generic sentence, this fails and the cast version did not.
+      const error: unknown = await loadRules(
+        join(ruleSetsTs, 'pattern-miscased.ruleset.ts'),
+      ).then(
+        () => undefined,
+        (reason: unknown) => reason,
+      );
+
+      expect(error).toBeInstanceOf(Error);
+      expect((error as Error).message).not.toContain(
+        'only JavaScript and TypeScript modules can be loaded',
+      );
+      expect((error as Error).message).toContain('.JS');
+    });
+
+    it('leads its suggestions with exclusion, offering the rename second', async () => {
+      // Order matters and is load-bearing. The match may be a media asset that must NOT be renamed
+      // — `00000.MTS` renamed to `.mts` becomes a loadable match that dies on a binary parse — or
+      // it may sit inside a symlinked dependency the user cannot touch.
+      await expect(
+        loadRules(join(ruleSetsTs, 'pattern-miscased.ruleset.ts')),
+      ).rejects.toThrowError(
+        expect.objectContaining({
+          name: 'RuleLoadError',
+          options: expect.objectContaining({
+            suggestions: [
+              expect.stringContaining('Exclude it from'),
+              'If it is a rule, rename it so its extension is lower-case (".js").',
+            ],
+          }),
+        }),
+      );
+    });
+
+    it('stands down when the mis-cased module is the only thing that could have loaded', async () => {
+      // Gated on purpose: with nothing kept, the all-declined error is the better diagnosis, and an
+      // unconditional casing throw would fire on files reached through symlinked dependencies and
+      // build output that the user cannot rename.
+      await expect(
+        loadRules(join(ruleSetsTs, 'pattern-miscased-only.ruleset.ts')),
+      ).rejects.toThrow(
+        /Rule set "pattern-miscased-only-ts" pattern \.\/miscased-only\/\*\*\/\* matched 2 file\(s\), none of which can be loaded as a rule\./,
+      );
+    });
+
+    it('drops an upper-case declaration file and a .TSX silently, loading the sibling', async () => {
+      // The control for the two fatal tests above, and the integration pin for the precedence the
+      // design rests on: only a CASING decline is fatal. It also makes the sibling load-bearing —
+      // without this, both fatal tests would pass with a broken or absent sibling.
+      const rules = await loadRules(
+        join(ruleSetsTs, 'pattern-miscased-clean.ruleset.ts'),
+      );
+
+      expect(ruleNames(rules)).toEqual(['miscased-clean-sibling']);
+    });
   });
 
   // The filter used to be a local copy of the seam's own allow-list, tested against the raw glob
