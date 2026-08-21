@@ -243,6 +243,42 @@ function isLoadableRuleFile(file: string): boolean {
   return !DECLARATION_FILE.test(file) && LOADABLE_RULE_FILE.test(file);
 }
 
+/**
+ * A rule set that is reachable from itself through pattern globs can never finish loading, so it is
+ * reported rather than pursued.
+ *
+ * The seam's own cycle detection cannot see this one. `loadUserModule` tracks an evaluation chain in
+ * `AsyncLocalStorage`, but that store only covers the import itself — by the time this file resumes
+ * after the `await` the store is gone, and the second import of the same rule set is a plain
+ * module-cache hit that is never "in flight". The cycle lives in THIS file's traversal, not in module
+ * evaluation, so it has to be tracked here.
+ *
+ * Shaped after `load-user-module.ts`'s `cycleError`: one sentence, the closed loop rendered as given.
+ * `ring` is printed verbatim, so callers pass a loop that already returns to its first entry.
+ */
+function ruleSetCycleError(
+  canonical: string,
+  ring: readonly string[],
+): ThymianBaseError {
+  return new ThymianBaseError(
+    `Rule set at ${canonical} is reachable from itself, so the rule-set cycle ` +
+      `${ring.join(' -> ')} can never finish loading.`,
+    {
+      suggestions: [
+        'Narrow the `pattern` of one rule set in the cycle so it stops matching the other.',
+        'Point each rule set at a directory of rules rather than at a directory holding rule sets.',
+        // Every entry in `ring` is a canonical, symlink-resolved path, so two different-looking
+        // paths can still be the SAME rule set. Named explicitly: the two "pattern" suggestions
+        // above assume the loop is a pattern-authoring mistake, which is not true when a symlink
+        // is what closes it.
+        'If two entries above resolve through a symlink, remove the symlink or point it elsewhere.',
+      ],
+      name: 'RuleLoadError',
+      ref: 'https://thymian.dev/references/errors/rule-load-error/',
+    },
+  );
+}
+
 async function loadRuleSet(
   ruleSet: RuleSet,
   basePath: string,
@@ -251,6 +287,9 @@ async function loadRuleSet(
   cwd: string,
   ruleProfiles: Record<string, string>,
   profileConfig: RulesConfiguration,
+  // Canonical paths of the rule sets currently being loaded, innermost last, INCLUDING this one.
+  // A stack rather than a cumulative visited set: see `loadRulesInChain`.
+  ruleSetChain: readonly string[],
 ): Promise<Rule[]> {
   if (ruleSet.rules) {
     const source = `rule set "${ruleSet.name}"`;
@@ -292,9 +331,29 @@ async function loadRuleSet(
       // `node_modules` is excluded because a wide pattern reaching into it would IMPORT and execute
       // every dependency module it matched. Before the loadable-file filter below that failed loudly
       // on the first non-module; with it, the JavaScript files sail through and run.
+      //
+      // The rule set's OWN file is dropped before anything else looks at the list. A pattern as
+      // ordinary as `./**/*` matches the file it is written in, and loading that re-recognises the
+      // same rule set and re-runs the same glob forever — no output, no error, no exit, which for a
+      // linter means a CI job that hangs until the runner times out. Skipping is silent because the
+      // pattern is legitimate: the user meant "the rules beside me", and a rule set is not one of
+      // its own rules.
+      //
+      // Removed HERE, before `matched` is formed, so it never reaches the "matched files but kept
+      // none" check below. Filtered afterwards, a rule set alone in its directory would die on
+      // `none of which can be loaded as a rule` — naming a file that loads perfectly well and that
+      // the user cannot act on. A pattern that matched only the rule set itself simply yields no
+      // rules; one that also swept up a `README.md` still fails on the `README.md`.
+      //
+      // Raw string equality is only trustworthy because `basePath` is always the seam's
+      // `realpathSync.native`-canonicalised path (see the two call sites below that pass
+      // `resolved.path`); `dirname` inherits that same canonicalisation. A future call site that
+      // passed a non-canonical `basePath` would silently break this skip and reopen the #688 hang.
       const matched = (
         await glob(pattern, { cwd: dirname, ignore: ['**/node_modules/**'] })
-      ).sort();
+      )
+        .filter((file) => path.join(dirname, file) !== basePath)
+        .sort();
 
       // Drop what cannot be a module at all. A pattern is a plain glob, so `**/*.ts` picks up a
       // neighbouring `types.d.ts` and `**/*` also picks up a `rules.json` or a `README.md`; the seam
@@ -326,13 +385,14 @@ async function loadRuleSet(
 
       for (const file of files) {
         rules.push(
-          ...(await loadRules(
+          ...(await loadRulesInChain(
             path.join(dirname, file),
             ruleFilter,
             options,
             cwd,
             ruleProfiles,
             profileConfig,
+            ruleSetChain,
           )),
         );
       }
@@ -342,16 +402,32 @@ async function loadRuleSet(
   return rules;
 }
 
-export async function loadRules(
+/**
+ * Loads rules, carrying the chain of rule sets currently being loaded.
+ *
+ * The chain is a STACK, not a cumulative visited set: it is pushed on entry to a rule set and
+ * implicitly popped on return, so it describes the current ancestry and nothing else. A set that
+ * accumulated across sibling branches would refuse the SECOND, legitimate load of a rule set that
+ * two different parents both point at — a diamond is not a cycle. Loading such a shared rule set
+ * once per path is the behaviour that already existed and is deliberately preserved.
+ *
+ * Termination rests on this chain, not on the self-match skip in `loadRuleSet`: every step of the
+ * recursion resolves through the seam to a canonical path, so any repeat is caught here. The skip is
+ * the fast path that keeps an ordinary `./**\/*` silent; anything it misses — a symlink beside the
+ * rule set pointing back at it — falls through to a clear error rather than a hang.
+ *
+ * Not exported. `loadRules` is public API with callers across the workspace, so the chain is kept
+ * out of its signature entirely rather than added as a seventh parameter nobody outside this file
+ * should pass.
+ */
+async function loadRulesInChain(
   input: string | string[],
-  ruleFilter: RuleFilter = () => true,
-  options: RulesConfiguration = {},
-  cwd: string = process.cwd(),
-  ruleProfiles: Record<string, string> = {},
-  // The already-resolved profile overrides for the enclosing rule set, threaded
-  // through the pattern-glob recursion. Empty at the top level; a rule set fills
-  // it from its own `profiles` map before recursing into its member rules.
-  profileConfig: RulesConfiguration = {},
+  ruleFilter: RuleFilter,
+  options: RulesConfiguration,
+  cwd: string,
+  ruleProfiles: Record<string, string>,
+  profileConfig: RulesConfiguration,
+  ruleSetChain: readonly string[],
 ): Promise<Rule[]> {
   if (!input || (Array.isArray(input) && input.length === 0)) {
     return [];
@@ -361,7 +437,19 @@ export async function loadRules(
     return (
       await Promise.all(
         input.map((entry) =>
-          loadRules(entry, ruleFilter, options, cwd, ruleProfiles),
+          // Threads `profileConfig` as well as the chain. It was dropped here before, which was
+          // inert only because this branch is unreachable from the glob recursion — it always ran
+          // with the top-level empty map. Passing it keeps the fan-out honest for a caller that
+          // hands an array and a profile map together.
+          loadRulesInChain(
+            entry,
+            ruleFilter,
+            options,
+            cwd,
+            ruleProfiles,
+            profileConfig,
+            ruleSetChain,
+          ),
         ),
       )
     ).flat();
@@ -436,6 +524,23 @@ export async function loadRules(
   }
 
   if (isRuleSet(ruleOrRuleSet)) {
+    // Keyed on the canonical path the seam resolved, never on `input`: the same rule set is reached
+    // as a bare specifier at the top level and as a joined glob match one level down, so comparing
+    // what the user wrote would miss every cycle. `resolveUserModule` has already run the path
+    // through `realpathSync.native`, which is what makes equality here trustworthy.
+    const cycleStart = ruleSetChain.indexOf(resolved.path);
+
+    if (cycleStart !== -1) {
+      // Sliced from the repeat, not the whole chain: an ancestor entered before the cycle began
+      // (X in X -> A -> B -> C -> B) is not part of the loop, and `ruleSetCycleError` promises its
+      // `ring` closes — `ring[0]` equal to `ring[last]`. Reporting the full chain here would name X
+      // and A as "in the cycle" and point the user at the wrong rule set to fix.
+      throw ruleSetCycleError(resolved.path, [
+        ...ruleSetChain.slice(cycleStart),
+        resolved.path,
+      ]);
+    }
+
     const profileName = ruleProfiles[input] ?? DEFAULT_RULE_PROFILE;
 
     return loadRuleSet(
@@ -446,8 +551,33 @@ export async function loadRules(
       cwd,
       ruleProfiles,
       resolveProfileConfig(ruleOrRuleSet, profileName),
+      [...ruleSetChain, resolved.path],
     );
   }
 
   return [];
+}
+
+export async function loadRules(
+  input: string | string[],
+  ruleFilter: RuleFilter = () => true,
+  options: RulesConfiguration = {},
+  cwd: string = process.cwd(),
+  ruleProfiles: Record<string, string> = {},
+  // The already-resolved profile overrides for the enclosing rule set, threaded
+  // through the pattern-glob recursion. Empty at the top level; a rule set fills
+  // it from its own `profiles` map before recursing into its member rules.
+  profileConfig: RulesConfiguration = {},
+): Promise<Rule[]> {
+  // Seeds the rule-set chain empty. Every default lives here rather than on `loadRulesInChain`, so
+  // the internal recursion cannot silently fall back to one when it forgets to thread a value.
+  return loadRulesInChain(
+    input,
+    ruleFilter,
+    options,
+    cwd,
+    ruleProfiles,
+    profileConfig,
+    [],
+  );
 }
