@@ -1546,9 +1546,15 @@ describe('load user module', () => {
       // A real directory `require.resolve.paths` walks from `load-user-module.ts`'s own
       // location — the only way to exercise the "core" anchor honestly, matching how
       // `BARE_PACKAGE` (an actual workspace dependency) is used elsewhere in this file for the
-      // same reason. Removed in `finally` regardless of outcome.
+      // same reason. Removed in `finally` regardless of outcome, and also removed up front in case
+      // a previous run crashed between writing it and cleaning it up.
       const coreAnchorDir = join(import.meta.dirname, '..');
       const packageName = 'thymian-test-core-anchor-precedence-esm';
+
+      await rm(join(coreAnchorDir, 'node_modules', packageName), {
+        recursive: true,
+        force: true,
+      });
 
       try {
         await writePackage(
@@ -1649,6 +1655,182 @@ describe('load user module', () => {
 
         expect(result.ok).toBe(false);
         expect(jitiFactoryCalls).toBe(1);
+
+        // AC/decision follow-up: the seam found and parsed a real package.json here — it knows
+        // more than "nothing installed under that name", so it should say so.
+        if (!result.ok) {
+          expect(result.reason).toContain('browser-only-pkg');
+        }
+      } finally {
+        await rm(userProject, { recursive: true, force: true });
+      }
+    }, 15_000);
+
+    it("resolves a package installed only in core's own directory (not the user project)", async () => {
+      const loader = await import('../src/load-user-module.js');
+      const userProject = await mkdtemp(
+        join(tmpdir(), 'thymian-esm-core-only-'),
+      );
+      const coreAnchorDir = join(import.meta.dirname, '..');
+      const packageName = 'thymian-test-core-anchor-only-esm';
+
+      await rm(join(coreAnchorDir, 'node_modules', packageName), {
+        recursive: true,
+        force: true,
+      });
+
+      try {
+        await writePackage(
+          coreAnchorDir,
+          packageName,
+          { type: 'module', exports: { '.': { import: './index.mjs' } } },
+          { 'index.mjs': "export default 'core-only';\n" },
+        );
+
+        // userProject deliberately does NOT have a copy — this exercises the fallback to core's
+        // own anchor, the other half of the two-anchor design the "prefers the user project's
+        // copy" test does not cover.
+        const result = await loader.resolveUserModule(packageName, userProject);
+
+        if (!result.ok) {
+          throw new Error(`Expected "${packageName}" to resolve.`);
+        }
+
+        const module = await loader.loadUserModule(result.path);
+
+        expect(module.default).toBe('core-only');
+      } finally {
+        await rm(userProject, { recursive: true, force: true });
+        await rm(join(coreAnchorDir, 'node_modules', packageName), {
+          recursive: true,
+          force: true,
+        });
+      }
+    }, 15_000);
+
+    it('is a silent miss for a malformed package.json, not a thrown error', async () => {
+      const loader = await import('../src/load-user-module.js');
+      const userProject = await mkdtemp(
+        join(tmpdir(), 'thymian-esm-malformed-'),
+      );
+
+      try {
+        const pkgDir = join(userProject, 'node_modules', 'malformed-pkg');
+
+        await mkdir(pkgDir, { recursive: true });
+        await writeFile(join(pkgDir, 'package.json'), '{ not valid json');
+
+        await expect(
+          loader.resolveUserModule('malformed-pkg', userProject),
+        ).resolves.toMatchObject({ ok: false });
+      } finally {
+        await rm(userProject, { recursive: true, force: true });
+      }
+    }, 15_000);
+
+    it('does not fall through to a farther, differently-installed copy when the nearest match is unusable', async () => {
+      const loader = await import('../src/load-user-module.js');
+      // Two ancestor levels of the SAME anchor: `root/node_modules` has a WORKING copy,
+      // `root/mid/node_modules` has a browser-only (unusable) copy of the same name, nearer to
+      // `cwd`. Real Node's own resolver commits to the nearest `package.json` it finds under a
+      // name and hard-fails there rather than trying a farther duplicate — this proves
+      // `resolveThroughExportsMap` now matches that instead of silently substituting root's copy.
+      const root = await mkdtemp(join(tmpdir(), 'thymian-esm-commit-nearest-'));
+      const mid = join(root, 'mid');
+
+      try {
+        await mkdir(mid, { recursive: true });
+        await writePackage(
+          root,
+          'collision-pkg',
+          { type: 'module', exports: { '.': { import: './index.mjs' } } },
+          { 'index.mjs': "export default 'FARTHER-should-not-load';\n" },
+        );
+        await writePackage(
+          mid,
+          'collision-pkg',
+          {
+            type: 'module',
+            exports: { '.': { browser: './index.browser.mjs' } },
+          },
+          { 'index.browser.mjs': "export default 'nearer-unusable';\n" },
+        );
+
+        const result = await loader.resolveUserModule('collision-pkg', mid);
+
+        expect(result.ok).toBe(false);
+
+        if (!result.ok) {
+          expect(result.reason).toContain('collision-pkg');
+        }
+      } finally {
+        await rm(root, { recursive: true, force: true });
+      }
+    }, 15_000);
+
+    it('rejects an exports target that escapes the package directory', async () => {
+      const loader = await import('../src/load-user-module.js');
+      const userProject = await mkdtemp(
+        join(tmpdir(), 'thymian-esm-traversal-'),
+      );
+
+      try {
+        // A file that WOULD load if the traversal guard were missing — sitting just outside the
+        // package directory, exactly where "../escape.mjs" points.
+        await mkdir(join(userProject, 'node_modules'), { recursive: true });
+        await writeFile(
+          join(userProject, 'node_modules', 'escape.mjs'),
+          "export default 'escaped';\n",
+        );
+        await writePackage(
+          userProject,
+          'traversal-pkg',
+          {
+            type: 'module',
+            exports: { '.': { import: '../escape.mjs' } },
+          },
+          {},
+        );
+
+        const result = await loader.resolveUserModule(
+          'traversal-pkg',
+          userProject,
+        );
+
+        expect(result.ok).toBe(false);
+      } finally {
+        await rm(userProject, { recursive: true, force: true });
+      }
+    }, 15_000);
+
+    it('never touches resolve.exports for an absolute specifier', async () => {
+      const loader = await import('../src/load-user-module.js');
+      const userProject = await mkdtemp(join(tmpdir(), 'thymian-esm-abs-'));
+
+      try {
+        // Extensionless absolute path: `resolveThroughRequire` misses (no exact file), and
+        // `resolveThroughGuessing` only guesses `.mjs`/`.cjs`, not `.ts` — so this specifier
+        // reaches `resolveThroughExportsMap` before finally succeeding through jiti. Before the
+        // fix, an absolute specifier here produced an empty `packageName` and scanned the entire
+        // ancestor chain to the filesystem root; the guard should make it a no-op instead.
+        await writeFile(
+          join(userProject, 'abs-rule.ts'),
+          "const rule: string = 'abs-rule';\nexport default rule;\n",
+        );
+
+        const absoluteSpecifier = join(userProject, 'abs-rule');
+        const result = await loader.resolveUserModule(
+          absoluteSpecifier,
+          userProject,
+        );
+
+        if (!result.ok) {
+          throw new Error(
+            'Expected the absolute extensionless specifier to resolve.',
+          );
+        }
+
+        expect(exportsMapCalls).toBe(0);
       } finally {
         await rm(userProject, { recursive: true, force: true });
       }

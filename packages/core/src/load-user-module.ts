@@ -205,10 +205,108 @@ function splitBareSpecifier(specifier: string): {
   const segments = specifier.split('/');
   const packageName = specifier.startsWith('@')
     ? segments.slice(0, 2).join('/')
-    : (segments[0] ?? specifier);
+    : segments[0] || specifier;
   const rest = specifier.slice(packageName.length);
 
   return { packageName, target: rest === '' ? '.' : `.${rest}` };
+}
+
+/**
+ * The outcome of checking ONE candidate package directory that has a `package.json`. Distinct
+ * from "no `package.json` here at all" (which the caller represents as `undefined` and keeps
+ * searching past) — once a `package.json` for the requested name is found, real Node's own
+ * resolver commits to it and does not consult a farther, differently-installed copy of the same
+ * name, whether this candidate turns out to be usable or not. `reason` is set only for the one
+ * case this seam can explain better than a plain miss: a package that exists but whose `exports`
+ * map has nothing for the requested conditions.
+ */
+interface ExportsMapCandidateResult {
+  readonly path?: string;
+  readonly reason?: string;
+}
+
+/**
+ * Checks a single candidate package directory against `target`'s ESM conditions. Never throws —
+ * a malformed `package.json`, an unreadable file, or a `resolve.exports` failure are each folded
+ * into `{}` (found, but not usable), matching the discriminated-result philosophy the rest of
+ * this file already uses for a caller that "could not work out for itself" why something failed.
+ */
+function resolveExportsMapCandidate(
+  packageDir: string,
+  target: string,
+): ExportsMapCandidateResult | undefined {
+  const packageJsonPath = path.join(packageDir, 'package.json');
+
+  if (!isFile(packageJsonPath)) {
+    return undefined;
+  }
+
+  let pkg: unknown;
+
+  try {
+    pkg = JSON.parse(readFileSync(packageJsonPath, 'utf8'));
+  } catch {
+    return {};
+  }
+
+  if (!isRecord(pkg)) {
+    return {};
+  }
+
+  const noMatchingCondition = (): ExportsMapCandidateResult => {
+    const name = typeof pkg.name === 'string' ? pkg.name : packageDir;
+
+    return {
+      reason: `"${name}" has no "exports" entry matching "${target}" for this environment (checked "node", "import", "default")`,
+    };
+  };
+
+  let matches: readonly string[] | void;
+
+  try {
+    // No options: defaults are exactly `['node', 'import', 'default']`, matching how every path
+    // this seam resolves is actually consumed — `await import()`, or jiti. Never `require()`.
+    //
+    // `resolve.exports` THROWS rather than returning a falsy value when nothing matches (verified
+    // against the installed `resolve.exports@2.0.3`: "No known conditions for ... specifier in
+    // ... package") — its own type signature (`Exports.Output | void`) suggests otherwise, so this
+    // is easy to get wrong. Treat any throw here as "no matching export", not a hard failure — the
+    // `reason` is what makes that distinguishable from every OTHER reason this could miss
+    // (malformed JSON, non-object `package.json`), which is why it is not folded into the generic
+    // `{}` returns elsewhere in this function.
+    matches = resolveExportsMap(pkg, target);
+  } catch {
+    return noMatchingCondition();
+  }
+
+  if (!matches) {
+    return noMatchingCondition();
+  }
+
+  // A fallback array (`"exports": {".": ["./a.mjs", "./b.mjs"]}`) is valid per the exports spec —
+  // try each candidate in order and use the first that exists on disk, rather than assuming the
+  // match is unique.
+  for (const match of matches) {
+    const candidate = path.join(packageDir, match);
+    const relativeToPackage = path.relative(packageDir, candidate);
+
+    // Reject a target that escapes `packageDir`. `resolve.exports` performs none of Node's own
+    // `PACKAGE_TARGET_RESOLVE` invalid-target validation — verified by reading its source, it
+    // hands back whatever string the exports map contains, unmodified — so a `package.json` with
+    // an `exports` target like `"../../../x.mjs"` would otherwise resolve outside the package.
+    if (
+      relativeToPackage.startsWith('..') ||
+      path.isAbsolute(relativeToPackage)
+    ) {
+      continue;
+    }
+
+    if (isFile(candidate)) {
+      return { path: candidate };
+    }
+  }
+
+  return {};
 }
 
 /**
@@ -224,19 +322,34 @@ function splitBareSpecifier(specifier: string): {
  * Directory discovery deliberately reuses {@link resolveThroughRequire}'s own two anchors —
  * `requireFrom(cwd)` (the user's project) then `require` (core's own install directory) — via
  * `resolve.paths`, which walks the same `node_modules` ancestor chain Node's own ESM resolver
- * would. This is what makes the user-before-core precedence (see the file header) hold for this
- * resolver too, without a second implementation of that policy. `resolve.paths` answers `null` for
- * a Node builtin id (no `node_modules` search applies) or when nothing is installed under that
- * name from that anchor — both are a plain miss here, not an error.
+ * would consider. This is what makes the user-before-core precedence (see the file header) hold
+ * for this resolver too, without a second implementation of that policy. Within ONE anchor,
+ * `resolve.paths` returns every ancestor `node_modules` directory, but {@link
+ * resolveExportsMapCandidate}'s answer for the FIRST one holding a `package.json` is final — a
+ * broken or non-matching nearest install does not fall through to a farther, differently-installed
+ * copy of the same name, matching real Node's own commit-to-nearest resolution. `resolve.paths`
+ * answers `null` for a Node builtin id (no `node_modules` search applies) or when nothing is
+ * installed under that name from that anchor — both are a plain miss, moving to the next anchor.
  *
- * `resolve.exports` itself never touches the filesystem — it only matches conditions against an
- * already-parsed `package.json`. A malformed `package.json` is a miss for that directory, not a
- * thrown error: another candidate directory, or the next resolver in the chain, may still answer.
+ * @param miss Optional out-parameter: if resolution fails but a candidate `package.json` was found
+ *   with no matching `exports` condition, its `reason` is written here for the caller to surface —
+ *   `resolveUserModule` only reads it once the FULL chain (including the jiti fallback) has failed.
  */
 function resolveThroughExportsMap(
   specifier: string,
   cwd: string,
+  miss: { reason?: string } = {},
 ): string | undefined {
+  if (path.isAbsolute(specifier)) {
+    // An absolute filesystem path is never a package specifier. Without this guard, an absolute
+    // specifier that reaches this function (see {@link resolveUserModule} — an absolute path
+    // takes the bare-specifier branch, not the relative one) would split to an empty
+    // `packageName`, and `resolve.paths('')` does not throw: it returns the full ancestor chain to
+    // the filesystem root plus legacy global directories (measured: 11 entries), all needlessly
+    // stat'd and read for a specifier that could never have been a package name.
+    return undefined;
+  }
+
   const { packageName, target } = splitBareSpecifier(specifier);
 
   for (const anchor of [requireFrom(cwd), require]) {
@@ -253,50 +366,24 @@ function resolveThroughExportsMap(
     }
 
     for (const dir of candidateDirs) {
-      const packageDir = path.join(dir, packageName);
-      const packageJsonPath = path.join(packageDir, 'package.json');
+      const result = resolveExportsMapCandidate(
+        path.join(dir, packageName),
+        target,
+      );
 
-      if (!isFile(packageJsonPath)) {
-        continue;
+      if (result === undefined) {
+        continue; // no `package.json` here — keep walking this anchor's ancestor chain
       }
 
-      let pkg: unknown;
-
-      try {
-        pkg = JSON.parse(readFileSync(packageJsonPath, 'utf8'));
-      } catch {
-        continue;
+      if (result.path !== undefined) {
+        return result.path;
       }
 
-      if (!isRecord(pkg)) {
-        continue;
+      if (result.reason !== undefined) {
+        miss.reason = result.reason;
       }
 
-      let matches: readonly string[] | void;
-
-      try {
-        // No options: defaults are exactly `['node', 'import', 'default']`, matching how every
-        // path this seam resolves is actually consumed — `await import()`, or jiti. Never
-        // `require()`.
-        matches = resolveExportsMap(pkg, target);
-      } catch {
-        continue;
-      }
-
-      if (!matches) {
-        continue;
-      }
-
-      // A fallback array (`"exports": {".": ["./a.mjs", "./b.mjs"]}`) is valid per the exports
-      // spec — try each candidate in order and use the first that exists on disk, rather than
-      // assuming the match is unique.
-      for (const match of matches) {
-        const candidate = path.join(packageDir, match);
-
-        if (isFile(candidate)) {
-          return candidate;
-        }
-      }
+      break; // a package.json was found and is unusable — move to the NEXT ANCHOR, not a farther `dir`
     }
   }
 
@@ -624,6 +711,10 @@ export async function resolveUserModule(
   const base = path.resolve(cwd);
 
   let resolved: string | undefined;
+  // Populated only if `resolveThroughExportsMap` finds an installed package whose `exports` map
+  // has nothing for the requested conditions — read below only once the FULL chain, including the
+  // jiti fallback, has failed to resolve anything at all.
+  const exportsMapMiss: { reason?: string } = {};
 
   if (RELATIVE_SPECIFIER.test(specifier)) {
     // A relative specifier is relative to the USER's cwd, never to core's install directory —
@@ -648,7 +739,7 @@ export async function resolveUserModule(
     resolved =
       resolveThroughRequire(specifier, base) ??
       resolveThroughGuessing(specifier) ??
-      resolveThroughExportsMap(specifier, base) ??
+      resolveThroughExportsMap(specifier, base, exportsMapMiss) ??
       (await resolveThroughJiti(specifier, base));
 
     // A plain non-absolute answer is not an answer. `require.resolve` reports a Node builtin as the
@@ -696,7 +787,12 @@ export async function resolveUserModule(
   }
 
   if (resolved === undefined) {
-    return NOT_RESOLVED;
+    // The one failure this seam can explain better than a plain miss: an installed package was
+    // found, but its `exports` map has nothing for the requested conditions. Only reachable when
+    // NOTHING in the chain — including the jiti fallback — resolved anything at all.
+    return exportsMapMiss.reason === undefined
+      ? NOT_RESOLVED
+      : { ok: false, reason: exportsMapMiss.reason };
   }
 
   if (!path.isAbsolute(resolved)) {
