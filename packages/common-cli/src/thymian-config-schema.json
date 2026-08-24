@@ -67,7 +67,7 @@
     },
     "reports": {
       "type": "array",
-      "description": "Typed report inputs used by `thymian report convert` and `thymian report merge`.",
+      "description": "External report inputs used by `thymian report convert`.",
       "default": [],
       "items": {
         "type": "object",

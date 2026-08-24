@@ -91,23 +91,22 @@ export function formatLocation(
 
 /**
  * Resolve the {@link ThymianFormat} a run used, from `report.thymianFormat`.
- * Falls back to the single entry when `runVersion` is absent/unmatched and
- * there is exactly one format in the report — this guards against a producer
- * plugin forgetting to set `ToolRun.thymianFormatVersion`. Returns `undefined`
- * (never throws) on malformed/unsupported serialized format data, so a single
- * bad entry can't fail an entire render.
+ * Resolution is strictly by the run's own `thymianFormatVersion` — a report
+ * can hold formats unioned from several merged inputs, so "the only entry"
+ * carries no provenance and must never be attributed to a run that doesn't
+ * name it (a hash-identical endpoint would render a foreign finding at the
+ * wrong API otherwise). Runs missing their version are instead completed at
+ * assembly time, where provenance is still known (`Thymian.finalizeWorkflow`
+ * / `Thymian.reportConvert`). Returns `undefined` (never throws) on
+ * malformed/unsupported serialized format data, so a single bad entry can't
+ * fail an entire render.
  */
 export function resolveThymianFormatForRun(
   formats: Report['thymianFormat'],
   runVersion: string | undefined,
 ): ThymianFormat | undefined {
-  const entries = Object.entries(formats ?? {});
   const serialized =
-    runVersion !== undefined && formats?.[runVersion]
-      ? formats[runVersion]
-      : entries.length === 1
-        ? entries[0]?.[1]
-        : undefined;
+    runVersion !== undefined ? formats?.[runVersion] : undefined;
 
   if (!serialized) {
     return undefined;
@@ -129,21 +128,24 @@ export function resolveThymianFormatForRun(
  */
 export function createLocationResolver(report: Report): LocationResolver {
   const formatCache = new Map<string, ThymianFormat | undefined>();
-  const cacheKeyFor = (version: string | undefined) =>
-    version ?? '\0single-entry';
 
   return (location, runVersion) => {
     if (location.type !== 'thymianFormat') {
       return formatLocation(location);
     }
 
-    const cacheKey = cacheKeyFor(runVersion);
+    // No version, no format: resolution never falls back (see
+    // resolveThymianFormatForRun), so this renders the raw fallback text.
+    if (runVersion === undefined) {
+      return formatThymianFormatLocation(location, undefined);
+    }
+
     let format: ThymianFormat | undefined;
-    if (formatCache.has(cacheKey)) {
-      format = formatCache.get(cacheKey);
+    if (formatCache.has(runVersion)) {
+      format = formatCache.get(runVersion);
     } else {
       format = resolveThymianFormatForRun(report.thymianFormat, runVersion);
-      formatCache.set(cacheKey, format);
+      formatCache.set(runVersion, format);
     }
 
     return formatThymianFormatLocation(location, format);

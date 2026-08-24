@@ -23,10 +23,10 @@
       "path": "../plugin-websocket-proxy"
     },
     {
-      "path": "../plugin-spectral"
+      "path": "../plugin-sampler"
     },
     {
-      "path": "../plugin-sampler"
+      "path": "../plugin-spectral"
     },
     {
       "path": "../plugin-request-dispatcher"

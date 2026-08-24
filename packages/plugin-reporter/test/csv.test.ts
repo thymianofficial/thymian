@@ -1,3 +1,4 @@
+import { existsSync, rmSync } from 'node:fs';
 import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 
@@ -85,12 +86,27 @@ describe('CsvFormatter header (AC16)', () => {
     const path = join(process.cwd(), 'tmp', 'csv-header.csv');
     const formatter = new CsvFormatter(new NoopLogger());
     await formatter.init({ path });
+    // The stream opens lazily on the first report — a run-less report still
+    // produces the header-only file.
+    await formatter.report(createReport([]));
     await formatter.flush();
 
     const content = await readFile(path, 'utf-8');
     const [header] = content.split('\n');
     expect(header).toBe(CSV_HEADER);
     expect(CSV_HEADER.split(',')).toHaveLength(13);
+  });
+
+  it('writes no file at all when no report was ever received', async () => {
+    const path = join(process.cwd(), 'tmp', 'csv-never-reported.csv');
+    rmSync(path, { force: true });
+    const formatter = new CsvFormatter(new NoopLogger());
+    await formatter.init({ path });
+    await formatter.flush();
+
+    // Core withholds the report emission on a failed run (e.g. an unclaimed
+    // report input) — no artifact may land on disk then (#507 review).
+    expect(existsSync(path)).toBe(false);
   });
 });
 

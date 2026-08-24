@@ -1,3 +1,6 @@
+# `reports` and `specifications` are deliberately present: `report merge`
+# reads CLI arguments only (#362 review decision), and the e2e suite proves
+# these entries are ignored — do not remove them to "clean up".
 reports:
   - type: thymian
     location: thymian-report.json

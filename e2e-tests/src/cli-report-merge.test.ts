@@ -1,4 +1,4 @@
-import { existsSync, readFileSync, writeFileSync } from 'node:fs';
+import { copyFileSync, existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 
 import { describe, expect, it } from 'vitest';
@@ -69,8 +69,11 @@ describe('thymian report merge', () => {
     expect(convert.exitCode).toBe(1); // findings, not an error
     expect(existsSync(join(getTempDir(), 'converted.json'))).toBe(true);
 
-    // Step 2: merge the persisted report WITHOUT --spec — endpoint
-    // resolution must come from the format map inside converted.json.
+    // Step 2: merge the persisted report WITHOUT --spec — merge reads CLI
+    // arguments only (the copied config's `specifications` entry is ignored
+    // by design), so endpoint resolution can only come from the format map
+    // inside converted.json. Deleting the thymianFormat passthrough would
+    // fail this test.
     const { stdout, exitCode } = execThymianResult(
       [
         'report',
@@ -157,11 +160,11 @@ describe('thymian report merge', () => {
     expect(
       merged[0]?.runs.map((run) => run.thymianFormatVersion).sort(),
     ).toEqual([...hashes].sort());
-    // With two entries the sole-entry fallback is out of play — resolution
-    // must go through each run's own hash. Run 1's endpoint-resolved
-    // location must still render (run 2's findings keep file locations:
-    // the spectral fixture's source doesn't map onto test2's paths), and
-    // no location may degrade to the raw `format:<hash>` fallback text.
+    // Resolution goes through each run's own hash (there is no sole-entry
+    // fallback). Run 1's endpoint-resolved location must still render; run
+    // 2's findings keep file locations because their `source`
+    // (test.openapi.yaml) matches no node loaded from test2.openapi.yaml —
+    // and no location may degrade to the raw `format:<hash>` fallback text.
     const markdown = readFileSync(join(getTempDir(), 'two-hashes.md'), 'utf-8');
     expect(markdown).toContain('200 OK - */*');
     expect(markdown).not.toContain('format:');
@@ -264,26 +267,47 @@ describe('thymian report merge', () => {
     expect(written[0]?.runs).toHaveLength(1);
   }, 90_000);
 
-  it('should drive report merge from config-file reports when no flags are given (AC 7)', () => {
+  it('should ignore config-file reports — merge reads CLI arguments only (#362 review decision)', () => {
+    // The copied config declares both `reports` and `specifications`, but
+    // merge takes neither: without --report the command must fail
+    // usage-style instead of silently merging whatever the config names.
     copyFixturesToTempDir(join(fixturesDir, 'report-merge'), getTempDir());
 
-    const { stdout, exitCode } = execThymianResult(['report', 'merge'], {
+    const { stderr, exitCode } = execThymianResult(['report', 'merge'], {
       cwd: getTempDir(),
     });
 
+    expect(exitCode).toBe(2);
+    expect(stderr).toContain('No report input found');
+    expect(stderr).not.toContain('configuration file');
+  }, 90_000);
+
+  it('should collapse the same run arriving under two different paths to one runId (AC 4)', () => {
+    copyFixturesToTempDir(join(fixturesDir, 'report-merge'), getTempDir());
+    // Same file content under a second path — path-keyed input identity
+    // must not yield two runs with the same runId in the merged report.
+    copyFileSync(
+      join(getTempDir(), 'thymian-report.json'),
+      join(getTempDir(), 'copy.json'),
+    );
+
+    const { exitCode } = execThymianResult(
+      [
+        'report',
+        'merge',
+        '--report',
+        'thymian:thymian-report.json',
+        '--report',
+        'thymian:copy.json',
+      ],
+      { cwd: getTempDir() },
+    );
+
     expect(exitCode).toBe(1);
-    expect(stdout).toContain('fixture-linter-a');
-    expect(stdout).toContain('@thymian/plugin-spectral');
-    // The config file also enables the markdown+json+csv formatters (AC 5).
-    expect(existsSync(join(getTempDir(), '.thymian/reports/report.md'))).toBe(
-      true,
-    );
-    expect(existsSync(join(getTempDir(), '.thymian/reports/report.json'))).toBe(
-      true,
-    );
-    expect(existsSync(join(getTempDir(), '.thymian/reports/report.csv'))).toBe(
-      true,
-    );
+    const written = JSON.parse(
+      readFileSync(join(getTempDir(), '.thymian/reports/report.json'), 'utf-8'),
+    ) as { runs: { runId: string }[] }[];
+    expect(written[0]?.runs).toHaveLength(1);
   }, 90_000);
 
   it('should exit 2 when no report input is found anywhere (AC 4)', () => {
@@ -338,7 +362,7 @@ describe('thymian report merge', () => {
     expect(flatStderr).toContain('not a valid Thymian JSON report');
   }, 90_000);
 
-  it('should exit 2 with the supported-types error for an unclaimed input type (AC 4)', () => {
+  it('should exit 2 with the supported-types error for an unclaimed input type and write no report files (AC 4)', () => {
     copyFixturesToTempDir(join(fixturesDir, 'report-merge'), getTempDir());
     writeFileSync(join(getTempDir(), 'other.json'), '[]', 'utf-8');
 
@@ -357,6 +381,18 @@ describe('thymian report merge', () => {
     expect(exitCode).toBe(2);
     expect(stderr).toContain('"unknown-format:other.json"');
     expect(stderr).toContain('Supported report types in this run: thymian');
+    // The config enables the markdown+json+csv formatters, but an unclaimed
+    // input withholds the report emission — a truncated merge (only the
+    // claimed input's runs) must never be persisted alongside the exit 2.
+    expect(existsSync(join(getTempDir(), '.thymian/reports/report.md'))).toBe(
+      false,
+    );
+    expect(existsSync(join(getTempDir(), '.thymian/reports/report.json'))).toBe(
+      false,
+    );
+    expect(existsSync(join(getTempDir(), '.thymian/reports/report.csv'))).toBe(
+      false,
+    );
   }, 90_000);
 
   it('should honor an --option formatter path override (AC 5)', () => {

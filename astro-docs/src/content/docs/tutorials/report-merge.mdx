@@ -26,7 +26,7 @@ A Thymian report contains an array of tool runs. Merging concatenates the runs o
 - two reports with one run each merge into **one report with two runs** — runs are never folded into each other
 - each run keeps its identity: its `runId`, timestamps, rule metadata (severity resolution stays per-run), and API-format reference travel unchanged
 - the serialized API formats of all inputs are carried over into the merged report's `thymianFormat` record, so endpoint-resolved locations keep rendering — no re-supplying of specs needed for already-converted inputs
-- exact duplicate inputs (same type and path) are collapsed to their first occurrence; a single input is a valid "identity merge"
+- exact duplicate inputs (same type and path) are collapsed to their first occurrence, and so is the **same run** arriving under two different paths (a copied report file contributes once — identity is the `runId`, not the path); a single input is a valid "identity merge"
 
 <Aside type="note">
   A `thymian:` input must be a **Thymian JSON report** — either the JSON
@@ -63,14 +63,9 @@ thymian report merge \
   -o '@thymian/plugin-reporter.formatters.json.path=merged.json'
 ```
 
-Or persistently, in `thymian.config.yaml` — which can also carry the report inputs themselves, so a bare `thymian report merge` works:
+Or persistently, in `thymian.config.yaml`:
 
 ```yaml
-reports:
-  - type: thymian
-    location: previous-report.json
-  - type: spectral
-    location: spectral-report.json
 plugins:
   '@thymian/plugin-reporter':
     options:
@@ -79,13 +74,21 @@ plugins:
         json: {}
 ```
 
-`--report` flags replace the configured `reports` entirely when both are present.
+<Aside type="note">
+  `thymian report merge` reads its inputs from **CLI arguments only**: the
+  `reports` and `specifications` keys of your configuration file are ignored
+  (they belong to `thymian report convert`), so a config entry can never
+  silently widen or alter an explicit merge. General configuration — plugins,
+  formatters, log level — still applies.
+</Aside>
 
 ## Exit Codes and CI Gating
 
 The merged report gates like any other: exit `1` when any merged run contains a failed execution, `0` when clean, `2` for usage or tool errors. Severity never affects gating — a warnings-only merged report still exits `1`.
 
 <Aside type="caution">
-  Merging the same results twice doubles the summary counts — the merge is a
-  plain union of runs, findings are not deduplicated across inputs.
+  The same run reaching the merge twice (the same file, or a copy of it) is
+  collapsed by its `runId` — but findings are never deduplicated across
+  *different* runs: two separate tool runs over the same API double the summary
+  counts, by design.
 </Aside>

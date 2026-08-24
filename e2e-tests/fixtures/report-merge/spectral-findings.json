@@ -24,11 +24,11 @@
     "range": {
       "start": {
         "line": 1,
-        "character": 5
+        "character": 0
       },
       "end": {
-        "line": 3,
-        "character": 16
+        "line": 4,
+        "character": 18
       }
     },
     "source": "test.openapi.yaml"
@@ -41,79 +41,70 @@
     "range": {
       "start": {
         "line": 1,
-        "character": 5
+        "character": 0
       },
       "end": {
-        "line": 3,
-        "character": 16
+        "line": 4,
+        "character": 18
       }
     },
     "source": "test.openapi.yaml"
   },
   {
     "code": "operation-description",
-    "path": ["paths", "/users", "get"],
+    "path": ["paths", "/api/hello", "get"],
     "message": "Operation \"description\" must be present and non-empty string.",
     "severity": 1,
     "range": {
       "start": {
-        "line": 6,
-        "character": 8
+        "line": 7,
+        "character": 4
       },
       "end": {
-        "line": 16,
-        "character": 30
+        "line": 22,
+        "character": 44
       }
     },
     "source": "test.openapi.yaml"
   },
   {
     "code": "operation-tags",
-    "path": ["paths", "/users", "get"],
+    "path": ["paths", "/api/hello", "get"],
     "message": "Operation must have non-empty \"tags\" array.",
     "severity": 3,
     "range": {
       "start": {
-        "line": 6,
-        "character": 8
+        "line": 7,
+        "character": 4
       },
       "end": {
-        "line": 16,
-        "character": 30
+        "line": 22,
+        "character": 44
       }
     },
     "source": "test.openapi.yaml"
   },
   {
-    "code": "operation-description",
-    "path": ["paths", "/orders", "post"],
-    "message": "Operation \"description\" must be present and non-empty string.",
+    "code": "oas3-valid-media-example",
+    "path": [
+      "paths",
+      "/api/hello",
+      "get",
+      "responses",
+      "200",
+      "content",
+      "*/*"
+    ],
+    "message": "Response content must specify valid examples.",
     "severity": 1,
     "range": {
       "start": {
-        "line": 18,
-        "character": 9
+        "line": 20,
+        "character": 12
       },
       "end": {
         "line": 22,
-        "character": 30
-      }
-    },
-    "source": "test.openapi.yaml"
-  },
-  {
-    "code": "operation-tags",
-    "path": ["paths", "/orders", "post"],
-    "message": "Operation must have non-empty \"tags\" array.",
-    "severity": 3,
-    "range": {
-      "start": {
-        "line": 18,
-        "character": 9
-      },
-      "end": {
-        "line": 22,
-        "character": 30
+        "character": 44
       }
     },
     "source": "test.openapi.yaml"

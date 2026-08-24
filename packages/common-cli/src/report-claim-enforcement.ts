@@ -5,7 +5,10 @@ import type { ReportInput } from '@thymian/core';
  * Claim enforcement for `--report` inputs (ADR-0017): a type is supported
  * exactly when >=1 registered plugin claims it, so the supported list is
  * derived from this run's claims. Errors with exit 2 (usage error) when any
- * input went unclaimed; call before any report rendering. Shared by
+ * input went unclaimed. The call site sits after the workflow (claims are
+ * only known then); no report file is rendered before it fires because core
+ * withholds the `core.report` emission when inputs went unclaimed — a
+ * partial assembly never reaches the file formatters. Shared by
  * `thymian report convert` and `thymian report merge`.
  */
 export function enforceReportClaims(

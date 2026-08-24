@@ -1,4 +1,3 @@
-import { EventEmitter } from 'node:events';
 import { existsSync, mkdirSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -16,43 +15,13 @@ import {
   vi,
 } from 'vitest';
 
-process.env.OCLIF_TEST_ROOT = join(import.meta.url, '../../../..');
+process.env.OCLIF_TEST_ROOT = fileURLToPath(
+  new URL('../../..', import.meta.url),
+);
 
-const mockState: {
-  reportConvertInput?: unknown;
-  reportConvertResult?: unknown;
-  runCalled?: boolean;
-} = {};
-
-vi.mock('@thymian/core', async () => {
-  const actual = await vi.importActual('@thymian/core');
-
-  class MockThymian {
-    emitter = new EventEmitter();
-    static DEFAULT_TIMEOUT = 30_000;
-    static DEFAULT_IDLE_TIMEOUT = 5_000;
-
-    public ready = vi.fn(async () => undefined);
-    public close = vi.fn(async () => undefined);
-    public register = vi.fn();
-    public run = vi.fn(async (fn: () => Promise<unknown>) => fn());
-    public reportConvert = vi.fn(async (input: unknown) => {
-      mockState.reportConvertInput = input;
-      mockState.runCalled = true;
-      return (
-        mockState.reportConvertResult ?? {
-          report: (actual as typeof import('@thymian/core')).createReport([]),
-          unclaimed: [],
-        }
-      );
-    });
-  }
-
-  return {
-    ...actual,
-    Thymian: MockThymian,
-  };
-});
+vi.mock('@thymian/core', async () =>
+  (await import('../../helpers/mock-thymian.js')).mockThymianCore(),
+);
 
 import {
   createLintExecution,
@@ -61,9 +30,15 @@ import {
 } from '@thymian/core';
 
 import ReportMerge from '../../../src/commands/report/merge.js';
+import { mockState, resetMockState } from '../../helpers/mock-thymian.js';
 
 const __dirname = fileURLToPath(new URL('.', import.meta.url));
 
+// The claim-enforcement wording and the shared run/enforce/render spine are
+// covered by common-cli's unit tests (report-claim-enforcement.test.ts) and
+// convert.test.ts's integration case — this file asserts what is specific to
+// `report merge`: CLI-only input resolution (#362 review decision) and the
+// merged-report outcome handling.
 function mergedReport(failed: boolean) {
   return createReport([
     createToolRun({
@@ -105,9 +80,7 @@ describe('report merge command', () => {
   });
 
   beforeEach(() => {
-    mockState.reportConvertInput = undefined;
-    mockState.reportConvertResult = undefined;
-    mockState.runCalled = false;
+    resetMockState();
   });
 
   afterEach(() => {
@@ -140,7 +113,7 @@ describe('report merge command', () => {
     );
   });
 
-  it('uses config-file reports when no --report flag is given (AC 7)', async () => {
+  it('ignores config-file reports entirely — merge reads CLI arguments only (#362 review decision)', async () => {
     const configPath = join(tmpDir, 'reports.config.yaml');
     writeFileSync(
       configPath,
@@ -152,25 +125,29 @@ describe('report merge command', () => {
       ].join('\n'),
     );
 
-    await captureOutput(async () => {
+    const { error } = await captureOutput(async () => {
       await ReportMerge.run(['--config', configPath, '--no-autoload']);
     });
 
-    expect(mockState.reportConvertInput).toEqual(
-      expect.objectContaining({
-        reports: [{ type: 'thymian', location: './from-config.json' }],
-      }),
+    // Config reports do not count as inputs: without --report the command
+    // fails usage-style, and the message must not point at the config file.
+    expect(error?.message).toBe(
+      'No report input found. Provide one with --report.',
     );
+    expect(mockState.runCalled).toBeFalsy();
+    expect(
+      (error as { oclif?: { exit?: number } } | undefined)?.oclif?.exit,
+    ).toBe(2);
   });
 
-  it('lets --report flags replace config-file reports entirely (AC 7)', async () => {
-    const configPath = join(tmpDir, 'override.config.yaml');
+  it('ignores config-file specifications — only --spec reaches the merge workflow', async () => {
+    const configPath = join(tmpDir, 'specs.config.yaml');
     writeFileSync(
       configPath,
       [
-        'reports:',
-        '  - type: thymian',
-        '    location: ./config-report.json',
+        'specifications:',
+        '  - type: openapi',
+        '    location: ./config-api.yaml',
         'plugins: {}',
       ].join('\n'),
     );
@@ -188,8 +165,21 @@ describe('report merge command', () => {
     expect(mockState.reportConvertInput).toEqual(
       expect.objectContaining({
         reports: [{ type: 'thymian', location: './flag-report.json' }],
+        specification: [],
       }),
     );
+  });
+
+  it('fails with exit 2 when no report input is given (AC 4)', async () => {
+    const { error } = await captureOutput(async () => {
+      await ReportMerge.run(['--no-autoload']);
+    });
+
+    expect(error?.message).toContain('No report input found');
+    expect(mockState.runCalled).toBeFalsy();
+    expect(
+      (error as { oclif?: { exit?: number } } | undefined)?.oclif?.exit,
+    ).toBe(2);
   });
 
   it('forwards --validate-specs as validateSpecs: true (AC 3)', async () => {
@@ -209,87 +199,6 @@ describe('report merge command', () => {
         validateSpecs: true,
       }),
     );
-  });
-
-  it('fails with exit 2 when no report input is found anywhere (AC 4)', async () => {
-    const { error } = await captureOutput(async () => {
-      await ReportMerge.run(['--no-autoload']);
-    });
-
-    expect(error?.message).toContain('No report input found');
-    expect(mockState.runCalled).toBeFalsy();
-    expect(
-      (error as { oclif?: { exit?: number } } | undefined)?.oclif?.exit,
-    ).toBe(2);
-  });
-
-  it('fails with exit 2 naming the unclaimed input and listing supported types (AC 4)', async () => {
-    mockState.reportConvertResult = {
-      report: mergedReport(false),
-      unclaimed: [{ type: 'foo', location: './r.json' }],
-    };
-
-    const { error } = await captureOutput(async () => {
-      await ReportMerge.run([
-        '--report',
-        'thymian:./claimed.json',
-        '--report',
-        'foo:./r.json',
-        '--no-autoload',
-      ]);
-    });
-
-    expect(error?.message).toContain('"foo:./r.json"');
-    expect(error?.message).toContain(
-      'Supported report types in this run: thymian',
-    );
-    expect(
-      (error as { oclif?: { exit?: number } } | undefined)?.oclif?.exit,
-    ).toBe(2);
-  });
-
-  it('distinguishes an unclaimed input of a supported type from an unsupported type (AC 4)', async () => {
-    mockState.reportConvertResult = {
-      report: mergedReport(false),
-      unclaimed: [{ type: 'thymian', location: './missing.json' }],
-    };
-
-    const { error } = await captureOutput(async () => {
-      await ReportMerge.run([
-        '--report',
-        'thymian:./claimed.json',
-        '--report',
-        'thymian:./missing.json',
-        '--no-autoload',
-      ]);
-    });
-
-    expect(error?.message).toContain(
-      'Report input "thymian:./missing.json" has a supported type but was not claimed — check the location',
-    );
-    expect(error?.message).not.toContain('No registered plugin claims');
-    expect(
-      (error as { oclif?: { exit?: number } } | undefined)?.oclif?.exit,
-    ).toBe(2);
-  });
-
-  it('shows the no-claimant hint when nothing was claimed (AC 4)', async () => {
-    mockState.reportConvertResult = {
-      report: createReport([]),
-      unclaimed: [{ type: 'foo', location: './r.json' }],
-    };
-
-    const { error } = await captureOutput(async () => {
-      await ReportMerge.run(['--report', 'foo:./r.json', '--no-autoload']);
-    });
-
-    expect(error?.message).toContain(
-      'No converter plugin claimed any report input',
-    );
-    expect(error?.message).not.toContain('Supported report types');
-    expect(
-      (error as { oclif?: { exit?: number } } | undefined)?.oclif?.exit,
-    ).toBe(2);
   });
 
   it('renders the merged report and exits 0 on a clean outcome (AC 5)', async () => {

@@ -574,11 +574,16 @@ describe('Thymian.reportConvert()', () => {
   it('treats prototype-member hash keys as plain data and skips junk map values (#507 review)', async () => {
     const t = new Thymian();
 
-    const format = {
-      attributes: { hash: 'constructor' },
-      nodes: [],
-      edges: [],
-    };
+    // JSON.parse is the discriminating vehicle: unlike an object literal, it
+    // creates '__proto__' as an *own* property — exactly what a persisted
+    // `"thymianFormat": {"__proto__": {...}}` yields. On an unhardened plain
+    // accumulator that key would hit the prototype setter, vanish from
+    // Object.keys, and replace the accumulator's prototype.
+    const hostileMap = JSON.parse(
+      '{"__proto__": {"attributes": {"hash": "__proto__"}, "nodes": [], "edges": []}, "bad": null, "worse": []}',
+    ) as NonNullable<import('../src/index.js').Report['thymianFormat']>;
+    // Sanity-check the vehicle: the key must be an own property here.
+    expect(Object.keys(hostileMap)).toContain('__proto__');
 
     t.emitter.onAction('core.report.convert', async (payload, ctx) => {
       ctx.reply(
@@ -588,18 +593,9 @@ describe('Thymian.reportConvert()', () => {
             tool: { name: 'hostile-reader' },
             runType: 'lint',
             executions: [],
-            thymianFormatVersion: 'constructor',
+            thymianFormatVersion: '__proto__',
           }),
-          // 'constructor' collides with an Object.prototype member; 'bad'
-          // and 'worse' carry junk values a hand-edited persisted map could
-          // contain (arrays are typeof 'object' too).
-          thymianFormat: {
-            constructor: format,
-            bad: null,
-            worse: [],
-          } as unknown as NonNullable<
-            import('../src/index.js').Report['thymianFormat']
-          >,
+          thymianFormat: hostileMap,
         })),
       );
     });
@@ -608,10 +604,234 @@ describe('Thymian.reportConvert()', () => {
       reports: [{ type: 'thymian', location: './hostile.json' }],
     });
 
-    expect(outcome.report.thymianFormat?.['constructor']).toBe(format);
-    expect(Object.keys(outcome.report.thymianFormat ?? {})).toEqual([
-      'constructor',
-    ]);
+    const formats = outcome.report.thymianFormat ?? {};
+    // The entry survives as plain data (junk 'bad'/'worse' values skipped)…
+    expect(Object.keys(formats)).toEqual(['__proto__']);
+    expect(formats['__proto__']).toEqual({
+      attributes: { hash: '__proto__' },
+      nodes: [],
+      edges: [],
+    });
+    // …and the public map keeps its ordinary prototype, unpolluted: the
+    // hostile key must neither replace the prototype nor break consumers
+    // that rely on Object.prototype members (#507 review — public shape).
+    expect(Object.getPrototypeOf(formats)).toBe(Object.prototype);
+    expect(formats instanceof Object).toBe(true);
+    expect(Object.prototype.hasOwnProperty.call(formats, '__proto__')).toBe(
+      true,
+    );
+
+    await t.close();
+  });
+
+  it('keeps report.thymianFormat an ordinary plain-prototype object for single-workflow runs', async () => {
+    const t = new Thymian();
+
+    t.emitter.onAction('core.format.load', async (_payload, ctx) => {
+      ctx.reply({ attributes: { hash: 'spec-hash' }, nodes: [], edges: [] });
+    });
+    t.emitter.onAction('core.lint', async (_payload, ctx) => {
+      ctx.reply([
+        createToolRun({
+          tool: { name: 'lint-plugin' },
+          runType: 'lint',
+          executions: [],
+          thymianFormatVersion: 'spec-hash',
+        }),
+      ]);
+    });
+
+    const report = await t.lint({
+      specification: [{ type: 'openapi', location: 'api.yaml' }],
+      rules: [],
+    });
+
+    // Public shape (#507 review): a consumer on `core.report` may use
+    // Object.prototype members or strict equality against a literal.
+    expect(Object.getPrototypeOf(report.thymianFormat)).toBe(Object.prototype);
+    expect(report.thymianFormat instanceof Object).toBe(true);
+    // loadFormat re-exports the merged graph, so the map key is the freshly
+    // computed hash — one entry, self-describing.
+    const hashes = Object.keys(report.thymianFormat ?? {});
+    expect(hashes).toHaveLength(1);
+    expect(report.thymianFormat?.[hashes[0]!]?.attributes.hash).toBe(hashes[0]);
+
+    await t.close();
+  });
+
+  it('completes a missing thymianFormatVersion from the workflow format (single-workflow provenance)', async () => {
+    const t = new Thymian();
+
+    t.emitter.onAction('core.format.load', async (_payload, ctx) => {
+      ctx.reply({ attributes: { hash: 'spec-hash' }, nodes: [], edges: [] });
+    });
+    t.emitter.onAction('core.lint', async (_payload, ctx) => {
+      ctx.reply([
+        // A producer that forgot to set thymianFormatVersion — previously
+        // rescued by the render-side sole-entry fallback, now completed at
+        // assembly, where the single-workflow provenance is certain.
+        createToolRun({
+          tool: { name: 'forgetful-plugin' },
+          runType: 'lint',
+          executions: [],
+        }),
+      ]);
+    });
+
+    const report = await t.lint({
+      specification: [{ type: 'openapi', location: 'api.yaml' }],
+      rules: [],
+    });
+
+    // The workflow format is re-exported by loadFormat with a computed hash;
+    // the backfilled version must point at exactly that map entry.
+    const formatHashes = Object.keys(report.thymianFormat ?? {});
+    expect(formatHashes).toHaveLength(1);
+    expect(report.runs[0]?.thymianFormatVersion).toBe(formatHashes[0]);
+    expect(ajv.validate(reportSchema, report)).toBe(true);
+
+    await t.close();
+  });
+
+  it('completes a missing thymianFormatVersion from a single-entry fragment map (per-input provenance)', async () => {
+    const t = new Thymian();
+
+    const format = { attributes: { hash: 'hash-a' }, nodes: [], edges: [] };
+
+    t.emitter.onAction('core.report.convert', async (payload, ctx) => {
+      ctx.reply(
+        payload.inputs.map((input) => ({
+          input: { type: input.type, location: String(input.location) },
+          // The persisted run lost its version (older producer), but its
+          // source report carries exactly one format — that one.
+          run: createToolRun({
+            tool: { name: 'thymian-report-reader' },
+            runType: 'lint',
+            executions: [],
+          }),
+          thymianFormat: { 'hash-a': format },
+        })),
+      );
+    });
+
+    const outcome = await t.reportConvert({
+      reports: [{ type: 'thymian', location: './a.json' }],
+    });
+
+    expect(outcome.report.runs[0]?.thymianFormatVersion).toBe('hash-a');
+
+    await t.close();
+  });
+
+  it('de-duplicates assembled runs on runId across inputs (same report under two paths)', async () => {
+    const t = new Thymian();
+
+    // One persisted run arriving under two different input paths — e.g.
+    // `cp report.json copy.json` and both passed to `report merge`.
+    const persistedRun = createToolRun({
+      tool: { name: 'thymian-report-reader' },
+      runType: 'lint',
+      executions: [],
+    });
+
+    t.emitter.onAction('core.report.convert', async (payload, ctx) => {
+      ctx.reply(
+        payload.inputs.map((input) => ({
+          input: { type: input.type, location: String(input.location) },
+          run: persistedRun,
+        })),
+      );
+    });
+
+    const outcome = await t.reportConvert({
+      reports: [
+        { type: 'thymian', location: './report.json' },
+        { type: 'thymian', location: './copy.json' },
+      ],
+    });
+
+    expect(outcome.report.runs).toHaveLength(1);
+    expect(outcome.report.runs[0]?.runId).toBe(persistedRun.runId);
+    expect(outcome.unclaimed).toEqual([]);
+
+    await t.close();
+  });
+
+  it('withholds the core.report emission when inputs went unclaimed (no partial report reaches formatters)', async () => {
+    const t = new Thymian();
+    const reported = vi.fn();
+    t.emitter.on('core.report', reported);
+
+    t.emitter.onAction('core.report.convert', async (payload, ctx) => {
+      ctx.reply(
+        payload.inputs
+          .filter((input) => input.type === 'thymian')
+          .map((input) => ({
+            input: { type: input.type, location: String(input.location) },
+            run: createToolRun({
+              tool: { name: 'thymian-report-reader' },
+              runType: 'lint',
+              executions: [],
+            }),
+          })),
+      );
+    });
+
+    const unclaimedOutcome = await t.reportConvert({
+      reports: [
+        { type: 'thymian', location: './ok.json' },
+        { type: 'bogus', location: './x.json' },
+      ],
+    });
+
+    // The partial report is still returned for the caller's enforcement
+    // path, but never emitted — a formatter must not persist it.
+    expect(unclaimedOutcome.unclaimed).toHaveLength(1);
+    expect(unclaimedOutcome.report.runs).toHaveLength(1);
+    expect(reported).not.toHaveBeenCalled();
+
+    const claimedOutcome = await t.reportConvert({
+      reports: [{ type: 'thymian', location: './ok.json' }],
+    });
+
+    expect(claimedOutcome.unclaimed).toEqual([]);
+    expect(reported).toHaveBeenCalledTimes(1);
+
+    await t.close();
+  });
+
+  it('includes the workflow spec format only when a run actually converted against it', async () => {
+    const t = new Thymian();
+
+    t.emitter.onAction('core.format.load', async (_payload, ctx) => {
+      ctx.reply({ attributes: { hash: 'spec-hash' }, nodes: [], edges: [] });
+    });
+    t.emitter.onAction('core.report.convert', async (payload, ctx) => {
+      ctx.reply(
+        payload.inputs.map((input) => ({
+          input: { type: input.type, location: String(input.location) },
+          // A pure passthrough run that never touched the --spec format.
+          run: createToolRun({
+            tool: { name: 'thymian-report-reader' },
+            runType: 'lint',
+            executions: [],
+            thymianFormatVersion: 'hash-a',
+          }),
+          thymianFormat: {
+            'hash-a': { attributes: { hash: 'hash-a' }, nodes: [], edges: [] },
+          },
+        })),
+      );
+    });
+
+    const outcome = await t.reportConvert({
+      reports: [{ type: 'thymian', location: './a.json' }],
+      specification: [{ type: 'openapi', location: 'api.yaml' }],
+    });
+
+    // No run references spec-hash, so the merged map must not carry a
+    // serialized graph no run points at.
+    expect(Object.keys(outcome.report.thymianFormat ?? {})).toEqual(['hash-a']);
 
     await t.close();
   });

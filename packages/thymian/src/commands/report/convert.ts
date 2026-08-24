@@ -1,13 +1,8 @@
-import {
-  BaseCliRunCommand,
-  enforceReportClaims,
-  handleWorkflowOutcome,
-  reportFlag,
-} from '@thymian/common-cli';
-import type { ReportInput } from '@thymian/core';
+import { BaseReportAssemblyCommand } from '@thymian/common-cli';
+import type { ReportInput, SpecificationInput } from '@thymian/core';
 import type {} from '@thymian/plugin-spectral';
 
-export default class ReportConvert extends BaseCliRunCommand<
+export default class ReportConvert extends BaseReportAssemblyCommand<
   typeof ReportConvert
 > {
   static override description =
@@ -18,44 +13,22 @@ export default class ReportConvert extends BaseCliRunCommand<
     '<%= config.bin %> <%= command.id %> --report spectral:./report.json --spec openapi:./api.yaml',
   ];
 
-  // Specs are optional for convert (spec-location mapping is best-effort);
-  // skipping the spec resolution chain must not skip Step C, which still
-  // applies --spec flag-over-config before run().
-  static override requiresSpecifications = false;
+  protected override readonly noReportInputMessage =
+    'No report input found. Provide one with --report or add reports to your configuration file.';
 
-  static override flags = {
-    report: reportFlag(),
-  };
-
-  override async run(): Promise<void> {
-    // Flags-over-config for --report, mirroring Step C's --spec handling;
-    // resolved here because --report is command-level, not a baseFlag.
-    const reports: ReportInput[] = this.flags.report?.length
-      ? this.flags.report
-      : (this.thymianConfig.reports ?? []);
-
-    if (reports.length === 0) {
-      this.error(
-        'No report input found. Provide one with --report or add reports to your configuration file.',
-        { exit: 2 },
-      );
-    }
-
-    const outcome = await this.thymian.run(() =>
-      this.thymian.reportConvert({
-        reports,
-        specification: this.thymianConfig.specifications ?? [],
-        validateSpecs: this.flags['validate-specs'],
-      }),
-    );
-
-    enforceReportClaims(this, reports, outcome.unclaimed);
-
-    handleWorkflowOutcome(
-      this,
-      outcome.report,
-      {},
-      { sortReportsBy: this.flags['sort-reports-by'] },
-    );
+  // Flags-over-config for --report, mirroring Step C's --spec handling
+  // (which has already folded --spec into thymianConfig.specifications by
+  // the time this runs); resolved here because --report is command-level,
+  // not a baseFlag.
+  protected override resolveReportInputs(): {
+    reports: ReportInput[];
+    specification: SpecificationInput[];
+  } {
+    return {
+      reports: this.flags.report?.length
+        ? this.flags.report
+        : (this.thymianConfig.reports ?? []),
+      specification: this.thymianConfig.specifications ?? [],
+    };
   }
 }

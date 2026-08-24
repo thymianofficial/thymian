@@ -1,10 +1,8 @@
-import { readFile } from 'node:fs/promises';
-import { isAbsolute, join } from 'node:path';
-
 import type { Report } from '@thymian/core';
 import {
   ajv,
   formatAjvErrors,
+  readTypedInputJson,
   reportSchema,
   ThymianBaseError,
 } from '@thymian/core';
@@ -17,7 +15,9 @@ import {
  * Each report is validated structurally against the loose `reportSchema`
  * (`additionalProperties: true` — the persisted-report compatibility
  * contract), never strict-parsed, so reports written by newer or older
- * Thymian versions stay readable as long as the core shape holds.
+ * Thymian versions stay readable as long as the core shape holds. The file
+ * boundary itself (path resolution, BOM tolerance, read/parse error wording)
+ * is the shared `readTypedInputJson` contract all claimants use.
  *
  * @param inputLabel the offending input's identity (`type:location`), used in
  *   every error message so failures trace back to the CLI input.
@@ -29,29 +29,12 @@ export async function loadThymianReports(
   inputLabel: string,
   cwd: string,
 ): Promise<Report[]> {
-  const filePath = isAbsolute(location) ? location : join(cwd, location);
-
-  let content: string;
-  try {
-    content = await readFile(filePath, 'utf-8');
-  } catch (err) {
-    throw new ThymianBaseError(
-      `Failed to read Thymian report "${inputLabel}" (resolved to ${filePath}).`,
-      { cause: err instanceof Error ? err : undefined },
-    );
-  }
-
-  let parsed: unknown;
-  try {
-    // Tolerate a UTF-8 BOM (common for files saved by Windows editors) —
-    // JSON.parse rejects it with a misleading syntax error otherwise.
-    parsed = JSON.parse(content.replace(/^\uFEFF/, ''));
-  } catch (err) {
-    throw new ThymianBaseError(
-      `Failed to parse Thymian report "${inputLabel}" as JSON.`,
-      { cause: err instanceof Error ? err : undefined },
-    );
-  }
+  const parsed = await readTypedInputJson(
+    location,
+    inputLabel,
+    cwd,
+    'Thymian report',
+  );
 
   const candidates = Array.isArray(parsed) ? parsed : [parsed];
 
