@@ -800,9 +800,17 @@ export class Thymian {
       }
       thymianFormat = copied;
 
-      if (format) {
-        // Keep an already-present entry (same hash ⇒ same graph).
-        thymianFormat[format.attributes.hash] ??= format;
+      // Keep an already-present entry (same hash ⇒ same graph). Own-key
+      // check and defineProperty like the copies above: a plain `??=` would
+      // read inherited members (`constructor`) and write through the
+      // `__proto__` setter if a hash ever collided with them.
+      if (format && !Object.hasOwn(thymianFormat, format.attributes.hash)) {
+        Object.defineProperty(thymianFormat, format.attributes.hash, {
+          value: format,
+          enumerable: true,
+          writable: true,
+          configurable: true,
+        });
       }
     }
 

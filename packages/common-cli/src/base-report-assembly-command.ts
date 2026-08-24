@@ -29,8 +29,10 @@ export abstract class BaseReportAssemblyCommand<
   };
 
   /**
-   * Where this command's report inputs and specifications come from —
-   * convert: `--report`/`--spec` flags over config; merge: CLI flags only.
+   * Where this command's report inputs and specifications come from.
+   * Specifications follow the normal flags-over-config chain everywhere;
+   * report inputs differ: convert reads `--report` flags over the config
+   * `reports` key, merge reads `--report` flags only (ADR-0019).
    */
   protected abstract resolveReportInputs(): {
     reports: ReportInput[];

@@ -16,17 +16,18 @@ export default class ReportMerge extends BaseReportAssemblyCommand<
   protected override readonly noReportInputMessage =
     'No report input found. Provide one with --report.';
 
-  // Merge reads its inputs from CLI arguments only (#362 review decision):
-  // neither config `reports` nor config `specifications` feed a merge, so a
-  // config key can't silently widen or alter an explicit merge request.
-  // General config (plugins, formatters, log level) still applies.
+  // Report inputs are CLI-only for merge (ADR-0019, #362 review decision):
+  // the config `reports` key never feeds a merge, so a config entry can't
+  // silently widen or alter an explicit merge request. Specifications keep
+  // the normal resolution chain — Step C has already folded --spec over the
+  // config's `specifications` by the time this runs.
   protected override resolveReportInputs(): {
     reports: ReportInput[];
     specification: SpecificationInput[];
   } {
     return {
       reports: this.flags.report ?? [],
-      specification: this.flags.spec ?? [],
+      specification: this.thymianConfig.specifications ?? [],
     };
   }
 }

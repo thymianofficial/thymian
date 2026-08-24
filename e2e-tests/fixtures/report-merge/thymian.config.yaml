@@ -1,14 +1,13 @@
-# `reports` and `specifications` are deliberately present: `report merge`
-# reads CLI arguments only (#362 review decision), and the e2e suite proves
-# these entries are ignored — do not remove them to "clean up".
+# `reports` is deliberately present: report inputs are CLI-only for merge
+# (ADR-0019) and the e2e suite proves this entry is ignored — do not remove
+# it to "clean up". `specifications` is deliberately ABSENT: merge still
+# resolves specs from config, so a spec entry here would silently satisfy the
+# format-map passthrough test (AC 3) and make it pass without the feature.
 reports:
   - type: thymian
     location: thymian-report.json
   - type: spectral
     location: spectral-findings.json
-specifications:
-  - type: openapi
-    location: test.openapi.yaml
 plugins:
   '@thymian/plugin-openapi': {}
   '@thymian/plugin-spectral': {}

@@ -113,7 +113,7 @@ describe('report merge command', () => {
     );
   });
 
-  it('ignores config-file reports entirely — merge reads CLI arguments only (#362 review decision)', async () => {
+  it('ignores config-file reports entirely — report inputs are CLI-only (ADR-0019)', async () => {
     const configPath = join(tmpDir, 'reports.config.yaml');
     writeFileSync(
       configPath,
@@ -140,11 +140,16 @@ describe('report merge command', () => {
     ).toBe(2);
   });
 
-  it('ignores config-file specifications — only --spec reaches the merge workflow', async () => {
+  it('resolves specifications from the config while still taking reports from flags only (ADR-0019)', async () => {
     const configPath = join(tmpDir, 'specs.config.yaml');
     writeFileSync(
       configPath,
       [
+        // `reports` present but ignored; `specifications` present and used —
+        // ADR-0019 constrains report inputs only, not the spec chain.
+        'reports:',
+        '  - type: thymian',
+        '    location: ./config-report.json',
         'specifications:',
         '  - type: openapi',
         '    location: ./config-api.yaml',
@@ -165,7 +170,38 @@ describe('report merge command', () => {
     expect(mockState.reportConvertInput).toEqual(
       expect.objectContaining({
         reports: [{ type: 'thymian', location: './flag-report.json' }],
-        specification: [],
+        specification: [{ type: 'openapi', location: './config-api.yaml' }],
+      }),
+    );
+  });
+
+  it('lets --spec override config-file specifications (Step C, unchanged for merge)', async () => {
+    const configPath = join(tmpDir, 'spec-override.config.yaml');
+    writeFileSync(
+      configPath,
+      [
+        'specifications:',
+        '  - type: openapi',
+        '    location: ./config-api.yaml',
+        'plugins: {}',
+      ].join('\n'),
+    );
+
+    await captureOutput(async () => {
+      await ReportMerge.run([
+        '--config',
+        configPath,
+        '--report',
+        'thymian:./flag-report.json',
+        '--spec',
+        'openapi:./flag-api.yaml',
+        '--no-autoload',
+      ]);
+    });
+
+    expect(mockState.reportConvertInput).toEqual(
+      expect.objectContaining({
+        specification: [{ type: 'openapi', location: './flag-api.yaml' }],
       }),
     );
   });

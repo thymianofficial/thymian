@@ -50,7 +50,7 @@ thymian report merge \
   --spec openapi:./api.yaml
 ```
 
-The spec is only needed for the conversion step — Thymian inputs that were already converted against a spec carry their format mapping with them.
+The spec is only needed for the conversion step — Thymian inputs that were already converted against a spec carry their format mapping with them. A `specifications` entry in your configuration file works too (`--spec` overrides it, like everywhere else); only the report inputs themselves must be given on the command line.
 
 ## Writing the Merged Report to Files
 
@@ -75,11 +75,12 @@ plugins:
 ```
 
 <Aside type="note">
-  `thymian report merge` reads its inputs from **CLI arguments only**: the
-  `reports` and `specifications` keys of your configuration file are ignored
-  (they belong to `thymian report convert`), so a config entry can never
-  silently widen or alter an explicit merge. General configuration — plugins,
-  formatters, log level — still applies.
+  `thymian report merge` reads its **report inputs from CLI arguments only**:
+  the `reports` key of your configuration file is ignored (it belongs to
+  `thymian report convert`), so a config entry can never silently widen or alter
+  an explicit merge. Everything else resolves as usual — `--spec` overrides the
+  config's `specifications`, and plugins, formatters, and log level come from
+  the configuration.
 </Aside>
 
 ## Exit Codes and CI Gating

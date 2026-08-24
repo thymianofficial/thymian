@@ -69,11 +69,11 @@ describe('thymian report merge', () => {
     expect(convert.exitCode).toBe(1); // findings, not an error
     expect(existsSync(join(getTempDir(), 'converted.json'))).toBe(true);
 
-    // Step 2: merge the persisted report WITHOUT --spec — merge reads CLI
-    // arguments only (the copied config's `specifications` entry is ignored
-    // by design), so endpoint resolution can only come from the format map
-    // inside converted.json. Deleting the thymianFormat passthrough would
-    // fail this test.
+    // Step 2: merge the persisted report WITHOUT --spec — and the fixture
+    // config deliberately carries no `specifications` entry (merge still
+    // resolves specs from config, ADR-0019 constrains report inputs only),
+    // so endpoint resolution can only come from the format map inside
+    // converted.json. Deleting the thymianFormat passthrough fails this test.
     const { stdout, exitCode } = execThymianResult(
       [
         'report',
@@ -267,10 +267,10 @@ describe('thymian report merge', () => {
     expect(written[0]?.runs).toHaveLength(1);
   }, 90_000);
 
-  it('should ignore config-file reports — merge reads CLI arguments only (#362 review decision)', () => {
-    // The copied config declares both `reports` and `specifications`, but
-    // merge takes neither: without --report the command must fail
-    // usage-style instead of silently merging whatever the config names.
+  it('should ignore config-file reports — report inputs are CLI-only (ADR-0019)', () => {
+    // The copied config declares `reports`, but merge never reads that key:
+    // without --report the command must fail usage-style instead of
+    // silently merging whatever the config names.
     copyFixturesToTempDir(join(fixturesDir, 'report-merge'), getTempDir());
 
     const { stderr, exitCode } = execThymianResult(['report', 'merge'], {
@@ -428,6 +428,10 @@ describe('thymian report merge', () => {
       'thymian:thymian-report.json',
       '--report',
       'thymian:thymian-two-reports.json',
+      // The feedback tip lands at a nondeterministic stdout position
+      // between runs (#556) — this test is about the *report* output, so
+      // keep the tip out of the comparison entirely.
+      '--suppress-feedback',
     ];
 
     const first = execThymianResult(args, {
