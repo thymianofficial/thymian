@@ -30,11 +30,22 @@ import type {
  * parameter is never split at all: `Date: Mon, 02 Jan 2026` is one value.
  */
 
-/** A wire value that could not be deserialized because its style is unsupported. */
+/**
+ * A wire value that was not deserialized. Two distinct situations, deliberately
+ * kept apart because they blame different parties:
+ *
+ * - `malformed: false` — **thymian's** limitation. It cannot reverse this
+ *   style, so the value went unchecked. Reported as `info`; the request may be
+ *   perfectly correct.
+ * - `malformed: true` — the **request's** defect. thymian can reverse this
+ *   style, and this value is not in it. Reported as an `assertion-failure`,
+ *   because a value not serialized per its description does not conform to it.
+ */
 export interface UnsupportedSerialization {
   supported: false;
   style: Style;
   explode: boolean;
+  malformed?: boolean;
 }
 
 export interface DeserializedParameter {
@@ -50,6 +61,14 @@ function unsupported({
   explode,
 }: SerializationStyle): UnsupportedSerialization {
   return { supported: false, style, explode };
+}
+
+/** The style is reversible; this particular value is not in it. */
+function malformed({
+  style,
+  explode,
+}: SerializationStyle): UnsupportedSerialization {
+  return { supported: false, style, explode, malformed: true };
 }
 
 // `Parameter.style` is typed non-optional, but these helpers are reached with
@@ -512,6 +531,15 @@ function pairs(flat: string[]): [string, string][] | undefined {
     return undefined;
   }
 
+  // A key carrying `=` means the value arrived in the EXPLODED form
+  // (`role=admin,lvl=3`) while its description says otherwise. Pairing it up
+  // would invent the property `"role=admin"` and quietly validate.
+  for (let index = 0; index < flat.length; index += 2) {
+    if ((flat[index] as string).includes('=')) {
+      return undefined;
+    }
+  }
+
   const result: [string, string][] = [];
 
   for (let index = 0; index + 1 < flat.length; index += 2) {
@@ -534,6 +562,7 @@ function deserializeItems(
   explode: boolean,
 ): DeserializedParameter {
   const types = schemaTypes(schema, schema);
+  const kind = structuralKind(schema);
 
   // `string` wins over every structural interpretation, exactly as in
   // deserializeScalar: a description that accepts a string accepts this value.
@@ -546,11 +575,11 @@ function deserializeItems(
     return deserialized(raw);
   }
 
-  if (types.includes('array')) {
+  if (kind === 'array') {
     return deserialized(deserializeArrayItems(items, schema, schema));
   }
 
-  if (types.includes('object')) {
+  if (kind === 'object') {
     const entries =
       explode && items.every((segment) => segment.includes('='))
         ? items.map((segment): [string, string] => {
@@ -633,16 +662,66 @@ export function deserializeObjectParameter(
   return deserialized(deserializeObjectEntries(properties, schema, schema));
 }
 
+/**
+ * Whether a wire value is a delimited list, and of what — the single accessor
+ * every shape decision asks, so splitting and typing can never disagree.
+ *
+ * A schema often omits `type` while still being unambiguously structured:
+ * `{ properties: {...}, required: [...] }` is an object, `{ items: {...} }` is
+ * an array. Requiring a literal `type` made those look like scalars, so the
+ * value was never split and `properties`/`items` never applied — a violation
+ * passed clean. Structural keywords therefore count as evidence of shape.
+ *
+ * `string` still wins over everything: a description that accepts a string
+ * accepts the value whole, and must never see it torn apart on a delimiter it
+ * legitimately contains.
+ */
+function structuralKind(
+  schema: ThymianSchema | undefined,
+  root?: ThymianSchema,
+): 'array' | 'object' | undefined {
+  const types = schemaTypes(schema, root ?? schema);
+
+  if (types.includes('string')) {
+    return undefined;
+  }
+
+  // Array before object, in both this and every caller: a schema that unions
+  // the two must resolve the same way wherever the question is asked.
+  if (types.includes('array')) {
+    return 'array';
+  }
+
+  if (types.includes('object')) {
+    return 'object';
+  }
+
+  // A declared scalar type is a scalar; only a type-less schema falls through
+  // to structural inference.
+  if (types.length > 0) {
+    return undefined;
+  }
+
+  const flat = flattenSchema(schema, root ?? schema ?? {});
+
+  if (flat?.items ?? flat?.prefixItems ?? flat?.contains) {
+    return 'array';
+  }
+
+  if (
+    flat?.properties ??
+    flat?.patternProperties ??
+    (flat?.additionalProperties !== undefined ? {} : undefined)
+  ) {
+    return 'object';
+  }
+
+  return undefined;
+}
+
 /** Types that make the wire value a delimited list rather than one scalar. */
 function isStructural(schema: ThymianSchema | undefined): boolean {
-  const types = schemaTypes(schema, schema);
-
-  // `string` wins: a description that accepts a string accepts the value whole,
-  // so it must never be torn apart on a delimiter it legitimately contains.
-  return (
-    !types.includes('string') &&
-    (types.includes('array') || types.includes('object'))
-  );
+  return structuralKind(schema) !== undefined;
 }
 
 /**
@@ -689,13 +768,194 @@ function deserializeSimple(
   return deserializeItems(items, raw, schema, serializationStyle.explode);
 }
 
+/**
+ * Reverse `serializePathParameter` for one path parameter.
+ *
+ * The wire forms below are what `url-template` actually produces for the
+ * templates that function builds, not a reading of the OpenAPI prose:
+ *
+ * ```
+ *            explode: false          explode: true
+ *  label     .3,4,5                  .3.4.5
+ *            .role,admin,lvl,3       .role=admin.lvl=3
+ *  matrix    ;id=3,4,5               ;id=3;id=4;id=5
+ *            ;id=role,admin,lvl,3    ;role=admin;lvl=3
+ * ```
+ *
+ * Array and object are structurally identical under the same style and
+ * explode setting (`;id=3;id=4` vs `;role=admin;lvl=3`), so only the declared
+ * schema separates them — shape comes from the description, never from
+ * guessing at the value.
+ *
+ * A wire form that does not carry its style's prefix is malformed. It is
+ * returned untouched so the schema reports it, rather than being repaired
+ * into something that validates.
+ */
+interface StyledPathValue {
+  /** The wire value split into scalar items. */
+  items: string[];
+  /** The same value with its style packaging removed — the text the client
+   *  actually sent, used when the items turn out not to fit the schema. */
+  body: string;
+}
+
+/**
+ * Reverse `serializePathParameter` for one path parameter.
+ *
+ * The wire forms below are what `url-template` actually produces for the
+ * templates that function builds, not a reading of the OpenAPI prose:
+ *
+ * ```
+ *            explode: false          explode: true
+ *  label     .3,4,5                  .3.4.5
+ *            .role,admin,lvl,3       .role=admin.lvl=3
+ *  matrix    ;id=3,4,5               ;id=3;id=4;id=5
+ *            ;id=role,admin,lvl,3    ;role=admin;lvl=3
+ *  scalars   .5                      ;id=5      (RFC 6570 omits `=` when empty)
+ * ```
+ *
+ * Array and object are structurally identical under the same style and explode
+ * setting (`;id=3;id=4` vs `;role=admin;lvl=3`), so only the declared schema
+ * separates them — via `structuralKind`, the same accessor the typing step
+ * uses, so the two can never disagree.
+ *
+ * Returns `undefined` when the value is not in its declared style at all. The
+ * caller turns that into an assertion failure: the description says how the
+ * value must be encoded, and it is not.
+ */
+function splitStyledPath(
+  name: string,
+  raw: string,
+  schema: ThymianSchema | undefined,
+  { style, explode }: SerializationStyle,
+  decode: (item: string) => string,
+): StyledPathValue | undefined {
+  const kind = structuralKind(schema);
+
+  // A scalar is never a delimited list, so `explode` cannot apply and the whole
+  // remainder is the value — `.1.5` is the number 1.5, not two items.
+  const listDelimiter = (styleDelimiter: string) =>
+    kind === undefined ? undefined : explode ? styleDelimiter : ',';
+
+  const split = (body: string, delimiter: string | undefined): string[] =>
+    delimiter === undefined
+      ? [decode(body)]
+      : // An empty body after a present prefix is one empty member, not zero.
+        body === ''
+        ? ['']
+        : splitWireList(body, decode, { delimiter });
+
+  if (style === 'label') {
+    if (!raw.startsWith('.')) {
+      return undefined;
+    }
+
+    const body = raw.slice(1);
+
+    return {
+      items: split(body, listDelimiter('.')),
+      body: decode(body),
+    };
+  }
+
+  if (style !== 'matrix') {
+    return undefined;
+  }
+
+  if (explode && kind !== undefined) {
+    // `;id=3;id=4` (array) or `;role=admin;lvl=3` (object).
+    if (!raw.startsWith(';')) {
+      return undefined;
+    }
+
+    const segments = raw.slice(1).split(';');
+
+    if (segments.length === 0 || segments.some((segment) => segment === '')) {
+      return undefined;
+    }
+
+    if (kind === 'object') {
+      const keys = segments.map((segment) => segment.split('=')[0] ?? '');
+
+      // A repeated property is a client defect, not a merge to silently apply.
+      if (new Set(keys).size !== keys.length) {
+        return undefined;
+      }
+
+      return {
+        items: segments.map(decode),
+        body: segments.map(decode).join(';'),
+      };
+    }
+
+    // Every member of an exploded array repeats `;name=`.
+    if (!segments.every((segment) => segment.startsWith(`${name}=`))) {
+      return undefined;
+    }
+
+    const items = segments.map((segment) =>
+      decode(segment.slice(name.length + 1)),
+    );
+
+    return { items, body: items.join(';') };
+  }
+
+  // RFC 6570's `;` operator omits `=` entirely when the value is empty, so
+  // `;id` is the empty string — the form thymian's own serializer emits.
+  if (raw === `;${name}`) {
+    return { items: [''], body: '' };
+  }
+
+  const prefix = `;${name}=`;
+
+  if (!raw.startsWith(prefix)) {
+    return undefined;
+  }
+
+  const body = raw.slice(prefix.length);
+
+  // The serializer percent-encodes a literal `;`, so a bare one here is the
+  // start of a *different* matrix parameter, never part of this value.
+  if (body.includes(';')) {
+    return undefined;
+  }
+
+  return { items: split(body, listDelimiter(',')), body: decode(body) };
+}
+
 export function deserializePathParameter(
+  name: string,
   raw: string,
   schema: ThymianSchema | undefined,
   serializationStyle?: SerializationStyle,
   decode: (item: string) => string = (item) => item,
 ): DeserializeResult {
-  return deserializeSimple(decode(raw), schema, serializationStyle, () =>
+  const style = serializationStyle ?? SIMPLE_DEFAULT_STYLE;
+
+  if (style.style === 'label' || style.style === 'matrix') {
+    const split = splitStyledPath(name, raw, schema, style, decode);
+
+    // The style is reversible and this value is not in it — a description
+    // violation, reported as such rather than quietly handed to a schema that
+    // may well accept the packaging as a plain string.
+    if (!split) {
+      return malformed(style);
+    }
+
+    // The style prefix is packaging, not part of the value: a `string`-typed
+    // `.abc` is `abc`. A value that does not fit its schema is reported as the
+    // text the client sent, never as the items it was split into.
+    const { items, body } = split;
+
+    return deserializeItems(
+      items,
+      items.length === 1 ? (items[0] as string) : body,
+      schema,
+      style.explode,
+    );
+  }
+
+  return deserializeSimple(decode(raw), schema, style, () =>
     splitWireList(raw, decode),
   );
 }
@@ -766,13 +1026,16 @@ export function splitHeaderList(raw: string): string[] {
 export function splitWireList(
   raw: string,
   decode: (item: string) => string,
-  { trim = false }: { trim?: boolean } = {},
+  {
+    trim = false,
+    delimiter = ',',
+  }: { trim?: boolean; delimiter?: string } = {},
 ): string[] {
   if (raw === '') {
     return [];
   }
 
-  return raw.split(',').map((item) => decode(trim ? item.trim() : item));
+  return raw.split(delimiter).map((item) => decode(trim ? item.trim() : item));
 }
 
 /**
@@ -786,4 +1049,16 @@ export function unsupportedStyleMessage(
   { style, explode }: UnsupportedSerialization,
 ): string {
   return `${subject} uses serialization style "${style}" (explode: ${explode}), which thymian cannot deserialize yet — it was not validated against its schema.`;
+}
+
+/**
+ * The message for a value that is not serialized in the style its description
+ * declares. Unlike `unsupportedStyleMessage` this is an assertion failure: the
+ * description says how the value must be encoded, and it is not.
+ */
+export function malformedStyleMessage(
+  subject: string,
+  { style, explode }: UnsupportedSerialization,
+): string {
+  return `${subject} is not serialized in its declared style "${style}" (explode: ${explode}).`;
 }

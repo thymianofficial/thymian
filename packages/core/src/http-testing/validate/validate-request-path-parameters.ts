@@ -3,6 +3,7 @@ import { match } from 'path-to-regexp';
 import type { ThymianHttpRequest } from '../../index.js';
 import {
   deserializePathParameter,
+  malformedStyleMessage,
   unsupportedStyleMessage,
 } from '../deserialize-parameter.js';
 import type { HttpTestCaseResult } from '../http-test/index.js';
@@ -69,6 +70,7 @@ export function validateExistingPathParameter(
         // described type was serialized into them. Rebuild it before
         // validating, or every non-string parameter fails on type.
         const deserialized = deserializePathParameter(
+          name,
           value,
           parameter.schema,
           parameter.style,
@@ -76,15 +78,26 @@ export function validateExistingPathParameter(
         );
 
         if (!deserialized.supported) {
+          // A style thymian cannot reverse is thymian's limitation (`info`);
+          // a value not in its declared style is the request's defect.
           return [
-            {
-              type: 'info',
-              message: unsupportedStyleMessage(
-                `Path parameter "${name}"`,
-                deserialized,
-              ),
-              timestamp: Date.now(),
-            },
+            deserialized.malformed
+              ? {
+                  type: 'assertion-failure',
+                  message: malformedStyleMessage(
+                    `Path parameter "${name}"`,
+                    deserialized,
+                  ),
+                  timestamp: Date.now(),
+                }
+              : {
+                  type: 'info',
+                  message: unsupportedStyleMessage(
+                    `Path parameter "${name}"`,
+                    deserialized,
+                  ),
+                  timestamp: Date.now(),
+                },
           ];
         }
 

@@ -5,6 +5,7 @@ import {
 } from '../../index.js';
 import {
   deserializeHeaderParameter,
+  malformedStyleMessage,
   unsupportedStyleMessage,
 } from '../deserialize-parameter.js';
 import type { HttpTestCaseResult } from '../http-test/index.js';
@@ -102,15 +103,26 @@ export function validateExistingRequestHeader(
         );
 
         if (!deserialized.supported) {
+          // A style thymian cannot reverse is thymian's limitation (`info`);
+          // a value not in its declared style is the request's defect.
           return [
-            {
-              type: 'info',
-              message: unsupportedStyleMessage(
-                `Header "${name}"`,
-                deserialized,
-              ),
-              timestamp: Date.now(),
-            },
+            deserialized.malformed
+              ? {
+                  type: 'assertion-failure',
+                  message: malformedStyleMessage(
+                    `Header "${name}"`,
+                    deserialized,
+                  ),
+                  timestamp: Date.now(),
+                }
+              : {
+                  type: 'info',
+                  message: unsupportedStyleMessage(
+                    `Header "${name}"`,
+                    deserialized,
+                  ),
+                  timestamp: Date.now(),
+                },
           ];
         }
 

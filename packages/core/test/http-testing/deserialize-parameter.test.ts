@@ -211,6 +211,7 @@ describe('deserializePathParameter', () => {
     expect(
       value(
         deserializePathParameter(
+          'id',
           '42',
           { type: 'integer' },
           DEFAULT_PATH_SERIALIZATION_STYLE,
@@ -223,6 +224,7 @@ describe('deserializePathParameter', () => {
     expect(
       value(
         deserializePathParameter(
+          'id',
           '3,4,5',
           { type: 'array', items: { type: 'integer' } },
           style('simple', false),
@@ -235,6 +237,7 @@ describe('deserializePathParameter', () => {
     expect(
       value(
         deserializePathParameter(
+          'id',
           'a%2Cb',
           { type: 'array', items: { type: 'string' } },
           style('simple', false),
@@ -253,6 +256,7 @@ describe('deserializePathParameter', () => {
     expect(
       value(
         deserializePathParameter(
+          'id',
           'role,admin,level,3',
           schema,
           style('simple', false),
@@ -263,6 +267,7 @@ describe('deserializePathParameter', () => {
     expect(
       value(
         deserializePathParameter(
+          'id',
           'role=admin,level=3',
           schema,
           style('simple', true),
@@ -271,13 +276,16 @@ describe('deserializePathParameter', () => {
     ).toEqual({ role: 'admin', level: 3 });
   });
 
-  it.each(['label', 'matrix'] as const)(
-    'reports %s as unsupported for a structured value',
+  it.each(['form', 'deepObject'] as const)(
+    'reports %s as unsupported for a structured path value',
     (name) => {
-      // Scalars under an unsupported style keep their validation; only a
-      // structured value genuinely cannot be reconstructed.
+      // `label` and `matrix` are reversible now (gh-673); what remains
+      // unsupported for a path is a style that is not a path style at all.
+      // Scalars keep their validation regardless — only a structured value
+      // genuinely cannot be reconstructed.
       expect(
         deserializePathParameter(
+          'id',
           '3,4,5',
           { type: 'array', items: { type: 'integer' } },
           style(name, false),
@@ -418,6 +426,7 @@ describe('schema resolution (review round 1)', () => {
     expect(
       value(
         deserializePathParameter(
+          'id',
           '1,abc',
           {
             type: 'array',
@@ -501,6 +510,7 @@ describe('malformed object forms (review round 1)', () => {
     expect(
       value(
         deserializePathParameter(
+          'id',
           'role,admin,level',
           schema,
           style('simple', false),
@@ -582,6 +592,7 @@ describe('schema resolution (review round 2)', () => {
     expect(
       value(
         deserializePathParameter(
+          'id',
           '1,x',
           {
             type: 'array',
@@ -598,6 +609,7 @@ describe('schema resolution (review round 2)', () => {
     expect(
       value(
         deserializePathParameter(
+          'id',
           '1,2',
           { type: 'array', contains: { type: 'integer' } },
           style('simple', false),
@@ -657,6 +669,7 @@ describe('schema resolution (review round 2)', () => {
     expect(
       value(
         deserializePathParameter(
+          'id',
           'role=admin,level',
           { type: 'object', properties: { role: { type: 'string' } } },
           style('simple', true),
@@ -725,10 +738,11 @@ describe('unsupported styles only forfeit STRUCTURED values', () => {
   // A style describes how a structured value was flattened onto the wire.
   // A scalar has no structure to restore, so an unsupported style must not
   // cost it the schema checks that never depended on the style.
-  it.each(['label', 'matrix'] as const)(
+  it.each(['form', 'deepObject'] as const)(
     'still validates a string-typed path parameter under %s',
     (name) => {
       const result = deserializePathParameter(
+        'id',
         'abcdef',
         { type: 'string', maxLength: 3 },
         style(name, false),
@@ -766,11 +780,28 @@ describe('unsupported styles only forfeit STRUCTURED values', () => {
   it('still reports an unsupported style for an OBJECT-typed parameter', () => {
     expect(
       deserializePathParameter(
-        '.role.admin',
+        'id',
+        'role,admin',
         { type: 'object', properties: { role: { type: 'string' } } },
-        style('label', true),
+        style('form', true),
       ).supported,
     ).toBe(false);
+  });
+
+  it('hands a malformed label object to the schema rather than repairing it', () => {
+    // `.role.admin` is not the exploded object form (`.role=admin`), so it is
+    // malformed — reversible style, unreversible value.
+    const result = deserializePathParameter(
+      'id',
+      '.role.admin',
+      { type: 'object', properties: { role: { type: 'string' } } },
+      style('label', true),
+    );
+
+    expect(result.supported).toBe(true);
+    // Reported as the text the client sent (prefix stripped), not as the
+    // items it was split into — the schema failure should name a real value.
+    expect(value(result)).toBe('role.admin');
   });
 
   it('resolves the schema through $ref before deciding', () => {
@@ -786,5 +817,279 @@ describe('unsupported styles only forfeit STRUCTURED values', () => {
         style('pipeDelimited', true),
       ).supported,
     ).toBe(false);
+  });
+});
+
+describe('label and matrix path styles (gh-673)', () => {
+  const INT: ThymianSchema = { type: 'integer' };
+  const ARR: ThymianSchema = { type: 'array', items: { type: 'integer' } };
+  const OBJ: ThymianSchema = {
+    type: 'object',
+    properties: { role: { type: 'string' }, lvl: { type: 'integer' } },
+  };
+
+  // Wire forms below are what `url-template` actually emits for the templates
+  // `serializePathParameter` builds — this suite is the inverse of that output.
+  it.each([
+    ['label scalar', '.5', INT, 'label', false, 5],
+    ['label array, explode false', '.3,4,5', ARR, 'label', false, [3, 4, 5]],
+    ['label array, explode true', '.3.4.5', ARR, 'label', true, [3, 4, 5]],
+    ['matrix scalar', ';id=5', INT, 'matrix', false, 5],
+    [
+      'matrix array, explode false',
+      ';id=3,4,5',
+      ARR,
+      'matrix',
+      false,
+      [3, 4, 5],
+    ],
+    [
+      'matrix array, explode true',
+      ';id=3;id=4;id=5',
+      ARR,
+      'matrix',
+      true,
+      [3, 4, 5],
+    ],
+  ] as const)('reverses %s', (_name, wire, schema, name, explode, expected) => {
+    expect(
+      value(deserializePathParameter('id', wire, schema, style(name, explode))),
+    ).toEqual(expected);
+  });
+
+  it.each([
+    ['.role,admin,lvl,3', 'label', false],
+    ['.role=admin.lvl=3', 'label', true],
+    [';id=role,admin,lvl,3', 'matrix', false],
+    [';role=admin;lvl=3', 'matrix', true],
+  ] as const)('reverses the object form %s', (wire, name, explode) => {
+    expect(
+      value(deserializePathParameter('id', wire, OBJ, style(name, explode))),
+    ).toEqual({ role: 'admin', lvl: 3 });
+  });
+
+  it('strips the label prefix from a string-typed value', () => {
+    expect(
+      value(
+        deserializePathParameter(
+          'id',
+          '.abc',
+          { type: 'string' },
+          style('label', false),
+        ),
+      ),
+    ).toBe('abc');
+  });
+
+  it('still reports a violation, with the same message shape as simple', () => {
+    const schema: ThymianSchema = { type: 'string', maxLength: 3 };
+
+    expect(
+      value(
+        deserializePathParameter(
+          'id',
+          '.abcdef',
+          schema,
+          style('label', false),
+        ),
+      ),
+    ).toBe('abcdef');
+    expect(
+      value(
+        deserializePathParameter(
+          'id',
+          ';id=abcdef',
+          schema,
+          style('matrix', false),
+        ),
+      ),
+    ).toBe('abcdef');
+  });
+
+  it('splits before decoding, so an escaped delimiter stays one item', () => {
+    expect(
+      value(
+        deserializePathParameter(
+          'id',
+          '.a%2Cb',
+          { type: 'array', items: { type: 'string' } },
+          style('label', false),
+          decodeURIComponent,
+        ),
+      ),
+    ).toEqual(['a,b']);
+  });
+
+  it.each([
+    ['missing label prefix', '5', 'label', false],
+    ['matrix name mismatch', ';other=5', 'matrix', false],
+    ['matrix missing prefix', '5', 'matrix', false],
+    ['matrix exploded name mismatch', ';other=3;other=4', 'matrix', true],
+    ['matrix exploded missing ";"', 'id=3;id=4', 'matrix', true],
+    ['matrix absorbing a neighbour', ';id=3;other=4', 'matrix', false],
+  ] as const)(
+    'reports %s as a description violation, not a silent pass',
+    (_n, wire, name, explode) => {
+      // A style thymian CAN reverse, carrying a value that is not in it, is
+      // the request's defect — it must not be handed to a permissive schema
+      // that would accept the packaging as a plain string.
+      const result = deserializePathParameter(
+        'id',
+        wire,
+        { type: 'array', items: { type: 'integer' } },
+        style(name, explode),
+      );
+
+      expect(result.supported).toBe(false);
+      expect(result.supported === false && result.malformed).toBe(true);
+    },
+  );
+
+  it('reports a duplicated property in the exploded object form', () => {
+    const result = deserializePathParameter(
+      'id',
+      ';role=a;role=b',
+      { type: 'object', properties: { role: { type: 'string' } } },
+      style('matrix', true),
+    );
+
+    expect(result.supported).toBe(false);
+    expect(result.supported === false && result.malformed).toBe(true);
+  });
+
+  it('reads the RFC 6570 empty matrix form, which omits the "="', () => {
+    expect(
+      value(
+        deserializePathParameter(
+          'id',
+          ';id',
+          { type: 'string' },
+          style('matrix', false),
+        ),
+      ),
+    ).toBe('');
+  });
+
+  it('treats an empty body after a present prefix as one empty member', () => {
+    const arr: ThymianSchema = { type: 'array', items: { type: 'string' } };
+
+    expect(
+      value(deserializePathParameter('id', '.', arr, style('label', false))),
+    ).toEqual(['']);
+    expect(
+      value(deserializePathParameter('id', ';id=', arr, style('matrix', true))),
+    ).toEqual(['']);
+  });
+
+  it('does not split a scalar on a delimiter it legitimately contains', () => {
+    expect(
+      value(
+        deserializePathParameter(
+          'id',
+          '.1.5',
+          { type: 'number' },
+          style('label', true),
+        ),
+      ),
+    ).toBe(1.5);
+  });
+
+  it('resolves an array|object union the same way the typing step does', () => {
+    expect(
+      value(
+        deserializePathParameter(
+          'id',
+          ';id=3;id=4',
+          { type: ['array', 'object'], items: { type: 'integer' } },
+          style('matrix', true),
+        ),
+      ),
+    ).toEqual([3, 4]);
+  });
+
+  it('leaves the simple style untouched', () => {
+    expect(
+      value(deserializePathParameter('id', '42', INT, style('simple', false))),
+    ).toBe(42);
+  });
+});
+
+describe('structural shape without a literal `type` (gh-673 review)', () => {
+  // `{ properties: {...} }` and `{ items: {...} }` are unambiguously structured
+  // even with no `type` keyword — extremely common in real OpenAPI documents.
+  // Treating them as scalars meant the value was never split and
+  // properties/items never applied, so violations passed clean.
+  const OBJ_NO_TYPE: ThymianSchema = {
+    properties: { role: { type: 'string' }, lvl: { type: 'integer' } },
+  };
+  const ARR_NO_TYPE: ThymianSchema = { items: { type: 'integer' } };
+
+  it('builds an object from a properties-only schema', () => {
+    expect(
+      value(
+        deserializePathParameter(
+          'id',
+          ';role=admin;lvl=3',
+          OBJ_NO_TYPE,
+          style('matrix', true),
+        ),
+      ),
+    ).toEqual({ role: 'admin', lvl: 3 });
+  });
+
+  it('builds an array from an items-only schema', () => {
+    expect(
+      value(
+        deserializePathParameter(
+          'id',
+          ';id=3;id=4',
+          ARR_NO_TYPE,
+          style('matrix', true),
+        ),
+      ),
+    ).toEqual([3, 4]);
+  });
+
+  it('applies to the simple style too, where the gap predated gh-673', () => {
+    expect(
+      value(
+        deserializePathParameter(
+          'id',
+          'role,admin,lvl,3',
+          OBJ_NO_TYPE,
+          style('simple', false),
+        ),
+      ),
+    ).toEqual({ role: 'admin', lvl: 3 });
+  });
+
+  it('still treats a declared scalar type as a scalar', () => {
+    expect(
+      value(
+        deserializePathParameter(
+          'id',
+          'a,b',
+          { type: 'string', maxLength: 3 },
+          style('simple', false),
+        ),
+      ),
+    ).toBe('a,b');
+  });
+});
+
+describe('explode mismatch is not repaired (gh-673 review)', () => {
+  it('refuses to pair up an exploded object sent as non-exploded', () => {
+    // `.role=admin,lvl=3` under explode:false would otherwise become the
+    // property `"role=admin"` and validate against a permissive schema.
+    expect(
+      value(
+        deserializePathParameter(
+          'id',
+          '.role=admin,lvl=3',
+          { type: 'object', properties: { role: { type: 'string' } } },
+          style('label', false),
+        ),
+      ),
+    ).toBe('role=admin,lvl=3');
   });
 });

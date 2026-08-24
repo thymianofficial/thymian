@@ -332,16 +332,17 @@ describe('validateRequestPathParameters — typed wire values (gh-624)', () => {
   });
 
   it('reports an unsupported path style as info, never as a failure', () => {
-    // An array cannot be reconstructed from a `matrix` wire form; a scalar
-    // needs no reconstruction and keeps its validation (see the deserializer
-    // suite), so the unsupported path is only reachable for structured values.
+    // `label`/`matrix` are reversible now (gh-673); `deepObject` is not a path
+    // style at all. A scalar needs no reconstruction and keeps its validation
+    // (see the deserializer suite), so the unsupported path is only reachable
+    // for structured values under a style that is not a path style.
     const request = createRequest({
       path: '/users/{userId}',
       pathParameters: {
         userId: {
           required: true,
           schema: { type: 'array', items: { type: 'integer' } } as never,
-          style: { style: 'matrix', explode: false },
+          style: { style: 'deepObject', explode: false },
         },
       },
     });
@@ -350,5 +351,66 @@ describe('validateRequestPathParameters — typed wire values (gh-624)', () => {
 
     expect(results.filter((r) => r.type === 'assertion-failure')).toEqual([]);
     expect(results).toContainEqual(expect.objectContaining({ type: 'info' }));
+  });
+});
+
+describe('validateRequestPathParameters — label and matrix (gh-673)', () => {
+  function requestWithStyledPath(
+    schema: unknown,
+    style: { style: string; explode: boolean },
+  ): ThymianHttpRequest {
+    return createRequest({
+      path: '/users/{userId}',
+      pathParameters: {
+        userId: {
+          required: true,
+          schema: schema as never,
+          style: style as never,
+        },
+      },
+    });
+  }
+
+  it('validates a label path parameter instead of skipping it', () => {
+    const results = validateRequestPathParameters(
+      '/users/.42',
+      requestWithStyledPath(
+        { type: 'integer', minimum: 1 },
+        { style: 'label', explode: false },
+      ),
+    );
+
+    expect(results.filter((r) => r.type === 'assertion-failure')).toEqual([]);
+    expect(results.filter((r) => r.type === 'info')).toEqual([]);
+  });
+
+  it('validates a matrix path parameter instead of skipping it', () => {
+    const results = validateRequestPathParameters(
+      '/users/;userId=42',
+      requestWithStyledPath(
+        { type: 'integer', minimum: 1 },
+        { style: 'matrix', explode: false },
+      ),
+    );
+
+    expect(results.filter((r) => r.type === 'assertion-failure')).toEqual([]);
+    expect(results.filter((r) => r.type === 'info')).toEqual([]);
+  });
+
+  it('reports a matrix violation rather than an info (the gh-673 symptom)', () => {
+    const results = validateRequestPathParameters(
+      '/users/;userId=abcdef',
+      requestWithStyledPath(
+        { type: 'string', maxLength: 3 },
+        { style: 'matrix', explode: false },
+      ),
+    );
+
+    expect(results).toContainEqual(
+      expect.objectContaining({
+        type: 'assertion-failure',
+        message: 'path parameter "userId" must NOT have more than 3 characters',
+      }),
+    );
   });
 });

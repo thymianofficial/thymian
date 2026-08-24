@@ -4,6 +4,7 @@ import type { ThymianHttpRequest } from '../../index.js';
 import {
   deserializeObjectParameter,
   deserializeQueryParameter,
+  malformedStyleMessage,
   schemaTypes,
   splitWireList,
   unsupportedStyleMessage,
@@ -333,15 +334,26 @@ export function validateExistingQueryParameter(
         }
 
         if (!deserialized.supported) {
+          // A style thymian cannot reverse is thymian's limitation (`info`);
+          // a value not in its declared style is the request's defect.
           return [
-            {
-              type: 'info',
-              message: unsupportedStyleMessage(
-                `Query parameter "${name}"`,
-                deserialized,
-              ),
-              timestamp: Date.now(),
-            },
+            deserialized.malformed
+              ? {
+                  type: 'assertion-failure',
+                  message: malformedStyleMessage(
+                    `Query parameter "${name}"`,
+                    deserialized,
+                  ),
+                  timestamp: Date.now(),
+                }
+              : {
+                  type: 'info',
+                  message: unsupportedStyleMessage(
+                    `Query parameter "${name}"`,
+                    deserialized,
+                  ),
+                  timestamp: Date.now(),
+                },
           ];
         }
 
