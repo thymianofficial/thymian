@@ -113,7 +113,7 @@ describe('report merge command', () => {
     );
   });
 
-  it('ignores config-file reports entirely — report inputs are CLI-only (ADR-0019)', async () => {
+  it('ignores config-file reports entirely — report inputs are CLI-only (ADR-0020)', async () => {
     const configPath = join(tmpDir, 'reports.config.yaml');
     writeFileSync(
       configPath,
@@ -140,13 +140,13 @@ describe('report merge command', () => {
     ).toBe(2);
   });
 
-  it('resolves specifications from the config while still taking reports from flags only (ADR-0019)', async () => {
+  it('resolves specifications from the config while still taking reports from flags only (ADR-0020)', async () => {
     const configPath = join(tmpDir, 'specs.config.yaml');
     writeFileSync(
       configPath,
       [
         // `reports` present but ignored; `specifications` present and used —
-        // ADR-0019 constrains report inputs only, not the spec chain.
+        // ADR-0020 constrains report inputs only, not the spec chain.
         'reports:',
         '  - type: thymian',
         '    location: ./config-report.json',

@@ -71,7 +71,7 @@ describe('thymian report merge', () => {
 
     // Step 2: merge the persisted report WITHOUT --spec — and the fixture
     // config deliberately carries no `specifications` entry (merge still
-    // resolves specs from config, ADR-0019 constrains report inputs only),
+    // resolves specs from config, ADR-0020 constrains report inputs only),
     // so endpoint resolution can only come from the format map inside
     // converted.json. Deleting the thymianFormat passthrough fails this test.
     const { stdout, exitCode } = execThymianResult(
@@ -267,7 +267,7 @@ describe('thymian report merge', () => {
     expect(written[0]?.runs).toHaveLength(1);
   }, 90_000);
 
-  it('should ignore config-file reports — report inputs are CLI-only (ADR-0019)', () => {
+  it('should ignore config-file reports — report inputs are CLI-only (ADR-0020)', () => {
     // The copied config declares `reports`, but merge never reads that key:
     // without --report the command must fail usage-style instead of
     // silently merging whatever the config names.

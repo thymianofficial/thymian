@@ -32,7 +32,7 @@ export abstract class BaseReportAssemblyCommand<
    * Where this command's report inputs and specifications come from.
    * Specifications follow the normal flags-over-config chain everywhere;
    * report inputs differ: convert reads `--report` flags over the config
-   * `reports` key, merge reads `--report` flags only (ADR-0019).
+   * `reports` key, merge reads `--report` flags only (ADR-0020).
    */
   protected abstract resolveReportInputs(): {
     reports: ReportInput[];

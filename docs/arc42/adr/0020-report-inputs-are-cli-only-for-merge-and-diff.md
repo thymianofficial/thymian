@@ -1,4 +1,4 @@
-# ADR-0019: Report inputs for `report merge` and `report diff` come from CLI arguments only
+# ADR-0020: Report inputs for `report merge` and `report diff` come from CLI arguments only
 
 | Status   | Date       | Supersedes | Superseded by |
 | -------- | ---------- | ---------- | ------------- |

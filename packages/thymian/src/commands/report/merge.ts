@@ -16,7 +16,7 @@ export default class ReportMerge extends BaseReportAssemblyCommand<
   protected override readonly noReportInputMessage =
     'No report input found. Provide one with --report.';
 
-  // Report inputs are CLI-only for merge (ADR-0019, #362 review decision):
+  // Report inputs are CLI-only for merge (ADR-0020, #362 review decision):
   // the config `reports` key never feeds a merge, so a config entry can't
   // silently widen or alter an explicit merge request. Specifications keep
   // the normal resolution chain — Step C has already folded --spec over the
