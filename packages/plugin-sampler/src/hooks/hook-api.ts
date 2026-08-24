@@ -40,11 +40,41 @@ import {
  * Callbacks are stored, never invoked here. 575.8 (#584) runs them.
  */
 
+/**
+ * Rejects a missing or non-callable callback, at the call site the user wrote.
+ *
+ * Only `authorize` used to check, because only `authorize` is overloaded — but a
+ * one-argument `beforeEach(fn)` is the more plausible mistake, and it type-checks
+ * nowhere yet runs fine in a plain `.js` hook file. Unchecked it stored
+ * `target: fn, callback: undefined`, fell through to the filter branch of
+ * `resolveTargeting`, and reported `matched none of the N loaded transaction(s)`
+ * with the function's own source text dumped into the diagnostic anchor by
+ * `describeTarget`'s `String(target)` fallback. The user's mistake is a missing
+ * argument; the message named a filter they never wrote.
+ *
+ * A plain `TypeError` rather than a `ThymianBaseError`: keeping `@thymian/core`
+ * out of this module's runtime graph is what keeps `@thymian/hooks` resolvable
+ * from a hook file with nothing installed alongside it. 575.6 owns the error
+ * taxonomy for the authoring API.
+ */
+function requireCallback(
+  callback: unknown,
+  signature: string,
+): asserts callback is (...args: never[]) => unknown {
+  if (typeof callback !== 'function') {
+    throw new TypeError(
+      `${signature} needs a function as its callback argument.`,
+    );
+  }
+}
+
 /** Rewrites the generated request sample for the targeted transaction(s). */
 export function defineSample(
   target: HookTarget,
   callback: SampleCallback,
 ): HookRegistration {
+  requireCallback(callback, 'defineSample(target, callback)');
+
   return registerHook({ kind: 'defineSample', target, callback });
 }
 
@@ -53,6 +83,8 @@ export function beforeEach(
   target: HookTarget,
   callback: BeforeEachCallback,
 ): HookRegistration {
+  requireCallback(callback, 'beforeEach(target, callback)');
+
   return registerHook({ kind: 'beforeEach', target, callback });
 }
 
@@ -61,6 +93,8 @@ export function afterEach(
   target: HookTarget,
   callback: AfterEachCallback,
 ): HookRegistration {
+  requireCallback(callback, 'afterEach(target, callback)');
+
   return registerHook({ kind: 'afterEach', target, callback });
 }
 
@@ -89,10 +123,9 @@ export function authorize(
   }
 
   if (typeof maybeCallback !== 'function') {
-    // A plain TypeError rather than a `ThymianBaseError`: keeping
-    // `@thymian/core` out of this module's runtime graph is what keeps
-    // `@thymian/hooks` resolvable from a hook file with nothing installed
-    // alongside it. 575.6 owns the error taxonomy for the authoring API.
+    // Kept verbatim rather than routed through `requireCallback`: `authorize` is
+    // the one overloaded factory, so the actionable half of the message is the
+    // second sentence, naming the other arity.
     throw new TypeError(
       'authorize(target, callback) needs a callback as its second argument. ' +
         'Call authorize(callback) for the global hook.',
@@ -108,10 +141,14 @@ export function authorize(
 
 /** Runs once before the run. Carries no target (spec §6). */
 export function beforeAll(callback: BeforeAllCallback): HookRegistration {
+  requireCallback(callback, 'beforeAll(callback)');
+
   return registerHook({ kind: 'beforeAll', callback });
 }
 
 /** Runs once after the run. Carries no target (spec §6). */
 export function afterAll(callback: AfterAllCallback): HookRegistration {
+  requireCallback(callback, 'afterAll(callback)');
+
   return registerHook({ kind: 'afterAll', callback });
 }

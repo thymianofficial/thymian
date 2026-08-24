@@ -76,8 +76,11 @@ export class HookRunner {
       throw hookResolutionError(result.diagnostics);
     }
 
+    // `boundHookCount`, not `perTransaction.size`: one global `authorize` binds
+    // every transaction in the catalog, so the map's size counts the catalog and
+    // read as "240 hooks" for one hook.
     this.logger.debug(
-      `Loaded ${result.perTransaction.size} transaction hook binding(s) from ${result.fileCount} hook file(s).`,
+      `Loaded ${result.boundHookCount} hook(s) across ${result.perTransaction.size} transaction(s) from ${result.fileCount} hook file(s).`,
     );
 
     this.hooks = result.perTransaction;

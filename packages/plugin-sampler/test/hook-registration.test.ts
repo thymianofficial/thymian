@@ -111,6 +111,41 @@ describe('the registration contract', () => {
       (authorize as unknown as (target: unknown) => unknown)('GET /a -> 200'),
     ).toThrow(TypeError);
   });
+
+  /**
+   * `authorize` checked because it is overloaded; the other five did not, and a
+   * one-argument `beforeEach(fn)` is the more plausible mistake — it type-checks
+   * nowhere but runs fine in a plain `.js` hook file. Unchecked it stored
+   * `target: fn, callback: undefined`, fell through to the *filter* branch of
+   * `resolveTargeting` and reported `matched none of the N loaded
+   * transaction(s)`, with the function's own source text dumped into the
+   * diagnostic anchor by `describeTarget`'s `String(target)` fallback: a message
+   * about a filter the user never wrote.
+   */
+  it.each([
+    ['defineSample', defineSample],
+    ['beforeEach', beforeEach],
+    ['afterEach', afterEach],
+  ])('rejects a one-argument %s(fn)', (_name, factory) => {
+    expect(() =>
+      (factory as unknown as (target: unknown) => unknown)(noop),
+    ).toThrow(TypeError);
+  });
+
+  it.each([
+    ['beforeAll', beforeAll],
+    ['afterAll', afterAll],
+  ])('rejects %s with a non-callable argument', (_name, factory) => {
+    expect(() =>
+      (factory as unknown as (callback: unknown) => unknown)('not a function'),
+    ).toThrow(TypeError);
+  });
+
+  it('names the argument it wants, not the shape it got', () => {
+    expect(() =>
+      (beforeEach as unknown as (target: unknown) => unknown)(noop),
+    ).toThrow(/beforeEach\(target, callback\) needs a function/);
+  });
 });
 
 describe('isHookRegistration', () => {

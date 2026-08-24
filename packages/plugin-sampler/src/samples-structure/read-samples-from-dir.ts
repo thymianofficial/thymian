@@ -274,6 +274,30 @@ export async function readSamplesFromDir(
 }
 
 /**
+ * Errors this guard must **not** swallow.
+ *
+ * `checkForSafePath` raises `PathTraversalError` (`utils.ts:10-29`) to make a
+ * sample file escaping its base directory a hard failure, and `readSamplesFromDir`
+ * is its only remaining call path (`index.ts:226`) — a bare `catch` here made that
+ * error unreachable, downgrading a refused path traversal to `logger.debug`.
+ * `EACCES`/`EPERM` are the same class: an otherwise-valid tree the process may not
+ * read surfaced as `No samples are loaded.`, which is a wrong diagnosis rather
+ * than a degraded one.
+ *
+ * AC 12 asks the guard to tolerate the *unparseable* — absent, empty, truncated or
+ * half-written — not the *forbidden*.
+ */
+function isForbidden(error: unknown): boolean {
+  if (error instanceof Error && error.name === 'PathTraversalError') {
+    return true;
+  }
+
+  const code: unknown = (error as { code?: unknown } | null)?.code;
+
+  return code === 'EACCES' || code === 'EPERM';
+}
+
+/**
  * The samples tree, or `undefined` when there is nothing usable there — never an
  * exception (#613, AC 12).
  *
@@ -300,6 +324,10 @@ export async function readSamplesFromDirIfUsable(
   try {
     return await readSamplesFromDir(dir);
   } catch (error) {
+    if (isForbidden(error)) {
+      throw error;
+    }
+
     logger.debug(
       `Ignoring the samples tree at "${dir}": it exists but could not be read (${
         error instanceof Error ? error.message : String(error)

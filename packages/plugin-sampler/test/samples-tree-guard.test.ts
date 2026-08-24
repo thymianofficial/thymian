@@ -1,4 +1,11 @@
-import { mkdir, readFile, rm, writeFile } from 'node:fs/promises';
+import {
+  chmod,
+  mkdir,
+  readdir,
+  readFile,
+  rm,
+  writeFile,
+} from 'node:fs/promises';
 import { join } from 'node:path';
 
 import { createMockLogger } from '@thymian/core-testing';
@@ -137,6 +144,84 @@ describe('readSamplesFromDirIfUsable (#613)', () => {
 
     expect(logger.debug).toHaveBeenCalled();
   });
+
+  it('re-raises a refused path traversal instead of demoting it to debug', async () => {
+    // `checkForSafePath` exists to make a sample file escaping its base
+    // directory a hard failure, and `readSamplesFromDir` is its only remaining
+    // call path (`index.ts:226`). The bare `catch` here swallowed it, so the
+    // guard made the refusal unreachable — the sampler read a tree it had just
+    // decided was unsafe and said `logger.debug`. AC 12 asks the guard to
+    // tolerate the *unparseable*, not the *forbidden*.
+    const samplesDir = join(tempDir, 'samples');
+    await writeSamplesToDir(fixtureTree(samplesDir), {}, { path: samplesDir });
+
+    const requestsDir = join(
+      samplesDir,
+      'test',
+      'localhost',
+      '8080',
+      'status',
+      '@GET',
+      '200',
+      'requests',
+    );
+    const [sampleFile] = (await readdir(requestsDir)).filter((name) =>
+      name.endsWith('request.json'),
+    );
+
+    if (!sampleFile) {
+      throw new Error('fixture tree must contain one request sample');
+    }
+
+    const samplePath = join(requestsDir, sampleFile);
+    const sample = JSON.parse(await readFile(samplePath, 'utf-8')) as {
+      headers: Record<string, unknown>;
+    };
+
+    sample.headers['x-escape'] = { $file: '../../../../../../../escape.txt' };
+    await writeFile(samplePath, JSON.stringify(sample), 'utf-8');
+
+    const logger = createMockLogger();
+
+    await expect(
+      readSamplesFromDirIfUsable(samplesDir, logger),
+    ).rejects.toThrow(/outside of the base directory/);
+    expect(logger.debug).not.toHaveBeenCalled();
+  });
+
+  // `chmod 000` does not stop a root user and means nothing on Windows, so the
+  // case is skipped where it cannot be staged rather than asserted vacuously.
+  const canRefuseReads =
+    process.platform !== 'win32' && process.getuid?.() !== 0;
+
+  it.skipIf(!canRefuseReads)(
+    're-raises EACCES instead of reporting "no samples are loaded"',
+    async () => {
+      // An otherwise-valid tree the process may not read is a wrong-permissions
+      // diagnosis, not a missing-tree one. Demoting it made `thymian test` answer
+      // `No samples are loaded.` for a tree that is right there.
+      const samplesDir = join(tempDir, 'samples');
+      await writeSamplesToDir(
+        fixtureTree(samplesDir),
+        {},
+        { path: samplesDir },
+      );
+
+      const metaPath = join(samplesDir, 'meta.json');
+      await chmod(metaPath, 0o000);
+
+      const logger = createMockLogger();
+
+      try {
+        await expect(
+          readSamplesFromDirIfUsable(samplesDir, logger),
+        ).rejects.toMatchObject({ code: 'EACCES' });
+        expect(logger.debug).not.toHaveBeenCalled();
+      } finally {
+        await chmod(metaPath, 0o644);
+      }
+    },
+  );
 
   it('still returns a usable tree, so the guard is not a blanket disable', async () => {
     const samplesDir = join(tempDir, 'samples');

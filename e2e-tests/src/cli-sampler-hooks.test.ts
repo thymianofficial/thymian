@@ -1,5 +1,6 @@
 import { existsSync, mkdirSync, writeFileSync } from 'node:fs';
-import { join } from 'node:path';
+import { createRequire } from 'node:module';
+import { dirname, join } from 'node:path';
 
 import fastify, { type FastifyInstance } from 'fastify';
 import { describe, expect, it } from 'vitest';
@@ -47,8 +48,58 @@ function writeV2Hook(tempDir: string, name: string, body: string): void {
   writeFileSync(join(hooksDir, name), body);
 }
 
+/**
+ * The `@thymian/hooks` alias target, as it exists in the **installed** package.
+ *
+ * No unit test can assert this: under Vitest the alias always resolves to
+ * `src/hooks/hook-api.ts`, so an assertion about `src/` holds regardless of what
+ * the tarball ships. Resolution goes through the installed CLI's own `require`,
+ * so a hoisted and a nested layout both work.
+ */
+function installedHookApi(): string | undefined {
+  const prefix = process.env['THYMIAN_E2E_GLOBAL_PREFIX'];
+
+  if (!prefix) {
+    return undefined;
+  }
+
+  for (const cliRoot of [
+    join(prefix, 'lib', 'node_modules', 'thymian'),
+    join(prefix, 'node_modules', 'thymian'),
+  ]) {
+    if (!existsSync(join(cliRoot, 'package.json'))) {
+      continue;
+    }
+
+    try {
+      const manifest = createRequire(join(cliRoot, 'package.json')).resolve(
+        '@thymian/plugin-sampler/package.json',
+      );
+
+      return join(dirname(manifest), 'dist', 'hooks', 'hook-api.js');
+    } catch {
+      // Fall through to the next candidate layout.
+    }
+  }
+
+  return undefined;
+}
+
 describe('sampler v2 hook loading', () => {
   const getTempDir = useTempDir();
+
+  it('ships the `@thymian/hooks` runtime module inside the published package', () => {
+    // `files: ["dist"]` is the whole reason the runtime module has to live under
+    // `src/`. This is the only place that claim is checked against a real
+    // installed package rather than against the source tree.
+    const hookApi = installedHookApi();
+
+    expect(
+      hookApi,
+      'the installed CLI must expose @thymian/plugin-sampler',
+    ).toBeDefined();
+    expect(existsSync(hookApi as string)).toBe(true);
+  });
 
   it('executes a hook that imports `@thymian/hooks` with no `sampler init`', async () => {
     // This is the check no unit test can make: e2e installs the **published**

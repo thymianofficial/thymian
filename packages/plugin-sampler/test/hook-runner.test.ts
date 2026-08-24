@@ -175,6 +175,28 @@ describe('HookRunner without a hooks directory', () => {
       runner.beforeEachRequest({ value: requestTemplate, ctx: transaction }),
     ).rejects.toThrow(/before @thymian\/plugin-sampler is initialized/);
   });
+
+  // All three entry points kept their `initialized` guard through the #614
+  // rewrite, but only `beforeEachRequest` was pinned — the other two were one
+  // "simplification" away from silently answering before the hook map exists.
+  it('still refuses to run afterEachResponse before init', async () => {
+    const runner = createRunner(missingPath);
+
+    await expect(
+      runner.afterEachResponse({
+        value: response,
+        ctx: { requestTemplate, request, thymianTransaction: transaction },
+      }),
+    ).rejects.toThrow(/before @thymian\/plugin-sampler is initialized/);
+  });
+
+  it('still refuses to run authorize before init', async () => {
+    const runner = createRunner(missingPath);
+
+    await expect(
+      runner.authorize({ value: requestTemplate, ctx: transaction }),
+    ).rejects.toThrow(/before @thymian\/plugin-sampler is initialized/);
+  });
 });
 
 describe('HookRunner.init rebinds on every format load (#614)', () => {
@@ -291,10 +313,12 @@ describe('HookRunner.init rebinds on every format load (#614)', () => {
       name: 'HookResolutionError',
     });
 
-    await runner.init(formatA, catalogA).catch((error: Error) => {
-      expect(error.message).toContain('one.ts');
-      expect(error.message).toContain('two.ts');
-    });
+    // `rejects`, not a bare `.catch`: with the assertions inside a callback the
+    // test stayed green the moment `init` stopped rejecting — the callback was
+    // simply never invoked, and the aggregated multi-file message this case
+    // exists to pin went unasserted.
+    await expect(runner.init(formatA, catalogA)).rejects.toThrow(/one\.ts/);
+    await expect(runner.init(formatA, catalogA)).rejects.toThrow(/two\.ts/);
   });
 });
 
@@ -372,5 +396,46 @@ describe('HookRunner with hooks', () => {
     });
 
     expect(result.result.path).toBe('/transaction-1');
+  });
+});
+
+describe('what HookRunner.init reports to the log', () => {
+  it('counts hooks, not the transactions a global authorize reaches', async () => {
+    const twoFormat = createThymianFormatWithTransactions(2);
+    const twoCatalog = TransactionCatalog.fromThymianFormat(twoFormat);
+    const hooksDir = await writeHooks({
+      'auth.ts': [
+        `import { authorize } from '@thymian/hooks';`,
+        `export const everywhere = authorize(async (value) => value);`,
+        ``,
+      ].join('\n'),
+    });
+
+    const messages: string[] = [];
+    const runner = new HookRunner(
+      hooksDir,
+      async (): Promise<HttpResponse> => {
+        throw new Error('runRequest must not be called in these tests');
+      },
+      createMockLogger({
+        debug: (message: string) => {
+          messages.push(message);
+        },
+      }),
+    );
+
+    await runner.init(twoFormat, twoCatalog);
+
+    // A global `authorize` binds every transaction in the catalog, so the map's
+    // size is the catalog's size. Logging that as a binding count read as "2
+    // hooks loaded" for one hook — and as "240 hooks" on a real API.
+    expect(
+      messages.some((message) =>
+        /Loaded 1 hook\(s\) across 2 transaction\(s\) from 1 hook file\(s\)\./.test(
+          message,
+        ),
+      ),
+      messages.join('\n'),
+    ).toBe(true);
   });
 });

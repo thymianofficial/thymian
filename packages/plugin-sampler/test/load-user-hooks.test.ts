@@ -1,4 +1,4 @@
-import { mkdir, readFile, rm, writeFile } from 'node:fs/promises';
+import { mkdir, readFile, rm, symlink, writeFile } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
 
 import type { HttpRequestTemplate } from '@thymian/core';
@@ -90,10 +90,27 @@ function firstTransactionId(): string {
   return transaction.transactionId;
 }
 
+/** The `Symbol.for` brand, as a hook file would write it. */
+const BRAND = `Symbol.for('@thymian/plugin-sampler.hook-registration')`;
+
+/**
+ * The creation log's `globalThis` slot, as a **version-skewed** `@thymian/hooks`
+ * runtime would reach it: same `Symbol.for` key, a `kind` this plugin does not
+ * know. That combination — logged as created *and* rejected as unrecognised — is
+ * the one the scan-wide diff used to double-report.
+ */
+const CREATION_LOG = `globalThis[Symbol.for('@thymian/plugin-sampler.hook-creation-log')]`;
+
 function errorsOf(result: LoadUserHooksResult): string[] {
   return result.diagnostics
     .filter((diagnostic) => diagnostic.severity === 'error')
     .map((diagnostic) => `${diagnostic.file}: ${diagnostic.reason}`);
+}
+
+function anchorsOf(result: LoadUserHooksResult): (string | undefined)[] {
+  return result.diagnostics
+    .filter((diagnostic) => diagnostic.kind !== undefined)
+    .map((diagnostic) => diagnostic.anchor);
 }
 
 describe('isHookFile', () => {
@@ -409,5 +426,393 @@ describe('loadUserHooks — run-scoped hooks', () => {
     ]);
     // Nothing bound them to a transaction, and nothing ran them.
     expect(result.perTransaction.size).toBe(0);
+  });
+});
+
+describe('loadUserHooks — a second load in the same process', () => {
+  /**
+   * jiti's `moduleCache` is not per-instance: at its default it delegates to
+   * Node's `require.cache`, which is keyed on resolved filename and lives on the
+   * *process*. Building the `Jiti` instance inside `loadUserHooks` therefore
+   * isolated nothing, and these two cases both passed for the wrong reason —
+   * they never ran a second load against the same directory.
+   */
+  it('re-reads a hook file that changed on disk between two loads', async () => {
+    const hooksDir = await writeHooks({ 'edit.ts': tagging(selectorA, 'a') });
+
+    const first = await loadUserHooks(hooksDir, catalog);
+
+    expect(anchorsOf(first)).toEqual([`"${selectorA}"`]);
+
+    await writeFile(
+      join(hooksDir, 'edit.ts'),
+      tagging(selectorB, 'a'),
+      'utf-8',
+    );
+
+    const second = await loadUserHooks(hooksDir, catalog);
+
+    // The stale read reported the *old* selector as `resolved to 1
+    // transaction(s)`, so a hook the user had just repointed kept running the
+    // code it used to have while reporting a clean bind.
+    expect(anchorsOf(second)).toEqual([`"${selectorB}"`]);
+  });
+
+  it('re-reads an imported module that changed on disk', async () => {
+    // The dependency case, which the top-level one does not cover: with jiti's
+    // `moduleCache` left on, a nested specifier is served from `require.cache`
+    // even when the scan re-evaluates the file that imports it. The hook the
+    // user edited is the one in `lib.ts`.
+    const hooksDir = await writeHooks({
+      'a.ts': [`export { shared } from './lib.js';`, ``].join('\n'),
+      'lib.ts': [
+        `import { beforeEach } from '@thymian/hooks';`,
+        `export const shared = beforeEach(${JSON.stringify(selectorA)}, async (v) => v);`,
+        ``,
+      ].join('\n'),
+    });
+
+    const first = await loadUserHooks(hooksDir, catalog);
+
+    expect(anchorsOf(first)).toEqual([`"${selectorA}"`]);
+
+    await writeFile(
+      join(hooksDir, 'lib.ts'),
+      [
+        `import { beforeEach } from '@thymian/hooks';`,
+        `export const shared = beforeEach(${JSON.stringify(selectorB)}, async (v) => v);`,
+        ``,
+      ].join('\n'),
+      'utf-8',
+    );
+
+    const second = await loadUserHooks(hooksDir, catalog);
+
+    expect(anchorsOf(second)).toEqual([`"${selectorB}"`]);
+  });
+
+  it('keeps reporting an unexported registration on every load', async () => {
+    const hooksDir = await writeHooks({
+      'forgot.ts': [
+        `import { beforeEach } from '@thymian/hooks';`,
+        `beforeEach(${JSON.stringify(selectorA)}, async (value) => value);`,
+        ``,
+      ].join('\n'),
+    });
+
+    const first = await loadUserHooks(hooksDir, catalog);
+
+    expect(first.hasErrors).toBe(true);
+
+    const second = await loadUserHooks(hooksDir, catalog);
+
+    // With a process-global module cache the body never re-executed, so
+    // `registerHook` never fired, the creation log stayed empty, and the second
+    // load reported `hasErrors: false` with **zero** diagnostics — a false clean
+    // for exactly the hook the first load had rejected.
+    expect(second.hasErrors).toBe(true);
+    expect(errorsOf(second).join('\n')).toContain('but not exported');
+  });
+
+  it('still evaluates a shared module once per scan', async () => {
+    // The invariant the cache fix must not trade away: with no module cache at
+    // all, `lib.ts` reached both directly and through `a.ts` is evaluated twice
+    // and one authored hook becomes two registrations. The per-scan cache keyed
+    // on jiti's own resolved path is what keeps it at one — checked here across
+    // two loads, because a scan-scoped cache that leaked would show up as a
+    // *second* binding on the second load.
+    const hooksDir = await writeHooks({
+      'a.ts': [`export { shared } from './lib.js';`, ``].join('\n'),
+      'lib.ts': [
+        `import { beforeEach } from '@thymian/hooks';`,
+        `export const shared = beforeEach(${JSON.stringify(selectorA)}, async (value) => ({`,
+        `  ...value,`,
+        `  path: value.path + 's',`,
+        `}));`,
+        ``,
+      ].join('\n'),
+    });
+
+    expect(
+      await compose(
+        await loadUserHooks(hooksDir, catalog),
+        firstTransactionId(),
+      ),
+    ).toBe('s');
+    expect(
+      await compose(
+        await loadUserHooks(hooksDir, catalog),
+        firstTransactionId(),
+      ),
+    ).toBe('s');
+  });
+});
+
+describe('loadUserHooks — a user value that fights back', () => {
+  /**
+   * Five shapes, five boundaries. Each one used to throw straight out of
+   * `loadUserHooks` → `HookRunner.init` → `core.format` as an unformatted error
+   * with no `file:` attribution — breaking both of this module's stated
+   * contracts ("never throws for user error", "one broken file must not hide the
+   * other nine") and AC 5's "tolerates an export whose property access throws",
+   * which `isHookRegistration` honours and the next line defeated.
+   *
+   * Every case asserts the *other* hook in the same scan still bound: a
+   * diagnostic that stops the scan is only half a fix.
+   */
+  it('reports a namespace whose enumerable getter throws, and keeps the file', async () => {
+    const hooksDir = await writeHooks({
+      'hostile-namespace.cts': [
+        `const { beforeEach } = require('@thymian/hooks');`,
+        `const good = beforeEach(${JSON.stringify(selectorA)}, async (value) => ({`,
+        `  ...value,`,
+        `  path: value.path + 'g',`,
+        `}));`,
+        `module.exports = { good };`,
+        `Object.defineProperty(module.exports, 'boom', {`,
+        `  enumerable: true,`,
+        `  get() { throw new Error('namespace getter exploded'); },`,
+        `});`,
+        ``,
+      ].join('\n'),
+    });
+
+    const result = await loadUserHooks(hooksDir, catalog);
+
+    expect(errorsOf(result).join('\n')).toContain('namespace getter exploded');
+    expect(errorsOf(result)[0]).toContain('hostile-namespace.cts');
+    // The sibling export in the same namespace still bound.
+    expect(await compose(result, firstTransactionId())).toBe('g');
+  });
+
+  it('reports a branded proxy whose `kind` read throws', async () => {
+    const hooksDir = await writeHooks({
+      'a-fine.ts': tagging(selectorA, 'fine'),
+      'b-proxy.ts': [
+        `export const proxied = new Proxy({}, {`,
+        `  get(target, property) {`,
+        `    if (property === ${BRAND}) {`,
+        `      return true;`,
+        `    }`,
+        `    throw new Error('kind read exploded');`,
+        `  },`,
+        `});`,
+        ``,
+      ].join('\n'),
+    });
+
+    const result = await loadUserHooks(hooksDir, catalog);
+
+    expect(errorsOf(result).join('\n')).toContain('kind read exploded');
+    expect(errorsOf(result).join('\n')).toContain('b-proxy.ts');
+    expect(await compose(result, firstTransactionId())).toBe('fine');
+  });
+
+  it('reports the one element of an exported array whose read throws', async () => {
+    const hooksDir = await writeHooks({
+      'proxy-array.ts': [
+        `import { beforeEach } from '@thymian/hooks';`,
+        `const tag = (t) => async (value) => ({ ...value, path: value.path + t });`,
+        `const real = [`,
+        `  beforeEach(${JSON.stringify(selectorA)}, tag('0')),`,
+        `  beforeEach(${JSON.stringify(selectorA)}, tag('1')),`,
+        `];`,
+        `export const list = new Proxy(real, {`,
+        `  get(target, property) {`,
+        `    if (property === '1') {`,
+        `      throw new Error('element read exploded');`,
+        `    }`,
+        `    return Reflect.get(target, property);`,
+        `  },`,
+        `});`,
+        ``,
+      ].join('\n'),
+    });
+
+    const result = await loadUserHooks(hooksDir, catalog);
+
+    expect(errorsOf(result).join('\n')).toContain('element read exploded');
+    expect(errorsOf(result).join('\n')).toContain('list[1]');
+    // Element 0 was read before element 1 threw, and it still bound: the guard
+    // is per element, not one `try` around the whole array.
+    expect(await compose(result, firstTransactionId())).toBe('0');
+  });
+
+  it('renders a selector-list element whose `Symbol.toPrimitive` throws', async () => {
+    const hooksDir = await writeHooks({
+      'hostile-selector.ts': [
+        `import { beforeEach } from '@thymian/hooks';`,
+        `const hostile = {`,
+        `  [Symbol.toPrimitive]() { throw new Error('toPrimitive exploded'); },`,
+        `};`,
+        `export const h = beforeEach([${JSON.stringify(selectorA)}, hostile], async (v) => v);`,
+        ``,
+      ].join('\n'),
+    });
+
+    const result = await loadUserHooks(hooksDir, catalog);
+
+    // Two coercion sites, both outside any guard before: `describeTarget`'s
+    // `String(selector)` (only `JSON.stringify` was wrapped) and the failure
+    // message that interpolates the selector inside the catch block meant to
+    // report it.
+    expect(result.hasErrors).toBe(true);
+    expect(errorsOf(result).join('\n')).toContain('hostile-selector.ts');
+    expect(errorsOf(result).join('\n')).toContain('[unprintable value]');
+  });
+
+  it('reports a branded value whose `callback` getter throws', async () => {
+    const hooksDir = await writeHooks({
+      'a-fine.ts': tagging(selectorA, 'fine'),
+      'b-callback.ts': [
+        `export const bad = {`,
+        `  kind: 'beforeEach',`,
+        `  order: 0,`,
+        `  target: ${JSON.stringify(selectorA)},`,
+        `  get callback() { throw new Error('callback read exploded'); },`,
+        `  [${BRAND}]: true,`,
+        `};`,
+        ``,
+      ].join('\n'),
+    });
+
+    const result = await loadUserHooks(hooksDir, catalog);
+
+    expect(errorsOf(result).join('\n')).toContain('callback read exploded');
+    expect(errorsOf(result).join('\n')).toContain('b-callback.ts');
+    expect(await compose(result, firstTransactionId())).toBe('fine');
+  });
+
+  it('reports a branded value whose callback is not callable', async () => {
+    const hooksDir = await writeHooks({
+      'not-callable.ts': [
+        `export const bad = {`,
+        `  kind: 'beforeEach',`,
+        `  order: 0,`,
+        `  target: ${JSON.stringify(selectorA)},`,
+        `  callback: 42,`,
+        `  [${BRAND}]: true,`,
+        `};`,
+        ``,
+      ].join('\n'),
+    });
+
+    const result = await loadUserHooks(hooksDir, catalog);
+
+    // Binding it anyway deferred the failure to the first request, long after
+    // the load-time report the user was reading.
+    expect(result.hasErrors).toBe(true);
+    expect(errorsOf(result).join('\n')).toContain('callback is not a function');
+    expect(result.perTransaction.size).toBe(0);
+  });
+});
+
+describe('loadUserHooks — the created-but-not-exported diff', () => {
+  it('is taken across the scan, not per file', async () => {
+    // `a.ts` imports `lib.ts` for its side effect and re-exports **nothing**, so
+    // the registration is created inside `a.ts`'s import window and exported
+    // only from `lib.ts`. A per-file diff calls that a mistake on `a.ts`; the
+    // scan-wide diff sees it exported and says nothing. The existing shared-hook
+    // case cannot pin this — there `a.ts` re-exports the value, so per-file and
+    // scan-wide agree.
+    const hooksDir = await writeHooks({
+      'a.ts': [`import './lib.js';`, `export const unrelated = 1;`, ``].join(
+        '\n',
+      ),
+      'lib.ts': [
+        `import { beforeEach } from '@thymian/hooks';`,
+        `export const shared = beforeEach(${JSON.stringify(selectorA)}, async (value) => ({`,
+        `  ...value,`,
+        `  path: value.path + 's',`,
+        `}));`,
+        ``,
+      ].join('\n'),
+    });
+
+    const result = await loadUserHooks(hooksDir, catalog);
+
+    expect(errorsOf(result)).toEqual([]);
+    expect(await compose(result, firstTransactionId())).toBe('s');
+  });
+
+  it('does not double-report a branded value of an unrecognised kind', async () => {
+    // A version-skewed `@thymian/hooks` logs its creation and then fails this
+    // plugin's kind check. It is *exported*; the correct diagnostic is the
+    // version-skew one, and the second "assign them to an export" error told the
+    // user to do something they had already done.
+    const hooksDir = await writeHooks({
+      'skewed.ts': [
+        `const registration = Object.freeze({`,
+        `  kind: 'overrideSample',`,
+        `  order: 0,`,
+        `  target: ${JSON.stringify(selectorA)},`,
+        `  callback: async (value) => value,`,
+        `  [${BRAND}]: true,`,
+        `});`,
+        `${CREATION_LOG}.created.push(registration);`,
+        `export const weird = registration;`,
+        ``,
+      ].join('\n'),
+    });
+
+    const result = await loadUserHooks(hooksDir, catalog);
+
+    expect(errorsOf(result)).toHaveLength(1);
+    expect(errorsOf(result)[0]).toContain('unrecognised kind "overrideSample"');
+  });
+
+  it('does not add a second error to a file that threw at module scope', async () => {
+    const hooksDir = await writeHooks({
+      'boom.ts': [
+        `import { beforeEach } from '@thymian/hooks';`,
+        `export const h = beforeEach(${JSON.stringify(selectorA)}, async (v) => v);`,
+        `throw new Error('module scope explodes');`,
+        ``,
+      ].join('\n'),
+    });
+
+    const result = await loadUserHooks(hooksDir, catalog);
+
+    // The file has already failed the run by name. The registration it managed
+    // to create before throwing is a consequence of that failure, not a second,
+    // independent mistake with a remedy of its own.
+    expect(errorsOf(result)).toHaveLength(1);
+    expect(errorsOf(result)[0]).toContain('module scope explodes');
+  });
+});
+
+describe('loadUserHooks — symlinked hook files', () => {
+  it('loads a hook file reached through a symlink', async () => {
+    const hooksDir = await writeHooks({
+      'real/target.ts': tagging(selectorA, 'linked'),
+    });
+
+    await symlink(
+      join(hooksDir, 'real', 'target.ts'),
+      join(hooksDir, 'link.ts'),
+    );
+
+    const result = await loadUserHooks(hooksDir, catalog);
+
+    // `readdir({withFileTypes:true})` reports lstat semantics, so the link
+    // answered `isSymbolicLink()`, never `isFile()`, and was dropped before
+    // `isHookFile` ran: no diagnostic, and not even counted in `fileCount`.
+    expect(errorsOf(result)).toEqual([]);
+    expect(result.fileCount).toBe(2);
+    expect(await compose(result, firstTransactionId())).toBe('linkedlinked');
+  });
+
+  it('reports a symlink that points at nothing', async () => {
+    const hooksDir = await writeHooks({ 'a.ts': tagging(selectorA, 'a') });
+
+    await symlink(join(hooksDir, 'gone.ts'), join(hooksDir, 'dangling.ts'));
+
+    const result = await loadUserHooks(hooksDir, catalog);
+
+    expect(result.hasErrors).toBe(true);
+    expect(errorsOf(result).join('\n')).toContain('dangling.ts');
+    expect(errorsOf(result).join('\n')).toContain('symbolic link');
+    // The healthy file next to it still bound.
+    expect(await compose(result, firstTransactionId())).toBe('a');
   });
 });

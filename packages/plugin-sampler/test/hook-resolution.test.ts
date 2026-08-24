@@ -407,3 +407,181 @@ describe('aggregation', () => {
     expect(error.message).toContain('a.ts: beforeEach "GET /x -> 200" — nope');
   });
 });
+
+describe('a duplicate selector inside one target array', () => {
+  it('does not make a defineSample conflict with itself', async () => {
+    const hooksDir = await writeHooks({
+      'dup.ts': [
+        `import { defineSample } from '@thymian/hooks';`,
+        `export const s = defineSample(`,
+        `  [${JSON.stringify(selectorA)}, ${JSON.stringify(selectorA)}],`,
+        `  (d) => d,`,
+        `);`,
+        ``,
+      ].join('\n'),
+    });
+
+    const result = await loadUserHooks(hooksDir, catalog);
+
+    // Undeduped, the second pass over the same transaction found the first as
+    // its owner and reported `that transaction's sample is already set by "s" in
+    // "dup.ts"` — naming the export as its own rival, in the file the user is
+    // looking at, with no second hook anywhere.
+    expect(errorsOf(result)).toEqual([]);
+    expect(result.sampleDefinitions.size).toBe(1);
+  });
+
+  it('does not make a targeted authorize conflict with itself', async () => {
+    const hooksDir = await writeHooks({
+      'dup.ts': [
+        `import { authorize } from '@thymian/hooks';`,
+        `export const a = authorize(`,
+        `  [${JSON.stringify(selectorA)}, ${JSON.stringify(selectorA)}],`,
+        `  async (v) => ({ ...v, path: 'targeted' }),`,
+        `);`,
+        ``,
+      ].join('\n'),
+    });
+
+    const result = await loadUserHooks(hooksDir, catalog);
+
+    expect(errorsOf(result)).toEqual([]);
+    expect(await tagFor(result, selectorA)).toBe('targeted');
+  });
+
+  it('binds a beforeEach once, not once per repeat', async () => {
+    const hooksDir = await writeHooks({
+      'dup.ts': [
+        `import { beforeEach } from '@thymian/hooks';`,
+        `export const h = beforeEach(`,
+        `  [${JSON.stringify(selectorA)}, ${JSON.stringify(selectorA)}],`,
+        `  async (value) => ({ ...value, path: value.path + 'x' }),`,
+        `);`,
+        ``,
+      ].join('\n'),
+    });
+
+    const result = await loadUserHooks(hooksDir, catalog);
+    const hooks = result.perTransaction.get(idOf(selectorA));
+
+    // `beforeEach`/`afterEach` have no owner check, so the duplicate was pushed
+    // twice and ran twice per request — with no diagnostic at all.
+    expect(hooks?.beforeEach).toHaveLength(1);
+  });
+
+  it('reports the number of transactions bound, not the number of selectors', async () => {
+    const hooksDir = await writeHooks({
+      'dup.ts': [
+        `import { beforeEach } from '@thymian/hooks';`,
+        `export const h = beforeEach(`,
+        `  [${JSON.stringify(selectorA)}, ${JSON.stringify(selectorA)}],`,
+        `  async (value) => value,`,
+        `);`,
+        ``,
+      ].join('\n'),
+    });
+
+    const result = await loadUserHooks(hooksDir, catalog);
+    const info = result.diagnostics.find((d) => d.kind === 'beforeEach');
+
+    expect(info?.reason).toBe('resolved to 1 transaction(s)');
+  });
+});
+
+describe('a global authorize is reported like every other bound hook', () => {
+  it('emits an info diagnostic and counts toward the summary', async () => {
+    const hooksDir = await writeHooks({
+      'auth.ts': [
+        `import { authorize } from '@thymian/hooks';`,
+        `export const everywhere = authorize(async (v) => v);`,
+        ``,
+      ].join('\n'),
+    });
+
+    const result = await loadUserHooks(hooksDir, catalog);
+
+    // The global branch returned before `resolve()`, so a hook that is bound and
+    // will run produced `diagnostics: []` — and 575.10's `validate`, which
+    // renders this array, would have shown nothing for it.
+    const info = result.diagnostics.find((d) => d.kind === 'authorize');
+
+    expect(info?.severity).toBe('info');
+    expect(info?.file).toBe('auth.ts');
+    expect(info?.exportName).toBe('everywhere');
+    expect(info?.anchor).toBe('global');
+    expect(info?.reason).toBe(`resolved to ${catalog.size} transaction(s)`);
+    expect(result.diagnostics.at(-1)?.reason).toBe(
+      `1 hook target(s) resolved against ${catalog.size} transaction(s)`,
+    );
+  });
+
+  it('reports the reach the global actually has, with targeted hooks subtracted', async () => {
+    const hooksDir = await writeHooks({
+      'auth.ts': [
+        `import { authorize } from '@thymian/hooks';`,
+        `export const everywhere = authorize(async (v) => v);`,
+        `export const justA = authorize(${JSON.stringify(selectorA)}, async (v) => v);`,
+        ``,
+      ].join('\n'),
+    });
+
+    const result = await loadUserHooks(hooksDir, catalog);
+    const global = result.diagnostics.find((d) => d.anchor === 'global');
+
+    expect(global?.reason).toBe(
+      `resolved to ${catalog.size - 1} transaction(s)`,
+    );
+  });
+
+  it('counts one hook, not one per transaction in the catalog', async () => {
+    const hooksDir = await writeHooks({
+      'auth.ts': [
+        `import { authorize } from '@thymian/hooks';`,
+        `export const everywhere = authorize(async (v) => v);`,
+        ``,
+      ].join('\n'),
+    });
+
+    const result = await loadUserHooks(hooksDir, catalog);
+
+    // `perTransaction.size` is the *catalog* size here, because precedence is
+    // decided at load time for every transaction. Reporting it as a hook count
+    // told an operator with a 240-transaction API that 240 hooks had loaded.
+    expect(result.perTransaction.size).toBe(catalog.size);
+    expect(result.boundHookCount).toBe(1);
+  });
+});
+
+describe('a resolution error that is not a ThymianError', () => {
+  it('becomes a diagnostic instead of crashing the loader', async () => {
+    // `isThymianError` explicitly accepts a value with **no own `options`**
+    // (`thymian.error.ts:20-32`), so `isThymianError(new Error('x'))` is `true`
+    // and `error.options.suggestions` is a `TypeError` — thrown from inside the
+    // catch block that exists to turn the failure into a diagnostic. Latent only
+    // while `TransactionCatalog.resolve` throws `ThymianBaseError` exclusively;
+    // the 575.4 filter seam lives in the same function.
+    const hostileCatalog = {
+      size: 1,
+      entries: () => [],
+      resolve: () => {
+        throw new TypeError('the matcher blew up');
+      },
+      tryResolve: () => undefined,
+      selectors: () => [],
+    } as unknown as TransactionCatalog;
+
+    const hooksDir = await writeHooks({
+      'h.ts': [
+        `import { beforeEach } from '@thymian/hooks';`,
+        `export const h = beforeEach(${JSON.stringify(selectorA)}, async (v) => v);`,
+        ``,
+      ].join('\n'),
+    });
+
+    const result = await loadUserHooks(hooksDir, hostileCatalog);
+
+    expect(result.hasErrors).toBe(true);
+    expect(errorsOf(result)[0]?.reason).toContain('the matcher blew up');
+    expect(errorsOf(result)[0]?.suggestions).toBeUndefined();
+  });
+});

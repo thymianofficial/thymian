@@ -1,5 +1,5 @@
-import { mkdir, rm, writeFile } from 'node:fs/promises';
-import { isAbsolute, join } from 'node:path';
+import { mkdir, readFile, rm, writeFile } from 'node:fs/promises';
+import { isAbsolute, join, relative } from 'node:path';
 
 import { createThymianFormatWithTransactions } from '@thymian/core-testing';
 import { createJiti } from 'jiti';
@@ -81,10 +81,38 @@ describe('the `@thymian/hooks` alias target', () => {
     expect(/\.[cm]?[jt]s$/.test(target)).toBe(false);
   });
 
-  it('lives under `src/`, which is what puts it in the published `dist/`', () => {
-    // `files: ["dist"]` is the whole reason: a runtime module outside `src/`
-    // never reaches the package the e2e suite installs globally.
-    expect(hooksRuntimeModulePath().split(/[/\\]/)).toContain('src');
+  it('maps to a path the published package actually ships', async () => {
+    // The old assertion here — "the path contains a `src` segment" — was a
+    // tautology: under Vitest the alias always resolves to the source file, so
+    // it held no matter where the module lived or what the package shipped.
+    //
+    // What matters is the chain: the module sits under the build's `rootDir`,
+    // the build emits into `outDir`, and `files` ships `outDir`. Break any link
+    // — move the module out of `src/`, retarget the build, drop `dist` from
+    // `files` — and the alias resolves to nothing in an installed CLI. The
+    // packed tarball itself is checked by the e2e suite, which installs it.
+    const packageRoot = join(import.meta.dirname, '..');
+
+    const tsconfig = JSON.parse(
+      await readFile(join(packageRoot, 'tsconfig.lib.json'), 'utf-8'),
+    ) as { compilerOptions: { rootDir: string; outDir: string } };
+    const manifest = JSON.parse(
+      await readFile(join(packageRoot, 'package.json'), 'utf-8'),
+    ) as { files: string[] };
+
+    const fromRoot = relative(packageRoot, hooksRuntimeModulePath())
+      .split(/[/\\]/)
+      .join('/');
+    const { rootDir, outDir } = tsconfig.compilerOptions;
+
+    expect(fromRoot.startsWith(`${rootDir}/`)).toBe(true);
+    expect(manifest.files).toContain(outDir);
+
+    // Spelled out rather than derived, so a rename shows up here as a changed
+    // expectation instead of a silently re-derived one.
+    expect(`${outDir}/${fromRoot.slice(rootDir.length + 1)}.js`).toBe(
+      'dist/hooks/hook-api.js',
+    );
   });
 });
 
