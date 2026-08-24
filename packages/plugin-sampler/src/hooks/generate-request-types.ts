@@ -7,24 +7,31 @@ import {
 import CodeBlockWriter from 'code-block-writer';
 import { compile, type JSONSchema } from 'json-schema-to-typescript';
 
+import { safeIdentifier } from '../generation/types/type-names.js';
+
 export async function generateTypeForSchema(
   schema: unknown,
   mediaType: string,
   typeName: string,
 ): Promise<GeneratedSchemaType> {
   const normalizedMediaType = mediaType.split(';', 1)[0]?.trim().toLowerCase();
-  if (
-    !(
-      normalizedMediaType === 'application/json' ||
-      normalizedMediaType?.includes('+json')
-    )
-  ) {
+  if (!(
+    normalizedMediaType === 'application/json' ||
+    normalizedMediaType?.includes('+json')
+  )) {
     return { declarations: [], type: 'unknown' };
   }
 
+  // `compile` declares under `toSafeString(name)`, not under `name`, so a name
+  // that is not already a fixed point of that transform is declared under one
+  // identifier and returned as another — a dangling reference in the emitted
+  // file. Sanitising here makes the declared name and the returned name the
+  // same string by construction. v1's `GeneratedSchema1..N` is unaffected: it is
+  // already a fixed point.
+  const safeName = safeIdentifier(typeName);
   const declaration = await compile(
     convertDefsToDefinitions(structuredClone(schema)) as JSONSchema,
-    typeName,
+    safeName,
     {
       bannerComment: '',
       additionalProperties: true,
@@ -39,7 +46,7 @@ export async function generateTypeForSchema(
 
   return {
     declarations: [declaration],
-    type: typeName,
+    type: safeName,
   };
 }
 

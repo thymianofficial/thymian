@@ -23,6 +23,7 @@ import {
   assignUniqueNames,
   candidateName,
   compareStrings,
+  NameRegistry,
   type SchemaRole,
 } from './type-names.js';
 
@@ -52,6 +53,42 @@ import {
  * Nothing is written to disk and no command is wired to this: the file text is
  * returned, and 575.10 owns the artifact's name and location.
  */
+
+/**
+ * Every alias the surface declares itself, named once so the reservation and
+ * the emission cannot drift.
+ *
+ * They are reserved in the name registry before anything else is assigned,
+ * because a `components/schemas` entry called `Status` or `Selector` is
+ * entirely ordinary and `plugin-openapi` hoists those names verbatim into root
+ * `$defs`. Unreserved, such a schema emitted a second `Status` and the file did
+ * not compile.
+ */
+const ALIAS = {
+  endpoints: 'Endpoints',
+  selector: 'Selector',
+  method: 'Method',
+  status: 'Status',
+  statusClass: 'StatusClass',
+  path: 'Path',
+  requestMediaType: 'RequestMediaType',
+  responseMediaType: 'ResponseMediaType',
+} as const;
+
+/**
+ * The one way this module turns a string into TypeScript source.
+ *
+ * `code-block-writer`'s `quote()` escapes `"`, `\`, `\n` and `\r\n` but falls
+ * through on a bare `\r`, which is a JS LineTerminator: one lone CR in a header
+ * name or a media type — neither is constrained by the selector grammar — ended
+ * the string literal mid-line and made the whole file unparseable. It also made
+ * an emitted key and its matching union member two DIFFERENT texts, because the
+ * unions already used `JSON.stringify`; AC3 and AC14 want them byte-identical,
+ * so both sides come from here now.
+ */
+function stringLiteral(value: string): string {
+  return JSON.stringify(value);
+}
 
 const QUERY_INDEX_SIGNATURE = '{ [query: string]: string | number | boolean }';
 const PATH_INDEX_SIGNATURE = '{ [param: string]: string | number | boolean }';
@@ -213,15 +250,25 @@ type CompiledSites = ReadonlyMap<string, string>;
 async function compileSites(
   sites: readonly SchemaSite[],
   declarations: DeclarationSet,
+  registry: NameRegistry,
 ): Promise<CompiledSites> {
+  // Only the sites that will actually be compiled get a vote. A site whose
+  // media type is not JSON short-circuits to `unknown` and contributes no
+  // declaration at all, so letting its `$defs` take part in the naming produced
+  // a surface containing `Pet_2` — a suffix meaning "a second, divergent
+  // definition" — and no `Pet` for it to be second to.
   const definitionNames: DefinitionNameAssignment = assignDefinitionNames(
-    sites.map((site) => site.schema),
+    sites
+      .filter((site) => isJsonMediaType(site.mediaType))
+      .map((site) => site.schema),
+    registry,
   );
   const names = assignUniqueNames(
     sites.map((site) => ({
       key: siteKey(site.selector, site.role),
       candidate: candidateName(site.selector, site.role),
     })),
+    registry,
   );
   const compiled = new Map<string, string>();
 
@@ -239,15 +286,20 @@ async function compileSites(
     applyDefinitionNames(prepared, definitionNames);
 
     declarations.addAll(
-      await reflectExamplesInPlace(prepared, typeName, async (schema, name) => {
-        const base = await generateTypeForSchema(
-          schema,
-          'application/json',
-          name,
-        );
+      await reflectExamplesInPlace(
+        prepared,
+        typeName,
+        async (schema, name) => {
+          const base = await generateTypeForSchema(
+            schema,
+            'application/json',
+            name,
+          );
 
-        return base.declarations;
-      }),
+          return base.declarations;
+        },
+        registry,
+      ),
     );
 
     const generated = await generateTypeForSchema(
@@ -325,7 +377,7 @@ function sortedUnique(values: Iterable<string>): string[] {
 }
 
 function quotedMembers(values: Iterable<string>): string[] {
-  return sortedUnique(values).map((value) => JSON.stringify(value));
+  return sortedUnique(values).map((value) => stringLiteral(value));
 }
 
 function writeBagLine(
@@ -341,7 +393,7 @@ function writeBagLine(
   } else {
     writer.inlineBlock(() => {
       for (const [name, type] of bag.members) {
-        writer.quote(name).write(`: ${type};`).newLine();
+        writer.write(`${stringLiteral(name)}: ${type};`).newLine();
       }
     });
   }
@@ -354,8 +406,7 @@ function writeEndpointEntry(
   entry: EndpointEntry,
 ): void {
   writer
-    .quote(entry.selector)
-    .write(': ')
+    .write(`${stringLiteral(entry.selector)}: `)
     .inlineBlock(() => {
       writer
         .write('req: ')
@@ -406,7 +457,7 @@ function writeEndpoints(
   writer: CodeBlockWriter,
   entries: readonly EndpointEntry[],
 ): void {
-  writer.write('export type Endpoints = ');
+  writer.write(`export type ${ALIAS.endpoints} = `);
 
   if (entries.length === 0) {
     writer.write('{};').newLine();
@@ -483,8 +534,12 @@ export async function generateRequestTypesSurface(
     );
   }
 
+  const registry = new NameRegistry();
+
+  registry.reserve(Object.values(ALIAS));
+
   const declarations = new DeclarationSet();
-  const compiled = await compileSites(sites, declarations);
+  const compiled = await compileSites(sites, declarations, registry);
 
   const entries: EndpointEntry[] = [];
   const methods = new Set<string>();
@@ -570,23 +625,30 @@ export async function generateRequestTypesSurface(
   // 575.2 left the runtime alias a documentation-only `Selector = string` and
   // deferred the typed union to the generated surface. 575.4's filter and
   // 575.6's hook targeting both consume it, so it is emitted here.
-  writer.write('export type Selector = keyof Endpoints;').newLine().newLine();
+  writer
+    .write(`export type ${ALIAS.selector} = keyof ${ALIAS.endpoints};`)
+    .newLine()
+    .newLine();
 
-  writeUnion(writer, 'Method', quotedMembers(methods));
+  writeUnion(writer, ALIAS.method, quotedMembers(methods));
   writer.newLine();
   writeUnion(
     writer,
-    'Status',
+    ALIAS.status,
     [...statuses].sort((a, b) => a - b).map((status) => String(status)),
   );
   writer.newLine();
-  writeUnion(writer, 'StatusClass', quotedMembers(statusClasses));
+  writeUnion(writer, ALIAS.statusClass, quotedMembers(statusClasses));
   writer.newLine();
-  writeUnion(writer, 'Path', quotedMembers(paths));
+  writeUnion(writer, ALIAS.path, quotedMembers(paths));
   writer.newLine();
-  writeUnion(writer, 'RequestMediaType', quotedMembers(requestMediaTypes));
+  writeUnion(writer, ALIAS.requestMediaType, quotedMembers(requestMediaTypes));
   writer.newLine();
-  writeUnion(writer, 'ResponseMediaType', quotedMembers(responseMediaTypes));
+  writeUnion(
+    writer,
+    ALIAS.responseMediaType,
+    quotedMembers(responseMediaTypes),
+  );
 
   return writer.toString();
 }

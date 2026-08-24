@@ -1,4 +1,10 @@
-import { compareStrings } from './type-names.js';
+import { ThymianBaseError } from '@thymian/core';
+
+import {
+  compareStrings,
+  type NameRegistry,
+  safeIdentifier,
+} from './type-names.js';
 
 /**
  * `$defs` bookkeeping for the generated type surface.
@@ -22,6 +28,27 @@ import { compareStrings } from './type-names.js';
  * Only ROOT-level `$defs` are considered, because that is the only place
  * `plugin-openapi` puts them. `ThymianSchema` carries no `title`, so `$defs` is
  * also the only keyword that can name a nested declaration.
+ *
+ * THREE THINGS THE NAME IS KEYED ON, AND ONE IT IS NOT. It is keyed on the
+ * EMITTED IDENTIFIER, not on the raw `$defs` key: `pet-owner` and `pet_owner`
+ * are two keys but one identifier, so leaving them unsuffixed emits one
+ * interface twice. It is keyed on the content, so the same content keeps one
+ * name everywhere. And it is assigned through the SHARED registry, so a
+ * generated `_2` cannot land on a name that already exists — either another
+ * definition's, a site's, or one of the surface's own aliases (`Status` and
+ * `Selector` are perfectly ordinary `components/schemas` names). It is NOT
+ * keyed on position: a digit-leading key like `400` is a legal
+ * `components/schemas` name and becomes `_400` rather than an empty identifier
+ * that makes the library's formatter throw a raw `SyntaxError`.
+ *
+ * The bare name goes to the content that appears FIRST, in catalog order, not
+ * to the one that sorts first by content. Content order made an incumbent's
+ * name depend on what was added later — adding an unrelated transaction whose
+ * same-named definition happened to sort earlier demoted the incumbent to `_2`
+ * and flipped every alias pointing at it. Appending is the common case and it
+ * now renames nothing. Inserting a transaction AHEAD of the incumbent still
+ * can, which is the same "renumbers the colliding group, and only that group"
+ * property `type-names.ts:20-24` states for site names.
  *
  * KNOWN LIMIT, deliberately not solved here: the disambiguation is keyed on a
  * definition's own content, not on the transitive closure of its `$ref`s. Two
@@ -65,47 +92,57 @@ function rootDefinitionsOf(schema: unknown): Record<string, unknown> {
 }
 
 /**
- * A two-level lookup: definition name, then canonical content, yielding the name
- * that content will be emitted under. Built over every schema the surface will
- * compile, so the assignment is global.
+ * A two-level lookup: emitted identifier, then canonical content, yielding the
+ * name that content will be emitted under. Built over every schema the surface
+ * will compile, so the assignment is global.
  */
 export type DefinitionNameAssignment = ReadonlyMap<
   string,
   ReadonlyMap<string, string>
 >;
 
+/** A registry key for one (identifier, content) pair. */
+function definitionKey(identifier: string, content: string): string {
+  return `$defs\u0000${identifier}\u0000${content}`;
+}
+
+/** `$defs` in sorted key order, so a semantically neutral reordering of
+ * `components/schemas` cannot change which content keeps the bare name — two
+ * keys of one schema that sanitise onto one identifier are the case that
+ * depends on it. */
+function sortedDefinitions(schema: unknown): (readonly [string, unknown])[] {
+  return Object.entries(rootDefinitionsOf(schema)).sort(([a], [b]) =>
+    compareStrings(a, b),
+  );
+}
+
 /**
- * Assigns one emitted name per (definition name, distinct content) pair. The
- * first content in byte order keeps the bare name so the common case — one
- * content per name — never gets a suffix at all.
+ * Assigns one emitted name per (emitted identifier, distinct content) pair,
+ * through the shared registry so the result cannot collide with anything else
+ * the surface declares.
  */
 export function assignDefinitionNames(
   schemas: Iterable<unknown>,
+  registry: NameRegistry,
 ): DefinitionNameAssignment {
-  const contentsByName = new Map<string, Set<string>>();
-
-  for (const schema of schemas) {
-    for (const [name, definition] of Object.entries(
-      rootDefinitionsOf(schema),
-    )) {
-      const contents = contentsByName.get(name) ?? new Set<string>();
-
-      contents.add(canonicalJson(definition));
-      contentsByName.set(name, contents);
-    }
-  }
-
   const assignment = new Map<string, Map<string, string>>();
 
-  for (const [name, contents] of contentsByName) {
-    const perContent = new Map<string, string>();
-    const sorted = [...contents].sort(compareStrings);
+  for (const schema of schemas) {
+    for (const [name, definition] of sortedDefinitions(schema)) {
+      const identifier = safeIdentifier(name);
+      const content = canonicalJson(definition);
+      const perContent =
+        assignment.get(identifier) ?? new Map<string, string>();
 
-    for (const [index, content] of sorted.entries()) {
-      perContent.set(content, index === 0 ? name : `${name}_${index + 1}`);
+      assignment.set(identifier, perContent);
+
+      if (!perContent.has(content)) {
+        perContent.set(
+          content,
+          registry.assign(definitionKey(identifier, content), identifier),
+        );
+      }
     }
-
-    assignment.set(name, perContent);
   }
 
   return assignment;
@@ -160,6 +197,11 @@ function rewriteRefsInPlace(
  * Renames a schema's root `$defs` keys — and every `#/$defs/` pointer that
  * targets them, wherever it sits in the tree — to the globally assigned names.
  * Mutates the clone it is handed; the caller owns the clone.
+ *
+ * Key ORDER is left exactly as the description had it. Ordering is normalised
+ * in the one place it can be observed — `reflectExamplesInPlace`, where the
+ * order entries are visited in decides what later ones see — and normalising it
+ * twice would leave one of the two sorts unfalsifiable.
  */
 export function applyDefinitionNames(
   schema: unknown,
@@ -176,23 +218,45 @@ export function applyDefinitionNames(
   }
 
   const renames = new Map<string, string>();
-  const renamed: Record<string, unknown> = {};
+  const renamed = new Map<string, unknown>();
 
   for (const [name, definition] of Object.entries(defs)) {
+    const content = canonicalJson(definition);
     const assignedName =
-      assignment.get(name)?.get(canonicalJson(definition)) ?? name;
+      assignment.get(safeIdentifier(name))?.get(content) ??
+      safeIdentifier(name);
 
     if (assignedName !== name) {
       renames.set(name, assignedName);
     }
 
-    renamed[assignedName] = definition;
+    const occupant = renamed.get(assignedName);
+
+    // Unreachable by construction — the registry hands out one name per
+    // (identifier, content) pair and never repeats one — so it is a hard abort
+    // rather than a silent last-write-wins. The failure it replaces was the
+    // worst kind: one definition dropped, another retyped, and `tsc` reporting
+    // a clean surface because the emitted file was perfectly consistent with
+    // itself and wrong.
+    if (occupant !== undefined && canonicalJson(occupant) !== content) {
+      throw new ThymianBaseError(
+        `Two schema definitions would both be emitted as "${assignedName}" with different content.`,
+        {
+          name: 'DefinitionNameCollisionError',
+          suggestions: [
+            'This is a defect in the generated type surface, not in the API description.',
+            'Please report it, with the description that triggered it.',
+          ],
+        },
+      );
+    }
+
+    renamed.set(assignedName, definition);
   }
 
-  if (renames.size === 0) {
-    return;
-  }
+  schema['$defs'] = Object.fromEntries(renamed);
 
-  schema['$defs'] = renamed;
-  rewriteRefsInPlace(schema, renames);
+  if (renames.size > 0) {
+    rewriteRefsInPlace(schema, renames);
+  }
 }

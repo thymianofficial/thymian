@@ -34,10 +34,6 @@ export class DeclarationSet {
     }
   }
 
-  get size(): number {
-    return this.byText.size;
-  }
-
   /** Sorted by declared identifier, then by text so the order is total. */
   toSortedArray(): string[] {
     return [...this.byText.entries()]

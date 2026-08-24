@@ -97,16 +97,6 @@ function surfaceOf(specs: readonly TransactionSpec[]): Promise<string> {
   return generateRequestTypesSurface(formatFrom(specs));
 }
 
-function catchError(fn: () => unknown): ThymianError {
-  try {
-    fn();
-  } catch (error) {
-    return error as ThymianError;
-  }
-
-  throw new Error('Expected the call to throw, but it returned normally.');
-}
-
 async function catchAsyncError(
   fn: () => Promise<unknown>,
 ): Promise<ThymianError> {
@@ -885,6 +875,167 @@ describe('generateRequestTypesSurface', () => {
       },
     );
 
+    /**
+     * TypeScript's `{}` is "anything except null and undefined", so an
+     * `examples: [{}]` union member absorbed the base and every diagnostic with
+     * it. AC6 says the type stays assignable from any value of the BASE type;
+     * assignable from a number, a string and a function is a different claim,
+     * and it deletes the drift oracle for that body.
+     */
+    it(
+      'does not erase the body type for an empty-object example',
+      COMPILE_TIMEOUT,
+      async () => {
+        const base: ThymianSchema = {
+          type: 'object',
+          properties: { a: { type: 'string' } },
+        };
+        const probe = {
+          'probe.ts': `
+            import type { Endpoints } from './generated.js';
+
+            type Body = Endpoints['GET /e -> 200 (application/json)']['res']['body'];
+
+            export const n: Body = 42;
+            export const s: Body = 'hello';
+            export const f: Body = () => 1;
+          `,
+        };
+        const withExample = await surfaceOf([
+          {
+            path: '/e',
+            status: 200,
+            responseMediaType: 'application/json',
+            responseSchema: { ...base, examples: [{}] },
+          },
+        ]);
+        const withoutExample = await surfaceOf([
+          {
+            path: '/e',
+            status: 200,
+            responseMediaType: 'application/json',
+            responseSchema: base,
+          },
+        ]);
+
+        expect(compile(withExample, probe).diagnostics).toHaveLength(
+          compile(withoutExample, probe).diagnostics.length,
+        );
+        expect(compile(withExample, probe).diagnostics).toHaveLength(3);
+
+        // The example itself still has to be assignable — that is the point of
+        // reflecting it at all.
+        expect(
+          compile(withExample, {
+            'ok.ts': `
+              import type { Endpoints } from './generated.js';
+
+              export const empty: Endpoints['GET /e -> 200 (application/json)']['res']['body'] = {};
+            `,
+          }).diagnostics,
+        ).toEqual([]);
+      },
+    );
+
+    /**
+     * Base names were minted by string concatenation, outside the registry and
+     * outside sanitisation. Two siblings whose names pascal-case onto one stem
+     * therefore produced one identifier with two bodies.
+     */
+    it(
+      'gives two bases that share a stem two names',
+      COMPILE_TIMEOUT,
+      async () => {
+        const surface = await surfaceOf([
+          {
+            path: '/sib',
+            status: 200,
+            responseMediaType: 'application/json',
+            responseSchema: {
+              type: 'object',
+              properties: {
+                'user-profile': {
+                  type: 'object',
+                  examples: [{ a: 1 }],
+                  properties: { a: { type: 'number' } },
+                },
+                user_profile: {
+                  type: 'object',
+                  examples: [{ b: 'x' }],
+                  properties: { b: { type: 'string' } },
+                },
+              },
+            },
+          },
+        ]);
+
+        expect(compile(surface).diagnostics).toEqual([]);
+        expect(
+          [...declarations(surface).keys()].filter((name) =>
+            name.includes('UserProfileBase'),
+          ),
+        ).toHaveLength(2);
+      },
+    );
+
+    it(
+      'does not collide with a $defs entry named like a base',
+      COMPILE_TIMEOUT,
+      async () => {
+        const surface = await surfaceOf([
+          {
+            path: '/pb',
+            status: 200,
+            responseMediaType: 'application/json',
+            responseSchema: {
+              type: 'object',
+              properties: {
+                p: { $ref: '#/$defs/Pet' },
+                b: { $ref: '#/$defs/PetBase' },
+              },
+              $defs: {
+                Pet: {
+                  type: 'object',
+                  examples: [{ n: 'x' }],
+                  properties: { n: { type: 'string' } },
+                },
+                PetBase: {
+                  type: 'object',
+                  properties: { totallyDifferent: { type: 'boolean' } },
+                },
+              },
+            },
+          },
+        ]);
+
+        expect(compile(surface).diagnostics).toEqual([]);
+        expect(declarations(surface).get('PetBase')).toContain(
+          'totallyDifferent?: boolean',
+        );
+      },
+    );
+
+    it(
+      'declares the base it references when the stem is re-cased',
+      COMPILE_TIMEOUT,
+      async () => {
+        const surface = await surfaceOf([
+          {
+            path: '/v1beta/x',
+            status: 200,
+            responseMediaType: 'application/json',
+            responseSchema: {
+              type: 'object',
+              examples: [{ a: 1 }],
+              properties: { a: { type: 'number' } },
+            },
+          },
+        ]);
+
+        expect(compile(surface).diagnostics).toEqual([]);
+      },
+    );
+
     it('leaves enum and const nodes closed', async () => {
       const surface = await surfaceOf([
         {
@@ -1031,6 +1182,465 @@ describe('generateRequestTypesSurface', () => {
         false,
       );
     });
+
+    /**
+     * The fixture dimension the original suite had none of: a path whose
+     * sanitised form differs from its input. `json-schema-to-typescript`
+     * declares under `toSafeString(name)`, which upper-cases a lowercase letter
+     * that follows a digit, so `/v1beta` was declared as `…V1Beta…` and
+     * referenced as `…V1beta…`. Every one of these paths and parameter names is
+     * an ordinary value out of `plugin-openapi`; `/v1/users` is the control
+     * whose sanitised form is its input.
+     */
+    it(
+      'declares every identifier it references, including re-cased ones',
+      COMPILE_TIMEOUT,
+      async () => {
+        const body: ThymianSchema = {
+          type: 'object',
+          properties: { a: { type: 'string' } },
+        };
+        const surface = await surfaceOf([
+          {
+            method: 'POST',
+            path: '/v1beta/users',
+            requestMediaType: 'application/json',
+            status: 201,
+            responseMediaType: 'application/json',
+            requestBody: body,
+          },
+          {
+            method: 'GET',
+            path: '/oauth2token',
+            status: 200,
+            queryParameters: { '2fa': param(body) },
+          },
+          {
+            method: 'GET',
+            path: '/base64data',
+            status: 200,
+            responseMediaType: 'application/json',
+            responseSchema: body,
+          },
+          {
+            method: 'GET',
+            path: '/v1/users',
+            status: 200,
+            responseMediaType: 'application/json',
+            responseSchema: body,
+          },
+        ]);
+
+        expect(compile(surface).diagnostics).toEqual([]);
+
+        const names = [...declarations(surface).keys()];
+
+        expect(names).toContain(
+          'PostV1BetaUsersApplicationJson201ApplicationJsonRequestBody',
+        );
+        expect(names).toContain('GetOauth2Token200QueryParam_2Fa');
+        expect(names).toContain('GetBase64Data200ApplicationJsonResponseBody');
+      },
+    );
+
+    /**
+     * The suffix uniquifies CANDIDATES, but the library re-cases afterwards, so
+     * two distinct candidates could still collapse onto one identifier and be
+     * declared twice. Sanitising before uniquifying is what makes that
+     * impossible.
+     */
+    it(
+      'separates two selectors whose names sanitise onto one identifier',
+      COMPILE_TIMEOUT,
+      async () => {
+        const surface = await surfaceOf([
+          {
+            path: '/v1beta',
+            status: 200,
+            responseMediaType: 'application/json',
+            responseSchema: {
+              type: 'object',
+              properties: { a: { type: 'string' } },
+            },
+          },
+          {
+            path: '/v1-beta',
+            status: 200,
+            responseMediaType: 'application/json',
+            responseSchema: {
+              type: 'object',
+              properties: { b: { type: 'number' } },
+            },
+          },
+        ]);
+
+        expect(compile(surface).diagnostics).toEqual([]);
+        expect(
+          [...declarations(surface).keys()].filter((name) =>
+            name.startsWith('GetV1Beta200ApplicationJsonResponseBody'),
+          ),
+        ).toEqual([
+          'GetV1Beta200ApplicationJsonResponseBody',
+          'GetV1Beta200ApplicationJsonResponseBody_2',
+        ]);
+      },
+    );
+
+    /**
+     * Pins the sort in `assignUniqueNames`: catalog order puts `A.B` first,
+     * sorted site-key order puts `A-B` first (`-` is U+002D, `.` is U+002E), so
+     * the bare name goes to `A-B`. Removing the sort silently flips this, which
+     * is the one mutation the original suite did not catch.
+     */
+    it('gives the bare name by sorted site key, not by catalog order', async () => {
+      const bodyWith = (property: string): ThymianSchema => ({
+        type: 'object',
+        properties: { [property]: { type: 'string' } },
+      });
+      const surface = await surfaceOf([
+        {
+          method: 'A.B',
+          path: '/x',
+          status: 200,
+          responseMediaType: 'application/json',
+          responseSchema: bodyWith('dot'),
+        },
+        {
+          method: 'A-B',
+          path: '/x',
+          status: 200,
+          responseMediaType: 'application/json',
+          responseSchema: bodyWith('dash'),
+        },
+      ]);
+
+      expect(
+        declarations(surface).get('ABX200ApplicationJsonResponseBody'),
+      ).toContain('dash');
+      expect(
+        declarations(surface).get('ABX200ApplicationJsonResponseBody_2'),
+      ).toContain('dot');
+    });
+
+    /**
+     * `components/schemas/Status` is an entirely ordinary name and
+     * `plugin-openapi` hoists it verbatim into root `$defs`, so the surface's
+     * own aliases have to be claimed before anything else is named.
+     */
+    it(
+      'reserves its own aliases against a $defs entry of the same name',
+      COMPILE_TIMEOUT,
+      async () => {
+        const surface = await surfaceOf([
+          {
+            path: '/s',
+            status: 200,
+            responseMediaType: 'application/json',
+            responseSchema: {
+              type: 'object',
+              properties: {
+                s: { $ref: '#/$defs/Status' },
+                q: { $ref: '#/$defs/Selector' },
+              },
+              $defs: {
+                Status: {
+                  type: 'object',
+                  properties: { code: { type: 'number' } },
+                },
+                Selector: {
+                  type: 'object',
+                  properties: { k: { type: 'string' } },
+                },
+              },
+            },
+          },
+        ]);
+
+        expect(compile(surface).diagnostics).toEqual([]);
+        expect(declarations(surface).get('Selector')).toBe(
+          'export type Selector = keyof Endpoints;',
+        );
+        expect(unionMembers(surface, 'Status')).toEqual(['200']);
+      },
+    );
+
+    it(
+      'keys $defs disambiguation on the emitted identifier, not the raw key',
+      COMPILE_TIMEOUT,
+      async () => {
+        const surface = await surfaceOf([
+          {
+            path: '/a',
+            status: 200,
+            responseMediaType: 'application/json',
+            responseSchema: {
+              type: 'object',
+              properties: { p: { $ref: '#/$defs/pet-owner' } },
+              $defs: {
+                'pet-owner': {
+                  type: 'object',
+                  properties: { a: { type: 'string' } },
+                },
+              },
+            },
+          },
+          {
+            path: '/b',
+            status: 200,
+            responseMediaType: 'application/json',
+            responseSchema: {
+              type: 'object',
+              properties: { p: { $ref: '#/$defs/pet.owner' } },
+              $defs: {
+                'pet.owner': {
+                  type: 'object',
+                  properties: { b: { type: 'number' } },
+                },
+              },
+            },
+          },
+        ]);
+
+        expect(compile(surface).diagnostics).toEqual([]);
+        expect(declarations(surface).get('PetOwner')).toContain('a?: string');
+        expect(declarations(surface).get('PetOwner_2')).toContain('b?: number');
+      },
+    );
+
+    it(
+      'checks a generated $defs suffix against the names that already exist',
+      COMPILE_TIMEOUT,
+      async () => {
+        const surface = await surfaceOf([
+          {
+            path: '/a',
+            status: 200,
+            responseMediaType: 'application/json',
+            responseSchema: {
+              type: 'object',
+              properties: {
+                e: { $ref: '#/$defs/Err' },
+                f: { $ref: '#/$defs/Err_2' },
+              },
+              $defs: {
+                Err: { type: 'object', properties: { a: { type: 'string' } } },
+                Err_2: {
+                  type: 'object',
+                  properties: { z: { type: 'boolean' } },
+                },
+              },
+            },
+          },
+          {
+            path: '/b',
+            status: 200,
+            responseMediaType: 'application/json',
+            responseSchema: {
+              type: 'object',
+              properties: { e: { $ref: '#/$defs/Err' } },
+              $defs: {
+                Err: { type: 'object', properties: { b: { type: 'number' } } },
+              },
+            },
+          },
+        ]);
+
+        expect(compile(surface).diagnostics).toEqual([]);
+        expect(declarations(surface).get('Err')).toContain('a?: string');
+        expect(declarations(surface).get('Err_2')).toContain('z?: boolean');
+        expect(declarations(surface).get('Err_3')).toContain('b?: number');
+      },
+    );
+
+    /**
+     * The severest of the review's findings, inverted into an assertion. A
+     * rename landing on a sibling key used to drop one definition, retype the
+     * other and leave `tsc` with nothing at all to report — the drift oracle
+     * confirming a corrupted surface. Every definition has to survive, and each
+     * reference has to point at its own.
+     */
+    it(
+      'keeps every definition when a rename would land on a sibling',
+      COMPILE_TIMEOUT,
+      async () => {
+        const surface = await surfaceOf([
+          {
+            path: '/a',
+            status: 200,
+            responseMediaType: 'application/json',
+            responseSchema: {
+              type: 'object',
+              properties: {
+                p: { $ref: '#/$defs/Pet' },
+                q: { $ref: '#/$defs/Pet_2' },
+              },
+              $defs: {
+                Pet: {
+                  type: 'object',
+                  properties: { zzz: { type: 'number' } },
+                },
+                Pet_2: {
+                  type: 'object',
+                  properties: { iAmPet2: { type: 'boolean' } },
+                },
+              },
+            },
+          },
+          {
+            path: '/b',
+            status: 200,
+            responseMediaType: 'application/json',
+            responseSchema: {
+              type: 'object',
+              properties: { p: { $ref: '#/$defs/Pet' } },
+              $defs: {
+                Pet: {
+                  type: 'object',
+                  properties: { name: { type: 'string' } },
+                },
+              },
+            },
+          },
+        ]);
+        const emitted = declarations(surface);
+
+        expect(compile(surface).diagnostics).toEqual([]);
+        expect(emitted.get('Pet')).toContain('zzz?: number');
+        expect(emitted.get('Pet_2')).toContain('iAmPet2?: boolean');
+        expect(emitted.get('Pet_3')).toContain('name?: string');
+        expect(
+          entryText(surface, 'GET /a -> 200 (application/json)'),
+        ).toContain('GetA200ApplicationJsonResponseBody');
+        expect(emitted.get('GetA200ApplicationJsonResponseBody')).toContain(
+          'p?: Pet',
+        );
+        expect(emitted.get('GetA200ApplicationJsonResponseBody')).toContain(
+          'q?: Pet_2',
+        );
+        expect(emitted.get('GetB200ApplicationJsonResponseBody')).toContain(
+          'p?: Pet_3',
+        );
+      },
+    );
+
+    /**
+     * The bare name belongs to the content that was there first, so appending a
+     * transaction whose same-named definition disagrees adds a `_2` instead of
+     * demoting the incumbent and flipping every alias pointing at it.
+     */
+    it('leaves an incumbent definition alone when a divergent one is added', async () => {
+      const existing: TransactionSpec = {
+        path: '/a',
+        status: 200,
+        responseMediaType: 'application/json',
+        responseSchema: {
+          type: 'object',
+          properties: { e: { $ref: '#/$defs/Err' } },
+          $defs: {
+            Err: { type: 'object', properties: { zebra: { type: 'string' } } },
+          },
+        },
+      };
+      const added: TransactionSpec = {
+        path: '/b',
+        status: 200,
+        responseMediaType: 'application/json',
+        responseSchema: {
+          type: 'object',
+          properties: { e: { $ref: '#/$defs/Err' } },
+          $defs: {
+            Err: { type: 'object', properties: { alpha: { type: 'string' } } },
+          },
+        },
+      };
+
+      const before = schemaDeclarations(await surfaceOf([existing]));
+      const after = schemaDeclarations(await surfaceOf([existing, added]));
+
+      expect(before.get('Err')).toContain('zebra?: string');
+
+      for (const [name, text] of before) {
+        expect(after.get(name), name).toBe(text);
+      }
+
+      expect(after.get('Err_2')).toContain('alpha?: string');
+    });
+
+    /**
+     * A site that short-circuits to `unknown` contributes no declaration, so
+     * letting its `$defs` vote produced a `Pet_2` — "the second, divergent
+     * definition" — with no `Pet` for it to be second to.
+     */
+    it('gives no vote in $defs naming to a site that compiles to unknown', async () => {
+      // The non-JSON transaction comes FIRST, so an unfiltered vote would take
+      // the bare name for a definition that is never emitted and leave the one
+      // that is emitted as `Pet_2` — a suffix pointing at nothing.
+      const surface = await surfaceOf([
+        {
+          path: '/bin',
+          status: 200,
+          responseMediaType: 'application/octet-stream',
+          responseSchema: {
+            type: 'object',
+            properties: { p: { $ref: '#/$defs/Pet' } },
+            $defs: {
+              Pet: { type: 'object', properties: { aaa: { type: 'string' } } },
+            },
+          },
+        },
+        {
+          path: '/json',
+          status: 200,
+          responseMediaType: 'application/json',
+          responseSchema: {
+            type: 'object',
+            properties: { p: { $ref: '#/$defs/Pet' } },
+            $defs: {
+              Pet: { type: 'object', properties: { zzz: { type: 'number' } } },
+            },
+          },
+        },
+      ]);
+      const emitted = declarations(surface);
+
+      expect(emitted.get('Pet')).toContain('zzz?: number');
+      expect(emitted.has('Pet_2')).toBe(false);
+      expect(emitted.get('GetJson200ApplicationJsonResponseBody')).toContain(
+        'p?: Pet',
+      );
+    });
+
+    /**
+     * `400` is a legal `components/schemas` name. Handed on unchanged it
+     * sanitised to nothing, and the library's formatter aborted with a raw
+     * `SyntaxError` carrying no source, no location and no suggestion.
+     */
+    it(
+      'names a digit-leading $defs key rather than aborting out of the formatter',
+      COMPILE_TIMEOUT,
+      async () => {
+        const surface = await surfaceOf([
+          {
+            path: '/d',
+            status: 200,
+            responseMediaType: 'application/json',
+            responseSchema: {
+              type: 'object',
+              properties: { e: { $ref: '#/$defs/400' } },
+              $defs: {
+                '400': {
+                  type: 'object',
+                  properties: { m: { type: 'string' } },
+                },
+              },
+            },
+          },
+        ]);
+
+        expect(compile(surface).diagnostics).toEqual([]);
+        expect(declarations(surface).get('_400')).toContain('m?: string');
+      },
+    );
 
     it('leaves an existing transaction untouched when one is inserted ahead of it', async () => {
       const existing: TransactionSpec = {
@@ -1262,6 +1872,224 @@ describe('generateRequestTypesSurface', () => {
       expect(await generateRequestTypesSurface(roundTripped)).toBe(first);
     });
 
+    /**
+     * Reordering `components/schemas` changes nothing about the API, so it must
+     * change nothing about the file. It used to change three things: which
+     * definitions a base saw, which definitions kept their examples, and — in
+     * the Owner-first order — whether `Pet`'s examples reached the surface at
+     * all.
+     */
+    it('is unchanged by the order of $defs', async () => {
+      const owner: ThymianSchema = {
+        type: 'object',
+        examples: [{ name: 'o' }],
+        properties: { p: { $ref: '#/$defs/Pet' } },
+      };
+      const pet: ThymianSchema = {
+        type: 'object',
+        examples: [{ kind: 'cat' }],
+        properties: { kind: { type: 'string' } },
+      };
+      const withDefs = (
+        defs: Record<string, ThymianSchema>,
+      ): TransactionSpec => ({
+        path: '/op',
+        status: 200,
+        responseMediaType: 'application/json',
+        responseSchema: {
+          type: 'object',
+          properties: { o: { $ref: '#/$defs/Owner' } },
+          $defs: defs,
+        },
+      });
+
+      const ownerFirst = await surfaceOf([
+        withDefs({ Owner: owner, Pet: pet }),
+      ]);
+      const petFirst = await surfaceOf([withDefs({ Pet: pet, Owner: owner })]);
+
+      expect(ownerFirst).toBe(petFirst);
+      expect(declarations(ownerFirst).get('Pet')).toContain('PetBase');
+    });
+
+    /**
+     * The case that makes the reflection order itself observable: a base
+     * minted inside one definition and a base minted for another definition
+     * both want `AlphaBetaBase`, so which one gets the bare name is decided by
+     * which definition is visited first. Visiting them in the description's
+     * order made that a property of how the spec was written.
+     */
+    it(
+      'is unchanged by the order of $defs when two bases compete for one name',
+      COMPILE_TIMEOUT,
+      async () => {
+        const alpha: ThymianSchema = {
+          type: 'object',
+          properties: {
+            beta: {
+              type: 'object',
+              examples: [{ y: 1 }],
+              properties: { y: { type: 'number' } },
+            },
+          },
+        };
+        const alphaBeta: ThymianSchema = {
+          type: 'object',
+          examples: [{ z: 's' }],
+          properties: { z: { type: 'string' } },
+        };
+        const withDefs = (
+          defs: Record<string, ThymianSchema>,
+        ): TransactionSpec => ({
+          path: '/ab',
+          status: 200,
+          responseMediaType: 'application/json',
+          responseSchema: {
+            type: 'object',
+            properties: {
+              a: { $ref: '#/$defs/Alpha' },
+              b: { $ref: '#/$defs/AlphaBeta' },
+            },
+            $defs: defs,
+          },
+        });
+
+        const alphaFirst = await surfaceOf([
+          withDefs({ Alpha: alpha, AlphaBeta: alphaBeta }),
+        ]);
+        const betaFirst = await surfaceOf([
+          withDefs({ AlphaBeta: alphaBeta, Alpha: alpha }),
+        ]);
+
+        expect(compile(alphaFirst).diagnostics).toEqual([]);
+        expect(alphaFirst).toBe(betaFirst);
+        expect(declarations(alphaFirst).get('AlphaBetaBase')).toContain(
+          'y?: number',
+        );
+      },
+    );
+
+    /**
+     * Two keys of ONE schema that sanitise onto one identifier: which of them
+     * keeps the bare name has to come from the key set, not from the order the
+     * description happened to write them in.
+     */
+    it('is unchanged by the order of two $defs keys that share an identifier', async () => {
+      const dashed: ThymianSchema = {
+        type: 'object',
+        properties: { a: { type: 'string' } },
+      };
+      const dotted: ThymianSchema = {
+        type: 'object',
+        properties: { b: { type: 'number' } },
+      };
+      const withDefs = (
+        defs: Record<string, ThymianSchema>,
+      ): TransactionSpec => ({
+        path: '/d',
+        status: 200,
+        responseMediaType: 'application/json',
+        responseSchema: {
+          type: 'object',
+          properties: {
+            x: { $ref: '#/$defs/pet-owner' },
+            y: { $ref: '#/$defs/pet.owner' },
+          },
+          $defs: defs,
+        },
+      });
+
+      const dashFirst = await surfaceOf([
+        withDefs({ 'pet-owner': dashed, 'pet.owner': dotted }),
+      ]);
+      const dotFirst = await surfaceOf([
+        withDefs({ 'pet.owner': dotted, 'pet-owner': dashed }),
+      ]);
+
+      expect(dashFirst).toBe(dotFirst);
+      expect(declarations(dashFirst).get('PetOwner')).toContain('a?: string');
+    });
+
+    /**
+     * A base carries the root's `$defs` by reference, so compiling one during
+     * the walk froze whatever state those definitions were in: a definition
+     * reached later was emitted once unreflected and once reflected, and which
+     * happened depended on key order.
+     */
+    it(
+      'reflects a definition once, whichever definition reaches it first',
+      COMPILE_TIMEOUT,
+      async () => {
+        const alpha: ThymianSchema = {
+          type: 'object',
+          properties: {
+            inner: {
+              type: 'object',
+              examples: [{ q: 1 }],
+              properties: { z: { $ref: '#/$defs/Zeta' } },
+            },
+          },
+        };
+        const zeta: ThymianSchema = {
+          type: 'object',
+          properties: { n: { type: 'string', examples: ['q'] } },
+        };
+        const surface = await surfaceOf([
+          {
+            path: '/az',
+            status: 200,
+            responseMediaType: 'application/json',
+            responseSchema: {
+              type: 'object',
+              properties: { a: { $ref: '#/$defs/Alpha' } },
+              $defs: { Alpha: alpha, Zeta: zeta },
+            },
+          },
+        ]);
+
+        expect(compile(surface).diagnostics).toEqual([]);
+        expect(declarations(surface).get('Zeta')).toContain(
+          '"q" | (string & {})',
+        );
+      },
+    );
+
+    /**
+     * ADR-0013 names recursive schemas as normal input. A self-referential
+     * definition carrying its own examples was emitted twice — as an interface
+     * by its own base compile, and as an alias by the site compile.
+     */
+    it(
+      'emits a self-referential definition with examples exactly once',
+      COMPILE_TIMEOUT,
+      async () => {
+        const surface = await surfaceOf([
+          {
+            path: '/node',
+            status: 200,
+            responseMediaType: 'application/json',
+            responseSchema: {
+              type: 'object',
+              properties: { root: { $ref: '#/$defs/Node' } },
+              $defs: {
+                Node: {
+                  type: 'object',
+                  examples: [{ v: 1 }],
+                  properties: {
+                    next: { $ref: '#/$defs/Node' },
+                    v: { type: 'number' },
+                  },
+                },
+              },
+            },
+          },
+        ]);
+
+        expect(compile(surface).diagnostics).toEqual([]);
+        expect(surface.match(/\bNode\b(?= =| \{)/g)).toHaveLength(1);
+      },
+    );
+
     it('keeps Endpoints in catalog order rather than sorting it', async () => {
       const unsorted: TransactionSpec[] = [
         { method: 'GET', path: '/zebra', status: 200 },
@@ -1376,6 +2204,49 @@ describe('generateRequestTypesSurface', () => {
         '"application/JSON"',
         '"application/json"',
       ]);
+    });
+
+    /**
+     * `code-block-writer`'s `quote()` escapes `"`, `\\`, `\n` and `\r\n`, and falls
+     * through on a bare `\r` — a JS LineTerminator, so the string literal ended
+     * mid-line and the whole file stopped parsing. Neither a parameter name nor
+     * a media type is constrained by the selector grammar, so both reach it.
+     *
+     * It also made a key and its union member two different TEXTS, because the
+     * unions were already escaping properly. AC3 and AC14 want them
+     * byte-identical, which is asserted here rather than inferred.
+     */
+    it(
+      'escapes a control character in a parameter name and a media type',
+      COMPILE_TIMEOUT,
+      async () => {
+        const surface = await surfaceOf([
+          {
+            path: '/cr',
+            status: 200,
+            responseMediaType: 'application/json\rx',
+            headers: { 'x\rbad': param({ type: 'string' }) },
+          },
+        ]);
+
+        expect(compile(surface).diagnostics).toEqual([]);
+        expect(endpointKeys(surface)).toEqual([
+          'GET /cr -> 200 (application/json\rx)',
+        ]);
+      },
+    );
+
+    it('writes a key and its union member as the same text', async () => {
+      const mediaType = 'application/json\rx';
+      const surface = await surfaceOf([
+        { path: '/cr', status: 200, responseMediaType: mediaType },
+      ]);
+      const [member] = unionMembers(surface, 'ResponseMediaType');
+
+      expect(member).toBe(JSON.stringify(mediaType));
+      expect(entryText(surface, `GET /cr -> 200 (${mediaType})`)).toContain(
+        (member ?? '').slice(1, -1),
+      );
     });
 
     it('aborts on a media type containing a parenthesis', async () => {
@@ -1500,19 +2371,36 @@ describe('generateRequestTypesSurface', () => {
       expect(error.name).toBe('MalformedSelectorError');
     });
 
+    /**
+     * "No partial surface" is a claim about the GENERATOR: nothing at all comes
+     * back, not even the representable transactions. The previous form of this
+     * case asserted that `parseSelector('/fine')` rejects a bare path, which is
+     * a true statement about the parser and would hold whatever the generator
+     * did. The control below is what makes the assertion non-vacuous: the same
+     * fixture minus the unrepresentable transaction DOES produce those keys, so
+     * their absence is the abort and not the fixture.
+     */
     it('produces no partial surface when one transaction of many is unrepresentable', async () => {
-      const error = await catchAsyncError(() =>
-        surfaceOf([
-          { path: '/fine', status: 200 },
-          { path: '/not fine', status: 200 },
-          { path: '/also-fine', status: 200 },
-        ]),
+      const representable: TransactionSpec[] = [
+        { path: '/fine', status: 200 },
+        { path: '/also-fine', status: 200 },
+      ];
+      const outcome = await surfaceOf([
+        representable[0] as TransactionSpec,
+        { path: '/not fine', status: 200 },
+        representable[1] as TransactionSpec,
+      ]).then(
+        (surface) => surface,
+        (error: unknown) => error,
       );
 
-      expect(error.name).toBe('MalformedSelectorError');
-      expect(catchError(() => parseSelector('/fine')).name).toBe(
-        'MalformedSelectorError',
-      );
+      expect(typeof outcome).not.toBe('string');
+      expect((outcome as ThymianError).name).toBe('MalformedSelectorError');
+
+      expect(endpointKeys(await surfaceOf(representable))).toEqual([
+        'GET /fine -> 200',
+        'GET /also-fine -> 200',
+      ]);
     });
   });
 

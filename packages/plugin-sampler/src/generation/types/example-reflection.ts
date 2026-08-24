@@ -1,5 +1,10 @@
 import { canonicalJson } from './schema-definitions.js';
-import { pascalSegments } from './type-names.js';
+import {
+  compareStrings,
+  type NameRegistry,
+  pascalSegments,
+  safeIdentifier,
+} from './type-names.js';
 
 /**
  * Reflects a schema's own `examples` into the emitted types while keeping those
@@ -29,6 +34,18 @@ import { pascalSegments } from './type-names.js';
  * closed unions and widening them would be wrong. `$ref` nodes are left alone
  * too: following one turns a recursive schema (normal input per ADR-0013) into
  * an infinite walk, and reflecting onto one produces the self-reference above.
+ *
+ * NOTHING IS COMPILED DURING THE WALK. Every base is queued and compiled only
+ * after the whole schema has been reflected, because a base carries the root's
+ * `$defs` BY REFERENCE and compiling mid-walk freezes whatever state those
+ * definitions happened to be in. That produced three separate defects, all of
+ * them order-dependent: a definition emitted once reflected and once not
+ * (`interface Zeta { n?: string }` beside `interface Zeta { n?: "q" | … }`), a
+ * self-referential definition emitted as an interface by its own base compile
+ * and as an alias by the site compile, and a `$defs` reordering — a
+ * semantically neutral edit — changing the emitted file. Queueing makes every
+ * base see the same, fully reflected definitions, whatever order they were
+ * reached in.
  */
 
 type JsonObject = Record<string, unknown>;
@@ -136,7 +153,14 @@ export function literalTypeOf(value: unknown): string {
       ([key, item]) => `${JSON.stringify(key)}: ${literalTypeOf(item)}`,
     );
 
-    return members.length > 0 ? `{ ${members.join('; ')} }` : '{}';
+    // NOT `{}`. TypeScript's `{}` is "anything except null and undefined", so
+    // as a union member it absorbs the base type and every diagnostic with it:
+    // `examples: [{}]` made a response body accept `42`, `'hello'` and a
+    // function. `Record<string, never>` is the type that admits exactly the
+    // empty object, which is what the example actually says.
+    return members.length > 0
+      ? `{ ${members.join('; ')} }`
+      : 'Record<string, never>';
   }
 
   switch (typeof value) {
@@ -149,17 +173,38 @@ export function literalTypeOf(value: unknown): string {
   }
 }
 
+/** A base schema whose name is settled and whose compilation is not. */
+type QueuedBase = {
+  readonly schema: JsonObject;
+  readonly name: string;
+};
+
 type ReflectionContext = {
-  readonly compileBase: CompileBaseSchema;
-  readonly declarations: string[];
+  readonly registry: NameRegistry;
+  readonly queued: QueuedBase[];
   /**
-   * The root's `$defs`, already renamed and already reflected. A base compiled
-   * out of a nested node carries them so its `#/$defs/` pointers still resolve;
-   * they are shared by reference on purpose, so every base sees the identical
-   * — therefore de-duplicable — definition text.
+   * The root's `$defs`, already renamed and — by the time anything is compiled
+   * — already reflected. A base compiled out of a nested node carries them so
+   * its `#/$defs/` pointers still resolve; they are shared by reference on
+   * purpose, so every base sees the identical — therefore de-duplicable —
+   * definition text.
    */
   readonly rootDefinitions: JsonObject | undefined;
 };
+
+/**
+ * The registry key for a base.
+ *
+ * Both halves are load-bearing. The CONTENT half separates two bases that share
+ * a stem but not a body — sibling properties `user-profile` and `user_profile`
+ * both stem from `UserProfile` — which otherwise emitted one identifier with
+ * two bodies. The STEM half keeps two sites that happen to agree on a body from
+ * being merged into one another's declaration name, and is what lets a `$defs`
+ * entry reflected once per transaction resolve to a single `PetBase`.
+ */
+function baseKey(stem: string, content: string): string {
+  return `base\u0000${stem}\u0000${content}`;
+}
 
 async function reflectObjectNode(
   node: JsonObject,
@@ -168,10 +213,19 @@ async function reflectObjectNode(
   context: ReflectionContext,
   isRoot: boolean,
 ): Promise<void> {
-  const baseName = `${stem}Base`;
   const base: JsonObject = structuredClone(node);
 
   delete base['examples'];
+
+  // Named from the base BEFORE its children are reflected and before the root's
+  // definitions are attached: the children's own names are derived from this
+  // one, so the key has to be settled first. Equal pre-reflection content plus
+  // an equal stem gives equal post-reflection content, so the key still
+  // identifies the base exactly.
+  const baseName = context.registry.assign(
+    baseKey(stem, canonicalJson(base)),
+    `${stem}Base`,
+  );
 
   if (!isRoot && context.rootDefinitions && base['$defs'] === undefined) {
     base['$defs'] = context.rootDefinitions;
@@ -182,7 +236,7 @@ async function reflectObjectNode(
   // strictly smaller than the node it came from and `$ref` is never followed.
   await reflectChildren(base, baseName, context);
 
-  context.declarations.push(...(await context.compileBase(base, baseName)));
+  context.queued.push({ schema: base, name: baseName });
 
   node['tsType'] = [
     ...examples.map((example) => literalTypeOf(example)),
@@ -283,16 +337,26 @@ async function reflectChildren(
  * Reflects examples through a whole schema in place and returns the extra
  * declarations the object cases needed.
  *
- * `$defs` are reflected FIRST and exactly once, with each entry's own assigned
- * name as its stem. Both properties matter: a definition's reflected text must
- * not depend on which transaction reached it (or two sites emit one identifier
- * with two bodies), and a base compiled out of a nested node carries the
- * already-reflected definitions rather than re-reflecting them.
+ * Two passes, and the split is what makes the result order-independent.
+ *
+ * The first pass MUTATES: `$defs` are reflected before the schema itself, in
+ * sorted key order, each entry under its own assigned name as its stem. A
+ * definition's reflected text must not depend on which transaction reached it —
+ * or two sites emit one identifier with two bodies — nor on where in
+ * `components/schemas` it was written.
+ *
+ * The second pass COMPILES, and only once the first has finished. A base
+ * carries the root's `$defs` by reference, so a base compiled mid-walk saw
+ * whatever the definitions looked like at that moment: reflected if their key
+ * sorted earlier, raw if it sorted later. Compiling last means every base sees
+ * the same finished definitions, which is also what makes the resulting texts
+ * de-duplicable.
  */
 export async function reflectExamplesInPlace(
   schema: unknown,
   typeName: string,
   compileBase: CompileBaseSchema,
+  registry: NameRegistry,
 ): Promise<readonly string[]> {
   if (!isPlainObject(schema)) {
     return [];
@@ -301,18 +365,31 @@ export async function reflectExamplesInPlace(
   const definitions = schema['$defs'];
   const rootDefinitions = isPlainObject(definitions) ? definitions : undefined;
   const context: ReflectionContext = {
-    compileBase,
-    declarations: [],
+    registry,
+    queued: [],
     rootDefinitions,
   };
 
   if (rootDefinitions) {
-    for (const [name, definition] of Object.entries(rootDefinitions)) {
-      await reflectNode(definition, pascalSegments(name), context);
+    // Sorted, so reordering `components/schemas` — which changes nothing about
+    // the API — cannot change the emitted file. The key is already the emitted
+    // identifier (`applyDefinitionNames` renamed it), so it is used as the stem
+    // verbatim rather than re-derived: `pascalSegments` would turn `Pet_2` back
+    // into `Pet2` and hand the library a name it does not declare under.
+    for (const [name, definition] of Object.entries(rootDefinitions).sort(
+      ([a], [b]) => compareStrings(a, b),
+    )) {
+      await reflectNode(definition, safeIdentifier(name), context);
     }
   }
 
   await reflectNode(schema, typeName, context, true);
 
-  return context.declarations;
+  const declarations: string[] = [];
+
+  for (const { schema: base, name } of context.queued) {
+    declarations.push(...(await compileBase(base, name)));
+  }
+
+  return declarations;
 }
