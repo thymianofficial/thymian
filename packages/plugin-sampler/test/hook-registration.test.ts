@@ -113,6 +113,43 @@ describe('the registration contract', () => {
   });
 
   /**
+   * The mirror image of the check above: round 1 added `requireCallback`
+   * everywhere, but nothing guarded the **target** slot of the one overloaded
+   * factory. `authorize` dispatched on `typeof targetOrCallback === 'function'`,
+   * so `authorize(SELECTORS.login, fn)` after a rename — the ordinary way a
+   * selector constant goes missing — fell through to `target: undefined`, which
+   * *is* the global form. A hook the user aimed at one endpoint authorized every
+   * transaction in the API, with `hasErrors: false` and only a `logger.debug`
+   * line. Dispatch is on **arity** now: two arguments always mean targeted.
+   */
+  it('rejects a two-argument authorize whose target is missing', () => {
+    expect(() =>
+      (authorize as unknown as (t: unknown, c: unknown) => unknown)(
+        undefined,
+        noop,
+      ),
+    ).toThrow(TypeError);
+  });
+
+  it('rejects a two-argument authorize whose target is a function', () => {
+    // The same dispatch bug from the other side: this bound the *first*
+    // function as the global authorize hook and silently discarded the second.
+    // A function is never a `HookTarget`.
+    expect(() =>
+      (authorize as unknown as (t: unknown, c: unknown) => unknown)(noop, noop),
+    ).toThrow(TypeError);
+  });
+
+  it('names the missing target rather than the missing callback', () => {
+    expect(() =>
+      (authorize as unknown as (t: unknown, c: unknown) => unknown)(
+        undefined,
+        noop,
+      ),
+    ).toThrow(/no target/);
+  });
+
+  /**
    * `authorize` checked because it is overloaded; the other five did not, and a
    * one-argument `beforeEach(fn)` is the more plausible mistake — it type-checks
    * nowhere but runs fine in a plain `.js` hook file. Unchecked it stored

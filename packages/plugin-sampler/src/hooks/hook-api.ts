@@ -111,32 +111,65 @@ export function authorize(
   callback: AuthorizeCallback,
 ): HookRegistration;
 export function authorize(
-  targetOrCallback: HookTarget | AuthorizeCallback,
-  maybeCallback?: AuthorizeCallback,
+  ...args: [AuthorizeCallback] | [HookTarget, AuthorizeCallback]
 ): HookRegistration {
-  if (typeof targetOrCallback === 'function') {
-    return registerHook({
-      kind: 'authorize',
-      target: undefined,
-      callback: targetOrCallback,
-    });
+  // Dispatch on **arity**, never on the type of the first argument.
+  //
+  // Typing the dispatch (`typeof targetOrCallback === 'function'`) silently
+  // escalated scope in both directions. `authorize(SELECTORS.login, fn)` after a
+  // rename — the ordinary way a selector constant goes missing — left the first
+  // argument `undefined`, which is not a function, so the check below passed and
+  // the call fell through to `target: undefined`. On `authorize` that *is* the
+  // global form: a hook the user aimed at one endpoint authorized every
+  // transaction in the API, reported `hasErrors: false`, and said so only in an
+  // `info` diagnostic that `HookRunner.init` emits at `logger.debug`. In an
+  // authorization hook that is the wrong direction to fail. From the other side,
+  // `authorize(fn, otherFn)` bound `fn` globally and dropped `otherFn` on the
+  // floor. Two arguments now always mean targeted, and the target slot is
+  // checked for the two values that are never a `HookTarget` and that the old
+  // dispatch turned into the global hook.
+  //
+  // `null`, a number or `[]` in the target slot are deliberately NOT rejected
+  // here: they reach `resolveTargeting` and draw a load-time diagnostic exactly
+  // as they do for the other four factories. Only the silent cases are the one
+  // overloaded factory's own problem.
+  if (args.length === 1) {
+    const [callback] = args;
+
+    if (typeof callback !== 'function') {
+      throw authorizeArityError();
+    }
+
+    return registerHook({ kind: 'authorize', target: undefined, callback });
   }
 
-  if (typeof maybeCallback !== 'function') {
-    // Kept verbatim rather than routed through `requireCallback`: `authorize` is
-    // the one overloaded factory, so the actionable half of the message is the
-    // second sentence, naming the other arity.
+  const [target, callback] = args;
+
+  if (typeof callback !== 'function') {
+    throw authorizeArityError();
+  }
+
+  if (target === undefined || typeof target === 'function') {
     throw new TypeError(
-      'authorize(target, callback) needs a callback as its second argument. ' +
-        'Call authorize(callback) for the global hook.',
+      'authorize(target, callback) was called with no target. ' +
+        'Check that the selector or filter you passed is defined, ' +
+        'or call authorize(callback) for the global hook.',
     );
   }
 
-  return registerHook({
-    kind: 'authorize',
-    target: targetOrCallback,
-    callback: maybeCallback,
-  });
+  return registerHook({ kind: 'authorize', target, callback });
+}
+
+/**
+ * Kept verbatim rather than routed through `requireCallback`: `authorize` is the
+ * one overloaded factory, so the actionable half of the message is the second
+ * sentence, naming the other arity.
+ */
+function authorizeArityError(): TypeError {
+  return new TypeError(
+    'authorize(target, callback) needs a callback as its second argument. ' +
+      'Call authorize(callback) for the global hook.',
+  );
 }
 
 /** Runs once before the run. Carries no target (spec §6). */

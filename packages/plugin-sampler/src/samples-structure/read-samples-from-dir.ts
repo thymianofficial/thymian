@@ -9,7 +9,11 @@ import type {
   ContentSource,
   HttpRequestSample,
 } from '../http-request-sample.js';
-import { checkForSafePath, entryExists } from '../utils.js';
+import {
+  checkForSafePath,
+  entryExists,
+  PATH_TRAVERSAL_ERROR_NAME,
+} from '../utils.js';
 import {
   type FileRequestSample,
   isFileValue,
@@ -139,7 +143,7 @@ export async function extractSamplesNode<
   const samplesNode: SamplesNode = {
     meta,
     type: 'samples',
-    hooks: await extractHooksFromDir(dir),
+    hooks: extractHooksFromDir(dir),
     children: [request],
   };
 
@@ -164,9 +168,17 @@ export async function extractSamplesNode<
  *
  * The function and its return shape survive so `mergeHooks` in `merge-tree.ts` is
  * unaffected. Both die in 575.10 with the rest of the tree.
+ *
+ * Synchronous, because there is nothing left to await: it reads no directory and
+ * builds a constant. It stayed `async` after the body was emptied, so all three
+ * call sites `await`ed a value that was never a promise.
+ *
+ * `dir` stays in the signature on purpose, and not only to leave the call sites
+ * alone: the #615 tests hand it a directory containing a v1 `beforeEach.ts` whose
+ * import would leave a marker file behind, and assert the marker never appears.
+ * A parameterless function could not carry that evidence.
  */
-export async function extractHooksFromDir(dir: string): Promise<Hooks> {
-  // Kept in the signature: the three call sites and `mergeHooks` are unchanged.
+export function extractHooksFromDir(dir: string): Hooks {
   void dir;
 
   return {
@@ -222,7 +234,7 @@ export async function extractNodes(
       value: dirNameToValue(currentDirName, type),
       children: [],
       type,
-      hooks: await extractHooksFromDir(fullPath),
+      hooks: extractHooksFromDir(fullPath),
     } as const;
 
     for (const dirent of await readdir(fullPath, {
@@ -256,7 +268,7 @@ export async function readSamplesFromDir(
     children: [],
     meta: meta.version,
     type: 'root',
-    hooks: await extractHooksFromDir(dir),
+    hooks: extractHooksFromDir(dir),
   };
 
   for (const dirent of await readdir(dir, {
@@ -273,28 +285,59 @@ export async function readSamplesFromDir(
   return samples;
 }
 
+/** Walks `error` and its `cause` chain, cycle-safe, deepest wrap included. */
+function* causeChain(error: unknown): Generator<object> {
+  const seen = new Set<unknown>();
+  let current: unknown = error;
+
+  while (
+    typeof current === 'object' &&
+    current !== null &&
+    !seen.has(current)
+  ) {
+    seen.add(current);
+    yield current;
+    current = (current as { cause?: unknown }).cause;
+  }
+}
+
 /**
- * Errors this guard must **not** swallow.
+ * The one error this guard must **not** swallow.
  *
- * `checkForSafePath` raises `PathTraversalError` (`utils.ts:10-29`) to make a
- * sample file escaping its base directory a hard failure, and `readSamplesFromDir`
- * is its only remaining call path (`index.ts:226`) — a bare `catch` here made that
- * error unreachable, downgrading a refused path traversal to `logger.debug`.
- * `EACCES`/`EPERM` are the same class: an otherwise-valid tree the process may not
- * read surfaced as `No samples are loaded.`, which is a wrong diagnosis rather
- * than a degraded one.
+ * `checkForSafePath` raises `PathTraversalError` ({@link PATH_TRAVERSAL_ERROR_NAME})
+ * to make a sample file escaping its base directory a hard failure, and
+ * `readSamplesFromDir` is its only remaining call path (`index.ts`) — a bare
+ * `catch` here made that error unreachable, downgrading a refused path traversal
+ * to `logger.debug`.
  *
- * AC 12 asks the guard to tolerate the *unparseable* — absent, empty, truncated or
- * half-written — not the *forbidden*.
+ * The whole `cause` chain is inspected, not just the top-level error: anything
+ * that wraps the refusal on its way up would otherwise be demoted, which is the
+ * bare `catch` defect wearing a different hat.
  */
-function isForbidden(error: unknown): boolean {
-  if (error instanceof Error && error.name === 'PathTraversalError') {
-    return true;
+export function isPathTraversalError(error: unknown): boolean {
+  for (const link of causeChain(error)) {
+    if ((link as { name?: unknown }).name === PATH_TRAVERSAL_ERROR_NAME) {
+      return true;
+    }
   }
 
-  const code: unknown = (error as { code?: unknown } | null)?.code;
+  return false;
+}
 
-  return code === 'EACCES' || code === 'EPERM';
+/**
+ * `EACCES`/`EPERM` anywhere in the chain, so the debug line can name the actual
+ * problem instead of the generic one.
+ */
+function permissionCode(error: unknown): string | undefined {
+  for (const link of causeChain(error)) {
+    const code: unknown = (link as { code?: unknown }).code;
+
+    if (code === 'EACCES' || code === 'EPERM') {
+      return code;
+    }
+  }
+
+  return undefined;
 }
 
 /**
@@ -312,6 +355,19 @@ function isForbidden(error: unknown): boolean {
  * `sampler.path-from-transaction`, which throws its own `SamplesNotLoadedError`
  * when something actually invokes it. The honest failure stays confined to the one
  * command that needs a tree.
+ *
+ * **A forbidden tree degrades too.** `EACCES`/`EPERM` used to be re-raised, which
+ * contradicted AC 9 (*"never throws out of `core.format`"*) and AC 12 (*"present
+ * but unreadable … still runs clean"*): a root-created `.thymian/samples` in a
+ * container, or a CI job running as a different user, is the paradigm
+ * "present but unreadable" case, and it hard-failed `test`, `sampler init` and
+ * `sampler check` alike — none of which need the tree. The objection that put the
+ * re-raise here was to the wrong *diagnosis* (`No samples are loaded.` for a tree
+ * that is right there), and that is answered by naming `EACCES` in the debug line
+ * instead of by killing the run.
+ *
+ * `PathTraversalError` stays hard. It is not a tree we *cannot* read; it is a tree
+ * we have decided we *must not*.
  */
 export async function readSamplesFromDirIfUsable(
   dir: string,
@@ -324,14 +380,19 @@ export async function readSamplesFromDirIfUsable(
   try {
     return await readSamplesFromDir(dir);
   } catch (error) {
-    if (isForbidden(error)) {
+    if (isPathTraversalError(error)) {
       throw error;
     }
 
+    const denied = permissionCode(error);
+
     logger.debug(
-      `Ignoring the samples tree at "${dir}": it exists but could not be read (${
-        error instanceof Error ? error.message : String(error)
-      }). Only "sampler.path-from-transaction" needs it.`,
+      denied
+        ? `Ignoring the samples tree at "${dir}": this process may not read it (${denied}). ` +
+            `Only "sampler.path-from-transaction" needs it — fix the permissions if you use it.`
+        : `Ignoring the samples tree at "${dir}": it exists but could not be read (${
+            error instanceof Error ? error.message : String(error)
+          }). Only "sampler.path-from-transaction" needs it.`,
     );
 
     return undefined;

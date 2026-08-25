@@ -186,7 +186,6 @@ export const samplePlugin: ThymianPlugin<Partial<SamplerPluginOptions>> = {
 
     let format: ThymianFormat | undefined;
     let samples: SamplesStructure | undefined;
-    let transactionCatalog: TransactionCatalog | undefined;
 
     const requestSampler = new RequestSampler();
     const hookRunner = new HookRunner(
@@ -211,7 +210,7 @@ export const samplePlugin: ThymianPlugin<Partial<SamplerPluginOptions>> = {
       // load rather than half of it. Rebuilt on every format load and never
       // cached across loads. Hook targets resolve through it; the generated type
       // surface and transaction filters join in later stories.
-      transactionCatalog = TransactionCatalog.fromThymianFormat(format);
+      const transactionCatalog = TransactionCatalog.fromThymianFormat(format);
 
       logger.debug(
         `Indexed ${transactionCatalog.size} transaction selector(s).`,

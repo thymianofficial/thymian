@@ -140,6 +140,7 @@ export function isHookFile(name: string): boolean {
 type HookFile = {
   /** Hooks-dir-relative, `/`-normalized. The sort key and the diagnostic label. */
   key: string;
+  /** The entry's **real** path — symlinks resolved, so one file is one entry. */
   full: string;
 };
 
@@ -179,6 +180,22 @@ function compareKeys(a: string, b: string): number {
  * symlink that cannot be resolved is a diagnostic rather than a silent skip,
  * because a dangling link named `auth.ts` is exactly the case where "nothing
  * happened" is the wrong answer.
+ *
+ * Every entry is then resolved to its **real** path, and entries that share one
+ * are collapsed. Following a symlink is not enough on its own: when the link's
+ * target is *also* under the hooks directory, the scan sees one authored file
+ * under two spellings, and `evaluateModule` keys its cache on jiti's resolution
+ * of the path it is handed — which preserves the link spelling. That evaluated
+ * the file twice, and two evaluations produce two distinct registration objects
+ * for one authored hook, which the identity dedupe in `importRegistrations`
+ * cannot see. Observable as a `beforeEach` composing twice per request, and as a
+ * `defineSample` reported as its own rival ("that transaction's sample is
+ * already set by …" naming the link), an error with nothing the user can fix.
+ * Realpathing the scan **root** (below) fixes only the symlinked-ancestor case.
+ *
+ * Which spelling survives is decided **after** the sort, not by `readdir` order:
+ * the first key in sort order wins, the same tie-break the identity dedupe
+ * already uses to attribute a shared module.
  */
 async function collectHookFiles(
   hooksDir: string,
@@ -233,10 +250,31 @@ async function collectHookFiles(
       }
     }
 
-    files.push({ key, full });
+    let real = full;
+
+    try {
+      real = await realpath(full);
+    } catch {
+      // A path we could `readdir` but not `realpath`. Keep the spelling as read;
+      // the import below reports anything genuinely unreadable.
+    }
+
+    files.push({ key, full: real });
   }
 
-  return files.sort((a, b) => compareKeys(a.key, b.key));
+  files.sort((a, b) => compareKeys(a.key, b.key));
+
+  const seen = new Set<string>();
+
+  return files.filter((file) => {
+    if (seen.has(file.full)) {
+      return false;
+    }
+
+    seen.add(file.full);
+
+    return true;
+  });
 }
 
 /**
@@ -274,20 +312,28 @@ function messageOf(error: unknown): string {
  * `hookResolutionError`, which joins it into the one message a user sees.
  */
 function suggestionsOf(error: unknown): string[] | undefined {
-  if (!isThymianError(error)) {
+  try {
+    if (!isThymianError(error)) {
+      return undefined;
+    }
+
+    const suggestions: unknown = error.options?.suggestions;
+
+    if (
+      !Array.isArray(suggestions) ||
+      !suggestions.every((suggestion) => typeof suggestion === 'string')
+    ) {
+      return undefined;
+    }
+
+    return suggestions;
+  } catch {
+    // `?.` guards a missing `options`, not a throwing one. The thrown value
+    // reaching here is whatever the 575.4 seam raised, and it may be a Proxy of
+    // the user's making — reading it must not re-throw out of the catch block
+    // that exists to turn the failure into a diagnostic.
     return undefined;
   }
-
-  const suggestions: unknown = error.options?.suggestions;
-
-  if (
-    !Array.isArray(suggestions) ||
-    !suggestions.every((suggestion) => typeof suggestion === 'string')
-  ) {
-    return undefined;
-  }
-
-  return suggestions;
 }
 
 /**
@@ -298,8 +344,26 @@ function isSelectorList(target: HookTarget): target is readonly string[] {
   return Array.isArray(target);
 }
 
-/** The target as authored, rendered for a diagnostic. */
+/**
+ * The target as authored, rendered for a diagnostic — for **any** value.
+ *
+ * The branch guards below cover a throwing element or a circular filter, but
+ * `Array.isArray` throws before any of them on a revoked Proxy
+ * (`TypeError: Cannot perform 'IsArray' on a proxy that has been revoked`), and
+ * this function runs *before* `resolveTargeting` precisely to label the
+ * diagnostic that reports the failure. A renderer that can throw cannot do that
+ * job, so the whole body is guarded and the inner catches stay only for their
+ * more specific labels.
+ */
 export function describeTarget(target: HookTarget | undefined): string {
+  try {
+    return renderTarget(target);
+  } catch {
+    return '[unprintable target]';
+  }
+}
+
+function renderTarget(target: HookTarget | undefined): string {
   if (target === undefined) {
     return 'global';
   }
@@ -365,6 +429,33 @@ function matchTransactionFilter(
  * fallback.
  */
 function resolveTargeting(
+  target: HookTarget,
+  catalog: TransactionCatalog,
+): TargetResolution {
+  try {
+    return resolveTargetingUnguarded(target, catalog);
+  } catch (error) {
+    // The target is user data all the way down, and this function is where it
+    // is finally *used*: `Array.isArray`, `selectors.length` and the `for…of`
+    // iteration each run the user's `get` trap, and `Array.isArray` throws
+    // outright on a revoked Proxy. The 575.4 filter seam below can raise
+    // anything at all. Each of those escaped `loadUserHooks` as an unformatted
+    // error with no `file:` attribution and destroyed the whole scan, so the
+    // healthy files never bound — the exact opposite of AC 6.
+    //
+    // The inner `try`s stay: they report *which selector* failed, which this
+    // one cannot know.
+    return {
+      ok: false,
+      error: `could not be resolved — ${messageOf(error)}`,
+      suggestions: suggestionsOf(error) ?? [
+        'Target a hook with a selector string, a list of selector strings, or a transaction filter.',
+      ],
+    };
+  }
+}
+
+function resolveTargetingUnguarded(
   target: HookTarget,
   catalog: TransactionCatalog,
 ): TargetResolution {
@@ -932,6 +1023,36 @@ export async function loadUserHooks(
   // `fsCache` stays on: it caches *transpiled source* keyed by file content, so
   // it cannot serve a stale module — only a stale transpile of bytes that have
   // not changed.
+  //
+  // WHAT THIS DOES NOT REACH (deferred #726). `moduleCache: false` governs the
+  // modules jiti **transpiles**. jiti 2.6.1 decides per module with
+  //
+  //   forceTranspile ?? (!isCjsExt && !(isEsm && async) &&
+  //                      (isTs || isEsm || isTransformRe || hasESMSyntax(src)))
+  //
+  // and `evaluateModule` passes `async: true`, so `.cjs` (`isCjsExt`), `.mjs`
+  // and every `.js` in a `"type": "module"` package (`isEsm`) are handed to
+  // Node's own loader **whatever their syntax** — and an async native load is a
+  // dynamic `import()`, so they live in Node's **ESM registry**, which has no
+  // eviction API at all. `require.cache` is genuinely clean here (measured), but
+  // it is not where these modules are.
+  //
+  // Two corrections to what this story used to record. The residue is NOT just
+  // "a `.cjs`, or a `.js` with no ESM syntax": that is one member of a wider set,
+  // and a `.js` *with* ESM syntax in a CJS package is on the fresh side. And such
+  // a module is NOT harmless because it "cannot resolve `@thymian/hooks`": it
+  // does not have to *declare* a hook to *determine* one. A `sel.mjs` exporting
+  // the selector a `.ts` hook targets is stale across loads in one process, so an
+  // edited hook silently keeps its old binding.
+  //
+  // What IS closed is the half that matters most: a native load that throws falls
+  // back to transpiling, and the bare `@thymian/hooks` specifier resolves only
+  // through the jiti alias below — Node's loader cannot see it. So any file that
+  // *creates* a registration always transpiles and is always fresh. The boundary
+  // is pinned by `test/load-user-hooks.test.ts`'s "transpile/native boundary"
+  // suite; `async: false` would move `.mjs` across it but breaks top-level await
+  // and still leaves `.cjs` behind, which is why #726 is deferred rather than
+  // patched here.
   const jiti = createJiti(import.meta.url, {
     alias: { [HOOKS_RUNTIME_SPECIFIER]: hooksRuntimeModule },
     moduleCache: false,
@@ -1288,13 +1409,30 @@ function bindRegistrations(
   return bound;
 }
 
+/**
+ * One diagnostic, one line — a property of the renderer, not of its inputs.
+ *
+ * Both halves of a diagnostic can carry a newline. `reason` wraps whatever the
+ * failure said, and jiti's `ParseError` message ends with a newline and an
+ * absolute path, which put a bare unindented `/private/var/…/a-broken.ts:1:17`
+ * on its own line in the middle of {@link hookResolutionError}'s list. `anchor`
+ * is user data too: `describeTarget` renders a selector string verbatim, so a
+ * selector containing a newline breaks the same contract. Collapsing the
+ * assembled line covers every field at once, including any added later.
+ *
+ * Only the *rendered* line is collapsed. `HookDiagnostic.reason` keeps its
+ * original text, because 575.10's `sampler validate` renders the same array and
+ * may want to lay a long parse error out differently.
+ */
 function formatDiagnostic(diagnostic: HookDiagnostic): string {
   const parts = [diagnostic.file || '<hooks>'];
   const head = [diagnostic.kind, diagnostic.anchor]
     .filter((part) => part !== undefined && part !== '')
     .join(' ');
 
-  return `${parts.join('')}: ${head ? `${head} — ` : ''}${diagnostic.reason}`;
+  return `${parts.join('')}: ${head ? `${head} — ` : ''}${diagnostic.reason}`
+    .replace(/\s+/g, ' ')
+    .trim();
 }
 
 /**

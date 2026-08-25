@@ -1,7 +1,7 @@
 import { mkdir, rm, writeFile } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
 
-import type { HttpRequestTemplate } from '@thymian/core';
+import { type HttpRequestTemplate, ThymianBaseError } from '@thymian/core';
 import { createThymianFormatWithTransactions } from '@thymian/core-testing';
 import { afterAll, describe, expect, it } from 'vitest';
 
@@ -289,6 +289,28 @@ describe('conflicts', () => {
     }
   });
 
+  it('never widens a targeted authorize into a global one', async () => {
+    // `SELECTORS.login` is `undefined` after a rename. The load must not bind
+    // this hook to all three transactions and call it clean.
+    const hooksDir = await writeHooks({
+      'auth.ts': [
+        `import { authorize } from '@thymian/hooks';`,
+        `const SELECTORS = {};`,
+        `export const login = authorize(SELECTORS.login, async (v) => ({ ...v, path: 'escalated' }));`,
+        ``,
+      ].join('\n'),
+    });
+
+    const result = await loadUserHooks(hooksDir, catalog);
+
+    expect(result.hasErrors).toBe(true);
+    expect(result.boundHookCount).toBe(0);
+
+    for (const selector of selectors) {
+      expect(await tagFor(result, selector)).toBeUndefined();
+    }
+  });
+
   it('rejects two global authorize hooks, naming both files', async () => {
     const hooksDir = await writeHooks({
       'a-global.ts': [
@@ -389,6 +411,36 @@ describe('aggregation', () => {
     expect(message).toContain('GET /gone-one -> 200');
     expect(message).toContain('GET /gone-two -> 200');
     expect(message).toContain('GET /gone-three -> 200');
+  });
+
+  it('keeps one error to one line, even a multi-line import failure', async () => {
+    // `formatDiagnostic` interpolated `reason` verbatim, and jiti's `ParseError`
+    // carries a newline plus an absolute path — so line 2 of the aggregated
+    // message was a bare unindented `/private/var/…/a-broken.ts:1:17`, breaking
+    // out of the `"  ${line}"` list the docblock promises is one per line.
+    const hooksDir = await writeHooks({
+      'a-broken.ts': 'export const x = ;\n',
+      'b-dangling.ts': [
+        `import { beforeEach } from '@thymian/hooks';`,
+        `export const h = beforeEach('GET /nope -> 200', async (v) => v);`,
+        ``,
+      ].join('\n'),
+    });
+
+    const result = await loadUserHooks(hooksDir, catalog);
+    const lines = hookResolutionError(result.diagnostics).message.split('\n');
+
+    expect(errorsOf(result)).toHaveLength(2);
+    // One header line plus exactly one line per error.
+    expect(lines).toHaveLength(3);
+
+    for (const line of lines.slice(1)) {
+      expect(line.startsWith('  ')).toBe(true);
+      expect(line.trim().startsWith('/')).toBe(false);
+    }
+
+    expect(lines[1]).toContain('a-broken.ts: could not be imported');
+    expect(lines[1]).toContain('ParseError');
   });
 
   it('names the error `HookResolutionError` and sets no dangling `ref`', async () => {
@@ -582,6 +634,258 @@ describe('a resolution error that is not a ThymianError', () => {
 
     expect(result.hasErrors).toBe(true);
     expect(errorsOf(result)[0]?.reason).toContain('the matcher blew up');
+    expect(errorsOf(result)[0]?.suggestions).toBeUndefined();
+  });
+});
+
+/**
+ * Every transformation the resolution path applies to the user's **target**
+ * value, with a fixture that crosses each one.
+ *
+ * `hook-api.ts` stores `target` verbatim and `snapshotRegistration` copies the
+ * reference, so the frozen snapshot freezes the registration's *fields*, not the
+ * target's *value*. `targetOf` then hands the live user object to
+ * `describeTarget` and `resolveTargeting`, where `Array.isArray`, `.length` and
+ * the `for…of` iteration all used to run outside any `try` — so one exotic
+ * target escaped `loadUserHooks` as an unformatted error with no `file:`
+ * attribution, breaking both "never throws for user error" and AC 6's "one
+ * broken file must not hide the other nine".
+ */
+describe('an exotic target value on the resolution path', () => {
+  const cases: [
+    name: string,
+    source: string,
+    marker: string,
+    anchor: string,
+  ][] = [
+    [
+      'a revoked Proxy, which throws from `Array.isArray` itself',
+      [
+        `const revocable = Proxy.revocable([], {});`,
+        `revocable.revoke();`,
+        `export const h = beforeEach(revocable.proxy, async (v) => v);`,
+      ].join('\n'),
+      'revoked',
+      // `Array.isArray` throws before any branch of the renderer runs.
+      '[unprintable target]',
+    ],
+    [
+      'a Proxy array whose `length` read throws',
+      [
+        `export const h = beforeEach(new Proxy([], {`,
+        `  get(t, k, r) {`,
+        `    if (k === 'length') { throw new Error('boom-length'); }`,
+        `    return Reflect.get(t, k, r);`,
+        `  },`,
+        `}), async (v) => v);`,
+      ].join('\n'),
+      'boom-length',
+      // `map` reads `length` first, so the renderer's own list guard catches it.
+      '[unprintable selector list]',
+    ],
+    [
+      'a Proxy array whose `Symbol.iterator` read throws',
+      [
+        `export const h = beforeEach(new Proxy(['x'], {`,
+        `  get(t, k, r) {`,
+        `    if (k === Symbol.iterator) { throw new Error('boom-iterator'); }`,
+        `    return Reflect.get(t, k, r);`,
+        `  },`,
+        `}), async (v) => v);`,
+      ].join('\n'),
+      'boom-iterator',
+      // `map` never touches `Symbol.iterator`, so the anchor renders in full and
+      // only `resolveTargeting`'s `for…of` trips.
+      '["x"]',
+    ],
+    [
+      'a Proxy array whose element read throws',
+      [
+        `export const h = beforeEach(new Proxy(['x'], {`,
+        `  get(t, k, r) {`,
+        `    if (k === '0') { throw new Error('boom-element'); }`,
+        `    return Reflect.get(t, k, r);`,
+        `  },`,
+        `}), async (v) => v);`,
+      ].join('\n'),
+      'boom-element',
+      '[unprintable selector list]',
+    ],
+  ];
+
+  it.each(cases)(
+    'becomes a diagnostic: %s',
+    async (_name, source, marker, anchor) => {
+      const hooksDir = await writeHooks({
+        'h.ts': [
+          `import { beforeEach } from '@thymian/hooks';`,
+          source,
+          ``,
+        ].join('\n'),
+      });
+
+      const result = await loadUserHooks(hooksDir, catalog);
+
+      expect(result.hasErrors).toBe(true);
+      expect(errorsOf(result)).toHaveLength(1);
+      // Attributed to the file that wrote it, like every other user-value
+      // failure.
+      expect(errorsOf(result)[0]?.file).toBe('h.ts');
+      expect(errorsOf(result)[0]?.kind).toBe('beforeEach');
+      expect(errorsOf(result)[0]?.reason).toContain(marker);
+      // Each fallback label of `describeTarget` is reached by exactly one of
+      // these fixtures; nothing in the suite used to reach any of them.
+      expect(errorsOf(result)[0]?.anchor).toBe(anchor);
+    },
+  );
+
+  it('renders `[unprintable filter]` for a circular filter target', async () => {
+    // The filter-branch fallback of `describeTarget`. Reachable and correct, but
+    // never reached by the suite: `safeString` handles the nearest case before
+    // the `JSON.stringify` guard matters.
+    const hooksDir = await writeHooks({
+      'h.ts': [
+        `import { beforeEach } from '@thymian/hooks';`,
+        `const filter = {};`,
+        `filter.self = filter;`,
+        `export const h = beforeEach(filter, async (v) => v);`,
+        ``,
+      ].join('\n'),
+    });
+
+    const result = await loadUserHooks(hooksDir, catalog);
+
+    expect(errorsOf(result)[0]?.anchor).toBe('[unprintable filter]');
+    expect(errorsOf(result)[0]?.reason).toContain('matched none');
+  });
+
+  it('drops a suggestion list that is not all strings', async () => {
+    // `hookResolutionError` joins `suggestions` into the one message a user
+    // sees, so a non-string element would be rendered into it. The element-wise
+    // check is what stops that, and nothing used to catch its removal.
+    const hostileCatalog = {
+      size: 1,
+      entries: () => [],
+      resolve: () => {
+        throw new ThymianBaseError('nope', {
+          name: 'SelectorNotFoundError',
+          suggestions: ['a real suggestion', 42] as unknown as string[],
+        });
+      },
+      tryResolve: () => undefined,
+      selectors: () => [],
+    } as unknown as TransactionCatalog;
+
+    const hooksDir = await writeHooks({
+      'h.ts': [
+        `import { beforeEach } from '@thymian/hooks';`,
+        `export const h = beforeEach(${JSON.stringify(selectorA)}, async (v) => v);`,
+        ``,
+      ].join('\n'),
+    });
+
+    const result = await loadUserHooks(hooksDir, hostileCatalog);
+
+    expect(errorsOf(result)[0]?.suggestions).toBeUndefined();
+    expect(hookResolutionError(result.diagnostics).options.suggestions).toEqual(
+      [],
+    );
+  });
+
+  it('renders an anchor for a target `describeTarget` cannot read', async () => {
+    // `describeTarget` runs *before* `resolveTargeting`, to build the anchor of
+    // the diagnostic that reports the failure. `Array.isArray` throws on a
+    // revoked Proxy before any of its branches — and before its inner guards.
+    const hooksDir = await writeHooks({
+      'h.ts': [
+        `import { beforeEach } from '@thymian/hooks';`,
+        `const revocable = Proxy.revocable([], {});`,
+        `revocable.revoke();`,
+        `export const h = beforeEach(revocable.proxy, async (v) => v);`,
+        ``,
+      ].join('\n'),
+    });
+
+    const result = await loadUserHooks(hooksDir, catalog);
+
+    expect(errorsOf(result)[0]?.anchor).toBe('[unprintable target]');
+  });
+
+  it('costs the user the one file, not the whole scan', async () => {
+    // AC 6: one broken file must not hide the other nine. The bad file sorts
+    // first, so a throw out of the binding loop took both healthy files with it.
+    const hooksDir = await writeHooks({
+      'aaa-bad.ts': [
+        `import { beforeEach } from '@thymian/hooks';`,
+        `const revocable = Proxy.revocable([], {});`,
+        `revocable.revoke();`,
+        `export const bad = beforeEach(revocable.proxy, async (v) => v);`,
+        ``,
+      ].join('\n'),
+      'bbb-good.ts': [
+        `import { beforeEach } from '@thymian/hooks';`,
+        `export const good = beforeEach(${JSON.stringify(selectorB)}, async (v) => v);`,
+        ``,
+      ].join('\n'),
+      'ccc-good.ts': [
+        `import { beforeEach } from '@thymian/hooks';`,
+        `export const good = beforeEach(${JSON.stringify(selectorC)}, async (v) => v);`,
+        ``,
+      ].join('\n'),
+    });
+
+    const result = await loadUserHooks(hooksDir, catalog);
+
+    expect(errorsOf(result)).toHaveLength(1);
+    expect(errorsOf(result)[0]?.file).toBe('aaa-bad.ts');
+    expect(result.boundHookCount).toBe(2);
+    expect(result.perTransaction.get(idOf(selectorB))?.beforeEach).toHaveLength(
+      1,
+    );
+    expect(result.perTransaction.get(idOf(selectorC))?.beforeEach).toHaveLength(
+      1,
+    );
+  });
+
+  it('survives a hostile error object thrown out of resolution', async () => {
+    // The guard must not itself throw while reading the error it is reporting:
+    // `suggestionsOf` reads `error.options?.suggestions`, and `?.` does not
+    // protect against a getter that throws.
+    const hostileCatalog = {
+      size: 1,
+      entries: () => [],
+      resolve: () => {
+        throw new Proxy(new Error('hostile'), {
+          get(target, key, receiver) {
+            if (key === 'options') {
+              throw new Error('even the error fights back');
+            }
+
+            return Reflect.get(target, key, receiver);
+          },
+        });
+      },
+      tryResolve: () => undefined,
+      selectors: () => [],
+    } as unknown as TransactionCatalog;
+
+    const hooksDir = await writeHooks({
+      'h.ts': [
+        `import { beforeEach } from '@thymian/hooks';`,
+        `export const h = beforeEach(${JSON.stringify(selectorA)}, async (v) => v);`,
+        ``,
+      ].join('\n'),
+    });
+
+    const result = await loadUserHooks(hooksDir, hostileCatalog);
+
+    expect(result.hasErrors).toBe(true);
+    expect(errorsOf(result)[0]?.file).toBe('h.ts');
+    // The user reads the reason their hook failed — `hostile` — not the reason
+    // the *reporter* failed. Without a guard inside `suggestionsOf` the throw
+    // escapes its own catch block, and the outer guard then overwrites the real
+    // diagnosis with `could not be resolved — …`.
+    expect(errorsOf(result)[0]?.reason).toBe('hostile');
     expect(errorsOf(result)[0]?.suggestions).toBeUndefined();
   });
 });

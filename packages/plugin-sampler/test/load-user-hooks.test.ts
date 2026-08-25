@@ -113,6 +113,17 @@ function anchorsOf(result: LoadUserHooksResult): (string | undefined)[] {
     .map((diagnostic) => diagnostic.anchor);
 }
 
+/** The `file` label of every per-hook diagnostic, in order, deduplicated. */
+function filesOf(result: LoadUserHooksResult): string[] {
+  return [
+    ...new Set(
+      result.diagnostics
+        .filter((diagnostic) => diagnostic.kind !== undefined)
+        .map((diagnostic) => diagnostic.file),
+    ),
+  ];
+}
+
 describe('isHookFile', () => {
   it('keeps every JS/TS module extension the spec names', () => {
     for (const name of [
@@ -166,6 +177,7 @@ describe('loadUserHooks — the scan', () => {
   it('walks recursively and composes in sorted relative-path order', async () => {
     const hooksDir = await writeHooks({
       'a.ts': tagging(selectorA, 'a'),
+      'B.ts': tagging(selectorA, 'B'),
       'nested/b.ts': tagging(selectorA, 'b'),
       'nested/deep/c.ts': tagging(selectorA, 'c'),
       '.eslintrc.ts': tagging(selectorA, 'dot'),
@@ -174,9 +186,36 @@ describe('loadUserHooks — the scan', () => {
     const result = await loadUserHooks(hooksDir, catalog);
 
     expect(errorsOf(result)).toEqual([]);
-    expect(result.fileCount).toBe(4);
-    // "." (0x2E) sorts before "a"; "a.ts" before "nested/...".
-    expect(await compose(result, firstTransactionId())).toBe('dotabc');
+    expect(result.fileCount).toBe(5);
+    // "." (0x2E) sorts before "B" (0x42) sorts before "a" (0x61); "a.ts" before
+    // "nested/...".
+    //
+    // `B.ts` next to `a.ts` is the pair that makes this an AC 2 test rather than
+    // a walk test. AC 2 is *about* cross-platform determinism, and swapping
+    // `compareKeys` for `a.localeCompare(b)` — the exact regression the comparator
+    // exists to prevent, since `localeCompare` without an explicit locale reads
+    // the host locale and the host ICU build — used to leave the whole suite
+    // green: the old fixture keys ordered identically under both comparators.
+    // Under `localeCompare` this composes `dotaBbc`.
+    expect(await compose(result, firstTransactionId())).toBe('dotBabc');
+  });
+
+  it('labels a diagnostic with the hooks-dir-relative, `/`-joined path', async () => {
+    // The documented `file` contract: relative to the hooks dir, never absolute,
+    // and `/`-joined on every platform. The `\\` → `/` normalization in
+    // `hooksDirRelative` is a no-op on POSIX, so this pins the relative-and-
+    // joined half everywhere and the whole contract on the Windows CI leg.
+    const hooksDir = await writeHooks({
+      'nested/deep/c.ts': [
+        `import { beforeEach } from '@thymian/hooks';`,
+        `export const gone = beforeEach('GET /renamed -> 200', async (v) => v);`,
+        ``,
+      ].join('\n'),
+    });
+
+    const result = await loadUserHooks(hooksDir, catalog);
+
+    expect(result.diagnostics[0]?.file).toBe('nested/deep/c.ts');
   });
 
   it('keeps a dot-file but skips a dot-directory', async () => {
@@ -705,6 +744,38 @@ describe('loadUserHooks — a user value that fights back', () => {
     expect(errorsOf(result).join('\n')).toContain('callback is not a function');
     expect(result.perTransaction.size).toBe(0);
   });
+
+  it('sorts a branded value with a non-numeric `order` last, not first', async () => {
+    // `snapshotRegistration` maps a non-numeric `order` to
+    // `Number.MAX_SAFE_INTEGER`. It can only come from a hand-rolled or
+    // version-skewed branded value, and putting an unknown creation index
+    // *ahead* of the hooks the user really did author would silently change
+    // their composition order. Changing that constant to `0` inverts the rule,
+    // and nothing in the suite used to notice.
+    const hooksDir = await writeHooks({
+      'mixed.ts': [
+        `import { beforeEach } from '@thymian/hooks';`,
+        `export const handRolled = {`,
+        `  kind: 'beforeEach',`,
+        `  order: 'not-a-number',`,
+        `  target: ${JSON.stringify(selectorA)},`,
+        `  callback: async (value) => ({ ...value, path: value.path + 'X' }),`,
+        `  [${BRAND}]: true,`,
+        `};`,
+        `export const authored = beforeEach(${JSON.stringify(selectorA)}, async (value) => ({`,
+        `  ...value,`,
+        `  path: value.path + 'r',`,
+        `}));`,
+        ``,
+      ].join('\n'),
+    });
+
+    const result = await loadUserHooks(hooksDir, catalog);
+
+    expect(errorsOf(result)).toEqual([]);
+    // `handRolled` is collected first (namespace key order) but composes last.
+    expect(await compose(result, firstTransactionId())).toBe('rX');
+  });
 });
 
 describe('loadUserHooks — the created-but-not-exported diff', () => {
@@ -781,8 +852,158 @@ describe('loadUserHooks — the created-but-not-exported diff', () => {
   });
 });
 
+/**
+ * Which extensions jiti transpiles, and which it hands to Node's own loader.
+ *
+ * This is the boundary of deferred issue #726, and it is the dimension both
+ * existing freshness tests fail to vary: they use `.ts` only. jiti 2.6.1 decides
+ * with `forceTranspile ?? (!isCjsExt && !(isEsm && async) && (isTs || isEsm ||
+ * isTransformRe || hasESMSyntax(source)))`, and this loader passes `async: true`
+ * — so `.cjs`, `.mjs` and a `.js` in a `"type": "module"` package all go native,
+ * whatever their syntax, and land in Node's ESM registry, which has no eviction
+ * API. A native load that *fails* falls back to transpiling, which is why any
+ * file that resolves `@thymian/hooks` (a jiti-only alias Node cannot see) is
+ * always fresh — and therefore why a stale module can never *declare* a hook.
+ *
+ * It can still *determine* one. The stale cases below supply the hook's target
+ * from a helper module, which is the residue the story used to record as
+ * harmless.
+ *
+ * **When #726 closes, invert the `stale: true` expectations — do not delete
+ * them.** They are the only thing that will notice.
+ */
+describe('loadUserHooks — the transpile/native boundary (#726)', () => {
+  const helperCases: {
+    name: string;
+    ext: string;
+    stale: boolean;
+    source: (selector: string) => string;
+    packageJson?: string;
+  }[] = [
+    {
+      name: 'a .ts helper is re-read',
+      ext: 'ts',
+      stale: false,
+      source: (selector) => `export const SEL = ${JSON.stringify(selector)};\n`,
+    },
+    {
+      name: 'a .js helper with ESM syntax in a CJS package is re-read',
+      ext: 'js',
+      stale: false,
+      source: (selector) => `export const SEL = ${JSON.stringify(selector)};\n`,
+    },
+    {
+      name: 'a .mjs helper is NOT re-read',
+      ext: 'mjs',
+      stale: true,
+      source: (selector) => `export const SEL = ${JSON.stringify(selector)};\n`,
+    },
+    {
+      name: 'a .cjs helper is NOT re-read',
+      ext: 'cjs',
+      stale: true,
+      source: (selector) =>
+        `module.exports = { SEL: ${JSON.stringify(selector)} };\n`,
+    },
+    {
+      name: 'a .js helper in a "type": "module" package is NOT re-read',
+      ext: 'js',
+      stale: true,
+      packageJson: '{"type":"module"}\n',
+      source: (selector) => `export const SEL = ${JSON.stringify(selector)};\n`,
+    },
+  ];
+
+  it.each(helperCases)('$name', async ({ ext, stale, source, packageJson }) => {
+    const specifier = `./sel.${ext === 'ts' ? 'js' : ext}`;
+    const hook = [
+      `import { beforeEach } from '@thymian/hooks';`,
+      `import { SEL } from '${specifier}';`,
+      `export const h = beforeEach(SEL, async (v) => v);`,
+      ``,
+    ].join('\n');
+
+    const hooksDir = await writeHooks({
+      [`sel.${ext}`]: source(selectorA),
+      'a.ts': hook,
+      ...(packageJson ? { 'package.json': packageJson } : {}),
+    });
+
+    const first = await loadUserHooks(hooksDir, catalog);
+    expect(anchorsOf(first)).toEqual([`"${selectorA}"`]);
+
+    await writeFile(join(hooksDir, `sel.${ext}`), source(selectorB), 'utf-8');
+
+    const second = await loadUserHooks(hooksDir, catalog);
+
+    // A helper module never declares a hook, but it decides where one binds.
+    expect(anchorsOf(second)).toEqual([`"${stale ? selectorA : selectorB}"`]);
+  });
+
+  it.each([
+    [
+      '.mjs',
+      'a.mjs',
+      (s: string) =>
+        [
+          `import { beforeEach } from '@thymian/hooks';`,
+          `export const h = beforeEach(${JSON.stringify(s)}, async (v) => v);`,
+          ``,
+        ].join('\n'),
+    ],
+    [
+      '.cjs',
+      'a.cjs',
+      (s: string) =>
+        [
+          `const { beforeEach } = require('@thymian/hooks');`,
+          `module.exports.h = beforeEach(${JSON.stringify(s)}, async (v) => v);`,
+          ``,
+        ].join('\n'),
+    ],
+  ])(
+    'a %s hook file that resolves @thymian/hooks is always re-read',
+    async (_ext, name, source) => {
+      // The half of the residue that IS closed: the native load cannot resolve
+      // the bare `@thymian/hooks` specifier — that alias exists only on jiti's
+      // transpile path — so it throws and jiti falls back to transpiling. A file
+      // that creates a registration therefore never goes stale.
+      const hooksDir = await writeHooks({ [name]: source(selectorA) });
+
+      const first = await loadUserHooks(hooksDir, catalog);
+      expect(anchorsOf(first)).toEqual([`"${selectorA}"`]);
+
+      await writeFile(join(hooksDir, name), source(selectorB), 'utf-8');
+
+      const second = await loadUserHooks(hooksDir, catalog);
+
+      expect(anchorsOf(second)).toEqual([`"${selectorB}"`]);
+    },
+  );
+});
+
 describe('loadUserHooks — symlinked hook files', () => {
-  it('loads a hook file reached through a symlink', async () => {
+  it('loads a hook file whose only path into the scan is a symlink', async () => {
+    // The target lives **outside** the hooks directory, so the link is the only
+    // way in: `fileCount` here is 0 unless symlinked files are followed.
+    // `readdir({withFileTypes:true})` reports lstat semantics, so the link
+    // answers `isSymbolicLink()`, never `isFile()`, and was dropped before
+    // `isHookFile` ran: no diagnostic, and not even counted in `fileCount`.
+    const hooksDir = await writeHooks({});
+    const outside = join(hooksDir, '..', 'shared-hook.ts');
+    await writeFile(outside, tagging(selectorA, 'outside'), 'utf-8');
+
+    await symlink(outside, join(hooksDir, 'link.ts'));
+
+    const result = await loadUserHooks(hooksDir, catalog);
+
+    expect(errorsOf(result)).toEqual([]);
+    expect(result.fileCount).toBe(1);
+    expect(filesOf(result)).toEqual(['link.ts']);
+    expect(await compose(result, firstTransactionId())).toBe('outside');
+  });
+
+  it('evaluates a symlinked hook file once when its target is also scanned', async () => {
     const hooksDir = await writeHooks({
       'real/target.ts': tagging(selectorA, 'linked'),
     });
@@ -794,12 +1015,97 @@ describe('loadUserHooks — symlinked hook files', () => {
 
     const result = await loadUserHooks(hooksDir, catalog);
 
-    // `readdir({withFileTypes:true})` reports lstat semantics, so the link
-    // answered `isSymbolicLink()`, never `isFile()`, and was dropped before
-    // `isHookFile` ran: no diagnostic, and not even counted in `fileCount`.
+    // One authored hook, reachable under two spellings. Keying the scan cache
+    // on the link spelling evaluated it **twice**, so the single `beforeEach`
+    // composed twice and the request path came back `'linkedlinked'`.
     expect(errorsOf(result)).toEqual([]);
-    expect(result.fileCount).toBe(2);
-    expect(await compose(result, firstTransactionId())).toBe('linkedlinked');
+    expect(result.fileCount).toBe(1);
+    expect(result.boundHookCount).toBe(1);
+    expect(await compose(result, firstTransactionId())).toBe('linked');
+    // `link.ts` sorts before `real/target.ts`, and the first entry in sort
+    // order wins the attribution — the same tie-break the identity dedupe uses
+    // for a shared module. It is also what discriminates this from a scan that
+    // dropped the symlink: that one would report `real/target.ts`.
+    expect(filesOf(result)).toEqual(['link.ts']);
+  });
+
+  it('does not let a symlinked defineSample conflict with itself', async () => {
+    const hooksDir = await writeHooks({
+      'real.ts': [
+        `import { defineSample } from '@thymian/hooks';`,
+        `export const s = defineSample(${JSON.stringify(selectorA)}, () => ({}));`,
+        ``,
+      ].join('\n'),
+    });
+
+    await symlink(join(hooksDir, 'real.ts'), join(hooksDir, 'alias.ts'));
+
+    const result = await loadUserHooks(hooksDir, catalog);
+
+    // Two evaluations produced two distinct registration objects for one
+    // authored hook, so the set-once check named the hook as its own rival —
+    // `that transaction's sample is already set by "s" in "alias.ts"` — and
+    // blocked the run with nothing the user could fix.
+    expect(errorsOf(result)).toEqual([]);
+    expect(result.hasErrors).toBe(false);
+    expect(result.boundHookCount).toBe(1);
+    expect(result.sampleDefinitions.size).toBe(1);
+  });
+
+  it('collapses two symlinks that point at one file', async () => {
+    const hooksDir = await writeHooks({});
+    const outside = join(hooksDir, '..', 'shared-hook.ts');
+    await writeFile(outside, tagging(selectorA, 'once'), 'utf-8');
+
+    await symlink(outside, join(hooksDir, 'a-link.ts'));
+    await symlink(outside, join(hooksDir, 'b-link.ts'));
+
+    const result = await loadUserHooks(hooksDir, catalog);
+
+    expect(errorsOf(result)).toEqual([]);
+    expect(result.fileCount).toBe(1);
+    expect(filesOf(result)).toEqual(['a-link.ts']);
+    expect(await compose(result, firstTransactionId())).toBe('once');
+  });
+
+  it('reports a broken symlinked file once, not once per spelling', async () => {
+    // The evaluation cache only collapses spellings whose *first* evaluation
+    // succeeded: a module that throws leaves no cache entry, so without the
+    // realpath dedupe the second spelling re-evaluates and the user reads the
+    // same failure twice under two names.
+    const hooksDir = await writeHooks({
+      'real.ts': [
+        `import { beforeEach } from '@thymian/hooks';`,
+        `export const h = beforeEach(${JSON.stringify(selectorA)}, async (v) => v);`,
+        `throw new Error('module scope explodes');`,
+        ``,
+      ].join('\n'),
+    });
+
+    await symlink(join(hooksDir, 'real.ts'), join(hooksDir, 'alias.ts'));
+
+    const result = await loadUserHooks(hooksDir, catalog);
+
+    expect(errorsOf(result)).toHaveLength(1);
+    expect(errorsOf(result)[0]).toContain('module scope explodes');
+  });
+
+  it('follows a chain of symlinks to one evaluation', async () => {
+    const hooksDir = await writeHooks({
+      'real/target.ts': tagging(selectorA, 'chained'),
+    });
+
+    await symlink(
+      join(hooksDir, 'real', 'target.ts'),
+      join(hooksDir, 'middle.ts'),
+    );
+    await symlink(join(hooksDir, 'middle.ts'), join(hooksDir, 'front.ts'));
+
+    const result = await loadUserHooks(hooksDir, catalog);
+
+    expect(errorsOf(result)).toEqual([]);
+    expect(result.fileCount).toBe(1);
+    expect(await compose(result, firstTransactionId())).toBe('chained');
   });
 
   it('reports a symlink that points at nothing', async () => {
