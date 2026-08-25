@@ -68,7 +68,7 @@ describe('AC6: the underlying loader is invoked exactly once for concurrent load
     // once — the actual job of the in-flight promise map (§4.5) — regardless
     // of what happens beneath it.
     const { loadUserModule, _resetUserModuleLoaderStateForTests } =
-      await import('../../src/rules/user-module-loader.js');
+      await import('../../src/load-user-module.js');
 
     _resetUserModuleLoaderStateForTests();
     createJitiSpy.mockClear();

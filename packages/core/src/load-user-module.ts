@@ -1,4 +1,4 @@
-import { realpathSync } from 'node:fs';
+import { existsSync, readFileSync, realpathSync } from 'node:fs';
 import { builtinModules, createRequire } from 'node:module';
 import { tmpdir } from 'node:os';
 import * as path from 'node:path';
@@ -7,8 +7,7 @@ import { pathToFileURL } from 'node:url';
 import type { Jiti } from 'jiti';
 import * as resolveExports from 'resolve.exports';
 
-import { ThymianBaseError } from '../thymian.error.js';
-import { isRecord } from '../utils.js';
+import { ThymianBaseError } from './thymian.error.js';
 
 // The resolution contract implemented here is normative and epic-level
 // (GitHub issue thymianofficial/thymian-internal#725 §4) — it is not to be
@@ -80,8 +79,17 @@ export function miscasedExtension(
 
 function isLocalSpecifier(specifier: string): boolean {
   return (
+    // The bare directory references `.` / `..` are local, not package names
+    // (they would otherwise resolve the cwd's or parent's own package.json).
+    specifier === '.' ||
+    specifier === '..' ||
     specifier.startsWith('./') ||
     specifier.startsWith('../') ||
+    // Windows-native relative spellings (`.\x`, `..\x`). Forward slashes are
+    // the cross-platform norm and what the generator emits, but a hand-written
+    // backslash path must not be mistaken for a package name.
+    specifier.startsWith('.\\') ||
+    specifier.startsWith('..\\') ||
     path.isAbsolute(specifier)
   );
 }
@@ -140,8 +148,12 @@ function resolveLocal(specifier: string, cwd: string): UserModuleResolution {
   return { ok: true, path: canonical };
 }
 
-// One `createRequire` anchor per normalised cwd, memoised — never an
-// unbounded process-global keyed by the raw cwd string (§4.4).
+// One `createRequire` anchor per normalised cwd, memoised. Normalising the
+// key deduplicates spellings of the same cwd — the raw-cwd cache mis-answered
+// after `process.chdir` (§4.4). It does NOT bound the number of *distinct*
+// cwds: the map grows one entry per project the process ever loads from. That
+// is harmless for the CLI (a single, fixed cwd per invocation); a long-lived
+// multi-project consumer should add LRU eviction here and to `moduleCache`.
 const userRequireByCwd = new Map<string, NodeJS.Require>();
 
 function getUserRequire(cwd: string): NodeJS.Require {
@@ -166,50 +178,53 @@ type LocatePackageResult =
   | { kind: 'broken'; reason: string }
   | { kind: 'not-found' };
 
-// "Not installed" is distinguished from "installed but broken"
-// (ERR_PACKAGE_PATH_NOT_EXPORTED, an invalid package.json) — the latter is
-// reported, not silently treated as "not found" (§4.4).
+// Finds a package by locating its package.json ON DISK along the anchor's
+// node_modules search paths. We deliberately do NOT resolve the
+// `<pkg>/package.json` subpath through `require.resolve`: that subpath is
+// itself gated by the package's own `exports` map, so a package that restricts
+// `exports` and does not list `"./package.json"` (a common, perfectly loadable
+// shape) would be wrongly reported "installed but broken" even though `import()`
+// loads it fine. Reading the file directly matches Node's actual notion of
+// "installed" — a package exists if `node_modules/<name>/package.json` exists —
+// while the *entry* is still resolved through `exports` by the caller.
+//
+// "Not installed" (not-found) stays distinct from "installed but broken"
+// (present, but package.json is not valid JSON) — the latter is reported, not
+// silently treated as "not found" (§4.4).
 function locatePackage(
   anchoredRequire: NodeJS.Require,
   packageName: string,
 ): LocatePackageResult {
-  let packageJsonPath: string;
+  // resolve.paths returns the node_modules dirs to search, nearest first
+  // (null only for builtins/relative/absolute, which never reach here).
+  const searchPaths = anchoredRequire.resolve.paths(packageName) ?? [];
 
-  try {
-    packageJsonPath = anchoredRequire.resolve(`${packageName}/package.json`);
-  } catch (error) {
-    // Node resolves this "/package.json" subpath by reading package.json
-    // itself, so a syntactically invalid package.json fails right here
-    // (ERR_INVALID_PACKAGE_CONFIG) rather than at the later `require()` call
-    // below. ERR_PACKAGE_PATH_NOT_EXPORTED means the package IS installed,
-    // just doesn't expose its own package.json via `exports`. Either way,
-    // the package is present but broken — not "not found".
-    if (
-      isRecord(error) &&
-      (error.code === 'ERR_PACKAGE_PATH_NOT_EXPORTED' ||
-        error.code === 'ERR_INVALID_PACKAGE_CONFIG')
-    ) {
+  for (const nodeModulesDir of searchPaths) {
+    const packageJsonPath = path.join(
+      nodeModulesDir,
+      packageName,
+      'package.json',
+    );
+
+    if (!existsSync(packageJsonPath)) {
+      continue;
+    }
+
+    let pkg: PackageJson;
+
+    try {
+      pkg = JSON.parse(readFileSync(packageJsonPath, 'utf8')) as PackageJson;
+    } catch (error) {
       return {
         kind: 'broken',
-        reason: `"${packageName}" is installed but broken: ${describeUnexpectedError(error)}`,
+        reason: `"${packageName}" is installed but broken: its package.json at "${packageJsonPath}" is not valid JSON (${describeUnexpectedError(error)})`,
       };
     }
 
-    return { kind: 'not-found' };
+    return { kind: 'found', root: path.dirname(packageJsonPath), pkg };
   }
 
-  let pkg: PackageJson;
-
-  try {
-    pkg = anchoredRequire(packageJsonPath) as PackageJson;
-  } catch (error) {
-    return {
-      kind: 'broken',
-      reason: `"${packageName}"'s package.json at "${packageJsonPath}" is invalid: ${describeUnexpectedError(error)}`,
-    };
-  }
-
-  return { kind: 'found', root: path.dirname(packageJsonPath), pkg };
+  return { kind: 'not-found' };
 }
 
 function resolveBare(specifier: string, cwd: string): UserModuleResolution {
@@ -256,12 +271,18 @@ function resolveBare(specifier: string, cwd: string): UserModuleResolution {
   const entry = subpath ? `./${subpath}` : '.';
   let relativeTarget: string | undefined;
 
-  if (typeof pkg.exports === 'string' || isRecord(pkg.exports)) {
+  if (pkg.exports !== undefined && pkg.exports !== null) {
+    // `exports` may be a string, an object, or an array of fallbacks — all
+    // three are valid and all three are handled by resolve.exports (an
+    // object-only guard would silently skip the array form).
     try {
-      // No `conditions`/`require`/`browser` options: resolve.exports's own
-      // defaults already produce exactly {"default","import","node"} (§4.1)
-      // — this is not an accident of omission, it is the intended call.
-      const matches = resolveExports.exports(pkg, entry);
+      // Conditions are passed explicitly to pin the normative §4.1 set
+      // (`['node','import','default']`) rather than leaning on the library's
+      // current default, so a future resolve.exports default change cannot
+      // silently drift the contract.
+      const matches = resolveExports.exports(pkg, entry, {
+        conditions: ['node', 'import', 'default'],
+      });
 
       relativeTarget = matches?.[0];
     } catch (error) {
@@ -354,19 +375,28 @@ let jitiPromise: Promise<Jiti> | undefined;
 
 function getJiti(): Promise<Jiti> {
   // Lazily, dynamically imported — and memoised — so a JS-only run never
-  // instantiates jiti at all (§4.1/AC4): the JS path never pays for it.
-  jitiPromise ??= import('jiti').then(({ createJiti }) =>
-    createJiti(import.meta.url, { fsCache: JITI_FS_CACHE_DIR }),
-  );
+  // instantiates jiti at all (§4.1/AC4): the JS path never pays for it. On
+  // failure the memo is cleared so a later `.ts` load can re-attempt, rather
+  // than pinning a transient `import('jiti')`/createJiti error forever.
+  jitiPromise ??= import('jiti')
+    .then(({ createJiti }) =>
+      createJiti(import.meta.url, { fsCache: JITI_FS_CACHE_DIR }),
+    )
+    .catch((error: unknown) => {
+      jitiPromise = undefined;
+      throw error;
+    });
 
   return jitiPromise;
 }
 
-// Keyed by canonical (realpath) path. Never cleared: this is both the
-// concurrent in-flight dedupe AND the exactly-once execution guarantee
-// across every path spelling, for the lifetime of the process (§4.5). No
-// bespoke cycle-detection machinery — ordinary module-graph import cycles
-// are jiti/Node's concern, handled natively.
+// Keyed by canonical (realpath) path. A *successful* load is pinned for the
+// process lifetime: this is both the concurrent in-flight dedupe AND the
+// exactly-once execution guarantee across every path spelling (§4.5). A
+// *rejected* load is evicted (see below) so a transient failure can be
+// retried instead of being pinned forever. No bespoke cycle-detection
+// machinery — ordinary module-graph import cycles are jiti/Node's concern,
+// handled natively.
 const moduleCache = new Map<string, Promise<unknown>>();
 
 async function importByExtension(canonicalPath: string): Promise<unknown> {
@@ -391,6 +421,9 @@ export async function loadUserModule(canonicalPath: string): Promise<unknown> {
   if (reason) {
     throw new ThymianBaseError(reason, {
       name: 'UserModuleLoadError',
+      suggestions: [
+        'Rules, rule sets, and plugins must be a .ts, .js, .mjs, or .cjs file — not .d.ts, .mts, or .cts.',
+      ],
       ref: 'https://thymian.dev/references/errors/user-module-load-error/',
     });
   }
@@ -401,7 +434,15 @@ export async function loadUserModule(canonicalPath: string): Promise<unknown> {
     return cached;
   }
 
-  const promise = importByExtension(canonicalPath);
+  // Evict on rejection so only successful loads are pinned; a transient
+  // failure (a file that briefly vanished, a one-off jiti/transpile error)
+  // can then be retried rather than returning the same rejection forever.
+  // Concurrency stays safe: the `.catch` runs only after the in-flight
+  // promise settles, and concurrent callers share this one promise.
+  const promise = importByExtension(canonicalPath).catch((error: unknown) => {
+    moduleCache.delete(canonicalPath);
+    throw error;
+  });
 
   moduleCache.set(canonicalPath, promise);
 

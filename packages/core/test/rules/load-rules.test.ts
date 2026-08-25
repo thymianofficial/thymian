@@ -3,6 +3,7 @@ import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
 import { loadRules } from '../../src/rules/rule-loader.js';
+import { makeBarePackageFixtures } from './bare-package-fixtures.js';
 
 describe('load rules', () => {
   it('should load rules from package', async () => {
@@ -22,18 +23,24 @@ describe('load rules', () => {
   });
 
   it('AC2: reports a bare specifier that ships unbuilt TypeScript source as a RuleLoadError naming the reason', async () => {
-    const cwd = join(
-      import.meta.dirname,
-      'fixtures',
-      'bare-packages',
-      'project',
-    );
+    const fixtures = makeBarePackageFixtures();
 
-    await expect(
-      loadRules('unbuilt-ts-pkg', () => true, {}, cwd),
-    ).rejects.toThrow(
-      /Cannot load rule source unbuilt-ts-pkg: "unbuilt-ts-pkg" ships unbuilt TypeScript source/,
-    );
+    try {
+      const error = await loadRules(
+        'unbuilt-ts-pkg',
+        () => true,
+        {},
+        fixtures.projectDir,
+      ).catch((err: unknown) => err as Error);
+
+      expect(error.message).toMatch(
+        /Cannot load rule source unbuilt-ts-pkg: "unbuilt-ts-pkg" ships unbuilt TypeScript source/,
+      );
+      // The reason already ends in a period; the wrapper must not double it up.
+      expect(error.message).not.toMatch(/\.\./);
+    } finally {
+      fixtures.cleanup();
+    }
   });
 
   it('AC3: reports a .d.ts specifier as unloadable, never as a missing default export', async () => {

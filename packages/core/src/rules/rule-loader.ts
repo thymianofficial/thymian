@@ -2,6 +2,7 @@ import * as path from 'node:path';
 
 import { glob } from 'tinyglobby';
 
+import { loadUserModule, resolveUserModule } from '../load-user-module.js';
 import { ThymianBaseError } from '../thymian.error.js';
 import { isRecord } from '../utils.js';
 import { validate } from './ajv-validate.js';
@@ -17,7 +18,6 @@ import {
 import type { RuleFilter } from './rule-filter.js';
 import type { RuleSet } from './rule-set.js';
 import { isRuleSeverityLevel } from './rule-severity.js';
-import { loadUserModule, resolveUserModule } from './user-module-loader.js';
 
 type RecordWithFunctions<Property extends PropertyKey> = Record<
   PropertyKey,
@@ -294,13 +294,22 @@ export async function loadRules(
   if (!resolution.ok) {
     throw resolution.reason
       ? new ThymianBaseError(
-          `Cannot load rule source ${input}: ${resolution.reason}.`,
+          // The seam's reason is a complete sentence that already ends in a
+          // period; strip a trailing one before adding ours so the message
+          // never doubles up ("...JavaScript..").
+          `Cannot load rule source ${input}: ${resolution.reason.replace(/\.$/, '')}.`,
           {
+            suggestions: [
+              'Reference a built .js/.mjs/.cjs file or a local .ts file with an explicit extension. Installed packages must ship built JavaScript.',
+            ],
             name: 'RuleLoadError',
             ref: 'https://thymian.dev/references/errors/rule-load-error/',
           },
         )
       : new ThymianBaseError(`Cannot resolve rule source ${input}.`, {
+          suggestions: [
+            'For a local rule, use a relative path with an explicit extension (e.g. ./my.rule.ts). For an installed package, check that it is installed.',
+          ],
           name: 'RuleLoadError',
           ref: 'https://thymian.dev/references/errors/rule-load-error/',
         });

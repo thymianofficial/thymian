@@ -20,11 +20,11 @@ describe('AC8: the seam predicate is not part of the public @thymian/core surfac
     expect(publicSurface).not.toHaveProperty('miscasedExtension');
   });
 
-  it('does not re-export user-module-loader from the rules barrel', async () => {
-    const rulesBarrel: Record<string, unknown> =
-      await import('../../src/rules/index.js');
+  it('does not re-export the seam from the package index barrel', async () => {
+    const packageIndex: Record<string, unknown> =
+      await import('../../src/index.js');
 
-    expect(rulesBarrel).not.toHaveProperty('unloadableReason');
-    expect(rulesBarrel).not.toHaveProperty('miscasedExtension');
+    expect(packageIndex).not.toHaveProperty('unloadableReason');
+    expect(packageIndex).not.toHaveProperty('miscasedExtension');
   });
 });

@@ -1,6 +1,16 @@
+import { mkdtempSync, realpathSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
-import { beforeEach, describe, expect, it } from 'vitest';
+import {
+  afterAll,
+  afterEach,
+  beforeAll,
+  beforeEach,
+  describe,
+  expect,
+  it,
+} from 'vitest';
 
 import {
   _resetUserModuleLoaderStateForTests,
@@ -9,7 +19,11 @@ import {
   resolveUserModule,
   unloadableReason,
   type UserModuleResolution,
-} from '../../src/rules/user-module-loader.js';
+} from '../../src/load-user-module.js';
+import {
+  type BarePackageFixtures,
+  makeBarePackageFixtures,
+} from './bare-package-fixtures.js';
 
 const basePath = import.meta.dirname;
 const rulesDir = join(basePath, 'fixtures', 'rules');
@@ -84,16 +98,34 @@ describe('resolveUserModule — local specifiers (§4.2)', () => {
 
     expect(result).toEqual({ ok: true, path: absolute });
   });
+
+  it('treats bare "." and ".." as local directory references, not package names', () => {
+    // Regression: `.`/`..` (no trailing slash) escaped the local-path guard
+    // and were resolved as installed packages — silently resolving the cwd's
+    // or parent's own package.json. They are local per §4.2, so they decline
+    // as "no loadable extension" (a directory is not a loadable file), never
+    // as a resolved package.
+    for (const spec of ['.', '..']) {
+      const result = resolveUserModule(spec, { cwd: basePath });
+
+      expect(result.ok, `${spec} must not resolve as a package`).toBe(false);
+      expect(reasonOf(result)).toMatch(/loadable extension/);
+    }
+  });
 });
 
 describe('resolveUserModule — bare specifiers (§4.1)', () => {
-  const projectDir = join(basePath, 'fixtures', 'bare-packages', 'project');
-  const brokenDir = join(
-    basePath,
-    'fixtures',
-    'bare-packages',
-    'broken-package-json',
-  );
+  let fixtures: BarePackageFixtures;
+  let projectDir: string;
+
+  beforeAll(() => {
+    fixtures = makeBarePackageFixtures();
+    projectDir = fixtures.projectDir;
+  });
+
+  afterAll(() => {
+    fixtures.cleanup();
+  });
 
   it('AC2: declines a bare specifier resolving to TypeScript source in node_modules', () => {
     const result = resolveUserModule('unbuilt-ts-pkg', { cwd: projectDir });
@@ -117,7 +149,7 @@ describe('resolveUserModule — bare specifiers (§4.1)', () => {
   });
 
   it('reports an installed-but-broken package.json rather than treating it as "not found"', () => {
-    const result = resolveUserModule('broken-pkg', { cwd: brokenDir });
+    const result = resolveUserModule('broken-pkg', { cwd: projectDir });
 
     expect(result.ok).toBe(false);
     expect(reasonOf(result)).toMatch(/installed but broken/);
@@ -129,6 +161,31 @@ describe('resolveUserModule — bare specifiers (§4.1)', () => {
     });
 
     expect(result).toEqual({ ok: false });
+  });
+
+  it('resolves a package that restricts "exports" and does not expose "./package.json" (must not be misreported as broken)', () => {
+    // Regression: locating the package via the exports-gated
+    // `<pkg>/package.json` subpath wrongly declined this — a common, loadable
+    // package shape — as "installed but broken".
+    const result = resolveUserModule('restricted-exports-pkg', {
+      cwd: projectDir,
+    });
+
+    expect(result).toEqual({
+      ok: true,
+      path: fixtures.packageFile('restricted-exports-pkg', 'index.js'),
+    });
+  });
+
+  it('honours an array-form "exports" (fallback sugar), not the decoy "main"', () => {
+    // Regression: the exports guard skipped arrays and silently fell through
+    // to `main`, loading the wrong file.
+    const result = resolveUserModule('array-exports-pkg', { cwd: projectDir });
+
+    expect(result).toEqual({
+      ok: true,
+      path: fixtures.packageFile('array-exports-pkg', 'correct.js'),
+    });
   });
 });
 
@@ -213,6 +270,37 @@ describe("loadUserModule — the load half cannot bypass the resolve half's guar
   });
 });
 
+describe('loadUserModule — a rejected load is evicted, not pinned forever', () => {
+  let tmpDir: string;
+
+  beforeEach(() => {
+    tmpDir = realpathSync(mkdtempSync(join(tmpdir(), 'thymian-f2-')));
+  });
+
+  afterEach(() => {
+    rmSync(tmpDir, { recursive: true, force: true });
+  });
+
+  it('retries after a transient failure instead of returning the cached rejection', async () => {
+    // Regression: a rejected promise was cached under the canonical path for
+    // the process lifetime, so a file that briefly vanished (or a one-off
+    // transpile error) could never be loaded again. Node itself does not
+    // cache ERR_MODULE_NOT_FOUND, so once our cache evicts the rejection the
+    // restored file loads on the next call.
+    const modPath = join(tmpDir, 'transient.mjs');
+    writeFileSync(modPath, 'export default "OK";');
+    const canonical = realpathSync.native(modPath);
+
+    rmSync(modPath, { force: true });
+    await expect(loadUserModule(canonical)).rejects.toBeDefined();
+
+    writeFileSync(modPath, 'export default "OK";');
+    const module = await loadUserModule(canonical);
+
+    expect(module).toMatchObject({ default: 'OK' });
+  });
+});
+
 describe('AC6: canonicalise once — two spellings of the same file resolve to the identical realpath', () => {
   // This proves the canonicalisation half of AC6 (resolveUserModule's job).
   // It does NOT by itself prove exactly-once execution: once both spellings
@@ -222,7 +310,7 @@ describe('AC6: canonicalise once — two spellings of the same file resolve to t
   // "the layer below deduped it anyway". The exactly-once *execution*
   // guarantee (loadUserModule's job, §4.5) is instead proven by spying on
   // the underlying loader's call count directly, in
-  // user-module-loader-ts-uses-jiti.test.ts.
+  // load-user-module-ts-uses-jiti.test.ts.
   it('runs the module top-level body exactly once for two spellings of the same file, loaded concurrently', async () => {
     delete (globalThis as Record<string, unknown>).__resolverSeamCounterRuns;
 

@@ -37,10 +37,11 @@ function runHarness(): string {
 describe('external built-loader harness (AC7)', () => {
   beforeAll(() => {
     const version = process.env.THYMIAN_E2E_VERSION;
+    const registry = process.env.npm_config_registry;
 
-    if (!version) {
+    if (!version || !registry) {
       throw new Error(
-        'THYMIAN_E2E_VERSION is not set — global setup must publish to Verdaccio first.',
+        'THYMIAN_E2E_VERSION and npm_config_registry must be set by the global setup (which publishes to Verdaccio) before this harness runs.',
       );
     }
 
@@ -52,7 +53,7 @@ describe('external built-loader harness (AC7)', () => {
         'install',
         `@thymian/core@${version}`,
         '--registry',
-        process.env.npm_config_registry ?? '',
+        registry,
         '--no-save',
       ],
       {
