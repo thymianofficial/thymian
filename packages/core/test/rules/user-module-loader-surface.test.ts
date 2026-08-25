@@ -13,8 +13,8 @@ describe('AC8: the seam predicate is not part of the public @thymian/core surfac
     // what an external consumer sees through `dist/index.js`, not what the
     // internal module graph exposes.
     // eslint-disable-next-line @nx/enforce-module-boundaries
-    const publicSurface: Record<string, unknown> =
-      await import('@thymian/core');
+    const importPublicCore = () => import('@thymian/core');
+    const publicSurface: Record<string, unknown> = await importPublicCore();
 
     expect(publicSurface).not.toHaveProperty('unloadableReason');
     expect(publicSurface).not.toHaveProperty('miscasedExtension');
