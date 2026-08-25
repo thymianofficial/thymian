@@ -97,6 +97,39 @@ describe('CsvFormatter header (AC16)', () => {
     expect(CSV_HEADER.split(',')).toHaveLength(13);
   });
 
+  // /dev/full opens fine and fails every write with ENOSPC — the exact
+  // "error after open" class the lazily opened stream must surface (the open
+  // itself is already covered by openStream's rejection). Linux-only vehicle.
+  const devFull = process.platform === 'linux' && existsSync('/dev/full');
+
+  it.skipIf(!devFull)(
+    'fails the pipeline when a data write errors after open',
+    async () => {
+      const formatter = new CsvFormatter(new NoopLogger());
+      await formatter.init({ path: '/dev/full' });
+
+      await expect(
+        formatter.report(report).then(() => formatter.flush()),
+      ).rejects.toThrow();
+    },
+  );
+
+  it.skipIf(!devFull)(
+    'fails flush() when only the header write errored (run-less report)',
+    async () => {
+      const formatter = new CsvFormatter(new NoopLogger());
+      await formatter.init({ path: '/dev/full' });
+
+      // A run-less report opens the stream and writes only the header; its
+      // failure has no write callback to reject through, so it must be held
+      // and thrown later. Let the async ENOSPC surface before flush looks.
+      await formatter.report(createReport([]));
+      await new Promise((resolve) => setTimeout(resolve, 50));
+
+      await expect(formatter.flush()).rejects.toThrow(/ENOSPC/);
+    },
+  );
+
   it('writes no file at all when no report was ever received', async () => {
     const path = join(process.cwd(), 'tmp', 'csv-never-reported.csv');
     rmSync(path, { force: true });

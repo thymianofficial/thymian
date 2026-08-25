@@ -36,6 +36,13 @@ export class CsvFormatter implements Formatter<CsvFormatterOptions> {
   // held as a promise so concurrent report() calls share one open.
   private streamPromise?: Promise<WriteStream>;
 
+  // First stream error after 'ready'. Post-open failures (ENOSPC, a mount
+  // going away) surface via the 'error' event — the header write in
+  // particular has no rejection path of its own — so the error is held here
+  // and thrown from the next report()/flush(): the workflow must fail
+  // rather than exit clean beside a truncated CSV.
+  private streamError?: Error;
+
   options!: CsvFormatterOptions;
 
   constructor(private readonly logger: Logger) {}
@@ -51,10 +58,22 @@ export class CsvFormatter implements Formatter<CsvFormatterOptions> {
 
     const stream = await this.streamPromise;
 
+    if (this.streamError) {
+      throw this.streamError;
+    }
+
     return new Promise((resolve, reject) => {
       stream.once('error', reject);
       stream.end(() => {
         stream.removeListener('error', reject);
+
+        // An error surfacing only while end() flushes lands on the persistent
+        // handler (which records it) but may miss the rejection listener.
+        if (this.streamError) {
+          reject(this.streamError);
+          return;
+        }
+
         this.logger.debug(`Wrote CSV report to ${this.options.path}`);
         resolve(undefined);
       });
@@ -85,6 +104,7 @@ export class CsvFormatter implements Formatter<CsvFormatterOptions> {
       stream.on('ready', () => {
         stream.removeListener('error', onError);
         stream.on('error', (err) => {
+          this.streamError ??= err;
           this.logger.error(
             `Failed to write CSV report to ${this.options.path}: ${err.message}`,
           );
@@ -100,6 +120,10 @@ export class CsvFormatter implements Formatter<CsvFormatterOptions> {
   async report(report: Report): Promise<void> {
     this.streamPromise ??= this.openStream();
     const stream = await this.streamPromise;
+
+    if (this.streamError) {
+      throw this.streamError;
+    }
 
     const lines = reportToCsvLines(report);
 
