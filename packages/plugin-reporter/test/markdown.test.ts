@@ -1,3 +1,4 @@
+import { readdir, rm } from 'node:fs/promises';
 import { join } from 'node:path';
 
 import {
@@ -10,9 +11,10 @@ import {
   NoopLogger,
   type RuleDescriptor,
 } from '@thymian/core';
-import { describe, expect, it } from 'vitest';
+import { beforeAll, describe, expect, it } from 'vitest';
 
 import { MarkdownFormatter } from '../src/formatters/markdown.js';
+import { defaultRunDirectoryName } from '../src/report-file-name.js';
 import {
   errorSymbol,
   hintSymbol,
@@ -22,24 +24,42 @@ import {
   warnSymbol,
 } from '../src/style.js';
 
-function render(report: ReturnType<typeof createReport>): Promise<string> {
+/**
+ * Scratch base for the rendering tests. There is no per-formatter output path
+ * any more, so rendering means writing a real file: each render gets its own
+ * `cwd` beneath this directory, and the whole tree is wiped once per run.
+ */
+const RENDER_BASE = join(process.cwd(), 'tmp', 'markdown-render');
+
+let renderCounter = 0;
+
+beforeAll(async () => {
+  await rm(RENDER_BASE, { recursive: true, force: true });
+});
+
+async function renderWith(
+  report: ReturnType<typeof createReport>,
+  sortReportsBy?: 'rule' | 'endpoint' | 'severity',
+): Promise<string> {
   const formatter = new MarkdownFormatter(new NoopLogger());
-  formatter.init({ path: join(process.cwd(), 'tmp', 'markdown.test.md') });
-  formatter.report(report);
-  return formatter.flush().then((output) => output ?? '');
+  formatter.init({
+    cwd: join(RENDER_BASE, `render-${renderCounter++}`),
+    sortReportsBy,
+  });
+  await formatter.report(report);
+
+  return (await formatter.flush()) ?? '';
+}
+
+function render(report: ReturnType<typeof createReport>): Promise<string> {
+  return renderWith(report);
 }
 
 function renderSorted(
   report: ReturnType<typeof createReport>,
   sortReportsBy: 'rule' | 'endpoint' | 'severity',
 ): Promise<string> {
-  const formatter = new MarkdownFormatter(new NoopLogger());
-  formatter.init({
-    path: join(process.cwd(), 'tmp', 'markdown.test.md'),
-    sortReportsBy,
-  });
-  formatter.report(report);
-  return formatter.flush().then((output) => output ?? '');
+  return renderWith(report, sortReportsBy);
 }
 
 function failedLint(
@@ -789,5 +809,100 @@ describe('MarkdownFormatter summary HTML escaping', () => {
       `<a href="https://x/rules&quot;&gt;&lt;script&gt;alert(1)&lt;/script&gt;"><code>quote-uri</code></a>`,
     );
     expect(output).not.toContain('"><script>alert(1)</script>');
+  });
+});
+
+describe('MarkdownFormatter derived run directory', () => {
+  const lintReport = () =>
+    createReport([
+      createToolRun({
+        tool: { name: '@thymian/plugin-http-linter' },
+        runType: 'lint',
+        executions: [failedLint('GET /pets')],
+      }),
+    ]);
+
+  it('writes report.md in a per-run directory under .thymian/reports', async () => {
+    const cwd = join(process.cwd(), 'tmp', 'markdown-derived');
+    await rm(cwd, { recursive: true, force: true });
+
+    const formatter = new MarkdownFormatter(new NoopLogger());
+    formatter.init({ cwd });
+    await formatter.report(lintReport());
+    await formatter.flush();
+
+    const reportsDir = join(cwd, '.thymian', 'reports');
+    const runDirectories = await readdir(reportsDir);
+    const [runDirectory = ''] = runDirectories;
+
+    expect(runDirectories).toHaveLength(1);
+    // `<stamp>-<shortId>`: both parts non-empty, so a degenerate `-` fails.
+    expect(runDirectory).toMatch(/^.+-[A-Za-z0-9]+$/);
+    expect(await readdir(join(reportsDir, runDirectory))).toEqual([
+      'report.md',
+    ]);
+  });
+
+  it('gives two reports of one session two run directories', async () => {
+    // The `serve` defect: one plugin instance serves every workflow, so a
+    // destination pinned on the first report wrote workflow 2 into workflow 1's
+    // directory.
+    const cwd = join(process.cwd(), 'tmp', 'markdown-two-reports');
+    await rm(cwd, { recursive: true, force: true });
+
+    const first = lintReport();
+    const second = lintReport();
+    const formatter = new MarkdownFormatter(new NoopLogger());
+    formatter.init({ cwd });
+    await formatter.report(first);
+    await formatter.report(second);
+    await formatter.flush();
+
+    const reportsDir = join(cwd, '.thymian', 'reports');
+    const runDirectories = await readdir(reportsDir);
+
+    expect(runDirectories).toHaveLength(2);
+    // Each directory is named from its OWN report, so both ids show up.
+    expect(runDirectories.sort()).toEqual(
+      [defaultRunDirectoryName(first), defaultRunDirectoryName(second)].sort(),
+    );
+    for (const runDirectory of runDirectories) {
+      expect(await readdir(join(reportsDir, runDirectory))).toEqual([
+        'report.md',
+      ]);
+    }
+  });
+
+  it('honours a custom reportsDir, relative to cwd and absolute as-is', async () => {
+    const cwd = join(process.cwd(), 'tmp', 'markdown-custom-base');
+    await rm(cwd, { recursive: true, force: true });
+
+    const relative = new MarkdownFormatter(new NoopLogger());
+    relative.init({ cwd, reportsDir: 'build/rep' });
+    await relative.report(lintReport());
+    await relative.flush();
+
+    const absoluteBase = join(cwd, 'absolute-base');
+    const absolute = new MarkdownFormatter(new NoopLogger());
+    absolute.init({ cwd: join(cwd, 'elsewhere'), reportsDir: absoluteBase });
+    await absolute.report(lintReport());
+    await absolute.flush();
+
+    expect(await readdir(join(cwd, 'build', 'rep'))).toHaveLength(1);
+    expect(await readdir(absoluteBase)).toHaveLength(1);
+    // A custom base takes over completely — the default one is never touched.
+    await expect(readdir(join(cwd, '.thymian'))).rejects.toThrow();
+    await expect(readdir(join(cwd, 'elsewhere'))).rejects.toThrow();
+  });
+
+  it('writes nothing when no report arrived', async () => {
+    const cwd = join(process.cwd(), 'tmp', 'markdown-derived-empty');
+    await rm(cwd, { recursive: true, force: true });
+
+    const formatter = new MarkdownFormatter(new NoopLogger());
+    formatter.init({ cwd });
+
+    await expect(formatter.flush()).resolves.toBeUndefined();
+    await expect(readdir(join(cwd, '.thymian', 'reports'))).rejects.toThrow();
   });
 });

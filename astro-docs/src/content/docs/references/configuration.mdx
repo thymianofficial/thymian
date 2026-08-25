@@ -166,25 +166,89 @@ plugins:
 
 ## Report formatters
 
-`@thymian/plugin-reporter` writes one file per configured formatter. Each formatter accepts an
-optional `path`: a relative path is resolved against `--cwd`, and an absolute path is used as-is.
+`@thymian/plugin-reporter` writes one file per configured formatter. Where those files land is a
+plugin-level setting, not a per-formatter one: `reportsDir` names the base directory — a relative
+path is resolved against `--cwd`, an absolute path is used as-is — and it defaults to
+`.thymian/reports`. Leave it out to take the default; an empty `reportsDir` fails validation
+rather than scattering run directories through the working directory.
+
+Every report gets its own directory beneath that base, and the files inside keep a stable name, so
+consecutive runs never overwrite each other:
+
+```
+<reportsDir>/<created-at>-<report-id>/report.<ext>
+.thymian/reports/2026-08-25T10-30-00-123Z-a1b2c3d4/report.md
+```
+
+`<created-at>` is the report's creation timestamp with `:` and `.` replaced by `-` (no colons, so
+the name is valid on Windows too), and `<report-id>` is the first eight characters of the report
+id. Every formatter in the same run sees the same report, so the markdown, CSV, and JSON output of
+one run lands side by side in that one directory as `report.md`, `report.csv` and `report.json` —
+correlating them is opening the directory.
+
+The rule holds everywhere, including `thymian serve`: one reporter instance serves the whole
+session, but each workflow emits its own report, so each workflow gets its own run directory.
+
+```yaml
+plugins:
+  '@thymian/plugin-reporter':
+    options:
+      # Optional. Defaults to .thymian/reports.
+      reportsDir: build/reports
+      formatters:
+        markdown: {} # build/reports/<created-at>-<report-id>/report.md
+        csv: {} # build/reports/<created-at>-<report-id>/report.csv
+        json: {} # build/reports/<created-at>-<report-id>/report.json
+```
+
+| Formatter  | Output file                                         | Use it for                                             |
+| ---------- | --------------------------------------------------- | ------------------------------------------------------ |
+| `markdown` | `<reportsDir>/<created-at>-<report-id>/report.md`   | Human review, PR comments, CI job summaries            |
+| `csv`      | `<reportsDir>/<created-at>-<report-id>/report.csv`  | Tabular analysis in spreadsheets or BI tools           |
+| `json`     | `<reportsDir>/<created-at>-<report-id>/report.json` | Automation and post-processing of the full report data |
+
+Formatters take no options of their own — `markdown: {}` selects the formatter, nothing more. There
+is no way to pin one fixed output file, because a fixed file is exactly what makes a second run
+destroy the first one's report.
+
+A downstream step therefore matches a pattern rather than a path: a CI job that uploads or reads
+the output should glob `<reportsDir>/*/report.<ext>` — for example `.thymian/reports/*/report.md`.
+When a step needs exactly one match, point `reportsDir` at a directory that starts the run empty
+(`reportsDir: build/reports` in a fresh workspace, or a step that clears it first).
+
+### Migrating from the per-formatter `path`
+
+The per-formatter `path` option was removed. A formatter that still sets it fails config
+validation, because formatter options take no properties at all. To migrate:
+
+1. Delete the `path` key — `markdown: {}` is the whole formatter configuration now.
+2. If it pointed somewhere other than the default, set the plugin-level `reportsDir` to that
+   directory instead. It is one base for every formatter, not a per-formatter file.
+3. Where a pipeline read the fixed file, glob `<reportsDir>/*/report.<ext>` instead.
 
 ```yaml
 plugins:
   '@thymian/plugin-reporter':
     options:
       formatters:
-        markdown: {} # .thymian/reports/report.md
-        csv:
-          path: reports/findings.csv
-        json: {} # .thymian/reports/report.json
+        markdown:
+          path: build/reports/report.md # ❌ before
 ```
 
-| Formatter  | Default path                   | Use it for                                             |
-| ---------- | ------------------------------ | ------------------------------------------------------ |
-| `markdown` | `.thymian/reports/report.md`   | Human review, PR comments, CI job summaries            |
-| `csv`      | `.thymian/reports/report.csv`  | Tabular analysis in spreadsheets or BI tools           |
-| `json`     | `.thymian/reports/report.json` | Automation and post-processing of the full report data |
+```yaml
+plugins:
+  '@thymian/plugin-reporter':
+    options:
+      reportsDir: build/reports # ✅ after
+      formatters:
+        markdown: {} # build/reports/<created-at>-<report-id>/report.md
+```
+
+The reporter also checks that `reportsDir` can be created before the run starts, whenever at least
+one formatter is configured. A base directory it cannot create fails the run with
+[`UnusableReportsDirectoryError`](/references/errors/unusable-reports-directory-error/) rather than
+letting a green run produce no files. With `formatters: {}` nothing is checked and no directory is
+created.
 
 ### When to use the Markdown formatter
 
@@ -230,8 +294,8 @@ report:
 
 The file contains the canonical report payload exactly as Thymian emitted it on the `core.report`
 event, with no presentation transforms applied. The top level is always a **JSON array** of report
-objects, so a session that produces several reports stays complete. A single-workflow run yields a
-one-element array.
+objects, holding the one report that run directory belongs to — a session that produces several
+reports produces several directories, each with its own one-element array.
 
 Locations are stored as **references**, not rendered endpoint strings: a `thymianFormat` location
 carries `elementId`/`elementType` that you resolve against the run's entry in the report's
