@@ -13,6 +13,7 @@ import {
   reportSchema,
   Thymian,
   ThymianBaseError,
+  ThymianFormat,
   type ThymianPlugin,
 } from '../src/index.js';
 
@@ -869,6 +870,66 @@ describe('Thymian.reportConvert()', () => {
     // never have converted against.
     expect(outcome.report.runs[0].thymianFormatVersion).toBeUndefined();
     expect(outcome.report.thymianFormat).toBeUndefined();
+
+    await t.close();
+  });
+
+  it('does not complete a versionless passthrough run from --spec in a mixed merge', async () => {
+    const t = new Thymian();
+
+    // export() recomputes the hash from nodes/edges (the mocked attribute is
+    // discarded), so derive the hash the assembled report will actually see.
+    const specHash = ThymianFormat.import({
+      attributes: { hash: 'ignored' },
+      nodes: [],
+      edges: [],
+    }).export().attributes.hash;
+
+    t.emitter.onAction('core.format.load', async (_payload, ctx) => {
+      ctx.reply({ attributes: { hash: 'ignored' }, nodes: [], edges: [] });
+    });
+    t.emitter.onAction('core.report.convert', async (payload, ctx) => {
+      ctx.reply(
+        payload.inputs.map((input) =>
+          input.type === 'spectral'
+            ? {
+                input: { type: input.type, location: String(input.location) },
+                // Converted against the workflow --spec and tagged with it.
+                run: createToolRun({
+                  tool: { name: '@thymian/plugin-spectral' },
+                  runType: 'lint',
+                  executions: [],
+                  thymianFormatVersion: specHash,
+                }),
+              }
+            : {
+                input: { type: input.type, location: String(input.location) },
+                // A versionless passthrough (persisted without a spec, so no
+                // fragment map either) — it must NOT inherit spec-hash: the
+                // tagged run makes the workflow format join the report while
+                // fragmentFormats stays empty, the exact shape where an
+                // additionalFormats-based backfill heuristic would leak.
+                run: createToolRun({
+                  tool: { name: 'thymian-report-reader' },
+                  runType: 'lint',
+                  executions: [],
+                }),
+              },
+        ),
+      );
+    });
+
+    const outcome = await t.reportConvert({
+      reports: [
+        { type: 'spectral', location: './s.json' },
+        { type: 'thymian', location: './old.json' },
+      ],
+      specification: [{ type: 'openapi', location: 'api.yaml' }],
+    });
+
+    const versions = outcome.report.runs.map((run) => run.thymianFormatVersion);
+    expect(versions).toEqual([specHash, undefined]);
+    expect(Object.keys(outcome.report.thymianFormat ?? {})).toEqual([specHash]);
 
     await t.close();
   });

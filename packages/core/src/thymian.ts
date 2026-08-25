@@ -450,7 +450,9 @@ export class Thymian {
       )
     ).flat();
 
-    return this.finalizeWorkflow(toolRuns, format.export());
+    return this.finalizeWorkflow(toolRuns, format.export(), undefined, {
+      completeRunVersions: true,
+    });
   }
 
   async test(input: TestWorkflowInput): Promise<Report> {
@@ -484,7 +486,9 @@ export class Thymian {
       )
     ).flat();
 
-    return this.finalizeWorkflow(toolRuns, format.export());
+    return this.finalizeWorkflow(toolRuns, format.export(), undefined, {
+      completeRunVersions: true,
+    });
   }
 
   async analyze(input: AnalyzeWorkflowInput): Promise<Report> {
@@ -527,7 +531,9 @@ export class Thymian {
       )
     ).flat();
 
-    return this.finalizeWorkflow(toolRuns, format?.export());
+    return this.finalizeWorkflow(toolRuns, format?.export(), undefined, {
+      completeRunVersions: true,
+    });
   }
 
   /**
@@ -782,7 +788,7 @@ export class Thymian {
     toolRuns: ToolRun[],
     format?: ReturnType<ThymianFormat['export']>,
     additionalFormats?: Report['thymianFormat'],
-    options: { emitReport?: boolean } = {},
+    options: { emitReport?: boolean; completeRunVersions?: boolean } = {},
   ): Report {
     let thymianFormat: Report['thymianFormat'];
 
@@ -821,13 +827,17 @@ export class Thymian {
       }
     }
 
-    // Single-workflow provenance: without `additionalFormats`, every run in
-    // this workflow ran against the one `format` loaded for it, so a producer
-    // that forgot to set `thymianFormatVersion` is completed here. (Replaces
-    // the render-side sole-entry fallback, which became unsafe once merged
-    // reports can union formats from several sources.)
+    // Single-workflow provenance: the lint/test/analyze callers opt in
+    // explicitly (`completeRunVersions`) — every run they assemble ran
+    // against the one `format` loaded for it, so a producer that forgot to
+    // set `thymianFormatVersion` is completed here. (Replaces the
+    // render-side sole-entry fallback, which became unsafe once merged
+    // reports can union formats from several sources.) `reportConvert`
+    // never opts in: a mixed merge can reach this with `additionalFormats`
+    // empty yet a versionless passthrough run present, and completing that
+    // run from `--spec` would attribute a foreign graph to it.
     const runs =
-      format && !additionalFormats
+      format && options.completeRunVersions
         ? toolRuns.map((run) =>
             run.thymianFormatVersion === undefined
               ? { ...run, thymianFormatVersion: format.attributes.hash }
