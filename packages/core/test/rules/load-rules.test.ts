@@ -9,6 +9,57 @@ describe('load rules', () => {
     await loadRules('@thymian/rules-rfc-9110');
   }, 15_000);
 
+  it('AC1: loads a .ts rule at a relative path via the resolver seam, no build step', async () => {
+    const rules = await loadRules(
+      join(import.meta.dirname, 'fixtures', 'rules', 'ts-rule.rule.ts'),
+    );
+
+    expect(rules).toEqual([
+      expect.objectContaining({
+        meta: expect.objectContaining({ name: 'ts-rule' }),
+      }),
+    ]);
+  });
+
+  it('AC2: reports a bare specifier that ships unbuilt TypeScript source as a RuleLoadError naming the reason', async () => {
+    const cwd = join(
+      import.meta.dirname,
+      'fixtures',
+      'bare-packages',
+      'project',
+    );
+
+    await expect(
+      loadRules('unbuilt-ts-pkg', () => true, {}, cwd),
+    ).rejects.toThrow(
+      /Cannot load rule source unbuilt-ts-pkg: "unbuilt-ts-pkg" ships unbuilt TypeScript source/,
+    );
+  });
+
+  it('AC3: reports a .d.ts specifier as unloadable, never as a missing default export', async () => {
+    await expect(
+      loadRules(
+        join(import.meta.dirname, 'fixtures', 'rules', 'declaration-rule.d.ts'),
+      ),
+    ).rejects.toThrow(
+      /Cannot load rule source .*declaration-rule\.d\.ts: ".*declaration-rule\.d\.ts" is a TypeScript declaration file/,
+    );
+  });
+
+  it('has no <cwd>/<specifier> bare-to-local fallback: an extensionless specifier that happens to name a local file is still "not found"', async () => {
+    // Prior behaviour resolved this via existsSync(cwd/input) + extension
+    // guessing; the seam requires an explicit path with an explicit
+    // extension for anything local, so this is now an ordinary "not found".
+    await expect(
+      loadRules(
+        'ts-rule',
+        () => true,
+        {},
+        join(import.meta.dirname, 'fixtures', 'rules'),
+      ),
+    ).rejects.toThrow('Cannot resolve rule source ts-rule.');
+  });
+
   it('overrides severity from config with object', async () => {
     const basePath = import.meta.dirname;
 

@@ -1,7 +1,4 @@
-import { existsSync } from 'node:fs';
-import { createRequire } from 'node:module';
 import * as path from 'node:path';
-import { pathToFileURL } from 'node:url';
 
 import { glob } from 'tinyglobby';
 
@@ -20,8 +17,7 @@ import {
 import type { RuleFilter } from './rule-filter.js';
 import type { RuleSet } from './rule-set.js';
 import { isRuleSeverityLevel } from './rule-severity.js';
-
-const require = createRequire(import.meta.url);
+import { loadUserModule, resolveUserModule } from './user-module-loader.js';
 
 type RecordWithFunctions<Property extends PropertyKey> = Record<
   PropertyKey,
@@ -293,29 +289,30 @@ export async function loadRules(
     ).flat();
   }
 
-  let location = input;
-  const fileLocation = path.resolve(cwd, input);
+  const resolution = resolveUserModule(input, { cwd });
 
-  if (existsSync(fileLocation)) {
-    location = fileLocation;
+  if (!resolution.ok) {
+    throw resolution.reason
+      ? new ThymianBaseError(
+          `Cannot load rule source ${input}: ${resolution.reason}.`,
+          {
+            name: 'RuleLoadError',
+            ref: 'https://thymian.dev/references/errors/rule-load-error/',
+          },
+        )
+      : new ThymianBaseError(`Cannot resolve rule source ${input}.`, {
+          name: 'RuleLoadError',
+          ref: 'https://thymian.dev/references/errors/rule-load-error/',
+        });
   }
 
-  let resolved: string;
-
-  try {
-    resolved = require.resolve(location);
-  } catch {
-    throw new ThymianBaseError(`Cannot resolve rule source ${input}.`, {
-      name: 'RuleLoadError',
-      ref: 'https://thymian.dev/references/errors/rule-load-error/',
-    });
-  }
-
-  const module = await import(pathToFileURL(resolved).href);
+  const resolved = resolution.path;
+  const rawModule = await loadUserModule(resolved);
+  const module = isRecord(rawModule) ? rawModule : {};
 
   if (!('default' in module)) {
     throw new ThymianBaseError(
-      `Rule or rule set at ${location} does not use default export.`,
+      `Rule or rule set at ${resolved} does not use default export.`,
       {
         suggestions: [
           'Use "export default" or "module.exports =" to export your rule (set).',
@@ -331,7 +328,7 @@ export async function loadRules(
   if (isRule(ruleOrRuleSet)) {
     const rule = applyProfileThenConfig(ruleOrRuleSet, profileConfig, options);
 
-    assertRuleTypeDeclaration(rule, location);
+    assertRuleTypeDeclaration(rule, resolved);
 
     if (!ruleFilter(rule)) {
       return [];
@@ -339,7 +336,7 @@ export async function loadRules(
 
     assertRuleExecutionInvariant(
       rule,
-      location,
+      resolved,
       typeOverrideSuggestions(rule, options),
     );
 

@@ -8,6 +8,13 @@ out-tsc
 # dependencies
 node_modules
 
+# Fixture `node_modules` dirs deliberately committed: they simulate an
+# installed bare-specifier package for packages/core's user-module-loader
+# tests (a fake node_modules is the only way to exercise real Node package
+# resolution against a fixture).
+!packages/core/test/rules/fixtures/bare-packages/**/node_modules
+!packages/core/test/rules/fixtures/bare-packages/**/node_modules/**
+
 # IDEs and editors
 /.idea
 .project
