@@ -26,8 +26,19 @@ import {
  * dedupes), and divergent content under one name is separated (so it compiles).
  *
  * Only ROOT-level `$defs` are considered, because that is the only place
- * `plugin-openapi` puts them. `ThymianSchema` carries no `title`, so `$defs` is
- * also the only keyword that can name a nested declaration.
+ * `plugin-openapi` puts them.
+ *
+ * `$defs` IS NOT THE ONLY KEYWORD THAT CAN NAME A NESTED DECLARATION, and this
+ * docblock used to claim it was, on the grounds that `ThymianSchema` carries no
+ * `title`. That reasoned from the TypeScript TYPE to the runtime VALUE across a
+ * package boundary, and the producer is under no obligation to agree with a type
+ * it does not import: `plugin-openapi` copies unknown keywords through verbatim
+ * (`json-schema.processor.ts`, `keysToRemove` lists seven keys and neither
+ * `title` nor `$id` is among them), so both arrive here however absent they are
+ * from the type. They outrank everything this module assigns — see
+ * `type-names.ts`, "THAT BOUNDARY HAS A SECOND HALF" — and are removed by
+ * `stripNameKeywordsInPlace` before anything is compiled. A statement
+ * about a type is not evidence about a value.
  *
  * THREE THINGS THE NAME IS KEYED ON, AND ONE IT IS NOT. It is keyed on the
  * EMITTED IDENTIFIER, not on the raw `$defs` key: `pet-owner` and `pet_owner`

@@ -93,6 +93,20 @@ function param(schema: ThymianSchema, required = false): Parameter {
   return { schema, required, style: { style: 'form', explode: true } };
 }
 
+/**
+ * A schema carrying keywords `ThymianSchema` does not declare.
+ *
+ * The cast is the finding, not a workaround for it: `title` and `$id` are
+ * absent from the TYPE and present in the VALUE, because `plugin-openapi`
+ * copies unknown keywords through verbatim (`json-schema.processor.ts`,
+ * `keysToRemove`) and is under no obligation to agree with a type it does not
+ * import. Reasoning from the type is exactly what left this class of input
+ * untested, so the fixtures state the runtime shape explicitly.
+ */
+function selfNamed(schema: Record<string, unknown>): ThymianSchema {
+  return schema as unknown as ThymianSchema;
+}
+
 function surfaceOf(specs: readonly TransactionSpec[]): Promise<string> {
   return generateRequestTypesSurface(formatFrom(specs));
 }
@@ -1815,6 +1829,351 @@ describe('generateRequestTypesSurface', () => {
       expect(names).toHaveLength(2);
       expect(new Set(names).size).toBe(2);
     });
+  });
+
+  /**
+   * `json-schema-to-typescript` resolves a declaration's name as
+   * `options.customName?.(…) || schema.title || schema.$id || keyNameFromDefinition`
+   * (`parser.js:274`), so a schema that names itself outranks BOTH the name
+   * `compile()` is handed and the `$defs` key the registry renamed. Every case
+   * below is an ordinary OpenAPI document — a `title` on a `components/schemas`
+   * entry, on a request body, on a parameter, on a nested property — and every
+   * one of them declared an identifier nothing reserved before the fix.
+   */
+  describe('schemas that name themselves (AC7)', () => {
+    it(
+      'ignores a request body title and declares the site name',
+      COMPILE_TIMEOUT,
+      async () => {
+        const surface = await surfaceOf([
+          {
+            method: 'POST',
+            path: '/pets',
+            requestMediaType: 'application/json',
+            status: 201,
+            responseMediaType: 'application/json',
+            requestBody: selfNamed({
+              title: 'Pet',
+              type: 'object',
+              properties: { name: { type: 'string' } },
+            }),
+          },
+        ]);
+        const declared = declarations(surface);
+
+        expect(compile(surface).diagnostics).toEqual([]);
+        expect(declared.has('Pet')).toBe(false);
+        expect(
+          declared.get('PostPetsApplicationJson201ApplicationJsonRequestBody'),
+        ).toContain('name?: string');
+      },
+    );
+
+    /**
+     * `components/schemas/Status` is ordinary, and so is a `title` of `Status`
+     * on an anonymous body. The alias is reserved against the first
+     * (`reserves its own aliases against a $defs entry of the same name`); this
+     * is the second, which reservation cannot reach because the library never
+     * asked the registry.
+     */
+    it(
+      'ignores a title that collides with a reserved alias',
+      COMPILE_TIMEOUT,
+      async () => {
+        const surface = await surfaceOf([
+          {
+            method: 'POST',
+            path: '/pets',
+            requestMediaType: 'application/json',
+            status: 201,
+            responseMediaType: 'application/json',
+            requestBody: selfNamed({
+              title: 'Status',
+              type: 'object',
+              properties: { name: { type: 'string' } },
+            }),
+          },
+        ]);
+
+        expect(compile(surface).diagnostics).toEqual([]);
+        expect(unionMembers(surface, 'Status')).toEqual(['201']);
+      },
+    );
+
+    it('ignores a title on a parameter schema', COMPILE_TIMEOUT, async () => {
+      const surface = await surfaceOf([
+        {
+          path: '/q',
+          status: 200,
+          responseMediaType: 'application/json',
+          queryParameters: {
+            f: param(
+              selfNamed({
+                title: 'Status',
+                type: 'object',
+                properties: { a: { type: 'string' } },
+              }),
+            ),
+          },
+        },
+      ]);
+
+      expect(compile(surface).diagnostics).toEqual([]);
+      expect(unionMembers(surface, 'Status')).toEqual(['200']);
+      expect(entryText(surface, 'GET /q -> 200 (application/json)')).toContain(
+        'GetQ200ApplicationJsonQueryParam_F',
+      );
+    });
+
+    it(
+      'ignores a title on a nested property, which no site name reaches',
+      COMPILE_TIMEOUT,
+      async () => {
+        const surface = await surfaceOf([
+          {
+            path: '/n',
+            status: 200,
+            responseMediaType: 'application/json',
+            responseSchema: {
+              type: 'object',
+              properties: {
+                inner: selfNamed({
+                  title: 'Endpoints',
+                  type: 'object',
+                  properties: { a: { type: 'string' } },
+                }),
+              },
+            },
+          },
+        ]);
+        const declared = declarations(surface);
+
+        expect(compile(surface).diagnostics).toEqual([]);
+        expect(declared.get('Endpoints')).toContain('GET /n -> 200');
+        expect(declared.get('GetN200ApplicationJsonResponseBody')).toContain(
+          'a?: string',
+        );
+      },
+    );
+
+    it(
+      'keeps two bodies apart when both descriptions chose one title',
+      COMPILE_TIMEOUT,
+      async () => {
+        const surface = await surfaceOf([
+          {
+            path: '/a',
+            status: 200,
+            responseMediaType: 'application/json',
+            responseSchema: selfNamed({
+              title: 'Shared',
+              type: 'object',
+              properties: { a: { type: 'string' } },
+            }),
+          },
+          {
+            path: '/b',
+            status: 200,
+            responseMediaType: 'application/json',
+            responseSchema: selfNamed({
+              title: 'Shared',
+              type: 'object',
+              properties: { b: { type: 'number' } },
+            }),
+          },
+        ]);
+        const declared = declarations(surface);
+
+        expect(compile(surface).diagnostics).toEqual([]);
+        expect(
+          [...declared.keys()].filter((name) => name.includes('Shared')),
+        ).toEqual([]);
+        expect(declared.get('GetA200ApplicationJsonResponseBody')).toContain(
+          'a?: string',
+        );
+        expect(declared.get('GetB200ApplicationJsonResponseBody')).toContain(
+          'b?: number',
+        );
+      },
+    );
+
+    it(
+      'ignores a $id, which ranks second and fails the same way',
+      COMPILE_TIMEOUT,
+      async () => {
+        const surface = await surfaceOf([
+          {
+            method: 'POST',
+            path: '/pets',
+            requestMediaType: 'application/json',
+            status: 201,
+            responseMediaType: 'application/json',
+            requestBody: selfNamed({
+              $id: 'Status',
+              type: 'object',
+              properties: { name: { type: 'string' } },
+            }),
+          },
+        ]);
+        const declared = declarations(surface);
+
+        expect(compile(surface).diagnostics).toEqual([]);
+        expect(unionMembers(surface, 'Status')).toEqual(['201']);
+        expect(
+          declared.get('PostPetsApplicationJson201ApplicationJsonRequestBody'),
+        ).toContain('name?: string');
+      },
+    );
+
+    /**
+     * THE ONE CASE THE COMPILER CANNOT REPORT, so it is asserted on the emitted
+     * declarations instead. `$defs.Pet` carrying `title: 'Owner'` took the name
+     * the registry had issued to the sibling `$defs.Owner`, and the library's
+     * own counter renamed that sibling to `Owner1` — a name nothing reserved,
+     * on a surface `tsc` calls clean, with `p` silently typed as the wrong
+     * schema. Zero diagnostics before the fix and zero after, which is exactly
+     * why a diagnostics assertion would have passed on the corrupted file.
+     */
+    it(
+      'does not let a $defs title steal a sibling definition name',
+      COMPILE_TIMEOUT,
+      async () => {
+        const surface = await surfaceOf([
+          {
+            path: '/s',
+            status: 200,
+            responseMediaType: 'application/json',
+            responseSchema: {
+              type: 'object',
+              properties: {
+                p: { $ref: '#/$defs/Pet' },
+                o: { $ref: '#/$defs/Owner' },
+              },
+              $defs: {
+                Pet: selfNamed({
+                  title: 'Owner',
+                  type: 'object',
+                  properties: { petName: { type: 'string' } },
+                }),
+                Owner: {
+                  type: 'object',
+                  properties: { ownerName: { type: 'string' } },
+                },
+              },
+            },
+          },
+        ]);
+        const declared = declarations(surface);
+
+        // Every declared name is one the registry issued: no `Owner1`, no
+        // `Pet1`, no suffix minted by the library's counter.
+        expect(
+          [...declared.keys()]
+            .filter((name) => /^(Pet|Owner)/.test(name))
+            .sort(),
+        ).toEqual(['Owner', 'Pet']);
+        expect(declared.get('Pet')).toContain('petName?: string');
+        expect(declared.get('Owner')).toContain('ownerName?: string');
+        expect(declared.get('GetS200ApplicationJsonResponseBody')).toContain(
+          'p?: Pet',
+        );
+        expect(declared.get('GetS200ApplicationJsonResponseBody')).toContain(
+          'o?: Owner',
+        );
+        expect(compile(surface).diagnostics).toEqual([]);
+      },
+    );
+
+    /**
+     * A `title` that merely differs from its key defeats the whole `$defs`
+     * disambiguation pass without colliding with anything: both divergent
+     * contents compiled to one `PetObject`.
+     */
+    it(
+      'keeps $defs disambiguation working when a title differs from the key',
+      COMPILE_TIMEOUT,
+      async () => {
+        const surface = await surfaceOf([
+          {
+            path: '/a',
+            status: 200,
+            responseMediaType: 'application/json',
+            responseSchema: {
+              type: 'object',
+              properties: { p: { $ref: '#/$defs/Pet' } },
+              $defs: {
+                Pet: selfNamed({
+                  title: 'Pet object',
+                  type: 'object',
+                  properties: { a: { type: 'string' } },
+                }),
+              },
+            },
+          },
+          {
+            path: '/b',
+            status: 200,
+            responseMediaType: 'application/json',
+            responseSchema: {
+              type: 'object',
+              properties: { p: { $ref: '#/$defs/Pet' } },
+              $defs: {
+                Pet: selfNamed({
+                  title: 'Pet object',
+                  type: 'object',
+                  properties: { b: { type: 'number' } },
+                }),
+              },
+            },
+          },
+        ]);
+        const declared = declarations(surface);
+
+        expect(compile(surface).diagnostics).toEqual([]);
+        expect(declared.has('PetObject')).toBe(false);
+        expect(declared.get('Pet')).toContain('a?: string');
+        expect(declared.get('Pet_2')).toContain('b?: number');
+      },
+    );
+
+    /**
+     * The strip descends subschema positions only. A property CALLED `title`
+     * and a `title` member inside an example are both data, and a blind
+     * "delete every `title`" walk would silently drop the first from the type
+     * and the second from the reflected literal.
+     */
+    it(
+      'leaves a property named title and a title inside an example alone',
+      COMPILE_TIMEOUT,
+      async () => {
+        const surface = await surfaceOf([
+          {
+            path: '/books',
+            status: 200,
+            responseMediaType: 'application/json',
+            responseSchema: selfNamed({
+              title: 'Book',
+              type: 'object',
+              examples: [{ title: 'Dune', $id: 'urn:x' }],
+              properties: {
+                title: { type: 'string' },
+                $id: { type: 'string' },
+              },
+            }),
+          },
+        ]);
+        const declared = declarations(surface);
+        const body = declared.get('GetBooks200ApplicationJsonResponseBody');
+
+        expect(compile(surface).diagnostics).toEqual([]);
+        expect(declared.has('Book')).toBe(false);
+        expect(body).toContain('title: "Dune"');
+        expect(body).toContain('$id: "urn:x"');
+        expect(
+          declared.get('GetBooks200ApplicationJsonResponseBodyBase'),
+        ).toContain('title?: string');
+      },
+    );
   });
 
   describe('determinism (AC8)', () => {

@@ -7,7 +7,10 @@ import {
 import CodeBlockWriter from 'code-block-writer';
 import { compile, type JSONSchema } from 'json-schema-to-typescript';
 
-import { safeIdentifier } from '../generation/types/type-names.js';
+import {
+  safeIdentifier,
+  stripNameKeywordsInPlace,
+} from '../generation/types/type-names.js';
 
 export async function generateTypeForSchema(
   schema: unknown,
@@ -29,8 +32,19 @@ export async function generateTypeForSchema(
   // same string by construction. v1's `GeneratedSchema1..N` is unaffected: it is
   // already a fixed point.
   const safeName = safeIdentifier(typeName);
+  // The other half of that same boundary: `compile` does not merely re-case the
+  // name it is handed, it IGNORES it when the schema names itself, because
+  // `schema.title` and `schema.$id` outrank it (`parser.js:274`). A schema-level
+  // `title` is ordinary in real OpenAPI documents and `plugin-openapi` passes it
+  // through verbatim, so it reaches here intact and the returned name ends up
+  // naming nothing. Stripping both keeps "the declaration declares what this
+  // function returns" true by construction rather than by luck.
+  const prepared: unknown = structuredClone(schema);
+
+  stripNameKeywordsInPlace(prepared);
+
   const declaration = await compile(
-    convertDefsToDefinitions(structuredClone(schema)) as JSONSchema,
+    convertDefsToDefinitions(prepared) as JSONSchema,
     safeName,
     {
       bannerComment: '',

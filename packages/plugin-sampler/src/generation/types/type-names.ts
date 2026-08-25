@@ -35,6 +35,20 @@
  * transform, and {@link NameRegistry} uniquifies AFTER it — so two candidates
  * that sanitise onto one identifier get a suffix instead of one declaration
  * twice.
+ *
+ * THAT BOUNDARY HAS A SECOND HALF, AND SANITISING ALONE DOES NOT CLOSE IT.
+ * The library RE-CASES the name it is handed — which {@link safeIdentifier}
+ * settles — but it also IGNORES that name outright when the schema names
+ * itself. It resolves a declaration name as
+ * `options.customName?.(…) || schema.title || schema.$id || keyNameFromDefinition`
+ * (`json-schema-to-typescript@15/dist/src/parser.js:274`), and the normalizer
+ * only synthesises the `$id` we rely on `if (!schema.$id && !schema.title …)`
+ * (`dist/src/normalizer.js:61-83`). So a schema-level `title` or `$id` outranks
+ * BOTH the name `compile()` is handed and the `$defs` key the registry
+ * renamed — at the root, at a nested property, and inside `$defs` alike.
+ * {@link stripNameKeywordsInPlace} is what closes it: the schema reaches the
+ * library carrying no name of its own, so the only name left for it to use is
+ * the one this module issued.
  */
 
 /** Which schema of a transaction a declaration was generated for. */
@@ -178,6 +192,120 @@ export function safeIdentifier(value: string): string {
   return result.length > 0 ? result : 'Schema';
 }
 
+/**
+ * The keywords a schema names ITSELF with, in the library's own precedence
+ * order. Both outrank the name `compile()` is handed and the `$defs` key
+ * {@link NameRegistry} issued, so both have to be gone before the schema is
+ * compiled.
+ *
+ * Neither carries type information the surface emits: `title` is documentation
+ * (`description` is the keyword the library turns into a JSDoc comment, and it
+ * is deliberately kept), and `$id` is a base-URI declaration. `plugin-openapi`
+ * rewrites every reference it produces to a root-relative `#/$defs/<name>`
+ * pointer (`json-schema.processor.ts` `localizeReference`), so no `$ref` on
+ * this path resolves against a `$id` base and dropping it cannot move one.
+ */
+const NAME_KEYWORDS = ['title', '$id'] as const;
+
+/** Keywords whose value is one subschema. */
+const SUBSCHEMA_VALUE_KEYWORDS = [
+  'additionalProperties',
+  'contains',
+  'else',
+  'if',
+  'items',
+  'not',
+  'propertyNames',
+  'then',
+  'unevaluatedItems',
+  'unevaluatedProperties',
+] as const;
+
+/** Keywords whose value is an array of subschemas. */
+const SUBSCHEMA_ARRAY_KEYWORDS = [
+  'allOf',
+  'anyOf',
+  'oneOf',
+  'prefixItems',
+] as const;
+
+/**
+ * Keywords whose value is a record of subschemas. `definitions` is listed
+ * beside `$defs` because `convertDefsToDefinitions` rewrites one into the
+ * other, and a schema that already spelled it the draft-07 way names
+ * declarations just the same.
+ */
+const SUBSCHEMA_RECORD_KEYWORDS = [
+  '$defs',
+  'definitions',
+  'dependentSchemas',
+  'patternProperties',
+  'properties',
+] as const;
+
+function isSchemaObject(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+/**
+ * Removes every keyword the library would name a declaration after, everywhere
+ * in the tree, so the only name it can declare under is the one this module
+ * issued. Mutates the node it is handed; the caller owns the clone.
+ *
+ * THE WALK IS SCHEMA-POSITION-AWARE, AND THAT IS NOT FASTIDIOUSNESS. A blind
+ * "delete every `title` key" walk is wrong twice over, and both cases are
+ * ordinary rather than exotic: `properties: { title: … }` is a property CALLED
+ * title — a book has one — and deleting that key deletes the property from the
+ * emitted type; and `examples`, `const`, `default` and `enum` hold DATA, where
+ * a `title` member is a value the example-reflection pass renders into a
+ * literal type. Only the positions listed above hold subschemas, so only those
+ * are descended into and everything else is left exactly as the description
+ * wrote it.
+ *
+ * Nested `$defs` are descended into even though `plugin-openapi` only hoists to
+ * the root, because unlike the naming pass — which has to CHOOSE a name and so
+ * is scoped to where names are actually issued (see `schema-definitions.ts`) —
+ * this pass only has to REMOVE one, and a nested `$defs` entry with a `title`
+ * declares an identifier just as loudly as a root one.
+ */
+export function stripNameKeywordsInPlace(node: unknown): void {
+  if (!isSchemaObject(node)) {
+    return;
+  }
+
+  for (const keyword of NAME_KEYWORDS) {
+    delete node[keyword];
+  }
+
+  for (const keyword of SUBSCHEMA_VALUE_KEYWORDS) {
+    stripNameKeywordsInPlace(node[keyword]);
+  }
+
+  for (const keyword of SUBSCHEMA_ARRAY_KEYWORDS) {
+    const branches = node[keyword];
+
+    if (!Array.isArray(branches)) {
+      continue;
+    }
+
+    for (const branch of branches) {
+      stripNameKeywordsInPlace(branch);
+    }
+  }
+
+  for (const keyword of SUBSCHEMA_RECORD_KEYWORDS) {
+    const entries = node[keyword];
+
+    if (!isSchemaObject(entries)) {
+      continue;
+    }
+
+    for (const entry of Object.values(entries)) {
+      stripNameKeywordsInPlace(entry);
+    }
+  }
+}
+
 /** A site asking for a name, identified by a key that is unique and sortable. */
 export type NameRequest = {
   readonly key: string;
@@ -203,6 +331,14 @@ export function compareStrings(a: string, b: string): number {
  * The one place a declaration name is minted, for every kind of declaration the
  * surface emits: the aliases the surface writes itself, the `$defs` it hoists,
  * the per-site schemas and the example bases.
+ *
+ * "ONE registry" IS A CLAIM ABOUT THIS CODE, NOT ABOUT THE OUTPUT FILE. Being
+ * the only minter does not make it the only SOURCE: a `title` or a `$id` on the
+ * schema names a declaration without asking, and the registry cannot suffix
+ * against a name it was never shown. What makes the claim true of the emitted
+ * file is {@link stripNameKeywordsInPlace} removing the competing source before
+ * anything compiles — so a name minted anywhere else is a defect in that pass,
+ * not something this class can defend against.
  *
  * ONE registry, because the identifier space is one namespace. A `$defs` entry
  * called `Status` and the `Status` union are the same identifier to `tsc`; so

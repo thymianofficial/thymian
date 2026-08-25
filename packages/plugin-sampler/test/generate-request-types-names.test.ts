@@ -12,6 +12,7 @@ import {
   assignUniqueNames,
   NameRegistry,
   safeIdentifier,
+  stripNameKeywordsInPlace,
 } from '../src/generation/types/type-names.js';
 import { generateTypeForSchema } from '../src/hooks/generate-request-types.js';
 
@@ -121,6 +122,129 @@ describe('generateTypeForSchema', () => {
         generated.type,
       );
     }
+  });
+
+  /**
+   * The same invariant against the half of the boundary sanitisation cannot
+   * reach. `schema.title` and `schema.$id` outrank the name `compile()` is
+   * handed (`parser.js:274`), so before the strip this call declared `Pet` —
+   * or `Urn`, from a URI `$id` — and reported a name that named nothing.
+   * `plugin-openapi` copies both keywords through verbatim, so this is what a
+   * `components/schemas` entry with a `title` actually looks like here.
+   */
+  it('declares the identifier it returns even when the schema names itself', async () => {
+    for (const self of [
+      { title: 'Pet' },
+      { $id: 'Pet' },
+      { title: 'Pet', $id: 'Owner' },
+      { $id: 'urn:example:pet' },
+    ]) {
+      const label = JSON.stringify(self);
+      const generated = await generateTypeForSchema(
+        { ...self, type: 'object', properties: { a: { type: 'string' } } },
+        'application/json',
+        'GetPets200ResponseBody',
+      );
+
+      expect(generated.type, label).toBe('GetPets200ResponseBody');
+      expect(generated.declarations, label).toHaveLength(1);
+      expect(identifierOf(generated.declarations[0] ?? ''), label).toBe(
+        generated.type,
+      );
+    }
+  });
+});
+
+/**
+ * Every position `ThymianSchema` and `plugin-openapi` can put a subschema in,
+ * each planted with the two keywords the library names declarations after. A
+ * keyword this walk forgets is a declaration the registry never issued, which
+ * is silent by construction — the surface still compiles, it just carries a
+ * name nobody chose.
+ */
+function schemaWithNameKeywordsEverywhere(): Record<string, unknown> {
+  const named = (marker: string) => ({
+    title: `Title_${marker}`,
+    $id: `Id_${marker}`,
+    type: 'object',
+  });
+
+  return {
+    ...named('root'),
+    properties: { a: named('properties') },
+    patternProperties: { '^x-': named('patternProperties') },
+    dependentSchemas: { a: named('dependentSchemas') },
+    $defs: {
+      D: { ...named('defs'), $defs: { N: named('nestedDefs') } },
+    },
+    definitions: { L: named('definitions') },
+    additionalProperties: named('additionalProperties'),
+    contains: named('contains'),
+    else: named('else'),
+    if: named('if'),
+    items: named('items'),
+    not: named('not'),
+    propertyNames: named('propertyNames'),
+    then: named('then'),
+    unevaluatedItems: named('unevaluatedItems'),
+    unevaluatedProperties: named('unevaluatedProperties'),
+    allOf: [named('allOf')],
+    anyOf: [named('anyOf')],
+    oneOf: [named('oneOf')],
+    prefixItems: [named('prefixItems')],
+  };
+}
+
+describe('stripNameKeywordsInPlace', () => {
+  it('removes title and $id from every subschema position', () => {
+    const schema = schemaWithNameKeywordsEverywhere();
+
+    stripNameKeywordsInPlace(schema);
+
+    expect(JSON.stringify(schema)).not.toMatch(/"(title|\$id)":/);
+  });
+
+  /**
+   * The two positions a blind "delete every title" walk gets wrong, and both
+   * are ordinary rather than exotic: a book has a property called `title`, and
+   * an example is DATA that the reflection pass renders into a literal type.
+   */
+  it('leaves title and $id alone where they are not keywords', () => {
+    const schema = {
+      type: 'object',
+      properties: {
+        title: { type: 'string' },
+        $id: { type: 'string' },
+      },
+      required: ['title'],
+      examples: [{ title: 'Dune', $id: 'urn:x' }],
+      default: { title: 'none' },
+      const: { title: 'fixed' },
+      enum: [{ title: 'one' }],
+    };
+
+    stripNameKeywordsInPlace(schema);
+
+    expect(Object.keys(schema.properties)).toEqual(['title', '$id']);
+    expect(schema.examples).toEqual([{ title: 'Dune', $id: 'urn:x' }]);
+    expect(schema.default).toEqual({ title: 'none' });
+    expect(schema.const).toEqual({ title: 'fixed' });
+    expect(schema.enum).toEqual([{ title: 'one' }]);
+    expect(schema.required).toEqual(['title']);
+  });
+
+  it('tolerates the non-schema values these keywords legally hold', () => {
+    const schema = {
+      additionalProperties: false,
+      unevaluatedProperties: true,
+      items: null,
+      allOf: 'not-an-array',
+      properties: [{ title: 'ignored' }],
+    };
+
+    expect(() => stripNameKeywordsInPlace(schema)).not.toThrow();
+    expect(stripNameKeywordsInPlace(undefined)).toBeUndefined();
+    expect(schema.additionalProperties).toBe(false);
   });
 });
 
