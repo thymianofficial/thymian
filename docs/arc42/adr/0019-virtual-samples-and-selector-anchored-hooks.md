@@ -15,23 +15,21 @@ reconciled into it by hand:
 - a renamed path, a removed operation, a changed media type or status code —
   even a pure `info.title` rename, which is the top-level directory name —
   leaves the user's hooks orphaned at dead paths;
-- `init --overwrite` regenerates in place but never deletes artifacts belonging
-  to removed operations, which `validate` then reports as
-  `unexpected-artifact`;
-- `validate` detects staleness but offers no way to fix it.
+- `thymian sampler init --overwrite` regenerates in place but never deletes
+  artifacts belonging to removed operations, which `thymian sampler validate`
+  then reports as `unexpected-artifact`;
+- `thymian sampler validate` detects staleness but offers no way to fix it.
 
-Issue
-[thymian-internal#466](https://github.com/thymianofficial/thymian-internal/issues/466)
+Issue [thymian-internal#466](https://github.com/thymianofficial/thymian-internal/issues/466)
 asked for assisted migration — a `thymian sampler sync` that analyzes, migrates
-the unambiguous cases, and prompts on the rest. Three
-prototypes were built (regenerate-and-reattach, semantic-key three-way delta,
-plan/apply). All three worked, and all three carried the same irreducible cost:
-reconciliation needs a rename oracle. Identity has to key on semantic
-transaction keys rather than content hashes (`info.title` and operation
-`summary` are hash-invariant), and the weighted-similarity scorer that guesses
-which operation a hook belonged to silently cross-assigns same-method siblings.
-Any migration engine either guesses or asks — and it exists only because the
-tree exists.
+the unambiguous cases, and prompts on the rest. Three prototypes were built
+(regenerate-and-reattach, semantic-key three-way delta, plan/apply). All three
+worked, and all three carried the same irreducible cost: reconciliation needs a
+rename oracle. Identity has to key on semantic transaction keys rather than
+content hashes (`info.title` and operation `summary` are hash-invariant), and
+the weighted-similarity scorer that guesses which operation a hook belonged to
+silently cross-assigns same-method siblings. Any migration engine either guesses
+or asks — and it exists only because the tree exists.
 
 A second round redesigned the sampler instead of the migration. Its conclusion:
 if nothing is materialized, nothing can go stale, and the entire
@@ -66,11 +64,11 @@ TypeScript error.**
   exclusively through a typed `TransactionFilter`, whose every field is a
   spec-derived union.
 - **The compiler is the drift oracle.** The committed types are the staleness
-  baseline — there is no lock file. `sampler validate` regenerates the surface
-  in memory and runs `tsc` over the hooks: identical is silent; differing but
-  compiling is a warning to run `sampler sync`; differing and failing is
-  breaking drift. Comparison is canonicalized (comments and JSDoc stripped), so
-  description-only edits are non-events.
+  baseline — there is no lock file. `thymian sampler validate` regenerates the
+  surface in memory and runs `tsc` over the hooks: identical is silent;
+  differing but compiling is a warning to run `thymian sampler sync`; differing
+  and failing is breaking drift. Comparison is canonicalized (comments and JSDoc
+  stripped), so description-only edits are non-events.
 - **All hooks return `void` and mutate in place**, and each receives both the
   fully typed object and equivalent typed `utils.set*` setters:
   `defineSample` (generation-time, at most one per transaction),
@@ -101,7 +99,7 @@ is the v2 specification recorded on
   being events at all.
 - Drift surfaces in the editor. A dangling selector, a stale filter value or a
   changed body shape is a red squiggle before it is a failed run, and one
-  command (`sampler validate`) is the authoritative gate for CI.
+  command (`thymian sampler validate`) is the authoritative gate for CI.
 - Hooks are the only user-owned artifact. They can live in any number of files
   at any nesting, and no tooling relocates or deletes them.
 - The `@thymian/core` contract established by
@@ -127,7 +125,8 @@ is the v2 specification recorded on
   shipping it.
 - Two residues sit outside the type system: a filter whose values are all valid
   but intersect nothing, and an over-broad glob. Both are reported by
-  `validate` and fail a test run fast, but neither is a compile error.
+  `thymian sampler validate` and fail a test run fast, but neither is a compile
+  error.
 - Existing users of the materialized tree migrate their hooks by hand, once.
   There is no automated v1 → v2 path — that would be the very engine this
   decision declines to build.
