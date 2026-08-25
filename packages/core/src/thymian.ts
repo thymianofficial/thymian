@@ -1,3 +1,5 @@
+import { isDeepStrictEqual } from 'node:util';
+
 import semver from 'semver';
 
 import packageJson from '../package.json' with { type: 'json' };
@@ -608,7 +610,7 @@ export class Thymian {
       null,
     ) as NonNullable<Report['thymianFormat']>;
 
-    const toolRuns = reports.flatMap((reportInput) => {
+    const assembledRuns = reports.flatMap((reportInput) => {
       const key = `${reportInput.type}:${String(reportInput.location)}`;
       const matches = fragmentsByKey.get(key);
 
@@ -648,34 +650,51 @@ export class Thymian {
         // missing `thymianFormatVersion` here — the render-side sole-entry
         // fallback is gone (it read the cross-input union, which could
         // attribute a foreign format to the run).
-        if (
+        const run =
           fragment.run.thymianFormatVersion === undefined &&
           fragmentHashes.length === 1
-        ) {
-          return { ...fragment.run, thymianFormatVersion: fragmentHashes[0] };
-        }
+            ? { ...fragment.run, thymianFormatVersion: fragmentHashes[0] }
+            : fragment.run;
 
-        return fragment.run;
+        return { run, source: key };
       });
     });
 
     // Run identity is `runId`, not the input path it arrived under: the same
     // persisted run reaching the merge twice (a copied file, two exports of
     // one report) must not yield duplicate `runId`s in the assembled report —
-    // downstream consumers join and de-duplicate on that id.
-    const seenRunIds = new Set<string>();
-    const uniqueToolRuns = toolRuns.filter((run) => {
-      if (seenRunIds.has(run.runId)) {
-        return false;
+    // downstream consumers join and de-duplicate on that id. Identity is
+    // only trusted when the content matches, though: two *different* runs
+    // under one id mean a copied-then-edited report file, and silently
+    // dropping one would erase its executions from the merge (and with them
+    // possibly the failed executions that decide the exit code), so that is
+    // an input error, not a dedup (#362 review).
+    const seenRuns = new Map<string, { run: ToolRun; source: string }>();
+    const uniqueToolRuns: ToolRun[] = [];
+
+    for (const { run, source } of assembledRuns) {
+      const seen = seenRuns.get(run.runId);
+
+      if (!seen) {
+        seenRuns.set(run.runId, { run, source });
+        uniqueToolRuns.push(run);
+        continue;
       }
 
-      seenRunIds.add(run.runId);
-      return true;
-    });
+      if (!isDeepStrictEqual(seen.run, run)) {
+        throw new ThymianBaseError(
+          `Two different runs share runId "${run.runId}" (from ${seen.source} and ${source}). Same-id runs are collapsed only when they are identical; differing content indicates a copied and then edited report file.`,
+          {
+            suggestions: [
+              'Regenerate one of the input reports so every distinct run carries its own runId.',
+              'If both files are meant to be the same run, make their content identical again.',
+            ],
+          },
+        );
+      }
 
-    if (uniqueToolRuns.length < toolRuns.length) {
-      this.logger.warn(
-        `Dropped ${toolRuns.length - uniqueToolRuns.length} run(s) with duplicate runId(s) — the same run arrived from more than one input; the first occurrence is kept.`,
+      this.logger.debug(
+        `Collapsed an identical duplicate of run "${run.runId}" (from ${source}) — the same run arrived from more than one input.`,
       );
     }
 

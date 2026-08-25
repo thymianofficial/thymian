@@ -41,10 +41,15 @@ export async function mockThymianCore(): Promise<object> {
     public ready = vi.fn(async () => undefined);
     public close = vi.fn(async () => undefined);
     public register = vi.fn();
-    public run = vi.fn(async (fn: () => Promise<unknown>) => fn());
+    public run = vi.fn(async (fn: () => Promise<unknown>) => {
+      // Recorded here, not in reportConvert: `runCalled` asserts the command
+      // went through the thymian.run(...) lifecycle wrapper, so bypassing it
+      // must fail the assertion.
+      mockState.runCalled = true;
+      return fn();
+    });
     public reportConvert = vi.fn(async (input: unknown) => {
       mockState.reportConvertInput = input;
-      mockState.runCalled = true;
       return (
         mockState.reportConvertResult ?? {
           report: actual.createReport([]),

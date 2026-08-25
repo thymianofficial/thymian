@@ -89,7 +89,10 @@ The merged report gates like any other: exit `1` when any merged run contains a 
 
 <Aside type="caution">
   The same run reaching the merge twice (the same file, or a copy of it) is
-  collapsed by its `runId` — but findings are never deduplicated across
-  *different* runs: two separate tool runs over the same API double the summary
-  counts, by design.
+  collapsed by its `runId` — but only when the duplicates are identical. Two
+  *different* runs claiming one `runId` (a copied and then edited report file)
+  fail the merge with exit `2` naming both inputs, so no findings can be
+  silently dropped. Findings are never deduplicated across different runs:
+  two separate tool runs over the same API double the summary counts, by
+  design.
 </Aside>

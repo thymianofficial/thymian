@@ -758,6 +758,43 @@ describe('Thymian.reportConvert()', () => {
     await t.close();
   });
 
+  it('fails when two different runs share a runId instead of silently dropping one', async () => {
+    const t = new Thymian();
+
+    t.emitter.onAction('core.report.convert', async (payload, ctx) => {
+      ctx.reply(
+        payload.inputs.map((input, index) => ({
+          input: { type: input.type, location: String(input.location) },
+          // Same runId, differing content — a copied-then-edited report file.
+          // Silently dropping the second run would erase its executions from
+          // the merge (and possibly flip the exit code), so this must fail.
+          run: {
+            ...createToolRun({
+              tool: { name: 'thymian-report-reader' },
+              runType: 'lint',
+              executions: [],
+            }),
+            runId: 'shared-id',
+            runAt: `2026-01-0${index + 1}T00:00:00.000Z`,
+          },
+        })),
+      );
+    });
+
+    await expect(
+      t.reportConvert({
+        reports: [
+          { type: 'thymian', location: './report.json' },
+          { type: 'thymian', location: './edited-copy.json' },
+        ],
+      }),
+    ).rejects.toThrow(
+      'Two different runs share runId "shared-id" (from thymian:./report.json and thymian:./edited-copy.json)',
+    );
+
+    await t.close();
+  });
+
   it('withholds the core.report emission when inputs went unclaimed (no partial report reaches formatters)', async () => {
     const t = new Thymian();
     const reported = vi.fn();
