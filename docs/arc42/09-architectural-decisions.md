@@ -7,7 +7,7 @@ This chapter documents the significant architectural decisions made for Thymian.
 ## ADR Index
 
 | ADR                                                                            | Title                                                                  | Status   | Date       | Related Quality Requirements                                                                                           |
-|--------------------------------------------------------------------------------| ---------------------------------------------------------------------- | -------- | ---------- | ---------------------------------------------------------------------------------------------------------------------- |
+| ------------------------------------------------------------------------------ | ---------------------------------------------------------------------- | -------- | ---------- | ---------------------------------------------------------------------------------------------------------------------- |
 | [ADR-0001](adr/0001-core-features-as-plugins.md)                               | Core features are plugins                                              | Accepted | 2024-11-07 | [10.2.2](10-quality-requirements.md#102-quality-scenarios), [10.2.3](10-quality-requirements.md#102-quality-scenarios) |
 | [ADR-0002](adr/0002-communication-as-plugin.md)                                | Communication as a plugin                                              | Proposed | 2024-11-07 | [10.2.4](10-quality-requirements.md#102-quality-scenarios)                                                             |
 | [ADR-0003](adr/0003-plugins-allow-streaming.md)                                | Plugins should allow for streaming                                     | Proposed | 2024-11-07 | [10.2.1](10-quality-requirements.md#102-quality-scenarios), [10.2.2](10-quality-requirements.md#102-quality-scenarios) |
@@ -26,6 +26,7 @@ This chapter documents the significant architectural decisions made for Thymian.
 | [ADR-0016](adr/0016-two-stage-report-actions.md)                               | Two-stage report actions under `thymian report`                        | Accepted | 2026-07-30 | [10.2.1](10-quality-requirements.md#102-quality-scenarios), [10.2.3](10-quality-requirements.md#102-quality-scenarios) |
 | [ADR-0017](adr/0017-typed-input-arguments.md)                                  | Typed input arguments (`<type>:<location>`)                            | Accepted | 2026-07-30 | [10.2.1](10-quality-requirements.md#102-quality-scenarios), [10.2.3](10-quality-requirements.md#102-quality-scenarios) |
 | [ADR-0018](adr/0018-recommended-rule-configuration-profiles.md)                | Recommended rule-configuration profiles on RuleSet                     | Accepted | 2026-08-03 | —                                                                                                                      |
+| [ADR-0020](adr/0020-report-inputs-are-cli-only-for-merge-and-diff.md)          | Report inputs are CLI-only for `report merge` and `report diff`        | Accepted | 2026-08-24 | —                                                                                                                      |
 
 ## Creating New ADRs
 

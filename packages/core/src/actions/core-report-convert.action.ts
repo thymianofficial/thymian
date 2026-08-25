@@ -50,6 +50,15 @@ export interface ConvertedRunFragment {
  * Listener contract (converter plugins register on `core.report.convert`):
  * - Payload: `{ inputs, format?, options? }`; reply
  *   {@link ConvertedRunFragment}`[]` — one entry per claimed input.
+ * - A listener that converts a claimed input *against* the handed `format`
+ *   must tag the produced run with it (`thymianFormatVersion =
+ *   format.attributes.hash`) — the tag is the only signal core has that the
+ *   workflow format was used. Core cannot complete a missing tag at assembly:
+ *   across merge inputs an untagged run is indistinguishable from one
+ *   converted without the format, and guessing would attribute a graph the
+ *   run may never have used. An untagged run keeps the format out of the
+ *   assembled report and renders format references as raw
+ *   `format:<elementId>` text.
  * - Reply even when nothing is claimed (`ctx.reply([])`) — the `'collect'`
  *   strategy waits for a reply from every registered listener, and a silent
  *   listener times the whole action out.

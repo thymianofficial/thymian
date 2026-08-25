@@ -687,7 +687,14 @@ export class Thymian {
 
     // The workflow-level spec (--spec) joins the merged map only when a run
     // actually converted against it — otherwise the output would carry a
-    // serialized graph no run points at.
+    // serialized graph no run points at. The run's `thymianFormatVersion`
+    // tag is the only usable signal that it did: a claimant that converts
+    // against the handed format must set it (listener contract in
+    // core-report-convert.action.ts). A missing tag is NOT completed from
+    // `--spec` here — across merge inputs an untagged run is
+    // indistinguishable from one converted without the format, and
+    // completing it would attribute a graph the run may never have used
+    // (the misattribution the removed sole-entry render fallback had).
     const workflowFormat = format?.export();
     const workflowFormatUsed =
       workflowFormat !== undefined &&

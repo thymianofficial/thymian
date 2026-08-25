@@ -836,6 +836,43 @@ describe('Thymian.reportConvert()', () => {
     await t.close();
   });
 
+  it('keeps an untagged run versionless instead of completing it from --spec (claimant tagging contract)', async () => {
+    const t = new Thymian();
+
+    t.emitter.onAction('core.format.load', async (_payload, ctx) => {
+      ctx.reply({ attributes: { hash: 'spec-hash' }, nodes: [], edges: [] });
+    });
+    t.emitter.onAction('core.report.convert', async (payload, ctx) => {
+      ctx.reply(
+        payload.inputs.map((input) => ({
+          input: { type: input.type, location: String(input.location) },
+          // A reply violating the tagging contract: no `thymianFormatVersion`
+          // and no fragment map. Core cannot tell this apart from a
+          // conversion that never used the format, so it must not guess.
+          run: createToolRun({
+            tool: { name: '@thymian/plugin-spectral' },
+            runType: 'lint',
+            executions: [],
+          }),
+        })),
+      );
+    });
+
+    const outcome = await t.reportConvert({
+      reports: [{ type: 'spectral', location: './r.json' }],
+      specification: [{ type: 'openapi', location: 'api.yaml' }],
+    });
+
+    // The run stays versionless (format references degrade to raw
+    // `format:<elementId>` text at render time) and the unused graph is
+    // withheld — completing from --spec would attribute a format the run may
+    // never have converted against.
+    expect(outcome.report.runs[0].thymianFormatVersion).toBeUndefined();
+    expect(outcome.report.thymianFormat).toBeUndefined();
+
+    await t.close();
+  });
+
   it('leaves report.thymianFormat undefined when no fragment carries a map and no spec is given', async () => {
     const t = new Thymian();
 
