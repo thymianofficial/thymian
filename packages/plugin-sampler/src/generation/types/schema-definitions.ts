@@ -128,14 +128,34 @@ function isPlainObject(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
 
-function rootDefinitionsOf(schema: unknown): Record<string, unknown> {
+/**
+ * The keyword a schema's ROOT definitions live under. A draft-07 description
+ * writes `definitions`; 2020-12 writes `$defs`. Reading only `$defs` meant a
+ * draft-07 block skipped naming, identity and de-duplication entirely, so two
+ * transactions with divergent `definitions.Pet` emitted two `interface Pet`
+ * bodies. `convertDefsToDefinitions` refuses a schema carrying both, so there is
+ * always at most one to find.
+ */
+function rootDefinitionsKeyOf(
+  schema: unknown,
+): '$defs' | 'definitions' | undefined {
   if (!isPlainObject(schema)) {
-    return {};
+    return undefined;
   }
 
-  const defs = schema['$defs'];
+  if (isPlainObject(schema['$defs'])) {
+    return '$defs';
+  }
 
-  return isPlainObject(defs) ? defs : {};
+  return isPlainObject(schema['definitions']) ? 'definitions' : undefined;
+}
+
+function rootDefinitionsOf(schema: unknown): Record<string, unknown> {
+  const key = rootDefinitionsKeyOf(schema);
+
+  return key === undefined
+    ? {}
+    : ((schema as Record<string, unknown>)[key] as Record<string, unknown>);
 }
 
 /**
@@ -227,23 +247,55 @@ export function assignDefinitionNames(
   return assignment;
 }
 
+/** JSON Pointer escaping, then the URI layer above it. */
+function decodePointerToken(token: string): string {
+  const unescaped = token.replaceAll('~1', '/').replaceAll('~0', '~');
+
+  try {
+    return decodeURIComponent(unescaped);
+  } catch {
+    return unescaped;
+  }
+}
+
+function encodePointerToken(token: string): string {
+  return token.replaceAll('~', '~0').replaceAll('/', '~1');
+}
+
+const DEFINITION_POINTER = /^#\/(\$defs|definitions)\/(.*)$/;
+
+/**
+ * Re-points a `$ref` at a renamed definition.
+ *
+ * IT COMPARES DECODED TOKENS, NOT RAW TEXT, and that is a fix rather than a
+ * refinement. A `$defs` key really can contain `/` or `~`, and it is then
+ * referenced through an ESCAPED pointer — `#/$defs/pet~1owner` for the key
+ * `pet/owner`. Comparing the raw key against the pointer text never matched, so
+ * the rename landed on the key and left the pointer dangling, and generation
+ * aborted with a raw `MissingPointerError` out of the dependency on input that
+ * was perfectly valid. Both spellings are accepted for the same reason
+ * `rootDefinitionsOf` reads both.
+ */
 function rewriteRef(
   value: string,
   renames: ReadonlyMap<string, string>,
 ): string {
-  for (const [from, to] of renames) {
-    const prefix = `#/$defs/${from}`;
+  const match = DEFINITION_POINTER.exec(value);
 
-    if (value === prefix) {
-      return `#/$defs/${to}`;
-    }
-
-    if (value.startsWith(`${prefix}/`)) {
-      return `#/$defs/${to}${value.slice(prefix.length)}`;
-    }
+  if (match === null) {
+    return value;
   }
 
-  return value;
+  const keyword = match[1] ?? '$defs';
+  const remainder = match[2] ?? '';
+  const slash = remainder.indexOf('/');
+  const head = slash === -1 ? remainder : remainder.slice(0, slash);
+  const tail = slash === -1 ? '' : remainder.slice(slash);
+  const to = renames.get(decodePointerToken(head));
+
+  return to === undefined
+    ? value
+    : `#/${keyword}/${encodePointerToken(to)}${tail}`;
 }
 
 function rewriteRefsInPlace(
@@ -298,11 +350,13 @@ export function applyDefinitionNames(
     return;
   }
 
-  const defs = schema['$defs'];
+  const definitionsKey = rootDefinitionsKeyOf(schema);
 
-  if (!isPlainObject(defs)) {
+  if (definitionsKey === undefined) {
     return;
   }
+
+  const defs = schema[definitionsKey] as Record<string, unknown>;
 
   const renames = new Map<string, string>();
   const renamed = new Map<string, unknown>();
@@ -361,7 +415,7 @@ export function applyDefinitionNames(
     renamed.set(assignedName, body);
   }
 
-  schema['$defs'] = Object.fromEntries(renamed);
+  schema[definitionsKey] = Object.fromEntries(renamed);
 
   if (renames.size > 0) {
     rewriteRefsInPlace(schema, renames);

@@ -1,13 +1,17 @@
 import {
   isEdgeType,
   type Parameter,
+  ThymianBaseError,
   type ThymianFormat,
   thymianHttpRequestToUrl,
 } from '@thymian/core';
 import CodeBlockWriter from 'code-block-writer';
 import { compile, type JSONSchema } from 'json-schema-to-typescript';
 
-import { assertEmittedNamesWereIssued } from '../generation/types/emitted-names.js';
+import {
+  assertEmittedNamesWereIssued,
+  assertReferencesAreStrings,
+} from '../generation/types/emitted-names.js';
 import {
   foldExtendsInPlace,
   safeIdentifier,
@@ -43,6 +47,18 @@ export async function generateTypeForSchema(
   // intact and the returned name ends up naming nothing. Stripping them keeps
   // "the declaration declares what this function returns" true by construction
   // rather than by luck.
+  // A JSON Schema may legally be a BOOLEAN (`true` admits anything, `false`
+  // admits nothing), and `compile()` treats a non-object argument as a FILENAME
+  // — it tried to read the process CWD and threw `ResolverError: EISDIR`.
+  // Answering directly is both correct and the only way to keep the abort out of
+  // a user's generation.
+  if (schema === null || typeof schema !== 'object') {
+    return {
+      declarations: [],
+      type: schema === false ? 'never' : 'unknown',
+    };
+  }
+
   const prepared: unknown = structuredClone(schema);
 
   // `extends` is the one library-parsed position the strip cannot enter — an
@@ -51,6 +67,7 @@ export async function generateTypeForSchema(
   // stripped like any other subschema instead of naming a declaration, and its
   // members survive. Must run before the strip, so the title it carries is gone
   // by the time `compile()` sees it.
+  assertReferencesAreStrings(prepared);
   foldExtendsInPlace(prepared);
   stripNameKeywordsInPlace(prepared);
 
@@ -88,6 +105,24 @@ export function convertDefsToDefinitions(input: any): unknown {
 
   if (Array.isArray(input)) {
     return input.map((item) => convertDefsToDefinitions(item));
+  }
+
+  // `$defs` is rewritten to `definitions`, so a node carrying BOTH collapsed
+  // onto one key by last-write-wins — one whole definition block dropped, and
+  // `#/definitions/X` then resolving to whichever survived, with no diagnostic.
+  // The library refuses this input itself ("Schema must define either
+  // definitions or $defs, not both"), so saying so is honest; merging would be
+  // inventing a semantics neither spec gives.
+  if (input['$defs'] !== undefined && input['definitions'] !== undefined) {
+    throw new ThymianBaseError(
+      'A schema defines both "$defs" and "definitions", and they cannot both be kept.',
+      {
+        name: 'ConflictingDefinitionsError',
+        suggestions: [
+          'Move every entry into one of the two keywords — "$defs" is the current spelling.',
+        ],
+      },
+    );
   }
 
   const result = Object.keys(input).reduce((acc: any, key) => {

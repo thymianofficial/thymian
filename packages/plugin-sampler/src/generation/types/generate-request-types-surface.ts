@@ -178,7 +178,12 @@ function sortedParameters(
 }
 
 function parameterMediaType(parameter: Parameter): string {
-  return parameter.contentType ?? 'application/json';
+  // `??` keeps an EMPTY STRING, which then fails the JSON media-type gate and
+  // silently emits the parameter as `unknown` — its declared type lost with no
+  // diagnostic. An empty content type means "not stated", exactly like an absent
+  // one, so both fall back to JSON. (Selector media parts gate on non-empty
+  // `mediaType` for the same reason; this is that rule applied one level down.)
+  return parameter.contentType || 'application/json';
 }
 
 function requestSites(
@@ -325,8 +330,18 @@ async function compileSites(
   return compiled;
 }
 
+/**
+ * A bag's members carry their OWN optionality. Folding `required` into the
+ * bag-level flag alone emitted every declared parameter as mandatory, so a hook
+ * omitting an optional query parameter was a `tsc` error and an optional
+ * response header read as always present. The bag-level flag still means "is
+ * any member required", which is what decides whether the bag itself is
+ * optional.
+ */
+type BagMember = readonly [name: string, type: string, required: boolean];
+
 type ParameterBag = {
-  readonly members: (readonly [string, string])[];
+  readonly members: BagMember[];
   readonly required: boolean;
 };
 
@@ -336,7 +351,7 @@ function bagFor(
   parameters: Record<string, Parameter>,
   compiled: CompiledSites,
 ): ParameterBag {
-  const members: (readonly [string, string])[] = [];
+  const members: BagMember[] = [];
   let required = false;
 
   for (const [name, parameter] of sortedParameters(parameters)) {
@@ -344,6 +359,7 @@ function bagFor(
     members.push([
       name,
       compiled.get(siteKey(selector, { kind, parameter: name })) ?? 'unknown',
+      parameter.required,
     ]);
   }
 
@@ -402,8 +418,10 @@ function writeBagLine(
     writer.write('{}');
   } else {
     writer.inlineBlock(() => {
-      for (const [name, type] of bag.members) {
-        writer.write(`${stringLiteral(name)}: ${type};`).newLine();
+      for (const [name, type, memberRequired] of bag.members) {
+        writer
+          .write(`${stringLiteral(name)}${memberRequired ? '' : '?'}: ${type};`)
+          .newLine();
       }
     });
   }

@@ -3152,3 +3152,70 @@ describe('a super-type never mints a second declaration (AC7)', () => {
     expect(surface).toContain('h?: string');
   });
 });
+
+/**
+ * Round 5, second pass. `bagFor` folded `parameter.required` into ONE flag for
+ * the whole bag and `writeBagLine` then wrote every member as required, so a
+ * spec with one required and one optional query parameter emitted both as
+ * mandatory. A hook that legitimately omits the optional one was a `tsc` error,
+ * and a response header the spec marks optional read as always present — which
+ * inverts the story's premise that the compiler is the oracle for what the spec
+ * actually says.
+ *
+ * `Parameter.required` was already threaded to this exact call site.
+ */
+describe('parameter optionality survives into the surface (AC2)', () => {
+  it('marks an optional parameter optional and a required one required', async () => {
+    const surface = await surfaceOf([
+      {
+        path: '/pets',
+        status: 200,
+        responseMediaType: 'application/json',
+        queryParameters: {
+          mandatory: param({ type: 'string' }, true),
+          optional: param({ type: 'string' }, false),
+        },
+        responseHeaders: { etag: param({ type: 'string' }, false) },
+      },
+    ]);
+
+    expect(surface).toContain('"mandatory": ');
+    expect(surface).toContain('"optional"?: ');
+    expect(surface).toContain('"etag"?: ');
+  });
+});
+
+/**
+ * Round 5, second pass. `parameter.contentType ?? 'application/json'` KEEPS an
+ * empty string, which then fails the JSON media-type gate, so the parameter was
+ * emitted as `unknown` and its declared type was lost with no diagnostic. An
+ * empty content type means "not stated", exactly like an absent one.
+ */
+describe('an empty parameter contentType means unstated (AC3)', () => {
+  it('keeps the declared type instead of degrading to unknown', async () => {
+    const surface = await surfaceOf([
+      {
+        path: '/pets',
+        status: 200,
+        responseMediaType: 'application/json',
+        queryParameters: {
+          limit: {
+            schema: { type: 'number' },
+            required: true,
+            contentType: '',
+            style: { style: 'form', explode: true },
+          } as Parameter,
+        },
+      },
+    ]);
+
+    // A parameter schema is emitted as a named alias, so the assertion is that
+    // it kept a TYPE at all — `unknown` is what the bug produced.
+    expect(surface).toMatch(
+      /"limit": GetPets200ApplicationJsonQueryParam_Limit/,
+    );
+    expect(surface).toContain(
+      'export type GetPets200ApplicationJsonQueryParam_Limit = number',
+    );
+  });
+});

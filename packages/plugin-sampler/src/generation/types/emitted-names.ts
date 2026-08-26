@@ -157,9 +157,25 @@ function collectRefsBlindly(node: unknown, into: string[]): void {
   }
 
   for (const [key, value] of Object.entries(node)) {
-    if (key === '$ref' && typeof value === 'string') {
-      into.push(value);
-      continue;
+    if (key === '$ref') {
+      if (typeof value === 'string') {
+        into.push(value);
+        continue;
+      }
+
+      // A non-string `$ref` is not something the resolver can act on: it
+      // survives dereferencing untouched and the library then fails deep inside
+      // its parser with `Refs should have been resolved by the resolver!`, which
+      // names neither the keyword nor the schema. Say what is wrong instead.
+      throw new ThymianBaseError(
+        `A schema uses "$ref" with a ${Array.isArray(value) ? 'array' : typeof value} value, but a reference must be a string.`,
+        {
+          name: 'MalformedSchemaError',
+          suggestions: [
+            'Give the "$ref" a pointer string, such as "#/$defs/Pet", or remove it.',
+          ],
+        },
+      );
     }
 
     collectRefsBlindly(value, into);
@@ -200,6 +216,19 @@ function collectReferencedPointers(schema: unknown): readonly string[] {
   });
 
   return [...new Set(pointers)];
+}
+
+/**
+ * Rejects a `$ref` whose value is not a string, BEFORE `compile()` sees it.
+ *
+ * It has to run before, not as part of the postcondition: the resolver leaves
+ * such a node untouched and the library then fails deep in its parser with
+ * `Refs should have been resolved by the resolver!` — an error that names
+ * neither the keyword nor the schema, and that arrives before any postcondition
+ * could run.
+ */
+export function assertReferencesAreStrings(schema: unknown): void {
+  collectRefsBlindly(schema, []);
 }
 
 /**

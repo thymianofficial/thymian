@@ -66,6 +66,16 @@ const BOUNDARY_NAMES = [
 
 const IDENTIFIER = /^[A-Za-z_$][A-Za-z0-9_$]*$/;
 
+async function catchAsync(fn: () => Promise<unknown>): Promise<ThymianError> {
+  try {
+    await fn();
+  } catch (error) {
+    return error as ThymianError;
+  }
+
+  throw new Error('expected a rejection');
+}
+
 describe('safeIdentifier', () => {
   /**
    * The whole point of the function. `json-schema-to-typescript` declares under
@@ -2042,5 +2052,133 @@ describe('a super-type is folded into allOf, not left to name itself', () => {
 
     expect(() => foldExtendsInPlace(schema)).not.toThrow();
     expect(schema.extends).toBe('not-a-schema');
+  });
+});
+
+/**
+ * Round 5, second pass. Three defects in how root definitions are found,
+ * renamed and pointed at. All three were reproduced against `df6fef9f`.
+ */
+describe('root definitions are found, renamed and re-pointed correctly', () => {
+  /**
+   * `convertDefsToDefinitions` rewrites the `$defs` KEY to `definitions` and
+   * assigns with `acc[newKey] = value`, so a schema carrying BOTH lost one of
+   * them to last-write-wins — silently, and with `#/definitions/X` then
+   * resolving to whichever survived. The library itself refuses this input
+   * ("Schema must define either definitions or $defs, not both"), so the honest
+   * answer is to say so rather than to invent a merge.
+   */
+  it('refuses a schema that defines both $defs and definitions', () => {
+    expect(() =>
+      convertDefsToDefinitions({
+        type: 'object',
+        $defs: { Pet: { type: 'object' } },
+        definitions: { Owner: { type: 'object' } },
+      }),
+    ).toThrow(/both/i);
+  });
+
+  it('still converts a schema that defines only $defs', () => {
+    expect(
+      convertDefsToDefinitions({
+        $defs: { Pet: { type: 'object' } },
+        properties: { p: { $ref: '#/$defs/Pet' } },
+      }),
+    ).toEqual({
+      definitions: { Pet: { type: 'object' } },
+      properties: { p: { $ref: '#/definitions/Pet' } },
+    });
+  });
+
+  /**
+   * A draft-07 description writes `definitions`, not `$defs`. `rootDefinitionsOf`
+   * only ever read `$defs`, so those entries skipped naming, identity and
+   * de-duplication entirely — two transactions with divergent `definitions.Pet`
+   * emitted two `export interface Pet` bodies.
+   */
+  it('names and de-duplicates a root draft-07 definitions block', () => {
+    const registry = new NameRegistry();
+    const first = {
+      definitions: {
+        Pet: { type: 'object', properties: { a: { type: 'string' } } },
+      },
+    };
+    const second = {
+      definitions: {
+        Pet: { type: 'object', properties: { b: { type: 'string' } } },
+      },
+    };
+    const assignment = assignDefinitionNames([first, second], registry);
+
+    applyDefinitionNames(second, assignment);
+
+    // The divergent second definition must have been renamed off `Pet`.
+    expect(Object.keys(second.definitions)).not.toEqual(['Pet']);
+  });
+
+  /**
+   * A `$defs` key really can contain `/` or `~`, and it is then referenced
+   * through a JSON-Pointer-ESCAPED pointer. `rewriteRef` compared the raw key
+   * against the pointer text, so the rename landed on the key and never on the
+   * pointer, leaving it dangling — the generation then aborted with a raw
+   * `MissingPointerError` out of the dependency, on input that was valid.
+   */
+  it('re-points an escaped pointer when its key is renamed', () => {
+    const registry = new NameRegistry();
+
+    registry.reserve(['PetOwner']);
+
+    const schema = {
+      properties: { p: { $ref: '#/$defs/pet~1owner' } },
+      $defs: { 'pet/owner': { type: 'object' } },
+    };
+    const assignment = assignDefinitionNames([schema], registry);
+
+    applyDefinitionNames(schema, assignment);
+
+    const pointer = (schema.properties.p as { $ref: string }).$ref;
+    const key = Object.keys(schema.$defs)[0];
+
+    expect(pointer).toBe(`#/$defs/${key}`);
+  });
+});
+
+/**
+ * Round 5, second pass. Three inputs that reached a RAW dependency failure or a
+ * silent downgrade instead of an answer. Each was reproduced against `df6fef9f`.
+ */
+describe('hostile but legal schema shapes get an answer, not a stack trace', () => {
+  /**
+   * A JSON Schema may be a boolean. `compile()` treats a non-object argument as
+   * a FILENAME and tried to read the process CWD — `ResolverError: EISDIR`.
+   */
+  it.each([
+    ['true admits anything', true, 'unknown'],
+    ['false admits nothing', false, 'never'],
+  ])('answers a boolean schema directly: %s', async (_label, schema, type) => {
+    const generated = await generateTypeForSchema(
+      schema,
+      'application/json',
+      'GetPets200ResponseBody',
+    );
+
+    expect(generated).toEqual({ declarations: [], type });
+  });
+
+  /**
+   * `Refs should have been resolved by the resolver!` names neither the keyword
+   * nor the schema, and it surfaces from inside the dependency.
+   */
+  it('names a $ref that is not a string', async () => {
+    const error = await catchAsync(() =>
+      generateTypeForSchema(
+        { type: 'object', properties: { p: { $ref: 42 } } },
+        'application/json',
+        'GetPets200ResponseBody',
+      ),
+    );
+
+    expect(error.name).toBe('MalformedSchemaError');
+    expect(error.message).toContain('$ref');
   });
 });
