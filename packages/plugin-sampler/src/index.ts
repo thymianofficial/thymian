@@ -205,6 +205,18 @@ export const samplePlugin: ThymianPlugin<Partial<SamplerPluginOptions>> = {
     );
 
     async function initializeSamplerAndHookRunner(format: ThymianFormat) {
+      // Drop the previous format's state **first**, before anything that can
+      // throw. Two steps below do: `TransactionCatalog.fromThymianFormat` throws
+      // by design on a cross-source selector collision, and
+      // `readSamplesFromDirIfUsable` re-raises a refused path traversal. Either
+      // one used to leave `hookRunner` initialized against the *previous*
+      // format's hook map and `samples` holding the previous tree — a stale
+      // binding surviving a failed load, which is what AC 11 and #614 exist to
+      // prevent in a long-lived `core.workflow.test` process.
+      hookRunner.invalidate();
+      requestSampler.invalidate();
+      samples = undefined;
+
       // The selector index for the loaded format: one selector per transaction,
       // built before anything touches disk so a cross-source collision fails the
       // load rather than half of it. Rebuilt on every format load and never
@@ -229,9 +241,19 @@ export const samplePlugin: ThymianPlugin<Partial<SamplerPluginOptions>> = {
     }
 
     emitter.onAction('core.format', async (f, ctx) => {
-      format = ThymianFormat.import(f);
+      const imported = ThymianFormat.import(f);
 
-      await initializeSamplerAndHookRunner(format);
+      // `format` is assigned only **after** the load succeeds. Assigning first
+      // left, on a failed reload, the new format paired with the previous
+      // format's sample projection — so `core.request.sample` passed its
+      // `if (!format)` guard and fell through to the
+      // `SampleProjectionMissingTransactionError` below, the one commented
+      // "unreachable by construction".
+      format = undefined;
+
+      await initializeSamplerAndHookRunner(imported);
+
+      format = imported;
 
       ctx.reply();
     });

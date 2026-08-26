@@ -249,6 +249,76 @@ describe('HookRunner.init rebinds on every format load (#614)', () => {
     expect(result.result.path).toBe('/authorized');
   });
 
+  it('lets the load that started last win when two overlap', async () => {
+    // `init` writes `format` and `resolveTransactionId` **synchronously**, then
+    // awaits the loader. Two `core.format` loads therefore both write their own
+    // values before either finishes, and whichever settles last installs its
+    // hook map over what the other left. Measured without the generation
+    // counter: `initialized: true`, `format` = B, `resolveTransactionId` built
+    // from B's catalog, and `hooks` bound to a transaction that exists only in
+    // A — after `init(B)` had already failed.
+    //
+    // `Thymian.loadFormat` is a plain public method with no serialisation, and a
+    // long-lived `core.workflow.test`/WS process is exactly where #614 says to
+    // expect repeated loads.
+    const hooksDir = await writeHooks({
+      'auth.ts': [
+        `import { authorize } from '@thymian/hooks';`,
+        `export const everywhere = authorize(async (value) => ({ ...value, path: '/authorized' }));`,
+        ``,
+      ].join('\n'),
+    });
+
+    const runner = createRunner(hooksDir);
+
+    await Promise.all([
+      runner.init(formatA, catalogA),
+      runner.init(formatB, catalogB),
+    ]);
+
+    // Bound against B, the load that started last, for a transaction that
+    // exists only in B.
+    const target = onlyInB();
+    const result = await runner.authorize({
+      value: templateFor(target),
+      ctx: target,
+    });
+
+    expect(result.result.path).toBe('/authorized');
+  });
+
+  it('does not install a load the caller invalidated while it was running', async () => {
+    // `init` writes its state, then awaits the loader. A `core.format` handler
+    // that invalidates the runner *during* that await — which `index.ts` now
+    // does at the top of every load — must not have its decision overwritten
+    // when the older load finally settles. Without the generation counter the
+    // stale load installed its map and set `initialized: true` over a runner the
+    // caller had just dropped.
+    const hooksDir = await writeHooks({
+      'slow.ts': [
+        `import { authorize } from '@thymian/hooks';`,
+        `await new Promise((resolve) => setTimeout(resolve, 80));`,
+        `export const everywhere = authorize(async (value) => value);`,
+        ``,
+      ].join('\n'),
+    });
+
+    const runner = createRunner(hooksDir);
+    const inFlight = runner.init(formatA, catalogA);
+
+    // While the loader is still reading, the caller drops everything.
+    runner.invalidate();
+
+    await inFlight;
+
+    await expect(
+      runner.authorize({
+        value: templateFor(firstTransaction(formatA)),
+        ctx: firstTransaction(formatA),
+      }),
+    ).rejects.toMatchObject({ name: 'HookRunnerNotInitialized' });
+  });
+
   it('leaves the runner uninitialized when a re-bind fails', async () => {
     // The hook resolves against A and dangles against B. `initialized` is set
     // only after the loader returns and the map is installed, so the failed
@@ -437,5 +507,105 @@ describe('what HookRunner.init reports to the log', () => {
       ),
       messages.join('\n'),
     ).toBe(true);
+  });
+
+  it('renders debug diagnostics through the shared formatter', async () => {
+    // The debug line was the one rendering path the line sanitizer did not
+    // cover, so a hook file whose *name* carried an ESC — legal on Linux and
+    // macOS — rewrote the terminal on every debug run. Going through
+    // `formatDiagnostic` also puts `kind` and `anchor` into the line, which the
+    // hand-assembled version dropped.
+    const oneFormat = createThymianFormatWithTransactions(1);
+    const oneCatalog = TransactionCatalog.fromThymianFormat(oneFormat);
+    const hooksDir = await writeHooks({
+      'a.ts': [
+        `import { authorize } from '@thymian/hooks';`,
+        `export const everywhere = authorize(async (value) => value);`,
+        ``,
+      ].join('\n'),
+    });
+
+    const messages: string[] = [];
+    const runner = new HookRunner(
+      hooksDir,
+      async (): Promise<HttpResponse> => {
+        throw new Error('runRequest must not be called in these tests');
+      },
+      createMockLogger({
+        debug: (message: string) => {
+          messages.push(message);
+        },
+      }),
+    );
+
+    await runner.init(oneFormat, oneCatalog);
+
+    const said = messages.join('\n');
+
+    // `kind`, `anchor` and `exportName` only reach the line through
+    // `formatDiagnostic`.
+    expect(said, said).toContain('authorize');
+    expect(said, said).toContain('global');
+    expect(said, said).toContain('everywhere');
+  });
+});
+
+describe('HookRunner — the pre-init throw window (round 4)', () => {
+  it('drops the previous format`s map when invalidated', async () => {
+    // AC 11 puts the reset at the top of `init`, which is right but not
+    // sufficient: `core.format` runs two steps *before* `init` is reached —
+    // `TransactionCatalog.fromThymianFormat`, which throws by design on a
+    // cross-source selector collision, and `readSamplesFromDirIfUsable`, which
+    // re-raises a refused path traversal. If either throws, `init` is never
+    // called and the runner keeps `initialized: true` bound to the map built for
+    // the format *before* the one that just failed to load.
+    //
+    // `invalidate()` is the seam the caller uses to close that window, and this
+    // pins its contract: after a successful init, invalidating makes every entry
+    // point refuse rather than run the stale bindings.
+    // A global `authorize` binds every transaction in the catalog, so one hook
+    // is enough to make "the map is populated" observable.
+    const hooksDir = await writeHooks({
+      'a.ts': [
+        `import { authorize } from '@thymian/hooks';`,
+        `export const everywhere = authorize(async (value) => ({ ...value, path: '/authorized' }));`,
+        ``,
+      ].join('\n'),
+    });
+
+    const runner = createRunner(hooksDir);
+
+    await runner.init(format, catalog);
+
+    const bound = await runner.authorize({
+      value: requestTemplate,
+      ctx: transaction,
+    });
+
+    expect(bound.result.path).toBe('/authorized');
+
+    runner.invalidate();
+
+    await expect(
+      runner.beforeEachRequest({ value: requestTemplate, ctx: transaction }),
+    ).rejects.toMatchObject({ name: 'HookRunnerNotInitialized' });
+    await expect(
+      runner.authorize({ value: requestTemplate, ctx: transaction }),
+    ).rejects.toMatchObject({ name: 'HookRunnerNotInitialized' });
+  });
+
+  it('is idempotent, so a caller may invalidate on every load', async () => {
+    const hooksDir = await writeHooks({});
+    const runner = createRunner(hooksDir);
+
+    runner.invalidate();
+    runner.invalidate();
+
+    await expect(
+      runner.beforeEachRequest({ value: requestTemplate, ctx: transaction }),
+    ).rejects.toMatchObject({ name: 'HookRunnerNotInitialized' });
+
+    // And a normal init after it still works: invalidation is not a latch.
+    await expect(runner.init(format, catalog)).resolves.toBeUndefined();
   });
 });

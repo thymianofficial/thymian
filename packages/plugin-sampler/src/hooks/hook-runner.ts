@@ -12,12 +12,29 @@ import type { TransactionCatalog } from '../selectors/transaction-catalog.js';
 import { buildRequestKeyIndex, createHookUtils } from './create-hook-utils.js';
 import { FailError, SkipError } from './hook-errors.js';
 import {
+  formatDiagnostic,
   hookResolutionError,
   loadUserHooks,
   type TransactionHooks,
 } from './load-user-hooks.js';
 
 export class HookRunner {
+  /**
+   * Which load is the current one.
+   *
+   * `init` awaits the loader, so two `core.format` loads can be in flight at
+   * once — `Thymian.loadFormat` is a plain public method with no serialisation,
+   * and a long-lived `core.workflow.test`/WS process is exactly where #614 says
+   * to expect repeated loads. Measured without this counter: starting load A,
+   * then load B, and letting A settle *last* left `initialized: true`,
+   * `format` = B, `resolveTransactionId` built from B's catalog and `hooks`
+   * bound to a transaction that exists only in A — after `init(B)` had already
+   * **failed**. `invalidate()` cannot help, because the damage is done by the
+   * losing load's own writes *after* its `await`.
+   *
+   * Every write below the `await` is gated on still being the current load.
+   */
+  private generation = 0;
   private initialized = false;
   private hooks: Map<string, TransactionHooks> = new Map();
   private resolveTransactionId: (key: string) => string | undefined = () =>
@@ -31,6 +48,32 @@ export class HookRunner {
   ) {}
 
   /**
+   * Drops every binding from the previous format.
+   *
+   * `init` clears the same state on entry, which is right but not sufficient:
+   * `core.format` runs two steps *before* it — `TransactionCatalog.fromThymianFormat`,
+   * which throws by design on a cross-source selector collision, and
+   * `readSamplesFromDirIfUsable`, which re-raises a refused path traversal. If
+   * either throws, `init` is never reached and the runner keeps
+   * `initialized: true` with the map built for the format *before* the one that
+   * just failed to load — precisely the stale binding AC 11 and #614 exist to
+   * prevent, in the long-lived `core.workflow.test` process AC 11's own
+   * rationale cites.
+   *
+   * Exposed so the caller can invalidate before anything that can throw. It is
+   * idempotent, and a runner that has been invalidated refuses to run hooks with
+   * `HookRunnerNotInitialized` rather than running the wrong ones.
+   */
+  invalidate(): void {
+    // Bumping the generation is part of invalidating: a load already in flight
+    // must not install its results over a state the caller has just dropped.
+    this.generation += 1;
+    this.initialized = false;
+    this.hooks = new Map();
+    this.resolveTransactionId = () => undefined;
+  }
+
+  /**
    * (Re)binds the hook map against `format`'s freshly built selector catalog.
    *
    * There is **no init latch** (#614). Every `core.format` rebuilds, exactly as
@@ -42,8 +85,10 @@ export class HookRunner {
    * load-time resolution exists to prevent.
    *
    * `initialized` is set **after** the loader returns and the map is installed,
-   * and cleared on entry, so neither a loader throw nor a failed re-bind can
-   * leave the runner marked initialized with a half-built map. A workspace with
+   * and cleared on entry via {@link invalidate}, so neither a loader throw nor a
+   * failed re-bind can leave the runner marked initialized with a half-built
+   * map. A throw *before* this method is reached is the caller's window and is
+   * closed by calling {@link invalidate} there. A workspace with
    * no hooks directory still initializes: the loader returns an empty result
    * without throwing, so the three entry points below stay clean pass-throughs.
    *
@@ -57,19 +102,32 @@ export class HookRunner {
     format: ThymianFormat,
     catalog: TransactionCatalog,
   ): Promise<void> {
-    this.initialized = false;
+    this.invalidate();
+
+    const generation = this.generation;
+
     this.format = format;
-    this.hooks = new Map();
     this.resolveTransactionId = buildRequestKeyIndex(catalog);
 
     const result = await loadUserHooks(this.hooksDir, catalog);
 
     for (const diagnostic of result.diagnostics) {
       if (diagnostic.severity !== 'error') {
-        this.logger.debug(
-          `Sampler hook: ${diagnostic.file || '<hooks>'} ${diagnostic.reason}`,
-        );
+        // Through `formatDiagnostic`, not hand-assembled: this was the one
+        // rendering path the line sanitizer did not cover, so a hook file whose
+        // *name* contained an ESC (legal on Linux and macOS) rewrote the
+        // terminal on every debug run. It also gets `kind`, `anchor` and
+        // `exportName` into the debug line, which the hand-assembled version
+        // dropped.
+        this.logger.debug(`Sampler hook: ${formatDiagnostic(diagnostic)}`);
       }
+    }
+
+    if (generation !== this.generation) {
+      // A newer load started, or the caller invalidated, while this one was
+      // awaiting. Its results are already stale, so it installs nothing —
+      // including its errors, which describe a format nobody is loading now.
+      return;
     }
 
     if (result.hasErrors) {

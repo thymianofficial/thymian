@@ -4,6 +4,7 @@ import type {
   AuthorizeHook,
   BeforeEachRequestHook,
 } from './hook-types.js';
+import { isArrayValue, raw, readProperty, userValue } from './user-value.js';
 
 /**
  * SEEDED BY STORY 575.9, OWNED BY STORY 575.6 (#582).
@@ -175,17 +176,73 @@ type GlobalWithCreationLog = typeof globalThis & {
   [HOOK_CREATION_LOG]?: HookCreationLog;
 };
 
-/** The one log, shared across every realm in this process. */
+/**
+ * The one log, shared across every realm in this process.
+ *
+ * **The slot is user-controlled, and that is not optional.** It has to live on
+ * `globalThis` under a `Symbol.for` key so a hook file's realm and the plugin's
+ * realm reach the same object — which means a hook file, or a version-skewed
+ * `@thymian/hooks` runtime, can assign anything at all to it. Three shapes were
+ * measured escaping `loadUserHooks` from here, and only one of them needed a
+ * Proxy:
+ *
+ * - `LOG = new Proxy({…}, { get() { throw … } })` — the `created` getter throws.
+ * - `LOG = { nextOrder: 0 }` — plain version skew, no hostility: `created` is
+ *   `undefined` and the loader's `created.length = 0` is a `TypeError`.
+ * - `LOG = Object.freeze({ …, created: Object.freeze([]) })` — assigning to
+ *   `length` throws on a frozen array.
+ *
+ * Each one killed the whole scan, losing every healthy sibling — AC 6 exactly,
+ * one layer below where the guard sweep was looking. So the slot is **validated
+ * on every read**: anything that is not a usable log is replaced with a fresh
+ * one. Replacing rather than throwing is the right call because the log is a
+ * *diagnostic channel only* (never a discovery fallback), so a poisoned slot
+ * costs the user the created-but-not-exported diagnostic and nothing else.
+ */
 export function hookCreationLog(): HookCreationLog {
   const scope = globalThis as GlobalWithCreationLog;
-  const existing = scope[HOOK_CREATION_LOG];
 
-  if (existing) {
-    return existing;
+  try {
+    const existing = scope[HOOK_CREATION_LOG];
+
+    const slot = userValue(existing);
+    const created = readProperty(slot, 'created');
+    const isList = created.ok ? isArrayValue(created.value) : undefined;
+
+    if (
+      existing !== undefined &&
+      existing !== null &&
+      typeof existing.nextOrder === 'number' &&
+      isList?.ok === true &&
+      isList.value
+    ) {
+      // One write proves the slot is actually writable, which none of the
+      // checks above can: a frozen `created`, or a Proxy whose `set` trap
+      // throws, passes every one of them and only fails later, when
+      // `registerHook` or the loader writes — by which time the throw has
+      // escaped into a scan.
+      //
+      // `push()` with no arguments adds nothing and leaves `length` unchanged,
+      // but it still performs the `Set(O, "length", …, true)` that a frozen
+      // array and a `set`-trapping Proxy both refuse. Verified on both.
+      existing.created.push();
+
+      return existing;
+    }
+  } catch {
+    // Reading or probing the slot threw. Fall through and install a fresh log.
   }
 
   const log: HookCreationLog = { nextOrder: 0, created: [] };
-  scope[HOOK_CREATION_LOG] = log;
+
+  try {
+    scope[HOOK_CREATION_LOG] = log;
+  } catch {
+    // A non-writable slot (`Object.defineProperty(globalThis, key, {})`). The
+    // returned log is then realm-local, so cross-realm creations are missed and
+    // the created-but-not-exported diff under-reports — which is the same
+    // "diagnostic channel degrades, discovery does not" trade as above.
+  }
 
   return log;
 }
@@ -236,9 +293,11 @@ export function isHookRegistration(value: unknown): value is HookRegistration {
     return false;
   }
 
-  try {
-    return (value as Record<PropertyKey, unknown>)[HOOK_REGISTRATION] === true;
-  } catch {
-    return false;
-  }
+  // Through `readProperty`, not a cast: `user-value.ts` is the one module
+  // allowed to reach into a user-controlled value, and routing this read through
+  // it is what lets the lint rule ban the cast-then-read shape everywhere else
+  // on the discovery path. The guard is the same guard; it just lives once.
+  const read = readProperty(userValue(value), HOOK_REGISTRATION);
+
+  return read.ok && raw(read.value) === true;
 }

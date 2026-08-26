@@ -684,21 +684,6 @@ describe('an exotic target value on the resolution path', () => {
       '[unprintable selector list]',
     ],
     [
-      'a Proxy array whose `Symbol.iterator` read throws',
-      [
-        `export const h = beforeEach(new Proxy(['x'], {`,
-        `  get(t, k, r) {`,
-        `    if (k === Symbol.iterator) { throw new Error('boom-iterator'); }`,
-        `    return Reflect.get(t, k, r);`,
-        `  },`,
-        `}), async (v) => v);`,
-      ].join('\n'),
-      'boom-iterator',
-      // `map` never touches `Symbol.iterator`, so the anchor renders in full and
-      // only `resolveTargeting`'s `for…of` trips.
-      '["x"]',
-    ],
-    [
       'a Proxy array whose element read throws',
       [
         `export const h = beforeEach(new Proxy(['x'], {`,
@@ -790,6 +775,34 @@ describe('an exotic target value on the resolution path', () => {
     expect(hookResolutionError(result.diagnostics).options.suggestions).toEqual(
       [],
     );
+  });
+
+  it('ignores a hostile `Symbol.iterator`: nothing iterates a user array', async () => {
+    // Round 3 pinned this as a *diagnostic*: `resolveTargeting` used `for…of`,
+    // which ran the trap, and the outer guard turned the throw into
+    // `boom-iterator`. Round 4 reads a selector list by index — `length`, then
+    // `[0]`, `[1]`, … — so the iterator protocol is never entered and a hostile
+    // one costs the user nothing at all. That is strictly better than reporting
+    // it, so the assertion moves up rather than away: the hook resolves and
+    // binds, and no diagnostic is raised.
+    const hooksDir = await writeHooks({
+      'h.ts': [
+        `import { beforeEach } from '@thymian/hooks';`,
+        `const list = new Proxy([${JSON.stringify(selectorA)}], {`,
+        `  get(t, k, r) {`,
+        `    if (k === Symbol.iterator) { throw new Error('boom-iterator'); }`,
+        `    return Reflect.get(t, k, r);`,
+        `  },`,
+        `});`,
+        `export const h = beforeEach(list, async (v) => v);`,
+        ``,
+      ].join('\n'),
+    });
+
+    const result = await loadUserHooks(hooksDir, catalog);
+
+    expect(result.hasErrors).toBe(false);
+    expect(result.boundHookCount).toBe(1);
   });
 
   it('renders an anchor for a target `describeTarget` cannot read', async () => {

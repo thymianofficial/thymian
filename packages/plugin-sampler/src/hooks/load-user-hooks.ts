@@ -1,8 +1,9 @@
+import type { Dirent } from 'node:fs';
 import { readdir, readFile, realpath, stat } from 'node:fs/promises';
 import { extname, join, relative } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { isThymianError, ThymianBaseError } from '@thymian/core';
+import { ThymianBaseError } from '@thymian/core';
 import { createJiti, type Jiti, type ModuleCache } from 'jiti';
 
 import type { TransactionCatalog } from '../selectors/transaction-catalog.js';
@@ -18,8 +19,26 @@ import {
   type HookTarget,
   isHookRegistration,
   type SampleCallback,
-  type TransactionFilter,
 } from './hook-registration.js';
+import {
+  asFiniteNumber,
+  asFunction,
+  asString,
+  isArrayValue,
+  isNullish,
+  messageOf,
+  ownKeys,
+  raw,
+  readIndex,
+  readProperties,
+  readProperty,
+  safeJson,
+  safeString,
+  suggestionsOf,
+  typeOf,
+  type UserValue,
+  userValue,
+} from './user-value.js';
 
 /**
  * `@thymian/hooks` is resolved by **this** alias, not by the tsconfig `paths` entry
@@ -90,7 +109,7 @@ export type TransactionHooks = {
  * Every field is read exactly once, behind a guard, in {@link importRegistrations}
  * — an export is user data and may be a Proxy whose accessors throw, or whose
  * second read returns something different from the first. Everything downstream
- * (the sort, `targetOf`, `bindRegistrations`, every diagnostic) reads the
+ * (the sort, `bindRegistrations`, every diagnostic) reads the
  * snapshot, so there is exactly one place where a user value can misbehave and it
  * is a place that turns misbehaviour into a per-file diagnostic.
  */
@@ -125,12 +144,27 @@ export type LoadUserHooksResult = {
 };
 
 /**
- * Keep a file iff its name is a JS/TS module and not a declaration file.
+ * Keep a file iff its name is one of the six module extensions AC 1 names —
+ * `.js .mjs .cjs .ts .mts .cts` — and is not a declaration file.
  *
- * `.tsx` is deliberately not matched — spec §2 says `.ts`/`.js`.
+ * `.tsx`/`.jsx` are **not** among them: AC 1's keep pattern has no `x`, and JSX
+ * needs a transform pragma the plugin's jiti instance is not configured for, so
+ * a `.tsx` file would be scanned only to fail on its own syntax.
+ *
+ * The declaration-file exclusion is **case-insensitive** while the keep pattern
+ * is not, which is deliberate rather than an oversight. `types.D.ts` matched the
+ * keep pattern (it does end in `.ts`) but missed a case-sensitive `\.d\.ts$`, so
+ * a hand-written declaration file was handed to jiti and its `declare module`
+ * syntax drew a spurious *"could not be imported"* error that failed the whole
+ * run. Exclusion is the safe direction to widen: it can only ever skip a file
+ * that could not have executed. Widening the *keep* pattern the same way would
+ * start scanning `HOOK.TS` on a case-insensitive filesystem and not on a
+ * case-sensitive one, which is a platform-dependent scan — that is the separate
+ * deferred "filename casing and separators" decision, not something to smuggle
+ * in here.
  */
 export function isHookFile(name: string): boolean {
-  if (/\.d\.[cm]?ts$/.test(name)) {
+  if (/\.d\.[cm]?ts$/i.test(name)) {
     return false;
   }
 
@@ -140,9 +174,84 @@ export function isHookFile(name: string): boolean {
 type HookFile = {
   /** Hooks-dir-relative, `/`-normalized. The sort key and the diagnostic label. */
   key: string;
-  /** The entry's **real** path — symlinks resolved, so one file is one entry. */
+  /** The entry's **real** path — symlinks resolved. */
   full: string;
+  /**
+   * What makes this entry *the same file* as another. See {@link fileIdentity}.
+   */
+  identity: string;
+  /**
+   * Whether this spelling is the file itself rather than a link to it.
+   *
+   * Decides attribution when two spellings collapse to one. Plain sort order
+   * handed a link named `aaa-link.ts` the attribution over the `zzz-real.ts` it
+   * points at, so the diagnostic sent the user to a file containing a symlink
+   * instead of to the code that broke.
+   */
+  isLink: boolean;
 };
+
+/**
+ * The identity two directory entries share when they are one file.
+ *
+ * `realpath` resolves symlinks but **not hard links**: two entries naming one
+ * inode keep two distinct real paths, so the round-2 realpath dedupe counted two
+ * files, evaluated the module twice, and composed one authored `beforeEach`
+ * twice — the `'linkedlinked'` symptom the symlink fix closed, wearing a
+ * different filesystem primitive and this time with no error to make it visible
+ * (`hasErrors: false`, composed path `"HH"`). A `defineSample` under the same
+ * shape reports itself as its own rival.
+ *
+ * `dev` + `ino` is the identity the filesystem itself uses. `bigint: true` keeps
+ * the inode exact — the number form loses precision above 2^53, which large
+ * inodes reach in practice. Windows reports `ino: 0` on some filesystems, so the
+ * real path stays the fallback and every case the round-2 fix covered still
+ * dedupes there.
+ *
+ * Not to be confused with #711 (`node_modules`/`dist` copies), which are two
+ * genuinely distinct files with distinct inodes and are deliberately left alone.
+ */
+export function fileIdentityFrom(
+  real: string,
+  info: { dev: bigint; ino: bigint; nlink: bigint } | undefined,
+): string {
+  // `nlink > 1` is what proves this entry *is* a hard link, and it is the whole
+  // reason to prefer the inode over the path. Split out as a pure function
+  // because the decision cannot otherwise be tested: no real filesystem will
+  // report the same inode for two distinct files, which is precisely the case
+  // that made the unconditional version dangerous.
+  if (info !== undefined && info.ino !== 0n && info.nlink > 1n) {
+    return `inode:${info.dev}:${info.ino}`;
+  }
+
+  return `path:${real}`;
+}
+
+async function fileIdentity(real: string): Promise<string> {
+  try {
+    const info = await stat(real, { bigint: true });
+
+    // `nlink > 1` is what proves this entry *is* a hard link, and it is the
+    // whole reason to prefer the inode over the path.
+    //
+    // Trusting `dev:ino` unconditionally was a worse bug than the one it fixed.
+    // Several FUSE drivers, some SMB/CIFS servers and Docker volume drivers
+    // report a constant or colliding non-zero inode; on such a mount every hook
+    // file collapsed to one identity and nine hooks in ten vanished with no
+    // diagnostic and `hasErrors: false`. Silent loss beats double-composition
+    // for how bad it is. `nlink` makes that unreachable: a file with one link is
+    // never deduped by inode, and a hard link always has at least two.
+    return fileIdentityFrom(real, info);
+  } catch {
+    // A path we could `readdir` but not `stat`. Fall back to the path; the
+    // import below reports anything genuinely unreadable.
+  }
+
+  // Tagged, so a path identity can never accidentally equal an inode one — the
+  // two are different namespaces and comparing them across a failed `stat` was
+  // how one of two hard links could still slip through.
+  return fileIdentityFrom(real, undefined);
+}
 
 function hooksDirRelative(hooksDir: string, full: string): string {
   return relative(hooksDir, full).split(/[/\\]/).join('/');
@@ -165,33 +274,29 @@ function compareKeys(a: string, b: string): number {
 }
 
 /**
- * Every hook file under `hooksDir`, deepest-first-agnostic and sorted by
- * hooks-dir-relative path.
+ * Every hook file under `hooksDir`, sorted by hooks-dir-relative path, with
+ * entries that are the same file collapsed to one.
  *
- * Symlinked **directories** are not followed: `readdir({recursive:true})` does not
- * descend them. Accepted, not worked around.
+ * The walk itself, and what it does and does not follow, is
+ * {@link walkHookDirectory}. This function owns the two decisions layered on top
+ * of it: the sort, and the dedupe.
  *
- * Symlinked **files** are followed. `readdir({withFileTypes:true})` reports
- * `lstat` semantics, so a symlink answers `isSymbolicLink()` and never
- * `isFile()` — a monorepo that symlinks a shared hook file into
- * `.thymian/sampler/hooks/` would otherwise have that hook silently dropped
- * before `isHookFile` ever ran: no diagnostic, and not even counted in
- * `fileCount`. One `stat` per symlink (not per entry) resolves the target; a
- * symlink that cannot be resolved is a diagnostic rather than a silent skip,
- * because a dangling link named `auth.ts` is exactly the case where "nothing
- * happened" is the wrong answer.
+ * **Why the dedupe exists.** Following a symlink is not enough on its own: when
+ * the link's target is *also* under the hooks directory, the scan sees one
+ * authored file under two spellings, and `evaluateModule` keys its cache on
+ * jiti's resolution of the path it is handed — which preserves the link
+ * spelling. That evaluated the file twice, and two evaluations produce two
+ * distinct registration objects for one authored hook, which the identity dedupe
+ * in `importRegistrations` cannot see. Observable as a `beforeEach` composing
+ * twice per request, and as a `defineSample` reported as its own rival ("that
+ * transaction's sample is already set by …" naming the link), an error with
+ * nothing the user can fix. Realpathing the scan **root** (below) fixes only the
+ * symlinked-ancestor case.
  *
- * Every entry is then resolved to its **real** path, and entries that share one
- * are collapsed. Following a symlink is not enough on its own: when the link's
- * target is *also* under the hooks directory, the scan sees one authored file
- * under two spellings, and `evaluateModule` keys its cache on jiti's resolution
- * of the path it is handed — which preserves the link spelling. That evaluated
- * the file twice, and two evaluations produce two distinct registration objects
- * for one authored hook, which the identity dedupe in `importRegistrations`
- * cannot see. Observable as a `beforeEach` composing twice per request, and as a
- * `defineSample` reported as its own rival ("that transaction's sample is
- * already set by …" naming the link), an error with nothing the user can fix.
- * Realpathing the scan **root** (below) fixes only the symlinked-ancestor case.
+ * **What identity means.** Not the real path — {@link fileIdentity}, which is
+ * `dev`+`ino` where the filesystem supplies one. `realpath` collapses symlinks
+ * but not hard links, and a hard link reproduced the same doubling with no error
+ * to make it visible.
  *
  * Which spelling survives is decided **after** the sort, not by `readdir` order:
  * the first key in sort order wins, the same tie-break the identity dedupe
@@ -203,28 +308,122 @@ async function collectHookFiles(
 ): Promise<HookFile[]> {
   const files: HookFile[] = [];
 
-  for (const dirent of await readdir(hooksDir, {
-    recursive: true,
-    withFileTypes: true,
-  })) {
+  await walkHookDirectory(hooksDir, hooksDir, true, files, diagnostics);
+
+  // Sort by key first so the surviving spelling never depends on `readdir`
+  // order, then let a real file outrank a link to it. Both halves matter: the
+  // sort is what makes the choice deterministic, and the link tie-break is what
+  // makes it *useful*, because a diagnostic naming a symlink sends the reader to
+  // the wrong file.
+  const linkRank = (file: HookFile): number => (file.isLink ? 1 : 0);
+
+  files.sort((a, b) => linkRank(a) - linkRank(b) || compareKeys(a.key, b.key));
+
+  const seen = new Set<string>();
+  const kept = files.filter((file) => {
+    if (seen.has(file.identity)) {
+      return false;
+    }
+
+    seen.add(file.identity);
+
+    return true;
+  });
+
+  // AC 2 is about load order, and load order is by key alone — the link
+  // tie-break above exists only to decide *which spelling survives*, so it must
+  // not leak into the order the survivors are evaluated in.
+  kept.sort((a, b) => compareKeys(a.key, b.key));
+
+  return kept;
+}
+
+/**
+ * One directory level, then its subdirectories.
+ *
+ * **Why not `readdir({recursive: true})`.** It is a single call, so an `EACCES`
+ * on any nested directory rejects the *whole* walk: a hooks tree with one
+ * root-owned subdirectory — an ordinary container image — reported
+ * `fileCount: 0`, `boundHookCount: 0` and one diagnostic naming the **root**
+ * hooks directory as the thing that could not be read, while the interpolated
+ * cause named the subdirectory. Every healthy hook in the tree was lost, which
+ * is AC 6's *"one broken file must not hide the other nine"* at directory
+ * granularity. Walking a level at a time costs one `readdir` per directory and
+ * confines the failure to the subtree that actually failed.
+ *
+ * The **root** still throws: a hooks directory that cannot be read at all is not
+ * a partial result, and `loadUserHooks` turns it into the single diagnostic that
+ * says the scan could not start.
+ *
+ * **Symlinked directories are still not followed.** `readdir({withFileTypes})`
+ * reports `lstat` semantics, so a symlink to a directory answers
+ * `isSymbolicLink()` and never `isDirectory()` — the descent below sees only
+ * real directories, exactly as `recursive: true` did. Accepted, not worked
+ * around.
+ *
+ * **Symlinked files are followed.** By the same `lstat` semantics a symlink
+ * never answers `isFile()`, so a monorepo that symlinks a shared hook file into
+ * `.thymian/sampler/hooks/` would otherwise have that hook silently dropped
+ * before `isHookFile` ever ran: no diagnostic, and not even counted in
+ * `fileCount`. One `stat` per symlink (not per entry) resolves the target; a
+ * symlink that cannot be resolved is a diagnostic rather than a silent skip,
+ * because a dangling link named `auth.ts` is exactly the case where "nothing
+ * happened" is the wrong answer.
+ */
+async function walkHookDirectory(
+  hooksDir: string,
+  dir: string,
+  isRoot: boolean,
+  files: HookFile[],
+  diagnostics: HookDiagnostic[],
+): Promise<void> {
+  let entries: Dirent[];
+
+  try {
+    entries = await readdir(dir, { withFileTypes: true });
+  } catch (error) {
+    if (isRoot) {
+      throw error;
+    }
+
+    diagnostics.push({
+      severity: 'error',
+      file: hooksDirRelative(hooksDir, dir),
+      reason: `this directory could not be read — ${messageOf(error)}; any hooks inside it were not loaded`,
+      suggestions: [
+        'Fix the permissions on that directory, or move the hooks out of it.',
+      ],
+      cause: error,
+    });
+
+    return;
+  }
+
+  for (const dirent of entries) {
+    const full = join(dir, dirent.name);
+
+    if (dirent.isDirectory()) {
+      // Dot-*subdirectories* only. Spec §2 excludes dot-directories, so
+      // `hooks/.hidden/a.ts` is skipped while `hooks/.eslintrc.ts` is kept — the
+      // filename itself is not subject to the rule. Deciding it at descent is
+      // the same rule the hooks-dir-relative path check expressed, and it keeps
+      // the property that mattered: a dot-segment in an *ancestor* of the hooks
+      // directory (a checkout under `.worktrees/`, a repo under `.config/`) is
+      // never even looked at, so it can never exclude anything.
+      if (!dirent.name.startsWith('.')) {
+        await walkHookDirectory(hooksDir, full, false, files, diagnostics);
+      }
+
+      continue;
+    }
+
     const isLink = dirent.isSymbolicLink();
 
     if ((!dirent.isFile() && !isLink) || !isHookFile(dirent.name)) {
       continue;
     }
 
-    const full = join(dirent.parentPath, dirent.name);
     const key = hooksDirRelative(hooksDir, full);
-    const segments = key.split('/');
-
-    // Dot-*subdirectories* only. Spec §2 excludes dot-directories, so
-    // `hooks/.hidden/a.ts` is skipped while `hooks/.eslintrc.ts` is kept — the
-    // filename itself is not subject to the rule. Computed on the hooks-dir-
-    // relative path, so a dot-segment in an ancestor (a checkout under
-    // `.worktrees/`, a repo under `.config/`) never excludes anything.
-    if (segments.slice(0, -1).some((segment) => segment.startsWith('.'))) {
-      continue;
-    }
 
     if (isLink) {
       let target: Awaited<ReturnType<typeof stat>>;
@@ -246,6 +445,21 @@ async function collectHookFiles(
       }
 
       if (!target.isFile()) {
+        // The branch above treats a *dangling* link as "nothing happened is the
+        // wrong answer"; a link named `auth.ts` pointing at a directory deserves
+        // the same, and used to get silence — no diagnostic, not even counted in
+        // `fileCount`.
+        diagnostics.push({
+          severity: 'error',
+          file: key,
+          reason: target.isDirectory()
+            ? 'is a symbolic link to a directory, not to a hook file'
+            : 'is a symbolic link to something that is not a regular file',
+          suggestions: [
+            'Point the link at a hook file, or remove it from the hooks directory.',
+          ],
+        });
+
         continue;
       }
     }
@@ -259,101 +473,108 @@ async function collectHookFiles(
       // the import below reports anything genuinely unreadable.
     }
 
-    files.push({ key, full: real });
+    files.push({
+      key,
+      full: real,
+      identity: await fileIdentity(real),
+      isLink,
+    });
   }
-
-  files.sort((a, b) => compareKeys(a.key, b.key));
-
-  const seen = new Set<string>();
-
-  return files.filter((file) => {
-    if (seen.has(file.full)) {
-      return false;
-    }
-
-    seen.add(file.full);
-
-    return true;
-  });
 }
 
 /**
- * `String(value)` on a user-controlled value, without the throw.
+ * Removes `readonly Selector[]` from the `HookTarget` union once
+ * {@link isArrayValue} has answered, so the filter branch cannot still see it.
  *
- * `String(x)` invokes `Symbol.toPrimitive`, then `toString`, then `valueOf` — all
- * three are user code on a Proxy or a hand-rolled object, and all three may throw.
- * Every place this module renders a user value into a message goes through here.
+ * Split in two on purpose. The *answer* can throw — `Array.isArray` on a revoked
+ * Proxy — and the caller has to report that with the user's own error in it, not
+ * fall through to a branch that answers a different question. The *narrowing*
+ * cannot fail, so it takes the answer rather than recomputing it: calling
+ * `Array.isArray` a second time would run the user's traps twice, and a hostile
+ * Proxy is free to answer differently the second time.
+ *
+ * Named `assume`, not `is`, because that is what it does: it **asserts** a type
+ * about its first argument from its second, and nothing in the signature ties
+ * the two together. The caller owns that correspondence — pass the
+ * `isArrayValue` answer for *this* target and no other. There is exactly one
+ * call site, immediately below the `isArrayValue` that produced the boolean.
  */
-function safeString(value: unknown): string {
-  try {
-    return String(value);
-  } catch {
-    return '[unprintable value]';
-  }
-}
+function assumeSelectorList(
+  target: HookTarget,
+  isArray: boolean,
+): target is readonly string[] {
+  void target;
 
-function messageOf(error: unknown): string {
-  if (isThymianError(error)) {
-    return error.message;
-  }
-
-  return error instanceof Error ? error.message : safeString(error);
+  return isArray;
 }
 
 /**
- * `isThymianError` deliberately accepts a value with **no own `options`**
- * (`thymian.error.ts:20-32`), so `isThymianError(new Error('x'))` is `true` and a
- * bare `error.options.suggestions` is a `TypeError` — thrown from inside the catch
- * block that exists to turn a resolution failure into a diagnostic. Latent only
- * while `TransactionCatalog.resolve` throws `ThymianBaseError` exclusively; the
- * 575.4 filter seam at {@link matchTransactionFilter} can raise anything.
+ * How many elements of a user-supplied list the loader will touch.
  *
- * The array is also checked element-wise: `suggestions` reaches
- * `hookResolutionError`, which joins it into the one message a user sees.
+ * Not a style choice — a bound. Every loop over a user list reads `length` and
+ * then iterates it, and `length` is whatever the user's value reports. No Proxy
+ * is needed to reach the bad case: a plain `const list = []; list.length = 2e5;`
+ * produced a 2.6 MB anchor and a 12.8 MB reason, 15.4 MB in one error message,
+ * in 450 ms; `1e7` exhausted memory — inside a function contracted never to
+ * throw for user error. `Array.from({ length: n })` or an off-by-one index write
+ * reaches it by accident.
+ *
+ * A hook targets selectors a human wrote, so a list this long is already a
+ * mistake. The cap is reported, never silent: the diagnostic says how many there
+ * were.
  */
-function suggestionsOf(error: unknown): string[] | undefined {
-  try {
-    if (!isThymianError(error)) {
-      return undefined;
-    }
+const MAX_USER_LIST_ELEMENTS = 100;
 
-    const suggestions: unknown = error.options?.suggestions;
+/**
+ * How many per-element failures one diagnostic will quote before summarising.
+ *
+ * The same bound in the other direction: without it, a 200 000-element list of
+ * bad selectors joined 200 000 failure strings into one `reason`.
+ */
+const MAX_QUOTED_FAILURES = 10;
 
-    if (
-      !Array.isArray(suggestions) ||
-      !suggestions.every((suggestion) => typeof suggestion === 'string')
-    ) {
-      return undefined;
-    }
+/**
+ * The `length` of a user-controlled array-like, or `undefined` when it could not
+ * be read or is not a finite number.
+ *
+ * `Array.isArray` is `true` for a Proxy whose target is an array, so `length` is
+ * a `get` trap like any other and a hostile one can throw or answer a value that
+ * is not a number at all.
+ */
+function readLength(value: UserValue): number | undefined {
+  const read = readProperty(value, 'length');
 
-    return suggestions;
-  } catch {
-    // `?.` guards a missing `options`, not a throwing one. The thrown value
-    // reaching here is whatever the 575.4 seam raised, and it may be a Proxy of
-    // the user's making — reading it must not re-throw out of the catch block
-    // that exists to turn the failure into a diagnostic.
+  if (!read.ok) {
     return undefined;
   }
-}
 
-/**
- * `Array.isArray` alone does not remove `readonly Selector[]` from the union, so
- * the filter branch would still see it. One guard, used by both readers.
- */
-function isSelectorList(target: HookTarget): target is readonly string[] {
-  return Array.isArray(target);
+  const length = asFiniteNumber(read.value);
+
+  if (length === undefined) {
+    return undefined;
+  }
+
+  // A negative or fractional `length` is not an element count. Left as read, it
+  // slipped past the `=== 0` empty-list guard: a list reporting `-1` bound
+  // nothing, reported `boundHookCount: 1` and `hasErrors: false`, and the hook
+  // silently never fired; `0.5` produced "1 of 0.5 selector(s) do not resolve".
+  return Math.max(0, Math.trunc(length));
 }
 
 /**
  * The target as authored, rendered for a diagnostic — for **any** value.
  *
- * The branch guards below cover a throwing element or a circular filter, but
- * `Array.isArray` throws before any of them on a revoked Proxy
- * (`TypeError: Cannot perform 'IsArray' on a proxy that has been revoked`), and
- * this function runs *before* `resolveTargeting` precisely to label the
- * diagnostic that reports the failure. A renderer that can throw cannot do that
- * job, so the whole body is guarded and the inner catches stay only for their
- * more specific labels.
+ * {@link renderTarget} is **total**: every operation it performs on the target
+ * goes through `user-value.ts`, which is enforced by the opaque {@link UserValue}
+ * type and by the lint ban in `eslint.config.mjs`. This wrapper is therefore a
+ * backstop, not the mechanism — kept because `describeTarget` runs *before*
+ * `resolveTargeting`, precisely to label the diagnostic that reports a failure,
+ * and a renderer that can throw cannot do that job.
+ *
+ * Consequence worth stating: neutralising *this* `catch` no longer breaks a
+ * test, because there is nothing left for it to catch. The mutation that
+ * discriminates now lives one level down, in the guards inside
+ * {@link renderTarget} and in `user-value.ts`.
  */
 export function describeTarget(target: HookTarget | undefined): string {
   try {
@@ -368,31 +589,76 @@ function renderTarget(target: HookTarget | undefined): string {
     return 'global';
   }
 
-  if (typeof target === 'string') {
-    return `"${target}"`;
+  const value = userValue(target);
+  const literal = asString(value);
+
+  if (literal !== undefined) {
+    // A primitive string has no traps left to run, so interpolating it is safe.
+    return `"${literal}"`;
   }
 
-  if (isSelectorList(target)) {
-    try {
-      // Inside the `try`, not next to it: `target` is user data even when it is
-      // an array. `map` on a Proxy array invokes the `get` trap per index, and
-      // `String(selector)` invokes a `Symbol.toPrimitive` the user wrote — the
-      // old code did both outside any guard, so one exotic element threw all the
-      // way out of `loadUserHooks`.
-      return `[${target
-        .map((selector) => `"${safeString(selector)}"`)
-        .join(', ')}]`;
-    } catch {
+  const array = isArrayValue(value);
+
+  if (!array.ok) {
+    // `Array.isArray` threw, so not even the *shape* of this target is known —
+    // a revoked Proxy. The generic label is the honest one here; the two
+    // specific labels below both claim knowledge this branch does not have.
+    return '[unprintable target]';
+  }
+
+  if (array.value) {
+    // `target` is user data even when it is an array: `Array.isArray` is `true`
+    // for a Proxy whose target is an array, so `length` and every element read
+    // run the user's `get` trap, and rendering an element invokes a
+    // `Symbol.toPrimitive` the user wrote.
+    const length = readLength(value);
+
+    if (length === undefined) {
       return '[unprintable selector list]';
     }
+
+    const shown = Math.min(length, MAX_USER_LIST_ELEMENTS);
+    const rendered: string[] = [];
+
+    for (let index = 0; index < shown; index += 1) {
+      const element = readIndex(value, index);
+
+      if (!element.ok) {
+        return '[unprintable selector list]';
+      }
+
+      rendered.push(`"${safeString(raw(element.value))}"`);
+    }
+
+    if (shown < length) {
+      // Reported, not silently truncated: the count is the thing that tells the
+      // user their list is not the list they thought they wrote.
+      rendered.push(`… ${length - shown} more`);
+    }
+
+    return `[${rendered.join(', ')}]`;
   }
 
-  try {
-    return JSON.stringify(target) ?? safeString(target);
-  } catch {
-    // A filter is user data and may be circular or carry a throwing accessor.
+  if (typeOf(value) !== 'object' || isNullish(value)) {
+    // A primitive in the target slot — `null`, a number, a boolean, a `Symbol`,
+    // a `BigInt`, a function. `JSON.stringify` throws outright on a `BigInt` and
+    // answers `undefined` for a function, so it is the wrong renderer for any of
+    // them, and falling into the filter label below would call a number a
+    // filter. `safeString` is total and says what the value actually is.
+    return safeString(raw(value));
+  }
+
+  const json = safeJson(value);
+
+  if (!json.ok) {
+    // An object that will not stringify: a filter is user data and may be
+    // circular or carry a throwing accessor.
     return '[unprintable filter]';
   }
+
+  // `JSON.stringify` answers `undefined` for a value it cannot represent — not a
+  // failure, so the string form is still worth a try before giving up.
+  return json.value ?? safeString(raw(value));
 }
 
 type TargetResolution =
@@ -407,9 +673,17 @@ type TargetResolution =
  * nothing. When 575.4 lands it routes through the shared matcher (ADR-0019's
  * shipping condition for globs, spec §5.1); no second glob or filter
  * implementation belongs here.
+ *
+ * The parameter is a {@link UserValue}, not a `TransactionFilter`, on purpose.
+ * Typed as the latter, the natural implementation — `filter.method`,
+ * `'tag' in filter`, `Object.entries(filter)` — type-checks against a value that
+ * is still whatever the user's hook file put in the target slot, and `in` runs a
+ * `has` trap that nothing bans. Making the seam opaque means 575.4 reaches its
+ * fields through `user-value.ts` from the first line it writes, rather than
+ * rediscovering this class a fifth time.
  */
 function matchTransactionFilter(
-  filter: TransactionFilter,
+  filter: UserValue,
   catalog: TransactionCatalog,
 ): string[] {
   // Both parameters are the signature 575.4 needs; referenced so the seam is not
@@ -474,10 +748,45 @@ function resolveTargetingUnguarded(
     }
   }
 
-  if (isSelectorList(target)) {
-    const selectors = target;
+  const value = userValue(target);
+  const array = isArrayValue(value);
 
-    if (selectors.length === 0) {
+  if (!array.ok) {
+    // `Array.isArray` threw before the shape was even known — a revoked Proxy.
+    // Reported here rather than left to the outer guard so the message says
+    // which *operation* failed and carries the user's own error, instead of
+    // falling through to the filter branch and answering the unrelated
+    // "matched none of the N loaded transaction(s)".
+    return {
+      ok: false,
+      error: `could not be inspected — ${messageOf(array.error)}`,
+      suggestions: suggestionsOf(array.error) ?? [
+        'Target a hook with a selector string, a list of selector strings, or a transaction filter.',
+      ],
+    };
+  }
+
+  if (assumeSelectorList(target, array.value)) {
+    const selectors = value;
+    const lengthRead = readProperty(selectors, 'length');
+
+    if (!lengthRead.ok) {
+      return {
+        ok: false,
+        error: `targets a selector list whose length could not be read — ${messageOf(lengthRead.error)}`,
+        suggestions: suggestionsOf(lengthRead.error) ?? [
+          'Export the selector list as an ordinary array, not a proxy around one.',
+        ],
+      };
+    }
+
+    // A `length` that is not a finite number — or is negative or fractional —
+    // names no selectors at all, which the empty-list branch below already has
+    // the right words for. See {@link readLength} for why the clamp matters.
+    const reported = asFiniteNumber(lengthRead.value) ?? 0;
+    const length = Math.max(0, Math.trunc(reported));
+
+    if (length === 0) {
       return {
         ok: false,
         error: 'targets an empty selector list, so it can never run',
@@ -489,27 +798,76 @@ function resolveTargetingUnguarded(
 
     const ids: string[] = [];
     const failures: string[] = [];
+    let failureCount = 0;
     let suggestions: string[] | undefined;
+    // Bounded: see {@link MAX_USER_LIST_ELEMENTS}. A list longer than this is
+    // already not a list of selectors a human wrote, and the diagnostic says so
+    // rather than trying to resolve every entry.
+    const examined = Math.min(length, MAX_USER_LIST_ELEMENTS);
 
-    for (const selector of selectors) {
+    for (let index = 0; index < examined; index += 1) {
+      const element = readIndex(selectors, index);
+
+      if (!element.ok) {
+        // The element could not be read at all — a `get` trap that throws. There
+        // is no value to name, so the index is the only honest label.
+        failureCount += 1;
+
+        if (failures.length < MAX_QUOTED_FAILURES) {
+          failures.push(`[${index}] — ${messageOf(element.error)}`);
+        }
+
+        suggestions ??= suggestionsOf(element.error);
+        continue;
+      }
+
       try {
-        ids.push(catalog.resolve(selector).transactionId);
+        // `resolve` declares `string` and coerces what it is given; the coercion
+        // runs the user's `Symbol.toPrimitive`, which is why the call is inside
+        // the `try` rather than beside it.
+        ids.push(catalog.resolve(raw(element.value) as string).transactionId);
       } catch (error) {
         // `safeString`, not interpolation: a selector list is user data, and an
         // element with a throwing `Symbol.toPrimitive` reaches here *because*
         // `catalog.resolve` coerced it and the coercion threw. Interpolating it
         // into the failure message threw the same error a second time, straight
         // out of the catch block that exists to report it.
-        failures.push(`"${safeString(selector)}" — ${messageOf(error)}`);
+        failureCount += 1;
+
+        if (failures.length < MAX_QUOTED_FAILURES) {
+          failures.push(
+            `"${safeString(raw(element.value))}" — ${messageOf(error)}`,
+          );
+        }
+
         suggestions ??= suggestionsOf(error);
       }
     }
 
-    if (failures.length > 0) {
+    if (failureCount > 0) {
+      const quoted =
+        failureCount > failures.length
+          ? `${failures.join('; ')}; … and ${failureCount - failures.length} more`
+          : failures.join('; ');
+
       return {
         ok: false,
-        error: `${failures.length} of ${selectors.length} selector(s) do not resolve: ${failures.join('; ')}`,
+        error: `${failureCount} of ${length} selector(s) do not resolve: ${quoted}`,
         suggestions,
+      };
+    }
+
+    if (examined < length) {
+      // Every selector examined resolved, but the list is longer than the
+      // loader will touch. Binding the prefix and staying silent would be the
+      // worst answer: the user would get some of their hooks and no reason for
+      // the rest.
+      return {
+        ok: false,
+        error: `targets a list of ${length} selectors, more than the ${MAX_USER_LIST_ELEMENTS} a hook target may name`,
+        suggestions: [
+          'Name the transactions a hook needs explicitly, or use a transaction filter instead of a generated list.',
+        ],
       };
     }
 
@@ -523,7 +881,21 @@ function resolveTargetingUnguarded(
     return { ok: true, ids: [...new Set(ids)] };
   }
 
-  const matched = matchTransactionFilter(target, catalog);
+  // Everything that is left must be a filter, and `TransactionFilter` is a
+  // non-array **object**. A primitive in the target slot has no branch at all,
+  // so it used to fall through to the matcher and come back "matched none of the
+  // N loaded transaction(s)" — true, and silent about the actual mistake.
+  if (typeOf(value) !== 'object' || isNullish(value)) {
+    return {
+      ok: false,
+      error: `targets a ${typeOf(value)}, which is not a selector, a selector list or a transaction filter`,
+      suggestions: [
+        'Target a hook with a selector string, a list of selector strings, or a transaction filter object.',
+      ],
+    };
+  }
+
+  const matched = matchTransactionFilter(value, catalog);
 
   // Spec §5 / §12 AC 2: a filter whose values are valid but which matches zero
   // transactions is an error, phrased as data the user can act on.
@@ -597,6 +969,7 @@ async function evaluateModule(
   jiti: Jiti,
   moduleCache: ScanModuleCache,
   full: string,
+  reported: Set<string>,
 ): Promise<unknown> {
   let resolved = full;
 
@@ -607,9 +980,44 @@ async function evaluateModule(
     // Unresolvable: fall through and let the read below produce the diagnostic.
   }
 
-  const cached: { exports: unknown } | undefined = moduleCache[resolved];
+  const cached: { exports: unknown; loaded: boolean } | undefined =
+    moduleCache[resolved];
 
   if (cached) {
+    if (!cached.loaded) {
+      // Reported here, so the end-of-scan sweep does not say it twice.
+      reported.add(resolved);
+
+      // The entry exists but the module never finished.
+      //
+      // jiti 2.6.1's `evalModule` writes `cache[filename] = module` **before**
+      // running the body and sets `module.loaded = true` only on success, so a
+      // module that throws mid-body leaves a cache entry holding whatever
+      // exports it managed to assign first. The round-2 note that "a module that
+      // throws leaves no cache entry" is false — measured directly against jiti,
+      // the key is present after the throw.
+      //
+      // Serving it was the worst of both worlds. With `a.ts` = `import
+      // './b.js';`, `b.ts` was reported *healthy* and its hook bound while the
+      // importer took the blame; flip the sort order and the attribution flips
+      // with it. The silent form is worse still: with
+      // `a.ts` = `try { await import('./b.js') } catch {}` the scan reported
+      // `hasErrors: false` and the hook from the module that threw actually ran.
+      //
+      // Re-evaluating is not the answer — the body already ran once and its
+      // side effects already happened. The honest answer is that this file
+      // failed to import, which is what AC 6 says a throwing file is.
+      throw new ThymianBaseError(
+        'it threw while being imported earlier in this scan, so only the exports it managed to create before throwing exist',
+        {
+          name: 'HookModuleNotLoaded',
+          suggestions: [
+            'Fix the error this file throws at import time; a hook file that imports it may be swallowing it with try/catch.',
+          ],
+        },
+      );
+    }
+
     // Already evaluated in this scan, as some earlier file's dependency. Its
     // exports are the same objects that file saw, so the identity dedupe in
     // `take` collapses the two sightings into one registration — which is what
@@ -617,21 +1025,37 @@ async function evaluateModule(
     return cached.exports;
   }
 
-  return await jiti.evalModule(await readFile(resolved, 'utf-8'), {
-    filename: resolved,
-    ext: extname(resolved),
-    cache: moduleCache,
-    async: true,
-  });
+  try {
+    return await jiti.evalModule(await readFile(resolved, 'utf-8'), {
+      filename: resolved,
+      ext: extname(resolved),
+      cache: moduleCache,
+      async: true,
+    });
+  } catch (error) {
+    // The caller turns this into that file's own `could not be imported`
+    // diagnostic, so the end-of-scan sweep must not name it a second time —
+    // a module that throws is exactly the state the sweep looks for, and jiti
+    // has already written the `loaded: false` entry by the time we get here.
+    reported.add(resolved);
+
+    throw error;
+  }
 }
 
-/** Every field of a registration, read once, behind one guard. */
-type RegistrationFields = {
-  kind: unknown;
-  order: unknown;
-  target: unknown;
-  callback: unknown;
-};
+/** The four field names a registration carries, in read order. */
+const REGISTRATION_FIELDS = ['kind', 'order', 'target', 'callback'] as const;
+
+/**
+ * Every field of a registration, read once, behind one guard.
+ *
+ * They stay {@link UserValue}: reading them proved only that the `get` traps did
+ * not throw, not that what came back is a string, a number or a function.
+ */
+type RegistrationFields = Record<
+  (typeof REGISTRATION_FIELDS)[number],
+  UserValue
+>;
 
 /**
  * Rebuilds a registration from fields already read.
@@ -651,36 +1075,86 @@ function snapshotRegistration(
   kind: string,
   fields: RegistrationFields,
 ): HookRegistration {
-  const order =
-    typeof fields.order === 'number' && Number.isFinite(fields.order)
-      ? fields.order
-      : Number.MAX_SAFE_INTEGER;
+  const order = asFiniteNumber(fields.order) ?? Number.MAX_SAFE_INTEGER;
 
-  const base =
+  // Built whole rather than spread: object spread reads own enumerable
+  // properties, which on a user value runs its `ownKeys` and `get` traps — the
+  // one shape the `UserValue` type still lets through, so this file bans it
+  // (see eslint.config.mjs). `fields` is already read and guarded, but writing
+  // it this way keeps the ban free of exceptions.
+  const registration =
     kind === 'beforeAll' || kind === 'afterAll'
-      ? { kind, order, callback: fields.callback }
-      : { kind, order, target: fields.target, callback: fields.callback };
+      ? {
+          kind,
+          order,
+          callback: raw(fields.callback),
+          [HOOK_REGISTRATION]: true,
+        }
+      : {
+          kind,
+          order,
+          target: raw(fields.target),
+          callback: raw(fields.callback),
+          [HOOK_REGISTRATION]: true,
+        };
 
-  return Object.freeze({
-    ...base,
-    [HOOK_REGISTRATION]: true,
-  }) as HookRegistration;
+  return Object.freeze(registration) as HookRegistration;
+}
+
+/**
+ * Takes everything the creation log holds and empties it, without ever throwing.
+ *
+ * The log lives in a `globalThis` slot under a `Symbol.for` key — it has to, or
+ * the plugin's realm and the hook file's realm would not share it — which makes
+ * it **user-writable**. {@link hookCreationLog} validates and replaces a poisoned
+ * slot, and this drain re-reads it on every call rather than caching the object,
+ * because a hook file is free to swap the slot out *during* its own evaluation:
+ * a cached reference would then be drained while `registerHook` writes somewhere
+ * else.
+ *
+ * The failure mode this closes was measured three ways — a throwing `created`
+ * getter, a plain `{ nextOrder: 0 }` version skew, and a frozen `created` — and
+ * each one threw out of `loadUserHooks` on the *next* file, taking every healthy
+ * sibling with it.
+ */
+function drainCreationLog(): HookRegistration[] {
+  try {
+    const log = hookCreationLog();
+    // Copied by index, not spread: the log is a user-writable slot, so its
+    // `Symbol.iterator` is user code like everything else here.
+    const created = log.created.slice(0, log.created.length);
+
+    log.created.length = 0;
+
+    return created;
+  } catch {
+    // The log is a diagnostic channel, never a discovery fallback, so losing it
+    // costs the created-but-not-exported diff and nothing that binds a hook.
+    return [];
+  }
 }
 
 /**
  * Imports one hook file and collects every export that is a registration.
  *
- * **Nothing here reads a user value without a guard.** The namespace, each export
- * name, each export value, each element of an exported array and each field of a
- * branded object are all user-controlled: a CJS re-export can carry an enumerable
- * throwing getter, an export can be a Proxy that throws on `ownKeys` or on any
- * property read, and a branded value can be a Proxy whose `kind` or `callback`
- * accessor throws. Every one of those used to throw straight out of
- * `loadUserHooks` → `HookRunner.init` → `core.format` as an unformatted error
- * with no `file:` attribution, breaking this module's two stated contracts:
- * "never throws for user error" and "one broken file must not hide the other
- * nine". `isHookRegistration` already tolerates a throwing property access
- * (`hook-registration.ts:239-243`); everything downstream of it now does too.
+ * **Nothing here reads a user value without a guard, and that is now checked
+ * rather than asserted.** The namespace, each export name, each export value,
+ * each element of an exported array and each field of a branded object are all
+ * user-controlled: a CJS re-export can carry an enumerable throwing getter, an
+ * export can be a Proxy that throws on `ownKeys` or on any property read, a
+ * branded value can be a Proxy whose `kind` or `callback` accessor throws, and a
+ * revoked Proxy makes even `Array.isArray` throw. Every one of those used to
+ * throw straight out of `loadUserHooks` → `HookRunner.init` → `core.format` as
+ * an unformatted error with no `file:` attribution, breaking this module's two
+ * stated contracts: "never throws for user error" and "one broken file must not
+ * hide the other nine".
+ *
+ * Three rounds asserted this sentence and three rounds found another instance —
+ * so it is no longer an assertion. Every value below is a {@link UserValue},
+ * which has no readable members, and every read goes through `user-value.ts`;
+ * see that module's header for the two mechanisms (a type error, then a lint
+ * error) and for why neither closes the class alone. `isHookRegistration`
+ * already tolerates a throwing property access (`hook-registration.ts:239-243`).
  *
  * The guards are per-export, not one `try` around the loop, so one throwing
  * getter costs the user that one export and not the other nine.
@@ -705,29 +1179,29 @@ async function importRegistrations(
   file: HookFile,
   diagnostics: HookDiagnostic[],
   exported: Set<unknown>,
+  reportedModules: Set<string>,
 ): Promise<{
   collected: CollectedRegistration[];
   created: HookRegistration[];
-  importFailed: boolean;
+  exportsUnusable: boolean;
 }> {
-  const log = hookCreationLog();
   const collected: CollectedRegistration[] = [];
 
   let mod: unknown;
   let created: HookRegistration[] = [];
-  let importFailed = false;
+  let exportsUnusable = false;
 
-  log.created.length = 0;
+  drainCreationLog();
 
   try {
     // No `{ default: true }`: that option (v1's `tryImport`) collapses the
     // namespace to the default export and would discard every named
     // registration. `interopDefault` stays on, which is what makes a CJS hook
     // file's `module.exports` appear as namespace keys.
-    mod = await evaluateModule(jiti, moduleCache, file.full);
+    mod = await evaluateModule(jiti, moduleCache, file.full, reportedModules);
   } catch (error) {
     // One broken file must not hide the other nine.
-    importFailed = true;
+    exportsUnusable = true;
 
     diagnostics.push({
       severity: 'error',
@@ -736,57 +1210,51 @@ async function importRegistrations(
       cause: error,
     });
   } finally {
-    created = [...log.created];
-    log.created.length = 0;
+    created = drainCreationLog();
   }
 
-  const take = (value: unknown, exportName: string): void => {
-    if (!isHookRegistration(value) || exported.has(value)) {
+  const take = (value: UserValue, exportName: string): void => {
+    const candidate = raw(value);
+
+    if (!isHookRegistration(candidate) || exported.has(candidate)) {
       return;
     }
 
-    exported.add(value);
+    exported.add(candidate);
 
-    const fields: RegistrationFields = {
-      kind: undefined,
-      order: undefined,
-      target: undefined,
-      callback: undefined,
-    };
+    // Read the discriminant raw: `isHookRegistration` only proves the brand, so
+    // the narrowed type is a claim about `kind` that a version-skewed runtime
+    // can falsify. Dropping such a value silently would turn a plugin/hooks
+    // mismatch into hooks that simply never fire.
+    const read = readProperties(value, REGISTRATION_FIELDS);
 
-    try {
-      // Read the discriminant raw: `isHookRegistration` only proves the brand,
-      // so the narrowed type is a claim about `kind` that a version-skewed
-      // runtime can falsify. Dropping such a value silently would turn a
-      // plugin/hooks mismatch into hooks that simply never fire.
-      fields.kind = (value as { kind?: unknown }).kind;
-      fields.order = (value as { order?: unknown }).order;
-      fields.target = (value as { target?: unknown }).target;
-      fields.callback = (value as { callback?: unknown }).callback;
-    } catch (error) {
+    if (!read.ok) {
       diagnostics.push({
         severity: 'error',
         file: file.key,
         exportName,
-        reason: `export "${exportName}" carries the hook-registration brand but its fields could not be read — ${messageOf(error)}`,
+        reason: `carries the hook-registration brand but its fields could not be read — ${messageOf(read.error)}`,
         suggestions: [
           'Export the value the @thymian/hooks runtime returned, not a wrapper or a proxy around it.',
         ],
-        cause: error,
+        cause: read.error,
       });
 
       return;
     }
 
-    const kind = fields.kind;
+    const fields = read.value;
+    const kind = asString(fields.kind);
 
-    if (typeof kind !== 'string' || !HOOK_KINDS.has(kind)) {
+    if (kind === undefined || !HOOK_KINDS.has(kind)) {
+      const rendered = safeString(raw(fields.kind));
+
       diagnostics.push({
         severity: 'error',
         file: file.key,
         exportName,
-        kind: typeof kind === 'string' ? kind : safeString(kind),
-        reason: `export "${exportName}" is a hook registration of an unrecognised kind "${safeString(kind)}"`,
+        kind: kind ?? rendered,
+        reason: `is a hook registration of an unrecognised kind "${rendered}"`,
         suggestions: [
           'Check that @thymian/plugin-sampler and the @thymian/hooks runtime your hook resolved are the same version.',
         ],
@@ -795,7 +1263,7 @@ async function importRegistrations(
       return;
     }
 
-    if (typeof fields.callback !== 'function') {
+    if (asFunction(fields.callback) === undefined) {
       // Reached only by a hand-rolled or skewed branded value: the runtime's own
       // factories reject a non-callable callback. Binding it anyway would defer
       // the failure to the first request, long after the load-time report.
@@ -804,7 +1272,7 @@ async function importRegistrations(
         file: file.key,
         exportName,
         kind,
-        reason: `export "${exportName}" is a ${kind} hook registration whose callback is not a function`,
+        reason: `is a ${kind} hook registration whose callback is not a function`,
         suggestions: [
           'Check that @thymian/plugin-sampler and the @thymian/hooks runtime your hook resolved are the same version.',
         ],
@@ -820,120 +1288,220 @@ async function importRegistrations(
     });
   };
 
-  let keys: string[] = [];
+  const namespace = userValue(mod);
+  const keys = ownKeys(namespace);
 
-  try {
-    keys = mod === undefined || mod === null ? [] : Object.keys(mod);
-  } catch (error) {
+  if (!keys.ok) {
+    // The exports cannot be enumerated, so nothing about this file's export
+    // surface is knowable. Marking it unusable is what stops
+    // `reportUnexportedRegistrations` adding a second, contradictory diagnostic
+    // telling the user to export a registration they may well have exported —
+    // the same interlock the `evaluateModule` catch already had.
+    exportsUnusable = true;
+
     diagnostics.push({
       severity: 'error',
       file: file.key,
-      reason: `exports could not be enumerated — ${messageOf(error)}`,
-      cause: error,
+      reason: `exports could not be enumerated — ${messageOf(keys.error)}`,
+      cause: keys.error,
     });
   }
 
-  for (const exportName of keys) {
-    let value: unknown;
+  for (const exportName of keys.ok ? keys.value : []) {
+    const read = readProperty(namespace, exportName);
 
-    try {
-      value = (mod as Record<string, unknown>)[exportName];
-    } catch (error) {
+    if (!read.ok) {
       diagnostics.push({
         severity: 'error',
         file: file.key,
         exportName,
-        reason: `export "${exportName}" could not be read — ${messageOf(error)}`,
-        cause: error,
+        reason: `could not be read — ${messageOf(read.error)}`,
+        cause: read.error,
       });
 
       continue;
     }
 
-    if (Array.isArray(value)) {
-      // One level, element-wise, no deep flattening. A *nested* array is not
-      // discovered; it surfaces through the created-but-not-exported diagnostic
-      // instead, which is the intended interlock rather than a gap.
-      //
-      // Indexed rather than `forEach`, and each read guarded: `Array.isArray` is
-      // true for a Proxy whose target is an array, and both `length` and every
-      // element read then run the user's `get` trap.
-      let length = 0;
+    const value = read.value;
+    const array = isArrayValue(value);
 
-      try {
-        length = (value as { length: number }).length;
-      } catch (error) {
+    if (!array.ok) {
+      // `Array.isArray` **throws** on a revoked Proxy rather than answering
+      // `false`. It sat outside every guard here — the last unguarded
+      // user-value read on the collection path — and took the whole scan with
+      // it: no result, no diagnostic, no `file:` attribution, and both healthy
+      // siblings lost.
+      diagnostics.push({
+        severity: 'error',
+        file: file.key,
+        exportName,
+        reason: `could not be inspected — ${messageOf(array.error)}`,
+        suggestions: [
+          'Export the value the @thymian/hooks runtime returned, not a revoked or hostile proxy around it.',
+        ],
+        cause: array.error,
+      });
+
+      continue;
+    }
+
+    if (!array.value) {
+      // `default` is one key of the namespace like any other.
+      take(value, exportName);
+      continue;
+    }
+
+    // One level, element-wise, no deep flattening. A *nested* array is not
+    // discovered; it surfaces through the created-but-not-exported diagnostic
+    // instead, which is the intended interlock rather than a gap.
+    //
+    // Indexed rather than `forEach`, and each read guarded: `Array.isArray` is
+    // true for a Proxy whose target is an array, and both `length` and every
+    // element read then run the user's `get` trap.
+    const lengthRead = readProperty(value, 'length');
+
+    if (!lengthRead.ok) {
+      diagnostics.push({
+        severity: 'error',
+        file: file.key,
+        exportName,
+        reason: `is an array whose length could not be read — ${messageOf(lengthRead.error)}`,
+        cause: lengthRead.error,
+      });
+
+      continue;
+    }
+
+    // A `length` that is not a finite number — or is negative or fractional —
+    // yields no elements, which is what the old `index < length` comparison did
+    // for `NaN` and for a non-number alike, made explicit rather than left to
+    // comparison semantics.
+    const reported = asFiniteNumber(lengthRead.value) ?? 0;
+    const length = Math.max(0, Math.trunc(reported));
+    const examined = Math.min(length, MAX_USER_LIST_ELEMENTS);
+
+    if (examined < length) {
+      diagnostics.push({
+        severity: 'error',
+        file: file.key,
+        exportName,
+        reason: `is an array of ${length} values, more than the ${MAX_USER_LIST_ELEMENTS} an exported hook list may hold`,
+        suggestions: [
+          'Export the hooks a file defines individually, or in a list short enough to read.',
+        ],
+      });
+
+      continue;
+    }
+
+    for (let index = 0; index < examined; index += 1) {
+      const element = readIndex(value, index);
+
+      if (!element.ok) {
         diagnostics.push({
           severity: 'error',
           file: file.key,
-          exportName,
-          reason: `export "${exportName}" is an array whose length could not be read — ${messageOf(error)}`,
-          cause: error,
+          exportName: `${exportName}[${index}]`,
+          reason: `could not be read — ${messageOf(element.error)}`,
+          cause: element.error,
         });
 
         continue;
       }
 
-      for (let index = 0; index < length; index += 1) {
-        let element: unknown;
-
-        try {
-          element = value[index];
-        } catch (error) {
-          diagnostics.push({
-            severity: 'error',
-            file: file.key,
-            exportName: `${exportName}[${index}]`,
-            reason: `export "${exportName}[${index}]" could not be read — ${messageOf(error)}`,
-            cause: error,
-          });
-
-          continue;
-        }
-
-        take(element, `${exportName}[${index}]`);
-      }
-    } else {
-      // `default` is one key of the namespace like any other.
-      take(value, exportName);
+      take(element.value, `${exportName}[${index}]`);
     }
   }
 
-  return { collected, created, importFailed };
+  return { collected, created, exportsUnusable };
 }
 
+/**
+ * Every module in this scan that started evaluating and never finished, other
+ * than the ones already reported by name.
+ *
+ * **Why a sweep and not just the cache-hit refusal.** {@link evaluateModule}
+ * refuses a `loaded: false` entry, but it only ever sees a module the *scan*
+ * asks for. jiti's own nested resolution has no such check — measured in
+ * jiti 2.6.1, a nested hit is `if (cache[id]) return interopDefault(cache[id]
+ * .exports)` with nothing about `loaded` — so a module that is **not** itself a
+ * hook file (under a dot-directory, in a sibling `lib/`, or anywhere outside the
+ * hooks directory) never reaches the refusal at all. Reproduced: `a.ts` doing
+ * `try { await import('./.internal/broken.js') } catch {}` came back
+ * `hasErrors: false` with the hook from the module that threw **bound and
+ * running**. That is the exact case the refusal's docblock claimed to have
+ * closed, one level out.
+ *
+ * Reporting the **module** rather than its importers is also what makes the
+ * verdict independent of scan order. Attributing to importers reported the same
+ * tree differently depending on whether the importer sorted before or after the
+ * broken file — same input, opposite outcome, decided by a filename.
+ *
+ * The cache is user-derived data (jiti fills it from the user's own import
+ * graph), so it is read through `user-value.ts` like everything else here.
+ */
+function unfinishedModules(
+  moduleCache: ScanModuleCache,
+  reported: Set<string>,
+): string[] {
+  const cache = userValue(moduleCache);
+  const keys = ownKeys(cache);
+
+  if (!keys.ok) {
+    return [];
+  }
+
+  const unfinished: string[] = [];
+
+  for (const key of keys.value) {
+    if (reported.has(key)) {
+      continue;
+    }
+
+    const entry = readProperty(cache, key);
+
+    if (!entry.ok) {
+      continue;
+    }
+
+    const loaded = readProperty(entry.value, 'loaded');
+
+    if (loaded.ok && raw(loaded.value) === false) {
+      reported.add(key);
+      unfinished.push(key);
+    }
+  }
+
+  return unfinished;
+}
+
+/**
+ * @param anchor the target as already rendered for this registration.
+ *
+ * Passed in rather than re-rendered. `describeTarget` walks the user's target,
+ * so calling it again per conflicting transaction ran their `get` traps a second
+ * and third time — measured at 12 element reads where 8 were expected — against
+ * the invariant this module states twice, that a trap is free to answer
+ * differently the second time.
+ */
 function conflict(
   kindLabel: string,
   first: CollectedRegistration,
   second: CollectedRegistration,
   what: string,
+  anchor: string,
 ): HookDiagnostic {
   return {
     severity: 'error',
     file: second.file,
     kind: kindLabel,
-    anchor: describeTarget(targetOf(second.registration)),
+    anchor,
     exportName: second.exportName,
     reason: `${what} is already set by "${first.exportName}" in "${first.file}"`,
     suggestions: [
       'Keep one of the two hooks, or narrow their targets so they do not overlap.',
     ],
   };
-}
-
-function targetOf(registration: HookRegistration): HookTarget | undefined {
-  // Switch on `kind` first: `beforeAll`/`afterAll` carry no `target` property at
-  // all, so probing for the key would be reading a shape that does not exist.
-  switch (registration.kind) {
-    case 'defineSample':
-    case 'beforeEach':
-    case 'afterEach':
-    case 'authorize':
-      return registration.target;
-    case 'beforeAll':
-    case 'afterAll':
-      return undefined;
-  }
 }
 
 /**
@@ -945,6 +1513,48 @@ function targetOf(registration: HookRegistration): HookTarget | undefined {
  * clean pass-through.
  */
 export async function loadUserHooks(
+  hooksDir: string,
+  catalog: TransactionCatalog,
+): Promise<LoadUserHooksResult> {
+  // Scans run one at a time in this process. See {@link scanQueue}.
+  const run = scanQueue.then(
+    async () => await scanUserHooks(hooksDir, catalog),
+  );
+
+  // The queue must survive a failing scan, so it chains on a settled promise
+  // rather than on `run` itself — otherwise one rejection would poison every
+  // later scan. `loadUserHooks` is contracted not to throw for user error, but
+  // an internal fault must not take the queue with it either.
+  scanQueue = run.then(
+    () => undefined,
+    () => undefined,
+  );
+
+  return await run;
+}
+
+/**
+ * One scan at a time, per process.
+ *
+ * The creation log is a `globalThis` slot by necessity (it is the only thing
+ * that crosses the realm boundary jiti puts between the plugin and a hook file),
+ * and the scan drains it per file. Two scans overlapping therefore destroy each
+ * other's in-flight created list: measured, a scan whose hook file awaited while
+ * a second scan ran came back with `bound: 0`, `hasErrors: false` and **no**
+ * created-but-not-exported diagnostic at all — silently lost, not merely
+ * mis-attributed.
+ *
+ * That is reachable, not theoretical: `HookRunner.init` calls this from
+ * `core.format`, and 575.10's `sampler validate` is specified to call it
+ * directly, in the same long-lived process.
+ *
+ * Serialising is the fix rather than per-scan tokens because the log's whole
+ * purpose is to observe creations made by code that does not know a scan exists.
+ * Scans are not on a hot path; a queue costs nothing measurable.
+ */
+let scanQueue: Promise<void> = Promise.resolve();
+
+async function scanUserHooks(
   hooksDir: string,
   catalog: TransactionCatalog,
 ): Promise<LoadUserHooksResult> {
@@ -1063,9 +1673,13 @@ export async function loadUserHooks(
   const createdPerFile: {
     file: string;
     created: HookRegistration[];
-    importFailed: boolean;
+    exportsUnusable: boolean;
   }[] = [];
   const exported = new Set<unknown>();
+
+  // Modules already named in a diagnostic, so the end-of-scan sweep does not
+  // name them a second time.
+  const reportedModules = new Set<string>();
 
   for (const file of files) {
     const result = await importRegistrations(
@@ -1074,13 +1688,31 @@ export async function loadUserHooks(
       file,
       diagnostics,
       exported,
+      reportedModules,
     );
 
     collected.push(...result.collected);
     createdPerFile.push({
       file: file.key,
       created: result.created,
-      importFailed: result.importFailed,
+      exportsUnusable: result.exportsUnusable,
+    });
+  }
+
+  // A module anywhere in the scan's import graph that started and never
+  // finished. See {@link unfinishedModules} for why this is a sweep over the
+  // cache rather than a per-importer check.
+  const unfinished = unfinishedModules(moduleCache, reportedModules);
+
+  for (const modulePath of unfinished) {
+    diagnostics.push({
+      severity: 'error',
+      file: hooksDirRelative(scanRoot, modulePath),
+      reason:
+        'threw while being imported and only the exports it created before throwing exist; a hook file imported it and swallowed the error, so nothing else reported it',
+      suggestions: [
+        'Fix the error this module throws at import time, or stop importing it from a hook file.',
+      ],
     });
   }
 
@@ -1094,7 +1726,12 @@ export async function loadUserHooks(
       a.registration.order - b.registration.order,
   );
 
-  reportUnexportedRegistrations(createdPerFile, exported, diagnostics);
+  reportUnexportedRegistrations(
+    createdPerFile,
+    exported,
+    unfinished.length > 0,
+    diagnostics,
+  );
 
   const boundHookCount = bindRegistrations(
     collected,
@@ -1145,13 +1782,31 @@ function reportUnexportedRegistrations(
   createdPerFile: {
     file: string;
     created: HookRegistration[];
-    importFailed: boolean;
+    exportsUnusable: boolean;
   }[],
   exported: Set<unknown>,
+  anyModuleUnfinished: boolean,
   diagnostics: HookDiagnostic[],
 ): void {
-  for (const { file, created, importFailed } of createdPerFile) {
-    if (importFailed) {
+  // The diff is scan-wide, so its **premise** is scan-wide too: "everything the
+  // scan saw created was exported by some scanned file". One module whose
+  // exports could not be read — an import that threw, a namespace that could not
+  // be enumerated, a module that started and never finished — makes that premise
+  // unknowable for the whole scan, not just for that file.
+  //
+  // Skipping only the offending file was measurably wrong: with `a.ts` doing
+  // `try { await import('./b.js') } catch {}` and `b.ts` throwing after
+  // exporting a hook, the diff blamed **`a.ts`** for a registration that `b.ts`
+  // really did export — and told the user to "re-export it from a scanned file",
+  // which is what they had already done. The registration was created inside
+  // `a.ts`'s import *window*, and the window belongs to the importer whose own
+  // import succeeded, so the per-file skip could never have caught it.
+  if (anyModuleUnfinished || createdPerFile.some((f) => f.exportsUnusable)) {
+    return;
+  }
+
+  for (const { file, created, exportsUnusable } of createdPerFile) {
+    if (exportsUnusable) {
       continue;
     }
 
@@ -1200,7 +1855,10 @@ function bindRegistrations(
   const resolve = (
     entry: CollectedRegistration,
     target: HookTarget,
-  ): string[] | undefined => {
+  ): { ids: string[]; anchor: string } | undefined => {
+    // Rendered once, here, and carried to every diagnostic this registration
+    // produces. `describeTarget` walks the user's value, so re-rendering per
+    // conflicting transaction re-ran their `get` traps.
     const anchor = describeTarget(target);
     const resolution = resolveTargeting(target, catalog);
 
@@ -1229,7 +1887,7 @@ function bindRegistrations(
       reason: `resolved to ${resolution.ids.length} transaction(s)`,
     });
 
-    return resolution.ids;
+    return { ids: resolution.ids, anchor };
   };
 
   for (const entry of collected) {
@@ -1247,29 +1905,29 @@ function bindRegistrations(
         break;
 
       case 'defineSample': {
-        const ids = resolve(entry, registration.target);
+        const resolved = resolve(entry, registration.target);
 
-        if (!ids) {
+        if (!resolved) {
           break;
         }
 
         bound += 1;
 
-        for (const id of ids) {
+        // Set-once per transaction. 575.6 declares it; this story enforces it,
+        // because load time is the only place the target → transaction mapping
+        // exists.
+        //
+        // Collected and reported **per rival**, not per transaction: two hooks
+        // sharing a two-selector target used to print two byte-identical error
+        // lines, and a 240-selector target printed 240 — one message the user
+        // cannot read, saying one thing.
+        const rivals = new Map<CollectedRegistration, number>();
+
+        for (const id of resolved.ids) {
           const owner = sampleOwner.get(id);
 
           if (owner) {
-            // Set-once per transaction. 575.6 declares it; this story enforces
-            // it, because load time is the only place the target → transaction
-            // mapping exists.
-            diagnostics.push(
-              conflict(
-                'defineSample',
-                owner,
-                entry,
-                "that transaction's sample",
-              ),
-            );
+            rivals.set(owner, (rivals.get(owner) ?? 0) + 1);
             continue;
           }
 
@@ -1277,17 +1935,31 @@ function bindRegistrations(
           sampleDefinitions.set(id, registration.callback);
         }
 
+        for (const [owner, count] of rivals) {
+          diagnostics.push(
+            conflict(
+              'defineSample',
+              owner,
+              entry,
+              count === 1
+                ? "that transaction's sample"
+                : `the sample for ${count} of those transactions`,
+              resolved.anchor,
+            ),
+          );
+        }
+
         break;
       }
 
       case 'beforeEach': {
-        const ids = resolve(entry, registration.target);
+        const resolved = resolve(entry, registration.target);
 
-        if (ids) {
+        if (resolved) {
           bound += 1;
         }
 
-        for (const id of ids ?? []) {
+        for (const id of resolved?.ids ?? []) {
           hooksFor(perTransaction, id).beforeEach.push(registration.callback);
         }
 
@@ -1295,13 +1967,13 @@ function bindRegistrations(
       }
 
       case 'afterEach': {
-        const ids = resolve(entry, registration.target);
+        const resolved = resolve(entry, registration.target);
 
-        if (ids) {
+        if (resolved) {
           bound += 1;
         }
 
-        for (const id of ids ?? []) {
+        for (const id of resolved?.ids ?? []) {
           hooksFor(perTransaction, id).afterEach.push(registration.callback);
         }
 
@@ -1318,6 +1990,7 @@ function bindRegistrations(
                 globalAuthorize,
                 entry,
                 'the global authorize hook',
+                describeTarget(undefined),
               ),
             );
             break;
@@ -1329,29 +2002,39 @@ function bindRegistrations(
           break;
         }
 
-        const ids = resolve(entry, registration.target);
+        const resolved = resolve(entry, registration.target);
 
-        if (ids) {
+        if (resolved) {
           bound += 1;
         }
 
-        for (const id of ids ?? []) {
+        // Per rival, not per transaction — see the `defineSample` branch.
+        const rivals = new Map<CollectedRegistration, number>();
+
+        for (const id of resolved?.ids ?? []) {
           const owner = targetedAuthorize.get(id);
 
           if (owner) {
-            diagnostics.push(
-              conflict(
-                'authorize',
-                owner,
-                entry,
-                "that transaction's authorize hook",
-              ),
-            );
+            rivals.set(owner, (rivals.get(owner) ?? 0) + 1);
             continue;
           }
 
           targetedAuthorize.set(id, entry);
           targetedAuthorizeCallback.set(id, registration.callback);
+        }
+
+        for (const [owner, count] of rivals) {
+          diagnostics.push(
+            conflict(
+              'authorize',
+              owner,
+              entry,
+              count === 1
+                ? "that transaction's authorize hook"
+                : `the authorize hook for ${count} of those transactions`,
+              resolved?.anchor ?? describeTarget(registration.target),
+            ),
+          );
         }
 
         break;
@@ -1424,14 +2107,52 @@ function bindRegistrations(
  * original text, because 575.10's `sampler validate` renders the same array and
  * may want to lay a long parse error out differently.
  */
-function formatDiagnostic(diagnostic: HookDiagnostic): string {
-  const parts = [diagnostic.file || '<hooks>'];
-  const head = [diagnostic.kind, diagnostic.anchor]
+export function formatDiagnostic(diagnostic: HookDiagnostic): string {
+  const head = [
+    diagnostic.exportName === undefined
+      ? undefined
+      : `export "${diagnostic.exportName}"`,
+    diagnostic.kind,
+    diagnostic.anchor,
+  ]
     .filter((part) => part !== undefined && part !== '')
     .join(' ');
 
-  return `${parts.join('')}: ${head ? `${head} — ` : ''}${diagnostic.reason}`
-    .replace(/\s+/g, ' ')
+  return sanitizeLine(
+    `${diagnostic.file || '<hooks>'}: ${head ? `${head} — ` : ''}${diagnostic.reason}`,
+  );
+}
+
+/**
+ * Everything that has to be true of a rendered line, in one place.
+ *
+ * Round 2's `.replace(/\s+/g, ' ')` closed the newline case but stops one
+ * character class short: JavaScript's `\s` matches neither `ESC` (U+001B) nor
+ * `NEL` (U+0085) — verified — so a selector or a thrown message carrying either
+ * still rewrote the terminal in the middle of the aggregated list. `\p{Cc}` is
+ * C0 (U+0000–U+001F), `DEL` (U+007F) and C1 (U+0080–U+009F), which covers both
+ * and every other control character with them.
+ *
+ * The second class is the **bidi** controls plus the BOM, listed explicitly
+ * rather than taken as `\p{Cf}`. `\p{Cf}` would be the obvious shorthand and is
+ * wrong: it also contains ZWJ (U+200D) and ZWNJ (U+200C), so it turns a
+ * legitimate emoji family sequence into three separate glyphs and breaks
+ * Devanagari conjuncts and Persian word-joining — measured, in a message a user
+ * is meant to read. Those joiners cannot move a cursor. What can is the
+ * embedding/override/isolate set (U+202A–U+202E, U+2066–U+2069), the directional
+ * marks (U+200E, U+200F, U+061C) and the BOM (U+FEFF), which is what this class
+ * names.
+ *
+ * Replaced with a space rather than deleted: dropping the control would join the
+ * text on either side of it into one token that was never in the user's file.
+ */
+function sanitizeLine(line: string): string {
+  return line
+    .replaceAll(
+      /[\p{Cc}\u061C\u200E\u200F\u202A-\u202E\u2066-\u2069\uFEFF]/gu,
+      ' ',
+    )
+    .replaceAll(/\s+/gu, ' ')
     .trim();
 }
 
@@ -1449,8 +2170,30 @@ export function hookResolutionError(
   const errors = diagnostics.filter(
     (diagnostic) => diagnostic.severity === 'error',
   );
+
+  if (errors.length === 0) {
+    // `HookRunner.init` gates on `hasErrors`, but this function is exported and
+    // 575.10's `sampler validate` renders the same array — and with no errors it
+    // used to produce "0 sampler hook problem(s) must be fixed before a test run
+    // can start:" followed by nothing at all. A caller that reaches here has a
+    // bug; saying so beats handing the user an empty accusation.
+    throw new ThymianBaseError(
+      'hookResolutionError was called with no error diagnostics; check `hasErrors` before building the error.',
+      { name: 'HookResolutionErrorMisuse' },
+    );
+  }
+
+  // Sanitized like the lines are. `suggestions` is the other half of what a user
+  // sees and it reaches the terminal on its own path, so a suggestion carrying
+  // an ESC or a newline — `suggestionsOf` only checks the elements are strings,
+  // never what is in them — rewrote the terminal after `formatDiagnostic` had
+  // been careful not to.
   const suggestions = [
-    ...new Set(errors.flatMap((diagnostic) => diagnostic.suggestions ?? [])),
+    ...new Set(
+      errors.flatMap((diagnostic) =>
+        (diagnostic.suggestions ?? []).map(sanitizeLine),
+      ),
+    ),
   ];
 
   return new ThymianBaseError(
