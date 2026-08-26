@@ -45,6 +45,23 @@ const EXPORT_DEFAULT_SUGGESTION =
 const LOADABLE_EXTENSION = /\.(ts|js|mjs|cjs)$/;
 
 /**
+ * A specifier that explicitly names a local file by relative path — the four
+ * prefixes Node/jiti resolve relative to the importing file, in both POSIX
+ * (`./`, `../`) and Windows (`.\`, `..\`) spellings. Kept in one place so the
+ * plugin classifier and the suggestion helper agree on what counts as local;
+ * without it a `.\`-prefixed `--plugin` is misfiled as a package and its `path`
+ * never persisted to the config. (epic #725 §4.1.)
+ */
+function isRelativeSpecifier(specifier: string): boolean {
+  return (
+    specifier.startsWith('./') ||
+    specifier.startsWith('../') ||
+    specifier.startsWith('.\\') ||
+    specifier.startsWith('..\\')
+  );
+}
+
+/**
  * When a *bare* specifier that looks like a file path (has a loadable
  * extension, no `./`/`../`/`.\`/`..\` prefix, not absolute) fails to resolve
  * as an installed package, the user most likely meant a local file. Offer the
@@ -53,12 +70,7 @@ const LOADABLE_EXTENSION = /\.(ts|js|mjs|cjs)$/;
  * hint applies.
  */
 function suggestLocalPathSpelling(specifier: string): string | undefined {
-  const looksLocal =
-    specifier.startsWith('./') ||
-    specifier.startsWith('../') ||
-    specifier.startsWith('.\\') ||
-    specifier.startsWith('..\\') ||
-    isAbsolute(specifier);
+  const looksLocal = isRelativeSpecifier(specifier) || isAbsolute(specifier);
 
   if (looksLocal || !LOADABLE_EXTENSION.test(specifier)) {
     return undefined;
@@ -647,10 +659,7 @@ export abstract class BaseCliRunCommand<
     for (const plugin of this.flags.plugin) {
       this.debug('Adding plugin from flag "%s" to Thymian config.', plugin);
 
-      const isPathPlugin =
-        isAbsolute(plugin) ||
-        plugin.startsWith('./') ||
-        plugin.startsWith('../');
+      const isPathPlugin = isAbsolute(plugin) || isRelativeSpecifier(plugin);
 
       if (!isPathPlugin) {
         this.debug('Load plugin "%s" as npm package or absolute path.', plugin);
