@@ -697,6 +697,9 @@ describe('RFC 9110 list folding (review round 2)', () => {
   };
 
   it('does not split on a comma inside a quoted-string', () => {
+    // Quote state suppresses the DELIMITER only — members reach the schema
+    // verbatim, so an `items` pattern written against the wire form still
+    // matches and `maxLength` counts what was actually sent.
     expect(
       value(
         deserializeHeaderParameter('x-list', '"a, b",c', stringArray, {
@@ -704,7 +707,31 @@ describe('RFC 9110 list folding (review round 2)', () => {
           explode: false,
         }),
       ),
-    ).toEqual(['a, b', 'c']);
+    ).toEqual(['"a, b"', 'c']);
+  });
+
+  it('preserves quotes and escapes on entity-tag members', () => {
+    expect(
+      value(
+        deserializeHeaderParameter(
+          'if-match',
+          '"abc", W/"d\\"ef"',
+          stringArray,
+          { style: 'simple', explode: false },
+        ),
+      ),
+    ).toEqual(['"abc"', 'W/"d\\"ef"']);
+  });
+
+  it('falls back to a plain split when a quote is unbalanced', () => {
+    expect(
+      value(
+        deserializeHeaderParameter('x-list', 'a,"b,c', stringArray, {
+          style: 'simple',
+          explode: false,
+        }),
+      ),
+    ).toEqual(['a', '"b', 'c']);
   });
 
   it('ignores empty list members (§5.6.1.2)', () => {

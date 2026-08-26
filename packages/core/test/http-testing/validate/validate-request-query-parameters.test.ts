@@ -146,6 +146,9 @@ describe('validateRequestQueryParameters — typed wire values (gh-624)', () => 
     const failures = results.filter((r) => r.type === 'assertion-failure');
     expect(failures).toHaveLength(1);
     expect(failures[0]?.message).toContain('query parameter "year"');
+    // AC1 asks for accurate messages: the bound must be named, or this would
+    // pass just as happily on a wrong-type message.
+    expect(failures[0]?.message).toContain('2027');
   });
 
   it('accepts a boolean/null union from its wire form', () => {
@@ -423,5 +426,179 @@ describe('validateRequestQueryParameters — review round 1 regressions', () => 
     );
 
     expect(results.filter((r) => r.type === 'assertion-failure')).toEqual([]);
+  });
+});
+
+describe('validateRequestQueryParameters — PR #379 review fixes', () => {
+  const refObject = {
+    $ref: '#/$defs/F',
+    $defs: {
+      F: { type: 'object', properties: { role: { type: 'string' } } },
+    },
+  } as never;
+
+  it('resolves $ref before reading properties, so a typo is still reported', () => {
+    // Reading `schema.properties` raw made a $ref'd object look free-form and
+    // silently absorb every unclaimed key — undocumented parameters vanished.
+    const request = requestWithQueryParameters({
+      filter: {
+        required: true,
+        schema: refObject,
+        style: queryStyle('form', true),
+      },
+    });
+
+    const results = validateRequestQueryParameters(
+      '/api?role=admin&typo=x',
+      request,
+    );
+
+    expect(results).toContainEqual(
+      expect.objectContaining({
+        type: 'assertion-failure',
+        message:
+          'Request contains query parameter "typo" that is not included in the description format.',
+      }),
+    );
+  });
+
+  it('does not fold an object parameter whose schema also allows a string', () => {
+    const request = requestWithQueryParameters({
+      filter: {
+        required: false,
+        schema: {
+          type: ['string', 'object'],
+          properties: { role: { type: 'string' } },
+        } as never,
+        style: queryStyle('form', true),
+      },
+    });
+
+    const results = validateRequestQueryParameters('/api?role=admin', request);
+
+    expect(results).toContainEqual(
+      expect.objectContaining({
+        type: 'assertion-failure',
+        message:
+          'Request contains query parameter "role" that is not included in the description format.',
+      }),
+    );
+  });
+
+  it('reports an unparseable deepObject once, without fabricating a violation', () => {
+    // `filter[a][b]=1` is not a deepObject wire form. Previously the parameter
+    // became `{}` and Ajv reported `must have required property "a"` — blaming
+    // the request for something that was never parsed.
+    const request = requestWithQueryParameters({
+      filter: {
+        required: true,
+        schema: {
+          type: 'object',
+          properties: { a: { type: 'string' } },
+          required: ['a'],
+        } as never,
+        style: queryStyle('deepObject', true),
+      },
+    });
+
+    const results = validateRequestQueryParameters(
+      '/v2/entries?filter[a][b]=1',
+      request,
+    );
+
+    expect(results.filter((r) => r.type === 'assertion-failure')).toEqual([]);
+    expect(results.filter((r) => r.type === 'info')).toHaveLength(1);
+  });
+
+  it('folds neither of two free-form objects competing for one key', () => {
+    // Counting only DECLARED properties let a free-form object claim every
+    // unclaimed key unopposed, making the result depend on declaration order.
+    const freeForm = {
+      required: false,
+      schema: {
+        type: 'object',
+        additionalProperties: { type: 'string' },
+      } as never,
+      style: queryStyle('form', true),
+    };
+    const request = requestWithQueryParameters({
+      extra: freeForm,
+      other: freeForm,
+    });
+
+    const results = validateRequestQueryParameters('/api?role=admin', request);
+
+    expect(results).toContainEqual(
+      expect.objectContaining({
+        type: 'assertion-failure',
+        message:
+          'Request contains query parameter "role" that is not included in the description format.',
+      }),
+    );
+  });
+
+  it('does not read the fragment as a query string', () => {
+    const request = requestWithQueryParameters({
+      year: {
+        required: true,
+        schema: { type: 'integer' } as never,
+        style: DEFAULT_QUERY_SERIALIZATION_STYLE,
+      },
+    });
+
+    const results = validateRequestQueryParameters(
+      '/api#frag?year=2026',
+      request,
+    );
+
+    expect(results).toContainEqual(
+      expect.objectContaining({
+        type: 'assertion-failure',
+        message:
+          'Query parameter "year" is required but not included in the request.',
+      }),
+    );
+  });
+
+  it('matches bracket keys on the raw form, before decoding', () => {
+    // `filter[a%5Db]` is the deepObject property `a]b`; decoding first turns
+    // the key into `filter[a]b]`, which no longer parses as a bracket key.
+    const request = requestWithQueryParameters({
+      filter: {
+        required: true,
+        schema: {
+          type: 'object',
+          additionalProperties: { type: 'string' },
+        } as never,
+        style: queryStyle('deepObject', true),
+      },
+    });
+
+    expect(parseQueryParameters('filter[a%5Db]=1', request)).toEqual({
+      filter: { 'a]b': '1' },
+    });
+  });
+
+  it('splits a non-exploded array end to end, with a literal comma', () => {
+    // The %2C case passes whether or not the split happens; a literal comma
+    // is the one that actually exercises it.
+    const request = requestWithQueryParameters({
+      ids: {
+        required: false,
+        schema: { type: 'array', items: { type: 'integer' } } as never,
+        style: queryStyle('form', false),
+      },
+    });
+
+    expect(
+      validateRequestQueryParameters('/api?ids=1,2', request).filter(
+        (r) => r.type === 'assertion-failure',
+      ),
+    ).toEqual([]);
+    expect(
+      validateRequestQueryParameters('/api?ids=1', request).filter(
+        (r) => r.type === 'assertion-failure',
+      ),
+    ).toEqual([]);
   });
 });

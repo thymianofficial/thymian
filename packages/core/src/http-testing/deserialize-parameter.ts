@@ -185,7 +185,7 @@ function resolveRef(
  * Flatten `$ref` and `allOf` so the structural keywords this module reads
  * (`items`, `properties`, …) are visible on one object.
  */
-function flattenSchema(
+export function flattenSchema(
   schema: ThymianSchema | undefined,
   root: ThymianSchema,
   depth = 0,
@@ -216,7 +216,10 @@ function flattenSchema(
       continue;
     }
 
-    merged.items ??= flat.items;
+    // `allOf` is an intersection, so two members declaring `items` both apply.
+    // Keeping only the first made `allOf: [{items: {minimum: 1}}, {items:
+    // {type: 'integer'}}]` type its items off the typeless arm.
+    merged.items = intersect(merged.items, flat.items);
     merged.prefixItems ??= flat.prefixItems;
     merged.contains ??= flat.contains;
     merged.enum ??= flat.enum;
@@ -226,7 +229,13 @@ function flattenSchema(
     merged.additionalProperties ??= flat.additionalProperties;
 
     if (flat.properties) {
-      merged.properties = { ...flat.properties, ...merged.properties };
+      const combined: Record<string, ThymianSchema> = { ...flat.properties };
+
+      for (const [key, sub] of Object.entries(merged.properties ?? {})) {
+        combined[key] = intersect(combined[key], sub) ?? sub;
+      }
+
+      merged.properties = combined;
     }
 
     if (flat.patternProperties) {
@@ -238,6 +247,21 @@ function flattenSchema(
   }
 
   return merged;
+}
+
+/**
+ * Combine two subschemas that both apply. Returns an `allOf` rather than
+ * picking a winner, so no keyword is silently dropped.
+ */
+function intersect(
+  left: ThymianSchema | undefined,
+  right: ThymianSchema | undefined,
+): ThymianSchema | undefined {
+  if (!left || !right || left === right) {
+    return left ?? right;
+  }
+
+  return { allOf: [left, right] };
 }
 
 /** Derive the JSON Schema types of concrete values, for `enum`/`const`. */
@@ -434,7 +458,15 @@ export function deserializeScalar(
   const members = enumMembers(schema, root ?? schema);
 
   if (members) {
-    const matches = members.filter((member) => String(member) === wire);
+    // Primitives only: an array member `[1,2]` stringifies to `'1,2'` and an
+    // object to `'[object Object]'`, so a wire item spelled that way would
+    // "match" a member it has no lexical relationship to.
+    const matches = members.filter(
+      (member) =>
+        (typeof member !== 'object' || member === null) &&
+        member !== null &&
+        String(member) === wire,
+    );
 
     if (matches.length === 1) {
       return matches[0];
@@ -628,16 +660,12 @@ export function deserializeQueryParameter(
   const { style, explode } = serializationStyle ?? QUERY_DEFAULT_STYLE;
   const raw = items.length === 1 ? (items[0] as string) : items;
 
-  if (style !== 'form') {
-    // A style describes how a structured value was flattened onto the wire.
-    // A scalar has no structure to restore, so an unsupported style costs
-    // nothing: the wire value already IS the value, and skipping validation
-    // would silently drop `maxLength`/`pattern`/`enum` checks that used to run.
-    if (isStructural(schema)) {
-      return unsupported(serializationStyle);
-    }
-
-    return deserializeItems(items, raw, schema, explode);
+  // A style describes how a structured value was flattened onto the wire. A
+  // scalar has no structure to restore, so an unsupported style costs nothing:
+  // the wire value already IS the value, and skipping validation would
+  // silently drop `maxLength`/`pattern`/`enum` checks that used to run.
+  if (style !== 'form' && isStructural(schema)) {
+    return unsupported(serializationStyle);
   }
 
   return deserializeItems(items, raw, schema, explode);
@@ -676,7 +704,7 @@ export function deserializeObjectParameter(
  * accepts the value whole, and must never see it torn apart on a delimiter it
  * legitimately contains.
  */
-function structuralKind(
+export function structuralKind(
   schema: ThymianSchema | undefined,
   root?: ThymianSchema,
 ): 'array' | 'object' | undefined {
@@ -734,7 +762,11 @@ function deserializeSimple(
   raw: string | string[],
   schema: ThymianSchema | undefined,
   style: SerializationStyle | undefined,
-  split: (value: string) => string[],
+  /** Split the single-value form. The caller closes over its own source, so a
+   *  path can split the still-ENCODED text while `raw` is already decoded. */
+  splitSingle: () => string[],
+  /** Split one line of a repeated field value; headers carry no encoding. */
+  splitLine: (line: string) => string[] = splitSingle,
 ): DeserializeResult {
   const serializationStyle = style ?? SIMPLE_DEFAULT_STYLE;
 
@@ -760,9 +792,9 @@ function deserializeSimple(
     // Repeated field lines. Each line may itself be a list, so a structural
     // schema still splits each one; a scalar schema keeps them whole so the
     // duplicate reaches the schema as the defect it is.
-    items = structural ? raw.flatMap((line) => split(line)) : raw;
+    items = structural ? raw.flatMap((line) => splitLine(line)) : raw;
   } else {
-    items = structural ? split(raw) : [raw];
+    items = structural ? splitSingle() : [raw];
   }
 
   return deserializeItems(items, raw, schema, serializationStyle.explode);
@@ -980,8 +1012,15 @@ export function deserializeHeaderParameter(
 
   const foldable = !NON_LIST_HEADERS.has(name.toLowerCase());
 
-  return deserializeSimple(raw, schema, serializationStyle, (value) =>
-    foldable ? splitHeaderList(value) : [value],
+  const split = (value: string) =>
+    foldable ? splitHeaderList(value) : [value];
+
+  return deserializeSimple(
+    raw,
+    schema,
+    serializationStyle,
+    () => split(Array.isArray(raw) ? raw.join(',') : raw),
+    split,
   );
 }
 
@@ -998,19 +1037,45 @@ export function splitHeaderList(raw: string): string[] {
   let escaped = false;
 
   for (const char of raw) {
+    // Quote state only suppresses the DELIMITER. Every character is still
+    // appended: members reach the schema exactly as they arrived, so an
+    // `items` `pattern`/`enum` written against the wire form of a quoted
+    // entity-tag still matches, and `maxLength` counts what was sent.
     if (escaped) {
       current += char;
       escaped = false;
-    } else if (quoted && char === '\\') {
+      continue;
+    }
+
+    if (quoted && char === '\\') {
+      current += char;
       escaped = true;
-    } else if (char === '"') {
+      continue;
+    }
+
+    if (char === '"') {
       quoted = !quoted;
-    } else if (char === ',' && !quoted) {
+      current += char;
+      continue;
+    }
+
+    if (char === ',' && !quoted) {
       items.push(current);
       current = '';
-    } else {
-      current += char;
+      continue;
     }
+
+    current += char;
+  }
+
+  // An unbalanced quote means the value is not a well-formed quoted-string, so
+  // the quote-awareness was reading the wrong grammar. Fall back to a plain
+  // split rather than silently treating every later comma as data.
+  if (quoted) {
+    return raw
+      .split(',')
+      .map((item) => item.trim())
+      .filter((item) => item !== '');
   }
 
   items.push(current);

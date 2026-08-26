@@ -4,9 +4,10 @@ import type { ThymianHttpRequest } from '../../index.js';
 import {
   deserializeObjectParameter,
   deserializeQueryParameter,
+  flattenSchema,
   malformedStyleMessage,
-  schemaTypes,
   splitWireList,
+  structuralKind,
   unsupportedStyleMessage,
 } from '../deserialize-parameter.js';
 import type { HttpTestCaseResult } from '../http-test/index.js';
@@ -55,13 +56,25 @@ function declaredParameter(
 }
 
 /**
- * Every structural decision below — split this value? fold this object? —
- * must resolve `$ref`/`allOf` exactly as the typing step does. A second,
- * non-resolving copy of this logic is how `$ref`ed parameters slipped through
- * a whole review round.
+ * The declared property names of an object schema, seen through `$ref`/`allOf`.
+ *
+ * Reading `schema.properties` raw is the same defect as reading `schema.type`
+ * raw: a `$ref`ed object shows no properties, is mistaken for free-form, and
+ * silently absorbs every unclaimed query key — typos included.
  */
-function typesOf(schema: ThymianSchema | undefined): string[] {
-  return schemaTypes(schema);
+function declaredPropertyNames(schema: ThymianSchema | undefined): string[] {
+  return Object.keys(flattenSchema(schema, schema ?? {})?.properties ?? {});
+}
+
+/** Whether a parameter is an object whose properties arrive as bare keys. */
+function isExplodedObjectParameter(parameter: Parameter): boolean {
+  return (
+    parameter.style?.style === 'form' &&
+    parameter.style.explode === true &&
+    // `structuralKind`, not a raw `type` read: a schema that
+    // also allows `string` accepts the value whole and must not be folded.
+    structuralKind(parameter.schema) === 'object'
+  );
 }
 
 /**
@@ -106,16 +119,23 @@ function rawPairs(queryString: string): [string, string][] {
  * The same is true of a `form`/`explode: true` object, whose properties arrive
  * as bare top-level keys.
  */
-export function parseQueryParameters(
+interface ParsedQuery {
+  parameters: Record<string, QueryParameterWireValue>;
+  /** Parameters whose wire form could not be parsed at all — reported as an
+   *  `info`, never validated, and never counted as missing. */
+  unparseable: Set<string>;
+}
+
+function parseQuery(
   queryString: string,
   request: ThymianHttpRequest,
-): Record<string, QueryParameterWireValue> {
-  // Exported, so a caller may hand over a search string including its `?`.
+): ParsedQuery {
+  // Exported callers may hand over a search string including its `?`.
   const search = queryString.startsWith('?')
     ? queryString.slice(1)
     : queryString;
   const objects = new Map<string, Map<string, string[]>>();
-  const nested = new Set<string>();
+  const unparseable = new Set<string>();
   const scalars = new Map<string, string[]>();
 
   const addProperty = (name: string, property: string, value: string) => {
@@ -125,62 +145,80 @@ export function parseQueryParameters(
   };
 
   for (const [rawKey, rawValue] of rawPairs(search)) {
-    const key = decodeFormComponent(rawKey);
-    const [, bracketName, brackets] = BRACKET_KEY.exec(key) ?? [];
+    // Bracket structure is matched on the RAW key, before decoding: an encoded
+    // `%5D` inside a property name must not be mistaken for a closing bracket,
+    // and an encoded `[` must not become one.
+    const [, rawName, rawBrackets] = BRACKET_KEY.exec(rawKey) ?? [];
+    const bracketName =
+      rawName === undefined ? undefined : decodeFormComponent(rawName);
 
     if (
       bracketName !== undefined &&
-      brackets !== undefined &&
+      rawBrackets !== undefined &&
       declaredParameter(request, bracketName)?.style?.style === 'deepObject'
     ) {
-      const [, property] = SINGLE_PROPERTY.exec(brackets) ?? [];
+      const [, rawProperty] = SINGLE_PROPERTY.exec(rawBrackets) ?? [];
 
       // Nested (`filter[a][b]`) or empty (`filter[]`) property paths are not
-      // OpenAPI `deepObject`. Absorb them so they are not misreported as
-      // undocumented parameters, and mark the parameter unvalidatable.
-      if (property === undefined || property === '') {
-        nested.add(bracketName);
-        objects.set(bracketName, objects.get(bracketName) ?? new Map());
+      // OpenAPI `deepObject`. Absorb the key so it is not misreported as an
+      // undocumented parameter, and mark the parameter unparseable so the
+      // schema is never asked about a value we could not reconstruct.
+      if (rawProperty === undefined || rawProperty === '') {
+        unparseable.add(bracketName);
         continue;
       }
 
-      addProperty(bracketName, property, decodeFormComponent(rawValue));
+      addProperty(
+        bracketName,
+        decodeFormComponent(rawProperty),
+        decodeFormComponent(rawValue),
+      );
       continue;
     }
 
+    const key = decodeFormComponent(rawKey);
     const declared = declaredParameter(request, key);
-    const declaredTypes =
-      declared === undefined ? [] : typesOf(declared.schema);
+    const kind =
+      declared === undefined ? undefined : structuralKind(declared.schema);
     // `form`/`explode: false` serializes BOTH arrays (`a,b`) and objects
     // (`k,v,k,v`) as one comma-delimited value.
     const isNonExplodedList =
-      declared !== undefined &&
-      declared.style?.style === 'form' &&
+      declared?.style?.style === 'form' &&
       !declared.style.explode &&
-      !declaredTypes.includes('string') &&
-      (declaredTypes.includes('array') || declaredTypes.includes('object'));
+      kind !== undefined;
 
     // Split the still-encoded value, then decode each item.
     const values = isNonExplodedList
       ? splitWireList(rawValue, decodeFormComponent)
       : [decodeFormComponent(rawValue)];
 
+    // A repeated non-exploded list (`?ids=1,2&ids=3`) is concatenated rather
+    // than reported. Deliberate: the members are unambiguous either way, and
+    // the schema still sees every value the client sent. Scalar pollution IS
+    // still reported (see `deserializeItems`), because there the extra value
+    // changes the type rather than extending a list.
     scalars.set(key, [...(scalars.get(key) ?? []), ...values]);
   }
 
   // A `form`/`explode: true` object parameter sends each property as its own
-  // top-level key, so fold any key that matches a declared property and is not
-  // itself a declared parameter.
+  // top-level key, so fold any key that matches it and is not itself a
+  // declared parameter.
   const objectParameters = Object.entries(request.queryParameters).filter(
-    ([, parameter]) =>
-      parameter.style?.style === 'form' &&
-      parameter.style.explode &&
-      typesOf(parameter.schema).includes('object'),
+    ([, parameter]) => isExplodedObjectParameter(parameter),
   );
+
+  // Count every key each object parameter could claim — including the keys a
+  // FREE-FORM object would swallow. Counting only declared properties let a
+  // free-form object claim everything unopposed, making folding depend on
+  // declaration order.
   const claims = new Map<string, number>();
 
   for (const [, parameter] of objectParameters) {
-    for (const property of Object.keys(parameter.schema?.properties ?? {})) {
+    const declaredProperties = declaredPropertyNames(parameter.schema);
+    const candidates =
+      declaredProperties.length > 0 ? declaredProperties : [...scalars.keys()];
+
+    for (const property of candidates) {
       claims.set(property, (claims.get(property) ?? 0) + 1);
     }
   }
@@ -189,16 +227,8 @@ export function parseQueryParameters(
     [...claims].filter(([, count]) => count > 1).map(([property]) => property),
   );
 
-  for (const [name, parameter] of Object.entries(request.queryParameters)) {
-    if (
-      parameter.style?.style !== 'form' ||
-      !parameter.style.explode ||
-      !typesOf(parameter.schema).includes('object')
-    ) {
-      continue;
-    }
-
-    const declaredProperties = Object.keys(parameter.schema?.properties ?? {});
+  for (const [name, parameter] of objectParameters) {
+    const declaredProperties = declaredPropertyNames(parameter.schema);
     // A free-form object (`additionalProperties`/`patternProperties`) declares
     // no property names, so every unclaimed key is a candidate.
     const candidates =
@@ -245,9 +275,6 @@ export function parseQueryParameters(
       continue;
     }
 
-    // A stray nested key (`filter[a][b]`) is absorbed so it never reads as
-    // "undocumented", but the siblings that DID parse are kept — discarding
-    // them fabricated a "property is required" for a property that was sent.
     parameters[name] = Object.fromEntries(
       [...properties].map(([property, values]) => [
         property,
@@ -256,7 +283,44 @@ export function parseQueryParameters(
     );
   }
 
-  return { ...parameters };
+  // An unparseable parameter with no salvageable siblings must not surface as
+  // an empty object — that fabricates `must have required property …` for a
+  // value that was never parsed.
+  for (const name of unparseable) {
+    if (!Object.hasOwn(parameters, name)) {
+      continue;
+    }
+
+    const value = parameters[name];
+
+    if (
+      value !== undefined &&
+      isObjectValue(value) &&
+      Object.keys(value).length === 0
+    ) {
+      delete parameters[name];
+    }
+  }
+
+  return { parameters: { ...parameters }, unparseable };
+}
+
+/**
+ * Parse a query string into its parameters, reassembling object parameters the
+ * description declares.
+ *
+ * Object reassembly has to happen here rather than in
+ * `validateExistingQueryParameter`, because the additional- and
+ * missing-parameter checks key off this map: without it, `?filter[id]=1`
+ * reports `filter[id]` as undocumented *and* the documented `filter` as absent.
+ * The same is true of a `form`/`explode: true` object, whose properties arrive
+ * as bare top-level keys.
+ */
+export function parseQueryParameters(
+  queryString: string,
+  request: ThymianHttpRequest,
+): Record<string, QueryParameterWireValue> {
+  return parseQuery(queryString, request).parameters;
 }
 
 export function checkForMissingQueryParameters(
@@ -394,17 +458,51 @@ export function validateRequestQueryParameters(
   path: string,
   request: ThymianHttpRequest,
 ): HttpTestCaseResult[] {
-  const separator = path.indexOf('?');
-  // Everything after the FIRST `?` is the query string — a later `?` is an
-  // ordinary character within it, not a second delimiter — and a `#` fragment
-  // is not part of the query at all.
+  // The fragment is not part of the URL's query, and it may itself contain a
+  // `?` — so it has to come off BEFORE looking for the query delimiter.
+  const withoutFragment = path.split('#')[0] ?? path;
+  const separator = withoutFragment.indexOf('?');
+  // Everything after the FIRST `?` is the query string; a later `?` is an
+  // ordinary character within it, not a second delimiter.
   const queryString =
-    separator === -1 ? '' : (path.slice(separator + 1).split('#')[0] ?? '');
-  const queryParams = parseQueryParameters(queryString, request);
+    separator === -1 ? '' : withoutFragment.slice(separator + 1);
+  const { parameters, unparseable } = parseQuery(queryString, request);
+
+  // A parameter whose wire form could not be reconstructed is reported once,
+  // honestly, and then left alone: asking the schema about a value we failed
+  // to parse fabricates violations the request never committed.
+  const unparseableResults = [...unparseable]
+    .filter((name) => Object.hasOwn(request.queryParameters, name))
+    .map((name): HttpTestCaseResult => {
+      const style = declaredParameter(request, name)?.style;
+
+      return {
+        type: 'info',
+        message: unsupportedStyleMessage(`Query parameter "${name}"`, {
+          supported: false,
+          style: style?.style ?? 'deepObject',
+          explode: style?.explode ?? true,
+        }),
+        timestamp: Date.now(),
+      };
+    });
+
+  const skipped = (name: string) => unparseable.has(name);
+  const visible = Object.fromEntries(
+    Object.entries(parameters).filter(([name]) => !skipped(name)),
+  );
 
   return [
-    ...checkForMissingQueryParameters(queryParams, request),
-    ...checkForAdditionalQueryParameters(queryParams, request),
-    ...validateExistingQueryParameter(queryParams, request),
+    ...checkForMissingQueryParameters(visible, {
+      ...request,
+      queryParameters: Object.fromEntries(
+        Object.entries(request.queryParameters).filter(
+          ([name]) => !skipped(name),
+        ),
+      ),
+    }),
+    ...checkForAdditionalQueryParameters(visible, request),
+    ...validateExistingQueryParameter(visible, request),
+    ...unparseableResults,
   ];
 }
