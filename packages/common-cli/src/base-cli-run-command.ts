@@ -1,6 +1,4 @@
-import { createRequire } from 'node:module';
-import { isAbsolute, resolve } from 'node:path';
-import { pathToFileURL } from 'node:url';
+import { isAbsolute } from 'node:path';
 import { inspect } from 'node:util';
 
 import { Command, Flags, Interfaces, settings, ux } from '@oclif/core';
@@ -9,6 +7,7 @@ import type { CommandError } from '@oclif/core/interfaces';
 import {
   isLogLevel,
   isPlugin,
+  isRecord,
   type Logger,
   type LogLevel,
   SORT_REPORTS_BY_VALUES,
@@ -20,8 +19,10 @@ import {
   type ThymianPlugin,
   type TrafficInput,
 } from '@thymian/core';
+import { loadUserModule, resolveUserModule } from '@thymian/core/user-module';
 
 import { applyReporterSortReportsBy } from './apply-plugin-options.js';
+import { describePluginLoadFailure } from './describe-plugin-load-failure.js';
 import { ErrorCache } from './error-cache.js';
 import { Feedback } from './feedback.js';
 import { deepSet, optionFlag } from './flags/option-flag.js';
@@ -33,7 +34,38 @@ import type { ThymianSpecSearchResult } from './hooks/spec-search-hook.js';
 import type { ThymianTrafficSearchResult } from './hooks/traffic-search-hook.js';
 import type { ThymianConfig } from './thymian-config.js';
 
-const require = createRequire(import.meta.url);
+const PLUGIN_LOAD_ERROR_REF =
+  'https://thymian.dev/references/errors/plugin-load-error/';
+
+// Single source for the export-mechanism suggestion (used only where the
+// module loaded but exposes no usable default export).
+const EXPORT_DEFAULT_SUGGESTION =
+  'Use "export default" or "module.exports =" to export your plugin.';
+
+const LOADABLE_EXTENSION = /\.(ts|js|mjs|cjs)$/;
+
+/**
+ * When a *bare* specifier that looks like a file path (has a loadable
+ * extension, no `./`/`../`/`.\`/`..\` prefix, not absolute) fails to resolve
+ * as an installed package, the user most likely meant a local file. Offer the
+ * relative-path spelling — a bare specifier is never resolved cwd-relative
+ * (epic #725 §4.1, no `<cwd>/<specifier>` fallback). Returns undefined when no
+ * hint applies.
+ */
+function suggestLocalPathSpelling(specifier: string): string | undefined {
+  const looksLocal =
+    specifier.startsWith('./') ||
+    specifier.startsWith('../') ||
+    specifier.startsWith('.\\') ||
+    specifier.startsWith('..\\') ||
+    isAbsolute(specifier);
+
+  if (looksLocal || !LOADABLE_EXTENSION.test(specifier)) {
+    return undefined;
+  }
+
+  return `If "${specifier}" is a local file, reference it with a relative path and explicit extension: "./${specifier}".`;
+}
 
 export type CommandFlags<T extends typeof Command> = Interfaces.InferredFlags<
   (typeof BaseCliRunCommand)['baseFlags'] & T['flags']
@@ -501,57 +533,106 @@ export abstract class BaseCliRunCommand<
     this.thymian = thymian;
   }
 
-  protected async loadPluginModule(
-    nameOrPath: string,
-    isRelativePath = false,
-  ): Promise<ThymianPlugin> {
+  protected async loadPluginModule(nameOrPath: string): Promise<ThymianPlugin> {
     const options = this.thymianConfig.plugins[nameOrPath] ?? {};
-    const location =
-      isRelativePath || typeof options.path === 'string'
-        ? resolve(this.flags.cwd, options.path ?? nameOrPath)
-        : nameOrPath;
+    const specifier = options.path ?? nameOrPath;
 
-    let pluginModule;
+    this.debug('Load plugin module from specifier "%s".', specifier);
 
-    this.debug('Load plugin module from location "%s".', location);
+    const resolution = resolveUserModule(specifier, { cwd: this.flags.cwd });
+
+    if (!resolution.ok) {
+      // Resolution FAILURE: the path resolved cleanly but was refused for what
+      // it is — the seam's `reason` is rendered verbatim (§6).
+      if (resolution.reason) {
+        throw new ThymianBaseError(
+          `Cannot load plugin "${specifier}": ${resolution.reason.replace(/\.$/, '')}.`,
+          {
+            name: 'PluginLoadError',
+            suggestions: [
+              'Reference a built .js/.mjs/.cjs file or a local .ts file with an explicit extension. Installed packages must ship built JavaScript.',
+            ],
+            ref: PLUGIN_LOAD_ERROR_REF,
+          },
+        );
+      }
+
+      // Resolution NOT-FOUND: no `reason` — the caller phrases it. Offer the
+      // relative-path spelling when a bare, path-like specifier probably meant
+      // a local file (§4.1 has no cwd-relative fallback).
+      const suggestions = [
+        'For a local plugin, use a relative path with an explicit extension (e.g. ./my-plugin.ts). For an installed package, check that it is installed.',
+      ];
+      const localHint = suggestLocalPathSpelling(specifier);
+
+      if (localHint) {
+        suggestions.unshift(localHint);
+      }
+
+      throw new ThymianBaseError(`Cannot resolve plugin "${specifier}".`, {
+        name: 'PluginLoadError',
+        suggestions,
+        ref: PLUGIN_LOAD_ERROR_REF,
+      });
+    }
+
+    let rawModule: unknown;
 
     try {
-      const resolvedPath = require.resolve(location);
-      pluginModule = (await import(pathToFileURL(resolvedPath).href)).default;
+      rawModule = await loadUserModule(resolution.path);
     } catch (e) {
       this.logger.debug(
         'Failed to load plugin module from "%s": %s',
-        location,
+        resolution.path,
         inspect(e),
       );
+
+      const { reason, suggestions } = describePluginLoadFailure(e);
+
       throw new ThymianBaseError(
-        `Failed to load plugin module "${options.path ?? nameOrPath}".`,
+        `Cannot load plugin "${specifier}": ${reason}`,
         {
           name: 'PluginLoadError',
+          suggestions,
+          ref: PLUGIN_LOAD_ERROR_REF,
           cause: e,
         },
       );
     }
 
+    const module = isRecord(rawModule) ? rawModule : {};
+
+    if (!('default' in module)) {
+      throw new ThymianBaseError(
+        `Plugin "${specifier}" does not use a default export.`,
+        {
+          name: 'PluginLoadError',
+          suggestions: [EXPORT_DEFAULT_SUGGESTION],
+          ref: PLUGIN_LOAD_ERROR_REF,
+        },
+      );
+    }
+
+    const pluginModule = module.default;
+
     if (!isPlugin(pluginModule)) {
-      throw new CLIError(
-        `"${
-          options.path ?? nameOrPath
-        }" does not default export a valid Thymian plugin.`,
+      throw new ThymianBaseError(
+        `"${specifier}" does not default export a valid Thymian plugin.`,
+        {
+          name: 'PluginLoadError',
+          suggestions: [
+            'The default export must be a Thymian plugin object with a "plugin" function, a "name" string, and a "version" string.',
+          ],
+          ref: PLUGIN_LOAD_ERROR_REF,
+        },
       );
     }
 
     return pluginModule;
   }
 
-  protected async registerPlugin(
-    nameOrPath: string,
-    isRelativePath = false,
-  ): Promise<void> {
-    const pluginModule = await this.loadPluginModule(
-      nameOrPath,
-      isRelativePath,
-    );
+  protected async registerPlugin(nameOrPath: string): Promise<void> {
+    const pluginModule = await this.loadPluginModule(nameOrPath);
 
     const config = this.thymianConfig.plugins[pluginModule.name] ?? {};
 
@@ -574,13 +655,13 @@ export abstract class BaseCliRunCommand<
       if (!isPathPlugin) {
         this.debug('Load plugin "%s" as npm package or absolute path.', plugin);
 
-        const pluginModule = await this.loadPluginModule(plugin, false);
+        const pluginModule = await this.loadPluginModule(plugin);
 
         this.thymianConfig.plugins[pluginModule.name] ??= {};
       } else {
         this.debug(`Load plugin %s from relative path.`, plugin);
 
-        const pluginModule = await this.loadPluginModule(plugin, true);
+        const pluginModule = await this.loadPluginModule(plugin);
 
         this.thymianConfig.plugins[pluginModule.name] = {
           ...(this.thymianConfig.plugins[pluginModule.name] ?? {}),

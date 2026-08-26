@@ -45,7 +45,12 @@
     "./chalk": "./dist/chalk.js",
     "./utils": "./dist/utils.js",
     "./http-filter": "./dist/http-filter.js",
-    "./rxjs": "./dist/rxjs.js"
+    "./rxjs": "./dist/rxjs.js",
+    "./user-module": {
+      "types": "./dist/user-module.d.ts",
+      "import": "./dist/user-module.js",
+      "default": "./dist/user-module.js"
+    }
   },
   "dependencies": {
     "@fastify/deepmerge": "^3.1.0",
