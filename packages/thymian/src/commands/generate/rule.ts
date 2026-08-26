@@ -1,6 +1,6 @@
 import { writeFile } from 'node:fs/promises';
 import { EOL } from 'node:os';
-import { join, relative } from 'node:path';
+import { extname, join, relative } from 'node:path';
 
 import { ThymianBaseCommand, wrap } from '@thymian/common-cli';
 import { Flags, ux } from '@thymian/common-cli/oclif';
@@ -16,6 +16,78 @@ import {
 
 function capitalizeFirstCharacter(str: string): string {
   return str.charAt(0).toUpperCase() + str.slice(1);
+}
+
+/**
+ * Extensions the default (ESM/TypeScript) template may be written to. This is a
+ * deliberately tiny, local copy of the loader's rule — `@thymian/core`'s
+ * `unloadableReason`/`LOADABLE_EXTENSIONS` are intra-package and not on the
+ * public surface, so the generator cannot import them. The generator only ever
+ * emits a subset of the loadable set `{.ts,.js,.mjs,.cjs}`: `.ts` by default
+ * and `.cjs` under `--cjs`; it accepts an explicit `.js`/`.mjs` in default
+ * mode. It never emits `.mts`/`.cts`.
+ */
+const ESM_OUTPUT_EXTENSIONS = new Set(['.ts', '.js', '.mjs']);
+
+export type RuleOutputResolution =
+  { ok: true; output: string } | { ok: false; reason: string };
+
+/**
+ * Resolve the final `--output` path for `generate rule`, enforcing that the
+ * generator only ever emits a file the loader can actually load. On a
+ * conflicting explicit extension it DECLINES with a framed reason rather than
+ * silently rewriting the user's path; the only auto-fill is appending the
+ * mode-correct extension when `--output` carries none. The returned `output` is
+ * still relative to `--cwd` (the caller joins it).
+ */
+export function resolveRuleOutputPath(
+  output: string,
+  cjs: boolean,
+): RuleOutputResolution {
+  const ext = extname(output);
+
+  // `.mts`/`.cts` are never loadable, in either mode (mirrors the loader).
+  if (ext === '.mts' || ext === '.cts') {
+    return {
+      ok: false,
+      reason: `"${ext}" is not a loadable extension — .mts/.cts are not supported for rules, rule sets, or plugins; use .ts instead.`,
+    };
+  }
+
+  if (cjs) {
+    if (ext === '.cjs') {
+      return { ok: true, output };
+    }
+    if (ext === '') {
+      return { ok: true, output: `${output}.cjs` };
+    }
+    return {
+      ok: false,
+      reason:
+        `--cjs emits CommonJS (require/module.exports), which must be written to a .cjs file so a "type": "module" project cannot end up with require in a .js file. ` +
+        `Use --output <name>.cjs (or omit the extension).`,
+    };
+  }
+
+  // Default (ESM/TypeScript) mode.
+  if (ext === '') {
+    return { ok: true, output: `${output}.ts` };
+  }
+  if (ESM_OUTPUT_EXTENSIONS.has(ext)) {
+    return { ok: true, output };
+  }
+  if (ext === '.cjs') {
+    return {
+      ok: false,
+      reason:
+        `"${ext}" cannot hold the generated ESM rule (export default) — a .cjs file is CommonJS. ` +
+        `Use --cjs to emit CommonJS, or choose one of .ts, .js, .mjs.`,
+    };
+  }
+  return {
+    ok: false,
+    reason: `"${ext}" is not a loadable extension for a generated rule — expected one of .ts, .js, .mjs (or .cjs with --cjs).`,
+  };
 }
 
 export function createRuleTemplate(meta: RuleMeta, cjs: boolean): string {
@@ -75,11 +147,13 @@ export default class GenerateRule extends ThymianBaseCommand<
     '<%= config.bin %> generate rule --prefix my-org/',
     '<%= config.bin %> generate rule --cjs',
     '<%= config.bin %> generate rule --output src/rules/my-rule.rule.ts',
+    '<%= config.bin %> generate rule --cjs --output src/rules/my-rule.rule.cjs',
   ];
 
   static override flags = {
     cjs: Flags.boolean({
-      description: 'Generate rule using CommonJS syntax.',
+      description:
+        'Generate rule using CommonJS syntax. With --output, the file is written as .cjs.',
       default: false,
     }),
     prefix: Flags.string({
@@ -188,7 +262,11 @@ export default class GenerateRule extends ThymianBaseCommand<
     const template = createRuleTemplate(ruleMeta, this.flags.cjs);
 
     if (this.flags.output) {
-      const outputPath = join(this.flags.cwd, this.flags.output);
+      const resolved = resolveRuleOutputPath(this.flags.output, this.flags.cjs);
+      if (!resolved.ok) {
+        this.error(resolved.reason, { exit: 1 });
+      }
+      const outputPath = join(this.flags.cwd, resolved.output);
       await writeFile(outputPath, template, { encoding: 'utf-8' });
       this.log(
         wrap(
