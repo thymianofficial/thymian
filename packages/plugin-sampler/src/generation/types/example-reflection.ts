@@ -190,8 +190,6 @@ type ReflectionContext = {
    * definition text.
    */
   readonly rootDefinitions: JsonObject | undefined;
-  /** The keyword the root spelled them with, so a base's pointers still resolve. */
-  readonly rootDefinitionsKey: '$defs' | 'definitions';
 };
 
 /**
@@ -229,12 +227,15 @@ async function reflectObjectNode(
     `${stem}Base`,
   );
 
-  if (
-    !isRoot &&
-    context.rootDefinitions &&
-    base[context.rootDefinitionsKey] === undefined
-  ) {
-    base[context.rootDefinitionsKey] = context.rootDefinitions;
+  // Always written as `$defs`, whichever keyword the root used: this base is
+  // handed to `generateTypeForSchema`, and `convertDefsToDefinitions` rewrites
+  // `$defs` to `definitions` before `compile()` sees it, so both spellings
+  // converge on the pointer form the base's own `$ref`s use. Mirroring the
+  // root's keyword here was unfalsifiable — a mutation swapping it changed
+  // nothing — so it is not carried. Which keyword the root is READ under is a
+  // different matter, and that one is load-bearing.
+  if (!isRoot && context.rootDefinitions && base['$defs'] === undefined) {
+    base['$defs'] = context.rootDefinitions;
   }
 
   // The base's own children may carry examples too, so it gets the same
@@ -382,7 +383,6 @@ export async function reflectExamplesInPlace(
     registry,
     queued: [],
     rootDefinitions,
-    rootDefinitionsKey: definitionsKey,
   };
 
   if (rootDefinitions) {
