@@ -646,13 +646,13 @@ export abstract class BaseCliRunCommand<
       const isPathPlugin = isLocalSpecifier(plugin);
 
       if (!isPathPlugin) {
-        this.debug('Load plugin "%s" as npm package or absolute path.', plugin);
+        this.debug('Load plugin "%s" as an installed npm package.', plugin);
 
         const pluginModule = await this.loadPluginModule(plugin);
 
         this.thymianConfig.plugins[pluginModule.name] ??= {};
       } else {
-        this.debug(`Load plugin %s from relative path.`, plugin);
+        this.debug('Load plugin "%s" from a local path.', plugin);
 
         const pluginModule = await this.loadPluginModule(plugin);
 
