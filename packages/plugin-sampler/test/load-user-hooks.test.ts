@@ -2602,3 +2602,137 @@ describe('loadUserHooks — round 6b: the edge-case layer', () => {
     expect(after).toBeLessThanOrEqual(1_000);
   });
 });
+
+describe('loadUserHooks — round 7: the write round 6 never checked', () => {
+  const slot = `globalThis[Symbol.for('@thymian/plugin-sampler.hook-creation-log')]`;
+
+  /**
+   * A slot whose `scope` is an **accessor**: the getter hands back a `run` that
+   * never settles, and the setter silently drops whatever is written to it.
+   *
+   * Round 6 closed the data-property form of this by checking
+   * `scope instanceof AsyncLocalStorage` and *repairing* the slot in place. The
+   * repair was an assignment nobody read back, and on an accessor an assignment
+   * proves nothing — so the check passed, the repair evaporated, and the value
+   * that got called was still the poison.
+   */
+  const swallowingSetter = [
+    `const poison = {`,
+    `  run() { return new Promise(() => {}); },`,
+    `  getStore() { return undefined; },`,
+    `};`,
+    `${slot} = {`,
+    `  nextOrder: 0,`,
+    `  created: [],`,
+    `  get scope() { return poison; },`,
+    `  set scope(value) { /* silently dropped */ },`,
+    `};`,
+    `export const nothing = 1;`,
+    ``,
+  ].join('\n');
+
+  it('is not wedged by a scope repair the slot silently swallowed', async () => {
+    // Measured against `6d3addf0`: `loadUserHooks` never settled at all — no
+    // timeout, no diagnostic, and the healthy sibling below never bound.
+    const hooksDir = await writeHooks({
+      'a-poison.ts': swallowingSetter,
+      'b-good.ts': tagging(selectorA, 'good'),
+    });
+
+    const outcome = await Promise.race([
+      loadUserHooks(hooksDir, catalog),
+      new Promise<'wedged'>((resolve) =>
+        setTimeout(() => resolve('wedged'), 5_000),
+      ),
+    ]);
+
+    expect(outcome).not.toBe('wedged');
+    expect(
+      await compose(outcome as LoadUserHooksResult, firstTransactionId()),
+    ).toBe('good');
+  }, 20_000);
+
+  it('evicts the swallowing slot rather than tolerating it once per scan', async () => {
+    // The serious half. The slot outlives the scan, so a scan that merely
+    // *survives* the poison leaves it in place for every later scan in the
+    // process — and `thymian serve` runs many. Surviving is not enough; the
+    // poison has to be replaced, or the creation log is dead for the process
+    // and every later scan silently loses its created-but-not-exported
+    // diagnostic.
+    const poisoned = await writeHooks({ 'a-poison.ts': swallowingSetter });
+
+    await Promise.race([
+      loadUserHooks(poisoned, catalog),
+      new Promise((resolve) => setTimeout(resolve, 5_000)),
+    ]);
+
+    // A later, unrelated scan whose only defect is a registration that was
+    // created and never exported. Reporting it needs a *working* collection
+    // scope, which is exactly what the poisoned slot destroys.
+    const later = await writeHooks({
+      'forgot.ts': [
+        `import { beforeEach } from '@thymian/hooks';`,
+        `beforeEach(${JSON.stringify(selectorA)}, async (value) => value);`,
+        `export const nothing = 1;`,
+        ``,
+      ].join('\n'),
+    });
+
+    const result = await Promise.race([
+      loadUserHooks(later, catalog),
+      new Promise<'wedged'>((resolve) =>
+        setTimeout(() => resolve('wedged'), 5_000),
+      ),
+    ]);
+
+    expect(result).not.toBe('wedged');
+    expect(errorsOf(result as LoadUserHooksResult).join('\n')).toContain(
+      'but not exported',
+    );
+  }, 30_000);
+
+  it('never calls a collection scope it did not itself check', async () => {
+    // The value that gets called must be the value that was checked. `scope`
+    // sits behind an accessor on a user-writable slot, so a check in one
+    // function and a call in another are a check and a call on *two different
+    // reads* — the same "verified over there, used over here" shape as every
+    // other finding in this file. Both getters below pass the first read and go
+    // bad on the second — one by lying, one by throwing, because a getter can
+    // do either and only one of them was ever guarded.
+    for (const [name, second] of [
+      ['a scope that never settles', `poison`],
+      ['a getter that throws', `(() => { throw new TypeError('boom'); })()`],
+    ] as const) {
+      const hooksDir = await writeHooks({
+        'a-poison.ts': [
+          `import { AsyncLocalStorage } from 'node:async_hooks';`,
+          `const real = new AsyncLocalStorage();`,
+          `const poison = { run() { return new Promise(() => {}); }, getStore() {} };`,
+          `let reads = 0;`,
+          `${slot} = {`,
+          `  nextOrder: 0,`,
+          `  created: [],`,
+          `  get scope() { reads += 1; return reads === 1 ? real : ${second}; },`,
+          `  set scope(value) {},`,
+          `};`,
+          `export const nothing = 1;`,
+          ``,
+        ].join('\n'),
+        'b-good.ts': tagging(selectorA, 'good'),
+      });
+
+      const outcome = await Promise.race([
+        loadUserHooks(hooksDir, catalog),
+        new Promise<'wedged'>((resolve) =>
+          setTimeout(() => resolve('wedged'), 5_000),
+        ),
+      ]);
+
+      expect(outcome, name).not.toBe('wedged');
+      expect(
+        await compose(outcome as LoadUserHooksResult, firstTransactionId()),
+        name,
+      ).toBe('good');
+    }
+  }, 30_000);
+});

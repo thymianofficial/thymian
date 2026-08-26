@@ -387,12 +387,73 @@ export function hookCreationLog(): HookCreationLog {
     // disabled the whole channel for the rest of the process.
     if (!(existing.scope instanceof AsyncLocalStorage)) {
       existing.scope = new AsyncLocalStorage();
+
+      // The repair is not done until the read agrees with the write.
+      //
+      // `scope` can be an **accessor**, and a `set scope(v) {}` that silently
+      // drops the value throws nothing — so the assignment above reported
+      // success while the getter kept handing back the original object.
+      // Measured with a getter returning `{ run: () => new Promise(() => {}) }`:
+      // `loadUserHooks` awaited forever, with no timeout and no diagnostic, and
+      // because the slot outlives the scan it wedged **every later scan in the
+      // process** as well — the exact failure the `instanceof` check above was
+      // added to close, walked around through the one write nobody checked.
+      //
+      // Resetting is what evicts it: `resetCreationLog` overwrites the
+      // `globalThis` property, so the poisoned object stops being reachable
+      // instead of merely being tolerated once.
+      if (!(existing.scope instanceof AsyncLocalStorage)) {
+        return resetCreationLog();
+      }
     }
   } catch {
     return resetCreationLog();
   }
 
   return existing;
+}
+
+/**
+ * The collection scope on `log` — read **once**, and checked as the same value
+ * that the caller will then use.
+ *
+ * Splitting the read from the check is what let the worst version of this bug
+ * back in. `scope` lives on a `globalThis` slot any hook file can write, so it
+ * can be an **accessor**: {@link hookCreationLog} checked one read and
+ * `withCreationScope` called a later one, which on an accessor is a different
+ * value. Reading it here and returning only what passed the check makes "the
+ * value called is the value checked" a property of the code rather than a
+ * convention two functions apart.
+ *
+ * The read is guarded because a getter can throw as easily as it can lie, and
+ * an unguarded read of this slot has already escaped `loadUserHooks` once as an
+ * unattributed `TypeError`.
+ *
+ * `instanceof` is reliable here specifically because jiti evaluates in this
+ * process and shares Node's builtins, so `node:async_hooks` is one module and
+ * one class across the realm boundary the brand exists for.
+ *
+ * What this deliberately does **not** defend is an own-property `run` on a
+ * genuine `AsyncLocalStorage` instance. That takes a hook file sabotaging a
+ * builtin it constructed itself, and no guard here would buy an invariant: a
+ * hook file's module body is `await`ed, so `while (true) {}` or a top-level
+ * `await new Promise(() => {})` hangs the scan regardless. The achievable
+ * invariants are the two this file does hold — the loader's own machinery is
+ * never the thing that hangs, and no scan can leave the slot in a state that
+ * hangs the *next* one.
+ */
+function collectionScope(
+  log: HookCreationLog,
+): AsyncLocalStorage<HookRegistration[]> | undefined {
+  let scope: unknown;
+
+  try {
+    scope = log.scope;
+  } catch {
+    return undefined;
+  }
+
+  return scope instanceof AsyncLocalStorage ? scope : undefined;
 }
 
 /**
@@ -423,7 +484,6 @@ export async function withCreationScope<T>(
 ): Promise<{ result?: T; error?: unknown; created: HookRegistration[] }> {
   const created: HookRegistration[] = [];
   const log = hookCreationLog();
-  const scope = log.scope;
 
   const run = async (): Promise<{
     result?: T;
@@ -437,16 +497,22 @@ export async function withCreationScope<T>(
     }
   };
 
+  const scope = collectionScope(log);
+
   if (scope === undefined) {
-    // A skewed log with no scope. Creations are invisible to this evaluation and
-    // the diff under-reports — a diagnostic channel degrading, never a binding.
+    // Either a skewed log that predates the field, or a slot that did not hand
+    // back what it was repaired with. Creations are invisible to this
+    // evaluation and the diff under-reports — a diagnostic channel degrading,
+    // which is the trade this file makes deliberately. What it must never do is
+    // call whatever is sitting there: that is not a degraded diagnostic, it is
+    // an unbounded hang inside the loader.
     return await run();
   }
 
   try {
-    // Belt and braces with the identity check in {@link hookCreationLog}: that
-    // check is what makes `scope` an `AsyncLocalStorage`, and this is what stops
-    // a failure here escaping `loadUserHooks` if it ever is not. Both, because
+    // Belt and braces with the check inside {@link collectionScope}: that check
+    // is what makes `scope` an `AsyncLocalStorage`, and this is what stops a
+    // failure here escaping `loadUserHooks` if it ever is not. Both, because
     // the last three rounds each found a value that was trusted on the strength
     // of a check made somewhere else.
     return await scope.run(created, run);
@@ -464,7 +530,10 @@ function recordCreation(
   registration: HookRegistration,
 ): void {
   try {
-    const collector = log.scope?.getStore();
+    // Through {@link collectionScope} for the same reason
+    // {@link withCreationScope} is: this call reaches the slot too, and calling
+    // a `getStore` a hook file supplied runs user code on the creation path.
+    const collector = collectionScope(log)?.getStore();
 
     if (collector !== undefined) {
       collector.push(registration);

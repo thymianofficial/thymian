@@ -271,3 +271,58 @@ describe('isHookRegistration', () => {
     expect(isHookRegistration(hostile)).toBe(false);
   });
 });
+
+describe('the creation log slot', () => {
+  const KEY = Symbol.for('@thymian/plugin-sampler.hook-creation-log');
+
+  it('never calls a `getStore` a hook file supplied', () => {
+    // `recordCreation` runs on the creation path, so whatever it calls runs
+    // while the user's module body is still executing. A slot is user-writable
+    // by design (that is the only way two realms reach one log), so `scope` may
+    // be an accessor that passes the identity check on its first read and hands
+    // back something else afterwards. Calling *that* is running user code to
+    // decide where a creation goes.
+    const original = Reflect.getOwnPropertyDescriptor(globalThis, KEY);
+    const called: string[] = [];
+    const real = hookCreationLog().scope;
+    let reads = 0;
+
+    Reflect.defineProperty(globalThis, KEY, {
+      configurable: true,
+      writable: true,
+      value: {
+        nextOrder: 0,
+        created: [],
+        get scope() {
+          reads += 1;
+
+          return reads === 1
+            ? real
+            : {
+                run: () => undefined,
+                getStore: () => {
+                  called.push('getStore');
+
+                  return undefined;
+                },
+              };
+        },
+        set scope(value: unknown) {
+          /* silently dropped */
+        },
+      },
+    });
+
+    try {
+      beforeEach('GET /a -> 200', noop);
+    } finally {
+      Reflect.deleteProperty(globalThis, KEY);
+
+      if (original) {
+        Reflect.defineProperty(globalThis, KEY, original);
+      }
+    }
+
+    expect(called).toEqual([]);
+  });
+});
