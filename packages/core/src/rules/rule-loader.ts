@@ -1,8 +1,13 @@
+import { lstatSync, realpathSync, statSync } from 'node:fs';
 import * as path from 'node:path';
 
 import { glob } from 'tinyglobby';
 
-import { loadUserModule, resolveUserModule } from '../load-user-module.js';
+import {
+  loadUserModule,
+  resolveUserModule,
+  unloadableReason,
+} from '../load-user-module.js';
 import { ThymianBaseError } from '../thymian.error.js';
 import { isRecord } from '../utils.js';
 import { validate } from './ajv-validate.js';
@@ -199,6 +204,116 @@ function applyProfileThenConfig(
   );
 }
 
+// The single per-rule pipeline shared by every path that turns a candidate
+// `Rule` into an eligible one: config/profile overrides, type-declaration
+// validation, the caller's filter, then the execution-invariant check.
+// `undefined` means the rule filter excluded it (not an error, just no-op).
+function resolveEligibleRule(
+  rawRule: Rule,
+  source: string,
+  profileConfig: RulesConfiguration,
+  options: RulesConfiguration,
+  ruleFilter: RuleFilter,
+): Rule | undefined {
+  const rule = applyProfileThenConfig(rawRule, profileConfig, options);
+
+  assertRuleTypeDeclaration(rule, source);
+
+  if (!ruleFilter(rule)) {
+    return undefined;
+  }
+
+  assertRuleExecutionInvariant(
+    rule,
+    source,
+    typeOverrideSuggestions(rule, options),
+  );
+
+  return rule;
+}
+
+function assertHasDefaultExport(
+  module: Record<PropertyKey, unknown>,
+  resolved: string,
+): void {
+  if (!('default' in module)) {
+    throw new ThymianBaseError(
+      `Rule or rule set at ${resolved} does not use default export.`,
+      {
+        suggestions: [
+          'Use "export default" or "module.exports =" to export your rule (set).',
+        ],
+        name: 'RuleLoadError',
+        ref: 'https://thymian.dev/references/errors/rule-load-error/',
+      },
+    );
+  }
+}
+
+function describeError(error: unknown): string {
+  return error instanceof Error ? error.message : String(error);
+}
+
+// The glob filter's own guard, on top of the seam's `unloadableReason`
+// (extension/declaration-file predicate — reused, never hand-copied):
+// classifies a match by filesystem kind so a directory/FIFO/socket/broken
+// symlink is *skipped* (AC3) rather than attempted. A path that is not on
+// disk at all is deliberately left unclassified here (`undefined`) — that is
+// not "the wrong kind", it is a match that vanished between the glob call and
+// the load attempt below, which must fail the whole set (AC4), not skip.
+function nonLoadableGlobMatchReason(resolved: string): string | undefined {
+  const extensionReason = unloadableReason(resolved);
+
+  if (extensionReason) {
+    return extensionReason;
+  }
+
+  let entryStat;
+
+  try {
+    entryStat = lstatSync(resolved);
+  } catch {
+    return undefined;
+  }
+
+  if (entryStat.isSymbolicLink()) {
+    try {
+      if (!statSync(resolved).isFile()) {
+        return `"${path.basename(resolved)}" is a symlink to something other than a regular file.`;
+      }
+    } catch {
+      return `"${path.basename(resolved)}" is a broken symlink.`;
+    }
+
+    return undefined;
+  }
+
+  if (!entryStat.isFile()) {
+    return `"${path.basename(resolved)}" is not a regular file.`;
+  }
+
+  return undefined;
+}
+
+function warnSkippedGlobMatch(
+  resolved: string,
+  reason: string,
+  ruleSetName: string,
+): void {
+  process.emitWarning(
+    new ThymianBaseError(
+      `Skipping "${resolved}" matched by rule set "${ruleSetName}": ${reason}`,
+      {
+        name: 'RuleLoadError',
+        suggestions: [
+          'Remove or fix the file so it matches a loadable rule, or narrow the glob pattern to exclude it.',
+        ],
+        ref: 'https://thymian.dev/references/errors/rule-load-error/',
+      },
+    ),
+  );
+}
+
 async function loadRuleSet(
   ruleSet: RuleSet,
   basePath: string,
@@ -213,21 +328,17 @@ async function loadRuleSet(
     const rules: Rule[] = [];
 
     for (const inlineRule of ruleSet.rules) {
-      const rule = applyProfileThenConfig(inlineRule, profileConfig, options);
-
-      assertRuleTypeDeclaration(rule, source);
-
-      if (!ruleFilter(rule)) {
-        continue;
-      }
-
-      assertRuleExecutionInvariant(
-        rule,
+      const rule = resolveEligibleRule(
+        inlineRule,
         source,
-        typeOverrideSuggestions(rule, options),
+        profileConfig,
+        options,
+        ruleFilter,
       );
 
-      rules.push(rule);
+      if (rule) {
+        rules.push(rule);
+      }
     }
 
     return rules;
@@ -237,6 +348,7 @@ async function loadRuleSet(
 
   if (ruleSet.pattern) {
     const dirname = path.dirname(basePath);
+    let anyMatched = false;
 
     for (const pattern of Array.isArray(ruleSet.pattern)
       ? ruleSet.pattern
@@ -244,20 +356,100 @@ async function loadRuleSet(
       // Sort glob results so rule load order is deterministic. tinyglobby
       // returns matches in filesystem traversal order, which varies between
       // runs and would otherwise make downstream report output non-deterministic.
-      const files = (await glob(pattern, { cwd: dirname })).sort();
+      const files = (
+        await glob(pattern, { cwd: dirname, ignore: ['**/node_modules/**'] })
+      ).sort();
 
       for (const file of files) {
-        rules.push(
-          ...(await loadRules(
-            path.join(dirname, file),
-            ruleFilter,
-            options,
-            cwd,
-            ruleProfiles,
+        const resolved = path.resolve(dirname, file);
+
+        let canonical: string | undefined;
+
+        try {
+          canonical = realpathSync.native(resolved);
+        } catch {
+          canonical = undefined;
+        }
+
+        // AC1: the rule set's own file is excluded from its own matches
+        // (trivial self-match), and never counted toward "anything matched".
+        if (canonical !== undefined && canonical === basePath) {
+          continue;
+        }
+
+        anyMatched = true;
+
+        const skipReason = nonLoadableGlobMatchReason(resolved);
+
+        if (skipReason) {
+          warnSkippedGlobMatch(resolved, skipReason, ruleSet.name);
+          continue;
+        }
+
+        let rawModule: unknown;
+
+        try {
+          rawModule = await loadUserModule(resolved);
+        } catch (error) {
+          throw new ThymianBaseError(
+            `Rule set "${ruleSet.name}" failed to load "${resolved}": ${describeError(error)}`,
+            {
+              name: 'RuleLoadError',
+              suggestions: [
+                'Fix the syntax or runtime error in the file, or remove it from the glob pattern.',
+              ],
+              ref: 'https://thymian.dev/references/errors/rule-load-error/',
+              cause: error,
+            },
+          );
+        }
+
+        const module = isRecord(rawModule) ? rawModule : {};
+
+        assertHasDefaultExport(module, resolved);
+
+        const candidate = module.default;
+
+        if (isRuleSet(candidate)) {
+          throw new ThymianBaseError(
+            `"${resolved}" is a rule set; rule sets cannot contain rule sets.`,
+            {
+              name: 'RuleLoadError',
+              suggestions: [
+                `Rule set "${ruleSet.name}" matched "${resolved}" via its glob pattern, but a rule set can only reference individual rules, not other rule sets.`,
+              ],
+              ref: 'https://thymian.dev/references/errors/rule-load-error/',
+            },
+          );
+        }
+
+        if (isRule(candidate)) {
+          const rule = resolveEligibleRule(
+            candidate,
+            resolved,
             profileConfig,
-          )),
-        );
+            options,
+            ruleFilter,
+          );
+
+          if (rule) {
+            rules.push(rule);
+          }
+        }
       }
+    }
+
+    if (anyMatched && rules.length === 0) {
+      throw new ThymianBaseError(
+        `Rule set "${ruleSet.name}" pattern matched files but produced no loadable rules.`,
+        {
+          name: 'RuleLoadError',
+          suggestions: [
+            'Check that the glob pattern matches rule files whose default export is a rule.',
+          ],
+          ref: 'https://thymian.dev/references/errors/rule-load-error/',
+        },
+      );
     }
   }
 
@@ -270,9 +462,9 @@ export async function loadRules(
   options: RulesConfiguration = {},
   cwd: string = process.cwd(),
   ruleProfiles: Record<string, string> = {},
-  // The already-resolved profile overrides for the enclosing rule set, threaded
-  // through the pattern-glob recursion. Empty at the top level; a rule set fills
-  // it from its own `profiles` map before recursing into its member rules.
+  // The already-resolved profile overrides for the enclosing rule set. Empty
+  // at the top level; a rule set fills it from its own `profiles` map before
+  // dispatching to its member rules (inline or glob-matched).
   profileConfig: RulesConfiguration = {},
 ): Promise<Rule[]> {
   if (!input || (Array.isArray(input) && input.length === 0)) {
@@ -326,37 +518,20 @@ export async function loadRules(
   const rawModule = await loadUserModule(resolved);
   const module = isRecord(rawModule) ? rawModule : {};
 
-  if (!('default' in module)) {
-    throw new ThymianBaseError(
-      `Rule or rule set at ${resolved} does not use default export.`,
-      {
-        suggestions: [
-          'Use "export default" or "module.exports =" to export your rule (set).',
-        ],
-        name: 'RuleLoadError',
-        ref: 'https://thymian.dev/references/errors/rule-load-error/',
-      },
-    );
-  }
+  assertHasDefaultExport(module, resolved);
 
   const ruleOrRuleSet = module.default;
 
   if (isRule(ruleOrRuleSet)) {
-    const rule = applyProfileThenConfig(ruleOrRuleSet, profileConfig, options);
-
-    assertRuleTypeDeclaration(rule, resolved);
-
-    if (!ruleFilter(rule)) {
-      return [];
-    }
-
-    assertRuleExecutionInvariant(
-      rule,
+    const rule = resolveEligibleRule(
+      ruleOrRuleSet,
       resolved,
-      typeOverrideSuggestions(rule, options),
+      profileConfig,
+      options,
+      ruleFilter,
     );
 
-    return [rule];
+    return rule ? [rule] : [];
   }
 
   if (isRuleSet(ruleOrRuleSet)) {
