@@ -2515,6 +2515,14 @@ describe('loadUserHooks — round 6b: the edge-case layer', () => {
     // `Number.MAX_SAFE_INTEGER` is the boundary the first version of this list
     // missed: it *is* a safe integer, so it passed, and `order + 1` was then
     // the first unrepresentable value — three hooks composed `132`, silently.
+    //
+    // **Four hooks, not three.** The first fix for that bounded the slot's
+    // counter and left the realm-local floor it had just promoted to
+    // authoritative unbounded, which moved the failure by exactly one
+    // registration instead of removing it: with `MAX_SAFE_INTEGER - 1` the
+    // stamps went `MSI-1, MSI, 2**53, 2**53` and four exports composed `1243`.
+    // A fixture sized to the boundary proves the boundary moved, not that the
+    // class closed, so this one runs past it.
     for (const poison of [
       'NaN',
       'Infinity',
@@ -2531,14 +2539,24 @@ describe('loadUserHooks — round 6b: the edge-case layer', () => {
           `export const one = beforeEach(${JSON.stringify(selectorA)}, tag('1'));`,
           `export const two = beforeEach(${JSON.stringify(selectorA)}, tag('2'));`,
           `export const three = beforeEach(${JSON.stringify(selectorA)}, tag('3'));`,
+          `export const four = beforeEach(${JSON.stringify(selectorA)}, tag('4'));`,
           ``,
         ].join('\n'),
       });
 
-      const result = await loadUserHooks(hooksDir, catalog);
+      let result: LoadUserHooksResult;
+
+      try {
+        result = await loadUserHooks(hooksDir, catalog);
+      } finally {
+        Reflect.deleteProperty(
+          globalThis,
+          Symbol.for('@thymian/plugin-sampler.hook-creation-log'),
+        );
+      }
 
       expect(errorsOf(result), poison).toEqual([]);
-      expect(await compose(result, firstTransactionId()), poison).toBe('123');
+      expect(await compose(result, firstTransactionId()), poison).toBe('1234');
     }
   });
 
@@ -2616,6 +2634,7 @@ describe('loadUserHooks — round 6b: the edge-case layer', () => {
 
 describe('loadUserHooks — round 7: the write round 6 never checked', () => {
   const slot = `globalThis[Symbol.for('@thymian/plugin-sampler.hook-creation-log')]`;
+  const SLOT_KEY = Symbol.for('@thymian/plugin-sampler.hook-creation-log');
 
   /**
    * A slot whose `scope` is an **accessor**: the getter hands back a `run` that
@@ -2650,12 +2669,21 @@ describe('loadUserHooks — round 7: the write round 6 never checked', () => {
       'b-good.ts': tagging(selectorA, 'good'),
     });
 
-    const outcome = await Promise.race([
-      loadUserHooks(hooksDir, catalog),
-      new Promise<'wedged'>((resolve) =>
-        setTimeout(() => resolve('wedged'), 5_000),
-      ),
-    ]);
+    let outcome: unknown;
+
+    try {
+      outcome = await Promise.race([
+        loadUserHooks(hooksDir, catalog),
+        new Promise<'wedged'>((resolve) =>
+          setTimeout(() => resolve('wedged'), 5_000),
+        ),
+      ]);
+    } finally {
+      // The poison lives on `globalThis`, so leaving it there makes a
+      // regression cascade into whatever test runs next instead of failing
+      // here — which is precisely how "wedged every later scan" presented.
+      Reflect.deleteProperty(globalThis, SLOT_KEY);
+    }
 
     expect(outcome).not.toBe('wedged');
     expect(
@@ -2677,6 +2705,10 @@ describe('loadUserHooks — round 7: the write round 6 never checked', () => {
       new Promise((resolve) => setTimeout(resolve, 5_000)),
     ]);
 
+    // Deliberately NOT cleaned up between the two scans: the whole point is
+    // that the second scan meets whatever the first one left behind. Cleaned
+    // up after it, so a regression cannot leak into an unrelated test.
+
     // A later, unrelated scan whose only defect is a registration that was
     // created and never exported. Reporting it needs a *working* collection
     // scope, which is exactly what the poisoned slot destroys.
@@ -2689,12 +2721,18 @@ describe('loadUserHooks — round 7: the write round 6 never checked', () => {
       ].join('\n'),
     });
 
-    const result = await Promise.race([
-      loadUserHooks(later, catalog),
-      new Promise<'wedged'>((resolve) =>
-        setTimeout(() => resolve('wedged'), 5_000),
-      ),
-    ]);
+    let result: unknown;
+
+    try {
+      result = await Promise.race([
+        loadUserHooks(later, catalog),
+        new Promise<'wedged'>((resolve) =>
+          setTimeout(() => resolve('wedged'), 5_000),
+        ),
+      ]);
+    } finally {
+      Reflect.deleteProperty(globalThis, SLOT_KEY);
+    }
 
     expect(result).not.toBe('wedged');
     expect(errorsOf(result as LoadUserHooksResult).join('\n')).toContain(
@@ -2706,11 +2744,13 @@ describe('loadUserHooks — round 7: the write round 6 never checked', () => {
     // A slot that hands back a **fresh** log on every read: a lazily defaulted
     // accessor, not a hostile one. Its `nextOrder` is `0` every time it is
     // asked, so every registration in the file was stamped `0` — and a tie is
-    // not a graceful degradation. `Object.entries` on an ESM namespace yields
-    // sorted keys, so with the index tied the composition falls back to
-    // alphabetical order by export name: measured `132` from `one`, `two`,
-    // `three`, with `errors: 0` and nothing to tell the user their hooks ran in
-    // the wrong order.
+    // not a graceful degradation. Enumerating a module's exports (`ownKeys`)
+    // does not yield authoring order — a real ESM namespace exposes its string
+    // keys sorted, and jiti's compiled namespace yields emit order — so with the
+    // index tied the composition falls back to whichever of those the module
+    // happens to be. Measured here: `132` from `one`, `two`, `three`, i.e.
+    // alphabetical, with `errors: 0` and nothing to tell the user their hooks
+    // ran in the wrong order.
     const hooksDir = await writeHooks({
       'a.ts': [
         `import { beforeEach } from '@thymian/hooks';`,
@@ -2747,13 +2787,23 @@ describe('loadUserHooks — round 7: the write round 6 never checked', () => {
     // sits behind an accessor on a user-writable slot, so a check in one
     // function and a call in another are a check and a call on *two different
     // reads* — the same "verified over there, used over here" shape as every
-    // other finding in this file. Both getters below pass the first read and go
-    // bad on the second — one by lying, one by throwing, because a getter can
-    // do either and only one of them was ever guarded.
-    for (const [name, second] of [
+    // other finding in this file. Each getter below is honest for its first
+    // `honest` reads and bad afterwards — one by lying, one by throwing,
+    // because a getter can do either and only one of them was ever guarded.
+    //
+    // **The threshold is a parameter on purpose.** A fixture pinned to
+    // `reads === 1` only proves the *first* read is checked; a mutant that
+    // checks read N and returns read N+1 passed the whole suite against it.
+    // Sweeping the threshold is what makes this "no read of `scope` reaches a
+    // call unchecked" rather than "read one is checked".
+    const shapes = [
       ['a scope that never settles', `poison`],
       ['a getter that throws', `(() => { throw new TypeError('boom'); })()`],
-    ] as const) {
+    ] as const;
+
+    for (const [[name, second], honest] of shapes.flatMap((shape) =>
+      [1, 2, 3, 4].map((honest) => [shape, honest] as const),
+    )) {
       const hooksDir = await writeHooks({
         'a-poison.ts': [
           `import { AsyncLocalStorage } from 'node:async_hooks';`,
@@ -2763,7 +2813,7 @@ describe('loadUserHooks — round 7: the write round 6 never checked', () => {
           `${slot} = {`,
           `  nextOrder: 0,`,
           `  created: [],`,
-          `  get scope() { reads += 1; return reads === 1 ? real : ${second}; },`,
+          `  get scope() { reads += 1; return reads <= ${honest} ? real : ${second}; },`,
           `  set scope(value) {},`,
           `};`,
           `export const nothing = 1;`,
@@ -2772,18 +2822,248 @@ describe('loadUserHooks — round 7: the write round 6 never checked', () => {
         'b-good.ts': tagging(selectorA, 'good'),
       });
 
-      const outcome = await Promise.race([
-        loadUserHooks(hooksDir, catalog),
+      let outcome: unknown;
+
+      try {
+        outcome = await Promise.race([
+          loadUserHooks(hooksDir, catalog),
+          new Promise<'wedged'>((resolve) =>
+            setTimeout(() => resolve('wedged'), 5_000),
+          ),
+        ]);
+      } finally {
+        Reflect.deleteProperty(globalThis, SLOT_KEY);
+      }
+
+      const label = `${name} after ${honest} honest read(s)`;
+
+      expect(outcome, label).not.toBe('wedged');
+      expect(
+        await compose(outcome as LoadUserHooksResult, firstTransactionId()),
+        label,
+      ).toBe('good');
+    }
+  }, 120_000);
+});
+
+describe('loadUserHooks — round 7b: the twin of every guard round 7 added', () => {
+  const slot = `globalThis[Symbol.for('@thymian/plugin-sampler.hook-creation-log')]`;
+  const KEY = `Symbol.for('@thymian/plugin-sampler.hook-creation-log')`;
+  const SLOT_KEY = Symbol.for('@thymian/plugin-sampler.hook-creation-log');
+  const PUSH_MARK = '__thymianRound7bPushRan';
+
+  /** A hook file that creates a registration and forgets to export it. */
+  const forgets = [
+    `import { beforeEach } from '@thymian/hooks';`,
+    `beforeEach(${JSON.stringify(selectorA)}, async (value) => value);`,
+    `export const nothing = 1;`,
+    ``,
+  ].join('\n');
+
+  function pushRuns(): number {
+    return (globalThis as unknown as Record<string, number>)[PUSH_MARK] ?? 0;
+  }
+
+  function cleanUp(): void {
+    Reflect.deleteProperty(globalThis, SLOT_KEY);
+    Reflect.deleteProperty(globalThis, PUSH_MARK);
+  }
+
+  it('never calls a `push` the slot supplied, in this scan or the next', async () => {
+    // The twin `collectionScope` left standing. Routing `getStore` through it
+    // closed one call that reaches a hook-file value on the creation path, and
+    // `log.created.push(registration)` two lines below was the other — reachable
+    // with no accessor and no Proxy at all. Measured: a busy-wait `push` held
+    // `loadUserHooks` for 2 008 ms, and `for (;;) {}` never returned.
+    //
+    // The fallback is only reached when `getStore()` comes back `undefined`, so
+    // the poison has to land between the collector being opened and the
+    // registration being made. Two ways in, and both are here: replacing the
+    // slot **inside the same file** that then registers, and an accessor that
+    // hands back a fresh log per read — which does it to every later scan too,
+    // because the slot outlives them all.
+    const created = [
+      `  created: {`,
+      `    length: 0,`,
+      `    push(value) {`,
+      `      globalThis['${PUSH_MARK}'] = (globalThis['${PUSH_MARK}'] ?? 0) + 1;`,
+      `    },`,
+      `  },`,
+    ].join('\n');
+
+    try {
+      const sameFile = await writeHooks({
+        'a.ts': [
+          `import { beforeEach } from '@thymian/hooks';`,
+          `${slot} = { nextOrder: 0,`,
+          created,
+          `};`,
+          `export const hook = beforeEach(${JSON.stringify(selectorA)}, async (value) => ({`,
+          `  ...value,`,
+          `  path: value.path + 'good',`,
+          `}));`,
+          ``,
+        ].join('\n'),
+      });
+      const sameFileResult = await loadUserHooks(sameFile, catalog);
+
+      expect(pushRuns(), 'same file').toBe(0);
+      expect(await compose(sameFileResult, firstTransactionId())).toBe('good');
+    } finally {
+      cleanUp();
+    }
+
+    try {
+      const poisoned = await writeHooks({
+        'a-poison.ts': [
+          `Object.defineProperty(globalThis, ${KEY}, {`,
+          `  configurable: true,`,
+          `  get() { return { nextOrder: 0,`,
+          created,
+          `  }; },`,
+          `  set() {},`,
+          `});`,
+          `export const nothing = 1;`,
+          ``,
+        ].join('\n'),
+      });
+      await loadUserHooks(poisoned, catalog);
+
+      // An unrelated later scan must not run it either.
+      const later = await writeHooks({ 'good.ts': tagging(selectorA, 'fine') });
+      const laterResult = await loadUserHooks(later, catalog);
+
+      expect(pushRuns(), 'later scan').toBe(0);
+      expect(await compose(laterResult, firstTransactionId())).toBe('fine');
+    } finally {
+      cleanUp();
+    }
+  }, 30_000);
+
+  it('evicts a `globalThis` slot that is itself a swallowing accessor', async () => {
+    // `resetCreationLog` wrote with a plain assignment and never read it back —
+    // the same omission round 7 fixed one layer in. Against an accessor slot
+    // whose `set(){}` drops the value, the eviction reported success and
+    // changed nothing, so the poison survived both scans and the
+    // created-but-not-exported diagnostic stayed dead for the process.
+    // `Reflect.defineProperty` is what actually replaces an accessor pair.
+    const poison = [
+      `const poison = { run() { return new Promise(() => {}); }, getStore() {} };`,
+      `const inner = {`,
+      `  nextOrder: 0,`,
+      `  created: [],`,
+      `  get scope() { return poison; },`,
+      `  set scope(value) {},`,
+      `};`,
+      `Object.defineProperty(globalThis, ${KEY}, {`,
+      `  configurable: true,`,
+      `  get() { return inner; },`,
+      `  set() {},`,
+      `});`,
+      `export const nothing = 1;`,
+      ``,
+    ].join('\n');
+
+    try {
+      const poisoned = await writeHooks({ 'a-poison.ts': poison });
+
+      await Promise.race([
+        loadUserHooks(poisoned, catalog),
+        new Promise((resolve) => setTimeout(resolve, 5_000)),
+      ]);
+
+      const later = await writeHooks({ 'forgot.ts': forgets });
+      const result = await Promise.race([
+        loadUserHooks(later, catalog),
         new Promise<'wedged'>((resolve) =>
           setTimeout(() => resolve('wedged'), 5_000),
         ),
       ]);
 
-      expect(outcome, name).not.toBe('wedged');
-      expect(
-        await compose(outcome as LoadUserHooksResult, firstTransactionId()),
-        name,
-      ).toBe('good');
+      expect(result).not.toBe('wedged');
+      expect(errorsOf(result as LoadUserHooksResult).join('\n')).toContain(
+        'but not exported',
+      );
+    } finally {
+      cleanUp();
     }
   }, 30_000);
+
+  it('evicts a slot that hands back a different object on every read', async () => {
+    // The lazily defaulted accessor — no hostility required. The `scope` repair
+    // lands on that read's throwaway, so nothing looks wrong; then
+    // `withCreationScope` and `registerHook` read it again and get their own
+    // `AsyncLocalStorage` each, `getStore()` is `undefined` forever, and a scan
+    // with a created-but-not-exported registration came back `errors: []`.
+    const poison = [
+      `Object.defineProperty(globalThis, ${KEY}, {`,
+      `  configurable: true,`,
+      `  get() { return { nextOrder: 0, created: [] }; },`,
+      `  set() {},`,
+      `});`,
+      `export const nothing = 1;`,
+      ``,
+    ].join('\n');
+
+    try {
+      const poisoned = await writeHooks({ 'a-poison.ts': poison });
+      await loadUserHooks(poisoned, catalog);
+
+      const later = await writeHooks({ 'forgot.ts': forgets });
+      const result = await loadUserHooks(later, catalog);
+
+      expect(errorsOf(result).join('\n')).toContain('but not exported');
+    } finally {
+      cleanUp();
+    }
+  }, 30_000);
+
+  it('keeps the creation channel alive against an alternating `scope`', async () => {
+    // A getter honest on some reads and poison on the others passes
+    // `hookCreationLog`'s check on every scan and fails the collection read on
+    // every scan, so the channel dies quietly and permanently — no hang, no
+    // eviction, no diagnostic. Both parities, because which read lands on the
+    // honest branch is not something the loader gets to choose.
+    for (const parity of [0, 1]) {
+      const poison = [
+        `import { AsyncLocalStorage } from 'node:async_hooks';`,
+        `const real = new AsyncLocalStorage();`,
+        `const poison = { run() { return new Promise(() => {}); }, getStore() {} };`,
+        `let reads = 0;`,
+        `${slot} = {`,
+        `  nextOrder: 0,`,
+        `  created: [],`,
+        `  get scope() { reads += 1; return reads % 2 === ${parity} ? real : poison; },`,
+        `  set scope(value) {},`,
+        `};`,
+        `export const nothing = 1;`,
+        ``,
+      ].join('\n');
+
+      try {
+        const poisoned = await writeHooks({ 'a-poison.ts': poison });
+
+        await Promise.race([
+          loadUserHooks(poisoned, catalog),
+          new Promise((resolve) => setTimeout(resolve, 5_000)),
+        ]);
+
+        const later = await writeHooks({ 'forgot.ts': forgets });
+        const result = await Promise.race([
+          loadUserHooks(later, catalog),
+          new Promise<'wedged'>((resolve) =>
+            setTimeout(() => resolve('wedged'), 5_000),
+          ),
+        ]);
+
+        expect(result, `parity ${parity}`).not.toBe('wedged');
+        expect(
+          errorsOf(result as LoadUserHooksResult).join('\n'),
+          `parity ${parity}`,
+        ).toContain('but not exported');
+      } finally {
+        cleanUp();
+      }
+    }
+  }, 60_000);
 });

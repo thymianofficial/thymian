@@ -7,13 +7,12 @@ import type {
   BeforeEachRequestHook,
 } from './hook-types.js';
 import {
+  isArrayValue,
   isNullish,
   isWritableDataProperty,
   raw,
-  type Read,
   readProperty,
   typeOf,
-  type UserValue,
   userValue,
 } from './user-value.js';
 
@@ -275,33 +274,21 @@ function isUsableCreationLog(candidate: unknown): candidate is HookCreationLog {
     return false;
   }
 
-  // A number is not enough: `NaN`, `Infinity` and anything at or past 2^53 all
-  // pass `typeof`, and then `order + 1` either propagates `NaN` or **saturates**,
-  // so every registration in the file is stamped with the same index.
-  // `snapshotRegistration` maps `NaN`/`Infinity` to one shared
-  // `MAX_SAFE_INTEGER`, so the composition silently reorders with no diagnostic
-  // at all — measured, three hooks composed `321` instead of `123`, `errors: 0`.
-  // That is precisely the failure this counter exists to prevent.
+  // A `number` is all this asks, and all it needs to.
   //
-  // The bound is `< MAX_SAFE_INTEGER`, not `<=`: `MAX_SAFE_INTEGER` itself is a
-  // safe integer and passes every check above, and then `order + 1` is the
-  // first value that is not — so the counter stops advancing and every
-  // registration after the first is stamped identically. Measured with
-  // `nextOrder: Number.MAX_SAFE_INTEGER`: three hooks composed `132` instead of
-  // `123`, `errors: 0`. A usable counter is one whose *successor* exists.
-  const order = readProperty(slot, 'nextOrder');
-
-  return (
-    order.ok &&
-    Number.isSafeInteger(raw(order.value)) &&
-    !isNegative(order) &&
-    (raw(order.value) as number) < Number.MAX_SAFE_INTEGER
-  );
-}
-
-/** `value < 0` for a value already known to be a safe integer. */
-function isNegative(order: Read<UserValue>): boolean {
-  return order.ok && (raw(order.value) as number) < 0;
+  // Three rounds validated the *value* here — a safe integer, then non-negative,
+  // then below `MAX_SAFE_INTEGER` — because {@link registerHook} stamped the
+  // composition index from it, and a `NaN`, an `Infinity` or a saturating counter
+  // tied every registration in the file. It does not stamp from it any more: the
+  // index is realm-local, so this field is one this file writes and never reads.
+  // Keeping the checks would leave three conditions no behaviour depends on,
+  // which is the kind that survives every mutation and makes the next hole look
+  // guarded.
+  //
+  // The descriptor check above stays, and it was never about the number: it is
+  // the one cheap proof that this object will take a write at all, which is what
+  // installing a collection scope needs.
+  return true;
 }
 
 /**
@@ -330,7 +317,23 @@ function freshCreationLog(): HookCreationLog {
   };
 }
 
-/** Installs a fresh log in the slot, returning it. Never throws. */
+/**
+ * Installs a fresh log in the slot, returning it. Never throws.
+ *
+ * The write is read back, and a swallowed one is retried as a **data property
+ * definition**. `globalThis[key] = log` is an ordinary assignment, so against a
+ * slot defined as an accessor whose `set(){}` drops the value it reports success
+ * and changes nothing — and every caller reaches this function precisely because
+ * the slot needs replacing. Measured: the poisoned accessor survived both scans
+ * and the created-but-not-exported diagnostic stayed dead for the process, while
+ * the old comment claimed the reset had evicted it. `Object.defineProperty` is
+ * what actually replaces an accessor pair; assignment never can.
+ *
+ * When even that is refused — a non-configurable slot, or a frozen `globalThis`
+ * — the returned log is realm-local. Cross-realm creations are then missed and
+ * the diff under-reports: a diagnostic channel degrading, which is the trade
+ * this whole file makes deliberately, and the one case where it is forced.
+ */
 function resetCreationLog(): HookCreationLog {
   const log = freshCreationLog();
 
@@ -338,11 +341,24 @@ function resetCreationLog(): HookCreationLog {
 
   try {
     scope[HOOK_CREATION_LOG] = log;
+
+    if (scope[HOOK_CREATION_LOG] === log) {
+      return log;
+    }
   } catch {
-    // A non-writable slot (`Object.defineProperty(globalThis, key, {})`). The
-    // returned log is then realm-local, so cross-realm creations are missed and
-    // the created-but-not-exported diff under-reports — a diagnostic channel
-    // degrading, which is the trade this whole file makes deliberately.
+    // A non-writable data property throws here; `defineProperty` may still be
+    // able to replace it, so fall through rather than give up.
+  }
+
+  try {
+    Object.defineProperty(globalThis, HOOK_CREATION_LOG, {
+      configurable: true,
+      enumerable: false,
+      writable: true,
+      value: log,
+    });
+  } catch {
+    // Non-configurable, or a frozen `globalThis`. See the docblock.
   }
 
   return log;
@@ -355,6 +371,17 @@ function resetCreationLog(): HookCreationLog {
  * throwing is right because the log is a **diagnostic channel only** — never a
  * discovery fallback — so a poisoned slot costs the created-but-not-exported
  * diagnostic and nothing that binds a hook.
+ *
+ * **This function does not repair a slot in place, and deliberately so.** It
+ * used to install a missing or unusable `scope` by assignment — a write to a
+ * user-writable object that nobody read back, which is the whole defect this
+ * round opened with. Verifying that write closed it and then became dead the
+ * moment {@link withCreationScope} learned to replace an unusable slot instead
+ * of degrading: two mechanisms for one job, one of them untested, which is how
+ * a guard survives every mutation and makes the next hole look covered.
+ * Replacement is the single mechanism now, and it lives in the one place that
+ * can do it safely — never on the creation path, where a reset would throw away
+ * the collector the scan just opened.
  */
 export function hookCreationLog(): HookCreationLog {
   const scope: GlobalWithCreationLog = globalThis;
@@ -378,43 +405,49 @@ export function hookCreationLog(): HookCreationLog {
   }
 
   try {
+    // A slot that answers with a **different object on every read** is not a
+    // shared log at all, and it fails silently rather than loudly. The `scope`
+    // repair below lands on that read's throwaway, so nothing looks wrong; then
+    // `withCreationScope` and `registerHook` read it again and each get their
+    // own `AsyncLocalStorage`, so `getStore()` is `undefined` forever and every
+    // created-but-not-exported registration goes unreported — measured as
+    // `errors: []` on a scan that had one. A lazily defaulted accessor reaches
+    // this without any hostility at all. Replacing it puts a plain data property
+    // back, which is what makes the slot stable.
+    if (scope[HOOK_CREATION_LOG] !== existing) {
+      return resetCreationLog();
+    }
+  } catch {
+    return resetCreationLog();
+  }
+
+  try {
     // `instanceof`, not `??=`. This is the field the loader **calls**, and it
     // lives on a slot any hook file can write, so accepting whatever is there
-    // was the worst hole this story has had: one line assigning
-    // `{ scope: { run() { return undefined; } } }` made `withCreationScope`
-    // return `undefined` and a `TypeError` escape `loadUserHooks` entirely,
-    // and `{ run() { return new Promise(() => {}); } }` wedged **every future
-    // scan in the process** — permanently, because the slot outlives the scan.
-    // That is strictly worse than the module-global queue it replaced.
-    //
-    // The identity check is reliable here specifically because jiti evaluates
-    // in this process and shares Node's builtins, so `node:async_hooks` is one
-    // module and one class across the realm boundary the brand exists for.
+    // was the worst hole this story has had: `{ scope: { run() { return
+    // undefined; } } }` made a `TypeError` escape `loadUserHooks`, and
+    // `{ run() { return new Promise(() => {}); } }` wedged every future scan in
+    // the process. The identity check is reliable here specifically because
+    // jiti evaluates in this process and shares Node's builtins, so
+    // `node:async_hooks` is one module across the realm boundary the brand
+    // exists for.
     //
     // A slot installed by a runtime that predates this field is otherwise
     // perfectly usable and simply has nowhere to put a scope; repairing it in
-    // place is what keeps it working. Without that, such a slot silently
-    // disabled the whole channel for the rest of the process.
+    // place is what keeps that slot working instead of silently disabling the
+    // channel.
+    //
+    // **The write is best-effort and is deliberately not read back.** An
+    // earlier version of this round verified it, because a swallowing setter
+    // accepts the assignment and changes nothing — and then that branch became
+    // unreachable the moment {@link withCreationScope} learned to replace an
+    // unusable slot rather than degrade. Measured: removing the verification
+    // changed no test. Two mechanisms for one job, one of them untested, is how
+    // a guard survives every mutation while the next hole looks covered. The
+    // fallback is named rather than assumed: if this write does not land, the
+    // slot is replaced there.
     if (!(existing.scope instanceof AsyncLocalStorage)) {
       existing.scope = new AsyncLocalStorage();
-
-      // The repair is not done until the read agrees with the write.
-      //
-      // `scope` can be an **accessor**, and a `set scope(v) {}` that silently
-      // drops the value throws nothing — so the assignment above reported
-      // success while the getter kept handing back the original object.
-      // Measured with a getter returning `{ run: () => new Promise(() => {}) }`:
-      // `loadUserHooks` awaited forever, with no timeout and no diagnostic, and
-      // because the slot outlives the scan it wedged **every later scan in the
-      // process** as well — the exact failure the `instanceof` check above was
-      // added to close, walked around through the one write nobody checked.
-      //
-      // Resetting is what evicts it: `resetCreationLog` overwrites the
-      // `globalThis` property, so the poisoned object stops being reachable
-      // instead of merely being tolerated once.
-      if (!(existing.scope instanceof AsyncLocalStorage)) {
-        return resetCreationLog();
-      }
     }
   } catch {
     return resetCreationLog();
@@ -507,15 +540,30 @@ export async function withCreationScope<T>(
     }
   };
 
-  const scope = collectionScope(log);
+  // Replace, then ask once more — do not simply degrade.
+  //
+  // Reaching here means the slot handed back something that is not a collector:
+  // a log too old to have the field, or one whose `scope` did not survive the
+  // repair. Both were treated as "collect nothing this time", and both are
+  // properties of the *slot*, which outlives the scan — so every later scan in
+  // the process degraded the same way, silently, with no eviction and no
+  // diagnostic. A getter honest on odd reads and poison on even ones passes
+  // `hookCreationLog`'s check on every scan and fails here on every scan, which
+  // is exactly the permanent, quiet death the eviction rule exists to prevent.
+  //
+  // `resetCreationLog` installs a plain data property carrying a real
+  // `AsyncLocalStorage`, so the retry succeeds unless `globalThis` itself
+  // refuses the write — and even then the fresh log is realm-local with a
+  // working scope. Degrading is the last resort, not the first answer.
+  const scope = collectionScope(log) ?? collectionScope(resetCreationLog());
 
   if (scope === undefined) {
-    // Either a skewed log that predates the field, or a slot that did not hand
-    // back what it was repaired with. Creations are invisible to this
-    // evaluation and the diff under-reports — a diagnostic channel degrading,
-    // which is the trade this file makes deliberately. What it must never do is
-    // call whatever is sitting there: that is not a degraded diagnostic, it is
-    // an unbounded hang inside the loader.
+    // `globalThis` refused every write and the realm-local log is somehow not
+    // usable either. Creations are invisible to this evaluation and the diff
+    // under-reports — a diagnostic channel degrading, which is the trade this
+    // file makes deliberately. What it must never do is call whatever is
+    // sitting there: that is not a degraded diagnostic, it is an unbounded hang
+    // inside the loader.
     return await run();
   }
 
@@ -556,8 +604,33 @@ function recordCreation(
     // receiving creations made outside any scan. Bounded, because an unbounded
     // write-only array in a long-lived process retains every callback closure
     // that was ever registered.
-    if (log.created.length < MAX_UNSCOPED_CREATIONS) {
-      log.created.push(registration);
+    //
+    // Checked the same way `scope` is, and for the same reason: this is the
+    // *other* call on the creation path that reaches a container a hook file
+    // supplied. Routing `getStore` through {@link collectionScope} closed one and
+    // left its twin two lines below — and `{ nextOrder: 0, created: { length: 0,
+    // push(value) { … } } }` needs no accessor and no Proxy to reach it. Its
+    // `push` ran inside the loader: measured at 2 008 ms for a busy-wait, and
+    // never returning for `for (;;) {}`. The slot outlives the scan, so it ran
+    // again on the next, innocent one.
+    //
+    // `isArrayValue` — the guarded reader, because `Array.isArray` throws on a
+    // revoked Proxy — and the push goes through `Array.prototype`, so an own
+    // `push` on a real array is not the function called either. Both hold
+    // across the realm boundary because jiti shares Node's builtins in this
+    // process, the same fact `instanceof AsyncLocalStorage` rests on. A Proxy
+    // wrapping a real array still passes `Array.isArray` and can run a trap;
+    // that is the residual this file accepts everywhere, and building one takes
+    // deliberate effort.
+    const created = userValue(log.created);
+    const isArray = isArrayValue(created);
+
+    if (isArray.ok && isArray.value) {
+      const target = raw(created) as unknown[];
+
+      if (target.length < MAX_UNSCOPED_CREATIONS) {
+        Array.prototype.push.call(target, registration);
+      }
     }
   } catch {
     // See `isUsableCreationLog`: a Proxy can pass validation and still refuse
@@ -572,49 +645,34 @@ function recordCreation(
  * Freezing is what makes "inert data object" a property of the value rather than a
  * convention: nothing downstream can turn a registration into something with
  * behaviour.
- */
-/**
- * The index to stamp on the next registration.
  *
- * The realm-local counter is a **floor**, not merely the seed a replacement log
- * starts from. Nothing forces the slot's own counter to advance: a `globalThis`
- * accessor that builds a fresh `{ nextOrder: 0 }` on every read — a lazily
- * defaulted slot, not a hostile one — hands back zero every time, so every
- * registration in a file was stamped `0`. Ties do not degrade gracefully.
- * `Object.entries` on an ESM namespace yields **sorted** keys, so the creation
- * index is the only thing standing between the user's composition order and
- * alphabetical order by export name; measured, exports `one`/`two`/`three`
- * composed `132` with no diagnostic at all.
+ * **The index comes from {@link highestOrder} and from nowhere else.** Three
+ * rounds tried to derive it from the slot's own `nextOrder` — directly, then
+ * validated, then as a floor under a validated seed — and every one of them was
+ * still a number a hook file chose. Validating a seed proves it has *one*
+ * successor; a scan needs one per registration. So `MAX_SAFE_INTEGER - 1` passed
+ * every check and saturated on the third stamp: measured, four exports composed
+ * `1243`, and because the counter is per-scan rather than per-file, one poisoned
+ * file dragged an untouched sibling to `132`. There is no seed left to validate.
  *
- * Total by construction: a seed that is not a usable index is ignored rather
- * than propagated, because `Math.max(NaN, n)` is `NaN` and a `NaN` order is
- * exactly the collision this exists to prevent.
+ * Realm-local is enough, and it is exactly what the ordering contract needs: AC 2
+ * requires the index to be monotonic *within a file*, and a file's registrations
+ * are all stamped in the realm that evaluated it. `nextOrder` is still written,
+ * because it is part of the published `HookCreationLog` shape and a skewed
+ * runtime may read it — but nothing here reads it back, so a slot that refuses
+ * the write now costs nothing at all and needs no replacement.
  */
-function stampOrder(log: HookCreationLog): number {
-  const seed = log.nextOrder;
-
-  return Number.isSafeInteger(seed) && seed > highestOrder
-    ? seed
-    : highestOrder;
-}
-
 export function registerHook(draft: HookRegistrationDraft): HookRegistration {
-  let log = hookCreationLog();
-  let order = 0;
+  const log = hookCreationLog();
+  const order = highestOrder;
+
+  highestOrder = order + 1;
 
   try {
-    order = stampOrder(log);
     log.nextOrder = order + 1;
   } catch {
-    // Validation is structural, so a Proxy can pass it and still refuse the
-    // write. Reset and retry once rather than let a poisoned slot stamp every
-    // registration with the same order — which would silently reorder the
-    // user's `beforeEach` composition, the one thing this counter exists for.
-    // The fresh log resumes from {@link highestOrder}, so a replacement cannot
-    // restart the composition index at zero.
-    log = resetCreationLog();
-    order = stampOrder(log);
-    log.nextOrder = order + 1;
+    // Frozen, sealed, getter-only, or a Proxy that refuses. Nothing stamps from
+    // this field, so there is nothing to recover.
   }
 
   // One cast, here: TypeScript cannot see that spreading a member of the draft
@@ -626,8 +684,6 @@ export function registerHook(draft: HookRegistrationDraft): HookRegistration {
     order,
     [HOOK_REGISTRATION]: true,
   }) as HookRegistration;
-
-  highestOrder = Math.max(highestOrder, order + 1);
 
   recordCreation(log, registration);
 
