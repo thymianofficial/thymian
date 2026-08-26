@@ -9,6 +9,7 @@ import { compile, type JSONSchema } from 'json-schema-to-typescript';
 
 import { assertEmittedNamesWereIssued } from '../generation/types/emitted-names.js';
 import {
+  foldExtendsInPlace,
   safeIdentifier,
   stripNameKeywordsInPlace,
 } from '../generation/types/type-names.js';
@@ -44,6 +45,13 @@ export async function generateTypeForSchema(
   // rather than by luck.
   const prepared: unknown = structuredClone(schema);
 
+  // `extends` is the one library-parsed position the strip cannot enter — an
+  // unnamed super-type makes the library emit `extends  {` and its formatter
+  // throw. Folding it into `allOf` moves it INTO the walk, so the super-type is
+  // stripped like any other subschema instead of naming a declaration, and its
+  // members survive. Must run before the strip, so the title it carries is gone
+  // by the time `compile()` sees it.
+  foldExtendsInPlace(prepared);
   stripNameKeywordsInPlace(prepared);
 
   const compilable = convertDefsToDefinitions(prepared);

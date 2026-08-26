@@ -22,6 +22,7 @@ import {
 } from '../src/generation/types/schema-definitions.js';
 import {
   assignUniqueNames,
+  foldExtendsInPlace,
   NameRegistry,
   safeIdentifier,
   stripIdentityNoiseInPlace,
@@ -292,9 +293,11 @@ describe('stripNameKeywordsInPlace', () => {
   });
 
   /**
-   * The control. Removing a super-type's name does not fix a hazard, it breaks
-   * a description that works: the library renders `extends  {` and its own
-   * formatter throws. `emitted-names.ts` covers the naming hazard here instead.
+   * The control, and it is about THIS pass only. Removing a super-type's name in
+   * place would break a description that works — the library renders
+   * `extends  {` and its own formatter throws. The hazard is closed one step
+   * earlier instead, by {@link foldExtendsInPlace}, which moves the super-type
+   * into `allOf` where this walk reaches it normally.
    */
   it('leaves a super-type its name, because an unnamed one cannot be emitted', () => {
     const schema = schemaWithNameKeywordsEverywhere();
@@ -670,29 +673,25 @@ describe('the strip, against the real generator', () => {
   });
 
   /**
-   * `extends` is the position the strip does NOT enter, so this is the
-   * postcondition doing the work end to end: the hijacked name never reaches a
-   * committed file, and the abort is a named Thymian error rather than the raw
-   * prettier `SyntaxError` a strip here would have produced.
+   * Round 4 asserted a hard ABORT here. Round 5 reversed that — see
+   * `foldExtendsInPlace`: the description compiled correctly before the abort
+   * was introduced, so the abort was the regression. The super-type is now
+   * folded into `allOf`, which the strip does enter.
    */
-  it('aborts on a title inside extends, rather than declaring it', async () => {
-    await expect(
-      generateTypeForSchema(
-        {
-          type: 'object',
-          properties: { a: { type: 'string' } },
-          extends: [
-            {
-              title: 'HijackExtends',
-              type: 'object',
-              properties: { b: { type: 'string' } },
-            },
-          ],
-        },
-        'application/json',
-        'GetPets200ResponseBody',
-      ),
-    ).rejects.toThrow(/"HijackExtends"/);
+  it('does not let a title inside extends declare an interface', async () => {
+    expect(
+      await declaredNames({
+        type: 'object',
+        properties: { a: { type: 'string' } },
+        extends: [
+          {
+            title: 'HijackExtends',
+            type: 'object',
+            properties: { b: { type: 'string' } },
+          },
+        ],
+      }),
+    ).toEqual(['GetPets200ResponseBody']);
   });
 
   it('does not let a title inside array-form items declare an interface', async () => {
@@ -1957,5 +1956,91 @@ describe('the surface reserves every name the emitted file depends on', () => {
     expect(source).toMatch(
       /registry\.reserve\(\[\.\.\.Object\.values\(ALIAS\), 'Record'\]\)/,
     );
+  });
+});
+
+/**
+ * Round 5's verdict on `extends`, and it reversed round 4's.
+ *
+ * Round 4 left `extends` outside the name strip and let the postcondition abort
+ * on a `title` there. That turned a description which COMPILED CORRECTLY into a
+ * hard failure: measured, `extends: [{title: 'Owner', …}]` emits
+ * `interface Root extends Owner` plus a correctly-bodied `interface Owner`,
+ * `tsc`-clean. Rounds 1-3 each turned a SILENTLY WRONG file into a loud abort;
+ * this one turned a RIGHT file into an abort, which is not the same trade.
+ *
+ * The reviewer's remedy — delete `extends` at the compile boundary — was tested
+ * and rejected: it drops the super-type's members from the emitted type with no
+ * diagnostic at all, so a hook author silently loses `h`. Trading a working file
+ * for silent data loss is worse than the abort it replaces.
+ *
+ * Folding `extends` into `allOf` is what survived. `allOf` IS a position the
+ * strip walks, so the name is removed rather than declared; the members are
+ * preserved; and nothing aborts. Draft-03 `extends` and `allOf` mean the same
+ * thing, so this is a spelling change, not a semantic one.
+ */
+describe('a super-type is folded into allOf, not left to name itself', () => {
+  const withSuperType = {
+    type: 'object',
+    properties: { a: { type: 'string' } },
+    extends: [
+      {
+        title: 'Owner',
+        type: 'object',
+        properties: { h: { type: 'string' } },
+      },
+    ],
+  };
+
+  it('keeps the super-type members and declares nothing for its title', async () => {
+    const generated = await generateTypeForSchema(
+      structuredClone(withSuperType),
+      'application/json',
+      'GetPets200ResponseBody',
+    );
+    const text = generated.declarations.join('\n');
+
+    expect(text).toContain('h?: string');
+    expect(text).toContain('a?: string');
+    expect(
+      generated.declarations
+        .flatMap((declaration) => splitDeclarations(declaration))
+        .map(identifierOf),
+    ).toEqual(['GetPets200ResponseBody']);
+  });
+
+  it('folds a nested super-type too', () => {
+    const schema = {
+      type: 'object',
+      properties: {
+        inner: {
+          type: 'object',
+          extends: [{ title: 'Deep', type: 'object', properties: {} }],
+        },
+      },
+    };
+
+    foldExtendsInPlace(schema);
+
+    expect(JSON.stringify(schema)).not.toContain('extends');
+    expect(JSON.stringify(schema)).toContain('allOf');
+  });
+
+  it('appends to an allOf that is already there', () => {
+    const schema = {
+      allOf: [{ type: 'object', properties: { first: { type: 'string' } } }],
+      extends: { type: 'object', properties: { second: { type: 'string' } } },
+    };
+
+    foldExtendsInPlace(schema);
+
+    expect((schema as { allOf: unknown[] }).allOf).toHaveLength(2);
+  });
+
+  it('leaves an extends that is not a schema alone', () => {
+    const schema = { extends: 'not-a-schema' };
+
+    expect(() => foldExtendsInPlace(schema)).not.toThrow();
+    expect(schema.extends).toBe('not-a-schema');
   });
 });

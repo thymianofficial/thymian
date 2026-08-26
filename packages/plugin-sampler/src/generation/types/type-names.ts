@@ -490,6 +490,52 @@ const IDENTITY_NOISE_KEYWORDS: readonly string[] = [
  * `description` is deliberately NOT removed either: it is the keyword the
  * library turns into a JSDoc comment, and AC8 wants that comment in the surface.
  */
+/**
+ * Rewrites every `extends` into an equivalent `allOf`, everywhere in the tree.
+ *
+ * WHY THIS EXISTS, AND WHY IT IS NOT A STRIP. `extends` is the one position the
+ * library PARSES as a subschema that {@link walkSubschemaNodes} does not enter,
+ * so a `title` there declared an interface nothing reserved. Round 4 left it and
+ * let the postcondition abort. That was the wrong trade: measured, a named
+ * super-type compiles CORRECTLY today (`interface Root extends Owner` plus a
+ * well-formed `Owner`), so the abort broke a working description — where rounds
+ * 1-3 each replaced a silently WRONG file with a loud failure.
+ *
+ * Deleting `extends` was tested and rejected: it drops the super-type's members
+ * from the emitted type with no diagnostic, which trades a working file for
+ * silent data loss.
+ *
+ * Folding is what survived. Draft-03 `extends` and `allOf` express the same
+ * thing, `allOf` IS in the walk, so the name is stripped like any other, and the
+ * members are preserved — verified end to end. Run BEFORE the name strip, so the
+ * super-type's `title` is removed as part of the `allOf` it now sits in.
+ *
+ * A non-schema `extends` is left exactly as it was: this pass normalises a
+ * position it understands and never invents an interpretation for one it does
+ * not.
+ */
+export function foldExtendsInPlace(node: unknown): void {
+  walkSubschemaNodes(node, (schema) => {
+    const superTypes = schema['extends'];
+    const folded = Array.isArray(superTypes)
+      ? superTypes.filter((entry) => isSchemaObject(entry))
+      : isSchemaObject(superTypes)
+        ? [superTypes]
+        : undefined;
+
+    if (folded === undefined || folded.length === 0) {
+      return;
+    }
+
+    const existing = schema['allOf'];
+
+    schema['allOf'] = Array.isArray(existing)
+      ? [...folded, ...existing]
+      : folded;
+    delete schema['extends'];
+  });
+}
+
 export function stripNameKeywordsInPlace(node: unknown): void {
   stripKeywordsInPlace(node, NAME_KEYWORDS);
 }

@@ -13,6 +13,10 @@ import { createHttpRequest, createHttpResponse } from '@thymian/core-testing';
 import { Project, type SourceFile, SyntaxKind } from 'ts-morph';
 import { describe, expect, it } from 'vitest';
 
+import {
+  identifierOf,
+  splitDeclarations,
+} from '../src/generation/types/declaration-set.js';
 import { generateRequestTypesSurface } from '../src/generation/types/generate-request-types-surface.js';
 import {
   parseSelector,
@@ -3086,62 +3090,65 @@ describe('generateRequestTypesSurface', () => {
 });
 
 /**
- * Round 5. The defect a per-`compile()` postcondition structurally cannot see:
- * one `$defs` entry reaching the surface under two DIFFERENT identifiers across
- * two transactions, so the file carries two `export interface Owner` bodies.
- * `tsc` reports `TS2374` on it, which means it is not the silent class — but it
- * IS a committed file that does not compile, and nothing in the generator
- * noticed until `DeclarationSet` was taught to.
+ * Round 5, end to end. This fixture is the one the review reproduced a broken
+ * surface with: a `title` inside `extends` declared a second `Owner`, so the
+ * committed file carried two `export interface Owner` bodies and `tsc` reported
+ * `TS2374`. Both halves of the fix are asserted here — the super-type is folded
+ * into `allOf` so it declares nothing, and the shared `$defs.Owner` is emitted
+ * exactly once for both transactions.
  *
- * `extends` supplies the second `Owner`: it is the one library-parsed position
- * the name strip deliberately does not enter, so a `title` there still declares.
+ * The cross-`compile()` duplicate check that `DeclarationSet` now performs is
+ * unit-tested separately; this asserts that the shape which used to reach it no
+ * longer produces a duplicate at all.
  */
-describe('one identifier with two bodies is refused (AC7)', () => {
-  it('aborts rather than emitting a file that cannot compile', async () => {
+describe('a super-type never mints a second declaration (AC7)', () => {
+  it('emits one Owner for two transactions, and keeps the super-type members', async () => {
     const owner: ThymianSchema = {
       type: 'object',
       properties: { z: { type: 'string' } },
     };
-
-    const error = await catchAsyncError(() =>
-      surfaceOf([
-        {
-          path: '/a',
-          status: 201,
-          requestMediaType: 'application/json',
-          requestBody: {
-            type: 'object',
-            properties: {
-              first: {
-                type: 'object',
-                properties: { x: { type: 'string' } },
-                extends: [
-                  {
-                    title: 'Owner',
-                    type: 'object',
-                    properties: { h: { type: 'string' } },
-                  },
-                ],
-              },
-              second: { $ref: '#/$defs/Owner' },
+    const surface = await surfaceOf([
+      {
+        path: '/a',
+        status: 201,
+        requestMediaType: 'application/json',
+        requestBody: {
+          type: 'object',
+          properties: {
+            first: {
+              type: 'object',
+              properties: { x: { type: 'string' } },
+              extends: [
+                {
+                  title: 'Owner',
+                  type: 'object',
+                  properties: { h: { type: 'string' } },
+                },
+              ],
             },
-            $defs: { Owner: owner },
-          } as ThymianSchema,
-        },
-        {
-          path: '/b',
-          status: 201,
-          requestMediaType: 'application/json',
-          requestBody: {
-            type: 'object',
-            properties: { second: { $ref: '#/$defs/Owner' } },
-            $defs: { Owner: owner },
-          } as ThymianSchema,
-        },
-      ]),
-    );
+            second: { $ref: '#/$defs/Owner' },
+          },
+          $defs: { Owner: owner },
+        } as ThymianSchema,
+      },
+      {
+        path: '/b',
+        status: 201,
+        requestMediaType: 'application/json',
+        requestBody: {
+          type: 'object',
+          properties: { second: { $ref: '#/$defs/Owner' } },
+          $defs: { Owner: owner },
+        } as ThymianSchema,
+      },
+    ]);
 
-    expect(error.name).toBe('DuplicateDeclarationError');
-    expect(error.message).toContain('Owner');
+    const owners = splitDeclarations(surface)
+      .map(identifierOf)
+      .filter((name) => /^Owner/.test(name));
+
+    expect(owners).toEqual(['Owner']);
+    // The super-type's own member survived the fold rather than being dropped.
+    expect(surface).toContain('h?: string');
   });
 });
