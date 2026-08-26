@@ -1,34 +1,42 @@
-import { existsSync, readFileSync, realpathSync } from 'node:fs';
-import { builtinModules, createRequire } from 'node:module';
-import { tmpdir } from 'node:os';
+import { realpathSync, statSync } from 'node:fs';
+import { createRequire } from 'node:module';
+import { homedir } from 'node:os';
 import * as path from 'node:path';
 import { pathToFileURL } from 'node:url';
 
 import type { Jiti } from 'jiti';
-import * as resolveExports from 'resolve.exports';
 
 import { ThymianBaseError } from './thymian.error.js';
 
-// The resolution contract implemented here is normative and epic-level
-// (GitHub issue thymianofficial/thymian-internal#725 §4) — it is not to be
-// redefined by any consumer. A specifier is exactly one of two kinds,
-// decided syntactically: local (./, ../, or absolute) or bare (everything
-// else, resolved as an installed package).
+// A user-supplied specifier is exactly one of two kinds, decided
+// syntactically: LOCAL (./, ../, or absolute — a path into the current
+// project) or BARE (everything else — an installed package). Both are
+// resolved with Node's own resolver and loaded with native `import()`; the
+// only special case is a LOCAL `.ts` file, which is transpiled with jiti.
+//
+//   - from node_modules (bare): resolves to .js / .mjs / .cjs only
+//     (a package shipping unbuilt .ts source is declined)
+//   - from the current project (local): .js / .mjs / .cjs / .ts, and the
+//     path must carry an explicit file extension (no extensionless / index
+//     / directory guessing)
 
 export type UserModuleResolution =
   { ok: true; path: string } | { ok: false; reason?: string };
 
-const LOADABLE_EXTENSIONS = new Set(['.ts', '.js', '.mjs', '.cjs']);
 const JS_EXTENSIONS = new Set(['.js', '.mjs', '.cjs']);
-const BUILTIN_MODULES = new Set(builtinModules);
+const LOADABLE_EXTENSIONS = new Set(['.ts', ...JS_EXTENSIONS]);
 
 /**
- * The one shared loadable-extension / declaration-file predicate (§4.6).
- * Consumers (the rule-set glob filter, the plugin loader) call this rather
- * than hand-copying the check. Operates on a path string alone — it does
- * not touch the filesystem, so it also guards `loadUserModule` against
- * being called directly with an unloadable kind (the load half cannot
- * bypass the resolve half's guards).
+ * The shared loadable-extension / declaration-file predicate. Returns a
+ * framed reason string when `filePath` is not a loadable kind, or `undefined`
+ * when it is. Operates on the path string alone (no filesystem access), so it
+ * is reused by both halves of this module: `resolveLocal` guards the requested
+ * path AND its realpath with it, and `loadUserModule` re-applies it so a
+ * direct call cannot bypass the resolve half's decisions.
+ *
+ * Exported for the later consumers that will share this exact check rather
+ * than hand-copying it — the rule-set glob filter (story 725.3) and the plugin
+ * loader (story 725.2) — neither of which is wired up in this change yet.
  */
 export function unloadableReason(filePath: string): string | undefined {
   const base = path.basename(filePath);
@@ -94,39 +102,17 @@ function isLocalSpecifier(specifier: string): boolean {
   );
 }
 
-function isNodeBuiltin(nameOrSpecifier: string): boolean {
-  const bare = nameOrSpecifier.startsWith('node:')
-    ? nameOrSpecifier.slice('node:'.length)
-    : nameOrSpecifier;
-
-  return BUILTIN_MODULES.has(bare);
-}
-
-function splitPackageSpecifier(specifier: string): {
-  name: string;
-  subpath: string;
-} {
-  const parts = specifier.split('/');
-
-  if (specifier.startsWith('@')) {
-    return {
-      name: parts.slice(0, 2).join('/'),
-      subpath: parts.slice(2).join('/'),
-    };
-  }
-
-  return { name: parts[0] ?? specifier, subpath: parts.slice(1).join('/') };
-}
-
 function resolveLocal(specifier: string, cwd: string): UserModuleResolution {
   const requestedAbsolute = path.isAbsolute(specifier)
     ? specifier
     : path.resolve(cwd, specifier);
 
-  const reason = unloadableReason(requestedAbsolute);
+  // Guard the requested path: local specifiers must carry an explicit,
+  // loadable extension (no extensionless / index / directory guessing).
+  const requestedReason = unloadableReason(requestedAbsolute);
 
-  if (reason) {
-    return { ok: false, reason };
+  if (requestedReason) {
+    return { ok: false, reason: requestedReason };
   }
 
   let canonical: string;
@@ -135,14 +121,41 @@ function resolveLocal(specifier: string, cwd: string): UserModuleResolution {
     canonical = realpathSync.native(requestedAbsolute);
   } catch {
     // Does not exist (or is unreachable) — an ordinary "not found", which
-    // the caller can phrase itself; no reason needed here (§4.4).
+    // the caller can phrase itself; no reason needed here.
     return { ok: false };
+  }
+
+  // Guard the RESOLVED target too: a symlink may point at an unloadable kind
+  // (e.g. `./alias.ts` -> `real.d.ts` / `real.mts`), which must be declined
+  // here — not surface later as a differently-framed load error.
+  const canonicalReason = unloadableReason(canonical);
+
+  if (canonicalReason) {
+    return { ok: false, reason: canonicalReason };
   }
 
   const casingReason = miscasedExtension(requestedAbsolute, canonical);
 
   if (casingReason) {
     return { ok: false, reason: casingReason };
+  }
+
+  // Reject a directory whose name merely ends in a loadable extension (e.g. a
+  // directory literally named `x.js`) — the extension check alone would pass
+  // it, and it would then surface a raw ERR_UNSUPPORTED_DIR_IMPORT downstream.
+  let stats: ReturnType<typeof statSync>;
+
+  try {
+    stats = statSync(canonical);
+  } catch {
+    return { ok: false };
+  }
+
+  if (!stats.isFile()) {
+    return {
+      ok: false,
+      reason: `"${specifier}" resolves to "${path.basename(canonical)}", which is not a regular file.`,
+    };
   }
 
   return { ok: true, path: canonical };
@@ -168,155 +181,63 @@ function getUserRequire(cwd: string): NodeJS.Require {
   return anchoredRequire;
 }
 
-// Core's own install directory — the second bare-specifier anchor (§4.1).
+// Core's own install directory — the second bare-specifier anchor.
 const coreRequire = createRequire(import.meta.url);
 
-type PackageJson = Record<string, unknown> & { name?: string };
-
-type LocatePackageResult =
-  | { kind: 'found'; root: string; pkg: PackageJson }
-  | { kind: 'broken'; reason: string }
-  | { kind: 'not-found' };
-
-// Finds a package by locating its package.json ON DISK along the anchor's
-// node_modules search paths. We deliberately do NOT resolve the
-// `<pkg>/package.json` subpath through `require.resolve`: that subpath is
-// itself gated by the package's own `exports` map, so a package that restricts
-// `exports` and does not list `"./package.json"` (a common, perfectly loadable
-// shape) would be wrongly reported "installed but broken" even though `import()`
-// loads it fine. Reading the file directly matches Node's actual notion of
-// "installed" — a package exists if `node_modules/<name>/package.json` exists —
-// while the *entry* is still resolved through `exports` by the caller.
-//
-// "Not installed" (not-found) stays distinct from "installed but broken"
-// (present, but package.json is not valid JSON) — the latter is reported, not
-// silently treated as "not found" (§4.4).
-function locatePackage(
-  anchoredRequire: NodeJS.Require,
-  packageName: string,
-): LocatePackageResult {
-  // resolve.paths returns the node_modules dirs to search, nearest first
-  // (null only for builtins/relative/absolute, which never reach here).
-  const searchPaths = anchoredRequire.resolve.paths(packageName) ?? [];
-
-  for (const nodeModulesDir of searchPaths) {
-    const packageJsonPath = path.join(
-      nodeModulesDir,
-      packageName,
-      'package.json',
-    );
-
-    if (!existsSync(packageJsonPath)) {
-      continue;
-    }
-
-    let pkg: PackageJson;
-
-    try {
-      pkg = JSON.parse(readFileSync(packageJsonPath, 'utf8')) as PackageJson;
-    } catch (error) {
-      return {
-        kind: 'broken',
-        reason: `"${packageName}" is installed but broken: its package.json at "${packageJsonPath}" is not valid JSON (${describeUnexpectedError(error)})`,
-      };
-    }
-
-    return { kind: 'found', root: path.dirname(packageJsonPath), pkg };
-  }
-
-  return { kind: 'not-found' };
-}
-
+// Resolves a bare specifier (an installed package) with Node's OWN resolver,
+// `require.resolve`, from two anchors in order: the user's project, then
+// core's install dir. Using the native resolver — rather than reimplementing
+// package resolution — means `exports`/`main`/legacy-`index`/deep subpaths,
+// and resolver hooks such as Yarn PnP, all behave exactly as Node does
+// elsewhere. We only add the loadable-set policy on top: the resolved file
+// must be built JavaScript (.js/.mjs/.cjs); a package shipping unbuilt .ts
+// source is declined. (A bare specifier is loaded with native `import()`, so
+// jiti is never reached for it.)
 function resolveBare(specifier: string, cwd: string): UserModuleResolution {
-  if (isNodeBuiltin(specifier)) {
-    return {
-      ok: false,
-      reason: `"${specifier}" is a Node.js builtin module — builtins are not loadable user modules.`,
-    };
-  }
-
-  const { name, subpath } = splitPackageSpecifier(specifier);
-
-  if (isNodeBuiltin(name)) {
-    return {
-      ok: false,
-      reason: `"${specifier}" is a Node.js builtin module — builtins are not loadable user modules.`,
-    };
-  }
-
   const anchors = [getUserRequire(cwd), coreRequire];
-  let located: { root: string; pkg: PackageJson } | undefined;
-  let brokenReason: string | undefined;
+  let resolved: string | undefined;
+  let installedButUnresolvable: string | undefined;
 
   for (const anchoredRequire of anchors) {
-    const result = locatePackage(anchoredRequire, name);
-
-    if (result.kind === 'found') {
-      located = result;
-      break;
-    }
-
-    if (result.kind === 'broken' && !brokenReason) {
-      brokenReason = result.reason;
-    }
-  }
-
-  if (!located) {
-    // Not installed under either anchor — an ordinary "not found" (§4.4) —
-    // unless one anchor found it installed but broken, which is reported.
-    return brokenReason ? { ok: false, reason: brokenReason } : { ok: false };
-  }
-
-  const { root, pkg } = located;
-  const entry = subpath ? `./${subpath}` : '.';
-  let relativeTarget: string | undefined;
-
-  if (pkg.exports !== undefined && pkg.exports !== null) {
-    // `exports` may be a string, an object, or an array of fallbacks — all
-    // three are valid and all three are handled by resolve.exports (an
-    // object-only guard would silently skip the array form).
     try {
-      // Conditions are passed explicitly to pin the normative §4.1 set
-      // (`['node','import','default']`) rather than leaning on the library's
-      // current default, so a future resolve.exports default change cannot
-      // silently drift the contract.
-      const matches = resolveExports.exports(pkg, entry, {
-        conditions: ['node', 'import', 'default'],
-      });
-
-      relativeTarget = matches?.[0];
+      resolved = anchoredRequire.resolve(specifier);
+      break;
     } catch (error) {
-      return {
-        ok: false,
-        reason: `"${specifier}" is installed but its "exports" map does not provide "${entry}": ${(error as Error).message}`,
-      };
+      if (isModuleNotFound(error)) {
+        // Not installed under this anchor — try the next one.
+        continue;
+      }
+
+      // Installed, but Node's resolver refused it (e.g. its `exports` map
+      // provides no Node/CJS entry, or its package.json is invalid). Report
+      // that rather than silently treating it as "not found".
+      installedButUnresolvable ??= `"${specifier}" is installed but could not be resolved: ${describeUnexpectedError(error)}`;
     }
   }
 
-  if (!relativeTarget) {
-    if (subpath) {
-      // No exports map and a deep subpath was requested: legacy fields
-      // (main) only ever describe the package root, so there is nothing to
-      // resolve a deep import against — treat as "not found" rather than
-      // guessing.
-      return { ok: false };
-    }
-
-    relativeTarget =
-      typeof pkg.main === 'string' && pkg.main.length > 0
-        ? pkg.main
-        : 'index.js';
+  if (resolved === undefined) {
+    return installedButUnresolvable
+      ? { ok: false, reason: installedButUnresolvable }
+      : { ok: false };
   }
 
-  const absoluteTarget = path.resolve(root, relativeTarget);
+  // `require.resolve` returns a bare id (not an absolute path) for a Node
+  // builtin — builtins are not loadable user modules.
+  if (!path.isAbsolute(resolved)) {
+    return {
+      ok: false,
+      reason: `"${specifier}" is a Node.js builtin module — builtins are not loadable user modules.`,
+    };
+  }
+
   let canonical: string;
 
   try {
-    canonical = realpathSync.native(absoluteTarget);
+    canonical = realpathSync.native(resolved);
   } catch {
     return {
       ok: false,
-      reason: `"${specifier}" is installed but its resolved entry "${relativeTarget}" does not exist on disk.`,
+      reason: `"${specifier}" resolved to "${resolved}", which does not exist on disk.`,
     };
   }
 
@@ -337,6 +258,13 @@ function resolveBare(specifier: string, cwd: string): UserModuleResolution {
   }
 
   return { ok: true, path: canonical };
+}
+
+function isModuleNotFound(error: unknown): boolean {
+  return (
+    error instanceof Error &&
+    (error as NodeJS.ErrnoException).code === 'MODULE_NOT_FOUND'
+  );
 }
 
 function describeUnexpectedError(error: unknown): string {
@@ -363,13 +291,15 @@ export function resolveUserModule(
 }
 
 // jiti transpile-cache location (epic #725 §7 — a required, documented
-// decision, not an inherited default): jiti's own default prefers
-// `<cwd>/node_modules/.cache/jiti` when that directory already exists and
-// falls back to the OS tmp dir otherwise — an environment-dependent split.
-// We pin it to a single, predictable location under the OS tmp dir instead,
-// so transpiled user rule/plugin source never lands inside the user's own
-// project tree regardless of what happens to exist on disk.
-const JITI_FS_CACHE_DIR = path.join(tmpdir(), 'thymian-jiti-cache');
+// decision). It is deliberately placed under the current user's home cache
+// directory rather than the OS tmp dir. A fixed path in the shared OS tmp dir
+// (e.g. `/tmp/...` on Linux) is world-writable, so a local attacker who knows
+// a rule's path and public source can pre-seed a poisoned cache entry that the
+// victim then executes — jiti reads a cache file back whenever its trailing
+// version/source hash matches. A per-user location under `homedir()` keeps the
+// cache predictable (the reason for pinning it) while staying inside the
+// user's own permission domain, where other users cannot plant entries.
+const JITI_FS_CACHE_DIR = path.join(homedir(), '.cache', 'thymian', 'jiti');
 
 let jitiPromise: Promise<Jiti> | undefined;
 
@@ -424,7 +354,9 @@ export async function loadUserModule(canonicalPath: string): Promise<unknown> {
       suggestions: [
         'Rules, rule sets, and plugins must be a .ts, .js, .mjs, or .cjs file — not .d.ts, .mts, or .cts.',
       ],
-      ref: 'https://thymian.dev/references/errors/user-module-load-error/',
+      // Reuses the existing rule-load-error reference page; a dedicated
+      // user-module-load-error page ships with the docs work (story 725.5).
+      ref: 'https://thymian.dev/references/errors/rule-load-error/',
     });
   }
 

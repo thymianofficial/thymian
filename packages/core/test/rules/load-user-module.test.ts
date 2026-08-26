@@ -1,4 +1,11 @@
-import { mkdtempSync, realpathSync, rmSync, writeFileSync } from 'node:fs';
+import {
+  mkdirSync,
+  mkdtempSync,
+  realpathSync,
+  rmSync,
+  symlinkSync,
+  writeFileSync,
+} from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
@@ -148,11 +155,29 @@ describe('resolveUserModule — bare specifiers (§4.1)', () => {
     expect(reasonOf(result)).toMatch(/builtin/);
   });
 
-  it('reports an installed-but-broken package.json rather than treating it as "not found"', () => {
+  it('reports an installed-but-unresolvable package (invalid package.json) rather than treating it as "not found"', () => {
     const result = resolveUserModule('broken-pkg', { cwd: projectDir });
 
     expect(result.ok).toBe(false);
-    expect(reasonOf(result)).toMatch(/installed but broken/);
+    expect(reasonOf(result)).toMatch(/installed but could not be resolved/);
+  });
+
+  it('resolves a CJS-only package (require-condition exports) — native resolution keeps CJS rule packages loadable', () => {
+    const result = resolveUserModule('cjs-only-pkg', { cwd: projectDir });
+
+    expect(result).toEqual({
+      ok: true,
+      path: fixtures.packageFile('cjs-only-pkg', 'index.cjs'),
+    });
+  });
+
+  it('resolves a legacy extensionless `main` the way Node does (main:"./index" -> index.js)', () => {
+    const result = resolveUserModule('legacy-main-pkg', { cwd: projectDir });
+
+    expect(result).toEqual({
+      ok: true,
+      path: fixtures.packageFile('legacy-main-pkg', 'index.js'),
+    });
   });
 
   it('reports a genuinely uninstalled bare specifier as "not found" with no reason', () => {
@@ -301,6 +326,22 @@ describe('loadUserModule — a rejected load is evicted, not pinned forever', ()
   });
 });
 
+// Creates a symlink, returning false when the platform refuses (Windows
+// runners default to core.symlinks=false / lack the privilege — EPERM/ENOSYS).
+// Callers skip the assertion in that case rather than fail CI.
+function trySymlink(target: string, linkPath: string): boolean {
+  try {
+    symlinkSync(target, linkPath);
+    return true;
+  } catch (error) {
+    const code = (error as NodeJS.ErrnoException).code;
+    if (code === 'EPERM' || code === 'ENOSYS' || code === 'EACCES') {
+      return false;
+    }
+    throw error;
+  }
+}
+
 describe('AC6: canonicalise once — two spellings of the same file resolve to the identical realpath', () => {
   // This proves the canonicalisation half of AC6 (resolveUserModule's job).
   // It does NOT by itself prove exactly-once execution: once both spellings
@@ -311,16 +352,36 @@ describe('AC6: canonicalise once — two spellings of the same file resolve to t
   // guarantee (loadUserModule's job, §4.5) is instead proven by spying on
   // the underlying loader's call count directly, in
   // load-user-module-ts-uses-jiti.test.ts.
+  //
+  // The symlink is created at RUNTIME (skipped where the platform refuses)
+  // rather than committed to the repo — a committed symlink is checked out as
+  // a plain text file on Windows runners and breaks the build.
+  let tmpDir: string;
+
+  beforeEach(() => {
+    tmpDir = realpathSync.native(mkdtempSync(join(tmpdir(), 'thymian-ac6-')));
+  });
+
+  afterEach(() => {
+    rmSync(tmpDir, { recursive: true, force: true });
+  });
+
   it('runs the module top-level body exactly once for two spellings of the same file, loaded concurrently', async () => {
+    const real = join(tmpDir, 'counter.rule.mjs');
+    const link = join(tmpDir, 'counter-link.rule.mjs');
+    writeFileSync(
+      real,
+      `globalThis.__resolverSeamCounterRuns = (globalThis.__resolverSeamCounterRuns ?? 0) + 1;\nexport default { meta: { name: 'counter', severity: 'off', type: [], tags: [], options: {} } };\n`,
+    );
+
+    if (!trySymlink(real, link)) {
+      return; // platform without symlink support — covered elsewhere
+    }
+
     delete (globalThis as Record<string, unknown>).__resolverSeamCounterRuns;
 
-    const direct = resolveUserModule('./fixtures/rules/counter.rule.mjs', {
-      cwd: basePath,
-    });
-    const viaSymlink = resolveUserModule(
-      './fixtures/rules/counter-link.rule.mjs',
-      { cwd: basePath },
-    );
+    const direct = resolveUserModule(real, { cwd: tmpDir });
+    const viaSymlink = resolveUserModule(link, { cwd: tmpDir });
 
     if (!direct.ok || !viaSymlink.ok) {
       throw new Error('expected both counter fixture spellings to resolve');
@@ -339,5 +400,50 @@ describe('AC6: canonicalise once — two spellings of the same file resolve to t
     expect(
       (globalThis as Record<string, unknown>).__resolverSeamCounterRuns,
     ).toBe(1);
+  });
+});
+
+describe('resolveLocal guards the resolved target, not just the requested path', () => {
+  let tmpDir: string;
+
+  beforeEach(() => {
+    tmpDir = realpathSync.native(
+      mkdtempSync(join(tmpdir(), 'thymian-target-')),
+    );
+  });
+
+  afterEach(() => {
+    rmSync(tmpDir, { recursive: true, force: true });
+  });
+
+  it('declines a directory whose name ends in a loadable extension', () => {
+    // A directory literally named `looksLikeAModule.js` passes the extension
+    // check but is not a file — it must be declined here, not surface a raw
+    // ERR_UNSUPPORTED_DIR_IMPORT downstream.
+    mkdirSync(join(tmpDir, 'looksLikeAModule.js'));
+
+    const result = resolveUserModule(join(tmpDir, 'looksLikeAModule.js'), {
+      cwd: tmpDir,
+    });
+
+    expect(result.ok).toBe(false);
+    expect(reasonOf(result)).toMatch(/not a regular file/);
+  });
+
+  it('declines a .ts symlink whose target is a .d.ts declaration file', () => {
+    const declaration = join(tmpDir, 'real.d.ts');
+    const alias = join(tmpDir, 'alias.ts');
+    writeFileSync(declaration, 'declare const x: number;\nexport default x;\n');
+
+    if (!trySymlink(declaration, alias)) {
+      return; // platform without symlink support
+    }
+
+    const result = resolveUserModule(alias, { cwd: tmpDir });
+
+    expect(result.ok).toBe(false);
+    // Declined at resolve time for what the target IS (a declaration file),
+    // consistently framed — not surfaced later under a different error.
+    expect(reasonOf(result)).toMatch(/declaration file/);
   });
 });

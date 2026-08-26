@@ -283,7 +283,14 @@ export async function loadRules(
     return (
       await Promise.all(
         input.map((entry) =>
-          loadRules(entry, ruleFilter, options, cwd, ruleProfiles),
+          loadRules(
+            entry,
+            ruleFilter,
+            options,
+            cwd,
+            ruleProfiles,
+            profileConfig,
+          ),
         ),
       )
     ).flat();

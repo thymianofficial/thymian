@@ -85,6 +85,30 @@ export function makeBarePackageFixtures(): BarePackageFixtures {
   write('array-exports-pkg/correct.js', RULE_MODULE('array-exports-correct'));
   write('array-exports-pkg/wrong.js', RULE_MODULE('array-exports-WRONG'));
 
+  // CJS-only: `exports` offers only a `require` condition. Native resolution
+  // (require.resolve) must still find it — dropping CJS packages would break
+  // every published CommonJS rule package.
+  write(
+    'cjs-only-pkg/package.json',
+    JSON.stringify({
+      name: 'cjs-only-pkg',
+      version: '1.0.0',
+      exports: { '.': { require: './index.cjs' } },
+    }),
+  );
+  write('cjs-only-pkg/index.cjs', "module.exports = { hello: 'cjs' };\n");
+
+  // Legacy `main` with no extension — Node resolves it to `index.js`.
+  write(
+    'legacy-main-pkg/package.json',
+    JSON.stringify({
+      name: 'legacy-main-pkg',
+      version: '1.0.0',
+      main: './index',
+    }),
+  );
+  write('legacy-main-pkg/index.js', RULE_MODULE('legacy-main-rule'));
+
   // Installed but broken: package.json is not valid JSON.
   write('broken-pkg/package.json', '{ this is not valid JSON\n');
 
