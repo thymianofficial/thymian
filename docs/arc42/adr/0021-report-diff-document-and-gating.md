@@ -16,7 +16,7 @@
 
 1. **Inputs load through `core.report.convert`, once per side.** `Thymian.reportDiff({ base, head })` emits the existing convert collect action separately for each input, so the `thymian:` claim in `@thymian/plugin-reporter` serves both loads, claim enforcement and error wording are reused, and the two sides never share a `runId` dedup. No new core action is minted (`core.report.diff` stays reserved, per ADR-0016's restraint and the #507 precedent). Fragments gained an optional `report: { reportId, createdAt }` tag (set by the `thymian:` claim) so diff can attribute each side to exactly one source report; a multi-report file per side is rejected (merge first).
 2. **The diff document is a deliberate sibling of `Report`, not a `Report`.** `ReportDiff` (`diffId`, `createdAt`, `baseReportId`/`headReportId`, `baseCreatedAt`/`headCreatedAt`, `changes[]`) lives in core next to the report model with its own loose Ajv schema (`reportDiffSchema`), follows the same conventions (camelCase, ISO dates, optional-over-null), and **never flows through `core.report`** — no formatter side effects, no report files written by a diff. The CLI prints a compact deterministic summary by default and the JSON document with `--json`; a markdown rendering is a follow-up story.
-3. **`--fail-on` gates on diff changes, at the CLI layer.** Default `regression`: any _added run-result change_ fails (exit 1) regardless of severity — improvements, specification changes, and rule changes never fail by default. `error` (only added error-severity changes), `any-change`, and `none` adjust the gate. This does not touch ADR-0015: report-execution classification is unchanged; reading the _resolved severity of a diff change_ in the `error` mode is precisely the consumer-layer decision Epic 323's handoff assigns to callers.
+3. **`--fail-on` gates on diff changes, at the CLI layer — and the default is informational.** Default `none`: a diff never fails on its findings unless the caller opts in — a comparison run must not gate anything by accident (usage and tool errors still exit 2). `regression` fails (exit 1) on any _added run-result change_ regardless of severity, `error` only on added error-severity changes, `any-change` on any change at all; improvements, specification changes, and rule changes never fail outside `any-change`. This does not touch ADR-0015: report-execution classification is unchanged; reading the _resolved severity of a diff change_ in the `error` mode is precisely the consumer-layer decision Epic 323's handoff assigns to callers.
 
 ## Consequences
 
@@ -24,7 +24,7 @@
 
 - Self-diff is exactly empty, and a copied-then-edited input pair diffs instead of erroring — per-side loading removes the shared-dedup hazard structurally.
 - The claim path stays the single boundary for persisted-report reading; when the Thymian-only input restriction is lifted, foreign formats work through the same mechanism without a new contract.
-- CI gets a stable machine artifact (`reportDiffSchema`) and an exit-code gate that cannot be tripped by improvements.
+- CI gets a stable machine artifact (`reportDiffSchema`) and an opt-in exit-code gate that cannot be tripped by improvements — and never fires unless the pipeline asked for it.
 
 **Negative:**
 
@@ -47,6 +47,6 @@
 
 ## Status History
 
-| Date       | Status   | Notes                                          |
-| ---------- | -------- | ---------------------------------------------- |
-| 2026-08-26 | Accepted | Decided in thymian-internal#502 (story 502.1). |
+| Date       | Status   | Notes                                                                                                                                   |
+| ---------- | -------- | --------------------------------------------------------------------------------------------------------------------------------------- |
+| 2026-08-26 | Accepted | Decided in thymian-internal#502 (story 502.1); review amendment same day: default `--fail-on` mode changed from `regression` to `none`. |

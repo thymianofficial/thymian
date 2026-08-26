@@ -29,7 +29,7 @@ export default class ReportDiff extends BaseCliRunCommand<typeof ReportDiff> {
   static override examples = [
     '<%= config.bin %> <%= command.id %> --base thymian:./before.json --head thymian:./after.json',
     '<%= config.bin %> <%= command.id %> --base thymian:./before.json --head thymian:./after.json --json',
-    '<%= config.bin %> <%= command.id %> --base thymian:./before.json --head thymian:./after.json --fail-on none',
+    '<%= config.bin %> <%= command.id %> --base thymian:./before.json --head thymian:./after.json --fail-on regression',
   ];
 
   // Diffing operates on already-existing reports; no specification input is
@@ -53,9 +53,9 @@ export default class ReportDiff extends BaseCliRunCommand<typeof ReportDiff> {
     })(),
     'fail-on': oclif.Flags.custom<FailOnMode>({
       description:
-        'When the exit code reports a failure (exit 1): "regression" (default) on any new run result regardless of severity, "error" only on new error-severity run results, "any-change" on any change at all, "none" never. The gate classifies diff changes, not report executions.',
+        'When the exit code reports a failure (exit 1): "none" (default) never — the diff is informational unless you opt in; "regression" on any new run result regardless of severity; "error" only on new error-severity run results; "any-change" on any change at all. The gate classifies diff changes, not report executions.',
       options: [...FAIL_ON_VALUES],
-      default: 'regression',
+      default: 'none',
     })(),
     json: oclif.Flags.boolean({
       description:
@@ -97,7 +97,7 @@ export default class ReportDiff extends BaseCliRunCommand<typeof ReportDiff> {
 
     // enforceReportClaims exits on unclaimed inputs, so the diff exists here.
     const diff = outcome.diff!;
-    const failOn = this.flags['fail-on'] ?? 'regression';
+    const failOn = this.flags['fail-on'] ?? 'none';
 
     oclif.ux.stdout(
       this.flags.json

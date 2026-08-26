@@ -99,25 +99,7 @@ describe('report diff command', () => {
     expect(error?.message).toContain('head');
   });
 
-  it('exits 1 on a regression under the default --fail-on regression (AC 7)', async () => {
-    mockState.reportDiffResult = { diff: regressionDiff(), unclaimed: [] };
-
-    const { error } = await captureOutput(async () => {
-      await ReportDiff.run([
-        '--base',
-        'thymian:./before.json',
-        '--head',
-        'thymian:./after.json',
-        '--no-autoload',
-      ]);
-    });
-
-    expect(
-      (error as { oclif?: { exit?: number } } | undefined)?.oclif?.exit,
-    ).toBe(1);
-  });
-
-  it('exits 0 for the same regression under --fail-on none (AC 7)', async () => {
+  it('exits 0 on a regression by default — the diff is informational (AC 7)', async () => {
     mockState.reportDiffResult = { diff: regressionDiff(), unclaimed: [] };
 
     const { error, stdout } = await captureOutput(async () => {
@@ -126,14 +108,32 @@ describe('report diff command', () => {
         'thymian:./before.json',
         '--head',
         'thymian:./after.json',
-        '--fail-on',
-        'none',
         '--no-autoload',
       ]);
     });
 
     expect(error).toBeUndefined();
     expect(stdout).toContain('1 new run result(s) — regression');
+  });
+
+  it('exits 1 for the same regression when the gate is opted in via --fail-on regression (AC 7)', async () => {
+    mockState.reportDiffResult = { diff: regressionDiff(), unclaimed: [] };
+
+    const { error } = await captureOutput(async () => {
+      await ReportDiff.run([
+        '--base',
+        'thymian:./before.json',
+        '--head',
+        'thymian:./after.json',
+        '--fail-on',
+        'regression',
+        '--no-autoload',
+      ]);
+    });
+
+    expect(
+      (error as { oclif?: { exit?: number } } | undefined)?.oclif?.exit,
+    ).toBe(1);
   });
 
   it('prints the machine-readable diff document with --json (AC 3)', async () => {

@@ -72,7 +72,7 @@ describe('thymian report diff', () => {
     expect(exitCode).toBe(0);
   }, 90_000);
 
-  it('fails a regression under the default gate and passes under --fail-on none/error (AC 7)', () => {
+  it('reports a regression informationally by default and gates only via --fail-on (AC 7)', () => {
     copyFixturesToTempDir(join(fixturesDir, 'report-diff'), getTempDir());
     const args = [
       'report',
@@ -83,9 +83,16 @@ describe('thymian report diff', () => {
       'thymian:head-regressed.json',
     ];
 
-    const regression = execThymianResult(args, { cwd: getTempDir() });
-    expect(regression.stdout).toContain('Run results    1 new · 0 resolved');
-    expect(regression.stdout).toContain('regression');
+    // Default is informational: the regression is reported but exits 0.
+    const informational = execThymianResult(args, { cwd: getTempDir() });
+    expect(informational.stdout).toContain('Run results    1 new · 0 resolved');
+    expect(informational.stdout).toContain('regression');
+    expect(informational.exitCode).toBe(0);
+
+    // Opting into the gate fails the same diff.
+    const regression = execThymianResult([...args, '--fail-on', 'regression'], {
+      cwd: getTempDir(),
+    });
     expect(regression.exitCode).toBe(1);
 
     // The new failure is warn-severity: the error-only gate lets it pass.
@@ -93,11 +100,6 @@ describe('thymian report diff', () => {
       cwd: getTempDir(),
     });
     expect(errorOnly.exitCode).toBe(0);
-
-    const none = execThymianResult([...args, '--fail-on', 'none'], {
-      cwd: getTempDir(),
-    });
-    expect(none.exitCode).toBe(0);
   }, 180_000);
 
   it('emits the machine-readable diff document with --json (AC 3)', () => {
@@ -114,6 +116,9 @@ describe('thymian report diff', () => {
         '--fail-on',
         'none',
         '--json',
+        // The feedback tip races report rendering (#556) and would corrupt
+        // the parsed stdout.
+        '--suppress-feedback',
       ],
       { cwd: getTempDir() },
     );
@@ -169,6 +174,9 @@ describe('thymian report diff', () => {
         '--fail-on',
         'none',
         '--json',
+        // The feedback tip races report rendering (#556) and would corrupt
+        // the parsed stdout.
+        '--suppress-feedback',
       ],
       { cwd: getTempDir() },
     );

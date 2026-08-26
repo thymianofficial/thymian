@@ -7,19 +7,20 @@ import type { ReportDiffChange } from '@thymian/core';
  * resolved severity of an *added change* here is a consumer-layer decision
  * (Epic 323: callers decide which findings gate the exit code).
  *
- * - `regression` (default): any added run-result change fails, regardless of
- *   severity. Improvements, specification changes, and rule changes never
- *   fail.
+ * - `none` (default): never fails — the diff is informational; usage/tool
+ *   errors still exit 2 elsewhere (#502 review decision: a diff run must not
+ *   gate anything unless the caller opted in).
+ * - `regression`: any added run-result change fails, regardless of severity.
+ *   Improvements, specification changes, and rule changes never fail.
  * - `error`: only added run-result changes with resolved severity `error`
  *   fail.
  * - `any-change`: any change at all fails (a pure change detector).
- * - `none`: never fails (usage/tool errors still exit 2 elsewhere).
  */
 export const FAIL_ON_VALUES = [
+  'none',
   'regression',
   'error',
   'any-change',
-  'none',
 ] as const;
 
 export type FailOnMode = (typeof FAIL_ON_VALUES)[number];

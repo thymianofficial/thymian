@@ -40,12 +40,12 @@ const ruleRemoved: ReportDiffChange = {
 };
 
 describe('reportDiffGateFails', () => {
-  it('exposes the documented mode set with regression first (the default)', () => {
+  it('exposes the documented mode set with none first (the default: informational)', () => {
     expect(FAIL_ON_VALUES).toEqual([
+      'none',
       'regression',
       'error',
       'any-change',
-      'none',
     ]);
   });
 

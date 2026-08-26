@@ -16,7 +16,7 @@ thymian report diff \
 ## When to Use `thymian report diff`
 
 - **before/after a change**: see exactly what a spec or implementation change did to your lint/test/analyze results — including the improvements
-- **CI gates**: fail a pipeline only on regressions; runs that merely fix findings never fail
+- **CI gates**: opt in with `--fail-on regression` to fail a pipeline only on regressions; runs that merely fix findings never fail
 - **tool or config migrations**: verify a rule reconfiguration did what you expected
 
 ## Base, Head, and Supported Inputs
@@ -59,14 +59,14 @@ The document carries its own identity (`diffId`, `createdAt`) and references bot
 
 The exit code is controlled by `--fail-on` and classifies **diff changes**, not the reports' executions:
 
-| Mode                   | Fails (exit 1) when…                                              |
-| ---------------------- | ----------------------------------------------------------------- |
-| `regression` (default) | any run-result change was **added**, regardless of severity       |
-| `error`                | an added run-result change has resolved severity `error`          |
-| `any-change`           | anything changed at all (specification and rule changes included) |
-| `none`                 | never — the diff is informational only                            |
+| Mode             | Fails (exit 1) when…                                              |
+| ---------------- | ----------------------------------------------------------------- |
+| `none` (default) | never — the diff is informational unless you opt into a gate      |
+| `regression`     | any run-result change was **added**, regardless of severity       |
+| `error`          | an added run-result change has resolved severity `error`          |
+| `any-change`     | anything changed at all (specification and rule changes included) |
 
-Improvements never fail the gate: a run that only resolves findings exits `0` under the default mode and is reported as an improvement. Usage errors (missing flags, unsupported input types, multi-report files) and tool errors exit `2`, as everywhere in the CLI.
+By default a diff never fails on its findings — CI gating is strictly opt-in. Improvements never fail any gate: a run that only resolves findings is reported as an improvement. Usage errors (missing flags, unsupported input types, multi-report files) and tool errors exit `2`, as everywhere in the CLI.
 
 ```sh
 # Fail the pipeline only when new error-severity findings appeared:
