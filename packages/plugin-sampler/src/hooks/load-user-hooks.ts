@@ -35,6 +35,7 @@ import {
   safeJson,
   safeString,
   suggestionsOf,
+  truncateLabel,
   typeOf,
   type UserValue,
   userValue,
@@ -1431,7 +1432,11 @@ async function importRegistrations(
  * graph), so it is read through `user-value.ts` like everything else here.
  */
 /**
- * Every value any module in the scan's cache exposes as an export.
+ * Every value an **unfinished** module in the scan's cache exposes as an export.
+ *
+ * (This block sits above `valuesExportedByUnfinishedModules`; the sweep's own
+ * "why a sweep and not just the cache-hit refusal" docblock is on
+ * {@link unfinishedModules} below.)
  *
  * The created-but-not-exported diff asks "did the user assign this registration
  * to an export?", and `exported` — which only holds what a *scanned* file
@@ -1449,7 +1454,9 @@ async function importRegistrations(
  *
  * The question is about a *registration*, so it is answered per registration.
  */
-function valuesExportedByAnyModule(moduleCache: ScanModuleCache): Set<unknown> {
+function valuesExportedByUnfinishedModules(
+  moduleCache: ScanModuleCache,
+): Set<unknown> {
   const seen = new Set<unknown>();
   const cache = userValue(moduleCache);
   const keys = ownKeys(cache);
@@ -1462,6 +1469,19 @@ function valuesExportedByAnyModule(moduleCache: ScanModuleCache): Set<unknown> {
     const entry = readProperty(cache, key);
 
     if (!entry.ok) {
+      continue;
+    }
+
+    const loaded = readProperty(entry.value, 'loaded');
+
+    // **Unfinished only.** Excusing every module's exports was measurably too
+    // wide: a hook exported from a healthy module the scan skips — a
+    // dot-directory, a sibling `lib/` — is a registration that never binds, and
+    // suppressing its diagnostic left the user a hook that silently never fires
+    // and no errors at all. That is the failure this whole loader exists to
+    // refuse. A module that never *finished* is the only one whose exports the
+    // user cannot be blamed for.
+    if (!loaded.ok || raw(loaded.value) !== false) {
       continue;
     }
 
@@ -1492,7 +1512,7 @@ function valuesExportedByAnyModule(moduleCache: ScanModuleCache): Set<unknown> {
 function unfinishedModules(
   moduleCache: ScanModuleCache,
   reported: Set<string>,
-  exported: Set<unknown>,
+  reachable: Set<unknown>,
 ): string[] {
   const cache = userValue(moduleCache);
   const keys = ownKeys(cache);
@@ -1520,7 +1540,7 @@ function unfinishedModules(
       continue;
     }
 
-    if (!contributedAnExport(entry.value, exported)) {
+    if (!contributedAnExport(entry.value, reachable)) {
       // Unfinished but harmless. See the docblock: `loaded: false` alone cannot
       // tell a throw from a module that is simply still loading.
       continue;
@@ -1545,12 +1565,18 @@ function unfinishedModules(
  * error"), and did it *timing-dependently*: the same tree passed when the module
  * happened to finish first.
  *
- * What actually characterises the defect is narrower and is observable: a
- * registration the unfinished module created was picked up as some scanned
- * file's export, so it is about to bind despite its module never finishing.
- * That is exactly the reproduction — `b-reexports.ts` re-exporting a hook from a
- * module that threw — and it is not true of a prefetch, whose exports no scanned
- * namespace ever contains.
+ * What actually characterises the defect is narrower and is observable: the
+ * unfinished module exposes a registration **this scan created**, so a hook is
+ * about to bind from a module whose evaluation never completed. A prefetch
+ * exposes nothing the scan created, which keeps the false alarm closed.
+ *
+ * Matching only what a *scanned file exported* was too narrow, and was measured
+ * so: with `a.ts` swallowing the import and nothing re-exporting, the scan came
+ * back `hasErrors: false` with zero diagnostics. One route is still open — a
+ * module that hands its registration over through `globalThis` instead of
+ * exporting it — because the creation log records an import *window*, not a
+ * module, so a creation cannot be attributed back to the file that made it.
+ * Recorded rather than papered over.
  */
 function contributedAnExport(
   entry: UserValue,
@@ -1762,7 +1788,21 @@ async function scanUserHooks(
   // A module anywhere in the scan's import graph that started and never
   // finished. See {@link unfinishedModules} for why this is a sweep over the
   // cache rather than a per-importer check.
-  const unfinished = unfinishedModules(moduleCache, reportedModules, exported);
+  // Not just what a scanned file exported: a registration this scan **created**
+  // is equally about to bind, and requiring a scanned re-export missed the case
+  // where `a.ts` swallows the import and nothing re-exports it — measured
+  // `hasErrors: false` with zero diagnostics. A module that created nothing (an
+  // ordinary prefetch) intersects neither set, which is what keeps the false
+  // alarm closed.
+  const reachable = new Set<unknown>(exported);
+
+  for (const { created } of createdPerFile) {
+    for (const registration of created) {
+      reachable.add(registration);
+    }
+  }
+
+  const unfinished = unfinishedModules(moduleCache, reportedModules, reachable);
 
   for (const modulePath of unfinished) {
     diagnostics.push({
@@ -1789,7 +1829,7 @@ async function scanUserHooks(
   reportUnexportedRegistrations(
     createdPerFile,
     exported,
-    valuesExportedByAnyModule(moduleCache),
+    valuesExportedByUnfinishedModules(moduleCache),
     diagnostics,
   );
 
@@ -1845,7 +1885,7 @@ function reportUnexportedRegistrations(
     exportsUnusable: boolean;
   }[],
   exported: Set<unknown>,
-  exportedAnywhere: Set<unknown>,
+  exportedByBroken: Set<unknown>,
   diagnostics: HookDiagnostic[],
 ): void {
   for (const { file, created, exportsUnusable } of createdPerFile) {
@@ -1855,12 +1895,12 @@ function reportUnexportedRegistrations(
 
     // Two sets, because they answer two different questions. `exported` is what
     // a **scanned file** exposed, which is what makes a registration reachable.
-    // `exportedAnywhere` is what **any** module exposed, which is what makes
-    // "you forgot to export this" a true sentence — see
-    // {@link valuesExportedByAnyModule}.
+    // `exportedByBroken` is what an **unfinished** module exposed, which is the
+    // only case where "you forgot to export this" is a false sentence — see
+    // {@link valuesExportedByUnfinishedModules}.
     const missing = created.filter(
       (registration) =>
-        !exported.has(registration) && !exportedAnywhere.has(registration),
+        !exported.has(registration) && !exportedByBroken.has(registration),
     );
 
     if (missing.length === 0) {
@@ -2168,7 +2208,11 @@ export function formatDiagnostic(diagnostic: HookDiagnostic): string {
   const head = [
     diagnostic.exportName === undefined
       ? undefined
-      : `export "${diagnostic.exportName}"`,
+      : // Bounded like every other user string: an export **name** comes from
+        // `ownKeys` and is as user-controlled as the value behind it. A
+        // 300 000-character key produced a 300 KB message through this line
+        // alone, in a renderer whose whole job is to bound one.
+        `export "${truncateLabel(diagnostic.exportName)}"`,
     diagnostic.kind,
     diagnostic.anchor,
   ]

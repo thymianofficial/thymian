@@ -95,9 +95,13 @@ const guardedUserValueReads = [
   },
   {
     // The one place `raw()` is genuinely dangerous as an *argument*: every one
-    // of these iterates or walks what it is given.
+    // of these iterates or walks what it is given. `Promise.all` and its
+    // siblings hit **both** hazards at once — they iterate via
+    // `Symbol.iterator` and then adopt every element as a thenable, running a
+    // user-written `then` — and they are exempt from the `await` rule because
+    // `Promise.all(...)` is itself a call.
     selector:
-      "CallExpression[callee.object.name='Array'][callee.property.name='from'] CallExpression[callee.name='raw'], NewExpression[callee.name=/^(Set|Map|WeakSet|WeakMap)$/] CallExpression[callee.name='raw'], CallExpression[callee.name='structuredClone'] CallExpression[callee.name='raw'], CallExpression[callee.object.name='Object'][callee.property.name=/^(freeze|seal|preventExtensions|isFrozen|isSealed|isExtensible)$/] CallExpression[callee.name='raw']",
+      "CallExpression[callee.object.name='Array'][callee.property.name='from'] CallExpression[callee.name='raw'], NewExpression[callee.name=/^(Set|Map|WeakSet|WeakMap)$/] CallExpression[callee.name='raw'], CallExpression[callee.name='structuredClone'] CallExpression[callee.name='raw'], CallExpression[callee.object.name='Promise'] CallExpression[callee.name='raw'], YieldExpression[delegate=true] CallExpression[callee.name='raw'], CallExpression[callee.object.name='Object'][callee.property.name=/^(freeze|seal|preventExtensions|isFrozen|isSealed|isExtensible)$/] CallExpression[callee.name='raw']",
     message:
       "Iterating or cloning a raw user value runs its Symbol.iterator or every getter it has. Read what you need with './user-value.js'.",
   },
@@ -131,9 +135,10 @@ const guardedUserValueReads = [
       "Array destructuring a cast runs Symbol.iterator. Read by index with readIndex() from './user-value.js'.",
   },
   {
-    selector: 'UnaryExpression[operator="+"]',
+    // A negated numeric literal (`return -1`) is not a coercion of anything.
+    selector: "UnaryExpression[operator=/^[+\\-~]$/][argument.type!='Literal']",
     message:
-      "Unary + runs Symbol.toPrimitive, the same user code Number() does. Use asFiniteNumber() from './user-value.js'.",
+      "Unary +, - and ~ all run Symbol.toPrimitive, the same user code Number() does. Use asFiniteNumber() from './user-value.js'.",
   },
   {
     // Awaiting a value adopts it when it is thenable, which calls a `then` the

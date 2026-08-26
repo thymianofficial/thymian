@@ -139,10 +139,35 @@ export function safeString(value: unknown): string {
  */
 const MAX_RENDERED_LENGTH = 200;
 
-function truncate(rendered: string): string {
-  return rendered.length > MAX_RENDERED_LENGTH
-    ? `${rendered.slice(0, MAX_RENDERED_LENGTH)}… (${rendered.length} characters)`
-    : rendered;
+/**
+ * The same bound for an **error message**, which needs a much larger one.
+ *
+ * jiti's `ParseError` is tail-loaded: the `file:line:column` a user actually
+ * needs comes last. At 200 characters an ordinary nested hooks path — no hostile
+ * input at all — pushed it off the end, leaving "Unexpected token" and a
+ * truncated path. A cap that removes the actionable part of a diagnostic is
+ * worse than the message being long.
+ */
+const MAX_MESSAGE_LENGTH = 4_000;
+
+function truncate(rendered: string, limit = MAX_RENDERED_LENGTH): string {
+  if (rendered.length <= limit) {
+    return rendered;
+  }
+
+  // Cut on a **code point**, not a code unit. `slice` at an arbitrary index
+  // splits a surrogate pair, so a selector of emoji produced a message that was
+  // not well-formed UTF-16 — `isWellFormed()` false, a lone surrogate that JSON
+  // and the terminal both render as U+FFFD. The cut is the boundary at or below
+  // the limit, so the bound still holds.
+  const cut = [...rendered.slice(0, limit + 1)].slice(0, -1).join('');
+
+  return `${cut}… (${rendered.length} characters)`;
+}
+
+/** Bounds a string that is a *name* rather than a value. */
+export function truncateLabel(label: string): string {
+  return truncate(label);
 }
 
 /**
@@ -161,10 +186,11 @@ function truncate(rendered: string): string {
 export function messageOf(error: unknown): string {
   try {
     if (isThymianError(error) || error instanceof Error) {
-      // Bounded like every other rendered value: an error message can carry a
-      // user selector verbatim, and a five-million-character selector produced a
-      // ten-megabyte diagnostic through exactly this path.
-      return truncate(error.message);
+      // Bounded, but at {@link MAX_MESSAGE_LENGTH}: an error message can carry
+      // a user selector verbatim — a five-million-character selector produced a
+      // ten-megabyte diagnostic through exactly this path — while being the one
+      // string whose *tail* is often the useful part.
+      return truncate(error.message, MAX_MESSAGE_LENGTH);
     }
   } catch {
     // Reading the message failed. Fall through to `safeString`, which is total —
@@ -301,26 +327,6 @@ export function readProperties<K extends string>(
   }
 
   return ok(fields);
-}
-
-/**
- * Is this value frozen or sealed — i.e. will a write to it throw?
- *
- * `Object.isFrozen`/`isSealed` run the `isExtensible` and
- * `getOwnPropertyDescriptor` traps, so they are user code like everything else
- * here, and a Proxy can lie about both. That is fine for the one caller: it uses
- * this to *avoid* discovering unwritability by writing, and still guards the
- * write itself. `true` on a failed read, because "cannot tell" and "not usable"
- * lead to the same decision.
- */
-export function isImmutable(value: UserValue): boolean {
-  try {
-    const target = value as unknown as object;
-
-    return Object.isFrozen(target) || Object.isSealed(target);
-  } catch {
-    return true;
-  }
 }
 
 /**

@@ -10,8 +10,10 @@ import {
   isNullish,
   isWritableDataProperty,
   raw,
+  type Read,
   readProperty,
   typeOf,
+  type UserValue,
   userValue,
 } from './user-value.js';
 
@@ -231,6 +233,14 @@ type GlobalWithCreationLog = typeof globalThis & {
  * resets the slot if one fails. Two cheap nets beat one probe with side effects.
  */
 function isUsableCreationLog(candidate: unknown): candidate is HookCreationLog {
+  // NOTE: this predicate certifies `HookCreationLog`, which is more than it
+  // checks — `created` and `scope` are asserted, not verified. That is only safe
+  // because every subsequent use of both is guarded: `recordCreation` wraps its
+  // writes, `hookCreationLog` verifies `scope` by identity before anyone can
+  // call it, and `withCreationScope` wraps the call anyway. A type predicate
+  // that launders a whole shape from one check is exactly how the `scope` hole
+  // got in; the guards are the reason the remaining assertion is not another
+  // one.
   const slot = userValue(candidate);
 
   if (typeOf(slot) !== 'object' || isNullish(slot)) {
@@ -253,17 +263,61 @@ function isUsableCreationLog(candidate: unknown): candidate is HookCreationLog {
   // only other thing installed here is `scope`, and adding it to a sealed object
   // throws where the caller already catches.
   //
-  // Reading a descriptor is also the whole reason there is no probe any more. An
+  // Reading a descriptor — not `isFrozen`/`isSealed`, which an earlier draft of
+  // this comment claimed and the body never did — is also the whole reason there
+  // is no probe any more. An
   // earlier version proved writability by *calling* `created.push()`, which
   // accepted a sealed array the real `push(value)` then rejects, and on a
   // `created` carrying its own `push` it ran user code and **kept the side
   // effects** — measured appending junk that was then reported against an
   // innocent file for the lifetime of the process.
-  return isWritableDataProperty(slot, 'nextOrder', 'number');
+  if (!isWritableDataProperty(slot, 'nextOrder', 'number')) {
+    return false;
+  }
+
+  // A number is not enough: `NaN`, `Infinity` and anything at or past 2^53 all
+  // pass `typeof`, and then `order + 1` either propagates `NaN` or **saturates**,
+  // so every registration in the file is stamped with the same index.
+  // `snapshotRegistration` maps `NaN`/`Infinity` to one shared
+  // `MAX_SAFE_INTEGER`, so the composition silently reorders with no diagnostic
+  // at all — measured, three hooks composed `321` instead of `123`, `errors: 0`.
+  // That is precisely the failure this counter exists to prevent.
+  const order = readProperty(slot, 'nextOrder');
+
+  return (
+    order.ok && Number.isSafeInteger(raw(order.value)) && !isNegative(order)
+  );
 }
 
+/** `value < 0` for a value already known to be a safe integer. */
+function isNegative(order: Read<UserValue>): boolean {
+  return order.ok && (raw(order.value) as number) < 0;
+}
+
+/**
+ * The highest creation index this realm has handed out.
+ *
+ * A replaced slot hands back `nextOrder: 0`, so without this every registration
+ * after a mid-scan replacement restarted at zero — silently reordering the
+ * `beforeEach` composition the index exists to fix, which is the very thing the
+ * replacement was supposed to protect. Realm-local, which is enough: AC 2 only
+ * needs the index to be monotonic *within* a file, and a file's registrations
+ * are all stamped in the realm that evaluated it.
+ */
+let highestOrder = 0;
+
+/**
+ * How many out-of-scan creations the shared array will hold. See
+ * {@link recordCreation}.
+ */
+const MAX_UNSCOPED_CREATIONS = 1_000;
+
 function freshCreationLog(): HookCreationLog {
-  return { nextOrder: 0, created: [], scope: new AsyncLocalStorage() };
+  return {
+    nextOrder: highestOrder,
+    created: [],
+    scope: new AsyncLocalStorage(),
+  };
 }
 
 /** Installs a fresh log in the slot, returning it. Never throws. */
@@ -294,22 +348,46 @@ function resetCreationLog(): HookCreationLog {
  */
 export function hookCreationLog(): HookCreationLog {
   const scope: GlobalWithCreationLog = globalThis;
-  const existing = scope[HOOK_CREATION_LOG];
+
+  let existing: HookCreationLog | undefined;
+
+  try {
+    // Inside the guard, not beside it. The slot can be defined as an **accessor**
+    // (`Object.defineProperty(globalThis, key, { get() { throw … } })`), and
+    // reading it then threw an unformatted `TypeError` straight out of
+    // `loadUserHooks`, killing the scan with no `file:` attribution — the same
+    // shape as every other finding in this story, in the one read that had been
+    // moved out of a `try` while refactoring.
+    existing = scope[HOOK_CREATION_LOG];
+  } catch {
+    return resetCreationLog();
+  }
 
   if (!isUsableCreationLog(existing)) {
     return resetCreationLog();
   }
 
   try {
-    // A log installed by a runtime that predates {@link withCreationScope} is
-    // otherwise perfectly usable and simply has nowhere to put a collection
-    // scope. Adding one repairs it in place.
+    // `instanceof`, not `??=`. This is the field the loader **calls**, and it
+    // lives on a slot any hook file can write, so accepting whatever is there
+    // was the worst hole this story has had: one line assigning
+    // `{ scope: { run() { return undefined; } } }` made `withCreationScope`
+    // return `undefined` and a `TypeError` escape `loadUserHooks` entirely,
+    // and `{ run() { return new Promise(() => {}); } }` wedged **every future
+    // scan in the process** — permanently, because the slot outlives the scan.
+    // That is strictly worse than the module-global queue it replaced.
     //
-    // Without this, such a slot silently disables the whole channel for the rest
-    // of the process: every scan takes the "no scope" path, so no creation is
-    // ever recorded and the created-but-not-exported diagnostic stops existing.
-    // Measured — one hook file assigning a scope-less object was enough.
-    existing.scope ??= new AsyncLocalStorage();
+    // The identity check is reliable here specifically because jiti evaluates
+    // in this process and shares Node's builtins, so `node:async_hooks` is one
+    // module and one class across the realm boundary the brand exists for.
+    //
+    // A slot installed by a runtime that predates this field is otherwise
+    // perfectly usable and simply has nowhere to put a scope; repairing it in
+    // place is what keeps it working. Without that, such a slot silently
+    // disabled the whole channel for the rest of the process.
+    if (!(existing.scope instanceof AsyncLocalStorage)) {
+      existing.scope = new AsyncLocalStorage();
+    }
   } catch {
     return resetCreationLog();
   }
@@ -365,7 +443,16 @@ export async function withCreationScope<T>(
     return await run();
   }
 
-  return await scope.run(created, run);
+  try {
+    // Belt and braces with the identity check in {@link hookCreationLog}: that
+    // check is what makes `scope` an `AsyncLocalStorage`, and this is what stops
+    // a failure here escaping `loadUserHooks` if it ever is not. Both, because
+    // the last three rounds each found a value that was trusted on the strength
+    // of a check made somewhere else.
+    return await scope.run(created, run);
+  } catch (error) {
+    return { error, created };
+  }
 }
 
 /**
@@ -385,7 +472,14 @@ function recordCreation(
       return;
     }
 
-    log.created.push(registration);
+    // `created` has no readers left — collection goes through the async scope —
+    // but it is part of the published `HookCreationLog` shape, so it keeps
+    // receiving creations made outside any scan. Bounded, because an unbounded
+    // write-only array in a long-lived process retains every callback closure
+    // that was ever registered.
+    if (log.created.length < MAX_UNSCOPED_CREATIONS) {
+      log.created.push(registration);
+    }
   } catch {
     // See `isUsableCreationLog`: a Proxy can pass validation and still refuse
     // the write. Losing the record costs a diagnostic, never a binding.
@@ -412,6 +506,8 @@ export function registerHook(draft: HookRegistrationDraft): HookRegistration {
     // write. Reset and retry once rather than let a poisoned slot stamp every
     // registration with the same order — which would silently reorder the
     // user's `beforeEach` composition, the one thing this counter exists for.
+    // The fresh log resumes from {@link highestOrder}, so a replacement cannot
+    // restart the composition index at zero.
     log = resetCreationLog();
     order = log.nextOrder;
     log.nextOrder = order + 1;
@@ -426,6 +522,8 @@ export function registerHook(draft: HookRegistrationDraft): HookRegistration {
     order,
     [HOOK_REGISTRATION]: true,
   }) as HookRegistration;
+
+  highestOrder = Math.max(highestOrder, order + 1);
 
   recordCreation(log, registration);
 

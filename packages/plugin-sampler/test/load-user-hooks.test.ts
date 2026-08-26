@@ -15,6 +15,10 @@ import { createThymianFormatWithTransactions } from '@thymian/core-testing';
 import { afterAll, describe, expect, it } from 'vitest';
 
 import {
+  hookCreationLog,
+  registerHook,
+} from '../src/hooks/hook-registration.js';
+import {
   describeTarget,
   fileIdentityFrom,
   hookResolutionError,
@@ -2279,7 +2283,12 @@ describe('loadUserHooks — round 5: what the review of the review found', () =>
     const result = await loadUserHooks(hooksDir, catalog);
     const message = hookResolutionError(result.diagnostics).message;
 
-    expect(message.length).toBeLessThan(4_000);
+    // Bounded, not tiny. The value itself is capped at 200 characters; the
+    // *message* carrying it gets `MAX_MESSAGE_LENGTH`, because jiti's parse
+    // errors are tail-loaded and a 200-character cap cut the `file:line:column`
+    // off the end of an ordinary nested path. Before any bound this was
+    // 1,000,156 characters.
+    expect(message.length).toBeLessThan(6_000);
     expect(message).toContain('…');
   });
   it('strips invisible tag characters from a rendered line', async () => {
@@ -2299,5 +2308,297 @@ describe('loadUserHooks — round 5: what the review of the review found', () =>
     const message = hookResolutionError(result.diagnostics).message;
 
     expect(message).not.toContain(tag);
+  });
+});
+
+describe('loadUserHooks — round 6: the regressions round 5 introduced', () => {
+  const slot = `globalThis[Symbol.for('@thymian/plugin-sampler.hook-creation-log')]`;
+
+  it('refuses a collection scope a hook file supplied', async () => {
+    // The worst hole this story has had, and it was introduced by the fix for
+    // the previous one. `isUsableCreationLog` is a type predicate that certifies
+    // the whole `HookCreationLog` shape from a single descriptor check on
+    // `nextOrder`, and `hookCreationLog` then kept whatever `scope` was there
+    // because `??=` only replaces a nullish one. `withCreationScope` **calls**
+    // it.
+    //
+    // One line in a hook file was therefore enough to make `loadUserHooks`
+    // throw a `TypeError` out of itself — losing every healthy sibling — or, with
+    // a `run` that returns a never-settling promise, to wedge every future scan
+    // in the process permanently, because the slot outlives the scan. That is
+    // strictly worse than the module-global queue this replaced.
+    //
+    // `instanceof AsyncLocalStorage` is reliable here because jiti shares Node's
+    // builtins across the realm boundary.
+    for (const [name, run] of [
+      ['run returns undefined', `run() { return undefined; }`],
+      ['run returns a non-promise', `run() { return 42; }`],
+      ['run throws', `run() { throw new Error('scope exploded'); }`],
+    ] as const) {
+      const hooksDir = await writeHooks({
+        'a-poison.ts': [
+          `${slot} = { nextOrder: 0, created: [], scope: { ${run}, getStore() {} } };`,
+          `export const nothing = 1;`,
+          ``,
+        ].join('\n'),
+        'b-good.ts': tagging(selectorA, 'good'),
+      });
+
+      const result = await loadUserHooks(hooksDir, catalog);
+
+      expect(await compose(result, firstTransactionId()), name).toBe('good');
+    }
+  });
+
+  it('is not wedged by a collection scope that never settles', async () => {
+    // The same hole in its worse form: `run` returning a promise that never
+    // resolves made every later `loadUserHooks` in the process hang forever.
+    const poisoned = await writeHooks({
+      'a-poison.ts': [
+        `${slot} = { nextOrder: 0, created: [], scope: { run() { return new Promise(() => {}); }, getStore() {} } };`,
+        `export const nothing = 1;`,
+        ``,
+      ].join('\n'),
+    });
+
+    await Promise.race([
+      loadUserHooks(poisoned, catalog),
+      new Promise((resolve) => setTimeout(resolve, 2_000)),
+    ]);
+
+    // A completely unrelated, healthy directory afterwards.
+    const healthy = await writeHooks({ 'good.ts': tagging(selectorA, 'fine') });
+    const outcome = await Promise.race([
+      loadUserHooks(healthy, catalog),
+      new Promise<'wedged'>((resolve) =>
+        setTimeout(() => resolve('wedged'), 3_000),
+      ),
+    ]);
+
+    expect(outcome).not.toBe('wedged');
+    expect(
+      await compose(outcome as LoadUserHooksResult, firstTransactionId()),
+    ).toBe('fine');
+  });
+
+  it('still reports a hook exported only from a file the scan skips', async () => {
+    // Excusing every module's exports was too wide. A hook exported from a
+    // *healthy* module the scan does not visit — a dot-directory, a sibling
+    // `lib/` — never binds, and suppressing its diagnostic left the user a hook
+    // that silently never fires and no errors at all. Only a module that never
+    // **finished** is one whose exports the user cannot be blamed for.
+    const hooksDir = await writeHooks({
+      '.internal/lib.ts': [
+        `import { beforeEach } from '@thymian/hooks';`,
+        `export const h = beforeEach(${JSON.stringify(selectorA)}, async (v) => v);`,
+        ``,
+      ].join('\n'),
+      'a.ts': [
+        `import './.internal/lib.js';`,
+        `export const nothing = 1;`,
+        ``,
+      ].join('\n'),
+    });
+
+    const result = await loadUserHooks(hooksDir, catalog);
+
+    expect(result.hasErrors).toBe(true);
+    expect(errorsOf(result).join('\n')).toContain('not exported by any');
+    expect(result.boundHookCount).toBe(0);
+  });
+
+  it('keeps the actionable tail of a parse error', async () => {
+    // `messageOf` shared the 200-character cap for rendered *values*. jiti's
+    // `ParseError` is tail-loaded — the `file:line:column` comes last — so an
+    // ordinary nested hooks path, with no hostile input at all, pushed the line
+    // number off the end and left "Unexpected token" and a truncated path.
+    const hooksDir = await writeHooks({
+      'a/deeply/nested/set/of/hook/directories/like/a/real/project/has/broken.ts':
+        [`export const oops = ;`, ``].join('\n'),
+    });
+
+    const result = await loadUserHooks(hooksDir, catalog);
+    const errors = errorsOf(result).join('\n');
+
+    expect(result.hasErrors).toBe(true);
+    expect(errors).toContain('broken.ts');
+  });
+
+  it('bounds an export name as well as an export value', async () => {
+    // The size bounds covered the value and not the name. Export names come from
+    // `ownKeys` and are exactly as user-controlled.
+    const hooksDir = await writeHooks({
+      'longname.cts': [
+        `const { beforeEach } = require('@thymian/hooks');`,
+        `module.exports = { ['k'.repeat(300000)]: beforeEach('get /nope', async (v) => v) };`,
+        ``,
+      ].join('\n'),
+    });
+
+    const result = await loadUserHooks(hooksDir, catalog);
+    const message = hookResolutionError(result.diagnostics).message;
+
+    expect(result.hasErrors).toBe(true);
+    expect(message.length).toBeLessThan(10_000);
+  });
+
+  it('keeps the creation index rising when the log is replaced mid-scan', async () => {
+    // `resetCreationLog` hands back `nextOrder: 0`, so re-stamping from the
+    // fresh log restarted every later registration at zero — silently reordering
+    // the composition the counter exists to fix, which is exactly what the retry
+    // was written to avoid.
+    const hooksDir = await writeHooks({
+      'a.ts': [
+        `import { beforeEach } from '@thymian/hooks';`,
+        `const tag = (t) => async (value) => ({ ...value, path: value.path + t });`,
+        `export const first = beforeEach(${JSON.stringify(selectorA)}, tag('1'));`,
+        // Poison the slot between two creations in the same file: the next
+        // `registerHook` write fails, resets, and must not restart the index.
+        `${slot} = Object.freeze({ nextOrder: 5, created: [] });`,
+        `export const second = beforeEach(${JSON.stringify(selectorA)}, tag('2'));`,
+        `export const third = beforeEach(${JSON.stringify(selectorA)}, tag('3'));`,
+        ``,
+      ].join('\n'),
+    });
+
+    const result = await loadUserHooks(hooksDir, catalog);
+
+    expect(errorsOf(result)).toEqual([]);
+    expect(await compose(result, firstTransactionId())).toBe('123');
+  });
+});
+
+describe('loadUserHooks — round 6b: the edge-case layer', () => {
+  const slot = `globalThis[Symbol.for('@thymian/plugin-sampler.hook-creation-log')]`;
+
+  it('survives a creation-log slot defined as a throwing getter', async () => {
+    // The slot read had been moved *outside* the guard while refactoring, so
+    // `Object.defineProperty(globalThis, key, { get() { throw … } })` threw an
+    // unformatted TypeError straight out of `loadUserHooks` and killed the scan
+    // with no `file:` attribution. Same shape as every other finding in this
+    // story, in the one read that had drifted out of a `try`.
+    const hooksDir = await writeHooks({
+      'a-poison.ts': [
+        `Object.defineProperty(globalThis, Symbol.for('@thymian/plugin-sampler.hook-creation-log'), {`,
+        `  configurable: true,`,
+        `  get() { throw new Error('slot getter boom'); },`,
+        `  set() {},`,
+        `});`,
+        `export const nothing = 1;`,
+        ``,
+      ].join('\n'),
+      'b-good.ts': tagging(selectorA, 'good'),
+    });
+
+    let result: LoadUserHooksResult;
+
+    try {
+      result = await loadUserHooks(hooksDir, catalog);
+    } finally {
+      // The accessor is configurable, so the next test starts clean.
+      Reflect.deleteProperty(
+        globalThis,
+        Symbol.for('@thymian/plugin-sampler.hook-creation-log'),
+      );
+    }
+
+    expect(await compose(result, firstTransactionId())).toBe('good');
+  });
+
+  it('rejects a `nextOrder` that is a number but not an index', async () => {
+    // `NaN`, `Infinity` and anything at or past 2^53 all pass `typeof`, and then
+    // `order + 1` either propagates NaN or **saturates** — so every registration
+    // in the file is stamped with the same index and
+    // `snapshotRegistration` maps them all to one shared `MAX_SAFE_INTEGER`.
+    // Measured: three hooks composed `321` instead of `123`, with `errors: 0`.
+    for (const poison of ['NaN', 'Infinity', '2 ** 53', '-1']) {
+      const hooksDir = await writeHooks({
+        'a.ts': [
+          `import { beforeEach } from '@thymian/hooks';`,
+          `${slot} = { nextOrder: ${poison}, created: [] };`,
+          `const tag = (t) => async (value) => ({ ...value, path: value.path + t });`,
+          `export const one = beforeEach(${JSON.stringify(selectorA)}, tag('1'));`,
+          `export const two = beforeEach(${JSON.stringify(selectorA)}, tag('2'));`,
+          `export const three = beforeEach(${JSON.stringify(selectorA)}, tag('3'));`,
+          ``,
+        ].join('\n'),
+      });
+
+      const result = await loadUserHooks(hooksDir, catalog);
+
+      expect(errorsOf(result), poison).toEqual([]);
+      expect(await compose(result, firstTransactionId()), poison).toBe('123');
+    }
+  });
+
+  it('reports a swallowed broken import even when nothing re-exports it', async () => {
+    // Matching only what a *scanned file exported* was too narrow: with `a.ts`
+    // swallowing the import and no sibling re-exporting, the scan came back
+    // `hasErrors: false` with zero diagnostics — the silent bind the sweep
+    // exists to refuse. A registration this scan **created** is equally about to
+    // bind, so it counts as reachable.
+    const hooksDir = await writeHooks({
+      '.internal/broken.ts': [
+        tagging(selectorA, 'BROKEN').trimEnd(),
+        `throw new Error('broken exploded after exporting');`,
+        ``,
+      ].join('\n'),
+      'a-swallows.ts': [
+        `try {`,
+        `  await import('./.internal/broken.js');`,
+        `} catch {`,
+        `  // swallowed`,
+        `}`,
+        `export const nothing = 1;`,
+        ``,
+      ].join('\n'),
+    });
+
+    const result = await loadUserHooks(hooksDir, catalog);
+
+    expect(result.hasErrors).toBe(true);
+    expect(errorsOf(result).join('\n')).toContain('broken.ts');
+  });
+
+  it('leaves a truncated message well-formed UTF-16', async () => {
+    // `slice` at an arbitrary code-unit index splits a surrogate pair, so a
+    // selector of emoji produced a message that was not well-formed — a lone
+    // surrogate that JSON and the terminal both render as U+FFFD.
+    const hooksDir = await writeHooks({
+      'emoji.ts': [
+        `import { beforeEach } from '@thymian/hooks';`,
+        `export const h = beforeEach('get /' + '\\u{1F600}'.repeat(400), async (v) => v);`,
+        ``,
+      ].join('\n'),
+    });
+
+    const result = await loadUserHooks(hooksDir, catalog);
+    const message = hookResolutionError(result.diagnostics).message;
+
+    expect(message.isWellFormed()).toBe(true);
+    expect(
+      /[\uD800-\uDFFF]/u.test(message.replaceAll(/[\p{Emoji}]/gu, '')),
+    ).toBe(false);
+  });
+
+  it('does not let the shared creation array grow without bound', async () => {
+    // `created` has no readers left — collection goes through the async scope —
+    // but it is part of the published shape and still receives creations made
+    // outside any scan. Unbounded, it retains every callback closure ever
+    // registered for the lifetime of the process.
+    const before = hookCreationLog().created.length;
+
+    for (let index = 0; index < 3_000; index += 1) {
+      registerHook({
+        kind: 'beforeEach',
+        target: selectorA,
+        callback: async (value: unknown) => value,
+      } as Parameters<typeof registerHook>[0]);
+    }
+
+    const after = hookCreationLog().created.length;
+
+    expect(after).toBeGreaterThan(before);
+    expect(after).toBeLessThanOrEqual(1_000);
   });
 });
