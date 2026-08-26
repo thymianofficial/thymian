@@ -349,6 +349,13 @@ async function loadRuleSet(
   if (ruleSet.pattern) {
     const dirname = path.dirname(basePath);
     let anyMatched = false;
+    // Tracks whether any matched module was itself a loadable `Rule`, *before*
+    // the caller's `ruleFilter` runs. The "matched files but no rules" throw
+    // keys off this rather than `rules.length`, so a set whose rules were all
+    // excluded by the filter (e.g. `rules list` with a strict severity
+    // threshold) returns empty instead of throwing — matching how the inline
+    // `ruleSet.rules` branch behaves when everything is filtered out.
+    let anyRuleLoaded = false;
 
     for (const pattern of Array.isArray(ruleSet.pattern)
       ? ruleSet.pattern
@@ -386,10 +393,20 @@ async function loadRuleSet(
           continue;
         }
 
+        // `loadUserModule` keys its exactly-once cache on the canonical
+        // (realpath) path, so load through `canonical` whenever we have it: a
+        // symlinked spelling would otherwise execute the same rule file twice
+        // and bypass the seam's canonicalization guarantee. When realpath
+        // failed above (`canonical` is undefined) the match vanished between
+        // the glob call and here — loading `resolved` then fails, which fails
+        // the whole set, exactly the intended "vanished" behavior. User-facing
+        // messages below stay on the non-canonical `resolved`.
+        const loadPath = canonical ?? resolved;
+
         let rawModule: unknown;
 
         try {
-          rawModule = await loadUserModule(resolved);
+          rawModule = await loadUserModule(loadPath);
         } catch (error) {
           throw new ThymianBaseError(
             `Rule set "${ruleSet.name}" failed to load "${resolved}": ${describeError(error)}`,
@@ -424,6 +441,8 @@ async function loadRuleSet(
         }
 
         if (isRule(candidate)) {
+          anyRuleLoaded = true;
+
           const rule = resolveEligibleRule(
             candidate,
             resolved,
@@ -439,7 +458,7 @@ async function loadRuleSet(
       }
     }
 
-    if (anyMatched && rules.length === 0) {
+    if (anyMatched && !anyRuleLoaded) {
       throw new ThymianBaseError(
         `Rule set "${ruleSet.name}" pattern matched files but produced no loadable rules.`,
         {

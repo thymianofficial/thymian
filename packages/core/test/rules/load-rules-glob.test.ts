@@ -1,4 +1,10 @@
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import {
+  mkdirSync,
+  mkdtempSync,
+  rmSync,
+  symlinkSync,
+  writeFileSync,
+} from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
@@ -123,6 +129,60 @@ describe('rule-set glob loading', () => {
         /matched files but produced no loadable rules/,
       ),
     });
+  });
+
+  it('executes a rule matched via two symlinked spellings only once (canonical load)', async () => {
+    // A glob can match the same real file under two spellings (a symlink and
+    // its target). The load must go through the canonical realpath so the
+    // module executes exactly once. A `.ts` rule makes this observable: jiti
+    // keys its module registry by the path handed to it, so loading the two
+    // raw spellings re-runs the file's top-level side effects twice, whereas
+    // loading the shared canonical path runs them once. (Native ESM would
+    // canonicalize symlinks on its own, which is why this uses `.ts`.)
+    const dir = mkdtempSync(join(tmpdir(), 'glob-symlink-'));
+    const marker = `__thymian_symlink_load_count_${process.pid}`;
+
+    try {
+      mkdirSync(join(dir, 'rules'), { recursive: true });
+      writeFileSync(
+        join(dir, 'rules', 'real.rule.ts'),
+        `globalThis[${JSON.stringify(marker)}] = (globalThis[${JSON.stringify(marker)}] ?? 0) + 1;\n` +
+          'export default { meta: { name: "glob-symlink-real", severity: "error", type: ["informational"], tags: [], options: {} } };\n',
+      );
+      symlinkSync(
+        join(dir, 'rules', 'real.rule.ts'),
+        join(dir, 'rules', 'alias.rule.ts'),
+      );
+      writeFileSync(
+        join(dir, 'rule-set.mjs'),
+        "export default { name: 'glob-symlink', pattern: './rules/*.rule.ts' };\n",
+      );
+
+      const rules = await loadRules(join(dir, 'rule-set.mjs'));
+
+      // Both spellings match and both resolve to the same rule, so it is
+      // returned twice...
+      expect(rules).toHaveLength(2);
+      // ...but the module executed exactly once, because the load went through
+      // the canonical realpath rather than the two symlink spellings.
+      expect((globalThis as Record<string, unknown>)[marker]).toBe(1);
+    } finally {
+      delete (globalThis as Record<string, unknown>)[marker];
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  it('returns empty (does not throw) when matched rules are all excluded by the caller filter', async () => {
+    // The glob matches loadable rules, but the caller's filter excludes every
+    // one. This must behave like the inline `ruleSet.rules` branch — an empty
+    // result, not the "matched files but produced no loadable rules" throw
+    // (which is reserved for globs that matched only non-rule files).
+    const rules = await loadRules(
+      join(fixtureDir, 'glob-basic', 'rule-set.mjs'),
+      () => false,
+    );
+
+    expect(rules).toEqual([]);
   });
 
   it('does not throw when the glob matches nothing at all', async () => {
