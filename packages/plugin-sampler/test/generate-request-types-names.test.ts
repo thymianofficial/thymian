@@ -1784,14 +1784,29 @@ describe('the postcondition still catches a name that was hijacked', () => {
     ).not.toThrow();
   });
 
+  /**
+   * The root check on its own, with NOTHING else able to fire: `Pet` is
+   * permitted (the schema references it) and its obligation is met (it is
+   * declared), so the only fault left is that the name the call returns was
+   * never declared. Written this way because the obvious version — an output
+   * declaring some unrelated `Something` — also trips the permission half, so it
+   * passes with the root check deleted and proves nothing.
+   */
   it('still requires the returned name to be declared', () => {
-    expect(() =>
+    const error = escapeError(() =>
       assertEmittedNamesWereIssued(
-        'export interface Something {}',
-        { type: 'object' },
+        'export interface Pet {\n  petName?: string\n}',
+        {
+          type: 'object',
+          properties: { p: { $ref: '#/definitions/Pet' } },
+          definitions: { Pet: { type: 'object' } },
+        },
         'Root',
       ),
-    ).toThrow(/Root/);
+    );
+
+    expect(error.name).toBe('GeneratedNameEscapeError');
+    expect(error.message).toContain('but never "Root"');
   });
 
   /**
