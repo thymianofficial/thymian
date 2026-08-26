@@ -258,10 +258,6 @@ function decodePointerToken(token: string): string {
   }
 }
 
-function encodePointerToken(token: string): string {
-  return token.replaceAll('~', '~0').replaceAll('/', '~1');
-}
-
 const DEFINITION_POINTER = /^#\/(\$defs|definitions)\/(.*)$/;
 
 /**
@@ -293,9 +289,12 @@ function rewriteRef(
   const tail = slash === -1 ? '' : remainder.slice(slash);
   const to = renames.get(decodePointerToken(head));
 
-  return to === undefined
-    ? value
-    : `#/${keyword}/${encodePointerToken(to)}${tail}`;
+  // The REPLACEMENT needs no escaping: every assigned name comes from
+  // `safeIdentifier`, so it is a valid TypeScript identifier and can contain
+  // neither `/` nor `~`. An escape here was unfalsifiable — a mutation removing
+  // it changed nothing — so it is gone rather than carried as untested code.
+  // Only the INCOMING token needs decoding, and that is load-bearing.
+  return to === undefined ? value : `#/${keyword}/${to}${tail}`;
 }
 
 function rewriteRefsInPlace(
