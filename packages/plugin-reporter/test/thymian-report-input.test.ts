@@ -304,3 +304,82 @@ describe('thymian-report-input', () => {
     await thymian.close();
   });
 });
+
+describe('thymian-report-input × report diff (#502)', () => {
+  let tmpDir: string;
+
+  beforeEach(async () => {
+    tmpDir = await mkdtemp(join(tmpdir(), 'thymian-report-diff-'));
+  });
+
+  afterEach(async () => {
+    await rm(tmpDir, { recursive: true, force: true });
+  });
+
+  async function writeReportFile(
+    name: string,
+    content: unknown,
+  ): Promise<string> {
+    const filePath = join(tmpDir, name);
+    await writeFile(filePath, JSON.stringify(content), 'utf-8');
+    return filePath;
+  }
+
+  it('carries the source-report identity into the diff envelope', async () => {
+    const base = sampleReport({ toolName: 'diff-tool' });
+    const head = sampleReport({ toolName: 'diff-tool' });
+    const baseFile = await writeReportFile('base.json', base);
+    const headFile = await writeReportFile('head.json', [head]);
+    const thymian = new Thymian().register(reporterPlugin, { formatters: {} });
+    await thymian.ready();
+
+    const outcome = await thymian.reportDiff({
+      base: { type: 'thymian', location: baseFile },
+      head: { type: 'thymian', location: headFile },
+    });
+
+    expect(outcome.unclaimed).toEqual([]);
+    expect(outcome.diff).toMatchObject({
+      baseReportId: base.reportId,
+      headReportId: head.reportId,
+      baseCreatedAt: base.createdAt,
+      headCreatedAt: head.createdAt,
+    });
+
+    await thymian.close();
+  });
+
+  it('diffing the same file against itself yields an empty change list', async () => {
+    const report = sampleReport({ toolName: 'diff-tool' });
+    const reportFile = await writeReportFile('same.json', report);
+    const thymian = new Thymian().register(reporterPlugin, { formatters: {} });
+    await thymian.ready();
+
+    const outcome = await thymian.reportDiff({
+      base: { type: 'thymian', location: reportFile },
+      head: { type: 'thymian', location: reportFile },
+    });
+
+    expect(outcome.diff?.changes).toEqual([]);
+
+    await thymian.close();
+  });
+
+  it('rejects a multi-report file per side, pointing at report merge', async () => {
+    const reportFile = await writeReportFile('multi.json', [
+      sampleReport({ toolName: 'a' }),
+      sampleReport({ toolName: 'b' }),
+    ]);
+    const thymian = new Thymian().register(reporterPlugin, { formatters: {} });
+    await thymian.ready();
+
+    await expect(
+      thymian.reportDiff({
+        base: { type: 'thymian', location: reportFile },
+        head: { type: 'thymian', location: reportFile },
+      }),
+    ).rejects.toThrow(/contains 2 reports/);
+
+    await thymian.close();
+  });
+});

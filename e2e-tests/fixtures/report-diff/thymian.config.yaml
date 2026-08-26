@@ -1,0 +1,12 @@
+# Pinned to the `strict` profile (like static-lint) so both lint runs
+# deterministically produce the same rule failure — the diff e2e then proves
+# endpoint pairing keeps that unchanged finding out of the run-result changes.
+ruleSets:
+  - name: '@thymian/rules-rfc-9110'
+    profile: strict
+plugins:
+  '@thymian/plugin-http-linter': {}
+  '@thymian/plugin-openapi': {}
+  '@thymian/plugin-reporter':
+    options:
+      formatters: {}

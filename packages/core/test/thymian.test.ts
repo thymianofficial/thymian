@@ -1123,3 +1123,189 @@ describe('Thymian.register plugin-options validation', () => {
     ).not.toThrow();
   });
 });
+
+describe('Thymian.reportDiff()', () => {
+  const makeRun = (runId: string, reason?: string) => ({
+    ...createToolRun({
+      tool: { name: '@thymian/plugin-reporter' },
+      runType: 'lint',
+      executions: [
+        createLintExecution({
+          location: { type: 'file', path: 'api.yaml' },
+          status: { kind: 'failed', ...(reason ? { reason } : {}) },
+          ruleId: 'rfc9110/x',
+        }),
+      ],
+      rules: [{ id: 'rfc9110/x', severity: 'error' }],
+    }),
+    runId,
+  });
+
+  /** Claim every input with one fragment per configured entry. */
+  const claimWith = (
+    t: Thymian,
+    fragmentsByLocation: Record<
+      string,
+      {
+        run: ReturnType<typeof createToolRun>;
+        report?: { reportId: string; createdAt: string };
+      }[]
+    >,
+  ) => {
+    const payloads: unknown[] = [];
+
+    t.emitter.onAction('core.report.convert', async (payload, ctx) => {
+      payloads.push(payload);
+      ctx.reply(
+        payload.inputs.flatMap((input) =>
+          (fragmentsByLocation[String(input.location)] ?? []).map((entry) => ({
+            input: { type: input.type, location: String(input.location) },
+            ...entry,
+          })),
+        ),
+      );
+    });
+
+    return payloads;
+  };
+
+  it('loads each side with its own action emission and yields an empty diff for a self-copy', async () => {
+    const t = new Thymian();
+    const identity = { reportId: 'r1', createdAt: '2026-08-26T00:00:00.000Z' };
+    const run = makeRun('run-1');
+    const payloads = claimWith(t, {
+      './base.json': [{ run, report: identity }],
+      './head.json': [{ run, report: identity }],
+    });
+
+    const outcome = await t.reportDiff({
+      base: { type: 'thymian', location: './base.json' },
+      head: { type: 'thymian', location: './head.json' },
+    });
+
+    expect(payloads).toHaveLength(2);
+    expect(outcome.unclaimed).toEqual([]);
+    expect(outcome.diff).toMatchObject({
+      baseReportId: 'r1',
+      headReportId: 'r1',
+      changes: [],
+    });
+
+    await t.close();
+  });
+
+  it('never trips the cross-input runId dedup: a copied-then-edited pair diffs instead of throwing', async () => {
+    const t = new Thymian();
+    const run = makeRun('shared-run-id');
+    const edited = {
+      ...makeRun('shared-run-id', 'now with a reason'),
+      runId: run.runId,
+    };
+    claimWith(t, {
+      './base.json': [
+        {
+          run,
+          report: { reportId: 'a', createdAt: '2026-01-01T00:00:00.000Z' },
+        },
+      ],
+      './head.json': [
+        {
+          run: { ...edited, runId: run.runId },
+          report: { reportId: 'b', createdAt: '2026-02-01T00:00:00.000Z' },
+        },
+      ],
+    });
+
+    const outcome = await t.reportDiff({
+      base: { type: 'thymian', location: './base.json' },
+      head: { type: 'thymian', location: './head.json' },
+    });
+
+    expect(outcome.diff?.changes).toHaveLength(2);
+
+    await t.close();
+  });
+
+  it('returns both inputs as unclaimed without computing a diff', async () => {
+    const t = new Thymian();
+    claimWith(t, {});
+
+    const outcome = await t.reportDiff({
+      base: { type: 'thymian', location: './base.json' },
+      head: { type: 'thymian', location: './head.json' },
+    });
+
+    expect(outcome.diff).toBeUndefined();
+    expect(outcome.unclaimed).toEqual([
+      { type: 'thymian', location: './base.json' },
+      { type: 'thymian', location: './head.json' },
+    ]);
+
+    await t.close();
+  });
+
+  it('rejects a side that contains more than one report', async () => {
+    const t = new Thymian();
+    claimWith(t, {
+      './base.json': [
+        {
+          run: makeRun('run-1'),
+          report: { reportId: 'r1', createdAt: 'x' },
+        },
+        {
+          run: makeRun('run-2'),
+          report: { reportId: 'r2', createdAt: 'y' },
+        },
+      ],
+    });
+
+    await expect(
+      t.reportDiff({
+        base: { type: 'thymian', location: './base.json' },
+        head: { type: 'thymian', location: './head.json' },
+      }),
+    ).rejects.toThrow(/contains 2 reports/);
+
+    await t.close();
+  });
+
+  it('rejects a side whose fragments carry no source-report identity', async () => {
+    const t = new Thymian();
+    claimWith(t, {
+      './base.json': [{ run: makeRun('run-1') }],
+    });
+
+    await expect(
+      t.reportDiff({
+        base: { type: 'thymian', location: './base.json' },
+        head: { type: 'thymian', location: './head.json' },
+      }),
+    ).rejects.toThrow(/did not carry its source report's identity/);
+
+    await t.close();
+  });
+
+  it('never emits core.report — the diff must not reach the file formatters', async () => {
+    const t = new Thymian();
+    const reportEvents: unknown[] = [];
+    t.emitter.on('core.report', async (report) => {
+      reportEvents.push(report);
+    });
+    const identity = { reportId: 'r1', createdAt: '2026-08-26T00:00:00.000Z' };
+    const run = makeRun('run-1');
+    claimWith(t, {
+      './base.json': [{ run, report: identity }],
+      './head.json': [{ run, report: identity }],
+    });
+
+    const outcome = await t.reportDiff({
+      base: { type: 'thymian', location: './base.json' },
+      head: { type: 'thymian', location: './head.json' },
+    });
+
+    expect(outcome.diff).toBeDefined();
+    expect(reportEvents).toEqual([]);
+
+    await t.close();
+  });
+});

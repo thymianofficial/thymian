@@ -30,7 +30,14 @@ import type { LogLevel } from './logger/log-level.js';
 import { shouldLog } from './logger/log-level.js';
 import type { Logger } from './logger/logger.js';
 import { NoopLogger } from './logger/noop.logger.js';
-import { createReport, type Report, type ToolRun } from './report/index.js';
+import {
+  computeReportDiff,
+  createReport,
+  type Report,
+  type ReportDiff,
+  type ReportDiffSide,
+  type ToolRun,
+} from './report/index.js';
 import {
   type LoadedTraffic,
   loadRules,
@@ -87,6 +94,25 @@ export interface ReportConvertOutcome {
    * Report inputs no registered listener claimed, derived from the union of
    * `core.report.convert` replies (ADR-0016/0017). Never thrown — enforcement
    * (a usage error naming the input) is the caller's job (CLI, Story 14.2).
+   */
+  unclaimed: ReportInput[];
+}
+
+export interface ReportDiffWorkflowInput {
+  /** The old/reference report input. */
+  base: ReportInput;
+  /** The new/compared report input. */
+  head: ReportInput;
+  options?: Record<string, unknown>;
+}
+
+export interface ReportDiffOutcome {
+  /** The computed diff document; absent when any input went unclaimed. */
+  diff?: ReportDiff;
+  /**
+   * Report inputs no registered listener claimed — same contract as
+   * {@link ReportConvertOutcome.unclaimed}: never thrown, enforcement is the
+   * caller's job.
    */
   unclaimed: ReportInput[];
 }
@@ -620,83 +646,13 @@ export class Thymian {
       }
 
       fragmentsByKey.delete(key);
-      return matches.map((fragment) => {
-        const fragmentHashes: string[] = [];
-
-        if (fragment.thymianFormat) {
-          for (const [hash, serialized] of Object.entries(
-            fragment.thymianFormat,
-          )) {
-            // Skip junk values (e.g. null or [] from a hand-edited persisted
-            // map — arrays are typeof 'object' too) rather than copying them
-            // into the merged report.
-            if (
-              !serialized ||
-              typeof serialized !== 'object' ||
-              Array.isArray(serialized)
-            ) {
-              continue;
-            }
-
-            fragmentHashes.push(hash);
-            if (!Object.hasOwn(fragmentFormats, hash)) {
-              fragmentFormats[hash] = serialized;
-            }
-          }
-        }
-
-        // Provenance-safe version completion: this fragment's own map is the
-        // only format its run can have used, so a single-entry map pins a
-        // missing `thymianFormatVersion` here — the render-side sole-entry
-        // fallback is gone (it read the cross-input union, which could
-        // attribute a foreign format to the run).
-        const run =
-          fragment.run.thymianFormatVersion === undefined &&
-          fragmentHashes.length === 1
-            ? { ...fragment.run, thymianFormatVersion: fragmentHashes[0] }
-            : fragment.run;
-
-        return { run, source: key };
-      });
+      return matches.map((fragment) => ({
+        run: this.assembleFragmentRun(fragment, fragmentFormats),
+        source: key,
+      }));
     });
 
-    // Run identity is `runId`, not the input path it arrived under: the same
-    // persisted run reaching the merge twice (a copied file, two exports of
-    // one report) must not yield duplicate `runId`s in the assembled report —
-    // downstream consumers join and de-duplicate on that id. Identity is
-    // only trusted when the content matches, though: two *different* runs
-    // under one id mean a copied-then-edited report file, and silently
-    // dropping one would erase its executions from the merge (and with them
-    // possibly the failed executions that decide the exit code), so that is
-    // an input error, not a dedup (#362 review).
-    const seenRuns = new Map<string, { run: ToolRun; source: string }>();
-    const uniqueToolRuns: ToolRun[] = [];
-
-    for (const { run, source } of assembledRuns) {
-      const seen = seenRuns.get(run.runId);
-
-      if (!seen) {
-        seenRuns.set(run.runId, { run, source });
-        uniqueToolRuns.push(run);
-        continue;
-      }
-
-      if (!isDeepStrictEqual(seen.run, run)) {
-        throw new ThymianBaseError(
-          `Two different runs share runId "${run.runId}" (from ${seen.source} and ${source}). Same-id runs are collapsed only when they are identical; differing content indicates a copied and then edited report file.`,
-          {
-            suggestions: [
-              'Regenerate one of the input reports so every distinct run carries its own runId.',
-              'If both files are meant to be the same run, make their content identical again.',
-            ],
-          },
-        );
-      }
-
-      this.logger.debug(
-        `Collapsed an identical duplicate of run "${run.runId}" (from ${source}) — the same run arrived from more than one input.`,
-      );
-    }
+    const uniqueToolRuns = this.dedupeRunsById(assembledRuns);
 
     const surplus = [...fragmentsByKey.values()].flat();
 
@@ -740,6 +696,218 @@ export class Thymian {
       ),
       unclaimed,
     };
+  }
+
+  /**
+   * Union a fragment's format map into `fragmentFormats` (junk values
+   * skipped, first occurrence wins per hash — equal hashes mean equal
+   * serialized graphs) and apply the provenance-safe version completion:
+   * the fragment's own map is the only format its run can have used, so a
+   * single-entry map pins a missing `thymianFormatVersion` here — the
+   * render-side sole-entry fallback is gone (it read the cross-input union,
+   * which could attribute a foreign format to the run). Shared by
+   * `reportConvert()` and `reportDiff()`.
+   */
+  private assembleFragmentRun(
+    fragment: ConvertedRunFragment,
+    fragmentFormats: NonNullable<Report['thymianFormat']>,
+  ): ToolRun {
+    const fragmentHashes: string[] = [];
+
+    if (fragment.thymianFormat) {
+      for (const [hash, serialized] of Object.entries(fragment.thymianFormat)) {
+        // Skip junk values (e.g. null or [] from a hand-edited persisted
+        // map — arrays are typeof 'object' too) rather than copying them
+        // into the assembled output.
+        if (
+          !serialized ||
+          typeof serialized !== 'object' ||
+          Array.isArray(serialized)
+        ) {
+          continue;
+        }
+
+        fragmentHashes.push(hash);
+        if (!Object.hasOwn(fragmentFormats, hash)) {
+          fragmentFormats[hash] = serialized;
+        }
+      }
+    }
+
+    return fragment.run.thymianFormatVersion === undefined &&
+      fragmentHashes.length === 1
+      ? { ...fragment.run, thymianFormatVersion: fragmentHashes[0] }
+      : fragment.run;
+  }
+
+  /**
+   * Run identity is `runId`, not the input path it arrived under: the same
+   * persisted run reaching an assembly twice (a copied file, two exports of
+   * one report) must not yield duplicate `runId`s — downstream consumers
+   * join and de-duplicate on that id. Identity is only trusted when the
+   * content matches, though: two *different* runs under one id mean a
+   * copied-then-edited report file, and silently dropping one would erase
+   * its executions (and with them possibly the failed executions that decide
+   * the exit code), so that is an input error, not a dedup (#362 review).
+   * Shared by `reportConvert()` and (per side) `reportDiff()`.
+   */
+  private dedupeRunsById(
+    assembledRuns: { run: ToolRun; source: string }[],
+  ): ToolRun[] {
+    const seenRuns = new Map<string, { run: ToolRun; source: string }>();
+    const uniqueToolRuns: ToolRun[] = [];
+
+    for (const { run, source } of assembledRuns) {
+      const seen = seenRuns.get(run.runId);
+
+      if (!seen) {
+        seenRuns.set(run.runId, { run, source });
+        uniqueToolRuns.push(run);
+        continue;
+      }
+
+      if (!isDeepStrictEqual(seen.run, run)) {
+        throw new ThymianBaseError(
+          `Two different runs share runId "${run.runId}" (from ${seen.source} and ${source}). Same-id runs are collapsed only when they are identical; differing content indicates a copied and then edited report file.`,
+          {
+            suggestions: [
+              'Regenerate one of the input reports so every distinct run carries its own runId.',
+              'If both files are meant to be the same run, make their content identical again.',
+            ],
+          },
+        );
+      }
+
+      this.logger.debug(
+        `Collapsed an identical duplicate of run "${run.runId}" (from ${source}) — the same run arrived from more than one input.`,
+      );
+    }
+
+    return uniqueToolRuns;
+  }
+
+  /**
+   * Load one diff side through the `core.report.convert` claim path (#502,
+   * ADR-0021). Each side is loaded with its own action emission so the two
+   * inputs never share a `runId` dedup — a report diffed against a copy of
+   * itself must assemble both sides intact and yield an empty diff, and a
+   * copied-then-edited pair must never throw the cross-input duplicate
+   * error. Nothing here emits `core.report`: a diff must not side-effect the
+   * file formatters. Returns `undefined` when no listener claimed the input
+   * (enforcement is the caller's job, as in `reportConvert`).
+   */
+  private async loadReportDiffSide(
+    reportInput: ReportInput,
+    role: 'base' | 'head',
+    options?: Record<string, unknown>,
+  ): Promise<ReportDiffSide | undefined> {
+    const key = `${reportInput.type}:${String(reportInput.location)}`;
+    const fragments: ConvertedRunFragment[] = (
+      await this.emitter.emitAction(
+        'core.report.convert',
+        { inputs: [reportInput], options },
+        { strategy: 'collect' },
+      )
+    ).flat();
+
+    const matches = fragments.filter(
+      (fragment) => `${fragment.input.type}:${fragment.input.location}` === key,
+    );
+
+    if (matches.length < fragments.length) {
+      this.logger.warn(
+        `Discarding ${fragments.length - matches.length} converted run fragment(s) claiming input(s) not part of this request.`,
+      );
+    }
+
+    if (matches.length === 0) {
+      return undefined;
+    }
+
+    // Diff needs per-report attribution (`baseReportId`/`baseCreatedAt`) and
+    // compares exactly one report per side — a multi-report file has no
+    // single identity to attribute changes to (AC 1).
+    const identities = new Map<
+      string,
+      { reportId: string; createdAt: string }
+    >();
+
+    for (const fragment of matches) {
+      if (!fragment.report) {
+        throw new ThymianBaseError(
+          `The ${role} input "${key}" did not carry its source report's identity — "report diff" requires persisted-report inputs whose converter reports it (the "thymian" input type).`,
+        );
+      }
+
+      identities.set(fragment.report.reportId, fragment.report);
+    }
+
+    if (identities.size > 1) {
+      throw new ThymianBaseError(
+        `The ${role} input "${key}" contains ${identities.size} reports — "report diff" compares exactly one report per side.`,
+        {
+          suggestions: [
+            'Merge the file into a single report first: thymian report merge --report thymian:<file>.',
+          ],
+        },
+      );
+    }
+
+    const fragmentFormats: NonNullable<Report['thymianFormat']> = Object.create(
+      null,
+    ) as NonNullable<Report['thymianFormat']>;
+    const assembledRuns = matches.map((fragment) => ({
+      run: this.assembleFragmentRun(fragment, fragmentFormats),
+      source: key,
+    }));
+
+    const identity = [...identities.values()][0]!;
+
+    return {
+      reportId: identity.reportId,
+      createdAt: identity.createdAt,
+      runs: this.dedupeRunsById(assembledRuns),
+      thymianFormat:
+        Object.keys(fragmentFormats).length > 0 ? fragmentFormats : undefined,
+    };
+  }
+
+  /**
+   * Compare two persisted reports (#502): load each side separately through
+   * the `core.report.convert` claim path, then compute the structured diff
+   * document. The outcome mirrors `reportConvert()`'s contract — unclaimed
+   * inputs are returned, never thrown, and no `core.report` event is emitted
+   * (the diff document is not a `Report` and never reaches the file
+   * formatters).
+   */
+  async reportDiff(input: ReportDiffWorkflowInput): Promise<ReportDiffOutcome> {
+    const unclaimed: ReportInput[] = [];
+
+    const base = await this.loadReportDiffSide(
+      input.base,
+      'base',
+      input.options,
+    );
+
+    if (!base) {
+      unclaimed.push(input.base);
+    }
+
+    const head = await this.loadReportDiffSide(
+      input.head,
+      'head',
+      input.options,
+    );
+
+    if (!head) {
+      unclaimed.push(input.head);
+    }
+
+    if (!base || !head) {
+      return { unclaimed };
+    }
+
+    return { diff: computeReportDiff(base, head, this.logger), unclaimed };
   }
 
   async validate(input: ValidateWorkflowInput): Promise<SpecValidationOutcome> {

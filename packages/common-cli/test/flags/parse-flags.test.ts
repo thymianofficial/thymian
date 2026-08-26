@@ -17,7 +17,7 @@ describe('flag parsers', () => {
 
     it('should throw for missing type prefix', () => {
       expect(() => parseSpecFlag('./openapi.yaml')).toThrow(
-        'Invalid format: "./openapi.yaml"',
+        'Invalid --spec format: "./openapi.yaml"',
       );
     });
 
@@ -119,5 +119,31 @@ describe('flag parsers', () => {
         'Invalid --traffic format: "har-traffic.har"',
       );
     });
+  });
+});
+
+describe('parseTypedInput (shared first-colon parser, ADR-0017)', () => {
+  it('splits on the first colon only', async () => {
+    const { parseTypedInput } = await import('../../src/flags/typed-input.js');
+
+    expect(
+      parseTypedInput('thymian:https://host:8443/report.json', '--base', 'x:y'),
+    ).toEqual({ type: 'thymian', location: 'https://host:8443/report.json' });
+  });
+
+  it('names the flag and example in its error message', async () => {
+    const { parseTypedInput } = await import('../../src/flags/typed-input.js');
+
+    expect(() =>
+      parseTypedInput('./report.json', '--head', 'thymian:./report.json'),
+    ).toThrow(
+      'Invalid --head format: "./report.json". Expected format: <type>:<location> (e.g. thymian:./report.json).',
+    );
+    expect(() => parseTypedInput(':x', '--base', 'e')).toThrow(
+      'Invalid --base format',
+    );
+    expect(() => parseTypedInput('x:', '--base', 'e')).toThrow(
+      'Invalid --base format',
+    );
   });
 });

@@ -20,12 +20,16 @@ import { vi } from 'vitest';
 export const mockState: {
   reportConvertInput?: unknown;
   reportConvertResult?: unknown;
+  reportDiffInput?: unknown;
+  reportDiffResult?: unknown;
   runCalled?: boolean;
 } = {};
 
 export function resetMockState(): void {
   mockState.reportConvertInput = undefined;
   mockState.reportConvertResult = undefined;
+  mockState.reportDiffInput = undefined;
+  mockState.reportDiffResult = undefined;
   mockState.runCalled = false;
 }
 
@@ -53,6 +57,19 @@ export async function mockThymianCore(): Promise<object> {
       return (
         mockState.reportConvertResult ?? {
           report: actual.createReport([]),
+          unclaimed: [],
+        }
+      );
+    });
+    public reportDiff = vi.fn(async (input: unknown) => {
+      mockState.reportDiffInput = input;
+      return (
+        mockState.reportDiffResult ?? {
+          diff: actual.createReportDiff(
+            { reportId: 'mock-base', createdAt: '2026-01-01T00:00:00.000Z' },
+            { reportId: 'mock-head', createdAt: '2026-01-02T00:00:00.000Z' },
+            [],
+          ),
           unclaimed: [],
         }
       );

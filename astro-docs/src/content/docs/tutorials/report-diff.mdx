@@ -1,0 +1,77 @@
+---
+title: Diffing reports
+description: Compare two Thymian reports with thymian report diff — see what regressed and what improved, gate CI on regressions, and detect API specification changes.
+---
+
+import { Aside } from '@astrojs/starlight/components';
+
+`thymian report diff` compares two Thymian JSON reports — a **base** (the old/reference state) and a **head** (the new/compared state) — and writes out a structured diff: which findings are new, which are resolved, how the API specification changed, and which rules were added or removed.
+
+```sh
+thymian report diff \
+  --base thymian:./report-before.json \
+  --head thymian:./report-after.json
+```
+
+## When to Use `thymian report diff`
+
+- **before/after a change**: see exactly what a spec or implementation change did to your lint/test/analyze results — including the improvements
+- **CI gates**: fail a pipeline only on regressions; runs that merely fix findings never fail
+- **tool or config migrations**: verify a rule reconfiguration did what you expected
+
+## Base, Head, and Supported Inputs
+
+`--base` and `--head` use the familiar `<type>:<file-path>` input syntax and are both required. Report inputs come exclusively from these flags — the config file's `reports` key is never read.
+
+Only `thymian:` inputs are accepted for now: a Thymian report embeds the API-format graph it was produced against, and that linkage is what specification comparison is built on. To diff an external format (for example Spectral), convert it into a Thymian report first with [`thymian report convert`](/tutorials/spectral-integration/) or [`thymian report merge`](/tutorials/report-merge/).
+
+<Aside type="note">
+  Each side must resolve to **exactly one report**: a bare report object or a
+  single-element report array (the JSON formatter's native output). A file
+  containing several reports is rejected — merge it into one report first with
+  `thymian report merge`.
+</Aside>
+
+## What the Diff Contains
+
+Every entry in the diff's `changes` list carries a polarity — `added`, `changed`, or `removed` — and one of three kinds:
+
+- **Run-result changes** (`added`/`removed` only): a failed execution (an error, a warning, …) that exists on only one side. `added` entries are regressions, `removed` entries are improvements. Identity is the rule, the location, and the failure details — so a reworded failure message or a reconfigured severity shows up as one `removed` plus one `added` entry.
+- **Specification changes**: an endpoint that was added to, removed from, or changed in the underlying API description, detected over the reports' embedded format graphs. Endpoints are paired across the sides by their `method` + `path`; a _changed_ entry names the aspects that differ (`queryParameters`, `body`, `responses`, …). A renamed path deliberately reads as removed + added — there is no fuzzy matching.
+- **Rule changes** (`added`/`removed` only): rules that appear on only one side. When an entire ruleset (the rule-id prefix before the first `/`) appears or disappears, it is reported as one ruleset entry instead of one entry per rule.
+
+Findings on a _changed_ endpoint keep their identity: the endpoint pairing maps the old and new format ids onto each other, so an unchanged finding on a changed endpoint is not falsely reported as removed + added.
+
+## Output
+
+By default the command prints a compact summary — counts per change kind, one line per change, and a verdict that clearly separates regressions from improvements. With `--json` it prints the machine-readable diff document instead:
+
+```sh
+thymian report diff \
+  --base thymian:./report-before.json \
+  --head thymian:./report-after.json \
+  --json > diff.json
+```
+
+The document carries its own identity (`diffId`, `createdAt`) and references both inputs (`baseReportId`/`headReportId`, `baseCreatedAt`/`headCreatedAt`) alongside the `changes` list.
+
+## Gating CI with `--fail-on`
+
+The exit code is controlled by `--fail-on` and classifies **diff changes**, not the reports' executions:
+
+| Mode                   | Fails (exit 1) when…                                              |
+| ---------------------- | ----------------------------------------------------------------- |
+| `regression` (default) | any run-result change was **added**, regardless of severity       |
+| `error`                | an added run-result change has resolved severity `error`          |
+| `any-change`           | anything changed at all (specification and rule changes included) |
+| `none`                 | never — the diff is informational only                            |
+
+Improvements never fail the gate: a run that only resolves findings exits `0` under the default mode and is reported as an improvement. Usage errors (missing flags, unsupported input types, multi-report files) and tool errors exit `2`, as everywhere in the CLI.
+
+```sh
+# Fail the pipeline only when new error-severity findings appeared:
+thymian report diff \
+  --base thymian:./main-report.json \
+  --head thymian:./pr-report.json \
+  --fail-on error
+```
