@@ -2176,6 +2176,110 @@ describe('generateRequestTypesSurface', () => {
     );
   });
 
+  /**
+   * The library's OWN schema extensions, which let a description dictate the
+   * emitted type outright instead of merely naming it. `tsType` is "an escape
+   * hatch that supercedes all other directives" (`typesOfSchema.js:15-16`) and
+   * `tsEnumNames` mints a `const enum` named after the property key
+   * (`parser.js:121`). `plugin-openapi` copies both through verbatim, the same
+   * fall-through that carries `title`/`$id`/`id`.
+   */
+  describe('descriptions that dictate the type (AC7)', () => {
+    it(
+      'ignores a tsType the description supplied, and keeps the declared type',
+      COMPILE_TIMEOUT,
+      async () => {
+        const surface = await surfaceOf([
+          {
+            path: '/ts',
+            status: 200,
+            responseMediaType: 'application/json',
+            responseSchema: selfNamed({
+              type: 'object',
+              properties: {
+                a: { type: 'string', tsType: 'SomethingUndeclared' },
+              },
+            }),
+          },
+        ]);
+
+        expect(compile(surface).diagnostics).toEqual([]);
+        expect(surface).not.toContain('SomethingUndeclared');
+        expect(
+          declarations(surface).get('GetTs200ApplicationJsonResponseBody'),
+        ).toContain('a?: string');
+      },
+    );
+
+    it(
+      'ignores a tsEnumNames the description supplied, and keeps the closed union',
+      COMPILE_TIMEOUT,
+      async () => {
+        const surface = await surfaceOf([
+          {
+            path: '/en',
+            status: 200,
+            responseMediaType: 'application/json',
+            responseSchema: selfNamed({
+              type: 'object',
+              properties: {
+                kind: {
+                  type: 'string',
+                  enum: ['a', 'b'],
+                  tsEnumNames: ['Hijack', 'Other'],
+                },
+              },
+            }),
+          },
+        ]);
+
+        expect(compile(surface).diagnostics).toEqual([]);
+        expect(declarations(surface).has('Kind')).toBe(false);
+        expect(surface).not.toContain('const enum');
+        // AC6: `enum` is left as-is — still a closed literal union.
+        expect(
+          declarations(surface).get('GetEn200ApplicationJsonResponseBody'),
+        ).toContain('"a" | "b"');
+      },
+    );
+
+    /**
+     * THE ORDER OF THE STRIP IS THE WHOLE FIX, AND IT IS PINNED HERE. `tsType`
+     * is both untrusted INPUT and the generator's own trusted OUTPUT: AC6's
+     * example reflection writes it. So the strip runs on the fresh clone of the
+     * description's schema, BEFORE reflection — never at the `compile()`
+     * boundary, where it deletes the reflection instead. Move the call after
+     * `reflectExamplesInPlace` and the second half of this test fails.
+     */
+    it(
+      'strips the description`s tsType while keeping the reflection pass`s',
+      COMPILE_TIMEOUT,
+      async () => {
+        const surface = await surfaceOf([
+          {
+            path: '/both',
+            status: 200,
+            responseMediaType: 'application/json',
+            responseSchema: selfNamed({
+              type: 'object',
+              properties: {
+                dictated: { type: 'string', tsType: 'SomethingUndeclared' },
+                reflected: { type: 'string', examples: ['x'] },
+              },
+            }),
+          },
+        ]);
+        const body = declarations(surface).get(
+          'GetBoth200ApplicationJsonResponseBody',
+        );
+
+        expect(compile(surface).diagnostics).toEqual([]);
+        expect(body).toContain('dictated?: string');
+        expect(body).toContain('reflected?: "x" | (string & {})');
+      },
+    );
+  });
+
   describe('determinism (AC8)', () => {
     const specs: TransactionSpec[] = [
       {
@@ -2475,6 +2579,134 @@ describe('generateRequestTypesSurface', () => {
       expect(surface).toContain('A launch.');
       expect(surface).not.toMatch(/Generated at|generated on \d/);
     });
+  });
+
+  /**
+   * AC8's premise is that the drift comparison strips comments and JSDoc
+   * precisely so a documentation-only spec edit is a NON-EVENT. Keying `$defs`
+   * disambiguation on the raw definition made `title` and `description` part of
+   * a definition's identity, so a documentation-only edit split one shared
+   * definition into `Pet` PLUS `Pet_2` — a structural diff that survives
+   * comment-stripping, plus a flipped alias on one transaction.
+   */
+  describe('documentation is not structure (AC8)', () => {
+    /** The drift comparison's view: comments and JSDoc removed. */
+    function withoutComments(surface: string): string {
+      return surface
+        .replace(/\/\*[\s\S]*?\*\//g, '')
+        .replace(/\n\s*\n+/g, '\n')
+        .trim();
+    }
+
+    function sharingPet(
+      first: string,
+      second: string,
+    ): readonly TransactionSpec[] {
+      const pet = (description: string) => ({
+        type: 'object',
+        description,
+        properties: { name: { type: 'string' } },
+      });
+
+      return [
+        {
+          path: '/one',
+          status: 200,
+          responseMediaType: 'application/json',
+          responseSchema: selfNamed({
+            type: 'object',
+            properties: { p: { $ref: '#/$defs/Pet' } },
+            $defs: { Pet: pet(first) },
+          }),
+        },
+        {
+          path: '/two',
+          status: 200,
+          responseMediaType: 'application/json',
+          responseSchema: selfNamed({
+            type: 'object',
+            properties: { p: { $ref: '#/$defs/Pet' } },
+            $defs: { Pet: pet(second) },
+          }),
+        },
+      ];
+    }
+
+    it(
+      'emits one declaration when two transactions differ only in description',
+      COMPILE_TIMEOUT,
+      async () => {
+        const surface = await surfaceOf(sharingPet('One way.', 'Another way.'));
+        const declared = declarations(surface);
+
+        expect(compile(surface).diagnostics).toEqual([]);
+        expect(
+          [...declared.keys()].filter((name) => /^Pet/.test(name)),
+        ).toEqual(['Pet']);
+        // Both transactions' bodies point at the one declaration.
+        expect(declared.get('GetOne200ApplicationJsonResponseBody')).toContain(
+          'p?: Pet',
+        );
+        expect(declared.get('GetTwo200ApplicationJsonResponseBody')).toContain(
+          'p?: Pet',
+        );
+      },
+    );
+
+    it(
+      'is byte-identical when the non-representative description is edited',
+      COMPILE_TIMEOUT,
+      async () => {
+        const baseline = await surfaceOf(sharingPet('One way.', 'One way.'));
+        const edited = await surfaceOf(sharingPet('One way.', 'Another way.'));
+
+        expect(edited).toBe(baseline);
+      },
+    );
+
+    it(
+      'differs only in JSDoc when the representative description is edited',
+      COMPILE_TIMEOUT,
+      async () => {
+        const baseline = await surfaceOf(sharingPet('One way.', 'One way.'));
+        const edited = await surfaceOf(sharingPet('Another way.', 'One way.'));
+
+        expect(edited).not.toBe(baseline);
+        expect(edited).toContain('Another way.');
+        expect(withoutComments(edited)).toBe(withoutComments(baseline));
+      },
+    );
+
+    it(
+      'still separates two definitions that differ in structure',
+      COMPILE_TIMEOUT,
+      async () => {
+        const specs = sharingPet('One way.', 'One way.');
+        const divergent: TransactionSpec[] = [
+          specs[0] as TransactionSpec,
+          {
+            ...(specs[1] as TransactionSpec),
+            responseSchema: selfNamed({
+              type: 'object',
+              properties: { p: { $ref: '#/$defs/Pet' } },
+              $defs: {
+                Pet: {
+                  type: 'object',
+                  description: 'One way.',
+                  properties: { legs: { type: 'number' } },
+                },
+              },
+            }),
+          },
+        ];
+        const surface = await surfaceOf(divergent);
+
+        expect(compile(surface).diagnostics).toEqual([]);
+        expect(
+          [...declarations(surface).keys()].filter((name) => /^Pet/.test(name)),
+        ).toEqual(['Pet', 'Pet_2']);
+      },
+    );
   });
 
   describe('non-JSON fallback (AC9)', () => {

@@ -25,6 +25,7 @@ import {
   compareStrings,
   NameRegistry,
   type SchemaRole,
+  stripTypeDirectivesInPlace,
 } from './type-names.js';
 
 /**
@@ -282,6 +283,15 @@ async function compileSites(
     }
 
     const prepared: unknown = structuredClone(site.schema);
+
+    // ORDER IS LOAD-BEARING, AND THIS IS THE ONE POINT IT CAN BE DONE. The
+    // description's `tsType` / `tsEnumNames` are removed here, while `prepared`
+    // is still purely what the description said. `reflectExamplesInPlace` writes
+    // `tsType` itself two lines down — that is AC6's mechanism — so a strip
+    // anywhere after it, including at the `compile()` boundary, deletes the
+    // generator's own output rather than the description's. See
+    // `stripTypeDirectivesInPlace`.
+    stripTypeDirectivesInPlace(prepared);
 
     applyDefinitionNames(prepared, definitionNames);
 

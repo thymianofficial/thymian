@@ -7,6 +7,7 @@ import {
 import CodeBlockWriter from 'code-block-writer';
 import { compile, type JSONSchema } from 'json-schema-to-typescript';
 
+import { assertEmittedNamesWereIssued } from '../generation/types/emitted-names.js';
 import {
   safeIdentifier,
   stripNameKeywordsInPlace,
@@ -34,29 +35,37 @@ export async function generateTypeForSchema(
   const safeName = safeIdentifier(typeName);
   // The other half of that same boundary: `compile` does not merely re-case the
   // name it is handed, it IGNORES it when the schema names itself, because
-  // `schema.title` and `schema.$id` outrank it (`parser.js:274`). A schema-level
-  // `title` is ordinary in real OpenAPI documents and `plugin-openapi` passes it
-  // through verbatim, so it reaches here intact and the returned name ends up
-  // naming nothing. Stripping both keeps "the declaration declares what this
-  // function returns" true by construction rather than by luck.
+  // `schema.title`, `schema.$id` and — via the normalizer's `id` -> `$id` rule —
+  // `schema.id` all outrank it (`parser.js:274`, `normalizer.js:49`). A
+  // schema-level `title` is ordinary in real OpenAPI documents and
+  // `plugin-openapi` passes all three through verbatim, so they reach here
+  // intact and the returned name ends up naming nothing. Stripping them keeps
+  // "the declaration declares what this function returns" true by construction
+  // rather than by luck.
   const prepared: unknown = structuredClone(schema);
 
   stripNameKeywordsInPlace(prepared);
 
-  const declaration = await compile(
-    convertDefsToDefinitions(prepared) as JSONSchema,
-    safeName,
-    {
-      bannerComment: '',
-      additionalProperties: true,
-      style: {
-        semi: false,
-      },
-      $refOptions: {
-        mutateInputSchema: true,
-      },
+  const compilable = convertDefsToDefinitions(prepared);
+  const declaration = await compile(compilable as JSONSchema, safeName, {
+    bannerComment: '',
+    additionalProperties: true,
+    style: {
+      semi: false,
     },
-  );
+    $refOptions: {
+      mutateInputSchema: true,
+    },
+  });
+
+  // The third half of the same boundary, and the only one that is not another
+  // enumeration. `title`, `$id` and `id` were each found by the same probe after
+  // the previous round had "closed" this, and the worst case was silent every
+  // time. Rather than guess at the next keyword, assert what the library
+  // ACTUALLY declared: this is the single `compile()` call in `src/`, and every
+  // producer of declarations routes through it — v2's sites, v2's example bases
+  // and the frozen v1 path alike — so one call covers the whole surface.
+  assertEmittedNamesWereIssued(declaration, compilable, safeName);
 
   return {
     declarations: [declaration],

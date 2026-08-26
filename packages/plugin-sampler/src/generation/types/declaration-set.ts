@@ -47,8 +47,19 @@ export class DeclarationSet {
 
 const DECLARATION_START = /^(?:export|declare)\b/;
 const JSDOC_START = /^\/\*\*/;
+/**
+ * `const\s+enum` HAS TO COME FIRST, and that is a bug fix rather than a
+ * micro-optimisation. Alternation is ordered, so with a bare `const` ahead of it
+ * `export const enum Kind {…}` matched `const` as the declaration keyword and
+ * captured `enum` as the NAME — {@link identifierOf} returned the string
+ * `"enum"`, which sorts and de-duplicates as if every `const enum` in the file
+ * were the same declaration. The library really can emit one: a schema carrying
+ * `tsEnumNames` reaches its `NAMED_ENUM` branch (see `type-names.ts`,
+ * `TYPE_DIRECTIVE_KEYWORDS`). `export const x = 1` still yields `x`, because the
+ * `const\s+enum` alternative simply fails to match it.
+ */
 const IDENTIFIER =
-  /^export\s+(?:declare\s+)?(?:interface|type|enum|class|const|function)\s+([A-Za-z_$][\w$]*)/m;
+  /^export\s+(?:declare\s+)?(?:const\s+enum|interface|type|enum|class|const|function)\s+([A-Za-z_$][\w$]*)/m;
 
 /** The identifier a declaration declares, or the empty string when the shape is
  * unrecognised — in which case the text itself carries the ordering. */

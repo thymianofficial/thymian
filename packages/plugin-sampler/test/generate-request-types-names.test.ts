@@ -1,20 +1,34 @@
+import type { ThymianError } from '@thymian/core';
+import { compile, type JSONSchema } from 'json-schema-to-typescript';
 import { toSafeString } from 'json-schema-to-typescript/dist/src/utils.js';
 import { describe, expect, it } from 'vitest';
 
-import { identifierOf } from '../src/generation/types/declaration-set.js';
+import {
+  identifierOf,
+  splitDeclarations,
+} from '../src/generation/types/declaration-set.js';
+import {
+  assertEmittedNamesWereIssued,
+  entitledNames,
+} from '../src/generation/types/emitted-names.js';
 import {
   applyDefinitionNames,
   assignDefinitionNames,
-  canonicalJson,
+  definitionIdentity,
   type DefinitionNameAssignment,
 } from '../src/generation/types/schema-definitions.js';
 import {
   assignUniqueNames,
   NameRegistry,
   safeIdentifier,
+  stripIdentityNoiseInPlace,
   stripNameKeywordsInPlace,
+  stripTypeDirectivesInPlace,
 } from '../src/generation/types/type-names.js';
-import { generateTypeForSchema } from '../src/hooks/generate-request-types.js';
+import {
+  convertDefsToDefinitions,
+  generateTypeForSchema,
+} from '../src/hooks/generate-request-types.js';
 
 /**
  * Strings that cross a transformation boundary. Every one of them is reachable
@@ -156,28 +170,51 @@ describe('generateTypeForSchema', () => {
 });
 
 /**
- * Every position `ThymianSchema` and `plugin-openapi` can put a subschema in,
- * each planted with the two keywords the library names declarations after. A
- * keyword this walk forgets is a declaration the registry never issued, which
- * is silent by construction — the surface still compiles, it just carries a
- * name nobody chose.
+ * Every position THE LIBRARY PARSES a subschema in, each planted with every
+ * keyword that can name a declaration, dictate a type, or be mistaken for
+ * structure.
+ *
+ * This docblock used to read "every position `ThymianSchema` and
+ * `plugin-openapi` can put a subschema in", which is the exact "a statement
+ * about a type is not evidence about a value" error the round-2 fix corrected
+ * everywhere except in its own lists — including in the fixture that guards
+ * them. `ThymianSchema` declares no `extends`, no array-form `items` and no
+ * `additionalItems`; the library parses all three (`parser.js:293-301` for
+ * `extends`, `:190-200` for the `TUPLE` branch), and a `title` in any of them
+ * declares an interface nothing reserved. What the type declares does not
+ * decide; what the library parses does.
+ *
+ * `extends` is planted here too, but as a CONTROL: it is the one parsed position
+ * the strip deliberately leaves alone, because a super-type with no name makes
+ * the library emit `extends  {` and throw a raw prettier `SyntaxError` — see
+ * `SUBSCHEMA_ARRAY_KEYWORDS`. Its hazard is covered by the postcondition
+ * instead, which is asserted below.
  */
 function schemaWithNameKeywordsEverywhere(): Record<string, unknown> {
   const named = (marker: string) => ({
     title: `Title_${marker}`,
     $id: `Id_${marker}`,
+    id: `LegacyId_${marker}`,
+    tsType: `TsType_${marker}`,
+    tsEnumNames: [`TsEnumName_${marker}`],
+    description: `Doc_${marker}`,
     type: 'object',
   });
 
   return {
     ...named('root'),
-    properties: { a: named('properties') },
+    // Array-form `items` rides along inside `properties`, so the single-schema
+    // form at the root and the tuple form are both covered by one fixture.
+    properties: {
+      a: { ...named('properties'), items: [named('itemsTuple')] },
+    },
     patternProperties: { '^x-': named('patternProperties') },
     dependentSchemas: { a: named('dependentSchemas') },
     $defs: {
       D: { ...named('defs'), $defs: { N: named('nestedDefs') } },
     },
     definitions: { L: named('definitions') },
+    additionalItems: named('additionalItems'),
     additionalProperties: named('additionalProperties'),
     contains: named('contains'),
     else: named('else'),
@@ -190,47 +227,108 @@ function schemaWithNameKeywordsEverywhere(): Record<string, unknown> {
     unevaluatedProperties: named('unevaluatedProperties'),
     allOf: [named('allOf')],
     anyOf: [named('anyOf')],
+    extends: [named('extends')],
     oneOf: [named('oneOf')],
     prefixItems: [named('prefixItems')],
   };
 }
 
+/**
+ * A schema whose keyword-looking members are DATA or PROPERTY NAMES, in every
+ * position a blind walk would corrupt. All three strips share one walk, so all
+ * three have to leave this untouched.
+ */
+function schemaWhereKeywordsAreNotKeywords(): Record<string, unknown> {
+  return {
+    type: 'object',
+    properties: {
+      title: { type: 'string' },
+      $id: { type: 'string' },
+      id: { type: 'string' },
+      description: { type: 'string' },
+      tsType: { type: 'string' },
+      tsEnumNames: { type: 'string' },
+    },
+    required: ['title', 'id', 'description'],
+    examples: [{ title: 'Dune', $id: 'urn:x', id: 'b1', description: 'd' }],
+    default: { title: 'none', id: 'none' },
+    const: { title: 'fixed', tsType: 'not-a-directive' },
+    enum: [{ title: 'one', id: 'two' }],
+  };
+}
+
+/** The fixture minus the one position the strips deliberately do not enter. */
+function withoutExtends(
+  schema: Record<string, unknown>,
+): Record<string, unknown> {
+  const rest = { ...schema };
+
+  delete rest['extends'];
+
+  return rest;
+}
+
+const PROPERTY_KEYS = [
+  'title',
+  '$id',
+  'id',
+  'description',
+  'tsType',
+  'tsEnumNames',
+];
+
 describe('stripNameKeywordsInPlace', () => {
-  it('removes title and $id from every subschema position', () => {
+  it('removes title, $id and id from every subschema position', () => {
     const schema = schemaWithNameKeywordsEverywhere();
 
     stripNameKeywordsInPlace(schema);
 
-    expect(JSON.stringify(schema)).not.toMatch(/"(title|\$id)":/);
+    expect(JSON.stringify(withoutExtends(schema))).not.toMatch(
+      /"(title|\$id|id)":/,
+    );
   });
 
   /**
-   * The two positions a blind "delete every title" walk gets wrong, and both
-   * are ordinary rather than exotic: a book has a property called `title`, and
-   * an example is DATA that the reflection pass renders into a literal type.
+   * The control. Removing a super-type's name does not fix a hazard, it breaks
+   * a description that works: the library renders `extends  {` and its own
+   * formatter throws. `emitted-names.ts` covers the naming hazard here instead.
    */
-  it('leaves title and $id alone where they are not keywords', () => {
-    const schema = {
-      type: 'object',
-      properties: {
-        title: { type: 'string' },
-        $id: { type: 'string' },
-      },
-      required: ['title'],
-      examples: [{ title: 'Dune', $id: 'urn:x' }],
-      default: { title: 'none' },
-      const: { title: 'fixed' },
-      enum: [{ title: 'one' }],
-    };
+  it('leaves a super-type its name, because an unnamed one cannot be emitted', () => {
+    const schema = schemaWithNameKeywordsEverywhere();
 
     stripNameKeywordsInPlace(schema);
 
-    expect(Object.keys(schema.properties)).toEqual(['title', '$id']);
-    expect(schema.examples).toEqual([{ title: 'Dune', $id: 'urn:x' }]);
-    expect(schema.default).toEqual({ title: 'none' });
-    expect(schema.const).toEqual({ title: 'fixed' });
-    expect(schema.enum).toEqual([{ title: 'one' }]);
-    expect(schema.required).toEqual(['title']);
+    expect(JSON.stringify(schema['extends'])).toMatch(/"title":/);
+  });
+
+  /**
+   * The two keywords it must NOT remove, and they are not symmetric with each
+   * other. `description` is what the library turns into a JSDoc comment, which
+   * AC8 requires. `tsType` is written by the generator's OWN example-reflection
+   * pass before this boundary is reached, so stripping it here deletes AC6's
+   * mechanism rather than the description's — measured: eight reflection tests
+   * fail. The description's directives are removed one boundary earlier, by
+   * {@link stripTypeDirectivesInPlace}.
+   */
+  it('keeps description and the type directives, which are not its job', () => {
+    const schema = schemaWithNameKeywordsEverywhere();
+
+    stripNameKeywordsInPlace(schema);
+
+    const text = JSON.stringify(schema);
+
+    expect(text).toMatch(/"description":/);
+    expect(text).toMatch(/"tsType":/);
+    expect(text).toMatch(/"tsEnumNames":/);
+  });
+
+  it('leaves the keywords alone where they are not keywords', () => {
+    const schema = schemaWhereKeywordsAreNotKeywords();
+    const untouched = structuredClone(schema);
+
+    stripNameKeywordsInPlace(schema);
+
+    expect(schema).toEqual(untouched);
   });
 
   it('tolerates the non-schema values these keywords legally hold', () => {
@@ -239,12 +337,80 @@ describe('stripNameKeywordsInPlace', () => {
       unevaluatedProperties: true,
       items: null,
       allOf: 'not-an-array',
+      extends: 'not-an-array',
       properties: [{ title: 'ignored' }],
     };
 
     expect(() => stripNameKeywordsInPlace(schema)).not.toThrow();
     expect(stripNameKeywordsInPlace(undefined)).toBeUndefined();
     expect(schema.additionalProperties).toBe(false);
+  });
+});
+
+describe('stripTypeDirectivesInPlace', () => {
+  it('removes tsType and tsEnumNames from every subschema position', () => {
+    const schema = schemaWithNameKeywordsEverywhere();
+
+    stripTypeDirectivesInPlace(schema);
+
+    expect(JSON.stringify(withoutExtends(schema))).not.toMatch(
+      /"(tsType|tsEnumNames)":/,
+    );
+  });
+
+  it('removes nothing else — the naming keywords are a separate boundary', () => {
+    const schema = schemaWithNameKeywordsEverywhere();
+
+    stripTypeDirectivesInPlace(schema);
+
+    const text = JSON.stringify(schema);
+
+    expect(text).toMatch(/"title":/);
+    expect(text).toMatch(/"\$id":/);
+    expect(text).toMatch(/"description":/);
+  });
+
+  it('leaves the keywords alone where they are not keywords', () => {
+    const schema = schemaWhereKeywordsAreNotKeywords();
+    const untouched = structuredClone(schema);
+
+    stripTypeDirectivesInPlace(schema);
+
+    expect(schema).toEqual(untouched);
+  });
+});
+
+describe('stripIdentityNoiseInPlace', () => {
+  it('removes naming keywords, type directives and description everywhere', () => {
+    const schema = schemaWithNameKeywordsEverywhere();
+
+    stripIdentityNoiseInPlace(schema);
+
+    expect(JSON.stringify(withoutExtends(schema))).not.toMatch(
+      /"(title|\$id|id|tsType|tsEnumNames|description)":/,
+    );
+  });
+
+  it('leaves the keywords alone where they are not keywords', () => {
+    const schema = schemaWhereKeywordsAreNotKeywords();
+    const untouched = structuredClone(schema);
+
+    stripIdentityNoiseInPlace(schema);
+
+    expect(schema).toEqual(untouched);
+  });
+
+  /**
+   * The one property `schema-definitions.ts` depends on: a property CALLED
+   * `description` is structure and must survive, or two definitions that
+   * genuinely differ collapse onto one name.
+   */
+  it('keeps a property named description as a property', () => {
+    const schema = schemaWhereKeywordsAreNotKeywords();
+
+    stripIdentityNoiseInPlace(schema);
+
+    expect(Object.keys(schema['properties'] as object)).toEqual(PROPERTY_KEYS);
   });
 });
 
@@ -350,12 +516,1066 @@ describe('applyDefinitionNames', () => {
     const b = { type: 'object', properties: { b: { type: 'number' } } };
     const schema = { $defs: { A: a, B: b } };
     const assignment: DefinitionNameAssignment = new Map([
-      ['A', new Map([[canonicalJson(a), 'Same']])],
-      ['B', new Map([[canonicalJson(b), 'Same']])],
+      [
+        'A',
+        new Map([[definitionIdentity(a), { name: 'Same', definition: a }]]),
+      ],
+      [
+        'B',
+        new Map([[definitionIdentity(b), { name: 'Same', definition: b }]]),
+      ],
     ]);
 
     expect(() => applyDefinitionNames(schema, assignment)).toThrow(
       /would both be emitted as "Same"/,
+    );
+  });
+
+  /**
+   * The guard has to compare IDENTITIES, not raw canonical JSON, or it fires on
+   * the documentation-only difference the rest of the module deliberately
+   * merges — turning a merge into an abort.
+   */
+  it('does not abort on a documentation-only difference', () => {
+    const a = { type: 'object', description: 'One', properties: {} };
+    const b = { type: 'object', description: 'Two', properties: {} };
+    const schema = { $defs: { A: a, B: b } };
+    const identity = definitionIdentity(a);
+    const assignment: DefinitionNameAssignment = new Map([
+      ['A', new Map([[identity, { name: 'Same', definition: a }]])],
+      ['B', new Map([[identity, { name: 'Same', definition: b }]])],
+    ]);
+
+    expect(() => applyDefinitionNames(schema, assignment)).not.toThrow();
+    expect(Object.keys(schema.$defs)).toEqual(['Same']);
+  });
+});
+
+describe('identifierOf', () => {
+  /**
+   * `export const enum` is two keywords, and ordered alternation read the first
+   * as the declaration keyword and the second as the NAME: `identifierOf`
+   * returned the literal string `"enum"`, so every `const enum` in a file sorted
+   * and de-duplicated as if it were the same declaration. The library really can
+   * emit one — a schema carrying `tsEnumNames` reaches its `NAMED_ENUM` branch
+   * and mints `export const enum Kind` — which is why this is a bug rather than
+   * a hypothetical.
+   */
+  it('reads the name of a const enum, not the word "enum"', () => {
+    expect(identifierOf('export const enum Kind {\n  Hijack = "a"\n}')).toBe(
+      'Kind',
+    );
+    expect(identifierOf('export declare const enum Kind {}')).toBe('Kind');
+  });
+
+  it('still reads every other declaration shape', () => {
+    expect(identifierOf('export const x = 1')).toBe('x');
+    expect(identifierOf('export interface Pet {}')).toBe('Pet');
+    expect(identifierOf('export type Selector = string')).toBe('Selector');
+    expect(identifierOf('export enum Kind {}')).toBe('Kind');
+    expect(identifierOf('export declare const y = 1')).toBe('y');
+    expect(identifierOf('something else entirely')).toBe('');
+  });
+});
+
+/** The identifiers one `generateTypeForSchema` call declares, in emitted order. */
+async function declaredNames(
+  schema: unknown,
+  typeName = 'GetPets200ResponseBody',
+): Promise<string[]> {
+  const generated = await generateTypeForSchema(
+    schema,
+    'application/json',
+    typeName,
+  );
+
+  return generated.declarations
+    .flatMap((declaration) => splitDeclarations(declaration))
+    .map((declaration) => identifierOf(declaration));
+}
+
+/**
+ * THE STRIP, PINNED AGAINST THE REAL GENERATOR.
+ *
+ * Every case here is a defect class a previous round shipped, and every one is
+ * asserted on the emitted DECLARATION NAMES rather than on `tsc` diagnostics —
+ * because the worst member of this class is `tsc`-clean by construction. The
+ * postcondition in `emitted-names.ts` is a SEPARATE net under the same hazards
+ * and is tested separately below; nothing here depends on it, so it is
+ * unambiguous which mechanism each test pins.
+ */
+describe('the strip, against the real generator', () => {
+  it('does not let a draft-04 id name the root declaration', async () => {
+    expect(
+      await declaredNames({
+        id: 'Pet',
+        type: 'object',
+        properties: { a: { type: 'string' } },
+      }),
+    ).toEqual(['GetPets200ResponseBody']);
+  });
+
+  /**
+   * THE SILENT ONE. Before the strip this emits `interface Owner` carrying Pet's
+   * body and `interface Owner1` carrying Owner's, with `p?: Owner` pointing at
+   * the wrong schema and zero `tsc` diagnostics. The filter cannot hide a
+   * counter-minted sibling: `generateName` only ever appends a decimal counter
+   * to the `toSafeString` base, so every sibling of `Pet` or `Owner` is
+   * prefix-matched by the regex and breaks the exact `toEqual`.
+   */
+  it('does not let a $defs entry id steal a sibling declaration', async () => {
+    const schema = {
+      type: 'object',
+      properties: {
+        p: { $ref: '#/$defs/Pet' },
+        o: { $ref: '#/$defs/Owner' },
+      },
+      $defs: {
+        Pet: {
+          id: 'Owner',
+          type: 'object',
+          properties: { petName: { type: 'string' } },
+        },
+        Owner: {
+          type: 'object',
+          properties: { ownerName: { type: 'string' } },
+        },
+      },
+    };
+    const generated = await generateTypeForSchema(
+      schema,
+      'application/json',
+      'GetPets200ResponseBody',
+    );
+    const declarations = generated.declarations.flatMap((declaration) =>
+      splitDeclarations(declaration),
+    );
+    const named = new Map(
+      declarations.map((declaration) => [
+        identifierOf(declaration),
+        declaration,
+      ]),
+    );
+
+    expect(
+      [...named.keys()].filter((name) => /^(Pet|Owner)/.test(name)).sort(),
+    ).toEqual(['Owner', 'Pet']);
+    expect(named.get('Pet')).toContain('petName?: string');
+    expect(named.get('Owner')).toContain('ownerName?: string');
+    expect(named.get('GetPets200ResponseBody')).toContain('p?: Pet');
+    expect(named.get('GetPets200ResponseBody')).toContain('o?: Owner');
+  });
+
+  /**
+   * `extends` is the position the strip does NOT enter, so this is the
+   * postcondition doing the work end to end: the hijacked name never reaches a
+   * committed file, and the abort is a named Thymian error rather than the raw
+   * prettier `SyntaxError` a strip here would have produced.
+   */
+  it('aborts on a title inside extends, rather than declaring it', async () => {
+    await expect(
+      generateTypeForSchema(
+        {
+          type: 'object',
+          properties: { a: { type: 'string' } },
+          extends: [
+            {
+              title: 'HijackExtends',
+              type: 'object',
+              properties: { b: { type: 'string' } },
+            },
+          ],
+        },
+        'application/json',
+        'GetPets200ResponseBody',
+      ),
+    ).rejects.toThrow(/"HijackExtends"/);
+  });
+
+  it('does not let a title inside array-form items declare an interface', async () => {
+    expect(
+      await declaredNames({
+        type: 'array',
+        items: [
+          {
+            title: 'HijackItems',
+            type: 'object',
+            properties: { b: { type: 'string' } },
+          },
+        ],
+      }),
+    ).toEqual(['GetPets200ResponseBody']);
+  });
+
+  it('does not let a title inside additionalItems declare an interface', async () => {
+    expect(
+      await declaredNames({
+        type: 'array',
+        items: [{ type: 'string' }],
+        additionalItems: {
+          title: 'HijackAdditional',
+          type: 'object',
+          properties: { b: { type: 'string' } },
+        },
+      }),
+    ).toEqual(['GetPets200ResponseBody']);
+  });
+
+  /**
+   * The type directives are stripped one boundary EARLIER than the naming
+   * keywords — on the description's schema, before example reflection writes
+   * `tsType` of its own — so they are exercised through
+   * {@link stripTypeDirectivesInPlace} rather than through the compile boundary.
+   * The wiring and its ORDER are pinned in
+   * `generate-request-types-surface.test.ts`.
+   */
+  it('does not let tsEnumNames mint an unreserved const enum', async () => {
+    const schema: unknown = {
+      type: 'object',
+      properties: {
+        kind: { type: 'string', enum: ['a'], tsEnumNames: ['Hijack'] },
+      },
+    };
+
+    // Unstripped, the `const enum Kind` it mints is an identifier nothing
+    // reserved — and the postcondition, which needs no keyword list, says so.
+    await expect(
+      generateTypeForSchema(
+        structuredClone(schema),
+        'application/json',
+        'GetPets200ResponseBody',
+      ),
+    ).rejects.toThrow(/"Kind"/);
+
+    const stripped: unknown = structuredClone(schema);
+
+    stripTypeDirectivesInPlace(stripped);
+
+    const generated = await generateTypeForSchema(
+      stripped,
+      'application/json',
+      'GetPets200ResponseBody',
+    );
+
+    expect(await declaredNames(stripped)).toEqual(['GetPets200ResponseBody']);
+    // AC6: `enum` is left as-is, i.e. still a closed literal union.
+    expect(generated.declarations.join('\n')).toContain('kind?: "a"');
+  });
+
+  it('does not let tsType write TypeScript into the surface', async () => {
+    const schema: unknown = {
+      type: 'object',
+      properties: { a: { type: 'string', tsType: 'SomethingUndeclared' } },
+    };
+    const before = await generateTypeForSchema(
+      structuredClone(schema),
+      'application/json',
+      'GetPets200ResponseBody',
+    );
+
+    expect(before.declarations.join('\n')).toContain('a?: SomethingUndeclared');
+
+    const stripped: unknown = structuredClone(schema);
+
+    stripTypeDirectivesInPlace(stripped);
+
+    const after = await generateTypeForSchema(
+      stripped,
+      'application/json',
+      'GetPets200ResponseBody',
+    );
+
+    expect(after.declarations.join('\n')).toContain('a?: string');
+    expect(after.declarations.join('\n')).not.toContain('SomethingUndeclared');
+  });
+});
+
+/**
+ * THE POSTCONDITION, TESTED ON ITS OWN.
+ *
+ * The strip above removes these keywords before `compile()` sees them, so with
+ * the strip in place the postcondition never fires for them — which would make
+ * "it throws" untestable through `generateTypeForSchema`. So the violations are
+ * driven through the same `compile()` call MINUS the strip, and the assertion is
+ * asked directly. That keeps the two mechanisms independently falsifiable: if
+ * the strip regresses, the tests above fail; if the postcondition regresses,
+ * these do.
+ */
+const COMPILE_OPTIONS = {
+  bannerComment: '',
+  additionalProperties: true,
+  style: { semi: false },
+  $refOptions: { mutateInputSchema: true },
+} as const;
+
+async function compiledWithoutStrip(
+  schema: unknown,
+  name: string,
+): Promise<{ compilable: unknown; compiled: string }> {
+  const compilable = convertDefsToDefinitions(structuredClone(schema));
+  const compiled = await compile(
+    compilable as JSONSchema,
+    name,
+    COMPILE_OPTIONS,
+  );
+
+  return { compilable, compiled };
+}
+
+function escapeError(fn: () => void): ThymianError {
+  try {
+    fn();
+  } catch (error) {
+    return error as ThymianError;
+  }
+
+  throw new Error('Expected the postcondition to throw, but it did not.');
+}
+
+/**
+ * Eighteen shapes the real generator produces legitimately. The postcondition
+ * has one failure mode that matters more than a missed defect — aborting a
+ * generation that was fine — so the false-positive surface is enumerated
+ * explicitly and run through the real `compile()`.
+ */
+const NO_VIOLATION: readonly (readonly [string, unknown, string])[] = [
+  [
+    'simple object',
+    { type: 'object', properties: { a: { type: 'string' } } },
+    'GetPets200ResponseBody',
+  ],
+  [
+    '$defs.Pet referenced',
+    {
+      type: 'object',
+      properties: { p: { $ref: '#/$defs/Pet' } },
+      $defs: { Pet: { type: 'object', properties: { n: { type: 'string' } } } },
+    },
+    'GetPets200ResponseBody',
+  ],
+  [
+    "$defs['pet-owner']",
+    {
+      type: 'object',
+      properties: { p: { $ref: '#/$defs/pet-owner' } },
+      $defs: {
+        'pet-owner': { type: 'object', properties: { n: { type: 'string' } } },
+      },
+    },
+    'GetPets200ResponseBody',
+  ],
+  [
+    "$defs['pet_owner']",
+    {
+      type: 'object',
+      properties: { p: { $ref: '#/$defs/pet_owner' } },
+      $defs: {
+        pet_owner: { type: 'object', properties: { n: { type: 'string' } } },
+      },
+    },
+    'GetPets200ResponseBody',
+  ],
+  [
+    'nested $defs/Wrap/$defs/Inner',
+    {
+      type: 'object',
+      properties: { w: { $ref: '#/$defs/Wrap' } },
+      $defs: {
+        Wrap: {
+          type: 'object',
+          properties: { i: { $ref: '#/$defs/Wrap/$defs/Inner' } },
+          $defs: {
+            Inner: { type: 'object', properties: { n: { type: 'string' } } },
+          },
+        },
+      },
+    },
+    'GetPets200ResponseBody',
+  ],
+  [
+    "$defs['pet-owner'] + $defs['pet.owner'] (PetOwner and Pet)",
+    {
+      type: 'object',
+      properties: {
+        a: { $ref: '#/$defs/pet-owner' },
+        b: { $ref: '#/$defs/pet.owner' },
+      },
+      $defs: {
+        'pet-owner': { type: 'object', properties: { a: { type: 'string' } } },
+        'pet.owner': { type: 'object', properties: { b: { type: 'number' } } },
+      },
+    },
+    'GetPets200ResponseBody',
+  ],
+  [
+    "$defs['pet-owner'] + $defs['pet_owner'] (PetOwner and PetOwner1)",
+    {
+      type: 'object',
+      properties: {
+        a: { $ref: '#/$defs/pet-owner' },
+        b: { $ref: '#/$defs/pet_owner' },
+      },
+      $defs: {
+        'pet-owner': { type: 'object', properties: { a: { type: 'string' } } },
+        pet_owner: { type: 'object', properties: { b: { type: 'number' } } },
+      },
+    },
+    'GetPets200ResponseBody',
+  ],
+  [
+    'three keys on one base (PetOwner, PetOwner1, PetOwner2)',
+    {
+      type: 'object',
+      properties: {
+        a: { $ref: '#/$defs/pet-owner' },
+        b: { $ref: '#/$defs/pet_owner' },
+        c: { $ref: '#/$defs/pet owner' },
+      },
+      $defs: {
+        'pet-owner': { type: 'object', properties: { a: { type: 'string' } } },
+        pet_owner: { type: 'object', properties: { b: { type: 'number' } } },
+        'pet owner': { type: 'object', properties: { c: { type: 'boolean' } } },
+      },
+    },
+    'GetPets200ResponseBody',
+  ],
+  [
+    'array-form items with no title',
+    { type: 'array', items: [{ type: 'string' }, { type: 'number' }] },
+    'GetPets200ResponseBody',
+  ],
+  [
+    'allOf with a $ref',
+    {
+      allOf: [
+        { $ref: '#/$defs/Pet' },
+        { type: 'object', properties: { extra: { type: 'string' } } },
+      ],
+      $defs: { Pet: { type: 'object', properties: { n: { type: 'string' } } } },
+    },
+    'GetPets200ResponseBody',
+  ],
+  [
+    "$defs['_400']",
+    {
+      type: 'object',
+      properties: { e: { $ref: '#/$defs/_400' } },
+      $defs: {
+        _400: { type: 'object', properties: { n: { type: 'string' } } },
+      },
+    },
+    'GetPets200ResponseBody',
+  ],
+  [
+    'recursive $defs.Node referenced twice',
+    {
+      type: 'object',
+      properties: { a: { $ref: '#/$defs/Node' }, b: { $ref: '#/$defs/Node' } },
+      $defs: {
+        Node: {
+          type: 'object',
+          properties: { next: { $ref: '#/$defs/Node' } },
+        },
+      },
+    },
+    'GetPets200ResponseBody',
+  ],
+  [
+    'dependentSchemas',
+    {
+      type: 'object',
+      properties: { a: { type: 'string' } },
+      dependentSchemas: {
+        a: { type: 'object', properties: { b: { type: 'string' } } },
+      },
+    },
+    'GetPets200ResponseBody',
+  ],
+  [
+    'patternProperties holding a $ref',
+    {
+      type: 'object',
+      patternProperties: { '^x-': { $ref: '#/$defs/Pet' } },
+      $defs: { Pet: { type: 'object', properties: { n: { type: 'string' } } } },
+    },
+    'GetPets200ResponseBody',
+  ],
+  [
+    'a top-level $ref plus $defs',
+    {
+      $ref: '#/$defs/Pet',
+      $defs: { Pet: { type: 'object', properties: { n: { type: 'string' } } } },
+    },
+    'GetPets200ResponseBody',
+  ],
+  ['a primitive root', { type: 'string' }, 'GetPets200ResponseBody'],
+  ['an empty root', {}, 'GetPets200ResponseBody'],
+  [
+    'a root name that collides with a $defs key (Pet and Pet1)',
+    {
+      type: 'object',
+      properties: { p: { $ref: '#/$defs/Pet' } },
+      $defs: { Pet: { type: 'object', properties: { n: { type: 'string' } } } },
+    },
+    'Pet',
+  ],
+];
+
+describe('assertEmittedNamesWereIssued', () => {
+  it.each(NO_VIOLATION)(
+    'accepts what the real generator legitimately emits: %s',
+    async (_label, schema, name) => {
+      await expect(
+        generateTypeForSchema(schema, 'application/json', name),
+      ).resolves.toBeDefined();
+    },
+  );
+
+  it('has exactly the eighteen no-violation rows the design enumerates', () => {
+    expect(NO_VIOLATION).toHaveLength(18);
+  });
+
+  /**
+   * The counter suffixes the entitled set has to tolerate, stated as emitted
+   * names rather than left implicit in the entitlement arithmetic. Two distinct
+   * pointers collapsing onto one base really do produce `PetOwner1`, and a root
+   * name colliding with a `$defs` key really does produce `Pet1`.
+   */
+  it('tolerates the counter suffixes a genuine collision produces', async () => {
+    expect(
+      (
+        await declaredNames({
+          type: 'object',
+          properties: {
+            a: { $ref: '#/$defs/pet-owner' },
+            b: { $ref: '#/$defs/pet_owner' },
+          },
+          $defs: {
+            'pet-owner': {
+              type: 'object',
+              properties: { a: { type: 'string' } },
+            },
+            pet_owner: {
+              type: 'object',
+              properties: { b: { type: 'number' } },
+            },
+          },
+        })
+      ).sort(),
+    ).toEqual(['GetPets200ResponseBody', 'PetOwner', 'PetOwner1']);
+
+    expect(
+      (
+        await declaredNames(
+          {
+            type: 'object',
+            properties: { p: { $ref: '#/$defs/Pet' } },
+            $defs: {
+              Pet: { type: 'object', properties: { n: { type: 'string' } } },
+            },
+          },
+          'Pet',
+        )
+      ).sort(),
+    ).toEqual(['Pet', 'Pet1']);
+  });
+
+  it('rejects a root the schema named itself, via a draft-04 id', async () => {
+    const { compilable, compiled } = await compiledWithoutStrip(
+      { id: 'Pet', type: 'object', properties: { a: { type: 'string' } } },
+      'GetPets200ResponseBody',
+    );
+    const error = escapeError(() =>
+      assertEmittedNamesWereIssued(
+        compiled,
+        compilable,
+        'GetPets200ResponseBody',
+      ),
+    );
+
+    expect(error.name).toBe('GeneratedNameEscapeError');
+    expect(error.message).toContain('"Pet"');
+    expect(error.message).toContain('GetPets200ResponseBody');
+    expect(error.options.suggestions?.[0]).toContain(
+      'defect in the generated type surface',
+    );
+  });
+
+  /**
+   * THE ONE THE ROUND-3 PRESCRIPTION MISSED, and the reason the check has a set
+   * half at all. The ROOT declaration here is named correctly, so a root-only
+   * check passes while the file emits `Owner` carrying Pet's body and `Owner1`
+   * carrying Owner's. `Owner1` is the tell: `Owner` is reached by ONE pointer
+   * site, so a counter suffix on it was never entitled.
+   *
+   * This test is what fails if the counter tolerance is loosened from
+   * `b1 … b(m-1)` to `b1 … b(m)`, and what fails if the check is reduced to the
+   * root declaration.
+   */
+  it('rejects the silent case, where the root name is correct', async () => {
+    const { compilable, compiled } = await compiledWithoutStrip(
+      {
+        type: 'object',
+        properties: {
+          p: { $ref: '#/$defs/Pet' },
+          o: { $ref: '#/$defs/Owner' },
+        },
+        $defs: {
+          Pet: {
+            id: 'Owner',
+            type: 'object',
+            properties: { petName: { type: 'string' } },
+          },
+          Owner: {
+            type: 'object',
+            properties: { ownerName: { type: 'string' } },
+          },
+        },
+      },
+      'GetPets200ResponseBody',
+    );
+
+    // The root really is named correctly, which is exactly why a root-only
+    // check is not enough.
+    expect(splitDeclarations(compiled).map(identifierOf)).toContain(
+      'GetPets200ResponseBody',
+    );
+
+    const error = escapeError(() =>
+      assertEmittedNamesWereIssued(
+        compiled,
+        compilable,
+        'GetPets200ResponseBody',
+      ),
+    );
+
+    expect(error.name).toBe('GeneratedNameEscapeError');
+    expect(error.message).toContain('"Owner1"');
+    expect(error.message).toContain('never issued');
+  });
+
+  /**
+   * THE REASON THE BOUND IS TIGHT RATHER THAN GENEROUS, and the case a
+   * count-every-occurrence rule gives away. `plugin-openapi` hoists
+   * `components/schemas` into `$defs`, so a schema referenced from two
+   * properties is the ORDINARY shape — not the exotic one. Counting occurrences
+   * would give `Owner` a multiplicity of two, entitle `Owner1`, and let the
+   * hijack through on a file `tsc` calls clean.
+   *
+   * Asserted on the emitted declaration NAMES, because there are no diagnostics
+   * to assert on: the surface below compiles with zero errors while `p` is typed
+   * as the wrong schema.
+   */
+  it('rejects the silent case even when the target is referenced twice', async () => {
+    const { compilable, compiled } = await compiledWithoutStrip(
+      {
+        type: 'object',
+        properties: {
+          p: { $ref: '#/$defs/Pet' },
+          o1: { $ref: '#/$defs/Owner' },
+          o2: { $ref: '#/$defs/Owner' },
+        },
+        $defs: {
+          Pet: {
+            id: 'Owner',
+            type: 'object',
+            properties: { petName: { type: 'string' } },
+          },
+          Owner: {
+            type: 'object',
+            properties: { ownerName: { type: 'string' } },
+          },
+        },
+      },
+      'GetPets200ResponseBody',
+    );
+
+    // The corruption, stated as names: `Owner` carries Pet's body, and the
+    // registry never issued `Owner1`.
+    expect(splitDeclarations(compiled).map(identifierOf)).toEqual([
+      'GetPets200ResponseBody',
+      'Owner',
+      'Owner1',
+    ]);
+
+    const error = escapeError(() =>
+      assertEmittedNamesWereIssued(
+        compiled,
+        compilable,
+        'GetPets200ResponseBody',
+      ),
+    );
+
+    expect(error.name).toBe('GeneratedNameEscapeError');
+    expect(error.message).toContain('"Owner1"');
+  });
+
+  it.each([
+    [
+      'a title inside extends',
+      {
+        type: 'object',
+        properties: { a: { type: 'string' } },
+        extends: [
+          {
+            title: 'HijackExtends',
+            type: 'object',
+            properties: { b: { type: 'string' } },
+          },
+        ],
+      },
+      'HijackExtends',
+    ],
+    [
+      'a title inside array-form items',
+      {
+        type: 'array',
+        items: [
+          {
+            title: 'HijackItems',
+            type: 'object',
+            properties: { b: { type: 'string' } },
+          },
+        ],
+      },
+      'HijackItems',
+    ],
+    [
+      'a title inside additionalItems',
+      {
+        type: 'array',
+        items: [{ type: 'string' }],
+        additionalItems: {
+          title: 'HijackAdditional',
+          type: 'object',
+          properties: { b: { type: 'string' } },
+        },
+      },
+      'HijackAdditional',
+    ],
+    [
+      'tsEnumNames',
+      {
+        type: 'object',
+        properties: {
+          kind: { type: 'string', enum: ['a'], tsEnumNames: ['Hijack'] },
+        },
+      },
+      'Kind',
+    ],
+  ])('rejects %s', async (_label, schema, offender) => {
+    const { compilable, compiled } = await compiledWithoutStrip(
+      schema,
+      'GetPets200ResponseBody',
+    );
+    const error = escapeError(() =>
+      assertEmittedNamesWereIssued(
+        compiled,
+        compilable,
+        'GetPets200ResponseBody',
+      ),
+    );
+
+    expect(error.name).toBe('GeneratedNameEscapeError');
+    expect(error.message).toContain(`"${offender}"`);
+  });
+});
+
+/**
+ * THE BOUND, AS A TABLE, MEASURED AGAINST THE REAL COMPILER.
+ *
+ * How many declarations one pointer target is entitled to is the whole strength
+ * of the postcondition, and it is the piece most likely to drift on a library
+ * bump. Each row states the expected DECLARATION NAMES; the test compiles the
+ * row for real and requires the entitled set to be exactly that — so a row is
+ * falsified both by the library changing and by the rule drifting, in either
+ * direction.
+ *
+ * Two wrong rules were tried before this one, and both are visible here. Keying
+ * on DISTINCT POINTER STRINGS fails the `sibling ×2` rows. Counting EVERY
+ * OCCURRENCE fails nothing here but gives away the case the check exists for —
+ * see `rejects the silent case even when the target is referenced twice`.
+ */
+const N_DEF = { type: 'object', properties: { n: { type: 'string' } } };
+const PLAIN = { $ref: '#/definitions/N' };
+const WITH_EXAMPLES = { $ref: '#/definitions/N', examples: [{ n: 'x' }] };
+const withDescription = (description: string) => ({
+  $ref: '#/definitions/N',
+  description,
+});
+const rootOver = (
+  properties: Record<string, unknown>,
+  definitions: Record<string, unknown> = { N: N_DEF },
+) => ({ type: 'object', properties, definitions });
+const RECURSIVE = {
+  type: 'object',
+  properties: { next: { $ref: '#/definitions/Rec' } },
+};
+
+const MULTIPLICITY_TABLE: readonly (readonly [
+  string,
+  unknown,
+  readonly string[],
+])[] = [
+  ['plain ref x1', rootOver({ a: PLAIN }), ['Root', 'N']],
+  ['plain ref x2', rootOver({ a: PLAIN, b: PLAIN }), ['Root', 'N']],
+  ['plain ref x3', rootOver({ a: PLAIN, b: PLAIN, c: PLAIN }), ['Root', 'N']],
+  [
+    'plain ref x4',
+    rootOver({ a: PLAIN, b: PLAIN, c: PLAIN, d: PLAIN }),
+    ['Root', 'N'],
+  ],
+  ['ref + sibling examples x1', rootOver({ a: WITH_EXAMPLES }), ['Root', 'N']],
+  [
+    'ref + sibling examples x2',
+    rootOver({ a: WITH_EXAMPLES, b: WITH_EXAMPLES }),
+    ['Root', 'N', 'N1'],
+  ],
+  [
+    'ref + sibling examples x3',
+    rootOver({ a: WITH_EXAMPLES, b: WITH_EXAMPLES, c: WITH_EXAMPLES }),
+    ['Root', 'N', 'N1', 'N2'],
+  ],
+  [
+    'plain + ref with a sibling',
+    rootOver({ a: PLAIN, b: WITH_EXAMPLES }),
+    ['Root', 'N', 'N1'],
+  ],
+  [
+    'plain + ref with a sibling description',
+    rootOver({ a: PLAIN, b: withDescription('doc') }),
+    ['Root', 'N', 'N1'],
+  ],
+  [
+    'two refs with sibling descriptions',
+    rootOver({ a: withDescription('one'), b: withDescription('two') }),
+    ['Root', 'N', 'N1'],
+  ],
+  [
+    'two refs with IDENTICAL sibling descriptions',
+    rootOver({ a: withDescription('same'), b: withDescription('same') }),
+    ['Root', 'N', 'N1'],
+  ],
+  [
+    'allOf-wrapped ref x2',
+    rootOver({ a: { allOf: [PLAIN] }, b: { allOf: [PLAIN] } }),
+    ['Root', 'N'],
+  ],
+  [
+    'ref inside array items x2',
+    rootOver({
+      a: { type: 'array', items: PLAIN },
+      b: { type: 'array', items: PLAIN },
+    }),
+    ['Root', 'N'],
+  ],
+  [
+    'an unknown x- key as the sibling, x2',
+    rootOver({
+      a: { $ref: '#/definitions/N', 'x-foo': 1 },
+      b: { $ref: '#/definitions/N', 'x-foo': 2 },
+    }),
+    ['Root', 'N', 'N1'],
+  ],
+  [
+    'self-recursive, plain',
+    {
+      type: 'object',
+      properties: { next: { $ref: '#/definitions/Rec' } },
+      definitions: { Rec: RECURSIVE },
+    },
+    ['Root', 'Rec'],
+  ],
+  [
+    'self-recursive, one sibling',
+    {
+      type: 'object',
+      properties: {
+        next: { $ref: '#/definitions/Rec', examples: [{}] },
+      },
+      definitions: { Rec: RECURSIVE },
+    },
+    ['Root', 'Rec', 'Rec1'],
+  ],
+  /**
+   * The row that forced the plain side to de-duplicate by POINTER rather than by
+   * BASE: two plain pointers to two different targets whose names both collapse
+   * onto `PetOwner`. Keying on the base entitled only one and rejected this.
+   */
+  [
+    'two distinct plain pointers onto one base',
+    {
+      type: 'object',
+      properties: {
+        a: { $ref: '#/definitions/pet-owner' },
+        b: { $ref: '#/definitions/pet_owner' },
+      },
+      definitions: {
+        'pet-owner': { type: 'object', properties: { a: { type: 'string' } } },
+        pet_owner: { type: 'object', properties: { b: { type: 'number' } } },
+      },
+    },
+    ['Root', 'PetOwner', 'PetOwner1'],
+  ],
+];
+
+describe('entitledNames', () => {
+  it.each(MULTIPLICITY_TABLE)(
+    'bounds the declarations exactly: %s',
+    async (_label, schema, expected) => {
+      const compiled = await compile(
+        structuredClone(schema) as JSONSchema,
+        'Root',
+        COMPILE_OPTIONS,
+      );
+
+      // What the library actually emitted, and what the rule says it may.
+      expect(splitDeclarations(compiled).map(identifierOf)).toEqual([
+        ...expected,
+      ]);
+      expect([...entitledNames(schema, 'Root')].sort()).toEqual(
+        [...expected].sort(),
+      );
+    },
+  );
+
+  it('has all seventeen measured rows', () => {
+    expect(MULTIPLICITY_TABLE).toHaveLength(17);
+  });
+
+  it('entitles no counter suffix for a single pointer site', () => {
+    const schema = {
+      type: 'object',
+      properties: { p: { $ref: '#/definitions/Pet' } },
+      definitions: { Pet: { type: 'object' } },
+    };
+
+    expect([...entitledNames(schema, 'RootName')].sort()).toEqual([
+      'Pet',
+      'RootName',
+    ]);
+  });
+
+  /**
+   * `justName` is `stripExtension(basename(f))`, so a pointer whose last segment
+   * contains a dot is named after the part BEFORE it. Asserted because the
+   * entitled set is only faithful if it mirrors that, and it is the kind of
+   * detail a reimplementation would get wrong.
+   */
+  it('mirrors the library on a pointer whose key contains a dot', () => {
+    const schema = { $ref: '#/definitions/pet.owner' };
+
+    expect([...entitledNames(schema, 'RootName')].sort()).toEqual([
+      'Pet',
+      'RootName',
+    ]);
+  });
+
+  it('collects pointers blindly, wherever they sit', () => {
+    const schema = {
+      anyOf: [{ items: [{ $ref: '#/definitions/Pet' }] }],
+      examples: [{ $ref: '#/definitions/NotReallyAPointer' }],
+    };
+
+    expect([...entitledNames(schema, 'RootName')].sort()).toEqual([
+      'NotReallyAPointer',
+      'Pet',
+      'RootName',
+    ]);
+  });
+});
+
+describe('$defs identity is the emitted type, not the documentation', () => {
+  const petWith = (description: string) => ({
+    type: 'object',
+    description,
+    properties: { name: { type: 'string' } },
+  });
+
+  /**
+   * AC8's premise is that the drift comparison strips comments and JSDoc so a
+   * documentation-only spec edit is a NON-EVENT. Keyed on the raw definition,
+   * `description` was part of a definition's identity, so editing one produced a
+   * whole new `Pet_2` declaration plus a flipped alias — a structural diff that
+   * survives comment-stripping.
+   */
+  it('gives two documentation-only variants one name and one body', () => {
+    const registry = new NameRegistry();
+    const first = { $defs: { Pet: petWith('One way.') } };
+    const second = { $defs: { Pet: petWith('Another way.') } };
+    const assignment = assignDefinitionNames([first, second], registry);
+
+    applyDefinitionNames(first, assignment);
+    applyDefinitionNames(second, assignment);
+
+    expect(Object.keys(first.$defs)).toEqual(['Pet']);
+    expect(Object.keys(second.$defs)).toEqual(['Pet']);
+    // The REPRESENTATIVE — the first seen, in catalog order — is what both
+    // emit. Leaving each schema its own body would give one identifier two
+    // JSDoc comments, and `DeclarationSet` de-duplicates on TEXT, so the
+    // surface would carry `export interface Pet` twice.
+    expect(second.$defs.Pet).toEqual(petWith('One way.'));
+    expect(first.$defs.Pet).toEqual(petWith('One way.'));
+  });
+
+  it('keeps definitions that differ in structure apart', () => {
+    const registry = new NameRegistry();
+    const first = { $defs: { Pet: petWith('One way.') } };
+    const second = {
+      $defs: {
+        Pet: {
+          type: 'object',
+          description: 'One way.',
+          properties: { legs: { type: 'number' } },
+        },
+      },
+    };
+    const assignment = assignDefinitionNames([first, second], registry);
+
+    applyDefinitionNames(first, assignment);
+    applyDefinitionNames(second, assignment);
+
+    expect(Object.keys(first.$defs)).toEqual(['Pet']);
+    expect(Object.keys(second.$defs)).toEqual(['Pet_2']);
+  });
+
+  it('treats title the same way as description', () => {
+    const registry = new NameRegistry();
+    const titled = (title: string) => ({
+      type: 'object',
+      title,
+      properties: { name: { type: 'string' } },
+    });
+    const first = { $defs: { Pet: titled('One') } };
+    const second = { $defs: { Pet: titled('Two') } };
+    const assignment = assignDefinitionNames([first, second], registry);
+
+    applyDefinitionNames(first, assignment);
+    applyDefinitionNames(second, assignment);
+
+    expect(Object.keys(second.$defs)).toEqual(['Pet']);
+  });
+
+  it('does not alias the representative into the caller`s tree', () => {
+    const registry = new NameRegistry();
+    const representative = petWith('One way.');
+    const first = { $defs: { Pet: representative } };
+    const second = { $defs: { Pet: petWith('Another way.') } };
+    const assignment = assignDefinitionNames([first, second], registry);
+
+    applyDefinitionNames(second, assignment);
+
+    expect(second.$defs.Pet).not.toBe(representative);
+  });
+
+  it('ignores documentation nested anywhere in the subtree', () => {
+    const nested = (description: string) => ({
+      type: 'object',
+      properties: { inner: { type: 'object', description, properties: {} } },
+    });
+
+    expect(definitionIdentity(nested('a'))).toBe(
+      definitionIdentity(nested('b')),
     );
   });
 });

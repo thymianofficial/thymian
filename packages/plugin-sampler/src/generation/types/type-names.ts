@@ -43,12 +43,26 @@
  * `options.customName?.(…) || schema.title || schema.$id || keyNameFromDefinition`
  * (`json-schema-to-typescript@15/dist/src/parser.js:274`), and the normalizer
  * only synthesises the `$id` we rely on `if (!schema.$id && !schema.title …)`
- * (`dist/src/normalizer.js:61-83`). So a schema-level `title` or `$id` outranks
- * BOTH the name `compile()` is handed and the `$defs` key the registry
+ * (`dist/src/normalizer.js:61-83`). So a schema-level `title`, `$id` or `id`
+ * outranks BOTH the name `compile()` is handed and the `$defs` key the registry
  * renamed — at the root, at a nested property, and inside `$defs` alike.
  * {@link stripNameKeywordsInPlace} is what closes it: the schema reaches the
  * library carrying no name of its own, so the only name left for it to use is
  * the one this module issued.
+ *
+ * A DESCRIPTION MUST NOT BE ABLE TO WRITE TYPESCRIPT EITHER, which is a second
+ * hazard through the same door and is closed at a different point in the
+ * pipeline — see {@link stripTypeDirectivesInPlace}.
+ *
+ * ENUMERATING KEYWORDS IS NOT A PROOF, AND THIS BOUNDARY HAS NOW BEEN CLOSED
+ * THREE TIMES BY ENUMERATION. `title`, then `$id`, then `id` — each round found
+ * the same failure through a keyword the previous round's list did not contain,
+ * and the worst case was silent every time (a `tsc`-clean surface in which one
+ * declaration carries another schema's body). The strip below is still the FIX;
+ * what makes the class closed rather than merely narrower is `emitted-names.ts`,
+ * which asserts after every `compile()` that every identifier in the output is
+ * one the library was ENTITLED to mint. A keyword this list forgets is then a
+ * loud abort instead of a corrupt commit.
  */
 
 /** Which schema of a transaction a declaration was generated for. */
@@ -194,21 +208,90 @@ export function safeIdentifier(value: string): string {
 
 /**
  * The keywords a schema names ITSELF with, in the library's own precedence
- * order. Both outrank the name `compile()` is handed and the `$defs` key
- * {@link NameRegistry} issued, so both have to be gone before the schema is
+ * order. All three outrank the name `compile()` is handed and the `$defs` key
+ * {@link NameRegistry} issued, so all three have to be gone before the schema is
  * compiled.
  *
- * Neither carries type information the surface emits: `title` is documentation
- * (`description` is the keyword the library turns into a JSDoc comment, and it
- * is deliberately kept), and `$id` is a base-URI declaration. `plugin-openapi`
- * rewrites every reference it produces to a root-relative `#/$defs/<name>`
- * pointer (`json-schema.processor.ts` `localizeReference`), so no `$ref` on
- * this path resolves against a `$id` base and dropping it cannot move one.
+ * None of them carries type information the surface emits: `title` is
+ * documentation (`description` is the keyword the library turns into a JSDoc
+ * comment, and it is deliberately KEPT here — AC8 requires that comment), and
+ * `$id`/`id` are base-URI declarations. `plugin-openapi` rewrites every
+ * reference it produces to a root-relative `#/$defs/<name>` pointer
+ * (`json-schema.processor.ts` `localizeReference`), so no `$ref` on this path
+ * resolves against a `$id` base and dropping it cannot move one.
+ *
+ * `id` IS NOT COVERED BY REMOVING `$id`, AND IT IS THE SAME BOUNDARY A THIRD
+ * TIME. The library's normalizer runs `rules.set('Transform id to $id', …)` at
+ * `json-schema-to-typescript@15.0.4/dist/src/normalizer.js:49`, which copies a
+ * draft-04 `id` onto `$id` AFTER this pass has already run — so `id` walks back
+ * in through the very keyword `$id` was removed to protect, and the rule that
+ * would otherwise synthesise OUR name is the next one in the same file (`:61`,
+ * `'Add an $id to anything that needs it'`, which fires only
+ * `if (!schema.$id && !schema.title …)`). `plugin-openapi` copies it through by
+ * the identical mechanism as `title` and `$id`: `keysToRemove`
+ * (`json-schema.processor.ts:6-14`) lists seven keys and `id` is not among them,
+ * and the fall-through at `:183` is `result[key] = structuredClone(value)`. `id`
+ * is the draft-04 spelling of `$id`, so it is ordinary in any
+ * `components/schemas` entry carried over from a draft-04 JSON Schema.
  */
-const NAME_KEYWORDS = ['title', '$id'] as const;
+const NAME_KEYWORDS = ['title', '$id', 'id'] as const;
 
-/** Keywords whose value is one subschema. */
+/**
+ * The library's OWN schema extensions — the only two it declares
+ * (`json-schema-to-typescript@15.0.4/dist/src/types/JSONSchema.d.ts`:
+ * `tsEnumNames?: string[]` and `tsType?: string`). They reach here by exactly
+ * the same `plugin-openapi` fall-through as `title`/`$id`/`id`, and they are
+ * removed by the same walk — but NOT at the same boundary and NOT for the same
+ * reason, so they are a list of their own rather than three more
+ * {@link NAME_KEYWORDS}. See {@link stripTypeDirectivesInPlace} for why the
+ * boundary differs; the reasons they must go at all:
+ *
+ * - `tsType` is "an escape hatch that supercedes all other directives"
+ *   (`dist/src/typesOfSchema.js:15-16`). It does not merely rename a
+ *   declaration, it DICTATES the emitted type: a property schema
+ *   `{type: 'string', tsType: 'SomethingUndeclared'}` emits
+ *   `a?: SomethingUndeclared` verbatim into the committed `.d.ts` (TS2304), a
+ *   `tsType` naming a REAL declaration silently retypes a body with no
+ *   diagnostic at all, and a root-level one emits
+ *   `export type <Name> = SomethingUndeclared`. A description must not be able
+ *   to write TypeScript into the surface.
+ * - `tsEnumNames` reaches the library's `NAMED_ENUM` branch, whose
+ *   `standaloneName` falls back to the PROPERTY KEY (`dist/src/parser.js:121`),
+ *   so `{kind: {type: 'string', enum: ['a'], tsEnumNames: ['Hijack']}}` mints
+ *   `export const enum Kind { Hijack = "a" }` — an identifier nothing reserved,
+ *   and a `const enum` inside a `.d.ts`.
+ *
+ * Stripping `tsEnumNames` leaves `enum` rendering as the closed literal union
+ * AC6 requires ("`enum`/`const` are left as-is (already closed unions)"), so
+ * this narrows nothing the surface promised.
+ */
+export const TYPE_DIRECTIVE_KEYWORDS = ['tsType', 'tsEnumNames'] as const;
+
+/**
+ * Documentation that a name must not depend on. Stripped only by
+ * {@link stripIdentityNoiseInPlace}, never by {@link stripNameKeywordsInPlace}:
+ * `description` is the one keyword the library turns into a JSDoc comment, and
+ * AC8 requires that comment to survive into the emitted surface.
+ */
+const DESCRIPTION_KEYWORDS = ['description'] as const;
+
+/**
+ * Keywords whose value is one subschema.
+ *
+ * `items` appears here and is ALSO reached in its array (tuple) form, because
+ * `parse` descends every element of an array-valued `items` through the `TUPLE`
+ * branch (`dist/src/parser.js:190-200`). `additionalItems` is the same branch's
+ * single-subschema companion. Neither is reachable through `plugin-openapi`
+ * today — it mangles array-form `items` into an object and `ThymianSchema.items`
+ * is a single schema — but "the type does not declare it" is not evidence about
+ * the value, which is the mistake this list was built from the first time. The
+ * list is now derived from what THE LIBRARY PARSES, which is the property that
+ * decides whether a declaration can be minted. Both are safe to strip: an
+ * unnamed tuple element and an unnamed `additionalItems` are simply inlined
+ * (verified), unlike `extends` — see {@link SUBSCHEMA_ARRAY_KEYWORDS}.
+ */
 const SUBSCHEMA_VALUE_KEYWORDS = [
+  'additionalItems',
   'additionalProperties',
   'contains',
   'else',
@@ -221,7 +304,30 @@ const SUBSCHEMA_VALUE_KEYWORDS = [
   'unevaluatedProperties',
 ] as const;
 
-/** Keywords whose value is an array of subschemas. */
+/**
+ * Keywords whose value is an array of subschemas.
+ *
+ * `extends` IS DELIBERATELY ABSENT, AND THAT IS A MEASURED DECISION RATHER THAN
+ * AN OVERSIGHT — it was in this list, and removing the name from a super-type
+ * turned out to break the library outright. Draft-03 `extends` is walked by
+ * `parseSuperTypes` (`dist/src/parser.js:293-301`), so a `title` inside one does
+ * declare an extra interface exactly like a `title` inside `allOf` does. But a
+ * super-type with NO name renders as `export interface X extends  {` — an empty
+ * `extends` clause — and the library's own formatter throws a raw prettier
+ * `SyntaxError: ']' expected`. That is pre-existing behaviour for an untitled
+ * `extends` (verified against the unmodified library), so stripping here would
+ * not fix a hole, it would only convert "compiles under a hijacked name" into
+ * "aborts with an opaque error from inside a dependency", for descriptions that
+ * work today.
+ *
+ * The naming hazard is covered instead, and better, by `emitted-names.ts`: an
+ * identifier minted from a `title`/`$id`/`id` inside `extends` is not in the
+ * entitled set, so it aborts with a named `GeneratedNameEscapeError` that says
+ * what happened. And the type directives cannot be smuggled in this way either:
+ * `extends: [{tsType: 'Evil'}]` also yields an unnamed super-type and the same
+ * pre-existing `SyntaxError`, so there is nothing to inject through. Verified
+ * both ways.
+ */
 const SUBSCHEMA_ARRAY_KEYWORDS = [
   'allOf',
   'anyOf',
@@ -248,19 +354,20 @@ function isSchemaObject(value: unknown): value is Record<string, unknown> {
 }
 
 /**
- * Removes every keyword the library would name a declaration after, everywhere
- * in the tree, so the only name it can declare under is the one this module
- * issued. Mutates the node it is handed; the caller owns the clone.
+ * ONE walk, three keyword sets. A second copy of the position list is exactly
+ * the drift this whole class of defect is made of — the list has been wrong
+ * three times, and each time it was wrong in one copy — so the callers differ
+ * only in WHAT they delete, never in WHERE they look.
  *
  * THE WALK IS SCHEMA-POSITION-AWARE, AND THAT IS NOT FASTIDIOUSNESS. A blind
  * "delete every `title` key" walk is wrong twice over, and both cases are
  * ordinary rather than exotic: `properties: { title: … }` is a property CALLED
  * title — a book has one — and deleting that key deletes the property from the
- * emitted type; and `examples`, `const`, `default` and `enum` hold DATA, where
- * a `title` member is a value the example-reflection pass renders into a
- * literal type. Only the positions listed above hold subschemas, so only those
- * are descended into and everything else is left exactly as the description
- * wrote it.
+ * emitted type; and `examples`, `const`, `default` and `enum` hold DATA, where a
+ * `title`, an `id` or a `description` member is a value the example-reflection
+ * pass renders into a literal type. Only the positions listed above hold
+ * subschemas, so only those are descended into and everything else is left
+ * exactly as the description wrote it.
  *
  * Nested `$defs` are descended into even though `plugin-openapi` only hoists to
  * the root, because unlike the naming pass — which has to CHOOSE a name and so
@@ -268,17 +375,34 @@ function isSchemaObject(value: unknown): value is Record<string, unknown> {
  * this pass only has to REMOVE one, and a nested `$defs` entry with a `title`
  * declares an identifier just as loudly as a root one.
  */
-export function stripNameKeywordsInPlace(node: unknown): void {
+function stripKeywordsInPlace(
+  node: unknown,
+  keywords: readonly string[],
+): void {
   if (!isSchemaObject(node)) {
     return;
   }
 
-  for (const keyword of NAME_KEYWORDS) {
+  for (const keyword of keywords) {
     delete node[keyword];
   }
 
   for (const keyword of SUBSCHEMA_VALUE_KEYWORDS) {
-    stripNameKeywordsInPlace(node[keyword]);
+    const value = node[keyword];
+
+    // A single-subschema keyword whose value happens to be an ARRAY is the
+    // tuple form, and every element is a subschema of its own. Handling it here
+    // rather than as a special case for `items` is what keeps the position list
+    // one list.
+    if (Array.isArray(value)) {
+      for (const item of value) {
+        stripKeywordsInPlace(item, keywords);
+      }
+
+      continue;
+    }
+
+    stripKeywordsInPlace(value, keywords);
   }
 
   for (const keyword of SUBSCHEMA_ARRAY_KEYWORDS) {
@@ -289,7 +413,7 @@ export function stripNameKeywordsInPlace(node: unknown): void {
     }
 
     for (const branch of branches) {
-      stripNameKeywordsInPlace(branch);
+      stripKeywordsInPlace(branch, keywords);
     }
   }
 
@@ -301,9 +425,84 @@ export function stripNameKeywordsInPlace(node: unknown): void {
     }
 
     for (const entry of Object.values(entries)) {
-      stripNameKeywordsInPlace(entry);
+      stripKeywordsInPlace(entry, keywords);
     }
   }
+}
+
+const IDENTITY_NOISE_KEYWORDS: readonly string[] = [
+  ...NAME_KEYWORDS,
+  ...TYPE_DIRECTIVE_KEYWORDS,
+  ...DESCRIPTION_KEYWORDS,
+];
+
+/**
+ * Removes every keyword the library would name a declaration after, everywhere
+ * in the tree, so the only name it can declare under is the one this module
+ * issued. Mutates the node it is handed; the caller owns the clone.
+ *
+ * Called at the single `compile()` boundary
+ * (`src/hooks/generate-request-types.ts`), so it runs over every schema the
+ * surface compiles — sites, example bases and the frozen v1 path alike.
+ *
+ * IT DELIBERATELY DOES NOT REMOVE THE TYPE DIRECTIVES, and that is the one place
+ * "strip everything untrusted at the compile boundary" is the wrong shape.
+ * `example-reflection.ts` WRITES `tsType` itself (`:241`, `:272`) — that is
+ * AC6's whole mechanism — and it writes it BEFORE this boundary is reached
+ * (`generate-request-types-surface.ts` clones, reflects, then compiles). A
+ * `tsType` strip here deletes the generator's own output: verified, it fails
+ * eight example-reflection tests. {@link stripTypeDirectivesInPlace} is the
+ * separate pass, at the separate boundary, that handles the description's
+ * directives.
+ *
+ * `description` is deliberately NOT removed either: it is the keyword the
+ * library turns into a JSDoc comment, and AC8 wants that comment in the surface.
+ */
+export function stripNameKeywordsInPlace(node: unknown): void {
+  stripKeywordsInPlace(node, NAME_KEYWORDS);
+}
+
+/**
+ * Removes the library's own schema extensions ({@link TYPE_DIRECTIVE_KEYWORDS})
+ * from every schema position, so a DESCRIPTION cannot use them.
+ *
+ * THE BOUNDARY IS "WHERE THE DESCRIPTION ENTERS", NOT "WHERE COMPILATION
+ * HAPPENS", and the two are not the same point. `tsType` is not only an
+ * untrusted input, it is also the generator's own trusted output: AC6's example
+ * reflection sets it on the cloned schema and relies on `compile()` emitting it
+ * verbatim. So the strip has to run while the schema is still purely the
+ * description's — `generate-request-types-surface.ts`, on the fresh
+ * `structuredClone(site.schema)`, BEFORE `applyDefinitionNames` and
+ * `reflectExamplesInPlace`. Everything the reflection pass writes afterwards is
+ * ours and survives.
+ *
+ * THE V1 PATH IS DELIBERATELY NOT COVERED, and that is not an oversight. v1's
+ * `generateTypesForThymianFormat` calls `generateTypeForSchema` directly, so the
+ * only place a strip could sit for it is the compile boundary — which is exactly
+ * where it would destroy reflection for v2. v1's output is a regenerated scratch
+ * artifact nothing type-checks, and AC10 freezes it byte for byte; a
+ * description-borne `tsEnumNames` still aborts v1 loudly via
+ * `emitted-names.ts`'s postcondition, because it mints an unentitled identifier.
+ * A description-borne `tsType` mints no name and so passes through v1 — recorded
+ * here as a known limit of the frozen path rather than fixed by unfreezing it.
+ */
+export function stripTypeDirectivesInPlace(node: unknown): void {
+  stripKeywordsInPlace(node, TYPE_DIRECTIVE_KEYWORDS);
+}
+
+/**
+ * The same walk over name keywords, type directives AND `description`, for the
+ * one caller that needs a schema's IDENTITY rather than a compilable schema:
+ * `schema-definitions.ts` keys `$defs` disambiguation on canonicalized content,
+ * and keying that on documentation splits one shared definition into two the
+ * moment a description is edited.
+ *
+ * This is NOT a strip applied on the compile path — the compiled body keeps its
+ * `description` and therefore its JSDoc. It exists so that "same emitted type"
+ * and "same identity" are the same question.
+ */
+export function stripIdentityNoiseInPlace(node: unknown): void {
+  stripKeywordsInPlace(node, IDENTITY_NOISE_KEYWORDS);
 }
 
 /** A site asking for a name, identified by a key that is unique and sortable. */
