@@ -15,6 +15,7 @@ import {
 import {
   foldExtendsInPlace,
   safeIdentifier,
+  stripEnumNameDirectiveInPlace,
   stripNameKeywordsInPlace,
 } from '../generation/types/type-names.js';
 
@@ -67,8 +68,16 @@ export async function generateTypeForSchema(
   // stripped like any other subschema instead of naming a declaration, and its
   // members survive. Must run before the strip, so the title it carries is gone
   // by the time `compile()` sees it.
-  assertReferencesAreStrings(prepared);
   foldExtendsInPlace(prepared);
+  assertReferencesAreStrings(prepared);
+  // `tsEnumNames` mints `export const enum <PropertyKey>` — an identifier that
+  // traces to no `$ref` and to no name this generator issued, so it both writes
+  // an unreserved declaration into the surface and trips the postcondition on
+  // input the library compiles happily. Unlike `tsType` it is never written by
+  // this generator (example reflection emits `tsType` only), so it can be
+  // stripped unconditionally at the one boundary every path routes through —
+  // which also closes it on the v1 path, where nothing stripped it before.
+  stripEnumNameDirectiveInPlace(prepared);
   stripNameKeywordsInPlace(prepared);
 
   const compilable = convertDefsToDefinitions(prepared);
@@ -98,42 +107,70 @@ export async function generateTypeForSchema(
   };
 }
 
+/**
+ * Refuses a ROOT that spells its definitions both ways.
+ *
+ * `convertDefsToDefinitions` rewrites the `$defs` KEY to `definitions` and
+ * assigns with `acc[newKey] = value`, so a root carrying both collapsed by
+ * last-write-wins — one whole definition block dropped, and `#/definitions/X`
+ * then resolving to whichever survived, with no diagnostic. The library refuses
+ * this input itself ("Schema must define either definitions or $defs, not
+ * both"), so saying so is honest; merging would invent a semantics neither spec
+ * gives.
+ *
+ * THE CHECK IS ROOT-ONLY, and that is a correction. Run inside the blind
+ * recursion it fired on `properties: { $defs: …, definitions: … }` — a schema
+ * describing an object with two ordinary property names — and on `$defs`/
+ * `definitions` members inside example DATA, aborting descriptions the library
+ * compiles without complaint. The library's own check is root-only too.
+ */
+function assertOneDefinitionsSpelling(input: unknown): void {
+  if (
+    input === null ||
+    typeof input !== 'object' ||
+    Array.isArray(input) ||
+    (input as Record<string, unknown>)['$defs'] === undefined ||
+    (input as Record<string, unknown>)['definitions'] === undefined
+  ) {
+    return;
+  }
+
+  throw new ThymianBaseError(
+    'A schema defines both "$defs" and "definitions", and they cannot both be kept.',
+    {
+      name: 'ConflictingDefinitionsError',
+      suggestions: [
+        'Move every entry into one of the two keywords — "$defs" is the current spelling.',
+      ],
+    },
+  );
+}
+
 export function convertDefsToDefinitions(input: any): unknown {
+  assertOneDefinitionsSpelling(input);
+
+  return convertSubtree(input);
+}
+
+function convertSubtree(input: unknown): unknown {
   if (input === null || typeof input !== 'object') {
     return input;
   }
 
   if (Array.isArray(input)) {
-    return input.map((item) => convertDefsToDefinitions(item));
+    return input.map((item) => convertSubtree(item));
   }
 
-  // `$defs` is rewritten to `definitions`, so a node carrying BOTH collapsed
-  // onto one key by last-write-wins — one whole definition block dropped, and
-  // `#/definitions/X` then resolving to whichever survived, with no diagnostic.
-  // The library refuses this input itself ("Schema must define either
-  // definitions or $defs, not both"), so saying so is honest; merging would be
-  // inventing a semantics neither spec gives.
-  if (input['$defs'] !== undefined && input['definitions'] !== undefined) {
-    throw new ThymianBaseError(
-      'A schema defines both "$defs" and "definitions", and they cannot both be kept.',
-      {
-        name: 'ConflictingDefinitionsError',
-        suggestions: [
-          'Move every entry into one of the two keywords — "$defs" is the current spelling.',
-        ],
-      },
-    );
-  }
-
-  const result = Object.keys(input).reduce((acc: any, key) => {
+  const node = input as Record<string, unknown>;
+  const result = Object.keys(node).reduce((acc: any, key) => {
     const newKey = key === '$defs' ? 'definitions' : key;
 
-    let value = input[key];
+    let value = node[key];
 
     if (key === '$ref' && typeof value === 'string') {
       value = value.replace(/\/\$defs\//g, '/definitions/');
     } else {
-      value = convertDefsToDefinitions(value);
+      value = convertSubtree(value);
     }
 
     acc[newKey] = value;

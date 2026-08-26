@@ -44,8 +44,27 @@ import { walkSubschemaNodes } from './type-names.js';
  * dependency's private name allocator is the same bet that lost three times
  * already. So the counter is no longer modelled at all.
  *
- * THE CHECK IS NOW THREE PROPERTIES, AND TWO OF THEM APPROXIMATE IN OPPOSITE
- * DIRECTIONS ON PURPOSE. That asymmetry is what makes it sound.
+ * A THIRD MECHANISM WAS TRIED HERE AND WITHDRAWN. Round 5 added an OBLIGATION
+ * half: every `$ref` in a position the library parses must have produced a
+ * declaration. It was meant to catch the silent hijack directly — when
+ * `$defs.Pet` renames itself, nothing declares `Pet` any more — and for that
+ * case it worked. It was also WRONG, in the same direction and for the same
+ * underlying reason as the counter model it replaced: it assumed a parsed `$ref`
+ * yields a declaration, and the library declares nothing for most positions.
+ * Measured: a `$ref` under `not`, `if`, `then`, `else`, `contains`,
+ * `propertyNames`, `prefixItems`, `additionalItems` or `unevaluatedProperties`
+ * produced a false obligation and aborted a VALID description — and
+ * `plugin-openapi` rewrites pointers into exactly those positions
+ * (`json-schema.processor.ts` `schemaValueKeys`), so it was reachable from an
+ * ordinary document.
+ *
+ * That is twice that a model of this library's declaration behaviour has
+ * aborted valid input. The lesson is being taken rather than refined: THIS
+ * MODULE NO LONGER PREDICTS WHAT THE LIBRARY WILL DECLARE. It only checks what
+ * it did declare against what the schema can account for, which needs no model.
+ *
+ * WHAT IS ASSERTED NOW, and both properties are sound in the direction that
+ * matters — neither can abort a generation the library got right:
  *
  *   1. THE ROOT CHECK — the name the call RETURNS is declared somewhere in the
  *      output. `generateTypeForSchema`'s own promise, stated as an assertion.
@@ -55,13 +74,15 @@ import { walkSubschemaNodes } from './type-names.js';
  *      GENEROUS: it can miss a defect, but it can never abort a valid
  *      generation. Aborting valid generations is the failure this check must not
  *      have, because it fires on a user's own API description.
- *   3. OBLIGATION, under-approximating — every `$ref` sitting in a position the
- *      library actually PARSES must have produced some declaration. Built from
- *      the position-aware walk in `type-names.ts`, so a `$ref` that is example
- *      DATA never becomes an obligation. This is the half that catches the
- *      silent case, and it catches it far more directly than a counter ever did:
- *      when `$defs.Pet` renames itself `Owner`, the defect is not really the
- *      unentitled `Owner1` — it is that NOTHING declares `Pet` any more.
+ *
+ * WHAT THAT COSTS, STATED PLAINLY. A hijack that lands on a name the schema DOES
+ * account for — `$defs: {Pet: {<unknown keyword>: 'Owner'}, Owner: {…}}`, which
+ * emits `Owner` and `Owner1` — is no longer caught here. The STRIP in
+ * `type-names.ts` is what closes that, and it is the thing under mutation test;
+ * this module is a net for the residue, catching a name the schema cannot
+ * account for at all. `DeclarationSet` catches the other half, one identifier
+ * with two bodies. Claiming more than that is what produced two false-abort
+ * regressions.
  *
  * THE ROOT CHECK IS NOT "THE FIRST DECLARATION", AND THAT WAS MEASURED RATHER
  * THAN REASONED. The generator emits named TYPES before named INTERFACES, so a
@@ -157,65 +178,13 @@ function collectRefsBlindly(node: unknown, into: string[]): void {
   }
 
   for (const [key, value] of Object.entries(node)) {
-    if (key === '$ref') {
-      if (typeof value === 'string') {
-        into.push(value);
-        continue;
-      }
-
-      // A non-string `$ref` is not something the resolver can act on: it
-      // survives dereferencing untouched and the library then fails deep inside
-      // its parser with `Refs should have been resolved by the resolver!`, which
-      // names neither the keyword nor the schema. Say what is wrong instead.
-      throw new ThymianBaseError(
-        `A schema uses "$ref" with a ${Array.isArray(value) ? 'array' : typeof value} value, but a reference must be a string.`,
-        {
-          name: 'MalformedSchemaError',
-          suggestions: [
-            'Give the "$ref" a pointer string, such as "#/$defs/Pet", or remove it.',
-          ],
-        },
-      );
+    if (key === '$ref' && typeof value === 'string') {
+      into.push(value);
+      continue;
     }
 
     collectRefsBlindly(value, into);
   }
-}
-
-/**
- * Every `$ref` string sitting in a position the library PARSES as a subschema.
- *
- * Used ONLY for the obligation half. Under-approximating here is what keeps a
- * `$ref`-shaped value inside `examples`, `const`, `default` or `enum` — which is
- * DATA, not a reference — from demanding a declaration that was never supposed
- * to exist. A position this misses simply produces no obligation; it never
- * produces a false one.
- *
- * IT STOPS WHERE THE LIBRARY STOPS. A node carrying `tsType` is emitted verbatim
- * and nothing beneath it is parsed, so a `$ref` under one declares nothing —
- * measured, not assumed. AC6's example reflection WRITES `tsType`, so this is
- * not an exotic shape: it is what every reflected object node looks like by the
- * time it reaches `compile()`, and treating those `$ref`s as obligations aborted
- * two legitimate fixtures.
- */
-function collectReferencedPointers(schema: unknown): readonly string[] {
-  const pointers: string[] = [];
-
-  walkSubschemaNodes(schema, (node) => {
-    if (node['tsType'] !== undefined) {
-      return false;
-    }
-
-    const ref = node['$ref'];
-
-    if (typeof ref === 'string') {
-      pointers.push(ref);
-    }
-
-    return true;
-  });
-
-  return [...new Set(pointers)];
 }
 
 /**
@@ -226,9 +195,37 @@ function collectReferencedPointers(schema: unknown): readonly string[] {
  * `Refs should have been resolved by the resolver!` — an error that names
  * neither the keyword nor the schema, and that arrives before any postcondition
  * could run.
+ *
+ * IT IS POSITION-AWARE, unlike the blind collection below, and the asymmetry is
+ * the whole point. A blind walk that THROWS is not "safely over-generous" — it
+ * is over-eager: `examples: [{$ref: {…}}]` is example DATA describing a JSON
+ * Schema document, which is ordinary for this product, and rejecting it aborted
+ * a generation that the library handles fine. Collecting blindly can only widen
+ * a permitted set; THROWING blindly rejects valid input. Only a `$ref` at a
+ * position the library would actually try to resolve is malformed.
  */
 export function assertReferencesAreStrings(schema: unknown): void {
-  collectRefsBlindly(schema, []);
+  walkSubschemaNodes(schema, (node) => {
+    if (!('$ref' in node)) {
+      return;
+    }
+
+    const ref = node['$ref'];
+
+    if (typeof ref === 'string') {
+      return;
+    }
+
+    throw new ThymianBaseError(
+      `A schema uses "$ref" with a ${Array.isArray(ref) ? 'array' : typeof ref} value, but a reference must be a string.`,
+      {
+        name: 'MalformedSchemaError',
+        suggestions: [
+          'Give the "$ref" a pointer string, such as "#/$defs/Pet", or remove it.',
+        ],
+      },
+    );
+  });
 }
 
 /**
@@ -283,16 +280,7 @@ export function assertEmittedNamesWereIssued(
     baseFormsOf(identifier).every((form) => !bases.has(form)),
   );
 
-  const declaredForms = new Set(
-    declared.flatMap((identifier) => baseFormsOf(identifier)),
-  );
-  const unmet = collectReferencedPointers(schema).filter((pointer) =>
-    baseCandidatesOf(pointer).every(
-      (candidate) => !declaredForms.has(candidate),
-    ),
-  );
-
-  if (declared.includes(name) && escaped.length === 0 && unmet.length === 0) {
+  if (declared.includes(name) && escaped.length === 0) {
     return;
   }
 
@@ -309,12 +297,6 @@ export function assertEmittedNamesWereIssued(
   if (escaped.length > 0) {
     faults.push(
       `it declares ${quoteList([...new Set(escaped)])}, which no name in the schema accounts for`,
-    );
-  }
-
-  if (unmet.length > 0) {
-    faults.push(
-      `nothing was declared for ${quoteList([...new Set(unmet)])}, so a reference to it would point at the wrong schema`,
     );
   }
 

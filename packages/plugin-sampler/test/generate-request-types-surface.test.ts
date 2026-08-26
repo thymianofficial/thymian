@@ -2863,6 +2863,34 @@ describe('generateRequestTypesSurface', () => {
   });
 
   describe('one selector producer, and keys that round-trip (AC13)', () => {
+    /**
+     * `src/hooks/generate-request-types.ts` is generation-path code too — it
+     * hosts the single `compile()` boundary, both strips, the fold and the
+     * postcondition — so the directory scan above enforced AC13's premise over
+     * a PROPER SUBSET of the path it is about.
+     *
+     * It gets the IMPORT check and not the whole-text one, and that is a
+     * deliberate scoping rather than a weakening: the same file still contains
+     * the FROZEN v1 key builder `` `${key}->${statusCode}` ``, which AC1 names
+     * explicitly as having no v2 equivalent and AC10 forbids touching. A
+     * whole-text `->` check would fail on code the story requires to stay
+     * exactly as it is. What matters for AC13 is that no second selector
+     * PRODUCER is reachable, and that is an import-level property.
+     */
+    it('does not import a selector producer into the compile boundary', () => {
+      const source = readFileSync(
+        fileURLToPath(
+          new URL('../src/hooks/generate-request-types.ts', import.meta.url),
+        ),
+        'utf-8',
+      );
+      const imports = source.match(/^import[\s\S]*?;$/gm)?.join('\n') ?? '';
+
+      expect(imports).not.toContain('formatSelector');
+      expect(imports).not.toContain('selectorForTransaction');
+      expect(imports).not.toContain('TransactionCatalog');
+    });
+
     it('never constructs a selector string', () => {
       const directory = fileURLToPath(
         new URL('../src/generation/types/', import.meta.url),
@@ -3217,5 +3245,142 @@ describe('an empty parameter contentType means unstated (AC3)', () => {
     expect(surface).toContain(
       'export type GetPets200ApplicationJsonQueryParam_Limit = number',
     );
+  });
+});
+
+/**
+ * Round 6, at the surface. Three defects that all came from ONE ordering
+ * mistake: `extends` is the position no walk enters, and `foldExtendsInPlace`
+ * ran too late — inside `generateTypeForSchema`, after `compileSites` had
+ * already stripped directives and computed `$defs` identities. Every pass that
+ * ran before the fold was blind to whatever sat inside `extends`.
+ */
+describe('extends is folded before anything else reads the schema', () => {
+  /**
+   * The silent one. `tsType` "supercedes all other directives", so a description
+   * that sets it inside `extends` retyped a member of the COMMITTED surface with
+   * no diagnostic at all — the exact case AC6's round-4 amendment claims closed.
+   */
+  it('does not let a tsType inside extends write TypeScript into the surface', async () => {
+    const surface = await surfaceOf([
+      {
+        path: '/pets',
+        status: 200,
+        responseMediaType: 'application/json',
+        responseSchema: {
+          type: 'object',
+          properties: { own: { type: 'string' } },
+          extends: [
+            {
+              type: 'object',
+              properties: { hijacked: { tsType: 'SomethingUndeclared' } },
+            },
+          ],
+        } as ThymianSchema,
+      },
+    ]);
+
+    expect(surface).not.toContain('SomethingUndeclared');
+    expect(surface).toContain('own?: string');
+  });
+
+  /**
+   * AC8: a documentation-only edit is a non-event. `stripIdentityNoiseInPlace`
+   * shares the walk, which does not enter `extends`, and identity was computed
+   * before the fold — so two `$defs.Pet` differing ONLY in a description inside
+   * `extends` emitted `Pet` AND `Pet_2` with byte-identical bodies plus a
+   * flipped alias, the structural diff that survives comment-stripping.
+   */
+  it('treats a description inside extends as documentation, not identity', async () => {
+    const petWith = (description: string): ThymianSchema =>
+      ({
+        type: 'object',
+        properties: { n: { type: 'string' } },
+        extends: [{ type: 'object', description, properties: {} }],
+      }) as ThymianSchema;
+    const surface = await surfaceOf([
+      {
+        path: '/a',
+        status: 200,
+        responseMediaType: 'application/json',
+        responseSchema: {
+          type: 'object',
+          properties: { p: { $ref: '#/$defs/Pet' } },
+          $defs: { Pet: petWith('One way.') },
+        } as ThymianSchema,
+      },
+      {
+        path: '/b',
+        status: 200,
+        responseMediaType: 'application/json',
+        responseSchema: {
+          type: 'object',
+          properties: { p: { $ref: '#/$defs/Pet' } },
+          $defs: { Pet: petWith('Another way.') },
+        } as ThymianSchema,
+      },
+    ]);
+
+    expect(
+      splitDeclarations(surface)
+        .map(identifierOf)
+        .filter((name) => /^Pet/.test(name)),
+    ).toEqual(['Pet']);
+  });
+});
+
+/**
+ * Round 6. A draft-07 root spells its definitions `definitions`. Example
+ * reflection read only `$defs`, so those roots got NO reflection at all
+ * (silently), and a nested example object referencing one aborted with a raw
+ * `MissingPointerError` because the base was given `$defs` while its pointers
+ * said `#/definitions/`.
+ */
+describe('draft-07 definitions get example reflection too (AC6)', () => {
+  it('reflects examples for a definitions-spelled root', async () => {
+    const surface = await surfaceOf([
+      {
+        path: '/pets',
+        status: 200,
+        responseMediaType: 'application/json',
+        responseSchema: {
+          type: 'object',
+          properties: { p: { $ref: '#/definitions/Pet' } },
+          definitions: {
+            Pet: {
+              type: 'object',
+              properties: { n: { type: 'string', examples: ['Rex'] } },
+            },
+          },
+        } as unknown as ThymianSchema,
+      },
+    ]);
+
+    expect(surface).toContain('"Rex"');
+  });
+
+  it('compiles a nested example base whose pointers say definitions', async () => {
+    const surface = await surfaceOf([
+      {
+        path: '/pets',
+        status: 200,
+        responseMediaType: 'application/json',
+        responseSchema: {
+          type: 'object',
+          properties: {
+            wrapper: {
+              type: 'object',
+              examples: [{ a: 1 }],
+              properties: { pet: { $ref: '#/definitions/Pet' } },
+            },
+          },
+          definitions: {
+            Pet: { type: 'object', properties: { n: { type: 'string' } } },
+          },
+        } as unknown as ThymianSchema,
+      },
+    ]);
+
+    expect(surface).toContain('Endpoints');
   });
 });

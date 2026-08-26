@@ -741,35 +741,33 @@ describe('the strip, against the real generator', () => {
    * The wiring and its ORDER are pinned in
    * `generate-request-types-surface.test.ts`.
    */
-  it('does not let tsEnumNames mint an unreserved const enum', async () => {
+  /**
+   * `tsEnumNames` is stripped at the `compile()` boundary itself, so no
+   * `const enum` is ever minted. Round 5 relied on the postcondition to catch
+   * the identifier instead — which ABORTED a generation the library handled
+   * fine, on the v1 path as well as v2. Removing the keyword is strictly better
+   * than reporting the declaration it mints: nothing is lost, because `enum`
+   * still renders as the closed literal union AC6 requires.
+   */
+  it('strips tsEnumNames rather than letting it mint a const enum', async () => {
     const schema: unknown = {
       type: 'object',
       properties: {
         kind: { type: 'string', enum: ['a'], tsEnumNames: ['Hijack'] },
       },
     };
-
-    // Unstripped, the `const enum Kind` it mints is an identifier nothing
-    // reserved — and the postcondition, which needs no keyword list, says so.
-    await expect(
-      generateTypeForSchema(
-        structuredClone(schema),
-        'application/json',
-        'GetPets200ResponseBody',
-      ),
-    ).rejects.toThrow(/"Kind"/);
-
-    const stripped: unknown = structuredClone(schema);
-
-    stripTypeDirectivesInPlace(stripped);
-
     const generated = await generateTypeForSchema(
-      stripped,
+      structuredClone(schema),
       'application/json',
       'GetPets200ResponseBody',
     );
 
-    expect(await declaredNames(stripped)).toEqual(['GetPets200ResponseBody']);
+    expect(
+      generated.declarations
+        .flatMap((declaration) => splitDeclarations(declaration))
+        .map(identifierOf),
+    ).toEqual(['GetPets200ResponseBody']);
+    expect(generated.declarations.join('\n')).not.toContain('const enum');
     // AC6: `enum` is left as-is, i.e. still a closed literal union.
     expect(generated.declarations.join('\n')).toContain('kind?: "a"');
   });
@@ -1117,115 +1115,69 @@ describe('assertEmittedNamesWereIssued', () => {
   });
 
   /**
-   * THE ONE THE ROUND-3 PRESCRIPTION MISSED, and the reason the check has a set
-   * half at all. The ROOT declaration here is named correctly, so a root-only
-   * check passes while the file emits `Owner` carrying Pet's body and `Owner1`
-   * carrying Owner's. `Owner1` is the tell: `Owner` is reached by ONE pointer
-   * site, so a counter suffix on it was never entitled.
+   * THE SILENT CASE, AND WHICH MECHANISM ACTUALLY CLOSES IT.
    *
-   * This test is what fails if the counter tolerance is loosened from
-   * `b1 … b(m-1)` to `b1 … b(m)`, and what fails if the check is reduced to the
-   * root declaration.
-   */
-  it('rejects the silent case, where the root name is correct', async () => {
-    const { compilable, compiled } = await compiledWithoutStrip(
-      {
-        type: 'object',
-        properties: {
-          p: { $ref: '#/$defs/Pet' },
-          o: { $ref: '#/$defs/Owner' },
-        },
-        $defs: {
-          Pet: {
-            id: 'Owner',
-            type: 'object',
-            properties: { petName: { type: 'string' } },
-          },
-          Owner: {
-            type: 'object',
-            properties: { ownerName: { type: 'string' } },
-          },
-        },
-      },
-      'GetPets200ResponseBody',
-    );
-
-    // The root really is named correctly, which is exactly why a root-only
-    // check is not enough.
-    expect(splitDeclarations(compiled).map(identifierOf)).toContain(
-      'GetPets200ResponseBody',
-    );
-
-    const error = escapeError(() =>
-      assertEmittedNamesWereIssued(
-        compiled,
-        compilable,
-        'GetPets200ResponseBody',
-      ),
-    );
-
-    expect(error.name).toBe('GeneratedNameEscapeError');
-    // The obligation half names the REAL defect: `Pet` was declared by nothing.
-    // Round 4 could only report the symptom (an unexpected `Owner1`).
-    expect(error.message).toContain('Pet');
-    expect(error.message).toContain('nothing was declared');
-  });
-
-  /**
-   * THE REASON THE BOUND IS TIGHT RATHER THAN GENEROUS, and the case a
-   * count-every-occurrence rule gives away. `plugin-openapi` hoists
-   * `components/schemas` into `$defs`, so a schema referenced from two
-   * properties is the ORDINARY shape — not the exotic one. Counting occurrences
-   * would give `Owner` a multiplicity of two, entitle `Owner1`, and let the
-   * hijack through on a file `tsc` calls clean.
+   * `$defs.Pet` renaming itself `Owner` emits `Owner` carrying Pet's body and
+   * `Owner1` carrying Owner's, with the root correctly named and `tsc` clean.
+   * Rounds 4 and 5 both tried to catch that AFTER the fact — first by
+   * reimplementing the library's counter, then by requiring every parsed `$ref`
+   * to yield a declaration. Both models aborted valid descriptions, so both were
+   * withdrawn.
    *
-   * Asserted on the emitted declaration NAMES, because there are no diagnostics
-   * to assert on: the surface below compiles with zero errors while `p` is typed
-   * as the wrong schema.
+   * What closes it is the STRIP: the keyword never reaches `compile()`, so the
+   * corruption cannot occur. That is what these two cases assert — on the real
+   * generator, on the emitted declaration NAMES and BODIES, because there are no
+   * diagnostics to assert on.
    */
-  it('rejects the silent case even when the target is referenced twice', async () => {
-    const { compilable, compiled } = await compiledWithoutStrip(
+  it.each([
+    [
+      'referenced once',
+      { p: { $ref: '#/$defs/Pet' }, o: { $ref: '#/$defs/Owner' } },
+    ],
+    [
+      'referenced twice',
       {
-        type: 'object',
-        properties: {
-          p: { $ref: '#/$defs/Pet' },
-          o1: { $ref: '#/$defs/Owner' },
-          o2: { $ref: '#/$defs/Owner' },
-        },
-        $defs: {
-          Pet: {
-            id: 'Owner',
-            type: 'object',
-            properties: { petName: { type: 'string' } },
-          },
-          Owner: {
-            type: 'object',
-            properties: { ownerName: { type: 'string' } },
-          },
-        },
+        p: { $ref: '#/$defs/Pet' },
+        o1: { $ref: '#/$defs/Owner' },
+        o2: { $ref: '#/$defs/Owner' },
       },
-      'GetPets200ResponseBody',
-    );
-
-    // The corruption, stated as names: `Owner` carries Pet's body, and the
-    // registry never issued `Owner1`.
-    expect(splitDeclarations(compiled).map(identifierOf)).toEqual([
-      'GetPets200ResponseBody',
-      'Owner',
-      'Owner1',
-    ]);
-
-    const error = escapeError(() =>
-      assertEmittedNamesWereIssued(
-        compiled,
-        compilable,
+    ],
+  ])(
+    'keeps each definition under its own name: %s',
+    async (_label, properties) => {
+      const generated = await generateTypeForSchema(
+        {
+          type: 'object',
+          properties,
+          $defs: {
+            Pet: {
+              id: 'Owner',
+              type: 'object',
+              properties: { petName: { type: 'string' } },
+            },
+            Owner: {
+              type: 'object',
+              properties: { ownerName: { type: 'string' } },
+            },
+          },
+        },
+        'application/json',
         'GetPets200ResponseBody',
-      ),
-    );
+      );
+      const byName = new Map(
+        generated.declarations
+          .flatMap((declaration) => splitDeclarations(declaration))
+          .map((declaration) => [identifierOf(declaration), declaration]),
+      );
 
-    expect(error.name).toBe('GeneratedNameEscapeError');
-    expect(error.message).toContain('Pet');
-  });
+      // No counter-minted sibling, and each body under its own name.
+      expect([...byName.keys()].filter((n) => /^Owner/.test(n))).toEqual([
+        'Owner',
+      ]);
+      expect(byName.get('Pet')).toContain('petName?: string');
+      expect(byName.get('Owner')).toContain('ownerName?: string');
+    },
+  );
 
   it.each([
     [
@@ -1742,7 +1694,7 @@ describe('the postcondition never aborts a valid generation', () => {
  * it — a guard that can only be tested through the bug it prevents is a guard
  * that stops being tested the moment the bug is fixed.
  */
-describe('the postcondition still catches a name that was hijacked', () => {
+describe('the postcondition catches a name nothing accounts for', () => {
   const schema = {
     type: 'object',
     properties: {
@@ -1755,26 +1707,30 @@ describe('the postcondition still catches a name that was hijacked', () => {
     },
   };
 
-  it('aborts when a referenced definition declares nothing at all', () => {
-    const hijacked = [
+  /**
+   * The residue the strip cannot cover: some future keyword mints a declaration
+   * under a name that appears nowhere in the schema. No keyword list is
+   * consulted — the name simply traces to nothing.
+   */
+  it('aborts on a declaration the schema cannot account for', () => {
+    const escaped = [
       'export interface Root {',
-      '  p?: Owner',
-      '  o?: Owner1',
+      '  p?: Pet',
       '}',
-      'export interface Owner {',
+      'export interface Pet {',
       '  petName?: string',
       '}',
-      'export interface Owner1 {',
-      '  ownerName?: string',
+      'export interface CameFromNowhere {',
+      '  x?: string',
       '}',
     ].join('\n');
 
-    expect(() =>
-      assertEmittedNamesWereIssued(hijacked, schema, 'Root'),
-    ).toThrow(/Pet/);
+    expect(() => assertEmittedNamesWereIssued(escaped, schema, 'Root')).toThrow(
+      /CameFromNowhere/,
+    );
   });
 
-  it('accepts the same surface when every definition kept its own name', () => {
+  it('accepts a surface whose declarations all trace to the schema', () => {
     const honest = [
       'export interface Root {',
       '  p?: Pet',
@@ -1794,37 +1750,10 @@ describe('the postcondition still catches a name that was hijacked', () => {
   });
 
   /**
-   * The root check on its own, with NOTHING else able to fire: `Pet` is
-   * permitted (the schema references it) and its obligation is met (it is
-   * declared), so the only fault left is that the name the call returns was
-   * never declared. Written this way because the obvious version — an output
-   * declaring some unrelated `Something` — also trips the permission half, so it
-   * passes with the root check deleted and proves nothing.
+   * A `$ref` sitting in EXAMPLE DATA widens the permitted set harmlessly, which
+   * is the whole reason the permission half is allowed to be blind.
    */
-  it('still requires the returned name to be declared', () => {
-    const error = escapeError(() =>
-      assertEmittedNamesWereIssued(
-        'export interface Pet {\n  petName?: string\n}',
-        {
-          type: 'object',
-          properties: { p: { $ref: '#/definitions/Pet' } },
-          definitions: { Pet: { type: 'object' } },
-        },
-        'Root',
-      ),
-    );
-
-    expect(error.name).toBe('GeneratedNameEscapeError');
-    expect(error.message).toContain('but never "Root"');
-  });
-
-  /**
-   * A `$ref` sitting in EXAMPLE DATA is not a schema reference and must not
-   * create an obligation — `collectRefSites` is blind, so without the
-   * position-aware obligation walk this fixture aborts on a pointer that names
-   * nothing.
-   */
-  it('creates no obligation from a $ref that sits in example data', () => {
+  it('tolerates a $ref that sits in example data', () => {
     expect(() =>
       assertEmittedNamesWereIssued(
         'export interface Root {}',
@@ -2047,11 +1976,32 @@ describe('a super-type is folded into allOf, not left to name itself', () => {
     expect((schema as { allOf: unknown[] }).allOf).toHaveLength(2);
   });
 
-  it('leaves an extends that is not a schema alone', () => {
-    const schema = { extends: 'not-a-schema' };
+  /**
+   * A super-type that is not a schema constrains nothing, so the keyword is
+   * dropped. Leaving it made the library render an empty `extends  {` clause
+   * and its formatter throw a raw prettier `SyntaxError` with no `name` and no
+   * suggestions — an unnamed abort on input that says "no extra constraints".
+   */
+  it.each([
+    ['a bare true', { extends: true }],
+    ['an array of booleans', { extends: [true] }],
+    ['a string', { extends: 'not-a-schema' }],
+    ['an empty array', { extends: [] }],
+  ])('drops an extends that constrains nothing: %s', (_label, schema) => {
+    foldExtendsInPlace(schema);
 
-    expect(() => foldExtendsInPlace(schema)).not.toThrow();
-    expect(schema.extends).toBe('not-a-schema');
+    expect('extends' in schema).toBe(false);
+    expect('allOf' in schema).toBe(false);
+  });
+
+  it('does not crash the formatter on a boolean-only extends', async () => {
+    const generated = await generateTypeForSchema(
+      { type: 'object', properties: { a: { type: 'string' } }, extends: true },
+      'application/json',
+      'GetPets200ResponseBody',
+    );
+
+    expect(generated.declarations.join('\n')).toContain('a?: string');
   });
 });
 
@@ -2180,5 +2130,155 @@ describe('hostile but legal schema shapes get an answer, not a stack trace', () 
 
     expect(error.name).toBe('MalformedSchemaError');
     expect(error.message).toContain('$ref');
+  });
+});
+
+/**
+ * Round 6. Every case here is one the round-5 changes broke and this round
+ * repaired. They are grouped because they share one root cause: a list derived
+ * from what a DESCRIPTION can carry was used to predict what the LIBRARY would
+ * declare, or a blind walk was made to THROW rather than merely to collect.
+ */
+describe('round-5 regressions stay fixed', () => {
+  /**
+   * The library declares nothing for a `$ref` in any of these positions, so
+   * requiring a declaration aborted valid descriptions. `plugin-openapi`
+   * rewrites pointers into exactly these keys (`schemaValueKeys`), so it was
+   * reachable from an ordinary OpenAPI document — and it fired on the v1 path
+   * too, which AC10 freezes.
+   */
+  it.each([
+    ['not', (ref: unknown) => ({ not: ref })],
+    ['if', (ref: unknown) => ({ if: ref })],
+    ['then', (ref: unknown) => ({ then: ref })],
+    ['else', (ref: unknown) => ({ else: ref })],
+    ['contains', (ref: unknown) => ({ contains: ref })],
+    ['propertyNames', (ref: unknown) => ({ propertyNames: ref })],
+    ['prefixItems', (ref: unknown) => ({ prefixItems: [ref] })],
+    ['additionalItems', (ref: unknown) => ({ additionalItems: ref })],
+    [
+      'unevaluatedProperties',
+      (ref: unknown) => ({ unevaluatedProperties: ref }),
+    ],
+    ['dependentSchemas', (ref: unknown) => ({ dependentSchemas: { a: ref } })],
+  ])('does not abort on a $ref under %s', async (_label, place) => {
+    const generated = await generateTypeForSchema(
+      {
+        type: 'object',
+        properties: { a: { type: 'string' } },
+        ...place({ $ref: '#/$defs/N' }),
+        $defs: { N: { type: 'object', properties: { n: { type: 'string' } } } },
+      },
+      'application/json',
+      'GetPets200ResponseBody',
+    );
+
+    expect(generated.type).toBe('GetPets200ResponseBody');
+  });
+
+  /**
+   * `collectRefsBlindly` may WIDEN a permitted set blindly; it may not REJECT
+   * blindly. An API whose examples are JSON-Schema documents is ordinary for
+   * this product, and `{$ref: {…}}` there is data, not a reference.
+   */
+  it.each([
+    ['examples', { examples: [{ $ref: { a: 1 } }] }],
+    ['const', { const: { $ref: 42 } }],
+    ['enum', { enum: [{ $ref: ['a'] }] }],
+    ['default', { default: { $ref: null } }],
+  ])('tolerates a $ref-shaped value in %s data', async (_label, carrier) => {
+    const generated = await generateTypeForSchema(
+      { type: 'object', properties: { doc: { type: 'object', ...carrier } } },
+      'application/json',
+      'GetPets200ResponseBody',
+    );
+
+    expect(generated.type).toBe('GetPets200ResponseBody');
+  });
+
+  it('still rejects a $ref that is not a string at a schema position', async () => {
+    const error = await catchAsync(() =>
+      generateTypeForSchema(
+        { type: 'object', properties: { p: { $ref: 42 } } },
+        'application/json',
+        'GetPets200ResponseBody',
+      ),
+    );
+
+    expect(error.name).toBe('MalformedSchemaError');
+  });
+
+  /**
+   * The conflict guard ran inside a blind recursion, so it fired on a schema
+   * describing an object with two ordinary properties so named. The library's
+   * own check is root-only.
+   */
+  it.each([
+    [
+      'as property names',
+      {
+        type: 'object',
+        properties: {
+          $defs: { type: 'string' },
+          definitions: { type: 'number' },
+        },
+      },
+    ],
+    [
+      'inside example data',
+      {
+        type: 'object',
+        properties: {
+          doc: { type: 'object', examples: [{ $defs: {}, definitions: {} }] },
+        },
+      },
+    ],
+  ])('does not refuse $defs and definitions %s', (_label, schema) => {
+    expect(() => convertDefsToDefinitions(schema)).not.toThrow();
+  });
+
+  it('still refuses a ROOT that spells definitions both ways', () => {
+    expect(() =>
+      convertDefsToDefinitions({
+        type: 'object',
+        $defs: { Pet: { type: 'object' } },
+        definitions: { Owner: { type: 'object' } },
+      }),
+    ).toThrow(/both/i);
+  });
+
+  /**
+   * A draft-03 inheritance chain. Folding without giving each level's own
+   * constraints their own `allOf` branch made the library's `ALL_OF` branch drop
+   * them — silently, `tsc` clean.
+   */
+  it('keeps every level of a chained extends', async () => {
+    const generated = await generateTypeForSchema(
+      {
+        type: 'object',
+        properties: { a: { type: 'string' } },
+        extends: [
+          {
+            title: 'Owner',
+            type: 'object',
+            properties: { o: { type: 'string' } },
+            extends: [
+              {
+                title: 'Base',
+                type: 'object',
+                properties: { b: { type: 'string' } },
+              },
+            ],
+          },
+        ],
+      },
+      'application/json',
+      'GetPets200ResponseBody',
+    );
+    const text = generated.declarations.join('\n');
+
+    expect(text).toContain('a?: string');
+    expect(text).toContain('o?: string');
+    expect(text).toContain('b?: string');
   });
 });

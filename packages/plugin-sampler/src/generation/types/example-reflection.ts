@@ -190,6 +190,8 @@ type ReflectionContext = {
    * definition text.
    */
   readonly rootDefinitions: JsonObject | undefined;
+  /** The keyword the root spelled them with, so a base's pointers still resolve. */
+  readonly rootDefinitionsKey: '$defs' | 'definitions';
 };
 
 /**
@@ -227,8 +229,12 @@ async function reflectObjectNode(
     `${stem}Base`,
   );
 
-  if (!isRoot && context.rootDefinitions && base['$defs'] === undefined) {
-    base['$defs'] = context.rootDefinitions;
+  if (
+    !isRoot &&
+    context.rootDefinitions &&
+    base[context.rootDefinitionsKey] === undefined
+  ) {
+    base[context.rootDefinitionsKey] = context.rootDefinitions;
   }
 
   // The base's own children may carry examples too, so it gets the same
@@ -362,12 +368,21 @@ export async function reflectExamplesInPlace(
     return [];
   }
 
-  const definitions = schema['$defs'];
+  // A draft-07 description spells this `definitions`. Reading only `$defs`
+  // meant those roots got NO example reflection at all (silently — the surface
+  // simply emitted the declared type), and a nested example object referencing
+  // one aborted with a raw `MissingPointerError`, because the base was compiled
+  // with `$defs` attached while its pointers said `#/definitions/`.
+  const definitionsKey = isPlainObject(schema['$defs'])
+    ? '$defs'
+    : 'definitions';
+  const definitions = schema[definitionsKey];
   const rootDefinitions = isPlainObject(definitions) ? definitions : undefined;
   const context: ReflectionContext = {
     registry,
     queued: [],
     rootDefinitions,
+    rootDefinitionsKey: definitionsKey,
   };
 
   if (rootDefinitions) {

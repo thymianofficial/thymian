@@ -23,6 +23,7 @@ import {
   assignUniqueNames,
   candidateName,
   compareStrings,
+  foldExtendsInPlace,
   NameRegistry,
   type SchemaRole,
   stripTypeDirectivesInPlace,
@@ -263,8 +264,25 @@ async function compileSites(
   // declaration at all, so letting its `$defs` take part in the naming produced
   // a surface containing `Pet_2` — a suffix meaning "a second, divergent
   // definition" — and no `Pet` for it to be second to.
+  // FOLD BEFORE ANYTHING ELSE READS THE SCHEMA. `extends` is the one position
+  // no walk in this module enters, so every pass that runs before the fold is
+  // blind to whatever sits inside it. Two defects came from that, both silent:
+  // `stripTypeDirectivesInPlace` missed a `tsType` there, letting a description
+  // write arbitrary TypeScript into the committed surface; and
+  // `definitionIdentity` was documentation-SENSITIVE there, so two `$defs.Pet`
+  // differing only in a `description` inside `extends` emitted `Pet` and
+  // `Pet_2` with byte-identical bodies — the structural diff AC8 forbids.
+  // Folding first turns `extends` into an `allOf` every pass already handles.
+  const folded = sites.map((site) => {
+    const schema: unknown = structuredClone(site.schema);
+
+    foldExtendsInPlace(schema);
+
+    return { ...site, schema };
+  });
+
   const definitionNames: DefinitionNameAssignment = assignDefinitionNames(
-    sites
+    folded
       .filter((site) => isJsonMediaType(site.mediaType))
       .map((site) => site.schema),
     registry,
@@ -278,7 +296,7 @@ async function compileSites(
   );
   const compiled = new Map<string, string>();
 
-  for (const site of sites) {
+  for (const site of folded) {
     const key = siteKey(site.selector, site.role);
     const typeName = names.get(key);
 

@@ -307,26 +307,17 @@ const SUBSCHEMA_VALUE_KEYWORDS = [
 /**
  * Keywords whose value is an array of subschemas.
  *
- * `extends` IS DELIBERATELY ABSENT, AND THAT IS A MEASURED DECISION RATHER THAN
- * AN OVERSIGHT — it was in this list, and removing the name from a super-type
- * turned out to break the library outright. Draft-03 `extends` is walked by
- * `parseSuperTypes` (`dist/src/parser.js:293-301`), so a `title` inside one does
- * declare an extra interface exactly like a `title` inside `allOf` does. But a
- * super-type with NO name renders as `export interface X extends  {` — an empty
- * `extends` clause — and the library's own formatter throws a raw prettier
- * `SyntaxError: ']' expected`. That is pre-existing behaviour for an untitled
- * `extends` (verified against the unmodified library), so stripping here would
- * not fix a hole, it would only convert "compiles under a hijacked name" into
- * "aborts with an opaque error from inside a dependency", for descriptions that
- * work today.
+ * `extends` IS ABSENT BECAUSE IT NO LONGER REACHES THIS WALK. Draft-03 `extends`
+ * is parsed by `parseSuperTypes` (`dist/src/parser.js:293-301`), so a `title`
+ * inside one declares an interface exactly as one inside `allOf` does — but
+ * removing a super-type's NAME renders `export interface X extends  {` and the
+ * library's own formatter throws a raw prettier `SyntaxError`. Stripping in
+ * place is therefore not an option.
  *
- * The naming hazard is covered instead, and better, by `emitted-names.ts`: an
- * identifier minted from a `title`/`$id`/`id` inside `extends` is not in the
- * entitled set, so it aborts with a named `GeneratedNameEscapeError` that says
- * what happened. And the type directives cannot be smuggled in this way either:
- * `extends: [{tsType: 'Evil'}]` also yields an unnamed super-type and the same
- * pre-existing `SyntaxError`, so there is nothing to inject through. Verified
- * both ways.
+ * {@link foldExtendsInPlace} rewrites every `extends` into an equivalent `allOf`
+ * BEFORE any strip runs, so the super-type arrives here as an `allOf` branch and
+ * is handled by the ordinary machinery. Nothing needs a special case, and there
+ * is no position the strips cannot reach.
  */
 const SUBSCHEMA_ARRAY_KEYWORDS = [
   'allOf',
@@ -354,28 +345,6 @@ function isSchemaObject(value: unknown): value is Record<string, unknown> {
 }
 
 /**
- * ONE walk, three keyword sets. A second copy of the position list is exactly
- * the drift this whole class of defect is made of — the list has been wrong
- * three times, and each time it was wrong in one copy — so the callers differ
- * only in WHAT they delete, never in WHERE they look.
- *
- * THE WALK IS SCHEMA-POSITION-AWARE, AND THAT IS NOT FASTIDIOUSNESS. A blind
- * "delete every `title` key" walk is wrong twice over, and both cases are
- * ordinary rather than exotic: `properties: { title: … }` is a property CALLED
- * title — a book has one — and deleting that key deletes the property from the
- * emitted type; and `examples`, `const`, `default` and `enum` hold DATA, where a
- * `title`, an `id` or a `description` member is a value the example-reflection
- * pass renders into a literal type. Only the positions listed above hold
- * subschemas, so only those are descended into and everything else is left
- * exactly as the description wrote it.
- *
- * Nested `$defs` are descended into even though `plugin-openapi` only hoists to
- * the root, because unlike the naming pass — which has to CHOOSE a name and so
- * is scoped to where names are actually issued (see `schema-definitions.ts`) —
- * this pass only has to REMOVE one, and a nested `$defs` entry with a `title`
- * declares an identifier just as loudly as a root one.
- */
-/**
  * ONE walk over every position the library parses a subschema in, exposed as a
  * visitor so that the position list has exactly one copy. A second copy of this
  * list is exactly the drift this whole class of defect is made of — the list has
@@ -387,26 +356,35 @@ function isSchemaObject(value: unknown): value is Record<string, unknown> {
  * is scoped to where names are actually issued (see `schema-definitions.ts`) —
  * a pass that only READS or REMOVES a name is safe to run everywhere.
  *
- * `extends` is deliberately absent; see {@link SUBSCHEMA_ARRAY_KEYWORDS}.
+ * THE WALK IS SCHEMA-POSITION-AWARE, AND THAT IS NOT FASTIDIOUSNESS. A blind
+ * "delete every `title` key" walk is wrong twice over, and both cases are
+ * ordinary rather than exotic: `properties: { title: … }` is a property CALLED
+ * title — a book has one — and deleting that key deletes the property from the
+ * emitted type; and `examples`, `const`, `default` and `enum` hold DATA, where a
+ * `title`, an `id` or a `description` member is a value the example-reflection
+ * pass renders into a literal type.
  *
- * A visitor returning `false` PRUNES the subtree below that node. That exists
- * for one measured reason: `tsType` "supercedes all other directives"
- * (`typesOfSchema.js:15-16`), so the library emits it verbatim and never parses
- * anything beneath it — verified, a `$ref` nested under a `tsType` node produces
- * no declaration at all. A caller asking "what did the library compile?" has to
- * stop where the library stopped.
+ * THIS LIST IS FOR REMOVING AND REWRITING, NEVER FOR PREDICTING WHAT THE LIBRARY
+ * WILL DECLARE. It is derived from what a description can CARRY, which is not
+ * the same question as what `json-schema-to-typescript` mints a declaration
+ * from — the library declares nothing for a `$ref` under `not`, `if`, `then`,
+ * `else`, `contains`, `propertyNames`, `prefixItems`, `dependentSchemas` or
+ * `unevaluated*`. A check that used this list to decide what MUST have been
+ * declared aborted valid descriptions at ten positions; see `emitted-names.ts`
+ * for why that mechanism was withdrawn rather than corrected.
+ *
+ * `extends` is absent because {@link foldExtendsInPlace} has already rewritten
+ * it into `allOf` by the time any caller walks.
  */
 export function walkSubschemaNodes(
   node: unknown,
-  visit: (schema: Record<string, unknown>) => boolean | void,
+  visit: (schema: Record<string, unknown>) => void,
 ): void {
   if (!isSchemaObject(node)) {
     return;
   }
 
-  if (visit(node) === false) {
-    return;
-  }
+  visit(node);
 
   for (const keyword of SUBSCHEMA_VALUE_KEYWORDS) {
     const value = node[keyword];
@@ -514,26 +492,98 @@ const IDENTITY_NOISE_KEYWORDS: readonly string[] = [
  * position it understands and never invents an interpretation for one it does
  * not.
  */
+/**
+ * The keywords that carry a node's OWN constraints, as opposed to its
+ * composition. When `extends` is folded these have to move into an `allOf`
+ * branch of their own — see {@link foldExtendsInPlace}.
+ */
+const OWN_CONSTRAINT_KEYWORDS = [
+  'additionalItems',
+  'additionalProperties',
+  'dependentSchemas',
+  'items',
+  'patternProperties',
+  'prefixItems',
+  'properties',
+  'propertyNames',
+  'required',
+  'unevaluatedItems',
+  'unevaluatedProperties',
+] as const;
+
 export function foldExtendsInPlace(node: unknown): void {
   walkSubschemaNodes(node, (schema) => {
-    const superTypes = schema['extends'];
-    const folded = Array.isArray(superTypes)
-      ? superTypes.filter((entry) => isSchemaObject(entry))
-      : isSchemaObject(superTypes)
-        ? [superTypes]
-        : undefined;
-
-    if (folded === undefined || folded.length === 0) {
+    if (!('extends' in schema)) {
       return;
+    }
+
+    const superTypes = schema['extends'];
+    const branches = (
+      Array.isArray(superTypes) ? superTypes : [superTypes]
+    ).filter((entry) => isSchemaObject(entry));
+
+    // `extends: true` / `[true]` / `[]` constrain nothing, so the keyword is
+    // simply dropped. Leaving it in place made the library render an empty
+    // `extends  {` clause and its formatter throw a raw prettier `SyntaxError`
+    // with no `name` and no suggestions — an unnamed abort on input that says
+    // "no additional constraints".
+    delete schema['extends'];
+
+    if (branches.length === 0) {
+      return;
+    }
+
+    // THE NODE'S OWN CONSTRAINTS MOVE INTO A BRANCH OF THEIR OWN, and that is
+    // the difference between a fold that works and one that loses members.
+    // A NON-ROOT node carrying both `properties` and `allOf` has its own
+    // `properties` DROPPED by the library's `ALL_OF` branch — measured: a
+    // draft-03 inheritance chain `Root extends Owner extends Base` emitted
+    // `{b} & {a}` and lost `o` entirely, silently, with `tsc` clean. Giving the
+    // node's own constraints their own branch keeps every level's members and
+    // costs nothing when there were none.
+    const own: Record<string, unknown> = {};
+
+    for (const keyword of OWN_CONSTRAINT_KEYWORDS) {
+      if (keyword in schema) {
+        own[keyword] = schema[keyword];
+        delete schema[keyword];
+      }
+    }
+
+    if (Object.keys(own).length > 0) {
+      if (schema['type'] !== undefined) {
+        own['type'] = schema['type'];
+      }
+
+      branches.push(own);
     }
 
     const existing = schema['allOf'];
 
     schema['allOf'] = Array.isArray(existing)
-      ? [...folded, ...existing]
-      : folded;
-    delete schema['extends'];
+      ? [...branches, ...existing]
+      : branches;
   });
+}
+
+/**
+ * Removes `tsEnumNames` at every schema position.
+ *
+ * Separate from {@link stripTypeDirectivesInPlace} because it runs at a
+ * different boundary and for a different reason. `tsType` is BOTH untrusted
+ * input and this generator's own output — example reflection writes it — so it
+ * can only be stripped where the schema is still purely the description's.
+ * `tsEnumNames` is never written by this generator, so it is stripped at the
+ * `compile()` boundary itself, which is the one place every path passes through:
+ * the v2 surface, the example bases and the frozen v1 path alike.
+ *
+ * What it prevents: `tsEnumNames` reaches the library's `NAMED_ENUM` branch
+ * (`parser.js:121`) and mints `export const enum <PropertyKey>` — a `const enum`
+ * inside a `.d.ts`, under an identifier nothing reserved and nothing can account
+ * for.
+ */
+export function stripEnumNameDirectiveInPlace(node: unknown): void {
+  stripKeywordsInPlace(node, ['tsEnumNames']);
 }
 
 export function stripNameKeywordsInPlace(node: unknown): void {
