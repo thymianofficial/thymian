@@ -1,4 +1,3 @@
-import { isAbsolute } from 'node:path';
 import { inspect } from 'node:util';
 
 import { Command, Flags, Interfaces, settings, ux } from '@oclif/core';
@@ -19,7 +18,11 @@ import {
   type ThymianPlugin,
   type TrafficInput,
 } from '@thymian/core';
-import { loadUserModule, resolveUserModule } from '@thymian/core/user-module';
+import {
+  isLocalSpecifier,
+  loadUserModule,
+  resolveUserModule,
+} from '@thymian/core/user-module';
 
 import { applyReporterSortReportsBy } from './apply-plugin-options.js';
 import { describePluginLoadFailure } from './describe-plugin-load-failure.js';
@@ -45,34 +48,15 @@ const EXPORT_DEFAULT_SUGGESTION =
 const LOADABLE_EXTENSION = /\.(ts|js|mjs|cjs)$/;
 
 /**
- * A specifier that explicitly names a local file by relative path — the four
- * prefixes Node/jiti resolve relative to the importing file, in both POSIX
- * (`./`, `../`) and Windows (`.\`, `..\`) spellings. Kept in one place so the
- * plugin classifier and the suggestion helper agree on what counts as local;
- * without it a `.\`-prefixed `--plugin` is misfiled as a package and its `path`
- * never persisted to the config. (epic #725 §4.1.)
- */
-function isRelativeSpecifier(specifier: string): boolean {
-  return (
-    specifier.startsWith('./') ||
-    specifier.startsWith('../') ||
-    specifier.startsWith('.\\') ||
-    specifier.startsWith('..\\')
-  );
-}
-
-/**
  * When a *bare* specifier that looks like a file path (has a loadable
- * extension, no `./`/`../`/`.\`/`..\` prefix, not absolute) fails to resolve
+ * extension, but is neither a relative nor an absolute path) fails to resolve
  * as an installed package, the user most likely meant a local file. Offer the
  * relative-path spelling — a bare specifier is never resolved cwd-relative
- * (epic #725 §4.1, no `<cwd>/<specifier>` fallback). Returns undefined when no
- * hint applies.
+ * (there is no `<cwd>/<specifier>` fallback). Returns undefined when no hint
+ * applies.
  */
 function suggestLocalPathSpelling(specifier: string): string | undefined {
-  const looksLocal = isRelativeSpecifier(specifier) || isAbsolute(specifier);
-
-  if (looksLocal || !LOADABLE_EXTENSION.test(specifier)) {
+  if (isLocalSpecifier(specifier) || !LOADABLE_EXTENSION.test(specifier)) {
     return undefined;
   }
 
@@ -555,7 +539,7 @@ export abstract class BaseCliRunCommand<
 
     if (!resolution.ok) {
       // Resolution FAILURE: the path resolved cleanly but was refused for what
-      // it is — the seam's `reason` is rendered verbatim (§6).
+      // it is — the seam's `reason` is rendered verbatim.
       if (resolution.reason) {
         throw new ThymianBaseError(
           `Cannot load plugin "${specifier}": ${resolution.reason.replace(/\.$/, '')}.`,
@@ -571,7 +555,7 @@ export abstract class BaseCliRunCommand<
 
       // Resolution NOT-FOUND: no `reason` — the caller phrases it. Offer the
       // relative-path spelling when a bare, path-like specifier probably meant
-      // a local file (§4.1 has no cwd-relative fallback).
+      // a local file (there is no cwd-relative fallback).
       const suggestions = [
         'For a local plugin, use a relative path with an explicit extension (e.g. ./my-plugin.ts). For an installed package, check that it is installed.',
       ];
@@ -659,7 +643,7 @@ export abstract class BaseCliRunCommand<
     for (const plugin of this.flags.plugin) {
       this.debug('Adding plugin from flag "%s" to Thymian config.', plugin);
 
-      const isPathPlugin = isAbsolute(plugin) || isRelativeSpecifier(plugin);
+      const isPathPlugin = isLocalSpecifier(plugin);
 
       if (!isPathPlugin) {
         this.debug('Load plugin "%s" as npm package or absolute path.', plugin);

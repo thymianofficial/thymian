@@ -14,6 +14,7 @@ describe('the seam predicates are not part of the public surface', () => {
 
     expect(packageIndex).not.toHaveProperty('unloadableReason');
     expect(packageIndex).not.toHaveProperty('miscasedExtension');
+    expect(packageIndex).not.toHaveProperty('isLocalSpecifier');
     expect(packageIndex).not.toHaveProperty('resolveUserModule');
     expect(packageIndex).not.toHaveProperty('loadUserModule');
   });
