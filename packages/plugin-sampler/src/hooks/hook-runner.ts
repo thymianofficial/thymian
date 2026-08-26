@@ -125,9 +125,20 @@ export class HookRunner {
 
     if (generation !== this.generation) {
       // A newer load started, or the caller invalidated, while this one was
-      // awaiting. Its results are already stale, so it installs nothing —
-      // including its errors, which describe a format nobody is loading now.
-      return;
+      // awaiting. Its results are stale, so it installs nothing — including its
+      // errors, which describe a format that is no longer the one being loaded.
+      //
+      // It **throws** rather than returning quietly. Returning made `init`
+      // resolve normally with `initialized: false`, so `core.format` replied
+      // *success* over a runner that would then refuse every request with
+      // `HookRunnerNotInitialized`, with nothing in the log to say why. And the
+      // "a newer load is behind it" assumption does not always hold: the
+      // handler that bumped the generation may itself have thrown before
+      // reaching its own `init`, so nobody is loading anything.
+      throw new ThymianBaseError(
+        'The hook runner was re-initialized while this format was loading, so this load was discarded.',
+        { name: 'HookRunnerSuperseded' },
+      );
     }
 
     if (result.hasErrors) {

@@ -1,4 +1,8 @@
-import type { ThymianEmitter, ThymianFormat } from '@thymian/core';
+import {
+  ThymianBaseError,
+  type ThymianEmitter,
+  type ThymianFormat,
+} from '@thymian/core';
 
 import { projectSamplesForThymianFormat } from './generation/project-samples-for-format.js';
 import type { HttpRequestSample } from './http-request-sample.js';
@@ -11,6 +15,16 @@ import type { HttpRequestSample } from './http-request-sample.js';
  */
 export class RequestSampler {
   private samples: Map<string, HttpRequestSample> = new Map();
+  /**
+   * Which load is the current one. The mirror of `HookRunner.generation`, and
+   * for the same measured reason: `init` writes `samples` **after** its `await`,
+   * so two overlapping `core.format` loads let the one that settles last install
+   * its projection over the other's. Measured, the sampler then answered for 39
+   * transactions that exist only in a format nobody had loaded — which is what
+   * makes `SampleProjectionMissingTransactionError`, commented "unreachable by
+   * construction", reachable.
+   */
+  private generation = 0;
 
   /**
    * Drops the previous format's projection.
@@ -25,6 +39,7 @@ export class RequestSampler {
    * relies on stopped holding.
    */
   invalidate(): void {
+    this.generation += 1;
     this.samples = new Map();
   }
 
@@ -33,7 +48,19 @@ export class RequestSampler {
    * is what keeps the samples in lockstep with the loaded API description.
    */
   async init(format: ThymianFormat, emitter: ThymianEmitter): Promise<void> {
-    this.samples = await projectSamplesForThymianFormat(format, emitter);
+    this.invalidate();
+
+    const generation = this.generation;
+    const projection = await projectSamplesForThymianFormat(format, emitter);
+
+    if (generation !== this.generation) {
+      throw new ThymianBaseError(
+        'The request sampler was re-initialized while this format was loading, so this load was discarded.',
+        { name: 'RequestSamplerSuperseded' },
+      );
+    }
+
+    this.samples = projection;
   }
 
   sampleForTransaction(transactionId: string): HttpRequestSample | undefined {

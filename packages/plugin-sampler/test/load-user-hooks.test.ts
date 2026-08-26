@@ -1014,7 +1014,12 @@ describe('loadUserHooks — the transpile/native boundary (#726)', () => {
   );
 });
 
-describe('loadUserHooks — symlinked hook files', () => {
+// `symlink()` throws EPERM on Windows without Developer Mode, so the suite is
+// skipped where it cannot be staged rather than hard-failing the CI leg that
+// `compareKeys`'s docblock says AC 2 exists for.
+const canSymlink = process.platform !== 'win32';
+
+describe.skipIf(!canSymlink)('loadUserHooks — symlinked hook files', () => {
   it('loads a hook file whose only path into the scan is a symlink', async () => {
     // The target lives **outside** the hooks directory, so the link is the only
     // way in: `fileCount` here is 0 unless symlinked files are followed.
@@ -1267,12 +1272,15 @@ describe('loadUserHooks — round 4: the last unguarded reads', () => {
     expect(await compose(result, firstTransactionId())).toBe('C');
   });
 
-  it('treats two hard links to one file as one hook', async () => {
+  it('treats two hard links to one file as one hook', async (context) => {
     // The dedupe needs an inode the filesystem actually reports; where it does
     // not (`ino: 0`, documented for some Windows filesystems), the identity
     // falls back to the path and the two spellings stay separate by design. The
     // assertion below is about the inode path, so it is staged only where that
     // path exists rather than asserted against a documented non-guarantee.
+    //
+    // `context.skip()`, not a bare `return`: Vitest reports a returning test as
+    // **passed**, so on Windows this looked green while asserting nothing.
     const probe = await writeHooks({ 'probe.ts': 'export const x = 1;\n' });
 
     await link(join(probe, 'probe.ts'), join(probe, 'probe-link.ts'));
@@ -1280,7 +1288,7 @@ describe('loadUserHooks — round 4: the last unguarded reads', () => {
     const info = await stat(join(probe, 'probe.ts'), { bigint: true });
 
     if (info.ino === 0n || info.nlink < 2n) {
-      return;
+      context.skip();
     }
 
     // `realpath` resolves symlinks, not hard links: two directory entries naming
@@ -1446,7 +1454,7 @@ describe('loadUserHooks — round 4b: what the round-4 review found still open',
 
     expect(result.hasErrors).toBe(true);
     expect(errorsOf(result).join('\n')).toContain('broken.ts');
-    expect(errorsOf(result).join('\n')).toContain('threw while being imported');
+    expect(errorsOf(result).join('\n')).toContain('never finished loading');
 
     // What changed is the **verdict**, and that is what stops the hook running:
     // `HookRunner.init` throws `hookResolutionError` whenever `hasErrors` is
@@ -2005,5 +2013,291 @@ describe('loadUserHooks — round 4b: the gaps the mutation run exposed', () => 
     // an `Array.isArray` and a brand check — measured at ~2.2 s against ~0.15 s.
     // The bound sits between the two, not near either.
     expect(elapsed, `${elapsed}ms`).toBeLessThan(1_200);
+  });
+});
+
+describe('loadUserHooks — round 5: what the review of the review found', () => {
+  it('does not let a hook file that never settles wedge any other scan', async () => {
+    // Round 4b serialised scans on a module-global queue to stop two of them
+    // destroying each other's creation log. That closed one hole and opened a
+    // worse one: the queue chains on the previous scan's promise, so a hook file
+    // that never settles — a top-level `await` that hangs, or a namespace that
+    // is thenable and never resolves — left every later `loadUserHooks` in the
+    // process waiting forever. A different plugin instance, a different
+    // workspace, and 575.10's `sampler validate` were all dead with it.
+    //
+    // The queue is gone; collection is scoped per evaluation instead.
+    const hanging = await writeHooks({
+      'hang.ts': [`await new Promise(() => {});`, ``].join('\n'),
+    });
+    const healthy = await writeHooks({ 'a.ts': tagging(selectorA, 'fine') });
+
+    // Deliberately not awaited: it never settles, which is the point.
+    void loadUserHooks(hanging, catalog);
+
+    const result = await Promise.race([
+      loadUserHooks(healthy, catalog),
+      new Promise<'timed-out'>((resolve) =>
+        setTimeout(() => resolve('timed-out'), 3_000),
+      ),
+    ]);
+
+    expect(result).not.toBe('timed-out');
+    expect(
+      await compose(result as LoadUserHooksResult, firstTransactionId()),
+    ).toBe('fine');
+  });
+
+  it('attributes a creation to the scan that caused it, not to whichever is open', async () => {
+    // A per-scan collector is not enough: two scans interleave at every `await`,
+    // so a collector that is merely "open" also catches the other scan's
+    // creations. Measured that way, an innocent file was told it had failed to
+    // export a registration a concurrent scan had created. The collection scope
+    // is an `AsyncLocalStorage` on the shared log, so a creation lands in
+    // exactly one collector.
+    const slow = await writeHooks({
+      'slow.ts': [
+        `import { beforeEach } from '@thymian/hooks';`,
+        `beforeEach(${JSON.stringify(selectorA)}, async (v) => v);`,
+        `await new Promise((resolve) => setTimeout(resolve, 60));`,
+        `export const nothing = 1;`,
+        ``,
+      ].join('\n'),
+    });
+    const other = await writeHooks({ 'other.ts': tagging(selectorB, 'other') });
+
+    const [slowResult, otherResult] = await Promise.all([
+      loadUserHooks(slow, catalog),
+      loadUserHooks(other, catalog),
+    ]);
+
+    // The scan that created it keeps its diagnostic …
+    expect(errorsOf(slowResult).join('\n')).toContain('not exported by any');
+    // … and the scan that merely overlapped it is not blamed.
+    expect(errorsOf(otherResult)).toEqual([]);
+  });
+
+  it('keeps the exports of a namespace that is a function', async () => {
+    // The guard added for a 10 M-character string namespace also swallowed
+    // `typeof === 'function'`, so `module.exports = f; f.hook = beforeEach(…)`
+    // lost its hook and was then told to export what it had exported.
+    // `Object.keys` on a function returns its own enumerable string keys.
+    const hooksDir = await writeHooks({
+      'cjs-fn.cts': [
+        `const { beforeEach } = require('@thymian/hooks');`,
+        `function handler() {}`,
+        `handler.hook = beforeEach(${JSON.stringify(selectorA)}, async (value) => ({`,
+        `  ...value,`,
+        `  path: value.path + 'fn',`,
+        `}));`,
+        `module.exports = handler;`,
+        ``,
+      ].join('\n'),
+    });
+
+    const result = await loadUserHooks(hooksDir, catalog);
+
+    expect(errorsOf(result)).toEqual([]);
+    expect(result.boundHookCount).toBe(1);
+    expect(await compose(result, firstTransactionId())).toBe('fn');
+  });
+
+  it('does not call a module that is still loading a module that threw', async () => {
+    // `loaded === false` means "started and has not finished", which is "threw"
+    // only if evaluation actually settled. A non-awaited `import()` of a module
+    // with a slow top-level await — an ordinary prefetch — was reported as
+    // having thrown, in a sentence where every clause was false, and the run
+    // refused to start. Worse, the verdict was timing-dependent: the same tree
+    // passed when the module happened to finish first.
+    const hooksDir = await writeHooks({
+      '.internal/slow.ts': [
+        `await new Promise((resolve) => setTimeout(resolve, 300));`,
+        `export const ready = true;`,
+        ``,
+      ].join('\n'),
+      'a-lazy.ts': [
+        `import { beforeEach } from '@thymian/hooks';`,
+        `const pending = import('./.internal/slow.js');`,
+        `export const h = beforeEach(${JSON.stringify(selectorA)}, async (value) => {`,
+        `  await pending;`,
+        `  return { ...value, path: value.path + 'lazy' };`,
+        `});`,
+        ``,
+      ].join('\n'),
+    });
+
+    const result = await loadUserHooks(hooksDir, catalog);
+
+    expect(errorsOf(result)).toEqual([]);
+    expect(result.hasErrors).toBe(false);
+    expect(await compose(result, firstTransactionId())).toBe('lazy');
+  });
+
+  it('survives a creation log that is sealed, frozen or getter-only', async () => {
+    // The previous validation proved writability by *calling* `created.push()`.
+    // A zero-argument `push` only re-sets `length`, so it accepted a **sealed**
+    // array that the real `push(value)` then rejects — and it never touched
+    // `nextOrder` at all, so a frozen log object and a getter-only `nextOrder`
+    // both sailed through and then failed every hook file in the scan.
+    const slot = `globalThis[Symbol.for('@thymian/plugin-sampler.hook-creation-log')]`;
+
+    for (const [name, poison] of [
+      [
+        'sealed created',
+        `${slot} = { nextOrder: 0, created: Object.seal([]) };`,
+      ],
+      [
+        'frozen log object',
+        `${slot} = Object.freeze({ nextOrder: 0, created: [] });`,
+      ],
+      [
+        'getter-only nextOrder',
+        `${slot} = { get nextOrder() { return 0; }, created: [] };`,
+      ],
+      [
+        'frozen everything',
+        `${slot} = Object.freeze({ nextOrder: 0, created: Object.freeze([]) });`,
+      ],
+    ] as const) {
+      const hooksDir = await writeHooks({
+        'a-poison.ts': [poison, `export const nothing = 1;`, ``].join('\n'),
+        'b-good.ts': tagging(selectorA, 'good'),
+        'c-also-good.ts': tagging(selectorA, 'C'),
+      });
+
+      const result = await loadUserHooks(hooksDir, catalog);
+
+      expect(errorsOf(result), `poison: ${name}`).toEqual([]);
+      expect(await compose(result, firstTransactionId()), name).toBe('goodC');
+    }
+  });
+
+  it('does not run user code to decide whether the creation log is usable', async () => {
+    // The writability probe called `created.push()`. On a `created` carrying its
+    // own `push`, that ran user code **and kept its side effects** — measured
+    // appending junk entries that were then reported as created-but-not-exported
+    // against an innocent, unrelated directory, for the lifetime of the process.
+    const slot = `globalThis[Symbol.for('@thymian/plugin-sampler.hook-creation-log')]`;
+    const poisoned = await writeHooks({
+      'a-poison.ts': [
+        `const created = [];`,
+        `created.push = function () { Array.prototype.push.call(this, 'junk'); return this.length; };`,
+        `${slot} = { nextOrder: 0, created };`,
+        `export const nothing = 1;`,
+        ``,
+      ].join('\n'),
+    });
+
+    await loadUserHooks(poisoned, catalog);
+
+    // A completely unrelated, healthy directory afterwards.
+    const healthy = await writeHooks({ 'good.ts': tagging(selectorA, 'good') });
+    const result = await loadUserHooks(healthy, catalog);
+
+    expect(errorsOf(result)).toEqual([]);
+    expect(await compose(result, firstTransactionId())).toBe('good');
+  });
+
+  it('does not blame the file whose exported array is over the cap', async () => {
+    // The over-cap branch `continue`d without marking the file's exports
+    // unusable, so the scan-wide diff then told the user to export the very
+    // registrations it had just refused to read — the same contradictory pair
+    // the enumeration branch was fixed to avoid, one branch over.
+    const hooksDir = await writeHooks({
+      'many.ts': [
+        `import { beforeEach } from '@thymian/hooks';`,
+        `export const hooks = Array.from({ length: 101 }, () =>`,
+        `  beforeEach(${JSON.stringify(selectorA)}, async (v) => v),`,
+        `);`,
+        ``,
+      ].join('\n'),
+    });
+
+    const result = await loadUserHooks(hooksDir, catalog);
+
+    expect(result.hasErrors).toBe(true);
+    expect(errorsOf(result)).toHaveLength(1);
+    expect(errorsOf(result)[0]).toContain('is an array of 101 values');
+  });
+
+  it('still reports a genuine missing export in a file next to a broken one', async () => {
+    // The scan-wide bail was too wide: a file that imported perfectly and simply
+    // forgot to export its hook had its diagnostic hidden by an unrelated
+    // sibling's import failure. That is AC 6's sentence pointed the other way.
+    // Only an *unfinished* module can contaminate another file's window; a file
+    // that threw owns its own creations and is skipped by name.
+    const hooksDir = await writeHooks({
+      'a-broken.ts': [`throw new Error('boom');`, ``].join('\n'),
+      'b-forgot-export.ts': [
+        `import { beforeEach } from '@thymian/hooks';`,
+        `beforeEach(${JSON.stringify(selectorA)}, async (v) => v);`,
+        `export const nothing = 1;`,
+        ``,
+      ].join('\n'),
+    });
+
+    const result = await loadUserHooks(hooksDir, catalog);
+    const errors = errorsOf(result).join('\n');
+
+    expect(errors).toContain('a-broken.ts');
+    expect(errors).toContain('b-forgot-export.ts');
+    expect(errors).toContain('not exported by any');
+  });
+
+  it('says how many selectors it actually checked', async () => {
+    // "1 of 200 selector(s) do not resolve" claimed to have checked 200 when it
+    // checked 100, so a second bad selector past the cap was silently omitted
+    // from the count.
+    const hooksDir = await writeHooks({
+      'big.ts': [
+        `import { beforeEach } from '@thymian/hooks';`,
+        `const list = Array.from({ length: 200 }, () => ${JSON.stringify(selectorA)});`,
+        `list[5] = 'not-a-selector';`,
+        `export const h = beforeEach(list, async (v) => v);`,
+        ``,
+      ].join('\n'),
+    });
+
+    const result = await loadUserHooks(hooksDir, catalog);
+
+    expect(result.hasErrors).toBe(true);
+    expect(errorsOf(result).join('\n')).toContain('only the first 100');
+  });
+
+  it('truncates a single enormous rendered value', async () => {
+    // Capping the element *count* left the element *size* unbounded: one
+    // five-million-character selector produced a ten-megabyte error message, and
+    // a hundred hundred-thousand-character ones produced twelve.
+    const hooksDir = await writeHooks({
+      'huge.ts': [
+        `import { beforeEach } from '@thymian/hooks';`,
+        `export const h = beforeEach('get /' + 'x'.repeat(500000), async (v) => v);`,
+        ``,
+      ].join('\n'),
+    });
+
+    const result = await loadUserHooks(hooksDir, catalog);
+    const message = hookResolutionError(result.diagnostics).message;
+
+    expect(message.length).toBeLessThan(4_000);
+    expect(message).toContain('…');
+  });
+  it('strips invisible tag characters from a rendered line', async () => {
+    // The Unicode TAG block (U+E0000–U+E007F) does not move a cursor; it is
+    // simply invisible, which makes it a way to put text a user cannot see into
+    // a message they are being asked to trust.
+    const tag = String.fromCodePoint(0xe0041);
+    const hooksDir = await writeHooks({
+      'tag.ts': [
+        `import { beforeEach } from '@thymian/hooks';`,
+        `export const h = beforeEach('get /a\\u{E0041}b', async (v) => v);`,
+        ``,
+      ].join('\n'),
+    });
+
+    const result = await loadUserHooks(hooksDir, catalog);
+    const message = hookResolutionError(result.diagnostics).message;
+
+    expect(message).not.toContain(tag);
   });
 });

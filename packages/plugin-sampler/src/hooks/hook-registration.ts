@@ -1,10 +1,19 @@
+import { AsyncLocalStorage } from 'node:async_hooks';
+
 import type { Selector } from '../selectors/selector.js';
 import type {
   AfterEachResponseHook,
   AuthorizeHook,
   BeforeEachRequestHook,
 } from './hook-types.js';
-import { isArrayValue, raw, readProperty, userValue } from './user-value.js';
+import {
+  isNullish,
+  isWritableDataProperty,
+  raw,
+  readProperty,
+  typeOf,
+  userValue,
+} from './user-value.js';
 
 /**
  * SEEDED BY STORY 575.9, OWNED BY STORY 575.6 (#582).
@@ -170,6 +179,20 @@ export type HookRegistrationDraft =
 export type HookCreationLog = {
   nextOrder: number;
   created: HookRegistration[];
+  /**
+   * Where a creation goes while a scan is collecting. See
+   * {@link withCreationScope}.
+   *
+   * An `AsyncLocalStorage`, and it lives **on the log** rather than in a module
+   * variable for the same reason the log does: jiti evaluates the aliased
+   * `@thymian/hooks` in its own registry, so the hook file's realm holds a
+   * different module instance of this file. Only what is reachable through the
+   * shared slot is shared.
+   *
+   * Optional so a log written by a **skewed runtime** that predates it is still
+   * a usable log rather than a rejected one.
+   */
+  scope?: AsyncLocalStorage<HookRegistration[]>;
 };
 
 type GlobalWithCreationLog = typeof globalThis & {
@@ -177,74 +200,196 @@ type GlobalWithCreationLog = typeof globalThis & {
 };
 
 /**
- * The one log, shared across every realm in this process.
+ * Is this slot a log we can actually use — **without writing to it to find out**?
  *
- * **The slot is user-controlled, and that is not optional.** It has to live on
- * `globalThis` under a `Symbol.for` key so a hook file's realm and the plugin's
- * realm reach the same object — which means a hook file, or a version-skewed
- * `@thymian/hooks` runtime, can assign anything at all to it. Three shapes were
- * measured escaping `loadUserHooks` from here, and only one of them needed a
- * Proxy:
+ * The slot lives on `globalThis` under a `Symbol.for` key because it has to: a
+ * hook file's realm and the plugin's realm must reach the same object, and only
+ * the process-wide symbol registry crosses that line. So a hook file, or a
+ * version-skewed `@thymian/hooks`, can assign anything to it, and every shape
+ * below was measured destroying a scan — most of them with no Proxy at all:
  *
- * - `LOG = new Proxy({…}, { get() { throw … } })` — the `created` getter throws.
- * - `LOG = { nextOrder: 0 }` — plain version skew, no hostility: `created` is
- *   `undefined` and the loader's `created.length = 0` is a `TypeError`.
- * - `LOG = Object.freeze({ …, created: Object.freeze([]) })` — assigning to
- *   `length` throws on a frozen array.
+ * | slot | what broke |
+ * | --- | --- |
+ * | `{ nextOrder: 0 }` | `created` is `undefined` |
+ * | `Object.freeze({ …, created: Object.freeze([]) })` | writing `created.length` |
+ * | `Object.freeze({ …, created: [] })` | writing `nextOrder` |
+ * | `{ get nextOrder() { return 0 }, created: [] }` | writing `nextOrder` |
+ * | `{ …, created: Object.seal([x]) }` | `push` cannot extend a sealed array |
+ * | Proxy with a throwing `created` getter | reading `created` |
  *
- * Each one killed the whole scan, losing every healthy sibling — AC 6 exactly,
- * one layer below where the guard sweep was looking. So the slot is **validated
- * on every read**: anything that is not a usable log is replaced with a fresh
- * one. Replacing rather than throwing is the right call because the log is a
- * *diagnostic channel only* (never a discovery fallback), so a poisoned slot
- * costs the user the created-but-not-exported diagnostic and nothing else.
+ * An earlier version proved writability by *calling* `created.push()`. That was
+ * wrong twice over: a zero-argument `push` only re-sets `length`, so it accepted
+ * a **sealed** array that `registerHook`'s real `push(value)` then rejects; and
+ * on a `created` carrying its own `push`, the probe **ran user code and kept its
+ * side effects** — measured appending two junk entries that were then reported
+ * as created-but-not-exported against an innocent file, for the lifetime of the
+ * process.
+ *
+ * So validation is structural only: property descriptors and
+ * `isFrozen`/`isSealed`, no mutation and no user call. A Proxy can still lie
+ * about all of them, which is why {@link registerHook} guards its writes too and
+ * resets the slot if one fails. Two cheap nets beat one probe with side effects.
  */
-export function hookCreationLog(): HookCreationLog {
-  const scope = globalThis as GlobalWithCreationLog;
+function isUsableCreationLog(candidate: unknown): candidate is HookCreationLog {
+  const slot = userValue(candidate);
 
-  try {
-    const existing = scope[HOOK_CREATION_LOG];
-
-    const slot = userValue(existing);
-    const created = readProperty(slot, 'created');
-    const isList = created.ok ? isArrayValue(created.value) : undefined;
-
-    if (
-      existing !== undefined &&
-      existing !== null &&
-      typeof existing.nextOrder === 'number' &&
-      isList?.ok === true &&
-      isList.value
-    ) {
-      // One write proves the slot is actually writable, which none of the
-      // checks above can: a frozen `created`, or a Proxy whose `set` trap
-      // throws, passes every one of them and only fails later, when
-      // `registerHook` or the loader writes — by which time the throw has
-      // escaped into a scan.
-      //
-      // `push()` with no arguments adds nothing and leaves `length` unchanged,
-      // but it still performs the `Set(O, "length", …, true)` that a frozen
-      // array and a `set`-trapping Proxy both refuse. Verified on both.
-      existing.created.push();
-
-      return existing;
-    }
-  } catch {
-    // Reading or probing the slot threw. Fall through and install a fresh log.
+  if (typeOf(slot) !== 'object' || isNullish(slot)) {
+    return false;
   }
 
-  const log: HookCreationLog = { nextOrder: 0, created: [] };
+  // One check, and it is the only one that earns its place.
+  //
+  // Since collection moved into an async scope, a scan never touches the slot's
+  // `created` array at all — so a frozen, sealed or hostile `created` cannot
+  // reach a hook file, and validating it was measurably dead weight (every
+  // mutation of those checks was absorbed). What a scan *does* need is somewhere
+  // to hang a collection scope and a usable `nextOrder`, because the creation
+  // index is what fixes composition order within a file.
+  //
+  // `Object.freeze` sets `writable: false` on every data property, and a getter
+  // has no `writable` at all, so this one predicate covers the frozen log, the
+  // getter-only `nextOrder` and the plain `{ nextOrder: 0 }` skew that has no
+  // `created`. A *sealed* object still takes the write, and that is correct: the
+  // only other thing installed here is `scope`, and adding it to a sealed object
+  // throws where the caller already catches.
+  //
+  // Reading a descriptor is also the whole reason there is no probe any more. An
+  // earlier version proved writability by *calling* `created.push()`, which
+  // accepted a sealed array the real `push(value)` then rejects, and on a
+  // `created` carrying its own `push` it ran user code and **kept the side
+  // effects** — measured appending junk that was then reported against an
+  // innocent file for the lifetime of the process.
+  return isWritableDataProperty(slot, 'nextOrder', 'number');
+}
+
+function freshCreationLog(): HookCreationLog {
+  return { nextOrder: 0, created: [], scope: new AsyncLocalStorage() };
+}
+
+/** Installs a fresh log in the slot, returning it. Never throws. */
+function resetCreationLog(): HookCreationLog {
+  const log = freshCreationLog();
+
+  const scope: GlobalWithCreationLog = globalThis;
 
   try {
     scope[HOOK_CREATION_LOG] = log;
   } catch {
     // A non-writable slot (`Object.defineProperty(globalThis, key, {})`). The
     // returned log is then realm-local, so cross-realm creations are missed and
-    // the created-but-not-exported diff under-reports — which is the same
-    // "diagnostic channel degrades, discovery does not" trade as above.
+    // the created-but-not-exported diff under-reports — a diagnostic channel
+    // degrading, which is the trade this whole file makes deliberately.
   }
 
   return log;
+}
+
+/**
+ * The one log, shared across every realm in this process.
+ *
+ * Validated on every read; anything unusable is replaced. Replacing rather than
+ * throwing is right because the log is a **diagnostic channel only** — never a
+ * discovery fallback — so a poisoned slot costs the created-but-not-exported
+ * diagnostic and nothing that binds a hook.
+ */
+export function hookCreationLog(): HookCreationLog {
+  const scope: GlobalWithCreationLog = globalThis;
+  const existing = scope[HOOK_CREATION_LOG];
+
+  if (!isUsableCreationLog(existing)) {
+    return resetCreationLog();
+  }
+
+  try {
+    // A log installed by a runtime that predates {@link withCreationScope} is
+    // otherwise perfectly usable and simply has nowhere to put a collection
+    // scope. Adding one repairs it in place.
+    //
+    // Without this, such a slot silently disables the whole channel for the rest
+    // of the process: every scan takes the "no scope" path, so no creation is
+    // ever recorded and the created-but-not-exported diagnostic stops existing.
+    // Measured — one hook file assigning a scope-less object was enough.
+    existing.scope ??= new AsyncLocalStorage();
+  } catch {
+    return resetCreationLog();
+  }
+
+  return existing;
+}
+
+/**
+ * Runs `evaluate` with every registration it creates going to a collector of its
+ * own, and returns them.
+ *
+ * **Why an async scope and not a shared array.** The loader used to empty
+ * `created` around each file, which made two overlapping scans destroy each
+ * other's in-flight list — measured, the scan whose hook file awaited came back
+ * with *no* created-but-not-exported diagnostic at all. Serialising the scans
+ * fixed that and introduced something worse: a module-global queue means one
+ * hook file that never settles wedges **every later scan in the process**,
+ * including a different plugin instance and 575.10's `sampler validate`.
+ *
+ * A plain per-scan collector is not enough either: two scans interleave at every
+ * `await`, so a collector that is simply "open" also catches the *other* scan's
+ * creations — measured, an innocent file was told it had failed to export a
+ * registration a concurrent scan had created.
+ *
+ * `AsyncLocalStorage` is the primitive that actually answers the question being
+ * asked, which is not "which collectors are open" but "which evaluation is this
+ * creation part of". The module body jiti runs sits inside this call's async
+ * context, so a creation lands in exactly one collector and no scan has to wait
+ * for another.
+ */
+export async function withCreationScope<T>(
+  evaluate: () => Promise<T>,
+): Promise<{ result?: T; error?: unknown; created: HookRegistration[] }> {
+  const created: HookRegistration[] = [];
+  const log = hookCreationLog();
+  const scope = log.scope;
+
+  const run = async (): Promise<{
+    result?: T;
+    error?: unknown;
+    created: HookRegistration[];
+  }> => {
+    try {
+      return { result: await evaluate(), created };
+    } catch (error) {
+      return { error, created };
+    }
+  };
+
+  if (scope === undefined) {
+    // A skewed log with no scope. Creations are invisible to this evaluation and
+    // the diff under-reports — a diagnostic channel degrading, never a binding.
+    return await run();
+  }
+
+  return await scope.run(created, run);
+}
+
+/**
+ * Records one creation in the collector for the evaluation it belongs to, or —
+ * when nothing is collecting — in the shared array the type has always carried.
+ */
+function recordCreation(
+  log: HookCreationLog,
+  registration: HookRegistration,
+): void {
+  try {
+    const collector = log.scope?.getStore();
+
+    if (collector !== undefined) {
+      collector.push(registration);
+
+      return;
+    }
+
+    log.created.push(registration);
+  } catch {
+    // See `isUsableCreationLog`: a Proxy can pass validation and still refuse
+    // the write. Losing the record costs a diagnostic, never a binding.
+  }
 }
 
 /**
@@ -256,10 +401,21 @@ export function hookCreationLog(): HookCreationLog {
  * behaviour.
  */
 export function registerHook(draft: HookRegistrationDraft): HookRegistration {
-  const log = hookCreationLog();
-  const order = log.nextOrder;
+  let log = hookCreationLog();
+  let order = 0;
 
-  log.nextOrder += 1;
+  try {
+    order = log.nextOrder;
+    log.nextOrder = order + 1;
+  } catch {
+    // Validation is structural, so a Proxy can pass it and still refuse the
+    // write. Reset and retry once rather than let a poisoned slot stamp every
+    // registration with the same order — which would silently reorder the
+    // user's `beforeEach` composition, the one thing this counter exists for.
+    log = resetCreationLog();
+    order = log.nextOrder;
+    log.nextOrder = order + 1;
+  }
 
   // One cast, here: TypeScript cannot see that spreading a member of the draft
   // union and adding `order` plus the brand reconstructs the corresponding member
@@ -271,7 +427,7 @@ export function registerHook(draft: HookRegistrationDraft): HookRegistration {
     [HOOK_REGISTRATION]: true,
   }) as HookRegistration;
 
-  log.created.push(registration);
+  recordCreation(log, registration);
 
   return registration;
 }

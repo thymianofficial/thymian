@@ -123,10 +123,26 @@ export function isNullish(value: UserValue): boolean {
  */
 export function safeString(value: unknown): string {
   try {
-    return String(value);
+    return truncate(String(value));
   } catch {
     return '[unprintable value]';
   }
+}
+
+/**
+ * How much of one rendered user value a diagnostic will carry.
+ *
+ * Capping the element *count* of a list left the element *size* unbounded, which
+ * is the same defect in the other dimension: one five-million-character selector
+ * produced a ten-megabyte error message, and a hundred hundred-thousand-character
+ * ones produced twelve. Neither needs a Proxy.
+ */
+const MAX_RENDERED_LENGTH = 200;
+
+function truncate(rendered: string): string {
+  return rendered.length > MAX_RENDERED_LENGTH
+    ? `${rendered.slice(0, MAX_RENDERED_LENGTH)}… (${rendered.length} characters)`
+    : rendered;
 }
 
 /**
@@ -145,7 +161,10 @@ export function safeString(value: unknown): string {
 export function messageOf(error: unknown): string {
   try {
     if (isThymianError(error) || error instanceof Error) {
-      return error.message;
+      // Bounded like every other rendered value: an error message can carry a
+      // user selector verbatim, and a five-million-character selector produced a
+      // ten-megabyte diagnostic through exactly this path.
+      return truncate(error.message);
     }
   } catch {
     // Reading the message failed. Fall through to `safeString`, which is total —
@@ -215,12 +234,20 @@ export function isArrayValue(value: UserValue): Read<boolean> {
  */
 export function ownKeys(value: UserValue): Read<string[]> {
   try {
-    // Only an object has exports. `Object.keys` on a **primitive string** yields
-    // one key per character, so a CJS hook file doing `module.exports = someBigString`
-    // — jiti hands the primitive straight back — turned a 5 MB string into five
-    // million guarded property reads. Every other primitive already answers `[]`;
-    // the string was the one that did not.
-    if (typeOf(value) !== 'object' || isNullish(value)) {
+    // Objects **and functions** have exports; primitives do not.
+    //
+    // `Object.keys` on a primitive string yields one key per character, so a CJS
+    // hook file doing `module.exports = someBigString` — jiti hands the
+    // primitive straight back — turned a 10 M-character string into ten million
+    // guarded property reads. Every other primitive already answered `[]`; the
+    // string was the one that did not.
+    //
+    // `function` has to stay in: `module.exports = handler; handler.hook = …` is
+    // ordinary CJS, and excluding it lost the hook *and* then told the user to
+    // export what they had exported.
+    const kind = typeOf(value);
+
+    if ((kind !== 'object' && kind !== 'function') || isNullish(value)) {
       return ok([]);
     }
 
@@ -276,6 +303,58 @@ export function readProperties<K extends string>(
   return ok(fields);
 }
 
+/**
+ * Is this value frozen or sealed — i.e. will a write to it throw?
+ *
+ * `Object.isFrozen`/`isSealed` run the `isExtensible` and
+ * `getOwnPropertyDescriptor` traps, so they are user code like everything else
+ * here, and a Proxy can lie about both. That is fine for the one caller: it uses
+ * this to *avoid* discovering unwritability by writing, and still guards the
+ * write itself. `true` on a failed read, because "cannot tell" and "not usable"
+ * lead to the same decision.
+ */
+export function isImmutable(value: UserValue): boolean {
+  try {
+    const target = value as unknown as object;
+
+    return Object.isFrozen(target) || Object.isSealed(target);
+  } catch {
+    return true;
+  }
+}
+
+/**
+ * Is `key` an own, writable **data** property holding a value of `expected`
+ * type?
+ *
+ * The alternative is proving writability by writing, which was measured wrong
+ * twice: a zero-argument `push()` accepted a sealed array the real `push(value)`
+ * then rejects, and on a value carrying its own `push` the probe ran user code
+ * and **kept its side effects**. Reading a descriptor changes nothing.
+ */
+export function isWritableDataProperty(
+  value: UserValue,
+  key: string,
+  expected: 'number' | 'string' | 'object' | 'function',
+): boolean {
+  try {
+    const descriptor = Object.getOwnPropertyDescriptor(
+      value as unknown as object,
+      key,
+    );
+
+    return (
+      descriptor !== undefined &&
+      descriptor.get === undefined &&
+      descriptor.set === undefined &&
+      descriptor.writable === true &&
+      typeof descriptor.value === expected
+    );
+  } catch {
+    return false;
+  }
+}
+
 /** One array element. Separate from {@link readProperty} only for the label. */
 export function readIndex(value: UserValue, index: number): Read<UserValue> {
   try {
@@ -296,7 +375,9 @@ export function readIndex(value: UserValue, index: number): Read<UserValue> {
  */
 export function safeJson(value: UserValue): Read<string | undefined> {
   try {
-    return ok(JSON.stringify(value));
+    const rendered = JSON.stringify(value);
+
+    return ok(rendered === undefined ? undefined : truncate(rendered));
   } catch (error) {
     return threw(error);
   }

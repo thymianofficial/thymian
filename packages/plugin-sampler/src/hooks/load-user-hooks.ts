@@ -14,11 +14,11 @@ import {
   type BeforeEachCallback,
   HOOK_KINDS,
   HOOK_REGISTRATION,
-  hookCreationLog,
   type HookRegistration,
   type HookTarget,
   isHookRegistration,
   type SampleCallback,
+  withCreationScope,
 } from './hook-registration.js';
 import {
   asFiniteNumber,
@@ -550,15 +550,21 @@ function readLength(value: UserValue): number | undefined {
 
   const length = asFiniteNumber(read.value);
 
-  if (length === undefined) {
-    return undefined;
-  }
+  return length === undefined ? undefined : clampLength(length);
+}
 
-  // A negative or fractional `length` is not an element count. Left as read, it
-  // slipped past the `=== 0` empty-list guard: a list reporting `-1` bound
-  // nothing, reported `boundHookCount: 1` and `hasErrors: false`, and the hook
-  // silently never fired; `0.5` produced "1 of 0.5 selector(s) do not resolve".
-  return Math.max(0, Math.trunc(length));
+/**
+ * A reported `length` as an element count.
+ *
+ * A negative or fractional value is not one. Left as read, it slipped past the
+ * `=== 0` empty-list guard: a list reporting `-1` bound nothing, reported
+ * `boundHookCount: 1` and `hasErrors: false`, and the hook silently never fired;
+ * `0.5` produced "1 of 0.5 selector(s) do not resolve". One function, because
+ * three hand-inlined copies of an invariant is how the `=== 0` guard drifted
+ * from the clamp in the first place.
+ */
+function clampLength(length: number | undefined): number {
+  return Math.max(0, Math.trunc(length ?? 0));
 }
 
 /**
@@ -593,8 +599,11 @@ function renderTarget(target: HookTarget | undefined): string {
   const literal = asString(value);
 
   if (literal !== undefined) {
-    // A primitive string has no traps left to run, so interpolating it is safe.
-    return `"${literal}"`;
+    // A primitive string has no traps left to run, but it can be enormous: one
+    // five-million-character selector produced a ten-megabyte error message.
+    // `safeString` is where the length bound lives, and a primitive passes
+    // through it unchanged apart from that bound.
+    return `"${safeString(literal)}"`;
   }
 
   const array = isArrayValue(value);
@@ -783,8 +792,7 @@ function resolveTargetingUnguarded(
     // A `length` that is not a finite number — or is negative or fractional —
     // names no selectors at all, which the empty-list branch below already has
     // the right words for. See {@link readLength} for why the clamp matters.
-    const reported = asFiniteNumber(lengthRead.value) ?? 0;
-    const length = Math.max(0, Math.trunc(reported));
+    const length = clampLength(asFiniteNumber(lengthRead.value));
 
     if (length === 0) {
       return {
@@ -850,9 +858,16 @@ function resolveTargetingUnguarded(
           ? `${failures.join('; ')}; … and ${failureCount - failures.length} more`
           : failures.join('; ');
 
+      // `examined`, not `length`, when they differ: claiming to have checked 200
+      // when 100 were checked hides every bad selector past the cap.
+      const scope =
+        examined < length
+          ? `${length} selector(s), of which only the first ${examined} were checked,`
+          : `${length} selector(s)`;
+
       return {
         ok: false,
-        error: `${failureCount} of ${length} selector(s) do not resolve: ${quoted}`,
+        error: `${failureCount} of ${scope} do not resolve: ${quoted}`,
         suggestions,
       };
     }
@@ -1102,39 +1117,6 @@ function snapshotRegistration(
 }
 
 /**
- * Takes everything the creation log holds and empties it, without ever throwing.
- *
- * The log lives in a `globalThis` slot under a `Symbol.for` key — it has to, or
- * the plugin's realm and the hook file's realm would not share it — which makes
- * it **user-writable**. {@link hookCreationLog} validates and replaces a poisoned
- * slot, and this drain re-reads it on every call rather than caching the object,
- * because a hook file is free to swap the slot out *during* its own evaluation:
- * a cached reference would then be drained while `registerHook` writes somewhere
- * else.
- *
- * The failure mode this closes was measured three ways — a throwing `created`
- * getter, a plain `{ nextOrder: 0 }` version skew, and a frozen `created` — and
- * each one threw out of `loadUserHooks` on the *next* file, taking every healthy
- * sibling with it.
- */
-function drainCreationLog(): HookRegistration[] {
-  try {
-    const log = hookCreationLog();
-    // Copied by index, not spread: the log is a user-writable slot, so its
-    // `Symbol.iterator` is user code like everything else here.
-    const created = log.created.slice(0, log.created.length);
-
-    log.created.length = 0;
-
-    return created;
-  } catch {
-    // The log is a diagnostic channel, never a discovery fallback, so losing it
-    // costs the created-but-not-exported diff and nothing that binds a hook.
-    return [];
-  }
-}
-
-/**
  * Imports one hook file and collects every export that is a registration.
  *
  * **Nothing here reads a user value without a guard, and that is now checked
@@ -1188,29 +1170,30 @@ async function importRegistrations(
   const collected: CollectedRegistration[] = [];
 
   let mod: unknown;
-  let created: HookRegistration[] = [];
   let exportsUnusable = false;
 
-  drainCreationLog();
+  // No `{ default: true }`: that option (v1's `tryImport`) collapses the
+  // namespace to the default export and would discard every named registration.
+  // `interopDefault` stays on, which is what makes a CJS hook file's
+  // `module.exports` appear as namespace keys.
+  const evaluated = await withCreationScope(
+    async () =>
+      await evaluateModule(jiti, moduleCache, file.full, reportedModules),
+  );
+  const created = evaluated.created;
 
-  try {
-    // No `{ default: true }`: that option (v1's `tryImport`) collapses the
-    // namespace to the default export and would discard every named
-    // registration. `interopDefault` stays on, which is what makes a CJS hook
-    // file's `module.exports` appear as namespace keys.
-    mod = await evaluateModule(jiti, moduleCache, file.full, reportedModules);
-  } catch (error) {
+  if (evaluated.error !== undefined) {
     // One broken file must not hide the other nine.
     exportsUnusable = true;
 
     diagnostics.push({
       severity: 'error',
       file: file.key,
-      reason: `could not be imported — ${messageOf(error)}`,
-      cause: error,
+      reason: `could not be imported — ${messageOf(evaluated.error)}`,
+      cause: evaluated.error,
     });
-  } finally {
-    created = drainCreationLog();
+  } else {
+    mod = evaluated.result;
   }
 
   const take = (value: UserValue, exportName: string): void => {
@@ -1376,11 +1359,18 @@ async function importRegistrations(
     // yields no elements, which is what the old `index < length` comparison did
     // for `NaN` and for a non-number alike, made explicit rather than left to
     // comparison semantics.
-    const reported = asFiniteNumber(lengthRead.value) ?? 0;
-    const length = Math.max(0, Math.trunc(reported));
+    const length = clampLength(asFiniteNumber(lengthRead.value));
     const examined = Math.min(length, MAX_USER_LIST_ELEMENTS);
 
     if (examined < length) {
+      // Marked unusable for the same reason the enumeration failure is: the
+      // scan refused to read this export, so it cannot then turn round and tell
+      // the user they failed to export what is in it. Without this the file drew
+      // both "is an array of 101 values" and "101 registration(s) … not
+      // exported", which is the contradictory pair the enumeration branch
+      // already exists to avoid.
+      exportsUnusable = true;
+
       diagnostics.push({
         severity: 'error',
         file: file.key,
@@ -1440,9 +1430,69 @@ async function importRegistrations(
  * The cache is user-derived data (jiti fills it from the user's own import
  * graph), so it is read through `user-value.ts` like everything else here.
  */
+/**
+ * Every value any module in the scan's cache exposes as an export.
+ *
+ * The created-but-not-exported diff asks "did the user assign this registration
+ * to an export?", and `exported` — which only holds what a *scanned* file
+ * exposed — answers a narrower question. A registration exported from a module
+ * that failed to load, or from one the scan never visits, is in nobody's
+ * `exported` set and yet the user did exactly what the diagnostic asks of them.
+ *
+ * Both attempts to fix that by *file* were wrong in opposite directions.
+ * Skipping only the offending file blamed the importer for a registration the
+ * broken module really did export — the creation lands in the importer's
+ * evaluation window, and that window belongs to a file whose own import
+ * succeeded. Bailing for the whole scan hid a genuine missing export in a
+ * healthy file behind an unrelated sibling's import failure, which is AC 6's
+ * sentence pointed the other way.
+ *
+ * The question is about a *registration*, so it is answered per registration.
+ */
+function valuesExportedByAnyModule(moduleCache: ScanModuleCache): Set<unknown> {
+  const seen = new Set<unknown>();
+  const cache = userValue(moduleCache);
+  const keys = ownKeys(cache);
+
+  if (!keys.ok) {
+    return seen;
+  }
+
+  for (const key of keys.value) {
+    const entry = readProperty(cache, key);
+
+    if (!entry.ok) {
+      continue;
+    }
+
+    const exports = readProperty(entry.value, 'exports');
+
+    if (!exports.ok) {
+      continue;
+    }
+
+    const names = ownKeys(exports.value);
+
+    if (!names.ok) {
+      continue;
+    }
+
+    for (const name of names.value) {
+      const value = readProperty(exports.value, name);
+
+      if (value.ok) {
+        seen.add(raw(value.value));
+      }
+    }
+  }
+
+  return seen;
+}
+
 function unfinishedModules(
   moduleCache: ScanModuleCache,
   reported: Set<string>,
+  exported: Set<unknown>,
 ): string[] {
   const cache = userValue(moduleCache);
   const keys = ownKeys(cache);
@@ -1466,24 +1516,69 @@ function unfinishedModules(
 
     const loaded = readProperty(entry.value, 'loaded');
 
-    if (loaded.ok && raw(loaded.value) === false) {
-      reported.add(key);
-      unfinished.push(key);
+    if (!loaded.ok || raw(loaded.value) !== false) {
+      continue;
     }
+
+    if (!contributedAnExport(entry.value, exported)) {
+      // Unfinished but harmless. See the docblock: `loaded: false` alone cannot
+      // tell a throw from a module that is simply still loading.
+      continue;
+    }
+
+    reported.add(key);
+    unfinished.push(key);
   }
 
   return unfinished;
 }
 
 /**
- * @param anchor the target as already rendered for this registration.
+ * Did this unfinished module's partial exports actually reach a scanned file?
  *
- * Passed in rather than re-rendered. `describeTarget` walks the user's target,
- * so calling it again per conflicting transaction ran their `get` traps a second
- * and third time — measured at 12 element reads where 8 were expected — against
- * the invariant this module states twice, that a trap is free to answer
- * differently the second time.
+ * This is the whole difference between the defect and a false alarm, and
+ * `loaded` cannot express it. jiti sets `loaded` to `true` only after a module
+ * body completes, so an **in-flight** module is indistinguishable from one that
+ * threw — and a non-awaited `import()` of a module with a slow top-level await
+ * is an ordinary prefetch. Reporting on `loaded` alone failed a healthy hooks
+ * tree with a sentence in which every clause was false ("threw", "swallowed the
+ * error"), and did it *timing-dependently*: the same tree passed when the module
+ * happened to finish first.
+ *
+ * What actually characterises the defect is narrower and is observable: a
+ * registration the unfinished module created was picked up as some scanned
+ * file's export, so it is about to bind despite its module never finishing.
+ * That is exactly the reproduction — `b-reexports.ts` re-exporting a hook from a
+ * module that threw — and it is not true of a prefetch, whose exports no scanned
+ * namespace ever contains.
  */
+function contributedAnExport(
+  entry: UserValue,
+  exported: Set<unknown>,
+): boolean {
+  const exports = readProperty(entry, 'exports');
+
+  if (!exports.ok) {
+    return false;
+  }
+
+  const keys = ownKeys(exports.value);
+
+  if (!keys.ok) {
+    return false;
+  }
+
+  for (const key of keys.value) {
+    const value = readProperty(exports.value, key);
+
+    if (value.ok && exported.has(raw(value.value))) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
 function conflict(
   kindLabel: string,
   first: CollectedRegistration,
@@ -1516,43 +1611,8 @@ export async function loadUserHooks(
   hooksDir: string,
   catalog: TransactionCatalog,
 ): Promise<LoadUserHooksResult> {
-  // Scans run one at a time in this process. See {@link scanQueue}.
-  const run = scanQueue.then(
-    async () => await scanUserHooks(hooksDir, catalog),
-  );
-
-  // The queue must survive a failing scan, so it chains on a settled promise
-  // rather than on `run` itself — otherwise one rejection would poison every
-  // later scan. `loadUserHooks` is contracted not to throw for user error, but
-  // an internal fault must not take the queue with it either.
-  scanQueue = run.then(
-    () => undefined,
-    () => undefined,
-  );
-
-  return await run;
+  return await scanUserHooks(hooksDir, catalog);
 }
-
-/**
- * One scan at a time, per process.
- *
- * The creation log is a `globalThis` slot by necessity (it is the only thing
- * that crosses the realm boundary jiti puts between the plugin and a hook file),
- * and the scan drains it per file. Two scans overlapping therefore destroy each
- * other's in-flight created list: measured, a scan whose hook file awaited while
- * a second scan ran came back with `bound: 0`, `hasErrors: false` and **no**
- * created-but-not-exported diagnostic at all — silently lost, not merely
- * mis-attributed.
- *
- * That is reachable, not theoretical: `HookRunner.init` calls this from
- * `core.format`, and 575.10's `sampler validate` is specified to call it
- * directly, in the same long-lived process.
- *
- * Serialising is the fix rather than per-scan tokens because the log's whole
- * purpose is to observe creations made by code that does not know a scan exists.
- * Scans are not on a hot path; a queue costs nothing measurable.
- */
-let scanQueue: Promise<void> = Promise.resolve();
 
 async function scanUserHooks(
   hooksDir: string,
@@ -1702,16 +1762,16 @@ async function scanUserHooks(
   // A module anywhere in the scan's import graph that started and never
   // finished. See {@link unfinishedModules} for why this is a sweep over the
   // cache rather than a per-importer check.
-  const unfinished = unfinishedModules(moduleCache, reportedModules);
+  const unfinished = unfinishedModules(moduleCache, reportedModules, exported);
 
   for (const modulePath of unfinished) {
     diagnostics.push({
       severity: 'error',
       file: hooksDirRelative(scanRoot, modulePath),
       reason:
-        'threw while being imported and only the exports it created before throwing exist; a hook file imported it and swallowed the error, so nothing else reported it',
+        'never finished loading, yet a scanned hook file exported a registration it created — so a hook would bind from a module whose evaluation did not complete',
       suggestions: [
-        'Fix the error this module throws at import time, or stop importing it from a hook file.',
+        'Fix the error this module throws at import time; a hook file importing it may be swallowing it with try/catch.',
       ],
     });
   }
@@ -1729,7 +1789,7 @@ async function scanUserHooks(
   reportUnexportedRegistrations(
     createdPerFile,
     exported,
-    unfinished.length > 0,
+    valuesExportedByAnyModule(moduleCache),
     diagnostics,
   );
 
@@ -1785,33 +1845,22 @@ function reportUnexportedRegistrations(
     exportsUnusable: boolean;
   }[],
   exported: Set<unknown>,
-  anyModuleUnfinished: boolean,
+  exportedAnywhere: Set<unknown>,
   diagnostics: HookDiagnostic[],
 ): void {
-  // The diff is scan-wide, so its **premise** is scan-wide too: "everything the
-  // scan saw created was exported by some scanned file". One module whose
-  // exports could not be read — an import that threw, a namespace that could not
-  // be enumerated, a module that started and never finished — makes that premise
-  // unknowable for the whole scan, not just for that file.
-  //
-  // Skipping only the offending file was measurably wrong: with `a.ts` doing
-  // `try { await import('./b.js') } catch {}` and `b.ts` throwing after
-  // exporting a hook, the diff blamed **`a.ts`** for a registration that `b.ts`
-  // really did export — and told the user to "re-export it from a scanned file",
-  // which is what they had already done. The registration was created inside
-  // `a.ts`'s import *window*, and the window belongs to the importer whose own
-  // import succeeded, so the per-file skip could never have caught it.
-  if (anyModuleUnfinished || createdPerFile.some((f) => f.exportsUnusable)) {
-    return;
-  }
-
   for (const { file, created, exportsUnusable } of createdPerFile) {
     if (exportsUnusable) {
       continue;
     }
 
+    // Two sets, because they answer two different questions. `exported` is what
+    // a **scanned file** exposed, which is what makes a registration reachable.
+    // `exportedAnywhere` is what **any** module exposed, which is what makes
+    // "you forgot to export this" a true sentence — see
+    // {@link valuesExportedByAnyModule}.
     const missing = created.filter(
-      (registration) => !exported.has(registration),
+      (registration) =>
+        !exported.has(registration) && !exportedAnywhere.has(registration),
     );
 
     if (missing.length === 0) {
@@ -2008,10 +2057,14 @@ function bindRegistrations(
           bound += 1;
         }
 
+        if (!resolved) {
+          break;
+        }
+
         // Per rival, not per transaction — see the `defineSample` branch.
         const rivals = new Map<CollectedRegistration, number>();
 
-        for (const id of resolved?.ids ?? []) {
+        for (const id of resolved.ids) {
           const owner = targetedAuthorize.get(id);
 
           if (owner) {
@@ -2032,7 +2085,11 @@ function bindRegistrations(
               count === 1
                 ? "that transaction's authorize hook"
                 : `the authorize hook for ${count} of those transactions`,
-              resolved?.anchor ?? describeTarget(registration.target),
+              // `rivals` is only non-empty when `resolved` is set, so there is
+              // no fallback to write here — and writing one would re-render the
+              // user's target, which is the double-trap-run this parameter
+              // exists to prevent.
+              resolved.anchor,
             ),
           );
         }
@@ -2141,7 +2198,9 @@ export function formatDiagnostic(diagnostic: HookDiagnostic): string {
  * is meant to read. Those joiners cannot move a cursor. What can is the
  * embedding/override/isolate set (U+202A–U+202E, U+2066–U+2069), the directional
  * marks (U+200E, U+200F, U+061C) and the BOM (U+FEFF), which is what this class
- * names.
+ * names. The Unicode **TAG** block (U+E0000–U+E007F) is in it for a different
+ * reason: it does not move a cursor, it is simply invisible, which makes it a
+ * way to smuggle text into a message the user is being asked to trust.
  *
  * Replaced with a space rather than deleted: dropping the control would join the
  * text on either side of it into one token that was never in the user's file.
@@ -2149,7 +2208,7 @@ export function formatDiagnostic(diagnostic: HookDiagnostic): string {
 function sanitizeLine(line: string): string {
   return line
     .replaceAll(
-      /[\p{Cc}\u061C\u200E\u200F\u202A-\u202E\u2066-\u2069\uFEFF]/gu,
+      /[\p{Cc}\u061C\u200E\u200F\u202A-\u202E\u2066-\u2069\uFEFF\u{E0000}-\u{E007F}]/gu,
       ' ',
     )
     .replaceAll(/\s+/gu, ' ')

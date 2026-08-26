@@ -271,10 +271,19 @@ describe('HookRunner.init rebinds on every format load (#614)', () => {
 
     const runner = createRunner(hooksDir);
 
-    await Promise.all([
+    const [first, second] = await Promise.allSettled([
       runner.init(formatA, catalogA),
       runner.init(formatB, catalogB),
     ]);
+
+    // The superseded load reports that it was discarded rather than resolving
+    // as if it had bound something. Resolving quietly let `core.format` reply
+    // *success* over a runner that then refused every request.
+    expect(first?.status).toBe('rejected');
+    expect(
+      first?.status === 'rejected' ? (first.reason as Error).name : undefined,
+    ).toBe('HookRunnerSuperseded');
+    expect(second?.status).toBe('fulfilled');
 
     // Bound against B, the load that started last, for a transaction that
     // exists only in B.
@@ -309,7 +318,11 @@ describe('HookRunner.init rebinds on every format load (#614)', () => {
     // While the loader is still reading, the caller drops everything.
     runner.invalidate();
 
-    await inFlight;
+    // The discarded load says so. It used to resolve normally, so `core.format`
+    // replied success over a permanently dead runner with nothing in the log.
+    await expect(inFlight).rejects.toMatchObject({
+      name: 'HookRunnerSuperseded',
+    });
 
     await expect(
       runner.authorize({

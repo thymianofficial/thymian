@@ -47,7 +47,7 @@ const guardedUserValueReads = [
   },
   {
     selector:
-      "CallExpression[callee.object.name='Object'][callee.property.name=/^(keys|values|entries|fromEntries|assign|getOwnPropertyNames|getOwnPropertyDescriptor|getOwnPropertyDescriptors|getOwnPropertySymbols|getPrototypeOf)$/]",
+      "CallExpression[callee.object.name='Object'][callee.property.name=/^(keys|values|entries|fromEntries|assign|getOwnPropertyNames|getOwnPropertyDescriptor|getOwnPropertyDescriptors|getOwnPropertySymbols|getPrototypeOf|hasOwn|groupBy)$/]",
     message:
       "Enumerating a user value runs its ownKeys and getOwnPropertyDescriptor traps. Use ownKeys() from './user-value.js'.",
   },
@@ -85,12 +85,21 @@ const guardedUserValueReads = [
       "Reflect.* runs the corresponding proxy trap directly. Use the guarded readers in './user-value.js'.",
   },
   {
-    // Exempting `[...new Set(x)]` / `[...new Map(x)]`: a built-in constructed on
-    // the spot has a built-in iterator that no user value can reach. Everything
-    // else spread into an array runs whatever `Symbol.iterator` it was handed.
-    selector: "ArrayExpression > SpreadElement[argument.type!='NewExpression']",
+    // Spreading a **cast** runs whatever `Symbol.iterator` the value carries;
+    // spreading a `UserValue` directly is already a type error. `new Set(x)`
+    // iterates `x` during construction, so a raw user value handed to one is
+    // banned by the `raw()`-argument rule below rather than exempted here.
+    selector: "ArrayExpression > SpreadElement[argument.type='TSAsExpression']",
     message:
-      "Spreading into an array runs Symbol.iterator, which is user code. Read by index with readIndex() from './user-value.js'.",
+      "Spreading a cast runs Symbol.iterator, which is user code. Read by index with readIndex() from './user-value.js'.",
+  },
+  {
+    // The one place `raw()` is genuinely dangerous as an *argument*: every one
+    // of these iterates or walks what it is given.
+    selector:
+      "CallExpression[callee.object.name='Array'][callee.property.name='from'] CallExpression[callee.name='raw'], NewExpression[callee.name=/^(Set|Map|WeakSet|WeakMap)$/] CallExpression[callee.name='raw'], CallExpression[callee.name='structuredClone'] CallExpression[callee.name='raw'], CallExpression[callee.object.name='Object'][callee.property.name=/^(freeze|seal|preventExtensions|isFrozen|isSealed|isExtensible)$/] CallExpression[callee.name='raw']",
+    message:
+      "Iterating or cloning a raw user value runs its Symbol.iterator or every getter it has. Read what you need with './user-value.js'.",
   },
   {
     selector: 'ObjectPattern > RestElement',
@@ -101,6 +110,38 @@ const guardedUserValueReads = [
     selector: 'ForInStatement',
     message:
       "for…in runs the ownKeys trap. Use ownKeys() from './user-value.js'.",
+  },
+  {
+    selector: "BinaryExpression[operator='in']",
+    message:
+      "`in` runs the has trap — the same shape as the banned instanceof, on the same node type. Use readProperty()/ownKeys() from './user-value.js'.",
+  },
+  {
+    // Not a blanket ban: `for (const x of value)` where `value` is a `UserValue`
+    // is already a **type** error, because the opaque type has no
+    // `Symbol.iterator`. A cast is the escape, so a cast is what is banned.
+    selector: "ForOfStatement[right.type='TSAsExpression']",
+    message:
+      "for…of over a cast runs Symbol.iterator, which is user code. Read by index with readIndex() from './user-value.js'.",
+  },
+  {
+    selector:
+      "VariableDeclarator[id.type='ArrayPattern'][init.type='TSAsExpression']",
+    message:
+      "Array destructuring a cast runs Symbol.iterator. Read by index with readIndex() from './user-value.js'.",
+  },
+  {
+    selector: 'UnaryExpression[operator="+"]',
+    message:
+      "Unary + runs Symbol.toPrimitive, the same user code Number() does. Use asFiniteNumber() from './user-value.js'.",
+  },
+  {
+    // Awaiting a value adopts it when it is thenable, which calls a `then` the
+    // user wrote — and if that `then` never settles, the scan never returns.
+    // Awaiting a *call* is fine: its result is something this module produced.
+    selector: "AwaitExpression[argument.type!='CallExpression']",
+    message:
+      'Awaiting a value adopts it if it is thenable, running a user-written then(). Await a call whose result you control.',
   },
 ];
 

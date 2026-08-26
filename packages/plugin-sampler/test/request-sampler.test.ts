@@ -146,3 +146,46 @@ describe('RequestSampler', () => {
     }
   }, 30_000);
 });
+
+describe('RequestSampler — overlapping loads (round 5)', () => {
+  it('lets the load that started last own the projection', async () => {
+    // `init` writes `samples` **after** its `await`, so two overlapping
+    // `core.format` loads let whichever settles last install its projection over
+    // the other's. Measured without the generation counter, the sampler answered
+    // for transactions that exist only in a format nobody had loaded — which is
+    // exactly what makes `SampleProjectionMissingTransactionError`, commented
+    // "unreachable by construction" in `index.ts`, reachable.
+    //
+    // `HookRunner` got this counter in round 4b; the sampler did not, and the
+    // asymmetry was the finding.
+    const big = createThymianFormatWithTransactions(12);
+    const small = createThymianFormatWithTransactions(2);
+    const sampler = new RequestSampler();
+
+    const [first, second] = await Promise.allSettled([
+      sampler.init(big, new ThymianEmitter()),
+      sampler.init(small, new ThymianEmitter()),
+    ]);
+
+    expect(first?.status).toBe('rejected');
+    expect(
+      first?.status === 'rejected' ? (first.reason as Error).name : undefined,
+    ).toBe('RequestSamplerSuperseded');
+    expect(second?.status).toBe('fulfilled');
+
+    // Nothing from the superseded format survives.
+    for (const transaction of big.getThymianHttpTransactions()) {
+      if (
+        small
+          .getThymianHttpTransactions()
+          .some((kept) => kept.transactionId === transaction.transactionId)
+      ) {
+        continue;
+      }
+
+      expect(
+        sampler.sampleForTransaction(transaction.transactionId),
+      ).toBeUndefined();
+    }
+  });
+});
