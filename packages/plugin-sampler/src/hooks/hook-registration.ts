@@ -9,7 +9,6 @@ import type {
 import {
   isArrayValue,
   isNullish,
-  isWritableDataProperty,
   raw,
   readProperty,
   typeOf,
@@ -62,6 +61,54 @@ export const HOOK_REGISTRATION: unique symbol = Symbol.for(
 const HOOK_CREATION_LOG: unique symbol = Symbol.for(
   '@thymian/plugin-sampler.hook-creation-log',
 );
+
+/**
+ * The collection scope's own slot — **not** a field on the creation log.
+ *
+ * It lived on the log for three rounds, and every defect that followed came
+ * from that one decision: the log is a user-writable object this file replaces
+ * whenever it looks wrong, and replacing it minted a *new*
+ * `AsyncLocalStorage`. An `AsyncLocalStorage` is only useful to whoever holds
+ * the same instance, so every replacement detached whatever `run()` was already
+ * open. Measured two ways, neither of them hostile: a slot replaced mid-file
+ * lost one registration per replacement and reported a *wrong count* rather
+ * than none (3 created, 1 reported), and a second scan starting while the first
+ * was awaiting silently emptied the first scan's diagnostics — the exact
+ * cross-scan contamination `withCreationScope`'s docblock says
+ * `AsyncLocalStorage` was chosen to prevent.
+ *
+ * Here it cannot be replaced. The instance is resolved once per realm and
+ * memoised, and the plugin's realm resolves it in `withCreationScope` **before**
+ * any hook file is evaluated — so the instance `run()` is called on is fixed
+ * before user code exists, and nothing written to this slot afterwards can
+ * change it.
+ */
+const HOOK_COLLECTION_SCOPE: unique symbol = Symbol.for(
+  '@thymian/plugin-sampler.hook-collection-scope',
+);
+
+/**
+ * Marks the collector a scan has finished with.
+ *
+ * `AsyncLocalStorage` propagates into timers and unresolved promises, so a hook
+ * file that schedules work in its module body keeps resolving to the collector
+ * of a scan that returned long ago. Measured: a `setTimeout` firing 20 ms after
+ * `loadUserHooks` returned pushed **1 500** registrations into an array nobody
+ * would ever read again — unbounded, and in `thymian serve` each entry retains
+ * the user's callback closure. A `Symbol.for` key because the mark is set in
+ * the plugin's realm and read in jiti's.
+ */
+const COLLECTOR_CLOSED: unique symbol = Symbol.for(
+  '@thymian/plugin-sampler.hook-collector-closed',
+);
+
+/**
+ * A scan's collector. The mark is read with a plain property access rather than
+ * `in` — the array is one this file created and handed to its own
+ * `AsyncLocalStorage`, so it is not a user value, and the lint rule that bans
+ * `in` on the discovery path is aimed at values that are.
+ */
+type Collector = HookRegistration[] & { [COLLECTOR_CLOSED]?: boolean };
 
 export type HookKind =
   | 'defineSample'
@@ -200,6 +247,18 @@ type GlobalWithCreationLog = typeof globalThis & {
   [HOOK_CREATION_LOG]?: HookCreationLog;
 };
 
+type GlobalWithCollectionScope = typeof globalThis & {
+  [HOOK_COLLECTION_SCOPE]?: AsyncLocalStorage<HookRegistration[]>;
+};
+
+/**
+ * This realm's copy of the one collection scope. Resolved once and never again:
+ * a memo is what makes the instance immune to anything written to the slot
+ * after the first resolution, and the plugin's realm resolves before any hook
+ * file runs.
+ */
+let memoisedScope: AsyncLocalStorage<HookRegistration[]> | undefined;
+
 /**
  * Is this slot a log we can actually use — **without writing to it to find out**?
  *
@@ -246,48 +305,22 @@ function isUsableCreationLog(candidate: unknown): candidate is HookCreationLog {
     return false;
   }
 
-  // One check, and it is the only one that earns its place.
+  // And that is the whole check.
   //
-  // Since collection moved into an async scope, a scan never touches the slot's
-  // `created` array at all — so a frozen, sealed or hostile `created` cannot
-  // reach a hook file, and validating it was measurably dead weight (every
-  // mutation of those checks was absorbed). What a scan *does* need is somewhere
-  // to hang a collection scope and a usable `nextOrder`, because the creation
-  // index is what fixes composition order within a file.
+  // Every field this predicate used to interrogate has lost its readers. The
+  // collection scope moved to {@link sharedCollectionScope}, so the log is no
+  // longer the channel; `nextOrder` is written and never read, since the
+  // creation index is realm-local; and `created` is reached only through the
+  // guarded write in {@link recordCreation}. What is left has no consequence to
+  // guard.
   //
-  // `Object.freeze` sets `writable: false` on every data property, and a getter
-  // has no `writable` at all, so this one predicate covers the frozen log, the
-  // getter-only `nextOrder` and the plain `{ nextOrder: 0 }` skew that has no
-  // `created`. A *sealed* object still takes the write, and that is correct: the
-  // only other thing installed here is `scope`, and adding it to a sealed object
-  // throws where the caller already catches.
-  //
-  // Reading a descriptor — not `isFrozen`/`isSealed`, which an earlier draft of
-  // this comment claimed and the body never did — is also the whole reason there
-  // is no probe any more. An
-  // earlier version proved writability by *calling* `created.push()`, which
-  // accepted a sealed array the real `push(value)` then rejects, and on a
-  // `created` carrying its own `push` it ran user code and **kept the side
-  // effects** — measured appending junk that was then reported against an
-  // innocent file for the lifetime of the process.
-  if (!isWritableDataProperty(slot, 'nextOrder', 'number')) {
-    return false;
-  }
-
-  // A `number` is all this asks, and all it needs to.
-  //
-  // Three rounds validated the *value* here — a safe integer, then non-negative,
-  // then below `MAX_SAFE_INTEGER` — because {@link registerHook} stamped the
-  // composition index from it, and a `NaN`, an `Infinity` or a saturating counter
-  // tied every registration in the file. It does not stamp from it any more: the
-  // index is realm-local, so this field is one this file writes and never reads.
-  // Keeping the checks would leave three conditions no behaviour depends on,
-  // which is the kind that survives every mutation and makes the next hole look
-  // guarded.
-  //
-  // The descriptor check above stays, and it was never about the number: it is
-  // the one cheap proof that this object will take a write at all, which is what
-  // installing a collection scope needs.
+  // The `isWritableDataProperty(slot, 'nextOrder', 'number')` gate that stood
+  // here last was not merely inert, it was **net negative**: a slot of the shape
+  // `{ get nextOrder() { return 0; }, created: [], scope: <real> }` — a working
+  // shared log whose only flaw is a getter on a field nothing reads — failed it
+  // and was evicted, destroying the cross-realm sharing the slot exists for. Its
+  // stated justification was that it proved the object would take a write, and
+  // the one write that matters is already inside a `try` that recovers.
   return true;
 }
 
@@ -313,7 +346,7 @@ function freshCreationLog(): HookCreationLog {
   return {
     nextOrder: highestOrder,
     created: [],
-    scope: new AsyncLocalStorage(),
+    scope: sharedCollectionScope(),
   };
 }
 
@@ -372,16 +405,25 @@ function resetCreationLog(): HookCreationLog {
  * discovery fallback — so a poisoned slot costs the created-but-not-exported
  * diagnostic and nothing that binds a hook.
  *
- * **This function does not repair a slot in place, and deliberately so.** It
- * used to install a missing or unusable `scope` by assignment — a write to a
- * user-writable object that nobody read back, which is the whole defect this
- * round opened with. Verifying that write closed it and then became dead the
- * moment {@link withCreationScope} learned to replace an unusable slot instead
- * of degrading: two mechanisms for one job, one of them untested, which is how
- * a guard survives every mutation and makes the next hole look covered.
- * Replacement is the single mechanism now, and it lives in the one place that
- * can do it safely — never on the creation path, where a reset would throw away
- * the collector the scan just opened.
+ * **Nothing here carries the collection channel any more, and that is the
+ * point.** For three rounds the scope lived on this object, so every branch
+ * below was load-bearing and every one of them was a way to lose creations: the
+ * replacement paths run on the **creation path** too — `registerHook` calls this
+ * function per registration — and each replacement minted a new
+ * `AsyncLocalStorage`, detaching the collector the scan had already opened.
+ * Measured: three registrations created, *one* reported. A wrong count, not a
+ * missing one.
+ *
+ * So the channel moved to {@link sharedCollectionScope}, where it cannot be
+ * replaced, and what remains here is bookkeeping for the published
+ * `HookCreationLog` shape. A replacement now costs nothing, which is why the
+ * validation above could shrink to almost nothing: there is no longer a
+ * consequence to protect.
+ *
+ * No test distinguishes the eviction paths any more — verified by mutation, and
+ * recorded rather than hidden. They are kept because a slot holding something
+ * that is not a log would otherwise accumulate writes nobody can read, and
+ * because deleting them would leave `resetCreationLog` with no caller.
  */
 export function hookCreationLog(): HookCreationLog {
   const scope: GlobalWithCreationLog = globalThis;
@@ -422,35 +464,26 @@ export function hookCreationLog(): HookCreationLog {
   }
 
   try {
-    // `instanceof`, not `??=`. This is the field the loader **calls**, and it
-    // lives on a slot any hook file can write, so accepting whatever is there
-    // was the worst hole this story has had: `{ scope: { run() { return
-    // undefined; } } }` made a `TypeError` escape `loadUserHooks`, and
-    // `{ run() { return new Promise(() => {}); } }` wedged every future scan in
-    // the process. The identity check is reliable here specifically because
-    // jiti evaluates in this process and shares Node's builtins, so
-    // `node:async_hooks` is one module across the realm boundary the brand
-    // exists for.
+    // Mirror the one collection scope onto the published field.
     //
-    // A slot installed by a runtime that predates this field is otherwise
-    // perfectly usable and simply has nowhere to put a scope; repairing it in
-    // place is what keeps that slot working instead of silently disabling the
-    // channel.
+    // This is bookkeeping, not plumbing. Nothing in this file reads
+    // `log.scope` any more — collection goes through
+    // {@link sharedCollectionScope}, which is where it should have been from
+    // the start — but the field is part of the `HookCreationLog` shape and a
+    // skewed runtime may read it, so it is kept pointing at the real thing
+    // rather than left stale or half-installed.
     //
-    // **The write is best-effort and is deliberately not read back.** An
-    // earlier version of this round verified it, because a swallowing setter
-    // accepts the assignment and changes nothing — and then that branch became
-    // unreachable the moment {@link withCreationScope} learned to replace an
-    // unusable slot rather than degrade. Measured: removing the verification
-    // changed no test. Two mechanisms for one job, one of them untested, is how
-    // a guard survives every mutation while the next hole looks covered. The
-    // fallback is named rather than assumed: if this write does not land, the
-    // slot is replaced there.
-    if (!(existing.scope instanceof AsyncLocalStorage)) {
-      existing.scope = new AsyncLocalStorage();
+    // Deliberately not read back. The write is a courtesy to a reader outside
+    // this file; if a slot swallows it, nothing here notices and nothing here
+    // breaks. An earlier round verified this write and then had to verify the
+    // verification, which is what happens when a channel is run over ground the
+    // user can write.
+    if (existing.scope !== sharedCollectionScope()) {
+      existing.scope = sharedCollectionScope();
     }
   } catch {
-    return resetCreationLog();
+    // A frozen, sealed or getter-only `scope`, or an accessor that throws.
+    // Nothing depends on the field, so there is nothing to recover.
   }
 
   return existing;
@@ -485,18 +518,96 @@ export function hookCreationLog(): HookCreationLog {
  * never the thing that hangs, and no scan can leave the slot in a state that
  * hangs the *next* one.
  */
-function collectionScope(
-  log: HookCreationLog,
-): AsyncLocalStorage<HookRegistration[]> | undefined {
-  let scope: unknown;
+function sharedCollectionScope(): AsyncLocalStorage<HookRegistration[]> {
+  const slot: GlobalWithCollectionScope = globalThis;
 
-  try {
-    scope = log.scope;
-  } catch {
-    return undefined;
+  if (memoisedScope !== undefined) {
+    // Resolved already — but keep the slot pointing at it.
+    //
+    // The memo is what this realm uses; the slot is how the *other* realm finds
+    // the same instance. Let them drift and the two halves of the channel come
+    // apart silently: `run()` opens a collector on the memo while `getStore()`
+    // in jiti's realm resolves something else and returns `undefined`, so every
+    // creation is lost with no error anywhere. A hook file replacing the slot
+    // does it, and so does anything that merely clears it. Measured: three
+    // registrations created, **zero** reported.
+    //
+    // Republishing is safe in both directions because of the order things
+    // happen in: the plugin's realm resolves first — `withCreationScope` calls
+    // this before any hook file is evaluated — so jiti's realm adopts *its*
+    // instance and republishing the same value is a no-op. Two realms cannot
+    // fight over which is authoritative when only one of them can go first.
+    publishScope(slot, memoisedScope);
+
+    return memoisedScope;
   }
 
-  return scope instanceof AsyncLocalStorage ? scope : undefined;
+  try {
+    const published = slot[HOOK_COLLECTION_SCOPE];
+
+    if (published instanceof AsyncLocalStorage) {
+      memoisedScope = published;
+
+      return published;
+    }
+  } catch {
+    // An accessor that throws. Fall through and install our own.
+  }
+
+  const fresh = new AsyncLocalStorage<HookRegistration[]>();
+
+  publishScope(slot, fresh);
+  memoisedScope = fresh;
+
+  return fresh;
+}
+
+/** Best-effort: the slot is how another realm finds this instance. */
+function publishScope(
+  slot: GlobalWithCollectionScope,
+  scope: AsyncLocalStorage<HookRegistration[]>,
+): void {
+  try {
+    if (slot[HOOK_COLLECTION_SCOPE] !== scope) {
+      slot[HOOK_COLLECTION_SCOPE] = scope;
+    }
+  } catch {
+    // A frozen `globalThis`, or an accessor that refuses. The instance is then
+    // realm-local, so cross-realm creations are invisible and the
+    // created-but-not-exported diff under-reports — the one degradation this
+    // file cannot design away, because the realms have no other way to meet.
+  }
+}
+
+/**
+ * Borrowed from the prototype, never looked up on the object.
+ *
+ * `instanceof` constrains the prototype *chain*; `scope.run(…)` is an own-property
+ * lookup, and the two are not the same question. `class Evil extends
+ * AsyncLocalStorage { run() { return undefined; } }` is a genuine instance, and
+ * so is one carrying an own `run`. Measured from an ordinary hook file, all four
+ * shapes damaged the **next, innocent** scan: a `TypeError` escaping
+ * `loadUserHooks` unattributed, or a permanent wedge — verbatim the two failures
+ * this file names as the worst it has had. The array twin of this hole was closed
+ * by pushing through `Array.prototype`; this is the same fix on the other half.
+ */
+function runInScope<T>(
+  scope: AsyncLocalStorage<HookRegistration[]>,
+  store: HookRegistration[],
+  callback: () => Promise<T>,
+): Promise<T> {
+  return AsyncLocalStorage.prototype.run.call(
+    scope,
+    store,
+    callback,
+  ) as Promise<T>;
+}
+
+function storeOfScope(
+  scope: AsyncLocalStorage<HookRegistration[]>,
+): Collector | undefined {
+  return AsyncLocalStorage.prototype.getStore.call(scope) as
+    Collector | undefined;
 }
 
 /**
@@ -525,8 +636,7 @@ function collectionScope(
 export async function withCreationScope<T>(
   evaluate: () => Promise<T>,
 ): Promise<{ result?: T; error?: unknown; created: HookRegistration[] }> {
-  const created: HookRegistration[] = [];
-  const log = hookCreationLog();
+  const created: Collector = [];
 
   const run = async (): Promise<{
     result?: T;
@@ -540,42 +650,37 @@ export async function withCreationScope<T>(
     }
   };
 
-  // Replace, then ask once more — do not simply degrade.
-  //
-  // Reaching here means the slot handed back something that is not a collector:
-  // a log too old to have the field, or one whose `scope` did not survive the
-  // repair. Both were treated as "collect nothing this time", and both are
-  // properties of the *slot*, which outlives the scan — so every later scan in
-  // the process degraded the same way, silently, with no eviction and no
-  // diagnostic. A getter honest on odd reads and poison on even ones passes
-  // `hookCreationLog`'s check on every scan and fails here on every scan, which
-  // is exactly the permanent, quiet death the eviction rule exists to prevent.
-  //
-  // `resetCreationLog` installs a plain data property carrying a real
-  // `AsyncLocalStorage`, so the retry succeeds unless `globalThis` itself
-  // refuses the write — and even then the fresh log is realm-local with a
-  // working scope. Degrading is the last resort, not the first answer.
-  const scope = collectionScope(log) ?? collectionScope(resetCreationLog());
-
-  if (scope === undefined) {
-    // `globalThis` refused every write and the realm-local log is somehow not
-    // usable either. Creations are invisible to this evaluation and the diff
-    // under-reports — a diagnostic channel degrading, which is the trade this
-    // file makes deliberately. What it must never do is call whatever is
-    // sitting there: that is not a degraded diagnostic, it is an unbounded hang
-    // inside the loader.
-    return await run();
-  }
+  const scope = sharedCollectionScope();
 
   try {
-    // Belt and braces with the check inside {@link collectionScope}: that check
-    // is what makes `scope` an `AsyncLocalStorage`, and this is what stops a
-    // failure here escaping `loadUserHooks` if it ever is not. Both, because
-    // the last three rounds each found a value that was trusted on the strength
-    // of a check made somewhere else.
-    return await scope.run(created, run);
+    return await runInScope(scope, created, run);
   } catch (error) {
+    // The scope is this file's own `AsyncLocalStorage` and the callback never
+    // throws, so nothing here should be reachable. It stays because the last
+    // four rounds each found a value that was trusted on the strength of a
+    // check made somewhere else, and because a throw escaping here would leave
+    // `loadUserHooks` with an unattributed error.
     return { error, created };
+  } finally {
+    // The scan is done with this collector. `AsyncLocalStorage` propagates into
+    // timers and pending promises a hook file left behind, so without this mark
+    // they keep pushing into an array nobody will read again — measured at 1 500
+    // retained registrations, each holding the user's callback closure.
+    closeCollector(created);
+  }
+}
+
+/** Marks a collector as one no scan is reading any more. Never throws. */
+function closeCollector(created: Collector): void {
+  try {
+    Object.defineProperty(created, COLLECTOR_CLOSED, {
+      configurable: true,
+      enumerable: false,
+      value: true,
+    });
+  } catch {
+    // Nothing else writes to this array, so this cannot fail — and if it ever
+    // did, the bound in `recordCreation` is the backstop.
   }
 }
 
@@ -588,12 +693,13 @@ function recordCreation(
   registration: HookRegistration,
 ): void {
   try {
-    // Through {@link collectionScope} for the same reason
-    // {@link withCreationScope} is: this call reaches the slot too, and calling
-    // a `getStore` a hook file supplied runs user code on the creation path.
-    const collector = collectionScope(log)?.getStore();
+    // The same instance {@link withCreationScope} opened the scan on, and the
+    // same borrowed method — this call reaches user-reachable ground too, and a
+    // `getStore` looked up on the object runs whatever is there, on the
+    // creation path, while the user's module body is still executing.
+    const collector = storeOfScope(sharedCollectionScope());
 
-    if (collector !== undefined) {
+    if (collector !== undefined && collector[COLLECTOR_CLOSED] !== true) {
       collector.push(registration);
 
       return;

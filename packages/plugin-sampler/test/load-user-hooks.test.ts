@@ -96,6 +96,32 @@ async function compose(
   return value.path;
 }
 
+/**
+ * Races a scan against a timeout, without leaving the losing promise unhandled.
+ *
+ * `Promise.race` abandons the loser, and `loadUserHooks` can reject — a poisoned
+ * slot has escaped it as an unattributed `TypeError` more than once in this
+ * story. An abandoned rejection surfaces later as an unhandled rejection in an
+ * unrelated test, which is exactly how a real hang or throw gets absorbed into
+ * "something else failed". Swallowing it here is safe because the assertion is
+ * on the race's outcome: a scan that rejects or hangs still reads as `wedged`.
+ */
+async function scanOrWedge(
+  hooksDir: string,
+  timeoutMs = 5_000,
+): Promise<LoadUserHooksResult | 'wedged'> {
+  const scan = loadUserHooks(hooksDir, catalog);
+
+  void scan.catch(() => undefined);
+
+  return await Promise.race([
+    scan,
+    new Promise<'wedged'>((resolve) =>
+      setTimeout(() => resolve('wedged'), timeoutMs),
+    ),
+  ]);
+}
+
 function firstTransactionId(): string {
   const transaction = catalog.tryResolve(selectorA);
 
@@ -2039,14 +2065,9 @@ describe('loadUserHooks — round 5: what the review of the review found', () =>
     // Deliberately not awaited: it never settles, which is the point.
     void loadUserHooks(hanging, catalog);
 
-    const result = await Promise.race([
-      loadUserHooks(healthy, catalog),
-      new Promise<'timed-out'>((resolve) =>
-        setTimeout(() => resolve('timed-out'), 3_000),
-      ),
-    ]);
+    const result = await scanOrWedge(healthy, 3_000);
 
-    expect(result).not.toBe('timed-out');
+    expect(result).not.toBe('wedged');
     expect(
       await compose(result as LoadUserHooksResult, firstTransactionId()),
     ).toBe('fine');
@@ -2361,19 +2382,11 @@ describe('loadUserHooks — round 6: the regressions round 5 introduced', () => 
       ].join('\n'),
     });
 
-    await Promise.race([
-      loadUserHooks(poisoned, catalog),
-      new Promise((resolve) => setTimeout(resolve, 2_000)),
-    ]);
+    await scanOrWedge(poisoned, 2_000);
 
     // A completely unrelated, healthy directory afterwards.
     const healthy = await writeHooks({ 'good.ts': tagging(selectorA, 'fine') });
-    const outcome = await Promise.race([
-      loadUserHooks(healthy, catalog),
-      new Promise<'wedged'>((resolve) =>
-        setTimeout(() => resolve('wedged'), 3_000),
-      ),
-    ]);
+    const outcome = await scanOrWedge(healthy, 3_000);
 
     expect(outcome).not.toBe('wedged');
     expect(
@@ -2516,13 +2529,15 @@ describe('loadUserHooks — round 6b: the edge-case layer', () => {
     // missed: it *is* a safe integer, so it passed, and `order + 1` was then
     // the first unrepresentable value — three hooks composed `132`, silently.
     //
-    // **Four hooks, not three.** The first fix for that bounded the slot's
-    // counter and left the realm-local floor it had just promoted to
-    // authoritative unbounded, which moved the failure by exactly one
-    // registration instead of removing it: with `MAX_SAFE_INTEGER - 1` the
-    // stamps went `MSI-1, MSI, 2**53, 2**53` and four exports composed `1243`.
-    // A fixture sized to the boundary proves the boundary moved, not that the
-    // class closed, so this one runs past it.
+    // **Four hooks, not three**, and the count is history rather than a live
+    // constraint. The first fix bounded the slot's counter and left the
+    // realm-local floor it had just promoted to authoritative unbounded, which
+    // moved the failure out by one registration instead of removing it: with
+    // `MAX_SAFE_INTEGER - 1` the stamps went `MSI-1, MSI, 2**53, 2**53` and
+    // four exports composed `1243`. The index no longer comes from the slot at
+    // all, so no count can reach that boundary — the fourth hook stays because
+    // a fixture sized to the boundary it was meant to disprove is how that
+    // escape survived, not because four is significant now.
     for (const poison of [
       'NaN',
       'Infinity',
@@ -2672,12 +2687,7 @@ describe('loadUserHooks — round 7: the write round 6 never checked', () => {
     let outcome: unknown;
 
     try {
-      outcome = await Promise.race([
-        loadUserHooks(hooksDir, catalog),
-        new Promise<'wedged'>((resolve) =>
-          setTimeout(() => resolve('wedged'), 5_000),
-        ),
-      ]);
+      outcome = await scanOrWedge(hooksDir, 5_000);
     } finally {
       // The poison lives on `globalThis`, so leaving it there makes a
       // regression cascade into whatever test runs next instead of failing
@@ -2700,10 +2710,7 @@ describe('loadUserHooks — round 7: the write round 6 never checked', () => {
     // diagnostic.
     const poisoned = await writeHooks({ 'a-poison.ts': swallowingSetter });
 
-    await Promise.race([
-      loadUserHooks(poisoned, catalog),
-      new Promise((resolve) => setTimeout(resolve, 5_000)),
-    ]);
+    await scanOrWedge(poisoned, 5_000);
 
     // Deliberately NOT cleaned up between the two scans: the whole point is
     // that the second scan meets whatever the first one left behind. Cleaned
@@ -2724,12 +2731,7 @@ describe('loadUserHooks — round 7: the write round 6 never checked', () => {
     let result: unknown;
 
     try {
-      result = await Promise.race([
-        loadUserHooks(later, catalog),
-        new Promise<'wedged'>((resolve) =>
-          setTimeout(() => resolve('wedged'), 5_000),
-        ),
-      ]);
+      result = await scanOrWedge(later, 5_000);
     } finally {
       Reflect.deleteProperty(globalThis, SLOT_KEY);
     }
@@ -2825,12 +2827,7 @@ describe('loadUserHooks — round 7: the write round 6 never checked', () => {
       let outcome: unknown;
 
       try {
-        outcome = await Promise.race([
-          loadUserHooks(hooksDir, catalog),
-          new Promise<'wedged'>((resolve) =>
-            setTimeout(() => resolve('wedged'), 5_000),
-          ),
-        ]);
+        outcome = await scanOrWedge(hooksDir, 5_000);
       } finally {
         Reflect.deleteProperty(globalThis, SLOT_KEY);
       }
@@ -2967,18 +2964,10 @@ describe('loadUserHooks — round 7b: the twin of every guard round 7 added', ()
     try {
       const poisoned = await writeHooks({ 'a-poison.ts': poison });
 
-      await Promise.race([
-        loadUserHooks(poisoned, catalog),
-        new Promise((resolve) => setTimeout(resolve, 5_000)),
-      ]);
+      await scanOrWedge(poisoned, 5_000);
 
       const later = await writeHooks({ 'forgot.ts': forgets });
-      const result = await Promise.race([
-        loadUserHooks(later, catalog),
-        new Promise<'wedged'>((resolve) =>
-          setTimeout(() => resolve('wedged'), 5_000),
-        ),
-      ]);
+      const result = await scanOrWedge(later, 5_000);
 
       expect(result).not.toBe('wedged');
       expect(errorsOf(result as LoadUserHooksResult).join('\n')).toContain(
@@ -3043,18 +3032,10 @@ describe('loadUserHooks — round 7b: the twin of every guard round 7 added', ()
       try {
         const poisoned = await writeHooks({ 'a-poison.ts': poison });
 
-        await Promise.race([
-          loadUserHooks(poisoned, catalog),
-          new Promise((resolve) => setTimeout(resolve, 5_000)),
-        ]);
+        await scanOrWedge(poisoned, 5_000);
 
         const later = await writeHooks({ 'forgot.ts': forgets });
-        const result = await Promise.race([
-          loadUserHooks(later, catalog),
-          new Promise<'wedged'>((resolve) =>
-            setTimeout(() => resolve('wedged'), 5_000),
-          ),
-        ]);
+        const result = await scanOrWedge(later, 5_000);
 
         expect(result, `parity ${parity}`).not.toBe('wedged');
         expect(
@@ -3066,4 +3047,346 @@ describe('loadUserHooks — round 7b: the twin of every guard round 7 added', ()
       }
     }
   }, 60_000);
+});
+
+describe('loadUserHooks — round 7c: the collector is not the log', () => {
+  const KEY = `Symbol.for('@thymian/plugin-sampler.hook-creation-log')`;
+  const SLOT_KEY = Symbol.for('@thymian/plugin-sampler.hook-creation-log');
+  const SCOPE_KEY = Symbol.for('@thymian/plugin-sampler.hook-collection-scope');
+
+  function cleanUp(): void {
+    Reflect.deleteProperty(globalThis, SLOT_KEY);
+  }
+
+  /** `count` registrations, none of them exported. */
+  function forgets(count: number): string {
+    return [
+      `import { beforeEach } from '@thymian/hooks';`,
+      ...Array.from(
+        { length: count },
+        () =>
+          `beforeEach(${JSON.stringify(selectorA)}, async (value) => value);`,
+      ),
+      `export const nothing = 1;`,
+      ``,
+    ].join('\n');
+  }
+
+  /** The `N registration(s) …` count a scan reported, or 0. */
+  function reportedCount(result: LoadUserHooksResult): number {
+    const match = /(\d+) registration\(s\) created/.exec(
+      errorsOf(result).join('\n'),
+    );
+
+    return match?.[1] === undefined ? 0 : Number(match[1]);
+  }
+
+  it('reports every creation however often the slot is replaced mid-file', async () => {
+    // The eviction fires on the **creation path** — `registerHook` calls
+    // `hookCreationLog`, which resets — and while the collector lived on the log,
+    // a reset minted a new `AsyncLocalStorage` and detached the one
+    // `withCreationScope` had opened. Every registration after that point was
+    // silently lost.
+    //
+    // Swept, because the shipped fixture for this used a getter fresh on *every*
+    // read, which is the one value where the mismatch is caught before the scan
+    // opens its collector — so it passed while the class stayed open. With the
+    // accessor stable for `stable` reads the loss was graded: 0 reported at
+    // `stable` 2 and 3, 1 at 4 and 5, 2 at 6. A count that is merely *wrong* is
+    // worse than one that is missing.
+    for (const stable of [0, 1, 2, 3, 4, 5, 6, 8]) {
+      const hooksDir = await writeHooks({
+        'a-poison.ts': [
+          `const honest = { nextOrder: 0, created: [] };`,
+          `let reads = 0;`,
+          `Object.defineProperty(globalThis, ${KEY}, {`,
+          `  configurable: true,`,
+          `  get() { reads += 1; return reads <= ${stable} ? honest : { nextOrder: 0, created: [] }; },`,
+          `  set() {},`,
+          `});`,
+          `export const nothing = 1;`,
+          ``,
+        ].join('\n'),
+        'b-forgot.ts': forgets(3),
+      });
+
+      let result: LoadUserHooksResult;
+
+      try {
+        result = await loadUserHooks(hooksDir, catalog);
+      } finally {
+        cleanUp();
+      }
+
+      expect(reportedCount(result), `stable=${stable}`).toBe(3);
+    }
+  }, 60_000);
+
+  it('reports every creation when a file installs a healthy log mid-file', async () => {
+    // No accessor, no hostility, nothing malformed: the "version-skewed runtime"
+    // shape this file keeps citing. One registration, a perfectly good
+    // replacement log, two more registrations — and only the first was reported.
+    const hooksDir = await writeHooks({
+      'a.ts': [
+        `import { beforeEach } from '@thymian/hooks';`,
+        `beforeEach(${JSON.stringify(selectorA)}, async (value) => value);`,
+        `globalThis[${KEY}] = { nextOrder: 99, created: [] };`,
+        `beforeEach(${JSON.stringify(selectorA)}, async (value) => value);`,
+        `beforeEach(${JSON.stringify(selectorA)}, async (value) => value);`,
+        `export const nothing = 1;`,
+        ``,
+      ].join('\n'),
+    });
+
+    let result: LoadUserHooksResult;
+
+    try {
+      result = await loadUserHooks(hooksDir, catalog);
+    } finally {
+      cleanUp();
+    }
+
+    expect(reportedCount(result)).toBe(3);
+  }, 30_000);
+
+  it('does not let one scan empty a concurrent scan of its diagnostics', async () => {
+    // Two scans, no hostile file in either. The second starts while the first is
+    // awaiting and installs its own log; that reset detached the first scan's
+    // collector and it came back `errors: []`. `withCreationScope`'s own
+    // docblock cites this class — an innocent scan corrupted by a concurrent one
+    // — as the reason `AsyncLocalStorage` was chosen over a shared array.
+    const slow = await writeHooks({
+      'slow.ts': [
+        `import { beforeEach } from '@thymian/hooks';`,
+        `await new Promise((resolve) => setTimeout(resolve, 400));`,
+        `beforeEach(${JSON.stringify(selectorA)}, async (value) => value);`,
+        `export const nothing = 1;`,
+        ``,
+      ].join('\n'),
+    });
+    const other = await writeHooks({
+      'wipe.ts': [
+        `globalThis[${KEY}] = { nextOrder: 0, created: [] };`,
+        `export const nothing = 1;`,
+        ``,
+      ].join('\n'),
+      'z-good.ts': tagging(selectorA, 'other'),
+    });
+
+    let first: LoadUserHooksResult;
+
+    try {
+      const running = loadUserHooks(slow, catalog);
+
+      await new Promise((resolve) => setTimeout(resolve, 100));
+      await loadUserHooks(other, catalog);
+
+      first = await running;
+    } finally {
+      cleanUp();
+    }
+
+    expect(reportedCount(first)).toBe(1);
+  }, 30_000);
+
+  it('stops collecting into a scan that has already returned', async () => {
+    // `AsyncLocalStorage` propagates into timers a hook file leaves behind, so
+    // registrations made after `loadUserHooks` returned kept resolving to the
+    // collector of a scan nobody would read again — unbounded, and in
+    // `thymian serve` each entry retains the user's callback closure. Measured
+    // at 1 500 retained. They belong in the bounded array instead.
+    const hooksDir = await writeHooks({
+      'a.ts': [
+        `import { beforeEach } from '@thymian/hooks';`,
+        `setTimeout(() => {`,
+        `  for (let index = 0; index < 1500; index += 1) {`,
+        `    beforeEach(${JSON.stringify(selectorA)}, async (value) => value);`,
+        `  }`,
+        `}, 20);`,
+        `export const hook = beforeEach(${JSON.stringify(selectorA)}, async (value) => value);`,
+        ``,
+      ].join('\n'),
+    });
+
+    const before = hookCreationLog().created.length;
+
+    await loadUserHooks(hooksDir, catalog);
+    await new Promise((resolve) => setTimeout(resolve, 200));
+
+    const after = hookCreationLog().created.length;
+
+    // They landed in the bounded array — not in the scan's collector, where
+    // nothing would ever have counted them.
+    expect(after).toBeGreaterThan(before);
+    expect(after).toBeLessThanOrEqual(1_000);
+  }, 30_000);
+
+  it('never runs a `getStore` reached through the collection-scope slot', async () => {
+    // The scope slot is user-reachable too, and jiti's realm resolves it while
+    // the user's module body is running. `instanceof` constrains the prototype
+    // chain; `scope.getStore()` is an own-property lookup, and a genuine
+    // subclass satisfies the first while replacing the second. Borrowing the
+    // method from `AsyncLocalStorage.prototype` is the same fix the array twin
+    // got.
+    const marker = '__thymianRound7cGetStoreRan';
+
+    try {
+      const hooksDir = await writeHooks({
+        'a.ts': [
+          `import { AsyncLocalStorage } from 'node:async_hooks';`,
+          `class Evil extends AsyncLocalStorage {`,
+          `  getStore() { globalThis['${marker}'] = true; return undefined; }`,
+          `  run() { return new Promise(() => {}); }`,
+          `}`,
+          `globalThis[Symbol.for('@thymian/plugin-sampler.hook-collection-scope')] = new Evil();`,
+          `export const hook = beforeEach(${JSON.stringify(selectorA)}, async (value) => ({`,
+          `  ...value,`,
+          `  path: value.path + 'good',`,
+          `}));`,
+          `import { beforeEach } from '@thymian/hooks';`,
+          ``,
+        ].join('\n'),
+      });
+
+      const outcome = await scanOrWedge(hooksDir, 5_000);
+
+      expect(outcome).not.toBe('wedged');
+      expect(
+        (globalThis as unknown as Record<string, boolean>)[marker],
+      ).toBeUndefined();
+      expect(
+        await compose(outcome as LoadUserHooksResult, firstTransactionId()),
+      ).toBe('good');
+    } finally {
+      Reflect.deleteProperty(globalThis, marker);
+      Reflect.deleteProperty(globalThis, SCOPE_KEY);
+      cleanUp();
+    }
+  }, 30_000);
+
+  it('never runs a `length` accessor on a non-array the slot supplied', async () => {
+    // The other half of the pair. `Array.prototype.push.call` neutralises an own
+    // `push`, but it still *reads and writes* `length` on whatever it is given —
+    // so on a non-array container carrying accessors it runs the user's code
+    // anyway, on the creation path. `isArrayValue` is what refuses the shape
+    // before the borrow ever touches it; the borrow is what handles a genuine
+    // array. Neither covers the other, which is why both fixtures are here.
+    const marker = '__thymianRound7cLengthRan';
+
+    try {
+      const hooksDir = await writeHooks({
+        'a.ts': [
+          `import { beforeEach } from '@thymian/hooks';`,
+          `const created = {`,
+          `  get length() { globalThis['${marker}'] = true; return 0; },`,
+          `  set length(value) { globalThis['${marker}'] = true; },`,
+          `  push(value) { globalThis['${marker}'] = true; },`,
+          `};`,
+          `globalThis[${KEY}] = { nextOrder: 0, created };`,
+          `setTimeout(() => {`,
+          `  beforeEach(${JSON.stringify(selectorA)}, async (value) => value);`,
+          `}, 20);`,
+          `export const nothing = 1;`,
+          ``,
+        ].join('\n'),
+      });
+
+      await loadUserHooks(hooksDir, catalog);
+      await new Promise((resolve) => setTimeout(resolve, 200));
+
+      expect(
+        (globalThis as unknown as Record<string, boolean>)[marker],
+      ).toBeUndefined();
+    } finally {
+      Reflect.deleteProperty(globalThis, marker);
+      cleanUp();
+    }
+  }, 30_000);
+
+  it('never runs an own `push` on a real array the slot supplied', async () => {
+    // The array twin, with the shape that separates the two guards holding it:
+    // a **genuine array** carrying an own `push`. `isArrayValue` accepts it — it
+    // is an array — so only the borrow from `Array.prototype` keeps the user's
+    // function from running inside the loader. The existing fixture used a
+    // non-array, which `isArrayValue` rejects on its own, so neither guard was
+    // covered alone.
+    const marker = '__thymianRound7cPushRan';
+
+    try {
+      const hooksDir = await writeHooks({
+        'a.ts': [
+          `import { beforeEach } from '@thymian/hooks';`,
+          `const created = [];`,
+          `Object.defineProperty(created, 'push', {`,
+          `  value(value) { globalThis['${marker}'] = true; },`,
+          `});`,
+          `globalThis[${KEY}] = { nextOrder: 0, created };`,
+          // After the scan has returned, so the collector is closed and the
+          // creation falls through to `log.created` — the only branch that
+          // touches a container the slot supplied.
+          `setTimeout(() => {`,
+          `  beforeEach(${JSON.stringify(selectorA)}, async (value) => value);`,
+          `}, 20);`,
+          `export const nothing = 1;`,
+          ``,
+        ].join('\n'),
+      });
+
+      await loadUserHooks(hooksDir, catalog);
+      await new Promise((resolve) => setTimeout(resolve, 200));
+
+      expect(
+        (globalThis as unknown as Record<string, boolean>)[marker],
+      ).toBeUndefined();
+    } finally {
+      Reflect.deleteProperty(globalThis, marker);
+      cleanUp();
+    }
+  }, 30_000);
+});
+
+describe('loadUserHooks — round 7c continued: the scope slot is a slot too', () => {
+  const SCOPE_KEY = Symbol.for('@thymian/plugin-sampler.hook-collection-scope');
+  const SLOT_KEY = Symbol.for('@thymian/plugin-sampler.hook-creation-log');
+
+  it('reports every creation when a file replaces the collection scope mid-file', async () => {
+    // Moving the channel off the creation log answered "the log gets replaced";
+    // it did not, on its own, answer "the *scope slot* gets replaced". Both
+    // realms resolve that slot, and jiti's resolves it while the user's module
+    // body is running — so a file that registers, overwrites the slot with a
+    // different (perfectly genuine) `AsyncLocalStorage`, then registers again
+    // would split the two halves of the channel apart exactly as the log did.
+    //
+    // Memoising per realm is what closes it: the plugin's realm fixes the
+    // instance before any hook file is evaluated, and jiti's realm fixes it on
+    // the first registration, so a later write to the slot changes nothing.
+    const hooksDir = await writeHooks({
+      'a.ts': [
+        `import { AsyncLocalStorage } from 'node:async_hooks';`,
+        `import { beforeEach } from '@thymian/hooks';`,
+        `beforeEach(${JSON.stringify(selectorA)}, async (value) => value);`,
+        `globalThis[Symbol.for('@thymian/plugin-sampler.hook-collection-scope')] =`,
+        `  new AsyncLocalStorage();`,
+        `beforeEach(${JSON.stringify(selectorA)}, async (value) => value);`,
+        `beforeEach(${JSON.stringify(selectorA)}, async (value) => value);`,
+        `export const nothing = 1;`,
+        ``,
+      ].join('\n'),
+    });
+
+    let result: LoadUserHooksResult;
+
+    try {
+      result = await loadUserHooks(hooksDir, catalog);
+    } finally {
+      Reflect.deleteProperty(globalThis, SLOT_KEY);
+      Reflect.deleteProperty(globalThis, SCOPE_KEY);
+    }
+
+    const match = /(\d+) registration\(s\) created/.exec(
+      errorsOf(result).join('\n'),
+    );
+
+    expect(match?.[1]).toBe('3');
+  }, 30_000);
 });

@@ -323,6 +323,12 @@ describe('the creation log slot', () => {
       }
     }
 
+    // Both halves, because `called` staying empty is also what a `recordCreation`
+    // that was never reached would look like. `reads` proves the poisoned
+    // accessor really was consulted, and the registration proves the creation
+    // path ran to the end.
+    expect(reads).toBeGreaterThan(0);
     expect(called).toEqual([]);
+    expect(hookCreationLog().scope).toBe(real);
   });
 });
