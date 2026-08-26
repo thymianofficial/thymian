@@ -375,16 +375,37 @@ function isSchemaObject(value: unknown): value is Record<string, unknown> {
  * this pass only has to REMOVE one, and a nested `$defs` entry with a `title`
  * declares an identifier just as loudly as a root one.
  */
-function stripKeywordsInPlace(
+/**
+ * ONE walk over every position the library parses a subschema in, exposed as a
+ * visitor so that the position list has exactly one copy. A second copy of this
+ * list is exactly the drift this whole class of defect is made of — the list has
+ * been wrong three times, and each time it was wrong in one copy — so every
+ * caller differs only in WHAT it does at a node, never in WHERE it looks.
+ *
+ * Nested `$defs` are descended into even though `plugin-openapi` only hoists to
+ * the root, because unlike the naming pass — which has to CHOOSE a name and so
+ * is scoped to where names are actually issued (see `schema-definitions.ts`) —
+ * a pass that only READS or REMOVES a name is safe to run everywhere.
+ *
+ * `extends` is deliberately absent; see {@link SUBSCHEMA_ARRAY_KEYWORDS}.
+ *
+ * A visitor returning `false` PRUNES the subtree below that node. That exists
+ * for one measured reason: `tsType` "supercedes all other directives"
+ * (`typesOfSchema.js:15-16`), so the library emits it verbatim and never parses
+ * anything beneath it — verified, a `$ref` nested under a `tsType` node produces
+ * no declaration at all. A caller asking "what did the library compile?" has to
+ * stop where the library stopped.
+ */
+export function walkSubschemaNodes(
   node: unknown,
-  keywords: readonly string[],
+  visit: (schema: Record<string, unknown>) => boolean | void,
 ): void {
   if (!isSchemaObject(node)) {
     return;
   }
 
-  for (const keyword of keywords) {
-    delete node[keyword];
+  if (visit(node) === false) {
+    return;
   }
 
   for (const keyword of SUBSCHEMA_VALUE_KEYWORDS) {
@@ -396,13 +417,13 @@ function stripKeywordsInPlace(
     // one list.
     if (Array.isArray(value)) {
       for (const item of value) {
-        stripKeywordsInPlace(item, keywords);
+        walkSubschemaNodes(item, visit);
       }
 
       continue;
     }
 
-    stripKeywordsInPlace(value, keywords);
+    walkSubschemaNodes(value, visit);
   }
 
   for (const keyword of SUBSCHEMA_ARRAY_KEYWORDS) {
@@ -413,7 +434,7 @@ function stripKeywordsInPlace(
     }
 
     for (const branch of branches) {
-      stripKeywordsInPlace(branch, keywords);
+      walkSubschemaNodes(branch, visit);
     }
   }
 
@@ -425,9 +446,20 @@ function stripKeywordsInPlace(
     }
 
     for (const entry of Object.values(entries)) {
-      stripKeywordsInPlace(entry, keywords);
+      walkSubschemaNodes(entry, visit);
     }
   }
+}
+
+function stripKeywordsInPlace(
+  node: unknown,
+  keywords: readonly string[],
+): void {
+  walkSubschemaNodes(node, (schema) => {
+    for (const keyword of keywords) {
+      delete schema[keyword];
+    }
+  });
 }
 
 const IDENTITY_NOISE_KEYWORDS: readonly string[] = [

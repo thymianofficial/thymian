@@ -5,6 +5,7 @@ import {
   type NameRegistry,
   safeIdentifier,
   stripIdentityNoiseInPlace,
+  stripTypeDirectivesInPlace,
 } from './type-names.js';
 
 /**
@@ -310,10 +311,22 @@ export function applyDefinitionNames(
     const identity = definitionIdentity(definition);
     const assigned = assignment.get(safeIdentifier(name))?.get(identity);
     const assignedName = assigned?.name ?? safeIdentifier(name);
+    // The representative is captured off the UNTOUCHED format, so it has not
+    // been through the site clone's `stripTypeDirectivesInPlace`. Substituting
+    // it raw put `tsType` back into a schema the strip had already cleaned —
+    // silently, because `tsType` mints no identifier for the postcondition to
+    // catch — and `definitionIdentity` ignores the directives, so a clean
+    // definition in one transaction was emitted from a poisoned representative
+    // in another. Strip at the substitution, which is where the untrusted node
+    // re-enters.
     const body: unknown =
       assigned === undefined
         ? definition
         : structuredClone(assigned.definition);
+
+    if (assigned !== undefined) {
+      stripTypeDirectivesInPlace(body);
+    }
 
     if (assignedName !== name) {
       renames.set(name, assignedName);

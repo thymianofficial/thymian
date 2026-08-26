@@ -1,15 +1,18 @@
+import { readFile } from 'node:fs/promises';
+
 import type { ThymianError } from '@thymian/core';
 import { compile, type JSONSchema } from 'json-schema-to-typescript';
 import { toSafeString } from 'json-schema-to-typescript/dist/src/utils.js';
 import { describe, expect, it } from 'vitest';
 
 import {
+  DeclarationSet,
   identifierOf,
   splitDeclarations,
 } from '../src/generation/types/declaration-set.js';
 import {
   assertEmittedNamesWereIssued,
-  entitledNames,
+  permittedBases,
 } from '../src/generation/types/emitted-names.js';
 import {
   applyDefinitionNames,
@@ -1096,9 +1099,12 @@ describe('assertEmittedNamesWereIssued', () => {
     expect(error.name).toBe('GeneratedNameEscapeError');
     expect(error.message).toContain('"Pet"');
     expect(error.message).toContain('GetPets200ResponseBody');
-    expect(error.options.suggestions?.[0]).toContain(
+    expect(error.options.suggestions?.join(' ')).toContain(
       'defect in the generated type surface',
     );
+    // The description is named as a possible cause FIRST, because every
+    // reproduction of this abort so far was caused by the description.
+    expect(error.options.suggestions?.[0]).toContain('API description');
   });
 
   /**
@@ -1150,8 +1156,10 @@ describe('assertEmittedNamesWereIssued', () => {
     );
 
     expect(error.name).toBe('GeneratedNameEscapeError');
-    expect(error.message).toContain('"Owner1"');
-    expect(error.message).toContain('never issued');
+    // The obligation half names the REAL defect: `Pet` was declared by nothing.
+    // Round 4 could only report the symptom (an unexpected `Owner1`).
+    expect(error.message).toContain('Pet');
+    expect(error.message).toContain('nothing was declared');
   });
 
   /**
@@ -1207,7 +1215,7 @@ describe('assertEmittedNamesWereIssued', () => {
     );
 
     expect(error.name).toBe('GeneratedNameEscapeError');
-    expect(error.message).toContain('"Owner1"');
+    expect(error.message).toContain('Pet');
   });
 
   it.each([
@@ -1419,9 +1427,21 @@ const MULTIPLICITY_TABLE: readonly (readonly [
   ],
 ];
 
-describe('entitledNames', () => {
+/**
+ * These seventeen rows were measured against the real library and they keep
+ * their value; what changed in round 5 is what is asserted ABOUT them.
+ *
+ * Round 4 asserted an EXACT entitled set — `b` plus `b1 … b(m-1)` for a base
+ * reached by `m` sites — and that model was falsified in the one direction that
+ * matters: it aborts valid descriptions, because `generateName`'s counter pool
+ * is global rather than per base. The rows now assert the property the
+ * postcondition actually promises: whatever the library emits for these
+ * seventeen shapes, the check ACCEPTS it. A table of real outputs is the right
+ * defence against a false positive; it was never evidence for a bound.
+ */
+describe('the postcondition on real library output', () => {
   it.each(MULTIPLICITY_TABLE)(
-    'bounds the declarations exactly: %s',
+    'accepts what the library really emits: %s',
     async (_label, schema, expected) => {
       const compiled = await compile(
         structuredClone(schema) as JSONSchema,
@@ -1429,13 +1449,13 @@ describe('entitledNames', () => {
         COMPILE_OPTIONS,
       );
 
-      // What the library actually emitted, and what the rule says it may.
+      // The measurement itself — what this library version does with this shape.
       expect(splitDeclarations(compiled).map(identifierOf)).toEqual([
         ...expected,
       ]);
-      expect([...entitledNames(schema, 'Root')].sort()).toEqual(
-        [...expected].sort(),
-      );
+      expect(() =>
+        assertEmittedNamesWereIssued(compiled, schema, 'Root'),
+      ).not.toThrow();
     },
   );
 
@@ -1443,41 +1463,65 @@ describe('entitledNames', () => {
     expect(MULTIPLICITY_TABLE).toHaveLength(17);
   });
 
-  it('entitles no counter suffix for a single pointer site', () => {
+  it('permits exactly the names the schema accounts for', () => {
     const schema = {
       type: 'object',
       properties: { p: { $ref: '#/definitions/Pet' } },
       definitions: { Pet: { type: 'object' } },
     };
 
-    expect([...entitledNames(schema, 'RootName')].sort()).toEqual([
+    expect([...permittedBases(schema, 'RootName')].sort()).toEqual([
       'Pet',
       'RootName',
     ]);
   });
 
   /**
-   * `justName` is `stripExtension(basename(f))`, so a pointer whose last segment
-   * contains a dot is named after the part BEFORE it. Asserted because the
-   * entitled set is only faithful if it mirrors that, and it is the kind of
-   * detail a reimplementation would get wrong.
+   * WHICH DERIVATION WINS DEPENDS ON THE TARGET'S TYPE, and round 4 predicted it
+   * and got it wrong. The normalizer synthesises `$id = toSafeString(justName(
+   * pointer))` only for object- and array-typed targets; for a scalar it returns
+   * early and the RAW `$defs` key names the declaration. So `#/definitions/
+   * pet.owner` declares `Pet` in one case and `PetOwner` in the other, from one
+   * pointer string. Both are accepted, and both are asserted against the real
+   * library rather than against this module's arithmetic.
    */
-  it('mirrors the library on a pointer whose key contains a dot', () => {
-    const schema = { $ref: '#/definitions/pet.owner' };
+  it.each([
+    ['object target, the $id derivation wins', { type: 'object' }, 'Pet'],
+    ['scalar target, the raw key wins', { type: 'string' }, 'PetOwner'],
+  ])(
+    'accepts either derivation of a dotted key: %s',
+    async (_label, target, expected) => {
+      const schema = {
+        type: 'object',
+        properties: { a: { $ref: '#/definitions/pet.owner' } },
+        definitions: { 'pet.owner': target },
+      };
+      const compiled = await compile(
+        structuredClone(schema) as JSONSchema,
+        'RootName',
+        COMPILE_OPTIONS,
+      );
 
-    expect([...entitledNames(schema, 'RootName')].sort()).toEqual([
-      'Pet',
-      'RootName',
-    ]);
-  });
+      expect(splitDeclarations(compiled).map(identifierOf)).toContain(expected);
+      expect(() =>
+        assertEmittedNamesWereIssued(compiled, schema, 'RootName'),
+      ).not.toThrow();
+    },
+  );
 
-  it('collects pointers blindly, wherever they sit', () => {
+  /**
+   * The PERMISSION half is blind on purpose: it may only ever be too generous,
+   * so a `$ref`-shaped value sitting in example DATA widens it harmlessly. The
+   * obligation half is the position-aware one, and it must NOT see this pointer
+   * — asserted separately, because a false obligation aborts a valid file.
+   */
+  it('permits blindly, wherever a pointer sits', () => {
     const schema = {
       anyOf: [{ items: [{ $ref: '#/definitions/Pet' }] }],
       examples: [{ $ref: '#/definitions/NotReallyAPointer' }],
     };
 
-    expect([...entitledNames(schema, 'RootName')].sort()).toEqual([
+    expect([...permittedBases(schema, 'RootName')].sort()).toEqual([
       'NotReallyAPointer',
       'Pet',
       'RootName',
@@ -1576,6 +1620,327 @@ describe('$defs identity is the emitted type, not the documentation', () => {
 
     expect(definitionIdentity(nested('a'))).toBe(
       definitionIdentity(nested('b')),
+    );
+  });
+});
+
+/**
+ * Round 5. The postcondition round 4 added models the library's counter
+ * arithmetic, and that model is wrong in a direction that ABORTS VALID INPUT.
+ * Three independent reproductions, all measured against the real library:
+ * `generateName`'s counter is drawn from ONE global `usedNames` set for the
+ * whole `compile()`, while `entitledNames` counted per base.
+ *
+ * These are not hypothetical shapes. `plugin-openapi`'s `createDefinitionName`
+ * preserves case and digits and only dedupes on exact match, so `components/
+ * schemas: { Pet, Pet1, pet }` produces exactly these `$defs` keys.
+ */
+describe('the postcondition never aborts a valid generation', () => {
+  it('tolerates a counter the library drew from its GLOBAL name pool', async () => {
+    const schema = {
+      type: 'object',
+      properties: {
+        a: { $ref: '#/$defs/Pet' },
+        b: { $ref: '#/$defs/Pet1' },
+        c: { $ref: '#/$defs/pet' },
+      },
+      $defs: {
+        Pet: { type: 'object', properties: { x: { type: 'string' } } },
+        Pet1: { type: 'object', properties: { y: { type: 'string' } } },
+        pet: { type: 'object', properties: { z: { type: 'string' } } },
+      },
+    };
+
+    const generated = await generateTypeForSchema(
+      schema,
+      'application/json',
+      'RootName',
+    );
+    const declared = generated.declarations
+      .flatMap((declaration) => splitDeclarations(declaration))
+      .map(identifierOf);
+
+    // Three distinct definitions, three distinct declarations, nothing lost.
+    expect(declared).toContain('Pet');
+    expect(declared).toContain('Pet1');
+    expect(declared).toContain('Pet2');
+    expect(new Set(declared).size).toBe(declared.length);
+  });
+
+  /**
+   * The normalizer only synthesises `$id` for object- and array-typed targets
+   * (`normalizer.js:61`); for a scalar it returns early, so
+   * `keyNameFromDefinition` — the RAW `$defs` key — names the declaration and
+   * `justName` never gets to strip the dot. The round-4 model assumed the
+   * pointer derivation always wins.
+   */
+  it('tolerates a dotted key whose target is scalar, where the RAW key wins', async () => {
+    const schema = {
+      type: 'object',
+      properties: { a: { $ref: '#/$defs/pet.owner' } },
+      $defs: { 'pet.owner': { type: 'string' } },
+    };
+
+    const generated = await generateTypeForSchema(
+      schema,
+      'application/json',
+      'RootName',
+    );
+
+    expect(
+      generated.declarations
+        .flatMap((declaration) => splitDeclarations(declaration))
+        .map(identifierOf),
+    ).toContain('PetOwner');
+  });
+
+  /**
+   * The counter walks PAST a name another `$defs` key already occupies, so the
+   * suffix is not even contiguous: `Pet` + a sibling-bearing pointer to `Pet`
+   * mints `Pet11` when `Pet1` is taken. Both halves — a `$ref` carrying a
+   * `description` sibling, and `Pet`/`Pet1` as schema names — are ordinary.
+   */
+  it('tolerates a counter that walked past an occupied sibling name', async () => {
+    const schema = {
+      type: 'object',
+      properties: {
+        a: { $ref: '#/$defs/Pet' },
+        b: { $ref: '#/$defs/Pet', description: 'the same pet, annotated' },
+        c: { $ref: '#/$defs/Pet1' },
+      },
+      $defs: {
+        Pet: { type: 'object', properties: { x: { type: 'string' } } },
+        Pet1: { type: 'object', properties: { y: { type: 'string' } } },
+      },
+    };
+
+    await expect(
+      generateTypeForSchema(schema, 'application/json', 'RootName'),
+    ).resolves.toBeDefined();
+  });
+});
+
+/**
+ * The other direction, and the one the postcondition exists for. Round 4's
+ * amendment credits it with closing the SILENT class — a `tsc`-clean file whose
+ * alias points at the wrong schema — so that property has to be asserted
+ * directly rather than inferred from the counter arithmetic.
+ *
+ * This is the exact output shape the `id` hijack produced at `4f85d53e`:
+ * `$defs.Pet` renamed itself `Owner`, the registry's real `Owner` was pushed to
+ * a counter, and `Pet` was declared by nothing. Asserted on a handcrafted
+ * `compiled` string because the strip now prevents the library from producing
+ * it — a guard that can only be tested through the bug it prevents is a guard
+ * that stops being tested the moment the bug is fixed.
+ */
+describe('the postcondition still catches a name that was hijacked', () => {
+  const schema = {
+    type: 'object',
+    properties: {
+      p: { $ref: '#/definitions/Pet' },
+      o: { $ref: '#/definitions/Owner' },
+    },
+    definitions: {
+      Pet: { type: 'object', properties: { petName: { type: 'string' } } },
+      Owner: { type: 'object', properties: { ownerName: { type: 'string' } } },
+    },
+  };
+
+  it('aborts when a referenced definition declares nothing at all', () => {
+    const hijacked = [
+      'export interface Root {',
+      '  p?: Owner',
+      '  o?: Owner1',
+      '}',
+      'export interface Owner {',
+      '  petName?: string',
+      '}',
+      'export interface Owner1 {',
+      '  ownerName?: string',
+      '}',
+    ].join('\n');
+
+    expect(() =>
+      assertEmittedNamesWereIssued(hijacked, schema, 'Root'),
+    ).toThrow(/Pet/);
+  });
+
+  it('accepts the same surface when every definition kept its own name', () => {
+    const honest = [
+      'export interface Root {',
+      '  p?: Pet',
+      '  o?: Owner',
+      '}',
+      'export interface Pet {',
+      '  petName?: string',
+      '}',
+      'export interface Owner {',
+      '  ownerName?: string',
+      '}',
+    ].join('\n');
+
+    expect(() =>
+      assertEmittedNamesWereIssued(honest, schema, 'Root'),
+    ).not.toThrow();
+  });
+
+  it('still requires the returned name to be declared', () => {
+    expect(() =>
+      assertEmittedNamesWereIssued(
+        'export interface Something {}',
+        { type: 'object' },
+        'Root',
+      ),
+    ).toThrow(/Root/);
+  });
+
+  /**
+   * A `$ref` sitting in EXAMPLE DATA is not a schema reference and must not
+   * create an obligation — `collectRefSites` is blind, so without the
+   * position-aware obligation walk this fixture aborts on a pointer that names
+   * nothing.
+   */
+  it('creates no obligation from a $ref that sits in example data', () => {
+    expect(() =>
+      assertEmittedNamesWereIssued(
+        'export interface Root {}',
+        {
+          type: 'object',
+          examples: [{ $ref: '#/definitions/NotReallyAPointer' }],
+          default: { $ref: '#/definitions/AlsoNotAPointer' },
+        },
+        'Root',
+      ),
+    ).not.toThrow();
+  });
+});
+
+/**
+ * Round 5, the cross-`compile()` half. `assertEmittedNamesWereIssued` sees one
+ * `compile()` output at a time and structurally cannot notice that two of them
+ * declared the same identifier with different bodies. `DeclarationSet` is where
+ * every declaration in the surface is in hand, so that is where the check
+ * belongs — and unlike a model of the library's namer, it is a property of the
+ * emitted FILE: two different texts declaring one identifier is a duplicate
+ * identifier in the committed `.d.ts`, whatever produced it.
+ */
+describe('DeclarationSet rejects one identifier with two bodies', () => {
+  it('accepts the same declaration arriving from several compiles', () => {
+    const set = new DeclarationSet();
+    const pet = 'export interface Pet {\n  petName?: string\n}';
+
+    set.add(pet);
+    set.add(pet);
+
+    expect(set.toSortedArray()).toEqual([pet]);
+  });
+
+  it('aborts when two different bodies claim one identifier', () => {
+    const set = new DeclarationSet();
+
+    set.add('export interface Owner {\n  petName?: string\n}');
+
+    expect(() =>
+      set.add('export interface Owner {\n  ownerName?: string\n}'),
+    ).toThrow(/Owner/);
+  });
+
+  it('leaves unrecognised declaration shapes alone', () => {
+    const set = new DeclarationSet();
+
+    expect(() => {
+      set.add('// just a comment');
+      set.add('// another comment');
+    }).not.toThrow();
+  });
+});
+
+/**
+ * Round 5. `stripTypeDirectivesInPlace` runs on the site clone BEFORE
+ * `applyDefinitionNames`, and `applyDefinitionNames` then OVERWRITES every
+ * `$defs` entry with a representative body captured off the untouched format —
+ * so the strip was undone for exactly the definitions it mattered most for.
+ *
+ * `tsType` "supercedes all other directives", so a description that sets it
+ * retypes a property with NO diagnostic: the file compiles, and the alias points
+ * at whatever the description named. `tsEnumNames` is caught loudly by the
+ * postcondition because it mints an identifier; `tsType` mints none, which is
+ * why this one has to be closed at the substitution rather than by the net.
+ *
+ * It crosses transactions too: `definitionIdentity` strips the directives, so a
+ * clean `Pet` in transaction B is emitted from transaction A's poisoned
+ * representative.
+ */
+describe('a representative body carries no type directives', () => {
+  const poisoned = {
+    type: 'object',
+    properties: { n: { type: 'string', tsType: 'Owner' } },
+  };
+
+  it('strips the directives out of the substituted definition', () => {
+    const registry = new NameRegistry();
+    const format = { $defs: { Pet: structuredClone(poisoned) } };
+    const assignment = assignDefinitionNames([format], registry);
+
+    applyDefinitionNames(format, assignment);
+
+    expect(JSON.stringify(format.$defs.Pet)).not.toContain('tsType');
+  });
+
+  it('does not let one transaction poison another that is clean', () => {
+    const registry = new NameRegistry();
+    const dirty = { $defs: { Pet: structuredClone(poisoned) } };
+    const clean = {
+      $defs: {
+        Pet: { type: 'object', properties: { n: { type: 'string' } } },
+      },
+    };
+    const assignment = assignDefinitionNames([dirty, clean], registry);
+
+    applyDefinitionNames(clean, assignment);
+
+    expect(JSON.stringify(clean.$defs.Pet)).not.toContain('tsType');
+  });
+});
+
+/**
+ * Round 5. `example-reflection.ts` emits the LIBRARY TYPE `Record<string, never>`
+ * for an empty object example, so `Record` is a name the surface depends on
+ * resolving to the global. A `components/schemas` entry called `Record` — which
+ * `plugin-openapi` hoists verbatim — declared `export interface Record` and
+ * shadowed it, turning every reflected empty object into `TS2315: Type 'Record'
+ * is not generic`. Same class as the `Status`/`Selector` reservation already
+ * here, and missed for the same reason: the reserved list was built from the
+ * aliases this module writes, not from every name the emitted FILE depends on.
+ */
+describe('names the emitted file depends on are reserved', () => {
+  it('does not let a schema called Record shadow the global', () => {
+    const registry = new NameRegistry();
+
+    registry.reserve(['Endpoints', 'Record']);
+
+    expect(registry.assign('defs:Record', 'Record')).not.toBe('Record');
+  });
+});
+
+/**
+ * The reservation above only helps if the SURFACE actually performs it, so this
+ * asserts the production list rather than the registry mechanism — a mutation
+ * dropping `'Record'` from `generate-request-types-surface.ts` has to fail
+ * something, and the registry-level test would happily pass without it.
+ */
+describe('the surface reserves every name the emitted file depends on', () => {
+  it('reserves Record alongside the aliases', async () => {
+    const source = await readFile(
+      new URL(
+        '../src/generation/types/generate-request-types-surface.ts',
+        import.meta.url,
+      ),
+      'utf8',
+    );
+
+    expect(source).toMatch(
+      /registry\.reserve\(\[\.\.\.Object\.values\(ALIAS\), 'Record'\]\)/,
     );
   });
 });

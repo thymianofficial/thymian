@@ -1,3 +1,5 @@
+import { ThymianBaseError } from '@thymian/core';
+
 import { compareStrings } from './type-names.js';
 
 /**
@@ -17,14 +19,49 @@ import { compareStrings } from './type-names.js';
  * `schema-definitions.ts` makes site-independent. Emission order is sorted, so
  * inserting a transaction slots its declarations in rather than shifting
  * everything after them.
+ *
+ * AND IT IS WHERE ONE IDENTIFIER WITH TWO BODIES IS CAUGHT. De-duplicating on
+ * text answers "have I seen this declaration before"; it never asked "have I
+ * seen this NAME before", so two different bodies claiming one identifier were
+ * both kept and both emitted. That is a duplicate identifier in the committed
+ * file — TS2374 for interfaces, TS2300 for aliases — and it is the one shape
+ * `emitted-names.ts` structurally cannot see, because it reviews a single
+ * `compile()` output while this collides ACROSS calls (round 5: a `$defs` entry
+ * reached from two transactions under two different names).
+ *
+ * The check is deliberately a property of the emitted FILE rather than a model
+ * of the library's namer. It cannot false-positive: if two texts declare one
+ * identifier, the file really is broken, whatever produced them.
  */
 export class DeclarationSet {
   private readonly byText = new Map<string, string>();
+  private readonly byIdentifier = new Map<string, string>();
 
   /** Adds every top-level declaration in one `compile()` output. */
   add(compiled: string): void {
     for (const declaration of splitDeclarations(compiled)) {
-      this.byText.set(declaration, identifierOf(declaration));
+      const identifier = identifierOf(declaration);
+
+      if (identifier.length > 0) {
+        const incumbent = this.byIdentifier.get(identifier);
+
+        if (incumbent !== undefined && incumbent !== declaration) {
+          throw new ThymianBaseError(
+            `Two different declarations both claim the name "${identifier}", so the generated types would not compile.`,
+            {
+              name: 'DuplicateDeclarationError',
+              suggestions: [
+                `Two schemas in the API description resolve to the type name "${identifier}" with different contents.`,
+                'Rename one of them, or give them the same definition.',
+              ],
+            },
+          );
+        }
+
+        this.byIdentifier.set(identifier, declaration);
+      }
+
+      this.byText.set(declaration, identifier);
     }
   }
 

@@ -546,7 +546,13 @@ export async function generateRequestTypesSurface(
 
   const registry = new NameRegistry();
 
-  registry.reserve(Object.values(ALIAS));
+  // `Record` is not an alias this module writes, it is a name the emitted file
+  // DEPENDS ON: `example-reflection.ts` renders an empty object example as
+  // `Record<string, never>`. A `components/schemas` entry called `Record`
+  // declares `export interface Record` and shadows the global, so every
+  // reflected empty object becomes `TS2315`. Reserved for the same reason as
+  // `Status` and `Selector`, one level further out.
+  registry.reserve([...Object.values(ALIAS), 'Record']);
 
   const declarations = new DeclarationSet();
   const compiled = await compileSites(sites, declarations, registry);

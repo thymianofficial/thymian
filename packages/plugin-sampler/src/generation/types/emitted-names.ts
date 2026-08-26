@@ -5,146 +5,148 @@ import {
 } from 'json-schema-to-typescript/dist/src/utils.js';
 
 import { identifierOf, splitDeclarations } from './declaration-set.js';
+import { walkSubschemaNodes } from './type-names.js';
 
 /**
- * The runtime postcondition on `compile()`: every identifier the library
- * declared is one it was ENTITLED to declare.
+ * The runtime postcondition on `compile()`: every declaration the library
+ * emitted is one this generator asked for, and every schema this generator
+ * pointed at got a declaration.
  *
  * WHY A POSTCONDITION AND NOT ANOTHER KEYWORD. `type-names.ts` strips the
  * keywords a schema can name itself with, and that list has now been wrong three
  * times — `title`, then `$id`, then `id` — each time found by the same probe,
  * each time silent in the worst case. Enumerating what the library MIGHT do
- * cannot close a class; checking what it ACTUALLY did can. This module is that
- * check, and it is deliberately written against the library's own naming
- * functions rather than against a reimplementation of them, so a version bump
- * that changes `toSafeString` or `justName` moves both sides together instead of
- * silently splitting them.
+ * cannot close a class; checking what it ACTUALLY did can.
  *
- * THE ROUND-3 PRESCRIPTION WAS TESTED, NOT ASSUMED, AND IT WAS INSUFFICIENT.
- * The prescription was `identifierOf(declaration) === generated.type` — a check
- * on the ROOT declaration only. It passes on the worst case. For
- * `$defs: {Pet: {id: 'Owner'}, Owner: {…}}` the root declaration really is named
- * correctly, while the file emits `interface Owner` carrying Pet's body and
- * `interface Owner1` carrying Owner's, with `p?: Owner` silently pointing at the
- * wrong schema and `tsc` reporting zero diagnostics. So the check has two halves
- * and needs both:
+ * ROUND 5 REPLACED THE MECHANISM, BECAUSE ROUND 4's ABORTED VALID INPUT.
+ * Round 4 computed an EXACT entitled set by reimplementing the library's counter
+ * arithmetic: for a base reached by `m` pointer sites, `b` plus `b1 … b(m-1)`.
+ * That model is wrong, and it was wrong in the one direction the docblock
+ * promised it could not be — it rejected correct descriptions. Three independent
+ * reproductions, all measured against `json-schema-to-typescript@15.0.4`:
+ *
+ * - `generateName` (`dist/src/utils.js:186-204`) draws its counter from ONE
+ *   global `usedNames` set for the whole `compile()`, not from a per-base one.
+ *   `$defs: {Pet, Pet1, pet}` — which `plugin-openapi`'s `createDefinitionName`
+ *   really does produce, since it preserves case and digits — emits `Pet`,
+ *   `Pet1`, `Pet2`. Round 4 entitled only `Pet` and `Pet1`, so it aborted.
+ * - The counter walks PAST names other definitions already occupy, so the suffix
+ *   is not contiguous: `Pet` reached twice with `Pet1` also present emits
+ *   `Pet11`.
+ * - The normalizer only synthesises `$id` for object- and array-typed targets
+ *   (`normalizer.js:61-83`); for a scalar it returns early, so
+ *   `keyNameFromDefinition` — the RAW `$defs` key — names the declaration and
+ *   `justName` never strips the dot. `$defs: {'pet.owner': {type: 'string'}}`
+ *   declares `PetOwner`, not `Pet`. Round 4's docblock asserted that branch was
+ *   unreachable. It is reachable.
+ *
+ * The lesson is not "get the arithmetic right". It is that reimplementing a
+ * dependency's private name allocator is the same bet that lost three times
+ * already. So the counter is no longer modelled at all.
+ *
+ * THE CHECK IS NOW THREE PROPERTIES, AND TWO OF THEM APPROXIMATE IN OPPOSITE
+ * DIRECTIONS ON PURPOSE. That asymmetry is what makes it sound.
  *
  *   1. THE ROOT CHECK — the name the call RETURNS is declared somewhere in the
- *      output. This is `generateTypeForSchema`'s own promise ("the declaration
- *      declares what this function returns") stated as an assertion.
- *   2. THE SET CHECK — every identifier emitted anywhere in the output is in the
- *      entitled set. This is the half that catches the silent case, via the
- *      unentitled counter-minted `Owner1`.
+ *      output. `generateTypeForSchema`'s own promise, stated as an assertion.
+ *   2. PERMISSION, over-approximating — every identifier emitted anywhere traces
+ *      back to a name source that exists in the schema, ignoring any counter
+ *      suffix. Built from a BLIND `$ref` collection, so it can only ever be too
+ *      GENEROUS: it can miss a defect, but it can never abort a valid
+ *      generation. Aborting valid generations is the failure this check must not
+ *      have, because it fires on a user's own API description.
+ *   3. OBLIGATION, under-approximating — every `$ref` sitting in a position the
+ *      library actually PARSES must have produced some declaration. Built from
+ *      the position-aware walk in `type-names.ts`, so a `$ref` that is example
+ *      DATA never becomes an obligation. This is the half that catches the
+ *      silent case, and it catches it far more directly than a counter ever did:
+ *      when `$defs.Pet` renames itself `Owner`, the defect is not really the
+ *      unentitled `Owner1` — it is that NOTHING declares `Pet` any more.
  *
  * THE ROOT CHECK IS NOT "THE FIRST DECLARATION", AND THAT WAS MEASURED RATHER
- * THAN REASONED. The prescription said the root declaration always comes first;
- * it does not. The generator emits named TYPES before named INTERFACES, so a
- * `$defs` entry that compiles to a type alias — which is exactly what AC6's
- * example reflection produces, since it sets `tsType` on the node — is emitted
- * ABOVE the root interface. Asserting on position rejected four legitimate
- * reflection fixtures. Position is a formatting detail; "the returned name is
- * declared" is the property.
+ * THAN REASONED. The generator emits named TYPES before named INTERFACES, so a
+ * `$defs` entry compiling to a type alias — exactly what AC6's example
+ * reflection produces, since it sets `tsType` — is emitted ABOVE the root
+ * interface. Position is a formatting detail; "the returned name is declared" is
+ * the property.
  *
- * HOW THE ENTITLED SET IS DERIVED, mechanism by mechanism, all in the installed
- * `json-schema-to-typescript@15.0.4`:
- *
- * - `dist/src/resolver.js:21` does `dereferencedPaths.set(schema, $ref)` — keyed
- *   on the RAW `$ref` STRING, so a `$ref` string is what a referenced subschema
- *   is remembered by.
- * - `dist/src/normalizer.js:61-83` ("Add an $id to anything that needs it") sets
- *   `schema.$id = toSafeString(justName(dereferencedName))` for any referenced
- *   subschema carrying neither `$id` nor `title`, and sets the ROOT's `$id` from
- *   the `name` passed to `compile()`.
- * - `dist/src/parser.js:274` resolves a declaration name as
- *   `customName?.() || schema.title || schema.$id || keyNameFromDefinition`.
- *   With the strip in place the first two are gone and `keyNameFromDefinition`
- *   is `undefined` on every invocation, so the synthesised `$id` is the only
- *   source left.
- * - `dist/src/utils.js:186-204` `generateName` is `toSafeString(from)`, or
- *   `'NoName'` when that is empty, then a decimal counter appended while the
- *   name is already taken.
- * - `justName(f) = stripExtension(basename(f))`, so `#/definitions/pet.owner`
- *   yields `pet` — which is why a `$defs` key containing a dot is NOT named
- *   after the whole key. Observed behaviour, not a guess.
- *
- * COUNTER SUFFIXES ARE ENTITLED ONLY BY GENUINE COLLISION, AND MULTIPLICITY IS
- * COUNTED IN POINTER SITES. For a base `b` reached by `m` sites the entitled
- * names are `b` plus `b1 … b(m-1)`, because `generateName` appends a counter
- * exactly when a second thing collapses onto a base already taken
- * (`#/$defs/pet-owner` and `#/$defs/pet_owner` really do emit `PetOwner` and
- * `PetOwner1`; three such keys emit `PetOwner`, `PetOwner1`, `PetOwner2`). With
- * `m === 1` a counter suffix is NOT entitled, and that is precisely what catches
- * the silent case — so the tolerance must not be loosened to `b1 … b(m)`.
- *
- * WHAT COUNTS AS A SITE IS THE WHOLE BOUND, AND IT IS MEASURED RATHER THAN
- * REASONED. Two wrong answers were tried first. Counting DISTINCT `$ref` STRINGS
- * is too tight and rejects legitimate fixtures: a node carrying `$ref` AND any
- * sibling key is merged by `json-schema-ref-parser` into a NEW object, so it is a
- * second identity for the parser and gets its own declaration even though the
- * pointer string is one already seen. Counting every `$ref` OCCURRENCE is too
- * loose in the case that matters: `plugin-openapi` hoists `components/schemas`
- * into `$defs`, so a schema referenced from two properties is the ORDINARY
- * shape, and giving each occurrence a counter would entitle the very `Owner1`
- * this check exists to catch. The rule that fits the library exactly is:
- *
- *     multiplicity(base) = (distinct plain `$ref` STRINGS with that base)
- *                        + (number of `$ref` NODES carrying a sibling key)
- *
- * where "plain" means the object holding the `$ref` has no other key. Any number
- * of plain pointers to one TARGET collapse onto ONE declaration, because
- * ref-parser substitutes the same object for all of them; every sibling-bearing
- * pointer is a fresh object and so a fresh declaration.
- *
- * THE PLAIN SIDE DE-DUPLICATES BY POINTER, NOT BY BASE, and that distinction is
- * load-bearing rather than pedantic. `#/$defs/pet-owner` and `#/$defs/pet_owner`
- * are two plain pointers to two different targets whose names both collapse onto
- * `PetOwner`, and the library really does emit `PetOwner` AND `PetOwner1` for
- * them. Keying the plain side on the base instead rejected that shipped fixture.
- * Measured across seventeen shapes — plain ×1…×4, sibling ×1…×3, mixtures,
- * `allOf`-wrapped, inside array `items`, self-recursive with and without a
- * sibling, an unknown `x-` key as the sibling, and two distinct plain pointers
- * onto one base — and pinned as a table in
- * `test/generate-request-types-names.test.ts`.
- *
- * IT IS STILL AN OVER-APPROXIMATION, DELIBERATELY, IN THE ONE SAFE DIRECTION.
- * Like the blind `$ref` collection below, it can only WIDEN the entitled set, so
- * it can miss a defect but can never abort a valid generation — and aborting
- * valid generations is the failure this check must not have. The residual cost,
- * stated rather than hidden: a hijacked `Owner1` goes unseen only if the
- * description ALSO reaches `Owner` through two or more SIBLING-BEARING `$ref`
- * nodes. Plain references, however many, no longer buy the hijack any cover. The
- * strip in `type-names.ts` is still the fix; this is the net under it.
+ * WHAT THIS STILL DOES NOT CATCH, stated rather than hidden: two declarations
+ * that collide on ONE identifier across DIFFERENT `compile()` calls. This
+ * function sees one call at a time and structurally cannot. `DeclarationSet`
+ * owns that check, at the point where every declaration in the surface is in
+ * hand.
  */
 
 function isPlainObject(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
 
-/** One `$ref` node: where it points, and whether it points and nothing else. */
-type RefSite = {
-  readonly pointer: string;
-  readonly plain: boolean;
-};
+/**
+ * The names the library could derive from one `$ref` string. BOTH derivations
+ * are kept because which one wins depends on the TARGET's type, which this
+ * module does not model: the normalizer synthesises
+ * `$id = toSafeString(justName(pointer))` for object- and array-typed targets,
+ * and for anything else `keyNameFromDefinition` — `toSafeString` of the raw,
+ * pointer-unescaped final token — is what names the declaration.
+ *
+ * Round 4 predicted the winner and got it wrong. Accepting either is what makes
+ * the obligation half sound without teaching it the library's type dispatch.
+ */
+function baseCandidatesOf(source: string): readonly string[] {
+  const finalToken = source.split('/').pop() ?? source;
+  // JSON Pointer escaping, then the URI layer above it. A key really can
+  // contain `/` or `~`, and `plugin-openapi` emits the escaped form.
+  let unescaped = finalToken.replaceAll('~1', '/').replaceAll('~0', '~');
+
+  try {
+    unescaped = decodeURIComponent(unescaped);
+  } catch {
+    // A stray `%` is not an encoding error worth aborting a generation over;
+    // the raw token is still a candidate.
+  }
+
+  const candidates = [
+    toSafeString(justName(source)),
+    toSafeString(unescaped),
+    toSafeString(finalToken),
+  ].filter((candidate) => candidate.length > 0);
+
+  return candidates.length > 0 ? [...new Set(candidates)] : ['NoName'];
+}
+
+const TRAILING_COUNTER = /^(.*?)\d+$/;
 
 /**
- * Every `$ref` NODE in the tree, collected BLINDLY — any key named `$ref` whose
- * value is a string, at any depth, inside arrays included — each tagged with
- * whether its holder carries any other key, because that is what decides whether
- * `json-schema-ref-parser` substitutes the shared target or a fresh merged copy.
+ * The identifier with any trailing counter removed. `generateName` appends a
+ * decimal counter to an already-taken name, so `Pet2` and `Pet11` are both the
+ * base `Pet` wearing a suffix — and because the counter pool is global, WHICH
+ * suffix is not something this module gets to predict.
+ *
+ * The un-suffixed identifier is returned as well, because a base may legitimately
+ * end in a digit (`$defs.Pet1` is a name in its own right).
+ */
+function baseFormsOf(identifier: string): readonly string[] {
+  const stripped = TRAILING_COUNTER.exec(identifier)?.[1];
+
+  return stripped !== undefined && stripped.length > 0
+    ? [identifier, stripped]
+    : [identifier];
+}
+
+/**
+ * Every `$ref` string in the tree, collected BLINDLY — any key named `$ref`
+ * whose value is a string, at any depth, inside arrays included.
  *
  * The blindness is deliberate and is the opposite choice from
- * `stripNameKeywordsInPlace`, which must be position-aware. `json-schema-ref-parser`
- * dereferences blindly too, so a blind collection is the faithful mirror of what
- * populates `dereferencedPaths`. And the asymmetry is safe in exactly one
- * direction: a blind collection can only WIDEN the entitled set, so it can
- * produce a false NEGATIVE but never a false POSITIVE. A position-aware
- * collection could miss a position the library dereferences and abort a
- * perfectly good generation, which is the failure mode that matters here.
+ * `stripNameKeywordsInPlace`, which must be position-aware.
+ * `json-schema-ref-parser` dereferences blindly too, so a blind collection is
+ * the faithful mirror of what it can substitute. Used ONLY for the permission
+ * half, where being too generous is safe by construction.
  */
-function collectRefSites(node: unknown, into: RefSite[]): void {
+function collectRefsBlindly(node: unknown, into: string[]): void {
   if (Array.isArray(node)) {
     for (const item of node) {
-      collectRefSites(item, into);
+      collectRefsBlindly(item, into);
     }
 
     return;
@@ -154,75 +156,76 @@ function collectRefSites(node: unknown, into: RefSite[]): void {
     return;
   }
 
-  const entries = Object.entries(node);
-
-  for (const [key, value] of entries) {
+  for (const [key, value] of Object.entries(node)) {
     if (key === '$ref' && typeof value === 'string') {
-      into.push({ pointer: value, plain: entries.length === 1 });
+      into.push(value);
       continue;
     }
 
-    collectRefSites(value, into);
+    collectRefsBlindly(value, into);
   }
-}
-
-/** The base the library derives from one name source, its own way round. */
-function baseNameOf(source: string): string {
-  return toSafeString(justName(source)) || 'NoName';
 }
 
 /**
- * Every identifier the library is entitled to declare for `schema` compiled
- * under `name`, where `schema` is the tree AS HANDED TO `compile()` — i.e. after
- * `convertDefsToDefinitions`, so its pointers are already `#/definitions/…`.
+ * Every `$ref` string sitting in a position the library PARSES as a subschema.
+ *
+ * Used ONLY for the obligation half. Under-approximating here is what keeps a
+ * `$ref`-shaped value inside `examples`, `const`, `default` or `enum` — which is
+ * DATA, not a reference — from demanding a declaration that was never supposed
+ * to exist. A position this misses simply produces no obligation; it never
+ * produces a false one.
+ *
+ * IT STOPS WHERE THE LIBRARY STOPS. A node carrying `tsType` is emitted verbatim
+ * and nothing beneath it is parsed, so a `$ref` under one declares nothing —
+ * measured, not assumed. AC6's example reflection WRITES `tsType`, so this is
+ * not an exotic shape: it is what every reflected object node looks like by the
+ * time it reaches `compile()`, and treating those `$ref`s as obligations aborted
+ * two legitimate fixtures.
  */
-export function entitledNames(
+function collectReferencedPointers(schema: unknown): readonly string[] {
+  const pointers: string[] = [];
+
+  walkSubschemaNodes(schema, (node) => {
+    if (node['tsType'] !== undefined) {
+      return false;
+    }
+
+    const ref = node['$ref'];
+
+    if (typeof ref === 'string') {
+      pointers.push(ref);
+    }
+
+    return true;
+  });
+
+  return [...new Set(pointers)];
+}
+
+/**
+ * The name sources a declaration may legitimately trace back to: the name this
+ * generator handed `compile()`, plus every `$ref` anywhere in the tree.
+ *
+ * Exported for the tests, which assert it against the library's real output
+ * rather than against this module's arithmetic.
+ */
+export function permittedBases(
   schema: unknown,
   name: string,
 ): ReadonlySet<string> {
-  const sites: RefSite[] = [];
+  const refs: string[] = [];
 
-  collectRefSites(schema, sites);
+  collectRefsBlindly(schema, refs);
 
-  const multiplicity = new Map<string, number>();
-  const claim = (base: string): void => {
-    multiplicity.set(base, (multiplicity.get(base) ?? 0) + 1);
-  };
+  const bases = new Set<string>([name, ...baseCandidatesOf(name)]);
 
-  claim(baseNameOf(name));
-
-  // Every sibling-bearing pointer is its own declaration. Plain pointers
-  // de-duplicate by POINTER STRING and not by base: ref-parser substitutes one
-  // shared object for every plain pointer to the SAME target, but two different
-  // targets are two declarations even where their names collapse onto one base
-  // — `#/$defs/pet-owner` and `#/$defs/pet_owner` are both plain, both
-  // `PetOwner`, and really do emit `PetOwner` and `PetOwner1`.
-  const plainPointers = new Set<string>();
-
-  for (const site of sites) {
-    if (site.plain) {
-      plainPointers.add(site.pointer);
-      continue;
-    }
-
-    claim(baseNameOf(site.pointer));
-  }
-
-  for (const pointer of plainPointers) {
-    claim(baseNameOf(pointer));
-  }
-
-  const entitled = new Set<string>();
-
-  for (const [base, count] of multiplicity) {
-    entitled.add(base);
-
-    for (let counter = 1; counter < count; counter += 1) {
-      entitled.add(`${base}${counter}`);
+  for (const ref of refs) {
+    for (const candidate of baseCandidatesOf(ref)) {
+      bases.add(candidate);
     }
   }
 
-  return entitled;
+  return bases;
 }
 
 function quoteList(values: readonly string[]): string {
@@ -242,15 +245,25 @@ export function assertEmittedNamesWereIssued(
   schema: unknown,
   name: string,
 ): void {
-  const entitled = entitledNames(schema, name);
-  const declared = splitDeclarations(compiled).map((declaration) =>
-    identifierOf(declaration),
-  );
-  const escaped = declared.filter(
-    (identifier) => identifier.length > 0 && !entitled.has(identifier),
+  const declared = splitDeclarations(compiled)
+    .map((declaration) => identifierOf(declaration))
+    .filter((identifier) => identifier.length > 0);
+
+  const bases = permittedBases(schema, name);
+  const escaped = declared.filter((identifier) =>
+    baseFormsOf(identifier).every((form) => !bases.has(form)),
   );
 
-  if (declared.includes(name) && escaped.length === 0) {
+  const declaredForms = new Set(
+    declared.flatMap((identifier) => baseFormsOf(identifier)),
+  );
+  const unmet = collectReferencedPointers(schema).filter((pointer) =>
+    baseCandidatesOf(pointer).every(
+      (candidate) => !declaredForms.has(candidate),
+    ),
+  );
+
+  if (declared.includes(name) && escaped.length === 0 && unmet.length === 0) {
     return;
   }
 
@@ -258,23 +271,31 @@ export function assertEmittedNamesWereIssued(
 
   if (!declared.includes(name)) {
     faults.push(
-      `it declares ${quoteList([...new Set(declared)])} but never "${name}"`,
+      declared.length === 0
+        ? `it declares nothing at all, but should declare "${name}"`
+        : `it declares ${quoteList([...new Set(declared)])} but never "${name}"`,
     );
   }
 
   if (escaped.length > 0) {
     faults.push(
-      `it declares ${quoteList([...new Set(escaped)])}, which this generator never issued`,
+      `it declares ${quoteList([...new Set(escaped)])}, which no name in the schema accounts for`,
+    );
+  }
+
+  if (unmet.length > 0) {
+    faults.push(
+      `nothing was declared for ${quoteList([...new Set(unmet)])}, so a reference to it would point at the wrong schema`,
     );
   }
 
   throw new ThymianBaseError(
-    `The compiled schema for "${name}" names declarations this generator did not choose: ${faults.join('; ')}.`,
+    `The generated types for "${name}" do not match the names this generator issued: ${faults.join('; ')}.`,
     {
       name: 'GeneratedNameEscapeError',
       suggestions: [
-        'This is a defect in the generated type surface, not in the API description.',
-        'Please report it, with the description that triggered it.',
+        'A schema keyword in the API description may be naming a type itself — check for "title", "$id", "id" or "extends" on the schemas involved, and remove or rename it.',
+        'If the description has no such keyword, this is a defect in the generated type surface: please report it, with the description that triggered it.',
       ],
     },
   );

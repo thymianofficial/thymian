@@ -3084,3 +3084,64 @@ describe('generateRequestTypesSurface', () => {
     );
   });
 });
+
+/**
+ * Round 5. The defect a per-`compile()` postcondition structurally cannot see:
+ * one `$defs` entry reaching the surface under two DIFFERENT identifiers across
+ * two transactions, so the file carries two `export interface Owner` bodies.
+ * `tsc` reports `TS2374` on it, which means it is not the silent class — but it
+ * IS a committed file that does not compile, and nothing in the generator
+ * noticed until `DeclarationSet` was taught to.
+ *
+ * `extends` supplies the second `Owner`: it is the one library-parsed position
+ * the name strip deliberately does not enter, so a `title` there still declares.
+ */
+describe('one identifier with two bodies is refused (AC7)', () => {
+  it('aborts rather than emitting a file that cannot compile', async () => {
+    const owner: ThymianSchema = {
+      type: 'object',
+      properties: { z: { type: 'string' } },
+    };
+
+    const error = await catchAsyncError(() =>
+      surfaceOf([
+        {
+          path: '/a',
+          status: 201,
+          requestMediaType: 'application/json',
+          requestBody: {
+            type: 'object',
+            properties: {
+              first: {
+                type: 'object',
+                properties: { x: { type: 'string' } },
+                extends: [
+                  {
+                    title: 'Owner',
+                    type: 'object',
+                    properties: { h: { type: 'string' } },
+                  },
+                ],
+              },
+              second: { $ref: '#/$defs/Owner' },
+            },
+            $defs: { Owner: owner },
+          } as ThymianSchema,
+        },
+        {
+          path: '/b',
+          status: 201,
+          requestMediaType: 'application/json',
+          requestBody: {
+            type: 'object',
+            properties: { second: { $ref: '#/$defs/Owner' } },
+            $defs: { Owner: owner },
+          } as ThymianSchema,
+        },
+      ]),
+    );
+
+    expect(error.name).toBe('DuplicateDeclarationError');
+    expect(error.message).toContain('Owner');
+  });
+});
