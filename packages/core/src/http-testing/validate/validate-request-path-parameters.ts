@@ -1,14 +1,9 @@
 import { match } from 'path-to-regexp';
 
 import type { ThymianHttpRequest } from '../../index.js';
-import {
-  deserializePathParameter,
-  malformedStyleMessage,
-  unsupportedStyleMessage,
-} from '../deserialize-parameter.js';
+import { deserializePathParameter } from '../deserialize-parameter.js';
 import type { HttpTestCaseResult } from '../http-test/index.js';
-import { ajv } from './ajv.js';
-import { describeSchemaError, schemaErrorDetail } from './schema-error.js';
+import { resultsForDeserialized } from './validate-deserialized.js';
 
 function extractPathParameters(
   actualPath: string,
@@ -77,51 +72,13 @@ export function validateExistingPathParameter(
           decodePathComponent,
         );
 
-        if (!deserialized.supported) {
-          // A style thymian cannot reverse is thymian's limitation (`info`);
-          // a value not in its declared style is the request's defect.
-          return [
-            deserialized.malformed
-              ? {
-                  type: 'assertion-failure',
-                  message: malformedStyleMessage(
-                    `Path parameter "${name}"`,
-                    deserialized,
-                  ),
-                  timestamp: Date.now(),
-                }
-              : {
-                  type: 'info',
-                  message: unsupportedStyleMessage(
-                    `Path parameter "${name}"`,
-                    deserialized,
-                  ),
-                  timestamp: Date.now(),
-                },
-          ];
-        }
-
-        const validate = ajv.compile(parameter.schema);
-
-        validate(deserialized.value);
-
-        if (validate.errors && validate.errors.length > 0) {
-          // One assertion-failure per schema error rather than a joined message.
-          return validate.errors.map((err) => ({
-            type: 'assertion-failure',
-            message: describeSchemaError(err, `path parameter "${name}"`),
-            ...schemaErrorDetail(err),
-            timestamp: Date.now(),
-          }));
-        }
-
-        return [
-          {
-            type: 'assertion-success',
-            message: `Valid path parameter "${name}".`,
-            timestamp: Date.now(),
-          },
-        ];
+        return resultsForDeserialized(
+          deserialized,
+          parameter.schema,
+          `Path parameter "${name}"`,
+          `path parameter "${name}"`,
+          `Valid path parameter "${name}".`,
+        );
       }
 
       return [

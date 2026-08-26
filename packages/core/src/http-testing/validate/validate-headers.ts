@@ -3,14 +3,9 @@ import {
   objHasKeyIgnoreCase,
   type ThymianHttpResponse,
 } from '../../index.js';
-import {
-  deserializeHeaderParameter,
-  malformedStyleMessage,
-  unsupportedStyleMessage,
-} from '../deserialize-parameter.js';
+import { deserializeHeaderParameter } from '../deserialize-parameter.js';
 import type { HttpTestCaseResult } from '../http-test/index.js';
-import { ajv } from './ajv.js';
-import { describeSchemaError, schemaErrorDetail } from './schema-error.js';
+import { resultsForDeserialized } from './validate-deserialized.js';
 
 export const commonHttpHeaders = [
   'date',
@@ -110,51 +105,13 @@ export function validateExistingHeader(
           parameter.style,
         );
 
-        if (!deserialized.supported) {
-          // A style thymian cannot reverse is thymian's limitation (`info`);
-          // a value not in its declared style is the request's defect.
-          return [
-            deserialized.malformed
-              ? {
-                  type: 'assertion-failure',
-                  message: malformedStyleMessage(
-                    `Header "${name}"`,
-                    deserialized,
-                  ),
-                  timestamp: Date.now(),
-                }
-              : {
-                  type: 'info',
-                  message: unsupportedStyleMessage(
-                    `Header "${name}"`,
-                    deserialized,
-                  ),
-                  timestamp: Date.now(),
-                },
-          ];
-        }
-
-        const validate = ajv.compile(parameter.schema);
-
-        validate(deserialized.value);
-
-        if (validate.errors && validate.errors.length > 0) {
-          // One assertion-failure per schema error rather than a joined message.
-          return validate.errors.map((err) => ({
-            type: 'assertion-failure',
-            message: describeSchemaError(err, `header "${name}"`),
-            ...schemaErrorDetail(err),
-            timestamp: Date.now(),
-          }));
-        }
-
-        return [
-          {
-            type: 'assertion-success',
-            message: `Valid header ${name}.`,
-            timestamp: Date.now(),
-          },
-        ];
+        return resultsForDeserialized(
+          deserialized,
+          parameter.schema,
+          `Header "${name}"`,
+          `header "${name}"`,
+          `Valid header ${name}.`,
+        );
       }
 
       return [
