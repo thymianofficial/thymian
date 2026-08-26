@@ -6,18 +6,18 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 
 // Spying on tinyglobby's `glob` lets three things be tested that behavioral
 // fixtures alone cannot exercise:
-//  - AC1: the exact `ignore` option reaching tinyglobby (the behavioral
+//  - the exact `ignore` option reaching tinyglobby (the behavioral
 //    node_modules-exclusion test in load-rules-glob.test.ts is the real gate;
 //    this is the belt to that suspenders).
-//  - AC3: a broken symlink match. tinyglobby's default `onlyFiles: true`
-//    filters a broken symlink out of its own results on this platform
-//    (verified: it never reaches `loadRuleSet`'s match loop as a real glob()
-//    return), so forcing the filename through here is what actually reaches
-//    — and proves — the AC3 skip guard, rather than passing vacuously
-//    because the case never arrives.
-//  - AC4: a match that "vanished between glob and read" — a filename the
-//    glob call reports, but that is not actually on disk by the time the
-//    loader tries to load it.
+//  - a broken symlink match. tinyglobby's default `onlyFiles: true` filters
+//    a broken symlink out of its own results on this platform (verified: it
+//    never reaches `loadRuleSet`'s match loop as a real glob() return), so
+//    forcing the filename through here is what actually reaches — and
+//    proves — the skip guard, rather than passing vacuously because the
+//    case never arrives.
+//  - a match that "vanished between glob and read" — a filename the glob
+//    call reports, but that is not actually on disk by the time the loader
+//    tries to load it.
 const globImpl = vi.fn();
 
 vi.mock('tinyglobby', async (importOriginal) => {
@@ -36,7 +36,7 @@ describe('rule-set glob loading (mocked tinyglobby)', () => {
     globImpl.mockReset();
   });
 
-  it('passes the node_modules ignore option to tinyglobby (AC1)', async () => {
+  it('passes the node_modules ignore option to tinyglobby', async () => {
     const actual =
       await vi.importActual<typeof import('tinyglobby')>('tinyglobby');
     globImpl.mockImplementation((pattern: string, options: unknown) =>
@@ -53,7 +53,7 @@ describe('rule-set glob loading (mocked tinyglobby)', () => {
     );
   });
 
-  it('skips a broken symlink match with a framed reason, never a raw fs error, still loading the rest of the set (AC3)', async () => {
+  it('skips a broken symlink match with a framed reason, never a raw fs error, still loading the rest of the set', async () => {
     const dir = mkdtempSync(join(tmpdir(), 'glob-broken-symlink-'));
 
     try {
@@ -89,7 +89,7 @@ describe('rule-set glob loading (mocked tinyglobby)', () => {
     }
   });
 
-  it('fails the whole set, framed and naming the file, when a matched file vanishes before it is loaded (AC4)', async () => {
+  it('fails the whole set, framed and naming the file, when a matched file vanishes before it is loaded', async () => {
     globImpl.mockResolvedValue(['ghost.rule.mjs']);
 
     const { loadRules } = await import('../../src/rules/rule-loader.js');

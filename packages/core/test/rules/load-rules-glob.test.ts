@@ -9,7 +9,7 @@ import { loadRules } from '../../src/rules/rule-loader.js';
 const fixtureDir = join(import.meta.dirname, 'fixtures', 'rule-sets');
 
 describe('rule-set glob loading', () => {
-  it('loads glob matches in deterministic sort order (AC5)', async () => {
+  it('loads glob matches in deterministic sort order', async () => {
     const rules = await loadRules(
       join(fixtureDir, 'glob-basic', 'rule-set.mjs'),
     );
@@ -20,7 +20,7 @@ describe('rule-set glob loading', () => {
     ]);
   });
 
-  it('excludes node_modules from a wide glob (AC1)', async () => {
+  it('excludes node_modules from a wide glob', async () => {
     // A real node_modules/ directory cannot live as a committed fixture (the
     // repo's own .gitignore excludes any directory literally named
     // node_modules, anywhere in the tree), so this is built at runtime in a
@@ -41,7 +41,7 @@ describe('rule-set glob loading', () => {
         join(dir, 'rules', 'node_modules', 'evil.rule.mjs'),
         // Throws if ever imported, so an accidental load fails loudly rather
         // than silently passing.
-        "throw new Error('evil.rule.mjs under node_modules must never be loaded (AC1)');\n",
+        "throw new Error('evil.rule.mjs under node_modules must never be loaded');\n",
       );
 
       const rules = await loadRules(join(dir, 'rule-set.mjs'));
@@ -53,7 +53,7 @@ describe('rule-set glob loading', () => {
     }
   });
 
-  it('excludes the rule set file itself from its own matches (AC1)', async () => {
+  it('excludes the rule set file itself from its own matches', async () => {
     const rules = await loadRules(
       join(fixtureDir, 'glob-self-match', 'self.rule.mjs'),
     );
@@ -62,7 +62,7 @@ describe('rule-set glob loading', () => {
     expect(rules[0]?.meta.name).toBe('glob-self-match-other');
   });
 
-  it('fails framed when a glob match is itself a rule set: rule sets do not nest (AC2)', async () => {
+  it('fails framed when a glob match is itself a rule set: rule sets do not nest', async () => {
     await expect(
       loadRules(join(fixtureDir, 'glob-nested', 'outer.mjs')),
     ).rejects.toMatchObject({
@@ -79,7 +79,7 @@ describe('rule-set glob loading', () => {
     });
   });
 
-  it('skips a non-loadable-kind match (.d.ts) with a framed reason, still loading the rest of the set (AC3)', async () => {
+  it('skips a non-loadable-kind match (.d.ts) with a framed reason, still loading the rest of the set', async () => {
     const warnings: unknown[] = [];
     const onWarning = (warning: unknown) => warnings.push(warning);
     process.on('warning', onWarning);
@@ -105,7 +105,7 @@ describe('rule-set glob loading', () => {
     }
   });
 
-  it('fails the whole set, framed and naming the file, on a real syntax error (AC4)', async () => {
+  it('fails the whole set, framed and naming the file, on a real syntax error', async () => {
     await expect(
       loadRules(join(fixtureDir, 'glob-syntax-error', 'rule-set.mjs')),
     ).rejects.toMatchObject({
@@ -114,7 +114,7 @@ describe('rule-set glob loading', () => {
     });
   });
 
-  it('throws when the glob matched files but produced zero rules (AC5)', async () => {
+  it('throws when the glob matched files but produced zero rules', async () => {
     await expect(
       loadRules(join(fixtureDir, 'glob-zero-rules', 'rule-set.mjs')),
     ).rejects.toMatchObject({
@@ -125,7 +125,7 @@ describe('rule-set glob loading', () => {
     });
   });
 
-  it('does not throw when the glob matches nothing at all (pre-existing behavior, unchanged by AC5)', async () => {
+  it('does not throw when the glob matches nothing at all', async () => {
     const dir = mkdtempSync(join(tmpdir(), 'glob-no-match-'));
 
     try {

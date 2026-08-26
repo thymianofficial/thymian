@@ -257,10 +257,10 @@ function describeError(error: unknown): string {
 // The glob filter's own guard, on top of the seam's `unloadableReason`
 // (extension/declaration-file predicate — reused, never hand-copied):
 // classifies a match by filesystem kind so a directory/FIFO/socket/broken
-// symlink is *skipped* (AC3) rather than attempted. A path that is not on
-// disk at all is deliberately left unclassified here (`undefined`) — that is
-// not "the wrong kind", it is a match that vanished between the glob call and
-// the load attempt below, which must fail the whole set (AC4), not skip.
+// symlink is *skipped* rather than attempted. A path that is not on disk at
+// all is deliberately left unclassified here (`undefined`) — that is not
+// "the wrong kind", it is a match that vanished between the glob call and
+// the load attempt below, which must fail the whole set, not be skipped.
 function nonLoadableGlobMatchReason(resolved: string): string | undefined {
   const extensionReason = unloadableReason(resolved);
 
@@ -371,8 +371,8 @@ async function loadRuleSet(
           canonical = undefined;
         }
 
-        // AC1: the rule set's own file is excluded from its own matches
-        // (trivial self-match), and never counted toward "anything matched".
+        // The rule set's own file is excluded from its own matches (trivial
+        // self-match), and never counted toward "anything matched".
         if (canonical !== undefined && canonical === basePath) {
           continue;
         }
