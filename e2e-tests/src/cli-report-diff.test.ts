@@ -30,15 +30,18 @@ interface DiffDocument {
 describe('thymian report diff', () => {
   const getTempDir = useTempDir();
 
-  it('diffs a report against itself to an empty diff and exit 0 (AC 1)', () => {
+  it('diffs a report against itself (two path spellings) to an empty diff and exit 0 (AC 1)', () => {
     copyFixturesToTempDir(join(fixturesDir, 'report-diff'), getTempDir());
 
+    // Deliberately different spellings of the same file: input identity is
+    // string-only upstream, but per-side loading must still yield an empty
+    // diff (Dev Notes hazard test).
     const { stdout, exitCode } = execThymianResult(
       [
         'report',
         'diff',
         '--base',
-        'thymian:base-report.json',
+        'thymian:./base-report.json',
         '--head',
         'thymian:base-report.json',
       ],

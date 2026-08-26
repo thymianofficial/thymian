@@ -92,6 +92,26 @@ describe('renderReportDiffSummary', () => {
     expect(output).not.toContain('✖');
   });
 
+  it('marks an improvements-only diff as failing under --fail-on any-change', () => {
+    const output = renderReportDiffSummary(
+      diffWith([
+        {
+          kind: 'run-result',
+          change: 'removed',
+          runType: 'lint',
+          severity: 'error',
+          ruleId: 'rfc9110/x',
+        },
+      ]),
+      { failOn: 'any-change' },
+    );
+
+    expect(output).toContain(
+      '✖ Improvement: 1 run result(s) resolved, none added (fails --fail-on any-change).',
+    );
+    expect(output).not.toContain('✔');
+  });
+
   it('reports an empty diff as no changes', () => {
     const output = renderReportDiffSummary(diffWith([]), {
       failOn: 'regression',

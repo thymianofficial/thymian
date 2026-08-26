@@ -826,11 +826,16 @@ export class Thymian {
 
     // Diff needs per-report attribution (`baseReportId`/`baseCreatedAt`) and
     // compares exactly one report per side — a multi-report file has no
-    // single identity to attribute changes to (AC 1).
+    // single identity to attribute changes to (AC 1). Enforced through the
+    // fragment-carried `reportCount` (run-less siblings yield no fragments,
+    // so counting identities alone would let them slip through) AND through
+    // the identity tuple (two different reports sharing one `reportId` — a
+    // copied-then-edited file — must not silently pool either).
     const identities = new Map<
       string,
       { reportId: string; createdAt: string }
     >();
+    let reportCount = 0;
 
     for (const fragment of matches) {
       if (!fragment.report) {
@@ -839,12 +844,29 @@ export class Thymian {
         );
       }
 
+      reportCount = Math.max(reportCount, fragment.report.reportCount ?? 1);
+
+      const seen = identities.get(fragment.report.reportId);
+
+      if (seen && seen.createdAt !== fragment.report.createdAt) {
+        throw new ThymianBaseError(
+          `The ${role} input "${key}" contains two different reports sharing reportId "${fragment.report.reportId}" — "report diff" compares exactly one report per side.`,
+          {
+            suggestions: [
+              'Regenerate one of the reports so each carries its own identity.',
+            ],
+          },
+        );
+      }
+
       identities.set(fragment.report.reportId, fragment.report);
     }
 
-    if (identities.size > 1) {
+    if (identities.size > 1 || reportCount > 1) {
+      const count = Math.max(identities.size, reportCount);
+
       throw new ThymianBaseError(
-        `The ${role} input "${key}" contains ${identities.size} reports — "report diff" compares exactly one report per side.`,
+        `The ${role} input "${key}" contains ${count} reports — "report diff" compares exactly one report per side.`,
         {
           suggestions: [
             'Merge the file into a single report first: thymian report merge --report thymian:<file>.',
@@ -876,7 +898,9 @@ export class Thymian {
    * Compare two persisted reports (#502): load each side separately through
    * the `core.report.convert` claim path, then compute the structured diff
    * document. The outcome mirrors `reportConvert()`'s contract — unclaimed
-   * inputs are returned, never thrown, and no `core.report` event is emitted
+   * inputs are returned rather than thrown (malformed inputs — multi-report
+   * files, missing identity, loader failures — still throw, from whichever
+   * side hits them first), and no `core.report` event is emitted
    * (the diff document is not a `Report` and never reaches the file
    * formatters).
    */

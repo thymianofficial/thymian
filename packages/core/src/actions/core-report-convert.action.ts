@@ -48,8 +48,11 @@ export interface ConvertedRunFragment {
    * converters have no source-report identity and omit it. Consumers that
    * need per-report attribution (`Thymian.reportDiff()`: `baseReportId`/
    * `baseCreatedAt`) read it; `Thymian.reportConvert()` ignores it.
+   * `reportCount` carries how many reports the source FILE holds — run-less
+   * siblings yield no fragments, so without the count a multi-report file
+   * could masquerade as a single report (#502 review).
    */
-  report?: { reportId: string; createdAt: string };
+  report?: { reportId: string; createdAt: string; reportCount?: number };
 }
 
 /**
@@ -168,6 +171,7 @@ export const convertedRunFragmentArraySchema = {
         properties: {
           reportId: { type: 'string', nullable: false },
           createdAt: { type: 'string', nullable: false },
+          reportCount: { type: 'number', nullable: true },
         },
       },
       run: {

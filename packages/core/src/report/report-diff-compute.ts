@@ -28,8 +28,10 @@ type RunResultCandidate = Omit<RunResultChange, 'change'>;
 
 /**
  * Identity of a failed execution across the two sides (#502 AC 4):
- * rule id + location + failure details (reason + resolved severity), plus
- * the test-case name for test executions. `thymianFormat` locations are
+ * run type + tool name + rule id + location + failure details (reason +
+ * resolved severity), plus the test-case name for test executions. The
+ * tool name makes "tool A reports X" and "tool B reports X" two facts
+ * (#502 review decision); identical same-tool duplicates still collapse. `thymianFormat` locations are
  * canonicalized through the endpoint pairing so a finding on a *changed*
  * endpoint keeps its identity; every other location type compares
  * structurally. Set semantics: identical identities collapse per side.
@@ -72,6 +74,7 @@ function collectRunResults(
 
       const key = stringify({
         runType: run.runType,
+        tool: run.tool.name,
         ruleId: execution.ruleId ?? null,
         testCase: testCase ?? null,
         locationKey,
@@ -86,6 +89,7 @@ function collectRunResults(
       candidates.set(key, {
         kind: 'run-result',
         runType: run.runType,
+        tool: run.tool.name,
         severity,
         ...(execution.ruleId !== undefined ? { ruleId: execution.ruleId } : {}),
         ...(reason !== undefined ? { reason } : {}),
@@ -173,6 +177,7 @@ function runResultSortKey(change: RunResultChange): string {
   return [
     change.change,
     change.runType,
+    change.tool ?? '',
     change.ruleId ?? '',
     change.testCase ?? '',
     change.locationLabel ?? '',
@@ -199,10 +204,13 @@ export function computeReportDiff(
   if (endpointMatch.baseHasFormat && endpointMatch.headHasFormat) {
     changes.push(...endpointMatch.changes);
   } else {
+    const missing = [
+      ...(endpointMatch.baseHasFormat ? [] : ['base']),
+      ...(endpointMatch.headHasFormat ? [] : ['head']),
+    ].join(' and ');
+
     logger?.warn(
-      'Skipping specification comparison: ' +
-        (endpointMatch.baseHasFormat ? 'the head' : 'the base') +
-        ' report carries no usable embedded Thymian format graph.',
+      `Skipping specification comparison: the ${missing} report carries no usable embedded Thymian format graph.`,
     );
   }
 
@@ -250,9 +258,13 @@ export function computeReportDiff(
     }
   }
 
-  runResultChanges.sort((a, b) =>
-    runResultSortKey(a).localeCompare(runResultSortKey(b)),
-  );
+  // Codepoint comparison — deterministic across locales/ICU builds.
+  runResultChanges.sort((a, b) => {
+    const keyA = runResultSortKey(a);
+    const keyB = runResultSortKey(b);
+
+    return keyA < keyB ? -1 : keyA > keyB ? 1 : 0;
+  });
   changes.push(...runResultChanges);
 
   return createReportDiff(base, head, changes);

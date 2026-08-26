@@ -365,6 +365,62 @@ describe('thymian-report-input × report diff (#502)', () => {
     await thymian.close();
   });
 
+  it('rejects a multi-report file even when the sibling is run-less (#502 review)', async () => {
+    const full = sampleReport({ toolName: 'full' });
+    const runLess = { ...sampleReport({ toolName: 'empty' }), runs: [] };
+    const reportFile = await writeReportFile('mixed.json', [runLess, full]);
+    const thymian = new Thymian().register(reporterPlugin, { formatters: {} });
+    await thymian.ready();
+
+    await expect(
+      thymian.reportDiff({
+        base: { type: 'thymian', location: reportFile },
+        head: { type: 'thymian', location: reportFile },
+      }),
+    ).rejects.toThrow(/contains 2 reports/);
+
+    await thymian.close();
+  });
+
+  it('rejects a single run-less report with a clear loader error', async () => {
+    const runLess = { ...sampleReport({ toolName: 'empty' }), runs: [] };
+    const emptyFile = await writeReportFile('empty.json', runLess);
+    const fullFile = await writeReportFile(
+      'full.json',
+      sampleReport({ toolName: 'full' }),
+    );
+    const thymian = new Thymian().register(reporterPlugin, { formatters: {} });
+    await thymian.ready();
+
+    await expect(
+      thymian.reportDiff({
+        base: { type: 'thymian', location: emptyFile },
+        head: { type: 'thymian', location: fullFile },
+      }),
+    ).rejects.toThrow(/no report in this file contains any run/);
+
+    await thymian.close();
+  });
+
+  it('diffs the same file under two spellings to an empty change list', async () => {
+    const report = sampleReport({ toolName: 'diff-tool' });
+    await writeReportFile('same.json', report);
+    const thymian = new Thymian(undefined, { cwd: tmpDir }).register(
+      reporterPlugin,
+      { formatters: {} },
+    );
+    await thymian.ready();
+
+    const outcome = await thymian.reportDiff({
+      base: { type: 'thymian', location: join(tmpDir, 'same.json') },
+      head: { type: 'thymian', location: 'same.json' },
+    });
+
+    expect(outcome.diff?.changes).toEqual([]);
+
+    await thymian.close();
+  });
+
   it('rejects a multi-report file per side, pointing at report merge', async () => {
     const reportFile = await writeReportFile('multi.json', [
       sampleReport({ toolName: 'a' }),

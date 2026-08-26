@@ -37,6 +37,12 @@ export interface RunResultChange extends ReportDiffChangeBase {
   /** Resolved severity (`status.severity ?? rule severity ?? 'error'`). */
   severity: Severity;
   ruleId?: string;
+  /**
+   * Name of the tool whose run reported the failure. Part of the identity
+   * (#502 review decision): the same failure reported by two tools is two
+   * facts; identical same-tool duplicates collapse by design.
+   */
+  tool?: string;
   /** The failed status' custom reason, when present. */
   reason?: string;
   /** Test-case name, for `test` executions. */
@@ -58,6 +64,14 @@ export interface SpecificationChange extends ReportDiffChangeBase {
   endpoint: string;
   method: string;
   path: string;
+  /**
+   * Set when host/port were the matching discriminator (the same
+   * method+path exists more than once on a side): without them two changes
+   * of same-named endpoints on different hosts would be indistinguishable.
+   */
+  protocol?: string;
+  host?: string;
+  port?: number;
   /**
    * Only on `change: 'changed'`: which endpoint aspects differ between the
    * sides (e.g. `queryParameters`, `body`, `responses`).

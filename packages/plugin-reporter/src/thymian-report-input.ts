@@ -61,6 +61,10 @@ export function registerThymianReportInput(
               report: {
                 reportId: report.reportId,
                 createdAt: report.createdAt,
+                // The FILE's report count: run-less siblings yield no
+                // fragments, so consumers enforcing single-report inputs
+                // (report diff) need the count carried explicitly.
+                reportCount: reports.length,
               },
             });
           }

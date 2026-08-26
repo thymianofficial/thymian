@@ -16,10 +16,13 @@ import type { SpecificationChange } from './report-diff.js';
  * Node ids in the Thymian format are stable content hashes, so an id alone
  * cannot distinguish "endpoint removed + endpoint added" from "endpoint
  * changed". Matching is therefore keyed on the deterministic natural key
- * `method + path` (extended by `protocol://host:port` only when the simple
- * key collides within a side): the same key on both sides with differing
- * content is one *changed* endpoint; keys present on one side only are
- * added/removed. No fuzzy matching — a path rename reads as removed+added.
+ * `method + path`; when that simple key is ambiguous on EITHER side, both
+ * sides switch to the extended key (`method + protocol://host:port + path`)
+ * for that simple key — the scheme is decided jointly so a collision on one
+ * side can never desynchronize the key shapes across sides (#502 review).
+ * The same key on both sides with differing content is one *changed*
+ * endpoint; keys present on one side only are added/removed. No fuzzy
+ * matching — a path rename reads as removed+added.
  */
 
 /** Request-node fields compared for the "how did it change" aspect list. */
@@ -38,13 +41,25 @@ const ASPECT_FIELDS = [
   'description',
 ] as const satisfies readonly (keyof ThymianHttpRequest)[];
 
+interface ResponseSlotEntry {
+  responseId: string;
+  transactionId: string;
+  /** Full content signature (identity of the response's exact shape). */
+  signature: string;
+}
+
 interface EndpointEntry {
   requestId: string;
   node: ThymianHttpRequest;
-  /** Response content signature -> response node id. */
-  responseIdsBySignature: Map<string, string>;
-  /** Response content signature -> http-transaction edge id. */
-  transactionIdsBySignature: Map<string, string>;
+  /**
+   * Responses grouped by their stable SLOT key (`statusCode|mediaType`).
+   * Pairing across sides happens per slot, so a response whose content
+   * changed still pairs with its counterpart — the content delta surfaces
+   * as the `responses` aspect instead of breaking the pairing (#502 review:
+   * findings mostly sit on transaction edges, and an unpaired edge id turns
+   * an unchanged finding into a false removed+added pair).
+   */
+  responseSlots: Map<string, ResponseSlotEntry[]>;
 }
 
 export interface EndpointMatchResult {
@@ -62,9 +77,10 @@ export interface EndpointMatchResult {
 }
 
 /**
- * Response identity is content-based, never id-based: response node ids are
- * seeded with their request's id, so the same response under a changed
- * request gets a new id even when nothing about the response changed.
+ * Response identity for the `responses` ASPECT is content-based, never
+ * id-based: response node ids are seeded with their request's id, so the
+ * same response under a changed request gets a new id even when nothing
+ * about the response changed.
  */
 function responseSignature(node: ThymianHttpResponse): string {
   return (
@@ -78,6 +94,10 @@ function responseSignature(node: ThymianHttpResponse): string {
   );
 }
 
+function responseSlotKey(node: ThymianHttpResponse): string {
+  return `${node.statusCode}|${node.mediaType}`;
+}
+
 function simpleKey(node: ThymianHttpRequest): string {
   return `${node.method.toUpperCase()} ${node.path}`;
 }
@@ -86,20 +106,27 @@ function extendedKey(node: ThymianHttpRequest): string {
   return `${node.method.toUpperCase()} ${node.protocol}://${node.host}:${node.port}${node.path}`;
 }
 
+/** Codepoint comparison — deterministic across locales/ICU builds. */
+function codepointCompare(a: string, b: string): number {
+  return a < b ? -1 : a > b ? 1 : 0;
+}
+
 /**
  * Collect the side's `http-request` nodes (with their linked responses) from
- * every importable serialized graph, keyed by the natural key. Graph hashes
- * are visited in sorted order and the first entry wins a residual collision,
- * so the result is deterministic. Malformed serialized graphs are skipped —
- * a single bad entry must not fail the whole diff (mirrors
+ * every importable serialized graph. The entry map is GLOBAL across the
+ * side's graphs: when the same request node id appears in a second graph
+ * (identical request, e.g. carrying additional responses), that graph's
+ * `http-transaction` edges attach to the existing entry instead of being
+ * dropped (#502 review). Graph hashes are visited in sorted order, so the
+ * result is deterministic. Malformed serialized graphs are skipped — a
+ * single bad entry must not fail the whole diff (mirrors
  * `resolveThymianFormatForRun`'s tolerance).
  */
 function collectEndpoints(formats: Report['thymianFormat']): {
-  byKey: Map<string, EndpointEntry>;
+  entries: EndpointEntry[];
   importedAny: boolean;
 } {
-  const raw: EndpointEntry[] = [];
-  const seenRequestIds = new Set<string>();
+  const byRequestId = new Map<string, EndpointEntry>();
   let importedAny = false;
 
   for (const hash of Object.keys(formats ?? {}).sort()) {
@@ -113,19 +140,15 @@ function collectEndpoints(formats: Report['thymianFormat']): {
 
     importedAny = true;
 
-    const entriesById = new Map<string, EndpointEntry>();
-
     format.graph.forEachNode((nodeId, node) => {
-      if (!isNodeType(node, 'http-request') || seenRequestIds.has(nodeId)) {
+      if (!isNodeType(node, 'http-request') || byRequestId.has(nodeId)) {
         return;
       }
 
-      seenRequestIds.add(nodeId);
-      entriesById.set(nodeId, {
+      byRequestId.set(nodeId, {
         requestId: nodeId,
         node,
-        responseIdsBySignature: new Map(),
-        transactionIdsBySignature: new Map(),
+        responseSlots: new Map(),
       });
     });
 
@@ -134,62 +157,69 @@ function collectEndpoints(formats: Report['thymianFormat']): {
         return;
       }
 
-      const entry = entriesById.get(source);
+      const entry = byRequestId.get(source);
       const response = format.getNode<ThymianHttpResponse>(target);
 
       if (!entry || !response || !isNodeType(response, 'http-response')) {
         return;
       }
 
+      const slotKey = responseSlotKey(response);
       const signature = responseSignature(response);
+      const slot = entry.responseSlots.get(slotKey) ?? [];
 
-      if (!entry.responseIdsBySignature.has(signature)) {
-        entry.responseIdsBySignature.set(signature, target);
-        entry.transactionIdsBySignature.set(signature, edgeId);
+      // Identical response content contributes once, no matter how many
+      // graphs of this side carry it.
+      if (!slot.some((existing) => existing.signature === signature)) {
+        slot.push({ responseId: target, transactionId: edgeId, signature });
+        entry.responseSlots.set(slotKey, slot);
       }
     });
-
-    raw.push(...entriesById.values());
   }
 
-  // Key assignment with collision handling: buckets whose simple key is
-  // ambiguous within this side switch every member to the extended key.
-  const buckets = new Map<string, EndpointEntry[]>();
-
-  for (const entry of raw) {
-    const key = simpleKey(entry.node);
-    const bucket = buckets.get(key);
-
-    if (bucket) {
-      bucket.push(entry);
-    } else {
-      buckets.set(key, [entry]);
-    }
-  }
-
-  const byKey = new Map<string, EndpointEntry>();
-
-  for (const [key, bucket] of buckets) {
-    if (bucket.length === 1) {
-      byKey.set(key, bucket[0]!);
-      continue;
-    }
-
-    for (const entry of bucket) {
-      const key2 = extendedKey(entry.node);
-
-      // Residual collision (same method+path+host+port twice on one side):
-      // first entry wins, deterministically (sorted-hash visit order above).
-      if (!byKey.has(key2)) {
-        byKey.set(key2, entry);
-      }
-    }
-  }
-
-  return { byKey, importedAny };
+  return { entries: [...byRequestId.values()], importedAny };
 }
 
-function sameAspects(base: EndpointEntry, head: EndpointEntry): string[] {
+/**
+ * Key one side's entries under the JOINTLY decided scheme: `ambiguousSimple`
+ * holds every simple key that is ambiguous on at least one side, and those
+ * keys use the extended form on BOTH sides. A residual extended-key
+ * collision (same method+path+host+port twice on one side — two format
+ * versions of one endpoint embedded in a merged report) keeps the first
+ * entry, deterministically (sorted-hash collection order); a real
+ * resolution needs version provenance the format map does not carry
+ * (deferred, #502 review).
+ */
+function keyEntries(
+  entries: EndpointEntry[],
+  ambiguousSimple: ReadonlySet<string>,
+): Map<string, { entry: EndpointEntry; extendedUsed: boolean }> {
+  const byKey = new Map<
+    string,
+    { entry: EndpointEntry; extendedUsed: boolean }
+  >();
+
+  for (const entry of entries) {
+    const simple = simpleKey(entry.node);
+    const extendedUsed = ambiguousSimple.has(simple);
+    const key = extendedUsed ? extendedKey(entry.node) : simple;
+
+    if (!byKey.has(key)) {
+      byKey.set(key, { entry, extendedUsed });
+    }
+  }
+
+  return byKey;
+}
+
+function allSignatures(entry: EndpointEntry): string[] {
+  return [...entry.responseSlots.values()]
+    .flat()
+    .map((slot) => slot.signature)
+    .sort();
+}
+
+function changedAspects(base: EndpointEntry, head: EndpointEntry): string[] {
   const aspects: string[] = [];
 
   for (const field of ASPECT_FIELDS) {
@@ -198,10 +228,7 @@ function sameAspects(base: EndpointEntry, head: EndpointEntry): string[] {
     }
   }
 
-  const baseSignatures = [...base.responseIdsBySignature.keys()].sort();
-  const headSignatures = [...head.responseIdsBySignature.keys()].sort();
-
-  if (stringify(baseSignatures) !== stringify(headSignatures)) {
+  if (stringify(allSignatures(base)) !== stringify(allSignatures(head))) {
     aspects.push('responses');
   }
 
@@ -211,7 +238,8 @@ function sameAspects(base: EndpointEntry, head: EndpointEntry): string[] {
 function toChange(
   entry: EndpointEntry,
   change: SpecificationChange['change'],
-  changedAspects?: string[],
+  extendedUsed: boolean,
+  aspects?: string[],
 ): SpecificationChange {
   return {
     kind: 'specification',
@@ -219,74 +247,125 @@ function toChange(
     endpoint: simpleKey(entry.node),
     method: entry.node.method.toUpperCase(),
     path: entry.node.path,
-    ...(changedAspects ? { changedAspects } : {}),
+    // host/port/protocol were the discriminator — without them two changes
+    // of same-named endpoints on different hosts would be indistinguishable
+    // in the document (#502 review).
+    ...(extendedUsed
+      ? {
+          protocol: entry.node.protocol,
+          host: entry.node.host,
+          port: entry.node.port,
+        }
+      : {}),
+    ...(aspects ? { changedAspects: aspects } : {}),
   };
+}
+
+/**
+ * Pair the two entries' responses (and their transaction edges) across the
+ * sides. Pairing is per SLOT (`statusCode|mediaType`): an unambiguous slot
+ * pairs even when the response content changed — the change is an aspect,
+ * not a new response. Ambiguous slots (several responses sharing status and
+ * media type on one side) pair exact content matches only; anything beyond
+ * that has no stable correspondence.
+ */
+function pairResponses(
+  base: EndpointEntry,
+  head: EndpointEntry,
+  headToBase: Map<string, string>,
+): void {
+  for (const [slotKey, headSlot] of head.responseSlots) {
+    const baseSlot = base.responseSlots.get(slotKey);
+
+    if (!baseSlot) {
+      continue;
+    }
+
+    if (headSlot.length === 1 && baseSlot.length === 1) {
+      headToBase.set(headSlot[0]!.responseId, baseSlot[0]!.responseId);
+      headToBase.set(headSlot[0]!.transactionId, baseSlot[0]!.transactionId);
+      continue;
+    }
+
+    for (const headEntry of headSlot) {
+      const match = baseSlot.find(
+        (baseEntry) => baseEntry.signature === headEntry.signature,
+      );
+
+      if (match) {
+        headToBase.set(headEntry.responseId, match.responseId);
+        headToBase.set(headEntry.transactionId, match.transactionId);
+      }
+    }
+  }
 }
 
 export function matchEndpoints(
   baseFormats: Report['thymianFormat'],
   headFormats: Report['thymianFormat'],
 ): EndpointMatchResult {
-  const { byKey: base, importedAny: baseHasFormat } =
+  const { entries: baseEntries, importedAny: baseHasFormat } =
     collectEndpoints(baseFormats);
-  const { byKey: head, importedAny: headHasFormat } =
+  const { entries: headEntries, importedAny: headHasFormat } =
     collectEndpoints(headFormats);
-  const headToBaseElementIds = new Map<string, string>();
-  const changes: SpecificationChange[] = [];
 
-  for (const [key, headEntry] of head) {
-    const baseEntry = base.get(key);
+  // Joint key-scheme decision (see keyEntries): a simple key is ambiguous
+  // when any single side carries it more than once.
+  const ambiguousSimple = new Set<string>();
 
-    if (!baseEntry) {
-      changes.push(toChange(headEntry, 'added'));
-      continue;
-    }
+  for (const entries of [baseEntries, headEntries]) {
+    const perSide = new Map<string, number>();
 
-    // Paired: element ids on the head side resolve to their base
-    // counterparts (requests directly, responses/transactions via content
-    // signature). Identical content means identical ids — mapping those is
-    // a harmless no-op.
-    headToBaseElementIds.set(headEntry.requestId, baseEntry.requestId);
+    for (const entry of entries) {
+      const simple = simpleKey(entry.node);
+      const count = (perSide.get(simple) ?? 0) + 1;
+      perSide.set(simple, count);
 
-    for (const [
-      signature,
-      headResponseId,
-    ] of headEntry.responseIdsBySignature) {
-      const baseResponseId = baseEntry.responseIdsBySignature.get(signature);
-
-      if (baseResponseId !== undefined) {
-        headToBaseElementIds.set(headResponseId, baseResponseId);
-
-        const headTransactionId =
-          headEntry.transactionIdsBySignature.get(signature);
-        const baseTransactionId =
-          baseEntry.transactionIdsBySignature.get(signature);
-
-        if (
-          headTransactionId !== undefined &&
-          baseTransactionId !== undefined
-        ) {
-          headToBaseElementIds.set(headTransactionId, baseTransactionId);
-        }
+      if (count > 1) {
+        ambiguousSimple.add(simple);
       }
-    }
-
-    const aspects = sameAspects(baseEntry, headEntry);
-
-    if (aspects.length > 0) {
-      changes.push(toChange(headEntry, 'changed', aspects));
     }
   }
 
-  for (const [key, baseEntry] of base) {
+  const base = keyEntries(baseEntries, ambiguousSimple);
+  const head = keyEntries(headEntries, ambiguousSimple);
+  const headToBaseElementIds = new Map<string, string>();
+  const changes: SpecificationChange[] = [];
+
+  for (const [key, { entry: headEntry, extendedUsed }] of head) {
+    const baseKeyed = base.get(key);
+
+    if (!baseKeyed) {
+      changes.push(toChange(headEntry, 'added', extendedUsed));
+      continue;
+    }
+
+    const baseEntry = baseKeyed.entry;
+
+    // Paired: element ids on the head side resolve to their base
+    // counterparts. Identical content means identical ids — mapping those
+    // is a harmless no-op.
+    headToBaseElementIds.set(headEntry.requestId, baseEntry.requestId);
+    pairResponses(baseEntry, headEntry, headToBaseElementIds);
+
+    const aspects = changedAspects(baseEntry, headEntry);
+
+    if (aspects.length > 0) {
+      changes.push(toChange(headEntry, 'changed', extendedUsed, aspects));
+    }
+  }
+
+  for (const [key, { entry: baseEntry, extendedUsed }] of base) {
     if (!head.has(key)) {
-      changes.push(toChange(baseEntry, 'removed'));
+      changes.push(toChange(baseEntry, 'removed', extendedUsed));
     }
   }
 
   changes.sort(
     (a, b) =>
-      a.endpoint.localeCompare(b.endpoint) || a.change.localeCompare(b.change),
+      codepointCompare(a.endpoint, b.endpoint) ||
+      codepointCompare(a.host ?? '', b.host ?? '') ||
+      codepointCompare(a.change, b.change),
   );
 
   return { changes, headToBaseElementIds, baseHasFormat, headHasFormat };

@@ -72,14 +72,34 @@ export default class ReportDiff extends BaseCliRunCommand<typeof ReportDiff> {
 
     // Report inputs are CLI-only (ADR-0020) and Thymian-only for now — the
     // restriction lives here at the command boundary; the claim layer stays
-    // generic (#502 AC 2).
-    for (const { flagName, input } of inputs) {
-      if (input.type !== SUPPORTED_DIFF_TYPE) {
-        this.error(
-          `Unsupported report type "${input.type}" for ${flagName}: only "${SUPPORTED_DIFF_TYPE}" reports can be diffed for now — foreign formats lack the embedded Thymian format linkage the diff is built on. Convert or merge the input into a Thymian report first (thymian report convert / merge).`,
-          { exit: 2 },
-        );
-      }
+    // generic (#502 AC 2). Every offending flag is named in ONE error, so
+    // the user is not bounced twice.
+    const unsupported = inputs.filter(
+      ({ input }) => input.type !== SUPPORTED_DIFF_TYPE,
+    );
+
+    if (unsupported.length > 0) {
+      const listing = unsupported
+        .map(({ flagName, input }) => `"${input.type}" for ${flagName}`)
+        .join(' and ');
+
+      this.error(
+        `Unsupported report type ${listing}: only "${SUPPORTED_DIFF_TYPE}" reports can be diffed for now — foreign formats lack the embedded Thymian format linkage the diff is built on. Convert or merge the input into a Thymian report first (thymian report convert / merge).`,
+        { exit: 2 },
+      );
+    }
+
+    // Inherited run-command flags that have no meaning here: saying so beats
+    // silently ignoring them — for a command whose subject is specification
+    // comparison, an ignored --spec invites exactly the wrong mental model.
+    if (this.flags.spec?.length) {
+      oclif.ux.stderr(
+        'Note: report diff ignores --spec — the specification comparison reads the format graphs embedded in the reports.',
+      );
+    }
+
+    if (this.flags.traffic?.length) {
+      oclif.ux.stderr('Note: report diff ignores --traffic.');
     }
 
     const outcome = await this.thymian.run(() =>

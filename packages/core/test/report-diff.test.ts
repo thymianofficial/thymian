@@ -567,3 +567,148 @@ describe('computeReportDiff', () => {
     ]);
   });
 });
+
+describe('computeReportDiff — review round 1', () => {
+  it('keeps an unchanged finding stable when only the response changed (transaction-edge location)', () => {
+    const baseFormat = serializedFormat([
+      { request: request(), response: response() },
+    ]);
+    // Same slot (status + media type), changed content — the case where the
+    // pairing must survive a response change (#502 review HIGH finding).
+    const headFormat = serializedFormat([
+      {
+        request: request(),
+        response: response({ description: 'now documented' }),
+      },
+    ]);
+    const rules = [{ id: 'rfc9110/x', severity: 'error' as const }];
+    const edgeLocation = (ids: [string, string, string]): Location => ({
+      type: 'thymianFormat',
+      elementType: 'edge',
+      elementId: ids[2],
+      pointer: '',
+    });
+
+    const diff = computeReportDiff(
+      side({
+        reportId: 'base',
+        runs: [
+          failedLintRun({
+            location: edgeLocation(baseFormat.ids[0]!),
+            ruleId: 'rfc9110/x',
+            rules,
+            thymianFormatVersion: baseFormat.hash,
+          }),
+        ],
+        thymianFormat: { [baseFormat.hash]: baseFormat.serialized },
+      }),
+      side({
+        reportId: 'head',
+        runs: [
+          failedLintRun({
+            location: edgeLocation(headFormat.ids[0]!),
+            ruleId: 'rfc9110/x',
+            rules,
+            thymianFormatVersion: headFormat.hash,
+          }),
+        ],
+        thymianFormat: { [headFormat.hash]: headFormat.serialized },
+      }),
+    );
+
+    // The response change is a specification change; the identical finding
+    // on the endpoint's transaction edge must NOT read as removed+added.
+    expect(diff.changes).toEqual([
+      expect.objectContaining({
+        kind: 'specification',
+        change: 'changed',
+        changedAspects: ['responses'],
+      }),
+    ]);
+  });
+
+  it('includes the tool name in run-result identity: a second tool reporting the same failure is one added change', () => {
+    const rules = [{ id: 'rfc9110/x', severity: 'error' as const }];
+    const runFor = (tool: string) => ({
+      ...failedLintRun({ location: fileLocation, ruleId: 'rfc9110/x', rules }),
+      tool: { name: tool },
+    });
+
+    const diff = computeReportDiff(
+      side({ reportId: 'base', runs: [runFor('tool-a')] }),
+      side({ reportId: 'head', runs: [runFor('tool-a'), runFor('tool-b')] }),
+    );
+
+    expect(diff.changes).toEqual([
+      expect.objectContaining({
+        kind: 'run-result',
+        change: 'added',
+        tool: 'tool-b',
+      }),
+    ]);
+  });
+});
+
+describe('matchEndpoints — joint key scheme', () => {
+  it('keeps cross-side matching intact when only one side collides on a simple key', () => {
+    const baseFormat = serializedFormat([
+      { request: request({ host: 'a.example' }), response: response() },
+    ]);
+    const headFormat = serializedFormat([
+      { request: request({ host: 'a.example' }), response: response() },
+      { request: request({ host: 'b.example' }), response: response() },
+    ]);
+
+    const result = matchEndpoints(
+      { [baseFormat.hash]: baseFormat.serialized },
+      { [headFormat.hash]: headFormat.serialized },
+    );
+
+    // The head-side collision switches BOTH sides to extended keys: host A
+    // pairs (unchanged), host B is added — never a false removed+added for A.
+    expect(result.changes).toEqual([
+      expect.objectContaining({
+        change: 'added',
+        endpoint: 'GET /users',
+        host: 'b.example',
+        port: 443,
+        protocol: 'https',
+      }),
+    ]);
+  });
+
+  it("attaches a later graph's transactions to an already-seen request node", () => {
+    const v1 = serializedFormat([{ request: request(), response: response() }]);
+    // Same request (identical content => identical node id) with an extra 404
+    // response in a second graph of the same side.
+    const v2 = serializedFormat([
+      { request: request(), response: response() },
+      // second transaction on the same request via a separate format build:
+    ]);
+    const extra = new ThymianFormat();
+    const [reqId] = extra.addHttpTransaction(
+      request(),
+      response({ statusCode: 404 }),
+      'test-source',
+    );
+    const extraSerialized = extra.export();
+
+    const baseResult = matchEndpoints(
+      { [v1.hash]: v1.serialized },
+      {
+        [v2.hash]: v2.serialized,
+        [extraSerialized.attributes.hash]: extraSerialized,
+      },
+    );
+
+    expect(reqId).toBe(v1.ids[0]![0]);
+    // The head side unions both graphs' responses for the one request, so
+    // the 404 shows up as a responses aspect instead of being dropped.
+    expect(baseResult.changes).toEqual([
+      expect.objectContaining({
+        change: 'changed',
+        changedAspects: ['responses'],
+      }),
+    ]);
+  });
+});

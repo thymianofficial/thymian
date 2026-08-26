@@ -48,8 +48,12 @@ function specificationLine(change: SpecificationChange): string {
     change.change === 'changed'
       ? `changed: ${(change.changedAspects ?? []).join(', ')}`
       : change.change;
+  // Present exactly when host/port were the matching discriminator.
+  const hostSuffix = change.host
+    ? ` @ ${change.protocol}://${change.host}:${change.port}`
+    : '';
 
-  return `${marker} endpoint ${change.endpoint} ${detail}`;
+  return `${marker} endpoint ${change.endpoint}${hostSuffix} ${detail}`;
 }
 
 function ruleLine(change: RuleChange): string {
@@ -112,7 +116,9 @@ export function renderReportDiffSummary(
     );
   } else if (resolvedCount > 0) {
     lines.push(
-      `✔ Improvement: ${resolvedCount} run result(s) resolved, none added.`,
+      `${fails ? '✖' : '✔'} Improvement: ${resolvedCount} run result(s) resolved, none added${
+        fails ? ` (fails --fail-on ${options.failOn})` : ''
+      }.`,
     );
   } else {
     lines.push(
