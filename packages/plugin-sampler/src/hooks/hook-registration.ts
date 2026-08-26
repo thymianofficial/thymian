@@ -282,10 +282,20 @@ function isUsableCreationLog(candidate: unknown): candidate is HookCreationLog {
   // `MAX_SAFE_INTEGER`, so the composition silently reorders with no diagnostic
   // at all — measured, three hooks composed `321` instead of `123`, `errors: 0`.
   // That is precisely the failure this counter exists to prevent.
+  //
+  // The bound is `< MAX_SAFE_INTEGER`, not `<=`: `MAX_SAFE_INTEGER` itself is a
+  // safe integer and passes every check above, and then `order + 1` is the
+  // first value that is not — so the counter stops advancing and every
+  // registration after the first is stamped identically. Measured with
+  // `nextOrder: Number.MAX_SAFE_INTEGER`: three hooks composed `132` instead of
+  // `123`, `errors: 0`. A usable counter is one whose *successor* exists.
   const order = readProperty(slot, 'nextOrder');
 
   return (
-    order.ok && Number.isSafeInteger(raw(order.value)) && !isNegative(order)
+    order.ok &&
+    Number.isSafeInteger(raw(order.value)) &&
+    !isNegative(order) &&
+    (raw(order.value) as number) < Number.MAX_SAFE_INTEGER
   );
 }
 
@@ -563,12 +573,37 @@ function recordCreation(
  * convention: nothing downstream can turn a registration into something with
  * behaviour.
  */
+/**
+ * The index to stamp on the next registration.
+ *
+ * The realm-local counter is a **floor**, not merely the seed a replacement log
+ * starts from. Nothing forces the slot's own counter to advance: a `globalThis`
+ * accessor that builds a fresh `{ nextOrder: 0 }` on every read — a lazily
+ * defaulted slot, not a hostile one — hands back zero every time, so every
+ * registration in a file was stamped `0`. Ties do not degrade gracefully.
+ * `Object.entries` on an ESM namespace yields **sorted** keys, so the creation
+ * index is the only thing standing between the user's composition order and
+ * alphabetical order by export name; measured, exports `one`/`two`/`three`
+ * composed `132` with no diagnostic at all.
+ *
+ * Total by construction: a seed that is not a usable index is ignored rather
+ * than propagated, because `Math.max(NaN, n)` is `NaN` and a `NaN` order is
+ * exactly the collision this exists to prevent.
+ */
+function stampOrder(log: HookCreationLog): number {
+  const seed = log.nextOrder;
+
+  return Number.isSafeInteger(seed) && seed > highestOrder
+    ? seed
+    : highestOrder;
+}
+
 export function registerHook(draft: HookRegistrationDraft): HookRegistration {
   let log = hookCreationLog();
   let order = 0;
 
   try {
-    order = log.nextOrder;
+    order = stampOrder(log);
     log.nextOrder = order + 1;
   } catch {
     // Validation is structural, so a Proxy can pass it and still refuse the
@@ -578,7 +613,7 @@ export function registerHook(draft: HookRegistrationDraft): HookRegistration {
     // The fresh log resumes from {@link highestOrder}, so a replacement cannot
     // restart the composition index at zero.
     log = resetCreationLog();
-    order = log.nextOrder;
+    order = stampOrder(log);
     log.nextOrder = order + 1;
   }
 

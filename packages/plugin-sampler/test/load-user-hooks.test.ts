@@ -2511,7 +2511,18 @@ describe('loadUserHooks — round 6b: the edge-case layer', () => {
     // in the file is stamped with the same index and
     // `snapshotRegistration` maps them all to one shared `MAX_SAFE_INTEGER`.
     // Measured: three hooks composed `321` instead of `123`, with `errors: 0`.
-    for (const poison of ['NaN', 'Infinity', '2 ** 53', '-1']) {
+    //
+    // `Number.MAX_SAFE_INTEGER` is the boundary the first version of this list
+    // missed: it *is* a safe integer, so it passed, and `order + 1` was then
+    // the first unrepresentable value — three hooks composed `132`, silently.
+    for (const poison of [
+      'NaN',
+      'Infinity',
+      '2 ** 53',
+      '-1',
+      'Number.MAX_SAFE_INTEGER',
+      'Number.MAX_SAFE_INTEGER - 1',
+    ]) {
       const hooksDir = await writeHooks({
         'a.ts': [
           `import { beforeEach } from '@thymian/hooks';`,
@@ -2690,6 +2701,46 @@ describe('loadUserHooks — round 7: the write round 6 never checked', () => {
       'but not exported',
     );
   }, 30_000);
+
+  it('stamps rising indices when the slot never advances its own counter', async () => {
+    // A slot that hands back a **fresh** log on every read: a lazily defaulted
+    // accessor, not a hostile one. Its `nextOrder` is `0` every time it is
+    // asked, so every registration in the file was stamped `0` — and a tie is
+    // not a graceful degradation. `Object.entries` on an ESM namespace yields
+    // sorted keys, so with the index tied the composition falls back to
+    // alphabetical order by export name: measured `132` from `one`, `two`,
+    // `three`, with `errors: 0` and nothing to tell the user their hooks ran in
+    // the wrong order.
+    const hooksDir = await writeHooks({
+      'a.ts': [
+        `import { beforeEach } from '@thymian/hooks';`,
+        `Object.defineProperty(globalThis, Symbol.for('@thymian/plugin-sampler.hook-creation-log'), {`,
+        `  configurable: true,`,
+        `  get() { return { nextOrder: 0, created: [] }; },`,
+        `  set() {},`,
+        `});`,
+        `const tag = (t) => async (value) => ({ ...value, path: value.path + t });`,
+        `export const one = beforeEach(${JSON.stringify(selectorA)}, tag('1'));`,
+        `export const two = beforeEach(${JSON.stringify(selectorA)}, tag('2'));`,
+        `export const three = beforeEach(${JSON.stringify(selectorA)}, tag('3'));`,
+        ``,
+      ].join('\n'),
+    });
+
+    let result: LoadUserHooksResult;
+
+    try {
+      result = await loadUserHooks(hooksDir, catalog);
+    } finally {
+      Reflect.deleteProperty(
+        globalThis,
+        Symbol.for('@thymian/plugin-sampler.hook-creation-log'),
+      );
+    }
+
+    expect(errorsOf(result)).toEqual([]);
+    expect(await compose(result, firstTransactionId())).toBe('123');
+  });
 
   it('never calls a collection scope it did not itself check', async () => {
     // The value that gets called must be the value that was checked. `scope`
