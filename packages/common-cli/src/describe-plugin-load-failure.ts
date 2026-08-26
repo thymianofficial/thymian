@@ -24,11 +24,17 @@ const GENERIC_SUGGESTIONS = [
 export function describePluginLoadFailure(
   error: unknown,
 ): PluginLoadFailureDescription {
-  const code = getErrorCode(error);
+  const coded = findErrorCode(error);
 
-  if (code === 'MODULE_NOT_FOUND' || code === 'ERR_MODULE_NOT_FOUND') {
+  if (
+    coded?.code === 'MODULE_NOT_FOUND' ||
+    coded?.code === 'ERR_MODULE_NOT_FOUND'
+  ) {
+    // Name the module-not-found message from the error that actually carries
+    // the code — for a wrapped failure that is an inner `cause` whose message
+    // is the real "Cannot find module …", not the generic outer wrapper. (§6.)
     return {
-      reason: `a module it imports could not be found (${describeError(error)})`,
+      reason: `a module it imports could not be found (${describeError(coded.error)})`,
       suggestions: [
         'Check that every import inside the plugin resolves — a missing dependency, or a typo in a relative import path.',
       ],
@@ -44,13 +50,16 @@ export function describePluginLoadFailure(
 // jiti and Node's ESM loader often WRAP the underlying failure, leaving the
 // real `code` (e.g. MODULE_NOT_FOUND) on `error.cause` while the outer error
 // carries a generic message and no code. Walk the cause chain so a wrapped
-// module-not-found still selects the import-specific branch above. (§6.)
-function getErrorCode(error: unknown): string | undefined {
+// module-not-found still selects the import-specific branch above, and return
+// the error that carries the code so the caller can name its message. (§6.)
+function findErrorCode(
+  error: unknown,
+): { code: string; error: unknown } | undefined {
   let current: unknown = error;
 
   for (let depth = 0; depth < 5 && isRecord(current); depth += 1) {
     if (typeof current.code === 'string') {
-      return current.code;
+      return { code: current.code, error: current };
     }
 
     current = current.cause;

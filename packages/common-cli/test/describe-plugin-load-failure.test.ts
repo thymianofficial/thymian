@@ -51,6 +51,10 @@ describe('describePluginLoadFailure', () => {
     const described = describePluginLoadFailure(wrapper);
 
     expect(described.suggestions.join(' ')).toMatch(/import/i);
+    // The reason must name the inner "Cannot find module …" message, not the
+    // generic outer wrapper — otherwise the real cause stays hidden.
+    expect(described.reason).toContain("Cannot find module './missing.js'");
+    expect(described.reason).not.toContain('Failed to load plugin');
   });
 
   it('never returns an empty reason for an opaque/unresolvable error', () => {
