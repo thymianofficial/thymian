@@ -170,6 +170,14 @@ function resolveRef(
   const siblings: ThymianSchema = { ...schema };
   delete siblings.$ref;
 
+  // KNOWN LIMIT: 2020-12 applies `$ref` and its siblings CONJUNCTIVELY; this
+  // resolves them by override. It only diverges when a sibling contradicts the
+  // target — `{$ref: X, type: 'integer'}` where X says `type: 'string'` — which
+  // is a near-contradictory schema Ajv would reject outright. The override
+  // decides the conversion while Ajv decides the verdict, so in that narrow
+  // case the two disagree. Accepted deliberately over pulling in a dependency
+  // (`json-schema-ref-resolver` refuses such schemas) for the handful of lines
+  // it would save.
   const merged: ThymianSchema = { ...target, ...siblings };
 
   // `$ref: '#'` resolves to a root that still carries that same `$ref`; without
