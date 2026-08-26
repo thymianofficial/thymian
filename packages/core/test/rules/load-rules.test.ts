@@ -3,11 +3,69 @@ import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
 import { loadRules } from '../../src/rules/rule-loader.js';
+import { makeBarePackageFixtures } from './bare-package-fixtures.js';
 
 describe('load rules', () => {
   it('should load rules from package', async () => {
     await loadRules('@thymian/rules-rfc-9110');
   }, 15_000);
+
+  it('loads a .ts rule at a relative path via the resolver seam, no build step', async () => {
+    const rules = await loadRules(
+      join(import.meta.dirname, 'fixtures', 'rules', 'ts-rule.rule.ts'),
+    );
+
+    expect(rules).toEqual([
+      expect.objectContaining({
+        meta: expect.objectContaining({ name: 'ts-rule' }),
+      }),
+    ]);
+  });
+
+  it('reports a bare specifier that ships unbuilt TypeScript source as a RuleLoadError naming the reason', async () => {
+    const fixtures = makeBarePackageFixtures();
+
+    try {
+      const error = await loadRules(
+        'unbuilt-ts-pkg',
+        () => true,
+        {},
+        fixtures.projectDir,
+      ).catch((err: unknown) => err as Error);
+
+      expect(error.message).toMatch(
+        /Cannot load rule source unbuilt-ts-pkg: "unbuilt-ts-pkg" ships unbuilt TypeScript source/,
+      );
+      // The reason already ends in a period; the wrapper must not double it up.
+      expect(error.message).not.toMatch(/\.\./);
+    } finally {
+      fixtures.cleanup();
+    }
+  });
+
+  it('reports a .d.ts specifier as unloadable, never as a missing default export', async () => {
+    await expect(
+      loadRules(
+        join(import.meta.dirname, 'fixtures', 'rules', 'declaration-rule.d.ts'),
+      ),
+    ).rejects.toThrow(
+      /Cannot load rule source .*declaration-rule\.d\.ts: ".*declaration-rule\.d\.ts" is a TypeScript declaration file/,
+    );
+  });
+
+  it('has no <cwd>/<specifier> bare-to-local fallback: an extensionless specifier that happens to name a local file is still "not found"', async () => {
+    // Prior behaviour resolved this via existsSync(cwd/input) + extension
+    // guessing; the seam requires an explicit path with an explicit
+    // extension for anything local, so this is now an ordinary "not found".
+    await expect(
+      loadRules(
+        'ts-rule',
+        () => true,
+        {},
+        join(import.meta.dirname, 'fixtures', 'rules'),
+      ),
+    ).rejects.toThrow('Cannot resolve rule source ts-rule.');
+  });
 
   it('overrides severity from config with object', async () => {
     const basePath = import.meta.dirname;
