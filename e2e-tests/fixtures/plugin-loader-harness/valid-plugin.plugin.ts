@@ -1,4 +1,4 @@
-// AC5 fixture: a real .ts plugin, loaded through the BUILT, globally
+// Fixture: a real .ts plugin, loaded through the BUILT, globally
 // installed `thymian` CLI, via the shared resolveUserModule/loadUserModule
 // seam — no build step, no Node flags.
 export default {

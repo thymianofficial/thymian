@@ -9,10 +9,10 @@ import { BaseCliRunCommand } from '../src/base-cli-run-command.js';
 // Spy-wrap (not replace) the seam's two entry points: real behaviour is
 // preserved (these tests exercise real jiti/native-import loads through
 // the real, built @thymian/core), but call args/counts are assertable.
-// This is what proves AC1's wiring — the named mutation ("reintroduce the
-// old require.resolve/import() pair") would mean these are never called.
-// The seam is exposed on the `@thymian/core/user-module` subpath (not the
-// main barrel — AC8 keeps it off the barrel), which is what the loader imports.
+// This proves the loader is wired through the seam — reintroducing the old
+// require.resolve/import() pair would mean these are never called. The seam
+// is exposed on the `@thymian/core/user-module` subpath (kept off the main
+// barrel), which is what the loader imports.
 vi.mock('@thymian/core/user-module', async (importOriginal) => {
   const actual =
     await importOriginal<typeof import('@thymian/core/user-module')>();
@@ -61,7 +61,7 @@ describe('BaseCliRunCommand.loadPluginModule() — routed through the shared sea
     loadUserModuleSpy.mockClear();
   });
 
-  describe('AC1: a .ts plugin loads through resolveUserModule/loadUserModule', () => {
+  describe('a .ts plugin loads through resolveUserModule/loadUserModule', () => {
     it('calls resolveUserModule with the raw specifier and cwd, then loadUserModule with the resolved path', async () => {
       const harness = createHarness();
 
@@ -84,7 +84,7 @@ describe('BaseCliRunCommand.loadPluginModule() — routed through the shared sea
     });
   });
 
-  describe("AC4: validation identical for a jiti-loaded plugin, proven against jiti's actual return", () => {
+  describe("validation identical for a jiti-loaded plugin, proven against jiti's actual return", () => {
     it('extracts the plugin from the real jiti namespace default key and passes isPlugin', async () => {
       const harness = createHarness();
 
@@ -93,7 +93,7 @@ describe('BaseCliRunCommand.loadPluginModule() — routed through the shared sea
       )) as { plugin: unknown; name: string; version: string };
 
       // Prove the ACTUAL namespace shape jiti returned, rather than assuming
-      // it — the exact trap 725.1 flagged.
+      // it — the exact trap this guards against.
       const rawNamespace = await loadUserModuleSpy.mock.results[0]!.value;
       expect(rawNamespace).toHaveProperty('default');
       expect((rawNamespace as { default: unknown }).default).toMatchObject({
@@ -106,7 +106,7 @@ describe('BaseCliRunCommand.loadPluginModule() — routed through the shared sea
     });
   });
 
-  describe('AC2: PluginLoadError names the real cause without --debug', () => {
+  describe('PluginLoadError names the real cause without --debug', () => {
     it('includes the underlying evaluation-time error message in the thrown error', async () => {
       const harness = createHarness();
 
@@ -118,7 +118,7 @@ describe('BaseCliRunCommand.loadPluginModule() — routed through the shared sea
       });
     });
 
-    it('does not offer export-shape advice for an evaluation-time throw (P1)', async () => {
+    it('does not offer export-shape advice for an evaluation-time throw', async () => {
       const harness = createHarness();
 
       const error = await harness
@@ -148,7 +148,7 @@ describe('BaseCliRunCommand.loadPluginModule() — routed through the shared sea
     });
   });
 
-  describe('AC3: named-only / module.exports = { … } with no usable default is rejected', () => {
+  describe('named-only / module.exports = { … } with no usable default is rejected', () => {
     it('rejects a named-only ESM module (no default at all) and never synthesises one', async () => {
       const harness = createHarness();
 
@@ -185,12 +185,12 @@ describe('BaseCliRunCommand.loadPluginModule() — routed through the shared sea
     });
   });
 
-  describe('config `path` field is a syntactic specifier (§4.1 — intended, pinned)', () => {
+  describe('config `path` field is a syntactic specifier (intended, pinned)', () => {
     it('treats a bare-looking config `path` as an installed package, not a cwd-relative file', async () => {
-      // Regression pin for the accepted §12 behaviour: the old loader resolved
+      // Regression pin for the intended behaviour: the old loader resolved
       // ANY `options.path` cwd-relative; the seam now decides bare-vs-local
       // syntactically, so a bare `path` (no ./) is an npm-package specifier.
-      // This is intended (there is no `<cwd>/<specifier>` fallback, §4.1) — the
+      // This is intended (there is no `<cwd>/<specifier>` fallback) — the
       // documented form is `./`-prefixed. This test locks the behaviour so a
       // future change to it is a conscious one.
       const harness = createHarness(fixturesDir, {

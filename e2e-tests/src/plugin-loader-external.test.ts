@@ -7,9 +7,9 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
 import { getCleanEnv } from './env-utils.js';
 
-// AC5 — the story's foundational verification gate (epic #725 §9, mirroring
-// 725.1's AC7): every other .ts-plugin-loading test in this repo runs inside
-// vitest, whose own esbuild transform also happens to handle .ts on any
+// Foundational verification gate: every other .ts-plugin-loading test in this
+// repo runs inside vitest, whose own esbuild transform also happens to handle
+// .ts on any
 // dynamic import() — the exact "green against the wrong module" failure
 // class this harness exists to catch. This test installs the BUILT
 // `thymian` CLI (and its `@thymian/core` dependency) from the local
@@ -38,7 +38,7 @@ function runHarness(): string {
   );
 }
 
-describe('external built-loader harness for plugins (AC5)', () => {
+describe('external built-loader harness for plugins', () => {
   beforeAll(() => {
     const version = process.env.THYMIAN_E2E_VERSION;
     const registry = process.env.npm_config_registry;

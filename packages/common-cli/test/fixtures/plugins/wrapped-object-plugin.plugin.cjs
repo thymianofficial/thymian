@@ -1,4 +1,4 @@
-// AC3 fixture: `module.exports = { … }` where the object is a namespace of
+// Fixture: `module.exports = { … }` where the object is a namespace of
 // named things, not the plugin itself. Node's CJS/ESM interop always sets
 // `default` to `module.exports`, so `'default' in module` is true here —
 // the rejection must come from `isPlugin(module.default)` failing, not from

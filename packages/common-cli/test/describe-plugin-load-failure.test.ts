@@ -24,7 +24,7 @@ describe('describePluginLoadFailure', () => {
   });
 
   it('does NOT give export-shape advice for a load-time (non-module-not-found) failure', () => {
-    // Regression guard for P1: an evaluation throw / syntax error must not be
+    // Regression guard: an evaluation throw / syntax error must not be
     // met with "use export default / module.exports" — the module already ran,
     // so export shape is irrelevant and the advice misdirects.
     const described = describePluginLoadFailure(
