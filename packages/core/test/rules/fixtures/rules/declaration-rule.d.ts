@@ -1,5 +1,5 @@
 // A .d.ts file whose contents are valid TypeScript exporting a rule — it
-// must be declined as a declaration file regardless of contents (AC3), never
+// must be declined as a declaration file regardless of contents, never
 // loaded, and never reported as "does not use default export".
 declare const rule: {
   meta: {

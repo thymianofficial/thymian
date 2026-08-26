@@ -10,7 +10,7 @@ describe('load rules', () => {
     await loadRules('@thymian/rules-rfc-9110');
   }, 15_000);
 
-  it('AC1: loads a .ts rule at a relative path via the resolver seam, no build step', async () => {
+  it('loads a .ts rule at a relative path via the resolver seam, no build step', async () => {
     const rules = await loadRules(
       join(import.meta.dirname, 'fixtures', 'rules', 'ts-rule.rule.ts'),
     );
@@ -22,7 +22,7 @@ describe('load rules', () => {
     ]);
   });
 
-  it('AC2: reports a bare specifier that ships unbuilt TypeScript source as a RuleLoadError naming the reason', async () => {
+  it('reports a bare specifier that ships unbuilt TypeScript source as a RuleLoadError naming the reason', async () => {
     const fixtures = makeBarePackageFixtures();
 
     try {
@@ -43,7 +43,7 @@ describe('load rules', () => {
     }
   });
 
-  it('AC3: reports a .d.ts specifier as unloadable, never as a missing default export', async () => {
+  it('reports a .d.ts specifier as unloadable, never as a missing default export', async () => {
     await expect(
       loadRules(
         join(import.meta.dirname, 'fixtures', 'rules', 'declaration-rule.d.ts'),

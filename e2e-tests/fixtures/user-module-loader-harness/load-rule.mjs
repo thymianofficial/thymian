@@ -1,6 +1,6 @@
 // Runs as a plain `node` subprocess — no vitest, no monorepo workspace
 // symlink. `@thymian/core` is resolved from this directory's own
-// `node_modules`, installed from Verdaccio as a real npm package (AC7).
+// `node_modules`, installed from Verdaccio as a real npm package.
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 

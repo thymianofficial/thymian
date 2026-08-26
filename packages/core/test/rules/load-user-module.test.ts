@@ -43,8 +43,8 @@ beforeEach(() => {
   _resetUserModuleLoaderStateForTests();
 });
 
-describe('resolveUserModule — local specifiers (§4.2)', () => {
-  it('AC1: resolves a .ts rule at a relative path to its canonical path', () => {
+describe('resolveUserModule — local specifiers', () => {
+  it('resolves a .ts rule at a relative path to its canonical path', () => {
     const result = resolveUserModule('./fixtures/rules/ts-rule.rule.ts', {
       cwd: basePath,
     });
@@ -55,7 +55,7 @@ describe('resolveUserModule — local specifiers (§4.2)', () => {
     });
   });
 
-  it('AC3: declines a .d.ts file because it is a declaration file, even though its contents are valid TypeScript exporting a rule', () => {
+  it('declines a .d.ts file because it is a declaration file, even though its contents are valid TypeScript exporting a rule', () => {
     const result = resolveUserModule('./fixtures/rules/declaration-rule.d.ts', {
       cwd: basePath,
     });
@@ -109,7 +109,7 @@ describe('resolveUserModule — local specifiers (§4.2)', () => {
   it('treats bare "." and ".." as local directory references, not package names', () => {
     // Regression: `.`/`..` (no trailing slash) escaped the local-path guard
     // and were resolved as installed packages — silently resolving the cwd's
-    // or parent's own package.json. They are local per §4.2, so they decline
+    // or parent's own package.json. They are local, so they decline
     // as "no loadable extension" (a directory is not a loadable file), never
     // as a resolved package.
     for (const spec of ['.', '..']) {
@@ -121,7 +121,7 @@ describe('resolveUserModule — local specifiers (§4.2)', () => {
   });
 });
 
-describe('resolveUserModule — bare specifiers (§4.1)', () => {
+describe('resolveUserModule — bare specifiers', () => {
   let fixtures: BarePackageFixtures;
   let projectDir: string;
 
@@ -134,7 +134,7 @@ describe('resolveUserModule — bare specifiers (§4.1)', () => {
     fixtures.cleanup();
   });
 
-  it('AC2: declines a bare specifier resolving to TypeScript source in node_modules', () => {
+  it('declines a bare specifier resolving to TypeScript source in node_modules', () => {
     const result = resolveUserModule('unbuilt-ts-pkg', { cwd: projectDir });
 
     expect(result.ok).toBe(false);
@@ -214,8 +214,8 @@ describe('resolveUserModule — bare specifiers (§4.1)', () => {
   });
 });
 
-describe('resolveUserModule — never throws (§4.4, AC5)', () => {
-  it('AC5: returns a discriminated failure instead of throwing when an internal path operation fails outright', () => {
+describe('resolveUserModule — never throws', () => {
+  it('returns a discriminated failure instead of throwing when an internal path operation fails outright', () => {
     // A malformed `cwd` (e.g. threaded through from a config value that
     // failed its own validation) makes `path.resolve` throw a plain
     // TypeError before any of the seam's own guards run — the genuine
@@ -241,7 +241,7 @@ describe('resolveUserModule — never throws (§4.4, AC5)', () => {
   });
 });
 
-describe('unloadableReason / miscasedExtension — shared predicate (§4.6)', () => {
+describe('unloadableReason / miscasedExtension — shared predicate', () => {
   it('flags a .d.ts file regardless of surrounding path', () => {
     expect(unloadableReason('/anywhere/x.d.ts')).toMatch(/declaration file/);
   });
@@ -285,7 +285,7 @@ describe("loadUserModule — the load half cannot bypass the resolve half's guar
     });
   });
 
-  it('AC1: loads a .ts module via jiti and exposes a default export', async () => {
+  it('loads a .ts module via jiti and exposes a default export', async () => {
     const tsPath = join(rulesDir, 'ts-rule.rule.ts');
     const module = await loadUserModule(tsPath);
 
@@ -342,14 +342,14 @@ function trySymlink(target: string, linkPath: string): boolean {
   }
 }
 
-describe('AC6: canonicalise once — two spellings of the same file resolve to the identical realpath', () => {
-  // This proves the canonicalisation half of AC6 (resolveUserModule's job).
+describe('canonicalise once — two spellings of the same file resolve to the identical realpath', () => {
+  // This proves the canonicalisation half (resolveUserModule's job).
   // It does NOT by itself prove exactly-once execution: once both spellings
   // canonicalise to the identical string, native import()'s own per-URL
   // module registry already dedupes them regardless of our own cache — so
   // a counter here can't distinguish "our in-flight map worked" from
   // "the layer below deduped it anyway". The exactly-once *execution*
-  // guarantee (loadUserModule's job, §4.5) is instead proven by spying on
+  // guarantee (loadUserModule's job) is instead proven by spying on
   // the underlying loader's call count directly, in
   // load-user-module-ts-uses-jiti.test.ts.
   //
@@ -359,7 +359,9 @@ describe('AC6: canonicalise once — two spellings of the same file resolve to t
   let tmpDir: string;
 
   beforeEach(() => {
-    tmpDir = realpathSync.native(mkdtempSync(join(tmpdir(), 'thymian-ac6-')));
+    tmpDir = realpathSync.native(
+      mkdtempSync(join(tmpdir(), 'thymian-canonicalise-')),
+    );
   });
 
   afterEach(() => {

@@ -35,8 +35,8 @@ const LOADABLE_EXTENSIONS = new Set(['.ts', ...JS_EXTENSIONS]);
  * direct call cannot bypass the resolve half's decisions.
  *
  * Exported for the later consumers that will share this exact check rather
- * than hand-copying it — the rule-set glob filter (story 725.3) and the plugin
- * loader (story 725.2) — neither of which is wired up in this change yet.
+ * than hand-copying it — the rule-set glob filter and the plugin loader —
+ * neither of which is wired up in this change yet.
  */
 export function unloadableReason(filePath: string): string | undefined {
   const base = path.basename(filePath);
@@ -163,7 +163,7 @@ function resolveLocal(specifier: string, cwd: string): UserModuleResolution {
 
 // One `createRequire` anchor per normalised cwd, memoised. Normalising the
 // key deduplicates spellings of the same cwd — the raw-cwd cache mis-answered
-// after `process.chdir` (§4.4). It does NOT bound the number of *distinct*
+// after `process.chdir`. It does NOT bound the number of *distinct*
 // cwds: the map grows one entry per project the process ever loads from. That
 // is harmless for the CLI (a single, fixed cwd per invocation); a long-lived
 // multi-project consumer should add LRU eviction here and to `moduleCache`.
@@ -274,8 +274,7 @@ function describeUnexpectedError(error: unknown): string {
 /**
  * Resolves a user-supplied rule/rule-set/plugin specifier to an absolute,
  * canonical filesystem path — or declines it with a reason. Never throws:
- * every internal fs/URL error is caught and mapped to `{ ok: false, reason }`
- * (§4.4).
+ * every internal fs/URL error is caught and mapped to `{ ok: false, reason }`.
  */
 export function resolveUserModule(
   specifier: string,
@@ -290,22 +289,22 @@ export function resolveUserModule(
   }
 }
 
-// jiti transpile-cache location (epic #725 §7 — a required, documented
-// decision). It is deliberately placed under the current user's home cache
-// directory rather than the OS tmp dir. A fixed path in the shared OS tmp dir
-// (e.g. `/tmp/...` on Linux) is world-writable, so a local attacker who knows
-// a rule's path and public source can pre-seed a poisoned cache entry that the
-// victim then executes — jiti reads a cache file back whenever its trailing
-// version/source hash matches. A per-user location under `homedir()` keeps the
-// cache predictable (the reason for pinning it) while staying inside the
-// user's own permission domain, where other users cannot plant entries.
+// jiti transpile-cache location — pinned deliberately. It is placed under the
+// current user's home cache directory rather than the OS tmp dir. A fixed path
+// in the shared OS tmp dir (e.g. `/tmp/...` on Linux) is world-writable, so a
+// local attacker who knows a rule's path and public source can pre-seed a
+// poisoned cache entry that the victim then executes — jiti reads a cache file
+// back whenever its trailing version/source hash matches. A per-user location
+// under `homedir()` keeps the cache predictable (the reason for pinning it)
+// while staying inside the user's own permission domain, where other users
+// cannot plant entries.
 const JITI_FS_CACHE_DIR = path.join(homedir(), '.cache', 'thymian', 'jiti');
 
 let jitiPromise: Promise<Jiti> | undefined;
 
 function getJiti(): Promise<Jiti> {
   // Lazily, dynamically imported — and memoised — so a JS-only run never
-  // instantiates jiti at all (§4.1/AC4): the JS path never pays for it. On
+  // instantiates jiti at all: the JS path never pays for it. On
   // failure the memo is cleared so a later `.ts` load can re-attempt, rather
   // than pinning a transient `import('jiti')`/createJiti error forever.
   jitiPromise ??= import('jiti')
@@ -322,7 +321,7 @@ function getJiti(): Promise<Jiti> {
 
 // Keyed by canonical (realpath) path. A *successful* load is pinned for the
 // process lifetime: this is both the concurrent in-flight dedupe AND the
-// exactly-once execution guarantee across every path spelling (§4.5). A
+// exactly-once execution guarantee across every path spelling. A
 // *rejected* load is evicted (see below) so a transient failure can be
 // retried instead of being pinned forever. No bespoke cycle-detection
 // machinery — ordinary module-graph import cycles are jiti/Node's concern,
@@ -355,7 +354,7 @@ export async function loadUserModule(canonicalPath: string): Promise<unknown> {
         'Rules, rule sets, and plugins must be a .ts, .js, .mjs, or .cjs file — not .d.ts, .mts, or .cts.',
       ],
       // Reuses the existing rule-load-error reference page; a dedicated
-      // user-module-load-error page ships with the docs work (story 725.5).
+      // user-module-load-error page ships with the docs work.
       ref: 'https://thymian.dev/references/errors/rule-load-error/',
     });
   }

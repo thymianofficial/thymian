@@ -7,10 +7,10 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
 import { getCleanEnv } from './env-utils.js';
 
-// AC7 — the story's foundational verification gate (epic #725 §9): "at
-// least the loader stories exercise the built loader from outside the
-// monorepo (real node_modules, no vitest import() interception)". Every
-// other .ts-loading test in packages/core runs inside vitest, whose own
+// The foundational verification gate: at least the loader must be exercised
+// through the built loader from outside the monorepo (real node_modules, no
+// vitest import() interception). Every other .ts-loading test in
+// packages/core runs inside vitest, whose own
 // esbuild transform also happens to handle .ts on any dynamic import() —
 // which is exactly the "green against the wrong module" failure class this
 // harness exists to catch. This test installs the BUILT `@thymian/core`
@@ -34,7 +34,7 @@ function runHarness(): string {
   });
 }
 
-describe('external built-loader harness (AC7)', () => {
+describe('external built-loader harness', () => {
   beforeAll(() => {
     const version = process.env.THYMIAN_E2E_VERSION;
     const registry = process.env.npm_config_registry;

@@ -43,7 +43,7 @@ export function makeBarePackageFixtures(): BarePackageFixtures {
     writeFileSync(filePath, content);
   };
 
-  // Ships unbuilt TypeScript source (main → .ts): must be declined (AC2).
+  // Ships unbuilt TypeScript source (main → .ts): must be declined.
   write(
     'unbuilt-ts-pkg/package.json',
     JSON.stringify({
