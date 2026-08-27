@@ -101,11 +101,18 @@ describe('rule-set glob loading', () => {
       // Give the emitted warning a tick to be delivered.
       await new Promise((resolve) => setImmediate(resolve));
 
-      expect(warnings).toHaveLength(1);
-      expect(warnings[0]).toMatchObject({
-        name: 'RuleLoadError',
-        message: expect.stringMatching(/declaration\.rule\.d\.ts/),
-      });
+      // Filter to the warning this test is about rather than asserting on the
+      // total count: `process` warnings are global, so an unrelated warning
+      // emitted elsewhere in the run (e.g. a Node deprecation) would otherwise
+      // make this flaky.
+      const skipWarnings = warnings.filter(
+        (warning): warning is Error =>
+          warning instanceof Error &&
+          warning.name === 'RuleLoadError' &&
+          /declaration\.rule\.d\.ts/.test(warning.message),
+      );
+
+      expect(skipWarnings).toHaveLength(1);
     } finally {
       process.off('warning', onWarning);
     }
