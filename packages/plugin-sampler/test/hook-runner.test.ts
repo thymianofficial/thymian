@@ -17,6 +17,7 @@ import {
 import { afterAll, describe, expect, it } from 'vitest';
 
 import { HookRunner } from '../src/hooks/hook-runner.js';
+import { LoadGeneration } from '../src/load-generation.js';
 import { TransactionCatalog } from '../src/selectors/transaction-catalog.js';
 import { createTempDir } from './utils.js';
 
@@ -298,11 +299,17 @@ describe('HookRunner.init rebinds on every format load (#614)', () => {
 
   it('does not install a load the caller invalidated while it was running', async () => {
     // `init` writes its state, then awaits the loader. A `core.format` handler
-    // that invalidates the runner *during* that await — which `index.ts` now
-    // does at the top of every load — must not have its decision overwritten
-    // when the older load finally settles. Without the generation counter the
-    // stale load installed its map and set `initialized: true` over a runner the
-    // caller had just dropped.
+    // that starts a *new* load — which bumps the shared `LoadGeneration`
+    // token, exactly as `index.ts` does at the top of every load, before
+    // calling `invalidate()` for the immediate state-clear — must not have its
+    // decision overwritten when the older load finally settles. Without the
+    // shared token the stale load installed its map and set
+    // `initialized: true` over a runner the caller had just dropped.
+    //
+    // Constructed with an explicit `LoadGeneration` (rather than through
+    // `createRunner`'s default-per-instance one) because superseding an
+    // in-flight token from outside `init` is exactly what `index.ts` needs
+    // this class shared for — `invalidate()` alone no longer bumps anything.
     const hooksDir = await writeHooks({
       'slow.ts': [
         `import { authorize } from '@thymian/hooks';`,
@@ -312,10 +319,21 @@ describe('HookRunner.init rebinds on every format load (#614)', () => {
       ].join('\n'),
     });
 
-    const runner = createRunner(hooksDir);
-    const inFlight = runner.init(formatA, catalogA);
+    const generation = new LoadGeneration();
+    const runner = new HookRunner(
+      hooksDir,
+      async (): Promise<HttpResponse> => {
+        throw new Error('runRequest must not be called in these tests');
+      },
+      createMockLogger(),
+      generation,
+    );
+    const inFlight = runner.init(formatA, catalogA, generation.start());
 
-    // While the loader is still reading, the caller drops everything.
+    // While the loader is still reading, a new load starts and the caller
+    // drops everything — the same two calls `index.ts` makes together at the
+    // top of every `core.format` handler invocation.
+    generation.start();
     runner.invalidate();
 
     // The discarded load says so. It used to resolve normally, so `core.format`
@@ -336,6 +354,11 @@ describe('HookRunner.init rebinds on every format load (#614)', () => {
     // The hook resolves against A and dangles against B. `initialized` is set
     // only after the loader returns and the map is installed, so the failed
     // re-bind must not leave a runner marked initialized with a stale map.
+    //
+    // `invalidate()` is called between the two loads, mirroring `index.ts`
+    // (which always invalidates before `init`, not `init` invalidating
+    // itself — the duplication that let a stale load's own internal reset
+    // race a newer load's).
     const hooksDir = await writeHooks({
       'gone.ts': [
         `import { beforeEach } from '@thymian/hooks';`,
@@ -360,6 +383,8 @@ describe('HookRunner.init rebinds on every format load (#614)', () => {
     });
 
     expect(bound.result.path).toBe('/hooked');
+
+    runner.invalidate();
 
     await expect(
       runner.init(

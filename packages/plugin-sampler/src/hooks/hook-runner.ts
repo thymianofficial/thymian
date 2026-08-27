@@ -8,6 +8,7 @@ import {
   thymianHttpTransactionToString,
 } from '@thymian/core';
 
+import { LoadGeneration } from '../load-generation.js';
 import type { TransactionCatalog } from '../selectors/transaction-catalog.js';
 import { buildRequestKeyIndex, createHookUtils } from './create-hook-utils.js';
 import { FailError, SkipError } from './hook-errors.js';
@@ -19,32 +20,28 @@ import {
 } from './load-user-hooks.js';
 
 export class HookRunner {
-  /**
-   * Which load is the current one.
-   *
-   * `init` awaits the loader, so two `core.format` loads can be in flight at
-   * once — `Thymian.loadFormat` is a plain public method with no serialisation,
-   * and a long-lived `core.workflow.test`/WS process is exactly where #614 says
-   * to expect repeated loads. Measured without this counter: starting load A,
-   * then load B, and letting A settle *last* left `initialized: true`,
-   * `format` = B, `resolveTransactionId` built from B's catalog and `hooks`
-   * bound to a transaction that exists only in A — after `init(B)` had already
-   * **failed**. `invalidate()` cannot help, because the damage is done by the
-   * losing load's own writes *after* its `await`.
-   *
-   * Every write below the `await` is gated on still being the current load.
-   */
-  private generation = 0;
   private initialized = false;
   private hooks: Map<string, TransactionHooks> = new Map();
   private resolveTransactionId: (key: string) => string | undefined = () =>
     undefined;
   private format!: ThymianFormat;
 
+  /**
+   * Which load is current. Shared with `RequestSampler` when `index.ts`
+   * constructs both — see {@link LoadGeneration}'s docblock for why a counter
+   * private to this class (what stood here through round 5) answers the wrong
+   * question once the caller has async work of its own running ahead of
+   * `init`, and why `index.ts` hands both components one instance rather than
+   * each keeping its own.
+   *
+   * Defaults to a private instance so this class stays usable on its own in a
+   * test that does not care about cross-component ordering.
+   */
   constructor(
     private readonly hooksDir: string,
     private readonly runRequest: (req: HttpRequest) => Promise<HttpResponse>,
     private readonly logger: Logger,
+    private readonly generation: LoadGeneration = new LoadGeneration(),
   ) {}
 
   /**
@@ -63,11 +60,14 @@ export class HookRunner {
    * Exposed so the caller can invalidate before anything that can throw. It is
    * idempotent, and a runner that has been invalidated refuses to run hooks with
    * `HookRunnerNotInitialized` rather than running the wrong ones.
+   *
+   * Deliberately does not touch {@link generation}: superseding an in-flight
+   * load is `index.ts`'s call (or, in isolation, `init`'s own default token),
+   * made once for every dependent of the same `core.format` event together —
+   * not this method's, which callers reach for state-clearing alone as often
+   * as they reach for it together with a new load starting.
    */
   invalidate(): void {
-    // Bumping the generation is part of invalidating: a load already in flight
-    // must not install its results over a state the caller has just dropped.
-    this.generation += 1;
     this.initialized = false;
     this.hooks = new Map();
     this.resolveTransactionId = () => undefined;
@@ -97,18 +97,19 @@ export class HookRunner {
    * here rather than in the `core.format` handler so no caller can bind a
    * half-resolved map by forgetting to check `hasErrors`; 575.10's `validate`
    * renders the same diagnostics by calling `loadUserHooks` directly.
+   *
+   * `token` is the caller's {@link LoadGeneration.start} result for the load
+   * this bind belongs to. Defaults to starting one of its own — see
+   * `RequestSampler.init`'s matching parameter for why. `index.ts` always
+   * passes its own token, taken once before *any* of this reload's async
+   * work, including the catalog build and samples-tree read that run ahead of
+   * this call.
    */
   async init(
     format: ThymianFormat,
     catalog: TransactionCatalog,
+    token: number = this.generation.start(),
   ): Promise<void> {
-    this.invalidate();
-
-    const generation = this.generation;
-
-    this.format = format;
-    this.resolveTransactionId = buildRequestKeyIndex(catalog);
-
     const result = await loadUserHooks(this.hooksDir, catalog);
 
     for (const diagnostic of result.diagnostics) {
@@ -123,10 +124,15 @@ export class HookRunner {
       }
     }
 
-    if (generation !== this.generation) {
+    if (!this.generation.isCurrent(token)) {
       // A newer load started, or the caller invalidated, while this one was
       // awaiting. Its results are stale, so it installs nothing — including its
-      // errors, which describe a format that is no longer the one being loaded.
+      // errors, which describe a format that is no longer the one being loaded
+      // — and neither does `format`/`resolveTransactionId` below, which used to
+      // be written unconditionally, above this call's own `await`, and so could
+      // still land after a newer load had already installed its own: `hooks`
+      // gated and correct, `format` stale, both reachable together the moment
+      // `initialized` stayed `true`.
       //
       // It **throws** rather than returning quietly. Returning made `init`
       // resolve normally with `initialized: false`, so `core.format` replied
@@ -152,6 +158,14 @@ export class HookRunner {
       `Loaded ${result.boundHookCount} hook(s) across ${result.perTransaction.size} transaction(s) from ${result.fileCount} hook file(s).`,
     );
 
+    // Written here, gated behind the same check as `hooks` — not eagerly
+    // before the `await` — so a superseded load cannot leave `format`/
+    // `resolveTransactionId` pointing at itself while `hooks` correctly
+    // reflects the load that actually won. Nothing reads either field except
+    // through the three methods below, all gated on `initialized`, so there is
+    // no cost to computing them this late.
+    this.format = format;
+    this.resolveTransactionId = buildRequestKeyIndex(catalog);
     this.hooks = result.perTransaction;
     this.initialized = true;
   }

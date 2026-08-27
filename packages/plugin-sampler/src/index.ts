@@ -17,6 +17,7 @@ import {
   generateTypesForThymianFormat,
 } from './hooks/generate-request-types.js';
 import { HookRunner } from './hooks/hook-runner.js';
+import { LoadGeneration } from './load-generation.js';
 import { requestSampleToRequestTemplate } from './request-sample-to-request-template.js';
 import { RequestSampler } from './request-sampler.js';
 import { resolveSamplerPaths } from './sampler-paths.js';
@@ -187,7 +188,18 @@ export const samplePlugin: ThymianPlugin<Partial<SamplerPluginOptions>> = {
     let format: ThymianFormat | undefined;
     let samples: SamplesStructure | undefined;
 
-    const requestSampler = new RequestSampler();
+    // One authority, shared by every dependent of a `core.format` load —
+    // `requestSampler`, `hookRunner`, and the `samples` write in
+    // `initializeSamplerAndHookRunner` below. See {@link LoadGeneration}'s
+    // docblock: each dependent used to keep its own counter, bumped inside its
+    // own `init`, which answers "did something interrupt *my* await" rather
+    // than "is this still the newest `core.format` event" — the two diverge
+    // exactly when one dependent's async work runs ahead of another's, which
+    // the samples-tree read and `requestSampler.init` both do, ahead of
+    // `hookRunner.init`, on every single load.
+    const generation = new LoadGeneration();
+
+    const requestSampler = new RequestSampler(generation);
     const hookRunner = new HookRunner(
       samplerPaths.hooksDir,
       async (request) => {
@@ -202,31 +214,26 @@ export const samplePlugin: ThymianPlugin<Partial<SamplerPluginOptions>> = {
         );
       },
       logger,
+      generation,
     );
 
-    async function initializeSamplerAndHookRunner(format: ThymianFormat) {
-      // Drop the previous format's state **first**, before anything that can
-      // throw. Two steps below do: `TransactionCatalog.fromThymianFormat` throws
-      // by design on a cross-source selector collision, and
-      // `readSamplesFromDirIfUsable` re-raises a refused path traversal. Either
-      // one used to leave `hookRunner` initialized against the *previous*
-      // format's hook map and `samples` holding the previous tree — a stale
-      // binding surviving a failed load, which is what AC 11 and #614 exist to
-      // prevent in a long-lived `core.workflow.test` process.
+    async function initializeSamplerAndHookRunner(
+      format: ThymianFormat,
+      transactionCatalog: TransactionCatalog,
+      token: number,
+    ) {
+      // Drop the previous format's state. The candidate has already proven
+      // loadable enough to reach this point — see the `core.format` handler
+      // below, which builds `transactionCatalog` and only then calls this —
+      // so nothing here can still be undone by the candidate turning out to
+      // be malformed. See {@link HookRunner.invalidate} and
+      // {@link RequestSampler.invalidate}: idempotent, called together so
+      // both components' visible state is dropped in one synchronous step,
+      // rather than one clearing while the other still answers for the old
+      // format.
       hookRunner.invalidate();
       requestSampler.invalidate();
       samples = undefined;
-
-      // The selector index for the loaded format: one selector per transaction,
-      // built before anything touches disk so a cross-source collision fails the
-      // load rather than half of it. Rebuilt on every format load and never
-      // cached across loads. Hook targets resolve through it; the generated type
-      // surface and transaction filters join in later stories.
-      const transactionCatalog = TransactionCatalog.fromThymianFormat(format);
-
-      logger.debug(
-        `Indexed ${transactionCatalog.size} transaction selector(s).`,
-      );
 
       // `sampler.path-from-transaction` only — removed in 575.10. Samples
       // themselves never come from here any more, and neither do hooks: v1 tree
@@ -234,24 +241,77 @@ export const samplePlugin: ThymianPlugin<Partial<SamplerPluginOptions>> = {
       // leftover, empty or half-written tree cannot fail a run that needs no
       // tree; `sampler.path-from-transaction` then throws its own
       // `SamplesNotLoadedError` if something actually invokes it.
-      samples = await readSamplesFromDirIfUsable(basePath, logger);
+      //
+      // This is the async step that runs *ahead* of both `requestSampler.init`
+      // and `hookRunner.init`, and a slow read here — a large v1 tree, a
+      // network filesystem — is exactly what let an older load's write land
+      // after a newer load had already finished. The result is only installed
+      // if `token` is still current: an older, slower load that loses the race
+      // must not resurrect the tree a newer load already replaced (or dropped)
+      // with its own.
+      const samplesResult = await readSamplesFromDirIfUsable(basePath, logger);
 
-      await requestSampler.init(format, emitter);
-      await hookRunner.init(format, transactionCatalog);
+      if (generation.isCurrent(token)) {
+        samples = samplesResult;
+      }
+
+      await requestSampler.init(format, emitter, token);
+      await hookRunner.init(format, transactionCatalog, token);
     }
 
     emitter.onAction('core.format', async (f, ctx) => {
+      // Taken first, synchronously, before anything else this load does —
+      // including `ThymianFormat.import` and the samples-tree read inside
+      // `initializeSamplerAndHookRunner`. This is the one moment true arrival
+      // order between two overlapping `core.format` events is still knowable;
+      // every check downstream (in `requestSampler`, in `hookRunner`, and for
+      // `samples` above) compares against this same token rather than each
+      // re-deriving its own notion of "current" after its own share of the
+      // async work, which is what let an older event's slow pre-init read
+      // silently reinstate a stale format after a newer event had already
+      // completed.
+      const token = generation.start();
+
       const imported = ThymianFormat.import(f);
 
-      // `format` is assigned only **after** the load succeeds. Assigning first
-      // left, on a failed reload, the new format paired with the previous
-      // format's sample projection — so `core.request.sample` passed its
-      // `if (!format)` guard and fell through to the
-      // `SampleProjectionMissingTransactionError` below, the one commented
-      // "unreachable by construction".
+      // The selector index for the loaded format: one selector per
+      // transaction. Built **before** `format` (or anything else) is
+      // dropped — `TransactionCatalog.fromThymianFormat` throws by design on
+      // a cross-source selector collision, and that throw is a property of
+      // the *candidate* format, not of the tree or process on disk. Wiping
+      // state first left a working dev server fully dark the moment a
+      // reload's candidate had a collision: `format`,
+      // `hookRunner`/`requestSampler`/`samples` were all cleared **before**
+      // the build could fail, so a format that was merely rejected took down
+      // everything that had been working seconds earlier, until a valid one
+      // loaded. Building the catalog first — and not touching `format` until
+      // after — makes a bad candidate a no-op instead of an outage.
+      //
+      // Deliberately NOT extended to the samples-tree read inside
+      // `initializeSamplerAndHookRunner`. That read can also throw — a
+      // `PathTraversalError`, AC 9's one read that is not allowed to degrade
+      // — but that refusal is about the tree **on disk** right now, not a
+      // defect in the candidate format, and round 4's test in this file
+      // deliberately pins the opposite behaviour for it: state IS wiped. A
+      // samples-tree escape is a live, ongoing problem, not a rejected
+      // candidate; continuing to serve the previous, unrelated format around
+      // it would hide that something is actively wrong right now.
+      const transactionCatalog = TransactionCatalog.fromThymianFormat(imported);
+
+      logger.debug(
+        `Indexed ${transactionCatalog.size} transaction selector(s).`,
+      );
+
+      // `format` is assigned only **after** the load succeeds, and dropped
+      // only once the catalog build above has proven the candidate loadable
+      // this far. Assigning first left, on a failed reload, the new format
+      // paired with the previous format's sample projection — so
+      // `core.request.sample` passed its `if (!format)` guard and fell
+      // through to the `SampleProjectionMissingTransactionError` below, the
+      // one commented "unreachable by construction".
       format = undefined;
 
-      await initializeSamplerAndHookRunner(imported);
+      await initializeSamplerAndHookRunner(imported, transactionCatalog, token);
 
       format = imported;
 
