@@ -108,7 +108,13 @@ describe('readSamplesFromDirIfUsable (#613)', () => {
     );
   });
 
-  it('returns undefined for a truncated meta.json', async () => {
+  it('returns undefined for a truncated meta.json, at a louder log level', async () => {
+    // A tree exists and does not parse — the one case #613's own follow-up
+    // review distinguished from "nothing is here": the run still never
+    // throws and the tree is still `undefined`, but a `SyntaxError` is a
+    // real defect, not the ordinary absence AC 12's `logger.debug` line is
+    // for. `warn`, not `debug`, so it is visible at the default log level
+    // instead of indistinguishable from the absent-tree case.
     const samplesDir = join(tempDir, 'samples');
     await mkdir(samplesDir, { recursive: true });
     await writeFile(join(samplesDir, 'meta.json'), '{', 'utf-8');
@@ -118,7 +124,10 @@ describe('readSamplesFromDirIfUsable (#613)', () => {
       readSamplesFromDirIfUsable(samplesDir, logger),
     ).resolves.toBeUndefined();
 
-    expect(logger.debug).toHaveBeenCalled();
+    expect(logger.debug).not.toHaveBeenCalled();
+    expect(logger.warn).toHaveBeenCalledWith(
+      expect.stringContaining('could not be read'),
+    );
   });
 
   it('returns undefined for a half-written tree whose node meta is missing', async () => {

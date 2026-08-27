@@ -341,6 +341,29 @@ function permissionCode(error: unknown): string | undefined {
 }
 
 /**
+ * Is this a `SyntaxError` anywhere in the chain — a `meta.json` that
+ * **exists** but does not parse, rather than one that is absent?
+ *
+ * The two used to be indistinguishable: both landed on the same `logger.debug`
+ * line and the same silent `undefined`, which is right for "there is no tree"
+ * (AC 12's paradigm case) and wrong for "there is a tree and it is corrupt" — a
+ * partially-written or badly-merged `meta.json` is a real defect a user needs to
+ * know about, not a normal absence. Distinguishing it is what lets
+ * {@link readSamplesFromDirIfUsable} raise the log level for this one case
+ * without reopening #613: the run still never throws, and the tree is still
+ * `undefined` either way — only how loudly the debug line says so changes.
+ */
+function isMalformedJsonError(error: unknown): boolean {
+  for (const link of causeChain(error)) {
+    if (link instanceof SyntaxError) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
+/**
  * The samples tree, or `undefined` when there is nothing usable there — never an
  * exception (#613, AC 12).
  *
@@ -368,6 +391,19 @@ function permissionCode(error: unknown): string | undefined {
  *
  * `PathTraversalError` stays hard. It is not a tree we *cannot* read; it is a tree
  * we have decided we *must not*.
+ *
+ * **A malformed `meta.json` is louder than the rest, on purpose.** #613 asked
+ * for "a run that needs no tree must not care that it is corrupt", which this
+ * still honours — the run never throws and the tree is still `undefined` — but
+ * a run that *does* need the tree used to be told `No samples are loaded.` with
+ * nothing pointing at the actual cause, at `logger.debug`, invisible at the
+ * default log level. `SyntaxError` (see {@link isMalformedJsonError}) is the one
+ * shape that means "a tree is right there and it does not parse", as opposed to
+ * "there is nothing here" (absent) or "we may not look" (permissions) — both of
+ * which stay quiet, because they are the ordinary, expected cases AC 12 exists
+ * for. This one gets `logger.warn`: visible without being fatal, the corrupt
+ * case is no longer indistinguishable from the absent one for anyone actually
+ * watching the log.
  */
 export async function readSamplesFromDirIfUsable(
   dir: string,
@@ -385,15 +421,19 @@ export async function readSamplesFromDirIfUsable(
     }
 
     const denied = permissionCode(error);
+    const malformed = !denied && isMalformedJsonError(error);
+    const message = denied
+      ? `Ignoring the samples tree at "${dir}": this process may not read it (${denied}). ` +
+        `Only "sampler.path-from-transaction" needs it — fix the permissions if you use it.`
+      : `Ignoring the samples tree at "${dir}": it exists but could not be read (${
+          error instanceof Error ? error.message : String(error)
+        }). Only "sampler.path-from-transaction" needs it.`;
 
-    logger.debug(
-      denied
-        ? `Ignoring the samples tree at "${dir}": this process may not read it (${denied}). ` +
-            `Only "sampler.path-from-transaction" needs it — fix the permissions if you use it.`
-        : `Ignoring the samples tree at "${dir}": it exists but could not be read (${
-            error instanceof Error ? error.message : String(error)
-          }). Only "sampler.path-from-transaction" needs it.`,
-    );
+    if (malformed) {
+      logger.warn(message);
+    } else {
+      logger.debug(message);
+    }
 
     return undefined;
   }

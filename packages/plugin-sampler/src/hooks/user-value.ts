@@ -329,38 +329,6 @@ export function readProperties<K extends string>(
   return ok(fields);
 }
 
-/**
- * Is `key` an own, writable **data** property holding a value of `expected`
- * type?
- *
- * The alternative is proving writability by writing, which was measured wrong
- * twice: a zero-argument `push()` accepted a sealed array the real `push(value)`
- * then rejects, and on a value carrying its own `push` the probe ran user code
- * and **kept its side effects**. Reading a descriptor changes nothing.
- */
-export function isWritableDataProperty(
-  value: UserValue,
-  key: string,
-  expected: 'number' | 'string' | 'object' | 'function',
-): boolean {
-  try {
-    const descriptor = Object.getOwnPropertyDescriptor(
-      value as unknown as object,
-      key,
-    );
-
-    return (
-      descriptor !== undefined &&
-      descriptor.get === undefined &&
-      descriptor.set === undefined &&
-      descriptor.writable === true &&
-      typeof descriptor.value === expected
-    );
-  } catch {
-    return false;
-  }
-}
-
 /** One array element. Separate from {@link readProperty} only for the label. */
 export function readIndex(value: UserValue, index: number): Read<UserValue> {
   try {
