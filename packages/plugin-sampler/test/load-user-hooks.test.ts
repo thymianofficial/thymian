@@ -3389,4 +3389,78 @@ describe('loadUserHooks — round 7c continued: the scope slot is a slot too', (
 
     expect(match?.[1]).toBe('3');
   }, 30_000);
+
+  it('does not let a poisoned scope slot wedge a later, unrelated scan', async () => {
+    // The cross-scan half of the story's "P1/P1b" probe, re-run against the
+    // *new* channel. Round 7's durability test (above) proved this for the
+    // old `log.scope` field; moving collection to its own slot does not win
+    // that proof back for free, because jiti's realm re-resolves the slot
+    // from scratch on **every** scan — a fresh `Jiti` instance per
+    // `loadUserHooks` call means a fresh module registry means a fresh,
+    // unmemoised `sharedCollectionScope` in jiti's realm. So whatever a
+    // poisoning file leaves in `HOOK_COLLECTION_SCOPE` is exactly what the
+    // *next* scan's realm meets on its own first read, and `thymian serve`
+    // runs many scans in one process without ever clearing it.
+    //
+    // Two shapes, because a slot can lie two ways: an accessor whose `run`
+    // never settles and whose setter silently drops a repair (fails
+    // `instanceof` outright), and a genuine `AsyncLocalStorage` subclass —
+    // the one shape `instanceof` alone cannot reject.
+    const shapes = [
+      [
+        'an accessor whose repair is swallowed',
+        [
+          `const poison = {`,
+          `  run() { return new Promise(() => {}); },`,
+          `  getStore() { return undefined; },`,
+          `};`,
+          `Object.defineProperty(globalThis, ${`Symbol.for('@thymian/plugin-sampler.hook-collection-scope')`}, {`,
+          `  configurable: true,`,
+          `  get() { return poison; },`,
+          `  set() { /* silently dropped */ },`,
+          `});`,
+        ].join('\n'),
+      ],
+      [
+        'a genuine AsyncLocalStorage subclass that never settles',
+        [
+          `import { AsyncLocalStorage } from 'node:async_hooks';`,
+          `class Evil extends AsyncLocalStorage {`,
+          `  run() { return new Promise(() => {}); }`,
+          `  getStore() { return undefined; }`,
+          `}`,
+          `globalThis[${`Symbol.for('@thymian/plugin-sampler.hook-collection-scope')`}] = new Evil();`,
+        ].join('\n'),
+      ],
+    ] as const;
+
+    for (const [name, poison] of shapes) {
+      const poisoning = await writeHooks({
+        'a-poison.ts': [poison, `export const nothing = 1;`, ``].join('\n'),
+      });
+
+      try {
+        const first = await scanOrWedge(poisoning, 5_000);
+
+        expect(first, name).not.toBe('wedged');
+
+        // Deliberately NOT cleaned up between scans — the whole point is
+        // that the second scan meets whatever the first left on
+        // `globalThis`, exactly as `thymian serve` would.
+        const later = await writeHooks({
+          'b-good.ts': tagging(selectorA, 'good'),
+        });
+        const second = await scanOrWedge(later, 5_000);
+
+        expect(second, name).not.toBe('wedged');
+        expect(
+          await compose(second as LoadUserHooksResult, firstTransactionId()),
+          name,
+        ).toBe('good');
+      } finally {
+        Reflect.deleteProperty(globalThis, SCOPE_KEY);
+        Reflect.deleteProperty(globalThis, SLOT_KEY);
+      }
+    }
+  }, 60_000);
 });
