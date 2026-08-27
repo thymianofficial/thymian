@@ -40,6 +40,11 @@ loaded module keep working exactly as they do in any Node/TypeScript project —
 that does `import './helper.js'` for a file actually named `helper.ts` resolves normally
 through jiti/NodeNext, because that resolution never goes through this loading contract.
 
+**Globs are not a third specifier kind.** The value you pass to `--rule-set` or a `ruleSets:`
+entry is always one of the two kinds above — it resolves to a single rule set module. That
+module may then select its own member rule files with a glob, but the glob lives in the rule
+set's `pattern:` field, not in the specifier you pass. See [Globs](#globs).
+
 Extension matching is **case-sensitive against the on-disk casing**. A mis-cased extension
 (e.g. requesting `.TS` for a file that is actually `.ts`) is declined, naming the casing
 mismatch rather than silently loading or silently skipping it.
@@ -66,7 +71,9 @@ nested load.
 
 ## Globs
 
-`ruleSets:` entries and `--rule-set` values may be glob patterns. Their matching has a few
+A rule set selects its member rule files with a glob — the `pattern:` field on the rule set
+module it exports (not the `--rule-set`/`ruleSets:` value itself, which resolves to that
+module as a [bare or local specifier](#bare-vs-local-specifiers)). Glob matching has a few
 fixed behaviours:
 
 - `node_modules` is excluded by default.

@@ -1,7 +1,12 @@
 import { readdirSync, readFileSync, statSync } from 'node:fs';
-import { join } from 'node:path';
+import { dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 
 import { describe, expect, it } from 'vitest';
+
+// `astro-docs` is ESM (`type: "module"`), so resolve this file's directory from
+// `import.meta.url` rather than relying on a `__dirname` shim.
+const __dirname = dirname(fileURLToPath(import.meta.url));
 
 // Guards that every `ref: 'https://thymian.dev/references/errors/<slug>/'` a
 // packages/** source names actually has a matching Errors/<slug>.md page —
