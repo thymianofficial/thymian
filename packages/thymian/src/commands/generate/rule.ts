@@ -37,8 +37,12 @@ export type RuleOutputResolution =
  * generator only ever emits a file the loader can actually load. On a
  * conflicting explicit extension it DECLINES with a framed reason rather than
  * silently rewriting the user's path; the only auto-fill is appending the
- * mode-correct extension when `--output` carries none. The returned `output` is
- * still relative to `--cwd` (the caller joins it).
+ * mode-correct extension when `--output` carries none. The returned `output`
+ * is `output` verbatim (plus the auto-filled extension, if any) — an absolute
+ * `--output` is passed through unchanged, not rejected or normalized. The
+ * caller joins it against `--cwd` with `path.join`, which — unlike
+ * `path.resolve` — does not special-case a leading absolute path, so an
+ * absolute `--output` ends up nested under `--cwd` rather than honored as-is.
  */
 export function resolveRuleOutputPath(
   output: string,
