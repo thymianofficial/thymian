@@ -261,11 +261,27 @@ function describeError(error: unknown): string {
 // all is deliberately left unclassified here (`undefined`) — that is not
 // "the wrong kind", it is a match that vanished between the glob call and
 // the load attempt below, which must fail the whole set, not be skipped.
-function nonLoadableGlobMatchReason(resolved: string): string | undefined {
+function nonLoadableGlobMatchReason(
+  resolved: string,
+  canonical: string | undefined,
+): string | undefined {
   const extensionReason = unloadableReason(resolved);
 
   if (extensionReason) {
     return extensionReason;
+  }
+
+  // A symlink can have a loadable *spelling* (e.g. `alias.rule.ts`) while its
+  // realpath target is an unloadable kind (`real.d.ts`, `.mts`/`.cts`). We load
+  // through the canonical path, and `loadUserModule` would throw on it — which
+  // would fail the whole set. Classify it as a skip here instead, per AC3, so
+  // it is warned-and-skipped like a directly-matched unloadable file.
+  if (canonical !== undefined) {
+    const canonicalExtensionReason = unloadableReason(canonical);
+
+    if (canonicalExtensionReason) {
+      return canonicalExtensionReason;
+    }
   }
 
   let entryStat;
@@ -386,7 +402,7 @@ async function loadRuleSet(
 
         anyMatched = true;
 
-        const skipReason = nonLoadableGlobMatchReason(resolved);
+        const skipReason = nonLoadableGlobMatchReason(resolved, canonical);
 
         if (skipReason) {
           warnSkippedGlobMatch(resolved, skipReason, ruleSet.name);

@@ -118,6 +118,59 @@ describe('rule-set glob loading', () => {
     }
   });
 
+  it('skips a symlink whose spelling is loadable but whose realpath target is unloadable (.d.ts), still loading the rest', async () => {
+    // `alias.rule.ts` has a loadable spelling but its realpath is `target.d.ts`
+    // (an unloadable kind). Since the load goes through the canonical path, this
+    // must be classified as a warned skip (AC3), not a load attempt that fails
+    // the whole set.
+    const warnings: unknown[] = [];
+    const onWarning = (warning: unknown) => warnings.push(warning);
+    process.on('warning', onWarning);
+
+    const dir = mkdtempSync(join(tmpdir(), 'glob-symlink-dts-'));
+
+    try {
+      mkdirSync(join(dir, 'rules'), { recursive: true });
+      // Unloadable target, reached only via the loadable-looking symlink
+      // spelling; never matched directly (`*.rule.ts` does not match `.d.ts`).
+      writeFileSync(
+        join(dir, 'rules', 'target.d.ts'),
+        'export default { meta: { name: "unreachable" } };\n',
+      );
+      symlinkSync(
+        join(dir, 'rules', 'target.d.ts'),
+        join(dir, 'rules', 'alias.rule.ts'),
+      );
+      writeFileSync(
+        join(dir, 'rules', 'good.rule.ts'),
+        'export default { meta: { name: "glob-symlink-dts-good", severity: "error", type: ["informational"], tags: [], options: {} } };\n',
+      );
+      writeFileSync(
+        join(dir, 'rule-set.mjs'),
+        "export default { name: 'glob-symlink-dts', pattern: './rules/*.rule.ts' };\n",
+      );
+
+      const rules = await loadRules(join(dir, 'rule-set.mjs'));
+
+      expect(rules).toHaveLength(1);
+      expect(rules[0]?.meta.name).toBe('glob-symlink-dts-good');
+
+      await new Promise((resolve) => setImmediate(resolve));
+
+      const skipWarnings = warnings.filter(
+        (warning): warning is Error =>
+          warning instanceof Error &&
+          warning.name === 'RuleLoadError' &&
+          /target\.d\.ts/.test(warning.message),
+      );
+
+      expect(skipWarnings).toHaveLength(1);
+    } finally {
+      process.off('warning', onWarning);
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
   it('fails the whole set, framed and naming the file, on a real syntax error', async () => {
     await expect(
       loadRules(join(fixtureDir, 'glob-syntax-error', 'rule-set.mjs')),
