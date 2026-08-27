@@ -255,6 +255,26 @@ export const samplePlugin: ThymianPlugin<Partial<SamplerPluginOptions>> = {
         samples = samplesResult;
       }
 
+      // Sequential, considered and declined to parallelise. The two write
+      // disjoint state — `requestSampler`'s own `samples` map,
+      // `hookRunner`'s own `hooks`/`format`/`resolveTransactionId` — so a
+      // `Promise.all` would not race the way `scanUserHooks`'s file loop
+      // would. What it would reopen is `Promise.all`'s own sharp edge: if a
+      // *third*, even newer load starts while both are in flight, both
+      // reject as superseded together, and only one of the two rejections
+      // is the one `Promise.all` surfaces — the other becomes an unhandled
+      // rejection unless deliberately caught, which is exactly the failure
+      // shape this file's own `bootPlugin`-driven tests are built to catch
+      // in an *unrelated* test. Sequential also preserves today's error
+      // precedence for free: `requestSampler`'s failure already prevents
+      // `hookRunner.init` from running at all, so no test has ever observed
+      // `hookRunner` attempt (and partially mutate its own state) after
+      // `requestSampler` failed. Making both changes safely — a dual-
+      // rejection-safe join, a re-verified error precedence, and a test
+      // proving the guard still rejects a superseded load when both run
+      // concurrently — is a real, buildable change; declined for this round
+      // for the same reason as the file-loop above: unmeasured benefit, on
+      // the one code path that produced this round's most expensive defect.
       await requestSampler.init(format, emitter, token);
       await hookRunner.init(format, transactionCatalog, token);
     }

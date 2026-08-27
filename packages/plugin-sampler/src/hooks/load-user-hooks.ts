@@ -1773,6 +1773,30 @@ async function scanUserHooks(
   // name them a second time.
   const reportedModules = new Set<string>();
 
+  // Sequential on purpose — considered and declined, not overlooked.
+  //
+  // A naive `Promise.all` over this loop reopens the exact defect
+  // `evaluateModule` spends its own docblock on: it checks-then-writes
+  // `moduleCache[resolved]` with no pending-promise placeholder, so two
+  // files concurrently importing one shared submodule (the ordinary
+  // `a.ts`/`lib.ts` case this file's comments describe throughout) would
+  // both miss the cache and both evaluate it — two distinct registration
+  // objects for one authored hook, the "evaluated twice" class three review
+  // rounds closed. `exported` has the same shape one layer up: two files
+  // racing a shared re-export could both pass `exported.has(candidate)`
+  // before either adds it, double-collecting rather than deduping. And
+  // `diagnostics` is pushed to in scan order and never re-sorted after —
+  // unlike `collected`, which is (`AC 2`) — so parallel completion order
+  // would make diagnostic order (and therefore, for a user reading them
+  // top-to-bottom) non-deterministic across otherwise-identical scans.
+  //
+  // Fixing the first two needs a pending-promise cache and a claim-before-add
+  // set — real, buildable changes — but this is the most adversarially-tested
+  // code path in the story (round 5 → 8, each round finding what the
+  // previous round's own fix missed), a hook directory is not typically
+  // large enough for sequential I/O to matter, and no measurement here shows
+  // it does. Declined rather than attempted for a benefit nobody has
+  // measured, on machinery this fragile, this late in the round.
   for (const file of files) {
     const result = await importRegistrations(
       jiti,

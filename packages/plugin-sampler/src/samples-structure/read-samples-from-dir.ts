@@ -313,6 +313,16 @@ function* causeChain(error: unknown): Generator<object> {
  * The whole `cause` chain is inspected, not just the top-level error: anything
  * that wraps the refusal on its way up would otherwise be demoted, which is the
  * bare `catch` defect wearing a different hat.
+ *
+ * **The real close, not taken here.** This is a `name`-string match walked
+ * through a hand-rolled `cause` chain because `ThymianBaseError` carries no
+ * structured `recoverable`/`severity` field — if it did, this whole function
+ * would be one property read, and it would not need re-deriving by the next
+ * caller that has to tell "must not swallow" apart from "safe to degrade"
+ * (`isMalformedJsonError` below answers a related question the same way, by
+ * error *shape* rather than a field meant for exactly this). That field lives
+ * in `@thymian/core`, and AC10 keeps this epic from changing it — declined
+ * here for that reason, not because the string-match approach is preferred.
  */
 export function isPathTraversalError(error: unknown): boolean {
   for (const link of causeChain(error)) {

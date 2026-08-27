@@ -82,6 +82,25 @@ const HOOK_CREATION_LOG: unique symbol = Symbol.for(
  * any hook file is evaluated — so the instance `run()` is called on is fixed
  * before user code exists, and nothing written to this slot afterwards can
  * change it.
+ *
+ * **Considered and declined: one guarded cross-realm cell, shared by this
+ * slot and {@link HOOK_CREATION_LOG}.** The two do share a real shape — read
+ * behind a `try`, validate structurally, replace via `defineProperty` when
+ * a plain assignment is swallowed — and a generic `GuardedCell<T>` would cut
+ * the duplication. Declined for now: this exact machinery is the one four
+ * separate review rounds have hardened, each round closing a hole the
+ * previous round's *fix* introduced (round 5 → 6 → 7 → 7b → 7c, this file's
+ * own docblocks name every one), and the two slots are not actually
+ * identical — `HOOK_CREATION_LOG` tolerates a replaced value (the log is a
+ * diagnostic channel; a replacement costs nothing since round 8's rewrite),
+ * while `HOOK_COLLECTION_SCOPE` must not be (a replacement after the first
+ * resolution is exactly the class of bug round 7c closed). A shared
+ * abstraction has to parameterise that difference correctly on the first
+ * try, in code whose failure mode has repeatedly been "passes the whole
+ * suite, wedges or silently drops registrations under a fixture nobody
+ * wrote yet" — measured directly in this session's own mutation testing.
+ * The consolidation is real; the risk of doing it now, on top of an already
+ * large round, is not one this pass takes on.
  */
 const HOOK_COLLECTION_SCOPE: unique symbol = Symbol.for(
   '@thymian/plugin-sampler.hook-collection-scope',

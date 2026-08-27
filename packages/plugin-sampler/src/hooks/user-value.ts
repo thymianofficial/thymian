@@ -36,6 +36,21 @@ import { isThymianError } from '@thymian/core';
  * a `try`. Everywhere else, reaching a user value without a guard is a build
  * failure.
  *
+ * **The syntactic denylist's known gap, and the real close not taken here.**
+ * The ban above is a fixed list of eighteen selectors matched syntactically —
+ * it cannot see a *helper* that reaches unguarded ground on this file's
+ * behalf (a local `const isArr = Array.isArray;` two-hop alias, or a new
+ * global with the same shape the four already banned have), which is exactly
+ * how the four themselves were found: one review round at a time. The rule
+ * that actually closes this is type-aware — `no-unsafe-*`-style checking
+ * against {@link UserValue}'s own opacity, via typescript-eslint's project
+ * service — not a bigger denylist chasing the same class of hole the syntactic
+ * rule structurally cannot see. Standing up a type-aware parser for
+ * `src/hooks/**` is new lint infrastructure with build-time cost for the whole
+ * project, not a fix scoped to this story, so it is declined *here* rather
+ * than attempted piecemeal. Recorded so the next person adopts the real fix
+ * instead of extending the denylist a nineteenth time.
+ *
  * ## What a guard is for
  *
  * Not defensive habit: `loadUserHooks` has two contracts that an escaping throw
