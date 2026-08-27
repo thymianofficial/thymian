@@ -78,6 +78,14 @@ describe('generate rule — resolveRuleOutputPath (unit)', () => {
       expect(result.ok === false && result.reason).toContain('use .ts instead');
     });
 
+    it('declines .d.ts (both modes) — extname alone would see it as .ts', () => {
+      const result = resolveRuleOutputPath('my-rule.d.ts', false);
+      expect(result.ok).toBe(false);
+      expect(result.ok === false && result.reason).toContain(
+        'declaration file',
+      );
+    });
+
     it('declines .cjs in default mode (ESM export default cannot live in .cjs)', () => {
       const result = resolveRuleOutputPath('my-rule.cjs', false);
       expect(result.ok).toBe(false);
@@ -123,6 +131,14 @@ describe('generate rule — resolveRuleOutputPath (unit)', () => {
       const result = resolveRuleOutputPath(`my-rule${ext}`, true);
       expect(result.ok).toBe(false);
       expect(result.ok === false && result.reason).toContain('use .ts instead');
+    });
+
+    it('declines .d.ts under --cjs too', () => {
+      const result = resolveRuleOutputPath('my-rule.d.ts', true);
+      expect(result.ok).toBe(false);
+      expect(result.ok === false && result.reason).toContain(
+        'declaration file',
+      );
     });
   });
 });

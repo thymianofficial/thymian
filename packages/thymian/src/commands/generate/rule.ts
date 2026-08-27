@@ -1,6 +1,6 @@
 import { writeFile } from 'node:fs/promises';
 import { EOL } from 'node:os';
-import { extname, join, relative } from 'node:path';
+import { basename, extname, join, relative } from 'node:path';
 
 import { ThymianBaseCommand, wrap } from '@thymian/common-cli';
 import { Flags, ux } from '@thymian/common-cli/oclif';
@@ -19,7 +19,7 @@ function capitalizeFirstCharacter(str: string): string {
 }
 
 /**
- * Extensions the default (ESM/TypeScript) template may be written to. This is a
+ * Extensions that the default (ESM/TypeScript) template may be written to. This is a
  * deliberately tiny, local copy of the loader's rule — `@thymian/core`'s
  * `unloadableReason`/`LOADABLE_EXTENSIONS` are intra-package and not on the
  * public surface, so the generator cannot import them. The generator only ever
@@ -44,6 +44,13 @@ export function resolveRuleOutputPath(
   output: string,
   cjs: boolean,
 ): RuleOutputResolution {
+  if (basename(output).endsWith('.d.ts')) {
+    return {
+      ok: false,
+      reason: `"${basename(output)}" is a TypeScript declaration file (.d.ts) — declaration files are never loadable, regardless of contents.`,
+    };
+  }
+
   const ext = extname(output);
 
   // `.mts`/`.cts` are never loadable, in either mode (mirrors the loader).
