@@ -517,6 +517,29 @@ describe('loadUserHooks — run-scoped hooks', () => {
     ]);
     // Nothing bound them to a transaction, and nothing ran them.
     expect(result.perTransaction.size).toBe(0);
+
+    // Collected, not bound: nothing calls a `beforeAll`/`afterAll` until
+    // 575.8, so `boundHookCount` — the number the debug log reads as
+    // "Loaded N hook(s)" — must not count three hooks that cannot run.
+    expect(result.boundHookCount).toBe(0);
+
+    // And the load-time diagnostic that says so, once per registration,
+    // rather than three hooks that report success and then silently never
+    // fire.
+    const runScopedInfo = result.diagnostics.filter(
+      (diagnostic) =>
+        diagnostic.severity === 'info' &&
+        (diagnostic.kind === 'beforeAll' || diagnostic.kind === 'afterAll'),
+    );
+
+    expect(runScopedInfo.map((diagnostic) => diagnostic.exportName)).toEqual([
+      'first',
+      'second',
+      'last',
+    ]);
+    expect(
+      runScopedInfo.every((diagnostic) => diagnostic.reason.includes('575.8')),
+    ).toBe(true);
   });
 });
 

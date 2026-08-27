@@ -172,14 +172,35 @@ function authorizeArityError(): TypeError {
   );
 }
 
-/** Runs once before the run. Carries no target (spec §6). */
+/**
+ * Registers a hook meant to run once before the run. Carries no target
+ * (spec §6).
+ *
+ * **Not executed yet.** This story (575.9) only discovers and validates
+ * run-scoped registrations — `loadUserHooks` collects the callback into
+ * `LoadUserHooksResult.runScoped.beforeAll` and reports it in the load-time
+ * diagnostics, but nothing calls it. Execution — the first-touch latch this
+ * needs, since "once before the run" has no meaning until something decides
+ * when the run starts — is story 575.8's acceptance criteria. Until that
+ * lands, a hook registered here is loaded, counted in the diagnostics, and
+ * never run.
+ */
 export function beforeAll(callback: BeforeAllCallback): HookRegistration {
   requireCallback(callback, 'beforeAll(callback)');
 
   return registerHook({ kind: 'beforeAll', callback });
 }
 
-/** Runs once after the run. Carries no target (spec §6). */
+/**
+ * Registers a hook meant to run once after the run. Carries no target
+ * (spec §6).
+ *
+ * **Not executed yet.** See {@link beforeAll}'s docblock: discovered and
+ * validated by this story, executed by 575.8 — reverse-order best-effort
+ * teardown, plus returned cleanups on `core.close`, are that story's
+ * semantics to define, not this one's to guess at. A hook registered here
+ * today is loaded, counted in the diagnostics, and never run.
+ */
 export function afterAll(callback: AfterAllCallback): HookRegistration {
   requireCallback(callback, 'afterAll(callback)');
 

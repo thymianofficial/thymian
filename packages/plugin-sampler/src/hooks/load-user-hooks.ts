@@ -140,6 +140,12 @@ export type LoadUserHooksResult = {
    * the catalog, so the map's size counts the *catalog*, not the hooks. An
    * operator reading "1 hook bound across 240 transaction(s)" learns something;
    * "240 transaction hook binding(s)" reads as 240 hooks.
+   *
+   * Does **not** count `runScoped.beforeAll`/`runScoped.afterAll`: "bound" means
+   * something calls it, and nothing does until 575.8 executes run-scoped hooks.
+   * They were counted through round 7; the debug log then read "Loaded 1
+   * hook(s)" for a `beforeAll` that could not run, which is the same silence as
+   * a hook that is bound but never fires.
    */
   boundHookCount: number;
 };
@@ -1983,14 +1989,33 @@ function bindRegistrations(
     const { registration } = entry;
 
     switch (registration.kind) {
+      // Collected, not bound. `bound` is not incremented for either kind —
+      // see the diagnostic below and `boundHookCount`'s own docblock: "bound
+      // to something" is false for a registration nothing calls yet, and
+      // counting it made "Loaded 1 hook(s)" true for a hook that could not
+      // run, the same class of silence as an `afterEach` that never fires.
       case 'beforeAll':
-        runScoped.beforeAll.push(entry);
-        bound += 1;
-        break;
-
       case 'afterAll':
-        runScoped.afterAll.push(entry);
-        bound += 1;
+        (registration.kind === 'beforeAll'
+          ? runScoped.beforeAll
+          : runScoped.afterAll
+        ).push(entry);
+
+        // A load-time diagnostic, not silence. Run-scoped execution is story
+        // 575.8's acceptance criteria (see `beforeAll`/`afterAll`'s own
+        // docblocks in `hook-api.ts`) — until it lands, a hook registered
+        // here is indistinguishable, from the user's side, from one that
+        // will run: no error, no warning, "Loaded 1 hook(s)" in the debug
+        // log. `info` because collection itself succeeded; this is a status,
+        // not a failure.
+        diagnostics.push({
+          severity: 'info',
+          file: entry.file,
+          kind: registration.kind,
+          exportName: entry.exportName,
+          reason:
+            'is collected but not executed yet — run-scoped hook execution is story 575.8',
+        });
         break;
 
       case 'defineSample': {
