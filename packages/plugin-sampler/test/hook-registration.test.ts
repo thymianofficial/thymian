@@ -140,6 +140,22 @@ describe('the registration contract', () => {
     ).toThrow(TypeError);
   });
 
+  it('rejects a third argument instead of silently dropping it', () => {
+    // TypeScript's overloads reject this at compile time, but a `.js` hook
+    // file — legal input (spec §1) — reaches this function with no such
+    // guard, and jiti never type-checks it. Unguarded, `authorize(sel, fn,
+    // extra)` bound `fn` targeted and dropped `extra` on the floor with no
+    // diagnostic — the same silent-drop shape the two-argument checks above
+    // exist to close, one argument further along.
+    expect(() =>
+      (authorize as unknown as (t: unknown, c: unknown, e: unknown) => unknown)(
+        'GET /a -> 200',
+        noop,
+        noop,
+      ),
+    ).toThrow(TypeError);
+  });
+
   it('names the missing target rather than the missing callback', () => {
     expect(() =>
       (authorize as unknown as (t: unknown, c: unknown) => unknown)(

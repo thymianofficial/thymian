@@ -133,6 +133,17 @@ export function authorize(
   // here: they reach `resolveTargeting` and draw a load-time diagnostic exactly
   // as they do for the other four factories. Only the silent cases are the one
   // overloaded factory's own problem.
+  //
+  // A third argument is the same silent-drop shape one level up: TypeScript's
+  // overloads reject it at compile time, but a `.js`/`.mjs`/`.cjs` hook file —
+  // legal input (spec §1), and one jiti transpiles without type-checking —
+  // reaches this function with no such guard. `authorize(sel, fn, extra)`
+  // would otherwise bind `fn` targeted and drop `extra` on the floor with no
+  // diagnostic at all, indistinguishable from a call that never had it.
+  if (args.length > 2) {
+    throw authorizeArityError();
+  }
+
   if (args.length === 1) {
     const [callback] = args;
 
