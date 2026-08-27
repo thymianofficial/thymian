@@ -22,8 +22,8 @@ a declaration file is not runnable source, regardless of its extension matching 
 
 ## Bare vs local specifiers
 
-Every specifier you pass to `--rule-set`, `--plugin`, a `ruleSets:` entry, or a plugin `path:`
-is exactly one of two kinds, decided syntactically:
+Every specifier you pass to `--rule-set`, `--plugin`, or a plugin `path:` is exactly one of two
+kinds, decided syntactically:
 
 - **Bare specifier** — an installed package. It resolves through your project first, then
   Thymian's own install, using Node's own resolver. The resolved file must be built JavaScript
@@ -35,15 +35,20 @@ is exactly one of two kinds, decided syntactically:
   `<cwd>/<specifier>` fallback** — a bare specifier never falls back to a local file. If you
   meant a local file, write it as a path.
 
+A `ruleSets:` config entry names a rule-set **package** — a bare specifier (see the
+[configuration schema](/references/configuration-schema/#rulesets)). To load rules from local
+files, pass them to `--rule-set`, or bundle them into a rule set that globs them via its
+[`pattern:` field](#globs).
+
 **The explicit-extension rule applies to the top-level specifier only.** Imports _inside_ a
 loaded module keep working exactly as they do in any Node/TypeScript project — a `.ts` rule
 that does `import './helper.js'` for a file actually named `helper.ts` resolves normally
 through jiti/NodeNext, because that resolution never goes through this loading contract.
 
-**Globs are not a third specifier kind.** The value you pass to `--rule-set` or a `ruleSets:`
-entry is always one of the two kinds above — it resolves to a single rule set module. That
-module may then select its own member rule files with a glob, but the glob lives in the rule
-set's `pattern:` field, not in the specifier you pass. See [Globs](#globs).
+**Globs are not a third specifier kind.** The value you pass to `--rule-set` is always one of
+the two kinds above — it resolves to a single module. That module may then select its own
+member rule files with a glob, but the glob lives in the rule set's `pattern:` field, not in
+the specifier you pass. See [Globs](#globs).
 
 Extension matching is **case-sensitive against the on-disk casing**. A mis-cased extension
 (e.g. requesting `.TS` for a file that is actually `.ts`) is declined, naming the casing

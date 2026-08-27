@@ -17,17 +17,25 @@ Create a `thymian.config.yaml` file in your project root:
 
 ```yaml
 ruleSets:
-  - './rules/**/*.rule.ts' # Local rules
-  - '@thymian/rules-rfc-9110' # Npm package
+  - '@thymian/rules-rfc-9110' # a rule-set package (npm)
 
 plugins:
   '@thymian/plugin-http-linter': {}
 ```
 
+`ruleSets:` entries are rule-set **package names**. To lint against rules that live in your own
+repository, pass them to `--rule-set` (below) with an explicit-extension path, or bundle them
+into a rule set that globs them through its [`pattern:` field](#rule-set-entry-point) — a bare
+glob is not a valid `ruleSets:` entry.
+
 ### 2. Via CLI flags
 
 ```bash
+# a published rule-set package
 npx thymian lint --rule-set @thymian/rules-rfc-9110
+
+# a local rule or rule-set entry point (explicit extension, not a glob)
+npx thymian lint --rule-set ./rules/my-api.rule.ts
 ```
 
 ## Creating Your Own Rule Set
@@ -114,7 +122,7 @@ thymian rules list
 Or with specific rule sources:
 
 ```bash
-thymian rules list --rule-set ./rules/**/*.rule.ts
+thymian rules list --rule-set ./rules/my-api.rule.ts
 ```
 
 ## Troubleshooting

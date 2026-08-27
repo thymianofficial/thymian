@@ -12,8 +12,10 @@ A rule module was loaded but does not export its rule using a default export. Th
 
 `Cannot resolve rule source <input>.`
 
-The specifier passed to `--rule-set` (or a `ruleSets:` entry) is neither an installed package
-nor a local file Thymian could find.
+The rule source could not be found. A `ruleSets:` config entry is a rule-set **package** name;
+a `--rule-set` value is a package **or** a local path with an explicit extension. This error
+means the specifier matched neither an installed package nor — for a local `--rule-set` path —
+a file on disk.
 
 ### The rule source specifier resolved, but was refused for what it is
 
