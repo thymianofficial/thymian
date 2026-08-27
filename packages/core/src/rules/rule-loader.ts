@@ -284,7 +284,7 @@ function nonLoadableGlobMatchReason(
     }
   }
 
-  let entryStat;
+  let entryStat: ReturnType<typeof lstatSync>;
 
   try {
     entryStat = lstatSync(resolved);
