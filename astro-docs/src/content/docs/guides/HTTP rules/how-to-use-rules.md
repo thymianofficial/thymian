@@ -17,7 +17,7 @@ Create a `thymian.config.yaml` file in your project root:
 
 ```yaml
 ruleSets:
-  - './rules/**/*.rule.js' # Local rules
+  - './rules/**/*.rule.ts' # Local rules
   - '@thymian/rules-rfc-9110' # Npm package
 
 plugins:
@@ -85,6 +85,11 @@ const myCompanyRules: RuleSet = {
 export default myCompanyRules;
 ```
 
+A published rule set ships **built JavaScript** — its entry point (`main` above) is resolved as
+a bare specifier, and a package that ships unbuilt TypeScript source is declined. The glob
+pattern here matches the rule set's own compiled output under `dist/`, not `src/`. See
+[Loading Rules and Plugins](/references/loading-rules-and-plugins/) for the full contract.
+
 ### Using Your Rule Set
 
 After publishing your rule set to npm, install it in your project:
@@ -133,11 +138,22 @@ export default httpRule('...'); // ✅ Correct
 export const myRule = httpRule('...'); // ❌ Wrong
 ```
 
-3. Check for TypeScript compilation errors:
+3. Check the specifier itself — the most common causes are:
 
-```bash
-tsc --noEmit
-```
+   - **A missing explicit extension.** `--rule-set ./my-rule` does not resolve; write
+     `--rule-set ./my-rule.ts`.
+   - **A bare specifier that was meant to be local.** There is no `<cwd>/<specifier>`
+     fallback — write it as a path (`./my-rule.ts`), not a bare name.
+   - **`.mts`, `.cts`, or `.d.ts`.** None of these are loadable — use `.ts`.
+
+   See [Loading Rules and Plugins](/references/loading-rules-and-plugins/) for the full
+   contract.
+
+:::note
+Loading never type-checks — jiti strips TypeScript types, it does not check them. A rule can
+load successfully and still contain type errors. Run `tsc --noEmit` in CI to catch those; it is
+a separate concern from whether the rule loads.
+:::
 
 ## Next Steps
 
