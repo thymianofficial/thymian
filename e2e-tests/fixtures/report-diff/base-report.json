@@ -1,0 +1,34 @@
+[
+  {
+    "reportId": "aaaaaaaa-1111-4111-8111-111111111111",
+    "createdAt": "2026-08-10T10:00:00.000Z",
+    "runs": [
+      {
+        "runId": "bbbbbbbb-2222-4222-8222-222222222222",
+        "tool": { "name": "fixture-linter", "version": "1.0.0" },
+        "runType": "lint",
+        "runAt": "2026-08-10T10:00:00.000Z",
+        "rules": [
+          { "id": "fixture/error-rule", "severity": "error" },
+          { "id": "fixture/warn-rule", "severity": "warn" }
+        ],
+        "executions": [
+          {
+            "kind": "lint",
+            "ruleId": "fixture/error-rule",
+            "status": { "kind": "failed", "reason": "hard failure" },
+            "location": { "type": "file", "path": "api.yaml", "line": 3 },
+            "findings": []
+          },
+          {
+            "kind": "lint",
+            "ruleId": "fixture/warn-rule",
+            "status": { "kind": "failed", "reason": "soft failure" },
+            "location": { "type": "file", "path": "api.yaml", "line": 9 },
+            "findings": []
+          }
+        ]
+      }
+    ]
+  }
+]

@@ -1,29 +1,14 @@
-import { Errors, Flags } from '@oclif/core';
+import { Flags } from '@oclif/core';
 import type { SpecificationInput } from '@thymian/core';
 
+import { parseTypedInput } from './typed-input.js';
+
 /**
- * Parse a `--spec` flag value of the format `<type>:<location>` into a SpecificationInput.
- * Both type and location are required.
+ * Parse a `--spec` flag value of the format `<type>:<location>` into a
+ * SpecificationInput (ADR-0017 — see {@link parseTypedInput}).
  */
 export function parseSpecFlag(input: string): SpecificationInput {
-  const colonIndex = input.indexOf(':');
-
-  if (colonIndex === -1) {
-    throw new Errors.CLIError(
-      `Invalid format: "${input}". Expected format: <type>:<location> (e.g. openapi:./openapi.yaml).`,
-    );
-  }
-
-  const type = input.slice(0, colonIndex);
-  const location = input.slice(colonIndex + 1);
-
-  if (!type || !location) {
-    throw new Errors.CLIError(
-      `Invalid format: "${input}". Expected format: <type>:<location> (e.g. openapi:./openapi.yaml).`,
-    );
-  }
-
-  return { type, location };
+  return parseTypedInput(input, '--spec', 'openapi:./openapi.yaml');
 }
 
 export const specFlag = Flags.custom<SpecificationInput>({

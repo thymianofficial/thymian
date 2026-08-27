@@ -1,28 +1,14 @@
-import { Errors, Flags } from '@oclif/core';
+import { Flags } from '@oclif/core';
 import type { TrafficInput } from '@thymian/core';
 
+import { parseTypedInput } from './typed-input.js';
+
 /**
- * Parse a `--traffic` flag value of the format `<type>:<location>` into a TrafficInput.
+ * Parse a `--traffic` flag value of the format `<type>:<location>` into a
+ * TrafficInput (ADR-0017 — see {@link parseTypedInput}).
  */
 export function parseTrafficFlag(input: string): TrafficInput {
-  const colonIndex = input.indexOf(':');
-
-  if (colonIndex === -1) {
-    throw new Errors.CLIError(
-      `Invalid --traffic format: "${input}". Expected format: <type>:<location> (e.g. har:./traffic.har).`,
-    );
-  }
-
-  const type = input.slice(0, colonIndex);
-  const location = input.slice(colonIndex + 1);
-
-  if (!type || !location) {
-    throw new Errors.CLIError(
-      `Invalid --traffic format: "${input}". Expected format: <type>:<location> (e.g. har:./traffic.har).`,
-    );
-  }
-
-  return { type, location };
+  return parseTypedInput(input, '--traffic', 'har:./traffic.har');
 }
 
 export const trafficFlag = Flags.custom<TrafficInput>({

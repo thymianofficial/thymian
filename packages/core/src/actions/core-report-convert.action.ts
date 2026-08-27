@@ -42,6 +42,17 @@ export interface ConvertedRunFragment {
    * occurrence wins — equal hashes mean equal graphs).
    */
   thymianFormat?: Record<ThymianFormatVersion, SerializedThymianFormat>;
+  /**
+   * Identity of the source report this run was read from, when the claimed
+   * input *is* a persisted report (the `thymian:` claim, #502). Foreign
+   * converters have no source-report identity and omit it. Consumers that
+   * need per-report attribution (`Thymian.reportDiff()`: `baseReportId`/
+   * `baseCreatedAt`) read it; `Thymian.reportConvert()` ignores it.
+   * `reportCount` carries how many reports the source FILE holds — run-less
+   * siblings yield no fragments, so without the count a multi-report file
+   * could masquerade as a single report (#502 review).
+   */
+  report?: { reportId: string; createdAt: string; reportCount?: number };
 }
 
 /**
@@ -150,6 +161,18 @@ export const convertedRunFragmentArraySchema = {
         type: 'object',
         required: [],
         additionalProperties: true,
+      },
+      // Source-report identity (see the interface docs). Optional by
+      // omission, not `nullable`.
+      report: {
+        type: 'object',
+        required: ['reportId', 'createdAt'],
+        additionalProperties: true,
+        properties: {
+          reportId: { type: 'string', nullable: false },
+          createdAt: { type: 'string', nullable: false },
+          reportCount: { type: 'number', nullable: true },
+        },
       },
       run: {
         type: 'object',

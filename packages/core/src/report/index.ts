@@ -60,6 +60,20 @@ export {
   ruleFindingToFindingRecord,
   rulesToRuleDescriptors,
 } from './report-builder.js';
+export type {
+  ReportDiff,
+  ReportDiffChange,
+  ReportDiffChangeBase,
+  ReportDiffChangePolarity,
+  RuleChange,
+  RunResultChange,
+  SpecificationChange,
+} from './report-diff.js';
+export { createReportDiff, reportDiffSchema } from './report-diff.js';
+export type { ReportDiffSide } from './report-diff-compute.js';
+export { computeReportDiff } from './report-diff-compute.js';
+export type { EndpointMatchResult } from './report-diff-endpoints.js';
+export { matchEndpoints } from './report-diff-endpoints.js';
 export * from './report-style.js';
 export type { FindingVisit } from './report-traversal.js';
 export {

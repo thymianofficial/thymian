@@ -55,6 +55,17 @@ export function registerThymianReportInput(
               // unions duplicates by hash, first occurrence wins).
               run,
               thymianFormat: report.thymianFormat,
+              // Source-report identity, so consumers that need per-report
+              // attribution (report diff, #502) know which report each run
+              // came from.
+              report: {
+                reportId: report.reportId,
+                createdAt: report.createdAt,
+                // The FILE's report count: run-less siblings yield no
+                // fragments, so consumers enforcing single-report inputs
+                // (report diff) need the count carried explicitly.
+                reportCount: reports.length,
+              },
             });
           }
         }
