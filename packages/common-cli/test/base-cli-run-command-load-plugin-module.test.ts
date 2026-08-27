@@ -228,6 +228,24 @@ describe('BaseCliRunCommand.loadPluginModule() — routed through the shared sea
       expect(suggestionText).toContain('"./plugins/foo.js"');
     });
 
+    it('does NOT offer the relative-path spelling for a `.d.ts` specifier (never loadable)', async () => {
+      const harness = createHarness(fixturesDir, {
+        'my-plugin': { path: 'plugins/foo.d.ts' },
+      });
+
+      const error = await harness
+        .loadPluginModule('my-plugin')
+        .catch((e: unknown) => e);
+
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const suggestionText: string = (error as any).options.suggestions.join(
+        ' ',
+      );
+      // A `.d.ts` ends in `.ts` but the loader refuses it, so the hint that
+      // advertises a `./`-spelling must not fire for it.
+      expect(suggestionText).not.toContain('plugins/foo.d.ts');
+    });
+
     it('a `./`-prefixed config `path` still loads (the documented form is unaffected)', async () => {
       const harness = createHarness(fixturesDir, {
         'my-plugin': { path: './valid-plugin.plugin.ts' },

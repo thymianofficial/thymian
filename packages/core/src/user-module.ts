@@ -1,7 +1,9 @@
-// Public subpath entry — `@thymian/core/user-module` — exposing ONLY the
-// resolver/loader entry points for cross-package consumers (the CLI plugin
-// loader in @thymian/common-cli is the second consumer of this seam; the rule
-// loader inside @thymian/core imports it directly by relative path).
+// Public subpath entry — `@thymian/core/user-module` — exposing the
+// resolver/loader entry points, plus the `isLocalSpecifier` predicate that
+// classifies a specifier as a local path vs an installed package, for
+// cross-package consumers (the CLI plugin loader in @thymian/common-cli is the
+// second consumer of this seam; the rule loader inside @thymian/core imports it
+// directly by relative path).
 //
 // The `unloadableReason` / `miscasedExtension` predicates are deliberately NOT
 // re-exported here: they stay intra-package. The main barrel (`./index.ts`)

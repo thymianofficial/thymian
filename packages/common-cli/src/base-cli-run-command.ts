@@ -46,6 +46,10 @@ const EXPORT_DEFAULT_SUGGESTION =
   'Use "export default" or "module.exports =" to export your plugin.';
 
 const LOADABLE_EXTENSION = /\.(ts|js|mjs|cjs)$/;
+// A `.d.ts` declaration file ends in `.ts` but the shared loader refuses it
+// (it is never loadable), so exclude it here — otherwise the hint would
+// advertise a spelling that can never load.
+const DECLARATION_EXTENSION = /\.d\.ts$/;
 
 /**
  * When a *bare* specifier that looks like a file path (has a loadable
@@ -56,7 +60,11 @@ const LOADABLE_EXTENSION = /\.(ts|js|mjs|cjs)$/;
  * applies.
  */
 function suggestLocalPathSpelling(specifier: string): string | undefined {
-  if (isLocalSpecifier(specifier) || !LOADABLE_EXTENSION.test(specifier)) {
+  if (
+    isLocalSpecifier(specifier) ||
+    !LOADABLE_EXTENSION.test(specifier) ||
+    DECLARATION_EXTENSION.test(specifier)
+  ) {
     return undefined;
   }
 
