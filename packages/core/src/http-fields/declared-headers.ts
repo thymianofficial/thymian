@@ -97,22 +97,33 @@ export function fromDeclaredHeaders(
 }
 
 /**
- * Shallow-copies an array or object pin value so callers cannot corrupt the
- * caller's own declared spec model -- potentially shared across every rule
- * inspecting this header -- by mutating a returned pin. Primitives (and
- * `null`) pass through unchanged; they're already immutable, so there is
- * nothing to protect.
+ * Deep-copies an array or object pin value so a consumer mutating a returned
+ * pin cannot corrupt the caller's own declared spec model -- shared across
+ * every rule inspecting this header, and the same model that gets persisted
+ * back out. Primitives (and `null`) pass through unchanged; they're already
+ * immutable, so there is nothing to protect.
+ *
+ * A shallow copy would not be enough: it leaves every nested object aliased,
+ * so one rule normalising `pin.value.csp.mode` in place would still change
+ * what later rules see.
+ *
+ * `structuredClone` does the copying, but it is guarded: `ThymianSchema`'s
+ * `const`/`default` are `unknown`, and a spec model can be authored in
+ * TypeScript and loaded through jiti, so a pin may legally hold something
+ * non-cloneable (a function, a class instance). Rather than let a
+ * `DataCloneError` escape a read-only facts lookup, fall back to a shallow
+ * copy -- weaker protection for an exotic pin, but never a throw.
  */
 function copyPinValue(value: unknown): unknown {
-  if (Array.isArray(value)) {
-    return [...value];
+  if (value === null || typeof value !== 'object') {
+    return value;
   }
 
-  if (typeof value === 'object' && value !== null) {
-    return { ...value };
+  try {
+    return structuredClone(value);
+  } catch {
+    return Array.isArray(value) ? [...value] : { ...value };
   }
-
-  return value;
 }
 
 /**

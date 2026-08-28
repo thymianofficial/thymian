@@ -157,6 +157,60 @@ describe('fromDeclaredHeaders', () => {
     expect(schema.enum).toEqual(['a', 'b']);
   });
 
+  it('does not let a mutated NESTED const pin value corrupt the caller schema', () => {
+    const schema = { const: { csp: { mode: 'strict' } } };
+    const declared = fromDeclaredHeaders({
+      'Content-Security-Policy': headerParameter({ schema }),
+    });
+
+    const pin = declared('Content-Security-Policy').pins[0];
+    (pin?.value as { csp: { mode: string } }).csp.mode = 'report-only';
+
+    expect(schema.const.csp.mode).toBe('strict');
+  });
+
+  it('does not let a mutated nested enum member corrupt the caller schema', () => {
+    const schema = { enum: [{ a: { b: 1 } }] };
+    const declared = fromDeclaredHeaders({
+      'X-Nested': headerParameter({ schema }),
+    });
+
+    const pin = declared('X-Nested').pins[0];
+    (pin?.value as { a: { b: number } }[])[0]!.a.b = 99;
+
+    expect(schema.enum[0]!.a.b).toBe(1);
+  });
+
+  it('does not let a mutated NESTED default pin value corrupt the caller schema', () => {
+    const schema = { default: { retry: { max: 3 } } };
+    const declared = fromDeclaredHeaders({
+      'X-Retry': headerParameter({ schema }),
+    });
+
+    const pin = declared('X-Retry').pins[0];
+    (pin?.value as { retry: { max: number } }).retry.max = 0;
+
+    expect(schema.default.retry.max).toBe(3);
+  });
+
+  it('returns a non-cloneable pin value instead of throwing', () => {
+    // `const`/`default` are `unknown`; a TypeScript-authored spec model loaded
+    // through jiti can legally hold something structuredClone rejects. A
+    // read-only facts lookup must not turn that into a DataCloneError.
+    const schema = { const: { onSend: () => 'not cloneable' } };
+    const declared = fromDeclaredHeaders({
+      'X-Callback': headerParameter({ schema }),
+    });
+
+    const facts = declared('X-Callback');
+
+    expect(facts.pins).toHaveLength(1);
+    expect(facts.pins[0]?.kind).toBe('const');
+    expect((facts.pins[0]?.value as { onSend: () => string }).onSend()).toBe(
+      'not cloneable',
+    );
+  });
+
   it('takes the first case-variant declared key when the same header name is declared twice', () => {
     const declared = fromDeclaredHeaders({
       'Set-Cookie': headerParameter({
