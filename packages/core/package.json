@@ -46,7 +46,12 @@
     "./utils": "./dist/utils.js",
     "./http-filter": "./dist/http-filter.js",
     "./http-fields": "./dist/http-fields/index.js",
-    "./rxjs": "./dist/rxjs.js"
+    "./rxjs": "./dist/rxjs.js",
+    "./user-module": {
+      "types": "./dist/user-module.d.ts",
+      "import": "./dist/user-module.js",
+      "default": "./dist/user-module.js"
+    }
   },
   "dependencies": {
     "@fastify/deepmerge": "^3.1.0",
@@ -55,6 +60,7 @@
     "ajv-formats": "^3.0.1",
     "chalk": "^5.4.1",
     "graphology": "^0.26.0",
+    "jiti": "^2.6.1",
     "path-to-regexp": "^8.4.0",
     "rxjs": "^7.8.2",
     "safe-stable-stringify": "^2.5.0",

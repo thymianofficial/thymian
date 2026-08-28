@@ -435,6 +435,8 @@ export class Thymian {
         rulesConfig,
         this.options.cwd,
         input.ruleProfiles,
+        {},
+        this.logger,
       ),
     ]);
 
@@ -467,6 +469,8 @@ export class Thymian {
         rulesConfig,
         this.options.cwd,
         input.ruleProfiles,
+        {},
+        this.logger,
       ),
     ]);
 
@@ -501,6 +505,8 @@ export class Thymian {
         rulesConfig,
         this.options.cwd,
         input.ruleProfiles,
+        {},
+        this.logger,
       ),
       input.specification
         ? this.loadFormat(
