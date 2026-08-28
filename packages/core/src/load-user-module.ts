@@ -85,7 +85,14 @@ export function miscasedExtension(
   return undefined;
 }
 
-function isLocalSpecifier(specifier: string): boolean {
+/**
+ * True when a specifier names a file by path — a relative spelling (`.`, `..`,
+ * `./`, `../`, and the Windows `.\` / `..\` variants) or an absolute path —
+ * rather than a bare installed-package name. The single source of truth for
+ * the local-vs-package distinction, shared with consumers of the seam so a
+ * caller never re-derives (and drifts from) this rule.
+ */
+export function isLocalSpecifier(specifier: string): boolean {
   return (
     // The bare directory references `.` / `..` are local, not package names
     // (they would otherwise resolve the cwd's or parent's own package.json).
