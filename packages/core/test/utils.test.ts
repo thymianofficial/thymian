@@ -5,6 +5,7 @@ import {
   getContentType,
   getHeader,
   httpResponseToLabel,
+  objHasKeyIgnoreCase,
 } from '../src/utils.js';
 
 // Characterization tests for `getHeader`'s behavior. These pin down every
@@ -31,16 +32,32 @@ describe('getHeader', () => {
     expect(getHeader(headers, 'x-custom-header')).toBe('value');
   });
 
-  it('returns a single-element array match unchanged, without unwrapping it to a string', () => {
-    const headers = { 'X-Foo': ['only'] };
+  it('returns a single-element array match by the same reference, without unwrapping it to a string', () => {
+    const value = ['only'];
+    const headers = { 'X-Foo': value };
 
-    expect(getHeader(headers, 'x-foo')).toEqual(['only']);
+    // Reference identity, not just deep equality: callers untangle
+    // `string | string[]` in place, and a fresh array would be an observable
+    // change for anything comparing or mutating what it got back.
+    expect(getHeader(headers, 'x-foo')).toBe(value);
   });
 
-  it('returns a multi-element array match unchanged', () => {
-    const headers = { 'Set-Cookie': ['a=1', 'b=2'] };
+  it('returns a multi-element array match by the same reference', () => {
+    const value = ['a=1', 'b=2'];
+    const headers = { 'Set-Cookie': value };
 
-    expect(getHeader(headers, 'set-cookie')).toEqual(['a=1', 'b=2']);
+    expect(getHeader(headers, 'set-cookie')).toBe(value);
+  });
+
+  it('returns an empty-array match by the same reference, not undefined', () => {
+    const value: string[] = [];
+    const headers = { 'X-Foo': value };
+
+    expect(getHeader(headers, 'x-foo')).toBe(value);
+  });
+
+  it('falls back to the empty-record default when the headers argument is omitted', () => {
+    expect(getHeader(undefined, 'x-missing')).toBeUndefined();
   });
 
   it('returns undefined when the header is absent', () => {
@@ -96,6 +113,28 @@ describe('getHeader', () => {
     const headers = { 'X-Foo': undefined };
 
     expect(getHeader(headers, 'x-foo')).toBeUndefined();
+  });
+});
+
+// Characterization tests for `objHasKeyIgnoreCase`, which is now
+// `@deprecated` in favor of `fromRuntimeHeaders(...).has(...)`. Its behavior
+// is unchanged; these pin it so the deprecation stays annotation-only.
+describe('objHasKeyIgnoreCase', () => {
+  it('finds a key case-insensitively', () => {
+    expect(
+      objHasKeyIgnoreCase({ 'Content-Type': 'text/html' }, 'content-type'),
+    ).toBe(true);
+  });
+
+  it('returns false for an absent key', () => {
+    expect(objHasKeyIgnoreCase({}, 'content-type')).toBe(false);
+  });
+
+  it('returns true for a declared key whose value is undefined', () => {
+    // The behavioral difference from fromRuntimeHeaders(...).has(), and the
+    // reason the deprecation notice calls it out: presence here means the key
+    // exists, not that a value does.
+    expect(objHasKeyIgnoreCase({ 'X-Foo': undefined }, 'x-foo')).toBe(true);
   });
 });
 

@@ -6,7 +6,7 @@ import type {
   ThymianHttpResponse,
 } from './format/index.js';
 import type { HttpRequest, HttpResponse } from './http.js';
-import { fromRuntimeHeaders } from './http-fields/index.js';
+import { fromRuntimeHeaders } from './http-fields/normalized-headers.js';
 import {
   httpStatusCodeToPhrase,
   isValidHttpStatusCode,
@@ -157,6 +157,13 @@ export function findKeyIgnoreCase(
   );
 }
 
+/**
+ * @deprecated For header records, use `@thymian/core/http-fields`'s
+ * `fromRuntimeHeaders(headers).has(name)` instead, which folds case-variant
+ * duplicate keys and treats a `null`/`undefined`/empty-array value as absent.
+ * This helper reports `true` for a key that is merely *declared* with an
+ * `undefined` value, which is rarely what a caller checking presence means.
+ */
 export function objHasKeyIgnoreCase(
   obj: Record<PropertyKey, unknown>,
   key: PropertyKey,
