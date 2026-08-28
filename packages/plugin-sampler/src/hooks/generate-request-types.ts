@@ -1,11 +1,23 @@
 import {
   isEdgeType,
   type Parameter,
+  ThymianBaseError,
   type ThymianFormat,
   thymianHttpRequestToUrl,
 } from '@thymian/core';
 import CodeBlockWriter from 'code-block-writer';
 import { compile, type JSONSchema } from 'json-schema-to-typescript';
+
+import {
+  assertEmittedNamesWereIssued,
+  assertReferencesAreStrings,
+} from '../generation/types/emitted-names.js';
+import {
+  foldExtendsInPlace,
+  safeIdentifier,
+  stripEnumNameDirectiveInPlace,
+  stripNameKeywordsInPlace,
+} from '../generation/types/type-names.js';
 
 export async function generateTypeForSchema(
   schema: unknown,
@@ -13,54 +25,152 @@ export async function generateTypeForSchema(
   typeName: string,
 ): Promise<GeneratedSchemaType> {
   const normalizedMediaType = mediaType.split(';', 1)[0]?.trim().toLowerCase();
-  if (
-    !(
-      normalizedMediaType === 'application/json' ||
-      normalizedMediaType?.includes('+json')
-    )
-  ) {
+  if (!(
+    normalizedMediaType === 'application/json' ||
+    normalizedMediaType?.includes('+json')
+  )) {
     return { declarations: [], type: 'unknown' };
   }
 
-  const declaration = await compile(
-    convertDefsToDefinitions(structuredClone(schema)) as JSONSchema,
-    typeName,
-    {
-      bannerComment: '',
-      additionalProperties: true,
-      style: {
-        semi: false,
-      },
-      $refOptions: {
-        mutateInputSchema: true,
-      },
+  // `compile` declares under `toSafeString(name)`, not under `name`, so a name
+  // that is not already a fixed point of that transform is declared under one
+  // identifier and returned as another — a dangling reference in the emitted
+  // file. Sanitising here makes the declared name and the returned name the
+  // same string by construction. v1's `GeneratedSchema1..N` is unaffected: it is
+  // already a fixed point.
+  const safeName = safeIdentifier(typeName);
+  // The other half of that same boundary: `compile` does not merely re-case the
+  // name it is handed, it IGNORES it when the schema names itself, because
+  // `schema.title`, `schema.$id` and — via the normalizer's `id` -> `$id` rule —
+  // `schema.id` all outrank it (`parser.js:274`, `normalizer.js:49`). A
+  // schema-level `title` is ordinary in real OpenAPI documents and
+  // `plugin-openapi` passes all three through verbatim, so they reach here
+  // intact and the returned name ends up naming nothing. Stripping them keeps
+  // "the declaration declares what this function returns" true by construction
+  // rather than by luck.
+  // A JSON Schema may legally be a BOOLEAN (`true` admits anything, `false`
+  // admits nothing), and `compile()` treats a non-object argument as a FILENAME
+  // — it tried to read the process CWD and threw `ResolverError: EISDIR`.
+  // Answering directly is both correct and the only way to keep the abort out of
+  // a user's generation.
+  if (schema === null || typeof schema !== 'object') {
+    return {
+      declarations: [],
+      type: schema === false ? 'never' : 'unknown',
+    };
+  }
+
+  const prepared: unknown = structuredClone(schema);
+
+  // `extends` is the one library-parsed position the strip cannot enter — an
+  // unnamed super-type makes the library emit `extends  {` and its formatter
+  // throw. Folding it into `allOf` moves it INTO the walk, so the super-type is
+  // stripped like any other subschema instead of naming a declaration, and its
+  // members survive. Must run before the strip, so the title it carries is gone
+  // by the time `compile()` sees it.
+  foldExtendsInPlace(prepared);
+  assertReferencesAreStrings(prepared);
+  // `tsEnumNames` mints `export const enum <PropertyKey>` — an identifier that
+  // traces to no `$ref` and to no name this generator issued, so it both writes
+  // an unreserved declaration into the surface and trips the postcondition on
+  // input the library compiles happily. Unlike `tsType` it is never written by
+  // this generator (example reflection emits `tsType` only), so it can be
+  // stripped unconditionally at the one boundary every path routes through —
+  // which also closes it on the v1 path, where nothing stripped it before.
+  stripEnumNameDirectiveInPlace(prepared);
+  stripNameKeywordsInPlace(prepared);
+
+  const compilable = convertDefsToDefinitions(prepared);
+  const declaration = await compile(compilable as JSONSchema, safeName, {
+    bannerComment: '',
+    additionalProperties: true,
+    style: {
+      semi: false,
     },
-  );
+    $refOptions: {
+      mutateInputSchema: true,
+    },
+  });
+
+  // The third half of the same boundary, and the only one that is not another
+  // enumeration. `title`, `$id` and `id` were each found by the same probe after
+  // the previous round had "closed" this, and the worst case was silent every
+  // time. Rather than guess at the next keyword, assert what the library
+  // ACTUALLY declared: this is the single `compile()` call in `src/`, and every
+  // producer of declarations routes through it — v2's sites, v2's example bases
+  // and the frozen v1 path alike — so one call covers the whole surface.
+  assertEmittedNamesWereIssued(declaration, compilable, safeName);
 
   return {
     declarations: [declaration],
-    type: typeName,
+    type: safeName,
   };
 }
 
+/**
+ * Refuses a ROOT that spells its definitions both ways.
+ *
+ * `convertDefsToDefinitions` rewrites the `$defs` KEY to `definitions` and
+ * assigns with `acc[newKey] = value`, so a root carrying both collapsed by
+ * last-write-wins — one whole definition block dropped, and `#/definitions/X`
+ * then resolving to whichever survived, with no diagnostic. The library refuses
+ * this input itself ("Schema must define either definitions or $defs, not
+ * both"), so saying so is honest; merging would invent a semantics neither spec
+ * gives.
+ *
+ * THE CHECK IS ROOT-ONLY, and that is a correction. Run inside the blind
+ * recursion it fired on `properties: { $defs: …, definitions: … }` — a schema
+ * describing an object with two ordinary property names — and on `$defs`/
+ * `definitions` members inside example DATA, aborting descriptions the library
+ * compiles without complaint. The library's own check is root-only too.
+ */
+function assertOneDefinitionsSpelling(input: unknown): void {
+  if (
+    input === null ||
+    typeof input !== 'object' ||
+    Array.isArray(input) ||
+    (input as Record<string, unknown>)['$defs'] === undefined ||
+    (input as Record<string, unknown>)['definitions'] === undefined
+  ) {
+    return;
+  }
+
+  throw new ThymianBaseError(
+    'A schema defines both "$defs" and "definitions", and they cannot both be kept.',
+    {
+      name: 'ConflictingDefinitionsError',
+      suggestions: [
+        'Move every entry into one of the two keywords — "$defs" is the current spelling.',
+      ],
+    },
+  );
+}
+
 export function convertDefsToDefinitions(input: any): unknown {
+  assertOneDefinitionsSpelling(input);
+
+  return convertSubtree(input);
+}
+
+function convertSubtree(input: unknown): unknown {
   if (input === null || typeof input !== 'object') {
     return input;
   }
 
   if (Array.isArray(input)) {
-    return input.map((item) => convertDefsToDefinitions(item));
+    return input.map((item) => convertSubtree(item));
   }
 
-  const result = Object.keys(input).reduce((acc: any, key) => {
+  const node = input as Record<string, unknown>;
+  const result = Object.keys(node).reduce((acc: any, key) => {
     const newKey = key === '$defs' ? 'definitions' : key;
 
-    let value = input[key];
+    let value = node[key];
 
     if (key === '$ref' && typeof value === 'string') {
       value = value.replace(/\/\$defs\//g, '/definitions/');
     } else {
-      value = convertDefsToDefinitions(value);
+      value = convertSubtree(value);
     }
 
     acc[newKey] = value;
