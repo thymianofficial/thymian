@@ -8,7 +8,22 @@ import type { ThymianSchema } from '../format/thymian-schema.js';
  */
 export type DeclaredHeaderRecord = Record<string, Parameter>;
 
-/** Which direct schema keyword pinned the header's value. */
+/**
+ * Which direct schema keyword pinned the header's value, and what a rule can
+ * do with the `value` that comes with it:
+ *
+ * - `const` -- the single declared value; evaluate it directly.
+ * - `enum` -- a candidate set (`value` is an array); the declaration permits
+ *   any member, so the header conforms only if EVERY member conforms.
+ * - `default` -- the value assumed when the sender omits the header;
+ *   evaluate it directly, but it is an assumption, not a guarantee.
+ * - `pattern` -- a regex source string, NOT a value; a rule cannot read a
+ *   declared value out of it, only reason about the constraint.
+ *
+ * `kind` says what the pin *is*, never how loudly to report it: a finding's
+ * severity comes from the rule's own tier tag, not from which keyword
+ * happened to pin the value.
+ */
 export type PinKind = 'const' | 'enum' | 'pattern' | 'default';
 
 /** The pinned value and which schema keyword pinned it. */
