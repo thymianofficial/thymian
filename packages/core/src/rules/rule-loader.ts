@@ -8,6 +8,7 @@ import {
   resolveUserModule,
   unloadableReason,
 } from '../load-user-module.js';
+import type { Logger } from '../logger/logger.js';
 import { ThymianBaseError } from '../thymian.error.js';
 import { isRecord } from '../utils.js';
 import { validate } from './ajv-validate.js';
@@ -315,18 +316,18 @@ function warnSkippedGlobMatch(
   resolved: string,
   reason: string,
   ruleSetName: string,
+  logger: Logger | undefined,
 ): void {
-  process.emitWarning(
-    new ThymianBaseError(
-      `Skipping "${resolved}" matched by rule set "${ruleSetName}": ${reason}`,
-      {
-        name: 'RuleLoadError',
-        suggestions: [
-          'Remove or fix the file so it matches a loadable rule, or narrow the glob pattern to exclude it.',
-        ],
-        ref: 'https://thymian.dev/references/errors/rule-load-error/',
-      },
-    ),
+  // A skipped match is a non-fatal diagnostic (AC3): warn through the caller's
+  // logger, not `process.emitWarning` — the latter surfaces as a raw Node
+  // warning with a stack trace, which reads as an internal fault to users. The
+  // message stays self-contained (reason + remedy + reference) so it carries
+  // the same framing the thrown errors do.
+  logger?.warn(
+    `Skipping "${resolved}" matched by rule set "${ruleSetName}": ${reason} ` +
+      'Remove or fix the file so it matches a loadable rule, or narrow the ' +
+      'glob pattern to exclude it. See ' +
+      'https://thymian.dev/references/errors/rule-load-error/',
   );
 }
 
@@ -338,6 +339,7 @@ async function loadRuleSet(
   cwd: string,
   ruleProfiles: Record<string, string>,
   profileConfig: RulesConfiguration,
+  logger: Logger | undefined,
 ): Promise<Rule[]> {
   if (ruleSet.rules) {
     const source = `rule set "${ruleSet.name}"`;
@@ -405,7 +407,7 @@ async function loadRuleSet(
         const skipReason = nonLoadableGlobMatchReason(resolved, canonical);
 
         if (skipReason) {
-          warnSkippedGlobMatch(resolved, skipReason, ruleSet.name);
+          warnSkippedGlobMatch(resolved, skipReason, ruleSet.name, logger);
           continue;
         }
 
@@ -501,6 +503,9 @@ export async function loadRules(
   // at the top level; a rule set fills it from its own `profiles` map before
   // dispatching to its member rules (inline or glob-matched).
   profileConfig: RulesConfiguration = {},
+  // The caller's logger, used to surface non-fatal glob-match skips (AC3).
+  // Optional so direct callers (e.g. tests, plugins) may omit it.
+  logger?: Logger,
 ): Promise<Rule[]> {
   if (!input || (Array.isArray(input) && input.length === 0)) {
     return [];
@@ -517,6 +522,7 @@ export async function loadRules(
             cwd,
             ruleProfiles,
             profileConfig,
+            logger,
           ),
         ),
       )
@@ -580,6 +586,7 @@ export async function loadRules(
       cwd,
       ruleProfiles,
       resolveProfileConfig(ruleOrRuleSet, profileName),
+      logger,
     );
   }
 

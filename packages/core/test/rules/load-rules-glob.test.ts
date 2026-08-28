@@ -10,7 +10,24 @@ import { join } from 'node:path';
 
 import { describe, expect, it } from 'vitest';
 
+import type { Logger } from '../../src/logger/logger.js';
+import { NoopLogger } from '../../src/logger/noop.logger.js';
 import { loadRules } from '../../src/rules/rule-loader.js';
+
+// A Logger that records the messages passed to `warn` (everything else is a
+// no-op via NoopLogger), so tests can assert on the non-fatal skip diagnostics
+// loadRules emits (AC3).
+function capturingLogger(): { logger: Logger; warnings: string[] } {
+  const warnings: string[] = [];
+
+  class CapturingLogger extends NoopLogger {
+    override warn(formatter: unknown, ...args: unknown[]): void {
+      warnings.push([formatter, ...args].map(String).join(' '));
+    }
+  }
+
+  return { logger: new CapturingLogger('test'), warnings };
+}
 
 const fixtureDir = join(import.meta.dirname, 'fixtures', 'rule-sets');
 
@@ -86,36 +103,26 @@ describe('rule-set glob loading', () => {
   });
 
   it('skips a non-loadable-kind match (.d.ts) with a framed reason, still loading the rest of the set', async () => {
-    const warnings: unknown[] = [];
-    const onWarning = (warning: unknown) => warnings.push(warning);
-    process.on('warning', onWarning);
+    const { logger, warnings } = capturingLogger();
 
-    try {
-      const rules = await loadRules(
-        join(fixtureDir, 'glob-skip-kinds', 'rule-set.mjs'),
-      );
+    const rules = await loadRules(
+      join(fixtureDir, 'glob-skip-kinds', 'rule-set.mjs'),
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      logger,
+    );
 
-      expect(rules).toHaveLength(1);
-      expect(rules[0]?.meta.name).toBe('glob-skip-kinds-valid');
+    expect(rules).toHaveLength(1);
+    expect(rules[0]?.meta.name).toBe('glob-skip-kinds-valid');
 
-      // Give the emitted warning a tick to be delivered.
-      await new Promise((resolve) => setImmediate(resolve));
+    const skipWarnings = warnings.filter((warning) =>
+      /declaration\.rule\.d\.ts/.test(warning),
+    );
 
-      // Filter to the warning this test is about rather than asserting on the
-      // total count: `process` warnings are global, so an unrelated warning
-      // emitted elsewhere in the run (e.g. a Node deprecation) would otherwise
-      // make this flaky.
-      const skipWarnings = warnings.filter(
-        (warning): warning is Error =>
-          warning instanceof Error &&
-          warning.name === 'RuleLoadError' &&
-          /declaration\.rule\.d\.ts/.test(warning.message),
-      );
-
-      expect(skipWarnings).toHaveLength(1);
-    } finally {
-      process.off('warning', onWarning);
-    }
+    expect(skipWarnings).toHaveLength(1);
   });
 
   it('skips a symlink whose spelling is loadable but whose realpath target is unloadable (.d.ts), still loading the rest', async () => {
@@ -123,10 +130,7 @@ describe('rule-set glob loading', () => {
     // (an unloadable kind). Since the load goes through the canonical path, this
     // must be classified as a warned skip (AC3), not a load attempt that fails
     // the whole set.
-    const warnings: unknown[] = [];
-    const onWarning = (warning: unknown) => warnings.push(warning);
-    process.on('warning', onWarning);
-
+    const { logger, warnings } = capturingLogger();
     const dir = mkdtempSync(join(tmpdir(), 'glob-symlink-dts-'));
 
     try {
@@ -150,23 +154,25 @@ describe('rule-set glob loading', () => {
         "export default { name: 'glob-symlink-dts', pattern: './rules/*.rule.ts' };\n",
       );
 
-      const rules = await loadRules(join(dir, 'rule-set.mjs'));
+      const rules = await loadRules(
+        join(dir, 'rule-set.mjs'),
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+        logger,
+      );
 
       expect(rules).toHaveLength(1);
       expect(rules[0]?.meta.name).toBe('glob-symlink-dts-good');
 
-      await new Promise((resolve) => setImmediate(resolve));
-
-      const skipWarnings = warnings.filter(
-        (warning): warning is Error =>
-          warning instanceof Error &&
-          warning.name === 'RuleLoadError' &&
-          /target\.d\.ts/.test(warning.message),
+      const skipWarnings = warnings.filter((warning) =>
+        /target\.d\.ts/.test(warning),
       );
 
       expect(skipWarnings).toHaveLength(1);
     } finally {
-      process.off('warning', onWarning);
       rmSync(dir, { recursive: true, force: true });
     }
   });
