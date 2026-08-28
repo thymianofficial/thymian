@@ -2,25 +2,18 @@ import { readdir, readFile } from 'node:fs/promises';
 import { type } from 'node:os';
 import { basename, dirname, join } from 'node:path';
 
-import { ThymianBaseError } from '@thymian/core';
-import { createJiti } from 'jiti';
+import { type Logger, ThymianBaseError } from '@thymian/core';
 
-import {
-  AFTER_EACH_HOOK,
-  AUTHORIZE_HOOK,
-  BEFORE_EACH_HOOK,
-  SAMPLE_FILE,
-} from '../constants.js';
-import type {
-  AfterEachResponseHook,
-  AuthorizeHook,
-  BeforeEachRequestHook,
-} from '../hooks/hook-types.js';
+import { SAMPLE_FILE } from '../constants.js';
 import type {
   ContentSource,
   HttpRequestSample,
 } from '../http-request-sample.js';
-import { checkForSafePath } from '../utils.js';
+import {
+  checkForSafePath,
+  entryExists,
+  PATH_TRAVERSAL_ERROR_NAME,
+} from '../utils.js';
 import {
   type FileRequestSample,
   isFileValue,
@@ -39,24 +32,6 @@ import type {
   PathToNodeType,
   StructureMetaOnDisc,
 } from './structure-meta-on-disc.js';
-
-const jiti = createJiti(import.meta.url);
-
-export async function tryImport<T>(path: string): Promise<T> {
-  const module = await jiti.import<T>(path, { default: true });
-
-  if (module === null || typeof module !== 'function') {
-    throw new ThymianBaseError(`Could not import hook from "${path}".`, {
-      name: 'HookImportError',
-      ref: 'https://thymian.dev/references/errors/hook-import-error/',
-      suggestions: [
-        'Check that the hook file exists and the hook function is exported as default.',
-      ],
-    });
-  }
-
-  return module;
-}
 
 export async function extractParameterValues(
   parameters: Record<string, Value>,
@@ -168,7 +143,7 @@ export async function extractSamplesNode<
   const samplesNode: SamplesNode = {
     meta,
     type: 'samples',
-    hooks: await extractHooksFromDir(dir),
+    hooks: extractHooksFromDir(dir),
     children: [request],
   };
 
@@ -181,39 +156,36 @@ export async function extractSamplesNode<
   };
 }
 
-export async function extractHooksFromDir(dir: string): Promise<Hooks> {
-  const hooks: Hooks = {
+/**
+ * The empty hook set, without reading the directory.
+ *
+ * v1 discovered hooks by importing `beforeEach.ts` / `afterEach.ts` /
+ * `authorize.ts` out of every node of the samples tree. Story 575.9 replaced that
+ * wholesale with `loadUserHooks`, which scans `.thymian/sampler/hooks/` — so
+ * nothing reads `node.hooks` any more. Importing those files anyway would execute
+ * user module side effects for hooks that are then discarded, and could raise a
+ * `HookImportError` for a file the sampler no longer uses.
+ *
+ * The function and its return shape survive so `mergeHooks` in `merge-tree.ts` is
+ * unaffected. Both die in 575.10 with the rest of the tree.
+ *
+ * Synchronous, because there is nothing left to await: it reads no directory and
+ * builds a constant. It stayed `async` after the body was emptied, so all three
+ * call sites `await`ed a value that was never a promise.
+ *
+ * `dir` stays in the signature on purpose, and not only to leave the call sites
+ * alone: the #615 tests hand it a directory containing a v1 `beforeEach.ts` whose
+ * import would leave a marker file behind, and assert the marker never appears.
+ * A parameterless function could not carry that evidence.
+ */
+export function extractHooksFromDir(dir: string): Hooks {
+  void dir;
+
+  return {
     afterEachResponse: [],
     authorize: [],
     beforeEachRequest: [],
   };
-
-  for (const dirent of await readdir(dir, {
-    recursive: false,
-    withFileTypes: true,
-  })) {
-    if (dirent.isFile()) {
-      const filePath = join(dir, dirent.name);
-
-      if (BEFORE_EACH_HOOK.test(dirent.name)) {
-        hooks.beforeEachRequest.push(
-          await tryImport<BeforeEachRequestHook>(filePath),
-        );
-      }
-
-      if (AFTER_EACH_HOOK.test(dirent.name)) {
-        hooks.afterEachResponse.push(
-          await tryImport<AfterEachResponseHook>(filePath),
-        );
-      }
-
-      if (AUTHORIZE_HOOK.test(dirent.name)) {
-        hooks.authorize.push(await tryImport<AuthorizeHook>(filePath));
-      }
-    }
-  }
-
-  return hooks;
 }
 
 export function dirNameToValue(
@@ -262,7 +234,7 @@ export async function extractNodes(
       value: dirNameToValue(currentDirName, type),
       children: [],
       type,
-      hooks: await extractHooksFromDir(fullPath),
+      hooks: extractHooksFromDir(fullPath),
     } as const;
 
     for (const dirent of await readdir(fullPath, {
@@ -296,7 +268,7 @@ export async function readSamplesFromDir(
     children: [],
     meta: meta.version,
     type: 'root',
-    hooks: await extractHooksFromDir(dir),
+    hooks: extractHooksFromDir(dir),
   };
 
   for (const dirent of await readdir(dir, {
@@ -311,4 +283,168 @@ export async function readSamplesFromDir(
   }
 
   return samples;
+}
+
+/** Walks `error` and its `cause` chain, cycle-safe, deepest wrap included. */
+function* causeChain(error: unknown): Generator<object> {
+  const seen = new Set<unknown>();
+  let current: unknown = error;
+
+  while (
+    typeof current === 'object' &&
+    current !== null &&
+    !seen.has(current)
+  ) {
+    seen.add(current);
+    yield current;
+    current = (current as { cause?: unknown }).cause;
+  }
+}
+
+/**
+ * The one error this guard must **not** swallow.
+ *
+ * `checkForSafePath` raises `PathTraversalError` ({@link PATH_TRAVERSAL_ERROR_NAME})
+ * to make a sample file escaping its base directory a hard failure, and
+ * `readSamplesFromDir` is its only remaining call path (`index.ts`) — a bare
+ * `catch` here made that error unreachable, downgrading a refused path traversal
+ * to `logger.debug`.
+ *
+ * The whole `cause` chain is inspected, not just the top-level error: anything
+ * that wraps the refusal on its way up would otherwise be demoted, which is the
+ * bare `catch` defect wearing a different hat.
+ *
+ * **The real close, not taken here.** This is a `name`-string match walked
+ * through a hand-rolled `cause` chain because `ThymianBaseError` carries no
+ * structured `recoverable`/`severity` field — if it did, this whole function
+ * would be one property read, and it would not need re-deriving by the next
+ * caller that has to tell "must not swallow" apart from "safe to degrade"
+ * (`isMalformedJsonError` below answers a related question the same way, by
+ * error *shape* rather than a field meant for exactly this). That field lives
+ * in `@thymian/core`, and AC10 keeps this epic from changing it — declined
+ * here for that reason, not because the string-match approach is preferred.
+ */
+export function isPathTraversalError(error: unknown): boolean {
+  for (const link of causeChain(error)) {
+    if ((link as { name?: unknown }).name === PATH_TRAVERSAL_ERROR_NAME) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
+/**
+ * `EACCES`/`EPERM` anywhere in the chain, so the debug line can name the actual
+ * problem instead of the generic one.
+ */
+function permissionCode(error: unknown): string | undefined {
+  for (const link of causeChain(error)) {
+    const code: unknown = (link as { code?: unknown }).code;
+
+    if (code === 'EACCES' || code === 'EPERM') {
+      return code;
+    }
+  }
+
+  return undefined;
+}
+
+/**
+ * Is this a `SyntaxError` anywhere in the chain — a `meta.json` that
+ * **exists** but does not parse, rather than one that is absent?
+ *
+ * The two used to be indistinguishable: both landed on the same `logger.debug`
+ * line and the same silent `undefined`, which is right for "there is no tree"
+ * (AC 12's paradigm case) and wrong for "there is a tree and it is corrupt" — a
+ * partially-written or badly-merged `meta.json` is a real defect a user needs to
+ * know about, not a normal absence. Distinguishing it is what lets
+ * {@link readSamplesFromDirIfUsable} raise the log level for this one case
+ * without reopening #613: the run still never throws, and the tree is still
+ * `undefined` either way — only how loudly the debug line says so changes.
+ */
+function isMalformedJsonError(error: unknown): boolean {
+  for (const link of causeChain(error)) {
+    if (link instanceof SyntaxError) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
+/**
+ * The samples tree, or `undefined` when there is nothing usable there — never an
+ * exception (#613, AC 12).
+ *
+ * `entryExists` only `access()`es the directory, while `meta.json` is read
+ * unguarded here and again in `extractSamplesNode`. A leftover, empty or
+ * interrupted `.thymian/samples` therefore raised ENOENT (or a JSON parse error)
+ * inside `core.format` and killed a `thymian test` that requires no tree at all.
+ * Story 575.1's AC 1 already named an **empty** tree alongside "absent or stale",
+ * so this is closer to an unmet acceptance criterion than to a deferral.
+ *
+ * Degrading to `undefined` is safe because exactly one thing still needs the tree:
+ * `sampler.path-from-transaction`, which throws its own `SamplesNotLoadedError`
+ * when something actually invokes it. The honest failure stays confined to the one
+ * command that needs a tree.
+ *
+ * **A forbidden tree degrades too.** `EACCES`/`EPERM` used to be re-raised, which
+ * contradicted AC 9 (*"never throws out of `core.format`"*) and AC 12 (*"present
+ * but unreadable … still runs clean"*): a root-created `.thymian/samples` in a
+ * container, or a CI job running as a different user, is the paradigm
+ * "present but unreadable" case, and it hard-failed `test`, `sampler init` and
+ * `sampler check` alike — none of which need the tree. The objection that put the
+ * re-raise here was to the wrong *diagnosis* (`No samples are loaded.` for a tree
+ * that is right there), and that is answered by naming `EACCES` in the debug line
+ * instead of by killing the run.
+ *
+ * `PathTraversalError` stays hard. It is not a tree we *cannot* read; it is a tree
+ * we have decided we *must not*.
+ *
+ * **A malformed `meta.json` is louder than the rest, on purpose.** #613 asked
+ * for "a run that needs no tree must not care that it is corrupt", which this
+ * still honours — the run never throws and the tree is still `undefined` — but
+ * a run that *does* need the tree used to be told `No samples are loaded.` with
+ * nothing pointing at the actual cause, at `logger.debug`, invisible at the
+ * default log level. `SyntaxError` (see {@link isMalformedJsonError}) is the one
+ * shape that means "a tree is right there and it does not parse", as opposed to
+ * "there is nothing here" (absent) or "we may not look" (permissions) — both of
+ * which stay quiet, because they are the ordinary, expected cases AC 12 exists
+ * for. This one gets `logger.warn`: visible without being fatal, the corrupt
+ * case is no longer indistinguishable from the absent one for anyone actually
+ * watching the log.
+ */
+export async function readSamplesFromDirIfUsable(
+  dir: string,
+  logger: Logger,
+): Promise<SamplesStructure | undefined> {
+  if (!(await entryExists(dir))) {
+    return undefined;
+  }
+
+  try {
+    return await readSamplesFromDir(dir);
+  } catch (error) {
+    if (isPathTraversalError(error)) {
+      throw error;
+    }
+
+    const denied = permissionCode(error);
+    const malformed = !denied && isMalformedJsonError(error);
+    const message = denied
+      ? `Ignoring the samples tree at "${dir}": this process may not read it (${denied}). ` +
+        `Only "sampler.path-from-transaction" needs it — fix the permissions if you use it.`
+      : `Ignoring the samples tree at "${dir}": it exists but could not be read (${
+          error instanceof Error ? error.message : String(error)
+        }). Only "sampler.path-from-transaction" needs it.`;
+
+    if (malformed) {
+      logger.warn(message);
+    } else {
+      logger.debug(message);
+    }
+
+    return undefined;
+  }
 }

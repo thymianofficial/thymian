@@ -1,0 +1,219 @@
+import {
+  type AfterAllCallback,
+  type AfterEachCallback,
+  type AuthorizeCallback,
+  type BeforeAllCallback,
+  type BeforeEachCallback,
+  type HookRegistration,
+  type HookTarget,
+  registerHook,
+  type SampleCallback,
+} from './hook-registration.js';
+
+/**
+ * SEEDED BY STORY 575.9, OWNED BY STORY 575.6 (#582).
+ *
+ * This module is the runtime `@thymian/hooks` resolves to. The plugin's jiti
+ * instance aliases the bare specifier `@thymian/hooks` to this file's absolute path
+ * (see `load-user-hooks.ts`), which is what lets a hook file import runtime values
+ * in a workspace where `sampler init` was never run.
+ *
+ * Two consequences of that, both load-bearing:
+ *
+ * - **It must live under `src/`.** `package.json`'s `files: ["dist"]` is what puts
+ *   the built module in the published package, and the e2e suite installs that
+ *   package globally. A module outside `src/` never reaches `dist/`.
+ * - **Its runtime import graph must stay minimal.** jiti evaluates this file, and
+ *   everything it imports at runtime, in its own registry. Today that graph is
+ *   exactly one module: `hook-registration.js`. Everything else here is
+ *   `import type`, which is erased.
+ *
+ * What 575.6 adds: the typed surface (selector-literal targets from the generated
+ * `Endpoints`, typed callbacks, typed setters), the `hooks-api.d.ts` emitter, and
+ * the set-once `defineSample` resolution error. What it must NOT add: an ambient
+ * "active registry" that these functions push into. Registrations are returned
+ * values because discovery is export-based (spec §9) — and because a module-scope
+ * registry cannot cross the jiti realm boundary, so the instance the plugin primes
+ * is never the instance the user's hook writes to. See #585's Dev Notes, "Why the
+ * ambient-registry design cannot work here".
+ *
+ * Callbacks are stored, never invoked here. 575.8 (#584) runs them.
+ */
+
+/**
+ * Rejects a missing or non-callable callback, at the call site the user wrote.
+ *
+ * Only `authorize` used to check, because only `authorize` is overloaded — but a
+ * one-argument `beforeEach(fn)` is the more plausible mistake, and it type-checks
+ * nowhere yet runs fine in a plain `.js` hook file. Unchecked it stored
+ * `target: fn, callback: undefined`, fell through to the filter branch of
+ * `resolveTargeting`, and reported `matched none of the N loaded transaction(s)`
+ * with the function's own source text dumped into the diagnostic anchor by
+ * `describeTarget`'s `String(target)` fallback. The user's mistake is a missing
+ * argument; the message named a filter they never wrote.
+ *
+ * A plain `TypeError` rather than a `ThymianBaseError`: keeping `@thymian/core`
+ * out of this module's runtime graph is what keeps `@thymian/hooks` resolvable
+ * from a hook file with nothing installed alongside it. 575.6 owns the error
+ * taxonomy for the authoring API.
+ */
+function requireCallback(
+  callback: unknown,
+  signature: string,
+): asserts callback is (...args: never[]) => unknown {
+  if (typeof callback !== 'function') {
+    throw new TypeError(
+      `${signature} needs a function as its callback argument.`,
+    );
+  }
+}
+
+/** Rewrites the generated request sample for the targeted transaction(s). */
+export function defineSample(
+  target: HookTarget,
+  callback: SampleCallback,
+): HookRegistration {
+  requireCallback(callback, 'defineSample(target, callback)');
+
+  return registerHook({ kind: 'defineSample', target, callback });
+}
+
+/** Runs before each request of the targeted transaction(s). */
+export function beforeEach(
+  target: HookTarget,
+  callback: BeforeEachCallback,
+): HookRegistration {
+  requireCallback(callback, 'beforeEach(target, callback)');
+
+  return registerHook({ kind: 'beforeEach', target, callback });
+}
+
+/** Runs after each response of the targeted transaction(s). */
+export function afterEach(
+  target: HookTarget,
+  callback: AfterEachCallback,
+): HookRegistration {
+  requireCallback(callback, 'afterEach(target, callback)');
+
+  return registerHook({ kind: 'afterEach', target, callback });
+}
+
+/**
+ * Authorizes requests. Two arities, one representation:
+ *
+ * - `authorize(callback)` — the **global** hook, stored as `target: undefined`.
+ * - `authorize(target, callback)` — **targeted**, and it wins over the global one
+ *   for the transactions it covers (spec §8).
+ */
+export function authorize(callback: AuthorizeCallback): HookRegistration;
+export function authorize(
+  target: HookTarget,
+  callback: AuthorizeCallback,
+): HookRegistration;
+export function authorize(
+  ...args: [AuthorizeCallback] | [HookTarget, AuthorizeCallback]
+): HookRegistration {
+  // Dispatch on **arity**, never on the type of the first argument.
+  //
+  // Typing the dispatch (`typeof targetOrCallback === 'function'`) silently
+  // escalated scope in both directions. `authorize(SELECTORS.login, fn)` after a
+  // rename — the ordinary way a selector constant goes missing — left the first
+  // argument `undefined`, which is not a function, so the check below passed and
+  // the call fell through to `target: undefined`. On `authorize` that *is* the
+  // global form: a hook the user aimed at one endpoint authorized every
+  // transaction in the API, reported `hasErrors: false`, and said so only in an
+  // `info` diagnostic that `HookRunner.init` emits at `logger.debug`. In an
+  // authorization hook that is the wrong direction to fail. From the other side,
+  // `authorize(fn, otherFn)` bound `fn` globally and dropped `otherFn` on the
+  // floor. Two arguments now always mean targeted, and the target slot is
+  // checked for the two values that are never a `HookTarget` and that the old
+  // dispatch turned into the global hook.
+  //
+  // `null`, a number or `[]` in the target slot are deliberately NOT rejected
+  // here: they reach `resolveTargeting` and draw a load-time diagnostic exactly
+  // as they do for the other four factories. Only the silent cases are the one
+  // overloaded factory's own problem.
+  //
+  // A third argument is the same silent-drop shape one level up: TypeScript's
+  // overloads reject it at compile time, but a `.js`/`.mjs`/`.cjs` hook file —
+  // legal input (spec §1), and one jiti transpiles without type-checking —
+  // reaches this function with no such guard. `authorize(sel, fn, extra)`
+  // would otherwise bind `fn` targeted and drop `extra` on the floor with no
+  // diagnostic at all, indistinguishable from a call that never had it.
+  if (args.length > 2) {
+    throw authorizeArityError();
+  }
+
+  if (args.length === 1) {
+    const [callback] = args;
+
+    if (typeof callback !== 'function') {
+      throw authorizeArityError();
+    }
+
+    return registerHook({ kind: 'authorize', target: undefined, callback });
+  }
+
+  const [target, callback] = args;
+
+  if (typeof callback !== 'function') {
+    throw authorizeArityError();
+  }
+
+  if (target === undefined || typeof target === 'function') {
+    throw new TypeError(
+      'authorize(target, callback) was called with no target. ' +
+        'Check that the selector or filter you passed is defined, ' +
+        'or call authorize(callback) for the global hook.',
+    );
+  }
+
+  return registerHook({ kind: 'authorize', target, callback });
+}
+
+/**
+ * Kept verbatim rather than routed through `requireCallback`: `authorize` is the
+ * one overloaded factory, so the actionable half of the message is the second
+ * sentence, naming the other arity.
+ */
+function authorizeArityError(): TypeError {
+  return new TypeError(
+    'authorize(target, callback) needs a callback as its second argument. ' +
+      'Call authorize(callback) for the global hook.',
+  );
+}
+
+/**
+ * Registers a hook meant to run once before the run. Carries no target
+ * (spec §6).
+ *
+ * **Not executed yet.** This story (575.9) only discovers and validates
+ * run-scoped registrations — `loadUserHooks` collects the callback into
+ * `LoadUserHooksResult.runScoped.beforeAll` and reports it in the load-time
+ * diagnostics, but nothing calls it. Execution — the first-touch latch this
+ * needs, since "once before the run" has no meaning until something decides
+ * when the run starts — is story 575.8's acceptance criteria. Until that
+ * lands, a hook registered here is loaded, counted in the diagnostics, and
+ * never run.
+ */
+export function beforeAll(callback: BeforeAllCallback): HookRegistration {
+  requireCallback(callback, 'beforeAll(callback)');
+
+  return registerHook({ kind: 'beforeAll', callback });
+}
+
+/**
+ * Registers a hook meant to run once after the run. Carries no target
+ * (spec §6).
+ *
+ * **Not executed yet.** See {@link beforeAll}'s docblock: discovered and
+ * validated by this story, executed by 575.8 — reverse-order best-effort
+ * teardown, plus returned cleanups on `core.close`, are that story's
+ * semantics to define, not this one's to guess at. A hook registered here
+ * today is loaded, counted in the diagnostics, and never run.
+ */
+export function afterAll(callback: AfterAllCallback): HookRegistration {
+  requireCallback(callback, 'afterAll(callback)');
+
+  return registerHook({ kind: 'afterAll', callback });
+}

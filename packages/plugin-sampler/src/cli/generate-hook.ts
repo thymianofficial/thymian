@@ -12,6 +12,7 @@ import {
 } from '@thymian/core';
 import launchEditor from 'launch-editor';
 
+import { resolveSamplerPaths } from '../sampler-paths.js';
 import {
   afterEachRequestHook,
   authorizeHook,
@@ -127,7 +128,23 @@ export async function generateHook<
         await writeFile(fullFilePath, beforeEachRequestHook);
       }
 
-      command.log(oclif.ux.colorize('green', 'Hook generated successfully!'));
+      // The honest message, not the old success line. This writes the v1
+      // per-transaction hook shape (`<name>.beforeEach.ts` etc., next to the
+      // sample it targets) — but 575.9 replaced v1 hook discovery wholesale
+      // with a scan of `.thymian/sampler/hooks/` (`extractHooksFromDir`,
+      // `read-samples-from-dir.ts`, always returns empty now), so a file
+      // written here is never loaded by anything. "Hook generated
+      // successfully!" was true of the write and false of the result: the
+      // command still writes a template a user can copy from, but nothing
+      // reads it from where it landed. Removing this command entirely is
+      // 575.10's scope (the epic lists `generate-hook` among the commands it
+      // removes); until then, this is the honest minimum — say so, and point
+      // at the directory that is actually scanned.
+      command.warn(
+        `This file is written for reference only — it will not be loaded from here. ` +
+          `Hooks are discovered from ${oclif.ux.colorize('bold', relative(cwd, resolveSamplerPaths(cwd).hooksDir))} now; ` +
+          `move the exported hook into a file there (see @thymian/hooks).`,
+      );
 
       const openInEditor = await prompts.confirm({
         message: `Do you want to open the file in your editor now?`,
