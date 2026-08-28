@@ -20,15 +20,22 @@ export interface PinFact {
 /**
  * Two-tier declared-header facts for a single header name.
  *
- * L1 (`present`, `required`) is always available. L2 (`pin`) is present
- * only when the header's own `schema.const`/`enum`/`pattern`/`default`
- * pins a value directly -- schema composition (`allOf`/`oneOf`/`$ref`) is
- * never resolved to find one.
+ * L1 (`present`, `required`) is always available. L2 (`pins`) carries one
+ * {@link PinFact} per value-pinning keyword the header's OWN schema sets --
+ * schema composition (`allOf`/`oneOf`/`$ref`) is never resolved to find one.
+ * A loose schema pins nothing and yields an empty `pins`.
+ *
+ * Every pin is reported rather than one precedence winner, because the four
+ * keywords are not interchangeable for the consumer: `const`/`enum`/`default`
+ * carry values a rule can evaluate, `pattern` only a constraint. A single
+ * slot loses the value of any schema that pins both -- `{ pattern: '^v\\d+$',
+ * default: 'v1' }` would surrender `'v1'`, the one value it declares -- and
+ * this view is the only route a lint-context rule has to a declared value.
  */
 export interface DeclaredHeaderFacts {
   present: boolean;
   required: boolean;
-  pin?: PinFact;
+  pins: PinFact[];
 }
 
 /** Looks up the declared facts for one header name (case-insensitive). */
@@ -39,8 +46,9 @@ export type DeclaredHeaderLookup = (name: string) => DeclaredHeaderFacts;
  * (e.g. `ThymianHttpRequest.headers` / `ThymianHttpResponse.headers`).
  *
  * A name absent from `record` (case-insensitively) yields
- * `{ present: false, required: false }`. A name present but whose schema
- * pins no value yields L1 only (`present`, `required`), no `pin`.
+ * `{ present: false, required: false, pins: [] }`. A name present but whose
+ * schema pins no value yields L1 only (`present`, `required`) with an empty
+ * `pins`.
  *
  * Unlike the runtime view, a declared record with two case-variant keys for
  * the same name (e.g. both `Set-Cookie` and `set-cookie` declared) does NOT
@@ -72,19 +80,18 @@ export function fromDeclaredHeaders(
     const key = keyByLowerName.get(name.toLowerCase());
 
     if (key === undefined) {
-      return { present: false, required: false };
+      return { present: false, required: false, pins: [] };
     }
 
     // `key` came from `keyByLowerName`, built from `Object.keys(record)`,
     // so this lookup always hits.
     // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
     const parameter = record[key]!;
-    const pin = derivePin(parameter.schema);
 
     return {
       present: true,
       required: parameter.required,
-      ...(pin ? { pin } : {}),
+      pins: collectPins(parameter.schema),
     };
   };
 }
@@ -109,28 +116,32 @@ function copyPinValue(value: unknown): unknown {
 }
 
 /**
- * Derives the L2 pin fact from a header's own direct schema keywords, in
- * `const` > `enum` > `pattern` > `default` precedence (tested; a schema
- * pinning more than one keyword at once is not itself validated -- this is
- * simply which one wins). Never resolves `allOf`/`oneOf`/`$ref` composition
- * to find one -- out of scope by design.
+ * Collects every L2 pin fact from a header's own direct schema keywords, in
+ * `const` > `enum` > `default` > `pattern` order -- the three value-carrying
+ * keywords first, the `pattern` constraint last, so a consumer taking
+ * `pins[0]` gets a value whenever the schema declares one at all. A schema
+ * setting several keywords at once is not itself validated; all of them are
+ * reported and the rule decides which it can act on. Never resolves
+ * `allOf`/`oneOf`/`$ref` composition to find a pin -- out of scope by design.
  */
-function derivePin(schema: ThymianSchema): PinFact | undefined {
+function collectPins(schema: ThymianSchema): PinFact[] {
+  const pins: PinFact[] = [];
+
   if (schema.const !== undefined) {
-    return { kind: 'const', value: copyPinValue(schema.const) };
+    pins.push({ kind: 'const', value: copyPinValue(schema.const) });
   }
 
   if (schema.enum !== undefined) {
-    return { kind: 'enum', value: schema.enum.map(copyPinValue) };
-  }
-
-  if (schema.pattern !== undefined) {
-    return { kind: 'pattern', value: schema.pattern };
+    pins.push({ kind: 'enum', value: schema.enum.map(copyPinValue) });
   }
 
   if (schema.default !== undefined) {
-    return { kind: 'default', value: copyPinValue(schema.default) };
+    pins.push({ kind: 'default', value: copyPinValue(schema.default) });
   }
 
-  return undefined;
+  if (schema.pattern !== undefined) {
+    pins.push({ kind: 'pattern', value: schema.pattern });
+  }
+
+  return pins;
 }
