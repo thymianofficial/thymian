@@ -993,6 +993,16 @@ async function evaluateModule(
   full: string,
   reported: Set<string>,
 ): Promise<unknown> {
+  // Known, narrow residual: if `esmResolve` throws, `resolved` falls back to
+  // `full` — the raw `readdir` path this function's own docblock says two
+  // spellings of must not be. That fallback can reintroduce exactly that
+  // defect: a sibling file importing the same target through a specifier
+  // jiti resolves *successfully* would cache it under jiti's own canonical
+  // path, not `full`, so the two references would not dedupe. Reaching it
+  // needs `esmResolve` to throw for a path that is independently still
+  // readable, which in practice means jiti's resolver disagreeing with
+  // itself between a direct call and a nested one — not reproduced, and not
+  // closed here; recorded so it is not silently unaddressed.
   let resolved = full;
 
   try {
