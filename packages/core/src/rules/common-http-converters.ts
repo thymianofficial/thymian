@@ -74,6 +74,24 @@ export function httpRequestToCommonHttpRequest(
   };
 }
 
+/**
+ * The response's media type for the common (name-level) context.
+ *
+ * Unlike `extractMediaType` on the request side, this never throws: a
+ * multi-valued `content-type` is anomalous but analyze-context conversion runs
+ * over captured traffic, which must not be able to crash it. An array yields
+ * its first element (the long-standing behavior), a string yields itself.
+ */
+function responseMediaType(response: HttpResponse): string {
+  const contentType = getHeader(response.headers, 'content-type');
+
+  if (Array.isArray(contentType)) {
+    return contentType[0] ?? '';
+  }
+
+  return contentType ?? '';
+}
+
 export function httpResponseToCommonHttpResponse(
   response: HttpResponse,
   _id?: string,
@@ -83,7 +101,7 @@ export function httpResponseToCommonHttpResponse(
   return {
     body: !!response.body,
     headers: Object.keys(response.headers),
-    mediaType: getHeader(response.headers, 'content-type')?.at(0) ?? '',
+    mediaType: responseMediaType(response),
     statusCode: response.statusCode,
     trailers: Object.keys(response.trailers),
   };
