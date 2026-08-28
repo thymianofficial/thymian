@@ -124,10 +124,12 @@ export function fromDeclaredHeaders(
  *
  * `structuredClone` does the copying, but it is guarded: `ThymianSchema`'s
  * `const`/`default` are `unknown`, and a spec model can be authored in
- * TypeScript and loaded through jiti, so a pin may legally hold something
- * non-cloneable (a function, a class instance). Rather than let a
- * `DataCloneError` escape a read-only facts lookup, fall back to a shallow
- * copy -- weaker protection for an exotic pin, but never a throw.
+ * TypeScript and loaded through jiti, so a pin may legally hold a value
+ * `structuredClone` rejects -- a function or symbol property raises
+ * `DataCloneError`. Rather than let that escape a read-only facts lookup,
+ * fall back to a shallow copy -- weaker protection for an exotic pin, but
+ * never a throw. (A class instance does not throw; it clones as a plain
+ * object, dropping its prototype, which the shallow spread did too.)
  */
 function copyPinValue(value: unknown): unknown {
   if (value === null || typeof value !== 'object') {
