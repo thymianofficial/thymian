@@ -3,7 +3,7 @@ import { readFile } from 'node:fs/promises';
 import type { ThymianError } from '@thymian/core';
 import { compile, type JSONSchema } from 'json-schema-to-typescript';
 import { toSafeString } from 'json-schema-to-typescript/dist/src/utils.js';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 
 import {
   DeclarationSet,
@@ -14,6 +14,24 @@ import {
   assertEmittedNamesWereIssued,
   permittedBases,
 } from '../src/generation/types/emitted-names.js';
+
+/**
+ * Wraps, rather than replaces, the real implementation — every other test in
+ * this file calls `assertEmittedNamesWereIssued` (directly, or through
+ * `generateTypeForSchema`) and depends on it actually running. The only thing
+ * this adds is a record of who called it, for the wiring test below.
+ */
+vi.mock('../src/generation/types/emitted-names.js', async (importOriginal) => {
+  const actual =
+    await importOriginal<
+      typeof import('../src/generation/types/emitted-names.js')
+    >();
+
+  return {
+    ...actual,
+    assertEmittedNamesWereIssued: vi.fn(actual.assertEmittedNamesWereIssued),
+  };
+});
 import {
   applyDefinitionNames,
   assignDefinitionNames,
@@ -132,6 +150,38 @@ describe('safeIdentifier', () => {
 });
 
 describe('generateTypeForSchema', () => {
+  /**
+   * THE WIRING, NOT THE LOGIC. Every "rejects" test on
+   * `assertEmittedNamesWereIssued` elsewhere in this file drives the violation
+   * around the strip on purpose (see the comment above `compiledWithoutStrip`)
+   * — the strip now prevents every known escape from reaching `compile()`, so
+   * no schema can make the postcondition fire through a real
+   * `generateTypeForSchema` call any more. That is by design, but it also
+   * means every one of those tests, and the "declares the identifier it
+   * returns" tests right below, would keep passing if the call to
+   * `assertEmittedNamesWereIssued` at the `compile()` boundary were deleted
+   * outright — confirmed by commenting it out and re-running this file, which
+   * left all 372 tests green. This is the one test that notices, because it
+   * asserts the call happened rather than inferring it from an effect the
+   * call is no longer the only thing capable of producing.
+   */
+  it('calls the postcondition once per compile()', async () => {
+    const spy = vi.mocked(assertEmittedNamesWereIssued);
+    const callsBefore = spy.mock.calls.length;
+
+    const generated = await generateTypeForSchema(
+      { type: 'object', properties: { a: { type: 'string' } } },
+      'application/json',
+      'GetPets200ResponseBody',
+    );
+
+    expect(spy.mock.calls.length).toBe(callsBefore + 1);
+
+    const [compiled, , name] = spy.mock.calls[callsBefore] ?? [];
+    expect(name).toBe('GetPets200ResponseBody');
+    expect(compiled).toBe(generated.declarations[0]);
+  });
+
   /**
    * The invariant the whole surface rests on, asserted against the real
    * compiler rather than against a model of it: whatever name goes in, the
