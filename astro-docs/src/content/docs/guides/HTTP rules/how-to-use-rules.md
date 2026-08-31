@@ -18,15 +18,16 @@ Create a `thymian.config.yaml` file in your project root:
 ```yaml
 ruleSets:
   - '@thymian/rules-rfc-9110' # a rule-set package (npm)
+  - './rules/my-api.rule.ts' # a local rule file (explicit extension)
 
 plugins:
   '@thymian/plugin-http-linter': {}
 ```
 
-`ruleSets:` entries are rule-set **package names**. To lint against rules that live in your own
-repository, pass them to `--rule-set` (below) with an explicit-extension path, or bundle them
-into a rule set that globs them through its [`pattern:` field](#rule-set-entry-point) — a bare
-glob is not a valid `ruleSets:` entry.
+A `ruleSets:` entry is a rule-set **package name** or a **local path** with an explicit
+extension — the same bare-vs-local contract as `--rule-set` (below). What it is **not** is a
+glob: `./rules/**/*.rule.ts` will not expand here. To pull in many local files at once, bundle
+them into a rule set that globs them through its [`pattern:` field](#rule-set-entry-point).
 
 ### 2. Via CLI flags
 

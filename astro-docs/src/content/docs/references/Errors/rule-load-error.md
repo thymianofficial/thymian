@@ -12,10 +12,10 @@ A rule module was loaded but does not export its rule using a default export. Th
 
 `Cannot resolve rule source <input>.`
 
-The rule source could not be found. A `ruleSets:` config entry is a rule-set **package** name;
-a `--rule-set` value is a package **or** a local path with an explicit extension. This error
-means the specifier matched neither an installed package nor — for a local `--rule-set` path —
-a file on disk.
+The rule source could not be found. A `ruleSets:` config entry or a `--rule-set` value is a
+rule-set **package** name or a **local path** with an explicit extension. This error means the
+specifier matched neither an installed package nor a file on disk. (A glob is not a valid
+specifier here — globbing is a rule set's own `pattern:` field.)
 
 ### The rule source specifier resolved, but was refused for what it is
 
