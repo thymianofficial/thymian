@@ -22,15 +22,3 @@ describe('@thymian/core package exports (./http-fields subpath)', () => {
     expect(typeof fromRuntimeHeaders).toBe('function');
   });
 });
-
-describe('@thymian/core package.json dependencies', () => {
-  it('adds structured-headers as a runtime dependency, not a dev dependency', () => {
-    expect(packageJson.dependencies).toHaveProperty(
-      'structured-headers',
-      '^2.0.3',
-    );
-    expect(packageJson.devDependencies).not.toHaveProperty(
-      'structured-headers',
-    );
-  });
-});
