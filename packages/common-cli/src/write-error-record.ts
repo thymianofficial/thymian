@@ -12,7 +12,9 @@ import type { Feedback } from './feedback.js';
  * don't carry byte-for-byte duplicates of this logic (which is how the two
  * drifted apart). `feedback`/`errorCache` are passed in explicitly because
  * they're `protected` on the command instances — the caller (inside the
- * command class) reads its own fields and hands them over.
+ * command class) reads its own fields and hands them over. Both are optional
+ * and so trail the required parameters — a command that fails during `init()`
+ * has neither wired up yet.
  *
  * `process.argv` is recorded verbatim on purpose: it must reflect what the user
  * actually typed. This runs before any argv repointing at the execute/handle
@@ -20,9 +22,9 @@ import type { Feedback } from './feedback.js';
  */
 export async function writeErrorRecord(
   command: Command,
-  feedback: Feedback | undefined,
-  errorCache: ErrorCache | undefined,
   err: CommandError,
+  feedback?: Feedback,
+  errorCache?: ErrorCache,
 ): Promise<void> {
   await feedback?.error();
 

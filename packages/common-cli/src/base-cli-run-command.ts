@@ -320,7 +320,7 @@ export abstract class BaseCliRunCommand<
   }
 
   protected override async catch(err: CommandError): Promise<void> {
-    await writeErrorRecord(this, this.feedback, this.errorCache, err);
+    await writeErrorRecord(this, err, this.feedback, this.errorCache);
 
     if (err instanceof ThymianBaseError) {
       const cliError = new CLIError(err.message, {

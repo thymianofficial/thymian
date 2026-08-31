@@ -49,7 +49,7 @@ export abstract class ThymianBaseCommand<
   }
 
   protected override async catch(err: CommandError): Promise<void> {
-    await writeErrorRecord(this, this.feedback, this.errorCache, err);
+    await writeErrorRecord(this, err, this.feedback, this.errorCache);
     return super.catch(err);
   }
 
