@@ -360,9 +360,7 @@ export async function loadUserModule(canonicalPath: string): Promise<unknown> {
       suggestions: [
         'Rules, rule sets, and plugins must be a .ts, .js, .mjs, or .cjs file — not .d.ts, .mts, or .cts.',
       ],
-      // Reuses the existing rule-load-error reference page; a dedicated
-      // user-module-load-error page ships with the docs work.
-      ref: 'https://thymian.dev/references/errors/rule-load-error/',
+      ref: 'https://thymian.dev/references/errors/user-module-load-error/',
     });
   }
 
