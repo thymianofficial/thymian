@@ -1,3 +1,5 @@
+import { isRecord } from '@thymian/core';
+
 /**
  * Recover the argv that oclif core's `handle()` should render help against.
  *
@@ -20,16 +22,8 @@ export function argvForHelpError(
   err: unknown,
   argv: string[],
 ): string[] | undefined {
-  const e = err as {
-    showHelp?: boolean;
-    parse?: { input?: { context?: { id?: string } } };
-  };
+  const id = resolvedHelpCommandId(err);
 
-  if (!e?.showHelp) {
-    return undefined;
-  }
-
-  const id = e.parse?.input?.context?.id;
   if (!id) {
     return undefined;
   }
@@ -39,4 +33,40 @@ export function argvForHelpError(
   // to resolve *which* command's help to show, so dropping the original
   // flags/args tail is harmless.
   return [...argv.slice(0, 2), ...id.split(':')];
+}
+
+/**
+ * Pull the resolved command id off an oclif parse error that requests help.
+ *
+ * `showHelp` and `parse.input.context.id` are `@oclif/core` internals with no
+ * exported type, and the value reaching us is whatever a command threw — a
+ * `CLIError`, a plain `Error`, or a non-object. So the shape is checked at
+ * runtime instead of asserted onto `unknown`.
+ *
+ * `showHelp` is tested for truthiness, not `=== true`, to mirror core's own
+ * gate in `@oclif/core/lib/errors/handle.js`.
+ */
+function resolvedHelpCommandId(err: unknown): string | undefined {
+  if (!isRecord(err) || !err.showHelp) {
+    return undefined;
+  }
+
+  const parse = err.parse;
+  if (!isRecord(parse)) {
+    return undefined;
+  }
+
+  const input = parse.input;
+  if (!isRecord(input)) {
+    return undefined;
+  }
+
+  const context = input.context;
+  if (!isRecord(context)) {
+    return undefined;
+  }
+
+  const id = context.id;
+
+  return typeof id === 'string' && id.length > 0 ? id : undefined;
 }
