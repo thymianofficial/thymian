@@ -40,7 +40,7 @@ rewriting your path.
 
 :::note
 `erasableSyntaxOnly` is **not** required of your rule code. That restriction belongs to Node's
-own type-stripping feature, which Thymian's loader does not use — loading goes through jiti
+own type-stripping feature, which Thymian's loader does not use — loading goes through [jiti](https://github.com/unjs/jiti)
 instead, so `enum`, `namespace`, parameter properties, and decorators all load normally. See
 [Loading Rules and Plugins](/references/loading-rules-and-plugins/) for the full loading
 contract.
