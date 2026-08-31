@@ -32,6 +32,20 @@ import { httpRule } from '@thymian/core';
 export default httpRule('your-rule-name').severity('error').type('static', 'analytics').description('Your rule description').appliesTo('server').done();
 ```
 
+Point the CLI at the generated `.ts` file and it runs — **no build, no bundler, no Node
+flags.** `thymian generate rule` only ever emits a file that loads: `.ts` by default, `.cjs`
+under `--cjs`, and **never** `.mts`/`.cts`. If `--output` names an extension that conflicts
+with the mode (e.g. `--cjs --output foo.js`), the command declines rather than silently
+rewriting your path.
+
+:::note
+`erasableSyntaxOnly` is **not** required of your rule code. That restriction belongs to Node's
+own type-stripping feature, which Thymian's loader does not use — loading goes through [jiti](https://github.com/unjs/jiti)
+instead, so `enum`, `namespace`, parameter properties, and decorators all load normally. See
+[Loading Rules and Plugins](/references/loading-rules-and-plugins/) for the full loading
+contract.
+:::
+
 ## Writing a Rule from Scratch
 
 ### Step 1: Set Up Imports
