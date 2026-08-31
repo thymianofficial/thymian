@@ -6,7 +6,11 @@ const noNodePathMessage =
 export default [
   ...baseConfig,
   {
-    files: ['**/src/processors/**/*.ts', '**/src/url-path.ts'],
+    files: [
+      '**/src/processors/**/*.ts',
+      '**/src/url-path.ts',
+      '**/src/http-filter-expression-to-operation-filter.ts',
+    ],
     rules: {
       'no-restricted-imports': [
         'error',
