@@ -1,5 +1,3 @@
-import { join } from 'node:path';
-
 import {
   type HttpFilterExpression,
   isNodeType,
@@ -11,6 +9,7 @@ import type { OpenAPIV3_1 as OpenApiV31 } from 'openapi-types';
 
 import { httpFilterExpressionToOperationFilter } from '../http-filter-expression-to-operation-filter.js';
 import type { LocMapper } from '../loc-mapper/loc-mapper.js';
+import { joinUrlPath } from '../url-path.js';
 import { extractServerInfo, type ServerInfo } from './extract-server-info.js';
 import { processLinkObjectParameters } from './link-object.processor.js';
 import { resolveOpenApiReference } from './openapi-reference-resolver.js';
@@ -130,7 +129,7 @@ export class OpenapiProcessor {
         protocol: operationServerInfo.protocol,
         operationId: operationObject.operationId,
         method,
-        path: join(operationServerInfo.basePath, path),
+        path: joinUrlPath(operationServerInfo.basePath, path),
         sourceName: this.sourceName,
       },
       document,

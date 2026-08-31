@@ -3,6 +3,12 @@ import baseConfig from '../../eslint.config.mjs';
 export default [
   ...baseConfig,
   {
+    // Deliberately, genuinely invalid JavaScript (a real SyntaxError fixture,
+    // not a mislabeled-but-valid file) — ESLint cannot parse it, and it must
+    // never pass lint.
+    ignores: ['test/rules/fixtures/rule-sets/glob-syntax-error/broken.rule.mjs'],
+  },
+  {
     files: ['**/*.json'],
     rules: {
       '@nx/dependency-checks': [
