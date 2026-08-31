@@ -20,7 +20,7 @@ process.env.OCLIF_TEST_ROOT = fileURLToPath(
 );
 
 vi.mock('@thymian/core', async () =>
-  (await import('../../helpers/mock-thymian.js')).mockThymianCore(),
+  (await import('@thymian/core-testing/mocks/thymian')).mockThymianCore(),
 );
 
 import {
@@ -28,9 +28,9 @@ import {
   createReport,
   createToolRun,
 } from '@thymian/core';
+import { mockState, resetMockState } from '@thymian/core-testing/mocks/thymian';
 
 import ReportConvert from '../../../src/commands/report/convert.js';
-import { mockState, resetMockState } from '../../helpers/mock-thymian.js';
 
 const __dirname = fileURLToPath(new URL('.', import.meta.url));
 

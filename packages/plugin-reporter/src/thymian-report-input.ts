@@ -3,21 +3,26 @@ import type {
   Logger,
   ThymianEmitter,
 } from '@thymian/core';
-import { registerReportInputClaim, ThymianBaseError } from '@thymian/core';
-
-import { loadThymianReports } from './load-thymian-report.js';
+import {
+  loadThymianReports,
+  registerReportInputClaim,
+  ThymianBaseError,
+} from '@thymian/core';
 
 /**
  * Registers the native `thymian:` report-input claim: reads persisted Thymian
  * JSON reports (this package's JSON formatter's output — a report **array** —
- * or a bare single report object) back into the report pipeline, making
- * `@thymian/plugin-reporter` the owner of the persisted-report file boundary
- * in both directions (ADR-0017 amendment). The listener skeleton and file
- * boundary live in core's `registerReportInputClaim`/`readTypedInputJson`
- * (shared by every claimant); this claim replies **one fragment per
- * `ToolRun`** found, passing runs through unchanged (identity preserved — no
- * re-minting) and carrying each source report's `thymianFormat` map so
- * persisted `thymianFormat` locations stay resolvable after a merge (#507).
+ * or a bare single report object) back into the report pipeline.
+ * `@thymian/plugin-reporter` owns the `thymian:` claim and the write side
+ * (the JSON formatter that produces these files); the read/validate logic
+ * lives beside `readTypedInputJson` in `@thymian/core` (`loadThymianReports`,
+ * ADR-0017 amendment) since it needs no plugin-specific state. The listener
+ * skeleton and file boundary live in core's
+ * `registerReportInputClaim`/`readTypedInputJson` (shared by every claimant);
+ * this claim replies **one fragment per `ToolRun`** found, passing runs
+ * through unchanged (identity preserved — no re-minting) and carrying each
+ * source report's `thymianFormat` map so persisted `thymianFormat` locations
+ * stay resolvable after a merge (#507).
  */
 export function registerThymianReportInput(
   emitter: ThymianEmitter,

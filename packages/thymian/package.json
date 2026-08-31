@@ -90,6 +90,7 @@
   },
   "devDependencies": {
     "@oclif/test": "^4.1.13",
+    "@thymian/core-testing": "0.0.0-PLACEHOLDER",
     "@types/node": "^22.15.1",
     "tsx": "^4.20.3"
   }

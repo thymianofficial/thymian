@@ -18,7 +18,7 @@ We will resolve **report inputs from CLI arguments only** in every report-assemb
 
 Rationale: `convert` describes a repeatable, project-level import ("these are the external reports of this project"), which is configuration by nature. Merge and diff describe a per-invocation selection of artifacts — typically produced moments earlier in the same pipeline — where the invocation itself must be the complete, explicit record of what went in.
 
-Enforced structurally in `@thymian/common-cli`'s `BaseReportAssemblyCommand`: input resolution is the single abstract member (`resolveReportInputs()`) the two commands implement differently, so the divergence is visible in one place instead of drifting across copies.
+Enforced via `@thymian/common-cli`'s shared `runReportAssembly()` helper: each command resolves its own report and specification inputs — the one place they deliberately differ — and hands the result to `runReportAssembly()`, which owns everything downstream (the empty-input usage error, the convert workflow, claim enforcement, rendering), so behavior and wording can't drift between commands while the input-resolution divergence stays visible in each command file.
 
 ## Consequences
 

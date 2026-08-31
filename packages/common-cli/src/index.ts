@@ -1,5 +1,4 @@
 export * from './base-cli-run-command.js';
-export * from './base-report-assembly-command.js';
 export * from './default-config.js';
 export * from './error-cache.js';
 export * from './flags/report-flag.js';
@@ -16,6 +15,7 @@ export * as prompts from './prompts.js';
 export * from './read-plugins.js';
 export * from './render/cli-report.js';
 export { terminalWidth, wrap, wrapIndented } from './render/utils.js';
+export * from './report-assembly.js';
 export * from './report-claim-enforcement.js';
 export * from './thymian-base-command.js';
 export * from './thymian-config.js';

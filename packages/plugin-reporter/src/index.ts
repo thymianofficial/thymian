@@ -93,8 +93,9 @@ export const reporterPlugin: ThymianPlugin<ReporterPluginOptions> = {
     logger,
     { formatters: userFormatters, cwd, sortReportsBy },
   ) {
-    // Read side of the persisted-report file boundary: claim native
-    // `thymian:` report inputs on core.report.convert (ADR-0017 amendment).
+    // Claim native `thymian:` report inputs on core.report.convert
+    // (ADR-0017 amendment) — the read/validate logic lives in
+    // @thymian/core's loadThymianReports; this registers the claim.
     // Registered before the first await so the declared listener exists even
     // if formatter setup rejects.
     registerThymianReportInput(emitter, logger, cwd);

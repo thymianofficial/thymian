@@ -13,7 +13,7 @@ import { vi } from 'vitest';
  *
  * ```ts
  * vi.mock('@thymian/core', async () =>
- *   (await import('../../helpers/mock-thymian.js')).mockThymianCore(),
+ *   (await import('@thymian/core-testing/mocks/thymian')).mockThymianCore(),
  * );
  * ```
  */

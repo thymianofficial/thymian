@@ -11,6 +11,9 @@
       "path": "../core"
     },
     {
+      "path": "../core-testing"
+    },
+    {
       "path": "../plugin-har"
     },
     {

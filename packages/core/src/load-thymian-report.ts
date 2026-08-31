@@ -1,23 +1,20 @@
-import type { Report } from '@thymian/core';
-import {
-  ajv,
-  formatAjvErrors,
-  readTypedInputJson,
-  reportSchema,
-  ThymianBaseError,
-} from '@thymian/core';
+import { ajv, formatAjvErrors } from './ajv.js';
+import { reportSchema } from './events/index.js';
+import type { Report } from './report/index.js';
+import { readTypedInputJson } from './report-input-claim.js';
+import { ThymianBaseError } from './thymian.error.js';
 
 /**
  * Reads a persisted Thymian JSON report file and returns its reports.
  *
- * Accepts both this package's JSON formatter's native output (an **array** of
- * reports — a session can emit several) and a bare single `Report` object.
- * Each report is validated structurally against the loose `reportSchema`
- * (`additionalProperties: true` — the persisted-report compatibility
- * contract), never strict-parsed, so reports written by newer or older
- * Thymian versions stay readable as long as the core shape holds. The file
- * boundary itself (path resolution, BOM tolerance, read/parse error wording)
- * is the shared `readTypedInputJson` contract all claimants use.
+ * Accepts both the reporter plugin's JSON formatter's native output (an
+ * **array** of reports — a session can emit several) and a bare single
+ * `Report` object. Each report is validated structurally against the loose
+ * `reportSchema` (`additionalProperties: true` — the persisted-report
+ * compatibility contract), never strict-parsed, so reports written by newer
+ * or older Thymian versions stay readable as long as the core shape holds.
+ * The file boundary itself (path resolution, BOM tolerance, read/parse error
+ * wording) is the shared `readTypedInputJson` contract all claimants use.
  *
  * @param inputLabel the offending input's identity (`type:location`), used in
  *   every error message so failures trace back to the CLI input.
