@@ -1,4 +1,4 @@
-import { BaseCliRunCommand, oclif, prompts } from '@thymian/common-cli';
+import { BaseCliRunCommand, oclif } from '@thymian/common-cli';
 import { Flags } from '@thymian/common-cli/oclif';
 import {
   filterHttpTransactions,
@@ -32,7 +32,7 @@ export default class Check extends BaseCliRunCommand<typeof Check> {
       allowNo: true,
       default: false,
       description:
-        'Check transactions one by one and offer to generate hooks for failures.',
+        'Check transactions one by one, reporting each failure as it happens.',
     }),
     ['target-url']: Flags.string({
       description:
@@ -161,33 +161,10 @@ export default class Check extends BaseCliRunCommand<typeof Check> {
       this.logFailureDetails(testCase);
 
       this.log();
-      this.log('You can generate a hook for this transaction with:');
       this.log(
-        `  $ thymian sampler generate hook --for-transaction ${transaction.transactionId}`,
+        'Shape this request by writing a hook in the sampler hooks directory.',
       );
       this.log();
-
-      if (!this.config.findCommand('sampler generate hook')) {
-        this.debug(
-          'Command sampler generate hook is not available. Skipping hook generation prompt.',
-        );
-        continue;
-      }
-
-      const answer = await prompts.confirm({
-        message: 'Do you want to generate a hook to fix this transaction?',
-        default: false,
-      });
-
-      if (answer) {
-        await this.config.runCommand('sampler generate hook', [
-          '--for-transaction',
-          transaction.transactionId,
-          '--cwd',
-          this.flags.cwd,
-          ...(this.flags.config ? ['-c', this.flags.config] : []),
-        ]);
-      }
     }
   }
 
