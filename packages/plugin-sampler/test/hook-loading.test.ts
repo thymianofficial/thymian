@@ -273,7 +273,7 @@ export const stale = beforeEach('GET /launches -> 418 (application/json)', () =>
     let error: unknown;
 
     try {
-      await harness.loadFormat(format);
+      await harness.beginRun(format);
     } catch (e) {
       error = e;
     }
@@ -312,7 +312,7 @@ export const b = beforeEach('GET /also-gone -> 200 (application/json)', () => {}
     let error: unknown;
 
     try {
-      await harness.loadFormat(format);
+      await harness.beginRun(format);
     } catch (e) {
       error = e;
     }
@@ -343,6 +343,9 @@ export const b = beforeEach('GET /also-gone -> 200 (application/json)', () => {}
 
     await harness.writeHook('broken.ts', 'this is not typescript(((\n');
 
+    // A file that cannot be imported is not a hook that fails to resolve: the
+    // scan itself could not finish, so it fails when the format is published
+    // rather than when a run starts.
     await expect(harness.loadFormat(format)).rejects.toThrowError(
       /"broken\.ts" could not be imported/,
     );
