@@ -6,16 +6,19 @@ import {
   type Logger,
   ThymianBaseError,
   ThymianFormat,
+  type ThymianHttpTransaction,
   thymianHttpTransactionToString,
 } from '@thymian/core';
 
 import { createHookUtils } from './create-hook-utils.js';
 import { FailError, SkipError } from './hook-errors.js';
+import type { HookKind } from './hook-registration.js';
 import {
   type CollectedRegistration,
   type LoadUserHooksResult,
   type TransactionHooks,
 } from './load-user-hooks.js';
+import { RunScopedHooks } from './run-scoped-hooks.js';
 
 const EMPTY_HOOKS: TransactionHooks = Object.freeze({
   defineSample: [],
@@ -32,18 +35,30 @@ const EMPTY_HOOKS: TransactionHooks = Object.freeze({
  * no "not initialized" state to guard against.
  */
 export class HookRunner {
-  #format: ThymianFormat = new ThymianFormat();
-  #byTransactionId: ReadonlyMap<string, TransactionHooks> = new Map();
+  private format: ThymianFormat = new ThymianFormat();
+  private byTransactionId: ReadonlyMap<string, TransactionHooks> = new Map();
+  private readonly runScoped: RunScopedHooks;
 
   constructor(
     private readonly runRequest: (req: HttpRequest) => Promise<HttpResponse>,
     private readonly logger: Logger,
-  ) {}
+  ) {
+    this.runScoped = new RunScopedHooks(logger);
+  }
 
   /** Adopt a newly loaded format and the hooks bound against it. */
   load(format: ThymianFormat, hooks?: LoadUserHooksResult): void {
-    this.#format = format;
-    this.#byTransactionId = hooks?.byTransactionId ?? new Map();
+    this.format = format;
+    this.byTransactionId = hooks?.byTransactionId ?? new Map();
+    this.runScoped.load(hooks?.runScoped ?? { beforeAll: [], afterAll: [] });
+  }
+
+  /**
+   * Teardown, on `core.close`. A no-op when no request was ever sent, so a
+   * non-test command never runs somebody's teardown.
+   */
+  async close(): Promise<void> {
+    await this.runScoped.close(() => this.utilsWithResults());
   }
 
   private hooksFor(transactionId: string | undefined): TransactionHooks {
@@ -51,12 +66,12 @@ export class HookRunner {
       return EMPTY_HOOKS;
     }
 
-    return this.#byTransactionId.get(transactionId) ?? EMPTY_HOOKS;
+    return this.byTransactionId.get(transactionId) ?? EMPTY_HOOKS;
   }
 
   private utils(results: HttpTestCaseResult[]) {
     return createHookUtils(
-      this.#format,
+      this.format,
       this.runRequest,
       this,
       results,
@@ -64,105 +79,109 @@ export class HookRunner {
     );
   }
 
+  private utilsWithResults(): {
+    utils: unknown;
+    results: HttpTestCaseResult[];
+  } {
+    const results: HttpTestCaseResult[] = [];
+
+    return { utils: this.utils(results), results };
+  }
+
   async beforeEachRequest(
     hook: HttpTestHooks['beforeRequest']['arg'],
   ): Promise<HttpTestHooks['beforeRequest']['return']> {
     const { value, ctx } = hook;
-    const hooks = this.hooksFor(ctx?.transactionId);
-    const testResults: HttpTestCaseResult[] = [];
-    const utils = this.utils(testResults);
 
-    let result = value;
+    // The first request is what "before the run" means to the sampler, so the
+    // latch is armed here — ahead of this transaction's own beforeEach hooks.
+    await this.runScoped.start(() => this.utilsWithResults());
 
-    for (const entry of hooks.beforeEach) {
-      try {
-        // A hook mutates in place and returns nothing; `result` is threaded so a
-        // hook that does return a value is still honoured.
-        const returned = await callHook(entry, [result, ctx, utils]);
-
-        result = (returned as typeof result | undefined) ?? result;
-      } catch (e) {
-        const outcome = interpretHookFailure(e, 'beforeEach', entry, hook.ctx);
-
-        if (outcome.rethrow) {
-          throw outcome.rethrow;
-        }
-
-        return { result, ...outcome.report, testResults };
-      }
-    }
-
-    return { result, testResults };
+    return await this.compose(
+      'beforeEach',
+      this.hooksFor(ctx?.transactionId).beforeEach,
+      value,
+      ctx,
+      ctx,
+    );
   }
 
   async afterEachResponse(
     hook: HttpTestHooks['afterResponse']['arg'],
   ): Promise<HttpTestHooks['afterResponse']['return']> {
     const { value, ctx } = hook;
-    const hooks = this.hooksFor(ctx.thymianTransaction?.transactionId);
-    const testResults: HttpTestCaseResult[] = [];
-    const utils = this.utils(testResults);
 
-    let result = value;
-
-    for (const entry of hooks.afterEach) {
-      try {
-        const returned = await callHook(entry, [result, ctx, utils]);
-
-        result = (returned as typeof result | undefined) ?? result;
-      } catch (e) {
-        const outcome = interpretHookFailure(
-          e,
-          'afterEach',
-          entry,
-          ctx.thymianTransaction,
-        );
-
-        if (outcome.rethrow) {
-          throw outcome.rethrow;
-        }
-
-        return { result, ...outcome.report, testResults };
-      }
-    }
-
-    return { result, testResults };
+    return await this.compose(
+      'afterEach',
+      this.hooksFor(ctx.thymianTransaction?.transactionId).afterEach,
+      value,
+      ctx,
+      ctx.thymianTransaction,
+    );
   }
 
   async authorize(
     hook: HttpTestHooks['authorize']['arg'],
   ): Promise<HttpTestHooks['authorize']['return']> {
     const { value, ctx } = hook;
-    const hooks = this.hooksFor(ctx?.transactionId);
     // Last registration wins, which is what lets a later file override an
     // earlier one for the same Transaction.
-    const entry = hooks.authorize.at(-1);
+    const entry = this.hooksFor(ctx?.transactionId).authorize.at(-1);
 
-    if (!entry) {
-      return { result: value };
-    }
+    return await this.compose(
+      'authorize',
+      entry ? [entry] : [],
+      value,
+      ctx,
+      ctx,
+    );
+  }
 
+  /**
+   * Run a kind's hooks in order over one value, and translate whatever comes
+   * back into the shape the http-testing seam expects.
+   *
+   * Every hook **mutates `value` in place**; the callback's return value is
+   * deliberately discarded. Honouring a return instead corrupts the value for
+   * the most ordinary shorthand there is — `(r) => (r.headers.x = 'y')`
+   * evaluates to `'y'`, which would replace the whole request with that string.
+   */
+  private async compose<T>(
+    kind: HookKind,
+    entries: readonly CollectedRegistration[],
+    value: T,
+    ctx: unknown,
+    transaction: TransactionForDiagnostic,
+  ): Promise<{
+    result: T;
+    testResults: HttpTestCaseResult[];
+    skip?: string;
+    fail?: string;
+  }> {
     const testResults: HttpTestCaseResult[] = [];
     const utils = this.utils(testResults);
 
-    try {
-      const returned = await callHook(entry, [value, ctx, utils]);
+    for (const entry of entries) {
+      try {
+        await callHook(entry, [value, ctx, utils]);
+      } catch (e) {
+        const outcome = interpretHookFailure(e, kind, entry, transaction);
 
-      return {
-        result: (returned as typeof value | undefined) ?? value,
-        testResults,
-      };
-    } catch (e) {
-      const outcome = interpretHookFailure(e, 'authorize', entry, ctx);
+        if (outcome.rethrow) {
+          throw outcome.rethrow;
+        }
 
-      if (outcome.rethrow) {
-        throw outcome.rethrow;
+        return { result: value, ...outcome.report, testResults };
       }
-
-      return { result: value, ...outcome.report, testResults };
     }
+
+    return { result: value, testResults };
   }
 }
+
+/** What a diagnostic needs to name the transaction a hook was running for. */
+type TransactionForDiagnostic =
+  Pick<ThymianHttpTransaction, 'thymianReq' | 'thymianRes'> | undefined;
 
 async function callHook(
   entry: CollectedRegistration,

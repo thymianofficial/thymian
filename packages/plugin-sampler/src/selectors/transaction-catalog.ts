@@ -107,11 +107,19 @@ export class TransactionCatalog {
 
     throw unknownSelectorError(
       selector,
-      this.suggestionsFor(parseSelector(selector)),
+      this.nearMissSuggestions(parseSelector(selector)),
     );
   }
 
-  private suggestionsFor(parts: SelectorParts): string[] {
+  /**
+   * What to say to someone who named a selector nothing answers to.
+   *
+   * Public because the hook loader needs the same sentences without wanting the
+   * throw: it has already missed through {@link tryResolve}, and asking for the
+   * diagnostic by catching a second, deliberately failing lookup would make the
+   * error channel do the work of a query.
+   */
+  nearMissSuggestions(parts: SelectorParts): string[] {
     // An empty catalog is a state core explicitly warns about ("No nodes found
     // in Thymian format"). Sending the user after a path typo would be wrong
     // advice: no path would have resolved.

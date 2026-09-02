@@ -3,12 +3,8 @@ import { isAbsolute, join } from 'node:path';
 export type SamplerPaths = {
   /** The per-sampler root, `<cwd>/.thymian/sampler` by default. */
   root: string;
-  /** Where the committed type surface is generated. */
-  generatedDir: string;
   /** The recursive hook tree the loader scans. */
   hooksDir: string;
-  /** The tsconfig `init` scaffolds once and never rewrites. */
-  tsconfigPath: string;
 };
 
 /**
@@ -27,8 +23,6 @@ export function resolveSamplerPaths(cwd: string, path?: string): SamplerPaths {
 
   return {
     root,
-    generatedDir: join(root, 'generated'),
     hooksDir: join(root, 'hooks'),
-    tsconfigPath: join(root, 'tsconfig.json'),
   };
 }

@@ -86,6 +86,35 @@ export const addTraceHeader = beforeEach(${JSON.stringify(LAUNCHES)}, (request) 
     expect(result.headers['x-trace']).toBe('from-hook');
   });
 
+  it('ignores what a hook returns, because a hook mutates in place', async () => {
+    const harness = await sampler();
+
+    // The most ordinary shorthand there is: a concise arrow whose body is an
+    // assignment, so the function returns the assigned value. Honouring that
+    // return would replace the whole request with the string 'from-hook'.
+    await harness.writeHook(
+      'concise.ts',
+      `import { beforeEach } from '@thymian/hooks';
+
+export const concise = beforeEach(
+  ${JSON.stringify(LAUNCHES)},
+  (request) => (request.headers['x-trace'] = 'from-hook'),
+);
+`,
+    );
+
+    await harness.loadFormat(format);
+
+    const { result } = await harness.beforeRequest(
+      transactionIdOf(LAUNCHES),
+      format,
+    );
+
+    expect(result.headers['x-trace']).toBe('from-hook');
+    expect(result.method).toBe('GET');
+    expect(result.path).toBe('/launches');
+  });
+
   it('leaves other transactions alone', async () => {
     const harness = await sampler();
 

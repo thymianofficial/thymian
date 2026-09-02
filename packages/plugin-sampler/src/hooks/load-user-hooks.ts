@@ -5,14 +5,13 @@ import { fileURLToPath } from 'node:url';
 
 import { createJiti } from 'jiti';
 
-import type { Selector } from '../selectors/selector.js';
+import { parseSelector, type Selector } from '../selectors/selector.js';
 import type { TransactionCatalog } from '../selectors/transaction-catalog.js';
 import { entryExists } from '../utils.js';
 import type { HookDiagnostic } from './hook-diagnostics.js';
 import { hookFileImportError } from './hook-diagnostics.js';
 import {
   type HookRegistration,
-  type HookTarget,
   isHookRegistration,
 } from './hook-registration.js';
 
@@ -40,11 +39,6 @@ const hooksRuntimeModule = fileURLToPath(
 /** The specifier a hook file writes. */
 export const HOOKS_RUNTIME_SPECIFIER = '@thymian/hooks';
 
-/** Exposed for the alias test; nothing else needs it. */
-export function hooksRuntimeModulePath(): string {
-  return hooksRuntimeModule;
-}
-
 /**
  * Keep a file iff its name ends in one of the six module extensions and is not a
  * declaration file.
@@ -70,10 +64,15 @@ export function isHookFile(name: string): boolean {
 
 /** The hooks that apply to one Transaction, each in registration order. */
 export type TransactionHooks = {
-  defineSample: CollectedRegistration[];
-  beforeEach: CollectedRegistration[];
-  afterEach: CollectedRegistration[];
-  authorize: CollectedRegistration[];
+  readonly defineSample: readonly CollectedRegistration[];
+  readonly beforeEach: readonly CollectedRegistration[];
+  readonly afterEach: readonly CollectedRegistration[];
+  readonly authorize: readonly CollectedRegistration[];
+};
+
+/** The mutable form the loader fills in before handing it out. */
+type MutableTransactionHooks = {
+  -readonly [K in keyof TransactionHooks]: CollectedRegistration[];
 };
 
 /** A registration plus where it came from, which only the loader knows. */
@@ -85,10 +84,6 @@ export type CollectedRegistration = {
 };
 
 export type LoadUserHooksResult = {
-  /** Absolute path of the directory that was scanned. */
-  hooksDir: string;
-  /** Whether that directory exists at all. */
-  scanned: boolean;
   /** Hook files found, in load order. */
   files: readonly string[];
   /** Per-transaction bindings, keyed by transaction id. */
@@ -102,6 +97,15 @@ export type LoadUserHooksResult = {
   globalAuthorize: CollectedRegistration[];
   /** Every hook that does not resolve. A non-empty list must fail the run. */
   diagnostics: readonly HookDiagnostic[];
+  /**
+   * Things the scan could not do, which are not a hook failing to resolve.
+   *
+   * Kept apart from {@link diagnostics} on purpose: an unreadable subdirectory
+   * is why the walk goes a level at a time, and turning it into a fatal error
+   * would throw away every healthy hook in the tree — the outcome the level-wise
+   * walk exists to avoid. These are reported as warnings and the run continues.
+   */
+  warnings: readonly string[];
 };
 
 /** Hooks-dir-relative, `/`-normalized — the sort key and the diagnostic label. */
@@ -125,7 +129,7 @@ async function walkHookDirectory(
   dir: string,
   isRoot: boolean,
   files: string[],
-  diagnostics: HookDiagnostic[],
+  warnings: string[],
 ): Promise<void> {
   let entries: Dirent[];
 
@@ -136,10 +140,9 @@ async function walkHookDirectory(
       throw error;
     }
 
-    diagnostics.push({
-      file: hooksDirRelative(hooksDir, dir),
-      reason: `this directory could not be read (${error instanceof Error ? error.message : String(error)}), so any hooks inside it were not loaded`,
-    });
+    warnings.push(
+      `The hooks subdirectory "${hooksDirRelative(hooksDir, dir)}" could not be read (${error instanceof Error ? error.message : String(error)}), so any hooks inside it were not loaded.`,
+    );
 
     return;
   }
@@ -163,7 +166,7 @@ async function walkHookDirectory(
   }
 
   for (const directory of directories) {
-    await walkHookDirectory(hooksDir, directory, false, files, diagnostics);
+    await walkHookDirectory(hooksDir, directory, false, files, warnings);
   }
 }
 
@@ -222,7 +225,7 @@ function collectFromNamespace(
   return collected;
 }
 
-function emptyTransactionHooks(): TransactionHooks {
+function emptyTransactionHooks(): MutableTransactionHooks {
   return {
     defineSample: [],
     beforeEach: [],
@@ -231,8 +234,13 @@ function emptyTransactionHooks(): TransactionHooks {
   };
 }
 
-/** The selectors a target names, or `undefined` when it is not a selector form. */
-function selectorsOf(target: HookTarget): readonly Selector[] | undefined {
+/**
+ * The selectors a target names, or `undefined` when it is not a selector form.
+ *
+ * Takes `unknown` rather than `HookTarget`: a `.js` hook file is legal input and
+ * is not type-checked, so the value here is whatever the user passed.
+ */
+function selectorsOf(target: unknown): readonly Selector[] | undefined {
   if (typeof target === 'string') {
     return [target];
   }
@@ -256,7 +264,8 @@ export async function loadUserHooks(
   catalog: TransactionCatalog,
 ): Promise<LoadUserHooksResult> {
   const diagnostics: HookDiagnostic[] = [];
-  const byTransactionId = new Map<string, TransactionHooks>();
+  const warnings: string[] = [];
+  const byTransactionId = new Map<string, MutableTransactionHooks>();
   const runScoped = {
     beforeAll: [] as CollectedRegistration[],
     afterAll: [] as CollectedRegistration[],
@@ -265,18 +274,17 @@ export async function loadUserHooks(
 
   if (!(await entryExists(hooksDir))) {
     return {
-      hooksDir,
-      scanned: false,
       files: [],
       byTransactionId,
       runScoped,
       globalAuthorize,
       diagnostics,
+      warnings,
     };
   }
 
   const found: string[] = [];
-  await walkHookDirectory(hooksDir, hooksDir, true, found, diagnostics);
+  await walkHookDirectory(hooksDir, hooksDir, true, found, warnings);
 
   const files = found
     .map((full) => ({ full, key: hooksDirRelative(hooksDir, full) }))
@@ -337,7 +345,7 @@ export async function loadUserHooks(
       continue;
     }
 
-    const selectors = selectorsOf(registration.target as HookTarget);
+    const selectors = selectorsOf(registration.target);
 
     if (!selectors) {
       diagnostics.push({
@@ -367,7 +375,7 @@ export async function loadUserHooks(
           file: entry.file,
           exportName: entry.exportName,
           reason: `${registration.kind} targets the selector "${selector}", which names no transaction in the loaded API description`,
-          suggestions: suggestionsFor(catalog, selector),
+          suggestions: catalog.nearMissSuggestions(parseSelector(selector)),
         });
 
         continue;
@@ -380,38 +388,35 @@ export async function loadUserHooks(
         byTransactionId.set(transaction.transactionId, hooks);
       }
 
+      // `defineSample` is set-once per Transaction. A second one is a conflict
+      // rather than a last-wins override, and it is reported at load time —
+      // not when that Transaction happens to be sampled — because the mistake
+      // exists whether or not the run reaches it.
+      const conflicting = hooks.defineSample[0];
+
+      if (registration.kind === 'defineSample' && conflicting) {
+        diagnostics.push({
+          file: entry.file,
+          exportName: entry.exportName,
+          reason: `defineSample is already defined for the selector "${selector}" by "${conflicting.exportName}" in ${conflicting.file}; a Transaction can have only one`,
+          suggestions: [
+            'Merge the two into one defineSample, or target a different selector.',
+          ],
+        });
+
+        continue;
+      }
+
       hooks[registration.kind].push(entry);
     }
   }
 
   return {
-    hooksDir,
-    scanned: true,
     files: files.map(({ key }) => key),
     byTransactionId,
     runScoped,
     globalAuthorize,
     diagnostics,
+    warnings,
   };
-}
-
-/**
- * The catalog's own diagnostic for an unknown selector, reduced to its
- * suggestion lines. Asking the catalog rather than reimplementing nearest-match
- * ranking keeps one answer to "did you mean…?" in the codebase.
- */
-function suggestionsFor(
-  catalog: TransactionCatalog,
-  selector: string,
-): string[] {
-  try {
-    catalog.resolve(selector);
-  } catch (error) {
-    const suggestions = (error as { options?: { suggestions?: string[] } })
-      .options?.suggestions;
-
-    return suggestions ?? [];
-  }
-
-  return [];
 }
