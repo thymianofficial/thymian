@@ -3,10 +3,18 @@ import { readdir } from 'node:fs/promises';
 import { join, relative } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
+import type { ThymianHttpTransaction } from '@thymian/core';
 import { createJiti } from 'jiti';
 
+import { hasWildcard, matchesPathGlob } from '../selectors/path-glob.js';
 import { parseSelector, type Selector } from '../selectors/selector.js';
 import type { TransactionCatalog } from '../selectors/transaction-catalog.js';
+import {
+  isTransactionFilter,
+  matchesTransactionFilter,
+  pathValuesOf,
+  type TransactionFilter,
+} from '../selectors/transaction-filter.js';
 import { entryExists } from '../utils.js';
 import type { HookDiagnostic } from './hook-diagnostics.js';
 import { hookFileImportError } from './hook-diagnostics.js';
@@ -275,6 +283,154 @@ function selectorsOf(target: unknown): readonly Selector[] | undefined {
 }
 
 /**
+ * The Transactions a target covers, reporting whatever stops it covering any.
+ *
+ * A target that resolves to nothing is a diagnostic, never an empty result that
+ * runs quietly: a dangling Selector, a glob that names no path and a filter
+ * whose values intersect nothing are the three ways a hook can silently stop
+ * doing its job, and all three fail the run.
+ */
+function resolveTargeting(
+  kind: string,
+  target: unknown,
+  entry: CollectedRegistration,
+  catalog: TransactionCatalog,
+  diagnostics: HookDiagnostic[],
+): readonly ThymianHttpTransaction[] {
+  const where = { file: entry.file, exportName: entry.exportName };
+  const selectors = selectorsOf(target);
+
+  if (selectors) {
+    if (selectors.length === 0) {
+      diagnostics.push({
+        ...where,
+        reason: `${kind} was given an empty list of selectors, so it targets nothing`,
+      });
+
+      return [];
+    }
+
+    const resolved: ThymianHttpTransaction[] = [];
+
+    for (const selector of selectors) {
+      const transaction = catalog.tryResolve(selector);
+
+      if (!transaction) {
+        diagnostics.push({
+          ...where,
+          reason: `${kind} targets the selector "${selector}", which names no transaction in the loaded API description`,
+          suggestions: catalog.nearMissSuggestions(parseSelector(selector)),
+        });
+
+        continue;
+      }
+
+      resolved.push(transaction);
+    }
+
+    return resolved;
+  }
+
+  if (isTransactionFilter(target)) {
+    return resolveFilter(kind, target, where, catalog, diagnostics);
+  }
+
+  diagnostics.push({
+    ...where,
+    reason: `${kind} was given a target that is neither a selector, a list of selectors, nor a transaction filter`,
+  });
+
+  return [];
+}
+
+/**
+ * The Transactions a filter covers.
+ *
+ * A vacuous path value is reported **before** the zero-match check, and it is
+ * reported per value. "This filter matched nothing" is true but useless when the
+ * cause is one typo among five globs, and naming the glob is what turns the
+ * diagnostic into an edit.
+ */
+function resolveFilter(
+  kind: string,
+  filter: TransactionFilter,
+  where: { file: string; exportName: string },
+  catalog: TransactionCatalog,
+  diagnostics: HookDiagnostic[],
+): readonly ThymianHttpTransaction[] {
+  const transactions = catalog.entries().map(([, transaction]) => transaction);
+  const paths = catalog.paths();
+  let vacuous = false;
+
+  for (const value of pathValuesOf(filter)) {
+    if (paths.some((path) => matchesPathGlob(value, path))) {
+      continue;
+    }
+
+    vacuous = true;
+
+    diagnostics.push({
+      ...where,
+      reason: hasWildcard(value)
+        ? `${kind} targets the path glob "${value}", which matches no path in the loaded API description`
+        : `${kind} targets the path "${value}", which no path in the loaded API description is spelled as`,
+      suggestions: nearestPaths(value, paths),
+    });
+  }
+
+  if (vacuous) {
+    return [];
+  }
+
+  const matched = transactions.filter((transaction) =>
+    matchesTransactionFilter(filter, transaction),
+  );
+
+  if (matched.length === 0) {
+    diagnostics.push({
+      ...where,
+      reason: `${kind} targets a filter whose values are all valid but intersect no transaction in the loaded API description`,
+      suggestions: [
+        'Every field of a filter must hold at the same time, so check whether the combination can exist — a method and a status that never occur together, for example.',
+      ],
+    });
+  }
+
+  return matched;
+}
+
+/**
+ * Paths that share the vacuous value's longest literal prefix, so the reader is
+ * pointed at the subtree they meant rather than at the whole description.
+ *
+ * No fuzzy matching: it would add a dependency and make the ordering
+ * unexplainable.
+ */
+function nearestPaths(value: string, paths: readonly string[]): string[] {
+  const segments = value.split('/');
+
+  for (let depth = segments.length - 1; depth > 0; depth--) {
+    const prefix = `${segments.slice(0, depth).join('/')}/`;
+    const candidates = paths
+      .filter((path) => path.startsWith(prefix))
+      .slice(0, MAX_NEAR_PATHS);
+
+    if (candidates.length > 0) {
+      return [
+        `Paths under "${prefix}" are:`,
+        ...candidates.map((path) => `"${path}"`),
+      ];
+    }
+  }
+
+  return [
+    `No path in the loaded API description begins with "${segments[1] ? `/${segments[1]}` : value}".`,
+  ];
+}
+
+const MAX_NEAR_PATHS = 5;
+
+/**
  * Scan the hooks directory and bind every registration it exports to the
  * Transactions it names.
  *
@@ -376,42 +532,15 @@ export async function loadUserHooks(
       continue;
     }
 
-    const selectors = selectorsOf(registration.target);
+    const targeted = resolveTargeting(
+      registration.kind,
+      registration.target,
+      entry,
+      catalog,
+      diagnostics,
+    );
 
-    if (!selectors) {
-      diagnostics.push({
-        file: entry.file,
-        exportName: entry.exportName,
-        reason: `${registration.kind} was given a target that is neither a selector nor a list of selectors`,
-      });
-
-      continue;
-    }
-
-    if (selectors.length === 0) {
-      diagnostics.push({
-        file: entry.file,
-        exportName: entry.exportName,
-        reason: `${registration.kind} was given an empty list of selectors, so it targets nothing`,
-      });
-
-      continue;
-    }
-
-    for (const selector of selectors) {
-      const transaction = catalog.tryResolve(selector);
-
-      if (!transaction) {
-        diagnostics.push({
-          file: entry.file,
-          exportName: entry.exportName,
-          reason: `${registration.kind} targets the selector "${selector}", which names no transaction in the loaded API description`,
-          suggestions: catalog.nearMissSuggestions(parseSelector(selector)),
-        });
-
-        continue;
-      }
-
+    for (const transaction of targeted) {
       let hooks = byTransactionId.get(transaction.transactionId);
 
       if (!hooks) {
@@ -429,7 +558,7 @@ export async function loadUserHooks(
         conflicts.push({
           file: entry.file,
           exportName: entry.exportName,
-          reason: `defineSample is already defined for the selector "${selector}" by "${conflicting.exportName}" in ${conflicting.file}; a Transaction can have only one`,
+          reason: `defineSample is already defined for the selector "${catalog.selectorFor(transaction.transactionId) ?? transaction.transactionId}" by "${conflicting.exportName}" in ${conflicting.file}; a Transaction can have only one`,
           suggestions: [
             'Merge the two into one defineSample, or target a different selector.',
           ],
