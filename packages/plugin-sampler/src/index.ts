@@ -1,53 +1,18 @@
-import { isAbsolute, join } from 'node:path';
-
 import {
   type HttpRequestTemplate,
-  type SerializedThymianFormat,
-  ThymianBaseError,
   ThymianFormat,
   type ThymianHttpTransaction,
-  thymianHttpTransactionToString,
   type ThymianPlugin,
   type ThymianSchema,
 } from '@thymian/core';
 import type {} from '@thymian/plugin-request-dispatcher';
 
-import { generateSamplesForThymianFormat } from './generation/generate-samples-for-thymian-format.js';
-import {
-  generatedTypesToString,
-  generateTypesForThymianFormat,
-} from './hooks/generate-request-types.js';
 import { HookRunner } from './hooks/hook-runner.js';
 import { requestSampleToRequestTemplate } from './request-sample-to-request-template.js';
 import { RequestSampler } from './request-sampler.js';
-import { getPathTransactionId } from './samples-structure/get-path-transaction-id.js';
-import { readSamplesFromDir } from './samples-structure/read-samples-from-dir.js';
-import type { SamplesStructure } from './samples-structure/samples-tree-structure.js';
-import { writeSamplesToDir } from './samples-structure/write-samples-to-dir.js';
-import { entryExists } from './utils.js';
-import {
-  type SamplerValidationReport,
-  validateSamplerOutput,
-} from './validation/validate-sampler-output.js';
 
 declare module '@thymian/core' {
   interface ThymianActions {
-    'sampler.init': {
-      event: {
-        format: SerializedThymianFormat;
-        overwrite?: boolean;
-      };
-      response: void;
-    };
-
-    'sampler.validate': {
-      event: {
-        format: SerializedThymianFormat;
-        forPath?: string;
-      };
-      response: SamplerValidationReport;
-    };
-
     'core.request.sample': {
       event: {
         transaction: ThymianHttpTransaction;
@@ -63,63 +28,12 @@ declare module '@thymian/core' {
       };
       response: { $content: unknown; $encoding?: string };
     };
-
-    'sampler.path-from-transaction': {
-      event: {
-        transactionId: string;
-      };
-      response: string | undefined;
-    };
   }
 }
 
 export type SamplerPluginOptions = {
   path: string;
 };
-
-const samplerValidateActionSchema = {
-  event: {
-    type: 'object',
-    required: ['format'],
-    properties: {
-      format: {},
-      forPath: { type: 'string' },
-    },
-  },
-  response: {
-    type: 'object',
-    required: ['samplePath', 'checkedArtifacts', 'failures'],
-    properties: {
-      samplePath: { type: 'string' },
-      checkedArtifacts: { type: 'integer' },
-      failures: {
-        type: 'array',
-        items: {
-          type: 'object',
-          required: ['type', 'path', 'message'],
-          properties: {
-            type: {
-              type: 'string',
-              enum: [
-                'missing-artifact',
-                'changed-artifact',
-                'stale-root-metadata',
-                'metadata-out-of-sync',
-                'unexpected-artifact',
-                'invalid-json',
-              ],
-            },
-            path: { type: 'string' },
-            message: { type: 'string' },
-            expected: { type: 'string' },
-            actual: { type: 'string' },
-            changes: { type: 'array' },
-          },
-        },
-      },
-    },
-  },
-} as const;
 
 export const samplePlugin: ThymianPlugin<Partial<SamplerPluginOptions>> = {
   name: '@thymian/plugin-sampler',
@@ -137,180 +51,42 @@ export const samplePlugin: ThymianPlugin<Partial<SamplerPluginOptions>> = {
       },
     },
   },
-  actions: {
-    provides: {
-      'sampler.init': {
-        // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-        // @ts-expect-error
-        event: {
-          type: 'object',
-          required: ['contentType', 'schema'],
-          properties: {
-            contentType: { type: 'string' },
-            schema: {},
-          },
-        },
-        // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-        // @ts-expect-error
-        response: {
-          type: 'object',
-          required: ['contentType', 'schema'],
-          properties: {
-            contentType: { type: 'string' },
-            schema: {},
-          },
-        },
-      },
-      // The strict `JSONSchemaType<T>` target can't be satisfied by this
-      // hand-written `as const` schema (readonly literals + a deliberately
-      // loose `format: {}`, which ajv validates at runtime). Suppress the
-      // structural check the same way `sampler.init` does above, for parity.
-      // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-      // @ts-expect-error
-      'sampler.validate': samplerValidateActionSchema,
-    },
-  },
   plugin: async (emitter, logger, options) => {
-    let basePath = join(options.cwd, '.thymian', 'samples');
+    // `path` is carried unresolved: in v1 it named the samples tree, which no
+    // longer exists, and the sampler root it will name instead is introduced
+    // together with the commands that write there. Reading it here would only
+    // resolve a directory nothing touches.
+    void options;
 
-    if (options.path) {
-      basePath = isAbsolute(options.path)
-        ? options.path
-        : join(options.cwd, options.path);
-    }
-
-    let format: ThymianFormat | undefined;
-    let samples: SamplesStructure | undefined;
-
-    const requestSampler = new RequestSampler(basePath);
-    const hookRunner = new HookRunner(
-      basePath,
-      async (request) => {
-        return await emitter.emitAction(
-          'core.request.dispatch',
-          {
-            request,
-          },
-          {
-            strategy: 'first',
-          },
-        );
-      },
-      logger,
-    );
-
-    async function initializeSamplerAndHookRunner(format: ThymianFormat) {
-      samples = (await entryExists(basePath))
-        ? await readSamplesFromDir(basePath)
-        : undefined;
-
-      await requestSampler.init(samples);
-      await hookRunner.init(format, samples);
-    }
-
-    emitter.onAction('core.format', async (f, ctx) => {
-      format = ThymianFormat.import(f);
-
-      await initializeSamplerAndHookRunner(format);
-
-      ctx.reply();
-    });
-
-    emitter.onAction(
-      'sampler.path-from-transaction',
-      ({ transactionId }, ctx) => {
-        if (!samples) {
-          throw new ThymianBaseError('No samples are loaded.', {
-            name: 'SamplesNotLoadedError',
-            ref: 'https://thymian.dev/references/errors/samples-not-loaded-error/',
-          });
-        }
-
-        ctx.reply(getPathTransactionId(transactionId, basePath, samples));
-      },
-    );
-
-    emitter.onAction('sampler.init', async ({ format, overwrite }, ctx) => {
-      const parsedFormat = ThymianFormat.import(format);
-
-      const samples = await generateSamplesForThymianFormat(
-        parsedFormat,
-        emitter,
-      );
-
-      logger.debug('Generated samples for thymian format.');
-
-      const generatedTypes = await generateTypesForThymianFormat(parsedFormat);
-
-      logger.debug('Generated types for thymian format.');
-
-      await writeSamplesToDir(samples, generatedTypes.keyToTransactionId, {
-        path: basePath,
-        mode: typeof overwrite === 'boolean' ? 'overwrite' : 'failIfExist',
-        typeArtifacts: {
-          typesContent: generatedTypesToString(generatedTypes),
+    const requestSampler = new RequestSampler();
+    const hookRunner = new HookRunner(async (request) => {
+      return await emitter.emitAction(
+        'core.request.dispatch',
+        {
+          request,
         },
-      });
+        {
+          strategy: 'first',
+        },
+      );
+    }, logger);
 
-      logger.debug(`Wrote samples at ${basePath}`);
+    emitter.onAction('core.format', async (serialized, ctx) => {
+      const format = ThymianFormat.import(serialized);
+
+      await requestSampler.load(format, emitter);
+      hookRunner.load(format);
+
+      logger.debug('Projected request samples for the loaded format.');
 
       ctx.reply();
-    });
-
-    emitter.onAction('sampler.validate', async ({ format, forPath }, ctx) => {
-      const parsedFormat = ThymianFormat.import(format);
-
-      ctx.reply(
-        await validateSamplerOutput({
-          format: parsedFormat,
-          emitter,
-          samplePath: basePath,
-          forPath,
-        }),
-      );
     });
 
     emitter.onAction('core.request.sample', async ({ transaction }, ctx) => {
-      if (!format) {
-        throw new ThymianBaseError('Format is not loaded.', {
-          name: 'FormatNotLoadedError',
-          ref: 'https://thymian.dev/references/errors/format-not-loaded-error/',
-        });
-      }
-
-      const sample = requestSampler.sampleForTransaction(
-        transaction.transactionId,
+      const sample = await requestSampler.sampleForTransaction(
+        transaction,
+        emitter,
       );
-      if (!sample) {
-        const currentFormatVersion = format.toHash();
-        if (currentFormatVersion !== requestSampler.version()) {
-          throw new ThymianBaseError(
-            `Cannot sample for transaction "${thymianHttpTransactionToString(
-              transaction.thymianReq,
-              transaction.thymianRes,
-            )}", because it based on version "${currentFormatVersion}" but the loaded samples are based on version "${requestSampler.version()}".`,
-            {
-              name: 'VersionMismatchError',
-              suggestions: [
-                `The loaded samples were generated at ${requestSampler.timestamp()}. Did you forget to regenerate the samples?`,
-                '$ thymian sampler init',
-              ],
-              ref: 'https://thymian.dev/guides/samples/update-samples',
-            },
-          );
-        }
-
-        throw new ThymianBaseError(
-          `Cannot sample for transaction ${thymianHttpTransactionToString(
-            transaction.thymianReq,
-            transaction.thymianRes,
-          )} with transaction ID ${transaction.transactionId}`,
-          {
-            name: 'TransactionSampleNotFoundError',
-            ref: 'https://thymian.dev/references/errors/transaction-sample-not-found-error/',
-          },
-        );
-      }
 
       ctx.reply(requestSampleToRequestTemplate(sample));
     });
