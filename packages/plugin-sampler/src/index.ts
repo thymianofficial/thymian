@@ -11,6 +11,7 @@ import type {} from '@thymian/plugin-request-dispatcher';
 
 import { generateTypeSurface } from './generation/types/generate-type-surface.js';
 import {
+  readGenerated,
   rootExcludeNote,
   scaffoldTsconfig,
   surfaceAsFiles,
@@ -21,11 +22,19 @@ import {
   unresolvedHooksError,
 } from './hooks/hook-diagnostics.js';
 import { HookRunner } from './hooks/hook-runner.js';
-import { loadUserHooks } from './hooks/load-user-hooks.js';
+import {
+  loadUserHooks,
+  type LoadUserHooksResult,
+} from './hooks/load-user-hooks.js';
 import { RequestSampler } from './request-sampler.js';
 import { resolveSamplerPaths } from './sampler-paths.js';
 import { TransactionCatalog } from './selectors/transaction-catalog.js';
 import { entryExists } from './utils.js';
+import {
+  changedFiles,
+  validateSampler,
+  type ValidationReport as SamplerValidationReport,
+} from './validation/validate-sampler.js';
 
 declare module '@thymian/core' {
   interface ThymianActions {
@@ -53,6 +62,24 @@ declare module '@thymian/core' {
         selector: string;
         request: HttpRequestTemplate;
       };
+    };
+
+    'sampler.sync': {
+      event: {
+        /** Report what would change and write nothing. The CI gate. */
+        check?: boolean;
+      };
+      response: {
+        /** Generated files whose content would change, or did. */
+        changed: string[];
+        /** Whether anything was written. */
+        wrote: boolean;
+      };
+    };
+
+    'sampler.validate': {
+      event: Record<string, never>;
+      response: SamplerValidationReport;
     };
 
     'sampler.init': {
@@ -91,6 +118,8 @@ export const samplePlugin: ThymianPlugin<Partial<SamplerPluginOptions>> = {
       'http-testing.authorize',
       'sampler.show',
       'sampler.init',
+      'sampler.sync',
+      'sampler.validate',
     ],
     emits: ['sampler.unknown-type'],
   },
@@ -123,6 +152,31 @@ export const samplePlugin: ThymianPlugin<Partial<SamplerPluginOptions>> = {
     });
 
     let catalog = TransactionCatalog.fromThymianFormat(new ThymianFormat());
+    let unresolvedHooks: LoadUserHooksResult | undefined;
+
+    /**
+     * Refuse to start a run while a hook does not resolve.
+     *
+     * Checked here rather than when the format arrives, because a dangling
+     * Selector must stop a *run* and not every command: `sampler validate` has
+     * to survive long enough to report all of them, and `sampler show` and
+     * `sampler sync` are not runs. This is the earliest run-only point — the
+     * first request the tester asks the sampler to generate — so nothing is
+     * sent before the diagnostic.
+     */
+    function assertHooksResolve(): void {
+      if (!unresolvedHooks) {
+        return;
+      }
+
+      if (unresolvedHooks.diagnostics.length > 0) {
+        throw unresolvedHooksError(unresolvedHooks.diagnostics);
+      }
+
+      if (unresolvedHooks.conflicts.length > 0) {
+        throw hookConflictError(unresolvedHooks.conflicts);
+      }
+    }
 
     emitter.onAction('core.format', async (serialized, ctx) => {
       const format = ThymianFormat.import(serialized);
@@ -133,20 +187,33 @@ export const samplePlugin: ThymianPlugin<Partial<SamplerPluginOptions>> = {
 
       const hooks = await loadUserHooks(paths.hooksDir, catalog);
 
-      // A hook that does not resolve fails the run fast, before a single
-      // request is sent: a dangling Selector is the signal that the description
-      // moved, and running the rest of the suite as if nothing happened is what
-      // the compiler-as-drift-oracle design exists to prevent.
-      if (hooks.diagnostics.length > 0) {
-        throw unresolvedHooksError(hooks.diagnostics);
-      }
-
-      if (hooks.conflicts.length > 0) {
-        throw hookConflictError(hooks.conflicts);
-      }
+      // Recorded, not thrown. A hook that does not resolve must fail the *run*
+      // — see `assertHooksResolve` — but `sampler validate` exists to report
+      // every such hook at once, and it cannot report anything if publishing
+      // the format is what kills it.
+      unresolvedHooks = hooks;
 
       for (const warning of hooks.warnings) {
         logger.warn(warning);
+      }
+
+      // The same non-breaking signal `validate` gives, at the point a run would
+      // otherwise proceed silently against types that no longer describe the
+      // API. Only when something is committed: with no `generated/` there is
+      // nothing to be behind.
+      const committed = await readGenerated(paths);
+
+      if (Object.keys(committed).length > 0) {
+        const stale = changedFiles(
+          committed,
+          await generateTypeSurface(catalog),
+        );
+
+        if (stale.length > 0) {
+          logger.warn(
+            `The committed sampler types are behind this API description (${stale.join(', ')}). Run "thymian sampler sync" and commit the result.`,
+          );
+        }
       }
 
       hookRunner.load(format, catalog, hooks);
@@ -184,6 +251,30 @@ export const samplePlugin: ThymianPlugin<Partial<SamplerPluginOptions>> = {
       });
     });
 
+    emitter.onAction('sampler.sync', async ({ check }, ctx) => {
+      const surface = await generateTypeSurface(catalog);
+      const changed = changedFiles(await readGenerated(paths), surface);
+
+      if (check) {
+        // Writes nothing, by contract: a CI gate that fixed the thing it was
+        // checking would pass on the second run for the wrong reason.
+        ctx.reply({ changed, wrote: false });
+
+        return;
+      }
+
+      await mkdir(paths.hooksDir, { recursive: true });
+      await writeGenerated(paths, surface);
+
+      // Never the tsconfig: it is scaffolded once by `init` and the author's
+      // from then on.
+      ctx.reply({ changed, wrote: true });
+    });
+
+    emitter.onAction('sampler.validate', async (_event, ctx) => {
+      ctx.reply(await validateSampler(paths, catalog));
+    });
+
     emitter.onAction('sampler.show', async ({ selector }, ctx) => {
       const transaction = catalog.resolve(selector);
 
@@ -197,12 +288,16 @@ export const samplePlugin: ThymianPlugin<Partial<SamplerPluginOptions>> = {
     });
 
     emitter.onAction('core.request.sample', async ({ transaction }, ctx) => {
+      assertHooksResolve();
+
       ctx.reply(
         await requestSampler.sampleForTransaction(transaction, emitter),
       );
     });
 
     emitter.onAction('http-testing.beforeRequest', async (hook, ctx) => {
+      assertHooksResolve();
+
       ctx.reply(await hookRunner.beforeEachRequest(hook));
     });
 
