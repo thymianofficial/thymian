@@ -48,6 +48,7 @@
     "@thymian/core": "0.0.0-PLACEHOLDER",
     "@thymian/plugin-request-dispatcher": "0.0.0-PLACEHOLDER",
     "code-block-writer": "^13.0.3",
+    "jiti": "^2.6.1",
     "json-schema-to-typescript": "^15.0.4",
     "openapi-sampler": "^1.7.2",
     "tslib": "^2.3.0"
