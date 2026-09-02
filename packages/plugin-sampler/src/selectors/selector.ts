@@ -107,11 +107,24 @@ function readQuoted(
  * instead, because the bare form cannot carry those characters unambiguously.
  */
 export function encodePath(path: string): string {
-  const withSlash = path.startsWith('/') ? path : `/${path}`;
+  const withSlash = canonicalPath(path);
 
   return /[\s>]/.test(withSlash) || withSlash.startsWith('"')
     ? quote(withSlash)
     : withSlash;
+}
+
+/**
+ * The path as everything that is not a selector spells it: the description's own
+ * text, with the leading `/` it is not guaranteed to carry.
+ *
+ * This — not {@link encodePath} — is what a path glob is matched against and
+ * what a filter compares. A glob author writes the path the description writes;
+ * the selector's quoting is a property of the selector grammar and has no
+ * business leaking into a filter.
+ */
+export function canonicalPath(path: string): string {
+  return path.startsWith('/') ? path : `/${path}`;
 }
 
 /**
