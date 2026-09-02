@@ -1,4 +1,4 @@
-import { readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 
 import fastify, { type FastifyInstance } from 'fastify';
@@ -6,7 +6,6 @@ import { describe, expect, it } from 'vitest';
 
 import {
   copyFixturesToTempDir,
-  execThymian,
   execThymianRaw,
   execThymianRawAsync,
   fixturesDir,
@@ -15,8 +14,12 @@ import {
 import { getAvailablePort } from './port-utils.js';
 
 /**
- * Helper: copy a fixture to temp dir, run `sampler init`, and start a test server.
- * Returns the server and its port so tests can use `--target-url`.
+ * Helper: copy a fixture to temp dir and start a test server. Returns the server
+ * and its port so tests can use `--target-url`.
+ *
+ * Nothing is generated first, deliberately: the sampler projects request
+ * samples in memory on every run, so `thymian test` needs no setup step and
+ * nothing committed.
  */
 async function setupTestEnvironment(
   fixtureName: string,
@@ -24,9 +27,6 @@ async function setupTestEnvironment(
   handler: (server: FastifyInstance) => void = addDefaultHelloHandler,
 ) {
   copyFixturesToTempDir(join(fixturesDir, fixtureName), tempDir);
-
-  // Generate samples so the sampler plugin can produce request templates
-  execThymian(['sampler', 'init'], { cwd: tempDir });
 
   const port = await getAvailablePort();
   const server = fastify();
@@ -160,9 +160,28 @@ describe('thymian test', () => {
     }
   }, 180_000);
 
+  it('should run with nothing on disk and materialize no samples', async () => {
+    const { server, targetUrl } = await setupTestEnvironment(
+      'dynamic-test',
+      getTempDir(),
+    );
+
+    try {
+      const result = execThymianRaw(['test', '--target-url', targetUrl], {
+        cwd: getTempDir(),
+      });
+
+      expect(result.exitCode).toBe(0);
+      // The whole point of the virtual model: a clean checkout runs, and the
+      // run leaves nothing behind that a later spec edit could strand.
+      expect(existsSync(join(getTempDir(), '.thymian'))).toBe(false);
+    } finally {
+      await server.close();
+    }
+  }, 180_000);
+
   it('should exit 2 when server is unreachable (tool error)', async () => {
     copyFixturesToTempDir(join(fixturesDir, 'dynamic-test'), getTempDir());
-    execThymian(['sampler', 'init'], { cwd: getTempDir() });
 
     // Use a port that has nothing listening — no server in this test, so
     // spawnSync is fine (no event-loop contention).
@@ -357,7 +376,6 @@ describe('thymian test', () => {
 
     try {
       copyFixturesToTempDir(join(fixturesDir, 'dynamic-test'), getTempDir());
-      execThymian(['sampler', 'init'], { cwd: getTempDir() });
 
       // Write config with targetUrl baked in
       const configPath = join(getTempDir(), 'thymian.config.yaml');
