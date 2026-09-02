@@ -46,6 +46,31 @@ export function unresolvedHooksError(
   );
 }
 
+/**
+ * Two hooks resolve but cannot both apply.
+ *
+ * Separate from {@link unresolvedHooksError} because the fault is different: the
+ * selector is fine and the file loaded: the pair of hooks is the problem, so the
+ * sentence has to say so rather than send the reader looking for a bad selector.
+ */
+export function hookConflictError(
+  conflicts: readonly HookDiagnostic[],
+): ThymianBaseError {
+  const count = conflicts.length;
+
+  return new ThymianBaseError(
+    `${count} sampler ${count === 1 ? 'hook conflicts' : 'hooks conflict'} with another hook on the same transaction.`,
+    {
+      name: 'HookConflictError',
+      ref: 'https://thymian.dev/references/errors/hook-conflict-error/',
+      suggestions: [
+        ...conflicts.map(describe),
+        ...conflicts.flatMap((conflict) => conflict.suggestions ?? []),
+      ],
+    },
+  );
+}
+
 /** A hook file could not be imported at all. */
 export function hookFileImportError(
   file: string,

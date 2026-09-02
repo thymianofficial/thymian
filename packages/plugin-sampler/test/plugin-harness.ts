@@ -64,7 +64,7 @@ export type SamplerHarness = {
     transactionId: string,
     format: ThymianFormat,
   ): Promise<HttpTestHooks['authorize']['return']>;
-  /** Close the run, exactly as the CLI does when a command finishes. */
+  /** Close the run, as core does when a command finishes. */
   close(): Promise<void>;
   dispose(): Promise<void>;
 };
@@ -202,8 +202,11 @@ export async function startSampler(
       return samples;
     },
     async close() {
+      // `strict: false`, as core emits it: `core.close` is a broadcast that
+      // does not require anyone to answer.
       await emitter.emitAction('core.close', undefined, {
-        strategy: 'first',
+        strategy: 'collect',
+        strict: false,
       });
     },
     async dispose() {
