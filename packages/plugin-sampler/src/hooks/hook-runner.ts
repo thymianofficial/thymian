@@ -1,76 +1,41 @@
-import { readFile } from 'node:fs/promises';
-import { join } from 'node:path';
-
 import type { HttpTestCaseResult, HttpTestHooks } from '@thymian/core';
 import {
   type HttpRequest,
   type HttpResponse,
   type Logger,
   ThymianBaseError,
-  type ThymianFormat,
+  ThymianFormat,
   thymianHttpTransactionToString,
 } from '@thymian/core';
 
-import { readSamplesFromDir } from '../samples-structure/read-samples-from-dir.js';
-import type {
-  Hooks,
-  SamplesStructure,
-} from '../samples-structure/samples-tree-structure.js';
-import type { StructureMetaOnDisc } from '../samples-structure/structure-meta-on-disc.js';
-import { entryExists } from '../utils.js';
 import { createHookUtils } from './create-hook-utils.js';
 import { FailError, SkipError } from './hook-errors.js';
-import { loadHooksFromSamples } from './load-hooks-from-samples.js';
+import type { Hooks } from './hook-types.js';
 
 export class HookRunner {
-  private initialized = false;
   private hooks: Map<string, Hooks> = new Map();
-  private urlToTransactionId: Record<string, string> = {};
-  private format!: ThymianFormat;
+  private format: ThymianFormat = new ThymianFormat();
 
   constructor(
-    private readonly path: string,
     private readonly runRequest: (req: HttpRequest) => Promise<HttpResponse>,
     private readonly logger: Logger,
   ) {}
 
-  async init(
-    format: ThymianFormat,
-    samplesStructure?: SamplesStructure,
-  ): Promise<void> {
-    if (this.initialized) {
-      return;
-    }
-
-    if (!(await entryExists(this.path))) {
-      return;
-    }
-
-    const samples = samplesStructure ?? (await readSamplesFromDir(this.path));
-    const meta = JSON.parse(
-      await readFile(join(this.path, 'meta.json'), 'utf-8'),
-    ) as StructureMetaOnDisc;
-
-    this.urlToTransactionId = meta.transactions;
-
-    this.hooks = loadHooksFromSamples(samples);
+  /**
+   * Adopt a newly loaded format.
+   *
+   * Nothing is read from disk: an unregistered transaction simply has no hooks,
+   * which is the pass-through case, so there is no "not initialized" state left
+   * to guard against.
+   */
+  load(format: ThymianFormat): void {
     this.format = format;
-    this.initialized = true;
+    this.hooks = new Map();
   }
 
   async afterEachResponse(
     hook: HttpTestHooks['afterResponse']['arg'],
   ): Promise<HttpTestHooks['afterResponse']['return']> {
-    if (!this.initialized) {
-      throw new ThymianBaseError(
-        'Cannot run hooks before @thymian/plugin-sampler is initialized.',
-        {
-          name: 'HookRunnerNotInitialized',
-          suggestions: ['Did you run "thymian sampler init"?'],
-        },
-      );
-    }
-
     const { value, ctx } = hook;
 
     const hooks = ctx.thymianTransaction
@@ -84,7 +49,6 @@ export class HookRunner {
       this.format,
       this.runRequest,
       this,
-      this.urlToTransactionId,
       testResults,
       this.logger,
     );
@@ -127,16 +91,6 @@ export class HookRunner {
   async authorize(
     hook: HttpTestHooks['authorize']['arg'],
   ): Promise<HttpTestHooks['authorize']['return']> {
-    if (!this.initialized) {
-      throw new ThymianBaseError(
-        'Cannot run hooks before @thymian/plugin-sampler is initialized.',
-        {
-          name: 'HookRunnerNotInitialized',
-          suggestions: ['Did you run "thymian sampler init"?'],
-        },
-      );
-    }
-
     const { value, ctx } = hook;
 
     const hooks = ctx?.transactionId
@@ -156,7 +110,6 @@ export class HookRunner {
       this.format,
       this.runRequest,
       this,
-      this.urlToTransactionId,
       testResults,
       this.logger,
     );
@@ -197,16 +150,6 @@ export class HookRunner {
   async beforeEachRequest(
     hook: HttpTestHooks['beforeRequest']['arg'],
   ): Promise<HttpTestHooks['beforeRequest']['return']> {
-    if (!this.initialized) {
-      throw new ThymianBaseError(
-        'Cannot run hooks before @thymian/plugin-sampler is initialized.',
-        {
-          name: 'HookRunnerNotInitialized',
-          suggestions: ['Did you run "thymian sampler init"?'],
-        },
-      );
-    }
-
     const { value, ctx } = hook;
 
     const hooks = ctx?.transactionId
@@ -220,7 +163,6 @@ export class HookRunner {
       this.format,
       this.runRequest,
       this,
-      this.urlToTransactionId,
       testResults,
       this.logger,
     );

@@ -1,111 +1,60 @@
-import { ThymianBaseError } from '@thymian/core';
-
-import type { HttpRequestSample } from './http-request-sample.js';
-import { readSamplesFromDir } from './samples-structure/read-samples-from-dir.js';
 import {
-  nodeIsType,
-  type SamplesNode,
-  type SamplesStructure,
-} from './samples-structure/samples-tree-structure.js';
-import { traverse } from './samples-structure/traverse.js';
-import { entryExists } from './utils.js';
+  type ThymianEmitter,
+  ThymianFormat,
+  type ThymianHttpTransaction,
+} from '@thymian/core';
 
-export function readSamplesNodesFromTree(
-  tree: SamplesStructure,
-): Map<string, SamplesNode> {
-  const result = new Map<string, SamplesNode>();
+import { generateRequestSampleForTransaction } from './generation/generate-request-sample.js';
+import { projectSamplesForThymianFormat } from './generation/project-samples-for-format.js';
+import type { HttpRequestSample } from './http-request-sample.js';
 
-  traverse(tree, null, (node, ctx) => {
-    if (nodeIsType(node, 'samples')) {
-      result.set(node.meta.sourceTransaction, node);
-    }
-
-    return ctx;
-  });
-
-  return result;
-}
-
+/**
+ * The sampler's answer to "what request should this transaction send?".
+ *
+ * Holds the in-memory projection of the currently loaded format and nothing
+ * else. There is no version, no timestamp and no baseline to compare against,
+ * because there is no artifact that could disagree with the format: {@link load}
+ * throws the previous projection away and rebuilds it.
+ */
 export class RequestSampler {
-  constructor(
-    private readonly basePath: string,
-    samples?: SamplesStructure,
-  ) {
-    if (samples) {
-      this.sampleNodes = readSamplesNodesFromTree(samples);
-      this.samples = samples;
-      this.initialized = true;
-    }
+  #samples: Map<string, HttpRequestSample> = new Map();
+  #format: ThymianFormat = new ThymianFormat();
+
+  /** Project `format` in full, replacing any previous projection. */
+  async load(format: ThymianFormat, emitter: ThymianEmitter): Promise<void> {
+    this.#format = format;
+    this.#samples = await projectSamplesForThymianFormat(format, emitter);
   }
 
-  private samples!: SamplesStructure;
-  private initialized = false;
-  private sampleNodes: Map<string, SamplesNode> = new Map();
+  /**
+   * The sample for one transaction.
+   *
+   * A transaction the projection has not seen is generated on the spot rather
+   * than reported as missing: generation is a pure function of the transaction,
+   * so an unprojected transaction is one nobody has asked for yet, not evidence
+   * that something on disk is out of date. Before any format is loaded the
+   * stand-in empty format answers `requestIsSecured` with `false` — the same
+   * answer an unsecured operation gets, and harmless because authorization is
+   * additionally gated on a registered authorize hook.
+   */
+  async sampleForTransaction(
+    transaction: ThymianHttpTransaction,
+    emitter: ThymianEmitter,
+  ): Promise<HttpRequestSample> {
+    const projected = this.#samples.get(transaction.transactionId);
 
-  version(): string {
-    return this.samples.meta.version;
-  }
-
-  timestamp(): string {
-    try {
-      return new Date(this.samples.meta.timestamp).toISOString();
-    } catch (e) {
-      throw new ThymianBaseError(
-        `Invalid timestamp in samples meta: ${this.samples.meta.timestamp}`,
-        {
-          name: 'InvalidSampleTimestampError',
-          ref: 'https://thymian.dev/references/errors/invalid-sample-timestamp-error/',
-          cause: e,
-        },
-      );
-    }
-  }
-
-  async init(samples?: SamplesStructure): Promise<void> {
-    if (this.initialized) {
-      return;
+    if (projected) {
+      return projected;
     }
 
-    if (!(await entryExists(this.basePath))) {
-      return;
-    }
+    const generated = await generateRequestSampleForTransaction(
+      this.#format,
+      transaction,
+      emitter,
+    );
 
-    this.samples = samples ?? (await readSamplesFromDir(this.basePath));
+    this.#samples.set(transaction.transactionId, generated);
 
-    this.sampleNodes = readSamplesNodesFromTree(this.samples);
-
-    this.initialized = true;
-  }
-
-  sampleForTransaction(transactionId: string): HttpRequestSample | undefined {
-    if (!this.initialized) {
-      throw new ThymianBaseError(
-        'Cannot sample for transaction before @thymian/plugin-sampler was initialized.',
-        {
-          suggestions: ['Did you run "thymian sampler init"?'],
-          name: 'SamplerNotInitializedError',
-        },
-      );
-    }
-
-    const node = this.sampleNodes.get(transactionId);
-
-    if (!node) {
-      return;
-    }
-
-    const { samplingStrategy } = node.meta;
-    const samples = node.children
-      .filter((child) => nodeIsType(child, 'requests'))
-      .flatMap((child) => child.value);
-
-    if (samplingStrategy.type === 'random') {
-      const randomIndex = Math.floor(Math.random() * samples.length);
-      return samples[randomIndex];
-    } else if (samplingStrategy.type === 'fixed') {
-      return samples[0];
-    } else {
-      throw new Error(`Unsupported sampling strategy ${samplingStrategy}`);
-    }
+    return generated;
   }
 }

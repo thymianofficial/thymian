@@ -17,3 +17,14 @@ export type AfterEachResponseHook<E extends Endpoints = Record<string, any>> =
   SampleHttpTestHook<'afterResponse', E>;
 export type AuthorizeHook<E extends Endpoints = Record<string, any>> =
   SampleHttpTestHook<'authorize', E>;
+
+/**
+ * The hooks that apply to one transaction, in registration order.
+ *
+ * Populated by the hook loader; empty until a hooks directory is scanned.
+ */
+export type Hooks = {
+  beforeEachRequest: BeforeEachRequestHook[];
+  afterEachResponse: AfterEachResponseHook[];
+  authorize: AuthorizeHook[];
+};
