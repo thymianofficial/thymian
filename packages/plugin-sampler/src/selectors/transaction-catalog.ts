@@ -12,6 +12,7 @@ import {
   selectorCollisionError,
   unknownSelectorError,
 } from './selector-errors.js';
+import { catalogPaths } from './transaction-filter.js';
 
 const MAX_NEAR_MISSES = 5;
 
@@ -83,6 +84,23 @@ export class TransactionCatalog {
 
   entries(): readonly TransactionCatalogEntry[] {
     return this.orderedEntries;
+  }
+
+  /**
+   * Every distinct path the catalog holds, sorted — the universe a path glob is
+   * matched against, and the set a vacuous glob fails against.
+   */
+  paths(): readonly string[] {
+    return catalogPaths(
+      this.orderedEntries.map(([, transaction]) => transaction),
+    );
+  }
+
+  /** The selector one transaction renders as, for a diagnostic that has the id. */
+  selectorFor(transactionId: string): Selector | undefined {
+    return this.orderedEntries.find(
+      ([, transaction]) => transaction.transactionId === transactionId,
+    )?.[0];
   }
 
   /** Never throws. Use where a miss is an expected outcome. */

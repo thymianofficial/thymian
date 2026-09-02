@@ -1,4 +1,5 @@
 import type { Selector } from '../selectors/selector.js';
+import type { TransactionFilter } from '../selectors/transaction-filter.js';
 
 /**
  * The brand every registration carries.
@@ -20,8 +21,11 @@ export type HookKind =
   | 'beforeAll'
   | 'afterAll';
 
-/** What a per-transaction hook is aimed at. Widened to filters by #13. */
-export type HookTarget = Selector | readonly Selector[];
+/**
+ * What a per-transaction hook is aimed at: exactly one Transaction by Selector,
+ * several by a list of them, or a set by a filter.
+ */
+export type HookTarget = Selector | readonly Selector[] | TransactionFilter;
 
 /**
  * Callbacks are stored, never inspected. Each kind's precise signature is the
