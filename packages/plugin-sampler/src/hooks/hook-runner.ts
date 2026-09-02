@@ -5,22 +5,43 @@ import {
   type HttpTestCaseResult,
   type HttpTestHooks,
   type Logger,
+  serializeRequest,
   ThymianBaseError,
   ThymianFormat,
   type ThymianHttpTransaction,
   thymianHttpTransactionToString,
 } from '@thymian/core';
 
-import { createHookUtils } from './create-hook-utils.js';
+import type { Selector } from '../selectors/selector.js';
+import { TransactionCatalog } from '../selectors/transaction-catalog.js';
+import {
+  createHookUtils,
+  type HookCallContext,
+  parseResponseBody,
+} from './create-hook-utils.js';
 import { FailError, SkipError } from './hook-errors.js';
 import type { HookKind } from './hook-registration.js';
+import type {
+  EndpointRequest,
+  EndpointResponse,
+  RequestOptions,
+} from './hook-utils.js';
 import type { HookUtilsFactory } from './hook-utils-factory.js';
-import { invokeHook, reportHookResults } from './invoke-hook.js';
+import {
+  attributeToHook,
+  invokeHook,
+  reportHookResults,
+} from './invoke-hook.js';
 import {
   type CollectedRegistration,
   type LoadUserHooksResult,
   type TransactionHooks,
 } from './load-user-hooks.js';
+import {
+  isOnChain,
+  requestCycleError,
+  type SelectorChain,
+} from './nested-request.js';
 import { RunScopedHooks } from './run-scoped-hooks.js';
 
 const EMPTY_HOOKS: TransactionHooks = Object.freeze({
@@ -29,6 +50,16 @@ const EMPTY_HOOKS: TransactionHooks = Object.freeze({
   afterEach: [],
   authorize: [],
 });
+
+/** What the runner needs from the rest of the plugin to send a request. */
+export type HookRunnerPorts = {
+  /** The freshly generated request for one transaction. */
+  sampleRequest: (
+    transaction: ThymianHttpTransaction,
+  ) => Promise<HttpRequestTemplate>;
+  /** Puts a serialized request on the wire. */
+  dispatch: (request: HttpRequest) => Promise<HttpResponse>;
+};
 
 /**
  * Runs the user's hooks at the http-testing seams.
@@ -39,22 +70,55 @@ const EMPTY_HOOKS: TransactionHooks = Object.freeze({
  */
 export class HookRunner {
   private format: ThymianFormat = new ThymianFormat();
+  private catalog: TransactionCatalog = TransactionCatalog.fromThymianFormat(
+    new ThymianFormat(),
+  );
   private byTransactionId: ReadonlyMap<string, TransactionHooks> = new Map();
   private globalAuthorize: readonly CollectedRegistration[] = [];
   private readonly runScoped: RunScopedHooks;
 
-  constructor(private readonly logger: Logger) {
+  constructor(
+    private readonly logger: Logger,
+    private readonly ports: HookRunnerPorts,
+  ) {
     this.runScoped = new RunScopedHooks(logger, this.utilsFactory);
   }
 
+  /** Adopt a newly loaded format and the hooks bound against it. */
+  load(
+    format: ThymianFormat,
+    catalog: TransactionCatalog,
+    hooks?: LoadUserHooksResult,
+  ): void {
+    this.format = format;
+    this.catalog = catalog;
+    this.byTransactionId = hooks?.byTransactionId ?? new Map();
+    this.globalAuthorize = hooks?.globalAuthorize ?? [];
+    this.runScoped.load(hooks?.runScoped ?? { beforeAll: [], afterAll: [] });
+  }
+
   /**
-   * The `utils` a hook with no test case to attach results to gets: run-scoped
-   * hooks, and `defineSample`. Their results are logged by whoever called them.
+   * Teardown, on `core.close`. A no-op when no request was ever sent, so a
+   * non-test command never runs somebody's teardown.
+   */
+  async close(): Promise<void> {
+    await this.runScoped.close();
+  }
+
+  /**
+   * The `utils` a hook with no request to shape gets: the run-scoped pair. A
+   * nested request is available, because a `beforeAll` seeding the API is the
+   * reason `utils.request` exists.
    */
   private readonly utilsFactory: HookUtilsFactory = () => {
     const results: HttpTestCaseResult[] = [];
 
-    return { utils: this.utils(results), results };
+    return {
+      utils: createHookUtils(
+        this.callContext({ dir: process.cwd(), results, chain: [] }),
+      ),
+      results,
+    };
   };
 
   /**
@@ -72,28 +136,19 @@ export class HookRunner {
       return;
     }
 
-    const { utils, results } = this.utilsFactory();
+    const results: HttpTestCaseResult[] = [];
 
-    await invokeHook(entry, [draft, utils]);
+    await invokeHook(entry, [
+      draft,
+      createHookUtils(
+        // No nested request: a `defineSample` hook runs before any request
+        // exists, so there is no pipeline for one to run through.
+        { dir: entry.dir, request: draft, results },
+      ),
+    ]);
 
     reportHookResults(this.logger, results);
   };
-
-  /** Adopt a newly loaded format and the hooks bound against it. */
-  load(format: ThymianFormat, hooks?: LoadUserHooksResult): void {
-    this.format = format;
-    this.byTransactionId = hooks?.byTransactionId ?? new Map();
-    this.globalAuthorize = hooks?.globalAuthorize ?? [];
-    this.runScoped.load(hooks?.runScoped ?? { beforeAll: [], afterAll: [] });
-  }
-
-  /**
-   * Teardown, on `core.close`. A no-op when no request was ever sent, so a
-   * non-test command never runs somebody's teardown.
-   */
-  async close(): Promise<void> {
-    await this.runScoped.close();
-  }
 
   private hooksFor(transactionId: string | undefined): TransactionHooks {
     if (!transactionId) {
@@ -103,8 +158,19 @@ export class HookRunner {
     return this.byTransactionId.get(transactionId) ?? EMPTY_HOOKS;
   }
 
-  private utils(results: HttpTestCaseResult[]) {
-    return createHookUtils(results);
+  private callContext(input: {
+    dir: string;
+    request?: HttpRequestTemplate;
+    results: HttpTestCaseResult[];
+    chain: SelectorChain;
+  }): HookCallContext {
+    return {
+      dir: input.dir,
+      request: input.request,
+      results: input.results,
+      requestOther: async (selector, args, options) =>
+        await this.runNested(selector, args, options, input.chain),
+    };
   }
 
   async beforeEachRequest(
@@ -122,6 +188,8 @@ export class HookRunner {
       value,
       ctx,
       ctx,
+      value,
+      this.chainFor(ctx),
     );
   }
 
@@ -136,6 +204,8 @@ export class HookRunner {
       value,
       ctx,
       ctx.thymianTransaction,
+      ctx.requestTemplate,
+      this.chainFor(ctx.thymianTransaction),
     );
   }
 
@@ -151,6 +221,8 @@ export class HookRunner {
       value,
       ctx,
       ctx,
+      value,
+      this.chainFor(ctx),
     );
   }
 
@@ -177,13 +249,27 @@ export class HookRunner {
   }
 
   /**
+   * The chain a hook of `transaction` runs with: the Transaction's own Selector,
+   * so a hook that seeds itself is caught on the first step.
+   */
+  private chainFor(
+    transaction: ThymianHttpTransaction | undefined,
+  ): SelectorChain {
+    if (!transaction) {
+      return [];
+    }
+
+    const selector = this.catalog.selectorFor(transaction.transactionId);
+
+    return selector ? [selector] : [];
+  }
+
+  /**
    * Run a kind's hooks in order over one value, and translate whatever comes
    * back into the shape the http-testing seam expects.
    *
    * Every hook **mutates `value` in place**; the callback's return value is
-   * deliberately discarded. Honouring a return instead corrupts the value for
-   * the most ordinary shorthand there is — `(r) => (r.headers.x = 'y')`
-   * evaluates to `'y'`, which would replace the whole request with that string.
+   * deliberately discarded (see {@link invokeHook}).
    */
   private async compose<T>(
     kind: HookKind,
@@ -191,6 +277,8 @@ export class HookRunner {
     value: T,
     ctx: unknown,
     transaction: TransactionForDiagnostic,
+    request: HttpRequestTemplate | undefined,
+    chain: SelectorChain,
   ): Promise<{
     result: T;
     testResults: HttpTestCaseResult[];
@@ -198,9 +286,17 @@ export class HookRunner {
     fail?: string;
   }> {
     const testResults: HttpTestCaseResult[] = [];
-    const utils = this.utils(testResults);
 
     for (const entry of entries) {
+      const utils = createHookUtils(
+        this.callContext({
+          dir: entry.dir,
+          request,
+          results: testResults,
+          chain,
+        }),
+      );
+
       try {
         await invokeHook(entry, [value, ctx, utils]);
       } catch (e) {
@@ -216,6 +312,119 @@ export class HookRunner {
 
     return { result: value, testResults };
   }
+
+  /**
+   * Send a request to another Transaction, addressed by its Selector.
+   *
+   * By default the nested request runs the target's own
+   * `beforeEach → authorize → afterEach` pipeline, so seeding behaves like the
+   * real run rather than like a second, quieter client. `runHooks: false` sends
+   * the generated request as-is, which is also the way out of a cycle.
+   */
+  private async runNested(
+    selector: Selector,
+    args: EndpointRequest,
+    options: RequestOptions,
+    chain: SelectorChain,
+  ): Promise<EndpointResponse> {
+    const runHooks = options.runHooks ?? true;
+
+    // Only a call that would run the target's own pipeline can recurse, so
+    // `runHooks: false` is the documented way out of a cycle. The chain is
+    // still extended below, because an authorize hook may run either way and
+    // could itself recurse.
+    if (runHooks && isOnChain(chain, selector)) {
+      throw requestCycleError(chain, selector);
+    }
+
+    const transaction = this.catalog.resolve(selector);
+    const nested: SelectorChain = [...chain, selector];
+    const template = applyArgs(
+      await this.ports.sampleRequest(transaction),
+      args,
+    );
+
+    if (options.authorize !== undefined) {
+      template.authorize = options.authorize;
+    }
+
+    const results: HttpTestCaseResult[] = [];
+
+    if (runHooks) {
+      const before = await this.compose(
+        'beforeEach',
+        this.hooksFor(transaction.transactionId).beforeEach,
+        template,
+        transaction,
+        transaction,
+        template,
+        nested,
+      );
+
+      results.push(...before.testResults);
+    }
+
+    const authorizeHook = this.authorizeFor(transaction.transactionId);
+
+    if (template.authorize && authorizeHook) {
+      const authorized = await this.compose(
+        'authorize',
+        [authorizeHook],
+        template,
+        transaction,
+        transaction,
+        template,
+        nested,
+      );
+
+      results.push(...authorized.testResults);
+    }
+
+    const request = serializeRequest({
+      requestTemplate: template,
+      source: transaction,
+    });
+    const response = await this.ports.dispatch(request);
+
+    if (runHooks) {
+      const after = await this.compose(
+        'afterEach',
+        this.hooksFor(transaction.transactionId).afterEach,
+        response,
+        { request, requestTemplate: template, thymianTransaction: transaction },
+        transaction,
+        template,
+        nested,
+      );
+
+      results.push(...after.testResults);
+    }
+
+    // A nested request has no test case of its own; what its hooks recorded is
+    // logged rather than dropped.
+    reportHookResults(this.logger, results);
+
+    return {
+      body: parseResponseBody(response),
+      headers: response.headers,
+      statusCode: response.statusCode,
+    };
+  }
+}
+
+/** Overlays a caller's arguments onto a generated request. */
+function applyArgs(
+  template: HttpRequestTemplate,
+  args: EndpointRequest,
+): HttpRequestTemplate {
+  return {
+    ...template,
+    headers: { ...template.headers, ...args.headers },
+    query: { ...template.query, ...args.query },
+    cookies: { ...template.cookies, ...args.cookies },
+    pathParameters: { ...template.pathParameters, ...args.path },
+    ...('body' in args ? { body: args.body } : {}),
+  };
 }
 
 /** What a diagnostic needs to name the transaction a hook was running for. */
@@ -244,6 +453,14 @@ function interpretHookFailure(
 
   if (e instanceof FailError) {
     return { report: { fail: e.message } };
+  }
+
+  if (e instanceof ThymianBaseError) {
+    // A diagnostic the sampler itself raised — a cycle, an unknown selector, a
+    // setter with no request — already says what went wrong better than a
+    // wrapper would, and its suggestions are the part worth reading. Keep it,
+    // and add where it came from.
+    return { rethrow: attributeToHook(e, kind, entry) };
   }
 
   const where = transaction

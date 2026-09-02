@@ -1,6 +1,6 @@
 import type { Dirent } from 'node:fs';
 import { readdir } from 'node:fs/promises';
-import { join, relative } from 'node:path';
+import { dirname, join, relative } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import type { ThymianHttpTransaction } from '@thymian/core';
@@ -88,6 +88,8 @@ export type CollectedRegistration = {
   registration: HookRegistration;
   /** Hooks-dir-relative path, `/`-normalized. */
   file: string;
+  /** Absolute directory of the hook file, for the file helpers. */
+  dir: string;
   exportName: string;
   /**
    * Position in the whole scan: file order on the outside, registration order
@@ -215,6 +217,7 @@ function compareKeys(a: string, b: string): number {
 function collectFromNamespace(
   namespace: unknown,
   file: string,
+  dir: string,
 ): CollectedRegistration[] {
   if (typeof namespace !== 'object' || namespace === null) {
     return [];
@@ -233,7 +236,13 @@ function collectFromNamespace(
     }
 
     if (isHookRegistration(value)) {
-      collected.push({ registration: value, file, exportName, sequence: 0 });
+      collected.push({
+        registration: value,
+        file,
+        dir,
+        exportName,
+        sequence: 0,
+      });
 
       continue;
     }
@@ -244,6 +253,7 @@ function collectFromNamespace(
           collected.push({
             registration: element,
             file,
+            dir,
             exportName,
             sequence: 0,
           });
@@ -501,7 +511,7 @@ export async function loadUserHooks(
     // is the outer key and it is already deterministic; `order` only has to
     // sequence what one file registered.
     collected.push(
-      ...collectFromNamespace(namespace, key).sort(
+      ...collectFromNamespace(namespace, key, dirname(full)).sort(
         (a, b) => a.registration.order - b.registration.order,
       ),
     );
