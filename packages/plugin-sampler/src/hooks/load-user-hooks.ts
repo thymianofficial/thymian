@@ -403,6 +403,19 @@ export async function loadUserHooks(
         continue;
       }
 
+      // Two authorize hooks in the same tier on one Transaction: the later one
+      // wins, which is what lets a file override an earlier one — but silently
+      // dropping a set of credentials is worth a word, since a reader who just
+      // met the `defineSample` conflict will expect one.
+      const supersededAuthorize =
+        registration.kind === 'authorize' ? hooks.authorize.at(-1) : undefined;
+
+      if (supersededAuthorize) {
+        warnings.push(
+          `Two authorize hooks target the same transaction: "${entry.exportName}" in ${entry.file} supersedes "${supersededAuthorize.exportName}" in ${supersededAuthorize.file}. Only the last one runs.`,
+        );
+      }
+
       hooks[registration.kind].push(entry);
     }
   }

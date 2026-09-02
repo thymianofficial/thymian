@@ -74,10 +74,26 @@ export async function typecheckHooks(
 
     return ts
       .getPreEmitDiagnostics(program)
-      .filter((diagnostic) => diagnostic.file !== undefined)
-      .filter((diagnostic) => !diagnostic.file!.fileName.startsWith(scratch))
+      .filter((diagnostic) => !diagnostic.file?.fileName.startsWith(scratch))
       .map((diagnostic) => {
-        const file = diagnostic.file!;
+        const file = diagnostic.file;
+
+        if (!file) {
+          // A diagnostic about the *options* rather than a file — a malformed
+          // tsconfig, an unresolvable `types` entry. Dropping these made a
+          // broken tsconfig fail silently and report a clean bill of health.
+          return {
+            file: 'tsconfig.json',
+            line: 1,
+            column: 1,
+            message: ts.flattenDiagnosticMessageText(
+              diagnostic.messageText,
+              ' ',
+            ),
+            code: diagnostic.code,
+          };
+        }
+
         const { line, character } = file.getLineAndCharacterOfPosition(
           diagnostic.start ?? 0,
         );

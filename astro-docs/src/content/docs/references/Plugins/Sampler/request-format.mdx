@@ -83,6 +83,12 @@ substitution and the serialization of query parameters happen after your hooks
 have run, using the styles your description declares — so a hook sets a value and
 does not have to know how it is spelled on the wire.
 
+```typescript
+utils.setPathParam('id', 42); // yes
+request.pathParameters.id = 42; // the same thing
+request.path.id = 42; // no — `path` is a string, and this is a compile error
+```
+
 ## Bodies from files
 
 ```typescript
