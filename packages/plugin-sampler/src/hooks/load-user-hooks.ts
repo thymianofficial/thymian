@@ -1,0 +1,417 @@
+import type { Dirent } from 'node:fs';
+import { readdir } from 'node:fs/promises';
+import { join, relative } from 'node:path';
+import { fileURLToPath } from 'node:url';
+
+import { createJiti } from 'jiti';
+
+import type { Selector } from '../selectors/selector.js';
+import type { TransactionCatalog } from '../selectors/transaction-catalog.js';
+import { entryExists } from '../utils.js';
+import type { HookDiagnostic } from './hook-diagnostics.js';
+import { hookFileImportError } from './hook-diagnostics.js';
+import {
+  type HookRegistration,
+  type HookTarget,
+  isHookRegistration,
+} from './hook-registration.js';
+
+/**
+ * `@thymian/hooks` is resolved by **this** alias — not by a tsconfig `paths`
+ * entry and not by a committed `.d.ts` — which is what lets a hook file import
+ * runtime values in a workspace with no generated directory, no generated
+ * tsconfig and `sampler init` never run.
+ *
+ * Two properties are load-bearing:
+ *
+ * - **An absolute path, never a bare specifier.** The package exports only `"."`
+ *   and `"./package.json"`, so `'@thymian/plugin-sampler/hook-api'` would be
+ *   blocked by the exports map in a published install, and adding a subpath
+ *   export would put an internal module on the public surface. Deriving the path
+ *   from `import.meta.url` sidesteps the exports map entirely.
+ * - **Extensionless.** jiti resolves `.js .mjs .cjs .ts .mts .cts` itself, so one
+ *   target serves `dist/hooks/hook-api.js` in an installed CLI and
+ *   `src/hooks/hook-api.ts` when running from source, identically.
+ */
+const hooksRuntimeModule = fileURLToPath(
+  new URL('./hook-api.js', import.meta.url),
+).replace(/\.[cm]?js$/, '');
+
+/** The specifier a hook file writes. */
+export const HOOKS_RUNTIME_SPECIFIER = '@thymian/hooks';
+
+/** Exposed for the alias test; nothing else needs it. */
+export function hooksRuntimeModulePath(): string {
+  return hooksRuntimeModule;
+}
+
+/**
+ * Keep a file iff its name ends in one of the six module extensions and is not a
+ * declaration file.
+ *
+ * `.tsx`/`.jsx` are not among them: JSX needs a transform pragma this jiti
+ * instance is not configured for, so such a file would be scanned only to fail
+ * on its own syntax.
+ *
+ * The declaration-file exclusion is case-insensitive while the keep pattern is
+ * not. `types.D.ts` ends in `.ts` and so matched the keep pattern, but missed a
+ * case-sensitive `\.d\.ts$` — and a hand-written declaration file handed to jiti
+ * fails on its own `declare module` syntax. Widening the exclusion can only ever
+ * skip a file that could not have executed; widening the keep pattern the same
+ * way would make the scan depend on filesystem case sensitivity.
+ */
+export function isHookFile(name: string): boolean {
+  if (/\.d\.[cm]?ts$/i.test(name)) {
+    return false;
+  }
+
+  return /\.[cm]?[jt]s$/.test(name);
+}
+
+/** The hooks that apply to one Transaction, each in registration order. */
+export type TransactionHooks = {
+  defineSample: CollectedRegistration[];
+  beforeEach: CollectedRegistration[];
+  afterEach: CollectedRegistration[];
+  authorize: CollectedRegistration[];
+};
+
+/** A registration plus where it came from, which only the loader knows. */
+export type CollectedRegistration = {
+  registration: HookRegistration;
+  /** Hooks-dir-relative path, `/`-normalized. */
+  file: string;
+  exportName: string;
+};
+
+export type LoadUserHooksResult = {
+  /** Absolute path of the directory that was scanned. */
+  hooksDir: string;
+  /** Whether that directory exists at all. */
+  scanned: boolean;
+  /** Hook files found, in load order. */
+  files: readonly string[];
+  /** Per-transaction bindings, keyed by transaction id. */
+  byTransactionId: ReadonlyMap<string, TransactionHooks>;
+  /** Run-scoped registrations, in registration order. */
+  runScoped: {
+    beforeAll: CollectedRegistration[];
+    afterAll: CollectedRegistration[];
+  };
+  /** The global `authorize(callback)` registrations, in registration order. */
+  globalAuthorize: CollectedRegistration[];
+  /** Every hook that does not resolve. A non-empty list must fail the run. */
+  diagnostics: readonly HookDiagnostic[];
+};
+
+/** Hooks-dir-relative, `/`-normalized — the sort key and the diagnostic label. */
+function hooksDirRelative(hooksDir: string, full: string): string {
+  return relative(hooksDir, full).split(/[\\/]/).join('/');
+}
+
+/**
+ * One directory level, then its subdirectories.
+ *
+ * Deliberately not `readdir({ recursive: true })`: that is a single call, so an
+ * `EACCES` on any nested directory rejects the *whole* walk and loses every
+ * healthy hook in the tree. Walking a level at a time costs one `readdir` per
+ * directory and confines a failure to the subtree that actually failed.
+ *
+ * Dot-directories are skipped, so an editor's or a tool's cache inside the hooks
+ * tree is not scanned.
+ */
+async function walkHookDirectory(
+  hooksDir: string,
+  dir: string,
+  isRoot: boolean,
+  files: string[],
+  diagnostics: HookDiagnostic[],
+): Promise<void> {
+  let entries: Dirent[];
+
+  try {
+    entries = await readdir(dir, { withFileTypes: true });
+  } catch (error) {
+    if (isRoot) {
+      throw error;
+    }
+
+    diagnostics.push({
+      file: hooksDirRelative(hooksDir, dir),
+      reason: `this directory could not be read (${error instanceof Error ? error.message : String(error)}), so any hooks inside it were not loaded`,
+    });
+
+    return;
+  }
+
+  const directories: string[] = [];
+
+  for (const entry of entries) {
+    const full = join(dir, entry.name);
+
+    if (entry.isDirectory()) {
+      if (!entry.name.startsWith('.')) {
+        directories.push(full);
+      }
+
+      continue;
+    }
+
+    if (entry.isFile() && isHookFile(entry.name)) {
+      files.push(full);
+    }
+  }
+
+  for (const directory of directories) {
+    await walkHookDirectory(hooksDir, directory, false, files, diagnostics);
+  }
+}
+
+/**
+ * A stable load order: hooks-dir-relative key, by code unit.
+ *
+ * `readdir` order is filesystem-dependent, and composition order is observable,
+ * so the order hooks are loaded in is a decision rather than an accident.
+ */
+function compareKeys(a: string, b: string): number {
+  return a < b ? -1 : a > b ? 1 : 0;
+}
+
+/**
+ * Every registration exported by one module namespace, with its export name.
+ *
+ * Both a registration and an array of them count, at any export name including
+ * `default`. Nothing here calls a value to find out what it is: functions are
+ * rejected structurally by {@link isHookRegistration}.
+ */
+function collectFromNamespace(
+  namespace: unknown,
+  file: string,
+): CollectedRegistration[] {
+  if (typeof namespace !== 'object' || namespace === null) {
+    return [];
+  }
+
+  const collected: CollectedRegistration[] = [];
+
+  for (const exportName of Object.keys(namespace)) {
+    let value: unknown;
+
+    try {
+      value = (namespace as Record<string, unknown>)[exportName];
+    } catch {
+      // A getter that throws is not a hook; the module's other exports stand.
+      continue;
+    }
+
+    if (isHookRegistration(value)) {
+      collected.push({ registration: value, file, exportName });
+
+      continue;
+    }
+
+    if (Array.isArray(value)) {
+      for (const element of value) {
+        if (isHookRegistration(element)) {
+          collected.push({ registration: element, file, exportName });
+        }
+      }
+    }
+  }
+
+  return collected;
+}
+
+function emptyTransactionHooks(): TransactionHooks {
+  return {
+    defineSample: [],
+    beforeEach: [],
+    afterEach: [],
+    authorize: [],
+  };
+}
+
+/** The selectors a target names, or `undefined` when it is not a selector form. */
+function selectorsOf(target: HookTarget): readonly Selector[] | undefined {
+  if (typeof target === 'string') {
+    return [target];
+  }
+
+  if (Array.isArray(target) && target.every((v) => typeof v === 'string')) {
+    return target as readonly Selector[];
+  }
+
+  return undefined;
+}
+
+/**
+ * Scan the hooks directory and bind every registration it exports to the
+ * Transactions it names.
+ *
+ * A hooks directory that does not exist is not an error — `sampler init` is
+ * optional and a project may have no hooks at all — it is an empty result.
+ */
+export async function loadUserHooks(
+  hooksDir: string,
+  catalog: TransactionCatalog,
+): Promise<LoadUserHooksResult> {
+  const diagnostics: HookDiagnostic[] = [];
+  const byTransactionId = new Map<string, TransactionHooks>();
+  const runScoped = {
+    beforeAll: [] as CollectedRegistration[],
+    afterAll: [] as CollectedRegistration[],
+  };
+  const globalAuthorize: CollectedRegistration[] = [];
+
+  if (!(await entryExists(hooksDir))) {
+    return {
+      hooksDir,
+      scanned: false,
+      files: [],
+      byTransactionId,
+      runScoped,
+      globalAuthorize,
+      diagnostics,
+    };
+  }
+
+  const found: string[] = [];
+  await walkHookDirectory(hooksDir, hooksDir, true, found, diagnostics);
+
+  const files = found
+    .map((full) => ({ full, key: hooksDirRelative(hooksDir, full) }))
+    .sort((a, b) => compareKeys(a.key, b.key));
+
+  const jiti = createJiti(hooksRuntimeModule, {
+    alias: { [HOOKS_RUNTIME_SPECIFIER]: hooksRuntimeModule },
+    // A hook file is user code that may have been edited between runs, and a
+    // run is short-lived: nothing is gained by caching its transpilation, and a
+    // stale entry would be served silently.
+    fsCache: false,
+    moduleCache: false,
+  });
+
+  const collected: CollectedRegistration[] = [];
+
+  for (const { full, key } of files) {
+    let namespace: unknown;
+
+    try {
+      namespace = await jiti.import(full);
+    } catch (error) {
+      throw hookFileImportError(key, error);
+    }
+
+    // Registration order **within the file**, not export order: an ESM
+    // namespace exposes its keys sorted, so `order` is the only thing that
+    // knows which hook the file created first.
+    //
+    // Sorting per file rather than once at the end is what makes the order
+    // whole. `order` is stamped by the hooks runtime, and that runtime is
+    // re-evaluated per file because the module cache is off — so the counter
+    // restarts, and a global sort by `order` interleaved the files. File order
+    // is the outer key and it is already deterministic; `order` only has to
+    // sequence what one file registered.
+    collected.push(
+      ...collectFromNamespace(namespace, key).sort(
+        (a, b) => a.registration.order - b.registration.order,
+      ),
+    );
+  }
+
+  for (const entry of collected) {
+    const { registration } = entry;
+
+    if (registration.kind === 'beforeAll' || registration.kind === 'afterAll') {
+      runScoped[registration.kind].push(entry);
+
+      continue;
+    }
+
+    if (
+      registration.kind === 'authorize' &&
+      registration.target === undefined
+    ) {
+      globalAuthorize.push(entry);
+
+      continue;
+    }
+
+    const selectors = selectorsOf(registration.target as HookTarget);
+
+    if (!selectors) {
+      diagnostics.push({
+        file: entry.file,
+        exportName: entry.exportName,
+        reason: `${registration.kind} was given a target that is neither a selector nor a list of selectors`,
+      });
+
+      continue;
+    }
+
+    if (selectors.length === 0) {
+      diagnostics.push({
+        file: entry.file,
+        exportName: entry.exportName,
+        reason: `${registration.kind} was given an empty list of selectors, so it targets nothing`,
+      });
+
+      continue;
+    }
+
+    for (const selector of selectors) {
+      const transaction = catalog.tryResolve(selector);
+
+      if (!transaction) {
+        diagnostics.push({
+          file: entry.file,
+          exportName: entry.exportName,
+          reason: `${registration.kind} targets the selector "${selector}", which names no transaction in the loaded API description`,
+          suggestions: suggestionsFor(catalog, selector),
+        });
+
+        continue;
+      }
+
+      let hooks = byTransactionId.get(transaction.transactionId);
+
+      if (!hooks) {
+        hooks = emptyTransactionHooks();
+        byTransactionId.set(transaction.transactionId, hooks);
+      }
+
+      hooks[registration.kind].push(entry);
+    }
+  }
+
+  return {
+    hooksDir,
+    scanned: true,
+    files: files.map(({ key }) => key),
+    byTransactionId,
+    runScoped,
+    globalAuthorize,
+    diagnostics,
+  };
+}
+
+/**
+ * The catalog's own diagnostic for an unknown selector, reduced to its
+ * suggestion lines. Asking the catalog rather than reimplementing nearest-match
+ * ranking keeps one answer to "did you mean…?" in the codebase.
+ */
+function suggestionsFor(
+  catalog: TransactionCatalog,
+  selector: string,
+): string[] {
+  try {
+    catalog.resolve(selector);
+  } catch (error) {
+    const suggestions = (error as { options?: { suggestions?: string[] } })
+      .options?.suggestions;
+
+    return suggestions ?? [];
+  }
+
+  return [];
+}

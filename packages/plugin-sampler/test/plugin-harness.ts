@@ -1,21 +1,31 @@
-import { mkdtemp, rm } from 'node:fs/promises';
+import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
 import {
   type HttpRequestTemplate,
+  type HttpResponse,
+  type HttpTestHooks,
   ThymianEmitter,
   type ThymianFormat,
 } from '@thymian/core';
 import { createSilentMockLogger } from '@thymian/core-testing';
 
 import { samplePlugin, type SamplerPluginOptions } from '../src/index.js';
+import { resolveSamplerPaths } from '../src/sampler-paths.js';
 
 export type SamplerHarness = {
   /** The emitter the plugin is registered on. */
   emitter: ThymianEmitter;
   /** The temporary working directory the plugin was started in. */
   cwd: string;
+  /** The sampler hooks directory inside {@link cwd}. */
+  hooksDir: string;
+  /**
+   * Write a hook file, exactly as a user would: a real file under the hooks
+   * directory, importing `@thymian/hooks`, with nothing else set up.
+   */
+  writeHook(relativePath: string, source: string): Promise<void>;
   /** Publish a format to the plugin, exactly as `thymian test` does. */
   loadFormat(format: ThymianFormat): Promise<void>;
   /** Ask for the freshly projected request template of one transaction. */
@@ -32,6 +42,23 @@ export type SamplerHarness = {
    * determinism assertions are about.
    */
   sampleAll(format: ThymianFormat): Promise<HttpRequestTemplate[]>;
+  /** Run the `beforeRequest` seam for one transaction, as the tester does. */
+  beforeRequest(
+    transactionId: string,
+    format: ThymianFormat,
+    request?: Partial<HttpRequestTemplate>,
+  ): Promise<HttpTestHooks['beforeRequest']['return']>;
+  /** Run the `afterResponse` seam for one transaction, as the tester does. */
+  afterResponse(
+    transactionId: string,
+    format: ThymianFormat,
+    response: HttpResponse,
+  ): Promise<HttpTestHooks['afterResponse']['return']>;
+  /** What `sampler show <selector>` prints, before it is formatted. */
+  show(selector: string): Promise<{
+    selector: string;
+    request: HttpRequestTemplate;
+  }>;
   dispose(): Promise<void>;
 };
 
@@ -62,9 +89,18 @@ export async function startSampler(
     cwd,
   });
 
+  const paths = resolveSamplerPaths(cwd, options.path);
+
   const harness: SamplerHarness = {
     emitter,
     cwd,
+    hooksDir: paths.hooksDir,
+    async writeHook(relativePath, source) {
+      const target = join(paths.hooksDir, relativePath);
+
+      await mkdir(join(target, '..'), { recursive: true });
+      await writeFile(target, source, 'utf-8');
+    },
     async loadFormat(format) {
       await emitter.emitAction('core.format', format.export(), {
         strategy: 'first',
@@ -80,6 +116,49 @@ export async function startSampler(
       return await emitter.emitAction(
         'core.request.sample',
         { transaction },
+        { strategy: 'first' },
+      );
+    },
+    async beforeRequest(transactionId, format, request) {
+      const transaction = format.getThymianHttpTransactionById(transactionId);
+
+      if (!transaction) {
+        throw new Error(`No transaction ${transactionId} in this format.`);
+      }
+
+      const value = {
+        ...(await harness.sample(transactionId, format)),
+        ...request,
+      };
+
+      return await emitter.emitAction(
+        'http-testing.beforeRequest',
+        { value, ctx: transaction },
+        { strategy: 'first' },
+      );
+    },
+    async afterResponse(transactionId, format, response) {
+      const transaction = format.getThymianHttpTransactionById(transactionId);
+
+      if (!transaction) {
+        throw new Error(`No transaction ${transactionId} in this format.`);
+      }
+
+      const requestTemplate = await harness.sample(transactionId, format);
+
+      return await emitter.emitAction(
+        'http-testing.afterResponse',
+        {
+          value: response,
+          ctx: {
+            requestTemplate,
+            request: {
+              ...requestTemplate,
+              url: `${requestTemplate.origin}${requestTemplate.path}`,
+            } as never,
+            thymianTransaction: transaction,
+          },
+        },
         { strategy: 'first' },
       );
     },
