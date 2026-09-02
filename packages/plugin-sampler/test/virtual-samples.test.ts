@@ -82,6 +82,34 @@ describe('virtual samples', () => {
     expect(sample.path).toBe('/unseen');
   });
 
+  it('hands out a request nobody else holds a reference to', async () => {
+    // The projection is a projection of the description. Hooks mutate the
+    // request in place, and an inline content source hands its value out by
+    // reference, so a shared object let a beforeEach header land in what the
+    // next caller was given — and in what `sampler show` printed afterwards.
+    const format = createThymianFormatWithTransactions([
+      [createGetRequest({ path: '/launches' }), createOkResponse()],
+    ]);
+    const harness = await sampler();
+
+    await harness.loadFormat(format);
+
+    const [transaction] = format.getThymianHttpTransactions();
+    if (!transaction) {
+      throw new Error('fixture has no transaction');
+    }
+
+    const first = await harness.sample(transaction.transactionId, format);
+
+    first.headers['x-leak'] = 'yes';
+    first.query['leak'] = 'yes';
+
+    const second = await harness.sample(transaction.transactionId, format);
+
+    expect(second.headers['x-leak']).toBeUndefined();
+    expect(second.query['leak']).toBeUndefined();
+  });
+
   it('is byte-identical across repeated runs', async () => {
     const format = createThymianFormatWithTransactions(8);
     const first = await sampler();

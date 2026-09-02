@@ -1,5 +1,6 @@
 import {
   type HttpRequest,
+  type HttpRequestTemplate,
   type HttpResponse,
   type HttpTestCaseResult,
   type HttpTestHooks,
@@ -13,6 +14,8 @@ import {
 import { createHookUtils } from './create-hook-utils.js';
 import { FailError, SkipError } from './hook-errors.js';
 import type { HookKind } from './hook-registration.js';
+import type { HookUtilsFactory } from './hook-utils-factory.js';
+import { invokeHook, reportHookResults } from './invoke-hook.js';
 import {
   type CollectedRegistration,
   type LoadUserHooksResult,
@@ -40,12 +43,41 @@ export class HookRunner {
   private globalAuthorize: readonly CollectedRegistration[] = [];
   private readonly runScoped: RunScopedHooks;
 
-  constructor(
-    private readonly runRequest: (req: HttpRequest) => Promise<HttpResponse>,
-    private readonly logger: Logger,
-  ) {
-    this.runScoped = new RunScopedHooks(logger);
+  constructor(private readonly logger: Logger) {
+    this.runScoped = new RunScopedHooks(logger, this.utilsFactory);
   }
+
+  /**
+   * The `utils` a hook with no test case to attach results to gets: run-scoped
+   * hooks, and `defineSample`. Their results are logged by whoever called them.
+   */
+  private readonly utilsFactory: HookUtilsFactory = () => {
+    const results: HttpTestCaseResult[] = [];
+
+    return { utils: this.utils(results), results };
+  };
+
+  /**
+   * Shape one request draft with its Transaction's `defineSample` hook, if it
+   * has one. This is what `RequestSampler` calls at generation time; the sampler
+   * itself knows nothing about hooks.
+   */
+  readonly shapeSample = async (
+    draft: HttpRequestTemplate,
+    transactionId: string,
+  ): Promise<void> => {
+    const entry = this.hooksFor(transactionId).defineSample[0];
+
+    if (!entry) {
+      return;
+    }
+
+    const { utils, results } = this.utilsFactory();
+
+    await invokeHook(entry, [draft, utils]);
+
+    reportHookResults(this.logger, results);
+  };
 
   /** Adopt a newly loaded format and the hooks bound against it. */
   load(format: ThymianFormat, hooks?: LoadUserHooksResult): void {
@@ -60,7 +92,7 @@ export class HookRunner {
    * non-test command never runs somebody's teardown.
    */
   async close(): Promise<void> {
-    await this.runScoped.close(() => this.utilsWithResults());
+    await this.runScoped.close();
   }
 
   private hooksFor(transactionId: string | undefined): TransactionHooks {
@@ -72,22 +104,7 @@ export class HookRunner {
   }
 
   private utils(results: HttpTestCaseResult[]) {
-    return createHookUtils(
-      this.format,
-      this.runRequest,
-      this,
-      results,
-      this.logger,
-    );
-  }
-
-  private utilsWithResults(): {
-    utils: unknown;
-    results: HttpTestCaseResult[];
-  } {
-    const results: HttpTestCaseResult[] = [];
-
-    return { utils: this.utils(results), results };
+    return createHookUtils(results);
   }
 
   async beforeEachRequest(
@@ -97,7 +114,7 @@ export class HookRunner {
 
     // The first request is what "before the run" means to the sampler, so the
     // latch is armed here — ahead of this transaction's own beforeEach hooks.
-    await this.runScoped.start(() => this.utilsWithResults());
+    await this.runScoped.start();
 
     return await this.compose(
       'beforeEach',
@@ -185,7 +202,7 @@ export class HookRunner {
 
     for (const entry of entries) {
       try {
-        await callHook(entry, [value, ctx, utils]);
+        await invokeHook(entry, [value, ctx, utils]);
       } catch (e) {
         const outcome = interpretHookFailure(e, kind, entry, transaction);
 
@@ -205,17 +222,6 @@ export class HookRunner {
 type TransactionForDiagnostic =
   Pick<ThymianHttpTransaction, 'thymianReq' | 'thymianRes'> | undefined;
 
-async function callHook(
-  entry: CollectedRegistration,
-  args: readonly unknown[],
-): Promise<unknown> {
-  const callback = entry.registration.callback as (
-    ...args: readonly unknown[]
-  ) => unknown;
-
-  return await callback(...args);
-}
-
 type HookFailure = {
   rethrow?: ThymianBaseError;
   report?: { skip: string } | { fail: string };
@@ -228,14 +234,9 @@ type HookFailure = {
  */
 function interpretHookFailure(
   e: unknown,
-  kind: string,
+  kind: HookKind,
   entry: CollectedRegistration,
-  transaction:
-    | {
-        thymianReq: Parameters<typeof thymianHttpTransactionToString>[0];
-        thymianRes: Parameters<typeof thymianHttpTransactionToString>[1];
-      }
-    | undefined,
+  transaction: TransactionForDiagnostic,
 ): HookFailure {
   if (e instanceof SkipError) {
     return { report: { skip: e.message } };

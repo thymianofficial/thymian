@@ -1,16 +1,22 @@
 import {
   type HttpRequestTemplate,
-  type HttpTestCaseResult,
-  type Logger,
   type ThymianEmitter,
   ThymianFormat,
   type ThymianHttpTransaction,
 } from '@thymian/core';
 
 import { generateRequestSampleForTransaction } from './generation/generate-request-sample.js';
-import { createHookUtils } from './hooks/create-hook-utils.js';
-import type { LoadUserHooksResult } from './hooks/load-user-hooks.js';
+import type { HttpRequestSample } from './http-request-sample.js';
 import { requestSampleToRequestTemplate } from './request-sample-to-request-template.js';
+
+/**
+ * Shapes the request a Transaction will send, at generation time. The
+ * `defineSample` hook, seen from here.
+ */
+export type SampleShaper = (
+  draft: HttpRequestTemplate,
+  transactionId: string,
+) => Promise<void>;
 
 /**
  * The sampler's answer to "what request should this transaction send?".
@@ -19,47 +25,45 @@ import { requestSampleToRequestTemplate } from './request-sample-to-request-temp
  * else. There is no version, no timestamp and no baseline to compare against,
  * because there is no artifact that could disagree with the format: {@link load}
  * throws the previous projection away and rebuilds it.
- *
- * A projected entry is the request **after** its `defineSample` hook has shaped
- * it, so generation-time intent lives in the projection rather than being
- * re-applied per request. That is also why `sampler show` shows what will
- * actually be sent.
  */
 export class RequestSampler {
-  #templates: Map<string, HttpRequestTemplate> = new Map();
-  #format: ThymianFormat = new ThymianFormat();
-  #hooks: LoadUserHooksResult | undefined;
+  private samples: Map<string, HttpRequestSample> = new Map();
+  private format: ThymianFormat = new ThymianFormat();
+  private shape: SampleShaper | undefined;
 
-  constructor(
-    private readonly runRequestForHooks: Parameters<typeof createHookUtils>[1],
-    private readonly logger: Logger,
-  ) {}
-
-  /** Project `format` in full, replacing any previous projection. */
+  /**
+   * Project `format` in full, replacing any previous projection.
+   *
+   * `shape` is applied per reply rather than baked into the projection, which is
+   * where the pipeline puts it — "generate base sample, then `defineSample`" —
+   * and it is also what keeps a `defineSample` hook from running for
+   * Transactions nobody asks about.
+   */
   async load(
     format: ThymianFormat,
     emitter: ThymianEmitter,
-    hooks?: LoadUserHooksResult,
+    shape?: SampleShaper,
   ): Promise<void> {
-    this.#format = format;
-    this.#hooks = hooks;
-    this.#templates = new Map();
+    this.format = format;
+    this.shape = shape;
+    this.samples = new Map();
 
     for (const transaction of format.getThymianHttpTransactions()) {
-      this.#templates.set(
+      this.samples.set(
         transaction.transactionId,
-        await this.generate(transaction, emitter),
+        await generateRequestSampleForTransaction(format, transaction, emitter),
       );
     }
   }
 
-  /** How many transactions the current projection covers. */
-  get size(): number {
-    return this.#templates.size;
-  }
-
   /**
-   * The request for one transaction.
+   * The request for one transaction, as a value the caller owns.
+   *
+   * Every reply is a fresh deep copy. Hooks mutate the request in place, and an
+   * inline content source hands its value out by reference, so returning the
+   * projection itself let a `beforeEach` header land in what `sampler show`
+   * printed afterwards — the projection is a projection of the description, and
+   * nothing a run does may write back into it.
    *
    * A transaction the projection has not seen is generated on the spot rather
    * than reported as missing: generation is a pure function of the transaction,
@@ -70,59 +74,21 @@ export class RequestSampler {
     transaction: ThymianHttpTransaction,
     emitter: ThymianEmitter,
   ): Promise<HttpRequestTemplate> {
-    const projected = this.#templates.get(transaction.transactionId);
+    let sample = this.samples.get(transaction.transactionId);
 
-    if (projected) {
-      return projected;
+    if (!sample) {
+      sample = await generateRequestSampleForTransaction(
+        this.format,
+        transaction,
+        emitter,
+      );
+
+      this.samples.set(transaction.transactionId, sample);
     }
 
-    const generated = await this.generate(transaction, emitter);
+    const draft = structuredClone(requestSampleToRequestTemplate(sample));
 
-    this.#templates.set(transaction.transactionId, generated);
-
-    return generated;
-  }
-
-  private async generate(
-    transaction: ThymianHttpTransaction,
-    emitter: ThymianEmitter,
-  ): Promise<HttpRequestTemplate> {
-    const sample = await generateRequestSampleForTransaction(
-      this.#format,
-      transaction,
-      emitter,
-    );
-    const draft = requestSampleToRequestTemplate(sample);
-    const define = this.#hooks?.byTransactionId.get(transaction.transactionId)
-      ?.defineSample[0];
-
-    if (!define) {
-      return draft;
-    }
-
-    const results: HttpTestCaseResult[] = [];
-    const utils = createHookUtils(
-      this.#format,
-      this.runRequestForHooks,
-      // A `defineSample` hook runs before any request exists, so there is no
-      // nested pipeline for it to re-enter.
-      undefined,
-      results,
-      this.logger,
-    );
-
-    await (
-      define.registration.callback as (
-        draft: HttpRequestTemplate,
-        utils: unknown,
-      ) => unknown
-    )(draft, utils);
-
-    // A `defineSample` hook has no test case to attach results to, so anything
-    // it records through `utils` is logged rather than silently dropped.
-    for (const result of results) {
-      this.logger.info(result.message);
-    }
+    await this.shape?.(draft, transaction.transactionId);
 
     return draft;
   }

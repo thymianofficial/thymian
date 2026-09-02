@@ -1,7 +1,5 @@
 import {
-  type HttpRequest,
   type HttpRequestTemplate,
-  type HttpResponse,
   ThymianFormat,
   type ThymianHttpTransaction,
   type ThymianPlugin,
@@ -9,7 +7,10 @@ import {
 } from '@thymian/core';
 import type {} from '@thymian/plugin-request-dispatcher';
 
-import { unresolvedHooksError } from './hooks/hook-diagnostics.js';
+import {
+  hookConflictError,
+  unresolvedHooksError,
+} from './hooks/hook-diagnostics.js';
 import { HookRunner } from './hooks/hook-runner.js';
 import { loadUserHooks } from './hooks/load-user-hooks.js';
 import { RequestSampler } from './request-sampler.js';
@@ -53,6 +54,21 @@ export type SamplerPluginOptions = {
 export const samplePlugin: ThymianPlugin<Partial<SamplerPluginOptions>> = {
   name: '@thymian/plugin-sampler',
   version: '0.x',
+  actions: {
+    // What this plugin answers, what it asks for, and what it hands off. Kept
+    // in step with the `onAction` calls below; `provides` stays empty because
+    // the payload schemas would be hand-written duplicates of the types.
+    listensOn: [
+      'core.format',
+      'core.close',
+      'core.request.sample',
+      'http-testing.beforeRequest',
+      'http-testing.afterResponse',
+      'http-testing.authorize',
+      'sampler.show',
+    ],
+    emits: ['sampler.unknown-type'],
+  },
   options: {
     // ### for reference documentation ###
     title: 'Plugin Options',
@@ -69,15 +85,8 @@ export const samplePlugin: ThymianPlugin<Partial<SamplerPluginOptions>> = {
   plugin: async (emitter, logger, options) => {
     const paths = resolveSamplerPaths(options.cwd, options.path);
 
-    const dispatch = async (request: HttpRequest): Promise<HttpResponse> =>
-      await emitter.emitAction(
-        'core.request.dispatch',
-        { request },
-        { strategy: 'first' },
-      );
-
-    const requestSampler = new RequestSampler(dispatch, logger);
-    const hookRunner = new HookRunner(dispatch, logger);
+    const requestSampler = new RequestSampler();
+    const hookRunner = new HookRunner(logger);
 
     let catalog = TransactionCatalog.fromThymianFormat(new ThymianFormat());
 
@@ -98,14 +107,18 @@ export const samplePlugin: ThymianPlugin<Partial<SamplerPluginOptions>> = {
         throw unresolvedHooksError(hooks.diagnostics);
       }
 
+      if (hooks.conflicts.length > 0) {
+        throw hookConflictError(hooks.conflicts);
+      }
+
       for (const warning of hooks.warnings) {
         logger.warn(warning);
       }
 
-      // After the hooks, because a `defineSample` hook shapes what the
-      // projection holds.
-      await requestSampler.load(format, emitter, hooks);
       hookRunner.load(format, hooks);
+      // After the hooks, because the sampler asks the runner to shape each
+      // draft with its `defineSample` hook.
+      await requestSampler.load(format, emitter, hookRunner.shapeSample);
 
       logger.debug(
         `Catalogued ${catalog.size} transactions, projected their request samples and loaded ${hooks.files.length} hook file(s) from ${paths.hooksDir}.`,

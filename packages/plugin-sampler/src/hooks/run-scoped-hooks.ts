@@ -1,10 +1,18 @@
-import type { HttpTestCaseResult, Logger } from '@thymian/core';
-import { ThymianBaseError } from '@thymian/core';
+import { type Logger, ThymianBaseError } from '@thymian/core';
 
+import type { HookUtilsFactory } from './hook-utils-factory.js';
+import { invokeHook, reportHookResults } from './invoke-hook.js';
 import type { CollectedRegistration } from './load-user-hooks.js';
 
 /** What a `beforeAll` may hand back to be run on close. */
-export type CleanupFn = () => void | Promise<void>;
+type CleanupFn = () => void | Promise<void>;
+
+/** One thing to run at teardown, and where it sits in the run's order. */
+type TeardownItem = {
+  sequence: number;
+  run: () => Promise<void>;
+  describe: string;
+};
 
 /**
  * The run-scoped half of the lifecycle: `beforeAll` on a first-touch latch, and
@@ -17,26 +25,44 @@ export type CleanupFn = () => void | Promise<void>;
  * init` — must not run somebody's teardown.
  */
 export class RunScopedHooks {
-  #beforeAll: readonly CollectedRegistration[] = [];
-  #afterAll: readonly CollectedRegistration[] = [];
-  #latched = false;
-  #cleanups: CleanupFn[] = [];
+  private beforeAll: readonly CollectedRegistration[] = [];
+  private teardown: TeardownItem[] = [];
+  private latched = false;
 
-  constructor(private readonly logger: Logger) {}
+  constructor(
+    private readonly logger: Logger,
+    private readonly makeUtils: HookUtilsFactory,
+  ) {}
 
+  /**
+   * Adopt newly loaded hooks.
+   *
+   * A reload drops teardown that the previous load's `beforeAll` registered. It
+   * has to: those closures were built against a format that is no longer
+   * loaded, and running them later would tear down a fixture whose description
+   * has changed underneath. A reload mid-run is not a shape the CLI produces.
+   */
   load(hooks: {
     beforeAll: readonly CollectedRegistration[];
     afterAll: readonly CollectedRegistration[];
   }): void {
-    this.#beforeAll = hooks.beforeAll;
-    this.#afterAll = hooks.afterAll;
-    this.#latched = false;
-    this.#cleanups = [];
-  }
+    this.beforeAll = hooks.beforeAll;
+    this.latched = false;
+    // `afterAll` hooks are teardown from the start; cleanups join as their
+    // `beforeAll` returns them. One list, one order — so an `afterAll`
+    // registered after a `beforeAll` runs *before* that `beforeAll`'s cleanup
+    // when the list is reversed.
+    this.teardown = hooks.afterAll.map((entry) => ({
+      sequence: entry.sequence,
+      describe: `the afterAll hook exported as "${entry.exportName}" from "${entry.file}"`,
+      run: async () => {
+        const { utils, results } = this.makeUtils();
 
-  /** Whether the latch has been armed, i.e. whether the run ever started. */
-  get started(): boolean {
-    return this.#latched;
+        await invokeHook(entry, [utils]);
+
+        reportHookResults(this.logger, results);
+      },
+    }));
   }
 
   /**
@@ -48,25 +74,21 @@ export class RunScopedHooks {
    * `beforeAll` that threw still gets its teardown — and so a second request
    * cannot re-run setup that half-succeeded.
    */
-  async start(
-    makeUtils: () => { utils: unknown; results: HttpTestCaseResult[] },
-  ): Promise<void> {
-    if (this.#latched) {
+  async start(): Promise<void> {
+    if (this.latched) {
       return;
     }
 
-    this.#latched = true;
+    this.latched = true;
 
-    for (const entry of this.#beforeAll) {
-      const { utils, results } = makeUtils();
+    for (const entry of this.beforeAll) {
+      const { utils, results } = this.makeUtils();
       let returned: unknown;
 
       try {
-        returned = await (
-          entry.registration.callback as (u: unknown) => unknown
-        )(utils);
+        returned = await invokeHook(entry, [utils]);
       } catch (e) {
-        this.report(results);
+        reportHookResults(this.logger, results);
 
         throw new ThymianBaseError(
           `The beforeAll hook exported as "${entry.exportName}" from "${entry.file}" threw.`,
@@ -78,76 +100,52 @@ export class RunScopedHooks {
         );
       }
 
-      this.report(results);
+      reportHookResults(this.logger, results);
 
       if (typeof returned === 'function') {
-        this.#cleanups.push(returned as CleanupFn);
+        const cleanup = returned as CleanupFn;
+
+        this.teardown.push({
+          sequence: entry.sequence,
+          describe: `the cleanup returned by the beforeAll hook exported as "${entry.exportName}" from "${entry.file}"`,
+          run: async () => {
+            await cleanup();
+          },
+        });
       }
     }
   }
 
   /**
-   * Run teardown: the cleanups `beforeAll` returned and then the `afterAll`
-   * hooks, all in reverse registration order, all best-effort.
+   * Run teardown in reverse order of the run: one list holding both the
+   * cleanups `beforeAll` returned and the `afterAll` hooks, reversed.
    *
-   * Best-effort because `core.close` is not a place a failure can be acted on:
+   * Best-effort, because `core.close` is not a place a failure can be acted on —
    * the report is already written. A teardown error is logged as a warning and
-   * the remaining teardown still runs, so one leaking fixture cannot strand the
-   * rest.
+   * the rest still runs, so one leaking fixture cannot strand the others.
    *
    * Latch-gated: nothing runs if no request was ever sent.
    */
-  async close(
-    makeUtils: () => { utils: unknown; results: HttpTestCaseResult[] },
-  ): Promise<void> {
-    if (!this.#latched) {
+  async close(): Promise<void> {
+    if (!this.latched) {
       return;
     }
 
-    const cleanups = this.#cleanups.splice(0).reverse();
+    const items = this.teardown
+      .splice(0)
+      // A stable sort, so two items registered in the same position keep the
+      // order they joined the list in.
+      .map((item, index) => ({ item, index }))
+      .sort((a, b) => b.item.sequence - a.item.sequence || b.index - a.index)
+      .map(({ item }) => item);
 
-    for (const cleanup of cleanups) {
+    for (const item of items) {
       try {
-        await cleanup();
+        await item.run();
       } catch (e) {
-        this.warnTeardown('a cleanup returned by beforeAll', e);
-      }
-    }
-
-    for (const entry of [...this.#afterAll].reverse()) {
-      const { utils, results } = makeUtils();
-
-      try {
-        await (entry.registration.callback as (u: unknown) => unknown)(utils);
-      } catch (e) {
-        this.warnTeardown(
-          `the afterAll hook exported as "${entry.exportName}" from "${entry.file}"`,
-          e,
+        this.logger.warn(
+          `Teardown continued after ${item.describe} threw: ${e instanceof Error ? e.message : String(e)}`,
         );
-      }
-
-      this.report(results);
-    }
-  }
-
-  private warnTeardown(what: string, e: unknown): void {
-    this.logger.warn(
-      `Teardown continued after ${what} threw: ${e instanceof Error ? e.message : String(e)}`,
-    );
-  }
-
-  /**
-   * A run-scoped hook has no test case to attach results to, so anything it
-   * records through `utils` is logged instead of silently dropped.
-   */
-  private report(results: readonly HttpTestCaseResult[]): void {
-    for (const result of results) {
-      if (result.type === 'assertion-failure' || result.type === 'timeout') {
-        this.logger.error(result.message);
-      } else if (result.type === 'warning') {
-        this.logger.warn(result.message);
-      } else {
-        this.logger.info(result.message);
       }
     }
   }
