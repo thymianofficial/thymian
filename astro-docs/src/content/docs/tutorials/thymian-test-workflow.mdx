@@ -25,21 +25,9 @@ If `thymian lint` asks, "Does the specification look correct?", then `thymian te
 
 ## Step by Step Instructions
 
-### Step 1: Generate request samples
+### Step 1: Run live tests against your API
 
-Thymian uses the sampler plugin to create request templates from your API description:
-
-```bash
-npx thymian sampler init --spec openapi:openapi.yaml
-```
-
-This creates a `.thymian/samples/` directory with generated requests you can inspect and customize.
-
-These samples are the foundation for your live test runs because they tell Thymian what to send to the running API. For a hands-on walkthrough, see [Initializing your Request Samples](/tutorials/sampler-getting-started/).
-
-### Step 2: Run live tests against your API
-
-Start your API server, then run:
+There is no setup step. Start your API server, then run:
 
 ```bash
 npx thymian test --spec openapi:openapi.yaml --target-url http://localhost:3000
@@ -48,10 +36,32 @@ npx thymian test --spec openapi:openapi.yaml --target-url http://localhost:3000
 This command tells Thymian to:
 
 1. Load the specification
-2. Load the request samples
-3. Send HTTP requests to the target URL
+2. Generate a request for every Transaction it describes, in memory
+3. Send those requests to the target URL
 4. Evaluate the responses against the loaded rules
 5. Report any violations
+
+Nothing is written to disk: request samples are a projection of your API
+description, rebuilt on every run. See
+[Virtual Request Samples](/concepts/virtual-request-samples/).
+
+### Step 2: Shape the requests with hooks
+
+A generated request satisfies your schemas; it does not know your credentials or
+your database. That is what hooks are for — TypeScript functions anchored to the
+Transaction they apply to:
+
+```typescript
+// .thymian/sampler/hooks/auth.ts
+import { authorize } from '@thymian/hooks';
+
+export const credentials = authorize((request) => {
+  request.headers['authorization'] = `Bearer ${process.env.API_TOKEN}`;
+});
+```
+
+For a hands-on walkthrough, see
+[Testing an API with the Sampler](/tutorials/sampler-getting-started/).
 
 If you already have a Thymian config file, you can also run the command with `-c` and point to that config explicitly:
 

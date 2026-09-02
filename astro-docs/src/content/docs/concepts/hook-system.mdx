@@ -1,326 +1,181 @@
 ---
-title: File-based Hooks Deep Dive
-description: Understanding how the cascading hook system works internally and why it's designed this way.
+title: How the Hook System Works
+description: How hooks are discovered, resolved and executed — and why discovery is export-based rather than path-based.
 ---
 
 import { FileTree, Aside } from '@astrojs/starlight/components';
 
-Understanding how the cascading hook system works internally and why it's designed this way.
-In most cases, you will not need this guide to work with Thymian. But if you're curious, keep reading!
+You do not need this page to use hooks. It is here for when you want to know why
+the design is the way it is.
 
-## Overview
+## The problem it solves
 
-The hook system is the heart of the sampler plugin. It allows you to modify requests and responses through **TypeScript/JavaScript functions** that are **automatically discovered** based on their **filesystem location**.
+Request samples are a projection of your API description, rebuilt on every run.
+Nothing about a request is stored, so nothing about a request can go stale.
 
-This document explains the mechanics, execution model, and design rationale.
+Hooks are different: they are yours, they are the investment, and they have to
+survive the description changing underneath them. That makes one question
+central — **what is a hook's identity?**
 
-## Hook Discovery
+In the first version of the sampler, a hook's identity was its **location**: a
+file at `…/launches/[id]/@GET/auth.authorize.ts` applied to whatever sat below
+that directory. That is discoverable and requires no naming, and it has one fatal
+property: rename a path in the API description and the hook is orphaned at a dead
+directory, silently doing nothing. The tree could not tell you, because as far as
+the filesystem was concerned nothing had happened.
 
-### File System Scanning
+So a hook's identity is now a **Selector** — the fully-qualified address of a
+Transaction — written in the code. A Selector that stops existing is a value that
+stops existing, and that is something a compiler and a loader can both see.
 
-When sampler initializes, it:
-
-1. **Reads the directory structure** from `.thymian/samples/` (or any other configured directory)
-2. **Scans each directory** for hook files
-3. **Matches filenames** against regex patterns:
-   - `/(.*\.)?beforeEach\.(ts|js|mjs|cjs|mts|cts)/`
-   - `/(.*\.)?afterEach\.(ts|js|mjs|cjs|mts|cts)/`
-   - `/(.*\.)?authorize\.(ts|js|mjs|cjs|mts|cts)/`
-
-4. **Loads hooks dynamically** using `jiti` (Just-In-Time TypeScript/ESM loader)
-5. **Builds a hook map** indexed by transaction ID
-
-### Example Discovery
-
-Given this structure:
+## Discovery
 
 <FileTree>
 
-- Todos
-  - auth.authorize.ts
-  - 127.0.0.1
-    - 3000
-      - users
-        - setup.beforeEach.ts
-        - @POST
-          - validate.afterEach.ts
+- .thymian/sampler/hooks/
+  - auth.ts
+  - launches/
+    - seed.ts
 
 </FileTree>
 
-Sampler discovers:
+The loader walks `hooks/` recursively and, for each file:
 
-- 1 authorize hook (applies to all)
-- 1 beforeEach hook (applies to `/users/*`)
-- 1 afterEach hook (applies to `POST /users`)
+1. **Keeps** `.ts`, `.mts`, `.cts`, `.js`, `.mjs`, `.cjs`. Skips declaration
+   files and dot-directories, so an editor's cache inside the tree is not
+   scanned.
+2. **Imports it** through [`jiti`](https://github.com/unjs/jiti), which
+   transpiles TypeScript on the fly. The bare specifier `@thymian/hooks` is
+   aliased to a module inside the plugin, which is why a hook runs with nothing
+   generated and nothing installed beside it.
+3. **Collects every export** — named or default — that is a registration, or an
+   array of them.
 
-## Hook Cascading
+A registration is a value, produced by calling `beforeEach`, `afterEach`,
+`defineSample`, `authorize`, `beforeAll` or `afterAll`. Nothing is invoked to
+find out whether an export is a hook: the check is structural, so a function you
+export for your own reasons is never called by accident.
 
-### The Tree Structure
+<Aside type="caution" title="Exports only">
+  A registration you build but never export is invisible. `beforeEach(sel, fn);`
+  on its own line does nothing at all.
+</Aside>
 
-Hooks are associated with **tree nodes** that represent your API structure:
+The directory layout carries no meaning. Moving a hook file is a non-event.
 
-<FileTree>
+### Why registrations are returned values
 
-- Root
-  - Source (Todos)
-    - Host (127.0.0.1)
-      - Port (3000)
-        - Path (users)
-          - PathParameter ([id])
-            - Method (@GET)
-              - StatusCode (200)
-                - ResponseMediaType (application\_\_json)
-                  - Samples
+The obvious alternative is an ambient registry — `beforeEach(…)` pushing into a
+module-level list the plugin then reads. It cannot work here. jiti evaluates the
+aliased runtime in its own module registry, so the plugin and the hook file hold
+_different instances_ of that module: the list the plugin reads is never the list
+the hook wrote to. Returning the registration sidesteps the realm boundary
+entirely, and export-based discovery is what makes the returned value reachable.
 
-</FileTree>
+## Order
 
-Each node can have hooks attached.
+Two hooks of the same kind on one Transaction both run, in **registration
+order**: file order on the outside — hooks-directory-relative, sorted, so it does
+not depend on the filesystem — and source order inside each file.
 
-### Traversal Algorithm
+Source order matters because an ES module namespace exposes its keys _sorted_, so
+export order is not registration order. Each registration is stamped with a
+counter as it is created, and the loader assigns one scan-wide sequence number
+once the file order is settled.
 
-When preparing a request for transaction `T`:
+## Resolution
 
-1. **Start at root** of the samples tree
-2. **Traverse down** to the specific samples node for `T`
-3. **At each node**, collect hooks attached to that node
-4. **Merge hooks** from parent into current (concatenation, not replacement)
-5. **Result**: A list of hooks ordered from root to leaf
+Once the description is loaded, the sampler builds a **transaction catalog**: a
+bijection between every Transaction and its Selector, sorted by Selector. Then
+each registration's target is resolved against it:
 
-**Example Traversal:**
+| Target              | Resolved by                             |
+| ------------------- | --------------------------------------- |
+| a Selector          | a map lookup                            |
+| a list of Selectors | a lookup each                           |
+| a filter            | evaluating it against every Transaction |
 
-For `GET http://127.0.0.1:3000/users/123 -> 200`:
+Four things make a hook unresolvable, and each gets its own diagnostic naming the
+file and the export: a Selector that names nothing, a value that is not a legal
+filter value, a path or glob that names nothing, and a filter whose legal values
+intersect nothing.
+
+An unresolved hook **fails the run** — before the first request is sent, so
+nothing has happened yet. It fails when the _run_ starts rather than when the
+description is published, because `thymian sampler validate` has to survive
+publishing in order to report every unresolved hook at once instead of dying on
+the first.
+
+A hook is never re-bound to a nearby Transaction. That would be the silent
+staleness the whole design exists to remove.
+
+## Execution
 
 ```
-1. Root node → collect root hooks
-2. Todos node → merge Todos hooks
-3. 127.0.0.1 node → merge host hooks
-4. 3000 node → merge port hooks
-5. users node → merge path hooks
-6. [id] node → merge parameter hooks
-7. @GET node → merge method hooks
-8. 200 node → merge status code hooks
-9. application__json node → merge media type hooks
-10. Samples node → final hook list
+core.request.sample:        generate the request  →  defineSample
+http-testing.beforeRequest: [first request ever → beforeAll]  →  beforeEach …
+http-testing.authorize:     if the run option and request.authorize agree → authorize
+                            → the request is sent →
+http-testing.afterResponse: afterEach …
+core.close:                 [if a request was sent] afterAll + cleanups, reversed
 ```
 
-## Hook Execution Order
+Each of those is an action on Thymian's event bus, so the sampler plugs into the
+same seams any plugin can. There is no sampler-specific machinery in the core.
 
-### BeforeEach Hooks
+### Mutate in place
 
-Execute **before the HTTP request is sent**, in order from root to leaf:
+Every hook returns nothing. A hook receives the request or response object and
+changes it; the return value is discarded.
+
+That is not a style preference. If a return value were honoured, the most
+ordinary shorthand there is —
 
 ```typescript
-1. Root beforeEach hooks
-2. Source beforeEach hooks
-3. Host beforeEach hooks
-4. Port beforeEach hooks
-5. Path beforeEach hooks (for each path segment)
-6. PathParameter beforeEach hooks
-7. Method beforeEach hooks
-8. RequestMediaType beforeEach hooks
-9. StatusCode beforeEach hooks
-10. ResponseMediaType beforeEach hooks
+beforeEach(sel, (request) => (request.headers['x-trace'] = 'yes'));
 ```
 
-Each hook receives the **modified request** from the previous hook:
+— evaluates to the string `'yes'`, and the whole request would be replaced by it.
 
-```typescript
-request0 (original)
-  → hook1(request0) → request1
-  → hook2(request1) → request2
-  → hook3(request2) → request3 (final)
-  → HTTP request sent
-```
+### `beforeAll` and the latch
 
-### Authorize Hooks
+"Once before the run" has no meaning until something decides when the run starts,
+and the sampler's first sight of a run is its first request. So a latch is armed
+by the first `beforeRequest`, ahead of that Transaction's own `beforeEach` hooks.
 
-Execute **after beforeEach but before the request**, in the same cascading order.
+The same latch gates teardown, which is why `thymian sampler show` and
+`thymian sampler init` never run somebody's `afterAll`.
 
-Special behavior:
+The latch is armed _before_ the `beforeAll` callbacks run, so a `beforeAll` that
+threw still gets its teardown, and a second request cannot re-run setup that half
+succeeded.
 
-- Only the **last authorize hook** in the chain executes
-- Earlier authorize hooks are ignored
-- This allows child endpoints to override parent authorization
+### Teardown
 
-### AfterEach Hooks
+The cleanups `beforeAll` returned and the `afterAll` hooks are **one list**, run
+in reverse order of registration. So an `afterAll` registered between two
+`beforeAll` hooks runs between their cleanups — grouping the two kinds apart
+would put it at one end or the other, which is not what "reverse order" means.
 
-Execute **after the HTTP response is received**, in the same cascading order:
+Teardown is best-effort: `core.close` happens after the report is written, so a
+failure there cannot be acted on. An error is logged as a warning and the rest of
+the teardown still runs, because one leaking fixture must not strand the others.
 
-```typescript
-HTTP response received
-  → hook1(response0) → response1
-  → hook2(response1) → response2
-  → hook3(response2) → response3 (final)
-  → test results recorded
-```
+## Cross-endpoint requests
 
-## Hook Context
+`utils.request` is keyed by Selector and resolved through the same catalog, so
+the strings the committed types carry and the strings resolved at run time are
+the same strings by construction — there is no second key language to keep in
+step.
 
-### What Hooks Receive
+By default a nested request runs the target's own pipeline, so seeding behaves
+like the real run. The active Selector chain travels with the hook context, and
+re-entering a Selector already on it fails loudly with the chain printed. The
+chain travels in the _context_ rather than living in the runner so that it
+describes this call's ancestry rather than whatever the runner did last.
 
-Each hook receives three arguments:
+## Further reading
 
-```typescript
-async (value, context, utils) => {
-  // value: The thing to modify (request or response)
-  // context: Transaction information
-  // utils: Utility functions
-  return modifiedValue;
-};
-```
-
-#### Value
-
-**For beforeEach and authorize:**
-
-```typescript
-type HttpRequestTemplate = {
-  origin: string;
-  path: string;
-  method: string;
-  headers: Record<string, unknown>;
-  query: Record<string, unknown>;
-  pathParameters: Record<string, unknown>;
-  cookies: Record<string, unknown>;
-  body?: unknown;
-  authorize: boolean;
-  bodyEncoding?: string;
-};
-```
-
-**For afterEach:**
-
-```typescript
-type HttpResponse = {
-  statusCode: number;
-  headers: Record<string, string | string[]>;
-  body?: string;
-  bodyEncoding?: string;
-  trailers: Record<string, string>;
-  duration: number;
-};
-```
-
-#### Context
-
-**For beforeEach and authorize:**
-
-```typescript
-type ThymianHttpTransaction = {
-  transactionId: string;
-  thymianReq: ThymianHttpRequest;
-  thymianRes: ThymianHttpResponse;
-  transaction: HttpTransaction;
-};
-```
-
-**For afterEach:**
-
-```typescript
-type ContextForAfterEach = {
-  requestTemplate: HttpRequestTemplate;
-  request: HttpRequest; // Serialized request that was sent
-};
-```
-
-#### Utils
-
-See the Reference Section for the HookUtils API for more details.
-
-## Hook Loading
-
-### Dynamic Import
-
-Hooks are loaded using `jiti` (Just-In-Time loader):
-
-```typescript
-const jiti = createJiti(import.meta.url);
-const hook = await jiti.import<BeforeEachRequestHook>(hookPath);
-```
-
-This enables:
-
-- **TypeScript support** without pre-compilation
-- **ESM and CommonJS** compatibility
-- **Hot reloading** during development
-
-### Import Validation
-
-After loading, sampler validates:
-
-```typescript
-if (module === null || typeof module !== 'function') {
-  throw new Error('Hook must be exported as default function');
-}
-```
-
-Hooks **must**:
-
-- Be exported as `export default`
-- Be functions (async or sync)
-- Match the expected type signature
-
-## Error Handling
-
-### Hook Errors
-
-If a hook throws an error:
-
-```typescript
-try {
-  result = await hook(value, context, utils);
-} catch (e) {
-  if (e instanceof SkipError) {
-    return { result: value, skip: e.message };
-  }
-  if (e instanceof FailError) {
-    return { result: value, fail: e.message };
-  }
-  throw new ThymianBaseError(`Error in hook: ${e.message}`, { cause: e });
-}
-```
-
-**Special Errors:**
-
-- `SkipError` (from `utils.skip()`) → Skip test, continue with others
-- `FailError` (from `utils.fail()`) → Fail test, continue with others
-- Other errors → Stop execution, report error
-
-### Hook Isolation
-
-Hooks are **not isolated** from each other:
-
-- Module-level variables persist across hook invocations
-- Errors in one hook don't affect other endpoints
-- Each transaction gets its own hook execution chain
-
-## Limitations
-
-### No Async Hook Discovery
-
-Hooks are discovered synchronously at initialization. You cannot:
-
-- Add hooks after initialization
-- Conditionally load hooks based on runtime conditions
-
-### No Hook Priorities
-
-Hooks execute in filesystem order (alphabetically by filename within a directory). You cannot:
-
-- Explicitly set hook execution order
-- Guarantee one hook runs before another at the same level
-
-**Workaround:** Use filename prefixes:
-
-```
-01-first.beforeEach.ts
-02-second.beforeEach.ts
-03-third.beforeEach.ts
-```
-
-### No Hook Deactivation
-
-Once loaded, hooks always run. You cannot:
-
-- Disable a hook without deleting/renaming it
-- Toggle hooks on/off via configuration
+- [Hooks API Reference](/references/plugins/sampler/hooks-api/)
+- [How to write a Hook](/guides/hooks/write-hooks/)
+- [Migrating from the samples tree](/guides/sampler/migrating-from-the-samples-tree/)

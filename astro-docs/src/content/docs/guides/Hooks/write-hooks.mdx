@@ -1,186 +1,172 @@
 ---
 title: How to write a Hook
-description: 'Guide to writing hooks for the sampler plugin'
+description: 'Guide to writing selector-anchored hooks for the sampler plugin'
 ---
 
 import { FileTree, Aside } from '@astrojs/starlight/components';
 
-This guide shows you how to write hooks.
+A hook is a TypeScript function you own, anchored to the Transaction — or the set
+of Transactions — it applies to.
 
-## Understanding Hook Types
-
-The sampler plugin provides three types of hooks:
-
-- **beforeEach**: Modifies requests before they are sent
-- **authorize**: Adds authentication credentials to requests
-- **afterEach**: Validates or processes responses after they are received
-
-
-## Creating a BeforeEach Hook
-
-BeforeEach hooks modify request data before sending HTTP requests.
-
-### Generate the Hook File
-
-Use the CLI to generate a hook template:
+## Where hooks live
 
 ```bash
-thymian sampler generate hook
+mkdir -p .thymian/sampler/hooks
 ```
 
-This command lets you choose for which transactions you want to create a hook file interactively. It also generates
-a template file for you, looking like this:
-
-```typescript
-import { BeforeEachRequestHook } from '@thymian/hooks';
-
-const hook: BeforeEachRequestHook = async (request, context, utils) => {
-
-  return request;
-};
-
-export default hook;
-```
-
-### Write the Hook
-
-```typescript
-import { BeforeEachRequestHook } from '@thymian/hooks';
-
-const hook: BeforeEachRequestHook = async (request, context, utils) => {
-  // Modify request headers
-  request.headers['x-custom-header'] = 'value';
-
-  // Customize query parameters
-  request.query['limit'] = '10';
-
-  // Generate dynamic data
-  request.body = {
-    ...request.body,
-    timestamp: new Date().toISOString(),
-  };
-
-  return request;
-};
-
-export default hook;
-```
-
-
-## Creating an Authorize Hook
-
-With Authorize hooks authentication credentials can add to protected endpoints. The `authorize hook runs before each request
-for which the `authorize` property in the corresponding `request.json` file is set to `true`.
-
-### Generate the Hook File
-
-```bash
-thymian sampler generate hook
-```
-
-Choose "authorize" when prompted.
-
-### Write the Hook
-
-```typescript
-import { AuthorizeHook } from '@thymian/hooks';
-
-const hook: AuthorizeHook = async (request, context, utils) => {
-  // Create test credentials
-  const username = utils.randomString(10);
-  const password = utils.randomString(12);
-
-  // Create user account
-  const response = await utils.request('POST http://localhost:3000/astronauts', {
-    body: { name: username, password, role: 'Commander' },
-    headers: { 'content-type': 'application/json' }
-  }, {
-    runHooks: false  // Don't run hooks for this request
-  });
-
-  // Add authorization header
-  const credentials = Buffer.from(`${username}:${password}`).toString('base64');
-  request.headers.authorization = `Basic ${credentials}`;
-
-  return request;
-};
-
-export default hook;
-```
-
-## Creating an AfterEach Hook
-
-AfterEach hooks validate responses and perform cleanup.
-
-### Generate the Hook File
-
-```bash
-thymian sampler generate hook
-```
-
-Choose "afterEach" when prompted.
-
-### Write the Hook
-
-```typescript
-import { AfterEachResponseHook } from '@thymian/hooks';
-
-const hook: AfterEachResponseHook = async (response, context, utils) => {
-  // Validate response headers
-  if (!response.headers['content-type']) {
-    utils.assertionFailure('Missing content-type header');
-  }
-
-  // Validate response body structure
-  const body = JSON.parse(response.body || '{}');
-  if (body.id && typeof body.id !== 'string') {
-    utils.assertionFailure('ID field must be a string', {
-      expected: 'string',
-      actual: typeof body.id
-    });
-  }
-
-  // Add info message
-  utils.info(`Response processed in ${response.duration}ms`);
-
-  return response;
-};
-
-export default hook;
-```
-
-
-## Hook Placement and Scope
-
-Hooks are discovered based on their filesystem location:
+Any file under `hooks/` is scanned, at any depth, named anything you like:
 
 <FileTree>
 
-- Your_API/
-  - global.authorize.ts
-  - localhost/
-    - 3000/
-      - api/
-        - v1/
-          - shared.beforeEach.ts
-          - launches/
-            - setup.beforeEach.ts
-            - [id]/
-              - validate.afterEach.ts
+- .thymian/sampler/hooks/
+  - auth.ts
+  - launches/
+    - seed.ts
+    - assertions.ts
 
 </FileTree>
 
-<Aside type="note">
-  THooks at higher levels apply to all child endpoints (cascading).
+The layout carries no meaning — it is for your benefit. What decides where a
+hook applies is its **target**, in the code.
+
+<Aside type="tip" title="No setup needed">
+  `@thymian/hooks` resolves through the sampler plugin itself, so a hook file
+  runs with nothing generated and nothing installed beside it. Run [`thymian
+  sampler init`](/references/plugins/sampler/hooks-api/#thymian-sampler-init)
+  when you want your editor to complete Selectors and the compiler to check
+  them.
 </Aside>
 
-## Hook Naming Convention
+## The six hook kinds
 
-Files must follow this pattern:
+| Kind           | Runs                                    | Use it for                                  |
+| -------------- | --------------------------------------- | ------------------------------------------- |
+| `defineSample` | when the request is generated           | bodies, fixture files, the `authorize` flag |
+| `beforeEach`   | before each request                     | headers, path parameters, seeding           |
+| `afterEach`    | after each response                     | assertions, observations                    |
+| `authorize`    | before a request that wants credentials | credentials, and nothing else               |
+| `beforeAll`    | once, before the first request          | run-wide setup                              |
+| `afterAll`     | once, when the run closes               | run-wide teardown                           |
 
-- BeforeEach: `*.beforeEach.ts` (e.g., `setup.beforeEach.ts`)
-- Authorize: `*.authorize.ts` (e.g., `auth.authorize.ts`)
-- AfterEach: `*.afterEach.ts` (e.g., `validate.afterEach.ts`)
+Every hook **returns nothing and mutates in place**, and every registration is an
+export:
 
-Supported extensions: `.ts`, `.js`, `.mjs`, `.cjs`, `.mts`, `.cts`
+```typescript
+import { beforeEach } from '@thymian/hooks';
 
+export const addTraceId = beforeEach(
+  'GET /launches -> 200 (application/json)',
+  (request) => {
+    request.headers['x-trace-id'] = 'abc';
+  },
+);
+```
+
+<Aside type="caution" title="Export it">
+  A registration you build but never export does nothing. Discovery is
+  export-based, so `beforeEach(sel, fn);` on its own line is silently inert.
+</Aside>
+
+## Choosing a target
+
+### One Transaction
+
+Pass its Selector. This is the tightest and the most precisely typed option —
+inside the callback, the request and response types are that Transaction's.
+
+```typescript
+export const shape = beforeEach(
+  'POST /launches (application/json) -> 201 (application/json)',
+  (request) => {
+    request.body = { missionName: 'Artemis II' };
+  },
+);
+```
+
+### A few Transactions
+
+Pass a list of Selectors.
+
+```typescript
+export const shared = beforeEach(
+  [
+    'GET /launches -> 200 (application/json)',
+    'GET /astronauts -> 200 (application/json)',
+  ],
+  (request) => {
+    request.headers['x-shared'] = 'yes';
+  },
+);
+```
+
+### A set of Transactions
+
+Pass a filter. Fields AND-combine, a list within a field OR-combines, and `not`
+excludes.
+
+```typescript
+export const negativeCases = afterEach(
+  { statusClass: '4XX', not: { status: 401 } },
+  (response, ctx, utils) => {
+    utils.info(`negative case responded ${response.statusCode}`);
+  },
+);
+```
+
+### A whole subtree
+
+Use a path glob. `*` is exactly one segment; a trailing `**` is one or more.
+
+```typescript
+export const admin = beforeEach({ path: '/admin/**' }, (request) => {
+  request.headers['x-admin'] = 'yes';
+});
+```
+
+`/admin/**` covers everything _under_ `/admin`, including paths added to your API
+description later — but not `/admin` itself.
+
+See the [filter reference](/references/plugins/sampler/hooks-api/#filters) for
+every field and the full glob grammar.
+
+## Finding a Selector
+
+```bash
+npx thymian sampler show 'GET /launches -> 200 (application/json)'
+```
+
+It prints the request that Transaction would send. Get the Selector slightly
+wrong and it prints the nearest matches, which is the fastest way to find the
+exact spelling.
+
+## Composing several hooks
+
+Several hooks of the same kind on one Transaction all run, in registration order:
+file order on the outside, and source order within each file. `defineSample` is
+the exception — at most one per Transaction, and a second is reported as a
+conflict when the hooks load.
+
+## When a hook stops matching
+
+A Selector that names nothing, a glob that matches nothing, and a filter whose
+values intersect nothing all **fail the run**, naming the hook file and the
+export:
+
+```
+1 sampler hook does not resolve against the loaded API description.
+Try this:
+  * seed.ts (export "seedAstronaut"): beforeEach targets the selector
+    "GET /astronauts/{id} -> 200 (application/json)", which names no transaction
+    in the loaded API description
+  * Did you mean one of these selectors?
+  * "GET /astronauts/{astronautId} -> 200 (application/json)"
+```
+
+A hook is never quietly re-bound to a nearby Transaction. That is the point of
+anchoring to a fully-qualified Selector.
+
+## Next
+
+- [Make requests inside hooks](/guides/hooks/make-requests-in-hooks/)
+- [Skip and fail test cases](/guides/hooks/skip-and-fail-tests/)
+- [Hooks API Reference](/references/plugins/sampler/hooks-api/)
