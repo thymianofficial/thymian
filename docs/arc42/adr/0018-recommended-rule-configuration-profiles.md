@@ -107,9 +107,10 @@ type RuleSet = {
   that ships `profiles`.
 - [ADR-0009](0009-rule-system-as-core-concern.md): the core-owned rule system
   the `RuleSet` type and loader belong to.
-- `packages/common-cli/src/thymian-config-schema.ts` /
-  `thymian-config-schema.json`: the `ruleSets` entry schema (`oneOf[string,
-object]`) that surfaces the profile selection.
+- `packages/common-cli/src/thymian-config-schema.json`: the `ruleSets` entry
+  schema (`oneOf[string, object]`) that surfaces the profile selection. It is
+  the single schema artifact; `thymian-config-schema.ts` re-exports it for
+  consumers rather than restating it.
 
 ---
 

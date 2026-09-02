@@ -11,10 +11,11 @@ description: Auto-generated from the Thymian config JSON schema.
 | **logLevel**                          | <nobr>`string`</nobr>   | Controls CLI log verbosity.<br/>Default: `"warn"`<br/>Enum: `"trace"`, `"debug"`, `"info"`, `"warn"`, `"error"`, `"silent"`<br/>                                                                                                                                                           | no       |
 | [**specifications**](#specifications) | <nobr>`object[]`</nobr> | API descriptions to load (usually OpenAPI files).<br/>Default: <br/>                                                                                                                                                                                                                       | no       |
 | [**traffic**](#traffic)               | <nobr>`object[]`</nobr> | Recorded traffic inputs used by `thymian analyze`.<br/>Default: <br/>                                                                                                                                                                                                                      | no       |
+| [**reports**](#reports)               | <nobr>`object[]`</nobr> | External report inputs used by `thymian report convert`.<br/>Default: <br/>                                                                                                                                                                                                                | no       |
 | [**ruleSets**](#rulesets)             | <nobr>`array`</nobr>    | Rule set packages to load. Each entry is either the package name (which resolves to the `recommended` profile) or an object `{ name, profile }` selecting `recommended \| strict \| minimal`.<br/>Default: `"@thymian/rules-rfc-9110"`, `"@thymian/rules-api-description-validation"`<br/> | no       |
 | **ruleSeverity**                      | <nobr>`string`</nobr>   | Minimum rule severity threshold.<br/>Default: `"error"`<br/>Enum: `"off"`, `"error"`, `"warn"`, `"hint"`<br/>                                                                                                                                                                              | no       |
 | **targetUrl**                         | <nobr>`string`</nobr>   | Base URL used for live API testing workflows. When set, all requests are sent to this origin instead of the servers defined in the specification.<br/>                                                                                                                                     | no       |
-| [**rules**](#rules)                   | <nobr>`object`</nobr>   | Per-rule configuration/overrides. Each key is a rule ID. The value can be a severity string (`off \| error \| warn \| hint`) or a rule config object.<br/>Default: `{}`<br/>                                                                                                               | no       |
+| [**rules**](#rules)                   | <nobr>`object`</nobr>   | Per-rule configuration/overrides. Each key is a rule ID. The value can be a severity string (`off \| error \| warn \| hint`) or a rule config object with `severity`, `type`, `skipOrigins`, and `options` fields.<br/>Default: `{}`<br/>                                                  | no       |
 | [**plugins**](#plugins)               | <nobr>`object`</nobr>   | Plugin registrations and plugin options. This is the only required top-level key.<br/>                                                                                                                                                                                                     | yes      |
 
 **Additional Properties:** not allowed   
@@ -26,6 +27,7 @@ description: Auto-generated from the Thymian config JSON schema.
   "logLevel": "warn",
   "specifications": [],
   "traffic": [],
+  "reports": [],
   "ruleSets": ["@thymian/rules-rfc-9110", "@thymian/rules-api-description-validation"],
   "ruleSeverity": "error",
   "rules": {},
@@ -63,6 +65,22 @@ description: Auto-generated from the Thymian config JSON schema.
 ```
 
 <h4 id="pluginsadditionalpropertiesoptions">plugins.additionalProperties.options: object</h4>
+
+**Additional Properties:** allowed 
+<h2 id="reports">reports[]: array</h2>
+
+**Items**
+
+**Item Properties**
+
+| Name                           | Type                  | Description                                                         | Required |
+| ------------------------------ | --------------------- | ------------------------------------------------------------------- | -------- |
+| **type**                       | <nobr>`string`</nobr> | Report format, for example `spectral`.<br/>Minimal Length: `1`<br/> | yes      |
+| **location**                   |                       | File path or supported path source.<br/>                            | yes      |
+| [**options**](#reportsoptions) | <nobr>`object`</nobr> | Report-specific options.<br/>                                       | no       |
+
+**Item Additional Properties:** not allowed 
+<h3 id="reportsoptions">reports[].options: object</h3>
 
 **Additional Properties:** allowed 
 <h2 id="rulesets">ruleSets[]: array</h2>
