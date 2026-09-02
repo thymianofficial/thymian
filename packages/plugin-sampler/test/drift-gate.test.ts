@@ -47,6 +47,16 @@ describe('the drift gate', () => {
           statusCode: pair.status,
           mediaType: 'application/json',
           description: pair.description,
+          schema: {
+            type: 'object',
+            properties: {
+              // A *schema property* description is the one that reaches the
+              // emitted bytes, as JSDoc. An operation description does not, so
+              // testing only that would exercise nothing. It goes on the
+              // response so the request's Selector keeps its shape.
+              name: { type: 'string', description: pair.description },
+            },
+          } as never,
         }),
         'test-source',
       );
@@ -123,9 +133,27 @@ describe('the drift gate', () => {
 
       await harness.loadFormat(formatOf(BASE));
       await harness.init();
+
+      const path = join(
+        harness.cwd,
+        '.thymian',
+        'sampler',
+        'generated',
+        'request-types.d.ts',
+      );
+      const before = await readFile(path, 'utf-8');
+
       await harness.loadFormat(
         formatOf(BASE.map((p) => ({ ...p, description: 'Rewritten.' }))),
       );
+
+      // The bytes really do move — the description becomes JSDoc — so this is
+      // the canonicalization working, not a vacuous comparison.
+      const rewritten = await harness.sync();
+
+      expect(rewritten.rewritten).toEqual(['request-types.d.ts']);
+      expect(rewritten.changed).toEqual([]);
+      expect(await readFile(path, 'utf-8')).not.toBe(before);
 
       await expect(harness.sync(true)).resolves.toMatchObject({ changed: [] });
       await expect(harness.validate()).resolves.toMatchObject({
@@ -318,6 +346,34 @@ export const b = defineSample(${JSON.stringify(LAUNCHES)}, () => {});
   });
 
   describe('a run', () => {
+    it('warns at load when the committed types are behind', async () => {
+      const harness = await sampler();
+
+      await harness.loadFormat(formatOf(BASE));
+      await harness.init();
+
+      expect(harness.warnings).toEqual([]);
+
+      await harness.loadFormat(
+        formatOf([...BASE, { method: 'GET', path: '/rockets', status: 200 }]),
+      );
+
+      expect(harness.warnings.join('\n')).toContain(
+        'committed sampler types are behind this API description',
+      );
+      expect(harness.warnings.join('\n')).toContain('sampler sync');
+    });
+
+    it('says nothing at load when nothing is committed', async () => {
+      const harness = await sampler();
+
+      await harness.loadFormat(formatOf(BASE));
+
+      // With no `generated/` there is nothing to be behind, so a project that
+      // never ran `init` must not be nagged.
+      expect(harness.warnings).toEqual([]);
+    });
+
     it('refuses to start while a hook does not resolve', async () => {
       const harness = await sampler();
 

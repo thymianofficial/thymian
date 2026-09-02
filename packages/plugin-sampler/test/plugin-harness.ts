@@ -10,7 +10,7 @@ import {
   ThymianEmitter,
   type ThymianFormat,
 } from '@thymian/core';
-import { createSilentMockLogger } from '@thymian/core-testing';
+import { createMockLogger } from '@thymian/core-testing';
 
 import { samplePlugin, type SamplerPluginOptions } from '../src/index.js';
 import { resolveSamplerPaths } from '../src/sampler-paths.js';
@@ -31,6 +31,8 @@ export type SamplerHarness = {
   hooksDir: string;
   /** Every request the plugin put on the wire, in order. */
   dispatched: DispatchedRequest[];
+  /** Warnings the plugin logged, in order. */
+  warnings: string[];
   /**
    * What to answer the next request with. Consumed in order; when it runs out,
    * an empty 200 is returned.
@@ -96,7 +98,11 @@ export type SamplerHarness = {
     rootExcludeNote: string[];
   }>;
   /** What `sampler sync` does, and reports. */
-  sync(check?: boolean): Promise<{ changed: string[]; wrote: boolean }>;
+  sync(check?: boolean): Promise<{
+    changed: string[];
+    wrote: boolean;
+    rewritten?: string[];
+  }>;
   /** What `sampler validate` reports. */
   validate(): Promise<ValidationReport>;
   /** Close the run, as core does when a command finishes. */
@@ -121,13 +127,22 @@ export async function startSampler(
   // Generation walks every transaction of a format, which can outlast the
   // emitter's 1s default action timeout on the larger fixtures.
   const emitter = new ThymianEmitter(
-    createSilentMockLogger(),
+    createMockLogger(),
     ThymianEmitter.emptyEmitterState(),
     { timeout: 30_000 },
   );
 
   const dispatched: DispatchedRequest[] = [];
   const responses: Partial<HttpResponse>[] = [];
+  const warnings: string[] = [];
+  const logger = createMockLogger();
+
+  // The load-time drift signal is a warning and nothing else, so the only way
+  // to assert it is to watch what the plugin logs.
+  logger.warn = (message: unknown) => {
+    warnings.push(String(message));
+  };
+  logger.child = () => logger;
 
   // The dispatcher the sampler talks to, standing in for
   // `@thymian/plugin-request-dispatcher`. Registered here so a nested
@@ -147,7 +162,7 @@ export async function startSampler(
     ctx.reply(response);
   });
 
-  await samplePlugin.plugin(emitter, createSilentMockLogger(), {
+  await samplePlugin.plugin(emitter, logger, {
     ...options,
     cwd,
   });
@@ -160,6 +175,7 @@ export async function startSampler(
     hooksDir: paths.hooksDir,
     dispatched,
     responses,
+    warnings,
     async writeHook(relativePath, source) {
       const target = join(paths.hooksDir, relativePath);
 

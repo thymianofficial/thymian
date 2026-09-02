@@ -52,6 +52,23 @@ export default class Sync extends BaseCliRunCommand<typeof Sync> {
           ),
         );
 
+        // The types matched but the bytes moved — a description edit rewrites a
+        // JSDoc comment without moving a type. Saying so is the difference
+        // between an explained diff and a mysterious one.
+        if (result.rewritten && result.rewritten.length > 0) {
+          this.log();
+          this.log(
+            oclif.ux.colorize(
+              'dim',
+              'Rewritten anyway, with no change to any type — commit or discard as you like:',
+            ),
+          );
+
+          for (const file of result.rewritten) {
+            this.log(oclif.ux.colorize('dim', `  generated/${file}`));
+          }
+        }
+
         return result;
       }
 

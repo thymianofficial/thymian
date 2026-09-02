@@ -70,10 +70,15 @@ declare module '@thymian/core' {
         check?: boolean;
       };
       response: {
-        /** Generated files whose content would change, or did. */
+        /** Generated files whose **types** would change, or did. */
         changed: string[];
         /** Whether anything was written. */
         wrote: boolean;
+        /**
+         * Generated files whose **bytes** changed. A superset of `changed`: a
+         * description edit rewrites a JSDoc comment without moving a type.
+         */
+        rewritten?: string[];
       };
     };
 
@@ -264,11 +269,12 @@ export const samplePlugin: ThymianPlugin<Partial<SamplerPluginOptions>> = {
       }
 
       await mkdir(paths.hooksDir, { recursive: true });
-      await writeGenerated(paths, surface);
 
       // Never the tsconfig: it is scaffolded once by `init` and the author's
       // from then on.
-      ctx.reply({ changed, wrote: true });
+      const rewritten = await writeGenerated(paths, surface);
+
+      ctx.reply({ changed, wrote: true, rewritten });
     });
 
     emitter.onAction('sampler.validate', async (_event, ctx) => {

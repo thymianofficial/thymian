@@ -178,7 +178,9 @@ export async function generateTypeSurface(
     endpoints.push(
       [
         `  ${quote(selector)}: {`,
-        `    method: ${quote(req.method.toUpperCase())};`,
+        // The description's own casing, which is what a hook actually sees.
+        // The uppercase form is the Selector's and the `Method` union's.
+        `    method: ${quote(req.method)};`,
         `    path: ${quote(req.path)};`,
         `    status: ${res.statusCode};`,
         `    requestMediaType: ${quote(req.mediaType)};`,
@@ -310,25 +312,46 @@ export type TransactionFilter = FilterFields & {
 /** What a per-transaction hook is aimed at. */
 export type HookTarget = Selector | readonly Selector[] | TransactionFilter;
 
-/** The request a hook shapes, for a target that names exactly one Transaction. */
+/** One parameter group of a Transaction's request, as a hook sees it. */
+type GroupOf<
+  T extends Selector,
+  K extends 'query' | 'path' | 'headers' | 'cookies',
+> = NonNullable<Endpoints[T]['req'][K]>;
+
+/**
+ * The request a hook shapes, for a target that names exactly one Transaction.
+ *
+ * Built field by field rather than by intersecting \`Endpoints[T]['req']\`. That
+ * intersection was wrong in a way the compiler could not warn about: \`req.path\`
+ * is the *path-parameter group*, while the live request's \`path\` is the URL
+ * template — so \`path\` came out as an object type intersected with a string
+ * literal. Assigning the template was a false compile error, and
+ * \`request.path.id = …\` compiled and then threw at run time.
+ */
 export type RequestOf<T> = T extends Selector
-  ? Endpoints[T]['req'] & {
+  ? {
+      /**
+       * The method as the description spells it, casing included — which for an
+       * OpenAPI document is the lowercase path-item key. The uppercase form
+       * lives in \`Method\` and in Selectors, where it is canonical.
+       */
       method: Endpoints[T]['method'];
+      /** The path template, with its \`{param}\` placeholders intact. */
       path: Endpoints[T]['path'];
       origin: string;
       authorize: boolean;
       bodyEncoding?: string;
-      query: Record<string, unknown>;
-      pathParameters: Record<string, unknown>;
-      headers: Record<string, string | string[] | undefined>;
-      cookies: Record<string, unknown>;
-      body?: unknown;
+      pathParameters: GroupOf<T, 'path'>;
+      query: GroupOf<T, 'query'>;
+      headers: GroupOf<T, 'headers'>;
+      cookies: GroupOf<T, 'cookies'>;
+      body?: Endpoints[T]['req']['body'];
     }
   : GenericRequest;
 
 /** The request a hook shapes when its target covers more than one Transaction. */
 export type GenericRequest = {
-  method: Method;
+  method: string;
   path: Path;
   origin: string;
   authorize: boolean;
@@ -338,6 +361,27 @@ export type GenericRequest = {
   headers: Record<string, string | string[] | undefined>;
   cookies: Record<string, unknown>;
   body?: unknown;
+};
+
+/**
+ * What a cross-endpoint call may pass for one Transaction.
+ *
+ * Every parameter group is a \`Partial\`, because the call **overlays** the
+ * generated request: what you leave out comes from the description. A body is
+ * *replaced* rather than merged, so it is the whole body type — optional,
+ * because the generated one already satisfies the schema.
+ *
+ * Requiring the full \`req\` here made the documented seeding idiom —
+ * \`utils.request(selector, {}, { authorize: true })\` — a compile error for
+ * every operation with a required body, which is the only kind anyone seeds
+ * with.
+ */
+export type RequestArgsOf<T extends Selector> = {
+  body?: Endpoints[T]['req']['body'];
+  query?: Partial<GroupOf<T, 'query'>>;
+  path?: Partial<GroupOf<T, 'path'>>;
+  headers?: Partial<GroupOf<T, 'headers'>>;
+  cookies?: Partial<GroupOf<T, 'cookies'>>;
 };
 
 /** The response a hook observes. */
@@ -409,7 +453,7 @@ export interface HookUtils<T = unknown> {
    */
   request<R extends Selector>(
     selector: R,
-    args?: Endpoints[R]['req'],
+    args?: RequestArgsOf<R>,
     options?: RequestOptions,
   ): Promise<{
     statusCode: Endpoints[R]['res']['statusCode'];
