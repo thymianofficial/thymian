@@ -113,6 +113,9 @@ export const two = defineSample(${JSON.stringify(LAUNCHES)}, () => {});
           ?.suggestions ?? []
       ).join('\n');
 
+      expect((error as Error | undefined)?.message).toContain(
+        'conflicts with another hook on the same transaction',
+      );
       expect(suggestions).toContain('defineSample is already defined');
       // Both sides are named, so the reader knows which two files to open.
       expect(suggestions).toContain('second.ts');
@@ -264,7 +267,7 @@ export const teardown = afterAll(() => {
       );
     });
 
-    it('runs cleanups and afterAll in reverse order on close', async () => {
+    it('runs all teardown as one reverse-ordered list on close', async () => {
       const harness = await sampler();
       const log = `${harness.cwd}/order.log`;
 
@@ -299,9 +302,11 @@ export const teardownB = afterAll(() => {
 
       const { readFileSync } = await import('node:fs');
 
-      // Cleanups before afterAll, each set in reverse registration order.
+      // One list, reversed — not "all cleanups, then all afterAll". Both
+      // `afterAll` hooks were registered after both `beforeAll` hooks, so they
+      // run first; within each, the later registration goes first.
       expect(readFileSync(log, 'utf-8')).toBe(
-        'cleanup-2\ncleanup-1\nafterAll-B\nafterAll-A\n',
+        'afterAll-B\nafterAll-A\ncleanup-2\ncleanup-1\n',
       );
     });
 
@@ -338,8 +343,50 @@ export const survivor = afterAll(() => {
 
       const { readFileSync } = await import('node:fs');
 
-      // `survivor` is registered after `throwing`, so it runs first in reverse.
-      expect(readFileSync(log, 'utf-8')).toBe('cleanup\nsurvivor\n');
+      // `survivor` is registered last, so it runs first in reverse; the
+      // throwing hook is next and is only warned about; the cleanup of the
+      // first-registered `beforeAll` runs last.
+      expect(readFileSync(log, 'utf-8')).toBe('survivor\ncleanup\n');
+    });
+
+    it('interleaves a cleanup with an afterAll registered after it', async () => {
+      const harness = await sampler();
+      const log = `${harness.cwd}/order.log`;
+
+      await harness.writeHook(
+        'setup.ts',
+        `import { afterAll, beforeAll } from '@thymian/hooks';
+import { appendFileSync } from 'node:fs';
+
+const log = ${JSON.stringify(log)};
+
+export const early = beforeAll(() => () => {
+  appendFileSync(log, 'cleanup-early\\n');
+});
+
+export const between = afterAll(() => {
+  appendFileSync(log, 'afterAll-between\\n');
+});
+
+export const late = beforeAll(() => () => {
+  appendFileSync(log, 'cleanup-late\\n');
+});
+`,
+      );
+
+      await harness.loadFormat(format);
+      await harness.beforeRequest(transactionIdOf('/launches'), format);
+      await harness.close();
+
+      const { readFileSync } = await import('node:fs');
+
+      // Reverse of the order things were registered in, whatever kind they are:
+      // the late cleanup, then the afterAll between them, then the early
+      // cleanup. Grouping cleanups apart from afterAll hooks would put
+      // `afterAll-between` first or last instead of in the middle.
+      expect(readFileSync(log, 'utf-8')).toBe(
+        'cleanup-late\nafterAll-between\ncleanup-early\n',
+      );
     });
 
     it('runs no teardown when no request was ever sent', async () => {

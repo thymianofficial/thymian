@@ -81,6 +81,16 @@ export type CollectedRegistration = {
   /** Hooks-dir-relative path, `/`-normalized. */
   file: string;
   exportName: string;
+  /**
+   * Position in the whole scan: file order on the outside, registration order
+   * inside each file.
+   *
+   * The registration's own `order` cannot serve: the hooks runtime is
+   * re-evaluated per file, so its counter restarts. This is the one number that
+   * orders every hook in the run against every other, which is what run-scoped
+   * teardown needs to reverse.
+   */
+  sequence: number;
 };
 
 export type LoadUserHooksResult = {
@@ -97,6 +107,13 @@ export type LoadUserHooksResult = {
   globalAuthorize: CollectedRegistration[];
   /** Every hook that does not resolve. A non-empty list must fail the run. */
   diagnostics: readonly HookDiagnostic[];
+  /**
+   * Hooks that resolve but cannot both apply — today, two `defineSample` hooks
+   * on one Transaction. Kept apart from {@link diagnostics} because the fault is
+   * different and so is the sentence a reader needs: the selector is fine, the
+   * pair of hooks is not.
+   */
+  conflicts: readonly HookDiagnostic[];
   /**
    * Things the scan could not do, which are not a hook failing to resolve.
    *
@@ -208,7 +225,7 @@ function collectFromNamespace(
     }
 
     if (isHookRegistration(value)) {
-      collected.push({ registration: value, file, exportName });
+      collected.push({ registration: value, file, exportName, sequence: 0 });
 
       continue;
     }
@@ -216,7 +233,12 @@ function collectFromNamespace(
     if (Array.isArray(value)) {
       for (const element of value) {
         if (isHookRegistration(element)) {
-          collected.push({ registration: element, file, exportName });
+          collected.push({
+            registration: element,
+            file,
+            exportName,
+            sequence: 0,
+          });
         }
       }
     }
@@ -264,6 +286,7 @@ export async function loadUserHooks(
   catalog: TransactionCatalog,
 ): Promise<LoadUserHooksResult> {
   const diagnostics: HookDiagnostic[] = [];
+  const conflicts: HookDiagnostic[] = [];
   const warnings: string[] = [];
   const byTransactionId = new Map<string, MutableTransactionHooks>();
   const runScoped = {
@@ -279,6 +302,7 @@ export async function loadUserHooks(
       runScoped,
       globalAuthorize,
       diagnostics,
+      conflicts,
       warnings,
     };
   }
@@ -326,6 +350,13 @@ export async function loadUserHooks(
       ),
     );
   }
+
+  // One number ordering every hook in the run against every other. Assigned
+  // here, once the file-then-registration order is settled, because that is the
+  // only place both halves are known.
+  collected.forEach((entry, index) => {
+    entry.sequence = index;
+  });
 
   for (const entry of collected) {
     const { registration } = entry;
@@ -395,7 +426,7 @@ export async function loadUserHooks(
       const conflicting = hooks.defineSample[0];
 
       if (registration.kind === 'defineSample' && conflicting) {
-        diagnostics.push({
+        conflicts.push({
           file: entry.file,
           exportName: entry.exportName,
           reason: `defineSample is already defined for the selector "${selector}" by "${conflicting.exportName}" in ${conflicting.file}; a Transaction can have only one`,
@@ -417,6 +448,7 @@ export async function loadUserHooks(
     runScoped,
     globalAuthorize,
     diagnostics,
+    conflicts,
     warnings,
   };
 }

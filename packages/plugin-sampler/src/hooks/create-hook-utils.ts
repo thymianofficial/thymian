@@ -1,32 +1,22 @@
 import { randomBytes } from 'node:crypto';
 
-import {
-  type HttpRequest,
-  type HttpResponse,
-  type HttpTestCaseResult,
-  type Logger,
-  ThymianBaseError,
-  type ThymianFormat,
-} from '@thymian/core';
+import { type HttpTestCaseResult, ThymianBaseError } from '@thymian/core';
 
 import { FailError, SkipError } from './hook-errors.js';
-import type { HookRunner } from './hook-runner.js';
 import type { Endpoints, HookUtils } from './hook-utils.js';
 
 const charset =
   'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
 
+/**
+ * The `utils` object every hook is handed.
+ *
+ * `results` is the array a hook's assertions and messages land in; the caller
+ * owns it and decides where it goes — onto a test case, or into the log when
+ * the hook has no test case (run-scoped hooks, `defineSample`).
+ */
 export function createHookUtils<E extends Endpoints>(
-  format: ThymianFormat,
-  runRequest: (req: HttpRequest) => Promise<HttpResponse>,
-  /**
-   * The runner whose pipeline a nested request re-enters. `undefined` where
-   * there is no pipeline to re-enter — a `defineSample` hook runs before any
-   * request exists.
-   */
-  hookRunner: HookRunner | undefined,
   results: HttpTestCaseResult[],
-  logger: Logger,
 ): HookUtils<E> {
   return {
     assertionFailure(message: string, details = {}): void {
@@ -93,10 +83,6 @@ export function createHookUtils<E extends Endpoints>(
     ): Promise<E[R]['res']> {
       void args;
       void options;
-      void format;
-      void runRequest;
-      void hookRunner;
-      void logger;
 
       throw new ThymianBaseError(
         `Cannot run a cross-endpoint request for "${String(url)}" yet.`,
