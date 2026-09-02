@@ -19,7 +19,12 @@ const charset =
 export function createHookUtils<E extends Endpoints>(
   format: ThymianFormat,
   runRequest: (req: HttpRequest) => Promise<HttpResponse>,
-  hookRunner: HookRunner,
+  /**
+   * The runner whose pipeline a nested request re-enters. `undefined` where
+   * there is no pipeline to re-enter — a `defineSample` hook runs before any
+   * request exists.
+   */
+  hookRunner: HookRunner | undefined,
   results: HttpTestCaseResult[],
   logger: Logger,
 ): HookUtils<E> {

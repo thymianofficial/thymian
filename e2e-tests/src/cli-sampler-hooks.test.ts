@@ -15,6 +15,11 @@ import { getAvailablePort } from './port-utils.js';
 
 const SELECTOR = 'GET /api/hello -> 200 (application/json)';
 
+/**
+ * The path is spelled out rather than derived: `.thymian/sampler/hooks` is the
+ * documented default a user types, and this suite exists to check the published
+ * contract rather than to agree with the implementation about it.
+ */
 function writeHook(tempDir: string, name: string, source: string): void {
   const hooksDir = join(tempDir, '.thymian', 'sampler', 'hooks');
 
