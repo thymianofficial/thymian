@@ -78,6 +78,13 @@ export type SamplerHarness = {
     transactionId: string,
     format: ThymianFormat,
   ): Promise<HttpTestHooks['authorize']['return']>;
+  /** What `sampler init` does, and reports. */
+  init(): Promise<{
+    root: string;
+    generated: string[];
+    tsconfig: 'written' | 'kept';
+    rootExcludeNote: string[];
+  }>;
   /** Close the run, as core does when a command finishes. */
   close(): Promise<void>;
   dispose(): Promise<void>;
@@ -237,6 +244,13 @@ export async function startSampler(
       }
 
       return samples;
+    },
+    async init() {
+      return await emitter.emitAction(
+        'sampler.init',
+        {},
+        { strategy: 'first' },
+      );
     },
     async close() {
       // `strict: false`, as core emits it: `core.close` is a broadcast that
