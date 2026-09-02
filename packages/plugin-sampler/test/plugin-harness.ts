@@ -59,6 +59,8 @@ export type SamplerHarness = {
     selector: string;
     request: HttpRequestTemplate;
   }>;
+  /** Close the run, exactly as the CLI does when a command finishes. */
+  close(): Promise<void>;
   dispose(): Promise<void>;
 };
 
@@ -177,6 +179,11 @@ export async function startSampler(
       }
 
       return samples;
+    },
+    async close() {
+      await emitter.emitAction('core.close', undefined, {
+        strategy: 'first',
+      });
     },
     async dispose() {
       await rm(cwd, { recursive: true, force: true });
