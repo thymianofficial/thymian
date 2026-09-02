@@ -44,19 +44,19 @@ The `ActionContext` provides:
 
 All core-owned actions follow the hierarchical pattern **`core.<domain>.<verb>`**. See [ADR-0011](adr/0011-action-naming-conventions.md).
 
-| Action                  | Purpose                                           |
-| ----------------------- | ------------------------------------------------- |
-| `core.ready`            | Lifecycle: plugins are loaded and ready           |
-| `core.close`            | Lifecycle: teardown and resource cleanup          |
-| `core.format.load`      | Load API descriptions into ThymianFormat          |
-| `core.format`           | Broadcast the loaded ThymianFormat to all plugins |
-| `core.traffic.load`     | Load captured HTTP traffic data                   |
-| `core.lint`             | Execute static linting of ThymianFormat           |
-| `core.test`             | Execute live HTTP testing against a target server |
-| `core.analyze`          | Execute analysis of captured HTTP traffic         |
+| Action                  | Purpose                                            |
+| ----------------------- | -------------------------------------------------- |
+| `core.ready`            | Lifecycle: plugins are loaded and ready            |
+| `core.close`            | Lifecycle: teardown and resource cleanup           |
+| `core.format.load`      | Load API descriptions into ThymianFormat           |
+| `core.format`           | Broadcast the loaded ThymianFormat to all plugins  |
+| `core.traffic.load`     | Load captured HTTP traffic data                    |
+| `core.lint`             | Execute static linting of ThymianFormat            |
+| `core.test`             | Execute live HTTP testing against a target server  |
+| `core.analyze`          | Execute analysis of captured HTTP traffic          |
 | `core.report.convert`   | Convert external tool reports into Thymian reports |
-| `core.request.dispatch` | Send an HTTP request and return the response      |
-| `core.request.sample`   | Generate an HTTP request template from samples    |
+| `core.request.dispatch` | Send an HTTP request and return the response       |
+| `core.request.sample`   | Generate an HTTP request template from samples     |
 
 ### 8.1.4 Child Emitters
 
@@ -276,12 +276,16 @@ type RulesConfiguration = {
 };
 
 type SingleRuleConfiguration = {
+  severity?: RuleSeverity;
+  type?: [RuleType, ...RuleType[]];
   skipOrigins?: string[];
   options?: Record<string, unknown>;
 };
 ```
 
-Setting a rule name to a severity level (e.g., `"off"`) overrides the default. Using `SingleRuleConfiguration` allows passing rule-specific options and skip patterns.
+Setting a rule name to a severity level (e.g., `"off"`) overrides the default. Using `SingleRuleConfiguration` allows overriding the severity, passing rule-specific options and skip patterns, and replacing the validation contexts the rule declares.
+
+The `type` override replaces `RuleMeta.type` outright rather than merging into it, which is how a rule shipped for one context is narrowed to another, and how naming `informational` alone retires a rule from executing while keeping it documented. Because the override is applied before the execution-invariant check, declaring a context whose execution function the rule does not define is rejected at load time.
 
 ## 8.5 Release and Versioning Process
 
