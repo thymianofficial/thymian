@@ -170,27 +170,21 @@ utils.fail('message'); // Throws FailError
 
 ## Alternatives
 
-### Returning early
-
-For simple conditional logic, return early without skipping:
+### Narrowing the target instead
 
 ```typescript
 export const seed = beforeEach(
-  { path: '/launches/{id}' },
+  { path: '/launches/{id}', statusClass: '2XX' },
   async (request, ctx, utils) => {
-    // The 404 case wants a resource that does not exist, so leave it alone.
-    if (ctx?.thymianRes.statusCode === 404) {
-      return;
-    }
-
-    // Otherwise, do the setup.
+    // Only the successful cases need a resource to exist.
   },
 );
 ```
 
-This does not skip the test case; it just skips the hook's own work. Often the
-better move is to narrow the target instead, so the hook never runs there:
-`beforeEach({ path: '/launches/{id}', statusClass: '2XX' }, …)`.
+Narrowing the target is almost always better than branching inside the hook: the
+hook simply never runs where it does not apply, and a filter value that stops
+existing is a compile error, whereas a branch is just code that quietly stops
+matching.
 
 ### Using Assertions
 
