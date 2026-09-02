@@ -63,10 +63,12 @@ describe('an odd-but-legal description', () => {
   it('spells the odd parts the way the grammar can carry them', () => {
     const selectors = TransactionCatalog.fromThymianFormat(format).selectors();
 
-    // Sorted by code unit: "%" (0x25) precedes "T" (0x54).
+    // Sorted by code unit: '"' (0x22) precedes "G" (0x47), and a component the
+    // bare form cannot carry is quoted rather than percent-encoded, so that an
+    // already-encoded path stays a different selector from a raw one.
     expect(selectors).toEqual([
-      'GE%20T /odd -> 200',
-      'GET /a%20b/c-%3Ed/{id} -> 200',
+      '"GE T" /odd -> 200',
+      'GET "/a b/c->d/{id}" -> 200',
       'POST /reports (text/plain; format="a(b)") -> 200 (application/vnd.thymian+json; profile="x) y")',
     ]);
   });

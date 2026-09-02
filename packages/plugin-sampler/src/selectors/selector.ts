@@ -39,134 +39,234 @@ export type SelectorParts = {
 };
 
 /**
- * RFC 9110 §5.6.2 `tchar`, the character set a method is written in. `%` is a
- * tchar, which is what lets {@link encodeMethod} stay inside the set while
- * escaping anything outside it.
+ * RFC 9110 §5.6.2 `tchar`, the character set a method is written in. Written
+ * once, so the renderer, the parser and the near-miss hint cannot drift apart on
+ * what a method looks like.
  */
-const TCHAR = /^[A-Za-z0-9!#$%&'*+.^_`|~-]$/;
+const METHOD_CHARS = "A-Za-z0-9!#$%&'*+.^_`|~-";
+const METHOD_TOKEN = new RegExp(`^[${METHOD_CHARS}]+$`);
+const UPPERCASE_METHOD = new RegExp(`^[A-Z0-9!#$%&'*+.^_\`|~-]+$`);
 
 /**
- * The anchored grammar, and the single source of truth for what a selector *is*:
- * every rendered selector round-trips through it, and {@link parseSelector}
- * accepts nothing else.
+ * Renders a component the grammar cannot carry bare as a quoted string.
  *
- * Three groups are looser than the canonical rendering, deliberately:
- *
- * - the **path** group forbids whitespace only, because {@link encodePath}
- *   escapes whitespace and `>` and leaves every other character — parentheses
- *   included — exactly as the description carries it;
- * - the **status** group is a token rather than digits, so a description that
- *   declared a non-numeric response key still renders instead of aborting the
- *   load (`plugin-openapi` guards a response key with `n < 100 || n > 599`, and
- *   both comparisons are `false` for `NaN`, so such a key arrives as
- *   `statusCode: NaN` and renders as `NaN`);
- * - the **media** groups are matched by {@link scanMediaGroup} rather than by
- *   this pattern's `[^()]*`, because a quoted-string parameter may legally
- *   contain a parenthesis.
- *
- * The pattern is therefore the shape test; {@link splitSelector} does the
- * quote-aware slicing.
+ * Quoting rather than percent-encoding is what makes rendering **injective**.
+ * Percent-encoding a raw space to `%20` cannot be told apart from a path that
+ * already contained the three characters `%20`, so two distinct transactions
+ * would render one selector. A bare component never begins with `"` and a quoted
+ * one always does, so the two forms are disjoint and the escape is reversible.
  */
-const SELECTOR_SHAPE =
-  /^([A-Za-z0-9!#$%&'*+.^_`|~-]+) (\/\S*)(?: \(.*\))? -> ([^\s()]+)(?: \(.*\))?$/;
+function quote(value: string): string {
+  return `"${value.replace(/\\/g, '\\\\').replace(/"/g, '\\"')}"`;
+}
 
-const UPPERCASE_METHOD = /^[A-Z0-9!#$%&'*+.^_`|~-]+$/;
+/** Reads a quoted component starting at `open`, and says where it ended. */
+function readQuoted(
+  value: string,
+  open: number,
+): { content: string; end: number } | undefined {
+  let content = '';
 
-/**
- * Percent-encodes one character, uppercase-hex, as a URI would.
- *
- * Multi-byte characters are encoded per UTF-8 byte, which is what
- * `encodeURIComponent` does and what a server would receive.
- */
-function percentEncode(char: string): string {
-  return [...new TextEncoder().encode(char)]
-    .map((byte) => `%${byte.toString(16).toUpperCase().padStart(2, '0')}`)
-    .join('');
+  for (let i = open + 1; i < value.length; i++) {
+    const char = value[i] as string;
+
+    if (char === '\\') {
+      const next = value[i + 1];
+
+      if (next === undefined) {
+        return undefined;
+      }
+
+      content += next;
+      i++;
+
+      continue;
+    }
+
+    if (char === '"') {
+      return { content, end: i };
+    }
+
+    content += char;
+  }
+
+  return undefined;
 }
 
 /**
  * The path as a selector spells it.
  *
- * Two transformations, and no others:
+ * The leading `/` that `req.path` is not guaranteed to carry is supplied — a
+ * canonicalization, not an escape: a description that declared both `launches`
+ * and `/launches` declared one path twice.
  *
- * 1. the leading `/` that `req.path` is not guaranteed to carry;
- * 2. percent-encoding of the characters that would collide with the grammar —
- *    whitespace, which separates the components, and `>`, whose only role in a
- *    path would be to complete the `->` separator. Both are characters a URI
- *    must percent-encode anyway, so escaping them is the faithful rendering of a
- *    path that carried them raw.
- *
- * Everything else is left alone: the OpenAPI server base path, a trailing slash,
- * existing percent-encoding, `{`/`}` template braces, and parentheses.
- *
- * Encoding rather than rejecting is what makes rendering total — no legal
- * description can abort catalog construction. It is not, strictly, injective
- * over all inputs: a description declaring both `/a b` and `/a%20b` renders one
- * string for two transactions, because raw and encoded forms cannot be told
- * apart after encoding without double-encoding every ordinary path. That residue
- * is caught, not ignored — the catalog reports it as a selector collision naming
- * both sides and where they came from, which is the same treatment a genuine
- * duplicate gets.
+ * Beyond that the path is carried verbatim. Braces, parentheses, existing
+ * percent-encoding, a trailing slash and an OpenAPI server base path all
+ * survive. A path that contains whitespace, a `>` (whose only role here would be
+ * to complete the `->` separator) or that begins with a `"` is rendered quoted
+ * instead, because the bare form cannot carry those characters unambiguously.
  */
 export function encodePath(path: string): string {
   const withSlash = path.startsWith('/') ? path : `/${path}`;
 
-  return [...withSlash]
-    .map((char) =>
-      /\s/.test(char) || char === '>' ? percentEncode(char) : char,
-    )
-    .join('');
+  return /[\s>]/.test(withSlash) || withSlash.startsWith('"')
+    ? quote(withSlash)
+    : withSlash;
 }
 
 /**
- * The method as a selector spells it: uppercased, with anything outside `tchar`
- * percent-encoded. A method is a token by RFC 9110, so a character outside the
- * set only arrives from a description that put it there, and escaping keeps that
- * transaction addressable instead of unrepresentable.
+ * The method as a selector spells it: uppercased, and quoted when it is not an
+ * RFC 9110 token.
+ *
+ * Uppercasing is a canonicalization for the same reason the leading slash is:
+ * HTTP methods are case-sensitive but a description cannot declare `get` and
+ * `GET` as two operations on one path.
  */
 export function encodeMethod(method: string): string {
-  return [...method.toUpperCase()]
-    .map((char) => (TCHAR.test(char) ? char : percentEncode(char)))
-    .join('');
+  const upper = method.toUpperCase();
+
+  return METHOD_TOKEN.test(upper) ? upper : quote(upper);
 }
 
 /**
  * The media type as a selector spells it.
  *
- * Rendered RFC-9110-faithfully — parameters, spacing and quoted strings survive
- * verbatim, including a parenthesis inside a quoted string, which the
+ * Rendered RFC-9110-faithfully: parameters, spacing and quoted strings survive
+ * verbatim, **including a parenthesis inside a quoted string**, which the
  * parenthesized media group delimits with quote awareness rather than by
  * counting characters.
  *
- * The one escape is a parenthesis *outside* a quoted string. An unquoted
- * parameter value is a token and a token has no parentheses, so a bare
- * parenthesis is already not RFC-9110-legal; percent-encoding it keeps the
- * media group's delimiters unambiguous without rejecting the transaction.
+ * Outside a quoted string, `\` is the escape and `(`/`)` are escaped with it. A
+ * bare parenthesis is not a legal token character and a bare backslash is not
+ * legal media-type syntax at all, so using them as the escape pair cannot
+ * shadow anything a legal media type contains.
+ *
+ * A media type whose quoting is unbalanced cannot be scanned back with quote
+ * awareness, so it falls back to escaping `"` as well. That form never enters
+ * quote state on the way back, which keeps even a malformed media type
+ * addressable instead of unrepresentable.
  */
 export function encodeMediaType(mediaType: string): string {
+  const quoteAware = escapeMediaType(mediaType, true);
+
+  return quoteAware ?? escapeMediaType(mediaType, false) ?? mediaType;
+}
+
+/**
+ * Escapes a media type for the parenthesized group.
+ *
+ * Returns `undefined` from the quote-aware pass when the input's quoting does
+ * not balance, which is the signal to take the quote-blind pass instead.
+ */
+function escapeMediaType(
+  mediaType: string,
+  quoteAware: boolean,
+): string | undefined {
   let out = '';
   let inQuotes = false;
 
   for (let i = 0; i < mediaType.length; i++) {
     const char = mediaType[i] as string;
 
-    if (inQuotes && char === '\\' && i + 1 < mediaType.length) {
-      out += char + (mediaType[i + 1] as string);
-      i++;
+    if (inQuotes) {
+      // An RFC 9110 quoted-pair belongs to the media type's own text and is
+      // carried through untouched.
+      if (char === '\\' && i + 1 < mediaType.length) {
+        out += char + (mediaType[i + 1] as string);
+        i++;
+
+        continue;
+      }
+
+      if (char === '"') {
+        inQuotes = false;
+      }
+
+      out += char;
+
       continue;
     }
 
-    if (char === '"') {
-      inQuotes = !inQuotes;
+    if (char === '"' && quoteAware) {
+      inQuotes = true;
       out += char;
+
       continue;
     }
 
     out +=
-      !inQuotes && (char === '(' || char === ')') ? percentEncode(char) : char;
+      char === '\\' || char === '(' || char === ')' || char === '"'
+        ? `\\${char}`
+        : char;
   }
 
-  return out;
+  return inQuotes ? undefined : out;
+}
+
+/**
+ * Reads a media group starting at the `(` at `open`, and says where it ended.
+ *
+ * The inverse of {@link escapeMediaType}: outside a quoted string a `\` escapes
+ * the next character and is dropped, a `"` opens quote state, and the first
+ * unescaped, unquoted `)` ends the group. Inside a quoted string everything is
+ * carried through, quoted-pairs included, because that text is the media type's
+ * own.
+ */
+function readMediaGroup(
+  value: string,
+  open: number,
+): { content: string; end: number } | undefined {
+  let content = '';
+  let inQuotes = false;
+
+  for (let i = open + 1; i < value.length; i++) {
+    const char = value[i] as string;
+
+    if (inQuotes) {
+      if (char === '\\' && i + 1 < value.length) {
+        content += char + (value[i + 1] as string);
+        i++;
+
+        continue;
+      }
+
+      if (char === '"') {
+        inQuotes = false;
+      }
+
+      content += char;
+
+      continue;
+    }
+
+    if (char === '\\') {
+      const next = value[i + 1];
+
+      if (next === undefined) {
+        return undefined;
+      }
+
+      content += next;
+      i++;
+
+      continue;
+    }
+
+    if (char === '"') {
+      inQuotes = true;
+      content += char;
+
+      continue;
+    }
+
+    if (char === ')') {
+      return { content, end: i };
+    }
+
+    content += char;
+  }
+
+  return undefined;
 }
 
 /**
@@ -177,6 +277,11 @@ export function encodeMediaType(mediaType: string): string {
  * it carries a body. `mediaType` is a non-optional string whose `''` means
  * "none", so a `content:` entry that declares a media type but no schema still
  * gets its own selector and its own media part.
+ *
+ * The status is `String(res.statusCode)`. `statusCode` is typed `number`, and
+ * `String` is injective over the numbers a description can carry, so a loader
+ * that produces a status outside `100..599` — or one that is not an integer at
+ * all — still yields an addressable selector rather than aborting the load.
  */
 export function formatSelector(
   req: ThymianHttpRequest,
@@ -214,108 +319,83 @@ export function compareSelectors(a: Selector, b: Selector): number {
 }
 
 /**
- * Reads a selector's parenthesized media group starting at `open`, respecting
- * quoted strings, and answers where it ends.
+ * Splits a selector into its five components.
  *
- * Returns `undefined` when the group is unterminated, which makes the value a
- * malformed selector rather than a group that silently swallows the rest.
- */
-function scanMediaGroup(
-  value: string,
-  open: number,
-): { content: string; end: number } | undefined {
-  let inQuotes = false;
-
-  for (let i = open + 1; i < value.length; i++) {
-    const char = value[i] as string;
-
-    if (inQuotes && char === '\\' && i + 1 < value.length) {
-      i++;
-      continue;
-    }
-
-    if (char === '"') {
-      inQuotes = !inQuotes;
-      continue;
-    }
-
-    if (!inQuotes && char === ')') {
-      return { content: value.slice(open + 1, i), end: i };
-    }
-  }
-
-  return undefined;
-}
-
-/**
- * Splits a selector into its five components with quote-aware media groups.
+ * This hand-written reader is the **only** description of the grammar. An
+ * equivalent regex used to sit beside it as a shape test, and the two disagreed:
+ * a media type containing a newline rendered into a selector the regex rejected,
+ * because `.` excludes line terminators. One grammar, one reader.
  *
  * Returns `undefined` for anything that is not a selector; the caller decides
  * whether that is a diagnostic or a hint attempt.
  */
 function splitSelector(value: string): SelectorParts | undefined {
-  if (!SELECTOR_SHAPE.test(value)) {
+  let at = 0;
+
+  const method = readComponent(value, at);
+
+  if (!method) {
     return undefined;
   }
 
-  const firstSpace = value.indexOf(' ');
-  const method = value.slice(0, firstSpace);
-  let rest = value.slice(firstSpace + 1);
-
-  // The path runs to the next space, because `encodePath` leaves none inside it.
-  const pathEnd = rest.indexOf(' ');
-
-  if (pathEnd === -1) {
+  if (!method.quoted && !METHOD_TOKEN.test(method.content)) {
     return undefined;
   }
 
-  const path = rest.slice(0, pathEnd);
-  rest = rest.slice(pathEnd + 1);
+  at = method.end;
+
+  if (value[at] !== ' ') {
+    return undefined;
+  }
+
+  at += 1;
+
+  const path = readComponent(value, at);
+
+  if (!path || !path.content.startsWith('/')) {
+    return undefined;
+  }
+
+  at = path.end;
 
   let requestMediaType: string | undefined;
 
-  if (rest.startsWith('(')) {
-    const group = scanMediaGroup(rest, 0);
+  if (value.startsWith(' (', at)) {
+    const group = readMediaGroup(value, at + 1);
 
     if (!group) {
       return undefined;
     }
 
     requestMediaType = group.content;
-    rest = rest.slice(group.end + 1);
-
-    if (!rest.startsWith(' ')) {
-      return undefined;
-    }
-
-    rest = rest.slice(1);
+    at = group.end + 1;
   }
 
-  if (!rest.startsWith('-> ')) {
+  if (!value.startsWith(' -> ', at)) {
     return undefined;
   }
 
-  rest = rest.slice(3);
+  at += 4;
 
-  const statusEnd = rest.indexOf(' ');
-  const status = statusEnd === -1 ? rest : rest.slice(0, statusEnd);
+  const statusEnd = value.indexOf(' ', at);
+  const status = value.slice(at, statusEnd === -1 ? undefined : statusEnd);
 
-  if (status.length === 0) {
+  if (status.length === 0 || /[\s()]/.test(status)) {
     return undefined;
   }
 
   let responseMediaType: string | undefined;
 
   if (statusEnd !== -1) {
-    rest = rest.slice(statusEnd + 1);
+    at = statusEnd;
 
-    if (!rest.startsWith('(')) {
+    if (!value.startsWith(' (', at)) {
       return undefined;
     }
 
-    const group = scanMediaGroup(rest, 0);
+    const group = readMediaGroup(value, at + 1);
 
-    if (!group || group.end !== rest.length - 1) {
+    if (!group || group.end !== value.length - 1) {
       return undefined;
     }
 
@@ -323,12 +403,39 @@ function splitSelector(value: string): SelectorParts | undefined {
   }
 
   return {
-    method,
-    path,
+    method: method.content,
+    path: path.content,
     requestMediaType,
     status: Number(status),
     responseMediaType,
   };
+}
+
+/**
+ * Reads a method or path: a quoted string when it begins with `"`, otherwise the
+ * run of characters up to the next space.
+ */
+function readComponent(
+  value: string,
+  at: number,
+): { content: string; end: number; quoted: boolean } | undefined {
+  if (at >= value.length) {
+    return undefined;
+  }
+
+  if (value[at] === '"') {
+    const read = readQuoted(value, at);
+
+    return read
+      ? { content: read.content, end: read.end + 1, quoted: true }
+      : undefined;
+  }
+
+  const space = value.indexOf(' ', at);
+  const end = space === -1 ? value.length : space;
+  const content = value.slice(at, end);
+
+  return content.length > 0 ? { content, end, quoted: false } : undefined;
 }
 
 /**
@@ -360,8 +467,9 @@ export function isSelector(value: string): boolean {
  * turn a rejection into a "did you mean …?" suggestion; it never decides whether
  * a selector is valid.
  */
-const LENIENT_SHAPE =
-  /^([A-Za-z0-9!#$%&'*+.^_`|~-]+) (\S+)(?: \((.*)\))? -> (\d+)(?: \((.*)\))?$/;
+const LENIENT_SHAPE = new RegExp(
+  `^([${METHOD_CHARS}]+) (\\S+)(?: \\(([^()]*)\\))? -> (\\d+)(?: \\(([^()]*)\\))?$`,
+);
 
 /**
  * Whether prepending the missing leading slash would be a correction rather than

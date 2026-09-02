@@ -39,10 +39,16 @@ describe('TransactionCatalog', () => {
 
     expect(catalog.size).toBe(3);
 
+    const transactionIds = new Set<string>();
+
     for (const [selector, transaction] of catalog.entries()) {
       expect(catalog.resolve(selector)).toBe(transaction);
-      expect(catalog.selectorFor(transaction.transactionId)).toBe(selector);
+      // One selector per transaction, and one transaction per selector.
+      expect(transactionIds.has(transaction.transactionId)).toBe(false);
+      transactionIds.add(transaction.transactionId);
     }
+
+    expect(transactionIds.size).toBe(catalog.size);
   });
 
   it('iterates sorted by selector, whatever order the document had', () => {
