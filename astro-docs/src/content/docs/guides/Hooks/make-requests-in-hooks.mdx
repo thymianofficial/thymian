@@ -1,216 +1,135 @@
 ---
 title: How to make Requests in Hooks
-description: Learn how to make HTTP requests within your hooks to create resources, authenticate, or fetch data.
+description: Use utils.request to seed data across endpoints, addressed by Selector, with the target's own hooks running.
 ---
 
 import { Aside } from '@astrojs/starlight/components';
 
-At some point in your hook, you'll need to make an HTTP request to an API. This guide shows you how to do that with the `utils.request()` method.
+Some Transactions need a resource that already exists. `utils.request` calls
+another Transaction to create one.
 
+## Addressing the call
 
-## The utils.request() Method
-
-Every hook receives a `utils` object with a type-safe `request()` method:
+`utils.request` is keyed by **Selector** — the same strings your hooks are
+anchored to — and resolved through the same catalog, so the keys your editor
+completes and the strings resolved at run time are the same strings by
+construction.
 
 ```typescript
 utils.request(
-  url,           // The endpoint to call
-  requestData,   // Headers, body, cookies, etc.
-  options        // Control hook execution
-)
+  selector,   // the Transaction to call
+  args?,      // body, headers, query, path, cookies — overlaid on the generated request
+  options?,   // runHooks, authorize
+);
 ```
 
-## Basic Usage
+There is no `forStatusCode`: the Selector already carries the status.
 
-### Making a Simple Request
+## Seeding a resource
 
 ```typescript
-import { BeforeEachRequestHook } from '@thymian/hooks';
+import { beforeEach } from '@thymian/hooks';
 
-const hook: BeforeEachRequestHook = async (request, context, utils) => {
-  const response = await utils.request(
-    'POST http://localhost:3000/launches',
-    {
-      body: {
-        missionName: 'Apollo 11',
-        launchDate: '2026-12-31T00:00:00Z',
-        rocketType: 'Saturn V'
-      },
-      headers: {
-        'content-type': 'application/json'
-      }
+export const seedLaunch = beforeEach(
+  'GET /launches/{id} -> 200 (application/json)',
+  async (request, ctx, utils) => {
+    const created = await utils.request(
+      'POST /launches (application/json) -> 201 (application/json)',
+      { body: { missionName: 'Apollo 11', rocketType: 'Saturn V' } },
+      { authorize: true },
+    );
+
+    if (created.statusCode !== 201) {
+      utils.skip('could not create a launch to read back');
     }
+
+    utils.setPathParam('id', created.body.id);
+  },
+);
+```
+
+`args` is overlaid on the **generated** request, so you only write the parts you
+care about — the content type, the origin and everything else come from your API
+description.
+
+## What the response gives you
+
+```typescript
+{
+  statusCode: 201,
+  headers: { … },
+  body: { id: 7, missionName: 'Apollo 11', … },
+}
+```
+
+A JSON body is parsed for you, and after
+[`thymian sampler init`](/references/plugins/sampler/hooks-api/#thymian-sampler-init)
+it is typed by the Selector you asked for — so `created.body.id` is checked, and
+a body field that stops existing is a compile error.
+
+## The target's own hooks run
+
+By default a nested request runs the target's own
+`beforeEach → authorize → afterEach` pipeline, so seeding behaves like the real
+run rather than like a second, quieter client. Your `authorize` hook applies to
+it; so does any `beforeEach` that shapes it.
+
+```typescript
+await utils.request(selector, args, { runHooks: false });
+```
+
+`runHooks: false` sends the generated request as-is. Use it when you want the raw
+request, and when you need to break a cycle.
+
+<Aside type="caution" title="Authorization is per Transaction">
+A nested request carries **its own** target's `authorize` flag, not the caller's.
+Seeding a secured endpoint from an unsecured one needs `{ authorize: true }`;
+and forcing it on still requires a registered `authorize` hook to supply the
+credentials.
+</Aside>
+
+## Cycles fail loudly
+
+Two hooks that seed each other would recurse until the stack gave out. Instead
+the sampler refuses, and prints the chain:
+
+```
+A cross-endpoint request would re-enter "GET /launches/{id} -> 200 (application/json)", which is already running.
+Try this:
+  * The chain is:
+      "GET /launches/{id} -> 200 (application/json)"
+      → "POST /launches (application/json) -> 201 (application/json)"
+      → "GET /launches/{id} -> 200 (application/json)"
+  * Break the cycle, or pass `{ runHooks: false }` to seed from the raw request
+    without running the target's hooks.
+```
+
+The chain is printed because `A → B → A` is usually a mistake three files apart,
+and the middle of it is where the fix goes.
+
+Nothing is sent before the refusal.
+
+## Seeding once for the whole run
+
+If a fixture is shared by every Transaction, `beforeAll` is cheaper than seeding
+per request — and its returned closure is how the fixture gets cleaned up.
+
+```typescript
+import { beforeAll } from '@thymian/hooks';
+
+export const seedOnce = beforeAll(async (utils) => {
+  const created = await utils.request(
+    'POST /launches (application/json) -> 201 (application/json)',
+    { body: { missionName: 'Shared fixture' } },
+    { authorize: true },
   );
 
-  console.log(response.statusCode);  // 201
-  console.log(response.body);        // { id: '...', missionName: 'Apollo 11', ... }
-
-  return request;
-};
-
-export default hook;
-```
-
-
-
-## Type Safety
-
-The `request()` method is fully type-safe based on your OpenAPI specification.
-
-### Autocomplete for URLs
-
-Your IDE suggests available endpoints:
-
-```typescript
-// Type "utils.request('" and get autocomplete:
-utils.request('POST http://localhost:3000/launches', ...)
-utils.request('GET http://localhost:3000/launches', ...)
-utils.request('GET http://localhost:3000/astronauts', ...)
-```
-
-### Type-Checked Request Bodies
-
-Request bodies are validated against your API schema:
-
-```typescript
-const response = await utils.request('POST http://localhost:3000/launches', {
-  body: {
-    missionName: 'Apollo 11',     // ✓ Valid
-    launchDate: '2026-12-31T00:00:00Z',  // ✓ Valid
-    rocketType: 'Saturn V',       // ✓ Valid
-    // invalidField: 'test'       // ✗ TypeScript error
-  },
-  headers: {
-    'content-type': 'application/json'
-  }
+  return async () => {
+    await utils.request(
+      'DELETE /launches/{id} -> 204',
+      { path: { id: created.body.id } },
+      { authorize: true },
+    );
+  };
 });
 ```
-
-### Type-Checked Responses
-
-Response bodies are typed based on your OpenAPI responses:
-
-```typescript
-const response = await utils.request('GET http://localhost:3000/launches', {});
-
-// TypeScript knows the response structure
-if (response.statusCode === 200) {
-  const launches = response.body;  // Type: Launch[]
-  console.log(launches[0].missionName);
-}
-```
-
-
-
-## Request Options
-
-### Disable Hooks
-
-By default, `utils.request()` runs all hooks (beforeEach, authorize, afterEach) for the target endpoint. Disable this to prevent infinite loops:
-
-```typescript
-const response = await utils.request('POST http://localhost:3000/astronauts', {
-  body: { name: 'Buzz Aldrin', password: 'secret', role: 'Pilot' },
-  headers: { 'content-type': 'application/json' }
-}, {
-  runHooks: false  // Don't execute hooks for this request
-});
-```
-
-**Use case:** Creating users in an authorize hook to avoid circular execution.
-
-### Disable Authorization
-
-Skip only the authorize hook while keeping other hooks:
-
-```typescript
-const response = await utils.request('GET http://localhost:3000/launches', {}, {
-  authorize: false  // Skip authorize, but run beforeEach/afterEach
-});
-```
-
-**Use case:** Testing public endpoints that don't require authentication.
-
-### Specify Status Code
-
-If an endpoint has multiple response samples (e.g., 200, 404), specify which one to use:
-
-```typescript
-// Request the 404 response sample
-const response = await utils.request('GET http://localhost:3000/launches/123', {}, {
-  forStatusCode: 404
-});
-```
-
-**Use case:** Testing error handling in your hooks.
-
-
-
-## Error Handling
-
-### Check Status Codes
-
-Always verify responses succeeded:
-
-```typescript
-const response = await utils.request('POST http://localhost:3000/launches', {
-  body: { /* ... */ },
-  headers: { 'content-type': 'application/json' }
-});
-
-if (response.statusCode !== 201) {
-  utils.fail(`Unexpected status code: ${response.statusCode}`);
-}
-```
-
-### Handle Missing Resources
-
-```typescript
-const response = await utils.request('GET http://localhost:3000/launches/123', {});
-
-if (response.statusCode === 404) {
-  utils.skip('Launch not found, skipping test');
-}
-```
-
-### Graceful Degradation
-
-```typescript
-try {
-  const response = await utils.request('POST http://localhost:3000/launches', {
-    body: { /* ... */ },
-    headers: { 'content-type': 'application/json' }
-  });
-
-  if (response.statusCode !== 201) {
-    utils.warn('Launch creation failed, using default data');
-    // Fallback logic here
-  }
-} catch (error) {
-  utils.warn('Request failed entirely', error.message);
-}
-```
-
-
-
-## Limitations
-
-### Must Be Defined in OpenAPI
-
-You can only request endpoints that exist in your OpenAPI specification. If an endpoint isn't defined, you'll get a TypeScript error.
-
-### URL Format Must Match
-
-The URL must exactly match the format: `METHOD http://host:port/path`
-
-```typescript
-// ✓ Correct
-utils.request('POST http://localhost:3000/launches', ...)
-
-// ✗ Incorrect - Missing method
-utils.request('http://localhost:3000/launches', ...)
-
-// ✗ Incorrect - Wrong format
-utils.request('localhost:3000/launches', ...)
-```
-
