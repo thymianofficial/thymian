@@ -28,6 +28,18 @@ const BANNER = `/*
  */
 `;
 
+/**
+ * The specifier one generated declaration file imports another by.
+ *
+ * A `.d.ts` file is imported by the module path it *declares* — `./x.js` — not
+ * by its own filename. Emitting `./x.d.ts` happened to resolve under the
+ * scaffolded tsconfig, which is exactly why it was worth fixing before some
+ * other configuration stopped tolerating it.
+ */
+function moduleSpecifierFor(declarationFile: string): string {
+  return declarationFile.replace(/\.d\.ts$/, '.js');
+}
+
 /** A union type text, sorted so the emission does not depend on visit order. */
 function union(values: Iterable<string>): string {
   const sorted = [...new Set(values)].sort();
@@ -249,7 +261,7 @@ import type {
   Selector,
   Status,
   StatusClass,
-} from './${REQUEST_TYPES_FILE.replace(/\\.d\\.ts$/, '.js')}';
+} from './${moduleSpecifierFor(REQUEST_TYPES_FILE)}';
 
 export type {
   Endpoints,
