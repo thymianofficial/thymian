@@ -1,4 +1,8 @@
-import type { HttpTestCaseResult, Logger } from '@thymian/core';
+import {
+  type HttpTestCaseResult,
+  type Logger,
+  ThymianBaseError,
+} from '@thymian/core';
 
 import type { CollectedRegistration } from './load-user-hooks.js';
 
@@ -43,4 +47,29 @@ export function reportHookResults(
       logger.info(result.message);
     }
   }
+}
+
+/**
+ * Names the hook a sampler diagnostic came out of, without burying the
+ * diagnostic.
+ *
+ * A cycle error's value is the chain it prints and a setter-misuse error's is
+ * the sentence explaining the misuse — both live in `suggestions`, so wrapping
+ * the error in a "hook X threw" envelope would throw away the part worth
+ * reading. The location joins the suggestions instead, at the front, where it
+ * answers "which line do I open" before the diagnostic answers "why".
+ */
+export function attributeToHook(
+  error: ThymianBaseError,
+  kind: string,
+  entry: CollectedRegistration,
+): ThymianBaseError {
+  return new ThymianBaseError(error.message, {
+    ...error.options,
+    suggestions: [
+      `Raised by the ${kind} hook exported as "${entry.exportName}" from "${entry.file}".`,
+      ...(error.options.suggestions ?? []),
+    ],
+    cause: error.cause,
+  });
 }
