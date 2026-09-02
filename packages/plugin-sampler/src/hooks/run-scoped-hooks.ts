@@ -1,7 +1,11 @@
 import { type Logger, ThymianBaseError } from '@thymian/core';
 
 import type { HookUtilsFactory } from './hook-utils-factory.js';
-import { invokeHook, reportHookResults } from './invoke-hook.js';
+import {
+  attributeToHook,
+  invokeHook,
+  reportHookResults,
+} from './invoke-hook.js';
 import type { CollectedRegistration } from './load-user-hooks.js';
 
 /** What a `beforeAll` may hand back to be run on close. */
@@ -90,14 +94,19 @@ export class RunScopedHooks {
       } catch (e) {
         reportHookResults(this.logger, results);
 
-        throw new ThymianBaseError(
-          `The beforeAll hook exported as "${entry.exportName}" from "${entry.file}" threw.`,
-          {
-            cause: e,
-            name: 'BeforeAllHookError',
-            ref: 'https://thymian.dev/references/errors/before-all-hook-error/',
-          },
-        );
+        // A diagnostic the sampler raised keeps its own message and
+        // suggestions, with the hook's location added; anything else is a
+        // defect in the hook and gets the envelope that names it.
+        throw e instanceof ThymianBaseError
+          ? attributeToHook(e, 'beforeAll', entry)
+          : new ThymianBaseError(
+              `The beforeAll hook exported as "${entry.exportName}" from "${entry.file}" threw.`,
+              {
+                cause: e,
+                name: 'BeforeAllHookError',
+                ref: 'https://thymian.dev/references/errors/before-all-hook-error/',
+              },
+            );
       }
 
       reportHookResults(this.logger, results);
