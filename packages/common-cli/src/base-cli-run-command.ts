@@ -36,6 +36,7 @@ import { getConfig } from './get-config.js';
 import type { ThymianSpecSearchResult } from './hooks/spec-search-hook.js';
 import type { ThymianTrafficSearchResult } from './hooks/traffic-search-hook.js';
 import type { ThymianConfig } from './thymian-config.js';
+import { writeErrorRecord } from './write-error-record.js';
 
 const PLUGIN_LOAD_ERROR_REF =
   'https://thymian.dev/references/errors/plugin-load-error/';
@@ -355,29 +356,7 @@ export abstract class BaseCliRunCommand<
   }
 
   protected override async catch(err: CommandError): Promise<void> {
-    await this.feedback?.error();
-    const versionDetails = this.config.versionDetails;
-
-    const pluginVersions = Object.entries(versionDetails.pluginVersions ?? {})
-      .filter(([name]) => !name.startsWith('@oclif'))
-      .map(([name, version]) => ({ name, version: version.version }));
-
-    await this.errorCache?.write({
-      name: err.name,
-      message: err.message,
-      commandName: this.id ?? 'unknown command',
-      timestamp: Date.now(),
-      cause: err.cause,
-      stack: err.stack,
-      argv: process.argv,
-      version: {
-        architecture: versionDetails.architecture,
-        cliVersion: versionDetails.cliVersion,
-        nodeVersion: versionDetails.nodeVersion,
-        osVersion: versionDetails.osVersion,
-      },
-      pluginVersions,
-    });
+    await writeErrorRecord(this, err, this.feedback, this.errorCache);
 
     if (err instanceof ThymianBaseError) {
       const cliError = new CLIError(err.message, {
