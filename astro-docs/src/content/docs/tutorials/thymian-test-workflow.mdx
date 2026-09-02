@@ -94,13 +94,14 @@ Many APIs need more than a basic generated request. For example, you may need to
 
 That is where samples and hooks help. A common progression looks like this:
 
-1. Generate sample requests with `thymian sampler init`
-2. Run `thymian test`
-3. See which requests fail because they need setup or authentication
-4. Add or refine hooks
-5. Run `thymian test` again
+1. Run `thymian test`
+2. See which requests fail because they need setup or authentication
+3. Add or refine hooks
+4. Run `thymian test` again
+5. Optionally run `thymian sampler init` so your editor completes Selectors and
+   the compiler checks your hooks
 
-For a deeper hands-on example of generating and refining request samples, see [Initializing your Request Samples](/tutorials/sampler-getting-started/).
+For a hands-on walkthrough, see [Testing an API with the Sampler](/tutorials/sampler-getting-started/).
 
 ## How `thymian test` fits into the workflow
 

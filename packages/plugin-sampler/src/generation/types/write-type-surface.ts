@@ -76,20 +76,24 @@ export function rootExcludeNote(paths: SamplerPaths, cwd: string): string[] {
 export async function writeGenerated(
   paths: SamplerPaths,
   surface: TypeSurface,
-): Promise<void> {
+): Promise<string[]> {
+  const before = await readGenerated(paths);
+  const fresh = surfaceAsFiles(surface);
+
   await rm(paths.generatedDir, { recursive: true, force: true });
   await mkdir(paths.generatedDir, { recursive: true });
 
-  await writeFile(
-    join(paths.generatedDir, REQUEST_TYPES_FILE),
-    surface.requestTypes,
-    'utf-8',
-  );
-  await writeFile(
-    join(paths.generatedDir, HOOKS_API_FILE),
-    surface.hooksApi,
-    'utf-8',
-  );
+  for (const [name, contents] of Object.entries(fresh)) {
+    await writeFile(join(paths.generatedDir, name), contents, 'utf-8');
+  }
+
+  // Which files' *bytes* moved, which is not the same question as which types
+  // moved: the drift gate compares canonicalized, so a description edit is not
+  // drift — but it does change the file, and a user told "these match" while
+  // finding a diff in their working tree is owed the difference.
+  return [...new Set([...Object.keys(before), ...Object.keys(fresh)])]
+    .filter((name) => before[name] !== fresh[name])
+    .sort();
 }
 
 /** What is currently committed under `generated/`, file name → contents. */

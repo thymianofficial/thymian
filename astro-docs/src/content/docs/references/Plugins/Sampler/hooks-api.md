@@ -280,9 +280,13 @@ export const seedThenRead = beforeEach('GET /launches/{id} -> 200 (application/j
 });
 ```
 
-`args` overlays the generated request — `body`, `headers`, `query`, `path`,
-`cookies`. The response comes back as `{ statusCode, headers, body }`, with a
-JSON body already parsed and typed by the Selector you asked for.
+`args` **overlays** the generated request — `body`, `headers`, `query`, `path`,
+`cookies` — so every group is a partial and you write only what you care about.
+`utils.request(selector)` with no `args` at all sends the generated request. A
+body is _replaced_ rather than merged, so pass the whole body when you pass one.
+
+The response comes back as `{ statusCode, headers, body }`, with a JSON body
+already parsed and typed by the Selector you asked for.
 
 | Option      | Default           | Meaning                                                                                             |
 | ----------- | ----------------- | --------------------------------------------------------------------------------------------------- |

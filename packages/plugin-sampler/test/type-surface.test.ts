@@ -307,6 +307,84 @@ export const broadcast = beforeEach(
       expect(diagnostics).toEqual([]);
     });
 
+    it('accepts the seeding idiom the docs teach', async () => {
+      // Typing `args` as the full `req` made every one of these a compile
+      // error for an operation with a required body — which is the only kind
+      // anyone seeds with. `args` overlays the generated request, so each
+      // group is a Partial and the body is optional.
+      const diagnostics = await compileHook(
+        catalogOf(formatWithExamples()),
+        `import { beforeEach } from '@thymian/hooks';
+
+export const seed = beforeEach(${JSON.stringify(CREATE)}, async (request, ctx, utils) => {
+  await utils.request(${JSON.stringify(CREATE)}, {}, { authorize: true });
+  await utils.request(${JSON.stringify(CREATE)});
+  await utils.request(${JSON.stringify(CREATE)}, { headers: { 'x-a': 'b' } });
+  await utils.request(${JSON.stringify(CREATE)}, { body: { id: 'a1' } });
+});
+`,
+      );
+
+      expect(diagnostics).toEqual([]);
+    });
+
+    it('types the request the way the request actually is', async () => {
+      const diagnostics = await compileHook(
+        catalogOf(formatWithExamples()),
+        `import { beforeEach } from '@thymian/hooks';
+
+export const shape = beforeEach(${JSON.stringify(CREATE)}, (request) => {
+  // The path is the template, and assigning it is legitimate.
+  request.path = '/astronauts';
+  // Parameters live in their own groups.
+  request.pathParameters['id'] = 1;
+  request.query['limit'] = 3;
+  request.headers['x-trace'] = 'yes';
+  request.cookies['session'] = 'abc';
+  request.authorize = true;
+});
+`,
+      );
+
+      expect(diagnostics).toEqual([]);
+    });
+
+    it('rejects treating the path template as a parameter bag', async () => {
+      // This used to compile and then throw `Cannot create property 'id' on
+      // string` at run time — the compiler blessing the crash.
+      const diagnostics = await compileHook(
+        catalogOf(formatWithExamples()),
+        `import { beforeEach } from '@thymian/hooks';
+
+export const wrong = beforeEach(${JSON.stringify(CREATE)}, (request) => {
+  request.path.id = 'abc';
+});
+`,
+      );
+
+      expect(diagnostics).toHaveLength(1);
+      expect(diagnostics[0]?.line).toBe(4);
+    });
+
+    it('types the method with the casing a hook actually receives', async () => {
+      // Emitting the uppercase form made `request.method === 'post'` a compile
+      // error and `=== 'POST'` a comparison that is always false at run time,
+      // because the value is the description's own path-item key.
+      const diagnostics = await compileHook(
+        catalogOf(formatWithExamples()),
+        `import { beforeEach } from '@thymian/hooks';
+
+export const branch = beforeEach(${JSON.stringify(CREATE)}, (request, ctx, utils) => {
+  if (request.method === 'POST') {
+    utils.info('a POST');
+  }
+});
+`,
+      );
+
+      expect(diagnostics).toEqual([]);
+    });
+
     it('types utils.request by the selector it is given', async () => {
       const diagnostics = await compileHook(
         catalogOf(formatWithExamples()),
