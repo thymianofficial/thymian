@@ -3,6 +3,7 @@ import { createHttpRequest, createHttpResponse } from '@thymian/core-testing';
 import { afterEach, describe, expect, it } from 'vitest';
 
 import {
+  filterProblems,
   isTransactionFilter,
   matchesTransactionFilter,
 } from '../src/selectors/transaction-filter.js';
@@ -163,6 +164,21 @@ describe('TransactionFilter', () => {
     }
   });
 
+  it('matches a status class by its first digit, not a registry', () => {
+    const odd = formatOf([
+      { method: 'GET', path: '/teapot', status: 418 },
+      { method: 'GET', path: '/vendor', status: 499 },
+    ]);
+
+    // 418 and 499 are 4xx by arithmetic. Asking core's list of *registered*
+    // status codes instead silently dropped both.
+    expect(
+      odd
+        .getThymianHttpTransactions()
+        .filter((t) => matchesTransactionFilter({ statusClass: '4XX' }, t)),
+    ).toHaveLength(2);
+  });
+
   it('tells a filter apart from a selector and a list of them', () => {
     expect(isTransactionFilter({ path: '/v1/**' })).toBe(true);
     expect(isTransactionFilter({ not: { status: 404 } })).toBe(true);
@@ -173,6 +189,29 @@ describe('TransactionFilter', () => {
     // fault.
     expect(isTransactionFilter({})).toBe(false);
     expect(isTransactionFilter({ tag: 'admin' })).toBe(false);
+    // One known field is enough: a typo'd second key must be reported as a bad
+    // key, not as "this was never a filter".
+    expect(isTransactionFilter({ path: '/v1/**', tag: 'admin' })).toBe(true);
+  });
+
+  it('says what is wrong with a filter before asking what it matches', () => {
+    expect(filterProblems({ path: '/v1/**' })).toEqual([]);
+    expect(filterProblems({ statusClass: '4xx' })[0]).toContain(
+      '"statusClass" was given "4xx", but it takes a status class',
+    );
+    expect(filterProblems({ status: '404' } as never)[0]).toContain(
+      '"status" was given "404", but it takes a status code, as a number',
+    );
+    expect(filterProblems({ method: 42 } as never)[0]).toContain(
+      '"method" was given 42, but it takes an HTTP method',
+    );
+    expect(filterProblems({ path: '/v1/**', tag: 'x' } as never)[0]).toContain(
+      '"tag" is not a filter field',
+    );
+    // One level deep, and reported as such.
+    expect(
+      filterProblems({ path: '/v1/**', not: { status: 4040.5 } as never })[0],
+    ).toContain('inside "not": "status" was given 4040.5');
   });
 });
 
@@ -380,6 +419,129 @@ export const impossible = beforeEach(
 
     expect(suggestions).toContain('intersect no transaction');
     expect(suggestions).toContain('impossible.ts');
+  });
+
+  it('calls a wildcard-bearing value a glob, whole-segment or not', async () => {
+    const harness = await sampler();
+
+    // `/v1/launch*` is a glob the user wrote — `PathGlob` accepts it and the
+    // grammar makes `launch*` a literal segment, so it names nothing. Telling
+    // that user no path is *spelled* `/v1/launch*` is true and useless.
+    await harness.writeHook(
+      'partial.ts',
+      `import { beforeEach } from '@thymian/hooks';
+
+export const partial = beforeEach({ path: '/v1/launch*' }, () => {});
+`,
+    );
+
+    let error: unknown;
+
+    try {
+      await harness.loadFormat(FIXTURE);
+    } catch (e) {
+      error = e;
+    }
+
+    expect(
+      (
+        (error as { options?: { suggestions?: string[] } }).options
+          ?.suggestions ?? []
+      ).join('\n'),
+    ).toContain('the path glob "/v1/launch*", which matches no path');
+  });
+
+  it('reports a bad filter value as a bad value, not as an empty match', async () => {
+    const harness = await sampler();
+
+    await harness.writeHook(
+      'typo.ts',
+      `import { beforeEach } from '@thymian/hooks';
+
+export const typo = beforeEach({ statusClass: '4xx' }, () => {});
+`,
+    );
+
+    let error: unknown;
+
+    try {
+      await harness.loadFormat(FIXTURE);
+    } catch (e) {
+      error = e;
+    }
+
+    const suggestions = (
+      (error as { options?: { suggestions?: string[] } }).options
+        ?.suggestions ?? []
+    ).join('\n');
+
+    expect(suggestions).toContain('a filter that cannot mean anything');
+    expect(suggestions).toContain('"statusClass" was given "4xx"');
+    expect(suggestions).not.toContain('intersect no transaction');
+  });
+
+  it('counts hooks, not diagnostics, when one hook has two bad globs', async () => {
+    const harness = await sampler();
+
+    await harness.writeHook(
+      'two.ts',
+      `import { beforeEach } from '@thymian/hooks';
+
+export const two = beforeEach(
+  { path: ['/v1/nope/**', '/v1/also-nope/**'] },
+  () => {},
+);
+`,
+    );
+
+    let error: unknown;
+
+    try {
+      await harness.loadFormat(FIXTURE);
+    } catch (e) {
+      error = e;
+    }
+
+    expect((error as Error | undefined)?.message).toContain(
+      '1 sampler hook does not resolve',
+    );
+  });
+
+  it('targets defineSample and authorize by filter too', async () => {
+    const harness = await sampler();
+
+    await harness.writeHook(
+      'both.ts',
+      `import { authorize, defineSample } from '@thymian/hooks';
+
+export const shape = defineSample({ path: '/v1/admin/**' }, (draft) => {
+  draft.headers['x-shaped'] = 'yes';
+});
+
+export const creds = authorize({ statusClass: '2XX' }, (request) => {
+  request.headers['authorization'] = 'targeted-by-filter';
+});
+`,
+    );
+
+    await harness.loadFormat(FIXTURE);
+
+    expect(
+      (
+        await harness.sample(
+          transactionIdOf('GET', '/v1/admin/users', 200),
+          FIXTURE,
+        )
+      ).headers['x-shaped'],
+    ).toBe('yes');
+    expect(
+      (
+        await harness.authorize(
+          transactionIdOf('GET', '/v1/launches', 200),
+          FIXTURE,
+        )
+      ).result.headers['authorization'],
+    ).toBe('targeted-by-filter');
   });
 
   it('reports an exact path nothing is spelled as, differently from a glob', async () => {

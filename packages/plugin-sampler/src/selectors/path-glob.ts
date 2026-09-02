@@ -125,9 +125,13 @@ export function matchesPathGlob(glob: string, path: string): boolean {
  * Only used for the wording of a diagnostic: an exact path that names nothing
  * and a glob that names nothing are the same fault, but "no path is spelled
  * that way" and "that glob matches nothing" are not the same sentence.
+ *
+ * Any `*` counts, not only a whole-segment one. `/v1/launch*` is a glob the
+ * user wrote — `PathGlob` accepts it and the grammar says so — it is just a
+ * glob that names nothing, because decision 1 makes `launch*` a literal
+ * segment. Testing for a whole-segment `*` instead told that user no path was
+ * *spelled* `/v1/launch*`, which is true and unhelpful.
  */
 export function hasWildcard(value: string): boolean {
-  return value
-    .split('/')
-    .some((segment) => segment === '*' || segment === '**');
+  return value.includes('*');
 }
