@@ -3,6 +3,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
 import {
+  type HttpRequest,
   type HttpRequestTemplate,
   type HttpResponse,
   type HttpTestHooks,
@@ -14,6 +15,12 @@ import { createSilentMockLogger } from '@thymian/core-testing';
 import { samplePlugin, type SamplerPluginOptions } from '../src/index.js';
 import { resolveSamplerPaths } from '../src/sampler-paths.js';
 
+/** One request the harness answered, and with what. */
+export type DispatchedRequest = {
+  request: HttpRequest;
+  response: HttpResponse;
+};
+
 export type SamplerHarness = {
   /** The emitter the plugin is registered on. */
   emitter: ThymianEmitter;
@@ -21,6 +28,13 @@ export type SamplerHarness = {
   cwd: string;
   /** The sampler hooks directory inside {@link cwd}. */
   hooksDir: string;
+  /** Every request the plugin put on the wire, in order. */
+  dispatched: DispatchedRequest[];
+  /**
+   * What to answer the next request with. Consumed in order; when it runs out,
+   * an empty 200 is returned.
+   */
+  responses: Partial<HttpResponse>[];
   /**
    * Write a hook file, exactly as a user would: a real file under the hooks
    * directory, importing `@thymian/hooks`, with nothing else set up.
@@ -91,6 +105,27 @@ export async function startSampler(
     { timeout: 30_000 },
   );
 
+  const dispatched: DispatchedRequest[] = [];
+  const responses: Partial<HttpResponse>[] = [];
+
+  // The dispatcher the sampler talks to, standing in for
+  // `@thymian/plugin-request-dispatcher`. Registered here so a nested
+  // `utils.request` has somewhere to send to and the test can see what it sent.
+  emitter.onAction('core.request.dispatch', ({ request }, ctx) => {
+    const response: HttpResponse = {
+      statusCode: 200,
+      headers: { 'content-type': 'application/json' },
+      body: '{}',
+      trailers: {},
+      duration: 0,
+      ...responses.shift(),
+    };
+
+    dispatched.push({ request, response });
+
+    ctx.reply(response);
+  });
+
   await samplePlugin.plugin(emitter, createSilentMockLogger(), {
     ...options,
     cwd,
@@ -102,6 +137,8 @@ export async function startSampler(
     emitter,
     cwd,
     hooksDir: paths.hooksDir,
+    dispatched,
+    responses,
     async writeHook(relativePath, source) {
       const target = join(paths.hooksDir, relativePath);
 

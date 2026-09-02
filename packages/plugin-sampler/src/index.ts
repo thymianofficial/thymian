@@ -86,7 +86,16 @@ export const samplePlugin: ThymianPlugin<Partial<SamplerPluginOptions>> = {
     const paths = resolveSamplerPaths(options.cwd, options.path);
 
     const requestSampler = new RequestSampler();
-    const hookRunner = new HookRunner(logger);
+    const hookRunner = new HookRunner(logger, {
+      sampleRequest: async (transaction) =>
+        await requestSampler.sampleForTransaction(transaction, emitter),
+      dispatch: async (request) =>
+        await emitter.emitAction(
+          'core.request.dispatch',
+          { request },
+          { strategy: 'first' },
+        ),
+    });
 
     let catalog = TransactionCatalog.fromThymianFormat(new ThymianFormat());
 
@@ -115,7 +124,7 @@ export const samplePlugin: ThymianPlugin<Partial<SamplerPluginOptions>> = {
         logger.warn(warning);
       }
 
-      hookRunner.load(format, hooks);
+      hookRunner.load(format, catalog, hooks);
       // After the hooks, because the sampler asks the runner to shape each
       // draft with its `defineSample` hook.
       await requestSampler.load(format, emitter, hookRunner.shapeSample);
