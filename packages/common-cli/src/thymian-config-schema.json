@@ -135,7 +135,7 @@
     },
     "rules": {
       "type": "object",
-      "description": "Per-rule configuration/overrides. Each key is a rule ID. The value can be a severity string (`off | error | warn | hint`) or a rule config object.",
+      "description": "Per-rule configuration/overrides. Each key is a rule ID. The value can be a severity string (`off | error | warn | hint`) or a rule config object with `severity`, `type`, `skipOrigins`, and `options` fields.",
       "default": {},
       "additionalProperties": {
         "oneOf": [
@@ -153,6 +153,16 @@
                 "type": "string",
                 "enum": ["error", "warn", "hint", "off"],
                 "description": "Override the rule severity."
+              },
+              "type": {
+                "type": "array",
+                "minItems": 1,
+                "uniqueItems": true,
+                "items": {
+                  "type": "string",
+                  "enum": ["static", "analytics", "test", "informational"]
+                },
+                "description": "The validation contexts this rule runs in, replacing the contexts the rule declares. `static` runs it in `thymian lint`, `analytics` in `thymian analyze`, `test` in `thymian test`. `informational` must be the only entry: it stops the rule executing while keeping it documented."
               },
               "options": {
                 "type": "object",
