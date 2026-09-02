@@ -109,16 +109,22 @@ describe('selector rendering', () => {
     }
   });
 
-  it('percent-encodes only what would collide with the grammar', () => {
-    expect(encodePath('/a b')).toBe('/a%20b');
-    expect(encodePath('/a->b')).toBe('/a-%3Eb');
-    // Everything else survives: braces, parentheses, existing encoding, a
-    // trailing slash and a base path.
+  it('quotes only what the bare form cannot carry', () => {
+    expect(encodePath('/a b')).toBe('"/a b"');
+    expect(encodePath('/a->b')).toBe('"/a->b"');
+    // Everything else survives bare: braces, parentheses, existing
+    // percent-encoding, a trailing slash and a base path.
     expect(encodePath('/v1/users/{userId}/(x)/a%20b/')).toBe(
       '/v1/users/{userId}/(x)/a%20b/',
     );
-    expect(encodeMethod('GE T')).toBe('GE%20T');
+    expect(encodeMethod('GE T')).toBe('"GE T"');
     expect(encodeMethod('report')).toBe('REPORT');
+  });
+
+  it('keeps an already-encoded path distinct from a raw one', () => {
+    // The reason quoting replaced percent-encoding: `%20` and a raw space would
+    // otherwise render the same string for two different transactions.
+    expect(encodePath('/a%20b')).not.toBe(encodePath('/a b'));
   });
 
   it('preserves quoted-string media parameters, parentheses included', () => {
@@ -128,7 +134,7 @@ describe('selector rendering', () => {
     // A bare parenthesis is not a legal token character, so it is escaped
     // rather than allowed to shadow a media group delimiter.
     expect(encodeMediaType('text/plain; format=a(b)')).toBe(
-      'text/plain; format=a%28b%29',
+      'text/plain; format=a\\(b\\)',
     );
   });
 });
@@ -197,5 +203,133 @@ describe('selector ordering', () => {
 
     expect([...sorted].reverse().sort(compareSelectors)).toEqual(sorted);
     expect(compareSelectors('GET /a -> 200', 'GET /a -> 200')).toBe(0);
+  });
+});
+
+/**
+ * The property the spec states as "rendering is total and injective": every
+ * transaction renders, every rendering parses back to what it came from, and no
+ * two distinct transactions share a rendering.
+ */
+describe('rendering is total and injective', () => {
+  const methods = ['GET', 'get', 'REPORT', 'GE T', 'M\nX', '"Q"'];
+  const paths = [
+    '/launches',
+    'launches',
+    '/a b',
+    '/a->b',
+    '/a%20b',
+    '/tags/{name}',
+    '/(x)/y',
+    '/quote"inside',
+    '"/starts-with-quote',
+    '/back\\slash',
+    '/nl\nhere',
+    '/',
+  ];
+  const mediaTypes = [
+    '',
+    'application/json',
+    'text/plain; charset=utf-8',
+    'text/plain; format="a(b)"',
+    'text/plain; format="a) b"',
+    'text/plain; format=a(b)',
+    'text/plain; unbalanced="quote',
+    'text/plain; back\\slash',
+    'text/plain; nl\nhere',
+    'application/vnd.thymian+json; version=1',
+  ];
+  const statuses = [200, 204, 599, 0, Number.NaN, 1.5];
+
+  function render(
+    method: string,
+    path: string,
+    requestMediaType: string,
+    status: number,
+    responseMediaType: string,
+  ): string {
+    return formatSelector(
+      { ...createHttpRequest({ method, path }), mediaType: requestMediaType },
+      {
+        ...createHttpResponse(),
+        statusCode: status,
+        mediaType: responseMediaType,
+      },
+    );
+  }
+
+  it('parses every rendering back to its normalized components', () => {
+    for (const method of methods) {
+      for (const path of paths) {
+        for (const requestMediaType of mediaTypes) {
+          for (const status of statuses) {
+            for (const responseMediaType of mediaTypes) {
+              const selector = render(
+                method,
+                path,
+                requestMediaType,
+                status,
+                responseMediaType,
+              );
+
+              expect(isSelector(selector), selector).toBe(true);
+
+              const parsed = parseSelector(selector);
+
+              expect(parsed.method, selector).toBe(method.toUpperCase());
+              expect(parsed.path, selector).toBe(
+                path.startsWith('/') ? path : `/${path}`,
+              );
+              expect(parsed.requestMediaType ?? '', selector).toBe(
+                requestMediaType,
+              );
+              expect(parsed.responseMediaType ?? '', selector).toBe(
+                responseMediaType,
+              );
+              expect(String(parsed.status), selector).toBe(String(status));
+            }
+          }
+        }
+      }
+    }
+  });
+
+  it('never renders two distinct transactions the same way', () => {
+    const seen = new Map<string, string>();
+
+    for (const method of methods) {
+      for (const path of paths) {
+        for (const requestMediaType of mediaTypes) {
+          for (const status of statuses) {
+            for (const responseMediaType of mediaTypes) {
+              // The two canonicalizations rendering performs on purpose: a
+              // missing leading slash and method case. Distinct inputs there
+              // are the same path and the same method.
+              const identity = JSON.stringify([
+                method.toUpperCase(),
+                path.startsWith('/') ? path : `/${path}`,
+                requestMediaType,
+                String(status),
+                responseMediaType,
+              ]);
+              const selector = render(
+                method,
+                path,
+                requestMediaType,
+                status,
+                responseMediaType,
+              );
+              const previous = seen.get(selector);
+
+              if (previous !== undefined) {
+                expect(previous, `collision on ${selector}`).toBe(identity);
+              }
+
+              seen.set(selector, identity);
+            }
+          }
+        }
+      }
+    }
   });
 });
