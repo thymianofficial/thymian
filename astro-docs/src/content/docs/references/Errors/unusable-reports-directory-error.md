@@ -14,8 +14,8 @@ Common reasons:
 - A regular file already occupies the path, or one of its parents (`ENOTDIR`).
 - `reportsDir` points somewhere that does not exist and cannot be created.
 
-This used to be a warning on stderr and an exit code of `0`: the run looked green, and a CI step
-globbing the report files simply found nothing. It is a hard failure now.
+This used to be one logged line on stderr and an exit code of `0`: the run looked green, and a CI
+step globbing the report files simply found nothing. It is a hard failure now.
 
 ## The Solution
 
@@ -50,6 +50,7 @@ plugins:
       formatters: {}
 ```
 
-Note that a failure _while_ a report is being written stays a logged warning rather than an error.
-By then the findings already exist, and losing them would be worse than an incomplete file. Only
-this up-front check fails the run.
+Note that a failure _while_ a report is being written is logged as an error on stderr but does not
+fail the run: the exit code still reflects the findings, not the write. By then the findings already
+exist, and losing them would be worse than an incomplete file. Only this up-front check fails the
+run.

@@ -133,16 +133,22 @@ export function defaultRunDirectoryName(report: Report | undefined): string {
  * options schema rejects it up front (`minLength: 1`); this is the second
  * layer, for callers that construct a formatter directly.
  *
+ * `null` counts as unset too, and cannot be rejected up front: Ajv's
+ * `JSONSchemaType` requires `nullable: true` on every optional property, so the
+ * plugin's schema admits `null` — which is exactly what a YAML `reportsDir:`
+ * with no value parses to. The plugin normalizes it away at its own boundary;
+ * this stays total so a direct caller cannot trip over it either.
+ *
  * Shared by {@link resolveReportPath} and the reporter plugin's registration
  * time precondition check, so the directory that is verified writable is
  * exactly the directory that is later written to.
  */
 export function resolveReportsBaseDirectory(
   cwd: string,
-  reportsDir: string | undefined,
+  reportsDir: string | null | undefined,
 ): string {
   const base =
-    reportsDir !== undefined && reportsDir.trim() !== ''
+    typeof reportsDir === 'string' && reportsDir.trim() !== ''
       ? reportsDir
       : DEFAULT_REPORT_DIRECTORY;
 
@@ -165,7 +171,7 @@ export function resolveReportsBaseDirectory(
  */
 export function resolveReportPath(
   cwd: string,
-  reportsDir: string | undefined,
+  reportsDir: string | null | undefined,
   report: Report | undefined,
   extension: string,
 ): string {

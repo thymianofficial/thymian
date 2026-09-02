@@ -8,9 +8,11 @@ import { CsvFormatter } from '../src/formatters/csv.js';
 import { JsonFormatter } from '../src/formatters/json.js';
 import { MarkdownFormatter } from '../src/formatters/markdown.js';
 import {
+  DEFAULT_REPORT_DIRECTORY,
   defaultRunDirectoryName,
   REPORT_BASENAME,
   resolveReportPath,
+  resolveReportsBaseDirectory,
 } from '../src/report-file-name.js';
 
 /**
@@ -231,6 +233,20 @@ describe('resolveReportPath', () => {
 
     expect(resolveReportPath('/base', '', report, 'md')).toBe(fallback);
     expect(resolveReportPath('/base', '   ', report, 'md')).toBe(fallback);
+  });
+
+  it('treats a null reportsDir as unset instead of throwing', () => {
+    // `reportsDir:` with no value in YAML parses to null, and the options
+    // schema cannot reject it — Ajv requires `nullable: true` on an optional
+    // property. Resolving it used to throw on `null.trim()`, taking plugin
+    // registration down with a raw TypeError before the base directory
+    // precondition ever ran.
+    const fallback = resolveReportPath('/base', undefined, report, 'md');
+
+    expect(resolveReportPath('/base', null, report, 'md')).toBe(fallback);
+    expect(resolveReportsBaseDirectory('/base', null)).toBe(
+      resolve('/base', DEFAULT_REPORT_DIRECTORY),
+    );
   });
 });
 

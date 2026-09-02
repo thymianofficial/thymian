@@ -18,8 +18,12 @@ export type ReporterPluginOptions = {
    * Base directory every report's own run directory is created under. A
    * relative path resolves against the run's `cwd`, an absolute one is used
    * as-is. Defaults to `.thymian/reports`.
+   *
+   * `null` means unset, exactly like omitting the option: an optional property
+   * in an Ajv `JSONSchemaType` must be declared `nullable: true`, and a YAML
+   * `reportsDir:` with no value parses to `null` rather than to a string.
    */
-  reportsDir?: string;
+  reportsDir?: string | null;
 };
 
 export const reporterPlugin: ThymianPlugin<ReporterPluginOptions> = {
@@ -92,6 +96,12 @@ export const reporterPlugin: ThymianPlugin<ReporterPluginOptions> = {
       }).filter(([, options]) => options != null),
     ) as Formatters;
 
+    // `null` is what a YAML `reportsDir:` with no value parses to, and the
+    // schema has to admit it (an optional property must be `nullable: true`).
+    // It means "unset" — normalized once, here, so nothing downstream has to
+    // know that the option can arrive as anything but a string.
+    const reportsBase = reportsDir ?? undefined;
+
     let hasFlushed = false;
     // One plugin instance serves the whole session, so `serve` keeps a single
     // set of formatters for every workflow it runs. Each formatter resolves a
@@ -102,7 +112,7 @@ export const reporterPlugin: ThymianPlugin<ReporterPluginOptions> = {
       cwd,
       logger,
       sortReportsBy,
-      reportsDir,
+      reportsBase,
     );
 
     const flushReporters = async (): Promise<void> => {

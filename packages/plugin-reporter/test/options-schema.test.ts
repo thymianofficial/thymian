@@ -1,3 +1,8 @@
+import { mkdtemp, rm, stat } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+
+import { NoopLogger, ThymianEmitter } from '@thymian/core';
 import { ajv, validate } from '@thymian/core/ajv';
 import { describe, expect, it } from 'vitest';
 
@@ -62,6 +67,38 @@ describe('reporter plugin options schema', () => {
     // directory itself, dropping timestamped run directories into the user's
     // project root. It fails config validation now.
     expect(isValid({ reportsDir: '' })).toBe(false);
+  });
+
+  it('accepts a null reportsDir, which is what a bare YAML key parses to', () => {
+    // Not a choice: Ajv's `JSONSchemaType` requires `nullable: true` on every
+    // optional property, so `reportsDir: null` validates whatever the schema
+    // says about strings — `minLength` only constrains strings. The plugin
+    // therefore has to read null as "unset"; see below.
+    expect(isValid({ reportsDir: null, formatters: { markdown: {} } })).toBe(
+      true,
+    );
+  });
+
+  it('registers with the null reportsDir the schema admits', async () => {
+    // The boundary the schema leaves open: null used to reach
+    // `resolveReportsBaseDirectory` and throw a raw TypeError, so registration
+    // crashed instead of falling back to the default base.
+    const cwd = await mkdtemp(join(tmpdir(), 'thymian-null-reports-dir-'));
+
+    try {
+      await reporterPlugin.plugin(new ThymianEmitter(), new NoopLogger(), {
+        cwd,
+        reportsDir: null,
+        formatters: { markdown: {} },
+      });
+
+      const base = await stat(join(cwd, '.thymian', 'reports'));
+
+      // Normalized to unset, so the precondition created the default base.
+      expect(base.isDirectory()).toBe(true);
+    } finally {
+      await rm(cwd, { recursive: true, force: true });
+    }
   });
 
   it('rejects reportsDir nested under a formatter', () => {

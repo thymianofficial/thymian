@@ -250,6 +250,10 @@ one formatter is configured. A base directory it cannot create fails the run wit
 letting a green run produce no files. With `formatters: {}` nothing is checked and no directory is
 created.
 
+A failure _while_ a report is being written is deliberately different: it is logged as an error on
+stderr and leaves that one file missing, but it does not fail the run. The findings already exist by
+then, so an incomplete report beats losing them.
+
 ### When to use the Markdown formatter
 
 Pick `markdown` when a person or AI agent reads the result — in a pull request, a CI job summary, or locally:
