@@ -69,6 +69,9 @@ describe('thymian sampler show', () => {
     });
 
     expect(result.exitCode).not.toBe(0);
-    expect(result.output).toContain('is not a valid transaction selector');
+    // The CLI wraps long lines, so assert on a fragment that cannot straddle a
+    // line break rather than on the whole sentence.
+    expect(result.output).toContain('is not a valid transaction');
+    expect(result.output).toContain('Write a selector as METHOD');
   }, 180_000);
 });
