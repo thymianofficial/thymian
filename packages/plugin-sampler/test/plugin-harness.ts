@@ -59,6 +59,11 @@ export type SamplerHarness = {
     selector: string;
     request: HttpRequestTemplate;
   }>;
+  /** Run the `authorize` seam for one transaction, as the tester does. */
+  authorize(
+    transactionId: string,
+    format: ThymianFormat,
+  ): Promise<HttpTestHooks['authorize']['return']>;
   /** Close the run, exactly as the CLI does when a command finishes. */
   close(): Promise<void>;
   dispose(): Promise<void>;
@@ -160,6 +165,22 @@ export async function startSampler(
             } as never,
             thymianTransaction: transaction,
           },
+        },
+        { strategy: 'first' },
+      );
+    },
+    async authorize(transactionId, format) {
+      const transaction = format.getThymianHttpTransactionById(transactionId);
+
+      if (!transaction) {
+        throw new Error(`No transaction ${transactionId} in this format.`);
+      }
+
+      return await emitter.emitAction(
+        'http-testing.authorize',
+        {
+          value: await harness.sample(transactionId, format),
+          ctx: transaction,
         },
         { strategy: 'first' },
       );
