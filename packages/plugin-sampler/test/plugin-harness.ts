@@ -14,6 +14,7 @@ import { createSilentMockLogger } from '@thymian/core-testing';
 
 import { samplePlugin, type SamplerPluginOptions } from '../src/index.js';
 import { resolveSamplerPaths } from '../src/sampler-paths.js';
+import type { ValidationReport } from '../src/validation/validate-sampler.js';
 
 /** One request the harness answered, and with what. */
 export type DispatchedRequest = {
@@ -42,6 +43,15 @@ export type SamplerHarness = {
   writeHook(relativePath: string, source: string): Promise<void>;
   /** Publish a format to the plugin, exactly as `thymian test` does. */
   loadFormat(format: ThymianFormat): Promise<void>;
+  /**
+   * Publish a format and then ask for the first request, which is what makes a
+   * command a *run*.
+   *
+   * The sampler refuses to start a run while a hook does not resolve, and it
+   * refuses *here* rather than when the format arrives — `sampler validate` has
+   * to survive publishing in order to report every unresolved hook at once.
+   */
+  beginRun(format: ThymianFormat): Promise<void>;
   /** Ask for the freshly projected request template of one transaction. */
   sample(
     transactionId: string,
@@ -85,6 +95,10 @@ export type SamplerHarness = {
     tsconfig: 'written' | 'kept';
     rootExcludeNote: string[];
   }>;
+  /** What `sampler sync` does, and reports. */
+  sync(check?: boolean): Promise<{ changed: string[]; wrote: boolean }>;
+  /** What `sampler validate` reports. */
+  validate(): Promise<ValidationReport>;
   /** Close the run, as core does when a command finishes. */
   close(): Promise<void>;
   dispose(): Promise<void>;
@@ -156,6 +170,17 @@ export async function startSampler(
       await emitter.emitAction('core.format', format.export(), {
         strategy: 'first',
       });
+    },
+    async beginRun(format) {
+      await harness.loadFormat(format);
+
+      const [transaction] = format.getThymianHttpTransactions();
+
+      if (!transaction) {
+        throw new Error('this format has no transaction to run');
+      }
+
+      await harness.sample(transaction.transactionId, format);
     },
     async sample(transactionId, format) {
       const transaction = format.getThymianHttpTransactionById(transactionId);
@@ -248,6 +273,20 @@ export async function startSampler(
     async init() {
       return await emitter.emitAction(
         'sampler.init',
+        {},
+        { strategy: 'first' },
+      );
+    },
+    async sync(check = false) {
+      return await emitter.emitAction(
+        'sampler.sync',
+        { check },
+        { strategy: 'first' },
+      );
+    },
+    async validate() {
+      return await emitter.emitAction(
+        'sampler.validate',
         {},
         { strategy: 'first' },
       );

@@ -342,7 +342,7 @@ export const typo = beforeEach({ path: '/v1/admins/**' }, () => {});
     let error: unknown;
 
     try {
-      await harness.loadFormat(FIXTURE);
+      await harness.beginRun(FIXTURE);
     } catch (e) {
       error = e;
     }
@@ -377,7 +377,7 @@ export const typo = beforeEach(
     let error: unknown;
 
     try {
-      await harness.loadFormat(FIXTURE);
+      await harness.beginRun(FIXTURE);
     } catch (e) {
       error = e;
     }
@@ -407,7 +407,7 @@ export const impossible = beforeEach(
     let error: unknown;
 
     try {
-      await harness.loadFormat(FIXTURE);
+      await harness.beginRun(FIXTURE);
     } catch (e) {
       error = e;
     }
@@ -438,7 +438,7 @@ export const partial = beforeEach({ path: '/v1/launch*' }, () => {});
     let error: unknown;
 
     try {
-      await harness.loadFormat(FIXTURE);
+      await harness.beginRun(FIXTURE);
     } catch (e) {
       error = e;
     }
@@ -465,7 +465,7 @@ export const typo = beforeEach({ statusClass: '4xx' }, () => {});
     let error: unknown;
 
     try {
-      await harness.loadFormat(FIXTURE);
+      await harness.beginRun(FIXTURE);
     } catch (e) {
       error = e;
     }
@@ -497,7 +497,7 @@ export const two = beforeEach(
     let error: unknown;
 
     try {
-      await harness.loadFormat(FIXTURE);
+      await harness.beginRun(FIXTURE);
     } catch (e) {
       error = e;
     }
@@ -558,7 +558,7 @@ export const typo = beforeEach({ path: '/v1/launch' }, () => {});
     let error: unknown;
 
     try {
-      await harness.loadFormat(FIXTURE);
+      await harness.beginRun(FIXTURE);
     } catch (e) {
       error = e;
     }
