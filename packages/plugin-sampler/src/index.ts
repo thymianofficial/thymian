@@ -7,9 +7,12 @@ import {
 } from '@thymian/core';
 import type {} from '@thymian/plugin-request-dispatcher';
 
+import { unresolvedHooksError } from './hooks/hook-diagnostics.js';
 import { HookRunner } from './hooks/hook-runner.js';
+import { loadUserHooks } from './hooks/load-user-hooks.js';
 import { requestSampleToRequestTemplate } from './request-sample-to-request-template.js';
 import { RequestSampler } from './request-sampler.js';
+import { resolveSamplerPaths } from './sampler-paths.js';
 import { TransactionCatalog } from './selectors/transaction-catalog.js';
 
 declare module '@thymian/core' {
@@ -63,11 +66,7 @@ export const samplePlugin: ThymianPlugin<Partial<SamplerPluginOptions>> = {
     },
   },
   plugin: async (emitter, logger, options) => {
-    // `path` is carried unresolved: in v1 it named the samples tree, which no
-    // longer exists, and the sampler root it will name instead is introduced
-    // together with the commands that write there. Reading it here would only
-    // resolve a directory nothing touches.
-    void options;
+    const paths = resolveSamplerPaths(options.cwd, options.path);
 
     const requestSampler = new RequestSampler();
     const hookRunner = new HookRunner(async (request) => {
@@ -92,10 +91,21 @@ export const samplePlugin: ThymianPlugin<Partial<SamplerPluginOptions>> = {
       catalog = TransactionCatalog.fromThymianFormat(format);
 
       await requestSampler.load(format, emitter);
-      hookRunner.load(format);
+
+      const hooks = await loadUserHooks(paths.hooksDir, catalog);
+
+      // A hook that does not resolve fails the run fast, before a single
+      // request is sent: a dangling Selector is the signal that the description
+      // moved, and running the rest of the suite as if nothing happened is what
+      // the compiler-as-drift-oracle design exists to prevent.
+      if (hooks.diagnostics.length > 0) {
+        throw unresolvedHooksError(hooks.diagnostics);
+      }
+
+      hookRunner.load(format, hooks);
 
       logger.debug(
-        `Catalogued ${catalog.size} transactions and projected their request samples.`,
+        `Catalogued ${catalog.size} transactions, projected their request samples and loaded ${hooks.files.length} hook file(s) from ${paths.hooksDir}.`,
       );
 
       ctx.reply();
