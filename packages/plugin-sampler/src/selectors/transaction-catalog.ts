@@ -31,7 +31,6 @@ export type TransactionCatalogEntry = readonly [
 export class TransactionCatalog {
   private constructor(
     private readonly bySelector: Map<Selector, ThymianHttpTransaction>,
-    private readonly selectorByTransactionId: Map<string, Selector>,
     private readonly orderedEntries: readonly TransactionCatalogEntry[],
   ) {}
 
@@ -39,13 +38,15 @@ export class TransactionCatalog {
    * One pass over `format.getThymianHttpTransactions()`, then a sort.
    *
    * @throws `SelectorCollisionError` as soon as two transactions render the same
-   * selector. That is the only hard error here: rendering is total, so no
-   * description can make catalog construction impossible — only an ambiguous one
-   * can, and an ambiguity must not be resolved silently.
+   * selector. That is the only hard error here. Rendering is total and
+   * injective, so no description can make catalog construction impossible and no
+   * two *distinct* transactions can collide by accident of encoding: a collision
+   * means two sources describe the same method, path, status and media types,
+   * and a selector is host-stripped, so nothing distinguishes them. Silently
+   * picking one would make a hook target whichever load order won.
    */
   static fromThymianFormat(format: ThymianFormat): TransactionCatalog {
     const bySelector = new Map<Selector, ThymianHttpTransaction>();
-    const selectorByTransactionId = new Map<string, Selector>();
 
     for (const transaction of format.getThymianHttpTransactions()) {
       const selector = selectorForTransaction(transaction);
@@ -56,18 +57,13 @@ export class TransactionCatalog {
       }
 
       bySelector.set(selector, transaction);
-      selectorByTransactionId.set(transaction.transactionId, selector);
     }
 
     const orderedEntries: TransactionCatalogEntry[] = [...bySelector.entries()]
       .sort(([a], [b]) => compareSelectors(a, b))
       .map(([selector, transaction]) => [selector, transaction] as const);
 
-    return new TransactionCatalog(
-      bySelector,
-      selectorByTransactionId,
-      orderedEntries,
-    );
+    return new TransactionCatalog(bySelector, orderedEntries);
   }
 
   get size(): number {
@@ -87,10 +83,6 @@ export class TransactionCatalog {
 
   entries(): readonly TransactionCatalogEntry[] {
     return this.orderedEntries;
-  }
-
-  selectorFor(transactionId: string): Selector | undefined {
-    return this.selectorByTransactionId.get(transactionId);
   }
 
   /** Never throws. Use where a miss is an expected outcome. */

@@ -1,4 +1,5 @@
 import { BaseCliRunCommand, oclif } from '@thymian/common-cli';
+import { Args } from '@thymian/common-cli/oclif';
 
 export default class Show extends BaseCliRunCommand<typeof Show> {
   static override enableJsonFlag = true;
@@ -12,14 +13,14 @@ export default class Show extends BaseCliRunCommand<typeof Show> {
   ];
 
   static override args = {
-    selector: oclif.Args.string({
+    selector: Args.string({
       required: true,
       description:
         'The transaction selector, as METHOD path [(requestMediaType)] -> status [(responseMediaType)].',
     }),
   };
 
-  async run(): Promise<unknown> {
+  override async run(): Promise<unknown> {
     return this.thymian.run(async (emitter) => {
       await this.thymian.loadFormat(
         {
