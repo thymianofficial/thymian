@@ -1,434 +1,384 @@
 ---
 title: Hooks API Reference
-description: Complete reference for the hooks utilities API provided to every hook function.
+description: Complete reference for the sampler's hook authoring API — selectors, filters, hook kinds and the utils every hook is handed.
 ---
 
-Complete reference for the hooks utilities API provided to every hook function.
+Everything a hook file can import from `@thymian/hooks`.
 
-## Hook Signatures
+Samples are not files. The sampler projects a request for every Transaction in
+your API description, in memory, on every run — so there is nothing on disk to
+edit and nothing that can go stale. What you own is the hooks, and each one is
+anchored to a **Selector**.
 
-### BeforeEachRequestHook
+## Selectors
 
-Modifies requests before they are sent.
+A Selector is the address of exactly one Transaction:
 
-```typescript
-import { BeforeEachRequestHook } from '@thymian/hooks';
-
-const hook: BeforeEachRequestHook = async (request, context, utils) => {
-  // Modify request
-  return request;
-};
-
-export default hook;
+```
+METHOD path [(requestMediaType)] -> status [(responseMediaType)]
 ```
 
-**Parameters:**
-
-- `request`: `HttpRequestTemplate` - The request to be sent
-- `context`: `ThymianHttpTransaction` - Information about the current transaction
-- `utils`: `HookUtils` - Utility functions
-
-**Returns:** `HttpRequestTemplate` - The modified request
-
-### AuthorizeHook
-
-Adds authentication credentials to requests.
-
-```typescript
-import { AuthorizeHook } from '@thymian/hooks';
-
-const hook: AuthorizeHook = async (request, context, utils) => {
-  // Add authentication
-  return request;
-};
-
-export default hook;
+```
+GET /launches -> 200 (application/json)
+POST /astronauts (application/json) -> 201 (application/json)
+DELETE /astronauts/{id} -> 204
 ```
 
-**Parameters:**
+- **Host-stripped.** Changing the server URL in your description does not touch
+  a Selector.
+- **Media-qualified whenever a media type is declared** — not only when there is
+  a body. A `content:` entry that names a media type but carries no schema still
+  gets its own Selector and its own media part.
+- **Fully qualified by construction.** Adding a status code or a media type to
+  your description creates new Selectors; it never silently changes what an
+  existing one points at.
+- **Path templates, verbatim.** `{id}` is spelled the way the description spells
+  it.
 
-- `request`: `HttpRequestTemplate` - The request to be sent
-- `context`: `ThymianHttpTransaction` - Information about the current transaction
-- `utils`: `HookUtils` - Utility functions
+A component the grammar cannot carry bare is quoted — a path containing a space,
+for example, renders as `GET "/a b" -> 200`. That is rare and mechanical; you
+will normally see the plain form.
 
-**Returns:** `HttpRequestTemplate` - The modified request
+After [`thymian sampler init`](#thymian-sampler-init) the Selectors of your API
+are a union type, so your editor completes them and a Selector that stops
+existing becomes a compile error at the line of the hook that used it.
 
-### AfterEachResponseHook
+## Filters
 
-Validates or processes responses after they are received.
+To target a set of Transactions, pass a `TransactionFilter` instead of a
+Selector.
 
 ```typescript
-import { AfterEachResponseHook } from '@thymian/hooks';
+import { beforeEach } from '@thymian/hooks';
 
-const hook: AfterEachResponseHook = async (response, context, utils) => {
-  // Validate response
-  return response;
-};
-
-export default hook;
+export const admin = beforeEach({ path: '/admin/**' }, (request, ctx, utils) => {
+  utils.setHeader('x-admin', 'yes');
+});
 ```
 
-**Parameters:**
+| Field               | Takes                                                     |
+| ------------------- | --------------------------------------------------------- |
+| `method`            | a `Method`, or a list                                     |
+| `status`            | a `Status`, or a list                                     |
+| `statusClass`       | `'1XX'` … `'5XX'`, or a list                              |
+| `path`              | a `Path`, a [path glob](#path-globs), or a list of either |
+| `requestMediaType`  | a `RequestMediaType`, or a list                           |
+| `responseMediaType` | a `ResponseMediaType`, or a list                          |
+| `not`               | filter fields to exclude, or a list of them               |
 
-- `response`: `HttpResponse` - The received response
-- `context`: `{ requestTemplate: HttpRequestTemplate; request: HttpRequest }` - Request context
-- `utils`: `HookUtils` - Utility functions
-
-**Returns:** `HttpResponse` - The response (possibly modified)
-
-## Utils API
-
-The `utils` object provides helper functions for common hook operations.
-
-### `utils.request()`
-
-Make type-safe HTTP requests to endpoints defined in your OpenAPI specification.
+**Fields AND-combine; a list within a field OR-combines.** So
 
 ```typescript
-async request<R extends keyof Endpoints>(
-  url: R,
-  args: Endpoints[R]['req'],
-  options?: {
-    runHooks?: boolean;      // Default: true
-    authorize?: boolean;     // Default: undefined (follows runHooks)
-    forStatusCode?: number;  // Default: undefined (use default response)
+{ method: ['GET', 'HEAD'], statusClass: '2XX' }
+```
+
+means "a GET or a HEAD that succeeds", and
+
+```typescript
+{ path: '/admin/**', not: { path: '/admin/*/audit-log' } }
+```
+
+means "everything under `/admin`, except an audit log". `not` is one level deep
+by construction — an exclusion cannot itself carry a `not`.
+
+Every field except `path` is a closed union taken from your description, so a
+value that stops existing is a compile error. There are no regular expressions
+(they cannot be typed) and no `tag` or `operationId` filters.
+
+### Path globs
+
+`path` also accepts a glob:
+
+- `*` matches **exactly one** path segment. Never zero, never across a `/`.
+  `/launches/*` matches `/launches/{id}` and does not match `/launches` or
+  `/launches/{id}/crew`.
+- A **trailing** `**` matches **one or more** segments. `/admin/**` is everything
+  _under_ `/admin` — it does not match `/admin` itself. If you want both, write
+  both.
+- `**` is only legal as the final segment.
+- Braces are literal. `{id}` matches the segment spelled `{id}`; write `*` to
+  mean "any parameter segment".
+- Matching is case-sensitive and anchored at both ends. The path a glob is
+  matched against includes your description's server base path, so a server of
+  `https://api.example.com/v1` makes the glob for its own `/admin/**` operations
+  `/v1/admin/**`.
+
+A glob that matches no path, and a filter whose values are all valid but
+intersect no Transaction, **fail the run** with the paths that do exist. That
+check happens when the description is loaded rather than in your editor: the
+alternative was measured and cost 2.5 seconds per keystroke.
+
+A value with no `*` in it is not a glob — it has to be an exact `Path`, which is
+what keeps a typo'd path a compile error.
+
+## Hook kinds
+
+Every hook **returns nothing and mutates in place**. A hook file exports its
+registrations; any export, named or default, is loaded.
+
+```typescript
+import { afterAll, afterEach, authorize, beforeAll, beforeEach, defineSample } from '@thymian/hooks';
+```
+
+### `defineSample(target, (draft, utils) => void)`
+
+Shapes the generated request, at generation time. This is where a body, a
+fixture file or the `authorize` flag belongs.
+
+```typescript
+export const shapeLaunch = defineSample('POST /launches (application/json) -> 201 (application/json)', (draft, utils) => {
+  draft.body = utils.readJson('./fixtures/launch.json');
+  draft.authorize = true;
+});
+```
+
+At most **one per Transaction**. A second one for the same Transaction is a
+conflict, reported when the hooks are loaded — not when that Transaction happens
+to be reached.
+
+### `beforeEach(target, (request, ctx, utils) => void)`
+
+Runs before each request. Several `beforeEach` hooks on one Transaction compose
+in registration order: file order on the outside, and source order within each
+file.
+
+```typescript
+export const trace = beforeEach('GET /launches -> 200 (application/json)', (request) => {
+  request.headers['x-trace-id'] = 'abc';
+});
+```
+
+### `afterEach(target, (response, ctx, utils) => void)`
+
+Runs after each response. Observe and assert here.
+
+```typescript
+export const checkShape = afterEach('GET /launches -> 200 (application/json)', (response, ctx, utils) => {
+  if (response.statusCode === 200) {
+    utils.assertionSuccess('listing responded 200', 'statusCode === 200');
   }
-): Promise<Endpoints[R]['res']>
-```
-
-#### Parameters
-
-- **url** (`string`): Endpoint URL in format `METHOD http://host:port/path`
-- **args** (`EndpointRequest`): Request data
-  - `body`: Request body
-  - `headers`: HTTP headers
-  - `query`: Query parameters
-  - `cookies`: Cookies
-  - `path`: Path parameters
-- **options** (optional): Request behavior options
-  - `runHooks`: Execute hooks for this request (default: `true`)
-  - `authorize`: Execute authorize hook for this request
-  - `forStatusCode`: Use sample for specific status code
-
-#### Returns
-
-Promise resolving to response object:
-
-```typescript
-{
-  statusCode: number;
-  body: unknown; // Automatically parsed if JSON
-  headers: Record<string, string | string[]>;
-}
-```
-
-#### Examples
-
-Basic request:
-
-```typescript
-const response = await utils.request('POST http://localhost:3000/launches', {
-  body: {
-    missionName: 'Apollo 11',
-    launchDate: '2026-12-31T00:00:00Z',
-    rocketType: 'Saturn V',
-  },
-  headers: {
-    'content-type': 'application/json',
-  },
 });
 ```
 
-Request without hooks:
+### `authorize(callback)` and `authorize(target, callback)`
+
+Supplies credentials. `authorize(callback)` is the global hook;
+`authorize(target, callback)` is targeted and **wins** for the Transactions it
+covers. Exactly one hook runs for a Transaction — two sets of credentials on one
+request is a conflict, not a composition.
 
 ```typescript
-const response = await utils.request(
-  'POST http://localhost:3000/astronauts',
-  {
-    body: { name: 'Buzz', password: 'secret', role: 'Pilot' },
-    headers: { 'content-type': 'application/json' },
-  },
-  {
-    runHooks: false, // Don't execute hooks
-  },
-);
+export const credentials = authorize((request, ctx, utils) => {
+  request.headers['authorization'] = `Basic ${utils.readText('./token').trim()}`;
+});
 ```
 
-Request specific status code:
+Whether it runs at all is decided by [authorization gating](#authorization).
+
+### `beforeAll(callback)`
+
+Runs **once**, before the first request of the run, in registration order. A
+throw aborts the run. It may return a cleanup closure.
 
 ```typescript
-const response = await utils.request(
-  'GET http://localhost:3000/launches/123',
-  {},
-  {
-    forStatusCode: 404, // Use 404 response sample
-  },
-);
+export const seedDatabase = beforeAll(async (utils) => {
+  await utils.request('POST /admin/reset -> 204', {}, { authorize: true });
+
+  return async () => {
+    await utils.request('POST /admin/teardown -> 204', {}, { authorize: true });
+  };
+});
 ```
 
-### `utils.skip()`
+There is no shared mutable state bag. A returned closure is how something set up
+in `beforeAll` reaches teardown.
 
-Skip the current test. Execution stops immediately.
+### `afterAll(callback)`
 
-```typescript
-skip(message: string): never
+Runs when the run closes, together with the cleanups `beforeAll` returned — one
+list, in **reverse** order of registration, best-effort.
+
+- A teardown error is a warning; the rest of the teardown still runs.
+- It runs even if a `beforeAll` threw.
+- It runs **only if a request was sent**, so `thymian sampler show` and
+  `thymian sampler init` never run somebody's teardown.
+
+## Execution pipeline
+
+```
+core.request.sample:        generate the request  →  defineSample
+http-testing.beforeRequest: [first request ever → beforeAll]  →  beforeEach …
+http-testing.authorize:     if the run option and request.authorize agree → authorize
+                            → the request is sent →
+http-testing.afterResponse: afterEach …
+core.close:                 [if a request was sent] afterAll + cleanups, reversed
 ```
 
-#### Parameters
+### Authorization
 
-- **message** (`string`): Reason for skipping the test
+The `authorize` hook supplies credentials; the request's own `authorize` flag
+decides **whether** it runs. Both the run option and the flag must agree, and an
+authorize hook has to be registered — so "force it on" needs both.
 
-#### Example
+The flag defaults to what your description says: a Transaction whose operation
+declares a security requirement starts `true`, and a Transaction whose declared
+status is `401` is forced `false`, so a negative case stays negative.
+
+It is an ordinary field of the request, so you can override it in either
+direction:
 
 ```typescript
-const response = await utils.request('POST http://localhost:3000/launches', {
-  body: {
-    /* ... */
-  },
-  headers: { 'content-type': 'application/json' },
+// statically
+export const noAuth = defineSample('GET /health -> 200 (application/json)', (draft) => {
+  draft.authorize = false;
 });
 
-if (response.statusCode !== 201) {
-  utils.skip('Cannot create launch for test');
-}
-```
-
-### `utils.fail()`
-
-Fail the current test. Execution stops immediately.
-
-```typescript
-fail(message: string): never
-```
-
-#### Parameters
-
-- **message** (`string`): Reason for test failure
-
-#### Example
-
-```typescript
-const response = await utils.request('POST http://localhost:3000/launches', {
-  body: {
-    /* ... */
-  },
-  headers: { 'content-type': 'application/json' },
+// dynamically
+export const authForThisOne = beforeEach('GET /me -> 200 (application/json)', (request, ctx, utils) => {
+  utils.setAuthorize(true);
 });
-
-if (response.statusCode !== 201) {
-  utils.fail(`Expected 201, got ${response.statusCode}`);
-}
-
-if (!response.body.id) {
-  utils.fail('Response missing required id field');
-}
 ```
 
-### `utils.info()`
+## `utils`
 
-Log an informational message in test output.
+Every hook is handed a `utils` object.
+
+### Typed setters
+
+`setHeader`, `setQuery`, `setPathParam`, `setCookie`, `setBody`, `setAuthorize`.
+
+These write into the same request that direct mutation does — a setter is a place
+for the compiler to know a name and a value type, not a different mechanism. Use
+whichever reads better:
 
 ```typescript
-info(message: string): void
+utils.setHeader('x-trace-id', 'abc');
+request.headers['x-trace-id'] = 'abc';
 ```
 
-#### Parameters
+In an `afterEach` hook the request has already been sent, so a setter there
+changes nothing.
 
-- **message** (`string`): Message to log
+### File helpers
 
-#### Example
+`readFile(path)`, `readText(path, encoding?)`, `readJson<T>(path)`.
+
+A relative path resolves against **the hook file's own directory**, not the
+working directory — a fixture lives beside the hook that uses it, and the hook
+keeps working when the run starts somewhere else.
+
+### `request(selector, args?, options?)`
+
+Calls another Transaction, addressed by its Selector, to seed data across
+endpoints.
 
 ```typescript
-utils.info('Creating test user');
-const response = await utils.request('POST http://localhost:3000/astronauts', {
-  body: {
-    /* ... */
-  },
-  headers: { 'content-type': 'application/json' },
+export const seedThenRead = beforeEach('GET /launches/{id} -> 200 (application/json)', async (request, ctx, utils) => {
+  const created = await utils.request('POST /launches (application/json) -> 201 (application/json)', { body: { missionName: 'Artemis II' } }, { authorize: true });
+
+  utils.setPathParam('id', created.body.id);
 });
-utils.info(`User created with ID: ${response.body.id}`);
 ```
 
-**Output:**
+`args` overlays the generated request — `body`, `headers`, `query`, `path`,
+`cookies`. The response comes back as `{ statusCode, headers, body }`, with a
+JSON body already parsed and typed by the Selector you asked for.
+
+| Option      | Default           | Meaning                                                                                             |
+| ----------- | ----------------- | --------------------------------------------------------------------------------------------------- |
+| `runHooks`  | `true`            | Run the target's own `beforeEach` → `authorize` → `afterEach`, so seeding behaves like the real run |
+| `authorize` | the target's flag | Force authorization on or off for this call                                                         |
+
+There is no `forStatusCode`: the Selector already carries the status.
+
+A nested request carries **its own** target's `authorize` flag, not the caller's.
+Seeding a secured endpoint from an unsecured one needs `{ authorize: true }`.
+
+#### Cycles
+
+Re-entering a Transaction whose pipeline is already running fails loudly and
+prints the chain:
 
 ```
-POST /launches
-  ℹ Creating test user
-  ℹ User created with ID: abc123
-  ✓ 201 Created (15ms)
+A cross-endpoint request would re-enter "GET /launches/{id} -> 200 (application/json)", which is already running.
+  The chain is:
+    "GET /launches/{id} -> 200 (application/json)"
+    → "POST /launches (application/json) -> 201 (application/json)"
+    → "GET /launches/{id} -> 200 (application/json)"
 ```
 
-### `utils.warn()`
+`{ runHooks: false }` sends the generated request without running the target's
+hooks, which is both the raw-seeding option and the way out of a cycle.
 
-Log a warning message in test output.
+### Reporting
 
-```typescript
-warn(message: string, details?: string): void
-```
+- `skip(message)` — end this test case as skipped.
+- `fail(message)` — end this test case as failed.
+- `info(message)`, `warn(message, details?)`
+- `assertionSuccess(message, assertion?)`,
+  `assertionFailure(message, details?)`
+- `timeout(message, durationMs)`
+- `randomString(length?)`
 
-#### Parameters
+A hook with no test case to attach results to — `beforeAll`, `afterAll`,
+`defineSample` — has them logged instead.
 
-- **message** (`string`): Warning message
-- **details** (`string`, optional): Additional details
-
-#### Example
-
-```typescript
-if (response.headers['x-rate-limit-remaining'] === '1') {
-  utils.warn('Rate limit almost exhausted', 'Only 1 request remaining');
-}
-```
-
-**Output:**
+## Where hooks live
 
 ```
-POST /launches
-  ⚠ Rate limit almost exhausted (Only 1 request remaining)
-  ✓ 201 Created (15ms)
+.thymian/sampler/
+  generated/        committed, generated, do not edit
+  hooks/            yours, any number of files, any nesting
+  tsconfig.json     scaffolded once by init, yours from then on
 ```
 
-### `utils.assertionSuccess()`
+The loader scans `hooks/` recursively. It keeps `.ts`, `.mts`, `.cts`, `.js`,
+`.mjs` and `.cjs`, skips declaration files and dot-directories, and never calls
+an exported function to find out whether it is a hook.
 
-Record a successful assertion.
+`@thymian/hooks` resolves at run time through the plugin itself, so **hooks run
+whether or not you have run `init`** and whether or not anything is committed.
 
-```typescript
-assertionSuccess(message: string, assertion?: string): void
+## Commands
+
+### `thymian sampler init`
+
+Optional, one-time. Creates the sampler root, generates the committed type
+surface, scaffolds a `tsconfig.json`, and prints the one line you have to add to
+your own `tsconfig.json`. It is what gives you Selector autocomplete and a type
+gate; it is never required to run hooks.
+
+The scaffolded `tsconfig.json` is **yours from the moment it is written**.
+Neither `init` nor `sync` will touch it again.
+
+### `thymian sampler sync`
+
+Regenerates the committed types from your description. `--check` reports whether
+regeneration _would_ change anything and writes nothing, exiting non-zero if it
+would — that is the CI gate.
+
+### `thymian sampler validate`
+
+The authoritative gate. It regenerates the surface in memory, compares it with
+what is committed, and type-checks your hooks against the fresh surface.
+
+| committed vs fresh | hooks compile | outcome                          |
+| ------------------ | ------------- | -------------------------------- |
+| identical          | yes           | silent success                   |
+| **differs**        | **yes**       | **warning** — run `sampler sync` |
+| differs            | no            | **error** — breaking drift       |
+
+It also reports vacuous globs, zero-match filters and `defineSample` conflicts.
+The comparison ignores comments and formatting, so a description-only edit and a
+reordering of your document are not drift.
+
+### `thymian sampler show <selector>`
+
+Prints the request that would be sent for one Transaction, freshly generated.
+Nothing is written.
+
+```bash
+thymian sampler show 'GET /launches -> 200 (application/json)'
 ```
 
-#### Parameters
-
-- **message** (`string`): Assertion description
-- **assertion** (`string`, optional): Short assertion label
-
-#### Example
-
-```typescript
-const response = await utils.request('GET http://localhost:3000/launches', {});
-
-if (response.body.length > 0) {
-  utils.assertionSuccess('Response contains launches', 'has launches');
-}
-```
-
-**Output:**
-
-```
-GET /launches
-  ✓ has launches
-  ✓ 200 OK (8ms)
-```
-
-### `utils.assertionFailure()`
-
-Record a failed assertion. Test continues (unlike `fail()`).
-
-```typescript
-assertionFailure(
-  message: string,
-  details?: {
-    assertion?: string;
-    expected?: unknown;
-    actual?: unknown;
-  }
-): void
-```
-
-#### Parameters
-
-- **message** (`string`): Assertion description
-- **details** (optional): Assertion details
-  - `assertion`: Short assertion label
-  - `expected`: Expected value
-  - `actual`: Actual value
-
-#### Example
-
-```typescript
-const body = JSON.parse(response.body || '{}');
-
-if (!body.id) {
-  utils.assertionFailure('Missing id field', {
-    assertion: 'has id',
-    expected: 'id field present',
-    actual: 'id field missing',
-  });
-}
-
-if (!body.missionName) {
-  utils.assertionFailure('Missing missionName field', {
-    assertion: 'has missionName',
-    expected: 'missionName field present',
-    actual: 'missionName field missing',
-  });
-}
-```
-
-**Output:**
-
-```
-POST /launches
-  ✗ has id (expected: "id field present", actual: "id field missing")
-  ✗ has missionName (expected: "missionName field present", actual: "missionName field missing")
-  ✓ 201 Created (12ms)
-```
-
-### `utils.timeout()`
-
-Record a timeout event in test results.
-
-```typescript
-timeout(message: string, durationMs: number): void
-```
-
-#### Parameters
-
-- **message** (`string`): Timeout description
-- **durationMs** (`number`): Duration in milliseconds
-
-#### Example
-
-```typescript
-const start = Date.now();
-const response = await utils.request('POST http://localhost:3000/launches', {
-  body: {
-    /* ... */
-  },
-  headers: { 'content-type': 'application/json' },
-});
-const duration = Date.now() - start;
-
-if (duration > 1000) {
-  utils.timeout('Launch creation took too long', duration);
-}
-```
-
-### `utils.randomString()`
-
-Generate a random alphanumeric string.
-
-```typescript
-randomString(length?: number): string
-```
-
-#### Parameters
-
-- **length** (`number`, optional): String length (default: 10)
-
-#### Returns
-
-Random string containing letters (a-z, A-Z) and numbers (0-9)
-
-#### Examples
-
-```typescript
-const username = utils.randomString(); // "k8jF2mN9pL" (10 chars)
-const password = utils.randomString(16); // "Lm8Np6Oq1sTk4Jh7" (16 chars)
-const id = utils.randomString(32); // 32-character string
-```
-
-**Use cases:**
-
-- Generating unique usernames
-- Creating random passwords
-- Generating unique IDs
-- Creating random data for tests
+An unknown Selector gets the nearest matches; a malformed one gets the grammar.

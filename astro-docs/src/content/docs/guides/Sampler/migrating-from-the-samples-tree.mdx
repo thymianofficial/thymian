@@ -1,0 +1,170 @@
+---
+title: Migrating from the Samples Tree
+description: What happened to .thymian/samples, and how to move your v1 hooks onto selector-anchored hooks.
+---
+
+import { FileTree, Aside } from '@astrojs/starlight/components';
+
+If you have a `.thymian/samples/` directory, this page is for you. The move is
+**manual and one-time**, and this page explains why, and exactly what to do.
+
+## What happened to `.thymian/samples`
+
+It is gone, and nothing replaces it.
+
+Request samples are now a projection of your API description, built in memory on
+every run. The tree existed so that samples could be _found_; the price was that
+they could also be _stale_, and everything downstream of that was a workaround:
+
+| The old problem                                                                  | Why it is gone                                                      |
+| -------------------------------------------------------------------------------- | ------------------------------------------------------------------- |
+| Generated `request.json` files went stale after a spec edit                      | Nothing is generated to disk                                        |
+| `sampler validate` could flag a stale artifact but not fix it                    | There is no artifact                                                |
+| `sampler init --overwrite` never deleted the files of removed operations         | There are no files                                                  |
+| Hooks were orphaned at dead paths, because a hook's directory _was_ its identity | A hook's identity is its Selector, and hook files can live anywhere |
+| Upgrading Thymian broke byte-exact sample validation                             | The committed surface is types, compared canonicalized              |
+
+`thymian sampler check` is gone too: `thymian test` does what it did, and now
+needs no setup first.
+
+## Why the move is manual
+
+Your hooks are the part of the old tree that carries real investment, and a
+migration tool could not do the one thing that matters: decide **what each hook
+is actually for**.
+
+In v1 a hook's target was its position in the directory tree. A file at
+`…/launches/[id]/@GET/create-launch.beforeEach.ts` applied to everything below
+that directory — which might be one Transaction, or a status code's worth, or
+every method on that path. The tree could not tell you which of those you meant,
+and neither can a script. In v2 you say so: one Selector, a list of them, or a
+filter.
+
+So the migration is: for each old hook, decide what it was targeting, and write
+that down. That is a small amount of thinking per hook, once, and it is the
+thinking the compiler then keeps checking for you.
+
+## Moving a hook
+
+<Aside type="tip">
+  Do this before deleting anything. `thymian test` ignores `.thymian/samples`
+  entirely, so the old tree can sit there while you work.
+</Aside>
+
+### 1. Create the new home
+
+```bash
+mkdir -p .thymian/sampler/hooks
+```
+
+Hook files can be anywhere under `hooks/`, at any nesting depth, named anything.
+The directory layout no longer means anything — it is for your benefit only.
+
+### 2. Find the Selectors you need
+
+```bash
+npx thymian sampler show 'GET /launches -> 200 (application/json)'
+```
+
+A wrong Selector prints the nearest matches, which is the quickest way to
+discover the exact spelling of the ones you want.
+
+### 3. Rewrite the hook
+
+The three v1 file-name conventions map like this:
+
+| v1 file           | v2                                                                      |
+| ----------------- | ----------------------------------------------------------------------- |
+| `*.beforeEach.ts` | `beforeEach(target, callback)`                                          |
+| `*.afterEach.ts`  | `afterEach(target, callback)`                                           |
+| `*.authorize.ts`  | `authorize(callback)` global, or `authorize(target, callback)` targeted |
+
+And the position in the tree becomes the `target`:
+
+| The old file sat in…                               | Write                                                                |
+| -------------------------------------------------- | -------------------------------------------------------------------- |
+| a directory for one status and media type          | that one Selector                                                    |
+| a `@GET` directory                                 | `{ method: 'GET', path: '…' }`                                       |
+| a path directory, covering every method and status | `{ path: '/launches' }`                                              |
+| a path directory, covering the whole subtree       | `{ path: '/launches/**' }` — note this excludes `/launches` itself   |
+| the source root, applying to everything            | a global `authorize(callback)`, or a filter that says what you meant |
+
+Three other changes, in the code itself:
+
+**Hooks return nothing.** A v1 hook returned the modified request; a v2 hook
+mutates in place.
+
+```diff
+- const hook: BeforeEachRequestHook = async (request, context, utils) => {
+-   request.headers.authorization = 'Bearer …';
+-   return request;
+- };
+- export default hook;
++ export const auth = beforeEach('GET /launches -> 200 (application/json)', (request) => {
++   request.headers['authorization'] = 'Bearer …';
++ });
+```
+
+**Registrations are exported values.** A v1 file default-exported a function; a
+v2 file exports the result of calling `beforeEach`/`afterEach`/… Any export,
+named or default, is loaded — and a registration you forget to export does
+nothing, so export it.
+
+**`utils.request` is keyed by Selector**, not by `"METHOD url"`, and its
+`forStatusCode` option is gone because the Selector carries the status.
+
+```diff
+- await utils.request('POST http://localhost:3000/astronauts', { body }, { runHooks: false });
++ await utils.request('POST /astronauts (application/json) -> 201 (application/json)', { body }, { runHooks: false });
+```
+
+### 4. Delete the old tree
+
+```bash
+rm -rf .thymian/samples
+```
+
+Then, optionally, turn on the type gate:
+
+```bash
+npx thymian sampler init
+```
+
+<FileTree>
+
+- .thymian/sampler/
+  - generated/ committed, generated, do not edit
+  - hooks/ your hooks
+  - tsconfig.json scaffolded once — yours from then on
+
+</FileTree>
+
+Commit `generated/`, and remove `.thymian/samples` from any `.gitignore` or CI
+step that referenced it.
+
+## Things that used to break and no longer can
+
+- **Renaming an `info.title` or a server URL.** Selectors are host-stripped and
+  carry no source name, so neither is a change at all.
+- **Editing a description.** The generated surface is compared canonicalized, so
+  prose changes are not drift.
+- **Reordering your document.** The catalog is sorted by Selector.
+- **Moving your hook files.** A hook is anchored by its Selector, not its path.
+- **Adding a status code or a media type.** Existing Selectors keep meaning what
+  they meant; the new ones are simply new.
+
+What _does_ now break loudly, and on purpose: a renamed path, a removed
+operation or a changed body shape becomes a compile error at the line of every
+hook that relied on it. That is the trade — see
+[the drift gate](/guides/sampler/upgrading-thymian/).
+
+## Commands, before and after
+
+| v1                      | v2                                                                          |
+| ----------------------- | --------------------------------------------------------------------------- |
+| `sampler init`          | `sampler init` — now optional, and it writes types rather than samples      |
+| `sampler validate`      | `sampler validate` — now a type gate, not a byte-compare                    |
+| `sampler check`         | `thymian test`                                                              |
+| `sampler generate hook` | write a file; the Selector is the boilerplate, and `sampler show` prints it |
+| `sampler export`        | removed; there is nothing to export                                         |
+| —                       | `sampler sync`, `sampler sync --check`, `sampler show <selector>`           |

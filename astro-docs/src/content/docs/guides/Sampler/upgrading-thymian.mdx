@@ -1,0 +1,109 @@
+---
+title: Upgrading Thymian with a Sampler Setup
+description: The one ritual to remember when you bump the Thymian dependency — and what the drift gate is telling you.
+---
+
+import { Aside } from '@astrojs/starlight/components';
+
+<Aside type="caution" title="The ritual">
+  **Upgrade Thymian and run `thymian sampler sync` in the same pull request.**
+</Aside>
+
+That is the whole thing. The rest of this page is why, and what to do when the
+gate goes red anyway.
+
+## Why
+
+The files under `.thymian/sampler/generated/` are committed, and they are the
+baseline the drift gate compares against. They have lock-file semantics: they
+record what your API description said _and_ how this version of Thymian
+expresses it.
+
+So a Thymian upgrade that changes type emission — a better body type, a new
+field on the hook surface — makes `sampler sync --check` red, in exactly the same
+way an actual API change would. Nothing is wrong; the baseline is simply from the
+previous version.
+
+Running `sync` in the same pull request as the bump turns that into one explicit,
+reviewable diff, next to the dependency change that caused it. Running it later
+turns it into a red build on somebody else's branch.
+
+<Aside type="note">
+  If you have not run `thymian sampler init`, none of this applies: with nothing
+  committed there is nothing to be behind, and your hooks keep running either
+  way.
+</Aside>
+
+## Reading the gate
+
+Two commands, and they answer different questions.
+
+### `thymian sampler sync --check`
+
+_Are the committed types current?_ It writes nothing and exits non-zero if
+regeneration would change them. This is the CI gate.
+
+```bash
+npx thymian sampler sync --check
+```
+
+```
+The committed sampler types are out of sync with this API description:
+  generated/request-types.d.ts
+
+Run "thymian sampler sync" and commit the result.
+```
+
+### `thymian sampler validate`
+
+_Do the hooks still fit the API description as it is now?_ It regenerates the
+surface in memory, compares it, and type-checks your hooks against the fresh
+version.
+
+| committed vs fresh | hooks compile | outcome                          |
+| ------------------ | ------------- | -------------------------------- |
+| identical          | yes           | silent                           |
+| **differs**        | **yes**       | **warning** — run `sampler sync` |
+| differs            | no            | **error** — breaking drift       |
+
+The middle row is the Thymian-upgrade case, and the additive-API-change case:
+the types are behind, but nothing you wrote is wrong. `validate` says so and
+exits zero.
+
+The last row is the one that needs you. It names the hook and the line:
+
+```
+✖ hooks/seed.ts (export "seedAstronaut"): beforeEach targets the selector
+  "GET /astronauts/{id} -> 200 (application/json)", which names no transaction
+  in the loaded API description
+✖ hooks/seed.ts:4:3 — TS2345: Argument of type '"GET /astronauts/{id} -> 200
+  (application/json)"' is not assignable to parameter of type 'HookTarget'.
+
+Breaking drift: the API description no longer matches these hooks.
+Fix them, run "thymian sampler sync", and commit the result.
+```
+
+## What is not drift
+
+By construction, none of these change the committed surface:
+
+- editing a `description` or a `summary` anywhere in your API description
+- renaming `info.title`, or changing a server URL
+- reordering paths, operations or schemas in your document
+- reformatting the committed files
+
+The comparison strips comments and formatting, and the surface is emitted in a
+sorted, source-order-independent way. So a meaningless diff never blocks a
+build.
+
+## A suggested CI shape
+
+```yaml
+- run: npx thymian sampler sync --check # the committed types are current
+- run: npx thymian sampler validate # the hooks still fit the description
+- run: npx thymian test # and the API behaves
+```
+
+`validate` exits zero on the warning row, so a Thymian upgrade that only shifts
+type emission fails at `sync --check` — the step whose fix is one command — and
+not in the middle of your test run.
