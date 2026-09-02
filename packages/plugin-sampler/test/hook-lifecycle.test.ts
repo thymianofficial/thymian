@@ -103,7 +103,7 @@ export const two = defineSample(${JSON.stringify(LAUNCHES)}, () => {});
       let error: unknown;
 
       try {
-        await harness.loadFormat(format);
+        await harness.beginRun(format);
       } catch (e) {
         error = e;
       }
