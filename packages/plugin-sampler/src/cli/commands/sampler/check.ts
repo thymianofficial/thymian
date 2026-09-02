@@ -15,6 +15,7 @@ import {
   thymianHttpTransactionToString,
 } from '@thymian/core';
 
+import { selectorForTransaction } from '../../../selectors/selector.js';
 import { createContext } from '../../create-context.js';
 
 export default class Check extends BaseCliRunCommand<typeof Check> {
@@ -161,9 +162,8 @@ export default class Check extends BaseCliRunCommand<typeof Check> {
       this.logFailureDetails(testCase);
 
       this.log();
-      this.log(
-        'Shape this request by writing a hook in the sampler hooks directory.',
-      );
+      this.log('Shape this request by anchoring a hook to its selector:');
+      this.log(`  ${selectorForTransaction(transaction)}`);
       this.log();
     }
   }
