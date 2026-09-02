@@ -154,6 +154,20 @@ describe('the committed type surface', () => {
     });
   });
 
+  describe('what the surface imports', () => {
+    it('imports the other generated file by its module path', async () => {
+      const { hooksApi } = await generateTypeSurface(
+        catalogOf(formatWithExamples()),
+      );
+
+      // A `.d.ts` file is imported by the module path it declares, not by its
+      // own filename. `./request-types.d.ts` happened to resolve under the
+      // scaffolded tsconfig, which is exactly why it needs pinning.
+      expect(hooksApi).toContain("from './request-types.js'");
+      expect(hooksApi).not.toContain('request-types.d.ts');
+    });
+  });
+
   describe('example reflection', () => {
     it('reflects a primitive property as an open literal union', async () => {
       const { requestTypes } = await generateTypeSurface(
