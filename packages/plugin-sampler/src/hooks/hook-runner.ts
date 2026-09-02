@@ -37,6 +37,7 @@ const EMPTY_HOOKS: TransactionHooks = Object.freeze({
 export class HookRunner {
   private format: ThymianFormat = new ThymianFormat();
   private byTransactionId: ReadonlyMap<string, TransactionHooks> = new Map();
+  private globalAuthorize: readonly CollectedRegistration[] = [];
   private readonly runScoped: RunScopedHooks;
 
   constructor(
@@ -50,6 +51,7 @@ export class HookRunner {
   load(format: ThymianFormat, hooks?: LoadUserHooksResult): void {
     this.format = format;
     this.byTransactionId = hooks?.byTransactionId ?? new Map();
+    this.globalAuthorize = hooks?.globalAuthorize ?? [];
     this.runScoped.load(hooks?.runScoped ?? { beforeAll: [], afterAll: [] });
   }
 
@@ -124,9 +126,7 @@ export class HookRunner {
     hook: HttpTestHooks['authorize']['arg'],
   ): Promise<HttpTestHooks['authorize']['return']> {
     const { value, ctx } = hook;
-    // Last registration wins, which is what lets a later file override an
-    // earlier one for the same Transaction.
-    const entry = this.hooksFor(ctx?.transactionId).authorize.at(-1);
+    const entry = this.authorizeFor(ctx?.transactionId);
 
     return await this.compose(
       'authorize',
@@ -134,6 +134,28 @@ export class HookRunner {
       value,
       ctx,
       ctx,
+    );
+  }
+
+  /**
+   * Which authorize hook supplies this Transaction's credentials.
+   *
+   * A targeted hook wins over the global one for the Transactions it covers, and
+   * within each tier the last registration wins, so a later file can override an
+   * earlier one. Exactly one hook runs: authorization is "who am I", and
+   * composing two answers would mean two sets of credentials on one request.
+   *
+   * Whether it runs at all is not decided here — core runs this seam only when
+   * the run option and the request's own `authorize` flag agree — so a
+   * registered hook is necessary but not sufficient, which is what makes
+   * "force on" need both.
+   */
+  private authorizeFor(
+    transactionId: string | undefined,
+  ): CollectedRegistration | undefined {
+    return (
+      this.hooksFor(transactionId).authorize.at(-1) ??
+      this.globalAuthorize.at(-1)
     );
   }
 
