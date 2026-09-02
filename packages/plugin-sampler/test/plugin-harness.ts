@@ -83,6 +83,13 @@ export async function startSampler(
         { strategy: 'first' },
       );
     },
+    async show(selector) {
+      return await emitter.emitAction(
+        'sampler.show',
+        { selector },
+        { strategy: 'first' },
+      );
+    },
     async sampleAll(format) {
       const samples: HttpRequestTemplate[] = [];
 

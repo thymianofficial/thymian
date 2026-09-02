@@ -10,6 +10,7 @@ import type {} from '@thymian/plugin-request-dispatcher';
 import { HookRunner } from './hooks/hook-runner.js';
 import { requestSampleToRequestTemplate } from './request-sample-to-request-template.js';
 import { RequestSampler } from './request-sampler.js';
+import { TransactionCatalog } from './selectors/transaction-catalog.js';
 
 declare module '@thymian/core' {
   interface ThymianActions {
@@ -27,6 +28,16 @@ declare module '@thymian/core' {
         schema: ThymianSchema;
       };
       response: { $content: unknown; $encoding?: string };
+    };
+
+    'sampler.show': {
+      event: {
+        selector: string;
+      };
+      response: {
+        selector: string;
+        request: HttpRequestTemplate;
+      };
     };
   }
 }
@@ -71,15 +82,36 @@ export const samplePlugin: ThymianPlugin<Partial<SamplerPluginOptions>> = {
       );
     }, logger);
 
+    let catalog = TransactionCatalog.fromThymianFormat(new ThymianFormat());
+
     emitter.onAction('core.format', async (serialized, ctx) => {
       const format = ThymianFormat.import(serialized);
+
+      // Before the projection, so an ambiguous description fails at catalog
+      // build rather than after generating samples nobody can address.
+      catalog = TransactionCatalog.fromThymianFormat(format);
 
       await requestSampler.load(format, emitter);
       hookRunner.load(format);
 
-      logger.debug('Projected request samples for the loaded format.');
+      logger.debug(
+        `Catalogued ${catalog.size} transactions and projected their request samples.`,
+      );
 
       ctx.reply();
+    });
+
+    emitter.onAction('sampler.show', async ({ selector }, ctx) => {
+      const transaction = catalog.resolve(selector);
+      const sample = await requestSampler.sampleForTransaction(
+        transaction,
+        emitter,
+      );
+
+      ctx.reply({
+        selector,
+        request: requestSampleToRequestTemplate(sample),
+      });
     });
 
     emitter.onAction('core.request.sample', async ({ transaction }, ctx) => {

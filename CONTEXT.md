@@ -105,8 +105,10 @@ _Avoid_: fixture, mock, stub
 
 **Selector**:
 The address of exactly one `Transaction`, qualified by method, path, status, and the media
-types where a body exists. Fully qualified by construction, so adding a status code or a media
-type to the specification cannot silently change what an existing selector points at.
+types the request and response nodes _declare_ — a declared media type earns its part whether
+or not a body exists. Fully qualified by construction, so adding a status code or a media type
+to the specification cannot silently change what an existing selector points at. Rendering is
+total: a path or media type that would collide with the grammar is encoded, never rejected.
 _Avoid_: pattern, matcher, glob
 
 **Hook**:
