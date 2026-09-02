@@ -92,9 +92,9 @@ import { appendFileSync } from 'node:fs';
 const log = ${JSON.stringify(log)};
 
 export const setUp = beforeAll(() => {
-  appendFileSync(log, 'beforeAll\n');
+  appendFileSync(log, 'beforeAll\\n');
 
-  return () => appendFileSync(log, 'cleanup\n');
+  return () => appendFileSync(log, 'cleanup\\n');
 });
 
 export const shape = defineSample('${SELECTOR}', (draft) => {
@@ -106,11 +106,11 @@ export const trace = beforeEach('${SELECTOR}', (request) => {
 });
 
 export const observe = afterEach('${SELECTOR}', (response) => {
-  appendFileSync(log, 'afterEach ' + response.statusCode + '\n');
+  appendFileSync(log, 'afterEach ' + response.statusCode + '\\n');
 });
 
 export const tearDown = afterAll(() => {
-  appendFileSync(log, 'afterAll\n');
+  appendFileSync(log, 'afterAll\\n');
 });
 `,
     );
