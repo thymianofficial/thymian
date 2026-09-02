@@ -1,3 +1,5 @@
+import { mkdir, writeFile } from 'node:fs/promises';
+
 import {
   type HttpRequestTemplate,
   ThymianFormat,
@@ -7,6 +9,13 @@ import {
 } from '@thymian/core';
 import type {} from '@thymian/plugin-request-dispatcher';
 
+import { generateTypeSurface } from './generation/types/generate-type-surface.js';
+import {
+  rootExcludeNote,
+  scaffoldTsconfig,
+  surfaceAsFiles,
+  writeGenerated,
+} from './generation/types/write-type-surface.js';
 import {
   hookConflictError,
   unresolvedHooksError,
@@ -16,6 +25,7 @@ import { loadUserHooks } from './hooks/load-user-hooks.js';
 import { RequestSampler } from './request-sampler.js';
 import { resolveSamplerPaths } from './sampler-paths.js';
 import { TransactionCatalog } from './selectors/transaction-catalog.js';
+import { entryExists } from './utils.js';
 
 declare module '@thymian/core' {
   interface ThymianActions {
@@ -44,6 +54,20 @@ declare module '@thymian/core' {
         request: HttpRequestTemplate;
       };
     };
+
+    'sampler.init': {
+      event: Record<string, never>;
+      response: {
+        /** The sampler root, absolute. */
+        root: string;
+        /** Generated files written, relative to the root. */
+        generated: string[];
+        /** Whether a tsconfig was scaffolded, or one was already there. */
+        tsconfig: 'written' | 'kept';
+        /** What the user has to do to their own tsconfig, in their own words. */
+        rootExcludeNote: string[];
+      };
+    };
   }
 }
 
@@ -66,6 +90,7 @@ export const samplePlugin: ThymianPlugin<Partial<SamplerPluginOptions>> = {
       'http-testing.afterResponse',
       'http-testing.authorize',
       'sampler.show',
+      'sampler.init',
     ],
     emits: ['sampler.unknown-type'],
   },
@@ -134,6 +159,29 @@ export const samplePlugin: ThymianPlugin<Partial<SamplerPluginOptions>> = {
       );
 
       ctx.reply();
+    });
+
+    emitter.onAction('sampler.init', async (_event, ctx) => {
+      await mkdir(paths.hooksDir, { recursive: true });
+
+      const surface = await generateTypeSurface(catalog);
+
+      await writeGenerated(paths, surface);
+
+      // Scaffolded once and user-owned from then on: an existing one is kept
+      // even if it no longer matches what this version would write.
+      const hadTsconfig = await entryExists(paths.tsconfigPath);
+
+      if (!hadTsconfig) {
+        await writeFile(paths.tsconfigPath, scaffoldTsconfig(), 'utf-8');
+      }
+
+      ctx.reply({
+        root: paths.root,
+        generated: Object.keys(surfaceAsFiles(surface)).sort(),
+        tsconfig: hadTsconfig ? 'kept' : 'written',
+        rootExcludeNote: rootExcludeNote(paths, options.cwd),
+      });
     });
 
     emitter.onAction('sampler.show', async ({ selector }, ctx) => {

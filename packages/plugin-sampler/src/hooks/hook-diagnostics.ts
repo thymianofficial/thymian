@@ -31,7 +31,14 @@ function describe(diagnostic: HookDiagnostic): string {
 export function unresolvedHooksError(
   diagnostics: readonly HookDiagnostic[],
 ): ThymianBaseError {
-  const count = diagnostics.length;
+  // Hooks, not diagnostics: one hook with two vacuous globs draws two
+  // diagnostics, and reporting "2 hooks" for one hook is a lie the reader has
+  // to reconcile against the list below.
+  const count = new Set(
+    diagnostics.map(
+      (diagnostic) => `${diagnostic.file}#${diagnostic.exportName ?? ''}`,
+    ),
+  ).size;
 
   return new ThymianBaseError(
     `${count} sampler ${count === 1 ? 'hook does' : 'hooks do'} not resolve against the loaded API description.`,

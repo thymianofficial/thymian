@@ -12,7 +12,7 @@ import {
   selectorCollisionError,
   unknownSelectorError,
 } from './selector-errors.js';
-import { catalogPaths } from './transaction-filter.js';
+import { pathOf } from './transaction-filter.js';
 
 const MAX_NEAR_MISSES = 5;
 
@@ -33,6 +33,8 @@ export class TransactionCatalog {
   private constructor(
     private readonly bySelector: Map<Selector, ThymianHttpTransaction>,
     private readonly orderedEntries: readonly TransactionCatalogEntry[],
+    private readonly selectorByTransactionId: ReadonlyMap<string, Selector>,
+    private readonly distinctPaths: readonly string[],
   ) {}
 
   /**
@@ -64,7 +66,21 @@ export class TransactionCatalog {
       .sort(([a], [b]) => compareSelectors(a, b))
       .map(([selector, transaction]) => [selector, transaction] as const);
 
-    return new TransactionCatalog(bySelector, orderedEntries);
+    return new TransactionCatalog(
+      bySelector,
+      orderedEntries,
+      new Map(
+        orderedEntries.map(([selector, transaction]) => [
+          transaction.transactionId,
+          selector,
+        ]),
+      ),
+      [
+        ...new Set(
+          orderedEntries.map(([, transaction]) => pathOf(transaction)),
+        ),
+      ].sort(),
+    );
   }
 
   get size(): number {
@@ -89,18 +105,23 @@ export class TransactionCatalog {
   /**
    * Every distinct path the catalog holds, sorted — the universe a path glob is
    * matched against, and the set a vacuous glob fails against.
+   *
+   * Derived once at construction, like the selector index: both are read once
+   * per hook that targets by filter, and the catalog is rebuilt per format load
+   * anyway.
    */
   paths(): readonly string[] {
-    return catalogPaths(
-      this.orderedEntries.map(([, transaction]) => transaction),
-    );
+    return this.distinctPaths;
   }
 
   /** The selector one transaction renders as, for a diagnostic that has the id. */
   selectorFor(transactionId: string): Selector | undefined {
-    return this.orderedEntries.find(
-      ([, transaction]) => transaction.transactionId === transactionId,
-    )?.[0];
+    return this.selectorByTransactionId.get(transactionId);
+  }
+
+  /** Every Transaction, in catalog order. */
+  transactions(): readonly ThymianHttpTransaction[] {
+    return this.orderedEntries.map(([, transaction]) => transaction);
   }
 
   /** Never throws. Use where a miss is an expected outcome. */
