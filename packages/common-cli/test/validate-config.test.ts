@@ -193,6 +193,21 @@ describe('validate-config', () => {
 
         expect(result.valid).toBe(true);
       });
+
+      it('should validate a rule config object with a type override', () => {
+        const config: ThymianConfig = {
+          plugins: {},
+          rules: {
+            'rfc9110/origin-server-should-send-etag': {
+              type: ['analytics', 'test'],
+            },
+          },
+        };
+
+        const result = validateConfig(config);
+
+        expect(result.valid).toBe(true);
+      });
     });
 
     describe('edge cases', () => {
@@ -325,6 +340,45 @@ describe('validate-config', () => {
           const config = {
             plugins: {},
             ruleSets: [{ name: '@thymian/rules-rfc-9110', extra: true }],
+          };
+
+          const result = validateConfig(config);
+
+          expect(result.valid).toBe(false);
+        });
+
+        it('should invalidate a rule type override with an unknown rule type', () => {
+          const config = {
+            plugins: {},
+            rules: {
+              'rfc9110/origin-server-should-send-etag': { type: ['statik'] },
+            },
+          };
+
+          const result = validateConfig(config);
+
+          expect(result.valid).toBe(false);
+        });
+
+        it('should invalidate a rule type override given as a bare string', () => {
+          const config = {
+            plugins: {},
+            rules: {
+              'rfc9110/origin-server-should-send-etag': { type: 'static' },
+            },
+          };
+
+          const result = validateConfig(config);
+
+          expect(result.valid).toBe(false);
+        });
+
+        it('should invalidate an empty rule type override', () => {
+          const config = {
+            plugins: {},
+            rules: {
+              'rfc9110/origin-server-should-send-etag': { type: [] },
+            },
           };
 
           const result = validateConfig(config);
