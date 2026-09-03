@@ -24,8 +24,9 @@ they could also be _stale_, and everything downstream of that was a workaround:
 | Hooks were orphaned at dead paths, because a hook's directory _was_ its identity | A hook's identity is its Selector, and hook files can live anywhere |
 | Upgrading Thymian broke byte-exact sample validation                             | The committed surface is types, compared canonicalized              |
 
-`thymian sampler check` is gone too: `thymian test` does what it did, and now
-needs no setup first.
+`thymian sampler check` is unchanged and still there. It answers a different
+question from `thymian test` — "can these requests be executed at all?" rather
+than "do the responses conform?" — and it now needs no setup step either.
 
 ## Why the move is manual
 
@@ -164,7 +165,7 @@ hook that relied on it. That is the trade — see
 | ----------------------- | --------------------------------------------------------------------------- |
 | `sampler init`          | `sampler init` — now optional, and it writes types rather than samples      |
 | `sampler validate`      | `sampler validate` — now a type gate, not a byte-compare                    |
-| `sampler check`         | `thymian test`                                                              |
+| `sampler check` | `sampler check` — unchanged, and no longer needs generated samples |
 | `sampler generate hook` | write a file; the Selector is the boilerplate, and `sampler show` prints it |
 | `sampler export`        | removed; there is nothing to export                                         |
 | —                       | `sampler sync`, `sampler sync --check`, `sampler show <selector>`           |

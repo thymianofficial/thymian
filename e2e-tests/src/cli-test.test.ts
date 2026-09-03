@@ -167,14 +167,23 @@ describe('thymian test', () => {
     );
 
     try {
-      const result = execThymianRaw(['test', '--target-url', targetUrl], {
-        cwd: getTempDir(),
-      });
+      // Async, not `execThymianRaw`: the server answering this request lives in
+      // this process, and `spawnSync` blocks the event loop it needs.
+      const result = await execThymianRawAsync(
+        ['test', '--target-url', targetUrl],
+        { cwd: getTempDir() },
+      );
 
       expect(result.exitCode).toBe(0);
       // The whole point of the virtual model: a clean checkout runs, and the
-      // run leaves nothing behind that a later spec edit could strand.
-      expect(existsSync(join(getTempDir(), '.thymian'))).toBe(false);
+      // *sampler* leaves nothing behind that a later spec edit could strand.
+      //
+      // Named precisely rather than asserting `.thymian` is absent: this
+      // fixture enables the reporter, which legitimately writes
+      // `.thymian/reports/report.md`. The broader assertion was wrong, and it
+      // never ran to say so, because the blocking spawn above it hung first.
+      expect(existsSync(join(getTempDir(), '.thymian', 'sampler'))).toBe(false);
+      expect(existsSync(join(getTempDir(), '.thymian', 'samples'))).toBe(false);
     } finally {
       await server.close();
     }

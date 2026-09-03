@@ -54,6 +54,138 @@ function defsToDefinitions(input: unknown): unknown {
   return out;
 }
 
+/**
+ * The keywords a schema names ITSELF with, in the library's own precedence
+ * order. All three outrank the name `compile()` is handed, so all three have to
+ * be gone before the schema is compiled.
+ *
+ * The library resolves a declaration name as
+ * `options.customName?.(…) || schema.title || schema.$id || keyNameFromDefinition`
+ * (`json-schema-to-typescript@15/dist/src/parser.js`), and its normalizer only
+ * synthesises the `$id` we rely on `if (!schema.$id && !schema.title …)`. So a
+ * schema-level `title` — which any hand-written OpenAPI document is likely to
+ * carry — makes the library declare `export interface Astronaut` while the
+ * surface still references the name we asked for, and the committed file no
+ * longer compiles. `id` is not covered by removing `$id`: the normalizer runs a
+ * `Transform id to $id` rule AFTER this pass, so the draft-04 spelling walks
+ * back in through the very keyword `$id` was removed to protect.
+ *
+ * None of the three carries type information. `description` is the keyword the
+ * library turns into a JSDoc comment and is deliberately KEPT.
+ *
+ * Enumerating keywords is not a proof, which is why {@link assertDeclares}
+ * turns a keyword this list forgets into a loud failure rather than a surface
+ * that silently does not compile.
+ */
+const NAME_KEYWORDS = ['title', '$id', 'id'] as const;
+
+/**
+ * Where a schema nests another schema, by the shape of the position.
+ *
+ * The walk below has to be keyword-aware rather than a blind key filter: `id`
+ * is a name keyword in a SCHEMA position and an ordinary property NAME inside
+ * `properties`, so filtering every key called `id` deletes the `id` property
+ * from every body that has one. That is not hypothetical — it is what the first
+ * version of this strip did, and the type surface it produced was clean
+ * TypeScript describing the wrong object.
+ */
+const NESTED_SCHEMA = {
+  /** Positions holding exactly one schema. */
+  single: [
+    'additionalItems',
+    'additionalProperties',
+    'contains',
+    'else',
+    'if',
+    'items',
+    'not',
+    'propertyNames',
+    'then',
+    'unevaluatedItems',
+    'unevaluatedProperties',
+  ],
+  /** Positions holding an array of schemas. */
+  list: ['allOf', 'anyOf', 'oneOf', 'prefixItems'],
+  /** Positions holding a name-to-schema map, where the KEY is not a keyword. */
+  map: [
+    '$defs',
+    'definitions',
+    'dependentSchemas',
+    'patternProperties',
+    'properties',
+  ],
+} as const;
+
+/**
+ * Strips every keyword a schema could name itself with, at every schema
+ * position — the root, a nested property, an array's element, a composition
+ * branch and a named component alike, because the library resolves the name the
+ * same way at each of them.
+ */
+function stripNameKeywords(schema: unknown): unknown {
+  if (!isRecord(schema)) {
+    return schema;
+  }
+
+  const node: Record<string, unknown> = { ...schema };
+
+  for (const keyword of NAME_KEYWORDS) {
+    delete node[keyword];
+  }
+
+  for (const keyword of NESTED_SCHEMA.single) {
+    if (keyword in node) {
+      node[keyword] = stripNameKeywords(node[keyword]);
+    }
+  }
+
+  for (const keyword of NESTED_SCHEMA.list) {
+    const branches = node[keyword];
+
+    if (Array.isArray(branches)) {
+      node[keyword] = branches.map(stripNameKeywords);
+    }
+  }
+
+  for (const keyword of NESTED_SCHEMA.map) {
+    const members = node[keyword];
+
+    if (isRecord(members)) {
+      node[keyword] = Object.fromEntries(
+        Object.entries(members).map(([name, member]) => [
+          name,
+          stripNameKeywords(member),
+        ]),
+      );
+    }
+  }
+
+  return node;
+}
+
+/**
+ * Fails if the library did not declare under the name it was handed.
+ *
+ * The surface references `typeName`, so a declaration under any other name is a
+ * dangling reference in a committed file — a `tsc` error for the user, in
+ * generated code they are told not to edit. Catching it here costs one regex
+ * and names the schema that caused it.
+ */
+function assertDeclares(declaration: string, typeName: string): void {
+  const declared = new RegExp(
+    `^export (?:interface|type) ${typeName}\\b`,
+    'm',
+  ).test(declaration);
+
+  if (!declared) {
+    throw new Error(
+      `The type generator asked for a declaration named ${typeName} and did ` +
+        `not get one. A schema keyword is overriding the name; see ` +
+        `NAME_KEYWORDS in schema-type.ts.`,
+    );
+  }
+}
+
 /** Whether a media type is one whose body has a JSON shape worth typing. */
 export function isJsonMediaType(mediaType: string): boolean {
   const essence = mediaType.split(';', 1)[0]?.trim().toLowerCase() ?? '';
@@ -83,7 +215,9 @@ export async function generateSchemaType(
   }
 
   const declaration = await compile(
-    defsToDefinitions(reflectExamples(structuredClone(schema))) as JSONSchema,
+    defsToDefinitions(
+      stripNameKeywords(reflectExamples(structuredClone(schema))),
+    ) as JSONSchema,
     typeName,
     {
       bannerComment: '',
@@ -92,6 +226,8 @@ export async function generateSchemaType(
       $refOptions: { mutateInputSchema: true },
     },
   );
+
+  assertDeclares(declaration, typeName);
 
   return { declarations: [declaration.trimEnd()], type: typeName };
 }

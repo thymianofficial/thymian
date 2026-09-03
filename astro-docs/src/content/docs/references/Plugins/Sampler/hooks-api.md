@@ -366,15 +366,26 @@ would — that is the CI gate.
 The authoritative gate. It regenerates the surface in memory, compares it with
 what is committed, and type-checks your hooks against the fresh surface.
 
-| committed vs fresh | hooks compile | outcome                          |
-| ------------------ | ------------- | -------------------------------- |
-| identical          | yes           | silent success                   |
-| **differs**        | **yes**       | **warning** — run `sampler sync` |
-| differs            | no            | **error** — breaking drift       |
+| committed vs fresh | hooks compile | outcome                                                                            |
+| ------------------ | ------------- | ---------------------------------------------------------------------------------- |
+| identical          | yes           | silent success                                                                     |
+| **differs**        | **yes**       | **warning** — run `sampler sync`                                                   |
+| differs            | no            | **error** — breaking drift: `sync`, then fix the hooks                             |
+| identical          | no            | **error** — the hooks do not compile. Nothing drifted, so `sync` is not the remedy |
 
 It also reports vacuous globs, zero-match filters and `defineSample` conflicts.
 The comparison ignores comments and formatting, so a description-only edit and a
 reordering of your document are not drift.
+
+### `thymian sampler check`
+
+Sends every Transaction's request against the live API and reports which ones
+can be executed at all — a narrower question than `thymian test`, which checks
+whether the responses conform. `--incremental` walks them one at a time,
+printing the Selector to anchor a hook to when one fails.
+
+It predates the virtual model and is unchanged by it, except that it no longer
+needs anything generated first.
 
 ### `thymian sampler show <selector>`
 
