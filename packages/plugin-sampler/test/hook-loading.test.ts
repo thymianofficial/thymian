@@ -338,6 +338,134 @@ export const b = beforeEach('GET /also-gone -> 200 (application/json)', () => {}
     ).resolves.toBeDefined();
   });
 
+  it('refuses a hook that was created but never exported', async () => {
+    const harness = await sampler();
+
+    // The one failure mode that used to be silent. Discovery is export-based,
+    // so this hook is created, is unreachable, and never fires — and a hook
+    // that does not fire is indistinguishable from one with nothing to do.
+    await harness.writeHook(
+      'forgot.ts',
+      `import { beforeEach } from '@thymian/hooks';
+
+beforeEach(${JSON.stringify(LAUNCHES)}, (request) => {
+  request.headers['x-forgot'] = 'yes';
+});
+`,
+    );
+
+    await harness.loadFormat(format);
+
+    await expect(
+      harness.beforeRequest(transactionIdOf(LAUNCHES), format),
+    ).rejects.toThrowError(/created but never exported/);
+  });
+
+  it('says how many, and does not accuse a file that exported its own', async () => {
+    const harness = await sampler();
+
+    await harness.writeHook(
+      'forgot.ts',
+      `import { beforeEach, afterEach } from '@thymian/hooks';
+
+beforeEach(${JSON.stringify(LAUNCHES)}, (request) => {
+  request.headers['x-one'] = 'yes';
+});
+afterEach(${JSON.stringify(LAUNCHES)}, () => {
+  void 'two';
+});
+`,
+    );
+    await harness.writeHook(
+      'fine.ts',
+      `import { beforeEach } from '@thymian/hooks';
+
+export const shape = beforeEach(${JSON.stringify(LAUNCHES)}, (request) => {
+  request.headers['x-fine'] = 'yes';
+});
+`,
+    );
+
+    await harness.loadFormat(format);
+
+    const error = await harness
+      .beforeRequest(transactionIdOf(LAUNCHES), format)
+      .then(
+        () => undefined,
+        (thrown: unknown) => thrown as Error,
+      );
+
+    expect(error?.message).toMatch(/2 sampler hooks are created/);
+    expect(String(error)).not.toContain('fine.ts');
+  });
+
+  it('accepts a hook re-exported from a shared module', async () => {
+    const harness = await sampler();
+
+    await harness.writeHook(
+      'shared.ts',
+      `import { beforeEach } from '@thymian/hooks';
+
+export const shared = beforeEach(${JSON.stringify(LAUNCHES)}, (request) => {
+  request.headers['x-shared'] = 'yes';
+});
+`,
+    );
+    await harness.writeHook(
+      're-export.ts',
+      `export { shared } from './shared.js';
+`,
+    );
+
+    await harness.loadFormat(format);
+
+    const { result } = await harness.beforeRequest(
+      transactionIdOf(LAUNCHES),
+      format,
+    );
+
+    expect(result.headers['x-shared']).toBe('yes');
+  });
+
+  it('loads a hook whose imports form a cycle', async () => {
+    const harness = await sampler();
+
+    // A cycle is ordinary in user code — two helper modules that reference each
+    // other — and the transpiler, not the sampler, is what has to survive it.
+    await harness.writeHook(
+      'cycle-a.ts',
+      `import { beforeEach } from '@thymian/hooks';
+import { headerName } from './cycle-b.js';
+
+export const label = 'a';
+export const shape = beforeEach(${JSON.stringify(LAUNCHES)}, (request) => {
+  request.headers[headerName] = 'yes';
+});
+`,
+    );
+    await harness.writeHook(
+      'cycle-b.ts',
+      `import { label } from './cycle-a.js';
+
+export const headerName = \`x-cycle-\${label ?? 'unset'}\`;
+`,
+    );
+
+    await harness.loadFormat(format);
+
+    const { result } = await harness.beforeRequest(
+      transactionIdOf(LAUNCHES),
+      format,
+    );
+
+    // Whichever way the cycle resolves, the hook fired and the run did not
+    // crash — the property worth pinning, since the resolution order of a
+    // cycle is the transpiler's business.
+    expect(
+      Object.keys(result.headers).some((name) => name.startsWith('x-cycle-')),
+    ).toBe(true);
+  });
+
   it('surfaces a hook file that cannot be imported, naming the file', async () => {
     const harness = await sampler();
 
