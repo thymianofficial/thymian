@@ -213,8 +213,26 @@ destroy the first one's report.
 
 A downstream step therefore matches a pattern rather than a path: a CI job that uploads or reads
 the output should glob `<reportsDir>/*/report.<ext>` — for example `.thymian/reports/*/report.md`.
-When a step needs exactly one match, point `reportsDir` at a directory that starts the run empty
-(`reportsDir: build/reports` in a fresh workspace, or a step that clears it first).
+
+```yaml
+# Upload every run directory the job produced.
+- uses: actions/upload-artifact@v7
+  with:
+    name: thymian-reports
+    path: .thymian/reports/*/report.*
+```
+
+A step that needs exactly _one_ file — posting the Markdown as a PR comment, piping the JSON into
+a script — has two options. Either take the newest run: a run directory name starts with the
+report's creation timestamp, so the names sort chronologically and the last one is the latest run.
+
+```bash
+report="$(ls -1d .thymian/reports/*/ | tail -1)report.md"
+```
+
+Or point `reportsDir` at a directory that is empty when the run starts (`reportsDir: build/reports`
+in a fresh workspace, or a step that clears it first), so the glob can only ever match once. In a
+CI job with a cached or reused workspace, clearing it is a step of its own.
 
 ### Migrating from the per-formatter `path`
 
