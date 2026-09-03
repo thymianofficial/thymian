@@ -1,16 +1,64 @@
 import { isRecord } from '@thymian/core';
 import { compile, type JSONSchema } from 'json-schema-to-typescript';
 
+import { type Declaration, splitDeclarations } from './declaration-set.js';
 import { reflectExamples } from './example-reflection.js';
 
 export type GeneratedType = {
-  /** Named declarations the type text refers to, in emission order. */
-  declarations: string[];
-  /** The type text itself, usable wherever a type is expected. */
+  /** The declarations this type is made of: its own, plus every named
+   * component it references. */
+  declarations: Declaration[];
+  /** The name of the root declaration, usable wherever a type is expected. */
   type: string;
 };
 
 const UNKNOWN: GeneratedType = { declarations: [], type: 'unknown' };
+
+/**
+ * Restores the boolean form of a schema that forbids everything.
+ *
+ * `additionalProperties: false` reaches the sampler as `{ not: {} }`, which is
+ * the correct JSON Schema for it (`plugin-openapi`'s `normalizeSchema` turns
+ * every boolean schema into its object form). The emitter cannot express it:
+ * it reads any object in that position as a value schema and emits
+ * `[k: string]: { [k: string]: unknown }`, an index signature that every
+ * declared property then fails to satisfy — `TS2411`, six times over on the
+ * demo description. Handed the boolean it emits no index signature at all,
+ * which is what a closed object is.
+ *
+ * Only this position is rewritten. `{ not: {} }` elsewhere means `never`, which
+ * the emitter is free to render however it likes.
+ */
+function closedObjectsToBoolean(input: unknown): unknown {
+  if (Array.isArray(input)) {
+    return input.map(closedObjectsToBoolean);
+  }
+
+  if (!isRecord(input)) {
+    return input;
+  }
+
+  const out: Record<string, unknown> = {};
+
+  for (const [key, value] of Object.entries(input)) {
+    out[key] =
+      key === 'additionalProperties' && forbidsEverything(value)
+        ? false
+        : closedObjectsToBoolean(value);
+  }
+
+  return out;
+}
+
+/** Whether a schema admits no value at all, in the shape normalization emits. */
+function forbidsEverything(schema: unknown): boolean {
+  return (
+    isRecord(schema) &&
+    Object.keys(schema).length === 1 &&
+    isRecord(schema['not']) &&
+    Object.keys(schema['not']).length === 0
+  );
+}
 
 /**
  * `$defs` is the 2020-12 spelling of the keyword `definitions` names in
@@ -216,7 +264,9 @@ export async function generateSchemaType(
 
   const declaration = await compile(
     defsToDefinitions(
-      stripNameKeywords(reflectExamples(structuredClone(schema))),
+      closedObjectsToBoolean(
+        stripNameKeywords(reflectExamples(structuredClone(schema))),
+      ),
     ) as JSONSchema,
     typeName,
     {
@@ -229,5 +279,5 @@ export async function generateSchemaType(
 
   assertDeclares(declaration, typeName);
 
-  return { declarations: [declaration.trimEnd()], type: typeName };
+  return { declarations: splitDeclarations(declaration), type: typeName };
 }

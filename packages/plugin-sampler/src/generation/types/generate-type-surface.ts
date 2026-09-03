@@ -2,6 +2,7 @@ import type { Parameter } from '@thymian/core';
 
 import type { TransactionCatalog } from '../../selectors/transaction-catalog.js';
 import { PATH_GLOB_SOURCE } from '../../selectors/transaction-filter.js';
+import { DeclarationSet } from './declaration-set.js';
 import { generateSchemaType, isJsonMediaType } from './schema-type.js';
 import { NameRegistry } from './type-names.js';
 
@@ -60,7 +61,7 @@ async function parametersType(
   parameters: Record<string, Parameter>,
   indexSignature: string,
   nameFor: (parameter: string) => string,
-  declarations: string[],
+  declarations: DeclarationSet,
 ): Promise<string> {
   const entries: string[] = [];
 
@@ -72,9 +73,10 @@ async function parametersType(
       nameFor(name),
     );
 
-    declarations.push(...generated.declarations);
+    const type = declarations.add(generated.declarations, generated.type);
+
     entries.push(
-      `    ${quote(name)}${parameter.required ? '' : '?'}: ${generated.type};`,
+      `    ${quote(name)}${parameter.required ? '' : '?'}: ${type};`,
     );
   }
 
@@ -95,7 +97,7 @@ async function parametersType(
 export async function generateTypeSurface(
   catalog: TransactionCatalog,
 ): Promise<TypeSurface> {
-  const declarations: string[] = [];
+  const declarations = new DeclarationSet();
   const endpoints: string[] = [];
   const methods = new Set<string>();
   const statuses = new Set<string>();
@@ -150,9 +152,13 @@ export async function generateTypeSurface(
       names.nameFor(selector, { kind: 'response-body' }),
     );
 
-    declarations.push(
-      ...requestBody.declarations,
-      ...responseBody.declarations,
+    const requestBodyType = declarations.add(
+      requestBody.declarations,
+      requestBody.type,
+    );
+    const responseBodyType = declarations.add(
+      responseBody.declarations,
+      responseBody.type,
     );
 
     const query = await parametersType(
@@ -202,7 +208,7 @@ export async function generateTypeSurface(
         `    responseMediaType: ${quote(res.mediaType)};`,
         `    authorize: boolean;`,
         `    req: {`,
-        `      body${isJsonMediaType(req.mediaType) && req.body ? (req.bodyRequired ? '' : '?') : '?'}: ${requestBody.type};`,
+        `      body${isJsonMediaType(req.mediaType) && req.body ? (req.bodyRequired ? '' : '?') : '?'}: ${requestBodyType};`,
         `      query?: ${query};`,
         `      path?: ${path};`,
         `      headers?: ${headers};`,
@@ -211,7 +217,7 @@ export async function generateTypeSurface(
         `    res: {`,
         `      statusCode: ${res.statusCode};`,
         `      headers: ${responseHeaders};`,
-        `      body: ${responseBody.type};`,
+        `      body: ${responseBodyType};`,
         `    };`,
         `  };`,
       ].join('\n'),
@@ -220,7 +226,7 @@ export async function generateTypeSurface(
 
   const requestTypes = [
     BANNER,
-    ...[...new Set(declarations)].sort(),
+    ...declarations.all(),
     '',
     '/** Every HTTP method the description uses. */',
     `export type Method = ${union([...methods].map(quote))};`,
