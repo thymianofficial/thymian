@@ -55,6 +55,12 @@ export class CsvFormatter implements Formatter<CsvFormatterOptions> {
   /**
    * Content of the most recently written report, handed back by {@link flush}
    * so a caller that drives a single report still gets the rendered output.
+   *
+   * No production consumer: the reporter plugin discards `flush()`'s return
+   * value. It exists for the {@link Formatter} contract and for callers — tests
+   * today — that drive one report and assert on the rows. Bounded to one
+   * document on purpose; retaining every report is what this formatter used to
+   * do to stream one session-level file.
    */
   private lastOutput: string | undefined;
 
@@ -150,7 +156,7 @@ export class CsvFormatter implements Formatter<CsvFormatterOptions> {
     // only reliable once the stream has been ended: an async write error (a
     // failed header, say) surfaces after `stream.write` has already returned.
     if (written !== undefined && !open.failed) {
-      this.logger.debug(`Wrote CSV report to ${open.outputPath}`);
+      this.logger.info(`Wrote CSV report to ${open.outputPath}`);
       this.lastOutput = `${CSV_HEADER}${written}`;
     }
   }

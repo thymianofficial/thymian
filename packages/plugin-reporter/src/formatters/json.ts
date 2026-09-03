@@ -31,6 +31,12 @@ export class JsonFormatter implements Formatter<JsonFormatterOptions> {
   /**
    * Output of the most recently written report, handed back by {@link flush} so
    * a caller that drives a single report still gets the rendered payload.
+   *
+   * No production consumer: the reporter plugin discards `flush()`'s return
+   * value. It exists for the {@link Formatter} contract and for callers — tests
+   * today — that drive one report and assert on the payload. Bounded to one
+   * payload on purpose; retaining every report is what this formatter used to
+   * do to emit a session-level array.
    */
   private lastOutput: string | undefined;
 
@@ -92,7 +98,7 @@ export class JsonFormatter implements Formatter<JsonFormatterOptions> {
 
       await mkdir(dirname(outputPath), { recursive: true });
       await writeFile(outputPath, output, 'utf-8');
-      this.logger.debug(`Wrote JSON report to ${outputPath}.`);
+      this.logger.info(`Wrote JSON report to ${outputPath}.`);
       this.lastOutput = output;
     } catch (err) {
       // A destination we cannot create or write leaves this formatter inert for

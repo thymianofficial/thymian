@@ -134,15 +134,15 @@ describe('CsvFormatter with two reports in flight at once', () => {
   it('writes both files completely and ends both streams', async () => {
     const cwd = await freshCwd('lifecycle-csv-overlap');
     const logger = new NoopLogger();
-    const debugSpy = vitest.spyOn(logger, 'debug');
+    const infoSpy = vitest.spyOn(logger, 'info');
     const formatter = new CsvFormatter(logger);
     formatter.init({ cwd });
 
-    // Both reports are handed over before either finishes. While the stream
-    // lived in an instance field, the first call's `finally` closed whatever
-    // was in the field — the second call's stream — and cleared it, so the
-    // first stream was never ended (a leaked fd) and the debug line named the
-    // wrong path.
+    // Both reports are handed over before either finishes. Each write must own
+    // its own stream: two complete files, each with its own header and its own
+    // row, both streams ended, and each success line naming its own path.
+    // `write()` keeps the stream in a local for exactly this reason — a shared
+    // instance field would let one write close and clear the other's.
     await Promise.all([
       formatter.report(reportWithRow('GET /pets')),
       formatter.report(
@@ -176,9 +176,9 @@ describe('CsvFormatter with two reports in flight at once', () => {
 
     // The success line is only logged once a stream has been ended, so two
     // lines — each naming its own file — is the proof that both closed.
-    expect(debugSpy).toHaveBeenCalledWith(`Wrote CSV report to ${first}`);
-    expect(debugSpy).toHaveBeenCalledWith(`Wrote CSV report to ${second}`);
-    expect(debugSpy).toHaveBeenCalledTimes(2);
+    expect(infoSpy).toHaveBeenCalledWith(`Wrote CSV report to ${first}`);
+    expect(infoSpy).toHaveBeenCalledWith(`Wrote CSV report to ${second}`);
+    expect(infoSpy).toHaveBeenCalledTimes(2);
   });
 });
 
@@ -223,7 +223,7 @@ describe('a report that makes rendering throw degrades like a write failure', ()
     const cwd = await freshCwd('lifecycle-csv-render-throws');
     const logger = new NoopLogger();
     const errorSpy = vitest.spyOn(logger, 'error');
-    const debugSpy = vitest.spyOn(logger, 'debug');
+    const infoSpy = vitest.spyOn(logger, 'info');
     const formatter = new CsvFormatter(logger);
     formatter.init({ cwd });
 
@@ -236,7 +236,7 @@ describe('a report that makes rendering throw degrades like a write failure', ()
       expect.stringContaining('Failed to write CSV report to'),
     );
     // Nothing is claimed as written when rendering never produced rows.
-    expect(debugSpy).not.toHaveBeenCalled();
+    expect(infoSpy).not.toHaveBeenCalled();
   });
 
   it('keeps serving later reports after one report fails to render', async () => {

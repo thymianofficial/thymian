@@ -666,6 +666,12 @@ export class MarkdownFormatter implements Formatter<MarkdownFormatterOptions> {
   /**
    * Document of the most recently written report, handed back by {@link flush}
    * so a caller that drives a single report still gets the rendered output.
+   *
+   * No production consumer: the reporter plugin discards `flush()`'s return
+   * value. It exists for the {@link Formatter} contract and for callers — tests
+   * today — that drive one report and assert on the rendering. Bounded to one
+   * document on purpose; retaining every report is what this formatter used to
+   * do to build a session-level aggregate.
    */
   private lastOutput: string | undefined;
 
@@ -730,7 +736,7 @@ export class MarkdownFormatter implements Formatter<MarkdownFormatterOptions> {
 
       await mkdir(path.dirname(outputPath), { recursive: true });
       await writeFile(outputPath, output, 'utf-8');
-      this.logger.debug(`Wrote Markdown report to ${outputPath}.`);
+      this.logger.info(`Wrote Markdown report to ${outputPath}.`);
       this.lastOutput = output;
     } catch (err) {
       // A destination we cannot create or write leaves this formatter inert for

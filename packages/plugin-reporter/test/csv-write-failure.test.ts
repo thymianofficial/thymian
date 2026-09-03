@@ -63,7 +63,7 @@ describe('CsvFormatter when the header write fails after the stream opened', () 
 
     const logger = new NoopLogger();
     const errorSpy = vitest.spyOn(logger, 'error');
-    const debugSpy = vitest.spyOn(logger, 'debug');
+    const infoSpy = vitest.spyOn(logger, 'info');
     const formatter = new CsvFormatter(logger);
     formatter.init({ cwd });
 
@@ -83,6 +83,6 @@ describe('CsvFormatter when the header write fails after the stream opened', () 
     expect(errorSpy).toHaveBeenCalledWith(
       expect.stringContaining('Failed to write CSV report to'),
     );
-    expect(debugSpy).not.toHaveBeenCalled();
+    expect(infoSpy).not.toHaveBeenCalled();
   });
 });
