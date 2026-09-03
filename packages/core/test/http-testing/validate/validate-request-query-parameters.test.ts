@@ -508,6 +508,17 @@ describe('validateRequestQueryParameters — PR #379 review fixes', () => {
 
     expect(results.filter((r) => r.type === 'assertion-failure')).toEqual([]);
     expect(results.filter((r) => r.type === 'info')).toHaveLength(1);
+
+    // The message must blame the wire form, not the style: thymian reverses
+    // `deepObject` perfectly well, and saying it "cannot deserialize" the
+    // style is the same misattribution this module exists to remove.
+    expect(results).toContainEqual(
+      expect.objectContaining({
+        type: 'info',
+        message:
+          'Query parameter "filter" is declared with serialization style "deepObject" but arrived in a form that style does not define — it was not validated against its schema.',
+      }),
+    );
   });
 
   it('folds neither of two free-form objects competing for one key', () => {

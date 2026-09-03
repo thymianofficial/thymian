@@ -149,34 +149,36 @@ export function flattenSchema(
       continue;
     }
 
-    // `allOf` is an intersection, so two members declaring `items` both apply.
-    // Keeping only the first made `allOf: [{items: {minimum: 1}}, {items:
-    // {type: 'integer'}}]` type its items off the typeless arm.
+    // `allOf` is an intersection, so two members declaring the same keyword
+    // both apply. Every keyword whose VALUE decides a conversion is therefore
+    // intersected: keeping only the first made `allOf: [{items: {minimum: 1}},
+    // {items: {type: 'integer'}}]` type its items off the typeless arm, and
+    // the same defect applied to `prefixItems`, `additionalProperties`,
+    // `patternProperties` and `enum` — member order decided the result.
     merged.items = intersect(merged.items, flat.items);
-    merged.prefixItems ??= flat.prefixItems;
+    merged.prefixItems = intersectPositional(
+      merged.prefixItems,
+      flat.prefixItems,
+    );
+    merged.additionalProperties = intersectAdditional(
+      merged.additionalProperties,
+      flat.additionalProperties,
+    );
+    merged.enum = intersectEnums(merged.enum, flat.enum);
+    merged.properties = intersectRecords(flat.properties, merged.properties);
+    merged.patternProperties = intersectRecords(
+      flat.patternProperties,
+      merged.patternProperties,
+    );
+
+    // Read for PRESENCE only (`structuralKind`) or off the unflattened node
+    // (`schemaTypes` handles `anyOf`/`oneOf`/`const` itself), so which member
+    // wins cannot change a conversion. Two members declaring different
+    // `const`s is an unsatisfiable schema either way — Ajv reports it.
     merged.contains ??= flat.contains;
-    merged.enum ??= flat.enum;
     merged.const ??= flat.const;
     merged.anyOf ??= flat.anyOf;
     merged.oneOf ??= flat.oneOf;
-    merged.additionalProperties ??= flat.additionalProperties;
-
-    if (flat.properties) {
-      const combined: Record<string, ThymianSchema> = { ...flat.properties };
-
-      for (const [key, sub] of Object.entries(merged.properties ?? {})) {
-        combined[key] = intersect(combined[key], sub) ?? sub;
-      }
-
-      merged.properties = combined;
-    }
-
-    if (flat.patternProperties) {
-      merged.patternProperties = {
-        ...flat.patternProperties,
-        ...merged.patternProperties,
-      };
-    }
   }
 
   return merged;
@@ -195,6 +197,111 @@ function intersect(
   }
 
   return { allOf: [left, right] };
+}
+
+/**
+ * Merge two `properties`/`patternProperties` maps, intersecting the subschemas
+ * of keys both declare. Keys unique to either side pass through, so the key
+ * SET is the union while each key's schema is the intersection — which is what
+ * `allOf` means for both keywords.
+ */
+function intersectRecords(
+  left: Record<string, ThymianSchema> | undefined,
+  right: Record<string, ThymianSchema> | undefined,
+): Record<string, ThymianSchema> | undefined {
+  if (!left || !right) {
+    return left ?? right;
+  }
+
+  const combined: Record<string, ThymianSchema> = { ...left };
+
+  for (const [key, sub] of Object.entries(right)) {
+    // Both operands are defined here, so `intersect` never returns undefined.
+    combined[key] = intersect(combined[key], sub) as ThymianSchema;
+  }
+
+  return combined;
+}
+
+/**
+ * `prefixItems` is positional: index *i* is governed by every member that
+ * declares it, so the entries are intersected pairwise.
+ *
+ * KNOWN LIMIT: past one member's `prefixItems` length that member governs the
+ * position through its `items` instead. `merged.items` still carries it, but
+ * `itemSchema` prefers a prefix entry, so that constraint is not applied at
+ * that one position. Accepted: parameter schemas that mix `allOf` with
+ * ragged `prefixItems` are vanishingly rare, and the alternative is
+ * reimplementing tuple composition.
+ */
+function intersectPositional(
+  left: ThymianSchema[] | undefined,
+  right: ThymianSchema[] | undefined,
+): ThymianSchema[] | undefined {
+  if (!left || !right) {
+    return left ?? right;
+  }
+
+  return Array.from(
+    { length: Math.max(left.length, right.length) },
+    // Within `length` at least one side is defined, so this is never undefined.
+    (_, index) => intersect(left[index], right[index]) as ThymianSchema,
+  );
+}
+
+/**
+ * `additionalProperties` intersection. It is a schema OR a boolean: `false`
+ * forbids extra properties outright and so wins over any schema, while `true`
+ * constrains nothing and so loses to one.
+ */
+function intersectAdditional(
+  left: ThymianSchema | boolean | undefined,
+  right: ThymianSchema | boolean | undefined,
+): ThymianSchema | boolean | undefined {
+  if (left === undefined || right === undefined) {
+    return left ?? right;
+  }
+
+  if (left === false || right === false) {
+    return false;
+  }
+
+  if (left === true) {
+    return right;
+  }
+
+  if (right === true) {
+    return left;
+  }
+
+  return intersect(left, right);
+}
+
+/**
+ * `enum` intersection: only values every member permits survive, so member
+ * order cannot decide which member a wire string matches.
+ *
+ * Non-primitive members are carried through from both sides rather than
+ * intersected — `deserializeScalar` only ever matches primitives, so an extra
+ * object or array member cannot change a conversion, while comparing them
+ * structurally here would only invent a deep-equality rule nothing reads.
+ */
+function intersectEnums(
+  left: unknown[] | undefined,
+  right: unknown[] | undefined,
+): unknown[] | undefined {
+  if (!left || !right) {
+    return left ?? right;
+  }
+
+  const isPrimitive = (value: unknown) =>
+    value === null || typeof value !== 'object';
+
+  return [
+    ...left.filter((value) => isPrimitive(value) && right.includes(value)),
+    ...left.filter((value) => !isPrimitive(value)),
+    ...right.filter((value) => !isPrimitive(value)),
+  ];
 }
 
 /** Derive the JSON Schema types of concrete values, for `enum`/`const`. */

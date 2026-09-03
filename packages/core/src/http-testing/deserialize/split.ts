@@ -11,7 +11,21 @@
  * Field values RFC 9110 §5.3 exempts from comma-folding: their grammar allows
  * a bare comma, so combining or splitting them on one corrupts the value.
  */
-export const NON_LIST_HEADERS = new Set(['set-cookie']);
+const NON_LIST_HEADERS = new Set(['set-cookie']);
+
+/**
+ * Split a header field value into its list members, honouring the exemptions
+ * above.
+ *
+ * A function rather than an exported `NON_LIST_HEADERS`, so no caller can hold
+ * the set and forget to consult it — a second copy of the set is exactly how
+ * the exemption drifted out of this module once already.
+ */
+export function splitFieldValue(name: string, raw: string): string[] {
+  return NON_LIST_HEADERS.has(name.toLowerCase())
+    ? [raw]
+    : splitHeaderList(raw);
+}
 
 export function splitHeaderList(raw: string): string[] {
   const items: string[] = [];

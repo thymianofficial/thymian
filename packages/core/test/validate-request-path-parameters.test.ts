@@ -352,6 +352,28 @@ describe('validateRequestPathParameters — typed wire values (gh-624)', () => {
     expect(results.filter((r) => r.type === 'assertion-failure')).toEqual([]);
     expect(results).toContainEqual(expect.objectContaining({ type: 'info' }));
   });
+
+  it('keeps an undecodable percent-escape encoded rather than dropping the segment', () => {
+    // `match(..., { decode: false })` hands `extractPathParameters` the raw
+    // segment so a delimiter inside an item survives splitting (see the
+    // comment there). `decodePathComponent` then decodes it — except `%zz`
+    // is not a valid escape, so `decodeURIComponent` throws and the raw,
+    // still-percent-encoded text is what reaches the schema. Pin that: a
+    // pattern matching the literal `%zz` passes, which only holds if the
+    // escape was never decoded.
+    const results = validateRequestPathParameters(
+      '/users/%zz',
+      requestWithPathSchema({ type: 'string', pattern: '^%zz$' }),
+    );
+
+    expect(results.filter((r) => r.type === 'assertion-failure')).toEqual([]);
+    expect(results).toContainEqual(
+      expect.objectContaining({
+        type: 'assertion-success',
+        message: 'Valid path parameter "userId".',
+      }),
+    );
+  });
 });
 
 describe('validateRequestPathParameters — label and matrix (gh-673)', () => {

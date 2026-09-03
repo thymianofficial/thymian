@@ -486,6 +486,24 @@ describe('header list folding (review round 1)', () => {
     ).toEqual(['a=1; Expires=Tue, 19 Aug 2026 00:00:00 GMT', 'b=2']);
   });
 
+  it('exempts a single set-cookie line too, not just a repeated one', () => {
+    // The repeated form splits line by line and the single form splits the
+    // whole value — two different callbacks, one exemption. They read it from
+    // the same place now, and this pins the second path.
+    const cookie = 'a=1; Expires=Tue, 19 Aug 2026 00:00:00 GMT';
+
+    expect(
+      value(
+        deserializeHeaderParameter(
+          'set-cookie',
+          cookie,
+          stringArray,
+          DEFAULT_HEADER_SERIALIZATION_STYLE,
+        ),
+      ),
+    ).toEqual([cookie]);
+  });
+
   it('hands a duplicated single-valued header to the schema', () => {
     expect(
       value(
@@ -1118,5 +1136,130 @@ describe('explode mismatch is not repaired (gh-673 review)', () => {
         ),
       ),
     ).toBe('role=admin,lvl=3');
+  });
+});
+
+describe('allOf keyword intersection (review round 3)', () => {
+  // `allOf` is an intersection, so a keyword two members both declare must
+  // keep both. Merging first-wins made every one of these depend on the order
+  // the members happen to be written in.
+  const bothOrders = (
+    keyword: 'additionalProperties' | 'prefixItems' | 'patternProperties',
+    typed: ThymianSchema,
+    untyped: ThymianSchema,
+  ): ThymianSchema[] =>
+    [
+      [untyped, typed],
+      [typed, untyped],
+    ].map((members) => ({ allOf: members.map((m) => ({ [keyword]: m })) }));
+
+  it('intersects additionalProperties, so the typed member always applies', () => {
+    for (const allOf of bothOrders(
+      'additionalProperties',
+      { type: 'integer' },
+      { minimum: 1 },
+    )) {
+      expect(
+        value(
+          deserializeObjectParameter(
+            [['x', '5']],
+            { type: 'object', ...allOf },
+            style('deepObject', true),
+          ),
+        ),
+      ).toEqual({ x: 5 });
+    }
+  });
+
+  it('intersects prefixItems positionally', () => {
+    for (const allOf of bothOrders(
+      'prefixItems',
+      [{ type: 'integer' }] as never,
+      [{ minimum: 1 }] as never,
+    )) {
+      expect(
+        value(
+          deserializePathParameter(
+            'id',
+            '5,x',
+            { type: 'array', ...allOf },
+            style('simple', false),
+          ),
+        ),
+      ).toEqual([5, 'x']);
+    }
+  });
+
+  it('intersects patternProperties per pattern', () => {
+    for (const allOf of bothOrders(
+      'patternProperties',
+      { '^x': { type: 'integer' } } as never,
+      { '^x': { minimum: 1 } } as never,
+    )) {
+      expect(
+        value(
+          deserializeObjectParameter(
+            [['x1', '5']],
+            { type: 'object', ...allOf },
+            style('deepObject', true),
+          ),
+        ),
+      ).toEqual({ x1: 5 });
+    }
+  });
+
+  it('intersects enum, so only values every member permits are matched', () => {
+    // '1' is a member of the first arm only, so the intersection excludes it
+    // and the wire form falls through to the intersected type (`integer`).
+    for (const members of [
+      [{ enum: ['1', 2, 3] }, { enum: [2, 3] }],
+      [{ enum: [2, 3] }, { enum: ['1', 2, 3] }],
+    ]) {
+      expect(deserializeScalar('2', { allOf: members })).toBe(2);
+      expect(deserializeScalar('1', { allOf: members })).toBe(1);
+    }
+  });
+
+  it('keeps the key union while intersecting shared property schemas', () => {
+    const schema: ThymianSchema = {
+      type: 'object',
+      allOf: [
+        { properties: { a: { minimum: 1 }, b: { type: 'boolean' } } },
+        { properties: { a: { type: 'integer' } } },
+      ],
+    };
+
+    expect(
+      value(
+        deserializeObjectParameter(
+          [
+            ['a', '5'],
+            ['b', 'true'],
+          ],
+          schema,
+          style('deepObject', true),
+        ),
+      ),
+    ).toEqual({ a: 5, b: true });
+  });
+
+  it('lets additionalProperties: false win over a sibling schema', () => {
+    // `false` forbids extra properties outright, so nothing is coerced
+    // through it and the wire string reaches the schema as sent.
+    expect(
+      value(
+        deserializeObjectParameter(
+          [['x', '5']],
+          {
+            type: 'object',
+            allOf: [
+              { additionalProperties: { type: 'integer' } },
+              { additionalProperties: false },
+            ],
+          },
+          style('deepObject', true),
+        ),
+      ),
+    ).toEqual({ x: '5' });
   });
 });

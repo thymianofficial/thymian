@@ -7,7 +7,7 @@ import {
   flattenSchema,
   splitWireList,
   structuralKind,
-  unsupportedStyleMessage,
+  unreconstructableValueMessage,
 } from '../deserialize-parameter.js';
 import type { HttpTestCaseResult } from '../http-test/index.js';
 import { resultsForDeserialized } from './validate-deserialized.js';
@@ -433,19 +433,18 @@ export function validateRequestQueryParameters(
   // to parse fabricates violations the request never committed.
   const unparseableResults = [...unparseable]
     .filter((name) => Object.hasOwn(request.queryParameters, name))
-    .map((name): HttpTestCaseResult => {
-      const style = declaredParameter(request, name)?.style;
-
-      return {
-        type: 'info',
-        message: unsupportedStyleMessage(`Query parameter "${name}"`, {
-          supported: false,
-          style: style?.style ?? 'deepObject',
-          explode: style?.explode ?? true,
-        }),
-        timestamp: Date.now(),
-      };
-    });
+    .map((name): HttpTestCaseResult => ({
+      type: 'info',
+      // `deepObject` is the only style whose parsing can fail this way — see
+      // the bracket branch in `parseQuery`, the sole writer to `unparseable`.
+      // NOT `unsupportedStyleMessage`: thymian reverses `deepObject` fine,
+      // and it is this key shape OpenAPI leaves undefined.
+      message: unreconstructableValueMessage(
+        `Query parameter "${name}"`,
+        'deepObject',
+      ),
+      timestamp: Date.now(),
+    }));
 
   const skipped = (name: string) => unparseable.has(name);
   const visible = Object.fromEntries(

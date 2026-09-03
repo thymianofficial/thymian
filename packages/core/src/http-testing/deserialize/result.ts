@@ -62,6 +62,25 @@ export function unsupportedStyleMessage(
 }
 
 /**
+ * The message for a value whose style thymian DOES reverse, but whose wire
+ * form it could not reconstruct — a nested `deepObject` key (`filter[a][b]`),
+ * which OpenAPI's style table leaves undefined.
+ *
+ * Reported as `info` like `unsupportedStyleMessage`, and deliberately NOT
+ * worded like it: saying thymian "cannot deserialize deepObject" when it
+ * demonstrably can blames a supported style for a shape the description never
+ * defined, which is the same misattribution this module exists to remove.
+ * Not `malformedStyleMessage` either — a form OpenAPI leaves undefined is not
+ * a request that violates its description, so it is not an assertion failure.
+ */
+export function unreconstructableValueMessage(
+  subject: string,
+  style: Style,
+): string {
+  return `${subject} is declared with serialization style "${style}" but arrived in a form that style does not define — it was not validated against its schema.`;
+}
+
+/**
  * The message for a value that is not serialized in the style its description
  * declares. Unlike `unsupportedStyleMessage` this is an assertion failure: the
  * description says how the value must be encoded, and it is not.
