@@ -712,6 +712,127 @@ export const check = afterEach('GET /x -> 200 (application/json)', (_, response)
     });
   });
 
+  describe('what a description may not decide', () => {
+    /** One transaction whose response body is `schema`. */
+    function responding(schema: object): ThymianFormat {
+      const format = new ThymianFormat();
+
+      format.addHttpTransaction(
+        createHttpRequest({ method: 'GET', path: '/x' }),
+        createHttpResponse({
+          statusCode: 200,
+          mediaType: 'application/json',
+          schema: schema as never,
+        }),
+        'test-source',
+      );
+
+      return format;
+    }
+
+    it('does not let a description write TypeScript through tsType', async () => {
+      // `tsType` is printed verbatim in place of whatever the node would have
+      // compiled to. A description is input — it can be fetched over the
+      // network — so honouring it lets the description decide the contents of a
+      // file the project commits and typechecks its hooks against. `any` alone
+      // switches off checking for that property everywhere.
+      const catalog = catalogOf(
+        responding({
+          type: 'object',
+          properties: {
+            pwned: { type: 'string', tsType: 'any /* injected */' },
+          },
+        }),
+      );
+      const { requestTypes } = await generateTypeSurface(catalog);
+
+      expect(requestTypes).not.toContain('injected');
+      expect(requestTypes).toContain('pwned?: string');
+
+      const diagnostics = await compileHook(
+        catalog,
+        `import { afterEach } from '@thymian/hooks';
+
+export const check = afterEach('GET /x -> 200 (application/json)', (_, response) => {
+  const pwned: number = response.body.pwned!;
+});
+`,
+      );
+
+      // With `any` through, this compiled clean.
+      expect(diagnostics).toHaveLength(1);
+    });
+
+    it('does not let a description mint a declaration through tsEnumNames', async () => {
+      // The declaration it mints is named after the property, so it bypasses
+      // the name registry entirely and can shadow anything.
+      const catalog = catalogOf(
+        responding({
+          type: 'object',
+          properties: {
+            rank: {
+              type: 'string',
+              enum: ['commander'],
+              tsEnumNames: ['Injected'],
+            },
+          },
+        }),
+      );
+      const { requestTypes } = await generateTypeSurface(catalog);
+
+      expect(requestTypes).not.toContain('Injected');
+      expect(requestTypes).not.toContain('const enum');
+      expect(requestTypes).toContain('rank?: "commander"');
+      expect(await checkSurface(catalog)).toEqual([]);
+    });
+
+    it('keeps a property that is merely NAMED like a keyword', async () => {
+      // `id` is a name keyword in a schema position and an ordinary property
+      // name inside `properties`. Filtering every key called `id` produced
+      // clean TypeScript describing the wrong object.
+      const catalog = catalogOf(
+        responding({
+          type: 'object',
+          required: ['id', 'title'],
+          properties: {
+            id: { type: 'string' },
+            title: { type: 'string' },
+            tsType: { type: 'string' },
+          },
+        }),
+      );
+      const { requestTypes } = await generateTypeSurface(catalog);
+
+      expect(requestTypes).toContain('id: string');
+      expect(requestTypes).toContain('title: string');
+      expect(requestTypes).toContain('tsType?: string');
+    });
+
+    it('handles a component that refers to itself', async () => {
+      const catalog = catalogOf(
+        responding({
+          $defs: {
+            Node: {
+              type: 'object',
+              properties: {
+                label: { type: 'string', examples: ['root'] },
+                next: { $ref: '#/$defs/Node' },
+              },
+            },
+          },
+          type: 'object',
+          properties: { tree: { $ref: '#/$defs/Node' } },
+        }),
+      );
+      const { requestTypes } = await generateTypeSurface(catalog);
+
+      expect(requestTypes.match(/^export interface Node \{/gm)).toHaveLength(1);
+      expect(requestTypes).toContain('next?: Node');
+      expect(requestTypes).toContain('label?: "root" | (string & {})');
+      expect(await checkSurface(catalog)).toEqual([]);
+    });
+  });
+
   describe('compile seam', () => {
     it('lets a hook write to every property of an example-reflected body', async () => {
       const diagnostics = await compileHook(

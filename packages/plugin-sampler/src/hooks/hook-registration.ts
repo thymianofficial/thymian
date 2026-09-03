@@ -92,17 +92,54 @@ export type HookRegistrationDraft =
 
 let nextOrder = 0;
 
+/**
+ * Where every registration created in this process is recorded, so the loader
+ * can tell a hook that was *created* from one that was *exported*.
+ *
+ * `beforeEach(...)` written without `export const x =` compiles, runs, creates
+ * a registration — and is then unreachable, because discovery is export-based.
+ * Nothing failed, so nothing was reported: the hook simply never fired.
+ *
+ * On `globalThis` under a well-known symbol, for the same reason
+ * {@link HOOK_REGISTRATION} is: the loader's jiti instance runs with
+ * `moduleCache: false`, so this module is re-evaluated for every hook file and
+ * a module-scope array would be a different array each time — including from
+ * the loader's own point of view. `globalThis` is the one thing all of those
+ * evaluations share.
+ *
+ * The loader empties it at the start of each scan and reads it per file, so it
+ * holds one scan's worth of registrations rather than the process's.
+ */
+const CREATED_REGISTRATIONS: unique symbol = Symbol.for(
+  '@thymian/plugin-sampler.created-registrations',
+);
+
+type CreatedRegistrations = {
+  [CREATED_REGISTRATIONS]?: HookRegistration[];
+};
+
+/** Every registration created so far, oldest first. Mutable on purpose. */
+export function createdRegistrations(): HookRegistration[] {
+  const channel = globalThis as CreatedRegistrations;
+
+  return (channel[CREATED_REGISTRATIONS] ??= []);
+}
+
 /** Freezes a draft into a branded, ordered registration. */
 export function registerHook(draft: HookRegistrationDraft): HookRegistration {
   const order = nextOrder;
 
   nextOrder = order + 1;
 
-  return Object.freeze({
+  const registration = Object.freeze({
     ...draft,
     order,
     [HOOK_REGISTRATION]: true,
   }) as HookRegistration;
+
+  createdRegistrations().push(registration);
+
+  return registration;
 }
 
 /**

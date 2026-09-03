@@ -19,6 +19,7 @@ import {
 } from './generation/types/write-type-surface.js';
 import {
   hookConflictError,
+  unexportedHooksError,
   unresolvedHooksError,
 } from './hooks/hook-diagnostics.js';
 import { HookRunner } from './hooks/hook-runner.js';
@@ -180,6 +181,10 @@ export const samplePlugin: ThymianPlugin<Partial<SamplerPluginOptions>> = {
 
       if (unresolvedHooks.conflicts.length > 0) {
         throw hookConflictError(unresolvedHooks.conflicts);
+      }
+
+      if (unresolvedHooks.unexported.length > 0) {
+        throw unexportedHooksError(unresolvedHooks.unexported);
       }
     }
 
