@@ -10,6 +10,7 @@ import { entryExists } from '../utils.js';
 import type { HookDiagnostic } from './hook-diagnostics.js';
 import { hookFileImportError } from './hook-diagnostics.js';
 import {
+  createdRegistrations,
   type HookRegistration,
   isHookRegistration,
 } from './hook-registration.js';
@@ -117,6 +118,14 @@ export type LoadUserHooksResult = {
    */
   conflicts: readonly HookDiagnostic[];
   /**
+   * Hooks a file created and did not export, so nothing can reach them.
+   *
+   * Kept apart from {@link diagnostics} for the same reason {@link conflicts}
+   * is: the selector resolves and the file loaded, so a sentence about hooks
+   * that "do not resolve" would send the reader to the one thing that is fine.
+   */
+  unexported: readonly HookDiagnostic[];
+  /**
    * Things the scan could not do, which are not a hook failing to resolve.
    *
    * Kept apart from {@link diagnostics} on purpose: an unreadable subdirectory
@@ -206,6 +215,33 @@ function compareKeys(a: string, b: string): number {
  * `default`. Nothing here calls a value to find out what it is: functions are
  * rejected structurally by {@link isHookRegistration}.
  */
+/**
+ * What a registration IS, independent of which module evaluation produced it.
+ *
+ * Two copies of one source hook — the same `beforeEach` call reached through
+ * two importing files — are different objects with the same kind, the same
+ * target and the same callback source, so this is what makes them one hook
+ * again. Two genuinely distinct hooks that agree on all three are
+ * indistinguishable by any means, so treating them as one costs nothing.
+ *
+ * A target that cannot be serialised (a filter object holding a cycle, which
+ * the renderer also has to survive) drops out of the shape rather than failing
+ * the scan: a coarser shape can only ever merge two hooks, and merging errs
+ * towards saying nothing.
+ */
+function hookShape(registration: HookRegistration): string {
+  const target = 'target' in registration ? registration.target : undefined;
+  let targetKey: string;
+
+  try {
+    targetKey = JSON.stringify(target) ?? 'undefined';
+  } catch {
+    targetKey = '[unserialisable]';
+  }
+
+  return `${registration.kind}\u0000${targetKey}\u0000${String(registration.callback)}`;
+}
+
 function collectFromNamespace(
   namespace: unknown,
   file: string,
@@ -279,6 +315,7 @@ export async function loadUserHooks(
 ): Promise<LoadUserHooksResult> {
   const diagnostics: HookDiagnostic[] = [];
   const conflicts: HookDiagnostic[] = [];
+  const unexported: HookDiagnostic[] = [];
   const warnings: string[] = [];
   const byTransactionId = new Map<string, MutableTransactionHooks>();
   const runScoped = {
@@ -295,6 +332,7 @@ export async function loadUserHooks(
       globalAuthorize,
       diagnostics,
       conflicts,
+      unexported,
       warnings,
     };
   }
@@ -316,8 +354,19 @@ export async function loadUserHooks(
   });
 
   const collected: CollectedRegistration[] = [];
+  // Emptied per scan, so what it holds is this scan's registrations and the
+  // slice taken after each import is that file's.
+  const created = createdRegistrations();
+  const createdPerFile: Array<{
+    file: string;
+    created: readonly HookRegistration[];
+  }> = [];
+  const exportedShapes = new Set<string>();
+
+  created.length = 0;
 
   for (const { full, key } of files) {
+    const createdBefore = created.length;
     let namespace: unknown;
 
     try {
@@ -336,11 +385,43 @@ export async function loadUserHooks(
     // restarts, and a global sort by `order` interleaved the files. File order
     // is the outer key and it is already deterministic; `order` only has to
     // sequence what one file registered.
-    collected.push(
-      ...collectFromNamespace(namespace, key, dirname(full)).sort(
-        (a, b) => a.registration.order - b.registration.order,
-      ),
+    const fromFile = collectFromNamespace(namespace, key, dirname(full)).sort(
+      (a, b) => a.registration.order - b.registration.order,
     );
+
+    createdPerFile.push({ file: key, created: created.slice(createdBefore) });
+
+    for (const entry of fromFile) {
+      exportedShapes.add(hookShape(entry.registration));
+    }
+
+    collected.push(...fromFile);
+  }
+
+  // A hook created and never exported is unreachable: discovery is
+  // export-based, so it never fires, and a hook that never fires looks exactly
+  // like one with nothing to do. It was the only failure here that was silent.
+  //
+  // Compared by SHAPE, not by identity, and only once every file has been
+  // scanned. `moduleCache: false` re-evaluates an imported module for each
+  // importing file, so one source hook in a shared module becomes a different
+  // object per file — and accusing the file that imported it without
+  // re-exporting would fail a run over a hook that another file exports and
+  // that does fire.
+  for (const { file, created: createdHere } of createdPerFile) {
+    for (const registration of createdHere) {
+      if (exportedShapes.has(hookShape(registration))) {
+        continue;
+      }
+
+      unexported.push({
+        file,
+        reason: `a ${registration.kind} hook was created here but never exported, so nothing can reach it`,
+        suggestions: [
+          `Assign it to an export, as in: export const shape = ${registration.kind}(...)`,
+        ],
+      });
+    }
   }
 
   // One number ordering every hook in the run against every other. Assigned
@@ -427,6 +508,7 @@ export async function loadUserHooks(
     globalAuthorize,
     diagnostics,
     conflicts,
+    unexported,
     warnings,
   };
 }
