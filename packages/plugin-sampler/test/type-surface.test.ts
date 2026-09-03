@@ -4,7 +4,7 @@ import { describe, expect, it } from 'vitest';
 
 import { generateTypeSurface } from '../src/generation/types/generate-type-surface.js';
 import { TransactionCatalog } from '../src/selectors/transaction-catalog.js';
-import { compileHook } from './compile-probe.js';
+import { checkSurface, compileHook } from './compile-probe.js';
 
 /**
  * A description with a body carrying examples at three levels: a primitive
@@ -480,6 +480,117 @@ describe('the committed type surface', () => {
         'export interface GetX200ApplicationJsonResponseBody {',
       );
       expect(requestTypes).not.toContain('Nasa');
+    });
+  });
+
+  describe('one declaration per component', () => {
+    /** `count` transactions, each referencing the same named component. */
+    function sharing(component: object, count: number): ThymianFormat {
+      const format = new ThymianFormat();
+
+      for (let index = 0; index < count; index += 1) {
+        format.addHttpTransaction(
+          createHttpRequest({ method: 'GET', path: `/p${index}` }),
+          createHttpResponse({
+            statusCode: 200,
+            mediaType: 'application/json',
+            schema: {
+              $defs: { Shared: component },
+              type: 'object',
+              properties: { shared: { $ref: '#/$defs/Shared' } },
+            } as never,
+          }),
+          'test-source',
+        );
+      }
+
+      return format;
+    }
+
+    it('emits a shared interface once, not once per reference', async () => {
+      const { requestTypes } = await generateTypeSurface(
+        catalogOf(
+          sharing({ type: 'object', properties: { a: { type: 'string' } } }, 4),
+        ),
+      );
+
+      expect(requestTypes.match(/^export interface Shared \{/gm)).toHaveLength(
+        1,
+      );
+    });
+
+    it('compiles when the shared component is a type alias', async () => {
+      // An interface duplicated four times merges, so the duplication was
+      // invisible; a type alias duplicated four times is TS2300 four times.
+      const catalog = catalogOf(
+        sharing({ type: 'string', enum: ['commander', 'pilot'] }, 4),
+      );
+      const { requestTypes } = await generateTypeSurface(catalog);
+
+      expect(requestTypes.match(/^export type Shared =/gm)).toHaveLength(1);
+      expect(await checkSurface(catalog)).toEqual([]);
+    });
+
+    it('keeps two same-named components apart when they differ', async () => {
+      // Two description files may each declare their own `Shared`. Merging
+      // them would give one root the other's body.
+      const format = new ThymianFormat();
+
+      for (const [index, type] of ['string', 'integer'].entries()) {
+        format.addHttpTransaction(
+          createHttpRequest({ method: 'GET', path: `/p${index}` }),
+          createHttpResponse({
+            statusCode: 200,
+            mediaType: 'application/json',
+            schema: {
+              $defs: { Shared: { type } },
+              type: 'object',
+              properties: { shared: { $ref: '#/$defs/Shared' } },
+            } as never,
+          }),
+          `source-${index}`,
+        );
+      }
+
+      const catalog = catalogOf(format);
+      const { requestTypes } = await generateTypeSurface(catalog);
+
+      expect(requestTypes).toContain('export type Shared = string');
+      expect(requestTypes).toContain('export type Shared_2 = number');
+      expect(await checkSurface(catalog)).toEqual([]);
+    });
+
+    it('emits a closed object as one, not as an unsatisfiable index', async () => {
+      // `additionalProperties: false` arrives as `{ not: {} }`, and read as a
+      // value schema it became `[k: string]: { [k: string]: unknown }` — an
+      // index signature the declared property could not satisfy.
+      const format = new ThymianFormat();
+
+      format.addHttpTransaction(
+        createHttpRequest({ method: 'GET', path: '/x' }),
+        createHttpResponse({
+          statusCode: 200,
+          mediaType: 'application/json',
+          schema: {
+            type: 'object',
+            additionalProperties: { not: {} },
+            required: ['count'],
+            properties: { count: { type: 'integer' } },
+          } as never,
+        }),
+        'test-source',
+      );
+
+      const catalog = catalogOf(format);
+      const { requestTypes } = await generateTypeSurface(catalog);
+
+      expect(requestTypes).toContain('count: number');
+      expect(requestTypes).not.toContain('[k: string]: {');
+      expect(await checkSurface(catalog)).toEqual([]);
+    });
+
+    it('produces a surface that typechecks without skipLibCheck', async () => {
+      expect(await checkSurface(catalogOf(formatWithExamples()))).toEqual([]);
     });
   });
 
