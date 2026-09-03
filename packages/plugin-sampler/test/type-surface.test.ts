@@ -154,6 +154,128 @@ describe('the committed type surface', () => {
     });
   });
 
+  describe('examples on named component schemas', () => {
+    /**
+     * The same schema twice: once inline, once behind a `$ref` into `$defs`.
+     * Named components are how essentially every real description is written,
+     * so a reflection that only reaches inline schemas is off for most users.
+     *
+     * Asserted on the **emitted artifact** rather than on `reflectExamples` in
+     * isolation, because a unit test over inline schemas is exactly what let
+     * this through.
+     */
+    function withComponents(): TransactionCatalog {
+      const format = new ThymianFormat();
+      const launch = {
+        type: 'object',
+        properties: {
+          name: { type: 'string', examples: ['Artemis I', 'Apollo 11'] },
+        },
+      };
+
+      format.addHttpTransaction(
+        createHttpRequest({ method: 'GET', path: '/inline' }),
+        createHttpResponse({
+          statusCode: 200,
+          mediaType: 'application/json',
+          schema: launch as never,
+        }),
+        'test-source',
+      );
+      format.addHttpTransaction(
+        createHttpRequest({ method: 'GET', path: '/viaref' }),
+        createHttpResponse({
+          statusCode: 200,
+          mediaType: 'application/json',
+          schema: {
+            $defs: { Launch: launch },
+            $ref: '#/$defs/Launch',
+          } as never,
+        }),
+        'test-source',
+      );
+
+      return TransactionCatalog.fromThymianFormat(format);
+    }
+
+    it('reflects an example declared on a $ref-d component', async () => {
+      const { requestTypes } = await generateTypeSurface(withComponents());
+      const reflected = [...requestTypes.matchAll(/name\?: (.+)$/gm)].map(
+        (match) => match[1],
+      );
+
+      // Both operations, not just the inline one.
+      expect(reflected).toHaveLength(2);
+      for (const type of reflected) {
+        expect(type).toBe('"Artemis I" | "Apollo 11" | (string & {})');
+      }
+    });
+
+    it('does not push a referring site’s example into the shared component', async () => {
+      const format = new ThymianFormat();
+      const shared = {
+        type: 'object',
+        properties: { name: { type: 'string' } },
+      };
+
+      format.addHttpTransaction(
+        createHttpRequest({ method: 'GET', path: '/two-users' }),
+        createHttpResponse({
+          statusCode: 200,
+          mediaType: 'application/json',
+          schema: {
+            type: 'object',
+            $defs: { Crew: shared },
+            properties: {
+              // An example beside a `$ref` describes *this* property, not the
+              // component every other property shares.
+              lead: { $ref: '#/$defs/Crew', examples: [{ name: 'Sarah' }] },
+              backup: { $ref: '#/$defs/Crew' },
+            },
+          } as never,
+        }),
+        'test-source',
+      );
+
+      const { requestTypes } = await generateTypeSurface(
+        TransactionCatalog.fromThymianFormat(format),
+      );
+
+      // `backup` shares the component, so leaking "Sarah" into it would be a
+      // lie about the API.
+      expect(requestTypes).not.toContain('"Sarah"');
+    });
+
+    it('reflects through allOf, anyOf and oneOf', async () => {
+      const format = new ThymianFormat();
+
+      format.addHttpTransaction(
+        createHttpRequest({ method: 'GET', path: '/composed' }),
+        createHttpResponse({
+          statusCode: 200,
+          mediaType: 'application/json',
+          schema: {
+            allOf: [
+              {
+                type: 'object',
+                properties: {
+                  rank: { type: 'string', examples: ['Commander'] },
+                },
+              },
+            ],
+          } as never,
+        }),
+        'test-source',
+      );
+
+      const { requestTypes } = await generateTypeSurface(
+        TransactionCatalog.fromThymianFormat(format),
+      );
+
+      expect(requestTypes).toContain('"Commander" | (string & {})');
+    });
+  });
+
   describe('what the surface imports', () => {
     it('imports the other generated file by its module path', async () => {
       const { hooksApi } = await generateTypeSurface(
@@ -218,6 +340,149 @@ describe('the committed type surface', () => {
    * compiler can answer, and text assertions are exactly what let the earlier
    * object-union reflection ship.
    */
+  describe('declaration names', () => {
+    /** A description of `count` numbered endpoints, plus whatever `extra` adds. */
+    function formatOf(
+      paths: readonly string[],
+      options: { readonly parameter?: string } = {},
+    ): ThymianFormat {
+      const format = new ThymianFormat();
+
+      for (const path of paths) {
+        format.addHttpTransaction(
+          createHttpRequest({
+            method: 'GET',
+            path,
+            queryParameters: options.parameter
+              ? {
+                  [options.parameter]: {
+                    name: options.parameter,
+                    in: 'query',
+                    required: false,
+                    schema: { type: 'integer' } as never,
+                  },
+                }
+              : {},
+          }),
+          createHttpResponse({
+            statusCode: 200,
+            mediaType: 'application/json',
+            schema: {
+              type: 'object',
+              properties: { a: { type: 'string' } },
+            } as never,
+          }),
+          'test-source',
+        );
+      }
+
+      return format;
+    }
+
+    it('names a declaration after its selector and role', async () => {
+      const { requestTypes } = await generateTypeSurface(
+        catalogOf(formatOf(['/launches'], { parameter: 'limit' })),
+      );
+
+      expect(requestTypes).toContain(
+        'GetLaunches200ApplicationJsonResponseBody',
+      );
+      expect(requestTypes).toContain(
+        'GetLaunches200ApplicationJsonQueryParam_Limit',
+      );
+      expect(requestTypes).not.toMatch(/Transaction\d+Type\d+/);
+    });
+
+    it('leaves every other endpoint alone when one is inserted', async () => {
+      const before = await generateTypeSurface(
+        catalogOf(formatOf(['/b', '/c'])),
+      );
+      // `/a` sorts first, so a positional name would renumber `/b` and `/c`.
+      const after = await generateTypeSurface(
+        catalogOf(formatOf(['/a', '/b', '/c'])),
+      );
+
+      const added = after.requestTypes
+        .split('\n')
+        .filter((line) => !before.requestTypes.includes(line));
+      const removed = before.requestTypes
+        .split('\n')
+        .filter((line) => !after.requestTypes.includes(line));
+
+      // Exhaustively: the only lines that move are the new endpoint's own —
+      // its declaration, its selector key, its path and the reference to its
+      // body — plus the one union it widens.
+      expect(removed).toEqual(['export type Path = "/b" | "/c";']);
+      expect([...added].sort()).toEqual(
+        [
+          'export interface GetA200ApplicationJsonResponseBody {',
+          '  "GET /a -> 200 (application/json)": {',
+          '    path: "/a";',
+          '      body: GetA200ApplicationJsonResponseBody;',
+          'export type Path = "/a" | "/b" | "/c";',
+        ].sort(),
+      );
+    });
+
+    it('separates two selectors that sanitise onto one identifier', async () => {
+      const format = new ThymianFormat();
+
+      // `A-B` and `A.B` both pascal-case to `Ab`, so the stems collide.
+      for (const method of ['A-B', 'A.B']) {
+        format.addHttpTransaction(
+          createHttpRequest({ method, path: '/x' }),
+          createHttpResponse({
+            statusCode: 200,
+            mediaType: 'application/json',
+            schema: { type: 'object' } as never,
+          }),
+          'test-source',
+        );
+      }
+
+      const { requestTypes } = await generateTypeSurface(catalogOf(format));
+
+      // Both stems are `ABX200ApplicationJson`, so the second claimant is
+      // suffixed rather than silently sharing the first one's declaration.
+      expect(requestTypes).toContain(
+        'export interface ABX200ApplicationJsonResponseBody {',
+      );
+      expect(requestTypes).toContain(
+        'export interface ABX200ApplicationJsonResponseBody_2 {',
+      );
+    });
+
+    it('declares under the name it references when a schema has a title', async () => {
+      // `title` outranks the name handed to `compile()`, so before the strip
+      // this emitted `export interface Nasa` and referenced a name that was
+      // never declared — a committed surface that does not compile.
+      const format = new ThymianFormat();
+
+      format.addHttpTransaction(
+        createHttpRequest({ method: 'GET', path: '/x' }),
+        createHttpResponse({
+          statusCode: 200,
+          mediaType: 'application/json',
+          schema: {
+            title: 'Nasa',
+            $id: 'https://example.test/nasa',
+            id: 'https://example.test/legacy',
+            type: 'object',
+            properties: { a: { type: 'string' } },
+          } as never,
+        }),
+        'test-source',
+      );
+
+      const { requestTypes } = await generateTypeSurface(catalogOf(format));
+
+      expect(requestTypes).toContain(
+        'export interface GetX200ApplicationJsonResponseBody {',
+      );
+      expect(requestTypes).not.toContain('Nasa');
+    });
+  });
+
   describe('compile seam', () => {
     it('lets a hook write to every property of an example-reflected body', async () => {
       const diagnostics = await compileHook(
@@ -305,6 +570,46 @@ export const broadcast = beforeEach(
       );
 
       expect(diagnostics).toEqual([]);
+    });
+
+    it('does not make a required body need a non-null assertion', async () => {
+      // The fixture's POST body is `bodyRequired`, so the description says the
+      // body is always there. Declaring the field optional anyway made every
+      // body-touching hook write `draft.body!`.
+      const diagnostics = await compileHook(
+        catalogOf(formatWithExamples()),
+        `import { defineSample } from '@thymian/hooks';
+
+export const shape = defineSample(${JSON.stringify(CREATE)}, (draft) => {
+  draft.body.id = 'a1';
+  draft.body.rank = 'pilot';
+});
+`,
+      );
+
+      expect(diagnostics).toEqual([]);
+    });
+
+    it('keeps the body optional where the transaction has none', async () => {
+      const diagnostics = await compileHook(
+        catalogOf(formatWithExamples()),
+        `import { defineSample } from '@thymian/hooks';
+
+export const shape = defineSample(
+  'GET /launches -> 200 (application/json)',
+  (draft) => {
+    // No body is declared for this Transaction, so reading it unguarded is
+    // exactly the mistake the optional field exists to catch.
+    draft.body.anything = 1;
+  },
+);
+`,
+      );
+
+      // Caught, whichever way the compiler words it — the point is that a
+      // Transaction with no declared body does not promise one.
+      expect(diagnostics).toHaveLength(1);
+      expect(diagnostics[0]?.code).toBe('draft.body.anything = 1;');
     });
 
     it('accepts the seeding idiom the docs teach', async () => {
