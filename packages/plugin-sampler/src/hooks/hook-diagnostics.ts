@@ -78,6 +78,36 @@ export function hookConflictError(
   );
 }
 
+/**
+ * A hook was created but never exported.
+ *
+ * Separate from {@link unresolvedHooksError} because the fault is a different
+ * one and needs a different sentence: the selector resolves, the file loaded,
+ * and the hook is simply unreachable. Sending the reader to look at their
+ * selectors would be sending them to the one thing that is fine.
+ *
+ * This is an error rather than a warning because the outcome is silence. A hook
+ * that does not fire looks exactly like a hook that had nothing to do, so
+ * there is no run in which the author would rather find out later.
+ */
+export function unexportedHooksError(
+  unexported: readonly HookDiagnostic[],
+): ThymianBaseError {
+  const count = unexported.length;
+
+  return new ThymianBaseError(
+    `${count} sampler ${count === 1 ? 'hook is' : 'hooks are'} created but never exported, so nothing can reach ${count === 1 ? 'it' : 'them'}.`,
+    {
+      name: 'UnexportedHooksError',
+      ref: 'https://thymian.dev/references/errors/unexported-hooks-error/',
+      suggestions: [
+        ...unexported.map(describe),
+        ...unexported.flatMap((diagnostic) => diagnostic.suggestions ?? []),
+      ],
+    },
+  );
+}
+
 /** A hook file could not be imported at all. */
 export function hookFileImportError(
   file: string,

@@ -128,6 +128,24 @@ function defsToDefinitions(input: unknown): unknown {
 const NAME_KEYWORDS = ['title', '$id', 'id'] as const;
 
 /**
+ * The emitter's own extensions, which let a schema write TypeScript directly.
+ *
+ * `tsType` is printed VERBATIM in place of whatever the node would have
+ * compiled to, and `tsEnumNames` mints a `const enum` declaration of its own.
+ * An API description is input — it can be fetched over the network, and it is
+ * not reviewed the way source is — so leaving these through means a description
+ * decides the contents of a file the project commits and compiles against.
+ * `tsType: 'any'` alone silently switches off type checking for that property
+ * everywhere a hook touches it, and a `tsEnumNames` declaration is named after
+ * the property rather than by {@link NameRegistry}, so it can shadow anything.
+ *
+ * The sampler uses `tsType` itself, for example reflection. That is why this
+ * strip runs BEFORE `reflectExamples`: what a description asked for is gone,
+ * and what the generator adds afterwards is its own.
+ */
+const TYPE_DIRECTIVES = ['tsType', 'tsEnumNames'] as const;
+
+/**
  * Where a schema nests another schema, by the shape of the position.
  *
  * The walk below has to be keyword-aware rather than a blind key filter: `id`
@@ -165,25 +183,24 @@ const NESTED_SCHEMA = {
 } as const;
 
 /**
- * Strips every keyword a schema could name itself with, at every schema
- * position — the root, a nested property, an array's element, a composition
- * branch and a named component alike, because the library resolves the name the
- * same way at each of them.
+ * Strips the given keywords at every schema position — the root, a nested
+ * property, an array's element, a composition branch and a named component
+ * alike, because the emitter reads them the same way at each of them.
  */
-function stripNameKeywords(schema: unknown): unknown {
+function stripKeywords(schema: unknown, keywords: readonly string[]): unknown {
   if (!isRecord(schema)) {
     return schema;
   }
 
   const node: Record<string, unknown> = { ...schema };
 
-  for (const keyword of NAME_KEYWORDS) {
+  for (const keyword of keywords) {
     delete node[keyword];
   }
 
   for (const keyword of NESTED_SCHEMA.single) {
     if (keyword in node) {
-      node[keyword] = stripNameKeywords(node[keyword]);
+      node[keyword] = stripKeywords(node[keyword], keywords);
     }
   }
 
@@ -191,7 +208,7 @@ function stripNameKeywords(schema: unknown): unknown {
     const branches = node[keyword];
 
     if (Array.isArray(branches)) {
-      node[keyword] = branches.map(stripNameKeywords);
+      node[keyword] = branches.map((branch) => stripKeywords(branch, keywords));
     }
   }
 
@@ -202,7 +219,7 @@ function stripNameKeywords(schema: unknown): unknown {
       node[keyword] = Object.fromEntries(
         Object.entries(members).map(([name, member]) => [
           name,
-          stripNameKeywords(member),
+          stripKeywords(member, keywords),
         ]),
       );
     }
@@ -262,11 +279,15 @@ export async function generateSchemaType(
     return UNKNOWN;
   }
 
+  // The strip comes first so that the only `tsType` the emitter sees is the one
+  // example reflection adds next.
+  const stripped = stripKeywords(structuredClone(schema), [
+    ...NAME_KEYWORDS,
+    ...TYPE_DIRECTIVES,
+  ]);
   const declaration = await compile(
     defsToDefinitions(
-      closedObjectsToBoolean(
-        stripNameKeywords(reflectExamples(structuredClone(schema))),
-      ),
+      closedObjectsToBoolean(reflectExamples(stripped)),
     ) as JSONSchema,
     typeName,
     {

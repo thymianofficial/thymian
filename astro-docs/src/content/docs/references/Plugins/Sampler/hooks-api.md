@@ -340,6 +340,12 @@ The loader scans `hooks/` recursively. It keeps `.ts`, `.mts`, `.cts`, `.js`,
 `.mjs` and `.cjs`, skips declaration files and dot-directories, and never calls
 an exported function to find out whether it is a hook.
 
+Discovery is **export-based**: a hook is a value, and the loader finds it by
+looking at what a file exports — as a named export, a default export, or an
+element of an exported array. Calling `beforeEach(...)` without assigning it to
+an export creates a hook nothing can reach, which is
+[`UnexportedHooksError`](/references/errors/unexported-hooks-error/).
+
 `@thymian/hooks` resolves at run time through the plugin itself, so **hooks run
 whether or not you have run `init`** and whether or not anything is committed.
 

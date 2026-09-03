@@ -35,6 +35,8 @@ export type ValidationReport = {
   unresolved: HookDiagnostic[];
   /** Hooks that resolve but cannot both apply. */
   conflicts: HookDiagnostic[];
+  /** Hooks created but never exported, so nothing can reach them. */
+  unexported: HookDiagnostic[];
   /** Non-fatal things the scan could not do. */
   warnings: string[];
   /**
@@ -107,7 +109,8 @@ export async function validateSampler(
   const broken =
     typeErrors.length > 0 ||
     hooks.diagnostics.length > 0 ||
-    hooks.conflicts.length > 0;
+    hooks.conflicts.length > 0 ||
+    hooks.unexported.length > 0;
 
   return {
     surface: state,
@@ -115,6 +118,7 @@ export async function validateSampler(
     typeErrors,
     unresolved: [...hooks.diagnostics],
     conflicts: [...hooks.conflicts],
+    unexported: [...hooks.unexported],
     warnings: [...hooks.warnings],
     outcome: broken
       ? state === 'behind'

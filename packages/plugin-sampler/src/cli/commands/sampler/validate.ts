@@ -36,7 +36,11 @@ export default class Validate extends BaseCliRunCommand<typeof Validate> {
         this.log(oclif.ux.colorize('yellow', `! ${warning}`));
       }
 
-      for (const problem of [...report.unresolved, ...report.conflicts]) {
+      for (const problem of [
+        ...report.unresolved,
+        ...report.conflicts,
+        ...report.unexported,
+      ]) {
         const where = problem.exportName
           ? `${problem.file} (export "${problem.exportName}")`
           : problem.file;
