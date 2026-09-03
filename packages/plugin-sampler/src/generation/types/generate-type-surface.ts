@@ -3,6 +3,7 @@ import type { Parameter } from '@thymian/core';
 import type { TransactionCatalog } from '../../selectors/transaction-catalog.js';
 import { PATH_GLOB_SOURCE } from '../../selectors/transaction-filter.js';
 import { generateSchemaType, isJsonMediaType } from './schema-type.js';
+import { NameRegistry } from './type-names.js';
 
 /** The two files the committed surface consists of. */
 export type TypeSurface = {
@@ -58,7 +59,7 @@ function quote(value: string): string {
 async function parametersType(
   parameters: Record<string, Parameter>,
   indexSignature: string,
-  nextName: () => string,
+  nameFor: (parameter: string) => string,
   declarations: string[],
 ): Promise<string> {
   const entries: string[] = [];
@@ -68,7 +69,7 @@ async function parametersType(
     const generated = await generateSchemaType(
       parameter.schema,
       parameter.contentType ?? 'application/json',
-      nextName(),
+      nameFor(name),
     );
 
     declarations.push(...generated.declarations);
@@ -84,10 +85,12 @@ async function parametersType(
  * Emit the committed type surface for a loaded description.
  *
  * Deterministic by construction: unions are sorted, parameters are emitted in
- * name order, declaration names come from the catalog's position rather than
- * from a visit counter, and `Endpoints` follows catalog order — which is sorted
- * by selector. So reordering the source document, or renaming its title,
- * changes nothing here.
+ * name order, declaration names come from the selector and the schema's role
+ * within the transaction (see `type-names.ts`), and `Endpoints` follows catalog
+ * order — which is sorted by selector. So reordering the source document, or
+ * renaming its title, changes nothing here; and because no name is positional,
+ * inserting an endpoint touches only the lines that endpoint owns plus the
+ * unions its method, status, path and media types widen.
  */
 export async function generateTypeSurface(
   catalog: TransactionCatalog,
@@ -100,13 +103,21 @@ export async function generateTypeSurface(
   const paths = new Set<string>();
   const requestMediaTypes = new Set<string>();
   const responseMediaTypes = new Set<string>();
+  // The fixed declarations this file emits around the generated ones, so a
+  // generated name can never shadow one of them.
+  const names = new NameRegistry([
+    'Endpoints',
+    'Method',
+    'Path',
+    'RequestMediaType',
+    'ResponseMediaType',
+    'Selector',
+    'Status',
+    'StatusClass',
+  ]);
 
-  for (const [index, [selector, transaction]] of catalog.entries().entries()) {
+  for (const [selector, transaction] of catalog.entries()) {
     const { thymianReq: req, thymianRes: res } = transaction;
-    // Named after the transaction's position in a selector-sorted catalog, so
-    // the name is a function of the description rather than of traversal order.
-    let counter = 0;
-    const nextName = (): string => `Transaction${index}Type${counter++}`;
 
     methods.add(req.method.toUpperCase());
     statuses.add(String(res.statusCode));
@@ -131,12 +142,12 @@ export async function generateTypeSurface(
     const requestBody = await generateSchemaType(
       req.body,
       req.mediaType,
-      nextName(),
+      names.nameFor(selector, { kind: 'request-body' }),
     );
     const responseBody = await generateSchemaType(
       res.schema,
       res.mediaType,
-      nextName(),
+      names.nameFor(selector, { kind: 'response-body' }),
     );
 
     declarations.push(
@@ -147,31 +158,35 @@ export async function generateTypeSurface(
     const query = await parametersType(
       req.queryParameters,
       '[query: string]: unknown;',
-      nextName,
+      (parameter) =>
+        names.nameFor(selector, { kind: 'query-parameter', parameter }),
       declarations,
     );
     const path = await parametersType(
       req.pathParameters,
       '[param: string]: unknown;',
-      nextName,
+      (parameter) =>
+        names.nameFor(selector, { kind: 'path-parameter', parameter }),
       declarations,
     );
     const headers = await parametersType(
       req.headers,
       '[header: string]: string | string[] | undefined;',
-      nextName,
+      (parameter) =>
+        names.nameFor(selector, { kind: 'request-header', parameter }),
       declarations,
     );
     const cookies = await parametersType(
       req.cookies,
       '[cookie: string]: unknown;',
-      nextName,
+      (parameter) => names.nameFor(selector, { kind: 'cookie', parameter }),
       declarations,
     );
     const responseHeaders = await parametersType(
       res.headers,
       '[header: string]: string | string[] | undefined;',
-      nextName,
+      (parameter) =>
+        names.nameFor(selector, { kind: 'response-header', parameter }),
       declarations,
     );
 
@@ -345,9 +360,21 @@ export type RequestOf<T> = T extends Selector
       query: GroupOf<T, 'query'>;
       headers: GroupOf<T, 'headers'>;
       cookies: GroupOf<T, 'cookies'>;
-      body?: Endpoints[T]['req']['body'];
-    }
+    } & BodyOf<T>
   : GenericRequest;
+
+/**
+ * The body field, required exactly when the Transaction requires a body.
+ *
+ * Declaring it optional unconditionally made the documented mutate-in-place
+ * idiom need a non-null assertion — \`draft.body!.rank = …\` — on every
+ * body-touching hook, for a body the description says is always there. An
+ * optional property does not satisfy a required one, so the check below lands
+ * on the right branch by itself.
+ */
+type BodyOf<T extends Selector> = Endpoints[T]['req'] extends { body: infer B }
+  ? { body: B }
+  : { body?: Endpoints[T]['req']['body'] };
 
 /** The request a hook shapes when its target covers more than one Transaction. */
 export type GenericRequest = {

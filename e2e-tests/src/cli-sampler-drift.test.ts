@@ -107,7 +107,7 @@ describe('thymian sampler init, sync and validate', () => {
     ).toBe(0);
   }, 180_000);
 
-  it('validate fails on a hook the description no longer has', () => {
+  it('validate calls a stale hook broken, not drifted, when nothing moved', () => {
     const dir = setUp();
 
     execThymian(['sampler', 'init'], { cwd: dir });
@@ -133,6 +133,48 @@ export const stale = beforeEach(
 
     expect(result.exitCode).not.toBe(0);
     expect(result.output).toContain('stale.ts');
+    // The description has not moved and the committed types are in sync, so
+    // this is a hook that does not compile — not drift, and `sync` would
+    // rewrite correct files while leaving the real error in place.
+    expect(result.output).toContain('do not compile');
+    expect(result.output).not.toContain('Breaking drift');
+  }, 180_000);
+
+  it('validate calls it drift when the description moved under the hook', () => {
+    const dir = setUp();
+
+    execThymian(['sampler', 'init'], { cwd: dir });
+
+    const hooksDir = join(dir, '.thymian', 'sampler', 'hooks');
+
+    writeFileSync(
+      join(hooksDir, 'hook.ts'),
+      `import { beforeEach } from '@thymian/hooks';
+
+export const shape = beforeEach(
+  'GET /api/hello -> 200 (application/json)',
+  () => {},
+);
+`,
+      'utf-8',
+    );
+
+    // Rename the path the hook is anchored to: the surface moves *and* the
+    // hook stops fitting, which is drift proper.
+    const specPath = join(dir, 'test.openapi.yaml');
+    const spec = readFileSync(specPath, 'utf-8');
+    const renamed = spec.replace('/api/hello:', '/api/greeting:');
+
+    expect(renamed, 'the fixture path the edit relies on').not.toBe(spec);
+    writeFileSync(specPath, renamed, 'utf-8');
+
+    const result = execThymianRaw(['sampler', 'validate'], {
+      cwd: dir,
+      allowFailure: true,
+    });
+
+    expect(result.exitCode).not.toBe(0);
     expect(result.output).toContain('Breaking drift');
+    expect(result.output).toContain('sampler sync');
   }, 180_000);
 });

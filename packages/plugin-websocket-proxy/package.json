@@ -1,6 +1,6 @@
 {
   "name": "@thymian/plugin-websocket-proxy",
-  "version": "0.0.0-PLACEHOLDER",
+  "version": "0.0.1-e2e",
   "description": "Thymian plugin providing a WebSocket-based communication bridge for remote rule plugins",
   "license": "AGPL-3.0-only",
   "bugs": {
@@ -44,7 +44,7 @@
     "secure-json-parse": "^4.1.0",
     "tslib": "^2.3.0",
     "ws": "^8.21.0",
-    "@thymian/core": "0.0.0-PLACEHOLDER"
+    "@thymian/core": "0.0.1-e2e"
   },
   "devDependencies": {
     "@types/ws": "^8.18.1",

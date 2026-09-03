@@ -60,11 +60,12 @@ _Do the hooks still fit the API description as it is now?_ It regenerates the
 surface in memory, compares it, and type-checks your hooks against the fresh
 version.
 
-| committed vs fresh | hooks compile | outcome                          |
-| ------------------ | ------------- | -------------------------------- |
-| identical          | yes           | silent                           |
-| **differs**        | **yes**       | **warning** — run `sampler sync` |
-| differs            | no            | **error** — breaking drift       |
+| committed vs fresh | hooks compile | outcome                                                                            |
+| ------------------ | ------------- | ---------------------------------------------------------------------------------- |
+| identical          | yes           | silent                                                                             |
+| **differs**        | **yes**       | **warning** — run `sampler sync`                                                   |
+| differs            | no            | **error** — breaking drift: `sync`, then fix the hooks                             |
+| identical          | no            | **error** — the hooks do not compile. Nothing drifted, so `sync` is not the remedy |
 
 The middle row is the Thymian-upgrade case, and the additive-API-change case:
 the types are behind, but nothing you wrote is wrong. `validate` says so and

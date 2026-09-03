@@ -25,7 +25,7 @@ export default class Validate extends BaseCliRunCommand<typeof Validate> {
       );
 
       if (this.jsonEnabled()) {
-        if (report.outcome === 'broken') {
+        if (report.outcome === 'broken' || report.outcome === 'drifted') {
           process.exitCode = 1;
         }
 
@@ -57,13 +57,29 @@ export default class Validate extends BaseCliRunCommand<typeof Validate> {
         );
       }
 
-      if (report.outcome === 'broken') {
+      if (report.outcome === 'drifted') {
         this.log();
         this.log(
           'Breaking drift: the API description no longer matches these hooks.',
         );
         this.log(
           'Fix them, run "thymian sampler sync", and commit the result.',
+        );
+        this.exit(1);
+      }
+
+      if (report.outcome === 'broken') {
+        this.log();
+        this.log(
+          'These hooks do not compile against the current API description.',
+        );
+        // Deliberately not "run sync": the committed types already match the
+        // description, so regenerating would rewrite correct files and leave
+        // the real error exactly where it is.
+        this.log(
+          report.surface === 'absent'
+            ? 'Fix them. Nothing is committed, so there is nothing to regenerate.'
+            : 'Fix them. The committed types are already in sync — there is no drift to resolve.',
         );
         this.exit(1);
       }
