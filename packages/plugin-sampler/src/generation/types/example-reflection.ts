@@ -23,6 +23,16 @@ export function reflectExamples(schema: unknown): unknown {
   return annotate(schema, []);
 }
 
+/** Keywords whose branches describe the same value as the node holding them. */
+const COMPOSITION_KEYWORDS = ['allOf', 'anyOf', 'oneOf'] as const;
+
+/**
+ * Where named component schemas live. `$defs` is the 2020-12 spelling and
+ * `definitions` the draft-07 one; both are handled because the rename to
+ * `definitions` happens elsewhere and this walk must not depend on the order.
+ */
+const DEFINITION_KEYWORDS = ['$defs', 'definitions'] as const;
+
 /** The examples a schema node declares, in the order it declared them. */
 function examplesOf(node: Record<string, unknown>): unknown[] {
   const fromPlural = Array.isArray(node['examples']) ? node['examples'] : [];
@@ -67,6 +77,37 @@ function annotate(schema: unknown, inherited: unknown[]): unknown {
       // Likewise an array example: element examples, one level down.
       examples.filter(Array.isArray).flat(),
     );
+  }
+
+  // A composition describes the *same* value as the node holding it, so the
+  // node's examples belong to each branch.
+  for (const keyword of COMPOSITION_KEYWORDS) {
+    const branches = node[keyword];
+
+    if (Array.isArray(branches)) {
+      node[keyword] = branches.map((branch) => annotate(branch, examples));
+    }
+  }
+
+  // A named component is a *separate* schema that anything may point at, so it
+  // is annotated on its own and never with the referring site's examples: an
+  // example beside a `$ref` describes the property that refers, not the
+  // component every other property shares.
+  //
+  // Reached at all only because a component's examples are otherwise dropped
+  // entirely — nothing descends through a `$ref`, and named components are how
+  // essentially every real description is written.
+  for (const keyword of DEFINITION_KEYWORDS) {
+    const definitions = node[keyword];
+
+    if (isRecord(definitions)) {
+      node[keyword] = Object.fromEntries(
+        Object.entries(definitions).map(([name, definition]) => [
+          name,
+          annotate(definition, []),
+        ]),
+      );
+    }
   }
 
   if (!closed) {

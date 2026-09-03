@@ -259,12 +259,63 @@ export const shape = beforeEach(
 
       const report = await harness.validate();
 
-      expect(report.outcome).toBe('broken');
+      // The surface moved *and* the hook stopped fitting, which is drift
+      // proper — `sync` is part of the remedy here, unlike a plain hook error.
+      expect(report.outcome).toBe('drifted');
       expect(report.unresolved[0]?.file).toBe('hook.ts');
       expect(report.typeErrors[0]).toMatchObject({
         file: join('hooks', 'hook.ts'),
         line: 4,
       });
+    });
+
+    it('calls a hook that will not compile broken, not drifted', async () => {
+      const harness = await sampler();
+
+      await harness.writeHook(
+        'wrong.ts',
+        `import { beforeEach } from '@thymian/hooks';
+
+export const wrong = beforeEach(${JSON.stringify(LAUNCHES)}, (request) => {
+  const n: number = request.headers['accept'];
+  void n;
+});
+`,
+      );
+      await harness.loadFormat(formatOf(BASE));
+      await harness.init();
+
+      const report = await harness.validate();
+
+      // Nothing drifted — the committed types match the description exactly.
+      // Announcing drift here sent the reader after a `sync` that would
+      // rewrite correct files and leave the real error in place.
+      expect(report.surface).toBe('in-sync');
+      expect(report.outcome).toBe('broken');
+      expect(report.typeErrors).toHaveLength(1);
+    });
+
+    it('calls a hook that stopped fitting a moved description drifted', async () => {
+      const harness = await sampler();
+
+      await harness.writeHook(
+        'hook.ts',
+        `import { beforeEach } from '@thymian/hooks';
+
+export const shape = beforeEach(${JSON.stringify(LAUNCHES)}, () => {});
+`,
+      );
+      await harness.loadFormat(formatOf(BASE));
+      await harness.init();
+      // The operation the hook is anchored to is gone *and* the surface moved.
+      await harness.loadFormat(
+        formatOf([{ method: 'GET', path: '/astronauts', status: 200 }]),
+      );
+
+      const report = await harness.validate();
+
+      expect(report.surface).toBe('behind');
+      expect(report.outcome).toBe('drifted');
     });
 
     it('reports a vacuous glob and a zero-match filter without a type error', async () => {

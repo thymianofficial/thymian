@@ -1,6 +1,6 @@
 {
   "name": "@thymian/plugin-http-tester",
-  "version": "0.0.0-PLACEHOLDER",
+  "version": "0.0.1-e2e",
   "description": "Thymian plugin for runtime HTTP conformance testing against live API endpoints",
   "license": "AGPL-3.0-only",
   "bugs": {
@@ -44,11 +44,11 @@
     "!**/*.tsbuildinfo"
   ],
   "dependencies": {
-    "@thymian/core": "0.0.0-PLACEHOLDER",
+    "@thymian/core": "0.0.1-e2e",
     "rxjs": "^7.8.2",
     "tslib": "^2.3.0"
   },
   "devDependencies": {
-    "@thymian/core-testing": "0.0.0-PLACEHOLDER"
+    "@thymian/core-testing": "0.0.1-e2e"
   }
 }

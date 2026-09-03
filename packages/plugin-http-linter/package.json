@@ -1,6 +1,6 @@
 {
   "name": "@thymian/plugin-http-linter",
-  "version": "0.0.0-PLACEHOLDER",
+  "version": "0.0.1-e2e",
   "description": "Thymian plugin for static linting of API descriptions against HTTP conformance rules",
   "license": "AGPL-3.0-only",
   "bugs": {
@@ -44,10 +44,10 @@
     "!**/*.tsbuildinfo"
   ],
   "dependencies": {
-    "@thymian/core": "0.0.0-PLACEHOLDER",
+    "@thymian/core": "0.0.1-e2e",
     "tslib": "^2.3.0"
   },
   "devDependencies": {
-    "@thymian/core-testing": "0.0.0-PLACEHOLDER"
+    "@thymian/core-testing": "0.0.1-e2e"
   }
 }

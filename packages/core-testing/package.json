@@ -1,6 +1,6 @@
 {
   "name": "@thymian/core-testing",
-  "version": "0.0.0-PLACEHOLDER",
+  "version": "0.0.1-e2e",
   "description": "Testing utilities, factories, and mocks for writing Thymian plugin tests",
   "license": "AGPL-3.0-only",
   "bugs": {
@@ -50,9 +50,9 @@
     "tslib": "^2.3.0"
   },
   "devDependencies": {
-    "@thymian/core": "0.0.0-PLACEHOLDER"
+    "@thymian/core": "0.0.1-e2e"
   },
   "peerDependencies": {
-    "@thymian/core": "0.0.0-PLACEHOLDER"
+    "@thymian/core": "0.0.1-e2e"
   }
 }

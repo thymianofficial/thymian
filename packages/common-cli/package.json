@@ -1,6 +1,6 @@
 {
   "name": "@thymian/common-cli",
-  "version": "0.0.0-PLACEHOLDER",
+  "version": "0.0.1-e2e",
   "description": "Shared CLI utilities, commands, and configuration management for Thymian",
   "license": "AGPL-3.0-only",
   "bugs": {
@@ -52,6 +52,6 @@
     "wrap-ansi": "^7.0.0",
     "string-width": "^4.2.3",
     "@oclif/core": "^4.3.3",
-    "@thymian/core": "0.0.0-PLACEHOLDER"
+    "@thymian/core": "0.0.1-e2e"
   }
 }

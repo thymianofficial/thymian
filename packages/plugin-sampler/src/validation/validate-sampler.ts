@@ -38,15 +38,23 @@ export type ValidationReport = {
   /** Non-fatal things the scan could not do. */
   warnings: string[];
   /**
-   * The outcome, as the three the spec names:
+   * What to tell the user, and what to tell them to do about it.
    *
    * - `ok` — nothing to say.
    * - `stale` — the committed types are behind the description but every hook
    *   still compiles. A **warning**: run `sync`.
-   * - `broken` — a hook does not compile against the description as it is, or a
-   *   target resolves to nothing. An **error**.
+   * - `drifted` — the committed types are behind **and** a hook no longer fits.
+   *   The description moved: `sync`, then fix the hooks.
+   * - `broken` — a hook does not compile, or a target resolves to nothing,
+   *   while the committed types are in sync. Nothing has drifted, so `sync` is
+   *   *not* the remedy — it would rewrite files that are already correct and
+   *   leave the real error in place. Only the hooks need fixing.
+   *
+   * The last two were one outcome, which meant a plain type error in a hook
+   * was announced as "the API description no longer matches these hooks" and
+   * answered with a command that could not help.
    */
-  outcome: 'ok' | 'stale' | 'broken';
+  outcome: 'ok' | 'stale' | 'drifted' | 'broken';
 };
 
 /** Which committed files differ from a fresh generation, canonically. */
@@ -108,6 +116,12 @@ export async function validateSampler(
     unresolved: [...hooks.diagnostics],
     conflicts: [...hooks.conflicts],
     warnings: [...hooks.warnings],
-    outcome: broken ? 'broken' : state === 'behind' ? 'stale' : 'ok',
+    outcome: broken
+      ? state === 'behind'
+        ? 'drifted'
+        : 'broken'
+      : state === 'behind'
+        ? 'stale'
+        : 'ok',
   };
 }
