@@ -594,6 +594,124 @@ describe('the committed type surface', () => {
     });
   });
 
+  describe('example reflection hardening', () => {
+    /** One transaction whose response body is `schema`. */
+    function responding(schema: object): ThymianFormat {
+      const format = new ThymianFormat();
+
+      format.addHttpTransaction(
+        createHttpRequest({ method: 'GET', path: '/x' }),
+        createHttpResponse({
+          statusCode: 200,
+          mediaType: 'application/json',
+          schema: schema as never,
+        }),
+        'test-source',
+      );
+
+      return format;
+    }
+
+    it('is unchanged by reordering $defs', async () => {
+      const defs = {
+        Alpha: { type: 'string', examples: ['a'] },
+        Beta: { type: 'integer', examples: [1] },
+      };
+      const body = (order: readonly string[]) => ({
+        $defs: Object.fromEntries(
+          order.map((name) => [name, defs[name as keyof typeof defs]]),
+        ),
+        type: 'object',
+        properties: {
+          alpha: { $ref: '#/$defs/Alpha' },
+          beta: { $ref: '#/$defs/Beta' },
+        },
+      });
+
+      expect(
+        await generateTypeSurface(
+          catalogOf(responding(body(['Beta', 'Alpha']))),
+        ),
+      ).toEqual(
+        await generateTypeSurface(
+          catalogOf(responding(body(['Alpha', 'Beta']))),
+        ),
+      );
+    });
+
+    it('reflects a component once, however many sites refer to it', async () => {
+      const catalog = catalogOf(
+        responding({
+          $defs: { Rank: { type: 'string', examples: ['commander'] } },
+          type: 'object',
+          properties: {
+            // One site carries its own example beside the `$ref`, the other
+            // does not. Neither may change the component.
+            lead: { $ref: '#/$defs/Rank', examples: ['pilot'] },
+            backup: { $ref: '#/$defs/Rank' },
+          },
+        }),
+      );
+      const { requestTypes } = await generateTypeSurface(catalog);
+
+      expect(requestTypes.match(/^export type Rank =/gm)).toHaveLength(1);
+      expect(requestTypes).toContain(
+        'export type Rank = "commander" | (string & {})',
+      );
+      expect(requestTypes).not.toContain('"pilot"');
+      expect(await checkSurface(catalog)).toEqual([]);
+    });
+
+    it('never emits {} for an empty object example', async () => {
+      // TypeScript's `{}` is "anything but null and undefined": it absorbs the
+      // base type and every diagnostic with it.
+      const catalog = catalogOf(
+        responding({
+          type: 'object',
+          properties: {
+            crew: {
+              type: 'object',
+              examples: [{}],
+              properties: { lead: { type: 'string' } },
+            },
+          },
+        }),
+      );
+      const { requestTypes } = await generateTypeSurface(catalog);
+
+      expect(requestTypes).not.toMatch(/:\s*\{\}/);
+
+      const diagnostics = await compileHook(
+        catalog,
+        `import { afterEach } from '@thymian/hooks';
+
+export const check = afterEach('GET /x -> 200 (application/json)', (_, response) => {
+  const crew: number = response.body.crew!;
+});
+`,
+      );
+
+      expect(diagnostics).toHaveLength(1);
+      expect(diagnostics[0]?.code).toContain('const crew: number');
+    });
+
+    it('drops an example the declared type does not admit', async () => {
+      const { requestTypes } = await generateTypeSurface(
+        catalogOf(
+          responding({
+            type: 'object',
+            properties: {
+              count: { type: 'integer', examples: ['not-a-number', 3] },
+            },
+          }),
+        ),
+      );
+
+      expect(requestTypes).toContain('count?: 3 | (number & {})');
+      expect(requestTypes).not.toContain('not-a-number');
+    });
+  });
+
   describe('compile seam', () => {
     it('lets a hook write to every property of an example-reflected body', async () => {
       const diagnostics = await compileHook(
