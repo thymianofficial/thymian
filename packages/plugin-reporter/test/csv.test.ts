@@ -1,5 +1,5 @@
-import { readFile } from 'node:fs/promises';
-import { join } from 'node:path';
+import { mkdir, readdir, readFile, rm, writeFile } from 'node:fs/promises';
+import { dirname, join } from 'node:path';
 
 import {
   createAnalyzeExecution,
@@ -12,7 +12,7 @@ import {
   type RuleDescriptor,
   ThymianFormat,
 } from '@thymian/core';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vitest } from 'vitest';
 
 import {
   CsvFormatter,
@@ -63,9 +63,14 @@ describe('CsvFormatter ignores --sort-reports-by (flag-invariant)', () => {
   it('produces byte-identical CSV for every sort mode', async () => {
     const outputs = await Promise.all(
       (['endpoint', 'rule', 'severity'] as const).map(async (mode) => {
+        // One cwd per mode: the run directory is derived from the report, so
+        // three formatters sharing a cwd would fight over one file.
+        const cwd = join(process.cwd(), 'tmp', `csv-${mode}`);
+        await rm(cwd, { recursive: true, force: true });
+
         const [formatter] = await getFormatters(
-          { csv: { path: join(process.cwd(), 'tmp', `csv-${mode}.csv`) } },
-          process.cwd(),
+          { csv: {} },
+          cwd,
           new NoopLogger(),
           mode,
         );
@@ -81,13 +86,28 @@ describe('CsvFormatter ignores --sort-reports-by (flag-invariant)', () => {
 });
 
 describe('CsvFormatter header (AC16)', () => {
-  it('writes the exact 13-column header', async () => {
-    const path = join(process.cwd(), 'tmp', 'csv-header.csv');
+  it('writes the exact 13-column header even for a report with no rows', async () => {
+    const cwd = join(process.cwd(), 'tmp', 'csv-header');
+    await rm(cwd, { recursive: true, force: true });
+
     const formatter = new CsvFormatter(new NoopLogger());
-    await formatter.init({ path });
+    formatter.init({ cwd });
+    // A report with no runs yields no rows at all — the header still has to be
+    // on disk, so the destination must be opened before the empty-rows guard.
+    await formatter.report({
+      reportId: 'a1b2c3d4-e5f6-4789-9abc-def012345678',
+      createdAt: '2026-08-25T10:30:00.123Z',
+      runs: [],
+    });
     await formatter.flush();
 
-    const content = await readFile(path, 'utf-8');
+    const reportsDir = join(cwd, '.thymian', 'reports');
+    const [runDirectory = ''] = await readdir(reportsDir);
+    const content = await readFile(
+      join(reportsDir, runDirectory, 'report.csv'),
+      'utf-8',
+    );
+
     const [header] = content.split('\n');
     expect(header).toBe(CSV_HEADER);
     expect(CSV_HEADER.split(',')).toHaveLength(13);
@@ -228,5 +248,135 @@ describe('CSV thymianFormat location resolution (BaggersIO PR-311 finding 5)', (
     expect(executionRow).toBeDefined();
     expect(executionRow).toContain('POST /orders');
     expect(executionRow).not.toContain(`format:${requestId}`);
+  });
+});
+
+describe('CsvFormatter derived run directory', () => {
+  it('opens lazily and still writes a header for a report with no rows', async () => {
+    const cwd = join(process.cwd(), 'tmp', 'csv-derived-empty-report');
+    await rm(cwd, { recursive: true, force: true });
+
+    const formatter = new CsvFormatter(new NoopLogger());
+    formatter.init({ cwd });
+    await formatter.report({
+      reportId: 'a1b2c3d4-e5f6-4789-9abc-def012345678',
+      createdAt: '2026-08-25T10:30:00.123Z',
+      runs: [],
+    });
+    await formatter.flush();
+
+    const reportsDir = join(cwd, '.thymian', 'reports');
+    const [runDirectory = ''] = await readdir(reportsDir);
+
+    expect(runDirectory).toBe('2026-08-25T10-30-00-123Z-a1b2c3d4');
+    await expect(
+      readFile(join(reportsDir, runDirectory, 'report.csv'), 'utf-8'),
+    ).resolves.toBe(`${CSV_HEADER}\n`);
+  });
+
+  it('gives two reports of one session two run directories', async () => {
+    // The `serve` defect: one plugin instance serves every workflow, so a
+    // destination pinned on the first report wrote workflow 2 into workflow 1's
+    // directory — or not at all.
+    const cwd = join(process.cwd(), 'tmp', 'csv-two-reports');
+    await rm(cwd, { recursive: true, force: true });
+
+    const formatter = new CsvFormatter(new NoopLogger());
+    formatter.init({ cwd });
+    await formatter.report({
+      reportId: 'a1b2c3d4-e5f6-4789-9abc-def012345678',
+      createdAt: '2026-08-25T10:30:00.123Z',
+      runs: [],
+    });
+    await formatter.report({
+      reportId: '99887766-5544-4332-9110-aabbccddeeff',
+      createdAt: '2026-08-25T10:31:00.000Z',
+      runs: [],
+    });
+    await formatter.flush();
+
+    const reportsDir = join(cwd, '.thymian', 'reports');
+
+    // Each directory is named after its OWN report, not after the first one.
+    expect((await readdir(reportsDir)).sort()).toEqual([
+      '2026-08-25T10-30-00-123Z-a1b2c3d4',
+      '2026-08-25T10-31-00-000Z-99887766',
+    ]);
+    await expect(
+      readFile(
+        join(reportsDir, '2026-08-25T10-30-00-123Z-a1b2c3d4', 'report.csv'),
+        'utf-8',
+      ),
+    ).resolves.toBe(`${CSV_HEADER}\n`);
+    await expect(
+      readFile(
+        join(reportsDir, '2026-08-25T10-31-00-000Z-99887766', 'report.csv'),
+        'utf-8',
+      ),
+    ).resolves.toBe(`${CSV_HEADER}\n`);
+  });
+
+  it('writes nothing when no report arrived', async () => {
+    const cwd = join(process.cwd(), 'tmp', 'csv-derived-no-report');
+    await rm(cwd, { recursive: true, force: true });
+
+    const formatter = new CsvFormatter(new NoopLogger());
+    formatter.init({ cwd });
+
+    await expect(formatter.flush()).resolves.toBeUndefined();
+    await expect(readdir(join(cwd, '.thymian', 'reports'))).rejects.toThrow();
+  });
+});
+
+describe('CsvFormatter unwritable destination', () => {
+  /**
+   * Make a destination that cannot be created, portably: put an existing *file*
+   * where a directory has to go, so `mkdir` fails with `ENOTDIR`. `chmod` would
+   * be no help — it is a no-op for root (CI containers) and unsupported on
+   * Windows.
+   */
+  async function blockingFile(name: string): Promise<string> {
+    const blocker = join(process.cwd(), 'tmp', name);
+    await rm(blocker, { force: true, recursive: true });
+    await mkdir(dirname(blocker), { recursive: true });
+    await writeFile(blocker, 'this is a file, not a directory', 'utf-8');
+
+    return blocker;
+  }
+
+  it('goes inert instead of throwing out of report and flush', async () => {
+    const logger = new NoopLogger();
+    const errorSpy = vitest.spyOn(logger, 'error');
+    const formatter = new CsvFormatter(logger);
+
+    // The destination is derived under `cwd`, whose `.thymian/reports/<run>`
+    // cannot be created because `cwd` itself is a file.
+    formatter.init({ cwd: await blockingFile('csv-unwritable') });
+
+    // `report()` runs inside the `core.report` handler and `flush()` inside the
+    // `core.close` action, before it replies — neither may reject.
+    await expect(formatter.report(report)).resolves.toBeUndefined();
+    await expect(formatter.flush()).resolves.toBeUndefined();
+
+    // Degraded, not silently swallowed.
+    expect(errorSpy).toHaveBeenCalledWith(
+      expect.stringContaining('Failed to write CSV report to'),
+    );
+  });
+
+  it('does not let one unwritable report cascade into the next', async () => {
+    const logger = new NoopLogger();
+    const errorSpy = vitest.spyOn(logger, 'error');
+    const formatter = new CsvFormatter(logger);
+
+    formatter.init({ cwd: await blockingFile('csv-unwritable-cascade') });
+
+    await expect(formatter.report(report)).resolves.toBeUndefined();
+    await expect(formatter.report(report)).resolves.toBeUndefined();
+    await expect(formatter.flush()).resolves.toBeUndefined();
+
+    // Every report resolves — and therefore retries — its own destination, so
+    // each failure is reported once rather than one poisoning the rest.
+    expect(errorSpy).toHaveBeenCalledTimes(2);
   });
 });

@@ -32,10 +32,8 @@ const report = {
 describe('formatter consistency across formatters', () => {
   it('renders the same finding identity across formatters', async () => {
     const markdown = new MarkdownFormatter(new NoopLogger());
-    markdown.init({
-      path: join(process.cwd(), 'tmp', 'consistency-report.md'),
-    });
-    markdown.report(report);
+    markdown.init({ cwd: join(process.cwd(), 'tmp', 'consistency-report') });
+    await markdown.report(report);
 
     const csvOutput = reportToCsvLines(report).join('');
     const markdownOutput = await markdown.flush();
