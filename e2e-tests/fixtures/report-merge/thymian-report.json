@@ -1,0 +1,40 @@
+[
+  {
+    "reportId": "11111111-1111-4111-8111-111111111111",
+    "createdAt": "2026-08-10T10:00:00.000Z",
+    "runs": [
+      {
+        "runId": "22222222-2222-4222-8222-222222222222",
+        "tool": { "name": "fixture-linter-a", "version": "1.0.0" },
+        "runType": "lint",
+        "runAt": "2026-08-10T10:00:00.000Z",
+        "duration": 1234,
+        "rules": [
+          {
+            "id": "fixture/persisted-rule",
+            "severity": "warn",
+            "description": { "text": "A rule persisted in the fixture report" }
+          }
+        ],
+        "executions": [
+          {
+            "kind": "lint",
+            "ruleId": "fixture/persisted-rule",
+            "status": {
+              "kind": "failed",
+              "reason": "persisted warning finding"
+            },
+            "location": { "type": "file", "path": "api.yaml", "line": 3 },
+            "findings": [
+              {
+                "id": "fixture-finding-1",
+                "kind": "rule-violation",
+                "title": "Persisted finding"
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  }
+]

@@ -1,5 +1,9 @@
 import type { ConvertedRunFragment, ThymianPlugin } from '@thymian/core';
-import { createToolRun, ThymianFormat } from '@thymian/core';
+import {
+  createToolRun,
+  registerReportInputClaim,
+  ThymianFormat,
+} from '@thymian/core';
 
 import { convertResults } from './convert.js';
 import { loadSpectralReport } from './load-spectral-report.js';
@@ -28,59 +32,48 @@ export function createSpectralPlugin(
       listensOn: ['core.report.convert'],
     },
     async plugin(emitter, logger, options) {
-      emitter.onAction('core.report.convert', async (input, ctx) => {
-        const spectralInputs = input.inputs.filter(
-          (reportInput) => reportInput.type === 'spectral',
-        );
+      // The listener skeleton and file boundary live in core's
+      // registerReportInputClaim/readTypedInputJson, shared by every claimant.
+      registerReportInputClaim(emitter, logger, {
+        type: 'spectral',
+        idleMessage: 'No spectral report inputs found, nothing to convert.',
+        convert: async (inputs, action) => {
+          const format = action.format
+            ? ThymianFormat.import(action.format)
+            : undefined;
 
-        // Always reply, even with nothing claimed — the collect strategy
-        // waits for every registered listener (14.1 listener contract).
-        if (spectralInputs.length === 0) {
-          logger.info('No spectral report inputs found, nothing to convert.');
-          ctx.reply([]);
-          return;
-        }
+          const fragments: ConvertedRunFragment[] = [];
 
-        const format = input.format
-          ? ThymianFormat.import(input.format)
-          : undefined;
+          for (const { location, inputLabel } of inputs) {
+            logger.info(`Converting Spectral report: ${location}`);
 
-        const fragments: ConvertedRunFragment[] = [];
+            // Failures propagate as thrown ThymianBaseErrors — the intended
+            // tool/runtime error semantics; never a silently dropped input.
+            const results = await loadSpectralReport(
+              location,
+              inputLabel,
+              options.cwd,
+            );
 
-        for (const reportInput of spectralInputs) {
-          const location = String(reportInput.location);
-          const inputLabel = `${reportInput.type}:${location}`;
+            const { executions, rules } = convertResults(results, {
+              logger,
+              format,
+            });
 
-          logger.info(`Converting Spectral report: ${location}`);
+            fragments.push({
+              input: { type: 'spectral', location },
+              run: createToolRun({
+                tool: { name: pluginName },
+                runType: 'lint',
+                executions,
+                rules: rules.length > 0 ? rules : undefined,
+                thymianFormatVersion: action.format?.attributes.hash,
+              }),
+            });
+          }
 
-          // Failures propagate as thrown ThymianBaseErrors — the intended
-          // tool/runtime error semantics; never a silently dropped input.
-          const results = await loadSpectralReport(
-            location,
-            inputLabel,
-            options.cwd,
-          );
-
-          const { executions, rules } = convertResults(results, {
-            logger,
-            format,
-          });
-
-          fragments.push({
-            // Tag with the stringified input identity — core derives claim
-            // coverage by exact type + String(location) match.
-            input: { type: reportInput.type, location },
-            run: createToolRun({
-              tool: { name: pluginName },
-              runType: 'lint',
-              executions,
-              rules: rules.length > 0 ? rules : undefined,
-              thymianFormatVersion: input.format?.attributes.hash,
-            }),
-          });
-        }
-
-        ctx.reply(fragments);
+          return fragments;
+        },
       });
     },
   };

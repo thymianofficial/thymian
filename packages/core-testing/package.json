@@ -36,6 +36,11 @@
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js",
       "default": "./dist/index.js"
+    },
+    "./mocks/thymian": {
+      "types": "./dist/mocks/thymian.mock.d.ts",
+      "import": "./dist/mocks/thymian.mock.js",
+      "default": "./dist/mocks/thymian.mock.js"
     }
   },
   "scripts": {
@@ -50,7 +55,8 @@
     "tslib": "^2.3.0"
   },
   "devDependencies": {
-    "@thymian/core": "0.0.0-PLACEHOLDER"
+    "@thymian/core": "0.0.0-PLACEHOLDER",
+    "vitest": "^4.1.10"
   },
   "peerDependencies": {
     "@thymian/core": "0.0.0-PLACEHOLDER"

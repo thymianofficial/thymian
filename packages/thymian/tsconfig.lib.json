@@ -31,10 +31,10 @@
       "path": "../plugin-websocket-proxy/tsconfig.lib.json"
     },
     {
-      "path": "../plugin-sampler/tsconfig.lib.json"
+      "path": "../plugin-spectral/tsconfig.lib.json"
     },
     {
-      "path": "../plugin-spectral/tsconfig.lib.json"
+      "path": "../plugin-sampler/tsconfig.lib.json"
     },
     {
       "path": "../plugin-request-dispatcher/tsconfig.lib.json"
@@ -53,6 +53,9 @@
     },
     {
       "path": "../plugin-http-analyzer/tsconfig.lib.json"
+    },
+    {
+      "path": "../core-testing/tsconfig.lib.json"
     },
     {
       "path": "../common-cli/tsconfig.lib.json"

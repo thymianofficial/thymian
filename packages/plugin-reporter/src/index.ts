@@ -6,6 +6,7 @@ import {
 } from '@thymian/core';
 
 import { type Formatters, getFormatters } from './get-formatters.js';
+import { registerThymianReportInput } from './thymian-report-input.js';
 
 export type ReporterPluginOptions = {
   formatters?: Partial<Formatters>;
@@ -85,13 +86,20 @@ export const reporterPlugin: ThymianPlugin<ReporterPluginOptions> = {
     listensOn: ['core.report'],
   },
   actions: {
-    listensOn: ['core.close'],
+    listensOn: ['core.close', 'core.report.convert'],
   },
   async plugin(
     emitter,
     logger,
     { formatters: userFormatters, cwd, sortReportsBy },
   ) {
+    // Claim native `thymian:` report inputs on core.report.convert
+    // (ADR-0017 amendment) — the read/validate logic lives in
+    // @thymian/core's loadThymianReports; this registers the claim.
+    // Registered before the first await so the declared listener exists even
+    // if formatter setup rejects.
+    registerThymianReportInput(emitter, logger, cwd);
+
     const formatters = Object.fromEntries(
       Object.entries({
         ...(userFormatters ?? {}),
@@ -112,7 +120,32 @@ export const reporterPlugin: ThymianPlugin<ReporterPluginOptions> = {
       }
 
       hasFlushed = true;
-      await Promise.all(reporters.map(async (r) => r.flush()));
+
+      // allSettled, not all: one formatter's failure (e.g. an unwritable
+      // --csv path) must not cut the sibling flushes short — their writes
+      // would otherwise race process exit (#362 review). The first failure
+      // is re-thrown afterwards; the emitter forwards a thrown core.close
+      // handler error as a correlated error event, so the action fails fast
+      // instead of waiting out a missing reply.
+      const settled = await Promise.allSettled(
+        reporters.map(async (r) => r.flush()),
+      );
+      const failures = settled.filter(
+        (result): result is PromiseRejectedResult =>
+          result.status === 'rejected',
+      );
+
+      if (failures.length > 0) {
+        for (const failure of failures.slice(1)) {
+          logger.error(
+            failure.reason instanceof Error
+              ? failure.reason.message
+              : String(failure.reason),
+          );
+        }
+
+        throw failures[0]!.reason;
+      }
     };
 
     emitter.on('core.report', async (report: Report) => {

@@ -1,3 +1,5 @@
+import { isDeepStrictEqual } from 'node:util';
+
 import semver from 'semver';
 
 import packageJson from '../package.json' with { type: 'json' };
@@ -452,7 +454,9 @@ export class Thymian {
       )
     ).flat();
 
-    return this.finalizeWorkflow(toolRuns, format.export());
+    return this.finalizeWorkflow(toolRuns, format.export(), undefined, {
+      completeRunVersions: true,
+    });
   }
 
   async test(input: TestWorkflowInput): Promise<Report> {
@@ -488,7 +492,9 @@ export class Thymian {
       )
     ).flat();
 
-    return this.finalizeWorkflow(toolRuns, format.export());
+    return this.finalizeWorkflow(toolRuns, format.export(), undefined, {
+      completeRunVersions: true,
+    });
   }
 
   async analyze(input: AnalyzeWorkflowInput): Promise<Report> {
@@ -533,7 +539,9 @@ export class Thymian {
       )
     ).flat();
 
-    return this.finalizeWorkflow(toolRuns, format?.export());
+    return this.finalizeWorkflow(toolRuns, format?.export(), undefined, {
+      completeRunVersions: true,
+    });
   }
 
   /**
@@ -546,6 +554,8 @@ export class Thymian {
    * Report inputs are treated as a set: duplicates (same `type` and
    * stringified `location`) are collapsed to their first occurrence before
    * dispatch, so one claimed input yields its converted run(s) exactly once.
+   * Assembled runs are additionally de-duplicated on `runId` — the same
+   * persisted run arriving under two different paths contributes once.
    */
   async reportConvert(
     input: ReportConvertWorkflowInput,
@@ -597,8 +607,16 @@ export class Thymian {
     }
 
     const unclaimed: ReportInput[] = [];
+    // Union of fragment-carried format maps (#507): first occurrence wins per
+    // hash — equal hashes mean equal serialized graphs, so collisions are
+    // benign. Collected in assembly (input) order alongside the runs.
+    // Null-prototype object: persisted files are external input, so a hash
+    // key like 'constructor' or '__proto__' must behave as plain data.
+    const fragmentFormats: NonNullable<Report['thymianFormat']> = Object.create(
+      null,
+    ) as NonNullable<Report['thymianFormat']>;
 
-    const toolRuns = reports.flatMap((reportInput) => {
+    const assembledRuns = reports.flatMap((reportInput) => {
       const key = `${reportInput.type}:${String(reportInput.location)}`;
       const matches = fragmentsByKey.get(key);
 
@@ -608,8 +626,83 @@ export class Thymian {
       }
 
       fragmentsByKey.delete(key);
-      return matches.map((fragment) => fragment.run);
+      return matches.map((fragment) => {
+        const fragmentHashes: string[] = [];
+
+        if (fragment.thymianFormat) {
+          for (const [hash, serialized] of Object.entries(
+            fragment.thymianFormat,
+          )) {
+            // Skip junk values (e.g. null or [] from a hand-edited persisted
+            // map — arrays are typeof 'object' too) rather than copying them
+            // into the merged report.
+            if (
+              !serialized ||
+              typeof serialized !== 'object' ||
+              Array.isArray(serialized)
+            ) {
+              continue;
+            }
+
+            fragmentHashes.push(hash);
+            if (!Object.hasOwn(fragmentFormats, hash)) {
+              fragmentFormats[hash] = serialized;
+            }
+          }
+        }
+
+        // Provenance-safe version completion: this fragment's own map is the
+        // only format its run can have used, so a single-entry map pins a
+        // missing `thymianFormatVersion` here — the render-side sole-entry
+        // fallback is gone (it read the cross-input union, which could
+        // attribute a foreign format to the run).
+        const run =
+          fragment.run.thymianFormatVersion === undefined &&
+          fragmentHashes.length === 1
+            ? { ...fragment.run, thymianFormatVersion: fragmentHashes[0] }
+            : fragment.run;
+
+        return { run, source: key };
+      });
     });
+
+    // Run identity is `runId`, not the input path it arrived under: the same
+    // persisted run reaching the merge twice (a copied file, two exports of
+    // one report) must not yield duplicate `runId`s in the assembled report —
+    // downstream consumers join and de-duplicate on that id. Identity is
+    // only trusted when the content matches, though: two *different* runs
+    // under one id mean a copied-then-edited report file, and silently
+    // dropping one would erase its executions from the merge (and with them
+    // possibly the failed executions that decide the exit code), so that is
+    // an input error, not a dedup (#362 review).
+    const seenRuns = new Map<string, { run: ToolRun; source: string }>();
+    const uniqueToolRuns: ToolRun[] = [];
+
+    for (const { run, source } of assembledRuns) {
+      const seen = seenRuns.get(run.runId);
+
+      if (!seen) {
+        seenRuns.set(run.runId, { run, source });
+        uniqueToolRuns.push(run);
+        continue;
+      }
+
+      if (!isDeepStrictEqual(seen.run, run)) {
+        throw new ThymianBaseError(
+          `Two different runs share runId "${run.runId}" (from ${seen.source} and ${source}). Same-id runs are collapsed only when they are identical; differing content indicates a copied and then edited report file.`,
+          {
+            suggestions: [
+              'Regenerate one of the input reports so every distinct run carries its own runId.',
+              'If both files are meant to be the same run, make their content identical again.',
+            ],
+          },
+        );
+      }
+
+      this.logger.debug(
+        `Collapsed an identical duplicate of run "${run.runId}" (from ${source}) — the same run arrived from more than one input.`,
+      );
+    }
 
     const surplus = [...fragmentsByKey.values()].flat();
 
@@ -623,8 +716,34 @@ export class Thymian {
       );
     }
 
+    // The workflow-level spec (--spec) joins the merged map only when a run
+    // actually converted against it — otherwise the output would carry a
+    // serialized graph no run points at. The run's `thymianFormatVersion`
+    // tag is the only usable signal that it did: a claimant that converts
+    // against the handed format must set it (listener contract in
+    // core-report-convert.action.ts). A missing tag is NOT completed from
+    // `--spec` here — across merge inputs an untagged run is
+    // indistinguishable from one converted without the format, and
+    // completing it would attribute a graph the run may never have used
+    // (the misattribution the removed sole-entry render fallback had).
+    const workflowFormat = format?.export();
+    const workflowFormatUsed =
+      workflowFormat !== undefined &&
+      uniqueToolRuns.some(
+        (run) => run.thymianFormatVersion === workflowFormat.attributes.hash,
+      );
+
     return {
-      report: this.finalizeWorkflow(toolRuns, format?.export()),
+      report: this.finalizeWorkflow(
+        uniqueToolRuns,
+        workflowFormatUsed ? workflowFormat : undefined,
+        Object.keys(fragmentFormats).length > 0 ? fragmentFormats : undefined,
+        // Unclaimed inputs are a usage error the caller enforces (ADR-0017);
+        // a partial assembly must not reach `core.report` listeners, or the
+        // file formatters would persist a truncated merge before the caller
+        // gets to fail the command.
+        { emitReport: unclaimed.length === 0 },
+      ),
       unclaimed,
     };
   }
@@ -693,12 +812,69 @@ export class Thymian {
   private finalizeWorkflow(
     toolRuns: ToolRun[],
     format?: ReturnType<ThymianFormat['export']>,
+    additionalFormats?: Report['thymianFormat'],
+    options: { emitReport?: boolean; completeRunVersions?: boolean } = {},
   ): Report {
-    const thymianFormat = format
-      ? { [format.attributes.hash]: format }
-      : undefined;
-    const report = createReport(toolRuns, thymianFormat);
-    this.emitter.emit('core.report', report);
+    let thymianFormat: Report['thymianFormat'];
+
+    if (format || additionalFormats) {
+      // `report.thymianFormat` is a public shape (plugins on `core.report`,
+      // custom formatters, strict test equality), so it stays an ordinary
+      // plain-prototype object. Hash keys from persisted inputs are external
+      // data, though: they are defined as own data properties so a key like
+      // '__proto__' lands as plain data instead of hitting the prototype
+      // setter (the fragment union in `reportConvert` accumulates on a
+      // null-prototype object for the same reason).
+      const copied: NonNullable<Report['thymianFormat']> = {};
+      for (const [hash, serialized] of Object.entries(
+        additionalFormats ?? {},
+      )) {
+        Object.defineProperty(copied, hash, {
+          value: serialized,
+          enumerable: true,
+          writable: true,
+          configurable: true,
+        });
+      }
+      thymianFormat = copied;
+
+      // Keep an already-present entry (same hash ⇒ same graph). Own-key
+      // check and defineProperty like the copies above: a plain `??=` would
+      // read inherited members (`constructor`) and write through the
+      // `__proto__` setter if a hash ever collided with them.
+      if (format && !Object.hasOwn(thymianFormat, format.attributes.hash)) {
+        Object.defineProperty(thymianFormat, format.attributes.hash, {
+          value: format,
+          enumerable: true,
+          writable: true,
+          configurable: true,
+        });
+      }
+    }
+
+    // Single-workflow provenance: the lint/test/analyze callers opt in
+    // explicitly (`completeRunVersions`) — every run they assemble ran
+    // against the one `format` loaded for it, so a producer that forgot to
+    // set `thymianFormatVersion` is completed here. (Replaces the
+    // render-side sole-entry fallback, which became unsafe once merged
+    // reports can union formats from several sources.) `reportConvert`
+    // never opts in: a mixed merge can reach this with `additionalFormats`
+    // empty yet a versionless passthrough run present, and completing that
+    // run from `--spec` would attribute a foreign graph to it.
+    const runs =
+      format && options.completeRunVersions
+        ? toolRuns.map((run) =>
+            run.thymianFormatVersion === undefined
+              ? { ...run, thymianFormatVersion: format.attributes.hash }
+              : run,
+          )
+        : toolRuns;
+
+    const report = createReport(runs, thymianFormat);
+
+    if (options.emitReport ?? true) {
+      this.emitter.emit('core.report', report);
+    }
 
     this.logger.info('Workflow complete.');
 

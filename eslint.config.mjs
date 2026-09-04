@@ -6,7 +6,12 @@ const depConstraintsProduction = [
   // scope:cli can only access core, cli, plugin, and rules (thymian CLI app aggregates plugins)
   {
     sourceTag: 'scope:cli',
-    onlyDependOnLibsWithTags: ['scope:core', 'scope:cli', 'scope:plugin', 'scope:rules'],
+    onlyDependOnLibsWithTags: [
+      'scope:core',
+      'scope:cli',
+      'scope:plugin',
+      'scope:rules',
+    ],
   },
   // scope:core can only access scope:core
   {
@@ -108,6 +113,16 @@ export default [
           enforceBuildableLibDependency: true,
           allow: ['^.*/eslint(.base)?.config.[cm]?js$'],
           depConstraints: depConstraintsTestFiles,
+          // The vi.mock('@thymian/core', ...) factory must dynamically
+          // import this mock subpath (factories can't close over top-level
+          // statically-imported bindings — vitest hoists vi.mock calls), while
+          // the same test file also statically imports mockState/
+          // resetMockState from it for use in beforeEach/afterEach. That
+          // dynamic+static combination is exactly what this rule normally
+          // flags as an accidental lazy-load; it's intentional here.
+          checkDynamicDependenciesExceptions: [
+            '@thymian/core-testing/mocks/thymian',
+          ],
         },
       ],
     },

@@ -32,17 +32,48 @@ function executionLabel(
 }
 
 export class CsvFormatter implements Formatter<CsvFormatterOptions> {
-  private stream!: WriteStream;
+  // The stream opens lazily on the first reported report (see openStream),
+  // held as a promise so concurrent report() calls share one open.
+  private streamPromise?: Promise<WriteStream>;
+
+  // First stream error after 'ready'. Post-open failures (ENOSPC, a mount
+  // going away) surface via the 'error' event — the header write in
+  // particular has no rejection path of its own — so the error is held here
+  // and thrown from the next report()/flush(): the workflow must fail
+  // rather than exit clean beside a truncated CSV.
+  private streamError?: Error;
 
   options!: CsvFormatterOptions;
 
   constructor(private readonly logger: Logger) {}
 
-  flush(): Promise<string | undefined> {
+  async flush(): Promise<string | undefined> {
+    // No report ever arrived: like the json/markdown formatters, leave no
+    // file behind — core withholds the report emission on a failed run
+    // (e.g. an unclaimed report input), and a header-only artifact on disk
+    // would read as a produced result.
+    if (!this.streamPromise) {
+      return undefined;
+    }
+
+    const stream = await this.streamPromise;
+
+    if (this.streamError) {
+      throw this.streamError;
+    }
+
     return new Promise((resolve, reject) => {
-      this.stream.once('error', reject);
-      this.stream.end(() => {
-        this.stream.removeListener('error', reject);
+      stream.once('error', reject);
+      stream.end(() => {
+        stream.removeListener('error', reject);
+
+        // An error surfacing only while end() flushes lands on the persistent
+        // handler (which records it) but may miss the rejection listener.
+        if (this.streamError) {
+          reject(this.streamError);
+          return;
+        }
+
         this.logger.debug(`Wrote CSV report to ${this.options.path}`);
         resolve(undefined);
       });
@@ -53,10 +84,14 @@ export class CsvFormatter implements Formatter<CsvFormatterOptions> {
     this.options = options;
 
     await mkdir(dirname(options.path), { recursive: true });
+  }
 
-    this.stream = createWriteStream(options.path, 'utf-8');
-
+  // Rows still stream out per report (large sessions never buffer), at the
+  // price of surfacing open errors on the first report instead of at init.
+  private openStream(): Promise<WriteStream> {
     return new Promise((resolve, reject) => {
+      const stream = createWriteStream(this.options.path, 'utf-8');
+
       const onError = (err: Error) => {
         this.logger.error(
           `Failed to write CSV report to ${this.options.path}: ${err.message}`,
@@ -64,33 +99,40 @@ export class CsvFormatter implements Formatter<CsvFormatterOptions> {
         reject(err);
       };
 
-      this.stream.once('error', onError);
+      stream.once('error', onError);
 
-      this.stream.on('ready', () => {
-        this.stream.removeListener('error', onError);
-        this.stream.on('error', (err) => {
+      stream.on('ready', () => {
+        stream.removeListener('error', onError);
+        stream.on('error', (err) => {
+          this.streamError ??= err;
           this.logger.error(
             `Failed to write CSV report to ${this.options.path}: ${err.message}`,
           );
         });
 
-        this.stream.write(CSV_HEADER);
+        stream.write(CSV_HEADER);
 
-        resolve();
+        resolve(stream);
       });
     });
   }
 
-  report(report: Report): Promise<void> {
+  async report(report: Report): Promise<void> {
+    this.streamPromise ??= this.openStream();
+    const stream = await this.streamPromise;
+
+    if (this.streamError) {
+      throw this.streamError;
+    }
+
+    const lines = reportToCsvLines(report);
+
+    if (lines.length === 0) {
+      return;
+    }
+
     return new Promise((resolve, reject) => {
-      const lines = reportToCsvLines(report);
-
-      if (lines.length === 0) {
-        resolve();
-        return;
-      }
-
-      this.stream.write(lines.join(''), (err) => {
+      stream.write(lines.join(''), (err) => {
         if (err) {
           reject(err);
         } else {

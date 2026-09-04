@@ -74,7 +74,10 @@ describe('cli report renderer', () => {
               tool: { name: '@thymian/plugin-http-linter' },
               runType: 'lint',
               runAt: new Date().toISOString(),
-              thymianFormatVersion: '__cli',
+              // Assembly (core) completes each run's version against its own
+              // workflow format; resolution is strictly by that version —
+              // there is no sole-entry fallback for mismatched versions.
+              thymianFormatVersion: format.toHash(),
               executions: [
                 {
                   kind: 'lint',

@@ -1,7 +1,7 @@
 import type { JSONSchemaType } from 'ajv/dist/2020.js';
 
 import type { SerializedThymianFormat } from '../format/index.js';
-import type { ToolRun } from '../report/index.js';
+import type { ThymianFormatVersion, ToolRun } from '../report/index.js';
 import type { Action } from './action.js';
 
 /**
@@ -33,6 +33,15 @@ export interface CoreReportConvertInput {
 export interface ConvertedRunFragment {
   input: { type: string; location: string };
   run: ToolRun;
+  /**
+   * Serialized formats used by `run`, keyed by format hash — the same shape
+   * as `Report.thymianFormat`. Listeners whose input already carries format
+   * maps (e.g. a persisted Thymian report, #507) pass them through here so
+   * `thymianFormat`-typed locations stay resolvable in the assembled report;
+   * `Thymian.reportConvert()` unions all fragment maps by hash (first
+   * occurrence wins — equal hashes mean equal graphs).
+   */
+  thymianFormat?: Record<ThymianFormatVersion, SerializedThymianFormat>;
 }
 
 /**
@@ -41,6 +50,15 @@ export interface ConvertedRunFragment {
  * Listener contract (converter plugins register on `core.report.convert`):
  * - Payload: `{ inputs, format?, options? }`; reply
  *   {@link ConvertedRunFragment}`[]` — one entry per claimed input.
+ * - A listener that converts a claimed input *against* the handed `format`
+ *   must tag the produced run with it (`thymianFormatVersion =
+ *   format.attributes.hash`) — the tag is the only signal core has that the
+ *   workflow format was used. Core cannot complete a missing tag at assembly:
+ *   across merge inputs an untagged run is indistinguishable from one
+ *   converted without the format, and guessing would attribute a graph the
+ *   run may never have used. An untagged run keeps the format out of the
+ *   assembled report and renders format references as raw
+ *   `format:<elementId>` text.
  * - Reply even when nothing is claimed (`ctx.reply([])`) — the `'collect'`
  *   strategy waits for a reply from every registered listener, and a silent
  *   listener times the whole action out.
@@ -123,6 +141,15 @@ export const convertedRunFragmentArraySchema = {
           type: { type: 'string', nullable: false },
           location: { type: 'string', nullable: false },
         },
+      },
+      // Same shape as `Report.thymianFormat`: a hash-keyed map of serialized
+      // formats; the values aren't usefully expressible as JSON Schema (see
+      // `format` above), so only the container is checked. Optional by
+      // omission, not `nullable`.
+      thymianFormat: {
+        type: 'object',
+        required: [],
+        additionalProperties: true,
       },
       run: {
         type: 'object',
