@@ -40,7 +40,7 @@ Thymian is a monorepo managed with Nx, organized into several packages under the
 This project's decisions and mechanism docs live under `docs/arc42/`, not `docs/adr/`. Read the
 ones your change touches, not the set:
 
-- `docs/arc42/adr/` — 19 ADRs, indexed by `docs/arc42/09-architectural-decisions.md`. ADR-0007
+- `docs/arc42/adr/` — 21 ADRs, indexed by `docs/arc42/09-architectural-decisions.md`. ADR-0007
   fixes the core/plugin boundary and constrains any change to a plugin or to core's validation
   entrypoints.
 - `docs/arc42/08-crosscutting-concepts.md` — events and actions, plugin lifecycle, the Thymian
@@ -49,6 +49,25 @@ ones your change touches, not the set:
 
 Vocabulary lives elsewhere: `CONTEXT.md` is canonical for terms, and where
 `docs/arc42/12-glossary.md` disagrees with it, `CONTEXT.md` wins.
+
+## Some docs under `astro-docs/` are build output — never commit them
+
+These are checked in as **stubs** and rewritten by the `generate-docs` and
+`generate-schema-docs` targets, which any `nx build` of the docs site runs:
+
+- `astro-docs/src/content/docs/references/cli.md`
+- `astro-docs/src/content/docs/references/configuration-schema.md`
+- `astro-docs/src/content/docs/references/Plugins/*/cli.md`
+- `astro-docs/src/content/docs/references/Plugins/*/options.md`
+
+So they turn up modified in `git status` after a build you ran for some other reason, and the
+text they gain embeds the **absolute path of the machine that generated it**
+(`--cwd=<value> [default: /Users/…]`). `git checkout --` them before staging. Changing a CLI
+flag needs no doc commit; the site build regenerates the page.
+
+Everything else under `astro-docs/` is hand-written and _is_ committed — including the
+reference pages that sit beside the generated ones, such as
+`references/Plugins/Sampler/hooks-api.md`.
 
 ## Plugin Architecture
 
