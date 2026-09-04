@@ -10,6 +10,11 @@ import {
   httpStatusCodeToPhrase,
   isValidHttpStatusCode,
 } from './http-status-codes/index.js';
+import {
+  formatRequestSelector,
+  formatResponseSelector,
+  formatSelector,
+} from './selector/render-selector.js';
 import { ThymianBaseError } from './thymian.error.js';
 
 export function timeoutPromise<T>(
@@ -55,9 +60,11 @@ export function matchObjects(source: unknown, target: unknown): boolean {
 }
 
 export type KeysWithStringOrNumberValue<T> = keyof {
-  [P in keyof T as T[P] extends (string | undefined) | (number | undefined)
-    ? P
-    : never]: P;
+  [
+    P in keyof T as T[P] extends (string | undefined) | (number | undefined)
+      ? P
+      : never
+  ]: P;
 };
 
 export type StringAndNumberProperties<T> = Partial<{
@@ -147,30 +154,43 @@ export function setHeader(
 export type PartialExceptFor<T, K extends keyof T> = Partial<Omit<T, K>> &
   Pick<T, K>;
 
+/**
+ * How Thymian writes a request node down: the **request half of its
+ * Selector**, `POST /launches (application/json)`.
+ *
+ * One grammar for one concept (ADR-0020) — a heading a reader sees is a
+ * fragment of the string a hook is anchored to, not a near-twin of it. The
+ * rendering itself lives in `selector/render-selector.ts`, beside the whole-
+ * transaction renderer it has to stay consistent with.
+ */
 export function thymianRequestToString(req: ThymianHttpRequest): string {
-  const title = `${req.method.toUpperCase()} ${req.path}`;
-
-  return req.mediaType ? title + ` - ${req.mediaType}` : title;
+  return formatRequestSelector(req);
 }
 
+/**
+ * How Thymian writes a response node down: the **response half of its
+ * Selector**, `201 (application/json)`.
+ *
+ * Deliberately without the reason phrase the old display string carried:
+ * `CREATED` is derivable from `201`, and it is not part of the selector
+ * grammar. Failure detail text may still spell a phrase out.
+ */
 export function thymianResponseToString(res: ThymianHttpResponse): string {
-  const statusCode = res.statusCode;
-  const phrase = isValidHttpStatusCode(statusCode)
-    ? httpStatusCodeToPhrase[statusCode]
-    : '';
-
-  const title = `${statusCode} ${phrase.toUpperCase()}`;
-
-  return res.mediaType ? title + ` - ${res.mediaType}` : title;
+  return formatResponseSelector(res);
 }
 
+/**
+ * How Thymian writes a Transaction down: **its Selector, verbatim**.
+ *
+ * Every surface that names a Transaction goes through here — check lines,
+ * test-case names, rule headings, report locations, error texts — so any line
+ * a user reads pastes back as a hook target (ADR-0020).
+ */
 export function thymianHttpTransactionToString(
   req: ThymianHttpRequest,
   res: ThymianHttpResponse,
 ): string {
-  return `${thymianRequestToString(req)} \u2192 ${thymianResponseToString(
-    res,
-  )}`;
+  return formatSelector(req, res);
 }
 
 export function thymianHttpRequestToUrl(req: ThymianHttpRequest): string {

@@ -15,7 +15,7 @@ it was running for:
 
 ```
 The beforeEach hook exported as "seedLaunch" from "seed.ts" threw for
-transaction GET /launches/{id} → 200 OK - application/json.
+transaction GET /launches/{id} -> 200 (application/json).
 ```
 
 Run with `--debug` to see the original error and its stack.
