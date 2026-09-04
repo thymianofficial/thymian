@@ -30,6 +30,7 @@ This chapter documents the significant architectural decisions made for Thymian.
 | [ADR-0020](adr/0020-report-inputs-are-cli-only-for-merge-and-diff.md)          | Report inputs are CLI-only for `report merge` and `report diff`           | Accepted | 2026-08-24 | —                                                                                                                      |
 | [ADR-0021](adr/0021-http-security-rule-sets.md)                                | Adding a rule set: package per source, concern tags, executability gate   | Accepted | 2026-09-10 | [10.1](10-quality-requirements.md#101-quality-requirements-overview): Reliability                                      |
 | [ADR-0022](adr/0022-selector-is-the-transaction-label.md)                      | The Selector is the transaction label, application-wide                   | Accepted | 2026-09-04 | [10.2.1](10-quality-requirements.md#102-quality-scenarios)                                                             |
+| [ADR-0023](adr/0023-a-per-transaction-problem-must-not-end-the-run.md)         | A per-transaction problem must not end the run                            | Accepted | 2026-09-04 | [10.2.1](10-quality-requirements.md#102-quality-scenarios)                                                             |
 
 ## Creating New ADRs
 
