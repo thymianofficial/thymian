@@ -19,7 +19,9 @@ import {
   checkedFromError,
   checkedFromTestCase,
   type CheckedTransaction,
+  type CheckReport,
   type Outcome,
+  reportOf,
   summaryOf,
 } from '../../check-result.js';
 import { createContext } from '../../create-context.js';
@@ -36,6 +38,8 @@ const MARKS: Record<
 };
 
 export default class Check extends BaseCliRunCommand<typeof Check> {
+  static override enableJsonFlag = true;
+
   static override description =
     'Verify that all sampled transactions can be executed against the live API.';
 
@@ -43,6 +47,7 @@ export default class Check extends BaseCliRunCommand<typeof Check> {
     '<%= config.bin %> <%= command.id %>',
     '<%= config.bin %> <%= command.id %> --target-url http://localhost:8080',
     '<%= config.bin %> <%= command.id %> --incremental',
+    '<%= config.bin %> <%= command.id %> --json',
   ];
 
   static override flags = {
@@ -58,8 +63,8 @@ export default class Check extends BaseCliRunCommand<typeof Check> {
     }),
   };
 
-  override async run(): Promise<void> {
-    await this.thymian.run(async (emitter) => {
+  override async run(): Promise<CheckReport> {
+    return await this.thymian.run(async (emitter) => {
       const specifications = this.thymianConfig.specifications ?? [];
 
       const format = await this.thymian.loadFormat({
@@ -90,10 +95,22 @@ export default class Check extends BaseCliRunCommand<typeof Check> {
         );
 
         checked.push(result);
-        this.report(result);
+
+        if (!this.jsonEnabled()) {
+          this.report(result);
+        }
       }
 
-      this.summarize(checked);
+      // The exit code is the same contract either way; only the rendering
+      // differs, and under `--json` there is none — oclif prints the returned
+      // document, and the feedback tip suppresses itself.
+      if (this.jsonEnabled()) {
+        this.setExitCode(checked);
+      } else {
+        this.summarize(checked);
+      }
+
+      return reportOf(checked);
     });
   }
 
@@ -162,13 +179,7 @@ export default class Check extends BaseCliRunCommand<typeof Check> {
     this.log();
   }
 
-  /**
-   * The tally, and the exit code.
-   *
-   * `process.exitCode` rather than `this.exit()`: an early exit throws past the
-   * run's teardown, and teardown is where the user's `afterAll` cleanups live.
-   * The command finishes, and then the shell learns how it went.
-   */
+  /** The tally. */
   private summarize(checked: readonly CheckedTransaction[]): void {
     const summary = summaryOf(checked);
 
@@ -193,7 +204,20 @@ export default class Check extends BaseCliRunCommand<typeof Check> {
       `Checked ${summary.total} transactions: ${summary.passed} passed, ${tally.join(', ')}.`,
     );
 
-    process.exitCode = 1;
+    this.setExitCode(checked);
+  }
+
+  /**
+   * Non-zero iff any Transaction is not `passed`.
+   *
+   * `process.exitCode` rather than `this.exit()`: an early exit throws past the
+   * run's teardown, and teardown is where the user's `afterAll` cleanups live.
+   * The command finishes, and then the shell learns how it went.
+   */
+  private setExitCode(checked: readonly CheckedTransaction[]): void {
+    if (checked.some((result) => result.outcome !== 'passed')) {
+      process.exitCode = 1;
+    }
   }
 
   private isCheckableTransaction(transaction: ThymianHttpTransaction): boolean {
