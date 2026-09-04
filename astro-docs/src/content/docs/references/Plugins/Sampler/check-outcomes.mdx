@@ -1,0 +1,142 @@
+---
+title: 'Check Outcomes'
+description: The four outcomes thymian sampler check assigns, how a cause is attributed, and the --json schema it emits.
+sidebar:
+  order: -40
+---
+
+import { Aside } from '@astrojs/starlight/components';
+
+`thymian sampler check` executes every Transaction your API description declares
+and verifies that it behaves as described. It **always runs to completion**: no
+hook, serialization or transport failure ends the run early, because one broken
+Transaction tells you nothing about the rest.
+
+## The four outcomes
+
+Every Transaction ends in exactly one Outcome.
+
+| Outcome   | Glyph | Meaning                                                                                                           |
+| --------- | ----- | ----------------------------------------------------------------------------------------------------------------- |
+| `passed`  | `✔`   | Executed, and answered as the description says.                                                                   |
+| `failed`  | `✖`   | Executed, and the response was invalid.                                                                           |
+| `skipped` | `↷`   | Could not be executed _as described_ — its Seed was answered differently, or a value it needs was never supplied. |
+| `errored` | `!`   | The attempt itself broke: a hook threw, a connection was refused.                                                 |
+
+The line between `skipped` and `failed` is the one that matters most in a
+report. A Transaction whose precondition never happened has told you nothing
+about the API, and rendering it as a failure turns one upstream problem into a
+wall of unrelated red.
+
+```console
+✔ POST /launches (application/json) -> 201 (application/json)
+↷ GET /launches/{id} -> 200 (application/json)
+    The seed "POST /launches (application/json) -> 201 (application/json)" was answered with 500, which the specification does not declare for that operation.
+    Branch on the seed's status code, or call utils.skip to end this transaction deliberately.
+
+! DELETE /launches/{id} -> 204
+    The beforeEach hook exported as "cleanup" from "teardown.ts" threw.
+
+✔ GET /status -> 200 (application/json)
+
+Checked 4 transactions: 2 passed, 1 skipped, 1 errored.
+```
+
+Each reason is printed once, and no detail line repeats the Transaction its
+header already names — every line naming a Transaction is
+[its Selector, verbatim](/concepts/hook-system/), so you can paste it straight
+into a hook.
+
+## Attribution
+
+A skip or an error names its cause. When the cause is a **Seed** — a request one
+of the Transaction's hooks made with
+[`utils.request`](/guides/hooks/make-requests-in-hooks/) — the Seed's Selector
+and the status it actually got are both reported:
+
+- **Answered with another declared status.** The Seed ran and returned a value;
+  it just did not create the state this Transaction needs. The Transaction is
+  skipped and the Seed is named.
+- **Answered with an undeclared status.** `utils.request` throws
+  `UndeclaredResponseError`. Uncaught, it is caught at the Transaction boundary:
+  the Transaction is skipped, the Seed is named, and the run continues.
+- **A value the request needs is missing.** A
+  [`RequestSerializationError`](/references/errors/request-serialization-error/)
+  — usually an unresolvable path parameter — is a skip, with the missing value
+  named.
+
+Attribution comes from a Transaction's own hook pipeline, never from ordering
+between Transactions: `sampler check` has no dependency graph and no scheduler.
+
+## Exit code
+
+Non-zero if and only if **any** Transaction is not `passed`. The run finishes
+first — the code is set on the process rather than by exiting early, so your
+`afterAll` cleanups still run.
+
+<Aside type="tip" title="Use it as a CI gate">
+  `thymian sampler check --target-url $STAGING_URL` fails the build on any
+  Transaction that did not behave as described, and prints all of them rather
+  than the first.
+</Aside>
+
+## `--json`
+
+`--json` prints a single JSON document on stdout and nothing else — no glyphs,
+no summary line, no feedback tip. The exit code is unchanged. This is the stable
+machine contract; the human rendering is not.
+
+```bash
+thymian sampler check --json > check.json
+```
+
+```json
+{
+  "summary": {
+    "passed": 2,
+    "failed": 0,
+    "skipped": 1,
+    "errored": 1,
+    "total": 4
+  },
+  "transactions": [
+    {
+      "selector": "POST /launches (application/json) -> 201 (application/json)",
+      "outcome": "passed",
+      "expectedStatus": 201,
+      "actualStatus": 201
+    },
+    {
+      "selector": "GET /launches/{id} -> 200 (application/json)",
+      "outcome": "skipped",
+      "expectedStatus": 200,
+      "reason": "The seed \"POST /launches (application/json) -> 201 (application/json)\" was answered with 500, which the specification does not declare for that operation.",
+      "causedBy": "POST /launches (application/json) -> 201 (application/json)"
+    }
+  ]
+}
+```
+
+### Schema
+
+| Field                           | Type                                     | Present                                         |
+| ------------------------------- | ---------------------------------------- | ----------------------------------------------- |
+| `summary.passed`                | `number`                                 | always                                          |
+| `summary.failed`                | `number`                                 | always                                          |
+| `summary.skipped`               | `number`                                 | always                                          |
+| `summary.errored`               | `number`                                 | always                                          |
+| `summary.total`                 | `number`                                 | always — the sum of the four                    |
+| `transactions[].selector`       | `string`                                 | always — resolves in the transaction catalog    |
+| `transactions[].outcome`        | `passed \| failed \| skipped \| errored` | always                                          |
+| `transactions[].expectedStatus` | `number`                                 | always — the status the Selector names          |
+| `transactions[].actualStatus`   | `number`                                 | when the request was sent and answered          |
+| `transactions[].reason`         | `string`                                 | when the outcome is not `passed`                |
+| `transactions[].causedBy`       | `string`                                 | when a Seed explains the outcome — its Selector |
+
+Every `selector` and every `causedBy` is a Selector that resolves in the
+catalog, so an agent can read a result and write the hook that fixes it without
+translating anything.
+
+`transactions` follows the order the Transactions were checked in. Remediation
+prose — the dim lines under a failure in the human output — is deliberately not
+part of the document: `reason` carries what there is to act on.
