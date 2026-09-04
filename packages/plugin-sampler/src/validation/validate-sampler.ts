@@ -42,6 +42,12 @@ export type ValidationReport = {
   /**
    * What to tell the user, and what to tell them to do about it.
    *
+   * Named `verdict` rather than `outcome`: an `Outcome` is what one Transaction
+   * earns in a `sampler check` run, and `check --json` emits that under the
+   * name. This is a judgement about the committed surface and the hooks as a
+   * whole, so one word cannot carry both without two `--json` surfaces
+   * disagreeing about what it means.
+   *
    * - `ok` — nothing to say.
    * - `stale` — the committed types are behind the description but every hook
    *   still compiles. A **warning**: run `sync`.
@@ -52,11 +58,11 @@ export type ValidationReport = {
    *   *not* the remedy — it would rewrite files that are already correct and
    *   leave the real error in place. Only the hooks need fixing.
    *
-   * The last two were one outcome, which meant a plain type error in a hook
+   * The last two were one verdict, which meant a plain type error in a hook
    * was announced as "the API description no longer matches these hooks" and
    * answered with a command that could not help.
    */
-  outcome: 'ok' | 'stale' | 'drifted' | 'broken';
+  verdict: 'ok' | 'stale' | 'drifted' | 'broken';
 };
 
 /** Which committed files differ from a fresh generation, canonically. */
@@ -120,7 +126,7 @@ export async function validateSampler(
     conflicts: [...hooks.conflicts],
     unexported: [...hooks.unexported],
     warnings: [...hooks.warnings],
-    outcome: broken
+    verdict: broken
       ? state === 'behind'
         ? 'drifted'
         : 'broken'

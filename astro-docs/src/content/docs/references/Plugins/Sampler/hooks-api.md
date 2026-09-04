@@ -398,7 +398,7 @@ would — that is the CI gate.
 The authoritative gate. It regenerates the surface in memory, compares it with
 what is committed, and type-checks your hooks against the fresh surface.
 
-| committed vs fresh | hooks compile | outcome                                                                            |
+| committed vs fresh | hooks compile | verdict                                                                            |
 | ------------------ | ------------- | ---------------------------------------------------------------------------------- |
 | identical          | yes           | silent success                                                                     |
 | **differs**        | **yes**       | **warning** — run `sampler sync`                                                   |

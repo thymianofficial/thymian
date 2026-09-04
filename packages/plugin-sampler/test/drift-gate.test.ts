@@ -158,7 +158,7 @@ describe('the drift gate', () => {
       await expect(harness.sync(true)).resolves.toMatchObject({ changed: [] });
       await expect(harness.validate()).resolves.toMatchObject({
         surface: 'in-sync',
-        outcome: 'ok',
+        verdict: 'ok',
       });
     });
 
@@ -212,7 +212,7 @@ export const shape = beforeEach(${JSON.stringify(LAUNCHES)}, () => {});
       await expect(harness.validate()).resolves.toMatchObject({
         surface: 'behind',
         changedFiles: ['request-types.d.ts'],
-        outcome: 'stale',
+        verdict: 'stale',
       });
     });
   });
@@ -232,7 +232,7 @@ export const shape = beforeEach(${JSON.stringify(LAUNCHES)}, () => {});
 
       await expect(harness.validate()).resolves.toMatchObject({
         surface: 'absent',
-        outcome: 'ok',
+        verdict: 'ok',
         typeErrors: [],
       });
     });
@@ -261,7 +261,7 @@ export const shape = beforeEach(
 
       // The surface moved *and* the hook stopped fitting, which is drift
       // proper — `sync` is part of the remedy here, unlike a plain hook error.
-      expect(report.outcome).toBe('drifted');
+      expect(report.verdict).toBe('drifted');
       expect(report.unresolved[0]?.file).toBe('hook.ts');
       expect(report.typeErrors[0]).toMatchObject({
         file: join('hooks', 'hook.ts'),
@@ -291,7 +291,7 @@ export const wrong = beforeEach(${JSON.stringify(LAUNCHES)}, (request) => {
       // Announcing drift here sent the reader after a `sync` that would
       // rewrite correct files and leave the real error in place.
       expect(report.surface).toBe('in-sync');
-      expect(report.outcome).toBe('broken');
+      expect(report.verdict).toBe('broken');
       expect(report.typeErrors).toHaveLength(1);
     });
 
@@ -315,7 +315,7 @@ export const shape = beforeEach(${JSON.stringify(LAUNCHES)}, () => {});
       const report = await harness.validate();
 
       expect(report.surface).toBe('behind');
-      expect(report.outcome).toBe('drifted');
+      expect(report.verdict).toBe('drifted');
     });
 
     it('reports a vacuous glob and a zero-match filter without a type error', async () => {
@@ -333,7 +333,7 @@ export const empty = beforeEach({ path: '/launches', method: 'DELETE' }, () => {
 
       const report = await harness.validate();
 
-      expect(report.outcome).toBe('broken');
+      expect(report.verdict).toBe('broken');
       expect(report.unresolved.map((d) => d.reason).join('\n')).toContain(
         'matches no path in the loaded API description',
       );
@@ -361,7 +361,7 @@ export const b = defineSample(${JSON.stringify(LAUNCHES)}, () => {});
 
       const report = await harness.validate();
 
-      expect(report.outcome).toBe('broken');
+      expect(report.verdict).toBe('broken');
       expect(report.conflicts[0]?.reason).toContain(
         'defineSample is already defined',
       );
