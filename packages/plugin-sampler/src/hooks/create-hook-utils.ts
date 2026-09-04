@@ -133,7 +133,7 @@ export function createHookUtils<E extends Endpoints>(
       selector: R,
       args: E[R]['req'] = {},
       options: RequestOptions = {},
-    ): Promise<E[R]['res']> {
+    ): Promise<E[R]['responses']> {
       if (typeof selector !== 'string') {
         throw new ThymianBaseError(
           'utils.request takes a transaction selector as its first argument.',
@@ -157,7 +157,7 @@ export function createHookUtils<E extends Endpoints>(
         selector,
         args,
         options,
-      )) as E[R]['res'];
+      )) as E[R]['responses'];
     },
 
     fail(msg: string): never {

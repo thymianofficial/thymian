@@ -236,6 +236,10 @@ export const seed = beforeEach(${JSON.stringify(GET_LAUNCH)}, async (request, ct
 `,
         );
 
+        // The seed's selector names 201, and a status the operation does not
+        // declare is an `UndeclaredResponseError` rather than a value.
+        harness.responses.push({ statusCode: 201 });
+
         await harness.loadFormat(FIXTURE);
         await harness.beforeRequest(transactionIdOf(GET_LAUNCH), FIXTURE);
 
@@ -262,6 +266,8 @@ export const seed = beforeEach(${JSON.stringify(GET_LAUNCH)}, async (request, ct
 });
 `,
       );
+
+      harness.responses.push({ statusCode: 201 });
 
       await harness.loadFormat(FIXTURE);
       await harness.beforeRequest(transactionIdOf(GET_LAUNCH), FIXTURE);
@@ -397,6 +403,10 @@ export const b = beforeEach(${JSON.stringify(CREATE_LAUNCH)}, async (request, ct
 });
 `,
       );
+
+      // In dispatch order: the inner raw GET, then the POST whose selector
+      // names 201.
+      harness.responses.push({ statusCode: 200 }, { statusCode: 201 });
 
       await harness.loadFormat(FIXTURE);
 

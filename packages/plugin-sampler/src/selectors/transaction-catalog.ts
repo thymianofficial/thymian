@@ -3,6 +3,7 @@ import type { ThymianFormat, ThymianHttpTransaction } from '@thymian/core';
 import {
   compareSelectors,
   encodePath,
+  formatRequestSelector,
   parseSelector,
   type Selector,
   selectorForTransaction,
@@ -35,6 +36,10 @@ export class TransactionCatalog {
     private readonly orderedEntries: readonly TransactionCatalogEntry[],
     private readonly selectorByTransactionId: ReadonlyMap<string, Selector>,
     private readonly distinctPaths: readonly string[],
+    private readonly byOperation: ReadonlyMap<
+      string,
+      readonly TransactionCatalogEntry[]
+    >,
   ) {}
 
   /**
@@ -66,6 +71,17 @@ export class TransactionCatalog {
       .sort(([a], [b]) => compareSelectors(a, b))
       .map(([selector, transaction]) => [selector, transaction] as const);
 
+    const byOperation = new Map<string, TransactionCatalogEntry[]>();
+
+    for (const entry of orderedEntries) {
+      const operation = formatRequestSelector(entry[1].thymianReq);
+
+      byOperation.set(operation, [
+        ...(byOperation.get(operation) ?? []),
+        entry,
+      ]);
+    }
+
     return new TransactionCatalog(
       bySelector,
       orderedEntries,
@@ -80,6 +96,7 @@ export class TransactionCatalog {
           orderedEntries.map(([, transaction]) => pathOf(transaction)),
         ),
       ].sort(),
+      byOperation,
     );
   }
 
@@ -112,6 +129,25 @@ export class TransactionCatalog {
    */
   paths(): readonly string[] {
     return this.distinctPaths;
+  }
+
+  /**
+   * Every Transaction the same operation declares — the responses a call to
+   * `transaction` may legitimately be answered with.
+   *
+   * Grouped by the **request half of the selector**, which is what the
+   * generated `Responses` map is keyed by, so the union the types promise and
+   * the set the runtime checks against are built by one rule. Two sources
+   * describing the same operation contribute to one group; that is a superset,
+   * and a superset is the safe direction — it never calls a declared response
+   * undeclared.
+   */
+  responsesOf(
+    transaction: ThymianHttpTransaction,
+  ): readonly TransactionCatalogEntry[] {
+    return (
+      this.byOperation.get(formatRequestSelector(transaction.thymianReq)) ?? []
+    );
   }
 
   /** The selector one transaction renders as, for a diagnostic that has the id. */

@@ -412,15 +412,19 @@ describe('the committed type surface', () => {
         .filter((line) => !after.requestTypes.includes(line));
 
       // Exhaustively: the only lines that move are the new endpoint's own —
-      // its declaration, its selector key, its path and the reference to its
-      // body — plus the one union it widens.
+      // its declaration, its selector key, its operation, its path, the
+      // reference to its body and its entry in `Responses` — plus the one
+      // union it widens.
       expect(removed).toEqual(['export type Path = "/b" | "/c";']);
       expect([...added].sort()).toEqual(
         [
           'export interface GetA200ApplicationJsonResponseBody {',
           '  "GET /a -> 200 (application/json)": {',
+          '    operation: "GET /a";',
           '    path: "/a";',
           '      body: GetA200ApplicationJsonResponseBody;',
+          '  "GET /a":',
+          '    | TransactionResponse<"GET /a -> 200 (application/json)">;',
           'export type Path = "/a" | "/b" | "/c";',
         ].sort(),
       );
