@@ -1,0 +1,11 @@
+specifications:
+  - type: openapi
+    location: test.openapi.yaml
+plugins:
+  '@thymian/plugin-openapi':
+    options:
+      descriptions:
+        - source: test.openapi.yaml
+  '@thymian/plugin-request-dispatcher': {}
+  '@thymian/plugin-sampler': {}
+  '@thymian/plugin-http-tester': {}

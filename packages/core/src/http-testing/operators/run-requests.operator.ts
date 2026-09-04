@@ -1,6 +1,6 @@
 import { mergeMap, type MonoTypeOperatorFunction } from 'rxjs';
 
-import { thymianHttpTransactionToString } from '../../index.js';
+import { isThymianError, thymianHttpTransactionToString } from '../../index.js';
 import {
   type HttpTestCase,
   type HttpTestCaseResult,
@@ -122,7 +122,34 @@ export function runRequests<
             ).result ?? transaction.requestTemplate;
         }
 
-        transaction.request = serializeRequest(transaction);
+        // A request that cannot be built from the description and the hooks is
+        // a Transaction that cannot be executed *as described* — the pipeline's
+        // own word for which is `skipped`. It used to reject the observable
+        // instead, which aborted the whole run over one unresolvable path
+        // parameter and threw away every result the case had already recorded,
+        // attribution included.
+        try {
+          transaction.request = serializeRequest(transaction);
+        } catch (e) {
+          if (!isSerializationFailure(e)) {
+            throw e;
+          }
+
+          const message = e instanceof Error ? e.message : String(e);
+
+          current.results.push({
+            type: 'invalid-transaction',
+            message,
+            transaction: transaction.source,
+            timestamp: Date.now(),
+            ...(suggestionsOf(e).length > 0
+              ? { details: suggestionsOf(e).join(' ') }
+              : {}),
+          });
+
+          return ctx.skip(current, message);
+        }
+
         transaction.response = await ctx.runRequest(transaction.request);
 
         const afterResponse = await ctx.runHook('afterResponse', {
@@ -249,4 +276,17 @@ export function runRequests<
 
     return { current, ctx };
   });
+}
+
+/**
+ * Whether the request could not be serialized from what the description and the
+ * hooks supplied — as opposed to any other way sending can fail, which is not
+ * this operator's to reinterpret.
+ */
+function isSerializationFailure(error: unknown): boolean {
+  return isThymianError(error) && error.name === 'RequestSerializationError';
+}
+
+function suggestionsOf(error: unknown): string[] {
+  return isThymianError(error) ? (error.options?.suggestions ?? []) : [];
 }

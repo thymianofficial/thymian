@@ -10,13 +10,16 @@ defect in the hook rather than a verdict about the test case.
 
 ## What to do
 
-The message names the hook's kind, its export and its file, plus the Transaction
-it was running for:
+The message names the hook's kind, its export and its file:
 
 ```
-The beforeEach hook exported as "seedLaunch" from "seed.ts" threw for
-transaction GET /launches/{id} -> 200 (application/json).
+The beforeEach hook exported as "seedLaunch" from "seed.ts" threw.
 ```
+
+The Transaction it was running for is not repeated here — every surface that
+reports a hook failure already prints that Transaction's Selector above the
+message. In `thymian sampler check` the transaction is marked `errored` and the
+run continues; one broken hook does not end the command.
 
 Run with `--debug` to see the original error and its stack.
 

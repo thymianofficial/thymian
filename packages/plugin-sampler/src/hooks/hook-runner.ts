@@ -10,7 +10,6 @@ import {
   ThymianBaseError,
   ThymianFormat,
   type ThymianHttpTransaction,
-  thymianHttpTransactionToString,
 } from '@thymian/core';
 
 import type { Selector } from '../selectors/selector.js';
@@ -175,7 +174,13 @@ export class HookRunner {
       request: input.request,
       results: input.results,
       requestOther: async (selector, args, options) =>
-        await this.runNested(selector, args, options, input.chain),
+        await this.runNested(
+          selector,
+          args,
+          options,
+          input.chain,
+          input.results,
+        ),
     };
   }
 
@@ -193,7 +198,6 @@ export class HookRunner {
       this.hooksFor(ctx?.transactionId).beforeEach,
       value,
       ctx,
-      ctx,
       value,
       this.chainFor(ctx),
     );
@@ -209,7 +213,6 @@ export class HookRunner {
       this.hooksFor(ctx.thymianTransaction?.transactionId).afterEach,
       value,
       ctx,
-      ctx.thymianTransaction,
       ctx.requestTemplate,
       this.chainFor(ctx.thymianTransaction),
     );
@@ -225,7 +228,6 @@ export class HookRunner {
       'authorize',
       entry ? [entry] : [],
       value,
-      ctx,
       ctx,
       value,
       this.chainFor(ctx),
@@ -282,7 +284,6 @@ export class HookRunner {
     entries: readonly CollectedRegistration[],
     value: T,
     ctx: unknown,
-    transaction: TransactionForDiagnostic,
     request: HttpRequestTemplate | undefined,
     chain: SelectorChain,
   ): Promise<{
@@ -306,7 +307,7 @@ export class HookRunner {
       try {
         await invokeHook(entry, [value, ctx, utils]);
       } catch (e) {
-        const outcome = interpretHookFailure(e, kind, entry, transaction);
+        const outcome = interpretHookFailure(e, kind, entry);
 
         if (outcome.rethrow) {
           throw outcome.rethrow;
@@ -332,6 +333,7 @@ export class HookRunner {
     args: EndpointRequest,
     options: RequestOptions,
     chain: SelectorChain,
+    callerResults: HttpTestCaseResult[],
   ): Promise<EndpointResponse> {
     const runHooks = options.runHooks ?? true;
 
@@ -362,7 +364,6 @@ export class HookRunner {
         this.hooksFor(transaction.transactionId).beforeEach,
         template,
         transaction,
-        transaction,
         template,
         nested,
       );
@@ -377,7 +378,6 @@ export class HookRunner {
         'authorize',
         [authorizeHook],
         template,
-        transaction,
         transaction,
         template,
         nested,
@@ -398,7 +398,6 @@ export class HookRunner {
         this.hooksFor(transaction.transactionId).afterEach,
         response,
         { request, requestTemplate: template, thymianTransaction: transaction },
-        transaction,
         template,
         nested,
       );
@@ -413,16 +412,41 @@ export class HookRunner {
     const body = parseResponseBody(response);
 
     // The Selector said which Transaction to initiate; the server decided which
-    // one happened. A declared status is one of the union's members and comes
-    // back for the caller to branch on. An undeclared one has no member to be,
-    // so it throws rather than arriving as a value whose type is a lie.
-    if (!this.declaresStatus(transaction, response.statusCode)) {
-      throw new UndeclaredResponseError(
-        selector,
-        response.statusCode,
-        response.headers,
-        body,
-      );
+    // one happened. Either way, a seed that was answered with something other
+    // than what it asked for is recorded on the *calling* hook's results — that
+    // is what lets `sampler check` say which seed a skip was caused by instead
+    // of only that this transaction did not work.
+    if (response.statusCode !== transaction.thymianRes.statusCode) {
+      // A declared status is one of the union's members and comes back for the
+      // caller to branch on. An undeclared one has no member to be, so it
+      // throws rather than arriving as a value whose type is a lie.
+      const undeclared = this.declaresStatus(transaction, response.statusCode)
+        ? undefined
+        : new UndeclaredResponseError(
+            selector,
+            response.statusCode,
+            response.headers,
+            body,
+          );
+
+      callerResults.push({
+        type: 'invalid-transaction',
+        // The same sentence the thrown error carries, deliberately: when it
+        // escapes the hook it becomes the transaction's reason, and one
+        // sentence printed once is the whole point of saying it in one place.
+        message:
+          undeclared?.message ??
+          `The seed "${selector}" was answered with ${response.statusCode}, not the ${transaction.thymianRes.statusCode} its selector names.`,
+        transaction,
+        timestamp: Date.now(),
+        details: undeclared
+          ? 'Branch on the seed’s status code, or call utils.skip to end this transaction deliberately.'
+          : 'The specification declares that response, so the seed ran — but it did not put the system into the state this transaction describes. Branch on the status code in the seeding hook, or fix the data it sends.',
+      });
+
+      if (undeclared) {
+        throw undeclared;
+      }
     }
 
     return {
@@ -459,10 +483,6 @@ function mediaTypeOf(response: HttpResponse): string {
   return (contentType.split(';')[0] ?? '').trim().toLowerCase();
 }
 
-/** What a diagnostic needs to name the transaction a hook was running for. */
-type TransactionForDiagnostic =
-  Pick<ThymianHttpTransaction, 'thymianReq' | 'thymianRes'> | undefined;
-
 type HookFailure = {
   rethrow?: ThymianBaseError;
   report?: { skip: string } | { fail: string };
@@ -472,12 +492,19 @@ type HookFailure = {
  * `utils.skip` and `utils.fail` are control flow, not errors: they end this
  * transaction with a verdict. Anything else is a defect in the hook, and the
  * diagnostic names the hook's own file so the reader knows which line to open.
+ *
+ * Every diagnostic that leaves here carries `severity: 'warn'`, and that is
+ * load-bearing rather than a judgement about how bad it is. An `error`-severity
+ * event closes the whole run through `Thymian.run`'s error subscription, which
+ * is precisely the behaviour the outcome model replaces: one broken hook ended
+ * the command and hid every transaction after it. The action still throws, so
+ * the caller still learns this transaction did not work — and `sampler check`
+ * gives it an Outcome of its own instead of the run giving up.
  */
 function interpretHookFailure(
   e: unknown,
   kind: HookKind,
   entry: CollectedRegistration,
-  transaction: TransactionForDiagnostic,
 ): HookFailure {
   if (e instanceof SkipError) {
     return { report: { skip: e.message } };
@@ -485,6 +512,14 @@ function interpretHookFailure(
 
   if (e instanceof FailError) {
     return { report: { fail: e.message } };
+  }
+
+  // An off-spec seed answer that nobody caught. Reacting to it is opt-in, so
+  // letting it escape is a legitimate way to write a hook: the transaction
+  // cannot be executed as described, which is a skip and not a defect, and the
+  // message already names the seed and what it was answered with.
+  if (e instanceof UndeclaredResponseError) {
+    return { report: { skip: e.message } };
   }
 
   if (e instanceof ThymianBaseError) {
@@ -495,17 +530,18 @@ function interpretHookFailure(
     return { rethrow: attributeToHook(e, kind, entry) };
   }
 
-  const where = transaction
-    ? ` for transaction ${thymianHttpTransactionToString(transaction.thymianReq, transaction.thymianRes)}`
-    : '';
-
   return {
     rethrow: new ThymianBaseError(
-      `The ${kind} hook exported as "${entry.exportName}" from "${entry.file}" threw${where}.`,
+      // Deliberately without the Transaction: every surface that prints one
+      // already names it (ADR-0020), and repeating it under a header that says
+      // it is the noise this model removes. What only this sentence knows is
+      // which export in which file to open.
+      `The ${kind} hook exported as "${entry.exportName}" from "${entry.file}" threw.`,
       {
         cause: e,
         name: 'HookError',
         ref: 'https://thymian.dev/references/errors/hook-error/',
+        severity: 'warn',
       },
     ),
   };

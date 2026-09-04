@@ -45,7 +45,7 @@ export class UndeclaredResponseError extends Error {
     readonly body: unknown,
   ) {
     super(
-      `The transaction "${selector}" was answered with ${statusCode}, which the specification does not declare for that operation.`,
+      `The seed "${selector}" was answered with ${statusCode}, which the specification does not declare for that operation.`,
     );
 
     this.name = 'UndeclaredResponseError';
