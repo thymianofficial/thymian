@@ -2,7 +2,12 @@ import { describe, expect, it } from 'vitest';
 
 import { DEFAULT_QUERY_SERIALIZATION_STYLE } from '../../../src/constants.js';
 import type { ThymianHttpRequest } from '../../../src/format/nodes/http-request.node.js';
-import { validateExistingQueryParameter } from '../../../src/http-testing/validate/validate-request-query-parameters.js';
+import type { SerializationStyle } from '../../../src/format/serialization-style/index.js';
+import {
+  parseQueryParameters,
+  validateExistingQueryParameter,
+  validateRequestQueryParameters,
+} from '../../../src/http-testing/validate/validate-request-query-parameters.js';
 
 function requestWithQuerySchema(schema: unknown): ThymianHttpRequest {
   return {
@@ -57,5 +62,554 @@ describe('validateExistingQueryParameter', () => {
     expect(
       failures.every((r) => r.message.startsWith('query parameter "page"')),
     ).toBe(true);
+  });
+});
+
+function requestWithQueryParameters(
+  queryParameters: ThymianHttpRequest['queryParameters'],
+): ThymianHttpRequest {
+  return {
+    type: 'http-request',
+    host: 'localhost',
+    port: 3000,
+    protocol: 'http',
+    path: '/api/userreports',
+    method: 'GET',
+    headers: {},
+    cookies: {},
+    pathParameters: {},
+    bodyRequired: false,
+    body: {} as ThymianHttpRequest['body'],
+    mediaType: '',
+    label: '',
+    sourceName: '',
+    queryParameters,
+  };
+}
+
+function queryStyle(
+  style: SerializationStyle['style'],
+  explode: boolean,
+): SerializationStyle {
+  return { style, explode };
+}
+
+describe('validateRequestQueryParameters — typed wire values (gh-624)', () => {
+  const yearParameter = {
+    required: true,
+    schema: { type: 'integer', minimum: 1910, maximum: 2027 } as never,
+    style: DEFAULT_QUERY_SERIALIZATION_STYLE,
+  };
+
+  it('accepts an integer parameter that arrived as a wire string', () => {
+    const request = requestWithQueryParameters({ year: yearParameter });
+
+    const results = validateRequestQueryParameters(
+      '/api/userreports?year=2026',
+      request,
+    );
+
+    expect(results.filter((r) => r.type === 'assertion-failure')).toEqual([]);
+    expect(results).toContainEqual(
+      expect.objectContaining({
+        type: 'assertion-success',
+        message: 'Valid query parameter "year".',
+      }),
+    );
+  });
+
+  it('still rejects a non-numeric value, reporting the actual string', () => {
+    const request = requestWithQueryParameters({ year: yearParameter });
+
+    const results = validateRequestQueryParameters(
+      '/api/userreports?year=abc',
+      request,
+    );
+
+    expect(results).toContainEqual(
+      expect.objectContaining({
+        type: 'assertion-failure',
+        message: 'query parameter "year" must be integer',
+        actual: 'abc',
+      }),
+    );
+  });
+
+  it('still enforces numeric bounds after deserialization', () => {
+    const request = requestWithQueryParameters({ year: yearParameter });
+
+    const results = validateRequestQueryParameters(
+      '/api/userreports?year=2100',
+      request,
+    );
+
+    const failures = results.filter((r) => r.type === 'assertion-failure');
+    expect(failures).toHaveLength(1);
+    expect(failures[0]?.message).toContain('query parameter "year"');
+    // AC1 asks for accurate messages: the bound must be named, or this would
+    // pass just as happily on a wrong-type message.
+    expect(failures[0]?.message).toContain('2027');
+  });
+
+  it('accepts a boolean/null union from its wire form', () => {
+    const request = requestWithQueryParameters({
+      enhanced_list: {
+        required: false,
+        schema: { type: ['boolean', 'null'] } as never,
+        style: DEFAULT_QUERY_SERIALIZATION_STYLE,
+      },
+    });
+
+    const results = validateRequestQueryParameters(
+      '/api/userreports?enhanced_list=true',
+      request,
+    );
+
+    expect(results.filter((r) => r.type === 'assertion-failure')).toEqual([]);
+  });
+
+  it.each([
+    ['?ids=1&ids=2', 'a repeated key'],
+    ['?ids=1', 'a single occurrence'],
+  ])('accepts an exploded array from %s (%s)', (query) => {
+    const request = requestWithQueryParameters({
+      ids: {
+        required: false,
+        schema: { type: 'array', items: { type: 'integer' } } as never,
+        style: queryStyle('form', true),
+      },
+    });
+
+    const results = validateRequestQueryParameters(
+      `/api/userreports${query}`,
+      request,
+    );
+
+    expect(results.filter((r) => r.type === 'assertion-failure')).toEqual([]);
+  });
+
+  it('reconstructs a deepObject parameter and reports neither missing nor additional', () => {
+    const request = requestWithQueryParameters({
+      filter: {
+        required: true,
+        schema: {
+          type: 'object',
+          properties: { customers_id: { type: 'integer' } },
+        } as never,
+        style: queryStyle('deepObject', true),
+      },
+    });
+
+    const results = validateRequestQueryParameters(
+      '/v2/entries?filter[customers_id]=4382930',
+      request,
+    );
+
+    expect(results.filter((r) => r.type === 'assertion-failure')).toEqual([]);
+    expect(results).toContainEqual(
+      expect.objectContaining({
+        type: 'assertion-success',
+        message: 'Valid query parameter "filter".',
+      }),
+    );
+  });
+
+  it('reports an unsupported style as info, never as a failure', () => {
+    const request = requestWithQueryParameters({
+      ids: {
+        required: false,
+        schema: { type: 'array', items: { type: 'integer' } } as never,
+        style: queryStyle('pipeDelimited', true),
+      },
+    });
+
+    const results = validateRequestQueryParameters(
+      '/api/userreports?ids=1|2',
+      request,
+    );
+
+    expect(results.filter((r) => r.type === 'assertion-failure')).toEqual([]);
+
+    const info = results.filter((r) => r.type === 'info');
+    expect(info).toHaveLength(1);
+    expect(info[0]?.message).toContain('pipeDelimited');
+  });
+});
+
+describe('parseQueryParameters — wire hygiene (gh-624)', () => {
+  const opaque = {
+    required: false,
+    schema: { type: 'string' } as never,
+    style: DEFAULT_QUERY_SERIALIZATION_STYLE,
+  };
+
+  it('keeps a value containing "=" intact', () => {
+    const request = requestWithQueryParameters({ token: opaque });
+
+    expect(parseQueryParameters('token=a=b', request)).toEqual({
+      token: 'a=b',
+    });
+  });
+
+  it('decodes "+" as a space', () => {
+    const request = requestWithQueryParameters({ q: opaque });
+
+    expect(parseQueryParameters('q=a+b', request)).toEqual({ q: 'a b' });
+  });
+
+  it('treats only the first "?" as the query delimiter', () => {
+    const request = requestWithQueryParameters({ q: opaque });
+
+    const results = validateRequestQueryParameters(
+      '/api/userreports?q=what?now',
+      request,
+    );
+
+    expect(results.filter((r) => r.type === 'assertion-failure')).toEqual([]);
+  });
+});
+
+describe('validateRequestQueryParameters — review round 1 regressions', () => {
+  const intParam = (
+    style: SerializationStyle = DEFAULT_QUERY_SERIALIZATION_STYLE,
+  ) => ({
+    required: true,
+    schema: { type: 'integer', maximum: 2027 } as never,
+    style,
+  });
+
+  it('resolves a $ref parameter schema — the shape plugin-openapi emits', () => {
+    const request = requestWithQueryParameters({
+      year: {
+        required: true,
+        schema: {
+          $ref: '#/$defs/Year',
+          $defs: { Year: { type: 'integer', minimum: 1910, maximum: 2027 } },
+        } as never,
+        style: DEFAULT_QUERY_SERIALIZATION_STYLE,
+      },
+    });
+
+    const results = validateRequestQueryParameters('/api?year=2026', request);
+
+    expect(results.filter((r) => r.type === 'assertion-failure')).toEqual([]);
+  });
+
+  it('keeps reporting a polluted scalar parameter', () => {
+    const request = requestWithQueryParameters({ year: intParam() });
+
+    const results = validateRequestQueryParameters(
+      '/api?year=2026&year=9999',
+      request,
+    );
+
+    expect(results.filter((r) => r.type === 'assertion-failure')).not.toEqual(
+      [],
+    );
+  });
+
+  it('does not throw on a prototype-named bracket key', () => {
+    const request = requestWithQueryParameters({ year: intParam() });
+
+    expect(() =>
+      validateRequestQueryParameters(
+        '/api?constructor[x]=1&year=2026',
+        request,
+      ),
+    ).not.toThrow();
+    expect(() =>
+      validateRequestQueryParameters('/api?__proto__[x]=1&year=2026', request),
+    ).not.toThrow();
+  });
+
+  it('reports a deepObject parameter that also arrived as a bare key', () => {
+    const request = requestWithQueryParameters({
+      filter: {
+        required: true,
+        schema: {
+          type: 'object',
+          properties: { id: { type: 'integer' } },
+        } as never,
+        style: queryStyle('deepObject', true),
+      },
+    });
+
+    const results = validateRequestQueryParameters(
+      '/v2/entries?filter=oops&filter[id]=1',
+      request,
+    );
+
+    expect(results.filter((r) => r.type === 'assertion-failure')).not.toEqual(
+      [],
+    );
+  });
+
+  it('absorbs nested deepObject keys instead of calling them undocumented', () => {
+    const request = requestWithQueryParameters({
+      filter: {
+        required: true,
+        schema: {
+          type: 'object',
+          properties: { a: { type: 'string' } },
+        } as never,
+        style: queryStyle('deepObject', true),
+      },
+    });
+
+    const results = validateRequestQueryParameters(
+      '/v2/entries?filter[a][b]=1',
+      request,
+    );
+
+    expect(
+      results.filter((r) =>
+        r.message.includes('is not included in the description format'),
+      ),
+    ).toEqual([]);
+  });
+
+  it('folds a form/explode:true object parameter from its bare property keys', () => {
+    const request = requestWithQueryParameters({
+      filter: {
+        required: true,
+        schema: {
+          type: 'object',
+          properties: { role: { type: 'string' }, level: { type: 'integer' } },
+        } as never,
+        style: queryStyle('form', true),
+      },
+    });
+
+    const results = validateRequestQueryParameters(
+      '/api?role=admin&level=3',
+      request,
+    );
+
+    expect(results.filter((r) => r.type === 'assertion-failure')).toEqual([]);
+  });
+
+  it('splits a non-exploded array before decoding', () => {
+    const request = requestWithQueryParameters({
+      ids: {
+        required: false,
+        schema: {
+          type: 'array',
+          items: { type: 'string' },
+          maxItems: 1,
+        } as never,
+        style: queryStyle('form', false),
+      },
+    });
+
+    const results = validateRequestQueryParameters('/api?ids=a%2Cb', request);
+
+    expect(results.filter((r) => r.type === 'assertion-failure')).toEqual([]);
+  });
+
+  it('excludes a fragment from the query string', () => {
+    const request = requestWithQueryParameters({ year: intParam() });
+
+    const results = validateRequestQueryParameters(
+      '/api?year=2026#section',
+      request,
+    );
+
+    expect(results.filter((r) => r.type === 'assertion-failure')).toEqual([]);
+  });
+
+  it('skips an empty key rather than reporting it as undocumented', () => {
+    const request = requestWithQueryParameters({ year: intParam() });
+
+    const results = validateRequestQueryParameters(
+      '/api?=value&year=2026',
+      request,
+    );
+
+    expect(results.filter((r) => r.type === 'assertion-failure')).toEqual([]);
+  });
+});
+
+describe('validateRequestQueryParameters — PR #379 review fixes', () => {
+  const refObject = {
+    $ref: '#/$defs/F',
+    $defs: {
+      F: { type: 'object', properties: { role: { type: 'string' } } },
+    },
+  } as never;
+
+  it('resolves $ref before reading properties, so a typo is still reported', () => {
+    // Reading `schema.properties` raw made a $ref'd object look free-form and
+    // silently absorb every unclaimed key — undocumented parameters vanished.
+    const request = requestWithQueryParameters({
+      filter: {
+        required: true,
+        schema: refObject,
+        style: queryStyle('form', true),
+      },
+    });
+
+    const results = validateRequestQueryParameters(
+      '/api?role=admin&typo=x',
+      request,
+    );
+
+    expect(results).toContainEqual(
+      expect.objectContaining({
+        type: 'assertion-failure',
+        message:
+          'Request contains query parameter "typo" that is not included in the description format.',
+      }),
+    );
+  });
+
+  it('does not fold an object parameter whose schema also allows a string', () => {
+    const request = requestWithQueryParameters({
+      filter: {
+        required: false,
+        schema: {
+          type: ['string', 'object'],
+          properties: { role: { type: 'string' } },
+        } as never,
+        style: queryStyle('form', true),
+      },
+    });
+
+    const results = validateRequestQueryParameters('/api?role=admin', request);
+
+    expect(results).toContainEqual(
+      expect.objectContaining({
+        type: 'assertion-failure',
+        message:
+          'Request contains query parameter "role" that is not included in the description format.',
+      }),
+    );
+  });
+
+  it('reports an unparseable deepObject once, without fabricating a violation', () => {
+    // `filter[a][b]=1` is not a deepObject wire form. Previously the parameter
+    // became `{}` and Ajv reported `must have required property "a"` — blaming
+    // the request for something that was never parsed.
+    const request = requestWithQueryParameters({
+      filter: {
+        required: true,
+        schema: {
+          type: 'object',
+          properties: { a: { type: 'string' } },
+          required: ['a'],
+        } as never,
+        style: queryStyle('deepObject', true),
+      },
+    });
+
+    const results = validateRequestQueryParameters(
+      '/v2/entries?filter[a][b]=1',
+      request,
+    );
+
+    expect(results.filter((r) => r.type === 'assertion-failure')).toEqual([]);
+    expect(results.filter((r) => r.type === 'info')).toHaveLength(1);
+
+    // The message must blame the wire form, not the style: thymian reverses
+    // `deepObject` perfectly well, and saying it "cannot deserialize" the
+    // style is the same misattribution this module exists to remove.
+    expect(results).toContainEqual(
+      expect.objectContaining({
+        type: 'info',
+        message:
+          'Query parameter "filter" is declared with serialization style "deepObject" but arrived in a form that style does not define — it was not validated against its schema.',
+      }),
+    );
+  });
+
+  it('folds neither of two free-form objects competing for one key', () => {
+    // Counting only DECLARED properties let a free-form object claim every
+    // unclaimed key unopposed, making the result depend on declaration order.
+    const freeForm = {
+      required: false,
+      schema: {
+        type: 'object',
+        additionalProperties: { type: 'string' },
+      } as never,
+      style: queryStyle('form', true),
+    };
+    const request = requestWithQueryParameters({
+      extra: freeForm,
+      other: freeForm,
+    });
+
+    const results = validateRequestQueryParameters('/api?role=admin', request);
+
+    expect(results).toContainEqual(
+      expect.objectContaining({
+        type: 'assertion-failure',
+        message:
+          'Request contains query parameter "role" that is not included in the description format.',
+      }),
+    );
+  });
+
+  it('does not read the fragment as a query string', () => {
+    const request = requestWithQueryParameters({
+      year: {
+        required: true,
+        schema: { type: 'integer' } as never,
+        style: DEFAULT_QUERY_SERIALIZATION_STYLE,
+      },
+    });
+
+    const results = validateRequestQueryParameters(
+      '/api#frag?year=2026',
+      request,
+    );
+
+    expect(results).toContainEqual(
+      expect.objectContaining({
+        type: 'assertion-failure',
+        message:
+          'Query parameter "year" is required but not included in the request.',
+      }),
+    );
+  });
+
+  it('matches bracket keys on the raw form, before decoding', () => {
+    // `filter[a%5Db]` is the deepObject property `a]b`; decoding first turns
+    // the key into `filter[a]b]`, which no longer parses as a bracket key.
+    const request = requestWithQueryParameters({
+      filter: {
+        required: true,
+        schema: {
+          type: 'object',
+          additionalProperties: { type: 'string' },
+        } as never,
+        style: queryStyle('deepObject', true),
+      },
+    });
+
+    expect(parseQueryParameters('filter[a%5Db]=1', request)).toEqual({
+      filter: { 'a]b': '1' },
+    });
+  });
+
+  it('splits a non-exploded array end to end, with a literal comma', () => {
+    // The %2C case passes whether or not the split happens; a literal comma
+    // is the one that actually exercises it.
+    const request = requestWithQueryParameters({
+      ids: {
+        required: false,
+        schema: { type: 'array', items: { type: 'integer' } } as never,
+        style: queryStyle('form', false),
+      },
+    });
+
+    expect(
+      validateRequestQueryParameters('/api?ids=1,2', request).filter(
+        (r) => r.type === 'assertion-failure',
+      ),
+    ).toEqual([]);
+    expect(
+      validateRequestQueryParameters('/api?ids=1', request).filter(
+        (r) => r.type === 'assertion-failure',
+      ),
+    ).toEqual([]);
   });
 });

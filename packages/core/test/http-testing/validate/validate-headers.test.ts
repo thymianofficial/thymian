@@ -70,3 +70,26 @@ describe('validateExistingHeader', () => {
     expect(results[0]).toMatchObject({ type: 'info' });
   });
 });
+
+describe('validateExistingHeader — typed wire values (gh-624)', () => {
+  it('accepts an integer response header that arrived as a wire string', () => {
+    const response = responseWithHeaderSchema({ type: 'integer', minimum: 0 });
+
+    const results = validateExistingHeader({ 'x-count': '5' }, response);
+
+    expect(results.filter((r) => r.type === 'assertion-failure')).toEqual([]);
+  });
+
+  it('still rejects a non-numeric response header value', () => {
+    const response = responseWithHeaderSchema({ type: 'integer' });
+
+    const results = validateExistingHeader({ 'x-count': 'ab' }, response);
+
+    expect(results).toContainEqual(
+      expect.objectContaining({
+        type: 'assertion-failure',
+        actual: 'ab',
+      }),
+    );
+  });
+});
