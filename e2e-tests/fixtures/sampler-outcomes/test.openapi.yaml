@@ -1,0 +1,92 @@
+openapi: 3.1.0
+info:
+  title: 'Outcomes API'
+  description: 'One operation to seed from, one that needs the seed, one that always works.'
+  version: '1.0.0'
+servers:
+  - url: http://localhost:3000
+paths:
+  /launches:
+    post:
+      summary: 'Create a launch'
+      operationId: 'createLaunch'
+      requestBody:
+        required: true
+        content:
+          'application/json':
+            schema:
+              $ref: '#/components/schemas/NewLaunch'
+      responses:
+        '201':
+          description: 'Created'
+          content:
+            'application/json':
+              schema:
+                $ref: '#/components/schemas/Launch'
+        '400':
+          description: 'Bad Request'
+          content:
+            'application/json':
+              schema:
+                $ref: '#/components/schemas/Problem'
+  /launches/{id}:
+    get:
+      summary: 'Read a launch'
+      operationId: 'readLaunch'
+      parameters:
+        - name: 'id'
+          in: 'path'
+          required: true
+          schema:
+            type: 'string'
+      responses:
+        '200':
+          description: 'OK'
+          content:
+            'application/json':
+              schema:
+                $ref: '#/components/schemas/Launch'
+  /status:
+    get:
+      summary: 'Service status'
+      operationId: 'readStatus'
+      responses:
+        '200':
+          description: 'OK'
+          content:
+            'application/json':
+              schema:
+                $ref: '#/components/schemas/Status'
+components:
+  schemas:
+    NewLaunch:
+      type: 'object'
+      properties:
+        name:
+          type: 'string'
+      required:
+        - 'name'
+    Launch:
+      type: 'object'
+      properties:
+        id:
+          type: 'string'
+        name:
+          type: 'string'
+      required:
+        - 'id'
+        - 'name'
+    Problem:
+      type: 'object'
+      properties:
+        message:
+          type: 'string'
+      required:
+        - 'message'
+    Status:
+      type: 'object'
+      properties:
+        state:
+          type: 'string'
+      required:
+        - 'state'
