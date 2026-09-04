@@ -112,13 +112,31 @@ total: a path or media type that would collide with the grammar is encoded, neve
 Also the only spelling of a `Transaction` anywhere Thymian writes one — terminal lines,
 reports, error messages — so any printed transaction can be pasted back as a hook target. A
 label naming only a request or only a response uses the selector grammar's corresponding half.
-_Avoid_: pattern, matcher, glob
+_Avoid_: pattern, matcher
 
 **Hook**:
 A user-owned TypeScript function that shapes or authorizes a run — generating a sample,
 running before or after a transaction, supplying credentials. Targeted by a `Selector`, a list
-of them, or a typed transaction filter. The only artifact in sampling the user owns, and the compiler is what
-reports one that no longer matches anything.
+of them, or a `Transaction Filter`. The only artifact in sampling the user owns, and the
+compiler is what reports one that no longer matches anything.
+
+**Transaction Filter**:
+A typed description of a _set_ of `Transaction`s, for a `Hook` that should apply to more than
+one. Fields AND-combine, arrays within a field OR-combine, and `not` takes filter fields one
+level deep. Every value is a specification-derived union except a `Path Glob`. A filter whose
+values are all individually valid but which together match nothing is a `sampler validate`
+error rather than a compile error — the type system can check each field, not their
+intersection.
+_Avoid_: query, selector set, matcher
+
+**Path Glob**:
+The one wildcard form a `Transaction Filter`'s path field accepts: `*` matches exactly one
+path segment and a trailing `**` matches one or more, against the specification's path
+templates. Braces are literal, matching is case-sensitive and anchored. Only the _shape_ is
+compile-checked, so a wildcard-free string must be an exact `Path`; a glob that matches
+nothing is a `sampler validate` error. Type-level matching against the declared paths was
+measured and rejected on language-server cost.
+_Avoid_: pattern, wildcard, regex
 
 **Operation**:
 What a `Selector`'s request half names: a method, a path, and the media type the request
