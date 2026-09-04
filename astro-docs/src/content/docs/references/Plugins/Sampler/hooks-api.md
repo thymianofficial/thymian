@@ -43,6 +43,21 @@ After [`thymian sampler init`](#thymian-sampler-init) the Selectors of your API
 are a union type, so your editor completes them and a Selector that stops
 existing becomes a compile error at the line of the hook that used it.
 
+A hook may target **an array of Selectors**, and its context is then the union
+of those Transactions' request and response types: what all of them have is
+readable and writable, `request.path` discriminates between them, and a property
+only one of them declares is a compile error until you narrow.
+
+```typescript
+export const shape = beforeEach(['POST /launches (application/json) -> 201 (application/json)', 'POST /astronauts (application/json) -> 201 (application/json)'], (request) => {
+  request.headers['x-trace'] = 'yes';
+
+  if (request.path === '/launches') {
+    request.body.missionName = 'Artemis II';
+  }
+});
+```
+
 ## Filters
 
 To target a set of Transactions, pass a `TransactionFilter` instead of a
@@ -282,11 +297,22 @@ export const seedThenRead = beforeEach('GET /launches/{id} -> 200 (application/j
 
 `args` **overlays** the generated request — `body`, `headers`, `query`, `path`,
 `cookies` — so every group is a partial and you write only what you care about.
-`utils.request(selector)` with no `args` at all sends the generated request. A
-body is _replaced_ rather than merged, so pass the whole body when you pass one.
+`utils.request(selector)` with no `args` at all sends the generated request.
+Parameter groups merge per key; the body deep-merges, with objects recursing,
+arrays and primitives replacing whole, and `null` overriding.
 
-The response comes back as `{ statusCode, headers, body }`, with a JSON body
-already parsed and typed by the Selector you asked for.
+The response is a **union of every response the operation declares** —
+`{ statusCode, mediaType, headers, body }` per member, narrowed by the literal
+`statusCode` and, where one status declares several media types, by
+`mediaType`. A JSON body is parsed for you. A Selector says which Transaction to
+initiate; it cannot promise the outcome, so branch on `statusCode` before
+reading a body field.
+
+A status the description never declares is not in the union at all: it throws
+[`UndeclaredResponseError`](/guides/hooks/make-requests-in-hooks/#handling-nothing-is-allowed),
+which carries `selector`, `statusCode`, `headers` and the parsed `body`. Catch
+it to react, or let it escape — the Transaction is then skipped with this Seed
+named, and the run continues.
 
 | Option      | Default           | Meaning                                                                                             |
 | ----------- | ----------------- | --------------------------------------------------------------------------------------------------- |
@@ -387,11 +413,13 @@ reordering of your document are not drift.
 
 Sends every Transaction's request against the live API and reports which ones
 can be executed at all — a narrower question than `thymian test`, which checks
-whether the responses conform. `--incremental` walks them one at a time,
-printing the Selector to anchor a hook to when one fails.
+whether the responses conform. It needs nothing generated first.
 
-It predates the virtual model and is unchanged by it, except that it no longer
-needs anything generated first.
+Every Transaction ends in exactly one Outcome — `passed`, `failed`, `skipped` or
+`errored` — the run always finishes, and `--json` emits the whole result as one
+document. See [Check Outcomes](/references/plugins/sampler/check-outcomes/) for
+the model, the attribution rules and the schema. `--incremental` adds a hint
+after each Transaction that is not passed.
 
 ### `thymian sampler show <selector>`
 

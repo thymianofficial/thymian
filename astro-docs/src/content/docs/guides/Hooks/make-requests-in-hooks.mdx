@@ -6,7 +6,7 @@ description: Use utils.request to seed data across endpoints, addressed by Selec
 import { Aside } from '@astrojs/starlight/components';
 
 Some Transactions need a resource that already exists. `utils.request` calls
-another Transaction to create one.
+another Transaction to create one. A request a hook makes this way is a **Seed**.
 
 ## Addressing the call
 
@@ -17,15 +17,21 @@ construction.
 
 ```typescript
 utils.request(
-  selector,   // the Transaction to call
+  selector,   // the Transaction to initiate
   args?,      // body, headers, query, path, cookies — overlaid on the generated request
   options?,   // runHooks, authorize
 );
 ```
 
-There is no `forStatusCode`: the Selector already carries the status.
+There is no `forStatusCode`: the Selector already carries the status you asked
+for.
 
-## Seeding a resource
+## The Selector says what you asked for, not what you get
+
+A Selector names the Transaction you want to **initiate**. Whether it happens is
+the server's decision, so the answer is a **union of every response the
+operation declares** — narrowed by `statusCode`, and by `mediaType` where one
+status declares several.
 
 ```typescript
 import { beforeEach } from '@thymian/hooks';
@@ -35,7 +41,7 @@ export const seedLaunch = beforeEach(
   async (request, ctx, utils) => {
     const created = await utils.request(
       'POST /launches (application/json) -> 201 (application/json)',
-      { body: { missionName: 'Apollo 11', rocketType: 'Saturn V' } },
+      { body: { missionName: 'Apollo 11' } },
       { authorize: true },
     );
 
@@ -43,36 +49,103 @@ export const seedLaunch = beforeEach(
       utils.skip('could not create a launch to read back');
     }
 
+    // Narrowed to the 201 body, so `id` is checked — and a field that stops
+    // existing in the description is a compile error here.
     utils.setPathParam('id', created.body.id);
   },
 );
 ```
 
-`args` is overlaid on the **generated** request, so you only write the parts you
-care about — the content type, the origin and everything else come from your API
-description.
+Branching is how you get at a body: outside a narrowing check, `created.body` is
+the union of every declared body, and only what they all have is readable.
 
-## What the response gives you
+<Aside type="tip" title="Two ways to end a transaction deliberately">
+  `utils.skip(message)` says *this Transaction could not be executed as
+  described* — which is what a Seed answering differently usually means.
+  `utils.fail(message)` says *it ran and the result is wrong*. Both are control
+  flow, not errors; see [Skip and fail
+  tests](/guides/hooks/skip-and-fail-tests/).
+</Aside>
 
-```typescript
-{
-  statusCode: 201,
-  headers: { … },
-  body: { id: 7, missionName: 'Apollo 11', … },
-}
+## Handling nothing is allowed
+
+A hook that ignores the response still compiles and still runs. Nothing crashes,
+and nothing is silently wrong either — the run keeps its own account of what
+happened:
+
+- If the Seed was answered with **another declared status**, the value comes
+  back truthfully and your hook carries on with it. If the Transaction then
+  cannot be executed — usually because the id you needed was never created —
+  `thymian sampler check` reports it as **skipped** and names the Seed and the
+  status it actually got.
+- If the Seed was answered with a status the description **never declares**,
+  `utils.request` throws `UndeclaredResponseError` — there is no union member
+  for it to be. You may catch it; if you do not, the Transaction is skipped,
+  again naming the Seed, and the run continues.
+
+```
+↷ GET /launches/{id} -> 200 (application/json)
+    The seed "POST /launches (application/json) -> 201 (application/json)" was answered with 500, which the specification does not declare for that operation.
+    Branch on the seed's status code, or call utils.skip to end this transaction deliberately.
 ```
 
-A JSON body is parsed for you, and after
-[`thymian sampler init`](/references/plugins/sampler/hooks-api/#thymian-sampler-init)
-it is typed by the Selector you asked for — so `created.body.id` is checked, and
-a body field that stops existing is a compile error.
+To react to an off-spec answer yourself, catch it:
+
+```typescript
+import { beforeEach, UndeclaredResponseError } from '@thymian/hooks';
+
+export const seedLaunch = beforeEach(
+  'GET /launches/{id} -> 200 (application/json)',
+  async (request, ctx, utils) => {
+    try {
+      const created = await utils.request(
+        'POST /launches (application/json) -> 201 (application/json)',
+        { body: { missionName: 'Apollo 11' } },
+      );
+
+      utils.setPathParam('id', created.body.id);
+    } catch (error) {
+      if (!(error instanceof UndeclaredResponseError)) {
+        throw error;
+      }
+
+      utils.skip(`the API answered ${error.statusCode} while seeding`);
+    }
+  },
+);
+```
+
+`UndeclaredResponseError` carries `selector`, `statusCode`, `headers` and the
+parsed `body`, so an off-spec answer is inspectable rather than merely fatal.
+
+## Arguments overlay the generated request
+
+The generated sample plus the target's own hooks already produce a complete
+request. `args` is an **overlay** on it, so you write only what has to differ:
+
+- **Parameter groups merge per key.** A header you set replaces that header;
+  every other header the description produced survives.
+- **The body deep-merges.** Objects recurse, arrays and primitives replace
+  whole, and `null` is a value rather than an absence.
+
+```typescript
+// The generated body is { missionName: 'Generated', crew: ['A', 'B'], pad: { id: 1, name: 'LC-39A' } }
+await utils.request(selector, {
+  body: { crew: ['Ada'], pad: { name: 'SLC-40' } },
+});
+// Sent: { missionName: 'Generated', crew: ['Ada'], pad: { id: 1, name: 'SLC-40' } }
+```
+
+Everything is optional, so `utils.request(selector)` sends the generated request
+unchanged.
 
 ## The target's own hooks run
 
 By default a nested request runs the target's own
 `beforeEach → authorize → afterEach` pipeline, so seeding behaves like the real
 run rather than like a second, quieter client. Your `authorize` hook applies to
-it; so does any `beforeEach` that shapes it.
+it; so does any `beforeEach` that shapes it. It is also sent to the origin the
+run is talking to, so a `--target-url` covers your Seeds too.
 
 ```typescript
 await utils.request(selector, args, { runHooks: false });
@@ -124,10 +197,18 @@ export const seedOnce = beforeAll(async (utils) => {
     { authorize: true },
   );
 
+  if (created.statusCode !== 201) {
+    // A throw in `beforeAll` ends the run: without the fixture, nothing that
+    // depends on it can be executed as described.
+    throw new Error('the shared fixture could not be created');
+  }
+
+  const id = created.body.id;
+
   return async () => {
     await utils.request(
       'DELETE /launches/{id} -> 204',
-      { path: { id: created.body.id } },
+      { path: { id } },
       { authorize: true },
     );
   };
