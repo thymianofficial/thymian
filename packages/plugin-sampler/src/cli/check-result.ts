@@ -95,26 +95,42 @@ export function checkedFromTestCase(
 ): CheckedTransaction {
   const actualStatus = testCase.steps[0]?.transactions[0]?.response?.statusCode;
   const seed = seedAnomaly(testCase, transaction);
+  const outcome: Outcome =
+    testCase.status === 'passed'
+      ? 'passed'
+      : // A Seed answered differently is why this transaction could not run as
+        // described, whatever the pipeline called the case.
+        seed
+        ? 'skipped'
+        : testCase.status === 'failed'
+          ? 'failed'
+          : 'skipped';
+  const details = detailsOf(testCase);
 
   return {
     selector: selectorOf(transaction),
     expectedStatus: transaction.thymianRes.statusCode,
     ...(actualStatus === undefined ? {} : { actualStatus }),
-    outcome:
-      testCase.status === 'passed'
-        ? 'passed'
-        : // A Seed answered differently is why this transaction could not run
-          // as described, whatever the pipeline called the case.
-          seed
-          ? 'skipped'
-          : testCase.status === 'failed'
-            ? 'failed'
-            : 'skipped',
-    ...(testCase.reason ? { reason: testCase.reason } : {}),
+    outcome,
+    // Anything that is not `passed` says why, always: the documented `--json`
+    // contract promises a `reason` for it, and a consumer should never have to
+    // handle a failure that came with no sentence. A case that failed without
+    // one hands over its first detail rather than repeating it below.
+    ...(outcome === 'passed'
+      ? {}
+      : { reason: testCase.reason || details.shift() || FALLBACK[outcome] }),
     ...(seed ? { causedBy: seed } : {}),
-    details: detailsOf(testCase),
+    details,
   };
 }
+
+/** Last resort, for a pipeline verdict that arrived with nothing said. */
+const FALLBACK: Record<Outcome, string> = {
+  passed: '',
+  failed: 'The response did not match the description.',
+  skipped: 'This transaction could not be executed as described.',
+  errored: 'The attempt broke.',
+};
 
 /**
  * The outcome of a Transaction whose attempt threw.
