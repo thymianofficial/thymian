@@ -55,8 +55,9 @@ TypeScript error.**
   Regeneration is wholesale over `generated/`; `hooks/` is never touched. The
   root tsconfig is left alone.
 - **A selector is exactly one transaction** —
-  `METHOD /spec/path (+reqMedia) -> STATUS (+resMedia)`, with the media parts
-  present only when a body exists. No bare selectors, no fan-out, no
+  `METHOD /spec/path (+reqMedia) -> STATUS (+resMedia)`, with a media part
+  present whenever the corresponding node declares a media type, whether or not
+  a body exists. No bare selectors, no fan-out, no
   collision-only aliases. Full qualification is
   enforced by construction rather than by a lint or a `--strict` flag, which is
   what makes an additive spec change (a new status, a new media type) unable to
@@ -115,14 +116,16 @@ is the v2 specification recorded on
   generated files on every PR. That is deliberate — the diff _is_ the staleness
   signal — but it is review noise that a lock file would have concentrated in
   one place.
-- **Type-safe path globs are the unproven element.** Validating `*` and
-  trailing `**` against the `Path` union via template-literal types is
-  feasibility-argued but has no implementation in any prototype, and the
-  specification makes a language-server performance benchmark on a large spec a
-  precondition for locking the feature. It is the one part of this decision
-  that can still fail on its own terms; a shared matcher for the type-level
-  validator and the runtime filter, with parity tests, is a condition of
-  shipping it.
+- **Type-level glob validation was measured and rejected** (amended
+  2026-09-04). Validating `*` and trailing `**` against the `Path` union via
+  template-literal types was gated on a language-server performance benchmark
+  over a large specification. That benchmark ran (thymian-internal#581) and its
+  cost rejected the approach, so this was the one part of the decision that
+  could fail on its own terms, and it did. Globs therefore ship in **runtime
+  tier** only: `PathGlob` compile-checks the _shape_ of a glob
+  (`` `${string}*${string}` ``) and never touches the `Path` union, while the
+  frozen grammar and its corpus (`packages/plugin-sampler/bench/glob-corpus.ts`)
+  are the parity specification the runtime matcher is tested against.
 - Two residues sit outside the type system: a filter whose values are all valid
   but intersect nothing, and an over-broad glob. Both are reported by
   `thymian sampler validate` and fail a test run fast, but neither is a compile
@@ -133,10 +136,15 @@ is the v2 specification recorded on
 
 **Neutral:**
 
-- Examples are reflected at the type level only, from `schema.examples` values:
-  primitives widen to `'A' | 'B' | (base & {})`, object bodies to
-  `example1 | example2 | base`. Example _names_ are not preserved and no
-  `utils.example` accessor exists.
+- Examples are reflected at the type level only, and **property-level only**
+  (amended 2026-09-02), from `schema.examples` values: a value pushes down into
+  the property or array element type it belongs to, recursively, so a primitive
+  widens to `'A' | 'B' | (base & {})`. An object body is never emitted as a
+  union of example-literal object types. Hooks mutate in place, and TypeScript
+  checks a property _write_ on a union against the intersection of the members'
+  property types — so an object-level union would make ordinary mutation a
+  compile error. Example _names_ are not preserved and no `utils.example`
+  accessor exists.
 - The per-transaction `authorize` flag defaults to spec-`security`-derived, with
   declared-`401` cases forced off, and is overridable as an ordinary field of
   the request sample. The hook supplies credentials; the flag decides whether it
@@ -174,6 +182,7 @@ is the v2 specification recorded on
 
 ## Status History
 
-| Date       | Status   | Notes                                                                                                                            |
-| ---------- | -------- | -------------------------------------------------------------------------------------------------------------------------------- |
-| 2026-08-16 | Accepted | Virtual samples, committed type surface, selector-anchored hooks; answers thymian-internal#466 by removing the materialized tree |
+| Date       | Status   | Notes                                                                                                                                                                                                                                                   |
+| ---------- | -------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 2026-08-16 | Accepted | Virtual samples, committed type surface, selector-anchored hooks; answers thymian-internal#466 by removing the materialized tree                                                                                                                        |
+| 2026-09-04 | Accepted | Amended to what was implemented: a media part appears whenever a node declares a media type; type-level glob validation recorded as measured-and-rejected, globs ship runtime-tier; object-level example unions withdrawn for property-level reflection |
