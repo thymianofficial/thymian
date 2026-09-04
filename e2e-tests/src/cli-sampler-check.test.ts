@@ -34,7 +34,11 @@ describe('thymian sampler check', () => {
       );
 
       expect(result.exitCode).toBe(0);
-      expect(result.output).toContain('GET /api/hello');
+      // The check line is the Selector verbatim, so it pastes back as a hook
+      // target (ADR-0020).
+      expect(result.output).toContain(
+        'GET /api/hello -> 200 (application/json)',
+      );
       expect(result.output).toMatch(/Checked \d+ transactions?\. All passed\./);
       // It answers "can this be executed", and it needs no `sampler init`
       // first — the requests come from the in-memory projection.
