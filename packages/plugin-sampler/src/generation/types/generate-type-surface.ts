@@ -1,4 +1,4 @@
-import type { Parameter } from '@thymian/core';
+import { formatRequestSelector, type Parameter } from '@thymian/core';
 
 import type { TransactionCatalog } from '../../selectors/transaction-catalog.js';
 import { PATH_GLOB_SOURCE } from '../../selectors/transaction-filter.js';
@@ -84,6 +84,24 @@ async function parametersType(
 }
 
 /**
+ * The `Responses` entries, sorted, one operation per line group.
+ *
+ * Every member gets its own `|` line, single-member unions included, so
+ * declaring one more response of an operation adds exactly one line to the
+ * committed diff instead of rewriting the entry.
+ */
+function operations(byOperation: ReadonlyMap<string, string[]>): string[] {
+  return [...byOperation.entries()]
+    .sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))
+    .map(
+      ([operation, members]) =>
+        [`  ${quote(operation)}:`, ...members.map((m) => `    | ${m}`)].join(
+          '\n',
+        ) + ';',
+    );
+}
+
+/**
  * Emit the committed type surface for a loaded description.
  *
  * Deterministic by construction: unions are sorted, parameters are emitted in
@@ -99,6 +117,11 @@ export async function generateTypeSurface(
 ): Promise<TypeSurface> {
   const declarations = new DeclarationSet();
   const endpoints: string[] = [];
+  // The request half of a selector is the operation a cross-endpoint call
+  // initiates; every Transaction sharing it is one response that operation
+  // declares. Grouping here is what makes `utils.request` able to answer with
+  // a union rather than a promise it cannot keep.
+  const responsesByOperation = new Map<string, string[]>();
   const methods = new Set<string>();
   const statuses = new Set<string>();
   const statusClasses = new Set<string>();
@@ -113,9 +136,11 @@ export async function generateTypeSurface(
     'Path',
     'RequestMediaType',
     'ResponseMediaType',
+    'Responses',
     'Selector',
     'Status',
     'StatusClass',
+    'TransactionResponse',
   ]);
 
   for (const [selector, transaction] of catalog.entries()) {
@@ -196,12 +221,22 @@ export async function generateTypeSurface(
       declarations,
     );
 
+    const operation = formatRequestSelector(req);
+
+    responsesByOperation.set(operation, [
+      ...(responsesByOperation.get(operation) ?? []),
+      `TransactionResponse<${quote(selector)}>`,
+    ]);
+
     endpoints.push(
       [
         `  ${quote(selector)}: {`,
         // The description's own casing, which is what a hook actually sees.
         // The uppercase form is the Selector's and the `Method` union's.
         `    method: ${quote(req.method)};`,
+        // The operation this Transaction is one response of — the request half
+        // of its own Selector, so it is derivable rather than invented.
+        `    operation: ${quote(operation)};`,
         `    path: ${quote(req.path)};`,
         `    status: ${res.statusCode};`,
         `    requestMediaType: ${quote(req.mediaType)};`,
@@ -250,7 +285,8 @@ export async function generateTypeSurface(
     ' * Every Transaction the description declares, keyed by its Selector.',
     ' *',
     ' * One key is exactly one Transaction, so a key carries its own status and',
-    ' * media types and there is no union of responses to narrow.',
+    ' * media types — nothing about a *target* has to be narrowed. What the',
+    ' * server answers with is a different question, and `Responses` answers it.',
     ' */',
     'export type Endpoints = {',
     ...endpoints,
@@ -258,6 +294,30 @@ export async function generateTypeSurface(
     '',
     '/** The address of exactly one Transaction. */',
     'export type Selector = keyof Endpoints;',
+    '',
+    '/**',
+    ' * One declared response, as a cross-endpoint call sees it: the four fields',
+    ' * a caller reads, narrowed by the literal `statusCode` and — where one',
+    ' * status declares several media types — by `mediaType`.',
+    ' */',
+    'export type TransactionResponse<T extends Selector> = {',
+    "  statusCode: Endpoints[T]['status'];",
+    "  mediaType: Endpoints[T]['responseMediaType'];",
+    "  headers: Endpoints[T]['res']['headers'];",
+    "  body: Endpoints[T]['res']['body'];",
+    '};',
+    '',
+    '/**',
+    ' * Every response an operation declares, keyed by the request half of its',
+    ' * Selectors.',
+    ' *',
+    ' * A selector initiates a Transaction; it cannot promise the outcome. This is',
+    ' * what the server is allowed to answer with — anything else is an',
+    ' * `UndeclaredResponseError`.',
+    ' */',
+    'export type Responses = {',
+    ...operations(responsesByOperation),
+    '};',
     '',
   ].join('\n');
 
@@ -281,9 +341,11 @@ import type {
   Path,
   RequestMediaType,
   ResponseMediaType,
+  Responses,
   Selector,
   Status,
   StatusClass,
+  TransactionResponse,
 } from './${moduleSpecifierFor(REQUEST_TYPES_FILE)}';
 
 export type {
@@ -292,9 +354,11 @@ export type {
   Path,
   RequestMediaType,
   ResponseMediaType,
+  Responses,
   Selector,
   Status,
   StatusClass,
+  TransactionResponse,
 };
 
 /**
@@ -397,12 +461,25 @@ export type GenericRequest = {
 };
 
 /**
+ * A recursive partial: objects recurse, arrays and primitives replace whole.
+ *
+ * Arrays are deliberately not recursed into. "Merge the third element of this
+ * list" needs an index the caller cannot know is stable, and a partial element
+ * would be an element the schema does not describe.
+ */
+export type DeepPartial<T> = T extends readonly unknown[]
+  ? T
+  : T extends object
+    ? { [K in keyof T]?: DeepPartial<T[K]> }
+    : T;
+
+/**
  * What a cross-endpoint call may pass for one Transaction.
  *
- * Every parameter group is a \`Partial\`, because the call **overlays** the
- * generated request: what you leave out comes from the description. A body is
- * *replaced* rather than merged, so it is the whole body type — optional,
- * because the generated one already satisfies the schema.
+ * Everything is optional, because the call **overlays** the generated request:
+ * what you leave out comes from the description, already shaped by the target's
+ * own \`defineSample\`. Parameter groups merge per key; the body deep-merges,
+ * so you state the one field that differs and nothing else.
  *
  * Requiring the full \`req\` here made the documented seeding idiom —
  * \`utils.request(selector, {}, { authorize: true })\` — a compile error for
@@ -410,12 +487,41 @@ export type GenericRequest = {
  * with.
  */
 export type RequestArgsOf<T extends Selector> = {
-  body?: Endpoints[T]['req']['body'];
+  body?: DeepPartial<Endpoints[T]['req']['body']>;
   query?: Partial<GroupOf<T, 'query'>>;
   path?: Partial<GroupOf<T, 'path'>>;
   headers?: Partial<GroupOf<T, 'headers'>>;
   cookies?: Partial<GroupOf<T, 'cookies'>>;
 };
+
+/**
+ * Every response the operation behind \`T\` declares.
+ *
+ * A Selector says which Transaction to *initiate*; the server decides which one
+ * actually happens. So the answer is a discriminated union over every declared
+ * response of that operation — narrow it with \`if (res.statusCode === 201)\`,
+ * and where one status declares several media types, with \`res.mediaType\`.
+ *
+ * A status the description never declares is not in this union at all: it
+ * throws \`UndeclaredResponseError\`.
+ */
+export type ResponsesOf<T extends Selector> = Responses[Endpoints[T]['operation']];
+
+/**
+ * The server answered with a status the description never declares for this
+ * operation.
+ *
+ * Not a union member, because the union is what the description promises and
+ * this is the case where the promise was broken. Catch it to react, or let it
+ * escape: at the transaction boundary it is caught for you, and the transaction
+ * is skipped with this seed and its actual status named.
+ */
+export declare class UndeclaredResponseError extends Error {
+  readonly selector: Selector;
+  readonly statusCode: number;
+  readonly headers: Record<string, string | string[] | undefined>;
+  readonly body: unknown;
+}
 
 /** The response a hook observes. */
 export type ResponseOf<T> = T extends Selector
@@ -482,17 +588,17 @@ export interface HookUtils<T = unknown> {
   /**
    * Call another Transaction, addressed by its Selector.
    *
-   * There is no \`forStatusCode\`: the Selector already carries the status.
+   * \`args\` overlays the generated request, so state only what differs. The
+   * answer is every response that operation declares — branch on
+   * \`statusCode\` — because initiating a Transaction is not the same as
+   * getting one. There is no \`forStatusCode\`: the Selector carries the status
+   * you asked for.
    */
   request<R extends Selector>(
     selector: R,
     args?: RequestArgsOf<R>,
     options?: RequestOptions,
-  ): Promise<{
-    statusCode: Endpoints[R]['res']['statusCode'];
-    headers: Record<string, unknown>;
-    body: Endpoints[R]['res']['body'];
-  }>;
+  ): Promise<ResponsesOf<R>>;
 }
 
 /**
