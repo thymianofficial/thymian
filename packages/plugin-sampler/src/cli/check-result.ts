@@ -56,6 +56,31 @@ export type CheckSummary = {
 };
 
 /**
+ * What `sampler check --json` prints: one document, the whole run.
+ *
+ * The stable machine contract. `details` is deliberately not part of it — it is
+ * remediation prose for a reader, and `reason` already names the cause an agent
+ * has to act on.
+ */
+export type CheckReport = {
+  summary: CheckSummary;
+  transactions: Array<Omit<CheckedTransaction, 'details'>>;
+};
+
+export function reportOf(checked: readonly CheckedTransaction[]): CheckReport {
+  return {
+    summary: summaryOf(checked),
+    transactions: checked.map((result) => {
+      const document = { ...result } as Partial<CheckedTransaction>;
+
+      delete document.details;
+
+      return document as Omit<CheckedTransaction, 'details'>;
+    }),
+  };
+}
+
+/**
  * The outcome of a Transaction whose pipeline ran to a conclusion.
  *
  * `passed` is the pipeline's own verdict. Everything else is re-read here,

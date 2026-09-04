@@ -90,31 +90,48 @@ describe('thymian sampler check', () => {
 });
 
 /**
- * #48: every Transaction ends in exactly one Outcome, the run always finishes,
- * and a skip names the Seed behind it.
+ * #48 / #50: every Transaction ends in exactly one Outcome, the run always
+ * finishes, a skip names the Seed behind it, and `--json` is the machine
+ * contract for all of it.
  *
- * Each scenario runs the whole command against a live server, because the
- * claim is about what a user sees at the end of a run — and the bug these
- * replace was that there *was* no end.
+ * `--json` is the assertion surface wherever the claim is about outcomes: it
+ * says what the command decided without going through the rendering. The one
+ * human-mode assertion below is about the rendering itself.
  */
 describe('the sampler check outcome model', () => {
   const getTempDir = useTempDir();
 
+  type CheckReport = {
+    summary: {
+      passed: number;
+      failed: number;
+      skipped: number;
+      errored: number;
+      total: number;
+    };
+    transactions: {
+      selector: string;
+      outcome: 'passed' | 'failed' | 'skipped' | 'errored';
+      expectedStatus: number;
+      actualStatus?: number;
+      reason?: string;
+      causedBy?: string;
+    }[];
+  };
+
   /**
-   * A server for the outcomes fixture. `onCreate` decides what `POST /launches`
-   * answers with, which is what every scenario below varies.
+   * A server for the outcomes fixture. `createStatus` decides what
+   * `POST /launches` answers with, which is what every scenario varies.
    */
-  async function serve(
-    onCreate: (reply: {
-      status: (code: number) => { send: (body: unknown) => unknown };
-    }) => unknown,
-  ) {
+  async function serve(createStatus: number, createBody: unknown) {
     const port = await getAvailablePort();
     const server = fastify();
 
-    server.post('/launches', async (_req, reply) => onCreate(reply));
-    server.get('/launches/:id', async (req: { params: { id: string } }) => ({
-      id: req.params.id,
+    server.post('/launches', async (_req, reply) =>
+      reply.status(createStatus).send(createBody),
+    );
+    server.get('/launches/:id', async (req) => ({
+      id: (req.params as { id: string }).id,
       name: 'Artemis',
     }));
     server.get('/status', async () => ({ state: 'ok' }));
@@ -124,18 +141,40 @@ describe('the sampler check outcome model', () => {
     return { port, server };
   }
 
-  async function check(cwd: string, port: number) {
+  async function check(cwd: string, port: number, json = true) {
     return await execThymianRawAsync(
-      ['sampler', 'check', '--target-url', `http://localhost:${port}`],
+      [
+        'sampler',
+        'check',
+        '--target-url',
+        `http://localhost:${port}`,
+        ...(json ? ['--json'] : []),
+      ],
       { cwd, allowFailure: true },
     );
   }
 
-  it('skips a transaction whose seed was answered with another declared status', async () => {
-    copyFixturesToTempDir(join(fixturesDir, 'sampler-outcomes'), getTempDir());
+  /** The JSON document, and the proof that it was the only thing on stdout. */
+  function reportOf(stdout: string): CheckReport {
+    return JSON.parse(stdout) as CheckReport;
+  }
 
+  function transaction(report: CheckReport, selector: string) {
+    const found = report.transactions.find(
+      (entry) => entry.selector === selector,
+    );
+
+    if (!found) {
+      throw new Error(`no transaction ${selector} in the report`);
+    }
+
+    return found;
+  }
+
+  /** Seeds `GET /launches/{id}` from `POST /launches`, handling nothing. */
+  function writeUnbranchedSeed(tempDir: string): void {
     writeSamplerHook(
-      getTempDir(),
+      tempDir,
       'seed.ts',
       `import { beforeEach } from '@thymian/hooks';
 
@@ -143,28 +182,35 @@ export const seedLaunch = beforeEach('${READ}', async (request, ctx, utils) => {
   const created = await utils.request('${CREATE}', { body: { name: 'Artemis' } });
 
   // Deliberately unbranched: a hook that ignores the other declared responses
-  // still compiles and still runs — and when the seed did not create anything,
-  // this transaction cannot be executed as described.
+  // still compiles and still runs.
   request.pathParameters['id'] = created.body.id;
 });
 `,
     );
+  }
+
+  it('skips a transaction whose seed was answered with another declared status', async () => {
+    copyFixturesToTempDir(join(fixturesDir, 'sampler-outcomes'), getTempDir());
+    writeUnbranchedSeed(getTempDir());
 
     // 400 is declared for POST /launches, so the seed returns rather than
     // throwing — and its body has no id.
-    const { port, server } = await serve((reply) =>
-      reply.status(400).send({ message: 'no' }),
-    );
+    const { port, server } = await serve(400, { message: 'no' });
 
     try {
       const result = await check(getTempDir(), port);
+      const report = reportOf(result.stdout);
 
-      expect(result.output).toContain(`↷ ${READ}`);
-      expect(result.output).toContain(
-        `The seed "${CREATE}" was answered with 400`,
+      expect(transaction(report, READ)).toMatchObject({
+        outcome: 'skipped',
+        causedBy: CREATE,
+      });
+      expect(transaction(report, READ).reason).toContain(
+        'Missing value for path parameter "id"',
       );
       // The run reached the transactions after the broken one.
-      expect(result.output).toContain(`✔ ${STATUS}`);
+      expect(transaction(report, STATUS).outcome).toBe('passed');
+      expect(report.summary.total).toBe(4);
       expect(result.exitCode).not.toBe(0);
     } finally {
       await server.close();
@@ -173,35 +219,33 @@ export const seedLaunch = beforeEach('${READ}', async (request, ctx, utils) => {
 
   it('skips a transaction whose seed was answered with an undeclared status', async () => {
     copyFixturesToTempDir(join(fixturesDir, 'sampler-outcomes'), getTempDir());
-
-    writeSamplerHook(
-      getTempDir(),
-      'seed.ts',
-      `import { beforeEach } from '@thymian/hooks';
-
-export const seedLaunch = beforeEach('${READ}', async (request, ctx, utils) => {
-  const created = await utils.request('${CREATE}', { body: { name: 'Artemis' } });
-
-  request.pathParameters['id'] = created.body.id;
-});
-`,
-    );
+    writeUnbranchedSeed(getTempDir());
 
     // 500 is declared nowhere, so the seed throws UndeclaredResponseError —
     // which nobody is forced to catch.
-    const { port, server } = await serve((reply) =>
-      reply.status(500).send({ message: 'FOREIGN KEY constraint failed' }),
-    );
+    const { port, server } = await serve(500, { message: 'constraint failed' });
 
     try {
       const result = await check(getTempDir(), port);
+      const report = reportOf(result.stdout);
+      const read = transaction(report, READ);
 
-      expect(result.output).toContain(`↷ ${READ}`);
-      expect(result.output).toContain(
+      expect(read).toMatchObject({ outcome: 'skipped', causedBy: CREATE });
+      expect(read.reason).toContain(
         'was answered with 500, which the specification does not declare',
       );
-      expect(result.output).toContain(`✔ ${STATUS}`);
+      expect(transaction(report, STATUS).outcome).toBe('passed');
       expect(result.exitCode).not.toBe(0);
+
+      // And the same run, rendered: one glyph per outcome, each reason once,
+      // and no detail line repeating the transaction its header names.
+      const human = await check(getTempDir(), port, false);
+
+      expect(human.output).toContain(`↷ ${READ}`);
+      expect(human.output).toContain(`✔ ${STATUS}`);
+      expect(human.output.split(String(read.reason)).length - 1).toBe(1);
+      expect(human.output).toContain('Checked 4 transactions:');
+      expect(human.exitCode).not.toBe(0);
     } finally {
       await server.close();
     }
@@ -221,18 +265,17 @@ export const unsetId = beforeEach('${READ}', (request) => {
 `,
     );
 
-    const { port, server } = await serve((reply) =>
-      reply.status(201).send({ id: 'l-1', name: 'Artemis' }),
-    );
+    const { port, server } = await serve(201, { id: 'l-1', name: 'Artemis' });
 
     try {
       const result = await check(getTempDir(), port);
+      const report = reportOf(result.stdout);
 
-      expect(result.output).toContain(`↷ ${READ}`);
-      expect(result.output).toContain('Missing value for path parameter "id".');
-      // The detail line does not repeat the transaction its header names.
-      expect(result.output).not.toContain('of transaction "');
-      expect(result.output).toContain(`✔ ${STATUS}`);
+      expect(transaction(report, READ)).toMatchObject({
+        outcome: 'skipped',
+        reason: 'Missing value for path parameter "id".',
+      });
+      expect(transaction(report, STATUS).outcome).toBe('passed');
       expect(result.exitCode).not.toBe(0);
     } finally {
       await server.close();
@@ -253,24 +296,24 @@ export const boom = beforeEach('${READ}', () => {
 `,
     );
 
-    const { port, server } = await serve((reply) =>
-      reply.status(201).send({ id: 'l-1', name: 'Artemis' }),
-    );
+    const { port, server } = await serve(201, { id: 'l-1', name: 'Artemis' });
 
     try {
       const result = await check(getTempDir(), port);
+      const report = reportOf(result.stdout);
 
-      expect(result.output).toContain(`! ${READ}`);
-      expect(result.output).toContain('the hook is broken');
-      expect(result.output).toContain(`✔ ${STATUS}`);
-      expect(result.output).toMatch(/1 errored/);
+      expect(transaction(report, READ).outcome).toBe('errored');
+      expect(transaction(report, READ).reason).toContain('"boom"');
+      expect(report.summary.errored).toBe(1);
+      expect(transaction(report, STATUS).outcome).toBe('passed');
+      expect(transaction(report, CREATE).outcome).toBe('passed');
       expect(result.exitCode).not.toBe(0);
     } finally {
       await server.close();
     }
   }, 180_000);
 
-  it('exits zero when every transaction passed', async () => {
+  it('passes every transaction it can, with the seed branched on', async () => {
     copyFixturesToTempDir(join(fixturesDir, 'sampler-outcomes'), getTempDir());
 
     writeSamplerHook(
@@ -281,26 +324,28 @@ export const boom = beforeEach('${READ}', () => {
 export const seedLaunch = beforeEach('${READ}', async (request, ctx, utils) => {
   const created = await utils.request('${CREATE}', { body: { name: 'Artemis' } });
 
-  if (created.statusCode === 201) {
-    request.pathParameters['id'] = created.body.id;
+  if (created.statusCode !== 201) {
+    utils.skip('the launch to read could not be created');
   }
+
+  request.pathParameters['id'] = created.body.id;
 });
 `,
     );
 
-    const { port, server } = await serve((reply) =>
-      reply.status(201).send({ id: 'l-1', name: 'Artemis' }),
-    );
+    const { port, server } = await serve(201, { id: 'l-1', name: 'Artemis' });
 
     try {
       const result = await check(getTempDir(), port);
+      const report = reportOf(result.stdout);
 
-      // POST /launches -> 400 is answered 201, which is a status mismatch and
-      // therefore a skip, so this run is deliberately not all-passed.
-      expect(result.output).toContain(`✔ ${CREATE}`);
-      expect(result.output).toContain(`✔ ${READ}`);
-      expect(result.output).toContain(`✔ ${STATUS}`);
-      expect(result.output).toContain('1 skipped');
+      expect(transaction(report, CREATE).outcome).toBe('passed');
+      expect(transaction(report, READ).outcome).toBe('passed');
+      expect(transaction(report, STATUS).outcome).toBe('passed');
+      // `POST /launches -> 400` is answered 201, which is a status mismatch and
+      // therefore a skip — so this run is deliberately not all-passed.
+      expect(report.summary).toMatchObject({ passed: 3, skipped: 1, total: 4 });
+      expect(result.exitCode).not.toBe(0);
     } finally {
       await server.close();
     }
