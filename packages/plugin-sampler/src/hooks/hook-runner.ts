@@ -174,14 +174,11 @@ export class HookRunner {
       request: input.request,
       results: input.results,
       requestOther: async (selector, args, options) =>
-        await this.runNested(
-          selector,
-          args,
-          options,
-          input.chain,
-          input.results,
-          input.request?.origin,
-        ),
+        await this.runNested(selector, args, options, {
+          chain: input.chain,
+          results: input.results,
+          origin: input.request?.origin,
+        }),
     };
   }
 
@@ -333,10 +330,10 @@ export class HookRunner {
     selector: Selector,
     args: EndpointRequest,
     options: RequestOptions,
-    chain: SelectorChain,
-    callerResults: HttpTestCaseResult[],
-    callerOrigin?: string,
+    caller: NestedRequestCaller,
   ): Promise<EndpointResponse> {
+    const { chain, results: callerResults, origin: callerOrigin } = caller;
+
     const runHooks = options.runHooks ?? true;
 
     // Only a call that would run the target's own pipeline can recurse, so
@@ -478,6 +475,18 @@ export class HookRunner {
       .some(([, sibling]) => sibling.thymianRes.statusCode === statusCode);
   }
 }
+
+/**
+ * What a nested request needs to know about the hook that made it: where it is
+ * in the seeding chain, where its results go, and which host the run is talking
+ * to. Three answers to one question — "who called this?" — so they travel as
+ * one value rather than as three parameters that must always agree.
+ */
+type NestedRequestCaller = {
+  chain: SelectorChain;
+  results: HttpTestCaseResult[];
+  origin?: string;
+};
 
 /**
  * The media type a response actually carried: the essence of its content type,
