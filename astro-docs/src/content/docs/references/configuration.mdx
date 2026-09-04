@@ -197,8 +197,8 @@ Pick `markdown` when a person or AI agent reads the result — in a pull request
 - **Failures only**: passed test cases and passed executions without findings are left out, so the
   document stays focused on what needs attention.
 
-Locations are resolved to readable endpoint strings such as
-`POST /orders - application/json → 201 CREATED`, and the raw request/response of a failed test step
+Locations are resolved to the transaction's Selector, such as
+`POST /orders (application/json) -> 201`, and the raw request/response of a failed test step
 is tucked into a nested `<details>` block. Table cells are single-line, so multi-line messages are
 flattened, and `expected`/`actual` values are folded into the message rather than kept as fields.
 

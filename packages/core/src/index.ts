@@ -21,6 +21,7 @@ export * from './logger/noop.logger.js';
 export * from './logger/text.logger.js';
 export * from './report/index.js';
 export * from './rules/index.js';
+export * from './selector/index.js';
 export * from './thymian.error.js';
 export * from './thymian.js';
 export * from './thymian-plugin.js';

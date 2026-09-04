@@ -48,7 +48,7 @@ describe('createLocationResolver (AC13)', () => {
     expect(result).toBe('POST /orders');
   });
 
-  it('resolves a thymianFormat edge location to a request → response string', () => {
+  it('resolves a thymianFormat edge location to the transaction selector', () => {
     const format = new ThymianFormat();
     const [, , transactionId] = format.addHttpTransaction(
       REQUEST,
@@ -73,7 +73,7 @@ describe('createLocationResolver (AC13)', () => {
       'v1',
     );
 
-    expect(result).toBe('POST /orders → 200 OK');
+    expect(result).toBe('POST /orders -> 200');
   });
 
   it('falls back to the single format entry when no runVersion is given (defense-in-depth)', () => {

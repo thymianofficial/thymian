@@ -109,6 +109,9 @@ types the request and response nodes _declare_ — a declared media type earns i
 or not a body exists. Fully qualified by construction, so adding a status code or a media type
 to the specification cannot silently change what an existing selector points at. Rendering is
 total: a path or media type that would collide with the grammar is encoded, never rejected.
+Also the only spelling of a `Transaction` anywhere Thymian writes one — terminal lines,
+reports, error messages — so any printed transaction can be pasted back as a hook target. A
+label naming only a request or only a response uses the selector grammar's corresponding half.
 _Avoid_: pattern, matcher, glob
 
 **Hook**:

@@ -97,7 +97,6 @@ You can use this dedicated reference page for all supported keys, defaults, exam
 
 - [Thymian Configuration File](/references/configuration/)
 
-
 <Aside type="tip">
   You can list your loaded plugins via:
 
@@ -147,12 +146,12 @@ Thymian will output results in a structured format. Here is an exemplary output 
   34 HTTP rules run successfully. 2 rules reported a violation.
 
 
-     PUT /launches/{id} - application/json → 401 UNAUTHORIZED
+     PUT /launches/{id} (application/json) -> 401
 
         ✖ error: The server generating a 401 response MUST send a WWW-Authenticate header field containing at least one challenge applicable to the target resource.
            rfc9110/server-must-send-www-authenticate-header-for-401-response
 
-    DELETE /launches/{id} → 401 UNAUTHORIZED
+    DELETE /launches/{id} -> 401
 
         ✖ error: The server generating a 401 response MUST send a WWW-Authenticate header field containing at least one challenge applicable to the target resource.
            rfc9110/server-must-send-www-authenticate-header-for-401-response
@@ -167,7 +166,7 @@ both of them are marked as such. Let's take a closer look and analyze the first 
 ### Severity Level
 
 ```console "✖ error"
-PUT /launches/{id} - application/json → 401 UNAUTHORIZED
+PUT /launches/{id} (application/json) -> 401
       ✖ error: The server generating a 401 response MUST send a WWW-Authenticate header field containing at least one challenge applicable to the target resource.
          rfc9110/server-must-send-www-authenticate-header-for-401-response
 
@@ -193,13 +192,14 @@ When no problems are found, Thymian displays: `✓ No problems found`.
 npx thymian lint --rule-severity hint
 ```
 
-  This overrides the `ruleSeverity` value set in your configuration file.
+This overrides the `ruleSeverity` value set in your configuration file.
+
 </Aside>
 
 ### Description
 
 ```console "The server generating a 401 response MUST send a WWW-Authenticate header field containing at least one challenge applicable to the target resource."
-PUT /launches/{id} - application/json → 401 UNAUTHORIZED
+PUT /launches/{id} (application/json) -> 401
       ✖ error: The server generating a 401 response MUST send a WWW-Authenticate header field containing at least one challenge applicable to the target resource.
          rfc9110/server-must-send-www-authenticate-header-for-401-response
 
@@ -209,15 +209,15 @@ After the severity level, the description of the problem is shown. This explains
 
 ### Location
 
-```console "PUT /launches/{id} - application/json → 401 UNAUTHORIZED"
-PUT /launches/{id} - application/json → 401 UNAUTHORIZED
+```console "PUT /launches/{id} (application/json) -> 401"
+PUT /launches/{id} (application/json) -> 401
       ✖ error: The server generating a 401 response MUST send a WWW-Authenticate header field containing at least one challenge applicable to the target resource.
          rfc9110/server-must-send-www-authenticate-header-for-401-response
 
 ```
 
 Next, we look at the exact location of the problem in the OpenAPI specification. As shown above, the problem is located in the
-`401 UNAUTHORIZED` response for the `PUT /launches/{id}` operation. So to fix this issue, you would need to navigate to the corresponding operation
+`401` response for the `PUT /launches/{id}` operation. So to fix this issue, you would need to navigate to the corresponding operation
 in the Swagger/OpenAPI specification and add the missing `WWW-Authenticate` header to the `401` response definition. This could look like this:
 
 ```diff
@@ -232,7 +232,7 @@ in the Swagger/OpenAPI specification and add the missing `WWW-Authenticate` head
 ### Source
 
 ```console "rfc9110/server-must-send-www-authenticate-header-for-401-response"
-PUT /launches/{id} - application/json → 401 UNAUTHORIZED
+PUT /launches/{id} (application/json) -> 401
       ✖ error: The server generating a 401 response MUST send a WWW-Authenticate header field containing at least one challenge applicable to the target resource.
          rfc9110/server-must-send-www-authenticate-header-for-401-response
 

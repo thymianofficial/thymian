@@ -1,4 +1,7 @@
-import { ThymianFormat } from '@thymian/core';
+import {
+  DEFAULT_QUERY_SERIALIZATION_STYLE,
+  ThymianFormat,
+} from '@thymian/core';
 import { createHttpRequest, createHttpResponse } from '@thymian/core-testing';
 import { describe, expect, it } from 'vitest';
 
@@ -356,10 +359,9 @@ describe('the committed type surface', () => {
             queryParameters: options.parameter
               ? {
                   [options.parameter]: {
-                    name: options.parameter,
-                    in: 'query',
                     required: false,
                     schema: { type: 'integer' } as never,
+                    style: DEFAULT_QUERY_SERIALIZATION_STYLE,
                   },
                 }
               : {},

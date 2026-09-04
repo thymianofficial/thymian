@@ -96,7 +96,7 @@ describe('cli report renderer', () => {
       ),
     );
 
-    expect(output).toContain('GET /pets - application/json');
+    expect(output).toContain('GET /pets (application/json)');
   });
 
   it('groups lint and analyze rows by resolved location like the markdown formatter', () => {

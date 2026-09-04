@@ -28,6 +28,24 @@ So a hook's identity is now a **Selector** — the fully-qualified address of a
 Transaction — written in the code. A Selector that stops existing is a value that
 stops existing, and that is something a compiler and a loader can both see.
 
+A Selector is also the only way Thymian ever writes a Transaction down. Check
+lines, test-case names, rule headings, report locations and error messages all
+print it verbatim, so any transaction you read in the terminal can be pasted
+straight into a hook as its target:
+
+```console
+✖ POST /launches/{id}/crew-members (application/json) -> 409
+```
+
+```ts
+beforeEach(
+  'POST /launches/{id}/crew-members (application/json) -> 409',
+  (request) => {
+    // …
+  },
+);
+```
+
 ## Discovery
 
 <FileTree>
