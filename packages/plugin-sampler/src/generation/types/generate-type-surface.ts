@@ -404,7 +404,7 @@ type GroupOf<
 > = NonNullable<Endpoints[T]['req'][K]>;
 
 /**
- * The request a hook shapes, for a target that names exactly one Transaction.
+ * The request a hook shapes, for one Transaction.
  *
  * Built field by field rather than by intersecting \`Endpoints[T]['req']\`. That
  * intersection was wrong in a way the compiler could not warn about: \`req.path\`
@@ -412,8 +412,11 @@ type GroupOf<
  * template — so \`path\` came out as an object type intersected with a string
  * literal. Assigning the template was a false compile error, and
  * \`request.path.id = …\` compiled and then threw at run time.
+ *
+ * Distributive by construction (\`T\` is naked in the conditional), which is what
+ * turns a union of Selectors into a union of requests.
  */
-export type RequestOf<T> = T extends Selector
+export type RequestForSelector<T> = T extends Selector
   ? {
       /**
        * The method as the description spells it, casing included — which for an
@@ -431,7 +434,22 @@ export type RequestOf<T> = T extends Selector
       headers: GroupOf<T, 'headers'>;
       cookies: GroupOf<T, 'cookies'>;
     } & BodyOf<T>
-  : GenericRequest;
+  : never;
+
+/**
+ * The request a hook shapes, for whatever its target names.
+ *
+ * An **array of Selectors is the union of its members' requests** — the same
+ * safety a single Selector gets, distributed. Only a \`TransactionFilter\` falls
+ * back to \`GenericRequest\`: a filter's membership is decided at load time
+ * against the catalog, so there is no set of Transactions for the compiler to
+ * name.
+ */
+export type RequestOf<T> = T extends Selector
+  ? RequestForSelector<T>
+  : T extends readonly Selector[]
+    ? RequestForSelector<T[number]>
+    : GenericRequest;
 
 /**
  * The body field, required exactly when the Transaction requires a body.
@@ -523,8 +541,8 @@ export declare class UndeclaredResponseError extends Error {
   readonly body: unknown;
 }
 
-/** The response a hook observes. */
-export type ResponseOf<T> = T extends Selector
+/** The response a hook observes, for one Transaction. Distributive. */
+export type ResponseForSelector<T> = T extends Selector
   ? {
       statusCode: Endpoints[T]['res']['statusCode'];
       headers: Record<string, string | string[] | undefined>;
@@ -533,14 +551,24 @@ export type ResponseOf<T> = T extends Selector
       trailers: Record<string, string>;
       duration: number;
     }
-  : {
-      statusCode: Status;
-      headers: Record<string, string | string[] | undefined>;
-      body?: string;
-      bodyEncoding?: string;
-      trailers: Record<string, string>;
-      duration: number;
-    };
+  : never;
+
+/** The response a hook observes. An array target unions its members'. */
+export type ResponseOf<T> = T extends Selector
+  ? ResponseForSelector<T>
+  : T extends readonly Selector[]
+    ? ResponseForSelector<T[number]>
+    : GenericResponse;
+
+/** The response a hook observes when its target covers more than one Transaction. */
+export type GenericResponse = {
+  statusCode: Status;
+  headers: Record<string, string | string[] | undefined>;
+  body?: string;
+  bodyEncoding?: string;
+  trailers: Record<string, string>;
+  duration: number;
+};
 
 /** Options for a cross-endpoint request. */
 export type RequestOptions = {
