@@ -95,6 +95,13 @@ _Avoid_: preset, variant, flavour
 The declarative file that selects the API specification, rules, and plugins for a run.
 Optional; Thymian runs without one.
 
+A rule's `Validation Context`s are not fixed by the rule that declares them: `rules.<id>.type`
+in a `Config`, or in a `Profile`, replaces them outright rather than merging into them. That is
+how a rule shipped for `lint` is narrowed to `analyze` and `test`, and how naming
+`informational` alone retires a rule from executing while keeping it documented. A context
+whose rule function the rule does not define is rejected when rules load, so the override
+cannot silently register a rule that never runs.
+
 ### Sampling
 
 **Sample**:
