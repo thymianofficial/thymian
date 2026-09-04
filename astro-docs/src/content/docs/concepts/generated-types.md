@@ -50,10 +50,22 @@ export type Endpoints = {
 };
 
 export type Selector = keyof Endpoints;
+
+export type Responses = {
+  "GET /astronauts":
+    | TransactionResponse<"GET /astronauts -> 200 (application/json)">
+    | TransactionResponse<"GET /astronauts -> 401">;
+  …
+};
 ```
 
 One key is exactly one Transaction, so a key carries its own status and media
-types and there is no union of responses to narrow.
+types — nothing about a _target_ has to be narrowed.
+
+What the server answers with is a different question, and `Responses` answers
+it: keyed by the request half of a Selector — the operation — it is the union
+`utils.request` returns, because initiating a Transaction is not the same as
+getting one.
 
 ### Examples in your description become open literal unions
 
