@@ -4,7 +4,6 @@ import {
   filterHttpTransactions,
   generateRequests,
   httpTest,
-  type HttpTestCase,
   isValidClientErrorStatusCode,
   isValidSuccessfulStatusCode,
   mapToTestCase,
@@ -16,7 +15,25 @@ import {
 } from '@thymian/core';
 
 import { selectorForTransaction } from '../../../selectors/selector.js';
+import {
+  checkedFromError,
+  checkedFromTestCase,
+  type CheckedTransaction,
+  type Outcome,
+  summaryOf,
+} from '../../check-result.js';
 import { createContext } from '../../create-context.js';
+
+/** One glyph per Outcome, so four states read as four states. */
+const MARKS: Record<
+  Outcome,
+  { mark: string; color: 'green' | 'red' | 'yellow' }
+> = {
+  passed: { mark: '✔', color: 'green' },
+  failed: { mark: '✖', color: 'red' },
+  skipped: { mark: '↷', color: 'yellow' },
+  errored: { mark: '!', color: 'red' },
+};
 
 export default class Check extends BaseCliRunCommand<typeof Check> {
   static override description =
@@ -33,7 +50,7 @@ export default class Check extends BaseCliRunCommand<typeof Check> {
       allowNo: true,
       default: false,
       description:
-        'Check transactions one by one, reporting each failure as it happens.',
+        'After each transaction that is not passed, print how to shape it with a hook.',
     }),
     ['target-url']: Flags.string({
       description:
@@ -50,7 +67,6 @@ export default class Check extends BaseCliRunCommand<typeof Check> {
         validateSpecs: this.flags['validate-specs'],
       });
 
-      const transactions = format.getThymianHttpTransactions();
       const targetUrl =
         this.flags['target-url'] ?? this.thymianConfig.targetUrl;
 
@@ -60,38 +76,45 @@ export default class Check extends BaseCliRunCommand<typeof Check> {
         emitter,
       );
 
-      if (this.flags.incremental) {
-        await this.checkTransactionsIncremental(
-          transactions,
+      const checked: CheckedTransaction[] = [];
+
+      for (const transaction of format.getThymianHttpTransactions()) {
+        if (!this.isCheckableTransaction(transaction)) {
+          continue;
+        }
+
+        const result = await this.checkTransaction(
+          transaction,
           context,
           targetUrl,
         );
-      } else {
-        await this.checkAllTransactions(transactions, context, targetUrl);
+
+        checked.push(result);
+        this.report(result);
       }
+
+      this.summarize(checked);
     });
   }
 
-  private async checkAllTransactions(
-    transactions: ThymianHttpTransaction[],
+  /**
+   * Run one Transaction and say what it earned.
+   *
+   * The `try` is the whole point of the outcome model. A hook defect, a request
+   * that cannot be serialized or a refused connection used to reject the
+   * pipeline's observable and abort the command, so one broken transaction hid
+   * every transaction after it. Here it ends that transaction and nothing else.
+   */
+  private async checkTransaction(
+    transaction: ThymianHttpTransaction,
     context: ReturnType<typeof createContext>,
     targetUrl?: string,
-  ): Promise<void> {
-    let successful = 0;
-    let failed = 0;
+  ): Promise<CheckedTransaction> {
+    this.logger.debug(
+      'Checking transaction: ' + selectorForTransaction(transaction),
+    );
 
-    for (const transaction of transactions) {
-      if (!this.isCheckableTransaction(transaction)) {
-        continue;
-      }
-
-      const transactionName = thymianHttpTransactionToString(
-        transaction.thymianReq,
-        transaction.thymianRes,
-      );
-
-      this.logger.debug('Checking transaction: ' + transactionName);
-
+    try {
       const testResult = await this.runTransaction(
         transaction,
         context,
@@ -100,72 +123,77 @@ export default class Check extends BaseCliRunCommand<typeof Check> {
 
       const testCase = testResult.cases[0];
 
-      if (testCase && testCase.status === 'passed') {
-        this.log(oclif.ux.colorize('green', `✔ ${transactionName}`));
-        successful++;
-      } else {
-        this.log(oclif.ux.colorize('red', `✖ ${transactionName}`));
-        this.logFailureDetails(testCase);
-        this.log();
-        failed++;
-      }
-    }
-
-    this.log();
-
-    if (failed > 0) {
-      this.log(
-        `Checked ${successful + failed} transactions. ${oclif.ux.colorize('red', `${failed} failed`)}.`,
-      );
-      this.exit(1);
-    } else {
-      this.log(
-        oclif.ux.colorize(
-          'green',
-          `Checked ${successful + failed} transactions. All passed.`,
-        ),
-      );
+      return testCase
+        ? checkedFromTestCase(testCase, transaction)
+        : checkedFromError(
+            new Error(
+              'The test pipeline produced no result for this transaction.',
+            ),
+            transaction,
+          );
+    } catch (e) {
+      return checkedFromError(e, transaction);
     }
   }
 
-  private async checkTransactionsIncremental(
-    transactions: ThymianHttpTransaction[],
-    context: ReturnType<typeof createContext>,
-    targetUrl?: string,
-  ): Promise<void> {
-    for (const transaction of transactions) {
-      if (!this.isCheckableTransaction(transaction)) {
-        continue;
-      }
+  /** One line per transaction, then its reason once, then its remediation. */
+  private report(result: CheckedTransaction): void {
+    const { mark, color } = MARKS[result.outcome];
 
-      const transactionName = thymianHttpTransactionToString(
-        transaction.thymianReq,
-        transaction.thymianRes,
-      );
+    this.log(oclif.ux.colorize(color, `${mark} ${result.selector}`));
 
-      this.logger.debug('Checking transaction: ' + transactionName);
-
-      const testResult = await this.runTransaction(
-        transaction,
-        context,
-        targetUrl,
-      );
-
-      const testCase = testResult.cases[0];
-
-      if (testCase && testCase.status === 'passed') {
-        this.log(oclif.ux.colorize('green', `✔ ${transactionName}`));
-        continue;
-      }
-
-      this.log(oclif.ux.colorize('red', `✖ ${transactionName}`));
-      this.logFailureDetails(testCase);
-
-      this.log();
-      this.log('Shape this request by anchoring a hook to its selector:');
-      this.log(`  ${selectorForTransaction(transaction)}`);
-      this.log();
+    if (result.outcome === 'passed') {
+      return;
     }
+
+    for (const line of [result.reason, ...result.details].filter(Boolean)) {
+      this.log(oclif.ux.colorize('dim', `    ${line}`));
+    }
+
+    if (this.flags.incremental) {
+      this.log(
+        oclif.ux.colorize(
+          'dim',
+          '    Shape this request by anchoring a hook to its selector, printed above.',
+        ),
+      );
+    }
+
+    this.log();
+  }
+
+  /**
+   * The tally, and the exit code.
+   *
+   * `process.exitCode` rather than `this.exit()`: an early exit throws past the
+   * run's teardown, and teardown is where the user's `afterAll` cleanups live.
+   * The command finishes, and then the shell learns how it went.
+   */
+  private summarize(checked: readonly CheckedTransaction[]): void {
+    const summary = summaryOf(checked);
+
+    this.log();
+
+    if (summary.passed === summary.total) {
+      this.log(
+        oclif.ux.colorize(
+          'green',
+          `Checked ${summary.total} transactions. All passed.`,
+        ),
+      );
+
+      return;
+    }
+
+    const tally = (['failed', 'skipped', 'errored'] as const)
+      .filter((outcome) => summary[outcome] > 0)
+      .map((outcome) => `${summary[outcome]} ${outcome}`);
+
+    this.log(
+      `Checked ${summary.total} transactions: ${summary.passed} passed, ${tally.join(', ')}.`,
+    );
+
+    process.exitCode = 1;
   }
 
   private isCheckableTransaction(transaction: ThymianHttpTransaction): boolean {
@@ -180,45 +208,25 @@ export default class Check extends BaseCliRunCommand<typeof Check> {
     context: ReturnType<typeof createContext>,
     targetUrl?: string,
   ) {
-    const transactionName = thymianHttpTransactionToString(
-      transaction.thymianReq,
-      transaction.thymianRes,
-    );
-
     const reqFilter: RequestFilterFn = (_req, reqId) =>
       reqId === transaction.thymianReqId;
     const resFilter: ResponseFilterFn = (_res, resId) =>
       resId === transaction.thymianResId;
 
-    const test = httpTest(transactionName, (transactions) =>
-      transactions.pipe(
-        filterHttpTransactions(reqFilter, resFilter),
-        mapToTestCase(),
-        generateRequests(),
-        runRequests({ checkResponse: false, origin: targetUrl }),
+    const test = httpTest(
+      thymianHttpTransactionToString(
+        transaction.thymianReq,
+        transaction.thymianRes,
       ),
+      (transactions) =>
+        transactions.pipe(
+          filterHttpTransactions(reqFilter, resFilter),
+          mapToTestCase(),
+          generateRequests(),
+          runRequests({ checkResponse: false, origin: targetUrl }),
+        ),
     );
 
     return test(context);
-  }
-
-  private logFailureDetails(testCase?: HttpTestCase): void {
-    if (!testCase) {
-      this.log(oclif.ux.colorize('dim', '    Reason: No test result.'));
-      return;
-    }
-
-    if (testCase.reason) {
-      this.log(oclif.ux.colorize('dim', `    Reason: ${testCase.reason}`));
-    }
-
-    for (const result of testCase.results) {
-      if (
-        result.type === 'assertion-failure' ||
-        result.type === 'invalid-transaction'
-      ) {
-        this.log(oclif.ux.colorize('dim', `    ${result.message}`));
-      }
-    }
   }
 }

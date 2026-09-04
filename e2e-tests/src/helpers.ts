@@ -1,5 +1,5 @@
 import { spawn, spawnSync, type SpawnSyncReturns } from 'node:child_process';
-import { cpSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { cpSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
@@ -242,6 +242,24 @@ export function writeConfigToTempDir(
   filename = 'thymian.config.yaml',
 ) {
   writeFileSync(join(tempDir, filename), config, 'utf-8');
+}
+
+/**
+ * Write one sampler hook file into a temp workspace.
+ *
+ * The path is spelled out rather than derived: `.thymian/sampler/hooks` is the
+ * documented default a user types, and these suites exist to check the
+ * published contract rather than to agree with the implementation about it.
+ */
+export function writeSamplerHook(
+  tempDir: string,
+  name: string,
+  source: string,
+): void {
+  const hooksDir = join(tempDir, '.thymian', 'sampler', 'hooks');
+
+  mkdirSync(hooksDir, { recursive: true });
+  writeFileSync(join(hooksDir, name), source, 'utf-8');
 }
 
 /**
