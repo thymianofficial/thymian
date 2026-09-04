@@ -28,6 +28,7 @@ This chapter documents the significant architectural decisions made for Thymian.
 | [ADR-0018](adr/0018-recommended-rule-configuration-profiles.md)                | Recommended rule-configuration profiles on RuleSet                        | Accepted | 2026-08-03 | —                                                                                                                      |
 | [ADR-0019](adr/0019-virtual-samples-and-selector-anchored-hooks.md)            | Virtual samples with a committed type surface and selector-anchored hooks | Accepted | 2026-08-16 | [10.2.1](10-quality-requirements.md#102-quality-scenarios), [10.2.3](10-quality-requirements.md#102-quality-scenarios) |
 | [ADR-0020](adr/0020-selector-is-the-transaction-label.md)                      | The Selector is the transaction label, application-wide                   | Accepted | 2026-09-04 | [10.2.1](10-quality-requirements.md#102-quality-scenarios)                                                             |
+| [ADR-0021](adr/0021-a-per-transaction-problem-must-not-end-the-run.md)         | A per-transaction problem must not end the run                            | Accepted | 2026-09-04 | [10.2.1](10-quality-requirements.md#102-quality-scenarios)                                                             |
 
 ## Creating New ADRs
 

@@ -116,9 +116,19 @@ _Avoid_: pattern, matcher, glob
 
 **Hook**:
 A user-owned TypeScript function that shapes or authorizes a run — generating a sample,
-running before or after a transaction, supplying credentials. Targeted by a `Selector` or by a
-typed transaction filter. The only artifact in sampling the user owns, and the compiler is what
+running before or after a transaction, supplying credentials. Targeted by a `Selector`, a list
+of them, or a typed transaction filter. The only artifact in sampling the user owns, and the compiler is what
 reports one that no longer matches anything.
+
+**Operation**:
+What a `Selector`'s request half names: a method, a path, and the media type the request
+declares. Every `Transaction` sharing it is one response that operation declares, which is
+why a `Seed` addressed at one of them may be answered by another. Narrower than OpenAPI's
+operation, which is method and path alone — two request media types on one path are two
+operations here, because they are two different requests to send. Note that the generated
+`Endpoints` map is keyed by `Selector`, so it is a map of transactions and not of
+operations; the operations are the keys of `Responses`.
+_Avoid_: route
 
 **Seed**:
 A request a `Hook` makes through `utils.request` to put the system into the state its
