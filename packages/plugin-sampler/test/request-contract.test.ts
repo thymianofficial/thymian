@@ -426,6 +426,33 @@ export const seed = beforeEach(${JSON.stringify(GET_LAUNCH)}, async (request, ct
     });
   });
 
+  it('sends the seed to the origin the caller is talking to', async () => {
+    const harness = await sampler();
+
+    await harness.writeHook(
+      'seed.ts',
+      `import { beforeEach } from '@thymian/hooks';
+
+export const seed = beforeEach(${JSON.stringify(GET_LAUNCH)}, async (request, ctx, utils) => {
+  await utils.request(${JSON.stringify(CREATE)}, { body: { name: 'Artemis' } });
+});
+`,
+    );
+
+    harness.responses.push({ statusCode: 201 });
+
+    await harness.loadFormat(FIXTURE);
+
+    // What `--target-url` does: the run's request already carries the origin
+    // the run resolved, and the seed has to follow it rather than the one the
+    // description names.
+    await harness.beforeRequest(transactionIdOf(GET_LAUNCH), FIXTURE, {
+      origin: 'http://localhost:9999',
+    });
+
+    expect(harness.dispatched[0]?.request.origin).toBe('http://localhost:9999');
+  });
+
   it('accepts a status another response of the same operation declares', async () => {
     const harness = await sampler();
 
