@@ -78,6 +78,25 @@ describe('validateJsonRequestBody', () => {
     ]);
   });
 
+  it('reports a schema that fails to compile as a defect of the API description', () => {
+    const request = createRequest({
+      type: 'object',
+      'x-enumNames': ['Running', 'Stopped'],
+    });
+
+    const results = validateJsonRequestBody('{"name":"Ada"}', request);
+
+    expect(results).toStrictEqual([
+      {
+        type: 'assertion-failure',
+        assertion: 'schema-compilation',
+        message:
+          'The request body schema in the API description document could not be compiled: strict mode: unknown keyword: "x-enumNames"',
+        timestamp: expect.any(Number),
+      },
+    ]);
+  });
+
   it('returns info when no request body schema is provided', () => {
     const request = createRequest(undefined);
 

@@ -62,12 +62,20 @@ export default httpRule('thymian/request-body-must-conform-to-schema')
         const failures = results.filter((r) => r.type === 'assertion-failure');
 
         if (failures.length > 0) {
+          // A schema-compilation failure is a defect of the API description
+          // document, so it must not be blamed on the observed request body.
+          const message = failures.some(
+            (failure) =>
+              failure.type === 'assertion-failure' &&
+              failure.assertion === 'schema-compilation',
+          )
+            ? 'Request body could not be validated: the schema in the API description document failed to compile'
+            : `Request body does not conform to the schema (${failures.length} issue${failures.length === 1 ? '' : 's'})`;
+
           return [
             {
               location,
-              violation: {
-                message: `Request body does not conform to the schema (${failures.length} issue${failures.length === 1 ? '' : 's'})`,
-              },
+              violation: { message },
               findings: httpTestResultToRuleFindings(results),
             },
           ];
