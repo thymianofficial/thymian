@@ -180,6 +180,7 @@ export class HookRunner {
           options,
           input.chain,
           input.results,
+          input.request?.origin,
         ),
     };
   }
@@ -334,6 +335,7 @@ export class HookRunner {
     options: RequestOptions,
     chain: SelectorChain,
     callerResults: HttpTestCaseResult[],
+    callerOrigin?: string,
   ): Promise<EndpointResponse> {
     const runHooks = options.runHooks ?? true;
 
@@ -351,6 +353,15 @@ export class HookRunner {
       await this.ports.sampleRequest(transaction),
       args,
     );
+
+    // A seed goes where the run is going. The caller's request already carries
+    // whatever origin the run resolved — a `--target-url`, a configured target
+    // — and without inheriting it a seeding call would quietly send real
+    // traffic to the server the description names while the run itself talks to
+    // localhost.
+    if (callerOrigin) {
+      template.origin = callerOrigin;
+    }
 
     if (options.authorize !== undefined) {
       template.authorize = options.authorize;
