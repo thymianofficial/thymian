@@ -155,9 +155,10 @@ describe('a transaction whose pipeline ran', () => {
     );
 
     expect(result.outcome).toBe('failed');
-    expect(result.details).toEqual([
-      'Response body does not match the schema.',
-    ]);
+    // The pipeline failed the case without a reason of its own, so the
+    // assertion's message becomes the reason rather than a detail under it.
+    expect(result.reason).toBe('Response body does not match the schema.');
+    expect(result.details).toEqual([]);
   });
 
   it('is skipped and names the seed when a seed was answered differently', () => {
@@ -199,6 +200,33 @@ describe('a transaction whose pipeline ran', () => {
     );
 
     expect(result.outcome).toBe('passed');
+  });
+
+  it('always says why, even when the pipeline said nothing', () => {
+    // `ctx.fail(current)` with no message is a real pipeline verdict, and the
+    // `--json` contract promises a reason for anything that is not passed.
+    const bare = checkedFromTestCase(testCase({ status: 'failed' }), CHECKED);
+
+    expect(bare.reason).toBe('The response did not match the description.');
+
+    // A case with details but no reason promotes the first detail rather than
+    // printing it twice.
+    const detailed = checkedFromTestCase(
+      testCase({
+        status: 'failed',
+        results: [
+          {
+            type: 'assertion-failure',
+            message: 'Response body does not match the schema.',
+            transaction: CHECKED,
+          },
+        ],
+      }),
+      CHECKED,
+    );
+
+    expect(detailed.reason).toBe('Response body does not match the schema.');
+    expect(detailed.details).toEqual([]);
   });
 
   it('does not mistake its own status mismatch for a seed', () => {
