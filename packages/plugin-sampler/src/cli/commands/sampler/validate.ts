@@ -25,7 +25,7 @@ export default class Validate extends BaseCliRunCommand<typeof Validate> {
       );
 
       if (this.jsonEnabled()) {
-        if (report.outcome === 'broken' || report.outcome === 'drifted') {
+        if (report.verdict === 'broken' || report.verdict === 'drifted') {
           process.exitCode = 1;
         }
 
@@ -61,7 +61,7 @@ export default class Validate extends BaseCliRunCommand<typeof Validate> {
         );
       }
 
-      if (report.outcome === 'drifted') {
+      if (report.verdict === 'drifted') {
         this.log();
         this.log(
           'Breaking drift: the API description no longer matches these hooks.',
@@ -72,7 +72,7 @@ export default class Validate extends BaseCliRunCommand<typeof Validate> {
         this.exit(1);
       }
 
-      if (report.outcome === 'broken') {
+      if (report.verdict === 'broken') {
         this.log();
         this.log(
           'These hooks do not compile against the current API description.',
@@ -88,7 +88,7 @@ export default class Validate extends BaseCliRunCommand<typeof Validate> {
         this.exit(1);
       }
 
-      if (report.outcome === 'stale') {
+      if (report.verdict === 'stale') {
         this.log(
           oclif.ux.colorize(
             'yellow',
