@@ -1,34 +1,44 @@
-import type {
-  ThymianHttpRequest,
-  ThymianHttpResponse,
-  ThymianHttpTransaction,
+import {
+  canonicalPath,
+  encodeMediaType,
+  encodeMethod,
+  encodePath,
+  formatRequestSelector,
+  formatResponseSelector,
+  formatSelector,
+  type Selector,
+  SELECTOR_METHOD_CHARS,
+  selectorForTransaction,
 } from '@thymian/core';
 
 import { malformedSelectorError } from './selector-errors.js';
 
 /**
- * A fully-qualified transaction selector:
+ * The selector grammar, plugin side: everything that reads a selector.
  *
- * ```
- * METHOD SP path [ SP "(" reqMediaType ")" ] SP "->" SP status [ SP "(" resMediaType ")" ]
- * ```
+ * **Rendering lives in `@thymian/core`** (`selector/render-selector.ts`) and is
+ * re-exported here, because a selector is two things at once — the sampler's
+ * *address* of a Transaction and the application's *label* for one — and every
+ * surface core prints has to render the same grammar the sampler resolves
+ * (ADR-0020). What stays here is what only an address needs: parsing back,
+ * near-miss diagnostics and the catalog's ordering.
  *
- * ```
- * GET /launches -> 200 (application/json)
- * POST /astronauts (application/json) -> 201 (application/json)
- * DELETE /astronauts/{id} -> 204
- * ```
- *
- * A selector names exactly one Transaction. It is host-stripped, media-typed and
- * ASCII — deliberately *not* core's display string
- * (`GET /launches - application/json → 200 OK - application/json`), which is a
- * near-twin used for report locations, rule headings and test-case names.
- *
- * This is a documentation alias only. The typed union (`Selector =
- * keyof Endpoints`) is generated from the catalog, so branding the runtime type
- * here would have to be undone later.
+ * The reader below is the inverse of core's encoders. The two are one grammar
+ * split across two packages, so the round-trip property — every rendered
+ * selector parses, and parses back to what it was rendered from — is the test
+ * that keeps them honest.
  */
-export type Selector = string;
+export {
+  canonicalPath,
+  encodeMediaType,
+  encodeMethod,
+  encodePath,
+  formatRequestSelector,
+  formatResponseSelector,
+  formatSelector,
+  type Selector,
+  selectorForTransaction,
+};
 
 export type SelectorParts = {
   method: string;
@@ -38,27 +48,8 @@ export type SelectorParts = {
   responseMediaType?: string;
 };
 
-/**
- * RFC 9110 §5.6.2 `tchar`, the character set a method is written in. Written
- * once, so the renderer, the parser and the near-miss hint cannot drift apart on
- * what a method looks like.
- */
-const METHOD_CHARS = "A-Za-z0-9!#$%&'*+.^_`|~-";
-const METHOD_TOKEN = new RegExp(`^[${METHOD_CHARS}]+$`);
+const METHOD_TOKEN = new RegExp(`^[${SELECTOR_METHOD_CHARS}]+$`);
 const UPPERCASE_METHOD = new RegExp(`^[A-Z0-9!#$%&'*+.^_\`|~-]+$`);
-
-/**
- * Renders a component the grammar cannot carry bare as a quoted string.
- *
- * Quoting rather than percent-encoding is what makes rendering **injective**.
- * Percent-encoding a raw space to `%20` cannot be told apart from a path that
- * already contained the three characters `%20`, so two distinct transactions
- * would render one selector. A bare component never begins with `"` and a quoted
- * one always does, so the two forms are disjoint and the escape is reversible.
- */
-function quote(value: string): string {
-  return `"${value.replace(/\\/g, '\\\\').replace(/"/g, '\\"')}"`;
-}
 
 /** Reads a quoted component starting at `open`, and says where it ended. */
 function readQuoted(
@@ -94,136 +85,13 @@ function readQuoted(
 }
 
 /**
- * The path as a selector spells it.
- *
- * The leading `/` that `req.path` is not guaranteed to carry is supplied — a
- * canonicalization, not an escape: a description that declared both `launches`
- * and `/launches` declared one path twice.
- *
- * Beyond that the path is carried verbatim. Braces, parentheses, existing
- * percent-encoding, a trailing slash and an OpenAPI server base path all
- * survive. A path that contains whitespace, a `>` (whose only role here would be
- * to complete the `->` separator) or that begins with a `"` is rendered quoted
- * instead, because the bare form cannot carry those characters unambiguously.
- */
-export function encodePath(path: string): string {
-  const withSlash = canonicalPath(path);
-
-  return /[\s>]/.test(withSlash) || withSlash.startsWith('"')
-    ? quote(withSlash)
-    : withSlash;
-}
-
-/**
- * The path as everything that is not a selector spells it: the description's own
- * text, with the leading `/` it is not guaranteed to carry.
- *
- * This — not {@link encodePath} — is what a path glob is matched against and
- * what a filter compares. A glob author writes the path the description writes;
- * the selector's quoting is a property of the selector grammar and has no
- * business leaking into a filter.
- */
-export function canonicalPath(path: string): string {
-  return path.startsWith('/') ? path : `/${path}`;
-}
-
-/**
- * The method as a selector spells it: uppercased, and quoted when it is not an
- * RFC 9110 token.
- *
- * Uppercasing is a canonicalization for the same reason the leading slash is:
- * HTTP methods are case-sensitive but a description cannot declare `get` and
- * `GET` as two operations on one path.
- */
-export function encodeMethod(method: string): string {
-  const upper = method.toUpperCase();
-
-  return METHOD_TOKEN.test(upper) ? upper : quote(upper);
-}
-
-/**
- * The media type as a selector spells it.
- *
- * Rendered RFC-9110-faithfully: parameters, spacing and quoted strings survive
- * verbatim, **including a parenthesis inside a quoted string**, which the
- * parenthesized media group delimits with quote awareness rather than by
- * counting characters.
- *
- * Outside a quoted string, `\` is the escape and `(`/`)` are escaped with it. A
- * bare parenthesis is not a legal token character and a bare backslash is not
- * legal media-type syntax at all, so using them as the escape pair cannot
- * shadow anything a legal media type contains.
- *
- * A media type whose quoting is unbalanced cannot be scanned back with quote
- * awareness, so it falls back to escaping `"` as well. That form never enters
- * quote state on the way back, which keeps even a malformed media type
- * addressable instead of unrepresentable.
- */
-export function encodeMediaType(mediaType: string): string {
-  const quoteAware = escapeMediaType(mediaType, true);
-
-  return quoteAware ?? escapeMediaType(mediaType, false) ?? mediaType;
-}
-
-/**
- * Escapes a media type for the parenthesized group.
- *
- * Returns `undefined` from the quote-aware pass when the input's quoting does
- * not balance, which is the signal to take the quote-blind pass instead.
- */
-function escapeMediaType(
-  mediaType: string,
-  quoteAware: boolean,
-): string | undefined {
-  let out = '';
-  let inQuotes = false;
-
-  for (let i = 0; i < mediaType.length; i++) {
-    const char = mediaType[i] as string;
-
-    if (inQuotes) {
-      // An RFC 9110 quoted-pair belongs to the media type's own text and is
-      // carried through untouched.
-      if (char === '\\' && i + 1 < mediaType.length) {
-        out += char + (mediaType[i + 1] as string);
-        i++;
-
-        continue;
-      }
-
-      if (char === '"') {
-        inQuotes = false;
-      }
-
-      out += char;
-
-      continue;
-    }
-
-    if (char === '"' && quoteAware) {
-      inQuotes = true;
-      out += char;
-
-      continue;
-    }
-
-    out +=
-      char === '\\' || char === '(' || char === ')' || char === '"'
-        ? `\\${char}`
-        : char;
-  }
-
-  return inQuotes ? undefined : out;
-}
-
-/**
  * Reads a media group starting at the `(` at `open`, and says where it ended.
  *
- * The inverse of {@link escapeMediaType}: outside a quoted string a `\` escapes
- * the next character and is dropped, a `"` opens quote state, and the first
- * unescaped, unquoted `)` ends the group. Inside a quoted string everything is
- * carried through, quoted-pairs included, because that text is the media type's
- * own.
+ * The inverse of core's media-type encoder: outside a quoted string a `\`
+ * escapes the next character and is dropped, a `"` opens quote state, and the
+ * first unescaped, unquoted `)` ends the group. Inside a quoted string
+ * everything is carried through, quoted-pairs included, because that text is
+ * the media type's own.
  */
 function readMediaGroup(
   value: string,
@@ -283,44 +151,6 @@ function readMediaGroup(
 }
 
 /**
- * Renders one `(request, response)` pair as its selector. The only code path
- * that produces a selector string.
- *
- * Media parts appear whenever the node **declares** a media type — not only when
- * it carries a body. `mediaType` is a non-optional string whose `''` means
- * "none", so a `content:` entry that declares a media type but no schema still
- * gets its own selector and its own media part.
- *
- * The status is `String(res.statusCode)`. `statusCode` is typed `number`, and
- * `String` is injective over the numbers a description can carry, so a loader
- * that produces a status outside `100..599` — or one that is not an integer at
- * all — still yields an addressable selector rather than aborting the load.
- */
-export function formatSelector(
-  req: ThymianHttpRequest,
-  res: ThymianHttpResponse,
-): Selector {
-  const method = encodeMethod(req.method);
-  const path = encodePath(req.path);
-  const status = String(res.statusCode);
-  const requestMedia = req.mediaType
-    ? ` (${encodeMediaType(req.mediaType)})`
-    : '';
-  const responseMedia = res.mediaType
-    ? ` (${encodeMediaType(res.mediaType)})`
-    : '';
-
-  return `${method} ${path}${requestMedia} -> ${status}${responseMedia}`;
-}
-
-/** {@link formatSelector} for a whole transaction. */
-export function selectorForTransaction(
-  transaction: ThymianHttpTransaction,
-): Selector {
-  return formatSelector(transaction.thymianReq, transaction.thymianRes);
-}
-
-/**
  * Total order on selectors, by UTF-16 code unit.
  *
  * Deliberately not `localeCompare`: the catalog's order is the order of the
@@ -334,10 +164,11 @@ export function compareSelectors(a: Selector, b: Selector): number {
 /**
  * Splits a selector into its five components.
  *
- * This hand-written reader is the **only** description of the grammar. An
- * equivalent regex used to sit beside it as a shape test, and the two disagreed:
- * a media type containing a newline rendered into a selector the regex rejected,
- * because `.` excludes line terminators. One grammar, one reader.
+ * This hand-written reader is the **only** description of the grammar's read
+ * direction. An equivalent regex used to sit beside it as a shape test, and the
+ * two disagreed: a media type containing a newline rendered into a selector the
+ * regex rejected, because `.` excludes line terminators. One grammar, one
+ * reader.
  *
  * Returns `undefined` for anything that is not a selector; the caller decides
  * whether that is a diagnostic or a hint attempt.
@@ -481,7 +312,7 @@ export function isSelector(value: string): boolean {
  * a selector is valid.
  */
 const LENIENT_SHAPE = new RegExp(
-  `^([${METHOD_CHARS}]+) (\\S+)(?: \\(([^()]*)\\))? -> (\\d+)(?: \\(([^()]*)\\))?$`,
+  `^([${SELECTOR_METHOD_CHARS}]+) (\\S+)(?: \\(([^()]*)\\))? -> (\\d+)(?: \\(([^()]*)\\))?$`,
 );
 
 /**
