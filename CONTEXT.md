@@ -120,6 +120,12 @@ running before or after a transaction, supplying credentials. Targeted by a `Sel
 typed transaction filter. The only artifact in sampling the user owns, and the compiler is what
 reports one that no longer matches anything.
 
+**Seed**:
+A request a `Hook` makes through `utils.request` to put the system into the state its
+transaction needs. Runs the target transaction's own hook pipeline by default, so seeding
+behaves like the real run. Names the `Transaction` it wants to initiate, not the response it
+will get: the answer is every response that operation declares.
+
 ### Reporting
 
 **Report Format**:

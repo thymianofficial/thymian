@@ -1,4 +1,5 @@
 import {
+  getContentType,
   type HttpRequest,
   type HttpRequestTemplate,
   type HttpResponse,
@@ -19,7 +20,11 @@ import {
   type HookCallContext,
   parseResponseBody,
 } from './create-hook-utils.js';
-import { FailError, SkipError } from './hook-errors.js';
+import {
+  FailError,
+  SkipError,
+  UndeclaredResponseError,
+} from './hook-errors.js';
 import type { HookKind } from './hook-registration.js';
 import type {
   EndpointRequest,
@@ -42,6 +47,7 @@ import {
   requestCycleError,
   type SelectorChain,
 } from './nested-request.js';
+import { applyArgs } from './overlay-args.js';
 import { RunScopedHooks } from './run-scoped-hooks.js';
 
 const EMPTY_HOOKS: TransactionHooks = Object.freeze({
@@ -404,27 +410,53 @@ export class HookRunner {
     // logged rather than dropped.
     reportHookResults(this.logger, results);
 
+    const body = parseResponseBody(response);
+
+    // The Selector said which Transaction to initiate; the server decided which
+    // one happened. A declared status is one of the union's members and comes
+    // back for the caller to branch on. An undeclared one has no member to be,
+    // so it throws rather than arriving as a value whose type is a lie.
+    if (!this.declaresStatus(transaction, response.statusCode)) {
+      throw new UndeclaredResponseError(
+        selector,
+        response.statusCode,
+        response.headers,
+        body,
+      );
+    }
+
     return {
-      body: parseResponseBody(response),
+      body,
       headers: response.headers,
+      mediaType: mediaTypeOf(response),
       statusCode: response.statusCode,
     };
   }
+
+  /** Whether the target's operation declares a response with this status. */
+  private declaresStatus(
+    transaction: ThymianHttpTransaction,
+    statusCode: number,
+  ): boolean {
+    return this.catalog
+      .responsesOf(transaction)
+      .some(([, sibling]) => sibling.thymianRes.statusCode === statusCode);
+  }
 }
 
-/** Overlays a caller's arguments onto a generated request. */
-function applyArgs(
-  template: HttpRequestTemplate,
-  args: EndpointRequest,
-): HttpRequestTemplate {
-  return {
-    ...template,
-    headers: { ...template.headers, ...args.headers },
-    query: { ...template.query, ...args.query },
-    cookies: { ...template.cookies, ...args.cookies },
-    pathParameters: { ...template.pathParameters, ...args.path },
-    ...('body' in args ? { body: args.body } : {}),
-  };
+/**
+ * The media type a response actually carried: the essence of its content type,
+ * parameters stripped, or `''` when it declared none.
+ *
+ * Only the *status* decides whether a response is declared — that is what the
+ * union discriminates on, and what `UndeclaredResponseError` reports. The media
+ * type is reported as observed, so a body that arrives as something the
+ * description did not promise is visible rather than relabelled.
+ */
+function mediaTypeOf(response: HttpResponse): string {
+  const contentType = getContentType(response.headers);
+
+  return (contentType.split(';')[0] ?? '').trim().toLowerCase();
 }
 
 /** What a diagnostic needs to name the transaction a hook was running for. */

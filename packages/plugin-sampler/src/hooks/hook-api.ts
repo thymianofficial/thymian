@@ -1,10 +1,3 @@
-import {
-  type HookCallback,
-  type HookRegistration,
-  type HookTarget,
-  registerHook,
-} from './hook-registration.js';
-
 /**
  * The module `@thymian/hooks` resolves to.
  *
@@ -19,12 +12,28 @@ import {
  *   never reaches `dist/`.
  * - **Its runtime import graph must stay minimal.** jiti evaluates this file,
  *   and everything it imports at runtime, in its own registry. That graph is
- *   exactly one module: `hook-registration.js`. Everything else here is
- *   `import type`, which is erased — in particular `@thymian/core` is not on it,
- *   so a hook file resolves with nothing installed alongside it.
+ *   two leaf modules: `hook-registration.js` and `hook-errors.js`, neither of
+ *   which imports anything. Everything else here is `import type`, which is
+ *   erased — in particular `@thymian/core` is not on it, so a hook file
+ *   resolves with nothing installed alongside it.
  *
  * Callbacks are stored here, never invoked.
  */
+
+import { UndeclaredResponseError } from './hook-errors.js';
+import {
+  type HookCallback,
+  type HookRegistration,
+  type HookTarget,
+  registerHook,
+} from './hook-registration.js';
+
+/**
+ * Re-exported so a hook can `catch` it. Letting it escape is equally valid —
+ * the transaction boundary catches it and skips the transaction, naming this
+ * seed and its actual status.
+ */
+export { UndeclaredResponseError };
 
 /**
  * Rejects a missing or non-callable callback at the call site the user wrote.

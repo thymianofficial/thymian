@@ -13,8 +13,16 @@ export type EndpointRequest = {
   >;
 };
 
+/**
+ * One declared response, as a cross-endpoint caller sees it.
+ *
+ * The same four fields the generated `TransactionResponse<T>` carries, so the
+ * internal signature and the one an author's editor shows are one contract.
+ * `mediaType` is the essence the response actually arrived with.
+ */
 export type EndpointResponse = {
   body: unknown;
+  mediaType: string;
   statusCode: number;
   headers: Record<string, unknown>;
 };
@@ -24,6 +32,12 @@ export type Endpoints = Record<
   {
     req: EndpointRequest;
     res: EndpointResponse;
+    /**
+     * Every response the Transaction's operation declares. Generated as a
+     * discriminated union; here it is the untyped stand-in, because the
+     * internal surface is only ever instantiated with `Record<string, never>`.
+     */
+    responses: EndpointResponse;
   }
 >;
 
@@ -99,13 +113,18 @@ export interface HookUtils<E extends Endpoints = Record<string, never>>
    * Keyed by Selector and resolved through the transaction catalog, so the keys
    * the committed types carry and the strings resolved at run time are the same
    * strings by construction. There is no `forStatusCode`: the Selector already
-   * carries the status.
+   * carries the status you asked for.
+   *
+   * `args` **overlays** the generated request — parameter groups merge per key,
+   * the body deep-merges — and the answer is every response the operation
+   * declares, because initiating a Transaction is not the same as getting one.
+   * A status the description never declares throws `UndeclaredResponseError`.
    */
   request<R extends keyof E>(
     selector: R,
     args?: E[R]['req'],
     options?: RequestOptions,
-  ): Promise<E[R]['res']>;
+  ): Promise<E[R]['responses']>;
 
   randomString(length?: number): string;
 }
