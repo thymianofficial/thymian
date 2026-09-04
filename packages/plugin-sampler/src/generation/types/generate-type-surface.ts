@@ -1,5 +1,6 @@
 import { formatRequestSelector, type Parameter } from '@thymian/core';
 
+import { compareSelectors } from '../../selectors/selector.js';
 import type { TransactionCatalog } from '../../selectors/transaction-catalog.js';
 import { PATH_GLOB_SOURCE } from '../../selectors/transaction-filter.js';
 import { DeclarationSet } from './declaration-set.js';
@@ -92,7 +93,7 @@ async function parametersType(
  */
 function operations(byOperation: ReadonlyMap<string, string[]>): string[] {
   return [...byOperation.entries()]
-    .sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))
+    .sort(([a], [b]) => compareSelectors(a, b))
     .map(
       ([operation, members]) =>
         [`  ${quote(operation)}:`, ...members.map((m) => `    | ${m}`)].join(

@@ -184,8 +184,9 @@ Nothing is sent before the refusal.
 
 ## Seeding once for the whole run
 
-If a fixture is shared by every Transaction, `beforeAll` is cheaper than seeding
-per request — and its returned closure is how the fixture gets cleaned up.
+If one resource is shared by every Transaction, `beforeAll` is cheaper than
+seeding per request — and its returned closure is how that resource gets cleaned
+up.
 
 ```typescript
 import { beforeAll } from '@thymian/hooks';
@@ -193,14 +194,14 @@ import { beforeAll } from '@thymian/hooks';
 export const seedOnce = beforeAll(async (utils) => {
   const created = await utils.request(
     'POST /launches (application/json) -> 201 (application/json)',
-    { body: { missionName: 'Shared fixture' } },
+    { body: { missionName: 'Shared launch' } },
     { authorize: true },
   );
 
   if (created.statusCode !== 201) {
-    // A throw in `beforeAll` ends the run: without the fixture, nothing that
+    // A throw in `beforeAll` ends the run: without this resource, nothing that
     // depends on it can be executed as described.
-    throw new Error('the shared fixture could not be created');
+    throw new Error('the shared launch could not be created');
   }
 
   const id = created.body.id;

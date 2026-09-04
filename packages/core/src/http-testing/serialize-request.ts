@@ -1,4 +1,8 @@
-import { type HttpRequest, ThymianBaseError } from '../index.js';
+import {
+  type HttpRequest,
+  isThymianError,
+  ThymianBaseError,
+} from '../index.js';
 import type { HttpTestCaseStepTransaction } from './http-test/http-test-case.js';
 import {
   serializeHeaderParameter,
@@ -26,6 +30,18 @@ function serializationError(
     ref: 'https://thymian.dev/references/errors/request-serialization-error/',
     suggestions,
   });
+}
+
+/**
+ * Whether the request could not be serialized from what the description and the
+ * hooks supplied — as opposed to any other way sending can fail.
+ *
+ * Exported so the one predicate lives beside the one producer: `runRequests`
+ * reads it to turn the failure into a skipped case, and `sampler check` reads
+ * it to give that Transaction the `skipped` Outcome rather than `errored`.
+ */
+export function isRequestSerializationError(error: unknown): boolean {
+  return isThymianError(error) && error.name === 'RequestSerializationError';
 }
 
 const SUPPLY_A_VALUE =

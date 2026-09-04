@@ -1,6 +1,10 @@
 import { mergeMap, type MonoTypeOperatorFunction } from 'rxjs';
 
-import { isThymianError, thymianHttpTransactionToString } from '../../index.js';
+import {
+  errorSuggestions,
+  isRequestSerializationError,
+  thymianHttpTransactionToString,
+} from '../../index.js';
 import {
   type HttpTestCase,
   type HttpTestCaseResult,
@@ -131,7 +135,7 @@ export function runRequests<
         try {
           transaction.request = serializeRequest(transaction);
         } catch (e) {
-          if (!isSerializationFailure(e)) {
+          if (!isRequestSerializationError(e)) {
             throw e;
           }
 
@@ -142,8 +146,8 @@ export function runRequests<
             message,
             transaction: transaction.source,
             timestamp: Date.now(),
-            ...(suggestionsOf(e).length > 0
-              ? { details: suggestionsOf(e).join(' ') }
+            ...(errorSuggestions(e).length > 0
+              ? { details: errorSuggestions(e).join(' ') }
               : {}),
           });
 
@@ -276,17 +280,4 @@ export function runRequests<
 
     return { current, ctx };
   });
-}
-
-/**
- * Whether the request could not be serialized from what the description and the
- * hooks supplied — as opposed to any other way sending can fail, which is not
- * this operator's to reinterpret.
- */
-function isSerializationFailure(error: unknown): boolean {
-  return isThymianError(error) && error.name === 'RequestSerializationError';
-}
-
-function suggestionsOf(error: unknown): string[] {
-  return isThymianError(error) ? (error.options?.suggestions ?? []) : [];
 }
