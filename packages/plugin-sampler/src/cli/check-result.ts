@@ -1,7 +1,8 @@
 import {
+  errorSuggestions,
   type HttpTestCase,
   type HttpTestCaseResult,
-  isThymianError,
+  isRequestSerializationError,
   type ThymianHttpTransaction,
   thymianHttpTransactionToString,
 } from '@thymian/core';
@@ -130,9 +131,9 @@ export function checkedFromError(
   return {
     selector: selectorOf(transaction),
     expectedStatus: transaction.thymianRes.statusCode,
-    outcome: isSerializationFailure(error) ? 'skipped' : 'errored',
+    outcome: isRequestSerializationError(error) ? 'skipped' : 'errored',
     reason: error instanceof Error ? error.message : String(error),
-    details: suggestionsOf(error),
+    details: errorSuggestions(error),
   };
 }
 
@@ -219,18 +220,4 @@ function linesOf(result: HttpTestCaseResult): string[] {
   }
 
   return [];
-}
-
-function isSerializationFailure(error: unknown): boolean {
-  return isThymianError(error) && error.name === 'RequestSerializationError';
-}
-
-/**
- * The remediation an error brought with it.
- *
- * `options` is optional on the interface and absent on a plain `Error` — which
- * `isThymianError` accepts, since it asks for a shape rather than a class.
- */
-function suggestionsOf(error: unknown): string[] {
-  return isThymianError(error) ? (error.options?.suggestions ?? []) : [];
 }
