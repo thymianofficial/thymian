@@ -89,6 +89,25 @@ Thymian supports sharing and reusing rules across plugins and libraries. For exa
 
 This approach enables consistent validation, extensibility, and code reuse throughout the Thymian ecosystem.
 
+### Adding or extending a rule set
+
+One source document is one package, on this principle: **package = provenance, tag = concern,
+profile = strictness, coverage record = denominator**. Four rules a rule change must hold to:
+
+- A rule declares **every** validation context that can observe its assertion. `static`,
+  `test` and `analytics` are lifecycle stages, not a cost ladder, and declaring several is
+  what detects drift.
+- `informational` means no context is possible, and needs a reason from a closed vocabulary.
+- Severity carries strictness, not the RFC keyword. Keyword-to-severity tuning lives in the
+  package's profiles.
+- A spec package's coverage record is what makes partial coverage honest; the gap is computed
+  from a declared denominator.
+
+Invoke the `add-http-rule-set` skill to do the work — it carries the procedure.
+[ADR-0021](docs/arc42/adr/0021-http-security-rule-sets.md) is why. The older
+`generate-rfc-rule` and `extract-rules-from-rfc-chapter` skills contradict all four points
+above and are superseded.
+
 ---
 
 ## Deployment & Release
