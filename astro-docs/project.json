@@ -2,7 +2,7 @@
   "name": "astro",
   "$schema": "../node_modules/nx/schemas/project-schema.json",
   "comment": "package.json#scripts runs in the project root directory with astro assumes is where the node_modules is. which fails. so run the scripts in project.json#targets with --root command instead",
-  "implicitDependencies": ["*", "!core", "!rfc-9110-rules"],
+  "implicitDependencies": ["*", "!rfc-9110-rules"],
   "targets": {
     "serve": {
       "continuous": true,
@@ -12,7 +12,11 @@
       }
     },
     "build": {
-      "dependsOn": ["increaseCliDocsHeaderLevels", "generateSchemaDocs"],
+      "dependsOn": [
+        "increaseCliDocsHeaderLevels",
+        "generateSchemaDocs",
+        "generateRuleTagsDocs"
+      ],
       "command": "astro build",
       "options": {
         "cwd": "astro-docs"
@@ -43,6 +47,9 @@
     },
     "generateSchemaDocs": {
       "dependsOn": ["^generate-schema-docs"]
+    },
+    "generateRuleTagsDocs": {
+      "dependsOn": ["^generate-rule-tags-docs"]
     },
     "increaseCliDocsHeaderLevels": {
       "dependsOn": ["generateCliDocs"],

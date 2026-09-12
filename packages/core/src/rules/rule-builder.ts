@@ -16,6 +16,7 @@ import {
 import type { RuleFn } from './rule-fn.js';
 import type { HttpParticipantRole, RuleType } from './rule-meta.js';
 import { isRuleSeverityLevel, type RuleSeverity } from './rule-severity.js';
+import type { RuleTag } from './rule-tags.js';
 
 type ApiContextType<RuleTypes extends [RuleType, ...RuleType[]]> =
   RuleTypes[number] extends 'static'
@@ -124,7 +125,9 @@ interface DefineOptionalRuleMetaProperties<
 
   url(url: string): this;
 
-  tags(...tags: string[]): DefineOptionalRuleMetaProperties<RuleTypes, Options>;
+  tags(
+    ...tags: RuleTag[]
+  ): DefineOptionalRuleMetaProperties<RuleTypes, Options>;
 
   explanation(
     explanation: string,
@@ -197,7 +200,7 @@ class RuleBuilder<
     return this;
   }
 
-  tags(...tags: string[]): this {
+  tags(...tags: RuleTag[]): this {
     this.#rule.meta.tags = tags;
     return this;
   }

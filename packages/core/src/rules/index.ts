@@ -12,5 +12,6 @@ export * from './rule-meta.js';
 export * from './rule-runner.js';
 export * from './rule-set.js';
 export * from './rule-severity.js';
+export * from './rule-tags.js';
 export * from './rule-violation.js';
 export * from './traffic.js';

@@ -84,6 +84,15 @@ A named group of rules, consumed as a unit by a plugin or a configuration, and d
 as a package so it can be shared across projects, teams, and the wider community. May ship
 `Profile`s alongside its rules.
 
+**Rule Tag**:
+A closed, two-level `category:member` classification of what a rule is _about_ —
+`security`/`privacy` today — orthogonal to a `Rule Set`'s own topic organization (a directory,
+a chapter). Owned by core and exhaustive at both levels: adding a member is a union widening,
+not a config value. A tag on a rule is fully qualified and terminal; a _pattern_ matching
+against tags may be partial (a bare category, or a future third level), which is why the two
+are distinct types over the same string space.
+_In code_: `RuleTag`, narrows the builder's `.tags()` (`packages/core/src/rules/rule-tags.ts`).
+
 **Profile**:
 A named set of rule-configuration overrides that a rule set ships with its rules, so adopting
 a curated configuration is one line of `Config` rather than a pasted block. An exception list
