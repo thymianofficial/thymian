@@ -9,6 +9,7 @@ import { httpRule } from '@thymian/core';
  * required. The neighbouring, unconditionally-decidable case (If-Range with no
  * Range header at all) is handled by `server-must-ignore-if-range-without-range`.
  */
+// eslint-disable-next-line thymian-internal/require-rule-tags -- conditional-header applicability scoping, not a concern-axis topic
 export default httpRule(
   'rfc9110/origin-server-must-ignore-if-range-header-if-target-resource-does-not-support-range-requests',
 )

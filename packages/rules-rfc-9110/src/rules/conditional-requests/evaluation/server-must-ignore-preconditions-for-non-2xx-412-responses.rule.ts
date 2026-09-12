@@ -10,6 +10,7 @@ import {
   statusCodeRange,
 } from '@thymian/core';
 
+// eslint-disable-next-line thymian-internal/require-rule-tags -- conditional-header applicability scoping, not a concern-axis topic
 export default httpRule(
   'rfc9110/server-must-ignore-preconditions-for-non-2xx-412-responses',
 )

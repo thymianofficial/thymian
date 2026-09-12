@@ -34,6 +34,7 @@ function presentConditionalHeaders(req: CommonHttpRequest): string[] {
  * NAMES + status alone, so the common projection is sufficient and the check is
  * identical across the described transaction and recorded traffic.
  */
+// eslint-disable-next-line thymian-internal/require-rule-tags -- conditional-header applicability scoping, not a concern-axis topic
 export default httpRule(
   'rfc9110/server-must-ignore-conditionals-for-connect-options-trace',
 )

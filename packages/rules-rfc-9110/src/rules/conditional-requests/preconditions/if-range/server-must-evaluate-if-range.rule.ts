@@ -8,6 +8,7 @@ import { httpRule } from '@thymian/core';
  * and `recipient-should-process-range-header-if-if-range-matches` (the
  * condition-true case).
  */
+// eslint-disable-next-line thymian-internal/require-rule-tags -- precondition evaluation ordering, not a concern-axis topic
 export default httpRule('rfc9110/server-must-evaluate-if-range')
   .severity('error')
   .type('informational')

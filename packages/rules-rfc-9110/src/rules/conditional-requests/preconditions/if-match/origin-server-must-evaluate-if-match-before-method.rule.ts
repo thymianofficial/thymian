@@ -7,6 +7,7 @@ import { httpRule } from '@thymian/core';
  * when the condition fails) is enforced by
  * `origin-server-must-not-perform-method-when-if-match-fails`.
  */
+// eslint-disable-next-line thymian-internal/require-rule-tags -- precondition evaluation ordering, not a concern-axis topic
 export default httpRule(
   'rfc9110/origin-server-must-evaluate-if-match-before-method',
 )

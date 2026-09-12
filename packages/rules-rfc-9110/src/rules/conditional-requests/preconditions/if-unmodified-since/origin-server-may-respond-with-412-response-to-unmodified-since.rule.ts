@@ -9,6 +9,7 @@ import { httpRule } from '@thymian/core';
  * condition fails — is tested by
  * `origin-server-must-not-perform-method-when-if-unmodified-since-fails`.
  */
+// eslint-disable-next-line thymian-internal/require-rule-tags -- a MAY/SHOULD permission that is neither the mitigation nor the hazard
 export default httpRule(
   'rfc9110/origin-server-may-respond-with-412-response-to-unmodified-since',
 )

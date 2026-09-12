@@ -10,6 +10,7 @@ import { httpRule } from '@thymian/core';
  * If-Range is false — is actively tested by
  * `recipient-must-ignore-range-when-if-range-false`.
  */
+// eslint-disable-next-line thymian-internal/require-rule-tags -- conditional-header applicability scoping, not a concern-axis topic
 export default httpRule(
   'rfc9110/recipient-should-process-range-header-if-if-range-matches',
 )

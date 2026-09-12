@@ -676,3 +676,84 @@ describe('concern tag sweep — batch 5 (status-codes)', () => {
     }
   }, 30_000);
 });
+
+// Batch 6 of the sweep (thymian-workspace#98): conditional-requests — the only
+// directory the #90 census predicts at zero. All 39 files were read
+// individually rather than blanket-suppressed; two rules here embody the
+// corpus's recorded lost-update hazard, evidence for the not-yet-implemented
+// `reliability` concern rather than a gap in this axis.
+const conditionalRequestsRuleIds = [
+  'rfc9110/non-origin-server-must-not-evaluate-conditional-headers',
+  'rfc9110/server-must-evaluate-preconditions-after-normal-checks',
+  'rfc9110/server-must-evaluate-preconditions-in-correct-order',
+  'rfc9110/server-must-ignore-conditionals-for-connect-options-trace',
+  'rfc9110/server-must-ignore-preconditions-for-non-2xx-412-responses',
+  'rfc9110/cache-or-intermediary-may-ignore-if-match',
+  'rfc9110/client-may-send-if-match-header',
+  'rfc9110/origin-server-may-respond-with-2xx-response-even-condition-failed',
+  'rfc9110/origin-server-may-respond-with-412-response-to-conditional-request',
+  'rfc9110/origin-server-must-evaluate-if-match-before-method',
+  'rfc9110/origin-server-must-not-perform-method-when-if-match-fails',
+  'rfc9110/origin-server-must-use-strong-comparison-for-if-match',
+  'rfc9110/origin-server-should-evaluate-if-modified-since',
+  'rfc9110/origin-server-should-respond-304-when-if-modified-since-false',
+  'rfc9110/recipient-must-ignore-if-modified-since-for-non-get-head',
+  'rfc9110/recipient-must-ignore-if-modified-since-header-if-no-date-available',
+  'rfc9110/recipient-must-ignore-if-modified-since-when-if-none-match-present',
+  'rfc9110/recipient-must-interpret-if-modified-since-value-in-terms-of-servers-clock',
+  'rfc9110/client-should-generate-if-none-match-for-cache-updates',
+  'rfc9110/origin-server-must-evaluate-if-none-match-before-method',
+  'rfc9110/origin-server-must-respond-304-or-412-when-if-none-match-fails',
+  'rfc9110/recipient-must-use-weak-comparison-for-if-none-match',
+  'rfc9110/client-must-not-generate-if-range-header-containing-http-date',
+  'rfc9110/client-must-not-generate-if-range-with-weak-etag',
+  'rfc9110/client-must-not-generate-if-range-without-range',
+  'rfc9110/origin-server-must-ignore-if-range-header-if-target-resource-does-not-support-range-requests',
+  'rfc9110/recipient-must-ignore-range-when-if-range-false',
+  'rfc9110/recipient-should-process-range-header-if-if-range-matches',
+  'rfc9110/server-must-evaluate-if-range',
+  'rfc9110/server-must-ignore-if-range-without-range',
+  'rfc9110/cache-or-intermediary-may-ignore-if-unmodified-since',
+  'rfc9110/client-may-send-if-unmodified-since-header',
+  'rfc9110/origin-server-may-respond-with-2xx-response-even-condition-failed-for-unmodified-since',
+  'rfc9110/origin-server-may-respond-with-412-response-to-unmodified-since',
+  'rfc9110/origin-server-must-evaluate-if-unmodified-since',
+  'rfc9110/origin-server-must-not-perform-method-when-if-unmodified-since-fails',
+  'rfc9110/recipient-must-ignore-if-unmodified-since-header-if-no-date-available',
+  'rfc9110/recipient-must-ignore-if-unmodified-since-when-if-match-present',
+  'rfc9110/recipient-must-interpret-if-unmodified-since-value-in-terms-of-servers-clock',
+];
+
+describe('concern tag sweep — batch 6 (conditional-requests)', () => {
+  it('resolves every id in this batch to a real rule', async () => {
+    const rules = await loadRules('@thymian/rules-rfc-9110');
+    const ruleIds = new Set(rules.map((rule) => rule.meta.name));
+
+    for (const id of conditionalRequestsRuleIds) {
+      expect(ruleIds.has(id), `"${id}" is not a real rule`).toBe(true);
+    }
+  }, 30_000);
+
+  it('tags 0 of the 39 `conditional-requests` rules', async () => {
+    const rules = await loadRules('@thymian/rules-rfc-9110');
+    const byId = new Map(rules.map((rule) => [rule.meta.name, rule]));
+
+    expect(conditionalRequestsRuleIds.length).toBe(39);
+
+    const tagged = conditionalRequestsRuleIds.filter(
+      (id) => (byId.get(id)?.meta.tags?.length ?? 0) > 0,
+    );
+    expect(tagged.length).toBe(0);
+  }, 30_000);
+
+  it('carries no tag outside the exported vocabulary', async () => {
+    const rules = await loadRules('@thymian/rules-rfc-9110');
+    const byId = new Map(rules.map((rule) => [rule.meta.name, rule]));
+
+    for (const id of conditionalRequestsRuleIds) {
+      for (const tag of byId.get(id)?.meta.tags ?? []) {
+        expect(allRuleTags, `"${tag}" on "${id}"`).toContain(tag);
+      }
+    }
+  }, 30_000);
+});

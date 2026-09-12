@@ -21,6 +21,7 @@ import { httpRule, singleTestCase } from '@thymian/core';
  * asserts the server did not answer 206 (it must have ignored the now-orphaned
  * If-Range).
  */
+// eslint-disable-next-line thymian-internal/require-rule-tags -- conditional-header applicability scoping, not a concern-axis topic
 export default httpRule('rfc9110/server-must-ignore-if-range-without-range')
   .severity('error')
   .type('static', 'test', 'analytics')
