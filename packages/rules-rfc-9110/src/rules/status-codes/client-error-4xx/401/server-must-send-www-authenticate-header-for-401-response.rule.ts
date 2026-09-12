@@ -33,6 +33,7 @@ export default httpRule(
 )
   .severity('error')
   .type('static', 'analytics', 'test')
+  .tags('security:authentication')
   .url('https://www.rfc-editor.org/rfc/rfc9110.html#name-401-unauthorized')
   .options<Options>(optionSchema)
   .description(

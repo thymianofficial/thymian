@@ -6,6 +6,7 @@ export default httpRule(
 )
   .severity('error')
   .type('analytics')
+  .tags('security:authentication')
   .url(
     'https://www.rfc-editor.org/rfc/rfc9110.html#name-407-proxy-authentication-re',
   )
