@@ -6,6 +6,7 @@ export default httpRule('rfc9110/user-agent-must-handle-bad-certificate')
   // terminate) happens at the TLS layer and in UI; it is not represented in
   // recorded HTTP messages.
   .type('informational')
+  .tags('security:transport')
   .url(
     'https://www.rfc-editor.org/rfc/rfc9110.html#name-https-certificate-verificat',
   )

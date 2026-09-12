@@ -6,6 +6,7 @@ export default httpRule('rfc9110/client-must-construct-reference-identity')
   // internal certificate-verification logic at the transport layer; it leaves
   // no trace in recorded HTTP messages.
   .type('informational')
+  .tags('security:transport')
   .url(
     'https://www.rfc-editor.org/rfc/rfc9110.html#name-https-certificate-verificat',
   )

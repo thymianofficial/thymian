@@ -9,6 +9,7 @@ export default httpRule(
   // the wire value of a single Server field, and the limit is a subjective
   // judgment.
   .type('informational')
+  .tags('security:disclosure')
   .url('https://www.rfc-editor.org/rfc/rfc9110.html#name-server')
   .description(
     'An origin SHOULD limit the addition of subproducts by third parties.',

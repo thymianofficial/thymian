@@ -7,6 +7,7 @@ export default httpRule(
   // Presence of a client configuration setting is a product-capability
   // requirement; it cannot be detected from recorded HTTP traffic.
   .type('informational')
+  .tags('security:transport')
   .url(
     'https://www.rfc-editor.org/rfc/rfc9110.html#name-https-certificate-verificat',
   )

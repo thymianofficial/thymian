@@ -7,6 +7,7 @@ export default httpRule(
   // "limit to what is necessary to identify the product" is a subjective design
   // judgment with no objective threshold to test against.
   .type('informational')
+  .tags('privacy:fingerprinting')
   .url('https://www.rfc-editor.org/rfc/rfc9110.html#name-user-agent')
   .description(
     'A sender SHOULD limit generated product identifiers to what is necessary to identify the product.',

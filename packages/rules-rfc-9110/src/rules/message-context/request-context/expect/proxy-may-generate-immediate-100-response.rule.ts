@@ -1,5 +1,6 @@
 import { httpRule } from '@thymian/core';
 
+// eslint-disable-next-line thymian-internal/require-rule-tags -- no concern-tag member fits this rule's topic
 export default httpRule('rfc9110/proxy-may-generate-immediate-100-response')
   .severity('hint')
   // This is a permission (MAY generate a 100 response), not a testable

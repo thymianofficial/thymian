@@ -10,6 +10,7 @@ export default httpRule(
   // the wire value of a single User-Agent field, and the limit is a subjective
   // judgment.
   .type('informational')
+  .tags('privacy:fingerprinting')
   .url('https://www.rfc-editor.org/rfc/rfc9110.html#name-user-agent')
   .description(
     'A user agent SHOULD limit the addition of subproducts by third parties. Overly long and detailed User-Agent field values increase request latency and the risk of a user being identified against their wishes ("fingerprinting").',

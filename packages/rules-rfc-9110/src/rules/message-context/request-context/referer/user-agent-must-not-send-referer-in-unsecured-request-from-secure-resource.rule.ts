@@ -12,6 +12,7 @@ export default httpRule(
 )
   .severity('error')
   .type('analytics')
+  .tags('privacy:referrer')
   .url('https://www.rfc-editor.org/rfc/rfc9110.html#name-referer')
   .description(
     'A user agent MUST NOT send a Referer header field in an unsecured HTTP request if the referring resource was accessed with a secure protocol.',

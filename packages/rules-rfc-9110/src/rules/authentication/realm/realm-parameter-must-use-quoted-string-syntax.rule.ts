@@ -46,6 +46,7 @@ function scanForTokenSyntaxRealm(
   return [];
 }
 
+// eslint-disable-next-line thymian-internal/require-rule-tags -- no concern-tag member fits this rule's topic
 export default httpRule('rfc9110/realm-parameter-must-use-quoted-string-syntax')
   .severity('error')
   // The quoted-string requirement binds every *sender* of a `realm`

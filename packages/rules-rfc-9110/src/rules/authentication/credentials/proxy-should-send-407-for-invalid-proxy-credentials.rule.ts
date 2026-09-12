@@ -11,6 +11,7 @@ export default httpRule(
   // is no reliable non-conformant condition to detect. (It is also a proxy
   // behavior; Thymian is not the proxy, so `test` is not applicable either.)
   .type('informational')
+  .tags('security:authentication')
   .url('https://www.rfc-editor.org/rfc/rfc9110.html#name-credentials')
   .description(
     'Upon receipt of a request that omits proxy credentials or contains invalid or partial proxy credentials, a proxy that requires authentication SHOULD generate a 407 (Proxy Authentication Required) response with a Proxy-Authenticate header field.',
