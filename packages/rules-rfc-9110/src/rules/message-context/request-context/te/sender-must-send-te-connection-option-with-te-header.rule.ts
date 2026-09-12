@@ -8,12 +8,16 @@ import {
 } from '@thymian/core';
 import { httpRule } from '@thymian/core';
 
-// eslint-disable-next-line thymian-internal/require-rule-tags -- no concern-tag member fits this rule's topic
 export default httpRule(
   'rfc9110/sender-must-send-te-connection-option-with-te-header',
 )
   .severity('error')
   .type('static', 'analytics')
+  // Same hop-by-hop-connection-option shape as Upgrade and the general
+  // Connection-header cluster in routing/: a TE not marked as a connection
+  // option can be forwarded past the hop meant to consume it, leaking a
+  // field meant only for this hop on to the next as if it were end-to-end.
+  .tags('security:request-smuggling')
   .url('https://www.rfc-editor.org/rfc/rfc9110.html#name-te')
   .description(
     'A sender of TE MUST also send a "TE" connection option within the Connection header field to inform intermediaries not to forward this field.',

@@ -123,7 +123,7 @@ describe('concern tag sweep — batch 1 (identifiers, authentication, message-co
     expect(tagged.length).toBe(6);
   }, 30_000);
 
-  it('tags 14 of the 36 `message-context` rules', async () => {
+  it('tags 15 of the 36 `message-context` rules', async () => {
     const rules = await loadRules('@thymian/rules-rfc-9110');
     const byId = new Map(rules.map((rule) => [rule.meta.name, rule]));
 
@@ -132,7 +132,7 @@ describe('concern tag sweep — batch 1 (identifiers, authentication, message-co
     const tagged = messageContextRuleIds.filter(
       (id) => (byId.get(id)?.meta.tags?.length ?? 0) > 0,
     );
-    expect(tagged.length).toBe(14);
+    expect(tagged.length).toBe(15);
   }, 30_000);
 
   it('carries no tag outside the exported vocabulary', async () => {
