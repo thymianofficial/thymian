@@ -74,9 +74,10 @@ const depConstraintsTestFiles = depConstraintsProduction.map((constraint) => {
 export default [
   {
     // A suppression comment (e.g. on a rule with no .tags() call) must not
-    // outlive the warning it silences.
+    // outlive the warning it silences. 'error' so a stale suppression fails
+    // CI outright (thymian-workspace#99) rather than warning quietly.
     linterOptions: {
-      reportUnusedDisableDirectives: 'warn',
+      reportUnusedDisableDirectives: 'error',
     },
   },
   {
@@ -106,12 +107,18 @@ export default [
     // rooted at `packages/rules-*/...` (which only resolves from the repo
     // root). The rule itself only fires on an httpRule(...) chain, so a
     // same-named fixture with unrelated shape elsewhere is never a match.
+    //
+    // 'error': the expand step (thymian-workspace#92) warned while the RFC
+    // 9110 corpus was still being judged. All 402 rules are now judged
+    // (thymian-workspace#93-98) — a rule with neither a tag nor a
+    // suppression is no longer "not yet looked at", it is a build failure
+    // (thymian-workspace#99).
     files: ['**/*.rule.ts'],
     plugins: {
       'thymian-internal': thymianEslintRules,
     },
     rules: {
-      'thymian-internal/require-rule-tags': 'warn',
+      'thymian-internal/require-rule-tags': 'error',
     },
   },
   {

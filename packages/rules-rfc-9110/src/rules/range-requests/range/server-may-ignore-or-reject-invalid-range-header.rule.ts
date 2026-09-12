@@ -8,9 +8,6 @@ export default httpRule(
   // unordered ranges. The companion request-side rules already surface the
   // suspicious client behavior this permission responds to.
   .type('informational')
-  // The permission itself is the mitigation: the rule's own text names
-  // "a deliberate denial-of-service attack" as the reason a server may
-  // reject these shapes.
   .tags('security:dos')
   .url('https://www.rfc-editor.org/rfc/rfc9110.html#name-range')
   .description(

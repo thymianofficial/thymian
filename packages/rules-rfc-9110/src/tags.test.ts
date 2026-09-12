@@ -1,4 +1,4 @@
-import { allRuleTags, loadRules } from '@thymian/core';
+import { allRuleTags, loadRules, ruleTagVocabulary } from '@thymian/core';
 import { describe, expect, it } from 'vitest';
 
 // Batch 1 of the concern-tag sweep (thymian-workspace#93): identifiers,
@@ -753,6 +753,60 @@ describe('concern tag sweep — batch 6 (conditional-requests)', () => {
     for (const id of conditionalRequestsRuleIds) {
       for (const tag of byId.get(id)?.meta.tags ?? []) {
         expect(allRuleTags, `"${tag}" on "${id}"`).toContain(tag);
+      }
+    }
+  }, 30_000);
+});
+
+// The completeness gate (thymian-workspace#99). `tagged + suppressed === 402`
+// is enforced by the lint lane itself (thymian-internal/require-rule-tags is
+// now 'error', and a stale suppression is too) — expressing that equation
+// again here would be a second implementation of the same fact. What belongs
+// at this seam instead is what only the real loader, glob and builder can
+// answer for all 402 files at once: the actual corpus-wide tag count, and
+// that nothing at runtime escaped the closed vocabulary.
+//
+// The #90 census predicted 84 tags. The actual, individually-judged count is
+// 81 — three single-rule deviations from the prediction, each already flagged
+// in its own batch's PR rather than force-fit to the predicted number:
+// `identifiers` (#398, 12 of 13), `representation-data-and-metadata` (#399, 9
+// of 10) and `status-codes` (#402, 4 of 5). The bar this gate holds is policy
+// conformance — every tag traces to one of the three policies — not agreement
+// with a number written before anyone had read the corpus.
+describe('concern tag sweep — completeness (thymian-workspace#99)', () => {
+  it('judges every one of the 402 rules in the package', async () => {
+    const rules = await loadRules('@thymian/rules-rfc-9110');
+
+    expect(rules.length).toBe(402);
+  }, 30_000);
+
+  it('tags exactly 81 rules corpus-wide', async () => {
+    const rules = await loadRules('@thymian/rules-rfc-9110');
+    const tagged = rules.filter((rule) => (rule.meta.tags?.length ?? 0) > 0);
+
+    expect(tagged.length).toBe(81);
+  }, 30_000);
+
+  it('carries no tag outside the exported vocabulary, for every rule', async () => {
+    const rules = await loadRules('@thymian/rules-rfc-9110');
+
+    for (const rule of rules) {
+      for (const tag of rule.meta.tags ?? []) {
+        expect(allRuleTags, `"${tag}" on "${rule.meta.name}"`).toContain(tag);
+      }
+    }
+  }, 30_000);
+
+  it('never carries a bare category as a rule tag', async () => {
+    const rules = await loadRules('@thymian/rules-rfc-9110');
+    const bareCategories = Object.keys(ruleTagVocabulary);
+
+    for (const rule of rules) {
+      for (const tag of rule.meta.tags ?? []) {
+        expect(
+          bareCategories,
+          `"${tag}" on "${rule.meta.name}" is a bare category, not a terminal tag`,
+        ).not.toContain(tag);
       }
     }
   }, 30_000);

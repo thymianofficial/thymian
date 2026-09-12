@@ -7,9 +7,6 @@ export default httpRule(
 )
   .severity('error')
   .type('analytics')
-  // An unbounded decimal numeral is an oversized/malformed-input DoS vector
-  // against the parser, not just a correctness edge case — the rule's own
-  // explanation names "crash the parser" as the consequence of skipping this.
   .tags('security:dos')
   .url('https://www.rfc-editor.org/rfc/rfc9110.html#name-byte-ranges')
   .description(
