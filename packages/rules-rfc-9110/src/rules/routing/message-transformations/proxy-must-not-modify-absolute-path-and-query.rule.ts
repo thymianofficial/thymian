@@ -4,6 +4,7 @@ import { forwardingHops } from '../utils/forwarding.js';
 
 const normalizePath = (path: string): string => (path === '' ? '/' : path);
 
+// eslint-disable-next-line thymian-internal/require-rule-tags -- misrouting hazard — reliability concern, not security/privacy
 export default httpRule('rfc9110/proxy-must-not-modify-absolute-path-and-query')
   .severity('error')
   .type('analytics')

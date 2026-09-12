@@ -150,3 +150,143 @@ describe('concern tag sweep — batch 1 (identifiers, authentication, message-co
     }
   }, 30_000);
 });
+
+// Batch 2 of the concern-tag sweep (thymian-workspace#94): routing,
+// representation-data-and-metadata — the directory carrying most of the
+// corpus's framing-integrity (`security:request-smuggling`) cluster.
+
+const routingRuleIds = [
+  'rfc9110/client-must-not-use-special-request-target-forms-with-other-methods',
+  'rfc9110/client-should-continue-sending-request-when-response-arrives',
+  'rfc9110/intermediary-must-parse-and-remove-connection-fields',
+  'rfc9110/intermediary-should-remove-known-hop-by-hop-fields',
+  'rfc9110/sender-must-list-connection-specific-field-in-connection-header',
+  'rfc9110/sender-must-not-send-end-to-end-fields-as-connection-options',
+  'rfc9110/intermediary-must-implement-connection-header',
+  'rfc9110/intermediary-must-not-forward-message-to-itself',
+  'rfc9110/intermediary-must-check-and-update-max-forwards',
+  'rfc9110/intermediary-must-generate-updated-max-forwards-when-forwarding',
+  'rfc9110/intermediary-must-not-forward-when-max-forwards-is-zero',
+  'rfc9110/intermediary-must-respond-as-final-recipient-when-max-forward-is-zero',
+  'rfc9110/recipient-may-ignore-max-forwards-for-other-methods',
+  'rfc9110/firewall-intermediary-should-not-forward-internal-hosts',
+  'rfc9110/firewall-intermediary-should-replace-internal-hosts-with-pseudonyms',
+  'rfc9110/gateway-may-send-via-header-in-responses',
+  'rfc9110/gateway-must-send-via-header-in-inbound-requests',
+  'rfc9110/intermediary-may-combine-via-entries-with-identical-protocols',
+  'rfc9110/proxy-must-send-via-header',
+  'rfc9110/recipient-may-interpret-missing-port-as-default',
+  'rfc9110/recipient-may-remove-comments-before-forwarding',
+  'rfc9110/sender-may-generate-comments-to-identify-software',
+  'rfc9110/sender-may-replace-host-with-pseudonym',
+  'rfc9110/sender-must-not-combine-via-entries-with-different-protocols',
+  'rfc9110/sender-should-not-combine-via-entries-unless-same-organization',
+  'rfc9110/proxy-may-add-domain-to-non-fqdn-hostname',
+  'rfc9110/proxy-may-transform-content-without-no-transform-directive',
+  'rfc9110/proxy-must-not-change-fqdn-hostname',
+  'rfc9110/proxy-must-not-modify-absolute-path-and-query',
+  'rfc9110/proxy-must-not-transform-content-with-no-transform-directive',
+  'rfc9110/proxy-should-not-modify-endpoint-and-representation-headers',
+  'rfc9110/origin-server-must-reject-https-requests-without-valid-certificate',
+  'rfc9110/origin-server-must-reject-requests-not-meeting-scheme-requirements',
+  'rfc9110/client-may-send-upgrade-header',
+  'rfc9110/recipient-should-use-case-insensitive-comparison-for-protocol-names',
+  'rfc9110/sender-must-send-upgrade-connection-option',
+  'rfc9110/server-may-ignore-client-protocol-preference-order',
+  'rfc9110/server-may-ignore-upgrade-header',
+  'rfc9110/server-may-send-upgrade-header-in-other-responses',
+  'rfc9110/server-must-ignore-upgrade-in-http-1.0-request',
+  'rfc9110/server-must-list-protocols-in-layer-ascending-order',
+  'rfc9110/server-must-not-switch-to-non-indicated-protocol',
+  'rfc9110/server-must-not-switch-unless-semantics-can-be-honored',
+  'rfc9110/server-must-send-100-before-101-with-expect-header',
+  'rfc9110/server-must-send-upgrade-header-in-101-response',
+  'rfc9110/server-must-send-upgrade-header-in-426-response',
+  'rfc9110/user-agent-must-generate-host-or-authority-header',
+  'rfc9110/user-agent-should-send-host-as-first-header',
+];
+
+const representationRuleIds = [
+  'rfc9110/content-encoding-should-not-include-identity',
+  'rfc9110/origin-server-may-respond-415-for-unacceptable-content-coding',
+  'rfc9110/recipient-should-treat-x-compress-as-compress',
+  'rfc9110/recipient-should-treat-x-gzip-as-gzip',
+  'rfc9110/sender-must-generate-content-encoding-header-if-encodings-applied',
+  'rfc9110/content-language-may-be-applied-to-any-media-type',
+  'rfc9110/multiple-languages-may-be-listed-for-multiple-audiences',
+  'rfc9110/origin-server-should-send-content-length-when-size-known',
+  'rfc9110/recipient-must-handle-large-content-length',
+  'rfc9110/sender-must-not-forward-incorrect-content-length',
+  'rfc9110/sender-must-not-forward-message-with-incorrect-content-length-header',
+  'rfc9110/sender-must-not-forward-message-with-invalid-content-length',
+  'rfc9110/server-may-send-content-length-for-304',
+  'rfc9110/server-may-send-content-length-for-head-response',
+  'rfc9110/server-must-not-send-content-length-for-1xx-or-204',
+  'rfc9110/server-must-not-send-content-length-for-2xx-connect-response',
+  'rfc9110/user-agent-should-not-send-content-length-without-content',
+  'rfc9110/user-agent-should-send-content-length-for-request-with-defined-content',
+  'rfc9110/content-location-201-response-semantics',
+  'rfc9110/content-location-semantics-for-2xx-response',
+  'rfc9110/origin-server-must-treat-content-location-as-transitory-context',
+  'rfc9110/recipient-may-assume-media-type-or-determine-its-type',
+  'rfc9110/sender-must-only-generate-crlf-for-line-breaks-between-parts',
+  'rfc9110/sender-should-generate-content-type-for-message-with-content',
+  'rfc9110/etag-must-differ-for-different-content-encodings',
+  'rfc9110/etag-strong-comparison-rules',
+  'rfc9110/etag-weak-comparison-rules',
+  'rfc9110/origin-server-must-mark-weak-entity-tag',
+  'rfc9110/origin-server-should-avoid-backslash-in-entity-tags',
+  'rfc9110/origin-server-should-send-etag',
+  'rfc9110/sender-may-send-etag-in-trailer',
+  'rfc9110/origin-server-should-obtain-last-modified-close-to-date-generation',
+  'rfc9110/origin-server-should-send-last-modified',
+  'rfc9110/origin-server-with-clock-must-not-generate-future-last-modified',
+  'rfc9110/origin-server-without-clock-must-not-generate-last-modified',
+  'rfc9110/origin-server-should-change-weak-entity-tag-for-unacceptable-representations',
+];
+
+describe('concern tag sweep — batch 2 (routing, representation-data-and-metadata)', () => {
+  it('resolves every id in this batch to a real rule', async () => {
+    const rules = await loadRules('@thymian/rules-rfc-9110');
+    const ruleIds = new Set(rules.map((rule) => rule.meta.name));
+
+    for (const id of [...routingRuleIds, ...representationRuleIds]) {
+      expect(ruleIds.has(id), `"${id}" is not a real rule`).toBe(true);
+    }
+  }, 30_000);
+
+  it('tags 18 of the 48 `routing` rules', async () => {
+    const rules = await loadRules('@thymian/rules-rfc-9110');
+    const byId = new Map(rules.map((rule) => [rule.meta.name, rule]));
+
+    expect(routingRuleIds.length).toBe(48);
+
+    const tagged = routingRuleIds.filter(
+      (id) => (byId.get(id)?.meta.tags?.length ?? 0) > 0,
+    );
+    expect(tagged.length).toBe(18);
+  }, 30_000);
+
+  it('tags 9 of the 36 `representation-data-and-metadata` rules', async () => {
+    const rules = await loadRules('@thymian/rules-rfc-9110');
+    const byId = new Map(rules.map((rule) => [rule.meta.name, rule]));
+
+    expect(representationRuleIds.length).toBe(36);
+
+    const tagged = representationRuleIds.filter(
+      (id) => (byId.get(id)?.meta.tags?.length ?? 0) > 0,
+    );
+    expect(tagged.length).toBe(9);
+  }, 30_000);
+
+  it('carries no tag outside the exported vocabulary', async () => {
+    const rules = await loadRules('@thymian/rules-rfc-9110');
+    const byId = new Map(rules.map((rule) => [rule.meta.name, rule]));
+
+    for (const id of [...routingRuleIds, ...representationRuleIds]) {
+      for (const tag of byId.get(id)?.meta.tags ?? []) {
+        expect(allRuleTags, `"${tag}" on "${id}"`).toContain(tag);
+      }
+    }
+  }, 30_000);
+});

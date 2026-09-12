@@ -1,5 +1,6 @@
 import { httpRule } from '@thymian/core';
 
+// eslint-disable-next-line thymian-internal/require-rule-tags -- cache-invalidation correctness, not a concern this vocabulary covers
 export default httpRule(
   'rfc9110/origin-server-should-change-weak-entity-tag-for-unacceptable-representations',
 )

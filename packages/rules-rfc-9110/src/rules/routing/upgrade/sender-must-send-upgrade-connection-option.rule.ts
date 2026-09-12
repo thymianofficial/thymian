@@ -4,6 +4,8 @@ import { httpRule } from '@thymian/core';
 export default httpRule('rfc9110/sender-must-send-upgrade-connection-option')
   .severity('error')
   .type('analytics')
+  // The same hop-by-hop-connection-option shape as the Connection-header cluster above: an Upgrade not marked as a connection option can be forwarded past the hop meant to consume it, letting two hops disagree about protocol state on the connection.
+  .tags('security:request-smuggling')
   .url('https://www.rfc-editor.org/rfc/rfc9110.html#name-upgrade')
   .description(
     'A sender of Upgrade MUST also send an "Upgrade" connection option in the Connection header field to inform intermediaries not to forward this field. This ensures the Upgrade header is treated as a hop-by-hop header.',

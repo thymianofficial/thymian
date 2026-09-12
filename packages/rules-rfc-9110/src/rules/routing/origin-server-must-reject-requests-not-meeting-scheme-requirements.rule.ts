@@ -6,6 +6,7 @@ export default httpRule(
   .severity('error')
   // Judging whether a request met the scheme requirements needs the connection/transport context (e.g. TLS state) that is not available from the HTTP message alone.
   .type('informational')
+  .tags('security:transport')
   .url(
     'https://www.rfc-editor.org/rfc/rfc9110.html#name-rejecting-misdirected-reque',
   )

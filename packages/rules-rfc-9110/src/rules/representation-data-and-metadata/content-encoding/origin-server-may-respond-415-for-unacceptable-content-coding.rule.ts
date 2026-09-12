@@ -1,5 +1,6 @@
 import { httpRule } from '@thymian/core';
 
+// eslint-disable-next-line thymian-internal/require-rule-tags -- permissive MAY — no hazard in the permission
 export default httpRule(
   'rfc9110/origin-server-may-respond-415-for-unacceptable-content-coding',
 )

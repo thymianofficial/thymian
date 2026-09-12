@@ -8,6 +8,8 @@ export default httpRule(
   // received framing) requires the upstream message framing and intermediary
   // role that the engine does not have.
   .type('informational')
+  // A Content-Length inconsistent with the received framing, once forwarded, is precisely the request-smuggling/response-splitting shape this rule's own description names.
+  .tags('security:request-smuggling')
   .appliesTo('intermediary')
   .url('https://www.rfc-editor.org/rfc/rfc9110.html#section-8.6')
   .description(

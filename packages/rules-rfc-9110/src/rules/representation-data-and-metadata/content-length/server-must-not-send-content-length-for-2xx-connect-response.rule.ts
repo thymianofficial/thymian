@@ -6,6 +6,8 @@ export default httpRule(
 )
   .severity('error')
   .type('static', 'test', 'analytics')
+  // After a successful CONNECT the connection is an opaque tunnel with no HTTP framing; a Content-Length here would falsely mark a body boundary in what is no longer a framed message at all.
+  .tags('security:request-smuggling')
   .appliesTo('origin server')
   .url('https://www.rfc-editor.org/rfc/rfc9110.html#section-8.6')
   .description(

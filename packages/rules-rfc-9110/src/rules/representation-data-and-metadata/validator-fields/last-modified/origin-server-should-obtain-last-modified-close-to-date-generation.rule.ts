@@ -1,5 +1,6 @@
 import { httpRule } from '@thymian/core';
 
+// eslint-disable-next-line thymian-internal/require-rule-tags -- internal timing detail, not a concern this vocabulary covers
 export default httpRule(
   'rfc9110/origin-server-should-obtain-last-modified-close-to-date-generation',
 )

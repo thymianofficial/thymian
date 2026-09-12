@@ -1,6 +1,7 @@
 import { and, not, responseHeader, statusCodeRange } from '@thymian/core';
 import { httpRule } from '@thymian/core';
 
+// eslint-disable-next-line thymian-internal/require-rule-tags -- cache-efficiency presence rule, not a concern this vocabulary covers
 export default httpRule('rfc9110/origin-server-should-send-last-modified')
   .severity('warn')
   .type('static', 'test', 'analytics')

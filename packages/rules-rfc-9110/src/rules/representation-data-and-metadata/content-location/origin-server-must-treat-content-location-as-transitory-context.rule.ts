@@ -1,5 +1,6 @@
 import { httpRule } from '@thymian/core';
 
+// eslint-disable-next-line thymian-internal/require-rule-tags -- server-internal handling with no vocabulary member that fits without forcing one
 export default httpRule(
   'rfc9110/origin-server-must-treat-content-location-as-transitory-context',
 )

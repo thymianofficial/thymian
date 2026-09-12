@@ -1,5 +1,6 @@
 import { httpRule } from '@thymian/core';
 
+// eslint-disable-next-line thymian-internal/require-rule-tags -- internal comparison detail with no observable artifact
 export default httpRule(
   'rfc9110/recipient-should-use-case-insensitive-comparison-for-protocol-names',
 )

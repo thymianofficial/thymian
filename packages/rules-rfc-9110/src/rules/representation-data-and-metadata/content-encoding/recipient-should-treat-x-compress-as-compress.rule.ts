@@ -1,5 +1,6 @@
 import { httpRule } from '@thymian/core';
 
+// eslint-disable-next-line thymian-internal/require-rule-tags -- interop aliasing, not a concern this vocabulary covers
 export default httpRule('rfc9110/recipient-should-treat-x-compress-as-compress')
   .severity('hint')
   // Constrains how a recipient decodes an "x-compress" coding internally (treat

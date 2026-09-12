@@ -5,6 +5,7 @@ import {
   type RuleFnResult,
 } from '@thymian/core';
 
+// eslint-disable-next-line thymian-internal/require-rule-tags -- cache/range-request correctness, not a concern this vocabulary covers
 export default httpRule(
   'rfc9110/etag-must-differ-for-different-content-encodings',
 )

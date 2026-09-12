@@ -17,6 +17,7 @@ function parseMediaType(value: string): string {
   return mediaType.trim().toLowerCase();
 }
 
+// eslint-disable-next-line thymian-internal/require-rule-tags -- permissive MAY, scope of applicability — no hazard in the permission
 export default httpRule(
   'rfc9110/content-language-may-be-applied-to-any-media-type',
 )

@@ -9,6 +9,8 @@ export default httpRule(
   // framing/length seen upstream and intermediary role correlation the engine
   // cannot reconstruct.
   .type('informational')
+  // Forwarding a Content-Length known to be wrong lets the next hop frame the message differently than this hop did — the message-boundary disagreement the request-smuggling tag exists for.
+  .tags('security:request-smuggling')
   .appliesTo('intermediary')
   .url('https://www.rfc-editor.org/rfc/rfc9110.html#section-8.6')
   .description(

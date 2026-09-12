@@ -1,5 +1,6 @@
 import { httpRule } from '@thymian/core';
 
+// eslint-disable-next-line thymian-internal/require-rule-tags -- cache-validation comparison algorithm, not a concern this vocabulary covers
 export default httpRule('rfc9110/etag-weak-comparison-rules')
   .severity('off')
   // Defines the weak-comparison algorithm a recipient must apply internally when

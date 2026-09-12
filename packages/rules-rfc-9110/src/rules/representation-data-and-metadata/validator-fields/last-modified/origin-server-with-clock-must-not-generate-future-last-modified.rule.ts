@@ -2,6 +2,7 @@ import type { RuleViolationLocation } from '@thymian/core';
 import { and, getHeader, responseHeader } from '@thymian/core';
 import { httpRule } from '@thymian/core';
 
+// eslint-disable-next-line thymian-internal/require-rule-tags -- cache-freshness correctness, not a concern this vocabulary covers
 export default httpRule(
   'rfc9110/origin-server-with-clock-must-not-generate-future-last-modified',
 )

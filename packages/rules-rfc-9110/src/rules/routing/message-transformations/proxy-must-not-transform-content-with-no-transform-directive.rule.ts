@@ -1,6 +1,7 @@
 import { getHeader, type RuleFnResult } from '@thymian/core';
 import { httpRule } from '@thymian/core';
 
+// eslint-disable-next-line thymian-internal/require-rule-tags -- content-integrity preservation with no vocabulary member that fits without forcing one
 export default httpRule(
   'rfc9110/proxy-must-not-transform-content-with-no-transform-directive',
 )

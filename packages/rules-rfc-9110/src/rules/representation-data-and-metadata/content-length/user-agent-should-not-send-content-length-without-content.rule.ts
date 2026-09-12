@@ -14,6 +14,8 @@ export default httpRule(
 )
   .severity('warn')
   .type('analytics')
+  // A Content-Length on a bodyless request signals data that never arrives, confusing servers and intermediaries about message framing and, in the worst case, being leveraged for request smuggling.
+  .tags('security:request-smuggling')
   .appliesTo('user-agent', 'client')
   .url('https://www.rfc-editor.org/rfc/rfc9110.html#section-8.6')
   .description(

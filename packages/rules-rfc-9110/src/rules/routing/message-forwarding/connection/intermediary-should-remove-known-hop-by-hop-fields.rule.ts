@@ -15,6 +15,8 @@ export default httpRule(
 )
   .severity('warn')
   .type('analytics')
+  // Transfer-Encoding and Upgrade are named here explicitly: forwarding either past the hop that should have consumed it is the classic framing-desync shape, even though the RFC calls this "hop-by-hop field" handling rather than smuggling.
+  .tags('security:request-smuggling')
   .url('https://www.rfc-editor.org/rfc/rfc9110.html#name-connection')
   .description(
     "Intermediaries SHOULD remove or replace fields that are known to require removal before forwarding, whether or not they appear as a connection-option, after applying those fields' semantics. This includes but is not limited to: Proxy-Connection, Keep-Alive, TE, Transfer-Encoding, and Upgrade.",

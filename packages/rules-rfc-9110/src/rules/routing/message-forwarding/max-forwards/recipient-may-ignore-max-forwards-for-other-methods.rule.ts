@@ -1,5 +1,6 @@
 import { httpRule } from '@thymian/core';
 
+// eslint-disable-next-line thymian-internal/require-rule-tags -- permissive MAY; Max-Forwards only mitigates loops for TRACE/OPTIONS, so ignoring it elsewhere is not the hazard
 export default httpRule(
   'rfc9110/recipient-may-ignore-max-forwards-for-other-methods',
 )

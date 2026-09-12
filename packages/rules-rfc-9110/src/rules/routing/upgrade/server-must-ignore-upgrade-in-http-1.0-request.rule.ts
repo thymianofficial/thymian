@@ -1,5 +1,6 @@
 import { httpRule } from '@thymian/core';
 
+// eslint-disable-next-line thymian-internal/require-rule-tags -- protocol-version compatibility handling, not a concern this vocabulary covers
 export default httpRule(
   'rfc9110/server-must-ignore-upgrade-in-http-1.0-request',
 )

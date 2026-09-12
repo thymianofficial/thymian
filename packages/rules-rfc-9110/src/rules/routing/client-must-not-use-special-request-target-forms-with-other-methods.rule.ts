@@ -1,6 +1,7 @@
 import { constant } from '@thymian/core';
 import { httpRule } from '@thymian/core';
 
+// eslint-disable-next-line thymian-internal/require-rule-tags -- misuse of request-target form is a misrouting/interop hazard, not a concern this vocabulary covers
 export default httpRule(
   'rfc9110/client-must-not-use-special-request-target-forms-with-other-methods',
 )

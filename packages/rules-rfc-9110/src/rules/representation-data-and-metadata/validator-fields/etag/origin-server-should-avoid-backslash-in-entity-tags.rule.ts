@@ -2,6 +2,7 @@ import type { RuleViolationLocation } from '@thymian/core';
 import { getHeader, responseHeader } from '@thymian/core';
 import { httpRule } from '@thymian/core';
 
+// eslint-disable-next-line thymian-internal/require-rule-tags -- interop/parsing-compat correctness, not a concern this vocabulary covers
 export default httpRule(
   'rfc9110/origin-server-should-avoid-backslash-in-entity-tags',
 )
