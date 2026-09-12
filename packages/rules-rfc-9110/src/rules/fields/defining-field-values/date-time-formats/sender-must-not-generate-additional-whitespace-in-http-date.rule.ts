@@ -49,6 +49,7 @@ function hasAdditionalWhitespace(value: string): boolean {
   return /\t/.test(value) || / {2,}/.test(value) || value !== value.trim();
 }
 
+// eslint-disable-next-line thymian-internal/require-rule-tags -- no concern-tag member fits this rule's topic
 export default httpRule(
   'rfc9110/sender-must-not-generate-additional-whitespace-in-http-date',
 )

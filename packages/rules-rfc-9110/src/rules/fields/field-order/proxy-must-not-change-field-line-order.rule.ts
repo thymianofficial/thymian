@@ -18,6 +18,7 @@ function fieldLineValues(
   return list.length > 1 ? list.map((v) => v.trim()) : undefined;
 }
 
+// eslint-disable-next-line thymian-internal/require-rule-tags -- no concern-tag member fits this rule's topic
 export default httpRule('rfc9110/proxy-must-not-change-field-line-order')
   .severity('error')
   .type('analytics')

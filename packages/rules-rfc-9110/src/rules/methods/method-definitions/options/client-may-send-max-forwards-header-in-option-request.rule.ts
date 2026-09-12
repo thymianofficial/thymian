@@ -14,6 +14,7 @@ import {
 // the MAY is the field's syntax — RFC 9110 §7.6.2 defines Max-Forwards =
 // 1*DIGIT. So this analytics rule fires only when a Max-Forwards value is
 // present but is not a non-negative decimal integer.
+// eslint-disable-next-line thymian-internal/require-rule-tags -- no concern-tag member fits this rule's topic
 export default httpRule(
   'rfc9110/client-may-send-max-forwards-header-in-option-request',
 )

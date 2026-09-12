@@ -44,6 +44,7 @@ function hasEmptyListElement(value: string): boolean {
   return elements.some((element) => element.trim() === '');
 }
 
+// eslint-disable-next-line thymian-internal/require-rule-tags -- no concern-tag member fits this rule's topic
 export default httpRule('rfc9110/sender-must-not-generate-empty-list-elements')
   .severity('error')
   .type('test', 'analytics')

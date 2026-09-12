@@ -4,6 +4,7 @@ import { httpRule } from '@thymian/core';
 // values are computable only while generating content. There is no
 // non-conformant condition to detect (omitting such a header is explicitly
 // permitted).
+// eslint-disable-next-line thymian-internal/require-rule-tags -- no concern-tag member fits this rule's topic
 export default httpRule(
   'rfc9110/server-may-omit-header-fields-for-head-response',
 )

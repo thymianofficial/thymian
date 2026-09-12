@@ -4,6 +4,7 @@ import { httpRule } from '@thymian/core';
 // follow a 3xx response to a PUT. The decision is internal to the user agent
 // and is not required either way, so there is no non-conformant condition to
 // detect.
+// eslint-disable-next-line thymian-internal/require-rule-tags -- no concern-tag member fits this rule's topic
 export default httpRule(
   'rfc9110/user-agent-may-make-own-decision-to-redirect-request-for-3xx-response-to-put-request',
 )

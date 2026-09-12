@@ -6,6 +6,7 @@ import { httpRule } from '@thymian/core';
 // across two requests, which is infrastructure-dependent; but since the
 // statement is permissive (a MAY) there is nothing to flag even if that
 // linkage were available.
+// eslint-disable-next-line thymian-internal/require-rule-tags -- no concern-tag member fits this rule's topic
 export default httpRule(
   'rfc9110/cache-may-use-responses-to-get-for-satisfy-subsequent-get-and-head-requests',
 )

@@ -1,6 +1,7 @@
 import { and, method, not, statusCode } from '@thymian/core';
 import { httpRule, type RuleFnResult, singleTestCase } from '@thymian/core';
 
+// eslint-disable-next-line thymian-internal/require-rule-tags -- no concern-tag member fits this rule's topic
 export default httpRule(
   'rfc9110/origin-server-may-redirect-for-existing-resource-for-201-response',
 )

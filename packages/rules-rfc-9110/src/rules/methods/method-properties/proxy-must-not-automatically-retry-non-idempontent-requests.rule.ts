@@ -6,6 +6,7 @@ import { httpRule } from '@thymian/core';
 // captured transaction does not mark a request as a retry, and a typical HAR
 // does not expose the proxy's upstream re-attempts, so the retry behavior is
 // not observable in our model.
+// eslint-disable-next-line thymian-internal/require-rule-tags -- no concern-tag member fits this rule's topic
 export default httpRule(
   'rfc9110/proxy-must-not-automatically-retry-non-idempontent-requests',
 )

@@ -7,6 +7,7 @@ import { httpRule } from '@thymian/core';
 // method to observe the response status for. A HAR likewise will not contain a
 // request the server treats as unrecognized in any identifiable way. The
 // triggering condition is therefore not observable.
+// eslint-disable-next-line thymian-internal/require-rule-tags -- no concern-tag member fits this rule's topic
 export default httpRule(
   'rfc9110/origin-server-should-send-501-response-for-unrecognized-method',
 )
