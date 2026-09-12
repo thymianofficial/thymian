@@ -65,7 +65,8 @@
   "workspaces": [
     "packages/*",
     "astro-docs",
-    "e2e-tests"
+    "e2e-tests",
+    "tools/*"
   ],
   "nx": {
     "includedScripts": [],

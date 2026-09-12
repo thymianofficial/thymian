@@ -1,6 +1,8 @@
 import nx from '@nx/eslint-plugin';
 import eslintPluginSimpleImportSort from 'eslint-plugin-simple-import-sort';
 
+import thymianEslintRules from './tools/eslint-rules/index.js';
+
 const depConstraintsProduction = [
   // Dimension: scope
   // scope:cli can only access core, cli, plugin, and rules (thymian CLI app aggregates plugins)
@@ -71,6 +73,13 @@ const depConstraintsTestFiles = depConstraintsProduction.map((constraint) => {
 
 export default [
   {
+    // A suppression comment (e.g. on a rule with no .tags() call) must not
+    // outlive the warning it silences.
+    linterOptions: {
+      reportUnusedDisableDirectives: 'warn',
+    },
+  },
+  {
     plugins: {
       'simple-import-sort': eslintPluginSimpleImportSort,
     },
@@ -90,6 +99,20 @@ export default [
       'node_modules',
       '**/.astro',
     ],
+  },
+  {
+    // Nx's inferred lint target runs `eslint .` with cwd set to each
+    // project's own root, so this must stay cwd-agnostic rather than
+    // rooted at `packages/rules-*/...` (which only resolves from the repo
+    // root). The rule itself only fires on an httpRule(...) chain, so a
+    // same-named fixture with unrelated shape elsewhere is never a match.
+    files: ['**/*.rule.ts'],
+    plugins: {
+      'thymian-internal': thymianEslintRules,
+    },
+    rules: {
+      'thymian-internal/require-rule-tags': 'warn',
+    },
   },
   {
     files: ['**/*.ts', '**/*.js'],
