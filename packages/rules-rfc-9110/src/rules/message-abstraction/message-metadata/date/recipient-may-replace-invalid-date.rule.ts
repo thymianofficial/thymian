@@ -4,6 +4,7 @@ import { httpRule } from '@thymian/core';
 // Date value with the reception time). It is a local processing choice with no
 // non-conformant condition observable in the transaction, so there is nothing
 // to validate.
+// eslint-disable-next-line thymian-internal/require-rule-tags -- no concern-tag member fits this rule's topic
 export default httpRule('rfc9110/recipient-may-replace-invalid-date')
   .severity('hint')
   .type('informational')

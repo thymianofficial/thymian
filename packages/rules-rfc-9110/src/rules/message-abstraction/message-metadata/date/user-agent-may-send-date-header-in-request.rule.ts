@@ -1,6 +1,7 @@
 import { not, requestHeader } from '@thymian/core';
 import { httpRule } from '@thymian/core';
 
+// eslint-disable-next-line thymian-internal/require-rule-tags -- no concern-tag member fits this rule's topic
 export default httpRule('rfc9110/user-agent-may-send-date-header-in-request')
   .severity('hint')
   .type('analytics')

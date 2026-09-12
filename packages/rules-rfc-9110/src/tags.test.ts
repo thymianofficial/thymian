@@ -451,3 +451,103 @@ describe('concern tag sweep — batch 3 (content-negotiation, fields, methods)',
     }
   }, 30_000);
 });
+
+const rangeRequestsRuleIds = [
+  'rfc9110/accept-ranges-may-be-sent-in-trailer',
+  'rfc9110/client-may-generate-range-requests-without-accept-ranges',
+  'rfc9110/client-must-not-assume-future-range-support-from-accept-ranges',
+  'rfc9110/client-should-list-multiple-ranges-in-ascending-order',
+  'rfc9110/client-should-not-request-inefficient-multiple-ranges',
+  'rfc9110/origin-server-must-ignore-range-header-with-unknown-range-unit',
+  'rfc9110/origin-server-should-send-400-for-unsupported-partial-put',
+  'rfc9110/proxy-may-discard-range-header-with-unknown-range-unit',
+  'rfc9110/proxy-should-forward-206-with-unknown-range-unit',
+  'rfc9110/recipient-must-anticipate-large-decimal-numerals-for-byte-range',
+  'rfc9110/recipient-must-not-recombine-206-with-unknown-range-unit',
+  'rfc9110/recipient-must-not-recombine-invalid-content-range',
+  'rfc9110/sender-should-indicate-complete-length-for-byte-ranges',
+  'rfc9110/server-may-ignore-or-reject-invalid-range-header',
+  'rfc9110/server-may-ignore-range-header',
+  'rfc9110/server-may-ignore-range-header-for-zero-length-representation',
+  'rfc9110/server-may-send-accept-ranges-none',
+  'rfc9110/server-must-ignore-content-range-for-unsupported-method',
+  'rfc9110/server-must-ignore-range-header-for-unrecognized-method',
+  'rfc9110/server-should-send-206-response-for-satisfiable-range',
+  'rfc9110/server-should-send-416-response-for-unsatisfiable-range',
+  'rfc9110/server-should-send-content-range-in-416-response',
+];
+
+const messageAbstractionRuleIds = [
+  'rfc9110/client-may-send-lower-version-for-broken-servers',
+  'rfc9110/client-must-not-send-non-conformant-version',
+  'rfc9110/client-must-retain-knowledge-of-request',
+  'rfc9110/client-should-send-highest-conformant-version',
+  'rfc9110/each-http-version-defines-own-framing',
+  'rfc9110/header-field-term-for-header-section-only-fields',
+  'rfc9110/header-fields-sent-before-content',
+  'rfc9110/header-section-consists-of-field-lines',
+  'rfc9110/implicit-framing-allowed-for-backwards-compatibility',
+  'rfc9110/message-complete-when-framed-octets-available',
+  'rfc9110/origin-server-may-generate-date-for-1xx-5xx',
+  'rfc9110/origin-server-with-clock-must-generate-date-for-2xx-3xx-4xx',
+  'rfc9110/origin-server-without-clock-must-not-generate-date',
+  'rfc9110/recipient-may-replace-invalid-date',
+  'rfc9110/recipient-may-treat-the-set-of-received-trailer-fields-as-name-value-pairs',
+  'rfc9110/recipient-must-not-merge-trailers-unsafely',
+  'rfc9110/recipient-should-process-higher-minor-version-as-highest-known',
+  'rfc9110/recipient-with-clock-must-add-date-if-missing',
+  'rfc9110/sender-must-not-generate-trailer-unless-permitted',
+  'rfc9110/sender-should-generate-date-at-message-generation',
+  'rfc9110/sender-should-generate-trailer-header-when-sending-trailers',
+  'rfc9110/server-must-not-send-non-conformant-version',
+  'rfc9110/server-should-not-generate-necessary-trailers',
+  'rfc9110/server-should-send-response-version-equal-to-highest-conformant',
+  'rfc9110/trailer-fields-must-be-defined-as-list-if-repeatable',
+  'rfc9110/user-agent-may-send-date-header-in-request',
+];
+
+describe('concern tag sweep — batch 4 (range-requests, message-abstraction)', () => {
+  it('resolves every id in this batch to a real rule', async () => {
+    const rules = await loadRules('@thymian/rules-rfc-9110');
+    const ruleIds = new Set(rules.map((rule) => rule.meta.name));
+
+    for (const id of [...rangeRequestsRuleIds, ...messageAbstractionRuleIds]) {
+      expect(ruleIds.has(id), `"${id}" is not a real rule`).toBe(true);
+    }
+  }, 30_000);
+
+  it('tags 2 of the 22 `range-requests` rules', async () => {
+    const rules = await loadRules('@thymian/rules-rfc-9110');
+    const byId = new Map(rules.map((rule) => [rule.meta.name, rule]));
+
+    expect(rangeRequestsRuleIds.length).toBe(22);
+
+    const tagged = rangeRequestsRuleIds.filter(
+      (id) => (byId.get(id)?.meta.tags?.length ?? 0) > 0,
+    );
+    expect(tagged.length).toBe(2);
+  }, 30_000);
+
+  it('tags 2 of the 26 `message-abstraction` rules', async () => {
+    const rules = await loadRules('@thymian/rules-rfc-9110');
+    const byId = new Map(rules.map((rule) => [rule.meta.name, rule]));
+
+    expect(messageAbstractionRuleIds.length).toBe(26);
+
+    const tagged = messageAbstractionRuleIds.filter(
+      (id) => (byId.get(id)?.meta.tags?.length ?? 0) > 0,
+    );
+    expect(tagged.length).toBe(2);
+  }, 30_000);
+
+  it('carries no tag outside the exported vocabulary', async () => {
+    const rules = await loadRules('@thymian/rules-rfc-9110');
+    const byId = new Map(rules.map((rule) => [rule.meta.name, rule]));
+
+    for (const id of [...rangeRequestsRuleIds, ...messageAbstractionRuleIds]) {
+      for (const tag of byId.get(id)?.meta.tags ?? []) {
+        expect(allRuleTags, `"${tag}" on "${id}"`).toContain(tag);
+      }
+    }
+  }, 30_000);
+});

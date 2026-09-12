@@ -7,6 +7,10 @@ export default httpRule(
 )
   .severity('error')
   .type('analytics')
+  // An unbounded decimal numeral is an oversized/malformed-input DoS vector
+  // against the parser, not just a correctness edge case — the rule's own
+  // explanation names "crash the parser" as the consequence of skipping this.
+  .tags('security:dos')
   .url('https://www.rfc-editor.org/rfc/rfc9110.html#name-byte-ranges')
   .description(
     'In the byte-range syntax, first-pos, last-pos, and suffix-length are expressed as decimal number of octets. Since there is no predefined limit to the length of content, recipients MUST anticipate potentially large decimal numerals and prevent parsing errors due to integer conversion overflows.',

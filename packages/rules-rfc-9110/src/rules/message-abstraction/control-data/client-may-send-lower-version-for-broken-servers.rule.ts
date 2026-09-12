@@ -6,6 +6,7 @@ import { httpRule } from '@thymian/core';
 // projection covers only header names, status, media type, and body). There is
 // also no observable condition — it is a conditional allowance after a prior
 // failed request.
+// eslint-disable-next-line thymian-internal/require-rule-tags -- no concern-tag member fits this rule's topic
 export default httpRule(
   'rfc9110/client-may-send-lower-version-for-broken-servers',
 )

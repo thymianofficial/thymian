@@ -2,6 +2,7 @@ import { httpRule } from '@thymian/core';
 
 // A structural/terminology definition of the "header section". It states no
 // requirement on any message, so there is nothing to validate.
+// eslint-disable-next-line thymian-internal/require-rule-tags -- no concern-tag member fits this rule's topic
 export default httpRule('rfc9110/header-section-consists-of-field-lines')
   .severity('hint')
   .type('informational')

@@ -6,6 +6,7 @@ import { httpRule } from '@thymian/core';
 // only sees receipt time, and the RFC explicitly allows the sender to pick any
 // instant during origination). There is no observable non-conformant
 // condition.
+// eslint-disable-next-line thymian-internal/require-rule-tags -- no concern-tag member fits this rule's topic
 export default httpRule(
   'rfc9110/sender-should-generate-date-at-message-generation',
 )

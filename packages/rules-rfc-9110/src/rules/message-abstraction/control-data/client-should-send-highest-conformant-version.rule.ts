@@ -4,6 +4,7 @@ import { httpRule } from '@thymian/core';
 // is transport control data the rule framework does not expose, and "highest
 // conformant version" depends on internal client and server capabilities. Not
 // observable from a transaction.
+// eslint-disable-next-line thymian-internal/require-rule-tags -- no concern-tag member fits this rule's topic
 export default httpRule('rfc9110/client-should-send-highest-conformant-version')
   .severity('warn')
   .type('informational')

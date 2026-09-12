@@ -5,6 +5,7 @@ import { httpRule } from '@thymian/core';
 // version field on HttpRequest; common projection is header names / status /
 // media type / body only). Determining "conformance to a version" is also
 // internal client state. Not observable.
+// eslint-disable-next-line thymian-internal/require-rule-tags -- no concern-tag member fits this rule's topic
 export default httpRule('rfc9110/client-must-not-send-non-conformant-version')
   .severity('error')
   .type('informational')

@@ -29,6 +29,12 @@ export default httpRule(
 )
   .severity('error')
   .type('analytics')
+  // The forbidden list is exactly the fields a hop must decide on before the
+  // content arrives — Content-Length, Transfer-Encoding, TE, Host, Authorization
+  // among them. Letting one arrive as a trailer instead lets an
+  // already-committed hop and a trailer-aware one disagree about the
+  // message's framing, routing, or authorization.
+  .tags('security:request-smuggling')
   .appliesTo('server')
   .url('https://www.rfc-editor.org/rfc/rfc9110.html#section-6.5.1')
   .description(
