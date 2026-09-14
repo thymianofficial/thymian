@@ -1,14 +1,13 @@
 import { httpRule } from '@thymian/core';
 
-// A MUST NOT about the HTTP protocol version a client sends. The HTTP version
-// token is transport control data not surfaced by the rule framework (no
-// version field on HttpRequest; common projection is header names / status /
-// media type / body only). Determining "conformance to a version" is also
-// internal client state. Not observable.
 // eslint-disable-next-line thymian-internal/require-rule-tags -- no concern-tag member fits this rule's topic
 export default httpRule('rfc9110/client-must-not-send-non-conformant-version')
   .severity('error')
-  .type('informational')
+  .type(
+    'informational',
+    'peer-internal-behaviour',
+    'Whether a client is conformant to the HTTP version it sends is internal client state; the version token itself is also not surfaced by the rule framework.',
+  )
   .appliesTo('client')
   .url('https://www.rfc-editor.org/rfc/rfc9110.html#section-6.2')
   .description(

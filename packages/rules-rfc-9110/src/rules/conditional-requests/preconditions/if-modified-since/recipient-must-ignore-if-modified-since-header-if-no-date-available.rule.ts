@@ -1,18 +1,15 @@
 import { httpRule } from '@thymian/core';
 
-/**
- * The condition "the resource does not have a modification date available" is
- * internal server state that is not exposed on the wire — the framework cannot
- * know whether a given resource has a modification date, so it cannot decide
- * whether ignoring If-Modified-Since was required. No observable non-conformant
- * signal exists.
- */
 // eslint-disable-next-line thymian-internal/require-rule-tags -- conditional-header applicability scoping, not a concern-axis topic
 export default httpRule(
   'rfc9110/recipient-must-ignore-if-modified-since-header-if-no-date-available',
 )
   .severity('error')
-  .type('informational')
+  .type(
+    'informational',
+    'origin-internal-ground-truth',
+    'Whether a resource has a modification date available is internal server state not exposed on the wire, so whether ignoring If-Modified-Since was required cannot be determined externally.',
+  )
   .url('https://www.rfc-editor.org/rfc/rfc9110.html#section-13.1.3')
   .description(
     'A recipient MUST ignore the If-Modified-Since header field if the resource does not have a modification date available.',
