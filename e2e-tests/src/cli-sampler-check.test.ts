@@ -40,7 +40,7 @@ describe('thymian sampler check', () => {
 
       expect(result.exitCode).toBe(0);
       // The check line is the Selector verbatim, so it pastes back as a hook
-      // target (ADR-0020).
+      // target (ADR-0022).
       expect(result.output).toContain(
         'GET /api/hello -> 200 (application/json)',
       );
