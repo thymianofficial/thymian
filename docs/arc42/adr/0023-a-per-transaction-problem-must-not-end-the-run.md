@@ -8,7 +8,7 @@
 
 [ADR-0019](0019-virtual-samples-and-selector-anchored-hooks.md) recorded the
 sampler v2 design and stated that it needs no `@thymian/core` change.
-[ADR-0020](0020-selector-is-the-transaction-label.md) amended that for one pure
+[ADR-0022](0022-selector-is-the-transaction-label.md) amended that for one pure
 renderer. A manual-testing round on the implemented branch produced a third set
 of findings, and honouring them needed two more changes in core — so the
 containment property is worth restating rather than leaving a reader to infer it
@@ -79,7 +79,7 @@ never an outcome of the run.
      (telling the caller this Transaction failed) without ending the command.
 
 So the containment property of ADR-0019 now has **three** exceptions in core, all
-of them in this feature's story: the selector renderer (ADR-0020), and the two
+of them in this feature's story: the selector renderer (ADR-0022), and the two
 above. `@thymian/plugin-openapi` remains untouched, and no event, action or rule
 contract changes.
 
@@ -125,7 +125,7 @@ contract changes.
 
 - [ADR-0019](0019-virtual-samples-and-selector-anchored-hooks.md): the design
   this amends, and the source of the containment property.
-- [ADR-0020](0020-selector-is-the-transaction-label.md): the first amendment to
+- [ADR-0022](0022-selector-is-the-transaction-label.md): the first amendment to
   that property. Its round-trip requirement is what lets `--json`'s `selector`
   and `causedBy` be pasted back as hook targets.
 - [ADR-0015](0015-cli-exit-status-is-severity-independent.md): exit status from
