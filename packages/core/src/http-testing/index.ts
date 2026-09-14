@@ -1,3 +1,4 @@
+export * from './deserialize-parameter.js';
 export * from './http-test/index.js';
 export * from './operators/index.js';
 export * from './serialize-parameter.js';
