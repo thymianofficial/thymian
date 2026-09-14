@@ -1,17 +1,15 @@
 import { httpRule } from '@thymian/core';
 
-// A permissive "MAY" about the HTTP protocol version a client sends. The HTTP
-// version token lives on the request/status line and is not exposed by the rule
-// framework (HttpRequest/HttpResponse carry no version field, and the common
-// projection covers only header names, status, media type, and body). There is
-// also no observable condition — it is a conditional allowance after a prior
-// failed request.
 // eslint-disable-next-line thymian-internal/require-rule-tags -- no concern-tag member fits this rule's topic
 export default httpRule(
   'rfc9110/client-may-send-lower-version-for-broken-servers',
 )
   .severity('hint')
-  .type('informational')
+  .type(
+    'informational',
+    'permission-or-statement-of-fact',
+    'A MAY: the HTTP version token is not exposed by the rule framework, and this is a conditional allowance after a prior failed request — nothing is non-conformant either way.',
+  )
   .appliesTo('client')
   .url('https://www.rfc-editor.org/rfc/rfc9110.html#section-6.2')
   .description(
