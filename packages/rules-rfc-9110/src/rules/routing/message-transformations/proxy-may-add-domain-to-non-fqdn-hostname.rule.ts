@@ -3,8 +3,11 @@ import { httpRule } from '@thymian/core';
 // eslint-disable-next-line thymian-internal/require-rule-tags -- permissive MAY, host-resolution convenience — no hazard in the permission
 export default httpRule('rfc9110/proxy-may-add-domain-to-non-fqdn-hostname')
   .severity('hint')
-  // Permissive MAY — completing a non-FQDN host with a local domain is an optional proxy behavior, so its presence is never a violation.
-  .type('informational')
+  .type(
+    'informational',
+    'permission-or-statement-of-fact',
+    'A permission — completing a non-FQDN host with a local domain is an optional proxy behavior, so its presence is never a violation.',
+  )
   .url(
     'https://www.rfc-editor.org/rfc/rfc9110.html#name-message-transformations',
   )

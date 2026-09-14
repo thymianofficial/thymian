@@ -2,10 +2,11 @@ import { httpRule } from '@thymian/core';
 
 export default httpRule('rfc9110/server-should-not-use-from-for-authentication')
   .severity('hint')
-  // Whether a server uses the From field "for access control or
-  // authentication" is internal server logic, not observable from request or
-  // response messages on the wire.
-  .type('informational')
+  .type(
+    'informational',
+    'peer-internal-behaviour',
+    'Whether a server uses the From field for access control or authentication is internal server logic, not observable from request or response messages on the wire.',
+  )
   .tags('security:authentication')
   .url('https://www.rfc-editor.org/rfc/rfc9110.html#name-from')
   .description(

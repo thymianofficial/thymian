@@ -4,8 +4,11 @@ export default httpRule(
   'rfc9110/origin-server-must-reject-https-requests-without-valid-certificate',
 )
   .severity('error')
-  // Certificate validation happens during the TLS handshake below HTTP; Thymian observes only completed HTTP messages.
-  .type('informational')
+  .type(
+    'informational',
+    'origin-internal-ground-truth',
+    "Whether the connection was secured via a certificate valid for the target URI's origin is a fact of the TLS handshake below HTTP; only the origin's own connection handling knows it.",
+  )
   .tags('security:transport')
   .url(
     'https://www.rfc-editor.org/rfc/rfc9110.html#name-rejecting-misdirected-reque',
