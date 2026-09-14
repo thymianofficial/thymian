@@ -25,13 +25,13 @@ Core-owned actions follow the pattern **`core.<domain>.<verb>`**:
 | `core.format.load`      | format        | load          |
 | `core.format`           | format        | _(broadcast)_ |
 | `core.traffic.load`     | traffic       | load          |
-| `core.lint`             | _(workflow)_  | lint          |
-| `core.test`             | _(workflow)_  | test          |
-| `core.analyze`          | _(workflow)_  | analyze       |
+| `core.workflow.lint`    | workflow      | lint          |
+| `core.workflow.test`    | workflow      | test          |
+| `core.workflow.analyze` | workflow      | analyze       |
 | `core.request.dispatch` | request       | dispatch      |
 | `core.request.sample`   | request       | sample        |
 
-Lifecycle actions (`core.ready`, `core.close`) and top-level workflow actions (`core.lint`, `core.test`, `core.analyze`) use a two-segment form for brevity, since they are unambiguous.
+Lifecycle actions (`core.ready`, `core.close`) use a two-segment form for brevity, since they are unambiguous.
 
 ### Plugin-owned actions
 
@@ -40,7 +40,9 @@ Plugin-owned actions follow the pattern **`<plugin-short-name>.<verb>`** or **`<
 | Action                               | Owner                  |
 | ------------------------------------ | ---------------------- |
 | `sampler.init`                       | plugin-sampler         |
-| `sampler.path-from-transaction`      | plugin-sampler         |
+| `sampler.show`                       | plugin-sampler         |
+| `sampler.sync`                       | plugin-sampler         |
+| `sampler.validate`                   | plugin-sampler         |
 | `openapi.transform`                  | plugin-openapi         |
 | `http-linter.lint-static`            | plugin-http-linter     |
 | `http-linter.load-rules`             | plugin-http-linter     |

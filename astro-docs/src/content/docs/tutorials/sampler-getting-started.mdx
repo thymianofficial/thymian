@@ -1,468 +1,328 @@
 ---
-title: Initializing your Request Samples
-description: Getting started tutorial for @thymian/plugin-sampler
+title: Testing an API with the Sampler
+description: Getting started tutorial for @thymian/plugin-sampler — from nothing on disk to typed, selector-anchored hooks.
 ---
 
-import { Tabs, TabItem, FileTree, Steps } from '@astrojs/starlight/components';
+import {
+  Tabs,
+  TabItem,
+  FileTree,
+  Steps,
+  Aside,
+} from '@astrojs/starlight/components';
 
-This tutorial walks you through the complete workflow of using the sampler plugin, from installation to running tests with hooks.
+This tutorial takes you from a bare checkout to a suite of typed hooks, using
+the Space Launch System API from the Thymian demo project.
 
 ## What You'll Learn
 
 By the end of this tutorial, you'll be able to:
 
-- Install and configure the sampler plugin
-- Generate sample request data from your OpenAPI specification
-- Customize request samples
-- Create hooks to add authentication and prepare test data
-- Run tests against your API
-
-
+- Run Thymian against an API with nothing set up
+- Read the request Thymian would send for any operation
+- Write a hook that authenticates, seeds data and asserts
+- Turn on editor autocomplete and a type gate for your hooks
+- Keep CI honest when the API description changes
 
 ## Prerequisites
 
 - Node.js 22+ installed
 
-
 ## Step 1: Install the Thymian demo project
-
-As a first step we will install the Thymian demo project which includes the Space Launch System API. This will be the API we will run our tests against in this tutorial.
 
 <Steps>
 
-1. **Clone the demo repository via**
+1. **Clone the demo repository**
 
    <Tabs>
 
-     <TabItem label="HTTPS">
-       ```bash
-       git clone https://github.com/thymianofficial/thymian-demo.git
-       ```
-     </TabItem>
+   <TabItem label="HTTPS">
+     ```bash git clone https://github.com/thymianofficial/thymian-demo.git ```
+   </TabItem>
 
-     <TabItem label="SSH">
-        ```bash
-        git clone git@github.com:thymianofficial/thymian-demo.git
-        ```
-     </TabItem>
+   <TabItem label="SSH">
+     ```bash git clone git@github.com:thymianofficial/thymian-demo.git ```
+   </TabItem>
 
-     <TabItem label="GitHub CLI">
-       ```bash
-       gh repo clone thymianofficial/thymian-demo
-       ```
-     </TabItem>
+   <TabItem label="GitHub CLI">
+     ```bash gh repo clone thymianofficial/thymian-demo ```
+   </TabItem>
 
    </Tabs>
 
 2. **Install dependencies**
 
-     ```bash
-      npm install
-      ```
+   ```bash
+   npm install
+   ```
 
-3. **Check if you can run Thymian**
+3. **Start the API**
+
+   ```bash
+   npm run dev
+   ```
+
+4. **In another terminal, check you can run Thymian**
 
    ```bash
    npx thymian --version
    ```
 
-
 </Steps>
 
+## Step 2: Run the tests
 
-## Step 2: Generate Initial Samples
-
-Run the sampler initialization command:
+There is no setup step. Run:
 
 ```bash
-npx thymian sampler init --spec openapi:openapi.yaml
+npx thymian test
 ```
 
-This command:
-- Analyzes your OpenAPI specification
-- Creates a directory structure mirroring your API
-- Generates sample `request.json` files for each endpoint
-- Creates TypeScript type definitions in `types.d.ts`
-- Sets up a `tsconfig.json` for hook development
+Thymian reads the API description, projects a request for every Transaction in
+it, sends them, and checks the responses against its rules.
 
-**Output structure:**
+<Aside type="tip" title="Nothing was written">
+  Look in your working directory: there is no `.thymian/` folder. Request
+  samples are a projection of your API description, rebuilt on every run, so
+  there is nothing on disk that can go stale — and nothing to commit before you
+  have written a single hook.
+</Aside>
 
-<FileTree>
+Most cases will be **skipped** with `received 401`. The Space Launch System API
+requires authentication and nothing has supplied any yet.
 
-- .thymian/samples/
-  - types.d.ts # Generated TypeScript types
-  - tsconfig.json # TypeScript configuration
-  - meta.json # Metadata about generated samples
-  - Space_Launch_System_API/ # Your API source
-    - localhost/
-      - 3000/
-        - api/
-          - v1/
-            - launches/
-              - @GET/
-                - 200/
-                  - application__json/
-                    - request.json
-              - @POST/
-                - application__json/
-                  - 201/
-                    - application__json/
-                      - request.json
-            - astronauts/
-              - ...
+## Step 3: Look at a request
 
-</FileTree>
+Before changing anything, see what Thymian is actually sending. Every
+Transaction has a **Selector** — its address:
 
-
-
-## Step 3: Inspect Generated Samples
-
-Look at a generated sample file:
+```
+METHOD path [(requestMediaType)] -> status [(responseMediaType)]
+```
 
 ```bash
- cat .thymian/samples/Space_Launch_System_API/localhost/3000/api/v1/launches/@POST/application__json/201/application__json/requests/0-request.json
- ```
-
-You'll see auto-generated sample data:
+npx thymian sampler show 'GET /astronauts -> 200 (application/json)'
+```
 
 ```json
 {
-  "origin": "http://localhost:3000",
-  "path": "/launches",
-  "method": "post",
   "authorize": true,
+  "cookies": {},
   "headers": {
-    "content-type": "application/json",
     "accept": "application/json"
   },
-  "cookies": {},
+  "method": "get",
+  "origin": "http://localhost:3000",
+  "path": "/astronauts",
   "pathParameters": {},
-  "query": {},
-  "body": {
-    "missionName": "Artemis II",
-    "launchDate": "2019-08-24T14:15:22Z",
-    "rocketType": "Falcon9",
-    "isManned": false,
-    "crewIds": [
-      0
-    ]
+  "query": {
+    "limit": 0,
+    "offset": 0
   }
 }
 ```
 
+`"authorize": true` is Thymian reading the `security` requirement out of the
+description. It means "this request wants credentials" — and no hook has offered
+any yet.
 
-
-## Step 4: Customize Sample Data (Optional)
-
-While auto-generated samples work, you may want more realistic data. To edit the request data just edit the corresponding `request.json` file.
-The Space Launch System API provides examples in the OpenAPI spec, so the generated samples are already quite good.
-
-
-
-## Step 5: Run Checks Without Authentication
-
-Before adding authentication, let's verify the basic setup works.
-
-Start your API server if not already running. For the Space Launch System API, run:
-
-
-  ```bash
-  npm run dev
-  ```
-
-In another terminal, run Thymian:
+Get a Selector slightly wrong and Thymian tells you the ones that exist:
 
 ```bash
-npx thymian sampler check --spec openapi:openapi.yaml
+npx thymian sampler show 'GET /astronaut -> 200 (application/json)'
 ```
 
-**Expected result:** Most tests will fail because of a `401 Unauthorized` response because the API requires authentication.
-
 ```
-✖ GET /launches → 200 OK - application/json
-✖ POST /launches - application/json → 201 CREATED - application/json
-✖ GET /launches/{id} → 200 OK - application/json
-✖ GET /launches/{id} → 404 NOT FOUND
-✖ PUT /launches/{id} - application/json → 200 OK - application/json
-✖ DELETE /launches/{id} → 204 NO CONTENT
-✖ DELETE /launches/{id} → 404 NOT FOUND
-✖ GET /astronauts → 200 OK - application/json
-✔ POST /astronauts - application/json → 201 CREATED - application/json
-✖ GET /astronauts/{id} → 200 OK - application/json
-✖ GET /astronauts/{id} → 404 NOT FOUND
-✖ PUT /astronauts/{id} - application/json → 200 OK - application/json
-✖ DELETE /astronauts/{id} → 204 NO CONTENT
-✖ DELETE /astronauts/{id} → 404 NOT FOUND
-
-Checked 14 transactions. 13 failed.
+No transaction matches the selector "GET /astronaut -> 200 (application/json)".
+Try this:
+  * Check the path against the loaded API description — no transaction with that path is loaded.
 ```
 
+## Step 4: Write an authorize hook
 
-
-## Step 6: Create an Authorization Hook
-
-Generate an authorize hook:
+Hooks live under `.thymian/sampler/hooks/`. Create the directory and a file:
 
 ```bash
-touch .thymian/samples/Space_Launch_System_API/basic.authorize.ts
+mkdir -p .thymian/sampler/hooks
 ```
-
-Then we implement the hook:
 
 ```typescript
-import { AuthorizeHook } from '@thymian/hooks';
+// .thymian/sampler/hooks/auth.ts
+import { authorize } from '@thymian/hooks';
 
-const hook: AuthorizeHook = async (request, context, utils) => {
-  // if a new astronaut is being created, skip authentication
-  if (context.thymianReq.path === '/astronauts' && context.thymianReq.method === 'POST') {
-    return request;
-  }
+export const credentials = authorize((request) => {
+  const token = Buffer.from('sarah.mitchell@space.org:starlight').toString(
+    'base64',
+  );
 
-  // Generate unique credentials
-  const username = utils.randomString(10);
-  const password = utils.randomString(12);
-
-  // Create a test user
-  const response = await utils.request('POST http://localhost:3000/astronauts', {
-    body: {
-      name: username,
-      password: password,
-      role: 'Commander'
-    },
-    headers: {
-      'content-type': 'application/json'
-    }
-  }, {
-    runHooks: false  // Important: Prevent infinite loop
-  });
-
-  // Handle creation failure
-  if (response.statusCode !== 201) {
-    utils.skip('Cannot create user for authentication');
-  }
-
-  // Add Basic Authentication header
-  const credentials = Buffer.from(`${username}:${password}`).toString('base64');
-  request.headers.authorization = `Basic ${credentials}`;
-
-  utils.info(`User created: ${username}`);
-
-  return request;
-};
-
-export default hook;
+  request.headers['authorization'] = `Basic ${token}`;
+});
 ```
 
-
-
-## Step 7: Run Checks With Authentication
-
-Run tests again:
+Run the tests again:
 
 ```bash
-npx thymian sampler check --spec openapi:openapi.yaml
+npx thymian test
 ```
 
-We should now see that most requests can be run. The only ones that fail requests that depend on a valid and existing
-`id` for a resource.
+The `401` skips largely disappear. Two things made that work without any setup:
 
-```
-✔ GET /launches → 200 OK - application/json
-✔ POST /launches - application/json → 201 CREATED - application/json
-✖ GET /launches/{id} → 200 OK - application/json                      <-- Missing ID
-✔ GET /launches/{id} → 404 NOT FOUND
-✔ PUT /launches/{id} - application/json → 200 OK - application/json
-✖ DELETE /launches/{id} → 204 NO CONTENT                              <-- Missing ID
-✔ DELETE /launches/{id} → 404 NOT FOUND
-✔ GET /astronauts → 200 OK - application/json
-✔ POST /astronauts - application/json → 201 CREATED - application/json
-✖ GET /astronauts/{id} → 200 OK - application/json                    <-- Missing ID
-✔ GET /astronauts/{id} → 404 NOT FOUND
-✔ PUT /astronauts/{id} - application/json → 200 OK - application/json
-✖ DELETE /astronauts/{id} → 204 NO CONTENT                            <-- Missing ID
-✔ DELETE /astronauts/{id} → 404 NOT FOUND
+- `@thymian/hooks` resolves through the plugin itself, so a hook file runs with
+  nothing installed beside it and nothing generated.
+- The `authorize` hook ran only where the description says credentials are
+  wanted. `GET /astronauts -> 401` — the negative case — deliberately did **not**
+  get them, so it still returns 401 and still passes.
 
-Checked 14 transactions. 4 failed.
-```
+## Step 5: Seed data across endpoints
 
+Some Transactions need a resource that exists. `GET /astronauts/{id} -> 200`
+is sent with a generated `id` that matches nobody.
 
-
-## Step 8: Handle Resource Dependencies
-
-Some endpoints require existing resources. For example, `GET /launches/{id}` and `DELETE /launches/{id}` needs a launch to exist.
-
-Generate a beforeEach hook for the `[id]` path:
-
-```bash
-touch .thymian/samples/Space_Launch_System_API/localhost/3000/api/v1/launches/[id]/create-launch.beforeEach.ts
-```
-
-Edit the hook:
+Create one first, and read it back:
 
 ```typescript
-import { BeforeEachRequestHook } from '@thymian/hooks';
+// .thymian/sampler/hooks/seed.ts
+import { beforeEach } from '@thymian/hooks';
 
-const hook: BeforeEachRequestHook = async (request, context, utils) => {
-  // Skip for 404 tests (where we test missing resources)
-  if (context.thymianRes.statusCode === 404) {
-    return request;
-  }
+export const seedAstronaut = beforeEach(
+  'GET /astronauts/{id} -> 200 (application/json)',
+  async (request, ctx, utils) => {
+    const created = await utils.request(
+      'POST /astronauts (application/json) -> 201 (application/json)',
+      {
+        body: {
+          name: 'Seeded ' + utils.randomString(6),
+          email: utils.randomString(8) + '@space.org',
+          password: 'hunter2',
+          role: 'Commander',
+        },
+      },
+      // A nested request carries its own target's authorize flag, not the
+      // caller's — so say so explicitly.
+      { authorize: true },
+    );
 
-  // Create a launch
-  const response = await utils.request('POST http://localhost:3000/launches', {
-    body: {
-      missionName: utils.randomString(10),
-      launchDate: '2026-12-31T00:00:00Z',
-      rocketType: 'Falcon9'
-    },
-    headers: {
-      'content-type': 'application/json'
+    if (created.statusCode === 201) {
+      utils.setPathParam('id', created.body.id);
     }
-  });
-
-  // Fail if creation didn't work
-  if (response.statusCode !== 201) {
-    utils.fail(`Failed to create launch: ${response.statusCode}`);
-  }
-
-  // Use the created launch ID
-  request.pathParameters.id = response.body.id;
-
-  utils.info(`Created launch ${response.body.id} for test`);
-
-  return request;
-};
-
-export default hook;
+  },
+);
 ```
 
+`utils.request` is addressed by Selector, the same strings you have been using,
+and by default it runs the target's own hooks — so the nested `POST` is
+authorized by the hook you wrote in Step 4, exactly as the real run would be.
 
+<Aside type="caution" title="Cycles fail loudly">
+If a seeding call re-enters a Transaction that is already running, Thymian stops
+and prints the chain rather than recursing until the stack gives out. Pass
+`{ runHooks: false }` to send the raw generated request without the target's
+hooks.
+</Aside>
 
-## Step 9: Run Complete Test Suite
+## Step 6: Turn on the type gate
 
-Run the checks again:
+Everything so far worked with plain strings. Now let the compiler check them:
 
 ```bash
-npx thymian sampler check --spec openapi:openapi.yaml
+npx thymian sampler init
 ```
 
-**Expected result:**
+<FileTree>
 
-```
-✔ GET /launches → 200 OK - application/json
-✔ POST /launches - application/json → 201 CREATED - application/json
-✔ GET /launches/{id} → 200 OK - application/json
-✔ GET /launches/{id} → 404 NOT FOUND
-✔ PUT /launches/{id} - application/json → 200 OK - application/json
-✔ DELETE /launches/{id} → 204 NO CONTENT
-✔ DELETE /launches/{id} → 404 NOT FOUND
-✔ GET /astronauts → 200 OK - application/json
-✔ POST /astronauts - application/json → 201 CREATED - application/json
-✖ GET /astronauts/{id} → 200 OK - application/json
-✔ GET /astronauts/{id} → 404 NOT FOUND
-✔ PUT /astronauts/{id} - application/json → 200 OK - application/json
-✖ DELETE /astronauts/{id} → 204 NO CONTENT
-✔ DELETE /astronauts/{id} → 404 NOT FOUND
+- .thymian/sampler/
+  - generated/
+    - request-types.d.ts Endpoints, keyed by Selector, plus the spec-derived unions
+    - hooks-api.d.ts the @thymian/hooks surface, typed against them
+  - hooks/
+    - auth.ts
+    - seed.ts
+  - tsconfig.json scaffolded once — yours from here on
 
-Checked 14 transactions. 2 failed.
-```
+</FileTree>
 
-As you can see, only the `/astronauts/{id}` endpoints are failing. Lets add a beforeEach hook for these endpoints:
+`init` also prints one thing only you can do: add `.thymian/sampler` to the
+`exclude` list of your project's own `tsconfig.json`, so the sampler's tsconfig
+is the one that governs your hooks.
 
+**Commit `generated/`.** Those files are the record of what your API description
+said, and the baseline the drift gate compares against.
 
-
-## Step 10: Handle Resource Dependencies - Part 2
-
-Generate a beforeEach hook for the `[id]` path:
-
-```bash
-touch .thymian/samples/Space_Launch_System_API/localhost/3000/api/v1/astronauts/[id]/create-astronaut.beforeEach.ts
-```
-
-Edit the hook:
+Now your editor completes Selectors, and a mistake is a compile error at the
+line that made it:
 
 ```typescript
-import { BeforeEachRequestHook } from '@thymian/hooks';
+// .thymian/sampler/hooks/broken.ts
+import { beforeEach } from '@thymian/hooks';
 
-const hook: BeforeEachRequestHook = async (request, context, utils) => {
-  // Skip for 404 tests (where we test missing resources)
-  if (context.thymianRes.statusCode === 404) {
-    return request;
-  }
-
-  // Create a launch
-  const response = await utils.request('POST http://localhost:3000/astronauts', {
-    body: {
-      name: utils.randomString(10),
-      password: utils.randomString(12),
-      role: 'Commander'
-    },
-    headers: {
-      'content-type': 'application/json'
-    }
-  });
-
-  // Fail if creation didn't work
-  if (response.statusCode !== 201) {
-    utils.fail(`Failed to create launch: ${response.statusCode}`);
-  }
-
-  // Use the created launch ID
-  request.pathParameters.id = response.body.id;
-
-  utils.info(`Created astronaut ${response.body.id} for test`);
-
-  return request;
-};
-
-export default hook;
+export const typo = beforeEach({ path: '/astronaut' }, () => {});
 ```
 
+```
+error TS2345: Argument of type '{ path: "/astronaut"; }' is not assignable to
+parameter of type 'HookTarget'. Did you mean '"/astronauts"'?
+```
 
+Delete that file again before continuing.
 
-## Step 11: Run Final Check
+## Step 7: Cover a whole subtree
 
-Run checks to see if all hooks are working.
+One hook can target a set of Transactions with a filter, including paths added
+to the description later:
+
+```typescript
+// .thymian/sampler/hooks/observe.ts
+import { afterEach } from '@thymian/hooks';
+
+export const observeLaunches = afterEach(
+  { path: '/launches/**', not: { statusClass: '4XX' } },
+  (response, ctx, utils) => {
+    utils.info(`launches subtree responded ${response.statusCode}`);
+  },
+);
+```
+
+`*` is exactly one path segment and a trailing `**` is one or more — so
+`/launches/**` is everything _under_ `/launches`, not `/launches` itself.
+
+A glob that matches nothing fails the run and tells you which paths do exist, so
+a typo cannot quietly switch a hook off.
+
+## Step 8: Keep CI honest
+
+Two commands, and one rule.
 
 ```bash
-npx thymian sampler check --spec openapi:openapi.yaml
-
+npx thymian sampler validate
 ```
 
-Now you should see that all transactions can be run:
+`validate` regenerates the type surface in memory, compares it with what you
+committed, and type-checks your hooks against your description as it is now:
 
-```
-✔ GET /launches → 200 OK - application/json
-✔ POST /launches - application/json → 201 CREATED - application/json
-✔ GET /launches/{id} → 200 OK - application/json
-✔ GET /launches/{id} → 404 NOT FOUND
-✔ PUT /launches/{id} - application/json → 200 OK - application/json
-✔ DELETE /launches/{id} → 204 NO CONTENT
-✔ DELETE /launches/{id} → 404 NOT FOUND
-✔ GET /astronauts → 200 OK - application/json
-✔ POST /astronauts - application/json → 201 CREATED - application/json
-✔ GET /astronauts/{id} → 200 OK - application/json
-✔ GET /astronauts/{id} → 404 NOT FOUND
-✔ PUT /astronauts/{id} - application/json → 200 OK - application/json
-✔ DELETE /astronauts/{id} → 204 NO CONTENT
-✔ DELETE /astronauts/{id} → 404 NOT FOUND
+- everything matches and compiles → silent
+- the committed types are behind, but every hook still compiles → a **warning**
+  to run `sampler sync`
+- a hook no longer compiles → **breaking drift**, named at the hook's own line
 
-Checked 14 transactions. 0 failed.
+```bash
+npx thymian sampler sync --check
 ```
 
-## Summary
+`--check` writes nothing and exits non-zero if regeneration would change the
+committed files. Put it in CI.
 
-You've successfully:
+A description-only edit, and a pure reordering of your document, are **not**
+drift — the comparison ignores comments and formatting.
 
-✔ Installed the sampler plugin
+<Aside type="note" title="One ritual to remember">
+  When you upgrade Thymian, run `thymian sampler sync` in the same pull request.
+  A new version can emit types differently, and that arrives as one explicit,
+  reviewable diff instead of a red CI run somebody has to explain.
+</Aside>
 
-✔ Generated sample request data from your OpenAPI specification
+## Where to go next
 
-✔ Customized request samples
-
-✔ Created an authorize hook to handle authentication
-
-✔ Created a beforeEach hook to set up test dependencies
-
-✔ Run tests against your API
-
+- [Hooks API Reference](/references/plugins/sampler/hooks-api/) — every hook
+  kind, every filter field, the whole `utils` surface
+- [How to write a Hook](/guides/hooks/write-hooks/)
+- [Migrating from the samples tree](/guides/sampler/migrating-from-the-samples-tree/)
