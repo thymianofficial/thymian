@@ -5,12 +5,11 @@ export default httpRule(
   'rfc9110/server-should-send-416-response-for-unsatisfiable-range',
 )
   .severity('warn')
-  // The SHOULD is gated on server-internal preconditions (Range supported, valid
-  // specifier, unsupported unit OR the range unsatisfiable against the selected
-  // representation). "Unsatisfiable" / "unsupported unit" cannot be determined from
-  // spec or traffic without knowing the representation length and supported units.
-  // Symmetric to the 206 rule.
-  .type('informational')
+  .type(
+    'informational',
+    'peer-internal-behaviour',
+    'The SHOULD is gated on server-internal preconditions: Range supported, a valid specifier, and either an unsupported unit or a range unsatisfiable against the selected representation. Unsatisfiable and unsupported-unit cannot be determined from spec or traffic without knowing the representation length and supported units the server holds internally.',
+  )
   .url('https://www.rfc-editor.org/rfc/rfc9110.html#name-range')
   .description(
     'If all of the preconditions are true, the server supports the Range header field for the target resource, the received Range field-value contains a valid ranges-specifier, and either the range-unit is not supported for that target resource or the ranges-specifier is unsatisfiable with respect to the selected representation, the server SHOULD send a 416 (Range Not Satisfiable) response.',

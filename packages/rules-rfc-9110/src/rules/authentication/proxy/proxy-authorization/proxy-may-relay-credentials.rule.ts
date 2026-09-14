@@ -3,12 +3,11 @@ import { httpRule } from '@thymian/core';
 // eslint-disable-next-line thymian-internal/require-rule-tags -- no concern-tag member fits this rule's topic
 export default httpRule('rfc9110/proxy-may-relay-credentials')
   .severity('hint')
-  // A permissive MAY describing internal proxy behavior — a proxy is allowed
-  // (but not required) to relay client credentials to the next proxy when
-  // proxies cooperatively authenticate. There is no non-conformant condition
-  // (relaying and not relaying are both permitted), and the relaying decision
-  // is proxy-internal, so there is nothing to validate.
-  .type('informational')
+  .type(
+    'informational',
+    'permission-or-statement-of-fact',
+    'A permissive MAY describing internal proxy behavior: a proxy may relay client credentials to the next proxy when proxies cooperatively authenticate. Relaying and not relaying are both conformant, and the decision is proxy-internal.',
+  )
   .url(
     'https://www.rfc-editor.org/rfc/rfc9110.html#name-authenticating-clients-to-p',
   )
