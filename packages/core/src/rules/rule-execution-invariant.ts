@@ -134,7 +134,7 @@ export function describeRuleExecutionInvariantViolation(
         message: `Rule "${ruleName}" has no execution function for declared type(s): ${violation.missingTypes.join(', ')}. The rule would register but never run.`,
         suggestions: [
           'Define an execution function with .rule() or the matching .override*Rule().',
-          "Declare the rule with .type('informational') if it is documentation-only.",
+          "Declare the rule with .type('informational', reason, note) if it is documentation-only.",
         ],
       };
   }

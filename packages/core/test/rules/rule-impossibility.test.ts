@@ -3,14 +3,19 @@ import { describe, expect, it } from 'vitest';
 import { httpRule } from '../../src/rules/rule-builder.js';
 
 describe('impossibility reason vocabulary', () => {
-  it('still accepts a bare informational declaration with no reason', () => {
-    // This overload closes in the gate-closing ticket; until then the
-    // corpus sweep has not run and every existing informational rule must
-    // keep compiling.
-    const rule = httpRule('bare-informational')
-      .severity('error')
-      .type('informational')
-      .done();
+  it('refuses a bare informational declaration with no reason', () => {
+    const builder = httpRule('bare-informational').severity('error');
+
+    // The gate: the corpus sweep has transcribed every informational rule's
+    // reason, so "nobody looked" can no longer ship as "nothing is
+    // possible". @ts-expect-error swallows the message, so the refusal
+    // naming the missing reason (via the marker interface's property) is
+    // not asserted here — the #57 prototype answered that once already.
+    // The runtime is unchanged by the gate closing (a type-only refusal,
+    // the same trade made for MissingExecutionFunctionForTypes): a call
+    // that bypasses the type system still builds a bare rule.
+    // @ts-expect-error an 'informational' rule must say why
+    const rule = builder.type('informational').done();
 
     expect(rule.meta.type).toEqual(['informational']);
     expect(rule.meta.impossibility).toBeUndefined();
