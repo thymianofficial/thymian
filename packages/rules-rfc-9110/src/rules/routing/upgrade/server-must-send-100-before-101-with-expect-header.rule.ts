@@ -5,8 +5,12 @@ export default httpRule(
   'rfc9110/server-must-send-100-before-101-with-expect-header',
 )
   .severity('error')
-  // Validating the 100-before-101 ordering requires correlating multiple interim responses on one request, which the current observation model does not expose.
-  .type('informational')
+  .type(
+    'informational',
+    'tool-limitation',
+    'thymianofficial/thymian-workspace#111',
+    'Validating the 100-before-101 ordering requires correlating two interim responses on one request; the Transaction model pairs one request with one (final) response and never represents an interim response as an observable entity.',
+  )
   .url('https://www.rfc-editor.org/rfc/rfc9110.html#name-upgrade')
   .description(
     'If a server receives both an Upgrade and an Expect header field with the "100-continue" expectation, the server MUST send a 100 (Continue) response before sending a 101 (Switching Protocols) response. This ensures proper handling of the expect-continue mechanism before protocol switching.',

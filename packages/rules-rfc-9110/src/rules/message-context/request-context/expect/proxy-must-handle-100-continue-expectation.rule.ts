@@ -3,10 +3,11 @@ import { httpRule } from '@thymian/core';
 // eslint-disable-next-line thymian-internal/require-rule-tags -- no concern-tag member fits this rule's topic
 export default httpRule('rfc9110/proxy-must-handle-100-continue-expectation')
   .severity('hint')
-  // Both permitted proxy behaviours (respond with a final status, or forward
-  // toward the origin) are conforming and require proxy role attribution plus
-  // forwarding correlation to distinguish.
-  .type('informational')
+  .type(
+    'informational',
+    'permission-or-statement-of-fact',
+    'Both permitted proxy behaviours (respond with a final status, or forward toward the origin) are conforming, so nothing is non-conformant either way.',
+  )
   .url('https://www.rfc-editor.org/rfc/rfc9110.html#name-expect')
   .description(
     'Upon receiving an HTTP/1.1 (or later) request that has a method, target URI, and complete header section that contains a 100-continue expectation and indicates a request content will follow, a proxy MUST either send an immediate response with a final status code, or forward the request toward the origin server.',

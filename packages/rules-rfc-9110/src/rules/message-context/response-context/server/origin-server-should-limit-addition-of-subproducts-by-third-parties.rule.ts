@@ -5,10 +5,11 @@ export default httpRule(
   'rfc9110/origin-server-should-limit-addition-of-subproducts-by-third-parties',
 )
   .severity('warn')
-  // Whether a subproduct was "added by a third party" is not determinable from
-  // the wire value of a single Server field, and the limit is a subjective
-  // judgment.
-  .type('informational')
+  .type(
+    'informational',
+    'peer-internal-behaviour',
+    'Whether a subproduct was added by a third party is not determinable from the wire value of a single Server field — only whoever assembled the field knows.',
+  )
   .tags('security:disclosure')
   .url('https://www.rfc-editor.org/rfc/rfc9110.html#name-server')
   .description(
