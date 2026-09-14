@@ -2,10 +2,11 @@ import { httpRule } from '@thymian/core';
 
 export default httpRule('rfc9110/client-must-construct-reference-identity')
   .severity('error')
-  // How a client constructs its TLS reference identity (IP-ID vs DNS-ID) is
-  // internal certificate-verification logic at the transport layer; it leaves
-  // no trace in recorded HTTP messages.
-  .type('informational')
+  .type(
+    'informational',
+    'peer-internal-behaviour',
+    'How a client constructs its TLS reference identity (IP-ID vs DNS-ID) is internal certificate-verification logic at the transport layer; it leaves no trace in recorded HTTP messages.',
+  )
   .tags('security:transport')
   .url(
     'https://www.rfc-editor.org/rfc/rfc9110.html#name-https-certificate-verificat',
