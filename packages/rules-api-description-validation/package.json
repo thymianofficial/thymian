@@ -1,6 +1,6 @@
 {
   "name": "@thymian/rules-api-description-validation",
-  "version": "0.0.1-e2e",
+  "version": "0.0.0-PLACEHOLDER",
   "description": "Thymian rule set for validating API description documents",
   "license": "AGPL-3.0-only",
   "bugs": {
@@ -44,7 +44,7 @@
     "!**/*.tsbuildinfo"
   ],
   "dependencies": {
-    "@thymian/core": "0.0.1-e2e",
+    "@thymian/core": "0.0.0-PLACEHOLDER",
     "tslib": "^2.3.0"
   }
 }
