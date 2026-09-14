@@ -1,6 +1,6 @@
 {
   "name": "@thymian/plugin-http-analyzer",
-  "version": "0.0.1-e2e",
+  "version": "0.0.0-PLACEHOLDER",
   "description": "Thymian plugin for analyzing captured HTTP traffic against conformance rules",
   "license": "AGPL-3.0-only",
   "bugs": {
@@ -44,12 +44,12 @@
     "!**/*.tsbuildinfo"
   ],
   "dependencies": {
-    "@thymian/core": "0.0.1-e2e",
+    "@thymian/core": "0.0.0-PLACEHOLDER",
     "better-sqlite3": "^12.9.0",
     "tslib": "^2.3.0"
   },
   "devDependencies": {
-    "@thymian/core-testing": "0.0.1-e2e",
+    "@thymian/core-testing": "0.0.0-PLACEHOLDER",
     "@types/better-sqlite3": "^7.6.12"
   }
 }
