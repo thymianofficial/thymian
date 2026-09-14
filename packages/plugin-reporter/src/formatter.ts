@@ -78,6 +78,34 @@ export function analyze(reports: Report[], logger?: Logger): ReportAnalysis {
   };
 }
 
+/**
+ * User-facing configuration shared by every file formatter.
+ *
+ * Deliberately empty: where a formatter writes is not a per-formatter concern
+ * any more. The plugin-level `reportsDir` option picks the base directory and
+ * every report gets its own directory beneath it, so all formats of one run
+ * stay together. This mirrors the reporter plugin's options schema one-to-one —
+ * that schema is `additionalProperties: false` at every level, so nothing may be
+ * added here that a user cannot set, and values the plugin injects belong in
+ * {@link FormatterRuntimeOptions}.
+ */
+export type FileFormatterOptions = Record<never, never>;
+
+/**
+ * Values the reporter plugin injects into a formatter's `init`. Deliberately not
+ * part of {@link FileFormatterOptions}: they are runtime context, not config,
+ * and must never widen the user-facing options schema.
+ */
+export type FormatterRuntimeOptions = {
+  /** Run directory a relative `reportsDir` is anchored to. */
+  cwd?: string;
+  /**
+   * Base directory each report's own run directory is created under. Relative
+   * to `cwd`; unset means `.thymian/reports`.
+   */
+  reportsDir?: string;
+};
+
 export interface Formatter<Options = Record<PropertyKey, unknown>> {
   options: Options;
 

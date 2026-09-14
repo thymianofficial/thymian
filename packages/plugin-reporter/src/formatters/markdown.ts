@@ -27,7 +27,13 @@ import {
 } from '@thymian/core';
 import { mkdir, writeFile } from 'fs/promises';
 
-import { analyze, type Formatter } from '../formatter.js';
+import {
+  analyze,
+  type FileFormatterOptions,
+  type Formatter,
+  type FormatterRuntimeOptions,
+} from '../formatter.js';
+import { resolveReportPath } from '../report-file-name.js';
 import {
   colorSpan,
   errorSymbol,
@@ -639,48 +645,122 @@ function buildTestSection(
   return lines;
 }
 
-export type MarkdownFormatterOptions = {
-  path: string;
-};
+export type MarkdownFormatterOptions = FileFormatterOptions;
 
+/**
+ * Human-readable formatter. Each report is rendered and written to its own run
+ * directory as soon as it arrives, so a session that emits several reports
+ * produces several documents rather than one aggregate pinned to the first
+ * report.
+ */
 export class MarkdownFormatter implements Formatter<MarkdownFormatterOptions> {
-  options!: MarkdownFormatterOptions;
-
-  private readonly reports: Report[] = [];
+  options!: MarkdownFormatterOptions & FormatterRuntimeOptions;
 
   /**
    * Grouping strategy injected by the reporter plugin from `--sort-reports-by`.
    * Kept off {@link MarkdownFormatterOptions} so the user-facing formatter
-   * config schema stays `{ path }`; defaults to `endpoint`.
+   * config schema stays empty; defaults to `endpoint`.
    */
   private sortReportsBy: SortReportsBy = 'endpoint';
+
+  /**
+   * Document of the most recently written report, handed back by {@link flush}
+   * so a caller that drives a single report still gets the rendered output.
+   *
+   * No production consumer: the reporter plugin discards `flush()`'s return
+   * value. It exists for the {@link Formatter} contract and for callers — tests
+   * today — that drive one report and assert on the rendering. Bounded to one
+   * document on purpose; retaining every report is what this formatter used to
+   * do to build a session-level aggregate.
+   */
+  private lastOutput: string | undefined;
+
+  /**
+   * Tail of the write chain. `core.report` is emitted fire-and-forget — the
+   * emitter never awaits its subscribers — so without this a `flush()` during
+   * `core.close` could return before a report reached disk, and `serve` calls
+   * `process.exit()` right after. Serializing on one chain also keeps two
+   * overlapping reports from interleaving.
+   */
+  private queue: Promise<void> = Promise.resolve();
 
   constructor(private readonly logger: Logger) {}
 
   init(
-    options: MarkdownFormatterOptions & { sortReportsBy?: SortReportsBy },
+    options: MarkdownFormatterOptions &
+      FormatterRuntimeOptions & { sortReportsBy?: SortReportsBy },
   ): void {
     this.options = options;
     this.sortReportsBy = options.sortReportsBy ?? 'endpoint';
   }
 
-  report(report: Report): void {
-    this.reports.push(report);
+  async report(report: Report): Promise<void> {
+    const task = this.queue.then(async () => this.write(report));
+
+    // Keep the chain alive even if this write rejects, so one failure cannot
+    // poison every later report.
+    this.queue = task.then(
+      () => undefined,
+      () => undefined,
+    );
+
+    return task;
   }
 
+  /**
+   * Awaits every write started so far and hands back the last document.
+   *
+   * Never throws: it runs inside the `core.close` action handler, and a
+   * destination that could not be written must not take the shutdown with it.
+   */
   async flush(): Promise<string | undefined> {
-    if (this.reports.length === 0) {
-      return undefined;
-    }
+    await this.queue;
 
-    const analysis = analyze(this.reports, this.logger);
+    return this.lastOutput;
+  }
+
+  /** Render and persist one report. Never throws. */
+  private async write(report: Report): Promise<void> {
+    const outputPath = resolveReportPath(
+      this.options.cwd ?? process.cwd(),
+      this.options.reportsDir,
+      report,
+      'md',
+    );
+
+    try {
+      // Rendering is inside the guard too: a malformed report (an execution
+      // shape `analyze` chokes on, a throwing accessor) must degrade exactly
+      // like an unwritable destination rather than reject out of `report()`.
+      const output = this.render(report);
+
+      await mkdir(path.dirname(outputPath), { recursive: true });
+      await writeFile(outputPath, output, 'utf-8');
+      this.logger.info(`Wrote Markdown report to ${outputPath}.`);
+      this.lastOutput = output;
+    } catch (err) {
+      // A destination we cannot create or write leaves this formatter inert for
+      // that report: throwing here would abort the `core.report` handler and
+      // take every other formatter — and the run — down with it.
+      this.logger.error(
+        `Failed to write Markdown report to ${outputPath}: ${
+          err instanceof Error ? err.message : String(err)
+        }. No Markdown report will be written for this report.`,
+      );
+    }
+  }
+
+  /** Render one report into the full Markdown document. */
+  private render(report: Report): string {
+    const reports = [report];
+    const analysis = analyze(reports, this.logger);
     const lines: string[] = [];
 
     lines.push('# Thymian Report');
     lines.push('');
     lines.push(
       buildRollupLine(
-        this.reports,
+        reports,
         analysis.statistics.severityCounts,
         analysis.statistics.numberOfRuns,
       ),
@@ -692,36 +772,26 @@ export class MarkdownFormatter implements Formatter<MarkdownFormatterOptions> {
     lines.push('');
     lines.push('| Run | Type | Outcome | Duration |');
     lines.push('| --- | --- | --- | --- |');
-    for (const report of this.reports) {
-      for (const run of report.runs) {
-        lines.push(buildOverviewRow(run));
-      }
+    for (const run of report.runs) {
+      lines.push(buildOverviewRow(run));
     }
     lines.push('');
 
     const sortReportsBy = this.sortReportsBy;
-    for (const report of this.reports) {
-      const resolveLocation = createLocationResolver(report);
-      for (const run of report.runs) {
-        lines.push(
-          ...(run.runType === 'test'
-            ? buildTestSection(run, resolveLocation, this.logger, sortReportsBy)
-            : buildLintAnalyzeSection(
-                run,
-                resolveLocation,
-                this.logger,
-                sortReportsBy,
-              )),
-        );
-      }
+    const resolveLocation = createLocationResolver(report);
+    for (const run of report.runs) {
+      lines.push(
+        ...(run.runType === 'test'
+          ? buildTestSection(run, resolveLocation, this.logger, sortReportsBy)
+          : buildLintAnalyzeSection(
+              run,
+              resolveLocation,
+              this.logger,
+              sortReportsBy,
+            )),
+      );
     }
 
-    const output = lines.join('\n');
-
-    await mkdir(path.dirname(this.options.path), { recursive: true });
-    await writeFile(this.options.path, output, 'utf-8');
-    this.logger.debug(`Wrote Markdown report to ${this.options.path}.`);
-
-    return output;
+    return lines.join('\n');
   }
 }
