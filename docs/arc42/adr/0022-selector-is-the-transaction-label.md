@@ -69,9 +69,11 @@ target unchanged.
   them lives beside them. `@thymian/plugin-openapi` stays untouched, and no
   event, action or rule contract changes.
 - **Rendering stays total and injective.** Relocation is a move, not a rewrite:
-  a path or media type that would collide with the grammar is encoded, never
+  a path or media type that would collide with the grammar is quoted, never
   rejected, so no legal API description can make a label unprintable — which is
-  a stronger property than the display string it replaces had.
+  a stronger property than the display string it replaces had. Quoted, not
+  percent-encoded: a fence keeps rendering injective where substitution cannot
+  (a raw space and a literal `%20` would percent-encode to one selector).
 
 ### Rejected: keep two spellings, or make the Selector adopt the label format
 
