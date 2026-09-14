@@ -158,7 +158,7 @@ export type PartialExceptFor<T, K extends keyof T> = Partial<Omit<T, K>> &
  * How Thymian writes a request node down: the **request half of its
  * Selector**, `POST /launches (application/json)`.
  *
- * One grammar for one concept (ADR-0020) — a heading a reader sees is a
+ * One grammar for one concept (ADR-0022) — a heading a reader sees is a
  * fragment of the string a hook is anchored to, not a near-twin of it. The
  * rendering itself lives in `selector/render-selector.ts`, beside the whole-
  * transaction renderer it has to stay consistent with.
@@ -184,7 +184,7 @@ export function thymianResponseToString(res: ThymianHttpResponse): string {
  *
  * Every surface that names a Transaction goes through here — check lines,
  * test-case names, rule headings, report locations, error texts — so any line
- * a user reads pastes back as a hook target (ADR-0020).
+ * a user reads pastes back as a hook target (ADR-0022).
  */
 export function thymianHttpTransactionToString(
   req: ThymianHttpRequest,

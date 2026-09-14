@@ -13,7 +13,7 @@ import {
 import { TransactionCatalog } from '../src/selectors/transaction-catalog.js';
 
 /**
- * #46 / ADR-0020: the round-trip property that keeps "the label is the
+ * #46 / ADR-0022: the round-trip property that keeps "the label is the
  * Selector" honest.
  *
  * `thymianHttpTransactionToString` is the only thing `sampler check` — and

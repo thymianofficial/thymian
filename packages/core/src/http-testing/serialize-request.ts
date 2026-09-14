@@ -19,7 +19,7 @@ import {
  * described*. `thymian sampler check` reads that as a skip rather than an
  * error, and the sentence says which value is missing — never which
  * transaction, because every surface that prints one already names it
- * (ADR-0020).
+ * (ADR-0022).
  */
 function serializationError(
   message: string,

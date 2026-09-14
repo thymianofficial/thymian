@@ -17,7 +17,7 @@ import type { ThymianHttpTransaction } from '../format/thymian-format.js';
  *
  * A selector names exactly one Transaction. It is host-stripped, media-typed
  * and ASCII, and it is **the only spelling of a Transaction anywhere Thymian
- * writes one** (ADR-0020): check lines, test-case names, rule headings, report
+ * writes one** (ADR-0022): check lines, test-case names, rule headings, report
  * locations and error texts all render it, so any printed transaction pastes
  * back as a hook target.
  *
@@ -179,7 +179,7 @@ function escapeMediaType(
  *
  * A label that names only a request is this, so a request heading and a
  * response heading compose into the transaction's own selector rather than
- * being a third format (ADR-0020).
+ * being a third format (ADR-0022).
  */
 export function formatRequestSelector(req: ThymianHttpRequest): string {
   const media = req.mediaType ? ` (${encodeMediaType(req.mediaType)})` : '';
@@ -192,7 +192,7 @@ export function formatRequestSelector(req: ThymianHttpRequest): string {
  *
  * No reason phrase: it is derivable from the status code and is not part of the
  * grammar, so carrying it would put a second spelling of a Transaction back
- * (ADR-0020). Failure *detail* text may still spell one out.
+ * (ADR-0022). Failure *detail* text may still spell one out.
  *
  * The status is `String(res.statusCode)`. `statusCode` is typed `number`, and
  * `String` is injective over the numbers a description can carry, so a loader

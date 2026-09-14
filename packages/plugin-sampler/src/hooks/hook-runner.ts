@@ -553,7 +553,7 @@ function interpretHookFailure(
   return {
     rethrow: new ThymianBaseError(
       // Deliberately without the Transaction: every surface that prints one
-      // already names it (ADR-0020), and repeating it under a header that says
+      // already names it (ADR-0022), and repeating it under a header that says
       // it is the noise this model removes. What only this sentence knows is
       // which export in which file to open.
       `The ${kind} hook exported as "${entry.exportName}" from "${entry.file}" threw.`,

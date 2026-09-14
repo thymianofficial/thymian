@@ -42,7 +42,7 @@ function response(
 }
 
 /**
- * ADR-0020: one grammar for one concept. These assert what a *reader* gets —
+ * ADR-0022: one grammar for one concept. These assert what a *reader* gets —
  * that the string under their cursor is the string a hook is anchored to — not
  * how the renderer is wired.
  */
