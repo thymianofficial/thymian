@@ -1,5 +1,6 @@
 import { httpRule } from '@thymian/core';
 
+// eslint-disable-next-line thymian-internal/require-rule-tags -- lost-update hazard (If-Match) — reliability concern, not security/privacy
 export default httpRule('rfc9110/etag-strong-comparison-rules')
   .severity('off')
   // Defines the strong-comparison algorithm a recipient must apply internally

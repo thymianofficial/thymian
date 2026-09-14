@@ -1,6 +1,7 @@
 import { and, not, responseHeader, statusCode } from '@thymian/core';
 import { httpRule } from '@thymian/core';
 
+// eslint-disable-next-line thymian-internal/require-rule-tags -- permissive MAY, advertising support — no hazard in the permission
 export default httpRule(
   'rfc9110/server-may-send-upgrade-header-in-other-responses',
 )

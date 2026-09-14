@@ -4,6 +4,7 @@ import { httpRule } from '@thymian/core';
 // is OPTIONAL, so there is no non-conformant condition to detect. A server is
 // free to implement (and successfully answer) any other method, and rejecting
 // one with 501 is itself permitted. Nothing observable can violate an OPTIONAL.
+// eslint-disable-next-line thymian-internal/require-rule-tags -- no concern-tag member fits this rule's topic
 export default httpRule('rfc9110/other-methods-than-get-and-head-are-optional')
   .severity('hint')
   .type('informational')

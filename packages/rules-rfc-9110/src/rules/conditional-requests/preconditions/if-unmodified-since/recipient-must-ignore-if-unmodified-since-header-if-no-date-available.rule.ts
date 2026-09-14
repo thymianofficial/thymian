@@ -6,6 +6,7 @@ import { httpRule } from '@thymian/core';
  * framework cannot decide whether ignoring If-Unmodified-Since was required. No
  * observable non-conformant signal exists.
  */
+// eslint-disable-next-line thymian-internal/require-rule-tags -- conditional-header applicability scoping, not a concern-axis topic
 export default httpRule(
   'rfc9110/recipient-must-ignore-if-unmodified-since-header-if-no-date-available',
 )

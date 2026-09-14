@@ -19,6 +19,7 @@ import {
  * (so the condition evaluates to false / "not modified") and asserts the server
  * answers 304.
  */
+// eslint-disable-next-line thymian-internal/require-rule-tags -- precondition-outcome behaviour (304/412 response selection), not a concern-axis topic
 export default httpRule(
   'rfc9110/origin-server-should-respond-304-when-if-modified-since-false',
 )

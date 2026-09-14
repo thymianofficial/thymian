@@ -13,6 +13,7 @@ export default httpRule(
 )
   .severity('error')
   .type('informational')
+  .tags('security:csrf')
   .url('https://www.rfc-editor.org/rfc/rfc9110.html#name-safe-methods')
   .summary(
     'If the purpose of such a resource is to perform an unsafe action, then the resource owner MUST disable or disallow that action when it is accessed using a safe request method.',

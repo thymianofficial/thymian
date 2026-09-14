@@ -47,6 +47,7 @@ export function checkHeaders(
   return undefined;
 }
 
+// eslint-disable-next-line thymian-internal/require-rule-tags -- no concern-tag member fits this rule's topic
 export default httpRule(
   'rfc9110/server-must-generate-header-fields-for-304-response',
 )

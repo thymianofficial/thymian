@@ -1,6 +1,7 @@
 import { and, not, responseHeader, statusCode } from '@thymian/core';
 import { httpRule } from '@thymian/core';
 
+// eslint-disable-next-line thymian-internal/require-rule-tags -- protocol-disclosure the client needs to function, not a concern this vocabulary covers
 export default httpRule(
   'rfc9110/server-must-send-upgrade-header-in-426-response',
 )

@@ -8,6 +8,7 @@ import {
 } from '@thymian/core';
 import { httpRule } from '@thymian/core';
 
+// eslint-disable-next-line thymian-internal/require-rule-tags -- establishes framing exists (performance/UX); the framing-integrity surface is the mismatch/forwarding rules below
 export default httpRule(
   'rfc9110/origin-server-should-send-content-length-when-size-known',
 )

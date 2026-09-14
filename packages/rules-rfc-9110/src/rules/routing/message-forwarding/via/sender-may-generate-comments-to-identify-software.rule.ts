@@ -6,6 +6,7 @@ export default httpRule(
   .severity('hint')
   // Permissive MAY — adding software-identifying comments to Via is optional, so their presence or absence is never a violation.
   .type('informational')
+  .tags('security:disclosure')
   .url('https://www.rfc-editor.org/rfc/rfc9110.html#name-via')
   .description(
     'A sender MAY generate comments to identify the software of each recipient, analogous to the User-Agent and Server header fields. However, comments in Via are optional.',

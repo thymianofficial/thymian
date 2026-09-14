@@ -7,6 +7,7 @@ export default httpRule(
 )
   .severity('error')
   .type('analytics')
+  .tags('security:disclosure')
   .url('https://www.rfc-editor.org/rfc/rfc9110.html#name-trace')
   .description(
     'A client MUST NOT generate fields in a TRACE request containing sensitive data that might be disclosed by the response.',

@@ -5,6 +5,7 @@ import { httpRule } from '@thymian/core';
 // of any individual message. There is no per-transaction observation — and no
 // OpenAPI modeling of trailer-field definitions — that the rule framework can
 // use to detect a violation.
+// eslint-disable-next-line thymian-internal/require-rule-tags -- no concern-tag member fits this rule's topic
 export default httpRule(
   'rfc9110/trailer-fields-must-be-defined-as-list-if-repeatable',
 )

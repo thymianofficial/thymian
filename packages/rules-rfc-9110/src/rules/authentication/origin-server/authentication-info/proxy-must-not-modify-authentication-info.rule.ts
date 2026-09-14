@@ -11,6 +11,7 @@ export default httpRule('rfc9110/proxy-must-not-modify-authentication-info')
   // two-sided, per-hop linkage is only available from traffic captured at the
   // proxy itself.
   .type('analytics')
+  .tags('security:authentication')
   .url(
     'https://www.rfc-editor.org/rfc/rfc9110.html#name-authenticating-users-to-ori',
   )

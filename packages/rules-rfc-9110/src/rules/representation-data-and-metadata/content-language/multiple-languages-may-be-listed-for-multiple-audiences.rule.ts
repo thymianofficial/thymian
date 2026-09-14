@@ -1,6 +1,7 @@
 import { responseHeader } from '@thymian/core';
 import { httpRule } from '@thymian/core';
 
+// eslint-disable-next-line thymian-internal/require-rule-tags -- permissive MAY — no hazard in the permission
 export default httpRule(
   'rfc9110/multiple-languages-may-be-listed-for-multiple-audiences',
 )

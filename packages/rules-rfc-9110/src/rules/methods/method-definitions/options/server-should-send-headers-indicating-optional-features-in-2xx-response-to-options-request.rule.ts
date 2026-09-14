@@ -14,6 +14,7 @@ import { httpRule } from '@thymian/core';
 // successful OPTIONS response advertises at least Allow.
 const headerNames = ['allow'];
 
+// eslint-disable-next-line thymian-internal/require-rule-tags -- no concern-tag member fits this rule's topic
 export default httpRule(
   'rfc9110/server-should-send-headers-indicating-optional-features-in-2xx-response-to-options-request',
 )

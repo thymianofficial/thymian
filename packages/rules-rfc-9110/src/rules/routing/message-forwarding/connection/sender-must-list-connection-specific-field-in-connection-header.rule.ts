@@ -24,6 +24,8 @@ export default httpRule(
 )
   .severity('error')
   .type('analytics')
+  // A hop-by-hop field not listed in Connection is invisible to the stripping step in the sibling rule, so it leaks to the next hop as if it were end-to-end — the same framing-desync shape the RFC never labels "smuggling".
+  .tags('security:request-smuggling')
   .url('https://www.rfc-editor.org/rfc/rfc9110.html#name-connection')
   .description(
     'When a field aside from Connection is used to supply control information for or about the current connection, the sender MUST list the corresponding field name within the Connection header field. This enables proper hop-by-hop vs end-to-end field distinction.',

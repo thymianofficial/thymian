@@ -6,6 +6,7 @@ export default httpRule(
   .severity('warn')
   // Identifying "internal" hosts requires deployment-specific topology knowledge Thymian does not have.
   .type('informational')
+  .tags('security:disclosure')
   .url('https://www.rfc-editor.org/rfc/rfc9110.html#name-via')
   .description(
     'An intermediary used as a portal through a network firewall SHOULD NOT forward the names and ports of hosts within the firewall region unless it is explicitly enabled to do so. This protects internal network topology from exposure.',

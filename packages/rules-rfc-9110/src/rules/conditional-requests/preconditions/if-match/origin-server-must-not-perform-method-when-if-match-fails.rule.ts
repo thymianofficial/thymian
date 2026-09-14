@@ -8,6 +8,7 @@ import { httpRule, singleTestCase } from '@thymian/core';
  * asserts the server declined the method with a 4xx (typically 412). This is a
  * sender-driven probe, which only the `test` context can perform.
  */
+// eslint-disable-next-line thymian-internal/require-rule-tags -- precondition-outcome behaviour (304/412 response selection), not a concern-axis topic
 export default httpRule(
   'rfc9110/origin-server-must-not-perform-method-when-if-match-fails',
 )

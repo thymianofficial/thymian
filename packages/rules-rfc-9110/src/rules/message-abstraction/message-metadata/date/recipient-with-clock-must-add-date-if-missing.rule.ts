@@ -5,6 +5,7 @@ import { httpRule } from '@thymian/core';
 // recipient state (having a clock) and on what the recipient subsequently does
 // downstream, neither of which is observable from a single recorded
 // transaction, so there is no non-conformant condition to flag.
+// eslint-disable-next-line thymian-internal/require-rule-tags -- no concern-tag member fits this rule's topic
 export default httpRule('rfc9110/recipient-with-clock-must-add-date-if-missing')
   .severity('error')
   .type('informational')

@@ -6,6 +6,7 @@ export default httpRule('rfc9110/client-must-verify-service-identity')
   // recorded HTTP layer; a successful or skipped check leaves no distinguishing
   // trace in HTTP messages.
   .type('informational')
+  .tags('security:transport')
   .url(
     'https://www.rfc-editor.org/rfc/rfc9110.html#name-https-certificate-verificat',
   )

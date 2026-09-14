@@ -5,6 +5,7 @@ import { httpRule } from '@thymian/core';
 // elsewhere is internal intent that no message exposes, so the triggering
 // condition is unobservable. (A bare "PUT got a 3xx" check would not validate
 // this rule — it cannot tell an intended relocation from any other redirect.)
+// eslint-disable-next-line thymian-internal/require-rule-tags -- no concern-tag member fits this rule's topic
 export default httpRule(
   'rfc9110/origin-server-must-send-3xx-response-if-state-change-should-be-applied-to-other-resource',
 )

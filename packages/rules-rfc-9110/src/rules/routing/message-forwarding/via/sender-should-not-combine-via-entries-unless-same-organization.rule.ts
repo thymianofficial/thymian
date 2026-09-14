@@ -1,5 +1,6 @@
 import { httpRule } from '@thymian/core';
 
+// eslint-disable-next-line thymian-internal/require-rule-tags -- cross-organization Via combining is deployment/administrative knowledge not present in the message
 export default httpRule(
   'rfc9110/sender-should-not-combine-via-entries-unless-same-organization',
 )

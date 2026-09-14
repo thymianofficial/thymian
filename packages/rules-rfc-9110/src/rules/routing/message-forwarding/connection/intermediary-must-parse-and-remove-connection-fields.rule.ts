@@ -10,6 +10,8 @@ export default httpRule(
 )
   .severity('error')
   .type('analytics')
+  // A field left in place because Connection was not parsed and stripped can be forwarded to the next hop and interpreted as end-to-end, letting two hops disagree about what governs this message — framing integrity, even though RFC 9110 writes this as hop-by-hop field handling, never as "smuggling".
+  .tags('security:request-smuggling')
   .url('https://www.rfc-editor.org/rfc/rfc9110.html#name-connection')
   .description(
     "Intermediaries MUST parse a received Connection header field before a message is forwarded and, for each connection-option in this field, remove any header or trailer field(s) from the message with the same name as the connection-option, and then remove the Connection header field itself (or replace it with the intermediary's own control options for the forwarded message).",

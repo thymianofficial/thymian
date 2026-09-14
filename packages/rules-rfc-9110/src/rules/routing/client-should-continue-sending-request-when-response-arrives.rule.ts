@@ -1,5 +1,6 @@
 import { httpRule } from '@thymian/core';
 
+// eslint-disable-next-line thymian-internal/require-rule-tags -- pipelining timing behavior — no concern-tag member fits
 export default httpRule(
   'rfc9110/client-should-continue-sending-request-when-response-arrives',
 )

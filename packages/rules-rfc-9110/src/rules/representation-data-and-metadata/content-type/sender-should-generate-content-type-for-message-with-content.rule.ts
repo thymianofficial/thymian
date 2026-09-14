@@ -6,6 +6,7 @@ export default httpRule(
 )
   .severity('warn')
   .type('static', 'test', 'analytics')
+  .tags('security:content-type')
   .url('https://www.rfc-editor.org/rfc/rfc9110.html#section-8.3')
   .description(
     `A sender that generates a message containing content SHOULD generate a Content-Type header field

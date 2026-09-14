@@ -7,6 +7,7 @@ import { httpRule } from '@thymian/core';
  * condition fails — is actively probed by
  * `origin-server-must-not-perform-method-when-if-unmodified-since-fails`.
  */
+// eslint-disable-next-line thymian-internal/require-rule-tags -- precondition evaluation ordering, not a concern-axis topic
 export default httpRule(
   'rfc9110/origin-server-must-evaluate-if-unmodified-since',
 )

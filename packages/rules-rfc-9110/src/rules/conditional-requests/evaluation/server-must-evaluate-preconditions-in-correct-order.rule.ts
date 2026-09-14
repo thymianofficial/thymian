@@ -9,6 +9,7 @@ import { httpRule } from '@thymian/core';
  * If-None-Match is present, and ignore If-Unmodified-Since when If-Match is
  * present) are captured by their own dedicated rules.
  */
+// eslint-disable-next-line thymian-internal/require-rule-tags -- precondition evaluation ordering, not a concern-axis topic
 export default httpRule(
   'rfc9110/server-must-evaluate-preconditions-in-correct-order',
 )

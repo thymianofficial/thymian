@@ -1,5 +1,6 @@
 import { httpRule } from '@thymian/core';
 
+// eslint-disable-next-line thymian-internal/require-rule-tags -- no concern-tag member fits this rule's topic
 export default httpRule('rfc9110/sender-should-generate-rws-as-single-sp')
   .severity('warn')
   // RWS positions are defined per-field by each field's ABNF; without those

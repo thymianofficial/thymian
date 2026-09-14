@@ -4,6 +4,7 @@ import { httpRule } from '@thymian/core';
 // permissive allowance with no non-conformant condition to detect. As with the
 // GET counterpart, observing actual reuse would need cache-hit correlation,
 // but since the statement is a MAY there is nothing to flag regardless.
+// eslint-disable-next-line thymian-internal/require-rule-tags -- no concern-tag member fits this rule's topic
 export default httpRule(
   'rfc9110/cache-may-use-responses-to-head-for-satisfy-subsequent-head-requests',
 )

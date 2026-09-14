@@ -3,6 +3,7 @@ import { httpRule } from '@thymian/core';
 // A permissive, definitional statement about connection-closure (implicit)
 // framing. Framing is a transport/connection concern below the abstraction the
 // rule framework observes, and the statement imposes no testable requirement.
+// eslint-disable-next-line thymian-internal/require-rule-tags -- no concern-tag member fits this rule's topic
 export default httpRule(
   'rfc9110/implicit-framing-allowed-for-backwards-compatibility',
 )

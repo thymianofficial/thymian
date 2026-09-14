@@ -11,6 +11,7 @@ export default httpRule(
 )
   .severity('error')
   .type('analytics')
+  .tags('privacy:fingerprinting')
   .url('https://www.rfc-editor.org/rfc/rfc9110.html#name-user-agent')
   .description(
     'A sender MUST NOT generate advertising or other nonessential information within the product identifier.',

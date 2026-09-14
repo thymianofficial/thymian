@@ -5,6 +5,7 @@ import {
 } from '@thymian/core';
 import { httpRule } from '@thymian/core';
 
+// eslint-disable-next-line thymian-internal/require-rule-tags -- range-validator precision to avoid combining mismatched representation versions -- a data-integrity concern the vocabulary does not yet carry (see #90's reliability expansion path), not security or privacy
 export default httpRule(
   'rfc9110/client-must-not-generate-if-range-header-containing-http-date',
 )

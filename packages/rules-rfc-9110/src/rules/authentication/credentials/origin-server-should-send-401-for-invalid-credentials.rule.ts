@@ -13,6 +13,7 @@ export default httpRule(
   // simply did not treat as protected. Without that ground truth there is no
   // reliable non-conformant condition to detect.
   .type('informational')
+  .tags('security:authentication')
   .url('https://www.rfc-editor.org/rfc/rfc9110.html#name-credentials')
   .description(
     'Upon receipt of a request for a protected resource that omits credentials, contains invalid credentials, or partial credentials, an origin server SHOULD send a 401 (Unauthorized) response that contains a WWW-Authenticate header field.',

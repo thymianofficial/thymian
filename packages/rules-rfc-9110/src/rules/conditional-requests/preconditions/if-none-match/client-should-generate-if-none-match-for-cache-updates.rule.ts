@@ -9,6 +9,7 @@ import { httpRule } from '@thymian/core';
  * to revalidate), and being client-side the rule could never belong in `test`
  * anyway.
  */
+// eslint-disable-next-line thymian-internal/require-rule-tags -- a MAY/SHOULD permission that is neither the mitigation nor the hazard
 export default httpRule(
   'rfc9110/client-should-generate-if-none-match-for-cache-updates',
 )

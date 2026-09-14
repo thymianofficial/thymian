@@ -1,6 +1,7 @@
 import { and, not, or, responseHeader, statusCodeRange } from '@thymian/core';
 import { httpRule } from '@thymian/core';
 
+// eslint-disable-next-line thymian-internal/require-rule-tags -- no concern-tag member fits this rule's topic
 export default httpRule('rfc9110/origin-server-may-generate-date-for-1xx-5xx')
   .severity('hint')
   .type('analytics')

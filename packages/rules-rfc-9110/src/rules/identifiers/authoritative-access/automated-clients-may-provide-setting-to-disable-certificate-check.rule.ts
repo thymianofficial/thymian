@@ -7,6 +7,7 @@ export default httpRule(
   // Permissive MAY about a client configuration setting — no observable failure
   // mode and not detectable from recorded HTTP traffic.
   .type('informational')
+  .tags('security:transport')
   .url(
     'https://www.rfc-editor.org/rfc/rfc9110.html#name-https-certificate-verificat',
   )

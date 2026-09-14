@@ -10,6 +10,10 @@ export default httpRule(
 )
   .severity('error')
   .type('informational')
+  // A successful CONNECT response becomes a raw tunnel; Content-Length or
+  // Transfer-Encoding on it would falsely imply a framed HTTP body. One of the
+  // two named canonical CONNECT-framing shapes for this tag (thymian-workspace#90).
+  .tags('security:request-smuggling')
   .url('https://www.rfc-editor.org/rfc/rfc9110.html#name-connect')
   .description(
     'A client MUST ignore any Content-Length or Transfer-Encoding header fields received in a successful response to CONNECT.',

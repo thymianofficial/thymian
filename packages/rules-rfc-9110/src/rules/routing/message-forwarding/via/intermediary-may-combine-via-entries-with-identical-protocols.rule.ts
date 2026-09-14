@@ -1,5 +1,6 @@
 import { httpRule } from '@thymian/core';
 
+// eslint-disable-next-line thymian-internal/require-rule-tags -- list-consolidation mechanics, not a disclosure-shaping decision
 export default httpRule(
   'rfc9110/intermediary-may-combine-via-entries-with-identical-protocols',
 )

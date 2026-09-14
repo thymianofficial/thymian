@@ -19,6 +19,7 @@ import {
  * If-None-Match set to the resource's own ETag (so the condition is false / the
  * tag matches) and asserts the origin server answers 304.
  */
+// eslint-disable-next-line thymian-internal/require-rule-tags -- precondition-outcome behaviour (304/412 response selection), not a concern-axis topic
 export default httpRule(
   'rfc9110/origin-server-must-respond-304-or-412-when-if-none-match-fails',
 )

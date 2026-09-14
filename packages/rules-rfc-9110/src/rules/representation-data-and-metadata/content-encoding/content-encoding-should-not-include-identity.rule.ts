@@ -19,6 +19,7 @@ function parseContentEncoding(value: string | string[]): string[] {
     .filter((coding) => coding.length > 0);
 }
 
+// eslint-disable-next-line thymian-internal/require-rule-tags -- header-value correctness, not a concern this vocabulary covers
 export default httpRule('rfc9110/content-encoding-should-not-include-identity')
   .severity('warn')
   .type('test', 'analytics')

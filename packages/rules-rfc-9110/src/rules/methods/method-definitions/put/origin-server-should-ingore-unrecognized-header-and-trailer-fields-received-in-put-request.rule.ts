@@ -4,6 +4,7 @@ import { httpRule } from '@thymian/core';
 // decision about how received PUT header/trailer fields are (not) persisted. It
 // produces no observable signal in the response or in recorded traffic, so the
 // SHOULD cannot be checked.
+// eslint-disable-next-line thymian-internal/require-rule-tags -- no concern-tag member fits this rule's topic
 export default httpRule(
   'rfc9110/origin-server-should-ingore-unrecognized-header-and-trailer-fields-received-in-put-request',
 )

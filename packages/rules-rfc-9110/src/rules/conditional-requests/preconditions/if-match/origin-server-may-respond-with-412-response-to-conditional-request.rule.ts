@@ -7,6 +7,7 @@ import {
 } from '@thymian/core';
 import { httpRule, singleTestCase } from '@thymian/core';
 
+// eslint-disable-next-line thymian-internal/require-rule-tags -- a MAY/SHOULD permission that is neither the mitigation nor the hazard
 export default httpRule(
   'rfc9110/origin-server-may-respond-with-412-response-to-conditional-request',
 )

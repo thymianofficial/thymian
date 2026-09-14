@@ -5,6 +5,7 @@ import { httpRule } from '@thymian/core';
 // exposes, and even then 409/415 are only *suggested* — the server may instead
 // make the representation consistent and succeed. Neither the triggering
 // condition nor a definite required status is observable.
+// eslint-disable-next-line thymian-internal/require-rule-tags -- no concern-tag member fits this rule's topic
 export default httpRule(
   'rfc9110/origin-server-should-response-with-409-or-415-status-code-to-put-request-for-inconsistent-representation',
 )

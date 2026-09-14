@@ -7,6 +7,7 @@ export default httpRule(
 )
   .severity('error')
   .type('analytics')
+  .tags('security:dos')
   .url('https://www.rfc-editor.org/rfc/rfc9110.html#name-byte-ranges')
   .description(
     'In the byte-range syntax, first-pos, last-pos, and suffix-length are expressed as decimal number of octets. Since there is no predefined limit to the length of content, recipients MUST anticipate potentially large decimal numerals and prevent parsing errors due to integer conversion overflows.',

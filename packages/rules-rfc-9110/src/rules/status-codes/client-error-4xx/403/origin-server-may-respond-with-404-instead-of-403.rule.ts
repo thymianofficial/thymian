@@ -6,6 +6,7 @@ export default httpRule(
 )
   .severity('hint')
   .type('static', 'analytics', 'test')
+  .tags('security:disclosure')
   .url('https://www.rfc-editor.org/rfc/rfc9110.html#name-403-forbidden')
   .description(
     'An origin server that wishes to "hide" the current existence of a forbidden target resource MAY instead respond with a status code of 404 (Not Found).',

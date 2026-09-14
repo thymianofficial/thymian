@@ -10,6 +10,7 @@ import { httpRule } from '@thymian/core';
  * framework can arrange generically. The security-relevant intent (preventing
  * lost updates) is realized by the must-not-perform-method rule.
  */
+// eslint-disable-next-line thymian-internal/require-rule-tags -- lost-update hazard -- If-Match's whole purpose is preventing a lost update, but 'lost update' is a reliability concern the vocabulary deliberately does not yet carry (#90's recorded reliability expansion path), not security or privacy
 export default httpRule(
   'rfc9110/origin-server-must-use-strong-comparison-for-if-match',
 )

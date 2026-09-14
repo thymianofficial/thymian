@@ -1,5 +1,6 @@
 import { httpRule } from '@thymian/core';
 
+// eslint-disable-next-line thymian-internal/require-rule-tags -- response-sequencing correctness, not a concern this vocabulary covers
 export default httpRule(
   'rfc9110/server-must-send-100-before-101-with-expect-header',
 )

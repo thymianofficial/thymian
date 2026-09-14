@@ -29,6 +29,7 @@ export default httpRule(
 )
   .severity('warn')
   .type('analytics')
+  .tags('security:disclosure')
   .url('https://www.rfc-editor.org/rfc/rfc9110.html#name-trace')
   .description(
     'The final recipient of the request SHOULD exclude any request fields that are likely to contain sensitive data when that recipient generates the response content.',

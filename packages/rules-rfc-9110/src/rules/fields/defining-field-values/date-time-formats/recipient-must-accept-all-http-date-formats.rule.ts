@@ -1,5 +1,6 @@
 import { httpRule } from '@thymian/core';
 
+// eslint-disable-next-line thymian-internal/require-rule-tags -- no concern-tag member fits this rule's topic
 export default httpRule('rfc9110/recipient-must-accept-all-http-date-formats')
   .severity('error')
   // A recipient's internal parsing acceptance of all three HTTP-date formats

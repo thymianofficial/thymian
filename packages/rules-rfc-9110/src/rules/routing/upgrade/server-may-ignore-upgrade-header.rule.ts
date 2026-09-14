@@ -1,5 +1,6 @@
 import { httpRule } from '@thymian/core';
 
+// eslint-disable-next-line thymian-internal/require-rule-tags -- permissive MAY, declining to upgrade — no hazard in the permission
 export default httpRule('rfc9110/server-may-ignore-upgrade-header')
   .severity('hint')
   // Permissive MAY — a server ignoring Upgrade is an allowed internal decision, so neither outcome is a violation.

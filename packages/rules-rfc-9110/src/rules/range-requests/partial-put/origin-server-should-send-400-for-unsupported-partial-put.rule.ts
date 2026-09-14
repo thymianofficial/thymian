@@ -7,6 +7,7 @@ import {
   singleTestCase,
 } from '@thymian/core';
 
+// eslint-disable-next-line thymian-internal/require-rule-tags -- no concern-tag member fits this rule's topic
 export default httpRule(
   'rfc9110/origin-server-should-send-400-for-unsupported-partial-put',
 )

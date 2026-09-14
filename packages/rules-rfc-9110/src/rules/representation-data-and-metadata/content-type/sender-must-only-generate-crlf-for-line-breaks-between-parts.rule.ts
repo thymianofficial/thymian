@@ -1,5 +1,6 @@
 import { httpRule } from '@thymian/core';
 
+// eslint-disable-next-line thymian-internal/require-rule-tags -- intra-body multipart formatting, not a message-boundary-between-hops concern
 export default httpRule(
   'rfc9110/sender-must-only-generate-crlf-for-line-breaks-between-parts',
 )

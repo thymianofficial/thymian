@@ -6,6 +6,7 @@ import { httpRule } from '@thymian/core';
 // from a non-conformant response. (The related, observable constraint — never
 // putting *forbidden* fields in trailers — is enforced by
 // `sender-must-not-generate-trailer-unless-permitted`.)
+// eslint-disable-next-line thymian-internal/require-rule-tags -- no concern-tag member fits this rule's topic
 export default httpRule('rfc9110/server-should-not-generate-necessary-trailers')
   .severity('warn')
   .type('informational')

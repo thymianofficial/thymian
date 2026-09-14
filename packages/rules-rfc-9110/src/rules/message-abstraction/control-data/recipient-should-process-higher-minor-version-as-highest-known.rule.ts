@@ -4,6 +4,7 @@ import { httpRule } from '@thymian/core';
 // version exceeds what it implements. This is internal recipient processing
 // logic, and the HTTP version is transport control data not surfaced by the
 // rule framework. Not observable.
+// eslint-disable-next-line thymian-internal/require-rule-tags -- no concern-tag member fits this rule's topic
 export default httpRule(
   'rfc9110/recipient-should-process-higher-minor-version-as-highest-known',
 )

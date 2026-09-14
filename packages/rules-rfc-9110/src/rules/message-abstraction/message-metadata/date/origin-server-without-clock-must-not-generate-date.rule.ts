@@ -4,6 +4,7 @@ import { httpRule } from '@thymian/core';
 // internal server state not exposed in any transaction. Without knowing the
 // server lacks a clock, a present (or absent) Date header cannot be classified
 // as a violation, so there is no observable non-conformant condition.
+// eslint-disable-next-line thymian-internal/require-rule-tags -- no concern-tag member fits this rule's topic
 export default httpRule(
   'rfc9110/origin-server-without-clock-must-not-generate-date',
 )

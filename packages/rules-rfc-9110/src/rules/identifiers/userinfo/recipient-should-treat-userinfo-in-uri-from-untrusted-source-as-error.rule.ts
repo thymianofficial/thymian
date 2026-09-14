@@ -10,6 +10,7 @@ export default httpRule(
 )
   .severity('warn')
   .type('analytics')
+  .tags('security:spoofing')
   .url(
     'https://www.rfc-editor.org/rfc/rfc9110.html#name-deprecation-of-userinfo-in-http',
   )

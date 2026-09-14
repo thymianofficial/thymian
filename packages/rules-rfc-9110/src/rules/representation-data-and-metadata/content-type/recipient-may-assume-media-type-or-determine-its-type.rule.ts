@@ -14,6 +14,7 @@ export default httpRule(
 )
   .severity('warn')
   .type('analytics')
+  .tags('security:content-type')
   .appliesTo('client', 'user-agent')
   .url('https://www.rfc-editor.org/rfc/rfc9110.html#section-8.3')
   .description(

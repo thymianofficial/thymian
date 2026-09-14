@@ -18,6 +18,7 @@ import { httpRule } from '@thymian/core';
  * projection suffices and the check is identical for the described transaction
  * and recorded traffic.
  */
+// eslint-disable-next-line thymian-internal/require-rule-tags -- conditional-header applicability scoping, not a concern-axis topic
 export default httpRule(
   'rfc9110/recipient-must-ignore-if-modified-since-for-non-get-head',
 )

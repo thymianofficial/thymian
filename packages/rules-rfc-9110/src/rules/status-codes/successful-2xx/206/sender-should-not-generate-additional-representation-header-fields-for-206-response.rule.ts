@@ -79,6 +79,7 @@ export function checkHeaders(
   return;
 }
 
+// eslint-disable-next-line thymian-internal/require-rule-tags -- no concern-tag member fits this rule's topic
 export default httpRule(
   'rfc9110/sender-should-not-generate-additional-representation-header-fields-for-206-response',
 )

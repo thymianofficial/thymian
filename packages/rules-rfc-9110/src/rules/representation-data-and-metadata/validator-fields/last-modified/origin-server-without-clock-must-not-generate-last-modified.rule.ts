@@ -1,5 +1,6 @@
 import { httpRule } from '@thymian/core';
 
+// eslint-disable-next-line thymian-internal/require-rule-tags -- cache-freshness correctness, not a concern this vocabulary covers
 export default httpRule(
   'rfc9110/origin-server-without-clock-must-not-generate-last-modified',
 )

@@ -6,6 +6,7 @@ export default httpRule('rfc9110/client-must-not-use-cn-id-reference-identity')
   // TLS certificate-verification logic; it leaves no trace in recorded HTTP
   // messages.
   .type('informational')
+  .tags('security:transport')
   .url(
     'https://www.rfc-editor.org/rfc/rfc9110.html#name-https-certificate-verificat',
   )

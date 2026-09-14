@@ -5,6 +5,7 @@ import { httpRule } from '@thymian/core';
 // server-selects-the-URI operation is a semantic design judgement, not
 // something derivable from the method/status/headers of a message. The SHOULD
 // therefore cannot be mechanically checked.
+// eslint-disable-next-line thymian-internal/require-rule-tags -- no concern-tag member fits this rule's topic
 export default httpRule(
   'rfc9110/service-that-selects-uri-for-client-should-use-post-instead-of-put',
 )

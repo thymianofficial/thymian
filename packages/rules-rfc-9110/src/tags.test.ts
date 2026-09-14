@@ -1,0 +1,813 @@
+import { allRuleTags, loadRules, ruleTagVocabulary } from '@thymian/core';
+import { describe, expect, it } from 'vitest';
+
+// Batch 1 of the concern-tag sweep (thymian-workspace#93): identifiers,
+// authentication, message-context — the three densest directories, judged
+// as a pilot batch before the rest of the corpus. Each list is this batch's
+// own drift guard, the same convention `profiles.test.ts` uses for the
+// shipped profiles: a renamed or removed rule fails this test loudly rather
+// than silently dropping out of the census.
+
+const identifiersRuleIds = [
+  'rfc9110/automated-client-must-log-error-to-audit-log-for-bad-certificate',
+  'rfc9110/automated-client-should-terminate-connection-for-bad-certificate',
+  'rfc9110/automated-clients-may-provide-setting-to-disable-certificate-check',
+  'rfc9110/automated-clients-must-provide-setting-to-enable-certificate-check',
+  'rfc9110/client-may-access-by-resolving-host-to-ip-address',
+  'rfc9110/client-must-construct-reference-identity',
+  'rfc9110/client-must-not-use-cn-id-reference-identity',
+  'rfc9110/client-must-use-rfc6125-verification',
+  'rfc9110/client-must-verify-service-identity',
+  'rfc9110/user-agent-must-handle-bad-certificate',
+  'rfc9110/recipient-must-reject-http-uri-without-host',
+  'rfc9110/sender-must-not-generate-http-uri-with-empty-host',
+  'rfc9110/client-must-secure-https-requests-and-responses',
+  'rfc9110/recipient-must-reject-https-uri-without-host',
+  'rfc9110/sender-must-not-generate-https-uri-with-empty-host',
+  'rfc9110/authority-should-not-use-equivalent-uris-for-distinct-resources',
+  'rfc9110/http-component-may-perform-normalization',
+  'rfc9110/sender-recipient-should-support-8000-octet-uris',
+  'rfc9110/recipient-should-treat-userinfo-in-uri-from-untrusted-source-as-error',
+  'rfc9110/sender-must-not-generate-userinfo-in-uri',
+];
+
+const authenticationRuleIds = [
+  'rfc9110/origin-server-should-send-401-for-invalid-credentials',
+  'rfc9110/proxy-should-send-407-for-invalid-proxy-credentials',
+  'rfc9110/proxy-must-not-modify-authentication-info',
+  'rfc9110/proxy-must-not-modify-authorization',
+  'rfc9110/proxy-must-not-modify-www-authenticate',
+  'rfc9110/server-may-send-www-authenticate-in-other-responses',
+  'rfc9110/authentication-parameter-name-must-occur-once-per-challenge',
+  'rfc9110/authentication-scheme-must-accept-token-and-quoted-string',
+  'rfc9110/proxy-authenticate-applies-to-next-client',
+  'rfc9110/proxy-may-relay-credentials',
+  'rfc9110/realm-parameter-must-use-quoted-string-syntax',
+  'rfc9110/user-agent-may-reuse-same-credentials-for-identical-protection-space',
+];
+
+const messageContextRuleIds = [
+  'rfc9110/client-may-proceed-to-send-content-without-receiving-100-response',
+  'rfc9110/client-must-not-generate-100-continue-without-content',
+  'rfc9110/client-must-send-expect-header-for-100-response',
+  'rfc9110/client-should-not-wait-for-an-indefinite-period-for-100-response',
+  'rfc9110/client-should-repeat-request-without-expect-for-417',
+  'rfc9110/origin-server-must-not-wait-for-content-before-100-continue',
+  'rfc9110/origin-server-must-respond-immediately-to-100-continue-request',
+  'rfc9110/proxy-may-generate-immediate-100-response',
+  'rfc9110/proxy-must-handle-100-continue-expectation',
+  'rfc9110/server-may-omit-sending-100-response-if-already-received-content',
+  'rfc9110/server-may-respond-with-417-response-for-other-expect-than-100-continue',
+  'rfc9110/server-must-ignore-100-continue-in-http-1.0',
+  'rfc9110/server-must-send-final-status-after-100-continue',
+  'rfc9110/server-should-indicate-if-closing-the-connection-when-sending-final-status-code-without-full-request',
+  'rfc9110/robotic-user-agent-should-send-valid-from-header',
+  'rfc9110/server-should-not-use-from-for-authentication',
+  'rfc9110/user-agent-should-not-send-from-without-configuration',
+  'rfc9110/intermediary-should-not-modify-referer-for-same-scheme-and-host',
+  'rfc9110/user-agent-may-truncate-parts-other-than-referring-origin',
+  'rfc9110/user-agent-must-exclude-referer-or-send-about-blank-for-no-source',
+  'rfc9110/user-agent-must-not-include-fragment-or-userinfo-in-referer',
+  'rfc9110/user-agent-must-not-send-referer-in-unsecured-request-from-secure-resource',
+  'rfc9110/user-agent-should-not-send-referer-for-secure-to-insecure',
+  'rfc9110/sender-must-send-te-connection-option-with-te-header',
+  'rfc9110/sender-must-not-generate-advertising-in-product-identifier',
+  'rfc9110/sender-should-limit-generated-product-identifiers-to-necessity',
+  'rfc9110/sender-should-not-generate-non-version-info-in-product-version',
+  'rfc9110/user-agent-should-limit-addition-of-subproducts-by-third-parties',
+  'rfc9110/user-agent-should-not-generate-needlessly-fine-grained-detailed-user-agent-field',
+  'rfc9110/user-agent-should-send-user-agent-header',
+  'rfc9110/origin-server-may-send-allow-header',
+  'rfc9110/proxy-must-not-modify-allow-header',
+  'rfc9110/user-agent-must-inherit-fragment-for-3xx-without-fragment',
+  'rfc9110/origin-server-may-generate-server-header-field',
+  'rfc9110/origin-server-should-limit-addition-of-subproducts-by-third-parties',
+  'rfc9110/origin-server-should-not-generate-needlessly-fine-grained-detail-server-header',
+];
+
+describe('concern tag sweep — batch 1 (identifiers, authentication, message-context)', () => {
+  it('resolves every id in this batch to a real rule', async () => {
+    const rules = await loadRules('@thymian/rules-rfc-9110');
+    const ruleIds = new Set(rules.map((rule) => rule.meta.name));
+
+    for (const id of [
+      ...identifiersRuleIds,
+      ...authenticationRuleIds,
+      ...messageContextRuleIds,
+    ]) {
+      expect(ruleIds.has(id), `"${id}" is not a real rule`).toBe(true);
+    }
+  }, 30_000);
+
+  it('tags 12 of the 20 `identifiers` rules', async () => {
+    const rules = await loadRules('@thymian/rules-rfc-9110');
+    const byId = new Map(rules.map((rule) => [rule.meta.name, rule]));
+
+    expect(identifiersRuleIds.length).toBe(20);
+
+    const tagged = identifiersRuleIds.filter(
+      (id) => (byId.get(id)?.meta.tags?.length ?? 0) > 0,
+    );
+    expect(tagged.length).toBe(12);
+  }, 30_000);
+
+  it('tags 6 of the 12 `authentication` rules', async () => {
+    const rules = await loadRules('@thymian/rules-rfc-9110');
+    const byId = new Map(rules.map((rule) => [rule.meta.name, rule]));
+
+    expect(authenticationRuleIds.length).toBe(12);
+
+    const tagged = authenticationRuleIds.filter(
+      (id) => (byId.get(id)?.meta.tags?.length ?? 0) > 0,
+    );
+    expect(tagged.length).toBe(6);
+  }, 30_000);
+
+  it('tags 15 of the 36 `message-context` rules', async () => {
+    const rules = await loadRules('@thymian/rules-rfc-9110');
+    const byId = new Map(rules.map((rule) => [rule.meta.name, rule]));
+
+    expect(messageContextRuleIds.length).toBe(36);
+
+    const tagged = messageContextRuleIds.filter(
+      (id) => (byId.get(id)?.meta.tags?.length ?? 0) > 0,
+    );
+    expect(tagged.length).toBe(15);
+  }, 30_000);
+
+  it('carries no tag outside the exported vocabulary', async () => {
+    const rules = await loadRules('@thymian/rules-rfc-9110');
+    const byId = new Map(rules.map((rule) => [rule.meta.name, rule]));
+
+    for (const id of [
+      ...identifiersRuleIds,
+      ...authenticationRuleIds,
+      ...messageContextRuleIds,
+    ]) {
+      for (const tag of byId.get(id)?.meta.tags ?? []) {
+        expect(allRuleTags, `"${tag}" on "${id}"`).toContain(tag);
+      }
+    }
+  }, 30_000);
+});
+
+// Batch 2 of the concern-tag sweep (thymian-workspace#94): routing,
+// representation-data-and-metadata — the directory carrying most of the
+// corpus's framing-integrity (`security:request-smuggling`) cluster.
+
+const routingRuleIds = [
+  'rfc9110/client-must-not-use-special-request-target-forms-with-other-methods',
+  'rfc9110/client-should-continue-sending-request-when-response-arrives',
+  'rfc9110/intermediary-must-parse-and-remove-connection-fields',
+  'rfc9110/intermediary-should-remove-known-hop-by-hop-fields',
+  'rfc9110/sender-must-list-connection-specific-field-in-connection-header',
+  'rfc9110/sender-must-not-send-end-to-end-fields-as-connection-options',
+  'rfc9110/intermediary-must-implement-connection-header',
+  'rfc9110/intermediary-must-not-forward-message-to-itself',
+  'rfc9110/intermediary-must-check-and-update-max-forwards',
+  'rfc9110/intermediary-must-generate-updated-max-forwards-when-forwarding',
+  'rfc9110/intermediary-must-not-forward-when-max-forwards-is-zero',
+  'rfc9110/intermediary-must-respond-as-final-recipient-when-max-forward-is-zero',
+  'rfc9110/recipient-may-ignore-max-forwards-for-other-methods',
+  'rfc9110/firewall-intermediary-should-not-forward-internal-hosts',
+  'rfc9110/firewall-intermediary-should-replace-internal-hosts-with-pseudonyms',
+  'rfc9110/gateway-may-send-via-header-in-responses',
+  'rfc9110/gateway-must-send-via-header-in-inbound-requests',
+  'rfc9110/intermediary-may-combine-via-entries-with-identical-protocols',
+  'rfc9110/proxy-must-send-via-header',
+  'rfc9110/recipient-may-interpret-missing-port-as-default',
+  'rfc9110/recipient-may-remove-comments-before-forwarding',
+  'rfc9110/sender-may-generate-comments-to-identify-software',
+  'rfc9110/sender-may-replace-host-with-pseudonym',
+  'rfc9110/sender-must-not-combine-via-entries-with-different-protocols',
+  'rfc9110/sender-should-not-combine-via-entries-unless-same-organization',
+  'rfc9110/proxy-may-add-domain-to-non-fqdn-hostname',
+  'rfc9110/proxy-may-transform-content-without-no-transform-directive',
+  'rfc9110/proxy-must-not-change-fqdn-hostname',
+  'rfc9110/proxy-must-not-modify-absolute-path-and-query',
+  'rfc9110/proxy-must-not-transform-content-with-no-transform-directive',
+  'rfc9110/proxy-should-not-modify-endpoint-and-representation-headers',
+  'rfc9110/origin-server-must-reject-https-requests-without-valid-certificate',
+  'rfc9110/origin-server-must-reject-requests-not-meeting-scheme-requirements',
+  'rfc9110/client-may-send-upgrade-header',
+  'rfc9110/recipient-should-use-case-insensitive-comparison-for-protocol-names',
+  'rfc9110/sender-must-send-upgrade-connection-option',
+  'rfc9110/server-may-ignore-client-protocol-preference-order',
+  'rfc9110/server-may-ignore-upgrade-header',
+  'rfc9110/server-may-send-upgrade-header-in-other-responses',
+  'rfc9110/server-must-ignore-upgrade-in-http-1.0-request',
+  'rfc9110/server-must-list-protocols-in-layer-ascending-order',
+  'rfc9110/server-must-not-switch-to-non-indicated-protocol',
+  'rfc9110/server-must-not-switch-unless-semantics-can-be-honored',
+  'rfc9110/server-must-send-100-before-101-with-expect-header',
+  'rfc9110/server-must-send-upgrade-header-in-101-response',
+  'rfc9110/server-must-send-upgrade-header-in-426-response',
+  'rfc9110/user-agent-must-generate-host-or-authority-header',
+  'rfc9110/user-agent-should-send-host-as-first-header',
+];
+
+const representationRuleIds = [
+  'rfc9110/content-encoding-should-not-include-identity',
+  'rfc9110/origin-server-may-respond-415-for-unacceptable-content-coding',
+  'rfc9110/recipient-should-treat-x-compress-as-compress',
+  'rfc9110/recipient-should-treat-x-gzip-as-gzip',
+  'rfc9110/sender-must-generate-content-encoding-header-if-encodings-applied',
+  'rfc9110/content-language-may-be-applied-to-any-media-type',
+  'rfc9110/multiple-languages-may-be-listed-for-multiple-audiences',
+  'rfc9110/origin-server-should-send-content-length-when-size-known',
+  'rfc9110/recipient-must-handle-large-content-length',
+  'rfc9110/sender-must-not-forward-incorrect-content-length',
+  'rfc9110/sender-must-not-forward-message-with-incorrect-content-length-header',
+  'rfc9110/sender-must-not-forward-message-with-invalid-content-length',
+  'rfc9110/server-may-send-content-length-for-304',
+  'rfc9110/server-may-send-content-length-for-head-response',
+  'rfc9110/server-must-not-send-content-length-for-1xx-or-204',
+  'rfc9110/server-must-not-send-content-length-for-2xx-connect-response',
+  'rfc9110/user-agent-should-not-send-content-length-without-content',
+  'rfc9110/user-agent-should-send-content-length-for-request-with-defined-content',
+  'rfc9110/content-location-201-response-semantics',
+  'rfc9110/content-location-semantics-for-2xx-response',
+  'rfc9110/origin-server-must-treat-content-location-as-transitory-context',
+  'rfc9110/recipient-may-assume-media-type-or-determine-its-type',
+  'rfc9110/sender-must-only-generate-crlf-for-line-breaks-between-parts',
+  'rfc9110/sender-should-generate-content-type-for-message-with-content',
+  'rfc9110/etag-must-differ-for-different-content-encodings',
+  'rfc9110/etag-strong-comparison-rules',
+  'rfc9110/etag-weak-comparison-rules',
+  'rfc9110/origin-server-must-mark-weak-entity-tag',
+  'rfc9110/origin-server-should-avoid-backslash-in-entity-tags',
+  'rfc9110/origin-server-should-send-etag',
+  'rfc9110/sender-may-send-etag-in-trailer',
+  'rfc9110/origin-server-should-obtain-last-modified-close-to-date-generation',
+  'rfc9110/origin-server-should-send-last-modified',
+  'rfc9110/origin-server-with-clock-must-not-generate-future-last-modified',
+  'rfc9110/origin-server-without-clock-must-not-generate-last-modified',
+  'rfc9110/origin-server-should-change-weak-entity-tag-for-unacceptable-representations',
+];
+
+describe('concern tag sweep — batch 2 (routing, representation-data-and-metadata)', () => {
+  it('resolves every id in this batch to a real rule', async () => {
+    const rules = await loadRules('@thymian/rules-rfc-9110');
+    const ruleIds = new Set(rules.map((rule) => rule.meta.name));
+
+    for (const id of [...routingRuleIds, ...representationRuleIds]) {
+      expect(ruleIds.has(id), `"${id}" is not a real rule`).toBe(true);
+    }
+  }, 30_000);
+
+  it('tags 18 of the 48 `routing` rules', async () => {
+    const rules = await loadRules('@thymian/rules-rfc-9110');
+    const byId = new Map(rules.map((rule) => [rule.meta.name, rule]));
+
+    expect(routingRuleIds.length).toBe(48);
+
+    const tagged = routingRuleIds.filter(
+      (id) => (byId.get(id)?.meta.tags?.length ?? 0) > 0,
+    );
+    expect(tagged.length).toBe(18);
+  }, 30_000);
+
+  it('tags 9 of the 36 `representation-data-and-metadata` rules', async () => {
+    const rules = await loadRules('@thymian/rules-rfc-9110');
+    const byId = new Map(rules.map((rule) => [rule.meta.name, rule]));
+
+    expect(representationRuleIds.length).toBe(36);
+
+    const tagged = representationRuleIds.filter(
+      (id) => (byId.get(id)?.meta.tags?.length ?? 0) > 0,
+    );
+    expect(tagged.length).toBe(9);
+  }, 30_000);
+
+  it('carries no tag outside the exported vocabulary', async () => {
+    const rules = await loadRules('@thymian/rules-rfc-9110');
+    const byId = new Map(rules.map((rule) => [rule.meta.name, rule]));
+
+    for (const id of [...routingRuleIds, ...representationRuleIds]) {
+      for (const tag of byId.get(id)?.meta.tags ?? []) {
+        expect(allRuleTags, `"${tag}" on "${id}"`).toContain(tag);
+      }
+    }
+  }, 30_000);
+});
+
+const contentNegotiationRuleIds = [
+  'rfc9110/user-agent-may-associate-quality-value-with-charset',
+  'rfc9110/codings-value-may-be-given-quality-value',
+  'rfc9110/origin-server-should-send-response-without-content-coding',
+  'rfc9110/server-must-not-include-accept-encoding-for-non-content-coding-415-errors',
+  'rfc9110/user-agent-must-not-send-accept-language-without-user-control',
+  'rfc9110/recipient-should-process-q-parameter-as-weight',
+  'rfc9110/sender-should-send-q-parameter-last',
+  'rfc9110/cache-must-not-use-response-without-matching-vary-headers',
+  'rfc9110/origin-server-should-generate-vary-header',
+  'rfc9110/proxy-must-not-generate-vary-wildcard',
+  'rfc9110/user-agent-may-send-preference-headers-for-proactive-negotiation',
+];
+
+const fieldsRuleIds = [
+  'rfc9110/recipient-must-accept-all-http-date-formats',
+  'rfc9110/recipient-must-interpret-two-digit-years-correctly',
+  'rfc9110/sender-must-generate-timestamps-in-imf-fixdate-format',
+  'rfc9110/sender-must-not-generate-additional-whitespace-in-http-date',
+  'rfc9110/recipient-must-accept-lists-with-empty-elements',
+  'rfc9110/recipient-must-parse-and-ignore-empty-list-elements',
+  'rfc9110/sender-must-not-generate-empty-list-elements',
+  'rfc9110/recipient-must-handle-quoted-pairs-correctly',
+  'rfc9110/sender-should-not-generate-quoted-pairs-except-for-dquote-backslash',
+  'rfc9110/sender-should-not-generate-quoted-pairs-in-comments-except-for-parens-backslash',
+  'rfc9110/implementation-may-remove-bws-before-processing',
+  'rfc9110/implementation-may-replace-ows-or-rws-with-single-sp',
+  'rfc9110/recipient-must-parse-and-remove-bws',
+  'rfc9110/sender-must-not-generate-bws',
+  'rfc9110/sender-should-generate-ows-as-single-sp-when-readable',
+  'rfc9110/sender-should-generate-rws-as-single-sp',
+  'rfc9110/sender-should-not-generate-ows-except-when-needed',
+  'rfc9110/client-may-discard-oversized-field-lines',
+  'rfc9110/server-must-respond-4xx-for-oversized-fields',
+  'rfc9110/proxy-must-forward-unrecognized-header-fields',
+  'rfc9110/recipient-should-ignore-unrecognized-fields',
+  'rfc9110/proxy-must-not-change-field-line-order',
+  'rfc9110/recipient-may-combine-field-lines-with-same-name',
+  'rfc9110/sender-must-not-generate-multiple-field-lines-unless-allowed',
+  'rfc9110/server-must-not-apply-request-until-entire-header-received',
+  'rfc9110/new-fields-should-limit-values-to-visible-ascii',
+  'rfc9110/parser-must-exclude-whitespace-from-field-values',
+  'rfc9110/recipient-may-retain-ctl-characters-in-safe-contexts',
+  'rfc9110/recipient-must-reject-or-replace-invalid-characters',
+  'rfc9110/recipient-should-treat-obs-text-as-opaque-data',
+];
+
+const methodsRuleIds = [
+  'rfc9110/general-purpose-servers-must-support-get-and-head',
+  'rfc9110/client-must-ignore-content-length-or-transfer-encoding-headers-in-response-to-connect',
+  'rfc9110/client-must-send-port-number-for-connect-request',
+  'rfc9110/intermediary-must-attempt-to-send-outstanding-data-coming-from-closed-side-for-connect-request',
+  'rfc9110/origin-server-may-accept-connect-request',
+  'rfc9110/server-must-not-send-transfer-encoding-or-content-length-headers-in-2xx-response-to-connect-request',
+  'rfc9110/server-must-reject-connect-request-with-empty-or-invalid-port-number',
+  'rfc9110/client-should-not-generate-content-for-delete-request',
+  'rfc9110/origin-server-should-not-rely-on-private-agreements-to-receive-content-in-delete-request',
+  'rfc9110/origin-server-should-send-correct-successful-status-code-to-delete-request',
+  'rfc9110/cache-may-use-responses-to-get-for-satisfy-subsequent-get-and-head-requests',
+  'rfc9110/client-should-not-generate-content-in-get-request',
+  'rfc9110/origin-server-should-not-rely-on-private-agreements',
+  'rfc9110/cache-may-use-responses-to-head-for-satisfy-subsequent-head-requests',
+  'rfc9110/client-should-not-generate-content-in-head-request',
+  'rfc9110/origin-server-should-not-rely-on-private-agreements-for-head-requests',
+  'rfc9110/server-may-omit-header-fields-for-head-response',
+  'rfc9110/server-must-not-send-content-in-response-to-head',
+  'rfc9110/server-should-send-same-header-fields-in-response-to-head',
+  'rfc9110/client-may-send-max-forwards-header-in-option-request',
+  'rfc9110/client-must-send-content-type-header-for-content-in-options-request',
+  'rfc9110/proxy-must-not-generate-new-max-forwards-header',
+  'rfc9110/server-should-send-headers-indicating-optional-features-in-2xx-response-to-options-request',
+  'rfc9110/origin-server-may-redirect-for-existing-resource-for-201-response',
+  'rfc9110/origin-server-should-send-location-header-for-201-response',
+  'rfc9110/origin-server-must-not-sent-validator-field-in-response-to-put-request',
+  'rfc9110/origin-server-must-respond-with-correct-response-code-for-put-request',
+  'rfc9110/origin-server-must-send-3xx-response-if-state-change-should-be-applied-to-other-resource',
+  'rfc9110/origin-server-should-ingore-unrecognized-header-and-trailer-fields-received-in-put-request',
+  'rfc9110/origin-server-should-response-with-409-or-415-status-code-to-put-request-for-inconsistent-representation',
+  'rfc9110/origin-server-should-verify-constraints-for-target-resource-for-put-request',
+  'rfc9110/service-that-selects-uri-for-client-should-use-post-instead-of-put',
+  'rfc9110/user-agent-may-make-own-decision-to-redirect-request-for-3xx-response-to-put-request',
+  'rfc9110/client-must-not-generate-fields-containing-sensitive-data-in-trace-request',
+  'rfc9110/client-must-not-send-content-in-trace-request',
+  'rfc9110/final-recipient-of-trace-request-should-reflect-received-message',
+  'rfc9110/final-recipient-should-exclude-sensitive-request-data-from-response-to-trace',
+  'rfc9110/client-should-not-automatically-retry-a-failed-automatic-retry',
+  'rfc9110/client-should-not-automatically-retry-request-with-non-idempotent-method',
+  'rfc9110/origin-server-must-disable-safe-methods-for-unsafe-resources',
+  'rfc9110/proxy-must-not-automatically-retry-non-idempontent-requests',
+  'rfc9110/user-agent-distinguish-between-safe-and-unsafe-methods',
+  'rfc9110/origin-server-should-send-405-response-for-unallowed-method',
+  'rfc9110/origin-server-should-send-501-response-for-unrecognized-method',
+  'rfc9110/other-methods-than-get-and-head-are-optional',
+];
+
+describe('concern tag sweep — batch 3 (content-negotiation, fields, methods)', () => {
+  it('resolves every id in this batch to a real rule', async () => {
+    const rules = await loadRules('@thymian/rules-rfc-9110');
+    const ruleIds = new Set(rules.map((rule) => rule.meta.name));
+
+    for (const id of [
+      ...contentNegotiationRuleIds,
+      ...fieldsRuleIds,
+      ...methodsRuleIds,
+    ]) {
+      expect(ruleIds.has(id), `"${id}" is not a real rule`).toBe(true);
+    }
+  }, 30_000);
+
+  it('tags 3 of the 11 `content-negotiation` rules', async () => {
+    const rules = await loadRules('@thymian/rules-rfc-9110');
+    const byId = new Map(rules.map((rule) => [rule.meta.name, rule]));
+
+    expect(contentNegotiationRuleIds.length).toBe(11);
+
+    const tagged = contentNegotiationRuleIds.filter(
+      (id) => (byId.get(id)?.meta.tags?.length ?? 0) > 0,
+    );
+    expect(tagged.length).toBe(3);
+  }, 30_000);
+
+  it('tags 4 of the 30 `fields` rules', async () => {
+    const rules = await loadRules('@thymian/rules-rfc-9110');
+    const byId = new Map(rules.map((rule) => [rule.meta.name, rule]));
+
+    expect(fieldsRuleIds.length).toBe(30);
+
+    const tagged = fieldsRuleIds.filter(
+      (id) => (byId.get(id)?.meta.tags?.length ?? 0) > 0,
+    );
+    expect(tagged.length).toBe(4);
+  }, 30_000);
+
+  it('tags 6 of the 45 `methods` rules', async () => {
+    const rules = await loadRules('@thymian/rules-rfc-9110');
+    const byId = new Map(rules.map((rule) => [rule.meta.name, rule]));
+
+    expect(methodsRuleIds.length).toBe(45);
+
+    const tagged = methodsRuleIds.filter(
+      (id) => (byId.get(id)?.meta.tags?.length ?? 0) > 0,
+    );
+    expect(tagged.length).toBe(6);
+  }, 30_000);
+
+  it('carries no tag outside the exported vocabulary', async () => {
+    const rules = await loadRules('@thymian/rules-rfc-9110');
+    const byId = new Map(rules.map((rule) => [rule.meta.name, rule]));
+
+    for (const id of [
+      ...contentNegotiationRuleIds,
+      ...fieldsRuleIds,
+      ...methodsRuleIds,
+    ]) {
+      for (const tag of byId.get(id)?.meta.tags ?? []) {
+        expect(allRuleTags, `"${tag}" on "${id}"`).toContain(tag);
+      }
+    }
+  }, 30_000);
+});
+
+const rangeRequestsRuleIds = [
+  'rfc9110/accept-ranges-may-be-sent-in-trailer',
+  'rfc9110/client-may-generate-range-requests-without-accept-ranges',
+  'rfc9110/client-must-not-assume-future-range-support-from-accept-ranges',
+  'rfc9110/client-should-list-multiple-ranges-in-ascending-order',
+  'rfc9110/client-should-not-request-inefficient-multiple-ranges',
+  'rfc9110/origin-server-must-ignore-range-header-with-unknown-range-unit',
+  'rfc9110/origin-server-should-send-400-for-unsupported-partial-put',
+  'rfc9110/proxy-may-discard-range-header-with-unknown-range-unit',
+  'rfc9110/proxy-should-forward-206-with-unknown-range-unit',
+  'rfc9110/recipient-must-anticipate-large-decimal-numerals-for-byte-range',
+  'rfc9110/recipient-must-not-recombine-206-with-unknown-range-unit',
+  'rfc9110/recipient-must-not-recombine-invalid-content-range',
+  'rfc9110/sender-should-indicate-complete-length-for-byte-ranges',
+  'rfc9110/server-may-ignore-or-reject-invalid-range-header',
+  'rfc9110/server-may-ignore-range-header',
+  'rfc9110/server-may-ignore-range-header-for-zero-length-representation',
+  'rfc9110/server-may-send-accept-ranges-none',
+  'rfc9110/server-must-ignore-content-range-for-unsupported-method',
+  'rfc9110/server-must-ignore-range-header-for-unrecognized-method',
+  'rfc9110/server-should-send-206-response-for-satisfiable-range',
+  'rfc9110/server-should-send-416-response-for-unsatisfiable-range',
+  'rfc9110/server-should-send-content-range-in-416-response',
+];
+
+const messageAbstractionRuleIds = [
+  'rfc9110/client-may-send-lower-version-for-broken-servers',
+  'rfc9110/client-must-not-send-non-conformant-version',
+  'rfc9110/client-must-retain-knowledge-of-request',
+  'rfc9110/client-should-send-highest-conformant-version',
+  'rfc9110/each-http-version-defines-own-framing',
+  'rfc9110/header-field-term-for-header-section-only-fields',
+  'rfc9110/header-fields-sent-before-content',
+  'rfc9110/header-section-consists-of-field-lines',
+  'rfc9110/implicit-framing-allowed-for-backwards-compatibility',
+  'rfc9110/message-complete-when-framed-octets-available',
+  'rfc9110/origin-server-may-generate-date-for-1xx-5xx',
+  'rfc9110/origin-server-with-clock-must-generate-date-for-2xx-3xx-4xx',
+  'rfc9110/origin-server-without-clock-must-not-generate-date',
+  'rfc9110/recipient-may-replace-invalid-date',
+  'rfc9110/recipient-may-treat-the-set-of-received-trailer-fields-as-name-value-pairs',
+  'rfc9110/recipient-must-not-merge-trailers-unsafely',
+  'rfc9110/recipient-should-process-higher-minor-version-as-highest-known',
+  'rfc9110/recipient-with-clock-must-add-date-if-missing',
+  'rfc9110/sender-must-not-generate-trailer-unless-permitted',
+  'rfc9110/sender-should-generate-date-at-message-generation',
+  'rfc9110/sender-should-generate-trailer-header-when-sending-trailers',
+  'rfc9110/server-must-not-send-non-conformant-version',
+  'rfc9110/server-should-not-generate-necessary-trailers',
+  'rfc9110/server-should-send-response-version-equal-to-highest-conformant',
+  'rfc9110/trailer-fields-must-be-defined-as-list-if-repeatable',
+  'rfc9110/user-agent-may-send-date-header-in-request',
+];
+
+describe('concern tag sweep — batch 4 (range-requests, message-abstraction)', () => {
+  it('resolves every id in this batch to a real rule', async () => {
+    const rules = await loadRules('@thymian/rules-rfc-9110');
+    const ruleIds = new Set(rules.map((rule) => rule.meta.name));
+
+    for (const id of [...rangeRequestsRuleIds, ...messageAbstractionRuleIds]) {
+      expect(ruleIds.has(id), `"${id}" is not a real rule`).toBe(true);
+    }
+  }, 30_000);
+
+  it('tags 2 of the 22 `range-requests` rules', async () => {
+    const rules = await loadRules('@thymian/rules-rfc-9110');
+    const byId = new Map(rules.map((rule) => [rule.meta.name, rule]));
+
+    expect(rangeRequestsRuleIds.length).toBe(22);
+
+    const tagged = rangeRequestsRuleIds.filter(
+      (id) => (byId.get(id)?.meta.tags?.length ?? 0) > 0,
+    );
+    expect(tagged.length).toBe(2);
+  }, 30_000);
+
+  it('tags 2 of the 26 `message-abstraction` rules', async () => {
+    const rules = await loadRules('@thymian/rules-rfc-9110');
+    const byId = new Map(rules.map((rule) => [rule.meta.name, rule]));
+
+    expect(messageAbstractionRuleIds.length).toBe(26);
+
+    const tagged = messageAbstractionRuleIds.filter(
+      (id) => (byId.get(id)?.meta.tags?.length ?? 0) > 0,
+    );
+    expect(tagged.length).toBe(2);
+  }, 30_000);
+
+  it('carries no tag outside the exported vocabulary', async () => {
+    const rules = await loadRules('@thymian/rules-rfc-9110');
+    const byId = new Map(rules.map((rule) => [rule.meta.name, rule]));
+
+    for (const id of [...rangeRequestsRuleIds, ...messageAbstractionRuleIds]) {
+      for (const tag of byId.get(id)?.meta.tags ?? []) {
+        expect(allRuleTags, `"${tag}" on "${id}"`).toContain(tag);
+      }
+    }
+  }, 30_000);
+});
+
+// Batch 5 of the concern-tag sweep (thymian-workspace#97): status-codes —
+// the largest single directory in the corpus at the second-lowest density.
+const statusCodesRuleIds = [
+  'rfc9110/server-must-send-www-authenticate-header-for-401-response',
+  'rfc9110/user-agent-may-repeat-request-with-new-authorization-header',
+  'rfc9110/user-agent-should-present-error-representation-to-user',
+  'rfc9110/402-status-code-is-reserved',
+  'rfc9110/client-may-repeat-request-with-new-credentials-for-403-response',
+  'rfc9110/client-should-not-automatically-repeat-request-for-403-response',
+  'rfc9110/origin-server-may-respond-with-404-instead-of-403',
+  'rfc9110/origin-server-must-generate-allow-header-for-405-response',
+  'rfc9110/server-should-generate-content-for-406-response',
+  'rfc9110/user-agent-may-select-most-appropriate-choice-for-406-response',
+  'rfc9110/client-may-repeat-request-with-new-proxy-authenticate-header-for-407-response',
+  'rfc9110/proxy-must-send-proxy-authenticate-header-for-407-response',
+  'rfc9110/client-may-repeat-request-for-408-response',
+  'rfc9110/server-should-generate-content-for-409-response',
+  'rfc9110/client-may-repeat-request-with-valid-content-length-header-for-411-response',
+  'rfc9110/client-may-retry-after-given-time-for-413-response',
+  'rfc9110/server-may-close-connection-for-413-response',
+  'rfc9110/server-may-terminate-request-for-413-response',
+  'rfc9110/server-should-generate-retry-after-header-for-413-response',
+  'rfc9110/server-should-generate-content-range-header-for-416-response',
+  'rfc9110/client-may-retry-request-over-different-connection',
+  'rfc9110/proxy-must-not-send-421-response',
+  'rfc9110/server-must-send-upgrade-header-for-426-response',
+  'rfc9110/server-should-send-error-representation-for-4xx-responses',
+  'rfc9110/user-agents-should-display-error-representation-to-user',
+  'rfc9110/client-must-understand-class-of-any-status-code',
+  'rfc9110/client-should-process-invalid-status-code-as-5xx',
+  'rfc9110/client-must-be-able-to-parse-multiple-1xx-responses',
+  'rfc9110/proxy-must-forward-1xx-responses',
+  'rfc9110/server-must-generate-upgrade-header-field',
+  'rfc9110/server-must-not-send-1xx-response-to-1.0-client',
+  'rfc9110/server-should-generate-content-for-300-response',
+  'rfc9110/server-should-generate-location-header-for-preferred-choice-for-300-response',
+  'rfc9110/user-agent-may-select-redirection-from-content',
+  'rfc9110/user-agent-may-use-location-field-for-automatic-redirect',
+  'rfc9110/server-should-generate-location-header-field-for-301-response',
+  'rfc9110/user-agent-may-change-request-method-from-post-to-get-for-301-response',
+  'rfc9110/user-agent-may-use-location-header-for-automatic-redirection-for-301-response',
+  'rfc9110/server-should-generate-location-header-for-302-response',
+  'rfc9110/user-agent-may-change-request-method-from-post-to-get-for-302-response',
+  'rfc9110/user-agent-may-use-location-header-for-automatic-redirection-for-302-response',
+  'rfc9110/proxy-should-forward-304-response-to-outbound-client',
+  'rfc9110/sender-should-not-generate-additional-representation-metadata-for-304-response',
+  'rfc9110/server-must-generate-header-fields-for-304-response',
+  'rfc9110/status-code-305-is-deprecated',
+  'rfc9110/status-code-306-is-reserved',
+  'rfc9110/server-should-generate-location-header-for-307-response',
+  'rfc9110/user-agent-may-use-location-header-for-automatic-redirection',
+  'rfc9110/user-agent-must-not-change-request-method-for-automatic-redirection-for-307-response',
+  'rfc9110/server-should-generate-location-header-for-308-response',
+  'rfc9110/user-agent-may-use-location-header-for-automatic-redirection-for-308-response',
+  'rfc9110/clients-should-detect-and-intervene-cyclical-redirections',
+  'rfc9110/user-agent-may-redirect-to-location-header-uri-for-3xx-response',
+  'rfc9110/user-agent-shoud-resend-original-request-with-modifications-for-redirected-requests',
+  'rfc9110/server-may-send-retry-after-header-for-503-response',
+  'rfc9110/server-should-generate-representation-for-505-response',
+  'rfc9110/server-should-send-error-representation-for-5xx-response',
+  'rfc9110/user-agent-should-display-representation-to-the-user-for-5xx-response',
+  'rfc9110/server-should-send-validator-fields',
+  'rfc9110/server-must-not-generate-content-for-205-response',
+  'rfc9110/client-must-inspect-206-response-content-type-and-range',
+  'rfc9110/client-may-combine-multiple-ranges-with-same-strong-validator-to-larger-range',
+  'rfc9110/client-must-process-combined-response-correct',
+  'rfc9110/client-must-use-other-header-fields-provided-in-new-for-206-response',
+  'rfc9110/client-must-inspect-content-range-header-in-multiple-parts-206-response',
+  'rfc9110/client-must-not-generate-multiple-ranges-request-if-not-supported',
+  'rfc9110/server-may-coalesce-overlapping-or-small-gapped-ranges',
+  'rfc9110/server-may-generate-multiple-parts-response-with-single-body',
+  'rfc9110/server-must-generate-content-range-header-in-corresponding-body-part-for-206-response',
+  'rfc9110/server-must-generate-multipart-byteranges-content-for-multi-part-206-response',
+  'rfc9110/server-must-not-generate-content-range-header-for-multi-part-206-response',
+  'rfc9110/server-must-not-generate-multipart-response-to-a-single-part-request',
+  'rfc9110/server-should-generate-content-type-header-in-body-for-206-response',
+  'rfc9110/server-should-send-parts-in-order-of-range-header',
+  'rfc9110/sender-should-not-generate-additional-representation-header-fields-for-206-response',
+  'rfc9110/server-must-generate-header-fields-for-206-response',
+  'rfc9110/server-must-generate-content-range-header-for-single-part-206-response',
+];
+
+describe('concern tag sweep — batch 5 (status-codes)', () => {
+  it('resolves every id in this batch to a real rule', async () => {
+    const rules = await loadRules('@thymian/rules-rfc-9110');
+    const ruleIds = new Set(rules.map((rule) => rule.meta.name));
+
+    for (const id of statusCodesRuleIds) {
+      expect(ruleIds.has(id), `"${id}" is not a real rule`).toBe(true);
+    }
+  }, 30_000);
+
+  it('tags 4 of the 77 `status-codes` rules', async () => {
+    const rules = await loadRules('@thymian/rules-rfc-9110');
+    const byId = new Map(rules.map((rule) => [rule.meta.name, rule]));
+
+    expect(statusCodesRuleIds.length).toBe(77);
+
+    const tagged = statusCodesRuleIds.filter(
+      (id) => (byId.get(id)?.meta.tags?.length ?? 0) > 0,
+    );
+    expect(tagged.length).toBe(4);
+  }, 30_000);
+
+  it('leaves status 305 untagged despite its historical security reason', async () => {
+    const rules = await loadRules('@thymian/rules-rfc-9110');
+    const byId = new Map(rules.map((rule) => [rule.meta.name, rule]));
+
+    const rule305 = byId.get('rfc9110/status-code-305-is-deprecated');
+
+    expect(rule305?.meta.tags ?? []).toEqual([]);
+  }, 30_000);
+
+  it('carries no tag outside the exported vocabulary', async () => {
+    const rules = await loadRules('@thymian/rules-rfc-9110');
+    const byId = new Map(rules.map((rule) => [rule.meta.name, rule]));
+
+    for (const id of statusCodesRuleIds) {
+      for (const tag of byId.get(id)?.meta.tags ?? []) {
+        expect(allRuleTags, `"${tag}" on "${id}"`).toContain(tag);
+      }
+    }
+  }, 30_000);
+});
+
+// Batch 6 of the sweep (thymian-workspace#98): conditional-requests — the only
+// directory the #90 census predicts at zero. All 39 files were read
+// individually rather than blanket-suppressed; two rules here embody the
+// corpus's recorded lost-update hazard, evidence for the not-yet-implemented
+// `reliability` concern rather than a gap in this axis.
+const conditionalRequestsRuleIds = [
+  'rfc9110/non-origin-server-must-not-evaluate-conditional-headers',
+  'rfc9110/server-must-evaluate-preconditions-after-normal-checks',
+  'rfc9110/server-must-evaluate-preconditions-in-correct-order',
+  'rfc9110/server-must-ignore-conditionals-for-connect-options-trace',
+  'rfc9110/server-must-ignore-preconditions-for-non-2xx-412-responses',
+  'rfc9110/cache-or-intermediary-may-ignore-if-match',
+  'rfc9110/client-may-send-if-match-header',
+  'rfc9110/origin-server-may-respond-with-2xx-response-even-condition-failed',
+  'rfc9110/origin-server-may-respond-with-412-response-to-conditional-request',
+  'rfc9110/origin-server-must-evaluate-if-match-before-method',
+  'rfc9110/origin-server-must-not-perform-method-when-if-match-fails',
+  'rfc9110/origin-server-must-use-strong-comparison-for-if-match',
+  'rfc9110/origin-server-should-evaluate-if-modified-since',
+  'rfc9110/origin-server-should-respond-304-when-if-modified-since-false',
+  'rfc9110/recipient-must-ignore-if-modified-since-for-non-get-head',
+  'rfc9110/recipient-must-ignore-if-modified-since-header-if-no-date-available',
+  'rfc9110/recipient-must-ignore-if-modified-since-when-if-none-match-present',
+  'rfc9110/recipient-must-interpret-if-modified-since-value-in-terms-of-servers-clock',
+  'rfc9110/client-should-generate-if-none-match-for-cache-updates',
+  'rfc9110/origin-server-must-evaluate-if-none-match-before-method',
+  'rfc9110/origin-server-must-respond-304-or-412-when-if-none-match-fails',
+  'rfc9110/recipient-must-use-weak-comparison-for-if-none-match',
+  'rfc9110/client-must-not-generate-if-range-header-containing-http-date',
+  'rfc9110/client-must-not-generate-if-range-with-weak-etag',
+  'rfc9110/client-must-not-generate-if-range-without-range',
+  'rfc9110/origin-server-must-ignore-if-range-header-if-target-resource-does-not-support-range-requests',
+  'rfc9110/recipient-must-ignore-range-when-if-range-false',
+  'rfc9110/recipient-should-process-range-header-if-if-range-matches',
+  'rfc9110/server-must-evaluate-if-range',
+  'rfc9110/server-must-ignore-if-range-without-range',
+  'rfc9110/cache-or-intermediary-may-ignore-if-unmodified-since',
+  'rfc9110/client-may-send-if-unmodified-since-header',
+  'rfc9110/origin-server-may-respond-with-2xx-response-even-condition-failed-for-unmodified-since',
+  'rfc9110/origin-server-may-respond-with-412-response-to-unmodified-since',
+  'rfc9110/origin-server-must-evaluate-if-unmodified-since',
+  'rfc9110/origin-server-must-not-perform-method-when-if-unmodified-since-fails',
+  'rfc9110/recipient-must-ignore-if-unmodified-since-header-if-no-date-available',
+  'rfc9110/recipient-must-ignore-if-unmodified-since-when-if-match-present',
+  'rfc9110/recipient-must-interpret-if-unmodified-since-value-in-terms-of-servers-clock',
+];
+
+describe('concern tag sweep — batch 6 (conditional-requests)', () => {
+  it('resolves every id in this batch to a real rule', async () => {
+    const rules = await loadRules('@thymian/rules-rfc-9110');
+    const ruleIds = new Set(rules.map((rule) => rule.meta.name));
+
+    for (const id of conditionalRequestsRuleIds) {
+      expect(ruleIds.has(id), `"${id}" is not a real rule`).toBe(true);
+    }
+  }, 30_000);
+
+  it('tags 0 of the 39 `conditional-requests` rules', async () => {
+    const rules = await loadRules('@thymian/rules-rfc-9110');
+    const byId = new Map(rules.map((rule) => [rule.meta.name, rule]));
+
+    expect(conditionalRequestsRuleIds.length).toBe(39);
+
+    const tagged = conditionalRequestsRuleIds.filter(
+      (id) => (byId.get(id)?.meta.tags?.length ?? 0) > 0,
+    );
+    expect(tagged.length).toBe(0);
+  }, 30_000);
+
+  it('carries no tag outside the exported vocabulary', async () => {
+    const rules = await loadRules('@thymian/rules-rfc-9110');
+    const byId = new Map(rules.map((rule) => [rule.meta.name, rule]));
+
+    for (const id of conditionalRequestsRuleIds) {
+      for (const tag of byId.get(id)?.meta.tags ?? []) {
+        expect(allRuleTags, `"${tag}" on "${id}"`).toContain(tag);
+      }
+    }
+  }, 30_000);
+});
+
+// The completeness gate (thymian-workspace#99). `tagged + suppressed === 402`
+// is enforced by the lint lane itself (thymian-internal/require-rule-tags is
+// now 'error', and a stale suppression is too) — expressing that equation
+// again here would be a second implementation of the same fact. What belongs
+// at this seam instead is what only the real loader, glob and builder can
+// answer for all 402 files at once: the actual corpus-wide tag count, and
+// that nothing at runtime escaped the closed vocabulary.
+//
+// The #90 census predicted 84 tags. The actual, individually-judged count is
+// 81 — three single-rule deviations from the prediction, each already flagged
+// in its own batch's PR rather than force-fit to the predicted number:
+// `identifiers` (#398, 12 of 13), `representation-data-and-metadata` (#399, 9
+// of 10) and `status-codes` (#402, 4 of 5). The bar this gate holds is policy
+// conformance — every tag traces to one of the three policies — not agreement
+// with a number written before anyone had read the corpus.
+describe('concern tag sweep — completeness (thymian-workspace#99)', () => {
+  it('judges every one of the 402 rules in the package', async () => {
+    const rules = await loadRules('@thymian/rules-rfc-9110');
+
+    expect(rules.length).toBe(402);
+  }, 30_000);
+
+  it('tags exactly 81 rules corpus-wide', async () => {
+    const rules = await loadRules('@thymian/rules-rfc-9110');
+    const tagged = rules.filter((rule) => (rule.meta.tags?.length ?? 0) > 0);
+
+    expect(tagged.length).toBe(81);
+  }, 30_000);
+
+  it('carries no tag outside the exported vocabulary, for every rule', async () => {
+    const rules = await loadRules('@thymian/rules-rfc-9110');
+
+    for (const rule of rules) {
+      for (const tag of rule.meta.tags ?? []) {
+        expect(allRuleTags, `"${tag}" on "${rule.meta.name}"`).toContain(tag);
+      }
+    }
+  }, 30_000);
+
+  it('never carries a bare category as a rule tag', async () => {
+    const rules = await loadRules('@thymian/rules-rfc-9110');
+    const bareCategories = Object.keys(ruleTagVocabulary);
+
+    for (const rule of rules) {
+      for (const tag of rule.meta.tags ?? []) {
+        expect(
+          bareCategories,
+          `"${tag}" on "${rule.meta.name}" is a bare category, not a terminal tag`,
+        ).not.toContain(tag);
+      }
+    }
+  }, 30_000);
+});

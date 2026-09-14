@@ -6,6 +6,7 @@ export default httpRule(
   .severity('error')
   // Certificate validation happens during the TLS handshake below HTTP; Thymian observes only completed HTTP messages.
   .type('informational')
+  .tags('security:transport')
   .url(
     'https://www.rfc-editor.org/rfc/rfc9110.html#name-rejecting-misdirected-reque',
   )

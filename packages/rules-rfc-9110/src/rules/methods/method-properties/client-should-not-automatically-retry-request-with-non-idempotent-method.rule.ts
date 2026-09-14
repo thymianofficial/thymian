@@ -5,6 +5,7 @@ import { httpRule } from '@thymian/core';
 // request was never applied"). Neither whether a retry was "automatic" nor the
 // client's out-of-band knowledge is visible in any message, and our model does
 // not reconstruct retry lineage, so the SHOULD NOT is not observable.
+// eslint-disable-next-line thymian-internal/require-rule-tags -- no concern-tag member fits this rule's topic
 export default httpRule(
   'rfc9110/client-should-not-automatically-retry-request-with-non-idempotent-method',
 )

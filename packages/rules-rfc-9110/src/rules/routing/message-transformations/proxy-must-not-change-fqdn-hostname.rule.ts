@@ -2,6 +2,7 @@ import { httpRule, type RuleFnResult } from '@thymian/core';
 
 import { forwardingHops } from '../utils/forwarding.js';
 
+// eslint-disable-next-line thymian-internal/require-rule-tags -- misrouting hazard — reliability concern, not security/privacy
 export default httpRule('rfc9110/proxy-must-not-change-fqdn-hostname')
   .severity('error')
   .type('analytics')

@@ -5,6 +5,7 @@ import { httpRule } from '@thymian/core';
 // automatic retry of a failed automatic retry", and our captured-traffic model
 // does not reconstruct a client's retry lineage, so the SHOULD NOT is not
 // observable.
+// eslint-disable-next-line thymian-internal/require-rule-tags -- no concern-tag member fits this rule's topic
 export default httpRule(
   'rfc9110/client-should-not-automatically-retry-a-failed-automatic-retry',
 )

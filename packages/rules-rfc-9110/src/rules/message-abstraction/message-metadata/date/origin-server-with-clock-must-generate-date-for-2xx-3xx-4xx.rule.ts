@@ -10,6 +10,7 @@ import { httpRule } from '@thymian/core';
 // honest non-conformance signal. `appliesTo('origin server')` keeps it scoped
 // to the responding origin and lets it fire on HAR (whose responses default to
 // the `origin server` role).
+// eslint-disable-next-line thymian-internal/require-rule-tags -- no concern-tag member fits this rule's topic
 export default httpRule(
   'rfc9110/origin-server-with-clock-must-generate-date-for-2xx-3xx-4xx',
 )
