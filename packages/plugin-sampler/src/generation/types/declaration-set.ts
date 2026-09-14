@@ -88,7 +88,7 @@ function renameReferences(
   }
 
   const names = [...renames.keys()]
-    .map((name) => name.replace(/[$]/g, '\\$&'))
+    .map((name) => name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'))
     .join('|');
 
   return text.replace(
