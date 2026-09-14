@@ -4,9 +4,11 @@ export default httpRule(
   'rfc9110/user-agent-may-truncate-parts-other-than-referring-origin',
 )
   .severity('hint')
-  // This is a permission (MAY truncate), not a testable constraint; there is no
-  // violating behaviour to detect from traffic.
-  .type('informational')
+  .type(
+    'informational',
+    'permission-or-statement-of-fact',
+    'A permission (MAY truncate), not a testable constraint; there is no violating behaviour to detect from traffic.',
+  )
   .tags('privacy:referrer')
   .url('https://www.rfc-editor.org/rfc/rfc9110.html#name-referer')
   .description(
