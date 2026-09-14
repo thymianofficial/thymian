@@ -5,10 +5,11 @@ export default httpRule(
   'rfc9110/implementation-may-replace-ows-or-rws-with-single-sp',
 )
   .severity('off')
-  // Collapsing OWS/RWS to a single SP is optional internal behaviour before
-  // interpreting/forwarding; there is no required outcome to check from observed
-  // traffic.
-  .type('informational')
+  .type(
+    'informational',
+    'permission-or-statement-of-fact',
+    'Collapsing OWS/RWS to a single SP is optional internal behaviour before interpreting/forwarding; there is no required outcome to check.',
+  )
   .url('https://www.rfc-editor.org/rfc/rfc9110.html#section-5.6.3')
   .description(
     'Any content known to be defined as OWS or RWS MAY be replaced with a single SP before interpreting it or forwarding the message downstream.',

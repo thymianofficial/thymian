@@ -4,10 +4,11 @@ export default httpRule(
   'rfc9110/server-must-not-apply-request-until-entire-header-received',
 )
   .severity('error')
-  // Whether a server defers applying a request until the full header section
-  // arrives is an internal timing/ordering decision with no distinguishable
-  // signal in a completed transaction that Thymian records.
-  .type('informational')
+  .type(
+    'informational',
+    'peer-internal-behaviour',
+    'Whether a server defers applying a request until the full header section arrives is an internal timing/ordering decision with no distinguishable signal in a completed transaction that Thymian records.',
+  )
   // Acting on a request before its full header section has arrived means a
   // later-arriving, deliberately misleading duplicate field could change how
   // the request is interpreted after processing already started — two points
