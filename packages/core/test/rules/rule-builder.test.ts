@@ -31,7 +31,11 @@ describe('rule builder execution invariant', () => {
   it('builds an informational rule without an execution function', () => {
     const rule = httpRule('informational')
       .severity('error')
-      .type('informational')
+      .type(
+        'informational',
+        'permission-or-statement-of-fact',
+        'documentation-only',
+      )
       .description('documentation-only')
       .done();
 
