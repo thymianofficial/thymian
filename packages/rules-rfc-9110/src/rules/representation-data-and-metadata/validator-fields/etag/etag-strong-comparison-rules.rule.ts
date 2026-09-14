@@ -3,10 +3,11 @@ import { httpRule } from '@thymian/core';
 // eslint-disable-next-line thymian-internal/require-rule-tags -- lost-update hazard (If-Match) — reliability concern, not security/privacy
 export default httpRule('rfc9110/etag-strong-comparison-rules')
   .severity('off')
-  // Defines the strong-comparison algorithm a recipient must apply internally
-  // when matching entity tags. The comparison is an implementation-internal step
-  // with no distinct wire artifact.
-  .type('informational')
+  .type(
+    'informational',
+    'peer-internal-behaviour',
+    'Defines the strong-comparison algorithm a recipient must apply internally when matching entity tags. The comparison is an implementation-internal step with no distinct wire artifact.',
+  )
   .appliesTo('server', 'client', 'intermediary')
   .url('https://www.rfc-editor.org/rfc/rfc9110.html#section-8.8.3.2')
   .description(

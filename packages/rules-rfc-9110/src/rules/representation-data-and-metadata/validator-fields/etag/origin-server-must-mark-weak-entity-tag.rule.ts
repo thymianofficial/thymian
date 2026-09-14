@@ -3,10 +3,11 @@ import { httpRule } from '@thymian/core';
 // eslint-disable-next-line thymian-internal/require-rule-tags -- validator-strength correctness, not a concern this vocabulary covers
 export default httpRule('rfc9110/origin-server-must-mark-weak-entity-tag')
   .severity('error')
-  // Deciding a tag must be marked weak depends on whether its generation meets
-  // strong-validator characteristics (changes on every observable data change) -
-  // a property of the server's ETag algorithm, not of the header value.
-  .type('informational')
+  .type(
+    'informational',
+    'peer-internal-behaviour',
+    "Deciding a tag must be marked weak depends on whether its generation meets strong-validator characteristics (changes on every observable data change) — a property of the server's ETag generation algorithm, verifiable only by reading that implementation, not the header value.",
+  )
   .appliesTo('origin server')
   .url('https://www.rfc-editor.org/rfc/rfc9110.html#section-8.8.3')
   .description(
