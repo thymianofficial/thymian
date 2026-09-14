@@ -7,7 +7,7 @@ This chapter documents the significant architectural decisions made for Thymian.
 ## ADR Index
 
 | ADR                                                                            | Title                                                                     | Status   | Date       | Related Quality Requirements                                                                                           |
-| ------------------------------------------------------------------------------ | ------------------------------------------------------------------------- | -------- | ---------- | ---------------------------------------------------------------------------------------------------------------------- |
+|--------------------------------------------------------------------------------| ------------------------------------------------------------------------- | -------- | ---------- | ---------------------------------------------------------------------------------------------------------------------- |
 | [ADR-0001](adr/0001-core-features-as-plugins.md)                               | Core features are plugins                                                 | Accepted | 2024-11-07 | [10.2.2](10-quality-requirements.md#102-quality-scenarios), [10.2.3](10-quality-requirements.md#102-quality-scenarios) |
 | [ADR-0002](adr/0002-communication-as-plugin.md)                                | Communication as a plugin                                                 | Proposed | 2024-11-07 | [10.2.4](10-quality-requirements.md#102-quality-scenarios)                                                             |
 | [ADR-0003](adr/0003-plugins-allow-streaming.md)                                | Plugins should allow for streaming                                        | Proposed | 2024-11-07 | [10.2.1](10-quality-requirements.md#102-quality-scenarios), [10.2.2](10-quality-requirements.md#102-quality-scenarios) |
@@ -30,6 +30,7 @@ This chapter documents the significant architectural decisions made for Thymian.
 | [ADR-0020](adr/0020-report-inputs-are-cli-only-for-merge-and-diff.md)          | Report inputs are CLI-only for `report merge` and `report diff`           | Accepted | 2026-08-24 | —                                                                                                                      |
 | [ADR-0021](adr/0021-http-security-rule-sets.md)                                | Adding a rule set: package per source, concern tags, executability gate   | Accepted | 2026-09-10 | [10.1](10-quality-requirements.md#101-quality-requirements-overview): Reliability                                      |
 | [ADR-0022](adr/0022-reports-land-in-per-report-run-directories.md)             | One run directory per report under a plugin-level `reportsDir`            | Accepted | 2026-09-23 | —                                                                                                                      |
+| [ADR-0023](adr/0023-selector-is-the-transaction-label.md)                      | The Selector is the transaction label, application-wide                   | Accepted | 2026-09-04 | [10.2.1](10-quality-requirements.md#102-quality-scenarios)                                                             |
 
 ## Creating New ADRs
 
