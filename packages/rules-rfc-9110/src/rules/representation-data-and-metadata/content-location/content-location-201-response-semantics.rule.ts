@@ -3,11 +3,11 @@ import { httpRule } from '@thymian/core';
 // eslint-disable-next-line thymian-internal/require-rule-tags -- semantic ambiguity Thymian cannot judge, not a concern this vocabulary covers
 export default httpRule('rfc9110/content-location-201-response-semantics')
   .severity('hint')
-  // Whether Content-Location matching (or differing from) Location in a 201 is
-  // correct depends on what the returned content actually represents - a
-  // semantic fact the engine cannot judge. Either arrangement is valid on the
-  // wire.
-  .type('informational')
+  .type(
+    'informational',
+    'origin-internal-ground-truth',
+    'Whether Content-Location matching (or differing from) Location in a 201 is correct depends on what the returned content actually represents — a fact only the origin server knows. Either arrangement is valid on the wire.',
+  )
   .appliesTo('origin server')
   .url('https://www.rfc-editor.org/rfc/rfc9110.html#section-8.7')
   .description(

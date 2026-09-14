@@ -4,10 +4,11 @@ export default httpRule(
   'rfc9110/sender-must-not-forward-message-with-invalid-content-length',
 )
   .severity('error')
-  // A forwarding obligation on an intermediary (do not pass on an ABNF-invalid
-  // Content-Length). Confirming a message was forwarded rather than originated
-  // requires intermediary-role correlation the engine lacks.
-  .type('informational')
+  .type(
+    'informational',
+    'peer-internal-behaviour',
+    'A forwarding obligation on an intermediary (do not pass on an ABNF-invalid Content-Length). Confirming a message was forwarded rather than originated requires intermediary-role correlation the engine lacks.',
+  )
   // An ABNF-invalid or ambiguous (differing, comma-separated) Content-Length forwarded downstream leaves two hops to disagree about which value delimits the body.
   .tags('security:request-smuggling')
   .appliesTo('intermediary')

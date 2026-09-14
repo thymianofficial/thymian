@@ -3,9 +3,11 @@ import { httpRule } from '@thymian/core';
 // eslint-disable-next-line thymian-internal/require-rule-tags -- recipient-side interpretive semantics, not a concern this vocabulary covers
 export default httpRule('rfc9110/content-location-semantics-for-2xx-response')
   .severity('off')
-  // Describes recipient-side MAY semantics for interpreting Content-Location in
-  // a 2xx response. It states no sender obligation.
-  .type('informational')
+  .type(
+    'informational',
+    'permission-or-statement-of-fact',
+    'Describes recipient-side MAY semantics for interpreting Content-Location in a 2xx response. It states no sender obligation, so there is nothing to check.',
+  )
   .appliesTo('origin server')
   .url('https://www.rfc-editor.org/rfc/rfc9110.html#section-8.7')
   .description(

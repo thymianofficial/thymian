@@ -2,9 +2,11 @@ import { httpRule } from '@thymian/core';
 
 export default httpRule('rfc9110/client-must-use-rfc6125-verification')
   .severity('error')
-  // RFC 6125 verification is TLS-handshake certificate logic below the recorded
-  // HTTP layer; it cannot be checked from recorded HTTP messages.
-  .type('informational')
+  .type(
+    'informational',
+    'peer-internal-behaviour',
+    'RFC 6125 verification is TLS-handshake certificate logic below the recorded HTTP layer; it cannot be checked from recorded HTTP messages.',
+  )
   .tags('security:transport')
   .url(
     'https://www.rfc-editor.org/rfc/rfc9110.html#name-https-certificate-verificat',

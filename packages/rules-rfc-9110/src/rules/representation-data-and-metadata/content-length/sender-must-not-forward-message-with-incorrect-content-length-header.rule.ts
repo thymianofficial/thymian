@@ -4,10 +4,11 @@ export default httpRule(
   'rfc9110/sender-must-not-forward-message-with-incorrect-content-length-header',
 )
   .severity('error')
-  // Whether a forwarded Content-Length is "known to be incorrect" (relative to
-  // received framing) requires the upstream message framing and intermediary
-  // role that the engine does not have.
-  .type('informational')
+  .type(
+    'informational',
+    'peer-internal-behaviour',
+    'Whether a forwarded Content-Length is "known to be incorrect" (relative to received framing) is the forwarding sender\'s own knowledge, and confirming it independently would also need the upstream message framing and intermediary role that the engine does not have.',
+  )
   // A Content-Length inconsistent with the received framing, once forwarded, is precisely the request-smuggling/response-splitting shape this rule's own description names.
   .tags('security:request-smuggling')
   .appliesTo('intermediary')
