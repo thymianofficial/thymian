@@ -5,9 +5,11 @@ export default httpRule(
   'rfc9110/user-agent-may-select-most-appropriate-choice-for-406-response',
 )
   .severity('hint')
-  // Permissive MAY describing an internal user-agent choice; no non-conformant
-  // condition exists to detect.
-  .type('informational')
+  .type(
+    'informational',
+    'permission-or-statement-of-fact',
+    'A MAY describing an internal user-agent choice; no non-conformant condition exists to detect.',
+  )
   .url('https://www.rfc-editor.org/rfc/rfc9110.html#name-406-not-acceptable')
   .description(
     'A user agent MAY automatically select the most appropriate choice from that list.',
