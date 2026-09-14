@@ -124,7 +124,9 @@ The address of exactly one `Transaction`, qualified by method, path, status, and
 types the request and response nodes _declare_ — a declared media type earns its part whether
 or not a body exists. Fully qualified by construction, so adding a status code or a media type
 to the specification cannot silently change what an existing selector points at. Rendering is
-total: a path or media type that would collide with the grammar is encoded, never rejected.
+total and injective: a path or media type that would collide with the grammar is quoted, never
+rejected — a quote fences the value rather than substituting characters inside it, so two
+distinct declarations can never render one selector.
 Also the only spelling of a `Transaction` anywhere Thymian writes one — terminal lines,
 reports, error messages — so any printed transaction can be pasted back as a hook target. A
 label naming only a request or only a response uses the selector grammar's corresponding half.
