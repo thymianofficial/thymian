@@ -5,9 +5,11 @@ export default httpRule(
   'rfc9110/client-must-not-generate-multiple-ranges-request-if-not-supported',
 )
   .severity('error')
-  // Conditioned on an internal client capability (whether it can process
-  // multipart/byteranges), which is not observable from traffic.
-  .type('informational')
+  .type(
+    'informational',
+    'peer-internal-behaviour',
+    'Conditioned on an internal client capability (whether it can process multipart/byteranges), which is not observable from traffic.',
+  )
   .url('https://datatracker.ietf.org/doc/html/rfc9110#name-multiple-parts')
   .description(
     'A client that cannot process a "multipart/byteranges" response MUST NOT generate a request that asks for multiple ranges.',
