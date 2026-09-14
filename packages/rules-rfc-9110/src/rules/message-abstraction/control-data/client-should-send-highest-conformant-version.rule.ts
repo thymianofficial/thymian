@@ -1,13 +1,13 @@
 import { httpRule } from '@thymian/core';
 
-// A SHOULD about which HTTP protocol version a client sends. The version token
-// is transport control data the rule framework does not expose, and "highest
-// conformant version" depends on internal client and server capabilities. Not
-// observable from a transaction.
 // eslint-disable-next-line thymian-internal/require-rule-tags -- no concern-tag member fits this rule's topic
 export default httpRule('rfc9110/client-should-send-highest-conformant-version')
   .severity('warn')
-  .type('informational')
+  .type(
+    'informational',
+    'peer-internal-behaviour',
+    '"Highest conformant version" depends on internal client and server capabilities not observable from a transaction.',
+  )
   .appliesTo('client')
   .url('https://www.rfc-editor.org/rfc/rfc9110.html#section-6.2')
   .description(

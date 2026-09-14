@@ -1,26 +1,24 @@
 import { httpRule } from '@thymian/core';
 
-/**
- * This MUST fixes the *internal order* in which a recipient evaluates multiple
- * simultaneously-present preconditions. The ordering is not directly
- * observable: only the final status is on the wire, and for most input
- * combinations several orderings yield the same status. The externally-checkable
- * consequences of the ordering (a recipient must ignore If-Modified-Since when
- * If-None-Match is present, and ignore If-Unmodified-Since when If-Match is
- * present) are captured by their own dedicated rules.
- */
 // eslint-disable-next-line thymian-internal/require-rule-tags -- precondition evaluation ordering, not a concern-axis topic
 export default httpRule(
   'rfc9110/server-must-evaluate-preconditions-in-correct-order',
 )
   .severity('error')
-  .type('informational')
+  .type(
+    'informational',
+    'peer-internal-behaviour',
+    'The internal order in which multiple simultaneous preconditions are evaluated is not directly observable; most input combinations yield the same status under any ordering.',
+  )
   .url('https://www.rfc-editor.org/rfc/rfc9110.html#section-13.2.2')
   .description(
     'A recipient cache or origin server MUST evaluate the request preconditions defined by this specification in the following order: 1) When recipient is the origin server and If-Match is present, evaluate the If-Match precondition; 2) When recipient is the origin server, If-Match is not present, and If-Unmodified-Since is present, evaluate the If-Unmodified-Since precondition; 3) When If-None-Match is present, evaluate the If-None-Match precondition; 4) When the method is GET or HEAD, If-None-Match is not present, and If-Modified-Since is present, evaluate the If-Modified-Since precondition; 5) When the method is GET and both Range and If-Range are present, evaluate the If-Range precondition.',
   )
   .summary(
     'Server MUST evaluate preconditions in the order: If-Match, If-Unmodified-Since, If-None-Match, If-Modified-Since, If-Range.',
+  )
+  .explanation(
+    'The externally-checkable consequences of misordering — ignoring If-Modified-Since when If-None-Match is present, and ignoring If-Unmodified-Since when If-Match is present — are captured by their own dedicated rules.',
   )
   .appliesTo('server', 'cache', 'origin server')
   .done();
