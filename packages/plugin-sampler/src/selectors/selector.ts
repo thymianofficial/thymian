@@ -20,7 +20,7 @@ import { malformedSelectorError } from './selector-errors.js';
  * re-exported here, because a selector is two things at once — the sampler's
  * *address* of a Transaction and the application's *label* for one — and every
  * surface core prints has to render the same grammar the sampler resolves
- * (ADR-0020). What stays here is what only an address needs: parsing back,
+ * (ADR-0022). What stays here is what only an address needs: parsing back,
  * near-miss diagnostics and the catalog's ordering.
  *
  * The reader below is the inverse of core's encoders. The two are one grammar
