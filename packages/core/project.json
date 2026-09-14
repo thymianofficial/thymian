@@ -9,6 +9,10 @@
     "generate-rule-tags-docs": {
       "dependsOn": ["build"],
       "command": "node scripts/generate-rule-tags-docs.js astro-docs/src/content/docs/references/concern-tags.md"
+    },
+    "generate-impossibility-docs": {
+      "dependsOn": ["build"],
+      "command": "node scripts/generate-impossibility-docs.js astro-docs/src/content/docs/references/impossibility-reasons.md"
     }
   }
 }

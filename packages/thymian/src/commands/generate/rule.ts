@@ -8,10 +8,13 @@ import { checkbox, input, select } from '@thymian/common-cli/prompts';
 import {
   type HttpParticipantRole,
   httpParticipantRoles,
+  type IssueReference,
   type JSONSchemaType,
   type RuleMeta,
   type RuleSeverity,
   type RuleType,
+  tier1ImpossibilityReasons,
+  type WorldReason,
 } from '@thymian/core';
 
 function capitalizeFirstCharacter(str: string): string {
@@ -101,6 +104,28 @@ export function resolveRuleOutputPath(
   };
 }
 
+/**
+ * The .type() call's argument list. Split out from createRuleTemplate because
+ * it has three distinct shapes (executable, reasoned, reasoned-tool-limitation)
+ * that mirror the builder's own overloads — see rule-builder.ts.
+ */
+function formatTypeCall(meta: RuleMeta): string {
+  const typeArgs = meta.type.map((t) => `'${t}'`).join(', ');
+
+  if (!meta.impossibility) {
+    return `.type(${typeArgs})`;
+  }
+
+  const { reason, note } = meta.impossibility;
+  const noteArg = `'${note.replaceAll("'", "\\'")}'`;
+
+  if (reason === 'tool-limitation') {
+    return `.type(${typeArgs}, '${reason}', '${meta.impossibility.issue}', ${noteArg})`;
+  }
+
+  return `.type(${typeArgs}, '${reason}', ${noteArg})`;
+}
+
 export function createRuleTemplate(meta: RuleMeta, cjs: boolean): string {
   const importStatement = cjs
     ? "const { httpRule } = require('@thymian/core')"
@@ -114,7 +139,7 @@ export function createRuleTemplate(meta: RuleMeta, cjs: boolean): string {
   }
 
   if (meta.type.length > 0) {
-    template += `  .type(${meta.type.map((t) => `'${t}'`).join(', ')})${EOL}`;
+    template += `  ${formatTypeCall(meta)}${EOL}`;
   }
 
   if (meta.url) {
@@ -232,6 +257,42 @@ export default class GenerateRule extends ThymianBaseCommand<
           : true,
     });
 
+    let impossibility: RuleMeta['impossibility'];
+
+    if (ruleTypes.length === 1 && ruleTypes[0] === 'informational') {
+      const reason = await select<WorldReason>({
+        message: 'Why is this rule informational?',
+        choices: Object.entries(tier1ImpossibilityReasons).map(
+          ([code, claim]) => ({
+            name: `${code} — ${claim}`,
+            value: code as WorldReason,
+          }),
+        ),
+      });
+
+      if (reason === 'tool-limitation') {
+        const issue = await input({
+          message:
+            'Tracker issue for this limitation (e.g. #123 or org/repo#123):',
+        });
+        const note = await input({
+          message: 'Note (the specific fact about this rule):',
+        });
+
+        impossibility = {
+          reason,
+          issue: issue.trim() as IssueReference,
+          note: note.trim(),
+        };
+      } else {
+        const note = await input({
+          message: 'Note (the specific fact about this rule):',
+        });
+
+        impossibility = { reason, note: note.trim() };
+      }
+    }
+
     const appliesTo = await checkbox<HttpParticipantRole>({
       message:
         'To which communication participants does this rule apply? (optional)',
@@ -268,6 +329,10 @@ export default class GenerateRule extends ThymianBaseCommand<
 
     if (appliesTo.length > 0) {
       ruleMeta.appliesTo = appliesTo;
+    }
+
+    if (impossibility) {
+      ruleMeta.impossibility = impossibility;
     }
 
     const template = createRuleTemplate(ruleMeta, this.flags.cjs);

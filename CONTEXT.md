@@ -93,6 +93,17 @@ against tags may be partial (a bare category, or a future third level), which is
 are distinct types over the same string space.
 _In code_: `RuleTag`, narrows the builder's `.tags()` (`packages/core/src/rules/rule-tags.ts`).
 
+**Impossibility Reason**:
+The closed vocabulary of _why_ a rule, or one context of an otherwise-executable rule,
+asserts nothing. Two tiers: a **world-claim**, whole-rule and permanent, which is what makes
+a rule `informational`; and a **per-context claim**, recorded in a coverage record, which
+does not affect what the rule executes. `tool-limitation` is the only code in both tiers —
+the one claim about Thymian's own implementation rather than about the world — and it must
+cite a tracker issue, so a fixable gap cannot be written off forever by omission. Owned by
+core with the same closure discipline as `Rule Tag`: adding a code is a union widening.
+_In code_: `WorldReason` (tier 1, narrows `.type('informational', reason, note)`) and
+`ContextReason` (tier 2), both in `packages/core/src/rules/rule-impossibility.ts`.
+
 **Profile**:
 A named set of rule-configuration overrides that a rule set ships with its rules, so adopting
 a curated configuration is one line of `Config` rather than a pasted block. An exception list

@@ -3,6 +3,11 @@
 Reference for step 3 of [`../SKILL.md`](../SKILL.md). Rationale in
 [ADR-0021 §4](../../../../docs/arc42/adr/0021-http-security-rule-sets.md).
 
+The tables below are the procedure — the questions to ask while judging. The vocabulary
+itself is generated from `packages/core/src/rules/rule-impossibility.ts` and cannot drift
+from these tables: [Impossibility Reasons](https://thymian.dev/references/impossibility-reasons/)
+is the canonical list, so a code added there is visible without editing this file.
+
 ## Verdict per cell
 
 For each source unit, ask of **each** of `static`, `test`, `analytics`:
