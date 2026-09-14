@@ -99,6 +99,31 @@ describe('checkRuleExecutionInvariant', () => {
     ).toBeUndefined();
   });
 
+  it('flags an impossibility reason on an executable type declaration', () => {
+    expect(
+      checkRuleExecutionInvariant(
+        makeRule({
+          meta: {
+            type: ['static'],
+            impossibility: {
+              reason: 'permission-or-statement-of-fact',
+              note: 'should not be reachable on an executable rule',
+            },
+          },
+          lintRule: () => [],
+        }),
+      ),
+    ).toEqual({ reason: 'impossibility-reason-on-executable-type' });
+  });
+
+  it('accepts an executable rule with no impossibility reason', () => {
+    expect(
+      checkRuleExecutionInvariant(
+        makeRule({ meta: { type: ['static'] }, lintRule: () => [] }),
+      ),
+    ).toBeUndefined();
+  });
+
   it('flags every executable type without its execution function', () => {
     expect(
       checkRuleExecutionInvariant(
@@ -133,6 +158,7 @@ describe('describeRuleExecutionInvariantViolation', () => {
       { reason: 'unknown-rule-types', unknownTypes: ['staticc'] },
       { reason: 'informational-mixed-with-executable-types' },
       { reason: 'informational-rule-with-execution-function' },
+      { reason: 'impossibility-reason-on-executable-type' },
       { reason: 'missing-execution-function', missingTypes: ['static'] },
     ] as const;
 

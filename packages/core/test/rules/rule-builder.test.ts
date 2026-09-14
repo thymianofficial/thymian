@@ -63,6 +63,7 @@ describe('rule builder execution invariant', () => {
 
   it('throws when informational is combined with executable types', () => {
     expect(() =>
+      // @ts-expect-error 'informational' cannot appear alongside an executable type; this is now unrepresentable at the type level too, but the runtime invariant still backstops a bypassed call
       httpRule('mixed').severity('error').type('informational', 'static'),
     ).toThrow(/'informational' must be the only type/);
   });

@@ -14,6 +14,7 @@ export type RuleExecutionInvariantViolation =
   | { reason: 'unknown-rule-types'; unknownTypes: string[] }
   | { reason: 'informational-mixed-with-executable-types' }
   | { reason: 'informational-rule-with-execution-function' }
+  | { reason: 'impossibility-reason-on-executable-type' }
   | {
       reason: 'missing-execution-function';
       missingTypes: ExecutableRuleType[];
@@ -75,6 +76,10 @@ export function checkRuleExecutionInvariant<
     return undefined;
   }
 
+  if (rule.meta.impossibility) {
+    return { reason: 'impossibility-reason-on-executable-type' };
+  }
+
   const missingTypes = [...new Set(types as ExecutableRuleType[])].filter(
     (type) => typeof rule[ruleFnPropertyByType[type]] !== 'function',
   );
@@ -115,6 +120,13 @@ export function describeRuleExecutionInvariantViolation(
         message: `Rule "${ruleName}" is informational but defines an execution function. Informational rules must not have execution functions.`,
         suggestions: [
           'Remove the execution function, or declare executable rule types instead.',
+        ],
+      };
+    case 'impossibility-reason-on-executable-type':
+      return {
+        message: `Rule "${ruleName}" declares an impossibility reason but is not 'informational'. An impossibility reason may only appear on a rule declared .type('informational', reason, note).`,
+        suggestions: [
+          "Remove the impossibility reason, or declare the rule as .type('informational', reason, note) instead of an executable type.",
         ],
       };
     case 'missing-execution-function':
