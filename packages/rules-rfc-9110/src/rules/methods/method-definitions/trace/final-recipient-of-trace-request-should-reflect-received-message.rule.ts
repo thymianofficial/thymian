@@ -10,6 +10,7 @@ import { httpRule } from '@thymian/core';
 // false-positive-prone approximation. (The related security concern — not
 // echoing sensitive data — IS implemented separately in
 // final-recipient-should-exclude-sensitive-request-data-from-response-to-trace.)
+// eslint-disable-next-line thymian-internal/require-rule-tags -- no concern-tag member fits this rule's topic
 export default httpRule(
   'rfc9110/final-recipient-of-trace-request-should-reflect-received-message',
 )

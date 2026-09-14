@@ -7,6 +7,7 @@ import { httpRule } from '@thymian/core';
  * wire, so no observable signal distinguishes a conforming from a
  * non-conforming ordering.
  */
+// eslint-disable-next-line thymian-internal/require-rule-tags -- precondition evaluation ordering, not a concern-axis topic
 export default httpRule(
   'rfc9110/server-must-evaluate-preconditions-after-normal-checks',
 )

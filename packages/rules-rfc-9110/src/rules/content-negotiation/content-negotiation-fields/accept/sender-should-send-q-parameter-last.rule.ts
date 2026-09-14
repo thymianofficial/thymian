@@ -15,6 +15,7 @@ import { createList } from '../../../../utils.js';
  */
 const mediaRangeParameterNames = new Set(['charset', 'level', 'boundary']);
 
+// eslint-disable-next-line thymian-internal/require-rule-tags -- no concern-tag member fits this rule's topic
 export default httpRule('rfc9110/sender-should-send-q-parameter-last')
   .severity('warn')
   .type('analytics')

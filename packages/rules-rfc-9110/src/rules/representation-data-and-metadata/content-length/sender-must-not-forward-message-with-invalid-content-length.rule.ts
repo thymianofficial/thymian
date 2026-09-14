@@ -8,6 +8,8 @@ export default httpRule(
   // Content-Length). Confirming a message was forwarded rather than originated
   // requires intermediary-role correlation the engine lacks.
   .type('informational')
+  // An ABNF-invalid or ambiguous (differing, comma-separated) Content-Length forwarded downstream leaves two hops to disagree about which value delimits the body.
+  .tags('security:request-smuggling')
   .appliesTo('intermediary')
   .url('https://www.rfc-editor.org/rfc/rfc9110.html#section-8.6')
   .description(

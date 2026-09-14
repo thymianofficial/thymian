@@ -2,6 +2,7 @@ import { httpRule, protocol, type RuleViolationLocation } from '@thymian/core';
 
 import { targetUriHasEmptyHost } from '../utils.js';
 
+// eslint-disable-next-line thymian-internal/require-rule-tags -- no concern-tag member fits this rule's topic
 export default httpRule(
   'rfc9110/sender-must-not-generate-http-uri-with-empty-host',
 )

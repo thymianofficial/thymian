@@ -4,6 +4,7 @@ import { httpRule } from '@thymian/core';
 // response version token is transport control data not surfaced by the rule
 // framework, and "highest conformant version" is internal server capability.
 // Not observable from a transaction.
+// eslint-disable-next-line thymian-internal/require-rule-tags -- no concern-tag member fits this rule's topic
 export default httpRule(
   'rfc9110/server-should-send-response-version-equal-to-highest-conformant',
 )

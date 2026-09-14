@@ -9,6 +9,7 @@ import {
   validateBodyForRequest,
 } from '@thymian/core';
 
+// eslint-disable-next-line thymian-internal/require-rule-tags -- schema-conformance check against the API description, not a security or privacy concern
 export default httpRule('thymian/request-body-must-conform-to-schema')
   .severity('error')
   .type('analytics')

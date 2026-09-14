@@ -1,5 +1,6 @@
 import { httpRule } from '@thymian/core';
 
+// eslint-disable-next-line thymian-internal/require-rule-tags -- permissive MAY, server discretion — no hazard in the permission
 export default httpRule(
   'rfc9110/server-may-ignore-client-protocol-preference-order',
 )

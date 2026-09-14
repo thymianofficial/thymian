@@ -93,6 +93,11 @@ export {
   createPluginWithMetadata,
   createSpyPluginFn,
 } from './mocks/plugin.mock.js';
+export {
+  mockState,
+  mockThymianCore,
+  resetMockState,
+} from './mocks/thymian.mock.js';
 
 // ============================================================================
 // HTTP Testing Utilities

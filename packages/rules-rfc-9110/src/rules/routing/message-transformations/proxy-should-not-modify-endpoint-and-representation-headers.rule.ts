@@ -11,6 +11,7 @@ const REPRESENTATION_HEADERS = [
   'last-modified',
 ];
 
+// eslint-disable-next-line thymian-internal/require-rule-tags -- general header-modification restraint; privacy/security are named as valid exceptions to it, not the rule's own concern
 export default httpRule(
   'rfc9110/proxy-should-not-modify-endpoint-and-representation-headers',
 )

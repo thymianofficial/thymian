@@ -7,6 +7,7 @@ import { httpRule } from '@thymian/core';
 // not preserved as an observable field in our captured-traffic model either (a
 // HAR records a normal URL, not the CONNECT authority-form target), so `analyze`
 // cannot reliably detect an elided port.
+// eslint-disable-next-line thymian-internal/require-rule-tags -- no concern-tag member fits this rule's topic
 export default httpRule(
   'rfc9110/client-must-send-port-number-for-connect-request',
 )

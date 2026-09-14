@@ -1,5 +1,6 @@
 import type { JSONSchemaType } from '../ajv.js';
 import type { RuleSeverity } from './rule-severity.js';
+import type { RuleTag } from './rule-tags.js';
 
 export const httpParticipantRoles = [
   'intermediary',
@@ -61,7 +62,7 @@ export type RuleMeta<Options = unknown> = {
   options: JSONSchemaType<Options>;
   severity: RuleSeverity;
   appliesTo?: HttpParticipantRole[];
-  tags?: string[];
+  tags?: RuleTag[];
   explanation?: string;
   description?: string;
   recommendation?: string;

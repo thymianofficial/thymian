@@ -6,6 +6,7 @@ export default httpRule(
 )
   .severity('warn')
   .type('static', 'analytics')
+  .tags('privacy:tracking')
   .url('https://www.rfc-editor.org/rfc/rfc9110.html#name-from')
   .description(
     "A user agent SHOULD NOT send a From header field without explicit configuration by the user, since that might conflict with the user's privacy interests or their site's security policy.",

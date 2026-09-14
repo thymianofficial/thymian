@@ -7,6 +7,7 @@ import { httpRule } from '@thymian/core';
  * to mint a controllable weak variant of a representation's ETag and observing
  * divergent outcomes, which the framework cannot arrange generically.
  */
+// eslint-disable-next-line thymian-internal/require-rule-tags -- comparison-function correctness in the safe direction (weak comparison is the right choice for If-None-Match's cache-validation use), not a concern-axis topic
 export default httpRule(
   'rfc9110/recipient-must-use-weak-comparison-for-if-none-match',
 )

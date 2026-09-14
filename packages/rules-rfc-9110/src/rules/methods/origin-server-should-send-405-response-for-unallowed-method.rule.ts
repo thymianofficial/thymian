@@ -7,6 +7,7 @@ import { httpRule } from '@thymian/core';
 // reveals the server's allow-list, and we cannot synthesize a request that is
 // guaranteed to be "recognized but disallowed" for testing. The conformant
 // condition therefore cannot be detected.
+// eslint-disable-next-line thymian-internal/require-rule-tags -- no concern-tag member fits this rule's topic
 export default httpRule(
   'rfc9110/origin-server-should-send-405-response-for-unallowed-method',
 )

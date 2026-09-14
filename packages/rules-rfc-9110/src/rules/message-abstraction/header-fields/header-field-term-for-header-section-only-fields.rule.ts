@@ -2,6 +2,7 @@ import { httpRule } from '@thymian/core';
 
 // A terminology definition (what the spec means by "header field"). It imposes
 // no requirement on any message, so there is nothing to validate.
+// eslint-disable-next-line thymian-internal/require-rule-tags -- no concern-tag member fits this rule's topic
 export default httpRule(
   'rfc9110/header-field-term-for-header-section-only-fields',
 )

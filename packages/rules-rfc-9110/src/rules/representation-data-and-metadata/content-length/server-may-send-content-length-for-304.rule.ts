@@ -10,6 +10,7 @@ import {
 } from '@thymian/core';
 import { httpRule, type RuleFnResult, singleTestCase } from '@thymian/core';
 
+// eslint-disable-next-line thymian-internal/require-rule-tags -- cache-validation semantic accuracy, not a message-framing hazard
 export default httpRule('rfc9110/server-may-send-content-length-for-304')
   .severity('error')
   .type('test')

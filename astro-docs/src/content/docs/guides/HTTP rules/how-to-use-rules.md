@@ -17,17 +17,26 @@ Create a `thymian.config.yaml` file in your project root:
 
 ```yaml
 ruleSets:
-  - './rules/**/*.rule.js' # Local rules
-  - '@thymian/rules-rfc-9110' # Npm package
+  - '@thymian/rules-rfc-9110' # a rule-set package (npm)
+  - './rules/my-api.rule.ts' # a local rule file (explicit extension)
 
 plugins:
   '@thymian/plugin-http-linter': {}
 ```
 
+A `ruleSets:` entry is a rule-set **package name** or a **local path** with an explicit
+extension — the same bare-vs-local contract as `--rule-set` (below). What it is **not** is a
+glob: `./rules/**/*.rule.ts` will not expand here. To pull in many local files at once, bundle
+them into a rule set that globs them through its [`pattern:` field](#rule-set-entry-point).
+
 ### 2. Via CLI flags
 
 ```bash
+# a published rule-set package
 npx thymian lint --rule-set @thymian/rules-rfc-9110
+
+# a local rule or rule-set entry point (explicit extension, not a glob)
+npx thymian lint --rule-set ./rules/my-api.rule.ts
 ```
 
 ## Creating Your Own Rule Set
@@ -85,6 +94,11 @@ const myCompanyRules: RuleSet = {
 export default myCompanyRules;
 ```
 
+A published rule set ships **built JavaScript** — its entry point (`main` above) is resolved as
+a bare specifier, and a package that ships unbuilt TypeScript source is declined. The glob
+pattern here matches the rule set's own compiled output under `dist/`, not `src/`. See
+[Loading Rules and Plugins](/references/loading-rules-and-plugins/) for the full contract.
+
 ### Using Your Rule Set
 
 After publishing your rule set to npm, install it in your project:
@@ -109,7 +123,7 @@ thymian rules list
 Or with specific rule sources:
 
 ```bash
-thymian rules list --rule-set ./rules/**/*.rule.ts
+thymian rules list --rule-set ./rules/my-api.rule.ts
 ```
 
 ## Troubleshooting
@@ -133,11 +147,22 @@ export default httpRule('...'); // ✅ Correct
 export const myRule = httpRule('...'); // ❌ Wrong
 ```
 
-3. Check for TypeScript compilation errors:
+3. Check the specifier itself — the most common causes are:
 
-```bash
-tsc --noEmit
-```
+   - **A missing explicit extension.** `--rule-set ./my-rule` does not resolve; write
+     `--rule-set ./my-rule.ts`.
+   - **A bare specifier that was meant to be local.** There is no `<cwd>/<specifier>`
+     fallback — write it as a path (`./my-rule.ts`), not a bare name.
+   - **`.mts`, `.cts`, or `.d.ts`.** None of these are loadable — use `.ts`.
+
+   See [Loading Rules and Plugins](/references/loading-rules-and-plugins/) for the full
+   contract.
+
+:::note
+Loading never type-checks — jiti strips TypeScript types, it does not check them. A rule can
+load successfully and still contain type errors. Run `tsc --noEmit` in CI to catch those; it is
+a separate concern from whether the rule loads.
+:::
 
 ## Next Steps
 

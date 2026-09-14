@@ -13,6 +13,7 @@ export default httpRule(
   // would take traffic recorded at a cache that annotates hits and the
   // selecting header values.
   .type('informational')
+  .tags('security:cache-poisoning')
   .url('https://www.rfc-editor.org/rfc/rfc9110.html#name-vary')
   .description(
     'To inform cache recipients that they MUST NOT use this response to satisfy a later request unless the later request has the same values for the listed header fields as the original request (Section 4.1 of [CACHING]) or reuse of the response has been validated by the origin server.',

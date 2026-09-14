@@ -7,6 +7,7 @@ import { httpRule } from '@thymian/core';
  * actively probed by
  * `origin-server-must-respond-304-or-412-when-if-none-match-fails`.
  */
+// eslint-disable-next-line thymian-internal/require-rule-tags -- precondition evaluation ordering, not a concern-axis topic
 export default httpRule(
   'rfc9110/origin-server-must-evaluate-if-none-match-before-method',
 )

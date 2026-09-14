@@ -7,6 +7,7 @@ import { httpRule } from '@thymian/core';
 // malformed request for `test`. A HAR does not preserve the CONNECT
 // authority-form target (only normal URLs), so `analyze` cannot identify the
 // invalid-port condition either.
+// eslint-disable-next-line thymian-internal/require-rule-tags -- no concern-tag member fits this rule's topic
 export default httpRule(
   'rfc9110/server-must-reject-connect-request-with-empty-or-invalid-port-number',
 )

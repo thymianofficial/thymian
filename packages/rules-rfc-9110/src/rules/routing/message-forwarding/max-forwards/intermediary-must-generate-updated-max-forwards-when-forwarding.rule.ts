@@ -7,6 +7,7 @@ export default httpRule(
 )
   .severity('error')
   .type('analytics')
+  .tags('security:dos')
   .url('https://www.rfc-editor.org/rfc/rfc9110.html#name-max-forwards')
   .description(
     "If the received Max-Forwards value is greater than zero, the intermediary MUST generate an updated Max-Forwards field in the forwarded message with a field value that is the lesser of a) the received value decremented by one (1) or b) the recipient's maximum supported value for Max-Forwards.",

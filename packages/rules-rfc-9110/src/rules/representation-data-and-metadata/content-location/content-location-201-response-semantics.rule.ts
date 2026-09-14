@@ -1,5 +1,6 @@
 import { httpRule } from '@thymian/core';
 
+// eslint-disable-next-line thymian-internal/require-rule-tags -- semantic ambiguity Thymian cannot judge, not a concern this vocabulary covers
 export default httpRule('rfc9110/content-location-201-response-semantics')
   .severity('hint')
   // Whether Content-Location matching (or differing from) Location in a 201 is

@@ -1,5 +1,6 @@
 import { httpRule } from '@thymian/core';
 
+// eslint-disable-next-line thymian-internal/require-rule-tags -- internal parsing interpretation with no observable artifact
 export default httpRule(
   'rfc9110/recipient-may-interpret-missing-port-as-default',
 )

@@ -76,7 +76,7 @@ describe('createLocationResolver (AC13)', () => {
     expect(result).toBe('POST /orders → 200 OK');
   });
 
-  it('falls back to the single format entry when no runVersion is given (defense-in-depth)', () => {
+  it('never attributes the single format entry to a run without a version (merged reports carry foreign formats)', () => {
     const format = new ThymianFormat();
     const requestId = format.addRequest(REQUEST);
 
@@ -87,8 +87,11 @@ describe('createLocationResolver (AC13)', () => {
       thymianFormat: { 'only-version': format.export() },
     });
 
-    // No runVersion passed at all — mirrors a producer that never set
-    // `ToolRun.thymianFormatVersion`.
+    // No runVersion passed at all — in a merged report the sole entry may
+    // belong to a *different* input, so resolution must degrade to the raw
+    // fallback text instead of rendering against a foreign API graph.
+    // (Missing versions are completed at assembly time, where provenance is
+    // known — see Thymian.finalizeWorkflow/reportConvert.)
     const result = resolve({
       type: 'thymianFormat',
       elementType: 'node',
@@ -96,10 +99,10 @@ describe('createLocationResolver (AC13)', () => {
       pointer: '',
     });
 
-    expect(result).toBe('POST /orders');
+    expect(result).toBe(`format:${requestId}`);
   });
 
-  it('falls back to the single format entry when runVersion does not match it', () => {
+  it('never attributes the single format entry to a run whose version does not match it', () => {
     const format = new ThymianFormat();
     const requestId = format.addRequest(REQUEST);
 
@@ -120,7 +123,7 @@ describe('createLocationResolver (AC13)', () => {
       'mismatched-version',
     );
 
-    expect(result).toBe('POST /orders');
+    expect(result).toBe(`format:${requestId}`);
   });
 
   it('falls back to the raw format:{elementId} string when no version matches', () => {

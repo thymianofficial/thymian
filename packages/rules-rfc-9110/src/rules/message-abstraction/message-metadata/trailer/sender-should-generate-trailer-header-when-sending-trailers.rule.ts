@@ -8,6 +8,7 @@ import { httpRule } from '@thymian/core';
 // response-side (the server is the sender of the response trailers), so `test`
 // is meaningful and it is scoped to the response sender via
 // `appliesTo('server')`.
+// eslint-disable-next-line thymian-internal/require-rule-tags -- no concern-tag member fits this rule's topic
 export default httpRule(
   'rfc9110/sender-should-generate-trailer-header-when-sending-trailers',
 )

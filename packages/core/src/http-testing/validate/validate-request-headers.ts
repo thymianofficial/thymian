@@ -3,9 +3,9 @@ import {
   objHasKeyIgnoreCase,
   type ThymianHttpRequest,
 } from '../../index.js';
+import { deserializeHeaderParameter } from '../deserialize-parameter.js';
 import type { HttpTestCaseResult } from '../http-test/index.js';
-import { ajv } from './ajv.js';
-import { describeSchemaError, schemaErrorDetail } from './schema-error.js';
+import { resultsForDeserialized } from './validate-deserialized.js';
 
 export const commonRequestHeaders = [
   'accept',
@@ -84,28 +84,26 @@ export function validateExistingRequestHeader(
   return Object.entries(headers)
     .filter(([name]) => Object.hasOwn(request.headers, name))
     .flatMap(([name, value]): HttpTestCaseResult[] => {
-      if (request.headers[name]?.schema) {
-        const validate = ajv.compile(request.headers[name]?.schema);
+      const parameter = request.headers[name];
 
-        validate(value);
+      if (parameter?.schema) {
+        // Wire values are strings; `style`/`explode` describe how the
+        // described type was serialized into them. Rebuild it before
+        // validating, or every non-string parameter fails on type.
+        const deserialized = deserializeHeaderParameter(
+          name,
+          value,
+          parameter.schema,
+          parameter.style,
+        );
 
-        if (validate.errors && validate.errors.length > 0) {
-          // One assertion-failure per schema error rather than a joined message.
-          return validate.errors.map((err) => ({
-            type: 'assertion-failure',
-            message: describeSchemaError(err, `request header "${name}"`),
-            ...schemaErrorDetail(err),
-            timestamp: Date.now(),
-          }));
-        }
-
-        return [
-          {
-            type: 'assertion-success',
-            message: `Valid request header ${name}.`,
-            timestamp: Date.now(),
-          },
-        ];
+        return resultsForDeserialized(
+          deserialized,
+          parameter.schema,
+          `Request header "${name}"`,
+          `request header "${name}"`,
+          `Valid request header ${name}.`,
+        );
       }
 
       return [

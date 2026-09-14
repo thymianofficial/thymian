@@ -8,6 +8,7 @@ import {
 } from '@thymian/core';
 import { httpRule } from '@thymian/core';
 
+// eslint-disable-next-line thymian-internal/require-rule-tags -- no concern-tag member fits this rule's topic
 export default httpRule(
   'rfc9110/origin-server-should-send-correct-successful-status-code-to-delete-request',
 )

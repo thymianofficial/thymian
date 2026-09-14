@@ -5,6 +5,7 @@ import { httpRule } from '@thymian/core';
 // discarding the remainder) at the TCP/stream layer. It is not expressed in
 // any HTTP message, status, or header, so it is invisible to lint, test, and
 // analyze alike.
+// eslint-disable-next-line thymian-internal/require-rule-tags -- no concern-tag member fits this rule's topic
 export default httpRule(
   'rfc9110/intermediary-must-attempt-to-send-outstanding-data-coming-from-closed-side-for-connect-request',
 )

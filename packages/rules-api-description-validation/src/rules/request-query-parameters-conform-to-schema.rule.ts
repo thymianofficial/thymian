@@ -9,6 +9,7 @@ import {
   validateRequestQueryParameters,
 } from '@thymian/core';
 
+// eslint-disable-next-line thymian-internal/require-rule-tags -- schema-conformance check against the API description, not a security or privacy concern
 export default httpRule(
   'thymian/request-query-parameters-must-conform-to-schema',
 )

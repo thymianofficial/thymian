@@ -35,6 +35,21 @@ Thymian is a monorepo managed with Nx, organized into several packages under the
 - The workspace uses strict linting, formatting, and commit conventions.
 - Core functionality is extended via the plugin system in `packages/core/`.
 
+## Architecture docs
+
+This project's decisions and mechanism docs live under `docs/arc42/`, not `docs/adr/`. Read the
+ones your change touches, not the set:
+
+- `docs/arc42/adr/` — 19 ADRs, indexed by `docs/arc42/09-architectural-decisions.md`. ADR-0007
+  fixes the core/plugin boundary and constrains any change to a plugin or to core's validation
+  entrypoints.
+- `docs/arc42/08-crosscutting-concepts.md` — events and actions, plugin lifecycle, the Thymian
+  format graph, rule contexts. How the machinery works.
+- `docs/arc42/05-building-block-view.md` — the ports model, and which package owns what.
+
+Vocabulary lives elsewhere: `CONTEXT.md` is canonical for terms, and where
+`docs/arc42/12-glossary.md` disagrees with it, `CONTEXT.md` wins.
+
 ## Plugin Architecture
 
 Thymian is built around a highly extensible plugin system—virtually everything is a plugin. Core features, integrations, and extensions are implemented as plugins, which are registered and orchestrated by the framework.
@@ -73,6 +88,25 @@ Thymian supports sharing and reusing rules across plugins and libraries. For exa
 - **Utilities**: Helper functions and constants (e.g., field lists, array utilities) are provided for rule composition and reporting.
 
 This approach enables consistent validation, extensibility, and code reuse throughout the Thymian ecosystem.
+
+### Adding or extending a rule set
+
+One source document is one package, on this principle: **package = provenance, tag = concern,
+profile = strictness, coverage record = denominator**. Four rules a rule change must hold to:
+
+- A rule declares **every** validation context that can observe its assertion. `static`,
+  `test` and `analytics` are lifecycle stages, not a cost ladder, and declaring several is
+  what detects drift.
+- `informational` means no context is possible, and needs a reason from a closed vocabulary.
+- Severity carries strictness, not the RFC keyword. Keyword-to-severity tuning lives in the
+  package's profiles.
+- A spec package's coverage record is what makes partial coverage honest; the gap is computed
+  from a declared denominator.
+
+Invoke the `add-http-rule-set` skill to do the work — it carries the procedure.
+[ADR-0021](docs/arc42/adr/0021-http-security-rule-sets.md) is why. The older
+`generate-rfc-rule` and `extract-rules-from-rfc-chapter` skills contradict all four points
+above and are superseded.
 
 ---
 

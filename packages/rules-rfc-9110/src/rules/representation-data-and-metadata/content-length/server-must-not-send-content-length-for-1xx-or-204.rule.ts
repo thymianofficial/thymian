@@ -12,6 +12,8 @@ export default httpRule(
 )
   .severity('error')
   .type('static', 'test', 'analytics')
+  // A Content-Length on a response defined to never carry a body implies content that will never arrive, confusing message framing and, over HTTP/1.1, opening the door to request smuggling.
+  .tags('security:request-smuggling')
   .appliesTo('server')
   .url('https://www.rfc-editor.org/rfc/rfc9110.html#section-8.6')
   .description(

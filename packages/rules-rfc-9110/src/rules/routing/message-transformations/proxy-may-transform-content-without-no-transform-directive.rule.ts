@@ -2,6 +2,7 @@ import { getHeader, httpRule, type RuleFnResult } from '@thymian/core';
 
 import { forwardingHops, headerValues } from '../utils/forwarding.js';
 
+// eslint-disable-next-line thymian-internal/require-rule-tags -- permissive MAY, caching/performance behavior — no hazard in the permission
 export default httpRule(
   'rfc9110/proxy-may-transform-content-without-no-transform-directive',
 )

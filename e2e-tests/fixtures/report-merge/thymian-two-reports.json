@@ -1,0 +1,52 @@
+[
+  {
+    "reportId": "33333333-3333-4333-8333-333333333333",
+    "createdAt": "2026-08-09T08:00:00.000Z",
+    "runs": [
+      {
+        "runId": "44444444-4444-4444-8444-444444444444",
+        "tool": { "name": "fixture-linter-b1" },
+        "runType": "lint",
+        "runAt": "2026-08-09T08:00:00.000Z",
+        "executions": [
+          {
+            "kind": "lint",
+            "ruleId": "fixture/rule-b1",
+            "status": {
+              "kind": "failed",
+              "reason": "finding from first report",
+              "severity": "error"
+            },
+            "location": { "type": "custom", "value": "check-b1" },
+            "findings": []
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "reportId": "55555555-5555-4555-8555-555555555555",
+    "createdAt": "2026-08-09T09:00:00.000Z",
+    "runs": [
+      {
+        "runId": "66666666-6666-4666-8666-666666666666",
+        "tool": { "name": "fixture-linter-b2" },
+        "runType": "lint",
+        "runAt": "2026-08-09T09:00:00.000Z",
+        "executions": [
+          {
+            "kind": "lint",
+            "ruleId": "fixture/rule-b2",
+            "status": {
+              "kind": "failed",
+              "reason": "finding from second report",
+              "severity": "hint"
+            },
+            "location": { "type": "custom", "value": "check-b2" },
+            "findings": []
+          }
+        ]
+      }
+    ]
+  }
+]

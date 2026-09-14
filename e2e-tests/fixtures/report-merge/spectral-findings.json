@@ -1,0 +1,112 @@
+[
+  {
+    "code": "oas3-api-servers",
+    "path": [],
+    "message": "OpenAPI \"servers\" must be present and non-empty array.",
+    "severity": 0,
+    "range": {
+      "start": {
+        "line": 0,
+        "character": 0
+      },
+      "end": {
+        "line": 22,
+        "character": 30
+      }
+    },
+    "source": "test.openapi.yaml"
+  },
+  {
+    "code": "info-contact",
+    "path": ["info"],
+    "message": "Info object must have \"contact\" object.",
+    "severity": 1,
+    "range": {
+      "start": {
+        "line": 1,
+        "character": 0
+      },
+      "end": {
+        "line": 4,
+        "character": 18
+      }
+    },
+    "source": "test.openapi.yaml"
+  },
+  {
+    "code": "info-description",
+    "path": ["info"],
+    "message": "Info \"description\" must be present and non-empty string.",
+    "severity": 1,
+    "range": {
+      "start": {
+        "line": 1,
+        "character": 0
+      },
+      "end": {
+        "line": 4,
+        "character": 18
+      }
+    },
+    "source": "test.openapi.yaml"
+  },
+  {
+    "code": "operation-description",
+    "path": ["paths", "/api/hello", "get"],
+    "message": "Operation \"description\" must be present and non-empty string.",
+    "severity": 1,
+    "range": {
+      "start": {
+        "line": 7,
+        "character": 4
+      },
+      "end": {
+        "line": 22,
+        "character": 44
+      }
+    },
+    "source": "test.openapi.yaml"
+  },
+  {
+    "code": "operation-tags",
+    "path": ["paths", "/api/hello", "get"],
+    "message": "Operation must have non-empty \"tags\" array.",
+    "severity": 3,
+    "range": {
+      "start": {
+        "line": 7,
+        "character": 4
+      },
+      "end": {
+        "line": 22,
+        "character": 44
+      }
+    },
+    "source": "test.openapi.yaml"
+  },
+  {
+    "code": "oas3-valid-media-example",
+    "path": [
+      "paths",
+      "/api/hello",
+      "get",
+      "responses",
+      "200",
+      "content",
+      "*/*"
+    ],
+    "message": "Response content must specify valid examples.",
+    "severity": 1,
+    "range": {
+      "start": {
+        "line": 20,
+        "character": 12
+      },
+      "end": {
+        "line": 22,
+        "character": 44
+      }
+    },
+    "source": "test.openapi.yaml"
+  }
+]

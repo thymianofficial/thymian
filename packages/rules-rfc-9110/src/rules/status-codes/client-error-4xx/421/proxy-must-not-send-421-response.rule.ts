@@ -1,6 +1,7 @@
 import { statusCode } from '@thymian/core';
 import { httpRule } from '@thymian/core';
 
+// eslint-disable-next-line thymian-internal/require-rule-tags -- no concern-tag member fits this rule's topic
 export default httpRule('rfc9110/proxy-must-not-send-421-response')
   .severity('error')
   // The prohibition applies only to *proxies*: an origin server MAY legitimately

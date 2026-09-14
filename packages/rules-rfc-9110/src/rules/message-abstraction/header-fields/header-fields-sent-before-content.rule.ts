@@ -2,6 +2,7 @@ import { httpRule } from '@thymian/core';
 
 // A terminology definition ("header fields" are the fields sent before
 // content). No requirement to validate.
+// eslint-disable-next-line thymian-internal/require-rule-tags -- no concern-tag member fits this rule's topic
 export default httpRule('rfc9110/header-fields-sent-before-content')
   .severity('hint')
   .type('informational')

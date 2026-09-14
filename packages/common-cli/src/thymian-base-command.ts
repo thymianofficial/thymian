@@ -3,6 +3,7 @@ import type { CommandError } from '@oclif/core/interfaces';
 
 import { ErrorCache } from './error-cache.js';
 import { Feedback } from './feedback.js';
+import { writeErrorRecord } from './write-error-record.js';
 
 type Flags<T extends typeof Command> = Interfaces.InferredFlags<
   (typeof ThymianBaseCommand)['baseFlags'] & T['flags']
@@ -48,29 +49,7 @@ export abstract class ThymianBaseCommand<
   }
 
   protected override async catch(err: CommandError): Promise<void> {
-    await this.feedback?.error();
-    const versionDetails = this.config.versionDetails;
-
-    const pluginVersions = Object.entries(versionDetails.pluginVersions ?? {})
-      .filter(([name]) => !name.startsWith('@oclif'))
-      .map(([name, version]) => ({ name, version: version.version }));
-
-    await this.errorCache?.write({
-      name: err.name,
-      message: err.message,
-      commandName: this.id ?? 'unknown command',
-      timestamp: Date.now(),
-      cause: err.cause,
-      stack: err.stack,
-      argv: process.argv,
-      version: {
-        architecture: versionDetails.architecture,
-        cliVersion: versionDetails.cliVersion,
-        nodeVersion: versionDetails.nodeVersion,
-        osVersion: versionDetails.osVersion,
-      },
-      pluginVersions,
-    });
+    await writeErrorRecord(this, err, this.feedback, this.errorCache);
     return super.catch(err);
   }
 

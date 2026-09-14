@@ -104,6 +104,32 @@ describe('convertedRunFragmentArraySchema (response)', () => {
     ).toBe(true);
   });
 
+  it('accepts a fragment carrying a thymianFormat record (report-merge passthrough)', () => {
+    expect(
+      ajv.validate(convertedRunFragmentArraySchema, [
+        {
+          input: { type: 'thymian', location: './report.json' },
+          run: { ...validRun, thymianFormatVersion: 'abc' },
+          thymianFormat: {
+            abc: { attributes: { hash: 'abc' }, nodes: [], edges: [] },
+          },
+        },
+      ]),
+    ).toBe(true);
+  });
+
+  it('rejects a fragment with thymianFormat: null (optional means omitted, not nullable)', () => {
+    expect(
+      ajv.validate(convertedRunFragmentArraySchema, [
+        {
+          input: { type: 'thymian', location: './report.json' },
+          run: validRun,
+          thymianFormat: null,
+        },
+      ]),
+    ).toBe(false);
+  });
+
   it('rejects a fragment missing the required run', () => {
     expect(
       ajv.validate(convertedRunFragmentArraySchema, [

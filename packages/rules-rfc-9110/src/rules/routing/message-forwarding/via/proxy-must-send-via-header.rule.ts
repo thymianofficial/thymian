@@ -1,6 +1,7 @@
 import { not, requestHeader } from '@thymian/core';
 import { httpRule } from '@thymian/core';
 
+// eslint-disable-next-line thymian-internal/require-rule-tags -- establishes the Via mechanism; see the pseudonym/comment rules for the actual disclosure surface
 export default httpRule('rfc9110/proxy-must-send-via-header')
   .severity('error')
   .type('analytics')

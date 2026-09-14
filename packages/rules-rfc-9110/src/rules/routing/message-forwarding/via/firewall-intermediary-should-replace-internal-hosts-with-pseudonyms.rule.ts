@@ -6,6 +6,7 @@ export default httpRule(
   .severity('warn')
   // Recognizing which received-by hosts are internal (and thus should be pseudonymized) needs deployment topology knowledge Thymian lacks.
   .type('informational')
+  .tags('security:disclosure')
   .url('https://www.rfc-editor.org/rfc/rfc9110.html#name-via')
   .description(
     'If not explicitly enabled to forward internal host names, an intermediary used as a portal through a network firewall SHOULD replace each received-by host of any host behind the firewall by an appropriate pseudonym for that host. This protects internal network information.',

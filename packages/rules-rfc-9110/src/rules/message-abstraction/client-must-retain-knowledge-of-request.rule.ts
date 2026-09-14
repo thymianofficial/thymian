@@ -5,6 +5,7 @@ import { httpRule } from '@thymian/core';
 // GET responses but must not be parsed as such). That is internal client
 // behavior with no observable on-the-wire condition the rule framework can
 // validate.
+// eslint-disable-next-line thymian-internal/require-rule-tags -- no concern-tag member fits this rule's topic
 export default httpRule('rfc9110/client-must-retain-knowledge-of-request')
   .severity('error')
   .type('informational')

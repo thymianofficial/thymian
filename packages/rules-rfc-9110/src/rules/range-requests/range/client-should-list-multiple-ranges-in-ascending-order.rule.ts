@@ -26,6 +26,7 @@ function validateRangeOrder(
   return;
 }
 
+// eslint-disable-next-line thymian-internal/require-rule-tags -- no concern-tag member fits this rule's topic
 export default httpRule(
   'rfc9110/client-should-list-multiple-ranges-in-ascending-order',
 )

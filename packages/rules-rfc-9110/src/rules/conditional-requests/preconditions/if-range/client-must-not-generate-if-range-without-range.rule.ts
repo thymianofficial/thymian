@@ -17,6 +17,7 @@ import { httpRule } from '@thymian/core';
  * (Thymian generates the request, so the client's header choices are not under
  * user control).
  */
+// eslint-disable-next-line thymian-internal/require-rule-tags -- conditional-header applicability scoping, not a concern-axis topic
 export default httpRule(
   'rfc9110/client-must-not-generate-if-range-without-range',
 )

@@ -16,6 +16,7 @@ function upgradeProtocols(header: string | string[]): string[] {
   ];
 }
 
+// eslint-disable-next-line thymian-internal/require-rule-tags -- protocol-negotiation-consent correctness with no vocabulary member that fits without forcing one
 export default httpRule(
   'rfc9110/server-must-not-switch-to-non-indicated-protocol',
 )

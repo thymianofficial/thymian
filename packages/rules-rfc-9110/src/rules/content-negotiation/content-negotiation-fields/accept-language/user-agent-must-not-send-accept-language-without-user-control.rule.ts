@@ -11,6 +11,7 @@ export default httpRule(
   // it. Without that ground truth there is no detectable non-conformant
   // condition in any context.
   .type('informational')
+  .tags('privacy:fingerprinting')
   .url('https://www.rfc-editor.org/rfc/rfc9110.html#name-accept-language')
   .description(
     'Since intelligibility is highly dependent on the individual user, user agents need to allow user control over the linguistic preference (either through configuration of the user agent itself or by defaulting to a user controllable system setting). A user agent that does not provide such control to the user MUST NOT send an Accept-Language header field.',

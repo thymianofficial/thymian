@@ -1,0 +1,9 @@
+{
+  "name": "@thymian/eslint-rules",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "devDependencies": {
+    "@typescript-eslint/rule-tester": "^8.44.0"
+  }
+}

@@ -1,12 +1,19 @@
 import nx from '@nx/eslint-plugin';
 import eslintPluginSimpleImportSort from 'eslint-plugin-simple-import-sort';
 
+import thymianEslintRules from './tools/eslint-rules/index.js';
+
 const depConstraintsProduction = [
   // Dimension: scope
   // scope:cli can only access core, cli, plugin, and rules (thymian CLI app aggregates plugins)
   {
     sourceTag: 'scope:cli',
-    onlyDependOnLibsWithTags: ['scope:core', 'scope:cli', 'scope:plugin', 'scope:rules'],
+    onlyDependOnLibsWithTags: [
+      'scope:core',
+      'scope:cli',
+      'scope:plugin',
+      'scope:rules',
+    ],
   },
   // scope:core can only access scope:core
   {
@@ -66,6 +73,14 @@ const depConstraintsTestFiles = depConstraintsProduction.map((constraint) => {
 
 export default [
   {
+    // A suppression comment (e.g. on a rule with no .tags() call) must not
+    // outlive the warning it silences. 'error' so a stale suppression fails
+    // CI outright (thymian-workspace#99) rather than warning quietly.
+    linterOptions: {
+      reportUnusedDisableDirectives: 'error',
+    },
+  },
+  {
     plugins: {
       'simple-import-sort': eslintPluginSimpleImportSort,
     },
@@ -85,6 +100,26 @@ export default [
       'node_modules',
       '**/.astro',
     ],
+  },
+  {
+    // Nx's inferred lint target runs `eslint .` with cwd set to each
+    // project's own root, so this must stay cwd-agnostic rather than
+    // rooted at `packages/rules-*/...` (which only resolves from the repo
+    // root). The rule itself only fires on an httpRule(...) chain, so a
+    // same-named fixture with unrelated shape elsewhere is never a match.
+    //
+    // 'error': the expand step (thymian-workspace#92) warned while the RFC
+    // 9110 corpus was still being judged. All 402 rules are now judged
+    // (thymian-workspace#93-98) — a rule with neither a tag nor a
+    // suppression is no longer "not yet looked at", it is a build failure
+    // (thymian-workspace#99).
+    files: ['**/*.rule.ts'],
+    plugins: {
+      'thymian-internal': thymianEslintRules,
+    },
+    rules: {
+      'thymian-internal/require-rule-tags': 'error',
+    },
   },
   {
     files: ['**/*.ts', '**/*.js'],
@@ -108,6 +143,16 @@ export default [
           enforceBuildableLibDependency: true,
           allow: ['^.*/eslint(.base)?.config.[cm]?js$'],
           depConstraints: depConstraintsTestFiles,
+          // The vi.mock('@thymian/core', ...) factory must dynamically
+          // import this mock subpath (factories can't close over top-level
+          // statically-imported bindings — vitest hoists vi.mock calls), while
+          // the same test file also statically imports mockState/
+          // resetMockState from it for use in beforeEach/afterEach. That
+          // dynamic+static combination is exactly what this rule normally
+          // flags as an accidental lazy-load; it's intentional here.
+          checkDynamicDependenciesExceptions: [
+            '@thymian/core-testing/mocks/thymian',
+          ],
         },
       ],
     },

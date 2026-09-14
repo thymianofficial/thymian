@@ -1,6 +1,7 @@
 import { and, method, not, or, requestHeader } from '@thymian/core';
 import { httpRule } from '@thymian/core';
 
+// eslint-disable-next-line thymian-internal/require-rule-tags -- establishes framing exists (so the request completes); the framing-integrity surface is the mismatch/forwarding rules above
 export default httpRule(
   'rfc9110/user-agent-should-send-content-length-for-request-with-defined-content',
 )

@@ -10,6 +10,7 @@ export default httpRule(
 )
   .severity('error')
   .type('analytics')
+  .tags('privacy:referrer')
   .url('https://www.rfc-editor.org/rfc/rfc9110.html#name-referer')
   .description(
     'A user agent MUST NOT include the fragment and userinfo components of the URI reference, if any, when generating the Referer field value.',

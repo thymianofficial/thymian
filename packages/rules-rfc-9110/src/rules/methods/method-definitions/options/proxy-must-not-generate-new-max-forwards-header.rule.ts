@@ -6,6 +6,7 @@ import { getHeader, httpRule, type RuleFnResult } from '@thymian/core';
 // forwarded (with a newly added Max-Forwards) — via validateCapturedHttpTraces
 // over recorded proxy traffic. It cannot run against static or generated-test
 // data, which carries no real cross-hop information.
+// eslint-disable-next-line thymian-internal/require-rule-tags -- no concern-tag member fits this rule's topic
 export default httpRule(
   'rfc9110/proxy-must-not-generate-new-max-forwards-header',
 )

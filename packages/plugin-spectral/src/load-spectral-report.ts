@@ -1,7 +1,4 @@
-import { readFile } from 'node:fs/promises';
-import { isAbsolute, join } from 'node:path';
-
-import { ThymianBaseError } from '@thymian/core';
+import { readTypedInputJson, ThymianBaseError } from '@thymian/core';
 
 import type { SpectralResult } from './spectral-types.js';
 
@@ -53,7 +50,9 @@ function isSpectralResult(value: unknown): value is SpectralResult {
  * Reads a single Spectral JSON report (`spectral lint -f json` output),
  * validates its structure, and returns the parsed results.
  *
- * Unknown extra fields on entries are tolerated (forward-compatible).
+ * Unknown extra fields on entries are tolerated (forward-compatible). The
+ * file boundary itself (path resolution, BOM tolerance, read/parse error
+ * wording) is the shared `readTypedInputJson` contract all claimants use.
  *
  * @param inputLabel the offending input's identity (`type:location`), used in
  *   every error message so failures trace back to the CLI input (AC 5).
@@ -66,27 +65,12 @@ export async function loadSpectralReport(
   inputLabel: string,
   cwd: string,
 ): Promise<SpectralResult[]> {
-  const filePath = isAbsolute(location) ? location : join(cwd, location);
-
-  let content: string;
-  try {
-    content = await readFile(filePath, 'utf-8');
-  } catch (err) {
-    throw new ThymianBaseError(
-      `Failed to read Spectral report "${inputLabel}" (resolved to ${filePath}).`,
-      { cause: err instanceof Error ? err : undefined },
-    );
-  }
-
-  let parsed: unknown;
-  try {
-    parsed = JSON.parse(content);
-  } catch (err) {
-    throw new ThymianBaseError(
-      `Failed to parse Spectral report "${inputLabel}" as JSON.`,
-      { cause: err instanceof Error ? err : undefined },
-    );
-  }
+  const parsed = await readTypedInputJson(
+    location,
+    inputLabel,
+    cwd,
+    'Spectral report',
+  );
 
   if (!Array.isArray(parsed)) {
     throw new ThymianBaseError(

@@ -9,6 +9,22 @@ import {
 } from './response-object.processor.js';
 import type { Parameters } from './utils.js';
 
+/**
+ * OpenAPI Specification Extension field names. Extensions are explicitly
+ * allowed in the Responses Object and carry metadata, not responses, so they
+ * must never be interpreted as status codes.
+ *
+ * @see https://spec.openapis.org/oas/v3.1.0#specification-extensions
+ */
+const specificationExtensionPattern = /^x-/;
+
+/**
+ * A status code range written in a case other than the uppercase form the
+ * OpenAPI Specification requires (e.g. `2xx` instead of `2XX`). Only used to
+ * produce a better error message — such keys are rejected, not accepted.
+ */
+const misCasedStatusCodeRangePattern = /^[1-5]xx$/i;
+
 export function processResponsesObject(
   responsesObject: OpenApiV31.ResponsesObject | undefined,
   parameters: Parameters,
@@ -25,6 +41,12 @@ export function processResponsesObject(
   for (const [statusCode, responseObject] of Object.entries(
     responsesObject ?? {},
   )) {
+    if (specificationExtensionPattern.test(statusCode)) {
+      // Skipped before reference resolution: an extension value is not a
+      // Response Object and must not be resolved or coerced as one.
+      continue;
+    }
+
     const resolvedResponse = resolveOpenApiReference<OpenApiV31.ResponseObject>(
       responseObject,
       document,
@@ -49,9 +71,17 @@ export function processResponsesObject(
     } else {
       const statusCodeNumber = +statusCode;
 
-      if (statusCodeNumber < 100 || statusCodeNumber > 599) {
+      if (
+        !Number.isInteger(statusCodeNumber) ||
+        statusCodeNumber < 100 ||
+        statusCodeNumber > 599
+      ) {
         throw new Error(
-          `Invalid status code. Status code must be a valid http status code or status code range (e.g. 2XX), but is ${statusCode}.`,
+          `Invalid status code. Status code must be a valid http status code or status code range (e.g. 2XX), but is ${statusCode}.${
+            misCasedStatusCodeRangePattern.test(statusCode)
+              ? ` Status code ranges must be uppercase, use '${statusCode.toUpperCase()}' instead.`
+              : ''
+          }`,
         );
       }
 

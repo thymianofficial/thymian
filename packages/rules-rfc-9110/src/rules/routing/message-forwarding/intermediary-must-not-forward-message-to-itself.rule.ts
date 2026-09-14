@@ -14,6 +14,7 @@ export default httpRule(
 )
   .severity('error')
   .type('analytics')
+  .tags('security:dos')
   .url('https://www.rfc-editor.org/rfc/rfc9110.html#name-message-forwarding')
   .description(
     'An intermediary MUST NOT forward a message to itself unless it is protected from an infinite request loop. In general, an intermediary ought to recognize its own server names, including any aliases, local variations, or literal IP addresses, and respond to such requests directly.',

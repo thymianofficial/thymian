@@ -31,6 +31,7 @@ function hasQualityValue(value: string): boolean {
   );
 }
 
+// eslint-disable-next-line thymian-internal/require-rule-tags -- no concern-tag member fits this rule's topic
 export default httpRule('rfc9110/codings-value-may-be-given-quality-value')
   .severity('hint')
   .type('static', 'analytics')

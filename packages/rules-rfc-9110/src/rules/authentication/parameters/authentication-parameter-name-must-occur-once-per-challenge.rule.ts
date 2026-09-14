@@ -62,6 +62,7 @@ export default httpRule(
   //   - `analytics`: recorded traffic carries real request AND response header
   //     values, so BOTH directions are validated.
   .type('test', 'analytics')
+  .tags('security:authentication')
   .url(
     'https://www.rfc-editor.org/rfc/rfc9110.html#name-authentication-parameters',
   )

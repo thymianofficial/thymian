@@ -7,6 +7,7 @@ import { httpRule } from '@thymian/core';
  * correlating clock skew across many transactions — not something the framework
  * can determine.
  */
+// eslint-disable-next-line thymian-internal/require-rule-tags -- date-value interpretation semantics, not a concern-axis topic
 export default httpRule(
   'rfc9110/recipient-must-interpret-if-unmodified-since-value-in-terms-of-servers-clock',
 )

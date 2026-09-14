@@ -9,6 +9,7 @@ import type { OpenAPIV3_1 as OpenApiV31 } from 'openapi-types';
 import type { ServerInfo } from './processors/extract-server-info.js';
 import { resolveOpenApiReference } from './processors/openapi-reference-resolver.js';
 import type { Parameters } from './processors/utils.js';
+import { joinUrlPath } from './url-path.js';
 
 export type OperationObjectFilterFn = (args: {
   operationObject: OpenApiV31.OperationObject;
@@ -18,10 +19,6 @@ export type OperationObjectFilterFn = (args: {
   serverInfo: ServerInfo;
   document: OpenApiV31.Document;
 }) => boolean;
-
-function joinUrls(baseUrl: string, path: string): string {
-  return (baseUrl + path).replace(/\/\//g, '/');
-}
 
 function hasQueryParam(params: Parameters, param: string): boolean {
   return Object.keys(params.queryParameters).some((p) =>
@@ -206,7 +203,7 @@ const visitor = createFilterVisitor<OperationObjectFilterFn>({
     }
 
     return ({ path: p, serverInfo }) =>
-      joinUrls(serverInfo.basePath, p).endsWith(path);
+      joinUrlPath(serverInfo.basePath, p).endsWith(path);
   },
   visitHasResponse({ filter }) {
     const nestedFilter = httpFilterExpressionToOperationFilter(filter);

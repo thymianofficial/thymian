@@ -1,5 +1,6 @@
 import { hasRequestBody, httpRule, method } from '@thymian/core';
 
+// eslint-disable-next-line thymian-internal/require-rule-tags -- no concern-tag member fits this rule's topic
 export default httpRule('rfc9110/client-must-not-send-content-in-trace-request')
   .severity('error')
   .type('static', 'analytics')

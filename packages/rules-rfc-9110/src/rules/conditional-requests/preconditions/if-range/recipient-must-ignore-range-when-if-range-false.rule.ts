@@ -9,6 +9,7 @@ import { httpRule, singleTestCase } from '@thymian/core';
  * entity-tag value that cannot match the current representation, and assert the
  * recipient did NOT answer 206. This is a sender-driven probe.
  */
+// eslint-disable-next-line thymian-internal/require-rule-tags -- conditional-header applicability scoping, not a concern-axis topic
 export default httpRule(
   'rfc9110/recipient-must-ignore-range-when-if-range-false',
 )

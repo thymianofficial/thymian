@@ -122,3 +122,7 @@ The standard report formatters apply unchanged — configure `@thymian/plugin-re
 - Messages, severities, rule codes, and source locations survive the conversion; `documentationUrl` becomes the rule's help link.
 - Endpoint mapping via `--spec` is best-effort: findings positioned at or after an endpoint's location in the same source file attach to that endpoint; findings with a `source` that cannot be mapped fall back to a `file:line:column` location; findings without a `source` fall back to their JSON path (for example `paths./users.get`).
 - Unknown severity numbers convert conservatively as `error` (with a warning) — findings are never dropped.
+
+## Combining Spectral Results with Other Reports
+
+To fold converted Spectral results and existing Thymian reports into one consolidated document, see [Merging reports](/tutorials/report-merge/) — `thymian report merge` accepts the same typed `--report` inputs and converts external formats on the way in.

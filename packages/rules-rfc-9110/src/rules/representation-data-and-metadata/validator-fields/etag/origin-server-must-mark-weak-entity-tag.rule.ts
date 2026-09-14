@@ -1,5 +1,6 @@
 import { httpRule } from '@thymian/core';
 
+// eslint-disable-next-line thymian-internal/require-rule-tags -- validator-strength correctness, not a concern this vocabulary covers
 export default httpRule('rfc9110/origin-server-must-mark-weak-entity-tag')
   .severity('error')
   // Deciding a tag must be marked weak depends on whether its generation meets

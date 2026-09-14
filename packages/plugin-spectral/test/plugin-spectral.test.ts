@@ -56,6 +56,25 @@ describe('plugin-spectral', () => {
     await thymian.close();
   });
 
+  it('tolerates a UTF-8 BOM at the start of the report file (shared file boundary)', async () => {
+    // Same file boundary as thymian: inputs (core's readTypedInputJson) —
+    // one command must answer a BOM'd file identically for every input type.
+    const bomFile = join(tmpDir, 'bom.json');
+    await writeFile(bomFile, '\uFEFF[]');
+
+    const thymian = new Thymian().register(createSpectralPlugin());
+    await thymian.ready();
+
+    const outcome = await thymian.reportConvert({
+      reports: [{ type: 'spectral', location: bomFile }],
+    });
+
+    expect(outcome.unclaimed).toEqual([]);
+    expect(outcome.report.runs).toHaveLength(1);
+
+    await thymian.close();
+  });
+
   it('replies one tagged run per claimed input, in input order', async () => {
     const emptyFile = join(tmpDir, 'empty.json');
     await writeFile(emptyFile, '[]');

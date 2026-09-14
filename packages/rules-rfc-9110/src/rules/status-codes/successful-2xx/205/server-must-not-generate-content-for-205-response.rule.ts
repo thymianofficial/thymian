@@ -6,6 +6,11 @@ export default httpRule(
 )
   .severity('error')
   .type('test', 'static', 'analytics')
+  // A body on a response the recipient is told to expect empty is exactly the
+  // two-hops-disagree-about-where-the-message-ends shape: a client that reads
+  // no body per the 205 semantics leaves the unexpected content on the
+  // connection, misframing whatever follows.
+  .tags('security:request-smuggling')
   .appliesTo('server')
   .url('https://www.rfc-editor.org/rfc/rfc9110.html#name-205-reset-content')
   .description(

@@ -1,6 +1,7 @@
 import { responseHeader } from '@thymian/core';
 import { httpRule } from '@thymian/core';
 
+// eslint-disable-next-line thymian-internal/require-rule-tags -- interop aliasing, not a concern this vocabulary covers
 export default httpRule('rfc9110/recipient-should-treat-x-gzip-as-gzip')
   .severity('hint')
   .type('analytics')

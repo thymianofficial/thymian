@@ -8,6 +8,7 @@ export default httpRule(
   // TLS-layer action; a torn-down handshake leaves no recorded HTTP transaction
   // to inspect.
   .type('informational')
+  .tags('security:transport')
   .url(
     'https://www.rfc-editor.org/rfc/rfc9110.html#name-https-certificate-verificat',
   )

@@ -15,6 +15,8 @@ export * as prompts from './prompts.js';
 export * from './read-plugins.js';
 export * from './render/cli-report.js';
 export { terminalWidth, wrap, wrapIndented } from './render/utils.js';
+export * from './report-assembly.js';
+export * from './report-claim-enforcement.js';
 export * from './thymian-base-command.js';
 export * from './thymian-config.js';
 export * from './thymian-config-schema.js';

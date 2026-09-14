@@ -4,6 +4,7 @@ import { httpRule, or, protocol } from '@thymian/core';
 export default httpRule('rfc9110/sender-must-not-generate-userinfo-in-uri')
   .severity('error')
   .type('static', 'analytics')
+  .tags('security:spoofing', 'security:disclosure')
   .url(
     'https://www.rfc-editor.org/rfc/rfc9110.html#name-deprecation-of-userinfo-in-http',
   )

@@ -1,6 +1,7 @@
 import { not, requestHeader } from '@thymian/core';
 import { httpRule } from '@thymian/core';
 
+// eslint-disable-next-line thymian-internal/require-rule-tags -- establishes the Via mechanism; the disclosure surface is what goes into it (see the pseudonym/comment rules), not the requirement to send it
 export default httpRule(
   'rfc9110/gateway-must-send-via-header-in-inbound-requests',
 )

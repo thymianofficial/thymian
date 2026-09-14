@@ -22,6 +22,10 @@ export default httpRule(
 )
   .severity('error')
   .type('static', 'analytics')
+  // The other side of the same CONNECT-tunnel framing shape: sending these
+  // headers on a 2xx CONNECT response confuses the client about where the
+  // tunnel begins, corrupting the tunneled stream (thymian-workspace#90).
+  .tags('security:request-smuggling')
   .url('https://www.rfc-editor.org/rfc/rfc9110.html#name-connect')
   .description(
     'A server MUST NOT send any Transfer-Encoding or Content-Length header fields in a 2xx (Successful) response to CONNECT.',

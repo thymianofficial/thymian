@@ -258,8 +258,8 @@ Actions using `first` strategy return only the first response, while `collect` w
 
 Here is a complete example plugin that listens to lifecycle actions, core events, and the `core.format` broadcast:
 
-```javascript
-// my-format-inspector-plugin.js
+```typescript
+// my-format-inspector-plugin.ts
 export default {
   name: 'my-format-inspector',
   version: '0.0.1',
@@ -336,10 +336,11 @@ export default {
 
 ### 1. Create Plugin File
 
-Create a JavaScript or TypeScript file for your plugin:
+Create a TypeScript file for your plugin — TypeScript is the recommended default, and
+JavaScript is fully supported too:
 
-```javascript
-// my-plugin.js or my-plugin.ts
+```typescript
+// my-plugin.ts
 export default {
   name: 'my-awesome-plugin',
   version: '1.0.0',
@@ -348,6 +349,14 @@ export default {
   },
 };
 ```
+
+:::note
+A TypeScript plugin loads with **no build step** — Thymian transpiles it on the fly. Loading
+does not type-check, and `erasableSyntaxOnly` is not required of your code (that restriction
+belongs to Node's own type-stripping feature, which Thymian's loader does not use). See
+[Loading Rules and Plugins](/references/loading-rules-and-plugins/) for the full loading
+contract, including the closed set of loadable extensions.
+:::
 
 ### 2. Plugin Registration
 
@@ -358,7 +367,7 @@ You can register plugins via the Thymian configuration file or via CLI.
 If you want to load a plugin directly via the CLI, use the `--plugin` option:
 
 ```bash
-thymian lint --plugin ./path/to/my-plugin.js
+thymian lint --plugin ./path/to/my-plugin.ts
 ```
 
 ### Via Configuration File
@@ -368,13 +377,13 @@ Plugins are registered in `thymian.config.yaml`:
 ```yaml
 plugins:
   my-awesome-plugin:
-    path: ./path/to/my-plugin.js
+    path: ./path/to/my-plugin.ts
     options:
       greeting: Hello World
       customOption: 42
 
   my-format-inspector:
-    path: ./plugins/my-format-inspector-plugin.js
+    path: ./plugins/my-format-inspector-plugin.ts
 ```
 
 ### 3. Plugin Options

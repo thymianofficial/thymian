@@ -9,6 +9,7 @@ export default httpRule(
   // analytics check, but only where per-hop recorded traffic with intermediary
   // role is available.
   .type('informational')
+  .tags('privacy:referrer')
   .url('https://www.rfc-editor.org/rfc/rfc9110.html#name-referer')
   .description(
     'An intermediary SHOULD NOT modify or delete the Referer header field when the field value shares the same scheme and host as the target URI.',

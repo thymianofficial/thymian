@@ -7,6 +7,7 @@ export default httpRule(
   // "needlessly fine-grained detail" is a subjective editorial judgment about
   // the Server value with no objective, machine-checkable threshold.
   .type('informational')
+  .tags('security:disclosure')
   .url('https://www.rfc-editor.org/rfc/rfc9110.html#name-server')
   .description(
     'An origin server SHOULD NOT generate a Server header field containing needlessly fine-grained detail',

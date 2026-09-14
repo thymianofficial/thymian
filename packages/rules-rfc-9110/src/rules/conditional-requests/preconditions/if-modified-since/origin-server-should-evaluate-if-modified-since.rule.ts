@@ -7,6 +7,7 @@ import { httpRule } from '@thymian/core';
  * If-Modified-Since condition is false — is actively probed by
  * `origin-server-should-respond-304-when-if-modified-since-false`.
  */
+// eslint-disable-next-line thymian-internal/require-rule-tags -- precondition evaluation ordering, not a concern-axis topic
 export default httpRule(
   'rfc9110/origin-server-should-evaluate-if-modified-since',
 )

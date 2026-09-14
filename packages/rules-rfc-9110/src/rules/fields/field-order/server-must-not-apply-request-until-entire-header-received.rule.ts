@@ -8,6 +8,11 @@ export default httpRule(
   // arrives is an internal timing/ordering decision with no distinguishable
   // signal in a completed transaction that Thymian records.
   .type('informational')
+  // Acting on a request before its full header section has arrived means a
+  // later-arriving, deliberately misleading duplicate field could change how
+  // the request is interpreted after processing already started — two points
+  // in time disagreeing about what the request actually said.
+  .tags('security:request-smuggling')
   .url('https://www.rfc-editor.org/rfc/rfc9110.html#section-5.3')
   .description(
     'A server MUST NOT apply a request to the target resource until it receives the entire request header section, since later header field lines might include conditionals, authentication credentials, or deliberately misleading duplicate header fields that could impact request processing.',

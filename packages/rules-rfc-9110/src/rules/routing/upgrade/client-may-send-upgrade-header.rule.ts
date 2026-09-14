@@ -1,6 +1,7 @@
 import { requestHeader } from '@thymian/core';
 import { httpRule } from '@thymian/core';
 
+// eslint-disable-next-line thymian-internal/require-rule-tags -- permissive MAY, initiating negotiation — no hazard in the permission
 export default httpRule('rfc9110/client-may-send-upgrade-header')
   .severity('hint')
   .type('analytics')

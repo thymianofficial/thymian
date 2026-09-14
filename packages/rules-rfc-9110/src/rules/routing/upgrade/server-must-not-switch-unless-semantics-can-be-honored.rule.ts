@@ -1,5 +1,6 @@
 import { httpRule } from '@thymian/core';
 
+// eslint-disable-next-line thymian-internal/require-rule-tags -- protocol-negotiation semantics correctness, not a concern this vocabulary covers
 export default httpRule(
   'rfc9110/server-must-not-switch-unless-semantics-can-be-honored',
 )

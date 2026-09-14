@@ -1,7 +1,7 @@
 {
   "name": "@thymian/plugin-reporter",
   "version": "0.0.0-PLACEHOLDER",
-  "description": "Thymian plugin for formatting and outputting conformance analysis reports",
+  "description": "Thymian plugin for formatting and outputting conformance analysis reports, and for reading persisted Thymian JSON reports back as `thymian:` report inputs",
   "license": "AGPL-3.0-only",
   "bugs": {
     "url": "https://github.com/thymianofficial/thymian/issues"
@@ -24,7 +24,9 @@
     "ci",
     "reporter",
     "reporting",
-    "test-reporter"
+    "test-reporter",
+    "report-converter",
+    "report-merge"
   ],
   "type": "module",
   "main": "./dist/index.js",

@@ -4,6 +4,7 @@ import { httpRule } from '@thymian/core';
 // design intent, not of any observable HTTP message. Nothing in a request,
 // response, or recorded trace reveals whether the server is depending on such
 // an agreement to accept DELETE content, so the SHOULD NOT cannot be checked.
+// eslint-disable-next-line thymian-internal/require-rule-tags -- no concern-tag member fits this rule's topic
 export default httpRule(
   'rfc9110/origin-server-should-not-rely-on-private-agreements-to-receive-content-in-delete-request',
 )

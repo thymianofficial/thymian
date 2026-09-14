@@ -9,6 +9,7 @@ import { httpRule } from '@thymian/core';
  * forwarding intermediary for the target resource. There is no non-conformant
  * condition to detect.
  */
+// eslint-disable-next-line thymian-internal/require-rule-tags -- conditional-header applicability scoping, not a concern-axis topic
 export default httpRule(
   'rfc9110/non-origin-server-must-not-evaluate-conditional-headers',
 )

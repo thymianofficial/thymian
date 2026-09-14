@@ -1,6 +1,7 @@
 import { responseHeader } from '@thymian/core';
 import { httpRule } from '@thymian/core';
 
+// eslint-disable-next-line thymian-internal/require-rule-tags -- permissive MAY establishing the Via mechanism itself, not the disclosure-shaping surface — no hazard in the permission
 export default httpRule('rfc9110/gateway-may-send-via-header-in-responses')
   .severity('hint')
   .type('analytics')
