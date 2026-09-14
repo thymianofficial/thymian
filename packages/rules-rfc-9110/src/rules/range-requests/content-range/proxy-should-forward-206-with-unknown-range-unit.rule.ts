@@ -5,11 +5,11 @@ export default httpRule(
   'rfc9110/proxy-should-forward-206-with-unknown-range-unit',
 )
   .severity('warn')
-  // This SHOULD governs a proxy's internal forwarding decision. Detecting
-  // non-forwarding would require correlating the proxy's upstream and downstream
-  // messages AND knowing it did not "understand" the range unit (internal
-  // capability).
-  .type('informational')
+  .type(
+    'informational',
+    'peer-internal-behaviour',
+    "Governs a proxy's internal forwarding decision. Detecting non-forwarding would require correlating the proxy's upstream and downstream messages and knowing it did not understand the range unit — an internal capability.",
+  )
   .url('https://www.rfc-editor.org/rfc/rfc9110.html#name-content-range')
   .description(
     'If a 206 (Partial Content) response contains a Content-Range header field with a range unit that the recipient does not understand, a proxy that receives such a message SHOULD forward it downstream.',
