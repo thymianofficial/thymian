@@ -56,6 +56,10 @@ interface InformationalMixedWithExecutableTypes {
   readonly "'informational' cannot be combined with executable rule types": unknown;
 }
 
+interface MissingImpossibilityReasonOnType {
+  readonly "Cannot finish this rule: an 'informational' rule must say why no context can observe it. Pass a reason and a note to .type('informational', reason, note).": true;
+}
+
 type DefineRuleTypeResult<Types extends [RuleType, ...RuleType[]]> =
   'informational' extends Types[number]
     ? [Exclude<Types[number], 'informational'>] extends [never]
@@ -85,16 +89,19 @@ interface DefineRuleType {
     note: string,
   ): DefineOptionalRuleMetaProperties<['informational']>;
 
-  // Still callable with no reason: the corpus sweep this vocabulary
-  // unblocks has not run yet, so every existing informational rule must
-  // keep compiling. This overload is what closes later, once it has.
+  // The corpus sweep this vocabulary unblocked has now transcribed every
+  // informational rule's reason, so a bare call refuses instead of building —
+  // the same marker-interface idiom DefineDone already uses for
+  // MissingExecutionFunctionForTypes. Known limit, carried over unchanged:
+  // CI prints the interface name (`Type 'MissingImpossibilityReasonOnType'
+  // has no call signatures`), and the explanatory sentence is only visible
+  // on hover in an editor — accepted for the same reason it was accepted
+  // there, since it is the only idiom that refuses at all.
   // Required as its own overload, not incidental: without it, a bare call
   // falls through to the executable overload below and reports
   // "'informational' is not assignable to 'ExecutableRuleType'", which
   // points the author at the wrong thing entirely.
-  type(
-    type: 'informational',
-  ): DefineOptionalRuleMetaProperties<['informational']>;
+  type(type: 'informational'): MissingImpossibilityReasonOnType;
 
   type<Types extends [ExecutableRuleType, ...ExecutableRuleType[]]>(
     ...types: Types
@@ -213,9 +220,7 @@ class RuleBuilder<
     issue: IssueReference,
     note: string,
   ): DefineOptionalRuleMetaProperties<['informational']>;
-  type(
-    type: 'informational',
-  ): DefineOptionalRuleMetaProperties<['informational']>;
+  type(type: 'informational'): MissingImpossibilityReasonOnType;
   type<Types extends [ExecutableRuleType, ...ExecutableRuleType[]]>(
     ...types: Types
   ): DefineRuleTypeResult<Types>;

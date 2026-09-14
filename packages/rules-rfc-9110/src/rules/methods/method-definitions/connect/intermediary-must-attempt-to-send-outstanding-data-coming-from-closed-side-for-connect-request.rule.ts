@@ -14,6 +14,7 @@ export default httpRule(
 )
   .severity('error')
   .type('informational')
+  // @ts-expect-error deliberately bare pending the mis-declaration audit (#116) — see the comment above; the corpus meta-test (impossibility.test.ts) asserts this is the sole exception
   .url('https://www.rfc-editor.org/rfc/rfc9110.html#name-connect')
   .description(
     'A tunnel is closed when a tunnel intermediary detects that either side has closed its connection: the intermediary MUST attempt to send any outstanding data that came from the closed side to the other side, close both connections, and then discard any remaining data left undelivered.',
