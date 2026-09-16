@@ -192,9 +192,11 @@ describe('CsvFormatter header (AC16)', () => {
       const formatter = new CsvFormatter(logger);
       formatter.init({ cwd });
 
-      // A run-less report opens the stream and writes only the header; that
-      // failure has no write callback to surface through, so it arrives through
-      // the stream's error listener. Let the async ENOSPC land before asserting.
+      // A run-less report opens the stream and writes only the header, so the
+      // header write is the only thing that can fail. Its ENOSPC comes back on
+      // the write callback — a real stream emits no 'error' event for it — and
+      // Node runs that callback before end()'s, so the formatter has it in time.
+      // The wait only covers the event path too, on platforms that do emit it.
       await formatter.report(runLess);
       await new Promise((resolve) => setTimeout(resolve, 50));
 

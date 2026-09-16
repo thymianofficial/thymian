@@ -138,8 +138,16 @@ export class CsvFormatter implements Formatter<CsvFormatterOptions> {
       // `report()` — and must not leave this stream open on its way out.
       const rows = reportToCsvLines(report).join('');
 
-      if (rows.length === 0 || (await writeRows(open.stream, rows))) {
+      if (rows.length === 0) {
         written = rows;
+      } else {
+        const rowError = await writeRows(open.stream, rows);
+
+        if (rowError === undefined) {
+          written = rows;
+        } else {
+          this.failWrite(open, rowError);
+        }
       }
     } catch (err) {
       this.logger.error(
@@ -159,6 +167,30 @@ export class CsvFormatter implements Formatter<CsvFormatterOptions> {
       this.logger.info(`Wrote CSV report to ${open.outputPath}`);
       this.lastOutput = `${CSV_HEADER}${written}`;
     }
+  }
+
+  /**
+   * Record a write failure against the open destination and report it once.
+   *
+   * Every write funnels through here because a real `WriteStream` does not
+   * necessarily emit `'error'`: on Linux an ENOSPC from the kernel arrives at
+   * the `write` callback and no `'error'` event follows it. Relying on the
+   * event alone therefore lost the failure entirely — a report was dropped with
+   * nothing logged, and a run-less report (whose only write is the header) was
+   * announced as written because `failed` was still false.
+   *
+   * Idempotent: the event and the callback can both fire for one failure, and
+   * the user should see it once.
+   */
+  private failWrite(open: OpenCsvStream, err: Error): void {
+    if (open.failed) {
+      return;
+    }
+
+    open.failed = true;
+    this.logger.error(
+      `Failed to write CSV report to ${open.outputPath}: ${err.message}`,
+    );
   }
 
   /**
@@ -195,13 +227,18 @@ export class CsvFormatter implements Formatter<CsvFormatterOptions> {
           // Past `ready` there is nobody left to reject to, so a write error
           // can only be recorded and reported.
           stream.on('error', (err) => {
-            open.failed = true;
-            this.logger.error(
-              `Failed to write CSV report to ${outputPath}: ${err.message}`,
-            );
+            this.failWrite(open, err);
           });
 
-          stream.write(CSV_HEADER);
+          // The header needs its own callback: it is the only write a run-less
+          // report makes, and its failure reaches the callback rather than the
+          // error event. Node runs pending write callbacks before the `end()`
+          // callback, so `failed` is settled by the time `write` inspects it.
+          stream.write(CSV_HEADER, (err) => {
+            if (err) {
+              this.failWrite(open, err);
+            }
+          });
 
           resolve(open);
         });
@@ -233,13 +270,18 @@ function closeStream(open: OpenCsvStream): Promise<void> {
 }
 
 /**
- * Write the rendered rows, reporting success rather than rejecting: a failure is
- * already logged by the stream's error listener, and `report()` must not throw.
+ * Write the rendered rows, handing back the failure rather than rejecting:
+ * `report()` must not throw, and the caller reports the error through
+ * {@link CsvFormatter.failWrite} — the stream's error listener cannot be relied
+ * on to have seen it.
  */
-function writeRows(stream: WriteStream, rows: string): Promise<boolean> {
-  return new Promise<boolean>((resolve) => {
+function writeRows(
+  stream: WriteStream,
+  rows: string,
+): Promise<Error | undefined> {
+  return new Promise<Error | undefined>((resolve) => {
     stream.write(rows, (err) => {
-      resolve(!err);
+      resolve(err ?? undefined);
     });
   });
 }
