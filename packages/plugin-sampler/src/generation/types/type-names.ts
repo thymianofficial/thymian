@@ -30,6 +30,31 @@
  * declaration emitted twice under two names.
  */
 
+/**
+ * The fixed declarations `generate-type-surface.ts` emits around the
+ * generated ones. Shared by {@link NameRegistry} (so a generated declaration
+ * never shadows one of these) and by `DeclarationSet` (so a description
+ * component named after one of these — `Status`, say — is reserved out from
+ * under it rather than silently merged into it, which is what let a
+ * description declaring a `Status` component reach the committed surface as
+ * two conflicting `export type Status` and `export interface Status`
+ * declarations, `skipLibCheck` hiding the fault until a user's own hook
+ * compile — or, once the self-check gate is on, at generation time with an
+ * unattributed `TS2300`).
+ */
+export const FIXED_ROOT_NAMES = [
+  'Endpoints',
+  'Method',
+  'Path',
+  'RequestMediaType',
+  'ResponseMediaType',
+  'Responses',
+  'Selector',
+  'Status',
+  'StatusClass',
+  'TransactionResponse',
+] as const;
+
 /** Which schema of a transaction a declaration was generated for. */
 export type SchemaRole =
   | { readonly kind: 'request-body' }

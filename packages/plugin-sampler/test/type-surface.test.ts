@@ -1,4 +1,5 @@
 import {
+  DEFAULT_HEADER_SERIALIZATION_STYLE,
   DEFAULT_QUERY_SERIALIZATION_STYLE,
   ThymianFormat,
 } from '@thymian/core';
@@ -207,10 +208,12 @@ describe('the committed type surface', () => {
         (match) => match[1],
       );
 
-      // Both operations, not just the inline one.
+      // Both operations, not just the inline one. Sorted, not the
+      // declaration order of the `examples` array — see the drift-non-event
+      // test below.
       expect(reflected).toHaveLength(2);
       for (const type of reflected) {
-        expect(type).toBe('"Artemis I" | "Apollo 11" | (string & {})');
+        expect(type).toBe('"Apollo 11" | "Artemis I" | (string & {})');
       }
     });
 
@@ -566,6 +569,163 @@ describe('the committed type surface', () => {
       expect(await checkSurface(catalog)).toEqual([]);
     });
 
+    it.each(['Status', 'Method', 'Path'] as const)(
+      'renames a component named after the surface’s own fixed root %s',
+      async (fixedRoot) => {
+        // #133's reported bug (for `Status`): a description component
+        // literally named after a fixed root collided with it and produced
+        // genuine `TS2300: Duplicate identifier` diagnostics — invisible to
+        // every path that checks with `skipLibCheck: true`, and fatal under
+        // the self-check gate. `DeclarationSet` has to reserve the fixed
+        // roots `NameRegistry` mints, or a component sharing one of their
+        // names is silently written in as though it were them. #128 names
+        // `Status`, `Method` and `Path` as the adversarial cases.
+        const format = new ThymianFormat();
+
+        format.addHttpTransaction(
+          createHttpRequest({ method: 'GET', path: '/x' }),
+          createHttpResponse({
+            statusCode: 200,
+            mediaType: 'application/json',
+            schema: {
+              $defs: {
+                [fixedRoot]: {
+                  type: 'object',
+                  properties: { value: { type: 'string' } },
+                },
+              },
+              type: 'object',
+              properties: { value: { $ref: `#/$defs/${fixedRoot}` } },
+            } as never,
+          }),
+          'test-source',
+        );
+
+        const catalog = catalogOf(format);
+        const { requestTypes } = await generateTypeSurface(catalog);
+
+        // The user's colliding component was renamed rather than merged into
+        // the fixed root — never a bare `export interface <fixedRoot> {`.
+        expect(requestTypes).not.toMatch(
+          new RegExp(`^export interface ${fixedRoot} \\{`, 'm'),
+        );
+        expect(requestTypes).toMatch(
+          new RegExp(`^export interface ${fixedRoot}_\\d+ \\{`, 'm'),
+        );
+        expect(requestTypes).toMatch(new RegExp(`value\\?: ${fixedRoot}_\\d+`));
+        expect(await checkSurface(catalog)).toEqual([]);
+      },
+    );
+
+    it('dedupes a component that repeatedly conflicts with a fixed root, rather than minting a fresh alias per site', async () => {
+      // The conflict-rename branch used to treat every conflicting unit as
+      // unprecedented: a `Status`-named component referenced by a second,
+      // third, … transaction each minted its OWN suffix (`Status_2`,
+      // `Status_3`, …) instead of being recognized as the same component
+      // already renamed once. That defeats `DeclarationSet`'s own purpose —
+      // "one declaration per component" — for exactly the case this ticket
+      // introduces: a fixed-root collision, referenced from more than one
+      // site, is the common shape (`Status` shared across many endpoints).
+      const format = new ThymianFormat();
+
+      for (const path of ['/a', '/b', '/c']) {
+        format.addHttpTransaction(
+          createHttpRequest({ method: 'GET', path }),
+          createHttpResponse({
+            statusCode: 200,
+            mediaType: 'application/json',
+            schema: {
+              $defs: {
+                Status: {
+                  type: 'object',
+                  properties: { state: { type: 'string' } },
+                },
+              },
+              type: 'object',
+              properties: { status: { $ref: '#/$defs/Status' } },
+            } as never,
+          }),
+          'test-source',
+        );
+      }
+
+      const catalog = catalogOf(format);
+      const { requestTypes } = await generateTypeSurface(catalog);
+
+      // Exactly one renamed declaration for the shared component, not one
+      // per referencing transaction.
+      expect(
+        requestTypes.match(/^export interface Status_\d+ \{/gm),
+      ).toHaveLength(1);
+      expect(requestTypes).not.toContain('Status_3');
+      expect(await checkSurface(catalog)).toEqual([]);
+    });
+
+    it('renames only identifier references on a cross-document conflict, leaving identifier-shaped property names and string literals verbatim', async () => {
+      // The rename used to be a text-level regex: it matched an
+      // identifier-shaped occurrence wherever it wasn't quoted, which is
+      // indistinguishable from a PROPERTY named the same as the renamed
+      // component. Parsing with the TypeScript API and renaming only
+      // type-reference identifiers is what tells the two apart.
+      const format = new ThymianFormat();
+
+      format.addHttpTransaction(
+        createHttpRequest({ method: 'GET', path: '/p0' }),
+        createHttpResponse({
+          statusCode: 200,
+          mediaType: 'application/json',
+          schema: {
+            $defs: {
+              Foo: { type: 'object', properties: { a: { type: 'string' } } },
+            },
+            type: 'object',
+            properties: { foo: { $ref: '#/$defs/Foo' } },
+          } as never,
+        }),
+        'source-0',
+      );
+
+      format.addHttpTransaction(
+        createHttpRequest({ method: 'GET', path: '/p1' }),
+        createHttpResponse({
+          statusCode: 200,
+          mediaType: 'application/json',
+          schema: {
+            $defs: {
+              // A different body than source-0's `Foo` — a genuine conflict.
+              Foo: {
+                type: 'object',
+                properties: { b: { type: 'string', enum: ['Foo'] } },
+              },
+            },
+            type: 'object',
+            properties: {
+              // A property IDENTICALLY NAMED to the component being renamed.
+              Foo: { type: 'string' },
+              bar: { $ref: '#/$defs/Foo' },
+            },
+          } as never,
+        }),
+        'source-1',
+      );
+
+      const catalog = catalogOf(format);
+      const { requestTypes } = await generateTypeSurface(catalog);
+
+      // The conflicting component was renamed…
+      expect(requestTypes).toContain('export interface Foo_2 {');
+      // …every reference to it follows…
+      expect(requestTypes).toContain('bar?: Foo_2');
+      // …but the identifier-shaped property KEY survives verbatim, never
+      // `Foo_2?: string`…
+      expect(requestTypes).toContain('Foo?: string');
+      expect(requestTypes).not.toContain('Foo_2?: string');
+      // …and so does the enum's string-literal content.
+      expect(requestTypes).toContain('"Foo"');
+      expect(requestTypes).not.toContain('"Foo_2"');
+      expect(await checkSurface(catalog)).toEqual([]);
+    });
+
     it('emits a closed object as one, not as an unsatisfiable index', async () => {
       // `additionalProperties: false` arrives as `{ not: {} }`, and read as a
       // value schema it became `[k: string]: { [k: string]: unknown }` — an
@@ -716,6 +876,39 @@ export const check = afterEach('GET /x -> 200 (application/json)', (_, response)
       expect(requestTypes).toContain('count?: 3 | (number & {})');
       expect(requestTypes).not.toContain('not-a-number');
     });
+
+    it('emits an example-literal union sorted, so reordering the examples array is a drift non-event', async () => {
+      const responding = (examples: readonly string[]) => {
+        const format = new ThymianFormat();
+
+        format.addHttpTransaction(
+          createHttpRequest({ method: 'GET', path: '/x' }),
+          createHttpResponse({
+            statusCode: 200,
+            mediaType: 'application/json',
+            schema: {
+              type: 'object',
+              properties: { rank: { type: 'string', examples: [...examples] } },
+            } as never,
+          }),
+          'test-source',
+        );
+
+        return TransactionCatalog.fromThymianFormat(format);
+      };
+
+      const forward = await generateTypeSurface(
+        responding(['pilot', 'commander', 'astronaut']),
+      );
+      const reversed = await generateTypeSurface(
+        responding(['astronaut', 'commander', 'pilot']),
+      );
+
+      expect(reversed).toEqual(forward);
+      expect(forward.requestTypes).toContain(
+        'rank?: "astronaut" | "commander" | "pilot" | (string & {})',
+      );
+    });
   });
 
   describe('what a description may not decide', () => {
@@ -835,6 +1028,56 @@ export const check = afterEach('GET /x -> 200 (application/json)', (_, response)
       expect(requestTypes.match(/^export interface Node \{/gm)).toHaveLength(1);
       expect(requestTypes).toContain('next?: Node');
       expect(requestTypes).toContain('label?: "root" | (string & {})');
+      expect(await checkSurface(catalog)).toEqual([]);
+    });
+  });
+
+  describe('header groups', () => {
+    /** A header `Parameter`, matching the shape a real loader produces. */
+    function header(
+      schema: object,
+      options: { readonly required?: boolean } = {},
+    ) {
+      return {
+        required: options.required ?? false,
+        schema: schema as never,
+        style: DEFAULT_HEADER_SERIALIZATION_STYLE,
+      };
+    }
+
+    it('types every header as the wire strings that actually cross it, regardless of the declared schema', async () => {
+      const format = new ThymianFormat();
+
+      format.addHttpTransaction(
+        createHttpRequest({
+          method: 'GET',
+          path: '/x',
+          headers: {
+            // A declared non-string header: `skipLibCheck` used to hide that
+            // this compiled to `number`, and the wire never carries anything
+            // but text — Node hands every header to a hook as a string or an
+            // array of strings, no matter what the description declares.
+            'x-rate-limit': header({ type: 'integer' }, { required: true }),
+          },
+        }),
+        createHttpResponse({
+          statusCode: 200,
+          mediaType: 'application/json',
+          headers: {
+            'x-flag': header({ type: 'boolean' }),
+          },
+        }),
+        'test-source',
+      );
+
+      const catalog = catalogOf(format);
+      const { requestTypes } = await generateTypeSurface(catalog);
+
+      expect(requestTypes).toContain('"x-rate-limit": string | string[];');
+      expect(requestTypes).toContain('"x-flag"?: string | string[];');
+      // Never the declared shape leaking through.
+      expect(requestTypes).not.toMatch(/"x-rate-limit":\s*number/);
+      expect(requestTypes).not.toMatch(/"x-flag"\?:\s*boolean/);
       expect(await checkSurface(catalog)).toEqual([]);
     });
   });

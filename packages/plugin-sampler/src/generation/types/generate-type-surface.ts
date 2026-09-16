@@ -5,7 +5,7 @@ import type { TransactionCatalog } from '../../selectors/transaction-catalog.js'
 import { PATH_GLOB_SOURCE } from '../../selectors/transaction-filter.js';
 import { DeclarationSet } from './declaration-set.js';
 import { generateSchemaType, isJsonMediaType } from './schema-type.js';
-import { NameRegistry } from './type-names.js';
+import { FIXED_ROOT_NAMES, NameRegistry } from './type-names.js';
 
 /** The two files the committed surface consists of. */
 export type TypeSurface = {
@@ -55,8 +55,29 @@ function quote(value: string): string {
 }
 
 /**
- * Every parameter of one group as one type literal, plus an open index
- * signature so a hook can still set a header the description never mentioned.
+ * One parameter group as a type literal: `entries`, one per declared
+ * parameter, plus an open index signature so a hook can still set a
+ * parameter the description never mentioned.
+ */
+function parameterGroup(
+  entries: readonly string[],
+  indexSignature: string,
+): string {
+  return [`{`, ...entries, `    ${indexSignature}`, `  }`].join('\n');
+}
+
+/** One parameter group entry: the quoted name, `?` where the parameter is optional, and its type. */
+function parameterEntry(
+  name: string,
+  parameter: Parameter,
+  type: string,
+): string {
+  return `    ${quote(name)}${parameter.required ? '' : '?'}: ${type};`;
+}
+
+/**
+ * Every parameter of one group as one type literal, each parameter typed from
+ * its declared schema.
  */
 async function parametersType(
   parameters: Record<string, Parameter>,
@@ -76,12 +97,37 @@ async function parametersType(
 
     const type = declarations.add(generated.declarations, generated.type);
 
-    entries.push(
-      `    ${quote(name)}${parameter.required ? '' : '?'}: ${type};`,
-    );
+    entries.push(parameterEntry(name, parameter, type));
   }
 
-  return [`{`, ...entries, `    ${indexSignature}`, `  }`].join('\n');
+  return parameterGroup(entries, indexSignature);
+}
+
+/**
+ * A header group, typed as the wire strings that actually cross it —
+ * `string | string[]` for every declared header, regardless of what the
+ * description's schema says it is.
+ *
+ * Unlike {@link parametersType}, this never calls `generateSchemaType`: a
+ * header is not a JSON value the way a body or a query parameter is, and
+ * typing it from its declared schema (an `integer` `X-Rate-Limit`, say) makes
+ * the surface describe a value the wire never carries — Node's own HTTP
+ * layer hands every header to a hook as a string or an array of strings, no
+ * matter what the description declares. A schema that cannot compile at all
+ * — one declaring a non-string header — used to fail generation outright;
+ * now it cannot, because the schema is never reached.
+ */
+function headersType(
+  parameters: Record<string, Parameter>,
+  indexSignature: string,
+): string {
+  const entries = Object.keys(parameters)
+    .sort()
+    .map((name) =>
+      parameterEntry(name, parameters[name] as Parameter, 'string | string[]'),
+    );
+
+  return parameterGroup(entries, indexSignature);
 }
 
 /**
@@ -116,7 +162,7 @@ function operations(byOperation: ReadonlyMap<string, string[]>): string[] {
 export async function generateTypeSurface(
   catalog: TransactionCatalog,
 ): Promise<TypeSurface> {
-  const declarations = new DeclarationSet();
+  const declarations = new DeclarationSet(FIXED_ROOT_NAMES);
   const endpoints: string[] = [];
   // The request half of a selector is the operation a cross-endpoint call
   // initiates; every Transaction sharing it is one response that operation
@@ -131,18 +177,7 @@ export async function generateTypeSurface(
   const responseMediaTypes = new Set<string>();
   // The fixed declarations this file emits around the generated ones, so a
   // generated name can never shadow one of them.
-  const names = new NameRegistry([
-    'Endpoints',
-    'Method',
-    'Path',
-    'RequestMediaType',
-    'ResponseMediaType',
-    'Responses',
-    'Selector',
-    'Status',
-    'StatusClass',
-    'TransactionResponse',
-  ]);
+  const names = new NameRegistry(FIXED_ROOT_NAMES);
 
   for (const [selector, transaction] of catalog.entries()) {
     const { thymianReq: req, thymianRes: res } = transaction;
@@ -201,12 +236,9 @@ export async function generateTypeSurface(
         names.nameFor(selector, { kind: 'path-parameter', parameter }),
       declarations,
     );
-    const headers = await parametersType(
+    const headers = headersType(
       req.headers,
       '[header: string]: string | string[] | undefined;',
-      (parameter) =>
-        names.nameFor(selector, { kind: 'request-header', parameter }),
-      declarations,
     );
     const cookies = await parametersType(
       req.cookies,
@@ -214,12 +246,9 @@ export async function generateTypeSurface(
       (parameter) => names.nameFor(selector, { kind: 'cookie', parameter }),
       declarations,
     );
-    const responseHeaders = await parametersType(
+    const responseHeaders = headersType(
       res.headers,
       '[header: string]: string | string[] | undefined;',
-      (parameter) =>
-        names.nameFor(selector, { kind: 'response-header', parameter }),
-      declarations,
     );
 
     const operation = formatRequestSelector(req);
