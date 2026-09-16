@@ -210,6 +210,17 @@ describe('selector ordering', () => {
  * The property the spec states as "rendering is total and injective": every
  * transaction renders, every rendering parses back to what it came from, and no
  * two distinct transactions share a rendering.
+ *
+ * Both properties are checked over the full cross product below (thousands of
+ * combinations), so each `it()` collects every mismatch into an array and
+ * makes one assertion at the end — a `toBe`/`toEqual` per iteration pays
+ * vitest's own assertion bookkeeping (diffing, stack capture) thousands of
+ * times over and is what made this suite CI's slowest. The factories are
+ * hoisted out of the innermost loops for the same reason: `createHttpRequest`
+ * only depends on `method`/`path`, not on the media-type/status combination
+ * being checked, so it is built once per `(method, path)` pair rather than
+ * once per combination; `createHttpResponse()` takes no loop variable at all,
+ * so it is built once, up front.
  */
 describe('rendering is total and injective', () => {
   const methods = ['GET', 'get', 'REPORT', 'GE T', 'M\nX', '"Q"'];
@@ -241,88 +252,106 @@ describe('rendering is total and injective', () => {
   ];
   const statuses = [200, 204, 599, 0, Number.NaN, 1.5];
 
+  const responseBase = createHttpResponse();
+
   function render(
-    method: string,
-    path: string,
+    requestBase: ReturnType<typeof createHttpRequest>,
     requestMediaType: string,
     status: number,
     responseMediaType: string,
   ): string {
     return formatSelector(
-      { ...createHttpRequest({ method, path }), mediaType: requestMediaType },
-      {
-        ...createHttpResponse(),
-        statusCode: status,
-        mediaType: responseMediaType,
-      },
+      { ...requestBase, mediaType: requestMediaType },
+      { ...responseBase, statusCode: status, mediaType: responseMediaType },
     );
   }
 
   it('parses every rendering back to its normalized components', () => {
+    const mismatches: string[] = [];
+
     for (const method of methods) {
       for (const path of paths) {
+        const requestBase = createHttpRequest({ method, path });
+        const normalizedPath = path.startsWith('/') ? path : `/${path}`;
+
         for (const requestMediaType of mediaTypes) {
           for (const status of statuses) {
             for (const responseMediaType of mediaTypes) {
               const selector = render(
-                method,
-                path,
+                requestBase,
                 requestMediaType,
                 status,
                 responseMediaType,
               );
 
-              expect(isSelector(selector), selector).toBe(true);
+              // The property under test is exactly "renders and parses
+              // back" — a `parseSelector` that throws is itself a mismatch,
+              // so there is nothing a separate `isSelector` pre-check adds
+              // except a second, redundant parse of the same string.
+              let parsed: ReturnType<typeof parseSelector>;
 
-              const parsed = parseSelector(selector);
+              try {
+                parsed = parseSelector(selector);
+              } catch {
+                mismatches.push(`${selector}: did not parse back`);
+                continue;
+              }
 
-              expect(parsed.method, selector).toBe(method.toUpperCase());
-              expect(parsed.path, selector).toBe(
-                path.startsWith('/') ? path : `/${path}`,
-              );
-              expect(parsed.requestMediaType ?? '', selector).toBe(
-                requestMediaType,
-              );
-              expect(parsed.responseMediaType ?? '', selector).toBe(
-                responseMediaType,
-              );
-              expect(String(parsed.status), selector).toBe(String(status));
+              if (
+                parsed.method !== method.toUpperCase() ||
+                parsed.path !== normalizedPath ||
+                (parsed.requestMediaType ?? '') !== requestMediaType ||
+                (parsed.responseMediaType ?? '') !== responseMediaType ||
+                String(parsed.status) !== String(status)
+              ) {
+                mismatches.push(
+                  `${selector}: parsed back to ${JSON.stringify(parsed)}`,
+                );
+              }
             }
           }
         }
       }
     }
+
+    expect(mismatches).toEqual([]);
   });
 
   it('never renders two distinct transactions the same way', () => {
     const seen = new Map<string, string>();
+    const collisions: string[] = [];
 
     for (const method of methods) {
       for (const path of paths) {
+        const requestBase = createHttpRequest({ method, path });
+        // The two canonicalizations rendering performs on purpose: a missing
+        // leading slash and method case. Distinct inputs there are the same
+        // path and the same method.
+        const normalizedPath = path.startsWith('/') ? path : `/${path}`;
+        const normalizedMethod = method.toUpperCase();
+
         for (const requestMediaType of mediaTypes) {
           for (const status of statuses) {
             for (const responseMediaType of mediaTypes) {
-              // The two canonicalizations rendering performs on purpose: a
-              // missing leading slash and method case. Distinct inputs there
-              // are the same path and the same method.
               const identity = JSON.stringify([
-                method.toUpperCase(),
-                path.startsWith('/') ? path : `/${path}`,
+                normalizedMethod,
+                normalizedPath,
                 requestMediaType,
                 String(status),
                 responseMediaType,
               ]);
               const selector = render(
-                method,
-                path,
+                requestBase,
                 requestMediaType,
                 status,
                 responseMediaType,
               );
               const previous = seen.get(selector);
 
-              if (previous !== undefined) {
-                expect(previous, `collision on ${selector}`).toBe(identity);
+              if (previous !== undefined && previous !== identity) {
+                collisions.push(
+                  `collision on ${selector}: ${previous} vs ${identity}`,
+                );
               }
 
               seen.set(selector, identity);
@@ -331,5 +360,7 @@ describe('rendering is total and injective', () => {
         }
       }
     }
+
+    expect(collisions).toEqual([]);
   });
 });

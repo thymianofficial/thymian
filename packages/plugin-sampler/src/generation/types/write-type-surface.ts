@@ -2,6 +2,7 @@ import { mkdir, readdir, readFile, rm, writeFile } from 'node:fs/promises';
 import { join, relative } from 'node:path';
 
 import type { SamplerPaths } from '../../sampler-paths.js';
+import { toTypeScriptPath } from '../../ts-path.js';
 import { entryExists } from '../../utils.js';
 import {
   HOOKS_API_FILE,
@@ -57,7 +58,13 @@ export function scaffoldTsconfig(): string {
  * so the one thing a user has to do by hand is say so.
  */
 export function rootExcludeNote(paths: SamplerPaths, cwd: string): string[] {
-  const rootRelative = relative(cwd, paths.root) || paths.root;
+  // A tsconfig `exclude` entry is a glob TypeScript matches against its own
+  // forward-slashed file names, so the hint has to be printed in that form on
+  // every platform — a Windows `\` here is a suggestion the user's own
+  // tsconfig would silently fail to honour.
+  const rootRelative = toTypeScriptPath(
+    relative(cwd, paths.root) || paths.root,
+  );
 
   return [
     `Add ${JSON.stringify(rootRelative)} to the "exclude" list of your project's own tsconfig.json.`,

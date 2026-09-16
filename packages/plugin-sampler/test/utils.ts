@@ -2,6 +2,8 @@ import { mkdtemp, readdir } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
+import { toTypeScriptPath } from '../src/ts-path.js';
+
 export async function createTempDir(name: string): Promise<string> {
   return await mkdtemp(join(tmpdir(), name));
 }
@@ -20,8 +22,13 @@ export function bytes(value: unknown): string {
 }
 
 /**
- * Every entry under `dir`, recursively, as paths relative to it. An empty
- * array is the assertion that the sampler materialized nothing.
+ * Every entry under `dir`, recursively, as `/`-normalized paths relative to
+ * it. An empty array is the assertion that the sampler materialized nothing.
+ *
+ * Assertions against this compare its result to a literal forward-slashed
+ * path, so the entries go through {@link toTypeScriptPath}: `join` yields
+ * backslashes on Windows, which would make every one of those literals fail
+ * for a reason that has nothing to do with what the sampler wrote.
  */
 export async function listTree(dir: string): Promise<string[]> {
   const entries = await readdir(dir, {
@@ -31,6 +38,10 @@ export async function listTree(dir: string): Promise<string[]> {
 
   return entries
     .filter((entry) => !entry.isDirectory())
-    .map((entry) => join(entry.parentPath, entry.name).slice(dir.length + 1))
+    .map((entry) =>
+      toTypeScriptPath(
+        join(entry.parentPath, entry.name).slice(dir.length + 1),
+      ),
+    )
     .sort();
 }
