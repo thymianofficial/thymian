@@ -10,6 +10,7 @@ import {
 import type {} from '@thymian/plugin-request-dispatcher';
 
 import { generateTypeSurface } from './generation/types/generate-type-surface.js';
+import { selfCheckSurface } from './generation/types/self-check-surface.js';
 import {
   readGenerated,
   rootExcludeNote,
@@ -243,6 +244,10 @@ export const samplePlugin: ThymianPlugin<Partial<SamplerPluginOptions>> = {
 
       const surface = await generateTypeSurface(catalog);
 
+      // Refuse to write a surface that does not compile on its own — the
+      // self-check gate, before anything lands on disk.
+      await selfCheckSurface(surface);
+
       await writeGenerated(paths, surface);
 
       // Scaffolded once and user-owned from then on: an existing one is kept
@@ -263,6 +268,11 @@ export const samplePlugin: ThymianPlugin<Partial<SamplerPluginOptions>> = {
 
     emitter.onAction('sampler.sync', async ({ check }, ctx) => {
       const surface = await generateTypeSurface(catalog);
+
+      // The self-check gate, ahead of both the `--check` report and the
+      // write: a fresh surface is produced either way.
+      await selfCheckSurface(surface);
+
       const changed = changedFiles(await readGenerated(paths), surface);
 
       if (check) {
