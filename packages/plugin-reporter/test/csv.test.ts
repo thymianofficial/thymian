@@ -1,4 +1,12 @@
-import { mkdir, readdir, readFile, rm, writeFile } from 'node:fs/promises';
+import { existsSync } from 'node:fs';
+import {
+  mkdir,
+  readdir,
+  readFile,
+  rm,
+  symlink,
+  writeFile,
+} from 'node:fs/promises';
 import { dirname, join } from 'node:path';
 
 import {
@@ -9,6 +17,7 @@ import {
   createTestStep,
   createToolRun,
   NoopLogger,
+  type Report,
   type RuleDescriptor,
   ThymianFormat,
 } from '@thymian/core';
@@ -20,6 +29,7 @@ import {
   reportToCsvLines,
 } from '../src/formatters/csv.js';
 import { getFormatters } from '../src/get-formatters.js';
+import { defaultRunDirectoryName } from '../src/report-file-name.js';
 
 const CSV_HEADER =
   'run_id,run_type,tool,rule_id,location,row_type,status,severity,finding_kind,finding_id,title,message,detail';
@@ -116,46 +126,99 @@ describe('CsvFormatter header (AC16)', () => {
   // /dev/full opens fine and fails every write with ENOSPC — the exact
   // "error after open" class the lazily opened stream must surface (the open
   // itself is already covered by openStream's rejection). Linux-only vehicle.
+  //
+  // A formatter no longer takes a destination, so /dev/full cannot be handed to
+  // it directly: the run directory's report.csv is symlinked onto /dev/full
+  // instead, which aims the write the formatter derives for itself at it.
   const devFull = process.platform === 'linux' && existsSync('/dev/full');
 
-  it.skipIf(!devFull)(
-    'fails the pipeline when a data write errors after open',
-    async () => {
-      const formatter = new CsvFormatter(new NoopLogger());
-      await formatter.init({ path: '/dev/full' });
+  /**
+   * Pre-create `report`'s own run directory with its report.csv pointing at
+   * /dev/full. `defaultRunDirectoryName` memoizes per report object, so the
+   * name resolved here is the one the formatter resolves for the same object.
+   */
+  async function aimRunDirectoryAtDevFull(
+    cwd: string,
+    target: Report,
+  ): Promise<void> {
+    const runDirectory = join(
+      cwd,
+      '.thymian',
+      'reports',
+      defaultRunDirectoryName(target),
+    );
+    await mkdir(runDirectory, { recursive: true });
+    await symlink('/dev/full', join(runDirectory, 'report.csv'));
+  }
 
-      await expect(
-        formatter.report(report).then(() => formatter.flush()),
-      ).rejects.toThrow();
+  it.skipIf(!devFull)(
+    'degrades a data write that errors after open, and claims nothing',
+    async () => {
+      const cwd = join(process.cwd(), 'tmp', 'csv-dev-full-rows');
+      await rm(cwd, { recursive: true, force: true });
+      await aimRunDirectoryAtDevFull(cwd, report);
+
+      const logger = new NoopLogger();
+      const errorSpy = vitest.spyOn(logger, 'error');
+      const infoSpy = vitest.spyOn(logger, 'info');
+      const formatter = new CsvFormatter(logger);
+      formatter.init({ cwd });
+
+      // An in-flight failure degrades rather than throwing: by now the findings
+      // exist, and aborting the run would destroy output that is still useful.
+      // Only the registration-time reportsDir precondition fails hard — see
+      // get-formatters.test.ts.
+      await expect(formatter.report(report)).resolves.toBeUndefined();
+      await expect(formatter.flush()).resolves.toBeUndefined();
+
+      expect(errorSpy).toHaveBeenCalledWith(
+        expect.stringContaining('Failed to write CSV report to'),
+      );
+      expect(infoSpy).not.toHaveBeenCalled();
     },
   );
 
   it.skipIf(!devFull)(
-    'fails flush() when only the header write errored (run-less report)',
+    'degrades when only the header write errored (run-less report)',
     async () => {
-      const formatter = new CsvFormatter(new NoopLogger());
-      await formatter.init({ path: '/dev/full' });
+      const cwd = join(process.cwd(), 'tmp', 'csv-dev-full-header');
+      await rm(cwd, { recursive: true, force: true });
+      const runLess = createReport([]);
+      await aimRunDirectoryAtDevFull(cwd, runLess);
 
-      // A run-less report opens the stream and writes only the header; its
-      // failure has no write callback to reject through, so it must be held
-      // and thrown later. Let the async ENOSPC surface before flush looks.
-      await formatter.report(createReport([]));
+      const logger = new NoopLogger();
+      const errorSpy = vitest.spyOn(logger, 'error');
+      const infoSpy = vitest.spyOn(logger, 'info');
+      const formatter = new CsvFormatter(logger);
+      formatter.init({ cwd });
+
+      // A run-less report opens the stream and writes only the header; that
+      // failure has no write callback to surface through, so it arrives through
+      // the stream's error listener. Let the async ENOSPC land before asserting.
+      await formatter.report(runLess);
       await new Promise((resolve) => setTimeout(resolve, 50));
 
-      await expect(formatter.flush()).rejects.toThrow(/ENOSPC/);
+      // The zero-row short-circuit must not claim a header that never landed.
+      await expect(formatter.flush()).resolves.toBeUndefined();
+      expect(errorSpy).toHaveBeenCalledWith(
+        expect.stringContaining('Failed to write CSV report to'),
+      );
+      expect(infoSpy).not.toHaveBeenCalled();
     },
   );
 
   it('writes no file at all when no report was ever received', async () => {
-    const path = join(process.cwd(), 'tmp', 'csv-never-reported.csv');
-    rmSync(path, { force: true });
+    const cwd = join(process.cwd(), 'tmp', 'csv-never-reported');
+    await rm(cwd, { recursive: true, force: true });
     const formatter = new CsvFormatter(new NoopLogger());
-    await formatter.init({ path });
+    formatter.init({ cwd });
     await formatter.flush();
 
     // Core withholds the report emission on a failed run (e.g. an unclaimed
-    // report input) — no artifact may land on disk then (#507 review).
-    expect(existsSync(path)).toBe(false);
+    // report input) — no artifact may land on disk then (#507 review). A
+    // destination is derived per report, so with no report there is no run
+    // directory either.
+    expect(existsSync(join(cwd, '.thymian', 'reports'))).toBe(false);
   });
 });
 
