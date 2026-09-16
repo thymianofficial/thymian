@@ -1,4 +1,4 @@
-import { mkdir, readdir, readFile, rm, writeFile } from 'node:fs/promises';
+import { mkdir, readFile, rm, writeFile } from 'node:fs/promises';
 import { join, relative } from 'node:path';
 
 import type { SamplerPaths } from '../../sampler-paths.js';
@@ -103,7 +103,22 @@ export async function writeGenerated(
     .sort();
 }
 
-/** What is currently committed under `generated/`, file name → contents. */
+/**
+ * What is currently committed under `generated/`, file name → contents.
+ *
+ * Reads only the files the surface itself ever writes — {@link
+ * REQUEST_TYPES_FILE} and {@link HOOKS_API_FILE} — rather than every
+ * directory entry. `writeGenerated` wipes and rewrites the whole directory on
+ * every write, so anything else in it was never put there by the sampler: a
+ * macOS `.DS_Store`, an editor swap file, a stray subdirectory. `readdir`
+ * would hand all of it back with no way to tell a file from a directory
+ * without a second syscall per entry, and blindly `readFile`-ing a
+ * subdirectory throws `EISDIR` — crashing `sync --check`, `validate` and
+ * `thymian test` alike, mid-command, on a file the user never asked the
+ * sampler to look at. Naming the two files instead of listing the directory
+ * sidesteps both failure modes: a stray entry is neither read nor compared,
+ * so it is silently ignored rather than reported as spurious drift.
+ */
 export async function readGenerated(
   paths: SamplerPaths,
 ): Promise<Record<string, string>> {
@@ -111,11 +126,14 @@ export async function readGenerated(
     return {};
   }
 
-  const names = (await readdir(paths.generatedDir)).sort();
   const files: Record<string, string> = {};
 
-  for (const name of names) {
-    files[name] = await readFile(join(paths.generatedDir, name), 'utf-8');
+  for (const name of [HOOKS_API_FILE, REQUEST_TYPES_FILE].sort()) {
+    const path = join(paths.generatedDir, name);
+
+    if (await entryExists(path)) {
+      files[name] = await readFile(path, 'utf-8');
+    }
   }
 
   return files;

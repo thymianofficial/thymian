@@ -140,6 +140,33 @@ export const stale = beforeEach(
     expect(result.output).not.toContain('Breaking drift');
   }, 180_000);
 
+  it('init succeeds against a description declaring a component named like a fixed root', () => {
+    // #133's reported bug, reproduced against the real fixture: the
+    // `sampler-outcomes` description declares a component literally named
+    // `Status`, which collides with the fixed-root `Status` union the
+    // surface always emits. Before the fix, this generated two genuine
+    // `TS2300: Duplicate identifier 'Status'` diagnostics — invisible under
+    // `skipLibCheck: true`, fatal to `init` now that the self-check gate
+    // compiles the emitted surface with `skipLibCheck: false`. This test
+    // exercises the real gate against the real fixture end to end, not a
+    // reconstruction of either.
+    const dir = getTempDir();
+
+    copyFixturesToTempDir(join(fixturesDir, 'sampler-outcomes'), dir);
+
+    const result = execThymianRaw(['sampler', 'init'], { cwd: dir });
+
+    expect(result.exitCode).toBe(0);
+    expect(result.output).toContain('Sampler ready');
+    expect(existsSync(join(dir, GENERATED, 'request-types.d.ts'))).toBe(true);
+
+    const check = execThymianRaw(['sampler', 'sync', '--check'], {
+      cwd: dir,
+    });
+
+    expect(check.exitCode).toBe(0);
+  }, 180_000);
+
   it('validate calls it drift when the description moved under the hook', () => {
     const dir = setUp();
 
