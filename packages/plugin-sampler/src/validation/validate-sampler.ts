@@ -2,6 +2,7 @@ import {
   generateTypeSurface,
   type TypeSurface,
 } from '../generation/types/generate-type-surface.js';
+import { selfCheckSurface } from '../generation/types/self-check-surface.js';
 import {
   readGenerated,
   surfaceAsFiles,
@@ -101,6 +102,21 @@ export async function validateSampler(
   catalog: TransactionCatalog,
 ): Promise<ValidationReport> {
   const surface = await generateTypeSurface(catalog);
+
+  // The self-check gate, on `validate`'s own scratch surface. Deliberately
+  // thrown rather than folded into `ValidationReport` — the one place this
+  // function does not hold to "record, don't throw": every other finding
+  // here (`typeErrors`, `unresolved`, `conflicts`, `unexported`) is a
+  // question about the user's hooks or API description, which is exactly
+  // what a `verdict` and its fields exist to describe. A surface that fails
+  // its own self-check is neither — it is a defect in the sampler's
+  // generator, present regardless of what the user wrote, and none of this
+  // report's verdicts (`ok`/`stale`/`drifted`/`broken`) has a sentence for
+  // "the sampler is broken." `init` and `sync` abort the same way at the
+  // same seam, and the gate is only meaningful if it behaves identically
+  // everywhere a fresh surface is produced.
+  await selfCheckSurface(surface);
+
   const committed = await readGenerated(paths);
   const hooks = await loadUserHooks(paths.hooksDir, catalog);
   const typeErrors = await typecheckHooks(paths, surface, hooks.files);
