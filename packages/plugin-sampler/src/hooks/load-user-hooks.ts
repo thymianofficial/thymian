@@ -181,8 +181,26 @@ async function walkHookDirectory(
   for (const entry of entries) {
     const full = join(dir, entry.name);
 
+    // `Dirent`'s type flags describe the entry itself, never the symlink's
+    // target — `isFile()`/`isDirectory()` are both false for a symlink, which
+    // already keeps one out of `files`/`directories` below. What was missing
+    // is the word: a hook that silently never runs because its file is a
+    // symlink looks exactly like a Thymian bug, so it is named rather than
+    // dropped.
+    if (entry.isSymbolicLink()) {
+      warnings.push(
+        `The hooks entry "${hooksDirRelative(hooksDir, full)}" is a symlink and was skipped: symlinked hook files and directories are not followed.`,
+      );
+
+      continue;
+    }
+
     if (entry.isDirectory()) {
-      if (!entry.name.startsWith('.')) {
+      // `node_modules` is never a source of hooks, however it got there —
+      // installed by the user's own tooling or vendored by hand — so it is
+      // excluded by name rather than relying on every install layout to
+      // happen to start with a dot.
+      if (!entry.name.startsWith('.') && entry.name !== 'node_modules') {
         directories.push(full);
       }
 

@@ -209,7 +209,19 @@ export function filterProblems(filter: TransactionFilter): FilterProblem[] {
   return problems;
 }
 
-/** Whether every field present in `fields` accepts `transaction`. */
+/**
+ * Whether every field present in `fields` accepts `transaction`.
+ *
+ * A field that is simply absent (`undefined`) does not constrain — vacuously
+ * true, which is what lets `{ method: 'GET' }` leave every other field open.
+ * A field that is *present* with a value list that turns out empty is a
+ * different thing: `{ method: [] }` is a disjunction of zero alternatives,
+ * which is false by construction, never true. Collapsing the two would let a
+ * computed filter array that happened to come back empty silently widen into
+ * "this field doesn't matter" instead of "nothing satisfies this field" — see
+ * {@link emptyValueFields}, which reads this same rule back as data for the
+ * diagnostic.
+ */
 function matchesFields(
   fields: FilterFields,
   transaction: ThymianHttpTransaction,
@@ -217,12 +229,36 @@ function matchesFields(
   const record = fields as Record<string, unknown>;
 
   return FIELD_NAMES.every((name) => {
-    const values = asList(record[name]);
+    const raw = record[name];
+
+    if (raw === undefined) {
+      return true;
+    }
+
+    const values = asList(raw);
 
     return (
-      values.length === 0 ||
+      values.length > 0 &&
       values.some((value) => FIELDS[name].accepts(value, transaction))
     );
+  });
+}
+
+/**
+ * Field names `fields` gives an explicit, empty value list — a disjunction of
+ * zero alternatives, which {@link matchesFields} treats as always false.
+ *
+ * Read back from the same rule {@link matchesFields} applies, rather than a
+ * second definition of "empty": a field that is merely absent is not named
+ * here, only one that was given a value and that value is an empty array.
+ */
+export function emptyValueFields(fields: FilterFields): FilterFieldName[] {
+  const record = fields as Record<string, unknown>;
+
+  return FIELD_NAMES.filter((name) => {
+    const raw = record[name];
+
+    return raw !== undefined && asList(raw).length === 0;
   });
 }
 

@@ -1,3 +1,6 @@
+import { mkdir, symlink, writeFile } from 'node:fs/promises';
+import { join } from 'node:path';
+
 import {
   createHttpRequest,
   createHttpResponse,
@@ -293,6 +296,64 @@ export const stale = beforeEach('GET /launches -> 418 (application/json)', () =>
     expect(suggestions).toContain(`"${LAUNCHES}"`);
   });
 
+  it('records a malformed selector target as a diagnostic, with a grammar hint, instead of throwing', async () => {
+    const harness = await sampler();
+
+    await harness.writeHook(
+      'malformed.ts',
+      `import { beforeEach } from '@thymian/hooks';
+
+export const oops = beforeEach('this is not a selector at all', () => {});
+`,
+    );
+
+    let error: unknown;
+
+    try {
+      await harness.beginRun(format);
+    } catch (e) {
+      error = e;
+    }
+
+    expect((error as Error | undefined)?.message).toContain(
+      'does not resolve against the loaded API description',
+    );
+
+    const suggestions = (
+      (error as { options?: { suggestions?: string[] } }).options
+        ?.suggestions ?? []
+    ).join('\n');
+
+    expect(suggestions).toContain('malformed.ts');
+    expect(suggestions).toContain('which is not a valid transaction selector');
+    expect(suggestions).toContain('METHOD SP path');
+    expect(suggestions).toContain('For example:');
+  });
+
+  it('lets validate, show and sync survive a malformed selector target instead of crashing', async () => {
+    const harness = await sampler();
+
+    await harness.writeHook(
+      'malformed.ts',
+      `import { beforeEach } from '@thymian/hooks';
+
+export const oops = beforeEach('this is not a selector at all', () => {});
+`,
+    );
+
+    await harness.loadFormat(format);
+
+    const report = await harness.validate();
+
+    expect(report.unresolved).toHaveLength(1);
+    expect(report.unresolved[0]?.reason).toContain(
+      'which is not a valid transaction selector',
+    );
+
+    await expect(harness.show(LAUNCHES)).resolves.toBeDefined();
+    await expect(harness.sync()).resolves.toBeDefined();
+  });
+
   it('reports every unresolved hook, not just the first', async () => {
     const harness = await sampler();
 
@@ -326,6 +387,105 @@ export const b = beforeEach('GET /also-gone -> 200 (application/json)', () => {}
 
     expect(suggestions).toContain('one.ts');
     expect(suggestions).toContain('two.ts');
+  });
+
+  it('skips a symlinked hook file with a warning, and never runs it', async () => {
+    const harness = await sampler();
+
+    await harness.writeHook(
+      'real.ts',
+      `import { beforeEach } from '@thymian/hooks';
+
+export const real = beforeEach(${JSON.stringify(LAUNCHES)}, (request) => {
+  request.headers['x-real'] = 'yes';
+});
+`,
+    );
+
+    await symlink(
+      join(harness.hooksDir, 'real.ts'),
+      join(harness.hooksDir, 'alias.ts'),
+      'file',
+    );
+
+    await harness.loadFormat(format);
+
+    const warnings = harness.warnings.join('\n');
+
+    expect(warnings).toContain('alias.ts');
+    expect(warnings).toContain('symlink');
+
+    // The real file still loads normally: a symlink elsewhere in the tree
+    // does not take the rest of the scan down with it.
+    const { result } = await harness.beforeRequest(
+      transactionIdOf(LAUNCHES),
+      format,
+    );
+
+    expect(result.headers['x-real']).toBe('yes');
+  });
+
+  it('skips a symlinked hooks subdirectory with a warning, and never walks into it', async () => {
+    const harness = await sampler();
+    const outside = join(harness.cwd, 'outside-hooks');
+
+    await mkdir(outside, { recursive: true });
+    await writeFile(
+      join(outside, 'nested.ts'),
+      `import { beforeEach } from '@thymian/hooks';
+
+export const nested = beforeEach(${JSON.stringify(LAUNCHES)}, (request) => {
+  request.headers['x-nested'] = 'yes';
+});
+`,
+      'utf-8',
+    );
+    await mkdir(harness.hooksDir, { recursive: true });
+    await symlink(outside, join(harness.hooksDir, 'linked-dir'), 'dir');
+
+    await harness.loadFormat(format);
+
+    const warnings = harness.warnings.join('\n');
+
+    expect(warnings).toContain('linked-dir');
+    expect(warnings).toContain('symlink');
+
+    const { result } = await harness.beforeRequest(
+      transactionIdOf(LAUNCHES),
+      format,
+    );
+
+    expect(result.headers['x-nested']).toBeUndefined();
+  });
+
+  it('never imports a node_modules directory inside the hooks tree', async () => {
+    const harness = await sampler();
+
+    // Content that proves the file was never even opened: importing it would
+    // throw, and the hooks it would have registered would show up on the
+    // wire.
+    await harness.writeHook(
+      'node_modules/rogue-pkg/index.ts',
+      `import { beforeEach } from '@thymian/hooks';
+
+if (true) {
+  throw new Error('node_modules inside the hooks directory must never be imported');
+}
+
+export const rogue = beforeEach(${JSON.stringify(LAUNCHES)}, (request) => {
+  request.headers['x-rogue'] = 'yes';
+});
+`,
+    );
+
+    await harness.loadFormat(format);
+
+    const { result } = await harness.beforeRequest(
+      transactionIdOf(LAUNCHES),
+      format,
+    );
+
+    expect(result.headers['x-rogue']).toBeUndefined();
   });
 
   it('runs with no hooks directory at all', async () => {

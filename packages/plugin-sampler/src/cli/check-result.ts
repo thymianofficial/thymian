@@ -98,13 +98,18 @@ export function checkedFromTestCase(
   const outcome: Outcome =
     testCase.status === 'passed'
       ? 'passed'
-      : // A Seed answered differently is why this transaction could not run as
-        // described, whatever the pipeline called the case.
-        seed
-        ? 'skipped'
-        : testCase.status === 'failed'
-          ? 'failed'
-          : 'skipped';
+      : // `failed` means the transaction executed and its own response was
+        // invalid — explicitly, per `utils.fail(...)`, or because the
+        // pipeline's own validation rejected it (#48). That verdict is never
+        // second-guessed: a seed anomaly recorded earlier in the same case
+        // does not explain *this* transaction's response, so it must not
+        // downgrade an explicit failure into a skip. Only when the pipeline
+        // did *not* call it failed does a seed anomaly get to say why —
+        // a transaction whose precondition never happened was not executed
+        // as described.
+        testCase.status === 'failed'
+        ? 'failed'
+        : 'skipped';
   const details = detailsOf(testCase);
 
   return {

@@ -44,6 +44,14 @@ export function applyArgs(
  * Written here rather than taken from a library so that the rule the generated
  * `DeepPartial` types promise and the rule the runtime applies are the same
  * three sentences, in one place.
+ *
+ * Every key is handled as an **own property**, never through `in` or a bare
+ * `[key] =` assignment. `key in base` is true for `'toString'` on a base that
+ * never declared it — it walks the prototype chain — and `merged[key] = …`
+ * for `key === '__proto__'` does not create a data property at all: it
+ * invokes the inherited setter and repoints `merged`'s own prototype. Neither
+ * is a filter field's schema value; a body field named `__proto__` is exactly
+ * as ordinary as one named anything else, and this is what makes it one.
  */
 export function deepMergeBody(base: unknown, overlay: unknown): unknown {
   if (!isPlainObject(base) || !isPlainObject(overlay)) {
@@ -52,8 +60,18 @@ export function deepMergeBody(base: unknown, overlay: unknown): unknown {
 
   const merged: Record<string, unknown> = { ...base };
 
-  for (const [key, value] of Object.entries(overlay)) {
-    merged[key] = key in base ? deepMergeBody(base[key], value) : value;
+  for (const key of Object.keys(overlay)) {
+    const value = overlay[key];
+    const next = Object.prototype.hasOwnProperty.call(base, key)
+      ? deepMergeBody(base[key], value)
+      : value;
+
+    Object.defineProperty(merged, key, {
+      value: next,
+      writable: true,
+      enumerable: true,
+      configurable: true,
+    });
   }
 
   return merged;
