@@ -159,13 +159,13 @@ operation or a changed body shape becomes a compile error at the line of every
 hook that relied on it. That is the trade — see
 [the drift gate](/guides/sampler/upgrading-thymian/).
 
-## Commands, before and after
-
-| v1                      | v2                                                                          |
-| ----------------------- | --------------------------------------------------------------------------- |
-| `sampler init`          | `sampler init` — now optional, and it writes types rather than samples      |
-| `sampler validate`      | `sampler validate` — now a type gate, not a byte-compare                    |
-| `sampler check` | `sampler check` — unchanged, and no longer needs generated samples |
-| `sampler generate hook` | write a file; the Selector is the boilerplate, and `sampler show` prints it |
-| `sampler export`        | removed; there is nothing to export                                         |
-| —                       | `sampler sync`, `sampler sync --check`, `sampler show <selector>`           |
+<Aside type="note">
+  If you merge a report generated before this move with one generated after
+  it, note that `thymian report merge` does not re-render either fragment: the
+  merged output shows a transaction under both spellings, the old display
+  string (`GET /launches - */* → 200 OK - application/json`) from the older
+  fragment and the Selector (`GET /launches (*/*) -> 200 (application/json)`,
+  ADR-0022) from the newer one. Nothing in Thymian keys on either spelling, so
+  this is cosmetic and resolves itself once every input report is regenerated
+  on the current version.
+</Aside>

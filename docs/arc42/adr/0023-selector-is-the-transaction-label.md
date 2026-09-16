@@ -128,6 +128,29 @@ is the whole point.
   two must not drift, and the parser that closes the loop lives in the plugin.
 - Losing the reason phrase costs a little scannability for readers who used it
   to spot a status class at a glance.
+- **Two rendered labels are persisted as data, not only printed**, and neither
+  is re-rendered when a report is read back later. `mapToTestCase` names every
+  `httpTest` execution with the transaction label
+  (`packages/core/src/http-testing/operators/map-to-test-case.operator.ts`);
+  that name is the `HttpTestCase.name` carried into the report as the
+  execution's name. `resolveViolationLocation`
+  (`packages/core/src/rules/rule-runner.ts`) stores a rule's string-valued
+  location verbatim as a `custom` `Location` when the rule reports a plain
+  string rather than a format element. Neither of these is regenerated on
+  read: only `thymianFormat`-typed locations are, resolved fresh from the
+  current renderer by `formatThymianFormatLocation`
+  (`packages/core/src/report/location-format.ts`) each time a report is
+  rendered. So a report produced before this decision landed and one produced
+  after it, combined with `thymian report merge`, print the same transaction
+  under both spellings — the pre-decision display string on the older
+  fragment's execution names and custom locations, the Selector on the
+  newer fragment's. This was the precondition #46 AC 1 required: nothing
+  _keys_ on either spelling — `thymian report merge` concatenates report
+  fragments (`packages/thymian/src/commands/report/merge.ts`); it never joins
+  or matches on a label or location string — so the coexistence is cosmetic
+  and resolves itself once every input report is regenerated on the current
+  version. See the [migration guide](../../../astro-docs/src/content/docs/guides/Sampler/migrating-from-the-samples-tree.mdx)
+  for the user-facing version of this note.
 
 **Neutral:**
 
@@ -165,6 +188,7 @@ is the whole point.
 
 ## Status History
 
-| Date       | Status   | Notes                                                                                                         |
-| ---------- | -------- | ------------------------------------------------------------------------------------------------------------- |
-| 2026-09-04 | Accepted | The Selector grammar becomes the application-wide transaction label; the renderer moves into `@thymian/core`. |
+| Date       | Status   | Notes                                                                                                                                                                                                                                                          |
+| ---------- | -------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 2026-09-04 | Accepted | The Selector grammar becomes the application-wide transaction label; the renderer moves into `@thymian/core`.                                                                                                                                                  |
+| 2026-09-16 | Accepted | Recorded the #46 AC 1 precondition evidence: `httpTest` execution names and custom rule-violation locations persist a rendered label as data and are not re-rendered on read, so pre-/post-PR reports show both spellings under merge; nothing keys on either. |

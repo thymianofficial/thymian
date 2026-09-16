@@ -97,17 +97,19 @@ export const seed = beforeEach(
       },
     );
 
-    // Fail if creation returned wrong status
-    if (response.statusCode === 200) {
+    // Fail if creation returned a status other than the one declared here.
+    // Branch on the declared status and narrow before touching `body` — the
+    // type of `response` is a union of every response the operation
+    // declares, so a status that operation never declares (like `200` for
+    // an endpoint that only declares `201`) is a compile error, and `body`
+    // is only the 201 shape once the branch has narrowed to it.
+    if (response.statusCode !== 201) {
       utils.fail(`Expected 201 Created, got ${response.statusCode}`);
-    }
-
-    // Fail if response body is invalid
-    if (!response.body.id) {
+    } else if (!response.body.id) {
       utils.fail('Created launch has no ID field');
+    } else {
+      request.pathParameters.id = response.body.id;
     }
-
-    request.pathParameters.id = response.body.id;
   },
 );
 ```
