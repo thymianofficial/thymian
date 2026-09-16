@@ -6,6 +6,7 @@ import { fileURLToPath } from 'node:url';
 import { createJiti } from 'jiti';
 
 import type { TransactionCatalog } from '../selectors/transaction-catalog.js';
+import { toTypeScriptPath } from '../ts-path.js';
 import { entryExists } from '../utils.js';
 import type { HookDiagnostic } from './hook-diagnostics.js';
 import { hookFileImportError } from './hook-diagnostics.js';
@@ -138,7 +139,7 @@ export type LoadUserHooksResult = {
 
 /** Hooks-dir-relative, `/`-normalized — the sort key and the diagnostic label. */
 function hooksDirRelative(hooksDir: string, full: string): string {
-  return relative(hooksDir, full).split(/[\\/]/).join('/');
+  return toTypeScriptPath(relative(hooksDir, full));
 }
 
 /**

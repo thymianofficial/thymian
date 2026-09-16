@@ -10,6 +10,8 @@ import {
   REQUEST_TYPES_FILE,
 } from '../src/generation/types/generate-type-surface.js';
 import type { TransactionCatalog } from '../src/selectors/transaction-catalog.js';
+import { isSameTsPath, tsPathRelativeTo } from '../src/ts-path.js';
+import { sharedCompilerHost } from '../src/validation/shared-compiler-host.js';
 
 export type Diagnostic = {
   /** 1-based line within the probe file. */
@@ -48,7 +50,7 @@ export async function compileHook(
   const probe = join(root, 'probe.ts');
   await writeFile(probe, source, 'utf-8');
 
-  const program = ts.createProgram([probe], {
+  const options: ts.CompilerOptions = {
     strict: true,
     noEmit: true,
     module: ts.ModuleKind.NodeNext,
@@ -61,13 +63,22 @@ export async function compileHook(
     // diagnostics about the surface rather than about the environment.
     lib: ['lib.es2023.d.ts'],
     types: [],
-  });
+  };
+
+  const program = ts.createProgram(
+    [probe],
+    options,
+    sharedCompilerHost(options),
+  );
 
   const lines = source.split('\n');
 
   return ts
     .getPreEmitDiagnostics(program)
-    .filter((diagnostic) => diagnostic.file?.fileName === probe)
+    .filter(
+      (diagnostic) =>
+        diagnostic.file && isSameTsPath(diagnostic.file.fileName, probe),
+    )
     .map((diagnostic) => {
       const { line } = diagnostic.file!.getLineAndCharacterOfPosition(
         diagnostic.start ?? 0,
@@ -111,7 +122,7 @@ export async function checkSurface(
   await writeFile(requestTypes, surface.requestTypes, 'utf-8');
   await writeFile(join(generated, HOOKS_API_FILE), surface.hooksApi, 'utf-8');
 
-  const program = ts.createProgram([requestTypes], {
+  const options: ts.CompilerOptions = {
     strict: true,
     noEmit: true,
     module: ts.ModuleKind.NodeNext,
@@ -122,17 +133,30 @@ export async function checkSurface(
     paths: { '@thymian/hooks': [`./generated/${HOOKS_API_FILE}`] },
     lib: ['lib.es2023.d.ts'],
     types: [],
-  });
+  };
+
+  const program = ts.createProgram(
+    [requestTypes],
+    options,
+    sharedCompilerHost(options),
+  );
 
   return ts.getPreEmitDiagnostics(program).flatMap((diagnostic) => {
     const file = diagnostic.file;
+    // `generated` is a `node:path` value; TypeScript's own `fileName`s are
+    // forward-slashed. `tsPathRelativeTo` normalizes both, which keeps this
+    // correct on Windows, where a raw `startsWith`/`slice` pair would exclude
+    // every diagnostic this check exists to report.
+    const relativeFile = file
+      ? tsPathRelativeTo(file.fileName, generated)
+      : undefined;
 
-    if (!file?.fileName.startsWith(generated)) {
+    if (!file || relativeFile === undefined) {
       return [];
     }
 
     const { line } = file.getLineAndCharacterOfPosition(diagnostic.start ?? 0);
-    const where = `${file.fileName.slice(generated.length + 1)}:${line + 1}`;
+    const where = `${relativeFile}:${line + 1}`;
     const message = ts.flattenDiagnosticMessageText(
       diagnostic.messageText,
       ' ',

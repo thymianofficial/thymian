@@ -10,7 +10,9 @@ import {
   type TypeSurface,
 } from '../generation/types/generate-type-surface.js';
 import type { SamplerPaths } from '../sampler-paths.js';
+import { tsPathRelativeTo } from '../ts-path.js';
 import { entryExists } from '../utils.js';
+import { sharedCompilerHost } from './shared-compiler-host.js';
 
 /** One `tsc` complaint about a hook, as a reader needs it. */
 export type HookTypeError = {
@@ -62,19 +64,31 @@ export async function typecheckHooks(
     );
     await writeFile(join(generated, HOOKS_API_FILE), surface.hooksApi, 'utf-8');
 
+    const compilerOptions: ts.CompilerOptions = {
+      ...(await userCompilerOptions(paths)),
+      noEmit: true,
+      baseUrl: scratch,
+      paths: { '@thymian/hooks': [`./generated/${HOOKS_API_FILE}`] },
+    };
+
     const program = ts.createProgram(
       hookFiles.map((file) => join(paths.hooksDir, file)),
-      {
-        ...(await userCompilerOptions(paths)),
-        noEmit: true,
-        baseUrl: scratch,
-        paths: { '@thymian/hooks': [`./generated/${HOOKS_API_FILE}`] },
-      },
+      compilerOptions,
+      sharedCompilerHost(compilerOptions),
     );
 
+    // `scratch` is a `node:path` value (backslashes on Windows);
+    // `diagnostic.file.fileName` is TypeScript's own forward-slashed form.
+    // `tsPathRelativeTo` normalizes both, so this excludes a scratch-surface
+    // diagnostic on every platform — a raw `startsWith` never matched on
+    // Windows, and every one of these diagnostics leaked through.
     return ts
       .getPreEmitDiagnostics(program)
-      .filter((diagnostic) => !diagnostic.file?.fileName.startsWith(scratch))
+      .filter(
+        (diagnostic) =>
+          !diagnostic.file ||
+          tsPathRelativeTo(diagnostic.file.fileName, scratch) === undefined,
+      )
       .map((diagnostic) => {
         const file = diagnostic.file;
 
