@@ -154,6 +154,44 @@ export const b = defineSample(
         ).request.headers['x-which'],
       ).toBe('astronauts');
     });
+
+    it('names its own file and export when it throws, at warn severity', async () => {
+      const harness = await sampler();
+
+      await harness.writeHook(
+        'sample.ts',
+        `import { defineSample } from '@thymian/hooks';
+
+export const shapeLaunches = defineSample(${JSON.stringify(LAUNCHES)}, () => {
+  throw new Error('boom');
+});
+`,
+      );
+
+      await harness.loadFormat(format);
+
+      let error: unknown;
+
+      try {
+        // core.request.sample is the seam a nested request also goes through
+        // to generate its draft, so this is the one path that has to name the
+        // hook correctly everywhere `defineSample` can throw.
+        await harness.sample(transactionIdOf('/launches'), format);
+      } catch (e) {
+        error = e;
+      }
+
+      expect((error as Error | undefined)?.message).toBe(
+        'The defineSample hook exported as "shapeLaunches" from "sample.ts" threw.',
+      );
+      expect((error as { cause?: unknown } | undefined)?.cause).toBeInstanceOf(
+        Error,
+      );
+      expect(
+        (error as { options?: { severity?: string } } | undefined)?.options
+          ?.severity,
+      ).toBe('warn');
+    });
   });
 
   describe('afterEach', () => {
@@ -229,6 +267,85 @@ export const record = beforeEach(${JSON.stringify(LAUNCHES)}, (request) => {
       expect(second.result.headers['x-before-all-runs']).toBe('1');
     });
 
+    it('sends a beforeAll seed to the run’s target origin, never the server the description names', async () => {
+      const harness = await sampler();
+      const ASTRONAUTS =
+        'POST /astronauts (application/json) -> 201 (application/json)';
+
+      await harness.writeHook(
+        'setup.ts',
+        `import { beforeAll } from '@thymian/hooks';
+
+export const seed = beforeAll(async (utils) => {
+  await utils.request(${JSON.stringify(ASTRONAUTS)}, { body: {} });
+});
+`,
+      );
+
+      harness.responses.push({ statusCode: 201 });
+
+      await harness.loadFormat(format);
+
+      // What `--target-url` does: the run's first request carries the origin
+      // it resolved, captured as the run arms — so the seed that runs while
+      // arming it already goes there too, instead of to whatever origin
+      // generation put on the sample.
+      await harness.beforeRequest(transactionIdOf('/launches'), format, {
+        origin: 'http://localhost:9999',
+      });
+
+      expect(harness.dispatched[0]?.request.origin).toBe(
+        'http://localhost:9999',
+      );
+    });
+
+    it('resolves a run-scoped hook’s file helpers against the hook file’s own directory', async () => {
+      const harness = await sampler();
+
+      await harness.writeHook(
+        'nested/fixture.json',
+        JSON.stringify({ hello: 'world' }),
+      );
+      await harness.writeHook('nested/fixture.txt', 'plain text fixture');
+      await harness.writeHook(
+        'nested/setup.ts',
+        `import { beforeAll, beforeEach } from '@thymian/hooks';
+
+let json: unknown;
+let text: string;
+let buffer: Buffer;
+
+export const setup = beforeAll((utils) => {
+  json = utils.readJson('./fixture.json');
+  text = utils.readText('./fixture.txt');
+  buffer = utils.readFile('./fixture.txt');
+});
+
+export const record = beforeEach(${JSON.stringify(LAUNCHES)}, (request) => {
+  request.headers['x-fixture-json'] = JSON.stringify(json);
+  request.headers['x-fixture-text'] = text;
+  request.headers['x-fixture-buffer'] = buffer.toString('utf-8');
+});
+`,
+      );
+
+      await harness.loadFormat(format);
+
+      // Before this ticket, a run-scoped hook's file helpers resolved against
+      // \`process.cwd()\` — unrelated to where any hook file lives — so this
+      // would have thrown ENOENT rather than returning the fixtures' content.
+      const { result } = await harness.beforeRequest(
+        transactionIdOf('/launches'),
+        format,
+      );
+
+      expect(JSON.parse(result.headers['x-fixture-json'] as string)).toEqual({
+        hello: 'world',
+      });
+      expect(result.headers['x-fixture-text']).toBe('plain text fixture');
+      expect(result.headers['x-fixture-buffer']).toBe('plain text fixture');
+    });
+
     it('aborts the run when beforeAll throws, and still tears down', async () => {
       const harness = await sampler();
 
@@ -254,9 +371,24 @@ export const teardown = afterAll(() => {
 
       await harness.loadFormat(format);
 
-      await expect(
-        harness.beforeRequest(transactionIdOf('/launches'), format),
-      ).rejects.toThrowError(/beforeAll hook exported as "setup"/);
+      let error: unknown;
+
+      try {
+        await harness.beforeRequest(transactionIdOf('/launches'), format);
+      } catch (e) {
+        error = e;
+      }
+
+      expect((error as Error | undefined)?.message).toMatch(
+        /beforeAll hook exported as "setup"/,
+      );
+      // The same shared wrapper as every other kind, not a hand-rolled copy:
+      // warn severity, so this diagnostic never closes the run through
+      // Thymian.run's error subscription on its own.
+      expect(
+        (error as { options?: { severity?: string } } | undefined)?.options
+          ?.severity,
+      ).toBe('warn');
 
       await harness.close();
 

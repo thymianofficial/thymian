@@ -1,11 +1,7 @@
-import { type Logger, ThymianBaseError } from '@thymian/core';
+import type { Logger } from '@thymian/core';
 
 import type { HookUtilsFactory } from './hook-utils-factory.js';
-import {
-  attributeToHook,
-  invokeHook,
-  reportHookResults,
-} from './invoke-hook.js';
+import { invokeOrThrow, reportHookResults } from './invoke-hook.js';
 import type { CollectedRegistration } from './load-user-hooks.js';
 
 /** What a `beforeAll` may hand back to be run on close. */
@@ -60,11 +56,13 @@ export class RunScopedHooks {
       sequence: entry.sequence,
       describe: `the afterAll hook exported as "${entry.exportName}" from "${entry.file}"`,
       run: async () => {
-        const { utils, results } = this.makeUtils();
+        const { utils, results } = this.makeUtils(entry);
 
-        await invokeHook(entry, [utils]);
-
-        reportHookResults(this.logger, results);
+        try {
+          await invokeOrThrow('afterAll', entry, [utils]);
+        } finally {
+          reportHookResults(this.logger, results);
+        }
       },
     }));
   }
@@ -77,6 +75,9 @@ export class RunScopedHooks {
    * was never built. The latch is armed **before** the callbacks run, so a
    * `beforeAll` that threw still gets its teardown — and so a second request
    * cannot re-run setup that half-succeeded.
+   *
+   * Failure goes through the same attribution wrapper every other hook kind
+   * does — there is no `beforeAll`-specific copy of it here any more.
    */
   async start(): Promise<void> {
     if (this.latched) {
@@ -86,30 +87,14 @@ export class RunScopedHooks {
     this.latched = true;
 
     for (const entry of this.beforeAll) {
-      const { utils, results } = this.makeUtils();
+      const { utils, results } = this.makeUtils(entry);
       let returned: unknown;
 
       try {
-        returned = await invokeHook(entry, [utils]);
-      } catch (e) {
+        returned = await invokeOrThrow('beforeAll', entry, [utils]);
+      } finally {
         reportHookResults(this.logger, results);
-
-        // A diagnostic the sampler raised keeps its own message and
-        // suggestions, with the hook's location added; anything else is a
-        // defect in the hook and gets the envelope that names it.
-        throw e instanceof ThymianBaseError
-          ? attributeToHook(e, 'beforeAll', entry)
-          : new ThymianBaseError(
-              `The beforeAll hook exported as "${entry.exportName}" from "${entry.file}" threw.`,
-              {
-                cause: e,
-                name: 'BeforeAllHookError',
-                ref: 'https://thymian.dev/references/errors/before-all-hook-error/',
-              },
-            );
       }
-
-      reportHookResults(this.logger, results);
 
       if (typeof returned === 'function') {
         const cleanup = returned as CleanupFn;
