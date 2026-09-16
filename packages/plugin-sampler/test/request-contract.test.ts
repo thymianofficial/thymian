@@ -485,4 +485,51 @@ export const seed = beforeEach(${JSON.stringify(GET_LAUNCH)}, async (request, ct
 
     expect(result.headers['x-seed-status']).toBe('201');
   });
+
+  /**
+   * #132: a throwing `defineSample` has to name its own file and export
+   * wherever it is reached from — including generation triggered by a nested
+   * `utils.request`, where the naive attribution is "the beforeEach hook that
+   * happened to be seeding" rather than the defineSample that actually threw.
+   */
+  it('attributes a throwing defineSample to itself, not the beforeEach hook that seeded it', async () => {
+    const harness = await sampler();
+
+    await harness.writeHook(
+      'seed.ts',
+      `import { beforeEach, defineSample } from '@thymian/hooks';
+
+export const brokenSample = defineSample(${JSON.stringify(CREATE)}, () => {
+  throw new Error('sample generation failed');
+});
+
+export const seed = beforeEach(${JSON.stringify(GET_LAUNCH)}, async (request, ctx, utils) => {
+  await utils.request(${JSON.stringify(CREATE)}, { body: { name: 'Artemis' } });
+});
+`,
+    );
+
+    await harness.loadFormat(FIXTURE);
+
+    let error: unknown;
+
+    try {
+      await harness.beforeRequest(transactionIdOf(GET_LAUNCH), FIXTURE);
+    } catch (e) {
+      error = e;
+    }
+
+    // Named for the hook that actually threw — the seed's own defineSample —
+    // never for the beforeEach that merely triggered it by seeding.
+    expect((error as Error | undefined)?.message).toBe(
+      'The defineSample hook exported as "brokenSample" from "seed.ts" threw.',
+    );
+    expect(
+      (error as { options?: { severity?: string } } | undefined)?.options
+        ?.severity,
+    ).toBe('warn');
+    // No request was ever dispatched: the failure happened at generation,
+    // before the seed's request could be built and sent.
+    expect(harness.dispatched).toHaveLength(0);
+  });
 });

@@ -7,7 +7,6 @@ import {
   type HttpTestHooks,
   type Logger,
   serializeRequest,
-  ThymianBaseError,
   ThymianFormat,
   type ThymianHttpTransaction,
 } from '@thymian/core';
@@ -19,11 +18,7 @@ import {
   type HookCallContext,
   parseResponseBody,
 } from './create-hook-utils.js';
-import {
-  FailError,
-  SkipError,
-  UndeclaredResponseError,
-} from './hook-errors.js';
+import { UndeclaredResponseError } from './hook-errors.js';
 import type { HookKind } from './hook-registration.js';
 import type {
   EndpointRequest,
@@ -32,8 +27,9 @@ import type {
 } from './hook-utils.js';
 import type { HookUtilsFactory } from './hook-utils-factory.js';
 import {
-  attributeToHook,
+  interpretHookFailure,
   invokeHook,
+  invokeOrThrow,
   reportHookResults,
 } from './invoke-hook.js';
 import {
@@ -82,6 +78,17 @@ export class HookRunner {
   private globalAuthorize: readonly CollectedRegistration[] = [];
   private readonly runScoped: RunScopedHooks;
 
+  /**
+   * The origin the run is actually talking to, captured once from the very
+   * first request — a `--target-url` override or a configured target, same as
+   * the server the description names when neither is set. "Before the run" has
+   * no meaning until something decides when the run starts, and the sampler's
+   * first observation of a run is its first request, so this is captured in
+   * lockstep with {@link RunScopedHooks.start}'s latch, in
+   * {@link beforeEachRequest}.
+   */
+  private runOrigin: string | undefined;
+
   constructor(
     private readonly logger: Logger,
     private readonly ports: HookRunnerPorts,
@@ -113,14 +120,16 @@ export class HookRunner {
   /**
    * The `utils` a hook with no request to shape gets: the run-scoped pair. A
    * nested request is available, because a `beforeAll` seeding the API is the
-   * reason `utils.request` exists.
+   * reason `utils.request` exists. `dir` comes from the registration's own
+   * file, not the process's working directory, so a run-scoped hook's file
+   * helpers resolve the same way a per-Transaction hook's do.
    */
-  private readonly utilsFactory: HookUtilsFactory = () => {
+  private readonly utilsFactory: HookUtilsFactory = (entry) => {
     const results: HttpTestCaseResult[] = [];
 
     return {
       utils: createHookUtils(
-        this.callContext({ dir: process.cwd(), results, chain: [] }),
+        this.callContext({ dir: entry.dir, results, chain: [] }),
       ),
       results,
     };
@@ -130,6 +139,11 @@ export class HookRunner {
    * Shape one request draft with its Transaction's `defineSample` hook, if it
    * has one. This is what `RequestSampler` calls at generation time; the sampler
    * itself knows nothing about hooks.
+   *
+   * Runs through the same attribution wrapper as every other kind: a throwing
+   * `defineSample` used to escape here as a raw error with no pointer to the
+   * hook that threw it, misattributed by whatever generic handler caught it
+   * further up.
    */
   readonly shapeSample = async (
     draft: HttpRequestTemplate,
@@ -143,16 +157,18 @@ export class HookRunner {
 
     const results: HttpTestCaseResult[] = [];
 
-    await invokeHook(entry, [
-      draft,
-      createHookUtils(
-        // No nested request: a `defineSample` hook runs before any request
-        // exists, so there is no pipeline for one to run through.
-        { dir: entry.dir, request: draft, results },
-      ),
-    ]);
-
-    reportHookResults(this.logger, results);
+    try {
+      await invokeOrThrow('defineSample', entry, [
+        draft,
+        createHookUtils(
+          // No nested request: a `defineSample` hook runs before any request
+          // exists, so there is no pipeline for one to run through.
+          { dir: entry.dir, request: draft, results },
+        ),
+      ]);
+    } finally {
+      reportHookResults(this.logger, results);
+    }
   };
 
   private hooksFor(transactionId: string | undefined): TransactionHooks {
@@ -169,6 +185,15 @@ export class HookRunner {
     results: HttpTestCaseResult[];
     chain: SelectorChain;
   }): HookCallContext {
+    // A per-Transaction hook already has a request carrying the run's origin
+    // (the operator that overrides it for `--target-url` does so before
+    // `beforeRequest` fires), so it stays the source of truth there. A
+    // run-scoped hook has no request, which is exactly the case
+    // {@link runOrigin} exists for. Only `requestOther` needs this — it is
+    // what a nested `utils.request` inherits — so it lives in this closure
+    // rather than on the `HookCallContext` itself.
+    const origin = input.request?.origin ?? this.runOrigin;
+
     return {
       dir: input.dir,
       request: input.request,
@@ -177,7 +202,7 @@ export class HookRunner {
         await this.runNested(selector, args, options, {
           chain: input.chain,
           results: input.results,
-          origin: input.request?.origin,
+          origin,
         }),
     };
   }
@@ -188,7 +213,12 @@ export class HookRunner {
     const { value, ctx } = hook;
 
     // The first request is what "before the run" means to the sampler, so the
-    // latch is armed here — ahead of this transaction's own beforeEach hooks.
+    // latch is armed here — ahead of this transaction's own beforeEach hooks —
+    // and this request is also the run's one observation of the origin it is
+    // actually talking to. Captured before the latch arms, so a `beforeAll`
+    // seed sent while arming it already sees the run's target rather than the
+    // server the description names.
+    this.runOrigin ??= value.origin;
     await this.runScoped.start();
 
     return await this.compose(
@@ -335,15 +365,6 @@ export class HookRunner {
     const { chain, results: callerResults, origin: callerOrigin } = caller;
 
     const runHooks = options.runHooks ?? true;
-
-    // Only a call that would run the target's own pipeline can recurse, so
-    // `runHooks: false` is the documented way out of a cycle. The chain is
-    // still extended below, because an authorize hook may run either way and
-    // could itself recurse.
-    if (runHooks && isOnChain(chain, selector)) {
-      throw requestCycleError(chain, selector);
-    }
-
     const transaction = this.catalog.resolve(selector);
     const nested: SelectorChain = [...chain, selector];
     const template = applyArgs(
@@ -364,6 +385,23 @@ export class HookRunner {
       template.authorize = options.authorize;
     }
 
+    const authorizeHook = this.authorizeFor(transaction.transactionId);
+
+    // The guard has to ask the same question the two blocks below answer: will
+    // *any* hook run for this call? `runHooks` covers `beforeEach`/`afterEach`,
+    // but an `authorize` hook can run even with `runHooks: false` — it is
+    // gated by the *flag*, evaluated here after the overlay and `options`
+    // applied it, and by whether one is registered. Guarding on `runHooks`
+    // alone left that second path open: a global `authorize` seeding its own
+    // token with `runHooks: false` recursed into itself through exactly this
+    // path, with nothing to stop it short of a timeout.
+    const willRunAHook =
+      runHooks || (template.authorize === true && !!authorizeHook);
+
+    if (willRunAHook && isOnChain(chain, selector)) {
+      throw requestCycleError(chain, selector);
+    }
+
     const results: HttpTestCaseResult[] = [];
 
     if (runHooks) {
@@ -378,8 +416,6 @@ export class HookRunner {
 
       results.push(...before.testResults);
     }
-
-    const authorizeHook = this.authorizeFor(transaction.transactionId);
 
     if (template.authorize && authorizeHook) {
       const authorized = await this.compose(
@@ -501,68 +537,4 @@ function mediaTypeOf(response: HttpResponse): string {
   const contentType = getContentType(response.headers);
 
   return (contentType.split(';')[0] ?? '').trim().toLowerCase();
-}
-
-type HookFailure = {
-  rethrow?: ThymianBaseError;
-  report?: { skip: string } | { fail: string };
-};
-
-/**
- * `utils.skip` and `utils.fail` are control flow, not errors: they end this
- * transaction with a verdict. Anything else is a defect in the hook, and the
- * diagnostic names the hook's own file so the reader knows which line to open.
- *
- * Every diagnostic that leaves here carries `severity: 'warn'`, and that is
- * load-bearing rather than a judgement about how bad it is. An `error`-severity
- * event closes the whole run through `Thymian.run`'s error subscription, which
- * is precisely the behaviour the outcome model replaces: one broken hook ended
- * the command and hid every transaction after it. The action still throws, so
- * the caller still learns this transaction did not work — and `sampler check`
- * gives it an Outcome of its own instead of the run giving up.
- */
-function interpretHookFailure(
-  e: unknown,
-  kind: HookKind,
-  entry: CollectedRegistration,
-): HookFailure {
-  if (e instanceof SkipError) {
-    return { report: { skip: e.message } };
-  }
-
-  if (e instanceof FailError) {
-    return { report: { fail: e.message } };
-  }
-
-  // An off-spec seed answer that nobody caught. Reacting to it is opt-in, so
-  // letting it escape is a legitimate way to write a hook: the transaction
-  // cannot be executed as described, which is a skip and not a defect, and the
-  // message already names the seed and what it was answered with.
-  if (e instanceof UndeclaredResponseError) {
-    return { report: { skip: e.message } };
-  }
-
-  if (e instanceof ThymianBaseError) {
-    // A diagnostic the sampler itself raised — a cycle, an unknown selector, a
-    // setter with no request — already says what went wrong better than a
-    // wrapper would, and its suggestions are the part worth reading. Keep it,
-    // and add where it came from.
-    return { rethrow: attributeToHook(e, kind, entry) };
-  }
-
-  return {
-    rethrow: new ThymianBaseError(
-      // Deliberately without the Transaction: every surface that prints one
-      // already names it (ADR-0022), and repeating it under a header that says
-      // it is the noise this model removes. What only this sentence knows is
-      // which export in which file to open.
-      `The ${kind} hook exported as "${entry.exportName}" from "${entry.file}" threw.`,
-      {
-        cause: e,
-        name: 'HookError',
-        ref: 'https://thymian.dev/references/errors/hook-error/',
-        severity: 'warn',
-      },
-    ),
-  };
 }

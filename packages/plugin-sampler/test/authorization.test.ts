@@ -6,6 +6,7 @@ import {
 } from '@thymian/core-testing';
 import { afterEach, describe, expect, it } from 'vitest';
 
+import { selectorForTransaction } from '../src/selectors/selector.js';
 import { type SamplerHarness, startSampler } from './plugin-harness.js';
 
 /**
@@ -235,6 +236,66 @@ export const on = beforeEach(
       expect(
         (await harness.beforeRequest(open200, format)).result.authorize,
       ).toBe(true);
+    });
+  });
+
+  /**
+   * #132: the nested-request cycle guard has to fire whenever *any* hook will
+   * run, not just when `runHooks` says so — `authorize` runs on its own flag,
+   * independent of `runHooks`, and that second path is exactly what a
+   * self-authorizing login endpoint recurses through.
+   */
+  describe('the cycle guard and a self-seeding authorize hook', () => {
+    it('gets a cycle diagnostic, not a timeout, from a global authorize seeding its own transaction with runHooks: false', async () => {
+      const { format, secured200 } = securedFormat();
+      const harness = await sampler();
+
+      const transaction = format.getThymianHttpTransactionById(secured200);
+
+      if (!transaction) {
+        throw new Error('fixture has no transaction for secured200');
+      }
+
+      const selector = selectorForTransaction(transaction);
+
+      await harness.writeHook(
+        'auth.ts',
+        `import { authorize } from '@thymian/hooks';
+
+// A login-style hook: seed the very transaction it authorizes, with
+// runHooks: false to (attempt to) avoid recursing into its own beforeEach.
+// authorize is not gated by runHooks, so this still reaches the same
+// authorize hook again unless the cycle guard also asks about it.
+export const login = authorize(async (request, ctx, utils) => {
+  await utils.request(${JSON.stringify(selector)}, {}, { runHooks: false });
+
+  request.headers['authorization'] = 'token';
+});
+`,
+      );
+
+      await harness.loadFormat(format);
+
+      let error: unknown;
+
+      try {
+        await harness.authorize(secured200, format);
+      } catch (e) {
+        error = e;
+      }
+
+      expect((error as Error | undefined)?.name).toBe('RequestCycleError');
+      expect((error as Error | undefined)?.message).toContain(
+        `re-enter "${selector}"`,
+      );
+
+      const suggestions = (
+        (error as { options?: { suggestions?: string[] } } | undefined)?.options
+          ?.suggestions ?? []
+      ).join('\n');
+
+      // The chain is the whole point: it names the selector that recurses.
+      expect(suggestions).toContain(selector);
     });
   });
 });
