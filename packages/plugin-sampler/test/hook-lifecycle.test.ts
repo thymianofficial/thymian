@@ -299,6 +299,94 @@ export const seed = beforeAll(async (utils) => {
       );
     });
 
+    it('memoizes an async beforeAll across concurrent before-request calls, so both see it fully complete', async () => {
+      const harness = await sampler();
+
+      await harness.writeHook(
+        'setup.ts',
+        `import { beforeAll, beforeEach } from '@thymian/hooks';
+
+let runs = 0;
+
+export const setup = beforeAll(async () => {
+  await new Promise((resolve) => setTimeout(resolve, 10));
+  runs += 1;
+});
+
+export const record = beforeEach(${JSON.stringify(LAUNCHES)}, (request) => {
+  request.headers['x-before-all-runs'] = String(runs);
+});
+`,
+      );
+
+      await harness.loadFormat(format);
+
+      const transactionId = transactionIdOf('/launches');
+
+      // Fired together, not one-at-a-time: both callers reach the latch while
+      // the async beforeAll is still pending, which is exactly the gap a
+      // sequential suite cannot see.
+      const [first, second] = await Promise.all([
+        harness.beforeRequest(transactionId, format),
+        harness.beforeRequest(transactionId, format),
+      ]);
+
+      // If the second caller had raced past the latch instead of awaiting the
+      // same memoized setup, it would have observed `runs` still at 0.
+      expect(first.result.headers['x-before-all-runs']).toBe('1');
+      expect(second.result.headers['x-before-all-runs']).toBe('1');
+    });
+
+    it('rejects every concurrently raced-in caller when an async beforeAll rejects, and runs it only once', async () => {
+      const harness = await sampler();
+      const log = `${harness.cwd}/runs.log`;
+
+      await harness.writeHook(
+        'setup.ts',
+        `import { beforeAll } from '@thymian/hooks';
+import { appendFileSync } from 'node:fs';
+
+const log = ${JSON.stringify(log)};
+
+export const setup = beforeAll(async () => {
+  appendFileSync(log, 'run\\n');
+  await new Promise((resolve) => setTimeout(resolve, 10));
+  throw new Error('setup failed');
+});
+`,
+      );
+
+      await harness.loadFormat(format);
+
+      const transactionId = transactionIdOf('/launches');
+
+      const results = await Promise.allSettled([
+        harness.beforeRequest(transactionId, format),
+        harness.beforeRequest(transactionId, format),
+        harness.beforeRequest(transactionId, format),
+      ]);
+
+      // Every raced-in caller rejects — not just the one that happened to run
+      // the failing hook — so no caller's request is ever dispatched against a
+      // fixture that was never built.
+      for (const outcome of results) {
+        expect(outcome.status).toBe('rejected');
+        const reason =
+          outcome.status === 'rejected'
+            ? (outcome.reason as Error | undefined)
+            : undefined;
+
+        expect(reason?.message).toMatch(/beforeAll hook exported as "setup"/);
+      }
+
+      const { readFileSync } = await import('node:fs');
+
+      // Three racing callers, one setup run: a memoized promise, not a
+      // test-and-set flag that lets a second caller re-enter while the first
+      // is still awaiting the failing hook.
+      expect(readFileSync(log, 'utf-8')).toBe('run\n');
+    });
+
     it('resolves a run-scoped hook’s file helpers against the hook file’s own directory', async () => {
       const harness = await sampler();
 
