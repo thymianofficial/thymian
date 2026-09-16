@@ -1,20 +1,10 @@
-import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises';
-import { tmpdir } from 'node:os';
-import { join } from 'node:path';
-
 import { ThymianFormat } from '@thymian/core';
 import { createHttpRequest, createHttpResponse } from '@thymian/core-testing';
-import ts from 'typescript';
 import { describe, expect, it } from 'vitest';
 
-import {
-  generateTypeSurface,
-  HOOKS_API_FILE,
-  REQUEST_TYPES_FILE,
-} from '../src/generation/types/generate-type-surface.js';
+import { generateTypeSurface } from '../src/generation/types/generate-type-surface.js';
+import { surfaceDiagnostics } from '../src/generation/types/self-check-surface.js';
 import { TransactionCatalog } from '../src/selectors/transaction-catalog.js';
-import { tsPathRelativeTo } from '../src/ts-path.js';
-import { sharedCompilerHost } from '../src/validation/shared-compiler-host.js';
 
 /**
  * The emitted surface has to type-check **on its own terms**.
@@ -26,8 +16,9 @@ import { sharedCompilerHost } from '../src/validation/shared-compiler-host.js';
  * that made `request.path` both an object and a string literal, a `method`
  * typed with the wrong casing, and an argument type nobody could satisfy.
  *
- * So this test compiles the two emitted files with `skipLibCheck: false` and
- * asserts there is nothing to say about them.
+ * `surfaceDiagnostics` is the production self-check gate itself — `init`,
+ * `sync` and `validate` all run it before handing back a fresh surface — so
+ * this test exercises exactly what production enforces, not a copy of it.
  */
 describe('the emitted surface', () => {
   function fixture(): TransactionCatalog {
@@ -67,52 +58,8 @@ describe('the emitted surface', () => {
   }
 
   it('type-checks with library checking on', async () => {
-    const root = await mkdtemp(join(tmpdir(), 'thymian-surface-'));
+    const surface = await generateTypeSurface(fixture());
 
-    try {
-      const generated = join(root, 'generated');
-      const surface = await generateTypeSurface(fixture());
-
-      await mkdir(generated, { recursive: true });
-      await writeFile(
-        join(generated, REQUEST_TYPES_FILE),
-        surface.requestTypes,
-        'utf-8',
-      );
-      await writeFile(
-        join(generated, HOOKS_API_FILE),
-        surface.hooksApi,
-        'utf-8',
-      );
-
-      const options: ts.CompilerOptions = {
-        strict: true,
-        noEmit: true,
-        module: ts.ModuleKind.NodeNext,
-        moduleResolution: ts.ModuleResolutionKind.NodeNext,
-        target: ts.ScriptTarget.ES2023,
-        // The whole point: do not skip the files under test.
-        skipLibCheck: false,
-        lib: ['lib.es2023.d.ts'],
-        types: [],
-      };
-
-      const program = ts.createProgram(
-        [join(generated, HOOKS_API_FILE), join(generated, REQUEST_TYPES_FILE)],
-        options,
-        sharedCompilerHost(options),
-      );
-
-      const diagnostics = ts.getPreEmitDiagnostics(program).map((d) => ({
-        file: d.file
-          ? (tsPathRelativeTo(d.file.fileName, generated) ?? '(no file)')
-          : '(no file)',
-        message: ts.flattenDiagnosticMessageText(d.messageText, ' '),
-      }));
-
-      expect(diagnostics).toEqual([]);
-    } finally {
-      await rm(root, { recursive: true, force: true });
-    }
+    expect(await surfaceDiagnostics(surface)).toEqual([]);
   });
 });
