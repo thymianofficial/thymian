@@ -13,6 +13,8 @@ import {
   REQUEST_TYPES_FILE,
 } from '../src/generation/types/generate-type-surface.js';
 import { TransactionCatalog } from '../src/selectors/transaction-catalog.js';
+import { tsPathRelativeTo } from '../src/ts-path.js';
+import { sharedCompilerHost } from '../src/validation/shared-compiler-host.js';
 
 /**
  * The emitted surface has to type-check **on its own terms**.
@@ -83,23 +85,28 @@ describe('the emitted surface', () => {
         'utf-8',
       );
 
+      const options: ts.CompilerOptions = {
+        strict: true,
+        noEmit: true,
+        module: ts.ModuleKind.NodeNext,
+        moduleResolution: ts.ModuleResolutionKind.NodeNext,
+        target: ts.ScriptTarget.ES2023,
+        // The whole point: do not skip the files under test.
+        skipLibCheck: false,
+        lib: ['lib.es2023.d.ts'],
+        types: [],
+      };
+
       const program = ts.createProgram(
         [join(generated, HOOKS_API_FILE), join(generated, REQUEST_TYPES_FILE)],
-        {
-          strict: true,
-          noEmit: true,
-          module: ts.ModuleKind.NodeNext,
-          moduleResolution: ts.ModuleResolutionKind.NodeNext,
-          target: ts.ScriptTarget.ES2023,
-          // The whole point: do not skip the files under test.
-          skipLibCheck: false,
-          lib: ['lib.es2023.d.ts'],
-          types: [],
-        },
+        options,
+        sharedCompilerHost(options),
       );
 
       const diagnostics = ts.getPreEmitDiagnostics(program).map((d) => ({
-        file: d.file?.fileName.replace(`${generated}/`, '') ?? '(no file)',
+        file: d.file
+          ? (tsPathRelativeTo(d.file.fileName, generated) ?? '(no file)')
+          : '(no file)',
         message: ts.flattenDiagnosticMessageText(d.messageText, ' '),
       }));
 
