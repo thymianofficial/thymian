@@ -1,9 +1,16 @@
 import type { ThymianHttpTransaction } from '@thymian/core';
 
+import { nearestPathHints } from '../selectors/nearest-paths.js';
 import { hasWildcard, matchesPathGlob } from '../selectors/path-glob.js';
-import { parseSelector, type Selector } from '../selectors/selector.js';
+import {
+  isSelector,
+  malformedSelectorHints,
+  parseSelector,
+  type Selector,
+} from '../selectors/selector.js';
 import type { TransactionCatalog } from '../selectors/transaction-catalog.js';
 import {
+  emptyValueFields,
   filterProblems,
   isTransactionFilter,
   matchesTransactionFilter,
@@ -12,8 +19,6 @@ import {
 } from '../selectors/transaction-filter.js';
 import type { HookDiagnostic } from './hook-diagnostics.js';
 import type { CollectedRegistration } from './load-user-hooks.js';
-
-const MAX_NEAR_PATHS = 5;
 
 type Where = { file: string; exportName: string };
 
@@ -92,17 +97,33 @@ function resolveSelectors(
   for (const selector of selectors) {
     const transaction = catalog.tryResolve(selector);
 
-    if (!transaction) {
+    if (transaction) {
+      resolved.push(transaction);
+
+      continue;
+    }
+
+    // A target is user input like any other, and a hand-authored selector can
+    // fail to even parse — never thrown from here, or a single typo'd target
+    // would crash `validate`, `show` and `sync` instead of being recorded
+    // against the hook that carries it. `isSelector` is what tells "malformed"
+    // apart from "well-formed but unknown", which decides whether a grammar
+    // hint or a near-miss is the useful thing to say.
+    if (!isSelector(selector)) {
       diagnostics.push({
         ...where,
-        reason: `${kind} targets the selector "${selector}", which names no transaction in the loaded API description`,
-        suggestions: catalog.nearMissSuggestions(parseSelector(selector)),
+        reason: `${kind} targets "${selector}", which is not a valid transaction selector`,
+        suggestions: malformedSelectorHints(selector),
       });
 
       continue;
     }
 
-    resolved.push(transaction);
+    diagnostics.push({
+      ...where,
+      reason: `${kind} targets the selector "${selector}", which names no transaction in the loaded API description`,
+      suggestions: catalog.nearMissSuggestions(parseSelector(selector)),
+    });
   }
 
   return resolved;
@@ -112,8 +133,9 @@ function resolveSelectors(
  * The Transactions a filter covers.
  *
  * Faults are reported in the order they stop mattering: a filter whose text
- * cannot mean anything is not asked what it matches, and a vacuous path value
- * is named individually before the filter as a whole is called empty.
+ * cannot mean anything is not asked what it matches, an empty value array is
+ * named before the catalog is even consulted, and a vacuous path value is
+ * named individually before the filter as a whole is called empty.
  */
 function resolveFilter(
   kind: string,
@@ -128,6 +150,26 @@ function resolveFilter(
     diagnostics.push({
       ...where,
       reason: `${kind} was given a filter that cannot mean anything: ${problems.join('; ')}`,
+    });
+
+    return [];
+  }
+
+  // A field given an explicit, empty value array is a shape the grammar
+  // accepts — it is not a "cannot mean anything" fault — but it is a
+  // disjunction of zero alternatives, which matches nothing by construction.
+  // Named here, the same way an empty list of selectors is: a hook must never
+  // silently apply to every Transaction because a computed array came back
+  // empty.
+  const emptyFields = emptyValueFields(filter);
+
+  if (emptyFields.length > 0) {
+    const plural = emptyFields.length > 1;
+    const names = emptyFields.map((name) => `"${name}"`).join(', ');
+
+    diagnostics.push({
+      ...where,
+      reason: `${kind} targets a filter whose ${plural ? 'fields' : 'field'} ${names} ${plural ? 'were' : 'was'} given an empty list of values, so it targets nothing`,
     });
 
     return [];
@@ -161,7 +203,7 @@ function resolveFilter(
       reason: hasWildcard(value)
         ? `${kind} targets the path glob "${value}", which matches no path in the loaded API description`
         : `${kind} targets the path "${value}", which no path in the loaded API description is spelled as`,
-      suggestions: nearestPaths(value, paths),
+      suggestions: nearestPathHints(value, paths),
     });
   }
 
@@ -184,33 +226,4 @@ function resolveFilter(
   }
 
   return matched;
-}
-
-/**
- * Paths that share the vacuous value's longest literal prefix, so the reader is
- * pointed at the subtree they meant rather than at the whole description.
- *
- * No fuzzy matching: it would add a dependency and make the ordering
- * unexplainable.
- */
-function nearestPaths(value: string, paths: readonly string[]): string[] {
-  const segments = value.split('/');
-
-  for (let depth = segments.length - 1; depth > 0; depth--) {
-    const prefix = `${segments.slice(0, depth).join('/')}/`;
-    const candidates = paths
-      .filter((path) => path.startsWith(prefix))
-      .slice(0, MAX_NEAR_PATHS);
-
-    if (candidates.length > 0) {
-      return [
-        `Paths under "${prefix}" are:`,
-        ...candidates.map((path) => `"${path}"`),
-      ];
-    }
-  }
-
-  return [
-    `No path in the loaded API description begins with "${segments[1] ? `/${segments[1]}` : value}".`,
-  ];
 }

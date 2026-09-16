@@ -165,7 +165,7 @@ describe('a transaction whose pipeline ran', () => {
   it('is skipped and names the seed when a seed was answered differently', () => {
     const result = checkedFromTestCase(
       testCase({
-        status: 'failed',
+        status: 'skipped',
         actualStatus: 404,
         reason: 'Expected status code 200, but received 404.',
         results: [
@@ -178,11 +178,39 @@ describe('a transaction whose pipeline ran', () => {
       CHECKED,
     );
 
-    // Whatever the pipeline called the case: a transaction whose precondition
-    // never happened was not executed as described.
+    // A transaction whose precondition never happened was not executed as
+    // described.
     expect(result.outcome).toBe('skipped');
     expect(result.causedBy).toBe(SEED_SELECTOR);
     expect(result.details[0]).toContain('was answered with 400');
+  });
+
+  // #48: an explicit fail() takes precedence over a recorded seed anomaly,
+  // and is never downgraded into skipped.
+  it('an explicit fail() takes precedence over a recorded seed anomaly', () => {
+    // The checked transaction's own hook branched on the seed's off-spec
+    // answer and called `utils.fail(...)` deliberately — `failed` means
+    // "executed, response invalid" and that verdict must stand even though a
+    // seed anomaly was also recorded along the way.
+    const result = checkedFromTestCase(
+      testCase({
+        status: 'failed',
+        actualStatus: 200,
+        reason: 'The seed left the system in an unexpected state.',
+        results: [
+          seedAnomaly(
+            `The seed "${SEED_SELECTOR}" was answered with 400, not the 201 its selector names.`,
+            'The specification declares that response for this operation …',
+          ),
+        ],
+      }),
+      CHECKED,
+    );
+
+    expect(result.outcome).toBe('failed');
+    expect(result.reason).toBe(
+      'The seed left the system in an unexpected state.',
+    );
   });
 
   it('stays passed when a seed answered differently but the transaction worked', () => {

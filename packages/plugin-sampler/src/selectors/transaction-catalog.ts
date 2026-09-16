@@ -1,5 +1,6 @@
 import type { ThymianFormat, ThymianHttpTransaction } from '@thymian/core';
 
+import { nearestPathHints } from './nearest-paths.js';
 import {
   compareSelectors,
   encodePath,
@@ -206,16 +207,19 @@ export class TransactionCatalog {
 
     const candidates = this.nearMisses(parts);
 
-    if (candidates.length === 0) {
+    if (candidates.length > 0) {
       return [
-        'Check the path against the loaded API description — no transaction with that path is loaded.',
+        'Did you mean one of these selectors?',
+        ...candidates.map((candidate) => `"${candidate}"`),
       ];
     }
 
-    return [
-      'Did you mean one of these selectors?',
-      ...candidates.map((candidate) => `"${candidate}"`),
-    ];
+    // No transaction shares this exact path under any method, so the typo is
+    // most likely in the path itself. Falls back to the same prefix walk a
+    // vacuous filter path value gets, so a path typo in a Selector is
+    // diagnosed the same way one in a filter is — one near-miss story, not
+    // two that could disagree.
+    return nearestPathHints(encodePath(parts.path), this.distinctPaths);
   }
 
   /**

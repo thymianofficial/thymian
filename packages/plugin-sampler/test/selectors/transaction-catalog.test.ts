@@ -187,6 +187,40 @@ describe('TransactionCatalog', () => {
     );
   });
 
+  it('falls back to the path prefix walk when no transaction shares the path', () => {
+    // The method and status are right, but the path is a typo: no transaction
+    // shares `/launch` under any method, so the exact-path near-miss bucket is
+    // empty and the diagnostic has to fall back to the same prefix walk a
+    // vacuous filter path value gets.
+    const catalog = TransactionCatalog.fromThymianFormat(
+      createThymianFormatWithTransactions([
+        [
+          createHttpRequest({ method: 'GET', path: '/launches' }),
+          createHttpResponse(),
+        ],
+        [
+          createHttpRequest({ method: 'GET', path: '/launches/{id}' }),
+          createHttpResponse(),
+        ],
+      ]),
+    );
+
+    let error: unknown;
+
+    try {
+      catalog.resolve('GET /launch -> 200');
+    } catch (e) {
+      error = e;
+    }
+
+    const suggestions = suggestionsOf(error);
+
+    expect(suggestions[0]).toContain('Paths under "/" are:');
+    expect(suggestions.join('\n')).toContain('"/launches"');
+    // Not the "same path, other method" story — this is the path-prefix one.
+    expect(suggestions[0]).not.toBe('Did you mean one of these selectors?');
+  });
+
   it('answers a miss without throwing when a miss is expected', () => {
     const catalog = TransactionCatalog.fromThymianFormat(
       createThymianFormatWithTransactions(1),
