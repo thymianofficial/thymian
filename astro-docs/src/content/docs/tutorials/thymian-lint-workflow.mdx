@@ -52,14 +52,14 @@ The output tells you three important things:
 Example:
 
 ```console
-PUT /launches/{id} - application/json → 401 UNAUTHORIZED
+PUT /launches/{id} (application/json) -> 401
       ✖ error: The server generating a 401 response MUST send a WWW-Authenticate header field containing at least one challenge applicable to the target resource.
          rfc9110/server-must-send-www-authenticate-header-for-401-response
 ```
 
 Read this from top to bottom:
 
-1. The issue is attached to the `401 UNAUTHORIZED` response of `PUT /launches/{id}`
+1. The issue is attached to the `401` response of `PUT /launches/{id}`
 2. The severity is `error`, so this is a real problem to fix
 3. The message explains the HTTP requirement
 4. The rule name tells you which standard-based rule found it
