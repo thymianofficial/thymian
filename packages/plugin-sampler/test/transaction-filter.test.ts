@@ -3,6 +3,7 @@ import { createHttpRequest, createHttpResponse } from '@thymian/core-testing';
 import { afterEach, describe, expect, it } from 'vitest';
 
 import {
+  emptyValueFields,
   filterProblems,
   isTransactionFilter,
   matchesTransactionFilter,
@@ -212,6 +213,54 @@ describe('TransactionFilter', () => {
     expect(
       filterProblems({ path: '/v1/**', not: { status: 4040.5 } as never })[0],
     ).toContain('inside "not": "status" was given 4040.5');
+  });
+
+  it('matches nothing when a value array is explicitly empty', () => {
+    // A disjunction of zero alternatives is false, not "this field doesn't
+    // matter" — a computed filter array that comes back empty must not
+    // silently widen into matching every method.
+    expect(matching({ method: [] })).toEqual([]);
+    expect(matching({ method: [], status: 200 })).toEqual([]);
+  });
+
+  it('still matches everything when a field is merely absent', () => {
+    // The field is not present at all, which is the existing, unconstrained
+    // meaning — distinct from being given an empty list.
+    expect(matching({ method: undefined })).not.toEqual([]);
+  });
+
+  it('excludes nothing when `not` itself is an empty array', () => {
+    // `not: []` is zero exclusion groups, so nothing is excluded — different
+    // from a field inside `not` being an empty array (below).
+    expect(matching({ method: 'GET', not: [] })).toEqual(
+      matching({ method: 'GET' }),
+    );
+  });
+
+  it('excludes nothing when a field inside `not` is an empty array', () => {
+    // The exclusion group's own field can never match (empty disjunction), so
+    // the group as a whole never triggers, and nothing is excluded — "not of
+    // an empty array excludes nothing".
+    expect(matching({ method: 'GET', not: { status: [] } })).toEqual(
+      matching({ method: 'GET' }),
+    );
+  });
+
+  it('names exactly the fields given an empty list, and only those', () => {
+    expect(emptyValueFields({ path: '/v1/**' })).toEqual([]);
+    expect(emptyValueFields({ method: [] })).toEqual(['method']);
+    expect(emptyValueFields({ method: [], status: [] })).toEqual([
+      'method',
+      'status',
+    ]);
+    expect(emptyValueFields({ method: [], status: 200 })).toEqual(['method']);
+    // A field that is merely absent is not "empty" — only one that was given
+    // an empty list.
+    expect(emptyValueFields({ method: undefined })).toEqual([]);
+    // A `not` group's own empty field is not named by the top-level check;
+    // `not` is one level deep by construction and is not itself a
+    // `FilterFields` field.
+    expect(emptyValueFields({ not: { status: [] } } as never)).toEqual([]);
   });
 });
 
@@ -542,6 +591,36 @@ export const creds = authorize({ statusClass: '2XX' }, (request) => {
         )
       ).result.headers['authorization'],
     ).toBe('targeted-by-filter');
+  });
+
+  it('fails the run fast on a filter field given an empty list of values', async () => {
+    const harness = await sampler();
+
+    await harness.writeHook(
+      'empty.ts',
+      `import { beforeEach } from '@thymian/hooks';
+
+export const empty = beforeEach({ method: [] }, () => {});
+`,
+    );
+
+    let error: unknown;
+
+    try {
+      await harness.beginRun(FIXTURE);
+    } catch (e) {
+      error = e;
+    }
+
+    const suggestions = (
+      (error as { options?: { suggestions?: string[] } }).options
+        ?.suggestions ?? []
+    ).join('\n');
+
+    expect(suggestions).toContain('"method"');
+    expect(suggestions).toContain('given an empty list of values');
+    expect(suggestions).toContain('so it targets nothing');
+    expect(suggestions).toContain('empty.ts');
   });
 
   it('reports an exact path nothing is spelled as, differently from a glob', async () => {

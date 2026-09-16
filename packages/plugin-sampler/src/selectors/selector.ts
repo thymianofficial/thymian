@@ -3,6 +3,7 @@ import {
   encodeMediaType,
   encodeMethod,
   encodePath,
+  errorSuggestions,
   formatRequestSelector,
   formatResponseSelector,
   formatSelector,
@@ -303,6 +304,22 @@ export function parseSelector(value: string): SelectorParts {
 /** Whether `value` is a syntactically well-formed selector. */
 export function isSelector(value: string): boolean {
   return splitSelector(value) !== undefined;
+}
+
+/**
+ * The suggestions a malformed selector's diagnostic carries — the grammar,
+ * an example, and a canonical-form guess when the value is close. Never
+ * throws.
+ *
+ * Reads `malformedSelectorError`'s own message composition rather than
+ * duplicating it, so a hook-target diagnostic for a malformed Selector and
+ * the error `catalog.resolve` throws for one typed on the CLI say exactly the
+ * same thing — one grammar, one set of hints, two call sites.
+ */
+export function malformedSelectorHints(value: string): string[] {
+  return errorSuggestions(
+    malformedSelectorError(value, canonicalFormHint(value)),
+  );
 }
 
 /**
