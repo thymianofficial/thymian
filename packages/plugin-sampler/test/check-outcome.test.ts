@@ -13,6 +13,7 @@ import {
 import { describe, expect, it } from 'vitest';
 
 import {
+  checkedAsUncheckable,
   checkedFromError,
   checkedFromTestCase,
   summaryOf,
@@ -288,6 +289,46 @@ describe('a transaction whose attempt threw', () => {
 
     expect(result.outcome).toBe('errored');
     expect(result.details).toEqual(['Run with --debug …']);
+  });
+});
+
+describe('a declared Transaction sampler check never attempts', () => {
+  it('is skipped with the 3xx/5xx reason, for a redirect', () => {
+    const format = createThymianFormatWithTransactions([
+      [
+        createHttpRequest({ method: 'GET', path: '/launches/{id}' }),
+        createHttpResponse({ statusCode: 302 }),
+      ],
+    ]);
+    const [redirect] = format.getThymianHttpTransactions() as [
+      ThymianHttpTransaction,
+    ];
+
+    expect(checkedAsUncheckable(redirect)).toEqual({
+      selector: 'GET /launches/{id} -> 302 (application/json)',
+      outcome: 'skipped',
+      expectedStatus: 302,
+      reason: '3xx/5xx responses are not checkable',
+      details: [],
+    });
+  });
+
+  it('is skipped with the 3xx/5xx reason, for a declared server error', () => {
+    const format = createThymianFormatWithTransactions([
+      [
+        createHttpRequest({ method: 'GET', path: '/status' }),
+        createHttpResponse({ statusCode: 503 }),
+      ],
+    ]);
+    const [serverError] = format.getThymianHttpTransactions() as [
+      ThymianHttpTransaction,
+    ];
+
+    expect(checkedAsUncheckable(serverError)).toMatchObject({
+      outcome: 'skipped',
+      expectedStatus: 503,
+      reason: '3xx/5xx responses are not checkable',
+    });
   });
 });
 

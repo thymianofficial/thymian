@@ -313,6 +313,101 @@ export const boom = beforeEach('${READ}', () => {
     }
   }, 180_000);
 
+  /**
+   * #131: a transport failure is a fault of the one request that made it,
+   * never of the run. The command must reach its own end — the summary in
+   * human mode, a complete report document under `--json` — rather than
+   * losing the run to an oclif error envelope.
+   */
+  it('errors every transaction and still finishes the run, against an unreachable server', async () => {
+    copyFixturesToTempDir(join(fixturesDir, 'sampler-outcomes'), getTempDir());
+
+    // Nothing listens on this port: every request against it is refused.
+    const port = await getAvailablePort();
+
+    const jsonResult = await check(getTempDir(), port);
+    const report = reportOf(jsonResult.stdout);
+
+    expect(report.summary.total).toBe(4);
+    expect(report.summary.errored).toBe(4);
+    expect(
+      report.transactions.every(
+        (transaction) => transaction.outcome === 'errored',
+      ),
+    ).toBe(true);
+    expect(jsonResult.exitCode).not.toBe(0);
+    // Not an oclif error envelope: the document has the promised shape, not
+    // an `{ "name": ..., "message": ... }` error shape.
+    expect(report).toHaveProperty('summary');
+    expect(report).toHaveProperty('transactions');
+
+    const humanResult = await check(getTempDir(), port, false);
+
+    expect(humanResult.output).toContain(`! ${CREATE}`);
+    expect(humanResult.output).toContain(`! ${READ}`);
+    expect(humanResult.output).toContain(`! ${STATUS}`);
+    expect(humanResult.output).toContain('Checked 4 transactions:');
+    expect(humanResult.exitCode).not.toBe(0);
+  }, 180_000);
+
+  /**
+   * #131: a declared 3xx/5xx Transaction is not executable as a check, but it
+   * is still declared — it must be accounted for, not silently dropped from
+   * the report.
+   */
+  it('skips declared 3xx/5xx transactions with a reason, and counts them', async () => {
+    copyFixturesToTempDir(
+      join(fixturesDir, 'sampler-uncheckable'),
+      getTempDir(),
+    );
+
+    const port = await getAvailablePort();
+    const server = fastify();
+
+    server.get('/items', async () => ({ items: [] }));
+
+    await server.listen({ port, host: '0.0.0.0' });
+
+    try {
+      const jsonResult = await check(getTempDir(), port);
+      const report = reportOf(jsonResult.stdout);
+
+      const redirect = report.transactions.find(
+        (t) => t.expectedStatus === 302,
+      );
+      const serverError = report.transactions.find(
+        (t) => t.expectedStatus === 503,
+      );
+      const listed = report.transactions.find((t) => t.expectedStatus === 200);
+
+      expect(redirect).toMatchObject({
+        outcome: 'skipped',
+        reason: '3xx/5xx responses are not checkable',
+      });
+      expect(serverError).toMatchObject({
+        outcome: 'skipped',
+        reason: '3xx/5xx responses are not checkable',
+      });
+      expect(listed?.outcome).toBe('passed');
+      expect(report.summary).toMatchObject({
+        passed: 1,
+        skipped: 2,
+        total: 3,
+      });
+      expect(jsonResult.exitCode).not.toBe(0);
+
+      const humanResult = await check(getTempDir(), port, false);
+
+      expect(humanResult.output).toContain(
+        '3xx/5xx responses are not checkable',
+      );
+      expect(humanResult.output).toContain('Checked 3 transactions:');
+      expect(humanResult.exitCode).not.toBe(0);
+    } finally {
+      await server.close();
+    }
+  }, 180_000);
+
   it('passes every transaction it can, with the seed branched on', async () => {
     copyFixturesToTempDir(join(fixturesDir, 'sampler-outcomes'), getTempDir());
 

@@ -16,6 +16,7 @@ import {
 
 import { selectorForTransaction } from '../../../selectors/selector.js';
 import {
+  checkedAsUncheckable,
   checkedFromError,
   checkedFromTestCase,
   type CheckedTransaction,
@@ -84,15 +85,9 @@ export default class Check extends BaseCliRunCommand<typeof Check> {
       const checked: CheckedTransaction[] = [];
 
       for (const transaction of format.getThymianHttpTransactions()) {
-        if (!this.isCheckableTransaction(transaction)) {
-          continue;
-        }
-
-        const result = await this.checkTransaction(
-          transaction,
-          context,
-          targetUrl,
-        );
+        const result = this.isCheckableTransaction(transaction)
+          ? await this.checkTransaction(transaction, context, targetUrl)
+          : checkedAsUncheckable(transaction);
 
         checked.push(result);
 
@@ -220,6 +215,14 @@ export default class Check extends BaseCliRunCommand<typeof Check> {
     }
   }
 
+  /**
+   * Whether a declared Transaction is one `sampler check` can actually run.
+   *
+   * A 3xx or 5xx Transaction is still declared and still counted — it earns
+   * `checkedAsUncheckable`'s `skipped` Outcome instead of a real attempt — so
+   * every declared Transaction is accounted for, per the check-outcomes
+   * contract, without sending a request nothing can assert against.
+   */
   private isCheckableTransaction(transaction: ThymianHttpTransaction): boolean {
     return (
       isValidSuccessfulStatusCode(transaction.thymianRes.statusCode) ||

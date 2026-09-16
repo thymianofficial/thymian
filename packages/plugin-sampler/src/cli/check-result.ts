@@ -153,6 +153,28 @@ export function checkedFromError(
   };
 }
 
+/**
+ * The outcome of a declared Transaction `sampler check` never attempts.
+ *
+ * A 3xx or 5xx response is declared but not executable as a check: there is
+ * nothing to assert against a redirect target the description does not name,
+ * and a 5xx is the server's own failure mode, not a claim about the API. Both
+ * are still declared Transactions, so they earn an Outcome of their own —
+ * `skipped`, with a reason, rather than disappearing from the report and
+ * leaving the totals silently short of what the description promises.
+ */
+export function checkedAsUncheckable(
+  transaction: ThymianHttpTransaction,
+): CheckedTransaction {
+  return {
+    selector: selectorOf(transaction),
+    expectedStatus: transaction.thymianRes.statusCode,
+    outcome: 'skipped',
+    reason: '3xx/5xx responses are not checkable',
+    details: [],
+  };
+}
+
 export function summaryOf(
   checked: readonly CheckedTransaction[],
 ): CheckSummary {
