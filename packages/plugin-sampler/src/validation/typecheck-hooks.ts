@@ -10,7 +10,7 @@ import {
   type TypeSurface,
 } from '../generation/types/generate-type-surface.js';
 import type { SamplerPaths } from '../sampler-paths.js';
-import { tsPathRelativeTo } from '../ts-path.js';
+import { toTypeScriptPath, tsPathRelativeTo } from '../ts-path.js';
 import { entryExists } from '../utils.js';
 import { sharedCompilerHost } from './shared-compiler-host.js';
 
@@ -35,21 +35,33 @@ export type HookTypeError = {
  * against what is committed would only tell the user whether they had run
  * `sync`, which is the other half of the gate.
  *
- * The surface is written to a temporary directory and aliased there, so the
- * check never disturbs what is committed — a `validate` that rewrote
- * `generated/` would make `sync --check` pass by having run.
+ * The surface is written to a temporary directory, so the check never
+ * disturbs what is committed — a `validate` that rewrote `generated/` would
+ * make `sync --check` pass by having run.
  *
  * The user's own tsconfig supplies the compiler options where it exists,
- * because their hooks are written under those settings; only `paths` is
- * overridden, to point at the fresh surface.
+ * because their hooks are written under those settings. `paths` is *merged*,
+ * not replaced: the `@thymian/hooks` alias is added as an **absolute**
+ * mapping (to the scratch surface), which TypeScript resolves ahead of
+ * `baseUrl` regardless of what the user set it to — see
+ * {@link mergeHooksAlias}. A hooks author with their own extra `paths`
+ * aliases gets the same resolution their editor gives them; replacing the
+ * whole map, as this once did, silently broke every alias the user added.
  */
 export async function typecheckHooks(
   paths: SamplerPaths,
   surface: TypeSurface,
   hookFiles: readonly string[],
 ): Promise<HookTypeError[]> {
+  const { options: userOptions, diagnostics: tsconfigDiagnostics } =
+    await userCompilerOptions(paths);
+
   if (hookFiles.length === 0) {
-    return [];
+    // Nothing to compile, but a malformed tsconfig is still worth reporting —
+    // that is the whole point of not falling back to defaults silently.
+    return tsconfigDiagnostics.map((diagnostic) =>
+      toHookTypeError(diagnostic, paths.root),
+    );
   }
 
   const scratch = await mkdtemp(join(tmpdir(), 'thymian-validate-'));
@@ -65,10 +77,12 @@ export async function typecheckHooks(
     await writeFile(join(generated, HOOKS_API_FILE), surface.hooksApi, 'utf-8');
 
     const compilerOptions: ts.CompilerOptions = {
-      ...(await userCompilerOptions(paths)),
+      ...userOptions,
       noEmit: true,
-      baseUrl: scratch,
-      paths: { '@thymian/hooks': [`./generated/${HOOKS_API_FILE}`] },
+      paths: mergeHooksAlias(
+        userOptions.paths,
+        join(generated, HOOKS_API_FILE),
+      ),
     };
 
     const program = ts.createProgram(
@@ -82,59 +96,95 @@ export async function typecheckHooks(
     // `tsPathRelativeTo` normalizes both, so this excludes a scratch-surface
     // diagnostic on every platform — a raw `startsWith` never matched on
     // Windows, and every one of these diagnostics leaked through.
-    return ts
-      .getPreEmitDiagnostics(program)
-      .filter(
-        (diagnostic) =>
-          !diagnostic.file ||
-          tsPathRelativeTo(diagnostic.file.fileName, scratch) === undefined,
-      )
-      .map((diagnostic) => {
-        const file = diagnostic.file;
+    const diagnostics = [
+      ...tsconfigDiagnostics,
+      ...ts.getPreEmitDiagnostics(program),
+    ].filter(
+      (diagnostic) =>
+        !diagnostic.file ||
+        tsPathRelativeTo(diagnostic.file.fileName, scratch) === undefined,
+    );
 
-        if (!file) {
-          // A diagnostic about the *options* rather than a file — a malformed
-          // tsconfig, an unresolvable `types` entry. Dropping these made a
-          // broken tsconfig fail silently and report a clean bill of health.
-          return {
-            file: 'tsconfig.json',
-            line: 1,
-            column: 1,
-            message: ts.flattenDiagnosticMessageText(
-              diagnostic.messageText,
-              ' ',
-            ),
-            code: diagnostic.code,
-          };
-        }
-
-        const { line, character } = file.getLineAndCharacterOfPosition(
-          diagnostic.start ?? 0,
-        );
-
-        return {
-          file: relative(paths.root, file.fileName),
-          line: line + 1,
-          column: character + 1,
-          message: ts.flattenDiagnosticMessageText(diagnostic.messageText, ' '),
-          code: diagnostic.code,
-        };
-      });
+    return diagnostics.map((diagnostic) =>
+      toHookTypeError(diagnostic, paths.root),
+    );
   } finally {
     await rm(scratch, { recursive: true, force: true });
   }
 }
 
 /**
+ * One `ts.Diagnostic`, in the shape `validate`'s callers read.
+ *
+ * A diagnostic with no `file` is about the *options* rather than a source
+ * file — a malformed tsconfig, an unresolvable `types` entry — and is
+ * attributed to `tsconfig.json` rather than dropped. Dropping these is what
+ * made a broken tsconfig fail silently and report a clean bill of health.
+ */
+function toHookTypeError(
+  diagnostic: ts.Diagnostic,
+  root: string,
+): HookTypeError {
+  const file = diagnostic.file;
+
+  if (!file) {
+    return {
+      file: 'tsconfig.json',
+      line: 1,
+      column: 1,
+      message: ts.flattenDiagnosticMessageText(diagnostic.messageText, ' '),
+      code: diagnostic.code,
+    };
+  }
+
+  const { line, character } = file.getLineAndCharacterOfPosition(
+    diagnostic.start ?? 0,
+  );
+
+  return {
+    file: relative(root, file.fileName),
+    line: line + 1,
+    column: character + 1,
+    message: ts.flattenDiagnosticMessageText(diagnostic.messageText, ' '),
+    code: diagnostic.code,
+  };
+}
+
+/**
+ * The user's own `paths`, plus `@thymian/hooks` pointed at the fresh surface
+ * as an absolute mapping.
+ *
+ * TypeScript resolves a rooted (absolute) `paths` entry ahead of `baseUrl` —
+ * `combinePaths` returns the rooted candidate outright — so this alias
+ * resolves to the scratch surface no matter what the user's `baseUrl` is, or
+ * whether they set one at all. That is what lets the rest of the user's
+ * `paths` keep resolving under *their* `baseUrl`, unreplaced.
+ */
+function mergeHooksAlias(
+  userPaths: ts.MapLike<string[]> | undefined,
+  hooksApiFile: string,
+): ts.MapLike<string[]> {
+  return {
+    ...userPaths,
+    '@thymian/hooks': [toTypeScriptPath(hooksApiFile)],
+  };
+}
+
+/**
  * The compiler options the user's own sampler tsconfig sets, or the defaults
- * `init` would have scaffolded.
+ * `init` would have scaffolded — plus whatever the tsconfig itself failed to
+ * read or parse, as diagnostics rather than a swallowed error.
  *
  * A tsconfig the user has edited is the whole reason `init` writes it once, so
- * `validate` has to honour it — including a `strict: false` a user chose.
+ * `validate` has to honour it — including a `strict: false` a user chose. A
+ * tsconfig that fails outright still yields the fallback options, so a typo
+ * elsewhere in the hooks is not masked by an unrelated config error — but the
+ * config error itself is never dropped.
  */
-async function userCompilerOptions(
-  paths: SamplerPaths,
-): Promise<ts.CompilerOptions> {
+async function userCompilerOptions(paths: SamplerPaths): Promise<{
+  options: ts.CompilerOptions;
+  diagnostics: ts.Diagnostic[];
+}> {
   const fallback: ts.CompilerOptions = {
     strict: true,
     module: ts.ModuleKind.NodeNext,
@@ -144,16 +194,25 @@ async function userCompilerOptions(
   };
 
   if (!(await entryExists(paths.tsconfigPath))) {
-    return fallback;
+    return { options: fallback, diagnostics: [] };
   }
 
   const read = ts.readConfigFile(paths.tsconfigPath, ts.sys.readFile);
 
   if (read.error) {
-    return fallback;
+    return { options: fallback, diagnostics: [read.error] };
   }
 
-  const parsed = ts.parseJsonConfigFileContent(read.config, ts.sys, paths.root);
+  const parsed = ts.parseJsonConfigFileContent(
+    read.config,
+    ts.sys,
+    paths.root,
+    undefined,
+    paths.tsconfigPath,
+  );
 
-  return { ...fallback, ...parsed.options };
+  return {
+    options: { ...fallback, ...parsed.options },
+    diagnostics: [...parsed.errors],
+  };
 }
