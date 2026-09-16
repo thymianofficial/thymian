@@ -27,7 +27,19 @@ type TeardownItem = {
 export class RunScopedHooks {
   private beforeAll: readonly CollectedRegistration[] = [];
   private teardown: TeardownItem[] = [];
-  private latched = false;
+
+  /**
+   * The latch itself: `undefined` until the first `beforeRequest` arms it,
+   * then the one setup run every caller — sequential or concurrent — awaits.
+   *
+   * A memoized promise rather than a boolean, because a boolean only answers
+   * "has setup started", and under concurrent dispatch a second caller can
+   * observe that answer before the first caller's `beforeAll` has finished (or
+   * failed). Memoizing the promise itself means every caller awaits the same
+   * settlement: nobody's request proceeds until setup resolves, and if it
+   * rejects, every caller — however many raced in — rejects with it.
+   */
+  private startPromise: Promise<void> | undefined;
 
   constructor(
     private readonly logger: Logger,
@@ -47,7 +59,7 @@ export class RunScopedHooks {
     afterAll: readonly CollectedRegistration[];
   }): void {
     this.beforeAll = hooks.beforeAll;
-    this.latched = false;
+    this.startPromise = undefined;
     // `afterAll` hooks are teardown from the start; cleanups join as their
     // `beforeAll` returns them. One list, one order — so an `afterAll`
     // registered after a `beforeAll` runs *before* that `beforeAll`'s cleanup
@@ -68,24 +80,37 @@ export class RunScopedHooks {
   }
 
   /**
-   * Arm the latch and run `beforeAll` in registration order, once.
+   * Arm the latch and run `beforeAll` in registration order, once — memoized as
+   * a promise, so every caller (sequential or concurrent) awaits the very same
+   * setup run instead of each independently checking whether one already
+   * started.
    *
-   * A throw propagates: setup that failed means the run is not in the state the
-   * hooks describe, and continuing would report failures against a fixture that
-   * was never built. The latch is armed **before** the callbacks run, so a
-   * `beforeAll` that threw still gets its teardown — and so a second request
-   * cannot re-run setup that half-succeeded.
+   * The assignment happens synchronously, before {@link runBeforeAll}'s body
+   * gets its first chance to `await` anything: a second, concurrent caller
+   * reaching this method — however soon after the first — always finds
+   * {@link startPromise} already set and receives *that* promise rather than
+   * starting a second run. That is what makes concurrent dispatch safe: no
+   * caller's request proceeds until this promise settles, and if it rejects,
+   * every caller who awaited it rejects with it — none of their requests were
+   * ever sent.
    *
-   * Failure goes through the same attribution wrapper every other hook kind
-   * does — there is no `beforeAll`-specific copy of it here any more.
+   * The latch is armed **before** the callbacks run, so a `beforeAll` that
+   * threw still gets its teardown — and so a later request cannot re-run setup
+   * that already failed.
    */
-  async start(): Promise<void> {
-    if (this.latched) {
-      return;
-    }
+  start(): Promise<void> {
+    this.startPromise ??= this.runBeforeAll();
 
-    this.latched = true;
+    return this.startPromise;
+  }
 
+  /**
+   * The setup run itself. Failure goes through the same attribution wrapper
+   * every other hook kind does — there is no `beforeAll`-specific copy of it
+   * here any more — and propagates out of the memoized promise so every
+   * awaiter sees it.
+   */
+  private async runBeforeAll(): Promise<void> {
     for (const entry of this.beforeAll) {
       const { utils, results } = this.makeUtils(entry);
       let returned: unknown;
@@ -121,9 +146,19 @@ export class RunScopedHooks {
    * Latch-gated: nothing runs if no request was ever sent.
    */
   async close(): Promise<void> {
-    if (!this.latched) {
+    if (!this.startPromise) {
       return;
     }
+
+    // Setup may still be in flight, or may have rejected, by the time close
+    // runs. Either way, teardown waits for it to settle first: racing ahead
+    // would read {@link teardown} while `runBeforeAll` is still pushing
+    // cleanups onto it, and a rejection here is not this method's to report —
+    // whoever awaited `start()` already saw it. Best-effort teardown still
+    // runs for whatever succeeded before the rejection.
+    await this.startPromise.catch(() => {
+      // Ignored here: whoever awaited `start()` already saw this rejection.
+    });
 
     const items = this.teardown
       .splice(0)
