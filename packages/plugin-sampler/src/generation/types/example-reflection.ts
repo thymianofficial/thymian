@@ -138,13 +138,17 @@ function openLiteralUnion(
     return undefined;
   }
 
+  // Sorted, not merely de-duplicated by insertion order: the union is
+  // reflected from the `examples` array, and an author reordering that array
+  // is not a change to what the API returns, so it must not be a change to
+  // the committed surface either.
   const literals = [
     ...new Set(
       examples
         .filter((example) => typeof example === base)
         .map((example) => JSON.stringify(example)),
     ),
-  ];
+  ].sort();
 
   if (literals.length === 0) {
     return undefined;
