@@ -86,7 +86,14 @@ export default class Sync extends BaseCliRunCommand<typeof Sync> {
 
         this.log();
         this.log('Run "thymian sampler sync" and commit the result.');
-        this.exit(1);
+
+        // `process.exitCode` rather than `this.exit()`: an early exit throws
+        // past this run's teardown, and routes through oclif's error path —
+        // a feedback prompt and an error-cache record for what is a legitimate
+        // gate verdict, not a crash (mirrors `sampler check`'s outcome model).
+        process.exitCode = 1;
+
+        return result;
       }
 
       this.log(oclif.ux.colorize('green', 'Regenerated:'));

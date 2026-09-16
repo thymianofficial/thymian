@@ -61,6 +61,11 @@ export default class Validate extends BaseCliRunCommand<typeof Validate> {
         );
       }
 
+      // `process.exitCode` rather than `this.exit()` for both verdicts below:
+      // an early exit throws past this run's teardown and routes through
+      // oclif's error path — a feedback prompt and an error-cache record for
+      // what is a legitimate gate verdict, not a crash (mirrors `sampler
+      // check`'s outcome model).
       if (report.verdict === 'drifted') {
         this.log();
         this.log(
@@ -69,7 +74,9 @@ export default class Validate extends BaseCliRunCommand<typeof Validate> {
         this.log(
           'Fix them, run "thymian sampler sync", and commit the result.',
         );
-        this.exit(1);
+        process.exitCode = 1;
+
+        return report;
       }
 
       if (report.verdict === 'broken') {
@@ -85,7 +92,9 @@ export default class Validate extends BaseCliRunCommand<typeof Validate> {
             ? 'Fix them. Nothing is committed, so there is nothing to regenerate.'
             : 'Fix them. The committed types are already in sync — there is no drift to resolve.',
         );
-        this.exit(1);
+        process.exitCode = 1;
+
+        return report;
       }
 
       if (report.verdict === 'stale') {
