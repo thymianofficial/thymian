@@ -160,6 +160,12 @@ is the v2 specification recorded on
 
 ## Related
 
+- [ADR-0022](0022-selector-is-the-transaction-label.md) and
+  [ADR-0023](0023-a-per-transaction-problem-must-not-end-the-run.md): both
+  amend the no-`@thymian/core`-change containment property this ADR states —
+  0022 for one pure renderer, 0023 for the per-transaction Outcome model and
+  the hook-context threading it needed. Read this ADR's containment claim
+  together with those two, not on its own.
 - [ADR-0007](0007-core-owns-validation-entrypoints-plugins-own-execution.md):
   the core/plugin boundary this redesign stays inside — sampling is plugin-owned
   execution.

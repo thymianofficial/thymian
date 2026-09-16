@@ -40,7 +40,7 @@ Thymian is a monorepo managed with Nx, organized into several packages under the
 This project's decisions and mechanism docs live under `docs/arc42/`, not `docs/adr/`. Read the
 ones your change touches, not the set:
 
-- `docs/arc42/adr/` — 21 ADRs, indexed by `docs/arc42/09-architectural-decisions.md`. ADR-0007
+- `docs/arc42/adr/` — 23 ADRs, indexed by `docs/arc42/09-architectural-decisions.md`. ADR-0007
   fixes the core/plugin boundary and constrains any change to a plugin or to core's validation
   entrypoints.
 - `docs/arc42/08-crosscutting-concepts.md` — events and actions, plugin lifecycle, the Thymian
