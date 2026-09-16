@@ -121,6 +121,53 @@ contract changes.
   from a Transaction's own hook pipeline, never from ordering between
   Transactions.
 
+## Amendment (2026-09-16): the classification rule, and its third instance
+
+A review of PR thymian#416 (issue #128) found two more paths that broke the
+containment property this ADR states, both of them the same shape as the two
+core changes above:
+
+- **A refused connection or a dispatch failure closed the run.**
+  `@thymian/plugin-request-dispatcher`'s `core.request.dispatch` handler
+  raised `ServerUnavailableError` and `RequestDispatchError` at the default
+  `severity: 'error'`. Both are scoped to the one request that made them —
+  exactly what the hook-failure change above already established a pattern
+  for — but carrying the default severity meant `Thymian.run`'s error
+  subscription still closed the whole run on the first unreachable server, and
+  `sampler check` lost every Transaction to it instead of reporting each one
+  `errored`.
+- **Declared 3xx/5xx Transactions were invisible.** `sampler check` silently
+  excluded them from its loop entirely — not attempted, and not reported —
+  so the totals undercounted what the API description declared.
+
+The general rule the four instances (two here, two more now) all follow,
+worth stating once rather than rediscovering at the next seam:
+
+> Anything scoped to one request is a per-transaction Outcome; only faults
+> that precede the run are run-level.
+
+**The fix, both times, is the same move as this ADR's original two:**
+
+- The dispatcher now raises both errors at `severity: 'warn'`, exactly
+  mirroring the hook-failure reasoning above — the action still throws (the
+  caller still learns this Transaction failed), but the run no longer closes
+  on it. This is the pattern's **third** instance outside `@thymian/core`
+  proper (`@thymian/plugin-request-dispatcher`, not a core change), alongside
+  the two `@thymian/core` changes this ADR already counted — the "only these
+  two" statement above was scoped to `@thymian/core` itself and stands
+  unchanged; this is a different plugin reaching the same conclusion.
+- `sampler check` gives a declared 3xx/5xx Transaction its own Outcome —
+  `skipped`, with reason `"3xx/5xx responses are not checkable"` — in the
+  human list, the `--json` document and the totals, instead of dropping it
+  from the loop. There is nothing to assert against a redirect target the
+  description does not name, and a 5xx is the server's own failure mode, not
+  a claim about the API — but a declared Transaction is still declared, and
+  the check-outcomes contract promises every one of them is accounted for.
+
+Neither changes the four-Outcome model or the `--json` schema; both are the
+existing `errored`/`skipped` Outcomes reaching two paths that previously
+bypassed them.
+
 ## Related
 
 - [ADR-0019](0019-virtual-samples-and-selector-anchored-hooks.md): the design
@@ -147,6 +194,7 @@ contract changes.
 
 ## Status History
 
-| Date       | Status   | Notes                                                                                                                 |
-| ---------- | -------- | --------------------------------------------------------------------------------------------------------------------- |
-| 2026-09-04 | Accepted | The honest response union and the four-outcome check model; two further core changes, both to stop a run ending early |
+| Date       | Status   | Notes                                                                                                                                                                                                                                                                                                                       |
+| ---------- | -------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 2026-09-04 | Accepted | The honest response union and the four-outcome check model; two further core changes, both to stop a run ending early                                                                                                                                                                                                       |
+| 2026-09-16 | Accepted | Recorded the classification rule the four instances share; the request dispatcher's transport errors now raise at `severity: 'warn'` (a third instance of the pattern, in `@thymian/plugin-request-dispatcher`); declared 3xx/5xx Transactions surface as `skipped` instead of being dropped from `sampler check`'s totals. |
