@@ -323,11 +323,7 @@ describe('report builders', () => {
         .done();
       const informationalRule = httpRule('rfc9110/info-only')
         .severity('warn')
-        .type(
-          'informational',
-          'permission-or-statement-of-fact',
-          'documentation-only',
-        )
+        .type('informational', 'nothing-to-check', 'documentation-only')
         .done();
       const activeRule = httpRule('rfc9110/active')
         .severity('hint')
