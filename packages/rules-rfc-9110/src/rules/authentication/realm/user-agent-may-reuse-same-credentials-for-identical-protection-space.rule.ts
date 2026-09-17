@@ -7,7 +7,7 @@ export default httpRule(
   .severity('hint')
   .type(
     'informational',
-    'permission-or-statement-of-fact',
+    'nothing-to-check',
     'A permissive MAY describing user-agent-internal state: once authorized, the user agent may reuse the same credentials within the protection space for a self-chosen duration. Both reusing and not reusing are conformant, and the protection space is user-agent-internal.',
   )
   .url(

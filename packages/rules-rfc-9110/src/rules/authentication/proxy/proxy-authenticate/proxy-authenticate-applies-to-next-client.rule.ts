@@ -5,7 +5,7 @@ export default httpRule('rfc9110/proxy-authenticate-applies-to-next-client')
   .severity('hint')
   .type(
     'informational',
-    'permission-or-statement-of-fact',
+    'nothing-to-check',
     'A statement of fact about the scope of the Proxy-Authenticate field (it applies only to the next outbound client on the response chain, unlike WWW-Authenticate). It expresses no requirement and defines no non-conformant condition.',
   )
   .url(

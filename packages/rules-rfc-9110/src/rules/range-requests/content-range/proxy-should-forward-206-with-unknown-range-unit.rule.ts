@@ -7,7 +7,7 @@ export default httpRule(
   .severity('warn')
   .type(
     'informational',
-    'peer-internal-behaviour',
+    'peer-not-observable',
     "Governs a proxy's internal forwarding decision. Detecting non-forwarding would require correlating the proxy's upstream and downstream messages and knowing it did not understand the range unit — an internal capability.",
   )
   .url('https://www.rfc-editor.org/rfc/rfc9110.html#name-content-range')

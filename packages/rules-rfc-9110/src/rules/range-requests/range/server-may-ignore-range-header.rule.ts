@@ -5,7 +5,7 @@ export default httpRule('rfc9110/server-may-ignore-range-header')
   .severity('hint')
   .type(
     'informational',
-    'permission-or-statement-of-fact',
+    'nothing-to-check',
     'A baseline MAY: a server is always free to ignore the Range header and answer with a full 200.',
   )
   .url('https://www.rfc-editor.org/rfc/rfc9110.html#name-range')

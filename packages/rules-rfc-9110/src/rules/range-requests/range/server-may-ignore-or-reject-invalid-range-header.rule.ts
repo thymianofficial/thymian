@@ -6,7 +6,7 @@ export default httpRule(
   .severity('hint')
   .type(
     'informational',
-    'permission-or-statement-of-fact',
+    'nothing-to-check',
     'A MAY: the server may ignore or reject invalid, overlapping, or unordered ranges. Ignoring, rejecting, and accepting are all conformant.',
   )
   .tags('security:dos')

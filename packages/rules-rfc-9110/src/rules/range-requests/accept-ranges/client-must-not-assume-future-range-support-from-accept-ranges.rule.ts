@@ -7,7 +7,7 @@ export default httpRule(
   .severity('error')
   .type(
     'informational',
-    'peer-internal-behaviour',
+    'peer-not-observable',
     'Governs an internal assumption the client makes about future behavior. No header, status, or body signal on the wire reveals whether a client assumed future range support.',
   )
   .url('https://www.rfc-editor.org/rfc/rfc9110.html#name-accept-ranges')

@@ -6,7 +6,7 @@ export default httpRule(
   .severity('warn')
   .type(
     'informational',
-    'origin-internal-ground-truth',
+    'only-origin-knows',
     "The SHOULD is conditioned on the proxy requiring authentication and the request having omitted, invalid, or partial proxy credentials. Whether a proxy requires authentication, and whether supplied proxy credentials are valid, is ground truth internal to the proxy, not observable from the wire, so there is no reliable non-conformant condition to detect. It is also a proxy's own behavior, and Thymian does not occupy that role.",
   )
   .tags('security:authentication')

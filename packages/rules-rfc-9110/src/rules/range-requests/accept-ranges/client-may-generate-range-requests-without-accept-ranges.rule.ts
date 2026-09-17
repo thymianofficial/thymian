@@ -7,7 +7,7 @@ export default httpRule(
   .severity('hint')
   .type(
     'informational',
-    'permission-or-statement-of-fact',
+    'nothing-to-check',
     'A pure MAY for the client. Generating, or not generating, a range request without having seen Accept-Ranges is always conformant.',
   )
   .url('https://www.rfc-editor.org/rfc/rfc9110.html#name-accept-ranges')

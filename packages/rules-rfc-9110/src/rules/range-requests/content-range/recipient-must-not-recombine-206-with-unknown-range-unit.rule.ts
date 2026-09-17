@@ -7,7 +7,7 @@ export default httpRule(
   .severity('error')
   .type(
     'informational',
-    'peer-internal-behaviour',
+    'peer-not-observable',
     "Constrains the recipient's internal data handling — whether it recombines partial content with a stored representation. Recombination happens entirely inside the recipient and produces no header, status, or body signal on the wire.",
   )
   .url('https://www.rfc-editor.org/rfc/rfc9110.html#name-content-range')

@@ -7,7 +7,7 @@ export default httpRule(
   .severity('error')
   .type(
     'informational',
-    'peer-internal-behaviour',
+    'peer-not-observable',
     "Ignoring means the origin server processes the request as though the Range header were absent. Both the conformant outcome and the non-conformant one depend on the server's internal understanding of the unit — not observable on the wire, and whether a unit is unknown is server-specific.",
   )
   .url('https://www.rfc-editor.org/rfc/rfc9110.html#name-range')

@@ -6,7 +6,7 @@ export default httpRule(
   .severity('warn')
   .type(
     'informational',
-    'origin-internal-ground-truth',
+    'only-origin-knows',
     'The SHOULD is conditioned on the request having omitted, invalid, or partial credentials for a protected resource. Whether supplied credentials are valid, and whether a resource is protected, is ground truth internal to the origin server, not observable from the wire: a 200 with credentials might be a public resource or a successful auth, and a non-401 with bad credentials is indistinguishable from a request the server did not treat as protected.',
   )
   .tags('security:authentication')

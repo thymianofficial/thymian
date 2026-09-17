@@ -7,7 +7,7 @@ export default httpRule(
   .severity('hint')
   .type(
     'informational',
-    'permission-or-statement-of-fact',
+    'nothing-to-check',
     "A permissive MAY: a user agent may send request header fields describing its preferences to improve the server's guess during proactive negotiation. Sending them and not sending them are both conformant.",
   )
   .url('https://www.rfc-editor.org/rfc/rfc9110.html#name-proactive-negotiation')

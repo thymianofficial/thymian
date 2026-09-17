@@ -6,7 +6,7 @@ export default httpRule(
   .severity('error')
   .type(
     'informational',
-    'peer-internal-behaviour',
+    'peer-not-observable',
     'The MUST NOT is conditioned on the user agent not providing user control over the linguistic preference. Whether an agent exposes such control is internal user-agent state not observable from the wire: seeing an Accept-Language header says nothing about whether the user can influence it.',
   )
   .tags('privacy:fingerprinting')
