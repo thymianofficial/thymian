@@ -35,11 +35,14 @@ The world → keep going.
 
 Every context, permanently → **tier 1**, and the rule is `informational`:
 
-| Code                              | Claim                                                          |
-| --------------------------------- | -------------------------------------------------------------- |
-| `origin-internal-ground-truth`    | Only the origin knows the fact the statement is about          |
-| `peer-internal-behaviour`         | The obligation is on a peer whose internals are not observable |
-| `permission-or-statement-of-fact` | A `MAY`, or a statement asserting nothing to check             |
+| Code                  | Claim                                                          |
+| --------------------- | -------------------------------------------------------------- |
+| `only-origin-knows`   | Only the origin knows the fact the statement is about          |
+| `peer-not-observable` | The obligation is on a peer whose internals are not observable |
+| `nothing-to-check`    | A statement asserting nothing to check                         |
+
+A BCP 14 `MAY` is the common case for `nothing-to-check` — a permission asserts nothing
+either way — but it is not the only one; a bare statement of fact lands here too.
 
 One context → **tier 2**, recorded in `coverage.ts` against that context:
 
