@@ -7,7 +7,7 @@ export default httpRule(
   .severity('hint')
   .type(
     'informational',
-    'permission-or-statement-of-fact',
+    'nothing-to-check',
     'A pure permission (origin server MAY answer 415): both responding 415 and accepting the coding are conformant.',
   )
   .appliesTo('origin server')

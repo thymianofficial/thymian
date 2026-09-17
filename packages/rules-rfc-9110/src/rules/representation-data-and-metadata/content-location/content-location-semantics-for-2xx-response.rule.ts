@@ -5,7 +5,7 @@ export default httpRule('rfc9110/content-location-semantics-for-2xx-response')
   .severity('off')
   .type(
     'informational',
-    'permission-or-statement-of-fact',
+    'nothing-to-check',
     'Describes recipient-side MAY semantics for interpreting Content-Location in a 2xx response. It states no sender obligation, so there is nothing to check.',
   )
   .appliesTo('origin server')

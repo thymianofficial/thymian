@@ -6,7 +6,7 @@ export default httpRule(
   .severity('hint')
   .type(
     'informational',
-    'permission-or-statement-of-fact',
+    'nothing-to-check',
     'A permissive MAY about a client configuration setting — no observable failure mode and not detectable from recorded HTTP traffic.',
   )
   .tags('security:transport')

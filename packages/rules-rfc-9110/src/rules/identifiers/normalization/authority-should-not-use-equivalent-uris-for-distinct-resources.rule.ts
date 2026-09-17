@@ -7,7 +7,7 @@ export default httpRule(
   .severity('warn')
   .type(
     'informational',
-    'origin-internal-ground-truth',
+    'only-origin-knows',
     'Deciding that two normalization-equivalent URIs identify DISTINCT resources requires resource-semantic knowledge the authority holds; it cannot be inferred from recorded HTTP messages alone.',
   )
   .url(

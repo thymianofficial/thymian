@@ -7,7 +7,7 @@ export default httpRule(
   .severity('error')
   .type(
     'informational',
-    'peer-internal-behaviour',
+    'peer-not-observable',
     'The trigger condition is "server has no clock", which is deployment configuration invisible on the wire. Whether a Last-Modified was locally generated or assigned by another system also cannot be observed.',
   )
   .appliesTo('origin server')

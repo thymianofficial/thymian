@@ -7,7 +7,7 @@ export default httpRule(
   .severity('off')
   .type(
     'informational',
-    'peer-internal-behaviour',
+    'peer-not-observable',
     'Constrains WHEN the server samples Last-Modified relative to generating Date, an internal timing detail. Even with both header values, the observed skew reflects real resource age, not a defect.',
   )
   .appliesTo('origin server')

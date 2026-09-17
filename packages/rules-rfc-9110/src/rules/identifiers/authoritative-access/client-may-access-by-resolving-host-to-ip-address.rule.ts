@@ -7,7 +7,7 @@ export default httpRule(
   .severity('hint')
   .type(
     'informational',
-    'permission-or-statement-of-fact',
+    'nothing-to-check',
     "A permissive MAY describing a client's DNS/TCP access procedure — no violation to detect, and the resolution/connection steps occur below the recorded HTTP layer.",
   )
   .url('https://www.rfc-editor.org/rfc/rfc9110.html#name-http-origins')

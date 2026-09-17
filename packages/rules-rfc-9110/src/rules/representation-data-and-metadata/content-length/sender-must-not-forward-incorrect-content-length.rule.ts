@@ -6,7 +6,7 @@ export default httpRule(
   .severity('error')
   .type(
     'informational',
-    'peer-internal-behaviour',
+    'peer-not-observable',
     '"Known to be incorrect" is a property of the sender\'s own knowledge, not of the wire. Detecting a forwarded incorrect Content-Length would also need the true framing/length seen upstream and intermediary role correlation the engine cannot reconstruct.',
   )
   // Forwarding a Content-Length known to be wrong lets the next hop frame the message differently than this hop did — the message-boundary disagreement the request-smuggling tag exists for.

@@ -7,7 +7,7 @@ export default httpRule(
   .severity('error')
   .type(
     'informational',
-    'peer-internal-behaviour',
+    'peer-not-observable',
     'The trigger ("one or more encodings have been applied") is known only to the sender. From the wire we cannot distinguish a genuinely unencoded body from an encoded body missing its Content-Encoding header.',
   )
   .appliesTo('server')

@@ -6,7 +6,7 @@ export default httpRule(
   .severity('error')
   .type(
     'informational',
-    'peer-internal-behaviour',
+    'peer-not-observable',
     'A forwarding obligation on an intermediary (do not pass on an ABNF-invalid Content-Length). Confirming a message was forwarded rather than originated requires intermediary-role correlation the engine lacks.',
   )
   // An ABNF-invalid or ambiguous (differing, comma-separated) Content-Length forwarded downstream leaves two hops to disagree about which value delimits the body.

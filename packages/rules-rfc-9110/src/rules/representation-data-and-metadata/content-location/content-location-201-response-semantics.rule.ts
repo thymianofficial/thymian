@@ -5,7 +5,7 @@ export default httpRule('rfc9110/content-location-201-response-semantics')
   .severity('hint')
   .type(
     'informational',
-    'origin-internal-ground-truth',
+    'only-origin-knows',
     'Whether Content-Location matching (or differing from) Location in a 201 is correct depends on what the returned content actually represents — a fact only the origin server knows. Either arrangement is valid on the wire.',
   )
   .appliesTo('origin server')

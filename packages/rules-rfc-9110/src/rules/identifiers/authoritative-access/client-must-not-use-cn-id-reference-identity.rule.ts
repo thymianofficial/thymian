@@ -4,7 +4,7 @@ export default httpRule('rfc9110/client-must-not-use-cn-id-reference-identity')
   .severity('error')
   .type(
     'informational',
-    'peer-internal-behaviour',
+    'peer-not-observable',
     'Which reference-identity type a client uses (rejecting CN-ID) is internal TLS certificate-verification logic; it leaves no trace in recorded HTTP messages.',
   )
   .tags('security:transport')

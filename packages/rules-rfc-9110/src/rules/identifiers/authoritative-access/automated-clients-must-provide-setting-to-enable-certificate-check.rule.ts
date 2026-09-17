@@ -6,7 +6,7 @@ export default httpRule(
   .severity('error')
   .type(
     'informational',
-    'peer-internal-behaviour',
+    'peer-not-observable',
     'Presence of a client configuration setting is a product-capability requirement; it cannot be detected from recorded HTTP traffic.',
   )
   .tags('security:transport')

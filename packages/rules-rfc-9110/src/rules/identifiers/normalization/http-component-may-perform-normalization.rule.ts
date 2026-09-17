@@ -5,7 +5,7 @@ export default httpRule('rfc9110/http-component-may-perform-normalization')
   .severity('hint')
   .type(
     'informational',
-    'permission-or-statement-of-fact',
+    'nothing-to-check',
     'A permissive MAY with no observable failure mode — it grants a normalization permission, so there is no violation to detect from recorded traffic.',
   )
   .url(

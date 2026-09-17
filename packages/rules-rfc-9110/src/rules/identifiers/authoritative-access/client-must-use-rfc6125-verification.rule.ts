@@ -4,7 +4,7 @@ export default httpRule('rfc9110/client-must-use-rfc6125-verification')
   .severity('error')
   .type(
     'informational',
-    'peer-internal-behaviour',
+    'peer-not-observable',
     'RFC 6125 verification is TLS-handshake certificate logic below the recorded HTTP layer; it cannot be checked from recorded HTTP messages.',
   )
   .tags('security:transport')

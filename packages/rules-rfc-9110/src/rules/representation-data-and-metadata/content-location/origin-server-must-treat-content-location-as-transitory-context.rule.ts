@@ -7,7 +7,7 @@ export default httpRule(
   .severity('error')
   .type(
     'informational',
-    'peer-internal-behaviour',
+    'peer-not-observable',
     'Constrains server-internal handling of a request Content-Location (do not persist it as representation metadata or use it to alter request semantics). That handling leaves no observable wire artifact.',
   )
   .appliesTo('origin server')

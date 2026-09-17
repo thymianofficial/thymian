@@ -7,7 +7,7 @@ export default httpRule(
   .severity('off')
   .type(
     'informational',
-    'origin-internal-ground-truth',
+    'only-origin-knows',
     'Whether a prior representation is "unacceptable as a substitute" is a judgment only the origin server can make about its own data. No context can tell a correctly-unchanged weak tag from one that should have changed.',
   )
   .appliesTo('origin server')

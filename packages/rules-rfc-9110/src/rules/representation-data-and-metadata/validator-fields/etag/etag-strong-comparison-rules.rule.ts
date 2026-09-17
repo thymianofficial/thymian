@@ -5,7 +5,7 @@ export default httpRule('rfc9110/etag-strong-comparison-rules')
   .severity('off')
   .type(
     'informational',
-    'peer-internal-behaviour',
+    'peer-not-observable',
     'Defines the strong-comparison algorithm a recipient must apply internally when matching entity tags. The comparison is an implementation-internal step with no distinct wire artifact.',
   )
   .appliesTo('server', 'client', 'intermediary')
