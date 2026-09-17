@@ -13,12 +13,12 @@ context and all of them.
 These make a rule `informational`: a claim about the world that holds in every context,
 permanently. Passed as `.type('informational', reason, note)`.
 
-| Code                              | Claim                                                              |
-| --------------------------------- | ------------------------------------------------------------------ |
-| `origin-internal-ground-truth`    | Only the origin knows the fact the statement is about.             |
-| `peer-internal-behaviour`         | The obligation is on a peer whose internals are not observable.    |
-| `permission-or-statement-of-fact` | A 'MAY', or a statement that asserts nothing to check.             |
-| `tool-limitation`                 | Thymian could do this in principle; the implementation cannot yet. |
+| Code                  | Claim                                                              |
+| --------------------- | ------------------------------------------------------------------ |
+| `only-origin-knows`   | Only the origin knows the fact the statement is about.             |
+| `peer-not-observable` | The obligation is on a peer whose internals are not observable.    |
+| `nothing-to-check`    | A statement that asserts nothing to check.                         |
+| `tool-limitation`     | Thymian could do this in principle; the implementation cannot yet. |
 
 ## Tier 2 — per-context, in the coverage record
 

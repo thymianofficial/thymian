@@ -322,7 +322,7 @@ describe('generate rule (integration)', () => {
     vi.mocked(select)
       .mockReset()
       .mockResolvedValueOnce('error') // severity
-      .mockResolvedValueOnce('permission-or-statement-of-fact'); // reason
+      .mockResolvedValueOnce('nothing-to-check'); // reason
     vi.mocked(checkbox)
       .mockReset()
       .mockResolvedValueOnce(['informational']) // rule types
@@ -333,7 +333,7 @@ describe('generate rule (integration)', () => {
     });
 
     expect(stdout).toContain(
-      ".type('informational', 'permission-or-statement-of-fact', 'A MAY with nothing to check.')",
+      ".type('informational', 'nothing-to-check', 'A MAY with nothing to check.')",
     );
     expect(stdout).not.toContain('.rule((context, options, logger)');
   });
