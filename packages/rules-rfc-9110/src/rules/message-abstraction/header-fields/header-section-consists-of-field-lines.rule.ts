@@ -5,7 +5,7 @@ export default httpRule('rfc9110/header-section-consists-of-field-lines')
   .severity('hint')
   .type(
     'informational',
-    'permission-or-statement-of-fact',
+    'nothing-to-check',
     'A structural/terminology definition of the "header section"; it states no requirement on any message.',
   )
   .url('https://www.rfc-editor.org/rfc/rfc9110.html#section-6.3')

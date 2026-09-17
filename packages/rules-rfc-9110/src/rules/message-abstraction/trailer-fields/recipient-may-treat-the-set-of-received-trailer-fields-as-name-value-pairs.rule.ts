@@ -7,7 +7,7 @@ export default httpRule(
   .severity('hint')
   .type(
     'informational',
-    'permission-or-statement-of-fact',
+    'nothing-to-check',
     'A MAY describing how a recipient may internally model received trailers; internal recipient processing with no observable non-conformant condition.',
   )
   .url('https://www.rfc-editor.org/rfc/rfc9110.html#section-6.5.2')

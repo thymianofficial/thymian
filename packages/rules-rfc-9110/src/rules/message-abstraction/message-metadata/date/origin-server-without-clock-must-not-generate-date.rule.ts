@@ -7,7 +7,7 @@ export default httpRule(
   .severity('error')
   .type(
     'informational',
-    'origin-internal-ground-truth',
+    'only-origin-knows',
     'Whether the origin server has a clock is internal server state not exposed in any transaction, so a present or absent Date header cannot be classified as a violation.',
   )
   .appliesTo('origin server')

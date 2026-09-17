@@ -5,7 +5,7 @@ export default httpRule('rfc9110/client-should-send-highest-conformant-version')
   .severity('warn')
   .type(
     'informational',
-    'peer-internal-behaviour',
+    'peer-not-observable',
     '"Highest conformant version" depends on internal client and server capabilities not observable from a transaction.',
   )
   .appliesTo('client')

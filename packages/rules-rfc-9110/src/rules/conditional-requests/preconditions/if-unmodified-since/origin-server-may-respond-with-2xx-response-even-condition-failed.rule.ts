@@ -7,7 +7,7 @@ export default httpRule(
   .severity('hint')
   .type(
     'informational',
-    'permission-or-statement-of-fact',
+    'nothing-to-check',
     'A MAY: a 2xx for a state-changing request that appears already applied is conformant, and is indistinguishable from an ordinary success without knowledge of prior resource state.',
   )
   .url('https://www.rfc-editor.org/rfc/rfc9110.html#section-13.1.1')

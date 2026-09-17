@@ -7,7 +7,7 @@ export default httpRule(
   .severity('error')
   .type(
     'informational',
-    'peer-internal-behaviour',
+    'peer-not-observable',
     'Which comparison function (strong vs weak) the origin applies internally to If-Match ETags is not exposed in any single response; distinguishing them would require the origin to mint a controllable weak ETag variant of the same representation, which cannot be arranged from outside.',
   )
   .url('https://www.rfc-editor.org/rfc/rfc9110.html#section-13.1.1')

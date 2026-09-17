@@ -5,7 +5,7 @@ export default httpRule('rfc9110/header-fields-sent-before-content')
   .severity('hint')
   .type(
     'informational',
-    'permission-or-statement-of-fact',
+    'nothing-to-check',
     'A terminology definition: "header fields" are the fields sent before content. No requirement to validate.',
   )
   .url('https://www.rfc-editor.org/rfc/rfc9110.html#section-6.3')

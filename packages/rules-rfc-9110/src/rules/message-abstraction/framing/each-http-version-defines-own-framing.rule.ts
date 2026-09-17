@@ -5,7 +5,7 @@ export default httpRule('rfc9110/each-http-version-defines-own-framing')
   .severity('hint')
   .type(
     'informational',
-    'permission-or-statement-of-fact',
+    'nothing-to-check',
     'A purely definitional statement (each HTTP version defines its own framing mechanism); it states no requirement on any message.',
   )
   .url('https://www.rfc-editor.org/rfc/rfc9110.html#section-6.1')

@@ -7,7 +7,7 @@ export default httpRule(
   .severity('error')
   .type(
     'informational',
-    'peer-internal-behaviour',
+    'peer-not-observable',
     'Internal evaluation timing — whether If-Match was checked before the method ran — is not observable on the wire.',
   )
   .url('https://www.rfc-editor.org/rfc/rfc9110.html#section-13.1.1')

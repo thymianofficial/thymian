@@ -5,7 +5,7 @@ export default httpRule('rfc9110/client-must-not-send-non-conformant-version')
   .severity('error')
   .type(
     'informational',
-    'peer-internal-behaviour',
+    'peer-not-observable',
     'Whether a client is conformant to the HTTP version it sends is internal client state; the version token itself is also not surfaced by the rule framework.',
   )
   .appliesTo('client')

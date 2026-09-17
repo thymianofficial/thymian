@@ -5,7 +5,7 @@ export default httpRule('rfc9110/recipient-with-clock-must-add-date-if-missing')
   .severity('error')
   .type(
     'informational',
-    'peer-internal-behaviour',
+    'peer-not-observable',
     'This depends on internal recipient state (having a clock) and on what the recipient subsequently does downstream, neither of which is observable from a single recorded transaction.',
   )
   .url('https://www.rfc-editor.org/rfc/rfc9110.html#section-6.6.1')

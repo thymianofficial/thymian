@@ -7,7 +7,7 @@ export default httpRule(
   .severity('warn')
   .type(
     'informational',
-    'permission-or-statement-of-fact',
+    'nothing-to-check',
     'A SHOULD: declining to serve a partial response when the condition matches is legitimate (the resource may not truly support ranges, or the server may choose to return the full representation), so a non-206 outcome is not itself a violation.',
   )
   .url('https://www.rfc-editor.org/rfc/rfc9110.html#section-13.1.5')

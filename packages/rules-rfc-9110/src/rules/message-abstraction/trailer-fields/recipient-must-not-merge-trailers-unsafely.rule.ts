@@ -4,7 +4,7 @@ export default httpRule('rfc9110/recipient-must-not-merge-trailers-unsafely')
   .severity('error')
   .type(
     'informational',
-    'peer-internal-behaviour',
+    'peer-not-observable',
     'Whether a recipient merges a received trailer field into the header section is an internal decision that happens inside the recipient/intermediary and is not visible in the observed transaction. (Security-relevant: unsafe merging is a request-smuggling/header-injection vector, but it remains intermediary-internal behavior.)',
   )
   // An unsafely merged trailer field is applied as if it had arrived in the

@@ -7,7 +7,7 @@ export default httpRule(
   .severity('warn')
   .type(
     'informational',
-    'peer-internal-behaviour',
+    'peer-not-observable',
     '"Highest conformant version" is internal server capability not observable from a transaction.',
   )
   .appliesTo('server')

@@ -7,7 +7,7 @@ export default httpRule(
   .severity('error')
   .type(
     'informational',
-    'peer-internal-behaviour',
+    'peer-not-observable',
     'The internal sequencing of server-side processing — evaluating preconditions after normal checks and just before the method acts — is not exposed on the wire.',
   )
   .url('https://www.rfc-editor.org/rfc/rfc9110.html#section-13.2.1')

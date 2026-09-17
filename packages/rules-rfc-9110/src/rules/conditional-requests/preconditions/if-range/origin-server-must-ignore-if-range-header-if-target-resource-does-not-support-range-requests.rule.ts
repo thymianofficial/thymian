@@ -7,7 +7,7 @@ export default httpRule(
   .severity('error')
   .type(
     'informational',
-    'origin-internal-ground-truth',
+    'only-origin-knows',
     'Whether the target resource supports Range requests is internal server capability not reliably exposed on the wire — a range-capable resource can still omit Accept-Ranges, so its absence is not a definitive signal.',
   )
   .url('https://www.rfc-editor.org/rfc/rfc9110.html#section-13.1.5')

@@ -7,7 +7,7 @@ export default httpRule(
   .severity('hint')
   .type(
     'informational',
-    'permission-or-statement-of-fact',
+    'nothing-to-check',
     'A permissive, definitional statement about connection-closure framing; it imposes no testable requirement.',
   )
   .url('https://www.rfc-editor.org/rfc/rfc9110.html#section-6.1')
