@@ -7,7 +7,7 @@ export default httpRule(
   .severity('error')
   .type(
     'informational',
-    'peer-internal-behaviour',
+    'peer-not-observable',
     'How a recipient interprets an rfc850 two-digit year is an internal decision that produces no distinguishable artifact in the traffic Thymian can observe.',
   )
   .url('https://www.rfc-editor.org/rfc/rfc9110.html#section-5.6.7')

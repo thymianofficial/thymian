@@ -7,7 +7,7 @@ export default httpRule(
   .severity('warn')
   .type(
     'informational',
-    'origin-internal-ground-truth',
+    'only-origin-knows',
     "Whether the server relies on a private, out-of-band agreement to receive HEAD content is a property of the server's own design intent; nothing in a request, response, or recorded trace reveals it.",
   )
   .url('https://www.rfc-editor.org/rfc/rfc9110.html#name-get')

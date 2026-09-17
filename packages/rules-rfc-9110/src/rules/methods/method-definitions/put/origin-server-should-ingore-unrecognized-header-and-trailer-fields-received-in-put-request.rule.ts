@@ -7,7 +7,7 @@ export default httpRule(
   .severity('warn')
   .type(
     'informational',
-    'peer-internal-behaviour',
+    'peer-not-observable',
     'Whether unrecognized PUT header/trailer fields are (not) persisted as resource state is an internal server processing decision that produces no observable signal in the response or in recorded traffic.',
   )
   .url('https://www.rfc-editor.org/rfc/rfc9110.html#name-put')

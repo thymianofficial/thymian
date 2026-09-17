@@ -7,7 +7,7 @@ export default httpRule(
   .severity('hint')
   .type(
     'informational',
-    'permission-or-statement-of-fact',
+    'nothing-to-check',
     'A cache MAY reuse a GET response for subsequent GET/HEAD requests — a purely permissive allowance with nothing non-conformant to detect either way.',
   )
   .url('https://www.rfc-editor.org/rfc/rfc9110.html#name-get')

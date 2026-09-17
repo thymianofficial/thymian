@@ -7,7 +7,7 @@ export default httpRule(
   .severity('hint')
   .type(
     'informational',
-    'permission-or-statement-of-fact',
+    'nothing-to-check',
     'A purely permissive MAY — a server is allowed to omit header fields whose values are only computable while generating content, so there is no non-conformant condition to detect.',
   )
   .url('https://www.rfc-editor.org/rfc/rfc9110.html#name-head')

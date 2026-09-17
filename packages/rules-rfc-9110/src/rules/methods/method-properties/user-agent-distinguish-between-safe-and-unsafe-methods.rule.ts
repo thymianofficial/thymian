@@ -6,7 +6,7 @@ export default httpRule(
   .severity('warn')
   .type(
     'informational',
-    'peer-internal-behaviour',
+    'peer-not-observable',
     "This SHOULD is about a user agent's own presentation to a human (surfacing that an action is unsafe before it is requested) — UI/UX behavior with no representation on the wire.",
   )
   .tags('security:csrf')

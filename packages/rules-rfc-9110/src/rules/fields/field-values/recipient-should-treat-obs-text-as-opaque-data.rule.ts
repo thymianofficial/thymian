@@ -7,7 +7,7 @@ export default httpRule(
   .severity('warn')
   .type(
     'informational',
-    'peer-internal-behaviour',
+    'peer-not-observable',
     'Treating obs-text as opaque data is internal recipient handling; how the peer interprets those octets produces no distinguishable signal that Thymian can observe.',
   )
   .url('https://www.rfc-editor.org/rfc/rfc9110.html#section-5.5')

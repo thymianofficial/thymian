@@ -5,7 +5,7 @@ export default httpRule('rfc9110/recipient-must-accept-all-http-date-formats')
   .severity('error')
   .type(
     'informational',
-    'peer-internal-behaviour',
+    'peer-not-observable',
     "A recipient's internal parsing acceptance of all three HTTP-date formats leaves no signal on the wire — Thymian cannot see whether the peer accepted a given inbound timestamp format.",
   )
   .url('https://www.rfc-editor.org/rfc/rfc9110.html#section-5.6.7')

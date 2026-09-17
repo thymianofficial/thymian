@@ -5,7 +5,7 @@ export default httpRule('rfc9110/other-methods-than-get-and-head-are-optional')
   .severity('hint')
   .type(
     'informational',
-    'permission-or-statement-of-fact',
+    'nothing-to-check',
     'A purely permissive statement — every method other than GET and HEAD is OPTIONAL, so there is no non-conformant condition to detect; a server is free to implement, or reject with 501, any other method.',
   )
   .url('https://www.rfc-editor.org/rfc/rfc9110.html#name-overview')

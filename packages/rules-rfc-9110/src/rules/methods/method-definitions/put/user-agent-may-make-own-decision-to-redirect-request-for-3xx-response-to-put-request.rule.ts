@@ -7,7 +7,7 @@ export default httpRule(
   .severity('hint')
   .type(
     'informational',
-    'permission-or-statement-of-fact',
+    'nothing-to-check',
     "A permissive MAY describing a user agent's internal choice whether to follow a 3xx response to a PUT; the decision is not required either way, so there is no non-conformant condition to detect.",
   )
   .url('https://www.rfc-editor.org/rfc/rfc9110.html#name-put')

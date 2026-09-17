@@ -7,7 +7,7 @@ export default httpRule(
   .severity('warn')
   .type(
     'informational',
-    'origin-internal-ground-truth',
+    'only-origin-knows',
     "Whether an endpoint is conceptually a server-selects-the-URI operation is a semantic design judgement about the service's own intent, not something derivable from the method, status, or headers of a message.",
   )
   .url('https://www.rfc-editor.org/rfc/rfc9110.html#name-put')

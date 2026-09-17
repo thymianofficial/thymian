@@ -6,7 +6,7 @@ export default httpRule(
   .severity('error')
   .type(
     'informational',
-    'peer-internal-behaviour',
+    'peer-not-observable',
     'Whether a server defers applying a request until the full header section arrives is an internal timing/ordering decision with no distinguishable signal in a completed transaction that Thymian records.',
   )
   // Acting on a request before its full header section has arrived means a

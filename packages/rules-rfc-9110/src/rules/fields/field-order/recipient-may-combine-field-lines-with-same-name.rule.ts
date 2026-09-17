@@ -7,7 +7,7 @@ export default httpRule(
   .severity('off')
   .type(
     'informational',
-    'permission-or-statement-of-fact',
+    'nothing-to-check',
     'Combining same-name field lines is an optional internal recipient choice with no required outcome, and the recombined form is not re-emitted for Thymian to observe.',
   )
   .url('https://www.rfc-editor.org/rfc/rfc9110.html#section-5.3')

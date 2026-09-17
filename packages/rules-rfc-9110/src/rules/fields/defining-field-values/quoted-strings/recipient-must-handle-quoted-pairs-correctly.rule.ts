@@ -5,7 +5,7 @@ export default httpRule('rfc9110/recipient-must-handle-quoted-pairs-correctly')
   .severity('error')
   .type(
     'informational',
-    'peer-internal-behaviour',
+    'peer-not-observable',
     'How a recipient unescapes quoted-pairs is internal parsing behaviour; the resulting interpreted value is never re-emitted on the wire, so there is nothing for Thymian to observe.',
   )
   .url('https://www.rfc-editor.org/rfc/rfc9110.html#section-5.6.4')

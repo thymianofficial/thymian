@@ -6,7 +6,7 @@ export default httpRule(
   .severity('error')
   .type(
     'informational',
-    'peer-internal-behaviour',
+    'peer-not-observable',
     'How the client interprets (ignores) Content-Length / Transfer-Encoding on a successful CONNECT response is an internal processing decision that leaves no trace on the wire, so it cannot be observed from a response, from recorded traffic, or by testing.',
   )
   // A successful CONNECT response becomes a raw tunnel; Content-Length or

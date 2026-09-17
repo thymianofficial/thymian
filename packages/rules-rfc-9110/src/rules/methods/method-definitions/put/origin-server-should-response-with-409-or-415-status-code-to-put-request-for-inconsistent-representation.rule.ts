@@ -7,7 +7,7 @@ export default httpRule(
   .severity('warn')
   .type(
     'informational',
-    'origin-internal-ground-truth',
+    'only-origin-knows',
     "The triggering condition — whether a PUT representation is inconsistent with the server's own target-resource state — is server-internal and exposed by no message; even then 409/415 are only suggested, not required, since the server may instead make the representation consistent and succeed.",
   )
   .url('https://www.rfc-editor.org/rfc/rfc9110.html#name-put')

@@ -7,7 +7,7 @@ export default httpRule(
   .severity('off')
   .type(
     'informational',
-    'permission-or-statement-of-fact',
+    'nothing-to-check',
     'Retaining other CTL octets in safe contexts is an optional internal recipient allowance with no required outcome.',
   )
   .url('https://www.rfc-editor.org/rfc/rfc9110.html#section-5.5')

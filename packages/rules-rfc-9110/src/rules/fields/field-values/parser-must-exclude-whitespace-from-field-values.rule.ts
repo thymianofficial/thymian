@@ -7,7 +7,7 @@ export default httpRule(
   .severity('error')
   .type(
     'informational',
-    'peer-internal-behaviour',
+    'peer-not-observable',
     'Stripping leading/trailing whitespace before evaluating a field value is internal recipient parsing behaviour; the trimmed value is not re-emitted, so there is no observable signal.',
   )
   .url('https://www.rfc-editor.org/rfc/rfc9110.html#section-5.5')

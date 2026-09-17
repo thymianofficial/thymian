@@ -6,7 +6,7 @@ export default httpRule(
   .severity('error')
   .type(
     'informational',
-    'origin-internal-ground-truth',
+    'only-origin-knows',
     "Whether a resource's purpose is to perform an unsafe action, and whether a safe method actually mutated state, is server-internal semantics — the URI and method alone cannot tell an action-bearing safe request from a benign one, and a successful response does not reveal a side effect (a query-parameter heuristic would produce rampant false positives). The risk is real even though it cannot be mechanically validated.",
   )
   .tags('security:csrf')

@@ -6,7 +6,7 @@ export default httpRule(
   .severity('error')
   .type(
     'informational',
-    'peer-internal-behaviour',
+    'peer-not-observable',
     'Parsing-and-ignoring empty list elements is internal recipient behaviour that leaves no signal on the wire, and the "reasonable number" bound cannot be probed from Thymian-generated traffic.',
   )
   .tags('security:dos')

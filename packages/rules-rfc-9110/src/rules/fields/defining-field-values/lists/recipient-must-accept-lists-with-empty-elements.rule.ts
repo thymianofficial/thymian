@@ -7,7 +7,7 @@ export default httpRule(
   .severity('error')
   .type(
     'informational',
-    'peer-internal-behaviour',
+    'peer-not-observable',
     "Whether a recipient accepts a list containing empty elements is internal parsing behaviour with no observable signal, and Thymian cannot inject such a list into the peer's inbound path to probe it.",
   )
   .url('https://www.rfc-editor.org/rfc/rfc9110.html#section-5.6.1')

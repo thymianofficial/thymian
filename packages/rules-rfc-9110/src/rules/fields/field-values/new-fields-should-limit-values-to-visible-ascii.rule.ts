@@ -7,7 +7,7 @@ export default httpRule(
   .severity('warn')
   .type(
     'informational',
-    'permission-or-statement-of-fact',
+    'nothing-to-check',
     'This SHOULD constrains authors of new field specifications, not messages on the wire — there is no HTTP transaction that can conform to or violate it.',
   )
   .url('https://www.rfc-editor.org/rfc/rfc9110.html#section-5.5')

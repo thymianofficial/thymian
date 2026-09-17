@@ -7,7 +7,7 @@ export default httpRule(
   .severity('off')
   .type(
     'informational',
-    'permission-or-statement-of-fact',
+    'nothing-to-check',
     'Removal of BWS is optional internal recipient behaviour before interpreting/forwarding; there is no required outcome to check.',
   )
   .url('https://www.rfc-editor.org/rfc/rfc9110.html#section-5.6.3')

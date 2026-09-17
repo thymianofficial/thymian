@@ -7,7 +7,7 @@ export default httpRule(
   .severity('warn')
   .type(
     'informational',
-    'peer-internal-behaviour',
+    'peer-not-observable',
     "This governs the client's own internal retry policy and is gated on client-only knowledge (whether it has some means to know the semantics are idempotent, or that the request was never applied); neither that knowledge nor whether a retry was automatic is visible in any message.",
   )
   .url('https://www.rfc-editor.org/rfc/rfc9110.html#name-idempotent-methods')

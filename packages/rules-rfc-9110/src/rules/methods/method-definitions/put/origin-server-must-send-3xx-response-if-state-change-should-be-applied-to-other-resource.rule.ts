@@ -7,7 +7,7 @@ export default httpRule(
   .severity('error')
   .type(
     'informational',
-    'origin-internal-ground-truth',
+    'only-origin-knows',
     'The triggering condition is the server\'s own intent to redirect a PUT state change to a different resource; no message exposes that intent, and a bare "PUT got a 3xx" check cannot tell an intended relocation from any other redirect.',
   )
   .url('https://www.rfc-editor.org/rfc/rfc9110.html#name-put')
