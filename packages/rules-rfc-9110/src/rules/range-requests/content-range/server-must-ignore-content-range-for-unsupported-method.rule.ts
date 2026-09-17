@@ -7,7 +7,7 @@ export default httpRule(
   .severity('error')
   .type(
     'informational',
-    'peer-internal-behaviour',
+    'peer-not-observable',
     'The server must ignore a Content-Range received in a request whose method has no defined Content-Range support. Ignoring is internal — the request is processed as if the field were absent — and produces no distinguishing wire signal.',
   )
   .url('https://www.rfc-editor.org/rfc/rfc9110.html#name-content-range')

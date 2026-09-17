@@ -7,7 +7,7 @@ export default httpRule(
   .severity('warn')
   .type(
     'informational',
-    'peer-internal-behaviour',
+    'peer-not-observable',
     'The SHOULD is gated on server-internal preconditions: Range supported, a valid specifier, and either an unsupported unit or a range unsatisfiable against the selected representation. Unsatisfiable and unsupported-unit cannot be determined from spec or traffic without knowing the representation length and supported units the server holds internally.',
   )
   .url('https://www.rfc-editor.org/rfc/rfc9110.html#name-range')

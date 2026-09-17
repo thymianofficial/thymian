@@ -7,7 +7,7 @@ export default httpRule(
   .severity('error')
   .type(
     'informational',
-    'permission-or-statement-of-fact',
+    'nothing-to-check',
     "Constrains how an authentication scheme's grammar is specified — a scheme must accept both token and quoted-string notations for parameter values, for senders and recipients alike. That is a property of the scheme specification, not of any individual HTTP message, so there is nothing in a request, response, or recorded transaction to check.",
   )
   .url(

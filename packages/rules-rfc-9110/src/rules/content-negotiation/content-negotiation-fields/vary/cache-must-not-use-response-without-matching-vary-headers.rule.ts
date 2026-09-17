@@ -6,7 +6,7 @@ export default httpRule(
   .severity('error')
   .type(
     'informational',
-    'peer-internal-behaviour',
+    'peer-not-observable',
     "Governs a cache's internal reuse decision: serving a stored response to a later request whose values for the Vary-listed header fields differ from the original request. Detecting a violation requires correlating two requests and knowing the second was answered from cache with the first's stored representation — a cache-hit linkage not available from a single transaction, and not reliably reconstructable from a HAR; it would take traffic recorded at the cache itself, annotating hits and the selecting header values.",
   )
   .tags('security:cache-poisoning')

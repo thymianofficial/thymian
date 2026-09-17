@@ -7,7 +7,7 @@ export default httpRule(
   .severity('hint')
   .type(
     'informational',
-    'permission-or-statement-of-fact',
+    'nothing-to-check',
     'A MAY: ignoring the Range header for a zero-length representation is allowed but not required. Ignoring and honoring it are both conformant.',
   )
   .url('https://www.rfc-editor.org/rfc/rfc9110.html#name-range')

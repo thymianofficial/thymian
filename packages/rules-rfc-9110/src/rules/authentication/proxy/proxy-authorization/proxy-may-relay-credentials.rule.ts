@@ -5,7 +5,7 @@ export default httpRule('rfc9110/proxy-may-relay-credentials')
   .severity('hint')
   .type(
     'informational',
-    'permission-or-statement-of-fact',
+    'nothing-to-check',
     'A permissive MAY describing internal proxy behavior: a proxy may relay client credentials to the next proxy when proxies cooperatively authenticate. Relaying and not relaying are both conformant, and the decision is proxy-internal.',
   )
   .url(
