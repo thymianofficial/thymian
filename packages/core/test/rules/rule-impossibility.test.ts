@@ -61,16 +61,12 @@ describe('impossibility reason vocabulary', () => {
   it('builds a reasoned informational rule and carries the reason and note on meta', () => {
     const rule = httpRule('reasoned-informational')
       .severity('error')
-      .type(
-        'informational',
-        'permission-or-statement-of-fact',
-        'A MAY with nothing to check.',
-      )
+      .type('informational', 'nothing-to-check', 'A MAY with nothing to check.')
       .done();
 
     expect(rule.meta.type).toEqual(['informational']);
     expect(rule.meta.impossibility).toEqual({
-      reason: 'permission-or-statement-of-fact',
+      reason: 'nothing-to-check',
       note: 'A MAY with nothing to check.',
     });
   });
@@ -97,11 +93,11 @@ describe('impossibility reason vocabulary', () => {
   it('trims the note', () => {
     const rule = httpRule('trims-note')
       .severity('error')
-      .type('informational', 'peer-internal-behaviour', '  spaced  ')
+      .type('informational', 'peer-not-observable', '  spaced  ')
       .done();
 
     expect(rule.meta.impossibility).toEqual({
-      reason: 'peer-internal-behaviour',
+      reason: 'peer-not-observable',
       note: 'spaced',
     });
   });

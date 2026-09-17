@@ -106,7 +106,7 @@ describe('checkRuleExecutionInvariant', () => {
           meta: {
             type: ['static'],
             impossibility: {
-              reason: 'permission-or-statement-of-fact',
+              reason: 'nothing-to-check',
               note: 'should not be reachable on an executable rule',
             },
           },

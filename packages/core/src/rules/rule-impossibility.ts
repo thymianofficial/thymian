@@ -8,12 +8,10 @@
 // `.github/skills/add-http-rule-set/reference/executability-gate.md` for how
 // to choose a code; adding one later is a free union widening.
 export const tier1ImpossibilityReasons = {
-  'origin-internal-ground-truth':
-    'Only the origin knows the fact the statement is about.',
-  'peer-internal-behaviour':
+  'only-origin-knows': 'Only the origin knows the fact the statement is about.',
+  'peer-not-observable':
     'The obligation is on a peer whose internals are not observable.',
-  'permission-or-statement-of-fact':
-    "A 'MAY', or a statement that asserts nothing to check.",
+  'nothing-to-check': 'A statement that asserts nothing to check.',
   'tool-limitation':
     'Thymian could do this in principle; the implementation cannot yet.',
 } as const satisfies Record<string, string>;
