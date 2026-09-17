@@ -7,7 +7,7 @@ export default httpRule(
   .severity('error')
   .type(
     'informational',
-    'origin-internal-ground-truth',
+    'only-origin-knows',
     'Whether a resource has a modification date available is internal server state not exposed on the wire, so whether ignoring If-Modified-Since was required cannot be determined externally.',
   )
   .url('https://www.rfc-editor.org/rfc/rfc9110.html#section-13.1.3')

@@ -5,7 +5,7 @@ export default httpRule('rfc9110/message-complete-when-framed-octets-available')
   .severity('hint')
   .type(
     'informational',
-    'permission-or-statement-of-fact',
+    'nothing-to-check',
     'A definitional statement of when a message is considered "complete"; it defines a term rather than imposing a requirement.',
   )
   .url('https://www.rfc-editor.org/rfc/rfc9110.html#section-6.1')

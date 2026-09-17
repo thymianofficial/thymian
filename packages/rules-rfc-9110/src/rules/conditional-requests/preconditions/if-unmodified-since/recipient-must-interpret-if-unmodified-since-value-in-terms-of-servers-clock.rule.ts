@@ -7,7 +7,7 @@ export default httpRule(
   .severity('error')
   .type(
     'informational',
-    'peer-internal-behaviour',
+    'peer-not-observable',
     "How the recipient interprets the timestamp internally (against the origin's clock) is not exposed on the wire; detecting a divergent interpretation would require correlating clock skew across many transactions.",
   )
   .url('https://www.rfc-editor.org/rfc/rfc9110.html#section-13.1.4')

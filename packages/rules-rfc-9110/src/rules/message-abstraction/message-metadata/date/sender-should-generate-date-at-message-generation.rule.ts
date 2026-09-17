@@ -7,7 +7,7 @@ export default httpRule(
   .severity('hint')
   .type(
     'informational',
-    'peer-internal-behaviour',
+    'peer-not-observable',
     'Verifying that the Date value approximates the moment of message generation would require knowing the true message-generation instant, which is not recoverable from a recorded transaction — only receipt time is seen, and the RFC allows the sender to pick any instant during origination.',
   )
   .url('https://www.rfc-editor.org/rfc/rfc9110.html#section-6.6.1')

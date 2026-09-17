@@ -7,7 +7,7 @@ export default httpRule(
   .severity('hint')
   .type(
     'informational',
-    'permission-or-statement-of-fact',
+    'nothing-to-check',
     'A terminology definition (what the spec means by "header field"); it imposes no requirement on any message.',
   )
   .url('https://www.rfc-editor.org/rfc/rfc9110.html#section-6.3')

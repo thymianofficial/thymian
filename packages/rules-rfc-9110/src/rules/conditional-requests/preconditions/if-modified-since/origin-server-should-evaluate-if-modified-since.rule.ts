@@ -7,7 +7,7 @@ export default httpRule(
   .severity('warn')
   .type(
     'informational',
-    'peer-internal-behaviour',
+    'peer-not-observable',
     'Internal evaluation timing is not directly observable.',
   )
   .url('https://www.rfc-editor.org/rfc/rfc9110.html#section-13.1.3')

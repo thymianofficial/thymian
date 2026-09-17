@@ -7,7 +7,7 @@ export default httpRule(
   .severity('error')
   .type(
     'informational',
-    'peer-internal-behaviour',
+    'peer-not-observable',
     'The internal order in which multiple simultaneous preconditions are evaluated is not directly observable; most input combinations yield the same status under any ordering.',
   )
   .url('https://www.rfc-editor.org/rfc/rfc9110.html#section-13.2.2')

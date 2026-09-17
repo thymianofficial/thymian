@@ -5,7 +5,7 @@ export default httpRule('rfc9110/server-must-evaluate-if-range')
   .severity('error')
   .type(
     'informational',
-    'peer-internal-behaviour',
+    'peer-not-observable',
     'Internal evaluation timing is not observable on the wire.',
   )
   .url('https://www.rfc-editor.org/rfc/rfc9110.html#section-13.1.5')

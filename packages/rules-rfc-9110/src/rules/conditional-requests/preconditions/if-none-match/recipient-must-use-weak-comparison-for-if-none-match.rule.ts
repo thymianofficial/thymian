@@ -7,7 +7,7 @@ export default httpRule(
   .severity('error')
   .type(
     'informational',
-    'peer-internal-behaviour',
+    'peer-not-observable',
     'Which comparison function the recipient applies internally to If-None-Match is not exposed on the wire; distinguishing weak from strong comparison would require the server to mint a controllable weak ETag variant, which cannot be arranged from outside.',
   )
   .url('https://www.rfc-editor.org/rfc/rfc9110.html#section-13.1.2')

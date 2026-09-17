@@ -7,7 +7,7 @@ export default httpRule(
   .severity('hint')
   .type(
     'informational',
-    'permission-or-statement-of-fact',
+    'nothing-to-check',
     'A MAY: 412 is permitted but not required, so neither a 412 nor a non-412 response is by itself a violation.',
   )
   .url('https://www.rfc-editor.org/rfc/rfc9110.html#section-13.1.4')

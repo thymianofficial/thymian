@@ -7,7 +7,7 @@ export default httpRule(
   .severity('error')
   .type(
     'informational',
-    'peer-internal-behaviour',
+    'peer-not-observable',
     'Whether a non-origin, non-caching intermediary evaluated (rather than forwarded) the conditional headers leaves no distinguishing signal in a single transaction.',
   )
   .url('https://www.rfc-editor.org/rfc/rfc9110.html#section-13.2.1')

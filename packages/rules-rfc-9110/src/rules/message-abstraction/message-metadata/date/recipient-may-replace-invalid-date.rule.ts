@@ -5,7 +5,7 @@ export default httpRule('rfc9110/recipient-may-replace-invalid-date')
   .severity('hint')
   .type(
     'informational',
-    'permission-or-statement-of-fact',
+    'nothing-to-check',
     'A MAY describing internal recipient behavior (replacing an invalid Date value with reception time); a local processing choice with no non-conformant condition observable in the transaction.',
   )
   .url('https://www.rfc-editor.org/rfc/rfc9110.html#section-6.6.1')

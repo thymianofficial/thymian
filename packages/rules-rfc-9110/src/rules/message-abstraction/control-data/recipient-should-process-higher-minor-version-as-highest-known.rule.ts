@@ -7,7 +7,7 @@ export default httpRule(
   .severity('hint')
   .type(
     'informational',
-    'peer-internal-behaviour',
+    'peer-not-observable',
     'How a recipient internally processes a message whose minor version exceeds what it implements is internal recipient processing logic, not observable from a transaction.',
   )
   .url('https://www.rfc-editor.org/rfc/rfc9110.html#section-6.2')

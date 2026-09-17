@@ -7,7 +7,7 @@ export default httpRule(
   .severity('warn')
   .type(
     'informational',
-    'peer-internal-behaviour',
+    'peer-not-observable',
     "This SHOULD is conditional on the client's private cache state — whether it holds a stored, entity-tagged response it wants updated — which is not present in the request and is not observable; omitting If-None-Match is also fine when there is nothing to revalidate.",
   )
   .url('https://www.rfc-editor.org/rfc/rfc9110.html#section-13.1.2')

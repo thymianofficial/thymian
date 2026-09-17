@@ -5,7 +5,7 @@ export default httpRule('rfc9110/client-must-retain-knowledge-of-request')
   .severity('error')
   .type(
     'informational',
-    'peer-internal-behaviour',
+    'peer-not-observable',
     'How a client internally parses and caches a response (e.g. not parsing a HEAD response like a GET response) is internal client behavior with no observable on-the-wire condition.',
   )
   .appliesTo('client')

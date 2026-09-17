@@ -5,7 +5,7 @@ export default httpRule('rfc9110/server-should-not-generate-necessary-trailers')
   .severity('warn')
   .type(
     'informational',
-    'peer-internal-behaviour',
+    'peer-not-observable',
     'Conformance turns on the server\'s belief that a trailer is "necessary for the user agent to receive" — internal server state not derivable from the wire.',
   )
   .appliesTo('server')

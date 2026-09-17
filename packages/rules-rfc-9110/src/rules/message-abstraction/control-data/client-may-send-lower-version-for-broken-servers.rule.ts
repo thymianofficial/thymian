@@ -7,7 +7,7 @@ export default httpRule(
   .severity('hint')
   .type(
     'informational',
-    'permission-or-statement-of-fact',
+    'nothing-to-check',
     'A MAY: the HTTP version token is not exposed by the rule framework, and this is a conditional allowance after a prior failed request — nothing is non-conformant either way.',
   )
   .appliesTo('client')
