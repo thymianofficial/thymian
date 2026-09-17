@@ -169,10 +169,13 @@ _impossible with a named reason_.
 
 - **Heuristic assertions are legal, never at `error`, and declared per context.**
   Heuristic-ness attaches to an assertion _in a context_ — the same assertion can be exact
-  in `static` and a guess in `analytics`. It rides at `warn`/`hint`; `recommended` excludes
-  or downgrades it, `strict` includes it. Barring heuristics would have cost 30 of the
-  130 executable statements and forced them into `informational`, which the first sentence
-  of this section forbids.
+  in `static` and a guess in `analytics`. It rides at `warn`/`hint`, and §3's promotion
+  gate is what keeps it there: a heuristic rule is **never promotable**, whatever concern
+  tag it carries. That is the only claim this section makes about profiles — `recommended`
+  is not a leniency rung below `strict`, and may run a tagged, exactly-observable `SHOULD`
+  at `error` where `strict` holds it at the source's `warn`. Barring heuristics would have
+  cost 30 of the 130 executable statements and forced them into `informational`, which the
+  first sentence of this section forbids.
 - **Impossibility reasons are a closed vocabulary in two tiers.** Tier 1 makes a rule
   informational and lives in the rule file; tier 2 excludes one context and lives in
   `coverage.ts`.
