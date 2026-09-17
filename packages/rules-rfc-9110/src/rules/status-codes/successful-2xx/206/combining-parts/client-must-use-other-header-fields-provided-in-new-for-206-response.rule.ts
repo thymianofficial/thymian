@@ -7,7 +7,7 @@ export default httpRule(
   .severity('error')
   .type(
     'informational',
-    'peer-internal-behaviour',
+    'peer-not-observable',
     'Internal client cache-update behavior when combining partial responses; not observable from emitted traffic.',
   )
   .url('https://www.rfc-editor.org/rfc/rfc9110.html#name-combining-parts')

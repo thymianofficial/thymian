@@ -7,7 +7,7 @@ export default httpRule(
   .severity('hint')
   .type(
     'informational',
-    'permission-or-statement-of-fact',
+    'nothing-to-check',
     'A MAY describing internal user-agent redirect behavior; no non-conformant condition to observe.',
   )
   .url(

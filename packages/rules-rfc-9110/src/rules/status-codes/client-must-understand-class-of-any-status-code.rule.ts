@@ -7,7 +7,7 @@ export default httpRule(
   .severity('error')
   .type(
     'informational',
-    'peer-internal-behaviour',
+    'peer-not-observable',
     "Internal client parsing and understanding of a status code's class; not observable from the wire.",
   )
   .url('https://www.rfc-editor.org/rfc/rfc9110.html#name-status-codes')

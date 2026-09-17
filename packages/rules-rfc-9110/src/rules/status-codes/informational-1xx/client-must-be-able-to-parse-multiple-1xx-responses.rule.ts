@@ -7,7 +7,7 @@ export default httpRule(
   .severity('error')
   .type(
     'informational',
-    'peer-internal-behaviour',
+    'peer-not-observable',
     'Internal client parsing capability for interim 1xx responses; not observable from recorded final-response traffic.',
   )
   .url('https://datatracker.ietf.org/doc/html/rfc9110#name-informational-1xx')

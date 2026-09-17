@@ -7,7 +7,7 @@ export default httpRule(
   .severity('error')
   .type(
     'informational',
-    'peer-internal-behaviour',
+    'peer-not-observable',
     'Internal client requirement to inspect per-part Content-Range; not observable from the wire.',
   )
   .url('https://datatracker.ietf.org/doc/html/rfc9110#name-multiple-parts')

@@ -7,7 +7,7 @@ export default httpRule(
   .severity('hint')
   .type(
     'informational',
-    'permission-or-statement-of-fact',
+    'nothing-to-check',
     'A MAY describing an internal user-agent decision (whether to automatically select a redirection from the 300 response content). Both selecting and not selecting are conformant, so there is no non-conformant condition to observe from request/response traffic.',
   )
   .url('https://www.rfc-editor.org/rfc/rfc9110.html#name-300-multiple-choices')

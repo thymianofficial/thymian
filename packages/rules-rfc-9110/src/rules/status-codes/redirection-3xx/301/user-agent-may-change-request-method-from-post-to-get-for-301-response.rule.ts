@@ -7,7 +7,7 @@ export default httpRule(
   .severity('hint')
   .type(
     'informational',
-    'permission-or-statement-of-fact',
+    'nothing-to-check',
     'A MAY describing an internal user-agent decision (whether to change POST to GET when following a 301). Both behaviors are conformant, so there is no non-conformant condition.',
   )
   .url('https://www.rfc-editor.org/rfc/rfc9110.html#name-301-moved-permanently')

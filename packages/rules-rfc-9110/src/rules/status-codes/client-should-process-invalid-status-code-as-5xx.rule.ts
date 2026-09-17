@@ -7,7 +7,7 @@ export default httpRule(
   .severity('warn')
   .type(
     'informational',
-    'peer-internal-behaviour',
+    'peer-not-observable',
     'Internal client handling of out-of-range status codes; not observable from emitted traffic.',
   )
   .url('https://www.rfc-editor.org/rfc/rfc9110.html#name-status-codes')

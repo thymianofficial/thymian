@@ -7,7 +7,7 @@ export default httpRule(
   .severity('warn')
   .type(
     'informational',
-    'peer-internal-behaviour',
+    'peer-not-observable',
     'Client-side SHOULD NOT governing an internal retry decision (do not automatically resend with the same credentials). Detecting a violation would require reliably linking a later request to an automatic retry of an earlier 403 and confirming identical credentials — an attribution internal to the client and not reconstructable from captured traffic (a user may legitimately re-issue the request).',
   )
   .url('https://www.rfc-editor.org/rfc/rfc9110.html#name-403-forbidden')

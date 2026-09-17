@@ -7,7 +7,7 @@ export default httpRule(
   .severity('error')
   .type(
     'informational',
-    'peer-internal-behaviour',
+    'peer-not-observable',
     'Constrains how a user agent constructs an automatic follow-up request. Reliably attributing a later request to an automatic 307 redirect (vs a fresh user action) is internal to the user agent and not possible from captured traffic.',
   )
   .url(

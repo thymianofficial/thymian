@@ -7,7 +7,7 @@ export default httpRule(
   .severity('error')
   .type(
     'informational',
-    'peer-internal-behaviour',
+    'peer-not-observable',
     'Conditioned on an internal client capability (whether it can process multipart/byteranges), which is not observable from traffic.',
   )
   .url('https://datatracker.ietf.org/doc/html/rfc9110#name-multiple-parts')

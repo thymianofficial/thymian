@@ -7,7 +7,7 @@ export default httpRule(
   .severity('hint')
   .type(
     'informational',
-    'permission-or-statement-of-fact',
+    'nothing-to-check',
     'A MAY describing an internal user-agent choice; no non-conformant condition exists to detect.',
   )
   .url('https://www.rfc-editor.org/rfc/rfc9110.html#name-406-not-acceptable')

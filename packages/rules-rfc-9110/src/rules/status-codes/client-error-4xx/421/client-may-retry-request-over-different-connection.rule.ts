@@ -7,7 +7,7 @@ export default httpRule(
   .severity('hint')
   .type(
     'informational',
-    'permission-or-statement-of-fact',
+    'nothing-to-check',
     'A MAY describing an internal client retry decision over a different connection; no non-conformant condition to observe.',
   )
   .url(

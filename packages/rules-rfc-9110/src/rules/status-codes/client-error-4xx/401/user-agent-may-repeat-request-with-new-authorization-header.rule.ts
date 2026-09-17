@@ -7,7 +7,7 @@ export default httpRule(
   .severity('hint')
   .type(
     'informational',
-    'permission-or-statement-of-fact',
+    'nothing-to-check',
     'A MAY describing an internal user-agent retry decision (whether to repeat a 401 with new/replaced credentials). There is no non-conformant condition to observe: retrying is optional and not retrying is equally valid.',
   )
   .url('https://www.rfc-editor.org/rfc/rfc9110.html#name-401-unauthorized')

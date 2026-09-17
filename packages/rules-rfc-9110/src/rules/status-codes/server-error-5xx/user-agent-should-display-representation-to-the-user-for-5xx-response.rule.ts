@@ -7,7 +7,7 @@ export default httpRule(
   .severity('warn')
   .type(
     'informational',
-    'peer-internal-behaviour',
+    'peer-not-observable',
     'Internal user-agent display behavior; not observable from traffic.',
   )
   .url('https://www.rfc-editor.org/rfc/rfc9110.html#name-server-error-5xx')

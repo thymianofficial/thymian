@@ -5,7 +5,7 @@ export default httpRule('rfc9110/server-may-close-connection-for-413-response')
   .severity('hint')
   .type(
     'informational',
-    'permission-or-statement-of-fact',
+    'nothing-to-check',
     'A MAY about closing the underlying connection; nothing is non-conformant either way.',
   )
   .url('https://www.rfc-editor.org/rfc/rfc9110.html#name-413-content-too-large')

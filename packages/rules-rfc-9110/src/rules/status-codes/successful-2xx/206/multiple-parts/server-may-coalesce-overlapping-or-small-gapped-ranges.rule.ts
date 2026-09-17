@@ -7,7 +7,7 @@ export default httpRule(
   .severity('hint')
   .type(
     'informational',
-    'permission-or-statement-of-fact',
+    'nothing-to-check',
     'A MAY about coalescing ranges; no non-conformant condition.',
   )
   .url('https://datatracker.ietf.org/doc/html/rfc9110#name-multiple-parts')

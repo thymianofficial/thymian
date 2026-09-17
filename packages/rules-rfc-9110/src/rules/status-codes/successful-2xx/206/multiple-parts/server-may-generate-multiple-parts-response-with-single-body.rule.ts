@@ -7,7 +7,7 @@ export default httpRule(
   .severity('hint')
   .type(
     'informational',
-    'permission-or-statement-of-fact',
+    'nothing-to-check',
     'A MAY; no non-conformant condition to observe.',
   )
   .url('https://datatracker.ietf.org/doc/html/rfc9110#name-multiple-parts')

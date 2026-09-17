@@ -7,7 +7,7 @@ export default httpRule(
   .severity('warn')
   .type(
     'informational',
-    'peer-internal-behaviour',
+    'peer-not-observable',
     'Internal user-agent presentation behavior (whether to show the error representation to the user); not observable from request/response traffic.',
   )
   .url('https://www.rfc-editor.org/rfc/rfc9110.html#name-401-unauthorized')

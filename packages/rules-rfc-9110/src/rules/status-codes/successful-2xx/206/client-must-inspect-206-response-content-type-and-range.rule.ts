@@ -7,7 +7,7 @@ export default httpRule(
   .severity('error')
   .type(
     'informational',
-    'peer-internal-behaviour',
+    'peer-not-observable',
     'Internal client requirement to inspect Content-Type/Content-Range before use; not observable from the wire.',
   )
   .appliesTo('client')
