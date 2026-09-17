@@ -4,7 +4,7 @@ export default httpRule('rfc9110/server-should-not-use-from-for-authentication')
   .severity('hint')
   .type(
     'informational',
-    'peer-internal-behaviour',
+    'peer-not-observable',
     'Whether a server uses the From field for access control or authentication is internal server logic, not observable from request or response messages on the wire.',
   )
   .tags('security:authentication')

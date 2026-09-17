@@ -6,7 +6,7 @@ export default httpRule(
   .severity('hint')
   .type(
     'informational',
-    'peer-internal-behaviour',
+    'peer-not-observable',
     'Detecting an intermediary modifying Referer requires comparing the field value across adjacent proxy hops, which is not observable from a single vantage point.',
   )
   .tags('privacy:referrer')

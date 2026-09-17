@@ -7,7 +7,7 @@ export default httpRule(
   .severity('warn')
   .type(
     'informational',
-    'peer-internal-behaviour',
+    'peer-not-observable',
     'Whether a subproduct was added by a third party is not determinable from the wire value of a single Server field — only whoever assembled the field knows.',
   )
   .tags('security:disclosure')

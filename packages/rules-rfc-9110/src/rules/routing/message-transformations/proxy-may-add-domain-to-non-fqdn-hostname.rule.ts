@@ -5,7 +5,7 @@ export default httpRule('rfc9110/proxy-may-add-domain-to-non-fqdn-hostname')
   .severity('hint')
   .type(
     'informational',
-    'permission-or-statement-of-fact',
+    'nothing-to-check',
     'A permission — completing a non-FQDN host with a local domain is an optional proxy behavior, so its presence is never a violation.',
   )
   .url(

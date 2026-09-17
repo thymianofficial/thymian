@@ -6,7 +6,7 @@ export default httpRule(
   .severity('hint')
   .type(
     'informational',
-    'permission-or-statement-of-fact',
+    'nothing-to-check',
     "'Needlessly fine-grained detail' is a subjective editorial judgment about the User-Agent value with no objective, machine-checkable threshold.",
   )
   .tags('privacy:fingerprinting')

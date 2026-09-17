@@ -7,7 +7,7 @@ export default httpRule(
   .severity('warn')
   .type(
     'informational',
-    'peer-internal-behaviour',
+    'peer-not-observable',
     'How long a client waits before sending content is client-side timing behaviour that leaves no signature in the request or response messages.',
   )
   .url('https://www.rfc-editor.org/rfc/rfc9110.html#name-expect')

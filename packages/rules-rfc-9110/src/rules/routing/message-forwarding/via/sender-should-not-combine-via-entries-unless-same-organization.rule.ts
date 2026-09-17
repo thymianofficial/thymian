@@ -7,7 +7,7 @@ export default httpRule(
   .severity('warn')
   .type(
     'informational',
-    'peer-internal-behaviour',
+    'peer-not-observable',
     "Whether combined Via entries belong to the same organization is deployment/administrative knowledge only the combining sender's own operator has — not present in the message.",
   )
   .url('https://www.rfc-editor.org/rfc/rfc9110.html#name-via')

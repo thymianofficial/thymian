@@ -7,7 +7,7 @@ export default httpRule(
   .severity('hint')
   .type(
     'informational',
-    'peer-internal-behaviour',
+    'peer-not-observable',
     "Whether a client's later request is a deliberate repeat of an earlier 417'd one is an internal client decision; nothing on the wire marks two requests as the same logical retry.",
   )
   .url('https://www.rfc-editor.org/rfc/rfc9110.html#name-expect')

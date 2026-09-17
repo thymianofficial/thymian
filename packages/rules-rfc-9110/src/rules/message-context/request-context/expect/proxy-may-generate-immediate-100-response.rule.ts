@@ -5,7 +5,7 @@ export default httpRule('rfc9110/proxy-may-generate-immediate-100-response')
   .severity('hint')
   .type(
     'informational',
-    'permission-or-statement-of-fact',
+    'nothing-to-check',
     'A permission (MAY generate a 100 response), not a testable constraint; there is no violating behaviour to detect.',
   )
   .url('https://www.rfc-editor.org/rfc/rfc9110.html#name-expect')

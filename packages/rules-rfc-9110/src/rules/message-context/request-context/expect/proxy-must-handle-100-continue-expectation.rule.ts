@@ -5,7 +5,7 @@ export default httpRule('rfc9110/proxy-must-handle-100-continue-expectation')
   .severity('hint')
   .type(
     'informational',
-    'permission-or-statement-of-fact',
+    'nothing-to-check',
     'Both permitted proxy behaviours (respond with a final status, or forward toward the origin) are conforming, so nothing is non-conformant either way.',
   )
   .url('https://www.rfc-editor.org/rfc/rfc9110.html#name-expect')

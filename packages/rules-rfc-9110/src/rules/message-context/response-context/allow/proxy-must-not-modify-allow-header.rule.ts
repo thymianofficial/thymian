@@ -5,7 +5,7 @@ export default httpRule('rfc9110/proxy-must-not-modify-allow-header')
   .severity('hint')
   .type(
     'informational',
-    'peer-internal-behaviour',
+    'peer-not-observable',
     'Detecting a proxy modifying Allow requires comparing the field value across adjacent proxy hops, which is not observable from a single vantage point.',
   )
   .url('https://www.rfc-editor.org/rfc/rfc9110.html#name-allow')

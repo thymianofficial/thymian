@@ -5,7 +5,7 @@ export default httpRule('rfc9110/server-must-ignore-100-continue-in-http-1.0')
   .severity('hint')
   .type(
     'informational',
-    'peer-internal-behaviour',
+    'peer-not-observable',
     "Ignoring the expectation is the absence of a behaviour; a conforming server's internal handling of the 100-continue expectation produces no distinguishing wire signal.",
   )
   .url('https://www.rfc-editor.org/rfc/rfc9110.html#name-expect')

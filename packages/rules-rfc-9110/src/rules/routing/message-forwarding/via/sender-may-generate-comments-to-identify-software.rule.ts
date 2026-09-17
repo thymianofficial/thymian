@@ -6,7 +6,7 @@ export default httpRule(
   .severity('hint')
   .type(
     'informational',
-    'permission-or-statement-of-fact',
+    'nothing-to-check',
     'A permission — adding software-identifying comments to Via is optional, so their presence or absence is never a violation.',
   )
   .tags('security:disclosure')

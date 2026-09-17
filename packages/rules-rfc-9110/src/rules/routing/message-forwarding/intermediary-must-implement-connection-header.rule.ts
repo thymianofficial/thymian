@@ -4,7 +4,7 @@ export default httpRule('rfc9110/intermediary-must-implement-connection-header')
   .severity('error')
   .type(
     'informational',
-    'peer-internal-behaviour',
+    'peer-not-observable',
     'Implementing the Connection header is a capability requirement; conformance shows up only in downstream forwarding behavior at the next hop, not as a single observable message artifact.',
   )
   .tags('security:request-smuggling')

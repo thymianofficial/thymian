@@ -7,7 +7,7 @@ export default httpRule(
   .severity('hint')
   .type(
     'informational',
-    'peer-internal-behaviour',
+    'peer-not-observable',
     'Constrains how the user agent internally processes the redirect (fragment inheritance), which happens client-side and leaves no signature in the response message.',
   )
   .url('https://www.rfc-editor.org/rfc/rfc9110.html#name-location')

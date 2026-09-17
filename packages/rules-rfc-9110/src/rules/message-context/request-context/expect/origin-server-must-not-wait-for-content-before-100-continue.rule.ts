@@ -7,7 +7,7 @@ export default httpRule(
   .severity('hint')
   .type(
     'informational',
-    'peer-internal-behaviour',
+    'peer-not-observable',
     'A timing/ordering requirement on the origin server with no signature in the response message; not observable from traffic.',
   )
   .url('https://www.rfc-editor.org/rfc/rfc9110.html#name-expect')

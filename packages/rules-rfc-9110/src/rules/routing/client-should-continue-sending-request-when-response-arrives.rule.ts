@@ -7,7 +7,7 @@ export default httpRule(
   .severity('warn')
   .type(
     'informational',
-    'peer-internal-behaviour',
+    'peer-not-observable',
     'Whether a client keeps sending its request body while a response arrives is an internal client timing decision with no observable on-the-wire artifact to validate.',
   )
   .url('https://www.rfc-editor.org/rfc/rfc9110.html#name-response-correlation')

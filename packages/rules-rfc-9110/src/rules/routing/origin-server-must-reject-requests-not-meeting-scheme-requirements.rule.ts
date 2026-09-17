@@ -6,7 +6,7 @@ export default httpRule(
   .severity('error')
   .type(
     'informational',
-    'origin-internal-ground-truth',
+    'only-origin-knows',
     'Judging whether a request met the scheme requirements needs the connection/transport context (e.g. TLS state) that only the origin server itself observes; not available from the HTTP message alone.',
   )
   .tags('security:transport')

@@ -4,7 +4,7 @@ export default httpRule('rfc9110/sender-may-replace-host-with-pseudonym')
   .severity('hint')
   .type(
     'informational',
-    'permission-or-statement-of-fact',
+    'nothing-to-check',
     'A permission — a pseudonym is indistinguishable from a real host name, so a replaced Via host is never a violation.',
   )
   .tags('security:disclosure')
