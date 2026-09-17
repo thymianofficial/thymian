@@ -6,7 +6,7 @@ export default httpRule(
   .severity('error')
   .type(
     'informational',
-    'origin-internal-ground-truth',
+    'only-origin-knows',
     "Whether the connection was secured via a certificate valid for the target URI's origin is a fact of the TLS handshake below HTTP; only the origin's own connection handling knows it.",
   )
   .tags('security:transport')

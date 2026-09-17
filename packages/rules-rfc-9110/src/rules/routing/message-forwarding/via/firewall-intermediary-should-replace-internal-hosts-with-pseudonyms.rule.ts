@@ -6,7 +6,7 @@ export default httpRule(
   .severity('warn')
   .type(
     'informational',
-    'peer-internal-behaviour',
+    'peer-not-observable',
     "Recognizing which received-by hosts are internal (and thus should be pseudonymized) needs deployment topology knowledge that only the firewall intermediary's own operator has.",
   )
   .tags('security:disclosure')

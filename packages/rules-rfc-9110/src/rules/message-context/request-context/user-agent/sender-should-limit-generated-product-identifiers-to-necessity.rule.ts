@@ -6,7 +6,7 @@ export default httpRule(
   .severity('warn')
   .type(
     'informational',
-    'permission-or-statement-of-fact',
+    'nothing-to-check',
     "'Limit to what is necessary to identify the product' is a subjective design judgment with no objective threshold to test against.",
   )
   .tags('privacy:fingerprinting')

@@ -7,7 +7,7 @@ export default httpRule(
   .severity('error')
   .type(
     'informational',
-    'peer-internal-behaviour',
+    'peer-not-observable',
     'The trigger (a client that will wait for a 100 Continue response) is client intent, not observable from the request; nothing on the wire says whether a client intended to wait.',
   )
   .url('https://www.rfc-editor.org/rfc/rfc9110.html#name-expect')

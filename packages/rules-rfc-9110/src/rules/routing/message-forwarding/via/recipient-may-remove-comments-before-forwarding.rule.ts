@@ -6,7 +6,7 @@ export default httpRule(
   .severity('hint')
   .type(
     'informational',
-    'permission-or-statement-of-fact',
+    'nothing-to-check',
     'A permission — removing Via comments before forwarding is optional, so either form is compliant.',
   )
   .tags('security:disclosure')

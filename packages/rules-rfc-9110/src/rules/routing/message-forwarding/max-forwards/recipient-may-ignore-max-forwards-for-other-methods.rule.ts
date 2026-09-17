@@ -7,7 +7,7 @@ export default httpRule(
   .severity('hint')
   .type(
     'informational',
-    'permission-or-statement-of-fact',
+    'nothing-to-check',
     'A permission — ignoring Max-Forwards for methods other than TRACE/OPTIONS is allowed, so either behavior is compliant.',
   )
   .url('https://www.rfc-editor.org/rfc/rfc9110.html#name-max-forwards')

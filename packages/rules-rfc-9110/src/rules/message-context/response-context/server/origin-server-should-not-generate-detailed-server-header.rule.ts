@@ -6,7 +6,7 @@ export default httpRule(
   .severity('warn')
   .type(
     'informational',
-    'permission-or-statement-of-fact',
+    'nothing-to-check',
     "'Needlessly fine-grained detail' is a subjective editorial judgment about the Server value with no objective, machine-checkable threshold.",
   )
   .tags('security:disclosure')

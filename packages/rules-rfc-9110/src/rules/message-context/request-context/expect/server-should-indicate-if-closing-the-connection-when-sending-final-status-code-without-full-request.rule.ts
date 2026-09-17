@@ -7,7 +7,7 @@ export default httpRule(
   .severity('warn')
   .type(
     'informational',
-    'peer-internal-behaviour',
+    'peer-not-observable',
     'The trigger (the server responds before reading the entire request content) is server-internal state not observable from the response, and whether the connection was actually closed is transport-level.',
   )
   .url('https://www.rfc-editor.org/rfc/rfc9110.html#name-expect')

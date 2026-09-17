@@ -8,7 +8,7 @@ export default httpRule(
   .severity('hint')
   .type(
     'informational',
-    'peer-internal-behaviour',
+    'peer-not-observable',
     'Whether a subproduct was added by a third party is not determinable from the wire value of a single User-Agent field — only whoever assembled the field knows.',
   )
   .tags('privacy:fingerprinting')

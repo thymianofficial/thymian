@@ -7,7 +7,7 @@ export default httpRule(
   .severity('error')
   .type(
     'informational',
-    'peer-internal-behaviour',
+    'peer-not-observable',
     'Confirming the server ignored Upgrade on an HTTP/1.0 request requires knowing it did NOT act on it; a compliant server produces an ordinary response indistinguishable from one that never received Upgrade.',
   )
   .url('https://www.rfc-editor.org/rfc/rfc9110.html#name-upgrade')

@@ -7,7 +7,7 @@ export default httpRule(
   .severity('warn')
   .type(
     'informational',
-    'peer-internal-behaviour',
+    'peer-not-observable',
     'Whether a recipient compared protocol names case-insensitively is an internal implementation detail with no distinguishing on-the-wire artifact.',
   )
   .url('https://www.rfc-editor.org/rfc/rfc9110.html#name-upgrade')

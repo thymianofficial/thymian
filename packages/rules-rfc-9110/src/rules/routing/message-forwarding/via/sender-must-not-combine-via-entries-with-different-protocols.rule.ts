@@ -7,7 +7,7 @@ export default httpRule(
   .severity('error')
   .type(
     'informational',
-    'peer-internal-behaviour',
+    'peer-not-observable',
     "Deciding whether combined Via entries had different protocols requires the sender's pre-combination Via values, which are not recoverable from the single forwarded message it produced.",
   )
   .url('https://www.rfc-editor.org/rfc/rfc9110.html#name-via')

@@ -7,7 +7,7 @@ export default httpRule(
   .severity('hint')
   .type(
     'informational',
-    'permission-or-statement-of-fact',
+    'nothing-to-check',
     'A permission — interpreting an absent Via port as the default is an internal recipient decision with no observable artifact either way.',
   )
   .url('https://www.rfc-editor.org/rfc/rfc9110.html#name-via')

@@ -7,7 +7,7 @@ export default httpRule(
   .severity('hint')
   .type(
     'informational',
-    'peer-internal-behaviour',
+    'peer-not-observable',
     "'Immediate' is a timing property of the origin server's own processing with no wire signature, and distinguishing its response from one a proxy generated needs role attribution the traffic model doesn't carry.",
   )
   .url('https://www.rfc-editor.org/rfc/rfc9110.html#name-expect')

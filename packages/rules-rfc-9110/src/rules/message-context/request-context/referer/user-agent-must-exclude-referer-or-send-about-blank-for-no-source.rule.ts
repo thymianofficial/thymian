@@ -6,7 +6,7 @@ export default httpRule(
   .severity('hint')
   .type(
     'informational',
-    'peer-internal-behaviour',
+    'peer-not-observable',
     'The trigger condition (the target URI was obtained from a source with no URI, e.g. keyboard input or a bookmark) is user-agent-internal provenance that is not observable from the request.',
   )
   .tags('privacy:referrer')

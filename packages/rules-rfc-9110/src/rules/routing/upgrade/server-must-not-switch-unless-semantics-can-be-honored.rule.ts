@@ -7,7 +7,7 @@ export default httpRule(
   .severity('error')
   .type(
     'informational',
-    'peer-internal-behaviour',
+    'peer-not-observable',
     "The server's own judgment of whether it can honor the original request semantics after switching is a property of the negotiated new protocol, not observable from the HTTP exchange.",
   )
   .url('https://www.rfc-editor.org/rfc/rfc9110.html#name-upgrade')

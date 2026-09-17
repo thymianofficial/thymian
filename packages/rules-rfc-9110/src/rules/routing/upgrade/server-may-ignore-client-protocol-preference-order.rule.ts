@@ -7,7 +7,7 @@ export default httpRule(
   .severity('hint')
   .type(
     'informational',
-    'permission-or-statement-of-fact',
+    'nothing-to-check',
     'A permission — honoring the client protocol preference order is optional, so any observed order is compliant.',
   )
   .url('https://www.rfc-editor.org/rfc/rfc9110.html#name-upgrade')

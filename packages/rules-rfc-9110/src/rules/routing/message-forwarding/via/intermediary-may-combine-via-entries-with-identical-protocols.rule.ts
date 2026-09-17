@@ -7,7 +7,7 @@ export default httpRule(
   .severity('hint')
   .type(
     'informational',
-    'permission-or-statement-of-fact',
+    'nothing-to-check',
     'A permission — combining Via entries with identical protocols is optional, so either form is compliant.',
   )
   .url('https://www.rfc-editor.org/rfc/rfc9110.html#name-via')

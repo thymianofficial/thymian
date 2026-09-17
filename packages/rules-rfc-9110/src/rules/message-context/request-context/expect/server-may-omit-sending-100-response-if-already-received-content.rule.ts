@@ -7,7 +7,7 @@ export default httpRule(
   .severity('hint')
   .type(
     'informational',
-    'permission-or-statement-of-fact',
+    'nothing-to-check',
     'A permission (MAY omit the 100 response), not a testable constraint; there is no violating behaviour to detect.',
   )
   .url('https://www.rfc-editor.org/rfc/rfc9110.html#name-expect')
