@@ -5,7 +5,7 @@ export default httpRule('rfc9110/recipient-should-treat-x-compress-as-compress')
   .severity('hint')
   .type(
     'informational',
-    'peer-internal-behaviour',
+    'peer-not-observable',
     'Constrains how a recipient decodes an "x-compress" coding internally (treat it as "compress"). That decoding choice is implementation-internal with no distinct wire artifact.',
   )
   .appliesTo('client', 'user-agent')

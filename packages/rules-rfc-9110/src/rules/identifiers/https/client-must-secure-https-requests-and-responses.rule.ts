@@ -6,7 +6,7 @@ export default httpRule(
   .severity('error')
   .type(
     'informational',
-    'peer-internal-behaviour',
+    'peer-not-observable',
     'Whether a client secured its transport (TLS) and refused unencrypted responses is a connection-layer property; it is not visible in the recorded HTTP message content Thymian analyzes.',
   )
   .tags('security:transport')

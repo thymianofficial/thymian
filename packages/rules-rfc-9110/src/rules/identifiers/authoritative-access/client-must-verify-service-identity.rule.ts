@@ -4,7 +4,7 @@ export default httpRule('rfc9110/client-must-verify-service-identity')
   .severity('error')
   .type(
     'informational',
-    'peer-internal-behaviour',
+    'peer-not-observable',
     'Service-identity verification happens during the TLS handshake, below the recorded HTTP layer; a successful or skipped check leaves no distinguishing trace in HTTP messages.',
   )
   .tags('security:transport')

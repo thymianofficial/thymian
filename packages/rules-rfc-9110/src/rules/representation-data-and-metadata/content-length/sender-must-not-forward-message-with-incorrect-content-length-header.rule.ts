@@ -6,7 +6,7 @@ export default httpRule(
   .severity('error')
   .type(
     'informational',
-    'peer-internal-behaviour',
+    'peer-not-observable',
     'Whether a forwarded Content-Length is "known to be incorrect" (relative to received framing) is the forwarding sender\'s own knowledge, and confirming it independently would also need the upstream message framing and intermediary role that the engine does not have.',
   )
   // A Content-Length inconsistent with the received framing, once forwarded, is precisely the request-smuggling/response-splitting shape this rule's own description names.

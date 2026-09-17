@@ -4,7 +4,7 @@ export default httpRule('rfc9110/user-agent-must-handle-bad-certificate')
   .severity('error')
   .type(
     'informational',
-    'peer-internal-behaviour',
+    'peer-not-observable',
     "The user-agent's response to an invalid certificate (prompt the user or terminate) happens at the TLS layer and in UI; it is not represented in recorded HTTP messages.",
   )
   .tags('security:transport')

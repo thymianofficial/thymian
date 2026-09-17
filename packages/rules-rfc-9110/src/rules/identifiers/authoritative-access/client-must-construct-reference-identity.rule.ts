@@ -4,7 +4,7 @@ export default httpRule('rfc9110/client-must-construct-reference-identity')
   .severity('error')
   .type(
     'informational',
-    'peer-internal-behaviour',
+    'peer-not-observable',
     'How a client constructs its TLS reference identity (IP-ID vs DNS-ID) is internal certificate-verification logic at the transport layer; it leaves no trace in recorded HTTP messages.',
   )
   .tags('security:transport')

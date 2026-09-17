@@ -5,7 +5,7 @@ export default httpRule('rfc9110/origin-server-must-mark-weak-entity-tag')
   .severity('error')
   .type(
     'informational',
-    'peer-internal-behaviour',
+    'peer-not-observable',
     "Deciding a tag must be marked weak depends on whether its generation meets strong-validator characteristics (changes on every observable data change) — a property of the server's ETag generation algorithm, verifiable only by reading that implementation, not the header value.",
   )
   .appliesTo('origin server')

@@ -6,7 +6,7 @@ export default httpRule(
   .severity('error')
   .type(
     'informational',
-    'peer-internal-behaviour',
+    'peer-not-observable',
     'Writing to a local audit log is a client-side side effect entirely outside the HTTP message exchange Thymian records.',
   )
   .tags('security:transport')

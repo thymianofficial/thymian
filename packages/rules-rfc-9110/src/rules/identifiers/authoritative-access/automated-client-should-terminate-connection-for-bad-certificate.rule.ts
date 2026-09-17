@@ -6,7 +6,7 @@ export default httpRule(
   .severity('warn')
   .type(
     'informational',
-    'peer-internal-behaviour',
+    'peer-not-observable',
     'Terminating the connection on failed certificate verification is a TLS-layer action; a torn-down handshake leaves no recorded HTTP transaction to inspect.',
   )
   .tags('security:transport')
