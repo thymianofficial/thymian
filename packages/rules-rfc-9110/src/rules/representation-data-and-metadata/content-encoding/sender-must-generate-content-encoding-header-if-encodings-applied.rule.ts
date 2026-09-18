@@ -5,10 +5,11 @@ export default httpRule(
   'rfc9110/sender-must-generate-content-encoding-header-if-encodings-applied',
 )
   .severity('error')
-  // The trigger ("one or more encodings have been applied") is known only to
-  // the sender. From the wire we cannot distinguish a genuinely unencoded body
-  // from an encoded body missing its Content-Encoding header.
-  .type('informational')
+  .type(
+    'informational',
+    'peer-not-observable',
+    'The trigger ("one or more encodings have been applied") is known only to the sender. From the wire we cannot distinguish a genuinely unencoded body from an encoded body missing its Content-Encoding header.',
+  )
   .appliesTo('server')
   .url('https://www.rfc-editor.org/rfc/rfc9110.html#section-8.4')
   .description(

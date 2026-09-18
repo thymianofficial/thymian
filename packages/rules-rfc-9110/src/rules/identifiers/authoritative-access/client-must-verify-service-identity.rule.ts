@@ -2,10 +2,11 @@ import { httpRule } from '@thymian/core';
 
 export default httpRule('rfc9110/client-must-verify-service-identity')
   .severity('error')
-  // Service-identity verification happens during the TLS handshake, below the
-  // recorded HTTP layer; a successful or skipped check leaves no distinguishing
-  // trace in HTTP messages.
-  .type('informational')
+  .type(
+    'informational',
+    'peer-not-observable',
+    'Service-identity verification happens during the TLS handshake, below the recorded HTTP layer; a successful or skipped check leaves no distinguishing trace in HTTP messages.',
+  )
   .tags('security:transport')
   .url(
     'https://www.rfc-editor.org/rfc/rfc9110.html#name-https-certificate-verificat',
