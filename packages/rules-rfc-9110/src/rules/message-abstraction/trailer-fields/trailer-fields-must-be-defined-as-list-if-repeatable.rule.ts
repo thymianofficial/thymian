@@ -8,7 +8,7 @@ export default httpRule(
   .type(
     'informational',
     'nothing-to-check',
-    'A constraint on how a field is defined in its specification (repeatable trailer fields must be defined as list-based), not on the content of any individual message; there is no per-transaction observation that distinguishes conformance.',
+    "A constraint on how a field is defined in its specification (repeatable trailer fields must be defined as list-based), not on the content of any individual message: the obligation falls on whoever writes the trailer field's definition, so no HTTP message can conform to it or violate it.",
   )
   .url('https://www.rfc-editor.org/rfc/rfc9110.html#section-6.5.2')
   .description(
