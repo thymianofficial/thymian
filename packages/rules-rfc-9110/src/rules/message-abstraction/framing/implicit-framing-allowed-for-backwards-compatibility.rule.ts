@@ -1,14 +1,15 @@
 import { httpRule } from '@thymian/core';
 
-// A permissive, definitional statement about connection-closure (implicit)
-// framing. Framing is a transport/connection concern below the abstraction the
-// rule framework observes, and the statement imposes no testable requirement.
 // eslint-disable-next-line thymian-internal/require-rule-tags -- no concern-tag member fits this rule's topic
 export default httpRule(
   'rfc9110/implicit-framing-allowed-for-backwards-compatibility',
 )
   .severity('hint')
-  .type('informational')
+  .type(
+    'informational',
+    'nothing-to-check',
+    'A permissive, definitional statement about connection-closure framing; it imposes no testable requirement.',
+  )
   .url('https://www.rfc-editor.org/rfc/rfc9110.html#section-6.1')
   .description(
     'HTTP/0.9 and early deployments of HTTP/1.0 used closure of the underlying connection to end a response. For backwards compatibility, this implicit framing is also allowed in HTTP/1.1. However, implicit framing can fail to distinguish an incomplete response if the connection closes early. For that reason, almost all modern implementations use explicit framing in the form of length-delimited sequences of message data.',

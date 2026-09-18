@@ -1,18 +1,15 @@
 import { httpRule } from '@thymian/core';
 
-/**
- * This MUST constrains the *internal sequencing* of server-side processing —
- * preconditions must be evaluated after normal request checks and just before
- * the method's action. Sequencing is not exposed in the request/response on the
- * wire, so no observable signal distinguishes a conforming from a
- * non-conforming ordering.
- */
 // eslint-disable-next-line thymian-internal/require-rule-tags -- precondition evaluation ordering, not a concern-axis topic
 export default httpRule(
   'rfc9110/server-must-evaluate-preconditions-after-normal-checks',
 )
   .severity('error')
-  .type('informational')
+  .type(
+    'informational',
+    'peer-not-observable',
+    'The internal sequencing of server-side processing — evaluating preconditions after normal checks and just before the method acts — is not exposed on the wire.',
+  )
   .url('https://www.rfc-editor.org/rfc/rfc9110.html#section-13.2.1')
   .description(
     'Except when excluded below, a recipient cache or origin server MUST evaluate received request preconditions after it has successfully performed its normal request checks and just before it would process the request content (if any) or perform the action associated with the request method.',
