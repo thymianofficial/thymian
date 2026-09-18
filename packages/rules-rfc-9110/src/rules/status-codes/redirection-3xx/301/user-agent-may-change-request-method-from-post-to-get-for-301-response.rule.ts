@@ -7,8 +7,9 @@ export default httpRule(
   .severity('hint')
   .type(
     'informational',
-    'nothing-to-check',
-    'A MAY describing an internal user-agent decision (whether to change POST to GET when following a 301). Both behaviors are conformant, so there is no non-conformant condition.',
+    'tool-limitation',
+    'thymianofficial/thymian-workspace#141',
+    'A user agent that takes this up follows the 301 with a GET where the redirected request was a POST, and a captured trace carries both transactions, so the method of the follow-up sits on the wire next to the method it was derived from. That comparison is not written yet.',
   )
   .url('https://www.rfc-editor.org/rfc/rfc9110.html#name-301-moved-permanently')
   .summary(

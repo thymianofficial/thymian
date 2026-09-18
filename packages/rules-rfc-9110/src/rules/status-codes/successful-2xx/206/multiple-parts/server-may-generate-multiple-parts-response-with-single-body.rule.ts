@@ -7,8 +7,9 @@ export default httpRule(
   .severity('hint')
   .type(
     'informational',
-    'nothing-to-check',
-    'A MAY; no non-conformant condition to observe.',
+    'tool-limitation',
+    'thymianofficial/thymian-workspace#112',
+    'A server that takes this up answers a multi-range request with a multipart/byteranges body holding exactly one part. Counting the parts needs that body parsed, which the framework does not expose.',
   )
   .url('https://datatracker.ietf.org/doc/html/rfc9110#name-multiple-parts')
   .description(

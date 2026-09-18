@@ -7,8 +7,9 @@ export default httpRule(
   .severity('hint')
   .type(
     'informational',
-    'nothing-to-check',
-    'A MAY about coalescing ranges; no non-conformant condition.',
+    'tool-limitation',
+    'thymianofficial/thymian-workspace#112',
+    'A server that takes this up returns fewer parts than the Range header asked for, each spanning a merged extent. Telling those apart from the range-specs requested needs the multipart/byteranges body parsed into its parts, which the framework does not expose.',
   )
   .url('https://datatracker.ietf.org/doc/html/rfc9110#name-multiple-parts')
   .description(

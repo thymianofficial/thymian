@@ -7,8 +7,8 @@ export default httpRule(
   .severity('hint')
   .type(
     'informational',
-    'nothing-to-check',
-    'A MAY describing internal client range-combining behavior; no non-conformant condition to observe.',
+    'peer-not-observable',
+    "The larger continuous range is assembled in the client's own copy of the representation and is never sent, so no later request and no response carries whether the partial responses were combined.",
   )
   .url('https://www.rfc-editor.org/rfc/rfc9110.html#name-combining-parts')
   .description(

@@ -7,8 +7,9 @@ export default httpRule(
   .severity('hint')
   .type(
     'informational',
-    'nothing-to-check',
-    'A MAY describing an internal user-agent decision (whether to automatically select a redirection from the 300 response content). Both selecting and not selecting are conformant, so there is no non-conformant condition to observe from request/response traffic.',
+    'tool-limitation',
+    'thymianofficial/thymian-workspace#141',
+    'A user agent that takes this up sends a follow-up request to one of the URI references listed in the 300 content, which a captured trace carries as a later transaction. Matching that target against the list needs the response body parsed for the offered media type, and the hint is not written yet.',
   )
   .url('https://www.rfc-editor.org/rfc/rfc9110.html#name-300-multiple-choices')
   .description(

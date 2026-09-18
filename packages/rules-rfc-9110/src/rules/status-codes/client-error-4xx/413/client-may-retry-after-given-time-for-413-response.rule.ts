@@ -7,8 +7,9 @@ export default httpRule(
   .severity('hint')
   .type(
     'informational',
-    'nothing-to-check',
-    'A MAY describing an internal client retry decision; no non-conformant condition to observe.',
+    'tool-limitation',
+    'thymianofficial/thymian-workspace#141',
+    'A client that takes this up sends the request again after the 413, which a captured trace carries as a later transaction against the same target. A captured transaction carries no timestamp, so only the repeat itself is checkable and not whether it waited out the Retry-After value; that hint is not written yet.',
   )
   .url('https://www.rfc-editor.org/rfc/rfc9110.html#name-413-content-too-large')
   .description(

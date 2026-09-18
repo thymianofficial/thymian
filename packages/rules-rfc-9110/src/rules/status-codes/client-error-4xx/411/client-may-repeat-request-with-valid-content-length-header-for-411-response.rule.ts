@@ -7,8 +7,9 @@ export default httpRule(
   .severity('hint')
   .type(
     'informational',
-    'nothing-to-check',
-    'A MAY describing an internal client retry decision; no non-conformant condition to observe.',
+    'tool-limitation',
+    'thymianofficial/thymian-workspace#141',
+    'A client that takes this up repeats the request with a Content-Length field the rejected one lacked, and even the name-only common projection sees that field appear on the second transaction. The hint — a 411 that was never followed by a repeat carrying Content-Length — is not written yet.',
   )
   .url('https://www.rfc-editor.org/rfc/rfc9110.html#name-411-length-required')
   .description(
