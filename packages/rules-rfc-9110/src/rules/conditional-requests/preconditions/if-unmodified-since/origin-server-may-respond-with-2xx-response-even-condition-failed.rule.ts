@@ -7,8 +7,8 @@ export default httpRule(
   .severity('hint')
   .type(
     'informational',
-    'nothing-to-check',
-    'A MAY: a 2xx for a state-changing request that appears already applied is conformant, and is indistinguishable from an ordinary success without knowledge of prior resource state.',
+    'only-origin-knows',
+    "Both facts this permission turns on are the origin's own: whether the If-Unmodified-Since condition evaluated false, which needs the selected representation's last modification date at the moment of evaluation, and whether the state change already appears applied to that representation. What reaches the wire is a 2xx indistinguishable from an ordinary success.",
   )
   .url('https://www.rfc-editor.org/rfc/rfc9110.html#section-13.1.1')
   .description(

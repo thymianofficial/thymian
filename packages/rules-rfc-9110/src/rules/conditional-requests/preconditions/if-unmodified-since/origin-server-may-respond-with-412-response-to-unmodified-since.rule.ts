@@ -7,8 +7,8 @@ export default httpRule(
   .severity('hint')
   .type(
     'informational',
-    'nothing-to-check',
-    'A MAY: 412 is permitted but not required, so neither a 412 nor a non-412 response is by itself a violation.',
+    'only-origin-knows',
+    "Reading a response as an exercise of this permission requires knowing the If-Unmodified-Since condition evaluated false, which turns on the selected representation's last modification date at the moment of evaluation — origin state that no request or response carries. Without it, a 412 cannot be told from a 412 sent for any other reason.",
   )
   .url('https://www.rfc-editor.org/rfc/rfc9110.html#section-13.1.4')
   .description(

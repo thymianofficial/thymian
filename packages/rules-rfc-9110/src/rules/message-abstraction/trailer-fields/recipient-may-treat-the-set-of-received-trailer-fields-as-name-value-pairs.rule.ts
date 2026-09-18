@@ -7,8 +7,8 @@ export default httpRule(
   .severity('hint')
   .type(
     'informational',
-    'nothing-to-check',
-    'A MAY describing how a recipient may internally model received trailers; internal recipient processing with no observable non-conformant condition.',
+    'peer-not-observable',
+    'Whether a recipient models the received trailer section as name/value pairs or as some other structure is a choice inside its own parser. The trailer field lines on the wire are identical either way, and nothing the recipient emits reveals which representation it picked.',
   )
   .url('https://www.rfc-editor.org/rfc/rfc9110.html#section-6.5.2')
   .description(
