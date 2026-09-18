@@ -121,15 +121,63 @@ _Avoid_: fixture, mock, stub
 
 **Selector**:
 The address of exactly one `Transaction`, qualified by method, path, status, and the media
-types where a body exists. Fully qualified by construction, so adding a status code or a media
-type to the specification cannot silently change what an existing selector points at.
-_Avoid_: pattern, matcher, glob
+types the request and response nodes _declare_ — a declared media type earns its part whether
+or not a body exists. Fully qualified by construction, so adding a status code or a media type
+to the specification cannot silently change what an existing selector points at. Rendering is
+total and injective: a path or media type that would collide with the grammar is quoted, never
+rejected — a quote fences the value rather than substituting characters inside it, so two
+distinct declarations can never render one selector.
+Also the only spelling of a `Transaction` anywhere Thymian writes one — terminal lines,
+reports, error messages — so any printed transaction can be pasted back as a hook target. A
+label naming only a request or only a response uses the selector grammar's corresponding half.
+_Avoid_: pattern, matcher
 
 **Hook**:
 A user-owned TypeScript function that shapes or authorizes a run — generating a sample,
-running before or after a transaction, supplying credentials. Targeted by a `Selector` or by a
-typed transaction filter. The only artifact in sampling the user owns, and the compiler is what
-reports one that no longer matches anything.
+running before or after a transaction, supplying credentials. Targeted by a `Selector`, a list
+of them, or a `Transaction Filter`. The only artifact in sampling the user owns, and the
+compiler is what reports one that no longer matches anything.
+
+**Transaction Filter**:
+A typed description of a _set_ of `Transaction`s, for a `Hook` that should apply to more than
+one. Fields AND-combine, arrays within a field OR-combine, and `not` takes filter fields one
+level deep. Every value is a specification-derived union except a `Path Glob`. A filter whose
+values are all individually valid but which together match nothing is a `sampler validate`
+error rather than a compile error — the type system can check each field, not their
+intersection.
+_Avoid_: query, selector set, matcher
+
+**Path Glob**:
+The one wildcard form a `Transaction Filter`'s path field accepts: `*` matches exactly one
+path segment and a trailing `**` matches one or more, against the specification's path
+templates. Braces are literal, matching is case-sensitive and anchored. Only the _shape_ is
+compile-checked, so a wildcard-free string must be an exact `Path`; a glob that matches
+nothing is a `sampler validate` error. Type-level matching against the declared paths was
+measured and rejected on language-server cost.
+_Avoid_: pattern, wildcard, regex
+
+**Operation**:
+What a `Selector`'s request half names: a method, a path, and the media type the request
+declares. Every `Transaction` sharing it is one response that operation declares, which is
+why a `Seed` addressed at one of them may be answered by another. Narrower than OpenAPI's
+operation, which is method and path alone — two request media types on one path are two
+operations here, because they are two different requests to send. Note that the generated
+`Endpoints` map is keyed by `Selector`, so it is a map of transactions and not of
+operations; the operations are the keys of `Responses`.
+_Avoid_: route
+
+**Seed**:
+A request a `Hook` makes through `utils.request` to put the system into the state its
+transaction needs. Runs the target transaction's own hook pipeline by default, so seeding
+behaves like the real run. Names the `Transaction` it wants to initiate, not the response it
+will get: the answer is every response that operation declares.
+
+**Outcome**:
+What one `Transaction` earned in a sampler check — `passed` (executed, response as described),
+`failed` (executed, response invalid), `skipped` (could not be executed as described, e.g. its
+`Seed` was answered differently), or `errored` (the attempt itself broke). A check assigns
+every transaction exactly one outcome, and any outcome but `passed` fails the run.
+_Avoid_: status, result
 
 ### Reporting
 

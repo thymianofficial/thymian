@@ -1,0 +1,99 @@
+---
+title: Virtual Request Samples
+description: Why the sampler generates every request in memory instead of writing them to disk, and what that buys you.
+---
+
+import { Aside } from '@astrojs/starlight/components';
+
+To test an API, Thymian needs a request to send for every Transaction it is going
+to check — and Thymian checks the whole description, not a handful of happy
+paths. A `404`, a `403`, a `409`: each is a Transaction with its own expectations,
+and each needs a request that provokes it.
+
+That is a lot of requests. The sampler's answer is to **never store any of them**.
+
+## The projection
+
+On every run, the sampler reads your API description and produces one request per
+Transaction, in memory:
+
+- path and method from the operation
+- path, query, header and cookie parameters from their schemas
+- a body from the request schema, using the examples your description gives
+- an `authorize` flag from the operation's `security` requirement, forced off for
+  a Transaction whose declared status is `401`
+
+Nothing is written. Ask for one and you get it freshly generated:
+
+```bash
+npx thymian sampler show 'GET /launches -> 200 (application/json)'
+```
+
+<Aside type="tip" title="The consequence worth internalizing">
+  There is no artifact, so there is nothing that can disagree with your API
+  description. A stale request sample is not a bug that got fixed — it is a
+  state that no longer exists.
+</Aside>
+
+## What that removes
+
+The sampler used to materialize a tree of `request.json` files mirroring your
+API. It worked, and it had one structural cost: **every one of those files was a
+copy of something the description already said.** Any edit to the description
+stranded the copies, and every problem downstream of that was a workaround for
+the copy existing at all.
+
+| Used to happen                                                   | Now                                                        |
+| ---------------------------------------------------------------- | ---------------------------------------------------------- |
+| A renamed path stranded its generated files                      | Nothing to strand                                          |
+| A removed operation left its files behind forever                | Nothing to leave behind                                    |
+| `validate` could report a stale file but not fix it              | Nothing to be stale                                        |
+| Upgrading Thymian broke byte-exact validation of generated files | The committed surface is types, compared canonicalized     |
+| A hook was orphaned at a dead directory, silently                | A hook is anchored by Selector, and a dead one is an error |
+
+And a smaller thing that matters for adoption: **trying Thymian costs nothing.**
+`thymian test` works in a clean checkout, with no setup step and nothing to
+commit.
+
+## What you own instead
+
+Generation is deterministic — the same description always produces the same
+request — which means the only thing worth keeping is the part generation cannot
+know: your intent.
+
+That lives in [hooks](/guides/hooks/write-hooks/): TypeScript functions anchored
+to a [Selector](/references/plugins/sampler/hooks-api/#selectors), the address of
+exactly one Transaction. A hook is the only sampler artifact you write, and the
+only one you commit besides the
+[generated types](/concepts/generated-types/).
+
+## Where the deterministic request is not enough
+
+A generated request satisfies the schema; it does not satisfy your database. A
+generated `id` matches no real row, so `GET /launches/{id} -> 200` gets a `404`
+until something creates one.
+
+That gap is exactly what hooks are for — and being explicit about it is better
+than the alternative, where a committed `request.json` held an `id` that happened
+to work on somebody's machine in March.
+
+```typescript
+export const seed = beforeEach(
+  'GET /launches/{id} -> 200 (application/json)',
+  async (request, ctx, utils) => {
+    const created = await utils.request(
+      'POST /launches (application/json) -> 201 (application/json)',
+      { body: { missionName: 'Artemis II' } },
+      { authorize: true },
+    );
+
+    utils.setPathParam('id', created.body.id);
+  },
+);
+```
+
+## Further reading
+
+- [How the hook system works](/concepts/hook-system/)
+- [What are the files under `generated/`?](/concepts/generated-types/)
+- [Testing an API with the Sampler](/tutorials/sampler-getting-started/)

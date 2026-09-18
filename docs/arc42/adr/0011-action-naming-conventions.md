@@ -28,10 +28,15 @@ Core-owned actions follow the pattern **`core.<domain>.<verb>`**:
 | `core.lint`             | _(workflow)_  | lint          |
 | `core.test`             | _(workflow)_  | test          |
 | `core.analyze`          | _(workflow)_  | analyze       |
+| `core.workflow.lint`    | workflow      | lint          |
+| `core.workflow.test`    | workflow      | test          |
+| `core.workflow.analyze` | workflow      | analyze       |
 | `core.request.dispatch` | request       | dispatch      |
 | `core.request.sample`   | request       | sample        |
 
 Lifecycle actions (`core.ready`, `core.close`) and top-level workflow actions (`core.lint`, `core.test`, `core.analyze`) use a two-segment form for brevity, since they are unambiguous.
+
+The `core.<verb>` and `core.workflow.<verb>` pairs are not aliases: `core.lint`/`core.test`/`core.analyze` are the detail actions a plugin (e.g. `plugin-http-linter`, `plugin-http-tester`, `plugin-http-analyzer`) listens on and answers with a `ToolRun[]`; `core.workflow.lint`/`core.workflow.test`/`core.workflow.analyze` are the whole-workflow entrypoints core itself handles, routing to its own `lint()`/`test()`/`analyze()` methods and replying with a `Report`. Both are WS-reachable, but only the `workflow` form runs the full pipeline (dispatch, hooks, aggregation) that produces the detail actions' input in the first place.
 
 ### Plugin-owned actions
 
@@ -40,7 +45,9 @@ Plugin-owned actions follow the pattern **`<plugin-short-name>.<verb>`** or **`<
 | Action                               | Owner                  |
 | ------------------------------------ | ---------------------- |
 | `sampler.init`                       | plugin-sampler         |
-| `sampler.path-from-transaction`      | plugin-sampler         |
+| `sampler.show`                       | plugin-sampler         |
+| `sampler.sync`                       | plugin-sampler         |
+| `sampler.validate`                   | plugin-sampler         |
 | `openapi.transform`                  | plugin-openapi         |
 | `http-linter.lint-static`            | plugin-http-linter     |
 | `http-linter.load-rules`             | plugin-http-linter     |
