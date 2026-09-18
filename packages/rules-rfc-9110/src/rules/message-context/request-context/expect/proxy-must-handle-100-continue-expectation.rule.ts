@@ -5,8 +5,9 @@ export default httpRule('rfc9110/proxy-must-handle-100-continue-expectation')
   .severity('hint')
   .type(
     'informational',
-    'nothing-to-check',
-    'Both permitted proxy behaviours (respond with a final status, or forward toward the origin) are conforming, so nothing is non-conformant either way.',
+    'tool-limitation',
+    'thymianofficial/thymian-workspace#141',
+    'A conforming proxy answers a 100-continue request with a final status of its own or forwards it on, and a captured trace carries either outcome: the response, or the forwarded request marked with the intermediary role. Detecting the proxy that does neither is not written as a check yet.',
   )
   .url('https://www.rfc-editor.org/rfc/rfc9110.html#name-expect')
   .description(

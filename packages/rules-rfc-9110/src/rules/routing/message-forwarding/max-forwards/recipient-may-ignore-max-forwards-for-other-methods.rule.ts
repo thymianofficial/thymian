@@ -7,8 +7,9 @@ export default httpRule(
   .severity('hint')
   .type(
     'informational',
-    'nothing-to-check',
-    'A permission — ignoring Max-Forwards for methods other than TRACE/OPTIONS is allowed, so either behavior is compliant.',
+    'tool-limitation',
+    'thymianofficial/thymian-workspace#141',
+    'A recipient that honours Max-Forwards on a method other than TRACE or OPTIONS forwards the field decremented, or answers as the final recipient; one that takes this permission up forwards it untouched. A multi-hop trace carries both the inbound and the outbound message with a role each, and that comparison is not written yet.',
   )
   .url('https://www.rfc-editor.org/rfc/rfc9110.html#name-max-forwards')
   .description(
