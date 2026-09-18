@@ -5,8 +5,9 @@ export default httpRule('rfc9110/proxy-may-generate-immediate-100-response')
   .severity('hint')
   .type(
     'informational',
-    'nothing-to-check',
-    'A permission (MAY generate a 100 response), not a testable constraint; there is no violating behaviour to detect.',
+    'tool-limitation',
+    'thymianofficial/thymian-workspace#111',
+    'A proxy that takes this up emits a 100 (Continue) of its own towards the client before the next inbound server has said anything, which a trace would carry as an interim response marked with the intermediary role. Interim 1xx responses are not captured as discrete transactions, so that 100 never reaches a rule.',
   )
   .url('https://www.rfc-editor.org/rfc/rfc9110.html#name-expect')
   .description(

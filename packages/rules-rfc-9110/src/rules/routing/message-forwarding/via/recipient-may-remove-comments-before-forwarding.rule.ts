@@ -6,8 +6,9 @@ export default httpRule(
   .severity('hint')
   .type(
     'informational',
-    'nothing-to-check',
-    'A permission — removing Via comments before forwarding is optional, so either form is compliant.',
+    'tool-limitation',
+    'thymianofficial/thymian-workspace#141',
+    'A recipient that takes this up forwards a Via member stripped of the comment it arrived with, where one that declines passes the software identification on to the next hop; a multi-hop trace holds the received and the forwarded Via. The hint — a forwarded Via still naming each hop by its software — is not written yet.',
   )
   .tags('security:disclosure')
   .url('https://www.rfc-editor.org/rfc/rfc9110.html#name-via')

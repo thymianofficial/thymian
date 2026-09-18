@@ -7,8 +7,9 @@ export default httpRule(
   .severity('hint')
   .type(
     'informational',
-    'nothing-to-check',
-    'A permission (client MAY proceed to send content), not a testable constraint; there is no violating behaviour to detect.',
+    'tool-limitation',
+    'thymianofficial/thymian-workspace#111',
+    'A client that takes this up puts the request content on the wire before any 100 (Continue) arrives, while one that declines holds it back until the interim response shows up. Captured traffic records only the final response, so there is no 100 to order the content against.',
   )
   .url('https://www.rfc-editor.org/rfc/rfc9110.html#name-expect')
   .description(

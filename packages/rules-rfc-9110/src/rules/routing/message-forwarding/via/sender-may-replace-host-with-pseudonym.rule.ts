@@ -4,8 +4,8 @@ export default httpRule('rfc9110/sender-may-replace-host-with-pseudonym')
   .severity('hint')
   .type(
     'informational',
-    'nothing-to-check',
-    'A permission — a pseudonym is indistinguishable from a real host name, so a replaced Via host is never a violation.',
+    'peer-not-observable',
+    'The received-by is a bare token whether it names the real host or the pseudonym standing in for it, and the real host — the one thing that would tell those apart — is exactly what the sender held back and never puts on the wire.',
   )
   .tags('security:disclosure')
   .url('https://www.rfc-editor.org/rfc/rfc9110.html#name-via')

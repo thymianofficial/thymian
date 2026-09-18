@@ -7,8 +7,8 @@ export default httpRule(
   .severity('hint')
   .type(
     'informational',
-    'nothing-to-check',
-    'A permission — interpreting an absent Via port as the default is an internal recipient decision with no observable artifact either way.',
+    'peer-not-observable',
+    "The assumed port stays in the recipient's own parse result: it appends its own Via member rather than rewriting the one that omitted the port, so nothing it sends records which port it read that member as having.",
   )
   .url('https://www.rfc-editor.org/rfc/rfc9110.html#name-via')
   .description(

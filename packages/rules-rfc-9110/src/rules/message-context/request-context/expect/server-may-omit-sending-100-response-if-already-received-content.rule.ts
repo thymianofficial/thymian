@@ -7,8 +7,9 @@ export default httpRule(
   .severity('hint')
   .type(
     'informational',
-    'nothing-to-check',
-    'A permission (MAY omit the 100 response), not a testable constraint; there is no violating behaviour to detect.',
+    'tool-limitation',
+    'thymianofficial/thymian-workspace#111',
+    'A server that takes this up sends no 100 (Continue) at all and goes straight to the final status, where one that declines sends the interim response first. Captured traffic records only the final response, so a rule cannot tell those two apart.',
   )
   .url('https://www.rfc-editor.org/rfc/rfc9110.html#name-expect')
   .description(
