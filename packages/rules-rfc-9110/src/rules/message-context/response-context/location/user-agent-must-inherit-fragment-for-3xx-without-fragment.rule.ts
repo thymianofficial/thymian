@@ -5,10 +5,11 @@ export default httpRule(
   'rfc9110/user-agent-must-inherit-fragment-for-3xx-without-fragment',
 )
   .severity('hint')
-  // This constrains how the user agent internally processes the redirect
-  // (fragment inheritance), which happens client-side and leaves no signature
-  // in the response message; not observable from traffic.
-  .type('informational')
+  .type(
+    'informational',
+    'peer-not-observable',
+    'Constrains how the user agent internally processes the redirect (fragment inheritance), which happens client-side and leaves no signature in the response message.',
+  )
   .url('https://www.rfc-editor.org/rfc/rfc9110.html#name-location')
   .description(
     "If the Location value provided in a 3xx (Redirection) response does not have a fragment component, a user agent MUST process the redirection as if the value inherits the fragment component of the URI reference used to generate the target URI (i.e., the redirection inherits the original reference's fragment, if any).",
