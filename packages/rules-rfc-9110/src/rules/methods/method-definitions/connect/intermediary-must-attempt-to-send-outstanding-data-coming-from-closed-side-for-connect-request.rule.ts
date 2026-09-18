@@ -4,7 +4,10 @@ import { httpRule } from '@thymian/core';
 // intermediary (flushing outstanding data, closing both connections,
 // discarding the remainder) at the TCP/stream layer. It is not expressed in
 // any HTTP message, status, or header, so it is invisible to lint, test, and
-// analyze alike.
+// analyze alike. Flagged for the mis-declaration audit rather than given a
+// tier-1 code here (thymianofficial/thymian-workspace#116): unlike the usual
+// "internal decision with no trace" case, this may not be an HTTP-layer
+// conformance statement at all.
 // eslint-disable-next-line thymian-internal/require-rule-tags -- no concern-tag member fits this rule's topic
 export default httpRule(
   'rfc9110/intermediary-must-attempt-to-send-outstanding-data-coming-from-closed-side-for-connect-request',

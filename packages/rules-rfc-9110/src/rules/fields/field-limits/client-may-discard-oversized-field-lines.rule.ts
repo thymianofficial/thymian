@@ -3,10 +3,11 @@ import { httpRule } from '@thymian/core';
 // eslint-disable-next-line thymian-internal/require-rule-tags -- no concern-tag member fits this rule's topic
 export default httpRule('rfc9110/client-may-discard-oversized-field-lines')
   .severity('off')
-  // Discarding/truncating oversized field lines is optional internal client
-  // behaviour with no required outcome, and Thymian (acting as the client)
-  // cannot observe another client's discard decisions.
-  .type('informational')
+  .type(
+    'informational',
+    'peer-not-observable',
+    "The oversized field line has already arrived on the wire; discarding or truncating it happens inside the client's own parse result. Section 5.4 grants the permission only where the dropped values change neither the message framing nor the response semantics, so nothing the client goes on to send distinguishes it from a client that kept them.",
+  )
   .url('https://www.rfc-editor.org/rfc/rfc9110.html#section-5.4')
   .description(
     'A client MAY discard or truncate received field lines that are larger than the client wishes to process if the field semantics are such that the dropped value(s) can be safely ignored without changing the message framing or response semantics.',

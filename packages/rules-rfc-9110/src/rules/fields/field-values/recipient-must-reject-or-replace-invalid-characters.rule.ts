@@ -4,14 +4,12 @@ export default httpRule(
   'rfc9110/recipient-must-reject-or-replace-invalid-characters',
 )
   .severity('error')
-  // Exercising this rule requires transmitting a field value containing raw CR,
-  // LF, or NUL octets, which the HTTP client cannot construct — such octets are
-  // stripped or rejected at the transport/serialization layer, so Thymian can
-  // never send the malformed input needed to probe the recipient. Even if it
-  // could, a conformant recipient that rejects the message or silently replaces
-  // those octets with SP leaves no distinguishable observable signal in the
-  // response.
-  .type('informational')
+  .type(
+    'informational',
+    'tool-limitation',
+    'thymianofficial/thymian-workspace#110',
+    'Exercising this rule requires transmitting a field value containing raw CR, LF, or NUL octets; such octets are stripped or rejected at the transport/serialization layer today, so the malformed input needed to probe a recipient cannot be sent yet.',
+  )
   // An unfiltered CR, LF, or NUL inside a field value can be interpreted by a
   // downstream parser as starting a new header line or a new message — the
   // classic injection primitive behind response splitting and smuggling —
