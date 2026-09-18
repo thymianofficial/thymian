@@ -11,7 +11,8 @@ export const tier1ImpossibilityReasons = {
   'only-origin-knows': 'Only the origin knows the fact the statement is about.',
   'peer-not-observable':
     'The obligation is on a peer whose internals are not observable.',
-  'nothing-to-check': 'A statement that asserts nothing to check.',
+  'nothing-to-check':
+    'A statement no HTTP message can conform to or violate. Not a `MAY`: a permission is checkable at `hint`.',
   'tool-limitation':
     'Thymian could do this in principle; the implementation cannot yet.',
 } as const satisfies Record<string, string>;

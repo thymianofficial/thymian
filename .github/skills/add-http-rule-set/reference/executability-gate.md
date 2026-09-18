@@ -44,10 +44,24 @@ Every context, permanently → **tier 1**, and the rule is `informational`:
 | --------------------- | -------------------------------------------------------------- |
 | `only-origin-knows`   | Only the origin knows the fact the statement is about          |
 | `peer-not-observable` | The obligation is on a peer whose internals are not observable |
-| `nothing-to-check`    | A statement asserting nothing to check                         |
+| `nothing-to-check`    | No HTTP message can conform to it or violate it                |
 
-A BCP 14 `MAY` is the common case for `nothing-to-check` — a permission asserts nothing
-either way — but it is not the only one; a bare statement of fact lands here too.
+`nothing-to-check` covers two shapes, and only these two: a **statement of fact or a
+definition** (`header-section-consists-of-field-lines` defines what a header section is), and
+a **requirement addressed to whoever writes a specification** rather than to a message
+(`new-fields-should-limit-values-to-visible-ascii` constrains the author of the next field
+definition; no transaction can violate it).
+
+**A BCP 14 `MAY` does not land here.** A `MAY` is checkable at `hint`: the finding reads
+"the protocol offers this mechanism and it is not being used", which claims no
+non-conformance, so the permission is not a reason the rule is impossible. Ask a `MAY` the
+same question you would ask a `MUST` — _if the actor exercised or declined this permission,
+would Thymian see a difference in the messages available to it?_ A difference visible inside
+one transaction, or across a captured trace (`validateCapturedHttpTraces` hands a rule the
+whole `CapturedTrace`, which is how `server-should-send-same-header-fields-in-response-to-head`
+compares two of them), makes the rule executable at `hint`. It is `informational` only where
+the answer is genuinely no: the act stays inside a peer (`peer-not-observable`), it turns on
+origin state (`only-origin-knows`), or Thymian cannot do it yet (`tool-limitation`, cited).
 
 One context → **tier 2**, recorded in `coverage.ts` against that context:
 

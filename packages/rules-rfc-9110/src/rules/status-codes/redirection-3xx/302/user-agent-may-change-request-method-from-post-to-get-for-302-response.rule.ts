@@ -5,10 +5,12 @@ export default httpRule(
   'rfc9110/user-agent-may-change-request-method-from-post-to-get-for-302-response',
 )
   .severity('hint')
-  // Permissive MAY describing an internal user-agent decision (whether to
-  // change POST to GET when following a 302). Both behaviors are conformant,
-  // so there is no non-conformant condition.
-  .type('informational')
+  .type(
+    'informational',
+    'tool-limitation',
+    'thymianofficial/thymian-workspace#141',
+    'A user agent that takes this up follows the 302 with a GET where the redirected request was a POST, and a captured trace carries both transactions, so the method of the follow-up sits on the wire next to the method it was derived from. That comparison is not written yet.',
+  )
   .url('https://www.rfc-editor.org/rfc/rfc9110.html#name-302-found')
   .summary(
     'For historical reasons, a user agent MAY change the request method from POST to GET for the subsequent request.',

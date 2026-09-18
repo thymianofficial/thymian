@@ -318,7 +318,7 @@ describe('generate rule (integration)', () => {
       .mockResolvedValueOnce('my-rule') // name
       .mockResolvedValueOnce('') // description
       .mockResolvedValueOnce('') // summary
-      .mockResolvedValueOnce('A MAY with nothing to check.'); // note
+      .mockResolvedValueOnce('A definition no message can violate.'); // note
     vi.mocked(select)
       .mockReset()
       .mockResolvedValueOnce('error') // severity
@@ -333,7 +333,7 @@ describe('generate rule (integration)', () => {
     });
 
     expect(stdout).toContain(
-      ".type('informational', 'nothing-to-check', 'A MAY with nothing to check.')",
+      ".type('informational', 'nothing-to-check', 'A definition no message can violate.')",
     );
     expect(stdout).not.toContain('.rule((context, options, logger)');
   });

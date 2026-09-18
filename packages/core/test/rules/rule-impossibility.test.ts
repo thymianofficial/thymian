@@ -61,13 +61,17 @@ describe('impossibility reason vocabulary', () => {
   it('builds a reasoned informational rule and carries the reason and note on meta', () => {
     const rule = httpRule('reasoned-informational')
       .severity('error')
-      .type('informational', 'nothing-to-check', 'A MAY with nothing to check.')
+      .type(
+        'informational',
+        'nothing-to-check',
+        'A definition no message can violate.',
+      )
       .done();
 
     expect(rule.meta.type).toEqual(['informational']);
     expect(rule.meta.impossibility).toEqual({
       reason: 'nothing-to-check',
-      note: 'A MAY with nothing to check.',
+      note: 'A definition no message can violate.',
     });
   });
 
