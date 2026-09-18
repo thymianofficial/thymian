@@ -6,8 +6,9 @@ export default httpRule(
   .severity('hint')
   .type(
     'informational',
-    'nothing-to-check',
-    'A MAY: the server may ignore or reject invalid, overlapping, or unordered ranges. Ignoring, rejecting, and accepting are all conformant.',
+    'tool-limitation',
+    'thymianofficial/thymian-workspace#141',
+    'A server that takes this up answers a Range request carrying an invalid, overlapping or unordered ranges-specifier with 200 or 416 instead of the 206 it asks for, and the request field value and the response status sit in the same transaction. The `hint` — a server served a range set the specification names as the mark of a broken client or a deliberate denial-of-service attack — is not written yet.',
   )
   .tags('security:dos')
   .url('https://www.rfc-editor.org/rfc/rfc9110.html#name-range')

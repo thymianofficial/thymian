@@ -7,8 +7,9 @@ export default httpRule(
   .severity('hint')
   .type(
     'informational',
-    'nothing-to-check',
-    'A permissive MAY describing user-agent-internal state: once authorized, the user agent may reuse the same credentials within the protection space for a self-chosen duration. Both reusing and not reusing are conformant, and the protection space is user-agent-internal.',
+    'tool-limitation',
+    'thymianofficial/thymian-workspace#141',
+    'A user agent that takes this up repeats the same Authorization credentials on later requests to the same protection space, and a captured trace carries those as further transactions alongside the challenge that established it. The space is delimited on the wire rather than inside the agent: it is the origin plus the realm the server named in its own challenge. The `hint` — a client re-authenticated from scratch on every request inside one protection space — is not written yet.',
   )
   .url(
     'https://www.rfc-editor.org/rfc/rfc9110.html#name-establishing-a-protection-s',
