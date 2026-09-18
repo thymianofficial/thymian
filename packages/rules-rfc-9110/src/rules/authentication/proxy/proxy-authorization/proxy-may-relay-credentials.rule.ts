@@ -5,8 +5,9 @@ export default httpRule('rfc9110/proxy-may-relay-credentials')
   .severity('hint')
   .type(
     'informational',
-    'nothing-to-check',
-    'A permissive MAY describing internal proxy behavior: a proxy may relay client credentials to the next proxy when proxies cooperatively authenticate. Relaying and not relaying are both conformant, and the decision is proxy-internal.',
+    'tool-limitation',
+    'thymianofficial/thymian-workspace#141',
+    "A proxy that takes this up re-emits the client's Proxy-Authorization credentials on the request it forwards to the next proxy, so the decision leaves the proxy and lands on the wire. A captured trace keeps the inbound and the outbound message apart through the role recorded per message, which is how the proxy-must-not-* rules already compare the two. The `hint` — a proxy in a cooperatively authenticating chain dropped the credentials instead of relaying them — is not written yet.",
   )
   .url(
     'https://www.rfc-editor.org/rfc/rfc9110.html#name-authenticating-clients-to-p',

@@ -7,8 +7,9 @@ export default httpRule(
   .severity('hint')
   .type(
     'informational',
-    'nothing-to-check',
-    'A MAY: ignoring the Range header for a zero-length representation is allowed but not required. Ignoring and honoring it are both conformant.',
+    'tool-limitation',
+    'thymianofficial/thymian-workspace#141',
+    'A server that takes this up answers a Range request against an empty representation with 200 and no content; declining shows instead as 416 carrying `Content-Range: bytes */0`, so the zero length is on the wire either way. The `hint` — a range request against an empty representation was rejected rather than ignored — is not written yet.',
   )
   .url('https://www.rfc-editor.org/rfc/rfc9110.html#name-range')
   .description(

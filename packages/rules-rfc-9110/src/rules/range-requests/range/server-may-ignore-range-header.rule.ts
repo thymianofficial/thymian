@@ -5,8 +5,9 @@ export default httpRule('rfc9110/server-may-ignore-range-header')
   .severity('hint')
   .type(
     'informational',
-    'nothing-to-check',
-    'A baseline MAY: a server is always free to ignore the Range header and answer with a full 200.',
+    'tool-limitation',
+    'thymianofficial/thymian-workspace#141',
+    'A server that takes this up answers a request carrying Range with 200 and the whole representation rather than 206, and both the request field and the response status sit in one transaction. The `hint` — a range request was served in full, where the same section recommends supporting byte ranges — is not written yet.',
   )
   .url('https://www.rfc-editor.org/rfc/rfc9110.html#name-range')
   .description(
