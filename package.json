@@ -58,7 +58,7 @@
     "tsx": "^4.21.0",
     "typescript": "^5.9.2",
     "typescript-eslint": "8.44.0",
-    "verdaccio": "^6.1.0",
+    "verdaccio": "^6.10.1",
     "vite": "^7.3.5",
     "vitest": "^4.1.10"
   },
