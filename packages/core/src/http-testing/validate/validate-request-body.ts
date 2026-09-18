@@ -1,3 +1,4 @@
+import type { ValidateFunction } from 'ajv';
 import { parse } from 'secure-json-parse';
 
 import type { ThymianHttpRequest } from '../../index.js';
@@ -9,44 +10,11 @@ export function validateJsonRequestBody(
   body: string,
   request: ThymianHttpRequest,
 ): HttpTestCaseResult[] {
+  let json: unknown;
+
   try {
-    const json = parse(body);
-
-    if (!request.body) {
-      return [
-        {
-          type: 'info',
-          message: 'No request body schema is provided.',
-          details: '',
-          timestamp: Date.now(),
-        },
-      ];
-    }
-
-    const validate = ajv.compile(request.body);
-
-    validate(json);
-
-    if (validate.errors && validate.errors.length > 0) {
-      // Emit one assertion-failure per schema error instead of collapsing all of
-      // them into a single joined message, so each error is reported on its own.
-      return validate.errors.map((err) => ({
-        type: 'assertion-failure',
-        message: describeSchemaError(err, 'request body'),
-        ...schemaErrorDetail(err),
-        timestamp: Date.now(),
-      }));
-    }
-
-    return [
-      {
-        type: 'assertion-success',
-        message: 'Valid request body.',
-        timestamp: Date.now(),
-      },
-    ];
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  } catch (err) {
+    json = parse(body);
+  } catch {
     return [
       {
         type: 'assertion-failure',
@@ -55,6 +23,55 @@ export function validateJsonRequestBody(
       },
     ];
   }
+
+  if (!request.body) {
+    return [
+      {
+        type: 'info',
+        message: 'No request body schema is provided.',
+        details: '',
+        timestamp: Date.now(),
+      },
+    ];
+  }
+
+  let validate: ValidateFunction;
+
+  try {
+    validate = ajv.compile(request.body);
+  } catch (err) {
+    // A schema that does not compile is a defect of the API description
+    // document, not of the observed request body.
+    return [
+      {
+        type: 'assertion-failure',
+        assertion: 'schema-compilation',
+        message: `The request body schema in the API description document could not be compiled: ${err instanceof Error ? err.message : String(err)}`,
+        timestamp: Date.now(),
+      },
+    ];
+  }
+
+  validate(json);
+
+  if (validate.errors && validate.errors.length > 0) {
+    // Emit one assertion-failure per schema error instead of collapsing all of
+    // them into a single joined message, so each error is reported on its own.
+    return validate.errors.map((err) => ({
+      type: 'assertion-failure',
+      message: describeSchemaError(err, 'request body'),
+      ...schemaErrorDetail(err),
+      timestamp: Date.now(),
+    }));
+  }
+
+  return [
+    {
+      type: 'assertion-success',
+      message: 'Valid request body.',
+      timestamp: Date.now(),
+    },
+  ];
 }
 
 export function validateBodyForRequest(

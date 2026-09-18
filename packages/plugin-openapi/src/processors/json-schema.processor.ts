@@ -139,7 +139,9 @@ function normalizeSchemaObject(
   }
 
   for (const [key, value] of Object.entries(schema)) {
-    if (keysToRemove.has(key) || key === 'example') {
+    // Specification Extensions (`x-*`) are OpenAPI metadata, not JSON Schema
+    // keywords — Ajv's strict mode rejects them at compile time.
+    if (keysToRemove.has(key) || key === 'example' || key.startsWith('x-')) {
       continue;
     }
 
