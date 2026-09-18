@@ -5,8 +5,9 @@ export default httpRule('rfc9110/http-component-may-perform-normalization')
   .severity('hint')
   .type(
     'informational',
-    'nothing-to-check',
-    'A permissive MAY with no observable failure mode — it grants a normalization permission, so there is no violation to detect from recorded traffic.',
+    'tool-limitation',
+    'thymianofficial/thymian-workspace#141',
+    'An intermediary that takes this up forwards a request-target that differs from the one it received — host lowercased, a default port dropped, %7E decoded to ~ — and a captured trace carries both messages with the role each was seen in. The hint, that a hop normalized the target or passed an unnormalized one straight through, is not written yet.',
   )
   .url(
     'https://www.rfc-editor.org/rfc/rfc9110.html#name-https-normalization-and-comparison',

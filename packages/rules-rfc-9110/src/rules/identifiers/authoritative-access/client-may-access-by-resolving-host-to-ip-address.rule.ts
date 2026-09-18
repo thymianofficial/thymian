@@ -7,8 +7,8 @@ export default httpRule(
   .severity('hint')
   .type(
     'informational',
-    'nothing-to-check',
-    "A permissive MAY describing a client's DNS/TCP access procedure — no violation to detect, and the resolution/connection steps occur below the recorded HTTP layer.",
+    'peer-not-observable',
+    'Resolving the host identifier and opening the TCP connection happen inside the client, beneath the HTTP layer a trace records. A captured request shows the target it was sent with, but not how the client reached that address, nor whether it took this route rather than an alternative service.',
   )
   .url('https://www.rfc-editor.org/rfc/rfc9110.html#name-http-origins')
   .description(
