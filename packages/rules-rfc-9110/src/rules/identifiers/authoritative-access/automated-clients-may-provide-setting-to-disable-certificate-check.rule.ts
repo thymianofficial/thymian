@@ -6,8 +6,8 @@ export default httpRule(
   .severity('hint')
   .type(
     'informational',
-    'nothing-to-check',
-    'A permissive MAY about a client configuration setting — no observable failure mode and not detectable from recorded HTTP traffic.',
+    'peer-not-observable',
+    'Whether an automated client offers a switch for certificate checking is settled in its own configuration surface, and no request or response carries it. The check that switch governs runs in the TLS handshake, beneath the HTTP messages a trace records.',
   )
   .tags('security:transport')
   .url(
