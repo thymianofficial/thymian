@@ -11,7 +11,6 @@ const keysToRemove = new Set([
   'externalDocs',
   'readOnly',
   'writeOnly',
-  'xml',
 ]);
 
 const schemaArrayKeys = new Set(['allOf', 'anyOf', 'oneOf', 'prefixItems']);

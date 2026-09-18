@@ -163,7 +163,7 @@ describe('processSchema', () => {
     });
   });
 
-  it('should remove the xml keyword', () => {
+  it('should preserve the xml keyword', () => {
     const schema: OpenApiV31.SchemaObject = {
       type: 'string',
       xml: { name: 'animal' },
@@ -175,6 +175,7 @@ describe('processSchema', () => {
       }),
     ).toStrictEqual({
       type: 'string',
+      xml: { name: 'animal' },
     });
   });
 

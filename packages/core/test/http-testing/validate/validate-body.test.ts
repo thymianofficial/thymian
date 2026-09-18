@@ -190,6 +190,33 @@ describe('validateJsonBody', () => {
     ]);
   });
 
+  it('tolerates the OpenAPI xml keyword instead of failing to compile', () => {
+    const response: ThymianHttpResponse = {
+      type: 'http-response',
+      label: '200 OK',
+      headers: {},
+      mediaType: 'application/json',
+      statusCode: 200,
+      schema: {
+        type: 'object',
+        properties: {
+          name: {
+            type: 'string',
+            xml: { name: 'animal' },
+          },
+        },
+      } as ThymianHttpResponse['schema'],
+    };
+
+    expect(validateJsonBody('{"name":"Ada"}', response)).toStrictEqual([
+      {
+        type: 'assertion-success',
+        message: 'Valid response body.',
+        timestamp: expect.any(Number),
+      },
+    ]);
+  });
+
   it('reports a schema that fails to compile as a defect of the API description', () => {
     const response: ThymianHttpResponse = {
       type: 'http-response',
