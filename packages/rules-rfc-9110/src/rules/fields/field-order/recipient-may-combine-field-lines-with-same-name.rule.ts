@@ -7,8 +7,9 @@ export default httpRule(
   .severity('off')
   .type(
     'informational',
-    'nothing-to-check',
-    'Combining same-name field lines is an optional internal recipient choice with no required outcome, and the recombined form is not re-emitted for Thymian to observe.',
+    'tool-limitation',
+    'thymianofficial/thymian-workspace#120',
+    'A recipient that takes this up and forwards the message emits one field line where the inbound message carried several, joined by comma and OWS; Section 5.3 addresses its next paragraph to a proxy forwarding those same lines, so the recombined form does reach the wire. Rules cannot see it: field lines sharing a name are not kept distinct through parsing, and no context has a count primitive.',
   )
   .url('https://www.rfc-editor.org/rfc/rfc9110.html#section-5.3')
   .description(

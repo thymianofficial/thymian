@@ -5,8 +5,8 @@ export default httpRule('rfc9110/client-may-discard-oversized-field-lines')
   .severity('off')
   .type(
     'informational',
-    'nothing-to-check',
-    'Discarding/truncating oversized field lines is optional internal client behaviour with no required outcome.',
+    'peer-not-observable',
+    "The oversized field line has already arrived on the wire; discarding or truncating it happens inside the client's own parse result. Section 5.4 grants the permission only where the dropped values change neither the message framing nor the response semantics, so nothing the client goes on to send distinguishes it from a client that kept them.",
   )
   .url('https://www.rfc-editor.org/rfc/rfc9110.html#section-5.4')
   .description(

@@ -7,8 +7,9 @@ export default httpRule(
   .severity('off')
   .type(
     'informational',
-    'nothing-to-check',
-    'Retaining other CTL octets in safe contexts is an optional internal recipient allowance with no required outcome.',
+    'tool-limitation',
+    'thymianofficial/thymian-workspace#115',
+    'A recipient that declines this rejects the message or replaces the octet before forwarding, while one that takes it up passes the octet through, so the difference shows up as a response status or as an outbound field value. Deciding whether the octet sits in the safe context Section 5.5 names — an application-specific quoted string — needs quoted-string grammar rules cannot parse yet.',
   )
   .url('https://www.rfc-editor.org/rfc/rfc9110.html#section-5.5')
   .description(

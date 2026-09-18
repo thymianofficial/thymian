@@ -7,8 +7,9 @@ export default httpRule(
   .severity('hint')
   .type(
     'informational',
-    'nothing-to-check',
-    "A permissive MAY describing a user agent's internal choice whether to follow a 3xx response to a PUT; the decision is not required either way, so there is no non-conformant condition to detect.",
+    'tool-limitation',
+    'thymianofficial/thymian-workspace#141',
+    'A user agent that takes this up sends a second request to the Location target of the 3xx, which a captured trace carries as a further transaction after the PUT. The hint — a 3xx answer to a PUT that the agent never followed — is not written yet.',
   )
   .url('https://www.rfc-editor.org/rfc/rfc9110.html#name-put')
   .description(

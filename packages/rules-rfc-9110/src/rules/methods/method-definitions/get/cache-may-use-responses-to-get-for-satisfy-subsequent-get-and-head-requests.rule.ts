@@ -7,8 +7,9 @@ export default httpRule(
   .severity('hint')
   .type(
     'informational',
-    'nothing-to-check',
-    'A cache MAY reuse a GET response for subsequent GET/HEAD requests — a purely permissive allowance with nothing non-conformant to detect either way.',
+    'tool-limitation',
+    'thymianofficial/thymian-workspace#141',
+    'A cache that takes this up answers a later GET or HEAD from store: the captured trace holds the served response, carrying Age, with no upstream transaction behind it. The hint — a cacheable GET response the cache never reused — is not written yet.',
   )
   .url('https://www.rfc-editor.org/rfc/rfc9110.html#name-get')
   .description(

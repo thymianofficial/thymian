@@ -6,7 +6,7 @@ export default httpRule('rfc9110/other-methods-than-get-and-head-are-optional')
   .type(
     'informational',
     'nothing-to-check',
-    'A purely permissive statement — every method other than GET and HEAD is OPTIONAL, so there is no non-conformant condition to detect; a server is free to implement, or reject with 501, any other method.',
+    "Section 9.1 states the requirement level of the methods beyond GET and HEAD rather than placing an obligation on a sender or a recipient, so no HTTP message can conform to it or violate it. What is observable about a server's method support is carried by general-purpose-servers-must-support-get-and-head and by the 405 and 501 rules.",
   )
   .url('https://www.rfc-editor.org/rfc/rfc9110.html#name-overview')
   .description('Other methods than GET and HEAD are OPTIONAL.')

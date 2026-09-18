@@ -7,8 +7,9 @@ export default httpRule(
   .severity('off')
   .type(
     'informational',
-    'nothing-to-check',
-    'Collapsing OWS/RWS to a single SP is optional internal behaviour before interpreting/forwarding; there is no required outcome to check.',
+    'tool-limitation',
+    'thymianofficial/thymian-workspace#115',
+    "An intermediary that takes this up forwards the field value with each run of optional or required whitespace collapsed to one SP, so its outbound message differs from the inbound one the same captured trace holds. Deciding which run is the OWS or RWS the field's grammar defines is a field-grammar question rules cannot ask yet.",
   )
   .url('https://www.rfc-editor.org/rfc/rfc9110.html#section-5.6.3')
   .description(
