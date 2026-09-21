@@ -170,6 +170,81 @@ describe('validateJsonBody', () => {
       },
     ]);
   });
+
+  it('reports invalid JSON as a single assertion-failure', () => {
+    const response: ThymianHttpResponse = {
+      type: 'http-response',
+      label: '200 OK',
+      headers: {},
+      mediaType: 'application/json',
+      statusCode: 200,
+      schema: { type: 'object' },
+    };
+
+    expect(validateJsonBody('{not json', response)).toStrictEqual([
+      {
+        type: 'assertion-failure',
+        message: 'Response body is not valid JSON.',
+        timestamp: expect.any(Number),
+      },
+    ]);
+  });
+
+  it('tolerates the OpenAPI xml keyword instead of failing to compile', () => {
+    const response: ThymianHttpResponse = {
+      type: 'http-response',
+      label: '200 OK',
+      headers: {},
+      mediaType: 'application/json',
+      statusCode: 200,
+      schema: {
+        type: 'object',
+        properties: {
+          name: {
+            type: 'string',
+            xml: { name: 'animal' },
+          },
+        },
+      } as ThymianHttpResponse['schema'],
+    };
+
+    expect(validateJsonBody('{"name":"Ada"}', response)).toStrictEqual([
+      {
+        type: 'assertion-success',
+        message: 'Valid response body.',
+        timestamp: expect.any(Number),
+      },
+    ]);
+  });
+
+  it('reports a schema that fails to compile as a defect of the API description', () => {
+    const response: ThymianHttpResponse = {
+      type: 'http-response',
+      label: '200 OK',
+      headers: {},
+      mediaType: 'application/json',
+      statusCode: 200,
+      schema: {
+        type: 'object',
+        properties: {
+          duration: {
+            type: 'number',
+            'x-precision': 2,
+          },
+        },
+      } as ThymianHttpResponse['schema'],
+    };
+
+    expect(validateJsonBody('{"duration":1.5}', response)).toStrictEqual([
+      {
+        type: 'assertion-failure',
+        assertion: 'schema-compilation',
+        message:
+          'The response schema in the API description document could not be compiled: strict mode: unknown keyword: "x-precision"',
+        timestamp: expect.any(Number),
+      },
+    ]);
+  });
 });
 
 describe('validateBodyForResponse', () => {
