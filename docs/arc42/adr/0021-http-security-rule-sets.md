@@ -241,25 +241,40 @@ of this.
   `"files": ["dist"]` means npm force-includes only `README.md`, and a coverage claim has to
   ship with the version that makes it. The unversioned docs site may mirror it and may never
   become a second source of truth.
+- **The record is authored per rule, not per unit.** A rule's entry carries what it `covers`,
+  a declared-type-and-severity stamp, and cells only for the contexts it does _not_ declare —
+  a declared context defaults to `observable`; the only value ever written for one is
+  `heuristic`. There is no `.covers()` on the rule builder: what a rule discharges is a
+  second, driftable claim if restated on the rule itself, so it is declared exactly once,
+  here.
 - **The numerator is derived, not asserted.** Rules and source units are N:M _both ways_ —
-  all 14 rules on `#name-expect` discharge one unit. Each rule declares its `covers`, and
+  all 14 rules on `#name-expect` discharge one unit. Each rule's entry declares `covers`, and
   the headline renders **two numbers** ("9 of 14 statements, covered by 21 rules") rather
   than one dishonest ratio. `.url()` was rejected as that mapping: 400 of 402 rules carry
-  one, resolving to 105 anchor strings across three conventions.
-- **The denominator is a declared artifact**: n, the counting rule, the source revision, and
-  a substitute label where the document has no enumerable unit. A source with no denominator
-  never refuses a package; an **undeclared counting rule does**. Denominators genuinely
-  differ — Cookies splits producer from consumer itself (N≈24), Fetch's CORS surface has
-  zero BCP 14 keywords, and RFC 9110 §17 has none either, so its substitute is the 14–15
-  sections it cross-references.
+  one, resolving to 105 anchor strings across three conventions — and its anchor belongs to
+  the same document the rule set's own `url` names, one source document cited at one host
+  (thymian#419 made this a build fact after `rules-rfc-9110` drifted under the silence once).
+- **The denominator is a declared artifact**: n, the counting rule, the source revision,
+  whether the source has a keyword basis (`hasKeywordBasis`, declared rather than parsed out
+  of the counting rule's own prose — no regex over text written for a human reader can be
+  trusted for the citation-requirement assertion), and a substitute label where the document
+  has no enumerable unit. **Counted from the document, never from the rules that have been
+  written** — a denominator derived from a package's own anchors makes coverage 100% by
+  construction, the one number this whole convention exists to keep honest. A source with no
+  denominator never refuses a package; an **undeclared counting rule does**. Denominators
+  genuinely differ — Cookies splits producer from consumer itself (N≈24), Fetch's CORS
+  surface has zero BCP 14 keywords, and RFC 9110 §17 has none either, so its substitute is
+  the 14–15 sections it cross-references.
 - **Verdict tables are profile-independent** — observability does not vary by profile, only
   severity does — and render one collapsed table per topic directory.
 - **The convention table generates in full** from `severity === 'off' && !informational`,
   rendering `explanation` verbatim: the no-normative-basis reason and the promotion reason
   are one sentence, not two.
-- **Uncovered units are rendered content, never a check.** Eight `--check` assertions fail
-  the build; the load-bearing one is the **declared-type stamp**, which is what makes a
-  _stale_ reason detectable rather than only a missing row.
+- **Uncovered units are rendered content, never a check.** The package's own meta-test is
+  the gate — eight assertions, all of which fail the build; the generator's `--check` runs
+  the same checker for a maintainer working locally and for the one release-time assertion.
+  The load-bearing assertion is the **declared-type stamp**, which is what makes a _stale_
+  reason detectable rather than only a missing row.
 
 ### 6. Ruled out, and why
 
@@ -362,15 +377,16 @@ of this.
   which contradict this ADR on the points listed under Context. Those two files still carry
   their original descriptions, so redirecting them is follow-on work; until it lands,
   `AGENTS.md` is what points an agent at the right one.
-- `CONTEXT.md`: this ADR defines `Source`, `Source Unit`, `Coverage Record`, `Rule Tag`,
-  `Impossibility Reason` and `Convention Rule` for its own use. They land in the project
-  glossary with the implementation, not with this record.
+- `CONTEXT.md`: this ADR defines `Source`, `Source Unit`, `Denominator`, `Coverage Record`,
+  `Rule Tag`, `Impossibility Reason` and `Convention Rule` for its own use. They land in the
+  project glossary with the implementation, not with this record.
 
 ---
 
 ## Status History
 
-| Date       | Status   | Notes                                                                                                                                                                                |
-| ---------- | -------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| 2026-09-10 | Accepted | Route for adding an HTTP rule set one slice at a time; `--tag` filter and catalogs deferred                                                                                          |
-| 2026-09-18 | Amended  | §4: a BCP 14 `MAY` is checkable at `hint` and is never `nothing-to-check`; `nothing-to-check` narrowed to statements of fact, definitions, and requirements on specification authors |
+| Date       | Status   | Notes                                                                                                                                                                                                                                                                                                                                                                                |
+| ---------- | -------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| 2026-09-10 | Accepted | Route for adding an HTTP rule set one slice at a time; `--tag` filter and catalogs deferred                                                                                                                                                                                                                                                                                          |
+| 2026-09-18 | Amended  | §4: a BCP 14 `MAY` is checkable at `hint` and is never `nothing-to-check`; `nothing-to-check` narrowed to statements of fact, definitions, and requirements on specification authors                                                                                                                                                                                                 |
+| 2026-09-22 | Amended  | §5: corrected to the shipped shape — the record is authored per rule (no `.covers()` on the builder), a declared context defaults to `observable`, the denominator is counted from the document and never from a package's own rules, `.url()`'s anchor belongs to the document the rule set's own `url` names, and the package's own meta-test — not a bare `--check` — is the gate |

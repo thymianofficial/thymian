@@ -104,6 +104,42 @@ core with the same closure discipline as `Rule Tag`: adding a code is a union wi
 _In code_: `WorldReason` (tier 1, narrows `.type('informational', reason, note)`) and
 `ContextReason` (tier 2), both in `packages/core/src/rules/rule-impossibility.ts`.
 
+**Source**:
+The external document — an RFC, a W3C specification, a working draft — a spec `Rule Set`
+package derives its rules from and is measured against. Carried by the package itself (its
+`url`, its `Coverage Record`'s revision), never asserted by an individual rule: a rule's own
+`.url()` says where it is _explained_, not proof of where it _came from_. A self-referential
+`Rule Set` — one that checks traffic against its own specification rather than an external
+document — has no `Source` and carries no `Coverage Record`.
+_Avoid_: spec, document, provenance (provenance is the _role_ a `Source` plays for a package,
+not a synonym for the document itself)
+
+**Source Unit**:
+The smallest thing a `Rule Set`'s `Source` can be held to have covered — a normative
+statement, a section, an ABNF production. Chosen per source and declared with its counting
+rule, because sources differ in what they enumerate. Rules map to source units many-to-many.
+_Avoid_: requirement, statement, clause
+
+**Denominator**:
+The count of source units a `Rule Set` is measured against, together with the counting rule
+and source revision that produced it. A rule set may have no denominator; it may not have an
+undeclared one.
+
+**Coverage Record**:
+A `Rule Set`'s account of itself — its `Denominator`, which `Source Unit`s its rules cover,
+and for each rule what it can and cannot observe in each `Validation Context`, with a reason
+wherever it cannot. Authored per rule, not per source unit: a rule's entry carries what it
+covers, a declared-type-and-severity stamp, and a cell only for a context it does not
+declare, or to mark a declared one heuristic — a declared context defaults to observable.
+_In code_: `CoverageRecord`, `defineCoverage`, `packages/core/src/rules/rule-coverage.ts`.
+_Avoid_: roadmap, manifest
+
+**Convention Rule**:
+A rule that asserts an obligation no `Source` imposes, over a mechanism a `Source` defines —
+send HSTS at all, mark a session cookie `HttpOnly`. Lives in its source's own package, never
+a package of its own. Ships `.severity('off')` with a real executable `.type()`, which is
+what tells it apart from an `informational` rule; a shipped `Profile` may promote it.
+
 **Profile**:
 A named set of rule-configuration overrides that a rule set ships with its rules, so adopting
 a curated configuration is one line of `Config` rather than a pasted block. An exception list

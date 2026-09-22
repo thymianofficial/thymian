@@ -59,6 +59,11 @@ Before a single rule file. The denominator is what lets a partial package ship h
 an **undeclared counting rule refuses the package** — a source with no enumerable unit does
 not.
 
+**Count from the document, never from the rules you have written.** A denominator derived
+from your own rules' anchors makes coverage 100% by construction — the one number this whole
+convention exists to keep honest. Read the source and enumerate its units before a rule file
+exists; a unit count that moves every time a rule is added is the tell that it drifted.
+
 Write `src/coverage.ts` with `units`, the `countingRule` prose, the source `revision`, and a
 `substituteLabel` where the document has no enumerable unit. Populate the unit list; leave
 the per-unit verdicts to step 3.
@@ -112,11 +117,10 @@ export default httpRule('<slug>/<actor>-<keyword>-<constraint>')
   .severity('warn')                       // strictness, not the RFC keyword — see step 6
   .type('static', 'test')                 // exactly the contexts step 3 cleared
   .tags('security:transport')             // concern, fully qualified and terminal
-  .url('https://…#anchor')                // where the rule is explained
+  .url('https://…#anchor')                // an anchor in the document RuleSet.url names
   .description('…')                       // the normative text
   .explanation('…')                       // why it matters; `thymian explain rule` renders it
   .appliesTo('origin server')
-  .covers(['§6.1'])                       // the units this rule discharges
   .rule((ctx) => …)
   .done();
 ```
@@ -127,8 +131,13 @@ export default httpRule('<slug>/<actor>-<keyword>-<constraint>')
   `.type('informational', reason, note)`. Unreasoned informational is a compile error.
 - `.tags()` takes fully-qualified terminal tags. Untagged is legal where nothing fits, marked
   by the ESLint suppression comment, which _is_ the "considered, nothing fits" record.
-- `.covers()` is what makes the coverage numerator derived rather than asserted. Rules and
-  units are N:M both ways.
+- `.url()`'s anchor belongs to the **same document** the rule set's own `url` names — one
+  source document, cited at one host. `rules-rfc-9110` drifted under exactly this silence (11
+  of 400 citations at a second host for the same RFC; thymian#419 normalised it and made the
+  invariant a build fact) before this line named the constraint.
+- There is no `.covers()` on the builder. What a rule discharges is declared once, in
+  `coverage.ts`'s own entry for it (step 7) — not restated here as a second, driftable claim.
+  Rules and units are N:M both ways.
 - Prefer `ctx.validateCommonHttpTransactions(condition, constraint)` where the assertion is
   the same in every declared context. Where the engine differs per context, use
   `.overrideStaticRule()` / `.overrideTest()` / `.overrideAnalyticsRule()` with helpers shared
@@ -181,11 +190,20 @@ Check the floor-filter interaction before shipping: a package whose `strict` pro
 
 ## Step 7 — Render the coverage record
 
-Fill in step 3's verdicts, then generate the five README sections between markers inside
-`README.md` and run the generator's `--check`.
+Fill in step 3's verdicts as `coverage.ts`'s per-rule entries, then generate the five README
+sections between markers inside `README.md`.
 
-**Done when** `--check` passes all eight assertions and regenerating the README produces no
-diff.
+**The package's own meta-test is the gate** — on the precedent of `src/profiles.test.ts`
+(step 5), it calls `checkCoverage` directly and fails the build on any of the eight
+assertions, the same way every other package invariant in this repo is enforced: in the test
+suite, not by a separate CI step. `nx run <pkg>:generate-coverage` (writes) and
+`nx run <pkg>:check-coverage` (`--check`: reports and exits non-zero, writes nothing) are the
+**local and release-time lane** — what a maintainer runs by hand, and what the one
+release-time assertion in `scripts/release.ts` runs before publish. Both call the same
+checker the meta-test does; neither is a second implementation of it.
+
+**Done when** the package's meta-test passes, `nx run <pkg>:check-coverage` reports no
+violations, and regenerating the README produces no diff.
 
 → [`reference/coverage-record.md`](reference/coverage-record.md)
 
