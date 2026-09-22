@@ -11,7 +11,7 @@ export default httpRule(
     'thymianofficial/thymian-workspace#112',
     'Requires determining that the request asked for exactly one range; counting ranges from the Range header reliably across its permitted syntaxes is not implemented, so the single-part precondition cannot be established.',
   )
-  .url('https://datatracker.ietf.org/doc/html/rfc9110#name-multiple-parts')
+  .url('https://www.rfc-editor.org/rfc/rfc9110.html#name-multiple-parts')
   .description(
     'A server MUST NOT generate a multipart response to a request for a single range, since a client that does not request multiple parts might not support multipart responses.',
   )

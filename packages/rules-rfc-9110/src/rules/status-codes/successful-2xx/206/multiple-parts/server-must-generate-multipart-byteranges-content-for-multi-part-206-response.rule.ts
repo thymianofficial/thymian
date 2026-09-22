@@ -11,7 +11,7 @@ export default httpRule(
     'thymianofficial/thymian-workspace#112',
     "Triggered only 'if multiple parts are being transferred', a condition that requires parsing the multipart body. The framework does not expose parsed body parts, so the multi-part precondition cannot be established.",
   )
-  .url('https://datatracker.ietf.org/doc/html/rfc9110#name-multiple-parts')
+  .url('https://www.rfc-editor.org/rfc/rfc9110.html#name-multiple-parts')
   .description(
     'If multiple parts are being transferred, the server generating the 206 response MUST generate "multipart/byteranges" content and a Content-Type header field containing the "multipart/byteranges" media type and its required boundary parameter.',
   )

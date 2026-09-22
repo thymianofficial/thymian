@@ -13,7 +13,7 @@ export default httpRule(
 )
   .severity('error')
   .type('static', 'analytics', 'test')
-  .url('https://datatracker.ietf.org/doc/html/rfc9110#name-multiple-parts')
+  .url('https://www.rfc-editor.org/rfc/rfc9110.html#name-multiple-parts')
   .description(
     'To avoid confusion with single-part responses, a server MUST NOT generate a Content-Range header field in the HTTP header section of a multiple part response (this field will be sent in each part instead).',
   )
