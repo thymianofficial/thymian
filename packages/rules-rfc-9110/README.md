@@ -63,10 +63,10 @@ Not yet covered:
 
 | Severity | Keyword | recommended | strict | minimal |
 | -------- | ------- | ----------- | ------ | ------- |
-| error    | MUST    | 174         | 174    | 174     |
-| warn     | SHOULD  | 105         | 108    | 105     |
-| hint     | MAY     | 101         | 110    | 101     |
-| off      | (off)   | 22          | 10     | 22      |
+| error    | MUST    | 174         | 174    | 88      |
+| warn     | SHOULD  | 105         | 108    | 0       |
+| hint     | MAY     | 101         | 110    | 0       |
+| off      | (off)   | 22          | 10     | 314     |
 
 ## Conventions
 
