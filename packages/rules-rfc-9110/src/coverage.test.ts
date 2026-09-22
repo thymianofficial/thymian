@@ -276,4 +276,84 @@ describe('coverage record', () => {
       expect(violations).toEqual([]);
     }, 30_000);
   });
+
+  describe('conditional-requests and identifiers batch (#160)', () => {
+    const scope = [
+      'rfc9110/authority-should-not-use-equivalent-uris-for-distinct-resources',
+      'rfc9110/automated-client-must-log-error-to-audit-log-for-bad-certificate',
+      'rfc9110/automated-client-should-terminate-connection-for-bad-certificate',
+      'rfc9110/automated-clients-may-provide-setting-to-disable-certificate-check',
+      'rfc9110/automated-clients-must-provide-setting-to-enable-certificate-check',
+      'rfc9110/cache-or-intermediary-may-ignore-if-match',
+      'rfc9110/cache-or-intermediary-may-ignore-if-unmodified-since',
+      'rfc9110/client-may-access-by-resolving-host-to-ip-address',
+      'rfc9110/client-may-send-if-match-header',
+      'rfc9110/client-may-send-if-unmodified-since-header',
+      'rfc9110/client-must-construct-reference-identity',
+      'rfc9110/client-must-not-generate-if-range-header-containing-http-date',
+      'rfc9110/client-must-not-generate-if-range-with-weak-etag',
+      'rfc9110/client-must-not-generate-if-range-without-range',
+      'rfc9110/client-must-not-use-cn-id-reference-identity',
+      'rfc9110/client-must-secure-https-requests-and-responses',
+      'rfc9110/client-must-use-rfc6125-verification',
+      'rfc9110/client-must-verify-service-identity',
+      'rfc9110/client-should-generate-if-none-match-for-cache-updates',
+      'rfc9110/http-component-may-perform-normalization',
+      'rfc9110/non-origin-server-must-not-evaluate-conditional-headers',
+      'rfc9110/origin-server-may-respond-with-2xx-response-even-condition-failed',
+      'rfc9110/origin-server-may-respond-with-2xx-response-even-condition-failed-for-unmodified-since',
+      'rfc9110/origin-server-may-respond-with-412-response-to-conditional-request',
+      'rfc9110/origin-server-may-respond-with-412-response-to-unmodified-since',
+      'rfc9110/origin-server-must-evaluate-if-match-before-method',
+      'rfc9110/origin-server-must-evaluate-if-none-match-before-method',
+      'rfc9110/origin-server-must-evaluate-if-unmodified-since',
+      'rfc9110/origin-server-must-ignore-if-range-header-if-target-resource-does-not-support-range-requests',
+      'rfc9110/origin-server-must-not-perform-method-when-if-match-fails',
+      'rfc9110/origin-server-must-not-perform-method-when-if-unmodified-since-fails',
+      'rfc9110/origin-server-must-respond-304-or-412-when-if-none-match-fails',
+      'rfc9110/origin-server-must-use-strong-comparison-for-if-match',
+      'rfc9110/origin-server-should-evaluate-if-modified-since',
+      'rfc9110/origin-server-should-respond-304-when-if-modified-since-false',
+      'rfc9110/recipient-must-ignore-if-modified-since-for-non-get-head',
+      'rfc9110/recipient-must-ignore-if-modified-since-header-if-no-date-available',
+      'rfc9110/recipient-must-ignore-if-modified-since-when-if-none-match-present',
+      'rfc9110/recipient-must-ignore-if-unmodified-since-header-if-no-date-available',
+      'rfc9110/recipient-must-ignore-if-unmodified-since-when-if-match-present',
+      'rfc9110/recipient-must-ignore-range-when-if-range-false',
+      'rfc9110/recipient-must-interpret-if-modified-since-value-in-terms-of-servers-clock',
+      'rfc9110/recipient-must-interpret-if-unmodified-since-value-in-terms-of-servers-clock',
+      'rfc9110/recipient-must-reject-http-uri-without-host',
+      'rfc9110/recipient-must-reject-https-uri-without-host',
+      'rfc9110/recipient-must-use-weak-comparison-for-if-none-match',
+      'rfc9110/recipient-should-process-range-header-if-if-range-matches',
+      'rfc9110/recipient-should-treat-userinfo-in-uri-from-untrusted-source-as-error',
+      'rfc9110/sender-must-not-generate-http-uri-with-empty-host',
+      'rfc9110/sender-must-not-generate-https-uri-with-empty-host',
+      'rfc9110/sender-must-not-generate-userinfo-in-uri',
+      'rfc9110/sender-recipient-should-support-8000-octet-uris',
+      'rfc9110/server-must-evaluate-if-range',
+      'rfc9110/server-must-evaluate-preconditions-after-normal-checks',
+      'rfc9110/server-must-evaluate-preconditions-in-correct-order',
+      'rfc9110/server-must-ignore-conditionals-for-connect-options-trace',
+      'rfc9110/server-must-ignore-if-range-without-range',
+      'rfc9110/server-must-ignore-preconditions-for-non-2xx-412-responses',
+      'rfc9110/user-agent-must-handle-bad-certificate',
+    ];
+
+    it('has the expected rule count', () => {
+      expect(scope.length).toBe(59);
+    });
+
+    it('reports zero violations', async () => {
+      const rules = await loadBaselineRules();
+      const violations = checkCoverage({
+        record: coverage,
+        rules,
+        profiles: rfc9110.profiles,
+        scope,
+      });
+
+      expect(violations).toEqual([]);
+    });
+  });
 });

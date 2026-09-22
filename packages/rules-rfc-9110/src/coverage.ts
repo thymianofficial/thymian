@@ -22,9 +22,164 @@
 // `rules` ships empty here on purpose — populating it is #157-#162's job,
 // seeded from `./coverage-anchor-map.ts`.
 
-import { defineCoverage } from '@thymian/core';
+import { type CoverageRecord, defineCoverage } from '@thymian/core';
 
-export default defineCoverage({
+// `units` is named and `as const` on its own, and `coverage` carries an
+// explicit `CoverageRecord<typeof units>` annotation, rather than letting
+// `export default` infer straight off `defineCoverage(...)`'s return: with
+// 250+ entries in `rules` below, TS's declaration emit hits "the inferred
+// type of this node exceeds the maximum length the compiler will
+// serialize" trying to print the fully-mapped `{ [RuleName in keyof
+// Rules]: CoverageEntry<Units> }` return type. `defineCoverage`'s own call
+// below still infers `Rules` from the literal and checks every entry
+// against `CoverageEntry<Units>` exactly as before -- only the *exported*
+// type widens, from the per-key mapped type to `CoverageRecord`'s default
+// `Record<string, CoverageEntry<Units>>`, which is what actually needed
+// serializing and is representationally identical for every consumer here
+// (`checkCoverage`, `renderCoverage`, `generate-coverage.ts`, the scoped
+// tests below), none of which key into `rules` by a literal rule name.
+const units = {
+  '2.2': 'Requirements Notation',
+  '2.3': 'Length Requirements',
+  '2.4': 'Error Handling',
+  '3.3': 'Connections, Clients, and Servers',
+  '3.8': 'Caches',
+  '4.1': 'URI References',
+  '4.2.1': 'http URI Scheme',
+  '4.2.2': 'https URI Scheme',
+  '4.2.3': 'http(s) Normalization and Comparison',
+  '4.2.4': 'Deprecation of userinfo in http(s) URIs',
+  '4.3.2': 'http Origins',
+  '4.3.3': 'https Origins',
+  '4.3.4': 'https Certificate Verification',
+  '5.1': 'Field Names',
+  '5.3': 'Field Order',
+  '5.4': 'Field Limits',
+  '5.5': 'Field Values',
+  '5.6.1.1': 'Sender Requirements',
+  '5.6.1.2': 'Recipient Requirements',
+  '5.6.3': 'Whitespace',
+  '5.6.4': 'Quoted Strings',
+  '5.6.7': 'Date/Time Formats',
+  '6': 'Message Abstraction',
+  '6.2': 'Control Data',
+  '6.5.1': 'Limitations on Use of Trailers',
+  '6.5.2': 'Processing Trailer Fields',
+  '6.6.1': 'Date',
+  '6.6.2': 'Trailer',
+  '7.1': 'Determining the Target Resource',
+  '7.2': 'Host and :authority',
+  '7.4': 'Rejecting Misdirected Requests',
+  '7.5': 'Response Correlation',
+  '7.6': 'Message Forwarding',
+  '7.6.1': 'Connection',
+  '7.6.2': 'Max-Forwards',
+  '7.6.3': 'Via',
+  '7.7': 'Message Transformations',
+  '7.8': 'Upgrade',
+  '8.3': 'Content-Type',
+  '8.3.1': 'Media Type',
+  '8.3.3': 'Multipart Types',
+  '8.4': 'Content-Encoding',
+  '8.4.1.1': 'Compress Coding',
+  '8.4.1.3': 'Gzip Coding',
+  '8.5': 'Content-Language',
+  '8.6': 'Content-Length',
+  '8.7': 'Content-Location',
+  '8.8.1': 'Weak versus Strong',
+  '8.8.2.1': 'Generation',
+  '8.8.3': 'ETag',
+  '8.8.3.1': 'Generation',
+  '9.1': 'Overview',
+  '9.2.1': 'Safe Methods',
+  '9.2.2': 'Idempotent Methods',
+  '9.3.1': 'GET',
+  '9.3.2': 'HEAD',
+  '9.3.3': 'POST',
+  '9.3.4': 'PUT',
+  '9.3.5': 'DELETE',
+  '9.3.6': 'CONNECT',
+  '9.3.7': 'OPTIONS',
+  '9.3.8': 'TRACE',
+  '10.1.1': 'Expect',
+  '10.1.2': 'From',
+  '10.1.3': 'Referer',
+  '10.1.4': 'TE',
+  '10.1.5': 'User-Agent',
+  '10.2.1': 'Allow',
+  '10.2.2': 'Location',
+  '10.2.4': 'Server',
+  '11.2': 'Authentication Parameters',
+  '11.4': 'Credentials',
+  '11.5': 'Establishing a Protection Space (Realm)',
+  '11.6.1': 'WWW-Authenticate',
+  '11.6.2': 'Authorization',
+  '11.7.1': 'Proxy-Authenticate',
+  '11.7.2': 'Proxy-Authorization',
+  '12.1': 'Proactive Negotiation',
+  '12.4.2': 'Quality Values',
+  '12.5.1': 'Accept',
+  '12.5.2': 'Accept-Charset',
+  '12.5.3': 'Accept-Encoding',
+  '12.5.4': 'Accept-Language',
+  '12.5.5': 'Vary',
+  '13.1.1': 'If-Match',
+  '13.1.2': 'If-None-Match',
+  '13.1.3': 'If-Modified-Since',
+  '13.1.4': 'If-Unmodified-Since',
+  '13.1.5': 'If-Range',
+  '13.2.1': 'When to Evaluate',
+  '13.2.2': 'Precedence of Preconditions',
+  '14': 'Range Requests',
+  '14.1.2': 'Byte Ranges',
+  '14.2': 'Range',
+  '14.3': 'Accept-Ranges',
+  '14.4': 'Content-Range',
+  '14.5': 'Partial PUT',
+  '15': 'Status Codes',
+  '15.2': 'Informational 1xx',
+  '15.2.2': '101 Switching Protocols',
+  '15.3.1': '200 OK',
+  '15.3.6': '205 Reset Content',
+  '15.3.7': '206 Partial Content',
+  '15.3.7.1': 'Single Part',
+  '15.3.7.2': 'Multiple Parts',
+  '15.3.7.3': 'Combining Parts',
+  '15.4': 'Redirection 3xx',
+  '15.4.1': '300 Multiple Choices',
+  '15.4.2': '301 Moved Permanently',
+  '15.4.3': '302 Found',
+  '15.4.5': '304 Not Modified',
+  '15.4.8': '307 Temporary Redirect',
+  '15.4.9': '308 Permanent Redirect',
+  '15.5': 'Client Error 4xx',
+  '15.5.2': '401 Unauthorized',
+  '15.5.4': '403 Forbidden',
+  '15.5.6': '405 Method Not Allowed',
+  '15.5.7': '406 Not Acceptable',
+  '15.5.8': '407 Proxy Authentication Required',
+  '15.5.9': '408 Request Timeout',
+  '15.5.10': '409 Conflict',
+  '15.5.12': '411 Length Required',
+  '15.5.14': '413 Content Too Large',
+  '15.5.17': '416 Range Not Satisfiable',
+  '15.5.20': '421 Misdirected Request',
+  '15.5.22': '426 Upgrade Required',
+  '15.6': 'Server Error 5xx',
+  '15.6.4': '503 Service Unavailable',
+  '15.6.6': '505 HTTP Version Not Supported',
+  '16.1.1': 'Method Registry',
+  '16.2.1': 'Status Code Registry',
+  '16.3.1': 'Field Name Registry',
+  '16.3.2.1': 'Considerations for New Field Names',
+  '16.4.1': 'Authentication Scheme Registry',
+  '16.4.2': 'Considerations for New Authentication Schemes',
+  '16.5.1': 'Range Unit Registry',
+  '16.6.1': 'Content Coding Registry',
+  '16.7': 'Upgrade Token Registry',
+} as const;
+
+const coverage: CoverageRecord<typeof units> = defineCoverage({
   source: {
     revision: 'RFC 9110 (June 2022)',
     countingRule:
@@ -35,146 +190,7 @@ export default defineCoverage({
     hasKeywordBasis: true,
     substituteLabel: 'section',
   },
-  units: {
-    '2.2': 'Requirements Notation',
-    '2.3': 'Length Requirements',
-    '2.4': 'Error Handling',
-    '3.3': 'Connections, Clients, and Servers',
-    '3.8': 'Caches',
-    '4.1': 'URI References',
-    '4.2.1': 'http URI Scheme',
-    '4.2.2': 'https URI Scheme',
-    '4.2.3': 'http(s) Normalization and Comparison',
-    '4.2.4': 'Deprecation of userinfo in http(s) URIs',
-    '4.3.2': 'http Origins',
-    '4.3.3': 'https Origins',
-    '4.3.4': 'https Certificate Verification',
-    '5.1': 'Field Names',
-    '5.3': 'Field Order',
-    '5.4': 'Field Limits',
-    '5.5': 'Field Values',
-    '5.6.1.1': 'Sender Requirements',
-    '5.6.1.2': 'Recipient Requirements',
-    '5.6.3': 'Whitespace',
-    '5.6.4': 'Quoted Strings',
-    '5.6.7': 'Date/Time Formats',
-    '6': 'Message Abstraction',
-    '6.2': 'Control Data',
-    '6.5.1': 'Limitations on Use of Trailers',
-    '6.5.2': 'Processing Trailer Fields',
-    '6.6.1': 'Date',
-    '6.6.2': 'Trailer',
-    '7.1': 'Determining the Target Resource',
-    '7.2': 'Host and :authority',
-    '7.4': 'Rejecting Misdirected Requests',
-    '7.5': 'Response Correlation',
-    '7.6': 'Message Forwarding',
-    '7.6.1': 'Connection',
-    '7.6.2': 'Max-Forwards',
-    '7.6.3': 'Via',
-    '7.7': 'Message Transformations',
-    '7.8': 'Upgrade',
-    '8.3': 'Content-Type',
-    '8.3.1': 'Media Type',
-    '8.3.3': 'Multipart Types',
-    '8.4': 'Content-Encoding',
-    '8.4.1.1': 'Compress Coding',
-    '8.4.1.3': 'Gzip Coding',
-    '8.5': 'Content-Language',
-    '8.6': 'Content-Length',
-    '8.7': 'Content-Location',
-    '8.8.1': 'Weak versus Strong',
-    '8.8.2.1': 'Generation',
-    '8.8.3': 'ETag',
-    '8.8.3.1': 'Generation',
-    '9.1': 'Overview',
-    '9.2.1': 'Safe Methods',
-    '9.2.2': 'Idempotent Methods',
-    '9.3.1': 'GET',
-    '9.3.2': 'HEAD',
-    '9.3.3': 'POST',
-    '9.3.4': 'PUT',
-    '9.3.5': 'DELETE',
-    '9.3.6': 'CONNECT',
-    '9.3.7': 'OPTIONS',
-    '9.3.8': 'TRACE',
-    '10.1.1': 'Expect',
-    '10.1.2': 'From',
-    '10.1.3': 'Referer',
-    '10.1.4': 'TE',
-    '10.1.5': 'User-Agent',
-    '10.2.1': 'Allow',
-    '10.2.2': 'Location',
-    '10.2.4': 'Server',
-    '11.2': 'Authentication Parameters',
-    '11.4': 'Credentials',
-    '11.5': 'Establishing a Protection Space (Realm)',
-    '11.6.1': 'WWW-Authenticate',
-    '11.6.2': 'Authorization',
-    '11.7.1': 'Proxy-Authenticate',
-    '11.7.2': 'Proxy-Authorization',
-    '12.1': 'Proactive Negotiation',
-    '12.4.2': 'Quality Values',
-    '12.5.1': 'Accept',
-    '12.5.2': 'Accept-Charset',
-    '12.5.3': 'Accept-Encoding',
-    '12.5.4': 'Accept-Language',
-    '12.5.5': 'Vary',
-    '13.1.1': 'If-Match',
-    '13.1.2': 'If-None-Match',
-    '13.1.3': 'If-Modified-Since',
-    '13.1.4': 'If-Unmodified-Since',
-    '13.1.5': 'If-Range',
-    '13.2.1': 'When to Evaluate',
-    '13.2.2': 'Precedence of Preconditions',
-    '14': 'Range Requests',
-    '14.1.2': 'Byte Ranges',
-    '14.2': 'Range',
-    '14.3': 'Accept-Ranges',
-    '14.4': 'Content-Range',
-    '14.5': 'Partial PUT',
-    '15': 'Status Codes',
-    '15.2': 'Informational 1xx',
-    '15.2.2': '101 Switching Protocols',
-    '15.3.1': '200 OK',
-    '15.3.6': '205 Reset Content',
-    '15.3.7': '206 Partial Content',
-    '15.3.7.1': 'Single Part',
-    '15.3.7.2': 'Multiple Parts',
-    '15.3.7.3': 'Combining Parts',
-    '15.4': 'Redirection 3xx',
-    '15.4.1': '300 Multiple Choices',
-    '15.4.2': '301 Moved Permanently',
-    '15.4.3': '302 Found',
-    '15.4.5': '304 Not Modified',
-    '15.4.8': '307 Temporary Redirect',
-    '15.4.9': '308 Permanent Redirect',
-    '15.5': 'Client Error 4xx',
-    '15.5.2': '401 Unauthorized',
-    '15.5.4': '403 Forbidden',
-    '15.5.6': '405 Method Not Allowed',
-    '15.5.7': '406 Not Acceptable',
-    '15.5.8': '407 Proxy Authentication Required',
-    '15.5.9': '408 Request Timeout',
-    '15.5.10': '409 Conflict',
-    '15.5.12': '411 Length Required',
-    '15.5.14': '413 Content Too Large',
-    '15.5.17': '416 Range Not Satisfiable',
-    '15.5.20': '421 Misdirected Request',
-    '15.5.22': '426 Upgrade Required',
-    '15.6': 'Server Error 5xx',
-    '15.6.4': '503 Service Unavailable',
-    '15.6.6': '505 HTTP Version Not Supported',
-    '16.1.1': 'Method Registry',
-    '16.2.1': 'Status Code Registry',
-    '16.3.1': 'Field Name Registry',
-    '16.3.2.1': 'Considerations for New Field Names',
-    '16.4.1': 'Authentication Scheme Registry',
-    '16.4.2': 'Considerations for New Authentication Schemes',
-    '16.5.1': 'Range Unit Registry',
-    '16.6.1': 'Content Coding Registry',
-    '16.7': 'Upgrade Token Registry',
-  },
+  units,
   rules: {
     'rfc9110/402-status-code-is-reserved': {
       covers: [],
@@ -1605,5 +1621,513 @@ export default defineCoverage({
         covers: ['9.3.4'],
         declared: { types: ['informational'], severity: 'hint' },
       },
+    'rfc9110/non-origin-server-must-not-evaluate-conditional-headers': {
+      covers: ['13.2.1'],
+      declared: { types: ['informational'], severity: 'error' },
+    },
+    'rfc9110/server-must-evaluate-preconditions-after-normal-checks': {
+      covers: ['13.2.1'],
+      declared: { types: ['informational'], severity: 'error' },
+    },
+    'rfc9110/server-must-evaluate-preconditions-in-correct-order': {
+      covers: ['13.2.2'],
+      declared: { types: ['informational'], severity: 'error' },
+    },
+    'rfc9110/server-must-ignore-conditionals-for-connect-options-trace': {
+      covers: ['13.2.1'],
+      declared: { types: ['static', 'analytics'], severity: 'error' },
+      contexts: {
+        test: {
+          verdict: 'impossible',
+          reason: 'condition-not-producible',
+          note: "Likely a mis-declaration for the OPTIONS branch of this check, not a full impossibility: the check already runs on the common request/response projection (method + conditional-header names + status), and server-must-ignore-range-header-for-unrecognized-method, in this package's range-requests batch, already proves a probe can replay an existing transaction with an added header via replayStep().set(...) and reuse a common-interface check unchanged. CONNECT and TRACE stay out of reach (not REST operations a declared API spec would include), but OPTIONS commonly is -- see thymianofficial/thymian-workspace#179.",
+        },
+      },
+    },
+    'rfc9110/server-must-ignore-preconditions-for-non-2xx-412-responses': {
+      covers: ['13.2.1'],
+      declared: { types: ['test'], severity: 'error' },
+      contexts: {
+        static: {
+          verdict: 'impossible',
+          reason: 'not-representable',
+          note: "The whole mechanism is ctx.httpTest(singleTestCase()...), TestContext-only; the assertion is a counterfactual (what would THIS request's status be without its preconditions), which a schema document has no way to encode -- there is no declared-response concept of 'the same operation, evaluated without its conditional headers'.",
+        },
+        analytics: {
+          verdict: 'impossible',
+          reason: 'requires-controlled-input',
+          note: 'Deciding this needs the counterfactual unconditioned response, which only an active replay (add a guaranteed-failing If-Match to a request already known to answer non-2xx/non-412) can establish; recorded traffic never carries both the original and the replayed pair for the same request.',
+        },
+      },
+    },
+    'rfc9110/cache-or-intermediary-may-ignore-if-match': {
+      covers: ['13.1.1'],
+      declared: { types: ['analytics'], severity: 'hint' },
+      contexts: {
+        static: {
+          verdict: 'impossible',
+          reason: 'not-representable',
+          note: "The filter (requestHeader('if-match')) is an HttpFilterExpression passed to validateHttpTransactions; static's own version of that method needs a plain predicate function instead, a type-level incompatibility independent of any document.",
+        },
+        test: {
+          verdict: 'impossible',
+          reason: 'participant-not-reachable',
+          note: "appliesTo is scoped to cache/intermediary roles; Thymian's test client always plays the client role talking directly to the target, never a middlebox relaying someone else's request, so it cannot be positioned to observe what a cache or intermediary chose to do with the header.",
+        },
+      },
+    },
+    'rfc9110/client-may-send-if-match-header': {
+      covers: ['13.1.1'],
+      declared: { types: ['analytics'], severity: 'hint' },
+      contexts: {
+        static: {
+          verdict: 'impossible',
+          reason: 'not-representable',
+          note: "Likely a mis-declaration, not a real impossibility: client-may-send-if-unmodified-since-header, in the same directory, already declares static for the identical and(method('GET'), not(requestHeader(...))) shape via validateCommonHttpTransactions -- direct proof this filter is static-representable. See thymianofficial/thymian-workspace#180.",
+        },
+        test: {
+          verdict: 'impossible',
+          reason: 'condition-not-producible',
+          note: "Likely a mis-declaration, not a real impossibility: this is a MAY, and the gate doc's own test for a MAY is whether Thymian would see a difference in the messages available to it if the actor exercised or declined the permission -- which it would, inside Thymian's own generated request. See thymianofficial/thymian-workspace#180.",
+        },
+      },
+    },
+    'rfc9110/origin-server-may-respond-with-2xx-response-even-condition-failed':
+      {
+        covers: ['13.1.1'],
+        declared: { types: ['test', 'static', 'analytics'], severity: 'hint' },
+      },
+    'rfc9110/origin-server-may-respond-with-412-response-to-conditional-request':
+      {
+        covers: ['13.1.1'],
+        declared: { types: ['static', 'test'], severity: 'hint' },
+        contexts: {
+          analytics: {
+            verdict: 'impossible',
+            reason: 'requires-controlled-input',
+            note: "The shared rule() flags any If-Match request that didn't get 412, but whether 412 was actually available to send depends on the condition genuinely evaluating false (a real ETag mismatch); recorded traffic can't distinguish a request the server correctly let through (condition true) from one where it legitimately chose 2xx over 412, without knowing the resource's real validator history.",
+          },
+        },
+      },
+    'rfc9110/origin-server-must-evaluate-if-match-before-method': {
+      covers: ['13.1.1'],
+      declared: { types: ['informational'], severity: 'error' },
+    },
+    'rfc9110/origin-server-must-not-perform-method-when-if-match-fails': {
+      covers: ['13.1.1'],
+      declared: { types: ['test'], severity: 'error' },
+      contexts: {
+        static: {
+          verdict: 'impossible',
+          reason: 'not-representable',
+          note: 'The whole mechanism is a sender-driven active probe (force a non-matching If-Match via singleTestCase, TestContext-only); a schema document has no counterfactual-failure concept to check against.',
+        },
+        analytics: {
+          verdict: 'impossible',
+          reason: 'requires-controlled-input',
+          note: "Telling a genuine If-Match failure (real ETag mismatch) from ordinary traffic needs knowing the resource's actual current validator, which passive recorded traffic doesn't carry; only a controlled probe (deliberately mismatched If-Match) can force and observe the failure path.",
+        },
+      },
+    },
+    'rfc9110/origin-server-must-use-strong-comparison-for-if-match': {
+      covers: ['13.1.1'],
+      declared: { types: ['informational'], severity: 'error' },
+    },
+    'rfc9110/origin-server-should-evaluate-if-modified-since': {
+      covers: ['13.1.3'],
+      declared: { types: ['informational'], severity: 'warn' },
+    },
+    'rfc9110/origin-server-should-respond-304-when-if-modified-since-false': {
+      covers: ['13.1.3'],
+      declared: { types: ['static', 'test'], severity: 'warn' },
+      contexts: {
+        analytics: {
+          verdict: 'impossible',
+          reason: 'requires-controlled-input',
+          note: "The shared rule() flags any If-Modified-Since request that didn't get 304, but most real conditional GETs correctly get 200 because the resource genuinely changed; recorded traffic can't tell that legitimate case from a server wrongly skipping 304, without knowing whether the condition should have evaluated false.",
+        },
+      },
+    },
+    'rfc9110/recipient-must-ignore-if-modified-since-for-non-get-head': {
+      covers: ['13.1.3'],
+      declared: { types: ['static', 'analytics'], severity: 'error' },
+      contexts: {
+        test: {
+          verdict: 'impossible',
+          reason: 'condition-not-producible',
+          note: "Likely a mis-declaration, not a full impossibility: the check already runs on the common projection (method + header name + status), and server-must-ignore-range-header-for-unrecognized-method, in this package's range-requests batch, already proves a probe can replay an existing transaction with an added header and reuse a common-interface check unchanged -- the same technique applies here (replay a non-GET/HEAD transaction with an added If-Modified-Since header). See thymianofficial/thymian-workspace#179.",
+        },
+      },
+    },
+    'rfc9110/recipient-must-ignore-if-modified-since-header-if-no-date-available':
+      {
+        covers: ['13.1.3'],
+        declared: { types: ['informational'], severity: 'error' },
+      },
+    'rfc9110/recipient-must-ignore-if-modified-since-when-if-none-match-present':
+      {
+        covers: ['13.1.3'],
+        declared: { types: ['static', 'test'], severity: 'error' },
+        contexts: {
+          analytics: {
+            verdict: 'impossible',
+            reason: 'requires-controlled-input',
+            note: "The shared rule() flags mere co-occurrence of If-None-Match and If-Modified-Since, which RFC 9110 explicitly permits for backward compatibility; telling a conformant co-occurrence from a recipient that wrongly let the date override the tag needs the counterfactual (what If-None-Match alone would have produced), which passive traffic doesn't carry.",
+          },
+        },
+      },
+    'rfc9110/recipient-must-interpret-if-modified-since-value-in-terms-of-servers-clock':
+      {
+        covers: ['13.1.3'],
+        declared: { types: ['informational'], severity: 'error' },
+      },
+    'rfc9110/client-should-generate-if-none-match-for-cache-updates': {
+      covers: ['13.1.2'],
+      declared: { types: ['informational'], severity: 'warn' },
+    },
+    'rfc9110/origin-server-must-evaluate-if-none-match-before-method': {
+      covers: ['13.1.2'],
+      declared: { types: ['informational'], severity: 'error' },
+    },
+    'rfc9110/origin-server-must-respond-304-or-412-when-if-none-match-fails': {
+      covers: ['13.1.2'],
+      declared: { types: ['static', 'test'], severity: 'error' },
+      contexts: {
+        analytics: {
+          verdict: 'impossible',
+          reason: 'requires-controlled-input',
+          note: "The shared rule() flags any If-None-Match request that didn't get 304/412 on the expected method split, but whether the condition genuinely evaluated false (a real ETag match) is server-side state recorded traffic can't establish without the counterfactual.",
+        },
+      },
+    },
+    'rfc9110/recipient-must-use-weak-comparison-for-if-none-match': {
+      covers: ['13.1.2'],
+      declared: { types: ['informational'], severity: 'error' },
+    },
+    'rfc9110/client-must-not-generate-if-range-header-containing-http-date': {
+      covers: ['13.1.5'],
+      declared: { types: ['analytics'], severity: 'error' },
+      contexts: {
+        static: {
+          verdict: 'impossible',
+          reason: 'not-representable',
+          note: 'Likely a mis-declaration, not a real impossibility: this is a single-header value-shape check (does If-Range look like an entity-tag rather than an HTTP-date), exactly the case the gate doc\'s own named trap covers -- "the specification does not pin the value" is not a valid impossibility reason, and .overrideStaticRule() reading a schema-pinned If-Range pattern/example is the documented way to make this static-representable, with a runtime rule-skip fallback when the schema does not pin one. See thymianofficial/thymian-workspace#183.',
+        },
+        test: {
+          verdict: 'impossible',
+          reason: 'condition-not-producible',
+          note: "This is a client MUST-NOT about what Thymian itself sends; forcing a non-conformant If-Range value would only prove Thymian's own deliberately-malformed probe was malformed, telling us nothing about the target, and there is no schema mechanism by which an If-Range example would naturally arrive in this specific invalid shape.",
+        },
+      },
+    },
+    'rfc9110/client-must-not-generate-if-range-with-weak-etag': {
+      covers: ['13.1.5'],
+      declared: { types: ['analytics'], severity: 'error' },
+      contexts: {
+        static: {
+          verdict: 'impossible',
+          reason: 'not-representable',
+          note: 'Same shape as client-must-not-generate-if-range-header-containing-http-date: a single-header value-shape check (the weak W/ prefix) that .overrideStaticRule() could read from a schema-pinned pattern -- see thymianofficial/thymian-workspace#183.',
+        },
+        test: {
+          verdict: 'impossible',
+          reason: 'condition-not-producible',
+          note: "Same reasoning as client-must-not-generate-if-range-header-containing-http-date: a deliberately-injected weak ETag would only test Thymian's own probe construction, not the target, and nothing in ordinary schema-driven generation would produce a weak validator here on its own.",
+        },
+      },
+    },
+    'rfc9110/client-must-not-generate-if-range-without-range': {
+      covers: ['13.1.5'],
+      declared: { types: ['static', 'analytics'], severity: 'error' },
+      contexts: {
+        test: {
+          verdict: 'impossible',
+          reason: 'condition-not-producible',
+          note: "Whether Thymian's schema-driven generator includes If-Range without also including Range on the same request depends on how it samples independent optional header parameters, which this package has no visibility into or established precedent for; unlike a single boolean schema property (e.g. a declared request body), this is a two-header correlation this batch found no concrete mechanism to trigger deliberately without the same vacuous self-construction problem a forced probe would have.",
+        },
+      },
+    },
+    'rfc9110/origin-server-must-ignore-if-range-header-if-target-resource-does-not-support-range-requests':
+      {
+        covers: ['13.1.5'],
+        declared: { types: ['informational'], severity: 'error' },
+      },
+    'rfc9110/recipient-must-ignore-range-when-if-range-false': {
+      covers: ['13.1.5'],
+      declared: { types: ['test'], severity: 'error' },
+      contexts: {
+        static: {
+          verdict: 'impossible',
+          reason: 'not-representable',
+          note: 'The whole mechanism is a sender-driven active probe (force If-Range false via singleTestCase, TestContext-only); a schema document has no counterfactual-condition concept to check against.',
+        },
+        analytics: {
+          verdict: 'impossible',
+          reason: 'requires-controlled-input',
+          note: "Telling a genuinely false If-Range condition (real validator mismatch) from ordinary range traffic needs knowing the resource's actual current validator, which passive recorded traffic doesn't carry; only a controlled probe can force and observe the false-condition path.",
+        },
+      },
+    },
+    'rfc9110/recipient-should-process-range-header-if-if-range-matches': {
+      covers: ['13.1.5'],
+      declared: { types: ['informational'], severity: 'warn' },
+    },
+    'rfc9110/server-must-evaluate-if-range': {
+      covers: ['13.1.5'],
+      declared: { types: ['informational'], severity: 'error' },
+    },
+    'rfc9110/server-must-ignore-if-range-without-range': {
+      covers: ['13.1.5'],
+      declared: { types: ['static', 'test', 'analytics'], severity: 'error' },
+    },
+    'rfc9110/cache-or-intermediary-may-ignore-if-unmodified-since': {
+      covers: ['13.1.1'],
+      declared: { types: ['analytics'], severity: 'hint' },
+      contexts: {
+        static: {
+          verdict: 'impossible',
+          reason: 'not-representable',
+          note: "Same shape as cache-or-intermediary-may-ignore-if-match: the bare-presence filter is an HttpFilterExpression passed to validateHttpTransactions, incompatible with static's own plain-predicate signature.",
+        },
+        test: {
+          verdict: 'impossible',
+          reason: 'participant-not-reachable',
+          note: "Same shape as cache-or-intermediary-may-ignore-if-match: appliesTo is scoped to cache/intermediary roles, and Thymian's test client always plays the client role, never a middlebox.",
+        },
+      },
+    },
+    'rfc9110/client-may-send-if-unmodified-since-header': {
+      covers: ['13.1.1'],
+      declared: { types: ['static', 'analytics'], severity: 'hint' },
+      contexts: {
+        test: {
+          verdict: 'impossible',
+          reason: 'condition-not-producible',
+          note: "Likely a mis-declaration, not a real impossibility: this is a MAY, and the gate doc's own test for a MAY is whether Thymian would see a difference in the messages available to it if the actor exercised or declined the permission -- which it would, inside Thymian's own generated request, the same reasoning as its sibling client-may-send-if-match-header. See thymianofficial/thymian-workspace#180.",
+        },
+      },
+    },
+    'rfc9110/origin-server-may-respond-with-2xx-response-even-condition-failed-for-unmodified-since':
+      {
+        covers: ['13.1.1'],
+        declared: { types: ['informational'], severity: 'hint' },
+      },
+    'rfc9110/origin-server-may-respond-with-412-response-to-unmodified-since': {
+      covers: ['13.1.4'],
+      declared: { types: ['informational'], severity: 'hint' },
+    },
+    'rfc9110/origin-server-must-evaluate-if-unmodified-since': {
+      covers: ['13.1.4'],
+      declared: { types: ['informational'], severity: 'error' },
+    },
+    'rfc9110/origin-server-must-not-perform-method-when-if-unmodified-since-fails':
+      {
+        covers: ['13.1.4'],
+        declared: { types: ['test'], severity: 'error' },
+        contexts: {
+          static: {
+            verdict: 'impossible',
+            reason: 'not-representable',
+            note: "The whole mechanism is a sender-driven active probe (force If-Unmodified-Since 10 seconds before the resource's own Last-Modified via singleTestCase, TestContext-only); a schema document has no counterfactual-failure concept to check against.",
+          },
+          analytics: {
+            verdict: 'impossible',
+            reason: 'requires-controlled-input',
+            note: "Telling a genuine If-Unmodified-Since failure (the resource really was modified after the given instant) from ordinary traffic needs the resource's real modification history, which passive recorded traffic doesn't carry; only a controlled probe can force and observe the failure path.",
+          },
+        },
+      },
+    'rfc9110/recipient-must-ignore-if-unmodified-since-header-if-no-date-available':
+      {
+        covers: ['13.1.4'],
+        declared: { types: ['informational'], severity: 'error' },
+      },
+    'rfc9110/recipient-must-ignore-if-unmodified-since-when-if-match-present': {
+      covers: ['13.1.4'],
+      declared: { types: ['test'], severity: 'error' },
+      contexts: {
+        static: {
+          verdict: 'impossible',
+          reason: 'not-representable',
+          note: 'The whole mechanism is an active probe correlating two forced header values against one response (singleTestCase, TestContext-only); a schema document has no counterfactual-precedence concept to check against.',
+        },
+        analytics: {
+          verdict: 'impossible',
+          reason: 'requires-controlled-input',
+          note: "Telling a recipient that correctly ignored If-Unmodified-Since from one that coincidentally got the same status for another reason needs the counterfactual (what If-Match alone would have produced), which passive traffic doesn't carry.",
+        },
+      },
+    },
+    'rfc9110/recipient-must-interpret-if-unmodified-since-value-in-terms-of-servers-clock':
+      {
+        covers: ['13.1.4'],
+        declared: { types: ['informational'], severity: 'error' },
+      },
+    'rfc9110/automated-client-must-log-error-to-audit-log-for-bad-certificate':
+      {
+        covers: ['4.3.4'],
+        declared: { types: ['informational'], severity: 'error' },
+      },
+    'rfc9110/automated-client-should-terminate-connection-for-bad-certificate':
+      {
+        covers: ['4.3.4'],
+        declared: { types: ['informational'], severity: 'warn' },
+      },
+    'rfc9110/automated-clients-may-provide-setting-to-disable-certificate-check':
+      {
+        covers: ['4.3.4'],
+        declared: { types: ['informational'], severity: 'hint' },
+      },
+    'rfc9110/automated-clients-must-provide-setting-to-enable-certificate-check':
+      {
+        covers: ['4.3.4'],
+        declared: { types: ['informational'], severity: 'error' },
+      },
+    'rfc9110/client-may-access-by-resolving-host-to-ip-address': {
+      covers: ['4.3.2'],
+      declared: { types: ['informational'], severity: 'hint' },
+    },
+    'rfc9110/client-must-construct-reference-identity': {
+      covers: ['4.3.4'],
+      declared: { types: ['informational'], severity: 'error' },
+    },
+    'rfc9110/client-must-not-use-cn-id-reference-identity': {
+      covers: ['4.3.4'],
+      declared: { types: ['informational'], severity: 'error' },
+    },
+    'rfc9110/client-must-use-rfc6125-verification': {
+      covers: ['4.3.4'],
+      declared: { types: ['informational'], severity: 'error' },
+    },
+    'rfc9110/client-must-verify-service-identity': {
+      covers: ['4.3.4'],
+      declared: { types: ['informational'], severity: 'error' },
+    },
+    'rfc9110/user-agent-must-handle-bad-certificate': {
+      covers: ['4.3.4'],
+      declared: { types: ['informational'], severity: 'error' },
+    },
+    'rfc9110/recipient-must-reject-http-uri-without-host': {
+      covers: ['4.2.1'],
+      declared: { types: ['analytics'], severity: 'error' },
+      contexts: {
+        static: {
+          verdict: 'impossible',
+          reason: 'not-representable',
+          note: "This rule parses the real request-target URI via validateHttpTransactions to check for an empty host component; static's own version of validateHttpTransactions needs a plain predicate function and cannot read or parse a pinned target this way.",
+        },
+        test: {
+          verdict: 'impossible',
+          reason: 'condition-not-producible',
+          note: "Thymian's client needs a resolvable host to open the underlying TCP/TLS connection at all; unlike a header value or even an unusually long path, an origin overridden to a genuinely empty host (via the origin() template field replayStep().set() already supports) leaves nothing for the transport layer to connect to -- a transport-level constraint, not a gap in this corpus's probe techniques.",
+        },
+      },
+    },
+    'rfc9110/sender-must-not-generate-http-uri-with-empty-host': {
+      covers: ['4.2.1'],
+      declared: { types: ['analytics'], severity: 'error' },
+      contexts: {
+        static: {
+          verdict: 'impossible',
+          reason: 'not-representable',
+          note: "This rule parses the real request-target URI via validateHttpTransactions to check for an empty host component; static's own version of validateHttpTransactions needs a plain predicate function and cannot read or parse a pinned target this way.",
+        },
+        test: {
+          verdict: 'impossible',
+          reason: 'condition-not-producible',
+          note: "Thymian's client needs a resolvable host to open the underlying TCP/TLS connection at all; unlike a header value or even an unusually long path, an origin overridden to a genuinely empty host (via the origin() template field replayStep().set() already supports) leaves nothing for the transport layer to connect to -- a transport-level constraint, not a gap in this corpus's probe techniques.",
+        },
+      },
+    },
+    'rfc9110/client-must-secure-https-requests-and-responses': {
+      covers: ['4.2.2'],
+      declared: { types: ['informational'], severity: 'error' },
+    },
+    'rfc9110/recipient-must-reject-https-uri-without-host': {
+      covers: ['4.2.2'],
+      declared: { types: ['analytics'], severity: 'error' },
+      contexts: {
+        static: {
+          verdict: 'impossible',
+          reason: 'not-representable',
+          note: "This rule parses the real request-target URI via validateHttpTransactions to check for an empty host component; static's own version of validateHttpTransactions needs a plain predicate function and cannot read or parse a pinned target this way.",
+        },
+        test: {
+          verdict: 'impossible',
+          reason: 'condition-not-producible',
+          note: "Thymian's client needs a resolvable host to open the underlying TCP/TLS connection at all; unlike a header value or even an unusually long path, an origin overridden to a genuinely empty host (via the origin() template field replayStep().set() already supports) leaves nothing for the transport layer to connect to -- a transport-level constraint, not a gap in this corpus's probe techniques.",
+        },
+      },
+    },
+    'rfc9110/sender-must-not-generate-https-uri-with-empty-host': {
+      covers: ['4.2.2'],
+      declared: { types: ['analytics'], severity: 'error' },
+      contexts: {
+        static: {
+          verdict: 'impossible',
+          reason: 'not-representable',
+          note: "This rule parses the real request-target URI via validateHttpTransactions to check for an empty host component; static's own version of validateHttpTransactions needs a plain predicate function and cannot read or parse a pinned target this way.",
+        },
+        test: {
+          verdict: 'impossible',
+          reason: 'condition-not-producible',
+          note: "Thymian's client needs a resolvable host to open the underlying TCP/TLS connection at all; unlike a header value or even an unusually long path, an origin overridden to a genuinely empty host (via the origin() template field replayStep().set() already supports) leaves nothing for the transport layer to connect to -- a transport-level constraint, not a gap in this corpus's probe techniques.",
+        },
+      },
+    },
+    'rfc9110/authority-should-not-use-equivalent-uris-for-distinct-resources': {
+      covers: ['4.2.3'],
+      declared: { types: ['informational'], severity: 'warn' },
+    },
+    'rfc9110/http-component-may-perform-normalization': {
+      covers: ['4.2.3'],
+      declared: { types: ['informational'], severity: 'hint' },
+    },
+    'rfc9110/sender-recipient-should-support-8000-octet-uris': {
+      covers: ['4.1'],
+      declared: { types: ['analytics'], severity: 'warn' },
+      contexts: {
+        static: {
+          verdict: 'impossible',
+          reason: 'not-representable',
+          note: "This rule measures the real serialized URI's byte length via validateHttpTransactions; static's own version needs a plain predicate function and, even with an override, a schema's pattern/enum/const constraints describe a value's shape, not the emitted length of whatever URI a live request happens to carry.",
+        },
+        test: {
+          verdict: 'impossible',
+          reason: 'condition-not-producible',
+          note: "Likely a mis-declaration, not a real impossibility: path() is a real RequestFilterExpression (packages/core/src/http-filter.ts), and overrideTemplate has a working case 'path' branch, so replayStep().set(path(), constant(<a long path>)).run() can extend an existing transaction's path well past 8000 octets -- a well-formed, spec-permitted message, unlike an empty host or userinfo-bearing authority. See thymianofficial/thymian-workspace#182.",
+        },
+      },
+    },
+    'rfc9110/recipient-should-treat-userinfo-in-uri-from-untrusted-source-as-error':
+      {
+        covers: ['4.2.4'],
+        declared: { types: ['analytics'], severity: 'warn' },
+        contexts: {
+          static: {
+            verdict: 'impossible',
+            reason: 'not-representable',
+            note: 'Likely a mis-declaration, not a real impossibility: sender-must-not-generate-userinfo-in-uri, in the same directory, already proves this exact value-reading check (parse the target URI, test url.username/url.password) is static-representable when written against validateCommonHttpTransactions instead of validateHttpTransactions -- this rule uses the latter today, which is why static is currently blocked. See thymianofficial/thymian-workspace#181.',
+          },
+          test: {
+            verdict: 'impossible',
+            reason: 'condition-not-producible',
+            note: "replayStep().set(origin(), ...) can mutate the request-target's host/port, but HttpRequestTemplate.origin is documented to normalize userinfo away when the actual request is built from it (packages/core/src/http.ts: HttpRequest.target's own comment contrasts it against 'origin', which 'normalizes away' subcomponents like userinfo) -- so unlike a long path, a userinfo-bearing origin set through this mechanism would not survive into the request actually sent.",
+          },
+        },
+      },
+    'rfc9110/sender-must-not-generate-userinfo-in-uri': {
+      covers: ['4.2.4'],
+      declared: { types: ['static', 'analytics'], severity: 'error' },
+      contexts: {
+        test: {
+          verdict: 'impossible',
+          reason: 'condition-not-producible',
+          note: "Same transport constraint as its sibling recipient-should-treat-userinfo-in-uri-from-untrusted-source-as-error: origin() mutation exists but HttpRequestTemplate.origin normalizes userinfo away before a request is actually sent. This is also a client MUST-NOT about Thymian's own output, so even setting it through a lower-level path would only prove Thymian's own deliberate malformation, not test the target.",
+        },
+      },
+    },
   },
 });
+
+export default coverage;
