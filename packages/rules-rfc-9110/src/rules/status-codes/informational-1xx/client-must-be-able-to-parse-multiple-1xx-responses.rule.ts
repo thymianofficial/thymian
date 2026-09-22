@@ -10,7 +10,7 @@ export default httpRule(
     'peer-not-observable',
     'Internal client parsing capability for interim 1xx responses; not observable from recorded final-response traffic.',
   )
-  .url('https://datatracker.ietf.org/doc/html/rfc9110#name-informational-1xx')
+  .url('https://www.rfc-editor.org/rfc/rfc9110.html#name-informational-1xx')
   .description(
     'A client MUST be able to parse one or more 1xx responses received prior to a final response, even if the client does not expect one.',
   )

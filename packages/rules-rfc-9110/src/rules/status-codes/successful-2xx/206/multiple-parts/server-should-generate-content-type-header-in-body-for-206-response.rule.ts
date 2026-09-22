@@ -11,7 +11,7 @@ export default httpRule(
     'thymianofficial/thymian-workspace#112',
     'Concerns the Content-Type header inside each multipart body part, which neither the common projection nor the live HttpResponse exposes.',
   )
-  .url('https://datatracker.ietf.org/doc/html/rfc9110#name-multiple-parts')
+  .url('https://www.rfc-editor.org/rfc/rfc9110.html#name-multiple-parts')
   .description(
     'If the selected representation would have had a Content-Type header field in a 200 (OK) response, the server SHOULD generate that same Content-Type header field in the header area of each body part.',
   )

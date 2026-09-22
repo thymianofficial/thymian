@@ -10,7 +10,7 @@ export default httpRule(
     'peer-not-observable',
     'Conditioned on an internal client capability (whether it can process multipart/byteranges), which is not observable from traffic.',
   )
-  .url('https://datatracker.ietf.org/doc/html/rfc9110#name-multiple-parts')
+  .url('https://www.rfc-editor.org/rfc/rfc9110.html#name-multiple-parts')
   .description(
     'A client that cannot process a "multipart/byteranges" response MUST NOT generate a request that asks for multiple ranges.',
   )

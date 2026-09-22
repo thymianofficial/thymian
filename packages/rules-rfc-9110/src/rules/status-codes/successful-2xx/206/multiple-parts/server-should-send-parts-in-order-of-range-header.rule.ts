@@ -11,7 +11,7 @@ export default httpRule(
     'thymianofficial/thymian-workspace#112',
     'Concerns the ordering of parts within the multipart body, which neither the common projection nor the live HttpResponse exposes.',
   )
-  .url('https://datatracker.ietf.org/doc/html/rfc9110#name-multiple-parts')
+  .url('https://www.rfc-editor.org/rfc/rfc9110.html#name-multiple-parts')
   .description(
     'A server that generates a multipart response SHOULD send the parts in the same order that the corresponding range-spec appeared in the received Range header field, excluding those ranges that were deemed unsatisfiable or that were coalesced into other ranges.',
   )
