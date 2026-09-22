@@ -45,12 +45,7 @@ export default class Sync extends BaseCliRunCommand<typeof Sync> {
       }
 
       if (result.changed.length === 0) {
-        this.log(
-          oclif.ux.colorize(
-            'green',
-            'The committed sampler types match this API description.',
-          ),
-        );
+        this.log('Sampler types are in sync.');
 
         // The types matched but the bytes moved — a description edit rewrites a
         // JSDoc comment without moving a type. Saying so is the difference
@@ -73,19 +68,16 @@ export default class Sync extends BaseCliRunCommand<typeof Sync> {
       }
 
       if (this.flags.check) {
-        this.log(
-          oclif.ux.colorize(
-            'red',
-            `The committed sampler types are out of sync with this API description:`,
-          ),
-        );
+        this.log(oclif.ux.colorize('red', `Sampler types are out of sync:`));
 
         for (const file of result.changed) {
-          this.log(`  generated/${file}`);
+          this.log(`  ${file}`);
+          this.log();
         }
 
-        this.log();
-        this.log('Run "thymian sampler sync" and commit the result.');
+        this.guidance(
+          'To regenerate the types, run:\n  $ thymian sampler sync',
+        );
 
         // `process.exitCode` rather than `this.exit()`: an early exit throws
         // past this run's teardown, and routes through oclif's error path —
@@ -99,16 +91,8 @@ export default class Sync extends BaseCliRunCommand<typeof Sync> {
       this.log(oclif.ux.colorize('green', 'Regenerated:'));
 
       for (const file of result.changed) {
-        this.log(`  generated/${file}`);
+        this.log(`  ${file}`);
       }
-
-      this.log();
-      this.log(
-        oclif.ux.colorize(
-          'dim',
-          'Commit these: they are the baseline the drift gate compares against.',
-        ),
-      );
 
       return result;
     });
