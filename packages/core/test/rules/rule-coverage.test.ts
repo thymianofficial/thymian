@@ -11,6 +11,7 @@ describe('coverage record shape', () => {
       source: {
         revision: 'RFC 9999 (January 2099)',
         countingRule: 'One unit per BCP 14 keyword addressed to a server.',
+        hasKeywordBasis: true,
       },
       units: {
         '1.1': 'A statement a server must do the thing.',
@@ -29,7 +30,11 @@ describe('coverage record shape', () => {
 
   it('omits contexts entirely on an executable entry', () => {
     const record = defineCoverage({
-      source: { revision: 'r1', countingRule: 'one per statement' },
+      source: {
+        revision: 'r1',
+        countingRule: 'one per statement',
+        hasKeywordBasis: true,
+      },
       units: { '1.1': 'text' },
       rules: {
         'no-contexts': {
@@ -44,7 +49,11 @@ describe('coverage record shape', () => {
 
   it('marks an undeclared context impossible, with a note', () => {
     const record = defineCoverage({
-      source: { revision: 'r1', countingRule: 'one per statement' },
+      source: {
+        revision: 'r1',
+        countingRule: 'one per statement',
+        hasKeywordBasis: true,
+      },
       units: { '1.1': 'text' },
       rules: {
         'analytics-and-test-only': {
@@ -70,7 +79,11 @@ describe('coverage record shape', () => {
 
   it('marks a declared context heuristic with the bare literal', () => {
     const record = defineCoverage({
-      source: { revision: 'r1', countingRule: 'one per statement' },
+      source: {
+        revision: 'r1',
+        countingRule: 'one per statement',
+        hasKeywordBasis: true,
+      },
       units: { '1.1': 'text' },
       rules: {
         'heuristic-in-analytics': {
@@ -88,7 +101,11 @@ describe('coverage record shape', () => {
 
   it('carries an issue reference on a tool-limitation cell', () => {
     const record = defineCoverage({
-      source: { revision: 'r1', countingRule: 'one per statement' },
+      source: {
+        revision: 'r1',
+        countingRule: 'one per statement',
+        hasKeywordBasis: true,
+      },
       units: { '1.1': 'text' },
       rules: {
         'tool-limited': {
@@ -114,7 +131,11 @@ describe('coverage record shape', () => {
 
   it('builds an informational entry with covers, a stamp, and no contexts', () => {
     const record = defineCoverage({
-      source: { revision: 'r1', countingRule: 'one per statement' },
+      source: {
+        revision: 'r1',
+        countingRule: 'one per statement',
+        hasKeywordBasis: true,
+      },
       units: { '1.1': 'text' },
       rules: {
         'pure-definition': {
@@ -162,7 +183,11 @@ describe('coverage record shape', () => {
 
   it('refuses an unknown unit id in covers', () => {
     defineCoverage({
-      source: { revision: 'r1', countingRule: 'one per statement' },
+      source: {
+        revision: 'r1',
+        countingRule: 'one per statement',
+        hasKeywordBasis: true,
+      },
       units: { '1.1': 'text' },
       rules: {
         'bad-unit': {
@@ -176,7 +201,11 @@ describe('coverage record shape', () => {
 
   it('refuses an unknown context reason code', () => {
     defineCoverage({
-      source: { revision: 'r1', countingRule: 'one per statement' },
+      source: {
+        revision: 'r1',
+        countingRule: 'one per statement',
+        hasKeywordBasis: true,
+      },
       units: { '1.1': 'text' },
       rules: {
         'bad-reason': {
@@ -197,7 +226,11 @@ describe('coverage record shape', () => {
 
   it('refuses a tool-limitation cell with no issue reference', () => {
     defineCoverage({
-      source: { revision: 'r1', countingRule: 'one per statement' },
+      source: {
+        revision: 'r1',
+        countingRule: 'one per statement',
+        hasKeywordBasis: true,
+      },
       units: { '1.1': 'text' },
       rules: {
         'missing-issue': {
@@ -218,7 +251,11 @@ describe('coverage record shape', () => {
 
   it('refuses a malformed issue reference on a tool-limitation cell', () => {
     defineCoverage({
-      source: { revision: 'r1', countingRule: 'one per statement' },
+      source: {
+        revision: 'r1',
+        countingRule: 'one per statement',
+        hasKeywordBasis: true,
+      },
       units: { '1.1': 'text' },
       rules: {
         'bad-issue': {
@@ -241,7 +278,16 @@ describe('coverage record shape', () => {
   it('refuses a missing counting rule on the source', () => {
     defineCoverage({
       // @ts-expect-error countingRule is required
-      source: { revision: 'r1' },
+      source: { revision: 'r1', hasKeywordBasis: true },
+      units: { '1.1': 'text' },
+      rules: {},
+    });
+  });
+
+  it('refuses a missing hasKeywordBasis on the source', () => {
+    defineCoverage({
+      // @ts-expect-error hasKeywordBasis is required
+      source: { revision: 'r1', countingRule: 'one per statement' },
       units: { '1.1': 'text' },
       rules: {},
     });
@@ -249,7 +295,11 @@ describe('coverage record shape', () => {
 
   it('refuses cells on an informational entry', () => {
     defineCoverage({
-      source: { revision: 'r1', countingRule: 'one per statement' },
+      source: {
+        revision: 'r1',
+        countingRule: 'one per statement',
+        hasKeywordBasis: true,
+      },
       units: { '1.1': 'text' },
       rules: {
         // @ts-expect-error an informational entry's cells all come from the whole-rule reason already; contexts is not allowed

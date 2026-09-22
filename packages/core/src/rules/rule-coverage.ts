@@ -69,9 +69,20 @@ export type CoverageCell =
 // does, because it is the difference between "this source cannot be
 // counted" and "nobody tried": `countingRule` is required where `revision`
 // and `substituteLabel` are the two fields that may vary.
+//
+// `hasKeywordBasis` is declared, not derived from `countingRule`'s own
+// prose: a real BCP-14-keyword source can describe its counting rule
+// without ever using the word "keyword" (RFC 6797's is "MUST/SHOULD
+// statements... addressed to an HSTS Host"), and a source with no keyword
+// basis at all can still mention the word while explaining why it doesn't
+// apply. `countingRule` is written for a human reader of the rendered
+// README; `hasKeywordBasis` is the one bit the coverage checker's
+// citation-requirement assertion (a later ticket) needs and can trust,
+// because nothing about it is inferred from text meant for something else.
 export type CoverageSource = {
   revision: string;
   countingRule: string;
+  hasKeywordBasis: boolean;
   substituteLabel?: string;
 };
 
