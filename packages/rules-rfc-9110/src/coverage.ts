@@ -588,5 +588,502 @@ export default defineCoverage({
       covers: ['15.5'],
       declared: { types: ['informational'], severity: 'warn' },
     },
+    'rfc9110/client-may-send-upgrade-header': {
+      covers: ['7.8'],
+      declared: { types: ['analytics'], severity: 'hint' },
+      contexts: {
+        static: {
+          verdict: 'impossible',
+          reason: 'not-representable',
+          note: "This rule's filter (requestHeader('upgrade')) is an HttpFilterExpression; static's own validateHttpTransactions needs a plain predicate function, an incompatible shape.",
+        },
+        // Likely a mis-declaration, not a real impossibility: sending
+        // Upgrade is entirely within Thymian's own control as the client
+        // (executability-gate.md's "Probes" section -- a well-formed,
+        // spec-permitted message needs no server cooperation), and
+        // server-must-send-upgrade-header-in-101-response already declares
+        // test for a closely related Upgrade check in this same package.
+        // Filed as thymianofficial/thymian-workspace#170 rather than
+        // declaring test on a rule this ticket leaves untouched.
+        test: {
+          verdict: 'impossible',
+          reason: 'condition-not-producible',
+          note: 'The shared .rule() handler is not yet exercised under test. Likely a mis-declaration rather than a structural impossibility — see thymianofficial/thymian-workspace#170.',
+        },
+      },
+    },
+    'rfc9110/client-must-not-use-special-request-target-forms-with-other-methods':
+      {
+        covers: ['7.1'],
+        declared: { types: ['analytics'], severity: 'error' },
+        contexts: {
+          static: {
+            verdict: 'impossible',
+            reason: 'not-representable',
+            note: 'The assertion inspects the literal request-line target form (asterisk-form, authority-form); the schema models operation paths, not request-line target syntax, so there is nothing here to check against.',
+          },
+          test: {
+            verdict: 'impossible',
+            reason: 'condition-not-producible',
+            note: "Thymian's own test requests are well-formed per the declared operations; it has no reason to construct an asterisk- or authority-form target on a non-CONNECT/OPTIONS method to misuse in the first place.",
+          },
+        },
+      },
+    'rfc9110/client-should-continue-sending-request-when-response-arrives': {
+      covers: ['7.5'],
+      declared: { types: ['informational'], severity: 'warn' },
+    },
+    'rfc9110/firewall-intermediary-should-not-forward-internal-hosts': {
+      covers: ['7.6.3'],
+      declared: { types: ['informational'], severity: 'warn' },
+    },
+    'rfc9110/firewall-intermediary-should-replace-internal-hosts-with-pseudonyms':
+      {
+        covers: ['7.6.3'],
+        declared: { types: ['informational'], severity: 'warn' },
+      },
+    'rfc9110/gateway-may-send-via-header-in-responses': {
+      covers: ['7.6.3'],
+      declared: { types: ['analytics'], severity: 'hint' },
+      contexts: {
+        static: {
+          verdict: 'impossible',
+          reason: 'not-representable',
+          note: "This rule gates on transaction.response.meta.role === 'gateway' so a gateway's own added Via entry isn't confused with one the origin server already sent.",
+        },
+        test: {
+          verdict: 'impossible',
+          reason: 'participant-not-reachable',
+          note: 'Attributing a response specifically to a gateway (rather than the origin it fronts) needs participant-role metadata that only exists on a captured transaction, never on one direct test exchange.',
+        },
+      },
+    },
+    'rfc9110/gateway-must-send-via-header-in-inbound-requests': {
+      covers: ['7.6.3'],
+      declared: { types: ['analytics'], severity: 'error' },
+      contexts: {
+        static: {
+          verdict: 'impossible',
+          reason: 'not-representable',
+          note: "This rule gates on transaction.request.meta.role === 'gateway' to scope the requirement to gateway-originated requests specifically.",
+        },
+        test: {
+          verdict: 'impossible',
+          reason: 'participant-not-reachable',
+          note: 'Confirming a request came from a gateway (versus, say, the client itself) needs participant-role metadata only a captured transaction carries; in a direct test exchange Thymian only ever occupies the client role.',
+        },
+      },
+    },
+    'rfc9110/intermediary-may-combine-via-entries-with-identical-protocols': {
+      covers: ['7.6.3'],
+      declared: { types: ['informational'], severity: 'hint' },
+    },
+    'rfc9110/intermediary-must-check-and-update-max-forwards': {
+      covers: ['7.6.2'],
+      declared: { types: ['analytics'], severity: 'error' },
+      contexts: {
+        static: {
+          verdict: 'impossible',
+          reason: 'not-representable',
+          note: "This rule compares the Max-Forwards value on an intermediary's inbound leg against its outbound leg (forwardingHops), needing both sides of one forwarding hop at once.",
+        },
+        test: {
+          verdict: 'impossible',
+          reason: 'participant-not-reachable',
+          note: 'Checking that Max-Forwards was decremented across a hop needs the received and forwarded legs together; a single direct test exchange only ever carries one of them.',
+        },
+      },
+    },
+    'rfc9110/intermediary-must-generate-updated-max-forwards-when-forwarding': {
+      covers: ['7.6.2'],
+      declared: { types: ['analytics'], severity: 'error' },
+      contexts: {
+        static: {
+          verdict: 'impossible',
+          reason: 'not-representable',
+          note: 'This rule compares the received and forwarded Max-Forwards values across one hop (forwardingHops), the same correlated-legs shape as the sibling Max-Forwards rules.',
+        },
+        test: {
+          verdict: 'impossible',
+          reason: 'participant-not-reachable',
+          note: 'The decremented value only exists to compare once both the inbound and outbound legs of a hop are available together; a direct test exchange never carries both.',
+        },
+      },
+    },
+    'rfc9110/intermediary-must-implement-connection-header': {
+      covers: ['7.6'],
+      declared: { types: ['informational'], severity: 'error' },
+    },
+    'rfc9110/intermediary-must-not-forward-message-to-itself': {
+      covers: ['7.6'],
+      declared: { types: ['analytics'], severity: 'error' },
+      contexts: {
+        static: {
+          verdict: 'impossible',
+          reason: 'not-representable',
+          note: 'Detecting a forwarding loop needs the whole Via chain across a captured trace, checking for a repeated received-by entry -- a property of message history, not of any single message.',
+        },
+        test: {
+          verdict: 'impossible',
+          reason: 'participant-not-reachable',
+          note: 'A direct test exchange has no forwarding history to inspect; Thymian would need to already be positioned as one hop in a multi-hop chain to see whether its own name repeats in the Via chain.',
+        },
+      },
+    },
+    'rfc9110/intermediary-must-not-forward-when-max-forwards-is-zero': {
+      covers: ['7.6.2'],
+      declared: { types: ['analytics'], severity: 'error' },
+      contexts: {
+        static: {
+          verdict: 'impossible',
+          reason: 'not-representable',
+          note: 'This rule infers forwarding occurred from the mere existence of an outbound leg after an inbound Max-Forwards: 0 (forwardingHops) -- a fact about whether a hop happened, not about one message.',
+        },
+        test: {
+          verdict: 'impossible',
+          reason: 'participant-not-reachable',
+          note: 'Whether an intermediary forwarded at all is only visible by comparing an inbound leg against a (missing or present) outbound one; a single direct test exchange is definitionally only one leg.',
+        },
+      },
+    },
+    'rfc9110/intermediary-must-parse-and-remove-connection-fields': {
+      covers: ['7.6.1'],
+      declared: { types: ['analytics'], severity: 'error' },
+      contexts: {
+        static: {
+          verdict: 'impossible',
+          reason: 'not-representable',
+          note: "This rule compares the Connection header's listed options between an intermediary's inbound and outbound legs (forwardingHops), which validateCapturedHttpTraces exists to correlate.",
+        },
+        test: {
+          verdict: 'impossible',
+          reason: 'participant-not-reachable',
+          note: 'Confirming a hop-by-hop field was actually stripped needs Thymian to observe both the message an intermediary received and the one it forwarded onward -- two correlated legs of a single hop, never present in one direct test exchange.',
+        },
+      },
+    },
+    'rfc9110/intermediary-must-respond-as-final-recipient-when-max-forward-is-zero':
+      {
+        covers: ['7.6.2'],
+        declared: { types: ['analytics'], severity: 'error' },
+        contexts: {
+          static: {
+            verdict: 'impossible',
+            reason: 'not-representable',
+            note: "This rule checks that an intermediary answered directly rather than forwarding, by comparing the inbound leg's Max-Forwards against whether an outbound leg exists (forwardingHops).",
+          },
+          test: {
+            verdict: 'impossible',
+            reason: 'participant-not-reachable',
+            note: 'Confirming an intermediary became the final recipient needs to see the absence of a forwarded leg, which is only visible against a captured, multi-hop trace, not a single direct exchange.',
+          },
+        },
+      },
+    'rfc9110/intermediary-should-remove-known-hop-by-hop-fields': {
+      covers: ['7.6.1'],
+      declared: { types: ['analytics'], severity: 'warn' },
+      contexts: {
+        static: {
+          verdict: 'impossible',
+          reason: 'not-representable',
+          note: "This rule compares the named hop-by-hop fields (Proxy-Connection, Keep-Alive, TE, Transfer-Encoding, Upgrade) between an intermediary's inbound and outbound legs, which validateCapturedHttpTraces exists to correlate.",
+        },
+        test: {
+          verdict: 'impossible',
+          reason: 'participant-not-reachable',
+          note: 'Confirming a known hop-by-hop field was removed or replaced needs both the received and forwarded legs of one hop at once; a direct test exchange never carries the received leg to compare against.',
+        },
+      },
+    },
+    'rfc9110/origin-server-must-reject-https-requests-without-valid-certificate':
+      {
+        covers: ['7.4'],
+        declared: { types: ['informational'], severity: 'error' },
+      },
+    'rfc9110/origin-server-must-reject-requests-not-meeting-scheme-requirements':
+      {
+        covers: ['7.4'],
+        declared: { types: ['informational'], severity: 'error' },
+      },
+    'rfc9110/proxy-may-add-domain-to-non-fqdn-hostname': {
+      covers: ['7.7'],
+      declared: { types: ['informational'], severity: 'hint' },
+    },
+    'rfc9110/proxy-may-transform-content-without-no-transform-directive': {
+      covers: ['7.7'],
+      declared: { types: ['analytics'], severity: 'hint' },
+      contexts: {
+        static: {
+          verdict: 'impossible',
+          reason: 'not-representable',
+          note: 'Detecting a content transformation needs to diff the body a proxy received against the body it forwarded (forwardingHops), two legs of one hop.',
+        },
+        test: {
+          verdict: 'impossible',
+          reason: 'participant-not-reachable',
+          note: 'Telling whether content changed across a hop needs both the inbound and outbound legs at once; a direct test exchange only ever has the one Thymian itself sent and received.',
+        },
+      },
+    },
+    'rfc9110/proxy-must-not-change-fqdn-hostname': {
+      covers: ['7.7'],
+      declared: { types: ['analytics'], severity: 'error' },
+      contexts: {
+        static: {
+          verdict: 'impossible',
+          reason: 'not-representable',
+          note: "This rule compares the target URI's host between a proxy's inbound and outbound legs (forwardingHops, scoped to the proxy role).",
+        },
+        test: {
+          verdict: 'impossible',
+          reason: 'participant-not-reachable',
+          note: 'Confirming a fully-qualified host survived a hop unchanged needs both the received and forwarded target URIs together; a direct test exchange has no received leg to compare against.',
+        },
+      },
+    },
+    'rfc9110/proxy-must-not-modify-absolute-path-and-query': {
+      covers: ['7.7'],
+      declared: { types: ['analytics'], severity: 'error' },
+      contexts: {
+        static: {
+          verdict: 'impossible',
+          reason: 'not-representable',
+          note: "This rule compares the absolute-path and query between a proxy's inbound and outbound legs (forwardingHops, scoped to the proxy role).",
+        },
+        test: {
+          verdict: 'impossible',
+          reason: 'participant-not-reachable',
+          note: 'Confirming the path and query survived a hop unchanged needs both legs of the same forwarded request; a direct test exchange only ever carries the one Thymian itself sent.',
+        },
+      },
+    },
+    'rfc9110/proxy-must-not-transform-content-with-no-transform-directive': {
+      covers: ['7.7'],
+      declared: { types: ['analytics'], severity: 'error' },
+      contexts: {
+        static: {
+          verdict: 'impossible',
+          reason: 'not-representable',
+          note: 'This rule compares adjacent captured transactions (prev/curr) gated on the proxy role to detect a content change across a no-transform response.',
+        },
+        test: {
+          verdict: 'impossible',
+          reason: 'participant-not-reachable',
+          note: 'Detecting a forbidden transformation needs two adjacent messages on either side of the same proxy hop; a direct test exchange is only ever one message pair, with no adjacent hop to compare against.',
+        },
+      },
+    },
+    'rfc9110/proxy-must-send-via-header': {
+      covers: ['7.6.3'],
+      declared: { types: ['analytics'], severity: 'error' },
+      contexts: {
+        static: {
+          verdict: 'impossible',
+          reason: 'not-representable',
+          note: "This rule gates on transaction.request.meta.role === 'proxy' to scope the requirement to proxy-forwarded requests specifically.",
+        },
+        test: {
+          verdict: 'impossible',
+          reason: 'participant-not-reachable',
+          note: "Confirming a request was forwarded by a proxy needs participant-role metadata only a captured transaction carries; a direct test exchange never attributes the sender's role.",
+        },
+      },
+    },
+    'rfc9110/proxy-should-not-modify-endpoint-and-representation-headers': {
+      covers: ['7.7'],
+      declared: { types: ['analytics'], severity: 'warn' },
+      contexts: {
+        static: {
+          verdict: 'impossible',
+          reason: 'not-representable',
+          note: "This rule compares the named representation headers (Content-Type, ETag, Last-Modified, ...) between a proxy's inbound and outbound legs (forwardingHops).",
+        },
+        test: {
+          verdict: 'impossible',
+          reason: 'participant-not-reachable',
+          note: 'Confirming these headers survived a hop unchanged needs both the received and forwarded legs of the same message; a direct test exchange has no received leg from an earlier hop to compare against.',
+        },
+      },
+    },
+    'rfc9110/recipient-may-ignore-max-forwards-for-other-methods': {
+      covers: ['7.6.2'],
+      declared: { types: ['informational'], severity: 'hint' },
+    },
+    'rfc9110/recipient-may-interpret-missing-port-as-default': {
+      covers: ['7.6.3'],
+      declared: { types: ['informational'], severity: 'hint' },
+    },
+    'rfc9110/recipient-may-remove-comments-before-forwarding': {
+      covers: ['7.6.3'],
+      declared: { types: ['informational'], severity: 'hint' },
+    },
+    'rfc9110/recipient-should-use-case-insensitive-comparison-for-protocol-names':
+      {
+        covers: ['7.8'],
+        declared: { types: ['informational'], severity: 'warn' },
+      },
+    'rfc9110/sender-may-generate-comments-to-identify-software': {
+      covers: ['7.6.3'],
+      declared: { types: ['informational'], severity: 'hint' },
+    },
+    'rfc9110/sender-may-replace-host-with-pseudonym': {
+      covers: ['7.6.3'],
+      declared: { types: ['informational'], severity: 'hint' },
+    },
+    'rfc9110/sender-must-list-connection-specific-field-in-connection-header': {
+      covers: ['7.6.1'],
+      declared: { types: ['analytics'], severity: 'error' },
+      contexts: {
+        static: {
+          verdict: 'impossible',
+          reason: 'not-representable',
+          note: "This rule's filter (or(requestHeader(...), responseHeader(...))) is an HttpFilterExpression, the LiveApiContext form of validateHttpTransactions -- static's own LintContext version of the same method needs a plain predicate function instead, an incompatible shape.",
+        },
+        test: {
+          verdict: 'impossible',
+          reason: 'condition-not-producible',
+          note: "Keep-Alive and Proxy-Connection are connection-management headers a REST API's own declared operations wouldn't include; Thymian's spec-driven test requests have no reason to carry them, so the situation this rule checks never arises to test against.",
+        },
+      },
+    },
+    'rfc9110/sender-must-not-combine-via-entries-with-different-protocols': {
+      covers: ['7.6.3'],
+      declared: { types: ['informational'], severity: 'error' },
+    },
+    'rfc9110/sender-must-not-send-end-to-end-fields-as-connection-options': {
+      covers: ['7.6.1'],
+      declared: { types: ['analytics'], severity: 'error' },
+      contexts: {
+        static: {
+          verdict: 'impossible',
+          reason: 'not-representable',
+          note: "This rule's filter (or(requestHeader('connection'), responseHeader('connection'))) is an HttpFilterExpression; static's own validateHttpTransactions needs a plain predicate function, an incompatible shape.",
+        },
+        test: {
+          verdict: 'impossible',
+          reason: 'condition-not-producible',
+          note: "Misusing Cache-Control or another end-to-end field as a Connection option is a malformed-message scenario a spec-driven test request wouldn't construct; nothing in Thymian's own conformant traffic exercises it.",
+        },
+      },
+    },
+    'rfc9110/sender-must-send-upgrade-connection-option': {
+      covers: ['7.8'],
+      declared: { types: ['analytics'], severity: 'error' },
+      contexts: {
+        static: {
+          verdict: 'impossible',
+          reason: 'not-representable',
+          note: "This rule's filter (requestHeader('upgrade')) is an HttpFilterExpression; static's own validateHttpTransactions needs a plain predicate function, an incompatible shape.",
+        },
+        // Likely a mis-declaration, not a real impossibility: same shape as
+        // client-may-send-upgrade-header (#170) -- Thymian fully controls
+        // whether and how it lists Upgrade in Connection when it sends the
+        // header, and server-must-send-upgrade-header-in-101-response
+        // already declares test for a closely related check in this same
+        // package. Filed as thymianofficial/thymian-workspace#171.
+        test: {
+          verdict: 'impossible',
+          reason: 'condition-not-producible',
+          note: 'The shared .rule() handler is not yet exercised under test. Likely a mis-declaration rather than a structural impossibility — see thymianofficial/thymian-workspace#171.',
+        },
+      },
+    },
+    'rfc9110/sender-should-not-combine-via-entries-unless-same-organization': {
+      covers: ['7.6.3'],
+      declared: { types: ['informational'], severity: 'warn' },
+    },
+    'rfc9110/server-may-ignore-client-protocol-preference-order': {
+      covers: ['7.8'],
+      declared: { types: ['informational'], severity: 'hint' },
+    },
+    'rfc9110/server-may-ignore-upgrade-header': {
+      covers: ['7.8'],
+      declared: { types: ['informational'], severity: 'hint' },
+    },
+    'rfc9110/server-may-send-upgrade-header-in-other-responses': {
+      covers: ['7.8'],
+      declared: { types: ['analytics', 'static'], severity: 'hint' },
+      contexts: {
+        test: {
+          verdict: 'impossible',
+          reason: 'condition-not-producible',
+          note: "Getting a server to volunteer an Upgrade header on an ordinary (non-101/426) response needs upgrade-advertising behaviour a generic REST API test wouldn't provoke; the mechanism (validateCommonHttpTransactions) is available, the situation isn't producible on demand.",
+        },
+      },
+    },
+    'rfc9110/server-must-ignore-upgrade-in-http-1.0-request': {
+      covers: ['7.8'],
+      declared: { types: ['informational'], severity: 'error' },
+    },
+    'rfc9110/server-must-list-protocols-in-layer-ascending-order': {
+      covers: ['7.8'],
+      declared: { types: ['informational'], severity: 'error' },
+    },
+    'rfc9110/server-must-not-switch-to-non-indicated-protocol': {
+      covers: ['7.8'],
+      declared: { types: ['analytics'], severity: 'error' },
+      contexts: {
+        static: {
+          verdict: 'impossible',
+          reason: 'not-representable',
+          note: "The override handler uses validateHttpTransactions with an HttpFilterExpression (and(requestHeader('upgrade'), statusCode(101))); static's own version of the same method needs a plain predicate function instead.",
+        },
+        // Unlike client-may-send-upgrade-header (#170) and sender-must-
+        // send-upgrade-connection-option (#171), this needs the *server*
+        // to genuinely agree to switch protocols with an automated test
+        // client -- not just Thymian sending a header it fully controls.
+        // Thymian's test harness can request an upgrade but cannot compel
+        // a real server to complete the handshake on demand, which is what
+        // this rule needs to observe (the response side of a real switch).
+        test: {
+          verdict: 'impossible',
+          reason: 'condition-not-producible',
+          note: 'Completing a genuine protocol-switch handshake needs the server to agree to switch with an automated test client on demand, which Thymian cannot compel — unlike simply sending an Upgrade request, which Thymian fully controls.',
+        },
+      },
+    },
+    'rfc9110/server-must-not-switch-unless-semantics-can-be-honored': {
+      covers: ['7.8'],
+      declared: { types: ['informational'], severity: 'error' },
+    },
+    'rfc9110/server-must-send-100-before-101-with-expect-header': {
+      covers: ['7.8'],
+      declared: { types: ['informational'], severity: 'error' },
+    },
+    'rfc9110/server-must-send-upgrade-header-in-101-response': {
+      covers: ['7.8'],
+      declared: { types: ['test', 'analytics'], severity: 'error' },
+      contexts: {
+        static: {
+          verdict: 'impossible',
+          reason: 'not-representable',
+          note: "101 (Switching Protocols) is an interim response, and interim responses are absent from the static spec projection entirely -- schemas do not model them, per the rule's own comment.",
+        },
+      },
+    },
+    'rfc9110/server-must-send-upgrade-header-in-426-response': {
+      covers: ['7.8'],
+      declared: { types: ['static', 'test', 'analytics'], severity: 'error' },
+    },
+    'rfc9110/user-agent-must-generate-host-or-authority-header': {
+      covers: ['7.2'],
+      declared: { types: ['analytics'], severity: 'error' },
+      contexts: {
+        static: {
+          verdict: 'impossible',
+          reason: 'not-representable',
+          note: "This rule's filter is an HttpFilterExpression built from requestHeader/not combinators; static's own validateHttpTransactions needs a plain predicate function, an incompatible shape.",
+        },
+        test: {
+          verdict: 'impossible',
+          reason: 'condition-not-producible',
+          note: "Thymian's own HTTP client always generates a Host header as a basic transport-level behaviour; the failure this rule checks for can't be produced by Thymian's own conformant outgoing requests.",
+        },
+      },
+    },
+    'rfc9110/user-agent-should-send-host-as-first-header': {
+      covers: ['7.2'],
+      declared: { types: ['informational'], severity: 'warn' },
+    },
   },
 });

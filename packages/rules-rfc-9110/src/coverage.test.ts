@@ -119,4 +119,73 @@ describe('coverage record', () => {
       expect(violations).toEqual([]);
     }, 30_000);
   });
+
+  describe('routing batch (#158)', () => {
+    const scope = [
+      'rfc9110/client-may-send-upgrade-header',
+      'rfc9110/client-must-not-use-special-request-target-forms-with-other-methods',
+      'rfc9110/client-should-continue-sending-request-when-response-arrives',
+      'rfc9110/firewall-intermediary-should-not-forward-internal-hosts',
+      'rfc9110/firewall-intermediary-should-replace-internal-hosts-with-pseudonyms',
+      'rfc9110/gateway-may-send-via-header-in-responses',
+      'rfc9110/gateway-must-send-via-header-in-inbound-requests',
+      'rfc9110/intermediary-may-combine-via-entries-with-identical-protocols',
+      'rfc9110/intermediary-must-check-and-update-max-forwards',
+      'rfc9110/intermediary-must-generate-updated-max-forwards-when-forwarding',
+      'rfc9110/intermediary-must-implement-connection-header',
+      'rfc9110/intermediary-must-not-forward-message-to-itself',
+      'rfc9110/intermediary-must-not-forward-when-max-forwards-is-zero',
+      'rfc9110/intermediary-must-parse-and-remove-connection-fields',
+      'rfc9110/intermediary-must-respond-as-final-recipient-when-max-forward-is-zero',
+      'rfc9110/intermediary-should-remove-known-hop-by-hop-fields',
+      'rfc9110/origin-server-must-reject-https-requests-without-valid-certificate',
+      'rfc9110/origin-server-must-reject-requests-not-meeting-scheme-requirements',
+      'rfc9110/proxy-may-add-domain-to-non-fqdn-hostname',
+      'rfc9110/proxy-may-transform-content-without-no-transform-directive',
+      'rfc9110/proxy-must-not-change-fqdn-hostname',
+      'rfc9110/proxy-must-not-modify-absolute-path-and-query',
+      'rfc9110/proxy-must-not-transform-content-with-no-transform-directive',
+      'rfc9110/proxy-must-send-via-header',
+      'rfc9110/proxy-should-not-modify-endpoint-and-representation-headers',
+      'rfc9110/recipient-may-ignore-max-forwards-for-other-methods',
+      'rfc9110/recipient-may-interpret-missing-port-as-default',
+      'rfc9110/recipient-may-remove-comments-before-forwarding',
+      'rfc9110/recipient-should-use-case-insensitive-comparison-for-protocol-names',
+      'rfc9110/sender-may-generate-comments-to-identify-software',
+      'rfc9110/sender-may-replace-host-with-pseudonym',
+      'rfc9110/sender-must-list-connection-specific-field-in-connection-header',
+      'rfc9110/sender-must-not-combine-via-entries-with-different-protocols',
+      'rfc9110/sender-must-not-send-end-to-end-fields-as-connection-options',
+      'rfc9110/sender-must-send-upgrade-connection-option',
+      'rfc9110/sender-should-not-combine-via-entries-unless-same-organization',
+      'rfc9110/server-may-ignore-client-protocol-preference-order',
+      'rfc9110/server-may-ignore-upgrade-header',
+      'rfc9110/server-may-send-upgrade-header-in-other-responses',
+      'rfc9110/server-must-ignore-upgrade-in-http-1.0-request',
+      'rfc9110/server-must-list-protocols-in-layer-ascending-order',
+      'rfc9110/server-must-not-switch-to-non-indicated-protocol',
+      'rfc9110/server-must-not-switch-unless-semantics-can-be-honored',
+      'rfc9110/server-must-send-100-before-101-with-expect-header',
+      'rfc9110/server-must-send-upgrade-header-in-101-response',
+      'rfc9110/server-must-send-upgrade-header-in-426-response',
+      'rfc9110/user-agent-must-generate-host-or-authority-header',
+      'rfc9110/user-agent-should-send-host-as-first-header',
+    ];
+
+    it('has the expected rule count', () => {
+      expect(scope.length).toBe(48);
+    });
+
+    it('reports zero violations', async () => {
+      const rules = await loadBaselineRules();
+      const violations = checkCoverage({
+        record: coverage,
+        rules,
+        profiles: rfc9110.profiles,
+        scope,
+      });
+
+      expect(violations).toEqual([]);
+    });
+  });
 });
