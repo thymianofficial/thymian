@@ -5,8 +5,11 @@ export default httpRule(
   'rfc9110/server-must-not-switch-unless-semantics-can-be-honored',
 )
   .severity('error')
-  // Whether the server could honor the original request semantics after switching is a property of the negotiated new protocol, not observable from the HTTP exchange.
-  .type('informational')
+  .type(
+    'informational',
+    'peer-not-observable',
+    "The server's own judgment of whether it can honor the original request semantics after switching is a property of the negotiated new protocol, not observable from the HTTP exchange.",
+  )
   .url('https://www.rfc-editor.org/rfc/rfc9110.html#name-upgrade')
   .description(
     'A server MUST NOT switch protocols unless the received message semantics can be honored by the new protocol. An OPTIONS request can be honored by any protocol. This allows a connection to be upgraded to protocols with the same semantics as HTTP without the latency cost of an additional round trip.',

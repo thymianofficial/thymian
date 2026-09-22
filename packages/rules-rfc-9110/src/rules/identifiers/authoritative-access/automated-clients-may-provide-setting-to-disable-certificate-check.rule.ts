@@ -4,9 +4,11 @@ export default httpRule(
   'rfc9110/automated-clients-may-provide-setting-to-disable-certificate-check',
 )
   .severity('hint')
-  // Permissive MAY about a client configuration setting — no observable failure
-  // mode and not detectable from recorded HTTP traffic.
-  .type('informational')
+  .type(
+    'informational',
+    'peer-not-observable',
+    'Whether an automated client offers a switch for certificate checking is settled in its own configuration surface, and no request or response carries it. The check that switch governs runs in the TLS handshake, beneath the HTTP messages a trace records.',
+  )
   .tags('security:transport')
   .url(
     'https://www.rfc-editor.org/rfc/rfc9110.html#name-https-certificate-verificat',

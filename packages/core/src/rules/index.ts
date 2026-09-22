@@ -7,6 +7,7 @@ export * from './rule-configuration.js';
 export * from './rule-execution-invariant.js';
 export * from './rule-filter.js';
 export * from './rule-fn.js';
+export * from './rule-impossibility.js';
 export * from './rule-loader.js';
 export * from './rule-meta.js';
 export * from './rule-runner.js';

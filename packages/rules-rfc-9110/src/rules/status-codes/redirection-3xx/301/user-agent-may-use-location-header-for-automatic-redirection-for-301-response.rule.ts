@@ -5,9 +5,12 @@ export default httpRule(
   'rfc9110/user-agent-may-use-location-header-for-automatic-redirection-for-301-response',
 )
   .severity('hint')
-  // Permissive MAY describing internal user-agent redirect behavior; no
-  // non-conformant condition to observe.
-  .type('informational')
+  .type(
+    'informational',
+    'tool-limitation',
+    'thymianofficial/thymian-workspace#141',
+    'A user agent that takes this up sends a follow-up request to the Location value of the 301, which a captured trace carries as a later transaction whose target is that URI. The hint — a 301 whose Location was never followed — is not written yet.',
+  )
   .url('https://www.rfc-editor.org/rfc/rfc9110.html#name-301-moved-permanently')
   .summary(
     'The user agent MAY use the Location field value for automatic redirection.',

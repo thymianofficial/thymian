@@ -5,10 +5,12 @@ export default httpRule(
   'rfc9110/implementation-may-replace-ows-or-rws-with-single-sp',
 )
   .severity('off')
-  // Collapsing OWS/RWS to a single SP is optional internal behaviour before
-  // interpreting/forwarding; there is no required outcome to check from observed
-  // traffic.
-  .type('informational')
+  .type(
+    'informational',
+    'tool-limitation',
+    'thymianofficial/thymian-workspace#115',
+    "An intermediary that takes this up forwards the field value with each run of optional or required whitespace collapsed to one SP, so its outbound message differs from the inbound one the same captured trace holds. Deciding which run is the OWS or RWS the field's grammar defines is a field-grammar question rules cannot ask yet.",
+  )
   .url('https://www.rfc-editor.org/rfc/rfc9110.html#section-5.6.3')
   .description(
     'Any content known to be defined as OWS or RWS MAY be replaced with a single SP before interpreting it or forwarding the message downstream.',

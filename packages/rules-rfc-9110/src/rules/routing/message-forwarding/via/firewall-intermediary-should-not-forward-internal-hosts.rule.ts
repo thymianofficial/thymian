@@ -4,8 +4,11 @@ export default httpRule(
   'rfc9110/firewall-intermediary-should-not-forward-internal-hosts',
 )
   .severity('warn')
-  // Identifying "internal" hosts requires deployment-specific topology knowledge Thymian does not have.
-  .type('informational')
+  .type(
+    'informational',
+    'peer-not-observable',
+    "Identifying which hosts are 'internal' requires deployment-specific network topology knowledge that only the firewall intermediary's own operator has.",
+  )
   .tags('security:disclosure')
   .url('https://www.rfc-editor.org/rfc/rfc9110.html#name-via')
   .description(

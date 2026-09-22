@@ -5,9 +5,11 @@ export default httpRule(
   'rfc9110/client-must-inspect-206-response-content-type-and-range',
 )
   .severity('error')
-  // Internal client requirement to inspect Content-Type/Content-Range before
-  // use; not observable from the wire.
-  .type('informational')
+  .type(
+    'informational',
+    'peer-not-observable',
+    'Internal client requirement to inspect Content-Type/Content-Range before use; not observable from the wire.',
+  )
   .appliesTo('client')
   .url('https://www.rfc-editor.org/rfc/rfc9110.html#name-206-partial-content')
   .description(

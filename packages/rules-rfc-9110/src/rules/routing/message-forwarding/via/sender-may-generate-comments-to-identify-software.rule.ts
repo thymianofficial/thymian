@@ -4,8 +4,12 @@ export default httpRule(
   'rfc9110/sender-may-generate-comments-to-identify-software',
 )
   .severity('hint')
-  // Permissive MAY — adding software-identifying comments to Via is optional, so their presence or absence is never a violation.
-  .type('informational')
+  .type(
+    'informational',
+    'tool-limitation',
+    'thymianofficial/thymian-workspace#141',
+    'A sender that takes this up writes a parenthesised comment naming its software after the received-by in its own Via member, and the recorded field value carries it verbatim. The hint — the Via comment discloses the software and version of a hop — is not written yet.',
+  )
   .tags('security:disclosure')
   .url('https://www.rfc-editor.org/rfc/rfc9110.html#name-via')
   .description(

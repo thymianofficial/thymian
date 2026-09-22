@@ -1,4 +1,5 @@
 import type { JSONSchemaType } from '../ajv.js';
+import type { RuleImpossibility } from './rule-impossibility.js';
 import type { RuleSeverity } from './rule-severity.js';
 import type { RuleTag } from './rule-tags.js';
 
@@ -63,6 +64,7 @@ export type RuleMeta<Options = unknown> = {
   severity: RuleSeverity;
   appliesTo?: HttpParticipantRole[];
   tags?: RuleTag[];
+  impossibility?: RuleImpossibility;
   explanation?: string;
   description?: string;
   recommendation?: string;

@@ -1,13 +1,15 @@
 import { httpRule } from '@thymian/core';
 
-// A terminology definition (what the spec means by "header field"). It imposes
-// no requirement on any message, so there is nothing to validate.
 // eslint-disable-next-line thymian-internal/require-rule-tags -- no concern-tag member fits this rule's topic
 export default httpRule(
   'rfc9110/header-field-term-for-header-section-only-fields',
 )
   .severity('hint')
-  .type('informational')
+  .type(
+    'informational',
+    'nothing-to-check',
+    'A terminology definition (what the spec means by "header field"); it imposes no requirement on any message.',
+  )
   .url('https://www.rfc-editor.org/rfc/rfc9110.html#section-6.3')
   .description(
     'We refer to named fields specifically as a "header field" when they are only allowed to be sent in the header section.',

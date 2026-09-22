@@ -1,18 +1,16 @@
 import { httpRule } from '@thymian/core';
 
-// This is a request-side MUST about the authority-form request-target of a
-// CONNECT request (the port must be explicit). Thymian generates requests from
-// an OpenAPI description, which does not model CONNECT tunnels or authority-form
-// targets, so `test` cannot exercise it. The request-target's authority/port is
-// not preserved as an observable field in our captured-traffic model either (a
-// HAR records a normal URL, not the CONNECT authority-form target), so `analyze`
-// cannot reliably detect an elided port.
 // eslint-disable-next-line thymian-internal/require-rule-tags -- no concern-tag member fits this rule's topic
 export default httpRule(
   'rfc9110/client-must-send-port-number-for-connect-request',
 )
   .severity('error')
-  .type('informational')
+  .type(
+    'informational',
+    'tool-limitation',
+    'thymianofficial/thymian-workspace#113',
+    "Thymian generates requests from an OpenAPI description, which has no way to describe a CONNECT operation or authority-form request-target, so `test` cannot exercise this; the target's authority/port is not preserved as an observable field in the captured-traffic model either, so `analyze` cannot detect an elided port.",
+  )
   .url('https://www.rfc-editor.org/rfc/rfc9110.html#name-connect')
   .description(
     'A client MUST send the port number even if the CONNECT request is based on a URI reference that contains an authority component with an elided port.',

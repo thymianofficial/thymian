@@ -5,8 +5,11 @@ export default httpRule(
   'rfc9110/recipient-may-interpret-missing-port-as-default',
 )
   .severity('hint')
-  // Interpreting an absent Via port as the default is an internal recipient decision with no observable artifact.
-  .type('informational')
+  .type(
+    'informational',
+    'peer-not-observable',
+    "The assumed port stays in the recipient's own parse result: it appends its own Via member rather than rewriting the one that omitted the port, so nothing it sends records which port it read that member as having.",
+  )
   .url('https://www.rfc-editor.org/rfc/rfc9110.html#name-via')
   .description(
     'If a port is not provided in the Via header field, a recipient MAY interpret that as meaning it was received on the default port, if any, for the received-protocol.',

@@ -5,9 +5,12 @@ export default httpRule(
   'rfc9110/client-may-retry-request-over-different-connection',
 )
   .severity('hint')
-  // Permissive MAY describing an internal client retry decision over a
-  // different connection; no non-conformant condition to observe.
-  .type('informational')
+  .type(
+    'informational',
+    'tool-limitation',
+    'thymianofficial/thymian-workspace#141',
+    'A client that takes this up sends the same request again after the 421, which a captured trace carries as a second transaction with the same method and target. A captured transaction names no connection, so only the retry is checkable and not that it went over a fresh one or an alternative service; that hint is not written yet.',
+  )
   .url(
     'https://www.rfc-editor.org/rfc/rfc9110.html#name-421-misdirected-request',
   )

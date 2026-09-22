@@ -169,24 +169,33 @@ _impossible with a named reason_.
 
 - **Heuristic assertions are legal, never at `error`, and declared per context.**
   Heuristic-ness attaches to an assertion _in a context_ — the same assertion can be exact
-  in `static` and a guess in `analytics`. It rides at `warn`/`hint`; `recommended` excludes
-  or downgrades it, `strict` includes it. Barring heuristics would have cost 30 of the
-  130 executable statements and forced them into `informational`, which the first sentence
-  of this section forbids.
+  in `static` and a guess in `analytics`. It rides at `warn`/`hint`, and §3's promotion
+  gate is what keeps it there: a heuristic rule is **never promotable**, whatever concern
+  tag it carries. That is the only claim this section makes about profiles — `recommended`
+  is not a leniency rung below `strict`, and may run a tagged, exactly-observable `SHOULD`
+  at `error` where `strict` holds it at the source's `warn`. Barring heuristics would have
+  cost 30 of the 130 executable statements and forced them into `informational`, which the
+  first sentence of this section forbids.
 - **Impossibility reasons are a closed vocabulary in two tiers.** Tier 1 makes a rule
   informational and lives in the rule file; tier 2 excludes one context and lives in
   `coverage.ts`.
 
-  | Tier  | Code                              | Claim                                                                |
-  | ----- | --------------------------------- | -------------------------------------------------------------------- |
-  | 1     | `origin-internal-ground-truth`    | Only the origin knows the fact the statement is about                |
-  | 1     | `peer-internal-behaviour`         | The obligation is on a peer whose internals are not observable       |
-  | 1     | `permission-or-statement-of-fact` | A `MAY`, or a statement that asserts nothing to check                |
-  | 1 & 2 | `tool-limitation`                 | _Thymian_ cannot do this yet — **must cite a tracker issue**         |
-  | 2     | `participant-not-reachable`       | Thymian occupies the role, or cannot be positioned in it             |
-  | 2     | `condition-not-producible`        | The participant is reachable, the situation is not                   |
-  | 2     | `requires-controlled-input`       | Recorded traffic cannot say whether the condition _should_ have held |
-  | 2     | `not-representable`               | The artifact does not carry the shape the assertion needs            |
+  | Tier  | Code                        | Claim                                                                |
+  | ----- | --------------------------- | -------------------------------------------------------------------- |
+  | 1     | `only-origin-knows`         | Only the origin knows the fact the statement is about                |
+  | 1     | `peer-not-observable`       | The obligation is on a peer whose internals are not observable       |
+  | 1     | `nothing-to-check`          | No HTTP message can conform to it or violate it                      |
+  | 1 & 2 | `tool-limitation`           | _Thymian_ cannot do this yet — **must cite a tracker issue**         |
+  | 2     | `participant-not-reachable` | Thymian occupies the role, or cannot be positioned in it             |
+  | 2     | `condition-not-producible`  | The participant is reachable, the situation is not                   |
+  | 2     | `requires-controlled-input` | Recorded traffic cannot say whether the condition _should_ have held |
+  | 2     | `not-representable`         | The artifact does not carry the shape the assertion needs            |
+
+  A BCP 14 `MAY` is **not** a tier-1 reason. A `MAY` is checkable at `hint` — the finding is
+  "the protocol offers this mechanism and it is not being used", which claims no
+  non-conformance — so it goes `informational` only under the same world-claims as any other
+  rule. `nothing-to-check` is a statement of fact, a definition, or a requirement addressed to
+  a specification's author rather than to a message. _(Amended 2026-09-18; see Status History.)_
 
   Tier 1 reasons are claims about the **world** that no release can falsify. Tier 2 reasons
   are claims about **one context**. `tool-limitation` is deliberately the only code in both
@@ -361,6 +370,7 @@ of this.
 
 ## Status History
 
-| Date       | Status   | Notes                                                                                       |
-| ---------- | -------- | ------------------------------------------------------------------------------------------- |
-| 2026-09-10 | Accepted | Route for adding an HTTP rule set one slice at a time; `--tag` filter and catalogs deferred |
+| Date       | Status   | Notes                                                                                                                                                                                |
+| ---------- | -------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| 2026-09-10 | Accepted | Route for adding an HTTP rule set one slice at a time; `--tag` filter and catalogs deferred                                                                                          |
+| 2026-09-18 | Amended  | §4: a BCP 14 `MAY` is checkable at `hint` and is never `nothing-to-check`; `nothing-to-check` narrowed to statements of fact, definitions, and requirements on specification authors |

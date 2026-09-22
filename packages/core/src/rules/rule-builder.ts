@@ -11,9 +11,15 @@ import type { Rule } from './rule.js';
 import {
   checkRuleExecutionInvariant,
   describeRuleExecutionInvariantViolation,
+  type ExecutableRuleType,
   ruleFnPropertyByType,
 } from './rule-execution-invariant.js';
 import type { RuleFn } from './rule-fn.js';
+import {
+  type IssueReference,
+  tier1ImpossibilityReasons,
+  type WorldReason,
+} from './rule-impossibility.js';
 import type { HttpParticipantRole, RuleType } from './rule-meta.js';
 import { isRuleSeverityLevel, type RuleSeverity } from './rule-severity.js';
 import type { RuleTag } from './rule-tags.js';
@@ -36,12 +42,22 @@ function isInformationalRule<R extends Rule<any>>(
   return rule.meta.type.includes('informational');
 }
 
+function isTier1ImpossibilityReason(value: unknown): value is WorldReason {
+  return (
+    typeof value === 'string' && Object.hasOwn(tier1ImpossibilityReasons, value)
+  );
+}
+
 interface DefineRuleSeverity {
   severity(severity: RuleSeverity): DefineRuleType;
 }
 
 interface InformationalMixedWithExecutableTypes {
   readonly "'informational' cannot be combined with executable rule types": unknown;
+}
+
+interface MissingImpossibilityReasonOnType {
+  readonly "Cannot finish this rule: an 'informational' rule must say why no context can observe it. Pass a reason and a note to .type('informational', reason, note).": true;
 }
 
 type DefineRuleTypeResult<Types extends [RuleType, ...RuleType[]]> =
@@ -52,7 +68,42 @@ type DefineRuleTypeResult<Types extends [RuleType, ...RuleType[]]> =
     : DefineOptionalRuleMetaProperties<Types>;
 
 interface DefineRuleType {
-  type<Types extends [RuleType, ...RuleType[]]>(
+  // A world-claim: code and note. Excludes 'tool-limitation' (rather than
+  // the full WorldReason) so this overload cannot also match a
+  // 'tool-limitation' call missing its required issue — that call must fall
+  // through to the overload below or be refused, never silently drop the
+  // citation.
+  type(
+    type: 'informational',
+    reason: Exclude<WorldReason, 'tool-limitation'>,
+    note: string,
+  ): DefineOptionalRuleMetaProperties<['informational']>;
+
+  // Thymian's own gap: the issue is a required argument, not an optional
+  // field — an uncited tool-limitation is indistinguishable from a
+  // permanent one.
+  type(
+    type: 'informational',
+    reason: 'tool-limitation',
+    issue: IssueReference,
+    note: string,
+  ): DefineOptionalRuleMetaProperties<['informational']>;
+
+  // The corpus sweep this vocabulary unblocked has now transcribed every
+  // informational rule's reason, so a bare call refuses instead of building —
+  // the same marker-interface idiom DefineDone already uses for
+  // MissingExecutionFunctionForTypes. Known limit, carried over unchanged:
+  // CI prints the interface name (`Type 'MissingImpossibilityReasonOnType'
+  // has no call signatures`), and the explanatory sentence is only visible
+  // on hover in an editor — accepted for the same reason it was accepted
+  // there, since it is the only idiom that refuses at all.
+  // Required as its own overload, not incidental: without it, a bare call
+  // falls through to the executable overload below and reports
+  // "'informational' is not assignable to 'ExecutableRuleType'", which
+  // points the author at the wrong thing entirely.
+  type(type: 'informational'): MissingImpossibilityReasonOnType;
+
+  type<Types extends [ExecutableRuleType, ...ExecutableRuleType[]]>(
     ...types: Types
   ): DefineRuleTypeResult<Types>;
 }
@@ -158,14 +209,51 @@ class RuleBuilder<
     };
   }
 
-  type<Types extends [RuleType, ...RuleType[]]>(
+  type(
+    type: 'informational',
+    reason: Exclude<WorldReason, 'tool-limitation'>,
+    note: string,
+  ): DefineOptionalRuleMetaProperties<['informational']>;
+  type(
+    type: 'informational',
+    reason: 'tool-limitation',
+    issue: IssueReference,
+    note: string,
+  ): DefineOptionalRuleMetaProperties<['informational']>;
+  type(type: 'informational'): MissingImpossibilityReasonOnType;
+  type<Types extends [ExecutableRuleType, ...ExecutableRuleType[]]>(
     ...types: Types
-  ): DefineRuleTypeResult<Types> {
-    this.#rule.meta.type = types;
+  ): DefineRuleTypeResult<Types>;
+  type(...args: unknown[]): unknown {
+    const [type, ...rest] = args;
+
+    // A second positional argument only means "reason" when it is actually
+    // one of the tier-1 codes. Anything else (another RuleType, most
+    // notably) is a call like .type('informational', 'static') — an invalid
+    // multi-type declaration that must reach checkRuleExecutionInvariant
+    // unchanged so it is refused as 'informational-mixed-with-executable-types',
+    // not misread as a reason.
+    if (type === 'informational' && isTier1ImpossibilityReason(rest[0])) {
+      const reason = rest[0];
+
+      this.#rule.meta.type = ['informational'];
+      this.#rule.meta.impossibility =
+        reason === 'tool-limitation'
+          ? {
+              reason,
+              issue: rest[1] as IssueReference,
+              note: String(rest[2] ?? '').trim(),
+            }
+          : { reason, note: String(rest[1] ?? '').trim() };
+    } else {
+      this.#rule.meta.type = args as RuleType[];
+      delete this.#rule.meta.impossibility;
+    }
 
     // Execution functions are defined after .type(), so a missing execution
     // function is expected here; every other violation (malformed or unknown
-    // types, informational mixed with executable types) is final.
+    // types, informational mixed with executable types, an impossibility
+    // reason on an executable declaration) is final.
     const violation = checkRuleExecutionInvariant(this.#rule);
 
     if (violation && violation.reason !== 'missing-execution-function') {
@@ -175,7 +263,7 @@ class RuleBuilder<
       );
     }
 
-    return this as unknown as DefineRuleTypeResult<Types>;
+    return this;
   }
 
   appliesTo(

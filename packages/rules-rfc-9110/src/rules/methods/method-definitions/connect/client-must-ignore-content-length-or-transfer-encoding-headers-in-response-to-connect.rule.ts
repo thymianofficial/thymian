@@ -1,15 +1,14 @@
 import { httpRule } from '@thymian/core';
 
-// This MUST governs internal client behavior — how the client interprets
-// (ignores) Content-Length / Transfer-Encoding on a successful CONNECT
-// response. "Ignoring" a header is an internal processing decision that leaves
-// no trace on the wire, so it cannot be observed from a response, from recorded
-// traffic, or by testing.
 export default httpRule(
   'rfc9110/client-must-ignore-content-length-or-transfer-encoding-headers-in-response-to-connect',
 )
   .severity('error')
-  .type('informational')
+  .type(
+    'informational',
+    'peer-not-observable',
+    'How the client interprets (ignores) Content-Length / Transfer-Encoding on a successful CONNECT response is an internal processing decision that leaves no trace on the wire, so it cannot be observed from a response, from recorded traffic, or by testing.',
+  )
   // A successful CONNECT response becomes a raw tunnel; Content-Length or
   // Transfer-Encoding on it would falsely imply a framed HTTP body. One of the
   // two named canonical CONNECT-framing shapes for this tag (thymian-workspace#90).

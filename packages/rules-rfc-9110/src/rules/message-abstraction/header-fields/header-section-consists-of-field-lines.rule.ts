@@ -1,11 +1,13 @@
 import { httpRule } from '@thymian/core';
 
-// A structural/terminology definition of the "header section". It states no
-// requirement on any message, so there is nothing to validate.
 // eslint-disable-next-line thymian-internal/require-rule-tags -- no concern-tag member fits this rule's topic
 export default httpRule('rfc9110/header-section-consists-of-field-lines')
   .severity('hint')
-  .type('informational')
+  .type(
+    'informational',
+    'nothing-to-check',
+    'A structural/terminology definition of the "header section"; it states no requirement on any message.',
+  )
   .url('https://www.rfc-editor.org/rfc/rfc9110.html#section-6.3')
   .description(
     'The "header section" of a message consists of a sequence of header field lines. Each header field might modify or extend message semantics, describe the sender, define the content, or provide additional context.',

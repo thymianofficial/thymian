@@ -308,4 +308,62 @@ describe('generate rule (integration)', () => {
     expect(stdout).toContain('module.exports');
     expect(stdout).not.toContain('Rule written to');
   });
+
+  it('picking informational prompts for a reason and emits it on .type()', async () => {
+    const testDir = join(tmpDir, 'informational-reason');
+    mkdirSync(testDir, { recursive: true });
+
+    vi.mocked(input)
+      .mockReset()
+      .mockResolvedValueOnce('my-rule') // name
+      .mockResolvedValueOnce('') // description
+      .mockResolvedValueOnce('') // summary
+      .mockResolvedValueOnce('A definition no message can violate.'); // note
+    vi.mocked(select)
+      .mockReset()
+      .mockResolvedValueOnce('error') // severity
+      .mockResolvedValueOnce('nothing-to-check'); // reason
+    vi.mocked(checkbox)
+      .mockReset()
+      .mockResolvedValueOnce(['informational']) // rule types
+      .mockResolvedValue([]); // appliesTo
+
+    const { stdout } = await captureOutput(async () => {
+      await GenerateRule.run(['--cwd', testDir, '--url', '']);
+    });
+
+    expect(stdout).toContain(
+      ".type('informational', 'nothing-to-check', 'A definition no message can violate.')",
+    );
+    expect(stdout).not.toContain('.rule((context, options, logger)');
+  });
+
+  it('picking tool-limitation also prompts for an issue reference', async () => {
+    const testDir = join(tmpDir, 'informational-tool-limitation');
+    mkdirSync(testDir, { recursive: true });
+
+    vi.mocked(input)
+      .mockReset()
+      .mockResolvedValueOnce('my-rule') // name
+      .mockResolvedValueOnce('') // description
+      .mockResolvedValueOnce('') // summary
+      .mockResolvedValueOnce('#123') // issue
+      .mockResolvedValueOnce('Cannot send this yet.'); // note
+    vi.mocked(select)
+      .mockReset()
+      .mockResolvedValueOnce('error') // severity
+      .mockResolvedValueOnce('tool-limitation'); // reason
+    vi.mocked(checkbox)
+      .mockReset()
+      .mockResolvedValueOnce(['informational']) // rule types
+      .mockResolvedValue([]); // appliesTo
+
+    const { stdout } = await captureOutput(async () => {
+      await GenerateRule.run(['--cwd', testDir, '--url', '']);
+    });
+
+    expect(stdout).toContain(
+      ".type('informational', 'tool-limitation', '#123', 'Cannot send this yet.')",
+    );
+  });
 });

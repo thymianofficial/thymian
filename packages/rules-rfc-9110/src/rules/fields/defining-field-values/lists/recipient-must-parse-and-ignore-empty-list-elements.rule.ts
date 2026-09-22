@@ -4,10 +4,11 @@ export default httpRule(
   'rfc9110/recipient-must-parse-and-ignore-empty-list-elements',
 )
   .severity('error')
-  // Parsing-and-ignoring empty list elements is internal recipient behaviour
-  // that leaves no signal on the wire, and the "reasonable number" bound cannot
-  // be probed from Thymian-generated traffic.
-  .type('informational')
+  .type(
+    'informational',
+    'peer-not-observable',
+    'Parsing-and-ignoring empty list elements is internal recipient behaviour that leaves no signal on the wire, and the "reasonable number" bound cannot be probed from Thymian-generated traffic.',
+  )
   .tags('security:dos')
   .url('https://www.rfc-editor.org/rfc/rfc9110.html#section-5.6.1')
   .description(

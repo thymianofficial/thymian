@@ -3,10 +3,11 @@ import { httpRule } from '@thymian/core';
 // eslint-disable-next-line thymian-internal/require-rule-tags -- no concern-tag member fits this rule's topic
 export default httpRule('rfc9110/recipient-must-accept-all-http-date-formats')
   .severity('error')
-  // A recipient's internal parsing acceptance of all three HTTP-date formats
-  // leaves no signal on the wire — Thymian cannot see whether the peer accepted
-  // a given inbound timestamp format.
-  .type('informational')
+  .type(
+    'informational',
+    'peer-not-observable',
+    "A recipient's internal parsing acceptance of all three HTTP-date formats leaves no signal on the wire — Thymian cannot see whether the peer accepted a given inbound timestamp format.",
+  )
   .url('https://www.rfc-editor.org/rfc/rfc9110.html#section-5.6.7')
   .description(
     'A recipient that parses a timestamp value in an HTTP field MUST accept all three HTTP-date formats.',
