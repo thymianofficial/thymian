@@ -1,6 +1,8 @@
-import { relative } from 'node:path';
+import { join, relative } from 'node:path';
 
 import { BaseCliRunCommand, oclif } from '@thymian/common-cli';
+
+const { colorize } = oclif.ux;
 
 export default class Init extends BaseCliRunCommand<typeof Init> {
   static override enableJsonFlag = true;
@@ -34,34 +36,25 @@ export default class Init extends BaseCliRunCommand<typeof Init> {
 
       const root = relative(this.flags.cwd, result.root) || result.root;
 
-      this.log(oclif.ux.colorize('green', `Sampler ready in ${root}.`));
-      this.log();
-
       for (const file of result.generated) {
-        this.log(`  generated/${file}`);
+        this.log(`${colorize('green', 'created')} ${join(root, file)}`);
       }
 
-      this.log(
-        result.tsconfig === 'written'
-          ? '  tsconfig.json'
-          : `  tsconfig.json ${oclif.ux.colorize('dim', '(kept — yours from here on)')}`,
-      );
-
-      this.log();
-      this.log('One thing left, which only you can do:');
-      this.log();
-
-      for (const line of result.rootExcludeNote) {
-        this.log(`  ${line}`);
+      if (result.tsconfig === 'written') {
+        this.log(
+          `${colorize('green', 'created')} ${join(root, 'tsconfig.json')}`,
+        );
       }
 
-      this.log();
-      this.log(
-        oclif.ux.colorize(
-          'dim',
-          'Hooks run with or without this: `thymian test` resolves @thymian/hooks itself. What init adds is autocomplete and `thymian sampler validate`.',
-        ),
-      );
+      if (result.rootExcludeNote.length > 0) {
+        this.log();
+        this.log('One thing left, which only you can do:');
+        this.log();
+
+        for (const line of result.rootExcludeNote) {
+          this.log(`  ${line}`);
+        }
+      }
 
       return result;
     });

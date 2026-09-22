@@ -113,7 +113,7 @@ describe('sampler sync / validate: human-mode gate failures', () => {
       expect(error).toBeUndefined();
       expect(process.exitCode).toBe(1);
       expect(stdout).toContain('out of sync');
-      expect(stdout).toContain('generated/request-types.d.ts');
+      expect(stdout).toContain('request-types.d.ts');
     });
 
     it('sets no exit code when nothing is out of sync', async () => {

@@ -221,8 +221,8 @@ export const samplePlugin: ThymianPlugin<Partial<SamplerPluginOptions>> = {
         );
 
         if (stale.length > 0) {
-          logger.warn(
-            `The committed sampler types are behind this API description (${stale.join(', ')}). Run "thymian sampler sync" and commit the result.`,
+          logger.debug(
+            `The committed sampler types are behind this API description (${stale.join(', ')}).`,
           );
         }
       }

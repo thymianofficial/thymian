@@ -397,7 +397,16 @@ export const b = defineSample(${JSON.stringify(LAUNCHES)}, () => {});
   });
 
   describe('a run', () => {
-    it('warns at load when the committed types are behind', async () => {
+    /**
+     * Drift is noted at debug level, not warned about.
+     *
+     * A run that loads behind types is not thereby broken, and the warning
+     * fired on every single run — so the signal belongs where someone goes
+     * looking for it. `sampler validate` and `sampler sync --check` are the
+     * gates that actually report drift; this is only a breadcrumb for a
+     * confusing run.
+     */
+    it('stays quiet at load when the committed types are behind', async () => {
       const harness = await sampler();
 
       await harness.loadFormat(formatOf(BASE));
@@ -409,10 +418,7 @@ export const b = defineSample(${JSON.stringify(LAUNCHES)}, () => {});
         formatOf([...BASE, { method: 'GET', path: '/rockets', status: 200 }]),
       );
 
-      expect(harness.warnings.join('\n')).toContain(
-        'committed sampler types are behind this API description',
-      );
-      expect(harness.warnings.join('\n')).toContain('sampler sync');
+      expect(harness.warnings).toEqual([]);
     });
 
     it('says nothing at load when nothing is committed', async () => {
