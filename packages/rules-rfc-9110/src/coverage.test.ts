@@ -451,4 +451,102 @@ describe('coverage record', () => {
       expect(violations).toEqual([]);
     }, 30_000);
   });
+
+  describe('representation-data-and-metadata, fields and content-negotiation batch (#162)', () => {
+    const scope = [
+      'rfc9110/cache-must-not-use-response-without-matching-vary-headers',
+      'rfc9110/client-may-discard-oversized-field-lines',
+      'rfc9110/codings-value-may-be-given-quality-value',
+      'rfc9110/content-encoding-should-not-include-identity',
+      'rfc9110/content-language-may-be-applied-to-any-media-type',
+      'rfc9110/content-location-201-response-semantics',
+      'rfc9110/content-location-semantics-for-2xx-response',
+      'rfc9110/etag-must-differ-for-different-content-encodings',
+      'rfc9110/etag-strong-comparison-rules',
+      'rfc9110/etag-weak-comparison-rules',
+      'rfc9110/implementation-may-remove-bws-before-processing',
+      'rfc9110/implementation-may-replace-ows-or-rws-with-single-sp',
+      'rfc9110/multiple-languages-may-be-listed-for-multiple-audiences',
+      'rfc9110/new-fields-should-limit-values-to-visible-ascii',
+      'rfc9110/origin-server-may-respond-415-for-unacceptable-content-coding',
+      'rfc9110/origin-server-must-mark-weak-entity-tag',
+      'rfc9110/origin-server-must-treat-content-location-as-transitory-context',
+      'rfc9110/origin-server-should-avoid-backslash-in-entity-tags',
+      'rfc9110/origin-server-should-change-weak-entity-tag-for-unacceptable-representations',
+      'rfc9110/origin-server-should-generate-vary-header',
+      'rfc9110/origin-server-should-obtain-last-modified-close-to-date-generation',
+      'rfc9110/origin-server-should-send-content-length-when-size-known',
+      'rfc9110/origin-server-should-send-etag',
+      'rfc9110/origin-server-should-send-last-modified',
+      'rfc9110/origin-server-should-send-response-without-content-coding',
+      'rfc9110/origin-server-with-clock-must-not-generate-future-last-modified',
+      'rfc9110/origin-server-without-clock-must-not-generate-last-modified',
+      'rfc9110/parser-must-exclude-whitespace-from-field-values',
+      'rfc9110/proxy-must-forward-unrecognized-header-fields',
+      'rfc9110/proxy-must-not-change-field-line-order',
+      'rfc9110/proxy-must-not-generate-vary-wildcard',
+      'rfc9110/recipient-may-assume-media-type-or-determine-its-type',
+      'rfc9110/recipient-may-combine-field-lines-with-same-name',
+      'rfc9110/recipient-may-retain-ctl-characters-in-safe-contexts',
+      'rfc9110/recipient-must-accept-all-http-date-formats',
+      'rfc9110/recipient-must-accept-lists-with-empty-elements',
+      'rfc9110/recipient-must-handle-large-content-length',
+      'rfc9110/recipient-must-handle-quoted-pairs-correctly',
+      'rfc9110/recipient-must-interpret-two-digit-years-correctly',
+      'rfc9110/recipient-must-parse-and-ignore-empty-list-elements',
+      'rfc9110/recipient-must-parse-and-remove-bws',
+      'rfc9110/recipient-must-reject-or-replace-invalid-characters',
+      'rfc9110/recipient-should-ignore-unrecognized-fields',
+      'rfc9110/recipient-should-process-q-parameter-as-weight',
+      'rfc9110/recipient-should-treat-obs-text-as-opaque-data',
+      'rfc9110/recipient-should-treat-x-compress-as-compress',
+      'rfc9110/recipient-should-treat-x-gzip-as-gzip',
+      'rfc9110/sender-may-send-etag-in-trailer',
+      'rfc9110/sender-must-generate-content-encoding-header-if-encodings-applied',
+      'rfc9110/sender-must-generate-timestamps-in-imf-fixdate-format',
+      'rfc9110/sender-must-not-forward-incorrect-content-length',
+      'rfc9110/sender-must-not-forward-message-with-incorrect-content-length-header',
+      'rfc9110/sender-must-not-forward-message-with-invalid-content-length',
+      'rfc9110/sender-must-not-generate-additional-whitespace-in-http-date',
+      'rfc9110/sender-must-not-generate-bws',
+      'rfc9110/sender-must-not-generate-empty-list-elements',
+      'rfc9110/sender-must-not-generate-multiple-field-lines-unless-allowed',
+      'rfc9110/sender-must-only-generate-crlf-for-line-breaks-between-parts',
+      'rfc9110/sender-should-generate-content-type-for-message-with-content',
+      'rfc9110/sender-should-generate-ows-as-single-sp-when-readable',
+      'rfc9110/sender-should-generate-rws-as-single-sp',
+      'rfc9110/sender-should-not-generate-ows-except-when-needed',
+      'rfc9110/sender-should-not-generate-quoted-pairs-except-for-dquote-backslash',
+      'rfc9110/sender-should-not-generate-quoted-pairs-in-comments-except-for-parens-backslash',
+      'rfc9110/sender-should-send-q-parameter-last',
+      'rfc9110/server-may-send-content-length-for-304',
+      'rfc9110/server-may-send-content-length-for-head-response',
+      'rfc9110/server-must-not-apply-request-until-entire-header-received',
+      'rfc9110/server-must-not-include-accept-encoding-for-non-content-coding-415-errors',
+      'rfc9110/server-must-not-send-content-length-for-1xx-or-204',
+      'rfc9110/server-must-not-send-content-length-for-2xx-connect-response',
+      'rfc9110/server-must-respond-4xx-for-oversized-fields',
+      'rfc9110/user-agent-may-associate-quality-value-with-charset',
+      'rfc9110/user-agent-may-send-preference-headers-for-proactive-negotiation',
+      'rfc9110/user-agent-must-not-send-accept-language-without-user-control',
+      'rfc9110/user-agent-should-not-send-content-length-without-content',
+      'rfc9110/user-agent-should-send-content-length-for-request-with-defined-content',
+    ];
+
+    it('has the expected rule count', () => {
+      expect(scope.length).toBe(77);
+    });
+
+    it('reports zero violations', async () => {
+      const rules = await loadBaselineRules();
+      const violations = checkCoverage({
+        record: coverage,
+        rules,
+        profiles: rfc9110.profiles,
+        scope,
+      });
+
+      expect(violations).toEqual([]);
+    });
+  });
 });

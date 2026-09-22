@@ -2652,6 +2652,557 @@ const coverage: CoverageRecord<typeof units> = defineCoverage({
         covers: ['10.2.4'],
         declared: { types: ['informational'], severity: 'warn' },
       },
+    'rfc9110/user-agent-may-associate-quality-value-with-charset': {
+      covers: ['12.5.2'],
+      declared: { types: ['static', 'analytics'], severity: 'hint' },
+      contexts: {
+        test: {
+          verdict: 'impossible',
+          reason: 'condition-not-producible',
+          note: "Likely a mis-declaration, not a real impossibility: the shared rule() already uses validateCommonHttpTransactions, uniform across static/test/analytics, and would run unchanged under test. This is a client MAY-hint, visible in Thymian's own generated request the same way as client-may-send-if-match-header (#180). See thymianofficial/thymian-workspace#190.",
+        },
+      },
+    },
+    'rfc9110/codings-value-may-be-given-quality-value': {
+      covers: ['12.5.3'],
+      declared: { types: ['static', 'analytics'], severity: 'hint' },
+      contexts: {
+        test: {
+          verdict: 'impossible',
+          reason: 'condition-not-producible',
+          note: 'Likely a mis-declaration, not a real impossibility: same shape as its sibling user-agent-may-associate-quality-value-with-charset -- the shared rule() already uses validateCommonHttpTransactions and would run unchanged under test. See thymianofficial/thymian-workspace#190.',
+        },
+      },
+    },
+    'rfc9110/origin-server-should-send-response-without-content-coding': {
+      covers: ['12.5.3'],
+      declared: { types: ['test', 'analytics'], severity: 'warn' },
+      contexts: {
+        static: {
+          verdict: 'impossible',
+          reason: 'not-representable',
+          note: "This rule parses both the request's Accept-Encoding and the response's Content-Encoding via a value-reading validateHttpTransactions handler, computing weighted acceptability (q-values, wildcard fallback, identity-coding special case) across both -- a multi-field computation, not a single pinned value's shape.",
+        },
+      },
+    },
+    'rfc9110/server-must-not-include-accept-encoding-for-non-content-coding-415-errors':
+      {
+        covers: ['12.5.3'],
+        declared: { types: ['static', 'test', 'analytics'], severity: 'error' },
+      },
+    'rfc9110/user-agent-must-not-send-accept-language-without-user-control': {
+      covers: ['12.5.4'],
+      declared: { types: ['informational'], severity: 'error' },
+    },
+    'rfc9110/recipient-should-process-q-parameter-as-weight': {
+      covers: ['12.5.1'],
+      declared: { types: ['informational'], severity: 'warn' },
+    },
+    'rfc9110/sender-should-send-q-parameter-last': {
+      covers: ['12.5.1'],
+      declared: { types: ['analytics'], severity: 'warn' },
+      contexts: {
+        static: {
+          verdict: 'impossible',
+          reason: 'not-representable',
+          note: "This rule parses the Accept header's media-range parameter list, locates the q parameter's position, and checks whether a known media-range parameter name appears after it -- a structured-grammar parse plus a positional computation, not a single pinned value's shape.",
+        },
+        test: {
+          verdict: 'impossible',
+          reason: 'condition-not-producible',
+          note: "Triggering this needs a deliberately misordered Accept parameter list (a media-range parameter placed after q); Thymian's schema-driven request construction has no natural mechanism to produce this specific ordering mistake.",
+        },
+      },
+    },
+    'rfc9110/cache-must-not-use-response-without-matching-vary-headers': {
+      covers: ['12.5.5'],
+      declared: { types: ['informational'], severity: 'error' },
+    },
+    'rfc9110/origin-server-should-generate-vary-header': {
+      covers: ['12.5.5'],
+      declared: { types: ['static', 'test', 'analytics'], severity: 'warn' },
+    },
+    'rfc9110/proxy-must-not-generate-vary-wildcard': {
+      covers: ['12.5.5'],
+      declared: { types: ['analytics'], severity: 'error' },
+      contexts: {
+        static: {
+          verdict: 'impossible',
+          reason: 'not-representable',
+          note: "This rule reads the real Vary header value via validateHttpTransactions; static's own version of that method needs a plain predicate function and cannot read a pinned value this way.",
+        },
+        test: {
+          verdict: 'impossible',
+          reason: 'participant-not-reachable',
+          note: "This rule is scoped to the proxy role (appliesTo('proxy')); Thymian's test client always plays the client role, never an intermediary, so it cannot be positioned to attribute a Vary value to a proxy's own generation decision.",
+        },
+      },
+    },
+    'rfc9110/user-agent-may-send-preference-headers-for-proactive-negotiation':
+      {
+        covers: ['12.1'],
+        declared: { types: ['informational'], severity: 'hint' },
+      },
+    'rfc9110/recipient-must-accept-all-http-date-formats': {
+      covers: ['5.6.7'],
+      declared: { types: ['informational'], severity: 'error' },
+    },
+    'rfc9110/recipient-must-interpret-two-digit-years-correctly': {
+      covers: ['5.6.7'],
+      declared: { types: ['informational'], severity: 'error' },
+    },
+    'rfc9110/sender-must-generate-timestamps-in-imf-fixdate-format': {
+      covers: ['5.6.7'],
+      declared: { types: ['test', 'analytics'], severity: 'error' },
+      contexts: {
+        static: {
+          verdict: 'impossible',
+          reason: 'not-representable',
+          note: "Likely a mis-declaration, not a real impossibility: this loops a fixed, statically-known set of four header names (date, expires, last-modified, retry-after) and applies the same single-value IMF-fixdate pattern test to each -- four independent single-value checks .overrideStaticRule() could read from each header's schema-pinned pattern/example, not one dynamically-sized parse. See thymianofficial/thymian-workspace#191.",
+        },
+      },
+    },
+    'rfc9110/sender-must-not-generate-additional-whitespace-in-http-date': {
+      covers: ['5.6.7'],
+      declared: { types: ['test', 'analytics'], severity: 'error' },
+      contexts: {
+        static: {
+          verdict: 'impossible',
+          reason: 'not-representable',
+          note: 'Likely a mis-declaration, not a real impossibility: same shape as its sibling sender-must-generate-timestamps-in-imf-fixdate-format -- four independent single-value whitespace checks over the same fixed, statically-known header set. See thymianofficial/thymian-workspace#191.',
+        },
+      },
+    },
+    'rfc9110/recipient-must-accept-lists-with-empty-elements': {
+      covers: ['5.6.1.2'],
+      declared: { types: ['informational'], severity: 'error' },
+    },
+    'rfc9110/recipient-must-parse-and-ignore-empty-list-elements': {
+      covers: ['5.6.1.2'],
+      declared: { types: ['informational'], severity: 'error' },
+    },
+    'rfc9110/sender-must-not-generate-empty-list-elements': {
+      covers: ['5.6.1.1'],
+      declared: { types: ['test', 'analytics'], severity: 'error' },
+      contexts: {
+        static: {
+          verdict: 'impossible',
+          reason: 'not-representable',
+          note: 'Likely a mis-declaration, not a real impossibility: this loops a fixed, statically-known set of four list-typed header names (vary, allow, content-encoding, accept-ranges) and applies the same single-value empty-element check to each -- four independent single-value checks, not one dynamically-sized parse. See thymianofficial/thymian-workspace#191.',
+        },
+      },
+    },
+    'rfc9110/recipient-must-handle-quoted-pairs-correctly': {
+      covers: ['5.6.4'],
+      declared: { types: ['informational'], severity: 'error' },
+    },
+    'rfc9110/sender-should-not-generate-quoted-pairs-except-for-dquote-backslash':
+      {
+        covers: ['5.6.4'],
+        declared: { types: ['informational'], severity: 'warn' },
+      },
+    'rfc9110/sender-should-not-generate-quoted-pairs-in-comments-except-for-parens-backslash':
+      {
+        covers: ['5.6.4'],
+        declared: { types: ['informational'], severity: 'warn' },
+      },
+    'rfc9110/implementation-may-remove-bws-before-processing': {
+      covers: ['5.6.3'],
+      declared: { types: ['informational'], severity: 'off' },
+    },
+    'rfc9110/implementation-may-replace-ows-or-rws-with-single-sp': {
+      covers: ['5.6.3'],
+      declared: { types: ['informational'], severity: 'off' },
+    },
+    'rfc9110/recipient-must-parse-and-remove-bws': {
+      covers: ['5.6.3'],
+      declared: { types: ['informational'], severity: 'error' },
+    },
+    'rfc9110/sender-must-not-generate-bws': {
+      covers: ['5.6.3'],
+      declared: { types: ['informational'], severity: 'error' },
+    },
+    'rfc9110/sender-should-generate-ows-as-single-sp-when-readable': {
+      covers: ['5.6.3'],
+      declared: { types: ['informational'], severity: 'warn' },
+    },
+    'rfc9110/sender-should-generate-rws-as-single-sp': {
+      covers: ['5.6.3'],
+      declared: { types: ['informational'], severity: 'warn' },
+    },
+    'rfc9110/sender-should-not-generate-ows-except-when-needed': {
+      covers: ['5.6.3'],
+      declared: { types: ['informational'], severity: 'warn' },
+    },
+    'rfc9110/client-may-discard-oversized-field-lines': {
+      covers: ['5.4'],
+      declared: { types: ['informational'], severity: 'off' },
+    },
+    'rfc9110/server-must-respond-4xx-for-oversized-fields': {
+      covers: ['5.4'],
+      declared: { types: ['informational'], severity: 'error' },
+    },
+    'rfc9110/proxy-must-forward-unrecognized-header-fields': {
+      covers: ['5.1'],
+      declared: { types: ['analytics'], severity: 'error' },
+      contexts: {
+        static: {
+          verdict: 'impossible',
+          reason: 'not-representable',
+          note: "This rule's whole mechanism is validateCapturedHttpTraces, comparing header field names across a proxy's inbound and outbound hop; that method is declared only on AnalyzeContext, structurally absent from LintContext.",
+        },
+        test: {
+          verdict: 'impossible',
+          reason: 'participant-not-reachable',
+          note: "This rule is scoped to the proxy role (appliesTo('proxy')); Thymian's test client always plays the client role, never an intermediary hop, so it cannot be positioned to capture both sides of a proxy's forwarding decision.",
+        },
+      },
+    },
+    'rfc9110/recipient-should-ignore-unrecognized-fields': {
+      covers: ['5.1'],
+      declared: { types: ['informational'], severity: 'warn' },
+    },
+    'rfc9110/proxy-must-not-change-field-line-order': {
+      covers: ['5.3'],
+      declared: { types: ['analytics'], severity: 'error' },
+      contexts: {
+        static: {
+          verdict: 'impossible',
+          reason: 'not-representable',
+          note: "This rule's whole mechanism is validateCapturedHttpTraces, comparing field-line order across a proxy's inbound and outbound hop; that method is declared only on AnalyzeContext, structurally absent from LintContext.",
+        },
+        test: {
+          verdict: 'impossible',
+          reason: 'participant-not-reachable',
+          note: "This rule is scoped to the proxy role (appliesTo('proxy')); Thymian's test client always plays the client role, never an intermediary hop, so it cannot be positioned to capture both sides of a proxy's forwarding decision.",
+        },
+      },
+    },
+    'rfc9110/recipient-may-combine-field-lines-with-same-name': {
+      covers: ['5.3'],
+      declared: { types: ['informational'], severity: 'off' },
+    },
+    'rfc9110/sender-must-not-generate-multiple-field-lines-unless-allowed': {
+      covers: ['5.3'],
+      declared: { types: ['informational'], severity: 'error' },
+    },
+    'rfc9110/server-must-not-apply-request-until-entire-header-received': {
+      covers: ['5.3'],
+      declared: { types: ['informational'], severity: 'error' },
+    },
+    'rfc9110/new-fields-should-limit-values-to-visible-ascii': {
+      covers: ['5.5'],
+      declared: { types: ['informational'], severity: 'warn' },
+    },
+    'rfc9110/parser-must-exclude-whitespace-from-field-values': {
+      covers: ['5.5'],
+      declared: { types: ['informational'], severity: 'error' },
+    },
+    'rfc9110/recipient-may-retain-ctl-characters-in-safe-contexts': {
+      covers: ['5.5'],
+      declared: { types: ['informational'], severity: 'off' },
+    },
+    'rfc9110/recipient-must-reject-or-replace-invalid-characters': {
+      covers: ['5.5'],
+      declared: { types: ['informational'], severity: 'error' },
+    },
+    'rfc9110/recipient-should-treat-obs-text-as-opaque-data': {
+      covers: ['5.5'],
+      declared: { types: ['informational'], severity: 'warn' },
+    },
+    'rfc9110/content-encoding-should-not-include-identity': {
+      covers: ['8.4'],
+      declared: { types: ['test', 'analytics'], severity: 'warn' },
+      contexts: {
+        static: {
+          verdict: 'impossible',
+          reason: 'not-representable',
+          note: "Likely a mis-declaration, not a real impossibility: this is a single-header value-content check (does the comma-split Content-Encoding value list include the literal token 'identity'), the same .overrideStaticRule()-representable shape as #183/#188. See thymianofficial/thymian-workspace#192.",
+        },
+      },
+    },
+    'rfc9110/origin-server-may-respond-415-for-unacceptable-content-coding': {
+      covers: ['8.4'],
+      declared: { types: ['informational'], severity: 'hint' },
+    },
+    'rfc9110/recipient-should-treat-x-compress-as-compress': {
+      covers: ['8.4.1.1'],
+      declared: { types: ['informational'], severity: 'hint' },
+    },
+    'rfc9110/recipient-should-treat-x-gzip-as-gzip': {
+      covers: ['8.4.1.3'],
+      declared: { types: ['analytics'], severity: 'hint' },
+      contexts: {
+        static: {
+          verdict: 'impossible',
+          reason: 'not-representable',
+          note: "Likely a mis-declaration, not a real impossibility: this is a bare value-matching filter (responseHeader('content-encoding', 'x-gzip')) -- an even simpler single-value equality check than #188's other rules, .overrideStaticRule()-representable against a schema-pinned example. See thymianofficial/thymian-workspace#192.",
+        },
+        test: {
+          verdict: 'impossible',
+          reason: 'condition-not-producible',
+          note: "Whether the server chooses the deprecated x-gzip alias over gzip is the server's own encoder implementation detail; Thymian, playing the client role, cannot provoke that specific choice on demand.",
+        },
+      },
+    },
+    'rfc9110/sender-must-generate-content-encoding-header-if-encodings-applied':
+      {
+        covers: ['8.4'],
+        declared: { types: ['informational'], severity: 'error' },
+      },
+    'rfc9110/content-language-may-be-applied-to-any-media-type': {
+      covers: ['8.5'],
+      declared: { types: ['analytics'], severity: 'hint' },
+      contexts: {
+        static: {
+          verdict: 'impossible',
+          reason: 'not-representable',
+          note: "Likely a mis-declaration, not a real impossibility: the condition is two fixed schema facts ANDed -- the response's declared Content-Type media type does not start with text/, and Content-Language is absent -- the same .overrideStaticRule()-representable shape as #188's two Referer-vs-request rules. See thymianofficial/thymian-workspace#192.",
+        },
+        test: {
+          verdict: 'impossible',
+          reason: 'condition-not-producible',
+          note: "Whether the origin server chooses to omit Content-Language on a non-text response is the server's own content-negotiation decision; Thymian, playing the client role, cannot provoke that choice on demand.",
+        },
+      },
+    },
+    'rfc9110/multiple-languages-may-be-listed-for-multiple-audiences': {
+      covers: ['8.5'],
+      declared: { types: ['analytics'], severity: 'hint' },
+      contexts: {
+        static: {
+          verdict: 'impossible',
+          reason: 'not-representable',
+          note: "Likely a mis-declaration, not a real impossibility: this is a bare-presence filter (responseHeader('content-language')) with no value-reading dependency, currently passed to the non-Common validateHttpTransactions; switching to validateCommonHttpTransactions would remove the type incompatibility, the same fix as #181. See thymianofficial/thymian-workspace#193.",
+        },
+        test: {
+          verdict: 'impossible',
+          reason: 'condition-not-producible',
+          note: "Whether the origin server chooses to list multiple languages for a multi-audience representation is the server's own content decision; Thymian, playing the client role, cannot provoke that choice on demand.",
+        },
+      },
+    },
+    'rfc9110/origin-server-should-send-content-length-when-size-known': {
+      covers: ['8.6'],
+      declared: { types: ['static', 'test', 'analytics'], severity: 'warn' },
+    },
+    'rfc9110/recipient-must-handle-large-content-length': {
+      covers: ['8.6'],
+      declared: { types: ['test', 'analytics'], severity: 'warn' },
+      contexts: {
+        static: {
+          verdict: 'impossible',
+          reason: 'not-representable',
+          note: "This rule parses Content-Length as one or more comma-separated tokens, checks each against the decimal-numeral grammar, and BigInt-compares digit counts against a 1 TB threshold -- a multi-value computation, not a single pinned value's shape.",
+        },
+      },
+    },
+    'rfc9110/sender-must-not-forward-incorrect-content-length': {
+      covers: ['8.6'],
+      declared: { types: ['informational'], severity: 'error' },
+    },
+    'rfc9110/sender-must-not-forward-message-with-incorrect-content-length-header':
+      {
+        covers: ['8.6'],
+        declared: { types: ['informational'], severity: 'error' },
+      },
+    'rfc9110/sender-must-not-forward-message-with-invalid-content-length': {
+      covers: ['8.6'],
+      declared: { types: ['informational'], severity: 'error' },
+    },
+    'rfc9110/server-may-send-content-length-for-304': {
+      covers: ['8.6'],
+      declared: { types: ['test'], severity: 'error' },
+      contexts: {
+        static: {
+          verdict: 'impossible',
+          reason: 'not-representable',
+          note: "The whole mechanism is a sender-driven active probe correlating a 200 OK and a replayed conditional-GET's Content-Length values (singleTestCase, TestContext-only); a schema document has no counterfactual-response concept to check against.",
+        },
+        analytics: {
+          verdict: 'impossible',
+          reason: 'requires-controlled-input',
+          note: "Confirming the 304's Content-Length matches what a 200 would have returned needs the counterfactual unconditioned response for the same request; recorded traffic only carries both by coincidence, not reliably.",
+        },
+      },
+    },
+    'rfc9110/server-may-send-content-length-for-head-response': {
+      covers: ['8.6'],
+      declared: { types: ['test'], severity: 'error' },
+      contexts: {
+        static: {
+          verdict: 'impossible',
+          reason: 'not-representable',
+          note: "The whole mechanism is a sender-driven active probe correlating a HEAD response's Content-Length with a replayed GET's (singleTestCase, TestContext-only); a schema document has no counterfactual-response concept to check against.",
+        },
+        analytics: {
+          verdict: 'impossible',
+          reason: 'requires-controlled-input',
+          note: "Confirming a HEAD response's Content-Length matches what GET would have returned needs the counterfactual GET response for the same request; recorded traffic only carries both by coincidence, not reliably.",
+        },
+      },
+    },
+    'rfc9110/server-must-not-send-content-length-for-1xx-or-204': {
+      covers: ['8.6'],
+      declared: { types: ['static', 'test', 'analytics'], severity: 'error' },
+    },
+    'rfc9110/server-must-not-send-content-length-for-2xx-connect-response': {
+      covers: ['8.6'],
+      declared: { types: ['static', 'test', 'analytics'], severity: 'error' },
+    },
+    'rfc9110/user-agent-should-not-send-content-length-without-content': {
+      covers: ['8.6'],
+      declared: { types: ['analytics'], severity: 'warn' },
+      contexts: {
+        static: {
+          verdict: 'impossible',
+          reason: 'not-representable',
+          note: 'Likely a mis-declaration, not a real impossibility, but not #193\'s mechanism: the analytics callback reads Content-Length\'s actual VALUE (excluding "0" as conformant), which CommonHttpRequest.headers (names only) cannot supply, so switching to validateCommonHttpTransactions alone would not work here. This is instead a single-value content check (does the value equal "0") -- the same .overrideStaticRule()-representable shape as #192\'s rules. See thymianofficial/thymian-workspace#192.',
+        },
+        test: {
+          verdict: 'impossible',
+          reason: 'condition-not-producible',
+          note: "Checked and rejected as a #173-style finding: Thymian's actual HTTP client (undici) computes Content-Length from the real outgoing body, not from any schema-declared example, and explicitly nulls it for bodyless requests on non-payload methods (packages/*/node_modules/undici/lib/dispatcher/client-h1.js: \"if (contentLength === 0 && !expectsPayload) { contentLength = null }\"). Unlike Expect or a requestBody's mere presence, Content-Length is transport-computed, not copied from a schema value, so the violating combination cannot be produced through Thymian's own client regardless of what a schema declares.",
+        },
+      },
+    },
+    'rfc9110/user-agent-should-send-content-length-for-request-with-defined-content':
+      {
+        covers: ['8.6'],
+        declared: { types: ['analytics'], severity: 'warn' },
+        contexts: {
+          static: {
+            verdict: 'impossible',
+            reason: 'not-representable',
+            note: 'Likely a mis-declaration, not a real impossibility: the condition (method + header presence) is entirely Common-interface-available facts, currently passed to the non-Common validateHttpTransactions; switching to validateCommonHttpTransactions would remove the type incompatibility, the same fix as #181. See thymianofficial/thymian-workspace#193.',
+          },
+          test: {
+            verdict: 'impossible',
+            reason: 'condition-not-producible',
+            note: "Same reasoning as its sibling user-agent-should-not-send-content-length-without-content: Thymian's actual HTTP client computes Content-Length from the real outgoing body rather than copying a schema-declared value, so neither the presence nor the absence of Content-Length on a generated request is something a schema example can drive.",
+          },
+        },
+      },
+    'rfc9110/content-location-201-response-semantics': {
+      covers: ['8.7'],
+      declared: { types: ['informational'], severity: 'hint' },
+    },
+    'rfc9110/content-location-semantics-for-2xx-response': {
+      covers: ['8.7'],
+      declared: { types: ['informational'], severity: 'off' },
+    },
+    'rfc9110/origin-server-must-treat-content-location-as-transitory-context': {
+      covers: ['8.7'],
+      declared: { types: ['informational'], severity: 'error' },
+    },
+    'rfc9110/recipient-may-assume-media-type-or-determine-its-type': {
+      covers: ['8.3'],
+      declared: { types: ['analytics'], severity: 'warn' },
+      contexts: {
+        static: {
+          verdict: 'impossible',
+          reason: 'not-representable',
+          note: 'Likely a mis-declaration, not a real impossibility: both filter arguments (hasRequestBody()/hasResponseBody(), header presence) are Common-interface-available facts, passed as filter expressions with no value-reading callback, to the non-Common validateHttpTransactions; switching to validateCommonHttpTransactions would remove the type incompatibility, the same fix as #181. See thymianofficial/thymian-workspace#193.',
+        },
+        test: {
+          verdict: 'impossible',
+          reason: 'condition-not-producible',
+          note: "The filter ORs a request-side and a response-side case; the response-side half (a response body with no Content-Type) is the origin server's own choice, which Thymian, playing the client role, cannot provoke on demand.",
+        },
+      },
+    },
+    'rfc9110/sender-must-only-generate-crlf-for-line-breaks-between-parts': {
+      covers: ['8.3.3'],
+      declared: { types: ['informational'], severity: 'error' },
+    },
+    'rfc9110/sender-should-generate-content-type-for-message-with-content': {
+      covers: ['8.3'],
+      declared: { types: ['static', 'test', 'analytics'], severity: 'warn' },
+    },
+    'rfc9110/etag-must-differ-for-different-content-encodings': {
+      covers: [],
+      declared: { types: ['analytics'], severity: 'error' },
+      contexts: {
+        static: {
+          verdict: 'impossible',
+          reason: 'not-representable',
+          note: "This rule's whole mechanism is validateCapturedHttpTransactions, correlating strong ETags across multiple recorded responses for the same resource with differing Content-Encoding; that method is declared only on AnalyzeContext, structurally absent from LintContext.",
+        },
+        test: {
+          verdict: 'impossible',
+          reason: 'condition-not-producible',
+          note: "Likely a mis-declaration, not a real impossibility: validateCapturedHttpTransactions is AnalyzeContext-only, but server-may-send-content-length-for-304, in the same package, already proves the needed shape -- a singleTestCase().replayStep() correlating two responses for the same request. The same two-replay pattern (fetch, then replay with Accept-Encoding: gzip, then compare the two responses' strong ETags) would make this test-executable with no new core capability, just a rule-body change. See thymianofficial/thymian-workspace#196.",
+        },
+      },
+    },
+    'rfc9110/etag-strong-comparison-rules': {
+      covers: ['8.8.3'],
+      declared: { types: ['informational'], severity: 'off' },
+    },
+    'rfc9110/etag-weak-comparison-rules': {
+      covers: ['8.8.3'],
+      declared: { types: ['informational'], severity: 'off' },
+    },
+    'rfc9110/origin-server-must-mark-weak-entity-tag': {
+      covers: ['8.8.3'],
+      declared: { types: ['informational'], severity: 'error' },
+    },
+    'rfc9110/origin-server-should-avoid-backslash-in-entity-tags': {
+      covers: ['8.8.3'],
+      declared: { types: ['test', 'analytics'], severity: 'warn' },
+      contexts: {
+        static: {
+          verdict: 'impossible',
+          reason: 'not-representable',
+          note: 'Likely a mis-declaration, not a real impossibility: this is a single-header value-content check (does the ETag value contain a backslash character), the same .overrideStaticRule()-representable shape as #183/#188. See thymianofficial/thymian-workspace#192.',
+        },
+      },
+    },
+    'rfc9110/origin-server-should-send-etag': {
+      covers: ['8.8.3.1'],
+      declared: { types: ['static', 'test', 'analytics'], severity: 'warn' },
+    },
+    'rfc9110/sender-may-send-etag-in-trailer': {
+      covers: ['8.8.3'],
+      declared: { types: ['test', 'analytics'], severity: 'hint' },
+      contexts: {
+        static: {
+          verdict: 'impossible',
+          reason: 'tool-limitation',
+          issue: 'thymianofficial/thymian-workspace#187',
+          note: "This rule's filter uses responseTrailer('etag'); the static/lint filter compiler's visitResponseTrailer unconditionally throws 'Response trailers are not currently supported' (verified in packages/core/src/format/http-filter-expression-to-transaction-filter.ts), the same gap already filed as thymianofficial/thymian-workspace#187 for sender-must-not-generate-trailer-unless-permitted. Not a fresh finding -- the same implementation gap blocks this rule too.",
+        },
+      },
+    },
+    'rfc9110/origin-server-should-obtain-last-modified-close-to-date-generation':
+      {
+        covers: ['8.8.2.1'],
+        declared: { types: ['informational'], severity: 'off' },
+      },
+    'rfc9110/origin-server-should-send-last-modified': {
+      covers: ['8.8.2.1'],
+      declared: { types: ['static', 'test', 'analytics'], severity: 'warn' },
+    },
+    'rfc9110/origin-server-with-clock-must-not-generate-future-last-modified': {
+      covers: ['8.8.2.1'],
+      declared: { types: ['test', 'analytics'], severity: 'error' },
+      contexts: {
+        static: {
+          verdict: 'impossible',
+          reason: 'not-representable',
+          note: "This rule parses both Last-Modified and Date as real Date objects and compares them chronologically; a schema's pattern/enum/const constraints describe a value's shape, not a computed temporal comparison between two independently-pinned values.",
+        },
+      },
+    },
+    'rfc9110/origin-server-without-clock-must-not-generate-last-modified': {
+      covers: ['8.8.2.1'],
+      declared: { types: ['informational'], severity: 'error' },
+    },
+    'rfc9110/origin-server-should-change-weak-entity-tag-for-unacceptable-representations':
+      {
+        covers: ['8.8.1'],
+        declared: { types: ['informational'], severity: 'off' },
+      },
   },
 });
 
