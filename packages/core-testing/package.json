@@ -56,7 +56,7 @@
   },
   "devDependencies": {
     "@thymian/core": "0.0.0-PLACEHOLDER",
-    "vitest": "^4.1.10"
+    "vitest": "^4.1.11"
   },
   "peerDependencies": {
     "@thymian/core": "0.0.0-PLACEHOLDER"
