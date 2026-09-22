@@ -175,5 +175,418 @@ export default defineCoverage({
     '16.6.1': 'Content Coding Registry',
     '16.7': 'Upgrade Token Registry',
   },
-  rules: {},
+  rules: {
+    'rfc9110/402-status-code-is-reserved': {
+      covers: [],
+      declared: { types: ['static', 'analytics'], severity: 'error' },
+      contexts: {
+        test: {
+          verdict: 'impossible',
+          reason: 'condition-not-producible',
+          note: "402 has no defined meaning, so no conformant API operation would document it as an expected response; test's per-operation expected-status model has no scenario to run this check against.",
+        },
+      },
+    },
+    'rfc9110/client-may-combine-multiple-ranges-with-same-strong-validator-to-larger-range':
+      {
+        covers: ['15.3.7.3'],
+        declared: { types: ['informational'], severity: 'hint' },
+      },
+    'rfc9110/client-may-repeat-request-for-408-response': {
+      covers: ['15.5.9'],
+      declared: { types: ['informational'], severity: 'hint' },
+    },
+    'rfc9110/client-may-repeat-request-with-new-credentials-for-403-response': {
+      covers: ['15.5.4'],
+      declared: { types: ['informational'], severity: 'hint' },
+    },
+    'rfc9110/client-may-repeat-request-with-new-proxy-authenticate-header-for-407-response':
+      {
+        covers: ['15.5.8'],
+        declared: { types: ['informational'], severity: 'hint' },
+      },
+    'rfc9110/client-may-repeat-request-with-valid-content-length-header-for-411-response':
+      {
+        covers: ['15.5.12'],
+        declared: { types: ['informational'], severity: 'hint' },
+      },
+    'rfc9110/client-may-retry-after-given-time-for-413-response': {
+      covers: ['15.5.14'],
+      declared: { types: ['informational'], severity: 'hint' },
+    },
+    'rfc9110/client-may-retry-request-over-different-connection': {
+      covers: ['15.5.20'],
+      declared: { types: ['informational'], severity: 'hint' },
+    },
+    'rfc9110/client-must-be-able-to-parse-multiple-1xx-responses': {
+      covers: ['15.2'],
+      declared: { types: ['informational'], severity: 'error' },
+    },
+    'rfc9110/client-must-inspect-206-response-content-type-and-range': {
+      covers: ['15.3.7'],
+      declared: { types: ['informational'], severity: 'error' },
+    },
+    'rfc9110/client-must-inspect-content-range-header-in-multiple-parts-206-response':
+      {
+        covers: ['15.3.7.2'],
+        declared: { types: ['informational'], severity: 'error' },
+      },
+    'rfc9110/client-must-not-generate-multiple-ranges-request-if-not-supported':
+      {
+        covers: ['15.3.7.2'],
+        declared: { types: ['informational'], severity: 'error' },
+      },
+    'rfc9110/client-must-process-combined-response-correct': {
+      covers: ['15.3.7.3'],
+      declared: { types: ['informational'], severity: 'error' },
+    },
+    'rfc9110/client-must-understand-class-of-any-status-code': {
+      covers: ['15'],
+      declared: { types: ['informational'], severity: 'error' },
+    },
+    'rfc9110/client-must-use-other-header-fields-provided-in-new-for-206-response':
+      {
+        covers: ['15.3.7.3'],
+        declared: { types: ['informational'], severity: 'error' },
+      },
+    'rfc9110/client-should-not-automatically-repeat-request-for-403-response': {
+      covers: ['15.5.4'],
+      declared: { types: ['informational'], severity: 'warn' },
+    },
+    'rfc9110/client-should-process-invalid-status-code-as-5xx': {
+      covers: ['15'],
+      declared: { types: ['informational'], severity: 'warn' },
+    },
+    'rfc9110/clients-should-detect-and-intervene-cyclical-redirections': {
+      covers: ['15.4'],
+      declared: { types: ['informational'], severity: 'warn' },
+    },
+    'rfc9110/origin-server-may-respond-with-404-instead-of-403': {
+      covers: ['15.5.4'],
+      declared: { types: ['static', 'analytics', 'test'], severity: 'hint' },
+    },
+    'rfc9110/origin-server-must-generate-allow-header-for-405-response': {
+      covers: ['15.5.6'],
+      declared: { types: ['static', 'analytics', 'test'], severity: 'error' },
+    },
+    'rfc9110/proxy-must-forward-1xx-responses': {
+      covers: ['15.2'],
+      declared: { types: ['informational'], severity: 'error' },
+    },
+    'rfc9110/proxy-must-not-send-421-response': {
+      covers: ['15.5.20'],
+      declared: { types: ['analytics'], severity: 'error' },
+      contexts: {
+        static: {
+          verdict: 'impossible',
+          reason: 'not-representable',
+          note: 'This rule needs to know whether the 421 itself came from a proxy versus the origin -- a fact about which participant generated the response, not about the response body or headers, and the schema carries no participant-role dimension to check it against.',
+        },
+        test: {
+          verdict: 'impossible',
+          reason: 'participant-not-reachable',
+          note: 'A 421 legitimately means something different depending on who sent it (a proxy MUST NOT; an origin server MAY), but a direct test exchange gives Thymian no signal for which one answered -- it only occupies the client role, never a position to see the responding participant’s identity.',
+        },
+      },
+    },
+    'rfc9110/proxy-must-send-proxy-authenticate-header-for-407-response': {
+      covers: ['15.5.8'],
+      declared: { types: ['analytics'], severity: 'error' },
+      contexts: {
+        static: {
+          verdict: 'impossible',
+          reason: 'not-representable',
+          note: 'This obligation only binds a 407 that a proxy itself generated, scoped by meta.role on the captured response -- the schema has no notion of which participant produced a given documented response, so it cannot express that scope at all.',
+        },
+        test: {
+          verdict: 'impossible',
+          reason: 'participant-not-reachable',
+          note: 'The check needs to confirm a specific challenge came from the proxy that returned the 407, not the origin; a direct test exchange never carries that per-hop attribution, since Thymian only ever occupies the client role in it.',
+        },
+      },
+    },
+    'rfc9110/proxy-should-forward-304-response-to-outbound-client': {
+      covers: ['15.4.5'],
+      declared: { types: ['analytics'], severity: 'warn' },
+      contexts: {
+        static: {
+          verdict: 'impossible',
+          reason: 'not-representable',
+          note: 'The schema format has no concept of a correlated multi-hop trace or of participant role -- both of which this rule needs to compare the client-facing and origin-facing legs.',
+        },
+        test: {
+          verdict: 'impossible',
+          reason: 'participant-not-reachable',
+          note: 'A test fixture produces one direct request/response pair per run; Thymian cannot position itself to observe both the outbound-client leg and the origin leg of a proxied chain at once.',
+        },
+      },
+    },
+    'rfc9110/sender-should-not-generate-additional-representation-header-fields-for-206-response':
+      {
+        covers: ['15.3.7'],
+        declared: { types: ['static', 'test', 'analytics'], severity: 'error' },
+      },
+    'rfc9110/sender-should-not-generate-additional-representation-metadata-for-304-response':
+      {
+        covers: ['15.4.5'],
+        declared: { types: ['static', 'analytics', 'test'], severity: 'warn' },
+      },
+    'rfc9110/server-may-close-connection-for-413-response': {
+      covers: ['15.5.14'],
+      declared: { types: ['informational'], severity: 'hint' },
+    },
+    'rfc9110/server-may-coalesce-overlapping-or-small-gapped-ranges': {
+      covers: ['15.3.7.2'],
+      declared: { types: ['informational'], severity: 'hint' },
+    },
+    'rfc9110/server-may-generate-multiple-parts-response-with-single-body': {
+      covers: ['15.3.7.2'],
+      declared: { types: ['informational'], severity: 'hint' },
+    },
+    'rfc9110/server-may-send-retry-after-header-for-503-response': {
+      covers: ['15.6.4'],
+      declared: { types: ['analytics'], severity: 'hint' },
+      contexts: {
+        // Likely a mis-declaration, not a real impossibility: the check is a
+        // bare header-name presence test, which the common interface can
+        // see in static too (executability-gate.md: "not observable in
+        // static" is a claim about pinning a *value*, never about the
+        // context being name-only). Whether a given target's own OpenAPI
+        // spec happens to document Retry-After for 503 varies per target —
+        // exactly the "specification does not pin the value" trap the same
+        // reference names as *not* an impossibility reason. The rule's own
+        // `.rule()` has no static/lint handler wired up today, so nothing
+        // runs here regardless; filed as thymianofficial/thymian-workspace#169
+        // rather than declaring static on a rule this ticket leaves
+        // untouched.
+        static: {
+          verdict: 'impossible',
+          reason: 'not-representable',
+          note: 'No static/lint handler is wired up on this rule today. Likely a mis-declaration rather than a structural impossibility — see thymianofficial/thymian-workspace#169.',
+        },
+        test: {
+          verdict: 'impossible',
+          reason: 'condition-not-producible',
+          note: "503 signals genuine server overload or maintenance; Thymian's test harness cannot provoke that operational condition on demand from a healthy target.",
+        },
+      },
+    },
+    'rfc9110/server-may-terminate-request-for-413-response': {
+      covers: ['15.5.14'],
+      declared: { types: ['informational'], severity: 'hint' },
+    },
+    'rfc9110/server-must-generate-content-range-header-for-single-part-206-response':
+      {
+        covers: ['15.3.7.1'],
+        declared: { types: ['static', 'analytics', 'test'], severity: 'error' },
+      },
+    'rfc9110/server-must-generate-content-range-header-in-corresponding-body-part-for-206-response':
+      {
+        covers: ['15.3.7.2'],
+        declared: { types: ['informational'], severity: 'error' },
+      },
+    'rfc9110/server-must-generate-header-fields-for-206-response': {
+      covers: ['15.3.7'],
+      declared: { types: ['static', 'test', 'analytics'], severity: 'error' },
+    },
+    'rfc9110/server-must-generate-header-fields-for-304-response': {
+      covers: ['15.4.5'],
+      declared: { types: ['static', 'analytics', 'test'], severity: 'error' },
+    },
+    'rfc9110/server-must-generate-multipart-byteranges-content-for-multi-part-206-response':
+      {
+        covers: ['15.3.7.2'],
+        declared: { types: ['informational'], severity: 'error' },
+      },
+    'rfc9110/server-must-generate-upgrade-header-field': {
+      covers: ['15.2.2'],
+      declared: { types: ['informational'], severity: 'error' },
+    },
+    'rfc9110/server-must-not-generate-content-for-205-response': {
+      covers: ['15.3.6'],
+      declared: { types: ['test', 'static', 'analytics'], severity: 'error' },
+    },
+    'rfc9110/server-must-not-generate-content-range-header-for-multi-part-206-response':
+      {
+        covers: ['15.3.7.2'],
+        declared: { types: ['static', 'analytics', 'test'], severity: 'error' },
+      },
+    'rfc9110/server-must-not-generate-multipart-response-to-a-single-part-request':
+      {
+        covers: ['15.3.7.2'],
+        declared: { types: ['informational'], severity: 'error' },
+      },
+    'rfc9110/server-must-not-send-1xx-response-to-1.0-client': {
+      covers: ['15.2'],
+      declared: { types: ['informational'], severity: 'error' },
+    },
+    'rfc9110/server-must-send-upgrade-header-for-426-response': {
+      covers: ['15.5.22'],
+      declared: { types: ['static', 'analytics', 'test'], severity: 'error' },
+    },
+    'rfc9110/server-must-send-www-authenticate-header-for-401-response': {
+      covers: ['15.5.2'],
+      declared: { types: ['static', 'analytics', 'test'], severity: 'error' },
+    },
+    'rfc9110/server-should-generate-content-for-300-response': {
+      covers: ['15.4.1'],
+      declared: { types: ['static', 'analytics', 'test'], severity: 'warn' },
+    },
+    'rfc9110/server-should-generate-content-for-406-response': {
+      covers: ['15.5.7'],
+      declared: { types: ['static', 'analytics', 'test'], severity: 'warn' },
+    },
+    'rfc9110/server-should-generate-content-for-409-response': {
+      covers: ['15.5.10'],
+      declared: { types: ['static', 'analytics', 'test'], severity: 'warn' },
+    },
+    'rfc9110/server-should-generate-content-range-header-for-416-response': {
+      covers: ['15.5.17'],
+      declared: { types: ['static', 'analytics', 'test'], severity: 'warn' },
+    },
+    'rfc9110/server-should-generate-content-type-header-in-body-for-206-response':
+      {
+        covers: ['15.3.7.2'],
+        declared: { types: ['informational'], severity: 'warn' },
+      },
+    'rfc9110/server-should-generate-location-header-field-for-301-response': {
+      covers: ['15.4.2'],
+      declared: { types: ['static', 'analytics', 'test'], severity: 'warn' },
+    },
+    'rfc9110/server-should-generate-location-header-for-302-response': {
+      covers: ['15.4.3'],
+      declared: { types: ['static', 'analytics', 'test'], severity: 'warn' },
+    },
+    'rfc9110/server-should-generate-location-header-for-307-response': {
+      covers: ['15.4.8'],
+      declared: { types: ['static', 'analytics', 'test'], severity: 'warn' },
+    },
+    'rfc9110/server-should-generate-location-header-for-308-response': {
+      covers: ['15.4.9'],
+      declared: { types: ['static', 'analytics', 'test'], severity: 'warn' },
+    },
+    'rfc9110/server-should-generate-location-header-for-preferred-choice-for-300-response':
+      {
+        covers: ['15.4.1'],
+        declared: { types: ['static', 'analytics', 'test'], severity: 'warn' },
+      },
+    'rfc9110/server-should-generate-representation-for-505-response': {
+      covers: ['15.6.6'],
+      declared: { types: ['static', 'analytics', 'test'], severity: 'warn' },
+    },
+    'rfc9110/server-should-generate-retry-after-header-for-413-response': {
+      covers: ['15.5.14'],
+      declared: { types: ['static', 'analytics', 'test'], severity: 'warn' },
+    },
+    'rfc9110/server-should-send-error-representation-for-4xx-responses': {
+      covers: ['15.5'],
+      declared: { types: ['static', 'analytics', 'test'], severity: 'warn' },
+    },
+    'rfc9110/server-should-send-error-representation-for-5xx-response': {
+      covers: ['15.6'],
+      declared: { types: ['static', 'analytics', 'test'], severity: 'warn' },
+    },
+    'rfc9110/server-should-send-parts-in-order-of-range-header': {
+      covers: ['15.3.7.2'],
+      declared: { types: ['informational'], severity: 'warn' },
+    },
+    'rfc9110/server-should-send-validator-fields': {
+      covers: ['15.3.1'],
+      declared: { types: ['static', 'test', 'analytics'], severity: 'warn' },
+    },
+    'rfc9110/status-code-305-is-deprecated': {
+      covers: [],
+      declared: { types: ['static', 'analytics'], severity: 'error' },
+      contexts: {
+        test: {
+          verdict: 'impossible',
+          reason: 'condition-not-producible',
+          note: '305 is deprecated with no current server expected to emit it, so no conformant API operation would document it as an expected response for test to provoke.',
+        },
+      },
+    },
+    'rfc9110/status-code-306-is-reserved': {
+      covers: [],
+      declared: { types: ['static', 'analytics'], severity: 'error' },
+      contexts: {
+        test: {
+          verdict: 'impossible',
+          reason: 'condition-not-producible',
+          note: '306 is unused and reserved, so no conformant API operation would document it as an expected response for test to provoke.',
+        },
+      },
+    },
+    'rfc9110/user-agent-may-change-request-method-from-post-to-get-for-301-response':
+      {
+        covers: ['15.4.2'],
+        declared: { types: ['informational'], severity: 'hint' },
+      },
+    'rfc9110/user-agent-may-change-request-method-from-post-to-get-for-302-response':
+      {
+        covers: ['15.4.3'],
+        declared: { types: ['informational'], severity: 'hint' },
+      },
+    'rfc9110/user-agent-may-redirect-to-location-header-uri-for-3xx-response': {
+      covers: ['15.4'],
+      declared: { types: ['informational'], severity: 'hint' },
+    },
+    'rfc9110/user-agent-may-repeat-request-with-new-authorization-header': {
+      covers: ['15.5.2'],
+      declared: { types: ['informational'], severity: 'hint' },
+    },
+    'rfc9110/user-agent-may-select-most-appropriate-choice-for-406-response': {
+      covers: ['15.5.7'],
+      declared: { types: ['informational'], severity: 'hint' },
+    },
+    'rfc9110/user-agent-may-select-redirection-from-content': {
+      covers: ['15.4.1'],
+      declared: { types: ['informational'], severity: 'hint' },
+    },
+    'rfc9110/user-agent-may-use-location-field-for-automatic-redirect': {
+      covers: ['15.4.1'],
+      declared: { types: ['informational'], severity: 'hint' },
+    },
+    'rfc9110/user-agent-may-use-location-header-for-automatic-redirection': {
+      covers: ['15.4.8'],
+      declared: { types: ['informational'], severity: 'hint' },
+    },
+    'rfc9110/user-agent-may-use-location-header-for-automatic-redirection-for-301-response':
+      {
+        covers: ['15.4.2'],
+        declared: { types: ['informational'], severity: 'hint' },
+      },
+    'rfc9110/user-agent-may-use-location-header-for-automatic-redirection-for-302-response':
+      {
+        covers: ['15.4.3'],
+        declared: { types: ['informational'], severity: 'hint' },
+      },
+    'rfc9110/user-agent-may-use-location-header-for-automatic-redirection-for-308-response':
+      {
+        covers: ['15.4.9'],
+        declared: { types: ['informational'], severity: 'hint' },
+      },
+    'rfc9110/user-agent-must-not-change-request-method-for-automatic-redirection-for-307-response':
+      {
+        covers: ['15.4.8'],
+        declared: { types: ['informational'], severity: 'error' },
+      },
+    'rfc9110/user-agent-shoud-resend-original-request-with-modifications-for-redirected-requests':
+      {
+        covers: ['15.4'],
+        declared: { types: ['informational'], severity: 'warn' },
+      },
+    'rfc9110/user-agent-should-display-representation-to-the-user-for-5xx-response':
+      {
+        covers: ['15.6'],
+        declared: { types: ['informational'], severity: 'warn' },
+      },
+    'rfc9110/user-agent-should-present-error-representation-to-user': {
+      covers: ['15.5.2'],
+      declared: { types: ['informational'], severity: 'warn' },
+    },
+    'rfc9110/user-agents-should-display-error-representation-to-user': {
+      covers: ['15.5'],
+      declared: { types: ['informational'], severity: 'warn' },
+    },
+  },
 });
