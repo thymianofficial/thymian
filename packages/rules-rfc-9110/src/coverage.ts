@@ -2127,6 +2127,531 @@ const coverage: CoverageRecord<typeof units> = defineCoverage({
         },
       },
     },
+    'rfc9110/origin-server-should-send-401-for-invalid-credentials': {
+      covers: ['11.4'],
+      declared: { types: ['informational'], severity: 'warn' },
+    },
+    'rfc9110/proxy-should-send-407-for-invalid-proxy-credentials': {
+      covers: ['11.4'],
+      declared: { types: ['informational'], severity: 'warn' },
+    },
+    'rfc9110/proxy-must-not-modify-authentication-info': {
+      covers: [],
+      declared: { types: ['analytics'], severity: 'error' },
+      contexts: {
+        static: {
+          verdict: 'impossible',
+          reason: 'not-representable',
+          note: "This rule's whole mechanism is validateCapturedHttpTraces, comparing the Authentication-Info value across a proxy's inbound and outbound hop; that method is declared only on AnalyzeContext (packages/core/src/rules/contexts.ts), structurally absent from LintContext.",
+        },
+        test: {
+          verdict: 'impossible',
+          reason: 'participant-not-reachable',
+          note: "This rule is scoped to the proxy role (appliesTo('proxy')); Thymian's test client always plays the client role, never an intermediary hop, so it cannot be positioned to capture both sides of a proxy's forwarding decision -- the reason validateCapturedHttpTraces has no TestContext counterpart in the first place, not a separate blocker alongside it.",
+        },
+      },
+    },
+    'rfc9110/proxy-must-not-modify-authorization': {
+      covers: ['11.6.2'],
+      declared: { types: ['analytics'], severity: 'error' },
+      contexts: {
+        static: {
+          verdict: 'impossible',
+          reason: 'not-representable',
+          note: "This rule's whole mechanism is validateCapturedHttpTraces, comparing the Authorization value across a proxy's inbound and outbound hop; that method is declared only on AnalyzeContext (packages/core/src/rules/contexts.ts), structurally absent from LintContext.",
+        },
+        test: {
+          verdict: 'impossible',
+          reason: 'participant-not-reachable',
+          note: "This rule is scoped to the proxy role (appliesTo('proxy')); Thymian's test client always plays the client role, never an intermediary hop, so it cannot be positioned to capture both sides of a proxy's forwarding decision -- the reason validateCapturedHttpTraces has no TestContext counterpart in the first place, not a separate blocker alongside it.",
+        },
+      },
+    },
+    'rfc9110/proxy-must-not-modify-www-authenticate': {
+      covers: ['11.6.1'],
+      declared: { types: ['analytics'], severity: 'error' },
+      contexts: {
+        static: {
+          verdict: 'impossible',
+          reason: 'not-representable',
+          note: "This rule's whole mechanism is validateCapturedHttpTraces, comparing the WWW-Authenticate value across a proxy's inbound and outbound hop; that method is declared only on AnalyzeContext (packages/core/src/rules/contexts.ts), structurally absent from LintContext.",
+        },
+        test: {
+          verdict: 'impossible',
+          reason: 'participant-not-reachable',
+          note: "This rule is scoped to the proxy role (appliesTo('proxy')); Thymian's test client always plays the client role, never an intermediary hop, so it cannot be positioned to capture both sides of a proxy's forwarding decision -- the reason validateCapturedHttpTraces has no TestContext counterpart in the first place, not a separate blocker alongside it.",
+        },
+      },
+    },
+    'rfc9110/server-may-send-www-authenticate-in-other-responses': {
+      covers: ['11.6.1'],
+      declared: { types: ['static', 'analytics', 'test'], severity: 'hint' },
+    },
+    'rfc9110/authentication-parameter-name-must-occur-once-per-challenge': {
+      covers: ['11.2'],
+      declared: { types: ['test', 'analytics'], severity: 'error' },
+      contexts: {
+        static: {
+          verdict: 'impossible',
+          reason: 'not-representable',
+          note: "The whole mechanism is entirely overrideTest()/overrideAnalyticsRule() (no shared .rule()); the check parses a full auth-param challenge/credential list and detects a repeated parameter NAME across it, a structured-grammar parse plus a uniqueness computation -- not a single pinned value's shape a schema's pattern/enum/const could express.",
+        },
+      },
+    },
+    'rfc9110/authentication-scheme-must-accept-token-and-quoted-string': {
+      covers: ['11.2'],
+      declared: { types: ['informational'], severity: 'error' },
+    },
+    'rfc9110/proxy-authenticate-applies-to-next-client': {
+      covers: ['11.7.1'],
+      declared: { types: ['informational'], severity: 'hint' },
+    },
+    'rfc9110/proxy-may-relay-credentials': {
+      covers: ['11.7.2'],
+      declared: { types: ['informational'], severity: 'hint' },
+    },
+    'rfc9110/realm-parameter-must-use-quoted-string-syntax': {
+      covers: ['11.5'],
+      declared: { types: ['test', 'analytics'], severity: 'error' },
+      contexts: {
+        static: {
+          verdict: 'impossible',
+          reason: 'not-representable',
+          note: "Same shape as authentication-parameter-name-must-occur-once-per-challenge: locating the specific realm parameter within a parsed, multi-parameter auth-param list and checking its own quoting style is a structured-grammar parse, not a single pinned value's shape.",
+        },
+      },
+    },
+    'rfc9110/user-agent-may-reuse-same-credentials-for-identical-protection-space':
+      {
+        covers: ['11.5'],
+        declared: { types: ['informational'], severity: 'hint' },
+      },
+    'rfc9110/client-must-retain-knowledge-of-request': {
+      covers: ['6'],
+      declared: { types: ['informational'], severity: 'error' },
+    },
+    'rfc9110/client-may-send-lower-version-for-broken-servers': {
+      covers: ['6.2'],
+      declared: { types: ['informational'], severity: 'hint' },
+    },
+    'rfc9110/client-must-not-send-non-conformant-version': {
+      covers: ['6.2'],
+      declared: { types: ['informational'], severity: 'error' },
+    },
+    'rfc9110/client-should-send-highest-conformant-version': {
+      covers: ['6.2'],
+      declared: { types: ['informational'], severity: 'warn' },
+    },
+    'rfc9110/recipient-should-process-higher-minor-version-as-highest-known': {
+      covers: ['6.2'],
+      declared: { types: ['informational'], severity: 'hint' },
+    },
+    'rfc9110/server-must-not-send-non-conformant-version': {
+      covers: ['6.2'],
+      declared: { types: ['informational'], severity: 'error' },
+    },
+    'rfc9110/server-should-send-response-version-equal-to-highest-conformant': {
+      covers: ['6.2'],
+      declared: { types: ['informational'], severity: 'warn' },
+    },
+    'rfc9110/each-http-version-defines-own-framing': {
+      covers: ['6'],
+      declared: { types: ['informational'], severity: 'hint' },
+    },
+    'rfc9110/implicit-framing-allowed-for-backwards-compatibility': {
+      covers: ['6'],
+      declared: { types: ['informational'], severity: 'hint' },
+    },
+    'rfc9110/message-complete-when-framed-octets-available': {
+      covers: ['6'],
+      declared: { types: ['informational'], severity: 'hint' },
+    },
+    'rfc9110/header-field-term-for-header-section-only-fields': {
+      covers: ['6'],
+      declared: { types: ['informational'], severity: 'hint' },
+    },
+    'rfc9110/header-fields-sent-before-content': {
+      covers: ['6'],
+      declared: { types: ['informational'], severity: 'hint' },
+    },
+    'rfc9110/header-section-consists-of-field-lines': {
+      covers: ['6'],
+      declared: { types: ['informational'], severity: 'hint' },
+    },
+    'rfc9110/origin-server-may-generate-date-for-1xx-5xx': {
+      covers: ['6.6.1'],
+      declared: { types: ['analytics'], severity: 'hint' },
+      contexts: {
+        static: {
+          verdict: 'impossible',
+          reason: 'not-representable',
+          note: "This rule's filter is passed to validateHttpTransactions (non-Common); static's own version of that method needs a plain predicate function and cannot accept an HttpFilterExpression this way.",
+        },
+        test: {
+          verdict: 'impossible',
+          reason: 'condition-not-producible',
+          note: "Eliciting a genuine 1xx (interim) or 5xx (server error) response on demand needs provoking an actual protocol-upgrade sequence or server-side failure condition, which Thymian's operation-driven test requests don't naturally produce.",
+        },
+      },
+    },
+    'rfc9110/origin-server-with-clock-must-generate-date-for-2xx-3xx-4xx': {
+      covers: ['6.6.1'],
+      declared: { types: ['static', 'analytics', 'test'], severity: 'error' },
+    },
+    'rfc9110/origin-server-without-clock-must-not-generate-date': {
+      covers: ['6.6.1'],
+      declared: { types: ['informational'], severity: 'error' },
+    },
+    'rfc9110/recipient-may-replace-invalid-date': {
+      covers: ['6.6.1'],
+      declared: { types: ['informational'], severity: 'hint' },
+    },
+    'rfc9110/recipient-with-clock-must-add-date-if-missing': {
+      covers: ['6.6.1'],
+      declared: { types: ['informational'], severity: 'error' },
+    },
+    'rfc9110/sender-should-generate-date-at-message-generation': {
+      covers: ['6.6.1'],
+      declared: { types: ['informational'], severity: 'hint' },
+    },
+    'rfc9110/user-agent-may-send-date-header-in-request': {
+      covers: ['6.6.1'],
+      declared: { types: ['analytics'], severity: 'hint' },
+      contexts: {
+        static: {
+          verdict: 'impossible',
+          reason: 'not-representable',
+          note: "Likely a mis-declaration, not a real impossibility: this is a bare-presence filter (not(requestHeader('date'))) with no value-reading dependency, currently passed to the non-Common validateHttpTransactions; switching to validateCommonHttpTransactions -- as this rule's own sibling user-agent-should-not-send-from-without-configuration already does for the identical shape -- would remove the type incompatibility. See thymianofficial/thymian-workspace#185.",
+        },
+        test: {
+          verdict: 'impossible',
+          reason: 'condition-not-producible',
+          note: "Likely a mis-declaration, not a real impossibility: this is a MAY, and the gate doc's own test for a MAY -- would Thymian see a difference in the messages available to it -- is satisfied by Thymian's own generated request's header choices. See thymianofficial/thymian-workspace#185.",
+        },
+      },
+    },
+    'rfc9110/sender-should-generate-trailer-header-when-sending-trailers': {
+      covers: ['6.6.2'],
+      declared: { types: ['analytics', 'test'], severity: 'warn' },
+      contexts: {
+        static: {
+          verdict: 'impossible',
+          reason: 'not-representable',
+          note: "This rule reads and counts the real response's trailer fields via validateHttpTransactions; static's own version needs a plain predicate function and, separately, has no way to represent trailers actually sent (a runtime fact) versus merely declared.",
+        },
+      },
+    },
+    'rfc9110/recipient-may-treat-the-set-of-received-trailer-fields-as-name-value-pairs':
+      {
+        covers: ['6.5.2'],
+        declared: { types: ['informational'], severity: 'hint' },
+      },
+    'rfc9110/recipient-must-not-merge-trailers-unsafely': {
+      covers: ['6.5.1'],
+      declared: { types: ['informational'], severity: 'error' },
+    },
+    'rfc9110/sender-must-not-generate-trailer-unless-permitted': {
+      covers: ['6.5.1'],
+      declared: { types: ['analytics'], severity: 'error' },
+      contexts: {
+        static: {
+          verdict: 'impossible',
+          reason: 'tool-limitation',
+          issue: 'thymianofficial/thymian-workspace#187',
+          note: "Verified directly: packages/core/src/format/http-filter-expression-to-transaction-filter.ts's static/lint filter compiler has a working visit* case for every other combinator used in this corpus except visitResponseTrailer, which unconditionally throws 'Response trailers are not currently supported.' Every other filter type here (method, headers, query params, status code, media type) has a real implementation against the schema-derived transaction shape -- only trailer-name filtering was never wired up. Thymian could do this in principle; the implementation cannot yet.",
+        },
+        test: {
+          verdict: 'impossible',
+          reason: 'condition-not-producible',
+          note: 'Thymian, playing the client role, receives whatever trailers the server under test chooses to send; it cannot force the server to include a specific forbidden trailer field name on demand.',
+        },
+      },
+    },
+    'rfc9110/server-should-not-generate-necessary-trailers': {
+      covers: ['6.5.1'],
+      declared: { types: ['informational'], severity: 'warn' },
+    },
+    'rfc9110/trailer-fields-must-be-defined-as-list-if-repeatable': {
+      covers: ['6.5.2'],
+      declared: { types: ['informational'], severity: 'error' },
+    },
+    'rfc9110/client-may-proceed-to-send-content-without-receiving-100-response':
+      {
+        covers: ['10.1.1'],
+        declared: { types: ['informational'], severity: 'hint' },
+      },
+    'rfc9110/client-must-not-generate-100-continue-without-content': {
+      covers: ['10.1.1'],
+      declared: { types: ['analytics'], severity: 'error' },
+      contexts: {
+        static: {
+          verdict: 'impossible',
+          reason: 'not-representable',
+          note: "Possible mis-declaration, lower confidence than this batch's other findings: the condition is two schema-level facts ANDed together -- an operation's declared requestBody is absent (the #173 boolean, a first-class schema construct) AND its Expect header parameter's declared example/pattern says '100-continue' (the #188 header-pinning mechanism, not yet proven in practice for any header). Only the first half inherits a proven mechanism; the second half is the weaker, unproven one. See thymianofficial/thymian-workspace#189.",
+        },
+        test: {
+          verdict: 'impossible',
+          reason: 'condition-not-producible',
+          note: "Same compound, lower-confidence reasoning as the static cell: if a schema declares both facts for the same operation (unusual, and Expect is a hop-by-hop/connection-control header rarely modeled as an explicit parameter with a pinned example, unlike a universal requestBody), Thymian's schema-driven generator would naturally produce the combination. See thymianofficial/thymian-workspace#189.",
+        },
+      },
+    },
+    'rfc9110/client-must-send-expect-header-for-100-response': {
+      covers: ['10.1.1'],
+      declared: { types: ['informational'], severity: 'error' },
+    },
+    'rfc9110/client-should-not-wait-for-an-indefinite-period-for-100-response':
+      {
+        covers: ['10.1.1'],
+        declared: { types: ['informational'], severity: 'warn' },
+      },
+    'rfc9110/client-should-repeat-request-without-expect-for-417': {
+      covers: ['10.1.1'],
+      declared: { types: ['informational'], severity: 'hint' },
+    },
+    'rfc9110/origin-server-must-not-wait-for-content-before-100-continue': {
+      covers: ['10.1.1'],
+      declared: { types: ['informational'], severity: 'hint' },
+    },
+    'rfc9110/origin-server-must-respond-immediately-to-100-continue-request': {
+      covers: ['10.1.1'],
+      declared: { types: ['informational'], severity: 'hint' },
+    },
+    'rfc9110/proxy-may-generate-immediate-100-response': {
+      covers: ['10.1.1'],
+      declared: { types: ['informational'], severity: 'hint' },
+    },
+    'rfc9110/proxy-must-handle-100-continue-expectation': {
+      covers: ['10.1.1'],
+      declared: { types: ['informational'], severity: 'hint' },
+    },
+    'rfc9110/server-may-omit-sending-100-response-if-already-received-content':
+      {
+        covers: ['10.1.1'],
+        declared: { types: ['informational'], severity: 'hint' },
+      },
+    'rfc9110/server-may-respond-with-417-response-for-other-expect-than-100-continue':
+      {
+        covers: ['10.1.1'],
+        declared: { types: ['analytics'], severity: 'hint' },
+        contexts: {
+          static: {
+            verdict: 'impossible',
+            reason: 'not-representable',
+            note: "This rule's filter uses requestHeader('expect', '100-continue') -- a value-matching HttpFilterExpression -- passed to the non-Common validateHttpTransactions; static's own version needs a plain predicate function and cannot accept this filter shape.",
+          },
+          test: {
+            verdict: 'impossible',
+            reason: 'condition-not-producible',
+            note: "Likely a mis-declaration, not a real impossibility: this is a MAY-hint about the server's own choice, and server-must-ignore-range-header-for-unrecognized-method (range-requests batch, #178) already proves the technique -- replay an existing transaction with Expect set to a well-formed, spec-permitted non-'100-continue' token via replayStep().set(...), then check whether the server answers 417. See thymianofficial/thymian-workspace#189.",
+          },
+        },
+      },
+    'rfc9110/server-must-ignore-100-continue-in-http-1.0': {
+      covers: ['10.1.1'],
+      declared: { types: ['informational'], severity: 'hint' },
+    },
+    'rfc9110/server-must-send-final-status-after-100-continue': {
+      covers: ['10.1.1'],
+      declared: { types: ['informational'], severity: 'hint' },
+    },
+    'rfc9110/server-should-indicate-if-closing-the-connection-when-sending-final-status-code-without-full-request':
+      {
+        covers: ['10.1.1'],
+        declared: { types: ['informational'], severity: 'warn' },
+      },
+    'rfc9110/robotic-user-agent-should-send-valid-from-header': {
+      covers: ['10.1.2'],
+      declared: { types: ['analytics'], severity: 'warn' },
+      contexts: {
+        static: {
+          verdict: 'impossible',
+          reason: 'not-representable',
+          note: 'Likely a mis-declaration, not a real impossibility: this is a single-header value-format check (does the From value match an email-mailbox pattern), exactly the shape .overrideStaticRule() reading a schema-pinned From pattern/example can express -- see thymianofficial/thymian-workspace#188.',
+        },
+        test: {
+          verdict: 'impossible',
+          reason: 'condition-not-producible',
+          note: "From isn't a header Thymian's schema-driven request generator naturally varies per operation the way a declared body or a declared header enum is; there's no established mechanism in this corpus for constructing a specific mailbox-format value to test against on demand.",
+        },
+      },
+    },
+    'rfc9110/server-should-not-use-from-for-authentication': {
+      covers: ['10.1.2'],
+      declared: { types: ['informational'], severity: 'hint' },
+    },
+    'rfc9110/user-agent-should-not-send-from-without-configuration': {
+      covers: ['10.1.2'],
+      declared: { types: ['static', 'analytics'], severity: 'warn' },
+      contexts: {
+        test: {
+          verdict: 'impossible',
+          reason: 'condition-not-producible',
+          note: "Likely a mis-declaration, not a real impossibility: this is a SHOULD NOT, and the gate doc's own test for it -- would Thymian see a difference in the messages available to it -- is satisfied by Thymian's own generated request's header choices, the same reasoning as client-may-send-if-match-header (#180). See thymianofficial/thymian-workspace#185.",
+        },
+      },
+    },
+    'rfc9110/intermediary-should-not-modify-referer-for-same-scheme-and-host': {
+      covers: ['10.1.3'],
+      declared: { types: ['informational'], severity: 'hint' },
+    },
+    'rfc9110/user-agent-may-truncate-parts-other-than-referring-origin': {
+      covers: ['10.1.3'],
+      declared: { types: ['informational'], severity: 'hint' },
+    },
+    'rfc9110/user-agent-must-exclude-referer-or-send-about-blank-for-no-source':
+      {
+        covers: ['10.1.3'],
+        declared: { types: ['informational'], severity: 'hint' },
+      },
+    'rfc9110/user-agent-must-not-include-fragment-or-userinfo-in-referer': {
+      covers: ['10.1.3'],
+      declared: { types: ['analytics'], severity: 'error' },
+      contexts: {
+        static: {
+          verdict: 'impossible',
+          reason: 'not-representable',
+          note: 'Likely a mis-declaration, not a real impossibility: this is a single-header value-format check (does the Referer value carry a fragment or userinfo component), the same .overrideStaticRule()-representable shape as the From/User-Agent siblings in this batch -- see thymianofficial/thymian-workspace#188.',
+        },
+        test: {
+          verdict: 'impossible',
+          reason: 'condition-not-producible',
+          note: "Referer identifies a referring page Thymian's API-testing harness doesn't navigate from; there is no natural mechanism in this corpus for constructing a meaningful Referer value (with or without a fragment/userinfo component) to test against.",
+        },
+      },
+    },
+    'rfc9110/user-agent-must-not-send-referer-in-unsecured-request-from-secure-resource':
+      {
+        covers: ['10.1.3'],
+        declared: { types: ['analytics'], severity: 'error' },
+        contexts: {
+          static: {
+            verdict: 'impossible',
+            reason: 'not-representable',
+            note: "Likely a mis-declaration, not a real impossibility: the condition is two fixed schema facts ANDed -- the operation's own protocol is http, and the Referer header's declared example/pattern starts with https:// -- the same .overrideStaticRule()-representable shape as this batch's other value-format rules. See thymianofficial/thymian-workspace#188.",
+          },
+          test: {
+            verdict: 'impossible',
+            reason: 'condition-not-producible',
+            note: 'Same reasoning as user-agent-must-not-include-fragment-or-userinfo-in-referer: no natural mechanism in this corpus constructs a meaningful Referer value to test against.',
+          },
+        },
+      },
+    'rfc9110/user-agent-should-not-send-referer-for-secure-to-insecure': {
+      covers: ['10.1.3'],
+      declared: { types: ['analytics'], severity: 'warn' },
+      contexts: {
+        static: {
+          verdict: 'impossible',
+          reason: 'not-representable',
+          note: "Likely a mis-declaration, not a real impossibility: comparing the Referer's declared-example origin against the operation's own declared origin is two fixed schema facts, the same .overrideStaticRule()-representable shape as this batch's other value-format rules. See thymianofficial/thymian-workspace#188.",
+        },
+        test: {
+          verdict: 'impossible',
+          reason: 'condition-not-producible',
+          note: 'Same reasoning as user-agent-must-not-include-fragment-or-userinfo-in-referer: no natural mechanism in this corpus constructs a meaningful Referer value to test against.',
+        },
+      },
+    },
+    'rfc9110/sender-must-send-te-connection-option-with-te-header': {
+      covers: ['10.1.4'],
+      declared: { types: ['static', 'analytics'], severity: 'error' },
+      contexts: {
+        test: {
+          verdict: 'impossible',
+          reason: 'condition-not-producible',
+          note: "Likely a mis-declaration, not a real impossibility: this is the identical hop-by-hop connection-option mechanism as sender-must-send-upgrade-connection-option (routing batch, #171) -- fully within Thymian's own control as the client, needing no server cooperation. See thymianofficial/thymian-workspace#186.",
+        },
+      },
+    },
+    'rfc9110/sender-must-not-generate-advertising-in-product-identifier': {
+      covers: ['10.1.5'],
+      declared: { types: ['analytics'], severity: 'error' },
+      contexts: {
+        static: {
+          verdict: 'impossible',
+          reason: 'not-representable',
+          note: "Likely a mis-declaration, not a real impossibility: this is a single-header value-format check (does the User-Agent value match one of several promotional-keyword patterns), the same .overrideStaticRule()-representable shape as this batch's other value-format rules. See thymianofficial/thymian-workspace#188.",
+        },
+        test: {
+          verdict: 'impossible',
+          reason: 'condition-not-producible',
+          note: "Thymian's own User-Agent identifier is fixed by the tool itself, not varied per schema or operation; checking it against these patterns in test would only tell us about Thymian's own tooling, not the target under test.",
+        },
+      },
+    },
+    'rfc9110/sender-should-limit-generated-product-identifiers-to-necessity': {
+      covers: ['10.1.5'],
+      declared: { types: ['informational'], severity: 'warn' },
+    },
+    'rfc9110/sender-should-not-generate-non-version-info-in-product-version': {
+      covers: ['10.1.5'],
+      declared: { types: ['analytics'], severity: 'warn' },
+      contexts: {
+        static: {
+          verdict: 'impossible',
+          reason: 'not-representable',
+          note: "Unlike this batch's other value-format rules (#188), this one parses the User-Agent value into an unbounded number of product/version tokens (userAgent.match(/([^\\s/]+)\\/([^\\s)]+)/g)) and then applies a computed classification (version-shaped vs not) per token -- the same structured-parse-plus-computed-property shape that keeps authentication-parameter-name-must-occur-once-per-challenge and realm-parameter-must-use-quoted-string-syntax out of #188, not a single pinned value's shape.",
+        },
+        test: {
+          verdict: 'impossible',
+          reason: 'condition-not-producible',
+          note: "Same reasoning as sender-must-not-generate-advertising-in-product-identifier: Thymian's own fixed User-Agent identifier isn't varied per test case.",
+        },
+      },
+    },
+    'rfc9110/user-agent-should-limit-addition-of-subproducts-by-third-parties':
+      {
+        covers: ['10.1.5'],
+        declared: { types: ['informational'], severity: 'hint' },
+      },
+    'rfc9110/user-agent-should-not-generate-needlessly-fine-grained-detailed-user-agent-field':
+      {
+        covers: ['10.1.5'],
+        declared: { types: ['informational'], severity: 'hint' },
+      },
+    'rfc9110/user-agent-should-send-user-agent-header': {
+      covers: ['10.1.5'],
+      declared: { types: ['analytics'], severity: 'warn' },
+      contexts: {
+        static: {
+          verdict: 'impossible',
+          reason: 'not-representable',
+          note: 'Likely a mis-declaration, not a real impossibility: this rule already uses validateCommonHttpTransactions (uniform across static/test/analytics) for a bare-presence check; nothing blocks static. See thymianofficial/thymian-workspace#185.',
+        },
+        test: {
+          verdict: 'impossible',
+          reason: 'condition-not-producible',
+          note: "Likely a mis-declaration, not a real impossibility: this is a SHOULD, visible in Thymian's own generated request the same way as client-may-send-if-match-header (#180). See thymianofficial/thymian-workspace#185.",
+        },
+      },
+    },
+    'rfc9110/origin-server-may-send-allow-header': {
+      covers: ['10.2.1'],
+      declared: { types: ['informational'], severity: 'hint' },
+    },
+    'rfc9110/proxy-must-not-modify-allow-header': {
+      covers: ['10.2.1'],
+      declared: { types: ['informational'], severity: 'hint' },
+    },
+    'rfc9110/user-agent-must-inherit-fragment-for-3xx-without-fragment': {
+      covers: ['10.2.2'],
+      declared: { types: ['informational'], severity: 'hint' },
+    },
+    'rfc9110/origin-server-may-generate-server-header-field': {
+      covers: ['10.2.4'],
+      declared: { types: ['static', 'analytics', 'test'], severity: 'hint' },
+    },
+    'rfc9110/origin-server-should-limit-addition-of-subproducts-by-third-parties':
+      {
+        covers: ['10.2.4'],
+        declared: { types: ['informational'], severity: 'warn' },
+      },
+    'rfc9110/origin-server-should-not-generate-needlessly-fine-grained-detail-server-header':
+      {
+        covers: ['10.2.4'],
+        declared: { types: ['informational'], severity: 'warn' },
+      },
   },
 });
 

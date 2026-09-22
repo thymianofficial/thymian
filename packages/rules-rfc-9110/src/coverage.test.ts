@@ -356,4 +356,99 @@ describe('coverage record', () => {
       expect(violations).toEqual([]);
     }, 30_000);
   });
+
+  describe('message-context, message-abstraction and authentication batch (#161)', () => {
+    const scope = [
+      'rfc9110/authentication-parameter-name-must-occur-once-per-challenge',
+      'rfc9110/authentication-scheme-must-accept-token-and-quoted-string',
+      'rfc9110/client-may-proceed-to-send-content-without-receiving-100-response',
+      'rfc9110/client-may-send-lower-version-for-broken-servers',
+      'rfc9110/client-must-not-generate-100-continue-without-content',
+      'rfc9110/client-must-not-send-non-conformant-version',
+      'rfc9110/client-must-retain-knowledge-of-request',
+      'rfc9110/client-must-send-expect-header-for-100-response',
+      'rfc9110/client-should-not-wait-for-an-indefinite-period-for-100-response',
+      'rfc9110/client-should-repeat-request-without-expect-for-417',
+      'rfc9110/client-should-send-highest-conformant-version',
+      'rfc9110/each-http-version-defines-own-framing',
+      'rfc9110/header-field-term-for-header-section-only-fields',
+      'rfc9110/header-fields-sent-before-content',
+      'rfc9110/header-section-consists-of-field-lines',
+      'rfc9110/implicit-framing-allowed-for-backwards-compatibility',
+      'rfc9110/intermediary-should-not-modify-referer-for-same-scheme-and-host',
+      'rfc9110/message-complete-when-framed-octets-available',
+      'rfc9110/origin-server-may-generate-date-for-1xx-5xx',
+      'rfc9110/origin-server-may-generate-server-header-field',
+      'rfc9110/origin-server-may-send-allow-header',
+      'rfc9110/origin-server-must-not-wait-for-content-before-100-continue',
+      'rfc9110/origin-server-must-respond-immediately-to-100-continue-request',
+      'rfc9110/origin-server-should-limit-addition-of-subproducts-by-third-parties',
+      'rfc9110/origin-server-should-not-generate-needlessly-fine-grained-detail-server-header',
+      'rfc9110/origin-server-should-send-401-for-invalid-credentials',
+      'rfc9110/origin-server-with-clock-must-generate-date-for-2xx-3xx-4xx',
+      'rfc9110/origin-server-without-clock-must-not-generate-date',
+      'rfc9110/proxy-authenticate-applies-to-next-client',
+      'rfc9110/proxy-may-generate-immediate-100-response',
+      'rfc9110/proxy-may-relay-credentials',
+      'rfc9110/proxy-must-handle-100-continue-expectation',
+      'rfc9110/proxy-must-not-modify-allow-header',
+      'rfc9110/proxy-must-not-modify-authentication-info',
+      'rfc9110/proxy-must-not-modify-authorization',
+      'rfc9110/proxy-must-not-modify-www-authenticate',
+      'rfc9110/proxy-should-send-407-for-invalid-proxy-credentials',
+      'rfc9110/realm-parameter-must-use-quoted-string-syntax',
+      'rfc9110/recipient-may-replace-invalid-date',
+      'rfc9110/recipient-may-treat-the-set-of-received-trailer-fields-as-name-value-pairs',
+      'rfc9110/recipient-must-not-merge-trailers-unsafely',
+      'rfc9110/recipient-should-process-higher-minor-version-as-highest-known',
+      'rfc9110/recipient-with-clock-must-add-date-if-missing',
+      'rfc9110/robotic-user-agent-should-send-valid-from-header',
+      'rfc9110/sender-must-not-generate-advertising-in-product-identifier',
+      'rfc9110/sender-must-not-generate-trailer-unless-permitted',
+      'rfc9110/sender-must-send-te-connection-option-with-te-header',
+      'rfc9110/sender-should-generate-date-at-message-generation',
+      'rfc9110/sender-should-generate-trailer-header-when-sending-trailers',
+      'rfc9110/sender-should-limit-generated-product-identifiers-to-necessity',
+      'rfc9110/sender-should-not-generate-non-version-info-in-product-version',
+      'rfc9110/server-may-omit-sending-100-response-if-already-received-content',
+      'rfc9110/server-may-respond-with-417-response-for-other-expect-than-100-continue',
+      'rfc9110/server-may-send-www-authenticate-in-other-responses',
+      'rfc9110/server-must-ignore-100-continue-in-http-1.0',
+      'rfc9110/server-must-not-send-non-conformant-version',
+      'rfc9110/server-must-send-final-status-after-100-continue',
+      'rfc9110/server-should-indicate-if-closing-the-connection-when-sending-final-status-code-without-full-request',
+      'rfc9110/server-should-not-generate-necessary-trailers',
+      'rfc9110/server-should-not-use-from-for-authentication',
+      'rfc9110/server-should-send-response-version-equal-to-highest-conformant',
+      'rfc9110/trailer-fields-must-be-defined-as-list-if-repeatable',
+      'rfc9110/user-agent-may-reuse-same-credentials-for-identical-protection-space',
+      'rfc9110/user-agent-may-send-date-header-in-request',
+      'rfc9110/user-agent-may-truncate-parts-other-than-referring-origin',
+      'rfc9110/user-agent-must-exclude-referer-or-send-about-blank-for-no-source',
+      'rfc9110/user-agent-must-inherit-fragment-for-3xx-without-fragment',
+      'rfc9110/user-agent-must-not-include-fragment-or-userinfo-in-referer',
+      'rfc9110/user-agent-must-not-send-referer-in-unsecured-request-from-secure-resource',
+      'rfc9110/user-agent-should-limit-addition-of-subproducts-by-third-parties',
+      'rfc9110/user-agent-should-not-generate-needlessly-fine-grained-detailed-user-agent-field',
+      'rfc9110/user-agent-should-not-send-from-without-configuration',
+      'rfc9110/user-agent-should-not-send-referer-for-secure-to-insecure',
+      'rfc9110/user-agent-should-send-user-agent-header',
+    ];
+
+    it('has the expected rule count', () => {
+      expect(scope.length).toBe(74);
+    });
+
+    it('reports zero violations', async () => {
+      const rules = await loadBaselineRules();
+      const violations = checkCoverage({
+        record: coverage,
+        rules,
+        profiles: rfc9110.profiles,
+        scope,
+      });
+
+      expect(violations).toEqual([]);
+    });
+  });
 });
