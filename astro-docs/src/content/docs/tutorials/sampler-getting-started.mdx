@@ -251,6 +251,24 @@ npx thymian sampler init
 `exclude` list of your project's own `tsconfig.json`, so the sampler's tsconfig
 is the one that governs your hooks.
 
+<Aside type="caution" title="The auth hook needs Node's types">
+The scaffolded tsconfig pulls in no ambient types, so the `Buffer` in your Step 4
+hook runs fine but does not compile. That tsconfig is yours from the moment it is
+written — add the types it needs:
+
+```json
+// .thymian/sampler/tsconfig.json
+{
+  "compilerOptions": {
+    "types": ["node"]
+  }
+}
+```
+
+That needs `@types/node` installed in the project. To keep your hooks free of
+ambient types instead, encode the credentials without `Buffer`.
+</Aside>
+
 **Commit `generated/`.** Those files are the record of what your API description
 said, and the baseline the drift gate compares against.
 
