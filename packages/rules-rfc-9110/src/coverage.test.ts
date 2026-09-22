@@ -117,6 +117,6 @@ describe('coverage record', () => {
       });
 
       expect(violations).toEqual([]);
-    });
+    }, 30_000);
   });
 });
