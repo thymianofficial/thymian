@@ -1,5 +1,7 @@
 import type { RulesConfiguration, RuleSet } from '@thymian/core';
 
+import coverage from './coverage.js';
+
 const recommended: RulesConfiguration = {
   'rfc9110/client-may-generate-range-requests-without-accept-ranges': 'off',
   'rfc9110/client-may-send-if-match-header': 'off',
@@ -33,6 +35,7 @@ const rfc9110: RuleSet = {
     strict: {},
     minimal: recommended,
   },
+  coverage,
 };
 
 export default rfc9110;
