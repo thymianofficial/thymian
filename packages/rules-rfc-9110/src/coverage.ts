@@ -1085,5 +1085,525 @@ export default defineCoverage({
       covers: ['7.2'],
       declared: { types: ['informational'], severity: 'warn' },
     },
+    'rfc9110/accept-ranges-may-be-sent-in-trailer': {
+      covers: ['14.3'],
+      declared: { types: ['analytics'], severity: 'hint' },
+      contexts: {
+        static: {
+          verdict: 'impossible',
+          reason: 'not-representable',
+          note: "This rule's filter (and(requestHeader(...), not(responseTrailer(...)))) is an HttpFilterExpression passed to validateHttpTransactions; static's own version of that method needs a plain predicate function instead.",
+        },
+        test: {
+          verdict: 'impossible',
+          reason: 'condition-not-producible',
+          note: "Whether a server chooses to place Accept-Ranges in a trailer rather than a header is server-side, optional behaviour a generic test exchange is unlikely to provoke on demand, the same shape as server-may-send-retry-after-header-for-503-response's static gap (#169) but for a live-exchange context instead.",
+        },
+      },
+    },
+    'rfc9110/cache-may-use-responses-to-get-for-satisfy-subsequent-get-and-head-requests':
+      {
+        covers: ['9.3.1'],
+        declared: { types: ['informational'], severity: 'hint' },
+      },
+    'rfc9110/cache-may-use-responses-to-head-for-satisfy-subsequent-head-requests':
+      {
+        covers: ['9.3.2'],
+        declared: { types: ['informational'], severity: 'hint' },
+      },
+    'rfc9110/client-may-generate-range-requests-without-accept-ranges': {
+      covers: ['14.3'],
+      declared: { types: ['informational'], severity: 'hint' },
+    },
+    'rfc9110/client-may-send-max-forwards-header-in-option-request': {
+      covers: ['9.3.7'],
+      declared: { types: ['analytics'], severity: 'hint' },
+      contexts: {
+        static: {
+          verdict: 'impossible',
+          reason: 'not-representable',
+          note: "This rule's filter (and(method('OPTIONS'), requestHeader('max-forwards'))) is an HttpFilterExpression passed to validateHttpTransactions; static's own version of that method needs a plain predicate function instead.",
+        },
+        test: {
+          verdict: 'impossible',
+          reason: 'condition-not-producible',
+          note: "The check fires only on a malformed (non-numeric) Max-Forwards value; Thymian's own operation-driven test requests construct well-formed header values, never a deliberately malformed one to trigger this.",
+        },
+      },
+    },
+    'rfc9110/client-must-ignore-content-length-or-transfer-encoding-headers-in-response-to-connect':
+      {
+        covers: ['9.3.6'],
+        declared: { types: ['informational'], severity: 'error' },
+      },
+    'rfc9110/client-must-not-assume-future-range-support-from-accept-ranges': {
+      covers: ['14.3'],
+      declared: { types: ['informational'], severity: 'error' },
+    },
+    'rfc9110/client-must-not-generate-fields-containing-sensitive-data-in-trace-request':
+      {
+        covers: ['9.3.8'],
+        declared: { types: ['analytics'], severity: 'error' },
+        contexts: {
+          static: {
+            verdict: 'impossible',
+            reason: 'not-representable',
+            note: 'Likely a mis-declaration, not a real impossibility: client-must-not-send-content-in-trace-request, in the same directory, already proves TRACE-method operations are representable in static via this same uniform interface — see thymianofficial/thymian-workspace#174.',
+          },
+          test: {
+            verdict: 'impossible',
+            reason: 'condition-not-producible',
+            note: 'Likely a mis-declaration, not a real impossibility — see thymianofficial/thymian-workspace#174.',
+          },
+        },
+      },
+    'rfc9110/client-must-not-send-content-in-trace-request': {
+      covers: ['9.3.8'],
+      declared: { types: ['static', 'analytics'], severity: 'error' },
+      contexts: {
+        test: {
+          verdict: 'impossible',
+          reason: 'condition-not-producible',
+          note: "Whether Thymian's own test-generated TRACE carries a body is determined by the operation's own declared schema, which would not normally document one for TRACE -- the situation this rule checks for is not naturally constructed.",
+        },
+      },
+    },
+    'rfc9110/client-must-send-content-type-header-for-content-in-options-request':
+      {
+        covers: ['9.3.7'],
+        declared: { types: ['analytics'], severity: 'error' },
+        contexts: {
+          static: {
+            verdict: 'impossible',
+            reason: 'not-representable',
+            note: 'Likely a mis-declaration, not a real impossibility: this check is entirely name-level via the uniform validateCommonHttpTransactions interface — see thymianofficial/thymian-workspace#176.',
+          },
+          test: {
+            verdict: 'impossible',
+            reason: 'condition-not-producible',
+            note: 'Likely a mis-declaration, not a real impossibility — see thymianofficial/thymian-workspace#176.',
+          },
+        },
+      },
+    'rfc9110/client-must-send-port-number-for-connect-request': {
+      covers: ['9.3.6'],
+      declared: { types: ['informational'], severity: 'error' },
+    },
+    'rfc9110/client-should-list-multiple-ranges-in-ascending-order': {
+      covers: ['14.2'],
+      declared: { types: ['analytics'], severity: 'warn' },
+      contexts: {
+        static: {
+          verdict: 'impossible',
+          reason: 'not-representable',
+          note: "This rule parses the Range header's list of byte-range-specs and compares each adjacent pair's start position via validateHttpTransactions; static's own version of that method needs a plain predicate function and cannot read or compare pinned values this way.",
+        },
+        test: {
+          verdict: 'impossible',
+          reason: 'condition-not-producible',
+          note: "Triggering this needs a deliberately out-of-order multi-range Range header, which Thymian's operation-driven test requests never construct on their own.",
+        },
+      },
+    },
+    'rfc9110/client-should-not-automatically-retry-a-failed-automatic-retry': {
+      covers: ['9.2.2'],
+      declared: { types: ['informational'], severity: 'warn' },
+    },
+    'rfc9110/client-should-not-automatically-retry-request-with-non-idempotent-method':
+      {
+        covers: ['9.2.2'],
+        declared: { types: ['informational'], severity: 'warn' },
+      },
+    'rfc9110/client-should-not-generate-content-for-delete-request': {
+      covers: ['9.3.5'],
+      declared: { types: ['static', 'analytics'], severity: 'warn' },
+      contexts: {
+        test: {
+          verdict: 'impossible',
+          reason: 'condition-not-producible',
+          note: "Whether Thymian's own test-generated DELETE carries a body is determined by the operation's own declared schema. Likely a mis-declaration, not a real impossibility — see thymianofficial/thymian-workspace#173.",
+        },
+      },
+    },
+    'rfc9110/client-should-not-generate-content-in-get-request': {
+      covers: ['9.3.1'],
+      declared: { types: ['static', 'analytics'], severity: 'warn' },
+      contexts: {
+        test: {
+          verdict: 'impossible',
+          reason: 'condition-not-producible',
+          note: "Whether Thymian's own test-generated GET carries a body is determined by the operation's own declared schema. Likely a mis-declaration, not a real impossibility — see thymianofficial/thymian-workspace#173.",
+        },
+      },
+    },
+    'rfc9110/client-should-not-generate-content-in-head-request': {
+      covers: ['9.3.2'],
+      declared: { types: ['static', 'analytics'], severity: 'warn' },
+      contexts: {
+        test: {
+          verdict: 'impossible',
+          reason: 'condition-not-producible',
+          note: "Whether Thymian's own test-generated HEAD carries a body is determined by the operation's own declared schema. Likely a mis-declaration, not a real impossibility — see thymianofficial/thymian-workspace#173.",
+        },
+      },
+    },
+    'rfc9110/client-should-not-request-inefficient-multiple-ranges': {
+      covers: ['14.2'],
+      declared: { types: ['analytics'], severity: 'warn' },
+      contexts: {
+        static: {
+          verdict: 'impossible',
+          reason: 'not-representable',
+          note: "This rule parses the Range header's byte-range-specs, sorts them, and computes the numeric byte gap between adjacent ranges via validateHttpTransactions; static's own version of that method needs a plain predicate function and cannot read or compute values this way.",
+        },
+        test: {
+          verdict: 'impossible',
+          reason: 'condition-not-producible',
+          note: "Triggering this needs a deliberately inefficient multi-range gap in a Range header, which Thymian's operation-driven test requests never construct on their own.",
+        },
+      },
+    },
+    'rfc9110/final-recipient-of-trace-request-should-reflect-received-message':
+      {
+        covers: ['9.3.8'],
+        declared: { types: ['informational'], severity: 'warn' },
+      },
+    'rfc9110/final-recipient-should-exclude-sensitive-request-data-from-response-to-trace':
+      {
+        covers: ['9.3.8'],
+        declared: { types: ['analytics'], severity: 'warn' },
+        contexts: {
+          static: {
+            verdict: 'impossible',
+            reason: 'not-representable',
+            note: "This rule's own comment states it: the check needs a real sensitive header value actually echoed into a response body, which a schema document has no live exchange to carry.",
+          },
+          test: {
+            verdict: 'impossible',
+            reason: 'condition-not-producible',
+            note: "This rule's own comment states it: a Thymian-generated test request carries no genuine secret to leak, so the value-echo this rule checks for has nothing real to observe.",
+          },
+        },
+      },
+    'rfc9110/general-purpose-servers-must-support-get-and-head': {
+      covers: ['9.1'],
+      declared: { types: ['test', 'analytics'], severity: 'error' },
+      contexts: {
+        static: {
+          verdict: 'impossible',
+          reason: 'not-representable',
+          note: 'validateCommonHttpTransactions(statusCode(501)) is the same proven static-capable shape 402-status-code-is-reserved/status-code-305/306 already use. Likely a mis-declaration, not a real impossibility — see thymianofficial/thymian-workspace#172.',
+        },
+      },
+    },
+    'rfc9110/intermediary-must-attempt-to-send-outstanding-data-coming-from-closed-side-for-connect-request':
+      {
+        covers: ['9.3.6'],
+        declared: { types: ['informational'], severity: 'error' },
+      },
+    'rfc9110/origin-server-may-accept-connect-request': {
+      covers: ['9.3.6'],
+      declared: { types: ['test', 'analytics'], severity: 'hint' },
+      contexts: {
+        static: {
+          verdict: 'impossible',
+          reason: 'not-representable',
+          note: 'CONNECT is a tunnel-establishment method, not a normal REST operation an OpenAPI/ThymianSchema document models -- there is no operation to check this against.',
+        },
+      },
+    },
+    'rfc9110/origin-server-may-redirect-for-existing-resource-for-201-response':
+      {
+        covers: ['9.3.3'],
+        declared: { types: ['static', 'analytics', 'test'], severity: 'hint' },
+      },
+    'rfc9110/origin-server-must-disable-safe-methods-for-unsafe-resources': {
+      covers: ['9.2.1'],
+      declared: { types: ['informational'], severity: 'error' },
+    },
+    'rfc9110/origin-server-must-ignore-range-header-with-unknown-range-unit': {
+      covers: ['14.2'],
+      declared: { types: ['informational'], severity: 'error' },
+    },
+    'rfc9110/origin-server-must-not-sent-validator-field-in-response-to-put-request':
+      {
+        covers: ['9.3.4'],
+        declared: { types: ['static', 'analytics', 'test'], severity: 'error' },
+      },
+    'rfc9110/origin-server-must-respond-with-correct-response-code-for-put-request':
+      {
+        covers: ['9.3.4'],
+        declared: { types: ['static', 'analytics', 'test'], severity: 'error' },
+      },
+    'rfc9110/origin-server-must-send-3xx-response-if-state-change-should-be-applied-to-other-resource':
+      {
+        covers: ['9.3.4'],
+        declared: { types: ['informational'], severity: 'error' },
+      },
+    'rfc9110/origin-server-should-ingore-unrecognized-header-and-trailer-fields-received-in-put-request':
+      {
+        covers: ['9.3.4'],
+        declared: { types: ['informational'], severity: 'warn' },
+      },
+    'rfc9110/origin-server-should-not-rely-on-private-agreements': {
+      covers: ['9.3.1'],
+      declared: { types: ['informational'], severity: 'warn' },
+    },
+    'rfc9110/origin-server-should-not-rely-on-private-agreements-for-head-requests':
+      {
+        covers: ['9.3.2'],
+        declared: { types: ['informational'], severity: 'warn' },
+      },
+    'rfc9110/origin-server-should-not-rely-on-private-agreements-to-receive-content-in-delete-request':
+      {
+        covers: ['9.3.5'],
+        declared: { types: ['informational'], severity: 'warn' },
+      },
+    'rfc9110/origin-server-should-response-with-409-or-415-status-code-to-put-request-for-inconsistent-representation':
+      {
+        covers: ['9.3.4'],
+        declared: { types: ['informational'], severity: 'warn' },
+      },
+    'rfc9110/origin-server-should-send-400-for-unsupported-partial-put': {
+      covers: ['14.5'],
+      declared: { types: ['static', 'test'], severity: 'warn' },
+      contexts: {
+        analytics: {
+          verdict: 'impossible',
+          reason: 'requires-controlled-input',
+          note: 'Whether this SHOULD applies depends on a precondition -- the resource genuinely not supporting partial PUT -- that recorded traffic alone cannot establish; passively-observed traffic shows what happened, not whether the precondition held.',
+        },
+      },
+    },
+    'rfc9110/origin-server-should-send-405-response-for-unallowed-method': {
+      covers: ['9.1'],
+      declared: { types: ['informational'], severity: 'warn' },
+    },
+    'rfc9110/origin-server-should-send-501-response-for-unrecognized-method': {
+      covers: ['9.1'],
+      declared: { types: ['informational'], severity: 'warn' },
+    },
+    'rfc9110/origin-server-should-send-correct-successful-status-code-to-delete-request':
+      {
+        covers: ['9.3.5'],
+        declared: { types: ['static', 'analytics', 'test'], severity: 'warn' },
+      },
+    'rfc9110/origin-server-should-send-location-header-for-201-response': {
+      covers: ['9.3.3'],
+      declared: { types: ['static', 'analytics', 'test'], severity: 'warn' },
+    },
+    'rfc9110/origin-server-should-verify-constraints-for-target-resource-for-put-request':
+      {
+        covers: ['9.3.4'],
+        declared: { types: ['informational'], severity: 'warn' },
+      },
+    'rfc9110/other-methods-than-get-and-head-are-optional': {
+      covers: ['9.1'],
+      declared: { types: ['informational'], severity: 'hint' },
+    },
+    'rfc9110/proxy-may-discard-range-header-with-unknown-range-unit': {
+      covers: ['14.2'],
+      declared: { types: ['analytics'], severity: 'hint' },
+      contexts: {
+        static: {
+          verdict: 'impossible',
+          reason: 'not-representable',
+          note: "This rule's filter (requestHeader('range')) is an HttpFilterExpression passed to validateHttpTransactions; static's own version of that method needs a plain predicate function instead.",
+        },
+        test: {
+          verdict: 'impossible',
+          reason: 'condition-not-producible',
+          note: 'Likely a mis-declaration, not a real impossibility — see thymianofficial/thymian-workspace#175.',
+        },
+      },
+    },
+    'rfc9110/proxy-must-not-automatically-retry-non-idempontent-requests': {
+      covers: ['9.2.2'],
+      declared: { types: ['informational'], severity: 'error' },
+    },
+    'rfc9110/proxy-must-not-generate-new-max-forwards-header': {
+      covers: ['9.3.7'],
+      declared: { types: ['analytics'], severity: 'error' },
+      contexts: {
+        static: {
+          verdict: 'impossible',
+          reason: 'not-representable',
+          note: "This rule's own comment states it: the MUST NOT is only observable by correlating a proxy's received and forwarded legs of the same hop, which a schema document has no concept of.",
+        },
+        test: {
+          verdict: 'impossible',
+          reason: 'participant-not-reachable',
+          note: "This rule's own comment states it: it needs real cross-hop information (the received-versus-forwarded Max-Forwards value across one proxy hop), which a direct test exchange never carries.",
+        },
+      },
+    },
+    'rfc9110/proxy-should-forward-206-with-unknown-range-unit': {
+      covers: ['14.4'],
+      declared: { types: ['informational'], severity: 'warn' },
+    },
+    'rfc9110/recipient-must-anticipate-large-decimal-numerals-for-byte-range': {
+      covers: ['14.1.2'],
+      declared: { types: ['analytics'], severity: 'error' },
+      contexts: {
+        static: {
+          verdict: 'impossible',
+          reason: 'not-representable',
+          note: "This rule parses the Range header's first-pos/last-pos/suffix-length numerals and BigInt-compares each against Number.MAX_SAFE_INTEGER via validateHttpTransactions; static's own version of that method needs a plain predicate function and cannot read or compare pinned values this way.",
+        },
+        test: {
+          verdict: 'impossible',
+          reason: 'condition-not-producible',
+          note: "Likely a mis-declaration, not a real structural impossibility: origin-server-should-send-400-for-unsupported-partial-put and server-should-send-206-response-for-satisfiable-range, in the same package, already prove a probe can pin an arbitrary Range value via replayStep().set(requestHeader('range'), constant(...)). But this rule's own check only inspects the request it is handed, never the resulting response, so a test probe would trivially flag its own overflow-scale input every time regardless of how the target actually behaves -- the check itself would need to read the response for parsing failure evidence before test executability would mean anything. That is a rule-body change, not a declared-type omission -- see thymianofficial/thymian-workspace#177.",
+        },
+      },
+    },
+    'rfc9110/recipient-must-not-recombine-206-with-unknown-range-unit': {
+      covers: ['14.4'],
+      declared: { types: ['informational'], severity: 'error' },
+    },
+    'rfc9110/recipient-must-not-recombine-invalid-content-range': {
+      covers: ['14.4'],
+      declared: { types: ['analytics', 'test'], severity: 'error' },
+      contexts: {
+        static: {
+          verdict: 'impossible',
+          reason: 'not-representable',
+          note: "This rule parses the Content-Range value's first-pos/last-pos/complete-length components and numerically compares them (last-pos < first-pos, or complete-length <= last-pos) via validateHttpTransactions; static's own version of that method needs a plain predicate function and cannot read or compare pinned values this way.",
+        },
+      },
+    },
+    'rfc9110/sender-should-indicate-complete-length-for-byte-ranges': {
+      covers: ['14.4'],
+      declared: { types: ['analytics', 'test'], severity: 'warn' },
+      contexts: {
+        static: {
+          verdict: 'impossible',
+          reason: 'not-representable',
+          note: "This rule reads and parses the real Content-Range complete-length component via validateHttpTransactions; static's own version of that method needs a plain predicate function and cannot read a pinned value this way.",
+        },
+      },
+    },
+    'rfc9110/server-may-ignore-or-reject-invalid-range-header': {
+      covers: ['14.2'],
+      declared: { types: ['informational'], severity: 'hint' },
+    },
+    'rfc9110/server-may-ignore-range-header': {
+      covers: ['14.2'],
+      declared: { types: ['informational'], severity: 'hint' },
+    },
+    'rfc9110/server-may-ignore-range-header-for-zero-length-representation': {
+      covers: ['14.2'],
+      declared: { types: ['informational'], severity: 'hint' },
+    },
+    'rfc9110/server-may-omit-header-fields-for-head-response': {
+      covers: ['9.3.2'],
+      declared: { types: ['informational'], severity: 'hint' },
+    },
+    'rfc9110/server-may-send-accept-ranges-none': {
+      covers: ['14.3'],
+      declared: { types: ['analytics'], severity: 'hint' },
+      contexts: {
+        static: {
+          verdict: 'impossible',
+          reason: 'not-representable',
+          note: "This rule's filter (responseHeader('accept-ranges')) is passed to validateHttpTransactions with a value-reading handler; static's own version of that method needs a plain predicate function and cannot read a pinned value this way.",
+        },
+        test: {
+          verdict: 'impossible',
+          reason: 'condition-not-producible',
+          note: "Whether a server opts out of range support with 'Accept-Ranges: none' is server-side, optional behaviour a generic test exchange is unlikely to provoke on demand.",
+        },
+      },
+    },
+    'rfc9110/server-must-ignore-content-range-for-unsupported-method': {
+      covers: ['14.4'],
+      declared: { types: ['informational'], severity: 'error' },
+    },
+    'rfc9110/server-must-ignore-range-header-for-unrecognized-method': {
+      covers: ['14.2'],
+      declared: { types: ['static', 'analytics'], severity: 'error' },
+      contexts: {
+        test: {
+          verdict: 'impossible',
+          reason: 'condition-not-producible',
+          note: "Likely a mis-declaration, not a real impossibility: the check already runs on the common request/response projection (method + status/Content-Range), and server-should-send-206-response-for-satisfiable-range, in the same package, already proves a probe can replay an existing transaction with an added Range header via replayStep().set(requestHeader('range'), constant(...)). The same technique -- replaying a non-GET transaction with an added Range header and reusing this rule's own response check -- would make this observable in test without any rule-body change. See thymianofficial/thymian-workspace#178.",
+        },
+      },
+    },
+    'rfc9110/server-must-not-send-content-in-response-to-head': {
+      covers: ['9.3.2'],
+      declared: { types: ['static', 'analytics', 'test'], severity: 'error' },
+    },
+    'rfc9110/server-must-not-send-transfer-encoding-or-content-length-headers-in-2xx-response-to-connect-request':
+      {
+        covers: ['9.3.6'],
+        declared: { types: ['static', 'analytics'], severity: 'error' },
+        contexts: {
+          test: {
+            verdict: 'impossible',
+            reason: 'condition-not-producible',
+            note: "CONNECT is not a REST operation a declared API spec would include, so Thymian's spec-driven test requests have no occasion to send one.",
+          },
+        },
+      },
+    'rfc9110/server-must-reject-connect-request-with-empty-or-invalid-port-number':
+      {
+        covers: ['9.3.6'],
+        declared: { types: ['informational'], severity: 'error' },
+      },
+    'rfc9110/server-should-send-206-response-for-satisfiable-range': {
+      covers: ['14.2'],
+      declared: { types: ['test'], severity: 'warn' },
+      contexts: {
+        static: {
+          verdict: 'impossible',
+          reason: 'not-representable',
+          note: "This rule's mechanism is an active singleTestCase probe that constructs and verifies a live satisfiable-range exchange; a schema document has no equivalent live check to run.",
+        },
+        analytics: {
+          verdict: 'impossible',
+          reason: 'requires-controlled-input',
+          note: "Whether the SHOULD's precondition held -- a genuinely satisfiable range against the resource's real state -- cannot be established from passively recorded traffic alone.",
+        },
+      },
+    },
+    'rfc9110/server-should-send-416-response-for-unsatisfiable-range': {
+      covers: ['14.2'],
+      declared: { types: ['informational'], severity: 'warn' },
+    },
+    'rfc9110/server-should-send-content-range-in-416-response': {
+      covers: ['14.4'],
+      declared: { types: ['analytics', 'test'], severity: 'warn' },
+      contexts: {
+        static: {
+          verdict: 'impossible',
+          reason: 'not-representable',
+          note: "This rule's own comment states it: the 416 clause needs the specific 'bytes */complete-length' value shape, which the common (name-only) projection cannot see, and static's own validateHttpTransactions needs a plain predicate function rather than the HttpFilterExpression this rule builds.",
+        },
+      },
+    },
+    'rfc9110/server-should-send-headers-indicating-optional-features-in-2xx-response-to-options-request':
+      {
+        covers: ['9.3.7'],
+        declared: { types: ['static', 'analytics', 'test'], severity: 'warn' },
+      },
+    'rfc9110/server-should-send-same-header-fields-in-response-to-head': {
+      covers: ['9.3.2'],
+      declared: { types: ['static', 'analytics', 'test'], severity: 'warn' },
+    },
+    'rfc9110/service-that-selects-uri-for-client-should-use-post-instead-of-put':
+      {
+        covers: ['9.3.4'],
+        declared: { types: ['informational'], severity: 'warn' },
+      },
+    'rfc9110/user-agent-distinguish-between-safe-and-unsafe-methods': {
+      covers: ['9.2.1'],
+      declared: { types: ['informational'], severity: 'warn' },
+    },
+    'rfc9110/user-agent-may-make-own-decision-to-redirect-request-for-3xx-response-to-put-request':
+      {
+        covers: ['9.3.4'],
+        declared: { types: ['informational'], severity: 'hint' },
+      },
   },
 });

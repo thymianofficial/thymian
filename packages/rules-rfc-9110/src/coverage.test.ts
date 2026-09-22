@@ -188,4 +188,92 @@ describe('coverage record', () => {
       expect(violations).toEqual([]);
     }, 30_000);
   });
+
+  describe('methods and range-requests batch (#159)', () => {
+    const scope = [
+      'rfc9110/accept-ranges-may-be-sent-in-trailer',
+      'rfc9110/cache-may-use-responses-to-get-for-satisfy-subsequent-get-and-head-requests',
+      'rfc9110/cache-may-use-responses-to-head-for-satisfy-subsequent-head-requests',
+      'rfc9110/client-may-generate-range-requests-without-accept-ranges',
+      'rfc9110/client-may-send-max-forwards-header-in-option-request',
+      'rfc9110/client-must-ignore-content-length-or-transfer-encoding-headers-in-response-to-connect',
+      'rfc9110/client-must-not-assume-future-range-support-from-accept-ranges',
+      'rfc9110/client-must-not-generate-fields-containing-sensitive-data-in-trace-request',
+      'rfc9110/client-must-not-send-content-in-trace-request',
+      'rfc9110/client-must-send-content-type-header-for-content-in-options-request',
+      'rfc9110/client-must-send-port-number-for-connect-request',
+      'rfc9110/client-should-list-multiple-ranges-in-ascending-order',
+      'rfc9110/client-should-not-automatically-retry-a-failed-automatic-retry',
+      'rfc9110/client-should-not-automatically-retry-request-with-non-idempotent-method',
+      'rfc9110/client-should-not-generate-content-for-delete-request',
+      'rfc9110/client-should-not-generate-content-in-get-request',
+      'rfc9110/client-should-not-generate-content-in-head-request',
+      'rfc9110/client-should-not-request-inefficient-multiple-ranges',
+      'rfc9110/final-recipient-of-trace-request-should-reflect-received-message',
+      'rfc9110/final-recipient-should-exclude-sensitive-request-data-from-response-to-trace',
+      'rfc9110/general-purpose-servers-must-support-get-and-head',
+      'rfc9110/intermediary-must-attempt-to-send-outstanding-data-coming-from-closed-side-for-connect-request',
+      'rfc9110/origin-server-may-accept-connect-request',
+      'rfc9110/origin-server-may-redirect-for-existing-resource-for-201-response',
+      'rfc9110/origin-server-must-disable-safe-methods-for-unsafe-resources',
+      'rfc9110/origin-server-must-ignore-range-header-with-unknown-range-unit',
+      'rfc9110/origin-server-must-not-sent-validator-field-in-response-to-put-request',
+      'rfc9110/origin-server-must-respond-with-correct-response-code-for-put-request',
+      'rfc9110/origin-server-must-send-3xx-response-if-state-change-should-be-applied-to-other-resource',
+      'rfc9110/origin-server-should-ingore-unrecognized-header-and-trailer-fields-received-in-put-request',
+      'rfc9110/origin-server-should-not-rely-on-private-agreements',
+      'rfc9110/origin-server-should-not-rely-on-private-agreements-for-head-requests',
+      'rfc9110/origin-server-should-not-rely-on-private-agreements-to-receive-content-in-delete-request',
+      'rfc9110/origin-server-should-response-with-409-or-415-status-code-to-put-request-for-inconsistent-representation',
+      'rfc9110/origin-server-should-send-400-for-unsupported-partial-put',
+      'rfc9110/origin-server-should-send-405-response-for-unallowed-method',
+      'rfc9110/origin-server-should-send-501-response-for-unrecognized-method',
+      'rfc9110/origin-server-should-send-correct-successful-status-code-to-delete-request',
+      'rfc9110/origin-server-should-send-location-header-for-201-response',
+      'rfc9110/origin-server-should-verify-constraints-for-target-resource-for-put-request',
+      'rfc9110/other-methods-than-get-and-head-are-optional',
+      'rfc9110/proxy-may-discard-range-header-with-unknown-range-unit',
+      'rfc9110/proxy-must-not-automatically-retry-non-idempontent-requests',
+      'rfc9110/proxy-must-not-generate-new-max-forwards-header',
+      'rfc9110/proxy-should-forward-206-with-unknown-range-unit',
+      'rfc9110/recipient-must-anticipate-large-decimal-numerals-for-byte-range',
+      'rfc9110/recipient-must-not-recombine-206-with-unknown-range-unit',
+      'rfc9110/recipient-must-not-recombine-invalid-content-range',
+      'rfc9110/sender-should-indicate-complete-length-for-byte-ranges',
+      'rfc9110/server-may-ignore-or-reject-invalid-range-header',
+      'rfc9110/server-may-ignore-range-header',
+      'rfc9110/server-may-ignore-range-header-for-zero-length-representation',
+      'rfc9110/server-may-omit-header-fields-for-head-response',
+      'rfc9110/server-may-send-accept-ranges-none',
+      'rfc9110/server-must-ignore-content-range-for-unsupported-method',
+      'rfc9110/server-must-ignore-range-header-for-unrecognized-method',
+      'rfc9110/server-must-not-send-content-in-response-to-head',
+      'rfc9110/server-must-not-send-transfer-encoding-or-content-length-headers-in-2xx-response-to-connect-request',
+      'rfc9110/server-must-reject-connect-request-with-empty-or-invalid-port-number',
+      'rfc9110/server-should-send-206-response-for-satisfiable-range',
+      'rfc9110/server-should-send-416-response-for-unsatisfiable-range',
+      'rfc9110/server-should-send-content-range-in-416-response',
+      'rfc9110/server-should-send-headers-indicating-optional-features-in-2xx-response-to-options-request',
+      'rfc9110/server-should-send-same-header-fields-in-response-to-head',
+      'rfc9110/service-that-selects-uri-for-client-should-use-post-instead-of-put',
+      'rfc9110/user-agent-distinguish-between-safe-and-unsafe-methods',
+      'rfc9110/user-agent-may-make-own-decision-to-redirect-request-for-3xx-response-to-put-request',
+    ];
+
+    it('has the expected rule count', () => {
+      expect(scope.length).toBe(67);
+    });
+
+    it('reports zero violations', async () => {
+      const rules = await loadBaselineRules();
+      const violations = checkCoverage({
+        record: coverage,
+        rules,
+        profiles: rfc9110.profiles,
+        scope,
+      });
+
+      expect(violations).toEqual([]);
+    });
+  });
 });
