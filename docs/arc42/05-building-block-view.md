@@ -136,6 +136,7 @@ C4Container
 | Sampler                          | `packages/plugin-sampler`                   | `@thymian/plugin-sampler`                   |
 | WebSocket Proxy                  | `packages/plugin-websocket-proxy`           | `@thymian/plugin-websocket-proxy`           |
 | RFC 9110 Rules                   | `packages/rules-rfc-9110`                   | `@thymian/rules-rfc-9110`                   |
+| RFC 6797 (HSTS) Rules            | `packages/rules-rfc-6797`                   | `@thymian/rules-rfc-6797`                   |
 | API Description Validation Rules | `packages/rules-api-description-validation` | `@thymian/rules-api-description-validation` |
 
 Additional non-diagram packages:
