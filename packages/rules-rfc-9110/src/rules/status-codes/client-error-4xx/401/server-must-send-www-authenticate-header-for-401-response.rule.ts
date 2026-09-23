@@ -7,7 +7,6 @@ import {
   not,
   or,
   responseHeader,
-  responseWith,
   statusCode,
 } from '@thymian/core';
 import { httpRule, singleTestCase } from '@thymian/core';
@@ -57,7 +56,7 @@ export default httpRule(
             not(method('HEAD')),
             or(
               and(authorization(), constant(options.checkAllSecured ?? false)),
-              responseWith(statusCode(401)),
+              statusCode(401),
             ),
           ),
         )
