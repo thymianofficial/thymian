@@ -33,24 +33,6 @@ Order for the first walks, smallest real conformance clause first:
 A source larger than ~25 units is more than one session. Split at a step boundary and hand
 over the artifact that step produced, never mid-survey.
 
-## The seed
-
-Every source in that order except RFC 7034 has already been judged once, in the **security
-source survey**: a statement table with a verdict per context, and a denominator verdict per
-source. That document is each walk's **seed**; steps 2 and 3 start from it.
-
-It lives in the private `thymianofficial/thymian-workspace` repo, on branch
-`pm/54-research-findings`, which stays unmerged by decision (its PR,
-thymianofficial/thymian-workspace#83, is kept open). Read it from a clone of that repo, with
-no checkout:
-
-```sh
-git show origin/pm/54-research-findings:docs/research/security-source-survey.md
-```
-
-A walker who cannot open it loses the seed, not the route: step 2 counts and step 3 judges
-from the source document alone.
-
 ## Step 1 — Fix the provenance
 
 Name the source document and pin its revision. One document, one package, on provenance and
@@ -82,11 +64,10 @@ from your own rules' anchors makes coverage 100% by construction — the one num
 convention exists to keep honest. Read the source and enumerate its units before a rule file
 exists; a unit count that moves every time a rule is added is the tell that it drifted.
 
-**Start from the seed's denominator verdict** for the source — its counting rule and its N
-(RFC 6797: the 14 keyword paragraphs of §6, §7 and §9.2). That is the starting point for
-`units` and `countingRule`, re-counted against the revision step 1 pinned. The seed cannot be
-copied, because it pinned its own revisions and they go stale: RFC 6265bis draft-22 expired
-on 4 June 2026, and WHATWG Fetch is a Living Standard with no version at all.
+**Prior research is a seed.** Where someone has already counted the source, start `units`
+and `countingRule` from their counting rule and N, then re-count against the revision step 1
+pinned. Research pins its own revision, and a draft or a living standard moves under it, so a
+seeded count is re-counted, never copied.
 
 Write `src/coverage.ts` with `units`, the `countingRule` prose, the source `revision`, and a
 `substituteLabel` where the document has no enumerable unit. Populate the unit list; leave
@@ -105,12 +86,11 @@ one sentence, what made something a unit.
 ## Step 3 — Run the executability gate
 
 The step the rest of the walk rests on, and the one to spend the session's legwork in.
-**Start the verdict table from the seed's statement table** for the source (RFC 6797: rows
-H-01–H-20), then re-verify every seeded verdict against the pinned revision — a seeded verdict
-is re-verified, never copied. Its rows are statements, so map them onto your `units`, and it
-speaks the vocabulary this gate replaced, so
-[translate each mark](reference/executability-gate.md#translating-the-seed) as it enters the
-table.
+Where prior research has already judged the source's statements, **seed the verdict table
+from it** and re-verify every seeded verdict against the pinned revision — a seeded verdict is
+re-verified, never copied. Map its rows onto your `units`, and translate any verdict it states
+in another vocabulary into this gate's codes; one with no equivalent code is a cell to judge
+afresh.
 
 For **every unit**, judge **every one of the three contexts** and record one verdict per cell:
 

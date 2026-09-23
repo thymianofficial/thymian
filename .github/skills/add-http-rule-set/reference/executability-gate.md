@@ -89,30 +89,6 @@ place a tier-1 reason may appear, and it appears as `.type('informational', reas
 - **`requires-provocation`.** Not an impossibility. It is a claim about Thymian's sending
   capability, and `plugin-sampler` is pluggable — so it is `tool-limitation` with an issue.
 
-## Translating the seed
-
-The security source survey that seeds step 3 predates this gate and marks its verdicts in the
-older vocabulary. Translate each mark as it enters the verdict table. A mark this table does
-not name, or names without a code, is a cell to judge afresh — not one to fill with the
-nearest code.
-
-A reason code is tier 1 only on a row whose three cells are all `—`. Beside an observable
-cell it explains the row's `—` cells and nothing more: each of them takes a tier-2 code, and
-the rule declares the contexts that came back observable.
-
-| Seed mark                                     | Gate                                 | Note                                                                                                                                                                                                                                                                  |
-| --------------------------------------------- | ------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `GT`                                          | `only-origin-knows`                  | tier 1, on an all-`—` row only                                                                                                                                                                                                                                        |
-| `PEER`                                        | `peer-not-observable`                | tier 1, on an all-`—` row only                                                                                                                                                                                                                                        |
-| `PERM` on a statement of fact or a definition | `nothing-to-check`                   | tier 1, on an all-`—` row only                                                                                                                                                                                                                                        |
-| `PERM` on a BCP 14 `MAY`                      | **no code — re-judge**               | the seed treated a `MAY` as unobservable; the gate makes it checkable at `hint`                                                                                                                                                                                       |
-| `PROV`                                        | **no code — re-judge**               | not an impossibility: `test`-observable where a benign [probe](#test--live-endpoints) reaches it, else `tool-limitation` citing the fuzzing-sampler issue `thymianofficial/thymian-workspace#110`; where the seed pairs `PROV` with `GT`, the `GT` half is the reason |
-| `✓`                                           | observable                           |                                                                                                                                                                                                                                                                       |
-| `✓*`                                          | `static` observable                  | where the user's document leaves the value unpinned, the rule emits `rule-skip` at runtime ([above](#two-codes-that-look-right-and-are-not)); only a duplicate-field-line half is `not-representable` ([below](#static--the-thymian-format))                          |
-| `✓h`                                          | heuristically observable             | never at `error`                                                                                                                                                                                                                                                      |
-| `✓h*`                                         | heuristically observable in `static` | both the `✓*` and the `✓h` notes apply                                                                                                                                                                                                                                |
-| `—`                                           | impossible in that context           | the tier-2 code is still the walker's to choose — the seed names no per-context reason                                                                                                                                                                                |
-
 ## What each context can see
 
 **The common interface is value-blind.** `validateCommonHttpTransactions` sees header,
