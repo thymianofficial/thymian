@@ -152,8 +152,10 @@ function renderConventions(rules: readonly Rule[]): string {
 }
 
 // A declared context defaults to 'observable'; only a 'heuristic' cell
-// ever overrides that for one the rule *does* declare. Rendered with a
-// distinct marker from plain observability, per the acceptance criterion.
+// ever overrides that for one the rule *does* declare. Rendered as its own
+// word, distinct from plain observability — and as a plain word: a marker
+// built from tildes is GitHub-flavoured strikethrough, which renders the
+// cell crossed out.
 function cellSymbol(
   record: CoverageRecord,
   rule: Rule,
@@ -170,7 +172,7 @@ function cellSymbol(
   const declared = new Set(entry?.declared.types ?? []);
   if (declared.has(context)) {
     const cell = entry?.contexts?.[context];
-    return cell === 'heuristic' ? '~heuristic~' : 'observable';
+    return cell === 'heuristic' ? 'heuristic' : 'observable';
   }
 
   const cell = entry?.contexts?.[context];
