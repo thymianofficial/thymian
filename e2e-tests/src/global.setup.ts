@@ -1,5 +1,5 @@
 import { type ChildProcess, execSync, spawn } from 'node:child_process';
-import { mkdtempSync, rmSync } from 'node:fs';
+import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { setTimeout as sleep } from 'node:timers/promises';
@@ -19,6 +19,7 @@ const npmCmd = isWindows ? 'npm.cmd' : 'npm';
 
 let verdaccioProcess: ChildProcess;
 let globalPrefix: string;
+let npmrcDir: string;
 
 function killVerdaccio() {
   if (!verdaccioProcess) {
@@ -69,10 +70,14 @@ function killVerdaccio() {
   }
 }
 
-export default async function setup(_project: TestProject) {
-  // Registry isolation: all npm operations resolve packages from Verdaccio
-  process.env.npm_config_registry = verdaccioUrl;
+function stopRegistry() {
+  killVerdaccio();
+  if (npmrcDir) {
+    rmSync(npmrcDir, { recursive: true, force: true });
+  }
+}
 
+export default async function setup(_project: TestProject) {
   // Kill any stale Verdaccio process occupying the port from a previous run
   // so the new instance can bind to the expected port.
   if (!isWindows) {
@@ -89,11 +94,26 @@ export default async function setup(_project: TestProject) {
     }
   }
 
-  verdaccioProcess = spawn(npmCmd, ['run', 'local-registry'], {
-    cwd: rootDir,
-    detached: true,
-    stdio: 'ignore',
-  });
+  // Config isolation: by default the @nx/js:verdaccio executor writes the
+  // registry and an auth token into ~/.npmrc and ~/.yarnrc, restoring them only
+  // on a graceful exit that a killed run never reaches. `--location none`
+  // turns those writes off; publishing gets its token from a throwaway npmrc.
+  npmrcDir = mkdtempSync(join(tmpdir(), 'thymian-e2e-npmrc-'));
+  const npmrc = join(npmrcDir, '.npmrc');
+  writeFileSync(
+    npmrc,
+    `//localhost:${verdaccioPort}/:_authToken=thymian-e2e-token\n`,
+  );
+
+  verdaccioProcess = spawn(
+    npmCmd,
+    ['run', 'local-registry', '--', '--location', 'none'],
+    {
+      cwd: rootDir,
+      detached: true,
+      stdio: 'ignore',
+    },
+  );
   verdaccioProcess.unref();
 
   let verdaccioReady = false;
@@ -111,7 +131,7 @@ export default async function setup(_project: TestProject) {
     await sleep(200);
   }
   if (!verdaccioReady) {
-    killVerdaccio();
+    stopRegistry();
     throw new Error(
       `Verdaccio did not become ready within 10 seconds at ${verdaccioUrl}`,
     );
@@ -120,20 +140,28 @@ export default async function setup(_project: TestProject) {
   console.log('Publishing e2e test Thymian version');
   const cleanEnv = getCleanEnv();
 
+  // Registry isolation is scoped per call: each npm invocation that needs
+  // Verdaccio gets `npm_config_registry` in its own env. Never set it on this
+  // process's `process.env` (ADR-0006).
   try {
     execSync(
       `npm run local-publish -- --dist-tag latest --version ${thymianVersion}`,
       {
         cwd: rootDir,
         stdio: 'inherit',
-        env: { ...cleanEnv, npm_config_registry: verdaccioUrl },
+        env: {
+          ...cleanEnv,
+          npm_config_registry: verdaccioUrl,
+          // npm refuses to publish without a token, even to an open registry.
+          npm_config_userconfig: npmrc,
+        },
       },
     );
   } catch {
     console.error(
       'Failed to publish thymian version. Shutting down Verdaccio.',
     );
-    killVerdaccio();
+    stopRegistry();
     throw new Error('nx-release-publish did not succeed');
   }
 
@@ -159,7 +187,7 @@ export default async function setup(_project: TestProject) {
       'Failed to install thymian version. Shutting down Verdaccio.',
     );
     rmSync(globalPrefix, { recursive: true, force: true });
-    killVerdaccio();
+    stopRegistry();
     throw new Error('npm install -g failed');
   }
   console.log('Thymian version installed successfully');
@@ -171,6 +199,7 @@ export default async function setup(_project: TestProject) {
 
   // Expose environment for tests
   process.env.THYMIAN_E2E_VERSION = thymianVersion;
+  process.env.THYMIAN_E2E_REGISTRY = verdaccioUrl;
   process.env.THYMIAN_E2E_GLOBAL_BIN = thymianGlobalBin;
   process.env.THYMIAN_E2E_GLOBAL_PREFIX = globalPrefix;
 
@@ -179,7 +208,7 @@ export default async function setup(_project: TestProject) {
 
 function teardown() {
   console.log('Shutting down local registry');
-  killVerdaccio();
+  stopRegistry();
 
   // Clean up isolated global prefix
   if (globalPrefix) {
@@ -188,8 +217,8 @@ function teardown() {
   }
 
   // Clean up environment variables
-  delete process.env.npm_config_registry;
   delete process.env.THYMIAN_E2E_VERSION;
+  delete process.env.THYMIAN_E2E_REGISTRY;
   delete process.env.THYMIAN_E2E_GLOBAL_BIN;
   delete process.env.THYMIAN_E2E_GLOBAL_PREFIX;
 }
