@@ -36,8 +36,13 @@ export default class Init extends BaseCliRunCommand<typeof Init> {
 
       const root = relative(this.flags.cwd, result.root) || result.root;
 
+      // `result.generated` names files inside the surface directory, so the
+      // segment has to be put back: without it the command reports a path that
+      // does not exist.
       for (const file of result.generated) {
-        this.log(`${colorize('green', 'created')} ${join(root, file)}`);
+        this.log(
+          `${colorize('green', 'created')} ${join(root, 'generated', file)}`,
+        );
       }
 
       if (result.tsconfig === 'written') {

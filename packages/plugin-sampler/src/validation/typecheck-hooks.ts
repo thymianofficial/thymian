@@ -197,7 +197,13 @@ async function userCompilerOptions(paths: SamplerPaths): Promise<{
     return { options: fallback, diagnostics: [] };
   }
 
-  const read = ts.readConfigFile(paths.tsconfigPath, ts.sys.readFile);
+  // Normalized before it reaches TypeScript, which compares the name it is
+  // given against the forward-slashed one it derives for the diagnostic's
+  // source file. Handed a `node:path` value, that comparison is an internal
+  // assertion failure on Windows — and only when a diagnostic exists at all,
+  // so a malformed tsconfig crashed where a valid one was fine.
+  const tsconfigPath = toTypeScriptPath(paths.tsconfigPath);
+  const read = ts.readConfigFile(tsconfigPath, ts.sys.readFile);
 
   if (read.error) {
     return { options: fallback, diagnostics: [read.error] };
@@ -206,9 +212,9 @@ async function userCompilerOptions(paths: SamplerPaths): Promise<{
   const parsed = ts.parseJsonConfigFileContent(
     read.config,
     ts.sys,
-    paths.root,
+    toTypeScriptPath(paths.root),
     undefined,
-    paths.tsconfigPath,
+    tsconfigPath,
   );
 
   return {
