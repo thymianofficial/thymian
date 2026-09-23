@@ -46,12 +46,26 @@ Derive one slug and use it, character for character, in all three identifier pla
 | rule-id prefix (`<slug>/<rule-name>`)   | namespaces config keys and profile entries             |
 | `RuleSet.name`                          | display only                                           |
 
+For `rules-rfc-6797` that is `rfc-6797` everywhere. `rules-rfc-9110`'s `rfc9110/` prefix
+predates the rule; follow the rule.
+
 Copy the package scaffolding from `packages/rules-rfc-9110` — `package.json`, `project.json`,
 `tsconfig*.json`, `vitest.config.ts`, `eslint.config.mjs`, and `src/index.ts`'s
 `pattern: 'rules/**/*.rule.js'` glob. `"files": ["dist"]` stays as it is; step 7 depends on it.
 
-**Done when** the slug reads identically in all three places and `nx build rules-<slug>`
-succeeds on an empty rule directory.
+Then register the package everywhere the repository lists its packages: the commit scope in
+`commitlint.config.js` and the scope table in `CONTRIBUTING.md`, `excludePackages` in
+`.license-checker.json`, the root `tsconfig.json` references, and the package table in
+`docs/arc42/05-building-block-view.md`. `npm install` links the workspace package; keep its
+lockfile change to the new package's own entries. `nx sync` adds the `tsconfig.lib.json`
+references for the devDependencies step 5 brings.
+
+Joining the CLI's defaults — a dependency of `packages/thymian`, an entry in `common-cli`'s
+`default-config.ts` and in the config schema's `ruleSets` default — is a separate decision:
+it changes what every run without a config reports.
+
+**Done when** the slug reads identically in all three places, the package is registered, and
+`nx build rules-<slug>` succeeds on an empty rule directory.
 
 ## Step 2 — Declare the denominator
 
@@ -170,10 +184,21 @@ A declared context claims the assertion is **actually evaluated**, not conceivab
 fixture per rule per declared context, and a package meta-test that asserts the bar, on the
 precedent of `src/profiles.test.ts`.
 
+Run every fixture through its context's **real engine** — the linter's, the tester's and the
+analyzer's own `ApiContext`, driven by core's `runRules` as each plugin drives it. A stub
+context proves the rule function, not that the context evaluates it. `rules-rfc-6797` is the
+shape to copy: `src/test/harness.ts` runs a rule in each context with the three plugins as
+devDependencies, each rule's fixtures sit beside it as `<name>.fixtures.ts` (excluded from
+the lib build), and `src/fixtures.test.ts` asserts the bar and runs them. A fixture pairs an
+input the rule must flag with one it must pass, plus one it must skip where the rule emits a
+runtime `rule-skip`.
+
 `test`-context fixtures need one guard: `run()` defaults `checkStatusCode: true`, which skips
 the case before the assertion runs whenever the live status differs from the declared one.
 Pass `run({ checkStatusCode: false })` on the step whose status you are deliberately changing —
-`origin-server-should-send-400-for-unsupported-partial-put` shows the shape.
+`origin-server-should-send-400-for-unsupported-partial-put` shows the shape — and give that
+rule a fixture whose server answers with an undeclared status, so the fixture goes red if the
+opt-out is ever lost.
 
 **Done when** the meta-test passes with zero exemptions and `nx test rules-<slug>` is green.
 
@@ -187,12 +212,20 @@ user config, and the `ruleSeverity: 'error'` floor filter runs **after** the pro
 - **`recommended`** — convention rules on, plus promotions **gated on a concern tag and
   non-heuristic status**. State the promotion's reason in `explanation`.
 - **`minimal`** — `error` + non-heuristic + exactly-observable, **derived from `coverage.ts`**
-  rather than transcribed.
+  with core's `deriveMinimalProfile` rather than transcribed.
 
 **Convention rules** — an obligation no source imposes, over a mechanism a source defines
 (send HSTS at all, set `HttpOnly`) — ship `.severity('off')` with an executable `.type()`, and
 `recommended` promotes them. The executable `.type()` is what distinguishes them from an
-informational rule.
+informational rule. A convention rule covers **no unit**: the unit it resembles gets its own
+rule — a `MAY` its `hint`, a conditional `SHOULD` its heuristic — so `strict` still checks it.
+
+Where a source's requirement hangs on a condition no exchange shows (a SHOULD that binds only
+a host that has opted in), its rule is heuristic and can never be promoted. A **convention
+twin** asks the same of every server, exactly: ship it `off`, and let `recommended` turn it on
+and the conditional rule off, so one response is reported once. `rules-rfc-6797`'s
+`server-should-send-sts-header-over-secure-transport` and
+`server-should-redirect-insecure-requests-to-https` are the shape.
 
 Check the floor-filter interaction before shipping: a package whose `strict` profile is all
 `warn` loads **zero** rules under the default `ruleSeverity`.
@@ -213,6 +246,10 @@ suite, not by a separate CI step. `nx run <pkg>:generate-coverage` (writes) and
 **local and release-time lane** — what a maintainer runs by hand, and what the one
 release-time assertion in `scripts/release.ts` runs before publish. Both call the same
 checker the meta-test does; neither is a second implementation of it.
+
+The meta-tests and the generator load the **built** package, so run `nx build` before
+trusting either — and after renaming or deleting a rule file, delete `dist/` first: `tsc`
+leaves the old `.rule.js` behind, and the loader still finds it.
 
 **Done when** the package's meta-test passes, `nx run <pkg>:check-coverage` reports no
 violations, and regenerating the README produces no diff.

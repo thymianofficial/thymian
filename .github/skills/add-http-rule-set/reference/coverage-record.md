@@ -24,24 +24,25 @@ import { defineCoverage } from '@thymian/core';
 
 export default defineCoverage({
   source: {
-    revision: 'RFC 6797 (December 2012)',
-    countingRule: 'One unit per BCP 14 keyword addressed to a server or a UA.',
+    revision: 'RFC 6797 (November 2012)',
+    countingRule: 'One unit per paragraph of §6, §7 and §9.2 — the chapters addressed to the host — that contains a BCP 14 keyword.',
     hasKeywordBasis: true, // declared, not derived from countingRule's own prose
     // substituteLabel: '…', // only where the document has no enumerable unit
   },
   units: {
-    '§6.1': 'The Strict-Transport-Security header field…',
+    '6.1/3': 'UAs MUST ignore an STS header field that does not conform to the syntax.',
+    '7.1/1': 'Over secure transport, an HSTS Host SHOULD include an STS header field that MUST satisfy the grammar, and MUST include only one.',
     // …
   },
   rules: {
-    'rfc6797/hsts-host-must-not-send-sts-over-http': {
-      covers: ['§6.1'],
+    'rfc-6797/hsts-host-must-send-sts-header-conforming-to-grammar': {
+      covers: ['6.1/3', '7.1/1'], // one rule, two units…
       declared: { types: ['static', 'test', 'analytics'], severity: 'error' },
       // No `contexts` needed: every context this rule declares defaults to
       // observable, and it declares all three.
     },
-    'rfc6797/sts-max-age-must-be-a-non-negative-integer': {
-      covers: ['§6.1', '§6.1.1'], // one rule, two units
+    'rfc-6797/hsts-host-must-send-only-one-sts-header': {
+      covers: ['7.1/1'], // …and one unit, several rules
       declared: { types: ['test', 'analytics'], severity: 'error' },
       contexts: {
         // A cell exists only for a context this entry does NOT declare
@@ -66,6 +67,10 @@ parsed out of `countingRule`'s prose: a real keyword-based source can describe i
 rule without the word "keyword" at all, and a keyword-less source's prose can still mention
 the word while explaining why it doesn't apply — no regex over text written for a human reader
 can be trusted for the checker's citation-requirement assertion.
+
+Key units by the source's own structure. Where one section holds several units, a
+`<section>/<n>` id — n counting that section's units in order — stays re-derivable from the
+counting rule alone.
 
 `substituteLabel` names what stands in where units are not statements: for RFC 9110 §17, the
 14–15 sections it cross-references.

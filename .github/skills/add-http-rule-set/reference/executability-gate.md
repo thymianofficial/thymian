@@ -114,17 +114,30 @@ Two traps:
 - **Duplicate field lines are absent** from the format, and no context has a count
   primitive. An assertion about two field lines of one header name is `not-representable`
   in `static`.
-- **Server URLs are lossy and silently wrong.** An unresolvable variable in the scheme or
-  the port throws into an empty `catch` and falls back to a fabricated
+- **Server URLs are lossy and silently wrong.** A document with no `servers`, a relative
+  server URL, or an unresolvable variable in the scheme or port falls back to a fabricated
   `http://localhost:8080`, so `https://api.example.com:{port}/v1` lints as `http`. Expect
   false violations from "must be https" assertions and empty selection from any rule scoped
-  `protocol('https')`. Scope around it rather than asserting through it.
+  `protocol('https')`. Scope around it rather than asserting through it — skip exactly that
+  fallback — and do the same in `test`, whose requests carry the described origin.
+- **A runtime skip needs a validator that returns what it builds.**
+  `LintContext.validateHttpTransactions` keeps only results that carry a violation, so a
+  `rule-skip` for an unpinned value goes through `validateCommonHttpTransactions` with a
+  function validator instead, reading the declared transaction back through
+  `ctx.format.getThymianHttpTransactionById(location.elementId)`.
 
 ### `test` — live endpoints
 
 `test` sends only what the specification describes, which is a property of the context
 rather than a per-rule defect. Where it is the specific blocker for one unit, that is
 `condition-not-producible`.
+
+**The candidate filter picks what to send, from the description.** It selects _described_
+transactions, so a response-side condition in it — `responseHeader(...)`, a status — sends
+only the requests whose description already declares that response, and never sees the server
+doing what the description does not say. Keep the candidate filter request-side and judge the
+live response in the validator. The recorded request carries the described origin even when
+a target URL sent it elsewhere, so a scheme read from it is the description's.
 
 **Probes.** A rule may send a benign robustness probe behind the explicit per-target consent
 switch, which is **off by default** and scoped by `skipOrigins`. Once on, there is no method
