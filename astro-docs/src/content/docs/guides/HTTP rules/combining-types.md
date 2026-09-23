@@ -158,40 +158,22 @@ Override a specific context when:
 
 ```typescript
 import { httpRule } from '@thymian/core';
-import { type JSONSchemaType } from '@thymian/core';
-import { and, authorization, constant, method, not, or, responseHeader, responseWith, statusCode } from '@thymian/core';
+import { and, method, not, responseHeader, statusCode } from '@thymian/core';
 import { singleTestCase } from '@thymian/core';
-
-type Options = {
-  checkAllSecured?: boolean;
-};
-
-const optionSchema: JSONSchemaType<Options> = {
-  type: 'object',
-  additionalProperties: false,
-  properties: {
-    checkAllSecured: {
-      nullable: true,
-      type: 'boolean',
-      default: false,
-    },
-  },
-};
 
 export default httpRule('401-with-custom-test')
   .severity('error')
   .type('static', 'analytics', 'test')
-  .options<Options>(optionSchema)
   .description('401 responses must include WWW-Authenticate header')
   .appliesTo('server')
   // Common logic for static and analytics
   .rule((ctx) => ctx.validateCommonHttpTransactions(statusCode(401), not(responseHeader('www-authenticate'))))
   // Custom test logic
-  .overrideTest((testContext, options) =>
+  .overrideTest((testContext) =>
     testContext.httpTest(
       singleTestCase()
-        .forTransactionsWith(and(not(method('HEAD')), or(and(authorization(), constant(options.checkAllSecured)), responseWith(statusCode(401)))))
-        .run()
+        .forTransactionsWith(and(not(method('HEAD')), statusCode(401)))
+        .run({ authorize: false })
         .expectForTransactions(responseHeader('www-authenticate'))
         .done(),
     ),
@@ -201,10 +183,9 @@ export default httpRule('401-with-custom-test')
 
 **Why override?**
 
-- Static and analyze can use simple common logic
-- Test needs sophisticated logic to decide which endpoints to test
-- Uses rule options to control behavior
-- Avoids testing unnecessary endpoints
+- Static and analyze only inspect responses that already exist, so the common logic is enough
+- Test has to provoke the 401 itself: `authorize: false` withholds credentials so the server actually answers with 401
+- Selecting on `statusCode(401)` pins each test case to the transaction that declares the 401, so the harness compares the live response against 401 rather than against another documented status
 
 ## Common Hybrid Patterns
 
