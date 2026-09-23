@@ -31,11 +31,26 @@ export interface ExecThymianResult {
 }
 
 /**
+ * npx fetches `thymian@<e2e version>`, which exists only on the local
+ * Verdaccio registry, so the registry is passed to that call explicitly.
+ */
+function getNpxEnv(): Record<string, string> {
+  const registry = process.env.THYMIAN_E2E_REGISTRY;
+  if (!registry) {
+    throw new Error(
+      'THYMIAN_E2E_REGISTRY must be set by the global setup before npx mode can run.',
+    );
+  }
+  return { ...getCleanEnv(), npm_config_registry: registry };
+}
+
+/**
  * Resolve the command and argument list for the current installation mode.
  */
 function resolveThymianCommand(args: string[]): {
   cmd: string;
   argv: string[];
+  env: Record<string, string>;
 } {
   const version = process.env.THYMIAN_E2E_VERSION ?? '';
   switch (installationMode) {
@@ -43,11 +58,13 @@ function resolveThymianCommand(args: string[]): {
       return {
         cmd: npxCmd,
         argv: ['--yes', `thymian@${version}`, ...args],
+        env: getNpxEnv(),
       };
     case 'global':
       return {
         cmd: process.env.THYMIAN_E2E_GLOBAL_BIN ?? 'thymian',
         argv: args,
+        env: getCleanEnv(),
       };
     case 'local':
       throw new Error('Local installation mode not yet implemented');
@@ -61,8 +78,7 @@ function spawnThymian(
   args: string[],
   opts: { cwd?: string } = {},
 ): SpawnSyncReturns<string> {
-  const { cmd, argv } = resolveThymianCommand(args);
-  const env = getCleanEnv();
+  const { cmd, argv, env } = resolveThymianCommand(args);
   return spawnSync(cmd, argv, {
     cwd: opts.cwd,
     env,
@@ -114,8 +130,7 @@ export function execThymianRawAsync(
   args: string[],
   opts: { cwd?: string; allowFailure?: boolean } = {},
 ): Promise<ExecThymianResult> {
-  const { cmd, argv } = resolveThymianCommand(args);
-  const env = getCleanEnv();
+  const { cmd, argv, env } = resolveThymianCommand(args);
 
   const timeoutMs = 90_000;
   const controller = new AbortController();
@@ -214,22 +229,8 @@ export function execThymianResult(
 }
 
 export function renderThymian(args: string[], opts?: { cwd?: string }) {
-  const version = process.env.THYMIAN_E2E_VERSION ?? '';
-  const env = getCleanEnv();
-  switch (installationMode) {
-    case 'npx':
-      return render('npx', ['--yes', `thymian@${version}`, ...args], {
-        ...opts,
-        env,
-      });
-    case 'global':
-      return render(process.env.THYMIAN_E2E_GLOBAL_BIN ?? 'thymian', args, {
-        ...opts,
-        env,
-      });
-    case 'local':
-      throw new Error('Local installation mode not yet implemented');
-  }
+  const { cmd, argv, env } = resolveThymianCommand(args);
+  return render(cmd, argv, { ...opts, spawnOpts: { env } });
 }
 
 export function copyFixturesToTempDir(sourceDir: string, tempDir: string) {

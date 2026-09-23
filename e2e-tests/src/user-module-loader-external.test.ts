@@ -37,11 +37,11 @@ function runHarness(): string {
 describe('external built-loader harness', () => {
   beforeAll(() => {
     const version = process.env.THYMIAN_E2E_VERSION;
-    const registry = process.env.npm_config_registry;
+    const registry = process.env.THYMIAN_E2E_REGISTRY;
 
     if (!version || !registry) {
       throw new Error(
-        'THYMIAN_E2E_VERSION and npm_config_registry must be set by the global setup (which publishes to Verdaccio) before this harness runs.',
+        'THYMIAN_E2E_VERSION and THYMIAN_E2E_REGISTRY must be set by the global setup (which publishes to Verdaccio) before this harness runs.',
       );
     }
 

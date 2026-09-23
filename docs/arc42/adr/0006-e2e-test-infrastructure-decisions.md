@@ -16,6 +16,8 @@ Thymian's e2e test suite verifies the installed CLI tool against a local Verdacc
 
 4. **Verdaccio process cleanup**: The Verdaccio child process started via `exec()` created an attached process group. On teardown, a simple `.kill()` could leave orphaned child processes holding port 4873.
 
+5. **User config contamination** _(added 2026-09-23)_: npm env vars take precedence over `.npmrc`, so a process-wide `npm_config_registry` redirected every npm call the run forked, and the Verdaccio executor's writes to `~/.npmrc` and `~/.yarnrc` survived any run whose teardown killed it, leaving the developer's npm pointed at a dead registry.
+
 ## Decision
 
 ### Isolate global installs via `npm_config_prefix`
@@ -33,7 +35,13 @@ execSync(`npm install -g thymian@${version}`, {
 
 ### Scope registry via environment variables, not `.npmrc`
 
-We will use `process.env.npm_config_registry` to point all npm operations at Verdaccio instead of modifying `.npmrc` files or running `npm config set`. This is the same approach used by Nx's own e2e infrastructure. Child processes inherit the env var automatically, and cleanup is just `delete process.env.npm_config_registry`.
+_Amended 2026-09-23: registry scoped per call instead of process-wide, and Verdaccio no longer writes user config._
+
+We will point npm at Verdaccio with the `npm_config_registry` environment variable instead of modifying `.npmrc` files or running `npm config set`. The variable is scoped **per call**: each npm or npx invocation that needs Verdaccio (local publish, the global install, the loader-harness installs, `npx` installation mode) gets it on that call alone: in its own `env` object, or as a `--registry` flag. It is never set on the global-setup process's own `process.env`, because npm env vars take precedence over `.npmrc`, and a process-wide assignment would redirect every npm invocation the run forks, not only the intended ones.
+
+The registry URL reaches test files through `THYMIAN_E2E_REGISTRY`, set by the global setup alongside `THYMIAN_E2E_VERSION`, `THYMIAN_E2E_GLOBAL_BIN` and `THYMIAN_E2E_GLOBAL_PREFIX`, and deleted in teardown.
+
+The `@nx/js:verdaccio` executor behind `npm run local-registry` by default writes the registry and an auth token into the developer's `~/.npmrc` and `~/.yarnrc`, restoring them only on a graceful exit that a killed run never reaches. The global setup therefore starts it with `--location none`, which turns those writes off, and gives the local-publish call (npm will not publish without a token, even to an open registry) a throwaway npmrc in the OS temp directory via `npm_config_userconfig`. The developer's user config is never written.
 
 ### Strip environment variables for child processes
 
@@ -86,6 +94,7 @@ We will use OS-assigned ports (binding to port 0 and reading the assigned port) 
 
 ## Status History
 
-| Date       | Status   | Notes         |
-| ---------- | -------- | ------------- |
-| 2026-03-31 | Accepted | Initial draft |
+| Date       | Status   | Notes                                                                                      |
+| ---------- | -------- | ------------------------------------------------------------------------------------------ |
+| 2026-03-31 | Accepted | Initial draft                                                                              |
+| 2026-09-23 | Amended  | Registry scoped per call instead of process-wide; Verdaccio started with `--location none` |
