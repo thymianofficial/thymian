@@ -237,7 +237,10 @@ describe('coverage renderer', () => {
     expect(output).toContain('impossible (nothing-to-check)');
   });
 
-  it('renders a heuristic cell visibly distinct from an exactly-observable one', () => {
+  // A plain word: `~text~` is GitHub-flavoured strikethrough, and the
+  // generator's Prettier pass rewrites it to `~~text~~`, so a marker built from
+  // tildes renders a heuristic cell crossed out — read as "not heuristic".
+  it('renders a heuristic cell as its own plain word, distinct from an exactly-observable one', () => {
     const record = defineCoverage({
       source,
       units: {},
@@ -257,7 +260,7 @@ describe('coverage renderer', () => {
     });
 
     const verdictsSection = output.slice(output.indexOf('## Rule verdicts'));
-    expect(verdictsSection).toContain('~heuristic~');
+    expect(verdictsSection).toMatch(/\|\s*heuristic\s*\|/);
     expect(verdictsSection).not.toMatch(/\|\s*observable\s*\|/);
   });
 
