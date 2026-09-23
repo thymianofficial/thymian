@@ -352,7 +352,12 @@ export const oops = beforeEach('this is not a selector at all', () => {});
 
     await expect(harness.show(LAUNCHES)).resolves.toBeDefined();
     await expect(harness.sync()).resolves.toBeDefined();
-  });
+    // Three real operations against a real compiler — `validate` typechecks the
+    // hooks, and `show` and `sync` each regenerate the surface — where the
+    // tests around it do one. It is the slowest case in the package and sat
+    // just under vitest's 5s default, so it timed out on whichever runner was
+    // busiest rather than on any particular platform.
+  }, 20_000);
 
   it('reports every unresolved hook, not just the first', async () => {
     const harness = await sampler();

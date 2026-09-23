@@ -29,7 +29,7 @@ describe('thymian sampler init, sync and validate', () => {
 
     const output = execThymian(['sampler', 'init'], { cwd: dir });
 
-    expect(output).toContain('Sampler ready');
+    expect(output).toContain(join(GENERATED, 'request-types.d.ts'));
     expect(output).toContain('"exclude"');
     expect(existsSync(join(dir, GENERATED, 'request-types.d.ts'))).toBe(true);
     expect(existsSync(join(dir, GENERATED, 'hooks-api.d.ts'))).toBe(true);
@@ -40,7 +40,7 @@ describe('thymian sampler init, sync and validate', () => {
     const check = execThymianRaw(['sampler', 'sync', '--check'], { cwd: dir });
 
     expect(check.exitCode).toBe(0);
-    expect(check.output).toContain('match this API description');
+    expect(check.output).toContain('Sampler types are in sync.');
   }, 180_000);
 
   it('regenerating from nothing reproduces the committed surface byte for byte', () => {
@@ -157,7 +157,7 @@ export const stale = beforeEach(
     const result = execThymianRaw(['sampler', 'init'], { cwd: dir });
 
     expect(result.exitCode).toBe(0);
-    expect(result.output).toContain('Sampler ready');
+    expect(result.output).toContain(join(GENERATED, 'request-types.d.ts'));
     expect(existsSync(join(dir, GENERATED, 'request-types.d.ts'))).toBe(true);
 
     const check = execThymianRaw(['sampler', 'sync', '--check'], {
