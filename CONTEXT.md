@@ -160,6 +160,11 @@ cannot silently register a rule that never runs.
 
 ### Sampling
 
+The vocabulary of authoring hooks — `Hook`, `Transaction Filter`, `Path Glob`, `Seed`
+and `Outcome` — lives one level down, in
+[`packages/plugin-sampler/CONTEXT.md`](./packages/plugin-sampler/CONTEXT.md). What stays
+here is what the rest of the tool names too.
+
 **Sample**:
 Test data for one `Transaction`, derived as a deterministic in-memory projection of the
 `Thymian Format`. Virtual: nothing is written to disk as canonical state, so a sample cannot
@@ -179,30 +184,6 @@ reports, error messages — so any printed transaction can be pasted back as a h
 label naming only a request or only a response uses the selector grammar's corresponding half.
 _Avoid_: pattern, matcher
 
-**Hook**:
-A user-owned TypeScript function that shapes or authorizes a run — generating a sample,
-running before or after a transaction, supplying credentials. Targeted by a `Selector`, a list
-of them, or a `Transaction Filter`. The only artifact in sampling the user owns, and the
-compiler is what reports one that no longer matches anything.
-
-**Transaction Filter**:
-A typed description of a _set_ of `Transaction`s, for a `Hook` that should apply to more than
-one. Fields AND-combine, arrays within a field OR-combine, and `not` takes filter fields one
-level deep. Every value is a specification-derived union except a `Path Glob`. A filter whose
-values are all individually valid but which together match nothing is a `sampler validate`
-error rather than a compile error — the type system can check each field, not their
-intersection.
-_Avoid_: query, selector set, matcher
-
-**Path Glob**:
-The one wildcard form a `Transaction Filter`'s path field accepts: `*` matches exactly one
-path segment and a trailing `**` matches one or more, against the specification's path
-templates. Braces are literal, matching is case-sensitive and anchored. Only the _shape_ is
-compile-checked, so a wildcard-free string must be an exact `Path`; a glob that matches
-nothing is a `sampler validate` error. Type-level matching against the declared paths was
-measured and rejected on language-server cost.
-_Avoid_: pattern, wildcard, regex
-
 **Operation**:
 What a `Selector`'s request half names: a method, a path, and the media type the request
 declares. Every `Transaction` sharing it is one response that operation declares, which is
@@ -212,19 +193,6 @@ operations here, because they are two different requests to send. Note that the 
 `Endpoints` map is keyed by `Selector`, so it is a map of transactions and not of
 operations; the operations are the keys of `Responses`.
 _Avoid_: route
-
-**Seed**:
-A request a `Hook` makes through `utils.request` to put the system into the state its
-transaction needs. Runs the target transaction's own hook pipeline by default, so seeding
-behaves like the real run. Names the `Transaction` it wants to initiate, not the response it
-will get: the answer is every response that operation declares.
-
-**Outcome**:
-What one `Transaction` earned in a sampler check — `passed` (executed, response as described),
-`failed` (executed, response invalid), `skipped` (could not be executed as described, e.g. its
-`Seed` was answered differently), or `errored` (the attempt itself broke). A check assigns
-every transaction exactly one outcome, and any outcome but `passed` fails the run.
-_Avoid_: status, result
 
 ### Reporting
 
