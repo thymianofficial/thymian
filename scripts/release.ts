@@ -3,11 +3,65 @@ import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { stdin as input, stdout as output } from 'node:process';
 import * as readline from 'node:readline/promises';
+import { pathToFileURL } from 'node:url';
 
 import { createProjectGraphAsync } from '@nx/devkit';
 import { ReleaseClient } from 'nx/release/index.js';
 import yargs from 'yargs';
 import { hideBin } from 'yargs/helpers';
+
+// Same marker `scripts/generate-coverage.ts` writes between. Not imported
+// from there: each root script is self-contained, and this is the one
+// string the two need to agree on, not a shape worth a shared module for.
+const COVERAGE_MARKER = '<!-- COVERAGE:START';
+
+// The one release-time coverage assertion (#150/#154): not the full eight-
+// assertion suite `checkCoverage` runs — that would cost a build of every
+// package to re-prove what CI already proved — but a package whose rule
+// set carries a coverage record and whose README carries no markers for it
+// is the one unrecoverable case, since npm versions are immutable. A
+// package with no coverage record at all is unaffected (ADR-0021 §5: a
+// self-referential package legitimately carries none).
+async function assertCoverageMarkersIfRecordShipped(
+  projectRoot: string,
+  npmName: string,
+  main: unknown,
+): Promise<void> {
+  const entry = typeof main === 'string' ? main : 'dist/index.js';
+  const entryPath = join(projectRoot, entry);
+  if (!existsSync(entryPath)) {
+    return;
+  }
+
+  const { isRuleSet } = await import('@thymian/core');
+
+  let ruleSet: unknown;
+  try {
+    ruleSet = (
+      (await import(pathToFileURL(entryPath).href)) as { default?: unknown }
+    ).default;
+  } catch {
+    // Not every published package is a rule set (or even importable this
+    // way in every environment); nothing to assert if it doesn't load.
+    return;
+  }
+
+  if (!isRuleSet(ruleSet) || ruleSet.coverage === undefined) {
+    return;
+  }
+
+  const readmePath = join(projectRoot, 'README.md');
+  const readme = existsSync(readmePath)
+    ? readFileSync(readmePath, 'utf-8')
+    : '';
+  if (!readme.includes(COVERAGE_MARKER)) {
+    console.error(
+      `❌ ABORTING: ${npmName} carries a coverage record but its README has no coverage markers. ` +
+        `Run \`nx run ${npmName.replace('@thymian/', '')}:generate-coverage\` after adding them.`,
+    );
+    process.exit(1);
+  }
+}
 
 // Allowlist of GitHub usernames authorized to publish latest releases
 const VALID_AUTHORS_FOR_LATEST: string[] = [
@@ -609,6 +663,12 @@ async function publishPackagesWithNpm(
         );
         process.exit(1);
       }
+
+      await assertCoverageMarkersIfRecordShipped(
+        projectRoot,
+        npmName,
+        pkgJson['main'],
+      );
 
       console.log(`📦 Publishing ${npmName}@${onDiskVersion} [tag: ${tag}]...`);
 
