@@ -1,30 +1,15 @@
 import { type JSONSchemaType } from '@thymian/core';
-import {
-  and,
-  authorization,
-  constant,
-  method,
-  not,
-  or,
-  responseHeader,
-  statusCode,
-} from '@thymian/core';
+import { and, method, not, responseHeader, statusCode } from '@thymian/core';
 import { httpRule, singleTestCase } from '@thymian/core';
 
-type Options = {
-  checkAllSecured?: boolean;
-};
+type Options = Record<never, never>;
 
+// The rule takes no options. The empty schema exists to reject the removed
+// `checkAllSecured` option: a rule without a schema would silently ignore it.
 const optionSchema: JSONSchemaType<Options> = {
   type: 'object',
   additionalProperties: false,
-  properties: {
-    checkAllSecured: {
-      nullable: true,
-      type: 'boolean',
-      default: false,
-    },
-  },
+  properties: {},
 };
 
 export default httpRule(
@@ -48,18 +33,10 @@ export default httpRule(
       not(responseHeader('www-authenticate')),
     ),
   )
-  .overrideTest((testContext, options) =>
+  .overrideTest((testContext) =>
     testContext.httpTest(
       singleTestCase()
-        .forTransactionsWith(
-          and(
-            not(method('HEAD')),
-            or(
-              and(authorization(), constant(options.checkAllSecured ?? false)),
-              statusCode(401),
-            ),
-          ),
-        )
+        .forTransactionsWith(and(not(method('HEAD')), statusCode(401)))
         .run({ authorize: false })
         .expectForTransactions(responseHeader('www-authenticate'))
         .done(),

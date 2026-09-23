@@ -1,3 +1,5 @@
+import { fileURLToPath } from 'node:url';
+
 import {
   createHttpTestContext,
   type HttpResponse,
@@ -5,6 +7,7 @@ import {
   type HttpTestCase,
   type HttpTestContextLocals,
   type HttpTestPipeline,
+  loadRules,
   NoopLogger,
   type TestContext,
   ThymianFormat,
@@ -94,5 +97,20 @@ describe('rfc9110/server-must-send-www-authenticate-header-for-401-response (tes
     });
 
     expect(cases.map((c) => c.status)).toEqual(['skipped']);
+  });
+
+  it('rejects the removed checkAllSecured option instead of silently ignoring it', async () => {
+    const rulePath = fileURLToPath(
+      new URL(
+        './server-must-send-www-authenticate-header-for-401-response.rule.ts',
+        import.meta.url,
+      ),
+    );
+
+    await expect(
+      loadRules(rulePath, () => true, {
+        [rule.meta.name]: { options: { checkAllSecured: true } },
+      }),
+    ).rejects.toMatchObject({ name: 'InvalidRuleOptionError' });
   });
 });
