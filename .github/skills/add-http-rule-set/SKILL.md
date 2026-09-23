@@ -64,6 +64,11 @@ from your own rules' anchors makes coverage 100% by construction — the one num
 convention exists to keep honest. Read the source and enumerate its units before a rule file
 exists; a unit count that moves every time a rule is added is the tell that it drifted.
 
+**Prior research is a seed.** Where someone has already counted the source, start `units`
+and `countingRule` from their counting rule and N, then re-count against the revision step 1
+pinned. Research pins its own revision, and a draft or a living standard moves under it, so a
+seeded count is re-counted, never copied.
+
 Write `src/coverage.ts` with `units`, the `countingRule` prose, the source `revision`, and a
 `substituteLabel` where the document has no enumerable unit. Populate the unit list; leave
 the per-unit verdicts to step 3.
@@ -80,8 +85,14 @@ one sentence, what made something a unit.
 
 ## Step 3 — Run the executability gate
 
-The step the rest of the walk rests on, and the one to spend the session's legwork in. For
-**every unit**, judge **every one of the three contexts** and record one verdict per cell:
+The step the rest of the walk rests on, and the one to spend the session's legwork in.
+Where prior research has already judged the source's statements, **seed the verdict table
+from it** and re-verify every seeded verdict against the pinned revision — a seeded verdict is
+re-verified, never copied. Map its rows onto your `units`, and translate any verdict it states
+in another vocabulary into this gate's codes; one with no equivalent code is a cell to judge
+afresh.
+
+For **every unit**, judge **every one of the three contexts** and record one verdict per cell:
 
 - **observable** — the context can evaluate the assertion exactly
 - **heuristically observable** — visible on the wire, but does not strictly imply
@@ -97,9 +108,10 @@ one of them works.
 **world** reason. Reaching for it early is the failure this step exists to prevent: 231 of
 `rules-rfc-9110`'s 402 rules are informational, written before this gate existed.
 
-**Done when** the verdict table is complete — every unit × three contexts — every impossible
-cell carries a vocabulary code, and every `tool-limitation` cites a tracker issue. Write the
-whole table before opening a rule file.
+**Done when** the verdict table is complete — every unit × three contexts, every seeded cell
+re-verified against the pinned revision — every impossible cell carries a vocabulary code,
+and every `tool-limitation` cites a tracker issue. Write the whole table before opening a
+rule file.
 
 → [`reference/executability-gate.md`](reference/executability-gate.md) for the verdict
 procedure, both reason tiers, and what each context can actually see.
