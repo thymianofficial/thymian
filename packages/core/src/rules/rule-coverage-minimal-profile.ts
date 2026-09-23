@@ -1,9 +1,9 @@
+import type { RulesConfiguration } from './rule-configuration.js';
 import type {
   CoverageContext,
   CoverageEntry,
   CoverageRecord,
-  RulesConfiguration,
-} from '@thymian/core';
+} from './rule-coverage.js';
 
 // `minimal` (thymianofficial/thymian-workspace#60, #64): the package-boundary
 // decision defined it as error severity plus at least one declared context
@@ -11,6 +11,10 @@ import type {
 // retro-tag sweep ruled it derived from the coverage record, never
 // transcribed, so this is one function instead of a list of ~90 rule names
 // that would drift the moment a batch's cells changed.
+//
+// Lives in core, beside the record it reads, because every spec package
+// derives its `minimal` the same way: a second package carrying its own copy
+// is a second definition of `minimal` waiting to drift from the first.
 //
 // Reads `record.rules`' own stamp (`declared.severity`/`declared.types`),
 // not a loaded `Rule`'s live `meta`: a profile is static data assembled at

@@ -1,7 +1,7 @@
-import type { CoverageRecord } from '@thymian/core';
 import { describe, expect, it } from 'vitest';
 
-import { deriveMinimalProfile } from './derive-minimal-profile.js';
+import type { CoverageRecord } from '../../src/rules/rule-coverage.js';
+import { deriveMinimalProfile } from '../../src/rules/rule-coverage-minimal-profile.js';
 
 // A small, synthetic record -- not the real 402-rule corpus -- so each case
 // below isolates exactly one qualification rule from thymianofficial/
