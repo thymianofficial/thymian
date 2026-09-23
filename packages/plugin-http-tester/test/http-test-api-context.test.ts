@@ -13,6 +13,7 @@ import {
   not,
   or,
   port,
+  protocol,
   responseHeader,
   responseMediaType,
   singleTestCase,
@@ -161,6 +162,35 @@ describe('HttpTestApiContext', () => {
       );
 
       expect(result).toHaveLength(1);
+    });
+
+    it('should re-check a protocol condition against the live request', async () => {
+      const format = createThymianFormatWithTransaction(
+        createHttpRequest({ method: 'get', path: '/users' }),
+        createHttpResponse({ statusCode: 200, headers: {} }),
+      );
+
+      const mockContext = createMockHttpTestContext({ format });
+      vi.mocked(mockContext.runRequest).mockResolvedValue({
+        duration: 0,
+        trailers: {},
+        statusCode: 200,
+        headers: { 'strict-transport-security': 'max-age=31536000' },
+      });
+
+      const context = new HttpTestApiContext('test-rule', mockContext);
+
+      const secure = await context.validateCommonHttpTransactions(
+        statusCode(200),
+        and(protocol('https'), responseHeader('strict-transport-security')),
+      );
+      const plain = await context.validateCommonHttpTransactions(
+        statusCode(200),
+        and(protocol('http'), responseHeader('strict-transport-security')),
+      );
+
+      expect(secure).toHaveLength(1);
+      expect(plain).toHaveLength(0);
     });
 
     it('should support validation function returning violation object', async () => {
@@ -482,6 +512,34 @@ describe('HttpTestApiContext', () => {
       );
 
       expect(result).toHaveLength(0);
+    });
+
+    it('should select transactions by protocol', async () => {
+      const format = createThymianFormat();
+      format.addHttpTransaction(
+        createHttpRequest({ path: '/secure', protocol: 'https', port: 443 }),
+        createHttpResponse({ statusCode: 200 }),
+        'test-source',
+      );
+      format.addHttpTransaction(
+        createHttpRequest({ path: '/plain', protocol: 'http', port: 80 }),
+        createHttpResponse({ statusCode: 200 }),
+        'test-source',
+      );
+
+      const context = new HttpTestApiContext(
+        'test-rule',
+        createMockHttpTestContext({ format }),
+      );
+
+      const result = await context.validateHttpTransactions(
+        protocol('http'),
+        (req, _res, location) => [
+          { location, violation: { message: req.path }, findings: [] },
+        ],
+      );
+
+      expect(result.map((r) => r.violation?.message)).toEqual(['/plain']);
     });
   });
 

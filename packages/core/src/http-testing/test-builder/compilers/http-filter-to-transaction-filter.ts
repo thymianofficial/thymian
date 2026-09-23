@@ -175,6 +175,9 @@ export function requestScopedHttpFilterToTransactionFilter(
         }` === filterExpression.url;
     case 'port':
       return (req: ThymianHttpRequest) => req.port === filterExpression.port;
+    case 'protocol':
+      return (req: ThymianHttpRequest) =>
+        req.protocol === filterExpression.protocol;
     case 'requestMediaType':
       return (req: ThymianHttpRequest) =>
         req.mediaType === filterExpression.mediaType;

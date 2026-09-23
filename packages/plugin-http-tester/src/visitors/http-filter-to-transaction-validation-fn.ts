@@ -81,6 +81,10 @@ function createTransactionValidationVisitor(): HttpFilterVisitor<TransactionFilt
       return (req: HttpRequest) =>
         new URL(req.path, req.origin).port === expr.port?.toString();
     },
+    visitProtocol(expr) {
+      return (req: HttpRequest) =>
+        new URL(req.origin).protocol === `${expr.protocol}:`;
+    },
     visitRequestMediaType(expr) {
       return (req: HttpRequest) => {
         const contentType = getContentType(req.headers);
