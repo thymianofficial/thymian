@@ -1,10 +1,14 @@
 import {
   type CommonHttpRequest,
   type CommonHttpResponse,
+  type CommonHttpTransactionValidation,
   createRegExpFromOriginWildcard,
+  type GroupedCommonHttpTransactionValidation,
   type HttpFilterExpression,
+  isHttpValidation,
   isNodeType,
   type LintContext,
+  type LintHttpTransactionValidation,
   type Logger,
   type RuleFinding,
   type RuleFnResult,
@@ -56,13 +60,29 @@ export class StaticApiContext implements LintContext {
   }
 
   validateCommonHttpTransactions(
+    validation: CommonHttpTransactionValidation,
+  ): RuleFnResult[];
+  validateCommonHttpTransactions(
     filter: HttpFilterExpression,
-    validate:
+    validate?:
       | ValidationFn<
           [CommonHttpRequest, CommonHttpResponse, RuleViolationLocation]
         >
-      | HttpFilterExpression = filter,
+      | HttpFilterExpression,
+  ): RuleFnResult[];
+  validateCommonHttpTransactions(
+    filterOrValidation: HttpFilterExpression | CommonHttpTransactionValidation,
+    validateArg?:
+      | ValidationFn<
+          [CommonHttpRequest, CommonHttpResponse, RuleViolationLocation]
+        >
+      | HttpFilterExpression,
   ): RuleFnResult[] {
+    // The specification is the observation, so the named form evaluates
+    // exactly like the positional one.
+    const [filter, validate] = isHttpValidation(filterOrValidation)
+      ? [filterOrValidation.appliesTo, filterOrValidation.violatedWhen]
+      : [filterOrValidation, validateArg ?? filterOrValidation];
     const filterFn = httpFilterExpressionToFilter(filter);
 
     const rawEntries: RuleFnResult[] = this.format
@@ -104,12 +124,31 @@ export class StaticApiContext implements LintContext {
   }
 
   validateGroupedCommonHttpTransactions(
+    validation: GroupedCommonHttpTransactionValidation,
+  ): RuleFnResult[];
+  validateGroupedCommonHttpTransactions(
     filter: HttpFilterExpression,
     groupBy: HttpFilterExpression,
     validationFn: ValidationFn<
       [string, [CommonHttpRequest, CommonHttpResponse, RuleViolationLocation][]]
     >,
+  ): RuleFnResult[];
+  validateGroupedCommonHttpTransactions(
+    filterOrValidation:
+      HttpFilterExpression | GroupedCommonHttpTransactionValidation,
+    groupByArg?: HttpFilterExpression,
+    validationFnArg?: ValidationFn<
+      [string, [CommonHttpRequest, CommonHttpResponse, RuleViolationLocation][]]
+    >,
   ): RuleFnResult[] {
+    const [filter, groupBy, validationFn] = isHttpValidation(filterOrValidation)
+      ? [
+          filterOrValidation.appliesTo,
+          filterOrValidation.groupBy,
+          filterOrValidation.violatedWhen,
+        ]
+      : // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+        [filterOrValidation, groupByArg!, validationFnArg!];
     const filterFn = httpFilterExpressionToFilter(filter);
     const groupByFn = httpFilterToGroupByFn(groupBy);
 
@@ -152,19 +191,29 @@ export class StaticApiContext implements LintContext {
   }
 
   validateHttpTransactions(
+    validation: LintHttpTransactionValidation,
+  ): RuleFnResult[];
+  validateHttpTransactions(
     filterFn: (
       req: ThymianHttpRequest,
       res: ThymianHttpResponse,
       responses: ThymianHttpResponse[],
     ) => boolean,
-    validationFn: (
+    validationFn?: (
       req: ThymianHttpRequest,
       res: ThymianHttpResponse,
       responses: ThymianHttpResponse[],
-    ) =>
-      | { violation?: RuleViolation; findings?: RuleFinding[] }
-      | boolean = filterFn,
+    ) => { violation?: RuleViolation; findings?: RuleFinding[] } | boolean,
+  ): RuleFnResult[];
+  validateHttpTransactions(
+    filterFnOrValidation:
+      | LintHttpTransactionValidation['appliesTo']
+      | LintHttpTransactionValidation,
+    validationFnArg?: LintHttpTransactionValidation['violatedWhen'],
   ): RuleFnResult[] {
+    const [filterFn, validationFn] = isHttpValidation(filterFnOrValidation)
+      ? [filterFnOrValidation.appliesTo, filterFnOrValidation.violatedWhen]
+      : [filterFnOrValidation, validationFnArg ?? filterFnOrValidation];
     const rawEntries = this.format.graph.reduceNodes((acc, id, node) => {
       if (!isNodeType(node, 'http-request')) {
         return acc;

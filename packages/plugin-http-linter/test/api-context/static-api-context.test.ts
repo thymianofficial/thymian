@@ -13,7 +13,7 @@ import {
   createThymianFormat,
   createThymianFormatWithTransaction,
 } from '@thymian/core-testing';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 
 import { StaticApiContext } from '../../src/static-api-context.js';
 
@@ -338,6 +338,66 @@ describe('StaticApiContext', () => {
       );
 
       expect(groupKeys).toStrictEqual(['GET']);
+    });
+  });
+
+  describe('validateHttpTransactions({ appliesTo, violatedWhen })', () => {
+    function createContext() {
+      const format = createThymianFormat();
+      const reqId = format.addRequest(
+        createHttpRequest({ method: 'get', path: '/users' }),
+      );
+      format.addResponseToRequest(
+        reqId,
+        createHttpResponse({ statusCode: 200 }),
+      );
+      format.addResponseToRequest(
+        reqId,
+        createHttpResponse({ statusCode: 404 }),
+      );
+
+      return new StaticApiContext(format, new NoopLogger());
+    }
+
+    it('calls violatedWhen only for described pairs appliesTo accepts', () => {
+      const violatedWhen = vi.fn(() => true);
+
+      const result = createContext().validateHttpTransactions({
+        appliesTo: (_req, res) => res.statusCode === 404,
+        violatedWhen,
+      });
+
+      expect(result).toHaveLength(1);
+      expect(violatedWhen).toHaveBeenCalledTimes(1);
+      expect(violatedWhen).toHaveBeenCalledWith(
+        expect.objectContaining({ path: '/users' }),
+        expect.objectContaining({ statusCode: 404 }),
+        expect.arrayContaining([expect.objectContaining({ statusCode: 200 })]),
+      );
+    });
+
+    it('reports the violation violatedWhen returns', () => {
+      const result = createContext().validateHttpTransactions({
+        appliesTo: (_req, res) => res.statusCode === 404,
+        violatedWhen: (req) => ({
+          violation: { message: `No 404 for ${req.path}` },
+        }),
+      });
+
+      expect(result).toEqual([
+        expect.objectContaining({
+          violation: { message: 'No 404 for /users' },
+        }),
+      ]);
+    });
+
+    it('reports nothing when violatedWhen returns false', () => {
+      const result = createContext().validateHttpTransactions({
+        appliesTo: () => true,
+        violatedWhen: () => false,
+      });
+
+      expect(result).toEqual([]);
     });
   });
 
