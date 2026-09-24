@@ -1,17 +1,20 @@
-// How each validation context reaches the Strict-Transport-Security header,
-// shared by every rule that checks it. The common interface is value-blind —
-// it sees header names only — so every value check overrides all three
-// contexts: `static` reads the value the API description pins, `test` and
-// `analytics` read the value that was actually sent.
+// How each validation context reaches the Strict-Transport-Security header
+// and the transport it travelled over, shared by every rule that checks
+// either. The common interface is value-blind — it sees header names only —
+// so every value check overrides all three contexts: `static` reads the value
+// the API description pins, `test` and `analytics` read the value that was
+// actually sent.
 
 import {
   type ApiContext,
+  type CommonHttpResponse,
   constant,
   getHeader,
   type HttpResponse,
   type LintContext,
   type LiveApiContext,
   type Parameter,
+  protocol,
   responseHeader,
   type RuleFn,
   type RuleFnResult,
@@ -28,9 +31,28 @@ import {
 
 type Options = Record<PropertyKey, unknown>;
 
-// The described transaction behind a `static` location, which sits on the
-// transaction's edge in the format.
-function describedTransaction(
+// A document with no `servers` entry, a relative server URL, or a variable
+// in the scheme or port that cannot be resolved is loaded as
+// `http://localhost:8080`: the scheme is Thymian's fallback, not the API's.
+// A rule judging the scheme skips exactly that origin in `static` and in
+// `test`, whose requests carry the described origin even when sent to a
+// target URL, rather than report a transport the description never declared.
+// A description that really declares `http://localhost:8080` is a local
+// development server, where HSTS is not demanded in practice either.
+// `analytics` never skips it: recorded traffic is real.
+const SERVER_FALLBACK_ORIGIN = 'http://localhost:8080';
+
+export function isServerFallbackOrigin(origin: string): boolean {
+  try {
+    return new URL(origin).origin === SERVER_FALLBACK_ORIGIN;
+  } catch {
+    return false;
+  }
+}
+
+// The described transaction behind a `static` or `test` location, both of
+// which sit on the transaction's edge in the format.
+export function describedTransaction(
   ctx: ApiContext,
   location: RuleViolationLocation,
 ): ThymianHttpTransaction | undefined {
@@ -51,11 +73,27 @@ function declaredHeader(
   return name === undefined ? undefined : res.headers[name];
 }
 
+export function declaresHeader(
+  res: ThymianHttpResponse,
+  header: string,
+): boolean {
+  return declaredHeader(res, header) !== undefined;
+}
+
+// Whether a response carries a header, as the common interface sees it: by
+// name only — declared in `static`, sent in `test` and `analytics`.
+export function carriesHeader(
+  res: CommonHttpResponse,
+  header: string,
+): boolean {
+  return res.headers.some((name) => name.toLowerCase() === header);
+}
+
 // The values an API description pins for one response header: a `const`,
 // every `enum` member, and every example. `undefined` means the header is not
 // declared, or is declared without a pinned value — which is not an
 // impossibility: the rule declares `static` and skips at runtime (ADR-0021 §4).
-function pinnedHeaderValues(
+export function pinnedHeaderValues(
   res: ThymianHttpResponse,
   header: string,
 ): string[] | undefined {
@@ -74,8 +112,9 @@ function pinnedHeaderValues(
 }
 
 // Every STS field line of a live response. Repeated field lines arrive as an
-// array; a value rule holds each field line to its requirement on its own.
-function liveStsValues(headers: HttpResponse['headers']): string[] {
+// array, which is what `hsts-host-must-send-only-one-sts-header` checks; a
+// value rule holds each field line to its requirement on its own.
+export function liveStsValues(headers: HttpResponse['headers']): string[] {
   const value = getHeader(headers, STS_HEADER);
   if (value === undefined) {
     return [];
@@ -83,11 +122,35 @@ function liveStsValues(headers: HttpResponse['headers']): string[] {
   return Array.isArray(value) ? value : [value];
 }
 
-function violation(
+export function violation(
   location: RuleViolationLocation,
   message: string,
 ): RuleFnResult {
   return { location, violation: { message }, findings: [] };
+}
+
+// A result that says the rule could not decide this input, rather than pass
+// it: a finding with no violation, which the reports render as skipped.
+export function ruleSkip(
+  location: RuleViolationLocation,
+  ruleName: string,
+  message: string,
+): RuleFnResult {
+  return {
+    location,
+    findings: [{ kind: 'rule-skip', title: ruleName, message }],
+  };
+}
+
+export function serverFallbackSkip(
+  location: RuleViolationLocation,
+  ruleName: string,
+): RuleFnResult {
+  return ruleSkip(
+    location,
+    ruleName,
+    `This request is served from ${SERVER_FALLBACK_ORIGIN}, which is also what Thymian loads an API description without a usable server URL as, so its scheme may be Thymian's rather than the API's and the transport is not judged.`,
+  );
 }
 
 // Checks one STS field value; returns a violation message, or undefined.
@@ -142,17 +205,11 @@ export function stsValueRuleFns(
 
           if (values === undefined) {
             return [
-              {
+              ruleSkip(
                 location,
-                findings: [
-                  {
-                    kind: 'rule-skip',
-                    title: ruleName,
-                    message:
-                      'The API description declares Strict-Transport-Security without pinning its value (const, enum or examples), so the value cannot be checked statically.',
-                  },
-                ],
-              },
+                ruleName,
+                'The API description declares Strict-Transport-Security without pinning its value (const, enum or examples), so the value cannot be checked statically.',
+              ),
             ];
           }
 
@@ -169,4 +226,21 @@ export function stsValueRuleFns(
         evaluate(location, liveStsValues(res.headers)),
       ),
   };
+}
+
+// The execution function of a rule that flags a response over secure
+// transport without a Strict-Transport-Security header. Presence is the one
+// STS check the common interface can carry on its own: it sees the scheme
+// through its request filter and header names on the response, so one
+// function serves all three contexts — the declared headers in `static`, the
+// headers sent in `test` and `analytics`.
+export function stsPresenceRuleFn(
+  message: string,
+): RuleFn<ApiContext, Options> {
+  return (ctx) =>
+    ctx.validateCommonHttpTransactions(
+      protocol('https'),
+      (_req, res, location) =>
+        carriesHeader(res, STS_HEADER) ? [] : [violation(location, message)],
+    );
 }

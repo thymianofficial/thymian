@@ -6,6 +6,7 @@
 
 import {
   type CapturedTransaction,
+  type HttpRequest,
   type HttpResponse,
   type Parameter,
   type Rule,
@@ -71,6 +72,11 @@ export function stsHeader(value?: string): Record<string, Parameter> {
   return header(STS_HEADER, value);
 }
 
+// The headers of a response carrying one well-formed, one-year policy.
+export const STS_ONE_YEAR: HttpResponse['headers'] = {
+  [STS_HEADER]: 'max-age=31536000',
+};
+
 type DescribedTransaction = {
   request?: Partial<ThymianHttpRequest>;
   response?: Partial<ThymianHttpResponse>;
@@ -92,15 +98,29 @@ export function apiDescription(
   return format;
 }
 
+type Answer = { statusCode?: number; headers?: HttpResponse['headers'] };
+
 // The server under test in `test`: answers every request alike.
 export function respondWith({
   statusCode = 200,
   headers = {},
-}: {
-  statusCode?: number;
-  headers?: HttpResponse['headers'];
-}): () => HttpResponse {
+}: Answer): () => HttpResponse {
   return () => ({ statusCode, headers, trailers: {}, duration: 1 });
+}
+
+// The server under test in `test`, answering a request over https one way
+// and a request over plain http another — so one conforming input shows a
+// transport rule judging the scheme and the response together.
+export function respondByScheme(answers: {
+  https: Answer;
+  http: Answer;
+}): (request: HttpRequest) => HttpResponse {
+  return (request) =>
+    respondWith(
+      new URL(request.origin).protocol === 'https:'
+        ? answers.https
+        : answers.http,
+    )();
 }
 
 // One recorded transaction, as an origin server answered a user agent.
