@@ -69,6 +69,13 @@ describe('reporter plugin options schema', () => {
     expect(isValid({ reportsDir: '' })).toBe(false);
   });
 
+  it('rejects a whitespace-only reportsDir', () => {
+    // `minLength` alone let `'   '` through, and the resolver then trimmed it
+    // to unset and wrote to `.thymian/reports` — not where the user pointed.
+    expect(isValid({ reportsDir: '   ' })).toBe(false);
+    expect(isValid({ reportsDir: ' build/reports ' })).toBe(true);
+  });
+
   it('accepts a null reportsDir, which is what a bare YAML key parses to', () => {
     // Not a choice: Ajv's `JSONSchemaType` requires `nullable: true` on every
     // optional property, so `reportsDir: null` validates whatever the schema

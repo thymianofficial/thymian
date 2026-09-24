@@ -1,3 +1,4 @@
+import { existsSync } from 'node:fs';
 import { readdir, readFile, rm } from 'node:fs/promises';
 import { join } from 'node:path';
 
@@ -128,6 +129,43 @@ describe('flush awaits writes started by an un-awaited report()', () => {
       ),
     ).resolves.toBe(`${CSV_HEADER}\n`);
   });
+
+  it.each([
+    ['markdown', MarkdownFormatter, 'md'],
+    ['JSON', JsonFormatter, 'json'],
+    ['CSV', CsvFormatter, 'csv'],
+  ] as const)(
+    'also awaits a %s report queued while flush is already waiting',
+    async (_name, Formatter, extension) => {
+      const cwd = await freshCwd(`lifecycle-${extension}-flush-late-report`);
+      const formatter = new Formatter(new NoopLogger());
+      formatter.init({ cwd });
+
+      void formatter.report(reportFixture());
+      const flushed = formatter.flush();
+      // Queued after flush took its first look at the queue — a workflow
+      // finishing while `serve` is already shutting down.
+      void formatter.report(
+        reportFixture({
+          reportId: '99887766-5544-4332-8110-ffeeddccbbaa',
+          createdAt: '2026-08-25T10:31:00.000Z',
+        }),
+      );
+      await flushed;
+
+      expect(
+        existsSync(
+          join(
+            cwd,
+            '.thymian',
+            'reports',
+            SECOND_RUN_DIRECTORY,
+            `report.${extension}`,
+          ),
+        ),
+      ).toBe(true);
+    },
+  );
 });
 
 describe('CsvFormatter with two reports in flight at once', () => {
@@ -219,7 +257,7 @@ describe('a report that makes rendering throw degrades like a write failure', ()
     );
   });
 
-  it('does not reject CSV report(), logs, and still ends the stream', async () => {
+  it('does not reject CSV report(), logs, and leaves no file behind', async () => {
     const cwd = await freshCwd('lifecycle-csv-render-throws');
     const logger = new NoopLogger();
     const errorSpy = vitest.spyOn(logger, 'error');
@@ -227,8 +265,6 @@ describe('a report that makes rendering throw degrades like a write failure', ()
     const formatter = new CsvFormatter(logger);
     formatter.init({ cwd });
 
-    // CSV opens its destination before rendering, so a throwing renderer must
-    // not walk out over an open stream.
     await expect(formatter.report(malformedReport())).resolves.toBeUndefined();
     await expect(formatter.flush()).resolves.toBeUndefined();
 
@@ -237,6 +273,13 @@ describe('a report that makes rendering throw degrades like a write failure', ()
     );
     // Nothing is claimed as written when rendering never produced rows.
     expect(infoSpy).not.toHaveBeenCalled();
+    // Rendering runs before the stream opens, so no header-only file is left
+    // for a `*/report.csv` glob to mistake for an empty report.
+    expect(
+      existsSync(
+        join(cwd, '.thymian', 'reports', FIRST_RUN_DIRECTORY, 'report.csv'),
+      ),
+    ).toBe(false);
   });
 
   it('keeps serving later reports after one report fails to render', async () => {

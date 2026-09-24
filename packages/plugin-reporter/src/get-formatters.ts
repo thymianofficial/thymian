@@ -1,4 +1,5 @@
-import { mkdir } from 'node:fs/promises';
+import { constants } from 'node:fs';
+import { access, mkdir } from 'node:fs/promises';
 
 import {
   type Logger,
@@ -90,7 +91,7 @@ export function isValidFormatter(name: string): name is keyof Formatters {
 
 /**
  * Precondition for a run that is going to write reports: create the shared base
- * directory once, up front, so an unusable `reportsDir` fails while the plugin
+ * directory once, up front, and check that it is writable, so an unusable `reportsDir` fails while the plugin
  * is still registering — surfacing as a `PluginRegistrationError` and exiting
  * before a single workflow runs.
  *
@@ -113,11 +114,15 @@ async function ensureReportsDirectory(
 
   try {
     await mkdir(directory, { recursive: true });
+    // `mkdir` with `recursive` succeeds on a directory that already exists,
+    // so a pre-existing read-only base would pass without this and fail only
+    // at the first write — logged, exit 0, no report.
+    await access(directory, constants.W_OK);
   } catch (error) {
     const cause = error instanceof Error ? error.message : String(error);
 
     throw new ThymianBaseError(
-      `Cannot create the report output directory "${directory}": ${cause}`,
+      `Cannot create or write to the report output directory "${directory}": ${cause}`,
       {
         name: 'UnusableReportsDirectoryError',
         ref: 'https://thymian.dev/references/errors/unusable-reports-directory-error/',

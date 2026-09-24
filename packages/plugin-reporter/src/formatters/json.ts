@@ -69,13 +69,20 @@ export class JsonFormatter implements Formatter<JsonFormatterOptions> {
   }
 
   /**
-   * Awaits every write started so far and hands back the last payload.
+   * Awaits every queued write — including one queued while it waits — and hands back the last payload.
    *
    * Never throws: it runs inside the `core.close` action handler, and a
    * destination that could not be written must not take the shutdown with it.
    */
   async flush(): Promise<string | undefined> {
-    await this.queue;
+    // `core.report` is not awaited, so a report can still be queued while
+    // this waits (a workflow finishing during `serve` shutdown). Wait until
+    // the queue stops growing, not just for the tail seen on entry.
+    let drained: Promise<void>;
+    do {
+      drained = this.queue;
+      await drained;
+    } while (drained !== this.queue);
 
     return this.lastOutput;
   }

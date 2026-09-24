@@ -45,7 +45,7 @@ A config that still sets `formatters.<name>.path` fails validation at registrati
 
 **5. Output-directory failures: before a run they abort, during a write they only log.**
 
-- **Before any workflow runs:** when at least one formatter is configured, the plugin creates `reportsDir` at registration. If that fails, it raises `UnusableReportsDirectoryError` and the run exits `2`.
+- **Before any workflow runs:** when at least one formatter is configured, the plugin creates `reportsDir` at registration and checks that it is writable. If either step fails, it raises `UnusableReportsDirectoryError` and the run exits `2`.
 - **During a write:** failures are logged as errors and the run continues. By then the findings have been computed, and aborting would throw them away.
 
 This difference is deliberate, and a code comment in `get-formatters.ts` guards it. Don't make the two cases consistent.

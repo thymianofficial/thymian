@@ -94,12 +94,19 @@ export class CsvFormatter implements Formatter<CsvFormatterOptions> {
   }
 
   /**
-   * Awaits every write started so far and hands back the last report's content.
+   * Awaits every queued write — including one queued while it waits — and hands back the last report's content.
    * Never throws: it runs inside the `core.close` action handler, and a
    * destination that could not be written must not take the shutdown with it.
    */
   async flush(): Promise<string | undefined> {
-    await this.queue;
+    // `core.report` is not awaited, so a report can still be queued while
+    // this waits (a workflow finishing during `serve` shutdown). Wait until
+    // the queue stops growing, not just for the tail seen on entry.
+    let drained: Promise<void>;
+    do {
+      drained = this.queue;
+      await drained;
+    } while (drained !== this.queue);
 
     return this.lastOutput;
   }
@@ -119,8 +126,24 @@ export class CsvFormatter implements Formatter<CsvFormatterOptions> {
       'csv',
     );
 
-    // Open — and therefore write the header — before rendering, so a report
-    // that produces no rows still leaves a header-only file behind.
+    // Render before opening: opening writes the header, so a report that
+    // cannot be rendered would otherwise leave a header-only file that a
+    // `<reportsDir>/*/report.csv` glob picks up as a real, empty report.
+    let rows: string;
+
+    try {
+      rows = reportToCsvLines(report).join('');
+    } catch (err) {
+      this.logger.error(
+        `Failed to write CSV report to ${outputPath}: ${errorMessage(
+          err,
+        )}. No CSV report will be written for this report.`,
+      );
+
+      return;
+    }
+
+    // A report that renders to no rows still gets its header-only file.
     const open = await this.openStream(outputPath);
 
     // Destination unusable (already logged): drop the report instead of
@@ -133,11 +156,6 @@ export class CsvFormatter implements Formatter<CsvFormatterOptions> {
     let written: string | undefined;
 
     try {
-      // Rendering is inside the guard too: a malformed report must degrade
-      // exactly like an unwritable destination rather than reject out of
-      // `report()` — and must not leave this stream open on its way out.
-      const rows = reportToCsvLines(report).join('');
-
       if (rows.length === 0) {
         written = rows;
       } else {
@@ -150,10 +168,9 @@ export class CsvFormatter implements Formatter<CsvFormatterOptions> {
         }
       }
     } catch (err) {
-      this.logger.error(
-        `Failed to write CSV report to ${outputPath}: ${errorMessage(
-          err,
-        )}. No CSV report will be written for this report.`,
+      this.failWrite(
+        open,
+        err instanceof Error ? err : new Error(errorMessage(err)),
       );
     } finally {
       await closeStream(open);

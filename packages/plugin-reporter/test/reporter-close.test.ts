@@ -1,3 +1,4 @@
+import { readdirSync } from 'node:fs';
 import { mkdtemp, readdir, readFile, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -56,7 +57,7 @@ describe('reporter close behavior (#362 review)', () => {
 
     const start = performance.now();
     await expect(thymian.ready()).rejects.toThrow(
-      /Cannot create the report output directory/,
+      /Cannot create or write to the report output directory/,
     );
 
     // Fail fast: the precondition surfaces as a registration error rather than
@@ -97,5 +98,42 @@ describe('reporter close behavior (#362 review)', () => {
       await readFile(join(runDirectory, 'report.json'), 'utf-8'),
     ) as { runs: unknown[] }[];
     expect(written[0]?.runs).toHaveLength(1);
+  }, 30_000);
+
+  it('makes a second, concurrent close wait for the flush already running', async () => {
+    const dir = await mkdtemp(join(tmpdir(), 'reporter-close-'));
+    const reportsDir = join(dir, 'reports');
+
+    const thymian = new Thymian().register(reporterPlugin, {
+      formatters: { json: {} },
+      reportsDir,
+    });
+    await thymian.ready();
+
+    // In `serve`, SIGINT and `core.exit` can both close the session. The
+    // second close must not be answered before the first close's flush has
+    // landed, or `serve` calls process.exit over a write still in flight.
+    thymian.emitter.emit(
+      'core.report',
+      createReport([
+        createToolRun({ tool: { name: 'probe' }, runType: 'lint' }),
+      ]),
+    );
+    const first = thymian.emitter.emitAction('core.close', undefined, {
+      strict: false,
+    });
+    await thymian.emitter.emitAction('core.close', undefined, {
+      strict: false,
+    });
+
+    // Checked synchronously: an async read would itself give a write still
+    // in flight the time to finish, and hide the bug this guards against.
+    const runDirectories = readdirSync(reportsDir);
+    expect(runDirectories).toHaveLength(1);
+    expect(readdirSync(join(reportsDir, runDirectories[0]!))).toEqual([
+      'report.json',
+    ]);
+
+    await first;
   }, 30_000);
 });

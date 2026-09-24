@@ -4,13 +4,14 @@ title: 'UnusableReportsDirectoryError'
 
 ## The Cause
 
-`@thymian/plugin-reporter` could not create the directory it writes reports into, and at least one
-formatter is configured. The check runs while the plugin registers — before any workflow runs — so
+`@thymian/plugin-reporter` could not create the directory it writes reports into, or the directory
+exists but is not writable, and at least one formatter is configured. The check runs while the plugin registers — before any workflow runs — so
 the run stops immediately instead of computing findings that would never reach disk.
 
 Common reasons:
 
-- The directory sits on a read-only mount (`EROFS`) or the process lacks permission (`EACCES`).
+- The directory sits on a read-only mount (`EROFS`) or the process lacks permission (`EACCES`) —
+  including a directory that already exists but is read-only.
 - A regular file already occupies the path, or one of its parents (`ENOTDIR`).
 - `reportsDir` points somewhere that does not exist and cannot be created.
 
@@ -19,7 +20,7 @@ step globbing the report files simply found nothing. It is a hard failure now.
 
 ## The Solution
 
-Point the reporter at a directory it can create, or fix the one it has. `reportsDir` is a
+Point the reporter at a directory it can create and write to, or fix the one it has. `reportsDir` is a
 plugin-level option — one base directory for every formatter:
 
 ```yaml

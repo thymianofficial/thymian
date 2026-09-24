@@ -1,4 +1,12 @@
-import { mkdir, mkdtemp, readdir, rm, stat, writeFile } from 'node:fs/promises';
+import {
+  chmod,
+  mkdir,
+  mkdtemp,
+  readdir,
+  rm,
+  stat,
+  writeFile,
+} from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 
@@ -187,6 +195,39 @@ describe('getFormatters reports directory precondition', () => {
       join(cwd, 'build', 'rep'),
     );
   });
+
+  // `chmod` cannot make a directory unwritable on Windows or for root (CI
+  // containers), so this one only runs where it can mean something.
+  it.skipIf(process.platform === 'win32' || process.getuid?.() === 0)(
+    'rejects at registration time when the base directory exists but is read-only',
+    async () => {
+      // `mkdir` with `recursive` succeeds on an existing directory, so this
+      // case slipped through when the check only created the base.
+      const cwd = await freshCwd('get-formatters-read-only-base');
+      const base = join(cwd, 'build', 'rep');
+      await mkdir(base, { recursive: true });
+      await chmod(base, 0o555);
+
+      try {
+        const error = await rejection(
+          getFormatters(
+            { markdown: {} },
+            cwd,
+            new NoopLogger(),
+            undefined,
+            'build/rep',
+          ),
+        );
+
+        expect((error as ThymianBaseError).name).toBe(
+          'UnusableReportsDirectoryError',
+        );
+        expect((error as ThymianBaseError).message).toMatch(/EACCES/);
+      } finally {
+        await chmod(base, 0o755);
+      }
+    },
+  );
 
   it('creates the shared base directory once, before any report exists', async () => {
     const cwd = await freshCwd('get-formatters-eager-base');

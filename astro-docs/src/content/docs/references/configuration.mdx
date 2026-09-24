@@ -169,7 +169,7 @@ plugins:
 `@thymian/plugin-reporter` writes one file per configured formatter. Where those files land is a
 plugin-level setting, not a per-formatter one: `reportsDir` names the base directory — a relative
 path is resolved against `--cwd`, an absolute path is used as-is — and it defaults to
-`.thymian/reports`. Leave it out to take the default; an empty `reportsDir` fails validation
+`.thymian/reports`. Leave it out to take the default; an empty or whitespace-only `reportsDir` fails validation
 rather than scattering run directories through the working directory.
 
 Every report gets its own directory beneath that base, and the files inside keep a stable name, so
