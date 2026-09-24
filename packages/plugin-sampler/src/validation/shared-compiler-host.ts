@@ -4,13 +4,19 @@ import ts from 'typescript';
  * A parsed-`SourceFile` cache, shared by every `ts.CompilerHost` this module
  * hands out.
  *
- * Keyed by absolute file name only: the files that ever repeat across calls
- * are TypeScript's own `lib.*.d.ts` closure, which lives at a fixed path
- * under `node_modules/typescript` and never changes within a process. A
- * probe's own files live under a fresh `mkdtemp` root every call, so their
- * absolute paths never repeat and this cache never serves stale content for
- * them — it only ever short-circuits a file that is byte-identical to what it
- * already parsed.
+ * **Only TypeScript's own `lib.*.d.ts` closure.** That closure is the whole
+ * win — it is the dominant cost of a cold `ts.createProgram`, every program
+ * here pins the same `target`/`lib`, and it lives at a fixed path under
+ * `node_modules/typescript` that cannot change within a process.
+ *
+ * Nothing else may be cached, because a file name is not a version. The
+ * probes write under a fresh `mkdtemp` root per call, so caching them only
+ * grows the map forever; the user's hooks are worse — `typecheck-hooks.ts`
+ * compiles them at their *stable* paths, and `sampler.validate` is an ordinary
+ * action that `thymian serve` dispatches over the WebSocket proxy. In one
+ * long-lived `serve` process the second `validate` after an edit would have
+ * type-checked the first call's parse: a fixed hook still reporting its old
+ * error, a newly broken one passing. One-shot CLI runs never showed it.
  */
 const sourceFiles = new Map<string, ts.SourceFile>();
 
@@ -33,6 +39,14 @@ export function sharedCompilerHost(
 ): ts.CompilerHost {
   const host = ts.createCompilerHost(options, true);
   const getSourceFile = host.getSourceFile.bind(host);
+  const libDirectory = host.getDefaultLibLocation?.();
+
+  /** Immutable for the life of the process, so safe to hold parsed. */
+  const isLibFile = (fileName: string): boolean =>
+    libDirectory !== undefined &&
+    fileName.startsWith(
+      libDirectory.endsWith('/') ? libDirectory : `${libDirectory}/`,
+    );
 
   host.getSourceFile = (
     fileName,
@@ -40,7 +54,9 @@ export function sharedCompilerHost(
     onError,
     shouldCreateNewSourceFile,
   ) => {
-    if (!shouldCreateNewSourceFile) {
+    const cacheable = isLibFile(fileName);
+
+    if (cacheable && !shouldCreateNewSourceFile) {
       const cached = sourceFiles.get(fileName);
 
       if (cached) {
@@ -55,7 +71,7 @@ export function sharedCompilerHost(
       shouldCreateNewSourceFile,
     );
 
-    if (sourceFile) {
+    if (sourceFile && cacheable) {
       sourceFiles.set(fileName, sourceFile);
     }
 

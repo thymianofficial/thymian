@@ -65,3 +65,41 @@ describe('sharedCompilerHost', () => {
     expect(program.getSourceFile(file)?.text).toContain('export const one');
   });
 });
+
+/**
+ * The case a file-name-only cache gets wrong. `typecheck-hooks` compiles the
+ * user's hooks at their *stable* paths, and `sampler.validate` is an ordinary
+ * action `thymian serve` dispatches — so in one long-lived process the second
+ * validate after an edit would type-check the first call's parse: a fixed
+ * hook still reporting its old error, a newly broken one passing.
+ */
+describe('a file that changed under a path already seen', () => {
+  it('is re-read, not served from the cache', async () => {
+    const root = await mkdtemp(join(tmpdir(), 'thymian-host-stale-'));
+    const file = join(root, 'hook.ts');
+
+    await writeFile(file, 'export const broken: number = "no";\n', 'utf-8');
+
+    const first = ts.createProgram(
+      [file],
+      OPTIONS,
+      sharedCompilerHost(OPTIONS),
+    );
+
+    expect(
+      ts.getPreEmitDiagnostics(first).length,
+      'the fixture must start broken',
+    ).toBeGreaterThan(0);
+
+    await writeFile(file, 'export const fixed: number = 1;\n', 'utf-8');
+
+    const second = ts.createProgram(
+      [file],
+      OPTIONS,
+      sharedCompilerHost(OPTIONS),
+    );
+
+    expect(ts.getPreEmitDiagnostics(second)).toEqual([]);
+    expect(second.getSourceFile(file)?.text).toContain('fixed');
+  });
+});
