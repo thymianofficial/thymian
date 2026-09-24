@@ -1,7 +1,10 @@
-import type { RulesConfiguration, RuleSet } from '@thymian/core';
+import {
+  deriveMinimalProfile,
+  type RulesConfiguration,
+  type RuleSet,
+} from '@thymian/core';
 
 import coverage from './coverage.js';
-import { deriveMinimalProfile } from './derive-minimal-profile.js';
 
 const recommended: RulesConfiguration = {
   'rfc9110/client-may-generate-range-requests-without-accept-ranges': 'off',
