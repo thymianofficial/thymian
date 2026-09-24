@@ -3,32 +3,49 @@ import {
   createRegExpFromOriginWildcard,
   equalsIgnoreCase,
   getContentType,
+  getHeader,
   type HttpFilterExpression,
   type HttpFilterVisitor,
   type HttpRequest,
   type HttpResponse,
   queryParamsFromRequest,
+  type ThymianFormat,
+  type ThymianHttpTransaction,
   visitHttpFilter,
 } from '@thymian/core';
 
-type TransactionFilterFn = (req: HttpRequest, res: HttpResponse) => boolean;
+type TransactionFilterFn = (
+  req: HttpRequest,
+  res: HttpResponse,
+  source: ThymianHttpTransaction,
+) => boolean;
 
+/**
+ * Evaluates a filter expression against a live request/response pair, agreeing
+ * with the specification-side compiler and the analyzer's SQL: method, header
+ * and trailer names compare case-insensitively, and `isAuthorized` is answered
+ * by the specification through the pair's `source`.
+ */
 export function httpFilterToTransactionValidationFn(
   filterExpression: HttpFilterExpression,
+  format: ThymianFormat,
 ): TransactionFilterFn {
   return visitHttpFilter(
     filterExpression,
-    createTransactionValidationVisitor(),
+    createTransactionValidationVisitor(format),
   ) as TransactionFilterFn;
 }
 
-function createTransactionValidationVisitor(): HttpFilterVisitor<TransactionFilterFn> {
+function createTransactionValidationVisitor(
+  format: ThymianFormat,
+): HttpFilterVisitor<TransactionFilterFn> {
   return createFilterVisitor({
     visitMethod(expr) {
       if (typeof expr.method === 'undefined') {
         return () => false;
       }
-      return (req: HttpRequest) => req.method === expr.method;
+      // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+      return (req: HttpRequest) => equalsIgnoreCase(req.method, expr.method!);
     },
     visitRequestHeader(expr) {
       return (req: HttpRequest) => {
@@ -36,7 +53,7 @@ function createTransactionValidationVisitor(): HttpFilterVisitor<TransactionFilt
           return false;
         }
 
-        const headerValue = req.headers[expr.header];
+        const headerValue = getHeader(req.headers, expr.header);
         if (typeof expr.value === 'undefined') {
           return headerValue !== undefined;
         }
@@ -61,10 +78,21 @@ function createTransactionValidationVisitor(): HttpFilterVisitor<TransactionFilt
       return (req: HttpRequest) => req.path === expr.path;
     },
     visitHasResponse(expr) {
-      return (req: HttpRequest, res: HttpResponse) => {
-        const fn = httpFilterToTransactionValidationFn(expr.filter);
-        return !!fn(req, res);
+      return (req, res, source) => {
+        const fn = httpFilterToTransactionValidationFn(expr.filter, format);
+        return !!fn(req, res, source);
       };
+    },
+    visitIsAuthorized({ isAuthorized }) {
+      return (_req, _res, source) =>
+        format.requestIsSecured(source.thymianReqId) === isAuthorized;
+    },
+    visitProtocol({ protocol }) {
+      if (typeof protocol === 'undefined') {
+        return () => false;
+      }
+      return (req: HttpRequest) =>
+        req.origin.toLowerCase().startsWith(`${protocol.toLowerCase()}://`);
     },
     visitOrigin(expr) {
       return (req: HttpRequest) => {
@@ -108,7 +136,7 @@ function createTransactionValidationVisitor(): HttpFilterVisitor<TransactionFilt
         return () => false;
       }
       return (_req: HttpRequest, res: HttpResponse) => {
-        const headerValue = res.headers[header];
+        const headerValue = getHeader(res.headers, header);
         if (typeof value === 'undefined') {
           return headerValue !== undefined;
         }
@@ -132,7 +160,7 @@ function createTransactionValidationVisitor(): HttpFilterVisitor<TransactionFilt
         return () => false;
       }
       return (_req: HttpRequest, res: HttpResponse) => {
-        const trailerValue = res.trailers?.[trailer];
+        const trailerValue = getHeader(res.trailers, trailer);
         if (typeof value === 'undefined') {
           return trailerValue !== undefined;
         }
