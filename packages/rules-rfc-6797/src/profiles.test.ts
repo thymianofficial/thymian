@@ -35,7 +35,10 @@ describe('rfc-6797 rule-configuration profiles', () => {
     expect(rfc6797.profiles?.strict).toEqual({});
   });
 
-  it('ships an empty recommended profile while no convention rule exists', () => {
-    expect(rfc6797.profiles?.recommended).toEqual({});
+  it('turns the max-age floor on at warn and preload on at hint in recommended', () => {
+    expect(rfc6797.profiles?.recommended).toEqual({
+      'rfc-6797/server-should-send-sts-max-age-of-at-least-one-year': 'warn',
+      'rfc-6797/server-should-send-sts-preload-directive': 'hint',
+    });
   });
 });

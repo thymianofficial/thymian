@@ -41,20 +41,13 @@ ruleSets:
 
 ## Coverage
 
-**1 of 14** units covered, by **1** rule(s).
+**8 of 14** units covered, by **8** rule(s).
 
 - Source: RFC 6797 (November 2012)
 - Counting rule: One unit per paragraph of §6, §7 and §9.2 — the chapters addressed to the host — that contains a BCP 14 keyword.
 
 Not yet covered:
 
-- `6.1/1` — The STS header field indicates to a UA that it MUST enforce the HSTS Policy in regards to the host emitting the response.
-- `6.1/2` — All directives MUST appear only once in an STS header field.
-- `6.1/3` — UAs MUST ignore any STS header field containing directives, or other header field value data, that does not conform to the syntax.
-- `6.1/4` — If an STS header field contains directives not recognized by the UA, the UA MUST ignore them and process the recognized ones.
-- `6.1.1/2` — The max-age directive's REQUIRED value is delta-seconds (1*DIGIT), after quoted-string unescaping.
-- `6.1.2/1` — The OPTIONAL includeSubDomains directive is a valueless directive that extends the HSTS Policy to subdomains.
-- `7.1/1` — Over secure transport, an HSTS Host SHOULD include an STS header field that MUST satisfy the §6.1 grammar, and MUST include only one.
 - `7.1/2` — Establishing a Known HSTS Host MAY be accomplished by returning a valid STS header field over secure transport; a pre-loaded list MAY also be used.
 - `7.1/3` — NOTE: including the STS header field is a SHOULD to accommodate caches and load balancing.
 - `7.2/1` — Over non-secure transport, an HSTS Host SHOULD answer with a permanent redirect whose Location has the https scheme.
@@ -66,28 +59,43 @@ Not yet covered:
 
 | Severity | Keyword | recommended | strict | minimal |
 | -------- | ------- | ----------- | ------ | ------- |
-| error    | MUST    | 1           | 1      | 1       |
-| warn     | SHOULD  | 0           | 0      | 0       |
-| hint     | MAY     | 0           | 0      | 0       |
-| off      | (off)   | 0           | 0      | 0       |
+| error    | MUST    | 6           | 6      | 5       |
+| warn     | SHOULD  | 1           | 0      | 0       |
+| hint     | MAY     | 3           | 2      | 0       |
+| off      | (off)   | 0           | 2      | 5       |
 
 ## Conventions
 
-None.
+### rfc-6797/server-should-send-sts-max-age-of-at-least-one-year
+
+RFC 6797 requires a max-age but sets no minimum, and the recommended profile warns below one year because a short policy lapses between a user's visits — each lapse reopens the first-request downgrade window HSTS exists to close — and one year is the floor the browser pre-load lists require.
+
+### rfc-6797/server-should-send-sts-preload-directive
+
+RFC 6797 never mentions preload, which is the opt-in the browser vendors read before adding a host to the pre-load lists their browsers ship with, and the recommended profile only hints at it because a listed host is protected even on its very first visit, yet leaving a list again takes months, so the commitment is the operator's to make.
 
 ## Rule verdicts
 
 ### syntax
 
-| Rule                                           | static     | analytics  | test       |
-| ---------------------------------------------- | ---------- | ---------- | ---------- |
-| rfc-6797/hsts-host-must-send-max-age-directive | observable | observable | observable |
+| Rule                                                          | static                           | analytics                        | test                             |
+| ------------------------------------------------------------- | -------------------------------- | -------------------------------- | -------------------------------- |
+| rfc-6797/hsts-host-may-assert-include-subdomains              | observable                       | observable                       | observable                       |
+| rfc-6797/hsts-host-must-not-repeat-sts-directives             | observable                       | observable                       | observable                       |
+| rfc-6797/hsts-host-must-send-include-subdomains-without-value | observable                       | observable                       | observable                       |
+| rfc-6797/hsts-host-must-send-max-age-as-delta-seconds         | observable                       | observable                       | observable                       |
+| rfc-6797/hsts-host-must-send-max-age-directive                | observable                       | observable                       | observable                       |
+| rfc-6797/hsts-host-must-send-sts-header-conforming-to-grammar | observable                       | observable                       | observable                       |
+| rfc-6797/server-should-send-sts-max-age-of-at-least-one-year  | observable                       | observable                       | observable                       |
+| rfc-6797/server-should-send-sts-preload-directive             | observable                       | observable                       | observable                       |
+| rfc-6797/user-agent-must-enforce-hsts-policy                  | impossible (peer-not-observable) | impossible (peer-not-observable) | impossible (peer-not-observable) |
+| rfc-6797/user-agent-must-ignore-unrecognized-sts-directives   | heuristic                        | heuristic                        | heuristic                        |
 
 ## Tag status
 
 ### security
 
-- `security:transport` — 1 rule(s)
+- `security:transport` — 10 rule(s)
 - `security:cors` — ships empty
 - `security:cookies` — ships empty
 - `security:csp` — ships empty
