@@ -29,6 +29,7 @@ This chapter documents the significant architectural decisions made for Thymian.
 | [ADR-0019](adr/0019-virtual-samples-and-selector-anchored-hooks.md)            | Virtual samples with a committed type surface and selector-anchored hooks | Accepted | 2026-08-16 | [10.2.1](10-quality-requirements.md#102-quality-scenarios), [10.2.3](10-quality-requirements.md#102-quality-scenarios) |
 | [ADR-0020](adr/0020-report-inputs-are-cli-only-for-merge-and-diff.md)          | Report inputs are CLI-only for `report merge` and `report diff`           | Accepted | 2026-08-24 | —                                                                                                                      |
 | [ADR-0021](adr/0021-http-security-rule-sets.md)                                | Adding a rule set: package per source, concern tags, executability gate   | Accepted | 2026-09-10 | [10.1](10-quality-requirements.md#101-quality-requirements-overview): Reliability                                      |
+| [ADR-0022](adr/0022-applicability-and-violation-condition.md)                  | Rule validation calls name applicability and violation condition          | Accepted | 2026-09-24 | —                                                                                                                      |
 
 ## Creating New ADRs
 
