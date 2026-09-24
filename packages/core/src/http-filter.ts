@@ -10,14 +10,20 @@ export type HttpHeader =
   | keyof OmitIndexSignature<http.OutgoingHttpHeaders>
   | (string & Record<never, never>);
 
+/**
+ * An HTTP request method. Filters compare methods case-insensitively, so
+ * `method('GET')` also matches a request whose method is `get`.
+ */
 export type HttpMethod =
+  | 'CONNECT'
   | 'DELETE'
   | 'GET'
   | 'HEAD'
+  | 'OPTIONS'
   | 'PATCH'
   | 'POST'
   | 'PUT'
-  | 'OPTIONS'
+  | 'TRACE'
   | (string & {});
 
 export type RequestFilterExpression =
