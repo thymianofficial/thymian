@@ -116,6 +116,16 @@ export function matchesPathGlob(glob: string, path: string): boolean {
     }
   }
 
+  // Decision 4 again, for what the tail actually holds. The length test above
+  // proves the tail is non-empty as a list, not that it holds a segment: a
+  // path written with a trailing slash splits to one final empty string, so
+  // `/admin/**` matched `/admin/` and `/**` matched `/`. `*` already refuses an
+  // empty segment above, and "one or more segments" has to mean the same thing
+  // in both spellings.
+  if (deep && pathSegments.slice(fixed.length).every((s) => s === '')) {
+    return false;
+  }
+
   return true;
 }
 

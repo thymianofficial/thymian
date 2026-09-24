@@ -212,18 +212,28 @@ export const samplePlugin: ThymianPlugin<Partial<SamplerPluginOptions>> = {
       // otherwise proceed silently against types that no longer describe the
       // API. Only when something is committed: with no `generated/` there is
       // nothing to be behind.
-      const committed = await readGenerated(paths);
+      // Gated on the level that would print it. Answering "are the committed
+      // types behind?" means regenerating the whole surface —
+      // json-schema-to-typescript plus prettier, per schema per transaction —
+      // and that ran before the first request of every `test`, `lint` and
+      // `sampler check`, to decide whether to emit one line nobody sees at the
+      // default level. `validate` and `sync --check` are the gates that report
+      // drift; this is only a breadcrumb for someone already reading debug
+      // output, so it costs nothing when nobody is.
+      if (logger.level === 'debug' || logger.level === 'trace') {
+        const committed = await readGenerated(paths);
 
-      if (Object.keys(committed).length > 0) {
-        const stale = changedFiles(
-          committed,
-          await generateTypeSurface(catalog),
-        );
-
-        if (stale.length > 0) {
-          logger.debug(
-            `The committed sampler types are behind this API description (${stale.join(', ')}).`,
+        if (Object.keys(committed).length > 0) {
+          const stale = changedFiles(
+            committed,
+            await generateTypeSurface(catalog),
           );
+
+          if (stale.length > 0) {
+            logger.debug(
+              `The committed sampler types are behind this API description (${stale.join(', ')}).`,
+            );
+          }
         }
       }
 

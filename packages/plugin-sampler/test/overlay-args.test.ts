@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { deepMergeBody } from '../src/hooks/overlay-args.js';
+import { applyArgs, deepMergeBody } from '../src/hooks/overlay-args.js';
 
 /**
  * An overlay's keys are read off an ordinary JSON-shaped object a hook author
@@ -83,5 +83,42 @@ describe('deepMergeBody', () => {
     const merged = deepMergeBody(base, overlay) as Record<string, unknown>;
 
     expect(merged['__proto__']).toEqual({ kept: true, added: true });
+  });
+});
+
+/**
+ * Whether the caller passed a body decides whether the generated one is
+ * merged or left alone, so the question has to be about the object the caller
+ * actually wrote. `in` walks the prototype chain and answers yes for a body
+ * the caller inherited and never passed — from a polluted `Object.prototype`,
+ * or from a base object a caller built their args on.
+ */
+describe('applyArgs decides on own keys', () => {
+  const template = {
+    method: 'post',
+    path: '/launches',
+    origin: 'http://localhost',
+    authorize: false,
+    headers: {},
+    query: {},
+    cookies: {},
+    pathParameters: {},
+    body: { name: 'generated' },
+  } as unknown as Parameters<typeof applyArgs>[0];
+
+  it('leaves the generated body alone when `body` is only inherited', () => {
+    const args = Object.create({ body: { name: 'inherited' } }) as Parameters<
+      typeof applyArgs
+    >[1];
+
+    expect(applyArgs(template, args).body).toEqual({ name: 'generated' });
+  });
+
+  it('still merges a body the caller owns', () => {
+    expect(
+      applyArgs(template, { body: { name: 'passed' } } as Parameters<
+        typeof applyArgs
+      >[1]).body,
+    ).toEqual({ name: 'passed' });
   });
 });
