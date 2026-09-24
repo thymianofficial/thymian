@@ -45,6 +45,7 @@ C4Container
 
     Container(cli, "CLI", "OCLIF, TypeScript", "Command-line interface for<br>interacting with Thymian")
     Container(rfc9110Rules, "RFC 9110 Rules", "TypeScript", "HTTP ruleset that<br>covers RFC 9110 for<br>linting, testing and analyzing")
+    Container(rfc6797Rules, "RFC 6797 (HSTS) Rules", "TypeScript", "HTTP ruleset that<br>covers RFC 6797 (HSTS) for<br>linting, testing and analyzing")
     Container(apiDescriptionValidationRules, "API Description<br>Validation Rules", "TypeScript", "API description validation ruleset.<br>For testing and analyzing")
   }
 
@@ -82,6 +83,7 @@ C4Container
 
   %% Rule sets implement rules port
   Rel(rfc9110Rules, forHttpRules, "implements")
+  Rel(rfc6797Rules, forHttpRules, "implements")
   Rel(apiDescriptionValidationRules, forHttpRules, "implements")
 
   %% Plugins implement their respective ports
@@ -136,6 +138,7 @@ C4Container
 | Sampler                          | `packages/plugin-sampler`                   | `@thymian/plugin-sampler`                   |
 | WebSocket Proxy                  | `packages/plugin-websocket-proxy`           | `@thymian/plugin-websocket-proxy`           |
 | RFC 9110 Rules                   | `packages/rules-rfc-9110`                   | `@thymian/rules-rfc-9110`                   |
+| RFC 6797 (HSTS) Rules            | `packages/rules-rfc-6797`                   | `@thymian/rules-rfc-6797`                   |
 | API Description Validation Rules | `packages/rules-api-description-validation` | `@thymian/rules-api-description-validation` |
 
 Additional non-diagram packages:
