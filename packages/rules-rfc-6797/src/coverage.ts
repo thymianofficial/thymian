@@ -120,5 +120,70 @@ export default defineCoverage({
       covers: [],
       declared: { types: ['static', 'test', 'analytics'], severity: 'off' },
     },
+
+    // §7 — the server processing model.
+    // 7.1/1's other two clauses: the grammar is the syntax rule's above, and
+    // its conditional SHOULD — send the header — binds only a host that has
+    // chosen to be an HSTS Host, so it is carried by the presence convention,
+    // which covers no unit.
+    'rfc-6797/hsts-host-must-send-only-one-sts-header': {
+      covers: ['7.1/1'],
+      declared: { types: ['test', 'analytics'], severity: 'error' },
+      contexts: {
+        static: {
+          verdict: 'impossible',
+          reason: 'not-representable',
+          note: 'An API description declares response headers as a map keyed by name, so it cannot declare two Strict-Transport-Security field lines in one response.',
+        },
+      },
+    },
+    // A MAY is checkable at `hint`: the header is sent, or the mechanism
+    // goes unused.
+    'rfc-6797/server-may-establish-hsts-over-secure-transport': {
+      covers: ['7.1/2'],
+      declared: { types: ['static', 'test', 'analytics'], severity: 'hint' },
+    },
+    'rfc-6797/sts-header-inclusion-is-should-to-accommodate-caches': {
+      covers: ['7.1/3'],
+      declared: { types: ['informational'], severity: 'hint' },
+    },
+    // The SHOULD binds an HSTS Host, and whether the host behind a plain-http
+    // listener has chosen to be one is in no exchange: heuristic everywhere.
+    'rfc-6797/hsts-host-should-redirect-insecure-requests-to-https': {
+      covers: ['7.2/1'],
+      declared: { types: ['static', 'test', 'analytics'], severity: 'warn' },
+      contexts: {
+        static: 'heuristic',
+        test: 'heuristic',
+        analytics: 'heuristic',
+      },
+    },
+    'rfc-6797/https-redirect-is-should-for-deployment-reasons': {
+      covers: ['7.2/2'],
+      declared: { types: ['informational'], severity: 'hint' },
+    },
+    // Exact, although it binds an HSTS Host: sending the header is what makes
+    // a host one, so the condition is met by the header the rule looks for.
+    'rfc-6797/hsts-host-must-not-send-sts-header-over-insecure-transport': {
+      covers: ['7.2/3'],
+      declared: { types: ['static', 'test', 'analytics'], severity: 'error' },
+    },
+    // The two convention twins: each asks of every server, exactly, what the
+    // RFC asks only of an HSTS Host, so neither covers a unit.
+    'rfc-6797/server-should-send-sts-header-over-secure-transport': {
+      covers: [],
+      declared: { types: ['static', 'test', 'analytics'], severity: 'off' },
+    },
+    'rfc-6797/server-should-redirect-insecure-requests-to-https': {
+      covers: [],
+      declared: { types: ['static', 'test', 'analytics'], severity: 'off' },
+    },
+
+    // §9.2 — the effective request URI.
+    'rfc-6797/hsts-host-must-not-treat-empty-path-as-slash-when-comparing-effective-request-uris':
+      {
+        covers: ['9.2/1'],
+        declared: { types: ['informational'], severity: 'error' },
+      },
   },
 });
