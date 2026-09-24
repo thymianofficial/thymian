@@ -19,7 +19,7 @@ describe('provenance: the cited document and the slug', () => {
 
     for (const rule of rules) {
       expect(
-        rule.meta.url?.startsWith(`${rfc6797.url}#section-`),
+        rule.meta.url?.match(/^(.*)#section-\d+(\.\d+)*$/)?.[1] === rfc6797.url,
         `"${rule.meta.name}" cites "${rule.meta.url}"`,
       ).toBe(true);
     }
@@ -43,5 +43,25 @@ describe('provenance: the cited document and the slug', () => {
         rule.meta.name,
       ).toBe(true);
     }
+  }, 30_000);
+});
+
+// Addressee = who the requirement binds. RFC 6797 addresses §6, §7 and §9.2
+// to the host; the one unit this package transcribes as the user agent's own
+// obligation is 6.1/1. A rule checking the host-side contrapositive of a
+// user-agent requirement (6.1/3, 6.1/4) binds the server that sends the
+// header, whatever its name says.
+describe('addressee', () => {
+  it('addresses every rule to the server, except the one rule addressed to the user agent', async () => {
+    const rules = await loadRules('@thymian/rules-rfc-6797');
+    const addressees = Object.fromEntries(
+      rules
+        .filter((rule) => rule.meta.appliesTo?.join() !== 'server')
+        .map((rule) => [rule.meta.name, rule.meta.appliesTo]),
+    );
+
+    expect(addressees).toEqual({
+      'rfc-6797/user-agent-must-enforce-hsts-policy': ['user-agent'],
+    });
   }, 30_000);
 });

@@ -41,12 +41,14 @@ describe('coverage record', () => {
       expect(Object.keys(coverage.rules).length).toBe(rules.length);
     }, 30_000);
 
-    it('covers all 14 units', () => {
-      const covered = new Set(
-        Object.values(coverage.rules).flatMap((entry) => entry.covers),
+    it('covers all 14 units, by 15 rules', () => {
+      const covering = Object.values(coverage.rules).filter(
+        (entry) => entry.covers.length > 0,
       );
+      const covered = new Set(covering.flatMap((entry) => entry.covers));
 
       expect([...covered].sort()).toEqual(Object.keys(coverage.units).sort());
+      expect(covering.length).toBe(15);
     });
 
     it('has 4 informational entries, carrying no cells', () => {
@@ -87,7 +89,7 @@ describe('coverage record', () => {
           static: {
             verdict: 'impossible',
             reason: 'not-representable',
-            note: expect.any(String),
+            note: expect.stringMatching(/\S/),
           },
         },
       });
@@ -118,30 +120,59 @@ describe('coverage record', () => {
     });
   });
 
-  // The recommended profile promotes all four (`profiles.test.ts`), so the
-  // zero-violation run above is what proves each carries a tag, is not
-  // heuristic, and has an explanation. That the explanation states its reason
-  // is left to review: ADR-0021 §3 accepts it cannot be tested mechanically.
-  it('ships the four convention rules off, covering no unit', async () => {
-    const rules = await loadBaselineRules();
-    const conventions = rules
-      .filter(
-        (rule) =>
-          rule.meta.severity === 'off' &&
-          !rule.meta.type.includes('informational'),
-      )
-      .map((rule) => rule.meta.name)
-      .sort();
-    const entries: Record<string, CoverageEntry> = coverage.rules;
-
-    expect(conventions).toEqual([
+  // A convention rule ships off and covers no unit: the RFC imposes no such
+  // obligation, and `recommended` turns it on for a reason its explanation
+  // states. That the explanation states that reason is left to review:
+  // ADR-0021 §3 accepts it cannot be tested mechanically.
+  describe('the four convention rules', () => {
+    const conventions = [
       'rfc-6797/server-should-redirect-insecure-requests-to-https',
       'rfc-6797/server-should-send-sts-header-over-secure-transport',
       'rfc-6797/server-should-send-sts-max-age-of-at-least-one-year',
       'rfc-6797/server-should-send-sts-preload-directive',
-    ]);
-    for (const name of conventions) {
-      expect(entries[name]?.covers, name).toEqual([]);
-    }
-  }, 30_000);
+    ];
+
+    it('are exactly the rules shipped off and not informational, covering no unit', async () => {
+      const rules = await loadBaselineRules();
+      const shippedOffExecutable = rules
+        .filter(
+          (rule) =>
+            rule.meta.severity === 'off' &&
+            !rule.meta.type.includes('informational'),
+        )
+        .map((rule) => rule.meta.name)
+        .sort();
+      const entries: Record<string, CoverageEntry> = coverage.rules;
+
+      expect(shippedOffExecutable).toEqual(conventions);
+      for (const name of conventions) {
+        expect(entries[name]?.covers, name).toEqual([]);
+      }
+    }, 30_000);
+
+    // `recommended` turns all four on (`profiles.test.ts`), and the
+    // zero-violation run above passes the checker's promotion assertion on
+    // them; this proves the assertion read them rather than skipped them.
+    // RFC 9110's profiles promote nothing, so this package is the first where
+    // it has rows: take one away — here the explanation — and each
+    // convention is reported.
+    it('are the rows the checker holds to its promotion assertion', async () => {
+      const rules = await loadBaselineRules();
+      const unexplained = rules.map((rule) =>
+        conventions.includes(rule.meta.name)
+          ? { ...rule, meta: { ...rule.meta, explanation: undefined } }
+          : rule,
+      );
+      const violations = checkCoverage({
+        record: coverage,
+        rules: unexplained,
+        profiles: rfc6797.profiles,
+      });
+
+      expect(violations.map(({ rule }) => rule).sort()).toEqual(conventions);
+      for (const violation of violations) {
+        expect(violation.code).toBe('undocumented-promoted-rule');
+      }
+    }, 30_000);
+  });
 });
