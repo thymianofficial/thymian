@@ -40,12 +40,11 @@ function createTransactionValidationVisitor(
   format: ThymianFormat,
 ): HttpFilterVisitor<TransactionFilterFn> {
   return createFilterVisitor({
-    visitMethod(expr) {
-      if (typeof expr.method === 'undefined') {
+    visitMethod({ method }) {
+      if (typeof method === 'undefined') {
         return () => false;
       }
-      // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-      return (req: HttpRequest) => equalsIgnoreCase(req.method, expr.method!);
+      return (req: HttpRequest) => equalsIgnoreCase(req.method, method);
     },
     visitRequestHeader(expr) {
       return (req: HttpRequest) => {
