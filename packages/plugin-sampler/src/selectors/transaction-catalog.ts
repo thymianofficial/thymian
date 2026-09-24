@@ -2,6 +2,7 @@ import type { ThymianFormat, ThymianHttpTransaction } from '@thymian/core';
 
 import { nearestPathHints } from './nearest-paths.js';
 import {
+  canonicalPath,
   compareSelectors,
   encodePath,
   formatRequestSelector,
@@ -219,7 +220,12 @@ export class TransactionCatalog {
     // vacuous filter path value gets, so a path typo in a Selector is
     // diagnosed the same way one in a filter is — one near-miss story, not
     // two that could disagree.
-    return nearestPathHints(encodePath(parts.path), this.distinctPaths);
+    // `canonicalPath`, matching how `distinctPaths` is spelled (`pathOf`).
+    // `encodePath` adds selector quoting for a path carrying whitespace or
+    // `>`, and a quoted needle never prefix-matches an unquoted haystack — so
+    // exactly the paths whose spelling is hardest to guess got no suggestion
+    // and fell through to the bare "no path begins with" line.
+    return nearestPathHints(canonicalPath(parts.path), this.distinctPaths);
   }
 
   /**

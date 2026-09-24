@@ -47,7 +47,17 @@ export function reportHookResults(
   for (const result of results) {
     if (result.type === 'assertion-failure' || result.type === 'timeout') {
       logger.error(result.message);
-    } else if (result.type === 'warning') {
+    } else if (
+      result.type === 'warning' ||
+      // A nested request has no test case of its own, so these are the only
+      // place its failure is ever said out loud. At `info` a seed answered
+      // with a declared-but-different status was invisible at the default
+      // level, while every transaction that depended on it turned up
+      // `skipped` with nothing naming the cause — the reader saw the
+      // consequence and not the reason.
+      result.type === 'invalid-transaction' ||
+      result.type === 'execution-error'
+    ) {
       logger.warn(result.message);
     } else {
       logger.info(result.message);

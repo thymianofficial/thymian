@@ -87,6 +87,19 @@ export class HookRunner {
    * lockstep with {@link RunScopedHooks.start}'s latch, in
    * {@link beforeEachRequest}.
    */
+  /**
+   * The origin this run is actually talking to, learned from its first
+   * request, so a run-scoped hook's seed goes where the run goes rather than
+   * where the description points.
+   *
+   * **One origin per run**, which is a simplification the CLI does not
+   * currently expose: a format assembled from several descriptions may name
+   * different servers per transaction, and a `beforeAll` seed would still be
+   * sent to whichever origin the first request happened to use rather than to
+   * its own transaction's server. Per-request hooks are unaffected — they read
+   * the origin off the request in front of them. Reset on {@link load}, so the
+   * value never outlives the run that observed it.
+   */
   private runOrigin: string | undefined;
 
   constructor(
@@ -107,6 +120,10 @@ export class HookRunner {
     this.byTransactionId = hooks?.byTransactionId ?? new Map();
     this.globalAuthorize = hooks?.globalAuthorize ?? [];
     this.runScoped.load(hooks?.runScoped ?? { beforeAll: [], afterAll: [] });
+    // A load is a new run's format, so the previous run's observed origin must
+    // not survive into it: in a long-lived process — `thymian serve` — the
+    // second run's seeds would otherwise be sent to the first run's target.
+    this.runOrigin = undefined;
   }
 
   /**
