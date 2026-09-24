@@ -23,6 +23,7 @@ export default {
         'plugin-websocket-proxy',
         'rules-api-description-validation',
         'rules-rfc-9110',
+        'rules-rfc-6797',
         'thymian',
         'e2e',
         'plugin-har',
