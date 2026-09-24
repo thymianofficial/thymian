@@ -1,13 +1,12 @@
-import type { CoverageRecord } from '@thymian/core';
 import { describe, expect, it } from 'vitest';
 
-import { deriveMinimalProfile } from './derive-minimal-profile.js';
+import type { CoverageRecord } from '../../src/rules/rule-coverage.js';
+import { deriveMinimalProfile } from '../../src/rules/rule-coverage-minimal-profile.js';
 
-// A small, synthetic record -- not the real 402-rule corpus -- so each case
-// below isolates exactly one qualification rule from thymianofficial/
-// thymian-workspace#60/#64: error severity, and at least one declared
-// context that is exactly observable (no cell, or a cell that isn't
-// 'heuristic').
+// A small, synthetic record -- not a real package's corpus -- so each case
+// below isolates exactly one qualification rule from ADR-0021 §3: error
+// severity, and at least one declared context that is exactly observable
+// (no cell, or a cell that isn't 'heuristic').
 function record(rules: CoverageRecord['rules']): CoverageRecord {
   return {
     source: {
