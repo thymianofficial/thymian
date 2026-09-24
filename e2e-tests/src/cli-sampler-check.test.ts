@@ -314,6 +314,52 @@ export const boom = beforeEach('${READ}', () => {
   }, 180_000);
 
   /**
+   * #48 AC 1, the other half: an error the sampler itself raises inside a hook
+   * is still a per-transaction fault.
+   *
+   * A thrown `Error` is wrapped in an envelope that carries `warn`; a
+   * `ThymianBaseError` the sampler raised — an unknown selector in a seed, a
+   * cycle, a request that will not serialize — is re-issued by
+   * `attributeToHook`, which used to keep the default `error` and so closed
+   * the run. A typo in a seed's selector is the most ordinary hook fault
+   * there is: the report document has to survive it.
+   */
+  it('errors the transaction whose seed names an unknown selector, and still reports', async () => {
+    copyFixturesToTempDir(join(fixturesDir, 'sampler-outcomes'), getTempDir());
+
+    writeSamplerHook(
+      getTempDir(),
+      'typo.ts',
+      `import { beforeEach } from '@thymian/hooks';
+
+export const typo = beforeEach('${READ}', async (request, ctx, utils) => {
+  await utils.request('POST /launchs (application/json) -> 201 (application/json)');
+});
+`,
+    );
+
+    const { port, server } = await serve(201, { id: 'l-1', name: 'Artemis' });
+
+    try {
+      const result = await check(getTempDir(), port);
+      const report = reportOf(result.stdout);
+
+      expect(transaction(report, READ).outcome).toBe('errored');
+      expect(transaction(report, READ).reason).toContain(
+        'No transaction matches the selector',
+      );
+      expect(report.summary.errored).toBe(1);
+      // The run reached its own end: the transactions after the broken one
+      // were still attempted, and the document is complete.
+      expect(transaction(report, STATUS).outcome).toBe('passed');
+      expect(transaction(report, CREATE).outcome).toBe('passed');
+      expect(result.exitCode).not.toBe(0);
+    } finally {
+      await server.close();
+    }
+  }, 180_000);
+
+  /**
    * #131: a transport failure is a fault of the one request that made it,
    * never of the run. The command must reach its own end — the summary in
    * human mode, a complete report document under `--json` — rather than

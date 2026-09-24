@@ -14,6 +14,14 @@ import { toTypeScriptPath, tsPathRelativeTo } from '../ts-path.js';
 import { entryExists } from '../utils.js';
 import { sharedCompilerHost } from './shared-compiler-host.js';
 
+/**
+ * TS18003, "No inputs were found in config file".
+ *
+ * Raised against the tsconfig's own `include`, which this check never compiles
+ * by — the roots are passed to `createProgram` explicitly.
+ */
+const NO_INPUTS_FOUND = 18003;
+
 /** One `tsc` complaint about a hook, as a reader needs it. */
 export type HookTypeError = {
   /** Path of the hook file, relative to the sampler root. */
@@ -85,8 +93,16 @@ export async function typecheckHooks(
       ),
     };
 
+    // TypeScript files only. A `.js`/`.mjs`/`.cjs` hook is legal — the loader
+    // runs it, and `transaction-filter.ts` documents that such a file is
+    // simply not type-checked — but handed to `createProgram` without
+    // `allowJs` it becomes TS6504, a program-level diagnostic with no file of
+    // its own, which lands on `tsconfig.json:1:1` and renders `broken`. A hook
+    // that runs fine cannot fail the type gate.
     const program = ts.createProgram(
-      hookFiles.map((file) => join(paths.hooksDir, file)),
+      hookFiles
+        .filter((file) => /\.[cm]?ts$/.test(file))
+        .map((file) => join(paths.hooksDir, file)),
       compilerOptions,
       sharedCompilerHost(compilerOptions),
     );
@@ -219,6 +235,15 @@ async function userCompilerOptions(paths: SamplerPaths): Promise<{
 
   return {
     options: { ...fallback, ...parsed.options },
-    diagnostics: [...parsed.errors],
+    // TS18003 ("No inputs were found in config file") is not a fault of the
+    // user's tsconfig: the scaffolded `include` names `hooks/**/*.ts` and
+    // `generated/**/*.d.ts`, and a sampler directory with neither yet is the
+    // ordinary state right after `sampler init`. Reported, it renders the
+    // whole surface `broken` at `tsconfig.json:1:1` over an empty hooks tree.
+    // What actually compiles is decided by the root files passed to
+    // `createProgram` below, never by this `include`.
+    diagnostics: parsed.errors.filter(
+      (diagnostic) => diagnostic.code !== NO_INPUTS_FOUND,
+    ),
   };
 }

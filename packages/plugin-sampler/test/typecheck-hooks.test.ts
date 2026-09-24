@@ -117,6 +117,53 @@ export const hook = beforeEach('GET /x', () => {
     expect(errors[0]?.message).toContain('@lib/shared');
   });
 
+  /**
+   * A `.js` hook is legal and deliberately un-type-checked: the loader accepts
+   * `.js`/`.mjs`/`.cjs`, and nothing about it can be checked against the
+   * generated surface. Passed to `createProgram` without `allowJs` it becomes
+   * TS6504 — a program-level diagnostic with no file of its own, so it lands
+   * on `tsconfig.json:1:1` and renders the whole surface `broken` for a hook
+   * that runs perfectly.
+   */
+  it('leaves a JavaScript hook out of the program instead of reporting it broken', async () => {
+    const paths = await fixture();
+
+    await writeTsconfig(
+      paths,
+      JSON.stringify({ compilerOptions: { strict: true } }),
+    );
+    await writeFile(
+      join(paths.hooksDir, 'seed.js'),
+      'export const seed = 1;\n',
+      'utf-8',
+    );
+
+    await expect(typecheckHooks(paths, SURFACE, ['seed.js'])).resolves.toEqual(
+      [],
+    );
+  });
+
+  /**
+   * The ordinary state right after `sampler init`: a scaffolded tsconfig whose
+   * `include` names `hooks/**` and `generated/**`, and neither has anything in
+   * it yet. TS18003 is raised against that `include`, which this check never
+   * compiles by — the roots are passed explicitly — so reporting it renders
+   * `broken` over an empty tree.
+   */
+  it('does not report an include that matches no files', async () => {
+    const paths = await fixture();
+
+    await writeTsconfig(
+      paths,
+      JSON.stringify({
+        compilerOptions: { strict: true },
+        include: ['./hooks/**/*.ts', './generated/**/*.d.ts'],
+      }),
+    );
+
+    await expect(typecheckHooks(paths, SURFACE, [])).resolves.toEqual([]);
+  });
+
   it('reports a tsconfig that fails to parse as a diagnostic, not a silent fallback', async () => {
     const paths = await fixture();
 
