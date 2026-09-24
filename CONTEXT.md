@@ -134,6 +134,16 @@ declare, or to mark a declared one heuristic — a declared context defaults to 
 _In code_: `CoverageRecord`, `defineCoverage`, `packages/core/src/rules/rule-coverage.ts`.
 _Avoid_: roadmap, manifest
 
+**Fixture**:
+The proof that a rule's declared `Validation Context` really observes what the rule asserts:
+for one rule in one context, an input it must flag, one it must pass, and — where the rule can
+meet an input it cannot decide — one it must skip, each evaluated by that context's own engine.
+A spec `Rule Set` carries one per rule per declared context, with no exemptions; that
+requirement is the _fixture bar_.
+_In code_: `RuleFixtures`, one `*.fixtures.ts` module beside each rule file.
+_Avoid_: sample, example, test case (a `Sample` is test data Thymian derives for the user's own
+API; a fixture is test data a rule author writes for a rule)
+
 **Convention Rule**:
 A rule that asserts an obligation no `Source` imposes, over a mechanism a `Source` defines —
 send HSTS at all, mark a session cookie `HttpOnly`. Lives in its source's own package, never

@@ -41,7 +41,7 @@ ruleSets:
 
 ## Coverage
 
-**0 of 14** units covered, by **0** rule(s).
+**1 of 14** units covered, by **1** rule(s).
 
 - Source: RFC 6797 (November 2012)
 - Counting rule: One unit per paragraph of §6, §7 and §9.2 — the chapters addressed to the host — that contains a BCP 14 keyword.
@@ -52,7 +52,6 @@ Not yet covered:
 - `6.1/2` — All directives MUST appear only once in an STS header field.
 - `6.1/3` — UAs MUST ignore any STS header field containing directives, or other header field value data, that does not conform to the syntax.
 - `6.1/4` — If an STS header field contains directives not recognized by the UA, the UA MUST ignore them and process the recognized ones.
-- `6.1.1/1` — The REQUIRED max-age directive specifies how many seconds the UA regards the host as a Known HSTS Host.
 - `6.1.1/2` — The max-age directive's REQUIRED value is delta-seconds (1*DIGIT), after quoted-string unescaping.
 - `6.1.2/1` — The OPTIONAL includeSubDomains directive is a valueless directive that extends the HSTS Policy to subdomains.
 - `7.1/1` — Over secure transport, an HSTS Host SHOULD include an STS header field that MUST satisfy the §6.1 grammar, and MUST include only one.
@@ -67,7 +66,7 @@ Not yet covered:
 
 | Severity | Keyword | recommended | strict | minimal |
 | -------- | ------- | ----------- | ------ | ------- |
-| error    | MUST    | 0           | 0      | 0       |
+| error    | MUST    | 1           | 1      | 1       |
 | warn     | SHOULD  | 0           | 0      | 0       |
 | hint     | MAY     | 0           | 0      | 0       |
 | off      | (off)   | 0           | 0      | 0       |
@@ -78,13 +77,17 @@ None.
 
 ## Rule verdicts
 
-No rules.
+### syntax
+
+| Rule                                           | static     | analytics  | test       |
+| ---------------------------------------------- | ---------- | ---------- | ---------- |
+| rfc-6797/hsts-host-must-send-max-age-directive | observable | observable | observable |
 
 ## Tag status
 
 ### security
 
-- `security:transport` — ships empty
+- `security:transport` — 1 rule(s)
 - `security:cors` — ships empty
 - `security:cookies` — ships empty
 - `security:csp` — ships empty
