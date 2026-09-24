@@ -35,7 +35,15 @@ describe('rfc6797 rule-configuration profiles', () => {
     expect(rfc6797.profiles?.strict).toEqual({});
   });
 
-  it('ships an empty recommended profile while no convention rule exists', () => {
-    expect(rfc6797.profiles?.recommended).toEqual({});
+  // The two twins carry the checks the RFC makes conditional on a host
+  // having chosen HSTS, exactly and of every server; each replaces the rule
+  // it twins, so one response is reported once.
+  it('turns the conventions on and the two rules they twin off in recommended', () => {
+    expect(rfc6797.profiles?.recommended).toEqual({
+      'rfc6797/server-should-send-sts-header-over-secure-transport': 'error',
+      'rfc6797/server-may-establish-hsts-over-secure-transport': 'off',
+      'rfc6797/server-should-redirect-insecure-requests-to-https': 'error',
+      'rfc6797/hsts-host-should-redirect-insecure-requests-to-https': 'off',
+    });
   });
 });

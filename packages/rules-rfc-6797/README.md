@@ -41,34 +41,52 @@ ruleSets:
 
 ## Coverage
 
-**8 of 14** units covered, by **8** rule(s).
+**14 of 14** units covered, by **15** rule(s).
 
 - Source: RFC 6797 (November 2012)
 - Counting rule: One unit per paragraph of §6, §7 and §9.2 — the chapters addressed to the host — that contains a BCP 14 keyword.
 
-Not yet covered:
-
-- `7.1/2` — Establishing a Known HSTS Host MAY be accomplished by returning a valid STS header field over secure transport; a pre-loaded list MAY also be used.
-- `7.1/3` — NOTE: including the STS header field is a SHOULD to accommodate caches and load balancing.
-- `7.2/1` — Over non-secure transport, an HSTS Host SHOULD answer with a permanent redirect whose Location has the https scheme.
-- `7.2/2` — NOTE: the redirect is a SHOULD rather than a MUST because of redirect risks and deployment characteristics.
-- `7.2/3` — An HSTS Host MUST NOT include the STS header field in HTTP responses conveyed over non-secure transport.
-- `9.2/1` — Effective request URIs are compared per RFC 2616 §3.2.3, except that empty path components MUST NOT be treated as equivalent to an absolute path of "/".
+Not yet covered: none.
 
 ## Severity map
 
 | Severity | Keyword | recommended | strict | minimal |
 | -------- | ------- | ----------- | ------ | ------- |
-| error    | MUST    | 6           | 6      | 5       |
-| warn     | SHOULD  | 0           | 0      | 0       |
-| hint     | MAY     | 2           | 2      | 0       |
-| off      | (off)   | 0           | 0      | 3       |
+| error    | MUST    | 11          | 9      | 7       |
+| warn     | SHOULD  | 0           | 1      | 0       |
+| hint     | MAY     | 4           | 5      | 0       |
+| off      | (off)   | 2           | 2      | 10      |
 
 ## Conventions
 
-None.
+### rfc6797/server-should-redirect-insecure-requests-to-https
+
+RFC 6797 asks for this redirect only from a host that has already chosen to be an HSTS Host, and the recommended profile requires it of every server because a plain-HTTP request not answered by a permanent redirect — typically a typed bare domain on a first visit — is exactly the downgrade window HSTS exists to close, and the one place its header can never be delivered.
+
+### rfc6797/server-should-send-sts-header-over-secure-transport
+
+RFC 6797 only permits a host to establish HSTS by sending this header and asks it of every response only from a host that has already chosen to be an HSTS Host, and the recommended profile requires it of every server because, outside the browsers' pre-load lists, the header is the only way a browser learns the policy, so a response without it leaves every first visit, and every visit after the policy lapses, open to a downgrade to plain HTTP.
 
 ## Rule verdicts
+
+### effective-request-uri
+
+| Rule                                                                                       | static                           | analytics                        | test                             |
+| ------------------------------------------------------------------------------------------ | -------------------------------- | -------------------------------- | -------------------------------- |
+| rfc6797/hsts-host-must-not-treat-empty-path-as-slash-when-comparing-effective-request-uris | impossible (peer-not-observable) | impossible (peer-not-observable) | impossible (peer-not-observable) |
+
+### server-processing-model
+
+| Rule                                                               | static                         | analytics                     | test                          |
+| ------------------------------------------------------------------ | ------------------------------ | ----------------------------- | ----------------------------- |
+| rfc6797/hsts-host-must-not-send-sts-header-over-insecure-transport | observable                     | observable                    | observable                    |
+| rfc6797/hsts-host-must-send-only-one-sts-header                    | impossible (not-representable) | observable                    | observable                    |
+| rfc6797/hsts-host-should-redirect-insecure-requests-to-https       | heuristic                      | heuristic                     | heuristic                     |
+| rfc6797/https-redirect-is-should-for-deployment-reasons            | impossible (nothing-to-check)  | impossible (nothing-to-check) | impossible (nothing-to-check) |
+| rfc6797/server-may-establish-hsts-over-secure-transport            | observable                     | observable                    | observable                    |
+| rfc6797/server-should-redirect-insecure-requests-to-https          | observable                     | observable                    | observable                    |
+| rfc6797/server-should-send-sts-header-over-secure-transport        | observable                     | observable                    | observable                    |
+| rfc6797/sts-header-inclusion-is-should-to-accommodate-caches       | impossible (nothing-to-check)  | impossible (nothing-to-check) | impossible (nothing-to-check) |
 
 ### syntax
 
@@ -87,7 +105,7 @@ None.
 
 ### security
 
-- `security:transport` — 8 rule(s)
+- `security:transport` — 17 rule(s)
 - `security:cors` — ships empty
 - `security:cookies` — ships empty
 - `security:csp` — ships empty
