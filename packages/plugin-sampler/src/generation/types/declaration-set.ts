@@ -102,6 +102,85 @@ export function splitDeclarations(source: string): Declaration[] {
  * match, so a dotted reference is correctly left alone — none of the emitter's
  * own declarations are namespaced.
  */
+/**
+ * The names `text` references that belong to `candidates`.
+ *
+ * The same AST walk {@link renameReferences} edits by, asking which of a
+ * unit's own members a declaration mentions rather than rewriting them.
+ */
+function referencedNames(
+  text: string,
+  candidates: ReadonlySet<string>,
+): string[] {
+  const source = ts.createSourceFile(
+    'declaration.d.ts',
+    text,
+    ts.ScriptTarget.Latest,
+    /* setParentNodes */ true,
+    ts.ScriptKind.TS,
+  );
+
+  const found = new Set<string>();
+
+  const visit = (node: ts.Node): void => {
+    if (
+      ts.isIdentifier(node) &&
+      isRenameablePosition(node) &&
+      candidates.has(node.text)
+    ) {
+      found.add(node.text);
+    }
+
+    ts.forEachChild(node, visit);
+  };
+
+  ts.forEachChild(source, visit);
+
+  return [...found];
+}
+
+/**
+ * What makes one declaration the same *variant* as another: its own text plus
+ * the text of everything it transitively references inside its unit.
+ *
+ * The raw text alone is not enough, because a declaration's references are
+ * resolved per unit. Two sources declaring `User = { address: Address }`
+ * byte-identically are the same text and **not** the same type when their
+ * `Address` differs — reusing the first source's alias for the second gave the
+ * second source a committed type describing the first source's API, with its
+ * own renamed `Address_2` emitted and never referenced. `checkSurface` stayed
+ * clean because the surface was internally consistent; it was just wrong.
+ */
+function variantKey(
+  declaration: Declaration,
+  unit: readonly Declaration[],
+): string {
+  const texts = new Map(unit.map((member) => [member.name, member.text]));
+  const names = new Set(texts.keys());
+  const closure = new Map<string, string>();
+
+  const walk = (name: string): void => {
+    const text = texts.get(name);
+
+    if (text === undefined || closure.has(name)) {
+      return;
+    }
+
+    closure.set(name, text);
+
+    for (const reference of referencedNames(text, names)) {
+      walk(reference);
+    }
+  };
+
+  walk(declaration.name);
+
+  return [...closure]
+    .sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))
+    .map(([name, text]) => `${name}\u0000${text}`)
+    .join('\u0001');
+}
+
 function isRenameablePosition(identifier: ts.Identifier): boolean {
   const parent = identifier.parent as ts.Node | undefined;
 
@@ -238,12 +317,12 @@ export class DeclarationSet {
     this.used = new Set(reserved);
   }
 
-  /** Records that `originalName`/`originalText` resolved to `finalName`, and commits `finalName`/`finalText` as held. */
+  /** Records that `originalName`/`variant` resolved to `finalName`, and commits `finalName`/`finalText` as held. */
   private commit(
     finalName: string,
     finalText: string,
     originalName: string,
-    originalText: string,
+    variant: string,
   ): void {
     this.byName.set(finalName, finalText);
     this.used.add(finalName);
@@ -255,7 +334,7 @@ export class DeclarationSet {
       this.resolved.set(originalName, variants);
     }
 
-    variants.set(originalText, finalName);
+    variants.set(variant, finalName);
   }
 
   /**
@@ -298,13 +377,23 @@ export class DeclarationSet {
       return this.byName.get(declaration.name) !== declaration.text;
     });
 
+    // One key per member, computed before anything is committed: a variant is
+    // the declaration *and its references' contents*, so the key cannot be
+    // derived after a rename has already been chosen.
+    const keys = new Map(
+      unit.map((declaration) => [
+        declaration.name,
+        variantKey(declaration, unit),
+      ]),
+    );
+
     if (!conflicts) {
       for (const declaration of unit) {
         this.commit(
           declaration.name,
           declaration.text,
           declaration.name,
-          declaration.text,
+          keys.get(declaration.name) as string,
         );
       }
 
@@ -314,9 +403,12 @@ export class DeclarationSet {
     const renames = new Map<string, string>();
 
     for (const declaration of unit) {
-      // A variant this exact (name, text) pair already resolved — reuse it
-      // rather than minting another alias for the same content.
-      const reused = this.resolved.get(declaration.name)?.get(declaration.text);
+      // A variant this set already resolved — same text *and* the same
+      // references resolving to the same contents — so reuse its alias rather
+      // than minting another for the same type.
+      const reused = this.resolved
+        .get(declaration.name)
+        ?.get(keys.get(declaration.name) as string);
 
       renames.set(declaration.name, reused ?? this.freeName(declaration.name));
     }
@@ -334,7 +426,7 @@ export class DeclarationSet {
         name,
         renameReferences(declaration.text, renames),
         declaration.name,
-        declaration.text,
+        keys.get(declaration.name) as string,
       );
     }
 
