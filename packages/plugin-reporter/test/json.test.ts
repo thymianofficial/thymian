@@ -1,5 +1,5 @@
-import { readFile, rm } from 'node:fs/promises';
-import { join, resolve } from 'node:path';
+import { readdir, readFile, rm } from 'node:fs/promises';
+import { join } from 'node:path';
 
 import {
   createAnalyzeExecution,
@@ -18,9 +18,7 @@ import { validate } from '@thymian/core/ajv';
 import { describe, expect, it } from 'vitest';
 
 import { JsonFormatter } from '../src/formatters/json.js';
-import { FORMATTER_REGISTRY } from '../src/get-formatters.js';
-
-const pluginOptions = { cwd: '/base', logger: new NoopLogger() };
+import { defaultRunDirectoryName } from '../src/report-file-name.js';
 
 const rules: RuleDescriptor[] = [
   { id: 'order-lifecycle', severity: 'error' },
@@ -174,69 +172,44 @@ function representativeReport(): Report {
   );
 }
 
-async function flushToFile(
-  fileName: string,
+/**
+ * Drive reports through a formatter rooted in its own scratch `cwd`, and hand
+ * back where each one landed: there is no configurable path any more, so a
+ * report's destination is derived from the report itself.
+ */
+async function writeReports(
+  name: string,
   reports: Report[],
-): Promise<{ path: string; output: string | undefined }> {
-  const path = join(process.cwd(), 'tmp', fileName);
-  await rm(path, { force: true });
+): Promise<{ paths: string[]; output: string | undefined }> {
+  const cwd = join(process.cwd(), 'tmp', name);
+  await rm(cwd, { recursive: true, force: true });
 
   const formatter = new JsonFormatter(new NoopLogger());
-  formatter.init({ path });
+  formatter.init({ cwd });
   for (const report of reports) {
-    formatter.report(report);
+    await formatter.report(report);
   }
 
-  return { path, output: await formatter.flush() };
+  return {
+    paths: reports.map((report) =>
+      join(
+        cwd,
+        '.thymian',
+        'reports',
+        defaultRunDirectoryName(report),
+        'report.json',
+      ),
+    ),
+    output: await formatter.flush(),
+  };
 }
-
-describe('FORMATTER_REGISTRY.json.prepareOptions', () => {
-  it('joins a configured relative path onto cwd', () => {
-    const prepared = FORMATTER_REGISTRY.json.prepareOptions(
-      { path: 'custom/report.json' },
-      pluginOptions,
-    );
-
-    expect(prepared.path).toBe(resolve('/base', 'custom/report.json'));
-  });
-
-  it('falls back to the default path when none is configured', () => {
-    const prepared = FORMATTER_REGISTRY.json.prepareOptions({}, pluginOptions);
-
-    expect(prepared.path).toBe(
-      resolve('/base', '.thymian/reports/report.json'),
-    );
-  });
-
-  it('does not let an explicit undefined path wipe the default', () => {
-    const prepared = FORMATTER_REGISTRY.json.prepareOptions(
-      { path: undefined },
-      pluginOptions,
-    );
-
-    expect(prepared.path).toBe(
-      resolve('/base', '.thymian/reports/report.json'),
-    );
-  });
-
-  it('keeps an absolute configured path instead of prefixing cwd', () => {
-    // `resolve` with a single argument yields a platform-absolute path, so this
-    // covers Windows drive-rooted paths as well as POSIX ones.
-    const absolutePath = resolve('/absolute/report.json');
-
-    const prepared = FORMATTER_REGISTRY.json.prepareOptions(
-      { path: absolutePath },
-      pluginOptions,
-    );
-
-    expect(prepared.path).toBe(absolutePath);
-  });
-});
 
 describe('JsonFormatter output', () => {
   it('writes the canonical report verbatim, with no presentation transform', async () => {
     const report = representativeReport();
-    const { path } = await flushToFile('json-roundtrip.json', [report]);
+    const {
+      paths: [path = ''],
+    } = await writeReports('json-roundtrip', [report]);
 
     const parsed: unknown = JSON.parse(await readFile(path, 'utf-8'));
 
@@ -247,7 +220,9 @@ describe('JsonFormatter output', () => {
 
   it('preserves nested detail that human-readable formatters drop', async () => {
     const report = representativeReport();
-    const { path } = await flushToFile('json-detail.json', [report]);
+    const {
+      paths: [path = ''],
+    } = await writeReports('json-detail', [report]);
 
     const [parsed] = JSON.parse(await readFile(path, 'utf-8')) as Report[];
 
@@ -283,24 +258,22 @@ describe('JsonFormatter output', () => {
     expect(parsed?.thymianFormat?.['v1']).toBeDefined();
   });
 
-  it('collects every report of the session into one top-level array, in order', async () => {
-    const first = createReport([
+  it('wraps every report in a top-level array, so the payload shape never changes', async () => {
+    const report = createReport([
       createToolRun({ tool: { name: 'first' }, runType: 'lint' }),
     ]);
-    const second = createReport([
-      createToolRun({ tool: { name: 'second' }, runType: 'test' }),
-    ]);
 
-    const { path } = await flushToFile('json-multi.json', [first, second]);
+    const {
+      paths: [path = ''],
+    } = await writeReports('json-array-shape', [report]);
     const parsed = JSON.parse(await readFile(path, 'utf-8')) as Report[];
 
-    expect(parsed).toHaveLength(2);
-    expect(parsed[0]?.reportId).toBe(first.reportId);
-    expect(parsed[1]?.reportId).toBe(second.reportId);
+    expect(parsed).toHaveLength(1);
+    expect(parsed[0]?.reportId).toBe(report.reportId);
   });
 
   it('writes compact JSON', async () => {
-    const { output } = await flushToFile('json-compact.json', [
+    const { output } = await writeReports('json-compact', [
       representativeReport(),
     ]);
 
@@ -309,27 +282,111 @@ describe('JsonFormatter output', () => {
   });
 
   it('writes no file and returns undefined when the session produced no report', async () => {
-    const path = join(process.cwd(), 'tmp', 'json-empty.json');
-    await rm(path, { force: true });
+    const cwd = join(process.cwd(), 'tmp', 'json-empty');
+    await rm(cwd, { recursive: true, force: true });
 
     const formatter = new JsonFormatter(new NoopLogger());
-    formatter.init({ path });
+    formatter.init({ cwd });
 
     await expect(formatter.flush()).resolves.toBeUndefined();
-    await expect(readFile(path, 'utf-8')).rejects.toThrow();
+    await expect(readdir(join(cwd, '.thymian', 'reports'))).rejects.toThrow();
   });
 });
 
 describe('JsonFormatter schema validity', () => {
   it('emits reports that still validate against the core.report schema', async () => {
-    const { path } = await flushToFile('json-schema.json', [
-      representativeReport(),
-    ]);
+    const {
+      paths: [path = ''],
+    } = await writeReports('json-schema', [representativeReport()]);
 
     const parsed = JSON.parse(await readFile(path, 'utf-8')) as unknown[];
 
     for (const report of parsed) {
       expect(validate(reportSchema, report)).toBe(true);
     }
+  });
+});
+
+describe('JsonFormatter derived run directory', () => {
+  it('writes report.json in a per-run directory under .thymian/reports', async () => {
+    const cwd = join(process.cwd(), 'tmp', 'json-derived');
+    await rm(cwd, { recursive: true, force: true });
+
+    const formatter = new JsonFormatter(new NoopLogger());
+    formatter.init({ cwd });
+    await formatter.report(representativeReport());
+    await formatter.flush();
+
+    const reportsDir = join(cwd, '.thymian', 'reports');
+    const runDirectories = await readdir(reportsDir);
+    const [runDirectory = ''] = runDirectories;
+
+    expect(runDirectories).toHaveLength(1);
+    // `<stamp>-<shortId>`: both parts non-empty, so a degenerate `-` fails.
+    expect(runDirectory).toMatch(/^.+-[A-Za-z0-9]+$/);
+    expect(await readdir(join(reportsDir, runDirectory))).toEqual([
+      'report.json',
+    ]);
+  });
+
+  it('gives two reports of one session two run directories, each holding its own report', async () => {
+    // The `serve` defect: one plugin instance serves every workflow, so a
+    // destination pinned on the first report aggregated workflow 2 into
+    // workflow 1's file.
+    const first = createReport([
+      createToolRun({ tool: { name: 'first' }, runType: 'lint' }),
+    ]);
+    const second = createReport([
+      createToolRun({ tool: { name: 'second' }, runType: 'test' }),
+    ]);
+
+    const { paths } = await writeReports('json-two-reports', [first, second]);
+    const cwd = join(process.cwd(), 'tmp', 'json-two-reports');
+
+    expect(await readdir(join(cwd, '.thymian', 'reports'))).toHaveLength(2);
+    expect(paths[0]).not.toBe(paths[1]);
+
+    for (const [index, report] of [first, second].entries()) {
+      const parsed = JSON.parse(
+        await readFile(paths[index] ?? '', 'utf-8'),
+      ) as Report[];
+
+      // Each file holds exactly its own report — nothing pooled, nothing lost.
+      expect(parsed).toHaveLength(1);
+      expect(parsed[0]?.reportId).toBe(report.reportId);
+    }
+  });
+
+  it('honours a custom reportsDir, relative to cwd and absolute as-is', async () => {
+    const cwd = join(process.cwd(), 'tmp', 'json-custom-base');
+    await rm(cwd, { recursive: true, force: true });
+
+    const relative = new JsonFormatter(new NoopLogger());
+    relative.init({ cwd, reportsDir: 'build/rep' });
+    await relative.report(representativeReport());
+    await relative.flush();
+
+    const absoluteBase = join(cwd, 'absolute-base');
+    const absolute = new JsonFormatter(new NoopLogger());
+    absolute.init({ cwd: join(cwd, 'elsewhere'), reportsDir: absoluteBase });
+    await absolute.report(representativeReport());
+    await absolute.flush();
+
+    expect(await readdir(join(cwd, 'build', 'rep'))).toHaveLength(1);
+    expect(await readdir(absoluteBase)).toHaveLength(1);
+    // A custom base takes over completely — the default one is never touched.
+    await expect(readdir(join(cwd, '.thymian'))).rejects.toThrow();
+    await expect(readdir(join(cwd, 'elsewhere'))).rejects.toThrow();
+  });
+
+  it('writes nothing when no report arrived', async () => {
+    const cwd = join(process.cwd(), 'tmp', 'json-derived-empty');
+    await rm(cwd, { recursive: true, force: true });
+
+    const formatter = new JsonFormatter(new NoopLogger());
+    formatter.init({ cwd });
+
+    await expect(formatter.flush()).resolves.toBeUndefined();
+    await expect(readdir(join(cwd, '.thymian', 'reports'))).rejects.toThrow();
   });
 });

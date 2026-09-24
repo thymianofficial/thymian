@@ -12,14 +12,17 @@ import {
   walkExecutions,
 } from '@thymian/core';
 
-import type { Formatter } from '../formatter.js';
+import type {
+  FileFormatterOptions,
+  Formatter,
+  FormatterRuntimeOptions,
+} from '../formatter.js';
+import { resolveReportPath } from '../report-file-name.js';
 
 const CSV_HEADER =
   'run_id,run_type,tool,rule_id,location,row_type,status,severity,finding_kind,finding_id,title,message,detail\n';
 
-export type CsvFormatterOptions = {
-  path: string;
-};
+export type CsvFormatterOptions = FileFormatterOptions;
 
 function executionLabel(
   execution: Execution,
@@ -31,116 +34,273 @@ function executionLabel(
     : resolveLocation(execution.location, runVersion);
 }
 
+/**
+ * One open destination: the stream plus where it points, and whether it has
+ * already failed. Errors past `ready` can only be logged, so `failed` keeps a
+ * later success message from claiming a file that was never fully written.
+ */
+type OpenCsvStream = {
+  stream: WriteStream;
+  outputPath: string;
+  failed: boolean;
+};
+
+function errorMessage(err: unknown): string {
+  return err instanceof Error ? err.message : String(err);
+}
+
 export class CsvFormatter implements Formatter<CsvFormatterOptions> {
-  // The stream opens lazily on the first reported report (see openStream),
-  // held as a promise so concurrent report() calls share one open.
-  private streamPromise?: Promise<WriteStream>;
+  options!: CsvFormatterOptions & FormatterRuntimeOptions;
 
-  // First stream error after 'ready'. Post-open failures (ENOSPC, a mount
-  // going away) surface via the 'error' event — the header write in
-  // particular has no rejection path of its own — so the error is held here
-  // and thrown from the next report()/flush(): the workflow must fail
-  // rather than exit clean beside a truncated CSV.
-  private streamError?: Error;
+  /**
+   * Content of the most recently written report, handed back by {@link flush}
+   * so a caller that drives a single report still gets the rendered output.
+   *
+   * No production consumer: the reporter plugin discards `flush()`'s return
+   * value. It exists for the {@link Formatter} contract and for callers — tests
+   * today — that drive one report and assert on the rows. Bounded to one
+   * document on purpose; retaining every report is what this formatter used to
+   * do to stream one session-level file.
+   */
+  private lastOutput: string | undefined;
 
-  options!: CsvFormatterOptions;
+  /**
+   * Tail of the write chain. `core.report` is emitted fire-and-forget — the
+   * emitter never awaits its subscribers — so without this a `flush()` during
+   * `core.close` could return before a report reached disk, and `serve` calls
+   * `process.exit()` right after. Serializing on one chain is also what lets
+   * {@link write} keep its stream in a local: only one write is ever in
+   * flight, so there is no shared stream for two reports to fight over.
+   */
+  private queue: Promise<void> = Promise.resolve();
 
   constructor(private readonly logger: Logger) {}
 
-  async flush(): Promise<string | undefined> {
-    // No report ever arrived: like the json/markdown formatters, leave no
-    // file behind — core withholds the report emission on a failed run
-    // (e.g. an unclaimed report input), and a header-only artifact on disk
-    // would read as a produced result.
-    if (!this.streamPromise) {
-      return undefined;
-    }
-
-    const stream = await this.streamPromise;
-
-    if (this.streamError) {
-      throw this.streamError;
-    }
-
-    return new Promise((resolve, reject) => {
-      stream.once('error', reject);
-      stream.end(() => {
-        stream.removeListener('error', reject);
-
-        // An error surfacing only while end() flushes lands on the persistent
-        // handler (which records it) but may miss the rejection listener.
-        if (this.streamError) {
-          reject(this.streamError);
-          return;
-        }
-
-        this.logger.debug(`Wrote CSV report to ${this.options.path}`);
-        resolve(undefined);
-      });
-    });
-  }
-
-  async init(options: CsvFormatterOptions): Promise<void> {
+  init(options: CsvFormatterOptions & FormatterRuntimeOptions): void {
     this.options = options;
-
-    await mkdir(dirname(options.path), { recursive: true });
-  }
-
-  // Rows still stream out per report (large sessions never buffer), at the
-  // price of surfacing open errors on the first report instead of at init.
-  private openStream(): Promise<WriteStream> {
-    return new Promise((resolve, reject) => {
-      const stream = createWriteStream(this.options.path, 'utf-8');
-
-      const onError = (err: Error) => {
-        this.logger.error(
-          `Failed to write CSV report to ${this.options.path}: ${err.message}`,
-        );
-        reject(err);
-      };
-
-      stream.once('error', onError);
-
-      stream.on('ready', () => {
-        stream.removeListener('error', onError);
-        stream.on('error', (err) => {
-          this.streamError ??= err;
-          this.logger.error(
-            `Failed to write CSV report to ${this.options.path}: ${err.message}`,
-          );
-        });
-
-        stream.write(CSV_HEADER);
-
-        resolve(stream);
-      });
-    });
   }
 
   async report(report: Report): Promise<void> {
-    this.streamPromise ??= this.openStream();
-    const stream = await this.streamPromise;
+    const task = this.queue.then(async () => this.write(report));
 
-    if (this.streamError) {
-      throw this.streamError;
-    }
+    // Keep the chain alive even if this write rejects, so one failure cannot
+    // poison every later report.
+    this.queue = task.then(
+      () => undefined,
+      () => undefined,
+    );
 
-    const lines = reportToCsvLines(report);
+    return task;
+  }
 
-    if (lines.length === 0) {
+  /**
+   * Awaits every queued write — including one queued while it waits — and hands back the last report's content.
+   * Never throws: it runs inside the `core.close` action handler, and a
+   * destination that could not be written must not take the shutdown with it.
+   */
+  async flush(): Promise<string | undefined> {
+    // `core.report` is not awaited, so a report can still be queued while
+    // this waits (a workflow finishing during `serve` shutdown). Wait until
+    // the queue stops growing, not just for the tail seen on entry.
+    let drained: Promise<void>;
+    do {
+      drained = this.queue;
+      await drained;
+    } while (drained !== this.queue);
+
+    return this.lastOutput;
+  }
+
+  /**
+   * Render and persist one report. Never throws.
+   *
+   * The stream is a local, not instance state: {@link report} serializes calls,
+   * so exactly one write is in flight and nothing else can close or overwrite
+   * this stream mid-flight.
+   */
+  private async write(report: Report): Promise<void> {
+    const outputPath = resolveReportPath(
+      this.options.cwd ?? process.cwd(),
+      this.options.reportsDir,
+      report,
+      'csv',
+    );
+
+    // Render before opening: opening writes the header, so a report that
+    // cannot be rendered would otherwise leave a header-only file that a
+    // `<reportsDir>/*/report.csv` glob picks up as a real, empty report.
+    let rows: string;
+
+    try {
+      rows = reportToCsvLines(report).join('');
+    } catch (err) {
+      this.logger.error(
+        `Failed to write CSV report to ${outputPath}: ${errorMessage(
+          err,
+        )}. No CSV report will be written for this report.`,
+      );
+
       return;
     }
 
-    return new Promise((resolve, reject) => {
-      stream.write(lines.join(''), (err) => {
-        if (err) {
-          reject(err);
+    // A report that renders to no rows still gets its header-only file.
+    const open = await this.openStream(outputPath);
+
+    // Destination unusable (already logged): drop the report instead of
+    // throwing, so one broken destination cannot fail the whole run and the
+    // next report still gets its own attempt.
+    if (open === undefined) {
+      return;
+    }
+
+    let written: string | undefined;
+
+    try {
+      if (rows.length === 0) {
+        written = rows;
+      } else {
+        const rowError = await writeRows(open.stream, rows);
+
+        if (rowError === undefined) {
+          written = rows;
         } else {
-          resolve();
+          this.failWrite(open, rowError);
         }
-      });
-    });
+      }
+    } catch (err) {
+      this.failWrite(
+        open,
+        err instanceof Error ? err : new Error(errorMessage(err)),
+      );
+    } finally {
+      await closeStream(open);
+    }
+
+    // Only claim — and only announce — content that actually reached disk.
+    // `open.failed` is the flag the stream's own error listener sets, and it is
+    // only reliable once the stream has been ended: an async write error (a
+    // failed header, say) surfaces after `stream.write` has already returned.
+    if (written !== undefined && !open.failed) {
+      this.logger.info(`Wrote CSV report to ${open.outputPath}`);
+      this.lastOutput = `${CSV_HEADER}${written}`;
+    }
   }
+
+  /**
+   * Record a write failure against the open destination and report it once.
+   *
+   * Every write funnels through here because a real `WriteStream` does not
+   * necessarily emit `'error'`: on Linux an ENOSPC from the kernel arrives at
+   * the `write` callback and no `'error'` event follows it. Relying on the
+   * event alone therefore lost the failure entirely — a report was dropped with
+   * nothing logged, and a run-less report (whose only write is the header) was
+   * announced as written because `failed` was still false.
+   *
+   * Idempotent: the event and the callback can both fire for one failure, and
+   * the user should see it once.
+   */
+  private failWrite(open: OpenCsvStream, err: Error): void {
+    if (open.failed) {
+      return;
+    }
+
+    open.failed = true;
+    this.logger.error(
+      `Failed to write CSV report to ${open.outputPath}: ${err.message}`,
+    );
+  }
+
+  /**
+   * Create the run directory and open the stream with the CSV header already
+   * written.
+   *
+   * Never rejects. A destination we cannot create (EACCES, ENOTDIR, ENOSPC, a
+   * read-only filesystem …) is logged once and yields `undefined`, which leaves
+   * this report unwritten but the formatter usable for the next one. A rejection
+   * here would instead be re-raised by `report()`, which runs inside the
+   * `core.report` handler — one unwritable report file would take the whole run
+   * down with it.
+   */
+  private async openStream(
+    outputPath: string,
+  ): Promise<OpenCsvStream | undefined> {
+    try {
+      await mkdir(dirname(outputPath), { recursive: true });
+
+      const stream = createWriteStream(outputPath, 'utf-8');
+      const open: OpenCsvStream = { stream, outputPath, failed: false };
+
+      return await new Promise<OpenCsvStream>((resolve, reject) => {
+        // The `catch` below owns the logging for this leg, so `onError` only
+        // has to reject.
+        const onError = (err: Error) => {
+          reject(err);
+        };
+
+        stream.once('error', onError);
+
+        stream.on('ready', () => {
+          stream.removeListener('error', onError);
+          // Past `ready` there is nobody left to reject to, so a write error
+          // can only be recorded and reported.
+          stream.on('error', (err) => {
+            this.failWrite(open, err);
+          });
+
+          // The header needs its own callback: it is the only write a run-less
+          // report makes, and its failure reaches the callback rather than the
+          // error event. Node runs pending write callbacks before the `end()`
+          // callback, so `failed` is settled by the time `write` inspects it.
+          stream.write(CSV_HEADER, (err) => {
+            if (err) {
+              this.failWrite(open, err);
+            }
+          });
+
+          resolve(open);
+        });
+      });
+    } catch (err) {
+      this.logger.error(
+        `Failed to write CSV report to ${outputPath}: ${errorMessage(
+          err,
+        )}. No CSV report will be written for this report.`,
+      );
+
+      return undefined;
+    }
+  }
+}
+
+/** End a stream and never reject. */
+function closeStream(open: OpenCsvStream): Promise<void> {
+  return new Promise<void>((resolve) => {
+    // Write errors are already logged by the listener installed in
+    // `openStream`, so closing only ever resolves.
+    open.stream.once('error', () => {
+      resolve();
+    });
+    open.stream.end(() => {
+      resolve();
+    });
+  });
+}
+
+/**
+ * Write the rendered rows, handing back the failure rather than rejecting:
+ * `report()` must not throw, and the caller reports the error through
+ * {@link CsvFormatter.failWrite} — the stream's error listener cannot be relied
+ * on to have seen it.
+ */
+function writeRows(
+  stream: WriteStream,
+  rows: string,
+): Promise<Error | undefined> {
+  return new Promise<Error | undefined>((resolve) => {
+    stream.write(rows, (err) => {
+      resolve(err ?? undefined);
+    });
+  });
 }
 
 export function reportToCsvLines(report: Report): string[] {

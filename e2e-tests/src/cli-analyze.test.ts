@@ -1,4 +1,4 @@
-import { cpSync, existsSync } from 'node:fs';
+import { cpSync, existsSync, readdirSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 
 import { describe, expect, it } from 'vitest';
@@ -144,8 +144,27 @@ describe('thymian analyze', () => {
       // Exit 0 = clean-run (no violations)
       expect(result.exitCode).toBe(0);
 
-      // The markdown formatter actually ran and wrote its default report.
-      expect(existsSync(join(getTempDir(), '.thymian/reports/report.md'))).toBe(
+      // The markdown formatter actually ran and wrote its default report: one
+      // directory per run, named after the report's timestamp and id, holding
+      // the report under a stable basename.
+      const reportsDir = join(getTempDir(), '.thymian', 'reports');
+
+      // Assert the directory first: `readdirSync` on a missing path throws a
+      // raw ENOENT that hides *what* the test was checking.
+      expect(existsSync(reportsDir)).toBe(true);
+
+      const runDirectories = readdirSync(reportsDir);
+
+      // Exactly one entry: a stray second run directory is a bug, not noise.
+      expect(runDirectories).toHaveLength(1);
+
+      const [runDirectory = ''] = runDirectories;
+
+      // `<stamp>-<id>`: both parts non-empty, so a degenerate name such as `-`
+      // fails instead of passing a bare shape check.
+      expect(runDirectory).toMatch(/^.+-[A-Za-z0-9]+$/);
+      expect(statSync(join(reportsDir, runDirectory)).isDirectory()).toBe(true);
+      expect(existsSync(join(reportsDir, runDirectory, 'report.md'))).toBe(
         true,
       );
     }, 90_000);
