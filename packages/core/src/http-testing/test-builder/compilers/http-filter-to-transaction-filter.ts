@@ -227,6 +227,15 @@ export function requestScopedHttpFilterToTransactionFilter(
           fn(req, reqId, res, resId, responses),
         );
       };
+    case 'protocol': {
+      if (typeof filterExpression.protocol === 'undefined') {
+        return () => false;
+      }
+
+      return (req: ThymianHttpRequest) =>
+        // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+        equalsIgnoreCase(req.protocol, filterExpression.protocol!);
+    }
     case 'isAuthorized':
       return (_: ThymianHttpRequest, reqId: string) =>
         format.requestIsSecured(reqId) === filterExpression.isAuthorized;
