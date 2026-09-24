@@ -34,12 +34,19 @@ describe('coverage record', () => {
   // Exact counts, not only "no violations": a checker that skipped every rule
   // would report none too.
   describe('the census', () => {
-    it('loads no rules yet, with one entry per loaded rule', async () => {
+    it('loads 1 rule, with one entry per loaded rule', async () => {
       const rules = await loadBaselineRules();
 
-      expect(rules.length).toBe(0);
+      expect(rules.length).toBe(1);
       expect(Object.keys(coverage.rules).length).toBe(rules.length);
     }, 30_000);
+
+    it('covers 1 of the 14 units, with no cell on any entry', () => {
+      const entries = Object.values(coverage.rules);
+
+      expect(entries.flatMap((entry) => entry.covers)).toEqual(['6.1.1/1']);
+      expect(entries.every((entry) => entry.contexts === undefined)).toBe(true);
+    });
 
     // The ids a recount of the pinned text yields under the counting rule:
     // every keyword paragraph of §6, §7 and §9.2, numbered within its section.
