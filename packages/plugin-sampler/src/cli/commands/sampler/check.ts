@@ -4,8 +4,6 @@ import {
   filterHttpTransactions,
   generateRequests,
   httpTest,
-  isValidClientErrorStatusCode,
-  isValidSuccessfulStatusCode,
   mapToTestCase,
   type RequestFilterFn,
   type ResponseFilterFn,
@@ -247,10 +245,16 @@ export default class Check extends BaseCliRunCommand<typeof Check> {
    * contract, without sending a request nothing can assert against.
    */
   private isCheckableTransaction(transaction: ThymianHttpTransaction): boolean {
-    return (
-      isValidSuccessfulStatusCode(transaction.thymianRes.statusCode) ||
-      isValidClientErrorStatusCode(transaction.thymianRes.statusCode)
-    );
+    // By first digit, not by the registered-code lists.
+    //
+    // A description may declare a status IANA never registered — `499` is the
+    // common one — and the lists answer "no" for it, so the transaction was
+    // reported `skipped` with "3xx/5xx responses are not checkable" about a
+    // 4xx. What decides checkability is whether a response can be asserted
+    // against at all, which is a property of the class.
+    const status = transaction.thymianRes.statusCode;
+
+    return (status >= 200 && status < 300) || (status >= 400 && status < 500);
   }
 
   private async runTransaction(

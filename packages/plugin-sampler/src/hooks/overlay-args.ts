@@ -25,7 +25,11 @@ export function applyArgs(
     query: { ...template.query, ...args.query },
     cookies: { ...template.cookies, ...args.cookies },
     pathParameters: { ...template.pathParameters, ...args.path },
-    ...('body' in args
+    // `Object.hasOwn`, never `in`: `in` walks the prototype chain, so an args
+    // object inheriting a `body` — from `Object.prototype` being polluted, or
+    // from a caller's own base object — would overlay a body the caller never
+    // passed.
+    ...(Object.hasOwn(args, 'body')
       ? { body: deepMergeBody(template.body, args.body) }
       : {}),
   };

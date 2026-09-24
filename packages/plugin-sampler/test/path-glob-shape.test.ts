@@ -35,3 +35,32 @@ describe('PathGlob shape', () => {
     expect([exact, typo]).toHaveLength(2);
   });
 });
+
+/**
+ * Deliberately not a corpus case.
+ *
+ * `bench/glob-corpus.ts` states the grammar over paths "written the way the
+ * catalog actually contains them", and the catalog never yields a trailing
+ * slash — so a path ending in `/` is input the grammar has no opinion about.
+ * The matcher should still hold its own sentence: a trailing `**` consumes one
+ * or more segments, and an empty string is not a segment, exactly as `*`
+ * already refuses one.
+ */
+describe('a trailing ** consumes a real segment', () => {
+  it.each([
+    ['/admin/**', '/admin/'],
+    ['/**', '/'],
+    ['/v1/**', '/v1//'],
+  ])('%s does not match %s', async (glob, path) => {
+    const { matchesPathGlob } = await import('../src/selectors/path-glob.js');
+
+    expect(matchesPathGlob(glob, path)).toBe(false);
+  });
+
+  it('still matches a path that has a segment to consume', async () => {
+    const { matchesPathGlob } = await import('../src/selectors/path-glob.js');
+
+    expect(matchesPathGlob('/admin/**', '/admin/users')).toBe(true);
+    expect(matchesPathGlob('/admin/**', '/admin/users/{id}')).toBe(true);
+  });
+});
