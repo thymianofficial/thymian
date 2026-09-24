@@ -21,7 +21,7 @@ import {
 } from '@thymian/core-testing';
 
 import { STS_HEADER } from '../rules/utils/sts-field-value.js';
-import type { RuleFixtures } from './harness.js';
+import type { CaseOf, RuleFixtures } from './harness.js';
 
 type Origin = Pick<ThymianHttpRequest, 'protocol' | 'host' | 'port'>;
 
@@ -127,44 +127,45 @@ export function recorded({
   };
 }
 
-// The fixtures of a rule that holds every Strict-Transport-Security value to
-// one requirement: the same violating and conforming value, pinned by an API
-// description, answered by a server under test, and recorded — plus, in
-// `static`, a declared value the description does not pin. In `test` the
+// One Strict-Transport-Security value in every context: pinned by an API
+// description, answered by a server under test, and recorded. In `test` the
 // description declares no header at all: the server sending one anyway is
 // what a response-side candidate filter would never see.
+export function stsValueInputs(value: string): CaseOf {
+  const headers = { [STS_HEADER]: value };
+
+  return {
+    static: {
+      format: apiDescription({ response: { headers: stsHeader(value) } }),
+    },
+    test: { format: apiDescription({}), respond: respondWith({ headers }) },
+    analytics: { transactions: [recorded({ headers })] },
+  };
+}
+
+// The fixtures of a rule that holds every Strict-Transport-Security value to
+// one requirement: the same violating and conforming value in every context,
+// plus, in `static`, a declared value the description does not pin.
 export function stsValueFixtures(
   rule: Rule,
   { violates, conforms }: { violates: string; conforms: string },
 ): RuleFixtures {
-  const sts = (value: string) => ({ [STS_HEADER]: value });
+  const violating = stsValueInputs(violates);
+  const conforming = stsValueInputs(conforms);
 
   return {
     rule,
     static: {
-      violates: {
-        format: apiDescription({ response: { headers: stsHeader(violates) } }),
-      },
-      conforms: {
-        format: apiDescription({ response: { headers: stsHeader(conforms) } }),
-      },
+      violates: violating.static,
+      conforms: conforming.static,
       skips: {
         format: apiDescription({ response: { headers: stsHeader() } }),
       },
     },
-    test: {
-      violates: {
-        format: apiDescription({}),
-        respond: respondWith({ headers: sts(violates) }),
-      },
-      conforms: {
-        format: apiDescription({}),
-        respond: respondWith({ headers: sts(conforms) }),
-      },
-    },
+    test: { violates: violating.test, conforms: conforming.test },
     analytics: {
-      violates: { transactions: [recorded({ headers: sts(violates) })] },
-      conforms: { transactions: [recorded({ headers: sts(conforms) })] },
+      violates: violating.analytics,
+      conforms: conforming.analytics,
     },
   };
 }

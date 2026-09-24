@@ -65,9 +65,60 @@ export default defineCoverage({
   units,
   rules: {
     // §6 — the header field's syntax.
+    'rfc-6797/user-agent-must-enforce-hsts-policy': {
+      covers: ['6.1/1'],
+      declared: { types: ['informational'], severity: 'error' },
+    },
+    'rfc-6797/hsts-host-must-not-repeat-sts-directives': {
+      covers: ['6.1/2'],
+      declared: { types: ['static', 'test', 'analytics'], severity: 'error' },
+    },
+    // 6.1/3 is addressed to the user agent, and its contrapositive is the
+    // host's: a header that does not conform is ignored, so the host MUST
+    // send one that does (7.1/1). One rule discharges both.
+    'rfc-6797/hsts-host-must-send-sts-header-conforming-to-grammar': {
+      covers: ['6.1/3', '7.1/1'],
+      declared: { types: ['static', 'test', 'analytics'], severity: 'error' },
+    },
+    // 6.1/4's contrapositive: a directive RFC 6797 does not define is one a
+    // user agent will skip. Heuristic, because a directive defined later, or
+    // recognised by some user agents, is not a defect.
+    'rfc-6797/user-agent-must-ignore-unrecognized-sts-directives': {
+      covers: ['6.1/4'],
+      declared: { types: ['static', 'test', 'analytics'], severity: 'hint' },
+      contexts: {
+        static: 'heuristic',
+        test: 'heuristic',
+        analytics: 'heuristic',
+      },
+    },
     'rfc-6797/hsts-host-must-send-max-age-directive': {
       covers: ['6.1.1/1'],
       declared: { types: ['static', 'test', 'analytics'], severity: 'error' },
+    },
+    'rfc-6797/hsts-host-must-send-max-age-as-delta-seconds': {
+      covers: ['6.1.1/2'],
+      declared: { types: ['static', 'test', 'analytics'], severity: 'error' },
+    },
+    // 6.1.2/1 carries two claims: the directive is valueless (a syntax
+    // requirement), and it is OPTIONAL (a permission, checkable at `hint`).
+    'rfc-6797/hsts-host-must-send-include-subdomains-without-value': {
+      covers: ['6.1.2/1'],
+      declared: { types: ['static', 'test', 'analytics'], severity: 'error' },
+    },
+    'rfc-6797/hsts-host-may-assert-include-subdomains': {
+      covers: ['6.1.2/1'],
+      declared: { types: ['static', 'test', 'analytics'], severity: 'hint' },
+    },
+    // Convention rules cover no unit: RFC 6797 states no max-age floor and
+    // never mentions preload.
+    'rfc-6797/server-should-send-sts-max-age-of-at-least-one-year': {
+      covers: [],
+      declared: { types: ['static', 'test', 'analytics'], severity: 'off' },
+    },
+    'rfc-6797/server-should-send-sts-preload-directive': {
+      covers: [],
+      declared: { types: ['static', 'test', 'analytics'], severity: 'off' },
     },
   },
 });

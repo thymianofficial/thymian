@@ -152,3 +152,18 @@ export function findDirectives(
 ): StsDirective[] {
   return directives.filter((directive) => directive.name === name);
 }
+
+// RFC 2616 §3.3.2: delta-seconds = 1*DIGIT.
+export function isDeltaSeconds(value: string | undefined): value is string {
+  return value !== undefined && /^[0-9]+$/.test(value);
+}
+
+// The policy's lifetime: the first max-age, in seconds. `undefined` when
+// there is none or its value is not delta-seconds — each another rule's
+// defect, and in either case no policy is in effect to judge.
+export function maxAgeSeconds(
+  directives: readonly StsDirective[],
+): number | undefined {
+  const value = findDirectives(directives, 'max-age')[0]?.value;
+  return isDeltaSeconds(value) ? Number(value) : undefined;
+}
