@@ -652,3 +652,46 @@ export const typo = beforeEach({ path: '/v1/launch' }, () => {});
     );
   });
 });
+
+/**
+ * `matchesFields` is an `every` over the fields that are present, so a group
+ * with none is vacuously true. As a positive filter that is right — it leaves
+ * every field open. As an *exclusion* it means "not anything", which quietly
+ * removed the whole catalog and then reported the wrong fault: the author saw
+ * "values are all valid but intersect no transaction" and went looking at
+ * their values.
+ */
+describe('an exclusion that constrains nothing', () => {
+  const EMPTY_EXCLUSIONS = [
+    ['{}', {}],
+    ['a field explicitly undefined', { path: undefined }],
+    ['only a nested not, which is not a field', { not: { method: 'GET' } }],
+  ] as const;
+
+  it.each(EMPTY_EXCLUSIONS)('excludes nothing: %s', (_name, exclusion) => {
+    const positive = { method: 'GET' } as const;
+
+    expect(
+      matching({ ...positive, not: exclusion as never }),
+      'the exclusion must not narrow the positive filter',
+    ).toEqual(matching(positive));
+  });
+
+  it.each(EMPTY_EXCLUSIONS)(
+    'is reported as a problem: %s',
+    (_name, exclusion) => {
+      expect(
+        filterProblems({ method: 'GET', not: exclusion as never }).join('\n'),
+      ).toContain('constrains nothing');
+    },
+  );
+
+  it('leaves a real exclusion working', () => {
+    expect(matching({ method: 'GET', not: { status: 404 } })).not.toContain(
+      'GET /v1/launches -> 404',
+    );
+    expect(
+      matching({ method: 'GET', not: { status: 404 } }).length,
+    ).toBeGreaterThan(0);
+  });
+});

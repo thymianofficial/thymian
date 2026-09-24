@@ -177,6 +177,12 @@ export function filterProblems(filter: TransactionFilter): FilterProblem[] {
           continue;
         }
 
+        if (constrainsNothing(exclusion as FilterFields)) {
+          problems.push(
+            '"not" was given an exclusion that constrains nothing, which would exclude every transaction',
+          );
+        }
+
         problems.push(
           ...filterProblems(exclusion as TransactionFilter).map(
             (problem) => `inside "not": ${problem}`,
@@ -207,6 +213,24 @@ export function filterProblems(filter: TransactionFilter): FilterProblem[] {
   }
 
   return problems;
+}
+
+/**
+ * Whether an exclusion constrains nothing at all.
+ *
+ * `matchesFields` is an `every` over the fields that are present, so a group
+ * with no present field is vacuously true — which as an *exclusion* means "not
+ * anything", excluding every transaction. `{ not: {} }` type-checks because
+ * every `FilterFields` member is optional, `{ not: { path: undefined } }` is
+ * what a computed list that came back `undefined` produces, and a `.js` hook
+ * can reach the same state with `{ not: { not: X } }`, whose only key is not a
+ * field at all. All three are the author asking to exclude nothing and getting
+ * everything.
+ */
+function constrainsNothing(fields: FilterFields): boolean {
+  const record = fields as Record<string, unknown>;
+
+  return FIELD_NAMES.every((name) => record[name] === undefined);
 }
 
 /**
@@ -276,8 +300,16 @@ export function matchesTransactionFilter(
     return false;
   }
 
-  return !asList(filter.not).some((exclusion) =>
-    matchesFields(exclusion as FilterFields, transaction),
+  // An exclusion that constrains nothing excludes nothing. Vacuous truth is
+  // the right answer for a *conjunction* of present fields and the wrong one
+  // for an exclusion, which would otherwise swallow the whole catalog.
+  // `filterProblems` reports it; this keeps the run's behaviour honest in the
+  // meantime, and keeps the diagnostic pointed at the real fault instead of
+  // the "values are all valid but intersect nothing" hint.
+  return !asList(filter.not).some(
+    (exclusion) =>
+      !constrainsNothing(exclusion as FilterFields) &&
+      matchesFields(exclusion as FilterFields, transaction),
   );
 }
 
