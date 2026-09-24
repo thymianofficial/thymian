@@ -109,22 +109,40 @@ Pinned header **values** are reachable here, through `.overrideStaticRule()`:
 `static`" is a claim about whether the document **pins** the value, never about the context
 being name-only.
 
-Two traps:
+Three traps:
 
 - **Duplicate field lines are absent** from the format, and no context has a count
   primitive. An assertion about two field lines of one header name is `not-representable`
   in `static`.
-- **Server URLs are lossy and silently wrong.** An unresolvable variable in the scheme or
-  the port throws into an empty `catch` and falls back to a fabricated
-  `http://localhost:8080`, so `https://api.example.com:{port}/v1` lints as `http`. Expect
-  false violations from "must be https" assertions and empty selection from any rule scoped
-  `protocol('https')`. Scope around it rather than asserting through it.
+- **Server URLs are lossy and silently wrong.** A document with no `servers` loads as a
+  fabricated `http://localhost:8080`, and so does one whose server URL is relative or has an
+  unresolvable variable in the scheme or the port — the parse throws into an empty `catch` —
+  so `https://api.example.com:{port}/v1` lints as `http`. Expect false violations from "must be
+  https" assertions and empty selection from any rule scoped `protocol('https')`. Scope
+  around it rather than asserting through it: skip exactly that origin, with a `rule-skip`.
+  The fallback reaches `test` too (below); `analytics` never sees it, because recorded
+  traffic is real.
+- **A runtime skip needs a function validator.** The lint context's
+  `validateHttpTransactions` keeps only results that carry a violation, so a `rule-skip` for
+  an unpinned value vanishes into a pass. Emit it from `validateCommonHttpTransactions` with a
+  function validator instead, reading the described transaction back through
+  `ctx.format.getThymianHttpTransactionById(location.elementId)`.
 
 ### `test` — live endpoints
 
 `test` sends only what the specification describes, which is a property of the context
 rather than a per-rule defect. Where it is the specific blocker for one unit, that is
 `condition-not-producible`.
+
+**The candidate filter selects described transactions.** It decides what `test` sends,
+from the description, so a response-side condition in it — `responseHeader(...)`, a status
+— sends only the requests whose description already declares that response, and never sees
+the server doing what the description does not say. Keep the candidate filter request-side
+and judge the live response in the validator.
+
+**The server-URL fallback reaches `test`.** A request keeps its described origin even when a
+target URL sent it elsewhere, so a scheme read from it is the description's, fallback
+included. Skip the fallback origin here exactly as in `static`.
 
 **Probes.** A rule may send a benign robustness probe behind the explicit per-target consent
 switch, which is **off by default** and scoped by `skipOrigins`. Once on, there is no method

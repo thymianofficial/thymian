@@ -30,8 +30,46 @@ Order for the first walks, smallest real conformance clause first:
 `rules-w3c-referrer-policy` → `rules-rfc-7034`. RFC 9110 §17 folds into the existing
 `rules-rfc-9110`.
 
-A source larger than ~25 units is more than one session. Split at a step boundary and hand
-over the artifact that step produced, never mid-survey.
+Step 0's cut decides the pull requests; the length of a session never does. Where one step
+outgrows a session — a survey past ~25 units, a topic directory of many rules — split it at
+a step boundary or along the source's own subsections, and hand over the artifact produced so
+far, never mid-survey.
+
+## Step 0 — Cut the walk into tickets
+
+A walk that builds a package produces a denominator, a verdict table, rules, fixtures,
+profiles, a coverage record and a paper trail: more than one review can read against one list
+of acceptance criteria. It is **spec-sized**: one spec, cut into sub-issues, one pull request
+each.
+
+Assign it to the one person working it, then spec it with this skill's steps as the spec's
+structure. The spec carries the decisions the tickets are cut from: the pinned revision and
+the slug (step 1), the units and the counting rule (step 2), and the verdict table (step 3),
+which names every rule and the contexts it declares.
+
+Cut it into sub-issues at the step boundaries, in dependency order, each taking the done-whens
+of the steps it builds as its acceptance criteria:
+
+1. **Prefactor** — a change to shared code the walk needs, such as a helper moving into core,
+   so the feature PRs carry only the walk's own change.
+2. **Package and denominator** (steps 1–2, and step 7's meta-test on the empty package) —
+   registered, with no rules yet, its README reading 0 of N and its meta-tests green, so
+   every later rule lands under them.
+3. **Rules, one sub-issue per topic directory** (steps 4–5, and step 7's entries for those
+   rules) — the rules, their fixtures and their `coverage.ts` entries. The first batch brings
+   the fixture harness.
+4. **Profiles and the complete record** (steps 6–7) — every profile, the record at its exact
+   census, the README regenerated.
+5. **Paper trail** (step 8) — including whatever the walk found this skill silent or wrong on.
+
+A **defect** met on the way, in core, a plugin or a script, is its own ticket, marked as
+blocking the sub-issue that needs the fix, and fixed in its own pull request, which merges
+ahead of the stack.
+
+One pull request per sub-issue, each based on the one below it and merged bottom up.
+
+**Done when** the spec's sub-issues exist, each carrying its acceptance criteria, and every
+defect already known is a ticket blocking the sub-issue that needs it.
 
 ## Step 1 — Fix the provenance
 
@@ -46,12 +84,35 @@ Derive one slug and use it, character for character, in all three identifier pla
 | rule-id prefix (`<slug>/<rule-name>`)   | namespaces config keys and profile entries             |
 | `RuleSet.name`                          | display only                                           |
 
-Copy the package scaffolding from `packages/rules-rfc-9110` — `package.json`, `project.json`,
-`tsconfig*.json`, `vitest.config.ts`, `eslint.config.mjs`, and `src/index.ts`'s
-`pattern: 'rules/**/*.rule.js'` glob. `"files": ["dist"]` stays as it is; step 7 depends on it.
+The rule holds where an older package's prefix predates it: `rules-rfc-9110`'s `rfc9110/`
+stays as it is, and a new package follows the rule.
 
-**Done when** the slug reads identically in all three places and `nx build rules-<slug>`
-succeeds on an empty rule directory.
+Copy the package scaffolding from `packages/rules-rfc-6797`, the first package built by this
+route — `package.json`, `project.json`, `tsconfig*.json`, `vitest.config.ts`,
+`eslint.config.mjs`, and `src/index.ts`'s `pattern: 'rules/**/*.rule.js'` glob. Unlike
+`rules-rfc-9110`'s, its lib build and its dependency-checks lint leave out `*.fixtures.ts`
+and `src/test/`, so nothing test-side ships or counts as a runtime dependency. `"files"`
+stays as it is, shipping `dist` only; step 7 depends on it.
+
+The scaffolding's checks are `nx build`, `nx run rules-<slug>:lint` and `nx test`. It has no
+`typecheck` target (`addTypecheckTarget: false`), and `nx build` compiles only what ships:
+type-check the tests, the fixtures and the harness with `tsc -p` on a throwaway config beside
+`tsconfig.lib.json` that extends it with `"noEmit": true` and `"exclude": []`.
+
+Then register the package everywhere the repository lists its packages: the commit scope in
+`commitlint.config.js` and the scope table in `CONTRIBUTING.md`, `excludePackages` in
+`.license-checker.json`, the root `tsconfig.json` references, and
+`docs/arc42/05-building-block-view.md` — its container, its `implements` relation and its
+package-table row. `npm install` links the workspace package; keep its lockfile change to
+the new package's own entries.
+
+Joining the CLI's defaults is a separate decision, because it changes what every run without
+a config reports: a dependency of `packages/thymian`, an entry in `common-cli`'s
+`default-config.ts` and in the config schema's `ruleSets` default, and a line in the built-in
+rule sets of `docs/arc42/08-crosscutting-concepts.md`.
+
+**Done when** the slug reads identically in all three places, the package is registered, and
+`nx build rules-<slug>` succeeds on an empty rule directory.
 
 ## Step 2 — Declare the denominator
 
@@ -156,7 +217,7 @@ export default httpRule('<slug>/<actor>-<keyword>-<constraint>')
   inside the same file. Both are single-source-of-truth; the rule **file** is the source of
   truth, not the common interface.
 
-**Done when** `nx build`, `nx lint` and `nx typecheck` pass for the package, and every rule's
+**Done when** `nx build`, the package's lint and step 1's `tsc` pass, and every rule's
 declared contexts match its row in step 3's table.
 
 → [`reference/concern-tags.md`](reference/concern-tags.md) for choosing a tag, adding a
@@ -170,10 +231,23 @@ A declared context claims the assertion is **actually evaluated**, not conceivab
 fixture per rule per declared context, and a package meta-test that asserts the bar, on the
 precedent of `src/profiles.test.ts`.
 
+A context is demonstrated through its **real engine**: the linter's, the tester's and the
+analyzer's own `ApiContext`, driven by core's `runRules` the way each plugin drives it. A stub
+context proves the rule function, and nothing about the context. `rules-rfc-6797`'s harness is
+the shape to copy: `src/test/harness.ts` runs one rule in one context, with the three plugins
+as devDependencies; each rule's `<name>.fixtures.ts` sits beside its rule file; and
+`src/fixtures.test.ts` asserts the bar and runs every fixture.
+
+Each context's fixture pairs an input the rule must **flag** with one it must **pass** — a
+pass, not a skip — and, where the rule emits a runtime `rule-skip` for an input it cannot
+decide, adds a third it must **skip**.
+
 `test`-context fixtures need one guard: `run()` defaults `checkStatusCode: true`, which skips
 the case before the assertion runs whenever the live status differs from the declared one.
 Pass `run({ checkStatusCode: false })` on the step whose status you are deliberately changing —
-`origin-server-should-send-400-for-unsupported-partial-put` shows the shape.
+`origin-server-should-send-400-for-unsupported-partial-put` shows the shape. Every such opt-out
+gets a fixture whose server answers with a status the description does not declare, so the
+suite goes red if the opt-out is ever lost.
 
 **Done when** the meta-test passes with zero exemptions and `nx test rules-<slug>` is green.
 
@@ -187,12 +261,25 @@ user config, and the `ruleSeverity: 'error'` floor filter runs **after** the pro
 - **`recommended`** — convention rules on, plus promotions **gated on a concern tag and
   non-heuristic status**. State the promotion's reason in `explanation`.
 - **`minimal`** — `error` + non-heuristic + exactly-observable, **derived from `coverage.ts`**
-  rather than transcribed.
+  by core's `deriveMinimalProfile`, never transcribed.
 
 **Convention rules** — an obligation no source imposes, over a mechanism a source defines
 (send HSTS at all, set `HttpOnly`) — ship `.severity('off')` with an executable `.type()`, and
 `recommended` promotes them. The executable `.type()` is what distinguishes them from an
 informational rule.
+
+A convention rule **covers no unit**: its `coverage.ts` entry has `covers: []`. The unit it
+resembles gets a rule of its own — a `MAY` its `hint`, a conditional `SHOULD` its heuristic —
+so `strict` still checks what the source says. The checker does not enforce this, so assert
+it in the package's coverage meta-test, as `rules-rfc-6797`'s does.
+
+A requirement conditional on a choice no exchange shows — a `SHOULD` that binds only a host
+that has opted in — is at best heuristic in every context, so it is never promoted. Its
+**convention twin** asks the same of every server, exactly: it ships `off`, and `recommended`
+turns the twin on and turns off the source's rule that reports the same wire fact — the
+heuristic rule, or a `MAY`'s `hint` — so one response is reported once. `rules-rfc-6797`'s
+`server-should-send-sts-header-over-secure-transport` and
+`server-should-redirect-insecure-requests-to-https` are the shape.
 
 Check the floor-filter interaction before shipping: a package whose `strict` profile is all
 `warn` loads **zero** rules under the default `ruleSeverity`.
@@ -214,6 +301,12 @@ suite, not by a separate CI step. `nx run <pkg>:generate-coverage` (writes) and
 release-time assertion in `scripts/release.ts` runs before publish. Both call the same
 checker the meta-test does; neither is a second implementation of it.
 
+The meta-tests and the generator read the **built** package, so `nx build` comes before
+trusting either. A renamed or deleted rule lingers in `dist/` until `dist/` is removed —
+`tsc` leaves the old `.rule.js` behind and the loader still finds it — and a build that
+reports a cache hit right after a rule file was added may not have emitted it; rebuild with
+`--skip-nx-cache`.
+
 **Done when** the package's meta-test passes, `nx run <pkg>:check-coverage` reports no
 violations, and regenerating the README produces no diff.
 
@@ -226,6 +319,8 @@ violations, and regenerating the README produces no diff.
   glossary does not already carry.
 - An ADR, only where this walk decided something ADR-0021 did not — a new tag category, a new
   impossibility reason, a source that changes the package boundary.
+- This skill, wherever the walk found it silent or wrong: folded in as rules that hold for
+  any source.
 
 **Done when** the walk's record matches what shipped, and anything ADR-0021 did not anticipate
 is written down where the next walk will find it.
