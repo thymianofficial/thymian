@@ -93,12 +93,23 @@ function resolveSelectors(
   }
 
   const resolved: ThymianHttpTransaction[] = [];
+  // Naming one transaction twice targets it once.
+  //
+  // Composing lists is the ordinary way to build a target —
+  // `beforeEach([...PUBLIC, ...ADMIN], fn)` — and one transaction in both
+  // halves is a duplicate the author cannot see. Bound twice, the hook runs
+  // twice per request, and a `defineSample` written that way reports a
+  // conflict against itself.
+  const bound = new Set<string>();
 
   for (const selector of selectors) {
     const transaction = catalog.tryResolve(selector);
 
     if (transaction) {
-      resolved.push(transaction);
+      if (!bound.has(transaction.transactionId)) {
+        bound.add(transaction.transactionId);
+        resolved.push(transaction);
+      }
 
       continue;
     }

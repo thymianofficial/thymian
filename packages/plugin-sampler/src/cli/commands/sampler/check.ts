@@ -84,16 +84,39 @@ export default class Check extends BaseCliRunCommand<typeof Check> {
 
       const checked: CheckedTransaction[] = [];
 
-      for (const transaction of format.getThymianHttpTransactions()) {
-        const result = this.isCheckableTransaction(transaction)
-          ? await this.checkTransaction(transaction, context, targetUrl)
-          : checkedAsUncheckable(transaction);
+      /**
+       * A diagnostic at `error` severity closes the run out from under this
+       * loop, and nothing tells the loop.
+       *
+       * `Thymian.run` closes and rejects on the first such diagnostic, but the
+       * callback it is running keeps going — so the loop sent the rest of its
+       * requests against a closed run and printed its summary *above* the
+       * error trailer. Per-transaction faults are `warn` and never land here;
+       * anything that does is the run itself ending.
+       */
+      let runEnded = false;
+      const errors = emitter.onError((event) => {
+        runEnded ||= event.error.options.severity === 'error';
+      });
 
-        checked.push(result);
+      try {
+        for (const transaction of format.getThymianHttpTransactions()) {
+          if (runEnded) {
+            break;
+          }
 
-        if (!this.jsonEnabled()) {
-          this.report(result);
+          const result = this.isCheckableTransaction(transaction)
+            ? await this.checkTransaction(transaction, context, targetUrl)
+            : checkedAsUncheckable(transaction);
+
+          checked.push(result);
+
+          if (!this.jsonEnabled()) {
+            this.report(result);
+          }
         }
+      } finally {
+        errors.unsubscribe();
       }
 
       // The exit code is the same contract either way; only the rendering

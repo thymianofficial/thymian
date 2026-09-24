@@ -492,6 +492,56 @@ export const seed = beforeEach(${JSON.stringify(GET_LAUNCH)}, async (request, ct
    * `utils.request`, where the naive attribution is "the beforeEach hook that
    * happened to be seeding" rather than the defineSample that actually threw.
    */
+  /**
+   * The other attribution path: an error the *sampler* raised, not one a hook
+   * body threw.
+   *
+   * A thrown `Error` is wrapped in the "hook X threw" envelope, which sets
+   * `warn` itself. A `ThymianBaseError` the sampler raised is re-issued by
+   * `attributeToHook` instead, which used to keep whatever severity it had —
+   * and every one of them defaults to `error`, which closes the run. A typo in
+   * a seed's selector is the most ordinary hook fault there is, so it has to
+   * end the transaction and nothing more.
+   */
+  it('attributes a sampler-raised error to its hook, at warn severity', async () => {
+    const harness = await sampler();
+
+    await harness.writeHook(
+      'seed.ts',
+      `import { beforeEach } from '@thymian/hooks';
+
+export const seed = beforeEach(${JSON.stringify(GET_LAUNCH)}, async (request, ctx, utils) => {
+  await utils.request('POST /launchs (application/json) -> 201 (application/json)');
+});
+`,
+    );
+
+    await harness.loadFormat(FIXTURE);
+
+    let error: unknown;
+
+    try {
+      await harness.beforeRequest(transactionIdOf(GET_LAUNCH), FIXTURE);
+    } catch (e) {
+      error = e;
+    }
+
+    // The sampler's own sentence survives — it carries the near misses worth
+    // reading — with the hook's location prepended to the suggestions.
+    expect((error as Error | undefined)?.message).toContain(
+      'No transaction matches the selector',
+    );
+    expect(
+      (error as { options?: { suggestions?: string[] } } | undefined)?.options
+        ?.suggestions?.[0],
+    ).toBe('Raised by the beforeEach hook exported as "seed" from "seed.ts".');
+    expect(
+      (error as { options?: { severity?: string } } | undefined)?.options
+        ?.severity,
+    ).toBe('warn');
+    expect(harness.dispatched).toHaveLength(0);
+  });
+
   it('attributes a throwing defineSample to itself, not the beforeEach hook that seeded it', async () => {
     const harness = await sampler();
 

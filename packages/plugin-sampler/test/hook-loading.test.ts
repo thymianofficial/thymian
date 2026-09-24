@@ -592,6 +592,36 @@ export const shared = beforeEach(${JSON.stringify(LAUNCHES)}, (request) => {
     expect(result.headers['x-shared']).toBe('yes');
   });
 
+  /**
+   * Composing lists is the ordinary way to build a target, and one transaction
+   * present in both halves is a duplicate the author cannot see.
+   */
+  it('binds a selector named twice in one target exactly once', async () => {
+    const harness = await sampler();
+
+    await harness.writeHook(
+      'twice.ts',
+      `import { beforeEach } from '@thymian/hooks';
+
+export const shared = beforeEach(
+  [${JSON.stringify(LAUNCHES)}, ${JSON.stringify(LAUNCHES)}],
+  (request) => {
+    request.headers['x-n'] = String(Number(request.headers['x-n'] ?? 0) + 1);
+  },
+);
+`,
+    );
+
+    await harness.loadFormat(format);
+
+    const { result } = await harness.beforeRequest(
+      transactionIdOf(LAUNCHES),
+      format,
+    );
+
+    expect(result.headers['x-n']).toBe('1');
+  });
+
   it('loads a hook whose imports form a cycle', async () => {
     const harness = await sampler();
 

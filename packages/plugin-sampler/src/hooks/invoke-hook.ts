@@ -72,6 +72,15 @@ export function attributeToHook(
 ): ThymianBaseError {
   return new ThymianBaseError(error.message, {
     ...error.options,
+    // After the spread, never before it. An `error` closes the run
+    // (`thymian.ts`), which is the mechanism ADR-0023 §2 names and the sentence
+    // above promises to prevent — and every sampler-raised error that reaches
+    // here defaults to `error` because none of them sets a severity of its own:
+    // `UnknownSelectorError` and `MalformedSelectorError` from `utils.request`,
+    // `RequestCycleError`, a seed's `RequestSerializationError`,
+    // `NoRequestToShapeError`, `NoNestedRequestError`. A typo in a seed's
+    // selector is the most ordinary hook fault there is, and it ended the run.
+    severity: 'warn',
     suggestions: [
       `Raised by the ${kind} hook exported as "${entry.exportName}" from "${entry.file}".`,
       ...(error.options.suggestions ?? []),
