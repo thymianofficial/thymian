@@ -53,6 +53,7 @@ export const FIXED_ROOT_NAMES = [
   'Status',
   'StatusClass',
   'TransactionResponse',
+  'WireMediaType',
 ] as const;
 
 /** Which schema of a transaction a declaration was generated for. */

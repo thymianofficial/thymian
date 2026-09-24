@@ -8,7 +8,10 @@ import {
   surfaceAsFiles,
 } from '../generation/types/write-type-surface.js';
 import type { HookDiagnostic } from '../hooks/hook-diagnostics.js';
-import { loadUserHooks } from '../hooks/load-user-hooks.js';
+import {
+  loadUserHooks,
+  type LoadUserHooksResult,
+} from '../hooks/load-user-hooks.js';
 import type { SamplerPaths } from '../sampler-paths.js';
 import type { TransactionCatalog } from '../selectors/transaction-catalog.js';
 import { sameSurface } from './canonicalize.js';
@@ -100,6 +103,16 @@ export function changedFiles(
 export async function validateSampler(
   paths: SamplerPaths,
   catalog: TransactionCatalog,
+  /**
+   * The hooks the `core.format` handler already loaded.
+   *
+   * Passed through rather than re-loaded: `loadUserHooks` evaluates every hook
+   * file, and with `moduleCache: false` that is a fresh evaluation of each file
+   * *and everything it imports*. Loading twice per `validate` ran the user's
+   * module side effects twice for no new information. Optional so a caller with
+   * no loaded result — a test, a future command — still gets a correct report.
+   */
+  loaded?: LoadUserHooksResult,
 ): Promise<ValidationReport> {
   const surface = await generateTypeSurface(catalog);
 
@@ -118,13 +131,18 @@ export async function validateSampler(
   await selfCheckSurface(surface);
 
   const committed = await readGenerated(paths);
-  const hooks = await loadUserHooks(paths.hooksDir, catalog);
+  const hooks = loaded ?? (await loadUserHooks(paths.hooksDir, catalog));
   const typeErrors = await typecheckHooks(paths, surface, hooks.files);
+
+  // Computed once. The comparison walks every committed file through the
+  // canonicalizer, and the answer is needed twice — for the state and for the
+  // report.
+  const changed = changedFiles(committed, surface);
 
   const state: SurfaceState =
     Object.keys(committed).length === 0
       ? 'absent'
-      : changedFiles(committed, surface).length === 0
+      : changed.length === 0
         ? 'in-sync'
         : 'behind';
 
@@ -136,7 +154,7 @@ export async function validateSampler(
 
   return {
     surface: state,
-    changedFiles: state === 'behind' ? changedFiles(committed, surface) : [],
+    changedFiles: state === 'behind' ? changed : [],
     typeErrors,
     unresolved: [...hooks.diagnostics],
     conflicts: [...hooks.conflicts],

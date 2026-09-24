@@ -7,6 +7,7 @@ import { createHttpRequest, createHttpResponse } from '@thymian/core-testing';
 import { describe, expect, it } from 'vitest';
 
 import { generateTypeSurface } from '../src/generation/types/generate-type-surface.js';
+import { FIXED_ROOT_NAMES } from '../src/generation/types/type-names.js';
 import { TransactionCatalog } from '../src/selectors/transaction-catalog.js';
 import { checkSurface, compileHook } from './compile-probe.js';
 
@@ -567,6 +568,76 @@ describe('the committed type surface', () => {
       expect(requestTypes).toContain('export type Shared = string');
       expect(requestTypes).toContain('export type Shared_2 = number');
       expect(await checkSurface(catalog)).toEqual([]);
+    });
+
+    it('reserves every fixed root the emitter actually writes', async () => {
+      // Nothing pinned `FIXED_ROOT_NAMES` to the emitter, so a root added to
+      // the tail without the list silently reintroduced the collision it
+      // exists to prevent — a user component sharing that name is written in
+      // as though it were the root. A description with no components of its
+      // own means every top-level export here IS a fixed root, so the two
+      // sets can be compared directly.
+      const format = new ThymianFormat();
+
+      format.addHttpTransaction(
+        createHttpRequest({ method: 'GET', path: '/x' }),
+        createHttpResponse({ statusCode: 200, mediaType: 'application/json' }),
+        'test-source',
+      );
+
+      const { requestTypes } = await generateTypeSurface(catalogOf(format));
+
+      const emitted = [
+        ...requestTypes.matchAll(/^export (?:type|interface) (\w+)/gm),
+      ].map((match) => match[1] as string);
+
+      expect(emitted.length, 'the surface must emit its roots').toBeGreaterThan(
+        0,
+      );
+      expect([...new Set(emitted)].sort()).toEqual(
+        [...FIXED_ROOT_NAMES].sort(),
+      );
+    });
+
+    it('types a response mediaType as the wire essence, not the declared parameters', async () => {
+      // A description may declare parameters on the content key. The runtime
+      // reports what actually crossed — the essence, lowercased — so typing the
+      // discriminator as the declared literal made `res.mediaType === '...'`
+      // compile and then never match.
+      const format = new ThymianFormat();
+
+      format.addHttpTransaction(
+        createHttpRequest({ method: 'GET', path: '/x' }),
+        createHttpResponse({
+          statusCode: 200,
+          mediaType: 'application/json; charset=utf-8',
+        }),
+        'test-source',
+      );
+
+      const catalog = catalogOf(format);
+      const selector = 'GET /x -> 200 (application/json; charset=utf-8)';
+
+      // Narrowing on the essence is what the runtime can actually satisfy.
+      await expect(
+        compileHook(
+          catalog,
+          `import { beforeEach } from '@thymian/hooks';
+
+export const seed = beforeEach('GET /x -> 200 (application/json; charset=utf-8)', async (request, ctx, utils) => {
+  const res = await utils.request(${JSON.stringify(selector)});
+  const essence: 'application/json' = res.mediaType;
+});
+`,
+        ),
+      ).resolves.toEqual([]);
+
+      // And the declared spelling is still what a Selector is written with.
+      const { requestTypes } = await generateTypeSurface(catalog);
+
+      expect(requestTypes).toContain(
+        'responseMediaType: "application/json; charset=utf-8"',
+      );
     });
 
     it('keeps a shared parent apart when only what it references differs', async () => {

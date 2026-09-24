@@ -303,7 +303,9 @@ export const samplePlugin: ThymianPlugin<Partial<SamplerPluginOptions>> = {
     });
 
     emitter.onAction('sampler.validate', async (_event, ctx) => {
-      ctx.reply(await validateSampler(paths, catalog));
+      // The hooks this run already loaded, so `validate` does not evaluate
+      // every hook file a second time.
+      ctx.reply(await validateSampler(paths, catalog, unresolvedHooks));
     });
 
     emitter.onAction('sampler.show', async ({ selector }, ctx) => {
