@@ -569,6 +569,56 @@ describe('the committed type surface', () => {
       expect(await checkSurface(catalog)).toEqual([]);
     });
 
+    it('keeps a shared parent apart when only what it references differs', async () => {
+      // The parent is byte-identical in both sources; only the component it
+      // references differs. Reusing the first source's alias for the second
+      // gave source-1 a committed type describing source-0's API — its own
+      // renamed `Address_2` emitted and never referenced — and the surface
+      // stayed internally consistent, so the self-check saw nothing.
+      const format = new ThymianFormat();
+
+      for (const [index, address] of [
+        { street: { type: 'string' } },
+        { zip: { type: 'integer' } },
+      ].entries()) {
+        format.addHttpTransaction(
+          createHttpRequest({ method: 'GET', path: `/p${index}` }),
+          createHttpResponse({
+            statusCode: 200,
+            mediaType: 'application/json',
+            schema: {
+              $defs: {
+                Address: { type: 'object', properties: address },
+                User: {
+                  type: 'object',
+                  properties: { address: { $ref: '#/$defs/Address' } },
+                },
+              },
+              type: 'object',
+              properties: { user: { $ref: '#/$defs/User' } },
+            } as never,
+          }),
+          `source-${index}`,
+        );
+      }
+
+      const catalog = catalogOf(format);
+      const { requestTypes } = await generateTypeSurface(catalog);
+
+      // Both addresses exist, and each parent points at its own.
+      expect(requestTypes).toMatch(/street\?: string/);
+      expect(requestTypes).toMatch(/zip\?: number/);
+      expect(requestTypes).toMatch(/^export interface User_2 \{/m);
+
+      const parents = [
+        ...requestTypes.matchAll(/address\?: (Address\w*)/g),
+      ].map((match) => match[1]);
+
+      expect(parents, 'one parent per address variant').toHaveLength(2);
+      expect(new Set(parents).size, 'pointing at different addresses').toBe(2);
+      expect(await checkSurface(catalog)).toEqual([]);
+    });
+
     it.each(['Status', 'Method', 'Path'] as const)(
       'renames a component named after the surface’s own fixed root %s',
       async (fixedRoot) => {
