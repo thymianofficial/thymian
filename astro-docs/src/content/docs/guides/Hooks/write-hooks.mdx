@@ -29,25 +29,25 @@ Any file under `hooks/` is scanned, at any depth, named anything you like:
 The layout carries no meaning — it is for your benefit. What decides where a
 hook applies is its **target**, in the code.
 
-## State is per file
+## State is shared within a run
 
-Each hook file is evaluated on its own. A module the two of them import is
-therefore evaluated twice, once per importing file, and each gets its own copy of
-whatever that module holds:
+Hook files are evaluated once per scan, and so is every module they import: a
+module two hook files share is one instance, and a value one hook writes to it
+is the value another reads.
 
 ```typescript
-// .thymian/sampler/hooks/state.ts — two copies of this, not one
+// .thymian/sampler/hooks/state.ts — one copy, shared by every hook file
 export const fixtures: { userId?: number } = {};
 ```
 
-So a `beforeAll` in `auth.ts` that writes `fixtures.userId` leaves it `undefined`
-for a `beforeEach` in `seed.ts` that reads it. Nothing reports this; the hook
-simply sees an empty object.
-
-Keep hooks that share state in **one file**. Split by topic only where the parts
-are independent, and pass anything shared through
-[`utils.request`](/guides/hooks/make-requests-in-hooks/) or seed it again where
-it is needed.
+So a `beforeAll` in `auth.ts` that writes `fixtures.userId` hands it to a
+`beforeEach` in `seed.ts` that reads it — provided the `beforeAll` has run,
+which the [lifecycle](/concepts/hook-system/#order) guarantees before any
+request-scoped hook. What the plugin does **not** carry over is the process:
+`thymian serve` re-evaluates the hook files, and the modules they import, on
+every scan, so state is one run's and never the next's. Prefer
+[`utils.request`](/guides/hooks/make-requests-in-hooks/) for anything that has to
+exist on the server; keep module state for what only the hooks need.
 
 <Aside type="tip" title="No setup needed">
   `@thymian/hooks` resolves through the sampler plugin itself, so a hook file

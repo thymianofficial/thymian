@@ -101,10 +101,10 @@ let nextOrder = 0;
  * Nothing failed, so nothing was reported: the hook simply never fired.
  *
  * On `globalThis` under a well-known symbol, for the same reason
- * {@link HOOK_REGISTRATION} is: the loader's jiti instance runs with
- * `moduleCache: false`, so this module is re-evaluated for every hook file and
- * a module-scope array would be a different array each time — including from
- * the loader's own point of view. `globalThis` is the one thing all of those
+ * {@link HOOK_REGISTRATION} is: the loader's jiti instance evaluates this
+ * module in its own registry, and evicts it after every scan, so a
+ * module-scope array would be a different array per scan and never the one
+ * the loader itself imported. `globalThis` is the one thing all of those
  * evaluations share.
  *
  * The loader empties it at the start of each scan and reads it per file, so it

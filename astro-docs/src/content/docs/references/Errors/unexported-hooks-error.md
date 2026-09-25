@@ -57,8 +57,9 @@ Try this:
 ## What this does not report
 
 A hook in a **shared module** that another file re-exports is reachable, and is
-not reported — even though the file that merely imported the module also
-created a copy of it along the way.
+not reported. The file that merely imports the module without re-exporting the
+hook is not accused either: the hook is one object, however many files import
+it, and one export anywhere is enough for it to fire.
 
 ```ts
 // hooks/shared.ts
@@ -68,7 +69,6 @@ export const shared = beforeEach(/* … */);
 export { shared } from './shared.js';
 ```
 
-Two hooks that agree on their kind, their target **and** their callback source
-are treated as one hook, since nothing could tell them apart. So an unexported
-hook that is a byte-for-byte duplicate of an exported one is not reported —
-correctly, because that hook does fire.
+Two hooks that agree on their kind, their target and their callback source are
+still two hooks. An unexported one is reported even when an exported twin
+exists, because the twin firing does not make the unexported one reachable.

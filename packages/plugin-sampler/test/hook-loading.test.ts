@@ -564,7 +564,13 @@ export const shape = beforeEach(${JSON.stringify(LAUNCHES)}, (request) => {
     expect(String(error)).not.toContain('fine.ts');
   });
 
-  it('accepts a hook re-exported from a shared module', async () => {
+  /**
+   * A re-export is the same binding in ESM, so the hook behind it is one hook
+   * however many files export it. Counted rather than idempotent: an
+   * idempotent header hid that the hook was bound once per exporting file and
+   * ran twice per request.
+   */
+  it('binds a hook re-exported from a shared module exactly once', async () => {
     const harness = await sampler();
 
     await harness.writeHook(
@@ -572,7 +578,7 @@ export const shape = beforeEach(${JSON.stringify(LAUNCHES)}, (request) => {
       `import { beforeEach } from '@thymian/hooks';
 
 export const shared = beforeEach(${JSON.stringify(LAUNCHES)}, (request) => {
-  request.headers['x-shared'] = 'yes';
+  request.headers['x-n'] = String(Number(request.headers['x-n'] ?? 0) + 1);
 });
 `,
     );
@@ -589,7 +595,153 @@ export const shared = beforeEach(${JSON.stringify(LAUNCHES)}, (request) => {
       format,
     );
 
-    expect(result.headers['x-shared']).toBe('yes');
+    expect(result.headers['x-n']).toBe('1');
+  });
+
+  /**
+   * `hooks/index.ts` re-exporting the other files is an ordinary layout. A
+   * `defineSample` reached through it used to be collected twice and reported
+   * as a conflict against itself.
+   */
+  it('does not report a re-exported defineSample as a conflict with itself', async () => {
+    const harness = await sampler();
+
+    await harness.writeHook(
+      'launches.ts',
+      `import { defineSample } from '@thymian/hooks';
+
+export const launches = defineSample(${JSON.stringify(LAUNCHES)}, () => {});
+`,
+    );
+    await harness.writeHook(
+      'index.ts',
+      `export * from './launches.js';
+`,
+    );
+
+    await expect(harness.beginRun(format)).resolves.toBeUndefined();
+  });
+
+  /**
+   * The other side of one evaluation per scan: a module two hook files import
+   * is one instance, so state one hook writes is state another reads. The
+   * guide promises this, and it used to promise the opposite.
+   */
+  it('shares a module imported by two hook files within one run', async () => {
+    const harness = await sampler();
+
+    await harness.writeHook(
+      'state.ts',
+      `export const fixtures: { userId?: number } = {};
+`,
+    );
+    await harness.writeHook(
+      'a-writes.ts',
+      `import { beforeEach } from '@thymian/hooks';
+import { fixtures } from './state.js';
+
+export const writes = beforeEach(${JSON.stringify(LAUNCHES)}, () => {
+  fixtures.userId = 42;
+});
+`,
+    );
+    await harness.writeHook(
+      'b-reads.ts',
+      `import { beforeEach } from '@thymian/hooks';
+import { fixtures } from './state.js';
+
+export const reads = beforeEach(${JSON.stringify(LAUNCHES)}, (request) => {
+  request.headers['x-user'] = String(fixtures.userId);
+});
+`,
+    );
+
+    await harness.loadFormat(format);
+
+    const { result } = await harness.beforeRequest(
+      transactionIdOf(LAUNCHES),
+      format,
+    );
+
+    expect(result.headers['x-user']).toBe('42');
+  });
+
+  /**
+   * Identity, not shape: an unexported hook is unreachable whether or not an
+   * exported hook happens to have the same source.
+   */
+  it('reports an unexported hook even when an exported twin exists', async () => {
+    const harness = await sampler();
+
+    for (const file of ['exported.ts', 'forgot.ts']) {
+      await harness.writeHook(
+        file,
+        `import { beforeEach } from '@thymian/hooks';
+
+${file === 'exported.ts' ? 'export const shape = ' : ''}beforeEach(${JSON.stringify(LAUNCHES)}, (request) => {
+  request.headers['x-twin'] = 'yes';
+});
+`,
+      );
+    }
+
+    await harness.loadFormat(format);
+
+    const error = await harness
+      .beforeRequest(transactionIdOf(LAUNCHES), format)
+      .then(
+        () => undefined,
+        (thrown: unknown) => thrown as Error,
+      );
+
+    const suggestions = (
+      (error as { options?: { suggestions?: string[] } } | undefined)?.options
+        ?.suggestions ?? []
+    ).join('\n');
+
+    expect(error?.message).toMatch(/1 sampler hook is created/);
+    expect(suggestions).toContain('forgot.ts');
+    expect(suggestions).not.toContain('exported.ts');
+  });
+
+  /**
+   * Modules are cached for the span of one scan and no longer. A long-lived
+   * process — `thymian serve` dispatching `validate` after every edit — must
+   * see the hook file as it is now, including a shared module no hook file
+   * of its own but one that others import.
+   */
+  it('re-evaluates an edited hook file, and an edited shared module, on the next scan', async () => {
+    const harness = await sampler();
+
+    const write = async (version: string): Promise<void> => {
+      await harness.writeHook(
+        'shared.ts',
+        `export const version = ${JSON.stringify(version)};
+`,
+      );
+      await harness.writeHook(
+        'stamp.ts',
+        `import { beforeEach } from '@thymian/hooks';
+import { version } from './shared.js';
+
+export const stamp = beforeEach(${JSON.stringify(LAUNCHES)}, (request) => {
+  request.headers['x-version'] = version;
+});
+`,
+      );
+    };
+
+    for (const version of ['v1', 'v2']) {
+      await write(version);
+      await harness.loadFormat(format);
+
+      const { result } = await harness.beforeRequest(
+        transactionIdOf(LAUNCHES),
+        format,
+      );
+
+      expect(result.headers['x-version']).toBe(version);
+    }
   });
 
   /**
