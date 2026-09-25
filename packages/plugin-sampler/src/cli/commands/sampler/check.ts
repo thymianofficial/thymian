@@ -249,9 +249,9 @@ export default class Check extends BaseCliRunCommand<typeof Check> {
     //
     // A description may declare a status IANA never registered — `499` is the
     // common one — and the lists answer "no" for it, so the transaction was
-    // reported `skipped` with "3xx/5xx responses are not checkable" about a
-    // 4xx. What decides checkability is whether a response can be asserted
-    // against at all, which is a property of the class.
+    // reported `skipped` as uncheckable although it is a 4xx. What decides
+    // checkability is whether a response can be asserted against at all,
+    // which is a property of the class.
     const status = transaction.thymianRes.statusCode;
 
     return (status >= 200 && status < 300) || (status >= 400 && status < 500);

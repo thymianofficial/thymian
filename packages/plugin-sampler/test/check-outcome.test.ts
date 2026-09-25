@@ -336,12 +336,12 @@ describe('a declared Transaction sampler check never attempts', () => {
       selector: 'GET /launches/{id} -> 302 (application/json)',
       outcome: 'skipped',
       expectedStatus: 302,
-      reason: '3xx/5xx responses are not checkable',
+      reason: 'only 2xx and 4xx responses are checkable',
       details: [],
     });
   });
 
-  it('is skipped with the 3xx/5xx reason, for a declared server error', () => {
+  it('is skipped as uncheckable, for a declared server error', () => {
     const format = createThymianFormatWithTransactions([
       [
         createHttpRequest({ method: 'GET', path: '/status' }),
@@ -355,7 +355,28 @@ describe('a declared Transaction sampler check never attempts', () => {
     expect(checkedAsUncheckable(serverError)).toMatchObject({
       outcome: 'skipped',
       expectedStatus: 503,
-      reason: '3xx/5xx responses are not checkable',
+      reason: 'only 2xx and 4xx responses are checkable',
+    });
+  });
+
+  // Checkability is decided by first digit, so a 1xx lands here too, and
+  // the reason has to be true of it: it names the classes that are checkable
+  // rather than two of the ones that are not.
+  it('is skipped as uncheckable, for a declared interim response', () => {
+    const format = createThymianFormatWithTransactions([
+      [
+        createHttpRequest({ method: 'GET', path: '/status' }),
+        createHttpResponse({ statusCode: 101 }),
+      ],
+    ]);
+    const [interim] = format.getThymianHttpTransactions() as [
+      ThymianHttpTransaction,
+    ];
+
+    expect(checkedAsUncheckable(interim)).toMatchObject({
+      outcome: 'skipped',
+      expectedStatus: 101,
+      reason: 'only 2xx and 4xx responses are checkable',
     });
   });
 });

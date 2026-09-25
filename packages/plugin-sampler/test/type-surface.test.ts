@@ -640,6 +640,40 @@ export const seed = beforeEach('GET /x -> 200 (application/json; charset=utf-8)'
       );
     });
 
+    it('trims the wire essence the way the runtime does', async () => {
+      // `WireMediaType` dropped parameters and lowercased but did not trim,
+      // while the runtime reports `split(';')[0].trim().toLowerCase()`. A
+      // content key spelled with a space before the `;` therefore typed the
+      // discriminator as `'application/json '` — one space away from the
+      // never-matches the type was introduced to remove.
+      const format = new ThymianFormat();
+
+      format.addHttpTransaction(
+        createHttpRequest({ method: 'GET', path: '/x' }),
+        createHttpResponse({
+          statusCode: 200,
+          mediaType: ' Application/JSON ; charset=utf-8',
+        }),
+        'test-source',
+      );
+
+      const catalog = catalogOf(format);
+      const [selector] = catalog.selectors();
+
+      await expect(
+        compileHook(
+          catalog,
+          `import { beforeEach } from '@thymian/hooks';
+
+export const seed = beforeEach(${JSON.stringify(selector)}, async (request, ctx, utils) => {
+  const res = await utils.request(${JSON.stringify(selector)});
+  const essence: 'application/json' = res.mediaType;
+});
+`,
+        ),
+      ).resolves.toEqual([]);
+    });
+
     it('keeps a shared parent apart when only what it references differs', async () => {
       // The parent is byte-identical in both sources; only the component it
       // references differs. Reusing the first source's alias for the second

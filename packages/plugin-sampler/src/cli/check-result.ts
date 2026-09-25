@@ -175,7 +175,7 @@ export function checkedAsUncheckable(
     selector: selectorOf(transaction),
     expectedStatus: transaction.thymianRes.statusCode,
     outcome: 'skipped',
-    reason: '3xx/5xx responses are not checkable',
+    reason: 'only 2xx and 4xx responses are checkable',
     details: [],
   };
 }

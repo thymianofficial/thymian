@@ -1,6 +1,6 @@
 {
   "name": "@thymian/plugin-sampler",
-  "version": "0.0.0-PLACEHOLDER",
+  "version": "0.0.1-e2e",
   "description": "Thymian plugin for generating HTTP request samples from API descriptions",
   "license": "AGPL-3.0-only",
   "bugs": {
@@ -44,9 +44,9 @@
     "!**/*.tsbuildinfo"
   ],
   "dependencies": {
-    "@thymian/common-cli": "0.0.0-PLACEHOLDER",
-    "@thymian/core": "0.0.0-PLACEHOLDER",
-    "@thymian/plugin-request-dispatcher": "0.0.0-PLACEHOLDER",
+    "@thymian/common-cli": "0.0.1-e2e",
+    "@thymian/core": "0.0.1-e2e",
+    "@thymian/plugin-request-dispatcher": "0.0.1-e2e",
     "jiti": "^2.6.1",
     "json-schema-to-typescript": "^15.0.4",
     "openapi-sampler": "^1.7.2",
@@ -64,6 +64,6 @@
     }
   },
   "devDependencies": {
-    "@thymian/core-testing": "0.0.0-PLACEHOLDER"
+    "@thymian/core-testing": "0.0.1-e2e"
   }
 }
