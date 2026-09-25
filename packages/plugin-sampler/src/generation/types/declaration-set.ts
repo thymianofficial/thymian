@@ -20,6 +20,8 @@
  * component used to move as many lines as there are transactions using it.
  */
 
+import { createHash } from 'node:crypto';
+
 import ts from 'typescript';
 
 /** One top-level declaration, under the name it declares. */
@@ -75,6 +77,111 @@ export function splitDeclarations(source: string): Declaration[] {
 }
 
 /**
+ * Every identifier in `text` that sits in a renameable position, whatever it
+ * refers to.
+ *
+ * The same AST walk {@link renameReferences} edits by, asking which names a
+ * declaration mentions rather than rewriting them. Deliberately NOT filtered
+ * by a unit's member names: the result then depends on the text alone, which
+ * is what lets {@link DeclarationSet} memoize it by text and parse each
+ * distinct declaration once per process rather than once per unit it recurs
+ * in.
+ */
+function renameableIdentifiers(text: string): readonly string[] {
+  const source = ts.createSourceFile(
+    'declaration.d.ts',
+    text,
+    ts.ScriptTarget.Latest,
+    /* setParentNodes */ true,
+    ts.ScriptKind.TS,
+  );
+
+  const found = new Set<string>();
+
+  const visit = (node: ts.Node): void => {
+    if (ts.isIdentifier(node) && isRenameablePosition(node)) {
+      found.add(node.text);
+    }
+
+    ts.forEachChild(node, visit);
+  };
+
+  ts.forEachChild(source, visit);
+
+  return [...found];
+}
+
+/**
+ * What makes one declaration the same *variant* as another: its own text plus
+ * the text of everything it transitively references inside its unit.
+ *
+ * The raw text alone is not enough, because a declaration's references are
+ * resolved per unit. Two sources declaring `User = { address: Address }`
+ * byte-identically are the same text and **not** the same type when their
+ * `Address` differs — reusing the first source's alias for the second gave the
+ * second source a committed type describing the first source's API, with its
+ * own renamed `Address_2` emitted and never referenced. `checkSurface` stayed
+ * clean because the surface was internally consistent; it was just wrong.
+ *
+ * One key per member of the unit, computed from one adjacency map. The first
+ * version of this re-parsed every reachable declaration once per member, so a
+ * unit of *n* declarations cost O(n × reach) parses — a chain of 200 was
+ * 20,100 — and it paid that on every unit, conflict or not, per
+ * `generateTypeSurface`, which is per `init`, `sync` and `validate`. The
+ * parse is the only expensive step, so it happens at most once per member
+ * here and, through `references`, at most once per distinct text; deriving
+ * each closure is then a walk over a map.
+ *
+ * The key is a digest rather than the closure's text: `resolved` keeps one
+ * key per variant for the life of the set, and the text of a root's whole
+ * unit is the wrong thing to hold that many times.
+ */
+function variantKeys(
+  unit: readonly Declaration[],
+  references: (text: string) => readonly string[],
+): Map<string, string> {
+  const texts = new Map(unit.map((member) => [member.name, member.text]));
+  const adjacency = new Map(
+    unit.map((member) => [
+      member.name,
+      references(member.text).filter((name) => texts.has(name)),
+    ]),
+  );
+
+  const keys = new Map<string, string>();
+
+  for (const member of unit) {
+    const closure = new Set<string>();
+    const pending = [member.name];
+
+    while (pending.length > 0) {
+      const name = pending.pop() as string;
+
+      if (closure.has(name)) {
+        continue;
+      }
+
+      closure.add(name);
+      pending.push(...(adjacency.get(name) ?? []));
+    }
+
+    const hash = createHash('sha1');
+
+    for (const name of [...closure].sort()) {
+      hash
+        .update(name)
+        .update('\u0000')
+        .update(texts.get(name) as string);
+      hash.update('\u0001');
+    }
+
+    keys.set(member.name, hash.digest('hex'));
+  }
+
+  return keys;
+}
+
+/**
  * Whether `identifier` sits in a position a rename may touch: either it NAMES
  * a top-level declaration this set controls, or it REFERS to one.
  *
@@ -102,85 +209,6 @@ export function splitDeclarations(source: string): Declaration[] {
  * match, so a dotted reference is correctly left alone — none of the emitter's
  * own declarations are namespaced.
  */
-/**
- * The names `text` references that belong to `candidates`.
- *
- * The same AST walk {@link renameReferences} edits by, asking which of a
- * unit's own members a declaration mentions rather than rewriting them.
- */
-function referencedNames(
-  text: string,
-  candidates: ReadonlySet<string>,
-): string[] {
-  const source = ts.createSourceFile(
-    'declaration.d.ts',
-    text,
-    ts.ScriptTarget.Latest,
-    /* setParentNodes */ true,
-    ts.ScriptKind.TS,
-  );
-
-  const found = new Set<string>();
-
-  const visit = (node: ts.Node): void => {
-    if (
-      ts.isIdentifier(node) &&
-      isRenameablePosition(node) &&
-      candidates.has(node.text)
-    ) {
-      found.add(node.text);
-    }
-
-    ts.forEachChild(node, visit);
-  };
-
-  ts.forEachChild(source, visit);
-
-  return [...found];
-}
-
-/**
- * What makes one declaration the same *variant* as another: its own text plus
- * the text of everything it transitively references inside its unit.
- *
- * The raw text alone is not enough, because a declaration's references are
- * resolved per unit. Two sources declaring `User = { address: Address }`
- * byte-identically are the same text and **not** the same type when their
- * `Address` differs — reusing the first source's alias for the second gave the
- * second source a committed type describing the first source's API, with its
- * own renamed `Address_2` emitted and never referenced. `checkSurface` stayed
- * clean because the surface was internally consistent; it was just wrong.
- */
-function variantKey(
-  declaration: Declaration,
-  unit: readonly Declaration[],
-): string {
-  const texts = new Map(unit.map((member) => [member.name, member.text]));
-  const names = new Set(texts.keys());
-  const closure = new Map<string, string>();
-
-  const walk = (name: string): void => {
-    const text = texts.get(name);
-
-    if (text === undefined || closure.has(name)) {
-      return;
-    }
-
-    closure.set(name, text);
-
-    for (const reference of referencedNames(text, names)) {
-      walk(reference);
-    }
-  };
-
-  walk(declaration.name);
-
-  return [...closure]
-    .sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))
-    .map(([name, text]) => `${name}\u0000${text}`)
-    .join('\u0001');
-}
-
 function isRenameablePosition(identifier: ts.Identifier): boolean {
   const parent = identifier.parent as ts.Node | undefined;
 
@@ -303,6 +331,12 @@ export class DeclarationSet {
    * branch already gives for free.
    */
   private readonly resolved = new Map<string, Map<string, string>>();
+  /**
+   * The renameable identifiers of every declaration text this set has seen,
+   * so a component that recurs in forty units — the demo description's
+   * shape — is parsed once, not forty times.
+   */
+  private readonly identifiersByText = new Map<string, readonly string[]>();
 
   /**
    * @param reserved the fixed root names {@link NameRegistry} mints around
@@ -380,12 +414,7 @@ export class DeclarationSet {
     // One key per member, computed before anything is committed: a variant is
     // the declaration *and its references' contents*, so the key cannot be
     // derived after a rename has already been chosen.
-    const keys = new Map(
-      unit.map((declaration) => [
-        declaration.name,
-        variantKey(declaration, unit),
-      ]),
-    );
+    const keys = variantKeys(unit, (text) => this.identifiersOf(text));
 
     if (!conflicts) {
       for (const declaration of unit) {
@@ -438,6 +467,17 @@ export class DeclarationSet {
     return [...this.byName.keys()].sort().map((name) => {
       return this.byName.get(name) as string;
     });
+  }
+
+  private identifiersOf(text: string): readonly string[] {
+    let identifiers = this.identifiersByText.get(text);
+
+    if (identifiers === undefined) {
+      identifiers = renameableIdentifiers(text);
+      this.identifiersByText.set(text, identifiers);
+    }
+
+    return identifiers;
   }
 
   private freeName(candidate: string): string {
