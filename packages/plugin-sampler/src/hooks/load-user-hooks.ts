@@ -1,5 +1,6 @@
 import type { Dirent } from 'node:fs';
-import { readdir } from 'node:fs/promises';
+import { readdir, realpath } from 'node:fs/promises';
+import { createRequire } from 'node:module';
 import { dirname, join, relative } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -89,10 +90,11 @@ export type CollectedRegistration = {
    * Position in the whole scan: file order on the outside, registration order
    * inside each file.
    *
-   * The registration's own `order` cannot serve: the hooks runtime is
-   * re-evaluated per file, so its counter restarts. This is the one number that
-   * orders every hook in the run against every other, which is what run-scoped
-   * teardown needs to reverse.
+   * The registration's own `order` cannot serve: it is stamped when the hook
+   * is created, and a hook created in a shared module is created when the
+   * first file that imports it is evaluated, not when the file that exports
+   * it is. This is the one number that orders every hook in the run against
+   * every other, which is what run-scoped teardown needs to reverse.
    */
   sequence: number;
 };
@@ -234,33 +236,6 @@ function compareKeys(a: string, b: string): number {
  * `default`. Nothing here calls a value to find out what it is: functions are
  * rejected structurally by {@link isHookRegistration}.
  */
-/**
- * What a registration IS, independent of which module evaluation produced it.
- *
- * Two copies of one source hook — the same `beforeEach` call reached through
- * two importing files — are different objects with the same kind, the same
- * target and the same callback source, so this is what makes them one hook
- * again. Two genuinely distinct hooks that agree on all three are
- * indistinguishable by any means, so treating them as one costs nothing.
- *
- * A target that cannot be serialised (a filter object holding a cycle, which
- * the renderer also has to survive) drops out of the shape rather than failing
- * the scan: a coarser shape can only ever merge two hooks, and merging errs
- * towards saying nothing.
- */
-function hookShape(registration: HookRegistration): string {
-  const target = 'target' in registration ? registration.target : undefined;
-  let targetKey: string;
-
-  try {
-    targetKey = JSON.stringify(target) ?? 'undefined';
-  } catch {
-    targetKey = '[unserialisable]';
-  }
-
-  return `${registration.kind}\u0000${targetKey}\u0000${String(registration.callback)}`;
-}
-
 function collectFromNamespace(
   namespace: unknown,
   file: string,
@@ -312,6 +287,40 @@ function collectFromNamespace(
   return collected;
 }
 
+/**
+ * jiti's module cache is Node's own `require.cache`, which is one object per
+ * process, so the loader can read it through any `require`.
+ */
+function moduleCache(): NodeJS.Dict<NodeJS.Module> {
+  return createRequire(import.meta.url).cache;
+}
+
+/**
+ * Forget every module one scan evaluated, so the next scan evaluates the
+ * files as they are then.
+ *
+ * The module cache is on for the scan's sake, not the process's: a hook file
+ * may be edited between two scans of one long-lived process — `thymian serve`
+ * dispatching `validate` after every save — and so may a module a hook file
+ * imports. Evicting exactly what the scan added, rather than what lies under
+ * the hooks directory, is what covers that second case, and it keeps the
+ * cache from growing by one scan's worth of entries per call. A registration
+ * already collected is unaffected: it is held by reference, and the cache
+ * entry was only ever the way to reach it.
+ */
+function evictScannedModules(cachedBefore: ReadonlySet<string>): void {
+  const cache = moduleCache();
+
+  for (const id of Object.keys(cache)) {
+    // An installed package is not edited between scans, and jiti's own
+    // transformer is among them: evicting it would re-load the transpiler
+    // on every scan for nothing.
+    if (!cachedBefore.has(id) && !id.includes('/node_modules/')) {
+      delete cache[id];
+    }
+  }
+}
+
 function emptyTransactionHooks(): MutableTransactionHooks {
   return {
     defineSample: [],
@@ -356,11 +365,17 @@ export async function loadUserHooks(
     };
   }
 
+  // The REAL path, because the module cache is keyed by what jiti resolves an
+  // import to, and jiti resolves through symlinks. Handed a path with a
+  // symlink in it — macOS's `/var` is one onto `/private/var` — the file the
+  // scan imports and the same file reached through `./shared.js` were two
+  // cache entries, evaluated twice, and the re-export was two objects again.
+  const root = await realpath(hooksDir);
   const found: string[] = [];
-  await walkHookDirectory(hooksDir, hooksDir, true, found, warnings);
+  await walkHookDirectory(root, root, true, found, warnings);
 
   const files = found
-    .map((full) => ({ full, key: hooksDirRelative(hooksDir, full) }))
+    .map((full) => ({ full, key: hooksDirRelative(root, full) }))
     .sort((a, b) => compareKeys(a.key, b.key));
 
   const jiti = createJiti(hooksRuntimeModule, {
@@ -369,7 +384,15 @@ export async function loadUserHooks(
     // run is short-lived: nothing is gained by caching its transpilation, and a
     // stale entry would be served silently.
     fsCache: false,
-    moduleCache: false,
+    // Cached for the span of ONE scan — see `evictScannedModules`. With the
+    // cache off, a module two hook files import was evaluated once per
+    // importer, so a re-exported hook was a different object per exporting
+    // file: bound twice, and a re-exported `defineSample` a conflict with
+    // itself. A re-export is the same binding in ESM; caching for the scan
+    // makes it the same object here too, which is what lets `collected` be
+    // deduplicated by identity below without touching the conflict check
+    // — two genuinely distinct hooks remain two objects.
+    moduleCache: true,
   });
 
   const collected: CollectedRegistration[] = [];
@@ -380,56 +403,64 @@ export async function loadUserHooks(
     file: string;
     created: readonly HookRegistration[];
   }> = [];
-  const exportedShapes = new Set<string>();
+  const exported = new Set<HookRegistration>();
+  const cachedBefore = new Set(Object.keys(moduleCache()));
 
   created.length = 0;
 
-  for (const { full, key } of files) {
-    const createdBefore = created.length;
-    let namespace: unknown;
+  try {
+    for (const { full, key } of files) {
+      const createdBefore = created.length;
+      let namespace: unknown;
 
-    try {
-      namespace = await jiti.import(full);
-    } catch (error) {
-      throw hookFileImportError(key, error);
+      try {
+        namespace = await jiti.import(full);
+      } catch (error) {
+        throw hookFileImportError(key, error);
+      }
+
+      // Registration order **within the file**, not export order: an ESM
+      // namespace exposes its keys sorted, so `order` is the only thing that
+      // knows which hook the file created first.
+      //
+      // Sorted per file rather than once at the end: `order` is stamped by the
+      // hooks runtime at creation, and a hook created in a shared module is
+      // created when the FIRST importer is evaluated, so a global sort by
+      // `order` would interleave the files. File order is the outer key and
+      // it is already deterministic; `order` only has to sequence what one
+      // file exports.
+      const fromFile = collectFromNamespace(namespace, key, dirname(full)).sort(
+        (a, b) => a.registration.order - b.registration.order,
+      );
+
+      createdPerFile.push({ file: key, created: created.slice(createdBefore) });
+
+      for (const entry of fromFile) {
+        // One hook, however many files re-export it. The first exporting file
+        // in load order is the one it is attributed to.
+        if (exported.has(entry.registration)) {
+          continue;
+        }
+
+        exported.add(entry.registration);
+        collected.push(entry);
+      }
     }
-
-    // Registration order **within the file**, not export order: an ESM
-    // namespace exposes its keys sorted, so `order` is the only thing that
-    // knows which hook the file created first.
-    //
-    // Sorting per file rather than once at the end is what makes the order
-    // whole. `order` is stamped by the hooks runtime, and that runtime is
-    // re-evaluated per file because the module cache is off — so the counter
-    // restarts, and a global sort by `order` interleaved the files. File order
-    // is the outer key and it is already deterministic; `order` only has to
-    // sequence what one file registered.
-    const fromFile = collectFromNamespace(namespace, key, dirname(full)).sort(
-      (a, b) => a.registration.order - b.registration.order,
-    );
-
-    createdPerFile.push({ file: key, created: created.slice(createdBefore) });
-
-    for (const entry of fromFile) {
-      exportedShapes.add(hookShape(entry.registration));
-    }
-
-    collected.push(...fromFile);
+  } finally {
+    evictScannedModules(cachedBefore);
   }
 
   // A hook created and never exported is unreachable: discovery is
   // export-based, so it never fires, and a hook that never fires looks exactly
   // like one with nothing to do. It was the only failure here that was silent.
   //
-  // Compared by SHAPE, not by identity, and only once every file has been
-  // scanned. `moduleCache: false` re-evaluates an imported module for each
-  // importing file, so one source hook in a shared module becomes a different
-  // object per file — and accusing the file that imported it without
-  // re-exporting would fail a run over a hook that another file exports and
-  // that does fire.
+  // Checked only once every file has been scanned, because a hook created in a
+  // shared module is created when the first file that IMPORTS it is evaluated
+  // — accusing that file would fail a run over a hook that another file
+  // exports and that does fire.
   for (const { file, created: createdHere } of createdPerFile) {
     for (const registration of createdHere) {
-      if (exportedShapes.has(hookShape(registration))) {
+      if (exported.has(registration)) {
         continue;
       }
 

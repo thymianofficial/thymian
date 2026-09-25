@@ -107,9 +107,9 @@ export async function validateSampler(
    * The hooks the `core.format` handler already loaded.
    *
    * Passed through rather than re-loaded: `loadUserHooks` evaluates every hook
-   * file, and with `moduleCache: false` that is a fresh evaluation of each file
-   * *and everything it imports*. Loading twice per `validate` ran the user's
-   * module side effects twice for no new information. Optional so a caller with
+   * file *and everything it imports* afresh per scan. Loading twice per
+   * `validate` ran the user's module side effects twice for no new
+   * information. Optional so a caller with
    * no loaded result — a test, a future command — still gets a correct report.
    */
   loaded?: LoadUserHooksResult,

@@ -21,12 +21,12 @@ export class UndeclaredResponseError extends Error {
   /**
    * `instanceof` by **shape**, not by identity.
    *
-   * The hooks runtime is loaded through jiti with `moduleCache: false`, so a
-   * hook file that imports `@thymian/hooks` gets its own evaluation of this
-   * module — and its own class object. Identity comparison would then be false
-   * for the very error the runner threw, which makes the one documented way to
-   * react to an off-spec response silently never fire. The loader compares
-   * registrations by shape for the same reason.
+   * The hooks runtime is loaded through jiti, in its own module registry, so a
+   * hook file that imports `@thymian/hooks` gets a different evaluation of
+   * this module than the runner's — and its own class object. Identity
+   * comparison would then be false for the very error the runner threw, which
+   * makes the one documented way to react to an off-spec response silently
+   * never fire.
    */
   static override [Symbol.hasInstance](value: unknown): boolean {
     return (
