@@ -428,11 +428,11 @@ export const typo = beforeEach('${READ}', async (request, ctx, utils) => {
 
       expect(redirect).toMatchObject({
         outcome: 'skipped',
-        reason: '3xx/5xx responses are not checkable',
+        reason: 'only 2xx and 4xx responses are checkable',
       });
       expect(serverError).toMatchObject({
         outcome: 'skipped',
-        reason: '3xx/5xx responses are not checkable',
+        reason: 'only 2xx and 4xx responses are checkable',
       });
       expect(listed?.outcome).toBe('passed');
       expect(report.summary).toMatchObject({
@@ -445,7 +445,7 @@ export const typo = beforeEach('${READ}', async (request, ctx, utils) => {
       const humanResult = await check(getTempDir(), port, false);
 
       expect(humanResult.output).toContain(
-        '3xx/5xx responses are not checkable',
+        'only 2xx and 4xx responses are checkable',
       );
       expect(humanResult.output).toContain('Checked 3 transactions:');
       expect(humanResult.exitCode).not.toBe(0);

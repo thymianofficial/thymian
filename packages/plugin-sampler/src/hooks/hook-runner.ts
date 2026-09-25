@@ -79,18 +79,16 @@ export class HookRunner {
   private readonly runScoped: RunScopedHooks;
 
   /**
-   * The origin the run is actually talking to, captured once from the very
-   * first request — a `--target-url` override or a configured target, same as
-   * the server the description names when neither is set. "Before the run" has
-   * no meaning until something decides when the run starts, and the sampler's
+   * The origin this run is actually talking to — a `--target-url` override or
+   * a configured target, same as the server the description names when
+   * neither is set — so a run-scoped hook's seed goes where the run goes
+   * rather than where the description points.
+   *
+   * Captured once, from the very first request. "Before the run" has no
+   * meaning until something decides when the run starts, and the sampler's
    * first observation of a run is its first request, so this is captured in
    * lockstep with {@link RunScopedHooks.start}'s latch, in
    * {@link beforeEachRequest}.
-   */
-  /**
-   * The origin this run is actually talking to, learned from its first
-   * request, so a run-scoped hook's seed goes where the run goes rather than
-   * where the description points.
    *
    * **One origin per run**, which is a simplification the CLI does not
    * currently expose: a format assembled from several descriptions may name

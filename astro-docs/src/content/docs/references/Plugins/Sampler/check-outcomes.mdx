@@ -28,10 +28,11 @@ report. A Transaction whose precondition never happened has told you nothing
 about the API, and rendering it as a failure turns one upstream problem into a
 wall of unrelated red.
 
-A declared 3xx or 5xx Transaction is also `skipped`, with the reason
-"3xx/5xx responses are not checkable": there is nothing to assert against a
-redirect target the description does not name, and a 5xx is the server's own
-failure mode, not a claim about the API. It is still a declared Transaction,
+A declared Transaction outside the 2xx and 4xx classes is also `skipped`, with
+the reason "only 2xx and 4xx responses are checkable": there is nothing to
+assert against a redirect target the description does not name, a 5xx is the
+server's own failure mode, not a claim about the API, and a 1xx is an interim
+response no request template can be shaped to provoke. It is still a declared Transaction,
 so it still counts — in the human list, the `--json` document and the
 totals — the same as any other Transaction the run could not execute.
 
